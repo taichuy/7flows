@@ -1,0 +1,14 @@
+boto3<2,>=1.35.0
+celery<6,>=5.4.0
+fastapi<1,>=0.115.0
+httpx<1,>=0.28.0
+pydantic-settings<3,>=2.6.0
+psycopg[binary]<4,>=3.2.0
+redis<6,>=5.2.0
+sqlalchemy<3,>=2.0.36
+uvicorn[standard]<1,>=0.32.0
+
+[dev]
+pytest<9,>=8.3.0
+pytest-asyncio<1,>=0.24.0
+ruff<1,>=0.8.0

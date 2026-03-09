@@ -1,0 +1,32 @@
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+
+from app.api.routes.health import router as health_router
+from app.api.routes.system import router as system_router
+from app.api.routes.workflows import router as workflow_router
+from app.core.config import get_settings
+from app.core.database import initialize_database
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    initialize_database()
+    yield
+
+
+def create_app() -> FastAPI:
+    settings = get_settings()
+    application = FastAPI(
+        title=settings.app_name,
+        debug=settings.debug,
+        version="0.1.0",
+        lifespan=lifespan,
+    )
+    application.include_router(health_router)
+    application.include_router(system_router, prefix="/api")
+    application.include_router(workflow_router, prefix="/api")
+    return application
+
+
+app = create_app()

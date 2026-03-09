@@ -1,0 +1,15 @@
+app:
+  port: 8194
+  debug: true
+  key: sevenflows-sandbox
+max_workers: 4
+max_requests: 50
+worker_timeout: 20
+python_path: /usr/local/bin/python3
+nodejs_path: /usr/local/bin/node
+enable_network: true
+allowed_syscalls:
+proxy:
+  socks5: ""
+  http: ""
+  https: ""

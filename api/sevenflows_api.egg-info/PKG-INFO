@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: sevenflows-api
+Version: 0.1.0
+Summary: 7Flows orchestration API and worker runtime.
+Requires-Python: <3.13,>=3.11
+Requires-Dist: boto3<2,>=1.35.0
+Requires-Dist: celery<6,>=5.4.0
+Requires-Dist: fastapi<1,>=0.115.0
+Requires-Dist: httpx<1,>=0.28.0
+Requires-Dist: pydantic-settings<3,>=2.6.0
+Requires-Dist: psycopg[binary]<4,>=3.2.0
+Requires-Dist: redis<6,>=5.2.0
+Requires-Dist: sqlalchemy<3,>=2.0.36
+Requires-Dist: uvicorn[standard]<1,>=0.32.0
+Provides-Extra: dev
+Requires-Dist: pytest<9,>=8.3.0; extra == "dev"
+Requires-Dist: pytest-asyncio<1,>=0.24.0; extra == "dev"
+Requires-Dist: ruff<1,>=0.8.0; extra == "dev"

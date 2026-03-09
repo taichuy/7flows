@@ -137,4 +137,5 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-docs/
+api/.venv/
+docker/volumes/
