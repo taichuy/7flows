@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.routes.health import router as health_router
+from app.api.routes.runs import router as run_router
 from app.api.routes.system import router as system_router
 from app.api.routes.workflows import router as workflow_router
 from app.core.config import get_settings
@@ -26,6 +27,7 @@ def create_app() -> FastAPI:
     application.include_router(health_router)
     application.include_router(system_router, prefix="/api")
     application.include_router(workflow_router, prefix="/api")
+    application.include_router(run_router, prefix="/api")
     return application
 
 

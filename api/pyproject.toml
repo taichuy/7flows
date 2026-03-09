@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "7Flows orchestration API and worker runtime."
 requires-python = ">=3.11,<3.13"
 dependencies = [
+  "alembic>=1.14.0,<2",
   "boto3>=1.35.0,<2",
   "celery>=5.4.0,<6",
   "fastapi>=0.115.0,<1",

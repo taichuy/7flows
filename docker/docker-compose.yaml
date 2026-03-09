@@ -113,6 +113,7 @@ services:
       SEVENFLOWS_ENV: docker
       SEVENFLOWS_HOST: 0.0.0.0
       SEVENFLOWS_PORT: 8000
+      SEVENFLOWS_MIGRATION_ENABLED: true
     depends_on:
       db:
         condition: service_healthy
@@ -130,6 +131,8 @@ services:
     restart: always
     env_file:
       - ./.env
+    environment:
+      SEVENFLOWS_MIGRATION_ENABLED: false
     command: uv run celery -A app.core.celery_app.celery_app worker --loglevel INFO --pool solo
     depends_on:
       db:

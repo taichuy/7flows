@@ -11,3 +11,7 @@ class WorkflowListItem(BaseModel):
     name: str
     version: str
     status: str
+
+
+class WorkflowDetail(WorkflowListItem):
+    definition: dict

@@ -18,20 +18,21 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     secret_key: str = "change-me"
+    migration_enabled: bool = False
 
     database_url: str = Field(
-        default="postgresql+psycopg://postgres:sevenflows@localhost:5432/sevenflows"
+        default="postgresql+psycopg://postgres:sevenflows@localhost:35432/sevenflows"
     )
-    redis_url: str = Field(default="redis://:sevenflows@localhost:6379/0")
+    redis_url: str = Field(default="redis://:sevenflows@localhost:36379/0")
 
-    s3_endpoint: str = "http://localhost:9000"
-    s3_access_key: str = "minioadmin"
-    s3_secret_key: str = "minioadmin123"
+    s3_endpoint: str = "http://localhost:39000"
+    s3_access_key: str = "rustfsadmin"
+    s3_secret_key: str = "rustfsadmin"
     s3_bucket: str = "sevenflows-local"
     s3_region: str = "us-east-1"
     s3_use_ssl: bool = False
 
-    sandbox_url: str = "http://localhost:8194"
+    sandbox_url: str = "http://localhost:38194"
     sandbox_api_key: str = "sevenflows-sandbox"
 
 

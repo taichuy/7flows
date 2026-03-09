@@ -59,6 +59,7 @@ def system_overview() -> SystemOverview:
         capabilities=[
             "workflow-crud-skeleton",
             "runtime-worker-skeleton",
+            "runtime-run-tracking",
             "sandbox-ready",
             "plugin-adapter-placeholder",
         ],

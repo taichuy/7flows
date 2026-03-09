@@ -23,3 +23,5 @@ docker compose -f .\docker-compose.middleware.yaml up -d
 Copy-Item .\.env.example .\.env
 docker compose up -d --build
 ```
+
+整套容器模式下，`api` 启动前会自动执行数据库迁移。

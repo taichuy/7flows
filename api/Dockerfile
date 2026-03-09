@@ -14,9 +14,14 @@ RUN pip install --no-cache-dir uv
 COPY pyproject.toml ./
 COPY uv.lock ./
 COPY app ./app
+COPY migrations ./migrations
+COPY alembic.ini ./
+COPY docker/entrypoint.sh /entrypoint.sh
 
 RUN uv sync --frozen
+RUN chmod +x /entrypoint.sh
 
 EXPOSE 8000
 
+ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
 CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

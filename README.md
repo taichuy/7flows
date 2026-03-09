@@ -52,6 +52,7 @@ docker compose -f docker-compose.middleware.yaml up -d
 cd api
 Copy-Item .env.example .env
 uv sync --extra dev
+uv run alembic upgrade head
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
@@ -87,6 +88,8 @@ docker compose up -d --build
 
 这会启动 `web`、`api`、`worker` 以及依赖中间件。
 
+全容器模式下，`api` 容器会在启动前自动执行 `uv run alembic upgrade head`。
+
 ## 与 Dify 的对齐点
 
 - 目录拆分方式与 Dify 接近，方便后续继续借鉴其源码结构
@@ -94,6 +97,7 @@ docker compose up -d --build
 - 同时提供“一把梭全容器启动”的补充方案
 - 后端预留了运行时、插件代理、沙盒与发布网关的扩展位
 - 后端包管理统一为 `uv`，前端包管理统一为 `pnpm`
+- 数据库主链路切换为 Alembic 迁移，不再依赖 `create_all`
 
 ## 下一步建议
 

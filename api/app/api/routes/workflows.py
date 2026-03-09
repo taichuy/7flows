@@ -1,12 +1,12 @@
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.models.workflow import Workflow
-from app.schemas.workflow import WorkflowCreate, WorkflowListItem
+from app.schemas.workflow import WorkflowCreate, WorkflowDetail, WorkflowListItem
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 
@@ -42,4 +42,18 @@ def create_workflow(payload: WorkflowCreate, db: Session = Depends(get_db)) -> W
         name=workflow.name,
         version=workflow.version,
         status=workflow.status,
+    )
+
+
+@router.get("/{workflow_id}", response_model=WorkflowDetail)
+def get_workflow(workflow_id: str, db: Session = Depends(get_db)) -> WorkflowDetail:
+    workflow = db.get(Workflow, workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
+    return WorkflowDetail(
+        id=workflow.id,
+        name=workflow.name,
+        version=workflow.version,
+        status=workflow.status,
+        definition=workflow.definition,
     )

@@ -1,12 +1,9 @@
-import logging
 from collections.abc import Generator
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.core.config import get_settings
-
-logger = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -19,12 +16,12 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
 def initialize_database() -> None:
-    from app.models import workflow  # noqa: F401
+    """Reserved for future startup hooks.
 
-    try:
-        Base.metadata.create_all(bind=engine)
-    except Exception as exc:
-        logger.warning("Database initialization skipped: %s", exc)
+    Schema creation and upgrades are handled by Alembic, so application startup
+    should stay lightweight and should not block on migration-like behavior.
+    """
+    return None
 
 
 def get_db() -> Generator[Session, None, None]:
