@@ -4,14 +4,12 @@
 
 ```powershell
 Copy-Item .env.example .env
-py -m venv .venv
-.venv\Scripts\Activate.ps1
-py -m pip install -e .[dev]
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv sync --extra dev
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ## Worker
 
 ```powershell
-celery -A app.core.celery_app.celery_app worker --loglevel INFO --pool solo
+uv run celery -A app.core.celery_app.celery_app worker --loglevel INFO --pool solo
 ```

@@ -26,6 +26,9 @@ dev = [
   "ruff>=0.8.0,<1",
 ]
 
+[tool.uv]
+default-groups = []
+
 [tool.setuptools.packages.find]
 include = ["app*"]
 

@@ -33,37 +33,38 @@ docker compose -f docker-compose.middleware.yaml up -d
 
 - PostgreSQL
 - Redis
-- MinIO
+- RustFS
 - Sandbox
 
 默认对外端口已经避开常见本机占用：
 
 - PostgreSQL: `35432`
 - Redis: `36379`
-- MinIO API: `39000`
-- MinIO Console: `39001`
+- RustFS API: `39000`
+- RustFS Console: `39001`
 - Sandbox: `38194`
 
 ### 2. 启动后端
 
+先确保本机已安装 `uv`。
+
 ```powershell
 cd api
 Copy-Item .env.example .env
-py -m venv .venv
-.venv\Scripts\Activate.ps1
-py -m pip install -e .[dev]
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv sync --extra dev
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### 3. 启动 Worker
 
 ```powershell
 cd api
-.venv\Scripts\Activate.ps1
-celery -A app.core.celery_app.celery_app worker --loglevel INFO --pool solo
+uv run celery -A app.core.celery_app.celery_app worker --loglevel INFO --pool solo
 ```
 
 ### 4. 启动前端
+
+先确保本机已安装 `pnpm`。
 
 ```powershell
 cd web
@@ -92,6 +93,7 @@ docker compose up -d --build
 - 保留“Docker 仅启动依赖，中间件 + 本地源码开发”的流畅路径
 - 同时提供“一把梭全容器启动”的补充方案
 - 后端预留了运行时、插件代理、沙盒与发布网关的扩展位
+- 后端包管理统一为 `uv`，前端包管理统一为 `pnpm`
 
 ## 下一步建议
 
