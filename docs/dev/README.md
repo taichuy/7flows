@@ -6,6 +6,8 @@
 
 - `runtime-foundation.md`
   说明当前已经落地的数据库迁移、运行态模型、最小工作流执行链路，以及 Docker / 本地开发如何使用。
+- `2026-03-10-workflow-editor-minimal-skeleton.md`
+  记录最小 `xyflow` workflow 编辑器骨架的目标、实现边界、验证结果和后续演进顺序。
 - `user-preferences.md`
   记录开发过程中确认的长期有效用户偏好，供后续实现、文档维护和 skill 优化复用。
 

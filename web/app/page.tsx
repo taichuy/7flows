@@ -100,6 +100,42 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         />
       </section>
 
+      <section className="diagnostics-layout">
+        <article className="diagnostic-panel panel-span">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Editor</p>
+              <h2>Workflow canvas entry</h2>
+            </div>
+            <p className="section-copy">
+              最小 `xyflow` 编辑器已经接上 workflow definition，可直接进入画布编辑节点、
+              连线和基础 metadata，再保存回后端版本链路。
+            </p>
+          </div>
+
+          {workflows.length === 0 ? (
+            <p className="empty-state">
+              当前还没有可编辑的 workflow，请先通过 API 创建草稿后再进入画布。
+            </p>
+          ) : (
+            <div className="workflow-chip-row">
+              {workflows.map((workflow) => (
+                <Link
+                  className="workflow-chip"
+                  href={`/workflows/${encodeURIComponent(workflow.id)}`}
+                  key={`editor-${workflow.id}`}
+                >
+                  <span>{workflow.name}</span>
+                  <small>
+                    {workflow.version} · {workflow.status}
+                  </small>
+                </Link>
+              ))}
+            </div>
+          )}
+        </article>
+      </section>
+
       <section className="diagnostics-layout runtime-layout">
         <article className="diagnostic-panel">
           <div className="section-heading">

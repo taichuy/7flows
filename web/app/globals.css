@@ -789,6 +789,163 @@ a {
   line-height: 1.9;
 }
 
+.editor-shell {
+  position: relative;
+  z-index: 1;
+  width: min(100% - 24px, 1480px);
+  margin: 0 auto;
+  padding: 28px 0 48px;
+}
+
+.editor-hero {
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
+}
+
+.editor-workspace {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr) minmax(320px, 380px);
+  margin-top: 18px;
+  align-items: start;
+}
+
+.editor-sidebar,
+.editor-inspector {
+  display: grid;
+  gap: 18px;
+}
+
+.editor-panel {
+  padding: 20px;
+}
+
+.editor-canvas-panel {
+  min-width: 0;
+}
+
+.editor-canvas-card {
+  overflow: hidden;
+  min-height: 820px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background:
+    radial-gradient(circle at top, rgba(208, 99, 45, 0.12), transparent 36%),
+    linear-gradient(180deg, rgba(255, 252, 246, 0.92), rgba(244, 239, 231, 0.94));
+  box-shadow: var(--shadow);
+}
+
+.editor-canvas {
+  min-height: 820px;
+}
+
+.editor-canvas .react-flow__attribution {
+  display: none;
+}
+
+.editor-canvas .react-flow__controls,
+.editor-canvas .react-flow__minimap {
+  border-radius: 18px;
+  border: 1px solid rgba(28, 25, 21, 0.12);
+  box-shadow: 0 10px 32px rgba(28, 25, 21, 0.08);
+}
+
+.workflow-canvas-node {
+  min-width: 170px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(28, 25, 21, 0.12);
+  background: rgba(255, 252, 246, 0.92);
+  box-shadow: 0 18px 40px rgba(28, 25, 21, 0.1);
+}
+
+.workflow-canvas-node.selected {
+  border-color: color-mix(in srgb, var(--node-accent) 68%, white);
+  box-shadow: 0 18px 48px color-mix(in srgb, var(--node-accent) 24%, transparent);
+}
+
+.workflow-canvas-node-label {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.workflow-canvas-node-type {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.workflow-canvas-node .react-flow__handle {
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff8ef;
+  background: var(--node-accent);
+}
+
+.editor-palette {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.editor-node-add,
+.editor-danger-button {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  border-radius: 18px;
+  padding: 14px 16px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.editor-node-add {
+  border: 1px solid rgba(28, 25, 21, 0.08);
+  background: rgba(255, 252, 246, 0.78);
+}
+
+.editor-node-add strong {
+  font-size: 0.98rem;
+}
+
+.editor-node-add span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.editor-danger-button {
+  border: 1px solid rgba(161, 58, 50, 0.18);
+  background: rgba(161, 58, 50, 0.08);
+  color: var(--down);
+}
+
+.editor-json-area {
+  min-height: 180px;
+  width: 100%;
+  resize: vertical;
+  border: 1px solid rgba(28, 25, 21, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 252, 246, 0.94);
+  padding: 12px 14px;
+  color: var(--ink);
+  font:
+    0.88rem/1.6 "Cascadia Code",
+    "Consolas",
+    monospace;
+}
+
+.compact-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.compact-list {
+  padding-left: 18px;
+}
+
 @media (max-width: 860px) {
   .shell {
     width: min(100% - 24px, 1180px);
@@ -817,7 +974,13 @@ a {
   .detail-grid,
   .tool-detail-grid,
   .binding-workbench,
-  .trace-filter-form {
+  .trace-filter-form,
+  .editor-workspace {
     grid-template-columns: 1fr;
+  }
+
+  .editor-canvas-card,
+  .editor-canvas {
+    min-height: 62vh;
   }
 }

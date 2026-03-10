@@ -13,6 +13,9 @@ export type WorkflowNodeItem = {
   name: string;
   config?: Record<string, unknown>;
   runtimePolicy?: Record<string, unknown>;
+  inputSchema?: Record<string, unknown> | null;
+  outputSchema?: Record<string, unknown> | null;
+  [key: string]: unknown;
 };
 
 export type WorkflowEdgeItem = {
@@ -21,6 +24,9 @@ export type WorkflowEdgeItem = {
   targetNodeId: string;
   channel?: string;
   condition?: string | null;
+  conditionExpression?: string | null;
+  mapping?: Array<Record<string, unknown>> | null;
+  [key: string]: unknown;
 };
 
 export type WorkflowDetail = WorkflowListItem & {
