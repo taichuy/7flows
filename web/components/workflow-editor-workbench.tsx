@@ -32,10 +32,13 @@ import {
   type WorkflowCanvasEdgeData,
   type WorkflowCanvasNodeData
 } from "@/lib/workflow-editor";
+import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import { WorkflowEditorInspector } from "@/components/workflow-editor-inspector";
 
 type WorkflowEditorWorkbenchProps = {
   workflow: WorkflowDetail;
   workflows: WorkflowListItem[];
+  tools: PluginToolRegistryItem[];
 };
 
 const nodeTypes = {
@@ -44,7 +47,8 @@ const nodeTypes = {
 
 export function WorkflowEditorWorkbench({
   workflow,
-  workflows
+  workflows,
+  tools
 }: WorkflowEditorWorkbenchProps) {
   const initialGraph = workflowDefinitionToReactFlow(workflow.definition);
   const [workflowName, setWorkflowName] = useState(workflow.name);
@@ -149,6 +153,28 @@ export function WorkflowEditorWorkbench({
           : node
       )
     );
+  };
+
+  const handleSelectedNodeConfigChange = (nextConfig: Record<string, unknown>) => {
+    if (!selectedNodeId) {
+      return;
+    }
+
+    setNodes((currentNodes) =>
+      currentNodes.map((node) =>
+        node.id === selectedNodeId
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                config: nextConfig
+              }
+            }
+          : node
+      )
+    );
+    setMessage(null);
+    setMessageTone("idle");
   };
 
   const applyNodeConfigJson = () => {
@@ -367,6 +393,7 @@ export function WorkflowEditorWorkbench({
               <span className="pill">version {workflowVersion}</span>
               <span className="pill">{nodes.length} nodes</span>
               <span className="pill">{edges.length} edges</span>
+              <span className="pill">{tools.length} catalog tools</span>
             </div>
             <div className="hero-actions">
               <Link className="inline-link" href="/">
@@ -511,145 +538,21 @@ export function WorkflowEditorWorkbench({
           </section>
 
           <aside className="editor-inspector">
-            <article className="diagnostic-panel editor-panel">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">Inspector</p>
-                  <h2>Selection details</h2>
-                </div>
-              </div>
-
-              {selectedNode ? (
-                <div className="binding-form">
-                  <div className="tool-badge-row">
-                    <span className="event-chip">{selectedNode.data.nodeType}</span>
-                    <span className="event-chip">node {selectedNode.id}</span>
-                  </div>
-
-                  <label className="binding-field">
-                    <span className="binding-label">Node name</span>
-                    <input
-                      className="trace-text-input"
-                      value={selectedNode.data.label}
-                      onChange={(event) => handleNodeNameChange(event.target.value)}
-                    />
-                  </label>
-
-                  <label className="binding-field">
-                    <span className="binding-label">Node config JSON</span>
-                    <textarea
-                      className="editor-json-area"
-                      value={nodeConfigText}
-                      onChange={(event) => setNodeConfigText(event.target.value)}
-                    />
-                  </label>
-
-                  <button className="sync-button" type="button" onClick={applyNodeConfigJson}>
-                    应用 config JSON
-                  </button>
-
-                  <label className="binding-field">
-                    <span className="binding-label">Runtime policy JSON</span>
-                    <textarea
-                      key={`${selectedNode.id}-runtime-policy`}
-                      className="editor-json-area"
-                      defaultValue={stringifyJson(selectedNode.data.runtimePolicy ?? {})}
-                      onBlur={(event) => handleNodeRuntimePolicyChange(event.target.value)}
-                    />
-                  </label>
-
-                  <button
-                    className="editor-danger-button"
-                    type="button"
-                    onClick={handleDeleteSelectedNode}
-                  >
-                    删除所选节点
-                  </button>
-                </div>
-              ) : selectedEdge ? (
-                <div className="binding-form">
-                  <div className="tool-badge-row">
-                    <span className="event-chip">edge {selectedEdge.id}</span>
-                    <span className="event-chip">
-                      {selectedEdge.source} -&gt; {selectedEdge.target}
-                    </span>
-                  </div>
-
-                  <label className="binding-field">
-                    <span className="binding-label">Channel</span>
-                    <select
-                      className="binding-select"
-                      value={selectedEdge.data?.channel ?? "control"}
-                      onChange={(event) =>
-                        updateSelectedEdge({
-                          channel: event.target.value === "data" ? "data" : "control"
-                        })
-                      }
-                    >
-                      <option value="control">control</option>
-                      <option value="data">data</option>
-                    </select>
-                  </label>
-
-                  <label className="binding-field">
-                    <span className="binding-label">Condition</span>
-                    <input
-                      className="trace-text-input"
-                      value={selectedEdge.data?.condition ?? ""}
-                      onChange={(event) =>
-                        updateSelectedEdge({
-                          condition: event.target.value,
-                          label: event.target.value.trim() || undefined
-                        })
-                      }
-                      placeholder="success / failed / branch key"
-                    />
-                  </label>
-
-                  <label className="binding-field">
-                    <span className="binding-label">Condition expression</span>
-                    <input
-                      className="trace-text-input"
-                      value={selectedEdge.data?.conditionExpression ?? ""}
-                      onChange={(event) =>
-                        updateSelectedEdge({
-                          conditionExpression: event.target.value
-                        })
-                      }
-                      placeholder="outcome == 'succeeded'"
-                    />
-                  </label>
-
-                  <button
-                    className="editor-danger-button"
-                    type="button"
-                    onClick={handleDeleteSelectedEdge}
-                  >
-                    删除所选连线
-                  </button>
-                </div>
-              ) : (
-                <p className="empty-state">
-                  先从画布上选择一个节点或连线，再继续编辑它的基础 metadata。
-                </p>
-              )}
-            </article>
-
-            <article className="diagnostic-panel editor-panel">
-              <div className="section-heading">
-                <div>
-                  <p className="eyebrow">Hints</p>
-                  <h2>Current rules</h2>
-                </div>
-              </div>
-
-              <ul className="roadmap-list compact-list">
-                <li>保存时会把节点位置写回 `config.ui.position`。</li>
-                <li>运行时尚未支持 `loop`，因此当前画布不暴露 loop 节点。</li>
-                <li>后端会继续校验 trigger 唯一、output 必需和边引用合法性。</li>
-                <li>更细的节点配置表单会在后续逐步替换 JSON 文本区。</li>
-              </ul>
-            </article>
+            <WorkflowEditorInspector
+              selectedNode={selectedNode}
+              selectedEdge={selectedEdge}
+              nodes={nodes}
+              tools={tools}
+              nodeConfigText={nodeConfigText}
+              onNodeConfigTextChange={setNodeConfigText}
+              onApplyNodeConfigJson={applyNodeConfigJson}
+              onNodeNameChange={handleNodeNameChange}
+              onNodeConfigChange={handleSelectedNodeConfigChange}
+              onNodeRuntimePolicyChange={handleNodeRuntimePolicyChange}
+              onDeleteSelectedNode={handleDeleteSelectedNode}
+              onUpdateSelectedEdge={updateSelectedEdge}
+              onDeleteSelectedEdge={handleDeleteSelectedEdge}
+            />
           </aside>
         </section>
       </main>

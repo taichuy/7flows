@@ -277,19 +277,34 @@ uv run alembic upgrade head
   - 当前已支持编辑节点名称、基础 `config`、基础 `runtimePolicy`
   - 当前已支持编辑 edge 的 `channel` / `condition` / `conditionExpression`
   - 当前已支持保存回 `PUT /api/workflows/{workflow_id}`，继续复用版本快照递增
+  - 当前 workflow 页面会并行读取 `/api/plugins/tools`，把持久化 tool catalog 直接带入 editor
+  - 当前 `tool` / `mcp_query` / `condition` / `router` 节点已优先改成结构化配置表单，并保留高级 JSON 兜底：
+    - `tool`
+      - 可直接绑定持久化 compat / native 工具目录项
+      - 可编辑 `adapterId` / `timeoutMs`
+      - 可基于 `input_schema` 渲染简单输入字段（`string` / `number` / `boolean` / `enum`）
+    - `mcp_query`
+      - 可编辑 `authorized_context` 的 readable nodes、extra artifact grants、query sources、query artifact types
+    - `condition` / `router`
+      - 可在 selector rules / expression / fixed branch 三种模式间切换
+  - 当前 inspector 已从画布壳层中拆出独立组件，降低 editor 主组件耦合
 
 当前相关文件：
 
 - `web/app/workflows/[workflowId]/page.tsx`
 - `web/components/workflow-editor-workbench.tsx`
+- `web/components/workflow-editor-inspector.tsx`
+- `web/components/workflow-node-config-form.tsx`
 - `web/lib/workflow-editor.ts`
 
 当前边界：
 
 - 仍然是“最小骨架”，不是完整节点配置系统
-- 节点配置目前仍以 JSON 文本区为主
+- `llm_agent` / `output` / `runtimePolicy` / edge `mapping[]` 等区域仍未结构化
+- `tool` 的复杂对象 / 数组 schema 字段仍需要通过高级 JSON 编辑
 - 尚未把 run 调试状态实时叠加到画布
 - 尚未提供 workflow 新建向导与 starter template 入口
+- 前端测试基线仍未建立
 
 ## 推荐开发命令
 
@@ -329,7 +344,7 @@ docker compose up -d --build
 - 完整插件兼容代理生命周期
 - 流式响应映射
 - 回放调试面板
-- 节点结构化配置抽屉
+- 更完整的节点结构化配置抽屉
 - 画布上的运行态高亮与调试联动
 - workflow 新建向导与 starter template
 - 前端 editor 测试基线
@@ -340,33 +355,33 @@ docker compose up -d --build
 
 ### P0 当前最高优先级
 
-1. 把 `tool` / `mcp_query` / `condition` / `router` 节点从 JSON 文本区升级为结构化配置表单。
-2. 把已持久化的 compat 工具目录真正接入 editor 内的节点配置，而不是停留在首页绑定面板。
+1. 把 `run_events`、`node_runs` 的状态接回画布节点高亮、时间线和回放入口。
+2. 把 edge `mapping[]`、join 策略等剩余高频 JSON 编辑区继续结构化。
 
 原因：
 
-- 现在已经有画布，但节点编辑仍偏底层，不足以支撑真实编排。
-- 这一步完成后，“可编排”才会从骨架升级为真正可用。
+- 当前 P0 编排体验已经从“只能写 JSON”迈到“关键节点可结构化配置”，下一跳最值得放大的就是“可调试”和“数据流可理解”。
+- 如果运行态和数据流配置仍割裂，editor 仍然难以承接真实排障场景。
 
 ### P1 次高优先级
 
-1. 把 `run_events`、`node_runs` 的状态接回画布节点高亮、时间线和回放入口。
-2. 继续扩展 trace / export / replay 支撑，让 editor、run diagnostics 和机器追溯层形成统一闭环。
+1. 继续扩展 trace / export / replay 支撑，让 editor、run diagnostics 和机器追溯层形成统一闭环。
+2. 为 editor 引入最小测试基线，至少覆盖 definition 转换、结构化表单纯逻辑和保存链路。
 
 原因：
 
-- 当前项目已经具备较强运行态事实基础，下一步最值得放大的就是“可调试”。
-- 画布若不能感知运行态，调试体验仍然割裂。
+- 当前运行态事实基础已经具备，接下来要把这些事实更顺畅地接回编辑器。
+- 结构化表单已经开始增长，如果仍没有测试，回归成本会明显上升。
 
 ### P2 中优先级
 
 1. 补 workflow 新建入口与 starter template，让编辑器能独立承担“创建 + 编辑”闭环。
-2. 为 editor 引入最小测试基线，至少覆盖 definition 转换、保存链路和关键交互。
+2. 继续把 `llm_agent`、`output`、发布配置等节点/面板从高级 JSON 中逐步抽离。
 
 原因：
 
 - 当前编辑器入口默认依赖已有 workflow，创建链路还不完整。
-- 继续扩 editor 而没有测试，会让前端回归成本快速抬高。
+- 关键节点已开始结构化，后续需要按同一标准继续扩面，而不是重新回到 JSON-first。
 
 ### P3 后续优先级
 
@@ -375,5 +390,5 @@ docker compose up -d --build
 
 原因：
 
-- 这些能力很重要，但在当前阶段，优先级应让位于“编排可用 + 调试闭环”。
-- 先把前端产品主线站稳，再往更深的运行时与发布链路推进，节奏更稳。
+- 这些能力仍然重要，但当前阶段的主线应继续围绕“可编排 + 可调试”闭环。
+- 先把编辑器和调试体验站稳，再向更深的运行时与发布链路推进，节奏更稳。

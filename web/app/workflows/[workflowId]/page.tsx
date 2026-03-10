@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { WorkflowEditorWorkbench } from "@/components/workflow-editor-workbench";
+import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
 
 type WorkflowEditorPageProps = {
@@ -22,14 +23,21 @@ export default async function WorkflowEditorPage({
   params
 }: WorkflowEditorPageProps) {
   const { workflowId } = await params;
-  const [workflow, workflows] = await Promise.all([
+  const [workflow, workflows, pluginRegistry] = await Promise.all([
     getWorkflowDetail(workflowId),
-    getWorkflows()
+    getWorkflows(),
+    getPluginRegistrySnapshot()
   ]);
 
   if (!workflow) {
     notFound();
   }
 
-  return <WorkflowEditorWorkbench workflow={workflow} workflows={workflows} />;
+  return (
+    <WorkflowEditorWorkbench
+      workflow={workflow}
+      workflows={workflows}
+      tools={pluginRegistry.tools}
+    />
+  );
 }
