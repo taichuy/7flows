@@ -32,6 +32,10 @@ def test_execute_workflow_route(
     assert stored_response.json()["id"] == run_id
 
 
+def _parse_trace_datetime(value: str) -> datetime:
+    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+
 def test_get_run_trace_supports_machine_filters(
     client: TestClient,
     sqlite_session: Session,
@@ -67,11 +71,27 @@ def test_get_run_trace_supports_machine_filters(
     assert trace_body["summary"]["matched_event_count"] == len(body["events"])
     assert trace_body["summary"]["returned_event_count"] == 2
     assert trace_body["summary"]["has_more"] is True
+    assert _parse_trace_datetime(trace_body["summary"]["trace_started_at"]).replace(
+        tzinfo=None
+    ) == _parse_trace_datetime(body["events"][0]["created_at"]).replace(tzinfo=None)
+    assert _parse_trace_datetime(trace_body["summary"]["trace_finished_at"]).replace(
+        tzinfo=None
+    ) == _parse_trace_datetime(body["events"][-1]["created_at"]).replace(tzinfo=None)
+    assert _parse_trace_datetime(trace_body["summary"]["matched_started_at"]).replace(
+        tzinfo=None
+    ) == _parse_trace_datetime(body["events"][0]["created_at"]).replace(tzinfo=None)
+    assert _parse_trace_datetime(trace_body["summary"]["matched_finished_at"]).replace(
+        tzinfo=None
+    ) == _parse_trace_datetime(body["events"][-1]["created_at"]).replace(tzinfo=None)
     assert "input" in trace_body["summary"]["available_payload_keys"]
     assert "node_type" in trace_body["summary"]["available_payload_keys"]
     assert trace_body["summary"]["first_event_id"] == body["events"][0]["id"]
     assert trace_body["summary"]["last_event_id"] == body["events"][1]["id"]
     assert len(trace_body["events"]) == 2
+    assert trace_body["events"][0]["sequence"] == 1
+    assert trace_body["events"][0]["replay_offset_ms"] == 0
+    assert trace_body["events"][1]["sequence"] == 2
+    assert trace_body["events"][1]["replay_offset_ms"] >= 0
 
     filtered_response = client.get(
         f"/api/runs/{run_id}/trace",
@@ -89,9 +109,15 @@ def test_get_run_trace_supports_machine_filters(
             "node_run_id": first_node_run_id,
             "event_type": "node.started",
             "payload": body["events"][1]["payload"],
-            "created_at": body["events"][1]["created_at"],
+            "created_at": filtered_body["events"][0]["created_at"],
+            "sequence": 2,
+            "replay_offset_ms": filtered_body["events"][0]["replay_offset_ms"],
         }
     ]
+    assert _parse_trace_datetime(filtered_body["events"][0]["created_at"]).replace(
+        tzinfo=None
+    ) == _parse_trace_datetime(body["events"][1]["created_at"]).replace(tzinfo=None)
+    assert filtered_body["events"][0]["replay_offset_ms"] >= 0
 
 
 def test_get_run_trace_supports_cursor_and_desc_order(
@@ -119,6 +145,11 @@ def test_get_run_trace_supports_cursor_and_desc_order(
     expected_events = list(reversed(body["events"][:-1]))[:3]
     assert [event["id"] for event in trace_body["events"]] == [
         event["id"] for event in expected_events
+    ]
+    assert [event["sequence"] for event in trace_body["events"]] == [
+        len(body["events"]) - 1,
+        len(body["events"]) - 2,
+        len(body["events"]) - 3,
     ]
     assert trace_body["filters"]["before_event_id"] == anchor_event_id
     assert trace_body["filters"]["order"] == "desc"
@@ -192,6 +223,14 @@ def test_get_run_trace_supports_time_range_and_payload_key_search(
     assert trace_body["filters"]["payload_key"] == "artifactType"
     assert trace_body["summary"]["matched_event_count"] == 1
     assert trace_body["summary"]["returned_event_count"] == 1
+    assert _parse_trace_datetime(trace_body["summary"]["trace_started_at"]).replace(
+        tzinfo=None
+    ) == base_time.replace(tzinfo=None)
+    assert _parse_trace_datetime(trace_body["summary"]["trace_finished_at"]).replace(
+        tzinfo=None
+    ) == (base_time + timedelta(minutes=3)).replace(tzinfo=None)
+    assert trace_body["summary"]["matched_started_at"] == trace_body["events"][0]["created_at"]
+    assert trace_body["summary"]["matched_finished_at"] == trace_body["events"][0]["created_at"]
     expected_event_id = sqlite_session.scalars(
         select(RunEvent.id).where(
             RunEvent.run_id == run.id,
@@ -209,11 +248,11 @@ def test_get_run_trace_supports_time_range_and_payload_key_search(
                 "results": [{"nodeId": "planner", "artifactType": "json"}],
             },
             "created_at": trace_body["events"][0]["created_at"],
+            "sequence": 3,
+            "replay_offset_ms": 120000,
         }
     ]
-    trace_created_at = datetime.fromisoformat(
-        trace_body["events"][0]["created_at"].replace("Z", "+00:00")
-    )
+    trace_created_at = _parse_trace_datetime(trace_body["events"][0]["created_at"])
     assert trace_created_at.replace(tzinfo=None) == (base_time + timedelta(minutes=2)).replace(
         tzinfo=None
     )

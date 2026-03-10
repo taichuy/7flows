@@ -94,7 +94,34 @@
 - 支持按嵌套 `payload` key 做轻量检索
 - 非法时间范围返回 `422`
 
+## 补充决策：回放 / 导出元信息
+
+在继续往“AI 真正可消费”推进时，本轮又补了两类元信息：
+
+- trace 级时间边界
+- event 级顺序与相对时间
+
+新增内容：
+
+- `RunTrace.summary.trace_started_at`
+- `RunTrace.summary.trace_finished_at`
+- `RunTrace.summary.matched_started_at`
+- `RunTrace.summary.matched_finished_at`
+- `RunTrace.events[].sequence`
+- `RunTrace.events[].replay_offset_ms`
+
+用途：
+
+- 导出 trace 时，调用方可以直接知道整条 trace 和当前匹配窗口的时间边界
+- 做 replay 时，调用方不需要重新扫描整条事件流去推导事件顺序和相对时间
+
+当前取舍：
+
+- `sequence` 采用事件在整条 run 内的 1-based 顺序
+- `replay_offset_ms` 采用“相对整条 trace 首事件”的毫秒偏移
+- 仍然不引入独立 replay DSL，继续围绕 `run_events` 衍生机器侧字段
+
 ## 下一步
 
-1. 继续评估是否需要为回放 / 导出增加更明确的 trace 元信息。
-2. 若后续 run 规模明显增大，再评估为 `payload_key` 过滤补数据库侧索引或离线索引，而不是现在过早绑定方言能力。
+1. 继续评估是否需要补显式导出格式或 replay cursor，而不是让客户端自己拼装。
+2. 若后续 run 规模明显增大，再评估为 `payload_key` 过滤和 sequence 元信息补数据库侧索引或离线索引，而不是现在过早绑定方言能力。

@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -13,6 +13,7 @@ from app.schemas.run import (
     RunDetail,
     RunEventItem,
     RunTrace,
+    RunTraceEventItem,
     RunTraceFilters,
     RunTraceSummary,
 )
@@ -98,6 +99,62 @@ def _serialize_run_event(event: RunEvent) -> RunEventItem:
     )
 
 
+def _event_matches_trace_filters(
+    event: RunEvent,
+    *,
+    event_type: str | None,
+    node_run_id: str | None,
+    created_after: datetime | None,
+    created_before: datetime | None,
+    payload_key: str | None,
+    before_event_id: int | None,
+    after_event_id: int | None,
+) -> bool:
+    event_created_at = _normalize_filter_datetime(event.created_at)
+    if event_type is not None and event.event_type != event_type:
+        return False
+    if node_run_id is not None and event.node_run_id != node_run_id:
+        return False
+    if created_after is not None and event_created_at < created_after:
+        return False
+    if created_before is not None and event_created_at > created_before:
+        return False
+    if before_event_id is not None and event.id >= before_event_id:
+        return False
+    if after_event_id is not None and event.id <= after_event_id:
+        return False
+    if not _payload_matches_key(event.payload, payload_key):
+        return False
+    return True
+
+
+def _serialize_trace_event(
+    event: RunEvent,
+    *,
+    sequence: int,
+    trace_started_at: datetime | None,
+) -> RunTraceEventItem:
+    event_created_at = _normalize_filter_datetime(event.created_at)
+    normalized_trace_started_at = _normalize_filter_datetime(trace_started_at)
+    replay_offset_ms = 0
+    if normalized_trace_started_at is not None:
+        replay_offset_ms = max(
+            0,
+            int((event_created_at - normalized_trace_started_at).total_seconds() * 1000),
+        )
+
+    return RunTraceEventItem(
+        id=event.id,
+        run_id=event.run_id,
+        node_run_id=event.node_run_id,
+        event_type=event.event_type,
+        payload=event.payload,
+        created_at=event_created_at,
+        sequence=sequence,
+        replay_offset_ms=replay_offset_ms,
+    )
+
+
 @router.post(
     "/workflows/{workflow_id}/runs",
     response_model=RunDetail,
@@ -168,58 +225,50 @@ def get_run_trace(
             detail="created_after must be earlier than or equal to created_before.",
         )
 
-    conditions = [RunEvent.run_id == run_id]
-    if event_type is not None:
-        conditions.append(RunEvent.event_type == event_type)
-    if node_run_id is not None:
-        conditions.append(RunEvent.node_run_id == node_run_id)
-    if created_after is not None:
-        conditions.append(RunEvent.created_at >= created_after)
-    if created_before is not None:
-        conditions.append(RunEvent.created_at <= created_before)
-    if before_event_id is not None:
-        conditions.append(RunEvent.id < before_event_id)
-    if after_event_id is not None:
-        conditions.append(RunEvent.id > after_event_id)
-
-    total_event_count = db.scalar(
-        select(func.count(RunEvent.id)).where(RunEvent.run_id == run_id)
-    ) or 0
-    matched_event_count = db.scalar(select(func.count(RunEvent.id)).where(*conditions)) or 0
-    available_event_types = db.scalars(
-        select(RunEvent.event_type)
-        .where(RunEvent.run_id == run_id)
-        .distinct()
-        .order_by(RunEvent.event_type.asc())
+    run_events = db.scalars(
+        select(RunEvent).where(RunEvent.run_id == run_id).order_by(RunEvent.id.asc())
     ).all()
-    available_node_run_ids = db.scalars(
-        select(RunEvent.node_run_id)
-        .where(RunEvent.run_id == run_id, RunEvent.node_run_id.is_not(None))
-        .distinct()
-        .order_by(RunEvent.node_run_id.asc())
-    ).all()
+    total_event_count = len(run_events)
+    available_event_types = sorted({event.event_type for event in run_events})
+    available_node_run_ids = sorted(
+        {event.node_run_id for event in run_events if event.node_run_id is not None}
+    )
     available_payload_keys = sorted(
         {
             payload_key_name
-            for event in db.scalars(select(RunEvent).where(RunEvent.run_id == run_id)).all()
+            for event in run_events
             for payload_key_name in _collect_payload_keys(event.payload)
         }
     )
+    trace_started_at = _normalize_filter_datetime(run_events[0].created_at) if run_events else None
+    trace_finished_at = _normalize_filter_datetime(run_events[-1].created_at) if run_events else None
+    sequence_by_event_id = {
+        event.id: index + 1 for index, event in enumerate(run_events)
+    }
+    matched_events = [
+        event
+        for event in run_events
+        if _event_matches_trace_filters(
+            event,
+            event_type=event_type,
+            node_run_id=node_run_id,
+            created_after=created_after,
+            created_before=created_before,
+            payload_key=payload_key,
+            before_event_id=before_event_id,
+            after_event_id=after_event_id,
+        )
+    ]
+    matched_event_count = len(matched_events)
+    matched_started_at = (
+        _normalize_filter_datetime(matched_events[0].created_at) if matched_events else None
+    )
+    matched_finished_at = (
+        _normalize_filter_datetime(matched_events[-1].created_at) if matched_events else None
+    )
 
-    order_by = RunEvent.id.asc() if order == "asc" else RunEvent.id.desc()
-    if payload_key is None:
-        matched_event_count = db.scalar(select(func.count(RunEvent.id)).where(*conditions)) or 0
-        events = db.scalars(
-            select(RunEvent).where(*conditions).order_by(order_by).limit(limit + 1)
-        ).all()
-    else:
-        matched_events = [
-            event
-            for event in db.scalars(select(RunEvent).where(*conditions).order_by(order_by)).all()
-            if _payload_matches_key(event.payload, payload_key)
-        ]
-        matched_event_count = len(matched_events)
-        events = matched_events[: limit + 1]
+    ordered_matched_events = matched_events if order == "asc" else list(reversed(matched_events))
+    events = ordered_matched_events[: limit + 1]
 
     has_more = len(events) > limit
     if has_more:
@@ -245,9 +294,20 @@ def get_run_trace(
             available_event_types=available_event_types,
             available_node_run_ids=[item for item in available_node_run_ids if item is not None],
             available_payload_keys=available_payload_keys,
+            trace_started_at=trace_started_at,
+            trace_finished_at=trace_finished_at,
+            matched_started_at=matched_started_at,
+            matched_finished_at=matched_finished_at,
             first_event_id=events[0].id if events else None,
             last_event_id=events[-1].id if events else None,
             has_more=has_more,
         ),
-        events=[_serialize_run_event(event) for event in events],
+        events=[
+            _serialize_trace_event(
+                event,
+                sequence=sequence_by_event_id[event.id],
+                trace_started_at=trace_started_at,
+            )
+            for event in events
+        ],
     )

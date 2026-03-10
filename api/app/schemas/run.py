@@ -30,6 +30,11 @@ class RunEventItem(BaseModel):
     created_at: datetime
 
 
+class RunTraceEventItem(RunEventItem):
+    sequence: int
+    replay_offset_ms: int
+
+
 class RunTraceFilters(BaseModel):
     event_type: str | None = None
     node_run_id: str | None = None
@@ -49,6 +54,10 @@ class RunTraceSummary(BaseModel):
     available_event_types: list[str] = Field(default_factory=list)
     available_node_run_ids: list[str] = Field(default_factory=list)
     available_payload_keys: list[str] = Field(default_factory=list)
+    trace_started_at: datetime | None = None
+    trace_finished_at: datetime | None = None
+    matched_started_at: datetime | None = None
+    matched_finished_at: datetime | None = None
     first_event_id: int | None = None
     last_event_id: int | None = None
     has_more: bool = False
@@ -58,7 +67,7 @@ class RunTrace(BaseModel):
     run_id: str
     filters: RunTraceFilters
     summary: RunTraceSummary = Field(default_factory=RunTraceSummary)
-    events: list[RunEventItem] = Field(default_factory=list)
+    events: list[RunTraceEventItem] = Field(default_factory=list)
 
 
 class RunDetail(BaseModel):

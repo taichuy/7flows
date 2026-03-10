@@ -165,6 +165,7 @@ uv run alembic upgrade head
 - 查询事件流
 - 为 AI / 自动化 提供带过滤条件的 run trace 检索
 - 当前 trace 过滤已支持 `event_type`、`node_run_id`、时间范围、`payload_key`、事件游标和顺序控制
+- 当前 trace 还补充了回放 / 导出元信息，例如 trace 时间边界、事件顺序和 `replay_offset_ms`
 
 系统诊断相关接口：
 
@@ -226,6 +227,7 @@ uv run alembic upgrade head
 - AI / 自动化应优先读取这些接口或底层运行态对象，而不是抓取前端页面文本
 - `GET /api/runs/{run_id}/events` 继续保留原始事件列表语义
 - `GET /api/runs/{run_id}/trace` 负责提供按 `event_type`、`node_run_id`、时间范围、`payload_key`、事件游标和顺序过滤的机器检索能力
+- `GET /api/runs/{run_id}/trace` 还会补充回放 / 导出所需的派生元信息，但事实来源仍然是同一批 `run_events`
 - 若后续机器侧需要更强查询能力，应继续围绕 `run_events` 扩展，而不是继续往首页塞隐藏日志
 
 #### L3 开发留痕层

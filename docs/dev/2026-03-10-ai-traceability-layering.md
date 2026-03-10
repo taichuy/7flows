@@ -69,6 +69,7 @@
 - 不为了首页摘要展示而截断或隐藏关键原始信息
 - `GET /api/runs/{run_id}/events` 保留原始事件列表语义
 - `GET /api/runs/{run_id}/trace` 提供按 `event_type`、`node_run_id`、时间范围、`payload_key`、事件游标和顺序的机器过滤能力
+- `GET /api/runs/{run_id}/trace` 可以继续补 replay / export 所需派生元信息，但不脱离 `run_events` 这一事实底座
 - 如果未来需要更强机器查询能力，应继续围绕 `run_events` 衍生接口，而不是反向要求 UI 面板承载原始日志仓
 
 ### 3. 开发留痕层
@@ -124,7 +125,7 @@
 
 - 确认现有接口已能映射到三层方案
 - 确认仓库级规则、用户偏好和开发记录三处表述一致
-- 通过接口测试确认 `run trace` 支持时间范围、`payload_key`、游标和顺序控制
+- 通过接口测试确认 `run trace` 支持时间范围、`payload_key`、游标、顺序以及 replay 元信息
 
 ## 下一步
 
