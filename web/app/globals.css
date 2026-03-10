@@ -206,6 +206,10 @@ a {
   border-radius: 28px;
 }
 
+.panel-span {
+  grid-column: 1 / -1;
+}
+
 .status-header,
 .adapter-header,
 .activity-header,
@@ -317,9 +321,11 @@ a {
 
 .adapter-card,
 .tool-row,
+.tool-detail-card,
 .activity-row,
 .event-row,
 .timeline-row,
+.binding-card,
 .entry-card,
 .payload-card {
   padding: 18px;
@@ -330,6 +336,8 @@ a {
 
 .adapter-card h3,
 .tool-row h3,
+.tool-detail-card h3,
+.binding-card h3,
 .activity-row h3 {
   margin: 8px 0 0;
   font-size: 1.15rem;
@@ -353,6 +361,19 @@ a {
 .activity-copy {
   margin: 10px 0 0;
   line-height: 1.6;
+}
+
+.adapter-meta-row,
+.tool-badge-row,
+.workflow-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.adapter-meta-row,
+.tool-badge-row {
+  margin-top: 14px;
 }
 
 .health-pill {
@@ -415,6 +436,150 @@ a {
   display: grid;
   gap: 14px;
   grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.tool-detail-card {
+  display: grid;
+  gap: 14px;
+}
+
+.binding-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tool-id-line,
+.binding-meta {
+  margin: 0;
+  color: var(--muted);
+  font-family: "Cascadia Code", "Consolas", monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.tool-detail-grid,
+.binding-workbench {
+  display: grid;
+  gap: 16px;
+}
+
+.tool-detail-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.compact-card {
+  padding: 14px 16px;
+}
+
+.compact-strip {
+  margin-top: 0;
+}
+
+.compact-meta-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.compact-meta-list dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.compact-meta-list dd {
+  margin: 6px 0 0;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.workflow-chip-row {
+  margin-top: 22px;
+}
+
+.workflow-chip {
+  display: grid;
+  gap: 4px;
+  min-width: 180px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  text-decoration: none;
+  background: rgba(255, 252, 246, 0.78);
+  border: 1px solid rgba(28, 25, 21, 0.08);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.workflow-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(208, 99, 45, 0.3);
+}
+
+.workflow-chip.selected {
+  background: rgba(208, 99, 45, 0.14);
+  border-color: rgba(208, 99, 45, 0.28);
+}
+
+.workflow-chip span {
+  font-weight: 600;
+}
+
+.workflow-chip small {
+  color: var(--muted);
+}
+
+.binding-workbench {
+  margin-top: 22px;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(0, 1.4fr);
+  align-items: start;
+}
+
+.binding-list {
+  display: grid;
+  gap: 14px;
+}
+
+.binding-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.binding-field {
+  display: grid;
+  gap: 10px;
+}
+
+.binding-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.binding-label code {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.binding-select {
+  width: 100%;
+  border: 1px solid rgba(28, 25, 21, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 252, 246, 0.94);
+  padding: 12px 14px;
+  color: var(--ink);
+  font: inherit;
+}
+
+.binding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   align-items: center;
 }
 
@@ -605,7 +770,9 @@ a {
   .signal-list,
   .tool-row dl,
   .meta-grid,
-  .detail-grid {
+  .detail-grid,
+  .tool-detail-grid,
+  .binding-workbench {
     grid-template-columns: 1fr;
   }
 }

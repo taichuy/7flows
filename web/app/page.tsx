@@ -1,9 +1,11 @@
 import Link from "next/link";
 
-import { syncAdapterTools } from "@/app/actions";
-import { AdapterSyncForm } from "@/components/adapter-sync-form";
+import { PluginRegistryPanel } from "@/components/plugin-registry-panel";
 import { StatusCard } from "@/components/status-card";
+import { WorkflowToolBindingPanel } from "@/components/workflow-tool-binding-panel";
+import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getSystemOverview } from "@/lib/get-system-overview";
+import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
 import {
   formatCountMap,
   formatTimestamp
@@ -15,11 +17,24 @@ const highlights = [
   "Docker 中间件环境与全容器模式并存"
 ];
 
-export default async function HomePage() {
-  const overview = await getSystemOverview();
+type HomePageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const requestedWorkflowId = readFirstSearchParam(resolvedSearchParams.workflow);
+
+  const [overview, pluginRegistry, workflows] = await Promise.all([
+    getSystemOverview(),
+    getPluginRegistrySnapshot(),
+    getWorkflows()
+  ]);
   const recentRuns = overview.runtime_activity.recent_runs;
   const activitySummary = overview.runtime_activity.summary;
   const latestRun = recentRuns[0];
+  const selectedWorkflowId = requestedWorkflowId || workflows[0]?.id || "";
+  const selectedWorkflow = await getWorkflowDetail(selectedWorkflowId);
 
   return (
     <main className="shell">
@@ -50,11 +65,11 @@ export default async function HomePage() {
           <dl className="signal-list">
             <div>
               <dt>Adapters</dt>
-              <dd>{overview.plugin_adapters.length}</dd>
+              <dd>{pluginRegistry.adapters.length}</dd>
             </div>
             <div>
               <dt>Tools</dt>
-              <dd>{overview.plugin_tools.length}</dd>
+              <dd>{pluginRegistry.tools.length}</dd>
             </div>
             <div>
               <dt>Recent events</dt>
@@ -71,85 +86,18 @@ export default async function HomePage() {
       </section>
 
       <section className="diagnostics-layout">
-        <article className="diagnostic-panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Compatibility</p>
-              <h2>Adapter health and sync</h2>
-            </div>
-            <p className="section-copy">
-              在这里可以看到 compat adapter 当前是否可达，并把 discovery 工具目录同步到
-              API 运行时注册表。
-            </p>
-          </div>
+        <PluginRegistryPanel
+          adapters={pluginRegistry.adapters}
+          tools={pluginRegistry.tools}
+        />
+      </section>
 
-          <div className="diagnostic-list">
-            {overview.plugin_adapters.length === 0 ? (
-              <p className="empty-state">当前还没有启用中的 compat adapter。</p>
-            ) : (
-              overview.plugin_adapters.map((adapter) => (
-                <article className="adapter-card" key={adapter.id}>
-                  <div className="adapter-header">
-                    <div>
-                      <p className="status-meta">Adapter</p>
-                      <h3>{adapter.id}</h3>
-                    </div>
-                    <span className={`health-pill ${adapter.status}`}>
-                      {adapter.status}
-                    </span>
-                  </div>
-                  <p className="adapter-endpoint">{adapter.endpoint}</p>
-                  <p className="adapter-copy">
-                    {adapter.detail ??
-                      "目录同步会调用 adapter 的 /tools，并把返回结果注册为 compat 工具。"}
-                  </p>
-                  <AdapterSyncForm adapterId={adapter.id} action={syncAdapterTools} />
-                </article>
-              ))
-            )}
-          </div>
-        </article>
-
-        <article className="diagnostic-panel">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Catalog</p>
-              <h2>Plugin tool registry</h2>
-            </div>
-            <p className="section-copy">
-              这里展示 API 当前已知的工具目录，便于确认 discovery/sync 是否真的生效。
-            </p>
-          </div>
-
-          <div className="tool-list">
-            {overview.plugin_tools.length === 0 ? (
-              <p className="empty-state">尚未同步任何 compat 工具。</p>
-            ) : (
-              overview.plugin_tools.map((tool) => (
-                <article className="tool-row" key={tool.id}>
-                  <div>
-                    <h3>{tool.name}</h3>
-                    <p>{tool.id}</p>
-                  </div>
-                  <dl>
-                    <div>
-                      <dt>Ecosystem</dt>
-                      <dd>{tool.ecosystem}</dd>
-                    </div>
-                    <div>
-                      <dt>Source</dt>
-                      <dd>{tool.source}</dd>
-                    </div>
-                    <div>
-                      <dt>Callable</dt>
-                      <dd>{tool.callable ? "yes" : "no"}</dd>
-                    </div>
-                  </dl>
-                </article>
-              ))
-            )}
-          </div>
-        </article>
+      <section className="diagnostics-layout">
+        <WorkflowToolBindingPanel
+          workflows={workflows}
+          selectedWorkflow={selectedWorkflow}
+          tools={pluginRegistry.tools}
+        />
       </section>
 
       <section className="diagnostics-layout runtime-layout">
@@ -267,12 +215,24 @@ export default async function HomePage() {
           </p>
         </div>
         <ul className="roadmap-list">
-          <li>让 compat 工具同步结果进入持久化存储与重启恢复</li>
+          <li>让插件目录直接进入 workflow 的 tool 节点绑定链路</li>
           <li>把更多调试信息继续统一收敛到 run events</li>
-          <li>继续扩展独立 run 诊断面板与发布诊断视图</li>
+          <li>继续扩展独立 run 诊断面板、发布诊断视图和节点配置</li>
           <li>继续保持每轮开发的验证结果和开发记录留痕</li>
         </ul>
       </section>
     </main>
   );
+}
+
+function readFirstSearchParam(value: string | string[] | undefined) {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    return value[0]?.trim() ?? "";
+  }
+
+  return "";
 }
