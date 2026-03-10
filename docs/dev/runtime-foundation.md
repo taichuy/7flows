@@ -100,6 +100,11 @@ uv run alembic upgrade head
   - 至少存在一个 `output` 节点
   - 节点 ID / 连线 ID 唯一
   - 连线引用的源节点和目标节点必须存在
+- 设计态约束已继续补强到：
+  - `variables` / `publish` 唯一性
+  - `tool` 绑定一致性
+  - MCP artifact 授权前置校验
+  - branch/router 出边条件边界
 - 边定义会补齐默认 `channel=control`
 - 每次定义变更都会自动创建不可变版本快照
 - `runs` 会记录执行时绑定的 `workflow_version`

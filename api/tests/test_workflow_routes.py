@@ -252,6 +252,25 @@ def _valid_mapping_definition() -> dict:
     }
 
 
+def _valid_publish_definition() -> dict:
+    definition = _valid_definition()
+    definition["variables"] = [
+        {"name": "apiBaseUrl", "type": "string", "default": "https://example.com"},
+    ]
+    definition["publish"] = [
+        {
+            "id": "native-chat",
+            "name": "Native Chat",
+            "protocol": "native",
+            "workflowVersion": "0.1.0",
+            "authMode": "internal",
+            "streaming": False,
+            "inputSchema": {"type": "object"},
+        }
+    ]
+    return definition
+
+
 def test_create_workflow_persists_initial_version(client: TestClient) -> None:
     response = client.post(
         "/api/workflows",
@@ -552,3 +571,149 @@ def test_create_workflow_rejects_invalid_tool_binding(
 
     assert response.status_code == 422
     assert "String should have at least 1 character" in response.json()["detail"]
+
+
+def test_create_workflow_rejects_duplicate_variable_names(client: TestClient) -> None:
+    definition = _valid_publish_definition()
+    definition["variables"] = [
+        {"name": "apiBaseUrl", "type": "string"},
+        {"name": "apiBaseUrl", "type": "string"},
+    ]
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken Variable Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "Workflow variable names must be unique" in response.json()["detail"]
+
+
+def test_create_workflow_rejects_duplicate_publish_endpoint_metadata(
+    client: TestClient,
+) -> None:
+    definition = _valid_publish_definition()
+    definition["publish"].append(
+        {
+            "id": "native-chat",
+            "name": "Native Chat",
+            "protocol": "openai",
+            "workflowVersion": "0.1.1",
+            "authMode": "api_key",
+            "streaming": True,
+            "inputSchema": {"type": "object"},
+        }
+    )
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken Publish Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "Workflow published endpoint ids must be unique" in response.json()["detail"]
+
+
+def test_create_workflow_rejects_tool_binding_conflicts(client: TestClient) -> None:
+    definition = _valid_definition()
+    definition["nodes"][1]["config"] = {
+        "toolId": "native.search",
+        "tool": {
+            "toolId": "compat:dify:plugin:search",
+            "ecosystem": "compat:dify",
+        },
+    }
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken Tool Conflict Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "cannot define both config.tool and config.toolId" in response.json()["detail"]
+
+
+def test_create_workflow_rejects_mcp_query_artifact_types_without_authorization(
+    client: TestClient,
+) -> None:
+    definition = _valid_mcp_definition()
+    reader_node = next(node for node in definition["nodes"] if node["id"] == "reader")
+    reader_node["config"]["query"]["artifactTypes"] = ["file"]
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken MCP Artifact Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "requests unauthorized artifact types" in response.json()["detail"]
+
+
+def test_create_workflow_rejects_invalid_branch_edge_conditions(client: TestClient) -> None:
+    definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "branch",
+                "type": "condition",
+                "name": "Branch",
+                "config": {"expression": "trigger_input.priority == 'high'"},
+            },
+            {
+                "id": "search_path",
+                "type": "tool",
+                "name": "Search Path",
+                "config": {"mock_output": {"answer": "search"}},
+            },
+            {
+                "id": "default_path",
+                "type": "tool",
+                "name": "Default Path",
+                "config": {"mock_output": {"answer": "default"}},
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "branch"},
+            {"id": "e2", "sourceNodeId": "branch", "targetNodeId": "search_path", "condition": "search"},
+            {"id": "e3", "sourceNodeId": "branch", "targetNodeId": "default_path"},
+            {"id": "e4", "sourceNodeId": "search_path", "targetNodeId": "output"},
+            {"id": "e5", "sourceNodeId": "default_path", "targetNodeId": "output"},
+        ],
+    }
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken Branch Edge Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "true'/'false' branch conditions" in response.json()["detail"]
+
+
+def test_create_workflow_rejects_branch_duplicate_fallback_edges(client: TestClient) -> None:
+    definition = _valid_selector_definition()
+    definition["edges"].append(
+        {"id": "e6", "sourceNodeId": "branch", "targetNodeId": "output"}
+    )
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken Fallback Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "at most one fallback outgoing edge" in response.json()["detail"]
+
+
+def test_create_workflow_rejects_non_branch_custom_edge_condition(client: TestClient) -> None:
+    definition = _valid_definition()
+    definition["edges"][1]["condition"] = "search"
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken Non-Branch Edge Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "uses unsupported condition" in response.json()["detail"]

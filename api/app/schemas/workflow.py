@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any, Literal
 
@@ -27,6 +28,9 @@ EdgeChannel = Literal["control", "data"]
 PublishProtocol = Literal["native", "openai", "anthropic"]
 AuthMode = Literal["api_key", "token", "internal"]
 ArtifactType = Literal["text", "json", "file", "tool_result", "message"]
+_SEMVER_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
+_FAILURE_EDGE_CONDITIONS = {"error", "failed", "on_error"}
+_SUCCESS_EDGE_CONDITIONS = {"success", "succeeded", "default"}
 
 
 def _validate_safe_expression(
@@ -73,6 +77,14 @@ class WorkflowNodeToolBinding(BaseModel):
     adapterId: str | None = Field(default=None, min_length=1, max_length=128)
     credentials: dict[str, str] = Field(default_factory=dict)
     timeoutMs: int | None = Field(default=None, ge=1, le=600_000)
+
+    @model_validator(mode="after")
+    def validate_binding_consistency(self) -> WorkflowNodeToolBinding:
+        if self.adapterId is not None and self.ecosystem is None:
+            raise ValueError("config.tool.adapterId requires config.tool.ecosystem.")
+        if self.ecosystem == "native" and self.adapterId is not None:
+            raise ValueError("config.tool.adapterId cannot be used with ecosystem 'native'.")
+        return self
 
 
 BranchSelectorOperator = Literal[
@@ -187,6 +199,8 @@ class WorkflowNodeDefinition(BaseModel):
                 raise ValueError("Only tool nodes may define config.toolId.")
             if not isinstance(flat_tool_id, str) or not flat_tool_id.strip():
                 raise ValueError("config.toolId must be a non-empty string.")
+            if tool_binding is not None:
+                raise ValueError("Tool nodes cannot define both config.tool and config.toolId.")
 
         query = self.config.get("query")
         if self.type == "mcp_query":
@@ -288,6 +302,12 @@ class WorkflowPublishedEndpointDefinition(BaseModel):
     inputSchema: dict[str, Any] = Field(default_factory=dict)
     outputSchema: dict[str, Any] | None = None
 
+    @model_validator(mode="after")
+    def validate_workflow_version_format(self) -> WorkflowPublishedEndpointDefinition:
+        if self.workflowVersion is not None and not _SEMVER_PATTERN.match(self.workflowVersion):
+            raise ValueError("workflowVersion must use semantic version format 'major.minor.patch'.")
+        return self
+
 
 class WorkflowDefinitionDocument(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -303,6 +323,18 @@ class WorkflowDefinitionDocument(BaseModel):
         node_ids = [node.id for node in self.nodes]
         if len(set(node_ids)) != len(node_ids):
             raise ValueError("Workflow node ids must be unique.")
+
+        variable_names = [variable.name for variable in self.variables]
+        if len(set(variable_names)) != len(variable_names):
+            raise ValueError("Workflow variable names must be unique.")
+
+        publish_ids = [endpoint.id for endpoint in self.publish]
+        if len(set(publish_ids)) != len(publish_ids):
+            raise ValueError("Workflow published endpoint ids must be unique.")
+
+        publish_names = [endpoint.name for endpoint in self.publish]
+        if len(set(publish_names)) != len(publish_names):
+            raise ValueError("Workflow published endpoint names must be unique.")
 
         edge_ids = [edge.id for edge in self.edges]
         if len(set(edge_ids)) != len(edge_ids):
@@ -348,6 +380,27 @@ class WorkflowDefinitionDocument(BaseModel):
                         f"Node '{node.id}' query references unauthorized source nodes: "
                         f"{joined_sources}."
                     )
+                if query.artifactTypes is not None:
+                    authorized_artifacts: dict[str, set[str]] = {
+                        readable_node_id: {"json"} for readable_node_id in context_access.readableNodeIds
+                    }
+                    for artifact in context_access.readableArtifacts:
+                        authorized_artifacts.setdefault(artifact.nodeId, {"json"}).add(
+                            artifact.artifactType
+                        )
+                    artifact_source_ids = requested_source_ids or authorized_node_ids
+                    requested_artifact_types = set(query.artifactTypes)
+                    for source_node_id in sorted(artifact_source_ids):
+                        allowed_artifact_types = authorized_artifacts.get(source_node_id, {"json"})
+                        unauthorized_artifact_types = sorted(
+                            requested_artifact_types - allowed_artifact_types
+                        )
+                        if unauthorized_artifact_types:
+                            raise ValueError(
+                                f"Node '{node.id}' query requests unauthorized artifact types "
+                                f"from '{source_node_id}': "
+                                f"{', '.join(unauthorized_artifact_types)}."
+                            )
 
         for edge in self.edges:
             if edge.sourceNodeId not in node_id_set:
@@ -364,8 +417,10 @@ class WorkflowDefinitionDocument(BaseModel):
                 raise ValueError(f"Edge '{edge.id}' cannot point to the same node on both ends.")
 
         incoming_by_target: dict[str, set[str]] = {}
+        outgoing_by_source: dict[str, list[WorkflowEdgeDefinition]] = {}
         for edge in self.edges:
             incoming_by_target.setdefault(edge.targetNodeId, set()).add(edge.sourceNodeId)
+            outgoing_by_source.setdefault(edge.sourceNodeId, []).append(edge)
 
         for node in self.nodes:
             join_policy = node.runtimePolicy.join if node.runtimePolicy is not None else None
@@ -385,7 +440,84 @@ class WorkflowDefinitionDocument(BaseModel):
                     f"{', '.join(unknown_required_sources)}."
                 )
 
+        for node in self.nodes:
+            outgoing_edges = outgoing_by_source.get(node.id, [])
+            if node.type in {"condition", "router"}:
+                explicit_branch_conditions: list[str] = []
+                fallback_edges = 0
+                for edge in outgoing_edges:
+                    normalized_condition = _normalize_edge_condition(edge.condition)
+                    if normalized_condition is None:
+                        fallback_edges += 1
+                        continue
+                    if normalized_condition in _FAILURE_EDGE_CONDITIONS:
+                        continue
+                    explicit_branch_conditions.append(normalized_condition)
+
+                if len(set(explicit_branch_conditions)) != len(explicit_branch_conditions):
+                    raise ValueError(
+                        f"Node '{node.id}' has duplicate outgoing branch conditions."
+                    )
+                if fallback_edges > 1:
+                    raise ValueError(
+                        f"Node '{node.id}' may define at most one fallback outgoing edge."
+                    )
+
+                selector = node.config.get("selector")
+                expression = node.config.get("expression")
+                if selector is not None:
+                    selector_model = WorkflowNodeBranchSelector.model_validate(selector)
+                    allowed_branch_conditions = {
+                        rule.key.strip().lower()
+                        for rule in selector_model.rules
+                    }
+                    if selector_model.default is not None:
+                        allowed_branch_conditions.add(selector_model.default.strip().lower())
+                    else:
+                        allowed_branch_conditions.add("default")
+                    invalid_branch_conditions = sorted(
+                        condition
+                        for condition in explicit_branch_conditions
+                        if condition not in allowed_branch_conditions
+                    )
+                    if invalid_branch_conditions:
+                        raise ValueError(
+                            f"Node '{node.id}' has outgoing branch conditions not declared by "
+                            f"config.selector: {', '.join(invalid_branch_conditions)}."
+                        )
+                elif expression is not None and node.type == "condition":
+                    allowed_branch_conditions = {"true", "false"}
+                    invalid_branch_conditions = sorted(
+                        condition
+                        for condition in explicit_branch_conditions
+                        if condition not in allowed_branch_conditions
+                    )
+                    if invalid_branch_conditions:
+                        raise ValueError(
+                            f"Condition node '{node.id}' expression may only target "
+                            f"'true'/'false' branch conditions."
+                        )
+            else:
+                for edge in outgoing_edges:
+                    normalized_condition = _normalize_edge_condition(edge.condition)
+                    if normalized_condition is None:
+                        continue
+                    if normalized_condition in _FAILURE_EDGE_CONDITIONS:
+                        continue
+                    if normalized_condition not in _SUCCESS_EDGE_CONDITIONS:
+                        raise ValueError(
+                            f"Edge '{edge.id}' uses unsupported condition '{edge.condition}' "
+                            f"for non-branch node '{node.id}'."
+                        )
+
         return self
+
+
+def _normalize_edge_condition(condition: str | None) -> str | None:
+    if condition is None:
+        return None
+    normalized = condition.strip().lower()
+    return normalized or None
 
 
 class WorkflowCreate(BaseModel):
