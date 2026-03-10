@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.catalog import build_execution_contract, get_catalog_tool
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.main import create_app
 
 
@@ -15,7 +15,7 @@ def test_healthz_reports_stub_identity() -> None:
         "status": "ok",
         "adapter_id": "dify-default",
         "ecosystem": "compat:dify",
-        "mode": "echo",
+        "mode": "translate",
     }
 
 
@@ -119,6 +119,11 @@ def test_tools_lists_translated_catalog() -> None:
             "icon": "search.svg",
             "manifest_path": "E:\\code\\taichuCode\\7flows\\services\\compat-dify\\catalog\\demo\\manifest.yaml",
             "tool_path": "E:\\code\\taichuCode\\7flows\\services\\compat-dify\\catalog\\demo\\tools\\search.yaml",
+            "dify_runtime": {
+                "plugin_id": "demo",
+                "provider": "demo",
+                "tool_name": "search",
+            },
         },
     }
 
@@ -132,7 +137,7 @@ def test_tools_rejects_wrong_adapter_header() -> None:
     assert "Header adapter id mismatch" in response.json()["detail"]
 
 
-def test_invoke_returns_stubbed_output() -> None:
+def test_invoke_returns_translated_payload_preview() -> None:
     client = TestClient(create_app())
     tool = get_catalog_tool(get_settings(), "compat:dify:plugin:demo/search")
     assert tool is not None
@@ -166,11 +171,33 @@ def test_invoke_returns_stubbed_output() -> None:
             "irVersion": "2026-03-10",
             "toolId": "compat:dify:plugin:demo/search",
         },
+        "translatedRequest": {
+            "path": "plugin/sevenflows-local/dispatch/tool/invoke",
+            "headers": {
+                "X-Plugin-ID": "demo",
+                "Content-Type": "application/json",
+            },
+            "body": {
+                "user_id": "sevenflows-adapter",
+                "conversation_id": None,
+                "app_id": None,
+                "message_id": "trace-demo",
+                "data": {
+                    "provider": "demo",
+                    "tool": "search",
+                    "credentials": {},
+                    "credential_type": "unauthorized",
+                    "tool_parameters": {"query": "sevenflows"},
+                },
+            },
+            "timeoutMs": 30000,
+        },
     }
     assert (
         body["logs"][0]
-        == "compat:dify stub validated tool 'compat:dify:plugin:demo/search' against constrained contract"
+        == "compat:dify translated tool 'compat:dify:plugin:demo/search' into Dify invoke payload"
     )
+    assert body["logs"][1] == "mode=translate"
 
 
 def test_invoke_rejects_wrong_ecosystem() -> None:
@@ -268,3 +295,126 @@ def test_invoke_rejects_unknown_credential_fields() -> None:
 
     assert response.status_code == 422
     assert "unsupported credential fields: api_key" in response.json()["detail"]
+
+
+def test_invoke_translates_file_parameters_for_dify_payload() -> None:
+    client = TestClient(create_app())
+    tool = get_catalog_tool(get_settings(), "compat:dify:plugin:demo/summarize")
+    assert tool is not None
+
+    response = client.post(
+        "/invoke",
+        headers={"x-sevenflows-adapter-id": "dify-default"},
+        json={
+            "toolId": "compat:dify:plugin:demo/summarize",
+            "ecosystem": "compat:dify",
+            "adapterId": "dify-default",
+            "inputs": {
+                "content_uri": "https://example.com/files/report.pdf",
+                "style": "brief",
+            },
+            "credentials": {},
+            "timeout": 30000,
+            "traceId": "trace-file",
+            "executionContract": build_execution_contract(tool).model_dump(),
+        },
+    )
+
+    assert response.status_code == 200
+    translated = response.json()["output"]["translatedRequest"]
+    assert translated["body"]["data"]["tool_parameters"] == {
+        "content_uri": {
+            "dify_model_identity": "__dify__file__",
+            "mime_type": "application/pdf",
+            "filename": "report.pdf",
+            "extension": ".pdf",
+            "size": -1,
+            "type": "document",
+            "url": "https://example.com/files/report.pdf",
+        },
+        "style": "brief",
+    }
+
+
+def test_invoke_proxies_translated_payload_to_dify_daemon(monkeypatch) -> None:
+    from app import main as main_module
+
+    settings = Settings(
+        invoke_mode="proxy",
+        plugin_daemon_url="http://dify-daemon.local",
+        plugin_daemon_api_key="daemon-secret",
+    )
+    tool = get_catalog_tool(settings, "compat:dify:plugin:demo/search")
+    assert tool is not None
+
+    class _FakeDaemonClient:
+        def translate_invoke_request_preview(self, **kwargs):
+            return {
+                "path": "plugin/sevenflows-local/dispatch/tool/invoke",
+                "headers": {
+                    "X-Plugin-ID": "demo",
+                    "Content-Type": "application/json",
+                },
+                "body": {
+                    "user_id": "sevenflows-adapter",
+                    "conversation_id": None,
+                    "app_id": None,
+                    "message_id": "trace-proxy",
+                    "data": {
+                        "provider": "demo",
+                        "tool": "search",
+                        "credentials": {},
+                        "credential_type": "unauthorized",
+                        "tool_parameters": {"query": "sevenflows"},
+                    },
+                },
+                "timeoutMs": 30000,
+            }
+
+        def invoke_tool(self, **kwargs):
+            assert kwargs["tool"].id == "compat:dify:plugin:demo/search"
+            assert kwargs["inputs"] == {"query": "sevenflows"}
+            assert kwargs["credentials"] == {}
+            assert kwargs["trace_id"] == "trace-proxy"
+            return (
+                {
+                    "text": "result text",
+                    "json": {"documents": ["doc-1"]},
+                    "variables": {"answer": "ok"},
+                },
+                ["daemon.log[success]"],
+            )
+
+    monkeypatch.setattr(main_module, "get_settings", lambda: settings)
+    monkeypatch.setattr(main_module, "get_dify_plugin_daemon_client", lambda: _FakeDaemonClient())
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/invoke",
+        headers={"x-sevenflows-adapter-id": "dify-default"},
+        json={
+            "toolId": "compat:dify:plugin:demo/search",
+            "ecosystem": "compat:dify",
+            "adapterId": "dify-default",
+            "inputs": {"query": "sevenflows"},
+            "credentials": {},
+            "timeout": 30000,
+            "traceId": "trace-proxy",
+            "executionContract": build_execution_contract(tool).model_dump(),
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert body["output"] == {
+        "text": "result text",
+        "json": {"documents": ["doc-1"]},
+        "variables": {"answer": "ok"},
+    }
+    assert body["logs"] == [
+        "compat:dify proxied tool 'compat:dify:plugin:demo/search' via translated Dify invoke payload",
+        "daemon.log[success]",
+    ]
+    assert isinstance(body["durationMs"], int)
+    assert body["durationMs"] >= 0

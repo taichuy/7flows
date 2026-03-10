@@ -121,6 +121,12 @@ def _translate_tool_definition(
     translated_name = _pick_localized_text(identity.get("label"), fallback=name)
     description = _pick_localized_text(identity.get("description"), fallback="")
     icon = str(identity.get("icon") or "").strip()
+    runtime_binding = _infer_runtime_binding(
+        manifest_path=manifest_path,
+        tool_definition=definition,
+        author=author,
+        tool_name=name,
+    )
 
     properties: dict[str, Any] = {}
     required: list[str] = []
@@ -177,6 +183,7 @@ def _translate_tool_definition(
         "icon": icon,
         "manifest_path": str(manifest_path),
         "tool_path": str(tool_path),
+        "dify_runtime": runtime_binding,
     }
     constrained_ir = ConstrainedToolIR(
         ecosystem=settings.supported_ecosystem,
@@ -257,6 +264,32 @@ def _resolve_value_source(parameter: dict[str, Any]) -> str:
     if str(parameter.get("form") or "").strip() == "llm":
         return "llm"
     return "user"
+
+
+def _infer_runtime_binding(
+    *,
+    manifest_path: Path,
+    tool_definition: dict[str, Any],
+    author: str,
+    tool_name: str,
+) -> dict[str, str]:
+    manifest_slug = manifest_path.parent.name.strip() or author or "plugin"
+    runtime = (
+        ((tool_definition.get("extra") or {}).get("dify_runtime") or {})
+        if isinstance(tool_definition.get("extra"), dict)
+        else {}
+    )
+    if not isinstance(runtime, dict):
+        runtime = {}
+
+    provider = str(runtime.get("provider") or manifest_slug).strip() or manifest_slug
+    plugin_id = str(runtime.get("plugin_id") or author or manifest_slug).strip() or manifest_slug
+    resolved_tool_name = str(runtime.get("tool_name") or tool_name).strip() or tool_name
+    return {
+        "plugin_id": plugin_id,
+        "provider": provider,
+        "tool_name": resolved_tool_name,
+    }
 
 
 def _pick_localized_text(value: Any, *, fallback: str) -> str:
