@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import JSONResponse, PlainTextResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -242,87 +243,21 @@ def _build_trace_cursor(
     )
 
 
-@router.post(
-    "/workflows/{workflow_id}/runs",
-    response_model=RunDetail,
-    status_code=status.HTTP_201_CREATED,
-)
-def execute_workflow(
-    workflow_id: str,
-    payload: RunCreate,
-    db: Session = Depends(get_db),
-) -> RunDetail:
-    workflow = db.get(Workflow, workflow_id)
-    if workflow is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
-
-    try:
-        artifacts = runtime_service.execute_workflow(db, workflow, payload.input_payload)
-    except WorkflowExecutionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
-        ) from exc
-
-    return _serialize_run(artifacts)
-
-
-@router.get("/runs/{run_id}", response_model=RunDetail)
-def get_run(
+def _create_run_trace(
+    *,
     run_id: str,
-    include_events: bool = Query(default=True),
-    db: Session = Depends(get_db),
-) -> RunDetail:
-    artifacts = runtime_service.load_run(db, run_id)
-    if artifacts is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
-    return _serialize_run(artifacts, include_events=include_events)
-
-
-@router.get("/runs/{run_id}/events", response_model=list[RunEventItem])
-def get_run_events(run_id: str, db: Session = Depends(get_db)) -> list[RunEventItem]:
-    artifacts = runtime_service.load_run(db, run_id)
-    if artifacts is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
-    return [_serialize_run_event(event) for event in artifacts.events]
-
-
-@router.get("/runs/{run_id}/trace", response_model=RunTrace)
-def get_run_trace(
-    run_id: str,
-    cursor: str | None = None,
-    event_type: str | None = None,
-    node_run_id: str | None = None,
-    created_after: datetime | None = None,
-    created_before: datetime | None = None,
-    payload_key: str | None = None,
-    before_event_id: int | None = None,
-    after_event_id: int | None = None,
-    limit: int = Query(default=200, ge=1, le=1000),
-    order: Literal["asc", "desc"] = "asc",
-    db: Session = Depends(get_db),
+    cursor: str | None,
+    event_type: str | None,
+    node_run_id: str | None,
+    created_after: datetime | None,
+    created_before: datetime | None,
+    payload_key: str | None,
+    before_event_id: int | None,
+    after_event_id: int | None,
+    limit: int,
+    order: Literal["asc", "desc"],
+    run_events: list[RunEvent],
 ) -> RunTrace:
-    run = db.get(Run, run_id)
-    if run is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
-
-    if cursor is not None:
-        before_event_id, after_event_id, order = _decode_trace_cursor(cursor)
-
-    created_after = _normalize_filter_datetime(created_after)
-    created_before = _normalize_filter_datetime(created_before)
-    payload_key = payload_key.strip() if payload_key is not None else None
-    if payload_key == "":
-        payload_key = None
-    if created_after is not None and created_before is not None and created_after > created_before:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="created_after must be earlier than or equal to created_before.",
-        )
-
-    run_events = db.scalars(
-        select(RunEvent).where(RunEvent.run_id == run_id).order_by(RunEvent.id.asc())
-    ).all()
     total_event_count = len(run_events)
     available_event_types = sorted({event.event_type for event in run_events})
     available_node_run_ids = sorted(
@@ -395,8 +330,8 @@ def get_run_trace(
             int((returned_finished_at - returned_started_at).total_seconds() * 1000),
         )
 
-    prev_cursor: RunTraceCursor | None = None
-    next_cursor: RunTraceCursor | None = None
+    prev_cursor: str | None = None
+    next_cursor: str | None = None
     if events:
         first_returned_event = events[0]
         last_returned_event = events[-1]
@@ -472,4 +407,215 @@ def get_run_trace(
             )
             for event in events
         ],
+    )
+
+
+def _load_trace_request(
+    *,
+    run_id: str,
+    cursor: str | None,
+    event_type: str | None,
+    node_run_id: str | None,
+    created_after: datetime | None,
+    created_before: datetime | None,
+    payload_key: str | None,
+    before_event_id: int | None,
+    after_event_id: int | None,
+    limit: int,
+    order: Literal["asc", "desc"],
+    db: Session,
+) -> RunTrace:
+    run = db.get(Run, run_id)
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
+
+    if cursor is not None:
+        before_event_id, after_event_id, order = _decode_trace_cursor(cursor)
+
+    created_after = _normalize_filter_datetime(created_after)
+    created_before = _normalize_filter_datetime(created_before)
+    payload_key = payload_key.strip() if payload_key is not None else None
+    if payload_key == "":
+        payload_key = None
+    if created_after is not None and created_before is not None and created_after > created_before:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="created_after must be earlier than or equal to created_before.",
+        )
+
+    run_events = db.scalars(
+        select(RunEvent).where(RunEvent.run_id == run_id).order_by(RunEvent.id.asc())
+    ).all()
+    return _create_run_trace(
+        run_id=run_id,
+        cursor=cursor,
+        event_type=event_type,
+        node_run_id=node_run_id,
+        created_after=created_after,
+        created_before=created_before,
+        payload_key=payload_key,
+        before_event_id=before_event_id,
+        after_event_id=after_event_id,
+        limit=limit,
+        order=order,
+        run_events=run_events,
+    )
+
+
+def _build_trace_export_filename(
+    run_id: str,
+    export_format: Literal["json", "jsonl"],
+) -> str:
+    suffix = "json" if export_format == "json" else "jsonl"
+    return f"run-{run_id}-trace.{suffix}"
+
+
+def _serialize_trace_export_jsonl(trace: RunTrace) -> str:
+    exported_at = datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    lines = [
+        json.dumps(
+            {
+                "record_type": "trace",
+                "run_id": trace.run_id,
+                "exported_at": exported_at,
+                "filters": trace.filters.model_dump(mode="json"),
+                "summary": trace.summary.model_dump(mode="json"),
+            },
+            ensure_ascii=False,
+        )
+    ]
+    lines.extend(
+        json.dumps(
+            {
+                "record_type": "event",
+                **event.model_dump(mode="json"),
+            },
+            ensure_ascii=False,
+        )
+        for event in trace.events
+    )
+    return "\n".join(lines) + "\n"
+
+
+@router.post(
+    "/workflows/{workflow_id}/runs",
+    response_model=RunDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+def execute_workflow(
+    workflow_id: str,
+    payload: RunCreate,
+    db: Session = Depends(get_db),
+) -> RunDetail:
+    workflow = db.get(Workflow, workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
+
+    try:
+        artifacts = runtime_service.execute_workflow(db, workflow, payload.input_payload)
+    except WorkflowExecutionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return _serialize_run(artifacts)
+
+
+@router.get("/runs/{run_id}", response_model=RunDetail)
+def get_run(
+    run_id: str,
+    include_events: bool = Query(default=True),
+    db: Session = Depends(get_db),
+) -> RunDetail:
+    artifacts = runtime_service.load_run(db, run_id)
+    if artifacts is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
+    return _serialize_run(artifacts, include_events=include_events)
+
+
+@router.get("/runs/{run_id}/events", response_model=list[RunEventItem])
+def get_run_events(run_id: str, db: Session = Depends(get_db)) -> list[RunEventItem]:
+    artifacts = runtime_service.load_run(db, run_id)
+    if artifacts is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
+    return [_serialize_run_event(event) for event in artifacts.events]
+
+
+@router.get("/runs/{run_id}/trace", response_model=RunTrace)
+def get_run_trace(
+    run_id: str,
+    cursor: str | None = None,
+    event_type: str | None = None,
+    node_run_id: str | None = None,
+    created_after: datetime | None = None,
+    created_before: datetime | None = None,
+    payload_key: str | None = None,
+    before_event_id: int | None = None,
+    after_event_id: int | None = None,
+    limit: int = Query(default=200, ge=1, le=1000),
+    order: Literal["asc", "desc"] = "asc",
+    db: Session = Depends(get_db),
+) -> RunTrace:
+    return _load_trace_request(
+        run_id=run_id,
+        cursor=cursor,
+        event_type=event_type,
+        node_run_id=node_run_id,
+        created_after=created_after,
+        created_before=created_before,
+        payload_key=payload_key,
+        before_event_id=before_event_id,
+        after_event_id=after_event_id,
+        limit=limit,
+        order=order,
+        db=db,
+    )
+
+
+@router.get("/runs/{run_id}/trace/export", response_model=None)
+def export_run_trace(
+    run_id: str,
+    cursor: str | None = None,
+    event_type: str | None = None,
+    node_run_id: str | None = None,
+    created_after: datetime | None = None,
+    created_before: datetime | None = None,
+    payload_key: str | None = None,
+    before_event_id: int | None = None,
+    after_event_id: int | None = None,
+    limit: int = Query(default=200, ge=1, le=1000),
+    order: Literal["asc", "desc"] = "asc",
+    format: Literal["json", "jsonl"] = "json",
+    db: Session = Depends(get_db),
+):
+    trace = _load_trace_request(
+        run_id=run_id,
+        cursor=cursor,
+        event_type=event_type,
+        node_run_id=node_run_id,
+        created_after=created_after,
+        created_before=created_before,
+        payload_key=payload_key,
+        before_event_id=before_event_id,
+        after_event_id=after_event_id,
+        limit=limit,
+        order=order,
+        db=db,
+    )
+    filename = _build_trace_export_filename(run_id, format)
+    headers = {
+        "Content-Disposition": f'attachment; filename="{filename}"',
+    }
+
+    if format == "jsonl":
+        return PlainTextResponse(
+            content=_serialize_trace_export_jsonl(trace),
+            media_type="application/x-ndjson",
+            headers=headers,
+        )
+
+    return JSONResponse(
+        content=trace.model_dump(mode="json"),
+        headers=headers,
     )

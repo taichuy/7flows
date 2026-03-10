@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import type { RunDetail } from "@/lib/get-run-detail";
 import {
+  buildRunTraceExportUrl,
   buildRunTraceQueryString,
   DEFAULT_RUN_TRACE_LIMIT,
   type RunTrace,
@@ -52,7 +53,16 @@ export function RunDiagnosticsPanel({
   ).sort();
   const activeFilters = summarizeActiveFilters(activeTraceQuery);
   const traceHref = buildPageTraceHref(run.id, activeTraceQuery);
-  const traceApiHref = buildTraceApiHref(run.id, activeTraceQuery);
+  const traceExportJsonHref = buildRunTraceExportUrl(
+    run.id,
+    activeTraceQuery,
+    "json"
+  );
+  const traceExportJsonlHref = buildRunTraceExportUrl(
+    run.id,
+    activeTraceQuery,
+    "jsonl"
+  );
   const eventsApiHref = `${getApiBaseUrl()}/api/runs/${encodeURIComponent(run.id)}/events`;
 
   return (
@@ -370,8 +380,21 @@ export function RunDiagnosticsPanel({
               <Link className="inline-link" href={`/runs/${run.id}`}>
                 重置过滤
               </Link>
-              <a className="activity-link" href={traceApiHref} target="_blank" rel="noreferrer">
-                导出当前 trace JSON
+              <a
+                className="activity-link"
+                href={traceExportJsonHref}
+                target="_blank"
+                rel="noreferrer"
+              >
+                导出 trace JSON
+              </a>
+              <a
+                className="activity-link"
+                href={traceExportJsonlHref}
+                target="_blank"
+                rel="noreferrer"
+              >
+                导出 trace JSONL
               </a>
             </div>
           </form>
@@ -651,11 +674,4 @@ function summarizeActiveFilters(query: RunTraceQuery) {
 function buildPageTraceHref(runId: string, query: RunTraceQuery) {
   const queryString = buildRunTraceQueryString(query);
   return `/runs/${encodeURIComponent(runId)}${queryString ? `?${queryString}` : ""}`;
-}
-
-function buildTraceApiHref(runId: string, query: RunTraceQuery) {
-  const queryString = buildRunTraceQueryString(query);
-  return `${getApiBaseUrl()}/api/runs/${encodeURIComponent(runId)}/trace${
-    queryString ? `?${queryString}` : ""
-  }`;
 }

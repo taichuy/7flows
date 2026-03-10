@@ -162,6 +162,7 @@ uv run alembic upgrade head
 - `GET /api/runs/{run_id}`
 - `GET /api/runs/{run_id}/events`
 - `GET /api/runs/{run_id}/trace`
+- `GET /api/runs/{run_id}/trace/export`
 
 用途：
 
@@ -172,6 +173,7 @@ uv run alembic upgrade head
 - `GET /api/runs/{run_id}` 当前已支持 `include_events=false` 的摘要模式，供 run 诊断页等人类界面减少与 `/trace` 的重复数据搬运
 - 当前 trace 过滤已支持 `event_type`、`node_run_id`、时间范围、`payload_key`、事件游标和顺序控制
 - 当前 trace 还补充了回放 / 导出元信息，例如 trace / returned 时间边界、事件顺序、`replay_offset_ms` 以及 opaque `cursor`
+- `GET /api/runs/{run_id}/trace/export` 当前支持 `json` 与 `jsonl`，导出会复用相同过滤条件，便于离线分析与后续 replay 包演进
 
 系统诊断相关接口：
 

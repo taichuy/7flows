@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
@@ -393,6 +394,66 @@ def test_get_run_trace_rejects_invalid_cursor(
 
     assert trace_response.status_code == 422
     assert trace_response.json() == {"detail": "cursor is invalid."}
+
+
+def test_export_run_trace_supports_json_and_jsonl(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow: Workflow,
+) -> None:
+    response = client.post(
+        f"/api/workflows/{sample_workflow.id}/runs",
+        json={"input_payload": {"message": "export trace"}},
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    run_id = body["id"]
+
+    export_json_response = client.get(
+        f"/api/runs/{run_id}/trace/export",
+        params={"event_type": "node.started", "format": "json"},
+    )
+
+    assert export_json_response.status_code == 200
+    assert export_json_response.headers["content-type"].startswith("application/json")
+    assert (
+        export_json_response.headers["content-disposition"]
+        == f'attachment; filename="run-{run_id}-trace.json"'
+    )
+    export_json_body = export_json_response.json()
+    assert export_json_body["filters"]["event_type"] == "node.started"
+    assert export_json_body["summary"]["matched_event_count"] == 3
+    assert all(event["event_type"] == "node.started" for event in export_json_body["events"])
+
+    export_jsonl_response = client.get(
+        f"/api/runs/{run_id}/trace/export",
+        params={
+            "node_run_id": body["node_runs"][0]["id"],
+            "event_type": "node.started",
+            "format": "jsonl",
+        },
+    )
+
+    assert export_jsonl_response.status_code == 200
+    assert export_jsonl_response.headers["content-type"].startswith("application/x-ndjson")
+    assert (
+        export_jsonl_response.headers["content-disposition"]
+        == f'attachment; filename="run-{run_id}-trace.jsonl"'
+    )
+    export_lines = [
+        json.loads(line)
+        for line in export_jsonl_response.text.splitlines()
+        if line.strip()
+    ]
+    assert export_lines[0]["record_type"] == "trace"
+    assert export_lines[0]["filters"]["node_run_id"] == body["node_runs"][0]["id"]
+    assert export_lines[0]["filters"]["event_type"] == "node.started"
+    assert export_lines[0]["summary"]["matched_event_count"] == 1
+    assert len(export_lines) == 2
+    assert export_lines[1]["record_type"] == "event"
+    assert export_lines[1]["node_run_id"] == body["node_runs"][0]["id"]
+    assert export_lines[1]["event_type"] == "node.started"
 
 
 def test_execute_workflow_route_returns_handled_failure_branch(

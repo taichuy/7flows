@@ -113,6 +113,19 @@ export function buildRunTraceQueryString(query: RunTraceQuery) {
   return searchParams.toString();
 }
 
+export function buildRunTraceExportUrl(
+  runId: string,
+  query: RunTraceQuery,
+  format: "json" | "jsonl"
+) {
+  const searchParams = new URLSearchParams(buildRunTraceQueryString(query));
+  searchParams.set("format", format);
+
+  return `${getApiBaseUrl()}/api/runs/${encodeURIComponent(
+    runId
+  )}/trace/export?${searchParams.toString()}`;
+}
+
 export async function getRunTrace(
   runId: string,
   query: RunTraceQuery
