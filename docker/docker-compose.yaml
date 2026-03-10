@@ -102,6 +102,25 @@ services:
       timeout: 5s
       retries: 20
 
+  compat-dify:
+    build:
+      context: ../services/compat-dify
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      SEVENFLOWS_COMPAT_DIFY_ENV: docker
+      SEVENFLOWS_COMPAT_DIFY_ADAPTER_ID: ${SEVENFLOWS_PLUGIN_COMPAT_DIFY_ADAPTER_ID:-dify-default}
+      SEVENFLOWS_COMPAT_DIFY_HEALTH_STATUS: ok
+    ports:
+      - "${SEVENFLOWS_COMPAT_DIFY_PORT:-38091}:8091"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8091/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
   api:
     build:
       context: ../api
@@ -114,6 +133,8 @@ services:
       SEVENFLOWS_HOST: 0.0.0.0
       SEVENFLOWS_PORT: 8000
       SEVENFLOWS_MIGRATION_ENABLED: true
+      SEVENFLOWS_PLUGIN_COMPAT_DIFY_ENABLED: true
+      SEVENFLOWS_PLUGIN_COMPAT_DIFY_ENDPOINT: http://compat-dify:8091
     depends_on:
       db:
         condition: service_healthy
@@ -121,6 +142,8 @@ services:
         condition: service_healthy
       rustfs-init:
         condition: service_completed_successfully
+      compat-dify:
+        condition: service_healthy
     ports:
       - "${SEVENFLOWS_API_PORT:-8000}:8000"
 
@@ -141,6 +164,8 @@ services:
         condition: service_healthy
       api:
         condition: service_started
+      compat-dify:
+        condition: service_healthy
 
   web:
     build:
