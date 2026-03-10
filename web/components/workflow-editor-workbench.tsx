@@ -471,6 +471,9 @@ export function WorkflowEditorWorkbench({
               <Link className="inline-link" href="/">
                 返回系统首页
               </Link>
+              <Link className="inline-link secondary" href="/workflows/new">
+                新建 workflow
+              </Link>
               <button
                 className="sync-button"
                 type="button"

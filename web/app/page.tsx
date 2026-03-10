@@ -107,16 +107,26 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <p className="eyebrow">Editor</p>
               <h2>Workflow canvas entry</h2>
             </div>
-            <p className="section-copy">
-              最小 `xyflow` 编辑器已经接上 workflow definition，可直接进入画布编辑节点、
-              连线和基础 metadata，再保存回后端版本链路。
-            </p>
+            <div className="section-actions">
+              <p className="section-copy">
+                最小 `xyflow` 编辑器已经接上 workflow definition，可直接进入画布编辑节点、
+                连线和基础 metadata，再保存回后端版本链路。
+              </p>
+              <Link className="inline-link" href="/workflows/new">
+                新建 workflow
+              </Link>
+            </div>
           </div>
 
           {workflows.length === 0 ? (
-            <p className="empty-state">
-              当前还没有可编辑的 workflow，请先通过 API 创建草稿后再进入画布。
-            </p>
+            <div className="empty-state-block">
+              <p className="empty-state">
+                当前还没有可编辑的 workflow。现在可以直接从新建向导创建 starter，而不用再先手动调用 API。
+              </p>
+              <Link className="inline-link" href="/workflows/new">
+                进入新建向导
+              </Link>
+            </div>
           ) : (
             <div className="workflow-chip-row">
               {workflows.map((workflow) => (

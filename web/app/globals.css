@@ -180,6 +180,14 @@ a {
   margin-top: 20px;
 }
 
+.section-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  align-items: flex-start;
+}
+
 .grid,
 .diagnostics-layout {
   display: grid;
@@ -422,6 +430,12 @@ a {
   background: rgba(208, 99, 45, 0.12);
   border: 1px solid rgba(208, 99, 45, 0.16);
   color: var(--accent);
+}
+
+.inline-link.secondary {
+  background: rgba(28, 25, 21, 0.05);
+  border-color: rgba(28, 25, 21, 0.08);
+  color: var(--ink);
 }
 
 .activity-link {
@@ -759,6 +773,12 @@ a {
   margin-top: 0;
 }
 
+.empty-state-block {
+  display: grid;
+  gap: 14px;
+  align-items: start;
+}
+
 .entry-card {
   margin-top: 22px;
 }
@@ -795,6 +815,17 @@ a {
   width: min(100% - 24px, 1480px);
   margin: 0 auto;
   padding: 28px 0 48px;
+}
+
+.creation-hero {
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+}
+
+.creation-layout {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  margin-top: 18px;
 }
 
 .editor-hero {
@@ -964,6 +995,75 @@ a {
   margin-top: 18px;
 }
 
+.starter-grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 22px;
+}
+
+.starter-card {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  border-radius: 22px;
+  border: 1px solid rgba(28, 25, 21, 0.08);
+  background: rgba(255, 252, 246, 0.78);
+  padding: 18px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.starter-card:hover,
+.starter-card.selected {
+  transform: translateY(-1px);
+  border-color: rgba(208, 99, 45, 0.26);
+  box-shadow: 0 18px 42px rgba(208, 99, 45, 0.12);
+}
+
+.starter-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.starter-track {
+  color: var(--accent);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.starter-meta-row,
+.starter-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.starter-meta-row {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.starter-summary-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 252, 246, 0.78);
+  border: 1px solid rgba(28, 25, 21, 0.08);
+}
+
+.starter-summary-copy {
+  max-width: none;
+}
+
 .editor-node-add,
 .editor-danger-button {
   display: grid;
@@ -1049,6 +1149,7 @@ a {
   .tool-detail-grid,
   .binding-workbench,
   .trace-filter-form,
+  .creation-layout,
   .editor-workspace {
     grid-template-columns: 1fr;
   }
