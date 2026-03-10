@@ -33,6 +33,9 @@ class RunEventItem(BaseModel):
 class RunTraceFilters(BaseModel):
     event_type: str | None = None
     node_run_id: str | None = None
+    created_after: datetime | None = None
+    created_before: datetime | None = None
+    payload_key: str | None = None
     before_event_id: int | None = None
     after_event_id: int | None = None
     limit: int = 200
@@ -45,6 +48,7 @@ class RunTraceSummary(BaseModel):
     returned_event_count: int = 0
     available_event_types: list[str] = Field(default_factory=list)
     available_node_run_ids: list[str] = Field(default_factory=list)
+    available_payload_keys: list[str] = Field(default_factory=list)
     first_event_id: int | None = None
     last_event_id: int | None = None
     has_more: bool = False

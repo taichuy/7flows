@@ -1,6 +1,10 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.run import Run, RunEvent
 from app.models.workflow import Workflow
 
 
@@ -51,6 +55,9 @@ def test_get_run_trace_supports_machine_filters(
     assert trace_body["filters"] == {
         "event_type": None,
         "node_run_id": None,
+        "created_after": None,
+        "created_before": None,
+        "payload_key": None,
         "before_event_id": None,
         "after_event_id": None,
         "limit": 2,
@@ -60,6 +67,8 @@ def test_get_run_trace_supports_machine_filters(
     assert trace_body["summary"]["matched_event_count"] == len(body["events"])
     assert trace_body["summary"]["returned_event_count"] == 2
     assert trace_body["summary"]["has_more"] is True
+    assert "input" in trace_body["summary"]["available_payload_keys"]
+    assert "node_type" in trace_body["summary"]["available_payload_keys"]
     assert trace_body["summary"]["first_event_id"] == body["events"][0]["id"]
     assert trace_body["summary"]["last_event_id"] == body["events"][1]["id"]
     assert len(trace_body["events"]) == 2
@@ -113,6 +122,130 @@ def test_get_run_trace_supports_cursor_and_desc_order(
     ]
     assert trace_body["filters"]["before_event_id"] == anchor_event_id
     assert trace_body["filters"]["order"] == "desc"
+
+
+def test_get_run_trace_supports_time_range_and_payload_key_search(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow: Workflow,
+) -> None:
+    run = Run(
+        id="run-trace-time-payload",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        status="succeeded",
+        input_payload={"message": "trace filters"},
+        output_payload={"answer": "done"},
+        created_at=datetime(2026, 3, 10, 8, 0, tzinfo=UTC),
+    )
+    sqlite_session.add(run)
+    sqlite_session.flush()
+
+    base_time = datetime(2026, 3, 10, 8, 0, tzinfo=UTC)
+    sqlite_session.add_all(
+        [
+            RunEvent(
+                run_id=run.id,
+                event_type="run.started",
+                payload={"input": {"message": "trace filters"}},
+                created_at=base_time,
+            ),
+            RunEvent(
+                run_id=run.id,
+                node_run_id="node-planner",
+                event_type="node.output.completed",
+                payload={"node_id": "planner", "output": {"summary": "draft"}},
+                created_at=base_time + timedelta(minutes=1),
+            ),
+            RunEvent(
+                run_id=run.id,
+                node_run_id="node-reader",
+                event_type="node.context.read",
+                payload={
+                    "node_id": "reader",
+                    "results": [{"nodeId": "planner", "artifactType": "json"}],
+                },
+                created_at=base_time + timedelta(minutes=2),
+            ),
+            RunEvent(
+                run_id=run.id,
+                node_run_id="node-output",
+                event_type="node.output.completed",
+                payload={"node_id": "output", "output": {"final": {"answer": "done"}}},
+                created_at=base_time + timedelta(minutes=3),
+            ),
+        ]
+    )
+    sqlite_session.commit()
+
+    trace_response = client.get(
+        f"/api/runs/{run.id}/trace",
+        params={
+            "created_after": (base_time + timedelta(minutes=1, seconds=30)).isoformat(),
+            "created_before": (base_time + timedelta(minutes=3, seconds=30)).isoformat(),
+            "payload_key": "artifactType",
+        },
+    )
+
+    assert trace_response.status_code == 200
+    trace_body = trace_response.json()
+    assert trace_body["filters"]["payload_key"] == "artifactType"
+    assert trace_body["summary"]["matched_event_count"] == 1
+    assert trace_body["summary"]["returned_event_count"] == 1
+    expected_event_id = sqlite_session.scalars(
+        select(RunEvent.id).where(
+            RunEvent.run_id == run.id,
+            RunEvent.event_type == "node.context.read",
+        )
+    ).one()
+    assert trace_body["events"] == [
+        {
+            "id": expected_event_id,
+            "run_id": run.id,
+            "node_run_id": "node-reader",
+            "event_type": "node.context.read",
+            "payload": {
+                "node_id": "reader",
+                "results": [{"nodeId": "planner", "artifactType": "json"}],
+            },
+            "created_at": trace_body["events"][0]["created_at"],
+        }
+    ]
+    trace_created_at = datetime.fromisoformat(
+        trace_body["events"][0]["created_at"].replace("Z", "+00:00")
+    )
+    assert trace_created_at.replace(tzinfo=None) == (base_time + timedelta(minutes=2)).replace(
+        tzinfo=None
+    )
+    assert "artifactType" in trace_body["summary"]["available_payload_keys"]
+    assert "results.artifactType" in trace_body["summary"]["available_payload_keys"]
+
+
+def test_get_run_trace_rejects_invalid_time_range(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow: Workflow,
+) -> None:
+    response = client.post(
+        f"/api/workflows/{sample_workflow.id}/runs",
+        json={"input_payload": {"message": "time guard"}},
+    )
+
+    assert response.status_code == 201
+    run_id = response.json()["id"]
+
+    trace_response = client.get(
+        f"/api/runs/{run_id}/trace",
+        params={
+            "created_after": "2026-03-10T09:00:00+00:00",
+            "created_before": "2026-03-10T08:00:00+00:00",
+        },
+    )
+
+    assert trace_response.status_code == 422
+    assert trace_response.json() == {
+        "detail": "created_after must be earlier than or equal to created_before."
+    }
 
 
 def test_get_run_trace_returns_404_for_missing_run(client: TestClient) -> None:
