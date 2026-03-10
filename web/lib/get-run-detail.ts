@@ -33,6 +33,10 @@ export type RunDetail = {
   started_at?: string | null;
   finished_at?: string | null;
   created_at: string;
+  event_count: number;
+  event_type_counts: Record<string, number>;
+  first_event_at?: string | null;
+  last_event_at?: string | null;
   node_runs: NodeRunItem[];
   events: RunEventItem[];
 };
@@ -40,7 +44,9 @@ export type RunDetail = {
 export async function getRunDetail(runId: string): Promise<RunDetail | null> {
   try {
     const response = await fetch(
-      `${getApiBaseUrl()}/api/runs/${encodeURIComponent(runId)}`,
+      `${getApiBaseUrl()}/api/runs/${encodeURIComponent(
+        runId
+      )}?include_events=false`,
       {
         cache: "no-store"
       }

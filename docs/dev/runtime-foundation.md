@@ -169,6 +169,7 @@ uv run alembic upgrade head
 - 查询执行详情
 - 查询事件流
 - 为 AI / 自动化 提供带过滤条件的 run trace 检索
+- `GET /api/runs/{run_id}` 当前已支持 `include_events=false` 的摘要模式，供 run 诊断页等人类界面减少与 `/trace` 的重复数据搬运
 - 当前 trace 过滤已支持 `event_type`、`node_run_id`、时间范围、`payload_key`、事件游标和顺序控制
 - 当前 trace 还补充了回放 / 导出元信息，例如 trace / returned 时间边界、事件顺序、`replay_offset_ms` 以及 opaque `cursor`
 

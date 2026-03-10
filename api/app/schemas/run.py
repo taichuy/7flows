@@ -87,5 +87,9 @@ class RunDetail(BaseModel):
     started_at: datetime | None = None
     finished_at: datetime | None = None
     created_at: datetime
+    event_count: int = 0
+    event_type_counts: dict[str, int] = Field(default_factory=dict)
+    first_event_at: datetime | None = None
+    last_event_at: datetime | None = None
     node_runs: list[NodeRunItem]
-    events: list[RunEventItem]
+    events: list[RunEventItem] = Field(default_factory=list)

@@ -1,5 +1,6 @@
 import base64
 import json
+from collections import Counter
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -57,7 +58,13 @@ def _payload_matches_key(payload: dict, payload_key: str | None) -> bool:
     return any(normalized_key in key.casefold() for key in _collect_payload_keys(payload))
 
 
-def _serialize_run(artifacts: ExecutionArtifacts) -> RunDetail:
+def _serialize_run(artifacts: ExecutionArtifacts, *, include_events: bool = True) -> RunDetail:
+    event_type_counts = dict(
+        sorted(Counter(event.event_type for event in artifacts.events).items())
+    )
+    first_event_at = artifacts.events[0].created_at if artifacts.events else None
+    last_event_at = artifacts.events[-1].created_at if artifacts.events else None
+
     return RunDetail(
         id=artifacts.run.id,
         workflow_id=artifacts.run.workflow_id,
@@ -69,6 +76,10 @@ def _serialize_run(artifacts: ExecutionArtifacts) -> RunDetail:
         started_at=artifacts.run.started_at,
         finished_at=artifacts.run.finished_at,
         created_at=artifacts.run.created_at,
+        event_count=len(artifacts.events),
+        event_type_counts=event_type_counts,
+        first_event_at=first_event_at,
+        last_event_at=last_event_at,
         node_runs=[
             {
                 "id": node_run.id,
@@ -84,9 +95,7 @@ def _serialize_run(artifacts: ExecutionArtifacts) -> RunDetail:
             }
             for node_run in artifacts.node_runs
         ],
-        events=[
-            _serialize_run_event(event) for event in artifacts.events
-        ],
+        events=[_serialize_run_event(event) for event in artifacts.events] if include_events else [],
     )
 
 
@@ -259,11 +268,15 @@ def execute_workflow(
 
 
 @router.get("/runs/{run_id}", response_model=RunDetail)
-def get_run(run_id: str, db: Session = Depends(get_db)) -> RunDetail:
+def get_run(
+    run_id: str,
+    include_events: bool = Query(default=True),
+    db: Session = Depends(get_db),
+) -> RunDetail:
     artifacts = runtime_service.load_run(db, run_id)
     if artifacts is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
-    return _serialize_run(artifacts)
+    return _serialize_run(artifacts, include_events=include_events)
 
 
 @router.get("/runs/{run_id}/events", response_model=list[RunEventItem])

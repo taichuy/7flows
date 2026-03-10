@@ -29,7 +29,39 @@ def test_execute_workflow_route(
     run_id = body["id"]
     stored_response = client.get(f"/api/runs/{run_id}")
     assert stored_response.status_code == 200
-    assert stored_response.json()["id"] == run_id
+    stored_body = stored_response.json()
+    assert stored_body["id"] == run_id
+    assert stored_body["event_count"] == len(body["events"])
+    assert stored_body["event_type_counts"]["run.completed"] == 1
+    assert stored_body["first_event_at"] == body["events"][0]["created_at"]
+    assert stored_body["last_event_at"] == body["events"][-1]["created_at"]
+
+
+def test_get_run_supports_summary_mode_without_events(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow: Workflow,
+) -> None:
+    response = client.post(
+        f"/api/workflows/{sample_workflow.id}/runs",
+        json={"input_payload": {"message": "summary only"}},
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    run_id = body["id"]
+
+    summary_response = client.get(f"/api/runs/{run_id}", params={"include_events": "false"})
+
+    assert summary_response.status_code == 200
+    summary_body = summary_response.json()
+    assert summary_body["id"] == run_id
+    assert summary_body["event_count"] == len(body["events"])
+    assert summary_body["event_type_counts"]["run.started"] == 1
+    assert summary_body["event_type_counts"]["run.completed"] == 1
+    assert summary_body["first_event_at"] == body["events"][0]["created_at"]
+    assert summary_body["last_event_at"] == body["events"][-1]["created_at"]
+    assert summary_body["events"] == []
 
 
 def _parse_trace_datetime(value: str) -> datetime:

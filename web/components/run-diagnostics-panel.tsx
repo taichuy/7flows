@@ -30,7 +30,7 @@ export function RunDiagnosticsPanel({
   traceError,
   traceQuery
 }: RunDiagnosticsPanelProps) {
-  const eventTypes = summarizeEventTypes(run.events);
+  const eventTypes = run.event_type_counts;
   const activeTraceQuery = trace
     ? toRunTraceQuery(trace.filters)
     : {
@@ -69,7 +69,7 @@ export function RunDiagnosticsPanel({
             <span className="pill">run {run.id}</span>
             <span className="pill">version {run.workflow_version}</span>
             <span className="pill">{run.node_runs.length} node runs</span>
-            <span className="pill">{run.events.length} events</span>
+            <span className="pill">{run.event_count} events</span>
           </div>
           <div className="hero-actions">
             <Link className="inline-link" href="/">
@@ -96,7 +96,7 @@ export function RunDiagnosticsPanel({
             </div>
             <div>
               <dt>Events</dt>
-              <dd>{run.events.length}</dd>
+              <dd>{run.event_count}</dd>
             </div>
             <div>
               <dt>Errors</dt>
@@ -182,11 +182,11 @@ export function RunDiagnosticsPanel({
           <div className="meta-grid">
             <article className="summary-card">
               <span>First event</span>
-              <strong>{formatTimestamp(run.events[0]?.created_at)}</strong>
+              <strong>{formatTimestamp(run.first_event_at)}</strong>
             </article>
             <article className="summary-card">
               <span>Last event</span>
-              <strong>{formatTimestamp(run.events.at(-1)?.created_at)}</strong>
+              <strong>{formatTimestamp(run.last_event_at)}</strong>
             </article>
           </div>
 
@@ -599,13 +599,6 @@ function PayloadCard({
       )}
     </div>
   );
-}
-
-function summarizeEventTypes(events: RunDetail["events"]) {
-  return events.reduce<Record<string, number>>((summary, event) => {
-    summary[event.event_type] = (summary[event.event_type] ?? 0) + 1;
-    return summary;
-  }, {});
 }
 
 function countErroredNodes(run: RunDetail) {
