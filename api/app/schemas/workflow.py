@@ -65,6 +65,16 @@ class WorkflowNodeMcpQuery(BaseModel):
     artifactTypes: list[ArtifactType] | None = None
 
 
+class WorkflowNodeToolBinding(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    toolId: str = Field(min_length=1, max_length=256)
+    ecosystem: str | None = Field(default=None, min_length=1, max_length=64)
+    adapterId: str | None = Field(default=None, min_length=1, max_length=128)
+    credentials: dict[str, str] = Field(default_factory=dict)
+    timeoutMs: int | None = Field(default=None, ge=1, le=600_000)
+
+
 BranchSelectorOperator = Literal[
     "exists",
     "not_exists",
@@ -164,6 +174,19 @@ class WorkflowNodeDefinition(BaseModel):
         context_access = self.config.get("contextAccess")
         if context_access is not None:
             WorkflowNodeContextAccess.model_validate(context_access)
+
+        tool_binding = self.config.get("tool")
+        if tool_binding is not None:
+            if self.type != "tool":
+                raise ValueError("Only tool nodes may define config.tool.")
+            WorkflowNodeToolBinding.model_validate(tool_binding)
+
+        flat_tool_id = self.config.get("toolId")
+        if flat_tool_id is not None:
+            if self.type != "tool":
+                raise ValueError("Only tool nodes may define config.toolId.")
+            if not isinstance(flat_tool_id, str) or not flat_tool_id.strip():
+                raise ValueError("config.toolId must be a non-empty string.")
 
         query = self.config.get("query")
         if self.type == "mcp_query":

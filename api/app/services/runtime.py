@@ -10,6 +10,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.safe_expressions import (
     BRANCH_EXPRESSION_NAMES,
     EDGE_EXPRESSION_NAMES,
@@ -19,6 +20,11 @@ from app.core.safe_expressions import (
 )
 from app.models.run import NodeRun, Run, RunEvent
 from app.models.workflow import Workflow
+from app.services.plugin_runtime import (
+    PluginCallProxy,
+    PluginCallRequest,
+    get_plugin_call_proxy,
+)
 
 
 class WorkflowExecutionError(RuntimeError):
@@ -72,6 +78,9 @@ def _utcnow() -> datetime:
 
 
 class RuntimeService:
+    def __init__(self, plugin_call_proxy: PluginCallProxy | None = None) -> None:
+        self._plugin_call_proxy = plugin_call_proxy or get_plugin_call_proxy()
+
     def execute_workflow(
         self,
         db: Session,
@@ -428,6 +437,7 @@ class RuntimeService:
                 node_output = self._execute_node(
                     node=node,
                     node_input=node_run.input_payload,
+                    run_id=run_id,
                     attempt_number=attempt_number,
                     authorized_context=authorized_context,
                     outputs=outputs,
@@ -473,6 +483,7 @@ class RuntimeService:
         self,
         node: dict,
         node_input: dict,
+        run_id: str,
         attempt_number: int,
         authorized_context: AuthorizedContextRefs,
         outputs: dict[str, dict],
@@ -496,6 +507,14 @@ class RuntimeService:
             return node_input.get("trigger_input", {})
         if node_type == "output":
             return node_input.get("accumulated", {})
+        if node_type == "tool":
+            if self._node_has_tool_binding(node):
+                return self._execute_tool_node(node, node_input, run_id)
+            return {
+                "node_id": node.get("id"),
+                "node_type": node_type,
+                "received": node_input,
+            }
         if node_type == "mcp_query":
             return self._execute_mcp_query_node(node, authorized_context, outputs)
         if node_type in {"condition", "router"}:
@@ -505,6 +524,58 @@ class RuntimeService:
             "node_type": node_type,
             "received": node_input,
         }
+
+    def _execute_tool_node(self, node: dict, node_input: dict, run_id: str) -> dict:
+        config = node.get("config", {})
+        tool_ref = self._tool_ref_for_node(node)
+        request = PluginCallRequest(
+            tool_id=tool_ref["toolId"],
+            ecosystem=str(tool_ref.get("ecosystem") or "native"),
+            adapter_id=tool_ref.get("adapterId"),
+            inputs=self._tool_inputs_for_node(config, node_input),
+            credentials={
+                str(key): str(value)
+                for key, value in (tool_ref.get("credentials") or {}).items()
+            },
+            timeout_ms=int(tool_ref.get("timeoutMs") or get_settings().plugin_default_timeout_ms),
+            trace_id=f"run:{run_id}:node:{node['id']}",
+        )
+        response = self._plugin_call_proxy.invoke(request)
+        return response.output
+
+    def _node_has_tool_binding(self, node: dict) -> bool:
+        config = node.get("config", {})
+        return isinstance(config.get("tool"), dict) or bool(config.get("toolId"))
+
+    def _tool_ref_for_node(self, node: dict) -> dict:
+        config = node.get("config", {})
+        if isinstance(config.get("tool"), dict):
+            tool_ref = dict(config["tool"])
+        elif config.get("toolId"):
+            tool_ref = {"toolId": config["toolId"]}
+        else:
+            raise WorkflowExecutionError(
+                f"Tool node '{node['id']}' must define config.tool.toolId or config.toolId."
+            )
+
+        tool_id = str(tool_ref.get("toolId", "")).strip()
+        if not tool_id:
+            raise WorkflowExecutionError(
+                f"Tool node '{node['id']}' must define a non-empty toolId binding."
+            )
+
+        tool_ref["toolId"] = tool_id
+        return tool_ref
+
+    def _tool_inputs_for_node(self, config: dict, node_input: dict) -> dict:
+        configured_inputs = config.get("inputs")
+        if isinstance(configured_inputs, dict):
+            return deepcopy(configured_inputs)
+        for key in ("accumulated", "mapped", "upstream", "trigger_input"):
+            candidate = node_input.get(key)
+            if isinstance(candidate, dict) and candidate:
+                return deepcopy(candidate)
+        return {}
 
     def _execute_branch_node(self, node: dict, node_input: dict) -> dict:
         config = node.get("config", {})

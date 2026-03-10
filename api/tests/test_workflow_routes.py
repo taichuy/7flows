@@ -533,3 +533,22 @@ def test_create_workflow_rejects_mapping_to_runtime_managed_input_root(
 
     assert response.status_code == 422
     assert "runtime-managed input roots" in response.json()["detail"]
+
+
+def test_create_workflow_rejects_invalid_tool_binding(
+    client: TestClient,
+) -> None:
+    definition = _valid_definition()
+    definition["nodes"][1]["config"] = {
+        "tool": {
+            "toolId": "",
+        }
+    }
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken Tool Binding Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "String should have at least 1 character" in response.json()["detail"]
