@@ -57,6 +57,7 @@ def test_get_run_trace_supports_machine_filters(
     trace_body = trace_response.json()
     assert trace_body["run_id"] == run_id
     assert trace_body["filters"] == {
+        "cursor": None,
         "event_type": None,
         "node_run_id": None,
         "created_after": None,
@@ -95,16 +96,24 @@ def test_get_run_trace_supports_machine_filters(
     assert trace_body["summary"]["first_event_id"] == body["events"][0]["id"]
     assert trace_body["summary"]["last_event_id"] == body["events"][1]["id"]
     assert trace_body["summary"]["prev_cursor"] is None
-    assert trace_body["summary"]["next_cursor"] == {
-        "before_event_id": None,
-        "after_event_id": body["events"][1]["id"],
-        "order": "asc",
-    }
+    assert isinstance(trace_body["summary"]["next_cursor"], str)
     assert len(trace_body["events"]) == 2
     assert trace_body["events"][0]["sequence"] == 1
     assert trace_body["events"][0]["replay_offset_ms"] == 0
     assert trace_body["events"][1]["sequence"] == 2
     assert trace_body["events"][1]["replay_offset_ms"] >= 0
+
+    next_page_response = client.get(
+        f"/api/runs/{run_id}/trace",
+        params={"cursor": trace_body["summary"]["next_cursor"]},
+    )
+
+    assert next_page_response.status_code == 200
+    next_page_body = next_page_response.json()
+    assert next_page_body["filters"]["cursor"] == trace_body["summary"]["next_cursor"]
+    assert next_page_body["filters"]["after_event_id"] == body["events"][1]["id"]
+    assert next_page_body["filters"]["order"] == "asc"
+    assert next_page_body["events"][0]["id"] == body["events"][2]["id"]
 
     filtered_response = client.get(
         f"/api/runs/{run_id}/trace",
@@ -170,18 +179,22 @@ def test_get_run_trace_supports_cursor_and_desc_order(
     assert trace_body["summary"]["returned_started_at"] == trace_body["events"][-1]["created_at"]
     assert trace_body["summary"]["returned_finished_at"] == trace_body["events"][0]["created_at"]
     assert trace_body["summary"]["returned_duration_ms"] >= 0
-    assert trace_body["summary"]["next_cursor"] == {
-        "before_event_id": body["events"][-4]["id"],
-        "after_event_id": None,
-        "order": "desc",
-    }
-    assert trace_body["summary"]["prev_cursor"] == {
-        "before_event_id": None,
-        "after_event_id": expected_events[0]["id"],
-        "order": "asc",
-    }
+    assert isinstance(trace_body["summary"]["next_cursor"], str)
+    assert isinstance(trace_body["summary"]["prev_cursor"], str)
     assert trace_body["filters"]["before_event_id"] == anchor_event_id
     assert trace_body["filters"]["order"] == "desc"
+
+    prev_page_response = client.get(
+        f"/api/runs/{run_id}/trace",
+        params={"cursor": trace_body["summary"]["prev_cursor"]},
+    )
+
+    assert prev_page_response.status_code == 200
+    prev_page_body = prev_page_response.json()
+    assert prev_page_body["filters"]["cursor"] == trace_body["summary"]["prev_cursor"]
+    assert prev_page_body["filters"]["after_event_id"] == expected_events[0]["id"]
+    assert prev_page_body["filters"]["order"] == "asc"
+    assert prev_page_body["events"][0]["id"] == body["events"][-1]["id"]
 
 
 def test_get_run_trace_supports_time_range_and_payload_key_search(
@@ -326,6 +339,28 @@ def test_get_run_trace_returns_404_for_missing_run(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Run not found."}
+
+
+def test_get_run_trace_rejects_invalid_cursor(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow: Workflow,
+) -> None:
+    response = client.post(
+        f"/api/workflows/{sample_workflow.id}/runs",
+        json={"input_payload": {"message": "cursor guard"}},
+    )
+
+    assert response.status_code == 201
+    run_id = response.json()["id"]
+
+    trace_response = client.get(
+        f"/api/runs/{run_id}/trace",
+        params={"cursor": "not-a-valid-cursor"},
+    )
+
+    assert trace_response.status_code == 422
+    assert trace_response.json() == {"detail": "cursor is invalid."}
 
 
 def test_execute_workflow_route_returns_handled_failure_branch(

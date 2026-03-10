@@ -125,7 +125,8 @@
 - `sequence` 采用事件在整条 run 内的 1-based 顺序
 - `replay_offset_ms` 采用“相对整条 trace 首事件”的毫秒偏移
 - `returned_*` 采用当前返回窗口的真实时间边界，不随 `order=desc` 反转语义
-- `next_cursor` / `prev_cursor` 用结构化参数对象表达，便于机器直接复用到下一次 trace 请求
+- `next_cursor` / `prev_cursor` 已进一步收敛为 opaque cursor 字符串，客户端只需要把它原样传回 `cursor`
+- 旧的 `before_event_id` / `after_event_id` / `order` 仍暂时兼容，但新的默认推荐是 `cursor`
 - 仍然不引入独立 replay DSL，继续围绕 `run_events` 衍生机器侧字段
 
 ## 下一步

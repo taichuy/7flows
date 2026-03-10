@@ -69,7 +69,7 @@
 - 不为了首页摘要展示而截断或隐藏关键原始信息
 - `GET /api/runs/{run_id}/events` 保留原始事件列表语义
 - `GET /api/runs/{run_id}/trace` 提供按 `event_type`、`node_run_id`、时间范围、`payload_key`、事件游标和顺序的机器过滤能力
-- `GET /api/runs/{run_id}/trace` 可以继续补 replay / export 所需派生元信息，例如窗口时间边界和结构化游标，但不脱离 `run_events` 这一事实底座
+- `GET /api/runs/{run_id}/trace` 可以继续补 replay / export 所需派生元信息，例如窗口时间边界和 opaque cursor，但不脱离 `run_events` 这一事实底座
 - 如果未来需要更强机器查询能力，应继续围绕 `run_events` 衍生接口，而不是反向要求 UI 面板承载原始日志仓
 
 ### 3. 开发留痕层

@@ -1,3 +1,5 @@
+import base64
+import json
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -13,7 +15,6 @@ from app.schemas.run import (
     RunDetail,
     RunEventItem,
     RunTrace,
-    RunTraceCursor,
     RunTraceEventItem,
     RunTraceFilters,
     RunTraceSummary,
@@ -156,13 +157,76 @@ def _serialize_trace_event(
     )
 
 
+def _encode_trace_cursor(
+    *,
+    before_event_id: int | None = None,
+    after_event_id: int | None = None,
+    order: Literal["asc", "desc"],
+) -> str:
+    payload = {
+        "v": 1,
+        "before_event_id": before_event_id,
+        "after_event_id": after_event_id,
+        "order": order,
+    }
+    raw = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _decode_trace_cursor(cursor: str) -> tuple[int | None, int | None, Literal["asc", "desc"]]:
+    normalized_cursor = cursor.strip()
+    if not normalized_cursor:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="cursor must not be empty.",
+        )
+
+    padding = "=" * (-len(normalized_cursor) % 4)
+    try:
+        raw = base64.urlsafe_b64decode(f"{normalized_cursor}{padding}".encode("ascii"))
+        payload = json.loads(raw.decode("utf-8"))
+    except (ValueError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="cursor is invalid.",
+        ) from exc
+
+    version = payload.get("v")
+    before_event_id = payload.get("before_event_id")
+    after_event_id = payload.get("after_event_id")
+    order = payload.get("order")
+
+    if version != 1 or order not in {"asc", "desc"}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="cursor is invalid.",
+        )
+    if before_event_id is not None and not isinstance(before_event_id, int):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="cursor is invalid.",
+        )
+    if after_event_id is not None and not isinstance(after_event_id, int):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="cursor is invalid.",
+        )
+    if (before_event_id is None) == (after_event_id is None):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="cursor is invalid.",
+        )
+
+    return before_event_id, after_event_id, order
+
+
 def _build_trace_cursor(
     *,
     before_event_id: int | None = None,
     after_event_id: int | None = None,
     order: Literal["asc", "desc"],
-) -> RunTraceCursor:
-    return RunTraceCursor(
+) -> str:
+    return _encode_trace_cursor(
         before_event_id=before_event_id,
         after_event_id=after_event_id,
         order=order,
@@ -213,6 +277,7 @@ def get_run_events(run_id: str, db: Session = Depends(get_db)) -> list[RunEventI
 @router.get("/runs/{run_id}/trace", response_model=RunTrace)
 def get_run_trace(
     run_id: str,
+    cursor: str | None = None,
     event_type: str | None = None,
     node_run_id: str | None = None,
     created_after: datetime | None = None,
@@ -227,6 +292,9 @@ def get_run_trace(
     run = db.get(Run, run_id)
     if run is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
+
+    if cursor is not None:
+        before_event_id, after_event_id, order = _decode_trace_cursor(cursor)
 
     created_after = _normalize_filter_datetime(created_after)
     created_before = _normalize_filter_datetime(created_before)
@@ -352,6 +420,7 @@ def get_run_trace(
     return RunTrace(
         run_id=run_id,
         filters=RunTraceFilters(
+            cursor=cursor,
             event_type=event_type,
             node_run_id=node_run_id,
             created_after=created_after,
