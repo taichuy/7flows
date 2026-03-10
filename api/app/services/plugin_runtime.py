@@ -104,6 +104,10 @@ class PluginRegistry:
     def has_native_invoker(self, tool_id: str) -> bool:
         return tool_id in self._native_invokers
 
+    def unregister_tool(self, tool_id: str) -> None:
+        self._tools.pop(tool_id, None)
+        self._native_invokers.pop(tool_id, None)
+
     def get_adapter(self, adapter_id: str) -> CompatibilityAdapterRegistration | None:
         return self._adapters.get(adapter_id)
 
@@ -112,6 +116,9 @@ class PluginRegistry:
 
     def list_adapters(self) -> list[CompatibilityAdapterRegistration]:
         return list(self._adapters.values())
+
+    def unregister_adapter(self, adapter_id: str) -> None:
+        self._adapters.pop(adapter_id, None)
 
     def resolve_adapter(
         self,
@@ -623,13 +630,22 @@ def build_plugin_registry(settings: Settings | None = None) -> PluginRegistry:
 
     return registry
 
+_plugin_registry: PluginRegistry | None = None
 
-@lru_cache(maxsize=1)
+
+def reset_plugin_registry(settings: Settings | None = None) -> PluginRegistry:
+    global _plugin_registry
+    _plugin_registry = build_plugin_registry(settings)
+    return _plugin_registry
+
+
 def get_plugin_registry() -> PluginRegistry:
-    return build_plugin_registry()
+    global _plugin_registry
+    if _plugin_registry is None:
+        _plugin_registry = build_plugin_registry()
+    return _plugin_registry
 
 
-@lru_cache(maxsize=1)
 def get_plugin_call_proxy() -> PluginCallProxy:
     return PluginCallProxy(get_plugin_registry())
 

@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
+from app.core.database import get_db
 from app.schemas.plugin import (
     PluginAdapterRegistrationCreate,
     PluginAdapterRegistrationItem,
@@ -15,6 +17,7 @@ from app.services.plugin_runtime import (
     get_compatibility_adapter_health_checker,
     get_plugin_registry,
 )
+from app.services.plugin_registry_store import get_plugin_registry_store
 
 router = APIRouter(prefix="/plugins", tags=["plugins"])
 
@@ -59,8 +62,11 @@ def _serialize_tool(tool_id: str) -> PluginToolItem:
 
 
 @router.get("/adapters", response_model=list[PluginAdapterRegistrationItem])
-def list_plugin_adapters() -> list[PluginAdapterRegistrationItem]:
+def list_plugin_adapters(
+    db: Session = Depends(get_db),
+) -> list[PluginAdapterRegistrationItem]:
     registry = get_plugin_registry()
+    get_plugin_registry_store().hydrate_registry(db, registry)
     return [_serialize_adapter(adapter.id) for adapter in registry.list_adapters()]
 
 
@@ -71,19 +77,22 @@ def list_plugin_adapters() -> list[PluginAdapterRegistrationItem]:
 )
 def register_plugin_adapter(
     payload: PluginAdapterRegistrationCreate,
+    db: Session = Depends(get_db),
 ) -> PluginAdapterRegistrationItem:
     registry = get_plugin_registry()
-    registry.register_adapter(
-        CompatibilityAdapterRegistration(
-            id=payload.id,
-            ecosystem=payload.ecosystem,
-            endpoint=payload.endpoint,
-            enabled=payload.enabled,
-            healthcheck_path=payload.healthcheck_path,
-            workspace_ids=tuple(payload.workspace_ids),
-            plugin_kinds=tuple(payload.plugin_kinds),
-        )
+    get_plugin_registry_store().hydrate_registry(db, registry)
+    adapter = CompatibilityAdapterRegistration(
+        id=payload.id,
+        ecosystem=payload.ecosystem,
+        endpoint=payload.endpoint,
+        enabled=payload.enabled,
+        healthcheck_path=payload.healthcheck_path,
+        workspace_ids=tuple(payload.workspace_ids),
+        plugin_kinds=tuple(payload.plugin_kinds),
     )
+    get_plugin_registry_store().upsert_adapter(db, adapter)
+    db.commit()
+    registry.register_adapter(adapter)
     return _serialize_adapter(payload.id)
 
 
@@ -91,8 +100,12 @@ def register_plugin_adapter(
     "/adapters/{adapter_id}/sync-tools",
     response_model=PluginToolSyncResult,
 )
-def sync_plugin_adapter_tools(adapter_id: str) -> PluginToolSyncResult:
+def sync_plugin_adapter_tools(
+    adapter_id: str,
+    db: Session = Depends(get_db),
+) -> PluginToolSyncResult:
     registry = get_plugin_registry()
+    get_plugin_registry_store().hydrate_registry(db, registry)
     adapter = registry.get_adapter(adapter_id)
     if adapter is None:
         raise HTTPException(
@@ -113,6 +126,14 @@ def sync_plugin_adapter_tools(adapter_id: str) -> PluginToolSyncResult:
             detail=str(exc),
         ) from exc
 
+    stale_tool_ids = get_plugin_registry_store().replace_adapter_tools(
+        db,
+        adapter_id=adapter.id,
+        tools=tools,
+    )
+    db.commit()
+    for stale_tool_id in stale_tool_ids:
+        registry.unregister_tool(stale_tool_id)
     for tool in tools:
         registry.register_tool(tool)
 
@@ -125,8 +146,11 @@ def sync_plugin_adapter_tools(adapter_id: str) -> PluginToolSyncResult:
 
 
 @router.get("/tools", response_model=list[PluginToolItem])
-def list_plugin_tools() -> list[PluginToolItem]:
+def list_plugin_tools(
+    db: Session = Depends(get_db),
+) -> list[PluginToolItem]:
     registry = get_plugin_registry()
+    get_plugin_registry_store().hydrate_registry(db, registry)
     return [_serialize_tool(tool.id) for tool in registry.list_tools()]
 
 
@@ -135,18 +159,23 @@ def list_plugin_tools() -> list[PluginToolItem]:
     response_model=PluginToolItem,
     status_code=status.HTTP_201_CREATED,
 )
-def register_plugin_tool(payload: PluginToolRegistrationCreate) -> PluginToolItem:
+def register_plugin_tool(
+    payload: PluginToolRegistrationCreate,
+    db: Session = Depends(get_db),
+) -> PluginToolItem:
     registry = get_plugin_registry()
-    registry.register_tool(
-        PluginToolDefinition(
-            id=payload.id,
-            name=payload.name,
-            ecosystem=payload.ecosystem,
-            description=payload.description,
-            input_schema=payload.input_schema,
-            output_schema=payload.output_schema,
-            source=payload.source,
-            plugin_meta=payload.plugin_meta,
-        )
+    get_plugin_registry_store().hydrate_registry(db, registry)
+    tool = PluginToolDefinition(
+        id=payload.id,
+        name=payload.name,
+        ecosystem=payload.ecosystem,
+        description=payload.description,
+        input_schema=payload.input_schema,
+        output_schema=payload.output_schema,
+        source=payload.source,
+        plugin_meta=payload.plugin_meta,
     )
+    get_plugin_registry_store().upsert_tool(db, tool)
+    db.commit()
+    registry.register_tool(tool)
     return _serialize_tool(payload.id)

@@ -23,6 +23,7 @@ from app.models.workflow import Workflow
 from app.services.plugin_runtime import (
     PluginCallProxy,
     PluginCallRequest,
+    get_plugin_registry,
     get_plugin_call_proxy,
 )
 
@@ -79,6 +80,7 @@ def _utcnow() -> datetime:
 
 class RuntimeService:
     def __init__(self, plugin_call_proxy: PluginCallProxy | None = None) -> None:
+        self._uses_default_plugin_proxy = plugin_call_proxy is None
         self._plugin_call_proxy = plugin_call_proxy or get_plugin_call_proxy()
 
     def execute_workflow(
@@ -87,6 +89,13 @@ class RuntimeService:
         workflow: Workflow,
         input_payload: dict,
     ) -> ExecutionArtifacts:
+        if self._uses_default_plugin_proxy:
+            from app.services.plugin_registry_store import get_plugin_registry_store
+
+            registry = get_plugin_registry()
+            get_plugin_registry_store().hydrate_registry(db, registry)
+            self._plugin_call_proxy = PluginCallProxy(registry)
+
         definition = workflow.definition or {}
         nodes = definition.get("nodes", [])
         edges = definition.get("edges", [])

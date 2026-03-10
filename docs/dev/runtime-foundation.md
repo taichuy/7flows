@@ -305,7 +305,7 @@ docker compose up -d --build
 
 建议按下面顺序继续：
 
-1. 实现 Dify 插件兼容代理
-2. 把 `run_events` 接到前端调试面板
-3. 在现有时间范围和 `payload_key` 基础上，继续补导出和回放支撑
+1. 把 `run_events` 接到前端调试面板
+2. 在现有时间范围和 `payload_key` 基础上，继续补导出和回放支撑
+3. 把插件管理页和节点配置接到已经持久化的 compat 工具目录
 4. 再回头收紧更完整的 `7Flows IR` 校验和发布态版本治理

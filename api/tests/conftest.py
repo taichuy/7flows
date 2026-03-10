@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.main import app
+from app.models.plugin import PluginAdapterRecord, PluginToolRecord  # noqa: F401
 from app.models.workflow import Workflow, WorkflowVersion
 
 
