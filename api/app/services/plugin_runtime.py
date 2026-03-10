@@ -90,8 +90,17 @@ class PluginRegistry:
     def get_tool(self, tool_id: str) -> PluginToolDefinition | None:
         return self._tools.get(tool_id)
 
+    def list_tools(self) -> list[PluginToolDefinition]:
+        return list(self._tools.values())
+
     def get_native_invoker(self, tool_id: str) -> NativeToolInvoker | None:
         return self._native_invokers.get(tool_id)
+
+    def has_native_invoker(self, tool_id: str) -> bool:
+        return tool_id in self._native_invokers
+
+    def get_adapter(self, adapter_id: str) -> CompatibilityAdapterRegistration | None:
+        return self._adapters.get(adapter_id)
 
     def register_adapter(self, registration: CompatibilityAdapterRegistration) -> None:
         self._adapters[registration.id] = registration

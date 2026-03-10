@@ -97,6 +97,28 @@
 
 这一步的目标不是做完整生命周期管理，而是先把 adapter 的存在性与可达性暴露出来，供后续插件管理页和诊断页复用。
 
+### 6. 插件发现与注册接口
+
+`api/app/api/routes/plugins.py` 新增了最小插件管理接口：
+
+- `GET /api/plugins/adapters`
+- `POST /api/plugins/adapters`
+- `GET /api/plugins/tools`
+- `POST /api/plugins/tools`
+
+这一步完成了两件事：
+
+- registry 不再只能靠代码里手写注册
+- 前端或外部调试脚本已经可以通过 HTTP 查看当前 adapter / tool 目录
+
+当前边界故意收得比较窄：
+
+- `POST /api/plugins/adapters` 注册的是 compat adapter definition，本质仍写入进程内 `PluginRegistry`
+- `POST /api/plugins/tools` 当前只接受 compat/plugin tool metadata，不支持通过 HTTP 注册 native invoker
+- 因此这仍是“运行时注册接口”，不是“持久化插件安装系统”
+
+这样做的原因是先把管理边界跑通，而不在本轮假装已经完成了 manifest 安装、持久化、生命周期编排。
+
 ## 影响范围
 
 - `api/app/core/config.py`
@@ -104,6 +126,10 @@
 - `api/app/services/plugin_runtime.py`
 - `api/app/services/runtime.py`
 - `api/app/api/routes/system.py`
+- `api/app/api/routes/plugins.py`
+- `api/app/schemas/plugin.py`
+- `api/app/main.py`
+- `api/tests/test_plugin_routes.py`
 - `api/tests/test_plugin_runtime.py`
 - `api/tests/test_system_routes.py`
 - `api/tests/test_workflow_routes.py`
@@ -118,7 +144,7 @@
 
 结果：
 
-- `api/tests` 全量 53 个测试通过
+- `api/tests` 全量 56 个测试通过
 - `ruff` 检查通过
 
 ## 当前边界与下一步
@@ -127,12 +153,12 @@
 
 - Dify 插件 manifest 安装/发现
 - adapter 生命周期管理与持久化配置
-- 插件管理 API / 持久化注册
+- 插件安装产物持久化与重启恢复
 - 运行时事件里的细粒度插件调用日志
 
 建议下一步按下面顺序推进：
 
-1. 建立插件发现 / 注册接口，而不是只支持内存注册
-2. 定义 Dify adapter `/invoke` 与 `/healthz` 的请求响应契约文档
-3. 再接入插件安装、manifest 翻译和工具目录管理
+1. 定义 Dify adapter `/invoke` 与 `/healthz` 的请求响应契约文档
+2. 再接入插件安装、manifest 翻译和工具目录管理
+3. 将 adapter / tool 注册从进程内 registry 推进到持久化存储
 4. 将 adapter 健康状态纳入后续插件管理页和系统诊断视图
