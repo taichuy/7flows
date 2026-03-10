@@ -40,8 +40,6 @@ build/Release
 # Dependency directories
 node_modules/
 jspm_packages/
-__pycache__/
-*.pyc
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
@@ -144,4 +142,9 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 api/.venv/
 docker/volumes/
-api/app/schemas/__pycache__/
+
+# Python intermediate artifacts
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
