@@ -6,7 +6,11 @@ from fastapi import APIRouter
 
 from app.core.config import get_settings
 from app.core.database import check_database
-from app.schemas.system import ServiceCheck, SystemOverview
+from app.schemas.system import CompatibilityAdapterCheck, ServiceCheck, SystemOverview
+from app.services.plugin_runtime import (
+    get_compatibility_adapter_health_checker,
+    get_plugin_registry,
+)
 
 router = APIRouter(tags=["system"])
 
@@ -49,7 +53,18 @@ def system_overview() -> SystemOverview:
         ).list_buckets(),
     )
 
-    services = [postgres, redis_service, s3_service]
+    adapter_healths = get_compatibility_adapter_health_checker().probe_all(get_plugin_registry())
+    adapter_services = [
+        ServiceCheck(
+            name=f"plugin-adapter:{adapter.id}",
+            status="up" if adapter.status == "up" else "down",
+            detail=adapter.detail,
+        )
+        for adapter in adapter_healths
+        if adapter.enabled
+    ]
+
+    services = [postgres, redis_service, s3_service, *adapter_services]
     status = "degraded" if any(item.status == "down" for item in services) else "ok"
 
     return SystemOverview(
@@ -61,6 +76,34 @@ def system_overview() -> SystemOverview:
             "runtime-worker-skeleton",
             "runtime-run-tracking",
             "sandbox-ready",
-            "plugin-adapter-placeholder",
+            "plugin-call-proxy-foundation",
+            "plugin-adapter-health-probe",
+        ],
+        plugin_adapters=[
+            CompatibilityAdapterCheck(
+                id=adapter.id,
+                ecosystem=adapter.ecosystem,
+                endpoint=adapter.endpoint,
+                enabled=adapter.enabled,
+                status=adapter.status,
+                detail=adapter.detail,
+            )
+            for adapter in adapter_healths
         ],
     )
+
+
+@router.get("/system/plugin-adapters", response_model=list[CompatibilityAdapterCheck])
+def list_plugin_adapters() -> list[CompatibilityAdapterCheck]:
+    adapter_healths = get_compatibility_adapter_health_checker().probe_all(get_plugin_registry())
+    return [
+        CompatibilityAdapterCheck(
+            id=adapter.id,
+            ecosystem=adapter.ecosystem,
+            endpoint=adapter.endpoint,
+            enabled=adapter.enabled,
+            status=adapter.status,
+            detail=adapter.detail,
+        )
+        for adapter in adapter_healths
+    ]

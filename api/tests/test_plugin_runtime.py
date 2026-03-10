@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.models.workflow import Workflow
 from app.services.plugin_runtime import (
+    CompatibilityAdapterHealth,
+    CompatibilityAdapterHealthChecker,
     CompatibilityAdapterRegistration,
     PluginCallProxy,
     PluginCallRequest,
@@ -149,3 +151,55 @@ def test_runtime_service_executes_registered_native_tool(
             "summary": "search:plugin",
         }
     }
+
+
+def test_adapter_health_checker_reports_up() -> None:
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(200, json={"status": "ok"})
+    )
+    checker = CompatibilityAdapterHealthChecker(
+        client_factory=lambda timeout_ms: httpx.Client(
+            transport=transport,
+            timeout=timeout_ms / 1000,
+        )
+    )
+
+    health = checker.probe(
+        CompatibilityAdapterRegistration(
+            id="dify-default",
+            ecosystem="compat:dify",
+            endpoint="http://adapter.local",
+        )
+    )
+
+    assert health == CompatibilityAdapterHealth(
+        id="dify-default",
+        ecosystem="compat:dify",
+        endpoint="http://adapter.local",
+        enabled=True,
+        status="up",
+        detail=None,
+    )
+
+
+def test_adapter_health_checker_reports_down() -> None:
+    transport = httpx.MockTransport(lambda request: httpx.Response(503, text="offline"))
+    checker = CompatibilityAdapterHealthChecker(
+        client_factory=lambda timeout_ms: httpx.Client(
+            transport=transport,
+            timeout=timeout_ms / 1000,
+        )
+    )
+
+    health = checker.probe(
+        CompatibilityAdapterRegistration(
+            id="dify-default",
+            ecosystem="compat:dify",
+            endpoint="http://adapter.local",
+        )
+    )
+
+    assert health.id == "dify-default"
+    assert health.status == "down"
+    assert health.enabled is True
+    assert health.detail is not None

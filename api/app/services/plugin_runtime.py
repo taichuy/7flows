@@ -37,8 +37,19 @@ class CompatibilityAdapterRegistration:
     endpoint: str
     enabled: bool = True
     health_status: str = "degraded"
+    healthcheck_path: str = "/healthz"
     workspace_ids: tuple[str, ...] = ()
     plugin_kinds: tuple[str, ...] = ("node", "provider")
+
+
+@dataclass(frozen=True)
+class CompatibilityAdapterHealth:
+    id: str
+    ecosystem: str
+    endpoint: str
+    enabled: bool
+    status: str
+    detail: str | None = None
 
 
 @dataclass(frozen=True)
@@ -220,6 +231,53 @@ class PluginCallProxy:
         return httpx.Client(timeout=timeout_seconds)
 
 
+class CompatibilityAdapterHealthChecker:
+    def __init__(
+        self,
+        *,
+        client_factory: ClientFactory | None = None,
+        timeout_ms: int = 3_000,
+    ) -> None:
+        self._client_factory = client_factory or PluginCallProxy._default_client_factory
+        self._timeout_ms = timeout_ms
+
+    def probe(self, adapter: CompatibilityAdapterRegistration) -> CompatibilityAdapterHealth:
+        if not adapter.enabled:
+            return CompatibilityAdapterHealth(
+                id=adapter.id,
+                ecosystem=adapter.ecosystem,
+                endpoint=adapter.endpoint,
+                enabled=False,
+                status="disabled",
+            )
+
+        health_url = f"{adapter.endpoint.rstrip('/')}{adapter.healthcheck_path}"
+        try:
+            with self._client_factory(self._timeout_ms) as client:
+                response = client.get(health_url)
+            response.raise_for_status()
+        except Exception as exc:
+            return CompatibilityAdapterHealth(
+                id=adapter.id,
+                ecosystem=adapter.ecosystem,
+                endpoint=adapter.endpoint,
+                enabled=True,
+                status="down",
+                detail=str(exc),
+            )
+
+        return CompatibilityAdapterHealth(
+            id=adapter.id,
+            ecosystem=adapter.ecosystem,
+            endpoint=adapter.endpoint,
+            enabled=True,
+            status="up",
+        )
+
+    def probe_all(self, registry: PluginRegistry) -> list[CompatibilityAdapterHealth]:
+        return [self.probe(adapter) for adapter in registry.list_adapters()]
+
+
 def build_plugin_registry(settings: Settings | None = None) -> PluginRegistry:
     app_settings = settings or get_settings()
     registry = PluginRegistry()
@@ -246,3 +304,8 @@ def get_plugin_registry() -> PluginRegistry:
 @lru_cache(maxsize=1)
 def get_plugin_call_proxy() -> PluginCallProxy:
     return PluginCallProxy(get_plugin_registry())
+
+
+@lru_cache(maxsize=1)
+def get_compatibility_adapter_health_checker() -> CompatibilityAdapterHealthChecker:
+    return CompatibilityAdapterHealthChecker()
