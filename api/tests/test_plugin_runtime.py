@@ -201,6 +201,26 @@ def test_adapter_catalog_client_fetches_tools() -> None:
                         "output_schema": {"type": "object"},
                         "source": "plugin",
                         "plugin_meta": {"origin": "dify"},
+                        "constrained_ir": {
+                            "ir_version": "2026-03-10",
+                            "kind": "tool",
+                            "ecosystem": "compat:dify",
+                            "tool_id": "compat:dify:plugin:demo/search",
+                            "name": "Demo Search",
+                            "description": "Search via Dify adapter",
+                            "input_schema": {"type": "object"},
+                            "output_schema": {"type": "object"},
+                            "source": "plugin",
+                            "input_contract": [],
+                            "constraints": {
+                                "additional_properties": False,
+                                "credential_fields": [],
+                                "file_fields": [],
+                                "llm_fillable_fields": [],
+                                "user_config_fields": [],
+                            },
+                            "plugin_meta": {"origin": "dify"},
+                        },
                     }
                 ],
             },
@@ -231,6 +251,26 @@ def test_adapter_catalog_client_fetches_tools() -> None:
             output_schema={"type": "object"},
             source="plugin",
             plugin_meta={"origin": "dify"},
+            constrained_ir={
+                "ir_version": "2026-03-10",
+                "kind": "tool",
+                "ecosystem": "compat:dify",
+                "tool_id": "compat:dify:plugin:demo/search",
+                "name": "Demo Search",
+                "description": "Search via Dify adapter",
+                "input_schema": {"type": "object"},
+                "output_schema": {"type": "object"},
+                "source": "plugin",
+                "input_contract": [],
+                "constraints": {
+                    "additional_properties": False,
+                    "credential_fields": [],
+                    "file_fields": [],
+                    "llm_fillable_fields": [],
+                    "user_config_fields": [],
+                },
+                "plugin_meta": {"origin": "dify"},
+            },
         )
     ]
 
@@ -245,6 +285,14 @@ def test_adapter_catalog_client_rejects_wrong_tool_ecosystem() -> None:
                         "id": "compat:dify:plugin:demo/search",
                         "name": "Demo Search",
                         "ecosystem": "compat:n8n",
+                        "constrained_ir": {
+                            "kind": "tool",
+                            "ecosystem": "compat:n8n",
+                            "tool_id": "compat:dify:plugin:demo/search",
+                            "name": "Demo Search",
+                            "input_schema": {"type": "object"},
+                            "constraints": {"additional_properties": False},
+                        },
                     }
                 ]
             },
@@ -269,6 +317,42 @@ def test_adapter_catalog_client_rejects_wrong_tool_ecosystem() -> None:
         assert "expected 'compat:dify'" in str(exc)
     else:
         raise AssertionError("Expected PluginCatalogError for mismatched ecosystem.")
+
+
+def test_adapter_catalog_client_requires_constrained_ir() -> None:
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200,
+            json={
+                "tools": [
+                    {
+                        "id": "compat:dify:plugin:demo/search",
+                        "name": "Demo Search",
+                        "ecosystem": "compat:dify",
+                    }
+                ]
+            },
+        )
+    )
+    client = CompatibilityAdapterCatalogClient(
+        client_factory=lambda timeout_ms: httpx.Client(
+            transport=transport,
+            timeout=timeout_ms / 1000,
+        )
+    )
+
+    try:
+        client.fetch_tools(
+            CompatibilityAdapterRegistration(
+                id="dify-default",
+                ecosystem="compat:dify",
+                endpoint="http://adapter.local",
+            )
+        )
+    except PluginCatalogError as exc:
+        assert "without constrained_ir" in str(exc)
+    else:
+        raise AssertionError("Expected PluginCatalogError when constrained_ir is missing.")
 
 
 def test_adapter_health_checker_reports_down() -> None:

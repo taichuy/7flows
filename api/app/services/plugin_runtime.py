@@ -32,6 +32,7 @@ class PluginToolDefinition:
     output_schema: dict[str, Any] | None = None
     source: str = "builtin"
     plugin_meta: dict[str, Any] | None = None
+    constrained_ir: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -332,25 +333,7 @@ class CompatibilityAdapterCatalogClient:
                     f"Plugin adapter '{adapter.id}' returned a non-object tool entry."
                 )
 
-            ecosystem = str(item.get("ecosystem") or adapter.ecosystem)
-            if ecosystem != adapter.ecosystem:
-                raise PluginCatalogError(
-                    f"Plugin adapter '{adapter.id}' returned tool ecosystem '{ecosystem}', "
-                    f"expected '{adapter.ecosystem}'."
-                )
-
-            definitions.append(
-                PluginToolDefinition(
-                    id=str(item.get("id") or ""),
-                    name=str(item.get("name") or ""),
-                    ecosystem=ecosystem,
-                    description=str(item.get("description") or ""),
-                    input_schema=dict(item.get("input_schema") or {}),
-                    output_schema=item.get("output_schema"),
-                    source=str(item.get("source") or "plugin"),
-                    plugin_meta=dict(item.get("plugin_meta") or {}) or None,
-                )
-            )
+            definitions.append(self._parse_constrained_tool(adapter, item))
 
         for definition in definitions:
             if not definition.id or not definition.name:
@@ -359,6 +342,68 @@ class CompatibilityAdapterCatalogClient:
                 )
 
         return definitions
+
+    def _parse_constrained_tool(
+        self,
+        adapter: CompatibilityAdapterRegistration,
+        item: dict[str, Any],
+    ) -> PluginToolDefinition:
+        constrained_ir = item.get("constrained_ir")
+        if not isinstance(constrained_ir, dict):
+            raise PluginCatalogError(
+                f"Plugin adapter '{adapter.id}' returned tool '{item.get('id')}' without constrained_ir."
+            )
+
+        kind = str(constrained_ir.get("kind") or "")
+        if kind != "tool":
+            raise PluginCatalogError(
+                f"Plugin adapter '{adapter.id}' returned constrained_ir kind '{kind}', expected 'tool'."
+            )
+
+        ecosystem = str(constrained_ir.get("ecosystem") or adapter.ecosystem)
+        if ecosystem != adapter.ecosystem:
+            raise PluginCatalogError(
+                f"Plugin adapter '{adapter.id}' returned tool ecosystem '{ecosystem}', "
+                f"expected '{adapter.ecosystem}'."
+            )
+
+        tool_id = str(constrained_ir.get("tool_id") or "")
+        top_level_id = str(item.get("id") or tool_id)
+        if top_level_id and tool_id and top_level_id != tool_id:
+            raise PluginCatalogError(
+                f"Plugin adapter '{adapter.id}' returned mismatched tool ids '{top_level_id}' and '{tool_id}'."
+            )
+
+        name = str(constrained_ir.get("name") or item.get("name") or "")
+        input_schema = constrained_ir.get("input_schema") or {}
+        if not isinstance(input_schema, dict):
+            raise PluginCatalogError(
+                f"Plugin adapter '{adapter.id}' returned invalid input_schema for '{tool_id or top_level_id}'."
+            )
+
+        plugin_meta = constrained_ir.get("plugin_meta") or item.get("plugin_meta")
+        if plugin_meta is not None and not isinstance(plugin_meta, dict):
+            raise PluginCatalogError(
+                f"Plugin adapter '{adapter.id}' returned invalid plugin_meta for '{tool_id or top_level_id}'."
+            )
+
+        output_schema = constrained_ir.get("output_schema")
+        if output_schema is not None and not isinstance(output_schema, dict):
+            raise PluginCatalogError(
+                f"Plugin adapter '{adapter.id}' returned invalid output_schema for '{tool_id or top_level_id}'."
+            )
+
+        return PluginToolDefinition(
+            id=tool_id or top_level_id,
+            name=name,
+            ecosystem=ecosystem,
+            description=str(constrained_ir.get("description") or item.get("description") or ""),
+            input_schema=dict(input_schema),
+            output_schema=dict(output_schema) if isinstance(output_schema, dict) else None,
+            source=str(constrained_ir.get("source") or item.get("source") or "plugin"),
+            plugin_meta=dict(plugin_meta) if isinstance(plugin_meta, dict) else None,
+            constrained_ir=constrained_ir,
+        )
 
 
 def build_plugin_registry(settings: Settings | None = None) -> PluginRegistry:

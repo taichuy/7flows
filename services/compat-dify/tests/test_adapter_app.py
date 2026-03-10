@@ -48,6 +48,77 @@ def test_tools_lists_translated_catalog() -> None:
         "additionalProperties": False,
         "required": ["query"],
     }
+    assert body["tools"][0]["constrained_ir"] == {
+        "ir_version": "2026-03-10",
+        "kind": "tool",
+        "ecosystem": "compat:dify",
+        "tool_id": "compat:dify:plugin:demo/search",
+        "name": "Demo Search",
+        "description": "Search the demo corpus.",
+        "source": "plugin",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "title": "Query",
+                    "description": "Search query",
+                    "x-dify-form": "llm",
+                },
+                "limit": {
+                    "type": "number",
+                    "title": "Limit",
+                    "description": "Maximum number of results",
+                    "default": 5,
+                    "x-dify-form": "form",
+                },
+            },
+            "additionalProperties": False,
+            "required": ["query"],
+        },
+        "output_schema": None,
+        "input_contract": [
+            {
+                "name": "query",
+                "required": True,
+                "value_source": "llm",
+                "json_schema": {
+                    "type": "string",
+                    "title": "Query",
+                    "description": "Search query",
+                    "x-dify-form": "llm",
+                },
+            },
+            {
+                "name": "limit",
+                "required": False,
+                "value_source": "user",
+                "json_schema": {
+                    "type": "number",
+                    "title": "Limit",
+                    "description": "Maximum number of results",
+                    "default": 5,
+                    "x-dify-form": "form",
+                },
+            },
+        ],
+        "constraints": {
+            "additional_properties": False,
+            "credential_fields": [],
+            "file_fields": [],
+            "llm_fillable_fields": ["query"],
+            "user_config_fields": ["limit"],
+        },
+        "plugin_meta": {
+            "origin": "dify",
+            "ecosystem": "compat:dify",
+            "manifest_version": "0.1.0",
+            "author": "demo",
+            "icon": "search.svg",
+            "manifest_path": "E:\\code\\taichuCode\\7flows\\services\\compat-dify\\catalog\\demo\\manifest.yaml",
+            "tool_path": "E:\\code\\taichuCode\\7flows\\services\\compat-dify\\catalog\\demo\\tools\\search.yaml",
+        },
+    }
 
 
 def test_tools_rejects_wrong_adapter_header() -> None:

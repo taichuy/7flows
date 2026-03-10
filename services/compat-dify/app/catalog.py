@@ -6,7 +6,12 @@ from typing import Any
 import yaml
 
 from app.config import Settings
-from app.schemas import AdapterToolItem
+from app.schemas import (
+    AdapterToolItem,
+    ConstrainedToolConstraints,
+    ConstrainedToolInputField,
+    ConstrainedToolIR,
+)
 
 _SERVICE_ROOT = Path(__file__).resolve().parents[1]
 
@@ -82,15 +87,41 @@ def _translate_tool_definition(
 
     properties: dict[str, Any] = {}
     required: list[str] = []
+    credential_fields: list[str] = []
+    file_fields: list[str] = []
+    llm_fillable_fields: list[str] = []
+    user_config_fields: list[str] = []
+    input_contract: list[ConstrainedToolInputField] = []
     for parameter in definition.get("parameters") or []:
         if not isinstance(parameter, dict):
             continue
         parameter_name = str(parameter.get("name") or "").strip()
         if not parameter_name:
             continue
-        properties[parameter_name] = _translate_parameter_schema(parameter)
-        if bool(parameter.get("required")):
+        schema = _translate_parameter_schema(parameter)
+        properties[parameter_name] = schema
+
+        is_required = bool(parameter.get("required"))
+        if is_required:
             required.append(parameter_name)
+        value_source = _resolve_value_source(parameter)
+        if value_source == "credential":
+            credential_fields.append(parameter_name)
+        elif value_source == "file":
+            file_fields.append(parameter_name)
+        elif value_source == "llm":
+            llm_fillable_fields.append(parameter_name)
+        else:
+            user_config_fields.append(parameter_name)
+
+        input_contract.append(
+            ConstrainedToolInputField(
+                name=parameter_name,
+                required=is_required,
+                value_source=value_source,
+                json_schema=schema,
+            )
+        )
 
     input_schema: dict[str, Any] = {
         "type": "object",
@@ -100,23 +131,45 @@ def _translate_tool_definition(
     if required:
         input_schema["required"] = required
 
+    tool_id = f"{settings.supported_ecosystem}:plugin:{author}/{name}"
+    plugin_meta = {
+        "origin": "dify",
+        "ecosystem": settings.supported_ecosystem,
+        "manifest_version": manifest_version,
+        "author": author,
+        "icon": icon,
+        "manifest_path": str(manifest_path),
+        "tool_path": str(tool_path),
+    }
+    constrained_ir = ConstrainedToolIR(
+        ecosystem=settings.supported_ecosystem,
+        tool_id=tool_id,
+        name=translated_name,
+        description=description,
+        source="plugin",
+        input_schema=input_schema,
+        output_schema=None,
+        input_contract=input_contract,
+        constraints=ConstrainedToolConstraints(
+            additional_properties=False,
+            credential_fields=credential_fields,
+            file_fields=file_fields,
+            llm_fillable_fields=llm_fillable_fields,
+            user_config_fields=user_config_fields,
+        ),
+        plugin_meta=plugin_meta,
+    )
+
     return AdapterToolItem(
-        id=f"{settings.supported_ecosystem}:plugin:{author}/{name}",
+        id=tool_id,
         name=translated_name,
         ecosystem=settings.supported_ecosystem,
         description=description,
         input_schema=input_schema,
         output_schema=None,
         source="plugin",
-        plugin_meta={
-            "origin": "dify",
-            "ecosystem": settings.supported_ecosystem,
-            "manifest_version": manifest_version,
-            "author": author,
-            "icon": icon,
-            "manifest_path": str(manifest_path),
-            "tool_path": str(tool_path),
-        },
+        plugin_meta=plugin_meta,
+        constrained_ir=constrained_ir,
     )
 
 
@@ -126,7 +179,9 @@ def _translate_parameter_schema(parameter: dict[str, Any]) -> dict[str, Any]:
     description = _pick_localized_text(parameter.get("human_description"), fallback="")
 
     schema: dict[str, Any]
-    if parameter_type == "number":
+    if parameter_type == "string":
+        schema = {"type": "string"}
+    elif parameter_type == "number":
         schema = {"type": "number"}
     elif parameter_type == "boolean":
         schema = {"type": "boolean"}
@@ -140,7 +195,9 @@ def _translate_parameter_schema(parameter: dict[str, Any]) -> dict[str, Any]:
     elif parameter_type == "file":
         schema = {"type": "string", "format": "uri"}
     else:
-        schema = {"type": "string"}
+        raise ValueError(
+            f"Unsupported Dify parameter type '{parameter_type}' for '{parameter.get('name')}'."
+        )
 
     if label:
         schema["title"] = label
@@ -152,6 +209,17 @@ def _translate_parameter_schema(parameter: dict[str, Any]) -> dict[str, Any]:
         schema["x-dify-form"] = parameter["form"]
 
     return schema
+
+
+def _resolve_value_source(parameter: dict[str, Any]) -> str:
+    parameter_type = str(parameter.get("type") or "string")
+    if parameter_type == "secret-input":
+        return "credential"
+    if parameter_type == "file":
+        return "file"
+    if str(parameter.get("form") or "").strip() == "llm":
+        return "llm"
+    return "user"
 
 
 def _pick_localized_text(value: Any, *, fallback: str) -> str:
