@@ -19,6 +19,19 @@ WorkspaceStarterHistoryAction = Literal[
     "refreshed",
     "rebased",
 ]
+WorkspaceStarterBulkAction = Literal[
+    "archive",
+    "restore",
+    "refresh",
+    "rebase",
+]
+WorkspaceStarterBulkSkipReason = Literal[
+    "not_found",
+    "already_archived",
+    "not_archived",
+    "no_source_workflow",
+    "source_workflow_missing",
+]
 
 
 class WorkspaceStarterTemplateBase(BaseModel):
@@ -104,6 +117,7 @@ class WorkspaceStarterSourceDiffEntry(BaseModel):
     id: str
     label: str
     status: Literal["added", "removed", "changed"]
+    changed_fields: list[str] = Field(default_factory=list)
 
 
 class WorkspaceStarterSourceDiffSummary(BaseModel):
@@ -130,3 +144,40 @@ class WorkspaceStarterSourceDiff(BaseModel):
     edge_summary: WorkspaceStarterSourceDiffSummary
     node_entries: list[WorkspaceStarterSourceDiffEntry] = Field(default_factory=list)
     edge_entries: list[WorkspaceStarterSourceDiffEntry] = Field(default_factory=list)
+
+
+class WorkspaceStarterBulkActionRequest(BaseModel):
+    workspace_id: str = Field(default="default", min_length=1, max_length=64)
+    action: WorkspaceStarterBulkAction
+    template_ids: list[str] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def normalize_template_ids(self) -> WorkspaceStarterBulkActionRequest:
+        normalized_ids: list[str] = []
+        for template_id in self.template_ids:
+            normalized = template_id.strip()
+            if normalized and normalized not in normalized_ids:
+                normalized_ids.append(normalized)
+
+        if not normalized_ids:
+            raise ValueError("At least one template_id must be provided.")
+
+        self.template_ids = normalized_ids
+        return self
+
+
+class WorkspaceStarterBulkSkippedItem(BaseModel):
+    template_id: str
+    name: str | None = None
+    reason: WorkspaceStarterBulkSkipReason
+    detail: str
+
+
+class WorkspaceStarterBulkActionResult(BaseModel):
+    workspace_id: str
+    action: WorkspaceStarterBulkAction
+    requested_count: int
+    updated_count: int
+    skipped_count: int
+    updated_items: list[WorkspaceStarterTemplateItem] = Field(default_factory=list)
+    skipped_items: list[WorkspaceStarterBulkSkippedItem] = Field(default_factory=list)

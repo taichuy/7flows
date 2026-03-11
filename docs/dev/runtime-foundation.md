@@ -312,6 +312,12 @@ uv run alembic upgrade head
       - `/api/workspace-starters/{template_id}/source-diff` 已支持返回机器可读的 source drift diff
       - `/api/workspace-starters/{template_id}/rebase` 已支持把 source-derived 字段同步回 starter（definition / source version / default workflow name）
       - 治理页已支持执行来源刷新、查看独立历史面板、查看 source diff，并在需要时执行 rebase
+      - 当前已继续补上结果集批量治理：
+        - `/api/workspace-starters/bulk` 已支持按当前筛选结果批量 archive / restore / refresh / rebase
+        - 批量治理会继续复用 `workspace_starter_history`，并通过 `payload.bulk=true` 标识批量上下文
+      - 当前 source diff 已细化到字段级：
+        - changed node / edge 会返回 `changed_fields`
+        - 治理页会基于 definition drift / workflow name drift 提示 refresh 与 rebase 的决策差异
   - 当前创建页已把 starter 浏览逻辑拆到独立组件，避免 `/workflows/new` 再次长成页面级杂糅入口
   - 当前已支持把 workflow definition 映射为画布节点与连线
   - 当前已支持新增 `llm_agent` / `tool` / `mcp_query` / `condition` / `router` / `output`
@@ -377,7 +383,7 @@ uv run alembic upgrade head
 当前边界：
 
 - 仍然是“最小骨架”，不是完整节点配置系统
-- workspace starter 已补齐归档 / 删除、来源漂移摘要、来源 refresh、治理历史、source diff、rebase 和创建页深链回填，但批量操作与更细的字段级 diff 仍未补齐
+- workspace starter 已补齐归档 / 删除、来源漂移摘要、来源 refresh、治理历史、source diff、字段级 changed fields、rebase、批量 archive / restore / refresh / rebase 和创建页深链回填，但批量删除、字段级决策规则进一步收敛仍未补齐
 - ecosystem 模板仍然只是规划态，还没有真实数据源
 - 统一 node catalog / starter / tool lanes 已进入共享后端 contract，但尚未和未来节点插件注册中心、plugin-backed node source 和 ecosystem starter 打通
 - `runtimePolicy` / edge `mapping[]` / 更细的节点输入输出 schema 仍未结构化
@@ -465,13 +471,13 @@ docker compose up -d --build
 
 ### P0 当前最高优先级
 
-1. 继续完善 workspace starter 治理第三阶段：在已落地 refresh / history / source diff / rebase 的基础上，补批量操作、字段级来源 diff 和更明确的 drift 决策提示，让 starter library 从“可治理”继续走向“团队级资产”。
+1. 继续完善 workspace starter 治理第三阶段：在已落地批量 archive / restore / refresh / rebase、字段级来源 diff 和 drift 决策提示的基础上，补批量删除、风险提示和更清晰的跳过原因聚合，让 starter library 从“可治理”继续走向“团队级资产”。
 2. 把新的 `workflow library snapshot` 继续推进到 `plugin-backed node source` 和统一 node/tool source contract：明确哪些能力来自 native node、plugin registry、compat adapter 和未来节点插件注册中心。
 
 原因：
 
 - `workflow library` 的共享后端 contract 已经落地，P0 的缺口自然转到“团队级治理能力补完”和“把更多真实来源接进同一份 contract”。
-- workspace starter 当前已经不是单纯可保存，而是团队资产入口；refresh / history / source diff / rebase 已经补上，但如果没有批量治理和更细的字段级 diff，多人复用时仍会很快失去可维护性。
+- workspace starter 当前已经不是单纯可保存，而是团队资产入口；批量治理、字段级 source diff 和 drift 决策提示已经补上，但如果缺少批量删除、风险提示和更清晰的批量反馈，多人复用时仍会继续堆积治理成本。
 - 如果 `plugin-backed node source` 继续留在 contract 外，后续节点、插件兼容和开放调用仍会在入口层反复返工。
 
 ### P1 次高优先级

@@ -99,6 +99,22 @@ class WorkspaceStarterTemplateService:
             .limit(1)
         ).first()
 
+    def list_templates_by_ids(
+        self,
+        db: Session,
+        template_ids: list[str],
+        *,
+        workspace_id: str = "default",
+    ) -> list[WorkspaceStarterTemplateRecord]:
+        if not template_ids:
+            return []
+
+        return db.scalars(
+            select(WorkspaceStarterTemplateRecord)
+            .where(WorkspaceStarterTemplateRecord.workspace_id == workspace_id)
+            .where(WorkspaceStarterTemplateRecord.id.in_(template_ids))
+        ).all()
+
     def create_template(
         self,
         db: Session,
@@ -358,6 +374,10 @@ class WorkspaceStarterTemplateService:
                         id=item_id,
                         label=label_builder(source_map[item_id]),
                         status="changed",
+                        changed_fields=self._collect_changed_fields(
+                            template_map[item_id],
+                            source_map[item_id],
+                        ),
                     )
                 )
 
@@ -404,6 +424,64 @@ class WorkspaceStarterTemplateService:
         if isinstance(condition, str) and condition.strip():
             return f"{source_node_id} -> {target_node_id} [{condition.strip()}]"
         return f"{source_node_id} -> {target_node_id}"
+
+    def _collect_changed_fields(
+        self,
+        template_item: object,
+        source_item: object,
+    ) -> list[str]:
+        changed_fields: list[str] = []
+        self._append_changed_fields(
+            changed_fields,
+            path="",
+            template_value=template_item,
+            source_value=source_item,
+        )
+        return changed_fields
+
+    def _append_changed_fields(
+        self,
+        changed_fields: list[str],
+        *,
+        path: str,
+        template_value: object,
+        source_value: object,
+    ) -> None:
+        if template_value == source_value:
+            return
+
+        if isinstance(template_value, dict) and isinstance(source_value, dict):
+            keys = sorted(set(template_value) | set(source_value))
+            for key in keys:
+                next_path = f"{path}.{key}" if path else str(key)
+                if key not in template_value or key not in source_value:
+                    changed_fields.append(next_path)
+                    continue
+                self._append_changed_fields(
+                    changed_fields,
+                    path=next_path,
+                    template_value=template_value[key],
+                    source_value=source_value[key],
+                )
+            return
+
+        if isinstance(template_value, list) and isinstance(source_value, list):
+            if len(template_value) != len(source_value):
+                changed_fields.append(path or "items")
+                return
+
+            for index, (template_item, source_item) in enumerate(
+                zip(template_value, source_value, strict=False)
+            ):
+                self._append_changed_fields(
+                    changed_fields,
+                    path=f"{path}[{index}]" if path else f"[{index}]",
+                    template_value=template_item,
+                    source_value=source_item,
+                )
+            return
+
+        changed_fields.append(path or "value")
 
 
 @lru_cache(maxsize=1)

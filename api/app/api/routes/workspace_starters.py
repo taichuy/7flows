@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.workflow import Workflow
 from app.schemas.workspace_starter import (
+    WorkspaceStarterBulkActionRequest,
+    WorkspaceStarterBulkActionResult,
+    WorkspaceStarterBulkSkippedItem,
     WorkflowBusinessTrack,
     WorkspaceStarterHistoryItem,
     WorkspaceStarterSourceDiff,
@@ -17,6 +20,159 @@ from app.services.workspace_starter_templates import (
 )
 
 router = APIRouter(prefix="/workspace-starters", tags=["workspace-starters"])
+
+
+@router.post("/bulk", response_model=WorkspaceStarterBulkActionResult)
+def bulk_update_workspace_starters(
+    payload: WorkspaceStarterBulkActionRequest,
+    db: Session = Depends(get_db),
+) -> WorkspaceStarterBulkActionResult:
+    service = get_workspace_starter_template_service()
+    records = service.list_templates_by_ids(
+        db,
+        payload.template_ids,
+        workspace_id=payload.workspace_id,
+    )
+    record_map = {record.id: record for record in records}
+    updated_items: list[WorkspaceStarterTemplateItem] = []
+    skipped_items: list[WorkspaceStarterBulkSkippedItem] = []
+
+    for template_id in payload.template_ids:
+        record = record_map.get(template_id)
+        if record is None:
+            skipped_items.append(
+                WorkspaceStarterBulkSkippedItem(
+                    template_id=template_id,
+                    reason="not_found",
+                    detail="Workspace starter template not found.",
+                )
+            )
+            continue
+
+        if payload.action == "archive":
+            if record.archived_at is not None:
+                skipped_items.append(
+                    WorkspaceStarterBulkSkippedItem(
+                        template_id=record.id,
+                        name=record.name,
+                        reason="already_archived",
+                        detail="Workspace starter is already archived.",
+                    )
+                )
+                continue
+
+            service.archive_template(record)
+            service.record_history(
+                db,
+                template_id=record.id,
+                workspace_id=record.workspace_id,
+                action="archived",
+                summary=f"批量归档了 workspace starter「{record.name}」。",
+                payload={"bulk": True},
+            )
+        elif payload.action == "restore":
+            if record.archived_at is None:
+                skipped_items.append(
+                    WorkspaceStarterBulkSkippedItem(
+                        template_id=record.id,
+                        name=record.name,
+                        reason="not_archived",
+                        detail="Workspace starter is not archived.",
+                    )
+                )
+                continue
+
+            service.restore_template(record)
+            service.record_history(
+                db,
+                template_id=record.id,
+                workspace_id=record.workspace_id,
+                action="restored",
+                summary=f"批量恢复了 workspace starter「{record.name}」。",
+                payload={"bulk": True},
+            )
+        else:
+            if record.created_from_workflow_id is None:
+                skipped_items.append(
+                    WorkspaceStarterBulkSkippedItem(
+                        template_id=record.id,
+                        name=record.name,
+                        reason="no_source_workflow",
+                        detail="Workspace starter has no source workflow.",
+                    )
+                )
+                continue
+
+            source_workflow = db.get(Workflow, record.created_from_workflow_id)
+            if source_workflow is None:
+                skipped_items.append(
+                    WorkspaceStarterBulkSkippedItem(
+                        template_id=record.id,
+                        name=record.name,
+                        reason="source_workflow_missing",
+                        detail="Source workflow not found.",
+                    )
+                )
+                continue
+
+            if payload.action == "refresh":
+                previous_version = record.created_from_workflow_version
+                changed = service.refresh_from_workflow(record, source_workflow)
+                service.record_history(
+                    db,
+                    template_id=record.id,
+                    workspace_id=record.workspace_id,
+                    action="refreshed",
+                    summary=(
+                        f"批量从源 workflow「{source_workflow.name}」刷新了模板快照。"
+                        if changed
+                        else f"批量检查了源 workflow「{source_workflow.name}」，模板快照已是最新。"
+                    ),
+                    payload={
+                        "bulk": True,
+                        "source_workflow_id": source_workflow.id,
+                        "previous_workflow_version": previous_version,
+                        "source_workflow_version": source_workflow.version,
+                        "changed": changed,
+                    },
+                )
+            else:
+                diff = service.rebase_from_workflow(record, source_workflow)
+                service.record_history(
+                    db,
+                    template_id=record.id,
+                    workspace_id=record.workspace_id,
+                    action="rebased",
+                    summary=(
+                        f"批量基于源 workflow「{source_workflow.name}」rebase 了 workspace starter。"
+                        if diff.changed
+                        else f"批量检查了源 workflow「{source_workflow.name}」，无需 rebase。"
+                    ),
+                    payload={
+                        "bulk": True,
+                        "source_workflow_id": source_workflow.id,
+                        "source_workflow_version": source_workflow.version,
+                        "changed": diff.changed,
+                        "rebase_fields": diff.rebase_fields,
+                        "node_changes": diff.node_summary.model_dump(),
+                        "edge_changes": diff.edge_summary.model_dump(),
+                    },
+                )
+
+        db.add(record)
+        db.flush()
+        updated_items.append(service.serialize(record))
+
+    db.commit()
+    return WorkspaceStarterBulkActionResult(
+        workspace_id=payload.workspace_id,
+        action=payload.action,
+        requested_count=len(payload.template_ids),
+        updated_count=len(updated_items),
+        skipped_count=len(skipped_items),
+        updated_items=updated_items,
+        skipped_items=skipped_items,
+    )
 
 
 @router.get("", response_model=list[WorkspaceStarterTemplateItem])

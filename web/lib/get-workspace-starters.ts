@@ -35,6 +35,7 @@ export type WorkspaceStarterSourceDiffEntry = {
   id: string;
   label: string;
   status: "added" | "removed" | "changed";
+  changed_fields: string[];
 };
 
 export type WorkspaceStarterSourceDiffSummary = {
@@ -61,6 +62,34 @@ export type WorkspaceStarterSourceDiff = {
   edge_summary: WorkspaceStarterSourceDiffSummary;
   node_entries: WorkspaceStarterSourceDiffEntry[];
   edge_entries: WorkspaceStarterSourceDiffEntry[];
+};
+
+export type WorkspaceStarterBulkAction =
+  | "archive"
+  | "restore"
+  | "refresh"
+  | "rebase";
+
+export type WorkspaceStarterBulkSkippedItem = {
+  template_id: string;
+  name?: string | null;
+  reason:
+    | "not_found"
+    | "already_archived"
+    | "not_archived"
+    | "no_source_workflow"
+    | "source_workflow_missing";
+  detail: string;
+};
+
+export type WorkspaceStarterBulkActionResult = {
+  workspace_id: string;
+  action: WorkspaceStarterBulkAction;
+  requested_count: number;
+  updated_count: number;
+  skipped_count: number;
+  updated_items: WorkspaceStarterTemplateItem[];
+  skipped_items: WorkspaceStarterBulkSkippedItem[];
 };
 
 export async function getWorkspaceStarterTemplates(): Promise<
@@ -188,4 +217,51 @@ export async function getWorkspaceStarterSourceDiff(
   } catch {
     return null;
   }
+}
+
+export async function bulkUpdateWorkspaceStarters({
+  workspaceId = "default",
+  action,
+  templateIds
+}: {
+  workspaceId?: string;
+  action: WorkspaceStarterBulkAction;
+  templateIds: string[];
+}): Promise<WorkspaceStarterBulkActionResult> {
+  const normalizedTemplateIds = Array.from(
+    new Set(templateIds.map((templateId) => templateId.trim()).filter(Boolean))
+  );
+  if (normalizedTemplateIds.length === 0) {
+    return {
+      workspace_id: workspaceId,
+      action,
+      requested_count: 0,
+      updated_count: 0,
+      skipped_count: 0,
+      updated_items: [],
+      skipped_items: []
+    };
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}/api/workspace-starters/bulk`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      workspace_id: workspaceId,
+      action,
+      template_ids: normalizedTemplateIds
+    })
+  });
+  const body = (await response.json().catch(() => null)) as
+    | WorkspaceStarterBulkActionResult
+    | { detail?: string }
+    | null;
+
+  if (!response.ok || !body || !("updated_items" in body)) {
+    throw new Error(body && "detail" in body ? body.detail ?? "批量操作失败。" : "批量操作失败。");
+  }
+
+  return body;
 }

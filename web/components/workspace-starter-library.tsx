@@ -5,8 +5,10 @@ import Link from "next/link";
 
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import {
+  bulkUpdateWorkspaceStarters,
   getWorkspaceStarterHistory,
   getWorkspaceStarterSourceDiff,
+  type WorkspaceStarterBulkAction,
   type WorkspaceStarterHistoryItem,
   type WorkspaceStarterSourceDiff,
   type WorkspaceStarterTemplateItem
@@ -56,6 +58,7 @@ export function WorkspaceStarterLibrary({
   const [messageTone, setMessageTone] = useState<"idle" | "success" | "error">("idle");
   const [isSaving, startSavingTransition] = useTransition();
   const [isMutating, startMutatingTransition] = useTransition();
+  const [isBulkMutating, startBulkMutatingTransition] = useTransition();
   const [isRefreshing, startRefreshingTransition] = useTransition();
   const [sourceWorkflow, setSourceWorkflow] = useState<WorkflowDetail | null>(null);
   const [sourceStatusMessage, setSourceStatusMessage] = useState<string | null>(null);
@@ -126,6 +129,19 @@ export function WorkspaceStarterLibrary({
         ? summarizeWorkspaceStarterSourceStatus(selectedTemplate, sourceWorkflow)
         : null,
     [selectedTemplate, sourceWorkflow]
+  );
+  const bulkActionCandidates = useMemo(
+    () => ({
+      archive: filteredTemplates.filter((template) => !template.archived).map((template) => template.id),
+      restore: filteredTemplates.filter((template) => template.archived).map((template) => template.id),
+      refresh: filteredTemplates
+        .filter((template) => Boolean(template.created_from_workflow_id))
+        .map((template) => template.id),
+      rebase: filteredTemplates
+        .filter((template) => Boolean(template.created_from_workflow_id))
+        .map((template) => template.id)
+    }),
+    [filteredTemplates]
   );
 
   useEffect(() => {
@@ -488,6 +504,59 @@ export function WorkspaceStarterLibrary({
     });
   };
 
+  const handleBulkAction = (action: WorkspaceStarterBulkAction) => {
+    const templateIds = bulkActionCandidates[action];
+    if (templateIds.length === 0) {
+      return;
+    }
+
+    const actionLabel = getBulkActionLabel(action);
+    const shouldContinue =
+      action !== "rebase" ||
+      window.confirm(
+        `确认对当前筛选结果中的 ${templateIds.length} 个 starter 批量执行 rebase 吗？`
+      );
+    if (!shouldContinue) {
+      return;
+    }
+
+    startBulkMutatingTransition(async () => {
+      setMessage(`正在对当前筛选结果批量${actionLabel}...`);
+      setMessageTone("idle");
+
+      try {
+        const result = await bulkUpdateWorkspaceStarters({
+          action,
+          templateIds
+        });
+        setTemplates((current) =>
+          current.map(
+            (template) =>
+              result.updated_items.find((item) => item.id === template.id) ?? template
+          )
+        );
+
+        const updatedSelected = selectedTemplateId
+          ? result.updated_items.find((item) => item.id === selectedTemplateId) ?? null
+          : null;
+        if (updatedSelected) {
+          await reloadHistory(updatedSelected.id);
+          if (updatedSelected.created_from_workflow_id) {
+            await reloadSourceDiff(updatedSelected.id);
+          } else {
+            setSourceDiff(null);
+          }
+        }
+
+        setMessage(buildBulkActionMessage(result));
+        setMessageTone(result.updated_count > 0 ? "success" : "idle");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : `批量${actionLabel}失败。`);
+        setMessageTone("error");
+      }
+    });
+  };
+
   return (
     <main className="editor-shell">
       <section className="hero creation-hero">
@@ -633,6 +702,66 @@ export function WorkspaceStarterLibrary({
                 placeholder="按名称、描述、焦点或标签筛选"
               />
             </label>
+
+            <div className="binding-card compact-card">
+              <div className="binding-card-header">
+                <div>
+                  <p className="entry-card-title">Bulk governance</p>
+                  <p className="binding-meta">
+                    先用筛选条件收敛模板范围，再对当前结果集批量治理。
+                  </p>
+                </div>
+                <span className="health-pill">{filteredTemplates.length} in scope</span>
+              </div>
+              <div className="starter-tag-row">
+                <span className="event-chip">
+                  archive {bulkActionCandidates.archive.length}
+                </span>
+                <span className="event-chip">
+                  restore {bulkActionCandidates.restore.length}
+                </span>
+                <span className="event-chip">
+                  refresh {bulkActionCandidates.refresh.length}
+                </span>
+                <span className="event-chip">
+                  rebase {bulkActionCandidates.rebase.length}
+                </span>
+              </div>
+              <div className="binding-actions">
+                <button
+                  className="sync-button secondary"
+                  type="button"
+                  onClick={() => handleBulkAction("archive")}
+                  disabled={bulkActionCandidates.archive.length === 0 || isBulkMutating}
+                >
+                  {isBulkMutating ? "处理中..." : "批量归档当前结果"}
+                </button>
+                <button
+                  className="sync-button secondary"
+                  type="button"
+                  onClick={() => handleBulkAction("restore")}
+                  disabled={bulkActionCandidates.restore.length === 0 || isBulkMutating}
+                >
+                  {isBulkMutating ? "处理中..." : "批量恢复当前结果"}
+                </button>
+                <button
+                  className="sync-button secondary"
+                  type="button"
+                  onClick={() => handleBulkAction("refresh")}
+                  disabled={bulkActionCandidates.refresh.length === 0 || isBulkMutating}
+                >
+                  {isBulkMutating ? "处理中..." : "批量刷新来源快照"}
+                </button>
+                <button
+                  className="sync-button secondary"
+                  type="button"
+                  onClick={() => handleBulkAction("rebase")}
+                  disabled={bulkActionCandidates.rebase.length === 0 || isBulkMutating}
+                >
+                  {isBulkMutating ? "处理中..." : "批量执行 rebase"}
+                </button>
+              </div>
+            </div>
           </div>
 
           {filteredTemplates.length === 0 ? (
@@ -1000,4 +1129,27 @@ function formatTimestamp(value: string) {
     hour: "2-digit",
     minute: "2-digit"
   }).format(date);
+}
+
+function getBulkActionLabel(action: WorkspaceStarterBulkAction) {
+  return {
+    archive: "归档",
+    restore: "恢复",
+    refresh: "刷新",
+    rebase: "rebase"
+  }[action];
+}
+
+function buildBulkActionMessage(result: {
+  action: WorkspaceStarterBulkAction;
+  updated_count: number;
+  skipped_count: number;
+}) {
+  const actionLabel = getBulkActionLabel(result.action);
+  const updatedPart =
+    result.updated_count > 0 ? `已批量${actionLabel} ${result.updated_count} 个 starter` : `没有 starter 被${actionLabel}`;
+  if (result.skipped_count === 0) {
+    return `${updatedPart}。`;
+  }
+  return `${updatedPart}，跳过 ${result.skipped_count} 个。`;
 }

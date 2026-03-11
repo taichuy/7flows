@@ -15,6 +15,8 @@ export function WorkspaceStarterSourceDiffPanel({
   isRebasing,
   onRebase
 }: WorkspaceStarterSourceDiffPanelProps) {
+  const rebaseRecommendation = getRebaseRecommendation(sourceDiff);
+
   return (
     <article className="diagnostic-panel">
       <div className="section-heading">
@@ -72,6 +74,7 @@ export function WorkspaceStarterSourceDiffPanel({
               </div>
               <span className="health-pill">{sourceDiff.changed ? "needs sync" : "synced"}</span>
             </div>
+            <p className="section-copy starter-summary-copy">{rebaseRecommendation}</p>
             <div className="starter-tag-row">
               {sourceDiff.rebase_fields.length > 0 ? (
                 sourceDiff.rebase_fields.map((field) => (
@@ -146,10 +149,52 @@ function DiffSection({
                 </div>
                 <span className="health-pill">{entry.status}</span>
               </div>
+              {entry.changed_fields.length > 0 ? (
+                <div className="starter-tag-row">
+                  {entry.changed_fields.map((field) => (
+                    <span className="event-chip" key={`${entry.id}-${field}`}>
+                      {field}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
       )}
     </div>
   );
+}
+
+function getRebaseRecommendation(sourceDiff: WorkspaceStarterSourceDiff | null) {
+  if (!sourceDiff) {
+    return "当前没有可用于判断 drift 决策的来源信息。";
+  }
+
+  if (!sourceDiff.changed) {
+    return "当前模板快照和来源 workflow 已对齐，无需执行 rebase。";
+  }
+
+  const definitionDrift =
+    sourceDiff.node_summary.added_count +
+      sourceDiff.node_summary.removed_count +
+      sourceDiff.node_summary.changed_count +
+      sourceDiff.edge_summary.added_count +
+      sourceDiff.edge_summary.removed_count +
+      sourceDiff.edge_summary.changed_count >
+    0;
+
+  if (definitionDrift && sourceDiff.workflow_name_changed) {
+    return "源 workflow 的 definition 和默认名称都已变化。如果模板要继续跟随来源演进，优先执行 rebase；如果只想先观察最新快照，可先 refresh 再决定是否接受名称同步。";
+  }
+
+  if (definitionDrift) {
+    return "当前 drift 主要来自 definition 演进。若团队确认模板应继续继承源 workflow，执行 rebase 可以一次同步 definition 与 source version。";
+  }
+
+  if (sourceDiff.workflow_name_changed) {
+    return "当前 drift 主要来自默认 workflow 名称变化。refresh 只会更新快照与版本；如果希望模板命名也跟随来源，请执行 rebase。";
+  }
+
+  return "当前存在来源漂移，建议先检查变更字段，再决定是否执行 rebase。";
 }

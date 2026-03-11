@@ -291,6 +291,10 @@ def test_workspace_starter_source_diff_reports_node_edge_and_name_drift(
     }
     assert [entry["id"] for entry in body["node_entries"]] == ["auditor", "mock_tool"]
     assert [entry["status"] for entry in body["node_entries"]] == ["added", "added"]
+    changed_edge = next(
+        entry for entry in body["edge_entries"] if entry["id"] == "e1"
+    )
+    assert changed_edge["changed_fields"] == ["targetNodeId"]
 
 
 def test_workspace_starter_rebase_syncs_source_derived_fields_and_records_history(
@@ -377,3 +381,137 @@ def test_workspace_starter_delete_requires_archive_first(client: TestClient) -> 
         f"/api/workspace-starters/{created['id']}",
     )
     assert detail_response.status_code == 404
+
+
+def test_workspace_starter_bulk_archive_and_restore_returns_summary(
+    client: TestClient,
+) -> None:
+    active = _create_workspace_starter(
+        client,
+        name="Bulk Active Starter",
+        business_track="应用新建编排",
+        description="Template for bulk archive flow",
+    )
+    archived = _create_workspace_starter(
+        client,
+        name="Bulk Archived Starter",
+        business_track="编排节点能力",
+        description="Template for bulk restore flow",
+    )
+    archive_response = client.post(f"/api/workspace-starters/{archived['id']}/archive")
+    assert archive_response.status_code == 200
+
+    archive_bulk_response = client.post(
+        "/api/workspace-starters/bulk",
+        json={
+            "workspace_id": "default",
+            "action": "archive",
+            "template_ids": [active["id"], archived["id"], "missing-template"],
+        },
+    )
+    assert archive_bulk_response.status_code == 200
+    archive_result = archive_bulk_response.json()
+    assert archive_result["updated_count"] == 1
+    assert archive_result["skipped_count"] == 2
+    assert [item["id"] for item in archive_result["updated_items"]] == [active["id"]]
+    assert {item["reason"] for item in archive_result["skipped_items"]} == {
+        "already_archived",
+        "not_found",
+    }
+
+    restore_bulk_response = client.post(
+        "/api/workspace-starters/bulk",
+        json={
+            "workspace_id": "default",
+            "action": "restore",
+            "template_ids": [active["id"], archived["id"]],
+        },
+    )
+    assert restore_bulk_response.status_code == 200
+    restore_result = restore_bulk_response.json()
+    assert restore_result["updated_count"] == 2
+    assert restore_result["skipped_count"] == 0
+
+    history_response = client.get(f"/api/workspace-starters/{active['id']}/history")
+    assert history_response.status_code == 200
+    history_items = history_response.json()
+    assert history_items[0]["action"] == "restored"
+    assert history_items[0]["payload"]["bulk"] is True
+
+
+def test_workspace_starter_bulk_refresh_and_rebase_skip_invalid_sources(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    derived = _create_workspace_starter(
+        client,
+        name="Bulk Derived Starter",
+        business_track="编排节点能力",
+        description="Template for bulk refresh flow",
+    )
+    manual = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Bulk Manual Starter",
+            "description": "Manual template with no source workflow",
+            "business_track": "API 调用开放",
+            "default_workflow_name": "Manual Workflow",
+            "workflow_focus": "Manual focus",
+            "recommended_next_step": "Manual next",
+            "tags": ["manual"],
+            "definition": _valid_definition(),
+        },
+    )
+    assert manual.status_code == 201
+    manual_body = manual.json()
+
+    sample_workflow.name = "Bulk Source Workflow"
+    sample_workflow.version = "0.1.3"
+    sample_workflow.definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "planner",
+                "type": "llm_agent",
+                "name": "Planner",
+                "config": {"prompt": "Plan in bulk"},
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "planner"},
+            {"id": "e2", "sourceNodeId": "planner", "targetNodeId": "output"},
+        ],
+    }
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    refresh_response = client.post(
+        "/api/workspace-starters/bulk",
+        json={
+            "workspace_id": "default",
+            "action": "refresh",
+            "template_ids": [derived["id"], manual_body["id"]],
+        },
+    )
+    assert refresh_response.status_code == 200
+    refresh_result = refresh_response.json()
+    assert refresh_result["updated_count"] == 1
+    assert refresh_result["skipped_count"] == 1
+    assert refresh_result["updated_items"][0]["created_from_workflow_version"] == "0.1.3"
+    assert refresh_result["skipped_items"][0]["reason"] == "no_source_workflow"
+
+    rebase_response = client.post(
+        "/api/workspace-starters/bulk",
+        json={
+            "workspace_id": "default",
+            "action": "rebase",
+            "template_ids": [derived["id"]],
+        },
+    )
+    assert rebase_response.status_code == 200
+    rebase_result = rebase_response.json()
+    assert rebase_result["updated_count"] == 1
+    assert rebase_result["updated_items"][0]["default_workflow_name"] == "Bulk Source Workflow"
