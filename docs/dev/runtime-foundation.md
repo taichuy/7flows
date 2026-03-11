@@ -293,6 +293,10 @@ uv run alembic upgrade head
   - 新增 `POST /api/runs/callback-tickets/cleanup`
   - 新增 worker 任务 `runtime.cleanup_callback_tickets`
   - cleanup 过期事件会继续复用 `run.callback.ticket.expired`，并显式写入 `source + cleanup`
+- callback ticket 当前已补上周期调度入口
+  - `api/app/core/celery_app.py` 已注册 `runtime.cleanup_callback_tickets` 的 beat schedule
+  - `SEVENFLOWS_CALLBACK_TICKET_CLEANUP_SCHEDULE_ENABLED` / `SEVENFLOWS_CALLBACK_TICKET_CLEANUP_INTERVAL_SECONDS` 用于控制自动清理开关与周期
+  - Docker 全栈模式已新增独立 `scheduler` 进程承接 Celery beat
 - 新增最小 `Run Resume Scheduler`
   - `api/app/services/run_resume_scheduler.py`
   - 把 runtime waiting 的恢复请求收口到独立调度层，默认投递给 Celery
@@ -394,6 +398,7 @@ uv run alembic upgrade head
 - `POST /api/runs/callback-tickets/cleanup` 当前支持 `source / limit / dry_run`，并返回匹配数、实际过期数和受影响 ticket 明细
 - runtime 当前还能通过 worker 侧 `runtime.resume_run` 消费被调度的 waiting run，并把计划恢复写成 `run.resume.scheduled`
 - worker 当前还能通过 `runtime.cleanup_callback_tickets` 复用同一治理服务，对 stale `pending` tickets 做批量过期
+- `scheduler` 当前会按固定周期投递 `runtime.cleanup_callback_tickets`，把 callback ticket cleanup 从手动治理推进到自动治理
 - 当前 trace 过滤已支持 `event_type`、`node_run_id`、时间范围、`payload_key`、事件游标和顺序控制
 - 当前 trace 还补充了回放 / 导出元信息，例如 trace / returned 时间边界、事件顺序、`replay_offset_ms` 以及 opaque `cursor`
 - `GET /api/runs/{run_id}/trace/export` 当前支持 `json` 与 `jsonl`，导出会复用相同过滤条件，便于离线分析与后续 replay 包演进
@@ -622,27 +627,18 @@ uv run alembic upgrade head
 
 ### 当前架构与体量判断
 
-- 最近一次已有 Git 提交 `2026-03-12 01:24:56 +0800` 的 `feat: add published endpoint api keys`：
-- 最近一次已有 Git 提交 `2026-03-12 01:54:24 +0800` 的 `feat: add published endpoint alias and path`：
-  - 为 publish binding 新增 `alias/path`
-  - 补上 alias/path 对应的 native published invoke 入口
-  - 补上 published binding 的跨 workflow 地址冲突校验
-- 最近一次已有 Git 提交 `2026-03-12 02:35:12 +0800` 的 `feat: add published endpoint audit filters`：
-  - 为 published activity 补上 `status / request_source / api_key_id` 筛选
-  - 补上 API key 维度使用可见性
-  - 补上最近失败原因聚合
-- 本轮继续承接这条发布主线，补上：
-  - published invocation 的 `created_from / created_to` 时间窗口筛选
-  - binding 级 timeline buckets
-  - route 侧时间窗口合法性校验
-- 本轮继续承接最近一次提交 `feat: harden callback ticket lifecycle`，补上：
-  - callback ticket 的批量 cleanup service
-  - 独立 cleanup API 与 worker 任务入口
-  - cleanup 来源审计与 dry-run 治理语义
+- 最近一次已有 Git 提交 `2026-03-12 03:27:19 +0800` 的 `feat: add callback ticket cleanup governance`：
+  - 为 callback ticket 补上批量 cleanup service
+  - 补上独立 cleanup API 与 worker 任务入口
+  - 补上 cleanup 来源审计与 dry-run 治理语义
+- 本轮继续承接这条 callback ticket 治理主线，补上：
+  - Celery beat 级周期 cleanup schedule
+  - Docker `scheduler` 进程
+  - cleanup 调度配置与对应测试
 - 当前真正需要持续承接的实现主线仍是 `feat: add durable agent runtime phase1`：
   - Phase 1 已经把 `compiler / runtime / agent runtime / tool gateway / context / artifact` 这套后端基础拆出来
   - 前几轮沿这条线补上了 `run_callback_tickets + callback ingress`
-  - 本轮继续把 callback ticket 收口为带 TTL/过期态的生命周期对象，并让 execution view 与统一事件流直接复用这批事实
+  - 最近两轮继续把 callback ticket 收口为带 TTL/过期态、cleanup 和周期调度的生命周期对象，并让 execution view 与统一事件流直接复用这批事实
   - 最近几轮把 publish binding、publish lifecycle、alias/path、activity audit 和最小 native publish invoke 接到 compiled blueprint 主线上，为开放 API 做最小承接
 - 当前基础框架已经写到“可以继续推进主业务”的阶段：
   - `应用新建编排` 这一条线已经有 `workflow library -> starter -> editor -> 保存版本 -> recent runs overlay`
@@ -661,7 +657,8 @@ uv run alembic upgrade head
   - `ExecutionArtifacts / CallbackHandleResult` 这类 runtime 返回模型已从 `runtime.py` 抽到 `runtime_records.py`，避免主执行器继续堆叠非执行职责
   - 前端创建页、editor、starter 治理也已开始围绕共享 snapshot 演进，而不是各自维护私有常量
   - `run diagnostics` 新增 execution/evidence sections，但通过独立组件承接，没有继续把 `run-diagnostics-panel.tsx` 变成新的页面级大文件
-  - 但 publish endpoint 的 protocol mapping、callback ticket 自动清理/来源审计/更强鉴权，以及节点插件注册中心仍未彻底拆清
+  - callback ticket cleanup 现在也已接入独立 scheduler 进程，避免再把周期治理塞回 API 或 `RuntimeService`
+  - 但 publish endpoint 的 protocol mapping、callback ticket 更强鉴权/系统诊断可见性，以及节点插件注册中心仍未彻底拆清
 - 当前需要显式盯住的长文件：
   - `api/app/services/runtime.py` 当前约 1502 行，已经重新越过后端 1500 行偏好阈值；本轮虽然把 callback cleanup 编排抽到独立 service，但下一轮若继续补 scheduler、callback 治理或 publish gateway，应优先拆 execution / waiting / resume orchestration
   - `api/app/api/routes/runs.py` 仍然偏长，但本轮已把 execution / evidence 聚合和 RunDetail 序列化拆出；下一轮若继续扩展 trace/export/callback，应进一步考虑 trace/export/callback 子模块拆分
@@ -688,7 +685,15 @@ Worker:
 uv run celery -A app.core.celery_app.celery_app worker --loglevel INFO --pool solo
 ```
 
-当前 worker 除 `system.heartbeat` 外，也会消费 `runtime.resume_run`，用于等待中的 run 自动恢复。
+当前 worker 除 `system.heartbeat` 外，也会消费 `runtime.resume_run` 与 `runtime.cleanup_callback_tickets`。
+
+Scheduler:
+
+```powershell
+uv run celery -A app.core.celery_app.celery_app beat --loglevel INFO
+```
+
+当前 scheduler 会按 `SEVENFLOWS_CALLBACK_TICKET_CLEANUP_INTERVAL_SECONDS` 周期投递 callback ticket cleanup。
 
 ### Docker 全栈模式
 
@@ -720,7 +725,7 @@ docker compose up -d --build
 - `native` 发布调用的 streaming / SSE 与更完整发布管理
 - `openai / anthropic` 的正式协议映射与开放调用入口
 - scheduler 级 dead-letter / dedupe / metrics / 失败重投治理
-- callback ticket 的周期自动清理调度与更强鉴权
+- callback ticket 的更强鉴权与系统诊断治理可见性
 - 回放调试面板
 - 更完整的节点结构化配置抽屉
 - editor 内消费 execution/evidence view、逐事件回放、trace 过滤和实时调试联动
@@ -737,7 +742,7 @@ docker compose up -d --build
 - 本轮已经把 `compiled blueprint / version snapshot / run binding` 继续推进到 `publish binding + lifecycle + alias/path + native invoke + api_key auth + activity audit filters + time window/timeline`。
 - 发布态现在已经具备最小 native 调用、API key 鉴权、alias/path 地址闭环和基础审计视图，但距离完整开放 API 仍差更完整托管能力、流式与兼容协议映射。
 - 现在还不适合一步到位宣称“完整 Durable Runtime 已完成”，原因是：
-  - callback ingress 与 ticket TTL/过期态已经落地，但 callback bus、自动清理和更强鉴权还没有完成
+  - callback ingress、ticket TTL/过期态和周期自动清理已经落地，但 callback bus、更强鉴权和系统诊断治理可见性还没有完成
   - scheduler 还只有最小任务投递，没有 dead-letter、去重、重投和系统化观测
   - publish binding 虽然已经接上 compiled blueprint、lifecycle、alias/path、最小 native invoke 和 API key 实体，但发布托管能力与协议映射还没有完全接上
 - 因此后续应按 “Phase 1 MVP 稳定化 -> Phase 2 完整耐久化” 的路线推进，而不是再把所有能力堆回 `runtime.py`
@@ -752,7 +757,6 @@ docker compose up -d --build
    - 更细的 API key 维度观测与趋势消费视图
    - 继续坚持绑定 `workflow_version + compiled_blueprint`
 3. 收口 callback ticket 的剩余治理：
-   - 周期自动清理调度
    - 更强鉴权形态
    - 系统诊断侧的治理可见性
 
@@ -760,7 +764,7 @@ docker compose up -d --build
 
 - 最小 `native` 调用入口、`api_key` 鉴权实体、alias/path 地址语义和基础 activity audit 都已经落地，当前最该补的是发布托管能力与兼容协议映射，否则 `API 调用开放` 仍然无法从 MVP 走向可集成状态。
 - run 侧虽然已经绑定 compiled blueprint，execution/evidence 视图也已经开始消费这些事实，但发布层仍需要继续承接，稳定执行边界才能真正服务主业务。
-- callback ingress 与 ticket TTL/expired 状态已经补到“手动/API/worker cleanup + 来源审计”，但周期调度和更强鉴权仍属于 durable runtime 稳定化的剩余工作。
+- callback ingress 与 ticket TTL/expired 状态已经补到“手动/API/worker cleanup + beat 周期调度 + 来源审计”，但更强鉴权与治理可见性仍属于 durable runtime 稳定化的剩余工作。
 
 ### P1 次高优先级
 

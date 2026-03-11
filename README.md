@@ -63,7 +63,16 @@ cd api
 uv run celery -A app.core.celery_app.celery_app worker --loglevel INFO --pool solo
 ```
 
-### 4. 启动前端
+### 4. 启动 Scheduler
+
+```powershell
+cd api
+uv run celery -A app.core.celery_app.celery_app beat --loglevel INFO
+```
+
+默认会按 `SEVENFLOWS_CALLBACK_TICKET_CLEANUP_INTERVAL_SECONDS` 周期投递 callback ticket cleanup 任务。
+
+### 5. 启动前端
 
 先确保本机已安装 `pnpm`。
 
@@ -86,7 +95,7 @@ Copy-Item .env.example .env
 docker compose up -d --build
 ```
 
-这会启动 `web`、`api`、`worker` 以及依赖中间件。
+这会启动 `web`、`api`、`worker`、`scheduler` 以及依赖中间件。
 
 全容器模式下，`api` 容器会在启动前自动执行 `uv run alembic upgrade head`。
 

@@ -15,6 +15,14 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 uv run celery -A app.core.celery_app.celery_app worker --loglevel INFO --pool solo
 ```
 
+## Scheduler
+
+```powershell
+uv run celery -A app.core.celery_app.celery_app beat --loglevel INFO
+```
+
+默认会按 `SEVENFLOWS_CALLBACK_TICKET_CLEANUP_INTERVAL_SECONDS` 周期投递 `runtime.cleanup_callback_tickets`。
+
 ## 迁移
 
 ```powershell

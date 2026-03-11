@@ -167,6 +167,24 @@ services:
       compat-dify:
         condition: service_healthy
 
+  scheduler:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      SEVENFLOWS_MIGRATION_ENABLED: false
+    command: uv run celery -A app.core.celery_app.celery_app beat --loglevel INFO
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+
   web:
     build:
       context: ../web

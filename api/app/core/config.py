@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     plugin_default_timeout_ms: int = 30_000
     callback_ticket_ttl_seconds: int = 86_400
     callback_ticket_cleanup_batch_size: int = 100
+    callback_ticket_cleanup_schedule_enabled: bool = True
+    callback_ticket_cleanup_interval_seconds: int = 300
     plugin_compat_dify_enabled: bool = False
     plugin_compat_dify_adapter_id: str = "dify-default"
     plugin_compat_dify_endpoint: str = "http://localhost:8091"
