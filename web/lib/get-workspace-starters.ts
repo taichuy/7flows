@@ -15,6 +15,8 @@ export type WorkspaceStarterTemplateItem = {
   definition: WorkflowDetail["definition"];
   created_from_workflow_id?: string | null;
   created_from_workflow_version?: string | null;
+  archived: boolean;
+  archived_at?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -28,11 +30,15 @@ export async function getWorkspaceStarterTemplates(): Promise<
 export async function getWorkspaceStarterTemplatesWithFilters({
   workspaceId = "default",
   businessTrack,
-  search
+  search,
+  includeArchived = false,
+  archivedOnly = false
 }: {
   workspaceId?: string;
   businessTrack?: WorkflowBusinessTrack;
   search?: string;
+  includeArchived?: boolean;
+  archivedOnly?: boolean;
 } = {}): Promise<WorkspaceStarterTemplateItem[]> {
   const params = new URLSearchParams();
   params.set("workspace_id", workspaceId);
@@ -41,6 +47,12 @@ export async function getWorkspaceStarterTemplatesWithFilters({
   }
   if (search?.trim()) {
     params.set("search", search.trim());
+  }
+  if (includeArchived) {
+    params.set("include_archived", "true");
+  }
+  if (archivedOnly) {
+    params.set("archived_only", "true");
   }
 
   try {

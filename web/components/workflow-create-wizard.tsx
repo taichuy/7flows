@@ -19,6 +19,7 @@ import {
 
 type WorkflowCreateWizardProps = {
   catalogToolCount: number;
+  preferredStarterId?: string;
   workflows: WorkflowListItem[];
   workspaceTemplates: WorkspaceStarterTemplateItem[];
 };
@@ -27,6 +28,7 @@ const DEFAULT_STARTER_ID: WorkflowStarterTemplateId = "blank";
 
 export function WorkflowCreateWizard({
   catalogToolCount,
+  preferredStarterId,
   workflows,
   workspaceTemplates
 }: WorkflowCreateWizardProps) {
@@ -44,6 +46,7 @@ export function WorkflowCreateWizard({
     [starterTemplates]
   );
   const defaultStarter =
+    starterTemplates.find((starter) => starter.id === preferredStarterId) ??
     starterTemplates.find((starter) => starter.id === DEFAULT_STARTER_ID) ??
     starterTemplates[0] ??
     BUILTIN_WORKFLOW_STARTER_TEMPLATES[0];

@@ -295,6 +295,13 @@ uv run alembic upgrade head
     - 当前已新增独立治理页 `GET /workspace-starters`：
       - 支持模板列表、业务主线筛选、关键字筛选、详情查看和 metadata 更新
       - 支持从治理页跳回源 workflow，形成 editor -> starter library -> editor 的往返链路
+    - 当前已补齐 workspace starter 第二阶段治理：
+      - `/api/workspace-starters` 已支持 `include_archived` / `archived_only`
+      - 已新增 archive / restore / delete 接口，且删除默认要求先归档
+      - 治理页已支持 active / archived / all 状态筛选
+      - 治理页已支持归档、恢复、删除操作
+      - 治理页会复用 `/api/workflows/{workflow_id}` 展示来源 workflow 漂移摘要
+      - 创建页已支持通过 `starter` 查询参数回填选中的 workspace starter
   - 当前创建页已把 starter 浏览逻辑拆到独立组件，避免 `/workflows/new` 再次长成页面级杂糅入口
   - 当前已支持把 workflow definition 映射为画布节点与连线
   - 当前已支持新增 `llm_agent` / `tool` / `mcp_query` / `condition` / `router` / `output`
@@ -343,6 +350,7 @@ uv run alembic upgrade head
 
 - 仍然是“最小骨架”，不是完整节点配置系统
 - workspace starter 已有独立治理页，但仍未补模板归档 / 删除、来源 diff、治理历史和创建页深链回填
+- workspace starter 已补齐归档 / 删除、来源漂移摘要和创建页深链回填，但仍未补治理历史、来源 refresh / rebase 和批量操作
 - ecosystem 模板仍然只是规划态，还没有真实数据源
 - 统一 node catalog 当前已和 tool registry 共享来源语义，但尚未和未来节点插件注册中心、生态分层和工作空间模板打通
 - `llm_agent` / `output` / `runtimePolicy` / edge `mapping[]` 等区域仍未结构化
@@ -355,16 +363,22 @@ uv run alembic upgrade head
 - 上一次 Git 提交 `feat: persist workspace starter templates` 和当前实现是直接衔接的：
   - 上一轮先把 `workspace starter` 做成真实存储、读取和 editor 保存入口
   - 这一轮继续把它推进到独立治理页、筛选、详情和更新链路，补齐 P0 中“从可保存到可治理”的缺口
+- 紧接着最近一次 Git 提交 `feat: add workspace starter governance` 与本轮实现同样直接衔接：
+  - 上一次提交先把 workspace starter 做成独立治理页
+  - 本轮继续补归档 / 恢复 / 谨慎删除、来源 workflow 漂移摘要，以及从治理页回到创建页的 starter 深链回填
 - 当前基础框架已经足够继续推进主业务完整度：
   - 新建应用 -> starter -> editor -> 保存版本 -> workspace starter 治理 -> 创建页复用 -> recent runs overlay 这条链路已连续
-  - 但 `plugin-backed node source`、`publish config` 和模板归档 / diff 治理仍未接上
+  - workspace starter 也已经具备 active / archived 资产治理、来源漂移摘要和创建页深链回填
+  - 但 `plugin-backed node source`、`publish config` 和 starter 来源 refresh / rebase 仍未接上
 - 当前架构方向整体是解耦的，但还没完全拆开：
   - `workflow business tracks`、`workflow source model`、`node catalog`、`starter templates`、`workspace starter API`、`workspace starter governance page` 已开始分层
-  - `tool catalog` 已和 starter / node 共享来源语义，但仍未并到统一后端 contract
+  - `tool catalog` 已和 starter / node 共享来源语义，治理页的来源漂移也继续复用原始 workflow API
+  - 但这些来源语义仍未并到统一后端 contract
 - 当前需要显式盯住的长文件：
   - `api/app/services/runtime.py` 约 1387 行，已接近后端 1500 行偏好阈值，后续应优先拆执行规划、事件写入、节点执行策略
   - `web/components/workflow-node-config-form.tsx` 约 1136 行，是前端当前最明显的结构化拆分对象
   - `web/components/workflow-editor-workbench.tsx` 约 877 行，虽然本轮已抽离 workspace starter payload helper，但后续仍适合继续拆 run overlay 状态、保存链路和画布壳层
+  - `web/components/workspace-starter-library.tsx` 约 784 行，虽然明显增长，但仍低于前端 2000 行偏好阈值，当前不是最紧迫的拆分对象
 
 ## 推荐开发命令
 
@@ -424,11 +438,11 @@ docker compose up -d --build
 ### P0 当前最高优先级
 
 1. 把统一 node catalog 继续推进到“节点库 / starter template / 工具目录”的共享后端 contract：避免前端单独维护来源分层，明确哪些能力来自 native node、plugin registry 和 compat adapter。
-2. 继续完善 workspace starter 治理第二阶段：补模板归档 / 删除、来源 workflow diff 和创建页深链回填，让 starter library 从“可维护”继续走向“团队级资产”。
+2. 继续完善 workspace starter 治理第三阶段：补来源 refresh / rebase、治理历史和批量操作，让 starter library 从“可治理”继续走向“团队级资产”。
 
 原因：
 
-- workspace starter 的查看、筛选、详情和更新已经落地，P0 的下一个缺口自然转到“共享后端 contract”和“团队级治理能力补完”。
+- workspace starter 的查看、筛选、归档、来源漂移摘要和创建页回填已经落地，P0 的下一个缺口自然转到“共享后端 contract”和“团队级治理能力补完”。
 - editor palette 虽然已经开始同时展示 native node 和 tool source lanes，但这些来源语义仍主要停留在前端视图层，尚未成为统一 contract。
 - 如果不把“来源 lane -> 真实数据源 / 合同边界”继续补完，后续节点、插件兼容和开放调用仍会在入口层反复返工。
 
@@ -458,8 +472,10 @@ docker compose up -d --build
 
 1. 进入 “API 调用开放” 主线：补发布配置、workflow 绑定、原生 API 以及 OpenAI / Anthropic 风格开放接口。
 2. 在上面四条主业务线站稳后，再继续推进 Loop、流式协议映射、更完整的 compat adapter 生命周期、测试基线和更严格的 IR/version 治理。
+3. 当项目达到“主要功能完整、流程与数据流转稳定、界面能力基本可用”的阶段后，主动联系用户进行一次人工全链路完整测试。
 
 原因：
 
 - API 开放是 7Flows 从“内部编排工具”走向“可被调用能力层”的关键业务能力，但要建立在应用创建、节点组织和插件兼容已有基础之上。
 - 更深的底座能力仍然重要，但后续应以服务主业务交付为节奏，而不是单独拉出一条长期基础设施主线。
+- 人工全链路测试是面向整体完整度的阶段性验收动作，应放在功能闭环较完整后统一触发，而不是过早要求用户反复手测。

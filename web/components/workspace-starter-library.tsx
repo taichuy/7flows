@@ -5,17 +5,20 @@ import Link from "next/link";
 
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import type { WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
+import type { WorkflowDetail } from "@/lib/get-workflows";
 import {
   WORKFLOW_BUSINESS_TRACKS,
   getWorkflowBusinessTrack,
   type WorkflowBusinessTrack
 } from "@/lib/workflow-business-tracks";
+import { summarizeWorkspaceStarterSourceStatus } from "@/lib/workspace-starter-source-status";
 
 type WorkspaceStarterLibraryProps = {
   initialTemplates: WorkspaceStarterTemplateItem[];
 };
 
 type TrackFilter = "all" | WorkflowBusinessTrack;
+type ArchiveFilter = "active" | "archived" | "all";
 
 type WorkspaceStarterFormState = {
   name: string;
@@ -32,6 +35,7 @@ export function WorkspaceStarterLibrary({
 }: WorkspaceStarterLibraryProps) {
   const [templates, setTemplates] = useState(initialTemplates);
   const [activeTrack, setActiveTrack] = useState<TrackFilter>("all");
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
     initialTemplates[0]?.id ?? null
@@ -42,10 +46,20 @@ export function WorkspaceStarterLibrary({
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<"idle" | "success" | "error">("idle");
   const [isSaving, startSavingTransition] = useTransition();
+  const [isMutating, startMutatingTransition] = useTransition();
+  const [sourceWorkflow, setSourceWorkflow] = useState<WorkflowDetail | null>(null);
+  const [sourceStatusMessage, setSourceStatusMessage] = useState<string | null>(null);
+  const [isLoadingSourceWorkflow, setIsLoadingSourceWorkflow] = useState(false);
 
   const filteredTemplates = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
     return templates.filter((template) => {
+      if (archiveFilter === "active" && template.archived) {
+        return false;
+      }
+      if (archiveFilter === "archived" && !template.archived) {
+        return false;
+      }
       if (activeTrack !== "all" && template.business_track !== activeTrack) {
         return false;
       }
@@ -67,7 +81,7 @@ export function WorkspaceStarterLibrary({
 
       return haystack.includes(normalizedSearch);
     });
-  }, [activeTrack, searchQuery, templates]);
+  }, [activeTrack, archiveFilter, searchQuery, templates]);
 
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === selectedTemplateId) ?? null,
@@ -76,6 +90,14 @@ export function WorkspaceStarterLibrary({
   const selectedTrackMeta = selectedTemplate
     ? getWorkflowBusinessTrack(selectedTemplate.business_track)
     : null;
+  const activeTemplateCount = useMemo(
+    () => templates.filter((template) => !template.archived).length,
+    [templates]
+  );
+  const archivedTemplateCount = useMemo(
+    () => templates.filter((template) => template.archived).length,
+    [templates]
+  );
   const hasPendingChanges =
     selectedTemplate !== null &&
     formState !== null &&
@@ -83,6 +105,13 @@ export function WorkspaceStarterLibrary({
       JSON.stringify(buildUpdatePayload(buildFormState(selectedTemplate)))
       ? false
       : Boolean(selectedTemplate && formState);
+  const sourceStatus = useMemo(
+    () =>
+      selectedTemplate
+        ? summarizeWorkspaceStarterSourceStatus(selectedTemplate, sourceWorkflow)
+        : null,
+    [selectedTemplate, sourceWorkflow]
+  );
 
   useEffect(() => {
     if (selectedTemplateId && templates.some((template) => template.id === selectedTemplateId)) {
@@ -110,6 +139,62 @@ export function WorkspaceStarterLibrary({
   useEffect(() => {
     setFormState(selectedTemplate ? buildFormState(selectedTemplate) : null);
   }, [selectedTemplate]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!selectedTemplate?.created_from_workflow_id) {
+      setSourceWorkflow(null);
+      setSourceStatusMessage(null);
+      setIsLoadingSourceWorkflow(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setIsLoadingSourceWorkflow(true);
+    setSourceStatusMessage(null);
+
+    void fetch(
+      `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(
+        selectedTemplate.created_from_workflow_id
+      )}`,
+      {
+        cache: "no-store"
+      }
+    )
+      .then(async (response) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (!response.ok) {
+          setSourceWorkflow(null);
+          setSourceStatusMessage(
+            response.status === 404
+              ? "源 workflow 已不存在。"
+              : `读取源 workflow 失败，API 返回 ${response.status}。`
+          );
+          setIsLoadingSourceWorkflow(false);
+          return;
+        }
+
+        setSourceWorkflow((await response.json()) as WorkflowDetail);
+        setIsLoadingSourceWorkflow(false);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setSourceWorkflow(null);
+        setSourceStatusMessage("无法连接后端读取源 workflow，请确认 API 已启动。");
+        setIsLoadingSourceWorkflow(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTemplate?.created_from_workflow_id]);
 
   const handleSave = () => {
     if (!selectedTemplate || !formState) {
@@ -155,6 +240,77 @@ export function WorkspaceStarterLibrary({
     });
   };
 
+  const handleTemplateMutation = (action: "archive" | "restore" | "delete") => {
+    if (!selectedTemplate) {
+      return;
+    }
+
+    const actionLabel = {
+      archive: "归档",
+      restore: "恢复",
+      delete: "永久删除"
+    }[action];
+    const shouldContinue =
+      action !== "delete" ||
+      window.confirm(`确认永久删除模板「${selectedTemplate.name}」吗？此操作不可撤销。`);
+    if (!shouldContinue) {
+      return;
+    }
+
+    startMutatingTransition(async () => {
+      setMessage(`正在${actionLabel} workspace starter...`);
+      setMessageTone("idle");
+
+      try {
+        const response = await fetch(
+          `${getApiBaseUrl()}/api/workspace-starters/${encodeURIComponent(selectedTemplate.id)}${
+            action === "delete" ? "" : `/${action}`
+          }`,
+          {
+            method: action === "delete" ? "DELETE" : "POST"
+          }
+        );
+        if (action === "delete") {
+          if (!response.ok) {
+            const body = (await response.json().catch(() => null)) as
+              | { detail?: string }
+              | null;
+            setMessage(body?.detail ?? "删除失败。");
+            setMessageTone("error");
+            return;
+          }
+
+          setTemplates((current) =>
+            current.filter((template) => template.id !== selectedTemplate.id)
+          );
+          setMessage(`已永久删除 workspace starter：${selectedTemplate.name}。`);
+          setMessageTone("success");
+          return;
+        }
+
+        const body = (await response.json().catch(() => null)) as
+          | WorkspaceStarterTemplateItem
+          | { detail?: string }
+          | null;
+        if (!response.ok || !body || !("id" in body)) {
+          setMessage(body && "detail" in body ? body.detail ?? `${actionLabel}失败。` : `${actionLabel}失败。`);
+          setMessageTone("error");
+          return;
+        }
+
+        setTemplates((current) =>
+          current.map((template) => (template.id === body.id ? body : template))
+        );
+        setSelectedTemplateId(body.id);
+        setMessage(`已${actionLabel} workspace starter：${body.name}。`);
+        setMessageTone("success");
+      } catch {
+        setMessage(`无法连接后端${actionLabel} workspace starter，请确认 API 已启动。`);
+        setMessageTone("error");
+      }
+    });
+  };
+
   return (
     <main className="editor-shell">
       <section className="hero creation-hero">
@@ -166,7 +322,8 @@ export function WorkspaceStarterLibrary({
             筛选、校对和更新模板元数据，而不是继续把模板治理留在编辑器里的单个按钮。
           </p>
           <div className="pill-row">
-            <span className="pill">{templates.length} workspace starters</span>
+            <span className="pill">{activeTemplateCount} active starters</span>
+            <span className="pill">{archivedTemplateCount} archived starters</span>
             <span className="pill">{filteredTemplates.length} visible templates</span>
             <span className="pill">{WORKFLOW_BUSINESS_TRACKS.length} business tracks</span>
           </div>
@@ -187,7 +344,7 @@ export function WorkspaceStarterLibrary({
             当前主线：<strong>P0 应用新建编排</strong>
           </p>
           <p className="panel-text">
-            视图能力：<strong>列表 / 筛选 / 详情 / 更新</strong>
+            视图能力：<strong>列表 / 筛选 / 详情 / 更新 / 归档</strong>
           </p>
           <p className="panel-text">
             当前选中：<strong>{selectedTemplate?.name ?? "暂无模板"}</strong>
@@ -198,14 +355,16 @@ export function WorkspaceStarterLibrary({
               <dd>{templates.length}</dd>
             </div>
             <div>
-              <dt>Filtered</dt>
-              <dd>{filteredTemplates.length}</dd>
+              <dt>Active</dt>
+              <dd>{activeTemplateCount}</dd>
+            </div>
+            <div>
+              <dt>Archived</dt>
+              <dd>{archivedTemplateCount}</dd>
             </div>
             <div>
               <dt>Track</dt>
-              <dd>
-                {activeTrack === "all" ? "All" : getWorkflowBusinessTrack(activeTrack).priority}
-              </dd>
+              <dd>{activeTrack === "all" ? "All" : getWorkflowBusinessTrack(activeTrack).priority}</dd>
             </div>
           </dl>
         </div>
@@ -254,6 +413,40 @@ export function WorkspaceStarterLibrary({
           </div>
 
           <div className="binding-form governance-filter-form">
+            <div className="starter-track-bar" role="tablist" aria-label="Workspace starter status">
+              {[
+                {
+                  id: "active" as const,
+                  title: "Active",
+                  subtitle: "可复用模板",
+                  count: activeTemplateCount
+                },
+                {
+                  id: "archived" as const,
+                  title: "Archived",
+                  subtitle: "已归档模板",
+                  count: archivedTemplateCount
+                },
+                {
+                  id: "all" as const,
+                  title: "All",
+                  subtitle: "全部状态",
+                  count: templates.length
+                }
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  className={`starter-track-chip ${archiveFilter === item.id ? "selected" : ""}`}
+                  type="button"
+                  onClick={() => setArchiveFilter(item.id)}
+                >
+                  <span>{item.title}</span>
+                  <strong>{item.subtitle}</strong>
+                  <small>{item.count} starters</small>
+                </button>
+              ))}
+            </div>
+
             <label className="binding-field">
               <span className="binding-label">Search templates</span>
               <input
@@ -286,9 +479,12 @@ export function WorkspaceStarterLibrary({
                 >
                   <div className="starter-card-header">
                     <span className="starter-track">{template.business_track}</span>
-                    <span className="health-pill">
-                      {getWorkflowBusinessTrack(template.business_track).priority}
-                    </span>
+                    <div className="starter-tag-row">
+                      <span className="health-pill">
+                        {getWorkflowBusinessTrack(template.business_track).priority}
+                      </span>
+                      {template.archived ? <span className="event-chip">archived</span> : null}
+                    </div>
                   </div>
                   <strong>{template.name}</strong>
                   <p>{template.description || "暂未填写描述。"}</p>
@@ -323,6 +519,10 @@ export function WorkspaceStarterLibrary({
                   <div className="summary-card">
                     <span>Priority</span>
                     <strong>{selectedTrackMeta?.priority ?? "-"}</strong>
+                  </div>
+                  <div className="summary-card">
+                    <span>Status</span>
+                    <strong>{selectedTemplate.archived ? "Archived" : "Active"}</strong>
                   </div>
                   <div className="summary-card">
                     <span>Nodes</span>
@@ -451,6 +651,33 @@ export function WorkspaceStarterLibrary({
                     >
                       {isSaving ? "保存中..." : "保存元数据"}
                     </button>
+                    {selectedTemplate.archived ? (
+                      <button
+                        className="sync-button secondary"
+                        type="button"
+                        onClick={() => handleTemplateMutation("restore")}
+                        disabled={isMutating}
+                      >
+                        {isMutating ? "处理中..." : "恢复模板"}
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className="sync-button secondary"
+                          type="button"
+                          onClick={() => handleTemplateMutation("archive")}
+                          disabled={isMutating}
+                        >
+                          {isMutating ? "处理中..." : "归档模板"}
+                        </button>
+                        <Link
+                          className="inline-link secondary"
+                          href={`/workflows/new?starter=${encodeURIComponent(selectedTemplate.id)}`}
+                        >
+                          带此 starter 回到创建页
+                        </Link>
+                      </>
+                    )}
                     {selectedTemplate.created_from_workflow_id ? (
                       <Link
                         className="inline-link secondary"
@@ -459,6 +686,14 @@ export function WorkspaceStarterLibrary({
                         打开源 workflow
                       </Link>
                     ) : null}
+                    <button
+                      className="inline-link secondary"
+                      type="button"
+                      onClick={() => handleTemplateMutation("delete")}
+                      disabled={isMutating}
+                    >
+                      永久删除
+                    </button>
                   </div>
 
                   <p className={`sync-message ${messageTone}`}>
@@ -491,6 +726,10 @@ export function WorkspaceStarterLibrary({
                     <span>Workflow version</span>
                     <strong>{selectedTemplate.created_from_workflow_version ?? "n/a"}</strong>
                   </div>
+                  <div className="summary-card">
+                    <span>Source status</span>
+                    <strong>{sourceStatus?.label ?? "-"}</strong>
+                  </div>
                 </div>
 
                 <div className="starter-tag-row">
@@ -499,6 +738,47 @@ export function WorkspaceStarterLibrary({
                       {tag}
                     </span>
                   ))}
+                </div>
+
+                <div className="binding-card compact-card">
+                  <div className="binding-card-header">
+                    <div>
+                      <p className="entry-card-title">Source workflow drift</p>
+                      <p className="binding-meta">
+                        {selectedTemplate.created_from_workflow_id ?? "no workflow binding"}
+                      </p>
+                    </div>
+                    <span className="health-pill">
+                      {isLoadingSourceWorkflow ? "loading" : sourceStatus?.label ?? "-"}
+                    </span>
+                  </div>
+                  <p className="section-copy starter-summary-copy">
+                    {sourceStatusMessage ?? sourceStatus?.summary ?? "暂无来源状态。"}
+                  </p>
+                  {sourceStatus ? (
+                    <div className="summary-strip compact-strip">
+                      <div className="summary-card">
+                        <span>Template ver</span>
+                        <strong>{sourceStatus.templateVersion ?? "n/a"}</strong>
+                      </div>
+                      <div className="summary-card">
+                        <span>Source ver</span>
+                        <strong>{sourceStatus.sourceVersion ?? "n/a"}</strong>
+                      </div>
+                      <div className="summary-card">
+                        <span>Node delta</span>
+                        <strong>
+                          {sourceStatus.sourceNodeCount - sourceStatus.templateNodeCount}
+                        </strong>
+                      </div>
+                      <div className="summary-card">
+                        <span>Edge delta</span>
+                        <strong>
+                          {sourceStatus.sourceEdgeCount - sourceStatus.templateEdgeCount}
+                        </strong>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="governance-node-list">

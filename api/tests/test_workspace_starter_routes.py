@@ -108,3 +108,64 @@ def test_workspace_starter_update_persists_metadata_changes(client: TestClient) 
     assert body["workflow_focus"] == "Updated workflow focus"
     assert body["recommended_next_step"] == "Updated next step"
     assert body["tags"] == ["updated", "workspace starter"]
+
+
+def test_workspace_starter_archive_and_restore_change_visibility(
+    client: TestClient,
+) -> None:
+    created = _create_workspace_starter(
+        client,
+        name="Archive Starter",
+        business_track="应用新建编排",
+        description="Template for archive flow",
+    )
+
+    archive_response = client.post(f"/api/workspace-starters/{created['id']}/archive")
+    assert archive_response.status_code == 200
+    archived = archive_response.json()
+    assert archived["archived"] is True
+    assert archived["archived_at"] is not None
+
+    default_list = client.get("/api/workspace-starters")
+    assert default_list.status_code == 200
+    assert default_list.json() == []
+
+    archived_list = client.get(
+        "/api/workspace-starters",
+        params={"archived_only": True},
+    )
+    assert archived_list.status_code == 200
+    assert [item["id"] for item in archived_list.json()] == [created["id"]]
+
+    restore_response = client.post(f"/api/workspace-starters/{created['id']}/restore")
+    assert restore_response.status_code == 200
+    restored = restore_response.json()
+    assert restored["archived"] is False
+    assert restored["archived_at"] is None
+
+    active_list = client.get("/api/workspace-starters")
+    assert active_list.status_code == 200
+    assert [item["id"] for item in active_list.json()] == [created["id"]]
+
+
+def test_workspace_starter_delete_requires_archive_first(client: TestClient) -> None:
+    created = _create_workspace_starter(
+        client,
+        name="Delete Starter",
+        business_track="API 调用开放",
+        description="Template for delete flow",
+    )
+
+    conflict_response = client.delete(f"/api/workspace-starters/{created['id']}")
+    assert conflict_response.status_code == 409
+
+    archive_response = client.post(f"/api/workspace-starters/{created['id']}/archive")
+    assert archive_response.status_code == 200
+
+    delete_response = client.delete(f"/api/workspace-starters/{created['id']}")
+    assert delete_response.status_code == 204
+
+    detail_response = client.get(
+        f"/api/workspace-starters/{created['id']}",
+    )
+    assert detail_response.status_code == 404

@@ -9,7 +9,12 @@ export const metadata: Metadata = {
   title: "New Workflow | 7Flows Studio"
 };
 
-export default async function NewWorkflowPage() {
+type NewWorkflowPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {};
   const [pluginRegistry, workflows, workspaceTemplates] = await Promise.all([
     getPluginRegistrySnapshot(),
     getWorkflows(),
@@ -19,8 +24,16 @@ export default async function NewWorkflowPage() {
   return (
     <WorkflowCreateWizard
       catalogToolCount={pluginRegistry.tools.length}
+      preferredStarterId={readQueryValue(resolvedSearchParams.starter)}
       workflows={workflows}
       workspaceTemplates={workspaceTemplates}
     />
   );
+}
+
+function readQueryValue(value: string | string[] | undefined) {
+  if (typeof value === "string") {
+    return value;
+  }
+  return Array.isArray(value) ? value[0] : undefined;
 }

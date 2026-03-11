@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from functools import lru_cache
 from uuid import uuid4
 
@@ -24,10 +25,17 @@ class WorkspaceStarterTemplateService:
         workspace_id: str = "default",
         business_track: WorkflowBusinessTrack | None = None,
         search: str | None = None,
+        include_archived: bool = False,
+        archived_only: bool = False,
     ) -> list[WorkspaceStarterTemplateRecord]:
         query = select(WorkspaceStarterTemplateRecord).where(
             WorkspaceStarterTemplateRecord.workspace_id == workspace_id
         )
+
+        if archived_only:
+            query = query.where(WorkspaceStarterTemplateRecord.archived_at.is_not(None))
+        elif not include_archived:
+            query = query.where(WorkspaceStarterTemplateRecord.archived_at.is_(None))
 
         if business_track is not None:
             query = query.where(
@@ -116,9 +124,33 @@ class WorkspaceStarterTemplateService:
             definition=dict(record.definition or {}),
             created_from_workflow_id=record.created_from_workflow_id,
             created_from_workflow_version=record.created_from_workflow_version,
+            archived=record.archived_at is not None,
+            archived_at=record.archived_at,
             created_at=record.created_at,
             updated_at=record.updated_at,
         )
+
+    def archive_template(
+        self,
+        record: WorkspaceStarterTemplateRecord,
+    ) -> WorkspaceStarterTemplateRecord:
+        if record.archived_at is None:
+            record.archived_at = datetime.now(UTC)
+        return record
+
+    def restore_template(
+        self,
+        record: WorkspaceStarterTemplateRecord,
+    ) -> WorkspaceStarterTemplateRecord:
+        record.archived_at = None
+        return record
+
+    def delete_template(
+        self,
+        db: Session,
+        record: WorkspaceStarterTemplateRecord,
+    ) -> None:
+        db.delete(record)
 
     def _apply_create_payload(
         self,

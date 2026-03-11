@@ -21,6 +21,8 @@ def list_workspace_starters(
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
     business_track: WorkflowBusinessTrack | None = Query(default=None),
     search: str | None = Query(default=None, min_length=1, max_length=128),
+    include_archived: bool = Query(default=False),
+    archived_only: bool = Query(default=False),
     db: Session = Depends(get_db),
 ) -> list[WorkspaceStarterTemplateItem]:
     service = get_workspace_starter_template_service()
@@ -29,6 +31,8 @@ def list_workspace_starters(
         workspace_id=workspace_id,
         business_track=business_track,
         search=search,
+        include_archived=include_archived,
+        archived_only=archived_only,
     )
     return [service.serialize(record) for record in records]
 
@@ -99,3 +103,68 @@ def update_workspace_starter(
     db.commit()
     db.refresh(record)
     return service.serialize(record)
+
+
+@router.post("/{template_id}/archive", response_model=WorkspaceStarterTemplateItem)
+def archive_workspace_starter(
+    template_id: str,
+    workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    db: Session = Depends(get_db),
+) -> WorkspaceStarterTemplateItem:
+    service = get_workspace_starter_template_service()
+    record = service.get_template(db, template_id, workspace_id=workspace_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace starter template not found.",
+        )
+
+    service.archive_template(record)
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return service.serialize(record)
+
+
+@router.post("/{template_id}/restore", response_model=WorkspaceStarterTemplateItem)
+def restore_workspace_starter(
+    template_id: str,
+    workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    db: Session = Depends(get_db),
+) -> WorkspaceStarterTemplateItem:
+    service = get_workspace_starter_template_service()
+    record = service.get_template(db, template_id, workspace_id=workspace_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace starter template not found.",
+        )
+
+    service.restore_template(record)
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return service.serialize(record)
+
+
+@router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_workspace_starter(
+    template_id: str,
+    workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    db: Session = Depends(get_db),
+) -> None:
+    service = get_workspace_starter_template_service()
+    record = service.get_template(db, template_id, workspace_id=workspace_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace starter template not found.",
+        )
+    if record.archived_at is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Archive the workspace starter before deleting it.",
+        )
+
+    service.delete_template(db, record)
+    db.commit()

@@ -76,5 +76,7 @@ class WorkspaceStarterTemplateItem(WorkspaceStarterTemplateBase):
     definition: dict[str, Any] = Field(default_factory=dict)
     created_from_workflow_id: str | None = None
     created_from_workflow_version: str | None = None
+    archived: bool = False
+    archived_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
