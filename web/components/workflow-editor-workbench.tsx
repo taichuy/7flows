@@ -570,8 +570,13 @@ export function WorkflowEditorWorkbench({
                     type="button"
                     onClick={() => handleAddNode(item.type)}
                   >
+                    <span className="starter-track">{item.businessTrack}</span>
                     <strong>{item.label}</strong>
-                    <span>{item.type}</span>
+                    <span>{item.description}</span>
+                    <div className="starter-meta-row">
+                      <span>{item.type}</span>
+                      <span>{item.ecosystem}</span>
+                    </div>
                   </button>
                 ))}
               </div>

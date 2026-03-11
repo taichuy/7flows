@@ -278,6 +278,7 @@ uv run alembic upgrade head
   - `GET /workflows/{workflow_id}`（Next.js 页面路由）
 - 引入 `xyflow` 作为画布基础：
   - 当前已提供 starter template 新建向导，创建成功后会直接进入 editor
+  - 当前已新增统一 `workflow node catalog`，把 starter template、节点默认名称/位置和 editor palette 收敛到同一份节点能力描述
   - 当前已支持把 workflow definition 映射为画布节点与连线
   - 当前已支持新增 `llm_agent` / `tool` / `mcp_query` / `condition` / `router` / `output`
   - 当前已支持编辑节点名称、基础 `config`、基础 `runtimePolicy`
@@ -310,6 +311,7 @@ uv run alembic upgrade head
 - `web/components/workflow-run-overlay-panel.tsx`
 - `web/components/workflow-node-config-form.tsx`
 - `web/lib/get-workflow-runs.ts`
+- `web/lib/workflow-node-catalog.ts`
 - `web/lib/workflow-editor.ts`
 - `web/lib/workflow-starters.ts`
 
@@ -317,10 +319,10 @@ uv run alembic upgrade head
 
 - 仍然是“最小骨架”，不是完整节点配置系统
 - starter template 当前仍是内置静态定义，还没有变成 workspace 级模板体系
+- 统一 node catalog 当前仍是前端静态目录，尚未和未来节点插件注册中心、生态分层和工作空间模板打通
 - `llm_agent` / `output` / `runtimePolicy` / edge `mapping[]` 等区域仍未结构化
 - `tool` 的复杂对象 / 数组 schema 字段仍需要通过高级 JSON 编辑
 - 已经支持 recent run 的静态附着与节点高亮，但还没有做到 editor 内逐事件回放、过滤翻页和实时流式联动
-- 节点创建入口和 starter template 还没有统一收敛到插件化节点库心智
 - 前端测试基线仍未建立
 
 ## 推荐开发命令
@@ -370,7 +372,7 @@ docker compose up -d --build
 - 回放调试面板
 - 更完整的节点结构化配置抽屉
 - editor 内逐事件回放、trace 过滤和实时调试联动
-- 插件化节点库驱动的 starter template / 节点创建统一模型
+- 节点目录与插件注册中心打通后的动态 starter / 节点库模型
 - 前端 editor 测试基线
 
 ## 下一步建议
@@ -379,13 +381,13 @@ docker compose up -d --build
 
 ### P0 当前最高优先级
 
-1. 明确“一切皆插件”的交互与架构落点：把 starter template、节点库、节点创建入口和未来能力扩展统一收敛到插件化心智，避免 UI 与运行时各长一套扩展模型。
-2. 把“应用新建编排”继续从入口推进到可扩展状态：让 starter template 与后续节点能力、工具目录和生态分类能顺滑衔接，而不是停留在一组内置静态草稿。
+1. 把统一 node catalog 继续推进到“节点库 / starter template / 工具目录”协同模型：明确哪些能力是静态 native node，哪些来自后续 plugin registry，避免前端重新长出第二套扩展入口。
+2. 把“应用新建编排”继续从入口推进到 workspace 级可扩展状态：让 starter template 能按业务主线、生态来源和未来模板治理顺滑扩展，而不是继续停留在当前仓库内置草稿。
 
 原因：
 
-- workflow 新建入口已经补上，但节点创建模型还没有正式进入“插件化能力描述”这一层。
-- 如果不先把“应用如何创建、节点如何作为插件进入交互”设计清楚，后续节点、插件兼容和开放调用都会反复返工。
+- workflow 新建入口和 editor palette 已经共享同一份节点目录，但这层还没有和未来 plugin registry、模板治理和生态分层真正接上。
+- 如果不继续把“哪些节点来自原生目录，哪些来自插件目录”设计清楚，后续节点、插件兼容和开放调用仍会在入口层反复返工。
 
 ### P1 次高优先级
 

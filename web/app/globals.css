@@ -1040,10 +1040,15 @@ a {
 }
 
 .starter-meta-row,
-.starter-tag-row {
+.starter-tag-row,
+.starter-node-row {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.starter-node-row {
+  margin-top: 2px;
 }
 
 .starter-meta-row {
@@ -1088,6 +1093,7 @@ a {
 .editor-node-add span {
   color: var(--muted);
   font-size: 0.84rem;
+  line-height: 1.5;
 }
 
 .editor-danger-button {

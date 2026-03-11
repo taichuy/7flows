@@ -100,7 +100,8 @@ export function WorkflowCreateWizard({
           <h1>从新建应用开始进入编排，而不是先手写 API</h1>
           <p className="hero-text">
             这一页补的是当前最高优先级的主业务入口：先选一个最小 starter，再把草稿直接送进
-            编辑器，后续节点、插件兼容和开放 API 都继续沿着同一条 workflow definition 演进。
+            编辑器。现在 starter 也和编辑器 palette 共用同一份节点目录，后续节点、插件兼容和
+            开放 API 都继续沿着同一条 workflow definition 演进。
           </p>
           <div className="pill-row">
             <span className="pill">{WORKFLOW_STARTER_TEMPLATES.length} starter templates</span>
@@ -173,6 +174,13 @@ export function WorkflowCreateWizard({
                 <span className="starter-track">{starter.businessTrack}</span>
                 <strong>{starter.name}</strong>
                 <p>{starter.description}</p>
+                <div className="starter-node-row">
+                  {starter.nodeLabels.map((nodeLabel) => (
+                    <span className="event-chip" key={`${starter.id}-${nodeLabel}`}>
+                      {nodeLabel}
+                    </span>
+                  ))}
+                </div>
                 <div className="starter-meta-row">
                   <span>{starter.nodeCount} nodes</span>
                   <span>{starter.tags[0]}</span>
@@ -207,6 +215,11 @@ export function WorkflowCreateWizard({
                 {selectedStarter.description}
               </p>
               <div className="starter-tag-row">
+                {selectedStarter.nodeLabels.map((nodeLabel) => (
+                  <span className="event-chip" key={`summary-${nodeLabel}`}>
+                    {nodeLabel}
+                  </span>
+                ))}
                 {selectedStarter.tags.map((tag) => (
                   <span className="event-chip" key={tag}>
                     {tag}

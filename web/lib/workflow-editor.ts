@@ -1,6 +1,12 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { WorkflowDetail } from "@/lib/get-workflows";
+import {
+  buildCatalogNodeDefinition,
+  getPaletteNodeCatalog,
+  getWorkflowNodeCatalogItem,
+  getWorkflowNodeDefaultPosition
+} from "@/lib/workflow-node-catalog";
 
 export type WorkflowDefinition = WorkflowDetail["definition"];
 
@@ -26,44 +32,23 @@ export type WorkflowCanvasEdgeData = {
   mapping?: Array<Record<string, unknown>>;
 };
 
-export const EDITOR_NODE_LIBRARY = [
-  { type: "llm_agent", label: "LLM Agent" },
-  { type: "tool", label: "Tool" },
-  { type: "mcp_query", label: "MCP Query" },
-  { type: "condition", label: "Condition" },
-  { type: "router", label: "Router" },
-  { type: "output", label: "Output" }
-] as const;
+export const EDITOR_NODE_LIBRARY = getPaletteNodeCatalog();
 
 const DEFAULT_EDGE_OPTIONS: WorkflowCanvasEdgeData = {
   channel: "control"
 };
 
-const DEFAULT_NODE_POSITIONS: Record<string, { x: number; y: number }> = {
-  trigger: { x: 80, y: 200 },
-  llm_agent: { x: 340, y: 120 },
-  tool: { x: 340, y: 280 },
-  mcp_query: { x: 620, y: 120 },
-  condition: { x: 620, y: 280 },
-  router: { x: 620, y: 420 },
-  output: { x: 900, y: 200 }
-};
-
 export function createStarterWorkflowDefinition(): WorkflowDefinition {
   return {
     nodes: [
-      {
+      buildCatalogNodeDefinition({
         id: createEntityId("trigger"),
-        type: "trigger",
-        name: "Trigger",
-        config: withCanvasPosition({}, DEFAULT_NODE_POSITIONS.trigger)
-      },
-      {
+        type: "trigger"
+      }),
+      buildCatalogNodeDefinition({
         id: createEntityId("output"),
-        type: "output",
-        name: "Output",
-        config: withCanvasPosition({}, DEFAULT_NODE_POSITIONS.output)
-      }
+        type: "output"
+      })
     ],
     edges: [],
     variables: [],
@@ -75,14 +60,15 @@ export function createWorkflowNodeDraft(
   type: (typeof EDITOR_NODE_LIBRARY)[number]["type"],
   existingNodesCount: number
 ) {
-  const fallbackPosition = DEFAULT_NODE_POSITIONS[type] ?? { x: 320, y: 200 };
+  const fallbackPosition = getWorkflowNodeDefaultPosition(type);
+  const catalogItem = getWorkflowNodeCatalogItem(type);
 
   return {
     id: createEntityId(type),
     type,
     name: buildDefaultNodeName(type, existingNodesCount),
     config: withCanvasPosition(
-      {},
+      structuredClone(catalogItem?.defaults.config ?? {}),
       {
         x: fallbackPosition.x + Math.max(0, existingNodesCount - 1) * 36,
         y: fallbackPosition.y + (existingNodesCount % 3) * 44
@@ -179,7 +165,7 @@ export function reactFlowToWorkflowDefinition(
 }
 
 function buildDefaultNodeName(type: string, existingNodesCount: number) {
-  const baseName = EDITOR_NODE_LIBRARY.find((item) => item.type === type)?.label ?? type;
+  const baseName = getWorkflowNodeCatalogItem(type)?.label ?? type;
   return `${baseName} ${Math.max(1, existingNodesCount)}`;
 }
 
@@ -208,7 +194,7 @@ function readCanvasPosition(
     return { x, y };
   }
 
-  const fallback = DEFAULT_NODE_POSITIONS[nodeType] ?? { x: 240, y: 120 };
+  const fallback = getWorkflowNodeDefaultPosition(nodeType);
   return {
     x: fallback.x + index * 40,
     y: fallback.y + (index % 3) * 48
