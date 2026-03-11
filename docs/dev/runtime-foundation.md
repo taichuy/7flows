@@ -20,6 +20,7 @@
 - `api/alembic.ini`
 - `api/migrations/env.py`
 - `api/migrations/versions/20260309_0001_initial_runtime.py`
+- `api/migrations/versions/20260311_0007_durable_agent_runtime.py`
 
 当前迁移会创建以下表：
 
@@ -27,6 +28,9 @@
 - `runs`
 - `node_runs`
 - `run_events`
+- `run_artifacts`
+- `tool_call_records`
+- `ai_call_records`
 
 ### 2. Docker 自动迁移
 
@@ -60,6 +64,8 @@ uv run alembic upgrade head
 - 输出
 - 错误信息
 - 起止时间
+- 当前节点指针
+- checkpoint payload
 
 #### `node_runs`
 
@@ -70,6 +76,14 @@ uv run alembic upgrade head
 - 执行状态
 - 错误信息
 - 起止时间
+- phase
+- retry 计数
+- phase 开始时间
+- 节点 working context
+- evidence context
+- artifact refs
+- waiting reason
+- checkpoint payload
 
 #### `run_events`
 
@@ -78,16 +92,50 @@ uv run alembic upgrade head
 当前已记录的事件类型包括：
 
 - `run.started`
+- `run.resumed`
+- `run.waiting`
 - `node.started`
+- `node.phase.changed`
 - `node.skipped`
 - `node.retrying`
 - `node.output.completed`
 - `node.context.read`
 - `node.join.ready`
 - `node.join.unmet`
+- `tool.completed`
+- `assistant.completed`
 - `node.failed`
 - `run.completed`
 - `run.failed`
+
+#### `run_artifacts`
+
+记录运行期原始大结果与衍生摘要引用：
+
+- 工具原始输出
+- AI 输入/输出快照
+- 大 JSON / 长文本 / 文件引用
+- artifact URI、摘要、content type、scope
+
+#### `tool_call_records`
+
+统一记录工具调用：
+
+- tool 名称 / 来源
+- 参数摘要
+- 标准化结果摘要
+- latency / error
+- raw artifact ref
+
+#### `ai_call_records`
+
+统一记录主 AI 与 assistant：
+
+- role（`main` / `assistant`）
+- phase
+- 输入摘要 / 输出摘要
+- latency / token / cost（可获取时）
+- prompt / response artifact ref
 
 ### 4. 工作流定义校验与版本快照
 
@@ -148,6 +196,41 @@ uv run alembic upgrade head
 - 其他节点默认走统一占位执行逻辑
 - 支持通过 `config.mock_output` 为节点声明稳定输出
 
+截至 2026-03-11，这一层已经从“最小执行器”升级到 Durable Agent Runtime Phase 1：
+
+- 引入最小 `Flow Compiler`
+  - `api/app/services/flow_compiler.py`
+  - 负责把设计态 workflow/version 快照编译成运行时 blueprint，补齐拓扑顺序、输入输出关系和默认结构
+- `RuntimeService` 升级为可恢复的 phase state machine 风格执行器
+  - `api/app/services/runtime.py`
+  - `api/app/services/runtime_graph_support.py`
+  - 支持 checkpoint、resume、waiting 状态、节点 phase 推进与持久化
+- 引入 `ContextService`
+  - `api/app/services/context_service.py`
+  - 把上下文拆为 global / working / evidence / artifact 引用四层
+- 引入 `RuntimeArtifactStore`
+  - `api/app/services/artifact_store.py`
+  - 原始大结果不再默认直接进入主 AI prompt，而是先落 artifact，再通过摘要和引用流转
+- 引入统一 `Tool Gateway`
+  - `api/app/services/tool_gateway.py`
+  - 负责工具注册入口复用、参数透传、标准化结果、artifact 持久化与工具调用追踪
+- 引入 `Agent Runtime`
+  - `api/app/services/agent_runtime.py`
+  - 让 `llm_agent` 从单次调用器演进为复合节点，内部 phases 为：
+    - `prepare`
+    - `main_plan`
+    - `tool_execute`
+    - `assistant_distill`
+    - `main_finalize`
+    - `emit_output`
+- `assistant` 当前作为节点内可插拔 pipeline
+  - 默认可关闭
+  - 关闭时退化为旧式单主 AI 输出
+  - 开启时只做 evidence 提炼，不负责流程推进
+- 当前已开放第一版恢复接口
+  - `POST /api/runs/{run_id}/resume`
+  - 适用于 waiting tool / fallback 后的最小恢复闭环
+
 这让我们可以先验证：
 
 - 工作流是否能跑通
@@ -161,6 +244,7 @@ uv run alembic upgrade head
 - `POST /api/workflows/{workflow_id}/runs`
 - `GET /api/workflows/{workflow_id}/runs`
 - `GET /api/runs/{run_id}`
+- `POST /api/runs/{run_id}/resume`
 - `GET /api/runs/{run_id}/events`
 - `GET /api/runs/{run_id}/trace`
 - `GET /api/runs/{run_id}/trace/export`
@@ -171,12 +255,14 @@ uv run alembic upgrade head
 - 触发一次最小工作流执行
 - 为 workflow editor 提供 workflow 级 recent runs 摘要入口
 - 查询执行详情
+- 恢复处于 waiting 状态的 run
 - 查询事件流
 - 为 AI / 自动化 提供带过滤条件的 run trace 检索
 - 为创建页和 editor 提供共享的 workflow library snapshot，统一暴露 builtin/workspace starters、node catalog、tool lanes 和 tools
 - `GET /api/workflow-library` 当前已开始按 `workspace_id` 过滤 adapter 绑定的 compat 工具，并把 `tool` 节点的 `binding_required` / `binding_source_lanes` 一并返回给 editor
 - `GET /api/workflows/{workflow_id}/runs` 当前会聚合返回 run 状态、版本、`node_run_count`、`event_count` 和 `last_event_at`，供 editor 选择最近执行上下文，而不是继续依赖首页摘要拼装
 - `GET /api/runs/{run_id}` 当前已支持 `include_events=false` 的摘要模式，供 run 诊断页等人类界面减少与 `/trace` 的重复数据搬运
+- `POST /api/runs/{run_id}/resume` 当前会从 `runs.checkpoint_payload` 与 `node_runs.checkpoint_payload` 恢复 phase state machine，优先支持 tool waiting 场景
 - 当前 trace 过滤已支持 `event_type`、`node_run_id`、时间范围、`payload_key`、事件游标和顺序控制
 - 当前 trace 还补充了回放 / 导出元信息，例如 trace / returned 时间边界、事件顺序、`replay_offset_ms` 以及 opaque `cursor`
 - `GET /api/runs/{run_id}/trace/export` 当前支持 `json` 与 `jsonl`，导出会复用相同过滤条件，便于离线分析与后续 replay 包演进
@@ -419,7 +505,7 @@ uv run alembic upgrade head
   - workspace starter 治理态也已经从模板记录扩展到“模板 + 历史事件”，没有继续把设计态资产治理塞进运行态事实表
   - 但节点插件注册中心、provider-backed node source 和 ecosystem starter 仍未进入这份 contract
 - 当前需要显式盯住的长文件：
-  - `api/app/services/runtime.py` 当前约 1387 行，虽然暂时回到偏好阈值内，但仍接近后端 1500 行红线；后续应优先拆执行规划、事件写入、节点执行策略，避免运行时重新越界
+  - `api/app/services/runtime.py` 本轮已拆到约 986 行，并把图路由 / join / edge mapping / 授权上下文辅助逻辑下沉到 `api/app/services/runtime_graph_support.py`；后续若继续补 scheduler、callback 和 subflow，不要再把这些职责堆回主执行器
   - `api/app/services/workflow_library.py` 当前约 639 行，虽然还没逼近后端红线，但已经同时承担 builtin starter、workspace starter、tool visibility 和 source lane 拼装；若继续接 adapter health / node plugin registry，应优先拆 source assembly 与 starter builders
   - `web/components/workspace-starter-library.tsx` 当前仍约千行，是治理页的最大单文件；本轮已继续把 bulk governance 抽到子组件，后续若再补结果钻取或批量决策面板，建议继续抽离筛选栏和详情表单
   - `web/components/workflow-node-config-form/shared.ts` 约 368 行，当前是前端节点配置的共享工具汇聚点，后续若继续长出更多 schema / mapping 工具，需要及时再拆
@@ -478,49 +564,90 @@ docker compose up -d --build
 
 ## 下一步建议
 
-每轮开发结束后，这里的“下一步建议”都应同步刷新为按优先级排序的可执行计划。当前建议顺序如下：
+每轮开发结束后，这里的“下一步建议”都应同步刷新为按优先级排序的可执行计划。当前建议顺序如下。
+
+当前判断：
+
+- 本轮已经完成 Durable Agent Runtime 的 Phase 1 MVP 重构版。
+- 现在还不适合一步到位宣称“完整 Durable Runtime 已完成”，原因是：
+  - 还没有独立的 queue / scheduler / callback event bus
+  - `WAITING_CALLBACK`、延迟重试、定时恢复仍主要依赖同步恢复入口，而不是后台任务系统
+  - 发布态 compiled blueprint 与开放 API 映射还没有完全接上
+- 因此后续应按 “Phase 1 MVP 稳定化 -> Phase 2 完整耐久化” 的路线推进，而不是再把所有能力堆回 `runtime.py`
 
 ### P0 当前最高优先级
 
-1. 继续把 `workflow library snapshot` 推进到更完整的 plugin/node source contract：在已落地 workspace-aware tool filtering 和 `tool` 节点 `binding_source_lanes` 的基础上，补 adapter health/scope 摘要、未来节点插件 lane，以及更明确的 node/plugin binding 边界。
-2. 继续完善 workspace starter 治理第三阶段：在已落地批量 archive / restore / refresh / rebase / delete、字段级来源 diff、风险提示和跳过原因聚合的基础上，补批量结果钻取、模板审阅反馈和更清晰的团队决策提示，让 starter library 从“可治理”继续走向“团队级资产”。
+1. 把 `resume` 从手动恢复入口推进到最小 scheduler / callback 闭环：
+   - 支持 `WAITING_CALLBACK`
+   - 支持基于 retry policy 的延迟重试调度
+   - 支持工具完成 / 外部回调后自动唤醒节点，而不是依赖长请求存活
+2. 把编译态与运行态彻底收口：
+   - 让执行入口优先绑定 compiled blueprint / version snapshot
+   - 为后续 publish binding 和开放 API 保留稳定执行蓝图
+3. 把执行追踪补齐为 UI 与机器都可复用的查询面：
+   - 继续围绕 `run_artifacts`、`tool_call_records`、`ai_call_records`
+   - 提供 execution view / evidence view 所需的摘要字段与引用能力
 
 原因：
 
-- `workflow library` 的共享后端 contract 已经落地，且现在开始体现 workspace 级工具可见性与 node/tool binding 关系，P0 的缺口自然转到“把更多真实来源和健康状态接进同一份 contract”和“继续补团队级治理反馈”。
-- workspace starter 当前已经不是单纯可保存，而是团队资产入口；批量治理、字段级 source diff、批量删除和跳过原因聚合已经补上，但如果缺少结果钻取和更细的审阅反馈，多人复用时仍会继续堆积治理成本。
-- 如果更完整的 node/plugin source contract 继续留在 shared snapshot 外，后续节点、插件兼容和开放调用仍会在入口层反复返工。
+- 当前 phase state machine 已经成立，但没有 scheduler 就还不算真正 durable。
+- 如果 compiled blueprint 继续只存在于运行前瞬时编译阶段，后续发布、回放和开放调用会缺少稳定事实边界。
+- artifact / tool / AI 追踪已经落库，下一步要尽快让它们成为可消费能力，而不只是后台表结构。
 
 ### P1 次高优先级
 
-1. 围绕“编排节点”补强高频节点能力：优先继续结构化 edge `mapping[]`、`runtimePolicy.join`、节点输入输出 schema 和更细的 `tool` schema 编辑。
-2. 把运行态调试继续接回节点体验，但以服务主业务编排为前提推进，例如节点状态高亮、trace 筛选、回放入口继续贴近画布。
-3. 继续盯住 editor 新拆出来的共享层，避免 `workflow-node-config-form/shared.ts` 与 `workflow-editor-workbench.tsx` 再次回到单点堆叠。
+1. 继续补强 `llm_agent` 结构化配置：
+   - 输出契约
+   - assistant trigger 阈值
+   - tool policy
+   - timeout / fallback / review 策略
+2. 继续扩展 `Tool Gateway`：
+   - 参数 schema 校验
+   - 权限控制收口
+   - native / compat / local agent / remote API 适配
+3. 把 execution view 和 evidence view 接回 editor / run diagnostics：
+   - 节点 phase timeline
+   - tool 调用摘要
+   - assistant evidence 展示
+   - artifact 引用跳转
 
 原因：
 
-- 节点能力是编排产品最直接的业务承载面，当前 edge mapping、join 和 schema 仍大量停留在高级 JSON，离真实可用还有距离。
-- 运行态可调试仍重要，但应作为节点编排体验的一部分推进，而不是再次独立成为唯一主线。
-- 虽然这轮已经把 editor 主组件和节点配置表单拆开，但共享层仍需继续控体量，避免拆分后很快重新长回去。
+- 当前 `llm_agent` 已从单次调用器升级为复合节点，但还需要更多结构化配置才能真正承载“节点级智能性”。
+- Tool Gateway 已经建立统一入口，应该继续成为所有工具能力的唯一穿透点，避免重新散落调用。
+- 运行时追踪如果不尽快回到 UI，后续 evidence 分层与 phase 调试价值会被埋在底层表里。
 
 ### P2 中优先级
 
-1. 进入 “Dify 插件兼容” 主线：先补清晰的 compat adapter 边界、插件发现/安装/调用最小链路，以及外部插件到受约束 `7Flows IR` 的归一化入口。
-2. 让插件化设计同时落到前后端：前端节点库按生态/能力分类展示，后端运行时与注册中心维持 `native / compat:*` 分层，不让外部协议直接渗透。
+1. 推进真正的 Event Bus / Worker Scheduler：
+   - 异步工具完成事件
+   - assistant 异步任务恢复
+   - timer-based timeout / retry / fallback
+2. 开始补 Loop / Subflow 的运行时边界：
+   - Loop 仍坚持显式节点表达
+   - 某些复杂 assistant pipeline 未来可升级为 subflow，但当前先不提前抽象
+3. 继续把 `workflow library`、节点目录和节点配置体验与新运行时对齐：
+   - 让前端明确表达 phase、artifact、evidence 与 tool 权限模型
 
 原因：
 
-- 这是平台区别于单纯 workflow 编辑器的重要业务线，但必须建立在前两步的“创建/节点”体验之上。
-- 用户已经明确要求“外部插件先压成受约束 IR”，因此兼容要做，但不能绕过架构边界。
+- P2 才是从 Phase 1 MVP 向完整 Durable Runtime 过渡的关键基础设施层。
+- Loop / Subflow 与 assistant pipeline 的边界必须建立在现有 phase runtime 稳定后再推进，否则会过度设计。
+- 运行时模型已经变了，创建页、编辑器和调试页也要逐步显式承认这些新事实。
 
 ### P3 后续优先级
 
-1. 进入 “API 调用开放” 主线：补发布配置、workflow 绑定、原生 API 以及 OpenAI / Anthropic 风格开放接口。
-2. 在上面四条主业务线站稳后，再继续推进 Loop、流式协议映射、更完整的 compat adapter 生命周期、测试基线和更严格的 IR/version 治理。
+1. 回到四条主业务线做整合推进：
+   - 应用新建编排
+   - 编排节点能力
+   - Dify 插件兼容
+   - API 调用开放
+2. 在发布层继续推进 workflow-backed provider：
+   - 从 compiled workflow + event bus 映射到原生 / OpenAI / Anthropic 风格接口
 3. 当项目达到“主要功能完整、流程与数据流转稳定、界面能力基本可用”的阶段后，主动联系用户进行一次人工全链路完整测试。
 
 原因：
 
-- API 开放是 7Flows 从“内部编排工具”走向“可被调用能力层”的关键业务能力，但要建立在应用创建、节点组织和插件兼容已有基础之上。
-- 更深的底座能力仍然重要，但后续应以服务主业务交付为节奏，而不是单独拉出一条长期基础设施主线。
-- 人工全链路测试是面向整体完整度的阶段性验收动作，应放在功能闭环较完整后统一触发，而不是过早要求用户反复手测。
+- Durable Runtime 最终不是独立产品，而是要服务 7Flows 的四条主业务线。
+- 发布层与兼容层必须建立在内部 runtime 边界稳定之后，不能反向主导内部设计。
+- 人工全链路测试仍保留为阶段性收尾动作，但应放在主要闭环站稳之后。

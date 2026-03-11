@@ -34,6 +34,7 @@ class Settings(BaseSettings):
 
     sandbox_url: str = "http://localhost:38194"
     sandbox_api_key: str = "sevenflows-sandbox"
+    durable_agent_runtime_enabled: bool = True
     plugin_default_timeout_ms: int = 30_000
     plugin_compat_dify_enabled: bool = False
     plugin_compat_dify_adapter_id: str = "dify-default"

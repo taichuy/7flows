@@ -13,6 +13,8 @@ from app.core.database import get_db
 from app.models.run import Run, RunEvent
 from app.models.workflow import Workflow
 from app.schemas.run import (
+    AICallItem,
+    RunArtifactItem,
     RunCreate,
     RunDetail,
     RunEventItem,
@@ -20,6 +22,7 @@ from app.schemas.run import (
     RunTraceEventItem,
     RunTraceFilters,
     RunTraceSummary,
+    ToolCallItem,
 )
 from app.services.runtime import ExecutionArtifacts, RuntimeService, WorkflowExecutionError
 
@@ -73,7 +76,9 @@ def _serialize_run(artifacts: ExecutionArtifacts, *, include_events: bool = True
         status=artifacts.run.status,
         input_payload=artifacts.run.input_payload,
         output_payload=artifacts.run.output_payload,
+        checkpoint_payload=artifacts.run.checkpoint_payload or {},
         error_message=artifacts.run.error_message,
+        current_node_id=artifacts.run.current_node_id,
         started_at=artifacts.run.started_at,
         finished_at=artifacts.run.finished_at,
         created_at=artifacts.run.created_at,
@@ -88,15 +93,96 @@ def _serialize_run(artifacts: ExecutionArtifacts, *, include_events: bool = True
                 "node_name": node_run.node_name,
                 "node_type": node_run.node_type,
                 "status": node_run.status,
+                "phase": node_run.phase,
+                "retry_count": node_run.retry_count,
                 "input_payload": node_run.input_payload,
                 "output_payload": node_run.output_payload,
+                "checkpoint_payload": node_run.checkpoint_payload or {},
+                "working_context": node_run.working_context or {},
+                "evidence_context": node_run.evidence_context,
+                "artifact_refs": list(node_run.artifact_refs or []),
                 "error_message": node_run.error_message,
+                "waiting_reason": node_run.waiting_reason,
                 "started_at": node_run.started_at,
+                "phase_started_at": node_run.phase_started_at,
                 "finished_at": node_run.finished_at,
             }
             for node_run in artifacts.node_runs
         ],
-        events=[_serialize_run_event(event) for event in artifacts.events] if include_events else [],
+        artifacts=[
+            RunArtifactItem(
+                id=artifact.id,
+                run_id=artifact.run_id,
+                node_run_id=artifact.node_run_id,
+                artifact_kind=artifact.artifact_kind,
+                content_type=artifact.content_type,
+                summary=artifact.summary,
+                uri=f"artifact://{artifact.id}",
+                metadata_payload=artifact.metadata_payload or {},
+                created_at=artifact.created_at,
+            )
+            for artifact in artifacts.artifacts
+        ],
+        tool_calls=[
+            ToolCallItem(
+                id=tool_call.id,
+                run_id=tool_call.run_id,
+                node_run_id=tool_call.node_run_id,
+                tool_id=tool_call.tool_id,
+                tool_name=tool_call.tool_name,
+                phase=tool_call.phase,
+                status=tool_call.status,
+                request_summary=tool_call.request_summary,
+                response_summary=tool_call.response_summary,
+                raw_ref=(
+                    f"artifact://{tool_call.raw_artifact_id}"
+                    if tool_call.raw_artifact_id is not None
+                    else None
+                ),
+                latency_ms=tool_call.latency_ms,
+                retry_count=tool_call.retry_count,
+                error_message=tool_call.error_message,
+                created_at=tool_call.created_at,
+                finished_at=tool_call.finished_at,
+            )
+            for tool_call in artifacts.tool_calls
+        ],
+        ai_calls=[
+            AICallItem(
+                id=ai_call.id,
+                run_id=ai_call.run_id,
+                node_run_id=ai_call.node_run_id,
+                role=ai_call.role,
+                status=ai_call.status,
+                provider=ai_call.provider,
+                model_id=ai_call.model_id,
+                input_summary=ai_call.input_summary,
+                output_summary=ai_call.output_summary,
+                input_ref=(
+                    f"artifact://{ai_call.input_artifact_id}"
+                    if ai_call.input_artifact_id is not None
+                    else None
+                ),
+                output_ref=(
+                    f"artifact://{ai_call.output_artifact_id}"
+                    if ai_call.output_artifact_id is not None
+                    else None
+                ),
+                latency_ms=ai_call.latency_ms,
+                token_usage=ai_call.token_usage or {},
+                cost_payload=ai_call.cost_payload or {},
+                assistant=ai_call.assistant,
+                error_message=ai_call.error_message,
+                created_at=ai_call.created_at,
+                finished_at=ai_call.finished_at,
+            )
+            for ai_call in artifacts.ai_calls
+        ],
+        events=(
+            [_serialize_run_event(event) for event in artifacts.events]
+            if include_events
+            else []
+        ),
     )
 
 
@@ -270,8 +356,12 @@ def _create_run_trace(
             for payload_key_name in _collect_payload_keys(event.payload)
         }
     )
-    trace_started_at = _normalize_filter_datetime(run_events[0].created_at) if run_events else None
-    trace_finished_at = _normalize_filter_datetime(run_events[-1].created_at) if run_events else None
+    trace_started_at = (
+        _normalize_filter_datetime(run_events[0].created_at) if run_events else None
+    )
+    trace_finished_at = (
+        _normalize_filter_datetime(run_events[-1].created_at) if run_events else None
+    )
     sequence_by_event_id = {
         event.id: index + 1 for index, event in enumerate(run_events)
     }
@@ -321,8 +411,12 @@ def _create_run_trace(
     normalized_returned_datetimes = [
         _normalize_filter_datetime(event.created_at) for event in events
     ]
-    returned_started_at = min(normalized_returned_datetimes) if normalized_returned_datetimes else None
-    returned_finished_at = max(normalized_returned_datetimes) if normalized_returned_datetimes else None
+    returned_started_at = (
+        min(normalized_returned_datetimes) if normalized_returned_datetimes else None
+    )
+    returned_finished_at = (
+        max(normalized_returned_datetimes) if normalized_returned_datetimes else None
+    )
     returned_duration_ms = 0
     if returned_started_at is not None and returned_finished_at is not None:
         returned_duration_ms = max(
@@ -532,6 +626,22 @@ def get_run(
     if artifacts is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
     return _serialize_run(artifacts, include_events=include_events)
+
+
+@router.post("/runs/{run_id}/resume", response_model=RunDetail)
+def resume_run(
+    run_id: str,
+    db: Session = Depends(get_db),
+) -> RunDetail:
+    try:
+        artifacts = runtime_service.resume_run(db, run_id)
+    except WorkflowExecutionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return _serialize_run(artifacts)
 
 
 @router.get("/runs/{run_id}/events", response_model=list[RunEventItem])

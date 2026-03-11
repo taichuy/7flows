@@ -14,10 +14,18 @@ class NodeRunItem(BaseModel):
     node_name: str
     node_type: str
     status: str
+    phase: str | None = None
+    retry_count: int = 0
     input_payload: dict
     output_payload: dict | None = None
+    checkpoint_payload: dict = Field(default_factory=dict)
+    working_context: dict = Field(default_factory=dict)
+    evidence_context: dict | None = None
+    artifact_refs: list[str] = Field(default_factory=list)
     error_message: str | None = None
+    waiting_reason: str | None = None
     started_at: datetime | None = None
+    phase_started_at: datetime | None = None
     finished_at: datetime | None = None
 
 
@@ -76,6 +84,57 @@ class RunTrace(BaseModel):
     events: list[RunTraceEventItem] = Field(default_factory=list)
 
 
+class RunArtifactItem(BaseModel):
+    id: str
+    run_id: str
+    node_run_id: str | None = None
+    artifact_kind: str
+    content_type: str
+    summary: str
+    uri: str
+    metadata_payload: dict = Field(default_factory=dict)
+    created_at: datetime
+
+
+class ToolCallItem(BaseModel):
+    id: str
+    run_id: str
+    node_run_id: str
+    tool_id: str
+    tool_name: str
+    phase: str
+    status: str
+    request_summary: str
+    response_summary: str | None = None
+    raw_ref: str | None = None
+    latency_ms: int = 0
+    retry_count: int = 0
+    error_message: str | None = None
+    created_at: datetime
+    finished_at: datetime | None = None
+
+
+class AICallItem(BaseModel):
+    id: str
+    run_id: str
+    node_run_id: str
+    role: str
+    status: str
+    provider: str | None = None
+    model_id: str | None = None
+    input_summary: str
+    output_summary: str | None = None
+    input_ref: str | None = None
+    output_ref: str | None = None
+    latency_ms: int = 0
+    token_usage: dict = Field(default_factory=dict)
+    cost_payload: dict = Field(default_factory=dict)
+    assistant: bool = False
+    error_message: str | None = None
+    created_at: datetime
+    finished_at: datetime | None = None
+
+
 class RunDetail(BaseModel):
     id: str
     workflow_id: str
@@ -83,7 +142,9 @@ class RunDetail(BaseModel):
     status: str
     input_payload: dict
     output_payload: dict | None = None
+    checkpoint_payload: dict = Field(default_factory=dict)
     error_message: str | None = None
+    current_node_id: str | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
     created_at: datetime
@@ -92,6 +153,9 @@ class RunDetail(BaseModel):
     first_event_at: datetime | None = None
     last_event_at: datetime | None = None
     node_runs: list[NodeRunItem]
+    artifacts: list[RunArtifactItem] = Field(default_factory=list)
+    tool_calls: list[ToolCallItem] = Field(default_factory=list)
+    ai_calls: list[AICallItem] = Field(default_factory=list)
     events: list[RunEventItem] = Field(default_factory=list)
 
 

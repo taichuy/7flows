@@ -117,3 +117,11 @@
 - 影响范围：后续开发收尾标准、阶段性验收节奏、`docs/dev/runtime-foundation.md` 的下一步规划，以及最终汇报中的测试建议。
 - 落地动作：已记录到 `docs/dev/user-preferences.md`；后续在项目进入较完整阶段时，会把“联系用户进行人工全链路测试”作为显式收尾动作写入开发建议，而不是只给内部技术验证结论。
 - 备注：在尚未达到“主要功能与界面较完整”的阶段前，仍优先用自动化验证和开发记录推进，不提前打扰用户做全链路人工验收。
+
+## 2026-03-11 Agent Node 必须保持单一主控与证据分层
+
+- 偏好：AI 节点要演进为节点内可恢复的 phase pipeline，但主 AI 仍是唯一决策者；assistant 只做工具结果整理、压缩和 evidence 提炼，不能负责流程推进，也不应默认直接吞入全量原始工具结果。
+- 来源：用户在本轮“Durable Agent Workflow Runtime”系统级重构要求中明确提出，希望将 7Flows 长期演进到“流程级确定性 + 节点级智能性 + 上下文分层 + Durable Execution”的形态。
+- 影响范围：`AGENTS.md`、`docs/dev/runtime-foundation.md`、运行时模型、Agent Runtime、Tool Gateway、上下文服务、后续执行视图与证据视图设计。
+- 落地动作：已在 `AGENTS.md` 增补仓库级架构边界；本轮已实现 phase state machine 风格的 `llm_agent`、artifact/evidence 分层、Tool Gateway 与 resume API，并补充开发记录说明 Phase 1 MVP 与 Phase 2 演进路径。
+- 备注：assistant 必须保持可关闭；关闭时应退化兼容旧的单次 AI 节点逻辑。

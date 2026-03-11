@@ -27,6 +27,7 @@ export function LlmAgentNodeConfigForm({
 }: LlmAgentNodeConfigFormProps) {
   const config = cloneRecord(node.data.config);
   const model = toRecord(config.model) ?? {};
+  const assistant = toRecord(config.assistant) ?? {};
   const contextAccess = toRecord(config.contextAccess) ?? {};
   const availableNodes = nodes.filter((candidate) => candidate.id !== node.id);
   const readableArtifacts = readReadableArtifacts(contextAccess.readableArtifacts);
@@ -69,6 +70,37 @@ export function LlmAgentNodeConfigForm({
   const updateBooleanField = (field: string, checked: boolean) => {
     const nextConfig = cloneRecord(config);
     nextConfig[field] = checked;
+    onChange(nextConfig);
+  };
+
+  const updateAssistantField = (field: string, value: unknown) => {
+    const nextConfig = cloneRecord(config);
+    const nextAssistant = cloneRecord(assistant);
+
+    if (value === undefined || value === "") {
+      delete nextAssistant[field];
+    } else {
+      nextAssistant[field] = value;
+    }
+
+    if (Object.keys(nextAssistant).length === 0) {
+      delete nextConfig.assistant;
+    } else {
+      nextConfig.assistant = nextAssistant;
+    }
+
+    onChange(nextConfig);
+  };
+
+  const updateAssistantEnabled = (checked: boolean) => {
+    const nextConfig = cloneRecord(config);
+    const nextAssistant = cloneRecord(assistant);
+    nextAssistant.enabled = checked;
+    if (!checked && Object.keys(nextAssistant).length === 1) {
+      delete nextConfig.assistant;
+    } else {
+      nextConfig.assistant = nextAssistant;
+    }
     onChange(nextConfig);
   };
 
@@ -216,6 +248,37 @@ export function LlmAgentNodeConfigForm({
         <small className="section-copy">
           这层先把 LLM Agent 的主配置显式化，后续再继续细化输入输出 schema、tool policy
           和 runtime policy。
+        </small>
+      </div>
+
+      <div className="binding-field">
+        <span className="binding-label">Assistant distill</span>
+        <div className="tool-badge-row">
+          <label>
+            <input
+              type="checkbox"
+              checked={Boolean(assistant.enabled)}
+              onChange={(event) => updateAssistantEnabled(event.target.checked)}
+            />{" "}
+            enabled
+          </label>
+        </div>
+        <label className="binding-field">
+          <span className="binding-label">Trigger mode</span>
+          <select
+            className="trace-text-input"
+            value={typeof assistant.trigger === "string" ? assistant.trigger : "on_multi_tool_results"}
+            onChange={(event) => updateAssistantField("trigger", event.target.value)}
+          >
+            <option value="always">always</option>
+            <option value="on_large_payload">on_large_payload</option>
+            <option value="on_search_result">on_search_result</option>
+            <option value="on_multi_tool_results">on_multi_tool_results</option>
+            <option value="on_high_risk_mode">on_high_risk_mode</option>
+          </select>
+        </label>
+        <small className="section-copy">
+          Assistant 只负责提炼工具结果与生成 evidence，不拥有流程推进和最终决策权。
         </small>
       </div>
 

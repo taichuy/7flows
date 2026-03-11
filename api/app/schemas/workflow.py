@@ -28,6 +28,13 @@ EdgeChannel = Literal["control", "data"]
 PublishProtocol = Literal["native", "openai", "anthropic"]
 AuthMode = Literal["api_key", "token", "internal"]
 ArtifactType = Literal["text", "json", "file", "tool_result", "message"]
+AssistantTriggerMode = Literal[
+    "always",
+    "on_large_payload",
+    "on_search_result",
+    "on_multi_tool_results",
+    "on_high_risk_mode",
+]
 _SEMVER_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 _FAILURE_EDGE_CONDITIONS = {"error", "failed", "on_error"}
 _SUCCESS_EDGE_CONDITIONS = {"success", "succeeded", "default"}
@@ -85,6 +92,39 @@ class WorkflowNodeToolBinding(BaseModel):
         if self.ecosystem == "native" and self.adapterId is not None:
             raise ValueError("config.tool.adapterId cannot be used with ecosystem 'native'.")
         return self
+
+
+class WorkflowNodeAssistantConfig(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    enabled: bool = False
+    trigger: AssistantTriggerMode = "on_multi_tool_results"
+    model: dict[str, Any] | None = None
+
+
+class WorkflowNodeToolPolicy(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    allowedToolIds: list[str] = Field(default_factory=list)
+    timeoutMs: int | None = Field(default=None, ge=1, le=600_000)
+
+
+class WorkflowNodeAgentToolCall(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    toolId: str = Field(min_length=1, max_length=256)
+    ecosystem: str = Field(default="native", min_length=1, max_length=64)
+    adapterId: str | None = Field(default=None, min_length=1, max_length=128)
+    inputs: dict[str, Any] = Field(default_factory=dict)
+    timeoutMs: int | None = Field(default=None, ge=1, le=600_000)
+
+
+class WorkflowNodeAgentMockPlan(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    toolCalls: list[WorkflowNodeAgentToolCall] = Field(default_factory=list)
+    needAssistant: bool = False
+    finalizeFrom: Literal["evidence", "tool_results", "working_context"] = "evidence"
 
 
 BranchSelectorOperator = Literal[
@@ -224,6 +264,24 @@ class WorkflowNodeDefinition(BaseModel):
                 error_prefix="config.expression",
             )
 
+        assistant = self.config.get("assistant")
+        if assistant is not None:
+            if self.type != "llm_agent":
+                raise ValueError("Only llm_agent nodes may define config.assistant.")
+            WorkflowNodeAssistantConfig.model_validate(assistant)
+
+        tool_policy = self.config.get("toolPolicy")
+        if tool_policy is not None:
+            if self.type != "llm_agent":
+                raise ValueError("Only llm_agent nodes may define config.toolPolicy.")
+            WorkflowNodeToolPolicy.model_validate(tool_policy)
+
+        mock_plan = self.config.get("mockPlan")
+        if mock_plan is not None:
+            if self.type != "llm_agent":
+                raise ValueError("Only llm_agent nodes may define config.mockPlan.")
+            WorkflowNodeAgentMockPlan.model_validate(mock_plan)
+
         return self
 
 
@@ -305,7 +363,9 @@ class WorkflowPublishedEndpointDefinition(BaseModel):
     @model_validator(mode="after")
     def validate_workflow_version_format(self) -> WorkflowPublishedEndpointDefinition:
         if self.workflowVersion is not None and not _SEMVER_PATTERN.match(self.workflowVersion):
-            raise ValueError("workflowVersion must use semantic version format 'major.minor.patch'.")
+            raise ValueError(
+                "workflowVersion must use semantic version format 'major.minor.patch'."
+            )
         return self
 
 
@@ -382,7 +442,8 @@ class WorkflowDefinitionDocument(BaseModel):
                     )
                 if query.artifactTypes is not None:
                     authorized_artifacts: dict[str, set[str]] = {
-                        readable_node_id: {"json"} for readable_node_id in context_access.readableNodeIds
+                        readable_node_id: {"json"}
+                        for readable_node_id in context_access.readableNodeIds
                     }
                     for artifact in context_access.readableArtifacts:
                         authorized_artifacts.setdefault(artifact.nodeId, {"json"}).add(

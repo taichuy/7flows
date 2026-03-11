@@ -1,0 +1,189 @@
+from __future__ import annotations
+
+import time
+from copy import deepcopy
+from datetime import UTC, datetime
+from typing import Any
+from uuid import uuid4
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.config import get_settings
+from app.models.plugin import PluginToolRecord
+from app.models.run import NodeRun, ToolCallRecord
+from app.services.artifact_store import RuntimeArtifactStore
+from app.services.plugin_runtime import PluginCallProxy, PluginCallRequest, PluginInvocationError
+from app.services.runtime_types import ToolExecutionResult, WorkflowExecutionError
+
+
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
+class ToolGateway:
+    def __init__(
+        self,
+        *,
+        plugin_call_proxy: PluginCallProxy,
+        artifact_store: RuntimeArtifactStore | None = None,
+    ) -> None:
+        self._plugin_call_proxy = plugin_call_proxy
+        self._artifact_store = artifact_store or RuntimeArtifactStore()
+
+    def execute(
+        self,
+        db: Session,
+        *,
+        run_id: str,
+        node_run: NodeRun,
+        phase: str,
+        tool_id: str,
+        ecosystem: str,
+        inputs: dict[str, Any],
+        adapter_id: str | None = None,
+        credentials: dict[str, str] | None = None,
+        timeout_ms: int | None = None,
+        allowed_tool_ids: set[str] | None = None,
+        retry_count: int = 0,
+    ) -> ToolExecutionResult:
+        if allowed_tool_ids is not None and tool_id not in allowed_tool_ids:
+            raise WorkflowExecutionError(
+                f"Node '{node_run.node_id}' is not allowed to call tool '{tool_id}'."
+            )
+
+        tool_record = db.get(PluginToolRecord, tool_id)
+        tool_name = tool_record.name if tool_record is not None else tool_id
+        request_summary = self._artifact_store.summarize(inputs)
+        call_record = ToolCallRecord(
+            id=str(uuid4()),
+            run_id=run_id,
+            node_run_id=node_run.id,
+            tool_id=tool_id,
+            tool_name=tool_name,
+            phase=phase,
+            status="running",
+            request_summary=request_summary,
+            retry_count=retry_count,
+            created_at=_utcnow(),
+        )
+        db.add(call_record)
+        db.flush()
+
+        resolved_timeout_ms = timeout_ms or get_settings().plugin_default_timeout_ms
+        started_at = time.perf_counter()
+        try:
+            response = self._plugin_call_proxy.invoke(
+                PluginCallRequest(
+                    tool_id=tool_id,
+                    ecosystem=ecosystem,
+                    adapter_id=adapter_id,
+                    inputs=deepcopy(inputs),
+                    credentials=dict(credentials or {}),
+                    timeout_ms=resolved_timeout_ms,
+                    trace_id=f"run:{run_id}:node:{node_run.node_id}:tool:{tool_id}",
+                )
+            )
+            result = self._normalize_result(
+                db,
+                run_id=run_id,
+                node_run_id=node_run.id,
+                tool_id=tool_id,
+                tool_name=tool_name,
+                payload=response.output,
+                latency_ms=response.duration_ms
+                or int((time.perf_counter() - started_at) * 1000),
+            )
+            call_record.status = result.status
+            call_record.response_summary = result.summary
+            raw_ref = result.raw_ref or ""
+            if raw_ref.startswith("artifact://"):
+                call_record.raw_artifact_id = raw_ref.removeprefix("artifact://")
+            call_record.latency_ms = int(result.meta.get("latency_ms") or 0)
+            call_record.finished_at = _utcnow()
+            db.flush()
+            return result
+        except PluginInvocationError as exc:
+            call_record.status = "failed"
+            call_record.error_message = str(exc)
+            call_record.latency_ms = int((time.perf_counter() - started_at) * 1000)
+            call_record.finished_at = _utcnow()
+            db.flush()
+            raise WorkflowExecutionError(str(exc)) from exc
+
+    def list_tool_calls(self, db: Session, run_id: str) -> list[ToolCallRecord]:
+        return db.scalars(
+            select(ToolCallRecord)
+            .where(ToolCallRecord.run_id == run_id)
+            .order_by(ToolCallRecord.created_at.asc())
+        ).all()
+
+    def _normalize_result(
+        self,
+        db: Session,
+        *,
+        run_id: str,
+        node_run_id: str,
+        tool_id: str,
+        tool_name: str,
+        payload: dict[str, Any],
+        latency_ms: int,
+    ) -> ToolExecutionResult:
+        if self._is_normalized_tool_payload(payload):
+            normalized = deepcopy(payload)
+            meta = dict(normalized.get("meta") or {})
+            meta.setdefault("tool_name", tool_name)
+            meta.setdefault("tool_id", tool_id)
+            meta.setdefault("latency_ms", latency_ms)
+            raw_ref = normalized.get("raw_ref")
+            if raw_ref is None and normalized.get("status") != "waiting":
+                artifact_ref = self._artifact_store.create_artifact(
+                    db,
+                    run_id=run_id,
+                    node_run_id=node_run_id,
+                    artifact_kind="tool_result",
+                    value=normalized.get("structured") or {},
+                    content_type=normalized.get("content_type") or "json",
+                    summary=normalized.get("summary") or "",
+                    metadata_payload={"tool_id": tool_id, "tool_name": tool_name},
+                )
+                raw_ref = artifact_ref.uri
+            return ToolExecutionResult(
+                status=str(normalized.get("status") or "success"),
+                content_type=str(normalized.get("content_type") or "json"),
+                summary=str(normalized.get("summary") or ""),
+                raw_ref=raw_ref,
+                structured=dict(normalized.get("structured") or {}),
+                meta=meta,
+            )
+
+        artifact_ref = self._artifact_store.create_artifact(
+            db,
+            run_id=run_id,
+            node_run_id=node_run_id,
+            artifact_kind="tool_result",
+            value=payload,
+            content_type=self._artifact_store.infer_content_type(payload),
+            metadata_payload={"tool_id": tool_id, "tool_name": tool_name},
+        )
+        return ToolExecutionResult(
+            status="success",
+            content_type=self._artifact_store.infer_content_type(payload),
+            summary=self._artifact_store.summarize(payload),
+            raw_ref=artifact_ref.uri,
+            structured=dict(payload or {}),
+            meta={
+                "tool_name": tool_name,
+                "tool_id": tool_id,
+                "latency_ms": latency_ms,
+                "truncated": False,
+            },
+        )
+
+    def _is_normalized_tool_payload(self, payload: dict[str, Any]) -> bool:
+        return bool(
+            isinstance(payload, dict)
+            and isinstance(payload.get("status"), str)
+            and isinstance(payload.get("content_type"), str)
+            and "structured" in payload
+        )

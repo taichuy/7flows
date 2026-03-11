@@ -1,7 +1,8 @@
 import pytest
 from sqlalchemy.orm import Session
 
-from app.models.workflow import Workflow
+from app.models.workflow import Workflow, WorkflowVersion
+from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
 from app.services.runtime import RuntimeService, WorkflowExecutionError
 
 
@@ -1075,7 +1076,7 @@ def test_runtime_service_rejects_unauthorized_mcp_query_source(sqlite_session: S
     sqlite_session.add(workflow)
     sqlite_session.commit()
 
-    with pytest.raises(WorkflowExecutionError, match="unauthorized context sources"):
+    with pytest.raises(WorkflowExecutionError, match="missing source node 'search'"):
         RuntimeService().execute_workflow(sqlite_session, workflow, {"topic": "mcp"})
 
 
@@ -1097,3 +1098,209 @@ def test_runtime_service_rejects_loop_nodes(sqlite_session: Session) -> None:
 
     with pytest.raises(WorkflowExecutionError):
         service.execute_workflow(sqlite_session, workflow, {})
+
+
+def test_llm_agent_without_assistant_keeps_legacy_like_output(sqlite_session: Session) -> None:
+    workflow = Workflow(
+        id="wf-agent-legacy",
+        name="Agent Legacy Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llm_agent",
+                    "name": "Agent",
+                    "config": {
+                        "prompt": "Say hello",
+                        "assistant": {"enabled": False},
+                        "mock_output": {"answer": "legacy-compatible"},
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    artifacts = RuntimeService().execute_workflow(sqlite_session, workflow, {"topic": "agent"})
+
+    agent_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "agent")
+    assert artifacts.run.status == "succeeded"
+    assert agent_run.output_payload == {"answer": "legacy-compatible"}
+    assert agent_run.evidence_context is None
+    assert agent_run.phase == "emit_output"
+    assert not artifacts.tool_calls
+    assert [record.role for record in artifacts.ai_calls] == ["main_plan", "main_finalize"]
+
+
+def test_llm_agent_with_assistant_distills_tool_results_into_evidence(
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-agent-assistant",
+        name="Agent Assistant Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llm_agent",
+                    "name": "Agent",
+                    "config": {
+                        "assistant": {"enabled": True, "trigger": "always"},
+                        "toolPolicy": {"allowedToolIds": ["native.search"]},
+                        "mockPlan": {
+                            "toolCalls": [
+                                {
+                                    "toolId": "native.search",
+                                    "inputs": {"query": "sevenflows"},
+                                }
+                            ],
+                            "needAssistant": True,
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(id="native.search", name="Native Search"),
+        invoker=lambda request: {
+            "status": "success",
+            "content_type": "json",
+            "summary": "search hits ready",
+            "structured": {"documents": ["alpha"], "query": request.inputs["query"]},
+            "meta": {"tool_name": "Native Search"},
+        },
+    )
+
+    artifacts = RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
+        sqlite_session,
+        workflow,
+        {"topic": "agent"},
+    )
+
+    agent_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "agent")
+    assert artifacts.run.status == "succeeded"
+    assert artifacts.run.output_payload["agent"]["decision_basis"] == "evidence"
+    assert agent_run.evidence_context["summary"] == "search hits ready"
+    assert any(artifact.artifact_kind == "tool_result" for artifact in artifacts.artifacts)
+    assert any(artifact.artifact_kind == "evidence_pack" for artifact in artifacts.artifacts)
+    assert len(artifacts.tool_calls) == 1
+    assert [record.role for record in artifacts.ai_calls] == [
+        "main_plan",
+        "assistant_distill",
+        "main_finalize",
+    ]
+    assert "assistant.completed" in [event.event_type for event in artifacts.events]
+
+
+def test_llm_agent_waiting_tool_can_resume(sqlite_session: Session) -> None:
+    workflow = Workflow(
+        id="wf-agent-resume",
+        name="Agent Resume Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llm_agent",
+                    "name": "Agent",
+                    "config": {
+                        "assistant": {"enabled": False},
+                        "toolPolicy": {"allowedToolIds": ["native.search"]},
+                        "mockPlan": {
+                            "toolCalls": [
+                                {
+                                    "toolId": "native.search",
+                                    "inputs": {"query": "resume-me"},
+                                }
+                            ]
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+            ],
+        },
+    )
+    workflow_version = WorkflowVersion(
+        id="wf-agent-resume-v1",
+        workflow_id=workflow.id,
+        version=workflow.version,
+        definition=workflow.definition,
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.add(workflow_version)
+    sqlite_session.commit()
+
+    call_counter = {"count": 0}
+
+    def _resume_capable_tool(request):
+        call_counter["count"] += 1
+        if call_counter["count"] == 1:
+            return {
+                "status": "waiting",
+                "content_type": "json",
+                "summary": "awaiting callback",
+                "structured": {"ticket": "tool-123"},
+                "meta": {"tool_name": "Native Search", "waiting_reason": "callback pending"},
+            }
+        return {
+            "status": "success",
+            "content_type": "json",
+            "summary": "callback finished",
+            "structured": {"documents": ["done"], "query": request.inputs["query"]},
+            "meta": {"tool_name": "Native Search"},
+        }
+
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(id="native.search", name="Native Search"),
+        invoker=_resume_capable_tool,
+    )
+    runtime = RuntimeService(plugin_call_proxy=PluginCallProxy(registry))
+
+    first_pass = runtime.execute_workflow(sqlite_session, workflow, {"topic": "resume"})
+
+    waiting_run = next(node_run for node_run in first_pass.node_runs if node_run.node_id == "agent")
+    assert first_pass.run.status == "waiting"
+    assert waiting_run.status == "waiting_tool"
+    assert waiting_run.waiting_reason == "callback pending"
+    assert first_pass.run.current_node_id == "agent"
+    assert "run.waiting" in [event.event_type for event in first_pass.events]
+
+    resumed = runtime.resume_run(sqlite_session, first_pass.run.id)
+
+    resumed_agent_run = next(
+        node_run for node_run in resumed.node_runs if node_run.node_id == "agent"
+    )
+    assert resumed.run.status == "succeeded"
+    assert resumed_agent_run.status == "succeeded"
+    assert resumed_agent_run.output_payload["decision_basis"] == "tool_results"
+    assert resumed.run.output_payload["agent"]["result"] == "callback finished"
+    assert "run.resumed" in [event.event_type for event in resumed.events]

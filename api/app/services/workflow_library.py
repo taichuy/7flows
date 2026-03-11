@@ -132,7 +132,18 @@ class WorkflowLibraryService:
                 business_track="编排节点能力",
                 tags=["agent", "llm", "native"],
                 palette=self._build_palette(enabled=True, order=10, x=340, y=120),
-                defaults=self._build_defaults(name="LLM Agent"),
+                defaults=self._build_defaults(
+                    name="LLM Agent",
+                    config={
+                        "assistant": {
+                            "enabled": False,
+                            "trigger": "on_multi_tool_results",
+                        },
+                        "toolPolicy": {
+                            "allowedToolIds": [],
+                        },
+                    },
+                ),
             ),
             WorkflowNodeCatalogItem(
                 type="tool",
