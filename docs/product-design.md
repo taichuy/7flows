@@ -208,6 +208,8 @@ type AuthorizedContextRefs = {
 type PublishedEndpoint = {
   id: string
   name: string
+  alias?: string
+  path?: string
   protocol: 'native' | 'openai' | 'anthropic'
   workflowVersion: string
   authMode: 'api_key' | 'token' | 'internal'

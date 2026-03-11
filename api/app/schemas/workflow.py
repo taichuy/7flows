@@ -38,6 +38,8 @@ AssistantTriggerMode = Literal[
 _SEMVER_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 _FAILURE_EDGE_CONDITIONS = {"error", "failed", "on_error"}
 _SUCCESS_EDGE_CONDITIONS = {"success", "succeeded", "default"}
+_PUBLISHED_ALIAS_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
+_PUBLISHED_PATH_SEGMENT_PATTERN = re.compile(r"^[a-z0-9][a-z0-9._-]{0,127}$")
 
 
 def _validate_safe_expression(
@@ -52,6 +54,39 @@ def _validate_safe_expression(
         validate_expression(expression, allowed_names=allowed_names)
     except SafeExpressionValidationError as exc:
         raise ValueError(f"{error_prefix} is invalid: {exc}") from exc
+
+
+def normalize_published_endpoint_alias(value: str) -> str:
+    normalized = value.strip().lower()
+    if not normalized:
+        raise ValueError("Published endpoint alias must be a non-empty string.")
+    if not _PUBLISHED_ALIAS_PATTERN.fullmatch(normalized):
+        raise ValueError(
+            "Published endpoint alias may only contain lowercase letters, digits, '.', '_' "
+            "or '-', and must start with a letter or digit."
+        )
+    return normalized
+
+
+def normalize_published_endpoint_path(value: str) -> str:
+    normalized = "/" + value.strip().strip("/")
+    if normalized == "/":
+        raise ValueError("Published endpoint path must contain at least one segment.")
+
+    segments = normalized.lstrip("/").split("/")
+    if any(not segment for segment in segments):
+        raise ValueError("Published endpoint path cannot contain empty segments.")
+    invalid_segments = [
+        segment
+        for segment in segments
+        if not _PUBLISHED_PATH_SEGMENT_PATTERN.fullmatch(segment.lower())
+    ]
+    if invalid_segments:
+        raise ValueError(
+            "Published endpoint path segments may only contain lowercase letters, digits, "
+            "'.', '_' or '-'."
+        )
+    return "/" + "/".join(segment.lower() for segment in segments)
 
 
 class WorkflowNodeContextArtifactRef(BaseModel):
@@ -353,6 +388,8 @@ class WorkflowPublishedEndpointDefinition(BaseModel):
 
     id: str = Field(min_length=1, max_length=64)
     name: str = Field(min_length=1, max_length=128)
+    alias: str | None = Field(default=None, min_length=1, max_length=128)
+    path: str | None = Field(default=None, min_length=1, max_length=256)
     protocol: PublishProtocol
     workflowVersion: str | None = Field(default=None, min_length=1, max_length=32)
     authMode: AuthMode
@@ -362,6 +399,8 @@ class WorkflowPublishedEndpointDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_workflow_version_format(self) -> WorkflowPublishedEndpointDefinition:
+        self.alias = normalize_published_endpoint_alias(self.alias or self.id)
+        self.path = normalize_published_endpoint_path(self.path or f"/{self.alias}")
         if self.workflowVersion is not None and not _SEMVER_PATTERN.match(self.workflowVersion):
             raise ValueError(
                 "workflowVersion must use semantic version format 'major.minor.patch'."
@@ -395,6 +434,14 @@ class WorkflowDefinitionDocument(BaseModel):
         publish_names = [endpoint.name for endpoint in self.publish]
         if len(set(publish_names)) != len(publish_names):
             raise ValueError("Workflow published endpoint names must be unique.")
+
+        publish_aliases = [endpoint.alias for endpoint in self.publish]
+        if len(set(publish_aliases)) != len(publish_aliases):
+            raise ValueError("Workflow published endpoint aliases must be unique.")
+
+        publish_paths = [endpoint.path for endpoint in self.publish]
+        if len(set(publish_paths)) != len(publish_paths):
+            raise ValueError("Workflow published endpoint paths must be unique.")
 
         edge_ids = [edge.id for edge in self.edges]
         if len(set(edge_ids)) != len(edge_ids):

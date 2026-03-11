@@ -23,6 +23,8 @@ class WorkflowPublishedEndpointItem(BaseModel):
     compiled_blueprint_id: str
     endpoint_id: str
     endpoint_name: str
+    endpoint_alias: str
+    route_path: str
     protocol: str
     auth_mode: str
     streaming: bool
@@ -43,6 +45,8 @@ class PublishedNativeRunResponse(BaseModel):
     binding_id: str
     endpoint_id: str
     endpoint_name: str
+    endpoint_alias: str
+    route_path: str
     workflow_id: str
     workflow_version: str
     compiled_blueprint_id: str

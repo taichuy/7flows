@@ -3,11 +3,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.workflow import WorkflowPublishedEndpoint, WorkflowVersion
-from app.schemas.workflow import WorkflowPublishedEndpointDefinition
+from app.schemas.workflow import (
+    WorkflowPublishedEndpointDefinition,
+    normalize_published_endpoint_alias,
+    normalize_published_endpoint_path,
+)
 from app.schemas.workflow_publish import PublishedEndpointLifecycleStatus
 from app.services.compiled_blueprints import CompiledBlueprintService
 
@@ -77,6 +81,8 @@ class WorkflowPublishBindingService:
                     compiled_blueprint_id=compiled_blueprint.id,
                     endpoint_id=endpoint.id,
                     endpoint_name=endpoint.name,
+                    endpoint_alias=endpoint.alias,
+                    route_path=endpoint.path,
                     protocol=endpoint.protocol,
                     auth_mode=endpoint.authMode,
                     streaming=endpoint.streaming,
@@ -92,6 +98,8 @@ class WorkflowPublishBindingService:
                 record.target_workflow_version = target_version.version
                 record.compiled_blueprint_id = compiled_blueprint.id
                 record.endpoint_name = endpoint.name
+                record.endpoint_alias = endpoint.alias
+                record.route_path = endpoint.path
                 record.protocol = endpoint.protocol
                 record.auth_mode = endpoint.authMode
                 record.streaming = endpoint.streaming
@@ -149,6 +157,34 @@ class WorkflowPublishBindingService:
             )
         )
 
+    def get_published_binding_by_alias(
+        self,
+        db: Session,
+        *,
+        endpoint_alias: str,
+    ) -> WorkflowPublishedEndpoint | None:
+        return db.scalar(
+            select(WorkflowPublishedEndpoint).where(
+                WorkflowPublishedEndpoint.endpoint_alias
+                == normalize_published_endpoint_alias(endpoint_alias),
+                WorkflowPublishedEndpoint.lifecycle_status == "published",
+            )
+        )
+
+    def get_published_binding_by_path(
+        self,
+        db: Session,
+        *,
+        route_path: str,
+    ) -> WorkflowPublishedEndpoint | None:
+        return db.scalar(
+            select(WorkflowPublishedEndpoint).where(
+                WorkflowPublishedEndpoint.route_path
+                == normalize_published_endpoint_path(route_path),
+                WorkflowPublishedEndpoint.lifecycle_status == "published",
+            )
+        )
+
     def update_lifecycle_status(
         self,
         db: Session,
@@ -174,6 +210,7 @@ class WorkflowPublishBindingService:
 
         now = datetime.now(UTC)
         if lifecycle_status == "published":
+            self._ensure_external_identity_available(db, record=record)
             published_records = db.scalars(
                 select(WorkflowPublishedEndpoint).where(
                     WorkflowPublishedEndpoint.workflow_id == workflow_id,
@@ -203,3 +240,36 @@ class WorkflowPublishBindingService:
 
         db.add(record)
         return record
+
+    def _ensure_external_identity_available(
+        self,
+        db: Session,
+        *,
+        record: WorkflowPublishedEndpoint,
+    ) -> None:
+        conflicting_records = db.scalars(
+            select(WorkflowPublishedEndpoint).where(
+                WorkflowPublishedEndpoint.id != record.id,
+                WorkflowPublishedEndpoint.lifecycle_status == "published",
+                or_(
+                    WorkflowPublishedEndpoint.endpoint_alias == record.endpoint_alias,
+                    WorkflowPublishedEndpoint.route_path == record.route_path,
+                ),
+            )
+        ).all()
+        for conflicting_record in conflicting_records:
+            if (
+                conflicting_record.workflow_id == record.workflow_id
+                and conflicting_record.endpoint_id == record.endpoint_id
+            ):
+                continue
+            if conflicting_record.endpoint_alias == record.endpoint_alias:
+                raise WorkflowPublishBindingError(
+                    "Published endpoint alias "
+                    f"'{record.endpoint_alias}' is already used by another published endpoint."
+                )
+            if conflicting_record.route_path == record.route_path:
+                raise WorkflowPublishBindingError(
+                    "Published endpoint path "
+                    f"'{record.route_path}' is already used by another published endpoint."
+                )

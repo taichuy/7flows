@@ -4,7 +4,12 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.models.workflow import Workflow, WorkflowCompiledBlueprint, WorkflowVersion
+from app.models.workflow import (
+    Workflow,
+    WorkflowCompiledBlueprint,
+    WorkflowPublishedEndpoint,
+    WorkflowVersion,
+)
 from app.services.published_api_keys import PublishedEndpointApiKeyService
 from app.services.runtime import ExecutionArtifacts, RuntimeService
 from app.services.workflow_publish import WorkflowPublishBindingService
@@ -24,6 +29,8 @@ class PublishedNativeInvokeResult:
     binding_id: str
     endpoint_id: str
     endpoint_name: str
+    endpoint_alias: str
+    route_path: str
     artifacts: ExecutionArtifacts
 
 
@@ -48,25 +55,80 @@ class PublishedEndpointGatewayService:
         input_payload: dict,
         presented_api_key: str | None = None,
     ) -> PublishedNativeInvokeResult:
-        workflow = db.get(Workflow, workflow_id)
-        if workflow is None:
-            raise PublishedEndpointGatewayError("Workflow not found.", status_code=404)
-
         binding = self._workflow_publish_service.get_published_binding(
             db,
             workflow_id=workflow_id,
             endpoint_id=endpoint_id,
         )
+        return self._invoke_native_binding(
+            db,
+            binding=binding,
+            missing_detail="Published endpoint binding is not currently active.",
+            input_payload=input_payload,
+            presented_api_key=presented_api_key,
+        )
+
+    def invoke_native_endpoint_by_alias(
+        self,
+        db: Session,
+        *,
+        endpoint_alias: str,
+        input_payload: dict,
+        presented_api_key: str | None = None,
+    ) -> PublishedNativeInvokeResult:
+        binding = self._workflow_publish_service.get_published_binding_by_alias(
+            db,
+            endpoint_alias=endpoint_alias,
+        )
+        return self._invoke_native_binding(
+            db,
+            binding=binding,
+            missing_detail="Published endpoint alias is not currently active.",
+            input_payload=input_payload,
+            presented_api_key=presented_api_key,
+        )
+
+    def invoke_native_endpoint_by_path(
+        self,
+        db: Session,
+        *,
+        route_path: str,
+        input_payload: dict,
+        presented_api_key: str | None = None,
+    ) -> PublishedNativeInvokeResult:
+        binding = self._workflow_publish_service.get_published_binding_by_path(
+            db,
+            route_path=route_path,
+        )
+        return self._invoke_native_binding(
+            db,
+            binding=binding,
+            missing_detail="Published endpoint path is not currently active.",
+            input_payload=input_payload,
+            presented_api_key=presented_api_key,
+        )
+
+    def _invoke_native_binding(
+        self,
+        db: Session,
+        *,
+        binding: WorkflowPublishedEndpoint | None,
+        missing_detail: str,
+        input_payload: dict,
+        presented_api_key: str | None,
+    ) -> PublishedNativeInvokeResult:
         if binding is None:
-            raise PublishedEndpointGatewayError(
-                "Published endpoint binding is not currently active.",
-                status_code=404,
-            )
+            raise PublishedEndpointGatewayError(missing_detail, status_code=404)
         if binding.protocol != "native":
             raise PublishedEndpointGatewayError(
-                f"Published endpoint '{endpoint_id}' uses protocol '{binding.protocol}', "
-                "not 'native'."
+                f"Published endpoint '{binding.endpoint_id}' uses protocol "
+                f"'{binding.protocol}', not 'native'."
             )
+
+        workflow = db.get(Workflow, binding.workflow_id)
+        if workflow is None:
+            raise PublishedEndpointGatewayError("Workflow not found.", status_code=404)
+
         if binding.auth_mode == "api_key":
             if presented_api_key is None or not presented_api_key.strip():
                 raise PublishedEndpointGatewayError(
@@ -75,7 +137,7 @@ class PublishedEndpointGatewayService:
                 )
             authenticated_key = self._api_key_service.authenticate_key(
                 db,
-                workflow_id=workflow_id,
+                workflow_id=workflow.id,
                 endpoint_id=binding.endpoint_id,
                 secret_key=presented_api_key,
             )
@@ -118,5 +180,7 @@ class PublishedEndpointGatewayService:
             binding_id=binding.id,
             endpoint_id=binding.endpoint_id,
             endpoint_name=binding.endpoint_name,
+            endpoint_alias=binding.endpoint_alias,
+            route_path=binding.route_path,
             artifacts=artifacts,
         )

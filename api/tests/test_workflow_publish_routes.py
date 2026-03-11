@@ -5,6 +5,8 @@ def _publishable_definition(
     *,
     answer: str = "done",
     workflow_version: str | None = "0.1.0",
+    alias: str | None = None,
+    path: str | None = None,
 ) -> dict:
     endpoint: dict[str, object] = {
         "id": "native-chat",
@@ -14,6 +16,10 @@ def _publishable_definition(
         "streaming": False,
         "inputSchema": {"type": "object"},
     }
+    if alias is not None:
+        endpoint["alias"] = alias
+    if path is not None:
+        endpoint["path"] = path
     if workflow_version is not None:
         endpoint["workflowVersion"] = workflow_version
 
@@ -57,6 +63,8 @@ def test_create_workflow_persists_publish_bindings(client: TestClient) -> None:
     assert body[0]["target_workflow_version"] == "0.1.0"
     assert body[0]["compiled_blueprint_id"] is not None
     assert body[0]["endpoint_id"] == "native-chat"
+    assert body[0]["endpoint_alias"] == "native-chat"
+    assert body[0]["route_path"] == "/native-chat"
     assert body[0]["lifecycle_status"] == "draft"
     assert body[0]["published_at"] is None
     assert body[0]["unpublished_at"] is None
@@ -84,6 +92,8 @@ def test_list_published_endpoints_supports_current_and_all_versions(
                     {
                         "id": "native-chat",
                         "name": "Native Chat Stable",
+                        "alias": "stable-native-chat",
+                        "path": "/stable/native-chat",
                         "protocol": "native",
                         "workflowVersion": "0.1.0",
                         "authMode": "internal",
@@ -110,7 +120,11 @@ def test_list_published_endpoints_supports_current_and_all_versions(
     assert [item["endpoint_id"] for item in current_body] == ["native-chat", "openai-chat"]
     assert current_body[0]["workflow_version"] == "0.1.1"
     assert current_body[0]["target_workflow_version"] == "0.1.0"
+    assert current_body[0]["endpoint_alias"] == "stable-native-chat"
+    assert current_body[0]["route_path"] == "/stable/native-chat"
     assert current_body[1]["target_workflow_version"] == "0.1.1"
+    assert current_body[1]["endpoint_alias"] == "openai-chat"
+    assert current_body[1]["route_path"] == "/openai-chat"
 
     all_versions_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints",
@@ -238,6 +252,85 @@ def test_publish_binding_promotes_selected_version_and_offlines_previous_one(
     assert previous_binding_after_publish["unpublished_at"] is not None
 
 
+def test_publish_binding_rejects_conflicting_alias_or_path_across_workflows(
+    client: TestClient,
+) -> None:
+    first_workflow = client.post(
+        "/api/workflows",
+        json={
+            "name": "First Published Workflow",
+            "definition": _publishable_definition(alias="shared-alias", path="/shared/path"),
+        },
+    )
+    assert first_workflow.status_code == 201
+    first_workflow_id = first_workflow.json()["id"]
+
+    first_binding_response = client.get(
+        f"/api/workflows/{first_workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert first_binding_response.status_code == 200
+    first_binding_id = first_binding_response.json()[0]["id"]
+
+    publish_first_response = client.patch(
+        f"/api/workflows/{first_workflow_id}/published-endpoints/{first_binding_id}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_first_response.status_code == 200
+
+    second_workflow = client.post(
+        "/api/workflows",
+        json={
+            "name": "Second Published Workflow",
+            "definition": _publishable_definition(answer="other", alias="shared-alias"),
+        },
+    )
+    assert second_workflow.status_code == 201
+    second_workflow_id = second_workflow.json()["id"]
+
+    second_binding_response = client.get(
+        f"/api/workflows/{second_workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert second_binding_response.status_code == 200
+    second_binding_id = second_binding_response.json()[0]["id"]
+
+    publish_second_response = client.patch(
+        f"/api/workflows/{second_workflow_id}/published-endpoints/{second_binding_id}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_second_response.status_code == 422
+    assert "alias 'shared-alias' is already used" in publish_second_response.json()["detail"]
+
+    third_workflow = client.post(
+        "/api/workflows",
+        json={
+            "name": "Third Published Workflow",
+            "definition": _publishable_definition(
+                answer="other-path",
+                alias="another-alias",
+                path="/shared/path",
+            ),
+        },
+    )
+    assert third_workflow.status_code == 201
+    third_workflow_id = third_workflow.json()["id"]
+
+    third_binding_response = client.get(
+        f"/api/workflows/{third_workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert third_binding_response.status_code == 200
+    third_binding_id = third_binding_response.json()[0]["id"]
+
+    publish_third_response = client.patch(
+        f"/api/workflows/{third_workflow_id}/published-endpoints/{third_binding_id}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_third_response.status_code == 422
+    assert "path '/shared/path' is already used" in publish_third_response.json()["detail"]
+
+
 def test_unpublish_binding_marks_binding_offline(client: TestClient) -> None:
     create_response = client.post(
         "/api/workflows",
@@ -320,6 +413,54 @@ def test_invoke_published_native_endpoint_uses_active_binding_blueprint(
     assert body["run"]["compiled_blueprint_id"] == initial_binding["compiled_blueprint_id"]
     assert body["run"]["input_payload"] == {"question": "hello"}
     assert body["run"]["output_payload"] == {"tool": {"answer": "v1"}}
+    assert body["endpoint_alias"] == "native-chat"
+    assert body["route_path"] == "/native-chat"
+
+
+def test_invoke_published_native_endpoint_supports_alias_and_path_routes(
+    client: TestClient,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Published Native Alias Workflow",
+            "definition": _publishable_definition(
+                answer="alias-path",
+                alias="native-chat-stable",
+                path="/team/native-chat",
+            ),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding = bindings_response.json()[0]
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
+    alias_response = client.post(
+        "/v1/published-aliases/native-chat-stable/run",
+        json={"input_payload": {"source": "alias"}},
+    )
+    assert alias_response.status_code == 200
+    assert alias_response.json()["run"]["output_payload"] == {"tool": {"answer": "alias-path"}}
+
+    path_response = client.post(
+        "/v1/published-paths/team/native-chat",
+        json={"input_payload": {"source": "path"}},
+    )
+    assert path_response.status_code == 200
+    assert path_response.json()["endpoint_alias"] == "native-chat-stable"
+    assert path_response.json()["route_path"] == "/team/native-chat"
 
 
 def test_invoke_published_native_endpoint_rejects_unimplemented_token_auth_mode(

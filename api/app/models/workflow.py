@@ -86,6 +86,16 @@ class WorkflowPublishedEndpoint(Base):
             "endpoint_id",
             name="uq_workflow_published_endpoints_version_endpoint",
         ),
+        UniqueConstraint(
+            "workflow_version_id",
+            "endpoint_alias",
+            name="uq_workflow_published_endpoints_version_alias",
+        ),
+        UniqueConstraint(
+            "workflow_version_id",
+            "route_path",
+            name="uq_workflow_published_endpoints_version_path",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -113,6 +123,8 @@ class WorkflowPublishedEndpoint(Base):
     )
     endpoint_id: Mapped[str] = mapped_column(String(64), nullable=False)
     endpoint_name: Mapped[str] = mapped_column(String(128), nullable=False)
+    endpoint_alias: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    route_path: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
     protocol: Mapped[str] = mapped_column(String(32), nullable=False)
     auth_mode: Mapped[str] = mapped_column(String(32), nullable=False)
     streaming: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
