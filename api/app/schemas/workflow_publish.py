@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.run import RunDetail
+from app.schemas.workflow import WorkflowPublishedEndpointRateLimitPolicy
 
 PublishedEndpointLifecycleStatus = Literal["draft", "published", "offline"]
 PublishedEndpointApiKeyStatus = Literal["active", "revoked"]
@@ -36,6 +37,7 @@ class WorkflowPublishedEndpointItem(BaseModel):
     lifecycle_status: PublishedEndpointLifecycleStatus
     input_schema: dict
     output_schema: dict | None = None
+    rate_limit_policy: WorkflowPublishedEndpointRateLimitPolicy | None = None
     published_at: datetime | None = None
     unpublished_at: datetime | None = None
     created_at: datetime

@@ -13,6 +13,7 @@ def _publishable_definition(
     alias: str | None = None,
     path: str | None = None,
     auth_mode: str = "internal",
+    rate_limit: dict | None = None,
 ) -> dict:
     endpoint: dict[str, object] = {
         "id": "native-chat",
@@ -28,6 +29,8 @@ def _publishable_definition(
         endpoint["path"] = path
     if workflow_version is not None:
         endpoint["workflowVersion"] = workflow_version
+    if rate_limit is not None:
+        endpoint["rateLimit"] = rate_limit
 
     return {
         "nodes": [
@@ -72,6 +75,7 @@ def test_create_workflow_persists_publish_bindings(client: TestClient) -> None:
     assert body[0]["endpoint_alias"] == "native-chat"
     assert body[0]["route_path"] == "/native-chat"
     assert body[0]["lifecycle_status"] == "draft"
+    assert body[0]["rate_limit_policy"] is None
     assert body[0]["published_at"] is None
     assert body[0]["unpublished_at"] is None
 
@@ -816,3 +820,167 @@ def test_invoke_published_native_endpoint_rejects_unimplemented_token_auth_mode(
     assert body["summary"]["last_status"] == "rejected"
     assert body["items"][0]["status"] == "rejected"
     assert body["items"][0]["run_id"] is None
+
+
+def test_create_workflow_persists_publish_binding_rate_limit_policy(
+    client: TestClient,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Publishable Workflow With Rate Limit",
+            "definition": _publishable_definition(
+                rate_limit={"requests": 2, "windowSeconds": 3600}
+            ),
+        },
+    )
+
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    response = client.get(f"/api/workflows/{workflow_id}/published-endpoints")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body[0]["rate_limit_policy"] == {
+        "requests": 2,
+        "windowSeconds": 3600,
+    }
+
+
+def test_invoke_published_native_endpoint_enforces_rate_limit(
+    client: TestClient,
+) -> None:
+    detail = (
+        "Published endpoint rate limit exceeded: "
+        "2 successful/failed invocations per 3600 seconds."
+    )
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Published Native Rate Limit Workflow",
+            "definition": _publishable_definition(
+                answer="limited",
+                rate_limit={"requests": 2, "windowSeconds": 3600},
+            ),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding = bindings_response.json()[0]
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
+    first_invoke = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"attempt": 1}},
+    )
+    assert first_invoke.status_code == 200
+
+    second_invoke = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"attempt": 2}},
+    )
+    assert second_invoke.status_code == 200
+
+    limited_invoke = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"attempt": 3}},
+    )
+    assert limited_invoke.status_code == 429
+    assert limited_invoke.json()["detail"] == detail
+
+    activity_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
+    )
+    assert activity_response.status_code == 200
+    activity = activity_response.json()
+    assert activity["summary"]["total_count"] == 3
+    assert activity["summary"]["succeeded_count"] == 2
+    assert activity["summary"]["rejected_count"] == 1
+    assert any(item["status"] == "rejected" for item in activity["items"])
+    assert activity["facets"]["recent_failure_reasons"][0]["message"] == detail
+
+
+def test_rejected_published_invocation_does_not_consume_rate_limit_quota(
+    client: TestClient,
+) -> None:
+    detail = (
+        "Published endpoint rate limit exceeded: "
+        "1 successful/failed invocations per 3600 seconds."
+    )
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Published Native Rate Limit Rejected Workflow",
+            "definition": _publishable_definition(
+                answer="limited-once",
+                auth_mode="api_key",
+                rate_limit={"requests": 1, "windowSeconds": 3600},
+            ),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding = bindings_response.json()[0]
+
+    key_response = client.post(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/api-keys",
+        json={"name": "Rate Limit Key"},
+    )
+    assert key_response.status_code == 201
+    api_key = key_response.json()
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
+    rejected_invoke = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"attempt": "rejected"}},
+        headers={"Authorization": "Bearer invalid-key"},
+    )
+    assert rejected_invoke.status_code == 401
+
+    first_valid_invoke = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"attempt": "valid-1"}},
+        headers={"x-api-key": api_key["secret_key"]},
+    )
+    assert first_valid_invoke.status_code == 200
+
+    limited_invoke = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"attempt": "valid-2"}},
+        headers={"x-api-key": api_key["secret_key"]},
+    )
+    assert limited_invoke.status_code == 429
+    assert limited_invoke.json()["detail"] == detail
+
+    activity_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
+    )
+    assert activity_response.status_code == 200
+    activity = activity_response.json()
+    assert activity["summary"]["total_count"] == 3
+    assert activity["summary"]["succeeded_count"] == 1
+    assert activity["summary"]["rejected_count"] == 2
+    assert activity["facets"]["recent_failure_reasons"][0]["message"] == detail

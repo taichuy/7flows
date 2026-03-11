@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Literal
 from uuid import uuid4
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.workflow import (
@@ -224,6 +224,29 @@ def _build_timeline(
 
 
 class PublishedInvocationService:
+    def count_recent_for_binding(
+        self,
+        db: Session,
+        *,
+        workflow_id: str,
+        binding_id: str,
+        created_from: datetime,
+        statuses: tuple[PublishedInvocationStatus, ...] = ("succeeded", "failed"),
+    ) -> int:
+        return (
+            db.scalar(
+                select(func.count())
+                .select_from(WorkflowPublishedInvocation)
+                .where(
+                    WorkflowPublishedInvocation.workflow_id == workflow_id,
+                    WorkflowPublishedInvocation.binding_id == binding_id,
+                    WorkflowPublishedInvocation.created_at >= _as_utc(created_from),
+                    WorkflowPublishedInvocation.status.in_(statuses),
+                )
+            )
+            or 0
+        )
+
     def _build_binding_statement(
         self,
         *,

@@ -383,6 +383,13 @@ class WorkflowVariableDefinition(BaseModel):
     description: str | None = None
 
 
+class WorkflowPublishedEndpointRateLimitPolicy(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    requests: int = Field(ge=1, le=100_000)
+    windowSeconds: int = Field(ge=1, le=86_400)
+
+
 class WorkflowPublishedEndpointDefinition(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -396,6 +403,7 @@ class WorkflowPublishedEndpointDefinition(BaseModel):
     streaming: bool
     inputSchema: dict[str, Any] = Field(default_factory=dict)
     outputSchema: dict[str, Any] | None = None
+    rateLimit: WorkflowPublishedEndpointRateLimitPolicy | None = None
 
     @model_validator(mode="after")
     def validate_workflow_version_format(self) -> WorkflowPublishedEndpointDefinition:

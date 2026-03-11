@@ -89,6 +89,11 @@ class WorkflowPublishBindingService:
                     lifecycle_status="draft",
                     input_schema=endpoint.inputSchema,
                     output_schema=endpoint.outputSchema,
+                    rate_limit_policy=(
+                        endpoint.rateLimit.model_dump(mode="json")
+                        if endpoint.rateLimit is not None
+                        else None
+                    ),
                 )
             else:
                 record.workflow_id = workflow_version.workflow_id
@@ -105,6 +110,11 @@ class WorkflowPublishBindingService:
                 record.streaming = endpoint.streaming
                 record.input_schema = endpoint.inputSchema
                 record.output_schema = endpoint.outputSchema
+                record.rate_limit_policy = (
+                    endpoint.rateLimit.model_dump(mode="json")
+                    if endpoint.rateLimit is not None
+                    else None
+                )
 
             db.add(record)
             synced_records.append(record)

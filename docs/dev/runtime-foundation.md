@@ -26,7 +26,9 @@
 - `api/migrations/versions/20260312_0011_publish_endpoint_lifecycle.py`
 - `api/migrations/versions/20260312_0012_published_endpoint_api_keys.py`
 - `api/migrations/versions/20260312_0013_published_endpoint_alias_path.py`
+- `api/migrations/versions/20260312_0014_published_endpoint_invocations.py`
 - `api/migrations/versions/20260312_0015_run_callback_ticket_expiry.py`
+- `api/migrations/versions/20260312_0016_publish_endpoint_rate_limits.py`
 
 当前迁移会创建以下表：
 
@@ -211,6 +213,8 @@ uv run alembic upgrade head
 - `workflow_published_endpoints` 当前已补上最小地址字段：
   - `endpoint_alias`
   - `route_path`
+- `workflow_published_endpoints` 当前已补上最小发布治理字段：
+  - `rate_limit_policy`
 - `workflow_published_api_keys` 用于保存 published endpoint 的独立 API key 实体，并按 `workflow_id + endpoint_id` 作用域复用到不同版本 binding
 - `workflow_published_invocations` 用于保存 published endpoint 的调用活动事实：
   - 入口来源（workflow / alias / path）
@@ -378,8 +382,12 @@ uv run alembic upgrade head
 - 当前 `native` 发布调用仍保持 MVP 诚实边界：仅支持 `protocol=native`、`auth_mode=internal/api_key`、`streaming=false`
 - `auth_mode=api_key` 当前已支持 `x-api-key`，并兼容 `Authorization: Bearer <key>` 的最小 header 形态
 - publish definition 当前已支持 `alias/path`，缺省会回退到 `endpoint_id` 与 `/{endpoint_id}`
+- publish definition 当前已支持声明 `rateLimit.requests + rateLimit.windowSeconds`
+- `GET /api/workflows/{workflow_id}/published-endpoints` 当前会直接返回 `rate_limit_policy`，供治理页复用 binding 级发布托管配置
 - 发布 binding 切到 `published` 时，当前会阻止跨 workflow 的 alias/path 冲突，避免外部地址语义撞车
 - `PublishedEndpointGatewayService` 当前已开始把 native invoke 写入独立 `workflow_published_invocations`
+- `PublishedEndpointGatewayService` 当前已开始在执行 workflow 前基于 `workflow_published_invocations` 强制执行 binding 级 rate limit
+- 当前 rate limit 只统计 `succeeded / failed` 调用；`rejected` 仍会进入审计，但不会占用执行配额
 - 发布活动当前会记录：
   - `request_source`
   - `status`
@@ -627,24 +635,26 @@ uv run alembic upgrade head
 
 ### 当前架构与体量判断
 
-- 最近一次已有 Git 提交 `2026-03-12 03:27:19 +0800` 的 `feat: add callback ticket cleanup governance`：
-  - 为 callback ticket 补上批量 cleanup service
-  - 补上独立 cleanup API 与 worker 任务入口
-  - 补上 cleanup 来源审计与 dry-run 治理语义
-- 本轮继续承接这条 callback ticket 治理主线，补上：
-  - Celery beat 级周期 cleanup schedule
-  - Docker `scheduler` 进程
-  - cleanup 调度配置与对应测试
+- 最近一次 Git 提交是 `2026-03-12 03:38:18 +0800` 的 `feat: schedule callback ticket cleanup`：
+  - 给 callback ticket cleanup 补上 Celery beat 周期调度
+  - 在 Docker 全栈模式中新增独立 `scheduler` 进程
+  - 补齐 cleanup 调度配置与对应测试
+- 这次承接判断是：需要衔接，而且不是继续在 callback ticket 主线上深挖，而是转回 `API 调用开放` 的 P0 发布治理主线
+- 本轮继续承接开放 API 主线，补上：
+  - `workflow_published_endpoints.rate_limit_policy`
+  - publish definition 的 `rateLimit` 声明
+  - published gateway 的 binding 级 rate limit enforcement
+  - invocation audit 复用下的窗口计数与契约测试
 - 当前真正需要持续承接的实现主线仍是 `feat: add durable agent runtime phase1`：
   - Phase 1 已经把 `compiler / runtime / agent runtime / tool gateway / context / artifact` 这套后端基础拆出来
   - 前几轮沿这条线补上了 `run_callback_tickets + callback ingress`
   - 最近两轮继续把 callback ticket 收口为带 TTL/过期态、cleanup 和周期调度的生命周期对象，并让 execution view 与统一事件流直接复用这批事实
-  - 最近几轮把 publish binding、publish lifecycle、alias/path、activity audit 和最小 native publish invoke 接到 compiled blueprint 主线上，为开放 API 做最小承接
+  - 最近几轮把 publish binding、publish lifecycle、alias/path、activity audit、最小 native publish invoke 与 binding 级 rate limit 接到 compiled blueprint 主线上，为开放 API 做最小承接
 - 当前基础框架已经写到“可以继续推进主业务”的阶段：
   - `应用新建编排` 这一条线已经有 `workflow library -> starter -> editor -> 保存版本 -> recent runs overlay`
   - `编排节点能力` 这一条线已经有 phase runtime、tool/evidence/artifact、scheduler resume 和 callback ingress
   - `Dify 插件兼容` 已有 registry / adapter / tool lane / workspace scope 的基础 contract，但生命周期仍未完整
-  - `API 调用开放` 已从纯设计占位推进到 `publish binding + lifecycle + alias/path + native invoke + api_key auth + activity audit + time window/timeline` 最小闭环；但限流/cache 和 OpenAI / Anthropic 映射还没真正接上
+  - `API 调用开放` 已从纯设计占位推进到 `publish binding + lifecycle + alias/path + native invoke + api_key auth + activity audit + time window/timeline + binding rate limit` 最小闭环；但 cache 和 OpenAI / Anthropic 映射还没真正接上
 - 当前架构方向整体是解耦的，但仍有未完全拆开的高风险边界：
   - 后端已经开始形成 `Flow Compiler -> RuntimeService -> AgentRuntime / ToolGateway / ContextService / RunResumeScheduler / RunCallbackTicketService / WorkflowPublishBindingService` 的分层
   - execution / evidence 查询也已独立落到 `RunViewService + run_views route`，没有继续把聚合逻辑塞回 `runs.py`
@@ -652,20 +662,22 @@ uv run alembic upgrade head
   - publish invoke 现在也已独立落到 `PublishedEndpointGatewayService + published_gateway route`，没有把发布协议入口继续塞回 `runs.py` 或 `workflow_publish.py`
   - published API key 生命周期也已独立落到 `PublishedEndpointApiKeyService + published_endpoint_keys route`，没有塞回 runtime 或 workflow CRUD
   - published activity 现在也已独立落到 `PublishedInvocationService + published_endpoint_activity route`，没有把调用审计继续塞回 gateway route 或 runtime 主循环
+  - publish rate limit 当前继续复用 `PublishedInvocationService` 做窗口计数，而没有把计数逻辑塞回 route 或 runtime 主循环
   - callback ticket cleanup 现在也已独立落到 `RunCallbackTicketCleanupService + run_callback_tickets route`，没有继续把批量治理塞回 `runtime.py` 或 `runs.py`
   - worker 恢复入口已经从运行主循环里旁路出来，没有继续把后台调度写死在 API 或 `RuntimeService` 单点内
   - `ExecutionArtifacts / CallbackHandleResult` 这类 runtime 返回模型已从 `runtime.py` 抽到 `runtime_records.py`，避免主执行器继续堆叠非执行职责
   - 前端创建页、editor、starter 治理也已开始围绕共享 snapshot 演进，而不是各自维护私有常量
   - `run diagnostics` 新增 execution/evidence sections，但通过独立组件承接，没有继续把 `run-diagnostics-panel.tsx` 变成新的页面级大文件
   - callback ticket cleanup 现在也已接入独立 scheduler 进程，避免再把周期治理塞回 API 或 `RuntimeService`
-  - 但 publish endpoint 的 protocol mapping、callback ticket 更强鉴权/系统诊断可见性，以及节点插件注册中心仍未彻底拆清
+  - 但 publish endpoint 的 cache/protocol mapping、callback ticket 更强鉴权/系统诊断可见性，以及节点插件注册中心仍未彻底拆清
 - 当前需要显式盯住的长文件：
-  - `api/app/services/runtime.py` 当前约 1502 行，已经重新越过后端 1500 行偏好阈值；本轮虽然把 callback cleanup 编排抽到独立 service，但下一轮若继续补 scheduler、callback 治理或 publish gateway，应优先拆 execution / waiting / resume orchestration
+  - `api/app/services/runtime.py` 当前约 1595 行，已经重新越过后端 1500 行偏好阈值；下一轮若继续补 scheduler、callback 治理或 publish gateway，应优先拆 execution / waiting / resume orchestration
   - `api/app/api/routes/runs.py` 仍然偏长，但本轮已把 execution / evidence 聚合和 RunDetail 序列化拆出；下一轮若继续扩展 trace/export/callback，应进一步考虑 trace/export/callback 子模块拆分
-  - `api/app/services/agent_runtime.py` 当前约 628 行，已经承载 phase pipeline、tool waiting 恢复和 evidence 组装；若继续长出 assistant 策略与 subflow 候选能力，应提前拆 plan/tool/finalize 子阶段
-  - `api/app/services/workflow_library.py` 当前约 650 行，仍适合继续演进，但若再接 adapter health / node plugin registry，应优先拆 source assembly 与 starter builder
-  - `web/components/workspace-starter-library.tsx` 当前约 1035 行，是前端体量最大的真实业务文件；虽然还在前端 2000 行偏好之内，但后续继续补批量结果钻取时仍应继续拆
-  - `web/components/workflow-editor-workbench.tsx` 当前约 528 行，下一轮若继续把 execution / evidence view 接回 editor overlay，要避免重新长回页面级混排组件
+  - `api/app/services/agent_runtime.py` 当前约 665 行，已经承载 phase pipeline、tool waiting 恢复和 evidence 组装；若继续长出 assistant 策略与 subflow 候选能力，应提前拆 plan/tool/finalize 子阶段
+  - `api/app/services/workflow_library.py` 当前约 688 行，仍适合继续演进，但若再接 adapter health / node plugin registry，应优先拆 source assembly 与 starter builder
+  - `api/app/services/published_invocations.py` 当前约 597 行，已经承载 activity summary、time window、timeline、API key 维度统计和 rate limit 计数；若继续长出 cache 命中统计或更细趋势分析，应提前拆 query/audit aggregation
+  - `web/components/workspace-starter-library.tsx` 当前约 1134 行，是前端体量最大的真实业务文件；虽然还在前端 2000 行偏好之内，但后续继续补批量结果钻取时仍应继续拆
+  - `web/components/workflow-editor-workbench.tsx` 当前约 580 行，下一轮若继续把 execution / evidence view 接回 editor overlay，要避免重新长回页面级混排组件
 
 ## 推荐开发命令
 
@@ -720,7 +732,7 @@ docker compose up -d --build
 - Loop 节点执行
 - 外部 MCP Provider 接入
 - 完整插件兼容代理生命周期
-- publish endpoint 的限流、cache 与更细的审计治理
+- publish endpoint 的 cache 与更细的审计治理
 - publish activity 趋势的前端消费、更细的 API key 观测与长期审计面板
 - `native` 发布调用的 streaming / SSE 与更完整发布管理
 - `openai / anthropic` 的正式协议映射与开放调用入口
@@ -739,12 +751,12 @@ docker compose up -d --build
 
 当前判断：
 
-- 本轮已经把 `compiled blueprint / version snapshot / run binding` 继续推进到 `publish binding + lifecycle + alias/path + native invoke + api_key auth + activity audit filters + time window/timeline`。
-- 发布态现在已经具备最小 native 调用、API key 鉴权、alias/path 地址闭环和基础审计视图，但距离完整开放 API 仍差更完整托管能力、流式与兼容协议映射。
+- 本轮已经把 `compiled blueprint / version snapshot / run binding` 继续推进到 `publish binding + lifecycle + alias/path + native invoke + api_key auth + activity audit filters + time window/timeline + binding rate limit`。
+- 发布态现在已经具备最小 native 调用、API key 鉴权、alias/path 地址闭环、基础审计视图和最小 binding 级限流，但距离完整开放 API 仍差 cache、流式与兼容协议映射。
 - 现在还不适合一步到位宣称“完整 Durable Runtime 已完成”，原因是：
   - callback ingress、ticket TTL/过期态和周期自动清理已经落地，但 callback bus、更强鉴权和系统诊断治理可见性还没有完成
   - scheduler 还只有最小任务投递，没有 dead-letter、去重、重投和系统化观测
-  - publish binding 虽然已经接上 compiled blueprint、lifecycle、alias/path、最小 native invoke 和 API key 实体，但发布托管能力与协议映射还没有完全接上
+  - publish binding 虽然已经接上 compiled blueprint、lifecycle、alias/path、最小 native invoke、API key 实体和最小 rate limit，但发布托管能力与协议映射还没有完全接上
 - 因此后续应按 “Phase 1 MVP 稳定化 -> Phase 2 完整耐久化” 的路线推进，而不是再把所有能力堆回 `runtime.py`
 
 ### P0 当前最高优先级
@@ -753,8 +765,9 @@ docker compose up -d --build
    - 继续把最小 `native` endpoint 演进成更完整的发布实体
    - 再把 OpenAI / Anthropic 协议映射挂到同一条发布链上
 2. 继续补 publish endpoint 的发布实体：
-   - 限流与 cache
+   - cache
    - 更细的 API key 维度观测与趋势消费视图
+   - rate limit 的系统诊断可见性与更细治理反馈
    - 继续坚持绑定 `workflow_version + compiled_blueprint`
 3. 收口 callback ticket 的剩余治理：
    - 更强鉴权形态

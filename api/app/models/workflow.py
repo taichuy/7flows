@@ -136,6 +136,7 @@ class WorkflowPublishedEndpoint(Base):
     )
     input_schema: Mapped[dict] = mapped_column(JSON, default=dict)
     output_schema: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    rate_limit_policy: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     unpublished_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),

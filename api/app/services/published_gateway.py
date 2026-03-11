@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -174,6 +174,7 @@ class PublishedEndpointGatewayService:
                 raise PublishedEndpointGatewayError(
                     "Published native endpoint streaming invocation is not supported yet."
                 )
+            self._enforce_rate_limit(db, binding=binding)
 
             workflow_version = db.get(WorkflowVersion, binding.target_workflow_version_id)
             if workflow_version is None:
@@ -183,7 +184,9 @@ class PublishedEndpointGatewayService:
 
             blueprint_record = db.get(WorkflowCompiledBlueprint, binding.compiled_blueprint_id)
             if blueprint_record is None:
-                raise PublishedEndpointGatewayError("Published endpoint compiled blueprint is missing.")
+                raise PublishedEndpointGatewayError(
+                    "Published endpoint compiled blueprint is missing."
+                )
 
             artifacts = self._runtime_service.execute_compiled_workflow(
                 db,
@@ -248,3 +251,34 @@ class PublishedEndpointGatewayService:
             route_path=binding.route_path,
             artifacts=artifacts,
         )
+
+    def _enforce_rate_limit(
+        self,
+        db: Session,
+        *,
+        binding: WorkflowPublishedEndpoint,
+    ) -> None:
+        raw_policy = binding.rate_limit_policy
+        if not isinstance(raw_policy, dict):
+            return
+
+        requests = raw_policy.get("requests")
+        window_seconds = raw_policy.get("windowSeconds")
+        if not isinstance(requests, int) or not isinstance(window_seconds, int):
+            return
+        if requests <= 0 or window_seconds <= 0:
+            return
+
+        window_start = datetime.now(UTC) - timedelta(seconds=window_seconds)
+        recent_invocation_count = self._invocation_service.count_recent_for_binding(
+            db,
+            workflow_id=binding.workflow_id,
+            binding_id=binding.id,
+            created_from=window_start,
+        )
+        if recent_invocation_count >= requests:
+            raise PublishedEndpointGatewayError(
+                "Published endpoint rate limit exceeded: "
+                f"{requests} successful/failed invocations per {window_seconds} seconds.",
+                status_code=429,
+            )

@@ -60,6 +60,7 @@ def _serialize_workflow_published_endpoint_item(
         lifecycle_status=record.lifecycle_status,
         input_schema=record.input_schema,
         output_schema=record.output_schema,
+        rate_limit_policy=record.rate_limit_policy,
         published_at=record.published_at,
         unpublished_at=record.unpublished_at,
         created_at=record.created_at,
