@@ -4,6 +4,10 @@ import { notFound } from "next/navigation";
 import { RunDiagnosticsPanel } from "@/components/run-diagnostics-panel";
 import { getRunDetail } from "@/lib/get-run-detail";
 import {
+  getRunEvidenceView,
+  getRunExecutionView
+} from "@/lib/get-run-views";
+import {
   getRunTrace,
   parseRunTraceSearchParams
 } from "@/lib/get-run-trace";
@@ -29,9 +33,11 @@ export default async function RunDiagnosticsPage({
 }: RunDiagnosticsPageProps) {
   const { runId } = await params;
   const traceQuery = parseRunTraceSearchParams((await searchParams) ?? {});
-  const [run, traceResult] = await Promise.all([
+  const [run, traceResult, executionView, evidenceView] = await Promise.all([
     getRunDetail(runId),
-    getRunTrace(runId, traceQuery)
+    getRunTrace(runId, traceQuery),
+    getRunExecutionView(runId),
+    getRunEvidenceView(runId)
   ]);
 
   if (!run) {
@@ -44,6 +50,8 @@ export default async function RunDiagnosticsPage({
       trace={traceResult.trace}
       traceError={traceResult.errorMessage}
       traceQuery={traceQuery}
+      executionView={executionView}
+      evidenceView={evidenceView}
     />
   );
 }

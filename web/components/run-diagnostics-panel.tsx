@@ -1,7 +1,9 @@
 import Link from "next/link";
 
+import { RunDiagnosticsExecutionSections } from "@/components/run-diagnostics-execution-sections";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import type { RunDetail } from "@/lib/get-run-detail";
+import type { RunEvidenceView, RunExecutionView } from "@/lib/get-run-views";
 import {
   buildRunTraceExportUrl,
   buildRunTraceQueryString,
@@ -21,6 +23,8 @@ type RunDiagnosticsPanelProps = {
   trace: RunTrace | null;
   traceError?: string | null;
   traceQuery: RunTraceQuery;
+  executionView: RunExecutionView | null;
+  evidenceView: RunEvidenceView | null;
 };
 
 const TRACE_LIMIT_OPTIONS = [50, 100, 200, 500];
@@ -29,7 +33,9 @@ export function RunDiagnosticsPanel({
   run,
   trace,
   traceError,
-  traceQuery
+  traceQuery,
+  executionView,
+  evidenceView
 }: RunDiagnosticsPanelProps) {
   const eventTypes = run.event_type_counts;
   const activeTraceQuery = trace
@@ -418,6 +424,11 @@ export function RunDiagnosticsPanel({
           </div>
         </article>
       </section>
+
+      <RunDiagnosticsExecutionSections
+        executionView={executionView}
+        evidenceView={evidenceView}
+      />
 
       <section className="diagnostics-layout">
         <article className="diagnostic-panel">

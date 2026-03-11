@@ -286,6 +286,8 @@ uv run alembic upgrade head
 - `POST /api/workflows/{workflow_id}/runs`
 - `GET /api/workflows/{workflow_id}/runs`
 - `GET /api/runs/{run_id}`
+- `GET /api/runs/{run_id}/execution-view`
+- `GET /api/runs/{run_id}/evidence-view`
 - `POST /api/runs/{run_id}/resume`
 - `POST /api/runs/callbacks/{ticket}`
 - `GET /api/runs/{run_id}/events`
@@ -298,6 +300,8 @@ uv run alembic upgrade head
 - 触发一次最小工作流执行
 - 为 workflow editor 提供 workflow 级 recent runs 摘要入口
 - 查询执行详情
+- 读取按节点聚合的 execution facts，供 run diagnostics 和后续 editor 复用
+- 读取 evidence-focused 视图，供 assistant/evidence 排障与回放入口复用
 - 恢复处于 waiting 状态的 run
 - 消费 `waiting_callback` ticket 并自动恢复 run
 - 查询事件流
@@ -306,6 +310,8 @@ uv run alembic upgrade head
 - `GET /api/workflow-library` 当前已开始按 `workspace_id` 过滤 adapter 绑定的 compat 工具，并把 `tool` 节点的 `binding_required` / `binding_source_lanes` 一并返回给 editor
 - `GET /api/workflows/{workflow_id}/runs` 当前会聚合返回 run 状态、版本、`node_run_count`、`event_count` 和 `last_event_at`，供 editor 选择最近执行上下文，而不是继续依赖首页摘要拼装
 - `GET /api/runs/{run_id}` 当前已支持 `include_events=false` 的摘要模式，供 run 诊断页等人类界面减少与 `/trace` 的重复数据搬运
+- `GET /api/runs/{run_id}/execution-view` 当前会把 `run_artifacts / tool_call_records / ai_call_records / run_callback_tickets` 聚合成节点级 execution facts
+- `GET /api/runs/{run_id}/evidence-view` 当前会围绕 `node_runs.evidence_context`、assistant 调用、supporting artifacts 和 decision output 输出 evidence-focused 视图
 - `POST /api/runs/{run_id}/resume` 当前会从 `runs.checkpoint_payload` 与 `node_runs.checkpoint_payload` 恢复 phase state machine；事件里会额外带出 `source`
 - `POST /api/runs/callbacks/{ticket}` 当前会把 callback 结果写回 waiting tool 的 checkpoint / tool trace / artifact，再自动调用 `resume_run`
 - runtime 当前还能通过 worker 侧 `runtime.resume_run` 消费被调度的 waiting run，并把计划恢复写成 `run.resume.scheduled`
@@ -340,12 +346,15 @@ uv run alembic upgrade head
 - `GET /api/system/overview`
 - `GET /api/system/runtime-activity`
 - `GET /api/runs/{run_id}`（供 run 详情页直接展示）
+- `GET /api/runs/{run_id}/execution-view`
+- `GET /api/runs/{run_id}/evidence-view`
 
 边界：
 
 - 默认展示摘要、统计、预览和跳转入口
 - 允许为了可读性做聚合、排序、裁剪和视觉组织
 - 不能把 UI 面板本身当成 AI 排障或审计的唯一事实来源
+- `execution-view / evidence-view` 属于“面向人类与 UI 复用的聚合事实层”，仍然建立在同一批运行态对象上，而不是新的私有日志体系
 
 #### L2 机器追溯层
 
@@ -533,29 +542,32 @@ uv run alembic upgrade head
 
 ### 当前架构与体量判断
 
-- 最近一次 Git 提交是 `feat: 补充产品设计文档，新增项目架构图与关键时序图`，主要补强目标设计总览。
-- 当前代码主线则继续把 runtime 事实往设计方向收口：本轮已把 `workflow_version -> compiled blueprint -> run.compiled_blueprint_id` 接成稳定边界。
+- 本轮开发承接上一轮已提交的 `feat: persist compiled workflow blueprints`：
+  - 上一轮把 `workflow_version -> compiled blueprint -> run.compiled_blueprint_id` 接成稳定边界
+  - 本轮继续把已落库的 runtime facts 收口为 `execution-view / evidence-view`，让这条边界开始服务真实诊断页面
 - 当前真正需要承接的实现主线仍是 `feat: add durable agent runtime phase1`：
   - Phase 1 已经把 `compiler / runtime / agent runtime / tool gateway / context / artifact` 这套后端基础拆出来
   - 前几轮沿这条线补上了 `run_callback_tickets + callback ingress`
-  - 本轮继续把 compiled blueprint 从瞬时编译推进到持久化绑定，而不是再回去堆新的页面级壳层
+  - 本轮则把 `run_artifacts / tool_call_records / ai_call_records / callback tickets` 变成正式聚合查询面，而不是继续只停留在底层事实表
 - 当前基础框架已经写到“可以继续推进主业务”的阶段：
   - `应用新建编排` 这一条线已经有 `workflow library -> starter -> editor -> 保存版本 -> recent runs overlay`
   - `编排节点能力` 这一条线已经有 phase runtime、tool/evidence/artifact、scheduler resume 和 callback ingress
   - `Dify 插件兼容` 已有 registry / adapter / tool lane / workspace scope 的基础 contract，但生命周期仍未完整
-  - `API 调用开放` 仍停留在设计与局部 starter 层；虽然 run 侧已经绑定 compiled blueprint，但发布态 endpoint 和协议映射还没真正接上
+  - `API 调用开放` 仍停留在设计与局部 starter 层；虽然 run 侧现在既有 compiled blueprint 绑定，也有 execution/evidence 聚合查询，但发布态 endpoint 和协议映射还没真正接上
 - 当前架构方向整体是解耦的，但仍有未完全拆开的高风险边界：
   - 后端已经开始形成 `Flow Compiler -> RuntimeService -> AgentRuntime / ToolGateway / ContextService / RunResumeScheduler / RunCallbackTicketService` 的分层
+  - execution / evidence 查询也已独立落到 `RunViewService + run_views route`，没有继续把聚合逻辑塞回 `runs.py`
   - worker 恢复入口已经从运行主循环里旁路出来，没有继续把后台调度写死在 API 或 `RuntimeService` 单点内
   - 前端创建页、editor、starter 治理也已开始围绕共享 snapshot 演进，而不是各自维护私有常量
+  - `run diagnostics` 新增 execution/evidence sections，但通过独立组件承接，没有继续把 `run-diagnostics-panel.tsx` 变成新的页面级大文件
   - 但 publish mapping、execution/evidence view、callback ticket 生命周期治理和节点插件注册中心仍未彻底拆清
 - 当前需要显式盯住的长文件：
   - `api/app/services/runtime.py` 当前约 1380 行，已经逼近后端 1500 行偏好上限；本轮虽然把 compiled blueprint 收口到独立 `CompiledBlueprintService`，但下一轮若再补 publish binding、scheduler 观测或 execution view，应优先拆 waiting/resume orchestration
-  - `api/app/api/routes/runs.py` 当前约 700 行，已经开始同时承担 detail / trace / export / resume / callback；若继续长 execution / evidence view API，建议拆 trace/export/callback 子模块
+  - `api/app/api/routes/runs.py` 仍然偏长，但本轮已把 execution / evidence 聚合和 RunDetail 序列化拆出；下一轮若继续扩展 trace/export/callback，应进一步考虑 trace/export/callback 子模块拆分
   - `api/app/services/agent_runtime.py` 当前约 628 行，已经承载 phase pipeline、tool waiting 恢复和 evidence 组装；若继续长出 assistant 策略与 subflow 候选能力，应提前拆 plan/tool/finalize 子阶段
   - `api/app/services/workflow_library.py` 当前约 650 行，仍适合继续演进，但若再接 adapter health / node plugin registry，应优先拆 source assembly 与 starter builder
   - `web/components/workspace-starter-library.tsx` 当前约 1042 行，是前端体量最大的真实业务文件；虽然还在前端 2000 行偏好之内，但后续继续补批量结果钻取时仍应继续拆
-  - `web/components/run-diagnostics-panel.tsx` 当前约 635 行、`web/components/workflow-editor-workbench.tsx` 当前约 528 行，下一轮若继续接 execution / evidence view，要避免重新长回页面级混排组件
+  - `web/components/workflow-editor-workbench.tsx` 当前约 528 行，下一轮若继续把 execution / evidence view 接回 editor overlay，要避免重新长回页面级混排组件
 
 ## 推荐开发命令
 
@@ -607,7 +619,7 @@ docker compose up -d --build
 - 流式响应映射
 - 回放调试面板
 - 更完整的节点结构化配置抽屉
-- editor 内逐事件回放、trace 过滤和实时调试联动
+- editor 内消费 execution/evidence view、逐事件回放、trace 过滤和实时调试联动
 - 节点目录与插件注册中心打通后的动态 starter / 节点库模型
 - workspace starter 的批量结果钻取、字段级治理决策提示和更细的团队审阅反馈
 - 前端 editor 测试基线
@@ -631,19 +643,14 @@ docker compose up -d --build
 1. 把编译态与运行态彻底收口：
    - 把已落地的 `compiled blueprint / version snapshot / run binding` 继续推进到 publish binding
    - 让开放 API 和后续回放也建立在稳定执行蓝图上
-2. 把执行追踪补齐为 UI 与机器都可复用的查询面：
-   - 继续围绕 `run_artifacts`、`tool_call_records`、`ai_call_records`
-   - 把 `run.callback.ticket.issued / run.callback.received` 一并纳入 execution view
-   - 提供 execution view / evidence view 所需的摘要字段与引用能力
-3. 收口 callback ticket 的剩余治理：
+2. 收口 callback ticket 的剩余治理：
    - 过期/清理策略
    - 来源审计
    - 更强鉴权形态
 
 原因：
 
-- run 侧虽然已经绑定 compiled blueprint，但如果发布层和 execution/evidence view 不继续承接，稳定执行边界仍然无法真正服务主业务。
-- artifact / tool / AI / callback 追踪已经落库，下一步要尽快让它们成为可消费能力，而不只是后台表结构。
+- run 侧虽然已经绑定 compiled blueprint，execution/evidence 视图也已经开始消费这些事实，但如果发布层不继续承接，稳定执行边界仍然无法真正服务主业务。
 - callback ingress 虽然已打通，但 ticket 生命周期治理仍属于 durable runtime 稳定化的一部分。
 
 ### P1 次高优先级
@@ -661,7 +668,7 @@ docker compose up -d --build
    - 参数 schema 校验
    - 权限控制收口
    - native / compat / local agent / remote API 适配
-4. 把 execution view 和 evidence view 接回 editor / run diagnostics：
+4. 把 execution view 和 evidence view 从 run diagnostics 继续接回 editor / node overlay：
    - 节点 phase timeline
    - tool 调用摘要
    - assistant evidence 展示
@@ -672,7 +679,7 @@ docker compose up -d --build
 - scheduler 已经落了最小实现，下一步要尽快补齐“能排队”之外的可靠性与可观测性。
 - 当前 `llm_agent` 已从单次调用器升级为复合节点，但还需要更多结构化配置才能真正承载“节点级智能性”。
 - Tool Gateway 已经建立统一入口，应该继续成为所有工具能力的唯一穿透点，避免重新散落调用。
-- 运行时追踪如果不尽快回到 UI，后续 evidence 分层与 phase 调试价值会被埋在底层表里。
+- execution/evidence 视图已经先接到 run diagnostics，下一步要把这套聚合事实继续回接 editor，而不是重新在画布侧拼第二套运行态协议。
 
 ### P2 中优先级
 
