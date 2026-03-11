@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.run import AICallRecord, NodeRun, Run, RunArtifact, RunEvent, ToolCallRecord
-from app.models.workflow import Workflow, WorkflowVersion
+from app.models.workflow import Workflow, WorkflowCompiledBlueprint, WorkflowVersion
 from app.services.agent_runtime import AgentRuntime
 from app.services.artifact_store import RuntimeArtifactStore
 from app.services.compiled_blueprints import (
@@ -105,16 +105,62 @@ class RuntimeService(RuntimeGraphSupportMixin):
                 db,
                 workflow_version,
             )
-            blueprint = self._compiled_blueprints.load_blueprint(blueprint_record)
         except (CompiledBlueprintError, WorkflowExecutionError) as exc:
             raise WorkflowExecutionError(str(exc)) from exc
+
+        return self._execute_compiled_workflow(
+            db,
+            workflow=workflow,
+            workflow_version=workflow_version,
+            blueprint_record=blueprint_record,
+            input_payload=input_payload,
+        )
+
+    def execute_compiled_workflow(
+        self,
+        db: Session,
+        *,
+        workflow: Workflow,
+        workflow_version: WorkflowVersion,
+        blueprint_record: WorkflowCompiledBlueprint,
+        input_payload: dict,
+    ) -> ExecutionArtifacts:
+        self._refresh_runtime_dependencies(db)
+        try:
+            return self._execute_compiled_workflow(
+                db,
+                workflow=workflow,
+                workflow_version=workflow_version,
+                blueprint_record=blueprint_record,
+                input_payload=input_payload,
+            )
+        except (CompiledBlueprintError, WorkflowExecutionError) as exc:
+            raise WorkflowExecutionError(str(exc)) from exc
+
+    def _execute_compiled_workflow(
+        self,
+        db: Session,
+        *,
+        workflow: Workflow,
+        workflow_version: WorkflowVersion,
+        blueprint_record: WorkflowCompiledBlueprint,
+        input_payload: dict,
+    ) -> ExecutionArtifacts:
+        if blueprint_record.workflow_id != workflow.id:
+            raise WorkflowExecutionError("Compiled blueprint does not belong to the workflow.")
+        if blueprint_record.workflow_version_id != workflow_version.id:
+            raise WorkflowExecutionError(
+                "Compiled blueprint does not match the requested workflow version."
+            )
+
+        blueprint = self._compiled_blueprints.load_blueprint(blueprint_record)
         if any(node.type == "loop" for node in blueprint.ordered_nodes):
             raise WorkflowExecutionError("Loop nodes are not supported by the MVP executor yet.")
 
         run = Run(
             id=str(uuid4()),
             workflow_id=workflow.id,
-            workflow_version=workflow.version,
+            workflow_version=workflow_version.version,
             compiled_blueprint_id=blueprint_record.id,
             status="running",
             input_payload=input_payload,

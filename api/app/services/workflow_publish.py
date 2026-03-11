@@ -134,6 +134,21 @@ class WorkflowPublishBindingService:
             )
         return db.scalars(statement).all()
 
+    def get_published_binding(
+        self,
+        db: Session,
+        *,
+        workflow_id: str,
+        endpoint_id: str,
+    ) -> WorkflowPublishedEndpoint | None:
+        return db.scalar(
+            select(WorkflowPublishedEndpoint).where(
+                WorkflowPublishedEndpoint.workflow_id == workflow_id,
+                WorkflowPublishedEndpoint.endpoint_id == endpoint_id,
+                WorkflowPublishedEndpoint.lifecycle_status == "published",
+            )
+        )
+
     def update_lifecycle_status(
         self,
         db: Session,

@@ -271,3 +271,99 @@ def test_unpublish_binding_marks_binding_offline(client: TestClient) -> None:
     assert body["lifecycle_status"] == "offline"
     assert body["published_at"] is not None
     assert body["unpublished_at"] is not None
+
+
+def test_invoke_published_native_endpoint_uses_active_binding_blueprint(
+    client: TestClient,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Published Native Invoke Workflow",
+            "definition": _publishable_definition(answer="v1"),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    initial_bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert initial_bindings_response.status_code == 200
+    initial_binding = initial_bindings_response.json()[0]
+
+    publish_initial_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{initial_binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_initial_response.status_code == 200
+
+    update_response = client.put(
+        f"/api/workflows/{workflow_id}",
+        json={
+            "definition": _publishable_definition(answer="v2"),
+        },
+    )
+    assert update_response.status_code == 200
+
+    invoke_response = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"question": "hello"}},
+    )
+    assert invoke_response.status_code == 200
+    body = invoke_response.json()
+    assert body["binding_id"] == initial_binding["id"]
+    assert body["workflow_version"] == "0.1.0"
+    assert body["compiled_blueprint_id"] == initial_binding["compiled_blueprint_id"]
+    assert body["run"]["workflow_version"] == "0.1.0"
+    assert body["run"]["compiled_blueprint_id"] == initial_binding["compiled_blueprint_id"]
+    assert body["run"]["input_payload"] == {"question": "hello"}
+    assert body["run"]["output_payload"] == {"tool": {"answer": "v1"}}
+
+
+def test_invoke_published_native_endpoint_rejects_unimplemented_auth_modes(
+    client: TestClient,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Protected Native Endpoint Workflow",
+            "definition": {
+                **_publishable_definition(),
+                "publish": [
+                    {
+                        "id": "native-chat",
+                        "name": "Native Chat",
+                        "protocol": "native",
+                        "workflowVersion": "0.1.0",
+                        "authMode": "api_key",
+                        "streaming": False,
+                        "inputSchema": {"type": "object"},
+                    }
+                ],
+            },
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding_id = bindings_response.json()[0]["id"]
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding_id}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
+    invoke_response = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {}},
+    )
+    assert invoke_response.status_code == 422
+    assert "auth mode 'api_key' is not supported yet" in invoke_response.json()["detail"]

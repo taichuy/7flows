@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+from app.schemas.run import RunDetail
 
 PublishedEndpointLifecycleStatus = Literal["draft", "published", "offline"]
 
@@ -30,3 +32,17 @@ class WorkflowPublishedEndpointItem(BaseModel):
     unpublished_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class PublishedNativeRunRequest(BaseModel):
+    input_payload: dict = Field(default_factory=dict)
+
+
+class PublishedNativeRunResponse(BaseModel):
+    binding_id: str
+    endpoint_id: str
+    endpoint_name: str
+    workflow_id: str
+    workflow_version: str
+    compiled_blueprint_id: str
+    run: RunDetail
