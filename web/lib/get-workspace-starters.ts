@@ -25,10 +25,42 @@ export type WorkspaceStarterHistoryItem = {
   id: string;
   template_id: string;
   workspace_id: string;
-  action: "created" | "updated" | "archived" | "restored" | "refreshed";
+  action: "created" | "updated" | "archived" | "restored" | "refreshed" | "rebased";
   summary: string;
   payload: Record<string, unknown>;
   created_at: string;
+};
+
+export type WorkspaceStarterSourceDiffEntry = {
+  id: string;
+  label: string;
+  status: "added" | "removed" | "changed";
+};
+
+export type WorkspaceStarterSourceDiffSummary = {
+  template_count: number;
+  source_count: number;
+  added_count: number;
+  removed_count: number;
+  changed_count: number;
+};
+
+export type WorkspaceStarterSourceDiff = {
+  template_id: string;
+  workspace_id: string;
+  source_workflow_id: string;
+  source_workflow_name: string;
+  template_version?: string | null;
+  source_version: string;
+  template_default_workflow_name: string;
+  source_default_workflow_name: string;
+  workflow_name_changed: boolean;
+  changed: boolean;
+  rebase_fields: string[];
+  node_summary: WorkspaceStarterSourceDiffSummary;
+  edge_summary: WorkspaceStarterSourceDiffSummary;
+  node_entries: WorkspaceStarterSourceDiffEntry[];
+  edge_entries: WorkspaceStarterSourceDiffEntry[];
 };
 
 export async function getWorkspaceStarterTemplates(): Promise<
@@ -119,5 +151,41 @@ export async function getWorkspaceStarterHistory(
     return (await response.json()) as WorkspaceStarterHistoryItem[];
   } catch {
     return [];
+  }
+}
+
+export async function getWorkspaceStarterSourceDiff(
+  templateId: string,
+  {
+    workspaceId = "default"
+  }: {
+    workspaceId?: string;
+  } = {}
+): Promise<WorkspaceStarterSourceDiff | null> {
+  const normalizedTemplateId = templateId.trim();
+  if (!normalizedTemplateId) {
+    return null;
+  }
+
+  const params = new URLSearchParams();
+  params.set("workspace_id", workspaceId);
+
+  try {
+    const response = await fetch(
+      `${getApiBaseUrl()}/api/workspace-starters/${encodeURIComponent(
+        normalizedTemplateId
+      )}/source-diff?${params.toString()}`,
+      {
+        cache: "no-store"
+      }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as WorkspaceStarterSourceDiff;
+  } catch {
+    return null;
   }
 }

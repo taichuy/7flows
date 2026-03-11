@@ -6,6 +6,7 @@ from app.models.workflow import Workflow
 from app.schemas.workspace_starter import (
     WorkflowBusinessTrack,
     WorkspaceStarterHistoryItem,
+    WorkspaceStarterSourceDiff,
     WorkspaceStarterTemplateCreate,
     WorkspaceStarterTemplateItem,
     WorkspaceStarterTemplateUpdate,
@@ -124,10 +125,11 @@ def create_workspace_starter(
 def update_workspace_starter(
     template_id: str,
     payload: WorkspaceStarterTemplateUpdate,
+    workspace_id: str = Query(default="default", min_length=1, max_length=64),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterTemplateItem:
     service = get_workspace_starter_template_service()
-    record = service.get_template(db, template_id)
+    record = service.get_template(db, template_id, workspace_id=workspace_id)
     if record is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -155,6 +157,38 @@ def update_workspace_starter(
     db.commit()
     db.refresh(record)
     return service.serialize(record)
+
+
+@router.get(
+    "/{template_id}/source-diff",
+    response_model=WorkspaceStarterSourceDiff,
+)
+def get_workspace_starter_source_diff(
+    template_id: str,
+    workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    db: Session = Depends(get_db),
+) -> WorkspaceStarterSourceDiff:
+    service = get_workspace_starter_template_service()
+    record = service.get_template(db, template_id, workspace_id=workspace_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace starter template not found.",
+        )
+    if record.created_from_workflow_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This workspace starter has no source workflow to diff against.",
+        )
+
+    source_workflow = db.get(Workflow, record.created_from_workflow_id)
+    if source_workflow is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Source workflow not found.",
+        )
+
+    return service.build_source_diff(record, source_workflow)
 
 
 @router.post("/{template_id}/archive", response_model=WorkspaceStarterTemplateItem)
@@ -206,6 +240,58 @@ def restore_workspace_starter(
         workspace_id=record.workspace_id,
         action="restored",
         summary=f"恢复了 workspace starter「{record.name}」。",
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return service.serialize(record)
+
+
+@router.post("/{template_id}/rebase", response_model=WorkspaceStarterTemplateItem)
+def rebase_workspace_starter(
+    template_id: str,
+    workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    db: Session = Depends(get_db),
+) -> WorkspaceStarterTemplateItem:
+    service = get_workspace_starter_template_service()
+    record = service.get_template(db, template_id, workspace_id=workspace_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workspace starter template not found.",
+        )
+    if record.created_from_workflow_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This workspace starter has no source workflow to rebase from.",
+        )
+
+    source_workflow = db.get(Workflow, record.created_from_workflow_id)
+    if source_workflow is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Source workflow not found.",
+        )
+
+    diff = service.rebase_from_workflow(record, source_workflow)
+    service.record_history(
+        db,
+        template_id=record.id,
+        workspace_id=record.workspace_id,
+        action="rebased",
+        summary=(
+            f"基于源 workflow「{source_workflow.name}」rebase 了 workspace starter。"
+            if diff.changed
+            else f"检查了源 workflow「{source_workflow.name}」，无需 rebase。"
+        ),
+        payload={
+            "source_workflow_id": source_workflow.id,
+            "source_workflow_version": source_workflow.version,
+            "changed": diff.changed,
+            "rebase_fields": diff.rebase_fields,
+            "node_changes": diff.node_summary.model_dump(),
+            "edge_changes": diff.edge_summary.model_dump(),
+        },
     )
     db.add(record)
     db.commit()

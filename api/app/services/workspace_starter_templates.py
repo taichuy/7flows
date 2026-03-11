@@ -17,6 +17,9 @@ from app.schemas.workspace_starter import (
     WorkflowBusinessTrack,
     WorkspaceStarterHistoryAction,
     WorkspaceStarterHistoryItem,
+    WorkspaceStarterSourceDiff,
+    WorkspaceStarterSourceDiffEntry,
+    WorkspaceStarterSourceDiffSummary,
     WorkspaceStarterTemplateCreate,
     WorkspaceStarterTemplateItem,
     WorkspaceStarterTemplateUpdate,
@@ -167,6 +170,60 @@ class WorkspaceStarterTemplateService:
             created_at=record.created_at,
         )
 
+    def build_source_diff(
+        self,
+        record: WorkspaceStarterTemplateRecord,
+        workflow: Workflow,
+    ) -> WorkspaceStarterSourceDiff:
+        template_definition = deepcopy(record.definition or {})
+        source_definition = validate_workflow_definition(workflow.definition)
+
+        node_entries = self._build_diff_entries(
+            template_items=template_definition.get("nodes"),
+            source_items=source_definition.get("nodes"),
+            label_builder=self._build_node_label,
+        )
+        edge_entries = self._build_diff_entries(
+            template_items=template_definition.get("edges"),
+            source_items=source_definition.get("edges"),
+            label_builder=self._build_edge_label,
+        )
+
+        rebase_fields: list[str] = []
+        if (
+            record.created_from_workflow_version != workflow.version
+            or template_definition != source_definition
+        ):
+            rebase_fields.extend(["definition", "created_from_workflow_version"])
+        if record.default_workflow_name != workflow.name:
+            rebase_fields.append("default_workflow_name")
+
+        return WorkspaceStarterSourceDiff(
+            template_id=record.id,
+            workspace_id=record.workspace_id,
+            source_workflow_id=workflow.id,
+            source_workflow_name=workflow.name,
+            template_version=record.created_from_workflow_version,
+            source_version=workflow.version,
+            template_default_workflow_name=record.default_workflow_name,
+            source_default_workflow_name=workflow.name,
+            workflow_name_changed=record.default_workflow_name != workflow.name,
+            changed=bool(node_entries or edge_entries or rebase_fields),
+            rebase_fields=rebase_fields,
+            node_summary=self._build_diff_summary(
+                template_items=template_definition.get("nodes"),
+                source_items=source_definition.get("nodes"),
+                entries=node_entries,
+            ),
+            edge_summary=self._build_diff_summary(
+                template_items=template_definition.get("edges"),
+                source_items=source_definition.get("edges"),
+                entries=edge_entries,
+            ),
+            node_entries=node_entries,
+            edge_entries=edge_entries,
+        )
+
     def archive_template(
         self,
         record: WorkspaceStarterTemplateRecord,
@@ -203,6 +260,20 @@ class WorkspaceStarterTemplateService:
             record.definition = deepcopy(validated_definition)
             record.created_from_workflow_version = workflow.version
         return changed
+
+    def rebase_from_workflow(
+        self,
+        record: WorkspaceStarterTemplateRecord,
+        workflow: Workflow,
+    ) -> WorkspaceStarterSourceDiff:
+        diff = self.build_source_diff(record, workflow)
+        if "definition" in diff.rebase_fields:
+            record.definition = validate_workflow_definition(workflow.definition)
+        if "created_from_workflow_version" in diff.rebase_fields:
+            record.created_from_workflow_version = workflow.version
+        if "default_workflow_name" in diff.rebase_fields:
+            record.default_workflow_name = workflow.name
+        return diff
 
     def record_history(
         self,
@@ -250,6 +321,89 @@ class WorkspaceStarterTemplateService:
             if normalized and normalized not in normalized_tags:
                 normalized_tags.append(normalized)
         return normalized_tags
+
+    def _build_diff_entries(
+        self,
+        *,
+        template_items: object,
+        source_items: object,
+        label_builder,
+    ) -> list[WorkspaceStarterSourceDiffEntry]:
+        template_map = self._index_items(template_items)
+        source_map = self._index_items(source_items)
+        entries: list[WorkspaceStarterSourceDiffEntry] = []
+
+        for item_id in sorted(set(source_map) - set(template_map)):
+            entries.append(
+                WorkspaceStarterSourceDiffEntry(
+                    id=item_id,
+                    label=label_builder(source_map[item_id]),
+                    status="added",
+                )
+            )
+
+        for item_id in sorted(set(template_map) - set(source_map)):
+            entries.append(
+                WorkspaceStarterSourceDiffEntry(
+                    id=item_id,
+                    label=label_builder(template_map[item_id]),
+                    status="removed",
+                )
+            )
+
+        for item_id in sorted(set(template_map) & set(source_map)):
+            if template_map[item_id] != source_map[item_id]:
+                entries.append(
+                    WorkspaceStarterSourceDiffEntry(
+                        id=item_id,
+                        label=label_builder(source_map[item_id]),
+                        status="changed",
+                    )
+                )
+
+        return entries
+
+    def _build_diff_summary(
+        self,
+        *,
+        template_items: object,
+        source_items: object,
+        entries: list[WorkspaceStarterSourceDiffEntry],
+    ) -> WorkspaceStarterSourceDiffSummary:
+        return WorkspaceStarterSourceDiffSummary(
+            template_count=len(self._index_items(template_items)),
+            source_count=len(self._index_items(source_items)),
+            added_count=sum(1 for entry in entries if entry.status == "added"),
+            removed_count=sum(1 for entry in entries if entry.status == "removed"),
+            changed_count=sum(1 for entry in entries if entry.status == "changed"),
+        )
+
+    def _index_items(self, value: object) -> dict[str, dict]:
+        if not isinstance(value, list):
+            return {}
+
+        indexed: dict[str, dict] = {}
+        for item in value:
+            if not isinstance(item, dict):
+                continue
+            item_id = item.get("id")
+            if isinstance(item_id, str) and item_id.strip():
+                indexed[item_id] = deepcopy(item)
+        return indexed
+
+    def _build_node_label(self, item: dict) -> str:
+        item_id = str(item.get("id", "unknown"))
+        node_name = str(item.get("name", item_id))
+        node_type = str(item.get("type", "node"))
+        return f"{node_name} ({node_type})"
+
+    def _build_edge_label(self, item: dict) -> str:
+        source_node_id = str(item.get("sourceNodeId", "?"))
+        target_node_id = str(item.get("targetNodeId", "?"))
+        condition = item.get("condition")
+        if isinstance(condition, str) and condition.strip():
+            return f"{source_node_id} -> {target_node_id} [{condition.strip()}]"
+        return f"{source_node_id} -> {target_node_id}"
 
 
 @lru_cache(maxsize=1)

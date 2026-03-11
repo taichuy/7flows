@@ -6,7 +6,9 @@ import Link from "next/link";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import {
   getWorkspaceStarterHistory,
+  getWorkspaceStarterSourceDiff,
   type WorkspaceStarterHistoryItem,
+  type WorkspaceStarterSourceDiff,
   type WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
 import type { WorkflowDetail } from "@/lib/get-workflows";
@@ -17,6 +19,7 @@ import {
 } from "@/lib/workflow-business-tracks";
 import { summarizeWorkspaceStarterSourceStatus } from "@/lib/workspace-starter-source-status";
 import { WorkspaceStarterHistoryPanel } from "@/components/workspace-starter-library/history-panel";
+import { WorkspaceStarterSourceDiffPanel } from "@/components/workspace-starter-library/source-diff-panel";
 import { WorkspaceStarterSourceCard } from "@/components/workspace-starter-library/source-status-card";
 
 type WorkspaceStarterLibraryProps = {
@@ -59,6 +62,9 @@ export function WorkspaceStarterLibrary({
   const [isLoadingSourceWorkflow, setIsLoadingSourceWorkflow] = useState(false);
   const [historyItems, setHistoryItems] = useState<WorkspaceStarterHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [sourceDiff, setSourceDiff] = useState<WorkspaceStarterSourceDiff | null>(null);
+  const [isLoadingSourceDiff, setIsLoadingSourceDiff] = useState(false);
+  const [isRebasing, startRebasingTransition] = useTransition();
 
   const filteredTemplates = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -238,6 +244,39 @@ export function WorkspaceStarterLibrary({
     };
   }, [selectedTemplate]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!selectedTemplate?.created_from_workflow_id) {
+      setSourceDiff(null);
+      setIsLoadingSourceDiff(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setIsLoadingSourceDiff(true);
+    void getWorkspaceStarterSourceDiff(selectedTemplate.id)
+      .then((item) => {
+        if (cancelled) {
+          return;
+        }
+        setSourceDiff(item);
+        setIsLoadingSourceDiff(false);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setSourceDiff(null);
+        setIsLoadingSourceDiff(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTemplate]);
+
   const handleSave = () => {
     if (!selectedTemplate || !formState) {
       return;
@@ -359,6 +398,12 @@ export function WorkspaceStarterLibrary({
     setIsLoadingHistory(false);
   };
 
+  const reloadSourceDiff = async (templateId: string) => {
+    setIsLoadingSourceDiff(true);
+    setSourceDiff(await getWorkspaceStarterSourceDiff(templateId));
+    setIsLoadingSourceDiff(false);
+  };
+
   const handleRefreshFromSource = () => {
     if (!selectedTemplate?.created_from_workflow_id) {
       return;
@@ -391,10 +436,53 @@ export function WorkspaceStarterLibrary({
         );
         setSelectedTemplateId(body.id);
         await reloadHistory(body.id);
+        await reloadSourceDiff(body.id);
         setMessage(`已刷新 workspace starter：${body.name}。`);
         setMessageTone("success");
       } catch {
         setMessage("无法连接后端刷新 starter，请确认 API 已启动。");
+        setMessageTone("error");
+      }
+    });
+  };
+
+  const handleRebaseFromSource = () => {
+    if (!selectedTemplate?.created_from_workflow_id) {
+      return;
+    }
+
+    startRebasingTransition(async () => {
+      setMessage("正在基于 source workflow 执行 rebase...");
+      setMessageTone("idle");
+
+      try {
+        const response = await fetch(
+          `${getApiBaseUrl()}/api/workspace-starters/${encodeURIComponent(selectedTemplate.id)}/rebase`,
+          {
+            method: "POST"
+          }
+        );
+        const body = (await response.json().catch(() => null)) as
+          | WorkspaceStarterTemplateItem
+          | { detail?: string }
+          | null;
+
+        if (!response.ok || !body || !("id" in body)) {
+          setMessage(body && "detail" in body ? body.detail ?? "rebase 失败。" : "rebase 失败。");
+          setMessageTone("error");
+          return;
+        }
+
+        setTemplates((current) =>
+          current.map((template) => (template.id === body.id ? body : template))
+        );
+        setSelectedTemplateId(body.id);
+        await reloadHistory(body.id);
+        await reloadSourceDiff(body.id);
+        setMessage(`已完成 workspace starter rebase：${body.name}。`);
+        setMessageTone("success");
+      } catch {
+        setMessage("无法连接后端执行 starter rebase，请确认 API 已启动。");
         setMessageTone("error");
       }
     });
@@ -860,6 +948,12 @@ export function WorkspaceStarterLibrary({
           <WorkspaceStarterHistoryPanel
             historyItems={historyItems}
             isLoading={isLoadingHistory}
+          />
+          <WorkspaceStarterSourceDiffPanel
+            sourceDiff={sourceDiff}
+            isLoading={isLoadingSourceDiff}
+            isRebasing={isRebasing}
+            onRebase={handleRebaseFromSource}
           />
         </div>
       </section>

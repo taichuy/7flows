@@ -224,6 +224,138 @@ def test_workspace_starter_refresh_updates_snapshot_and_records_history(
     }
 
 
+def test_workspace_starter_source_diff_reports_node_edge_and_name_drift(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    created = _create_workspace_starter(
+        client,
+        name="Diff Starter",
+        business_track="编排节点能力",
+        description="Template for diff flow",
+    )
+
+    sample_workflow.name = "Demo Workflow v2"
+    sample_workflow.version = "0.1.1"
+    sample_workflow.definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "mock_tool",
+                "type": "tool",
+                "name": "Mock Tool",
+                "config": {"mock_output": {"answer": "updated"}},
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+            {
+                "id": "auditor",
+                "type": "llm_agent",
+                "name": "Auditor",
+                "config": {"prompt": "Check output"},
+            },
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "mock_tool"},
+            {"id": "e2", "sourceNodeId": "mock_tool", "targetNodeId": "auditor"},
+            {"id": "e3", "sourceNodeId": "auditor", "targetNodeId": "output"},
+        ],
+    }
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    response = client.get(f"/api/workspace-starters/{created['id']}/source-diff")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["changed"] is True
+    assert body["workflow_name_changed"] is True
+    assert body["rebase_fields"] == [
+        "definition",
+        "created_from_workflow_version",
+        "default_workflow_name",
+    ]
+    assert body["node_summary"] == {
+        "template_count": 2,
+        "source_count": 4,
+        "added_count": 2,
+        "removed_count": 0,
+        "changed_count": 0,
+    }
+    assert body["edge_summary"] == {
+        "template_count": 1,
+        "source_count": 3,
+        "added_count": 2,
+        "removed_count": 0,
+        "changed_count": 1,
+    }
+    assert [entry["id"] for entry in body["node_entries"]] == ["auditor", "mock_tool"]
+    assert [entry["status"] for entry in body["node_entries"]] == ["added", "added"]
+
+
+def test_workspace_starter_rebase_syncs_source_derived_fields_and_records_history(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    created = _create_workspace_starter(
+        client,
+        name="Rebase Starter",
+        business_track="应用新建编排",
+        description="Template for rebase flow",
+    )
+
+    sample_workflow.name = "Rebased Demo Workflow"
+    sample_workflow.version = "0.1.2"
+    sample_workflow.definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "planner",
+                "type": "llm_agent",
+                "name": "Planner",
+                "config": {"prompt": "Plan next step"},
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "planner"},
+            {"id": "e2", "sourceNodeId": "planner", "targetNodeId": "output"},
+        ],
+    }
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    response = client.post(f"/api/workspace-starters/{created['id']}/rebase")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["created_from_workflow_version"] == "0.1.2"
+    assert body["default_workflow_name"] == "Rebased Demo Workflow"
+    assert [node["id"] for node in body["definition"]["nodes"]] == [
+        "trigger",
+        "planner",
+        "output",
+    ]
+
+    diff_response = client.get(f"/api/workspace-starters/{created['id']}/source-diff")
+    assert diff_response.status_code == 200
+    diff_body = diff_response.json()
+    assert diff_body["changed"] is False
+    assert diff_body["rebase_fields"] == []
+
+    history_response = client.get(f"/api/workspace-starters/{created['id']}/history")
+    assert history_response.status_code == 200
+    history_items = history_response.json()
+    assert history_items[0]["action"] == "rebased"
+    assert history_items[0]["payload"]["changed"] is True
+    assert history_items[0]["payload"]["rebase_fields"] == [
+        "definition",
+        "created_from_workflow_version",
+        "default_workflow_name",
+    ]
+
+
 def test_workspace_starter_delete_requires_archive_first(client: TestClient) -> None:
     created = _create_workspace_starter(
         client,

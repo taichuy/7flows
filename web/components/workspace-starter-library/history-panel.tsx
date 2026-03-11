@@ -55,7 +55,8 @@ function formatAction(action: WorkspaceStarterHistoryItem["action"]) {
     updated: "updated",
     archived: "archived",
     restored: "restored",
-    refreshed: "refreshed"
+    refreshed: "refreshed",
+    rebased: "rebased"
   }[action];
 }
 

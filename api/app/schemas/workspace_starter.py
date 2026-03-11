@@ -17,6 +17,7 @@ WorkspaceStarterHistoryAction = Literal[
     "archived",
     "restored",
     "refreshed",
+    "rebased",
 ]
 
 
@@ -97,3 +98,35 @@ class WorkspaceStarterHistoryItem(BaseModel):
     summary: str
     payload: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
+
+
+class WorkspaceStarterSourceDiffEntry(BaseModel):
+    id: str
+    label: str
+    status: Literal["added", "removed", "changed"]
+
+
+class WorkspaceStarterSourceDiffSummary(BaseModel):
+    template_count: int
+    source_count: int
+    added_count: int
+    removed_count: int
+    changed_count: int
+
+
+class WorkspaceStarterSourceDiff(BaseModel):
+    template_id: str
+    workspace_id: str
+    source_workflow_id: str
+    source_workflow_name: str
+    template_version: str | None = None
+    source_version: str
+    template_default_workflow_name: str
+    source_default_workflow_name: str
+    workflow_name_changed: bool = False
+    changed: bool = False
+    rebase_fields: list[str] = Field(default_factory=list)
+    node_summary: WorkspaceStarterSourceDiffSummary
+    edge_summary: WorkspaceStarterSourceDiffSummary
+    node_entries: list[WorkspaceStarterSourceDiffEntry] = Field(default_factory=list)
+    edge_entries: list[WorkspaceStarterSourceDiffEntry] = Field(default_factory=list)
