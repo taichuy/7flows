@@ -380,6 +380,7 @@ uv run alembic upgrade head
 当前载体：
 
 - `docs/dev/`
+- `docs/product-design.md` 中新增的“5.4 项目架构图（文字化）”与“6.5 关键时序图（文字化）”，作为目标设计总览入口
 - 测试与验证结果
 - Git 提交历史
 

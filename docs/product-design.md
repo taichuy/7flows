@@ -314,6 +314,69 @@ MVP 以“最小可上线的多 Agent 编排平台”为目标，包含以下能
 - 运行态：Run、Node Run、事件流、上下文索引、沙盒状态
 - 发布态：Endpoint、API Key、协议映射、流式通道信息
 
+### 5.4 项目架构图（文字化）
+
+下面用“分层 + 流向”方式描述 7Flows 的整体架构，帮助快速理解这个项目不是单个工作流编辑器，而是一套从设计、执行、追溯到发布都围绕 `7Flows IR` 收口的平台。
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ 设计态 / 人机协作层                                          │
+│ Web Editor / Node Config / Debug Panel / Publish Console    │
+└──────────────────────┬───────────────────────────────────────┘
+                       │ 工作流编辑、版本保存、调试触发、发布配置
+                       v
+┌──────────────────────────────────────────────────────────────┐
+│ 编排与控制层                                                 │
+│ Orchestration API / Workflow Service / Publish Management   │
+│ - 校验 workflow 定义                                          │
+│ - 保存 workflow/version/publish 配置                          │
+│ - 提供 run / debug / resume / callback 入口                  │
+└──────────────────────┬───────────────────────────────────────┘
+                       │ 统一以 7Flows IR 进入编译与执行
+                       v
+┌──────────────────────────────────────────────────────────────┐
+│ 编译与运行时核心层                                            │
+│ Flow Compiler -> Runtime Blueprint -> Flow Runtime          │
+│ - DAG / branch / join / waiting / resume                    │
+│ - Run / NodeRun / RunEvent 持久化                             │
+│ - phase state machine 驱动 llm_agent                         │
+└───────┬──────────────────────┬──────────────────────┬────────┘
+        │                      │                      │
+        │ 调用节点能力          │ 管理上下文与工件       │ 写入统一事件流
+        v                      v                      v
+┌───────────────┐   ┌──────────────────────┐   ┌──────────────────────┐
+│ Agent Runtime │   │ Context / Artifact   │   │ Event / Trace Layer  │
+│ - main AI     │   │ - global context     │   │ - run_events         │
+│ - assistant   │   │ - working context    │   │ - audit / metrics    │
+│ - evidence    │   │ - evidence pack      │   │ - streaming mapping  │
+└───────┬───────┘   │ - artifact refs      │   └──────────────────────┘
+        │           └──────────┬───────────┘
+        │ 调用工具/模型/沙盒              │
+        v                                  v
+┌──────────────────────────────────────────────────────────────┐
+│ 能力接入层                                                   │
+│ Tool Gateway / Native Plugin Registry / Compatibility Adapter│
+│ Sandbox Manager / MCP / Model Providers                      │
+│ - 原生工具与供应商                                            │
+│ - Dify 兼容层代理                                             │
+│ - 受限代码执行与浏览器执行                                     │
+└──────────────────────┬───────────────────────────────────────┘
+                       │ 对内返回标准化结果 / artifact / evidence
+                       v
+┌──────────────────────────────────────────────────────────────┐
+│ 对外发布与集成层                                              │
+│ Native API / OpenAI-Compatible / Anthropic-Compatible       │
+│ OpenClaw workflow-backed provider                            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+用一句话概括这张图：
+
+- 前端和外部请求都不直接操纵底层执行细节，而是先进入编排与控制层。
+- 编排与控制层不把外部协议当内部事实，而是统一编译成 `7Flows IR -> runtime blueprint`。
+- 真正执行时由 Flow Runtime 驱动，节点内复杂智能行为交给 Agent Runtime，节点外统一工具/插件/沙盒能力交给 Tool Gateway 和适配层。
+- 所有调试、回放、流式输出和发布响应，尽量都复用同一批运行态事实与事件流，而不是各维度各维护一套私有状态。
+
 ## 6. 工作流运行模型
 
 ### 6.1 执行模型
@@ -398,6 +461,86 @@ MVP 以“最小可上线的多 Agent 编排平台”为目标，包含以下能
 
 平台原生调试与 OpenAI / Anthropic 兼容流式输出都从这个事件总线二次映射。
 
+### 6.5 关键时序图（文字化）
+
+下面不是实现细节级伪代码，而是帮助理解“这个系统一条请求通常怎么走”的关键时序。
+
+#### 时序 A：在工作流编辑器里发起一次运行/调试
+
+```text
+用户
+  -> Web Editor
+     -> 编排 API
+        -> 读取 workflow definition + version snapshot
+        -> Flow Compiler 把设计态定义编译成 runtime blueprint
+        -> Runtime 创建 Run / NodeRun
+        -> 从 Trigger 节点开始推进 DAG
+           -> 遇到 llm_agent 时交给 Agent Runtime
+              -> 构建 prompt / working context / evidence 输入
+              -> 如需工具则调用 Tool Gateway
+                 -> Tool Gateway 选择 native tool / compat adapter / sandbox
+                 -> 原始结果写入 artifact store
+                 -> 摘要结果回流给 Agent Runtime
+              -> assistant（若开启）整理 evidence
+              -> 主 AI finalize 输出节点结果
+           -> Runtime 持续写入 run_events / node_runs / artifacts
+        -> Output 节点产出最终结果
+     -> Web Editor / Debug Panel 读取 run detail + trace + events
+用户看到节点状态、时间线、输入输出和错误
+```
+
+这个时序强调的是：设计态只是入口，真正执行前一定会经过编译；执行过程中 AI、工具、artifact、events 都是统一运行时的一部分，而不是零散拼接。
+
+#### 时序 B：外部系统通过已发布接口调用工作流
+
+```text
+外部调用方 / OpenClaw / 其他系统
+  -> 发布网关（native / OpenAI / Anthropic）
+     -> 根据 endpoint alias / model alias 找到已发布 workflow version
+     -> 加载 publish config + workflow blueprint
+     -> 把外部请求映射为 Trigger 输入
+     -> Runtime 执行工作流
+        -> 节点内仍走 Agent Runtime / Tool Gateway / Context / Artifact
+        -> 统一写 run_events
+     -> Output 节点得到内部结果
+     -> 发布网关按协议映射结果
+        -> native 响应
+        -> OpenAI chat/responses 响应
+        -> Anthropic messages 响应
+外部调用方收到兼容协议响应
+```
+
+这个时序强调的是：OpenAI / Anthropic 兼容只是发布层映射，内部并不会为了外部协议改写一套新的执行链；OpenClaw 看到的是 workflow-backed provider，而不是 7Flows 的内部 DSL。
+
+#### 时序 C：工具进入等待态并通过 callback / resume 继续执行
+
+```text
+Runtime 执行到某个 llm_agent phase 或 tool 节点
+  -> Tool Gateway 调用外部工具 / 兼容层 / 沙盒任务
+     -> 工具返回 waiting_tool 或 waiting_callback
+  -> Runtime 持久化当前 checkpoint / phase / waiting reason
+  -> Run 状态切为 waiting，并写入 run.waiting 事件
+
+后续有两条恢复路径：
+
+路径 1：时间驱动恢复
+  -> Scheduler / Worker 收到 scheduled resume
+  -> 调用 resume 入口
+  -> Runtime 从 checkpoint 恢复 phase
+
+路径 2：事件驱动恢复
+  -> 外部系统携带 callback ticket 调用 callback ingress
+  -> callback 服务写回 tool result / artifact / trace
+  -> Runtime resume 当前 run
+
+恢复后：
+  -> Agent Runtime / Runtime 继续后续 phase
+  -> Output 节点产出结果
+  -> Run 完成并写 run.completed
+```
+
+这个时序体现了 7Flows 和普通“单次同步链式调用”的关键差异：节点允许进入 durable waiting，恢复依赖 checkpoint 和统一事件流，而不是依赖单个 HTTP 请求一直挂着。
+
 ## 7. Agent 上下文与 MCP 访问模型
 
 ### 7.1 基本原则
@@ -426,6 +569,163 @@ MVP 以“最小可上线的多 Agent 编排平台”为目标，包含以下能
 - 原始大结果不应默认直接塞进主 AI prompt。
 - 主 AI 优先消费 `Evidence Context`。
 - `Artifact Store` 既服务调试、审计，也服务 AI / 自动化的可追溯读取。
+
+### 7.2.1 为什么要做四层上下文管理
+
+这套分层不是为了把概念说复杂，而是为了解决两个在多 Agent 系统里很容易失控的问题：
+
+- 上下文爆炸
+  - 工具原始返回、检索原文、长文本、大 JSON 如果都直接进入主 AI prompt，成本、延迟和噪声都会迅速失控。
+- 多 AI 协作失焦
+  - 如果主 AI、assistant、工具结果和节点局部状态都混在一个上下文池里，后续几乎无法判断“哪些内容是原始事实、哪些内容是提炼结论、哪些内容只是阶段性草稿”。
+
+因此 7Flows 把上下文明确拆为四层：
+
+1. `Global Context`
+   - 只放流程级共享信息，例如用户输入、全局变量、公共约束和触发参数。
+   - 它解决的是“整个 workflow 都应该知道什么”。
+2. `Node Working Context`
+   - 只放当前节点内部阶段结果、局部变量和临时工作区。
+   - 它解决的是“当前节点正在思考什么、做到哪一步了”。
+3. `Evidence Context`
+   - 只放 assistant 或提炼阶段产出的结构化证据、关键点、冲突和未知项。
+   - 它解决的是“主 AI 真正应该优先消费什么高质量决策材料”。
+4. `Artifact Store`
+   - 保存工具原始返回、检索原文、长文本、文件内容、大 JSON 和二进制结果。
+   - 它解决的是“哪些内容必须保留，但不适合直接塞进 prompt”。
+
+### 7.2.2 防止上下文爆炸的核心机制
+
+7Flows 不希望把“上下文管理”做成一个无限增长的消息列表，而是做成“摘要优先、原文可追溯”的分层管道：
+
+- 大体量原始结果先进入 `Artifact Store`，保留引用和摘要，而不是全文直灌主 AI。
+- assistant 或节点内提炼阶段把原始结果压缩成 `Evidence Context`。
+- 主 AI 默认优先读取 `Evidence Context`，只在必要时通过 artifact 引用追溯原文。
+- `Node Working Context` 只保留当前节点真正需要继续推进 phase 的局部状态，不把全局历史都复制一遍。
+
+这样主 AI 面对的不是“所有东西的拼盘”，而是“全局约束 + 当前任务局部状态 + 已提炼证据 + 可按需追溯的原始引用”。
+
+### 7.2.3 assistant 与主 AI 的贡献关系
+
+在 7Flows 的设计里，assistant 不是第二个主控 Agent，而是节点内的辅助认知层。它对主 AI 的贡献链应当是：
+
+```text
+工具原始结果 / 检索原文 / 长文本
+  -> 写入 Artifact Store
+  -> assistant 做摘要、冲突标记、未知项整理
+  -> 形成 Evidence Context
+  -> 主 AI 基于 Evidence 做最终判断与输出
+```
+
+这条链路有几个边界：
+
+- assistant 负责提炼，不负责拥有最终流程控制权。
+- 主 AI 负责最终决策、最终输出和是否继续调用能力。
+- Artifact 保留原始证据来源，Evidence 提供高质量决策材料，两者不能互相替代。
+
+### 7.2.4 Prompt 构建默认顺序
+
+为了把这套设计落到执行路径里，主 AI 的 prompt 构建默认顺序应当是：
+
+1. 先读取 `Global Context`
+2. 再读取当前节点必要的 `Node Working Context`
+3. 优先读取 `Evidence Context`
+4. 最后只在必要时附带 `Artifact Store` 的摘要或引用
+
+明确禁止的默认做法：
+
+- 把工具原始大 JSON 全量塞进主 AI prompt
+- 把检索长文全文默认塞进主 AI prompt
+- 把多个 AI 的中间草稿全部拼在一起传给下一阶段
+
+这也是 7Flows 在多 Agent 协作里避免上下文失控、保留 AI 之间“贡献链”和可追溯性的核心约束。
+
+### 7.2.5 上下文与证据流转图（文字化）
+
+下面这张图专门回答“这四层上下文到底怎么流”的问题：
+
+```text
+用户输入 / 全局变量 / 公共约束
+  -> Global Context
+
+当前节点收到输入
+  -> 建立 Node Working Context
+     -> 记录当前 phase 的局部状态、计划、临时变量
+
+如果节点调用工具 / 检索 / 沙盒：
+  -> 原始结果不直接进入主 AI prompt
+  -> 先写入 Artifact Store
+     -> 保存长文本 / 大 JSON / 文件 / 二进制 / 原始工具结果
+
+Artifact Store 中需要供主 AI 使用的内容
+  -> assistant 或提炼阶段读取原始结果
+  -> 生成 Evidence Context
+     -> 摘要
+     -> key points
+     -> 冲突项
+     -> 未知项
+     -> 推荐关注点
+
+主 AI 最终消费顺序
+  -> Global Context
+  -> Node Working Context
+  -> Evidence Context
+  -> 必要时再按引用回看 Artifact
+
+最终输出
+  -> 写回 Node Run / Run Events / Artifact Refs
+  -> 供下游节点按授权读取
+```
+
+这张图的关键意思是：
+
+- `Global Context` 决定流程级共识。
+- `Node Working Context` 决定当前节点内部推进状态。
+- `Evidence Context` 决定主 AI 优先看的高质量材料。
+- `Artifact Store` 决定原始事实如何被保留、追溯和按需引用。
+
+### 7.2.6 节点内部 phase 的上下文流转时序
+
+如果把一个 `llm_agent` 当作节点内复合 pipeline 来看，它的上下文流转顺序应当接近下面这样：
+
+```text
+Trigger / 上游节点输入
+  -> Runtime 为当前节点建立 Global Context + Node Working Context
+
+Phase 1: Prepare
+  -> 读取全局约束、节点配置、授权上下文引用
+  -> 在 Node Working Context 中写入本轮任务目标和输入整理结果
+
+Phase 2: Main Plan
+  -> 主 AI 基于当前输入决定是否需要工具、检索、MCP 或后续步骤
+  -> 计划结果写入 Node Working Context
+
+Phase 3: Tool Execute
+  -> Tool Gateway 调用工具 / compat adapter / sandbox
+  -> 原始返回写入 Artifact Store
+  -> Node Working Context 只保留必要摘要、引用和状态
+
+Phase 4: Assistant Distill
+  -> assistant 读取 Artifact 引用和必要 working context
+  -> 产出 Evidence Context
+  -> 标记关键事实、冲突、未知项和推荐关注点
+
+Phase 5: Main Finalize
+  -> 主 AI 优先消费 Evidence Context
+  -> 必要时按引用回看 Artifact
+  -> 生成最终节点输出
+
+Phase 6: Emit Output
+  -> 输出写入 Node Run
+  -> 事件写入 run_events
+  -> artifact refs / evidence refs 随节点结果进入可追溯链路
+```
+
+这个时序的价值在于：
+
+- assistant 的贡献被限制在“提炼证据”，不会和主 AI 抢最终控制权。
+- 原始大结果留在 `Artifact Store`，不会在每个 phase 里被不断复制放大。
+- 下游节点默认读取的是被授权的结果与引用，而不是前面所有 phase 的全部内部草稿。
 
 ### 7.3 节点可见的信息
 
