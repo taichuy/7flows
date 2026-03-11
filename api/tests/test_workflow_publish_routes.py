@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.models.workflow import WorkflowPublishedInvocation
+from app.models.workflow import WorkflowPublishedCacheEntry, WorkflowPublishedInvocation
 
 
 def _publishable_definition(
@@ -14,6 +14,7 @@ def _publishable_definition(
     path: str | None = None,
     auth_mode: str = "internal",
     rate_limit: dict | None = None,
+    cache: dict | None = None,
 ) -> dict:
     endpoint: dict[str, object] = {
         "id": "native-chat",
@@ -31,6 +32,8 @@ def _publishable_definition(
         endpoint["workflowVersion"] = workflow_version
     if rate_limit is not None:
         endpoint["rateLimit"] = rate_limit
+    if cache is not None:
+        endpoint["cache"] = cache
 
     return {
         "nodes": [
@@ -76,8 +79,40 @@ def test_create_workflow_persists_publish_bindings(client: TestClient) -> None:
     assert body[0]["route_path"] == "/native-chat"
     assert body[0]["lifecycle_status"] == "draft"
     assert body[0]["rate_limit_policy"] is None
+    assert body[0]["cache_policy"] is None
     assert body[0]["published_at"] is None
     assert body[0]["unpublished_at"] is None
+
+
+def test_create_workflow_persists_publish_cache_policy(client: TestClient) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Publishable Workflow With Cache",
+            "definition": _publishable_definition(
+                cache={
+                    "ttl": 120,
+                    "maxEntries": 16,
+                    "varyBy": ["question", "session.id"],
+                }
+            ),
+        },
+    )
+
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    response = client.get(f"/api/workflows/{workflow_id}/published-endpoints")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["cache_policy"] == {
+        "enabled": True,
+        "ttl": 120,
+        "maxEntries": 16,
+        "varyBy": ["question", "session.id"],
+    }
 
 
 def test_list_published_endpoints_supports_current_and_all_versions(
@@ -489,6 +524,120 @@ def test_invoke_published_native_endpoint_supports_alias_and_path_routes(
     assert invocation_body["items"][0]["request_preview"]["sample"]["source"] == "path"
     assert invocation_body["items"][1]["request_preview"]["sample"]["source"] == "alias"
     assert all(item["run_id"] for item in invocation_body["items"])
+
+
+def test_invoke_published_native_endpoint_uses_response_cache(
+    client: TestClient,
+    sqlite_session,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Published Native Cache Workflow",
+            "definition": _publishable_definition(
+                answer="cached",
+                cache={
+                    "ttl": 300,
+                    "maxEntries": 2,
+                    "varyBy": ["question"],
+                },
+            ),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding = bindings_response.json()[0]
+    assert binding["cache_policy"] == {
+        "enabled": True,
+        "ttl": 300,
+        "maxEntries": 2,
+        "varyBy": ["question"],
+    }
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
+    first_response = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"question": "same", "ignored": 1}},
+    )
+    assert first_response.status_code == 200
+    assert first_response.headers["X-7Flows-Cache"] == "MISS"
+    first_body = first_response.json()
+
+    second_response = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"question": "same", "ignored": 2}},
+    )
+    assert second_response.status_code == 200
+    assert second_response.headers["X-7Flows-Cache"] == "HIT"
+    second_body = second_response.json()
+    assert second_body["run"]["id"] == first_body["run"]["id"]
+    assert second_body["run"]["output_payload"] == first_body["run"]["output_payload"]
+
+    third_response = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"question": "different", "ignored": 3}},
+    )
+    assert third_response.status_code == 200
+    assert third_response.headers["X-7Flows-Cache"] == "MISS"
+    third_body = third_response.json()
+    assert third_body["run"]["id"] != first_body["run"]["id"]
+
+    workflow_runs_response = client.get(f"/api/workflows/{workflow_id}/runs")
+    assert workflow_runs_response.status_code == 200
+    workflow_runs = workflow_runs_response.json()
+    assert len(workflow_runs) == 2
+
+    cache_entries = sqlite_session.scalars(
+        select(WorkflowPublishedCacheEntry)
+        .where(WorkflowPublishedCacheEntry.binding_id == binding["id"])
+        .order_by(WorkflowPublishedCacheEntry.created_at.asc())
+    ).all()
+    assert len(cache_entries) == 2
+    assert cache_entries[0].hit_count == 1
+    assert cache_entries[0].last_hit_at is not None
+
+    invocation_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
+    )
+    assert invocation_response.status_code == 200
+    invocation_body = invocation_response.json()
+    assert invocation_body["summary"]["total_count"] == 3
+    assert invocation_body["summary"]["succeeded_count"] == 3
+    assert invocation_body["summary"]["cache_hit_count"] == 1
+    assert invocation_body["summary"]["cache_miss_count"] == 2
+    assert invocation_body["summary"]["cache_bypass_count"] == 0
+    assert invocation_body["summary"]["last_cache_status"] in {"hit", "miss"}
+    assert {
+        item["value"]: item["count"]
+        for item in invocation_body["facets"]["cache_status_counts"]
+    } == {
+        "hit": 1,
+        "miss": 2,
+        "bypass": 0,
+    }
+    assert [item["cache_status"] for item in invocation_body["items"]] == [
+        "miss",
+        "hit",
+        "miss",
+    ]
+
+    list_response = client.get(f"/api/workflows/{workflow_id}/published-endpoints")
+    assert list_response.status_code == 200
+    list_body = list_response.json()
+    assert list_body[0]["activity"]["cache_hit_count"] == 1
+    assert list_body[0]["activity"]["cache_miss_count"] == 2
+    assert list_body[0]["activity"]["cache_bypass_count"] == 0
 
 
 def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(

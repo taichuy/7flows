@@ -137,6 +137,7 @@ class WorkflowPublishedEndpoint(Base):
     input_schema: Mapped[dict] = mapped_column(JSON, default=dict)
     output_schema: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     rate_limit_policy: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    cache_policy: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     unpublished_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
@@ -209,6 +210,12 @@ class WorkflowPublishedInvocation(Base):
     auth_mode: Mapped[str] = mapped_column(String(32), nullable=False)
     request_source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    cache_status: Mapped[str] = mapped_column(
+        String(32),
+        default="bypass",
+        nullable=False,
+        index=True,
+    )
     api_key_id: Mapped[str | None] = mapped_column(
         ForeignKey("workflow_published_api_keys.id"),
         nullable=True,
@@ -225,3 +232,45 @@ class WorkflowPublishedInvocation(Base):
         default=lambda: datetime.now(UTC),
     )
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class WorkflowPublishedCacheEntry(Base):
+    __tablename__ = "workflow_published_cache_entries"
+    __table_args__ = (
+        UniqueConstraint(
+            "binding_id",
+            "cache_key",
+            name="uq_workflow_published_cache_entries_binding_cache_key",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(
+        ForeignKey("workflows.id"),
+        nullable=False,
+        index=True,
+    )
+    binding_id: Mapped[str] = mapped_column(
+        ForeignKey("workflow_published_endpoints.id"),
+        nullable=False,
+        index=True,
+    )
+    endpoint_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    cache_key: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    response_payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    hit_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    last_hit_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )

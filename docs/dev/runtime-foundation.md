@@ -29,6 +29,8 @@
 - `api/migrations/versions/20260312_0014_published_endpoint_invocations.py`
 - `api/migrations/versions/20260312_0015_run_callback_ticket_expiry.py`
 - `api/migrations/versions/20260312_0016_publish_endpoint_rate_limits.py`
+- `api/migrations/versions/20260312_0017_publish_endpoint_cache.py`
+- `api/migrations/versions/20260312_0018_publish_invocation_cache_status.py`
 
 当前迁移会创建以下表：
 
@@ -43,6 +45,7 @@
 - `workflow_published_endpoints`
 - `workflow_published_api_keys`
 - `workflow_published_invocations`
+- `workflow_published_cache_entries`
 
 ### 2. Docker 自动迁移
 
@@ -215,12 +218,19 @@ uv run alembic upgrade head
   - `route_path`
 - `workflow_published_endpoints` 当前已补上最小发布治理字段：
   - `rate_limit_policy`
+  - `cache_policy`
 - `workflow_published_api_keys` 用于保存 published endpoint 的独立 API key 实体，并按 `workflow_id + endpoint_id` 作用域复用到不同版本 binding
 - `workflow_published_invocations` 用于保存 published endpoint 的调用活动事实：
   - 入口来源（workflow / alias / path）
   - 调用状态（succeeded / failed / rejected）
+  - cache 状态（`hit / miss / bypass`）
   - 最近关联的 `run_id / run_status`
   - request / response 的摘要预览与 duration
+- `workflow_published_cache_entries` 用于保存 published endpoint 的响应缓存事实：
+  - `binding_id + cache_key` 唯一键
+  - 完整 native 响应 payload
+  - `hit_count / last_hit_at`
+  - `expires_at`
 
 ### 5. 最小工作流执行器
 
@@ -383,10 +393,19 @@ uv run alembic upgrade head
 - `auth_mode=api_key` 当前已支持 `x-api-key`，并兼容 `Authorization: Bearer <key>` 的最小 header 形态
 - publish definition 当前已支持 `alias/path`，缺省会回退到 `endpoint_id` 与 `/{endpoint_id}`
 - publish definition 当前已支持声明 `rateLimit.requests + rateLimit.windowSeconds`
-- `GET /api/workflows/{workflow_id}/published-endpoints` 当前会直接返回 `rate_limit_policy`，供治理页复用 binding 级发布托管配置
+- publish definition 当前已支持声明 `cache.ttl / cache.maxEntries / cache.varyBy`
+- `GET /api/workflows/{workflow_id}/published-endpoints` 当前会直接返回 `rate_limit_policy + cache_policy`，供治理页复用 binding 级发布托管配置
 - 发布 binding 切到 `published` 时，当前会阻止跨 workflow 的 alias/path 冲突，避免外部地址语义撞车
 - `PublishedEndpointGatewayService` 当前已开始把 native invoke 写入独立 `workflow_published_invocations`
 - `PublishedEndpointGatewayService` 当前已开始在执行 workflow 前基于 `workflow_published_invocations` 强制执行 binding 级 rate limit
+- `PublishedEndpointGatewayService` 当前已开始通过独立 `PublishedEndpointCacheService` 处理 binding 级 response cache：
+  - 缓存键默认绑定 `binding_id + stable input payload`
+  - 若声明 `cache.varyBy`，则只按指定字段路径参与缓存键计算
+  - 缓存命中时直接复用已缓存的 native 响应 payload，不重复执行 workflow
+- `POST /v1/workflows/{workflow_id}/published-endpoints/{endpoint_id}/run`、alias/path 入口当前都会返回 `X-7Flows-Cache: HIT/MISS`
+- published invocation audit 当前已区分 `cache_status=hit/miss/bypass`
+- `GET /api/workflows/{workflow_id}/published-endpoints` 当前返回的 `activity` 摘要已带 cache hit/miss/bypass 统计
+- `GET /api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations` 当前 summary/facets/items 已可区分缓存命中与真实执行
 - 当前 rate limit 只统计 `succeeded / failed` 调用；`rejected` 仍会进入审计，但不会占用执行配额
 - 发布活动当前会记录：
   - `request_source`
@@ -765,7 +784,7 @@ docker compose up -d --build
    - 继续把最小 `native` endpoint 演进成更完整的发布实体
    - 再把 OpenAI / Anthropic 协议映射挂到同一条发布链上
 2. 继续补 publish endpoint 的发布实体：
-   - cache
+   - cache inventory / active entry summary
    - 更细的 API key 维度观测与趋势消费视图
    - rate limit 的系统诊断可见性与更细治理反馈
    - 继续坚持绑定 `workflow_version + compiled_blueprint`
@@ -775,7 +794,7 @@ docker compose up -d --build
 
 原因：
 
-- 最小 `native` 调用入口、`api_key` 鉴权实体、alias/path 地址语义和基础 activity audit 都已经落地，当前最该补的是发布托管能力与兼容协议映射，否则 `API 调用开放` 仍然无法从 MVP 走向可集成状态。
+- 最小 `native` 调用入口、`api_key` 鉴权实体、alias/path 地址语义、基础 activity audit 和 publish cache 命中可观测性都已经落地，当前最该补的是发布托管能力与兼容协议映射，否则 `API 调用开放` 仍然无法从 MVP 走向可集成状态。
 - run 侧虽然已经绑定 compiled blueprint，execution/evidence 视图也已经开始消费这些事实，但发布层仍需要继续承接，稳定执行边界才能真正服务主业务。
 - callback ingress 与 ticket TTL/expired 状态已经补到“手动/API/worker cleanup + beat 周期调度 + 来源审计”，但更强鉴权与治理可见性仍属于 durable runtime 稳定化的剩余工作。
 

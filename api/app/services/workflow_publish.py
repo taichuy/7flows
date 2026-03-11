@@ -94,6 +94,11 @@ class WorkflowPublishBindingService:
                         if endpoint.rateLimit is not None
                         else None
                     ),
+                    cache_policy=(
+                        endpoint.cache.model_dump(mode="json")
+                        if endpoint.cache is not None
+                        else None
+                    ),
                 )
             else:
                 record.workflow_id = workflow_version.workflow_id
@@ -113,6 +118,11 @@ class WorkflowPublishBindingService:
                 record.rate_limit_policy = (
                     endpoint.rateLimit.model_dump(mode="json")
                     if endpoint.rateLimit is not None
+                    else None
+                )
+                record.cache_policy = (
+                    endpoint.cache.model_dump(mode="json")
+                    if endpoint.cache is not None
                     else None
                 )
 

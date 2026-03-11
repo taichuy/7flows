@@ -17,6 +17,7 @@ from app.models.workflow import (
 
 PublishedInvocationRequestSource = Literal["workflow", "alias", "path"]
 PublishedInvocationStatus = Literal["succeeded", "failed", "rejected"]
+PublishedInvocationCacheStatus = Literal["hit", "miss", "bypass"]
 
 
 @dataclass(frozen=True)
@@ -25,8 +26,12 @@ class PublishedInvocationSummary:
     succeeded_count: int = 0
     failed_count: int = 0
     rejected_count: int = 0
+    cache_hit_count: int = 0
+    cache_miss_count: int = 0
+    cache_bypass_count: int = 0
     last_invoked_at: datetime | None = None
     last_status: PublishedInvocationStatus | None = None
+    last_cache_status: PublishedInvocationCacheStatus | None = None
     last_run_id: str | None = None
     last_run_status: str | None = None
 
@@ -72,6 +77,7 @@ class PublishedInvocationAudit:
     summary: PublishedInvocationSummary
     status_counts: list[PublishedInvocationFacet]
     request_source_counts: list[PublishedInvocationFacet]
+    cache_status_counts: list[PublishedInvocationFacet]
     api_key_usage: list[PublishedInvocationApiKeyUsage]
     recent_failure_reasons: list[PublishedInvocationFailureReason]
     timeline_granularity: Literal["hour", "day"]
@@ -136,19 +142,28 @@ def _summarize_records(
         "succeeded_count": 0,
         "failed_count": 0,
         "rejected_count": 0,
+        "cache_hit_count": 0,
+        "cache_miss_count": 0,
+        "cache_bypass_count": 0,
     }
     last_record = records[0]
     for record in records:
         counts["total_count"] += 1
         counts[f"{record.status}_count"] += 1
+        cache_status = record.cache_status or "bypass"
+        counts[f"cache_{cache_status}_count"] += 1
 
     return PublishedInvocationSummary(
         total_count=counts["total_count"],
         succeeded_count=counts["succeeded_count"],
         failed_count=counts["failed_count"],
         rejected_count=counts["rejected_count"],
+        cache_hit_count=counts["cache_hit_count"],
+        cache_miss_count=counts["cache_miss_count"],
+        cache_bypass_count=counts["cache_bypass_count"],
         last_invoked_at=last_record.created_at,
         last_status=last_record.status,
+        last_cache_status=last_record.cache_status or "bypass",
         last_run_id=last_record.run_id,
         last_run_status=last_record.run_status,
     )
@@ -288,6 +303,7 @@ class PublishedInvocationService:
         request_source: PublishedInvocationRequestSource,
         input_payload: dict,
         status: PublishedInvocationStatus,
+        cache_status: PublishedInvocationCacheStatus = "bypass",
         api_key_id: str | None = None,
         run_id: str | None = None,
         run_status: str | None = None,
@@ -313,6 +329,7 @@ class PublishedInvocationService:
             auth_mode=binding.auth_mode,
             request_source=request_source,
             status=status,
+            cache_status=cache_status,
             api_key_id=api_key_id,
             run_id=run_id,
             run_status=run_status,
@@ -400,6 +417,11 @@ class PublishedInvocationService:
             "alias": {"count": 0, "last_invoked_at": None, "last_status": None},
             "path": {"count": 0, "last_invoked_at": None, "last_status": None},
         }
+        cache_status_buckets: dict[str, dict[str, object]] = {
+            "hit": {"count": 0, "last_invoked_at": None, "last_status": None},
+            "miss": {"count": 0, "last_invoked_at": None, "last_status": None},
+            "bypass": {"count": 0, "last_invoked_at": None, "last_status": None},
+        }
         api_key_buckets: dict[str, dict[str, object]] = defaultdict(
             lambda: {
                 "count": 0,
@@ -426,6 +448,12 @@ class PublishedInvocationService:
             if source_bucket["last_invoked_at"] is None:
                 source_bucket["last_invoked_at"] = record.created_at
                 source_bucket["last_status"] = record.status
+
+            cache_bucket = cache_status_buckets[record.cache_status or "bypass"]
+            cache_bucket["count"] += 1
+            if cache_bucket["last_invoked_at"] is None:
+                cache_bucket["last_invoked_at"] = record.created_at
+                cache_bucket["last_status"] = record.status
 
             if record.api_key_id:
                 api_key_bucket = api_key_buckets[record.api_key_id]
@@ -466,6 +494,15 @@ class PublishedInvocationService:
                 last_status=bucket["last_status"],
             )
             for value, bucket in request_source_buckets.items()
+        ]
+        cache_status_counts = [
+            PublishedInvocationFacet(
+                value=value,
+                count=int(bucket["count"]),
+                last_invoked_at=bucket["last_invoked_at"],
+                last_status=bucket["last_status"],
+            )
+            for value, bucket in cache_status_buckets.items()
         ]
         api_key_usage: list[PublishedInvocationApiKeyUsage] = []
         for key_id, bucket in api_key_buckets.items():
@@ -513,6 +550,7 @@ class PublishedInvocationService:
             summary=summary,
             status_counts=status_counts,
             request_source_counts=request_source_counts,
+            cache_status_counts=cache_status_counts,
             api_key_usage=api_key_usage,
             recent_failure_reasons=recent_failure_reasons,
             timeline_granularity=timeline_granularity,
@@ -553,10 +591,15 @@ class PublishedInvocationService:
                     "succeeded_count": 0,
                     "failed_count": 0,
                     "rejected_count": 0,
+                    "cache_hit_count": 0,
+                    "cache_miss_count": 0,
+                    "cache_bypass_count": 0,
                 },
             )
             bucket["total_count"] += 1
             bucket[f"{record.status}_count"] += 1
+            cache_status = record.cache_status or "bypass"
+            bucket[f"cache_{cache_status}_count"] += 1
 
             if record.binding_id in last_seen:
                 continue
@@ -566,8 +609,12 @@ class PublishedInvocationService:
                 succeeded_count=bucket["succeeded_count"],
                 failed_count=bucket["failed_count"],
                 rejected_count=bucket["rejected_count"],
+                cache_hit_count=bucket["cache_hit_count"],
+                cache_miss_count=bucket["cache_miss_count"],
+                cache_bypass_count=bucket["cache_bypass_count"],
                 last_invoked_at=record.created_at,
                 last_status=record.status,
+                last_cache_status=record.cache_status or "bypass",
                 last_run_id=record.run_id,
                 last_run_status=record.run_status,
             )
@@ -581,6 +628,9 @@ class PublishedInvocationService:
                     succeeded_count=bucket["succeeded_count"],
                     failed_count=bucket["failed_count"],
                     rejected_count=bucket["rejected_count"],
+                    cache_hit_count=bucket["cache_hit_count"],
+                    cache_miss_count=bucket["cache_miss_count"],
+                    cache_bypass_count=bucket["cache_bypass_count"],
                 )
                 continue
             summaries[binding_id] = PublishedInvocationSummary(
@@ -588,8 +638,12 @@ class PublishedInvocationService:
                 succeeded_count=bucket["succeeded_count"],
                 failed_count=bucket["failed_count"],
                 rejected_count=bucket["rejected_count"],
+                cache_hit_count=bucket["cache_hit_count"],
+                cache_miss_count=bucket["cache_miss_count"],
+                cache_bypass_count=bucket["cache_bypass_count"],
                 last_invoked_at=existing.last_invoked_at,
                 last_status=existing.last_status,
+                last_cache_status=existing.last_cache_status,
                 last_run_id=existing.last_run_id,
                 last_run_status=existing.last_run_status,
             )

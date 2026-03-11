@@ -30,8 +30,12 @@ def _serialize_published_invocation_summary(summary) -> PublishedEndpointInvocat
         succeeded_count=summary.succeeded_count,
         failed_count=summary.failed_count,
         rejected_count=summary.rejected_count,
+        cache_hit_count=summary.cache_hit_count,
+        cache_miss_count=summary.cache_miss_count,
+        cache_bypass_count=summary.cache_bypass_count,
         last_invoked_at=summary.last_invoked_at,
         last_status=summary.last_status,
+        last_cache_status=summary.last_cache_status,
         last_run_id=summary.last_run_id,
         last_run_status=summary.last_run_status,
     )
@@ -54,6 +58,7 @@ def _serialize_published_invocation_item(
         auth_mode=record.auth_mode,
         request_source=record.request_source,
         status=record.status,
+        cache_status=record.cache_status or "bypass",
         api_key_id=record.api_key_id,
         api_key_name=api_key_metadata.name if api_key_metadata else None,
         api_key_prefix=api_key_metadata.key_prefix if api_key_metadata else None,
@@ -181,6 +186,9 @@ def list_published_endpoint_invocations(
             status_counts=[_serialize_facet_item(item) for item in audit.status_counts],
             request_source_counts=[
                 _serialize_facet_item(item) for item in audit.request_source_counts
+            ],
+            cache_status_counts=[
+                _serialize_facet_item(item) for item in audit.cache_status_counts
             ],
             api_key_usage=api_key_usage_items,
             recent_failure_reasons=[

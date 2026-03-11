@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -7,7 +7,6 @@ from app.services.published_gateway import (
     PublishedEndpointGatewayError,
     PublishedEndpointGatewayService,
 )
-from app.services.run_views import serialize_run_detail
 
 router = APIRouter(prefix="/v1", tags=["published-gateway"])
 published_gateway_service = PublishedEndpointGatewayService()
@@ -25,21 +24,6 @@ def _extract_presented_api_key(request: Request) -> str | None:
             return credentials.strip()
     return None
 
-
-def _serialize_published_native_run_response(result) -> PublishedNativeRunResponse:
-    return PublishedNativeRunResponse(
-        binding_id=result.binding_id,
-        endpoint_id=result.endpoint_id,
-        endpoint_name=result.endpoint_name,
-        endpoint_alias=result.endpoint_alias,
-        route_path=result.route_path,
-        workflow_id=result.workflow.id,
-        workflow_version=result.workflow_version.version,
-        compiled_blueprint_id=result.blueprint_record.id,
-        run=serialize_run_detail(result.artifacts),
-    )
-
-
 @router.post(
     "/workflows/{workflow_id}/published-endpoints/{endpoint_id}/run",
     response_model=PublishedNativeRunResponse,
@@ -49,6 +33,7 @@ def invoke_published_native_endpoint(
     endpoint_id: str,
     payload: PublishedNativeRunRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
 ) -> PublishedNativeRunResponse:
     try:
@@ -62,7 +47,8 @@ def invoke_published_native_endpoint(
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    return _serialize_published_native_run_response(result)
+    response.headers["X-7Flows-Cache"] = result.cache_status.upper()
+    return PublishedNativeRunResponse.model_validate(result.response_payload)
 
 
 @router.post(
@@ -73,6 +59,7 @@ def invoke_published_native_endpoint_by_alias(
     endpoint_alias: str,
     payload: PublishedNativeRunRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
 ) -> PublishedNativeRunResponse:
     try:
@@ -85,7 +72,8 @@ def invoke_published_native_endpoint_by_alias(
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    return _serialize_published_native_run_response(result)
+    response.headers["X-7Flows-Cache"] = result.cache_status.upper()
+    return PublishedNativeRunResponse.model_validate(result.response_payload)
 
 
 @router.post(
@@ -96,6 +84,7 @@ def invoke_published_native_endpoint_by_path(
     route_path: str,
     payload: PublishedNativeRunRequest,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
 ) -> PublishedNativeRunResponse:
     try:
@@ -108,4 +97,5 @@ def invoke_published_native_endpoint_by_path(
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    return _serialize_published_native_run_response(result)
+    response.headers["X-7Flows-Cache"] = result.cache_status.upper()
+    return PublishedNativeRunResponse.model_validate(result.response_payload)

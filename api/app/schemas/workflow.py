@@ -390,6 +390,28 @@ class WorkflowPublishedEndpointRateLimitPolicy(BaseModel):
     windowSeconds: int = Field(ge=1, le=86_400)
 
 
+class WorkflowPublishedEndpointCachePolicy(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool = True
+    ttl: int = Field(ge=1, le=86_400)
+    maxEntries: int = Field(default=128, ge=1, le=100_000)
+    varyBy: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_vary_by(self) -> WorkflowPublishedEndpointCachePolicy:
+        normalized_fields: list[str] = []
+        for field_path in self.varyBy:
+            normalized = field_path.strip()
+            if not normalized:
+                raise ValueError("cache.varyBy cannot contain empty field paths.")
+            normalized_fields.append(normalized)
+        if len(set(normalized_fields)) != len(normalized_fields):
+            raise ValueError("cache.varyBy must contain unique field paths.")
+        self.varyBy = normalized_fields
+        return self
+
+
 class WorkflowPublishedEndpointDefinition(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -404,6 +426,7 @@ class WorkflowPublishedEndpointDefinition(BaseModel):
     inputSchema: dict[str, Any] = Field(default_factory=dict)
     outputSchema: dict[str, Any] | None = None
     rateLimit: WorkflowPublishedEndpointRateLimitPolicy | None = None
+    cache: WorkflowPublishedEndpointCachePolicy | None = None
 
     @model_validator(mode="after")
     def validate_workflow_version_format(self) -> WorkflowPublishedEndpointDefinition:

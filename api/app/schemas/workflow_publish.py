@@ -6,12 +6,16 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.run import RunDetail
-from app.schemas.workflow import WorkflowPublishedEndpointRateLimitPolicy
+from app.schemas.workflow import (
+    WorkflowPublishedEndpointCachePolicy,
+    WorkflowPublishedEndpointRateLimitPolicy,
+)
 
 PublishedEndpointLifecycleStatus = Literal["draft", "published", "offline"]
 PublishedEndpointApiKeyStatus = Literal["active", "revoked"]
 PublishedEndpointInvocationStatus = Literal["succeeded", "failed", "rejected"]
 PublishedEndpointInvocationRequestSource = Literal["workflow", "alias", "path"]
+PublishedEndpointInvocationCacheStatus = Literal["hit", "miss", "bypass"]
 PublishedEndpointInvocationTimeBucketGranularity = Literal["hour", "day"]
 
 
@@ -38,6 +42,7 @@ class WorkflowPublishedEndpointItem(BaseModel):
     input_schema: dict
     output_schema: dict | None = None
     rate_limit_policy: WorkflowPublishedEndpointRateLimitPolicy | None = None
+    cache_policy: WorkflowPublishedEndpointCachePolicy | None = None
     published_at: datetime | None = None
     unpublished_at: datetime | None = None
     created_at: datetime
@@ -87,8 +92,12 @@ class PublishedEndpointInvocationSummary(BaseModel):
     succeeded_count: int = 0
     failed_count: int = 0
     rejected_count: int = 0
+    cache_hit_count: int = 0
+    cache_miss_count: int = 0
+    cache_bypass_count: int = 0
     last_invoked_at: datetime | None = None
     last_status: PublishedEndpointInvocationStatus | None = None
+    last_cache_status: PublishedEndpointInvocationCacheStatus | None = None
     last_run_id: str | None = None
     last_run_status: str | None = None
 
@@ -104,6 +113,7 @@ class PublishedEndpointInvocationItem(BaseModel):
     auth_mode: str
     request_source: PublishedEndpointInvocationRequestSource
     status: PublishedEndpointInvocationStatus
+    cache_status: PublishedEndpointInvocationCacheStatus = "bypass"
     api_key_id: str | None = None
     api_key_name: str | None = None
     api_key_prefix: str | None = None
@@ -161,6 +171,9 @@ class PublishedEndpointInvocationTimeBucketItem(BaseModel):
 class PublishedEndpointInvocationFacets(BaseModel):
     status_counts: list[PublishedEndpointInvocationFacetItem] = Field(default_factory=list)
     request_source_counts: list[PublishedEndpointInvocationFacetItem] = Field(default_factory=list)
+    cache_status_counts: list[PublishedEndpointInvocationFacetItem] = Field(
+        default_factory=list
+    )
     api_key_usage: list[PublishedEndpointInvocationApiKeyUsageItem] = Field(default_factory=list)
     recent_failure_reasons: list[PublishedEndpointInvocationFailureReasonItem] = Field(
         default_factory=list

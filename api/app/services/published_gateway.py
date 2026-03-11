@@ -11,10 +11,12 @@ from app.models.workflow import (
     WorkflowPublishedEndpoint,
     WorkflowVersion,
 )
+from app.schemas.workflow_publish import PublishedNativeRunResponse
+from app.services.published_cache import PublishedEndpointCacheService
 from app.services.published_api_keys import PublishedEndpointApiKeyService
 from app.services.published_invocations import PublishedInvocationService
 from app.services.runtime import RuntimeService
-from app.services.runtime_records import ExecutionArtifacts
+from app.services.run_views import serialize_run_detail
 from app.services.workflow_publish import WorkflowPublishBindingService
 
 
@@ -26,15 +28,8 @@ class PublishedEndpointGatewayError(ValueError):
 
 @dataclass
 class PublishedNativeInvokeResult:
-    workflow: Workflow
-    workflow_version: WorkflowVersion
-    blueprint_record: WorkflowCompiledBlueprint
-    binding_id: str
-    endpoint_id: str
-    endpoint_name: str
-    endpoint_alias: str
-    route_path: str
-    artifacts: ExecutionArtifacts
+    response_payload: dict
+    cache_status: str
 
 
 class PublishedEndpointGatewayService:
@@ -44,11 +39,13 @@ class PublishedEndpointGatewayService:
         workflow_publish_service: WorkflowPublishBindingService | None = None,
         api_key_service: PublishedEndpointApiKeyService | None = None,
         invocation_service: PublishedInvocationService | None = None,
+        cache_service: PublishedEndpointCacheService | None = None,
         runtime_service: RuntimeService | None = None,
     ) -> None:
         self._workflow_publish_service = workflow_publish_service or WorkflowPublishBindingService()
         self._api_key_service = api_key_service or PublishedEndpointApiKeyService()
         self._invocation_service = invocation_service or PublishedInvocationService()
+        self._cache_service = cache_service or PublishedEndpointCacheService()
         self._runtime_service = runtime_service or RuntimeService()
 
     def invoke_native_endpoint(
@@ -135,7 +132,8 @@ class PublishedEndpointGatewayService:
         workflow = None
         workflow_version = None
         blueprint_record = None
-        artifacts = None
+        response_payload = None
+        cache_status = "bypass"
 
         try:
             if binding.protocol != "native":
@@ -188,13 +186,43 @@ class PublishedEndpointGatewayService:
                     "Published endpoint compiled blueprint is missing."
                 )
 
-            artifacts = self._runtime_service.execute_compiled_workflow(
-                db,
-                workflow=workflow,
-                workflow_version=workflow_version,
-                blueprint_record=blueprint_record,
-                input_payload=input_payload,
-            )
+            cache_enabled = self._cache_service.is_enabled(binding)
+            if cache_enabled:
+                cache_status = "miss"
+                cache_hit = self._cache_service.get_hit(
+                    db,
+                    binding=binding,
+                    input_payload=input_payload,
+                    now=started_at,
+                )
+            else:
+                cache_hit = None
+
+            if cache_hit is not None:
+                response_payload = cache_hit.response_payload
+                cache_status = "hit"
+            else:
+                artifacts = self._runtime_service.execute_compiled_workflow(
+                    db,
+                    workflow=workflow,
+                    workflow_version=workflow_version,
+                    blueprint_record=blueprint_record,
+                    input_payload=input_payload,
+                )
+                response_payload = self._build_native_response_payload(
+                    binding=binding,
+                    workflow=workflow,
+                    workflow_version=workflow_version,
+                    blueprint_record=blueprint_record,
+                    artifacts=artifacts,
+                )
+                if cache_enabled:
+                    self._cache_service.store_response(
+                        db,
+                        binding=binding,
+                        input_payload=input_payload,
+                        response_payload=response_payload,
+                    )
         except PublishedEndpointGatewayError as exc:
             invocation_error = exc
         except Exception as exc:  # pragma: no cover - defensive audit hook
@@ -208,6 +236,7 @@ class PublishedEndpointGatewayService:
                 request_source=request_source,
                 input_payload=input_payload,
                 status="rejected" if invocation_error.status_code < 500 else "failed",
+                cache_status=cache_status,
                 api_key_id=authenticated_key.id if authenticated_key is not None else None,
                 error_message=str(invocation_error),
                 started_at=started_at,
@@ -219,10 +248,10 @@ class PublishedEndpointGatewayService:
             workflow is None
             or workflow_version is None
             or blueprint_record is None
-            or artifacts is None
+            or not isinstance(response_payload, dict)
         ):
             raise PublishedEndpointGatewayError(
-                "Published endpoint invocation did not produce execution artifacts.",
+                "Published endpoint invocation did not produce a response payload.",
                 status_code=500,
             )
 
@@ -231,26 +260,46 @@ class PublishedEndpointGatewayService:
             binding=binding,
             request_source=request_source,
             input_payload=input_payload,
-            status="failed" if artifacts.run.status == "failed" else "succeeded",
+            status=(
+                "failed"
+                if response_payload["run"]["status"] == "failed"
+                else "succeeded"
+            ),
+            cache_status=cache_status,
             api_key_id=authenticated_key.id if authenticated_key is not None else None,
-            run_id=artifacts.run.id,
-            run_status=artifacts.run.status,
-            response_payload=artifacts.run.output_payload or {},
-            error_message=artifacts.run.error_message,
+            run_id=response_payload["run"]["id"],
+            run_status=response_payload["run"]["status"],
+            response_payload=response_payload["run"].get("output_payload") or {},
+            error_message=response_payload["run"].get("error_message"),
             started_at=started_at,
             finished_at=finished_at,
         )
         return PublishedNativeInvokeResult(
-            workflow=workflow,
-            workflow_version=workflow_version,
-            blueprint_record=blueprint_record,
+            response_payload=response_payload,
+            cache_status=cache_status,
+        )
+
+    def _build_native_response_payload(
+        self,
+        *,
+        binding: WorkflowPublishedEndpoint,
+        workflow: Workflow,
+        workflow_version: WorkflowVersion,
+        blueprint_record: WorkflowCompiledBlueprint,
+        artifacts,
+    ) -> dict:
+        response = PublishedNativeRunResponse(
             binding_id=binding.id,
             endpoint_id=binding.endpoint_id,
             endpoint_name=binding.endpoint_name,
             endpoint_alias=binding.endpoint_alias,
             route_path=binding.route_path,
-            artifacts=artifacts,
+            workflow_id=workflow.id,
+            workflow_version=workflow_version.version,
+            compiled_blueprint_id=blueprint_record.id,
+            run=serialize_run_detail(artifacts),
         )
+        return response.model_dump(mode="json")
 
     def _enforce_rate_limit(
         self,
