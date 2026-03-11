@@ -115,6 +115,32 @@ class ToolCallRecord(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class RunCallbackTicket(Base):
+    __tablename__ = "run_callback_tickets"
+
+    id: Mapped[str] = mapped_column(String(96), primary_key=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.id"), nullable=False, index=True)
+    node_run_id: Mapped[str] = mapped_column(ForeignKey("node_runs.id"), nullable=False, index=True)
+    tool_call_id: Mapped[str | None] = mapped_column(
+        ForeignKey("tool_call_records.id"),
+        nullable=True,
+        index=True,
+    )
+    tool_id: Mapped[str | None] = mapped_column(String(256), nullable=True, index=True)
+    tool_call_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    waiting_status: Mapped[str] = mapped_column(String(32), default="waiting_callback", nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False, index=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    callback_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+        index=True,
+    )
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    canceled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
 class AICallRecord(Base):
     __tablename__ = "ai_call_records"
 

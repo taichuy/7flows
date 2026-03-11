@@ -15,6 +15,8 @@ from app.models.workflow import Workflow
 from app.schemas.run import (
     AICallItem,
     RunArtifactItem,
+    RunCallbackRequest,
+    RunCallbackResponse,
     RunCreate,
     RunDetail,
     RunEventItem,
@@ -642,6 +644,39 @@ def resume_run(
         ) from exc
 
     return _serialize_run(artifacts)
+
+
+@router.post("/runs/callbacks/{ticket}", response_model=RunCallbackResponse)
+def receive_run_callback(
+    ticket: str,
+    payload: RunCallbackRequest,
+    db: Session = Depends(get_db),
+) -> RunCallbackResponse:
+    result_payload = payload.result.model_dump(mode="python")
+    error_message = result_payload.pop("error_message", None)
+    if error_message:
+        result_payload.setdefault("meta", {})
+        result_payload["meta"]["error_message"] = error_message
+    try:
+        callback = runtime_service.receive_callback(
+            db,
+            ticket,
+            payload=result_payload,
+            source=payload.source,
+        )
+    except WorkflowExecutionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return RunCallbackResponse(
+        callback_status=callback.callback_status,
+        ticket=callback.ticket,
+        run_id=callback.run_id,
+        node_run_id=callback.node_run_id,
+        run=_serialize_run(callback.artifacts),
+    )
 
 
 @router.get("/runs/{run_id}/events", response_model=list[RunEventItem])

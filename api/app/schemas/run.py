@@ -8,6 +8,20 @@ class RunCreate(BaseModel):
     input_payload: dict = Field(default_factory=dict)
 
 
+class RunCallbackToolResult(BaseModel):
+    status: Literal["success", "failed", "partial"] = "success"
+    content_type: str = "json"
+    summary: str = ""
+    structured: dict = Field(default_factory=dict)
+    meta: dict = Field(default_factory=dict)
+    error_message: str | None = None
+
+
+class RunCallbackRequest(BaseModel):
+    source: str = "external_callback"
+    result: RunCallbackToolResult
+
+
 class NodeRunItem(BaseModel):
     id: str
     node_id: str
@@ -157,6 +171,14 @@ class RunDetail(BaseModel):
     tool_calls: list[ToolCallItem] = Field(default_factory=list)
     ai_calls: list[AICallItem] = Field(default_factory=list)
     events: list[RunEventItem] = Field(default_factory=list)
+
+
+class RunCallbackResponse(BaseModel):
+    callback_status: Literal["accepted", "already_consumed", "ignored"]
+    ticket: str
+    run_id: str
+    node_run_id: str
+    run: RunDetail
 
 
 class WorkflowRunListItem(BaseModel):

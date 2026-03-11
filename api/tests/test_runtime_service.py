@@ -1,6 +1,7 @@
 import pytest
 from sqlalchemy.orm import Session
 
+from app.models.run import RunCallbackTicket
 from app.models.workflow import Workflow, WorkflowVersion
 from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
 from app.services.run_resume_scheduler import RunResumeScheduler
@@ -1484,3 +1485,120 @@ def test_llm_agent_waiting_callback_can_schedule_resume(
     assert resumed.run.status == "succeeded"
     assert resumed_agent_run.status == "succeeded"
     assert resumed.run.output_payload["agent"]["result"] == "callback finished"
+
+
+def test_llm_agent_waiting_callback_can_resume_from_callback_ticket(
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-agent-callback-ticket",
+        name="Agent Callback Ticket Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llm_agent",
+                    "name": "Agent",
+                    "config": {
+                        "assistant": {"enabled": False},
+                        "toolPolicy": {"allowedToolIds": ["native.search"]},
+                        "mockPlan": {
+                            "toolCalls": [
+                                {
+                                    "toolId": "native.search",
+                                    "inputs": {"query": "callback-ticket"},
+                                }
+                            ]
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+            ],
+        },
+    )
+    workflow_version = WorkflowVersion(
+        id="wf-agent-callback-ticket-v1",
+        workflow_id=workflow.id,
+        version=workflow.version,
+        definition=workflow.definition,
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.add(workflow_version)
+    sqlite_session.commit()
+
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(id="native.search", name="Native Search"),
+        invoker=lambda _request: {
+            "status": "waiting",
+            "content_type": "json",
+            "summary": "waiting for external callback",
+            "structured": {"ticket": "external-123"},
+            "meta": {
+                "tool_name": "Native Search",
+                "waiting_reason": "external callback pending",
+                "waiting_status": "waiting_callback",
+            },
+        },
+    )
+    runtime = RuntimeService(plugin_call_proxy=PluginCallProxy(registry))
+
+    first_pass = runtime.execute_workflow(sqlite_session, workflow, {"topic": "callback"})
+
+    waiting_run = next(node_run for node_run in first_pass.node_runs if node_run.node_id == "agent")
+    callback_ticket = waiting_run.checkpoint_payload["callback_ticket"]
+    assert first_pass.run.status == "waiting"
+    assert waiting_run.status == "waiting_callback"
+    assert callback_ticket["ticket"]
+
+    callback_result = runtime.receive_callback(
+        sqlite_session,
+        callback_ticket["ticket"],
+        payload={
+            "status": "success",
+            "content_type": "json",
+            "summary": "callback completed",
+            "structured": {"documents": ["done"], "query": "callback-ticket"},
+            "meta": {"tool_name": "Native Search"},
+        },
+        source="test_callback",
+    )
+
+    resumed_agent_run = next(
+        node_run for node_run in callback_result.artifacts.node_runs if node_run.node_id == "agent"
+    )
+    ticket_record = sqlite_session.get(RunCallbackTicket, callback_ticket["ticket"])
+
+    assert callback_result.callback_status == "accepted"
+    assert callback_result.artifacts.run.status == "succeeded"
+    assert resumed_agent_run.status == "succeeded"
+    assert resumed_agent_run.output_payload["result"] == "callback completed"
+    assert "callback_ticket" not in resumed_agent_run.checkpoint_payload
+    assert ticket_record is not None
+    assert ticket_record.status == "consumed"
+    assert "run.callback.received" in [
+        event.event_type for event in callback_result.artifacts.events
+    ]
+
+    duplicate = runtime.receive_callback(
+        sqlite_session,
+        callback_ticket["ticket"],
+        payload={
+            "status": "success",
+            "content_type": "json",
+            "summary": "duplicate callback",
+            "structured": {"documents": ["ignored"]},
+            "meta": {},
+        },
+        source="test_callback",
+    )
+
+    assert duplicate.callback_status == "already_consumed"
+    assert duplicate.artifacts.run.status == "succeeded"

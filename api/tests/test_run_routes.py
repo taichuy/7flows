@@ -6,7 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.run import Run, RunEvent
-from app.models.workflow import Workflow
+from app.models.workflow import Workflow, WorkflowVersion
+from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
+from app.services.runtime import RuntimeService
 
 
 def test_execute_workflow_route(
@@ -971,3 +973,118 @@ def test_execute_workflow_route_exposes_authorized_context_reads(
         }
     }
     assert [event["event_type"] for event in body["events"]].count("node.context.read") == 1
+
+
+def test_receive_run_callback_route_resumes_waiting_callback_run(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-route-callback",
+        name="Route Callback Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llm_agent",
+                    "name": "Agent",
+                    "config": {
+                        "assistant": {"enabled": False},
+                        "toolPolicy": {"allowedToolIds": ["native.search"]},
+                        "mockPlan": {
+                            "toolCalls": [
+                                {
+                                    "toolId": "native.search",
+                                    "inputs": {"query": "route-callback"},
+                                }
+                            ]
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+            ],
+        },
+    )
+    workflow_version = WorkflowVersion(
+        id="wf-route-callback-v1",
+        workflow_id=workflow.id,
+        version=workflow.version,
+        definition=workflow.definition,
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.add(workflow_version)
+    sqlite_session.commit()
+
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(id="native.search", name="Native Search"),
+        invoker=lambda _request: {
+            "status": "waiting",
+            "content_type": "json",
+            "summary": "waiting for callback",
+            "structured": {"externalTicket": "route-123"},
+            "meta": {
+                "tool_name": "Native Search",
+                "waiting_reason": "route callback pending",
+                "waiting_status": "waiting_callback",
+            },
+        },
+    )
+    first_pass = RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
+        sqlite_session,
+        workflow,
+        {"topic": "route-callback"},
+    )
+    waiting_run = next(node_run for node_run in first_pass.node_runs if node_run.node_id == "agent")
+    callback_ticket = waiting_run.checkpoint_payload["callback_ticket"]["ticket"]
+
+    response = client.post(
+        f"/api/runs/callbacks/{callback_ticket}",
+        json={
+            "source": "route_test",
+            "result": {
+                "status": "success",
+                "content_type": "json",
+                "summary": "callback delivered",
+                "structured": {
+                    "documents": ["route done"],
+                    "query": "route-callback",
+                },
+                "meta": {"tool_name": "Native Search"},
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["callback_status"] == "accepted"
+    assert body["run_id"] == first_pass.run.id
+    assert body["run"]["status"] == "succeeded"
+    assert body["run"]["output_payload"]["agent"]["result"] == "callback delivered"
+    assert "run.callback.received" in [event["event_type"] for event in body["run"]["events"]]
+
+    duplicate_response = client.post(
+        f"/api/runs/callbacks/{callback_ticket}",
+        json={
+            "source": "route_test",
+            "result": {
+                "status": "success",
+                "content_type": "json",
+                "summary": "duplicate delivery",
+                "structured": {"documents": ["ignored"]},
+                "meta": {},
+            },
+        },
+    )
+
+    assert duplicate_response.status_code == 200
+    duplicate_body = duplicate_response.json()
+    assert duplicate_body["callback_status"] == "already_consumed"
+    assert duplicate_body["run"]["status"] == "succeeded"

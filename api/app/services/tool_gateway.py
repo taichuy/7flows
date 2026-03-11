@@ -94,6 +94,7 @@ class ToolGateway:
                 latency_ms=response.duration_ms
                 or int((time.perf_counter() - started_at) * 1000),
             )
+            result.meta.setdefault("tool_call_id", call_record.id)
             call_record.status = result.status
             call_record.response_summary = result.summary
             raw_ref = result.raw_ref or ""
@@ -117,6 +118,62 @@ class ToolGateway:
             .where(ToolCallRecord.run_id == run_id)
             .order_by(ToolCallRecord.created_at.asc())
         ).all()
+
+    def record_callback_result(
+        self,
+        db: Session,
+        *,
+        run_id: str,
+        node_run: NodeRun,
+        tool_call_record: ToolCallRecord | None,
+        payload: dict[str, Any],
+        tool_id: str | None = None,
+    ) -> ToolExecutionResult:
+        resolved_tool_id = tool_id or (tool_call_record.tool_id if tool_call_record is not None else "")
+        resolved_tool_name = (
+            tool_call_record.tool_name
+            if tool_call_record is not None
+            else resolved_tool_id or "callback"
+        )
+        callback_finished_at = _utcnow()
+        latency_ms = 0
+        if tool_call_record is not None and tool_call_record.created_at is not None:
+            created_at = tool_call_record.created_at
+            if created_at.tzinfo is None:
+                created_at = created_at.replace(tzinfo=UTC)
+            latency_ms = max(
+                int((callback_finished_at - created_at).total_seconds() * 1000),
+                0,
+            )
+
+        result = self._normalize_result(
+            db,
+            run_id=run_id,
+            node_run_id=node_run.id,
+            tool_id=resolved_tool_id or resolved_tool_name,
+            tool_name=resolved_tool_name,
+            payload=payload,
+            latency_ms=latency_ms,
+        )
+        if tool_call_record is not None:
+            result.meta.setdefault("tool_call_id", tool_call_record.id)
+
+        if tool_call_record is not None:
+            tool_call_record.status = result.status
+            tool_call_record.response_summary = result.summary
+            raw_ref = result.raw_ref or ""
+            if raw_ref.startswith("artifact://"):
+                tool_call_record.raw_artifact_id = raw_ref.removeprefix("artifact://")
+            tool_call_record.latency_ms = int(result.meta.get("latency_ms") or latency_ms)
+            tool_call_record.error_message = (
+                str(payload.get("error_message") or result.summary or "")
+                if result.status == "failed"
+                else None
+            )
+            tool_call_record.finished_at = callback_finished_at
+            db.flush()
+
+        return result
 
     def _normalize_result(
         self,

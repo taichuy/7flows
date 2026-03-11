@@ -24,6 +24,7 @@ from app.services.run_resume_scheduler import (
     RunResumeScheduler,
     get_run_resume_scheduler,
 )
+from app.services.run_callback_tickets import RunCallbackTicketService
 from app.services.runtime_graph_support import RuntimeGraphSupportMixin
 from app.services.runtime_types import (
     AuthorizedContextRefs,
@@ -50,6 +51,15 @@ class ExecutionArtifacts:
     ai_calls: list[AICallRecord] = field(default_factory=list)
 
 
+@dataclass
+class CallbackHandleResult:
+    callback_status: str
+    ticket: str
+    run_id: str
+    node_run_id: str
+    artifacts: ExecutionArtifacts
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
 
@@ -66,6 +76,7 @@ class RuntimeService(RuntimeGraphSupportMixin):
         self._artifact_store = RuntimeArtifactStore()
         self._context_service = ContextService()
         self._flow_compiler = FlowCompiler()
+        self._callback_tickets = RunCallbackTicketService()
         self._tool_gateway = ToolGateway(
             plugin_call_proxy=self._plugin_call_proxy,
             artifact_store=self._artifact_store,
@@ -211,6 +222,168 @@ class RuntimeService(RuntimeGraphSupportMixin):
             raise WorkflowExecutionError(artifacts.run.error_message or "Workflow resume failed.")
         return artifacts
 
+    def receive_callback(
+        self,
+        db: Session,
+        ticket: str,
+        *,
+        payload: dict,
+        source: str = "external_callback",
+    ) -> CallbackHandleResult:
+        self._refresh_runtime_dependencies(db)
+        ticket_record = self._callback_tickets.get_ticket(db, ticket)
+        if ticket_record is None:
+            raise WorkflowExecutionError("Callback ticket not found.")
+
+        if ticket_record.status == "consumed":
+            artifacts = self.load_run(db, ticket_record.run_id)
+            if artifacts is None:
+                raise WorkflowExecutionError("Run not found for callback ticket.")
+            return CallbackHandleResult(
+                callback_status="already_consumed",
+                ticket=ticket_record.id,
+                run_id=ticket_record.run_id,
+                node_run_id=ticket_record.node_run_id,
+                artifacts=artifacts,
+            )
+
+        run = db.get(Run, ticket_record.run_id)
+        node_run = db.get(NodeRun, ticket_record.node_run_id)
+        if run is None or node_run is None:
+            raise WorkflowExecutionError("Run callback ticket points to missing runtime records.")
+
+        if ticket_record.status != "pending":
+            artifacts = self.load_run(db, ticket_record.run_id)
+            if artifacts is None:
+                raise WorkflowExecutionError("Run not found for callback ticket.")
+            return CallbackHandleResult(
+                callback_status="ignored",
+                ticket=ticket_record.id,
+                run_id=ticket_record.run_id,
+                node_run_id=ticket_record.node_run_id,
+                artifacts=artifacts,
+            )
+
+        if run.status != "waiting" or node_run.status != "waiting_callback":
+            self._callback_tickets.cancel_pending_for_node_run(
+                db,
+                node_run_id=node_run.id,
+                reason="callback_received_after_run_left_waiting",
+            )
+            artifacts = self.load_run(db, ticket_record.run_id)
+            if artifacts is None:
+                raise WorkflowExecutionError("Run not found for callback ticket.")
+            db.commit()
+            return CallbackHandleResult(
+                callback_status="ignored",
+                ticket=ticket_record.id,
+                run_id=ticket_record.run_id,
+                node_run_id=ticket_record.node_run_id,
+                artifacts=artifacts,
+            )
+
+        tool_call_record = None
+        if ticket_record.tool_call_id:
+            tool_call_record = db.get(ToolCallRecord, ticket_record.tool_call_id)
+        if tool_call_record is None and ticket_record.tool_id:
+            tool_call_record = db.scalar(
+                select(ToolCallRecord)
+                .where(
+                    ToolCallRecord.node_run_id == ticket_record.node_run_id,
+                    ToolCallRecord.tool_id == ticket_record.tool_id,
+                )
+                .order_by(ToolCallRecord.created_at.desc())
+            )
+
+        result = self._tool_gateway.record_callback_result(
+            db,
+            run_id=run.id,
+            node_run=node_run,
+            tool_call_record=tool_call_record,
+            tool_id=ticket_record.tool_id,
+            payload=payload,
+        )
+        callback_snapshot = self._callback_tickets.consume_ticket(
+            ticket_record,
+            callback_payload={
+                "source": source,
+                "result": deepcopy(payload),
+            },
+        )
+
+        checkpoint_payload = dict(node_run.checkpoint_payload or {})
+        tool_results = list(checkpoint_payload.get("tool_results") or [])
+        tool_index = max(int(ticket_record.tool_call_index), 0)
+        if tool_index > len(tool_results):
+            raise WorkflowExecutionError("Callback ticket references an invalid tool result slot.")
+        serialized_result = self._serialize_tool_result(result)
+        if tool_index == len(tool_results):
+            tool_results.append(serialized_result)
+        else:
+            tool_results[tool_index] = serialized_result
+        checkpoint_payload["tool_results"] = tool_results
+        checkpoint_payload["next_tool_index"] = max(
+            tool_index + 1,
+            int(checkpoint_payload.get("next_tool_index") or 0),
+        )
+        checkpoint_payload.pop("callback_ticket", None)
+        checkpoint_payload.pop("scheduled_resume", None)
+        node_run.checkpoint_payload = checkpoint_payload
+        self._context_service.update_working_context(
+            node_run,
+            tool_results=tool_results,
+            callback_result=serialized_result,
+        )
+        artifact_refs = list(node_run.artifact_refs or [])
+        if result.raw_ref and result.raw_ref not in artifact_refs:
+            artifact_refs.append(result.raw_ref)
+        self._context_service.replace_artifact_refs(node_run, artifact_refs)
+
+        callback_events = [
+            self._build_event(
+                run.id,
+                node_run.id,
+                "run.callback.received",
+                {
+                    "ticket": callback_snapshot.ticket,
+                    "node_id": node_run.node_id,
+                    "tool_id": ticket_record.tool_id,
+                    "tool_call_id": ticket_record.tool_call_id,
+                    "source": source,
+                    "status": result.status,
+                },
+            ),
+            self._build_event(
+                run.id,
+                node_run.id,
+                "tool.completed",
+                {
+                    "node_id": node_run.node_id,
+                    "tool_id": ticket_record.tool_id,
+                    "summary": result.summary,
+                    "raw_ref": result.raw_ref,
+                    "content_type": result.content_type,
+                    "status": result.status,
+                    "source": "callback",
+                },
+            ),
+        ]
+        self._persist_events(db, callback_events)
+
+        artifacts = self.resume_run(
+            db,
+            run.id,
+            source=source,
+            reason=f"callback:{callback_snapshot.ticket}",
+        )
+        return CallbackHandleResult(
+            callback_status="accepted",
+            ticket=callback_snapshot.ticket,
+            run_id=run.id,
+            node_run_id=node_run.id,
+            artifacts=artifacts,
+        )
+
     def load_run(self, db: Session, run_id: str) -> ExecutionArtifacts | None:
         run = db.get(Run, run_id)
         if run is None:
@@ -338,6 +511,7 @@ class RuntimeService(RuntimeGraphSupportMixin):
                 node_run.status = "failed"
                 node_run.error_message = node_error
                 node_run.finished_at = _utcnow()
+                self._clear_callback_ticket(db, node_run, reason="node_failed")
                 events.append(
                     self._build_event(
                         run.id,
@@ -372,6 +546,14 @@ class RuntimeService(RuntimeGraphSupportMixin):
                 checkpoint_state.next_node_index = node_index
                 checkpoint_state.waiting_node_run_id = node_run.id
                 run.checkpoint_payload = checkpoint_state.as_dict()
+                self._issue_callback_ticket_if_needed(
+                    db,
+                    run=run,
+                    node=node,
+                    node_run=node_run,
+                    result=result,
+                    events=events,
+                )
                 self._schedule_waiting_resume_if_needed(
                     run=run,
                     node=node,
@@ -398,6 +580,7 @@ class RuntimeService(RuntimeGraphSupportMixin):
             node_run.status = "succeeded"
             node_run.finished_at = _utcnow()
             node_run.waiting_reason = None
+            self._clear_callback_ticket(db, node_run, reason="node_completed")
             checkpoint_state.outputs[node_id] = node_output
             if node["type"] == "output":
                 checkpoint_state.completed_output_nodes = list(
@@ -1068,6 +1251,70 @@ class RuntimeService(RuntimeGraphSupportMixin):
                 )
             )
 
+    def _issue_callback_ticket_if_needed(
+        self,
+        db: Session,
+        *,
+        run: Run,
+        node: dict,
+        node_run: NodeRun,
+        result: NodeExecutionResult,
+        events: list[RunEvent],
+    ) -> None:
+        if result.waiting_status != "waiting_callback":
+            self._clear_callback_ticket(db, node_run, reason="waiting_status_changed")
+            return
+
+        checkpoint_payload = dict(node_run.checkpoint_payload or {})
+        tool_results = list(checkpoint_payload.get("tool_results") or [])
+        tool_index = max(int(checkpoint_payload.get("next_tool_index") or 0), 0)
+        waiting_result = tool_results[tool_index] if tool_index < len(tool_results) else {}
+        meta = waiting_result.get("meta") if isinstance(waiting_result, dict) else {}
+        meta = meta if isinstance(meta, dict) else {}
+        snapshot = self._callback_tickets.issue_ticket(
+            db,
+            run_id=run.id,
+            node_run_id=node_run.id,
+            tool_call_id=str(meta.get("tool_call_id") or "") or None,
+            tool_id=str(meta.get("tool_id") or "") or None,
+            tool_call_index=tool_index,
+            waiting_status=result.waiting_status,
+            reason=result.waiting_reason,
+        )
+        checkpoint_payload["callback_ticket"] = snapshot.as_checkpoint_payload()
+        node_run.checkpoint_payload = checkpoint_payload
+        events.append(
+            self._build_event(
+                run.id,
+                node_run.id,
+                "run.callback.ticket.issued",
+                {
+                    "ticket": snapshot.ticket,
+                    "node_id": node["id"],
+                    "tool_id": snapshot.tool_id,
+                    "tool_call_id": snapshot.tool_call_id,
+                    "tool_call_index": snapshot.tool_call_index,
+                    "waiting_status": snapshot.waiting_status,
+                },
+            )
+        )
+
+    def _clear_callback_ticket(
+        self,
+        db: Session,
+        node_run: NodeRun,
+        *,
+        reason: str,
+    ) -> None:
+        self._callback_tickets.cancel_pending_for_node_run(
+            db,
+            node_run_id=node_run.id,
+            reason=reason,
+        )
+        checkpoint_payload = dict(node_run.checkpoint_payload or {})
+        if checkpoint_payload.pop("callback_ticket", None) is not None:
+            node_run.checkpoint_payload = checkpoint_payload
+
     def _schedule_waiting_resume_if_needed(
         self,
         *,
@@ -1141,6 +1388,16 @@ class RuntimeService(RuntimeGraphSupportMixin):
         checkpoint_payload = dict(node_run.checkpoint_payload or {})
         if checkpoint_payload.pop("retry_state", None) is not None:
             node_run.checkpoint_payload = checkpoint_payload
+
+    def _serialize_tool_result(self, result: object) -> dict:
+        return {
+            "status": str(getattr(result, "status", "success") or "success"),
+            "content_type": str(getattr(result, "content_type", "json") or "json"),
+            "summary": str(getattr(result, "summary", "") or ""),
+            "raw_ref": getattr(result, "raw_ref", None),
+            "structured": deepcopy(getattr(result, "structured", {}) or {}),
+            "meta": deepcopy(getattr(result, "meta", {}) or {}),
+        }
 
     def _clear_scheduled_resume(self, node_run: NodeRun) -> None:
         checkpoint_payload = dict(node_run.checkpoint_payload or {})

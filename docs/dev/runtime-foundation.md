@@ -21,6 +21,7 @@
 - `api/migrations/env.py`
 - `api/migrations/versions/20260309_0001_initial_runtime.py`
 - `api/migrations/versions/20260311_0007_durable_agent_runtime.py`
+- `api/migrations/versions/20260311_0008_run_callback_tickets.py`
 
 当前迁移会创建以下表：
 
@@ -31,6 +32,7 @@
 - `run_artifacts`
 - `tool_call_records`
 - `ai_call_records`
+- `run_callback_tickets`
 
 ### 2. Docker 自动迁移
 
@@ -103,6 +105,8 @@ uv run alembic upgrade head
 - `node.join.ready`
 - `node.join.unmet`
 - `tool.completed`
+- `run.callback.ticket.issued`
+- `run.callback.received`
 - `assistant.completed`
 - `node.failed`
 - `run.completed`
@@ -136,6 +140,16 @@ uv run alembic upgrade head
 - 输入摘要 / 输出摘要
 - latency / token / cost（可获取时）
 - prompt / response artifact ref
+
+#### `run_callback_tickets`
+
+统一记录 `waiting_callback` 的正式回调票据：
+
+- callback ticket
+- `run_id / node_run_id / tool_call_id / tool_id`
+- waiting 状态与对应的 tool index
+- ticket 生命周期状态（`pending / consumed / canceled`）
+- callback payload 与消费时间
 
 ### 4. 工作流定义校验与版本快照
 
@@ -230,6 +244,10 @@ uv run alembic upgrade head
 - 当前已开放第一版恢复接口
   - `POST /api/runs/{run_id}/resume`
   - 适用于 waiting tool / fallback 后的最小恢复闭环
+- 当前已补上正式 callback ingress
+  - `api/app/services/run_callback_tickets.py`
+  - `POST /api/runs/callbacks/{ticket}`
+  - `waiting_callback` 现在会签发 ticket，并可通过 callback 结果自动恢复 run
 - 新增最小 `Run Resume Scheduler`
   - `api/app/services/run_resume_scheduler.py`
   - 把 runtime waiting 的恢复请求收口到独立调度层，默认投递给 Celery
@@ -242,6 +260,10 @@ uv run alembic upgrade head
 - tool waiting 已可通过工具结果元数据声明恢复策略
   - 当前支持 `meta.waiting_status = waiting_tool / waiting_callback`
   - 当前支持 `meta.resume_after_seconds` 触发自动恢复调度
+- callback 结果已开始复用既有运行态事实层
+  - callback tool result 会回写 `tool_call_records` 与 `run_artifacts`
+  - callback 生命周期会补到 `run_events`
+  - 重复 callback 当前会按 `accepted / already_consumed / ignored` 做最小幂等处理
 
 这让我们可以先验证：
 
@@ -257,6 +279,7 @@ uv run alembic upgrade head
 - `GET /api/workflows/{workflow_id}/runs`
 - `GET /api/runs/{run_id}`
 - `POST /api/runs/{run_id}/resume`
+- `POST /api/runs/callbacks/{ticket}`
 - `GET /api/runs/{run_id}/events`
 - `GET /api/runs/{run_id}/trace`
 - `GET /api/runs/{run_id}/trace/export`
@@ -268,6 +291,7 @@ uv run alembic upgrade head
 - 为 workflow editor 提供 workflow 级 recent runs 摘要入口
 - 查询执行详情
 - 恢复处于 waiting 状态的 run
+- 消费 `waiting_callback` ticket 并自动恢复 run
 - 查询事件流
 - 为 AI / 自动化 提供带过滤条件的 run trace 检索
 - 为创建页和 editor 提供共享的 workflow library snapshot，统一暴露 builtin/workspace starters、node catalog、tool lanes 和 tools
@@ -275,6 +299,7 @@ uv run alembic upgrade head
 - `GET /api/workflows/{workflow_id}/runs` 当前会聚合返回 run 状态、版本、`node_run_count`、`event_count` 和 `last_event_at`，供 editor 选择最近执行上下文，而不是继续依赖首页摘要拼装
 - `GET /api/runs/{run_id}` 当前已支持 `include_events=false` 的摘要模式，供 run 诊断页等人类界面减少与 `/trace` 的重复数据搬运
 - `POST /api/runs/{run_id}/resume` 当前会从 `runs.checkpoint_payload` 与 `node_runs.checkpoint_payload` 恢复 phase state machine；事件里会额外带出 `source`
+- `POST /api/runs/callbacks/{ticket}` 当前会把 callback 结果写回 waiting tool 的 checkpoint / tool trace / artifact，再自动调用 `resume_run`
 - runtime 当前还能通过 worker 侧 `runtime.resume_run` 消费被调度的 waiting run，并把计划恢复写成 `run.resume.scheduled`
 - 当前 trace 过滤已支持 `event_type`、`node_run_id`、时间范围、`payload_key`、事件游标和顺序控制
 - 当前 trace 还补充了回放 / 导出元信息，例如 trace / returned 时间边界、事件顺序、`replay_offset_ms` 以及 opaque `cursor`
@@ -499,27 +524,27 @@ uv run alembic upgrade head
 
 ### 当前架构与体量判断
 
-- 最近一次 Git 提交是 `docs: sync durable runtime design baselines`，主要同步了产品与技术设计基线，本身不需要直接做代码衔接。
+- 最近一次 Git 提交是 `feat: schedule durable runtime resume`，主要把 waiting run 的时间驱动恢复正式接到 scheduler / worker。
 - 当前真正需要承接的实现主线仍是 `feat: add durable agent runtime phase1`：
   - Phase 1 已经把 `compiler / runtime / agent runtime / tool gateway / context / artifact` 这套后端基础拆出来
-  - 本轮继续沿这条线补上 `run resume scheduler + worker resume task`，而不是再回去堆新的页面级壳层
+  - 本轮继续沿这条线补上 `run_callback_tickets + callback ingress`，而不是再回去堆新的页面级壳层
 - 当前基础框架已经写到“可以继续推进主业务”的阶段：
   - `应用新建编排` 这一条线已经有 `workflow library -> starter -> editor -> 保存版本 -> recent runs overlay`
-  - `编排节点能力` 这一条线已经有 phase runtime、tool/evidence/artifact 和最小后台恢复闭环
+  - `编排节点能力` 这一条线已经有 phase runtime、tool/evidence/artifact、scheduler resume 和 callback ingress
   - `Dify 插件兼容` 已有 registry / adapter / tool lane / workspace scope 的基础 contract，但生命周期仍未完整
   - `API 调用开放` 还停留在设计与局部 starter 层，发布态 compiled blueprint 和协议映射还没真正接上
 - 当前架构方向整体是解耦的，但仍有未完全拆开的高风险边界：
-  - 后端已经开始形成 `Flow Compiler -> RuntimeService -> AgentRuntime / ToolGateway / ContextService / RunResumeScheduler` 的分层
+  - 后端已经开始形成 `Flow Compiler -> RuntimeService -> AgentRuntime / ToolGateway / ContextService / RunResumeScheduler / RunCallbackTicketService` 的分层
   - worker 恢复入口已经从运行主循环里旁路出来，没有继续把后台调度写死在 API 或 `RuntimeService` 单点内
   - 前端创建页、editor、starter 治理也已开始围绕共享 snapshot 演进，而不是各自维护私有常量
-  - 但正式 callback ingress、compiled blueprint 持久边界、publish mapping 和节点插件注册中心仍未彻底拆清
+  - 但 compiled blueprint 持久边界、publish mapping、callback ticket 生命周期治理和节点插件注册中心仍未彻底拆清
 - 当前需要显式盯住的长文件：
-  - `api/app/services/runtime.py` 当前约 1187 行，仍低于后端 1500 行偏好上限，但下一轮若再补 callback ingress、scheduler 观测或 publish binding，应继续拆分 waiting/resume orchestration
-  - `api/app/api/routes/runs.py` 当前约 732 行，已经开始同时承担 detail / trace / export / resume；若继续长 execution / evidence view API，建议拆 trace/export 子模块
-  - `api/app/services/agent_runtime.py` 当前约 666 行，已经承载 phase pipeline、tool waiting 恢复和 evidence 组装；若继续长出 assistant 策略与 subflow 候选能力，应提前拆 plan/tool/finalize 子阶段
-  - `api/app/services/workflow_library.py` 当前约 689 行，仍适合继续演进，但若再接 adapter health / node plugin registry，应优先拆 source assembly 与 starter builder
-  - `web/components/workspace-starter-library.tsx` 当前约 1135 行，是前端体量最大的真实业务文件；虽然还在前端 2000 行偏好之内，但后续继续补批量结果钻取时仍应继续拆
-  - `web/components/run-diagnostics-panel.tsx` 当前约 678 行、`web/components/workflow-editor-workbench.tsx` 当前约 581 行，下一轮若继续接 execution / evidence view，要避免重新长回页面级混排组件
+  - `api/app/services/runtime.py` 当前约 1356 行，已经逼近后端 1500 行偏好上限；本轮虽然通过 `RunCallbackTicketService` 避免把 ticket 生命周期完全塞进主循环，但下一轮若再补 compiled blueprint 持久化、scheduler 观测或 publish binding，应优先拆 waiting/resume orchestration
+  - `api/app/api/routes/runs.py` 当前约 700 行，已经开始同时承担 detail / trace / export / resume / callback；若继续长 execution / evidence view API，建议拆 trace/export/callback 子模块
+  - `api/app/services/agent_runtime.py` 当前约 628 行，已经承载 phase pipeline、tool waiting 恢复和 evidence 组装；若继续长出 assistant 策略与 subflow 候选能力，应提前拆 plan/tool/finalize 子阶段
+  - `api/app/services/workflow_library.py` 当前约 650 行，仍适合继续演进，但若再接 adapter health / node plugin registry，应优先拆 source assembly 与 starter builder
+  - `web/components/workspace-starter-library.tsx` 当前约 1042 行，是前端体量最大的真实业务文件；虽然还在前端 2000 行偏好之内，但后续继续补批量结果钻取时仍应继续拆
+  - `web/components/run-diagnostics-panel.tsx` 当前约 635 行、`web/components/workflow-editor-workbench.tsx` 当前约 528 行，下一轮若继续接 execution / evidence view，要避免重新长回页面级混排组件
 
 ## 推荐开发命令
 
@@ -566,8 +591,8 @@ docker compose up -d --build
 - Loop 节点执行
 - 外部 MCP Provider 接入
 - 完整插件兼容代理生命周期
-- 正式的 `WAITING_CALLBACK` 外部回调入口与回调鉴权协议
 - scheduler 级 dead-letter / dedupe / metrics / 失败重投治理
+- callback ticket 的过期、清理、来源审计与更强鉴权
 - 流式响应映射
 - 回放调试面板
 - 更完整的节点结构化配置抽屉
@@ -583,30 +608,32 @@ docker compose up -d --build
 当前判断：
 
 - 本轮已经把 Durable Agent Runtime 从“手动 resume 的 Phase 1”推进到“带最小后台恢复入口的 Phase 1.5”。
+- 本轮继续把 Phase 1.5 从“时间驱动恢复”推进到“时间驱动 + callback ticket 事件驱动并存”。
 - 现在还不适合一步到位宣称“完整 Durable Runtime 已完成”，原因是：
-  - 还没有正式的 callback ingress / callback event bus
+  - callback ingress 已经落地，但 callback bus、ticket 生命周期治理和更强鉴权还没有完成
   - scheduler 还只有最小任务投递，没有 dead-letter、去重、重投和系统化观测
   - 发布态 compiled blueprint 与开放 API 映射还没有完全接上
 - 因此后续应按 “Phase 1 MVP 稳定化 -> Phase 2 完整耐久化” 的路线推进，而不是再把所有能力堆回 `runtime.py`
 
 ### P0 当前最高优先级
 
-1. 把 `WAITING_CALLBACK` 补成正式外部回调闭环：
-   - 定义 callback token / ticket 到 run/node_run 的关联协议
-   - 提供工具完成 / 外部系统回调后的恢复入口，而不是只靠时间驱动恢复
-   - 明确回调鉴权、幂等与重复回调处理
-2. 把编译态与运行态彻底收口：
+1. 把编译态与运行态彻底收口：
    - 让执行入口优先绑定 compiled blueprint / version snapshot
    - 为后续 publish binding 和开放 API 保留稳定执行蓝图
-3. 把执行追踪补齐为 UI 与机器都可复用的查询面：
+2. 把执行追踪补齐为 UI 与机器都可复用的查询面：
    - 继续围绕 `run_artifacts`、`tool_call_records`、`ai_call_records`
+   - 把 `run.callback.ticket.issued / run.callback.received` 一并纳入 execution view
    - 提供 execution view / evidence view 所需的摘要字段与引用能力
+3. 收口 callback ticket 的剩余治理：
+   - 过期/清理策略
+   - 来源审计
+   - 更强鉴权形态
 
 原因：
 
-- 当前 phase state machine 与最小 scheduler 已经成立，但没有正式 callback ingress 就还不算真正 durable。
 - 如果 compiled blueprint 继续只存在于运行前瞬时编译阶段，后续发布、回放和开放调用会缺少稳定事实边界。
-- artifact / tool / AI 追踪已经落库，下一步要尽快让它们成为可消费能力，而不只是后台表结构。
+- artifact / tool / AI / callback 追踪已经落库，下一步要尽快让它们成为可消费能力，而不只是后台表结构。
+- callback ingress 虽然已打通，但 ticket 生命周期治理仍属于 durable runtime 稳定化的一部分。
 
 ### P1 次高优先级
 
