@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -185,3 +185,42 @@ class WorkflowPublishedApiKey(Base):
         default=lambda: datetime.now(UTC),
         onupdate=lambda: datetime.now(UTC),
     )
+
+
+class WorkflowPublishedInvocation(Base):
+    __tablename__ = "workflow_published_invocations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    workflow_id: Mapped[str] = mapped_column(
+        ForeignKey("workflows.id"),
+        nullable=False,
+        index=True,
+    )
+    binding_id: Mapped[str] = mapped_column(
+        ForeignKey("workflow_published_endpoints.id"),
+        nullable=False,
+        index=True,
+    )
+    endpoint_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    endpoint_alias: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    route_path: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
+    protocol: Mapped[str] = mapped_column(String(32), nullable=False)
+    auth_mode: Mapped[str] = mapped_column(String(32), nullable=False)
+    request_source: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    api_key_id: Mapped[str | None] = mapped_column(
+        ForeignKey("workflow_published_api_keys.id"),
+        nullable=True,
+        index=True,
+    )
+    run_id: Mapped[str | None] = mapped_column(ForeignKey("runs.id"), nullable=True, index=True)
+    run_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    request_preview: Mapped[dict] = mapped_column(JSON, default=dict)
+    response_preview: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

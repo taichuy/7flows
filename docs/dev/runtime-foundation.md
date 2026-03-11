@@ -39,6 +39,7 @@
 - `run_callback_tickets`
 - `workflow_published_endpoints`
 - `workflow_published_api_keys`
+- `workflow_published_invocations`
 
 ### 2. Docker 自动迁移
 
@@ -208,6 +209,11 @@ uv run alembic upgrade head
   - `endpoint_alias`
   - `route_path`
 - `workflow_published_api_keys` 用于保存 published endpoint 的独立 API key 实体，并按 `workflow_id + endpoint_id` 作用域复用到不同版本 binding
+- `workflow_published_invocations` 用于保存 published endpoint 的调用活动事实：
+  - 入口来源（workflow / alias / path）
+  - 调用状态（succeeded / failed / rejected）
+  - 最近关联的 `run_id / run_status`
+  - request / response 的摘要预览与 duration
 
 ### 5. 最小工作流执行器
 
@@ -321,6 +327,7 @@ uv run alembic upgrade head
 - `POST /v1/workflows/{workflow_id}/published-endpoints/{endpoint_id}/run`
 - `POST /v1/published-aliases/{endpoint_alias}/run`
 - `POST /v1/published-paths/{route_path:path}`
+- `GET /api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations`
 
 用途：
 
@@ -339,6 +346,7 @@ uv run alembic upgrade head
 - 为发布态治理提供最小 lifecycle 更新入口
 - 沿 active publish binding 触发最小 native 发布调用
 - 为 published endpoint 提供最小稳定外部地址入口（alias/path）
+- 为 publish binding 提供最小活动查询入口，支撑开放 API 治理与审计
 - `GET /api/workflow-library` 当前已开始按 `workspace_id` 过滤 adapter 绑定的 compat 工具，并把 `tool` 节点的 `binding_required` / `binding_source_lanes` 一并返回给 editor
 - `GET /api/workflows/{workflow_id}/published-endpoints` 当前默认返回 workflow 最新版本声明的 publish bindings，也支持按 `workflow_version` 或 `include_all_versions=true` 查看历史绑定
 - `GET /api/workflows/{workflow_id}/published-endpoints` 当前还支持按 `lifecycle_status` 过滤 `draft / published / offline`
@@ -353,6 +361,15 @@ uv run alembic upgrade head
 - `auth_mode=api_key` 当前已支持 `x-api-key`，并兼容 `Authorization: Bearer <key>` 的最小 header 形态
 - publish definition 当前已支持 `alias/path`，缺省会回退到 `endpoint_id` 与 `/{endpoint_id}`
 - 发布 binding 切到 `published` 时，当前会阻止跨 workflow 的 alias/path 冲突，避免外部地址语义撞车
+- `PublishedEndpointGatewayService` 当前已开始把 native invoke 写入独立 `workflow_published_invocations`
+- 发布活动当前会记录：
+  - `request_source`
+  - `status`
+  - `api_key_id`
+  - `run_id / run_status`
+  - request / response preview
+- `GET /api/workflows/{workflow_id}/published-endpoints` 当前会额外返回 `activity` 摘要，便于治理页直接显示最近调用情况
+- `GET /api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations` 当前支持读取 binding 级 activity summary + recent items
 - `GET /api/workflows/{workflow_id}/runs` 当前会聚合返回 run 状态、版本、`node_run_count`、`event_count` 和 `last_event_at`，供 editor 选择最近执行上下文，而不是继续依赖首页摘要拼装
 - `GET /api/runs/{run_id}` 当前已支持 `include_events=false` 的摘要模式，供 run 诊断页等人类界面减少与 `/trace` 的重复数据搬运
 - `GET /api/runs/{run_id}/execution-view` 当前会把 `run_artifacts / tool_call_records / ai_call_records / run_callback_tickets` 聚合成节点级 execution facts
@@ -589,13 +606,14 @@ uv run alembic upgrade head
 ### 当前架构与体量判断
 
 - 最近一次已有 Git 提交 `2026-03-12 01:24:56 +0800` 的 `feat: add published endpoint api keys`：
-  - 新增 `workflow_published_api_keys`
-  - 新增 publish API key 管理接口
-  - `auth_mode=api_key` 的 native published endpoint 可以被真实调用
+- 最近一次已有 Git 提交 `2026-03-12 01:54:24 +0800` 的 `feat: add published endpoint alias and path`：
+  - 为 publish binding 新增 `alias/path`
+  - 补上 alias/path 对应的 native published invoke 入口
+  - 补上 published binding 的跨 workflow 地址冲突校验
 - 本轮继续承接这条发布主线，补上：
-  - published endpoint 的 alias/path 稳定地址语义
-  - alias/path 对应的 native published invoke 入口
-  - published binding 的跨 workflow 地址冲突校验
+  - `workflow_published_invocations`
+  - publish binding 列表上的 activity 摘要
+  - binding 级 published invocation 查询入口
 - 当前真正需要持续承接的实现主线仍是 `feat: add durable agent runtime phase1`：
   - Phase 1 已经把 `compiler / runtime / agent runtime / tool gateway / context / artifact` 这套后端基础拆出来
   - 前几轮沿这条线补上了 `run_callback_tickets + callback ingress`
@@ -611,6 +629,7 @@ uv run alembic upgrade head
   - publish binding 也已独立落到 `WorkflowPublishBindingService + workflow_publish route`，没有继续把发布态查询揉进 workflow detail 大包
   - publish invoke 现在也已独立落到 `PublishedEndpointGatewayService + published_gateway route`，没有把发布协议入口继续塞回 `runs.py` 或 `workflow_publish.py`
   - published API key 生命周期也已独立落到 `PublishedEndpointApiKeyService + published_endpoint_keys route`，没有塞回 runtime 或 workflow CRUD
+  - published activity 现在也已独立落到 `PublishedInvocationService + published_endpoint_activity route`，没有把调用审计继续塞回 gateway route 或 runtime 主循环
   - worker 恢复入口已经从运行主循环里旁路出来，没有继续把后台调度写死在 API 或 `RuntimeService` 单点内
   - 前端创建页、editor、starter 治理也已开始围绕共享 snapshot 演进，而不是各自维护私有常量
   - `run diagnostics` 新增 execution/evidence sections，但通过独立组件承接，没有继续把 `run-diagnostics-panel.tsx` 变成新的页面级大文件
@@ -668,7 +687,7 @@ docker compose up -d --build
 - Loop 节点执行
 - 外部 MCP Provider 接入
 - 完整插件兼容代理生命周期
-- publish endpoint 的限流、cache 与更完整审计治理
+- publish endpoint 的限流、cache 与更细的审计治理
 - `native` 发布调用的 streaming / SSE 与更完整发布管理
 - `openai / anthropic` 的正式协议映射与开放调用入口
 - scheduler 级 dead-letter / dedupe / metrics / 失败重投治理
@@ -696,12 +715,12 @@ docker compose up -d --build
 
 ### P0 当前最高优先级
 
-1. 把开放 API 建在 publish binding + lifecycle 上：
+1. 把开放 API 建在 publish binding + lifecycle + activity 上：
    - 继续把最小 `native` endpoint 演进成更完整的发布实体
    - 再把 OpenAI / Anthropic 协议映射挂到同一条发布链上
 2. 继续补 publish endpoint 的发布实体：
    - 限流与 cache
-   - 审计与调用观测
+   - activity 聚合筛选与 API key 维度观测
    - 继续坚持绑定 `workflow_version + compiled_blueprint`
 3. 收口 callback ticket 的剩余治理：
    - 过期/清理策略
@@ -710,7 +729,7 @@ docker compose up -d --build
 
 原因：
 
-- 最小 `native` 调用入口、`api_key` 鉴权实体和 alias/path 地址语义都已经落地，当前最该补的是发布托管能力与兼容协议映射，否则 `API 调用开放` 仍然无法从 MVP 走向可集成状态。
+- 最小 `native` 调用入口、`api_key` 鉴权实体、alias/path 地址语义和 activity 事实都已经落地，当前最该补的是发布托管能力与兼容协议映射，否则 `API 调用开放` 仍然无法从 MVP 走向可集成状态。
 - run 侧虽然已经绑定 compiled blueprint，execution/evidence 视图也已经开始消费这些事实，但发布层仍需要继续承接，稳定执行边界才能真正服务主业务。
 - callback ingress 虽然已打通，但 ticket 生命周期治理仍属于 durable runtime 稳定化的一部分。
 

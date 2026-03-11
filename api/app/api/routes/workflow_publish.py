@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.workflow import Workflow
+from app.models.workflow import Workflow, WorkflowPublishedEndpoint
 from app.schemas.workflow_publish import (
+    PublishedEndpointInvocationSummary,
     PublishedEndpointLifecycleStatus,
     WorkflowPublishedEndpointItem,
     WorkflowPublishedEndpointLifecycleUpdate,
 )
+from app.services.published_invocations import PublishedInvocationService
 from app.services.workflow_publish import (
     WorkflowPublishBindingError,
     WorkflowPublishBindingService,
@@ -15,6 +17,55 @@ from app.services.workflow_publish import (
 
 router = APIRouter(prefix="/workflows", tags=["workflow-publish"])
 workflow_publish_service = WorkflowPublishBindingService()
+published_invocation_service = PublishedInvocationService()
+
+
+def _serialize_published_invocation_summary(
+    summary,
+) -> PublishedEndpointInvocationSummary | None:
+    if summary is None:
+        return None
+    return PublishedEndpointInvocationSummary(
+        total_count=summary.total_count,
+        succeeded_count=summary.succeeded_count,
+        failed_count=summary.failed_count,
+        rejected_count=summary.rejected_count,
+        last_invoked_at=summary.last_invoked_at,
+        last_status=summary.last_status,
+        last_run_id=summary.last_run_id,
+        last_run_status=summary.last_run_status,
+    )
+
+
+def _serialize_workflow_published_endpoint_item(
+    record: WorkflowPublishedEndpoint,
+    *,
+    activity: PublishedEndpointInvocationSummary | None = None,
+) -> WorkflowPublishedEndpointItem:
+    return WorkflowPublishedEndpointItem(
+        id=record.id,
+        workflow_id=record.workflow_id,
+        workflow_version_id=record.workflow_version_id,
+        workflow_version=record.workflow_version,
+        target_workflow_version_id=record.target_workflow_version_id,
+        target_workflow_version=record.target_workflow_version,
+        compiled_blueprint_id=record.compiled_blueprint_id,
+        endpoint_id=record.endpoint_id,
+        endpoint_name=record.endpoint_name,
+        endpoint_alias=record.endpoint_alias,
+        route_path=record.route_path,
+        protocol=record.protocol,
+        auth_mode=record.auth_mode,
+        streaming=record.streaming,
+        lifecycle_status=record.lifecycle_status,
+        input_schema=record.input_schema,
+        output_schema=record.output_schema,
+        published_at=record.published_at,
+        unpublished_at=record.unpublished_at,
+        created_at=record.created_at,
+        updated_at=record.updated_at,
+        activity=_serialize_published_invocation_summary(activity),
+    )
 
 
 @router.get(
@@ -42,29 +93,15 @@ def list_workflow_published_endpoints(
         workflow_version=effective_version,
         lifecycle_status=lifecycle_status,
     )
+    summaries = published_invocation_service.summarize_for_bindings(
+        db,
+        workflow_id=workflow_id,
+        binding_ids=[record.id for record in records],
+    )
     return [
-        WorkflowPublishedEndpointItem(
-            id=record.id,
-            workflow_id=record.workflow_id,
-            workflow_version_id=record.workflow_version_id,
-            workflow_version=record.workflow_version,
-            target_workflow_version_id=record.target_workflow_version_id,
-            target_workflow_version=record.target_workflow_version,
-            compiled_blueprint_id=record.compiled_blueprint_id,
-            endpoint_id=record.endpoint_id,
-            endpoint_name=record.endpoint_name,
-            endpoint_alias=record.endpoint_alias,
-            route_path=record.route_path,
-            protocol=record.protocol,
-            auth_mode=record.auth_mode,
-            streaming=record.streaming,
-            lifecycle_status=record.lifecycle_status,
-            input_schema=record.input_schema,
-            output_schema=record.output_schema,
-            published_at=record.published_at,
-            unpublished_at=record.unpublished_at,
-            created_at=record.created_at,
-            updated_at=record.updated_at,
+        _serialize_workflow_published_endpoint_item(
+            record,
+            activity=summaries.get(record.id),
         )
         for record in records
     ]
@@ -102,26 +139,9 @@ def update_workflow_published_endpoint_lifecycle(
 
     db.commit()
     db.refresh(record)
-    return WorkflowPublishedEndpointItem(
-        id=record.id,
-        workflow_id=record.workflow_id,
-        workflow_version_id=record.workflow_version_id,
-        workflow_version=record.workflow_version,
-        target_workflow_version_id=record.target_workflow_version_id,
-        target_workflow_version=record.target_workflow_version,
-        compiled_blueprint_id=record.compiled_blueprint_id,
-        endpoint_id=record.endpoint_id,
-        endpoint_name=record.endpoint_name,
-        endpoint_alias=record.endpoint_alias,
-        route_path=record.route_path,
-        protocol=record.protocol,
-        auth_mode=record.auth_mode,
-        streaming=record.streaming,
-        lifecycle_status=record.lifecycle_status,
-        input_schema=record.input_schema,
-        output_schema=record.output_schema,
-        published_at=record.published_at,
-        unpublished_at=record.unpublished_at,
-        created_at=record.created_at,
-        updated_at=record.updated_at,
-    )
+    summary = published_invocation_service.summarize_for_bindings(
+        db,
+        workflow_id=workflow_id,
+        binding_ids=[record.id],
+    ).get(record.id)
+    return _serialize_workflow_published_endpoint_item(record, activity=summary)

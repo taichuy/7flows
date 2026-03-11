@@ -462,6 +462,27 @@ def test_invoke_published_native_endpoint_supports_alias_and_path_routes(
     assert path_response.json()["endpoint_alias"] == "native-chat-stable"
     assert path_response.json()["route_path"] == "/team/native-chat"
 
+    bindings_after_invocation = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_after_invocation.status_code == 200
+    activity = bindings_after_invocation.json()[0]["activity"]
+    assert activity["total_count"] == 2
+    assert activity["succeeded_count"] == 2
+    assert activity["last_status"] == "succeeded"
+
+    invocation_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
+    )
+    assert invocation_response.status_code == 200
+    invocation_body = invocation_response.json()
+    assert invocation_body["summary"]["total_count"] == 2
+    assert [item["request_source"] for item in invocation_body["items"]] == ["path", "alias"]
+    assert invocation_body["items"][0]["request_preview"]["sample"]["source"] == "path"
+    assert invocation_body["items"][1]["request_preview"]["sample"]["source"] == "alias"
+    assert all(item["run_id"] for item in invocation_body["items"])
+
 
 def test_invoke_published_native_endpoint_rejects_unimplemented_token_auth_mode(
     client: TestClient,
@@ -508,3 +529,14 @@ def test_invoke_published_native_endpoint_rejects_unimplemented_token_auth_mode(
     )
     assert invoke_response.status_code == 422
     assert "auth mode 'token' is not supported yet" in invoke_response.json()["detail"]
+
+    activity_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations"
+    )
+    assert activity_response.status_code == 200
+    body = activity_response.json()
+    assert body["summary"]["total_count"] == 1
+    assert body["summary"]["rejected_count"] == 1
+    assert body["summary"]["last_status"] == "rejected"
+    assert body["items"][0]["status"] == "rejected"
+    assert body["items"][0]["run_id"] is None
