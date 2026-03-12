@@ -24,9 +24,12 @@ export const PUBLISHED_INVOCATION_REQUEST_SURFACES = [
   "native.path",
   "native.path.async",
   "openai.chat.completions",
+  "openai.chat.completions.async",
   "openai.responses",
+  "openai.responses.async",
   "openai.unknown",
   "anthropic.messages",
+  "anthropic.messages.async",
   "unknown"
 ] as const;
 export const PUBLISHED_INVOCATION_CACHE_STATUSES = ["hit", "miss", "bypass"] as const;
@@ -64,9 +67,12 @@ const REQUEST_SURFACE_LABELS: Record<string, string> = {
   "native.path": "Native path route",
   "native.path.async": "Native path async route",
   "openai.chat.completions": "OpenAI chat.completions",
+  "openai.chat.completions.async": "OpenAI chat.completions async route",
   "openai.responses": "OpenAI responses",
+  "openai.responses.async": "OpenAI responses async route",
   "openai.unknown": "OpenAI unknown surface",
   "anthropic.messages": "Anthropic messages",
+  "anthropic.messages.async": "Anthropic messages async route",
   unknown: "Unknown surface"
 };
 const CACHE_STATUS_LABELS: Record<string, string> = {

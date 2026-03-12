@@ -24,9 +24,12 @@ PublishedEndpointInvocationRequestSurface = Literal[
     "native.path",
     "native.path.async",
     "openai.chat.completions",
+    "openai.chat.completions.async",
     "openai.responses",
+    "openai.responses.async",
     "openai.unknown",
     "anthropic.messages",
+    "anthropic.messages.async",
     "unknown",
 ]
 PublishedEndpointInvocationReasonCode = Literal[
@@ -95,6 +98,22 @@ class PublishedNativeRunResponse(BaseModel):
     workflow_version: str
     compiled_blueprint_id: str
     run: RunDetail
+
+
+class PublishedProtocolAsyncRunResponse(BaseModel):
+    binding_id: str
+    endpoint_id: str
+    endpoint_name: str
+    endpoint_alias: str
+    route_path: str
+    protocol: Literal["openai", "anthropic"]
+    request_surface: PublishedEndpointInvocationRequestSurface
+    model: str
+    workflow_id: str
+    workflow_version: str
+    compiled_blueprint_id: str
+    run: RunDetail
+    response_payload: dict[str, Any] | None = None
 
 
 class OpenAIChatCompletionRequest(BaseModel):

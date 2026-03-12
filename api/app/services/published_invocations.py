@@ -26,9 +26,12 @@ PublishedInvocationRequestSurface = Literal[
     "native.path",
     "native.path.async",
     "openai.chat.completions",
+    "openai.chat.completions.async",
     "openai.responses",
+    "openai.responses.async",
     "openai.unknown",
     "anthropic.messages",
+    "anthropic.messages.async",
     "unknown",
 ]
 PublishedInvocationReasonCode = Literal[
@@ -56,9 +59,12 @@ REQUEST_SURFACE_ORDER: tuple[PublishedInvocationRequestSurface, ...] = (
     "native.path",
     "native.path.async",
     "openai.chat.completions",
+    "openai.chat.completions.async",
     "openai.responses",
+    "openai.responses.async",
     "openai.unknown",
     "anthropic.messages",
+    "anthropic.messages.async",
     "unknown",
 )
 CACHE_STATUS_ORDER: tuple[PublishedInvocationCacheStatus, ...] = (
@@ -752,9 +758,24 @@ class PublishedInvocationService:
                 "last_invoked_at": None,
                 "last_status": None,
             },
+            "openai.chat.completions.async": {
+                "count": 0,
+                "last_invoked_at": None,
+                "last_status": None,
+            },
             "openai.responses": {"count": 0, "last_invoked_at": None, "last_status": None},
+            "openai.responses.async": {
+                "count": 0,
+                "last_invoked_at": None,
+                "last_status": None,
+            },
             "openai.unknown": {"count": 0, "last_invoked_at": None, "last_status": None},
             "anthropic.messages": {"count": 0, "last_invoked_at": None, "last_status": None},
+            "anthropic.messages.async": {
+                "count": 0,
+                "last_invoked_at": None,
+                "last_status": None,
+            },
             "unknown": {"count": 0, "last_invoked_at": None, "last_status": None},
         }
         cache_status_buckets: dict[str, dict[str, object]] = {

@@ -11,7 +11,10 @@ from app.models.workflow import (
     WorkflowPublishedEndpoint,
     WorkflowVersion,
 )
-from app.schemas.workflow_publish import PublishedNativeRunResponse
+from app.schemas.workflow_publish import (
+    PublishedNativeRunResponse,
+    PublishedProtocolAsyncRunResponse,
+)
 from app.services.published_api_keys import PublishedEndpointApiKeyService
 from app.services.published_cache import PublishedEndpointCacheService
 from app.services.published_invocations import PublishedInvocationService
@@ -63,6 +66,7 @@ class PublishedEndpointGatewayService:
         request_payload: dict,
         error_detail: str,
         presented_api_key: str | None = None,
+        request_surface_override: str | None = None,
     ) -> None:
         binding = self._workflow_publish_service.get_published_binding_by_alias(
             db,
@@ -87,6 +91,7 @@ class PublishedEndpointGatewayService:
             input_payload=request_payload,
             status="rejected",
             cache_status="bypass",
+            request_surface_override=request_surface_override,
             api_key_id=authenticated_key.id if authenticated_key is not None else None,
             error_message=error_detail,
         )
@@ -287,6 +292,41 @@ class PublishedEndpointGatewayService:
             ),
         )
 
+    def invoke_openai_chat_completion_async(
+        self,
+        db: Session,
+        *,
+        model: str,
+        input_payload: dict,
+        request_payload: dict,
+        presented_api_key: str | None = None,
+    ) -> PublishedGatewayInvokeResult:
+        return self._invoke_protocol_binding_by_alias(
+            db,
+            model=model,
+            expected_protocol="openai",
+            missing_detail="Published OpenAI model is not currently active.",
+            workflow_input_payload=input_payload,
+            cache_input_payload=build_cache_identity_payload(
+                surface="openai.chat.completions.async",
+                request_payload=request_payload,
+            ),
+            request_preview_payload=request_payload,
+            presented_api_key=presented_api_key,
+            require_terminal_success=False,
+            request_surface_override="openai.chat.completions.async",
+            response_builder=lambda **kwargs: self._build_protocol_async_response_payload(
+                binding=kwargs["binding"],
+                workflow=kwargs["workflow"],
+                workflow_version=kwargs["workflow_version"],
+                blueprint_record=kwargs["blueprint_record"],
+                artifacts=kwargs["artifacts"],
+                model=model,
+                request_surface="openai.chat.completions.async",
+                protocol_response_builder=build_openai_chat_completion_response,
+            ),
+        )
+
     def invoke_openai_response(
         self,
         db: Session,
@@ -311,6 +351,41 @@ class PublishedEndpointGatewayService:
             response_builder=lambda **kwargs: build_openai_response_api_response(
                 model=model,
                 output_payload=kwargs["artifacts"].run.output_payload,
+            ),
+        )
+
+    def invoke_openai_response_async(
+        self,
+        db: Session,
+        *,
+        model: str,
+        input_payload: dict,
+        request_payload: dict,
+        presented_api_key: str | None = None,
+    ) -> PublishedGatewayInvokeResult:
+        return self._invoke_protocol_binding_by_alias(
+            db,
+            model=model,
+            expected_protocol="openai",
+            missing_detail="Published OpenAI model is not currently active.",
+            workflow_input_payload=input_payload,
+            cache_input_payload=build_cache_identity_payload(
+                surface="openai.responses.async",
+                request_payload=request_payload,
+            ),
+            request_preview_payload=request_payload,
+            presented_api_key=presented_api_key,
+            require_terminal_success=False,
+            request_surface_override="openai.responses.async",
+            response_builder=lambda **kwargs: self._build_protocol_async_response_payload(
+                binding=kwargs["binding"],
+                workflow=kwargs["workflow"],
+                workflow_version=kwargs["workflow_version"],
+                blueprint_record=kwargs["blueprint_record"],
+                artifacts=kwargs["artifacts"],
+                model=model,
+                request_surface="openai.responses.async",
+                protocol_response_builder=build_openai_response_api_response,
             ),
         )
 
@@ -341,6 +416,41 @@ class PublishedEndpointGatewayService:
             ),
         )
 
+    def invoke_anthropic_message_async(
+        self,
+        db: Session,
+        *,
+        model: str,
+        input_payload: dict,
+        request_payload: dict,
+        presented_api_key: str | None = None,
+    ) -> PublishedGatewayInvokeResult:
+        return self._invoke_protocol_binding_by_alias(
+            db,
+            model=model,
+            expected_protocol="anthropic",
+            missing_detail="Published Anthropic model is not currently active.",
+            workflow_input_payload=input_payload,
+            cache_input_payload=build_cache_identity_payload(
+                surface="anthropic.messages.async",
+                request_payload=request_payload,
+            ),
+            request_preview_payload=request_payload,
+            presented_api_key=presented_api_key,
+            require_terminal_success=False,
+            request_surface_override="anthropic.messages.async",
+            response_builder=lambda **kwargs: self._build_protocol_async_response_payload(
+                binding=kwargs["binding"],
+                workflow=kwargs["workflow"],
+                workflow_version=kwargs["workflow_version"],
+                blueprint_record=kwargs["blueprint_record"],
+                artifacts=kwargs["artifacts"],
+                model=model,
+                request_surface="anthropic.messages.async",
+                protocol_response_builder=build_anthropic_message_response,
+            ),
+        )
+
     def _invoke_protocol_binding_by_alias(
         self,
         db: Session,
@@ -353,6 +463,8 @@ class PublishedEndpointGatewayService:
         request_preview_payload: dict,
         presented_api_key: str | None,
         response_builder,
+        require_terminal_success: bool = True,
+        request_surface_override: str | None = None,
     ) -> PublishedGatewayInvokeResult:
         binding = self._workflow_publish_service.get_published_binding_by_alias(
             db,
@@ -370,6 +482,8 @@ class PublishedEndpointGatewayService:
             request_source="alias",
             response_builder=response_builder,
             response_preview_builder=self._build_passthrough_response_preview,
+            require_terminal_success=require_terminal_success,
+            request_surface_override=request_surface_override,
         )
 
     def _invoke_binding(
@@ -487,7 +601,6 @@ class PublishedEndpointGatewayService:
                 )
                 response_preview_payload = response_preview_builder(response_payload)
                 if cache_enabled and self._should_store_cached_response(
-                    expected_protocol=expected_protocol,
                     response_payload=response_payload,
                 ):
                     self._cache_service.store_response(
@@ -534,37 +647,21 @@ class PublishedEndpointGatewayService:
         if response_preview_payload is None:
             response_preview_payload = response_preview_builder(response_payload)
 
+        run_payload = self._extract_run_payload(response_payload)
+
         self._invocation_service.record_invocation(
             db,
             binding=binding,
             request_source=request_source,
             input_payload=request_preview_payload,
-            status=(
-                "failed"
-                if response_payload["run"]["status"] == "failed"
-                else "succeeded"
-            )
-            if expected_protocol == "native"
-            else "succeeded",
+            status="failed" if run_payload and run_payload.get("status") == "failed" else "succeeded",
             cache_status=cache_status,
             request_surface_override=request_surface_override,
             api_key_id=authenticated_key.id if authenticated_key is not None else None,
-            run_id=(
-                response_payload["run"]["id"]
-                if expected_protocol == "native"
-                else None
-            ),
-            run_status=(
-                response_payload["run"]["status"]
-                if expected_protocol == "native"
-                else None
-            ),
+            run_id=run_payload.get("id") if run_payload is not None else None,
+            run_status=run_payload.get("status") if run_payload is not None else None,
             response_payload=response_preview_payload,
-            error_message=(
-                response_payload["run"].get("error_message")
-                if expected_protocol == "native"
-                else None
-            ),
+            error_message=run_payload.get("error_message") if run_payload is not None else None,
             started_at=started_at,
             finished_at=finished_at,
         )
@@ -576,16 +673,11 @@ class PublishedEndpointGatewayService:
     def _should_store_cached_response(
         self,
         *,
-        expected_protocol: str,
         response_payload: dict,
     ) -> bool:
-        if expected_protocol != "native":
+        run_payload = self._extract_run_payload(response_payload)
+        if run_payload is None:
             return True
-
-        run_payload = response_payload.get("run")
-        if not isinstance(run_payload, dict):
-            return False
-
         return run_payload.get("status") == "succeeded"
 
     def _ensure_sync_publish_run_succeeded(self, run_status: str) -> None:
@@ -633,6 +725,47 @@ class PublishedEndpointGatewayService:
 
     def _build_passthrough_response_preview(self, response_payload: dict) -> dict:
         return response_payload
+
+    def _build_protocol_async_response_payload(
+        self,
+        *,
+        binding: WorkflowPublishedEndpoint,
+        workflow: Workflow,
+        workflow_version: WorkflowVersion,
+        blueprint_record: WorkflowCompiledBlueprint,
+        artifacts,
+        model: str,
+        request_surface: str,
+        protocol_response_builder,
+    ) -> dict:
+        run_detail = serialize_run_detail(artifacts)
+        response_payload = None
+        if artifacts.run.status == "succeeded":
+            response_payload = protocol_response_builder(
+                model=model,
+                output_payload=artifacts.run.output_payload,
+            )
+
+        response = PublishedProtocolAsyncRunResponse(
+            binding_id=binding.id,
+            endpoint_id=binding.endpoint_id,
+            endpoint_name=binding.endpoint_name,
+            endpoint_alias=binding.endpoint_alias,
+            route_path=binding.route_path,
+            protocol=binding.protocol,
+            request_surface=request_surface,
+            model=model,
+            workflow_id=workflow.id,
+            workflow_version=workflow_version.version,
+            compiled_blueprint_id=blueprint_record.id,
+            run=run_detail,
+            response_payload=response_payload,
+        )
+        return response.model_dump(mode="json", exclude_none=True)
+
+    def _extract_run_payload(self, response_payload: dict) -> dict | None:
+        run_payload = response_payload.get("run")
+        return run_payload if isinstance(run_payload, dict) else None
 
     def _enforce_rate_limit(
         self,

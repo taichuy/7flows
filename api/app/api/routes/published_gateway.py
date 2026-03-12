@@ -11,6 +11,7 @@ from app.schemas.workflow_publish import (
     OpenAIResponseResponse,
     PublishedNativeRunRequest,
     PublishedNativeRunResponse,
+    PublishedProtocolAsyncRunResponse,
 )
 from app.services.published_gateway import (
     PublishedEndpointGatewayError,
@@ -62,7 +63,7 @@ def _build_anthropic_message_input_payload(payload: AnthropicMessageRequest) -> 
     }
 
 
-def _apply_native_publish_response_headers(
+def _apply_publish_response_headers(
     response: Response,
     *,
     cache_status: str,
@@ -96,7 +97,7 @@ def invoke_published_native_endpoint(
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    _apply_native_publish_response_headers(
+    _apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=result.response_payload.get("run", {}).get("status"),
@@ -125,7 +126,7 @@ def invoke_published_native_endpoint_by_alias(
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    _apply_native_publish_response_headers(
+    _apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=result.response_payload.get("run", {}).get("status"),
@@ -159,7 +160,7 @@ def invoke_published_native_endpoint_async(
     run_status = result.response_payload.get("run", {}).get("status")
     if run_status == "waiting":
         response.status_code = status.HTTP_202_ACCEPTED
-    _apply_native_publish_response_headers(
+    _apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
@@ -191,7 +192,7 @@ def invoke_published_native_endpoint_by_alias_async(
     run_status = result.response_payload.get("run", {}).get("status")
     if run_status == "waiting":
         response.status_code = status.HTTP_202_ACCEPTED
-    _apply_native_publish_response_headers(
+    _apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
@@ -220,7 +221,7 @@ def invoke_published_native_endpoint_by_path(
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    _apply_native_publish_response_headers(
+    _apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=result.response_payload.get("run", {}).get("status"),
@@ -252,7 +253,7 @@ def invoke_published_native_endpoint_by_path_async(
     run_status = result.response_payload.get("run", {}).get("status")
     if run_status == "waiting":
         response.status_code = status.HTTP_202_ACCEPTED
-    _apply_native_publish_response_headers(
+    _apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
@@ -295,8 +296,55 @@ def invoke_published_openai_chat_completion(
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    response.headers["X-7Flows-Cache"] = result.cache_status.upper()
+    _apply_publish_response_headers(response, cache_status=result.cache_status, run_status=None)
     return OpenAIChatCompletionResponse.model_validate(result.response_payload)
+
+
+@router.post(
+    "/chat/completions-async",
+    response_model=PublishedProtocolAsyncRunResponse,
+)
+def invoke_published_openai_chat_completion_async(
+    payload: OpenAIChatCompletionRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> PublishedProtocolAsyncRunResponse:
+    if payload.stream:
+        published_gateway_service.record_protocol_rejection_by_alias(
+            db,
+            model=payload.model,
+            expected_protocol="openai",
+            request_payload=payload.model_dump(mode="json", exclude_none=True),
+            error_detail="Streaming chat completions are not supported yet.",
+            presented_api_key=_extract_presented_api_key(request),
+            request_surface_override="openai.chat.completions.async",
+        )
+        raise HTTPException(
+            status_code=422,
+            detail="Streaming chat completions are not supported yet.",
+        )
+
+    try:
+        result = published_gateway_service.invoke_openai_chat_completion_async(
+            db,
+            model=payload.model,
+            input_payload=_build_openai_chat_input_payload(payload),
+            request_payload=payload.model_dump(mode="json", exclude_none=True),
+            presented_api_key=_extract_presented_api_key(request),
+        )
+    except PublishedEndpointGatewayError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+    run_status = result.response_payload.get("run", {}).get("status")
+    if run_status == "waiting":
+        response.status_code = status.HTTP_202_ACCEPTED
+    _apply_publish_response_headers(
+        response,
+        cache_status=result.cache_status,
+        run_status=run_status,
+    )
+    return PublishedProtocolAsyncRunResponse.model_validate(result.response_payload)
 
 
 @router.post(
@@ -334,8 +382,55 @@ def invoke_published_openai_response(
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    response.headers["X-7Flows-Cache"] = result.cache_status.upper()
+    _apply_publish_response_headers(response, cache_status=result.cache_status, run_status=None)
     return OpenAIResponseResponse.model_validate(result.response_payload)
+
+
+@router.post(
+    "/responses-async",
+    response_model=PublishedProtocolAsyncRunResponse,
+)
+def invoke_published_openai_response_async(
+    payload: OpenAIResponseRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> PublishedProtocolAsyncRunResponse:
+    if payload.stream:
+        published_gateway_service.record_protocol_rejection_by_alias(
+            db,
+            model=payload.model,
+            expected_protocol="openai",
+            request_payload=payload.model_dump(mode="json", exclude_none=True),
+            error_detail="Streaming responses are not supported yet.",
+            presented_api_key=_extract_presented_api_key(request),
+            request_surface_override="openai.responses.async",
+        )
+        raise HTTPException(
+            status_code=422,
+            detail="Streaming responses are not supported yet.",
+        )
+
+    try:
+        result = published_gateway_service.invoke_openai_response_async(
+            db,
+            model=payload.model,
+            input_payload=_build_openai_response_input_payload(payload),
+            request_payload=payload.model_dump(mode="json", exclude_none=True),
+            presented_api_key=_extract_presented_api_key(request),
+        )
+    except PublishedEndpointGatewayError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+    run_status = result.response_payload.get("run", {}).get("status")
+    if run_status == "waiting":
+        response.status_code = status.HTTP_202_ACCEPTED
+    _apply_publish_response_headers(
+        response,
+        cache_status=result.cache_status,
+        run_status=run_status,
+    )
+    return PublishedProtocolAsyncRunResponse.model_validate(result.response_payload)
 
 
 @router.post(
@@ -373,5 +468,52 @@ def invoke_published_anthropic_message(
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    response.headers["X-7Flows-Cache"] = result.cache_status.upper()
+    _apply_publish_response_headers(response, cache_status=result.cache_status, run_status=None)
     return AnthropicMessageResponse.model_validate(result.response_payload)
+
+
+@router.post(
+    "/messages-async",
+    response_model=PublishedProtocolAsyncRunResponse,
+)
+def invoke_published_anthropic_message_async(
+    payload: AnthropicMessageRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> PublishedProtocolAsyncRunResponse:
+    if payload.stream:
+        published_gateway_service.record_protocol_rejection_by_alias(
+            db,
+            model=payload.model,
+            expected_protocol="anthropic",
+            request_payload=payload.model_dump(mode="json", exclude_none=True),
+            error_detail="Streaming Anthropic messages are not supported yet.",
+            presented_api_key=_extract_presented_api_key(request),
+            request_surface_override="anthropic.messages.async",
+        )
+        raise HTTPException(
+            status_code=422,
+            detail="Streaming Anthropic messages are not supported yet.",
+        )
+
+    try:
+        result = published_gateway_service.invoke_anthropic_message_async(
+            db,
+            model=payload.model,
+            input_payload=_build_anthropic_message_input_payload(payload),
+            request_payload=payload.model_dump(mode="json", exclude_none=True),
+            presented_api_key=_extract_presented_api_key(request),
+        )
+    except PublishedEndpointGatewayError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+
+    run_status = result.response_payload.get("run", {}).get("status")
+    if run_status == "waiting":
+        response.status_code = status.HTTP_202_ACCEPTED
+    _apply_publish_response_headers(
+        response,
+        cache_status=result.cache_status,
+        run_status=run_status,
+    )
+    return PublishedProtocolAsyncRunResponse.model_validate(result.response_payload)

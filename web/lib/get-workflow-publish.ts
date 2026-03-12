@@ -11,9 +11,12 @@ export type PublishedEndpointInvocationRequestSurface =
   | "native.path"
   | "native.path.async"
   | "openai.chat.completions"
+  | "openai.chat.completions.async"
   | "openai.responses"
+  | "openai.responses.async"
   | "openai.unknown"
   | "anthropic.messages"
+  | "anthropic.messages.async"
   | "unknown";
 
 export type PublishedEndpointInvocationSummary = {
