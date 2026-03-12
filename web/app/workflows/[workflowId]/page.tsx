@@ -5,11 +5,9 @@ import { WorkflowEditorWorkbench } from "@/components/workflow-editor-workbench"
 import { WorkflowPublishPanel } from "@/components/workflow-publish-panel";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import {
-  getPublishedEndpointApiKeys,
-  type PublishedEndpointCacheInventoryResponse,
-  getPublishedEndpointCacheInventory,
   getWorkflowPublishedEndpoints
 } from "@/lib/get-workflow-publish";
+import { getWorkflowPublishGovernanceSnapshot } from "@/lib/get-workflow-publish-governance";
 import { getWorkflowRuns } from "@/lib/get-workflow-runs";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
 
@@ -45,29 +43,12 @@ export default async function WorkflowEditorPage({
     notFound();
   }
 
-  const cacheInventoryEntries = await Promise.all(
-    publishedEndpoints
-      .filter((binding) => binding.cache_inventory?.enabled)
-      .map(async (binding) => [
-        binding.id,
-        await getPublishedEndpointCacheInventory(workflow.id, binding.id)
-      ] as const)
-  );
-  const cacheInventories = Object.fromEntries(
-    cacheInventoryEntries
-  ) as Record<string, PublishedEndpointCacheInventoryResponse | null>;
-  const apiKeyEntries = await Promise.all(
-    publishedEndpoints
-      .filter((binding) => binding.auth_mode === "api_key")
-      .map(async (binding) => [
-        binding.id,
-        await getPublishedEndpointApiKeys(workflow.id, binding.id)
-      ] as const)
-  );
-  const apiKeysByBinding = Object.fromEntries(apiKeyEntries) as Record<
-    string,
-    Awaited<ReturnType<typeof getPublishedEndpointApiKeys>>
-  >;
+  const {
+    cacheInventories,
+    apiKeysByBinding,
+    invocationAuditsByBinding,
+    rateLimitWindowAuditsByBinding
+  } = await getWorkflowPublishGovernanceSnapshot(workflow.id, publishedEndpoints);
 
   return (
     <>
@@ -85,6 +66,8 @@ export default async function WorkflowEditorPage({
         bindings={publishedEndpoints}
         cacheInventories={cacheInventories}
         apiKeysByBinding={apiKeysByBinding}
+        invocationAuditsByBinding={invocationAuditsByBinding}
+        rateLimitWindowAuditsByBinding={rateLimitWindowAuditsByBinding}
       />
     </>
   );

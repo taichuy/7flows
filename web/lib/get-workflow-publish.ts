@@ -1,5 +1,9 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
 
+export type PublishedEndpointInvocationStatus = "succeeded" | "failed" | "rejected";
+export type PublishedEndpointInvocationRequestSource = "workflow" | "alias" | "path";
+export type PublishedEndpointInvocationCacheStatus = "hit" | "miss" | "bypass";
+
 export type PublishedEndpointInvocationSummary = {
   total_count: number;
   succeeded_count: number;
@@ -13,6 +17,93 @@ export type PublishedEndpointInvocationSummary = {
   last_cache_status?: "hit" | "miss" | "bypass" | null;
   last_run_id?: string | null;
   last_run_status?: string | null;
+};
+
+export type PublishedEndpointInvocationItem = {
+  id: string;
+  workflow_id: string;
+  binding_id: string;
+  endpoint_id: string;
+  endpoint_alias: string;
+  route_path: string;
+  protocol: string;
+  auth_mode: string;
+  request_source: PublishedEndpointInvocationRequestSource;
+  status: PublishedEndpointInvocationStatus;
+  cache_status: PublishedEndpointInvocationCacheStatus;
+  api_key_id?: string | null;
+  api_key_name?: string | null;
+  api_key_prefix?: string | null;
+  api_key_status?: "active" | "revoked" | null;
+  run_id?: string | null;
+  run_status?: string | null;
+  error_message?: string | null;
+  request_preview: {
+    key_count?: number;
+    keys?: string[];
+    sample?: Record<string, unknown>;
+  };
+  response_preview?: Record<string, unknown> | null;
+  duration_ms?: number | null;
+  created_at: string;
+  finished_at?: string | null;
+};
+
+export type PublishedEndpointInvocationFacetItem = {
+  value: string;
+  count: number;
+  last_invoked_at?: string | null;
+  last_status?: PublishedEndpointInvocationStatus | null;
+};
+
+export type PublishedEndpointInvocationApiKeyUsageItem = {
+  api_key_id: string;
+  name?: string | null;
+  key_prefix?: string | null;
+  status?: "active" | "revoked" | null;
+  invocation_count: number;
+  last_invoked_at?: string | null;
+  last_status?: PublishedEndpointInvocationStatus | null;
+};
+
+export type PublishedEndpointInvocationFailureReasonItem = {
+  message: string;
+  count: number;
+  last_invoked_at?: string | null;
+};
+
+export type PublishedEndpointInvocationTimeBucketItem = {
+  bucket_start: string;
+  bucket_end: string;
+  total_count: number;
+  succeeded_count: number;
+  failed_count: number;
+  rejected_count: number;
+};
+
+export type PublishedEndpointInvocationFilters = {
+  status?: PublishedEndpointInvocationStatus | null;
+  request_source?: PublishedEndpointInvocationRequestSource | null;
+  api_key_id?: string | null;
+  created_from?: string | null;
+  created_to?: string | null;
+};
+
+export type PublishedEndpointInvocationFacets = {
+  status_counts: PublishedEndpointInvocationFacetItem[];
+  request_source_counts: PublishedEndpointInvocationFacetItem[];
+  cache_status_counts: PublishedEndpointInvocationFacetItem[];
+  api_key_usage: PublishedEndpointInvocationApiKeyUsageItem[];
+  recent_failure_reasons: PublishedEndpointInvocationFailureReasonItem[];
+  timeline_granularity: "hour" | "day";
+  timeline: PublishedEndpointInvocationTimeBucketItem[];
+};
+
+export type PublishedEndpointInvocationListResponse = {
+  filters: PublishedEndpointInvocationFilters;
+  summary: PublishedEndpointInvocationSummary;
+  facets: PublishedEndpointInvocationFacets;
+  items: PublishedEndpointInvocationItem[];
 };
 
 export type PublishedEndpointCacheInventorySummary = {
@@ -184,5 +275,58 @@ export async function getPublishedEndpointApiKeys(
     return (await response.json()) as PublishedEndpointApiKeyItem[];
   } catch {
     return [];
+  }
+}
+
+export async function getPublishedEndpointInvocations(
+  workflowId: string,
+  bindingId: string,
+  options?: {
+    limit?: number;
+    status?: PublishedEndpointInvocationStatus;
+    requestSource?: PublishedEndpointInvocationRequestSource;
+    apiKeyId?: string;
+    createdFrom?: string;
+    createdTo?: string;
+  }
+): Promise<PublishedEndpointInvocationListResponse | null> {
+  try {
+    const searchParams = new URLSearchParams();
+    searchParams.set(
+      "limit",
+      String(Math.min(Math.max(options?.limit ?? 5, 1), 20))
+    );
+    if (options?.status) {
+      searchParams.set("status", options.status);
+    }
+    if (options?.requestSource) {
+      searchParams.set("request_source", options.requestSource);
+    }
+    if (options?.apiKeyId) {
+      searchParams.set("api_key_id", options.apiKeyId);
+    }
+    if (options?.createdFrom) {
+      searchParams.set("created_from", options.createdFrom);
+    }
+    if (options?.createdTo) {
+      searchParams.set("created_to", options.createdTo);
+    }
+
+    const response = await fetch(
+      `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(
+        workflowId
+      )}/published-endpoints/${encodeURIComponent(bindingId)}/invocations?${searchParams.toString()}`,
+      {
+        cache: "no-store"
+      }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as PublishedEndpointInvocationListResponse;
+  } catch {
+    return null;
   }
 }

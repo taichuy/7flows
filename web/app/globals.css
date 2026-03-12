@@ -409,6 +409,11 @@ a {
   color: var(--down);
 }
 
+.health-pill.rejected {
+  background: rgba(208, 99, 45, 0.12);
+  color: var(--accent);
+}
+
 .health-pill.disabled,
 .health-pill.skipped {
   background: rgba(28, 25, 21, 0.08);
@@ -583,6 +588,37 @@ a {
 
 .publish-cache-list {
   margin-top: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.publish-timeline {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.publish-timeline-bar {
+  margin-top: 10px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(28, 25, 21, 0.08);
+}
+
+.publish-timeline-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    rgba(208, 99, 45, 0.24),
+    rgba(208, 99, 45, 0.72)
+  );
+}
+
+.publish-timeline-copy {
+  margin-top: 10px;
 }
 
 .binding-list {

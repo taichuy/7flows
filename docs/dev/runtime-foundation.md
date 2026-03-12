@@ -606,7 +606,9 @@ uv run alembic upgrade head
 - 对 `auth_mode=api_key` 的 binding，workflow 页面会进一步读取 active API key 列表，并提供 create / revoke / one-time secret 展示
 - workflow 页面当前还会继续读取 `/invocations`，把最近调用审计、API key 使用、最近失败原因与 request source / cache facet 接回 publish panel
 - 对启用 `rate_limit_policy` 的 binding，workflow 页面会按当前限流窗口再次读取 `/invocations`，直接展示 window used / remaining / rejected 的治理信号
+- workflow 页面当前已把 cache inventory、API key、invocation audit 与 rate-limit window 的并行装配收口到 `web/lib/get-workflow-publish-governance.ts`，让页面继续保持“数据装配 + 区块拼接”的薄层职责
 - publish governance panel 当前已按职责拆成 `panel -> binding card -> invocation activity` 子组件，避免 workflow 页继续长回单文件混排
+- `invocation activity` 当前会直接展示 traffic mix、rate-limit window、API key usage、失败原因和 timeline buckets，开放 API 的治理反馈不再只停留在基础统计摘要
 - 当前 `llm_agent` / `tool` / `mcp_query` / `condition` / `router` / `output` 节点已开始进入结构化配置表单，并保留高级 JSON 兜底：
     - `llm_agent`
       - 可编辑 `provider` / `modelId` / `temperature`
@@ -674,16 +676,17 @@ uv run alembic upgrade head
 
 ### 当前架构与体量判断
 
-- 最近一次正式 Git 提交是 `2026-03-12 10:57:22 +0800` 的 `feat: add workflow publish governance panel`：
-  - workflow 页面开始直接消费 publish binding、cache inventory 与 API key 治理入口
-  - publish governance panel 已经接回 editor 主路径，而不是继续停留在后端可用、前端不可见
+- 最近一次正式 Git 提交是 `2026-03-12 11:39:18 +0800` 的 `feat: add published openai anthropic gateway`：
+  - 发布层正式接入 `native / openai / anthropic` 三类入口
+  - `published_protocol_mapper` 把协议映射继续限制在发布层，而没有反向侵入 runtime 核心
+- 当前工作区里的后续承接则继续把发布治理前端接回 workflow 主路径：
+  - workflow 页面通过独立 governance loader 并行装配 cache / api key / invocation / rate-limit window
+  - publish governance UI 已拆成 `panel -> binding card -> invocation activity`，并补上 timeline 与窗口治理反馈
 - 这次承接判断是：需要衔接，而且主线仍然是 `API 调用开放` 的 P0 发布治理，而不是再回到 callback cleanup 深挖
 - 本轮继续承接开放 API 主线，补上：
-  - `POST /v1/chat/completions`
-  - `POST /v1/responses`
-  - `POST /v1/messages`
-  - `protocol=openai/anthropic` 的 `model -> published binding alias` 映射
-  - protocol surface 级 publish cache identity，避免 OpenAI `chat/responses` 串用缓存
+  - workflow 页的 invocation / rate-limit / cache / api key 统一治理消费
+  - publish activity 的 timeline、失败原因与 API key 使用可见性
+  - 页面级 publish 数据装配与展示职责分层，避免 workflow detail 再次长回单文件混排
 - 当前真正需要持续承接的实现主线仍是 `feat: add durable agent runtime phase1`：
   - Phase 1 已经把 `compiler / runtime / agent runtime / tool gateway / context / artifact` 这套后端基础拆出来
   - 前几轮沿这条线补上了 `run_callback_tickets + callback ingress`
@@ -706,19 +709,22 @@ uv run alembic upgrade head
   - worker 恢复入口已经从运行主循环里旁路出来，没有继续把后台调度写死在 API 或 `RuntimeService` 单点内
   - `ExecutionArtifacts / CallbackHandleResult` 这类 runtime 返回模型已从 `runtime.py` 抽到 `runtime_records.py`，避免主执行器继续堆叠非执行职责
   - 前端创建页、editor、starter 治理也已开始围绕共享 snapshot 演进，而不是各自维护私有常量
+  - workflow 页当前通过 `getWorkflowPublishGovernanceSnapshot` 统一装配 publish 治理数据，没有继续把并行 fetch、筛选和空态兜底堆回 page component
   - `run diagnostics` 新增 execution/evidence sections，但通过独立组件承接，没有继续把 `run-diagnostics-panel.tsx` 变成新的页面级大文件
   - callback ticket cleanup 现在也已接入独立 scheduler 进程，避免再把周期治理塞回 API 或 `RuntimeService`
   - 但 publish endpoint 的更完整 protocol mapping / streaming、callback ticket 更强鉴权/系统诊断可见性，以及节点插件注册中心仍未彻底拆清
 - 当前需要显式盯住的长文件：
-  - `api/app/services/runtime.py` 当前约 1595 行，已经重新越过后端 1500 行偏好阈值；下一轮若继续补 scheduler、callback 治理或 publish gateway，应优先拆 execution / waiting / resume orchestration
+  - `api/app/services/runtime.py` 当前约 1502 行，已经重新越过后端 1500 行偏好阈值；下一轮若继续补 scheduler、callback 治理或 publish gateway，应优先拆 execution / waiting / resume orchestration
   - `api/app/api/routes/runs.py` 仍然偏长，但本轮已把 execution / evidence 聚合和 RunDetail 序列化拆出；下一轮若继续扩展 trace/export/callback，应进一步考虑 trace/export/callback 子模块拆分
-  - `api/app/services/agent_runtime.py` 当前约 665 行，已经承载 phase pipeline、tool waiting 恢复和 evidence 组装；若继续长出 assistant 策略与 subflow 候选能力，应提前拆 plan/tool/finalize 子阶段
-  - `api/app/services/workflow_library.py` 当前约 688 行，仍适合继续演进，但若再接 adapter health / node plugin registry，应优先拆 source assembly 与 starter builder
-  - `api/app/services/published_invocations.py` 当前约 597 行，已经承载 activity summary、time window、timeline、API key 维度统计和 rate limit 计数；若继续长出 cache 命中统计或更细趋势分析，应提前拆 query/audit aggregation
-  - `web/app/actions.ts` 当前约 478 行，已经同时承载工具绑定、publish lifecycle 和 API key server actions；下一轮若继续补 publish 治理动作，应优先拆成 workflow / publish 两个 action 模块
-  - `web/components/workspace-starter-library.tsx` 当前约 1134 行，是前端体量最大的真实业务文件；虽然还在前端 2000 行偏好之内，但后续继续补批量结果钻取时仍应继续拆
-  - `web/components/workflow-editor-workbench.tsx` 当前约 580 行，下一轮若继续把 execution / evidence view 接回 editor overlay，要避免重新长回页面级混排组件
-  - `web/components/run-diagnostics-panel.tsx` 当前约 636 行，若继续塞 trace/export/filter 状态，应优先拆筛选器和时间线区块
+  - `api/app/services/agent_runtime.py` 当前约 628 行，已经承载 phase pipeline、tool waiting 恢复和 evidence 组装；若继续长出 assistant 策略与 subflow 候选能力，应提前拆 plan/tool/finalize 子阶段
+  - `api/app/services/workflow_library.py` 当前约 650 行，仍适合继续演进，但若再接 adapter health / node plugin registry，应优先拆 source assembly 与 starter builder
+  - `api/app/services/published_invocations.py` 当前约 588 行，已经承载 activity summary、time window、timeline、API key 维度统计和 rate limit 计数；若继续长出 cache 命中统计或更细趋势分析，应提前拆 query/audit aggregation
+  - `api/tests/test_runtime_service.py` 当前约 1595 行，测试体量已经过载；下一轮若继续补 waiting/resume/error path，应优先按执行路径拆分测试文件
+  - `web/app/actions.ts` 当前约 444 行，已经同时承载工具绑定、publish lifecycle 和 API key server actions；下一轮若继续补 publish 治理动作，应优先拆成 workflow / publish 两个 action 模块
+  - `web/components/workspace-starter-library.tsx` 当前约 1042 行，是前端体量最大的真实业务文件；虽然还在前端 2000 行偏好之内，但后续继续补批量结果钻取时仍应继续拆
+  - `web/components/workflow-editor-workbench.tsx` 当前约 528 行，下一轮若继续把 execution / evidence view 接回 editor overlay，要避免重新长回页面级混排组件
+  - `web/components/run-diagnostics-panel.tsx` 当前约 645 行，若继续塞 trace/export/filter 状态，应优先拆筛选器和时间线区块
+  - `web/components/workflow-publish-activity-panel.tsx` 当前约 278 行，已经承载 timeline、失败原因、API key 使用和窗口治理；若后续继续长出筛选交互，应优先拆 summary / timeline / recent-items 区块
 
 ## 推荐开发命令
 
@@ -808,7 +814,7 @@ docker compose up -d --build
 2. 继续补 publish endpoint 的发布实体：
    - rate limit 的系统诊断可见性与更细治理反馈
    - 更细的 API key 维度观测与趋势消费视图
-   - invocation / cache / API key / protocol surface 的统一前端治理区块
+   - streaming / SSE 的协议面可见性与 invocation / cache / API key / protocol surface 的统一前端治理区块
    - 继续坚持绑定 `workflow_version + compiled_blueprint`
 3. 收口 callback ticket 的剩余治理：
    - 更强鉴权形态
