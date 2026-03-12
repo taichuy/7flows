@@ -25,6 +25,7 @@ type WorkflowPublishInvocationFilter = {
   requestSource?: "workflow" | "alias" | "path";
   requestSurface?: PublishedEndpointInvocationRequestSurface;
   cacheStatus?: "hit" | "miss" | "bypass";
+  runStatus?: string;
   apiKeyId?: string;
   reasonCode?: string;
   createdFrom?: string;
@@ -80,6 +81,7 @@ export async function getWorkflowPublishGovernanceSnapshot(
                 requestSource: options.activeInvocationFilter.requestSource,
                 requestSurface: options.activeInvocationFilter.requestSurface,
                 cacheStatus: options.activeInvocationFilter.cacheStatus,
+                runStatus: options.activeInvocationFilter.runStatus,
                 apiKeyId: options.activeInvocationFilter.apiKeyId,
                 reasonCode: options.activeInvocationFilter.reasonCode,
                 createdFrom: options.activeInvocationFilter.createdFrom,

@@ -15,6 +15,8 @@ import {
   formatPublishedInvocationCacheStatusLabel,
   formatPublishedInvocationReasonLabel,
   formatPublishedInvocationSurfaceLabel,
+  formatPublishedRunStatusLabel,
+  PUBLISHED_RUN_STATUSES,
   formatRateLimitPressure
 } from "@/lib/published-invocation-presenters";
 import { formatDurationMs, formatKeyList, formatTimestamp } from "@/lib/runtime-presenters";
@@ -69,6 +71,9 @@ function buildActiveFilterChips(
   if (activeInvocationFilter.cacheStatus) {
     chips.push(formatPublishedInvocationCacheStatusLabel(activeInvocationFilter.cacheStatus));
   }
+  if (activeInvocationFilter.runStatus) {
+    chips.push(formatPublishedRunStatusLabel(activeInvocationFilter.runStatus));
+  }
   if (activeInvocationFilter.reasonCode) {
     chips.push(formatPublishedInvocationReasonLabel(activeInvocationFilter.reasonCode));
   }
@@ -80,6 +85,18 @@ function buildActiveFilterChips(
     chips.push(formatTimeWindowLabel(activeInvocationFilter.timeWindow));
   }
   return chips;
+}
+
+function buildRunStatusOptions(
+  runStatusCounts: PublishedEndpointInvocationFacetItem[] | undefined
+) {
+  const dynamicValues = new Set(
+    (runStatusCounts ?? []).map((item) => item.value).filter(Boolean)
+  );
+  for (const value of PUBLISHED_RUN_STATUSES) {
+    dynamicValues.add(value);
+  }
+  return Array.from(dynamicValues);
 }
 
 export function WorkflowPublishActivityPanel({
@@ -95,6 +112,7 @@ export function WorkflowPublishActivityPanel({
   const requestSourceCounts = invocationAudit?.facets.request_source_counts ?? [];
   const requestSurfaceCounts = invocationAudit?.facets.request_surface_counts ?? [];
   const cacheStatusCounts = invocationAudit?.facets.cache_status_counts ?? [];
+  const runStatusCounts = invocationAudit?.facets.run_status_counts ?? [];
   const reasonCounts = invocationAudit?.facets.reason_counts ?? [];
   const apiKeyUsage = invocationAudit?.facets.api_key_usage ?? [];
   const failureReasons = invocationAudit?.facets.recent_failure_reasons ?? [];
@@ -113,6 +131,7 @@ export function WorkflowPublishActivityPanel({
     ? formatRateLimitPressure(rateLimitPolicy.requests, windowUsed)
     : null;
   const activeFilterChips = buildActiveFilterChips(activeInvocationFilter, apiKeys);
+  const runStatusOptions = buildRunStatusOptions(runStatusCounts);
   const formAction = `/workflows/${workflowId}`;
 
   return (
@@ -180,6 +199,22 @@ export function WorkflowPublishActivityPanel({
             {PUBLISHED_INVOCATION_CACHE_STATUSES.map((cacheStatus) => (
               <option key={cacheStatus} value={cacheStatus}>
                 {formatPublishedInvocationCacheStatusLabel(cacheStatus)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="binding-field">
+          <span className="binding-label">Run status</span>
+          <select
+            className="binding-select"
+            name="publish_run_status"
+            defaultValue={activeInvocationFilter?.runStatus ?? ""}
+          >
+            <option value="">全部运行态</option>
+            {runStatusOptions.map((runStatus) => (
+              <option key={runStatus} value={runStatus}>
+                {formatPublishedRunStatusLabel(runStatus)}
               </option>
             ))}
           </select>
@@ -295,6 +330,19 @@ export function WorkflowPublishActivityPanel({
                 hit {facetCount(cacheStatusCounts, "hit")} / miss{" "}
                 {facetCount(cacheStatusCounts, "miss")} / bypass{" "}
                 {facetCount(cacheStatusCounts, "bypass")}
+              </dd>
+            </div>
+            <div>
+              <dt>Run states</dt>
+              <dd>
+                {runStatusCounts.length
+                  ? runStatusCounts
+                      .map(
+                        (item) =>
+                          `${formatPublishedRunStatusLabel(item.value)} ${item.count}`
+                      )
+                      .join(" / ")
+                  : "n/a"}
               </dd>
             </div>
           </dl>
@@ -468,6 +516,11 @@ export function WorkflowPublishActivityPanel({
               {item.run_status === "waiting" ? (
                 <p className="section-copy entry-copy">
                   该请求已成功接入住 durable runtime，当前仍处于 waiting，后续应结合 run detail 继续追踪。
+                </p>
+              ) : null}
+              {item.run_status === "succeeded" ? (
+                <p className="section-copy entry-copy">
+                  该请求已经走完整条 publish 调用链，run 已经结束，可以直接对照 response preview 做回放。
                 </p>
               ) : null}
               {item.error_message ? (

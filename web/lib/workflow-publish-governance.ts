@@ -13,6 +13,7 @@ export type WorkflowPublishInvocationActiveFilter = {
   requestSource: PublishedEndpointInvocationRequestSource | null;
   requestSurface: PublishedEndpointInvocationRequestSurface | null;
   cacheStatus: PublishedEndpointInvocationCacheStatus | null;
+  runStatus: string | null;
   apiKeyId: string | null;
   reasonCode: string | null;
   timeWindow: PublishTimeWindow;

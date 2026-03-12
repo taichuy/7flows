@@ -2,7 +2,8 @@ import type { PublishedEndpointInvocationTimeBucketItem } from "@/lib/get-workfl
 import {
   formatPublishedInvocationCacheStatusLabel,
   formatPublishedInvocationReasonLabel,
-  formatPublishedInvocationSurfaceLabel
+  formatPublishedInvocationSurfaceLabel,
+  formatPublishedRunStatusLabel
 } from "@/lib/published-invocation-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
 
@@ -79,6 +80,10 @@ export function WorkflowPublishTrafficTimeline({
               bucket.cache_status_counts,
               formatPublishedInvocationCacheStatusLabel
             );
+            const runStatusLabels = topBucketLabels(
+              bucket.run_status_counts,
+              formatPublishedRunStatusLabel
+            );
             const reasonLabels = topBucketLabels(
               bucket.reason_counts,
               formatPublishedInvocationReasonLabel
@@ -124,6 +129,16 @@ export function WorkflowPublishTrafficTimeline({
                 {cacheLabels.length ? (
                   <div className="tool-badge-row">
                     {cacheLabels.map((label) => (
+                      <span className="event-chip" key={label}>
+                        {label}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                {runStatusLabels.length ? (
+                  <div className="tool-badge-row">
+                    {runStatusLabels.map((label) => (
                       <span className="event-chip" key={label}>
                         {label}
                       </span>

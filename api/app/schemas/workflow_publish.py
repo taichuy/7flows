@@ -299,6 +299,7 @@ class PublishedEndpointInvocationFilters(BaseModel):
     request_source: PublishedEndpointInvocationRequestSource | None = None
     request_surface: PublishedEndpointInvocationRequestSurface | None = None
     cache_status: PublishedEndpointInvocationCacheStatus | None = None
+    run_status: str | None = None
     api_key_id: str | None = None
     reason_code: PublishedEndpointInvocationReasonCode | None = None
     created_from: datetime | None = None
@@ -356,6 +357,9 @@ class PublishedEndpointInvocationTimeBucketItem(BaseModel):
     cache_status_counts: list[PublishedEndpointInvocationBucketFacetItem] = Field(
         default_factory=list
     )
+    run_status_counts: list[PublishedEndpointInvocationBucketFacetItem] = Field(
+        default_factory=list
+    )
     request_surface_counts: list[PublishedEndpointInvocationBucketFacetItem] = Field(
         default_factory=list
     )
@@ -371,6 +375,9 @@ class PublishedEndpointInvocationFacets(BaseModel):
         default_factory=list
     )
     cache_status_counts: list[PublishedEndpointInvocationFacetItem] = Field(
+        default_factory=list
+    )
+    run_status_counts: list[PublishedEndpointInvocationFacetItem] = Field(
         default_factory=list
     )
     reason_counts: list[PublishedEndpointInvocationFacetItem] = Field(default_factory=list)

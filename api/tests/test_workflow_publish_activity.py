@@ -229,6 +229,7 @@ def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(
         "request_source": None,
         "request_surface": None,
         "cache_status": None,
+        "run_status": None,
         "api_key_id": None,
         "reason_code": None,
         "created_from": None,
@@ -259,6 +260,9 @@ def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(
     assert {
         item["value"]: item["count"] for item in all_activity["facets"]["cache_status_counts"]
     } == {"hit": 0, "miss": 0, "bypass": 4}
+    assert {
+        item["value"]: item["count"] for item in all_activity["facets"]["run_status_counts"]
+    } == {"succeeded": 3}
 
     api_key_usage = {item["name"]: item for item in all_activity["facets"]["api_key_usage"]}
     assert api_key_usage["Primary Key"]["invocation_count"] == 2
@@ -281,6 +285,9 @@ def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(
     assert all_activity["facets"]["timeline"][0]["request_surface_counts"]
     assert all_activity["facets"]["timeline"][0]["reason_counts"] == [
         {"value": "api_key_invalid", "count": 1}
+    ]
+    assert all_activity["facets"]["timeline"][0]["run_status_counts"] == [
+        {"value": "succeeded", "count": 3}
     ]
     assert all_activity["facets"]["timeline"][0]["api_key_counts"] == [
         {
@@ -312,6 +319,7 @@ def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(
         "request_source": None,
         "request_surface": None,
         "cache_status": None,
+        "run_status": None,
         "api_key_id": primary_key["id"],
         "reason_code": None,
         "created_from": None,
@@ -340,6 +348,7 @@ def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(
         "request_source": None,
         "request_surface": "native.workflow",
         "cache_status": None,
+        "run_status": None,
         "api_key_id": None,
         "reason_code": None,
         "created_from": None,
@@ -453,6 +462,7 @@ def test_list_published_endpoint_invocations_supports_time_window_and_timeline(
         "request_source": None,
         "request_surface": None,
         "cache_status": None,
+        "run_status": None,
         "api_key_id": None,
         "reason_code": None,
         "created_from": "2026-03-12T08:30:00Z",
@@ -486,6 +496,9 @@ def test_list_published_endpoint_invocations_supports_time_window_and_timeline(
                 {"value": "hit", "count": 0},
                 {"value": "miss", "count": 0},
                 {"value": "bypass", "count": 2},
+            ],
+            "run_status_counts": [
+                {"value": "succeeded", "count": 1},
             ],
             "request_surface_counts": [
                 {"value": "native.workflow", "count": 1},
@@ -578,6 +591,7 @@ def test_list_published_endpoint_invocations_supports_cache_status_filter(
         "request_source": None,
         "request_surface": None,
         "cache_status": "hit",
+        "run_status": None,
         "api_key_id": None,
         "reason_code": None,
         "created_from": None,
@@ -592,4 +606,7 @@ def test_list_published_endpoint_invocations_supports_cache_status_filter(
         {"value": "hit", "count": 1},
         {"value": "miss", "count": 0},
         {"value": "bypass", "count": 0},
+    ]
+    assert filtered_body["facets"]["timeline"][0]["run_status_counts"] == [
+        {"value": "succeeded", "count": 1}
     ]

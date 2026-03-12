@@ -114,6 +114,7 @@ export type PublishedEndpointInvocationTimeBucketItem = {
   rejected_count: number;
   api_key_counts: PublishedEndpointInvocationApiKeyBucketFacetItem[];
   cache_status_counts: PublishedEndpointInvocationBucketFacetItem[];
+  run_status_counts: PublishedEndpointInvocationBucketFacetItem[];
   request_surface_counts: PublishedEndpointInvocationBucketFacetItem[];
   reason_counts: PublishedEndpointInvocationBucketFacetItem[];
 };
@@ -123,6 +124,7 @@ export type PublishedEndpointInvocationFilters = {
   request_source?: PublishedEndpointInvocationRequestSource | null;
   request_surface?: PublishedEndpointInvocationRequestSurface | null;
   cache_status?: PublishedEndpointInvocationCacheStatus | null;
+  run_status?: string | null;
   api_key_id?: string | null;
   reason_code?: string | null;
   created_from?: string | null;
@@ -134,6 +136,7 @@ export type PublishedEndpointInvocationFacets = {
   request_source_counts: PublishedEndpointInvocationFacetItem[];
   request_surface_counts: PublishedEndpointInvocationFacetItem[];
   cache_status_counts: PublishedEndpointInvocationFacetItem[];
+  run_status_counts: PublishedEndpointInvocationFacetItem[];
   reason_counts: PublishedEndpointInvocationFacetItem[];
   api_key_usage: PublishedEndpointInvocationApiKeyUsageItem[];
   recent_failure_reasons: PublishedEndpointInvocationFailureReasonItem[];
@@ -329,6 +332,7 @@ export async function getPublishedEndpointInvocations(
     requestSource?: PublishedEndpointInvocationRequestSource;
     requestSurface?: PublishedEndpointInvocationRequestSurface;
     cacheStatus?: PublishedEndpointInvocationCacheStatus;
+    runStatus?: string;
     apiKeyId?: string;
     reasonCode?: string;
     createdFrom?: string;
@@ -352,6 +356,9 @@ export async function getPublishedEndpointInvocations(
     }
     if (options?.cacheStatus) {
       searchParams.set("cache_status", options.cacheStatus);
+    }
+    if (options?.runStatus) {
+      searchParams.set("run_status", options.runStatus);
     }
     if (options?.apiKeyId) {
       searchParams.set("api_key_id", options.apiKeyId);

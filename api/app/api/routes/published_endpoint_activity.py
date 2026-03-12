@@ -143,6 +143,10 @@ def _serialize_timeline_item(item) -> PublishedEndpointInvocationTimeBucketItem:
             PublishedEndpointInvocationBucketFacetItem(value=facet.value, count=facet.count)
             for facet in item.cache_status_counts
         ],
+        run_status_counts=[
+            PublishedEndpointInvocationBucketFacetItem(value=facet.value, count=facet.count)
+            for facet in item.run_status_counts
+        ],
         request_surface_counts=[
             PublishedEndpointInvocationBucketFacetItem(value=facet.value, count=facet.count)
             for facet in item.request_surface_counts
@@ -169,6 +173,7 @@ def list_published_endpoint_invocations(
     request_source: PublishedEndpointInvocationRequestSource | None = Query(default=None),
     request_surface: PublishedEndpointInvocationRequestSurface | None = Query(default=None),
     cache_status: PublishedEndpointInvocationCacheStatus | None = Query(default=None),
+    run_status: str | None = Query(default=None, min_length=1, max_length=32),
     api_key_id: str | None = Query(default=None, min_length=1, max_length=36),
     reason_code: PublishedEndpointInvocationReasonCode | None = Query(default=None),
     created_from: datetime | None = Query(default=None),
@@ -200,6 +205,7 @@ def list_published_endpoint_invocations(
         request_source=request_source,
         request_surface=request_surface,
         cache_status=cache_status,
+        run_status=run_status,
         api_key_id=api_key_id,
         reason_code=reason_code,
         created_from=created_from,
@@ -214,6 +220,7 @@ def list_published_endpoint_invocations(
         request_source=request_source,
         request_surface=request_surface,
         cache_status=cache_status,
+        run_status=run_status,
         api_key_id=api_key_id,
         reason_code=reason_code,
         created_from=created_from,
@@ -228,6 +235,7 @@ def list_published_endpoint_invocations(
             request_source=request_source,
             request_surface=request_surface,
             cache_status=cache_status,
+            run_status=run_status,
             api_key_id=api_key_id,
             reason_code=reason_code,
             created_from=created_from,
@@ -245,6 +253,7 @@ def list_published_endpoint_invocations(
             cache_status_counts=[
                 _serialize_facet_item(item) for item in audit.cache_status_counts
             ],
+            run_status_counts=[_serialize_facet_item(item) for item in audit.run_status_counts],
             reason_counts=[_serialize_facet_item(item) for item in audit.reason_counts],
             api_key_usage=api_key_usage_items,
             recent_failure_reasons=[

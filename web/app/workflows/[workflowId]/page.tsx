@@ -107,6 +107,9 @@ export default async function WorkflowEditorPage({
   const requestedCacheStatus = firstSearchValue(
     resolvedSearchParams.publish_cache_status
   );
+  const requestedRunStatus = firstSearchValue(
+    resolvedSearchParams.publish_run_status
+  );
   const requestedApiKeyId = firstSearchValue(resolvedSearchParams.publish_api_key_id);
   const requestedReasonCode = firstSearchValue(
     resolvedSearchParams.publish_reason_code
@@ -140,6 +143,7 @@ export default async function WorkflowEditorPage({
             : undefined,
           requestSurface: selectedRequestSurface ?? undefined,
           cacheStatus: selectedCacheStatus ?? undefined,
+          runStatus: requestedRunStatus?.trim() ? requestedRunStatus.trim() : undefined,
           apiKeyId: requestedApiKeyId?.trim() ? requestedApiKeyId.trim() : undefined,
           reasonCode: PUBLISHED_INVOCATION_REASON_CODES.includes(
             requestedReasonCode as (typeof PUBLISHED_INVOCATION_REASON_CODES)[number]
@@ -183,6 +187,7 @@ export default async function WorkflowEditorPage({
           requestSource: activeInvocationFilter?.requestSource ?? null,
           requestSurface: activeInvocationFilter?.requestSurface ?? selectedRequestSurface,
           cacheStatus: activeInvocationFilter?.cacheStatus ?? selectedCacheStatus,
+          runStatus: activeInvocationFilter?.runStatus ?? requestedRunStatus?.trim() ?? null,
           apiKeyId: activeInvocationFilter?.apiKeyId ?? null,
           reasonCode: activeInvocationFilter?.reasonCode ?? null,
           timeWindow: publishTimeWindow

@@ -33,6 +33,17 @@ export const PUBLISHED_INVOCATION_REQUEST_SURFACES = [
   "unknown"
 ] as const;
 export const PUBLISHED_INVOCATION_CACHE_STATUSES = ["hit", "miss", "bypass"] as const;
+export const PUBLISHED_RUN_STATUSES = [
+  "queued",
+  "running",
+  "waiting",
+  "waiting_input",
+  "waiting_callback",
+  "succeeded",
+  "failed",
+  "canceled",
+  "timed_out"
+] as const;
 
 export type PublishedInvocationReasonCode =
   (typeof PUBLISHED_INVOCATION_REASON_CODES)[number];
@@ -40,6 +51,7 @@ export type PublishedInvocationRequestSurface =
   (typeof PUBLISHED_INVOCATION_REQUEST_SURFACES)[number];
 export type PublishedInvocationCacheStatus =
   (typeof PUBLISHED_INVOCATION_CACHE_STATUSES)[number];
+export type PublishedRunStatus = (typeof PUBLISHED_RUN_STATUSES)[number];
 
 const REASON_LABELS: Record<string, string> = {
   api_key_invalid: "Invalid API key",
@@ -80,6 +92,17 @@ const CACHE_STATUS_LABELS: Record<string, string> = {
   miss: "Cache miss",
   bypass: "Cache bypass"
 };
+const RUN_STATUS_LABELS: Record<string, string> = {
+  queued: "Queued",
+  running: "Running",
+  waiting: "Waiting",
+  waiting_input: "Waiting input",
+  waiting_callback: "Waiting callback",
+  succeeded: "Run succeeded",
+  failed: "Run failed",
+  canceled: "Run canceled",
+  timed_out: "Run timed out"
+};
 
 export function formatPublishedInvocationReasonLabel(
   reasonCode: string | null | undefined
@@ -109,6 +132,14 @@ export function formatPublishedInvocationCacheStatusLabel(
   }
 
   return CACHE_STATUS_LABELS[cacheStatus] ?? cacheStatus;
+}
+
+export function formatPublishedRunStatusLabel(runStatus: string | null | undefined) {
+  if (!runStatus) {
+    return "Unknown run state";
+  }
+
+  return RUN_STATUS_LABELS[runStatus] ?? runStatus.replaceAll("_", " ");
 }
 
 export function formatRateLimitPressure(

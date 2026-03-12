@@ -133,6 +133,15 @@ def test_published_native_async_route_accepts_waiting_run(client: TestClient) ->
             "miss": 0,
             "bypass": 4,
         }
+        assert {
+            item["value"]: item["count"]
+            for item in activity["facets"]["run_status_counts"]
+        } == {
+            "waiting": 4,
+        }
+        assert activity["facets"]["timeline"][0]["run_status_counts"] == [
+            {"value": "waiting", "count": 4}
+        ]
 
         filtered_surface_response = client.get(
             f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations",
@@ -145,5 +154,15 @@ def test_published_native_async_route_accepts_waiting_run(client: TestClient) ->
             "native.workflow.async",
             "native.workflow.async",
         ]
+
+        filtered_run_status_response = client.get(
+            f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations",
+            params={"run_status": "waiting"},
+        )
+        assert filtered_run_status_response.status_code == 200
+        filtered_run_status = filtered_run_status_response.json()
+        assert filtered_run_status["filters"]["run_status"] == "waiting"
+        assert filtered_run_status["summary"]["total_count"] == 4
+        assert all(item["run_status"] == "waiting" for item in filtered_run_status["items"])
     finally:
         reset_plugin_registry()

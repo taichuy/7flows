@@ -72,6 +72,17 @@ CACHE_STATUS_ORDER: tuple[PublishedInvocationCacheStatus, ...] = (
     "miss",
     "bypass",
 )
+RUN_STATUS_ORDER: tuple[str, ...] = (
+    "queued",
+    "running",
+    "waiting",
+    "waiting_input",
+    "waiting_callback",
+    "succeeded",
+    "failed",
+    "canceled",
+    "timed_out",
+)
 
 
 def classify_invocation_reason(
@@ -187,6 +198,7 @@ class PublishedInvocationTimeBucket:
         default_factory=list
     )
     cache_status_counts: list[PublishedInvocationBucketFacet] = field(default_factory=list)
+    run_status_counts: list[PublishedInvocationBucketFacet] = field(default_factory=list)
     request_surface_counts: list[PublishedInvocationBucketFacet] = field(
         default_factory=list
     )
@@ -200,6 +212,7 @@ class PublishedInvocationAudit:
     request_source_counts: list[PublishedInvocationFacet]
     request_surface_counts: list[PublishedInvocationFacet]
     cache_status_counts: list[PublishedInvocationFacet]
+    run_status_counts: list[PublishedInvocationFacet]
     reason_counts: list[PublishedInvocationFacet]
     api_key_usage: list[PublishedInvocationApiKeyUsage]
     recent_failure_reasons: list[PublishedInvocationFailureReason]
@@ -422,6 +435,17 @@ def _build_api_key_bucket_facets(
     ]
 
 
+def _build_run_status_bucket_facets(
+    counts: dict[str, int],
+) -> list[PublishedInvocationBucketFacet]:
+    ordered_values = [value for value in RUN_STATUS_ORDER if counts.get(value, 0) > 0]
+    extras = sorted(value for value, count in counts.items() if count > 0 and value not in RUN_STATUS_ORDER)
+    return _build_bucket_facets(
+        counts,
+        ordered_values=tuple([*ordered_values, *extras]) if ordered_values or extras else None,
+    )
+
+
 def _build_timeline(
     records: list[WorkflowPublishedInvocation],
     *,
@@ -445,6 +469,7 @@ def _build_timeline(
                 "rejected_count": 0,
                 "api_key_counts": defaultdict(int),
                 "cache_status_counts": defaultdict(int),
+                "run_status_counts": defaultdict(int),
                 "request_surface_counts": defaultdict(int),
                 "reason_counts": defaultdict(int),
             },
@@ -454,6 +479,8 @@ def _build_timeline(
         if record.api_key_id:
             bucket["api_key_counts"][record.api_key_id] += 1
         bucket["cache_status_counts"][record.cache_status or "bypass"] += 1
+        if record.run_status:
+            bucket["run_status_counts"][record.run_status] += 1
         bucket["request_surface_counts"][_resolve_request_surface(record)] += 1
 
         reason_code = _resolve_record_reason_code(record)
@@ -477,6 +504,7 @@ def _build_timeline(
                 ordered_values=CACHE_STATUS_ORDER,
                 include_zero_values=True,
             ),
+            run_status_counts=_build_run_status_bucket_facets(counts["run_status_counts"]),
             request_surface_counts=_build_bucket_facets(
                 counts["request_surface_counts"],
                 ordered_values=REQUEST_SURFACE_ORDER,
@@ -525,6 +553,7 @@ class PublishedInvocationService:
         status: PublishedInvocationStatus | None = None,
         request_source: PublishedInvocationRequestSource | None = None,
         cache_status: PublishedInvocationCacheStatus | None = None,
+        run_status: str | None = None,
         api_key_id: str | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
@@ -543,6 +572,8 @@ class PublishedInvocationService:
             statement = statement.where(
                 WorkflowPublishedInvocation.cache_status == cache_status
             )
+        if run_status is not None:
+            statement = statement.where(WorkflowPublishedInvocation.run_status == run_status)
         if api_key_id is not None:
             statement = statement.where(WorkflowPublishedInvocation.api_key_id == api_key_id)
         if created_from is not None:
@@ -565,6 +596,7 @@ class PublishedInvocationService:
         request_source: PublishedInvocationRequestSource | None = None,
         request_surface: PublishedInvocationRequestSurface | None = None,
         cache_status: PublishedInvocationCacheStatus | None = None,
+        run_status: str | None = None,
         api_key_id: str | None = None,
         reason_code: PublishedInvocationReasonCode | None = None,
         created_from: datetime | None = None,
@@ -577,6 +609,7 @@ class PublishedInvocationService:
             status=status,
             request_source=request_source,
             cache_status=cache_status,
+            run_status=run_status,
             api_key_id=api_key_id,
             created_from=created_from,
             created_to=created_to,
@@ -673,6 +706,7 @@ class PublishedInvocationService:
         request_source: PublishedInvocationRequestSource | None = None,
         request_surface: PublishedInvocationRequestSurface | None = None,
         cache_status: PublishedInvocationCacheStatus | None = None,
+        run_status: str | None = None,
         api_key_id: str | None = None,
         reason_code: PublishedInvocationReasonCode | None = None,
         created_from: datetime | None = None,
@@ -687,6 +721,7 @@ class PublishedInvocationService:
             request_source=request_source,
             request_surface=request_surface,
             cache_status=cache_status,
+            run_status=run_status,
             api_key_id=api_key_id,
             reason_code=reason_code,
             created_from=created_from,
@@ -704,6 +739,7 @@ class PublishedInvocationService:
         request_source: PublishedInvocationRequestSource | None = None,
         request_surface: PublishedInvocationRequestSurface | None = None,
         cache_status: PublishedInvocationCacheStatus | None = None,
+        run_status: str | None = None,
         api_key_id: str | None = None,
         reason_code: PublishedInvocationReasonCode | None = None,
         created_from: datetime | None = None,
@@ -717,6 +753,7 @@ class PublishedInvocationService:
             request_source=request_source,
             request_surface=request_surface,
             cache_status=cache_status,
+            run_status=run_status,
             api_key_id=api_key_id,
             reason_code=reason_code,
             created_from=created_from,
@@ -783,6 +820,10 @@ class PublishedInvocationService:
             "miss": {"count": 0, "last_invoked_at": None, "last_status": None},
             "bypass": {"count": 0, "last_invoked_at": None, "last_status": None},
         }
+        run_status_buckets: dict[str, dict[str, object]] = {
+            value: {"count": 0, "last_invoked_at": None, "last_status": None}
+            for value in RUN_STATUS_ORDER
+        }
         api_key_buckets: dict[str, dict[str, object]] = defaultdict(
             lambda: {
                 "count": 0,
@@ -832,6 +873,16 @@ class PublishedInvocationService:
             if cache_bucket["last_invoked_at"] is None:
                 cache_bucket["last_invoked_at"] = record.created_at
                 cache_bucket["last_status"] = record.status
+
+            if record.run_status:
+                run_status_bucket = run_status_buckets.setdefault(
+                    record.run_status,
+                    {"count": 0, "last_invoked_at": None, "last_status": None},
+                )
+                run_status_bucket["count"] += 1
+                if run_status_bucket["last_invoked_at"] is None:
+                    run_status_bucket["last_invoked_at"] = record.created_at
+                    run_status_bucket["last_status"] = record.status
 
             if record.api_key_id:
                 api_key_bucket = api_key_buckets[record.api_key_id]
@@ -901,6 +952,16 @@ class PublishedInvocationService:
             )
             for value, bucket in cache_status_buckets.items()
         ]
+        run_status_counts = [
+            PublishedInvocationFacet(
+                value=value,
+                count=int(bucket["count"]),
+                last_invoked_at=bucket["last_invoked_at"],
+                last_status=bucket["last_status"],
+            )
+            for value, bucket in run_status_buckets.items()
+            if int(bucket["count"]) > 0
+        ]
         reason_counts = sorted(
             (
                 PublishedInvocationFacet(
@@ -968,6 +1029,7 @@ class PublishedInvocationService:
             request_source_counts=request_source_counts,
             request_surface_counts=request_surface_counts,
             cache_status_counts=cache_status_counts,
+            run_status_counts=run_status_counts,
             reason_counts=reason_counts,
             api_key_usage=api_key_usage,
             recent_failure_reasons=recent_failure_reasons,
