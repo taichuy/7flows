@@ -1,4 +1,5 @@
 import type {
+  PublishedEndpointInvocationCacheStatus,
   PublishedEndpointInvocationRequestSource,
   PublishedEndpointInvocationRequestSurface,
   PublishedEndpointInvocationStatus
@@ -11,6 +12,7 @@ export type WorkflowPublishInvocationActiveFilter = {
   status: PublishedEndpointInvocationStatus | null;
   requestSource: PublishedEndpointInvocationRequestSource | null;
   requestSurface: PublishedEndpointInvocationRequestSurface | null;
+  cacheStatus: PublishedEndpointInvocationCacheStatus | null;
   apiKeyId: string | null;
   reasonCode: string | null;
   timeWindow: PublishTimeWindow;

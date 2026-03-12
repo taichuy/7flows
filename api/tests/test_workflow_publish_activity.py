@@ -228,6 +228,7 @@ def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(
         "status": None,
         "request_source": None,
         "request_surface": None,
+        "cache_status": None,
         "api_key_id": None,
         "reason_code": None,
         "created_from": None,
@@ -255,6 +256,9 @@ def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(
         "native.alias": 1,
         "native.path": 1,
     }
+    assert {
+        item["value"]: item["count"] for item in all_activity["facets"]["cache_status_counts"]
+    } == {"hit": 0, "miss": 0, "bypass": 4}
 
     api_key_usage = {item["name"]: item for item in all_activity["facets"]["api_key_usage"]}
     assert api_key_usage["Primary Key"]["invocation_count"] == 2
@@ -307,6 +311,7 @@ def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(
         "status": "succeeded",
         "request_source": None,
         "request_surface": None,
+        "cache_status": None,
         "api_key_id": primary_key["id"],
         "reason_code": None,
         "created_from": None,
@@ -334,6 +339,7 @@ def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(
         "status": None,
         "request_source": None,
         "request_surface": "native.workflow",
+        "cache_status": None,
         "api_key_id": None,
         "reason_code": None,
         "created_from": None,
@@ -446,6 +452,7 @@ def test_list_published_endpoint_invocations_supports_time_window_and_timeline(
         "status": None,
         "request_source": None,
         "request_surface": None,
+        "cache_status": None,
         "api_key_id": None,
         "reason_code": None,
         "created_from": "2026-03-12T08:30:00Z",
@@ -475,6 +482,11 @@ def test_list_published_endpoint_invocations_supports_time_window_and_timeline(
                     "count": 1,
                 }
             ],
+            "cache_status_counts": [
+                {"value": "hit", "count": 0},
+                {"value": "miss", "count": 0},
+                {"value": "bypass", "count": 2},
+            ],
             "request_surface_counts": [
                 {"value": "native.workflow", "count": 1},
                 {"value": "native.alias", "count": 1},
@@ -497,3 +509,87 @@ def test_list_published_endpoint_invocations_supports_time_window_and_timeline(
         invalid_range_response.json()["detail"]
         == "'created_from' must be earlier than or equal to 'created_to'."
     )
+
+
+def test_list_published_endpoint_invocations_supports_cache_status_filter(
+    client: TestClient,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Published Cache Audit Workflow",
+            "definition": publishable_definition(
+                answer="cached",
+                alias="native-cache-audit",
+                path="/team/native-cache-audit",
+                cache={
+                    "ttl": 300,
+                    "maxEntries": 2,
+                    "varyBy": ["question"],
+                },
+            ),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding = bindings_response.json()[0]
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
+    first_response = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"question": "same", "ignored": 1}},
+    )
+    assert first_response.status_code == 200
+    assert first_response.headers["X-7Flows-Cache"] == "MISS"
+
+    second_response = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"question": "same", "ignored": 2}},
+    )
+    assert second_response.status_code == 200
+    assert second_response.headers["X-7Flows-Cache"] == "HIT"
+
+    third_response = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"question": "different", "ignored": 3}},
+    )
+    assert third_response.status_code == 200
+    assert third_response.headers["X-7Flows-Cache"] == "MISS"
+
+    filtered_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations",
+        params={"cache_status": "hit"},
+    )
+    assert filtered_response.status_code == 200
+    filtered_body = filtered_response.json()
+    assert filtered_body["filters"] == {
+        "status": None,
+        "request_source": None,
+        "request_surface": None,
+        "cache_status": "hit",
+        "api_key_id": None,
+        "reason_code": None,
+        "created_from": None,
+        "created_to": None,
+    }
+    assert filtered_body["summary"]["total_count"] == 1
+    assert filtered_body["summary"]["cache_hit_count"] == 1
+    assert filtered_body["summary"]["cache_miss_count"] == 0
+    assert filtered_body["summary"]["cache_bypass_count"] == 0
+    assert filtered_body["items"][0]["cache_status"] == "hit"
+    assert filtered_body["facets"]["timeline"][0]["cache_status_counts"] == [
+        {"value": "hit", "count": 1},
+        {"value": "miss", "count": 0},
+        {"value": "bypass", "count": 0},
+    ]

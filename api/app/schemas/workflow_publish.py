@@ -276,6 +276,7 @@ class PublishedEndpointInvocationFilters(BaseModel):
     status: PublishedEndpointInvocationStatus | None = None
     request_source: PublishedEndpointInvocationRequestSource | None = None
     request_surface: PublishedEndpointInvocationRequestSurface | None = None
+    cache_status: PublishedEndpointInvocationCacheStatus | None = None
     api_key_id: str | None = None
     reason_code: PublishedEndpointInvocationReasonCode | None = None
     created_from: datetime | None = None
@@ -328,6 +329,9 @@ class PublishedEndpointInvocationTimeBucketItem(BaseModel):
     failed_count: int = 0
     rejected_count: int = 0
     api_key_counts: list[PublishedEndpointInvocationApiKeyBucketFacetItem] = Field(
+        default_factory=list
+    )
+    cache_status_counts: list[PublishedEndpointInvocationBucketFacetItem] = Field(
         default_factory=list
     )
     request_surface_counts: list[PublishedEndpointInvocationBucketFacetItem] = Field(

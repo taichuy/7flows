@@ -55,6 +55,11 @@ REQUEST_SURFACE_ORDER: tuple[PublishedInvocationRequestSurface, ...] = (
     "anthropic.messages",
     "unknown",
 )
+CACHE_STATUS_ORDER: tuple[PublishedInvocationCacheStatus, ...] = (
+    "hit",
+    "miss",
+    "bypass",
+)
 
 
 def classify_invocation_reason(
@@ -169,6 +174,7 @@ class PublishedInvocationTimeBucket:
     api_key_counts: list[PublishedInvocationApiKeyBucketFacet] = field(
         default_factory=list
     )
+    cache_status_counts: list[PublishedInvocationBucketFacet] = field(default_factory=list)
     request_surface_counts: list[PublishedInvocationBucketFacet] = field(
         default_factory=list
     )
@@ -350,12 +356,13 @@ def _build_bucket_facets(
     counts: dict[str, int],
     *,
     ordered_values: tuple[str, ...] | None = None,
+    include_zero_values: bool = False,
 ) -> list[PublishedInvocationBucketFacet]:
     if ordered_values is not None:
         return [
             PublishedInvocationBucketFacet(value=value, count=counts[value])
             for value in ordered_values
-            if counts.get(value, 0) > 0
+            if include_zero_values or counts.get(value, 0) > 0
         ]
 
     return [
@@ -421,6 +428,7 @@ def _build_timeline(
                 "failed_count": 0,
                 "rejected_count": 0,
                 "api_key_counts": defaultdict(int),
+                "cache_status_counts": defaultdict(int),
                 "request_surface_counts": defaultdict(int),
                 "reason_counts": defaultdict(int),
             },
@@ -429,6 +437,7 @@ def _build_timeline(
         bucket[f"{record.status}_count"] += 1
         if record.api_key_id:
             bucket["api_key_counts"][record.api_key_id] += 1
+        bucket["cache_status_counts"][record.cache_status or "bypass"] += 1
         bucket["request_surface_counts"][_resolve_request_surface(record)] += 1
 
         reason_code = _resolve_record_reason_code(record)
@@ -446,6 +455,11 @@ def _build_timeline(
             api_key_counts=_build_api_key_bucket_facets(
                 counts["api_key_counts"],
                 api_key_lookup=api_key_lookup,
+            ),
+            cache_status_counts=_build_bucket_facets(
+                counts["cache_status_counts"],
+                ordered_values=CACHE_STATUS_ORDER,
+                include_zero_values=True,
             ),
             request_surface_counts=_build_bucket_facets(
                 counts["request_surface_counts"],
@@ -494,6 +508,7 @@ class PublishedInvocationService:
         binding_id: str,
         status: PublishedInvocationStatus | None = None,
         request_source: PublishedInvocationRequestSource | None = None,
+        cache_status: PublishedInvocationCacheStatus | None = None,
         api_key_id: str | None = None,
         created_from: datetime | None = None,
         created_to: datetime | None = None,
@@ -507,6 +522,10 @@ class PublishedInvocationService:
         if request_source is not None:
             statement = statement.where(
                 WorkflowPublishedInvocation.request_source == request_source
+            )
+        if cache_status is not None:
+            statement = statement.where(
+                WorkflowPublishedInvocation.cache_status == cache_status
             )
         if api_key_id is not None:
             statement = statement.where(WorkflowPublishedInvocation.api_key_id == api_key_id)
@@ -529,6 +548,7 @@ class PublishedInvocationService:
         status: PublishedInvocationStatus | None = None,
         request_source: PublishedInvocationRequestSource | None = None,
         request_surface: PublishedInvocationRequestSurface | None = None,
+        cache_status: PublishedInvocationCacheStatus | None = None,
         api_key_id: str | None = None,
         reason_code: PublishedInvocationReasonCode | None = None,
         created_from: datetime | None = None,
@@ -540,6 +560,7 @@ class PublishedInvocationService:
             binding_id=binding_id,
             status=status,
             request_source=request_source,
+            cache_status=cache_status,
             api_key_id=api_key_id,
             created_from=created_from,
             created_to=created_to,
@@ -630,6 +651,7 @@ class PublishedInvocationService:
         status: PublishedInvocationStatus | None = None,
         request_source: PublishedInvocationRequestSource | None = None,
         request_surface: PublishedInvocationRequestSurface | None = None,
+        cache_status: PublishedInvocationCacheStatus | None = None,
         api_key_id: str | None = None,
         reason_code: PublishedInvocationReasonCode | None = None,
         created_from: datetime | None = None,
@@ -643,6 +665,7 @@ class PublishedInvocationService:
             status=status,
             request_source=request_source,
             request_surface=request_surface,
+            cache_status=cache_status,
             api_key_id=api_key_id,
             reason_code=reason_code,
             created_from=created_from,
@@ -659,6 +682,7 @@ class PublishedInvocationService:
         status: PublishedInvocationStatus | None = None,
         request_source: PublishedInvocationRequestSource | None = None,
         request_surface: PublishedInvocationRequestSurface | None = None,
+        cache_status: PublishedInvocationCacheStatus | None = None,
         api_key_id: str | None = None,
         reason_code: PublishedInvocationReasonCode | None = None,
         created_from: datetime | None = None,
@@ -671,6 +695,7 @@ class PublishedInvocationService:
             status=status,
             request_source=request_source,
             request_surface=request_surface,
+            cache_status=cache_status,
             api_key_id=api_key_id,
             reason_code=reason_code,
             created_from=created_from,

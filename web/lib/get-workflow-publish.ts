@@ -107,6 +107,7 @@ export type PublishedEndpointInvocationTimeBucketItem = {
   failed_count: number;
   rejected_count: number;
   api_key_counts: PublishedEndpointInvocationApiKeyBucketFacetItem[];
+  cache_status_counts: PublishedEndpointInvocationBucketFacetItem[];
   request_surface_counts: PublishedEndpointInvocationBucketFacetItem[];
   reason_counts: PublishedEndpointInvocationBucketFacetItem[];
 };
@@ -115,6 +116,7 @@ export type PublishedEndpointInvocationFilters = {
   status?: PublishedEndpointInvocationStatus | null;
   request_source?: PublishedEndpointInvocationRequestSource | null;
   request_surface?: PublishedEndpointInvocationRequestSurface | null;
+  cache_status?: PublishedEndpointInvocationCacheStatus | null;
   api_key_id?: string | null;
   reason_code?: string | null;
   created_from?: string | null;
@@ -320,6 +322,7 @@ export async function getPublishedEndpointInvocations(
     status?: PublishedEndpointInvocationStatus;
     requestSource?: PublishedEndpointInvocationRequestSource;
     requestSurface?: PublishedEndpointInvocationRequestSurface;
+    cacheStatus?: PublishedEndpointInvocationCacheStatus;
     apiKeyId?: string;
     reasonCode?: string;
     createdFrom?: string;
@@ -340,6 +343,9 @@ export async function getPublishedEndpointInvocations(
     }
     if (options?.requestSurface) {
       searchParams.set("request_surface", options.requestSurface);
+    }
+    if (options?.cacheStatus) {
+      searchParams.set("cache_status", options.cacheStatus);
     }
     if (options?.apiKeyId) {
       searchParams.set("api_key_id", options.apiKeyId);

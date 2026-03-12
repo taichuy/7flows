@@ -31,6 +31,7 @@ type WorkflowPublishInvocationFilter = {
     | "openai.unknown"
     | "anthropic.messages"
     | "unknown";
+  cacheStatus?: "hit" | "miss" | "bypass";
   apiKeyId?: string;
   reasonCode?: string;
   createdFrom?: string;
@@ -85,6 +86,7 @@ export async function getWorkflowPublishGovernanceSnapshot(
                 status: options.activeInvocationFilter.status,
                 requestSource: options.activeInvocationFilter.requestSource,
                 requestSurface: options.activeInvocationFilter.requestSurface,
+                cacheStatus: options.activeInvocationFilter.cacheStatus,
                 apiKeyId: options.activeInvocationFilter.apiKeyId,
                 reasonCode: options.activeInvocationFilter.reasonCode,
                 createdFrom: options.activeInvocationFilter.createdFrom,

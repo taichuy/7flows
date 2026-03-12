@@ -5,6 +5,7 @@ import { WorkflowEditorWorkbench } from "@/components/workflow-editor-workbench"
 import { WorkflowPublishPanel } from "@/components/workflow-publish-panel";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import {
+  type PublishedEndpointInvocationCacheStatus,
   type PublishedEndpointInvocationRequestSurface,
   type PublishedEndpointInvocationRequestSource,
   type PublishedEndpointInvocationStatus,
@@ -17,6 +18,7 @@ import type {
   WorkflowPublishInvocationActiveFilter
 } from "@/lib/workflow-publish-governance";
 import {
+  PUBLISHED_INVOCATION_CACHE_STATUSES,
   PUBLISHED_INVOCATION_REASON_CODES,
   PUBLISHED_INVOCATION_REQUEST_SURFACES
 } from "@/lib/published-invocation-presenters";
@@ -102,6 +104,9 @@ export default async function WorkflowEditorPage({
   const requestedRequestSurface = firstSearchValue(
     resolvedSearchParams.publish_request_surface
   );
+  const requestedCacheStatus = firstSearchValue(
+    resolvedSearchParams.publish_cache_status
+  );
   const requestedApiKeyId = firstSearchValue(resolvedSearchParams.publish_api_key_id);
   const requestedReasonCode = firstSearchValue(
     resolvedSearchParams.publish_reason_code
@@ -113,6 +118,11 @@ export default async function WorkflowEditorPage({
     requestedRequestSurface as PublishedEndpointInvocationRequestSurface
   )
     ? (requestedRequestSurface as PublishedEndpointInvocationRequestSurface)
+    : null;
+  const selectedCacheStatus = PUBLISHED_INVOCATION_CACHE_STATUSES.includes(
+    requestedCacheStatus as PublishedEndpointInvocationCacheStatus
+  )
+    ? (requestedCacheStatus as PublishedEndpointInvocationCacheStatus)
     : null;
   const activeInvocationFilter =
     activeBindingId && publishedEndpoints.some((binding) => binding.id === activeBindingId)
@@ -129,6 +139,7 @@ export default async function WorkflowEditorPage({
             ? (requestedRequestSource as PublishedEndpointInvocationRequestSource)
             : undefined,
           requestSurface: selectedRequestSurface ?? undefined,
+          cacheStatus: selectedCacheStatus ?? undefined,
           apiKeyId: requestedApiKeyId?.trim() ? requestedApiKeyId.trim() : undefined,
           reasonCode: PUBLISHED_INVOCATION_REASON_CODES.includes(
             requestedReasonCode as (typeof PUBLISHED_INVOCATION_REASON_CODES)[number]
@@ -171,6 +182,7 @@ export default async function WorkflowEditorPage({
           status: activeInvocationFilter?.status ?? null,
           requestSource: activeInvocationFilter?.requestSource ?? null,
           requestSurface: activeInvocationFilter?.requestSurface ?? selectedRequestSurface,
+          cacheStatus: activeInvocationFilter?.cacheStatus ?? selectedCacheStatus,
           apiKeyId: activeInvocationFilter?.apiKeyId ?? null,
           reasonCode: activeInvocationFilter?.reasonCode ?? null,
           timeWindow: publishTimeWindow

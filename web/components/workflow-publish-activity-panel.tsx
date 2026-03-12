@@ -9,8 +9,10 @@ import type {
 } from "@/lib/get-workflow-publish";
 import type { WorkflowPublishInvocationActiveFilter } from "@/lib/workflow-publish-governance";
 import {
+  PUBLISHED_INVOCATION_CACHE_STATUSES,
   PUBLISHED_INVOCATION_REASON_CODES,
   PUBLISHED_INVOCATION_REQUEST_SURFACES,
+  formatPublishedInvocationCacheStatusLabel,
   formatPublishedInvocationReasonLabel,
   formatPublishedInvocationSurfaceLabel,
   formatRateLimitPressure
@@ -63,6 +65,9 @@ function buildActiveFilterChips(
   }
   if (activeInvocationFilter.requestSurface) {
     chips.push(formatPublishedInvocationSurfaceLabel(activeInvocationFilter.requestSurface));
+  }
+  if (activeInvocationFilter.cacheStatus) {
+    chips.push(formatPublishedInvocationCacheStatusLabel(activeInvocationFilter.cacheStatus));
   }
   if (activeInvocationFilter.reasonCode) {
     chips.push(formatPublishedInvocationReasonLabel(activeInvocationFilter.reasonCode));
@@ -159,6 +164,22 @@ export function WorkflowPublishActivityPanel({
             {PUBLISHED_INVOCATION_REQUEST_SURFACES.map((requestSurface) => (
               <option key={requestSurface} value={requestSurface}>
                 {formatPublishedInvocationSurfaceLabel(requestSurface)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="binding-field">
+          <span className="binding-label">Cache status</span>
+          <select
+            className="binding-select"
+            name="publish_cache_status"
+            defaultValue={activeInvocationFilter?.cacheStatus ?? ""}
+          >
+            <option value="">全部缓存状态</option>
+            {PUBLISHED_INVOCATION_CACHE_STATUSES.map((cacheStatus) => (
+              <option key={cacheStatus} value={cacheStatus}>
+                {formatPublishedInvocationCacheStatusLabel(cacheStatus)}
               </option>
             ))}
           </select>
@@ -412,7 +433,9 @@ export function WorkflowPublishActivityPanel({
               <div className="payload-card-header">
                 <span className={`health-pill ${item.status}`}>{item.status}</span>
                 <div className="tool-badge-row">
-                  <span className="event-chip">{item.cache_status}</span>
+                  <span className="event-chip">
+                    {formatPublishedInvocationCacheStatusLabel(item.cache_status)}
+                  </span>
                   {item.reason_code ? (
                     <span className="event-chip">
                       {formatPublishedInvocationReasonLabel(item.reason_code)}

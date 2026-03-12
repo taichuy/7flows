@@ -26,11 +26,14 @@ export const PUBLISHED_INVOCATION_REQUEST_SURFACES = [
   "anthropic.messages",
   "unknown"
 ] as const;
+export const PUBLISHED_INVOCATION_CACHE_STATUSES = ["hit", "miss", "bypass"] as const;
 
 export type PublishedInvocationReasonCode =
   (typeof PUBLISHED_INVOCATION_REASON_CODES)[number];
 export type PublishedInvocationRequestSurface =
   (typeof PUBLISHED_INVOCATION_REQUEST_SURFACES)[number];
+export type PublishedInvocationCacheStatus =
+  (typeof PUBLISHED_INVOCATION_CACHE_STATUSES)[number];
 
 const REASON_LABELS: Record<string, string> = {
   api_key_invalid: "Invalid API key",
@@ -60,6 +63,11 @@ const REQUEST_SURFACE_LABELS: Record<string, string> = {
   "anthropic.messages": "Anthropic messages",
   unknown: "Unknown surface"
 };
+const CACHE_STATUS_LABELS: Record<string, string> = {
+  hit: "Cache hit",
+  miss: "Cache miss",
+  bypass: "Cache bypass"
+};
 
 export function formatPublishedInvocationReasonLabel(
   reasonCode: string | null | undefined
@@ -79,6 +87,16 @@ export function formatPublishedInvocationSurfaceLabel(
   }
 
   return REQUEST_SURFACE_LABELS[requestSurface] ?? requestSurface;
+}
+
+export function formatPublishedInvocationCacheStatusLabel(
+  cacheStatus: string | null | undefined
+) {
+  if (!cacheStatus) {
+    return "Unknown cache state";
+  }
+
+  return CACHE_STATUS_LABELS[cacheStatus] ?? cacheStatus;
 }
 
 export function formatRateLimitPressure(
