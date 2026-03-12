@@ -48,6 +48,7 @@ class WorkflowPublishedEndpointItem(BaseModel):
     created_at: datetime
     updated_at: datetime
     activity: PublishedEndpointInvocationSummary | None = None
+    cache_inventory: PublishedEndpointCacheInventorySummary | None = None
 
 
 class PublishedNativeRunRequest(BaseModel):
@@ -187,3 +188,32 @@ class PublishedEndpointInvocationListResponse(BaseModel):
     summary: PublishedEndpointInvocationSummary
     facets: PublishedEndpointInvocationFacets
     items: list[PublishedEndpointInvocationItem]
+
+
+class PublishedEndpointCacheInventorySummary(BaseModel):
+    enabled: bool = False
+    ttl: int | None = None
+    max_entries: int | None = None
+    vary_by: list[str] = Field(default_factory=list)
+    active_entry_count: int = 0
+    total_hit_count: int = 0
+    last_hit_at: datetime | None = None
+    nearest_expires_at: datetime | None = None
+    latest_created_at: datetime | None = None
+
+
+class PublishedEndpointCacheInventoryItem(BaseModel):
+    id: str
+    binding_id: str
+    cache_key: str
+    response_preview: dict
+    hit_count: int = 0
+    last_hit_at: datetime | None = None
+    expires_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
+class PublishedEndpointCacheInventoryResponse(BaseModel):
+    summary: PublishedEndpointCacheInventorySummary
+    items: list[PublishedEndpointCacheInventoryItem] = Field(default_factory=list)

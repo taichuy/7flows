@@ -415,6 +415,21 @@ a {
   color: var(--muted);
 }
 
+.health-pill.published {
+  background: rgba(33, 110, 74, 0.12);
+  color: var(--ok);
+}
+
+.health-pill.offline {
+  background: rgba(28, 25, 21, 0.08);
+  color: var(--muted);
+}
+
+.health-pill.draft {
+  background: rgba(208, 99, 45, 0.12);
+  color: var(--accent);
+}
+
 .inline-link,
 .activity-link {
   display: inline-flex;
@@ -475,7 +490,10 @@ a {
 }
 
 .tool-detail-grid,
-.binding-workbench {
+.binding-workbench,
+.publish-meta-grid,
+.publish-cache-list,
+.publish-card-grid {
   display: grid;
   gap: 16px;
 }
@@ -554,6 +572,19 @@ a {
   align-items: start;
 }
 
+.publish-card-grid {
+  margin-top: 22px;
+}
+
+.publish-meta-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.publish-cache-list {
+  margin-top: 16px;
+}
+
 .binding-list {
   display: grid;
   gap: 14px;
@@ -594,11 +625,53 @@ a {
   font: inherit;
 }
 
+.binding-input {
+  width: 100%;
+  border: 1px solid rgba(28, 25, 21, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 252, 246, 0.94);
+  padding: 12px 14px;
+  color: var(--ink);
+  font: inherit;
+}
+
 .binding-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+}
+
+.secondary-button {
+  background: rgba(28, 25, 21, 0.1);
+  color: var(--ink);
+}
+
+.publish-lifecycle-form {
+  margin-top: 16px;
+}
+
+.workflow-management-shell {
+  padding-top: 0;
+}
+
+.publish-secret-box {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(28, 25, 21, 0.06);
+}
+
+.publish-secret-value {
+  display: block;
+  margin-top: 10px;
+  overflow-x: auto;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.publish-key-meta {
+  margin-top: 12px;
 }
 
 .trace-filter-form {
@@ -1277,6 +1350,7 @@ a {
   .detail-grid,
   .tool-detail-grid,
   .binding-workbench,
+  .publish-meta-grid,
   .trace-filter-form,
   .creation-layout,
   .governance-layout,

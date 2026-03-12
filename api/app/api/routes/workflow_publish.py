@@ -4,11 +4,13 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.workflow import Workflow, WorkflowPublishedEndpoint
 from app.schemas.workflow_publish import (
+    PublishedEndpointCacheInventorySummary,
     PublishedEndpointInvocationSummary,
     PublishedEndpointLifecycleStatus,
     WorkflowPublishedEndpointItem,
     WorkflowPublishedEndpointLifecycleUpdate,
 )
+from app.services.published_cache import PublishedEndpointCacheService
 from app.services.published_invocations import PublishedInvocationService
 from app.services.workflow_publish import (
     WorkflowPublishBindingError,
@@ -18,6 +20,7 @@ from app.services.workflow_publish import (
 router = APIRouter(prefix="/workflows", tags=["workflow-publish"])
 workflow_publish_service = WorkflowPublishBindingService()
 published_invocation_service = PublishedInvocationService()
+published_cache_service = PublishedEndpointCacheService()
 
 
 def _serialize_published_invocation_summary(
@@ -41,10 +44,29 @@ def _serialize_published_invocation_summary(
     )
 
 
+def _serialize_published_cache_inventory_summary(
+    summary,
+) -> PublishedEndpointCacheInventorySummary | None:
+    if summary is None:
+        return None
+    return PublishedEndpointCacheInventorySummary(
+        enabled=summary.enabled,
+        ttl=summary.ttl,
+        max_entries=summary.max_entries,
+        vary_by=list(summary.vary_by),
+        active_entry_count=summary.active_entry_count,
+        total_hit_count=summary.total_hit_count,
+        last_hit_at=summary.last_hit_at,
+        nearest_expires_at=summary.nearest_expires_at,
+        latest_created_at=summary.latest_created_at,
+    )
+
+
 def _serialize_workflow_published_endpoint_item(
     record: WorkflowPublishedEndpoint,
     *,
     activity: PublishedEndpointInvocationSummary | None = None,
+    cache_inventory=None,
 ) -> WorkflowPublishedEndpointItem:
     return WorkflowPublishedEndpointItem(
         id=record.id,
@@ -71,6 +93,7 @@ def _serialize_workflow_published_endpoint_item(
         created_at=record.created_at,
         updated_at=record.updated_at,
         activity=_serialize_published_invocation_summary(activity),
+        cache_inventory=_serialize_published_cache_inventory_summary(cache_inventory),
     )
 
 
@@ -104,10 +127,12 @@ def list_workflow_published_endpoints(
         workflow_id=workflow_id,
         binding_ids=[record.id for record in records],
     )
+    cache_summaries = published_cache_service.summarize_for_bindings(db, bindings=records)
     return [
         _serialize_workflow_published_endpoint_item(
             record,
             activity=summaries.get(record.id),
+            cache_inventory=cache_summaries.get(record.id),
         )
         for record in records
     ]
@@ -150,4 +175,12 @@ def update_workflow_published_endpoint_lifecycle(
         workflow_id=workflow_id,
         binding_ids=[record.id],
     ).get(record.id)
-    return _serialize_workflow_published_endpoint_item(record, activity=summary)
+    cache_summary = published_cache_service.summarize_for_bindings(
+        db,
+        bindings=[record],
+    ).get(record.id)
+    return _serialize_workflow_published_endpoint_item(
+        record,
+        activity=summary,
+        cache_inventory=cache_summary,
+    )

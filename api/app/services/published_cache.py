@@ -29,8 +29,73 @@ class PublishedEndpointCacheHit:
     response_payload: dict
 
 
+@dataclass(frozen=True)
+class PublishedEndpointCacheInventorySummary:
+    enabled: bool
+    ttl: int | None = None
+    max_entries: int | None = None
+    vary_by: tuple[str, ...] = ()
+    active_entry_count: int = 0
+    total_hit_count: int = 0
+    last_hit_at: datetime | None = None
+    nearest_expires_at: datetime | None = None
+    latest_created_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class PublishedEndpointCacheInventoryItem:
+    id: str
+    binding_id: str
+    cache_key: str
+    response_preview: dict
+    hit_count: int
+    last_hit_at: datetime | None
+    expires_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
 def _utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+def _build_payload_preview(payload: dict[str, Any]) -> dict[str, Any]:
+    keys = sorted(payload.keys())
+    preview: dict[str, Any] = {
+        "key_count": len(keys),
+        "keys": keys[:10],
+    }
+    if not keys:
+        return preview
+
+    sample: dict[str, Any] = {}
+    for key in keys[:5]:
+        value = payload.get(key)
+        if value is None or isinstance(value, (bool, int, float)):
+            sample[key] = value
+            continue
+        if isinstance(value, str):
+            sample[key] = value[:120]
+            continue
+        if isinstance(value, list):
+            sample[key] = {
+                "type": "list",
+                "length": len(value),
+            }
+            continue
+        if isinstance(value, dict):
+            nested_keys = sorted(value.keys())
+            sample[key] = {
+                "type": "object",
+                "key_count": len(nested_keys),
+                "keys": nested_keys[:5],
+            }
+            continue
+        sample[key] = {"type": type(value).__name__}
+
+    if sample:
+        preview["sample"] = sample
+    return preview
 
 
 def _resolve_field_path(payload: dict[str, Any], field_path: str) -> Any:
@@ -133,6 +198,89 @@ class PublishedEndpointCacheService:
         self._prune_entries(db, binding_id=binding.id, max_entries=policy.max_entries)
         return entry
 
+    def summarize_for_bindings(
+        self,
+        db: Session,
+        *,
+        bindings: list[WorkflowPublishedEndpoint],
+        now: datetime | None = None,
+    ) -> dict[str, PublishedEndpointCacheInventorySummary]:
+        if not bindings:
+            return {}
+
+        summaries: dict[str, PublishedEndpointCacheInventorySummary] = {}
+        effective_now = now or _utcnow()
+        for binding in bindings:
+            summaries[binding.id] = self.build_binding_summary(
+                db,
+                binding=binding,
+                now=effective_now,
+            )
+        return summaries
+
+    def build_binding_summary(
+        self,
+        db: Session,
+        *,
+        binding: WorkflowPublishedEndpoint,
+        now: datetime | None = None,
+    ) -> PublishedEndpointCacheInventorySummary:
+        policy = self._resolve_policy(binding)
+        if policy is None:
+            return PublishedEndpointCacheInventorySummary(enabled=False)
+
+        effective_now = now or _utcnow()
+        records = self._list_active_records(
+            db,
+            binding_id=binding.id,
+            now=effective_now,
+        )
+        return PublishedEndpointCacheInventorySummary(
+            enabled=True,
+            ttl=policy.ttl,
+            max_entries=policy.max_entries,
+            vary_by=policy.vary_by,
+            active_entry_count=len(records),
+            total_hit_count=sum(record.hit_count for record in records),
+            last_hit_at=max((record.last_hit_at for record in records if record.last_hit_at), default=None),
+            nearest_expires_at=min((record.expires_at for record in records), default=None),
+            latest_created_at=max((record.created_at for record in records), default=None),
+        )
+
+    def list_inventory_items(
+        self,
+        db: Session,
+        *,
+        binding: WorkflowPublishedEndpoint,
+        limit: int = 10,
+        now: datetime | None = None,
+    ) -> list[PublishedEndpointCacheInventoryItem]:
+        policy = self._resolve_policy(binding)
+        if policy is None:
+            return []
+
+        effective_now = now or _utcnow()
+        records = self._list_active_records(
+            db,
+            binding_id=binding.id,
+            now=effective_now,
+            limit=limit,
+        )
+        return [
+            PublishedEndpointCacheInventoryItem(
+                id=record.id,
+                binding_id=record.binding_id,
+                cache_key=record.cache_key,
+                response_preview=_build_payload_preview(dict(record.response_payload or {})),
+                hit_count=record.hit_count,
+                last_hit_at=record.last_hit_at,
+                expires_at=record.expires_at,
+                created_at=record.created_at,
+                updated_at=record.updated_at,
+            )
+            for record in records
+        ]
+
     def build_cache_key(
         self,
         *,
@@ -201,6 +349,31 @@ class PublishedEndpointCacheService:
             field_path: _resolve_field_path(input_payload, field_path)
             for field_path in vary_by
         }
+
+    def _list_active_records(
+        self,
+        db: Session,
+        *,
+        binding_id: str,
+        now: datetime,
+        limit: int | None = None,
+    ) -> list[WorkflowPublishedCacheEntry]:
+        self._delete_expired_entries(db, binding_id=binding_id, now=now)
+        statement = (
+            select(WorkflowPublishedCacheEntry)
+            .where(
+                WorkflowPublishedCacheEntry.binding_id == binding_id,
+                WorkflowPublishedCacheEntry.expires_at > now,
+            )
+            .order_by(
+                WorkflowPublishedCacheEntry.last_hit_at.desc(),
+                WorkflowPublishedCacheEntry.created_at.desc(),
+                WorkflowPublishedCacheEntry.id.desc(),
+            )
+        )
+        if limit is not None:
+            statement = statement.limit(limit)
+        return db.scalars(statement).all()
 
     def _delete_expired_entries(
         self,

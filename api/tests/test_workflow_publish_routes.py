@@ -638,6 +638,32 @@ def test_invoke_published_native_endpoint_uses_response_cache(
     assert list_body[0]["activity"]["cache_hit_count"] == 1
     assert list_body[0]["activity"]["cache_miss_count"] == 2
     assert list_body[0]["activity"]["cache_bypass_count"] == 0
+    assert list_body[0]["cache_inventory"] == {
+        "enabled": True,
+        "ttl": 300,
+        "max_entries": 2,
+        "vary_by": ["question"],
+        "active_entry_count": 2,
+        "total_hit_count": 1,
+        "last_hit_at": cache_entries[0].last_hit_at.isoformat().replace("+00:00", "Z"),
+        "nearest_expires_at": cache_entries[0].expires_at.isoformat().replace("+00:00", "Z"),
+        "latest_created_at": cache_entries[1].created_at.isoformat().replace("+00:00", "Z"),
+    }
+
+    cache_inventory_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/cache-entries"
+    )
+    assert cache_inventory_response.status_code == 200
+    cache_inventory_body = cache_inventory_response.json()
+    assert cache_inventory_body["summary"]["enabled"] is True
+    assert cache_inventory_body["summary"]["ttl"] == 300
+    assert cache_inventory_body["summary"]["max_entries"] == 2
+    assert cache_inventory_body["summary"]["vary_by"] == ["question"]
+    assert cache_inventory_body["summary"]["active_entry_count"] == 2
+    assert cache_inventory_body["summary"]["total_hit_count"] == 1
+    assert [item["hit_count"] for item in cache_inventory_body["items"]] == [1, 0]
+    assert cache_inventory_body["items"][0]["response_preview"]["sample"]["binding_id"] == binding["id"]
+    assert all(item["cache_key"] for item in cache_inventory_body["items"])
 
 
 def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(

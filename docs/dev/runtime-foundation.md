@@ -354,6 +354,7 @@ uv run alembic upgrade head
 - `GET /api/workflows/{workflow_id}/published-endpoints/{binding_id}/api-keys`
 - `POST /api/workflows/{workflow_id}/published-endpoints/{binding_id}/api-keys`
 - `DELETE /api/workflows/{workflow_id}/published-endpoints/{binding_id}/api-keys/{key_id}`
+- `GET /api/workflows/{workflow_id}/published-endpoints/{binding_id}/cache-entries`
 - `PATCH /api/workflows/{workflow_id}/published-endpoints/{binding_id}/lifecycle`
 - `POST /v1/workflows/{workflow_id}/published-endpoints/{endpoint_id}/run`
 - `POST /v1/published-aliases/{endpoint_alias}/run`
@@ -375,6 +376,7 @@ uv run alembic upgrade head
 - 为创建页和 editor 提供共享的 workflow library snapshot，统一暴露 builtin/workspace starters、node catalog、tool lanes 和 tools
 - 为发布态治理与后续开放 API 提供独立的 publish binding 查询入口
 - 为 published endpoint 提供最小 API key 生命周期治理入口
+- 为 publish cache 提供 binding 级 inventory 读取入口
 - 为发布态治理提供最小 lifecycle 更新入口
 - 沿 active publish binding 触发最小 native 发布调用
 - 为 published endpoint 提供最小稳定外部地址入口（alias/path）
@@ -384,6 +386,7 @@ uv run alembic upgrade head
 - `GET /api/workflows/{workflow_id}/published-endpoints` 当前还支持按 `lifecycle_status` 过滤 `draft / published / offline`
 - `GET/POST/DELETE /api/workflows/{workflow_id}/published-endpoints/{binding_id}/api-keys` 当前会把 API key 管理绑定到 endpoint 级别事实，而不是单个 version binding
 - published API key 当前只保存 `key_prefix + key_hash`，明文 key 仅在创建时返回一次
+- `GET /api/workflows/{workflow_id}/published-endpoints/{binding_id}/cache-entries` 当前会返回 binding 级 cache inventory summary + active items
 - `PATCH /api/workflows/{workflow_id}/published-endpoints/{binding_id}/lifecycle` 当前支持把 binding 切到 `published / offline`
 - 同一 `workflow_id + endpoint_id` 下，新的 `published` binding 会自动把旧的已发布 binding 收口为 `offline`
 - `POST /v1/workflows/{workflow_id}/published-endpoints/{endpoint_id}/run` 当前只会命中 `published` binding，并固定执行 binding 指向的 `target_workflow_version + compiled_blueprint`
@@ -405,6 +408,7 @@ uv run alembic upgrade head
 - `POST /v1/workflows/{workflow_id}/published-endpoints/{endpoint_id}/run`、alias/path 入口当前都会返回 `X-7Flows-Cache: HIT/MISS`
 - published invocation audit 当前已区分 `cache_status=hit/miss/bypass`
 - `GET /api/workflows/{workflow_id}/published-endpoints` 当前返回的 `activity` 摘要已带 cache hit/miss/bypass 统计
+- `GET /api/workflows/{workflow_id}/published-endpoints` 当前还会返回 binding 级 `cache_inventory` 摘要，供 workflow 页治理区直接消费
 - `GET /api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations` 当前 summary/facets/items 已可区分缓存命中与真实执行
 - 当前 rate limit 只统计 `succeeded / failed` 调用；`rejected` 仍会进入审计，但不会占用执行配额
 - 发布活动当前会记录：
@@ -585,9 +589,12 @@ uv run alembic upgrade head
   - 当前已支持编辑节点名称、基础 `config`、基础 `runtimePolicy`
   - 当前已支持编辑 edge 的 `channel` / `condition` / `conditionExpression`
   - 当前已支持保存回 `PUT /api/workflows/{workflow_id}`，继续复用版本快照递增
-  - 当前 workflow 页面会优先读取 `/api/workflow-library`，把 node catalog、tool lanes 和 tool catalog 一并带入 editor
-  - 当前 workflow 页面会并行读取 `/api/workflows/{workflow_id}/runs`，把 recent runs 直接带入 editor runtime overlay
-  - 当前 `llm_agent` / `tool` / `mcp_query` / `condition` / `router` / `output` 节点已开始进入结构化配置表单，并保留高级 JSON 兜底：
+- 当前 workflow 页面会优先读取 `/api/workflow-library`，把 node catalog、tool lanes 和 tool catalog 一并带入 editor
+- 当前 workflow 页面会并行读取 `/api/workflows/{workflow_id}/runs`，把 recent runs 直接带入 editor runtime overlay
+- 当前 workflow 页面还会并行读取 `/api/workflows/{workflow_id}/published-endpoints`，在 editor 下方挂独立 publish governance panel
+- 对启用 cache 的 binding，workflow 页面会进一步读取 `/cache-entries`，展示 active cache inventory 摘要与条目预览
+- 对 `auth_mode=api_key` 的 binding，workflow 页面会进一步读取 active API key 列表，并提供 create / revoke / one-time secret 展示
+- 当前 `llm_agent` / `tool` / `mcp_query` / `condition` / `router` / `output` 节点已开始进入结构化配置表单，并保留高级 JSON 兜底：
     - `llm_agent`
       - 可编辑 `provider` / `modelId` / `temperature`
       - 可编辑 `systemPrompt` / `prompt`
@@ -654,16 +661,15 @@ uv run alembic upgrade head
 
 ### 当前架构与体量判断
 
-- 最近一次 Git 提交是 `2026-03-12 03:38:18 +0800` 的 `feat: schedule callback ticket cleanup`：
-  - 给 callback ticket cleanup 补上 Celery beat 周期调度
-  - 在 Docker 全栈模式中新增独立 `scheduler` 进程
-  - 补齐 cleanup 调度配置与对应测试
-- 这次承接判断是：需要衔接，而且不是继续在 callback ticket 主线上深挖，而是转回 `API 调用开放` 的 P0 发布治理主线
+- 最近一次 Git 提交是 `2026-03-12 04:30:07 +0800` 的 `feat: add published endpoint cache observability`：
+  - 给 publish binding 补上 cache inventory 的持久化事实与摘要能力
+  - 扩展 published activity，把 cache `hit / miss / bypass` 统计显式暴露出来
+  - 补齐 publish cache observability 的后端契约与测试
+- 这次承接判断是：需要衔接，而且主线仍然是 `API 调用开放` 的 P0 发布治理，而不是再回到 callback cleanup 深挖
 - 本轮继续承接开放 API 主线，补上：
-  - `workflow_published_endpoints.rate_limit_policy`
-  - publish definition 的 `rateLimit` 声明
-  - published gateway 的 binding 级 rate limit enforcement
-  - invocation audit 复用下的窗口计数与契约测试
+  - binding 级 `cache-entries` 查询接口
+  - workflow 页面独立 publish governance panel
+  - `auth_mode=api_key` 的前端 create / revoke / one-time secret 治理入口
 - 当前真正需要持续承接的实现主线仍是 `feat: add durable agent runtime phase1`：
   - Phase 1 已经把 `compiler / runtime / agent runtime / tool gateway / context / artifact` 这套后端基础拆出来
   - 前几轮沿这条线补上了 `run_callback_tickets + callback ingress`
@@ -673,7 +679,7 @@ uv run alembic upgrade head
   - `应用新建编排` 这一条线已经有 `workflow library -> starter -> editor -> 保存版本 -> recent runs overlay`
   - `编排节点能力` 这一条线已经有 phase runtime、tool/evidence/artifact、scheduler resume 和 callback ingress
   - `Dify 插件兼容` 已有 registry / adapter / tool lane / workspace scope 的基础 contract，但生命周期仍未完整
-  - `API 调用开放` 已从纯设计占位推进到 `publish binding + lifecycle + alias/path + native invoke + api_key auth + activity audit + time window/timeline + binding rate limit` 最小闭环；但 cache 和 OpenAI / Anthropic 映射还没真正接上
+  - `API 调用开放` 已从纯设计占位推进到 `publish binding + lifecycle + alias/path + native invoke + api_key auth + activity audit + time window/timeline + binding rate limit + cache inventory + workflow 页面治理入口` 最小闭环；但 rate limit 诊断消费和 OpenAI / Anthropic 映射还没真正接上
 - 当前架构方向整体是解耦的，但仍有未完全拆开的高风险边界：
   - 后端已经开始形成 `Flow Compiler -> RuntimeService -> AgentRuntime / ToolGateway / ContextService / RunResumeScheduler / RunCallbackTicketService / WorkflowPublishBindingService` 的分层
   - execution / evidence 查询也已独立落到 `RunViewService + run_views route`，没有继续把聚合逻辑塞回 `runs.py`
@@ -695,8 +701,10 @@ uv run alembic upgrade head
   - `api/app/services/agent_runtime.py` 当前约 665 行，已经承载 phase pipeline、tool waiting 恢复和 evidence 组装；若继续长出 assistant 策略与 subflow 候选能力，应提前拆 plan/tool/finalize 子阶段
   - `api/app/services/workflow_library.py` 当前约 688 行，仍适合继续演进，但若再接 adapter health / node plugin registry，应优先拆 source assembly 与 starter builder
   - `api/app/services/published_invocations.py` 当前约 597 行，已经承载 activity summary、time window、timeline、API key 维度统计和 rate limit 计数；若继续长出 cache 命中统计或更细趋势分析，应提前拆 query/audit aggregation
+  - `web/app/actions.ts` 当前约 478 行，已经同时承载工具绑定、publish lifecycle 和 API key server actions；下一轮若继续补 publish 治理动作，应优先拆成 workflow / publish 两个 action 模块
   - `web/components/workspace-starter-library.tsx` 当前约 1134 行，是前端体量最大的真实业务文件；虽然还在前端 2000 行偏好之内，但后续继续补批量结果钻取时仍应继续拆
   - `web/components/workflow-editor-workbench.tsx` 当前约 580 行，下一轮若继续把 execution / evidence view 接回 editor overlay，要避免重新长回页面级混排组件
+  - `web/components/run-diagnostics-panel.tsx` 当前约 636 行，若继续塞 trace/export/filter 状态，应优先拆筛选器和时间线区块
 
 ## 推荐开发命令
 
@@ -770,8 +778,8 @@ docker compose up -d --build
 
 当前判断：
 
-- 本轮已经把 `compiled blueprint / version snapshot / run binding` 继续推进到 `publish binding + lifecycle + alias/path + native invoke + api_key auth + activity audit filters + time window/timeline + binding rate limit`。
-- 发布态现在已经具备最小 native 调用、API key 鉴权、alias/path 地址闭环、基础审计视图和最小 binding 级限流，但距离完整开放 API 仍差 cache、流式与兼容协议映射。
+- 本轮已经把 `compiled blueprint / version snapshot / run binding` 继续推进到 `publish binding + lifecycle + alias/path + native invoke + api_key auth + activity audit filters + time window/timeline + binding rate limit + cache inventory + workflow 页面治理`。
+- 发布态现在已经具备最小 native 调用、API key 鉴权、alias/path 地址闭环、基础审计视图、最小 binding 级限流，以及 workflow 页的 lifecycle / cache / API key 治理入口，但距离完整开放 API 仍差 rate limit 面板化消费、流式与兼容协议映射。
 - 现在还不适合一步到位宣称“完整 Durable Runtime 已完成”，原因是：
   - callback ingress、ticket TTL/过期态和周期自动清理已经落地，但 callback bus、更强鉴权和系统诊断治理可见性还没有完成
   - scheduler 还只有最小任务投递，没有 dead-letter、去重、重投和系统化观测
@@ -784,9 +792,9 @@ docker compose up -d --build
    - 继续把最小 `native` endpoint 演进成更完整的发布实体
    - 再把 OpenAI / Anthropic 协议映射挂到同一条发布链上
 2. 继续补 publish endpoint 的发布实体：
-   - cache inventory / active entry summary
-   - 更细的 API key 维度观测与趋势消费视图
    - rate limit 的系统诊断可见性与更细治理反馈
+   - 更细的 API key 维度观测与趋势消费视图
+   - invocation / cache / API key 的统一前端治理区块
    - 继续坚持绑定 `workflow_version + compiled_blueprint`
 3. 收口 callback ticket 的剩余治理：
    - 更强鉴权形态
@@ -794,7 +802,7 @@ docker compose up -d --build
 
 原因：
 
-- 最小 `native` 调用入口、`api_key` 鉴权实体、alias/path 地址语义、基础 activity audit 和 publish cache 命中可观测性都已经落地，当前最该补的是发布托管能力与兼容协议映射，否则 `API 调用开放` 仍然无法从 MVP 走向可集成状态。
+- 最小 `native` 调用入口、`api_key` 鉴权实体、alias/path 地址语义、基础 activity audit、publish cache inventory，以及 workflow 页治理入口都已经落地，当前最该补的是更细的治理反馈与兼容协议映射，否则 `API 调用开放` 仍然无法从 MVP 走向可集成状态。
 - run 侧虽然已经绑定 compiled blueprint，execution/evidence 视图也已经开始消费这些事实，但发布层仍需要继续承接，稳定执行边界才能真正服务主业务。
 - callback ingress 与 ticket TTL/expired 状态已经补到“手动/API/worker cleanup + beat 周期调度 + 来源审计”，但更强鉴权与治理可见性仍属于 durable runtime 稳定化的剩余工作。
 
