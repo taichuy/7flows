@@ -348,6 +348,7 @@ class PublishedEndpointGatewayService:
                     blueprint_record=blueprint_record,
                     input_payload=workflow_input_payload,
                 )
+                self._ensure_sync_publish_run_succeeded(artifacts.run.status)
                 response_payload = response_builder(
                     binding=binding,
                     workflow=workflow,
@@ -434,6 +435,20 @@ class PublishedEndpointGatewayService:
         return PublishedGatewayInvokeResult(
             response_payload=response_payload,
             cache_status=cache_status,
+        )
+
+    def _ensure_sync_publish_run_succeeded(self, run_status: str) -> None:
+        if run_status == "succeeded":
+            return
+        if run_status == "waiting":
+            raise PublishedEndpointGatewayError(
+                "Published sync invocation entered waiting state. "
+                "Waiting runs are not supported for sync published endpoints yet.",
+                status_code=409,
+            )
+        raise PublishedEndpointGatewayError(
+            f"Published sync invocation ended with unsupported run status '{run_status}'.",
+            status_code=500,
         )
 
     def _build_native_response_payload(

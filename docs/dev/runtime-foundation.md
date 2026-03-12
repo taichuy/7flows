@@ -402,6 +402,7 @@ uv run alembic upgrade head
   - `native/openai/anthropic` 入口都只支持 `auth_mode=internal/api_key`
   - 当前都只支持 `streaming=false`
   - OpenAI / Anthropic 当前只实现最小非流式返回体，不假装已经覆盖完整协议字段
+  - sync published endpoint 当前只接受 `run.status=succeeded` 的结果；若 workflow 进入 `waiting`，会明确返回 `409`，避免把未完成执行误包装成成功协议响应或错误写入 publish cache
 - `auth_mode=api_key` 当前已支持 `x-api-key`，并兼容 `Authorization: Bearer <key>` 的最小 header 形态
 - publish definition 当前已支持 `alias/path`，缺省会回退到 `endpoint_id` 与 `/{endpoint_id}`
 - publish definition 当前已支持声明 `rateLimit.requests + rateLimit.windowSeconds`
@@ -785,6 +786,7 @@ docker compose up -d --build
 - publish activity 的更细 timeline 可视化、前端筛选钻取与长期审计面板
 - `native / openai / anthropic` 发布调用的 streaming / SSE 与更完整发布管理
 - OpenAI / Anthropic 更完整的字段透传、usage 映射与协议面治理可见性
+- sync published endpoint 对 waiting run 现在只会明确拒绝，还没有正式的异步 published invoke / callback 承接链路
 - scheduler 级 dead-letter / dedupe / metrics / 失败重投治理
 - callback ticket 的更强鉴权与系统诊断治理可见性
 - 回放调试面板

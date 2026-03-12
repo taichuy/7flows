@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.models.workflow import WorkflowPublishedCacheEntry, WorkflowPublishedInvocation
+from app.services.plugin_runtime import PluginToolDefinition, reset_plugin_registry
 
 
 def _publishable_definition(
@@ -55,6 +56,55 @@ def _publishable_definition(
             {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "output"},
         ],
         "publish": [endpoint],
+    }
+
+
+def _waiting_agent_publishable_definition(
+    *,
+    alias: str,
+    path: str,
+    endpoint_id: str,
+    endpoint_name: str,
+    protocol: str = "openai",
+) -> dict:
+    return {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "agent",
+                "type": "llm_agent",
+                "name": "Agent",
+                "config": {
+                    "assistant": {"enabled": False},
+                    "toolPolicy": {"allowedToolIds": ["native.search"]},
+                    "mockPlan": {
+                        "toolCalls": [
+                            {
+                                "toolId": "native.search",
+                                "inputs": {"query": "wait-for-callback"},
+                            }
+                        ]
+                    },
+                },
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+            {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+        ],
+        "publish": [
+            {
+                "id": endpoint_id,
+                "name": endpoint_name,
+                "alias": alias,
+                "path": path,
+                "protocol": protocol,
+                "authMode": "internal",
+                "streaming": False,
+                "inputSchema": {"type": "object"},
+            }
+        ],
     }
 
 
@@ -719,6 +769,81 @@ def test_invoke_published_anthropic_message_uses_model_alias(
     assert body["type"] == "message"
     assert body["model"] == "anthropic.message.workflow"
     assert body["content"] == [{"type": "text", "text": "anthropic-answer"}]
+
+
+def test_published_sync_routes_reject_waiting_runs(
+    client: TestClient,
+) -> None:
+    registry = reset_plugin_registry()
+    registry.register_tool(
+        PluginToolDefinition(id="native.search", name="Native Search"),
+        invoker=lambda _: {
+            "status": "waiting",
+            "content_type": "json",
+            "summary": "awaiting callback",
+            "structured": {"ticket": "tool-789"},
+            "meta": {
+                "tool_name": "Native Search",
+                "waiting_reason": "callback pending",
+                "waiting_status": "waiting_callback",
+            },
+        },
+    )
+
+    try:
+        create_response = client.post(
+            "/api/workflows",
+            json={
+                "name": "Published Waiting Workflow",
+                "definition": _waiting_agent_publishable_definition(
+                    alias="openai.waiting.workflow",
+                    path="/openai/waiting",
+                    endpoint_id="openai-waiting",
+                    endpoint_name="OpenAI Waiting",
+                    protocol="openai",
+                ),
+            },
+        )
+        assert create_response.status_code == 201
+        workflow_id = create_response.json()["id"]
+
+        bindings_response = client.get(
+            f"/api/workflows/{workflow_id}/published-endpoints",
+            params={"include_all_versions": "true"},
+        )
+        assert bindings_response.status_code == 200
+        binding = bindings_response.json()[0]
+
+        publish_response = client.patch(
+            f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+            json={"status": "published"},
+        )
+        assert publish_response.status_code == 200
+
+        invoke_response = client.post(
+            "/v1/chat/completions",
+            json={
+                "model": "openai.waiting.workflow",
+                "messages": [{"role": "user", "content": "hello"}],
+            },
+        )
+        assert invoke_response.status_code == 409
+        assert invoke_response.json()["detail"] == (
+            "Published sync invocation entered waiting state. "
+            "Waiting runs are not supported for sync published endpoints yet."
+        )
+
+        activity_response = client.get(
+            f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
+        )
+        assert activity_response.status_code == 200
+        activity = activity_response.json()
+        assert activity["summary"]["total_count"] == 1
+        assert activity["summary"]["rejected_count"] == 1
+        assert activity["items"][0]["status"] == "rejected"
+        assert activity["items"][0]["run_id"] is None
+    finally:
+        reset_plugin_registry()
 
 
 def test_published_openai_routes_reject_streaming_requests(
