@@ -1031,3 +1031,24 @@ docker compose up -d --build
   1. 继续承接 `API 调用开放` 主线，补 `streaming / SSE` 与 waiting / async lifecycle drilldown
   2. 继续治理 Durable Runtime 的集中热点，优先拆 `api/app/services/runtime.py` 与 `api/tests/test_runtime_service.py`
   3. 再把 diagnostics 的 phase / evidence / artifact 聚合事实统一回接 editor / overlay
+
+## 2026-03-13 Runtime Lifecycle Support 解耦事实
+
+- 为承接“先控制 Durable Runtime 集中热点，再继续推进主业务线”的优先级，这轮没有改动 runtime 语义，而是先把一段稳定的生命周期 helper 从 `RuntimeService` 主类中抽离。
+- 当前已新增 `api/app/services/runtime_lifecycle_support.py`，把以下能力收口到 `RuntimeLifecycleSupportMixin`：
+  - callback ticket 的签发 / 清理
+  - waiting 场景的 scheduled resume checkpoint
+  - retry state 读写
+  - tool result 序列化
+  - `RunEvent` 持久化与 node / edge payload 构建
+- `api/app/services/runtime.py` 现在只保留 orchestration 主链路，并通过 `RuntimeLifecycleSupportMixin + RuntimeGraphSupportMixin` 组合支撑运行。
+- 这次调整的目标不是“宣称 runtime 已经拆完”，而是先验证一个更安全的拆分方向：把等待、重试、事件和 payload 这类稳定 helper 从主执行器中剥离，避免 `runtime.py` 继续沿着 God object 方向膨胀。
+- 这也和当前项目现状复核中的判断一致：`runtime.py` 仍然是高优先级结构风险点，但后续继续拆分应优先沿稳定边界推进，而不是在承接 `streaming / SSE` 主线时混入高风险语义重写。
+- 本轮验证继续优先使用 `api/.venv` + `uv`：
+  - `./.venv/Scripts/uv.exe run pytest tests/test_runtime_service.py -q`
+
+### 本轮补充后的下一步规划
+
+1. 继续承接 `API 调用开放` 主线：补 `streaming / SSE` 与 waiting / async lifecycle drilldown，保持发布态事实链路继续站稳。
+2. 继续治理 Durable Runtime 热点：沿 mixin / 子模块边界继续拆 `api/app/services/runtime.py`，并同步拆 `api/tests/test_runtime_service.py` 的 waiting / callback / agent 场景。
+3. 再把 diagnostics 的 `phase / evidence / artifact` 聚合事实统一回接 editor / overlay，避免前端另起运行态协议。
