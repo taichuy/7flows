@@ -1089,3 +1089,18 @@ docker compose up -d --build
 1. 继续承接 `API 调用开放` 主线：优先补 `streaming / SSE` 与协议流式事件映射，让 publish binding 真正具备可消费的流式开放接口。
 2. 继续深化 publish governance：若现有 preview 已不足以支撑治理，再补单次 invocation detail API、waiting / async lifecycle 长期趋势与更细粒度协议面视图。
 3. 继续治理 Durable Runtime 热点：沿稳定边界继续拆 `api/app/services/runtime.py` 与 `api/tests/test_runtime_service.py`，避免主业务线再次被 God object 拖慢。
+
+## 2026-03-13 Runtime Node Execution Support 解耦事实
+
+- 本轮在完成项目现状复核后，优先处理了后端结构热点，而没有插队改动更高风险的 runtime 语义或另起一套执行协议。
+- 当前已新增 `api/app/services/runtime_node_execution_support.py`，把 node run 准备、retry 包装、node dispatch、tool/branch helper、node input 构建与 downstream edge 激活等稳定节点执行逻辑从 `RuntimeService` 中抽离出来。
+- `api/app/services/runtime.py` 现在通过 `RuntimeNodeExecutionSupportMixin + RuntimeLifecycleSupportMixin + RuntimeGraphSupportMixin` 组合支撑执行主链路，`runtime.py` 文件体量已从 `1308` 行降到 `732` 行。
+- 为同步控制测试热点，本轮也把 `api/tests/test_runtime_service.py` 中的 `llm_agent / waiting / callback ticket / retry resume` 场景拆到新的 `api/tests/test_runtime_service_agent_runtime.py`；原文件从 `1595` 行降到 `1042` 行。
+- 这次拆分没有改变 `runs / node_runs / run_events` 的事实来源边界，也没有改变 Durable Runtime Phase 1 的运行语义；它本质上是在为后续继续承接 `streaming / SSE` 主线清理结构阻力。
+- 定向验证已在 `api/` 下通过现有 `.venv` + `uv` 执行：`./.venv/Scripts/uv.exe run pytest tests/test_runtime_service.py tests/test_runtime_service_agent_runtime.py -q`，结果为 `25 passed`。
+
+### 本轮补充后的下一步规划
+
+1. 继续承接 `API 调用开放` 主线：补 `streaming / SSE` 发布链路与协议流式事件映射，让 publish binding 真正具备可消费的流式开放接口。
+2. 继续深化 publish governance：补 waiting / async lifecycle detail 与 publish invocation 到 `run / callback ticket / cache` 的可追踪链路。
+3. 若 `streaming / SSE` 让 publish 层继续膨胀，优先按协议 surface / mapper / audit 边界拆 `api/app/services/published_gateway.py`，避免新的 God object 转移到发布层。
