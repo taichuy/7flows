@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -16,6 +17,11 @@ from app.schemas.workflow_publish import (
 from app.services.published_gateway import (
     PublishedEndpointGatewayError,
     PublishedEndpointGatewayService,
+)
+from app.services.published_protocol_streaming import (
+    build_anthropic_message_stream,
+    build_openai_chat_completion_stream,
+    build_openai_response_stream,
 )
 
 router = APIRouter(prefix="/v1", tags=["published-gateway"])
@@ -72,6 +78,26 @@ def _apply_publish_response_headers(
     response.headers["X-7Flows-Cache"] = cache_status.upper()
     if run_status:
         response.headers["X-7Flows-Run-Status"] = run_status.upper()
+
+
+def _build_publish_streaming_response(
+    *,
+    stream_events,
+    cache_status: str,
+    run_status: str | None,
+) -> StreamingResponse:
+    response = StreamingResponse(
+        (chunk.encode("utf-8") for chunk in stream_events),
+        media_type="text/event-stream",
+    )
+    _apply_publish_response_headers(
+        response,
+        cache_status=cache_status,
+        run_status=run_status,
+    )
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Accel-Buffering"] = "no"
+    return response
 
 
 @router.post(
@@ -270,21 +296,7 @@ def invoke_published_openai_chat_completion(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-) -> OpenAIChatCompletionResponse:
-    if payload.stream:
-        published_gateway_service.record_protocol_rejection_by_alias(
-            db,
-            model=payload.model,
-            expected_protocol="openai",
-            request_payload=payload.model_dump(mode="json", exclude_none=True),
-            error_detail="Streaming chat completions are not supported yet.",
-            presented_api_key=_extract_presented_api_key(request),
-        )
-        raise HTTPException(
-            status_code=422,
-            detail="Streaming chat completions are not supported yet.",
-        )
-
+) -> Response | OpenAIChatCompletionResponse:
     try:
         result = published_gateway_service.invoke_openai_chat_completion(
             db,
@@ -292,11 +304,23 @@ def invoke_published_openai_chat_completion(
             input_payload=_build_openai_chat_input_payload(payload),
             request_payload=payload.model_dump(mode="json", exclude_none=True),
             presented_api_key=_extract_presented_api_key(request),
+            require_streaming_enabled=payload.stream,
         )
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    _apply_publish_response_headers(response, cache_status=result.cache_status, run_status=None)
+    if payload.stream:
+        return _build_publish_streaming_response(
+            stream_events=build_openai_chat_completion_stream(result.response_payload),
+            cache_status=result.cache_status,
+            run_status=result.run_status,
+        )
+
+    _apply_publish_response_headers(
+        response,
+        cache_status=result.cache_status,
+        run_status=result.run_status,
+    )
     return OpenAIChatCompletionResponse.model_validate(result.response_payload)
 
 
@@ -356,21 +380,7 @@ def invoke_published_openai_response(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-) -> OpenAIResponseResponse:
-    if payload.stream:
-        published_gateway_service.record_protocol_rejection_by_alias(
-            db,
-            model=payload.model,
-            expected_protocol="openai",
-            request_payload=payload.model_dump(mode="json", exclude_none=True),
-            error_detail="Streaming responses are not supported yet.",
-            presented_api_key=_extract_presented_api_key(request),
-        )
-        raise HTTPException(
-            status_code=422,
-            detail="Streaming responses are not supported yet.",
-        )
-
+) -> Response | OpenAIResponseResponse:
     try:
         result = published_gateway_service.invoke_openai_response(
             db,
@@ -378,11 +388,23 @@ def invoke_published_openai_response(
             input_payload=_build_openai_response_input_payload(payload),
             request_payload=payload.model_dump(mode="json", exclude_none=True),
             presented_api_key=_extract_presented_api_key(request),
+            require_streaming_enabled=payload.stream,
         )
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    _apply_publish_response_headers(response, cache_status=result.cache_status, run_status=None)
+    if payload.stream:
+        return _build_publish_streaming_response(
+            stream_events=build_openai_response_stream(result.response_payload),
+            cache_status=result.cache_status,
+            run_status=result.run_status,
+        )
+
+    _apply_publish_response_headers(
+        response,
+        cache_status=result.cache_status,
+        run_status=result.run_status,
+    )
     return OpenAIResponseResponse.model_validate(result.response_payload)
 
 
@@ -442,21 +464,7 @@ def invoke_published_anthropic_message(
     request: Request,
     response: Response,
     db: Session = Depends(get_db),
-) -> AnthropicMessageResponse:
-    if payload.stream:
-        published_gateway_service.record_protocol_rejection_by_alias(
-            db,
-            model=payload.model,
-            expected_protocol="anthropic",
-            request_payload=payload.model_dump(mode="json", exclude_none=True),
-            error_detail="Streaming Anthropic messages are not supported yet.",
-            presented_api_key=_extract_presented_api_key(request),
-        )
-        raise HTTPException(
-            status_code=422,
-            detail="Streaming Anthropic messages are not supported yet.",
-        )
-
+) -> Response | AnthropicMessageResponse:
     try:
         result = published_gateway_service.invoke_anthropic_message(
             db,
@@ -464,11 +472,23 @@ def invoke_published_anthropic_message(
             input_payload=_build_anthropic_message_input_payload(payload),
             request_payload=payload.model_dump(mode="json", exclude_none=True),
             presented_api_key=_extract_presented_api_key(request),
+            require_streaming_enabled=payload.stream,
         )
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
-    _apply_publish_response_headers(response, cache_status=result.cache_status, run_status=None)
+    if payload.stream:
+        return _build_publish_streaming_response(
+            stream_events=build_anthropic_message_stream(result.response_payload),
+            cache_status=result.cache_status,
+            run_status=result.run_status,
+        )
+
+    _apply_publish_response_headers(
+        response,
+        cache_status=result.cache_status,
+        run_status=result.run_status,
+    )
     return AnthropicMessageResponse.model_validate(result.response_payload)
 
 

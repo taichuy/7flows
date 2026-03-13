@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -764,16 +766,166 @@ def test_published_sync_routes_reject_waiting_runs(
 def test_published_openai_routes_reject_streaming_requests(
     client: TestClient,
 ) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "OpenAI Non Streaming Workflow",
+            "definition": _publishable_definition(
+                protocol="openai",
+                alias="openai.non-stream.workflow",
+                endpoint_id="openai-non-stream",
+                endpoint_name="OpenAI Non Stream",
+            ),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding = bindings_response.json()[0]
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
     response = client.post(
         "/v1/chat/completions",
         json={
-            "model": "missing.model",
+            "model": "openai.non-stream.workflow",
             "messages": [{"role": "user", "content": "hello"}],
             "stream": True,
         },
     )
     assert response.status_code == 422
-    assert response.json()["detail"] == "Streaming chat completions are not supported yet."
+    assert response.json()["detail"] == "Streaming is not supported for this published endpoint."
+
+
+def test_published_openai_chat_stream_returns_sse_and_tracks_run(
+    client: TestClient,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "OpenAI Streaming Workflow",
+            "definition": _publishable_definition(
+                protocol="openai",
+                alias="openai.stream.workflow",
+                endpoint_id="openai-stream",
+                endpoint_name="OpenAI Stream",
+                streaming=True,
+                answer="streamed hello from 7flows",
+            ),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding = bindings_response.json()[0]
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
+    with client.stream(
+        "POST",
+        "/v1/chat/completions",
+        json={
+            "model": "openai.stream.workflow",
+            "messages": [{"role": "user", "content": "hello"}],
+            "stream": True,
+        },
+    ) as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert response.headers["X-7Flows-Cache"] == "BYPASS"
+        assert response.headers["X-7Flows-Run-Status"] == "SUCCEEDED"
+        lines = [line for line in response.iter_lines() if line]
+
+    data_lines = [line.removeprefix("data: ") for line in lines if line.startswith("data: ")]
+    assert data_lines[-1] == "[DONE]"
+    streamed_chunks = [json.loads(line) for line in data_lines[:-1]]
+    assert streamed_chunks[0]["object"] == "chat.completion.chunk"
+    assert streamed_chunks[-1]["choices"][0]["finish_reason"] == "stop"
+    assert any(
+        "content" in chunk["choices"][0].get("delta", {}) for chunk in streamed_chunks
+    )
+
+    activity_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
+    )
+    assert activity_response.status_code == 200
+    activity = activity_response.json()
+    assert activity["summary"]["total_count"] == 1
+    assert activity["summary"]["last_run_status"] == "succeeded"
+    assert activity["items"][0]["run_status"] == "succeeded"
+    assert activity["items"][0]["run_id"] is not None
+
+
+def test_published_anthropic_message_stream_returns_event_stream(
+    client: TestClient,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Anthropic Streaming Workflow",
+            "definition": _publishable_definition(
+                protocol="anthropic",
+                alias="anthropic.stream.workflow",
+                endpoint_id="anthropic-stream",
+                endpoint_name="Anthropic Stream",
+                streaming=True,
+                answer="anthropic streamed output",
+            ),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding = bindings_response.json()[0]
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
+    with client.stream(
+        "POST",
+        "/v1/messages",
+        json={
+            "model": "anthropic.stream.workflow",
+            "max_tokens": 128,
+            "messages": [{"role": "user", "content": "hello"}],
+            "stream": True,
+        },
+    ) as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert response.headers["X-7Flows-Run-Status"] == "SUCCEEDED"
+        lines = [line for line in response.iter_lines() if line]
+
+    event_names = [line.removeprefix("event: ") for line in lines if line.startswith("event: ")]
+    assert event_names[0] == "message_start"
+    assert "content_block_delta" in event_names
+    assert event_names[-1] == "message_stop"
 
 
 def test_invoke_published_native_endpoint_uses_response_cache(
@@ -1156,6 +1308,7 @@ def test_rejected_published_invocation_does_not_consume_rate_limit_quota(
         "status": None,
         "request_source": None,
         "request_surface": None,
+        "run_status": None,
         "cache_status": None,
         "api_key_id": None,
         "reason_code": "api_key_invalid",

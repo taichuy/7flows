@@ -103,7 +103,7 @@ def classify_invocation_reason(
         return "api_key_required"
     if "entered waiting state" in message:
         return "sync_waiting_unsupported"
-    if "stream" in message and "not supported yet" in message:
+    if "stream" in message and "not supported" in message:
         return "streaming_unsupported"
     if "auth mode" in message and "is not supported yet" in message:
         return "auth_mode_unsupported"

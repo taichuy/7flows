@@ -39,6 +39,8 @@ class PublishedEndpointGatewayError(ValueError):
 class PublishedGatewayInvokeResult:
     response_payload: dict
     cache_status: str
+    run_id: str | None = None
+    run_status: str | None = None
 
 
 class PublishedEndpointGatewayService:
@@ -273,6 +275,7 @@ class PublishedEndpointGatewayService:
         input_payload: dict,
         request_payload: dict,
         presented_api_key: str | None = None,
+        require_streaming_enabled: bool = False,
     ) -> PublishedGatewayInvokeResult:
         return self._invoke_protocol_binding_by_alias(
             db,
@@ -286,6 +289,7 @@ class PublishedEndpointGatewayService:
             ),
             request_preview_payload=request_payload,
             presented_api_key=presented_api_key,
+            require_streaming_enabled=require_streaming_enabled,
             response_builder=lambda **kwargs: build_openai_chat_completion_response(
                 model=model,
                 output_payload=kwargs["artifacts"].run.output_payload,
@@ -335,6 +339,7 @@ class PublishedEndpointGatewayService:
         input_payload: dict,
         request_payload: dict,
         presented_api_key: str | None = None,
+        require_streaming_enabled: bool = False,
     ) -> PublishedGatewayInvokeResult:
         return self._invoke_protocol_binding_by_alias(
             db,
@@ -348,6 +353,7 @@ class PublishedEndpointGatewayService:
             ),
             request_preview_payload=request_payload,
             presented_api_key=presented_api_key,
+            require_streaming_enabled=require_streaming_enabled,
             response_builder=lambda **kwargs: build_openai_response_api_response(
                 model=model,
                 output_payload=kwargs["artifacts"].run.output_payload,
@@ -397,6 +403,7 @@ class PublishedEndpointGatewayService:
         input_payload: dict,
         request_payload: dict,
         presented_api_key: str | None = None,
+        require_streaming_enabled: bool = False,
     ) -> PublishedGatewayInvokeResult:
         return self._invoke_protocol_binding_by_alias(
             db,
@@ -410,6 +417,7 @@ class PublishedEndpointGatewayService:
             ),
             request_preview_payload=request_payload,
             presented_api_key=presented_api_key,
+            require_streaming_enabled=require_streaming_enabled,
             response_builder=lambda **kwargs: build_anthropic_message_response(
                 model=model,
                 output_payload=kwargs["artifacts"].run.output_payload,
@@ -463,6 +471,7 @@ class PublishedEndpointGatewayService:
         request_preview_payload: dict,
         presented_api_key: str | None,
         response_builder,
+        require_streaming_enabled: bool = False,
         require_terminal_success: bool = True,
         request_surface_override: str | None = None,
     ) -> PublishedGatewayInvokeResult:
@@ -482,6 +491,7 @@ class PublishedEndpointGatewayService:
             request_source="alias",
             response_builder=response_builder,
             response_preview_builder=self._build_passthrough_response_preview,
+            require_streaming_enabled=require_streaming_enabled,
             require_terminal_success=require_terminal_success,
             request_surface_override=request_surface_override,
         )
@@ -500,6 +510,7 @@ class PublishedEndpointGatewayService:
         request_source: str,
         response_builder,
         response_preview_builder,
+        require_streaming_enabled: bool = False,
         require_terminal_success: bool = True,
         request_surface_override: str | None = None,
     ) -> PublishedGatewayInvokeResult:
@@ -549,9 +560,9 @@ class PublishedEndpointGatewayService:
                     "Published endpoint auth mode "
                     f"'{binding.auth_mode}' is not supported yet."
                 )
-            if binding.streaming:
+            if require_streaming_enabled and not binding.streaming:
                 raise PublishedEndpointGatewayError(
-                    "Published endpoint streaming invocation is not supported yet."
+                    "Streaming is not supported for this published endpoint."
                 )
             self._enforce_rate_limit(db, binding=binding)
 
@@ -579,9 +590,14 @@ class PublishedEndpointGatewayService:
             else:
                 cache_hit = None
 
+            executed_run_id: str | None = None
+            executed_run_status: str | None = None
+            executed_run_error: str | None = None
+
             if cache_hit is not None:
                 response_payload = cache_hit.response_payload
                 cache_status = "hit"
+                executed_run_status = "succeeded"
             else:
                 artifacts = self._runtime_service.execute_compiled_workflow(
                     db,
@@ -592,6 +608,9 @@ class PublishedEndpointGatewayService:
                 )
                 if require_terminal_success:
                     self._ensure_sync_publish_run_succeeded(artifacts.run.status)
+                executed_run_id = artifacts.run.id
+                executed_run_status = artifacts.run.status
+                executed_run_error = artifacts.run.error_message
                 response_payload = response_builder(
                     binding=binding,
                     workflow=workflow,
@@ -648,26 +667,35 @@ class PublishedEndpointGatewayService:
             response_preview_payload = response_preview_builder(response_payload)
 
         run_payload = self._extract_run_payload(response_payload)
+        recorded_run_id = run_payload.get("id") if run_payload is not None else executed_run_id
+        recorded_run_status = (
+            run_payload.get("status") if run_payload is not None else executed_run_status
+        )
+        recorded_error_message = (
+            run_payload.get("error_message") if run_payload is not None else executed_run_error
+        )
 
         self._invocation_service.record_invocation(
             db,
             binding=binding,
             request_source=request_source,
             input_payload=request_preview_payload,
-            status="failed" if run_payload and run_payload.get("status") == "failed" else "succeeded",
+            status="failed" if recorded_run_status == "failed" else "succeeded",
             cache_status=cache_status,
             request_surface_override=request_surface_override,
             api_key_id=authenticated_key.id if authenticated_key is not None else None,
-            run_id=run_payload.get("id") if run_payload is not None else None,
-            run_status=run_payload.get("status") if run_payload is not None else None,
+            run_id=recorded_run_id,
+            run_status=recorded_run_status,
             response_payload=response_preview_payload,
-            error_message=run_payload.get("error_message") if run_payload is not None else None,
+            error_message=recorded_error_message,
             started_at=started_at,
             finished_at=finished_at,
         )
         return PublishedGatewayInvokeResult(
             response_payload=response_payload,
             cache_status=cache_status,
+            run_id=recorded_run_id,
+            run_status=recorded_run_status,
         )
 
     def _should_store_cached_response(

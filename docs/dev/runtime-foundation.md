@@ -407,16 +407,18 @@ uv run alembic upgrade head
 - `POST /v1/published-paths/{route_path:path}` 当前会按 active publish binding 的 `route_path` 命中 native endpoint
 - `POST /v1/published-paths-async/{route_path:path}` 当前作为 path 入口的 async 变体，避免 `{route_path:path}` 与 `/run-async` 后缀在路由层互相吞噬
 - `POST /v1/chat/completions` 与 `POST /v1/responses` 当前会通过 `model -> published endpoint alias` 命中 `protocol=openai` 的 active binding
+- 当 binding 声明 `streaming=true` 且请求体传 `stream=true` 时，`POST /v1/chat/completions` 与 `POST /v1/responses` 现在会返回 `text/event-stream`；当前属于基于已完成运行结果的 replay-style SSE，而不是 token 级实时流
 - `POST /v1/chat/completions-async` 与 `POST /v1/responses-async` 当前会沿同一条 alias binding 执行链工作：
   - `run.status=succeeded` 时返回 `200 + PublishedProtocolAsyncRunResponse`
   - `run.status=waiting` 时返回 `202 + PublishedProtocolAsyncRunResponse`
   - 当前仍是 async bridge，不是假装已支持标准 OpenAI SSE
 - `POST /v1/messages` 当前会通过 `model -> published endpoint alias` 命中 `protocol=anthropic` 的 active binding
+- 当 binding 声明 `streaming=true` 且请求体传 `stream=true` 时，`POST /v1/messages` 现在会返回 Anthropic 风格事件流；当前同样是基于最终输出的 replay-style 映射，而不是节点内实时 delta
 - `POST /v1/messages-async` 当前会沿同一条 alias binding 承接 Anthropic waiting run，并返回同样的 protocol async envelope
 - 当前开放 API 仍保持 MVP 诚实边界：
   - `native/openai/anthropic` 入口都只支持 `auth_mode=internal/api_key`
-  - 当前都只支持 `streaming=false`
-  - OpenAI / Anthropic 当前只实现最小非流式返回体，不假装已经覆盖完整协议字段
+  - native publish 入口当前仍未补原生 SSE；OpenAI / Anthropic sync route 已支持 binding 级 replay-style SSE
+  - OpenAI / Anthropic 当前只实现最小协议映射与最小流式事件集，不假装已经覆盖完整协议字段或 token 级实时语义
   - sync published endpoint 当前只接受 `run.status=succeeded` 的结果；若 workflow 进入 `waiting`，会明确返回 `409`
   - native async published endpoint 现在可以诚实接住 `run.status=waiting`，并返回 `202 + RunDetail`
   - protocol async bridge 现在也能诚实接住 `run.status=waiting`，并返回 `202 + PublishedProtocolAsyncRunResponse`；但这仍然不是 OpenAI / Anthropic 的 streaming/SSE
@@ -1104,3 +1106,19 @@ docker compose up -d --build
 1. 继续承接 `API 调用开放` 主线：补 `streaming / SSE` 发布链路与协议流式事件映射，让 publish binding 真正具备可消费的流式开放接口。
 2. 继续深化 publish governance：补 waiting / async lifecycle detail 与 publish invocation 到 `run / callback ticket / cache` 的可追踪链路。
 3. 若 `streaming / SSE` 让 publish 层继续膨胀，优先按协议 surface / mapper / audit 边界拆 `api/app/services/published_gateway.py`，避免新的 God object 转移到发布层。
+
+## 2026-03-13 Published Protocol SSE Replay 支撑事实
+
+- 在完成项目现状复核并确认上一轮提交刚做完 `Runtime Node Execution Support` 解耦后，这轮优先承接了 `API 调用开放` 主线，而不是再次插队修改更高风险的 runtime 语义。
+- 当前已新增 `api/app/services/published_protocol_streaming.py`，把 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages 的最小 SSE 事件映射从 `api/app/api/routes/published_gateway.py` 与 `api/app/services/published_gateway.py` 中拆出，避免 publish gateway 继续沿“大而全协议分支”膨胀。
+- `POST /v1/chat/completions`、`POST /v1/responses`、`POST /v1/messages` 现在在 binding 声明 `streaming=true` 且请求体传 `stream=true` 时，会返回 `text/event-stream`；当前实现是基于已完成运行结果的 replay-style SSE，用最小协议事件把最终输出重放给客户端，而不是假装已经具备 token 级实时流。
+- 这轮没有新造第二套运行态存储：协议流式返回继续复用现有 publish binding、runtime 执行链和统一运行事实，只是在 publish surface 上补了一层协议事件映射。
+- 同时修复了 publish audit 的一个事实缺口：协议同步调用即使响应体不带 `run` envelope，`workflow_published_invocations` 现在也会记录实际的 `run_id / run_status`，让 publish governance 能继续追到真实运行。
+- 当前仍保持 MVP 诚实边界：native publish 入口尚未补原生 SSE；OpenAI / Anthropic 的 stream 仍缺少 `run_events -> protocol delta` 的实时映射，waiting 场景也仍应走 async bridge，而不是靠一个挂住的流式 HTTP 请求承接 durable waiting。
+- 定向验证已在 `api/` 下通过现有 `.venv` + `uv` 执行：`./.venv/Scripts/uv.exe run pytest tests/test_workflow_publish_routes.py -q` 与 `./.venv/Scripts/uv.exe run pytest tests/test_workflow_publish_activity.py tests/test_published_protocol_async_routes.py -q`，结果分别为 `21 passed` 与 `7 passed`。
+
+### 本轮补充后的下一步规划
+
+1. 继续把 replay-style SSE 演进到统一事件流映射：补 `run_events -> protocol delta` 的实时/准实时转换，优先引入 `node.output.delta` 与原生 run event stream，而不是长期依赖最终输出重放。
+2. 继续深化 publish governance：补 waiting / async lifecycle detail、单次 invocation detail，以及 publish invocation 到 `run / callback ticket / cache` 的稳定追踪入口。
+3. 若 publish surface 因 streaming 与 governance 继续膨胀，优先按 protocol surface / mapper / audit 边界拆 `api/app/services/published_gateway.py`，避免新的 God object 转移到发布层。
