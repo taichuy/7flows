@@ -1074,3 +1074,18 @@ docker compose up -d --build
 1. 继续承接 `API 调用开放` 主线：补 `streaming / SSE` 与协议流式事件映射，让 publish binding 真正具备可消费的流式开放接口。
 2. 继续深化 publish governance：补单次 invocation drilldown、waiting / async lifecycle 长期趋势和更细粒度的协议面治理视图。
 3. 继续治理 Durable Runtime 热点：沿稳定边界继续拆 `api/app/services/runtime.py` 与 `api/tests/test_runtime_service.py`，避免 P0 主线再次被 God object 拖慢。
+
+## 2026-03-13 Publish Invocation Drilldown UI 解耦事实
+
+- 为直接衔接上一轮 `publish waiting lifecycle drilldown` 提交，这轮优先补的是 workflow 页里“单次 invocation 的可展开 drilldown”，而不是插队改动更高风险的后端协议语义。
+- 当前前端已新增独立的 `web/components/workflow-publish-invocation-entry-card.tsx`，把单条 invocation 的状态、waiting 生命周期、run 跳转与 request / response preview 展示从 `web/components/workflow-publish-activity-panel-sections.tsx` 中拆出。
+- 这次拆分复用了现有 `PublishedEndpointInvocationItem` 已经暴露的 `request_preview / response_preview / run_waiting_lifecycle`，没有新增第二套 publish 面板私有数据结构，也没有要求后端补一条旁路接口。
+- 结果上，publish governance 仍旧只消费统一 invocation audit 事实，但 workflow 页对“单次调用发生了什么”的观察入口更完整，减少从 publish 面板频繁跳转到 run detail 才能继续排障的次数。
+- 这也继续验证了当前前端解耦方向是成立的：聚合 sections 负责总览与编排，单条 invocation 卡片负责细节和局部 drilldown，避免主文件继续沿着大而全的方向膨胀。
+- 定向验证时已尝试在 `web/` 下执行 `./node_modules/.bin/tsc.cmd --noEmit`；当前被仓库内既有无关错误阻断：`components/workspace-starter-library/template-list-panel.tsx` 仍在导入不存在的 `WorkspaceStarterBulkAction` 导出。本轮 publish UI 拆分已人工复核接线关系正常。
+
+### 本轮补充后的下一步规划
+
+1. 继续承接 `API 调用开放` 主线：优先补 `streaming / SSE` 与协议流式事件映射，让 publish binding 真正具备可消费的流式开放接口。
+2. 继续深化 publish governance：若现有 preview 已不足以支撑治理，再补单次 invocation detail API、waiting / async lifecycle 长期趋势与更细粒度协议面视图。
+3. 继续治理 Durable Runtime 热点：沿稳定边界继续拆 `api/app/services/runtime.py` 与 `api/tests/test_runtime_service.py`，避免主业务线再次被 God object 拖慢。
