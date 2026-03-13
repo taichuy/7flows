@@ -1122,3 +1122,18 @@ docker compose up -d --build
 1. 继续把 replay-style SSE 演进到统一事件流映射：补 `run_events -> protocol delta` 的实时/准实时转换，优先引入 `node.output.delta` 与原生 run event stream，而不是长期依赖最终输出重放。
 2. 继续深化 publish governance：补 waiting / async lifecycle detail、单次 invocation detail，以及 publish invocation 到 `run / callback ticket / cache` 的稳定追踪入口。
 3. 若 publish surface 因 streaming 与 governance 继续膨胀，优先按 protocol surface / mapper / audit 边界拆 `api/app/services/published_gateway.py`，避免新的 God object 转移到发布层。
+
+## 2026-03-14 Native Published SSE Replay 支撑事实
+
+- 在复核 `HEAD=2c10081 feat: add published protocol sse replay` 后，这轮继续承接 `API 调用开放` 主线，但没有反向让原生发布接口脱离现有 publish binding / runtime 事实链另起一套协议。
+- 当前 `POST /v1/workflows/{workflow_id}/published-endpoints/{endpoint_id}/run`、`POST /v1/published-aliases/{endpoint_alias}/run`、`POST /v1/published-paths/{path:path}/run` 在 binding 声明 `streaming=true` 且请求体传 `stream=true` 时，会返回最小 `text/event-stream`；事件形态为原生 `run.started / run.output.delta / run.completed` replay-style SSE，而不是假装已经具备基于 `run_events` 的实时推送。
+- 原生流式返回继续复用现有 `PublishedNativeRunResponse` 事实，不新造第二份运行态存储：先完成一次标准 publish invoke，再把原生响应 envelope 以最小 SSE 事件重放给客户端。
+- 这轮同时把 streaming capability guardrail 收回到统一 `published_gateway_service._invoke_binding`：native sync invoke 现在与 OpenAI / Anthropic 一样，都会复用 binding 的 `streaming` 开关，而不是在路由层各自散落判断。
+- 当前仍保持 MVP 诚实边界：native SSE 仍是 replay-style；真正的 `run_events -> native delta` 实时映射、waiting run 的 streaming/async 协同、以及更细的 publish surface drilldown 仍未完成。
+- 定向验证计划为在 `api/` 下通过现有 `.venv` + `uv` 执行：`./.venv/Scripts/uv.exe run pytest tests/test_workflow_publish_routes.py -q`，重点覆盖 native stream 成功与 `streaming_unsupported` 拒绝场景。
+
+### 本轮补充后的下一步规划
+
+1. 继续把 replay-style SSE 演进到统一事件流映射：优先补 `run_events -> native / openai / anthropic delta` 的实时/准实时转换，而不是长期停留在最终输出重放。
+2. 继续深化 publish governance：补 waiting / async lifecycle detail、单次 invocation detail，以及 publish invocation 到 `run / callback ticket / cache` 的稳定追踪入口。
+3. 若 publish surface 因 native/protocol streaming 与治理继续膨胀，优先按 protocol surface / mapper / audit 边界拆 `api/app/services/published_gateway.py`，避免新的 God object 转移到发布层。

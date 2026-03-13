@@ -106,6 +106,7 @@ class PublishedEndpointGatewayService:
         endpoint_id: str,
         input_payload: dict,
         presented_api_key: str | None = None,
+        require_streaming_enabled: bool = False,
     ) -> PublishedGatewayInvokeResult:
         binding = self._workflow_publish_service.get_published_binding(
             db,
@@ -124,6 +125,7 @@ class PublishedEndpointGatewayService:
             request_source="workflow",
             response_builder=self._build_native_response_payload,
             response_preview_builder=self._build_native_response_preview,
+            require_streaming_enabled=require_streaming_enabled,
             request_surface_override="native.workflow",
         )
 
@@ -164,6 +166,7 @@ class PublishedEndpointGatewayService:
         endpoint_alias: str,
         input_payload: dict,
         presented_api_key: str | None = None,
+        require_streaming_enabled: bool = False,
     ) -> PublishedGatewayInvokeResult:
         binding = self._workflow_publish_service.get_published_binding_by_alias(
             db,
@@ -181,6 +184,7 @@ class PublishedEndpointGatewayService:
             request_source="alias",
             response_builder=self._build_native_response_payload,
             response_preview_builder=self._build_native_response_preview,
+            require_streaming_enabled=require_streaming_enabled,
             request_surface_override="native.alias",
         )
 
@@ -219,6 +223,7 @@ class PublishedEndpointGatewayService:
         route_path: str,
         input_payload: dict,
         presented_api_key: str | None = None,
+        require_streaming_enabled: bool = False,
     ) -> PublishedGatewayInvokeResult:
         binding = self._workflow_publish_service.get_published_binding_by_path(
             db,
@@ -236,6 +241,7 @@ class PublishedEndpointGatewayService:
             request_source="path",
             response_builder=self._build_native_response_payload,
             response_preview_builder=self._build_native_response_preview,
+            require_streaming_enabled=require_streaming_enabled,
             request_surface_override="native.path",
         )
 

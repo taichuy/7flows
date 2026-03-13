@@ -86,6 +86,7 @@ class WorkflowPublishedEndpointItem(BaseModel):
 
 class PublishedNativeRunRequest(BaseModel):
     input_payload: dict = Field(default_factory=dict)
+    stream: bool = False
 
 
 class PublishedNativeRunResponse(BaseModel):

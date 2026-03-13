@@ -483,6 +483,124 @@ def test_invoke_published_native_endpoint_supports_alias_and_path_routes(
     assert all(item["run_id"] for item in invocation_body["items"])
 
 
+def test_invoke_published_native_endpoint_stream_returns_event_stream(
+    client: TestClient,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Published Native Streaming Workflow",
+            "definition": _publishable_definition(
+                answer="native streamed hello",
+                alias="native-stream-chat",
+                path="/native/stream-chat",
+                streaming=True,
+            ),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding = bindings_response.json()[0]
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
+    with client.stream(
+        "POST",
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={
+            "input_payload": {"question": "hello"},
+            "stream": True,
+        },
+    ) as response:
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert response.headers["X-7Flows-Cache"] == "BYPASS"
+        assert response.headers["X-7Flows-Run-Status"] == "SUCCEEDED"
+        lines = [line for line in response.iter_lines() if line]
+
+    event_names = [line.removeprefix("event: ") for line in lines if line.startswith("event: ")]
+    assert event_names[0] == "run.started"
+    assert "run.output.delta" in event_names
+    assert event_names[-1] == "run.completed"
+
+    data_lines = [line.removeprefix("data: ") for line in lines if line.startswith("data: ")]
+    assert data_lines[-1] == "[DONE]"
+    completed_payload = json.loads(data_lines[-2])
+    assert completed_payload["type"] == "run.completed"
+    assert completed_payload["status"] == "succeeded"
+    assert completed_payload["output_payload"] == {"tool": {"answer": "native streamed hello"}}
+
+    activity_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
+    )
+    assert activity_response.status_code == 200
+    activity = activity_response.json()
+    assert activity["summary"]["total_count"] == 1
+    assert activity["items"][0]["run_status"] == "succeeded"
+    assert activity["items"][0]["run_id"] is not None
+
+
+def test_invoke_published_native_endpoint_rejects_streaming_when_binding_disabled(
+    client: TestClient,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Published Native Non Streaming Workflow",
+            "definition": _publishable_definition(
+                answer="native non stream",
+                alias="native-non-stream-chat",
+                streaming=False,
+            ),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding = bindings_response.json()[0]
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
+    invoke_response = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={
+            "input_payload": {"question": "hello"},
+            "stream": True,
+        },
+    )
+    assert invoke_response.status_code == 422
+    assert invoke_response.json()["detail"] == "Streaming is not supported for this published endpoint."
+
+    activity_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
+    )
+    assert activity_response.status_code == 200
+    activity = activity_response.json()
+    assert activity["summary"]["total_count"] == 1
+    assert activity["summary"]["rejected_count"] == 1
+    assert activity["summary"]["last_reason_code"] == "streaming_unsupported"
+    assert activity["items"][0]["status"] == "rejected"
+
+
 def test_invoke_published_openai_chat_completion_uses_model_alias(
     client: TestClient,
 ) -> None:

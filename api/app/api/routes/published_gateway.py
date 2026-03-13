@@ -19,6 +19,7 @@ from app.services.published_gateway import (
     PublishedEndpointGatewayService,
 )
 from app.services.published_protocol_streaming import (
+    build_native_run_stream,
     build_anthropic_message_stream,
     build_openai_chat_completion_stream,
     build_openai_response_stream,
@@ -119,14 +120,23 @@ def invoke_published_native_endpoint(
             endpoint_id=endpoint_id,
             input_payload=payload.input_payload,
             presented_api_key=_extract_presented_api_key(request),
+            require_streaming_enabled=payload.stream,
         )
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
+    run_status = result.response_payload.get("run", {}).get("status")
+    if payload.stream:
+        return _build_publish_streaming_response(
+            stream_events=build_native_run_stream(result.response_payload),
+            cache_status=result.cache_status,
+            run_status=run_status,
+        )
+
     _apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
-        run_status=result.response_payload.get("run", {}).get("status"),
+        run_status=run_status,
     )
     return PublishedNativeRunResponse.model_validate(result.response_payload)
 
@@ -148,14 +158,23 @@ def invoke_published_native_endpoint_by_alias(
             endpoint_alias=endpoint_alias,
             input_payload=payload.input_payload,
             presented_api_key=_extract_presented_api_key(request),
+            require_streaming_enabled=payload.stream,
         )
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
+    run_status = result.response_payload.get("run", {}).get("status")
+    if payload.stream:
+        return _build_publish_streaming_response(
+            stream_events=build_native_run_stream(result.response_payload),
+            cache_status=result.cache_status,
+            run_status=run_status,
+        )
+
     _apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
-        run_status=result.response_payload.get("run", {}).get("status"),
+        run_status=run_status,
     )
     return PublishedNativeRunResponse.model_validate(result.response_payload)
 
@@ -243,14 +262,23 @@ def invoke_published_native_endpoint_by_path(
             route_path=route_path,
             input_payload=payload.input_payload,
             presented_api_key=_extract_presented_api_key(request),
+            require_streaming_enabled=payload.stream,
         )
     except PublishedEndpointGatewayError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
 
+    run_status = result.response_payload.get("run", {}).get("status")
+    if payload.stream:
+        return _build_publish_streaming_response(
+            stream_events=build_native_run_stream(result.response_payload),
+            cache_status=result.cache_status,
+            run_status=run_status,
+        )
+
     _apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
-        run_status=result.response_payload.get("run", {}).get("status"),
+        run_status=run_status,
     )
     return PublishedNativeRunResponse.model_validate(result.response_payload)
 

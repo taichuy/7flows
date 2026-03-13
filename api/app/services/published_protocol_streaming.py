@@ -60,6 +60,59 @@ def _extract_anthropic_text(response_payload: dict[str, Any]) -> str:
     return text if isinstance(text, str) else ""
 
 
+def build_native_run_stream(response_payload: dict[str, Any]) -> Iterable[str]:
+    run_payload = response_payload.get("run")
+    run = run_payload if isinstance(run_payload, dict) else {}
+    run_id = str(run.get("id") or "run_7flows_stream")
+    run_status = str(run.get("status") or "succeeded")
+    output_payload = run.get("output_payload")
+    output_payload = output_payload if isinstance(output_payload, dict) else {}
+    output_text = json.dumps(
+        output_payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+    def _iter() -> Iterator[str]:
+        yield _serialize_sse_event(
+            event="run.started",
+            data={
+                "type": "run.started",
+                "binding_id": response_payload.get("binding_id"),
+                "workflow_id": response_payload.get("workflow_id"),
+                "endpoint_id": response_payload.get("endpoint_id"),
+                "run": {
+                    "id": run_id,
+                    "status": run_status,
+                    "workflow_version": response_payload.get("workflow_version"),
+                    "compiled_blueprint_id": response_payload.get("compiled_blueprint_id"),
+                },
+            },
+        )
+        for chunk in _chunk_text(output_text):
+            yield _serialize_sse_event(
+                event="run.output.delta",
+                data={
+                    "type": "run.output.delta",
+                    "run_id": run_id,
+                    "delta": chunk,
+                },
+            )
+        yield _serialize_sse_event(
+            event="run.completed",
+            data={
+                "type": "run.completed",
+                "run_id": run_id,
+                "status": run_status,
+                "output_payload": output_payload,
+                "response": response_payload,
+            },
+        )
+        yield _serialize_sse_event(data="[DONE]")
+
+    return _iter()
+
+
 def build_openai_chat_completion_stream(response_payload: dict[str, Any]) -> Iterable[str]:
     response_id = str(response_payload.get("id") or "chatcmpl_7flows_stream")
     created = int(response_payload.get("created") or 0)
