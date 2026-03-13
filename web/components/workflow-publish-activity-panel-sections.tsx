@@ -14,6 +14,34 @@ import { formatDurationMs, formatKeyList, formatTimestamp } from "@/lib/runtime-
 import { facetCount, formatTimeWindowLabel } from "@/components/workflow-publish-activity-panel-helpers";
 import type { WorkflowPublishActivityPanelProps } from "@/components/workflow-publish-activity-panel-helpers";
 
+function formatMetricCounts(metrics: Record<string, number> | null | undefined): string {
+  if (!metrics) {
+    return "n/a";
+  }
+
+  const parts = Object.entries(metrics)
+    .filter(([, count]) => count > 0)
+    .map(([label, count]) => `${label} ${count}`);
+
+  return parts.length ? parts.join(" · ") : "0";
+}
+
+function formatScheduledResume(item: PublishedEndpointInvocationListResponse["items"][number]): string {
+  const scheduledResume = item.run_waiting_lifecycle;
+  if (!scheduledResume?.scheduled_resume_delay_seconds) {
+    return "n/a";
+  }
+
+  const parts = [`${scheduledResume.scheduled_resume_delay_seconds}s`];
+  if (scheduledResume.scheduled_resume_source) {
+    parts.push(scheduledResume.scheduled_resume_source);
+  }
+  if (scheduledResume.scheduled_waiting_status) {
+    parts.push(scheduledResume.scheduled_waiting_status);
+  }
+  return parts.join(" · ");
+}
+
 type WorkflowPublishActivityInsightsProps = {
   binding: WorkflowPublishActivityPanelProps["binding"];
   invocationAudit: PublishedEndpointInvocationListResponse | null;
@@ -295,12 +323,36 @@ export function WorkflowPublishActivityDetails({ invocationAudit }: WorkflowPubl
                   <dt>Waiting reason</dt>
                   <dd>{item.run_waiting_reason ?? "n/a"}</dd>
                 </div>
+                <div>
+                  <dt>Callback tickets</dt>
+                  <dd>
+                    {item.run_waiting_lifecycle
+                      ? `${item.run_waiting_lifecycle.callback_ticket_count} · ${formatMetricCounts(item.run_waiting_lifecycle.callback_ticket_status_counts)}`
+                      : "n/a"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Scheduled resume</dt>
+                  <dd>{formatScheduledResume(item)}</dd>
+                </div>
               </dl>
               {item.run_status === "waiting" ? (
                 <p className="section-copy entry-copy">
                   该请求已成功接入 durable runtime，当前仍处于 waiting；可直接打开 run detail 继续追踪
                   {item.run_current_node_id ? `，当前节点 ${item.run_current_node_id}` : ""}
                   {item.run_waiting_reason ? `，等待原因 ${item.run_waiting_reason}` : ""}。
+                </p>
+              ) : null}
+              {item.run_waiting_lifecycle ? (
+                <p className="section-copy entry-copy">
+                  waiting drilldown：node run {item.run_waiting_lifecycle.node_run_id} · node status {item.run_waiting_lifecycle.node_status}
+                  {item.run_waiting_lifecycle.callback_ticket_count
+                    ? ` · callback tickets ${item.run_waiting_lifecycle.callback_ticket_count}`
+                    : ""}
+                  {item.run_waiting_lifecycle.scheduled_resume_delay_seconds
+                    ? ` · scheduled resume ${formatScheduledResume(item)}`
+                    : ""}
+                  。
                 </p>
               ) : null}
               {item.run_status === "succeeded" ? (

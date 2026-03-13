@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -5,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.run import NodeRun, Run
+from app.models.run import NodeRun, Run, RunCallbackTicket
 from app.models.workflow import Workflow, WorkflowPublishedEndpoint
 from app.schemas.workflow_publish import (
     PublishedEndpointInvocationApiKeyBucketFacetItem,
@@ -24,6 +25,7 @@ from app.schemas.workflow_publish import (
     PublishedEndpointInvocationStatus,
     PublishedEndpointInvocationSummary,
     PublishedEndpointInvocationTimeBucketItem,
+    PublishedEndpointInvocationWaitingLifecycle,
 )
 from app.services.published_invocations import (
     PublishedInvocationService,
@@ -58,12 +60,21 @@ def _serialize_published_invocation_item(
     api_key_lookup: dict[str, PublishedEndpointInvocationApiKeyUsageItem] | None = None,
     run_lookup: dict[str, Run] | None = None,
     waiting_reason_lookup: dict[str, str | None] | None = None,
+    waiting_lifecycle_lookup: dict[
+        str, PublishedEndpointInvocationWaitingLifecycle | None
+    ]
+    | None = None,
 ) -> PublishedEndpointInvocationItem:
     api_key_metadata = api_key_lookup.get(record.api_key_id) if api_key_lookup else None
     run = run_lookup.get(record.run_id) if run_lookup and record.run_id else None
     waiting_reason = (
         waiting_reason_lookup.get(record.run_id)
         if waiting_reason_lookup and record.run_id
+        else None
+    )
+    waiting_lifecycle = (
+        waiting_lifecycle_lookup.get(record.run_id)
+        if waiting_lifecycle_lookup and record.run_id
         else None
     )
     return PublishedEndpointInvocationItem(
@@ -87,6 +98,7 @@ def _serialize_published_invocation_item(
         run_status=record.run_status,
         run_current_node_id=run.current_node_id if run else None,
         run_waiting_reason=waiting_reason,
+        run_waiting_lifecycle=waiting_lifecycle,
         reason_code=classify_invocation_reason(
             status=record.status,
             error_message=record.error_message,
@@ -170,6 +182,98 @@ def _serialize_timeline_item(item) -> PublishedEndpointInvocationTimeBucketItem:
     )
 
 
+def _resolve_waiting_node_run(run: Run, node_runs: list[NodeRun]) -> NodeRun | None:
+    current_node_run = next(
+        (node_run for node_run in node_runs if node_run.node_id == run.current_node_id),
+        None,
+    )
+    if current_node_run is not None and (
+        current_node_run.status == "waiting" or current_node_run.waiting_reason is not None
+    ):
+        return current_node_run
+
+    waiting_node_run = next(
+        (node_run for node_run in node_runs if node_run.status == "waiting"),
+        None,
+    )
+    if waiting_node_run is not None:
+        return waiting_node_run
+
+    return next(
+        (node_run for node_run in node_runs if node_run.waiting_reason is not None),
+        None,
+    )
+
+
+def _serialize_waiting_lifecycle(
+    node_run: NodeRun,
+    callback_tickets: list[RunCallbackTicket],
+) -> PublishedEndpointInvocationWaitingLifecycle:
+    checkpoint_payload = node_run.checkpoint_payload if isinstance(node_run.checkpoint_payload, dict) else {}
+    raw_scheduled_resume = checkpoint_payload.get("scheduled_resume")
+    scheduled_resume = raw_scheduled_resume if isinstance(raw_scheduled_resume, dict) else {}
+    scheduled_delay = scheduled_resume.get("delay_seconds")
+    return PublishedEndpointInvocationWaitingLifecycle(
+        node_run_id=node_run.id,
+        node_status=node_run.status,
+        waiting_reason=node_run.waiting_reason,
+        callback_ticket_count=len(callback_tickets),
+        callback_ticket_status_counts=dict(
+            sorted(Counter(ticket.status for ticket in callback_tickets).items())
+        ),
+        scheduled_resume_delay_seconds=(
+            float(scheduled_delay)
+            if isinstance(scheduled_delay, (int, float))
+            else None
+        ),
+        scheduled_resume_reason=(
+            str(scheduled_resume.get("reason"))
+            if scheduled_resume.get("reason") is not None
+            else None
+        ),
+        scheduled_resume_source=(
+            str(scheduled_resume.get("source"))
+            if scheduled_resume.get("source") is not None
+            else None
+        ),
+        scheduled_waiting_status=(
+            str(scheduled_resume.get("waiting_status"))
+            if scheduled_resume.get("waiting_status") is not None
+            else None
+        ),
+    )
+
+
+def _build_waiting_lifecycle_lookup(
+    run_lookup: dict[str, Run],
+    node_runs: list[NodeRun],
+    callback_tickets: list[RunCallbackTicket],
+) -> tuple[
+    dict[str, str | None],
+    dict[str, PublishedEndpointInvocationWaitingLifecycle | None],
+]:
+    node_runs_by_run: dict[str, list[NodeRun]] = {}
+    for node_run in node_runs:
+        node_runs_by_run.setdefault(node_run.run_id, []).append(node_run)
+
+    callback_tickets_by_node_run: dict[str, list[RunCallbackTicket]] = {}
+    for ticket in callback_tickets:
+        callback_tickets_by_node_run.setdefault(ticket.node_run_id, []).append(ticket)
+
+    waiting_reason_lookup: dict[str, str | None] = {run_id: None for run_id in run_lookup}
+    waiting_lifecycle_lookup: dict[str, PublishedEndpointInvocationWaitingLifecycle | None] = {}
+    for run_id, run in run_lookup.items():
+        selected_node_run = _resolve_waiting_node_run(run, node_runs_by_run.get(run_id, []))
+        if selected_node_run is None:
+            continue
+        waiting_reason_lookup[run_id] = selected_node_run.waiting_reason
+        waiting_lifecycle_lookup[run_id] = _serialize_waiting_lifecycle(
+            selected_node_run,
+            callback_tickets_by_node_run.get(selected_node_run.id, []),
+        )
+    return waiting_reason_lookup, waiting_lifecycle_lookup
+
+
 @router.get(
     "/{workflow_id}/published-endpoints/{binding_id}/invocations",
     response_model=PublishedEndpointInvocationListResponse,
@@ -247,20 +351,17 @@ def list_published_endpoint_invocations(
         else {}
     )
     waiting_reason_lookup = {}
+    waiting_lifecycle_lookup = {}
     if run_ids:
         node_runs = db.scalars(select(NodeRun).where(NodeRun.run_id.in_(run_ids))).all()
-        waiting_reason_lookup = {
-            run_id: None for run_id in run_ids
-        }
-        for node_run in node_runs:
-            if node_run.waiting_reason is None:
-                continue
-            current_run = run_lookup.get(node_run.run_id)
-            if current_run and current_run.current_node_id == node_run.node_id:
-                waiting_reason_lookup[node_run.run_id] = node_run.waiting_reason
-                continue
-            if waiting_reason_lookup.get(node_run.run_id) is None and node_run.status == "waiting":
-                waiting_reason_lookup[node_run.run_id] = node_run.waiting_reason
+        callback_tickets = db.scalars(
+            select(RunCallbackTicket).where(RunCallbackTicket.run_id.in_(run_ids))
+        ).all()
+        waiting_reason_lookup, waiting_lifecycle_lookup = _build_waiting_lifecycle_lookup(
+            run_lookup,
+            node_runs,
+            callback_tickets,
+        )
 
     return PublishedEndpointInvocationListResponse(
         filters=PublishedEndpointInvocationFilters(
@@ -301,6 +402,7 @@ def list_published_endpoint_invocations(
                 api_key_lookup=api_key_lookup,
                 run_lookup=run_lookup,
                 waiting_reason_lookup=waiting_reason_lookup,
+                waiting_lifecycle_lookup=waiting_lifecycle_lookup,
             )
             for record in records
         ],

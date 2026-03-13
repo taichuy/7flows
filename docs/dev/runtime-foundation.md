@@ -1052,3 +1052,25 @@ docker compose up -d --build
 1. 继续承接 `API 调用开放` 主线：补 `streaming / SSE` 与 waiting / async lifecycle drilldown，保持发布态事实链路继续站稳。
 2. 继续治理 Durable Runtime 热点：沿 mixin / 子模块边界继续拆 `api/app/services/runtime.py`，并同步拆 `api/tests/test_runtime_service.py` 的 waiting / callback / agent 场景。
 3. 再把 diagnostics 的 `phase / evidence / artifact` 聚合事实统一回接 editor / overlay，避免前端另起运行态协议。
+
+## 2026-03-13 Publish Waiting Lifecycle Drilldown 事实
+
+- 为继续承接 `API 调用开放` 的 P0 主线，这轮优先补的是 waiting / async lifecycle drilldown，而不是直接插队去做高风险 streaming 语义改造。
+- 当前 `published endpoint invocation` 审计项已新增 `run_waiting_lifecycle` 聚合摘要，事实来源仍然是 `runs / node_runs / run_callback_tickets / checkpoint_payload`：
+  - `node_run_id`
+  - `node_status`
+  - `waiting_reason`
+  - `callback_ticket_count`
+  - `callback_ticket_status_counts`
+  - `scheduled_resume_delay_seconds / reason / source / waiting_status`
+- `api/app/api/routes/published_endpoint_activity.py` 现在会优先对齐 `Run.current_node_id`，并在指针漂移时回退到同一 run 下的 `status=waiting` node run，避免 publish governance 再次丢失 waiting node 的诊断事实。
+- `web/components/workflow-publish-activity-panel-sections.tsx` 已直接消费这批聚合数据，在 workflow 页的 invocation 卡片里展示 callback ticket 与 scheduled resume 摘要，减少为了确认 waiting 原因而频繁跳转 run 页面。
+- 这次改动继续验证了当前架构方向是可行的：publish governance 只做聚合与导航，不直接拥有另一套运行态存储或事件协议。
+- 本轮验证继续优先使用 `api/.venv` + `uv`：
+  - `./.venv/Scripts/uv.exe run pytest tests/test_published_native_async_routes.py tests/test_published_protocol_async_routes.py -q`
+
+### 本轮补充后的下一步规划
+
+1. 继续承接 `API 调用开放` 主线：补 `streaming / SSE` 与协议流式事件映射，让 publish binding 真正具备可消费的流式开放接口。
+2. 继续深化 publish governance：补单次 invocation drilldown、waiting / async lifecycle 长期趋势和更细粒度的协议面治理视图。
+3. 继续治理 Durable Runtime 热点：沿稳定边界继续拆 `api/app/services/runtime.py` 与 `api/tests/test_runtime_service.py`，避免 P0 主线再次被 God object 拖慢。

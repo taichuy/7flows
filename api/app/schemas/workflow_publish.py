@@ -266,6 +266,18 @@ class PublishedEndpointInvocationSummary(BaseModel):
     last_reason_code: str | None = None
 
 
+class PublishedEndpointInvocationWaitingLifecycle(BaseModel):
+    node_run_id: str
+    node_status: str
+    waiting_reason: str | None = None
+    callback_ticket_count: int = 0
+    callback_ticket_status_counts: dict[str, int] = Field(default_factory=dict)
+    scheduled_resume_delay_seconds: float | None = None
+    scheduled_resume_reason: str | None = None
+    scheduled_resume_source: str | None = None
+    scheduled_waiting_status: str | None = None
+
+
 class PublishedEndpointInvocationItem(BaseModel):
     id: str
     workflow_id: str
@@ -287,6 +299,7 @@ class PublishedEndpointInvocationItem(BaseModel):
     run_status: str | None = None
     run_current_node_id: str | None = None
     run_waiting_reason: str | None = None
+    run_waiting_lifecycle: PublishedEndpointInvocationWaitingLifecycle | None = None
     reason_code: str | None = None
     error_message: str | None = None
     request_preview: dict

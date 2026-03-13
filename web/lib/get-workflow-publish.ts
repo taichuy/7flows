@@ -56,6 +56,17 @@ export type PublishedEndpointInvocationItem = {
   run_status?: string | null;
   run_current_node_id?: string | null;
   run_waiting_reason?: string | null;
+  run_waiting_lifecycle?: {
+    node_run_id: string;
+    node_status: string;
+    waiting_reason?: string | null;
+    callback_ticket_count: number;
+    callback_ticket_status_counts: Record<string, number>;
+    scheduled_resume_delay_seconds?: number | null;
+    scheduled_resume_reason?: string | null;
+    scheduled_resume_source?: string | null;
+    scheduled_waiting_status?: string | null;
+  } | null;
   reason_code?: string | null;
   error_message?: string | null;
   request_preview: {
