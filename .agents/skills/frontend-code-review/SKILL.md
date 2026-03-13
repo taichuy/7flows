@@ -1,73 +1,66 @@
 ---
 name: frontend-code-review
-description: "Trigger when the user requests a review of frontend files (e.g., `.tsx`, `.ts`, `.js`). Support both pending-change reviews and focused file reviews while applying the checklist rules."
+description: 面向 7Flows `web/` 目录的前端代码审查技能。适用于 Next.js 页面、组件、未来 xyflow 画布、节点配置、调试面板、发布配置等实现的质量、架构和交互风险审查。
 ---
 
-# Frontend Code Review
+# 7Flows 前端代码审查
 
-## Intent
-Use this skill whenever the user asks to review frontend code (especially `.tsx`, `.ts`, or `.js` files). Support two review modes:
+## 何时使用
 
-1. **Pending-change review** – inspect staged/working-tree files slated for commit and flag checklist violations before submission.
-2. **File-targeted review** – review the specific file(s) the user names and report the relevant checklist findings.
+当用户要求审查、分析或改进 `web/` 下的前端代码时使用，尤其包括：
 
-Stick to the checklist below for every applicable file and mode.
+- `web/app/` 下的页面和布局
+- `web/components/` 下的组件
+- `web/lib/` 下的数据获取或前端辅助逻辑
+- 未来的工作流画布、节点组件、配置面板、调试面板、发布配置页
 
-## Checklist
-See [references/code-quality.md](references/code-quality.md), [references/performance.md](references/performance.md), [references/business-logic.md](references/business-logic.md) for the living checklist split by category—treat it as the canonical set of rules to follow.
+不要用于：
 
-Flag each rule violation with urgency metadata so future reviewers can prioritize fixes.
+- `api/` 下的 Python 代码
+- 纯后端接口设计讨论
 
-## Review Process
-1. Open the relevant component/module. Gather lines that relate to class names, React Flow hooks, prop memoization, and styling.
-2. For each rule in the review point, note where the code deviates and capture a representative snippet.
-3. Compose the review section per the template below. Group violations first by **Urgent** flag, then by category order (Code Quality, Performance, Business Logic).
+## 使用流程
 
-## Required output
-When invoked, the response must exactly follow one of the two templates:
+1. 先识别改动属于页面骨架、组件、数据获取，还是工作流编辑器相关实现。
+2. 如果涉及画布、节点、调试、发布、插件 UI、安全或变量传递，优先阅读：
+   - `docs/product-design.md`
+   - `docs/technical-design-supplement.md`
+   - `docs/dev/runtime-foundation.md`
+3. 使用通用前端审查规则和 7Flows 专项规则共同审查。
+4. 输出时优先指出行为错误、架构偏离、交互误导和性能风险。
 
-### Template A (any findings)
-```
-# Code review
-Found <N> urgent issues need to be fixed:
+## 审查清单
 
-## 1 <brief description of bug>
-FilePath: <path> line <line>
-<relevant code snippet or pointer>
+- 代码质量：参见 [references/code-quality.md](references/code-quality.md)
+- 性能：参见 [references/performance.md](references/performance.md)
+- 7Flows 工作流 UI 约束：参见 [references/sevenflows-workflow-ui-rule.md](references/sevenflows-workflow-ui-rule.md)
 
+## 7Flows 审查重点
 
-### Suggested fix
-<brief description of suggested fix>
+### 1. 是否体现“多 Agent 工作流平台”而不是“聊天壳”
 
----
-... (repeat for each urgent issue) ...
+- 节点与配置界面不应退化为只有 prompt 和提交按钮。
+- 要关注模型、工具、MCP、沙盒、上下文授权、输入输出 schema、调试、发布这些一级能力是否有可见性。
 
-Found <M> suggestions for improvement:
+### 2. 是否遵守 xyflow/画布集成边界
 
-## 1 <brief description of suggestion>
-FilePath: <path> line <line>
-<relevant code snippet or pointer>
+- `nodeTypes` / `edgeTypes` 是否稳定
+- 节点内部交互是否防止拖拽冲突
+- 节点视觉壳层、配置表单、调试视图是否合理拆层
 
+### 3. 是否假设了当前仓库并不存在的 Dify 基础设施
 
-### Suggested fix
-<brief description of suggested fix>
+- 当前项目没有 Dify 的 `workflowStore`、前端 service hooks 体系、分析脚本和测试脚手架。
+- 如果实现建立在这些不存在的前提上，应直接指出不适配。
 
----
+### 4. 是否对 MVP 边界保持诚实
 
-... (repeat for each suggestion) ...
-```
+- 当前 runtime 仍未完整实现 loop、插件代理、MCP、发布协议映射。
+- 前端不应把这些能力假装成已可用；占位、禁用和实验态表达都属于设计质量的一部分。
 
-If there are no urgent issues, omit that section. If there are no suggestions, omit that section.
+## 输出要求
 
-If the issue number is more than 10, summarize as "10+ urgent issues" or "10+ suggestions" and just output the first 10 issues.
-
-Don't compress the blank lines between sections; keep them as-is for readability.
-
-If you use Template A (i.e., there are issues to fix) and at least one issue requires code changes, append a brief follow-up question after the structured output asking whether the user wants you to apply the suggested fix(es). For example: "Would you like me to use the Suggested fix section to address these issues?"
-
-### Template B (no issues)
-```
-## Code review
-No issues found.
-```
-
+- findings 优先，按严重度排序。
+- 尽量附文件路径和行号。
+- 先讲实际风险，再讲风格建议。
+- 若无问题，明确说明并补充剩余风险或测试缺口。

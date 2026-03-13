@@ -1,44 +1,43 @@
-# Rule Catalog — Code Quality
+# 规则目录 — 代码质量
 
-## Conditional class names use utility function
-
-IsUrgent: True
-Category: Code Quality
-
-### Description
-
-Ensure conditional CSS is handled via the shared `classNames` instead of custom ternaries, string concatenation, or template strings. Centralizing class logic keeps components consistent and easier to maintain.
-
-### Suggested Fix
-
-```ts
-import { cn } from '@/utils/classnames'
-const classNames = cn(isActive ? 'text-primary-600' : 'text-gray-500')
-```
-
-## Tailwind-first styling
+## 使用当前仓库真实存在的样式与工具约定
 
 IsUrgent: True
-Category: Code Quality
+Category: 代码质量
 
-### Description
+### 描述
 
-Favor Tailwind CSS utility classes instead of adding new `.module.css` files unless a Tailwind combination cannot achieve the required styling. Keeping styles in Tailwind improves consistency and reduces maintenance overhead.
+不要在审查中默认要求不存在的样式工具或工具函数。当前 7Flows 前端是 Next.js 轻量骨架，并没有 Dify 的 `@/utils/classnames`、Tailwind 设计体系或一整套基础组件库。
 
-Update this file when adding, editing, or removing Code Quality rules so the catalog remains accurate.
+### 建议的修复
 
-## Classname ordering for easy overrides
+- 优先复用当前项目已经存在的样式方式和工具函数。
+- 如果需要引入 `cn`、设计 token、组件库或原子类方案，应把它作为显式架构决策，而不是默认前提。
 
-### Description
+## 组件 props 保持最小而清晰
 
-When writing components, always place the incoming `className` prop after the component’s own class values so that downstream consumers can override or extend the styling. This keeps your component’s defaults but still lets external callers change or remove specific styles.
+IsUrgent: False
+Category: 代码质量
 
-Example:
+### 描述
 
-```tsx
-import { cn } from '@/utils/classnames'
+大型页面和节点组件容易把整个 `workflow`、`run` 或页面状态整包透传给子组件，导致耦合升高、重渲染扩大、测试困难。
 
-const Button = ({ className }) => {
-  return <div className={cn('bg-primary-600', className)}></div>
-}
-```
+### 建议的修复
+
+- 只传递子组件真正需要的字段和回调。
+- 在节点组件中优先传递派生后的视图数据，而不是完整原始对象。
+
+## 条件样式与条件渲染保持可读性
+
+IsUrgent: False
+Category: 代码质量
+
+### 描述
+
+节点卡片、调试面板、状态徽标会出现大量条件样式。若通过深层三元表达式或长模板字符串拼接，会快速降低可维护性。
+
+### 建议的修复
+
+- 将复杂条件提取为命名布尔变量。
+- 将样式映射收敛到查找表或局部 helper。

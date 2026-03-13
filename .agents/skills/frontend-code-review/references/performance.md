@@ -1,45 +1,44 @@
-# Rule Catalog — Performance
+# 规则目录 — 性能
 
-## React Flow data usage
-
-IsUrgent: True
-Category: Performance
-
-### Description
-
-When rendering React Flow, prefer `useNodes`/`useEdges` for UI consumption and rely on `useStoreApi` inside callbacks that mutate or read node/edge state. Avoid manually pulling Flow data outside of these hooks.
-
-## Complex prop memoization
+## xyflow 相关数据消费要避免不必要重渲染
 
 IsUrgent: True
-Category: Performance
+Category: 性能
 
-### Description
+### 描述
 
-Wrap complex prop values (objects, arrays, maps) in `useMemo` prior to passing them into child components to guarantee stable references and prevent unnecessary renders.
+当 7Flows 前端接入 xyflow 画布后，节点和边数据会非常敏感。不要在组件树中反复构造新的 `nodes`、`edges`、`nodeTypes`、`edgeTypes`、大对象 props，否则画布会出现频繁重渲染和交互卡顿。
 
-Update this file when adding, editing, or removing Performance rules so the catalog remains accurate.
+### 建议的修复
 
-Wrong:
+- 将 `nodeTypes` / `edgeTypes` 保持为稳定引用。
+- 只让真正需要画布全量数据的组件订阅全量数据。
+- 面板、列表、详情区域尽量消费派生后的局部数据。
 
-```tsx
-<HeavyComp
-    config={{
-        provider: ...,
-        detail: ...
-    }}
-/>
-```
+## 复杂对象 props 保持稳定引用
 
-Right:
+IsUrgent: True
+Category: 性能
 
-```tsx
-const config = useMemo(() => ({
-    provider: ...,
-    detail: ...
-}), [provider, detail]);
+### 描述
 
-<HeavyComp
-    config={config}
-/>
-```
+向子组件传递临时创建的对象、数组或映射，会让浅比较失效并放大不必要渲染，尤其在节点卡片、调试面板和大型表单中更明显。
+
+### 建议的修复
+
+- 对确实需要稳定引用的复杂 props 使用局部变量或 `useMemo`。
+- 不要为了“看起来简洁”在 JSX 中内联构造庞大配置对象。
+
+## 画布节点内部不要承载过重表单逻辑
+
+IsUrgent: False
+Category: 性能
+
+### 描述
+
+如果节点卡片内部直接渲染大量表单字段、schema 预览和调试信息，画布滚动和拖拽性能会明显下降。
+
+### 建议的修复
+
+- 节点卡片只保留关键信息与状态摘要。
+- 复杂表单和调试内容移到侧边 panel 或 drawer。

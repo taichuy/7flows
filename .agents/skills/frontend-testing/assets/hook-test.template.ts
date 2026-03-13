@@ -1,207 +1,91 @@
 /**
- * Test Template for Custom Hooks
+ * 7Flows 自定义 Hook 测试模板
  *
- * Instructions:
- * 1. Replace `useHookName` with your hook name
- * 2. Update import path
- * 3. Add/remove test sections based on hook features
+ * 使用说明：
+ * 1. 将 `useHookName` 和导入路径替换为真实 hook
+ * 2. 如果 hook 依赖 context/router/network，请只 mock 必要外部依赖
+ * 3. hook 测试优先覆盖：初始状态、状态变更、异步流转、边界输入
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 // import { useHookName } from './use-hook-name'
 
-// ============================================================================
-// Mocks
-// ============================================================================
+// -----------------------------------------------------------------------------
+// Optional mocks
+// -----------------------------------------------------------------------------
+// vi.mock('@/lib/some-data-source', () => ({
+//   fetchSomething: vi.fn(),
+// }))
 
-// API services (if hook fetches data)
-// vi.mock('@/service/api')
-// import * as api from '@/service/api'
-// const mockedApi = vi.mocked(api)
-
-// ============================================================================
-// Test Helpers
-// ============================================================================
-
-// Wrapper for hooks that need context
-// const createWrapper = (contextValue = {}) => {
-//   return ({ children }: { children: React.ReactNode }) => (
-//     <SomeContext.Provider value={contextValue}>
-//       {children}
-//     </SomeContext.Provider>
-//   )
+// const createWrapper = () => {
+//   return ({ children }: { children: React.ReactNode }) => children
 // }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 describe('useHookName', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  // --------------------------------------------------------------------------
-  // Initial State
-  // --------------------------------------------------------------------------
   describe('Initial State', () => {
     it('should return initial state', () => {
       // const { result } = renderHook(() => useHookName())
-      //
-      // expect(result.current.value).toBe(initialValue)
-      // expect(result.current.isLoading).toBe(false)
-    })
-
-    it('should accept initial value from props', () => {
-      // const { result } = renderHook(() => useHookName({ initialValue: 'custom' }))
-      //
-      // expect(result.current.value).toBe('custom')
+      // expect(result.current).toBeDefined()
     })
   })
 
-  // --------------------------------------------------------------------------
-  // State Updates
-  // --------------------------------------------------------------------------
   describe('State Updates', () => {
-    it('should update value when setValue is called', () => {
+    it('should update state when action is triggered', () => {
       // const { result } = renderHook(() => useHookName())
-      //
       // act(() => {
-      //   result.current.setValue('new value')
+      //   result.current.setValue('next')
       // })
-      //
-      // expect(result.current.value).toBe('new value')
-    })
-
-    it('should reset to initial value', () => {
-      // const { result } = renderHook(() => useHookName({ initialValue: 'initial' }))
-      //
-      // act(() => {
-      //   result.current.setValue('changed')
-      // })
-      // expect(result.current.value).toBe('changed')
-      //
-      // act(() => {
-      //   result.current.reset()
-      // })
-      // expect(result.current.value).toBe('initial')
+      // expect(result.current.value).toBe('next')
     })
   })
 
-  // --------------------------------------------------------------------------
-  // Async Operations
-  // --------------------------------------------------------------------------
-  describe('Async Operations', () => {
-    it('should fetch data on mount', async () => {
-      // mockedApi.fetchData.mockResolvedValue({ data: 'test' })
-      //
+  describe('Async Behavior', () => {
+    it('should handle loading to settled transition', async () => {
       // const { result } = renderHook(() => useHookName())
-      //
-      // // Initially loading
       // expect(result.current.isLoading).toBe(true)
-      //
-      // // Wait for data
       // await waitFor(() => {
       //   expect(result.current.isLoading).toBe(false)
       // })
-      //
-      // expect(result.current.data).toEqual({ data: 'test' })
     })
 
-    it('should handle fetch error', async () => {
-      // mockedApi.fetchData.mockRejectedValue(new Error('Network error'))
-      //
+    it('should expose error state when request fails', async () => {
       // const { result } = renderHook(() => useHookName())
-      //
       // await waitFor(() => {
       //   expect(result.current.error).toBeTruthy()
       // })
-      //
-      // expect(result.current.error?.message).toBe('Network error')
-    })
-
-    it('should refetch when dependency changes', async () => {
-      // mockedApi.fetchData.mockResolvedValue({ data: 'test' })
-      //
-      // const { result, rerender } = renderHook(
-      //   ({ id }) => useHookName(id),
-      //   { initialProps: { id: '1' } }
-      // )
-      //
-      // await waitFor(() => {
-      //   expect(mockedApi.fetchData).toHaveBeenCalledWith('1')
-      // })
-      //
-      // rerender({ id: '2' })
-      //
-      // await waitFor(() => {
-      //   expect(mockedApi.fetchData).toHaveBeenCalledWith('2')
-      // })
     })
   })
 
-  // --------------------------------------------------------------------------
-  // Side Effects
-  // --------------------------------------------------------------------------
-  describe('Side Effects', () => {
-    it('should call callback when value changes', () => {
-      // const callback = vi.fn()
-      // const { result } = renderHook(() => useHookName({ onChange: callback }))
-      //
-      // act(() => {
-      //   result.current.setValue('new value')
-      // })
-      //
-      // expect(callback).toHaveBeenCalledWith('new value')
+  describe('7Flows Specific Scenarios', () => {
+    it('should derive fields from current node or protocol type', () => {
+      // const { result } = renderHook(() => useHookName({ type: 'openai' }))
+      // expect(result.current.visibleSections).toContain('protocol')
     })
 
-    it('should cleanup on unmount', () => {
-      // const cleanup = vi.fn()
-      // vi.spyOn(window, 'addEventListener')
-      // vi.spyOn(window, 'removeEventListener')
-      //
-      // const { unmount } = renderHook(() => useHookName())
-      //
-      // expect(window.addEventListener).toHaveBeenCalled()
-      //
-      // unmount()
-      //
-      // expect(window.removeEventListener).toHaveBeenCalled()
+    it('should handle unsupported or experimental capability', () => {
+      // const { result } = renderHook(() => useHookName({ capability: 'experimental' }))
+      // expect(result.current.isDisabled).toBe(true)
     })
   })
 
-  // --------------------------------------------------------------------------
-  // Edge Cases
-  // --------------------------------------------------------------------------
   describe('Edge Cases', () => {
     it('should handle null input', () => {
       // const { result } = renderHook(() => useHookName(null))
-      //
       // expect(result.current.value).toBeNull()
     })
 
-    it('should handle rapid updates', () => {
+    it('should handle rapid updates safely', () => {
       // const { result } = renderHook(() => useHookName())
-      //
       // act(() => {
-      //   result.current.setValue('1')
-      //   result.current.setValue('2')
-      //   result.current.setValue('3')
+      //   result.current.setValue('a')
+      //   result.current.setValue('b')
       // })
-      //
-      // expect(result.current.value).toBe('3')
-    })
-  })
-
-  // --------------------------------------------------------------------------
-  // With Context (if hook uses context)
-  // --------------------------------------------------------------------------
-  describe('With Context', () => {
-    it('should use context value', () => {
-      // const wrapper = createWrapper({ someValue: 'context-value' })
-      // const { result } = renderHook(() => useHookName(), { wrapper })
-      //
-      // expect(result.current.contextValue).toBe('context-value')
+      // expect(result.current.value).toBe('b')
     })
   })
 })

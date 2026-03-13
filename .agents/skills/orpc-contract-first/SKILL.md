@@ -1,103 +1,51 @@
 ---
 name: orpc-contract-first
-description: Guide for implementing oRPC contract-first API patterns in Dify frontend. Trigger when creating or updating contracts in web/contract, wiring router composition, integrating TanStack Query with typed contracts, migrating legacy service calls to oRPC, or deciding whether to call queryOptions directly vs extracting a helper or use-* hook in web/service.
+description: 当 7Flows 明确决定引入 oRPC 合同优先 API 层时使用。仅适用于新增 `web/contract`、客户端 contract router、或将现有调用迁移到合同优先模式的任务。
 ---
 
-# oRPC Contract-First Development
+# oRPC 合同优先开发
 
-## Intent
+## 先判断是否真的该用
 
-- Keep contract as single source of truth in `web/contract/*`.
-- Default query usage: call-site `useQuery(consoleQuery|marketplaceQuery.xxx.queryOptions(...))` when endpoint behavior maps 1:1 to the contract.
-- Keep abstractions minimal and preserve TypeScript inference.
+7Flows 当前仓库还没有：
 
-## Minimal Structure
+- `web/contract/`
+- oRPC client
+- contract-first 的既有组织方式
+
+因此此技能**不是当前默认前端模式**。只有在以下场景才使用：
+
+- 用户明确要求为 7Flows 引入 oRPC
+- 仓库已经开始建立 `web/contract/*`
+- 当前任务就是设计“合同优先”的 API 层
+
+如果只是一般的页面开发、简单数据获取或当前骨架迭代，不要强行引入 oRPC。
+
+## 使用目标
+
+- 将 contract 作为单一事实来源
+- 保持输入输出类型稳定
+- 避免调用点手写散落的请求细节
+
+## 最小结构
 
 ```text
 web/contract/
-├── base.ts
-├── router.ts
-├── marketplace.ts
-└── console/
-    ├── billing.ts
-    └── ...other domains
+  base.ts
+  router.ts
+  ...
 web/service/client.ts
 ```
 
-## Core Workflow
+## 工作流
 
-1. Define contract in `web/contract/console/{domain}.ts` or `web/contract/marketplace.ts`
-   - Use `base.route({...}).output(type<...>())` as baseline.
-   - Add `.input(type<...>())` only when request has `params/query/body`.
-   - For `GET` without input, omit `.input(...)` (do not use `.input(type<unknown>())`).
-2. Register contract in `web/contract/router.ts`
-   - Import directly from domain files and nest by API prefix.
-3. Consume from UI call sites via oRPC query utils.
+1. 先确认本次任务确实需要合同优先层，而不是普通数据获取。
+2. 在 `web/contract/` 中定义 contract。
+3. 在 `router.ts` 聚合 contract。
+4. 通过统一 client 在 UI 中消费 contract。
 
-```typescript
-import { useQuery } from '@tanstack/react-query'
-import { consoleQuery } from '@/service/client'
+## 7Flows 额外约束
 
-const invoiceQuery = useQuery(consoleQuery.billing.invoices.queryOptions({
-  staleTime: 5 * 60 * 1000,
-  throwOnError: true,
-  select: invoice => invoice.url,
-}))
-```
-
-## Query Usage Decision Rule
-
-1. Default: call site directly uses `*.queryOptions(...)`.
-2. If 3+ call sites share the same extra options (for example `retry: false`), extract a small queryOptions helper, not a `use-*` passthrough hook.
-3. Create `web/service/use-{domain}.ts` only for orchestration:
-   - Combine multiple queries/mutations.
-   - Share domain-level derived state or invalidation helpers.
-
-```typescript
-const invoicesBaseQueryOptions = () =>
-  consoleQuery.billing.invoices.queryOptions({ retry: false })
-
-const invoiceQuery = useQuery({
-  ...invoicesBaseQueryOptions(),
-  throwOnError: true,
-})
-```
-
-## Mutation Usage Decision Rule
-
-1. Default: call mutation helpers from `consoleQuery` / `marketplaceQuery`, for example `useMutation(consoleQuery.billing.bindPartnerStack.mutationOptions(...))`.
-2. If mutation flow is heavily custom, use oRPC clients as `mutationFn` (for example `consoleClient.xxx` / `marketplaceClient.xxx`), instead of generic handwritten non-oRPC mutation logic.
-
-## Key API Guide (`.key` vs `.queryKey` vs `.mutationKey`)
-
-- `.key(...)`:
-  - Use for partial matching operations (recommended for invalidation/refetch/cancel patterns).
-  - Example: `queryClient.invalidateQueries({ queryKey: consoleQuery.billing.key() })`
-- `.queryKey(...)`:
-  - Use for a specific query's full key (exact query identity / direct cache addressing).
-- `.mutationKey(...)`:
-  - Use for a specific mutation's full key.
-  - Typical use cases: mutation defaults registration, mutation-status filtering (`useIsMutating`, `queryClient.isMutating`), or explicit devtools grouping.
-
-## Anti-Patterns
-
-- Do not wrap `useQuery` with `options?: Partial<UseQueryOptions>`.
-- Do not split local `queryKey/queryFn` when oRPC `queryOptions` already exists and fits the use case.
-- Do not create thin `use-*` passthrough hooks for a single endpoint.
-- Reason: these patterns can degrade inference (`data` may become `unknown`, especially around `throwOnError`/`select`) and add unnecessary indirection.
-
-## Contract Rules
-
-- **Input structure**: Always use `{ params, query?, body? }` format
-- **No-input GET**: Omit `.input(...)`; do not use `.input(type<unknown>())`
-- **Path params**: Use `{paramName}` in path, match in `params` object
-- **Router nesting**: Group by API prefix (e.g., `/billing/*` -> `billing: {}`)
-- **No barrel files**: Import directly from specific files
-- **Types**: Import from `@/types/`, use `type<T>()` helper
-- **Mutations**: Prefer `mutationOptions`; use explicit `mutationKey` mainly for defaults/filtering/devtools
-
-## Type Export
-
-```typescript
-export type ConsoleInputs = InferContractRouterInputs<typeof consoleRouterContract>
-```
+- 合同层表达的是 7Flows 自己的领域对象，不要把外部协议对象直接当内部主模型。
+- 如果未来接发布接口，contract 也应围绕 workflow / run / published endpoint 这些实体展开。
+- 不要为了“看起来高级”在当前还很早期的仓库里过度引入 oRPC 抽象。

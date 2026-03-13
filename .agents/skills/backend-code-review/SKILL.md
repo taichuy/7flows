@@ -1,168 +1,71 @@
 ---
 name: backend-code-review
-description: Review backend code for quality, security, maintainability, and best practices based on established checklist rules. Use when the user requests a review, analysis, or improvement of backend files (e.g., `.py`) under the `api/` directory. Do NOT use for frontend files (e.g., `.tsx`, `.ts`, `.js`). Supports pending-change review, code snippets review, and file-focused review.
+description: 基于 7Flows 当前仓库结构与产品架构，对 `api/` 下的后端代码进行高质量审查。适用于 API 路由、运行时、模型、迁移、仓储、任务和后端基础设施的 review、风险分析与改进建议。
 ---
 
-# Backend Code Review
+# 7Flows 后端代码审查
 
-## When to use this skill
+## 何时使用此技能
 
-Use this skill whenever the user asks to **review, analyze, or improve** backend code (e.g., `.py`) under the `api/` directory. Supports the following review modes:
+当用户要求审查、分析或改进以下内容时使用：
 
-- **Pending-change review**: when the user asks to review current changes (inspect staged/working-tree files slated for commit to get the changes).
-- **Code snippets review**: when the user pastes code snippets (e.g., a function/class/module excerpt) into the chat and asks for a review.
-- **File-focused review**: when the user points to specific files and asks for a review of those files (one file or a small, explicit set of files, e.g., `api/...`, `api/app.py`).
+- `api/` 下的 Python 代码
+- FastAPI 路由、Schema、Service、Repository、Model、Task
+- Alembic 迁移、运行时表结构、执行链路
+- 工作流执行、发布接口、插件代理、MCP、沙盒、安全、凭证相关后端设计
 
-Do NOT use this skill when:
+不要用于：
 
-- The request is about frontend code or UI (e.g., `.tsx`, `.ts`, `.js`, `web/`).
-- The user is not asking for a review/analysis/improvement of backend code.
-- The scope is not under `api/` (unless the user explicitly asks to review backend-related changes outside `api/`).
+- `web/` 下的前端代码
+- 单纯的产品文案、Markdown 排版或 UI 设计讨论
 
-## How to use this skill
+## 使用流程
 
-Follow these steps when using this skill:
+1. 先识别审查范围，确认是路由层、服务层、运行时、数据层还是跨层改动。
+2. 如果涉及工作流语义、插件代理、发布协议、变量传递、调试、缓存或安全，优先阅读：
+   - `docs/product-design.md`
+   - `docs/technical-design-supplement.md`
+   - `docs/dev/runtime-foundation.md`
+3. 应用通用后端规则与 7Flows 项目规则共同审查。
+4. 输出时优先报告高风险问题：架构偏移、权限越界、运行态破坏、迁移风险、协议耦合。
 
-1. **Identify the review mode** (pending-change vs snippet vs file-focused) based on the user’s input. Keep the scope tight: review only what the user provided or explicitly referenced.
-2. Follow the rules defined in **Checklist** to perform the review. If no Checklist rule matches, apply **General Review Rules** as a fallback to perform the best-effort review.
-3. Compose the final output strictly follow the **Required Output Format**.
+## 审查清单
 
-Notes when using this skill:
-- Always include actionable fixes or suggestions (including possible code snippets).
-- Use best-effort `File:Line` references when a file path and line numbers are available; otherwise, use the most specific identifier you can.
+- 数据库架构设计：参见 [references/db-schema-rule.md](references/db-schema-rule.md)
+- 分层与依赖方向：参见 [references/architecture-rule.md](references/architecture-rule.md)
+- 仓储抽象与查询位置：参见 [references/repositories-rule.md](references/repositories-rule.md)
+- SQLAlchemy 使用规范：参见 [references/sqlalchemy-rule.md](references/sqlalchemy-rule.md)
+- 7Flows 后端架构约束：参见 [references/sevenflows-backend-architecture.md](references/sevenflows-backend-architecture.md)
 
-## Checklist
+## 7Flows 审查重点
 
-- db schema design: if the review scope includes code/files under `api/models/` or `api/migrations/`, follow [references/db-schema-rule.md](references/db-schema-rule.md) to perform the review
-- architecture: if the review scope involves controller/service/core-domain/libs/model layering, dependency direction, or moving responsibilities across modules, follow [references/architecture-rule.md](references/architecture-rule.md) to perform the review
-- repositories abstraction: if the review scope contains table/model operations (e.g., `select(...)`, `session.execute(...)`, joins, CRUD) and is not under `api/repositories`, `api/core/repositories`, or `api/extensions/*/repositories/`, follow [references/repositories-rule.md](references/repositories-rule.md) to perform the review
-- sqlalchemy patterns: if the review scope involves SQLAlchemy session/query usage, db transaction/crud usage, or raw SQL usage, follow [references/sqlalchemy-rule.md](references/sqlalchemy-rule.md) to perform the review
+### 1. 是否坚持 `7Flows IR` 优先
 
-## General Review Rules
+- 内部核心模型应围绕 workflow / node / edge / run / node run / published endpoint，而不是被 OpenAI / Anthropic / Dify 插件协议牵着走。
+- 如果代码引入第二套内部 DSL、第二套执行状态机或协议专属核心模型，应优先指出。
 
-### 1. Security Review
+### 2. 是否破坏当前 runtime MVP 边界
 
-Check for:
-- SQL injection vulnerabilities
-- Server-Side Request Forgery (SSRF)
-- Command injection
-- Insecure deserialization
-- Hardcoded secrets/credentials
-- Improper authentication/authorization
-- Insecure direct object references
+- 当前 `api/app/services/runtime.py` 是最小执行闭环，不应被持续膨胀为“万能 God object”。
+- 插件代理、发布网关、MCP、沙盒、凭证、安全等应逐步拆到独立层次。
 
-### 2. Performance Review
+### 3. 是否绕过显式授权和显式 loop
 
-Check for:
-- N+1 queries
-- Missing database indexes
-- Memory leaks
-- Blocking operations in async code
-- Missing caching opportunities
+- 节点默认不能读取所有前序节点结果。
+- 循环必须通过 `loop` 节点显式建模，不能靠回边或隐藏调度偷偷实现。
 
-### 3. Code Quality Review
+### 4. 是否复用统一事件流
 
-Check for:
-- Code forward compatibility
-- Code duplication (DRY violations)
-- Functions doing too much (SRP violations)
-- Deep nesting / complex conditionals
-- Magic numbers/strings
-- Poor naming
-- Missing error handling
-- Incomplete type coverage
+- 运行态、调试、流式输出应尽量围绕 `run_events` 演进，而不是各协议、各页面各造一套事件数据。
 
-### 4. Testing Review
+### 5. 是否符合当前仓库结构
 
-Check for:
-- Missing test coverage for new code
-- Tests that don't test behavior
-- Flaky test patterns
-- Missing edge cases
+- 路由保持薄，service 负责编排，repository 承担复杂持久化，model 保持数据定义。
+- 优先在现有目录和层次内演进，而不是照搬 Dify 里的模块命名和路径。
 
-## Required Output Format
+## 输出要求
 
-When this skill invoked, the response must exactly follow one of the two templates:
-
-### Template A (any findings)
-
-```markdown
-# Code Review Summary
-
-Found <X> critical issues need to be fixed:
-
-## 🔴 Critical (Must Fix)
-
-### 1. <brief description of the issue>
-
-FilePath: <path> line <line>
-<relevant code snippet or pointer>
-
-#### Explanation
-
-<detailed explanation and references of the issue>
-
-#### Suggested Fix
-
-1. <brief description of suggested fix>
-2. <code example> (optional, omit if not applicable)
-
----
-... (repeat for each critical issue) ...
-
-Found <Y> suggestions for improvement:
-
-## 🟡 Suggestions (Should Consider)
-
-### 1. <brief description of the suggestion>
-
-FilePath: <path> line <line>
-<relevant code snippet or pointer>
-
-#### Explanation
-
-<detailed explanation and references of the suggestion>
-
-#### Suggested Fix
-
-1. <brief description of suggested fix>
-2. <code example> (optional, omit if not applicable)
-
----
-... (repeat for each suggestion) ...
-
-Found <Z> optional nits:
-
-## 🟢 Nits (Optional)
-### 1. <brief description of the nit>
-
-FilePath: <path> line <line>
-<relevant code snippet or pointer>
-
-#### Explanation
-
-<explanation and references of the optional nit>
-
-#### Suggested Fix
-
-- <minor suggestions>
-
----
-... (repeat for each nits) ...
-
-## ✅ What's Good
-
-- <Positive feedback on good patterns>
-```
-
-- If there are no critical issues or suggestions or option nits or good points, just omit that section.
-- If the issue number is more than 10, summarize as "Found 10+ critical issues/suggestions/optional nits" and only output the first 10 items.
-- Don't compress the blank lines between sections; keep them as-is for readability.
-- If there is any issue requires code changes, append a brief follow-up question to ask whether the user wants to apply the fix(es) after the structured output. For example: "Would you like me to use the Suggested fix(es) to address these issues?"
-
-### Template B (no issues)
-
-```markdown
-## Code Review Summary
-✅ No issues found.
-```
+- 先给出 findings，按严重度排序。
+- 每条问题尽量附文件路径和行号。
+- 重点描述行为风险、架构后果和修复方向，而不是只说“代码不优雅”。
+- 如果没有发现问题，要明确说明，并补充剩余风险或测试空白。

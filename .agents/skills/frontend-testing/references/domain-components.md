@@ -1,523 +1,55 @@
-# Domain-Specific Component Testing
+# 领域特定组件测试
 
-This guide covers testing patterns for Dify's domain-specific components.
+本指南覆盖 7Flows 前端中最重要的领域组件测试点。
 
-## Workflow Components (`workflow/`)
+## 工作流编辑器相关
 
-Workflow components handle node configuration, data flow, and graph operations.
+重点测试：
 
-### Key Test Areas
+1. 节点类型切换
+2. 节点配置字段显隐
+3. 授权来源展示
+4. 工具/MCP/沙盒开关
+5. 未实现能力的禁用态
 
-1. **Node Configuration**
-1. **Data Validation**
-1. **Variable Passing**
-1. **Edge Connections**
-1. **Error Handling**
+### 节点配置面板
 
-### Example: Node Configuration Panel
+重点断言：
 
-```typescript
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import NodeConfigPanel from './node-config-panel'
-import { createMockNode, createMockWorkflowContext } from '@/__mocks__/workflow'
+- 节点类型变化后 section 是否切换
+- 必填字段缺失时是否显示错误
+- 非当前节点支持的能力是否隐藏或禁用
 
-// Mock workflow context
-vi.mock('@/app/components/workflow/hooks', () => ({
-  useWorkflowStore: () => mockWorkflowStore,
-  useNodesInteractions: () => mockNodesInteractions,
-}))
+## 调试面板相关
 
-let mockWorkflowStore = {
-  nodes: [],
-  edges: [],
-  updateNode: vi.fn(),
-}
+重点测试：
 
-let mockNodesInteractions = {
-  handleNodeSelect: vi.fn(),
-  handleNodeDelete: vi.fn(),
-}
+1. `pending` / `running` / `succeeded` / `failed`
+2. 日志、输入、输出的空态
+3. 时间线数据是否正确显示
+4. 错误态是否可见
 
-describe('NodeConfigPanel', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockWorkflowStore = {
-      nodes: [],
-      edges: [],
-      updateNode: vi.fn(),
-    }
-  })
+## 发布配置相关
 
-  describe('Node Configuration', () => {
-    it('should render node type selector', () => {
-      const node = createMockNode({ type: 'llm' })
-      render(<NodeConfigPanel node={node} />)
-      
-      expect(screen.getByLabelText(/model/i)).toBeInTheDocument()
-    })
+重点测试：
 
-    it('should update node config on change', async () => {
-      const user = userEvent.setup()
-      const node = createMockNode({ type: 'llm' })
-      
-      render(<NodeConfigPanel node={node} />)
-      
-      await user.selectOptions(screen.getByLabelText(/model/i), 'gpt-4')
-      
-      expect(mockWorkflowStore.updateNode).toHaveBeenCalledWith(
-        node.id,
-        expect.objectContaining({ model: 'gpt-4' })
-      )
-    })
-  })
+1. `native` / `openai` / `anthropic` 的协议切换
+2. 不同协议的 section 显隐
+3. 未完成配置时的提示与禁用
 
-  describe('Data Validation', () => {
-    it('should show error for invalid input', async () => {
-      const user = userEvent.setup()
-      const node = createMockNode({ type: 'code' })
-      
-      render(<NodeConfigPanel node={node} />)
-      
-      // Enter invalid code
-      const codeInput = screen.getByLabelText(/code/i)
-      await user.clear(codeInput)
-      await user.type(codeInput, 'invalid syntax {{{')
-      
-      await waitFor(() => {
-        expect(screen.getByText(/syntax error/i)).toBeInTheDocument()
-      })
-    })
+## 首页与概览页面
 
-    it('should validate required fields', async () => {
-      const node = createMockNode({ type: 'http', data: { url: '' } })
-      
-      render(<NodeConfigPanel node={node} />)
-      
-      fireEvent.click(screen.getByRole('button', { name: /save/i }))
-      
-      await waitFor(() => {
-        expect(screen.getByText(/url is required/i)).toBeInTheDocument()
-      })
-    })
-  })
+当前仓库还处于骨架期，页面级测试更适合覆盖：
 
-  describe('Variable Passing', () => {
-    it('should display available variables from upstream nodes', () => {
-      const upstreamNode = createMockNode({
-        id: 'node-1',
-        type: 'start',
-        data: { outputs: [{ name: 'user_input', type: 'string' }] },
-      })
-      const currentNode = createMockNode({
-        id: 'node-2',
-        type: 'llm',
-      })
-      
-      mockWorkflowStore.nodes = [upstreamNode, currentNode]
-      mockWorkflowStore.edges = [{ source: 'node-1', target: 'node-2' }]
-      
-      render(<NodeConfigPanel node={currentNode} />)
-      
-      // Variable selector should show upstream variables
-      fireEvent.click(screen.getByRole('button', { name: /add variable/i }))
-      
-      expect(screen.getByText('user_input')).toBeInTheDocument()
-    })
+- API 概览成功展示
+- 服务状态卡片渲染
+- 后端返回异常时的降级展示
 
-    it('should insert variable into prompt template', async () => {
-      const user = userEvent.setup()
-      const node = createMockNode({ type: 'llm' })
-      
-      render(<NodeConfigPanel node={node} />)
-      
-      // Click variable button
-      await user.click(screen.getByRole('button', { name: /insert variable/i }))
-      await user.click(screen.getByText('user_input'))
-      
-      const promptInput = screen.getByLabelText(/prompt/i)
-      expect(promptInput).toHaveValue(expect.stringContaining('{{user_input}}'))
-    })
-  })
-})
-```
+## 工具函数与映射函数
 
-## Dataset Components (`dataset/`)
+最适合优先落测试的领域逻辑包括：
 
-Dataset components handle file uploads, data display, and search/filter operations.
-
-### Key Test Areas
-
-1. **File Upload**
-1. **File Type Validation**
-1. **Pagination**
-1. **Search & Filtering**
-1. **Data Format Handling**
-
-### Example: Document Uploader
-
-```typescript
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import DocumentUploader from './document-uploader'
-
-vi.mock('@/service/datasets', () => ({
-  uploadDocument: vi.fn(),
-  parseDocument: vi.fn(),
-}))
-
-import * as datasetService from '@/service/datasets'
-const mockedService = vi.mocked(datasetService)
-
-describe('DocumentUploader', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-  })
-
-  describe('File Upload', () => {
-    it('should accept valid file types', async () => {
-      const user = userEvent.setup()
-      const onUpload = vi.fn()
-      mockedService.uploadDocument.mockResolvedValue({ id: 'doc-1' })
-      
-      render(<DocumentUploader onUpload={onUpload} />)
-      
-      const file = new File(['content'], 'test.pdf', { type: 'application/pdf' })
-      const input = screen.getByLabelText(/upload/i)
-      
-      await user.upload(input, file)
-      
-      await waitFor(() => {
-        expect(mockedService.uploadDocument).toHaveBeenCalledWith(
-          expect.any(FormData)
-        )
-      })
-    })
-
-    it('should reject invalid file types', async () => {
-      const user = userEvent.setup()
-      
-      render(<DocumentUploader />)
-      
-      const file = new File(['content'], 'test.exe', { type: 'application/x-msdownload' })
-      const input = screen.getByLabelText(/upload/i)
-      
-      await user.upload(input, file)
-      
-      expect(screen.getByText(/unsupported file type/i)).toBeInTheDocument()
-      expect(mockedService.uploadDocument).not.toHaveBeenCalled()
-    })
-
-    it('should show upload progress', async () => {
-      const user = userEvent.setup()
-      
-      // Mock upload with progress
-      mockedService.uploadDocument.mockImplementation(() => {
-        return new Promise((resolve) => {
-          setTimeout(() => resolve({ id: 'doc-1' }), 100)
-        })
-      })
-      
-      render(<DocumentUploader />)
-      
-      const file = new File(['content'], 'test.pdf', { type: 'application/pdf' })
-      await user.upload(screen.getByLabelText(/upload/i), file)
-      
-      expect(screen.getByRole('progressbar')).toBeInTheDocument()
-      
-      await waitFor(() => {
-        expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
-      })
-    })
-  })
-
-  describe('Error Handling', () => {
-    it('should handle upload failure', async () => {
-      const user = userEvent.setup()
-      mockedService.uploadDocument.mockRejectedValue(new Error('Upload failed'))
-      
-      render(<DocumentUploader />)
-      
-      const file = new File(['content'], 'test.pdf', { type: 'application/pdf' })
-      await user.upload(screen.getByLabelText(/upload/i), file)
-      
-      await waitFor(() => {
-        expect(screen.getByText(/upload failed/i)).toBeInTheDocument()
-      })
-    })
-
-    it('should allow retry after failure', async () => {
-      const user = userEvent.setup()
-      mockedService.uploadDocument
-        .mockRejectedValueOnce(new Error('Network error'))
-        .mockResolvedValueOnce({ id: 'doc-1' })
-      
-      render(<DocumentUploader />)
-      
-      const file = new File(['content'], 'test.pdf', { type: 'application/pdf' })
-      await user.upload(screen.getByLabelText(/upload/i), file)
-      
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
-      })
-      
-      await user.click(screen.getByRole('button', { name: /retry/i }))
-      
-      await waitFor(() => {
-        expect(screen.getByText(/uploaded successfully/i)).toBeInTheDocument()
-      })
-    })
-  })
-})
-```
-
-### Example: Document List with Pagination
-
-```typescript
-describe('DocumentList', () => {
-  describe('Pagination', () => {
-    it('should load first page on mount', async () => {
-      mockedService.getDocuments.mockResolvedValue({
-        data: [{ id: '1', name: 'Doc 1' }],
-        total: 50,
-        page: 1,
-        pageSize: 10,
-      })
-      
-      render(<DocumentList datasetId="ds-1" />)
-      
-      await waitFor(() => {
-        expect(screen.getByText('Doc 1')).toBeInTheDocument()
-      })
-      
-      expect(mockedService.getDocuments).toHaveBeenCalledWith('ds-1', { page: 1 })
-    })
-
-    it('should navigate to next page', async () => {
-      const user = userEvent.setup()
-      mockedService.getDocuments.mockResolvedValue({
-        data: [{ id: '1', name: 'Doc 1' }],
-        total: 50,
-        page: 1,
-        pageSize: 10,
-      })
-      
-      render(<DocumentList datasetId="ds-1" />)
-      
-      await waitFor(() => {
-        expect(screen.getByText('Doc 1')).toBeInTheDocument()
-      })
-      
-      mockedService.getDocuments.mockResolvedValue({
-        data: [{ id: '11', name: 'Doc 11' }],
-        total: 50,
-        page: 2,
-        pageSize: 10,
-      })
-      
-      await user.click(screen.getByRole('button', { name: /next/i }))
-      
-      await waitFor(() => {
-        expect(screen.getByText('Doc 11')).toBeInTheDocument()
-      })
-    })
-  })
-
-  describe('Search & Filtering', () => {
-    it('should filter by search query', async () => {
-      const user = userEvent.setup()
-      vi.useFakeTimers()
-      
-      render(<DocumentList datasetId="ds-1" />)
-      
-      await user.type(screen.getByPlaceholderText(/search/i), 'test query')
-      
-      // Debounce
-      vi.advanceTimersByTime(300)
-      
-      await waitFor(() => {
-        expect(mockedService.getDocuments).toHaveBeenCalledWith(
-          'ds-1',
-          expect.objectContaining({ search: 'test query' })
-        )
-      })
-      
-      vi.useRealTimers()
-    })
-  })
-})
-```
-
-## Configuration Components (`app/configuration/`, `config/`)
-
-Configuration components handle forms, validation, and data persistence.
-
-### Key Test Areas
-
-1. **Form Validation**
-1. **Save/Reset**
-1. **Required vs Optional Fields**
-1. **Configuration Persistence**
-1. **Error Feedback**
-
-### Example: App Configuration Form
-
-```typescript
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import AppConfigForm from './app-config-form'
-
-vi.mock('@/service/apps', () => ({
-  updateAppConfig: vi.fn(),
-  getAppConfig: vi.fn(),
-}))
-
-import * as appService from '@/service/apps'
-const mockedService = vi.mocked(appService)
-
-describe('AppConfigForm', () => {
-  const defaultConfig = {
-    name: 'My App',
-    description: '',
-    icon: 'default',
-    openingStatement: '',
-  }
-
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockedService.getAppConfig.mockResolvedValue(defaultConfig)
-  })
-
-  describe('Form Validation', () => {
-    it('should require app name', async () => {
-      const user = userEvent.setup()
-      
-      render(<AppConfigForm appId="app-1" />)
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/name/i)).toHaveValue('My App')
-      })
-      
-      // Clear name field
-      await user.clear(screen.getByLabelText(/name/i))
-      await user.click(screen.getByRole('button', { name: /save/i }))
-      
-      expect(screen.getByText(/name is required/i)).toBeInTheDocument()
-      expect(mockedService.updateAppConfig).not.toHaveBeenCalled()
-    })
-
-    it('should validate name length', async () => {
-      const user = userEvent.setup()
-      
-      render(<AppConfigForm appId="app-1" />)
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/name/i)).toBeInTheDocument()
-      })
-      
-      // Enter very long name
-      await user.clear(screen.getByLabelText(/name/i))
-      await user.type(screen.getByLabelText(/name/i), 'a'.repeat(101))
-      
-      expect(screen.getByText(/name must be less than 100 characters/i)).toBeInTheDocument()
-    })
-
-    it('should allow empty optional fields', async () => {
-      const user = userEvent.setup()
-      mockedService.updateAppConfig.mockResolvedValue({ success: true })
-      
-      render(<AppConfigForm appId="app-1" />)
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/name/i)).toHaveValue('My App')
-      })
-      
-      // Leave description empty (optional)
-      await user.click(screen.getByRole('button', { name: /save/i }))
-      
-      await waitFor(() => {
-        expect(mockedService.updateAppConfig).toHaveBeenCalled()
-      })
-    })
-  })
-
-  describe('Save/Reset Functionality', () => {
-    it('should save configuration', async () => {
-      const user = userEvent.setup()
-      mockedService.updateAppConfig.mockResolvedValue({ success: true })
-      
-      render(<AppConfigForm appId="app-1" />)
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/name/i)).toHaveValue('My App')
-      })
-      
-      await user.clear(screen.getByLabelText(/name/i))
-      await user.type(screen.getByLabelText(/name/i), 'Updated App')
-      await user.click(screen.getByRole('button', { name: /save/i }))
-      
-      await waitFor(() => {
-        expect(mockedService.updateAppConfig).toHaveBeenCalledWith(
-          'app-1',
-          expect.objectContaining({ name: 'Updated App' })
-        )
-      })
-      
-      expect(screen.getByText(/saved successfully/i)).toBeInTheDocument()
-    })
-
-    it('should reset to default values', async () => {
-      const user = userEvent.setup()
-      
-      render(<AppConfigForm appId="app-1" />)
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/name/i)).toHaveValue('My App')
-      })
-      
-      // Make changes
-      await user.clear(screen.getByLabelText(/name/i))
-      await user.type(screen.getByLabelText(/name/i), 'Changed Name')
-      
-      // Reset
-      await user.click(screen.getByRole('button', { name: /reset/i }))
-      
-      expect(screen.getByLabelText(/name/i)).toHaveValue('My App')
-    })
-
-    it('should show unsaved changes warning', async () => {
-      const user = userEvent.setup()
-      
-      render(<AppConfigForm appId="app-1" />)
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/name/i)).toHaveValue('My App')
-      })
-      
-      // Make changes
-      await user.type(screen.getByLabelText(/name/i), ' Updated')
-      
-      expect(screen.getByText(/unsaved changes/i)).toBeInTheDocument()
-    })
-  })
-
-  describe('Error Handling', () => {
-    it('should show error on save failure', async () => {
-      const user = userEvent.setup()
-      mockedService.updateAppConfig.mockRejectedValue(new Error('Server error'))
-      
-      render(<AppConfigForm appId="app-1" />)
-      
-      await waitFor(() => {
-        expect(screen.getByLabelText(/name/i)).toHaveValue('My App')
-      })
-      
-      await user.click(screen.getByRole('button', { name: /save/i }))
-      
-      await waitFor(() => {
-        expect(screen.getByText(/failed to save/i)).toBeInTheDocument()
-      })
-    })
-  })
-})
-```
+- 状态映射
+- 协议映射
+- schema 派生
+- 节点能力分组

@@ -1,317 +1,71 @@
-# Hook Extraction Patterns
+# Hook 提取模式
 
-This document provides detailed guidance on extracting custom hooks from complex components in Dify.
+本文档提供 7Flows 前端中提取自定义 Hook 的实用规则。
 
-## When to Extract Hooks
+## 何时提取 Hook
 
-Extract a custom hook when you identify:
+当你发现以下情况时优先提取：
 
-1. **Coupled state groups** - Multiple `useState` hooks that are always used together
-1. **Complex effects** - `useEffect` with multiple dependencies or cleanup logic
-1. **Business logic** - Data transformations, validations, or calculations
-1. **Reusable patterns** - Logic that appears in multiple components
+1. 多个 `useState` 总是一起变化
+2. 存在复杂的 `useEffect` 或订阅逻辑
+3. 有明显的派生逻辑，例如 schema 转换、授权范围计算、状态徽标推导
+4. 同类逻辑会在多个节点或多个 panel 中复用
 
-## Extraction Process
+## 推荐提取对象
 
-### Step 1: Identify State Groups
+- 节点配置派生逻辑：`use-node-config`
+- 发布协议字段逻辑：`use-published-endpoint-form`
+- 调试事件过滤：`use-run-events`
+- 节点权限可见性：`use-authorized-context`
+- 表单默认值和字段显隐：`use-xxx-fields`
 
-Look for state variables that are logically related:
+## 提取流程
 
-```typescript
-// ❌ These belong together - extract to hook
-const [modelConfig, setModelConfig] = useState<ModelConfig>(...)
-const [completionParams, setCompletionParams] = useState<FormValue>({})
-const [modelModeType, setModelModeType] = useState<ModelModeType>(...)
+### 步骤 1：识别一个“状态团”
 
-// These are model-related state that should be in useModelConfig()
-```
+例如：
 
-### Step 2: Identify Related Effects
+- 节点类型
+- 当前能力开关
+- 可见字段
+- 校验错误
 
-Find effects that modify the grouped state:
+这些总是一起变化时，就适合进同一个 hook。
 
-```typescript
-// ❌ These effects belong with the state above
-useEffect(() => {
-  if (hasFetchedDetail && !modelModeType) {
-    const mode = currModel?.model_properties.mode
-    if (mode) {
-      const newModelConfig = produce(modelConfig, (draft) => {
-        draft.mode = mode
-      })
-      setModelConfig(newModelConfig)
-    }
-  }
-}, [textGenerationModelList, hasFetchedDetail, modelModeType, currModel])
-```
+### 步骤 2：把派生与副作用一起搬走
 
-### Step 3: Create the Hook
+不要只把 `useState` 提走，却把相关 `useEffect` 和校验逻辑留在组件里。
 
-```typescript
-// hooks/use-model-config.ts
-import type { FormValue } from '@/app/components/header/account-setting/model-provider-page/declarations'
-import type { ModelConfig } from '@/models/debug'
-import { produce } from 'immer'
-import { useEffect, useState } from 'react'
-import { ModelModeType } from '@/types/app'
+### 步骤 3：保持返回值面向消费方
 
-interface UseModelConfigParams {
-  initialConfig?: Partial<ModelConfig>
-  currModel?: { model_properties?: { mode?: ModelModeType } }
-  hasFetchedDetail: boolean
-}
+返回内容优先是：
 
-interface UseModelConfigReturn {
-  modelConfig: ModelConfig
-  setModelConfig: (config: ModelConfig) => void
-  completionParams: FormValue
-  setCompletionParams: (params: FormValue) => void
-  modelModeType: ModelModeType
-}
+- 当前状态
+- 派生布尔值
+- 明确的事件方法
 
-export const useModelConfig = ({
-  initialConfig,
-  currModel,
-  hasFetchedDetail,
-}: UseModelConfigParams): UseModelConfigReturn => {
-  const [modelConfig, setModelConfig] = useState<ModelConfig>({
-    provider: 'langgenius/openai/openai',
-    model_id: 'gpt-3.5-turbo',
-    mode: ModelModeType.unset,
-    // ... default values
-    ...initialConfig,
-  })
-  
-  const [completionParams, setCompletionParams] = useState<FormValue>({})
-  
-  const modelModeType = modelConfig.mode
+而不是把内部实现细节全部暴露出去。
 
-  // Fill old app data missing model mode
-  useEffect(() => {
-    if (hasFetchedDetail && !modelModeType) {
-      const mode = currModel?.model_properties?.mode
-      if (mode) {
-        setModelConfig(produce(modelConfig, (draft) => {
-          draft.mode = mode
-        }))
-      }
-    }
-  }, [hasFetchedDetail, modelModeType, currModel])
+## 命名建议
 
-  return {
-    modelConfig,
-    setModelConfig,
-    completionParams,
-    setCompletionParams,
-    modelModeType,
-  }
-}
-```
+- `use-node-config`
+- `use-debug-panel-state`
+- `use-publish-form`
+- `use-workflow-summary`
 
-### Step 4: Update Component
+文件名使用 kebab-case，靠近消费组件放置。
 
-```typescript
-// Before: 50+ lines of state management
-const Configuration: FC = () => {
-  const [modelConfig, setModelConfig] = useState<ModelConfig>(...)
-  // ... lots of related state and effects
-}
+## 不要提取的情况
 
-// After: Clean component
-const Configuration: FC = () => {
-  const {
-    modelConfig,
-    setModelConfig,
-    completionParams,
-    setCompletionParams,
-    modelModeType,
-  } = useModelConfig({
-    currModel,
-    hasFetchedDetail,
-  })
-  
-  // Component now focuses on UI
-}
-```
+- 只有一两个局部状态
+- 纯展示组件的小交互
+- 一次性逻辑，没有复用和降复杂收益
 
-## Naming Conventions
+## 验证
 
-### Hook Names
+提取后至少运行：
 
-- Use `use` prefix: `useModelConfig`, `useDatasetConfig`
-- Be specific: `useAdvancedPromptConfig` not `usePrompt`
-- Include domain: `useWorkflowVariables`, `useMCPServer`
-
-### File Names
-
-- Kebab-case: `use-model-config.ts`
-- Place in `hooks/` subdirectory when multiple hooks exist
-- Place alongside component for single-use hooks
-
-### Return Type Names
-
-- Suffix with `Return`: `UseModelConfigReturn`
-- Suffix params with `Params`: `UseModelConfigParams`
-
-## Common Hook Patterns in Dify
-
-### 1. Data Fetching Hook (React Query)
-
-```typescript
-// Pattern: Use @tanstack/react-query for data fetching
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { get } from '@/service/base'
-import { useInvalid } from '@/service/use-base'
-
-const NAME_SPACE = 'appConfig'
-
-// Query keys for cache management
-export const appConfigQueryKeys = {
-  detail: (appId: string) => [NAME_SPACE, 'detail', appId] as const,
-}
-
-// Main data hook
-export const useAppConfig = (appId: string) => {
-  return useQuery({
-    enabled: !!appId,
-    queryKey: appConfigQueryKeys.detail(appId),
-    queryFn: () => get<AppDetailResponse>(`/apps/${appId}`),
-    select: data => data?.model_config || null,
-  })
-}
-
-// Invalidation hook for refreshing data
-export const useInvalidAppConfig = () => {
-  return useInvalid([NAME_SPACE])
-}
-
-// Usage in component
-const Component = () => {
-  const { data: config, isLoading, error, refetch } = useAppConfig(appId)
-  const invalidAppConfig = useInvalidAppConfig()
-  
-  const handleRefresh = () => {
-    invalidAppConfig() // Invalidates cache and triggers refetch
-  }
-  
-  return <div>...</div>
-}
-```
-
-### 2. Form State Hook
-
-```typescript
-// Pattern: Form state + validation + submission
-export const useConfigForm = (initialValues: ConfigFormValues) => {
-  const [values, setValues] = useState(initialValues)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const validate = useCallback(() => {
-    const newErrors: Record<string, string> = {}
-    if (!values.name) newErrors.name = 'Name is required'
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }, [values])
-
-  const handleChange = useCallback((field: string, value: any) => {
-    setValues(prev => ({ ...prev, [field]: value }))
-  }, [])
-
-  const handleSubmit = useCallback(async (onSubmit: (values: ConfigFormValues) => Promise<void>) => {
-    if (!validate()) return
-    setIsSubmitting(true)
-    try {
-      await onSubmit(values)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [values, validate])
-
-  return { values, errors, isSubmitting, handleChange, handleSubmit }
-}
-```
-
-### 3. Modal State Hook
-
-```typescript
-// Pattern: Multiple modal management
-type ModalType = 'edit' | 'delete' | 'duplicate' | null
-
-export const useModalState = () => {
-  const [activeModal, setActiveModal] = useState<ModalType>(null)
-  const [modalData, setModalData] = useState<any>(null)
-
-  const openModal = useCallback((type: ModalType, data?: any) => {
-    setActiveModal(type)
-    setModalData(data)
-  }, [])
-
-  const closeModal = useCallback(() => {
-    setActiveModal(null)
-    setModalData(null)
-  }, [])
-
-  return {
-    activeModal,
-    modalData,
-    openModal,
-    closeModal,
-    isOpen: useCallback((type: ModalType) => activeModal === type, [activeModal]),
-  }
-}
-```
-
-### 4. Toggle/Boolean Hook
-
-```typescript
-// Pattern: Boolean state with convenience methods
-export const useToggle = (initialValue = false) => {
-  const [value, setValue] = useState(initialValue)
-
-  const toggle = useCallback(() => setValue(v => !v), [])
-  const setTrue = useCallback(() => setValue(true), [])
-  const setFalse = useCallback(() => setValue(false), [])
-
-  return [value, { toggle, setTrue, setFalse, set: setValue }] as const
-}
-
-// Usage
-const [isExpanded, { toggle, setTrue: expand, setFalse: collapse }] = useToggle()
-```
-
-## Testing Extracted Hooks
-
-After extraction, test hooks in isolation:
-
-```typescript
-// use-model-config.spec.ts
-import { renderHook, act } from '@testing-library/react'
-import { useModelConfig } from './use-model-config'
-
-describe('useModelConfig', () => {
-  it('should initialize with default values', () => {
-    const { result } = renderHook(() => useModelConfig({
-      hasFetchedDetail: false,
-    }))
-
-    expect(result.current.modelConfig.provider).toBe('langgenius/openai/openai')
-    expect(result.current.modelModeType).toBe(ModelModeType.unset)
-  })
-
-  it('should update model config', () => {
-    const { result } = renderHook(() => useModelConfig({
-      hasFetchedDetail: true,
-    }))
-
-    act(() => {
-      result.current.setModelConfig({
-        ...result.current.modelConfig,
-        model_id: 'gpt-4',
-      })
-    })
-
-    expect(result.current.modelConfig.model_id).toBe('gpt-4')
-  })
-})
+```bash
+pnpm lint
+pnpm exec tsc --noEmit
 ```

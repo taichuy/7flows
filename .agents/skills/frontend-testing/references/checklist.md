@@ -1,208 +1,54 @@
-# Test Generation Checklist
+# 测试生成检查清单
 
-Use this checklist when generating or reviewing tests for Dify frontend components.
+在为 7Flows 前端生成或审查测试时使用此清单。
 
-## Pre-Generation
+## 生成前
 
-- [ ] Read the component source code completely
-- [ ] Identify component type (component, hook, utility, page)
-- [ ] Run `pnpm analyze-component <path>` if available
-- [ ] Note complexity score and features detected
-- [ ] Check for existing tests in the same directory
-- [ ] **Identify ALL files in the directory** that need testing (not just index)
+- [ ] 完整阅读源代码
+- [ ] 判断是工具函数、组件、页面还是 hook
+- [ ] 确认当前仓库是否已接入前端测试栈
+- [ ] 识别要测试的所有文件，而不是只看 `index`
+- [ ] 列出核心行为与边界情况
 
-## Testing Strategy
+## 测试策略
 
-### ⚠️ Incremental Workflow (CRITICAL for Multi-File)
+- [ ] 先测稳定逻辑，再测复杂画布交互
+- [ ] 多文件任务一次只处理一个文件
+- [ ] 若组件职责过重，先考虑重构
+- [ ] 未实现能力要测禁用态或占位态，而不是假设功能已存在
 
-- [ ] **NEVER generate all tests at once** - process one file at a time
-- [ ] Order files by complexity: utilities → hooks → simple → complex → integration
-- [ ] Create a todo list to track progress before starting
-- [ ] For EACH file: write → run test → verify pass → then next
-- [ ] **DO NOT proceed** to next file until current one passes
+## 必测内容
 
-### Path-Level Coverage
+- [ ] 渲染成功
+- [ ] 关键 props 或输入
+- [ ] loading / success / error / empty
+- [ ] `null` / `undefined` / 空数组 / 空对象
+- [ ] 不支持的节点类型或协议类型
 
-- [ ] **Test ALL files** in the assigned directory/path
-- [ ] List all components, hooks, utilities that need coverage
-- [ ] Decide: single spec file (integration) or multiple spec files (unit)
+## 7Flows 特定检查
 
-### Complexity Assessment
+- [ ] 节点类型切换是否影响字段显隐
+- [ ] 工具/MCP/沙盒/授权开关是否正确显示
+- [ ] 调试面板状态是否正确切换
+- [ ] 发布协议分支是否正确显示
+- [ ] 未落地能力是否处于禁用或实验态
 
-- [ ] Run `pnpm analyze-component <path>` for complexity score
-- [ ] **Complexity > 50**: Consider refactoring before testing
-- [ ] **500+ lines**: Consider splitting before testing
-- [ ] **30-50 complexity**: Use multiple describe blocks, organized structure
+## Mock 检查
 
-### Integration vs Mocking
+- [ ] 只 mock 必要的外部依赖
+- [ ] 不伪造当前仓库不存在的全局 mock 体系
+- [ ] 每个测试前清理 mocks
+- [ ] 共享状态在每个测试前重置
 
-- [ ] **DO NOT mock base components** (`Loading`, `Button`, `Tooltip`, etc.)
-- [ ] Import real project components instead of mocking
-- [ ] Only mock: API calls, complex context providers, third-party libs with side effects
-- [ ] Prefer integration testing when using single spec file
+## 生成后
 
-## Required Test Sections
+若已接入测试栈：
 
-### All Components MUST Have
+- [ ] 运行测试
+- [ ] 运行 `pnpm lint`
+- [ ] 运行 `pnpm exec tsc --noEmit`
 
-- [ ] **Rendering tests** - Component renders without crashing
-- [ ] **Props tests** - Required props, optional props, default values
-- [ ] **Edge cases** - null, undefined, empty values, boundaries
+若未接入测试栈且本次未要求搭建：
 
-### Conditional Sections (Add When Feature Present)
-
-| Feature | Add Tests For |
-|---------|---------------|
-| `useState` | Initial state, transitions, cleanup |
-| `useEffect` | Execution, dependencies, cleanup |
-| Event handlers | onClick, onChange, onSubmit, keyboard |
-| API calls | Loading, success, error states |
-| Routing | Navigation, params, query strings |
-| `useCallback`/`useMemo` | Referential equality |
-| Context | Provider values, consumer behavior |
-| Forms | Validation, submission, error display |
-
-## Code Quality Checklist
-
-### Structure
-
-- [ ] Uses `describe` blocks to group related tests
-- [ ] Test names follow `should <behavior> when <condition>` pattern
-- [ ] AAA pattern (Arrange-Act-Assert) is clear
-- [ ] Comments explain complex test scenarios
-
-### Mocks
-
-- [ ] **DO NOT mock base components** (`@/app/components/base/*`)
-- [ ] `vi.clearAllMocks()` in `beforeEach` (not `afterEach`)
-- [ ] Shared mock state reset in `beforeEach`
-- [ ] i18n uses global mock (auto-loaded in `web/vitest.setup.ts`); only override locally for custom translations
-- [ ] Router mocks match actual Next.js API
-- [ ] Mocks reflect actual component conditional behavior
-- [ ] Only mock: API services, complex context providers, third-party libs
-- [ ] For `nuqs` URL-state tests, wrap with `NuqsTestingAdapter` (prefer `web/test/nuqs-testing.tsx`)
-- [ ] For `nuqs` URL-state tests, assert `onUrlUpdate` payload (`searchParams`, `options.history`)
-- [ ] If custom `nuqs` parser exists, add round-trip tests for encoded edge cases (`%2F`, `%25`, spaces, legacy encoded values)
-
-### Queries
-
-- [ ] Prefer semantic queries (`getByRole`, `getByLabelText`)
-- [ ] Use `queryBy*` for absence assertions
-- [ ] Use `findBy*` for async elements
-- [ ] `getByTestId` only as last resort
-
-### Async
-
-- [ ] All async tests use `async/await`
-- [ ] `waitFor` wraps async assertions
-- [ ] Fake timers properly setup/teardown
-- [ ] No floating promises
-
-### TypeScript
-
-- [ ] No `any` types without justification
-- [ ] Mock data uses actual types from source
-- [ ] Factory functions have proper return types
-
-## Coverage Goals (Per File)
-
-For the current file being tested:
-
-- [ ] 100% function coverage
-- [ ] 100% statement coverage
-- [ ] >95% branch coverage
-- [ ] >95% line coverage
-
-## Post-Generation (Per File)
-
-**Run these checks after EACH test file, not just at the end:**
-
-- [ ] Run `pnpm test path/to/file.spec.tsx` - **MUST PASS before next file**
-- [ ] Fix any failures immediately
-- [ ] Mark file as complete in todo list
-- [ ] Only then proceed to next file
-
-### After All Files Complete
-
-- [ ] Run full directory test: `pnpm test path/to/directory/`
-- [ ] Check coverage report: `pnpm test:coverage`
-- [ ] Run `pnpm lint:fix` on all test files
-- [ ] Run `pnpm type-check:tsgo`
-
-## Common Issues to Watch
-
-### False Positives
-
-```typescript
-// ❌ Mock doesn't match actual behavior
-vi.mock('./Component', () => () => <div>Mocked</div>)
-
-// ✅ Mock matches actual conditional logic
-vi.mock('./Component', () => ({ isOpen }: any) =>
-  isOpen ? <div>Content</div> : null
-)
-```
-
-### State Leakage
-
-```typescript
-// ❌ Shared state not reset
-let mockState = false
-vi.mock('./useHook', () => () => mockState)
-
-// ✅ Reset in beforeEach
-beforeEach(() => {
-  mockState = false
-})
-```
-
-### Async Race Conditions
-
-```typescript
-// ❌ Not awaited
-it('loads data', () => {
-  render(<Component />)
-  expect(screen.getByText('Data')).toBeInTheDocument()
-})
-
-// ✅ Properly awaited
-it('loads data', async () => {
-  render(<Component />)
-  await waitFor(() => {
-    expect(screen.getByText('Data')).toBeInTheDocument()
-  })
-})
-```
-
-### Missing Edge Cases
-
-Always test these scenarios:
-
-- `null` / `undefined` inputs
-- Empty strings / arrays / objects
-- Boundary values (0, -1, MAX_INT)
-- Error states
-- Loading states
-- Disabled states
-
-## Quick Commands
-
-```bash
-# Run specific test
-pnpm test path/to/file.spec.tsx
-
-# Run with coverage
-pnpm test:coverage path/to/file.spec.tsx
-
-# Watch mode
-pnpm test:watch path/to/file.spec.tsx
-
-# Update snapshots (use sparingly)
-pnpm test -u path/to/file.spec.tsx
-
-# Analyze component
-pnpm analyze-component path/to/component.tsx
-
-# Review existing test
-pnpm analyze-component path/to/component.tsx --review
-```
+- [ ] 明确说明未运行前端测试
+- [ ] 给出后续落测试建议
