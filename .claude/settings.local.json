@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./.venv/Scripts/uv.exe run:*)",
+      "Bash(git add:*)",
+      "Bash(*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
