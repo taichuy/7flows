@@ -47,7 +47,7 @@
 ### 4. Workflow 定义、发布与开放接口
 
 - 工作流创建/更新已执行最小结构校验，并自动生成 immutable version snapshot 与 compiled blueprint。
-- `runtimePolicy.execution / retry / join`、节点 `inputSchema / outputSchema` 与 `llm_agent.config.toolPolicy` 已进入结构化 schema / editor 表达，workflow editor 正在沿统一配置面持续推进，而不是停留在一次性 demo。
+- `runtimePolicy.execution / retry / join`、节点 `inputSchema / outputSchema`、`llm_agent.config.toolPolicy` 与 workflow `publish` draft 已进入结构化 schema / editor 表达，workflow editor 正在沿统一配置面持续推进，而不是停留在一次性 demo。
 - 发布治理已落到独立事实层：binding lifecycle、API keys、cache entries、invocation activity、invocation detail 都有对应 route/service/migration。
 - 发布网关已从单体中拆出 binding resolver、cache orchestrator、invocation recorder、response builder、protocol surface 与 binding invoker；native / OpenAI / Anthropic route surface 也已拆到独立 route 文件，发布层边界比前几轮更清晰。
 - 已开放 native / OpenAI / Anthropic 的 published surface，含 sync、async、alias/path 入口，以及基于 runtime delta / 最终结果映射的最小 SSE。
@@ -56,7 +56,7 @@
 
 - Run API 已覆盖创建、详情、events、trace、trace export、resume、callback ingress、execution view、evidence view。
 - Workflow library、system overview、plugin adapters、runtime activity、credentials API 已具备，为编辑器、诊断面板和发布治理继续承接提供稳定后端入口。
-- workflow editor inspector 已能以结构化 section 暴露 `runtimePolicy.execution / retry / join`、节点 contract 与部分 `llm_agent` 高级配置；execution section 已先解析默认执行类，再按“偏离默认时才持久化 JSON”的策略落库。
+- workflow editor inspector 已能以结构化 section 暴露 `runtimePolicy.execution / retry / join`、节点 contract、workflow `publish` draft 与部分 `llm_agent` 高级配置；execution section 已先解析默认执行类，再按“偏离默认时才持久化 JSON”的策略落库。
 - run diagnostics 已能消费 execution / evidence 聚合视图，并显示 execution boundary summary，但 execution detail、artifact preview、evidence drilldown 仍有继续拆层空间。
 - 当前还没有 approval-specific route / notification delivery API；后续若补统一敏感访问控制，应优先复用现有 run detail、resume 与 callback 事实层扩展，而不是另起一套状态体系。
 
@@ -75,7 +75,7 @@
 - `api/app/services/published_gateway.py`：354 行，service 主体已明显比前期收敛，但 surface orchestration 仍集中在同一服务里，后续可继续按 surface/helper 分层。
 - `web/components/run-diagnostics-execution-sections.tsx`：530 行，execution / evidence 详情层仍偏重，后续适合继续按 payload、metrics、artifact、evidence drilldown 拆层。
 - `web/components/workspace-starter-library.tsx`：440 行，已经比早期收口，但 library 交互、元数据和治理入口仍较集中；后续若再补 diff / governance，应继续拆 section 与 hook。
-- `web/components/workflow-editor-workbench/use-workflow-editor-graph.ts`：403 行，graph mutation 仍集中但边界清晰；如果后续继续补 publish section、variables 或 schema builder，适合把节点 contract / publish mutation 再拆成 helper hook。
+- `web/components/workflow-editor-workbench/use-workflow-editor-graph.ts`：已开始同时维护 nodes / edges / workflow publish draft，graph mutation 仍集中但边界清晰；如果后续继续补 variables、schema builder 或更多 workflow-level governance，适合把 publish / variable mutation 再拆成 helper hook。
 - `web/components/workflow-node-config-form/runtime-policy-form.tsx`：333 行，execution section 已拆到 `runtime-policy-execution-section.tsx` 与 `runtime-policy-helpers.ts`，父表单仍应保持 orchestrator 角色，避免 runtime 配置继续回涨为单体。
 - `web/components/credential-store-panel.tsx`：本轮已修复前端全量 lint 阻塞点；当前不再是稳定性阻塞项，但后续仍可顺手收口内联样式与局部状态逻辑。
 - 当前项目整体判断不变：基础框架足够继续推主业务完整度，但还没到“只剩人工界面设计 / 全链路人工验收”的阶段。
@@ -99,4 +99,4 @@
 5. **P1：继续治理 run diagnostics 与 publish streaming 详情层**
    - 下一阶段可优先拆 `web/components/run-diagnostics-execution-sections.tsx` 与 `api/app/services/published_protocol_streaming.py`，并为 approval timeline、security decision summary、protocol-specific SSE helper 预留落点。
 6. **P1：继续提高工作流编辑器完整度**
-   - 在现有 `runtimePolicy.execution / retry / join`、节点 contract 与 `llm_agent.toolPolicy` 基础上，继续补 workflow `publish` 配置、敏感访问策略入口，以及更清晰的 advanced JSON / structured form 边界。
+   - 在现有 `runtimePolicy.execution / retry / join`、节点 contract、workflow `publish` draft 与 `llm_agent.toolPolicy` 基础上，继续补敏感访问策略入口、variables/schema builder，以及更清晰的 advanced JSON / structured form 边界。

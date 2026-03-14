@@ -135,7 +135,7 @@ docker compose up -d --build
 
 - API 当前已提供 health、workflows、workflow publish、published gateway、runs、run views、system overview、plugins、credentials、workspace starters 等主干路由。
 - Web 首页当前更偏“工作台 / 诊断入口”，会展示服务健康、adapter、tools、workflow、credentials、recent runs 与 run events 聚合摘要。
-- The minimal workflow editor can already edit and save workflow definitions. Structured forms now cover `runtimePolicy.execution / retry / join` plus node `input/output schema`, while publish governance and sensitive-access policy UI are still being filled in.
+- The minimal workflow editor can already edit and save workflow definitions. Structured forms now cover `runtimePolicy.execution / retry / join`, node `input/output schema`, and workflow `publish` draft configuration, while formal publish governance and sensitive-access policy UI are still being filled in.
 
 ## 文档分层
 
@@ -151,4 +151,4 @@ docker compose up -d --build
 1. 持续拆分 `api/app/services/published_gateway.py`，避免协议映射与审计逻辑回流主网关。
 2. 持续治理 `api/app/services/runtime.py`，沿 graph scheduling / lifecycle / resume orchestration 拆边界。
 3. 继续治理 `web/components/run-diagnostics-panel.tsx`，保持摘要优先、详情可钻取。
-4. Continue filling in workflow `publish` config, sensitive-access policy placement, and a clearer advanced-JSON vs structured-form boundary so the editor can keep moving toward the main product workflow.
+4. Continue filling in sensitive-access policy placement, variables/schema builder, and a clearer advanced-JSON vs structured-form boundary so the editor can keep moving toward the main product workflow.

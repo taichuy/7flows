@@ -47,6 +47,9 @@ export function useWorkflowEditorGraph({
   const [persistedWorkflowName, setPersistedWorkflowName] = useState(workflow.name);
   const [workflowVersion, setWorkflowVersion] = useState(workflow.version);
   const [persistedDefinition, setPersistedDefinition] = useState(workflow.definition);
+  const [workflowPublish, setWorkflowPublish] = useState(() =>
+    normalizeWorkflowPublishDraft(workflow.definition.publish)
+  );
   const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph.nodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(initialGraph.nodes[0]?.id ?? null);
@@ -55,7 +58,10 @@ export function useWorkflowEditorGraph({
     stringifyJson(initialGraph.nodes[0]?.data.config ?? {})
   );
 
-  const currentDefinition = reactFlowToWorkflowDefinition(nodes, edges, persistedDefinition);
+  const currentDefinition = reactFlowToWorkflowDefinition(nodes, edges, {
+    ...persistedDefinition,
+    publish: workflowPublish
+  });
   const isDirty =
     workflowName.trim() !== persistedWorkflowName ||
     JSON.stringify(currentDefinition) !== JSON.stringify(persistedDefinition);
@@ -66,6 +72,7 @@ export function useWorkflowEditorGraph({
     setPersistedWorkflowName(workflow.name);
     setWorkflowVersion(workflow.version);
     setPersistedDefinition(workflow.definition);
+    setWorkflowPublish(normalizeWorkflowPublishDraft(workflow.definition.publish));
     setNodes(nextGraph.nodes);
     setEdges(nextGraph.edges);
     setSelectedNodeId(nextGraph.nodes[0]?.id ?? null);
@@ -365,6 +372,21 @@ export function useWorkflowEditorGraph({
     );
   };
 
+  const updateWorkflowPublish = (
+    nextPublish: Array<Record<string, unknown>>,
+    options?: { successMessage?: string }
+  ) => {
+    setWorkflowPublish(normalizeWorkflowPublishDraft(nextPublish));
+
+    if (options?.successMessage) {
+      setMessage(options.successMessage);
+      setMessageTone("success");
+    } else {
+      setMessage(null);
+      setMessageTone("idle");
+    }
+  };
+
   return {
     workflowName,
     setWorkflowName,
@@ -385,6 +407,7 @@ export function useWorkflowEditorGraph({
     nodeConfigText,
     setNodeConfigText,
     currentDefinition,
+    workflowPublish,
     isDirty,
     onConnect,
     handleSelectionChange,
@@ -398,6 +421,15 @@ export function useWorkflowEditorGraph({
     handleNodeRuntimePolicyChange,
     handleDeleteSelectedNode,
     handleDeleteSelectedEdge,
-    updateSelectedEdge
+    updateSelectedEdge,
+    updateWorkflowPublish
   };
+}
+
+function normalizeWorkflowPublishDraft(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => isRecord(item)).map((item) => ({
+        ...item
+      }))
+    : [];
 }

@@ -229,6 +229,9 @@ export function WorkflowEditorWorkbench({
               onNodeOutputSchemaChange={graph.updateNodeOutputSchema}
               onNodeRuntimePolicyUpdate={graph.updateNodeRuntimePolicy}
               onNodeRuntimePolicyChange={graph.handleNodeRuntimePolicyChange}
+              workflowVersion={graph.workflowVersion}
+              workflowPublish={graph.workflowPublish}
+              onWorkflowPublishChange={graph.updateWorkflowPublish}
               onDeleteSelectedNode={graph.handleDeleteSelectedNode}
               onUpdateSelectedEdge={graph.updateSelectedEdge}
               onDeleteSelectedEdge={graph.handleDeleteSelectedEdge}
