@@ -16,6 +16,7 @@
 - 当前开发收尾标准已进一步收紧：默认以充分测试、失败即修复、交付前零 warning / 零 error 作为稳定基线，避免把不稳定状态带入下一轮开发。
 - 当前产品基线已进一步明确：7Flows 同时服务人类用户与 AI 用户，后续工作台、发布接口与运行态接口演进时，应保持人机交互、人与 AI 协作、AI 独立操作三类场景的结果语义一致。
 - `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；当前代码已有 ToolGateway、waiting/resume 与 callback ticket 原语，但尚未落成独立事实层与 API。
+- 节点执行架构已明确采用“统一工作流执行器 + 分级执行类”的方向，不做所有节点默认重沙箱化；当前代码仍以 worker 内联执行为主，`sandbox_code` 和 execution adapter registry 尚未正式落地。
 
 ## 当前代码事实
 
@@ -28,9 +29,11 @@
 ### 2. Runtime 执行骨架
 
 - `RuntimeService` 已采用 compiled blueprint 执行链，run 会显式绑定 `workflow_version` 与 `compiled_blueprint_id`。
+- `RuntimeService` 当前仍是唯一 orchestration 主控；`AgentRuntime`、`ToolGateway`、callback ticket 和未来 sandbox adapter 都应继续作为被调度层，而不是拥有第二套流程控制语义。
 - 当前执行器已支持拓扑排序、条件/路由分支、join、mapping、节点重试、waiting/resume、callback ticket、artifact 引用和统一事件落库。
 - 现有 `waiting/resume + callback ticket` 原语已经足够承接未来审批闭环，但当前仍缺统一的 `SensitiveAccessRequest / ApprovalTicket / NotificationDispatch` 模型与拦截挂点。
 - 2026-03-14 已连续推进四轮 runtime 结构治理：先把 run load / resume / callback orchestration 从 `runtime.py` 拆到 `runtime_run_support.py`，再把 graph support 拆成 `runtime_branch_support.py`、`runtime_mapping_support.py` 与收口后的 `runtime_graph_support.py`，随后把节点失败 / waiting / 成功收尾与 run 完成输出从 `runtime.py` 收口到 `runtime_execution_progress_support.py`，本轮继续把节点准备与输入拼装拆到 `runtime_node_preparation_support.py`、把节点类型分发 / tool dispatch / credential resolve 拆到 `runtime_node_dispatch_support.py`，`RuntimeService` 主文件和节点执行 support 的职责边界都进一步收紧。
+- 当前节点运行路径仍以 `llm_agent -> AgentRuntime`、`tool -> ToolGateway` 与其余节点 worker 内联执行为主；`execution class`、`sandbox_code` 正式执行链和统一 execution adapter registry 还没有落地，不能在文档或 UI 中假装已完成。
 - `loop` 节点仍未在 MVP 执行器中开放执行；循环能力仍需通过后续 runtime 演进补齐，不能假装已完成。
 - `run_events` 仍是调试、回放、SSE 和 AI 追溯的统一事件源，不应为不同界面另起事实层。
 
@@ -56,6 +59,7 @@
 - Workflow library、system overview、plugin adapters、runtime activity、credentials API 已具备，为编辑器、诊断面板和发布治理继续承接提供稳定后端入口。
 - `workflow editor` inspector 已把 `runtimePolicy` 的 retry / join 从纯 JSON 文本补成结构化表单；join 候选来源会按当前画布实际入边收敛，复杂场景仍可回退到高级 JSON。
 - 2026-03-14 晚间继续把节点 `inputSchema / outputSchema` 从通用 `config` JSON 里拆成独立 contract section，并把 `llm_agent.config.toolPolicy` 显式化到结构化表单；workflow editor 正在沿同一条配置收口链持续推进，而不是停留在一次性 demo。
+- 当前前端里的 `sandboxEnabled` 更接近占位开关；后续应优先收口到统一的 `runtimePolicy.execution.class / profile`，避免继续把执行边界散落成多个局部布尔开关。
 - 前端与后端的诊断/治理界面应继续消费这些事实接口，而不是直接拼装数据库内部结构。
 
 ## 当前结构热点
@@ -87,13 +91,15 @@
 
 ## 下一步规划
 
-1. **P0：定义并落地统一敏感访问控制闭环**
+1. **P0：定义并落地分级执行架构**
+   - 先把 `NodeType` 与 `execution class` 分离建模，补齐 `runtimePolicy.execution`、Execution Adapter Registry、tool/plugin 默认执行级别与运行追踪字段；保持 `RuntimeService` 作为唯一主控，不做所有节点默认重沙箱化。
+2. **P0：定义并落地统一敏感访问控制闭环**
    - 围绕 `sensitivity_level / requester_type / action_type` 补齐 `SensitiveAccessRequest`、`ApprovalTicket`、通知投递与审计事件事实层，并优先把拦截点挂到 ToolGateway、credential resolve、context read 和 publish export 入口。
-2. **P0：继续补节点配置与 workflow editor 完整度**
-   - `runtimePolicy`、节点 `input/output schema`、`llm_agent.toolPolicy` 已补成独立 section；下一步优先继续把 workflow `publish` config 与其余仍停留在 JSON 驱动的配置整理成稳定 section，并为后续敏感访问策略配置预留稳定落点。
-3. **P1：补齐 `WAITING_CALLBACK` 的后台唤醒闭环**
+3. **P0：继续补节点配置与 workflow editor 完整度**
+   - `runtimePolicy`、节点 `input/output schema`、`llm_agent.toolPolicy` 已补成独立 section；下一步优先把 `runtimePolicy.execution.class / profile` 收成稳定表单，再继续整理 workflow `publish` config 和敏感访问策略配置落点。
+4. **P1：补齐 `WAITING_CALLBACK` 的后台唤醒闭环**
    - 继续把 callback ticket、scheduler 和 resume orchestration 衔接成更完整的 durable execution 主链，为后续审批与通知恢复共用同一条 waiting/resume 能力。
-4. **P1：继续治理 run diagnostics 详情层**
+5. **P1：继续治理 run diagnostics 详情层**
    - 下一阶段可优先拆 `web/components/run-diagnostics-execution-sections.tsx` 与 `trace-results-section.tsx`，并为 approval timeline、security decision summary 预留详情视图落点。
-5. **P1：继续治理 published service / streaming 热点**
+6. **P1：继续治理 published service / streaming 热点**
    - route 层已拆开，下一阶段可进一步收紧 `published_gateway.py` 与 `published_protocol_streaming.py` 的 surface orchestration 和 SSE 映射职责，同时考虑敏感导出控制的统一挂点。

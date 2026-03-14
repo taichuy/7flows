@@ -451,17 +451,60 @@ function createPluginNode(config: PluginNodeConfig): React.ComponentType<NodePro
 
 ## 16. 安全与交互模型（Security & Interaction Model）
 
-### 16.1 插件沙盒安全
+### 16.1 分级执行与插件沙盒安全
 
-每个插件运行在独立的隔离环境中，确保插件崩溃或恶意行为不影响宿主平台：
+7Flows 不采用“所有节点默认重隔离”的执行模式，而是采用“统一工作流执行器 + 分级节点执行层 + 少量高风险节点强隔离”的架构。
+
+执行分层建议如下：
+
+1. 工作流执行器
+   - 统一负责 DAG 调度、上下文状态、节点输入输出传递、重试、超时、checkpoint、waiting / resume 和事件落库。
+2. 普通节点运行层
+   - 直接在 worker 内执行内建节点、官方节点和可信节点。
+3. 沙箱执行层
+   - 只给代码节点、用户自定义节点、插件脚本和高风险工具节点使用。
+4. 强隔离执行层
+   - 面向极少数高权限、高破坏面或高合规要求节点，首版先预留 `microvm` 路径。
+
+关键边界：
+
+- 工作流执行器必须保持唯一主控；sandbox job、插件 runtime、microvm runner 只提供执行，不拥有第二套流程状态机。
+- `NodeType` 与 `ExecutionClass` 必须分离建模；同样是 `tool` 节点，可因来源和风险不同进入不同执行类。
+- `execution class` 管执行隔离，`sensitivity_level` 管资源访问审批；两者不能混为同一条策略。
+
+```ts
+type ExecutionClass = 'inline' | 'subprocess' | 'sandbox' | 'microvm'
+
+type NodeExecutionPolicy = {
+  class: ExecutionClass
+  profile?: string
+  timeoutMs?: number
+  networkPolicy?: 'inherit' | 'restricted' | 'isolated'
+  filesystemPolicy?: 'inherit' | 'readonly_tmp' | 'ephemeral'
+}
+```
+
+推荐默认映射：
+
+| Execution Class | 默认适用对象 | 说明 |
+|------|------|------|
+| `inline` | Trigger / Output / Condition / Router / MCP / 可信工具 | 直接在 worker 中运行，适合绝大多数轻量节点 |
+| `subprocess` | 需要轻量隔离的本地节点或工具 | 与主 worker 分进程，但不进入完整沙盒 |
+| `sandbox` | Code / 用户自定义节点 / 插件脚本 / 浏览器与文件写入工具 | 进入独立容器或沙盒服务执行 |
+| `microvm` | 极少数高权限或高合规节点 | 更强隔离，首版先预留 |
+
+插件与工具不应一律独立容器。只有当能力本身涉及脚本执行、浏览器操作、文件写入、宿主访问面扩大或来源不可信时，才默认进入 `sandbox` 或未来的 `microvm`。
+
+对 `sandbox` 执行类，建议默认安全策略如下：
 
 | 维度 | 策略 |
 |------|------|
-| 进程隔离 | 每个插件运行在独立容器（Docker）或独立进程中 |
-| 网络隔离 | 默认禁止出站，通过白名单放行插件声明的域名 |
-| 文件系统 | 只读挂载插件代码，`/tmp` 可写但容量受限（默认 100MB） |
+| 进程隔离 | 默认运行在独立容器（Docker）或独立沙盒服务中 |
+| 网络隔离 | 默认禁止自由出站，通过白名单放行声明域名 |
+| 文件系统 | 只读挂载代码与依赖，`/tmp` 可写但容量受限（默认 100MB） |
 | 资源限额 | CPU: 1 core, Memory: 512MB, 执行超时: 30s（可配） |
 | 凭证注入 | 通过环境变量或 Secret Mount 注入，不明文传递 |
+| 结果回传 | 通过 artifact / callback / result channel 返回，不直接暴露宿主文件 |
 
 ```ts
 type SandboxPolicy = {
@@ -1107,6 +1150,7 @@ type CacheInvalidateEvent = {
 
 7Flows 的运行时目标不是“单个同步 HTTP 请求驱动整条链式执行”，而是 Durable Agent Workflow Runtime：
 
+- 工作流执行器始终是唯一主控，子执行器只承接具体执行
 - 节点可以进入 waiting 状态
 - waiting 后能通过 checkpoint 恢复
 - 工具慢、assistant 慢、外部回调慢时，主流程实例不丢失
@@ -1118,12 +1162,15 @@ type CacheInvalidateEvent = {
 
 - 最小 `Flow Compiler`：把 workflow/version 快照编译为运行时 blueprint
 - `RuntimeService`：以 phase state machine 风格驱动节点执行
+- 当前节点执行主路径仍以 worker 内联执行为主，尚未把 `execution class` 与 execution adapter registry 收口成独立层
 - `POST /api/runs/{run_id}/resume`：作为最小恢复入口
 - `run_artifacts`、`tool_call_records`、`ai_call_records`：作为独立运行态事实表
 - `waiting / resume + callback ticket` 已具备承接未来审批流的基础原语
 
 当前还未完整落地、不能假装已完成的部分：
 
+- 统一的 `ExecutionClass / NodeExecutionPolicy / Execution Adapter Registry`
+- `sandbox_code` 的正式运行时执行与高风险节点默认隔离链
 - 独立 queue / scheduler
 - `WAITING_CALLBACK` 的后台自动唤醒
 - 延迟重试和 timeout 的统一调度器
@@ -1179,6 +1226,7 @@ type NodeRunPhase =
 - `runs.current_node_id`
 - `runs.checkpoint_payload`
 - `node_runs.phase`
+- `node_runs.execution_class`
 - `node_runs.retry_count`
 - `node_runs.phase_started_at`
 - `node_runs.checkpoint_payload`
@@ -1238,6 +1286,11 @@ type AgentNodeExecutionConfig = {
   modelId?: string
   systemPrompt?: string
   prompt?: string
+  execution?: {
+    class?: 'inline' | 'subprocess' | 'sandbox' | 'microvm'
+    profile?: string
+    timeoutMs?: number
+  }
   toolPolicy?: {
     allowedToolIds?: string[]
   }
@@ -1354,6 +1407,7 @@ Tool Gateway 至少负责：
 - 工具注册入口复用
 - 参数校验
 - 权限控制
+- execution class 选择与执行适配器分发
 - 敏感访问决策挂点
 - 审批票据与通知触发挂点
 - 超时
@@ -1376,6 +1430,8 @@ type ToolExecutionResult = {
     toolName: string
     latencyMs: number
     truncated: boolean
+    executionClass?: 'inline' | 'subprocess' | 'sandbox' | 'microvm'
+    executorRef?: string
     accessDecision?: 'allow' | 'deny' | 'require_approval' | 'allow_masked'
     waitingReason?: string
     approvalTicketId?: string
@@ -1400,6 +1456,8 @@ type RunArtifactRecord = {
 
 type ToolCallTrace = {
   toolName: string
+  executionClass?: 'inline' | 'subprocess' | 'sandbox' | 'microvm'
+  executorRef?: string
   inputSummary: string
   outputSummary?: string
   rawRef?: string
