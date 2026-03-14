@@ -1621,3 +1621,43 @@ docker compose up -d --build
    - `web/components/run-diagnostics-panel.tsx`
 4. **P1：继续补节点配置完整度**
    - 把 provider / model / 参数配置做成更结构化的交互层，而不是继续堆叠在单一表单组件里
+
+## 2026-03-14 Published Gateway Invocation Recorder Split 事实
+
+### 背景
+
+- 最近产品代码提交 `0b4542d refactor: split published gateway response builders` 已经把 response builder 从 `api/app/services/published_gateway.py` 中拆出，但 invocation 审计落库仍然直接写在主执行链路里。
+- 这正是上一轮 runtime foundation 标记的 P0：继续把 publish gateway 从“大而全”服务往职责边界上收口。
+- 因此这轮继续承接发布治理主线，不新增功能面，而是进一步做结构治理。
+
+### 当前事实
+
+- 新增 `api/app/services/published_gateway_invocation_recorder.py`，把以下职责从 `PublishedEndpointGatewayService` 中剥离：
+  - invocation rejection / failed 记录
+  - invocation success / run-linked 记录
+  - success / failure 记录所需的上下文参数聚合
+- `api/app/services/published_gateway.py` 现通过注入 `PublishedGatewayInvocationRecorder` 复用记录逻辑：
+  - 主执行链路不再直接拼装两段长 `record_invocation(...)` 参数
+  - invocation 审计交接点从“主服务内部细节”收敛为显式 recorder 边界
+- 当前这轮没有改变发布 API 契约、cache 命中/回填策略、runtime 执行语义或 invocation 持久化结构，属于纯结构治理。
+- 从当前仓库整体看：
+  - 基础框架已经足够继续推进产品完整度，仍未到“只剩界面设计”的阶段。
+  - 架构解耦方向正确，且发布治理主线在连续推进。
+  - `api/app/services/runtime.py`、`api/app/services/published_invocation_audit.py`、`web/components/run-diagnostics-panel.tsx` 仍是明显结构热点。
+
+### 验证
+
+- `./.venv/Scripts/uv.exe run pytest tests/test_workflow_publish_routes.py tests/test_published_native_async_routes.py tests/test_published_protocol_async_routes.py -q`：29 passed
+
+### 本轮补充后的下一步规划
+
+1. **P0：继续拆 `api/app/services/published_gateway.py`**
+   - 优先继续抽离 protocol surface / binding resolution / cache orchestration，避免 publish gateway 再次膨胀。
+2. **P1：补流式 `stream_options.include_usage` 支持**
+   - 让 `AICallRecord` 与后续成本分析拿到完整 token usage，而不只停留在 latency。
+3. **P1：继续治理结构热点**
+   - `api/app/services/runtime.py`
+   - `api/app/services/published_invocation_audit.py`
+   - `web/components/run-diagnostics-panel.tsx`
+4. **P1：继续补节点配置完整度**
+   - 把 provider / model / 参数配置做成更结构化的交互层，而不是继续堆叠在单一表单组件里。

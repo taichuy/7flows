@@ -16,6 +16,11 @@ from app.services.published_cache import PublishedEndpointCacheService
 from app.services.published_gateway_response_builders import (
     PublishedGatewayResponseBuilder,
 )
+from app.services.published_gateway_invocation_recorder import (
+    PublishedGatewayInvocationContext,
+    PublishedGatewayInvocationRecorder,
+    PublishedGatewayInvocationSuccess,
+)
 from app.services.published_invocations import PublishedInvocationService
 from app.services.published_protocol_mapper import (
     build_anthropic_message_response,
@@ -53,6 +58,7 @@ class PublishedEndpointGatewayService:
         cache_service: PublishedEndpointCacheService | None = None,
         runtime_service: RuntimeService | None = None,
         response_builder: PublishedGatewayResponseBuilder | None = None,
+        invocation_recorder: PublishedGatewayInvocationRecorder | None = None,
     ) -> None:
         self._workflow_publish_service = workflow_publish_service or WorkflowPublishBindingService()
         self._api_key_service = api_key_service or PublishedEndpointApiKeyService()
@@ -60,6 +66,9 @@ class PublishedEndpointGatewayService:
         self._cache_service = cache_service or PublishedEndpointCacheService()
         self._runtime_service = runtime_service or RuntimeService()
         self._response_builder = response_builder or PublishedGatewayResponseBuilder()
+        self._invocation_recorder = invocation_recorder or PublishedGatewayInvocationRecorder(
+            invocation_service=self._invocation_service
+        )
 
     def record_protocol_rejection_by_alias(
         self,
@@ -653,21 +662,24 @@ class PublishedEndpointGatewayService:
             invocation_error = PublishedEndpointGatewayError(str(exc), status_code=500)
 
         finished_at = datetime.now(UTC)
+        invocation_context = PublishedGatewayInvocationContext(
+            binding=binding,
+            request_source=request_source,
+            request_preview_payload=request_preview_payload,
+            cache_status=cache_status,
+            cache_key=cache_key,
+            cache_entry_id=cache_entry_id,
+            request_surface_override=request_surface_override,
+            authenticated_key=authenticated_key,
+            started_at=started_at,
+            finished_at=finished_at,
+        )
         if invocation_error is not None:
-            self._invocation_service.record_invocation(
+            self._invocation_recorder.record_rejection(
                 db,
-                binding=binding,
-                request_source=request_source,
-                input_payload=request_preview_payload,
-                status="rejected" if invocation_error.status_code < 500 else "failed",
-                cache_status=cache_status,
-                cache_key=cache_key,
-                cache_entry_id=cache_entry_id,
-                request_surface_override=request_surface_override,
-                api_key_id=authenticated_key.id if authenticated_key is not None else None,
+                context=invocation_context,
                 error_message=str(invocation_error),
-                started_at=started_at,
-                finished_at=finished_at,
+                status_code=invocation_error.status_code,
             )
             raise invocation_error
 
@@ -694,23 +706,15 @@ class PublishedEndpointGatewayService:
             run_payload.get("error_message") if run_payload is not None else executed_run_error
         )
 
-        self._invocation_service.record_invocation(
+        self._invocation_recorder.record_success(
             db,
-            binding=binding,
-            request_source=request_source,
-            input_payload=request_preview_payload,
-            status="failed" if recorded_run_status == "failed" else "succeeded",
-            cache_status=cache_status,
-            cache_key=cache_key,
-            cache_entry_id=cache_entry_id,
-            request_surface_override=request_surface_override,
-            api_key_id=authenticated_key.id if authenticated_key is not None else None,
-            run_id=recorded_run_id,
-            run_status=recorded_run_status,
-            response_payload=response_preview_payload,
-            error_message=recorded_error_message,
-            started_at=started_at,
-            finished_at=finished_at,
+            context=invocation_context,
+            result=PublishedGatewayInvocationSuccess(
+                response_preview_payload=response_preview_payload,
+                run_id=recorded_run_id,
+                run_status=recorded_run_status,
+                error_message=recorded_error_message,
+            ),
         )
         return PublishedGatewayInvokeResult(
             response_payload=response_payload,
