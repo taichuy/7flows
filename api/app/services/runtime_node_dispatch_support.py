@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.run import NodeRun
+from app.services.runtime_execution_adapters import NodeExecutionRequest
+from app.services.runtime_execution_policy import execution_policy_from_node_run_input
 from app.services.runtime_types import (
     AuthorizedContextRefs,
     NodeExecutionResult,
@@ -14,12 +16,51 @@ from app.services.runtime_types import (
     WorkflowExecutionError,
 )
 
-
 _log = logging.getLogger(__name__)
 
 
 class RuntimeNodeDispatchSupportMixin:
     def _execute_node(
+        self,
+        db: Session,
+        *,
+        node: dict,
+        node_run: NodeRun,
+        node_input: dict,
+        run_id: str,
+        attempt_number: int,
+        authorized_context: AuthorizedContextRefs,
+        outputs: dict[str, dict],
+    ) -> NodeExecutionResult:
+        execution_policy = execution_policy_from_node_run_input(
+            node_input,
+            node_type=str(node.get("type") or ""),
+        )
+        return self._execution_adapter_registry.execute(
+            NodeExecutionRequest(
+                db=db,
+                node=node,
+                node_run=node_run,
+                node_input=node_input,
+                run_id=run_id,
+                attempt_number=attempt_number,
+                authorized_context=authorized_context,
+                outputs=outputs,
+                execution_policy=execution_policy,
+                inline_executor=lambda: self._execute_node_inline(
+                    db,
+                    node=node,
+                    node_run=node_run,
+                    node_input=node_input,
+                    run_id=run_id,
+                    attempt_number=attempt_number,
+                    authorized_context=authorized_context,
+                    outputs=outputs,
+                ),
+            )
+        )
+
+    def _execute_node_inline(
         self,
         db: Session,
         *,

@@ -24,21 +24,22 @@ from app.services.plugin_runtime import (
     get_plugin_call_proxy,
     get_plugin_registry,
 )
-from app.services.runtime_execution_progress_support import (
-    RuntimeExecutionProgressSupportMixin,
-)
-from app.services.runtime_node_dispatch_support import RuntimeNodeDispatchSupportMixin
-from app.services.runtime_node_preparation_support import (
-    RuntimeNodePreparationSupportMixin,
-)
 from app.services.run_callback_tickets import RunCallbackTicketService
 from app.services.run_resume_scheduler import (
     RunResumeScheduler,
     get_run_resume_scheduler,
 )
+from app.services.runtime_execution_adapters import RuntimeExecutionAdapterRegistry
+from app.services.runtime_execution_progress_support import (
+    RuntimeExecutionProgressSupportMixin,
+)
 from app.services.runtime_graph_support import RuntimeGraphSupportMixin
 from app.services.runtime_lifecycle_support import RuntimeLifecycleSupportMixin
+from app.services.runtime_node_dispatch_support import RuntimeNodeDispatchSupportMixin
 from app.services.runtime_node_execution_support import RuntimeNodeExecutionSupportMixin
+from app.services.runtime_node_preparation_support import (
+    RuntimeNodePreparationSupportMixin,
+)
 from app.services.runtime_records import ExecutionArtifacts
 from app.services.runtime_run_support import RuntimeRunSupportMixin
 from app.services.runtime_types import (
@@ -77,6 +78,10 @@ class RuntimeService(
         self._credential_store = CredentialStore()
         self._callback_tickets = RunCallbackTicketService()
         self._llm_provider = LLMProviderService()
+        self._execution_adapter_registry = RuntimeExecutionAdapterRegistry(
+            artifact_store=self._artifact_store,
+            context_service=self._context_service,
+        )
         self._tool_gateway = ToolGateway(
             plugin_call_proxy=self._plugin_call_proxy,
             artifact_store=self._artifact_store,
@@ -248,6 +253,10 @@ class RuntimeService(
         registry = get_plugin_registry()
         get_plugin_registry_store().hydrate_registry(db, registry)
         self._plugin_call_proxy = PluginCallProxy(registry)
+        self._execution_adapter_registry = RuntimeExecutionAdapterRegistry(
+            artifact_store=self._artifact_store,
+            context_service=self._context_service,
+        )
         self._tool_gateway = ToolGateway(
             plugin_call_proxy=self._plugin_call_proxy,
             artifact_store=self._artifact_store,
