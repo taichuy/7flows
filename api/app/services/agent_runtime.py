@@ -14,6 +14,7 @@ from app.services.agent_runtime_llm_support import AgentRuntimeLLMSupportMixin
 from app.services.artifact_store import RuntimeArtifactStore
 from app.services.context_service import ContextService
 from app.services.llm_provider import LLMProviderService, LLMResponse
+from app.services.runtime_execution_policy import resolve_tool_execution_policy
 from app.services.runtime_types import (
     PHASE_STATUS_MAP,
     AgentExecutionResult,
@@ -21,6 +22,7 @@ from app.services.runtime_types import (
     ToolExecutionResult,
     WorkflowExecutionError,
 )
+from app.services.tool_execution_events import build_tool_execution_events
 from app.services.tool_gateway import ToolGateway
 
 _log = logging.getLogger(__name__)
@@ -128,6 +130,11 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             self._transition_phase(node_run, "tool_execute", events, node)
         while next_tool_index < len(plan.tool_calls):
             tool_call = plan.tool_calls[next_tool_index]
+            tool_execution_policy = resolve_tool_execution_policy(
+                tool_call=tool_call.execution,
+                tool_policy=self._to_dict(config.get("toolPolicy")),
+                ecosystem=tool_call.ecosystem,
+            )
             try:
                 tool_result = self._tool_gateway.execute(
                     db,
@@ -140,6 +147,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
                     inputs=tool_call.inputs,
                     credentials=creds or None,
                     timeout_ms=tool_call.timeout_ms,
+                    execution_policy=tool_execution_policy,
                     allowed_tool_ids=self._allowed_tool_ids(config),
                     retry_count=node_run.retry_count,
                 )
@@ -185,6 +193,14 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
                     events=events,
                 )
 
+            events.extend(
+                build_tool_execution_events(
+                    node_id=node["id"],
+                    tool_id=tool_call.tool_id,
+                    tool_name=str(tool_result.meta.get("tool_name") or tool_call.tool_id),
+                    tool_result=tool_result,
+                )
+            )
             if next_tool_index < len(tool_results):
                 tool_results[next_tool_index] = tool_result
             else:

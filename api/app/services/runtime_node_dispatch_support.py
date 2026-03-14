@@ -15,6 +15,7 @@ from app.services.runtime_types import (
     RuntimeEvent,
     WorkflowExecutionError,
 )
+from app.services.tool_execution_events import build_tool_execution_events
 
 _log = logging.getLogger(__name__)
 
@@ -169,23 +170,34 @@ class RuntimeNodeDispatchSupportMixin:
             inputs=self._tool_inputs_for_node(config, node_input),
             credentials=resolved_credentials,
             timeout_ms=int(tool_ref.get("timeoutMs") or get_settings().plugin_default_timeout_ms),
+            execution_policy=execution_policy_from_node_run_input(
+                node_input,
+                node_type=str(node.get("type") or ""),
+            ),
         )
         if tool_result.raw_ref:
             self._context_service.append_artifact_ref(node_run, tool_result.raw_ref)
+        events = build_tool_execution_events(
+            node_id=node["id"],
+            tool_id=tool_ref["toolId"],
+            tool_name=str(tool_result.meta.get("tool_name") or tool_ref["toolId"]),
+            tool_result=tool_result,
+        )
+        events.append(
+            RuntimeEvent(
+                "tool.completed",
+                {
+                    "node_id": node["id"],
+                    "tool_id": tool_ref["toolId"],
+                    "summary": tool_result.summary,
+                    "raw_ref": tool_result.raw_ref,
+                    "content_type": tool_result.content_type,
+                },
+            )
+        )
         return NodeExecutionResult(
             output=tool_result.structured,
-            events=[
-                RuntimeEvent(
-                    "tool.completed",
-                    {
-                        "node_id": node["id"],
-                        "tool_id": tool_ref["toolId"],
-                        "summary": tool_result.summary,
-                        "raw_ref": tool_result.raw_ref,
-                        "content_type": tool_result.content_type,
-                    },
-                )
-            ],
+            events=events,
         )
 
     def _node_has_tool_binding(self, node: dict) -> bool:

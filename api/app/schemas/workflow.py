@@ -145,6 +145,7 @@ class WorkflowNodeToolPolicy(BaseModel):
 
     allowedToolIds: list[str] = Field(default_factory=list)
     timeoutMs: int | None = Field(default=None, ge=1, le=600_000)
+    execution: WorkflowNodeExecutionPolicy | None = None
 
 
 class WorkflowNodeAgentToolCall(BaseModel):
@@ -155,6 +156,7 @@ class WorkflowNodeAgentToolCall(BaseModel):
     adapterId: str | None = Field(default=None, min_length=1, max_length=128)
     inputs: dict[str, Any] = Field(default_factory=dict)
     timeoutMs: int | None = Field(default=None, ge=1, le=600_000)
+    execution: WorkflowNodeExecutionPolicy | None = None
 
 
 class WorkflowNodeAgentMockPlan(BaseModel):

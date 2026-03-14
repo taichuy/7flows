@@ -150,6 +150,7 @@ class AgentRuntimeLLMSupportMixin:
                         if raw_tool_call.get("timeoutMs") is not None
                         else None
                     ),
+                    execution=self._to_dict(raw_tool_call.get("execution")),
                 )
             )
         need_assistant = bool(raw_plan.get("needAssistant")) if raw_plan else False
@@ -212,6 +213,9 @@ class AgentRuntimeLLMSupportMixin:
                         if raw_tool_call.get("timeoutMs") is not None
                         else None
                     ),
+                    execution=deepcopy(raw_tool_call.get("execution"))
+                    if isinstance(raw_tool_call.get("execution"), dict)
+                    else {},
                 )
             )
         return AgentPlan(
@@ -453,7 +457,7 @@ class AgentRuntimeLLMSupportMixin:
         if tool_results:
             summaries = [result.summary for result in tool_results if result.summary]
             if summaries:
-                context_parts.append(f"[Tool results]\n" + "\n".join(summaries))
+                context_parts.append("[Tool results]\n" + "\n".join(summaries))
         if plan.analysis:
             context_parts.append(f"[Analysis]\n{plan.analysis}")
 

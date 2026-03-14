@@ -1,14 +1,12 @@
 ﻿from datetime import UTC, datetime, timedelta
 
-import pytest
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.run import RunCallbackTicket
-from app.models.workflow import Workflow, WorkflowCompiledBlueprint, WorkflowVersion
+from app.models.workflow import Workflow, WorkflowVersion
 from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
 from app.services.run_resume_scheduler import RunResumeScheduler
-from app.services.runtime import RuntimeService, WorkflowExecutionError
+from app.services.runtime import RuntimeService
 
 
 def test_llm_agent_without_assistant_keeps_legacy_like_output(sqlite_session: Session) -> None:
@@ -123,6 +121,130 @@ def test_llm_agent_with_assistant_distills_tool_results_into_evidence(
         "main_finalize",
     ]
     assert "assistant.completed" in [event.event_type for event in artifacts.events]
+
+
+def test_llm_agent_tool_policy_execution_records_tool_execution_trace(
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-agent-tool-execution",
+        name="Agent Tool Execution Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llm_agent",
+                    "name": "Agent",
+                    "config": {
+                        "assistant": {"enabled": False},
+                        "toolPolicy": {
+                            "allowedToolIds": ["native.search"],
+                            "execution": {
+                                "class": "sandbox",
+                                "profile": "risk-reviewed",
+                                "timeoutMs": 15000,
+                            },
+                        },
+                        "mockPlan": {
+                            "toolCalls": [
+                                {
+                                    "toolId": "native.search",
+                                    "inputs": {"query": "tool-execution"},
+                                }
+                            ]
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(id="native.search", name="Native Search"),
+        invoker=lambda request: {
+            "status": "success",
+            "content_type": "json",
+            "summary": "tool execution traced",
+            "structured": {"documents": ["alpha"], "query": request.inputs["query"]},
+            "meta": {"tool_name": "Native Search"},
+        },
+    )
+
+    artifacts = RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
+        sqlite_session,
+        workflow,
+        {"topic": "agent"},
+    )
+
+    agent_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "agent")
+    dispatched_event = next(
+        event
+        for event in artifacts.events
+        if event.node_run_id == agent_run.id and event.event_type == "tool.execution.dispatched"
+    )
+    assert dispatched_event.payload == {
+        "node_id": "agent",
+        "tool_id": "native.search",
+        "tool_name": "Native Search",
+        "requested_execution_class": "sandbox",
+        "effective_execution_class": "inline",
+        "execution_source": "tool_policy",
+        "requested_execution_profile": "risk-reviewed",
+        "requested_execution_timeout_ms": 15000,
+        "requested_network_policy": None,
+        "requested_filesystem_policy": None,
+        "executor_ref": "tool:native-inline",
+    }
+
+    fallback_event = next(
+        event
+        for event in artifacts.events
+        if event.node_run_id == agent_run.id and event.event_type == "tool.execution.fallback"
+    )
+    assert fallback_event.payload == {
+        "node_id": "agent",
+        "tool_id": "native.search",
+        "tool_name": "Native Search",
+        "requested_execution_class": "sandbox",
+        "effective_execution_class": "inline",
+        "execution_source": "tool_policy",
+        "requested_execution_profile": "risk-reviewed",
+        "requested_execution_timeout_ms": 15000,
+        "requested_network_policy": None,
+        "requested_filesystem_policy": None,
+        "executor_ref": "tool:native-inline",
+        "reason": "native_tools_currently_inline_only",
+    }
+
+    tool_result_artifact = next(
+        artifact
+        for artifact in artifacts.artifacts
+        if artifact.node_run_id == agent_run.id and artifact.artifact_kind == "tool_result"
+    )
+    assert tool_result_artifact.metadata_payload == {
+        "tool_id": "native.search",
+        "tool_name": "native.search",
+        "requested_execution_class": "sandbox",
+        "effective_execution_class": "inline",
+        "execution_source": "tool_policy",
+        "requested_execution_profile": "risk-reviewed",
+        "requested_execution_timeout_ms": 15000,
+        "requested_network_policy": None,
+        "requested_filesystem_policy": None,
+        "executor_ref": "tool:native-inline",
+        "fallback_reason": "native_tools_currently_inline_only",
+    }
 
 
 def test_llm_agent_waiting_tool_can_resume(sqlite_session: Session) -> None:

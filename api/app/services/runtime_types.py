@@ -144,6 +144,7 @@ class AgentToolCall:
     adapter_id: str | None = None
     label: str | None = None
     timeout_ms: int | None = None
+    execution: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -164,6 +165,7 @@ class AgentPlan:
                     "adapterId": tool_call.adapter_id,
                     "label": tool_call.label,
                     "timeoutMs": tool_call.timeout_ms,
+                    "execution": tool_call.execution,
                 }
                 for tool_call in self.tool_calls
             ],

@@ -14,6 +14,10 @@ from app.models.plugin import PluginToolRecord
 from app.models.run import NodeRun, ToolCallRecord
 from app.services.artifact_store import RuntimeArtifactStore
 from app.services.plugin_runtime import PluginCallProxy, PluginCallRequest, PluginInvocationError
+from app.services.runtime_execution_policy import (
+    ResolvedExecutionPolicy,
+    default_execution_class_for_tool_ecosystem,
+)
 from app.services.runtime_types import ToolExecutionResult, WorkflowExecutionError
 
 
@@ -44,6 +48,7 @@ class ToolGateway:
         adapter_id: str | None = None,
         credentials: dict[str, str] | None = None,
         timeout_ms: int | None = None,
+        execution_policy: ResolvedExecutionPolicy | None = None,
         allowed_tool_ids: set[str] | None = None,
         retry_count: int = 0,
     ) -> ToolExecutionResult:
@@ -71,6 +76,11 @@ class ToolGateway:
         db.flush()
 
         resolved_timeout_ms = timeout_ms or get_settings().plugin_default_timeout_ms
+        execution_trace = self._resolve_execution_trace(
+            ecosystem=ecosystem,
+            adapter_id=adapter_id,
+            execution_policy=execution_policy,
+        )
         started_at = time.perf_counter()
         try:
             response = self._plugin_call_proxy.invoke(
@@ -93,6 +103,10 @@ class ToolGateway:
                 payload=response.output,
                 latency_ms=response.duration_ms
                 or int((time.perf_counter() - started_at) * 1000),
+                artifact_metadata=execution_trace,
+            )
+            result.meta.update(
+                {key: value for key, value in execution_trace.items() if value is not None}
             )
             result.meta.setdefault("tool_call_id", call_record.id)
             call_record.status = result.status
@@ -129,7 +143,9 @@ class ToolGateway:
         payload: dict[str, Any],
         tool_id: str | None = None,
     ) -> ToolExecutionResult:
-        resolved_tool_id = tool_id or (tool_call_record.tool_id if tool_call_record is not None else "")
+        resolved_tool_id = (
+            tool_id or (tool_call_record.tool_id if tool_call_record is not None else "")
+        )
         resolved_tool_name = (
             tool_call_record.tool_name
             if tool_call_record is not None
@@ -185,7 +201,13 @@ class ToolGateway:
         tool_name: str,
         payload: dict[str, Any],
         latency_ms: int,
+        artifact_metadata: dict[str, Any] | None = None,
     ) -> ToolExecutionResult:
+        normalized_artifact_metadata = {
+            "tool_id": tool_id,
+            "tool_name": tool_name,
+            **dict(artifact_metadata or {}),
+        }
         if self._is_normalized_tool_payload(payload):
             normalized = deepcopy(payload)
             meta = dict(normalized.get("meta") or {})
@@ -202,7 +224,7 @@ class ToolGateway:
                     value=normalized.get("structured") or {},
                     content_type=normalized.get("content_type") or "json",
                     summary=normalized.get("summary") or "",
-                    metadata_payload={"tool_id": tool_id, "tool_name": tool_name},
+                    metadata_payload=normalized_artifact_metadata,
                 )
                 raw_ref = artifact_ref.uri
             return ToolExecutionResult(
@@ -221,7 +243,7 @@ class ToolGateway:
             artifact_kind="tool_result",
             value=payload,
             content_type=self._artifact_store.infer_content_type(payload),
-            metadata_payload={"tool_id": tool_id, "tool_name": tool_name},
+            metadata_payload=normalized_artifact_metadata,
         )
         return ToolExecutionResult(
             status="success",
@@ -244,3 +266,40 @@ class ToolGateway:
             and isinstance(payload.get("content_type"), str)
             and "structured" in payload
         )
+
+    def _resolve_execution_trace(
+        self,
+        *,
+        ecosystem: str,
+        adapter_id: str | None,
+        execution_policy: ResolvedExecutionPolicy | None,
+    ) -> dict[str, Any]:
+        resolved_policy = execution_policy or ResolvedExecutionPolicy(
+            execution_class=default_execution_class_for_tool_ecosystem(ecosystem),
+            source="default",
+        )
+        requested_execution_class = resolved_policy.execution_class
+        if ecosystem == "native":
+            effective_execution_class = "inline"
+            executor_ref = "tool:native-inline"
+            fallback_reason = None
+            if requested_execution_class != effective_execution_class:
+                fallback_reason = "native_tools_currently_inline_only"
+        else:
+            effective_execution_class = "subprocess"
+            executor_ref = f"tool:compat-adapter:{adapter_id or ecosystem}"
+            fallback_reason = None
+            if requested_execution_class != effective_execution_class:
+                fallback_reason = "compat_tools_currently_bridge_via_adapter_service"
+
+        return {
+            "requested_execution_class": requested_execution_class,
+            "effective_execution_class": effective_execution_class,
+            "execution_source": resolved_policy.source,
+            "requested_execution_profile": resolved_policy.profile,
+            "requested_execution_timeout_ms": resolved_policy.timeout_ms,
+            "requested_network_policy": resolved_policy.network_policy,
+            "requested_filesystem_policy": resolved_policy.filesystem_policy,
+            "executor_ref": executor_ref,
+            "fallback_reason": fallback_reason,
+        }

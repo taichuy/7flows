@@ -56,6 +56,79 @@ def default_execution_class_for_node_type(node_type: str) -> str:
     return "inline"
 
 
+def default_execution_class_for_tool_ecosystem(ecosystem: str) -> str:
+    if ecosystem == "native":
+        return "inline"
+    return "subprocess"
+
+
+def _resolve_tool_execution_from_payload(
+    execution: dict[str, Any],
+    *,
+    default_class: str,
+    source: str,
+) -> ResolvedExecutionPolicy:
+    execution_class = str(execution.get("class") or default_class).strip().lower()
+    if execution_class not in _EXECUTION_CLASSES:
+        execution_class = default_class
+
+    profile = execution.get("profile")
+    normalized_profile = str(profile).strip() if isinstance(profile, str) else ""
+
+    timeout_ms = execution.get("timeoutMs")
+    normalized_timeout_ms = timeout_ms if isinstance(timeout_ms, int) else None
+
+    normalized_network_policy = _normalize_enum(
+        execution.get("networkPolicy"),
+        _NETWORK_POLICIES,
+    )
+    normalized_filesystem_policy = _normalize_enum(
+        execution.get("filesystemPolicy"),
+        _FILESYSTEM_POLICIES,
+    )
+
+    return ResolvedExecutionPolicy(
+        execution_class=execution_class,
+        source=source,
+        profile=normalized_profile or None,
+        timeout_ms=normalized_timeout_ms,
+        network_policy=normalized_network_policy,
+        filesystem_policy=normalized_filesystem_policy,
+    )
+
+
+def resolve_tool_execution_policy(
+    *,
+    tool_call: dict[str, Any] | None,
+    tool_policy: dict[str, Any] | None,
+    ecosystem: str,
+) -> ResolvedExecutionPolicy:
+    default_class = default_execution_class_for_tool_ecosystem(ecosystem)
+
+    if isinstance(tool_call, dict):
+        call_execution = tool_call.get("execution")
+        if isinstance(call_execution, dict):
+            return _resolve_tool_execution_from_payload(
+                call_execution,
+                default_class=default_class,
+                source="tool_call",
+            )
+
+    if isinstance(tool_policy, dict):
+        policy_execution = tool_policy.get("execution")
+        if isinstance(policy_execution, dict):
+            return _resolve_tool_execution_from_payload(
+                policy_execution,
+                default_class=default_class,
+                source="tool_policy",
+            )
+
+    return ResolvedExecutionPolicy(
+        execution_class=default_class,
+        source="default",
+    )
+
+
 def resolve_execution_policy(node: dict[str, Any]) -> ResolvedExecutionPolicy:
     node_type = str(node.get("type") or "")
     runtime_policy = node.get("runtimePolicy")

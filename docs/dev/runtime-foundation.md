@@ -12,11 +12,11 @@
 
 - 项目已经具备“可编排、可调试、可发布、可追溯”的后端基础骨架，不再是只有底座的空框架。
 - 当前仍未进入“只剩界面润色或人工全链路验收”的阶段，后续开发应继续围绕主业务闭环推进，因此本轮不触发人工界面验收通知脚本。
-- `HEAD` 提交 `e8db456 docs: refresh status review and priorities` 主要完成现状复核与优先级衔接；本轮在该提交之后继续承接 `153a20c feat: add runtime execution policy trace surface`，已把 `RuntimeExecutionAdapterRegistry`、`sandbox_code` host-subprocess MVP 执行链和非 inline execution class 的 fallback trace 接到 runtime 主链。
+- 上一次提交 `cd1611b feat: add runtime execution adapter mvp` 已把 `RuntimeExecutionAdapterRegistry`、`sandbox_code` host-subprocess MVP 执行链和非 inline execution class 的 fallback trace 接到 runtime 主链；本轮继续承接该方向，把 `ToolGateway`、`llm_agent.toolPolicy` 与 tool node 真正接进 execution-aware dispatch，并把 `tool.execution.dispatched / tool.execution.fallback` 回写到统一事件流与 artifact metadata。
 - 面向 AI / 自动化 的追溯仍必须以 `runs / node_runs / run_events / run_artifacts / tool_call_records / ai_call_records` 为事实源，前端面板只负责摘要、导航和排障入口。
 - 当前产品基线已进一步明确：7Flows 同时服务人类用户与 AI 用户，后续工作台、发布接口与运行态接口演进时，应保持人机交互、人与 AI 协作、AI 独立操作三类场景的结果语义一致。
 - `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；当前代码已有 ToolGateway、waiting/resume 与 callback ticket 原语，但尚未落成独立事实层、策略挂点与 API。
-- 2026-03-15 复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 通过（221 passed），本轮改动相关文件的 `ruff check` 通过；前端最近一次 `pnpm lint` 与 `pnpm exec tsc --noEmit` 复核仍为通过。后端全量 `ruff check` 复核后仍有 72 条历史风格/整理债务尚未在本轮整体清零，因此稳定性基线已继续提升，但还未达到“全仓库零告警”。
+- 2026-03-15 复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 通过（222 passed），本轮改动相关文件的 `ruff check` 通过；前端最近一次 `pnpm lint` 与 `pnpm exec tsc --noEmit` 复核仍为通过。后端全量 `ruff check` 复核后仍有历史风格/整理债务尚未在本轮整体清零，因此稳定性基线已继续提升，但还未达到“全仓库零告警”。
 
 ## 当前代码事实
 
@@ -33,7 +33,7 @@
 - 当前执行器已支持拓扑排序、条件/路由分支、join、mapping、节点重试、waiting/resume、callback ticket、artifact 引用和统一事件落库。
 - 现有 `waiting/resume + callback ticket` 原语已经足够承接未来审批闭环，但当前仍缺统一的 `SensitiveAccessRequest / ApprovalTicket / NotificationDispatch` 模型与拦截挂点。
 - Runtime 主链已连续完成 run support、graph support、progress support、node preparation、node dispatch 等分层治理，`runtime.py` 已显著收口到执行入口与 `_continue_execution` orchestration 主链。
-- Runtime execution 现已经由 `llm_agent -> AgentRuntime`、`tool -> ToolGateway`、`node -> RuntimeExecutionAdapterRegistry` 三条主链推进：`runtimePolicy.execution` 已能进入 workflow schema、node input 和 execution view，`sandbox_code` 也已接入 host-subprocess MVP 执行链，并把 `node.execution.dispatched / node.execution.fallback / sandbox_code.completed` 写回统一事件流与 artifact store；但 ToolGateway execution-aware dispatch、tool/plugin 默认 execution class 映射，以及真实 `sandbox` / `microvm` adapter 仍待继续落地。
+- Runtime execution 现已经由 `llm_agent -> AgentRuntime`、`tool -> ToolGateway`、`node -> RuntimeExecutionAdapterRegistry` 三条主链推进：`runtimePolicy.execution` 已能进入 workflow schema、node input 和 execution view，`sandbox_code` 也已接入 host-subprocess MVP 执行链；本轮继续把 ToolGateway execution-aware dispatch、tool/plugin 默认 execution class 映射、`llm_agent.toolPolicy.execution` 与 tool node execution trace 接进主链，并把 `tool.execution.dispatched / tool.execution.fallback` 与 tool result artifact metadata 对齐；但真实 `sandbox` / `microvm` tool adapter 与敏感访问拦截仍待继续落地。
 - `loop` 节点仍未在 MVP 执行器中开放执行；循环能力仍需通过后续 runtime 演进补齐，不能假装已完成。
 - `run_events` 仍是调试、回放、SSE 和 AI 追溯的统一事件源，不应为不同界面另起事实层。
 
@@ -88,8 +88,8 @@
 
 ## 下一步规划
 
-1. **P0：继续把 graded execution 从 MVP 扩成完整执行链**
-   - `RuntimeExecutionAdapterRegistry` 与 `sandbox_code` host-subprocess MVP 已落地；下一步优先补 ToolGateway execution-aware dispatch、tool/plugin 默认 execution class 映射，以及真实 `sandbox` / `microvm` adapter，避免 execution policy 长期停留在“少数节点可执行、其余节点只 fallback”。
+1. **P0：继续把 graded execution 从 execution-aware 扩成真实隔离能力**
+   - `RuntimeExecutionAdapterRegistry`、`sandbox_code` host-subprocess MVP，以及 ToolGateway / `llm_agent.toolPolicy.execution` / tool node 的 execution-aware dispatch 已落地；下一步优先补真实 `sandbox` / `microvm` tool adapter、compat plugin execution boundary 对接与 execution trace 摘要聚合，避免 execution policy 长期停留在“有 trace 但少数能力仍 fallback”。
 2. **P0：定义并落地统一敏感访问控制闭环**
    - 围绕 `sensitivity_level / requester_type / action_type` 补齐 `SensitiveAccessRequest`、`ApprovalTicket`、通知投递与审计事件事实层，并优先把拦截点挂到 ToolGateway、credential resolve、context read 和 publish export 入口。
 3. **P0：补齐 `WAITING_CALLBACK` 的后台唤醒闭环**
