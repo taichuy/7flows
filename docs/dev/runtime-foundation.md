@@ -65,7 +65,7 @@
 - `api/app/api/routes/published_gateway.py`：10 行，当前仅保留 `/v1` 聚合入口；native / OpenAI / Anthropic surface 已分别拆到独立 route 文件，route 层最显著的单文件热点已解除。
 - `api/app/services/published_protocol_streaming.py`：459 行，仍集中承接 native / OpenAI / Anthropic 三类 SSE 映射，是发布层下一阶段更值得继续拆层的后端热点。
 - `api/app/services/published_gateway.py`：338 行，虽然 service 主体已明显比前期收敛，但 native / OpenAI / Anthropic surface orchestration 仍集中在同一服务里，后续可继续按 surface/helper 分层。
-- `web/components/workflow-editor-workbench.tsx`：528 行，虽然已有目录化拆分，但状态编排和运行 overlay 仍然偏重，后续需要继续收紧职责。
+- `web/components/workflow-editor-workbench.tsx`：237 行，本轮已收口为 orchestrator；graph state / node-edge mutation 已拆到 `use-workflow-editor-graph.ts`（353 行），run overlay 已拆到 `use-workflow-run-overlay.ts`（95 行），工作台主文件不再同时承担画布状态、运行拉取和保存编排三类职责。
 - `api/app/services/published_invocation_audit.py` 已收口到 197 行，但 publish governance 仍由 `published_invocation_audit_aggregation.py`（340 行）和 `published_invocation_audit_timeline.py`（206 行）承接；后续应继续防止查询、facet、timeline 再次回流单文件。
 - 当前项目整体判断不变：基础框架足够继续推主业务完整度，但还没到“只剩人工界面设计 / 全链路人工验收”的阶段。
 
@@ -78,7 +78,7 @@
 ## 下一步规划
 
 1. **P0：继续补节点配置与 workflow editor 完整度**
-   - 把 provider / model / tool / publish 配置继续做成结构化配置段，并继续收紧 `workflow-editor-workbench` 的状态编排职责。
+   - `workflow-editor-workbench` 主文件已拆到 orchestrator，下一步优先继续把 provider / model / publish 相关配置做成稳定 section，并按 graph persistence / publish config 继续收紧编辑器职责边界。
 2. **P1：补齐 `WAITING_CALLBACK` 的后台唤醒闭环**
    - 继续把 callback ticket、scheduler 和 resume orchestration 衔接成更完整的 durable execution 主链。
 3. **P1：继续治理 run diagnostics 详情层**

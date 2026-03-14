@@ -2,6 +2,8 @@
 
 import type { XYPosition } from "@xyflow/react";
 
+export type WorkflowEditorMessageTone = "success" | "error" | "idle";
+
 export function stringifyJson(value: unknown) {
   return JSON.stringify(value ?? {}, null, 2);
 }

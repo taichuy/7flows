@@ -12,6 +12,8 @@ import { type WorkflowRunListItem } from "@/lib/get-workflow-runs";
 import type { WorkflowListItem } from "@/lib/get-workflows";
 import { WorkflowRunOverlayPanel } from "@/components/workflow-run-overlay-panel";
 
+import type { WorkflowEditorMessageTone } from "./shared";
+
 type WorkflowEditorSidebarProps = {
   workflowId: string;
   workflowName: string;
@@ -20,7 +22,7 @@ type WorkflowEditorSidebarProps = {
   toolSourceLanes: WorkflowLibrarySourceLane[];
   editorNodeLibrary: WorkflowNodeCatalogItem[];
   message: string | null;
-  messageTone: "success" | "error" | "idle";
+  messageTone: WorkflowEditorMessageTone;
   runs: WorkflowRunListItem[];
   selectedRunId: string | null;
   run: RunDetail | null;
