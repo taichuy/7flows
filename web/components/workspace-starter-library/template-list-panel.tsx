@@ -2,8 +2,8 @@ import Link from "next/link";
 
 import {
   WorkspaceStarterBulkGovernanceCard,
-  type WorkspaceStarterBulkAction
 } from "@/components/workspace-starter-library/bulk-governance-card";
+import type { WorkspaceStarterBulkAction } from "@/lib/get-workspace-starters";
 import type {
   WorkspaceStarterBulkActionResult,
   WorkspaceStarterTemplateItem

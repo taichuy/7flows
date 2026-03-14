@@ -207,3 +207,106 @@ def test_openai_chat_completion_stream_route_uses_run_payload(
 
     assert response.headers["content-type"].startswith("text/event-stream")
     assert streamed_text == "route stream from run events"
+
+
+def _build_run_payload_with_real_deltas(text: str) -> dict:
+    return {
+        "id": "run_delta_test",
+        "status": "succeeded",
+        "events": [
+            {
+                "event_type": "run.started",
+                "payload": {"input": {"question": "hello"}},
+            },
+            {
+                "event_type": "node.started",
+                "node_run_id": "nr_output",
+                "payload": {"id": "output", "type": "output", "name": "Output"},
+            },
+            {
+                "event_type": "node.output.delta",
+                "node_run_id": "nr_output",
+                "payload": {"node_id": "output", "delta": text},
+            },
+            {
+                "event_type": "node.output.completed",
+                "node_run_id": "nr_output",
+                "payload": {"node_id": "output", "output": {"answer": text}},
+            },
+            {
+                "event_type": "run.output.delta",
+                "payload": {"delta": text},
+            },
+            {
+                "event_type": "run.completed",
+                "payload": {"output": {"answer": text}},
+            },
+        ],
+    }
+
+
+def test_protocol_streaming_prefers_real_deltas_over_output_fallback() -> None:
+    run_payload = _build_run_payload_with_real_deltas("real delta text")
+    packets = _collect_sse_packets(
+        build_openai_chat_completion_stream(
+            {
+                "id": "chatcmpl_delta_test",
+                "created": 1,
+                "model": "gpt-7flows-test",
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": "fallback text should not appear",
+                        },
+                        "finish_reason": "stop",
+                    }
+                ],
+            },
+            run_payload=run_payload,
+        )
+    )
+
+    payloads = [json.loads(data) for _, data in packets if data != "[DONE]"]
+    streamed_text = "".join(
+        payload["choices"][0]["delta"].get("content", "")
+        for payload in payloads
+        if payload["choices"][0]["delta"].get("content")
+    )
+
+    assert streamed_text == "real delta text"
+
+
+def test_native_stream_skips_synthetic_deltas_when_real_deltas_present() -> None:
+    from app.services.published_protocol_streaming import build_native_run_stream
+
+    response_payload = {
+        "binding_id": "bind_test",
+        "workflow_id": "wf_test",
+        "endpoint_id": "ep_test",
+        "workflow_version": "0.1.0",
+        "compiled_blueprint_id": "bp_test",
+        "run": _build_run_payload_with_real_deltas("native delta"),
+    }
+
+    packets = _collect_sse_packets(build_native_run_stream(response_payload))
+
+    event_names = [name for name, _ in packets if name is not None]
+    delta_events = [(name, data) for name, data in packets if name in ("node.output.delta", "run.output.delta")]
+
+    assert "node.output.delta" in event_names
+    assert "run.output.delta" in event_names
+
+    node_delta_payload = json.loads(delta_events[0][1])
+    assert node_delta_payload["delta"] == "native delta"
+
+    run_delta_payload = json.loads(delta_events[1][1])
+    assert run_delta_payload["delta"] == "native delta"
+
+    synthetic_run_deltas = [
+        (name, data)
+        for name, data in packets
+        if name == "run.output.delta" and "run_7flows_stream" in data
+    ]
+    assert len(synthetic_run_deltas) == 0

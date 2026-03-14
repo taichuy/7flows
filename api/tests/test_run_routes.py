@@ -129,7 +129,7 @@ def test_get_run_trace_supports_machine_filters(
     ) == _parse_trace_datetime(body["events"][1]["created_at"]).replace(tzinfo=None)
     assert trace_body["summary"]["returned_duration_ms"] >= 0
     assert "input" in trace_body["summary"]["available_payload_keys"]
-    assert "node_type" in trace_body["summary"]["available_payload_keys"]
+    assert "type" in trace_body["summary"]["available_payload_keys"]
     assert trace_body["summary"]["first_event_id"] == body["events"][0]["id"]
     assert trace_body["summary"]["last_event_id"] == body["events"][1]["id"]
     assert trace_body["summary"]["prev_cursor"] is None

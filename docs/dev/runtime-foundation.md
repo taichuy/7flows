@@ -109,10 +109,12 @@ uv run alembic upgrade head
 - `run.started`
 - `run.resumed`
 - `run.waiting`
+- `run.output.delta`
 - `node.started`
 - `node.phase.changed`
 - `node.skipped`
 - `node.retrying`
+- `node.output.delta`
 - `node.output.completed`
 - `node.context.read`
 - `node.join.ready`
@@ -417,7 +419,7 @@ uv run alembic upgrade head
 - `POST /v1/messages-async` 当前会沿同一条 alias binding 承接 Anthropic waiting run，并返回同样的 protocol async envelope
 - 当前开放 API 仍保持 MVP 诚实边界：
   - `native/openai/anthropic` 入口都只支持 `auth_mode=internal/api_key`
-  - native publish 入口当前仍未补原生 SSE；OpenAI / Anthropic sync route 已支持 binding 级 replay-style SSE
+  - `native / openai / anthropic` sync route 当前都已支持 binding 级 SSE，且已开始从 runtime 产出的 `node.output.delta` / `run.output.delta` 事件中提取真实文本，不再完全依赖 publish 层基于最终输出的合成切块
   - OpenAI / Anthropic 当前只实现最小协议映射与最小流式事件集，不假装已经覆盖完整协议字段或 token 级实时语义
   - sync published endpoint 当前只接受 `run.status=succeeded` 的结果；若 workflow 进入 `waiting`，会明确返回 `409`
   - native async published endpoint 现在可以诚实接住 `run.status=waiting`，并返回 `202 + RunDetail`
@@ -762,7 +764,9 @@ uv run alembic upgrade head
   - callback ticket cleanup 现在也已接入独立 scheduler 进程，避免再把周期治理塞回 API 或 `RuntimeService`
   - 但 publish endpoint 的更完整 protocol mapping / streaming、callback ticket 更强鉴权/系统诊断可见性，以及节点插件注册中心仍未彻底拆清
 - 当前需要显式盯住的长文件：
-  - `api/app/services/runtime.py` 当前约 1502 行，已经重新越过后端 1500 行偏好阈值；下一轮若继续补 scheduler、callback 治理或 publish gateway，应优先拆 execution / waiting / resume orchestration
+  - `api/app/services/published_invocations.py` 当前约 1141 行，已是当前后端最大服务文件；若继续补长期趋势、async lifecycle drilldown 或更多协议治理信号，应提前拆 query/filtering 与 audit aggregation
+  - `api/app/services/published_gateway.py` 当前约 837 行，正在接近需要继续解耦的阈值；若继续补更多协议分支或治理信号，应优先按 protocol surface / mapper / audit 边界拆分
+  - `api/app/services/runtime.py` 当前约 807 行，在上一轮 mixin 解耦后保持可控；但若继续补 scheduler、callback 治理或更多执行语义，应持续关注
   - `api/app/api/routes/runs.py` 仍然偏长，但本轮已把 execution / evidence 聚合和 RunDetail 序列化拆出；下一轮若继续扩展 trace/export/callback，应进一步考虑 trace/export/callback 子模块拆分
   - `api/app/services/agent_runtime.py` 当前约 628 行，已经承载 phase pipeline、tool waiting 恢复和 evidence 组装；若继续长出 assistant 策略与 subflow 候选能力，应提前拆 plan/tool/finalize 子阶段
   - `api/app/services/workflow_library.py` 当前约 650 行，仍适合继续演进，但若再接 adapter health / node plugin registry，应优先拆 source assembly 与 starter builder
@@ -834,9 +838,8 @@ docker compose up -d --build
 - publish endpoint 的 cache 与更细的审计治理
 - publish activity 的长期审计面板与更完整的趋势治理消费
 - publish activity 按长期 API key 趋势、streaming 面、长期 reason/surface 变化的更细交互式筛选与钻取
-- `native / openai / anthropic` 发布调用的 streaming / SSE 与更完整发布管理
+- `native / openai / anthropic` 发布调用的更完整发布管理与 token 级实时流式语义
 - OpenAI / Anthropic 更完整的字段透传、usage 映射与协议面治理可见性
-- native published endpoint 虽然已经补上 async invoke，但 OpenAI / Anthropic 仍没有真正的 streaming / SSE 或统一 async published invoke 承接链路
 - scheduler 级 dead-letter / dedupe / metrics / 失败重投治理
 - callback ticket 的更强鉴权与系统诊断治理可见性
 - 回放调试面板
@@ -1183,3 +1186,27 @@ docker compose up -d --build
 1. 继续把 `run_events -> native / openai / anthropic delta` 往统一 mapper 推进，并优先在 runtime 中补真实 `node.output.delta`，减少 publish 层基于最终文本切块的兜底逻辑。
 2. 继续深化 publish governance：补单次 invocation detail，以及 invocation 到 `run / callback ticket / cache` 的稳定钻取入口。
 3. 若 publish surface 因 streaming 与治理继续膨胀，优先按 protocol surface / mapper / audit 边界拆 `api/app/services/published_gateway.py`；当前它已到 `786` 行，正在接近需要继续解耦的阈值。
+
+## 2026-03-14 Runtime Delta Events & Streaming Fact Source Unification
+
+- 在 `HEAD=b0a7711 feat: replay protocol streams from run events` 的基础上，这轮直接承接最高优先级"在 runtime 中补真实 `node.output.delta`"。
+- 当前 `RuntimeService` 在节点成功输出时，会在 `node.output.completed` 之前额外写入 `node.output.delta` 事件，delta 内容来自 `extract_text_output` 对节点输出的文本提取；在 `run.completed` 之前额外写入 `run.output.delta` 事件，delta 内容来自对 run 最终输出的文本提取。
+- `published_protocol_streaming.py` 中的 `_extract_protocol_text_from_run_events` 已更新为优先使用 `run.output.delta` > `node.output.delta` > `node.output.completed` / `run.completed` 的三级降级策略，避免 publish 层同时拼接 node 和 run delta 导致文本翻倍。
+- `build_native_run_stream` 已更新为在 run events 中检测到真实 delta 事件时，跳过合成 `run.output.delta` chunk，直接复用 runtime 产出的原始事件；只有在缺少真实 delta 时才退回合成切块兜底。
+- `_build_native_run_event_payload` 已新增对 `node.output.delta` / `run.output.delta` 的显式处理，把 `delta` 字段直接暴露到 SSE payload 顶层。
+- 同时修复了两个预存问题：
+  - `tests/test_run_routes.py::test_get_run_trace_supports_machine_filters`：event payload 使用 `type` 而非 `node_type`，测试断言已修正。
+  - `web/components/workspace-starter-library/template-list-panel.tsx`：`WorkspaceStarterBulkAction` 类型导入源已修正为 `@/lib/get-workspace-starters`。
+- 当前边界仍需明确：
+  - delta 事件仍然是在节点最终输出确定后一次性写入，而不是 token 级实时推送
+  - 未来 `llm_agent` 可接入真实 LLM streaming callback，产出多条细粒度 `node.output.delta` 事件
+  - OpenAI / Anthropic / native streaming 仍然是 replay-style SSE，但事实来源已从 publish 层合成推进到 runtime 事件流
+- 定向验证继续优先使用 `api/.venv` + `uv`：
+  - `./.venv/Scripts/uv.exe run pytest tests/ -q`：150 passed
+
+### 本轮补充后的下一步规划
+
+1. 继续把 delta 从一次性写入推进到细粒度：优先在 `llm_agent` 的 `main_plan` / `main_finalize` phase 接入 LLM streaming callback，产出多条 `node.output.delta`，减少 publish 层需要切块的场景。
+2. 继续深化 publish governance：补单次 invocation detail，以及 invocation 到 `run / callback ticket / cache` 的稳定钻取入口。
+3. 若 publish surface 因 streaming 与治理继续膨胀，优先按 protocol surface / mapper / audit 边界拆 `api/app/services/published_gateway.py`（当前约 837 行），避免新的 God object 转移到发布层。
+4. 继续治理后端结构热点：`api/app/services/published_invocations.py`（1141 行）已是当前最大服务文件，若继续补长期趋势与更多筛选维度，应优先拆 query/filtering 与 audit aggregation。

@@ -23,6 +23,7 @@ from app.services.plugin_runtime import (
     get_plugin_call_proxy,
     get_plugin_registry,
 )
+from app.services.published_protocol_mapper import extract_text_output
 from app.services.run_callback_tickets import RunCallbackTicketService
 from app.services.run_resume_scheduler import (
     RunResumeScheduler,
@@ -737,6 +738,17 @@ class RuntimeService(
                 checkpoint_state.completed_output_nodes = list(
                     dict.fromkeys([*checkpoint_state.completed_output_nodes, node_id])
                 )
+
+            delta_text = extract_text_output(node_output)
+            if delta_text:
+                events.append(
+                    self._build_event(
+                        run.id,
+                        node_run.id,
+                        "node.output.delta",
+                        {"node_id": node_id, "delta": delta_text},
+                    )
+                )
             events.append(
                 self._build_event(
                     run.id,
@@ -773,6 +785,17 @@ class RuntimeService(
         run.finished_at = _utcnow()
         run.current_node_id = None
         run.checkpoint_payload = checkpoint_state.as_dict()
+
+        run_delta_text = extract_text_output(run.output_payload)
+        if run_delta_text:
+            events.append(
+                self._build_event(
+                    run.id,
+                    None,
+                    "run.output.delta",
+                    {"delta": run_delta_text},
+                )
+            )
         events.append(
             self._build_event(
                 run.id,

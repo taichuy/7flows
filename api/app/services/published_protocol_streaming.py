@@ -90,7 +90,8 @@ def _extract_protocol_text_from_run_events(run_payload: dict[str, Any] | None) -
     if not stored_events:
         return ""
 
-    delta_fragments: list[str] = []
+    run_delta_fragments: list[str] = []
+    node_delta_fragments: list[str] = []
     for event_item in stored_events:
         event_type = event_item.get("event_type")
         if event_type not in {"node.output.delta", "run.output.delta"}:
@@ -99,9 +100,14 @@ def _extract_protocol_text_from_run_events(run_payload: dict[str, Any] | None) -
         normalized_payload = payload if isinstance(payload, dict) else {}
         delta = normalized_payload.get("delta")
         if isinstance(delta, str) and delta:
-            delta_fragments.append(delta)
-    if delta_fragments:
-        return "".join(delta_fragments)
+            if event_type == "run.output.delta":
+                run_delta_fragments.append(delta)
+            else:
+                node_delta_fragments.append(delta)
+    if run_delta_fragments:
+        return "".join(run_delta_fragments)
+    if node_delta_fragments:
+        return "".join(node_delta_fragments)
 
     for event_type in ("node.output.completed", "run.completed"):
         for event_item in reversed(stored_events):
@@ -201,9 +207,22 @@ def _build_native_run_event_payload(
         payload["output_payload"] = normalized_payload.get("output")
         return payload
 
+    if event_type in {"node.output.delta", "run.output.delta"}:
+        delta = normalized_payload.get("delta")
+        if delta is not None:
+            payload["delta"] = delta
+        return payload
+
     if normalized_payload:
         payload["payload"] = normalized_payload
     return payload
+
+
+def _has_real_deltas(stored_events: list[dict[str, Any]]) -> bool:
+    return any(
+        item.get("event_type") in {"node.output.delta", "run.output.delta"}
+        for item in stored_events
+    )
 
 
 def build_native_run_stream(response_payload: dict[str, Any]) -> Iterable[str]:
@@ -216,6 +235,7 @@ def build_native_run_stream(response_payload: dict[str, Any]) -> Iterable[str]:
     output_text = _serialize_payload_text(output_payload)
     stored_events = _extract_native_run_events(run)
     has_started_event = any(item.get("event_type") == "run.started" for item in stored_events)
+    has_deltas = _has_real_deltas(stored_events)
     completed_event = next(
         (
             item
@@ -255,15 +275,16 @@ def build_native_run_stream(response_payload: dict[str, Any]) -> Iterable[str]:
                 ),
             )
 
-        for chunk in _chunk_text(output_text):
-            yield _serialize_sse_event(
-                event="run.output.delta",
-                data={
-                    "type": "run.output.delta",
-                    "run_id": run_id,
-                    "delta": chunk,
-                },
-            )
+        if not has_deltas:
+            for chunk in _chunk_text(output_text):
+                yield _serialize_sse_event(
+                    event="run.output.delta",
+                    data={
+                        "type": "run.output.delta",
+                        "run_id": run_id,
+                        "delta": chunk,
+                    },
+                )
         if completed_event is not None:
             yield _serialize_sse_event(
                 event="run.completed",

@@ -28,16 +28,27 @@ def test_runtime_service_executes_linear_workflow(
     assert artifacts.run.compiled_blueprint_id is not None
     assert artifacts.run.output_payload == {"mock_tool": {"answer": "done"}}
     assert len(artifacts.node_runs) == 3
-    assert [event.event_type for event in artifacts.events] == [
-        "run.started",
-        "node.started",
-        "node.output.completed",
-        "node.started",
-        "node.output.completed",
-        "node.started",
-        "node.output.completed",
-        "run.completed",
+    event_types = [event.event_type for event in artifacts.events]
+    assert event_types[0] == "run.started"
+    assert event_types[-1] == "run.completed"
+    assert event_types.count("node.started") == 3
+    assert event_types.count("node.output.completed") == 3
+    assert event_types.count("node.output.delta") == 3
+    assert event_types.count("run.output.delta") == 1
+
+    node_deltas = [
+        event for event in artifacts.events if event.event_type == "node.output.delta"
     ]
+    mock_tool_delta = next(
+        event for event in node_deltas if event.payload.get("node_id") == "mock_tool"
+    )
+    assert mock_tool_delta.payload["delta"] == "done"
+
+    run_delta = next(
+        event for event in artifacts.events if event.event_type == "run.output.delta"
+    )
+    assert isinstance(run_delta.payload["delta"], str)
+    assert len(run_delta.payload["delta"]) > 0
 
     compiled_blueprint = sqlite_session.scalar(
         select(WorkflowCompiledBlueprint).where(
