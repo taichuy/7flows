@@ -1244,18 +1244,68 @@ docker compose up -d --build
 - 凭证管理目前是全局级别，尚未引入 workspace 级隔离。
 - 尚未实现凭证 Redis 缓存（设计文档中提到 TTL 86400s 的 Redis 缓存优化）。
 - 尚未实现凭证审计日志（谁在何时创建/更新/解密了哪个凭证）。
-- 尚未集成到运行时节点执行链路（`RuntimeService` 在执行节点前自动 resolve credential refs）。
-- 前端凭证管理页尚未实现。
+- ~~尚未集成到运行时节点执行链路~~ → 已于 2026-03-14 完成。
+- ~~前端凭证管理页尚未实现~~ → 已于 2026-03-14 完成基础管理面板。
 
 ### 定向验证
 
 - `./.venv/Scripts/uv.exe run pytest tests/test_credential_store.py -v`：28 passed
-- `./.venv/Scripts/uv.exe run pytest tests/ -q`：178 passed
+- `./.venv/Scripts/uv.exe run pytest tests/ -q`：186 passed
+
+---
+
+## 附录：2026-03-14 凭证运行时集成 + 前端凭证管理面板
+
+### 背景
+
+上一轮（2026-03-14 credential store）落地了 Fernet 加密存储和 CRUD API，但凭证尚未接入运行时执行链路，llm_agent 和 tool 节点无法通过 `credential://{id}` 自动使用存储的凭证。前端也没有凭证管理界面。
+
+### 目标
+
+1. 将凭证解密自动集成到 RuntimeService 节点执行链路
+2. 为前端首页添加凭证管理面板（CRUD + 吊销 + 引用提示）
+
+### 实现方式
+
+#### 后端：凭证运行时集成
+
+1. **RuntimeService.__init__**（`runtime.py`）：新增 `self._credential_store = CredentialStore()` 依赖
+2. **RuntimeNodeExecutionSupportMixin**（`runtime_node_execution_support.py`）：
+   - `_resolve_node_credentials(db, node)` — 从节点 config 提取 `config.credentials` 和 `config.model.apiKey` 中的 `credential://` 引用，统一解密
+   - `_resolve_credentials_dict(db, raw)` — 调用 `CredentialStore.resolve_credential_refs()` 解密，失败转为 `WorkflowExecutionError`
+   - `_execute_node` 在调用 `AgentRuntime.execute` 前先解密凭证，传入 `resolved_credentials` 参数
+   - `_execute_tool_node` 在调用 `ToolGateway.execute` 前先解密工具凭证
+3. **AgentRuntime.execute**（`agent_runtime.py`）：
+   - 新增 `resolved_credentials` 参数
+   - 将解密的 apiKey 注入 `model_config`
+   - 将解密凭证传递给内部工具调用的 `ToolGateway.execute`
+
+#### 前端：凭证管理面板
+
+1. `web/lib/get-credentials.ts` — 数据获取（列表 + 详情）
+2. `web/app/actions/credentials.ts` — Server Actions（创建 + 吊销）
+3. `web/components/credential-store-panel.tsx` — 管理面板（列表、创建表单、吊销、引用格式提示）
+4. `web/app/page.tsx` — 接入首页
+
+### 影响范围
+
+- `api/app/services/runtime.py` — 新增 CredentialStore 依赖 (+2 行)
+- `api/app/services/runtime_node_execution_support.py` — 新增凭证解密方法 (+40 行)，修改 `_execute_node`（+2 行）和 `_execute_tool_node`（+5 行）
+- `api/app/services/agent_runtime.py` — execute 方法新增 `resolved_credentials` 参数，注入 apiKey 和工具凭证 (+8 行)
+- `api/tests/test_runtime_credential_integration.py` — 新增 8 项集成测试
+- `web/` — 新增 3 个文件，修改 2 个文件
+
+### 定向验证
+
+- `pytest tests/test_runtime_credential_integration.py -v`：8 passed（tool 解密、plain 透传、无效引用、已吊销凭证、空引用、llm_agent apiKey、config.credentials dict、混合凭证）
+- `pytest tests/ -q`：186 passed（全量无回归）
+- `npx tsc --noEmit`：前端编译通过
 
 ### 本轮补充后的下一步规划
 
-1. **将凭证集成到运行时执行链路**（高优先级）：在 `RuntimeService` 的节点执行前，自动调用 `CredentialStore.resolve_credential_refs()` 解密节点配置中的凭证引用，让 `llm_agent` 和 `tool` 节点能通过 `credential://{id}` 使用已存储的 API Key / Token。
-2. **继续把 delta 从一次性写入推进到细粒度**：优先在 `llm_agent` 的 `main_plan` / `main_finalize` phase 接入 LLM streaming callback，产出多条 `node.output.delta`。
+1. **继续把 delta 从一次性写入推进到细粒度**（高优先级）：优先在 `llm_agent` 的 `main_plan` / `main_finalize` phase 接入 LLM streaming callback，产出多条 `node.output.delta`，为前端实时输出做好事实来源。
+2. **节点配置表单中的凭证选择器**（高优先级）：在 llm_agent 和 tool 节点的结构化配置表单中，添加凭证选择下拉，自动填充 `credential://{id}` 引用，用户无需手动输入。
 3. **继续深化 publish governance**：补单次 invocation detail，以及 invocation 到 `run / callback ticket / cache` 的稳定钻取入口。
 4. **若 publish surface 继续膨胀**，优先按 protocol surface / mapper / audit 边界拆 `api/app/services/published_gateway.py`（当前约 837 行）。
 5. **继续治理后端结构热点**：`api/app/services/published_invocations.py`（1141 行）若继续补长期趋势与更多筛选维度，应优先拆 query/filtering 与 audit aggregation。
+6. **凭证进阶功能**：workspace 级隔离、Redis 缓存、审计日志（谁在何时解密了哪个凭证）。

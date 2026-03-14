@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from copy import deepcopy
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -19,6 +20,9 @@ from app.services.runtime_types import (
     RuntimeEvent,
     WorkflowExecutionError,
 )
+
+
+_log = logging.getLogger(__name__)
 
 
 def _utcnow() -> datetime:
@@ -288,12 +292,14 @@ class RuntimeNodeExecutionSupportMixin:
             raise WorkflowExecutionError(str(config["mock_error"]))
 
         if node.get("type") == "llm_agent" and get_settings().durable_agent_runtime_enabled:
+            resolved_credentials = self._resolve_node_credentials(db, node)
             return self._agent_runtime.execute(
                 db,
                 run_id=run_id,
                 node=node,
                 node_run=node_run,
                 node_input=node_input,
+                resolved_credentials=resolved_credentials,
             )
 
         if "mock_output" in config:
@@ -355,6 +361,11 @@ class RuntimeNodeExecutionSupportMixin:
     ) -> NodeExecutionResult:
         config = node.get("config", {})
         tool_ref = self._tool_ref_for_node(node)
+        raw_credentials = {
+            str(key): str(value)
+            for key, value in (tool_ref.get("credentials") or {}).items()
+        }
+        resolved_credentials = self._resolve_credentials_dict(db, raw_credentials)
         tool_result = self._tool_gateway.execute(
             db,
             run_id=run_id,
@@ -364,10 +375,7 @@ class RuntimeNodeExecutionSupportMixin:
             ecosystem=str(tool_ref.get("ecosystem") or "native"),
             adapter_id=tool_ref.get("adapterId"),
             inputs=self._tool_inputs_for_node(config, node_input),
-            credentials={
-                str(key): str(value)
-                for key, value in (tool_ref.get("credentials") or {}).items()
-            },
+            credentials=resolved_credentials,
             timeout_ms=int(tool_ref.get("timeoutMs") or get_settings().plugin_default_timeout_ms),
         )
         if tool_result.raw_ref:
@@ -421,6 +429,50 @@ class RuntimeNodeExecutionSupportMixin:
             if isinstance(candidate, dict) and candidate:
                 return deepcopy(candidate)
         return {}
+
+    def _resolve_node_credentials(self, db: Session, node: dict) -> dict[str, str]:
+        """Extract and resolve all credential:// refs from a node's config.
+
+        Collects credential references from config.credentials and
+        config.model.apiKey, resolves them via CredentialStore, and returns
+        a flat dict of decrypted key-value pairs.
+        """
+        config = node.get("config", {})
+        raw_creds: dict[str, str] = {}
+        config_creds = config.get("credentials")
+        if isinstance(config_creds, dict):
+            raw_creds.update(
+                {str(k): str(v) for k, v in config_creds.items()}
+            )
+        model_config = config.get("model")
+        if isinstance(model_config, dict):
+            api_key = model_config.get("apiKey")
+            if isinstance(api_key, str) and api_key.startswith("credential://"):
+                raw_creds["apiKey"] = api_key
+        return self._resolve_credentials_dict(db, raw_creds)
+
+    def _resolve_credentials_dict(
+        self, db: Session, raw: dict[str, str]
+    ) -> dict[str, str]:
+        """Resolve credential:// refs in a dict via CredentialStore.
+
+        Plain values pass through unchanged. Errors are logged and
+        re-raised as WorkflowExecutionError.
+        """
+        if not any(
+            isinstance(v, str) and v.startswith("credential://")
+            for v in raw.values()
+        ):
+            return raw
+        try:
+            return self._credential_store.resolve_credential_refs(
+                db, credentials=raw
+            )
+        except Exception as exc:
+            _log.warning("Credential resolution failed: %s", exc)
+            raise WorkflowExecutionError(
+                f"Failed to resolve credential references: {exc}"
+            ) from exc
 
     def _execute_branch_node(self, node: dict, node_input: dict) -> dict:
         config = node.get("config", {})

@@ -17,6 +17,7 @@ from app.services.compiled_blueprints import (
     CompiledBlueprintService,
 )
 from app.services.context_service import ContextService
+from app.services.credential_store import CredentialStore
 from app.services.flow_compiler import FlowCompiler
 from app.services.plugin_runtime import (
     PluginCallProxy,
@@ -62,6 +63,7 @@ class RuntimeService(
         self._compiled_blueprints = CompiledBlueprintService(self._flow_compiler)
         self._artifact_store = RuntimeArtifactStore()
         self._context_service = ContextService()
+        self._credential_store = CredentialStore()
         self._callback_tickets = RunCallbackTicketService()
         self._tool_gateway = ToolGateway(
             plugin_call_proxy=self._plugin_call_proxy,

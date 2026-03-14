@@ -48,10 +48,16 @@ class AgentRuntime:
         node: dict[str, Any],
         node_run: NodeRun,
         node_input: dict[str, Any],
+        resolved_credentials: dict[str, str] | None = None,
     ) -> AgentExecutionResult:
         events: list[RuntimeEvent] = []
         config = dict(node.get("config") or {})
         model_config = self._to_dict(config.get("model"))
+        creds = resolved_credentials or {}
+        if creds:
+            model_config = dict(model_config)
+            if "apiKey" in creds:
+                model_config["apiKey"] = creds["apiKey"]
         checkpoint = self._to_dict(node_run.checkpoint_payload)
         working_context = self._context_service.update_working_context(
             node_run,
@@ -122,6 +128,7 @@ class AgentRuntime:
                     ecosystem=tool_call.ecosystem,
                     adapter_id=tool_call.adapter_id,
                     inputs=tool_call.inputs,
+                    credentials=creds or None,
                     timeout_ms=tool_call.timeout_ms,
                     allowed_tool_ids=self._allowed_tool_ids(config),
                     retry_count=node_run.retry_count,

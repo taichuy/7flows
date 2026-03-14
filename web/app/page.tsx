@@ -1,8 +1,10 @@
 import Link from "next/link";
 
+import { CredentialStorePanel } from "@/components/credential-store-panel";
 import { PluginRegistryPanel } from "@/components/plugin-registry-panel";
 import { StatusCard } from "@/components/status-card";
 import { WorkflowToolBindingPanel } from "@/components/workflow-tool-binding-panel";
+import { getCredentials } from "@/lib/get-credentials";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
@@ -25,10 +27,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const requestedWorkflowId = readFirstSearchParam(resolvedSearchParams.workflow);
 
-  const [overview, pluginRegistry, workflows] = await Promise.all([
+  const [overview, pluginRegistry, workflows, credentials] = await Promise.all([
     getSystemOverview(),
     getPluginRegistrySnapshot(),
-    getWorkflows()
+    getWorkflows(),
+    getCredentials(true)
   ]);
   const recentRuns = overview.runtime_activity.recent_runs;
   const activitySummary = overview.runtime_activity.summary;
@@ -98,6 +101,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           selectedWorkflow={selectedWorkflow}
           tools={pluginRegistry.tools}
         />
+      </section>
+
+      <section className="diagnostics-layout">
+        <CredentialStorePanel credentials={credentials} />
       </section>
 
       <section className="diagnostics-layout">
