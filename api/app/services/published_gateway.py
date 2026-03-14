@@ -41,6 +41,7 @@ class PublishedGatewayInvokeResult:
     cache_status: str
     run_id: str | None = None
     run_status: str | None = None
+    run_payload: dict | None = None
 
 
 class PublishedEndpointGatewayService:
@@ -532,6 +533,7 @@ class PublishedEndpointGatewayService:
         response_payload = None
         cache_status = "bypass"
         response_preview_payload = None
+        stream_run_payload: dict | None = None
 
         try:
             if binding.protocol != expected_protocol:
@@ -617,6 +619,7 @@ class PublishedEndpointGatewayService:
                 executed_run_id = artifacts.run.id
                 executed_run_status = artifacts.run.status
                 executed_run_error = artifacts.run.error_message
+                stream_run_payload = serialize_run_detail(artifacts).model_dump(mode="json")
                 response_payload = response_builder(
                     binding=binding,
                     workflow=workflow,
@@ -702,6 +705,7 @@ class PublishedEndpointGatewayService:
             cache_status=cache_status,
             run_id=recorded_run_id,
             run_status=recorded_run_status,
+            run_payload=run_payload if run_payload is not None else stream_run_payload,
         )
 
     def _should_store_cached_response(

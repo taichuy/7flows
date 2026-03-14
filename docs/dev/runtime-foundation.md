@@ -1158,3 +1158,28 @@ docker compose up -d --build
 1. 继续把 `run_events -> native / openai / anthropic delta` 往统一 mapper 推进，避免三条 publish surface 各自维护一套流式拼装逻辑。
 2. 评估在 runtime 中补真实 `node.output.delta`，让 protocol streaming 不必长期依赖 publish 层合成 delta。
 3. 继续深化 publish governance：补单次 invocation detail，以及 invocation 到 `run / callback ticket / cache` 的稳定钻取入口。
+
+## 2026-03-14 Published Protocol Run Event Replay 事实
+
+- 这轮直接承接 `c2c3619 feat: replay native published sse from run events` 的下一步，而不是另起一条新的 publish 协议主线。
+- 当前 `api/app/services/published_gateway.py` 已为 `PublishedGatewayInvokeResult` 增加 `run_payload`，让 OpenAI / Anthropic 的 sync stream route 可以在不污染对外协议响应体的前提下拿到本次执行对应的 `RunDetail`。
+- 当前 `api/app/services/published_protocol_streaming.py` 已开始优先从 `run.events` 提取协议流式文本：
+  - 若 runtime 将来补了 `node.output.delta / run.output.delta`，会优先拼接真实 delta
+  - 当前 Phase 1 下，若没有 delta，会回退到最后一个 `node.output.completed`
+  - 若还不可用，再回退到 `run.completed.output`
+  - 只有在没有 `run_payload` 的场景，例如协议 sync cache hit，才继续退回 response payload 中的最终文本
+- 这意味着 OpenAI Chat Completions、OpenAI Responses、Anthropic Messages 三条 sync streaming surface 现在都已经开始复用同一套运行态事实来源，只是外层协议事件格式不同。
+- 这轮仍保持 MVP 诚实边界：
+  - 仍然是 replay-style SSE，而不是实时 `run_events` 推送
+  - waiting run 仍应走 async bridge，而不是把 durable waiting 硬塞进同步 stream
+  - publish 层仍会在缺少真实 delta 时按最终文本切块，不假装 runtime 已经产出 token 级事件
+- 定向验证继续优先使用 `api/.venv` + `uv`：
+  - `./.venv/Scripts/uv.exe run pytest tests/test_published_protocol_streaming.py -q`
+  - `./.venv/Scripts/uv.exe run pytest tests/test_workflow_publish_routes.py -q`
+  - `./.venv/Scripts/uv.exe run pytest tests/test_published_protocol_async_routes.py tests/test_workflow_publish_activity.py -q`
+
+### 本轮补充后的下一步规划
+
+1. 继续把 `run_events -> native / openai / anthropic delta` 往统一 mapper 推进，并优先在 runtime 中补真实 `node.output.delta`，减少 publish 层基于最终文本切块的兜底逻辑。
+2. 继续深化 publish governance：补单次 invocation detail，以及 invocation 到 `run / callback ticket / cache` 的稳定钻取入口。
+3. 若 publish surface 因 streaming 与治理继续膨胀，优先按 protocol surface / mapper / audit 边界拆 `api/app/services/published_gateway.py`；当前它已到 `786` 行，正在接近需要继续解耦的阈值。

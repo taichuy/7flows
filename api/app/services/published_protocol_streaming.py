@@ -4,6 +4,8 @@ import json
 from collections.abc import Iterable, Iterator
 from typing import Any
 
+from app.services.published_protocol_mapper import extract_text_output
+
 
 _DEFAULT_CHUNK_SIZE = 32
 
@@ -75,6 +77,51 @@ def _extract_native_run_events(run_payload: dict[str, Any]) -> list[dict[str, An
     if not isinstance(raw_events, list):
         return []
     return [item for item in raw_events if isinstance(item, dict)]
+
+
+def _extract_protocol_run_events(run_payload: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not isinstance(run_payload, dict):
+        return []
+    return _extract_native_run_events(run_payload)
+
+
+def _extract_protocol_text_from_run_events(run_payload: dict[str, Any] | None) -> str:
+    stored_events = _extract_protocol_run_events(run_payload)
+    if not stored_events:
+        return ""
+
+    delta_fragments: list[str] = []
+    for event_item in stored_events:
+        event_type = event_item.get("event_type")
+        if event_type not in {"node.output.delta", "run.output.delta"}:
+            continue
+        payload = event_item.get("payload")
+        normalized_payload = payload if isinstance(payload, dict) else {}
+        delta = normalized_payload.get("delta")
+        if isinstance(delta, str) and delta:
+            delta_fragments.append(delta)
+    if delta_fragments:
+        return "".join(delta_fragments)
+
+    for event_type in ("node.output.completed", "run.completed"):
+        for event_item in reversed(stored_events):
+            if event_item.get("event_type") != event_type:
+                continue
+            payload = event_item.get("payload")
+            normalized_payload = payload if isinstance(payload, dict) else {}
+            output_payload = normalized_payload.get("output")
+            text = extract_text_output(output_payload)
+            if text:
+                return text
+    return ""
+
+
+def _resolve_protocol_stream_text(
+    *,
+    run_payload: dict[str, Any] | None,
+    fallback_text: str,
+) -> str:
+    return _extract_protocol_text_from_run_events(run_payload) or fallback_text
 
 
 def _build_native_run_started_payload(
@@ -244,11 +291,18 @@ def build_native_run_stream(response_payload: dict[str, Any]) -> Iterable[str]:
     return _iter()
 
 
-def build_openai_chat_completion_stream(response_payload: dict[str, Any]) -> Iterable[str]:
+def build_openai_chat_completion_stream(
+    response_payload: dict[str, Any],
+    *,
+    run_payload: dict[str, Any] | None = None,
+) -> Iterable[str]:
     response_id = str(response_payload.get("id") or "chatcmpl_7flows_stream")
     created = int(response_payload.get("created") or 0)
     model = str(response_payload.get("model") or "")
-    text = _extract_openai_chat_text(response_payload)
+    text = _resolve_protocol_stream_text(
+        run_payload=run_payload,
+        fallback_text=_extract_openai_chat_text(response_payload),
+    )
 
     def _iter() -> Iterator[str]:
         yield _serialize_sse_event(
@@ -302,7 +356,11 @@ def build_openai_chat_completion_stream(response_payload: dict[str, Any]) -> Ite
     return _iter()
 
 
-def build_openai_response_stream(response_payload: dict[str, Any]) -> Iterable[str]:
+def build_openai_response_stream(
+    response_payload: dict[str, Any],
+    *,
+    run_payload: dict[str, Any] | None = None,
+) -> Iterable[str]:
     response_id = str(response_payload.get("id") or "resp_7flows_stream")
     created_at = int(response_payload.get("created_at") or 0)
     model = str(response_payload.get("model") or "")
@@ -313,7 +371,10 @@ def build_openai_response_stream(response_payload: dict[str, Any]) -> Iterable[s
         if isinstance(output_item, dict)
         else "msg_7flows_stream"
     )
-    text = _extract_openai_response_text(response_payload)
+    text = _resolve_protocol_stream_text(
+        run_payload=run_payload,
+        fallback_text=_extract_openai_response_text(response_payload),
+    )
 
     def _iter() -> Iterator[str]:
         yield _serialize_sse_event(
@@ -363,11 +424,18 @@ def build_openai_response_stream(response_payload: dict[str, Any]) -> Iterable[s
     return _iter()
 
 
-def build_anthropic_message_stream(response_payload: dict[str, Any]) -> Iterable[str]:
+def build_anthropic_message_stream(
+    response_payload: dict[str, Any],
+    *,
+    run_payload: dict[str, Any] | None = None,
+) -> Iterable[str]:
     message_id = str(response_payload.get("id") or "msg_7flows_stream")
     model = str(response_payload.get("model") or "")
     usage = response_payload.get("usage") if isinstance(response_payload.get("usage"), dict) else {}
-    text = _extract_anthropic_text(response_payload)
+    text = _resolve_protocol_stream_text(
+        run_payload=run_payload,
+        fallback_text=_extract_anthropic_text(response_payload),
+    )
 
     def _iter() -> Iterator[str]:
         yield _serialize_sse_event(

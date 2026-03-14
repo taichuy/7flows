@@ -339,7 +339,10 @@ def invoke_published_openai_chat_completion(
 
     if payload.stream:
         return _build_publish_streaming_response(
-            stream_events=build_openai_chat_completion_stream(result.response_payload),
+            stream_events=build_openai_chat_completion_stream(
+                result.response_payload,
+                run_payload=result.run_payload,
+            ),
             cache_status=result.cache_status,
             run_status=result.run_status,
         )
@@ -423,7 +426,10 @@ def invoke_published_openai_response(
 
     if payload.stream:
         return _build_publish_streaming_response(
-            stream_events=build_openai_response_stream(result.response_payload),
+            stream_events=build_openai_response_stream(
+                result.response_payload,
+                run_payload=result.run_payload,
+            ),
             cache_status=result.cache_status,
             run_status=result.run_status,
         )
@@ -507,7 +513,10 @@ def invoke_published_anthropic_message(
 
     if payload.stream:
         return _build_publish_streaming_response(
-            stream_events=build_anthropic_message_stream(result.response_payload),
+            stream_events=build_anthropic_message_stream(
+                result.response_payload,
+                run_payload=result.run_payload,
+            ),
             cache_status=result.cache_status,
             run_status=result.run_status,
         )
