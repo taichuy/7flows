@@ -12,11 +12,11 @@
 
 - 项目已经具备“可编排、可调试、可发布、可追溯”的后端基础骨架，不再是只有底座的空框架。
 - 当前仍未进入“只剩界面润色或人工全链路验收”的阶段，后续开发应继续围绕主业务闭环推进，因此本轮不触发人工界面验收通知脚本。
-- 上一次提交 `cd1611b feat: add runtime execution adapter mvp` 已把 `RuntimeExecutionAdapterRegistry`、`sandbox_code` host-subprocess MVP 执行链和非 inline execution class 的 fallback trace 接到 runtime 主链；本轮继续承接该方向，把 `ToolGateway`、`llm_agent.toolPolicy` 与 tool node 真正接进 execution-aware dispatch，并把 `tool.execution.dispatched / tool.execution.fallback` 回写到统一事件流与 artifact metadata。
+- 基于 `c14c0d3 feat: add workflow editor publish draft form` 的前一轮基础，workflow editor 内的 `definition.publish` 现已补齐“`workflowVersion` 留空即跟随当前保存版本”的默认语义，并接入与后端 schema 对齐的本地校验和组件拆分；publish draft 已不再默认钉死旧版本，前端也能在重复 draft 待修正时保持稳定渲染。
 - 面向 AI / 自动化 的追溯仍必须以 `runs / node_runs / run_events / run_artifacts / tool_call_records / ai_call_records` 为事实源，前端面板只负责摘要、导航和排障入口。
 - 当前产品基线已进一步明确：7Flows 同时服务人类用户与 AI 用户，后续工作台、发布接口与运行态接口演进时，应保持人机交互、人与 AI 协作、AI 独立操作三类场景的结果语义一致。
 - `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；当前代码已有 ToolGateway、waiting/resume 与 callback ticket 原语，但尚未落成独立事实层、策略挂点与 API。
-- 2026-03-15 复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 通过（222 passed），本轮改动相关文件的 `ruff check` 通过；前端最近一次 `pnpm lint` 与 `pnpm exec tsc --noEmit` 复核仍为通过。后端全量 `ruff check` 复核后仍有历史风格/整理债务尚未在本轮整体清零，因此稳定性基线已继续提升，但还未达到“全仓库零告警”。
+- 2026-03-15 复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 通过（222 passed）；前端 `web/pnpm lint` 与 `web/pnpm exec tsc --noEmit` 通过。后端全量 `ruff check` 复核后仍有历史风格/整理债务尚未在本轮整体清零，因此稳定性基线已继续提升，但还未达到“全仓库零告警”。
 
 ## 当前代码事实
 
@@ -76,6 +76,7 @@
 - `web/components/run-diagnostics-execution-sections.tsx`：530 行，execution / evidence 详情层仍偏重，后续适合继续按 payload、metrics、artifact、evidence drilldown 拆层。
 - `web/components/workspace-starter-library.tsx`：440 行，已经比早期收口，但 library 交互、元数据和治理入口仍较集中；后续若再补 diff / governance，应继续拆 section 与 hook。
 - `web/components/workflow-editor-workbench/use-workflow-editor-graph.ts`：已开始同时维护 nodes / edges / workflow publish draft，graph mutation 仍集中但边界清晰；如果后续继续补 variables、schema builder 或更多 workflow-level governance，适合把 publish / variable mutation 再拆成 helper hook。
+- `web/components/workflow-editor-publish-form.tsx` 已在 2026-03-15 拆出 publish endpoint card、shared helper 与本地校验层；当前不再是单文件阻塞项，但后续若补 protocol-specific advanced options，可继续沿 section/helper 分层扩展。
 - `web/components/workflow-node-config-form/runtime-policy-form.tsx`：333 行，execution section 已拆到 `runtime-policy-execution-section.tsx` 与 `runtime-policy-helpers.ts`，父表单仍应保持 orchestrator 角色，避免 runtime 配置继续回涨为单体。
 - `web/components/credential-store-panel.tsx`：本轮已修复前端全量 lint 阻塞点；当前不再是稳定性阻塞项，但后续仍可顺手收口内联样式与局部状态逻辑。
 - 当前项目整体判断不变：基础框架足够继续推主业务完整度，但还没到“只剩人工界面设计 / 全链路人工验收”的阶段。
