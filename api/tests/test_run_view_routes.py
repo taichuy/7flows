@@ -187,6 +187,18 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
         "tool_result": 1,
     }
     assert body["summary"]["callback_ticket_status_counts"] == {"pending": 1}
+    assert body["summary"]["callback_waiting"] == {
+        "node_count": 1,
+        "terminated_node_count": 0,
+        "issued_ticket_count": 2,
+        "expired_ticket_count": 1,
+        "consumed_ticket_count": 0,
+        "canceled_ticket_count": 0,
+        "late_callback_count": 1,
+        "resume_schedule_count": 1,
+        "resume_source_counts": {"callback_ticket_monitor": 1},
+        "termination_reason_counts": {},
+    }
     assert len(body["nodes"]) == 1
     node = body["nodes"][0]
     assert node["node_run_id"] == node_run.id

@@ -93,6 +93,19 @@ export type CallbackWaitingLifecycleSummary = {
   last_resume_backoff_attempt: number;
 };
 
+export type RunCallbackWaitingSummary = {
+  node_count: number;
+  terminated_node_count: number;
+  issued_ticket_count: number;
+  expired_ticket_count: number;
+  consumed_ticket_count: number;
+  canceled_ticket_count: number;
+  late_callback_count: number;
+  resume_schedule_count: number;
+  resume_source_counts: Record<string, number>;
+  termination_reason_counts: Record<string, number>;
+};
+
 export type RunExecutionNodeItem = {
   node_run_id: string;
   node_id: string;
@@ -141,6 +154,7 @@ export type RunExecutionView = {
     tool_status_counts: Record<string, number>;
     ai_role_counts: Record<string, number>;
     callback_ticket_status_counts: Record<string, number>;
+    callback_waiting: RunCallbackWaitingSummary;
   };
   nodes: RunExecutionNodeItem[];
 };

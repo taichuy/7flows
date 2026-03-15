@@ -25,6 +25,7 @@ from app.schemas.run_views import (
     CallbackWaitingLifecycleSummary,
     EvidenceEntryItem,
     RunCallbackTicketItem,
+    RunCallbackWaitingSummary,
     RunEvidenceNodeItem,
     RunEvidenceSummary,
     RunEvidenceView,
@@ -72,6 +73,41 @@ def serialize_callback_waiting_lifecycle_summary(
     ):
         return None
     return CallbackWaitingLifecycleSummary(**lifecycle)
+
+
+def serialize_run_callback_waiting_summary(
+    node_runs: list[NodeRun],
+) -> RunCallbackWaitingSummary:
+    lifecycle_summaries = [
+        summary
+        for summary in (
+            serialize_callback_waiting_lifecycle_summary(node_run.checkpoint_payload)
+            for node_run in node_runs
+        )
+        if summary is not None
+    ]
+    resume_source_counts = Counter(
+        summary.last_resume_source
+        for summary in lifecycle_summaries
+        if summary.last_resume_source is not None
+    )
+    termination_reason_counts = Counter(
+        summary.termination_reason
+        for summary in lifecycle_summaries
+        if summary.termination_reason is not None
+    )
+    return RunCallbackWaitingSummary(
+        node_count=len(lifecycle_summaries),
+        terminated_node_count=sum(1 for summary in lifecycle_summaries if summary.terminated),
+        issued_ticket_count=sum(summary.issued_ticket_count for summary in lifecycle_summaries),
+        expired_ticket_count=sum(summary.expired_ticket_count for summary in lifecycle_summaries),
+        consumed_ticket_count=sum(summary.consumed_ticket_count for summary in lifecycle_summaries),
+        canceled_ticket_count=sum(summary.canceled_ticket_count for summary in lifecycle_summaries),
+        late_callback_count=sum(summary.late_callback_count for summary in lifecycle_summaries),
+        resume_schedule_count=sum(summary.resume_schedule_count for summary in lifecycle_summaries),
+        resume_source_counts=dict(sorted(resume_source_counts.items())),
+        termination_reason_counts=dict(sorted(termination_reason_counts.items())),
+    )
 
 
 def serialize_run_event(event: RunEvent) -> RunEventItem:
@@ -258,6 +294,7 @@ class RunViewService:
                 callback_ticket_status_counts=dict(
                     sorted(Counter(item.status for item in callback_tickets).items())
                 ),
+                callback_waiting=serialize_run_callback_waiting_summary(artifacts.node_runs),
             ),
             nodes=self._build_execution_nodes(artifacts, callback_tickets),
         )

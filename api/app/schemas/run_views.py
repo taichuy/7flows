@@ -23,6 +23,19 @@ class RunCallbackTicketItem(BaseModel):
     expired_at: datetime | None = None
 
 
+class RunCallbackWaitingSummary(BaseModel):
+    node_count: int = 0
+    terminated_node_count: int = 0
+    issued_ticket_count: int = 0
+    expired_ticket_count: int = 0
+    consumed_ticket_count: int = 0
+    canceled_ticket_count: int = 0
+    late_callback_count: int = 0
+    resume_schedule_count: int = 0
+    resume_source_counts: dict[str, int] = Field(default_factory=dict)
+    termination_reason_counts: dict[str, int] = Field(default_factory=dict)
+
+
 class RunExecutionSummary(BaseModel):
     node_run_count: int = 0
     waiting_node_count: int = 0
@@ -36,6 +49,7 @@ class RunExecutionSummary(BaseModel):
     tool_status_counts: dict[str, int] = Field(default_factory=dict)
     ai_role_counts: dict[str, int] = Field(default_factory=dict)
     callback_ticket_status_counts: dict[str, int] = Field(default_factory=dict)
+    callback_waiting: RunCallbackWaitingSummary = Field(default_factory=RunCallbackWaitingSummary)
 
 
 class CallbackWaitingLifecycleSummary(BaseModel):
