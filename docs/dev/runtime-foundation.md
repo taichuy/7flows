@@ -19,6 +19,7 @@
 - 当前产品基线已进一步明确：7Flows 同时服务人类用户与 AI 用户，后续工作台、发布接口与运行态接口演进时，应保持人机交互、人与 AI 协作、AI 独立操作三类场景的结果语义一致。
 - 2026-03-15 文档基线已显式区分“对外 OpenClaw-first 切口”和“对内 IR / runtime 内核”：开源给协作、商业给治理现已作为目标设计写入稳定策略文档，但当前仓库仍主要落在 OSS kernel 和运行时基础建设阶段，不应把 Team / Enterprise 能力误写成已落地事实。
 - 2026-03-15 仓库授权已切换为 Apache 2.0 基底 + 附加条件的 `7Flows Community License`：社区协作、自部署和单租户二次开发仍是默认入口，但多租户托管、商业化对立面与前端去标识 / 白标不再属于“默认免费边界”，相关判断必须以根目录 `LICENSE` 为准。
+- 2026-03-15 AI 协作体系已从“领域 skill 为主”补成“元流程 skill + 领域 skill”双层结构：新增 `development-closure`、`skill-governance`、`backend-testing`，用于收尾闭环、skill 漂移治理与后端测试补齐；后续 AI 开发不应只读单个 review / refactor skill 就跳过验证、文档同步和 Git 收尾。
 - `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；当前代码已有 ToolGateway、waiting/resume 与 callback ticket 原语，但尚未落成独立事实层、策略挂点与 API。
 - 2026-03-15 复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 通过（222 passed）；前端 `web/pnpm lint` 与 `web/pnpm exec tsc --noEmit` 通过。后端全量 `ruff check` 复核后仍有历史风格/整理债务尚未在本轮整体清零，因此稳定性基线已继续提升，但还未达到“全仓库零告警”。
 
@@ -109,5 +110,7 @@
    - 在不提前引入重 IAM 或复杂多组织计费系统的前提下，先收敛 Team / Enterprise 最小治理模型与 API 预留，明确哪些属于 Community kernel、哪些属于商业治理能力，避免后续实现、README 和对外叙事再次混线。
 8. **P2：继续收敛 Community License 的执行边界**
    - 围绕 `workspace = tenant`、多租户托管、商业化对立面、前端品牌替换和白标分发等触发条件，继续补文档、术语定义和未来商业授权入口，避免许可证文本有了但执行口径仍模糊。
-9. **P3：把 OpenClaw-first README / demo / 首页入口收成可传播资产**
+9. **P3：继续完善 AI 协作 skill 的双层体系**
+   - 根据后续实现节奏，继续补强 backend refactor、runtime debugging、发布治理验证等高复用流程，并定期复核 skill 与 `AGENTS.md`、`runtime-foundation.md`、README 索引的一致性，避免 skill 再次漂移。
+10. **P3：把 OpenClaw-first README / demo / 首页入口收成可传播资产**
    - 在策略与授权边界稳定后，继续补 README 截图、demo 路径、首页文案和示例 workflow，让“黑盒变透明”的外部入口真正可演示、可传播、可复用。

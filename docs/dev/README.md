@@ -14,7 +14,7 @@
 - `docs/open-source-commercial-strategy.md`
   说明 OpenClaw-first 对外切口、开源/商业边界、版本分层与传播/付费对象。
 - `.agents/skills/`
-  说明 AI 在后端 review、前端 review、组件重构、前端测试和合同优先等任务上的专项工作流。
+  说明 AI 在开发收尾、skill 治理、后端 review / testing、前端 review / testing、组件重构和合同优先等任务上的专项工作流。
 
 ## 文档维护约定
 
@@ -27,4 +27,4 @@
 
 - 当前研发优先级不再在本页重复维护，统一以 `runtime-foundation.md` 的“下一步规划”为准。
 - 如果任务涉及产品切口、版本分层、开源/商业边界或 OpenClaw 场景，应先补读 `docs/open-source-commercial-strategy.md`。
-- 如果任务由 AI 协作推进，应按模块读取 `.agents/skills/` 中对应的 skill，而不是只靠单轮对话上下文判断。
+- 如果任务由 AI 协作推进，应先判断是否命中开发收尾 / skill 治理这类元流程 skill，再按模块读取对应的领域 skill，而不是只靠单轮对话上下文判断。

@@ -12,7 +12,7 @@
 - `docs/dev/`：当前有效索引，例如 `runtime-foundation.md`、`user-preferences.md`
 - `docs/history/`：按日期归档的开发记录与阶段性决策
 - `docs/expired/`：废弃但保留历史价值的文档
-- `.agents/skills/`：AI 协作开发时优先复用的专项流程、审查规则和参考资料
+- `.agents/skills/`：AI 协作开发时优先复用的元流程 skill、专项流程、审查规则和参考资料
 
 ## 本地可以可以参考项目仓库和代码：
 E:\code\taichuCode\dify
@@ -24,4 +24,4 @@ E:\code\taichuCode\xyflow
 
 - 当前仓库处于项目启动阶段，`docs` 先采用轻量 Markdown 结构。
 - 产品/技术基线、开源/商业策略、当前事实索引和历史留痕应继续分层维护，避免把目标设计、当前实现和本地讨论草稿混写成同一事实源。
-- AI 协作开发默认先读 `AGENTS.md`、产品/技术/策略基线、`docs/dev/` 当前事实，再按任务加载 `.agents/skills/` 中对应的 skill。
+- AI 协作开发默认先读 `AGENTS.md`、产品/技术/策略基线、`docs/dev/` 当前事实，再判断是否需要“元流程 skill + 领域 skill”组合。

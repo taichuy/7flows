@@ -109,14 +109,20 @@
 如果某条偏好已经升级为仓库级长期规则：
 
 - 通用协作规则，更新本 `AGENTS.md`
-- 领域专项规则，更新对应 `.codex/skill/.../SKILL.md` 或其 `references/`
+- 领域专项规则，更新对应 `.agents/skills/.../SKILL.md` 或其 `references/`
 
 ## 6. Skill 使用与维护
 
 ### 6.1 当前仓库内技能
 
+- `development-closure`
+  用于一轮开发收尾时统一处理验证、`docs/history/`、`runtime-foundation`、Git 提交与下一步规划。
+- `skill-governance`
+  用于优化 `.agents/skills/`、AGENTS 协作流程和 skill 索引，同步治理 skill 漂移与分层规则。
 - `backend-code-review`
   用于 `api/` 后端实现审查与后端架构约束核对。
+- `backend-testing`
+  用于 `api/` 后端测试设计、补测与 runtime / published surface 行为验证。
 - `frontend-code-review`
   用于 `web/` 前端实现审查与工作流 UI 约束核对。
 - `component-refactoring`
@@ -129,9 +135,14 @@
 ### 6.2 维护原则
 
 - 新的稳定规范，不要只留在对话里，应沉淀到 skill 或引用文档。
+- 元流程优先沉淀为通用协作 skill，领域实现规则优先沉淀为模块 skill，不要只补单点 review 清单却缺失开发闭环。
 - 通用规则放 `AGENTS.md`，专项流程放 `SKILL.md`，深入说明放 `references/*.md`。
+- skill 的 `description` 优先描述“何时触发”，不要在描述里把完整流程提前讲完。
+- skill 正文保持精简，重资料、长清单和样例优先下沉到 `references/*.md`。
 - 如果某条规则只适用于单一模块，不要把它提升成全仓库规则。
 - 需要引用 Dify、n8n、xyflow、OpenClaw 经验时，应明确说明借鉴边界，避免直接照搬不存在的基础设施。
+- 可以借鉴 `superpowers` 这类项目的元流程设计思路，但不要把当前仓库不存在的 subagent、worktree 或强制流程生搬硬套进 7Flows。
+- 新增、删除、重命名或实质重构 skill 后，必须同步检查 `AGENTS.md`、`README.md`、`docs/README.md`、`docs/dev/README.md` 中的索引和说明。
 - 涉及 OpenClaw 对外切口、开源/商业边界、组织治理或版本分层时，应检查相关 skill 是否仍与 `docs/open-source-commercial-strategy.md` 一致。
 
 ### 6.3 优化触发条件
@@ -139,8 +150,10 @@
 出现以下情况时，应考虑同步优化相关 skill：
 
 - 同类 review / refactor / testing 建议已反复出现
+- 同类收尾遗漏已反复出现，例如漏验证、漏补 `history`、漏更 `runtime-foundation`、漏提交 Git
 - 用户多次强调某类实现方式或禁用项
 - 现有 skill 与项目现状明显脱节
+- 前后端、实现与收尾之间出现明显能力断层
 - 某个专项工作已经形成固定模板、检查清单或参考路径
 
 ## 7. 开发记录与溯源
@@ -208,6 +221,7 @@
 - 先对齐事实来源，再引入抽象。
 - 先沉淀规则，再扩大复用。
 - 先保证可追溯，再追求“快做完”。
+- AI 协作默认先判断是否命中“元流程 skill + 领域 skill”的组合，不要只加载单个模块 skill 就跳过验证、文档同步和收尾闭环。
 - 读取、搜索、查看包含中文的文档或源码时，默认显式使用 UTF-8；如果编码不确定，先确认编码再分析或修改。
 - 每轮任务收尾时，默认把“当前事实、文档更新、按优先级排序的下一步计划”一起闭环，不把后续规划留在对话外。
 - 提交代码，PowerShell 这边不接受 &&，所以请注意分步提交

@@ -167,12 +167,15 @@ docker compose up -d --build
 
 ## AI 协作与 Skills
 
+- `.agents/skills/development-closure`：一轮开发收尾时的验证、文档同步、提交与下一步规划闭环。
+- `.agents/skills/skill-governance`：优化 skill、AGENTS 规则和 AI 协作流程时的分层与索引治理。
 - `.agents/skills/backend-code-review`：后端 review、运行时、迁移、发布接口、插件代理与安全边界审查。
+- `.agents/skills/backend-testing`：后端测试设计、补测、runtime 与 published surface 行为验证。
 - `.agents/skills/frontend-code-review`：前端页面、组件、工作流编辑器、调试和发布界面审查。
 - `.agents/skills/component-refactoring`：复杂 React 组件、配置面板、调试面板和编辑器壳层拆分。
 - `.agents/skills/frontend-testing`：前端测试设计、补测和测试基础设施判断。
 - `.agents/skills/orpc-contract-first`：只有在明确引入 oRPC 合同优先 API 层时才启用。
-- AI 协作开发默认先按任务范围读取对应 skill，再结合 `docs/dev/runtime-foundation.md` 和产品/技术/策略基线落地。
+- AI 协作开发默认先判断是否需要“元流程 skill + 领域 skill”组合，再结合 `docs/dev/runtime-foundation.md` 和产品/技术/策略基线落地。
 
 ## 当前优先级
 
