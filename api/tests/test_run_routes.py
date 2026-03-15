@@ -1205,9 +1205,43 @@ def test_receive_run_callback_route_returns_expired_for_stale_ticket(
     )
 
     sqlite_session.refresh(ticket_record)
+    sqlite_session.refresh(waiting_run)
+    late_event = sqlite_session.scalar(
+        select(RunEvent)
+        .where(
+            RunEvent.run_id == first_pass.run.id,
+            RunEvent.event_type == "run.callback.ticket.late",
+        )
+        .order_by(RunEvent.id.desc())
+    )
+    lifecycle = waiting_run.checkpoint_payload["callback_waiting_lifecycle"]
     assert response.status_code == 200
     body = response.json()
     assert body["callback_status"] == "expired"
     assert body["run"]["status"] == "waiting"
     assert ticket_record.status == "expired"
     assert ticket_record.expired_at is not None
+    assert lifecycle == {
+        "wait_cycle_count": 1,
+        "issued_ticket_count": 1,
+        "expired_ticket_count": 1,
+        "consumed_ticket_count": 0,
+        "canceled_ticket_count": 0,
+        "late_callback_count": 1,
+        "resume_schedule_count": 0,
+        "last_ticket_status": "expired",
+        "last_ticket_reason": "callback_ticket_expired",
+        "last_ticket_updated_at": lifecycle["last_ticket_updated_at"],
+        "last_late_callback_status": "expired",
+        "last_late_callback_reason": "callback_ticket_expired",
+        "last_late_callback_at": lifecycle["last_late_callback_at"],
+        "last_resume_delay_seconds": None,
+        "last_resume_reason": None,
+        "last_resume_source": None,
+        "last_resume_backoff_attempt": 0,
+    }
+    assert late_event is not None
+    assert late_event.payload["ticket"] == callback_ticket
+    assert late_event.payload["ticket_status"] == "expired"
+    assert late_event.payload["reason"] == "callback_ticket_expired"
+    assert late_event.payload["source"] == "route_test"

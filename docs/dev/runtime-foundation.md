@@ -43,7 +43,7 @@
 - `RuntimeService` 已采用 compiled blueprint 执行链，run 会显式绑定 `workflow_version` 与 `compiled_blueprint_id`。
 - `RuntimeService` 当前仍是唯一 orchestration 主控；`AgentRuntime`、`ToolGateway`、callback ticket 和未来 sandbox adapter 都应继续作为被调度层，而不是拥有第二套流程控制语义。
 - 当前执行器已支持拓扑排序、条件/路由分支、join、mapping、节点重试、waiting/resume、callback ticket、artifact 引用和统一事件落库。
-- 现有 `waiting/resume + callback ticket` 原语已经足够承接审批闭环；统一的 `SensitiveAccessRequest / ApprovalTicket / NotificationDispatch` 模型与 API 已接到 credential resolve、context read、tool invoke、run trace export 与部分 published 详情治理。本轮已把 callback ticket cleanup 的后台唤醒主链接到 Celery cleanup task：过期 ticket 会写回 `scheduled_resume` checkpoint 并追加 `run.resume.scheduled` 事件，然后由 `callback_ticket_monitor` 触发即时 resume。当前剩余缺口主要转向 publish export、通知 worker / inbox，以及 operator 手动 cleanup 与 repeated waiting 的进一步语义收敛。
+- 现有 `waiting/resume + callback ticket` 原语已经足够承接审批闭环；统一的 `SensitiveAccessRequest / ApprovalTicket / NotificationDispatch` 模型与 API 已接到 credential resolve、context read、tool invoke、run trace export 与部分 published 详情治理。2026-03-15 本轮继续把 `WAITING_CALLBACK` 主链补成更 durable 的形态：过期 ticket cleanup 会把 repeated expiry 转成 checkpoint 内的 `callback_waiting_lifecycle` 摘要与 resume backoff（首轮 `0s`、重复过期后递增到 `5s / 15s / 30s / 60s`），late callback 也会落成统一 `run.callback.ticket.late` 事件与 node checkpoint 摘要，execution view 前端已能直接看到 wait cycle、expired count、late callback 与最近一次 backoff。当前剩余缺口主要转向 publish export、通知 worker / inbox，以及 callback 最大重试/终止策略的进一步收口。
 - Runtime 主链已连续完成 run support、graph support、progress support、node preparation、node dispatch 等分层治理，`runtime.py` 已显著收口到执行入口与 `_continue_execution` orchestration 主链。
 - Runtime execution 现已经由 `llm_agent -> AgentRuntime`、`tool -> ToolGateway`、`node -> RuntimeExecutionAdapterRegistry` 三条主链推进：`runtimePolicy.execution` 已能进入 workflow schema、node input 和 execution view，`sandbox_code` 也已接入 host-subprocess MVP 执行链；ToolGateway execution-aware dispatch、tool/plugin 默认 execution class 映射、`llm_agent.toolPolicy.execution` 与 tool node execution trace 也都已接进主链。当前新增的 credential masked-handle 语义继续沿这三条主链演进：runtime resolve 先给 handle，真正调用 LLM / tool 时再恢复明文。后续重点仍是补真实 `sandbox` / `microvm` tool adapter。
 - `loop` 节点仍未在 MVP 执行器中开放执行；循环能力仍需通过后续 runtime 演进补齐，不能假装已完成。
@@ -66,7 +66,7 @@
 
 ### 5. 面向工作台与诊断的接口
 
-- Run API 已覆盖创建、详情、events、trace、trace export、resume、callback ingress、execution view、evidence view。
+- Run API 已覆盖创建、详情、events、trace、trace export、resume、callback ingress、execution view、evidence view；其中 execution view 现已直接带出 callback waiting lifecycle 摘要，供工作台和 AI 排障复用同一事实源。
 - Workflow library、system overview、plugin adapters、runtime activity、credentials API 已具备；`sensitive-access` 资源注册、访问请求、审批票据与通知投递查询/决策 API 已接到 runtime 与 trace export 主链，为后续 approval inbox、published surface export 治理和通知 worker 预留稳定事实入口。
 - workflow editor inspector 已能以结构化 section 暴露 `runtimePolicy.execution / retry / join`、节点 contract、workflow `publish` draft 与部分 `llm_agent` 高级配置；execution section 已先解析默认执行类，再按“偏离默认时才持久化 JSON”的策略落库。
 - run diagnostics 已能消费 execution / evidence 聚合视图，并显示 execution boundary summary，但 execution detail、artifact preview、evidence drilldown 仍有继续拆层空间。
@@ -112,7 +112,7 @@
 2. **P0：继续扩统一敏感访问控制闭环**
    - `SensitiveAccessRequest`、`ApprovalTicket`、`NotificationDispatch`、`/api/sensitive-access/*`、runtime `credential resolve`、`mcp_query / authorized_context` 的 context read 拦截、`ToolGateway` 的 tool invoke gating、Run API `trace export` 的敏感导出控制、published endpoint invocation detail / cache inventory 的人工详情查看控制，以及 publish 面板对 access-blocked 状态的最小 UI 落点都已落地；credential path 的 `allow_masked` 也已补成真正的 masked/handle 语义。下一步优先把同一套控制继续挂到 publish export 入口，并补真实通知 worker / inbox，避免统一治理仍停留在 credential/context/tool/export/details 几条局部主链。
 3. **P0：继续收口 `WAITING_CALLBACK` 的 durable resume 语义**
-   - callback ticket cleanup 与手动 cleanup 已能把“过期 ticket -> immediate resume”一致接回主链，且 resume 调度已改成 after-commit 派发；下一步优先补 late callback / repeated waiting 的退避与摘要，以及更清晰的 run diagnostics 呈现，避免外部 callback 型节点仍在边界场景里反复等待或缺少可见性。
+   - callback ticket cleanup 与手动 cleanup 已能把“过期 ticket -> scheduled resume”一致接回主链，且 resume 调度已改成 after-commit 派发；2026-03-15 已补第一版 repeated expiry backoff、late callback 事件/摘要，以及 execution view 的 callback lifecycle 展示。下一步优先补最大重试/终止策略、published waiting surface 复用和 callback source 聚合，避免外部 callback 型节点仍在边界场景里长期反复等待但缺少明确停机语义。
 4. **P1：继续治理插件兼容与工作流定义热点**
   - `plugin_runtime.py` facade、`workflow_library.py`、`workflows.py`、`runs.py` trace/export helper 与 workflow schema 主文件都已分别完成一轮主热点拆层；下一步优先继续治理 compat plugin 的 lifecycle / catalog / store hydration、`run_trace_views.py` / `run_views.py` 的 run detail presenter 边界，以及 `agent_runtime_llm_support.py` 的 phase-specific LLM helper，同时保持新的 `workflow_node_validation.py` 不回流到主 schema，为 publish governance / sensitive access policy 预留稳定 service 边界。
 5. **P1：继续治理 run diagnostics 与 publish streaming 详情层**

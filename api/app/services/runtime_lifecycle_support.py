@@ -5,6 +5,10 @@ from copy import deepcopy
 from sqlalchemy.orm import Session
 
 from app.models.run import NodeRun, Run, RunEvent
+from app.services.callback_waiting_lifecycle import (
+    record_callback_ticket_canceled,
+    record_callback_ticket_issued,
+)
 from app.services.runtime_types import CompiledEdge, CompiledNode, NodeExecutionResult
 
 
@@ -57,6 +61,11 @@ class RuntimeLifecycleSupportMixin:
             reason=result.waiting_reason,
         )
         checkpoint_payload["callback_ticket"] = snapshot.as_checkpoint_payload()
+        checkpoint_payload = record_callback_ticket_issued(
+            checkpoint_payload,
+            reason=result.waiting_reason,
+            issued_at=snapshot.created_at,
+        )
         node_run.checkpoint_payload = checkpoint_payload
         events.append(
             self._build_event(
@@ -81,13 +90,21 @@ class RuntimeLifecycleSupportMixin:
         *,
         reason: str,
     ) -> None:
-        self._callback_tickets.cancel_pending_for_node_run(
+        canceled_records = self._callback_tickets.cancel_pending_for_node_run(
             db,
             node_run_id=node_run.id,
             reason=reason,
         )
         checkpoint_payload = dict(node_run.checkpoint_payload or {})
+        for record in canceled_records:
+            checkpoint_payload = record_callback_ticket_canceled(
+                checkpoint_payload,
+                reason=reason,
+                canceled_at=record.canceled_at,
+            )
         if checkpoint_payload.pop("callback_ticket", None) is not None:
+            node_run.checkpoint_payload = checkpoint_payload
+        elif canceled_records:
             node_run.checkpoint_payload = checkpoint_payload
 
     def _schedule_waiting_resume_if_needed(

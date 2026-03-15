@@ -8,6 +8,11 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.run import NodeRun, Run, RunEvent
+from app.services.callback_waiting_lifecycle import (
+    compute_callback_cleanup_backoff_delay_seconds,
+    record_callback_resume_schedule,
+    record_callback_ticket_expired,
+)
 from app.services.run_callback_tickets import CallbackTicketSnapshot, RunCallbackTicketService
 from app.services.run_resume_scheduler import RunResumeScheduler, get_run_resume_scheduler
 
@@ -124,6 +129,12 @@ class RunCallbackTicketCleanupService:
                         ),
                     )
                 )
+                if node_run is not None:
+                    node_run.checkpoint_payload = record_callback_ticket_expired(
+                        node_run.checkpoint_payload,
+                        reason="callback_ticket_expired",
+                        expired_at=snapshot.expired_at,
+                    )
                 if (
                     schedule_resumes
                     and record.run_id not in resume_scheduled_run_ids
@@ -216,19 +227,31 @@ class RunCallbackTicketCleanupService:
         if waiting_status != "waiting_callback":
             return False
 
+        checkpoint_payload = dict(node_run.checkpoint_payload or {})
+        delay_seconds, backoff_attempt = compute_callback_cleanup_backoff_delay_seconds(
+            checkpoint_payload
+        )
+
         scheduled_resume = self._resume_scheduler.schedule(
             run_id=run.id,
-            delay_seconds=0.0,
+            delay_seconds=delay_seconds,
             reason=snapshot.reason or node_run.waiting_reason or "callback pending",
             source=source,
             db=db,
         )
-        checkpoint_payload = dict(node_run.checkpoint_payload or {})
+        checkpoint_payload = record_callback_resume_schedule(
+            checkpoint_payload,
+            delay_seconds=scheduled_resume.delay_seconds,
+            reason=scheduled_resume.reason,
+            source=scheduled_resume.source,
+            backoff_attempt=backoff_attempt,
+        )
         checkpoint_payload["scheduled_resume"] = {
             "delay_seconds": scheduled_resume.delay_seconds,
             "reason": scheduled_resume.reason,
             "source": scheduled_resume.source,
             "waiting_status": waiting_status,
+            "backoff_attempt": backoff_attempt,
         }
         node_run.checkpoint_payload = checkpoint_payload
         db.add(
@@ -242,6 +265,7 @@ class RunCallbackTicketCleanupService:
                     "reason": scheduled_resume.reason,
                     "source": scheduled_resume.source,
                     "waiting_status": waiting_status,
+                    "backoff_attempt": backoff_attempt,
                 },
             )
         )

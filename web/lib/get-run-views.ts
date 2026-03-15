@@ -67,6 +67,26 @@ export type RunCallbackTicketItem = {
   canceled_at?: string | null;
 };
 
+export type CallbackWaitingLifecycleSummary = {
+  wait_cycle_count: number;
+  issued_ticket_count: number;
+  expired_ticket_count: number;
+  consumed_ticket_count: number;
+  canceled_ticket_count: number;
+  late_callback_count: number;
+  resume_schedule_count: number;
+  last_ticket_status?: string | null;
+  last_ticket_reason?: string | null;
+  last_ticket_updated_at?: string | null;
+  last_late_callback_status?: string | null;
+  last_late_callback_reason?: string | null;
+  last_late_callback_at?: string | null;
+  last_resume_delay_seconds?: number | null;
+  last_resume_reason?: string | null;
+  last_resume_source?: string | null;
+  last_resume_backoff_attempt: number;
+};
+
 export type RunExecutionNodeItem = {
   node_run_id: string;
   node_id: string;
@@ -93,6 +113,7 @@ export type RunExecutionNodeItem = {
   tool_calls: ToolCallItem[];
   ai_calls: AICallItem[];
   callback_tickets: RunCallbackTicketItem[];
+  callback_waiting_lifecycle?: CallbackWaitingLifecycleSummary | null;
 };
 
 export type RunExecutionView = {

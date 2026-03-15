@@ -156,6 +156,7 @@ def test_cleanup_stale_run_callback_tickets_route_expires_stale_tickets(
         "reason": "cleanup route pending",
         "source": "route_cleanup",
         "waiting_status": "waiting_callback",
+        "backoff_attempt": 1,
     }
     assert event is not None
     assert event.payload["ticket"] == ticket
@@ -168,6 +169,7 @@ def test_cleanup_stale_run_callback_tickets_route_expires_stale_tickets(
         "reason": "cleanup route pending",
         "source": "route_cleanup",
         "waiting_status": "waiting_callback",
+        "backoff_attempt": 1,
     }
 
 
@@ -319,6 +321,7 @@ def test_cleanup_service_can_schedule_immediate_resume_for_expired_callback_tick
         "reason": "cleanup route pending",
         "source": "callback_ticket_monitor",
         "waiting_status": "waiting_callback",
+        "backoff_attempt": 1,
     }
     assert resume_event is not None
     assert resume_event.payload == {
@@ -327,4 +330,75 @@ def test_cleanup_service_can_schedule_immediate_resume_for_expired_callback_tick
         "reason": "cleanup route pending",
         "source": "callback_ticket_monitor",
         "waiting_status": "waiting_callback",
+        "backoff_attempt": 1,
     }
+
+
+def test_cleanup_service_applies_backoff_after_repeated_callback_expirations(
+    sqlite_session: Session,
+) -> None:
+    run_id, ticket = _create_waiting_callback_run(sqlite_session)
+    ticket_record = sqlite_session.get(RunCallbackTicket, ticket)
+    assert ticket_record is not None
+    node_run = sqlite_session.scalar(
+        select(NodeRun).where(NodeRun.run_id == run_id, NodeRun.node_id == "agent")
+    )
+    assert node_run is not None
+    node_run.checkpoint_payload = {
+        **dict(node_run.checkpoint_payload or {}),
+        "callback_waiting_lifecycle": {
+            "wait_cycle_count": 2,
+            "issued_ticket_count": 2,
+            "expired_ticket_count": 1,
+            "consumed_ticket_count": 0,
+            "canceled_ticket_count": 0,
+            "late_callback_count": 0,
+            "resume_schedule_count": 0,
+            "last_ticket_status": "expired",
+            "last_ticket_reason": "callback_ticket_expired",
+        },
+    }
+    ticket_record.expires_at = datetime.now(UTC) - timedelta(minutes=5)
+    sqlite_session.commit()
+
+    scheduled_resumes = []
+    cleanup_service = RunCallbackTicketCleanupService(
+        resume_scheduler=RunResumeScheduler(dispatcher=scheduled_resumes.append)
+    )
+
+    result = cleanup_service.cleanup_stale_tickets(
+        sqlite_session,
+        source="scheduler_cleanup",
+        schedule_resumes=True,
+        resume_source="callback_ticket_monitor",
+    )
+
+    assert result.matched_count == 1
+    assert result.expired_count == 1
+    assert result.scheduled_resume_count == 1
+    assert scheduled_resumes == []
+
+    sqlite_session.commit()
+    sqlite_session.refresh(ticket_record)
+    sqlite_session.refresh(node_run)
+
+    assert len(scheduled_resumes) == 1
+    assert scheduled_resumes[0].run_id == run_id
+    assert scheduled_resumes[0].delay_seconds == 5.0
+    assert scheduled_resumes[0].reason == "cleanup route pending"
+    assert scheduled_resumes[0].source == "callback_ticket_monitor"
+    assert ticket_record.status == "expired"
+    assert node_run.checkpoint_payload["scheduled_resume"] == {
+        "delay_seconds": 5.0,
+        "reason": "cleanup route pending",
+        "source": "callback_ticket_monitor",
+        "waiting_status": "waiting_callback",
+        "backoff_attempt": 2,
+    }
+    lifecycle = node_run.checkpoint_payload["callback_waiting_lifecycle"]
+    assert lifecycle["expired_ticket_count"] == 2
+    assert lifecycle["resume_schedule_count"] == 1
+    assert lifecycle["last_resume_delay_seconds"] == 5.0
+    assert lifecycle["last_resume_reason"] == "cleanup route pending"
+    assert lifecycle["last_resume_source"] == "callback_ticket_monitor"
+    assert lifecycle["last_resume_backoff_attempt"] == 2

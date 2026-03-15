@@ -38,6 +38,27 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
         status="waiting_callback",
         phase="waiting_callback",
         retry_count=1,
+        checkpoint_payload={
+            "callback_waiting_lifecycle": {
+                "wait_cycle_count": 2,
+                "issued_ticket_count": 2,
+                "expired_ticket_count": 1,
+                "consumed_ticket_count": 0,
+                "canceled_ticket_count": 0,
+                "late_callback_count": 1,
+                "resume_schedule_count": 1,
+                "last_ticket_status": "pending",
+                "last_ticket_reason": "search callback pending",
+                "last_ticket_updated_at": "2026-03-11T10:01:00Z",
+                "last_late_callback_status": "expired",
+                "last_late_callback_reason": "callback_ticket_expired",
+                "last_late_callback_at": "2026-03-11T10:05:00Z",
+                "last_resume_delay_seconds": 5.0,
+                "last_resume_reason": "search callback pending",
+                "last_resume_source": "callback_ticket_monitor",
+                "last_resume_backoff_attempt": 2,
+            }
+        },
         artifact_refs=["artifact://artifact-tool", "artifact://artifact-evidence"],
         waiting_reason="Waiting for external search callback.",
         started_at=datetime(2026, 3, 11, 10, 0, tzinfo=UTC),
@@ -183,6 +204,25 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     assert node["callback_tickets"][0]["ticket"] == "ticket-agent"
     assert node["callback_tickets"][0]["expires_at"] == "2026-03-12T10:01:00Z"
     assert node["callback_tickets"][0]["expired_at"] is None
+    assert node["callback_waiting_lifecycle"] == {
+        "wait_cycle_count": 2,
+        "issued_ticket_count": 2,
+        "expired_ticket_count": 1,
+        "consumed_ticket_count": 0,
+        "canceled_ticket_count": 0,
+        "late_callback_count": 1,
+        "resume_schedule_count": 1,
+        "last_ticket_status": "pending",
+        "last_ticket_reason": "search callback pending",
+        "last_ticket_updated_at": "2026-03-11T10:01:00Z",
+        "last_late_callback_status": "expired",
+        "last_late_callback_reason": "callback_ticket_expired",
+        "last_late_callback_at": "2026-03-11T10:05:00Z",
+        "last_resume_delay_seconds": 5.0,
+        "last_resume_reason": "search callback pending",
+        "last_resume_source": "callback_ticket_monitor",
+        "last_resume_backoff_attempt": 2,
+    }
 
 
 def test_get_run_evidence_view_returns_evidence_nodes_only(

@@ -244,6 +244,32 @@ function ExecutionNodeCard({ node }: { node: RunExecutionNodeItem }) {
         ) : null}
       </div>
 
+      {node.callback_waiting_lifecycle ? (
+        <div className="event-type-strip">
+          <span className="event-chip">
+            wait cycles {node.callback_waiting_lifecycle.wait_cycle_count}
+          </span>
+          <span className="event-chip">
+            expired {node.callback_waiting_lifecycle.expired_ticket_count}
+          </span>
+          {node.callback_waiting_lifecycle.late_callback_count > 0 ? (
+            <span className="event-chip">
+              late callbacks {node.callback_waiting_lifecycle.late_callback_count}
+            </span>
+          ) : null}
+          {typeof node.callback_waiting_lifecycle.last_resume_delay_seconds === "number" ? (
+            <span className="event-chip">
+              resume {node.callback_waiting_lifecycle.last_resume_delay_seconds}s
+            </span>
+          ) : null}
+          {node.callback_waiting_lifecycle.last_resume_backoff_attempt > 0 ? (
+            <span className="event-chip">
+              backoff #{node.callback_waiting_lifecycle.last_resume_backoff_attempt}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       <MetricChipRow
         emptyCopy="当前没有节点事件类型分布。"
         metrics={node.event_type_counts}

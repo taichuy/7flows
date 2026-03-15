@@ -8,6 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.models.run import NodeRun, Run, RunEvent, ToolCallRecord
 from app.models.workflow import WorkflowCompiledBlueprint
+from app.services.callback_waiting_lifecycle import (
+    record_callback_ticket_canceled,
+    record_callback_ticket_consumed,
+    record_callback_ticket_expired,
+    record_late_callback_delivery,
+)
 from app.services.compiled_blueprints import CompiledBlueprintError
 from app.services.runtime_records import CallbackHandleResult, ExecutionArtifacts
 from app.services.runtime_types import FlowCheckpointState, WorkflowExecutionError
@@ -129,6 +135,17 @@ class RuntimeRunSupportMixin:
             )
 
         if ticket_record.status == "expired":
+            node_run = db.get(NodeRun, ticket_record.node_run_id)
+            if node_run is not None:
+                self._record_late_callback_state(
+                    db,
+                    node_run=node_run,
+                    ticket_record=ticket_record,
+                    status="expired",
+                    reason="callback_received_for_expired_ticket",
+                    source=source,
+                )
+                db.commit()
             artifacts = self._load_run_artifacts_or_raise(db, ticket_record.run_id)
             return self._build_callback_handle_result(
                 callback_status="expired",
@@ -152,6 +169,19 @@ class RuntimeRunSupportMixin:
                     "source": source,
                     "cleanup": False,
                 },
+            )
+            node_run.checkpoint_payload = record_callback_ticket_expired(
+                node_run.checkpoint_payload,
+                reason="callback_ticket_expired",
+                expired_at=callback_snapshot.expired_at,
+            )
+            self._record_late_callback_state(
+                db,
+                node_run=node_run,
+                ticket_record=ticket_record,
+                status="expired",
+                reason="callback_ticket_expired",
+                source=source,
             )
             self._persist_events(
                 db,
@@ -184,6 +214,15 @@ class RuntimeRunSupportMixin:
             )
 
         if ticket_record.status != "pending":
+            self._record_late_callback_state(
+                db,
+                node_run=node_run,
+                ticket_record=ticket_record,
+                status=str(ticket_record.status or "ignored"),
+                reason=f"callback_received_for_{ticket_record.status}_ticket",
+                source=source,
+            )
+            db.commit()
             artifacts = self._load_run_artifacts_or_raise(db, ticket_record.run_id)
             return self._build_callback_handle_result(
                 callback_status="ignored",
@@ -194,13 +233,30 @@ class RuntimeRunSupportMixin:
             )
 
         if run.status != "waiting" or node_run.status != "waiting_callback":
-            self._callback_tickets.cancel_pending_for_node_run(
+            canceled_records = self._callback_tickets.cancel_pending_for_node_run(
                 db,
                 node_run_id=node_run.id,
                 reason="callback_received_after_run_left_waiting",
             )
-            artifacts = self._load_run_artifacts_or_raise(db, ticket_record.run_id)
+            checkpoint_payload = dict(node_run.checkpoint_payload or {})
+            for record in canceled_records:
+                checkpoint_payload = record_callback_ticket_canceled(
+                    checkpoint_payload,
+                    reason="callback_received_after_run_left_waiting",
+                    canceled_at=record.canceled_at,
+                )
+            if checkpoint_payload.pop("callback_ticket", None) is not None or canceled_records:
+                node_run.checkpoint_payload = checkpoint_payload
+            self._record_late_callback_state(
+                db,
+                node_run=node_run,
+                ticket_record=ticket_record,
+                status="ignored",
+                reason="callback_received_after_run_left_waiting",
+                source=source,
+            )
             db.commit()
+            artifacts = self._load_run_artifacts_or_raise(db, ticket_record.run_id)
             return self._build_callback_handle_result(
                 callback_status="ignored",
                 ticket=ticket_record.id,
@@ -315,6 +371,10 @@ class RuntimeRunSupportMixin:
             tool_index + 1,
             int(checkpoint_payload.get("next_tool_index") or 0),
         )
+        checkpoint_payload = record_callback_ticket_consumed(
+            checkpoint_payload,
+            consumed_at=ticket_record.consumed_at,
+        )
         checkpoint_payload.pop("callback_ticket", None)
         checkpoint_payload.pop("scheduled_resume", None)
         node_run.checkpoint_payload = checkpoint_payload
@@ -369,6 +429,44 @@ class RuntimeRunSupportMixin:
             ),
         ]
         self._persist_events(db, callback_events)
+
+    def _record_late_callback_state(
+        self,
+        db: Session,
+        *,
+        node_run: NodeRun,
+        ticket_record,
+        status: str,
+        reason: str,
+        source: str,
+    ) -> None:
+        received_at = _utcnow()
+        node_run.checkpoint_payload = record_late_callback_delivery(
+            node_run.checkpoint_payload,
+            status=status,
+            reason=reason,
+            received_at=received_at,
+        )
+        self._persist_events(
+            db,
+            [
+                self._build_event(
+                    ticket_record.run_id,
+                    node_run.id,
+                    "run.callback.ticket.late",
+                    {
+                        "ticket": ticket_record.id,
+                        "node_id": node_run.node_id,
+                        "tool_id": ticket_record.tool_id,
+                        "tool_call_id": ticket_record.tool_call_id,
+                        "ticket_status": status,
+                        "reason": reason,
+                        "source": source,
+                        "received_at": self._serialize_timestamp(received_at),
+                    },
+                )
+            ],
+        )
 
     def _serialize_timestamp(self, value: datetime | None) -> str | None:
         if value is None:

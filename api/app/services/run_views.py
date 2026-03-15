@@ -22,6 +22,7 @@ from app.schemas.run import (
     ToolCallItem,
 )
 from app.schemas.run_views import (
+    CallbackWaitingLifecycleSummary,
     EvidenceEntryItem,
     RunCallbackTicketItem,
     RunEvidenceNodeItem,
@@ -31,6 +32,7 @@ from app.schemas.run_views import (
     RunExecutionSummary,
     RunExecutionView,
 )
+from app.services.callback_waiting_lifecycle import load_callback_waiting_lifecycle
 from app.services.runtime import RuntimeService
 from app.services.runtime_execution_policy import execution_policy_from_node_run_input
 from app.services.runtime_records import ExecutionArtifacts
@@ -42,6 +44,30 @@ def _normalize_datetime(value: datetime | None) -> datetime | None:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def serialize_callback_waiting_lifecycle_summary(
+    checkpoint_payload: dict | None,
+) -> CallbackWaitingLifecycleSummary | None:
+    lifecycle = load_callback_waiting_lifecycle(checkpoint_payload)
+    if not any(
+        lifecycle.get(key)
+        for key in (
+            "wait_cycle_count",
+            "issued_ticket_count",
+            "expired_ticket_count",
+            "consumed_ticket_count",
+            "canceled_ticket_count",
+            "late_callback_count",
+            "resume_schedule_count",
+            "last_ticket_status",
+            "last_late_callback_status",
+            "last_resume_delay_seconds",
+            "last_resume_backoff_attempt",
+        )
+    ):
+        return None
+    return CallbackWaitingLifecycleSummary(**lifecycle)
 
 
 def serialize_run_event(event: RunEvent) -> RunEventItem:
@@ -373,6 +399,9 @@ class RunViewService:
                     self._serialize_callback_ticket(ticket)
                     for ticket in tickets_by_node_run[node_run.id]
                 ],
+                callback_waiting_lifecycle=serialize_callback_waiting_lifecycle_summary(
+                    node_run.checkpoint_payload
+                ),
             )
             for node_run in artifacts.node_runs
         ]

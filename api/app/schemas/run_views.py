@@ -38,6 +38,26 @@ class RunExecutionSummary(BaseModel):
     callback_ticket_status_counts: dict[str, int] = Field(default_factory=dict)
 
 
+class CallbackWaitingLifecycleSummary(BaseModel):
+    wait_cycle_count: int = 0
+    issued_ticket_count: int = 0
+    expired_ticket_count: int = 0
+    consumed_ticket_count: int = 0
+    canceled_ticket_count: int = 0
+    late_callback_count: int = 0
+    resume_schedule_count: int = 0
+    last_ticket_status: str | None = None
+    last_ticket_reason: str | None = None
+    last_ticket_updated_at: datetime | None = None
+    last_late_callback_status: str | None = None
+    last_late_callback_reason: str | None = None
+    last_late_callback_at: datetime | None = None
+    last_resume_delay_seconds: float | None = None
+    last_resume_reason: str | None = None
+    last_resume_source: str | None = None
+    last_resume_backoff_attempt: int = 0
+
+
 class RunExecutionNodeItem(BaseModel):
     node_run_id: str
     node_id: str
@@ -64,6 +84,7 @@ class RunExecutionNodeItem(BaseModel):
     tool_calls: list[ToolCallItem] = Field(default_factory=list)
     ai_calls: list[AICallItem] = Field(default_factory=list)
     callback_tickets: list[RunCallbackTicketItem] = Field(default_factory=list)
+    callback_waiting_lifecycle: CallbackWaitingLifecycleSummary | None = None
 
 
 class RunExecutionView(BaseModel):
