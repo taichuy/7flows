@@ -3,6 +3,7 @@
 ## 文档定位
 
 - 本文只保留当前仍成立、且对后续开发有直接指导作用的运行时事实、结构热点和优先级。
+- 产品切口、开源/商业边界与版本分层的长期基线已独立收敛到 `docs/open-source-commercial-strategy.md`；本文不再承担这部分长线策略文案。
 - 带日期的阶段性开发记录统一放在 `docs/history/`；已废弃文档统一放在 `docs/expired/`，避免与当前索引混放影响检索。
 - 2026-03-14 之前的旧版长文已归档到 `docs/expired/2026-03-14-runtime-foundation-history-expired.md`，压缩过程说明放在 `docs/history/2026-03-14-runtime-foundation-compression.md`。
 - 根目录 `README.md` 已在 2026-03-14 按当前代码事实、产品边界与开发路径重新整理，作为新的仓库入口说明。
@@ -15,6 +16,7 @@
 - 基于 `c14c0d3 feat: add workflow editor publish draft form` 的前一轮基础，workflow editor 内的 `definition.publish` 现已补齐“`workflowVersion` 留空即跟随当前保存版本”的默认语义，并接入与后端 schema 对齐的本地校验和组件拆分；publish draft 已不再默认钉死旧版本，前端也能在重复 draft 待修正时保持稳定渲染。
 - 面向 AI / 自动化 的追溯仍必须以 `runs / node_runs / run_events / run_artifacts / tool_call_records / ai_call_records` 为事实源，前端面板只负责摘要、导航和排障入口。
 - 当前产品基线已进一步明确：7Flows 同时服务人类用户与 AI 用户，后续工作台、发布接口与运行态接口演进时，应保持人机交互、人与 AI 协作、AI 独立操作三类场景的结果语义一致。
+- 2026-03-15 文档基线已显式区分“对外 OpenClaw-first 切口”和“对内 IR / runtime 内核”：开源给协作、商业给治理现已作为目标设计写入稳定策略文档，但当前仓库仍主要落在 OSS kernel 和运行时基础建设阶段，不应把 Team / Enterprise 能力误写成已落地事实。
 - `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；当前代码已有 ToolGateway、waiting/resume 与 callback ticket 原语，但尚未落成独立事实层、策略挂点与 API。
 - 2026-03-15 复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 通过（222 passed）；前端 `web/pnpm lint` 与 `web/pnpm exec tsc --noEmit` 通过。后端全量 `ruff check` 复核后仍有历史风格/整理债务尚未在本轮整体清零，因此稳定性基线已继续提升，但还未达到“全仓库零告警”。
 
@@ -101,3 +103,5 @@
    - 下一阶段可优先拆 `web/components/run-diagnostics-execution-sections.tsx` 与 `api/app/services/published_protocol_streaming.py`，并为 approval timeline、security decision summary、protocol-specific SSE helper 预留落点。
 6. **P1：继续提高工作流编辑器完整度**
    - 在现有 `runtimePolicy.execution / retry / join`、节点 contract、workflow `publish` draft 与 `llm_agent.toolPolicy` 基础上，继续补敏感访问策略入口、variables/schema builder，以及更清晰的 advanced JSON / structured form 边界。
+7. **P2：把“开源给协作、商业给治理”的边界继续收敛成可实现领域模型**
+   - 在不提前引入重 IAM 或复杂多组织计费系统的前提下，先梳理 `organization / workspace / member / role / publish governance` 的最小领域模型与 API 预留，明确哪些属于 OSS kernel、哪些属于 Team / Enterprise 目标能力，避免后续实现、README 和对外叙事再次混线。

@@ -41,6 +41,7 @@ pnpm exec tsc --noEmit
 ## 推荐工作流
 
 1. 通读目标组件和相邻文件，确认它承担了哪些职责。
+   如果目标组件涉及调试、发布治理、OpenClaw 场景入口或版本边界，还应先补读 `docs/open-source-commercial-strategy.md`。
 2. 判断优先拆分轴：
    - 视觉区块
    - 状态与副作用
@@ -68,6 +69,7 @@ pnpm exec tsc --noEmit
 - 多协议发布配置是否共享同一视图模型
 - 调试面板是否拆成 timeline / logs / metrics / payload 等稳定区块
 - 是否把 Dify 风格前端基础设施假设硬搬到了 7Flows
+- 是否把“黑盒调试主切口”和“后续治理控制面”混在一个难以扩展的单体组件里
 
 ## 验证要求
 

@@ -1,6 +1,6 @@
 # 7Flows 产品设计方案
 
-> 文档分层约定：本文与 `docs/technical-design-supplement.md` 只保留产品/技术基线；当前实现索引放在 `docs/dev/`；带日期开发记录统一归档到 `docs/history/`；废弃文档统一归档到 `docs/expired/`。
+> 文档分层约定：本文与 `docs/technical-design-supplement.md` 只保留产品/技术基线；开源/商业边界与版本分层见 `docs/open-source-commercial-strategy.md`；当前实现索引放在 `docs/dev/`；带日期开发记录统一归档到 `docs/history/`；废弃文档统一归档到 `docs/expired/`。
 
 ## 1. 产品定位与问题定义
 
@@ -16,6 +16,12 @@
 - Agent 之间既需要静态参数传递，也需要运行时按权限动态查询前序上下文。
 - 工作流最终不仅要给人看结果，还要对外发布成标准接口，作为其他系统的大模型供应商能力源。
 - 团队需要兼顾可视化编排效率、节点隔离能力、插件复用能力和开放接口规范。
+
+### 1.1.1 市场切口与产品内核
+
+- 对外传播与冷启动阶段，7Flows 短期优先围绕 OpenClaw / 本地 AI 助手“黑盒执行变透明”的痛点展开，强调执行步骤可见、工具调用可追踪、运行过程可回放、失败节点可定位。
+- 这只是市场切口，不是内部架构降级。7Flows 的内核仍是面向多 Agent 工作流的 `IR + runtime + publish + trace + compat` 平台，而不是 OpenClaw 专属执行壳层。
+- 因此 README、官网、demo 与案例可以 OpenClaw-first，但产品模型、执行链、发布边界与插件体系仍必须坚持 `7Flows IR` 优先，以及 `workflow-backed provider` 的 OpenClaw 集成边界。
 
 ### 1.2 解决的核心问题
 
@@ -38,6 +44,7 @@
 - 用节点级沙盒、权限化上下文和发布网关支撑生产可用性。
 - 用统一的敏感访问控制把分级、授权、通知和审计纳入运行时，而不是把高敏原文直接暴露给 AI 或散落在业务代码里。
 - 用 Durable Agent Runtime 承载“流程级确定性 + 节点级智能性”，让节点执行具备暂停、恢复、降级和可追溯能力。
+- 对外叙事上先解决黑盒调试与执行透明，再自然承接团队协作、发布治理与组织控制能力。
 
 ## 2. 目标用户与典型场景
 
@@ -369,6 +376,22 @@ MVP 以“最小可上线的多 Agent 编排平台”为目标，包含以下能
 - 统一的 `execution class` / execution adapter registry 与 `sandbox_code` 正式执行链
 - 统一的 `SensitiveResource / AccessRequest / ApprovalTicket / Notification Adapter` 闭环
 - 完整发布态 compiled blueprint 绑定与开放 API 映射
+
+### 4.1.2 版本分层目标（设计态）
+
+> 本节描述的是目标设计，不等于当前仓库已经完整实现。
+
+- `OSS / Community`
+  - 负责 `7Flows IR`、runtime、基础执行透明、基础 trace / replay、可视化编排、自部署和开发者入口。
+  - 应保持真实可用，不应把“第二个用户”当成收费点。
+- `Team`
+  - 负责多 workspace、发布治理、环境隔离、团队报表、告警和私有模板库等“小团队控制面”能力。
+- `Enterprise`
+  - 负责组织级治理、审计日志、高级审批、预算 / 配额、模型 / 连接器策略、私有节点仓库和私有部署。
+- `Managed / Service`
+  - 负责官方托管执行、日志 / artifact / queue、SLA、迁移与咨询交付等持续资源和官方保障能力。
+
+版本边界的重要约束是：商业能力必须建立在同一 kernel 上，不允许另起执行引擎、另起工作流语义或另起第二套内部 DSL。
 
 ### 4.2 中期版本
 

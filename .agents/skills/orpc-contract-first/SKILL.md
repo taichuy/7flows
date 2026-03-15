@@ -40,6 +40,7 @@ web/service/client.ts
 ## 工作流
 
 1. 先确认本次任务确实需要合同优先层，而不是普通数据获取。
+   如果合同会影响发布接口、OpenClaw 场景入口或版本分层，还应先补读 `docs/open-source-commercial-strategy.md`。
 2. 在 `web/contract/` 中定义 contract。
 3. 在 `router.ts` 聚合 contract。
 4. 通过统一 client 在 UI 中消费 contract。

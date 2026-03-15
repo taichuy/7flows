@@ -5,7 +5,9 @@
 ## 1. 项目定位
 
 - 7Flows 是面向多 Agent 协作的可视化工作流平台，不是 Dify ChatFlow 的复刻，也不是通用低代码平台。
+- 对外传播短期优先围绕 OpenClaw / 本地 AI 助手“黑盒变透明”的控制面切口展开，但内部产品内核仍是多 Agent workflow 平台，不退化为某个上游产品的 UI 包装层。
 - 平台内部统一以 `7Flows IR` 作为事实模型，外部协议通过适配层映射，不允许反向让 OpenAI / Anthropic / Dify 协议主导内部设计。
+- 开源给协作，商业给治理；商业能力必须建立在同一 kernel 上，不允许另起执行引擎、第二套流程模型或第二套内部 DSL。
 - 首版核心关注点是：可编排、可调试、可发布、可兼容、可追溯。
 
 ## 2. 当前事实来源
@@ -14,22 +16,24 @@
 
 1. `docs/product-design.md`
    产品定位、核心模型、MVP 边界、发布策略、前端骨架。
-2. `docs/technical-design-supplement.md`
+2. `docs/open-source-commercial-strategy.md`
+   对外切口、开源/商业边界、版本分层、传播对象与付费对象。
+3. `docs/technical-design-supplement.md`
    插件兼容、插件 UI、安全、变量传递、调试模式、缓存等技术细则。
-3. `docs/dev/runtime-foundation.md`
+4. `docs/dev/runtime-foundation.md`
    当前已落地运行时事实和近期优先级。
-4. `docs/history/*.md`
+5. `docs/history/*.md`
    按日期归档的开发记录、阶段性决策与实现留痕；仅在需要追溯具体轮次时再读取。
-5. `README.md`
+6. `README.md`
    当前工程结构与本地开发方式。
-6. `.agents/skills/*/SKILL.md`
+7. `.agents/skills/*/SKILL.md`
    面向具体任务的专项工作流与审查规则。
 
 如果“设计文档”和“当前实现”冲突：
 
 - 代码与 `docs/dev/` 反映当前事实；
 - `docs/history/` 反映阶段性决策过程与开发留痕；
-- `docs/product-design.md` 和 `docs/technical-design-supplement.md` 反映目标方向；
+- `docs/product-design.md`、`docs/open-source-commercial-strategy.md` 和 `docs/technical-design-supplement.md` 反映目标方向；
 - 发生偏差时，要么修实现，要么补文档，不要默认忽略。
 
 ## 3. 绝对边界
@@ -122,6 +126,7 @@
 - 通用规则放 `AGENTS.md`，专项流程放 `SKILL.md`，深入说明放 `references/*.md`。
 - 如果某条规则只适用于单一模块，不要把它提升成全仓库规则。
 - 需要引用 Dify、n8n、xyflow、OpenClaw 经验时，应明确说明借鉴边界，避免直接照搬不存在的基础设施。
+- 涉及 OpenClaw 对外切口、开源/商业边界、组织治理或版本分层时，应检查相关 skill 是否仍与 `docs/open-source-commercial-strategy.md` 一致。
 
 ### 6.3 优化触发条件
 

@@ -1,15 +1,27 @@
 # 7Flows
 
-7Flows 是一个面向多 Agent 协作的可视化工作流平台，核心目标是把多节点编排、运行调试、协议发布、插件兼容和运行追溯收敛到同一套 `7Flows IR` 与事件流之上。
+7Flows 是一个面向 OpenClaw / 本地 AI 助手场景切入、面向 agent workflow 演进的可视化执行与治理底座。短期对外先解决“黑盒执行看不清、回放不了、难排障”的问题；对内仍坚持把多节点编排、运行调试、协议发布、插件兼容和运行追溯收敛到同一套 `7Flows IR` 与事件流之上。
 
-它不是 Dify ChatFlow 的复刻，也不是通用低代码平台。当前项目已经超过“只有初始化骨架”的阶段：后端已具备 workflow version / compiled blueprint / runtime / published endpoint / run tracing 等基础事实层，前端也已经接上工作台首页、workflow 新建与最小 `xyflow` 编辑器、run 诊断与发布治理相关入口。
+它不是 Dify ChatFlow 的复刻，也不是通用低代码平台，更不是单纯的 OpenClaw 皮肤层。当前项目已经超过“只有初始化骨架”的阶段：后端已具备 workflow version / compiled blueprint / runtime / published endpoint / run tracing 等基础事实层，前端也已经接上工作台首页、workflow 新建与最小 `xyflow` 编辑器、run 诊断与发布治理相关入口。
 
 ## 当前定位
 
-- 内部统一以 `7Flows IR` 作为事实模型，外部协议只通过适配层映射。
+- 对外传播切口：优先围绕 OpenClaw / 本地 AI 助手“黑盒变透明”的控制面展开，强调执行步骤、工具调用、trace / replay 和错误定位。
+- 内部产品内核：继续以 `7Flows IR`、Durable Runtime、发布网关、插件兼容层和统一事件流作为事实中心，而不是把 7Flows 降级成某个上游产品的 UI 包装层。
 - 首版只兼容 Dify 插件生态，不承诺兼容完整 Dify ChatFlow DSL、UI 配置格式或整个平台结构。
+- OpenClaw 集成边界仍是 `workflow-backed provider`：OpenClaw 对接的是 7Flows 发布网关，而不是直接理解 7Flows 内部 DSL。
+- 开源与商业的目标边界是“开源给协作，商业给治理”；当前仓库仍主要聚焦 OSS kernel 与运行时基础，不应把 Team / Enterprise 目标能力误读成当前事实。
 - 调试、流式输出、回放优先复用 `run_events`，AI / 自动化 追溯以 `runs`、`node_runs`、`run_events`、`run_artifacts`、`tool_call_records`、`ai_call_records` 为事实来源。
 - `llm_agent` 正在按可恢复 phase pipeline 演进，assistant 只负责 evidence 提炼，不拥有流程控制权。
+
+## 开源与商业边界
+
+这部分是当前已经明确的目标设计，不等于仓库已经完整交付对应版本：
+
+- OSS / Community：`7Flows IR`、runtime、基础执行透明、基础 trace / replay、可视化编排、自部署、插件协议与开发者入口。
+- Team：多 workspace、发布治理、团队报表、环境隔离、告警、私有模板库等“小团队控制面”能力。
+- Enterprise：组织级治理、审计、预算 / 配额、高级审批、SSO、私有节点仓库、私有部署等能力。
+- Managed / Service：官方托管执行、日志 / artifact / queue、SLA、迁移与咨询交付等能力。
 
 ## 当前已落地能力
 
@@ -25,6 +37,7 @@
 - `WAITING_CALLBACK` 仍缺少后台自动唤醒与完整 scheduler / callback bus。
 - 发布网关虽然已拆出多个子模块，但主网关和发布治理仍在持续治理中。
 - 节点配置、工作流编辑器和发布治理前端仍处于“可继续扩展”的阶段，不应假装成品已齐全。
+- OpenClaw-first 的对外切口已经明确，但仓库当前仍未提供“开箱即用的一键 OpenClaw 会话接管 / demo 套件”；相关接入路径和传播素材仍需继续补齐。
 
 ## 仓库结构
 
@@ -42,10 +55,12 @@
 
 1. `AGENTS.md`
 2. `docs/product-design.md`
-3. `docs/technical-design-supplement.md`
-4. `docs/dev/runtime-foundation.md`
-5. `docs/dev/user-preferences.md`
-6. `docs/history/`
+3. `docs/open-source-commercial-strategy.md`
+4. `docs/technical-design-supplement.md`
+5. `docs/dev/runtime-foundation.md`
+6. `docs/dev/user-preferences.md`
+7. `docs/history/`
+8. `.agents/skills/*/SKILL.md`
 
 ## 本地开发
 
@@ -140,15 +155,27 @@ docker compose up -d --build
 ## 文档分层
 
 - `docs/product-design.md`：产品定位、IR、节点体系、发布模型、前端骨架。
+- `docs/open-source-commercial-strategy.md`：OpenClaw-first 对外切口、开源/商业边界、版本分层和传播/付费对象。
 - `docs/technical-design-supplement.md`：插件兼容、插件 UI、安全、变量传递、调试模式、缓存、Durable Runtime 细节。
 - `docs/dev/runtime-foundation.md`：当前代码事实、结构热点、近期优先级。
 - `docs/dev/user-preferences.md`：稳定用户偏好与长期协作约束。
 - `docs/history/`：按日期归档的开发记录、阶段性方案与验证留痕。
 - `docs/expired/`：已废弃但保留历史价值的文档。
 
+## AI 协作与 Skills
+
+- `.agents/skills/backend-code-review`：后端 review、运行时、迁移、发布接口、插件代理与安全边界审查。
+- `.agents/skills/frontend-code-review`：前端页面、组件、工作流编辑器、调试和发布界面审查。
+- `.agents/skills/component-refactoring`：复杂 React 组件、配置面板、调试面板和编辑器壳层拆分。
+- `.agents/skills/frontend-testing`：前端测试设计、补测和测试基础设施判断。
+- `.agents/skills/orpc-contract-first`：只有在明确引入 oRPC 合同优先 API 层时才启用。
+- AI 协作开发默认先按任务范围读取对应 skill，再结合 `docs/dev/runtime-foundation.md` 和产品/技术/策略基线落地。
+
 ## 当前优先级
 
-1. 持续拆分 `api/app/services/published_gateway.py`，避免协议映射与审计逻辑回流主网关。
-2. 持续治理 `api/app/services/runtime.py`，沿 graph scheduling / lifecycle / resume orchestration 拆边界。
-3. 继续治理 `web/components/run-diagnostics-panel.tsx`，保持摘要优先、详情可钻取。
-4. Continue filling in sensitive-access policy placement, variables/schema builder, and a clearer advanced-JSON vs structured-form boundary so the editor can keep moving toward the main product workflow.
+当前研发优先级以 `docs/dev/runtime-foundation.md` 为准，当前摘要如下：
+
+1. 继续把 graded execution 从 execution-aware 扩成真实隔离能力。
+2. 定义并落地统一敏感访问控制闭环，同时补齐 `WAITING_CALLBACK` 的后台唤醒主链。
+3. 继续治理插件兼容、工作流 schema、run diagnostics、publish streaming 和编辑器结构热点。
+4. 把“开源给协作、商业给治理”的边界继续收敛成可实现的领域模型，避免实现与对外叙事再次混线。

@@ -24,6 +24,7 @@ description: 面向 7Flows `web/` 目录的前端代码审查技能。适用于 
 1. 先识别改动属于页面骨架、组件、数据获取，还是工作流编辑器相关实现。
 2. 如果涉及画布、节点、调试、发布、插件 UI、安全或变量传递，优先阅读：
    - `docs/product-design.md`
+   - `docs/open-source-commercial-strategy.md`
    - `docs/technical-design-supplement.md`
    - `docs/dev/runtime-foundation.md`
 3. 使用通用前端审查规则和 7Flows 专项规则共同审查。
@@ -57,6 +58,12 @@ description: 面向 7Flows `web/` 目录的前端代码审查技能。适用于 
 
 - 当前 runtime 仍未完整实现 loop、插件代理、MCP、发布协议映射。
 - 前端不应把这些能力假装成已可用；占位、禁用和实验态表达都属于设计质量的一部分。
+
+### 5. 是否同时照顾到主切口与内核边界
+
+- 当前对外切口是 OpenClaw / 本地 AI 助手的黑盒调试与执行透明，前端应优先放大 trace / replay / diagnostics 的真实价值。
+- 但前端也不能因为传播叙事而把 7Flows 误导成“只是控制面皮肤”，需要继续体现编排、发布、runtime policy、插件和追溯这些内核能力。
+- Team / Enterprise 治理能力如果尚未落地，应明确标注为规划、占位或目标设计，而不是伪造成已完成控制面。
 
 ## 输出要求
 

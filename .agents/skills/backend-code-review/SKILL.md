@@ -24,6 +24,7 @@ description: 基于 7Flows 当前仓库结构与产品架构，对 `api/` 下的
 1. 先识别审查范围，确认是路由层、服务层、运行时、数据层还是跨层改动。
 2. 如果涉及工作流语义、插件代理、发布协议、变量传递、调试、缓存或安全，优先阅读：
    - `docs/product-design.md`
+   - `docs/open-source-commercial-strategy.md`
    - `docs/technical-design-supplement.md`
    - `docs/dev/runtime-foundation.md`
 3. 应用通用后端规则与 7Flows 项目规则共同审查。
@@ -62,6 +63,11 @@ description: 基于 7Flows 当前仓库结构与产品架构，对 `api/` 下的
 
 - 路由保持薄，service 负责编排，repository 承担复杂持久化，model 保持数据定义。
 - 优先在现有目录和层次内演进，而不是照搬 Dify 里的模块命名和路径。
+
+### 6. 是否破坏“对外切口 vs 内部内核”的边界
+
+- 可以围绕 OpenClaw / 本地 AI 助手场景优化接入和调试体验，但不能把 runtime、发布链或核心领域模型写成 OpenClaw 专属实现。
+- 不能为了后续 Team / Enterprise 商业化想象，就把 adoption-critical 的 kernel 能力错误抽离成“只有治理层才能用”。
 
 ## 输出要求
 
