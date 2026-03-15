@@ -62,6 +62,50 @@ def _demo_search_constrained_ir() -> dict:
     }
 
 
+def _credential_bound_constrained_ir() -> dict:
+    return {
+        "ir_version": "2026-03-10",
+        "kind": "tool",
+        "ecosystem": "compat:dify",
+        "tool_id": "compat:dify:plugin:demo/secret-search",
+        "name": "Secret Search",
+        "description": "Search via Dify adapter with credential input",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "api_key": {"type": "string", "format": "password"},
+            },
+            "required": ["query", "api_key"],
+            "additional_properties": False,
+        },
+        "output_schema": {"type": "object"},
+        "source": "plugin",
+        "input_contract": [
+            {
+                "name": "query",
+                "required": True,
+                "value_source": "llm",
+                "json_schema": {"type": "string"},
+            },
+            {
+                "name": "api_key",
+                "required": True,
+                "value_source": "credential",
+                "json_schema": {"type": "string"},
+            },
+        ],
+        "constraints": {
+            "additional_properties": False,
+            "credential_fields": ["api_key"],
+            "file_fields": [],
+            "llm_fillable_fields": ["query"],
+            "user_config_fields": [],
+        },
+        "plugin_meta": {"origin": "dify"},
+    }
+
+
 def test_plugin_call_proxy_invokes_native_tool() -> None:
     registry = PluginRegistry()
     registry.register_tool(
@@ -209,6 +253,77 @@ def test_plugin_call_proxy_rejects_unsupported_contract_fields() -> None:
         assert "unsupported input fields: unexpected" in str(exc)
     else:
         raise AssertionError("Expected unsupported input fields to be rejected.")
+
+
+def test_plugin_call_proxy_rejects_credential_field_in_inputs() -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="compat:dify:plugin:demo/secret-search",
+            name="Secret Search",
+            ecosystem="compat:dify",
+            source="plugin",
+            constrained_ir=_credential_bound_constrained_ir(),
+        )
+    )
+    registry.register_adapter(
+        CompatibilityAdapterRegistration(
+            id="dify-default",
+            ecosystem="compat:dify",
+            endpoint="http://adapter.local/dify",
+        )
+    )
+    proxy = PluginCallProxy(registry)
+
+    try:
+        proxy.invoke(
+            PluginCallRequest(
+                tool_id="compat:dify:plugin:demo/secret-search",
+                ecosystem="compat:dify",
+                inputs={"query": "sevenflows", "api_key": "secret"},
+                trace_id="trace-compat",
+            )
+        )
+    except Exception as exc:
+        assert "via credentials, not inputs" in str(exc)
+    else:
+        raise AssertionError("Expected credential field routing to be enforced.")
+
+
+def test_plugin_call_proxy_rejects_input_field_in_credentials() -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="compat:dify:plugin:demo/secret-search",
+            name="Secret Search",
+            ecosystem="compat:dify",
+            source="plugin",
+            constrained_ir=_credential_bound_constrained_ir(),
+        )
+    )
+    registry.register_adapter(
+        CompatibilityAdapterRegistration(
+            id="dify-default",
+            ecosystem="compat:dify",
+            endpoint="http://adapter.local/dify",
+        )
+    )
+    proxy = PluginCallProxy(registry)
+
+    try:
+        proxy.invoke(
+            PluginCallRequest(
+                tool_id="compat:dify:plugin:demo/secret-search",
+                ecosystem="compat:dify",
+                inputs={"query": "sevenflows"},
+                credentials={"query": "wrong-place", "api_key": "secret"},
+                trace_id="trace-compat",
+            )
+        )
+    except Exception as exc:
+        assert "via inputs, not credentials" in str(exc)
+    else:
+        raise AssertionError("Expected input field routing to be enforced.")
 
 
 def test_runtime_service_executes_registered_native_tool(

@@ -136,6 +136,8 @@ class PluginRegistryStore:
 
         db.flush()
         return stale_ids
+
+
 @lru_cache(maxsize=1)
 def get_plugin_registry_store() -> PluginRegistryStore:
     return PluginRegistryStore()
