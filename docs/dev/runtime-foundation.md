@@ -20,8 +20,8 @@
 - 2026-03-15 文档基线已显式区分“对外 OpenClaw-first 切口”和“对内 IR / runtime 内核”：开源给协作、商业给治理现已作为目标设计写入稳定策略文档，但当前仓库仍主要落在 OSS kernel 和运行时基础建设阶段，不应把 Team / Enterprise 能力误写成已落地事实。
 - 2026-03-15 仓库授权已切换为 Apache 2.0 基底 + 附加条件的 `7Flows Community License`：社区协作、自部署和单租户二次开发仍是默认入口，但多租户托管、商业化对立面与前端去标识 / 白标不再属于“默认免费边界”，相关判断必须以根目录 `LICENSE` 为准。
 - 2026-03-15 AI 协作体系已从“领域 skill 为主”补成“元流程 skill + 领域 skill”双层结构：新增 `development-closure`、`skill-governance`、`backend-testing`，用于收尾闭环、skill 漂移治理与后端测试补齐；后续 AI 开发不应只读单个 review / refactor skill 就跳过验证、文档同步和 Git 收尾。
-- `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；本轮已补上 `SensitiveResourceRecord / SensitiveAccessRequestRecord / ApprovalTicketRecord / NotificationDispatchRecord` 事实层，以及 `/api/sensitive-access/*` API、最小默认策略矩阵和 in-app 通知落点。当前仍缺 ToolGateway、credential resolve、context read 和 publish export 的真实拦截挂点，以及审批通过后的 runtime resume 衔接。
-- 2026-03-15 最新复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 继续通过；在 `workflow_library_catalog`、workflow schema 子模型、`workflows.py` route/service 与 `workflow_graph_validation.py` 拆分之后，本轮继续把 `api/app/schemas/workflow.py` 的节点级嵌入式 config validator 下沉到 `api/app/schemas/workflow_node_validation.py`。workflow schema 主文件现在进一步收回到“节点/边/变量/publish 文档声明 + edge/graph 校验挂点”的角色；changed-files `ruff check` 与 `pytest -q tests/test_workflow_routes.py`（30 passed）已通过。后端全量 `ruff check` 的历史风格/整理债务仍未在本轮整体清零，因此稳定性基线继续提升，但还未达到“全仓库零告警”。
+- `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；在上一轮 `SensitiveResourceRecord / SensitiveAccessRequestRecord / ApprovalTicketRecord / NotificationDispatchRecord` 事实层与 `/api/sensitive-access/*` API 基础上，本轮继续把它接到 runtime 的 `credential resolve` 路径：当 node/agent 解析 `credential://...` 且命中敏感资源时，运行态现在会真正创建/复用访问请求、在审批未完成时进入 `waiting_tool`，并在审批 `approved / rejected` 后通过既有 `RunResumeScheduler` 回到 `waiting/resume` 主链。当前仍缺 ToolGateway、context read 和 publish export 的真实拦截挂点，以及更完整的通知 worker / inbox 落地。
+- 2026-03-15 最新复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 继续通过（`233 passed`）；除敏感访问控制的 runtime credential gating 外，本轮还补齐了 direct `tool` node 对 normalized `ToolExecutionResult(status="waiting")` 的 suspend / schedule / resume 处理，避免 direct tool node 和 llm_agent tool call 的 waiting 语义继续分叉。changed-files `ruff check` 与 `pytest -q tests/test_runtime_credential_integration.py`（`10 passed`）已通过。后端全量 `ruff check` 的历史风格/整理债务仍未在本轮整体清零，因此稳定性基线继续提升，但还未达到“全仓库零告警”。
 
 ## 当前代码事实
 
@@ -97,8 +97,8 @@
 
 1. **P0：继续把 graded execution 从 execution-aware 扩成真实隔离能力**
    - `RuntimeExecutionAdapterRegistry`、`sandbox_code` host-subprocess MVP，以及 ToolGateway / `llm_agent.toolPolicy.execution` / tool node 的 execution-aware dispatch 已落地；下一步优先补真实 `sandbox` / `microvm` tool adapter、compat plugin execution boundary 对接与 execution trace 摘要聚合，避免 execution policy 长期停留在“有 trace 但少数能力仍 fallback”。
-2. **P0：定义并落地统一敏感访问控制闭环**
-   - `SensitiveAccessRequest`、`ApprovalTicket`、`NotificationDispatch` 和 `/api/sensitive-access/*` 已落地；下一步优先把拦截点挂到 ToolGateway、credential resolve、context read 和 publish export 入口，并让审批通过/拒绝与 runtime `waiting/resume` 主链联动，而不是停留在独立管理 API。
+2. **P0：继续扩统一敏感访问控制闭环**
+   - `SensitiveAccessRequest`、`ApprovalTicket`、`NotificationDispatch`、`/api/sensitive-access/*`、runtime `credential resolve` 拦截，以及审批后的 `waiting/resume` 调度都已落地；下一步优先把同一套控制继续挂到 ToolGateway、context read 和 publish export 入口，并补真实通知 worker / inbox，而不是只停留在 credential path + 独立管理 API。
 3. **P0：补齐 `WAITING_CALLBACK` 的后台唤醒闭环**
    - 继续把 callback ticket、scheduler 和 resume orchestration 衔接成更完整的 durable execution 主链，为后续审批、通知恢复和 timeout/fallback 复用同一条 waiting/resume 能力。
 4. **P1：继续治理插件兼容与工作流定义热点**

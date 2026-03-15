@@ -14,6 +14,10 @@ from app.models.sensitive_access import (
     SensitiveAccessRequestRecord,
     SensitiveResourceRecord,
 )
+from app.services.run_resume_scheduler import (
+    RunResumeScheduler,
+    get_run_resume_scheduler,
+)
 
 
 def _utcnow() -> datetime:
@@ -49,6 +53,13 @@ class ApprovalDecisionBundle:
 
 
 class SensitiveAccessControlService:
+    def __init__(
+        self,
+        *,
+        resume_scheduler: RunResumeScheduler | None = None,
+    ) -> None:
+        self._resume_scheduler = resume_scheduler or get_run_resume_scheduler()
+
     def create_resource(
         self,
         db: Session,
@@ -146,6 +157,62 @@ class SensitiveAccessControlService:
         if status:
             statement = statement.where(NotificationDispatchRecord.status == status)
         return db.scalars(statement).all()
+
+    def find_credential_resource(
+        self,
+        db: Session,
+        *,
+        credential_id: str,
+    ) -> SensitiveResourceRecord | None:
+        statement = select(SensitiveResourceRecord).where(
+            SensitiveResourceRecord.source == "credential"
+        )
+        for record in db.scalars(statement):
+            metadata_payload = record.metadata_payload or {}
+            if str(metadata_payload.get("credential_id") or "") == credential_id:
+                return record
+        return None
+
+    def ensure_access(
+        self,
+        db: Session,
+        *,
+        run_id: str | None,
+        node_run_id: str | None,
+        requester_type: str,
+        requester_id: str,
+        resource_id: str,
+        action_type: str,
+        purpose_text: str | None = None,
+        notification_channel: str = "in_app",
+        notification_target: str = "sensitive-access-inbox",
+        reuse_existing: bool = True,
+    ) -> SensitiveAccessRequestBundle:
+        if reuse_existing:
+            existing_bundle = self._find_existing_access_bundle(
+                db,
+                run_id=run_id,
+                node_run_id=node_run_id,
+                requester_type=requester_type,
+                requester_id=requester_id,
+                resource_id=resource_id,
+                action_type=action_type,
+            )
+            if existing_bundle is not None:
+                return existing_bundle
+
+        return self.request_access(
+            db,
+            run_id=run_id,
+            node_run_id=node_run_id,
+            requester_type=requester_type,
+            requester_id=requester_id,
+            resource_id=resource_id,
+            action_type=action_type,
+            purpose_text=purpose_text,
+            notification_channel=notification_channel,
+            notification_target=notification_target,
+        )
 
     def request_access(
         self,
@@ -266,7 +333,72 @@ class SensitiveAccessControlService:
             db,
             approval_ticket_id=approval_ticket.id,
         )
+        if approval_ticket.run_id:
+            self._resume_scheduler.schedule(
+                run_id=approval_ticket.run_id,
+                reason=(
+                    f"Sensitive access ticket {approval_ticket.id} {status}"
+                ),
+                source="sensitive_access_decision",
+            )
         return ApprovalDecisionBundle(
+            access_request=access_request,
+            approval_ticket=approval_ticket,
+            notifications=notifications,
+        )
+
+    def _find_existing_access_bundle(
+        self,
+        db: Session,
+        *,
+        run_id: str | None,
+        node_run_id: str | None,
+        requester_type: str,
+        requester_id: str,
+        resource_id: str,
+        action_type: str,
+    ) -> SensitiveAccessRequestBundle | None:
+        statement = (
+            select(SensitiveAccessRequestRecord)
+            .where(
+                SensitiveAccessRequestRecord.requester_type == requester_type,
+                SensitiveAccessRequestRecord.requester_id == requester_id.strip(),
+                SensitiveAccessRequestRecord.resource_id == resource_id,
+                SensitiveAccessRequestRecord.action_type == action_type,
+            )
+            .order_by(SensitiveAccessRequestRecord.created_at.desc())
+        )
+        if run_id is None:
+            statement = statement.where(SensitiveAccessRequestRecord.run_id.is_(None))
+        else:
+            statement = statement.where(SensitiveAccessRequestRecord.run_id == run_id)
+        if node_run_id is None:
+            statement = statement.where(SensitiveAccessRequestRecord.node_run_id.is_(None))
+        else:
+            statement = statement.where(SensitiveAccessRequestRecord.node_run_id == node_run_id)
+
+        access_request = db.scalars(statement).first()
+        if access_request is None:
+            return None
+
+        resource = db.get(SensitiveResourceRecord, resource_id)
+        if resource is None:
+            raise SensitiveAccessControlError("Sensitive resource not found.")
+
+        approval_ticket = db.scalar(
+            select(ApprovalTicketRecord).where(
+                ApprovalTicketRecord.access_request_id == access_request.id
+            )
+        )
+        notifications: list[NotificationDispatchRecord] = []
+        if approval_ticket is not None:
+            notifications = self.list_notification_dispatches(
+                db,
+                approval_ticket_id=approval_ticket.id,
+            )
+
+        return SensitiveAccessRequestBundle(
+            resource=resource,
             access_request=access_request,
             approval_ticket=approval_ticket,
             notifications=notifications,

@@ -19,8 +19,10 @@ from app.services.plugin_runtime import (
     PluginRegistry,
     PluginToolDefinition,
 )
+from app.services.run_resume_scheduler import RunResumeScheduler
 from app.services.runtime import RuntimeService
 from app.services.runtime_types import WorkflowExecutionError
+from app.services.sensitive_access_control import SensitiveAccessControlService
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -95,6 +97,47 @@ def _make_tool_proxy(captured_credentials: list[dict]) -> PluginCallProxy:
         PluginToolDefinition(id="test-tool", name="test-tool", ecosystem="native")
     )
     return _CapturingProxy(registry)
+
+
+def _make_waiting_then_success_tool_proxy() -> PluginCallProxy:
+    call_counter = {"count": 0}
+
+    class _WaitingProxy(PluginCallProxy):
+        def invoke(self, request: PluginCallRequest) -> PluginCallResponse:
+            call_counter["count"] += 1
+            if call_counter["count"] == 1:
+                return PluginCallResponse(
+                    status="success",
+                    output={
+                        "status": "waiting",
+                        "content_type": "json",
+                        "structured": {"ticket": "tool-node-1"},
+                        "summary": "awaiting callback",
+                        "meta": {
+                            "tool_name": "test-tool",
+                            "waiting_reason": "tool node callback pending",
+                            "waiting_status": "waiting_callback",
+                            "resume_after_seconds": 2,
+                        },
+                    },
+                    duration_ms=1,
+                )
+            return PluginCallResponse(
+                status="success",
+                output={
+                    "status": "success",
+                    "content_type": "json",
+                    "structured": {"result": "done"},
+                    "summary": "done",
+                },
+                duration_ms=1,
+            )
+
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(id="test-tool", name="test-tool", ecosystem="native")
+    )
+    return _WaitingProxy(registry)
 
 
 # ---------------------------------------------------------------------------
@@ -541,3 +584,159 @@ def test_tool_node_with_mixed_credentials(
     assert len(captured) == 1
     assert captured[0]["secret_token"] == "tok-abc"
     assert captured[0]["plain_key"] == "plain-value"
+
+
+def test_tool_node_sensitive_credential_waits_for_approval_and_resumes(
+    sqlite_session: Session,
+) -> None:
+    scheduled_resumes = []
+    with _patch_settings():
+        sensitive_access = SensitiveAccessControlService(
+            resume_scheduler=RunResumeScheduler(dispatcher=scheduled_resumes.append)
+        )
+        store = CredentialStore(sensitive_access_service=sensitive_access)
+        cred = store.create(
+            sqlite_session,
+            name="Sensitive Tool Key",
+            credential_type="api_key",
+            data={"api_key": "sk-sensitive"},
+        )
+        sensitive_access.create_resource(
+            sqlite_session,
+            label="Production Tool Credential",
+            sensitivity_level="L3",
+            source="credential",
+            metadata={"credential_id": cred.id},
+        )
+        sqlite_session.commit()
+        cred_id = cred.id
+
+    captured: list[dict] = []
+    proxy = _make_tool_proxy(captured)
+    workflow = _create_workflow(
+        sqlite_session,
+        workflow_id="wf-sensitive-cred-tool",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "tool_node",
+                    "type": "tool",
+                    "name": "Sensitive Tool",
+                    "config": {
+                        "tool": {
+                            "toolId": "test-tool",
+                            "credentials": {
+                                "auth": f"credential://{cred_id}",
+                            },
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool_node"},
+                {"id": "e2", "sourceNodeId": "tool_node", "targetNodeId": "output"},
+            ],
+        },
+    )
+
+    with _patch_settings():
+        service = RuntimeService(plugin_call_proxy=proxy, credential_store=store)
+        first_pass = service.execute_workflow(sqlite_session, workflow, {"query": "test"})
+
+    waiting_run = next(
+        node_run for node_run in first_pass.node_runs if node_run.node_id == "tool_node"
+    )
+    approval_tickets = sensitive_access.list_approval_tickets(
+        sqlite_session,
+        run_id=first_pass.run.id,
+    )
+    assert first_pass.run.status == "waiting"
+    assert waiting_run.status == "waiting_tool"
+    assert waiting_run.phase == "waiting_tool"
+    assert captured == []
+    assert len(approval_tickets) == 1
+    assert approval_tickets[0].status == "pending"
+    assert len(sensitive_access.list_access_requests(sqlite_session, run_id=first_pass.run.id)) == 1
+
+    sensitive_access.decide_ticket(
+        sqlite_session,
+        ticket_id=approval_tickets[0].id,
+        status="approved",
+        approved_by="ops-reviewer",
+    )
+    sqlite_session.commit()
+
+    assert len(scheduled_resumes) == 1
+    assert scheduled_resumes[0].run_id == first_pass.run.id
+    assert scheduled_resumes[0].source == "sensitive_access_decision"
+
+    with _patch_settings():
+        resumed = service.resume_run(sqlite_session, first_pass.run.id, source="test")
+
+    resumed_tool_run = next(
+        node_run for node_run in resumed.node_runs if node_run.node_id == "tool_node"
+    )
+    assert resumed.run.status == "succeeded"
+    assert resumed_tool_run.status == "succeeded"
+    assert len(captured) == 1
+    assert captured[0]["api_key"] == "sk-sensitive"
+    assert len(sensitive_access.list_access_requests(sqlite_session, run_id=first_pass.run.id)) == 1
+
+
+def test_tool_node_waiting_result_suspends_and_can_resume(
+    sqlite_session: Session,
+) -> None:
+    workflow = _create_workflow(
+        sqlite_session,
+        workflow_id="wf-tool-node-waiting",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "tool_node",
+                    "type": "tool",
+                    "name": "Waiting Tool",
+                    "config": {
+                        "tool": {
+                            "toolId": "test-tool",
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool_node"},
+                {"id": "e2", "sourceNodeId": "tool_node", "targetNodeId": "output"},
+            ],
+        },
+    )
+
+    scheduled_resumes = []
+    runtime = RuntimeService(
+        plugin_call_proxy=_make_waiting_then_success_tool_proxy(),
+        resume_scheduler=RunResumeScheduler(dispatcher=scheduled_resumes.append),
+    )
+
+    first_pass = runtime.execute_workflow(sqlite_session, workflow, {"query": "waiting"})
+
+    waiting_run = next(
+        node_run for node_run in first_pass.node_runs if node_run.node_id == "tool_node"
+    )
+    assert first_pass.run.status == "waiting"
+    assert waiting_run.status == "waiting_callback"
+    assert waiting_run.phase == "waiting_callback"
+    assert waiting_run.checkpoint_payload["scheduled_resume"]["delay_seconds"] == 2.0
+    assert len(scheduled_resumes) == 1
+    assert scheduled_resumes[0].delay_seconds == 2.0
+    assert "tool.waiting" in [event.event_type for event in first_pass.events]
+
+    resumed = runtime.resume_run(sqlite_session, first_pass.run.id, source="test")
+
+    resumed_tool_run = next(
+        node_run for node_run in resumed.node_runs if node_run.node_id == "tool_node"
+    )
+    assert resumed.run.status == "succeeded"
+    assert resumed_tool_run.status == "succeeded"
+    assert resumed.run.output_payload["tool_node"]["result"] == "done"

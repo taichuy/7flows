@@ -67,6 +67,7 @@ class RuntimeService(
         self,
         plugin_call_proxy: PluginCallProxy | None = None,
         resume_scheduler: RunResumeScheduler | None = None,
+        credential_store: CredentialStore | None = None,
     ) -> None:
         self._uses_default_plugin_proxy = plugin_call_proxy is None
         self._plugin_call_proxy = plugin_call_proxy or get_plugin_call_proxy()
@@ -75,7 +76,7 @@ class RuntimeService(
         self._compiled_blueprints = CompiledBlueprintService(self._flow_compiler)
         self._artifact_store = RuntimeArtifactStore()
         self._context_service = ContextService()
-        self._credential_store = CredentialStore()
+        self._credential_store = credential_store or CredentialStore()
         self._callback_tickets = RunCallbackTicketService()
         self._llm_provider = LLMProviderService()
         self._execution_adapter_registry = RuntimeExecutionAdapterRegistry(

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.models.run import NodeRun
+from app.services.credential_store import CredentialAccessPendingError
 from app.services.runtime_execution_adapters import NodeExecutionRequest
 from app.services.runtime_execution_policy import execution_policy_from_node_run_input
 from app.services.runtime_types import (
@@ -85,7 +86,20 @@ class RuntimeNodeDispatchSupportMixin:
             raise WorkflowExecutionError(str(config["mock_error"]))
 
         if node.get("type") == "llm_agent" and get_settings().durable_agent_runtime_enabled:
-            resolved_credentials = self._resolve_node_credentials(db, node)
+            try:
+                resolved_credentials = self._resolve_node_credentials(
+                    db,
+                    node,
+                    run_id=run_id,
+                    node_run=node_run,
+                )
+            except CredentialAccessPendingError as exc:
+                return self._build_sensitive_access_waiting_result(
+                    node=node,
+                    node_run=node_run,
+                    bundle=exc.bundle,
+                    access_target="llm_model",
+                )
             return self._agent_runtime.execute(
                 db,
                 run_id=run_id,
@@ -158,7 +172,26 @@ class RuntimeNodeDispatchSupportMixin:
             str(key): str(value)
             for key, value in (tool_ref.get("credentials") or {}).items()
         }
-        resolved_credentials = self._resolve_credentials_dict(db, raw_credentials)
+        try:
+            resolved_credentials = self._resolve_credentials_dict(
+                db,
+                raw_credentials,
+                run_id=run_id,
+                node_run=node_run,
+                requester_type="tool",
+                requester_id=tool_ref["toolId"],
+                purpose_text=(
+                    f"Tool node '{node['id']}' requested credentials for tool "
+                    f"'{tool_ref['toolId']}'."
+                ),
+            )
+        except CredentialAccessPendingError as exc:
+            return self._build_sensitive_access_waiting_result(
+                node=node,
+                node_run=node_run,
+                bundle=exc.bundle,
+                access_target="tool_credentials",
+            )
         tool_result = self._tool_gateway.execute(
             db,
             run_id=run_id,
@@ -183,6 +216,34 @@ class RuntimeNodeDispatchSupportMixin:
             tool_name=str(tool_result.meta.get("tool_name") or tool_ref["toolId"]),
             tool_result=tool_result,
         )
+        if tool_result.status == "waiting":
+            waiting_status = self._waiting_status_for_tool_result(tool_result)
+            waiting_reason = str(
+                tool_result.meta.get("waiting_reason")
+                or tool_result.summary
+                or "Waiting for tool completion."
+            )
+            node_run.status = waiting_status
+            node_run.phase = waiting_status
+            node_run.waiting_reason = waiting_reason
+            events.append(
+                RuntimeEvent(
+                    "tool.waiting",
+                    {
+                        "node_id": node["id"],
+                        "tool_id": tool_ref["toolId"],
+                        "reason": waiting_reason,
+                        "raw_ref": tool_result.raw_ref,
+                    },
+                )
+            )
+            return NodeExecutionResult(
+                suspended=True,
+                waiting_status=waiting_status,
+                waiting_reason=waiting_reason,
+                resume_after_seconds=self._resume_after_seconds_for_tool_result(tool_result),
+                events=events,
+            )
         events.append(
             RuntimeEvent(
                 "tool.completed",
@@ -234,7 +295,14 @@ class RuntimeNodeDispatchSupportMixin:
                 return deepcopy(candidate)
         return {}
 
-    def _resolve_node_credentials(self, db: Session, node: dict) -> dict[str, str]:
+    def _resolve_node_credentials(
+        self,
+        db: Session,
+        node: dict,
+        *,
+        run_id: str | None = None,
+        node_run: NodeRun | None = None,
+    ) -> dict[str, str]:
         config = node.get("config", {})
         raw_creds: dict[str, str] = {}
         config_creds = config.get("credentials")
@@ -245,10 +313,29 @@ class RuntimeNodeDispatchSupportMixin:
             api_key = model_config.get("apiKey")
             if isinstance(api_key, str) and api_key.startswith("credential://"):
                 raw_creds["apiKey"] = api_key
-        return self._resolve_credentials_dict(db, raw_creds)
+        return self._resolve_credentials_dict(
+            db,
+            raw_creds,
+            run_id=run_id,
+            node_run=node_run,
+            requester_type="ai",
+            requester_id=str(node.get("id") or "llm_agent"),
+            purpose_text=(
+                "LLM agent node "
+                f"'{node.get('id') or 'unknown'}' requested model/runtime credentials."
+            ),
+        )
 
     def _resolve_credentials_dict(
-        self, db: Session, raw: dict[str, str]
+        self,
+        db: Session,
+        raw: dict[str, str],
+        *,
+        run_id: str | None = None,
+        node_run: NodeRun | None = None,
+        requester_type: str = "workflow",
+        requester_id: str = "runtime",
+        purpose_text: str | None = None,
     ) -> dict[str, str]:
         if not any(
             isinstance(value, str) and value.startswith("credential://")
@@ -256,12 +343,93 @@ class RuntimeNodeDispatchSupportMixin:
         ):
             return raw
         try:
+            if node_run is not None:
+                resolved = self._credential_store.resolve_runtime_credential_refs(
+                    db,
+                    credentials=raw,
+                    run_id=run_id,
+                    node_run_id=node_run.id,
+                    requester_type=requester_type,
+                    requester_id=requester_id,
+                    purpose_text=purpose_text,
+                )
+                self._clear_sensitive_access_waiting_state(node_run)
+                return resolved
             return self._credential_store.resolve_credential_refs(db, credentials=raw)
+        except CredentialAccessPendingError:
+            raise
         except Exception as exc:
             _log.warning("Credential resolution failed: %s", exc)
             raise WorkflowExecutionError(
                 f"Failed to resolve credential references: {exc}"
             ) from exc
+
+    def _build_sensitive_access_waiting_result(
+        self,
+        *,
+        node: dict,
+        node_run: NodeRun,
+        bundle,
+        access_target: str,
+    ) -> NodeExecutionResult:
+        approval_ticket = bundle.approval_ticket
+        waiting_reason = (
+            f"Sensitive access approval required for resource '{bundle.resource.label}'."
+        )
+        node_run.status = "waiting_tool"
+        node_run.phase = "waiting_tool"
+        node_run.waiting_reason = waiting_reason
+        checkpoint_payload = dict(node_run.checkpoint_payload or {})
+        checkpoint_payload["sensitive_access"] = {
+            "resource_id": bundle.resource.id,
+            "resource_label": bundle.resource.label,
+            "sensitivity_level": bundle.resource.sensitivity_level,
+            "access_request_id": bundle.access_request.id,
+            "approval_ticket_id": approval_ticket.id if approval_ticket is not None else None,
+            "access_target": access_target,
+        }
+        node_run.checkpoint_payload = checkpoint_payload
+        return NodeExecutionResult(
+            suspended=True,
+            waiting_status="waiting_tool",
+            waiting_reason=waiting_reason,
+            events=[
+                RuntimeEvent(
+                    "sensitive_access.requested",
+                    {
+                        "node_id": node["id"],
+                        "resource_id": bundle.resource.id,
+                        "resource_label": bundle.resource.label,
+                        "sensitivity_level": bundle.resource.sensitivity_level,
+                        "access_request_id": bundle.access_request.id,
+                        "approval_ticket_id": (
+                            approval_ticket.id if approval_ticket is not None else None
+                        ),
+                        "access_target": access_target,
+                    },
+                )
+            ],
+        )
+
+    def _clear_sensitive_access_waiting_state(self, node_run: NodeRun) -> None:
+        checkpoint_payload = dict(node_run.checkpoint_payload or {})
+        if checkpoint_payload.pop("sensitive_access", None) is not None:
+            node_run.checkpoint_payload = checkpoint_payload
+
+    def _waiting_status_for_tool_result(self, tool_result) -> str:
+        waiting_status = str(tool_result.meta.get("waiting_status") or "").strip()
+        if waiting_status:
+            return waiting_status
+        return "waiting_tool"
+
+    def _resume_after_seconds_for_tool_result(self, tool_result) -> float | None:
+        raw_value = tool_result.meta.get("resume_after_seconds")
+        if raw_value is None:
+            return None
+        try:
+            return max(float(raw_value), 0.0)
+        except (TypeError, ValueError):
+            return None
 
     def _execute_branch_node(self, node: dict, node_input: dict) -> dict:
         config = node.get("config", {})
