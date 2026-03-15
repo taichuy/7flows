@@ -466,6 +466,17 @@ a {
   font-size: 0.9rem;
 }
 
+.action-link-button {
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.action-link-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .tool-row {
   display: grid;
   gap: 14px;
@@ -807,6 +818,16 @@ a {
 
 .sync-message.error {
   color: var(--down);
+}
+
+.trace-export-feedback,
+.trace-export-blocked {
+  flex-basis: 100%;
+  width: 100%;
+}
+
+.trace-export-feedback {
+  margin: 0;
 }
 
 .event-row pre {

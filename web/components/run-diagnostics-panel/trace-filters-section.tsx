@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { RunTraceExportActions } from "@/components/run-trace-export-actions";
 import { DEFAULT_RUN_TRACE_LIMIT, type RunTraceQuery } from "@/lib/get-run-trace";
 
 import { TRACE_LIMIT_OPTIONS } from "@/components/run-diagnostics-panel/shared";
@@ -10,8 +11,6 @@ type RunDiagnosticsTraceFiltersSectionProps = {
   eventTypeOptions: string[];
   nodeRunOptions: string[];
   activeFilters: string[];
-  traceExportJsonHref: string;
-  traceExportJsonlHref: string;
 };
 
 export function RunDiagnosticsTraceFiltersSection({
@@ -19,9 +18,7 @@ export function RunDiagnosticsTraceFiltersSection({
   activeTraceQuery,
   eventTypeOptions,
   nodeRunOptions,
-  activeFilters,
-  traceExportJsonHref,
-  traceExportJsonlHref
+  activeFilters
 }: RunDiagnosticsTraceFiltersSectionProps) {
   return (
     <section className="diagnostics-layout">
@@ -132,22 +129,12 @@ export function RunDiagnosticsTraceFiltersSection({
             <Link className="inline-link" href={`/runs/${runId}`}>
               重置过滤
             </Link>
-            <a
-              className="activity-link"
-              href={traceExportJsonHref}
-              target="_blank"
-              rel="noreferrer"
-            >
-              导出 trace JSON
-            </a>
-            <a
-              className="activity-link"
-              href={traceExportJsonlHref}
-              target="_blank"
-              rel="noreferrer"
-            >
-              导出 trace JSONL
-            </a>
+            <RunTraceExportActions
+              blockedSummary="当前 diagnostics trace export 已接入统一敏感访问控制；可先查看审批票据和关联 run，再决定是否继续申请导出。"
+              query={activeTraceQuery}
+              requesterId="run-diagnostics-trace-export"
+              runId={runId}
+            />
           </div>
         </form>
 

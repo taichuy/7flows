@@ -14,7 +14,6 @@ import { getApiBaseUrl } from "@/lib/api-base-url";
 import type { RunDetail } from "@/lib/get-run-detail";
 import type { RunEvidenceView, RunExecutionView } from "@/lib/get-run-views";
 import {
-  buildRunTraceExportUrl,
   DEFAULT_RUN_TRACE_LIMIT,
   type RunTrace,
   type RunTraceQuery
@@ -63,16 +62,6 @@ export function RunDiagnosticsPanel({
   ).sort();
   const activeFilters = summarizeActiveFilters(activeTraceQuery);
   const traceHref = buildPageTraceHref(run.id, activeTraceQuery);
-  const traceExportJsonHref = buildRunTraceExportUrl(
-    run.id,
-    activeTraceQuery,
-    "json"
-  );
-  const traceExportJsonlHref = buildRunTraceExportUrl(
-    run.id,
-    activeTraceQuery,
-    "jsonl"
-  );
   const eventsApiHref = `${getApiBaseUrl()}/api/runs/${encodeURIComponent(run.id)}/events`;
 
   return (
@@ -139,8 +128,6 @@ export function RunDiagnosticsPanel({
         eventTypeOptions={eventTypeOptions}
         nodeRunOptions={nodeRunOptions}
         activeFilters={activeFilters}
-        traceExportJsonHref={traceExportJsonHref}
-        traceExportJsonlHref={traceExportJsonlHref}
       />
 
       <RunDiagnosticsExecutionSections

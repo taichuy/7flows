@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 
+import { RunTraceExportActions } from "@/components/run-trace-export-actions";
 import type { RunDetail } from "@/lib/get-run-detail";
 import {
-  buildRunTraceExportUrl,
   DEFAULT_RUN_TRACE_LIMIT,
   type RunTrace
 } from "@/lib/get-run-trace";
@@ -45,16 +45,6 @@ export function WorkflowRunOverlayPanel({
       ? run.node_runs.find((nodeRun) => nodeRun.node_id === selectedNodeId) ?? null
       : null;
   const tracePreview = trace?.events.slice(-6) ?? [];
-  const traceExportHref = run
-    ? buildRunTraceExportUrl(
-        run.id,
-        {
-          limit: DEFAULT_RUN_TRACE_LIMIT,
-          order: "asc"
-        },
-        "json"
-      )
-    : null;
 
   return (
     <article className="diagnostic-panel editor-panel">
@@ -125,16 +115,16 @@ export function WorkflowRunOverlayPanel({
                 <Link className="inline-link" href={`/runs/${encodeURIComponent(run.id)}`}>
                   打开 run diagnostics
                 </Link>
-                {traceExportHref ? (
-                  <a
-                    className="activity-link"
-                    href={traceExportHref}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    导出 trace JSON
-                  </a>
-                ) : null}
+                <RunTraceExportActions
+                  blockedSummary="当前 overlay trace export 已接入统一敏感访问控制；可先查看审批票据和关联 run，再决定是否继续申请导出。"
+                  formats={["json"]}
+                  query={{
+                    limit: DEFAULT_RUN_TRACE_LIMIT,
+                    order: "asc"
+                  }}
+                  requesterId="workflow-run-overlay-export"
+                  runId={run.id}
+                />
               </div>
 
               {selectedNodeRun ? (

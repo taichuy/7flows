@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 
 import type { SensitiveAccessBlockingPayload } from "@/lib/sensitive-access";
@@ -113,4 +115,3 @@ export function SensitiveAccessBlockedCard({
     </article>
   );
 }
-

@@ -85,16 +85,12 @@ function isSensitiveAccessBlockingPayload(value: unknown): value is SensitiveAcc
   );
 }
 
-export async function parseSensitiveAccessGuardedResponse<T>(
+export async function parseSensitiveAccessBlockingResponse(
   response: Response
-): Promise<SensitiveAccessGuardedResult<T>> {
-  if (response.ok) {
-    return {
-      kind: "ok",
-      data: (await response.json()) as T
-    };
-  }
-
+): Promise<{
+  statusCode: 403 | 409;
+  payload: SensitiveAccessBlockingPayload;
+} | null> {
   if (response.status !== 403 && response.status !== 409) {
     return null;
   }
@@ -111,13 +107,34 @@ export async function parseSensitiveAccessGuardedResponse<T>(
     }
 
     return {
-      kind: "blocked",
       statusCode: response.status,
       payload
     };
   } catch {
     return null;
   }
+}
+
+export async function parseSensitiveAccessGuardedResponse<T>(
+  response: Response
+): Promise<SensitiveAccessGuardedResult<T>> {
+  if (response.ok) {
+    return {
+      kind: "ok",
+      data: (await response.json()) as T
+    };
+  }
+
+  const blocked = await parseSensitiveAccessBlockingResponse(response);
+  if (!blocked) {
+    return null;
+  }
+
+  return {
+    kind: "blocked",
+    statusCode: blocked.statusCode,
+    payload: blocked.payload
+  };
 }
 
 export function isSensitiveAccessBlockedResult<T>(
@@ -129,4 +146,3 @@ export function isSensitiveAccessBlockedResult<T>(
 } {
   return result?.kind === "blocked";
 }
-
