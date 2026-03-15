@@ -477,6 +477,16 @@ a {
   opacity: 0.65;
 }
 
+.inbox-filter-link {
+  text-decoration: none;
+}
+
+.inbox-filter-link.active {
+  border-color: rgba(118, 92, 47, 0.28);
+  background: rgba(244, 197, 92, 0.16);
+  color: var(--ink);
+}
+
 .tool-row {
   display: grid;
   gap: 14px;
@@ -818,6 +828,22 @@ a {
 
 .sync-message.error {
   color: var(--down);
+}
+
+.inbox-decision-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.inbox-operator-input {
+  width: min(320px, 100%);
+  border-radius: 14px;
+  border: 1px solid rgba(28, 25, 21, 0.12);
+  background: rgba(255, 252, 246, 0.94);
+  padding: 10px 12px;
+  font: inherit;
+  color: var(--ink);
 }
 
 .trace-export-feedback,

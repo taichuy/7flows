@@ -6,6 +6,7 @@ import { StatusCard } from "@/components/status-card";
 import { WorkflowToolBindingPanel } from "@/components/workflow-tool-binding-panel";
 import { getCredentials } from "@/lib/get-credentials";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
+import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
 import {
@@ -27,15 +28,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const requestedWorkflowId = readFirstSearchParam(resolvedSearchParams.workflow);
 
-  const [overview, pluginRegistry, workflows, credentials] = await Promise.all([
+  const [overview, pluginRegistry, workflows, credentials, sensitiveAccessInbox] = await Promise.all([
     getSystemOverview(),
     getPluginRegistrySnapshot(),
     getWorkflows(),
-    getCredentials(true)
+    getCredentials(true),
+    getSensitiveAccessInboxSnapshot()
   ]);
   const recentRuns = overview.runtime_activity.recent_runs;
   const activitySummary = overview.runtime_activity.summary;
   const latestRun = recentRuns[0];
+  const pendingSensitiveEntries = sensitiveAccessInbox.entries
+    .filter((entry) => entry.ticket.status === "pending")
+    .slice(0, 3);
   const selectedWorkflowId = requestedWorkflowId || workflows[0]?.id || "";
   const selectedWorkflow = await getWorkflowDetail(selectedWorkflowId);
 
@@ -105,6 +110,74 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       <section className="diagnostics-layout">
         <CredentialStorePanel credentials={credentials} />
+      </section>
+
+      <section className="diagnostics-layout">
+        <article className="diagnostic-panel panel-span">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Sensitive Access</p>
+              <h2>Approval inbox signal</h2>
+            </div>
+            <p className="section-copy">
+              统一敏感访问事实层已经接到真实 operator 页面；首页只保留摘要和入口，详细审批与通知处理进入独立 inbox 页面。
+            </p>
+          </div>
+
+          <div className="summary-strip">
+            <article className="summary-card">
+              <span>Pending tickets</span>
+              <strong>{sensitiveAccessInbox.summary.pending_ticket_count}</strong>
+            </article>
+            <article className="summary-card">
+              <span>Waiting resumes</span>
+              <strong>{sensitiveAccessInbox.summary.waiting_ticket_count}</strong>
+            </article>
+            <article className="summary-card">
+              <span>Delivered notices</span>
+              <strong>{sensitiveAccessInbox.summary.delivered_notification_count}</strong>
+            </article>
+            <article className="summary-card">
+              <span>Failed notices</span>
+              <strong>{sensitiveAccessInbox.summary.failed_notification_count}</strong>
+            </article>
+          </div>
+
+          {pendingSensitiveEntries.length === 0 ? (
+            <p className="empty-state">当前没有待处理的敏感访问审批票据。</p>
+          ) : (
+            <div className="activity-list">
+              {pendingSensitiveEntries.map((entry) => (
+                <article className="activity-row" key={entry.ticket.id}>
+                  <div className="activity-header">
+                    <div>
+                      <h3>{entry.resource?.label ?? entry.request?.resource_id ?? entry.ticket.id}</h3>
+                      <p>
+                        {entry.request?.requester_id ?? "unknown requester"} · {entry.request?.action_type ?? "access"}
+                      </p>
+                    </div>
+                    <span className={`health-pill ${entry.ticket.waiting_status}`}>
+                      {entry.ticket.waiting_status}
+                    </span>
+                  </div>
+                  <p className="activity-copy">
+                    run {entry.ticket.run_id ?? "—"} · notifications {entry.notifications.length}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <div className="entry-card compact-card">
+            <p className="entry-card-title">Operator entry</p>
+            <p className="section-copy entry-copy">
+              审批、拒绝和通知状态复盘现在有了统一收件箱，不必再只靠 blocked-card 或后端接口列表排查。
+            </p>
+            <Link className="inline-link" href="/sensitive-access?status=pending">
+              打开敏感访问收件箱
+            </Link>
+          </div>
+        </article>
       </section>
 
       <section className="diagnostics-layout">
