@@ -1,13 +1,9 @@
-from datetime import UTC, datetime
-from uuid import uuid4
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.models.run import NodeRun, Run, RunEvent
-from app.models.workflow import Workflow, WorkflowCompiledBlueprint, WorkflowVersion
+from app.models.workflow import Workflow
 from app.schemas.run import WorkflowRunListItem
 from app.schemas.workflow import (
     WorkflowCreate,
@@ -16,98 +12,23 @@ from app.schemas.workflow import (
     WorkflowUpdate,
     WorkflowVersionItem,
 )
-from app.services.compiled_blueprints import (
-    CompiledBlueprintError,
-    CompiledBlueprintService,
-)
+from app.services.compiled_blueprints import CompiledBlueprintService
 from app.services.workflow_definitions import (
     WorkflowDefinitionValidationError,
-    bump_workflow_version,
     validate_workflow_definition,
 )
-from app.services.workflow_publish import (
-    WorkflowPublishBindingError,
-    WorkflowPublishBindingService,
+from app.services.workflow_mutations import (
+    WorkflowMutationError,
+    WorkflowMutationService,
+)
+from app.services.workflow_views import (
+    build_workflow_detail,
+    list_workflow_run_items,
+    list_workflow_version_items,
 )
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
-compiled_blueprint_service = CompiledBlueprintService()
-workflow_publish_service = WorkflowPublishBindingService(compiled_blueprint_service)
-
-
-def _normalize_datetime(value: datetime | None) -> datetime:
-    if value is None:
-        return datetime.min.replace(tzinfo=UTC)
-    if value.tzinfo is None:
-        return value.replace(tzinfo=UTC)
-    return value.astimezone(UTC)
-
-
-def _workflow_version_semver_key(version: str) -> tuple[int, int, int]:
-    parts = version.split(".")
-    if len(parts) != 3 or not all(part.isdigit() for part in parts):
-        return (0, 0, 0)
-    major, minor, patch = (int(part) for part in parts)
-    return (major, minor, patch)
-
-
-def _sort_workflow_versions(versions: list[WorkflowVersion]) -> list[WorkflowVersion]:
-    return sorted(
-        versions,
-        key=lambda item: (
-            _workflow_version_semver_key(item.version),
-            _normalize_datetime(item.created_at),
-            item.id,
-        ),
-        reverse=True,
-    )
-
-
-def _serialize_workflow_detail(
-    workflow: Workflow,
-    versions: list[WorkflowVersion],
-    compiled_blueprints: dict[str, WorkflowCompiledBlueprint] | None = None,
-) -> WorkflowDetail:
-    compiled_blueprints = compiled_blueprints or {}
-    return WorkflowDetail(
-        id=workflow.id,
-        name=workflow.name,
-        version=workflow.version,
-        status=workflow.status,
-        definition=workflow.definition,
-        created_at=workflow.created_at,
-        updated_at=workflow.updated_at,
-        versions=[
-            WorkflowVersionItem(
-                id=version.id,
-                workflow_id=version.workflow_id,
-                version=version.version,
-                created_at=version.created_at,
-                compiled_blueprint_id=compiled_blueprints.get(version.id).id
-                if compiled_blueprints.get(version.id) is not None
-                else None,
-                compiled_blueprint_compiler_version=compiled_blueprints.get(version.id).compiler_version
-                if compiled_blueprints.get(version.id) is not None
-                else None,
-                compiled_blueprint_updated_at=compiled_blueprints.get(version.id).updated_at
-                if compiled_blueprints.get(version.id) is not None
-                else None,
-            )
-            for version in versions
-        ],
-    )
-
-
-def _load_compiled_blueprint_lookup(
-    db: Session,
-    workflow_id: str,
-) -> dict[str, WorkflowCompiledBlueprint]:
-    records = db.scalars(
-        select(WorkflowCompiledBlueprint).where(
-            WorkflowCompiledBlueprint.workflow_id == workflow_id
-        )
-    ).all()
-    return {record.workflow_version_id: record for record in records}
+workflow_mutation_service = WorkflowMutationService(CompiledBlueprintService())
 
 
 @router.get("", response_model=list[WorkflowListItem])
@@ -134,48 +55,20 @@ def create_workflow(payload: WorkflowCreate, db: Session = Depends(get_db)) -> W
             detail=str(exc),
         ) from exc
 
-    workflow = Workflow(
-        id=str(uuid4()),
-        name=payload.name,
-        version="0.1.0",
-        status="draft",
-        definition=definition,
-    )
-    workflow_version = WorkflowVersion(
-        id=str(uuid4()),
-        workflow_id=workflow.id,
-        version=workflow.version,
-        definition=definition,
-    )
-    db.add(workflow)
-    db.add(workflow_version)
-    db.flush()
     try:
-        compiled_blueprint = compiled_blueprint_service.ensure_for_workflow_version(
+        workflow = workflow_mutation_service.create_workflow(
             db,
-            workflow_version,
+            name=payload.name,
+            definition=definition,
         )
-        db.flush()
-        workflow_publish_service.ensure_for_workflow_version(db, workflow_version)
-    except CompiledBlueprintError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
-        ) from exc
-    except WorkflowPublishBindingError as exc:
+    except WorkflowMutationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         ) from exc
     db.commit()
     db.refresh(workflow)
-    db.refresh(workflow_version)
-    db.refresh(compiled_blueprint)
-    return _serialize_workflow_detail(
-        workflow,
-        [workflow_version],
-        {workflow_version.id: compiled_blueprint},
-    )
+    return build_workflow_detail(db, workflow)
 
 
 @router.get("/{workflow_id}", response_model=WorkflowDetail)
@@ -183,15 +76,7 @@ def get_workflow(workflow_id: str, db: Session = Depends(get_db)) -> WorkflowDet
     workflow = db.get(Workflow, workflow_id)
     if workflow is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
-    versions = db.scalars(
-        select(WorkflowVersion)
-        .where(WorkflowVersion.workflow_id == workflow_id)
-    ).all()
-    return _serialize_workflow_detail(
-        workflow,
-        _sort_workflow_versions(versions),
-        _load_compiled_blueprint_lookup(db, workflow_id),
-    )
+    return build_workflow_detail(db, workflow)
 
 
 @router.put("/{workflow_id}", response_model=WorkflowDetail)
@@ -204,9 +89,7 @@ def update_workflow(
     if workflow is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
 
-    if payload.name is not None:
-        workflow.name = payload.name
-
+    definition = None
     if payload.definition is not None:
         try:
             definition = validate_workflow_definition(payload.definition)
@@ -216,44 +99,22 @@ def update_workflow(
                 detail=str(exc),
             ) from exc
 
-        workflow.version = bump_workflow_version(workflow.version)
-        workflow.definition = definition
-        workflow_version = WorkflowVersion(
-            id=str(uuid4()),
-            workflow_id=workflow.id,
-            version=workflow.version,
+    try:
+        workflow_mutation_service.update_workflow(
+            db,
+            workflow=workflow,
+            name=payload.name,
             definition=definition,
         )
-        db.add(workflow_version)
-        db.flush()
-        try:
-            compiled_blueprint_service.ensure_for_workflow_version(db, workflow_version)
-            db.flush()
-        except CompiledBlueprintError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=str(exc),
-            ) from exc
-        try:
-            workflow_publish_service.ensure_for_workflow_version(db, workflow_version)
-        except WorkflowPublishBindingError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail=str(exc),
-            ) from exc
+    except WorkflowMutationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
 
-    db.add(workflow)
     db.commit()
     db.refresh(workflow)
-    versions = db.scalars(
-        select(WorkflowVersion)
-        .where(WorkflowVersion.workflow_id == workflow_id)
-    ).all()
-    return _serialize_workflow_detail(
-        workflow,
-        _sort_workflow_versions(versions),
-        _load_compiled_blueprint_lookup(db, workflow_id),
-    )
+    return build_workflow_detail(db, workflow)
 
 
 @router.get("/{workflow_id}/versions", response_model=list[WorkflowVersionItem])
@@ -265,29 +126,7 @@ def list_workflow_versions(
     if workflow is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
 
-    versions = db.scalars(
-        select(WorkflowVersion)
-        .where(WorkflowVersion.workflow_id == workflow_id)
-    ).all()
-    compiled_blueprints = _load_compiled_blueprint_lookup(db, workflow_id)
-    return [
-        WorkflowVersionItem(
-            id=version.id,
-            workflow_id=version.workflow_id,
-            version=version.version,
-            created_at=version.created_at,
-            compiled_blueprint_id=compiled_blueprints.get(version.id).id
-            if compiled_blueprints.get(version.id) is not None
-            else None,
-            compiled_blueprint_compiler_version=compiled_blueprints.get(version.id).compiler_version
-            if compiled_blueprints.get(version.id) is not None
-            else None,
-            compiled_blueprint_updated_at=compiled_blueprints.get(version.id).updated_at
-            if compiled_blueprints.get(version.id) is not None
-            else None,
-        )
-            for version in _sort_workflow_versions(versions)
-        ]
+    return list_workflow_version_items(db, workflow_id)
 
 
 @router.get("/{workflow_id}/runs", response_model=list[WorkflowRunListItem])
@@ -300,51 +139,4 @@ def list_workflow_runs(
     if workflow is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
 
-    node_run_stats = (
-        select(
-            NodeRun.run_id.label("run_id"),
-            func.count(NodeRun.id).label("node_run_count"),
-        )
-        .group_by(NodeRun.run_id)
-        .subquery()
-    )
-    run_event_stats = (
-        select(
-            RunEvent.run_id.label("run_id"),
-            func.count(RunEvent.id).label("event_count"),
-            func.max(RunEvent.created_at).label("last_event_at"),
-        )
-        .group_by(RunEvent.run_id)
-        .subquery()
-    )
-
-    rows = db.execute(
-        select(
-            Run,
-            node_run_stats.c.node_run_count,
-            run_event_stats.c.event_count,
-            run_event_stats.c.last_event_at,
-        )
-        .outerjoin(node_run_stats, node_run_stats.c.run_id == Run.id)
-        .outerjoin(run_event_stats, run_event_stats.c.run_id == Run.id)
-        .where(Run.workflow_id == workflow_id)
-        .order_by(Run.created_at.desc())
-        .limit(limit)
-    ).all()
-
-    return [
-        WorkflowRunListItem(
-            id=run.id,
-            workflow_id=run.workflow_id,
-            workflow_version=run.workflow_version,
-            status=run.status,
-            error_message=run.error_message,
-            created_at=run.created_at,
-            started_at=run.started_at,
-            finished_at=run.finished_at,
-            node_run_count=node_run_count or 0,
-            event_count=event_count or 0,
-            last_event_at=last_event_at,
-        )
-        for run, node_run_count, event_count, last_event_at in rows
-    ]
+    return list_workflow_run_items(db, workflow_id, limit=limit)

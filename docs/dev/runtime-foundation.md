@@ -21,7 +21,7 @@
 - 2026-03-15 仓库授权已切换为 Apache 2.0 基底 + 附加条件的 `7Flows Community License`：社区协作、自部署和单租户二次开发仍是默认入口，但多租户托管、商业化对立面与前端去标识 / 白标不再属于“默认免费边界”，相关判断必须以根目录 `LICENSE` 为准。
 - 2026-03-15 AI 协作体系已从“领域 skill 为主”补成“元流程 skill + 领域 skill”双层结构：新增 `development-closure`、`skill-governance`、`backend-testing`，用于收尾闭环、skill 漂移治理与后端测试补齐；后续 AI 开发不应只读单个 review / refactor skill 就跳过验证、文档同步和 Git 收尾。
 - `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；当前代码已有 ToolGateway、waiting/resume 与 callback ticket 原语，但尚未落成独立事实层、策略挂点与 API。
-- 2026-03-15 最新复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 通过（227 passed）；本轮在 `workflow_library_catalog` 拆分之后，继续把 `api/app/schemas/workflow.py` 的 publish/runtime policy 子模型抽到 `workflow_published_endpoint.py` 与 `workflow_runtime_policy.py`，相关 targeted `ruff check` 与 workflow/publish route tests 也已通过。此前 `plugin_runtime*` 模块 targeted `ruff check`、前端 `web/pnpm lint` 与 `web/pnpm exec tsc --noEmit` 也已通过。后端全量 `ruff check` 的历史风格/整理债务仍未在本轮整体清零，因此稳定性基线继续提升，但还未达到“全仓库零告警”。
+- 2026-03-15 最新复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 通过（228 passed）；在 `workflow_library_catalog` 与 workflow schema 子模型拆分之后，本轮继续把 `api/app/api/routes/workflows.py` 的 detail/version/run 视图查询与序列化职责抽到 `api/app/services/workflow_views.py`，并把 create/update 的 workflow version snapshot、compiled blueprint 与 publish binding 编排抽到 `api/app/services/workflow_mutations.py`。workflow route/publish route targeted tests（54 passed）与 changed-files `ruff check` 已通过。此前 `plugin_runtime*` 模块 targeted `ruff check`、前端 `web/pnpm lint` 与 `web/pnpm exec tsc --noEmit` 也已通过。后端全量 `ruff check` 的历史风格/整理债务仍未在本轮整体清零，因此稳定性基线继续提升，但还未达到“全仓库零告警”。
 
 ## 当前代码事实
 
@@ -67,7 +67,8 @@
 
 ## 当前结构热点
 
-- `api/app/schemas/workflow.py`：已在 2026-03-15 从约 725 行收口到约 476 行；`workflow_runtime_policy.py`（49 行）与 `workflow_published_endpoint.py`（82 行）已分别承接 execution/join/retry 与 published endpoint 定义，当前不再同时挤压在单文件里。后续应继续围绕 node contract、cross-node validator 和 route/service orchestration 拆层，而不是把新规则重新堆回聚合文件。
+- `api/app/schemas/workflow.py`：当前约 577 行，仍是 workflow 主线里最明显的聚合热点；`workflow_runtime_policy.py`（约 66 行）与 `workflow_published_endpoint.py`（约 102 行）已分别承接 execution/join/retry 与 published endpoint 定义，但 cross-node validator、node contract 与部分 helper 仍集中在主 schema 文件中。后续应继续围绕这些热点拆层，而不是把新规则重新堆回聚合文件。
+- `api/app/api/routes/workflows.py`：已在 2026-03-15 从约 316 行降到约 142 行；`api/app/services/workflow_views.py`（约 175 行）承接 workflow detail/version/run summary 的查询与序列化，`api/app/services/workflow_mutations.py`（约 94 行）承接 create/update 的 workflow version snapshot、compiled blueprint 与 publish binding 编排。当前 route 已更接近“HTTP contract + validation”定位，后续应把 publish governance、sensitive access 与 editor 联动规则继续放在 service / schema 边界演进，而不是再堆回路由层。
 - `api/app/services/workflow_library.py` 已在 2026-03-15 拆到约 220 行，当前主要保留 snapshot、workspace starter 读取和 tool visibility orchestration；新增 `api/app/services/workflow_library_catalog.py`（约 474 行）承接 builtin starter、node catalog、source lane 与 blueprint 默认值拼装，当前不再是稳定性阻塞项，但若继续补 ecosystem starter / source governance，可继续沿 source/helper 分层演进。
 - `api/app/services/plugin_runtime.py` 已在 2026-03-15 拆成 facade + `plugin_runtime_proxy.py` / `plugin_runtime_adapter_clients.py` / `plugin_runtime_registry.py` / `plugin_runtime_types.py`；主入口已降到 48 行，compat/runtime 侧不再被单文件耦合阻塞。后续若继续补 adapter lifecycle、workspace scoping 或健康探测聚合，应沿现有模块边界扩展，而不是把职责重新堆回 facade。
 - `api/app/services/agent_runtime_llm_support.py`：631 行，当前仍集中承接流式调用、usage 累计和 phase 内 LLM 细节；后续若继续补 provider 特性，适合按 stream / completion / usage helper 拆层。
@@ -101,7 +102,7 @@
 3. **P0：补齐 `WAITING_CALLBACK` 的后台唤醒闭环**
    - 继续把 callback ticket、scheduler 和 resume orchestration 衔接成更完整的 durable execution 主链，为后续审批、通知恢复和 timeout/fallback 复用同一条 waiting/resume 能力。
 4. **P1：继续治理插件兼容与工作流定义热点**
-   - `plugin_runtime.py`、`workflow_library.py` 与 `workflow.py` 已分别完成一轮主热点拆层；下一步优先继续治理 workflow route/service 的集中职责、cross-node validator helper，以及 compat plugin 的 lifecycle / catalog / store hydration，避免插件扩展和 workflow 规则再次堆回单点大文件。
+   - `plugin_runtime.py`、`workflow_library.py`、`workflow.py` 与 `workflows.py` 已分别完成一轮主热点拆层；下一步优先继续治理 `workflow.py` 的 cross-node validator helper，以及 compat plugin 的 lifecycle / catalog / store hydration，同时为 publish governance / sensitive access policy 预留稳定 service 边界，避免插件扩展和 workflow 规则再次堆回单点大文件。
 5. **P1：继续治理 run diagnostics 与 publish streaming 详情层**
    - 下一阶段可优先拆 `web/components/run-diagnostics-execution-sections.tsx` 与 `api/app/services/published_protocol_streaming.py`，并为 approval timeline、security decision summary、protocol-specific SSE helper 预留落点。
 6. **P1：继续提高工作流编辑器完整度**

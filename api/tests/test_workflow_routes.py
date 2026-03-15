@@ -1,4 +1,8 @@
+from datetime import UTC, datetime, timedelta
+
 from fastapi.testclient import TestClient
+
+from app.models.run import NodeRun, Run, RunEvent
 
 
 def _valid_definition(answer: str = "done", runtime_policy: dict | None = None) -> dict:
@@ -349,6 +353,87 @@ def test_update_workflow_bumps_version_and_keeps_history(
     assert versions_response.status_code == 200
     assert [version["version"] for version in versions_response.json()] == ["0.1.1", "0.1.0"]
     assert all(version["compiled_blueprint_id"] for version in versions_response.json())
+
+
+def test_list_workflow_runs_returns_aggregated_summary(
+    client: TestClient,
+    sample_workflow,
+    sqlite_session,
+) -> None:
+    now = datetime.now(UTC)
+    first_run = Run(
+        id="run-1",
+        workflow_id=sample_workflow.id,
+        workflow_version="0.1.0",
+        status="succeeded",
+        input_payload={},
+        checkpoint_payload={},
+        started_at=now - timedelta(minutes=3),
+        finished_at=now - timedelta(minutes=2),
+        created_at=now - timedelta(minutes=3),
+    )
+    second_run = Run(
+        id="run-2",
+        workflow_id=sample_workflow.id,
+        workflow_version="0.1.0",
+        status="running",
+        input_payload={},
+        checkpoint_payload={},
+        started_at=now - timedelta(minutes=1),
+        created_at=now - timedelta(minutes=1),
+    )
+    sqlite_session.add_all(
+        [
+            first_run,
+            second_run,
+            NodeRun(
+                id="node-run-1",
+                run_id="run-1",
+                node_id="mock_tool",
+                node_name="Mock Tool",
+                node_type="tool",
+            ),
+            NodeRun(
+                id="node-run-2",
+                run_id="run-1",
+                node_id="output",
+                node_name="Output",
+                node_type="output",
+            ),
+            RunEvent(
+                run_id="run-1",
+                node_run_id="node-run-1",
+                event_type="node.started",
+                payload={},
+                created_at=now - timedelta(minutes=3),
+            ),
+            RunEvent(
+                run_id="run-1",
+                node_run_id="node-run-2",
+                event_type="node.completed",
+                payload={},
+                created_at=now - timedelta(minutes=2),
+            ),
+            RunEvent(
+                run_id="run-2",
+                event_type="run.started",
+                payload={},
+                created_at=now - timedelta(minutes=1),
+            ),
+        ]
+    )
+    sqlite_session.commit()
+
+    response = client.get(f"/api/workflows/{sample_workflow.id}/runs?limit=2")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == ["run-2", "run-1"]
+    assert body[0]["node_run_count"] == 0
+    assert body[0]["event_count"] == 1
+    assert body[1]["node_run_count"] == 2
+    assert body[1]["event_count"] == 2
+    assert body[1]["last_event_at"] is not None
 
 
 def test_create_workflow_accepts_retry_runtime_policy(client: TestClient) -> None:
