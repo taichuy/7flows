@@ -20,14 +20,14 @@
 - 2026-03-15 文档基线已显式区分“对外 OpenClaw-first 切口”和“对内 IR / runtime 内核”：开源给协作、商业给治理现已作为目标设计写入稳定策略文档，但当前仓库仍主要落在 OSS kernel 和运行时基础建设阶段，不应把 Team / Enterprise 能力误写成已落地事实。
 - 2026-03-15 仓库授权已切换为 Apache 2.0 基底 + 附加条件的 `7Flows Community License`：社区协作、自部署和单租户二次开发仍是默认入口，但多租户托管、商业化对立面与前端去标识 / 白标不再属于“默认免费边界”，相关判断必须以根目录 `LICENSE` 为准。
 - 2026-03-15 AI 协作体系已从“领域 skill 为主”补成“元流程 skill + 领域 skill”双层结构：新增 `development-closure`、`skill-governance`、`backend-testing`，用于收尾闭环、skill 漂移治理与后端测试补齐；后续 AI 开发不应只读单个 review / refactor skill 就跳过验证、文档同步和 Git 收尾。
-- `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；当前代码已有 ToolGateway、waiting/resume 与 callback ticket 原语，但尚未落成独立事实层、策略挂点与 API。
+- `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；本轮已补上 `SensitiveResourceRecord / SensitiveAccessRequestRecord / ApprovalTicketRecord / NotificationDispatchRecord` 事实层，以及 `/api/sensitive-access/*` API、最小默认策略矩阵和 in-app 通知落点。当前仍缺 ToolGateway、credential resolve、context read 和 publish export 的真实拦截挂点，以及审批通过后的 runtime resume 衔接。
 - 2026-03-15 最新复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 继续通过；在 `workflow_library_catalog`、workflow schema 子模型、`workflows.py` route/service 与 `workflow_graph_validation.py` 拆分之后，本轮继续把 `api/app/schemas/workflow.py` 的节点级嵌入式 config validator 下沉到 `api/app/schemas/workflow_node_validation.py`。workflow schema 主文件现在进一步收回到“节点/边/变量/publish 文档声明 + edge/graph 校验挂点”的角色；changed-files `ruff check` 与 `pytest -q tests/test_workflow_routes.py`（30 passed）已通过。后端全量 `ruff check` 的历史风格/整理债务仍未在本轮整体清零，因此稳定性基线继续提升，但还未达到“全仓库零告警”。
 
 ## 当前代码事实
 
 ### 1. 持久化与迁移
 
-- Alembic 已替代 `create_all`；迁移已覆盖运行时、workflow version、compiled blueprint、published endpoint、API key、cache、credential 等核心事实层，当前版本到 `20260314_0020_published_invocation_cache_links.py`。
+- Alembic 已替代 `create_all`；迁移已覆盖运行时、workflow version、compiled blueprint、published endpoint、API key、cache、credential 与敏感访问控制等核心事实层，当前版本到 `20260315_0021_sensitive_access_control.py`。
 - `api/docker/entrypoint.sh` 支持 `SEVENFLOWS_MIGRATION_ENABLED=true` 时启动前自动迁移；默认只让 `api` 服务自动迁移，避免 `worker` 并发升级数据库。
 - `credentials` 已入库，后续 provider / tool 凭据管理不再需要继续停留在纯占位状态。
 
@@ -36,7 +36,7 @@
 - `RuntimeService` 已采用 compiled blueprint 执行链，run 会显式绑定 `workflow_version` 与 `compiled_blueprint_id`。
 - `RuntimeService` 当前仍是唯一 orchestration 主控；`AgentRuntime`、`ToolGateway`、callback ticket 和未来 sandbox adapter 都应继续作为被调度层，而不是拥有第二套流程控制语义。
 - 当前执行器已支持拓扑排序、条件/路由分支、join、mapping、节点重试、waiting/resume、callback ticket、artifact 引用和统一事件落库。
-- 现有 `waiting/resume + callback ticket` 原语已经足够承接未来审批闭环，但当前仍缺统一的 `SensitiveAccessRequest / ApprovalTicket / NotificationDispatch` 模型与拦截挂点。
+- 现有 `waiting/resume + callback ticket` 原语已经足够承接审批闭环；本轮已补上统一的 `SensitiveAccessRequest / ApprovalTicket / NotificationDispatch` 模型与 API，但 runtime 主链仍缺真实拦截挂点和审批恢复编排。
 - Runtime 主链已连续完成 run support、graph support、progress support、node preparation、node dispatch 等分层治理，`runtime.py` 已显著收口到执行入口与 `_continue_execution` orchestration 主链。
 - Runtime execution 现已经由 `llm_agent -> AgentRuntime`、`tool -> ToolGateway`、`node -> RuntimeExecutionAdapterRegistry` 三条主链推进：`runtimePolicy.execution` 已能进入 workflow schema、node input 和 execution view，`sandbox_code` 也已接入 host-subprocess MVP 执行链；本轮继续把 ToolGateway execution-aware dispatch、tool/plugin 默认 execution class 映射、`llm_agent.toolPolicy.execution` 与 tool node execution trace 接进主链，并把 `tool.execution.dispatched / tool.execution.fallback` 与 tool result artifact metadata 对齐；但真实 `sandbox` / `microvm` tool adapter 与敏感访问拦截仍待继续落地。
 - `loop` 节点仍未在 MVP 执行器中开放执行；循环能力仍需通过后续 runtime 演进补齐，不能假装已完成。
@@ -60,7 +60,7 @@
 ### 5. 面向工作台与诊断的接口
 
 - Run API 已覆盖创建、详情、events、trace、trace export、resume、callback ingress、execution view、evidence view。
-- Workflow library、system overview、plugin adapters、runtime activity、credentials API 已具备，为编辑器、诊断面板和发布治理继续承接提供稳定后端入口。
+- Workflow library、system overview、plugin adapters、runtime activity、credentials API 已具备；本轮新增 `sensitive-access` 资源注册、访问请求、审批票据与通知投递查询/决策 API，为后续 approval inbox、ToolGateway 拦截和 published export 治理预留稳定事实入口。
 - workflow editor inspector 已能以结构化 section 暴露 `runtimePolicy.execution / retry / join`、节点 contract、workflow `publish` draft 与部分 `llm_agent` 高级配置；execution section 已先解析默认执行类，再按“偏离默认时才持久化 JSON”的策略落库。
 - run diagnostics 已能消费 execution / evidence 聚合视图，并显示 execution boundary summary，但 execution detail、artifact preview、evidence drilldown 仍有继续拆层空间。
 - 当前还没有 approval-specific route / notification delivery API；后续若补统一敏感访问控制，应优先复用现有 run detail、resume 与 callback 事实层扩展，而不是另起一套状态体系。
@@ -98,7 +98,7 @@
 1. **P0：继续把 graded execution 从 execution-aware 扩成真实隔离能力**
    - `RuntimeExecutionAdapterRegistry`、`sandbox_code` host-subprocess MVP，以及 ToolGateway / `llm_agent.toolPolicy.execution` / tool node 的 execution-aware dispatch 已落地；下一步优先补真实 `sandbox` / `microvm` tool adapter、compat plugin execution boundary 对接与 execution trace 摘要聚合，避免 execution policy 长期停留在“有 trace 但少数能力仍 fallback”。
 2. **P0：定义并落地统一敏感访问控制闭环**
-   - 围绕 `sensitivity_level / requester_type / action_type` 补齐 `SensitiveAccessRequest`、`ApprovalTicket`、通知投递与审计事件事实层，并优先把拦截点挂到 ToolGateway、credential resolve、context read 和 publish export 入口。
+   - `SensitiveAccessRequest`、`ApprovalTicket`、`NotificationDispatch` 和 `/api/sensitive-access/*` 已落地；下一步优先把拦截点挂到 ToolGateway、credential resolve、context read 和 publish export 入口，并让审批通过/拒绝与 runtime `waiting/resume` 主链联动，而不是停留在独立管理 API。
 3. **P0：补齐 `WAITING_CALLBACK` 的后台唤醒闭环**
    - 继续把 callback ticket、scheduler 和 resume orchestration 衔接成更完整的 durable execution 主链，为后续审批、通知恢复和 timeout/fallback 复用同一条 waiting/resume 能力。
 4. **P1：继续治理插件兼容与工作流定义热点**

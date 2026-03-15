@@ -15,6 +15,7 @@ from app.api.routes.published_gateway import router as published_gateway_router
 from app.api.routes.run_callback_tickets import router as run_callback_ticket_router
 from app.api.routes.run_views import router as run_view_router
 from app.api.routes.runs import router as run_router
+from app.api.routes.sensitive_access import router as sensitive_access_router
 from app.api.routes.system import router as system_router
 from app.api.routes.workflow_library import router as workflow_library_router
 from app.api.routes.workflow_publish import router as workflow_publish_router
@@ -54,6 +55,7 @@ def create_app() -> FastAPI:
     application.include_router(run_router, prefix="/api")
     application.include_router(run_callback_ticket_router, prefix="/api")
     application.include_router(run_view_router, prefix="/api")
+    application.include_router(sensitive_access_router, prefix="/api")
     return application
 
 
