@@ -101,6 +101,13 @@
 - 若需人工审核，Run 进入 `waiting`，系统生成审批票据并通过通知通道触达人类。
 - 审批后工作流继续执行，并把决策、通知和恢复过程写入统一事件流与审计记录。
 
+#### 场景 E：云端 Skill 指导本地助手执行
+
+- 主 AI 节点根据任务意图发现或绑定相关 `SkillDoc`。
+- 运行时通过 API / MCP 从 7Flows 服务侧获取 skill 正文，并按需继续拉取 references。
+- `llm_agent` 把 skill 作为认知层提示与参考资料使用，再决定是否调用工具、MCP 或 OpenClaw / 本地助手。
+- 真正对桌面、本地文件、浏览器或系统环境的操作仍由 OpenClaw / 本地助手执行，7Flows 不把 skill 设计成客户端接管器。
+
 ## 3. 核心概念模型
 
 ### 3.1 核心对象
@@ -118,6 +125,7 @@
 | Sensitive Resource | 业务方声明的受控资源，带 `sensitivity_level` 与描述；平台负责访问流程，不预置行业分类 |
 | Access Request | human / ai / workflow / tool 对受控资源发起的一次标准化访问申请 |
 | Approval Ticket | 当访问需要人工审核时生成的待处理票据，可驱动 waiting / notification / resume |
+| Skill | 服务侧托管的轻量技能文档，用于向 `llm_agent` 注入任务指引与参考资料 |
 | Plugin Ecosystem | 7Flows 原生插件注册、分类、发布与发现体系 |
 | Compatibility Adapter | 面向 Dify 等外部插件生态的兼容层代理 |
 | Published Endpoint | 对外发布的 API 入口 |
@@ -325,10 +333,38 @@ type PublishedEndpoint = {
 }
 ```
 
+#### SkillDoc
+
+```ts
+type SkillDoc = {
+  id: string
+  name: string
+  description: string
+  body: string
+  references: Array<{
+    id: string
+    name: string
+    description: string
+  }>
+}
+```
+
+#### SkillReferenceDoc
+
+```ts
+type SkillReferenceDoc = {
+  id: string
+  name: string
+  description: string
+  body: string
+}
+```
+
 ### 3.3 设计原则
 
 - 内部统一，外部适配：所有节点与运行时状态先落到 `7Flows IR`。
 - 原生优先，兼容旁挂：原生能力是主线，外部生态通过兼容层接入，不反向主导核心模型。
+- 技能轻量化：product skill 先保持 `name / description / body / references` 的自由文档结构，作为 `llm_agent` 的认知注入层，而不是新节点类型、表单引擎或第二套 DSL。
 - 权限优先：上下文共享必须经授权，不走隐式全量可见。
 - 节点自治：每个节点可独立定义模型、工具、沙盒与重试策略。
 - 分级执行：统一工作流执行器主控，大多数可信节点轻量执行，只有少量高风险节点进入更强隔离执行类。
@@ -350,6 +386,7 @@ MVP 以“最小可上线的多 Agent 编排平台”为目标，包含以下能
 - Durable Agent Runtime：`llm_agent` 节点按 phase state machine 执行，支持 waiting / resume / artifact / evidence。
 - 分级执行架构：Workflow Executor 统一主控；可信节点默认在 worker 内轻量执行，代码/插件/自定义/高风险能力节点按 `execution class` 进入更强隔离。
 - 模型供应商配置：一个 LLM 节点可切换不同供应商或模型。
+- 轻量 Skill Catalog：service-hosted 的 `SkillDoc` 可通过 API / MCP 被 `llm_agent` 按需拉取，主 skill 正文直接注入，references 延迟获取。
 - 节点权限模型：显式配置可读取的前序节点数据。
 - MCP 上下文查询：节点可在运行时查询获批上下文。
 - 沙盒执行：`sandbox_code`、用户自定义节点、插件脚本和高风险工具节点默认进入沙盒；`microvm` 作为后续更强隔离级别预留。
@@ -426,6 +463,7 @@ MVP 以“最小可上线的多 Agent 编排平台”为目标，包含以下能
 - Tool Gateway：统一工具注册、权限、超时、重试、结果标准化、执行类选择与桥接调用。
 - Sensitive Access Control：统一管理资源分级、访问请求、策略决策、审批票据与恢复触发。
 - Context Service / Artifact Store：管理 global / working / evidence / artifact 四层上下文。
+- Skill Catalog / Retrieval Gateway：管理服务侧 `SkillDoc`、references 及 API / MCP 访问，并把技能内容按需注入 `llm_agent`。
 - 沙盒 / 强隔离执行层：只承接代码节点、自定义节点、插件脚本和高风险工具节点的 `sandbox` / `microvm` 执行。
 - 原生插件注册中心：管理 7Flows 原生插件、插件分类、版本和能力发现。
 - 兼容层代理服务：以可启用/可停用方式接入 Dify 等外部插件生态，并完成注册、调用和数据映射。
@@ -1148,6 +1186,7 @@ OpenClaw 集成在文档中应明确表达为：
 - OpenClaw 调用的是 7Flows 发布网关，而不是直接理解 7Flows 内部工作流 DSL。
 - 7Flows 负责把一个工作流执行结果映射成供应商响应。
 - OpenClaw 看到的是兼容的 OpenAI / Anthropic 风格接口或供应商路由入口。
+- 7Flows 可以向 `llm_agent` 提供服务侧 skill 文档，但真实桌面 / 本地环境操作仍由 OpenClaw 或本地助手执行；当前不把 skill 设计成客户端接管、本地下载安装总控或重型 SkillHub。
 
 ## 10. 对外发布接口与兼容协议
 

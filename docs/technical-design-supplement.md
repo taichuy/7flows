@@ -18,6 +18,8 @@
 - [21. Composite Agent Node Pipeline](#21-composite-agent-node-pipeline)
 - [22. 上下文分层与 Artifact/Evidence](#22-上下文分层与-artifactevidence)
 - [23. Tool Gateway 与执行追踪](#23-tool-gateway-与执行追踪)
+- [24. Skill Catalog 与 Retrieval Protocol](#24-skill-catalog-与-retrieval-protocol)
+- [25. 开源 / 商业边界的技术落点](#25-开源--商业边界的技术落点)
 
 ---
 
@@ -1513,21 +1515,133 @@ type NotificationTrace = {
 而不是默认把超长原文直接写进事件流或前端面板。
 对敏感资源而言，原始明文不应进入默认事件流，只保留脱敏摘要、handle 或审计引用。
 
-## 24. 开源 / 商业边界的技术落点
+## 24. Skill Catalog 与 Retrieval Protocol
 
-### 24.1 基本原则
+### 24.1 设计目标
+
+7Flows 的 product skill 应保持为**服务侧托管的轻量技能文档**，专门服务于 `llm_agent` 的认知注入与参考资料检索，而不是再造一套流程语义。
+
+它至少需要满足以下原则：
+
+1. **skill 是知识注入层，不是执行层**
+   - skill 本身不拥有 DAG 控制、waiting / resume、重试或本地环境接管能力
+2. **结构极简，正文自由**
+   - 首版只保留 `name / description / body / references`
+   - `body` 保持自由文本，不预设重表单 schema
+3. **reference 按需拉取**
+   - 主 skill 先返回正文与 reference 摘要
+   - reference 正文在模型或运行时确有需要时再继续获取
+4. **托管在 7Flows 服务侧**
+   - skill 是平台服务层资产，不是默认下发到本地客户端的安装包
+5. **不与仓库协作 skill 混用**
+   - `.agents/skills/*` 是 AI 协作开发资产
+   - product skill 是产品运行时资产
+
+### 24.2 最小 Skill 结构
+
+```ts
+type SkillDoc = {
+  id: string
+  name: string
+  description: string
+  body: string
+  references: Array<{
+    id: string
+    name: string
+    description: string
+  }>
+}
+
+type SkillReferenceDoc = {
+  id: string
+  name: string
+  description: string
+  body: string
+}
+```
+
+补充约束：
+
+- `name` 和 `description` 默认适合作为主 AI 的快速认知注入摘要
+- `body` 保持自由表达，不把 skill 约束成一组固定表单字段
+- `references` 在主文档中只保留最小索引信息；reference 正文单独获取
+- 若未来接入通用 skill 规范、外部 marketplace 或本地助手 skill 格式，应先映射到这一内部结构
+
+### 24.3 获取协议
+
+建议同时预留 HTTP API 与 MCP 风格协议，两者指向同一份服务侧事实：
+
+- HTTP
+  - `GET /api/skills`
+  - `GET /api/skills/{skill_id}`
+  - `GET /api/skills/{skill_id}/references/{ref_id}`
+- MCP
+  - `skills.list`
+  - `skills.get`
+  - `skills.get_reference`
+
+建议语义：
+
+- `list` / `GET /api/skills`
+  - 返回 `id / name / description` 等轻量列表，用于发现
+- `get`
+  - 返回主 `SkillDoc` 正文与 reference 摘要
+- `get_reference`
+  - 按需返回单个 `SkillReferenceDoc`
+
+可以做只读缓存、etag 或 workspace scope，但不要把它演进成“本地下载后长期分叉维护的 skill 包管理器”。
+
+### 24.4 注入与运行语义
+
+skill 的注入对象应明确限制为 `llm_agent`，而不是新的节点种类或第二套 runtime。
+
+推荐语义：
+
+1. 节点配置或运行策略声明一组候选 `skill_id`
+2. `llm_agent` 在 `prepare / main_plan` 阶段拉取 skill 摘要与正文
+3. 当主 AI 判断需要更深材料时，再拉取单个 reference 正文
+4. skill 内容进入 prompt/context/evidence 辅助层，帮助主 AI 决策
+5. 真正的工具调用、MCP 查询、浏览器/桌面操作仍走现有 `ToolGateway`、runtime 和 OpenClaw / 本地助手边界
+
+明确禁止：
+
+- 把 skill 设计成新的 `NodeType`
+- 让 skill 自己持有流程推进权
+- 让 skill 自己接管本地环境安装、下载审批或客户端生命周期
+
+### 24.5 与 OpenClaw / 本地助手的边界
+
+- skill 负责“告诉主 AI 应该如何理解和处理某类任务”
+- OpenClaw / 本地助手负责“在真实环境里点击、输入、下载、执行”
+- 7Flows 当前不把 skill 设计成接管本地助手应用商店、客户端下载市场或重型本地审核中心
+
+这条边界的价值在于：
+
+- 7Flows 仍保持 workflow kernel 与控制面定位
+- OpenClaw 仍保持本地执行入口定位
+- skill 只补认知层，不挤占运行时和本地执行层职责
+
+### 24.6 适配边界
+
+- 外部或通用 skill 格式可以通过 adapter 转成 `SkillDoc`
+- `.agents/skills/*` 不直接作为 product runtime 的线上 skill source of truth
+- 如果未来希望复用仓库 skill 的某些内容，应先经过显式 publish / adapt 步骤，再进入产品运行时 catalog
+
+## 25. 开源 / 商业边界的技术落点
+
+### 25.1 基本原则
 
 - 开源与商业必须共用同一 kernel；商业控制层不得复制 workflow executor、`7Flows IR`、发布协议栈或统一事件流。
 - 版本边界优先落在组织治理、控制面、部署形态、托管资源、支持与官方服务层，而不是另起执行引擎。
 - adoption-critical 的基础能力应继续留在 OSS kernel / community 层；治理密度高、持续消耗官方维护资源的能力再进入 Team / Enterprise / Managed。
 
-### 24.2 当前代码事实与空缺（2026-03-15）
+### 25.2 当前代码事实与空缺（2026-03-15）
 
 - 当前仓库主要已经落地的是 OSS kernel 与运行时基础：workflow schema、runtime、published surface、trace / evidence view、插件兼容与自部署链路。
 - 这些核心执行与调试能力属于平台底座，不应在后续版本分层中被错误抽走成“只有商业版才能用”的能力。
 - 当前代码还没有完整的 `organization / member / role / auth / multi-workspace` 领域模型；部分 `workspace_id` 作用域已经出现在 starter、plugin catalog 等局部模块，但距离 Team / Enterprise 的正式治理面还很远。
 
-### 24.3 推荐技术切分
+### 25.3 推荐技术切分
 
 - `OSS / Community`
   - `7Flows IR` / runtime / trace-replay 基础事实层
@@ -1540,7 +1654,7 @@ type NotificationTrace = {
 - `Managed / Service`
   - 官方托管执行、日志 / artifact / queue、升级 / 备份 / 灾备、SLA、迁移与咨询交付
 
-### 24.4 实现约束
+### 25.4 实现约束
 
 - edition flag、授权、部署包装和支持边界可以分层，但 runtime orchestration 不能分叉。
 - 文档和 UI 必须显式区分“当前事实”和“目标版本能力”，不能把 Team / Enterprise 目标能力提前伪装成已落地功能。

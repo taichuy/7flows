@@ -24,6 +24,7 @@
 
 - 外部叙事可以 OpenClaw-first，但内部架构不能退化成“OpenClaw 专属执行器”。
 - 市场切口服务冷启动，不能反向主导 `7Flows IR`、runtime、发布协议和插件边界。
+- 面向 adoption 的轻量 service-hosted skill catalog 可以进入 kernel / community 范围，但不能直接演化成重型本地 SkillHub、客户端下载市场或本地执行接管层。
 
 ## 3. 核心战略原则
 
@@ -37,6 +38,7 @@
 
 - 社区版首先要把 OpenClaw / 本地 AI 助手的黑盒透明化、基础编排、基础追溯和基础协作做扎实。
 - 社区版重点放在 `7Flows IR`、runtime、published surface、trace / replay、插件协议、自部署与社区扩展入口。
+- 若 lightweight skill discovery / retrieval / injection 能直接提升 OpenClaw 场景可用性，应保留在社区版；但本地下载治理、重审核分发和客户端托管不属于当前社区基线。
 - 社区版必须是真实可用的协作入口，而不是演示版、阉割版或只用来导流的样板工程。
 - 社区版短期不追求把组织治理、复杂审批、企业合规、重型 IAM、托管 SLA 和白标控制面一起塞进主仓库。
 
@@ -79,6 +81,7 @@
 
 - `7Flows IR`、workflow schema、runtime、published surface、trace / replay 基础能力
 - OpenClaw / 本地 AI 助手场景下的执行透明、工具调用追踪、基础回放和错误定位
+- 轻量 Skill Catalog、API / MCP retrieval 与 `llm_agent` 注入能力
 - 可视化编排、基础自部署、插件协议、SDK、社区模板与社区扩展入口
 - 面向真实 adoption 的基础协作能力
 - 社区版专注“让个人和小团队先把 workflow 跑起来、看得清、调得动”，而不是先做重治理控制面
@@ -174,3 +177,4 @@
 - 当前仓库主要落地的是 Community kernel 与运行时基础，不应提前承诺已具备 Team / Enterprise 成熟控制面。
 - 当前 `LICENSE` 已切换为 Apache 2.0 基底 + 附加条件的 community license；后续仍需继续明确“多租户”“商业化对立面”“前端品牌替换”和“商业授权触发条件”的执行口径。
 - `organization / workspace / member / role / publish governance` 仍主要停留在目标设计，后续需要收敛成最小可实现领域模型。
+- 当前代码还没有 product-level `SkillDoc` 模型、skill retrieval API / MCP 或 `llm_agent` 注入链；后续不能把这条方向误写成已完成的 SkillHub、本地下载中心或客户端接管系统。

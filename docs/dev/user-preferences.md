@@ -22,6 +22,14 @@
 
 ## 当前已记录偏好
 
+## 2026-03-16 Product Skill 保持轻量自由结构
+
+- 偏好：7Flows 的 product skill 先保持轻量服务侧文档对象，只包含 `name`、`description`、自由正文 `body` 与 `references`；reference 复用相同语义，不要过早做成重型 SkillHub、强表单化 skill 编辑器或本地下载安装治理系统。
+- 来源：用户在本轮围绕 skill 方案的连续讨论中，明确要求 product skill 采用极简自由结构，并强调“skill 本质是文本注入到主 AI 上下文中”。
+- 影响范围：`AGENTS.md`、`docs/product-design.md`、`docs/technical-design-supplement.md`、`docs/open-source-commercial-strategy.md`、`docs/dev/runtime-foundation.md`，以及后续 skill catalog、API/MCP、`llm_agent` 注入链和外部 skill 适配设计。
+- 落地动作：本轮把轻量 `SkillDoc` 结构、service-hosted retrieval、reference 按需拉取、OpenClaw / 本地助手执行边界写入正式文档，并明确 `.agents/skills` 与产品 skill 不是同一概念。
+- 备注：这里强调的是“轻量知识注入层”，不是新增第二套流程控制面；真实环境操作仍由 OpenClaw / 本地助手执行。
+
 ## 2026-03-15 Python 开发默认走 `api/.venv + uv`
 
 - 偏好：后端 Python 开发、测试和验证默认优先走 `api/.venv` 里的解释器与 `uv`，若环境缺失可先激活 `.venv` 后补装 `uv`，避免不同全局 Python/包管理入口导致行为漂移。

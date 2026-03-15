@@ -20,6 +20,7 @@
 - 2026-03-15 文档基线已显式区分“对外 OpenClaw-first 切口”和“对内 IR / runtime 内核”：开源给协作、商业给治理现已作为目标设计写入稳定策略文档，但当前仓库仍主要落在 OSS kernel 和运行时基础建设阶段，不应把 Team / Enterprise 能力误写成已落地事实。
 - 2026-03-15 仓库授权已切换为 Apache 2.0 基底 + 附加条件的 `7Flows Community License`：社区协作、自部署和单租户二次开发仍是默认入口，但多租户托管、商业化对立面与前端去标识 / 白标不再属于“默认免费边界”，相关判断必须以根目录 `LICENSE` 为准。
 - 2026-03-15 AI 协作体系已从“领域 skill 为主”补成“元流程 skill + 领域 skill”双层结构：新增 `development-closure`、`skill-governance`、`backend-testing`，用于收尾闭环、skill 漂移治理与后端测试补齐；后续 AI 开发不应只读单个 review / refactor skill 就跳过验证、文档同步和 Git 收尾。
+- 2026-03-16 文档基线已新增轻量 product skill 方向：skill 被定义为 service-hosted 的 `SkillDoc`，只用于 `llm_agent` 的认知注入与 reference retrieval，真实桌面 / 本地环境操作仍由 OpenClaw / 本地助手执行；它不等同于 `.agents/skills`，也不是当前阶段要落的重型 SkillHub。
 - `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；在 `SensitiveResourceRecord / SensitiveAccessRequestRecord / ApprovalTicketRecord / NotificationDispatchRecord` 事实层与 `/api/sensitive-access/*` API 基础上，当前已经把同一套控制接到 runtime `credential resolve`、`mcp_query / authorized_context` 的 context read、`ToolGateway` 的 tool invoke、Run API 的 `trace export`，以及 published endpoint invocation detail / published cache inventory 的人工详情入口：当 node/agent 解析 `credential://...`、读取命中 `workflow_context` 资源的上游 artifact、调用命中 `local_capability` 资源的工具，尝试导出一个已经触达敏感资源的 run trace，或查看关联高敏 run 的 published invocation 详情 / cache inventory 时，运行态都会创建/复用访问请求，并在命中审批时复用同一套 `ApprovalTicket` / `NotificationDispatch` 事实层。对 `L2` context read，当前会返回结构化 masked payload；对 credential path 的 `allow_masked`，当前也已改为先返回 `credential+masked://...` handle，再由 `AgentRuntime` / `ToolGateway` 在最后一跳恢复真实密钥，不再在通用 runtime resolve 层默认直出明文。当前仍缺 publish export 的真实拦截挂点，以及更完整的通知 worker / inbox 落地。
 - 2026-03-15 run diagnostics 与 workflow overlay 的 trace export 按钮已补成真正的 fetch/download 交互，而不是只依赖浏览器新开链接；当导出命中 `RunTraceExportAccessService` 的审批或拒绝分支时，前端现在会直接展示统一的 `SensitiveAccessBlockedCard`，避免人类排障入口对后端安全治理“有拦截、无落点”。
 - 2026-03-15 `RunResumeScheduler` 已补成 transaction-aware after-commit dispatch：runtime `waiting resume`、敏感访问审批通过后的 resume，以及 callback ticket cleanup 的 resume 调度现在都会先跟随同一事务提交，再在 `after_commit` 后派发，避免 worker / Celery 先读到未提交的 waiting-state 变更。手动 `/api/runs/callback-tickets/cleanup` 也已默认接上这条 cleanup -> immediate resume 闭环，并保留 `schedule_resumes=false` 的显式退出口。
@@ -56,6 +57,7 @@
 - `AgentRuntime` 已把 `llm_agent` 演进为可恢复的 phase pipeline，主 phases 为 `prepare -> main_plan -> tool_execute -> assistant_distill -> main_finalize -> emit_output`。
 - `assistant` 仍是节点内可关闭的 evidence pipeline，只负责证据提炼，不负责流程推进。
 - `ContextService` 已把上下文拆成 global / working / evidence / artifact refs；`RuntimeArtifactStore` 承接大体量原始结果；`ToolGateway` 统一工具调用、摘要与 artifact 持久化。
+- 当前代码还没有 product-level `SkillDoc` 模型、skill catalog API / MCP 或 `llm_agent` skill injection path；这条能力目前仍停留在产品/技术基线，后续应沿“service-hosted catalog + reference lazy fetch + OpenClaw / 本地助手执行边界”推进，而不是把 `.agents/skills` 直接当作 runtime 数据源。
 - OpenAI 流式调用已开启 `stream_options.include_usage`，`agent_runtime_llm_support.py` 会累计 usage，后续成本分析已有稳定事实可承接。
 
 ### 4. Workflow 定义、发布与开放接口
@@ -121,11 +123,13 @@
    - `api/app/services/published_protocol_streaming.py` 已在 2026-03-15 完成 facade + protocol helper 拆层，run diagnostics / workflow overlay 的 trace export 阻断 UI 也已补齐；`web/components/run-diagnostics-execution-sections.tsx` 已在 2026-03-16 完成 overview / node card / shared 组件拆层。下一阶段可继续补 publish export、approval timeline、security decision summary，并把 execution node card 内的 tool / ai / ticket / artifact 区块进一步细分。
 6. **P1：继续提高工作流编辑器完整度**
    - 在现有 `runtimePolicy.execution / retry / join`、节点 contract、workflow `variables`、workflow `publish` draft 与 `llm_agent.toolPolicy` 基础上，继续补敏感访问策略入口、schema builder，以及更清晰的 advanced JSON / structured form 边界。
-7. **P2：先把 `organization / workspace / member / role / publish governance` 写成最小领域模型设计稿**
+7. **P1：收敛轻量 Skill Catalog 与 `llm_agent` 注入链设计**
+   - 文档基线已明确 product skill 采用 service-hosted `SkillDoc`、reference 按需拉取、API / MCP 获取，以及“7Flows 负责认知注入、OpenClaw / 本地助手负责真实环境执行”的边界。下一步先收敛最小数据模型、节点绑定方式和 retrieval contract，不做重型 SkillHub、本地下载接管或客户端审核市场。
+8. **P2：先把 `organization / workspace / member / role / publish governance` 写成最小领域模型设计稿**
    - 在不提前引入重 IAM 或复杂多组织计费系统的前提下，先收敛 Team / Enterprise 最小治理模型与 API 预留，明确哪些属于 Community kernel、哪些属于商业治理能力，避免后续实现、README 和对外叙事再次混线。
-8. **P2：继续收敛 Community License 的执行边界**
+9. **P2：继续收敛 Community License 的执行边界**
    - 围绕 `workspace = tenant`、多租户托管、商业化对立面、前端品牌替换和白标分发等触发条件，继续补文档、术语定义和未来商业授权入口，避免许可证文本有了但执行口径仍模糊。
-9. **P3：继续完善 AI 协作 skill 的双层体系**
+10. **P3：继续完善 AI 协作 skill 的双层体系**
    - 根据后续实现节奏，继续补强 backend refactor、runtime debugging、发布治理验证等高复用流程，并定期复核 skill 与 `AGENTS.md`、`runtime-foundation.md`、README 索引的一致性，避免 skill 再次漂移。
-10. **P3：把 OpenClaw-first README / demo / 首页入口收成可传播资产**
+11. **P3：把 OpenClaw-first README / demo / 首页入口收成可传播资产**
    - 在策略与授权边界稳定后，继续补 README 截图、demo 路径、首页文案和示例 workflow，让“黑盒变透明”的外部入口真正可演示、可传播、可复用。
