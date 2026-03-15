@@ -4,12 +4,12 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.workflow import Workflow
 from app.schemas.workspace_starter import (
+    WorkflowBusinessTrack,
     WorkspaceStarterBulkActionRequest,
-    WorkspaceStarterBulkDeletedItem,
     WorkspaceStarterBulkActionResult,
+    WorkspaceStarterBulkDeletedItem,
     WorkspaceStarterBulkSkippedItem,
     WorkspaceStarterBulkSkippedSummary,
-    WorkflowBusinessTrack,
     WorkspaceStarterHistoryItem,
     WorkspaceStarterSourceDiff,
     WorkspaceStarterTemplateCreate,
@@ -22,6 +22,13 @@ from app.services.workspace_starter_templates import (
 )
 
 router = APIRouter(prefix="/workspace-starters", tags=["workspace-starters"])
+
+
+def _raise_definition_validation_error(exc: WorkflowDefinitionValidationError) -> None:
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail=str(exc),
+    ) from exc
 
 
 @router.post("/bulk", response_model=WorkspaceStarterBulkActionResult)
@@ -144,8 +151,19 @@ def bulk_update_workspace_starters(
                 continue
 
             if payload.action == "refresh":
-                previous_version = record.created_from_workflow_version
-                changed = service.refresh_from_workflow(record, source_workflow)
+                try:
+                    previous_version = record.created_from_workflow_version
+                    changed = service.refresh_from_workflow(record, source_workflow)
+                except WorkflowDefinitionValidationError as exc:
+                    skipped_items.append(
+                        WorkspaceStarterBulkSkippedItem(
+                            template_id=record.id,
+                            name=record.name,
+                            reason="source_workflow_invalid",
+                            detail=str(exc),
+                        )
+                    )
+                    continue
                 service.record_history(
                     db,
                     template_id=record.id,
@@ -165,16 +183,27 @@ def bulk_update_workspace_starters(
                     },
                 )
             else:
-                diff = service.rebase_from_workflow(record, source_workflow)
+                try:
+                    diff = service.rebase_from_workflow(record, source_workflow)
+                except WorkflowDefinitionValidationError as exc:
+                    skipped_items.append(
+                        WorkspaceStarterBulkSkippedItem(
+                            template_id=record.id,
+                            name=record.name,
+                            reason="source_workflow_invalid",
+                            detail=str(exc),
+                        )
+                    )
+                    continue
                 service.record_history(
                     db,
                     template_id=record.id,
                     workspace_id=record.workspace_id,
                     action="rebased",
                     summary=(
-                        f"批量基于源 workflow「{source_workflow.name}」rebase 了 workspace starter。"
+                        f"批量从源 workflow「{source_workflow.name}」同步了 rebase 所需字段。"
                         if diff.changed
-                        else f"批量检查了源 workflow「{source_workflow.name}」，无需 rebase。"
+                        else f"批量检查了源 workflow「{source_workflow.name}」，当前已对齐。"
                     ),
                     payload={
                         "bulk": True,
@@ -285,10 +314,7 @@ def create_workspace_starter(
     try:
         record = service.create_template(db, payload)
     except WorkflowDefinitionValidationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
-        ) from exc
+        _raise_definition_validation_error(exc)
 
     service.record_history(
         db,
@@ -325,10 +351,7 @@ def update_workspace_starter(
     try:
         service.update_template(record, payload)
     except WorkflowDefinitionValidationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
-        ) from exc
+        _raise_definition_validation_error(exc)
 
     changed_fields = sorted(payload.model_dump(exclude_none=True).keys())
     service.record_history(
@@ -459,16 +482,19 @@ def rebase_workspace_starter(
             detail="Source workflow not found.",
         )
 
-    diff = service.rebase_from_workflow(record, source_workflow)
+    try:
+        diff = service.rebase_from_workflow(record, source_workflow)
+    except WorkflowDefinitionValidationError as exc:
+        _raise_definition_validation_error(exc)
     service.record_history(
         db,
         template_id=record.id,
         workspace_id=record.workspace_id,
         action="rebased",
         summary=(
-            f"基于源 workflow「{source_workflow.name}」rebase 了 workspace starter。"
+            f"从源 workflow「{source_workflow.name}」rebase 了 starter 快照与默认工作流名。"
             if diff.changed
-            else f"检查了源 workflow「{source_workflow.name}」，无需 rebase。"
+            else f"检查了源 workflow「{source_workflow.name}」，starter 与源 definition 已对齐。"
         ),
         payload={
             "source_workflow_id": source_workflow.id,
@@ -512,7 +538,10 @@ def refresh_workspace_starter(
         )
 
     previous_version = record.created_from_workflow_version
-    changed = service.refresh_from_workflow(record, source_workflow)
+    try:
+        changed = service.refresh_from_workflow(record, source_workflow)
+    except WorkflowDefinitionValidationError as exc:
+        _raise_definition_validation_error(exc)
     service.record_history(
         db,
         template_id=record.id,

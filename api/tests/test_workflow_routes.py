@@ -25,6 +25,20 @@ def _valid_definition(answer: str = "done", runtime_policy: dict | None = None) 
     }
 
 
+def _planned_loop_definition() -> dict:
+    return {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {"id": "loop", "type": "loop", "name": "Loop", "config": {}},
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "loop"},
+            {"id": "e2", "sourceNodeId": "loop", "targetNodeId": "output"},
+        ],
+    }
+
+
 def _valid_mcp_definition() -> dict:
     return {
         "nodes": [
@@ -307,6 +321,20 @@ def test_create_workflow_rejects_invalid_definition(client: TestClient) -> None:
     assert "trigger node" in response.json()["detail"]
 
 
+def test_create_workflow_rejects_unavailable_persisted_nodes(client: TestClient) -> None:
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Loop Workflow",
+            "definition": _planned_loop_definition(),
+        },
+    )
+
+    assert response.status_code == 422
+    assert "not currently available for persistence" in response.json()["detail"]
+    assert "loop" in response.json()["detail"]
+
+
 def test_create_workflow_rejects_cycles_during_blueprint_compilation(
     client: TestClient,
 ) -> None:
@@ -353,6 +381,20 @@ def test_update_workflow_bumps_version_and_keeps_history(
     assert versions_response.status_code == 200
     assert [version["version"] for version in versions_response.json()] == ["0.1.1", "0.1.0"]
     assert all(version["compiled_blueprint_id"] for version in versions_response.json())
+
+
+def test_update_workflow_rejects_unavailable_persisted_nodes(
+    client: TestClient,
+    sample_workflow,
+) -> None:
+    response = client.put(
+        f"/api/workflows/{sample_workflow.id}",
+        json={"definition": _planned_loop_definition()},
+    )
+
+    assert response.status_code == 422
+    assert "not currently available for persistence" in response.json()["detail"]
+    assert "loop" in response.json()["detail"]
 
 
 def test_list_workflow_runs_returns_aggregated_summary(

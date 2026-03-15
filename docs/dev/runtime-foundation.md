@@ -17,6 +17,7 @@
 - 基于 `c14c0d3 feat: add workflow editor publish draft form` 的前一轮基础，workflow editor 内的 `definition.publish` 现已补齐“`workflowVersion` 留空即跟随当前保存版本”的默认语义，并接入与后端 schema 对齐的本地校验和组件拆分；publish draft 已不再默认钉死旧版本，前端也能在重复 draft 待修正时保持稳定渲染。
 - 2026-03-16 workflow library 的 node catalog 已显式补齐 `support_status / support_summary`：`sandbox_code` 与 `loop` 继续保留在统一目录中做路线对齐，但明确标记为 `planned`，不会进入 editor palette 或 runtime 主链；当已有 workflow definition 载入了 planned / unknown node type 时，editor hero 与 sidebar 会直接提示“保留但不可假装已可运行”，把 MVP 诚实性从文案补到真实交互。
 - 2026-03-16 workflow editor 已把同一套 node support status 继续推进到保存链路：当 workflow definition 中仍包含 planned / unknown node type 时，`保存 workflow` 与 `保存为 workspace starter` 都会被前端 capability validation 阻断，并给出结构化提示，避免用户继续把未进入执行主链的定义沉淀为版本或模板。
+- 2026-03-16 workflow / workspace starter 的后端持久化链路已补齐同一套 server-side capability guard：`/api/workflows` create/update、workspace starter create/update，以及 starter refresh / rebase / bulk refresh / bulk rebase 现都会拒绝或跳过包含 `planned` 节点的定义，避免“前端阻断但 API 仍可绕过”继续把 `loop`、`sandbox_code` 等未进入执行主链的定义沉淀进版本或模板。
 - 面向 AI / 自动化 的追溯仍必须以 `runs / node_runs / run_events / run_artifacts / tool_call_records / ai_call_records` 为事实源，前端面板只负责摘要、导航和排障入口。
 - 当前产品基线已进一步明确：7Flows 同时服务人类用户与 AI 用户，后续工作台、发布接口与运行态接口演进时，应保持人机交互、人与 AI 协作、AI 独立操作三类场景的结果语义一致。
 - 2026-03-15 文档基线已显式区分“对外 OpenClaw-first 切口”和“对内 IR / runtime 内核”：开源给协作、商业给治理现已作为目标设计写入稳定策略文档，但当前仓库仍主要落在 OSS kernel 和运行时基础建设阶段，不应把 Team / Enterprise 能力误写成已落地事实。
@@ -124,7 +125,7 @@
 5. **P1：继续治理 run diagnostics 与 publish streaming 详情层**
    - `api/app/services/published_protocol_streaming.py` 已在 2026-03-15 完成 facade + protocol helper 拆层，run diagnostics / workflow overlay 的 trace export 阻断 UI 也已补齐；`web/components/run-diagnostics-execution-sections.tsx` 已在 2026-03-16 完成 overview / node card / shared 组件拆层。下一阶段可继续补 publish export、approval timeline、security decision summary，并把 execution node card 内的 tool / ai / ticket / artifact 区块进一步细分。
 6. **P1：继续提高工作流编辑器完整度**
-   - 在现有 `runtimePolicy.execution / retry / join`、节点 contract、workflow `variables`、workflow `publish` draft、node catalog `support_status / support_summary`、保存前 capability validation 与 `llm_agent.toolPolicy` 基础上，继续补敏感访问策略入口、schema builder、保存前更细粒度的 binding / contract 校验，以及更清晰的 advanced JSON / structured form 边界。
+   - 在现有 `runtimePolicy.execution / retry / join`、节点 contract、workflow `variables`、workflow `publish` draft、node catalog `support_status / support_summary`、前端保存前 capability validation、后端 workflow / workspace starter persistence guard 与 `llm_agent.toolPolicy` 基础上，继续补敏感访问策略入口、schema builder、保存前更细粒度的 binding / contract 校验，以及更清晰的 advanced JSON / structured form 边界。
 7. **P1：收敛轻量 Skill Catalog 与 `llm_agent` 注入链设计**
    - 文档基线已明确 product skill 采用 service-hosted `SkillDoc`、reference 按需拉取、API / MCP 获取，以及“7Flows 负责认知注入、OpenClaw / 本地助手负责真实环境执行”的边界。下一步先收敛最小数据模型、节点绑定方式和 retrieval contract，不做重型 SkillHub、本地下载接管或客户端审核市场。
 8. **P2：先把 `organization / workspace / member / role / publish governance` 写成最小领域模型设计稿**

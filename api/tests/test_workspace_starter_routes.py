@@ -14,6 +14,20 @@ def _valid_definition() -> dict:
     }
 
 
+def _planned_loop_definition() -> dict:
+    return {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {"id": "loop", "type": "loop", "name": "Loop", "config": {}},
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "loop"},
+            {"id": "e2", "sourceNodeId": "loop", "targetNodeId": "output"},
+        ],
+    }
+
+
 def _create_workspace_starter(
     client: TestClient,
     *,
@@ -121,6 +135,97 @@ def test_workspace_starter_update_persists_metadata_changes(client: TestClient) 
         "tags",
         "workflow_focus",
     ]
+
+
+def test_workspace_starter_update_rejects_unavailable_persisted_nodes(
+    client: TestClient,
+) -> None:
+    created = _create_workspace_starter(
+        client,
+        name="Update Loop Starter",
+        business_track="编排节点能力",
+        description="Template for invalid update flow",
+    )
+
+    response = client.put(
+        f"/api/workspace-starters/{created['id']}",
+        json={"definition": _planned_loop_definition()},
+    )
+
+    assert response.status_code == 422
+    assert "not currently available for persistence" in response.json()["detail"]
+    assert "loop" in response.json()["detail"]
+
+
+def test_workspace_starter_create_rejects_unavailable_persisted_nodes(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Loop Starter",
+            "description": "Should be rejected before persistence",
+            "business_track": "编排节点能力",
+            "default_workflow_name": "Loop Starter Workflow",
+            "workflow_focus": "Loop focus",
+            "recommended_next_step": "Replace planned nodes",
+            "tags": ["loop"],
+            "definition": _planned_loop_definition(),
+        },
+    )
+
+    assert response.status_code == 422
+    assert "not currently available for persistence" in response.json()["detail"]
+    assert "loop" in response.json()["detail"]
+
+
+def test_workspace_starter_rebase_rejects_source_workflow_with_unavailable_nodes(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    created = _create_workspace_starter(
+        client,
+        name="Rebase Invalid Source Starter",
+        business_track="编排节点能力",
+        description="Template for invalid source rebase flow",
+    )
+
+    sample_workflow.version = "0.1.4"
+    sample_workflow.definition = _planned_loop_definition()
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    response = client.post(f"/api/workspace-starters/{created['id']}/rebase")
+
+    assert response.status_code == 422
+    assert "not currently available for persistence" in response.json()["detail"]
+    assert "loop" in response.json()["detail"]
+
+
+def test_workspace_starter_refresh_rejects_source_workflow_with_unavailable_nodes(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    created = _create_workspace_starter(
+        client,
+        name="Refresh Invalid Source Starter",
+        business_track="编排节点能力",
+        description="Template for invalid source refresh flow",
+    )
+
+    sample_workflow.version = "0.1.4"
+    sample_workflow.definition = _planned_loop_definition()
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    response = client.post(f"/api/workspace-starters/{created['id']}/refresh")
+
+    assert response.status_code == 422
+    assert "not currently available for persistence" in response.json()["detail"]
+    assert "loop" in response.json()["detail"]
 
 
 def test_workspace_starter_archive_and_restore_change_visibility(
@@ -592,3 +697,99 @@ def test_workspace_starter_bulk_refresh_and_rebase_skip_invalid_sources(
     assert rebase_result["updated_count"] == 1
     assert rebase_result["updated_items"][0]["default_workflow_name"] == "Bulk Source Workflow"
     assert rebase_result["deleted_items"] == []
+
+
+def test_workspace_starter_bulk_refresh_skips_source_workflow_with_unavailable_nodes(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    derived = _create_workspace_starter(
+        client,
+        name="Bulk Invalid Source Starter",
+        business_track="编排节点能力",
+        description="Template for invalid source refresh flow",
+    )
+
+    sample_workflow.version = "0.1.4"
+    sample_workflow.definition = _planned_loop_definition()
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    refresh_response = client.post(
+        "/api/workspace-starters/bulk",
+        json={
+            "workspace_id": "default",
+            "action": "refresh",
+            "template_ids": [derived["id"]],
+        },
+    )
+
+    assert refresh_response.status_code == 200
+    refresh_result = refresh_response.json()
+    assert refresh_result["updated_count"] == 0
+    assert refresh_result["skipped_count"] == 1
+    assert refresh_result["skipped_items"] == [
+        {
+            "template_id": derived["id"],
+            "name": "Bulk Invalid Source Starter",
+            "reason": "source_workflow_invalid",
+            "detail": refresh_result["skipped_items"][0]["detail"],
+        }
+    ]
+    assert "not currently available for persistence" in refresh_result["skipped_items"][0]["detail"]
+    assert refresh_result["skipped_reason_summary"] == [
+        {
+            "reason": "source_workflow_invalid",
+            "count": 1,
+            "detail": refresh_result["skipped_items"][0]["detail"],
+        }
+    ]
+
+
+def test_workspace_starter_bulk_rebase_skips_source_workflow_with_unavailable_nodes(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    derived = _create_workspace_starter(
+        client,
+        name="Bulk Invalid Rebase Starter",
+        business_track="编排节点能力",
+        description="Template for invalid source rebase flow",
+    )
+
+    sample_workflow.version = "0.1.4"
+    sample_workflow.definition = _planned_loop_definition()
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    rebase_response = client.post(
+        "/api/workspace-starters/bulk",
+        json={
+            "workspace_id": "default",
+            "action": "rebase",
+            "template_ids": [derived["id"]],
+        },
+    )
+
+    assert rebase_response.status_code == 200
+    rebase_result = rebase_response.json()
+    assert rebase_result["updated_count"] == 0
+    assert rebase_result["skipped_count"] == 1
+    assert rebase_result["skipped_items"] == [
+        {
+            "template_id": derived["id"],
+            "name": "Bulk Invalid Rebase Starter",
+            "reason": "source_workflow_invalid",
+            "detail": rebase_result["skipped_items"][0]["detail"],
+        }
+    ]
+    assert "not currently available for persistence" in rebase_result["skipped_items"][0]["detail"]
+    assert rebase_result["skipped_reason_summary"] == [
+        {
+            "reason": "source_workflow_invalid",
+            "count": 1,
+            "detail": rebase_result["skipped_items"][0]["detail"],
+        }
+    ]

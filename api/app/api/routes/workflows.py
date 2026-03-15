@@ -15,7 +15,7 @@ from app.schemas.workflow import (
 from app.services.compiled_blueprints import CompiledBlueprintService
 from app.services.workflow_definitions import (
     WorkflowDefinitionValidationError,
-    validate_workflow_definition,
+    validate_persistable_workflow_definition,
 )
 from app.services.workflow_mutations import (
     WorkflowMutationError,
@@ -48,7 +48,7 @@ def list_workflows(db: Session = Depends(get_db)) -> list[WorkflowListItem]:
 @router.post("", response_model=WorkflowDetail, status_code=status.HTTP_201_CREATED)
 def create_workflow(payload: WorkflowCreate, db: Session = Depends(get_db)) -> WorkflowDetail:
     try:
-        definition = validate_workflow_definition(payload.definition)
+        definition = validate_persistable_workflow_definition(payload.definition)
     except WorkflowDefinitionValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -92,7 +92,7 @@ def update_workflow(
     definition = None
     if payload.definition is not None:
         try:
-            definition = validate_workflow_definition(payload.definition)
+            definition = validate_persistable_workflow_definition(payload.definition)
         except WorkflowDefinitionValidationError as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

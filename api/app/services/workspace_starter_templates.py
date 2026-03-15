@@ -24,7 +24,10 @@ from app.schemas.workspace_starter import (
     WorkspaceStarterTemplateItem,
     WorkspaceStarterTemplateUpdate,
 )
-from app.services.workflow_definitions import validate_workflow_definition
+from app.services.workflow_definitions import (
+    validate_persistable_workflow_definition,
+    validate_workflow_definition,
+)
 
 
 class WorkspaceStarterTemplateService:
@@ -176,7 +179,7 @@ class WorkspaceStarterTemplateService:
         if payload.tags is not None:
             record.tags = self._normalize_tags(payload.tags)
         if payload.definition is not None:
-            record.definition = validate_workflow_definition(payload.definition)
+            record.definition = validate_persistable_workflow_definition(payload.definition)
         return record
 
     def serialize(
@@ -302,7 +305,7 @@ class WorkspaceStarterTemplateService:
         record: WorkspaceStarterTemplateRecord,
         workflow: Workflow,
     ) -> bool:
-        validated_definition = validate_workflow_definition(workflow.definition)
+        validated_definition = validate_persistable_workflow_definition(workflow.definition)
         changed = (
             record.created_from_workflow_version != workflow.version
             or record.definition != validated_definition
@@ -319,7 +322,7 @@ class WorkspaceStarterTemplateService:
     ) -> WorkspaceStarterSourceDiff:
         diff = self.build_source_diff(record, workflow)
         if "definition" in diff.rebase_fields:
-            record.definition = validate_workflow_definition(workflow.definition)
+            record.definition = validate_persistable_workflow_definition(workflow.definition)
         if "created_from_workflow_version" in diff.rebase_fields:
             record.created_from_workflow_version = workflow.version
         if "default_workflow_name" in diff.rebase_fields:
@@ -366,7 +369,7 @@ class WorkspaceStarterTemplateService:
         record.workflow_focus = payload.workflow_focus
         record.recommended_next_step = payload.recommended_next_step
         record.tags = self._normalize_tags(payload.tags)
-        record.definition = validate_workflow_definition(payload.definition)
+        record.definition = validate_persistable_workflow_definition(payload.definition)
         record.created_from_workflow_id = payload.created_from_workflow_id
         record.created_from_workflow_version = payload.created_from_workflow_version
 

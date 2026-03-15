@@ -32,6 +32,7 @@ WorkspaceStarterBulkSkipReason = Literal[
     "not_archived",
     "no_source_workflow",
     "source_workflow_missing",
+    "source_workflow_invalid",
     "delete_requires_archive",
 ]
 
