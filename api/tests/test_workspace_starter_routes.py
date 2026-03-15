@@ -180,6 +180,51 @@ def test_workspace_starter_create_rejects_unavailable_persisted_nodes(
     assert "loop" in response.json()["detail"]
 
 
+def test_workspace_starter_create_rejects_missing_catalog_tool_binding(
+    client: TestClient,
+) -> None:
+    definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "tool",
+                "type": "tool",
+                "name": "Tool",
+                "config": {
+                    "tool": {
+                        "toolId": "native.missing",
+                        "ecosystem": "native",
+                    }
+                },
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool"},
+            {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "output"},
+        ],
+    }
+
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Broken Missing Tool Starter",
+            "description": "Should reject missing tool catalog references",
+            "business_track": "应用新建编排",
+            "default_workflow_name": "Broken Missing Tool Starter Workflow",
+            "workflow_focus": "Catalog reference validation",
+            "recommended_next_step": "Fix tool binding",
+            "tags": ["tool", "validation"],
+            "definition": definition,
+        },
+    )
+
+    assert response.status_code == 422
+    assert "references missing or drifted tool catalog entries" in response.json()["detail"]
+    assert "native.missing" in response.json()["detail"]
+
+
 def test_workspace_starter_rebase_rejects_source_workflow_with_unavailable_nodes(
     client: TestClient,
     sqlite_session: Session,

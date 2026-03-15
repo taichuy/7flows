@@ -238,6 +238,7 @@ export function WorkflowEditorInspector({
           <li>workflow `variables` 现已接上结构化表单，方便把全局输入、公共约束和后续发布 schema 对齐到同一处。</li>
           <li>workflow `publish` 现已接上结构化 draft 表单；`workflowVersion` 留空会跟随当前保存版本，正式发布与 API key 治理仍放在独立 publish 页面。</li>
           <li>`tool` 节点会直接消费 `/api/plugins/tools` 的持久化目录，不再只停留在首页绑定面板。</li>
+          <li>保存前会校验 `tool` 节点和 `llm_agent.toolPolicy` 是否仍指向当前 tool catalog，避免目录漂移拖到 runtime 才暴露。</li>
           <li>运行时尚未支持 `loop`，因此当前画布仍不暴露 loop 节点。</li>
           <li>后端会继续校验 trigger 唯一、output 必需和边引用合法性。</li>
         </ul>

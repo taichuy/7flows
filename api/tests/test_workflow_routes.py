@@ -797,6 +797,57 @@ def test_create_workflow_rejects_invalid_tool_binding(
     assert "String should have at least 1 character" in response.json()["detail"]
 
 
+def test_create_workflow_rejects_missing_catalog_tool_binding(client: TestClient) -> None:
+    definition = _valid_definition()
+    definition["nodes"][1]["config"] = {
+        "tool": {
+            "toolId": "native.missing",
+            "ecosystem": "native",
+        }
+    }
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken Missing Tool Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "references missing or drifted tool catalog entries" in response.json()["detail"]
+    assert "native.missing" in response.json()["detail"]
+
+
+def test_create_workflow_rejects_missing_tool_policy_reference(client: TestClient) -> None:
+    definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "agent",
+                "type": "llm_agent",
+                "name": "Agent",
+                "config": {
+                    "toolPolicy": {
+                        "allowedToolIds": ["native.search", "native.missing"],
+                    }
+                },
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+            {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+        ],
+    }
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken Missing Tool Policy Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "toolPolicy.allowedToolIds references missing catalog tools" in response.json()["detail"]
+    assert "native.missing" in response.json()["detail"]
+
+
 def test_create_workflow_rejects_duplicate_variable_names(client: TestClient) -> None:
     definition = _valid_publish_definition()
     definition["variables"] = [

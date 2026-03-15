@@ -153,7 +153,7 @@ def bulk_update_workspace_starters(
             if payload.action == "refresh":
                 try:
                     previous_version = record.created_from_workflow_version
-                    changed = service.refresh_from_workflow(record, source_workflow)
+                    changed = service.refresh_from_workflow(db, record, source_workflow)
                 except WorkflowDefinitionValidationError as exc:
                     skipped_items.append(
                         WorkspaceStarterBulkSkippedItem(
@@ -184,7 +184,7 @@ def bulk_update_workspace_starters(
                 )
             else:
                 try:
-                    diff = service.rebase_from_workflow(record, source_workflow)
+                    diff = service.rebase_from_workflow(db, record, source_workflow)
                 except WorkflowDefinitionValidationError as exc:
                     skipped_items.append(
                         WorkspaceStarterBulkSkippedItem(
@@ -349,7 +349,7 @@ def update_workspace_starter(
         )
 
     try:
-        service.update_template(record, payload)
+        service.update_template(db, record, payload)
     except WorkflowDefinitionValidationError as exc:
         _raise_definition_validation_error(exc)
 
@@ -483,7 +483,7 @@ def rebase_workspace_starter(
         )
 
     try:
-        diff = service.rebase_from_workflow(record, source_workflow)
+        diff = service.rebase_from_workflow(db, record, source_workflow)
     except WorkflowDefinitionValidationError as exc:
         _raise_definition_validation_error(exc)
     service.record_history(
@@ -539,7 +539,7 @@ def refresh_workspace_starter(
 
     previous_version = record.created_from_workflow_version
     try:
-        changed = service.refresh_from_workflow(record, source_workflow)
+        changed = service.refresh_from_workflow(db, record, source_workflow)
     except WorkflowDefinitionValidationError as exc:
         _raise_definition_validation_error(exc)
     service.record_history(

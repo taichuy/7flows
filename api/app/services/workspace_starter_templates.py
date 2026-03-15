@@ -25,6 +25,7 @@ from app.schemas.workspace_starter import (
     WorkspaceStarterTemplateUpdate,
 )
 from app.services.workflow_definitions import (
+    build_workflow_tool_reference_index,
     validate_persistable_workflow_definition,
     validate_workflow_definition,
 )
@@ -155,12 +156,13 @@ class WorkspaceStarterTemplateService:
     ) -> WorkspaceStarterTemplateRecord:
         record = WorkspaceStarterTemplateRecord(id=str(uuid4()))
         db.add(record)
-        self._apply_create_payload(record, payload)
+        self._apply_create_payload(db, record, payload)
         db.flush()
         return record
 
     def update_template(
         self,
+        db: Session,
         record: WorkspaceStarterTemplateRecord,
         payload: WorkspaceStarterTemplateUpdate,
     ) -> WorkspaceStarterTemplateRecord:
@@ -179,7 +181,13 @@ class WorkspaceStarterTemplateService:
         if payload.tags is not None:
             record.tags = self._normalize_tags(payload.tags)
         if payload.definition is not None:
-            record.definition = validate_persistable_workflow_definition(payload.definition)
+            record.definition = validate_persistable_workflow_definition(
+                payload.definition,
+                tool_index=build_workflow_tool_reference_index(
+                    db,
+                    workspace_id=record.workspace_id,
+                ),
+            )
         return record
 
     def serialize(
@@ -302,10 +310,17 @@ class WorkspaceStarterTemplateService:
 
     def refresh_from_workflow(
         self,
+        db: Session,
         record: WorkspaceStarterTemplateRecord,
         workflow: Workflow,
     ) -> bool:
-        validated_definition = validate_persistable_workflow_definition(workflow.definition)
+        validated_definition = validate_persistable_workflow_definition(
+            workflow.definition,
+            tool_index=build_workflow_tool_reference_index(
+                db,
+                workspace_id=record.workspace_id,
+            ),
+        )
         changed = (
             record.created_from_workflow_version != workflow.version
             or record.definition != validated_definition
@@ -317,12 +332,19 @@ class WorkspaceStarterTemplateService:
 
     def rebase_from_workflow(
         self,
+        db: Session,
         record: WorkspaceStarterTemplateRecord,
         workflow: Workflow,
     ) -> WorkspaceStarterSourceDiff:
         diff = self.build_source_diff(record, workflow)
         if "definition" in diff.rebase_fields:
-            record.definition = validate_persistable_workflow_definition(workflow.definition)
+            record.definition = validate_persistable_workflow_definition(
+                workflow.definition,
+                tool_index=build_workflow_tool_reference_index(
+                    db,
+                    workspace_id=record.workspace_id,
+                ),
+            )
         if "created_from_workflow_version" in diff.rebase_fields:
             record.created_from_workflow_version = workflow.version
         if "default_workflow_name" in diff.rebase_fields:
@@ -358,6 +380,7 @@ class WorkspaceStarterTemplateService:
 
     def _apply_create_payload(
         self,
+        db: Session,
         record: WorkspaceStarterTemplateRecord,
         payload: WorkspaceStarterTemplateCreate,
     ) -> None:
@@ -369,7 +392,13 @@ class WorkspaceStarterTemplateService:
         record.workflow_focus = payload.workflow_focus
         record.recommended_next_step = payload.recommended_next_step
         record.tags = self._normalize_tags(payload.tags)
-        record.definition = validate_persistable_workflow_definition(payload.definition)
+        record.definition = validate_persistable_workflow_definition(
+            payload.definition,
+            tool_index=build_workflow_tool_reference_index(
+                db,
+                workspace_id=payload.workspace_id,
+            ),
+        )
         record.created_from_workflow_id = payload.created_from_workflow_id
         record.created_from_workflow_version = payload.created_from_workflow_version
 

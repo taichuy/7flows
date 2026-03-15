@@ -5,6 +5,7 @@ import { ReactFlowProvider } from "@xyflow/react";
 
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import { buildWorkflowDefinitionContractValidationIssues } from "@/lib/workflow-contract-schema-validation";
+import { buildWorkflowToolReferenceValidationIssues } from "@/lib/workflow-tool-reference-validation";
 import type {
   WorkflowLibrarySourceLane,
   WorkflowNodeCatalogItem
@@ -100,6 +101,22 @@ export function WorkflowEditorWorkbench({
       ? `${head}；另有 ${contractValidationIssues.length - 3} 项待修正。`
       : head;
   }, [contractValidationIssues]);
+  const toolReferenceValidationIssues = useMemo(
+    () => buildWorkflowToolReferenceValidationIssues(graph.currentDefinition, tools),
+    [graph.currentDefinition, tools]
+  );
+  const toolReferenceValidationSummary = useMemo(() => {
+    if (toolReferenceValidationIssues.length === 0) {
+      return null;
+    }
+    const head = toolReferenceValidationIssues
+      .slice(0, 3)
+      .map((issue) => issue.message)
+      .join("；");
+    return toolReferenceValidationIssues.length > 3
+      ? `${head}；另有 ${toolReferenceValidationIssues.length - 3} 项待修正。`
+      : head;
+  }, [toolReferenceValidationIssues]);
   const unsupportedNodesBlockedMessage =
     unsupportedNodes.length > 0
       ? `当前 workflow 包含未进入执行主链的节点，暂不能保存或沉淀为 workspace starter：${unsupportedNodeSummary}。请先移除或替换这些节点，再继续保存。`
@@ -107,7 +124,14 @@ export function WorkflowEditorWorkbench({
   const contractBlockedMessage = contractValidationSummary
     ? `当前 workflow definition 还有 contract schema 待修正问题：${contractValidationSummary}${contractValidationSummary.endsWith("。") ? "" : "。"}请先在 Node contract / publish draft 中修正后再保存。`
     : null;
-  const persistBlockedMessage = [unsupportedNodesBlockedMessage, contractBlockedMessage]
+  const toolReferenceBlockedMessage = toolReferenceValidationSummary
+    ? `当前 workflow definition 还有 tool catalog 引用待修正问题：${toolReferenceValidationSummary}${toolReferenceValidationSummary.endsWith("。") ? "" : "。"}请先修正 tool binding / LLM Agent tool policy 后再保存。`
+    : null;
+  const persistBlockedMessage = [
+    unsupportedNodesBlockedMessage,
+    contractBlockedMessage,
+    toolReferenceBlockedMessage
+  ]
     .filter(Boolean)
     .join(" ");
 
@@ -226,6 +250,7 @@ export function WorkflowEditorWorkbench({
             plannedNodeLabels={plannedNodeLibrary.map((item) => item.label)}
             unsupportedNodes={unsupportedNodes}
             contractValidationIssuesCount={contractValidationIssues.length}
+            toolReferenceValidationIssuesCount={toolReferenceValidationIssues.length}
             persistBlockedMessage={persistBlockedMessage || null}
             isSaving={isSaving}
             isSavingStarter={isSavingStarter}
