@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from urllib.parse import quote, unquote
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -34,6 +35,9 @@ class CredentialAccessPendingError(CredentialStoreError):
             "Sensitive access approval is still pending for "
             f"resource '{bundle.resource.label}'{waiting_suffix}."
         )
+
+
+_MASKED_CREDENTIAL_HANDLE_PREFIX = "credential+masked://"
 
 
 class CredentialStore:
@@ -135,6 +139,36 @@ class CredentialStore:
         except CredentialEncryptionError:
             return []
 
+    def resolve_masked_runtime_credentials(
+        self,
+        db: Session,
+        *,
+        credentials: dict[str, str],
+    ) -> dict[str, str]:
+        resolved: dict[str, str] = {}
+        decrypted_cache: dict[str, dict[str, str]] = {}
+
+        for key, value in credentials.items():
+            handle = self._parse_masked_credential_handle(value)
+            if handle is None:
+                resolved[key] = str(value)
+                continue
+
+            cred_id, field_name = handle
+            decrypted = decrypted_cache.get(cred_id)
+            if decrypted is None:
+                decrypted = self.decrypt_data(db, credential_id=cred_id)
+                decrypted_cache[cred_id] = decrypted
+
+            if field_name not in decrypted:
+                raise CredentialStoreError(
+                    "Masked credential handle references unknown field "
+                    f"'{field_name}' for credential '{cred_id}'."
+                )
+            resolved[key] = decrypted[field_name]
+
+        return resolved
+
     def resolve_credential_refs(
         self, db: Session, *, credentials: dict[str, str]
     ) -> dict[str, str]:
@@ -182,6 +216,7 @@ class CredentialStore:
             else:
                 resolved_plain[key] = str(value)
 
+        access_decisions: dict[str, str] = {}
         access_checked: set[str] = set()
         for _, cred_id in credential_refs:
             if cred_id in access_checked:
@@ -192,6 +227,7 @@ class CredentialStore:
                 credential_id=cred_id,
             )
             if resource is None:
+                access_decisions[cred_id] = "allow"
                 continue
             bundle = self._sensitive_access.ensure_access(
                 db,
@@ -205,6 +241,7 @@ class CredentialStore:
                 reuse_existing=True,
             )
             decision = str(bundle.access_request.decision or "")
+            access_decisions[cred_id] = decision or "allow"
             if decision == "require_approval":
                 raise CredentialAccessPendingError(bundle)
             if decision == "deny":
@@ -215,11 +252,59 @@ class CredentialStore:
                 )
 
         resolved = dict(resolved_plain)
-        decrypted_cache: dict[str, dict[str, str]] = {}
         for _, cred_id in credential_refs:
-            decrypted = decrypted_cache.get(cred_id)
-            if decrypted is None:
-                decrypted = self.decrypt_data(db, credential_id=cred_id)
-                decrypted_cache[cred_id] = decrypted
-            resolved.update(decrypted)
+            decision = access_decisions.get(cred_id, "allow")
+            if decision == "allow_masked":
+                resolved.update(
+                    self._build_masked_credential_handles(
+                        db,
+                        credential_id=cred_id,
+                    )
+                )
+                continue
+
+            resolved.update(self.decrypt_data(db, credential_id=cred_id))
         return resolved
+
+    def _build_masked_credential_handles(
+        self,
+        db: Session,
+        *,
+        credential_id: str,
+    ) -> dict[str, str]:
+        record = self.get(db, credential_id=credential_id)
+        if record.status == "revoked":
+            raise CredentialStoreError("Cannot use a revoked credential.")
+
+        field_names = self.get_data_keys(record)
+        return {
+            field_name: self._format_masked_credential_handle(
+                credential_id=credential_id,
+                field_name=field_name,
+            )
+            for field_name in field_names
+        }
+
+    @staticmethod
+    def _format_masked_credential_handle(
+        *,
+        credential_id: str,
+        field_name: str,
+    ) -> str:
+        return (
+            f"{_MASKED_CREDENTIAL_HANDLE_PREFIX}{credential_id}"
+            f"#{quote(field_name, safe='')}"
+        )
+
+    @staticmethod
+    def _parse_masked_credential_handle(value: str) -> tuple[str, str] | None:
+        if not isinstance(value, str) or not value.startswith(
+            _MASKED_CREDENTIAL_HANDLE_PREFIX
+        ):
+            return None
+
+        raw_value = value.removeprefix(_MASKED_CREDENTIAL_HANDLE_PREFIX)
+        credential_id, separator, encoded_field_name = raw_value.partition("#")
+        if not credential_id or separator != "#" or not encoded_field_name:
+            raise CredentialStoreError("Masked credential handle is malformed.")
+        return credential_id, unquote(encoded_field_name)

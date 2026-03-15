@@ -13,6 +13,7 @@ from app.core.config import get_settings
 from app.models.plugin import PluginToolRecord
 from app.models.run import NodeRun, ToolCallRecord
 from app.services.artifact_store import RuntimeArtifactStore
+from app.services.credential_store import CredentialStore, CredentialStoreError
 from app.services.plugin_runtime import PluginCallProxy, PluginCallRequest, PluginInvocationError
 from app.services.runtime_execution_policy import (
     ResolvedExecutionPolicy,
@@ -32,11 +33,15 @@ class ToolGateway:
         *,
         plugin_call_proxy: PluginCallProxy,
         artifact_store: RuntimeArtifactStore | None = None,
+        credential_store: CredentialStore | None = None,
         sensitive_access_service: SensitiveAccessControlService | None = None,
     ) -> None:
         self._plugin_call_proxy = plugin_call_proxy
         self._artifact_store = artifact_store or RuntimeArtifactStore()
         self._sensitive_access = sensitive_access_service or SensitiveAccessControlService()
+        self._credential_store = credential_store or CredentialStore(
+            sensitive_access_service=self._sensitive_access
+        )
 
     def execute(
         self,
@@ -98,13 +103,17 @@ class ToolGateway:
         )
         started_at = time.perf_counter()
         try:
+            invocation_credentials = self._credential_store.resolve_masked_runtime_credentials(
+                db,
+                credentials=dict(credentials or {}),
+            )
             response = self._plugin_call_proxy.invoke(
                 PluginCallRequest(
                     tool_id=tool_id,
                     ecosystem=ecosystem,
                     adapter_id=adapter_id,
                     inputs=deepcopy(inputs),
-                    credentials=dict(credentials or {}),
+                    credentials=invocation_credentials,
                     timeout_ms=resolved_timeout_ms,
                     trace_id=f"run:{run_id}:node:{node_run.node_id}:tool:{tool_id}",
                 )
@@ -133,6 +142,13 @@ class ToolGateway:
             call_record.finished_at = _utcnow()
             db.flush()
             return result
+        except CredentialStoreError as exc:
+            call_record.status = "failed"
+            call_record.error_message = str(exc)
+            call_record.latency_ms = int((time.perf_counter() - started_at) * 1000)
+            call_record.finished_at = _utcnow()
+            db.flush()
+            raise WorkflowExecutionError(str(exc)) from exc
         except PluginInvocationError as exc:
             call_record.status = "failed"
             call_record.error_message = str(exc)

@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.models.workflow import Workflow, WorkflowVersion
 from app.services.compiled_blueprints import CompiledBlueprintService
 from app.services.credential_store import CredentialStore
+from app.services.llm_provider import LLMProviderService, LLMResponse
 from app.services.plugin_runtime import (
     PluginCallProxy,
     PluginCallRequest,
@@ -683,6 +684,143 @@ def test_tool_node_sensitive_credential_waits_for_approval_and_resumes(
     assert len(captured) == 1
     assert captured[0]["api_key"] == "sk-sensitive"
     assert len(sensitive_access.list_access_requests(sqlite_session, run_id=first_pass.run.id)) == 1
+
+
+def test_tool_node_sensitive_l2_credential_uses_masked_handle_and_still_invokes(
+    sqlite_session: Session,
+) -> None:
+    with _patch_settings():
+        sensitive_access = SensitiveAccessControlService()
+        store = CredentialStore(sensitive_access_service=sensitive_access)
+        cred = store.create(
+            sqlite_session,
+            name="Moderate Tool Key",
+            credential_type="api_key",
+            data={"api_key": "sk-moderate"},
+        )
+        sensitive_access.create_resource(
+            sqlite_session,
+            label="Moderate Tool Credential",
+            sensitivity_level="L2",
+            source="credential",
+            metadata={"credential_id": cred.id},
+        )
+        sqlite_session.commit()
+        cred_id = cred.id
+
+    captured: list[dict] = []
+    proxy = _make_tool_proxy(captured)
+    workflow = _create_workflow(
+        sqlite_session,
+        workflow_id="wf-masked-cred-tool",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "tool_node",
+                    "type": "tool",
+                    "name": "Moderate Tool",
+                    "config": {
+                        "tool": {
+                            "toolId": "test-tool",
+                            "credentials": {
+                                "auth": f"credential://{cred_id}",
+                            },
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool_node"},
+                {"id": "e2", "sourceNodeId": "tool_node", "targetNodeId": "output"},
+            ],
+        },
+    )
+
+    with _patch_settings():
+        service = RuntimeService(plugin_call_proxy=proxy, credential_store=store)
+        artifacts = service.execute_workflow(sqlite_session, workflow, {"query": "test"})
+
+    assert artifacts.run.status == "succeeded"
+    assert len(captured) == 1
+    assert captured[0]["api_key"] == "sk-moderate"
+    access_requests = sensitive_access.list_access_requests(
+        sqlite_session,
+        run_id=artifacts.run.id,
+    )
+    assert len(access_requests) == 1
+    assert access_requests[0].decision == "allow_masked"
+
+
+def test_llm_agent_sensitive_l2_credential_uses_masked_handle_and_still_calls_provider(
+    sqlite_session: Session,
+) -> None:
+    captured_api_keys: list[str] = []
+    with _patch_settings():
+        sensitive_access = SensitiveAccessControlService()
+        store = CredentialStore(sensitive_access_service=sensitive_access)
+        cred = store.create(
+            sqlite_session,
+            name="Moderate LLM Key",
+            credential_type="api_key",
+            data={"apiKey": "sk-llm-moderate"},
+        )
+        sensitive_access.create_resource(
+            sqlite_session,
+            label="Moderate LLM Credential",
+            sensitivity_level="L2",
+            source="credential",
+            metadata={"credential_id": cred.id},
+        )
+        sqlite_session.commit()
+        cred_id = cred.id
+
+    workflow = _create_workflow(
+        sqlite_session,
+        workflow_id="wf-masked-cred-llm",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llm_agent",
+                    "name": "Agent",
+                    "config": {
+                        "model": {
+                            "provider": "openai",
+                            "modelId": "gpt-4",
+                            "apiKey": f"credential://{cred_id}",
+                        },
+                        "prompt": "Summarize the input.",
+                        "mockFinalOutput": {"result": "summary"},
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+            ],
+        },
+    )
+
+    def _fake_chat(self, call_config):
+        captured_api_keys.append(call_config.api_key)
+        return LLMResponse(text="brief analysis", model=call_config.model_id)
+
+    with _patch_settings(), patch.object(LLMProviderService, "chat", _fake_chat):
+        service = RuntimeService(credential_store=store)
+        artifacts = service.execute_workflow(sqlite_session, workflow, {"topic": "test"})
+
+    assert artifacts.run.status == "succeeded"
+    assert captured_api_keys == ["sk-llm-moderate"]
+    access_requests = sensitive_access.list_access_requests(
+        sqlite_session,
+        run_id=artifacts.run.id,
+    )
+    assert len(access_requests) == 1
+    assert access_requests[0].decision == "allow_masked"
 
 
 def test_tool_node_waiting_result_suspends_and_can_resume(

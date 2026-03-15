@@ -97,12 +97,14 @@ class RuntimeService(
         self._tool_gateway = ToolGateway(
             plugin_call_proxy=self._plugin_call_proxy,
             artifact_store=self._artifact_store,
+            credential_store=self._credential_store,
             sensitive_access_service=self._sensitive_access,
         )
         self._agent_runtime = AgentRuntime(
             tool_gateway=self._tool_gateway,
             artifact_store=self._artifact_store,
             context_service=self._context_service,
+            credential_store=self._credential_store,
             llm_provider=self._llm_provider,
         )
 

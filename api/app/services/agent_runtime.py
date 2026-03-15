@@ -13,6 +13,7 @@ from app.models.run import AICallRecord, NodeRun
 from app.services.agent_runtime_llm_support import AgentRuntimeLLMSupportMixin
 from app.services.artifact_store import RuntimeArtifactStore
 from app.services.context_service import ContextService
+from app.services.credential_store import CredentialStore
 from app.services.llm_provider import LLMProviderService, LLMResponse
 from app.services.runtime_execution_policy import resolve_tool_execution_policy
 from app.services.runtime_types import (
@@ -39,11 +40,13 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
         tool_gateway: ToolGateway,
         artifact_store: RuntimeArtifactStore | None = None,
         context_service: ContextService | None = None,
+        credential_store: CredentialStore | None = None,
         llm_provider: LLMProviderService | None = None,
     ) -> None:
         self._tool_gateway = tool_gateway
         self._artifact_store = artifact_store or RuntimeArtifactStore()
         self._context_service = context_service or ContextService()
+        self._credential_store = credential_store or CredentialStore()
         self._llm_provider = llm_provider or LLMProviderService()
 
     # ------------------------------------------------------------------
@@ -63,7 +66,10 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
         events: list[RuntimeEvent] = []
         config = dict(node.get("config") or {})
         model_config = self._to_dict(config.get("model"))
-        creds = resolved_credentials or {}
+        creds = self._credential_store.resolve_masked_runtime_credentials(
+            db,
+            credentials=resolved_credentials or {},
+        )
         if creds:
             model_config = dict(model_config)
             if "apiKey" in creds:

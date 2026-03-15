@@ -9,12 +9,12 @@ from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models.credential import Credential
 from app.services.credential_encryption import (
     CredentialEncryptionError,
     CredentialEncryptionService,
 )
 from app.services.credential_store import CredentialStore, CredentialStoreError
+from app.services.sensitive_access_control import SensitiveAccessControlService
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -39,7 +39,10 @@ def _make_settings(**overrides):
 
 class TestCredentialEncryptionService:
     def test_roundtrip_encrypt_decrypt(self) -> None:
-        with patch("app.services.credential_encryption.get_settings", return_value=_make_settings()):
+        with patch(
+            "app.services.credential_encryption.get_settings",
+            return_value=_make_settings(),
+        ):
             svc = CredentialEncryptionService()
             plain = {"api_key": "sk-abc123", "secret": "s3cret"}
             encrypted = svc.encrypt(plain)
@@ -49,19 +52,28 @@ class TestCredentialEncryptionService:
             assert decrypted == plain
 
     def test_encrypt_empty_dict(self) -> None:
-        with patch("app.services.credential_encryption.get_settings", return_value=_make_settings()):
+        with patch(
+            "app.services.credential_encryption.get_settings",
+            return_value=_make_settings(),
+        ):
             svc = CredentialEncryptionService()
             encrypted = svc.encrypt({})
             assert svc.decrypt(encrypted) == {}
 
     def test_encrypt_unicode_values(self) -> None:
-        with patch("app.services.credential_encryption.get_settings", return_value=_make_settings()):
+        with patch(
+            "app.services.credential_encryption.get_settings",
+            return_value=_make_settings(),
+        ):
             svc = CredentialEncryptionService()
             plain = {"name": "测试密钥", "token": "🔑"}
             assert svc.decrypt(svc.encrypt(plain)) == plain
 
     def test_decrypt_with_wrong_key_raises(self) -> None:
-        with patch("app.services.credential_encryption.get_settings", return_value=_make_settings()):
+        with patch(
+            "app.services.credential_encryption.get_settings",
+            return_value=_make_settings(),
+        ):
             svc = CredentialEncryptionService()
             encrypted = svc.encrypt({"key": "value"})
 
@@ -101,7 +113,10 @@ class TestCredentialEncryptionService:
 class TestCredentialStore:
     @pytest.fixture(autouse=True)
     def _patch_encryption(self):
-        with patch("app.services.credential_encryption.get_settings", return_value=_make_settings()):
+        with patch(
+            "app.services.credential_encryption.get_settings",
+            return_value=_make_settings(),
+        ):
             yield
 
     def test_create_and_get(self, sqlite_session: Session) -> None:
@@ -251,6 +266,52 @@ class TestCredentialStore:
         assert resolved["secret"] == "s3cret"
         assert resolved["plain"] == "literal-value"
 
+    def test_resolve_runtime_credential_refs_returns_masked_handles_for_allow_masked(
+        self,
+        sqlite_session: Session,
+    ) -> None:
+        sensitive_access = SensitiveAccessControlService()
+        store = CredentialStore(sensitive_access_service=sensitive_access)
+        record = store.create(
+            sqlite_session,
+            name="Masked Credential",
+            credential_type="api_key",
+            data={"api_key": "sk-masked", "region": "us-east-1"},
+        )
+        sensitive_access.create_resource(
+            sqlite_session,
+            label="Moderate Credential",
+            sensitivity_level="L2",
+            source="credential",
+            metadata={"credential_id": record.id},
+        )
+        sqlite_session.commit()
+
+        resolved = store.resolve_runtime_credential_refs(
+            sqlite_session,
+            credentials={"ref": f"credential://{record.id}", "plain": "literal-value"},
+            run_id=None,
+            node_run_id=None,
+            requester_type="tool",
+            requester_id="tool-node",
+            action_type="use",
+        )
+
+        assert resolved["plain"] == "literal-value"
+        assert resolved["api_key"] == f"credential+masked://{record.id}#api_key"
+        assert resolved["region"] == f"credential+masked://{record.id}#region"
+
+        final_credentials = store.resolve_masked_runtime_credentials(
+            sqlite_session,
+            credentials=resolved,
+        )
+
+        assert final_credentials == {
+            "plain": "literal-value",
+            "api_key": "sk-masked",
+            "region": "us-east-1",
+        }
+
     def test_resolve_empty_ref_raises(self, sqlite_session: Session) -> None:
         store = CredentialStore()
         with pytest.raises(CredentialStoreError, match="empty ID"):
@@ -267,7 +328,10 @@ class TestCredentialStore:
 class TestCredentialRoutes:
     @pytest.fixture(autouse=True)
     def _patch_encryption(self):
-        with patch("app.services.credential_encryption.get_settings", return_value=_make_settings()):
+        with patch(
+            "app.services.credential_encryption.get_settings",
+            return_value=_make_settings(),
+        ):
             yield
 
     def test_create_credential(self, client: TestClient) -> None:
