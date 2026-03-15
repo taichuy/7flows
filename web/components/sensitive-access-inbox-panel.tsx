@@ -6,7 +6,9 @@ import { useFormStatus } from "react-dom";
 
 import {
   decideSensitiveAccessApprovalTicket,
-  type DecideSensitiveAccessApprovalTicketState
+  retrySensitiveAccessNotificationDispatch,
+  type DecideSensitiveAccessApprovalTicketState,
+  type RetrySensitiveAccessNotificationDispatchState
 } from "@/app/actions/sensitive-access";
 import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
 import { formatTimestamp } from "@/lib/runtime-presenters";
@@ -23,6 +25,12 @@ const initialDecisionState: DecideSensitiveAccessApprovalTicketState = {
   status: "idle",
   message: "",
   ticketId: ""
+};
+
+const initialRetryState: RetrySensitiveAccessNotificationDispatchState = {
+  status: "idle",
+  message: "",
+  dispatchId: ""
 };
 
 const APPROVAL_STATUS_LABELS: Record<SensitiveAccessInboxEntry["ticket"]["status"], string> = {
@@ -130,6 +138,41 @@ function SensitiveAccessTicketDecisionForm({
   );
 }
 
+function SensitiveAccessNotificationRetryForm({
+  entry
+}: SensitiveAccessTicketDecisionFormProps) {
+  const [state, formAction] = useActionState(
+    retrySensitiveAccessNotificationDispatch,
+    initialRetryState
+  );
+  const notification = entry.notifications[0];
+
+  if (
+    !notification ||
+    entry.ticket.status !== "pending" ||
+    entry.ticket.waiting_status !== "waiting" ||
+    notification.status === "delivered"
+  ) {
+    return null;
+  }
+
+  return (
+    <form action={formAction} className="inbox-decision-form">
+      <input type="hidden" name="dispatchId" value={notification.id} />
+      <input type="hidden" name="runId" value={entry.ticket.run_id ?? ""} />
+      <div className="binding-actions">
+        <button className="action-link-button" type="submit">
+          重试最新通知
+        </button>
+      </div>
+      {notification.error ? <p className="empty-state compact">{notification.error}</p> : null}
+      {state.message && state.dispatchId === notification.id ? (
+        <p className={`sync-message ${state.status}`}>{state.message}</p>
+      ) : null}
+    </form>
+  );
+}
+
 export function SensitiveAccessInboxPanel({ entries }: SensitiveAccessInboxPanelProps) {
   if (entries.length === 0) {
     return (
@@ -222,6 +265,7 @@ export function SensitiveAccessInboxPanel({ entries }: SensitiveAccessInboxPanel
               )}
 
               <SensitiveAccessTicketDecisionForm entry={entry} />
+              <SensitiveAccessNotificationRetryForm entry={entry} />
             </article>
           );
         })}

@@ -152,7 +152,7 @@ docker compose up -d --build
 
 - API 当前已提供 health、workflows、workflow publish、published gateway、runs、run views、system overview、plugins、credentials、workspace starters 等主干路由。
 - Web 首页当前更偏“工作台 / 诊断入口”，会展示服务健康、adapter、tools、workflow、credentials、recent runs、敏感访问审批摘要与 run events 聚合摘要。
-- `web/app/sensitive-access/page.tsx` 已提供最小审批 / 通知收件箱入口，可查看 `ApprovalTicket / NotificationDispatch` 并直接做批准 / 拒绝决策。
+- `web/app/sensitive-access/page.tsx` 已提供最小审批 / 通知收件箱入口，可查看 `ApprovalTicket / NotificationDispatch`、直接做批准 / 拒绝决策，并对最新失败通知执行手动重试。
 - The minimal workflow editor can already edit and save workflow definitions. Structured forms now cover `runtimePolicy.execution / retry / join`, node `input/output schema`, and workflow `publish` draft configuration, while formal publish governance, approval timeline, and notification delivery are still being filled in.
 
 ## 文档分层

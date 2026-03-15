@@ -33,3 +33,9 @@ class ApprovalDecisionBundle:
     access_request: SensitiveAccessRequestRecord
     approval_ticket: ApprovalTicketRecord
     notifications: list[NotificationDispatchRecord] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class NotificationDispatchRetryBundle:
+    approval_ticket: ApprovalTicketRecord
+    notification: NotificationDispatchRecord

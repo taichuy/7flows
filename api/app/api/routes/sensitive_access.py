@@ -7,6 +7,7 @@ from app.schemas.sensitive_access import (
     ApprovalTicketDecisionResponse,
     ApprovalTicketItem,
     NotificationDispatchItem,
+    NotificationDispatchRetryResponse,
     SensitiveAccessRequestCreateRequest,
     SensitiveAccessRequestItem,
     SensitiveAccessRequestResponse,
@@ -15,6 +16,7 @@ from app.schemas.sensitive_access import (
 )
 from app.services.sensitive_access_control import (
     ApprovalDecisionBundle,
+    NotificationDispatchRetryBundle,
     SensitiveAccessControlError,
     SensitiveAccessControlService,
     SensitiveAccessRequestBundle,
@@ -102,6 +104,15 @@ def _serialize_approval_bundle(bundle: ApprovalDecisionBundle) -> ApprovalTicket
         request=_serialize_access_request(bundle.access_request),
         approval_ticket=_serialize_approval_ticket(bundle.approval_ticket),
         notifications=[_serialize_notification(item) for item in bundle.notifications],
+    )
+
+
+def _serialize_notification_retry_bundle(
+    bundle: NotificationDispatchRetryBundle,
+) -> NotificationDispatchRetryResponse:
+    return NotificationDispatchRetryResponse(
+        approval_ticket=_serialize_approval_ticket(bundle.approval_ticket),
+        notification=_serialize_notification(bundle.notification),
     )
 
 
@@ -244,3 +255,22 @@ def list_notification_dispatches(
         status=status,
     )
     return [_serialize_notification(record) for record in records]
+
+
+@router.post(
+    "/notification-dispatches/{dispatch_id}/retry",
+    response_model=NotificationDispatchRetryResponse,
+)
+def retry_notification_dispatch(
+    dispatch_id: str,
+    db: Session = Depends(get_db),
+) -> NotificationDispatchRetryResponse:
+    try:
+        bundle = service.retry_notification_dispatch(
+            db,
+            dispatch_id=dispatch_id,
+        )
+    except SensitiveAccessControlError as exc:
+        _raise_sensitive_access_error(exc)
+    db.commit()
+    return _serialize_notification_retry_bundle(bundle)

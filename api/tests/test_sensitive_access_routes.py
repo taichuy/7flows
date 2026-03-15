@@ -158,3 +158,103 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
     assert stored_ticket.status == "approved"
     assert stored_ticket.waiting_status == "resumed"
     assert len(stored_notifications) == 1
+
+
+def test_request_external_notification_channel_fails_honestly(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    resource_response = client.post(
+        "/api/sensitive-access/resources",
+        json={
+            "label": "Workspace production export",
+            "sensitivity_level": "L3",
+            "source": "workspace_resource",
+            "metadata": {"path": "/exports/prod.csv"},
+        },
+    )
+    resource_id = resource_response.json()["id"]
+
+    request_response = client.post(
+        "/api/sensitive-access/requests",
+        json={
+            "requester_type": "ai",
+            "requester_id": "assistant-export",
+            "resource_id": resource_id,
+            "action_type": "read",
+            "purpose_text": "notify operator for export review",
+            "notification_channel": "slack",
+            "notification_target": "#ops-review",
+        },
+    )
+
+    assert request_response.status_code == 201
+    request_body = request_response.json()
+    approval_ticket = request_body["approval_ticket"]
+    notification = request_body["notifications"][0]
+    assert approval_ticket is not None
+    assert approval_ticket["status"] == "pending"
+    assert approval_ticket["waiting_status"] == "waiting"
+    assert notification["channel"] == "slack"
+    assert notification["target"] == "#ops-review"
+    assert notification["status"] == "failed"
+    assert "not implemented yet" in notification["error"]
+
+    stored_notification = sqlite_session.get(NotificationDispatchRecord, notification["id"])
+    assert stored_notification is not None
+    assert stored_notification.status == "failed"
+
+
+def test_retry_notification_dispatch_creates_new_attempt(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    resource_response = client.post(
+        "/api/sensitive-access/resources",
+        json={
+            "label": "Publish approval export",
+            "sensitivity_level": "L3",
+            "source": "published_secret",
+            "metadata": {"binding_id": "binding-1"},
+        },
+    )
+    resource_id = resource_response.json()["id"]
+
+    request_response = client.post(
+        "/api/sensitive-access/requests",
+        json={
+            "requester_type": "ai",
+            "requester_id": "assistant-main",
+            "resource_id": resource_id,
+            "action_type": "read",
+            "purpose_text": "notify operator to inspect publish secret",
+            "notification_channel": "email",
+            "notification_target": "ops@example.com",
+        },
+    )
+
+    assert request_response.status_code == 201
+    request_body = request_response.json()
+    approval_ticket = request_body["approval_ticket"]
+    first_notification = request_body["notifications"][0]
+
+    retry_response = client.post(
+        f"/api/sensitive-access/notification-dispatches/{first_notification['id']}/retry"
+    )
+
+    assert retry_response.status_code == 200
+    retry_body = retry_response.json()
+    retried_notification = retry_body["notification"]
+    assert retry_body["approval_ticket"]["id"] == approval_ticket["id"]
+    assert retried_notification["id"] != first_notification["id"]
+    assert retried_notification["channel"] == "email"
+    assert retried_notification["target"] == "ops@example.com"
+    assert retried_notification["status"] == "failed"
+    assert "not implemented yet" in retried_notification["error"]
+
+    notifications = (
+        sqlite_session.query(NotificationDispatchRecord)
+        .filter(NotificationDispatchRecord.approval_ticket_id == approval_ticket["id"])
+        .all()
+    )
+    assert len(notifications) == 2

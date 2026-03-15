@@ -32,6 +32,7 @@ from app.services.sensitive_access_queries import (
 from app.services.sensitive_access_types import (
     AccessDecisionResult,
     ApprovalDecisionBundle,
+    NotificationDispatchRetryBundle,
     SensitiveAccessControlError,
     SensitiveAccessRequestBundle,
 )
@@ -44,6 +45,7 @@ def _utcnow() -> datetime:
 __all__ = [
     "AccessDecisionResult",
     "ApprovalDecisionBundle",
+    "NotificationDispatchRetryBundle",
     "SensitiveAccessControlError",
     "SensitiveAccessControlService",
     "SensitiveAccessRequestBundle",
@@ -136,6 +138,40 @@ class SensitiveAccessControlService:
             db,
             approval_ticket_id=approval_ticket_id,
             status=status,
+        )
+
+    def _create_notification_dispatch(
+        self,
+        *,
+        approval_ticket_id: str,
+        channel: str,
+        target: str,
+    ) -> NotificationDispatchRecord:
+        created_at = _utcnow()
+        if channel == "in_app":
+            return NotificationDispatchRecord(
+                id=str(uuid4()),
+                approval_ticket_id=approval_ticket_id,
+                channel=channel,
+                target=target,
+                status="delivered",
+                delivered_at=created_at,
+                error=None,
+                created_at=created_at,
+            )
+
+        return NotificationDispatchRecord(
+            id=str(uuid4()),
+            approval_ticket_id=approval_ticket_id,
+            channel=channel,
+            target=target,
+            status="failed",
+            delivered_at=None,
+            error=(
+                f"Notification channel '{channel}' is not implemented yet; "
+                "worker/adapter delivery is still pending."
+            ),
+            created_at=created_at,
         )
 
     def find_credential_resource(
@@ -283,15 +319,10 @@ class SensitiveAccessControlService:
             db.add(approval_ticket)
             db.flush()
             notifications.append(
-                NotificationDispatchRecord(
-                    id=str(uuid4()),
+                self._create_notification_dispatch(
                     approval_ticket_id=approval_ticket.id,
                     channel=notification_channel,
                     target=notification_target,
-                    status="delivered" if notification_channel == "in_app" else "pending",
-                    delivered_at=_utcnow() if notification_channel == "in_app" else None,
-                    error=None,
-                    created_at=_utcnow(),
                 )
             )
             db.add_all(notifications)
@@ -351,4 +382,51 @@ class SensitiveAccessControlService:
             access_request=access_request,
             approval_ticket=approval_ticket,
             notifications=notifications,
+        )
+
+    def retry_notification_dispatch(
+        self,
+        db: Session,
+        *,
+        dispatch_id: str,
+    ) -> NotificationDispatchRetryBundle:
+        notification = db.get(NotificationDispatchRecord, dispatch_id)
+        if notification is None:
+            raise SensitiveAccessControlError("Notification dispatch not found.")
+
+        approval_ticket = db.get(ApprovalTicketRecord, notification.approval_ticket_id)
+        if approval_ticket is None:
+            raise SensitiveAccessControlError("Approval ticket not found for notification dispatch.")
+        if approval_ticket.status != "pending" or approval_ticket.waiting_status != "waiting":
+            raise SensitiveAccessControlError(
+                "Only waiting approval tickets can retry notifications."
+            )
+
+        notifications = self.list_notification_dispatches(
+            db,
+            approval_ticket_id=approval_ticket.id,
+        )
+        if not notifications or notifications[0].id != notification.id:
+            raise SensitiveAccessControlError(
+                "Only the latest notification dispatch can be retried."
+            )
+        if notification.status == "delivered":
+            raise SensitiveAccessControlError(
+                "Delivered notification dispatches do not need retry."
+            )
+
+        retried_notification = self._create_notification_dispatch(
+            approval_ticket_id=approval_ticket.id,
+            channel=notification.channel,
+            target=notification.target,
+        )
+        if notification.status == "pending":
+            notification.status = "failed"
+            notification.error = f"Superseded by manual retry {retried_notification.id}."
+
+        db.add(retried_notification)
+        db.flush()
+        return NotificationDispatchRetryBundle(
+            approval_ticket=approval_ticket,
+            notification=retried_notification,
         )

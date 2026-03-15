@@ -90,6 +90,11 @@ class NotificationDispatchItem(BaseModel):
     created_at: datetime
 
 
+class NotificationDispatchRetryResponse(BaseModel):
+    approval_ticket: ApprovalTicketItem
+    notification: NotificationDispatchItem
+
+
 class SensitiveAccessRequestResponse(BaseModel):
     request: SensitiveAccessRequestItem
     resource: SensitiveResourceItem

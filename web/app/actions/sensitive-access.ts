@@ -10,6 +10,12 @@ export type DecideSensitiveAccessApprovalTicketState = {
   ticketId: string;
 };
 
+export type RetrySensitiveAccessNotificationDispatchState = {
+  status: "idle" | "success" | "error";
+  message: string;
+  dispatchId: string;
+};
+
 export async function decideSensitiveAccessApprovalTicket(
   _: DecideSensitiveAccessApprovalTicketState,
   formData: FormData
@@ -72,6 +78,73 @@ export async function decideSensitiveAccessApprovalTicket(
       status: "error",
       message: "无法连接后端提交审批决策。",
       ticketId
+    };
+  }
+}
+
+export async function retrySensitiveAccessNotificationDispatch(
+  _: RetrySensitiveAccessNotificationDispatchState,
+  formData: FormData
+): Promise<RetrySensitiveAccessNotificationDispatchState> {
+  const dispatchId = String(formData.get("dispatchId") ?? "").trim();
+  const runId = String(formData.get("runId") ?? "").trim();
+
+  if (!dispatchId) {
+    return {
+      status: "error",
+      message: "缺少通知重试所需的 dispatch 标识。",
+      dispatchId
+    };
+  }
+
+  try {
+    const response = await fetch(
+      `${getApiBaseUrl()}/api/sensitive-access/notification-dispatches/${encodeURIComponent(dispatchId)}/retry`,
+      {
+        method: "POST",
+        cache: "no-store"
+      }
+    );
+
+    const body = (await response.json().catch(() => null)) as
+      | {
+          detail?: string;
+          notification?: {
+            status?: "pending" | "delivered" | "failed";
+            error?: string | null;
+          };
+        }
+      | null;
+
+    if (!response.ok) {
+      return {
+        status: "error",
+        message: body?.detail ?? "通知重试失败。",
+        dispatchId
+      };
+    }
+
+    revalidatePath("/");
+    revalidatePath("/sensitive-access");
+    if (runId) {
+      revalidatePath(`/runs/${runId}`);
+    }
+
+    return {
+      status: "success",
+      message:
+        body?.notification?.status === "delivered"
+          ? "通知已重新投递到收件箱。"
+          : body?.notification?.status === "pending"
+            ? "通知已重新入队，等待 worker 投递。"
+            : body?.notification?.error ?? "通知已重试，但当前通道仍未成功投递。",
+      dispatchId
+    };
+  } catch {
+    return {
+      status: "error",
+      message: "无法连接后端执行通知重试。",
+      dispatchId
     };
   }
 }
