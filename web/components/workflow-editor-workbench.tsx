@@ -5,6 +5,10 @@ import { ReactFlowProvider } from "@xyflow/react";
 
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import { buildWorkflowDefinitionContractValidationIssues } from "@/lib/workflow-contract-schema-validation";
+import {
+  buildAllowedPublishWorkflowVersions,
+  buildWorkflowPublishVersionValidationIssues
+} from "@/lib/workflow-publish-version-validation";
 import { buildWorkflowToolReferenceValidationIssues } from "@/lib/workflow-tool-reference-validation";
 import type {
   WorkflowLibrarySourceLane,
@@ -89,6 +93,14 @@ export function WorkflowEditorWorkbench({
     () => buildWorkflowDefinitionContractValidationIssues(graph.currentDefinition),
     [graph.currentDefinition]
   );
+  const availableWorkflowVersions = useMemo(
+    () =>
+      buildAllowedPublishWorkflowVersions({
+        workflowVersion: graph.workflowVersion,
+        historicalVersions: workflow.versions.map((item) => item.version)
+      }),
+    [graph.workflowVersion, workflow.versions]
+  );
   const contractValidationSummary = useMemo(() => {
     if (contractValidationIssues.length === 0) {
       return null;
@@ -117,6 +129,26 @@ export function WorkflowEditorWorkbench({
       ? `${head}；另有 ${toolReferenceValidationIssues.length - 3} 项待修正。`
       : head;
   }, [toolReferenceValidationIssues]);
+  const publishVersionValidationIssues = useMemo(
+    () =>
+      buildWorkflowPublishVersionValidationIssues(
+        graph.currentDefinition,
+        availableWorkflowVersions
+      ),
+    [availableWorkflowVersions, graph.currentDefinition]
+  );
+  const publishVersionValidationSummary = useMemo(() => {
+    if (publishVersionValidationIssues.length === 0) {
+      return null;
+    }
+    const head = publishVersionValidationIssues
+      .slice(0, 3)
+      .map((issue) => issue.message)
+      .join("；");
+    return publishVersionValidationIssues.length > 3
+      ? `${head}；另有 ${publishVersionValidationIssues.length - 3} 项待修正。`
+      : head;
+  }, [publishVersionValidationIssues]);
   const unsupportedNodesBlockedMessage =
     unsupportedNodes.length > 0
       ? `当前 workflow 包含未进入执行主链的节点，暂不能保存或沉淀为 workspace starter：${unsupportedNodeSummary}。请先移除或替换这些节点，再继续保存。`
@@ -127,10 +159,14 @@ export function WorkflowEditorWorkbench({
   const toolReferenceBlockedMessage = toolReferenceValidationSummary
     ? `当前 workflow definition 还有 tool catalog 引用待修正问题：${toolReferenceValidationSummary}${toolReferenceValidationSummary.endsWith("。") ? "" : "。"}请先修正 tool binding / LLM Agent tool policy 后再保存。`
     : null;
+  const publishVersionBlockedMessage = publishVersionValidationSummary
+    ? `当前 workflow definition 还有 publish version 引用待修正问题：${publishVersionValidationSummary}${publishVersionValidationSummary.endsWith("。") ? "" : "。"}如果 endpoint 要跟随本次保存版本，请把 workflowVersion 留空。`
+    : null;
   const persistBlockedMessage = [
     unsupportedNodesBlockedMessage,
     contractBlockedMessage,
-    toolReferenceBlockedMessage
+    toolReferenceBlockedMessage,
+    publishVersionBlockedMessage
   ]
     .filter(Boolean)
     .join(" ");
@@ -251,6 +287,7 @@ export function WorkflowEditorWorkbench({
             unsupportedNodes={unsupportedNodes}
             contractValidationIssuesCount={contractValidationIssues.length}
             toolReferenceValidationIssuesCount={toolReferenceValidationIssues.length}
+            publishVersionValidationIssuesCount={publishVersionValidationIssues.length}
             persistBlockedMessage={persistBlockedMessage || null}
             isSaving={isSaving}
             isSavingStarter={isSavingStarter}
@@ -311,6 +348,7 @@ export function WorkflowEditorWorkbench({
               onNodeRuntimePolicyUpdate={graph.updateNodeRuntimePolicy}
               onNodeRuntimePolicyChange={graph.handleNodeRuntimePolicyChange}
               workflowVersion={graph.workflowVersion}
+              availableWorkflowVersions={availableWorkflowVersions}
               workflowVariables={graph.workflowVariables}
               workflowPublish={graph.workflowPublish}
               onWorkflowVariablesChange={graph.updateWorkflowVariables}

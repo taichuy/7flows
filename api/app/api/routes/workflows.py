@@ -16,11 +16,15 @@ from app.services.compiled_blueprints import CompiledBlueprintService
 from app.services.workflow_definitions import (
     WorkflowDefinitionValidationError,
     build_workflow_tool_reference_index,
+    bump_workflow_version,
     validate_persistable_workflow_definition,
 )
 from app.services.workflow_mutations import (
     WorkflowMutationError,
     WorkflowMutationService,
+)
+from app.services.workflow_publish_version_references import (
+    build_allowed_publish_workflow_versions,
 )
 from app.services.workflow_views import (
     build_workflow_detail,
@@ -52,6 +56,10 @@ def create_workflow(payload: WorkflowCreate, db: Session = Depends(get_db)) -> W
         definition = validate_persistable_workflow_definition(
             payload.definition,
             tool_index=build_workflow_tool_reference_index(db),
+            allowed_publish_versions=build_allowed_publish_workflow_versions(
+                db,
+                current_version="0.1.0",
+            ),
         )
     except WorkflowDefinitionValidationError as exc:
         raise HTTPException(
@@ -99,6 +107,11 @@ def update_workflow(
             definition = validate_persistable_workflow_definition(
                 payload.definition,
                 tool_index=build_workflow_tool_reference_index(db),
+                allowed_publish_versions=build_allowed_publish_workflow_versions(
+                    db,
+                    workflow_id=workflow.id,
+                    current_version=bump_workflow_version(workflow.version),
+                ),
             )
         except WorkflowDefinitionValidationError as exc:
             raise HTTPException(

@@ -5,6 +5,7 @@ import {
   type WorkflowPublishedEndpointDraft
 } from "./workflow-editor-publish-form-shared";
 import { validateContractSchema } from "@/lib/workflow-contract-schema-validation";
+import { buildWorkflowPublishVersionValidationIssues } from "@/lib/workflow-publish-version-validation";
 
 export type WorkflowEditorPublishValidationIssue = {
   key: string;
@@ -14,7 +15,8 @@ export type WorkflowEditorPublishValidationIssue = {
 };
 
 export function buildPublishedEndpointValidationIssues(
-  endpoints: WorkflowPublishedEndpointDraft[]
+  endpoints: WorkflowPublishedEndpointDraft[],
+  options?: { allowedWorkflowVersions?: string[] }
 ) {
   const issues: WorkflowEditorPublishValidationIssue[] = [];
   const normalizedItems = endpoints.map((endpoint, index) => {
@@ -94,6 +96,19 @@ export function buildPublishedEndpointValidationIssues(
   pushDuplicateIssues(normalizedItems, "name", "endpoint name", issues);
   pushDuplicateIssues(normalizedItems, "alias", "endpoint alias", issues);
   pushDuplicateIssues(normalizedItems, "path", "endpoint path", issues);
+
+  buildWorkflowPublishVersionValidationIssues(
+    { publish: endpoints },
+    options?.allowedWorkflowVersions ?? []
+  ).forEach((issue) => {
+    const endpointIndex = normalizedItems.findIndex((item) => item.id === issue.endpointId);
+    issues.push({
+      key: issue.key,
+      endpointKey: endpointIndex >= 0 ? String(endpointIndex) : issue.endpointId,
+      endpointId: issue.endpointId,
+      message: issue.message
+    });
+  });
 
   return issues;
 }

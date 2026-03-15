@@ -397,6 +397,40 @@ def test_update_workflow_rejects_unavailable_persisted_nodes(
     assert "loop" in response.json()["detail"]
 
 
+def test_update_workflow_allows_publish_binding_to_next_persisted_version(
+    client: TestClient,
+    sample_workflow,
+) -> None:
+    definition = _valid_publish_definition()
+    definition["publish"][0]["workflowVersion"] = "0.1.1"
+
+    response = client.put(
+        f"/api/workflows/{sample_workflow.id}",
+        json={"definition": definition},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["version"] == "0.1.1"
+    assert response.json()["definition"]["publish"][0]["workflowVersion"] == "0.1.1"
+
+
+def test_update_workflow_rejects_publish_binding_beyond_next_persisted_version(
+    client: TestClient,
+    sample_workflow,
+) -> None:
+    definition = _valid_publish_definition()
+    definition["publish"][0]["workflowVersion"] = "0.1.2"
+
+    response = client.put(
+        f"/api/workflows/{sample_workflow.id}",
+        json={"definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "references unknown publish workflow versions" in response.json()["detail"]
+    assert "0.1.0, 0.1.1" in response.json()["detail"]
+
+
 def test_list_workflow_runs_returns_aggregated_summary(
     client: TestClient,
     sample_workflow,

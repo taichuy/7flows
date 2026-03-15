@@ -15,6 +15,7 @@ import {
 
 type WorkflowEditorPublishFormProps = {
   workflowVersion: string;
+  availableWorkflowVersions: string[];
   publishEndpoints: Array<Record<string, unknown>>;
   onChange: (
     nextPublish: Array<Record<string, unknown>>,
@@ -24,6 +25,7 @@ type WorkflowEditorPublishFormProps = {
 
 export function WorkflowEditorPublishForm({
   workflowVersion,
+  availableWorkflowVersions,
   publishEndpoints,
   onChange
 }: WorkflowEditorPublishFormProps) {
@@ -34,8 +36,11 @@ export function WorkflowEditorPublishForm({
     [publishEndpoints]
   );
   const validationIssues = useMemo(
-    () => buildPublishedEndpointValidationIssues(normalizedEndpoints),
-    [normalizedEndpoints]
+    () =>
+      buildPublishedEndpointValidationIssues(normalizedEndpoints, {
+        allowedWorkflowVersions: availableWorkflowVersions
+      }),
+    [availableWorkflowVersions, normalizedEndpoints]
   );
   const validationIssuesByEndpoint = useMemo(
     () => groupValidationIssuesByEndpoint(validationIssues),
@@ -139,6 +144,11 @@ export function WorkflowEditorPublishForm({
       <div className="tool-badge-row">
         <span className="event-chip">draft count {normalizedEndpoints.length}</span>
         <span className="event-chip">current workflow version {workflowVersion}</span>
+        {availableWorkflowVersions.length > 0 ? (
+          <span className="event-chip">
+            pin targets {availableWorkflowVersions.join(" / ")}
+          </span>
+        ) : null}
       </div>
 
       <div className="binding-actions">

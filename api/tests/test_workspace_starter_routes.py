@@ -225,6 +225,44 @@ def test_workspace_starter_create_rejects_missing_catalog_tool_binding(
     assert "native.missing" in response.json()["detail"]
 
 
+def test_workspace_starter_create_rejects_unknown_publish_workflow_version(
+    client: TestClient,
+) -> None:
+    definition = _valid_definition()
+    definition["publish"] = [
+        {
+            "id": "native-chat",
+            "name": "Native Chat",
+            "protocol": "native",
+            "workflowVersion": "9.9.9",
+            "authMode": "internal",
+            "streaming": False,
+            "inputSchema": {"type": "object"},
+        }
+    ]
+
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Broken Publish Version Starter",
+            "description": "Should reject publish workflow version drift",
+            "business_track": "API 调用开放",
+            "default_workflow_name": "Broken Publish Version Starter Workflow",
+            "workflow_focus": "Publish version reference validation",
+            "recommended_next_step": "Clear workflowVersion or choose a valid one",
+            "tags": ["publish", "validation"],
+            "definition": definition,
+            "created_from_workflow_id": "wf-demo",
+            "created_from_workflow_version": "0.1.0",
+        },
+    )
+
+    assert response.status_code == 422
+    assert "references unknown publish workflow versions" in response.json()["detail"]
+    assert "0.1.0, 0.1.1" in response.json()["detail"]
+
+
 def test_workspace_starter_rebase_rejects_source_workflow_with_unavailable_nodes(
     client: TestClient,
     sqlite_session: Session,

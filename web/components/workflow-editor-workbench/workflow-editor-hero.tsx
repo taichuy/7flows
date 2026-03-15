@@ -20,6 +20,7 @@ type WorkflowEditorHeroProps = {
   unsupportedNodes: UnsupportedWorkflowNodeSummary[];
   contractValidationIssuesCount: number;
   toolReferenceValidationIssuesCount: number;
+  publishVersionValidationIssuesCount: number;
   persistBlockedMessage: string | null;
   isSaving: boolean;
   isSavingStarter: boolean;
@@ -43,6 +44,7 @@ export function WorkflowEditorHero({
   unsupportedNodes,
   contractValidationIssuesCount,
   toolReferenceValidationIssuesCount,
+  publishVersionValidationIssuesCount,
   persistBlockedMessage,
   isSaving,
   isSavingStarter,
@@ -76,6 +78,9 @@ export function WorkflowEditorHero({
           ) : null}
           {toolReferenceValidationIssuesCount > 0 ? (
             <span className="pill">{toolReferenceValidationIssuesCount} tool reference issues</span>
+          ) : null}
+          {publishVersionValidationIssuesCount > 0 ? (
+            <span className="pill">{publishVersionValidationIssuesCount} publish version issues</span>
           ) : null}
         </div>
         <div className="hero-actions">
@@ -128,7 +133,7 @@ export function WorkflowEditorHero({
           <p className="panel-text">
             当前保存策略：
             <strong>
-              含 planned / unknown 节点、非法 contract schema 或 tool catalog 引用漂移时阻断保存与 starter 沉淀
+              含 planned / unknown 节点、非法 contract schema、tool catalog 引用漂移或 publish version 引用失配时阻断保存与 starter 沉淀
             </strong>
           </p>
         ) : null}

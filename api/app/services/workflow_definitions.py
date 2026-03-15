@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 from app.schemas.plugin import PluginToolItem
 from app.schemas.workflow import WorkflowDefinitionDocument
 from app.services.workflow_library_catalog import build_node_catalog_items
+from app.services.workflow_publish_version_references import (
+    collect_invalid_workflow_publish_version_references,
+)
 
 
 class WorkflowDefinitionValidationError(ValueError):
@@ -221,6 +224,7 @@ def validate_persistable_workflow_definition(
     definition: dict[str, Any] | None,
     *,
     tool_index: Mapping[str, PluginToolItem] | None = None,
+    allowed_publish_versions: set[str] | None = None,
 ) -> dict[str, Any]:
     validated_definition = validate_workflow_definition(definition)
     unavailable_nodes = collect_unavailable_persisted_workflow_nodes(validated_definition)
@@ -243,6 +247,16 @@ def validate_persistable_workflow_definition(
         raise WorkflowDefinitionValidationError(
             "Workflow definition references missing or drifted tool catalog entries: "
             + "; ".join(invalid_tool_references)
+        )
+
+    invalid_publish_version_references = collect_invalid_workflow_publish_version_references(
+        validated_definition,
+        allowed_versions=allowed_publish_versions,
+    )
+    if invalid_publish_version_references:
+        raise WorkflowDefinitionValidationError(
+            "Workflow definition references unknown publish workflow versions: "
+            + "; ".join(invalid_publish_version_references)
         )
 
     return validated_definition

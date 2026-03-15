@@ -29,6 +29,7 @@ type WorkflowEditorInspectorProps = {
   onNodeRuntimePolicyUpdate: (nextRuntimePolicy: Record<string, unknown> | undefined) => void;
   onNodeRuntimePolicyChange: (value: string) => void;
   workflowVersion: string;
+  availableWorkflowVersions: string[];
   workflowVariables: Array<Record<string, unknown>>;
   workflowPublish: Array<Record<string, unknown>>;
   onWorkflowVariablesChange: (
@@ -62,6 +63,7 @@ export function WorkflowEditorInspector({
   onNodeRuntimePolicyUpdate,
   onNodeRuntimePolicyChange,
   workflowVersion,
+  availableWorkflowVersions,
   workflowVariables,
   workflowPublish,
   onWorkflowVariablesChange,
@@ -213,6 +215,7 @@ export function WorkflowEditorInspector({
 
       <WorkflowEditorPublishForm
         workflowVersion={workflowVersion}
+        availableWorkflowVersions={availableWorkflowVersions}
         publishEndpoints={workflowPublish}
         onChange={onWorkflowPublishChange}
       />

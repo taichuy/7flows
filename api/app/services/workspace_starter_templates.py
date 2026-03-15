@@ -26,8 +26,12 @@ from app.schemas.workspace_starter import (
 )
 from app.services.workflow_definitions import (
     build_workflow_tool_reference_index,
+    bump_workflow_version,
     validate_persistable_workflow_definition,
     validate_workflow_definition,
+)
+from app.services.workflow_publish_version_references import (
+    build_allowed_publish_workflow_versions,
 )
 
 
@@ -187,6 +191,12 @@ class WorkspaceStarterTemplateService:
                     db,
                     workspace_id=record.workspace_id,
                 ),
+                allowed_publish_versions=self._build_allowed_publish_versions_for_template(
+                    db,
+                    workflow_id=record.created_from_workflow_id,
+                    workflow_version=record.created_from_workflow_version,
+                    allow_next_version=True,
+                ),
             )
         return record
 
@@ -320,6 +330,10 @@ class WorkspaceStarterTemplateService:
                 db,
                 workspace_id=record.workspace_id,
             ),
+            allowed_publish_versions=build_allowed_publish_workflow_versions(
+                db,
+                workflow_id=workflow.id,
+            ),
         )
         changed = (
             record.created_from_workflow_version != workflow.version
@@ -343,6 +357,10 @@ class WorkspaceStarterTemplateService:
                 tool_index=build_workflow_tool_reference_index(
                     db,
                     workspace_id=record.workspace_id,
+                ),
+                allowed_publish_versions=build_allowed_publish_workflow_versions(
+                    db,
+                    workflow_id=workflow.id,
                 ),
             )
         if "created_from_workflow_version" in diff.rebase_fields:
@@ -398,9 +416,39 @@ class WorkspaceStarterTemplateService:
                 db,
                 workspace_id=payload.workspace_id,
             ),
+            allowed_publish_versions=self._build_allowed_publish_versions_for_template(
+                db,
+                workflow_id=payload.created_from_workflow_id,
+                workflow_version=payload.created_from_workflow_version,
+                allow_next_version=True,
+            ),
         )
         record.created_from_workflow_id = payload.created_from_workflow_id
         record.created_from_workflow_version = payload.created_from_workflow_version
+
+    def _build_allowed_publish_versions_for_template(
+        self,
+        db: Session,
+        *,
+        workflow_id: str | None,
+        workflow_version: str | None,
+        allow_next_version: bool,
+    ) -> set[str] | None:
+        normalized_workflow_version = workflow_version.strip() if workflow_version else None
+        if workflow_id is None and not normalized_workflow_version:
+            return None
+
+        allowed_versions = build_allowed_publish_workflow_versions(
+            db,
+            workflow_id=workflow_id,
+            current_version=normalized_workflow_version,
+        )
+        if allow_next_version and normalized_workflow_version:
+            try:
+                allowed_versions.add(bump_workflow_version(normalized_workflow_version))
+            except ValueError:
+                pass
+        return allowed_versions
 
     def _normalize_tags(self, tags: list[str]) -> list[str]:
         normalized_tags: list[str] = []
