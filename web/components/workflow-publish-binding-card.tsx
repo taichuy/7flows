@@ -1,4 +1,5 @@
 import { updatePublishedEndpointLifecycle } from "@/app/actions/publish";
+import { SensitiveAccessBlockedCard } from "@/components/sensitive-access-blocked-card";
 import { WorkflowPublishActivityPanel } from "@/components/workflow-publish-activity-panel";
 import { WorkflowPublishApiKeyManager } from "@/components/workflow-publish-api-key-manager";
 import { WorkflowPublishLifecycleForm } from "@/components/workflow-publish-lifecycle-form";
@@ -9,6 +10,7 @@ import type {
   PublishedEndpointInvocationListResponse,
   WorkflowPublishedEndpointItem
 } from "@/lib/get-workflow-publish";
+import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import type { WorkflowPublishInvocationActiveFilter } from "@/lib/workflow-publish-governance";
 import type { WorkflowDetail } from "@/lib/get-workflows";
 import { formatTimestamp } from "@/lib/runtime-presenters";
@@ -16,11 +18,11 @@ import { formatTimestamp } from "@/lib/runtime-presenters";
 type WorkflowPublishBindingCardProps = {
   workflow: WorkflowDetail;
   binding: WorkflowPublishedEndpointItem;
-  cacheInventory: PublishedEndpointCacheInventoryResponse | null;
+  cacheInventory: SensitiveAccessGuardedResult<PublishedEndpointCacheInventoryResponse>;
   apiKeys: PublishedEndpointApiKeyItem[];
   invocationAudit: PublishedEndpointInvocationListResponse | null;
   selectedInvocationId: string | null;
-  selectedInvocationDetail: PublishedEndpointInvocationDetailResponse | null;
+  selectedInvocationDetail: SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>;
   rateLimitWindowAudit: PublishedEndpointInvocationListResponse | null;
   activeInvocationFilter: WorkflowPublishInvocationActiveFilter | null;
 };
@@ -38,6 +40,7 @@ export function WorkflowPublishBindingCard({
 }: WorkflowPublishBindingCardProps) {
   const cacheSummary = binding.cache_inventory;
   const activity = binding.activity;
+  const resolvedCacheInventory = cacheInventory?.kind === "ok" ? cacheInventory.data : null;
   const varyBy =
     cacheSummary && cacheSummary.vary_by.length > 0
       ? cacheSummary.vary_by
@@ -178,9 +181,15 @@ export function WorkflowPublishBindingCard({
               ))}
             </div>
 
-            {cacheInventory?.items?.length ? (
+            {cacheInventory?.kind === "blocked" ? (
+              <SensitiveAccessBlockedCard
+                payload={cacheInventory.payload}
+                summary="当前 binding 的 cache inventory 已被标记为敏感详情入口；summary 仍可见，但具体 cache entries 需走审批。"
+                title="Cache inventory access blocked"
+              />
+            ) : resolvedCacheInventory?.items?.length ? (
               <div className="publish-cache-list">
-                {cacheInventory.items.map((item) => (
+                {resolvedCacheInventory.items.map((item) => (
                   <article className="payload-card compact-card" key={item.id}>
                     <div className="payload-card-header">
                       <span className="status-meta">Cache entry</span>
@@ -200,7 +209,9 @@ export function WorkflowPublishBindingCard({
               </div>
             ) : (
               <p className="empty-state compact">
-                当前还没有活跃缓存条目，首次命中前这里会保持为空。
+                {cacheInventory === null
+                  ? "当前暂时无法拉取 cache inventory，活动 summary 仍可继续使用。"
+                  : "当前还没有活跃缓存条目，首次命中前这里会保持为空。"}
               </p>
             )}
           </>

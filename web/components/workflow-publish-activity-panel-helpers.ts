@@ -5,6 +5,7 @@ import type {
   PublishedEndpointInvocationListResponse,
   WorkflowPublishedEndpointItem
 } from "@/lib/get-workflow-publish";
+import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import type { WorkflowPublishInvocationActiveFilter } from "@/lib/workflow-publish-governance";
 import {
   PUBLISHED_RUN_STATUSES,
@@ -20,7 +21,7 @@ export type WorkflowPublishActivityPanelProps = {
   apiKeys: PublishedEndpointApiKeyItem[];
   invocationAudit: PublishedEndpointInvocationListResponse | null;
   selectedInvocationId: string | null;
-  selectedInvocationDetail: PublishedEndpointInvocationDetailResponse | null;
+  selectedInvocationDetail: SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>;
   selectedInvocationDetailHref: string | null;
   clearInvocationDetailHref: string | null;
   rateLimitWindowAudit: PublishedEndpointInvocationListResponse | null;

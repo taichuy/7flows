@@ -4,18 +4,24 @@ import {
   getPublishedEndpointInvocationDetail,
   getPublishedEndpointInvocations,
   type PublishedEndpointApiKeyItem,
-  type PublishedEndpointCacheInventoryResponse,
-  type PublishedEndpointInvocationDetailResponse,
   type PublishedEndpointInvocationRequestSurface,
   type PublishedEndpointInvocationListResponse,
   type WorkflowPublishedEndpointItem
 } from "@/lib/get-workflow-publish";
+import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
+import type {
+  PublishedEndpointCacheInventoryResponse,
+  PublishedEndpointInvocationDetailResponse
+} from "@/lib/get-workflow-publish";
 
 export type WorkflowPublishGovernanceSnapshot = {
-  cacheInventories: Record<string, PublishedEndpointCacheInventoryResponse | null>;
+  cacheInventories: Record<string, SensitiveAccessGuardedResult<PublishedEndpointCacheInventoryResponse>>;
   apiKeysByBinding: Record<string, PublishedEndpointApiKeyItem[]>;
   invocationAuditsByBinding: Record<string, PublishedEndpointInvocationListResponse | null>;
-  invocationDetailsByBinding: Record<string, PublishedEndpointInvocationDetailResponse | null>;
+  invocationDetailsByBinding: Record<
+    string,
+    SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>
+  >;
   rateLimitWindowAuditsByBinding: Record<
     string,
     PublishedEndpointInvocationListResponse | null

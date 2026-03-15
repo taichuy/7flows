@@ -1,3 +1,4 @@
+import { SensitiveAccessBlockedCard } from "@/components/sensitive-access-blocked-card";
 import { WorkflowPublishTrafficTimeline } from "@/components/workflow-publish-traffic-timeline";
 import { WorkflowPublishInvocationDetailPanel } from "@/components/workflow-publish-invocation-detail-panel";
 import { WorkflowPublishInvocationEntryCard } from "@/components/workflow-publish-invocation-entry-card";
@@ -5,6 +6,7 @@ import type {
   PublishedEndpointInvocationDetailResponse,
   PublishedEndpointInvocationListResponse
 } from "@/lib/get-workflow-publish";
+import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import {
   formatPublishedInvocationReasonLabel,
   formatPublishedInvocationSurfaceLabel,
@@ -190,7 +192,7 @@ export function WorkflowPublishActivityInsights({
 type WorkflowPublishActivityDetailsProps = {
   invocationAudit: PublishedEndpointInvocationListResponse | null;
   selectedInvocationId: string | null;
-  selectedInvocationDetail: PublishedEndpointInvocationDetailResponse | null;
+  selectedInvocationDetail: SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>;
   buildInvocationDetailHref: (invocationId: string) => string;
   clearInvocationDetailHref: string | null;
 };
@@ -258,11 +260,32 @@ export function WorkflowPublishActivityDetails({
 
       {items.length ? (
         <>
-          {selectedInvocationDetail && clearInvocationDetailHref ? (
-            <WorkflowPublishInvocationDetailPanel
-              clearHref={clearInvocationDetailHref}
-              detail={selectedInvocationDetail}
-            />
+          {selectedInvocationId && clearInvocationDetailHref ? (
+            selectedInvocationDetail?.kind === "ok" ? (
+              <WorkflowPublishInvocationDetailPanel
+                clearHref={clearInvocationDetailHref}
+                detail={selectedInvocationDetail.data}
+              />
+            ) : selectedInvocationDetail?.kind === "blocked" ? (
+              <SensitiveAccessBlockedCard
+                clearHref={clearInvocationDetailHref}
+                payload={selectedInvocationDetail.payload}
+                summary="当前 invocation detail 已被纳入统一敏感访问控制；可先查看审批票据和关联 run，再决定是否继续申请明细查看。"
+                title="Invocation detail access blocked"
+              />
+            ) : (
+              <article className="entry-card compact-card">
+                <div className="payload-card-header">
+                  <div>
+                    <p className="entry-card-title">Invocation detail unavailable</p>
+                    <p className="binding-meta">当前未能拉取该 invocation 的详情 payload。</p>
+                  </div>
+                </div>
+                <p className="section-copy entry-copy">
+                  审计列表仍可继续使用；如果问题可复现，优先回到 run detail 或稍后重试该详情入口。
+                </p>
+              </article>
+            )
           ) : null}
           <div className="publish-cache-list">
             {items.map((item) => (

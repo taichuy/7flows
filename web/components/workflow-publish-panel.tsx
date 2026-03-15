@@ -6,16 +6,20 @@ import type {
   PublishedEndpointInvocationListResponse,
   WorkflowPublishedEndpointItem
 } from "@/lib/get-workflow-publish";
+import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import type { WorkflowPublishInvocationActiveFilter } from "@/lib/workflow-publish-governance";
 import type { WorkflowDetail } from "@/lib/get-workflows";
 
 type WorkflowPublishPanelProps = {
   workflow: WorkflowDetail;
   bindings: WorkflowPublishedEndpointItem[];
-  cacheInventories: Record<string, PublishedEndpointCacheInventoryResponse | null>;
+  cacheInventories: Record<string, SensitiveAccessGuardedResult<PublishedEndpointCacheInventoryResponse>>;
   apiKeysByBinding: Record<string, PublishedEndpointApiKeyItem[]>;
   invocationAuditsByBinding: Record<string, PublishedEndpointInvocationListResponse | null>;
-  invocationDetailsByBinding: Record<string, PublishedEndpointInvocationDetailResponse | null>;
+  invocationDetailsByBinding: Record<
+    string,
+    SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>
+  >;
   selectedInvocationId: string | null;
   rateLimitWindowAuditsByBinding: Record<
     string,

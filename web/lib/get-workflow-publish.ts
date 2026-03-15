@@ -1,4 +1,8 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import {
+  parseSensitiveAccessGuardedResponse,
+  type SensitiveAccessGuardedResult
+} from "@/lib/sensitive-access";
 
 export type PublishedEndpointInvocationStatus = "succeeded" | "failed" | "rejected";
 export type PublishedEndpointInvocationRequestSource = "workflow" | "alias" | "path";
@@ -331,7 +335,7 @@ export async function getPublishedEndpointCacheInventory(
   workflowId: string,
   bindingId: string,
   limit = 5
-): Promise<PublishedEndpointCacheInventoryResponse | null> {
+): Promise<SensitiveAccessGuardedResult<PublishedEndpointCacheInventoryResponse>> {
   try {
     const response = await fetch(
       `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(
@@ -345,11 +349,9 @@ export async function getPublishedEndpointCacheInventory(
       }
     );
 
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as PublishedEndpointCacheInventoryResponse;
+    return await parseSensitiveAccessGuardedResponse<PublishedEndpointCacheInventoryResponse>(
+      response
+    );
   } catch {
     return null;
   }
@@ -452,7 +454,7 @@ export async function getPublishedEndpointInvocationDetail(
   workflowId: string,
   bindingId: string,
   invocationId: string
-): Promise<PublishedEndpointInvocationDetailResponse | null> {
+): Promise<SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>> {
   try {
     const response = await fetch(
       `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(
@@ -463,11 +465,9 @@ export async function getPublishedEndpointInvocationDetail(
       }
     );
 
-    if (!response.ok) {
-      return null;
-    }
-
-    return (await response.json()) as PublishedEndpointInvocationDetailResponse;
+    return await parseSensitiveAccessGuardedResponse<PublishedEndpointInvocationDetailResponse>(
+      response
+    );
   } catch {
     return null;
   }
