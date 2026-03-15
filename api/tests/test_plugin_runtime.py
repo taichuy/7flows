@@ -159,6 +159,7 @@ def test_plugin_call_proxy_invokes_compat_adapter() -> None:
         assert payload["traceId"] == "trace-compat"
         assert payload["inputs"] == {"query": "sevenflows"}
         assert payload["credentials"] == {}
+        assert payload["execution"] == {}
         assert payload["executionContract"] == {
             "irVersion": "2026-03-10",
             "kind": "tool_execution",
@@ -218,6 +219,74 @@ def test_plugin_call_proxy_invokes_compat_adapter() -> None:
     assert response.output == {"documents": ["doc-1"]}
     assert response.logs == ["adapter ok"]
     assert response.duration_ms == 17
+
+
+def test_plugin_call_proxy_forwards_execution_payload_to_compat_adapter() -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="compat:dify:plugin:demo/search",
+            name="Search",
+            ecosystem="compat:dify",
+            source="plugin",
+            constrained_ir=_demo_search_constrained_ir(),
+        )
+    )
+    registry.register_adapter(
+        CompatibilityAdapterRegistration(
+            id="dify-default",
+            ecosystem="compat:dify",
+            endpoint="http://adapter.local/dify",
+        )
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content.decode())
+        assert payload["execution"] == {
+            "class": "microvm",
+            "source": "tool_call",
+            "profile": "compat-isolation",
+            "timeoutMs": 4000,
+            "networkPolicy": "isolated",
+            "filesystemPolicy": "ephemeral",
+        }
+        return httpx.Response(
+            200,
+            json={
+                "status": "success",
+                "output": {"documents": ["doc-1"]},
+                "durationMs": 9,
+            },
+        )
+
+    proxy = PluginCallProxy(
+        registry,
+        client_factory=lambda timeout_ms: httpx.Client(
+            transport=httpx.MockTransport(handler),
+            timeout=timeout_ms / 1000,
+        ),
+    )
+
+    response = proxy.invoke(
+        PluginCallRequest(
+            tool_id="compat:dify:plugin:demo/search",
+            ecosystem="compat:dify",
+            inputs={"query": "sevenflows"},
+            trace_id="trace-compat-execution",
+            execution={
+                "class": "microvm",
+                "source": "tool_call",
+                "profile": "compat-isolation",
+                "timeoutMs": 4000,
+                "networkPolicy": "isolated",
+                "filesystemPolicy": "ephemeral",
+            },
+        )
+    )
+
+    assert response.status == "success"
+    assert response.output == {"documents": ["doc-1"]}
+    assert response.duration_ms == 9
 
 
 def test_plugin_call_proxy_rejects_unsupported_contract_fields() -> None:

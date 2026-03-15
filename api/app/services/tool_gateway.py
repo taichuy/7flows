@@ -116,6 +116,11 @@ class ToolGateway:
                     credentials=invocation_credentials,
                     timeout_ms=resolved_timeout_ms,
                     trace_id=f"run:{run_id}:node:{node_run.node_id}:tool:{tool_id}",
+                    execution=(
+                        execution_policy.as_runtime_payload()
+                        if execution_policy is not None
+                        else {}
+                    ),
                 )
             )
             result = self._normalize_result(

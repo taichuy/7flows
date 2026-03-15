@@ -1,12 +1,54 @@
-﻿from datetime import UTC, datetime, timedelta
+﻿import json
+from datetime import UTC, datetime, timedelta
 
+import httpx
 from sqlalchemy.orm import Session
 
 from app.models.run import RunCallbackTicket
 from app.models.workflow import Workflow, WorkflowVersion
-from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
+from app.services.plugin_runtime import (
+    CompatibilityAdapterRegistration,
+    PluginCallProxy,
+    PluginRegistry,
+    PluginToolDefinition,
+)
 from app.services.run_resume_scheduler import RunResumeScheduler
 from app.services.runtime import RuntimeService
+
+
+def _compat_demo_search_constrained_ir() -> dict:
+    return {
+        "ir_version": "2026-03-10",
+        "kind": "tool",
+        "ecosystem": "compat:dify",
+        "tool_id": "compat:dify:plugin:demo/search",
+        "name": "Compat Search",
+        "description": "Search via compat adapter",
+        "input_schema": {
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": ["query"],
+            "additional_properties": False,
+        },
+        "output_schema": {"type": "object"},
+        "source": "plugin",
+        "input_contract": [
+            {
+                "name": "query",
+                "required": True,
+                "value_source": "llm",
+                "json_schema": {"type": "string"},
+            }
+        ],
+        "constraints": {
+            "additional_properties": False,
+            "credential_fields": [],
+            "file_fields": [],
+            "llm_fillable_fields": ["query"],
+            "user_config_fields": [],
+        },
+        "plugin_meta": {"origin": "dify"},
+    }
 
 
 def test_llm_agent_without_assistant_keeps_legacy_like_output(sqlite_session: Session) -> None:
@@ -375,6 +417,164 @@ def test_llm_agent_tool_call_execution_override_wins_over_tool_policy(
         "requested_filesystem_policy": "ephemeral",
         "executor_ref": "tool:native-inline",
         "fallback_reason": "native_tools_currently_inline_only",
+    }
+
+
+def test_llm_agent_tool_call_execution_override_is_forwarded_to_compat_adapter(
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-agent-tool-execution-compat",
+        name="Agent Compat Tool Execution Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llm_agent",
+                    "name": "Agent",
+                    "config": {
+                        "assistant": {"enabled": False},
+                        "toolPolicy": {
+                            "allowedToolIds": ["compat:dify:plugin:demo/search"],
+                            "execution": {
+                                "class": "sandbox",
+                                "profile": "workspace-default",
+                                "timeoutMs": 15000,
+                            },
+                        },
+                        "mockPlan": {
+                            "toolCalls": [
+                                {
+                                    "toolId": "compat:dify:plugin:demo/search",
+                                    "ecosystem": "compat:dify",
+                                    "adapterId": "dify-default",
+                                    "inputs": {"query": "tool-execution-compat"},
+                                    "execution": {
+                                        "class": "microvm",
+                                        "profile": "per-call-compat",
+                                        "timeoutMs": 4000,
+                                        "networkPolicy": "isolated",
+                                        "filesystemPolicy": "ephemeral",
+                                    },
+                                }
+                            ]
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="compat:dify:plugin:demo/search",
+            name="Compat Search",
+            ecosystem="compat:dify",
+            source="plugin",
+            constrained_ir=_compat_demo_search_constrained_ir(),
+        )
+    )
+    registry.register_adapter(
+        CompatibilityAdapterRegistration(
+            id="dify-default",
+            ecosystem="compat:dify",
+            endpoint="http://adapter.local/dify",
+        )
+    )
+
+    captured_payloads: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content.decode())
+        captured_payloads.append(payload)
+        assert payload["toolId"] == "compat:dify:plugin:demo/search"
+        assert payload["adapterId"] == "dify-default"
+        assert payload["execution"] == {
+            "class": "microvm",
+            "source": "tool_call",
+            "profile": "per-call-compat",
+            "timeoutMs": 4000,
+            "networkPolicy": "isolated",
+            "filesystemPolicy": "ephemeral",
+        }
+        return httpx.Response(
+            200,
+            json={
+                "status": "success",
+                "output": {
+                    "status": "success",
+                    "content_type": "json",
+                    "summary": "compat tool execution override forwarded",
+                    "structured": {"documents": ["alpha"]},
+                    "meta": {"tool_name": "Compat Search"},
+                },
+                "durationMs": 11,
+            },
+        )
+
+    runtime = RuntimeService(
+        plugin_call_proxy=PluginCallProxy(
+            registry,
+            client_factory=lambda timeout_ms: httpx.Client(
+                transport=httpx.MockTransport(handler),
+                timeout=timeout_ms / 1000,
+            ),
+        )
+    )
+
+    artifacts = runtime.execute_workflow(sqlite_session, workflow, {"topic": "agent"})
+
+    assert artifacts.run.status == "succeeded"
+    assert len(captured_payloads) == 1
+    agent_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "agent")
+    dispatched_event = next(
+        event
+        for event in artifacts.events
+        if event.node_run_id == agent_run.id and event.event_type == "tool.execution.dispatched"
+    )
+    assert dispatched_event.payload == {
+        "node_id": "agent",
+        "tool_id": "compat:dify:plugin:demo/search",
+        "tool_name": "Compat Search",
+        "requested_execution_class": "microvm",
+        "effective_execution_class": "subprocess",
+        "execution_source": "tool_call",
+        "requested_execution_profile": "per-call-compat",
+        "requested_execution_timeout_ms": 4000,
+        "requested_network_policy": "isolated",
+        "requested_filesystem_policy": "ephemeral",
+        "executor_ref": "tool:compat-adapter:dify-default",
+    }
+
+    fallback_event = next(
+        event
+        for event in artifacts.events
+        if event.node_run_id == agent_run.id and event.event_type == "tool.execution.fallback"
+    )
+    assert fallback_event.payload == {
+        "node_id": "agent",
+        "tool_id": "compat:dify:plugin:demo/search",
+        "tool_name": "Compat Search",
+        "requested_execution_class": "microvm",
+        "effective_execution_class": "subprocess",
+        "execution_source": "tool_call",
+        "requested_execution_profile": "per-call-compat",
+        "requested_execution_timeout_ms": 4000,
+        "requested_network_policy": "isolated",
+        "requested_filesystem_policy": "ephemeral",
+        "executor_ref": "tool:compat-adapter:dify-default",
+        "reason": "compat_tools_currently_bridge_via_adapter_service",
     }
 
 

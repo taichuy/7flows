@@ -96,6 +96,7 @@ class PluginCallProxy:
             "credentials": normalized_credentials,
             "timeout": request.timeout_ms,
             "traceId": request.trace_id,
+            "execution": dict(request.execution or {}),
             "executionContract": execution_contract,
         }
 

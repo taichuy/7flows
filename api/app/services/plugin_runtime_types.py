@@ -57,6 +57,7 @@ class PluginCallRequest:
     credentials: dict[str, str] = field(default_factory=dict)
     timeout_ms: int = 30_000
     trace_id: str = ""
+    execution: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
