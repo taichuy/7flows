@@ -148,3 +148,6 @@ __pycache__/
 **/__pycache__/
 *.py[cod]
 *$py.class
+
+# Local internal draft docs
+docs/.taichuy/

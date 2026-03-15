@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "sevenflows-api"
 version = "0.1.0"
 description = "7Flows orchestration API and worker runtime."
+license = { text = "LicenseRef-7Flows-Community" }
 requires-python = ">=3.11,<3.13"
 dependencies = [
   "alembic>=1.14.0,<2",

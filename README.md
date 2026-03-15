@@ -10,7 +10,7 @@
 - 内部产品内核：继续以 `7Flows IR`、Durable Runtime、发布网关、插件兼容层和统一事件流作为事实中心，而不是把 7Flows 降级成某个上游产品的 UI 包装层。
 - 首版只兼容 Dify 插件生态，不承诺兼容完整 Dify ChatFlow DSL、UI 配置格式或整个平台结构。
 - OpenClaw 集成边界仍是 `workflow-backed provider`：OpenClaw 对接的是 7Flows 发布网关，而不是直接理解 7Flows 内部 DSL。
-- 开源与商业的目标边界是“开源给协作，商业给治理”；当前仓库仍主要聚焦 OSS kernel 与运行时基础，不应把 Team / Enterprise 目标能力误读成当前事实。
+- 对外仍按“开源给协作，商业给治理”组织叙事，但仓库授权以根目录 `LICENSE` 为准：当前采用 Apache 2.0 基底 + 附加条件的 `7Flows Community License`，不要把项目误写成纯 `MIT` 或纯 `Apache-2.0`。
 - 调试、流式输出、回放优先复用 `run_events`，AI / 自动化 追溯以 `runs`、`node_runs`、`run_events`、`run_artifacts`、`tool_call_records`、`ai_call_records` 为事实来源。
 - `llm_agent` 正在按可恢复 phase pipeline 演进，assistant 只负责 evidence 提炼，不拥有流程控制权。
 
@@ -18,10 +18,12 @@
 
 这部分是当前已经明确的目标设计，不等于仓库已经完整交付对应版本：
 
-- OSS / Community：`7Flows IR`、runtime、基础执行透明、基础 trace / replay、可视化编排、自部署、插件协议与开发者入口。
+- Community / Self-host：`7Flows IR`、runtime、基础执行透明、基础 trace / replay、可视化编排、自部署、插件协议与开发者入口，重点服务真实 adoption、基础协作和 OpenClaw-first 的黑盒透明场景。
 - Team：多 workspace、发布治理、团队报表、环境隔离、告警、私有模板库等“小团队控制面”能力。
 - Enterprise：组织级治理、审计、预算 / 配额、高级审批、SSO、私有节点仓库、私有部署等能力。
 - Managed / Service：官方托管执行、日志 / artifact / queue、SLA、迁移与咨询交付等能力。
+
+当前 Community License 允许个人、团队和单租户自部署场景下的真实使用与二次开发；多租户托管服务、商业化对立面和前端去标识 / 白标分发需要单独商业授权。
 
 ## 当前已落地能力
 
@@ -159,6 +161,7 @@ docker compose up -d --build
 - `docs/technical-design-supplement.md`：插件兼容、插件 UI、安全、变量传递、调试模式、缓存、Durable Runtime 细节。
 - `docs/dev/runtime-foundation.md`：当前代码事实、结构热点、近期优先级。
 - `docs/dev/user-preferences.md`：稳定用户偏好与长期协作约束。
+- `docs/.taichuy/`：本地开发设计讨论素材和文案草稿，默认不进 Git，也不作为仓库事实基线。
 - `docs/history/`：按日期归档的开发记录、阶段性方案与验证留痕。
 - `docs/expired/`：已废弃但保留历史价值的文档。
 

@@ -22,6 +22,22 @@
 
 ## 当前已记录偏好
 
+## 2026-03-15 本地讨论草稿统一放到 docs/.taichuy
+
+- 偏好：产品推导稿、开发设计讨论素材、外部参考启动文档和传播文案草稿等本地材料，统一放到 `docs/.taichuy/`；这类内容默认不进 Git，也不作为仓库事实入口，避免污染正式文档基线和 AI 默认检索上下文。
+- 来源：用户在本轮明确要求把 `docs/7_flows_开源与商业双线计划书_v_1.md`、`docs/dify源码启动教程.md`、`docs/rustFS的启动文档.md` 等讨论/草稿材料迁到 `docs/.taichuy/`，并设置为 Git 忽略。
+- 影响范围：`.gitignore`、`AGENTS.md`、`docs/README.md`、`docs/open-source-commercial-strategy.md`、后续所有本地讨论草稿与内部推导材料的落盘位置。
+- 落地动作：本轮已把 `docs/.taichuy/` 定义为本地草稿区并加入 Git 忽略，同时把仓库协作约定和文档索引同步为“默认不读取、不引用这类材料”。
+- 备注：只有用户明确点名需要参考某份本地草稿时，才应进入 `docs/.taichuy/` 检索；否则默认以正式文档和当前事实索引为准。
+
+## 2026-03-15 社区版授权采用 Apache 2.0 基底加附加条件
+
+- 偏好：7Flows 的社区版授权不走纯 `MIT` 或纯 `Apache-2.0`，而采用 Apache 2.0 基底 + 附加条件的 community license；允许真实协作、自部署和单租户二次开发，但多租户托管、直接基于源码做商业化对立面，以及前端去标识 / 白标分发应保留为商业授权边界。
+- 来源：用户在本轮明确要求参考 Dify 的授权思路，把许可证改为更接近 Apache 2.0 的社区许可证，同时把 UI / 品牌和商业化边界写清楚。
+- 影响范围：`LICENSE`、`README.md`、`docs/open-source-commercial-strategy.md`、`docs/dev/runtime-foundation.md`，以及后续所有对外授权、商业化边界和版本分层相关文档。
+- 落地动作：本轮已把根目录 `LICENSE` 改成 `7Flows Community License`，并在 README 与策略文档中同步写清楚 community / source-available 授权边界，避免继续误写成纯 MIT / Apache 开源项目。
+- 备注：这条偏好强调的是“协作入口开放 + 治理能力保留”，不是否认社区版价值；但凡涉及许可证名称、商用触发条件或前端去标识，必须以 `LICENSE` 为准。
+
 ## 2026-03-15 OpenClaw-first 对外切口与开源商业边界
 
 - 偏好：7Flows 的对外传播、README、首页和 demo，短期优先围绕 OpenClaw / 本地 AI 助手“黑盒变透明”的控制面切口展开；同时内部产品文档与实现必须继续坚持 `7Flows IR`、runtime、发布网关和兼容层边界，不退化为单纯 UI 包装层。开源版应保持真实可用的协作入口，不把“第二个用户”作为收费点；商业版重点承接组织治理、责任边界、成本控制与服务保障。
