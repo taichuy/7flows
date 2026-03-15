@@ -137,15 +137,13 @@ class RuntimeNodeDispatchSupportMixin:
                 }
             )
         if node_type == "mcp_query":
-            node_output = self._execute_mcp_query_node(node, authorized_context, outputs)
-            return NodeExecutionResult(
-                output=node_output,
-                events=[
-                    RuntimeEvent(
-                        "node.context.read",
-                        self._build_context_read_payload(node, node_output),
-                    )
-                ],
+            return self._execute_mcp_query_node_with_access_control(
+                db,
+                node=node,
+                node_run=node_run,
+                run_id=run_id,
+                authorized_context=authorized_context,
+                outputs=outputs,
             )
         if node_type in {"condition", "router"}:
             return NodeExecutionResult(output=self._execute_branch_node(node, node_input))
@@ -363,6 +361,145 @@ class RuntimeNodeDispatchSupportMixin:
             raise WorkflowExecutionError(
                 f"Failed to resolve credential references: {exc}"
             ) from exc
+
+    def _execute_mcp_query_node_with_access_control(
+        self,
+        db: Session,
+        *,
+        node: dict,
+        node_run: NodeRun,
+        run_id: str,
+        authorized_context: AuthorizedContextRefs,
+        outputs: dict[str, dict],
+    ) -> NodeExecutionResult:
+        node_output = self._execute_mcp_query_node(node, authorized_context, outputs)
+        guarded_output = self._guard_context_read_output(
+            db,
+            node=node,
+            node_run=node_run,
+            run_id=run_id,
+            node_output=node_output,
+        )
+        if isinstance(guarded_output, NodeExecutionResult):
+            return guarded_output
+        return NodeExecutionResult(
+            output=guarded_output,
+            events=[
+                RuntimeEvent(
+                    "node.context.read",
+                    self._build_context_read_payload(node, guarded_output),
+                )
+            ],
+        )
+
+    def _guard_context_read_output(
+        self,
+        db: Session,
+        *,
+        node: dict,
+        node_run: NodeRun,
+        run_id: str,
+        node_output: dict,
+    ) -> dict | NodeExecutionResult:
+        results = node_output.get("results")
+        if not isinstance(results, list) or not results:
+            self._clear_sensitive_access_waiting_state(node_run)
+            return node_output
+
+        guarded_results = []
+        for item in results:
+            if not isinstance(item, dict):
+                guarded_results.append(item)
+                continue
+
+            source_node_id = str(item.get("nodeId") or "").strip()
+            artifact_type = str(item.get("artifactType") or "").strip()
+            if not source_node_id or not artifact_type:
+                guarded_results.append(item)
+                continue
+
+            resource = self._sensitive_access.find_workflow_context_resource(
+                db,
+                run_id=run_id,
+                source_node_id=source_node_id,
+                artifact_type=artifact_type,
+            )
+            if resource is None:
+                guarded_results.append(item)
+                continue
+
+            bundle = self._sensitive_access.ensure_access(
+                db,
+                run_id=run_id,
+                node_run_id=node_run.id,
+                requester_type="workflow",
+                requester_id=str(node.get("id") or "mcp_query"),
+                resource_id=resource.id,
+                action_type="read",
+                purpose_text=(
+                    f"MCP query node '{node.get('id') or 'unknown'}' requested context "
+                    f"from '{source_node_id}' ({artifact_type})."
+                ),
+                reuse_existing=True,
+            )
+            decision = str(bundle.access_request.decision or "")
+            if decision == "require_approval":
+                return self._build_sensitive_access_waiting_result(
+                    node=node,
+                    node_run=node_run,
+                    bundle=bundle,
+                    access_target="authorized_context",
+                )
+            if decision == "deny":
+                reason_code = str(bundle.access_request.reason_code or "access_denied")
+                raise WorkflowExecutionError(
+                    f"Sensitive context access denied for resource '{bundle.resource.label}' "
+                    f"({reason_code})."
+                )
+
+            guarded_item = deepcopy(item)
+            guarded_item["masked"] = decision == "allow_masked"
+            guarded_item["sensitiveAccess"] = {
+                "resourceId": bundle.resource.id,
+                "resourceLabel": bundle.resource.label,
+                "sensitivityLevel": bundle.resource.sensitivity_level,
+                "decision": decision,
+                "reasonCode": bundle.access_request.reason_code,
+            }
+            if decision == "allow_masked":
+                guarded_item["content"] = self._masked_context_content(item.get("content"))
+            guarded_results.append(guarded_item)
+
+        self._clear_sensitive_access_waiting_state(node_run)
+        guarded_output = deepcopy(node_output)
+        guarded_output["results"] = guarded_results
+        return guarded_output
+
+    def _masked_context_content(self, content):
+        if isinstance(content, dict):
+            return {
+                "masked": True,
+                "kind": "object",
+                "fieldCount": len(content),
+            }
+        if isinstance(content, list):
+            return {
+                "masked": True,
+                "kind": "array",
+                "length": len(content),
+            }
+        if isinstance(content, str):
+            return {
+                "masked": True,
+                "kind": "text",
+                "length": len(content),
+            }
+        if content is None:
+            return {"masked": True, "kind": "null"}
+        return {
+            "masked": True,
+            "kind": type(content).__name__,
+        }
 
     def _build_sensitive_access_waiting_result(
         self,

@@ -740,3 +740,183 @@ def test_tool_node_waiting_result_suspends_and_can_resume(
     assert resumed.run.status == "succeeded"
     assert resumed_tool_run.status == "succeeded"
     assert resumed.run.output_payload["tool_node"]["result"] == "done"
+
+
+def test_mcp_query_masks_sensitive_context_for_non_human_requesters(
+    sqlite_session: Session,
+) -> None:
+    sensitive_access = SensitiveAccessControlService()
+    workflow = _create_workflow(
+        sqlite_session,
+        workflow_id="wf-sensitive-context-masked",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "planner",
+                    "type": "tool",
+                    "name": "Planner",
+                    "config": {"mock_output": {"secret": "alpha", "docs": ["a", "b"]}},
+                },
+                {
+                    "id": "reader",
+                    "type": "mcp_query",
+                    "name": "Reader",
+                    "config": {
+                        "contextAccess": {"readableNodeIds": ["planner"]},
+                        "query": {
+                            "type": "authorized_context",
+                            "sourceNodeIds": ["planner"],
+                            "artifactTypes": ["json"],
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "planner"},
+                {"id": "e2", "sourceNodeId": "planner", "targetNodeId": "reader"},
+                {"id": "e3", "sourceNodeId": "reader", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sensitive_access.create_resource(
+        sqlite_session,
+        label="Planner Context",
+        sensitivity_level="L2",
+        source="workflow_context",
+        metadata={
+            "workflow_id": workflow.id,
+            "source_node_id": "planner",
+            "artifact_type": "json",
+        },
+    )
+    sqlite_session.commit()
+
+    artifacts = RuntimeService(sensitive_access_service=sensitive_access).execute_workflow(
+        sqlite_session,
+        workflow,
+        {"topic": "masked context"},
+    )
+
+    assert artifacts.run.status == "succeeded"
+    reader_output = artifacts.run.output_payload["reader"]
+    assert reader_output["results"][0]["masked"] is True
+    assert reader_output["results"][0]["sensitiveAccess"]["decision"] == "allow_masked"
+    assert reader_output["results"][0]["content"] == {
+        "masked": True,
+        "kind": "object",
+        "fieldCount": 2,
+    }
+    context_read_event = next(
+        event for event in artifacts.events if event.event_type == "node.context.read"
+    )
+    assert context_read_event.payload["sensitive_result_count"] == 1
+    assert context_read_event.payload["masked_result_count"] == 1
+
+
+def test_mcp_query_sensitive_context_waits_for_approval_and_resumes(
+    sqlite_session: Session,
+) -> None:
+    scheduled_resumes = []
+    sensitive_access = SensitiveAccessControlService(
+        resume_scheduler=RunResumeScheduler(dispatcher=scheduled_resumes.append)
+    )
+    workflow = _create_workflow(
+        sqlite_session,
+        workflow_id="wf-sensitive-context-approval",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "planner",
+                    "type": "tool",
+                    "name": "Planner",
+                    "config": {"mock_output": {"secret": "alpha", "docs": ["a", "b"]}},
+                },
+                {
+                    "id": "reader",
+                    "type": "mcp_query",
+                    "name": "Reader",
+                    "config": {
+                        "contextAccess": {"readableNodeIds": ["planner"]},
+                        "query": {
+                            "type": "authorized_context",
+                            "sourceNodeIds": ["planner"],
+                            "artifactTypes": ["json"],
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "planner"},
+                {"id": "e2", "sourceNodeId": "planner", "targetNodeId": "reader"},
+                {"id": "e3", "sourceNodeId": "reader", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sensitive_access.create_resource(
+        sqlite_session,
+        label="Planner Context Approval",
+        sensitivity_level="L3",
+        source="workflow_context",
+        metadata={
+            "workflow_id": workflow.id,
+            "source_node_id": "planner",
+            "artifact_type": "json",
+        },
+    )
+    sqlite_session.commit()
+
+    runtime = RuntimeService(sensitive_access_service=sensitive_access)
+    first_pass = runtime.execute_workflow(
+        sqlite_session,
+        workflow,
+        {"topic": "approval context"},
+    )
+
+    waiting_run = next(
+        node_run for node_run in first_pass.node_runs if node_run.node_id == "reader"
+    )
+    approval_tickets = sensitive_access.list_approval_tickets(
+        sqlite_session,
+        run_id=first_pass.run.id,
+    )
+    assert first_pass.run.status == "waiting"
+    assert waiting_run.status == "waiting_tool"
+    assert waiting_run.phase == "waiting_tool"
+    assert (
+        waiting_run.checkpoint_payload["sensitive_access"]["access_target"]
+        == "authorized_context"
+    )
+    assert len(approval_tickets) == 1
+    assert approval_tickets[0].status == "pending"
+
+    sensitive_access.decide_ticket(
+        sqlite_session,
+        ticket_id=approval_tickets[0].id,
+        status="approved",
+        approved_by="ops-reviewer",
+    )
+    sqlite_session.commit()
+
+    assert len(scheduled_resumes) == 1
+    assert scheduled_resumes[0].run_id == first_pass.run.id
+    assert scheduled_resumes[0].source == "sensitive_access_decision"
+
+    resumed = runtime.resume_run(sqlite_session, first_pass.run.id, source="test")
+
+    resumed_reader_run = next(
+        node_run for node_run in resumed.node_runs if node_run.node_id == "reader"
+    )
+    reader_output = resumed.run.output_payload["reader"]
+    assert resumed.run.status == "succeeded"
+    assert resumed_reader_run.status == "succeeded"
+    assert reader_output["results"][0]["masked"] is False
+    assert reader_output["results"][0]["sensitiveAccess"]["decision"] == "allow"
+    assert reader_output["results"][0]["content"] == {
+        "secret": "alpha",
+        "docs": ["a", "b"],
+    }
+    assert len(sensitive_access.list_access_requests(sqlite_session, run_id=first_pass.run.id)) == 1

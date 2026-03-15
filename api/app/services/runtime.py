@@ -47,6 +47,7 @@ from app.services.runtime_types import (
     FlowCheckpointState,
     WorkflowExecutionError,
 )
+from app.services.sensitive_access_control import SensitiveAccessControlService
 from app.services.tool_gateway import ToolGateway
 
 
@@ -68,6 +69,7 @@ class RuntimeService(
         plugin_call_proxy: PluginCallProxy | None = None,
         resume_scheduler: RunResumeScheduler | None = None,
         credential_store: CredentialStore | None = None,
+        sensitive_access_service: SensitiveAccessControlService | None = None,
     ) -> None:
         self._uses_default_plugin_proxy = plugin_call_proxy is None
         self._plugin_call_proxy = plugin_call_proxy or get_plugin_call_proxy()
@@ -76,7 +78,16 @@ class RuntimeService(
         self._compiled_blueprints = CompiledBlueprintService(self._flow_compiler)
         self._artifact_store = RuntimeArtifactStore()
         self._context_service = ContextService()
-        self._credential_store = credential_store or CredentialStore()
+        if credential_store is not None:
+            self._credential_store = credential_store
+            self._sensitive_access = (
+                sensitive_access_service or credential_store.sensitive_access_service
+            )
+        else:
+            self._sensitive_access = sensitive_access_service or SensitiveAccessControlService()
+            self._credential_store = CredentialStore(
+                sensitive_access_service=self._sensitive_access
+            )
         self._callback_tickets = RunCallbackTicketService()
         self._llm_provider = LLMProviderService()
         self._execution_adapter_registry = RuntimeExecutionAdapterRegistry(

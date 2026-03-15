@@ -46,6 +46,10 @@ class CredentialStore:
         self._encryption = encryption or CredentialEncryptionService()
         self._sensitive_access = sensitive_access_service or SensitiveAccessControlService()
 
+    @property
+    def sensitive_access_service(self) -> SensitiveAccessControlService:
+        return self._sensitive_access
+
     def create(
         self,
         db: Session,

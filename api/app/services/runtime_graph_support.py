@@ -289,4 +289,10 @@ class RuntimeGraphSupportMixin(
             "source_node_ids": [item["nodeId"] for item in results],
             "artifact_types": sorted({item["artifactType"] for item in results}),
             "result_count": len(results),
+            "sensitive_result_count": sum(
+                1 for item in results if isinstance(item, dict) and item.get("sensitiveAccess")
+            ),
+            "masked_result_count": sum(
+                1 for item in results if isinstance(item, dict) and item.get("masked")
+            ),
         }

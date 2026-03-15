@@ -9,6 +9,7 @@ AccessRequesterType = Literal["human", "ai", "workflow", "tool"]
 AccessActionType = Literal["read", "use", "export", "write", "invoke"]
 SensitiveResourceSource = Literal[
     "credential",
+    "workflow_context",
     "workspace_resource",
     "local_capability",
     "published_secret",

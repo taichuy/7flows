@@ -173,6 +173,45 @@ class SensitiveAccessControlService:
                 return record
         return None
 
+    def find_workflow_context_resource(
+        self,
+        db: Session,
+        *,
+        run_id: str | None,
+        source_node_id: str,
+        artifact_type: str,
+    ) -> SensitiveResourceRecord | None:
+        workflow_id = ""
+        if run_id:
+            run = db.get(Run, run_id)
+            workflow_id = str(run.workflow_id or "") if run is not None else ""
+
+        statement = select(SensitiveResourceRecord).where(
+            SensitiveResourceRecord.source == "workflow_context"
+        )
+        fallback_match: SensitiveResourceRecord | None = None
+        for record in db.scalars(statement):
+            metadata_payload = record.metadata_payload or {}
+            resource_node_id = str(
+                metadata_payload.get("source_node_id")
+                or metadata_payload.get("node_id")
+                or ""
+            ).strip()
+            resource_artifact_type = str(
+                metadata_payload.get("artifact_type")
+                or metadata_payload.get("artifactType")
+                or ""
+            ).strip()
+            if resource_node_id != source_node_id or resource_artifact_type != artifact_type:
+                continue
+
+            resource_workflow_id = str(metadata_payload.get("workflow_id") or "").strip()
+            if workflow_id and resource_workflow_id == workflow_id:
+                return record
+            if not resource_workflow_id and fallback_match is None:
+                fallback_match = record
+        return fallback_match
+
     def ensure_access(
         self,
         db: Session,
