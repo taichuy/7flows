@@ -6,6 +6,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.core.safe_expressions import EDGE_EXPRESSION_NAMES
+from app.schemas.workflow_contract_validation import validate_contract_schema
 from app.schemas.workflow_graph_validation import validate_workflow_graph
 from app.schemas.workflow_node_validation import (
     WorkflowNodeBranchSelector,
@@ -82,6 +83,16 @@ class WorkflowNodeDefinition(BaseModel):
     @model_validator(mode="after")
     def validate_embedded_config(self) -> WorkflowNodeDefinition:
         validate_workflow_node_embedded_config(node_type=self.type, config=self.config)
+        if self.inputSchema is not None:
+            validate_contract_schema(
+                self.inputSchema,
+                error_prefix=f"Node '{self.id}' inputSchema",
+            )
+        if self.outputSchema is not None:
+            validate_contract_schema(
+                self.outputSchema,
+                error_prefix=f"Node '{self.id}' outputSchema",
+            )
         return self
 
 

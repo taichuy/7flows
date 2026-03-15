@@ -838,6 +838,39 @@ def test_create_workflow_rejects_duplicate_publish_endpoint_metadata(
     assert "Workflow published endpoint ids must be unique" in response.json()["detail"]
 
 
+def test_create_workflow_rejects_invalid_node_contract_schema(client: TestClient) -> None:
+    definition = _valid_definition()
+    definition["nodes"][1]["inputSchema"] = {
+        "type": "unsupported",
+    }
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken Node Contract Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "inputSchema.type" in response.json()["detail"]
+
+
+def test_create_workflow_rejects_invalid_publish_contract_schema(
+    client: TestClient,
+) -> None:
+    definition = _valid_publish_definition()
+    definition["publish"][0]["outputSchema"] = {
+        "type": "object",
+        "required": ["answer", "answer"],
+    }
+
+    response = client.post(
+        "/api/workflows",
+        json={"name": "Broken Publish Contract Workflow", "definition": definition},
+    )
+
+    assert response.status_code == 422
+    assert "outputSchema.required" in response.json()["detail"]
+
+
 def test_create_workflow_rejects_tool_binding_conflicts(client: TestClient) -> None:
     definition = _valid_definition()
     definition["nodes"][1]["config"] = {

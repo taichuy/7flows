@@ -5,6 +5,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.schemas.workflow_contract_validation import validate_contract_schema
+
 PublishProtocol = Literal["native", "openai", "anthropic"]
 AuthMode = Literal["api_key", "token", "internal"]
 
@@ -95,6 +97,15 @@ class WorkflowPublishedEndpointDefinition(BaseModel):
     def validate_workflow_version_format(self) -> WorkflowPublishedEndpointDefinition:
         self.alias = normalize_published_endpoint_alias(self.alias or self.id)
         self.path = normalize_published_endpoint_path(self.path or f"/{self.alias}")
+        validate_contract_schema(
+            self.inputSchema,
+            error_prefix=f"Published endpoint '{self.id}' inputSchema",
+        )
+        if self.outputSchema is not None:
+            validate_contract_schema(
+                self.outputSchema,
+                error_prefix=f"Published endpoint '{self.id}' outputSchema",
+            )
         if self.workflowVersion is not None and not _SEMVER_PATTERN.match(self.workflowVersion):
             raise ValueError(
                 "workflowVersion must use semantic version format 'major.minor.patch'."
