@@ -132,7 +132,7 @@ export async function getSensitiveAccessInboxSnapshot({
     resources,
     requests,
     notifications,
-    summary: buildInboxSummary(entries, notifications)
+    summary: buildInboxSummary(entries)
   };
 }
 
@@ -205,9 +205,10 @@ function groupNotificationsByTicket(
 }
 
 function buildInboxSummary(
-  entries: SensitiveAccessInboxEntry[],
-  notifications: NotificationDispatchItem[]
+  entries: SensitiveAccessInboxEntry[]
 ): SensitiveAccessInboxSummary {
+  const notifications = entries.flatMap((entry) => entry.notifications);
+
   return {
     ticket_count: entries.length,
     pending_ticket_count: entries.filter((item) => item.ticket.status === "pending").length,

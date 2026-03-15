@@ -481,6 +481,13 @@ a {
   text-decoration: none;
 }
 
+.timeline-filter-button {
+  appearance: none;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
 .inbox-filter-link.active {
   border-color: rgba(118, 92, 47, 0.28);
   background: rgba(244, 197, 92, 0.16);

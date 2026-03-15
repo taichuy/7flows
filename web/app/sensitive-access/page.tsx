@@ -33,10 +33,12 @@ function firstSearchValue(value: string | string[] | undefined) {
 
 function buildInboxHref({
   status,
-  waitingStatus
+  waitingStatus,
+  runId
 }: {
   status?: ApprovalTicketItem["status"] | null;
   waitingStatus?: ApprovalTicketItem["waiting_status"] | null;
+  runId?: string | null;
 }) {
   const params = new URLSearchParams();
   if (status) {
@@ -44,6 +46,9 @@ function buildInboxHref({
   }
   if (waitingStatus) {
     params.set("waiting_status", waitingStatus);
+  }
+  if (runId?.trim()) {
+    params.set("run_id", runId.trim());
   }
   const query = params.size > 0 ? `?${params.toString()}` : "";
   return `/sensitive-access${query}`;
@@ -55,6 +60,7 @@ export default async function SensitiveAccessInboxPage({
   const resolvedSearchParams = (await searchParams) ?? {};
   const requestedStatus = firstSearchValue(resolvedSearchParams.status);
   const requestedWaitingStatus = firstSearchValue(resolvedSearchParams.waiting_status);
+  const requestedRunId = firstSearchValue(resolvedSearchParams.run_id)?.trim();
   const activeStatus = APPROVAL_STATUS_OPTIONS.includes(requestedStatus as ApprovalTicketItem["status"])
     ? (requestedStatus as ApprovalTicketItem["status"])
     : null;
@@ -63,9 +69,11 @@ export default async function SensitiveAccessInboxPage({
   )
     ? (requestedWaitingStatus as ApprovalTicketItem["waiting_status"])
     : null;
+  const activeRunId = requestedRunId ? requestedRunId : null;
   const snapshot = await getSensitiveAccessInboxSnapshot({
     ticketStatus: activeStatus ?? undefined,
-    waitingStatus: activeWaitingStatus ?? undefined
+    waitingStatus: activeWaitingStatus ?? undefined,
+    runId: activeRunId ?? undefined
   });
 
   return (
@@ -123,14 +131,18 @@ export default async function SensitiveAccessInboxPage({
           <div className="summary-strip">
             <Link
               className={`event-chip inbox-filter-link${activeStatus === null ? " active" : ""}`}
-              href={buildInboxHref({ status: null, waitingStatus: activeWaitingStatus })}
+              href={buildInboxHref({
+                status: null,
+                waitingStatus: activeWaitingStatus,
+                runId: activeRunId
+              })}
             >
               全部票据
             </Link>
             {APPROVAL_STATUS_OPTIONS.map((status) => (
               <Link
                 className={`event-chip inbox-filter-link${activeStatus === status ? " active" : ""}`}
-                href={buildInboxHref({ status, waitingStatus: activeWaitingStatus })}
+                href={buildInboxHref({ status, waitingStatus: activeWaitingStatus, runId: activeRunId })}
                 key={status}
               >
                 {status}
@@ -141,20 +153,36 @@ export default async function SensitiveAccessInboxPage({
           <div className="summary-strip">
             <Link
               className={`event-chip inbox-filter-link${activeWaitingStatus === null ? " active" : ""}`}
-              href={buildInboxHref({ status: activeStatus, waitingStatus: null })}
+              href={buildInboxHref({ status: activeStatus, waitingStatus: null, runId: activeRunId })}
             >
               全部恢复状态
             </Link>
             {WAITING_STATUS_OPTIONS.map((status) => (
               <Link
                 className={`event-chip inbox-filter-link${activeWaitingStatus === status ? " active" : ""}`}
-                href={buildInboxHref({ status: activeStatus, waitingStatus: status })}
+                href={buildInboxHref({ status: activeStatus, waitingStatus: status, runId: activeRunId })}
                 key={status}
               >
                 {status}
               </Link>
             ))}
           </div>
+
+          {activeRunId ? (
+            <div className="summary-strip">
+              <span className="event-chip">run slice {activeRunId}</span>
+              <Link
+                className="event-chip inbox-filter-link"
+                href={buildInboxHref({
+                  status: activeStatus,
+                  waitingStatus: activeWaitingStatus,
+                  runId: null
+                })}
+              >
+                clear run slice
+              </Link>
+            </div>
+          ) : null}
         </article>
       </section>
 

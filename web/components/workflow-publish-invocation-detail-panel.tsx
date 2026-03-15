@@ -293,6 +293,7 @@ export function WorkflowPublishInvocationDetailPanel({
           so published-surface debugging no longer has to jump back to the inbox.
         </p>
         <SensitiveAccessTimelineEntryList
+          defaultRunId={run?.id ?? invocation.run_id ?? null}
           entries={sensitiveAccessEntries}
           emptyCopy="当前这次 invocation 没有关联 sensitive access timeline。"
         />
