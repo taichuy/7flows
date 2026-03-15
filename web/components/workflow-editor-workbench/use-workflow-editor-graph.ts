@@ -47,6 +47,9 @@ export function useWorkflowEditorGraph({
   const [persistedWorkflowName, setPersistedWorkflowName] = useState(workflow.name);
   const [workflowVersion, setWorkflowVersion] = useState(workflow.version);
   const [persistedDefinition, setPersistedDefinition] = useState(workflow.definition);
+  const [workflowVariables, setWorkflowVariables] = useState(() =>
+    normalizeWorkflowVariables(workflow.definition.variables)
+  );
   const [workflowPublish, setWorkflowPublish] = useState(() =>
     normalizeWorkflowPublishDraft(workflow.definition.publish)
   );
@@ -60,6 +63,7 @@ export function useWorkflowEditorGraph({
 
   const currentDefinition = reactFlowToWorkflowDefinition(nodes, edges, {
     ...persistedDefinition,
+    variables: workflowVariables,
     publish: workflowPublish
   });
   const isDirty =
@@ -72,6 +76,7 @@ export function useWorkflowEditorGraph({
     setPersistedWorkflowName(workflow.name);
     setWorkflowVersion(workflow.version);
     setPersistedDefinition(workflow.definition);
+    setWorkflowVariables(normalizeWorkflowVariables(workflow.definition.variables));
     setWorkflowPublish(normalizeWorkflowPublishDraft(workflow.definition.publish));
     setNodes(nextGraph.nodes);
     setEdges(nextGraph.edges);
@@ -387,6 +392,21 @@ export function useWorkflowEditorGraph({
     }
   };
 
+  const updateWorkflowVariables = (
+    nextVariables: Array<Record<string, unknown>>,
+    options?: { successMessage?: string }
+  ) => {
+    setWorkflowVariables(normalizeWorkflowVariables(nextVariables));
+
+    if (options?.successMessage) {
+      setMessage(options.successMessage);
+      setMessageTone("success");
+    } else {
+      setMessage(null);
+      setMessageTone("idle");
+    }
+  };
+
   return {
     workflowName,
     setWorkflowName,
@@ -407,6 +427,7 @@ export function useWorkflowEditorGraph({
     nodeConfigText,
     setNodeConfigText,
     currentDefinition,
+    workflowVariables,
     workflowPublish,
     isDirty,
     onConnect,
@@ -422,8 +443,17 @@ export function useWorkflowEditorGraph({
     handleDeleteSelectedNode,
     handleDeleteSelectedEdge,
     updateSelectedEdge,
+    updateWorkflowVariables,
     updateWorkflowPublish
   };
+}
+
+function normalizeWorkflowVariables(value: unknown) {
+  return Array.isArray(value)
+    ? value.filter((item): item is Record<string, unknown> => isRecord(item)).map((item) => ({
+        ...item
+      }))
+    : [];
 }
 
 function normalizeWorkflowPublishDraft(value: unknown) {

@@ -11,6 +11,7 @@ import { WorkflowNodeConfigForm } from "@/components/workflow-node-config-form";
 import { WorkflowNodeIoSchemaForm } from "@/components/workflow-node-config-form/node-io-schema-form";
 import { WorkflowNodeRuntimePolicyForm } from "@/components/workflow-node-config-form/runtime-policy-form";
 import { WorkflowEditorPublishForm } from "@/components/workflow-editor-publish-form";
+import { WorkflowEditorVariableForm } from "@/components/workflow-editor-variable-form";
 
 type WorkflowEditorInspectorProps = {
   selectedNode: Node<WorkflowCanvasNodeData> | null;
@@ -28,7 +29,12 @@ type WorkflowEditorInspectorProps = {
   onNodeRuntimePolicyUpdate: (nextRuntimePolicy: Record<string, unknown> | undefined) => void;
   onNodeRuntimePolicyChange: (value: string) => void;
   workflowVersion: string;
+  workflowVariables: Array<Record<string, unknown>>;
   workflowPublish: Array<Record<string, unknown>>;
+  onWorkflowVariablesChange: (
+    nextVariables: Array<Record<string, unknown>>,
+    options?: { successMessage?: string }
+  ) => void;
   onWorkflowPublishChange: (
     nextPublish: Array<Record<string, unknown>>,
     options?: { successMessage?: string }
@@ -56,7 +62,9 @@ export function WorkflowEditorInspector({
   onNodeRuntimePolicyUpdate,
   onNodeRuntimePolicyChange,
   workflowVersion,
+  workflowVariables,
   workflowPublish,
+  onWorkflowVariablesChange,
   onWorkflowPublishChange,
   onDeleteSelectedNode,
   onUpdateSelectedEdge,
@@ -209,6 +217,11 @@ export function WorkflowEditorInspector({
         onChange={onWorkflowPublishChange}
       />
 
+      <WorkflowEditorVariableForm
+        variables={workflowVariables}
+        onChange={onWorkflowVariablesChange}
+      />
+
       <article className="diagnostic-panel editor-panel">
         <div className="section-heading">
           <div>
@@ -222,6 +235,7 @@ export function WorkflowEditorInspector({
           <li>`tool` / `mcp_query` / `condition` / `router` 已优先改成结构化表单，其余配置仍可走高级 JSON。</li>
           <li>节点 `inputSchema` / `outputSchema` 已有独立 section，避免继续混在通用 config JSON 里。</li>
           <li>`runtimePolicy` 现已补上 execution / retry / join 结构化表单，复杂场景仍可回退到 JSON。</li>
+          <li>workflow `variables` 现已接上结构化表单，方便把全局输入、公共约束和后续发布 schema 对齐到同一处。</li>
           <li>workflow `publish` 现已接上结构化 draft 表单；`workflowVersion` 留空会跟随当前保存版本，正式发布与 API key 治理仍放在独立 publish 页面。</li>
           <li>`tool` 节点会直接消费 `/api/plugins/tools` 的持久化目录，不再只停留在首页绑定面板。</li>
           <li>运行时尚未支持 `loop`，因此当前画布仍不暴露 loop 节点。</li>

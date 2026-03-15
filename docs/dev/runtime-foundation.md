@@ -22,6 +22,7 @@
 - 2026-03-15 AI 协作体系已从“领域 skill 为主”补成“元流程 skill + 领域 skill”双层结构：新增 `development-closure`、`skill-governance`、`backend-testing`，用于收尾闭环、skill 漂移治理与后端测试补齐；后续 AI 开发不应只读单个 review / refactor skill 就跳过验证、文档同步和 Git 收尾。
 - `sensitivity_level` 驱动的统一敏感访问控制、人工审核与通知闭环已确定为架构初期事项；在上一轮 `SensitiveResourceRecord / SensitiveAccessRequestRecord / ApprovalTicketRecord / NotificationDispatchRecord` 事实层与 `/api/sensitive-access/*` API 基础上，本轮继续把它接到 runtime 的 `credential resolve` 路径：当 node/agent 解析 `credential://...` 且命中敏感资源时，运行态现在会真正创建/复用访问请求、在审批未完成时进入 `waiting_tool`，并在审批 `approved / rejected` 后通过既有 `RunResumeScheduler` 回到 `waiting/resume` 主链。当前仍缺 ToolGateway、context read 和 publish export 的真实拦截挂点，以及更完整的通知 worker / inbox 落地。
 - 2026-03-15 最新复核结果：后端 `api/.venv/Scripts/uv.exe run pytest -q` 继续通过（`233 passed`）；除敏感访问控制的 runtime credential gating 外，本轮还补齐了 direct `tool` node 对 normalized `ToolExecutionResult(status="waiting")` 的 suspend / schedule / resume 处理，避免 direct tool node 和 llm_agent tool call 的 waiting 语义继续分叉。changed-files `ruff check` 与 `pytest -q tests/test_runtime_credential_integration.py`（`10 passed`）已通过。后端全量 `ruff check` 的历史风格/整理债务仍未在本轮整体清零，因此稳定性基线继续提升，但还未达到“全仓库零告警”。
+- 2026-03-15 最新前端补强结果：workflow editor 现已把 `definition.variables` 接入 `use-workflow-editor-graph` 的 workflow-level state，并在 inspector 中新增结构化 variables 表单，允许直接维护全局变量的 `name / type / default / description`，不再只能在 definition JSON 里被动保留。`web/pnpm lint` 与 `web/pnpm exec tsc --noEmit` 已通过；当前编辑器完整度继续提升，但敏感访问策略入口和更完整的 schema builder 仍待补齐。
 
 ## 当前代码事实
 
@@ -52,7 +53,7 @@
 ### 4. Workflow 定义、发布与开放接口
 
 - 工作流创建/更新已执行最小结构校验，并自动生成 immutable version snapshot 与 compiled blueprint。
-- `runtimePolicy.execution / retry / join`、节点 `inputSchema / outputSchema`、`llm_agent.config.toolPolicy` 与 workflow `publish` draft 已进入结构化 schema / editor 表达，workflow editor 正在沿统一配置面持续推进，而不是停留在一次性 demo。
+- `runtimePolicy.execution / retry / join`、节点 `inputSchema / outputSchema`、workflow `variables`、`llm_agent.config.toolPolicy` 与 workflow `publish` draft 已进入结构化 schema / editor 表达，workflow editor 正在沿统一配置面持续推进，而不是停留在一次性 demo。
 - 发布治理已落到独立事实层：binding lifecycle、API keys、cache entries、invocation activity、invocation detail 都有对应 route/service/migration。
 - 发布网关已从单体中拆出 binding resolver、cache orchestrator、invocation recorder、response builder、protocol surface 与 binding invoker；native / OpenAI / Anthropic route surface 也已拆到独立 route 文件，发布层边界比前几轮更清晰。
 - 已开放 native / OpenAI / Anthropic 的 published surface，含 sync、async、alias/path 入口，以及基于 runtime delta / 最终结果映射的最小 SSE。
@@ -81,7 +82,7 @@
 - `api/app/services/published_gateway.py`：354 行，service 主体已明显比前期收敛，但 surface orchestration 仍集中在同一服务里，后续可继续按 surface/helper 分层。
 - `web/components/run-diagnostics-execution-sections.tsx`：530 行，execution / evidence 详情层仍偏重，后续适合继续按 payload、metrics、artifact、evidence drilldown 拆层。
 - `web/components/workspace-starter-library.tsx`：440 行，已经比早期收口，但 library 交互、元数据和治理入口仍较集中；后续若再补 diff / governance，应继续拆 section 与 hook。
-- `web/components/workflow-editor-workbench/use-workflow-editor-graph.ts`：已开始同时维护 nodes / edges / workflow publish draft，graph mutation 仍集中但边界清晰；如果后续继续补 variables、schema builder 或更多 workflow-level governance，适合把 publish / variable mutation 再拆成 helper hook。
+- `web/components/workflow-editor-workbench/use-workflow-editor-graph.ts`：现已同时维护 nodes / edges / workflow variables / workflow publish draft，graph mutation 仍集中但边界清晰；如果后续继续补 schema builder、sensitive access policy 或更多 workflow-level governance，适合把 publish / variable mutation 再拆成 helper hook。
 - `web/components/workflow-editor-publish-form.tsx` 已在 2026-03-15 拆出 publish endpoint card、shared helper 与本地校验层；当前不再是单文件阻塞项，但后续若补 protocol-specific advanced options，可继续沿 section/helper 分层扩展。
 - `web/components/workflow-node-config-form/runtime-policy-form.tsx`：333 行，execution section 已拆到 `runtime-policy-execution-section.tsx` 与 `runtime-policy-helpers.ts`，父表单仍应保持 orchestrator 角色，避免 runtime 配置继续回涨为单体。
 - `web/components/credential-store-panel.tsx`：本轮已修复前端全量 lint 阻塞点；当前不再是稳定性阻塞项，但后续仍可顺手收口内联样式与局部状态逻辑。
@@ -106,7 +107,7 @@
 5. **P1：继续治理 run diagnostics 与 publish streaming 详情层**
    - 下一阶段可优先拆 `web/components/run-diagnostics-execution-sections.tsx` 与 `api/app/services/published_protocol_streaming.py`，并为 approval timeline、security decision summary、protocol-specific SSE helper 预留落点。
 6. **P1：继续提高工作流编辑器完整度**
-   - 在现有 `runtimePolicy.execution / retry / join`、节点 contract、workflow `publish` draft 与 `llm_agent.toolPolicy` 基础上，继续补敏感访问策略入口、variables/schema builder，以及更清晰的 advanced JSON / structured form 边界。
+   - 在现有 `runtimePolicy.execution / retry / join`、节点 contract、workflow `variables`、workflow `publish` draft 与 `llm_agent.toolPolicy` 基础上，继续补敏感访问策略入口、schema builder，以及更清晰的 advanced JSON / structured form 边界。
 7. **P2：先把 `organization / workspace / member / role / publish governance` 写成最小领域模型设计稿**
    - 在不提前引入重 IAM 或复杂多组织计费系统的前提下，先收敛 Team / Enterprise 最小治理模型与 API 预留，明确哪些属于 Community kernel、哪些属于商业治理能力，避免后续实现、README 和对外叙事再次混线。
 8. **P2：继续收敛 Community License 的执行边界**
