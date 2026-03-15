@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.routes.sensitive_access_http import build_sensitive_access_blocking_response
 from app.core.database import get_db
 from app.models.workflow import Workflow, WorkflowPublishedEndpoint
 from app.schemas.workflow_publish import (
@@ -9,9 +10,13 @@ from app.schemas.workflow_publish import (
     PublishedEndpointCacheInventorySummary,
 )
 from app.services.published_cache import PublishedEndpointCacheService
+from app.services.published_cache_inventory_access import (
+    PublishedCacheInventoryAccessService,
+)
 
 router = APIRouter(prefix="/workflows", tags=["published-endpoint-cache"])
 published_cache_service = PublishedEndpointCacheService()
+published_cache_inventory_access_service = PublishedCacheInventoryAccessService()
 
 
 def _serialize_cache_inventory_summary(summary) -> PublishedEndpointCacheInventorySummary:
@@ -50,6 +55,8 @@ def list_published_endpoint_cache_entries(
     workflow_id: str,
     binding_id: str,
     limit: int = Query(default=10, ge=1, le=50),
+    requester_id: str = Query(default="publish-cache-inventory", min_length=1, max_length=128),
+    purpose_text: str | None = Query(default=None, min_length=1, max_length=512),
     db: Session = Depends(get_db),
 ) -> PublishedEndpointCacheInventoryResponse:
     workflow = db.get(Workflow, workflow_id)
@@ -62,6 +69,21 @@ def list_published_endpoint_cache_entries(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Published endpoint binding not found.",
         )
+
+    sensitive_access_response = build_sensitive_access_blocking_response(
+        published_cache_inventory_access_service.ensure_access(
+            db,
+            binding=binding,
+            requester_id=requester_id,
+            purpose_text=purpose_text,
+        ),
+        approval_detail=(
+            "Published cache inventory requires approval before the payload can be viewed."
+        ),
+        deny_detail="Published cache inventory is denied by the sensitive access policy.",
+    )
+    if sensitive_access_response is not None:
+        return sensitive_access_response
 
     summary = published_cache_service.build_binding_summary(db, binding=binding)
     items = published_cache_service.list_inventory_items(

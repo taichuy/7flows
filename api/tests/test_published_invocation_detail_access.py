@@ -306,3 +306,106 @@ def test_get_published_invocation_detail_allows_moderate_sensitive_runs_without_
     ).one()
     assert access_request_record.decision == "allow"
     assert access_request_record.reason_code == "allow_human_moderate_runtime_use"
+
+
+def test_list_published_cache_inventory_requires_approval_for_high_sensitive_runs(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    workflow_id, binding, run, node_run, _invocation = _create_published_invocation_fixture(
+        client,
+        sqlite_session,
+    )
+    _seed_run_sensitive_access(
+        sqlite_session,
+        run_id=run.id,
+        node_run_id=node_run.id,
+        sensitivity_level="L3",
+    )
+
+    inventory_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/cache-entries",
+        params={"requester_id": "ops-reviewer"},
+    )
+
+    assert inventory_response.status_code == 409
+    inventory_body = inventory_response.json()
+    assert inventory_body["detail"] == (
+        "Published cache inventory requires approval before the payload can be viewed."
+    )
+    assert inventory_body["resource"]["source"] == "workspace_resource"
+    assert inventory_body["resource"]["sensitivity_level"] == "L3"
+    assert inventory_body["resource"]["metadata"]["resource_kind"] == "published_cache_inventory"
+    assert inventory_body["resource"]["metadata"]["binding_id"] == binding["id"]
+    assert inventory_body["resource"]["metadata"]["run_ids"] == [run.id]
+    assert inventory_body["access_request"]["requester_id"] == "ops-reviewer"
+    assert inventory_body["access_request"]["decision"] == "require_approval"
+    assert inventory_body["approval_ticket"]["status"] == "pending"
+
+    approval_response = client.post(
+        f"/api/sensitive-access/approval-tickets/{inventory_body['approval_ticket']['id']}/decision",
+        json={"status": "approved", "approved_by": "ops-manager"},
+    )
+    assert approval_response.status_code == 200
+
+    approved_inventory_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/cache-entries",
+        params={"requester_id": "ops-reviewer"},
+    )
+
+    assert approved_inventory_response.status_code == 200
+    approved_body = approved_inventory_response.json()
+    assert approved_body["summary"]["enabled"] is True
+    assert approved_body["summary"]["active_entry_count"] == 1
+    assert approved_body["items"][0]["response_preview"]["sample"]["secret"] == "masked-later"
+
+
+def test_list_published_cache_inventory_allows_moderate_sensitive_runs_without_ticket(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    workflow_id, binding, run, node_run, _invocation = _create_published_invocation_fixture(
+        client,
+        sqlite_session,
+    )
+    _seed_run_sensitive_access(
+        sqlite_session,
+        run_id=run.id,
+        node_run_id=node_run.id,
+        sensitivity_level="L2",
+    )
+
+    inventory_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/cache-entries",
+        params={"requester_id": "human-reviewer"},
+    )
+
+    assert inventory_response.status_code == 200
+    inventory_body = inventory_response.json()
+    assert inventory_body["summary"]["active_entry_count"] == 1
+    assert inventory_body["items"][0]["response_preview"]["sample"]["secret"] == "masked-later"
+
+    resource_record = sqlite_session.scalars(
+        select(SensitiveResourceRecord).where(
+            SensitiveResourceRecord.source == "workspace_resource"
+        )
+    ).all()
+    inventory_resource = next(
+        record
+        for record in resource_record
+        if (record.metadata_payload or {}).get("resource_kind") == "published_cache_inventory"
+        and (record.metadata_payload or {}).get("binding_id") == binding["id"]
+    )
+    assert inventory_resource.metadata_payload["run_ids"] == [run.id]
+
+    access_request_record = sqlite_session.scalars(
+        select(SensitiveAccessRequestRecord).where(
+            SensitiveAccessRequestRecord.requester_type == "human",
+            SensitiveAccessRequestRecord.requester_id == "human-reviewer",
+            SensitiveAccessRequestRecord.resource_id == inventory_resource.id,
+            SensitiveAccessRequestRecord.action_type == "read",
+        )
+    ).one()
+    assert access_request_record.run_id is None
+    assert access_request_record.decision == "allow"
+    assert access_request_record.reason_code == "allow_human_moderate_runtime_use"
