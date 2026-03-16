@@ -14,9 +14,29 @@ type CallbackWaitingExplanationInput = {
 };
 
 export type CallbackWaitingRecommendedAction = {
+  kind:
+    | "open_inbox"
+    | "inspect_termination"
+    | "cleanup_expired_tickets"
+    | "monitor_callback"
+    | "manual_resume"
+    | "watch_scheduled_resume";
   label: string;
   detail: string;
+  ctaLabel?: string;
 };
+
+function countPendingApprovals(entries: SensitiveAccessTimelineEntry[]): number {
+  return entries.filter((entry) => entry.approval_ticket?.status === "pending").length;
+}
+
+function countFailedNotifications(entries: SensitiveAccessTimelineEntry[]): number {
+  return entries.reduce((count, entry) => {
+    return (
+      count + entry.notifications.filter((notification) => notification.status === "failed").length
+    );
+  }, 0);
+}
 
 function formatCountLabel(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`;
@@ -177,9 +197,7 @@ export function getCallbackWaitingHeadline({
   callbackTickets = [],
   sensitiveAccessEntries = []
 }: CallbackWaitingExplanationInput): string | null {
-  const pendingApprovalCount = sensitiveAccessEntries.filter(
-    (entry) => entry.approval_ticket?.status === "pending"
-  ).length;
+  const pendingApprovalCount = countPendingApprovals(sensitiveAccessEntries);
   const pendingTicketCount = callbackTickets.filter((ticket) => ticket.status === "pending").length;
 
   if (pendingApprovalCount > 0 && pendingTicketCount > 0) {
@@ -218,11 +236,13 @@ export function listCallbackWaitingChips({
     chips.push(`tickets ${callbackTickets.length}`);
   }
 
-  const pendingApprovalCount = sensitiveAccessEntries.filter(
-    (entry) => entry.approval_ticket?.status === "pending"
-  ).length;
+  const pendingApprovalCount = countPendingApprovals(sensitiveAccessEntries);
+  const failedNotificationCount = countFailedNotifications(sensitiveAccessEntries);
   if (pendingApprovalCount > 0) {
     chips.push(`approval ${pendingApprovalCount} pending`);
+  }
+  if (failedNotificationCount > 0) {
+    chips.push(`notify failed ${failedNotificationCount}`);
   }
 
   if (lifecycle) {
@@ -254,40 +274,55 @@ export function getCallbackWaitingRecommendedAction({
   sensitiveAccessEntries = [],
   scheduledResumeDelaySeconds
 }: CallbackWaitingExplanationInput): CallbackWaitingRecommendedAction | null {
-  const pendingApprovalCount = sensitiveAccessEntries.filter(
-    (entry) => entry.approval_ticket?.status === "pending"
-  ).length;
+  const pendingApprovalCount = countPendingApprovals(sensitiveAccessEntries);
+  const failedNotificationCount = countFailedNotifications(sensitiveAccessEntries);
   const expiredTicketCount = lifecycle?.expired_ticket_count ?? 0;
   const lateCallbackCount = lifecycle?.late_callback_count ?? 0;
   const pendingTicketCount = callbackTickets.filter((ticket) => ticket.status === "pending").length;
 
   if (pendingApprovalCount > 0) {
+    if (failedNotificationCount > 0) {
+      return {
+        kind: "open_inbox",
+        label: "Open inbox slice and retry notification",
+        detail: `${formatCountLabel(pendingApprovalCount, "approval")} is still pending and ${formatCountLabel(failedNotificationCount, "failed notification")} suggests the approver may never have seen the request yet. Retry or retarget the latest notification before forcing resume.`,
+        ctaLabel: "Open approval inbox"
+      };
+    }
+
     return {
+      kind: "open_inbox",
       label: "Open inbox slice first",
-      detail: `${formatCountLabel(pendingApprovalCount, "approval")} is still pending, so resume should start from approval handling instead of retrying the run.`
+      detail: `${formatCountLabel(pendingApprovalCount, "approval")} is still pending, so resume should start from approval handling instead of retrying the run.`,
+      ctaLabel: "Open approval inbox"
     };
   }
 
   if (lifecycle?.terminated) {
     return {
+      kind: "inspect_termination",
       label: "Inspect termination before retrying",
       detail: formatOptionalParts([
         "Callback waiting has already terminated",
         lifecycle.termination_reason,
         "manual resume should wait until the termination reason is understood"
-      ]) ?? "Callback waiting has already terminated."
+      ]) ?? "Callback waiting has already terminated.",
+      ctaLabel: "Review blocker timeline"
     };
   }
 
   if (expiredTicketCount > 0) {
     return {
+      kind: "cleanup_expired_tickets",
       label: "Cleanup expired tickets first",
-      detail: `${formatCountLabel(expiredTicketCount, "expired callback ticket")} is blocking a clean resume path, so cleanup-and-resume is the safest next move.`
+      detail: `${formatCountLabel(expiredTicketCount, "expired callback ticket")} is blocking a clean resume path, so cleanup-and-resume is the safest next move.`,
+      ctaLabel: "Cleanup expired tickets"
     };
   }
 
   if (pendingTicketCount > 0) {
     return {
+      kind: "monitor_callback",
       label: "Wait for callback result",
       detail: `${formatCountLabel(pendingTicketCount, "callback ticket")} is still pending, so the main action is to monitor the ticket or the external tool rather than forcing another resume.`
     };
@@ -295,16 +330,19 @@ export function getCallbackWaitingRecommendedAction({
 
   if (lateCallbackCount > 0 || callbackTickets.length > 0) {
     return {
+      kind: "manual_resume",
       label: "Try manual resume now",
       detail:
         lateCallbackCount > 0
           ? `${formatCountLabel(lateCallbackCount, "late callback")} has already arrived, so an operator resume can pull the run forward without waiting for the next scheduler tick.`
-          : "Callback ticket history already exists and no approval is still pending, so a manual resume is the fastest way to verify whether the run can continue immediately."
+          : "Callback ticket history already exists and no approval is still pending, so a manual resume is the fastest way to verify whether the run can continue immediately.",
+      ctaLabel: "Try manual resume"
     };
   }
 
   if (scheduledResumeDelaySeconds) {
     return {
+      kind: "watch_scheduled_resume",
       label: "Watch the scheduled resume",
       detail: `The runtime already scheduled a resume in ${scheduledResumeDelaySeconds}s, so intervention is optional unless the operator wants to bypass the backoff.`
     };

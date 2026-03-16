@@ -71,6 +71,12 @@ export function CallbackWaitingSummaryCard({
   });
   const terminationAt = formatTimestamp(lifecycle?.terminated_at);
   const hasTermination = Boolean(lifecycle?.terminated);
+  const preferredInlineAction =
+    recommendedAction?.kind === "manual_resume"
+      ? "resume"
+      : recommendedAction?.kind === "cleanup_expired_tickets"
+        ? "cleanup"
+        : null;
   const hasContent =
     headline ||
     approvalSummary ||
@@ -119,6 +125,20 @@ export function CallbackWaitingSummaryCard({
           Recommended next action: <strong>{recommendedAction.label}.</strong> {recommendedAction.detail}
         </p>
       ) : null}
+      {recommendedAction?.kind === "open_inbox" && inboxHref ? (
+        <div className="event-type-strip">
+          <Link className="event-chip inbox-filter-link" href={inboxHref}>
+            {recommendedAction.ctaLabel ?? "Open inbox slice"}
+          </Link>
+        </div>
+      ) : null}
+      {recommendedAction?.kind === "inspect_termination" && inboxHref ? (
+        <div className="event-type-strip">
+          <Link className="event-chip inbox-filter-link" href={inboxHref}>
+            {recommendedAction.ctaLabel ?? "Review blocker timeline"}
+          </Link>
+        </div>
+      ) : null}
       {hasTermination ? (
         <p className="run-error-message">
           callback waiting terminated
@@ -130,6 +150,7 @@ export function CallbackWaitingSummaryCard({
         allowManualResume={!hasTermination}
         compact
         nodeRunId={nodeRunId}
+        preferredAction={preferredInlineAction}
         runId={runId ?? null}
       />
     </div>
