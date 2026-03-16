@@ -9,6 +9,7 @@ from app.api.routes import runs as run_routes
 from app.models.run import Run, RunCallbackTicket, RunEvent
 from app.models.workflow import Workflow, WorkflowVersion
 from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
+from app.services.compiled_blueprints import CompiledBlueprintService
 from app.services.run_resume_scheduler import RunResumeScheduler
 from app.services.runtime import RuntimeService
 
@@ -65,6 +66,144 @@ def test_get_run_execution_view_includes_execution_policy(
     assert nodes_by_id["trigger"]["execution_source"] == "default"
     assert nodes_by_id["mock_tool"]["execution_class"] == "inline"
     assert nodes_by_id["mock_tool"]["execution_source"] == "default"
+
+
+def test_get_run_execution_view_summarizes_execution_fallback_signals(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-execution-view-fallback",
+        name="Execution View Fallback",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "tool",
+                    "type": "tool",
+                    "name": "Tool",
+                    "config": {"mock_output": {"answer": "done"}},
+                    "runtimePolicy": {"execution": {"class": "microvm", "profile": "strict"}},
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool"},
+                {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "output"},
+            ],
+        },
+    )
+    workflow_version = WorkflowVersion(
+        id="wf-execution-view-fallback-v1",
+        workflow_id=workflow.id,
+        version=workflow.version,
+        definition=workflow.definition,
+        created_at=datetime.now(UTC),
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.add(workflow_version)
+    CompiledBlueprintService().ensure_for_workflow_version(sqlite_session, workflow_version)
+    sqlite_session.commit()
+
+    response = client.post(
+        f"/api/workflows/{workflow.id}/runs",
+        json={"input_payload": {"message": "fallback summary"}},
+    )
+    assert response.status_code == 201
+    run_id = response.json()["id"]
+
+    execution_view_response = client.get(f"/api/runs/{run_id}/execution-view")
+
+    assert execution_view_response.status_code == 200
+    body = execution_view_response.json()
+    assert body["summary"]["execution_dispatched_node_count"] == 0
+    assert body["summary"]["execution_fallback_node_count"] == 1
+    assert body["summary"]["execution_blocked_node_count"] == 0
+    assert body["summary"]["execution_unavailable_node_count"] == 0
+    assert body["summary"]["execution_requested_class_counts"] == {"microvm": 1}
+    assert body["summary"]["execution_effective_class_counts"] == {"inline": 1}
+    assert body["summary"]["execution_executor_ref_counts"] == {
+        "runtime:inline-fallback:microvm": 1
+    }
+
+    node = next(item for item in body["nodes"] if item["node_id"] == "tool")
+    assert node["execution_class"] == "microvm"
+    assert node["effective_execution_class"] == "inline"
+    assert node["execution_executor_ref"] == "runtime:inline-fallback:microvm"
+    assert node["execution_dispatched_count"] == 0
+    assert node["execution_fallback_count"] == 1
+    assert node["execution_blocked_count"] == 0
+    assert node["execution_unavailable_count"] == 0
+    assert node["execution_fallback_reason"] == "execution_class_not_implemented_for_node_type"
+
+
+def test_get_run_execution_view_summarizes_unavailable_sandbox_execution(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-execution-view-sandbox",
+        name="Execution View Sandbox",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "sandbox",
+                    "type": "sandbox_code",
+                    "name": "Sandbox",
+                    "config": {"language": "python", "code": 'result = {"answer": "blocked"}'},
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "sandbox"},
+                {"id": "e2", "sourceNodeId": "sandbox", "targetNodeId": "output"},
+            ],
+        },
+    )
+    workflow_version = WorkflowVersion(
+        id="wf-execution-view-sandbox-v1",
+        workflow_id=workflow.id,
+        version=workflow.version,
+        definition=workflow.definition,
+        created_at=datetime.now(UTC),
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.add(workflow_version)
+    CompiledBlueprintService().ensure_for_workflow_version(sqlite_session, workflow_version)
+    sqlite_session.commit()
+
+    response = client.post(
+        f"/api/workflows/{workflow.id}/runs",
+        json={"input_payload": {"message": "sandbox summary"}},
+    )
+    assert response.status_code == 422
+
+    persisted_run = run_routes.runtime_service.list_workflow_runs(sqlite_session, workflow.id)[0]
+    execution_view_response = client.get(f"/api/runs/{persisted_run.id}/execution-view")
+
+    assert execution_view_response.status_code == 200
+    body = execution_view_response.json()
+    assert body["summary"]["execution_dispatched_node_count"] == 0
+    assert body["summary"]["execution_fallback_node_count"] == 0
+    assert body["summary"]["execution_blocked_node_count"] == 0
+    assert body["summary"]["execution_unavailable_node_count"] == 1
+    assert body["summary"]["execution_requested_class_counts"] == {"sandbox": 1}
+    assert body["summary"]["execution_effective_class_counts"] == {}
+    assert body["summary"]["execution_executor_ref_counts"] == {}
+
+    node = next(item for item in body["nodes"] if item["node_id"] == "sandbox")
+    assert node["execution_class"] == "sandbox"
+    assert node["effective_execution_class"] is None
+    assert node["execution_dispatched_count"] == 0
+    assert node["execution_fallback_count"] == 0
+    assert node["execution_blocked_count"] == 0
+    assert node["execution_unavailable_count"] == 1
+    assert "sandbox backend" in (node["execution_blocking_reason"] or "")
 
 
 def test_get_run_supports_summary_mode_without_events(

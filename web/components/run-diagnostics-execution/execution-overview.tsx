@@ -30,6 +30,25 @@ export function RunDiagnosticsExecutionOverview({
         <SummaryCard label="Callback tickets" value={executionView.summary.callback_ticket_count} />
       </div>
 
+      <div className="summary-strip">
+        <SummaryCard
+          label="Execution dispatched"
+          value={executionView.summary.execution_dispatched_node_count}
+        />
+        <SummaryCard
+          label="Execution fallback"
+          value={executionView.summary.execution_fallback_node_count}
+        />
+        <SummaryCard
+          label="Execution blocked"
+          value={executionView.summary.execution_blocked_node_count}
+        />
+        <SummaryCard
+          label="Execution unavailable"
+          value={executionView.summary.execution_unavailable_node_count}
+        />
+      </div>
+
       {executionView.summary.sensitive_access_request_count > 0 ? (
         <div className="summary-strip">
           <SummaryCard
@@ -62,6 +81,27 @@ export function RunDiagnosticsExecutionOverview({
         emptyCopy="No callback tickets recorded for this run."
         metrics={executionView.summary.callback_ticket_status_counts}
         prefix="ticket"
+      />
+
+      <MetricChipRow
+        title="Requested execution classes"
+        emptyCopy="No execution dispatch signals were recorded for this run."
+        metrics={executionView.summary.execution_requested_class_counts}
+        prefix="requested-exec"
+      />
+
+      <MetricChipRow
+        title="Effective execution classes"
+        emptyCopy="No effective execution classes were observed for this run."
+        metrics={executionView.summary.execution_effective_class_counts}
+        prefix="effective-exec"
+      />
+
+      <MetricChipRow
+        title="Execution executors"
+        emptyCopy="No execution executor refs were recorded for this run."
+        metrics={executionView.summary.execution_executor_ref_counts}
+        prefix="executor-ref"
       />
 
       {executionView.summary.sensitive_access_request_count > 0 ? (

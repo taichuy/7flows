@@ -120,6 +120,14 @@ export type RunExecutionNodeItem = {
   execution_timeout_ms?: number | null;
   execution_network_policy?: string | null;
   execution_filesystem_policy?: string | null;
+  execution_dispatched_count: number;
+  execution_fallback_count: number;
+  execution_blocked_count: number;
+  execution_unavailable_count: number;
+  effective_execution_class?: string | null;
+  execution_executor_ref?: string | null;
+  execution_blocking_reason?: string | null;
+  execution_fallback_reason?: string | null;
   retry_count: number;
   waiting_reason?: string | null;
   error_message?: string | null;
@@ -147,6 +155,10 @@ export type RunExecutionView = {
     node_run_count: number;
     waiting_node_count: number;
     errored_node_count: number;
+    execution_dispatched_node_count: number;
+    execution_fallback_node_count: number;
+    execution_blocked_node_count: number;
+    execution_unavailable_node_count: number;
     artifact_count: number;
     tool_call_count: number;
     ai_call_count: number;
@@ -158,6 +170,9 @@ export type RunExecutionView = {
     artifact_kind_counts: Record<string, number>;
     tool_status_counts: Record<string, number>;
     ai_role_counts: Record<string, number>;
+    execution_requested_class_counts: Record<string, number>;
+    execution_effective_class_counts: Record<string, number>;
+    execution_executor_ref_counts: Record<string, number>;
     callback_ticket_status_counts: Record<string, number>;
     sensitive_access_decision_counts: Record<string, number>;
     sensitive_access_approval_status_counts: Record<string, number>;

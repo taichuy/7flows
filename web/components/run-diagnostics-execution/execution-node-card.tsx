@@ -56,6 +56,12 @@ export function ExecutionNodeCard({ node, runId }: { node: RunExecutionNodeItem;
       <div className="event-type-strip">
         <span className="event-chip">exec {node.execution_class}</span>
         <span className="event-chip">source {node.execution_source}</span>
+        {node.effective_execution_class ? (
+          <span className="event-chip">effective {node.effective_execution_class}</span>
+        ) : null}
+        {node.execution_executor_ref ? (
+          <span className="event-chip">executor {node.execution_executor_ref}</span>
+        ) : null}
         {node.execution_profile ? (
           <span className="event-chip">profile {node.execution_profile}</span>
         ) : null}
@@ -69,6 +75,21 @@ export function ExecutionNodeCard({ node, runId }: { node: RunExecutionNodeItem;
           <span className="event-chip">fs {node.execution_filesystem_policy}</span>
         ) : null}
       </div>
+
+      <div className="event-type-strip">
+        <span className="event-chip">dispatch {node.execution_dispatched_count}</span>
+        <span className="event-chip">fallback {node.execution_fallback_count}</span>
+        <span className="event-chip">blocked {node.execution_blocked_count}</span>
+        <span className="event-chip">unavailable {node.execution_unavailable_count}</span>
+      </div>
+
+      {node.execution_fallback_reason ? (
+        <p className="activity-copy">Execution fallback: {node.execution_fallback_reason}</p>
+      ) : null}
+
+      {node.execution_blocking_reason ? (
+        <p className="run-error-message">Execution blocked: {node.execution_blocking_reason}</p>
+      ) : null}
 
       <div className="event-type-strip">
         <span className="event-chip">events {node.event_count}</span>

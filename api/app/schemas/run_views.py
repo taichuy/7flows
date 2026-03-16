@@ -41,6 +41,10 @@ class RunExecutionSummary(BaseModel):
     node_run_count: int = 0
     waiting_node_count: int = 0
     errored_node_count: int = 0
+    execution_dispatched_node_count: int = 0
+    execution_fallback_node_count: int = 0
+    execution_blocked_node_count: int = 0
+    execution_unavailable_node_count: int = 0
     artifact_count: int = 0
     tool_call_count: int = 0
     ai_call_count: int = 0
@@ -52,6 +56,9 @@ class RunExecutionSummary(BaseModel):
     artifact_kind_counts: dict[str, int] = Field(default_factory=dict)
     tool_status_counts: dict[str, int] = Field(default_factory=dict)
     ai_role_counts: dict[str, int] = Field(default_factory=dict)
+    execution_requested_class_counts: dict[str, int] = Field(default_factory=dict)
+    execution_effective_class_counts: dict[str, int] = Field(default_factory=dict)
+    execution_executor_ref_counts: dict[str, int] = Field(default_factory=dict)
     callback_ticket_status_counts: dict[str, int] = Field(default_factory=dict)
     sensitive_access_decision_counts: dict[str, int] = Field(default_factory=dict)
     sensitive_access_approval_status_counts: dict[str, int] = Field(default_factory=dict)
@@ -96,6 +103,14 @@ class RunExecutionNodeItem(BaseModel):
     execution_timeout_ms: int | None = None
     execution_network_policy: str | None = None
     execution_filesystem_policy: str | None = None
+    execution_dispatched_count: int = 0
+    execution_fallback_count: int = 0
+    execution_blocked_count: int = 0
+    execution_unavailable_count: int = 0
+    effective_execution_class: str | None = None
+    execution_executor_ref: str | None = None
+    execution_blocking_reason: str | None = None
+    execution_fallback_reason: str | None = None
     retry_count: int = 0
     waiting_reason: str | None = None
     error_message: str | None = None
