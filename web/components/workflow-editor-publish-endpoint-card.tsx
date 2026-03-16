@@ -14,6 +14,7 @@ type WorkflowEditorPublishEndpointCardProps = {
   endpointIndex: number;
   workflowVersion: string;
   validationMessages: string[];
+  highlighted?: boolean;
   onUpdateEndpoint: (
     index: number,
     updater: (current: Record<string, unknown>) => Record<string, unknown>
@@ -31,6 +32,7 @@ export function WorkflowEditorPublishEndpointCard({
   endpointIndex,
   workflowVersion,
   validationMessages,
+  highlighted = false,
   onUpdateEndpoint,
   onDeleteEndpoint,
   onApplySchemaField
@@ -40,7 +42,7 @@ export function WorkflowEditorPublishEndpointCard({
     : `tracks current ${workflowVersion}`;
 
   return (
-    <section className="entry-card compact-card">
+    <section className={`entry-card compact-card ${highlighted ? "validation-focus-ring" : ""}`.trim()}>
       <div className="binding-card-header">
         <div>
           <p className="status-meta">Endpoint draft</p>

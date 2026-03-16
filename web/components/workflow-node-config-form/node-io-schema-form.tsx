@@ -11,6 +11,7 @@ type WorkflowNodeIoSchemaFormProps = {
   node: Node<WorkflowCanvasNodeData>;
   onInputSchemaChange: (nextSchema: Record<string, unknown> | undefined) => void;
   onOutputSchemaChange: (nextSchema: Record<string, unknown> | undefined) => void;
+  highlighted?: boolean;
 };
 
 const EMPTY_OBJECT_SCHEMA = JSON.stringify(
@@ -26,7 +27,8 @@ const EMPTY_OBJECT_SCHEMA = JSON.stringify(
 export function WorkflowNodeIoSchemaForm({
   node,
   onInputSchemaChange,
-  onOutputSchemaChange
+  onOutputSchemaChange,
+  highlighted = false
 }: WorkflowNodeIoSchemaFormProps) {
   const [inputSchemaText, setInputSchemaText] = useState(stringifySchema(node.data.inputSchema));
   const [outputSchemaText, setOutputSchemaText] = useState(stringifySchema(node.data.outputSchema));
@@ -44,7 +46,7 @@ export function WorkflowNodeIoSchemaForm({
   const outputSchemaFieldsCount = countSchemaFields(node.data.outputSchema);
 
   return (
-    <div className="binding-form">
+    <div className={`binding-form ${highlighted ? "validation-focus-ring" : ""}`.trim()}>
       <div className="section-heading">
         <div>
           <p className="eyebrow">Node contract</p>

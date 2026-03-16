@@ -5,6 +5,8 @@ export type WorkflowToolReferenceValidationIssue = {
   nodeId: string;
   nodeName: string;
   message: string;
+  path: string;
+  field: string;
 };
 
 export function buildWorkflowToolReferenceValidationIssues(
@@ -18,7 +20,7 @@ export function buildWorkflowToolReferenceValidationIssues(
   const toolIndex = new Map(tools.map((tool) => [tool.id, tool]));
   const issues: WorkflowToolReferenceValidationIssue[] = [];
 
-  definition.nodes.forEach((node) => {
+  definition.nodes.forEach((node, nodeIndex) => {
     const nodeId = typeof node?.id === "string" && node.id.trim() ? node.id.trim() : "unknown-node";
     const nodeName =
       typeof node?.name === "string" && node.name.trim() ? node.name.trim() : nodeId;
@@ -28,12 +30,12 @@ export function buildWorkflowToolReferenceValidationIssues(
     }
 
     if (node?.type === "tool") {
-      issues.push(...buildToolNodeIssues({ nodeId, nodeName, config, toolIndex }));
+      issues.push(...buildToolNodeIssues({ nodeId, nodeName, nodeIndex, config, toolIndex }));
       return;
     }
 
     if (node?.type === "llm_agent") {
-      issues.push(...buildAgentToolPolicyIssues({ nodeId, nodeName, config, toolIndex }));
+      issues.push(...buildAgentToolPolicyIssues({ nodeId, nodeName, nodeIndex, config, toolIndex }));
     }
   });
 
@@ -49,11 +51,13 @@ export function buildWorkflowToolReferenceValidationIssues(
 function buildToolNodeIssues({
   nodeId,
   nodeName,
+  nodeIndex,
   config,
   toolIndex
 }: {
   nodeId: string;
   nodeName: string;
+  nodeIndex: number;
   config: Record<string, unknown>;
   toolIndex: Map<string, PluginToolRegistryItem>;
 }): WorkflowToolReferenceValidationIssue[] {
@@ -70,7 +74,9 @@ function buildToolNodeIssues({
       {
         nodeId,
         nodeName,
-        message: `Tool 节点 ${nodeName} (${nodeId}) 引用了当前目录中不存在的工具 ${toolId}。`
+        message: `Tool 节点 ${nodeName} (${nodeId}) 引用了当前目录中不存在的工具 ${toolId}。`,
+        path: `nodes.${nodeIndex}.config.tool.toolId`,
+        field: "toolId"
       }
     ];
   }
@@ -80,7 +86,9 @@ function buildToolNodeIssues({
       {
         nodeId,
         nodeName,
-        message: `Tool 节点 ${nodeName} (${nodeId}) 声明的 ecosystem ${ecosystem} 与目录工具 ${toolId} 的 ecosystem ${tool.ecosystem} 不一致。`
+        message: `Tool 节点 ${nodeName} (${nodeId}) 声明的 ecosystem ${ecosystem} 与目录工具 ${toolId} 的 ecosystem ${tool.ecosystem} 不一致。`,
+        path: `nodes.${nodeIndex}.config.tool.ecosystem`,
+        field: "ecosystem"
       }
     ];
   }
@@ -91,11 +99,13 @@ function buildToolNodeIssues({
 function buildAgentToolPolicyIssues({
   nodeId,
   nodeName,
+  nodeIndex,
   config,
   toolIndex
 }: {
   nodeId: string;
   nodeName: string;
+  nodeIndex: number;
   config: Record<string, unknown>;
   toolIndex: Map<string, PluginToolRegistryItem>;
 }): WorkflowToolReferenceValidationIssue[] {
@@ -122,7 +132,9 @@ function buildAgentToolPolicyIssues({
       nodeName,
       message: `LLM Agent 节点 ${nodeName} (${nodeId}) 的 toolPolicy.allowedToolIds 引用了当前目录中不存在的工具：${missingToolIds.join(
         ", "
-      )}。`
+      )}。`,
+      path: `nodes.${nodeIndex}.config.toolPolicy.allowedToolIds`,
+      field: "allowedToolIds"
     }
   ];
 }

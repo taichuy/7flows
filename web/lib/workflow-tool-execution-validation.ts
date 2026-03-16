@@ -8,6 +8,8 @@ export type WorkflowToolExecutionValidationIssue = {
   nodeId: string;
   nodeName: string;
   message: string;
+  path: string;
+  field: string;
 };
 
 export function buildWorkflowToolExecutionValidationIssues(
@@ -24,7 +26,7 @@ export function buildWorkflowToolExecutionValidationIssues(
   const visibleAdapters = adapters.filter((adapter) => isAdapterVisible(adapter, workspaceId));
   const issues: WorkflowToolExecutionValidationIssue[] = [];
 
-  definition.nodes.forEach((node) => {
+  definition.nodes.forEach((node, nodeIndex) => {
     const nodeId = typeof node?.id === "string" && node.id.trim() ? node.id.trim() : "unknown-node";
     const nodeName =
       typeof node?.name === "string" && node.name.trim() ? node.name.trim() : nodeId;
@@ -39,6 +41,7 @@ export function buildWorkflowToolExecutionValidationIssues(
           node,
           nodeId,
           nodeName,
+          nodeIndex,
           config,
           toolIndex,
           adapters: visibleAdapters
@@ -52,6 +55,7 @@ export function buildWorkflowToolExecutionValidationIssues(
         ...buildAgentExecutionIssues({
           nodeId,
           nodeName,
+          nodeIndex,
           config,
           toolIndex,
           adapters: visibleAdapters
@@ -73,6 +77,7 @@ function buildToolNodeExecutionIssues({
   node,
   nodeId,
   nodeName,
+  nodeIndex,
   config,
   toolIndex,
   adapters
@@ -80,6 +85,7 @@ function buildToolNodeExecutionIssues({
   node: { runtimePolicy?: unknown };
   nodeId: string;
   nodeName: string;
+  nodeIndex: number;
   config: Record<string, unknown>;
   toolIndex: Map<string, PluginToolRegistryItem>;
   adapters: PluginAdapterRegistryItem[];
@@ -105,6 +111,8 @@ function buildToolNodeExecutionIssues({
       ecosystem: ecosystem ?? tool.ecosystem,
       adapterId,
       adapters,
+      path: `nodes.${nodeIndex}.config.tool.adapterId`,
+      field: "adapterId",
       nodeId,
       nodeName
     });
@@ -130,7 +138,9 @@ function buildToolNodeExecutionIssues({
     ecosystem,
     adapterId,
     requestedExecutionClass,
-    adapters
+    adapters,
+    path: `nodes.${nodeIndex}.runtimePolicy.execution`,
+    field: "execution"
   });
   if (capabilityIssue) {
     issues.push(capabilityIssue);
@@ -141,12 +151,14 @@ function buildToolNodeExecutionIssues({
 function buildAgentExecutionIssues({
   nodeId,
   nodeName,
+  nodeIndex,
   config,
   toolIndex,
   adapters
 }: {
   nodeId: string;
   nodeName: string;
+  nodeIndex: number;
   config: Record<string, unknown>;
   toolIndex: Map<string, PluginToolRegistryItem>;
   adapters: PluginAdapterRegistryItem[];
@@ -179,7 +191,9 @@ function buildAgentExecutionIssues({
         ecosystem: tool.ecosystem,
         adapterId: null,
         requestedExecutionClass: policyExecutionClass,
-        adapters
+        adapters,
+        path: `nodes.${nodeIndex}.config.toolPolicy.execution`,
+        field: "execution"
       });
       if (capabilityIssue) {
         issues.push(capabilityIssue);
@@ -213,6 +227,8 @@ function buildAgentExecutionIssues({
           ecosystem: ecosystem ?? tool.ecosystem,
           adapterId,
           adapters,
+          path: `nodes.${nodeIndex}.config.mockPlan.toolCalls.${index}.adapterId`,
+          field: "adapterId",
           nodeId,
           nodeName
         });
@@ -236,7 +252,9 @@ function buildAgentExecutionIssues({
         ecosystem,
         adapterId,
         requestedExecutionClass,
-        adapters
+        adapters,
+        path: `nodes.${nodeIndex}.config.mockPlan.toolCalls.${index}.execution`,
+        field: "execution"
       });
       if (capabilityIssue) {
         issues.push(capabilityIssue);
@@ -253,6 +271,8 @@ function validateExplicitAdapterBinding({
   ecosystem,
   adapterId,
   adapters,
+  path,
+  field,
   nodeId,
   nodeName
 }: {
@@ -261,6 +281,8 @@ function validateExplicitAdapterBinding({
   ecosystem: string;
   adapterId: string;
   adapters: PluginAdapterRegistryItem[];
+  path: string;
+  field: string;
   nodeId: string;
   nodeName: string;
 }): WorkflowToolExecutionValidationIssue | null {
@@ -269,21 +291,27 @@ function validateExplicitAdapterBinding({
     return {
       nodeId,
       nodeName,
-      message: `${context} 绑定了 adapter ${adapterId}，但当前 workspace 看不到这个 adapter，工具 ${toolId} 无法按该绑定执行。`
+      message: `${context} 绑定了 adapter ${adapterId}，但当前 workspace 看不到这个 adapter，工具 ${toolId} 无法按该绑定执行。`,
+      path,
+      field
     };
   }
   if (adapter.ecosystem !== ecosystem) {
     return {
       nodeId,
       nodeName,
-      message: `${context} 绑定的 adapter ${adapterId} 服务于 ${adapter.ecosystem}，与工具 ${toolId} 需要的 ${ecosystem} 不一致。`
+      message: `${context} 绑定的 adapter ${adapterId} 服务于 ${adapter.ecosystem}，与工具 ${toolId} 需要的 ${ecosystem} 不一致。`,
+      path,
+      field
     };
   }
   if (!adapter.enabled) {
     return {
       nodeId,
       nodeName,
-      message: `${context} 绑定的 adapter ${adapterId} 当前已禁用，工具 ${toolId} 不能按该绑定执行。`
+      message: `${context} 绑定的 adapter ${adapterId} 当前已禁用，工具 ${toolId} 不能按该绑定执行。`,
+      path,
+      field
     };
   }
   return null;
@@ -298,7 +326,9 @@ function buildExecutionCapabilityIssue({
   ecosystem,
   adapterId,
   requestedExecutionClass,
-  adapters
+  adapters,
+  path,
+  field
 }: {
   context: string;
   nodeId: string;
@@ -309,6 +339,8 @@ function buildExecutionCapabilityIssue({
   adapterId: string | null;
   requestedExecutionClass: string;
   adapters: PluginAdapterRegistryItem[];
+  path: string;
+  field: string;
 }): WorkflowToolExecutionValidationIssue | null {
   if (tool.ecosystem === "native") {
     if (requestedExecutionClass === "inline") {
@@ -317,7 +349,9 @@ function buildExecutionCapabilityIssue({
     return {
       nodeId,
       nodeName,
-      message: `${context} 显式请求了 ${requestedExecutionClass}，但原生工具 ${toolId} 当前只支持 inline。`
+      message: `${context} 显式请求了 ${requestedExecutionClass}，但原生工具 ${toolId} 当前只支持 inline。`,
+      path,
+      field
     };
   }
 
@@ -335,7 +369,9 @@ function buildExecutionCapabilityIssue({
     return {
       nodeId,
       nodeName,
-      message: `${context} 显式请求了 ${requestedExecutionClass}，但当前没有可用 adapter 能为 ${toolId} 提供 ${resolvedEcosystem} 执行入口。`
+      message: `${context} 显式请求了 ${requestedExecutionClass}，但当前没有可用 adapter 能为 ${toolId} 提供 ${resolvedEcosystem} 执行入口。`,
+      path,
+      field
     };
   }
 
@@ -351,7 +387,9 @@ function buildExecutionCapabilityIssue({
     nodeName,
     message: `${context} 显式请求了 ${requestedExecutionClass}，但 adapter ${adapter.id} 当前只支持 ${supportedExecutionClasses.join(
       ", "
-    )}。`
+    )}。`,
+    path,
+    field
   };
 }
 

@@ -6,6 +6,8 @@ export type WorkflowPublishVersionValidationIssue = {
   key: string;
   endpointId: string;
   message: string;
+  path: string;
+  field: string;
 };
 
 export function buildAllowedPublishWorkflowVersions(options: {
@@ -61,7 +63,9 @@ export function buildWorkflowPublishVersionValidationIssues(
       endpointId,
       message: `${endpointLabel} 引用了当前不可用的 workflowVersion ${workflowVersion}。可选版本：${allowedVersions.join(
         ", "
-      )}；如果要跟随本次保存版本，请直接留空。`
+      )}；如果要跟随本次保存版本，请直接留空。`,
+      path: `publish.${index}.workflowVersion`,
+      field: "workflowVersion"
     });
   });
 

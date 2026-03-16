@@ -45,6 +45,9 @@ type WorkflowEditorInspectorProps = {
     patch: Partial<WorkflowCanvasEdgeData> & { label?: string | undefined }
   ) => void;
   onDeleteSelectedEdge: () => void;
+  highlightedNodeSection?: "config" | "contract" | "runtime" | null;
+  highlightedPublishEndpointIndex?: number | null;
+  highlightedVariableIndex?: number | null;
 };
 
 export function WorkflowEditorInspector({
@@ -70,7 +73,10 @@ export function WorkflowEditorInspector({
   onWorkflowPublishChange,
   onDeleteSelectedNode,
   onUpdateSelectedEdge,
-  onDeleteSelectedEdge
+  onDeleteSelectedEdge,
+  highlightedNodeSection = null,
+  highlightedPublishEndpointIndex = null,
+  highlightedVariableIndex = null
 }: WorkflowEditorInspectorProps) {
   return (
     <>
@@ -112,6 +118,7 @@ export function WorkflowEditorInspector({
               node={selectedNode}
               onInputSchemaChange={onNodeInputSchemaChange}
               onOutputSchemaChange={onNodeOutputSchemaChange}
+              highlighted={highlightedNodeSection === "contract"}
             />
 
             <label className="binding-field">
@@ -132,6 +139,7 @@ export function WorkflowEditorInspector({
               nodes={nodes}
               edges={edges}
               onChange={onNodeRuntimePolicyUpdate}
+              highlighted={highlightedNodeSection === "runtime"}
             />
 
             <label className="binding-field">
@@ -218,14 +226,18 @@ export function WorkflowEditorInspector({
         availableWorkflowVersions={availableWorkflowVersions}
         publishEndpoints={workflowPublish}
         onChange={onWorkflowPublishChange}
+        highlightedEndpointIndex={highlightedPublishEndpointIndex}
       />
 
       <WorkflowEditorVariableForm
         variables={workflowVariables}
         onChange={onWorkflowVariablesChange}
+        highlightedVariableIndex={highlightedVariableIndex}
       />
 
-      <article className="diagnostic-panel editor-panel">
+      <article
+        className={`diagnostic-panel editor-panel ${highlightedNodeSection === "config" ? "validation-focus-ring" : ""}`.trim()}
+      >
         <div className="section-heading">
           <div>
             <p className="eyebrow">Hints</p>

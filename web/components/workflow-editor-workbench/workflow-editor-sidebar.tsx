@@ -11,6 +11,7 @@ import type { RunDetail } from "@/lib/get-run-detail";
 import type { RunTrace } from "@/lib/get-run-trace";
 import { type WorkflowRunListItem } from "@/lib/get-workflow-runs";
 import type { WorkflowListItem } from "@/lib/get-workflows";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { WorkflowRunOverlayPanel } from "@/components/workflow-run-overlay-panel";
 
 import type { WorkflowEditorMessageTone } from "./shared";
@@ -26,6 +27,7 @@ type WorkflowEditorSidebarProps = {
   unsupportedNodes: UnsupportedWorkflowNodeSummary[];
   message: string | null;
   messageTone: WorkflowEditorMessageTone;
+  validationNavigatorItems: WorkflowValidationNavigatorItem[];
   runs: WorkflowRunListItem[];
   selectedRunId: string | null;
   run: RunDetail | null;
@@ -36,6 +38,7 @@ type WorkflowEditorSidebarProps = {
   isRefreshingRuns: boolean;
   onWorkflowNameChange: (value: string) => void;
   onAddNode: (type: string) => void;
+  onNavigateValidationIssue: (item: WorkflowValidationNavigatorItem) => void;
   onSelectRunId: (runId: string | null) => void;
   onRefreshRuns: () => void;
 };
@@ -51,6 +54,7 @@ export function WorkflowEditorSidebar({
   unsupportedNodes,
   message,
   messageTone,
+  validationNavigatorItems,
   runs,
   selectedRunId,
   run,
@@ -61,6 +65,7 @@ export function WorkflowEditorSidebar({
   isRefreshingRuns,
   onWorkflowNameChange,
   onAddNode,
+  onNavigateValidationIssue,
   onSelectRunId,
   onRefreshRuns
 }: WorkflowEditorSidebarProps) {
@@ -221,6 +226,22 @@ export function WorkflowEditorSidebar({
         <p className={`sync-message ${messageTone}`}>
           {message ?? "选择节点或连线后，这里会显示编辑器反馈。"}
         </p>
+
+        {validationNavigatorItems.length > 0 ? (
+          <div className="validation-issue-list">
+            {validationNavigatorItems.slice(0, 8).map((item) => (
+              <button
+                key={item.key}
+                className="validation-issue-button"
+                type="button"
+                onClick={() => onNavigateValidationIssue(item)}
+              >
+                <strong>{item.target.label}</strong>
+                <span>{item.message}</span>
+              </button>
+            ))}
+          </div>
+        ) : null}
       </article>
 
       <WorkflowRunOverlayPanel

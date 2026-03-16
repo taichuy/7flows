@@ -112,6 +112,14 @@ export function useWorkflowEditorGraph({
     setSelectedEdgeId(nextEdge?.id ?? null);
   };
 
+  const focusNode = (nodeId: string | null) => {
+    if (!nodeId) {
+      return;
+    }
+    setSelectedNodeId(nodeId);
+    setSelectedEdgeId(null);
+  };
+
   const handleAddNode = (type: string) => {
     const draft = createWorkflowNodeDraft(nodeCatalog, type, nodes.length + 1);
     const nextNode: Node<WorkflowCanvasNodeData> = {
@@ -432,6 +440,7 @@ export function useWorkflowEditorGraph({
     isDirty,
     onConnect,
     handleSelectionChange,
+    focusNode,
     handleAddNode,
     handleNodeNameChange,
     handleSelectedNodeConfigChange,

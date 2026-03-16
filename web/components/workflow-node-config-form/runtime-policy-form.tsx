@@ -24,6 +24,7 @@ type WorkflowNodeRuntimePolicyFormProps = {
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   edges: Array<Edge<WorkflowCanvasEdgeData>>;
   onChange: (nextRuntimePolicy: Record<string, unknown> | undefined) => void;
+  highlighted?: boolean;
 };
 
 const JOIN_MODES = ["any", "all"] as const;
@@ -34,7 +35,8 @@ export function WorkflowNodeRuntimePolicyForm({
   node,
   nodes,
   edges,
-  onChange
+  onChange,
+  highlighted = false
 }: WorkflowNodeRuntimePolicyFormProps) {
   const runtimePolicy = cloneRecord(node.data.runtimePolicy ?? {});
   const retry = readRetryPolicy(runtimePolicy);
@@ -117,7 +119,7 @@ export function WorkflowNodeRuntimePolicyForm({
   };
 
   return (
-    <div className="binding-form compact-stack">
+    <div className={`binding-form compact-stack ${highlighted ? "validation-focus-ring" : ""}`.trim()}>
       <div className="binding-field">
         <span className="binding-label">Runtime policy</span>
         <small className="section-copy">

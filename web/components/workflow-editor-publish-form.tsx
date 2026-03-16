@@ -21,13 +21,15 @@ type WorkflowEditorPublishFormProps = {
     nextPublish: Array<Record<string, unknown>>,
     options?: { successMessage?: string }
   ) => void;
+  highlightedEndpointIndex?: number | null;
 };
 
 export function WorkflowEditorPublishForm({
   workflowVersion,
   availableWorkflowVersions,
   publishEndpoints,
-  onChange
+  onChange,
+  highlightedEndpointIndex = null
 }: WorkflowEditorPublishFormProps) {
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -177,6 +179,7 @@ export function WorkflowEditorPublishForm({
               endpointIndex={endpointIndex}
               workflowVersion={workflowVersion}
               validationMessages={validationIssuesByEndpoint.get(String(endpointIndex)) ?? []}
+              highlighted={highlightedEndpointIndex === endpointIndex}
               onUpdateEndpoint={updateEndpoint}
               onDeleteEndpoint={handleDeleteEndpoint}
               onApplySchemaField={applySchemaField}

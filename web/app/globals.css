@@ -837,6 +837,42 @@ a {
   color: var(--down);
 }
 
+.validation-focus-ring {
+  border-color: rgba(208, 99, 45, 0.4);
+  box-shadow:
+    0 0 0 2px rgba(208, 99, 45, 0.18),
+    var(--shadow);
+}
+
+.validation-issue-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.validation-issue-button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 12px 14px;
+  text-align: left;
+  border-radius: 16px;
+  border: 1px solid rgba(208, 99, 45, 0.2);
+  background: rgba(255, 248, 239, 0.92);
+  color: inherit;
+  cursor: pointer;
+}
+
+.validation-issue-button:hover {
+  border-color: rgba(208, 99, 45, 0.38);
+  transform: translateY(-1px);
+}
+
+.validation-issue-button span {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .inbox-decision-form {
   display: grid;
   gap: 10px;

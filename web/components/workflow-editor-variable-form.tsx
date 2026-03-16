@@ -8,6 +8,7 @@ type WorkflowEditorVariableFormProps = {
     nextVariables: Array<Record<string, unknown>>,
     options?: { successMessage?: string }
   ) => void;
+  highlightedVariableIndex?: number | null;
 };
 
 type NormalizedWorkflowVariable = {
@@ -20,7 +21,8 @@ type NormalizedWorkflowVariable = {
 
 export function WorkflowEditorVariableForm({
   variables,
-  onChange
+  onChange,
+  highlightedVariableIndex = null
 }: WorkflowEditorVariableFormProps) {
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -193,7 +195,10 @@ export function WorkflowEditorVariableForm({
             const key = `${variable.name || "variable"}-${index}`;
 
             return (
-              <div className="diagnostic-card compact-card" key={key}>
+              <div
+                className={`diagnostic-card compact-card ${highlightedVariableIndex === index ? "validation-focus-ring" : ""}`.trim()}
+                key={key}
+              >
                 <div className="tool-badge-row">
                   <span className="event-chip">variable {index + 1}</span>
                   {variable.type ? <span className="event-chip">{variable.type}</span> : null}

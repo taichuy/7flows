@@ -20,6 +20,8 @@ export type WorkflowContractValidationIssue = {
   scope: "node" | "publish";
   entityId: string;
   message: string;
+  path: string;
+  field: "inputSchema" | "outputSchema";
 };
 
 export function validateContractSchema(schema: unknown, options: { errorPrefix: string }) {
@@ -47,6 +49,8 @@ export function buildWorkflowDefinitionContractValidationIssues(
       key: `node-${nodeId}-inputSchema`,
       scope: "node",
       entityId: nodeId,
+      path: `nodes.${index}.inputSchema`,
+      field: "inputSchema",
       errorPrefix: `Node '${nodeId}' inputSchema`,
       fieldValue: node.inputSchema
     });
@@ -55,6 +59,8 @@ export function buildWorkflowDefinitionContractValidationIssues(
       key: `node-${nodeId}-outputSchema`,
       scope: "node",
       entityId: nodeId,
+      path: `nodes.${index}.outputSchema`,
+      field: "outputSchema",
       errorPrefix: `Node '${nodeId}' outputSchema`,
       fieldValue: node.outputSchema
     });
@@ -71,6 +77,8 @@ export function buildWorkflowDefinitionContractValidationIssues(
       key: `publish-${endpointId}-inputSchema`,
       scope: "publish",
       entityId: endpointId,
+      path: `publish.${index}.inputSchema`,
+      field: "inputSchema",
       errorPrefix: `Published endpoint '${endpointId}' inputSchema`,
       fieldValue: endpoint.inputSchema
     });
@@ -79,6 +87,8 @@ export function buildWorkflowDefinitionContractValidationIssues(
       key: `publish-${endpointId}-outputSchema`,
       scope: "publish",
       entityId: endpointId,
+      path: `publish.${index}.outputSchema`,
+      field: "outputSchema",
       errorPrefix: `Published endpoint '${endpointId}' outputSchema`,
       fieldValue: endpoint.outputSchema
     });
@@ -92,6 +102,8 @@ function pushSchemaIssue(options: {
   key: string;
   scope: WorkflowContractValidationIssue["scope"];
   entityId: string;
+  path: string;
+  field: WorkflowContractValidationIssue["field"];
   errorPrefix: string;
   fieldValue: unknown;
 }) {
@@ -106,7 +118,9 @@ function pushSchemaIssue(options: {
       key: options.key,
       scope: options.scope,
       entityId: options.entityId,
-      message: error instanceof Error ? error.message : `${options.errorPrefix} is invalid.`
+      message: error instanceof Error ? error.message : `${options.errorPrefix} is invalid.`,
+      path: options.path,
+      field: options.field
     });
   }
 }

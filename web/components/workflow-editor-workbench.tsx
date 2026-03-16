@@ -26,6 +26,11 @@ import {
   validateWorkflowDefinition
 } from "@/lib/get-workflows";
 import {
+  buildWorkflowValidationNavigatorItems,
+  type WorkflowValidationFocusTarget,
+  type WorkflowValidationNavigatorItem
+} from "@/lib/workflow-validation-navigation";
+import {
   createWorkspaceStarterTemplate,
   type WorkspaceStarterValidationIssue,
   WorkspaceStarterValidationError
@@ -145,6 +150,9 @@ export function WorkflowEditorWorkbench({
   const plannedNodeLibrary = getPlannedNodeCatalog(nodeCatalog);
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<WorkflowEditorMessageTone>("idle");
+  const [serverValidationIssues, setServerValidationIssues] = useState<WorkflowDefinitionPreflightIssue[]>([]);
+  const [validationFocusTarget, setValidationFocusTarget] =
+    useState<WorkflowValidationFocusTarget | null>(null);
   const [isSaving, startSavingTransition] = useTransition();
   const [isSavingStarter, startSaveStarterTransition] = useTransition();
 
@@ -252,6 +260,43 @@ export function WorkflowEditorWorkbench({
       ? `${head}；另有 ${publishVersionValidationIssues.length - 3} 项待修正。`
       : head;
   }, [publishVersionValidationIssues]);
+  const validationNavigatorItems = useMemo(() => {
+    const localIssues: WorkflowDefinitionPreflightIssue[] = [
+      ...contractValidationIssues.map((issue) => ({
+        category: "schema",
+        message: issue.message,
+        path: issue.path,
+        field: issue.field
+      })),
+      ...toolReferenceValidationIssues.map((issue) => ({
+        category: "tool_reference",
+        message: issue.message,
+        path: issue.path,
+        field: issue.field
+      })),
+      ...toolExecutionValidationIssues.map((issue) => ({
+        category: "tool_execution",
+        message: issue.message,
+        path: issue.path,
+        field: issue.field
+      })),
+      ...publishVersionValidationIssues.map((issue) => ({
+        category: "publish_version",
+        message: issue.message,
+        path: issue.path,
+        field: issue.field
+      })),
+      ...serverValidationIssues
+    ];
+    return buildWorkflowValidationNavigatorItems(graph.currentDefinition, localIssues);
+  }, [
+    contractValidationIssues,
+    graph.currentDefinition,
+    publishVersionValidationIssues,
+    serverValidationIssues,
+    toolExecutionValidationIssues,
+    toolReferenceValidationIssues
+  ]);
   const unsupportedNodesBlockedMessage =
     unsupportedNodes.length > 0
       ? `当前 workflow 包含未进入执行主链的节点，暂不能保存或沉淀为 workspace starter：${unsupportedNodeSummary}。请先移除或替换这些节点，再继续保存。`
@@ -291,6 +336,7 @@ export function WorkflowEditorWorkbench({
 
       try {
         const preflight = await validateWorkflowDefinition(workflow.id, graph.currentDefinition);
+        setServerValidationIssues([]);
         const body = await updateWorkflow(workflow.id, {
           name: graph.workflowName.trim() || workflow.name,
           definition: preflight.definition
@@ -302,6 +348,9 @@ export function WorkflowEditorWorkbench({
         setMessage(`已保存 workflow，当前版本 ${body?.version ?? graph.workflowVersion}。`);
         setMessageTone("success");
       } catch (error) {
+        setServerValidationIssues(
+          error instanceof WorkflowDefinitionPreflightError ? error.issues : []
+        );
         const preflightIssueSummary =
           error instanceof WorkflowDefinitionPreflightError
             ? summarizePreflightIssues(error.issues)
@@ -318,6 +367,17 @@ export function WorkflowEditorWorkbench({
         setMessageTone("error");
       }
     });
+  };
+
+  const handleNavigateValidationIssue = (item: WorkflowValidationNavigatorItem) => {
+    setValidationFocusTarget(item.target);
+
+    if (item.target.scope === "node") {
+      graph.focusNode(item.target.nodeId);
+    }
+
+    setMessage(`已定位到 ${item.target.label}，请根据提示修正后再保存。`);
+    setMessageTone("error");
   };
 
   const handleSaveAsWorkspaceStarter = () => {
@@ -405,6 +465,7 @@ export function WorkflowEditorWorkbench({
             unsupportedNodes={unsupportedNodes}
             message={message}
             messageTone={messageTone}
+            validationNavigatorItems={validationNavigatorItems}
             runs={runOverlay.availableRuns}
             selectedRunId={runOverlay.selectedRunId}
             run={runOverlay.selectedRunDetail}
@@ -415,6 +476,7 @@ export function WorkflowEditorWorkbench({
             isRefreshingRuns={runOverlay.isRefreshingRuns}
             onWorkflowNameChange={graph.setWorkflowName}
             onAddNode={graph.handleAddNode}
+            onNavigateValidationIssue={handleNavigateValidationIssue}
             onSelectRunId={runOverlay.setSelectedRunId}
             onRefreshRuns={runOverlay.refreshRecentRuns}
           />
@@ -454,6 +516,22 @@ export function WorkflowEditorWorkbench({
               onDeleteSelectedNode={graph.handleDeleteSelectedNode}
               onUpdateSelectedEdge={graph.updateSelectedEdge}
               onDeleteSelectedEdge={graph.handleDeleteSelectedEdge}
+              highlightedNodeSection={
+                validationFocusTarget?.scope === "node" &&
+                validationFocusTarget.nodeId === graph.selectedNodeId
+                  ? validationFocusTarget.section
+                  : null
+              }
+              highlightedPublishEndpointIndex={
+                validationFocusTarget?.scope === "publish"
+                  ? validationFocusTarget.endpointIndex
+                  : null
+              }
+              highlightedVariableIndex={
+                validationFocusTarget?.scope === "variables"
+                  ? validationFocusTarget.variableIndex
+                  : null
+              }
             />
           </aside>
         </section>
