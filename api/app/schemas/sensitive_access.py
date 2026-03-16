@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 SensitivityLevel = Literal["L0", "L1", "L2", "L3"]
 AccessDecision = Literal["allow", "deny", "require_approval", "allow_masked"]
@@ -22,6 +22,14 @@ NotificationChannelDeliveryMode = Literal["inline", "worker"]
 NotificationChannelHealthStatus = Literal["ready", "degraded"]
 NotificationChannelTargetKind = Literal["in_app", "http_url", "email_list"]
 NotificationChannelConfigFactStatus = Literal["configured", "missing", "info"]
+ApprovalTicketBulkSkipReason = Literal["not_found", "not_pending", "invalid_state"]
+NotificationDispatchBulkSkipReason = Literal[
+    "not_found",
+    "not_waiting",
+    "not_latest",
+    "already_delivered",
+    "invalid_state",
+]
 
 
 class SensitiveResourceCreateRequest(BaseModel):
@@ -151,3 +159,96 @@ class ApprovalTicketDecisionResponse(BaseModel):
     request: SensitiveAccessRequestItem
     approval_ticket: ApprovalTicketItem
     notifications: list[NotificationDispatchItem] = Field(default_factory=list)
+
+
+class ApprovalTicketBulkDecisionRequest(BaseModel):
+    status: Literal["approved", "rejected"]
+    approved_by: str = Field(min_length=1, max_length=128)
+    ticket_ids: list[str] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def normalize_ticket_ids(self) -> "ApprovalTicketBulkDecisionRequest":
+        normalized_ids: list[str] = []
+        for ticket_id in self.ticket_ids:
+            normalized = ticket_id.strip()
+            if normalized and normalized not in normalized_ids:
+                normalized_ids.append(normalized)
+
+        if not normalized_ids:
+            raise ValueError("At least one ticket_id must be provided.")
+
+        self.ticket_ids = normalized_ids
+        self.approved_by = self.approved_by.strip()
+        if not self.approved_by:
+            raise ValueError("approved_by must not be blank.")
+        return self
+
+
+class ApprovalTicketBulkSkippedItem(BaseModel):
+    ticket_id: str
+    reason: ApprovalTicketBulkSkipReason
+    detail: str
+
+
+class ApprovalTicketBulkSkippedSummary(BaseModel):
+    reason: ApprovalTicketBulkSkipReason
+    count: int
+    detail: str
+
+
+class ApprovalTicketBulkDecisionResult(BaseModel):
+    status: Literal["approved", "rejected"]
+    requested_count: int
+    decided_count: int
+    skipped_count: int
+    decided_items: list[ApprovalTicketItem] = Field(default_factory=list)
+    skipped_items: list[ApprovalTicketBulkSkippedItem] = Field(default_factory=list)
+    skipped_reason_summary: list[ApprovalTicketBulkSkippedSummary] = Field(
+        default_factory=list
+    )
+
+
+class NotificationDispatchBulkRetryRequest(BaseModel):
+    dispatch_ids: list[str] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def normalize_dispatch_ids(self) -> "NotificationDispatchBulkRetryRequest":
+        normalized_ids: list[str] = []
+        for dispatch_id in self.dispatch_ids:
+            normalized = dispatch_id.strip()
+            if normalized and normalized not in normalized_ids:
+                normalized_ids.append(normalized)
+
+        if not normalized_ids:
+            raise ValueError("At least one dispatch_id must be provided.")
+
+        self.dispatch_ids = normalized_ids
+        return self
+
+
+class NotificationDispatchBulkSkippedItem(BaseModel):
+    dispatch_id: str
+    reason: NotificationDispatchBulkSkipReason
+    detail: str
+
+
+class NotificationDispatchBulkSkippedSummary(BaseModel):
+    reason: NotificationDispatchBulkSkipReason
+    count: int
+    detail: str
+
+
+class NotificationDispatchBulkRetriedItem(BaseModel):
+    approval_ticket: ApprovalTicketItem
+    notification: NotificationDispatchItem
+
+
+class NotificationDispatchBulkRetryResult(BaseModel):
+    requested_count: int
+    retried_count: int
+    skipped_count: int
+    retried_items: list[NotificationDispatchBulkRetriedItem] = Field(default_factory=list)
+    skipped_items: list[NotificationDispatchBulkSkippedItem] = Field(default_factory=list)
+    skipped_reason_summary: list[NotificationDispatchBulkSkippedSummary] = Field(
+        default_factory=list
+    )

@@ -111,6 +111,24 @@ export type SensitiveAccessInboxSummary = {
   failed_notification_count: number;
 };
 
+export type SensitiveAccessBulkAction = "approved" | "rejected" | "retry";
+
+export type SensitiveAccessBulkSkipSummary = {
+  reason: string;
+  count: number;
+  detail: string;
+};
+
+export type SensitiveAccessBulkActionResult = {
+  action: SensitiveAccessBulkAction;
+  status: "success" | "error";
+  message: string;
+  requestedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  skippedReasonSummary: SensitiveAccessBulkSkipSummary[];
+};
+
 export type SensitiveAccessInboxSnapshot = {
   entries: SensitiveAccessInboxEntry[];
   channels: NotificationChannelCapabilityItem[];

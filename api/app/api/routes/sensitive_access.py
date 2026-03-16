@@ -3,11 +3,20 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.sensitive_access import (
+    ApprovalTicketBulkDecisionRequest,
+    ApprovalTicketBulkDecisionResult,
+    ApprovalTicketBulkSkippedItem,
+    ApprovalTicketBulkSkippedSummary,
     ApprovalTicketDecisionRequest,
     ApprovalTicketDecisionResponse,
     ApprovalTicketItem,
     NotificationChannelCapabilityItem,
     NotificationChannelConfigFactItem,
+    NotificationDispatchBulkRetriedItem,
+    NotificationDispatchBulkRetryRequest,
+    NotificationDispatchBulkRetryResult,
+    NotificationDispatchBulkSkippedItem,
+    NotificationDispatchBulkSkippedSummary,
     NotificationChannelDispatchSummaryItem,
     NotificationDispatchItem,
     NotificationDispatchRetryResponse,
@@ -78,6 +87,58 @@ def _raise_sensitive_access_error(exc: SensitiveAccessControlError) -> None:
         else status.HTTP_422_UNPROCESSABLE_ENTITY
     )
     raise HTTPException(status_code=status_code, detail=detail) from exc
+
+
+def _classify_approval_ticket_bulk_skip(detail: str) -> str:
+    lowered = detail.lower()
+    if "not found" in lowered:
+        return "not_found"
+    if "pending" in lowered:
+        return "not_pending"
+    return "invalid_state"
+
+
+def _classify_notification_dispatch_bulk_skip(detail: str) -> str:
+    lowered = detail.lower()
+    if "not found" in lowered:
+        return "not_found"
+    if "latest" in lowered:
+        return "not_latest"
+    if "delivered" in lowered:
+        return "already_delivered"
+    if "waiting approval tickets" in lowered:
+        return "not_waiting"
+    return "invalid_state"
+
+
+def _summarize_approval_ticket_bulk_skips(
+    skipped_items: list[ApprovalTicketBulkSkippedItem],
+) -> list[ApprovalTicketBulkSkippedSummary]:
+    summary_by_reason: dict[str, ApprovalTicketBulkSkippedSummary] = {}
+    for item in skipped_items:
+        if item.reason not in summary_by_reason:
+            summary_by_reason[item.reason] = ApprovalTicketBulkSkippedSummary(
+                reason=item.reason,
+                count=0,
+                detail=item.detail,
+            )
+        summary_by_reason[item.reason].count += 1
+    return list(summary_by_reason.values())
+
+
+def _summarize_notification_dispatch_bulk_skips(
+    skipped_items: list[NotificationDispatchBulkSkippedItem],
+) -> list[NotificationDispatchBulkSkippedSummary]:
+    summary_by_reason: dict[str, NotificationDispatchBulkSkippedSummary] = {}
+    for item in skipped_items:
+        if item.reason not in summary_by_reason:
+            summary_by_reason[item.reason] = NotificationDispatchBulkSkippedSummary(
+                reason=item.reason,
+                count=0,
+                detail=item.detail,
+            )
+        summary_by_reason[item.reason].count += 1
+    return list(summary_by_reason.values())
 
 
 @router.post(
@@ -239,6 +300,50 @@ def decide_approval_ticket(
     return _serialize_approval_bundle(bundle)
 
 
+@router.post(
+    "/approval-tickets/bulk-decision",
+    response_model=ApprovalTicketBulkDecisionResult,
+)
+def bulk_decide_approval_tickets(
+    payload: ApprovalTicketBulkDecisionRequest,
+    db: Session = Depends(get_db),
+) -> ApprovalTicketBulkDecisionResult:
+    decided_items: list[ApprovalTicketItem] = []
+    skipped_items: list[ApprovalTicketBulkSkippedItem] = []
+
+    for ticket_id in payload.ticket_ids:
+        try:
+            bundle = service.decide_ticket(
+                db,
+                ticket_id=ticket_id,
+                status=payload.status,
+                approved_by=payload.approved_by,
+            )
+        except SensitiveAccessControlError as exc:
+            detail = str(exc)
+            skipped_items.append(
+                ApprovalTicketBulkSkippedItem(
+                    ticket_id=ticket_id,
+                    reason=_classify_approval_ticket_bulk_skip(detail),
+                    detail=detail,
+                )
+            )
+            continue
+
+        decided_items.append(serialize_approval_ticket(bundle.approval_ticket))
+
+    db.commit()
+    return ApprovalTicketBulkDecisionResult(
+        status=payload.status,
+        requested_count=len(payload.ticket_ids),
+        decided_count=len(decided_items),
+        skipped_count=len(skipped_items),
+        decided_items=decided_items,
+        skipped_items=skipped_items,
+        skipped_reason_summary=_summarize_approval_ticket_bulk_skips(skipped_items),
+    )
+
+
 @router.get("/notification-dispatches", response_model=list[NotificationDispatchItem])
 def list_notification_dispatches(
     approval_ticket_id: str | None = Query(default=None),
@@ -270,3 +375,51 @@ def retry_notification_dispatch(
         _raise_sensitive_access_error(exc)
     db.commit()
     return _serialize_notification_retry_bundle(bundle)
+
+
+@router.post(
+    "/notification-dispatches/bulk-retry",
+    response_model=NotificationDispatchBulkRetryResult,
+)
+def bulk_retry_notification_dispatches(
+    payload: NotificationDispatchBulkRetryRequest,
+    db: Session = Depends(get_db),
+) -> NotificationDispatchBulkRetryResult:
+    retried_items: list[NotificationDispatchBulkRetriedItem] = []
+    skipped_items: list[NotificationDispatchBulkSkippedItem] = []
+
+    for dispatch_id in payload.dispatch_ids:
+        try:
+            bundle = service.retry_notification_dispatch(
+                db,
+                dispatch_id=dispatch_id,
+            )
+        except SensitiveAccessControlError as exc:
+            detail = str(exc)
+            skipped_items.append(
+                NotificationDispatchBulkSkippedItem(
+                    dispatch_id=dispatch_id,
+                    reason=_classify_notification_dispatch_bulk_skip(detail),
+                    detail=detail,
+                )
+            )
+            continue
+
+        retried_items.append(
+            NotificationDispatchBulkRetriedItem(
+                approval_ticket=serialize_approval_ticket(bundle.approval_ticket),
+                notification=serialize_notification_dispatch(bundle.notification),
+            )
+        )
+
+    db.commit()
+    return NotificationDispatchBulkRetryResult(
+        requested_count=len(payload.dispatch_ids),
+        retried_count=len(retried_items),
+        skipped_count=len(skipped_items),
+        retried_items=retried_items,
+        skipped_items=skipped_items,
+        skipped_reason_summary=_summarize_notification_dispatch_bulk_skips(
+            skipped_items
+        ),
+    )

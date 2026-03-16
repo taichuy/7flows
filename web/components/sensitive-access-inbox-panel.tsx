@@ -1,16 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 
 import {
+  bulkDecideSensitiveAccessApprovalTickets,
+  bulkRetrySensitiveAccessNotificationDispatches,
   decideSensitiveAccessApprovalTicket,
   retrySensitiveAccessNotificationDispatch,
   type DecideSensitiveAccessApprovalTicketState,
   type RetrySensitiveAccessNotificationDispatchState
 } from "@/app/actions/sensitive-access";
-import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
+import {
+  SensitiveAccessBulkGovernanceCard,
+  getSensitiveAccessBulkActionConfirmationMessage,
+  getSensitiveAccessBulkActionLabel
+} from "@/components/sensitive-access-bulk-governance-card";
+import type {
+  SensitiveAccessBulkAction,
+  SensitiveAccessBulkActionResult,
+  SensitiveAccessInboxEntry
+} from "@/lib/get-sensitive-access";
 import { formatTimestamp } from "@/lib/runtime-presenters";
 
 type SensitiveAccessInboxPanelProps = {
@@ -20,6 +31,10 @@ type SensitiveAccessInboxPanelProps = {
 type SensitiveAccessTicketDecisionFormProps = {
   entry: SensitiveAccessInboxEntry;
 };
+
+type SensitiveAccessMessageTone = "idle" | "success" | "error";
+
+const DEFAULT_OPERATOR_ID = "studio-operator";
 
 const initialDecisionState: DecideSensitiveAccessApprovalTicketState = {
   status: "idle",
@@ -82,6 +97,19 @@ function pickLatestNotification(entry: SensitiveAccessInboxEntry) {
   )[0];
 }
 
+function isPendingWaitingTicket(entry: SensitiveAccessInboxEntry) {
+  return entry.ticket.status === "pending" && entry.ticket.waiting_status === "waiting";
+}
+
+function pickRetriableNotification(entry: SensitiveAccessInboxEntry) {
+  const notification = pickLatestNotification(entry);
+  if (!notification || !isPendingWaitingTicket(entry) || notification.status === "delivered") {
+    return null;
+  }
+
+  return notification;
+}
+
 function DecisionSubmitButton({
   label,
   value,
@@ -114,7 +142,7 @@ function SensitiveAccessTicketDecisionForm({
     initialDecisionState
   );
 
-  if (entry.ticket.status !== "pending" || entry.ticket.waiting_status !== "waiting") {
+  if (!isPendingWaitingTicket(entry)) {
     return null;
   }
 
@@ -127,7 +155,7 @@ function SensitiveAccessTicketDecisionForm({
       </label>
       <input
         className="inbox-operator-input"
-        defaultValue="studio-operator"
+        defaultValue={DEFAULT_OPERATOR_ID}
         id={`approvedBy-${entry.ticket.id}`}
         name="approvedBy"
         placeholder="输入审批人标识"
@@ -151,14 +179,9 @@ function SensitiveAccessNotificationRetryForm({
     retrySensitiveAccessNotificationDispatch,
     initialRetryState
   );
-  const notification = pickLatestNotification(entry);
+  const notification = pickRetriableNotification(entry);
 
-  if (
-    !notification ||
-    entry.ticket.status !== "pending" ||
-    entry.ticket.waiting_status !== "waiting" ||
-    notification.status === "delivered"
-  ) {
+  if (!notification) {
     return null;
   }
 
@@ -180,6 +203,14 @@ function SensitiveAccessNotificationRetryForm({
 }
 
 export function SensitiveAccessInboxPanel({ entries }: SensitiveAccessInboxPanelProps) {
+  const [bulkOperator, setBulkOperator] = useState(DEFAULT_OPERATOR_ID);
+  const [bulkMessage, setBulkMessage] = useState<string | null>(null);
+  const [bulkMessageTone, setBulkMessageTone] = useState<SensitiveAccessMessageTone>("idle");
+  const [lastBulkResult, setLastBulkResult] = useState<SensitiveAccessBulkActionResult | null>(
+    null
+  );
+  const [isBulkMutating, startBulkMutatingTransition] = useTransition();
+
   if (entries.length === 0) {
     return (
       <article className="diagnostic-panel panel-span">
@@ -197,6 +228,54 @@ export function SensitiveAccessInboxPanel({ entries }: SensitiveAccessInboxPanel
     );
   }
 
+  const decisionTicketIds = entries
+    .filter((entry) => isPendingWaitingTicket(entry))
+    .map((entry) => entry.ticket.id);
+  const retryDispatchIds = entries.flatMap((entry) => {
+    const notification = pickRetriableNotification(entry);
+    return notification ? [notification.id] : [];
+  });
+
+  const handleBulkAction = (action: SensitiveAccessBulkAction) => {
+    const candidateIds = action === "retry" ? retryDispatchIds : decisionTicketIds;
+    if (candidateIds.length === 0) {
+      return;
+    }
+
+    if (action !== "retry" && bulkOperator.trim().length === 0) {
+      setBulkMessage("请输入 operator 标识后再执行批量审批。");
+      setBulkMessageTone("error");
+      return;
+    }
+
+    if (!window.confirm(getSensitiveAccessBulkActionConfirmationMessage(action, candidateIds.length))) {
+      return;
+    }
+
+    const actionLabel = getSensitiveAccessBulkActionLabel(action);
+    startBulkMutatingTransition(async () => {
+      setBulkMessage(`正在${actionLabel}...`);
+      setBulkMessageTone("idle");
+
+      const result =
+        action === "retry"
+          ? await bulkRetrySensitiveAccessNotificationDispatches({
+              dispatchIds: candidateIds
+            })
+          : await bulkDecideSensitiveAccessApprovalTickets({
+              ticketIds: candidateIds,
+              status: action,
+              approvedBy: bulkOperator.trim()
+            });
+
+      setLastBulkResult(result);
+      setBulkMessage(result.message);
+      setBulkMessageTone(
+        result.status === "error" ? "error" : result.updatedCount > 0 ? "success" : "idle"
+      );
+    });
+  };
+
   return (
     <article className="diagnostic-panel panel-span">
       <div className="section-heading">
@@ -208,6 +287,19 @@ export function SensitiveAccessInboxPanel({ entries }: SensitiveAccessInboxPanel
           这里把 `ApprovalTicket / NotificationDispatch` 事实层接到真实 operator UI；审批完成后，可直接回到 run 诊断或 publish 治理继续排障。
         </p>
       </div>
+
+      <SensitiveAccessBulkGovernanceCard
+        inScopeCount={entries.length}
+        decisionCandidateCount={decisionTicketIds.length}
+        retryCandidateCount={retryDispatchIds.length}
+        operatorValue={bulkOperator}
+        onOperatorChange={setBulkOperator}
+        isMutating={isBulkMutating}
+        lastResult={lastBulkResult}
+        message={bulkMessage}
+        messageTone={bulkMessageTone}
+        onAction={handleBulkAction}
+      />
 
       <div className="activity-list">
         {entries.map((entry) => {

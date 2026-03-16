@@ -1,0 +1,142 @@
+"use client";
+
+import type {
+  SensitiveAccessBulkAction,
+  SensitiveAccessBulkActionResult
+} from "@/lib/get-sensitive-access";
+
+type SensitiveAccessBulkGovernanceCardProps = {
+  inScopeCount: number;
+  decisionCandidateCount: number;
+  retryCandidateCount: number;
+  operatorValue: string;
+  onOperatorChange: (value: string) => void;
+  isMutating: boolean;
+  lastResult: SensitiveAccessBulkActionResult | null;
+  message: string | null;
+  messageTone: "idle" | "success" | "error";
+  onAction: (action: SensitiveAccessBulkAction) => void;
+};
+
+const ACTIONS: SensitiveAccessBulkAction[] = ["approved", "rejected", "retry"];
+
+export function SensitiveAccessBulkGovernanceCard({
+  inScopeCount,
+  decisionCandidateCount,
+  retryCandidateCount,
+  operatorValue,
+  onOperatorChange,
+  isMutating,
+  lastResult,
+  message,
+  messageTone,
+  onAction
+}: SensitiveAccessBulkGovernanceCardProps) {
+  return (
+    <div className="binding-card compact-card">
+      <div className="binding-card-header">
+        <div>
+          <p className="entry-card-title">Bulk governance</p>
+          <p className="binding-meta">
+            当前批量动作默认作用于当前筛选结果；审批仅覆盖 `pending + waiting` 票据，通知重试只处理每条票据最新且未投递成功的 dispatch。
+          </p>
+        </div>
+        <span className="health-pill">{inScopeCount} in scope</span>
+      </div>
+
+      <div className="starter-tag-row">
+        <span className="event-chip">approve/reject {decisionCandidateCount}</span>
+        <span className="event-chip">retry latest {retryCandidateCount}</span>
+      </div>
+
+      <label className="status-meta" htmlFor="bulk-sensitive-access-operator">
+        Operator
+      </label>
+      <input
+        className="inbox-operator-input"
+        id="bulk-sensitive-access-operator"
+        type="text"
+        value={operatorValue}
+        onChange={(event) => onOperatorChange(event.target.value)}
+        placeholder="输入批量审批使用的 operator 标识"
+      />
+
+      {lastResult ? (
+        <div className="starter-tag-row">
+          <span className="health-pill">last run: {getSensitiveAccessBulkActionLabel(lastResult.action)}</span>
+          <span className="event-chip">updated {lastResult.updatedCount}</span>
+          <span className="event-chip">skipped {lastResult.skippedCount}</span>
+          {lastResult.skippedReasonSummary.length > 0
+            ? lastResult.skippedReasonSummary.map((item) => (
+                <span className="event-chip" key={`${item.reason}-${item.count}`}>
+                  {getSensitiveAccessBulkSkipReasonLabel(item.reason)} {item.count}
+                </span>
+              ))
+            : null}
+        </div>
+      ) : null}
+
+      {message ? <p className={`sync-message ${messageTone}`}>{message}</p> : null}
+
+      <div className="binding-actions">
+        {ACTIONS.map((action) => {
+          const candidateCount = action === "retry" ? retryCandidateCount : decisionCandidateCount;
+          const requiresOperator = action === "approved" || action === "rejected";
+          return (
+            <button
+              key={action}
+              className={action === "approved" ? "sync-button" : "sync-button secondary"}
+              type="button"
+              onClick={() => onAction(action)}
+              disabled={
+                candidateCount === 0 ||
+                isMutating ||
+                (requiresOperator && operatorValue.trim().length === 0)
+              }
+            >
+              {isMutating ? "处理中..." : getSensitiveAccessBulkActionButtonLabel(action)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function getSensitiveAccessBulkActionLabel(action: SensitiveAccessBulkAction) {
+  return {
+    approved: "批量批准",
+    rejected: "批量拒绝",
+    retry: "批量重试通知"
+  }[action];
+}
+
+export function getSensitiveAccessBulkActionButtonLabel(action: SensitiveAccessBulkAction) {
+  return {
+    approved: "批量批准当前结果",
+    rejected: "批量拒绝当前结果",
+    retry: "批量重试最新通知"
+  }[action];
+}
+
+export function getSensitiveAccessBulkActionConfirmationMessage(
+  action: SensitiveAccessBulkAction,
+  count: number
+) {
+  return {
+    approved: `确认批量批准当前筛选结果中的 ${count} 条票据吗？`,
+    rejected: `确认批量拒绝当前筛选结果中的 ${count} 条票据吗？`,
+    retry: `确认批量重试当前筛选结果中的 ${count} 条最新通知吗？`
+  }[action];
+}
+
+export function getSensitiveAccessBulkSkipReasonLabel(reason: string) {
+  return {
+    not_found: "not found",
+    not_pending: "not pending",
+    not_waiting: "not waiting",
+    not_latest: "not latest",
+    already_delivered: "already delivered",
+    invalid_state: "invalid state"
+  }[reason] ?? reason;
+}
