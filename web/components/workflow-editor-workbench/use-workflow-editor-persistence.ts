@@ -1,0 +1,171 @@
+"use client";
+
+import { useTransition, type Dispatch, type SetStateAction } from "react";
+
+import {
+  WorkflowDefinitionPreflightError,
+  type WorkflowDefinitionPreflightIssue,
+  type WorkflowDetail,
+  updateWorkflow,
+  validateWorkflowDefinition
+} from "@/lib/get-workflows";
+import {
+  createWorkspaceStarterTemplate,
+  WorkspaceStarterValidationError
+} from "@/lib/get-workspace-starters";
+import { buildWorkspaceStarterPayload } from "@/lib/workspace-starter-payload";
+import { inferWorkflowBusinessTrack } from "@/lib/workflow-starters";
+import {
+  type WorkflowValidationFocusTarget,
+  type WorkflowValidationNavigatorItem
+} from "@/lib/workflow-validation-navigation";
+
+import {
+  summarizePreflightIssues,
+  summarizeWorkspaceStarterValidationIssues
+} from "./use-workflow-editor-validation";
+import type { WorkflowEditorMessageTone } from "./shared";
+
+type UseWorkflowEditorPersistenceOptions = {
+  workflowId: string;
+  fallbackWorkflowName: string;
+  workflowName: string;
+  workflowVersion: string;
+  currentDefinition: WorkflowDetail["definition"];
+  persistBlockedMessage: string;
+  setPersistedWorkflowName: (name: string) => void;
+  setPersistedDefinition: (definition: WorkflowDetail["definition"]) => void;
+  setWorkflowVersion: (version: string) => void;
+  setServerValidationIssues: Dispatch<SetStateAction<WorkflowDefinitionPreflightIssue[]>>;
+  setMessage: Dispatch<SetStateAction<string | null>>;
+  setMessageTone: Dispatch<SetStateAction<WorkflowEditorMessageTone>>;
+  focusNode: (nodeId: string | null) => void;
+  setValidationFocusTarget: Dispatch<SetStateAction<WorkflowValidationFocusTarget | null>>;
+};
+
+export function useWorkflowEditorPersistence({
+  workflowId,
+  fallbackWorkflowName,
+  workflowName,
+  workflowVersion,
+  currentDefinition,
+  persistBlockedMessage,
+  setPersistedWorkflowName,
+  setPersistedDefinition,
+  setWorkflowVersion,
+  setServerValidationIssues,
+  setMessage,
+  setMessageTone,
+  focusNode,
+  setValidationFocusTarget
+}: UseWorkflowEditorPersistenceOptions) {
+  const [isSaving, startSavingTransition] = useTransition();
+  const [isSavingStarter, startSaveStarterTransition] = useTransition();
+
+  const handleSave = () => {
+    if (persistBlockedMessage) {
+      setMessage(persistBlockedMessage);
+      setMessageTone("error");
+      return;
+    }
+
+    startSavingTransition(async () => {
+      setMessage("正在保存 workflow definition...");
+      setMessageTone("idle");
+
+      try {
+        const preflight = await validateWorkflowDefinition(workflowId, currentDefinition);
+        setServerValidationIssues([]);
+        const normalizedWorkflowName = workflowName.trim() || fallbackWorkflowName;
+        const body = await updateWorkflow(workflowId, {
+          name: normalizedWorkflowName,
+          definition: preflight.definition
+        });
+
+        setPersistedWorkflowName(normalizedWorkflowName);
+        setPersistedDefinition(preflight.definition);
+        setWorkflowVersion(body?.version ?? workflowVersion);
+        setMessage(`已保存 workflow，当前版本 ${body?.version ?? workflowVersion}。`);
+        setMessageTone("success");
+      } catch (error) {
+        setServerValidationIssues(
+          error instanceof WorkflowDefinitionPreflightError ? error.issues : []
+        );
+        const preflightIssueSummary =
+          error instanceof WorkflowDefinitionPreflightError
+            ? summarizePreflightIssues(error.issues)
+            : null;
+        setMessage(
+          error instanceof WorkflowDefinitionPreflightError
+            ? preflightIssueSummary
+              ? `${error.message} ${preflightIssueSummary}`
+              : error.message
+            : error instanceof Error
+              ? error.message
+              : "无法连接后端保存 workflow，请确认 API 已启动。"
+        );
+        setMessageTone("error");
+      }
+    });
+  };
+
+  const handleNavigateValidationIssue = (item: WorkflowValidationNavigatorItem) => {
+    setValidationFocusTarget(item.target);
+
+    if (item.target.scope === "node") {
+      focusNode(item.target.nodeId);
+    }
+
+    setMessage(`已定位到 ${item.target.label}，请根据提示修正后再保存。`);
+    setMessageTone("error");
+  };
+
+  const handleSaveAsWorkspaceStarter = () => {
+    if (persistBlockedMessage) {
+      setMessage(persistBlockedMessage);
+      setMessageTone("error");
+      return;
+    }
+
+    const normalizedWorkflowName = workflowName.trim() || fallbackWorkflowName;
+    const starterPayload = buildWorkspaceStarterPayload({
+      workflowId,
+      workflowName: normalizedWorkflowName,
+      workflowVersion,
+      businessTrack: inferWorkflowBusinessTrack(currentDefinition),
+      definition: currentDefinition
+    });
+
+    startSaveStarterTransition(async () => {
+      setMessage("正在保存到 workspace starter library...");
+      setMessageTone("idle");
+
+      try {
+        const body = await createWorkspaceStarterTemplate(starterPayload);
+        setMessage(`已保存 workspace starter：${body?.name ?? starterPayload.name}。回到创建页即可复用。`);
+        setMessageTone("success");
+      } catch (error) {
+        const validationSummary =
+          error instanceof WorkspaceStarterValidationError
+            ? summarizeWorkspaceStarterValidationIssues(error.issues)
+            : null;
+        setMessage(
+          error instanceof WorkspaceStarterValidationError
+            ? validationSummary
+              ? `${error.message}（${validationSummary}）`
+              : error.message
+            : "无法连接后端保存 workspace starter，请确认 API 已启动。"
+        );
+        setMessageTone("error");
+      }
+    });
+  };
+
+  return {
+    handleNavigateValidationIssue,
+    handleSave,
+    handleSaveAsWorkspaceStarter,
+    isSaving,
+    isSavingStarter
+  };
+}
