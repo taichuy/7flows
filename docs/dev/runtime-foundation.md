@@ -1,4 +1,4 @@
-# Runtime Foundation
+﻿# Runtime Foundation
 
 ## 文档定位
 
@@ -21,6 +21,7 @@
 - 从 2026-03-16 的代码与文档交叉复核看，当前架构已经满足后续功能性开发、插件扩展性 / 兼容性推进、基础可靠性 / 稳定性和安全治理的继续演进门槛；真正的风险不在“骨架缺失”，而在于 waiting / callback、publish diagnostics、sensitive access policy explanation 和若干 service / state hook 热点如果不持续解耦，会拖慢后续闭环速度。
 - 2026-03-16 sensitive access 的 notification channel governance 已继续推进为真实 operator diagnostics：`/api/sensitive-access/notification-channels` 不再只返回静态 capability，而是会聚合 `NotificationDispatch` 的 `pending / delivered / failed` 摘要、latest failure 脱敏 target、email SMTP 配置事实与 health reason；`web/app/sensitive-access/page.tsx` 同页即可完成 channel health-check / config drilldown，不用再只靠 worker 错误或单条 dispatch 排障。
 - 2026-03-16 sensitive access inbox 已把同页 operator UI 继续推进到批量治理：后端新增 `/api/sensitive-access/approval-tickets/bulk-decision` 与 `/api/sensitive-access/notification-dispatches/bulk-retry`，允许对当前筛选结果集中的 `pending + waiting` 票据做批量批准 / 拒绝，并对每条票据最新且未成功投递的通知做批量 retry；前端 `SensitiveAccessInboxPanel` 也已补上 bulk governance card、operator 输入、跳过原因摘要和按 run 的失效刷新，避免通知 diagnostics 已可见但治理动作仍停留在逐条点击。
+- 2026-03-16 前端热点治理继续沿既有主线推进：web/components/sensitive-access-inbox-panel.tsx 已拆成 panel 装配层、web/components/sensitive-access-inbox-entry-card.tsx 与 web/components/sensitive-access-inbox-panel-helpers.ts，把批量治理状态、单条票据表单和共享标签/派生逻辑分离，便于后续继续补 policy explanation、timeline drilldown 与 entry-level operator diagnostics，而不把复杂度重新堆回 panel。
 - 基于 `c14c0d3 feat: add workflow editor publish draft form` 的前一轮基础，workflow editor 内的 `definition.publish` 现已补齐“`workflowVersion` 留空即跟随当前保存版本”的默认语义，并接入与后端 schema 对齐的本地校验和组件拆分；publish draft 已不再默认钉死旧版本，前端也能在重复 draft 待修正时保持稳定渲染。
 - 2026-03-16 workflow library 的 node catalog 已显式补齐 `support_status / support_summary`：`sandbox_code` 与 `loop` 继续保留在统一目录中做路线对齐，但明确标记为 `planned`，不会进入 editor palette 或 runtime 主链；当已有 workflow definition 载入了 planned / unknown node type 时，editor hero 与 sidebar 会直接提示“保留但不可假装已可运行”，把 MVP 诚实性从文案补到真实交互。
 - 2026-03-16 在 `95d8be3 refactor: split workflow editor graph workflow state` 之后，workflow editor 的同一条解耦主线继续往前走：`web/components/workflow-editor-workbench/use-workflow-editor-graph.ts` 又把 selected node 的 mutation、node config JSON、schema / runtimePolicy patch 等逻辑下沉到新的 `use-workflow-editor-node-actions.ts`，避免 graph hook 刚从 workflow-level state 中减负后，又把 node 侧复杂度重新堆回来。
