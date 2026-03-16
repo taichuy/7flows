@@ -2,14 +2,19 @@ import type { RunExecutionNodeItem } from "@/lib/get-run-views";
 import {
   formatDuration,
   formatDurationMs,
-  formatJsonPayload,
   formatTimestamp
 } from "@/lib/runtime-presenters";
 
 import {
-  ArtifactPreviewList,
   MetricChipRow
 } from "@/components/run-diagnostics-execution/shared";
+import {
+  ExecutionNodeAiCallList,
+  ExecutionNodeArtifactSection,
+  ExecutionNodeCallbackTicketList,
+  ExecutionNodeSensitiveAccessSection,
+  ExecutionNodeToolCallList
+} from "@/components/run-diagnostics-execution/execution-node-card-sections";
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { SensitiveAccessTimelineEntryList } from "@/components/sensitive-access-timeline-entry-list";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
@@ -93,87 +98,21 @@ export function ExecutionNodeCard({ node, runId }: { node: RunExecutionNodeItem;
         prefix="event"
       />
 
-      {node.tool_calls.length > 0 ? (
-        <div className="event-list">
-          {node.tool_calls.map((toolCall) => (
-            <article className="event-row compact-card" key={toolCall.id}>
-              <div className="event-meta">
-                <span>{toolCall.tool_name}</span>
-                <span>{toolCall.status}</span>
-              </div>
-              <p className="event-run">
-                {toolCall.phase} · {formatDurationMs(toolCall.latency_ms)} · tool {toolCall.tool_id}
-              </p>
-              <pre>
-                {formatJsonPayload({
-                  request_summary: toolCall.request_summary,
-                  response_summary: toolCall.response_summary,
-                  raw_ref: toolCall.raw_ref
-                })}
-              </pre>
-            </article>
-          ))}
-        </div>
-      ) : null}
+      <ExecutionNodeToolCallList toolCalls={node.tool_calls} />
 
-      {node.ai_calls.length > 0 ? (
-        <div className="event-list">
-          {node.ai_calls.map((aiCall) => (
-            <article className="event-row compact-card" key={aiCall.id}>
-              <div className="event-meta">
-                <span>{aiCall.role}</span>
-                <span>{aiCall.status}</span>
-              </div>
-              <p className="event-run">
-                {aiCall.provider ?? "provider?"} · {aiCall.model_id ?? "model?"} · {formatDurationMs(aiCall.latency_ms)}
-              </p>
-              <pre>
-                {formatJsonPayload({
-                  input_summary: aiCall.input_summary,
-                  output_summary: aiCall.output_summary,
-                  assistant: aiCall.assistant,
-                  token_usage: aiCall.token_usage
-                })}
-              </pre>
-            </article>
-          ))}
-        </div>
-      ) : null}
+      <ExecutionNodeAiCallList aiCalls={node.ai_calls} />
 
-      {node.callback_tickets.length > 0 ? (
-        <div className="event-list">
-          {node.callback_tickets.map((ticket) => (
-            <article className="event-row compact-card" key={ticket.ticket}>
-              <div className="event-meta">
-                <span>{ticket.status}</span>
-                <span>{ticket.waiting_status}</span>
-              </div>
-              <p className="event-run">
-                ticket {ticket.ticket} · tool {ticket.tool_id ?? "n/a"}
-              </p>
-              <pre>
-                {formatJsonPayload({
-                  reason: ticket.reason,
-                  callback_payload: ticket.callback_payload
-                })}
-              </pre>
-            </article>
-          ))}
-        </div>
-      ) : null}
+      <ExecutionNodeCallbackTicketList callbackTickets={node.callback_tickets} />
 
-      {node.sensitive_access_entries.length > 0 ? (
-        <>
-          <p className="section-copy entry-copy">Sensitive access timeline</p>
+      <ExecutionNodeSensitiveAccessSection count={node.sensitive_access_entries.length}>
           <SensitiveAccessTimelineEntryList
             entries={node.sensitive_access_entries}
             emptyCopy="No sensitive access decisions were recorded for this node."
             defaultRunId={latestApprovalEntry?.request.run_id ?? latestApprovalEntry?.approval_ticket?.run_id ?? null}
           />
-        </>
-      ) : null}
+      </ExecutionNodeSensitiveAccessSection>
 
-      <ArtifactPreviewList artifacts={node.artifacts} />
+      <ExecutionNodeArtifactSection artifacts={node.artifacts} />
     </article>
   );
 }
