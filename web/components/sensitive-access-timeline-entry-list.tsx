@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
 import {
   formatSensitiveAccessDecisionLabel,
   formatSensitiveAccessReasonLabel,
@@ -393,6 +394,13 @@ export function SensitiveAccessTimelineEntryList({
                   ))}
                 </dl>
               ) : null}
+
+              <SensitiveAccessInlineActions
+                compact
+                notifications={entry.notifications}
+                runId={runId}
+                ticket={entry.approval_ticket}
+              />
             </article>
           );
         })}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
 import type { SensitiveAccessBlockingPayload } from "@/lib/sensitive-access";
 import {
   formatSensitiveAccessDecisionLabel,
@@ -134,6 +135,13 @@ export function SensitiveAccessBlockedCard({
           ))}
         </div>
       ) : null}
+
+      <SensitiveAccessInlineActions
+        compact
+        notifications={payload.notifications}
+        runId={runId}
+        ticket={payload.approval_ticket}
+      />
     </article>
   );
 }
