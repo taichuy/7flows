@@ -26,6 +26,30 @@ export type RetrySensitiveAccessNotificationDispatchState = {
   target: string;
 };
 
+type ApprovalDecisionResponseBody = {
+  detail?: string;
+  request?: {
+    decision_label?: string | null;
+    reason_label?: string | null;
+    policy_summary?: string | null;
+  };
+  approval_ticket?: {
+    waiting_status?: "waiting" | "resumed" | "failed";
+  };
+};
+
+type NotificationRetryResponseBody = {
+  detail?: string;
+  approval_ticket?: {
+    waiting_status?: "waiting" | "resumed" | "failed";
+  };
+  notification?: {
+    status?: "pending" | "delivered" | "failed";
+    error?: string | null;
+    target?: string | null;
+  };
+};
+
 type ApprovalTicketBulkDecisionResponseBody = {
   requested_count: number;
   decided_count: number;
@@ -101,7 +125,7 @@ export async function decideSensitiveAccessApprovalTicket(
       }
     );
 
-    const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+    const body = (await response.json().catch(() => null)) as ApprovalDecisionResponseBody | null;
 
     if (!response.ok) {
       return {
@@ -115,7 +139,12 @@ export async function decideSensitiveAccessApprovalTicket(
 
     return {
       status: "success",
-      message: formatApprovalDecisionResultMessage(decision as "approved" | "rejected"),
+      message: formatApprovalDecisionResultMessage(decision as "approved" | "rejected", {
+        waitingStatus: body?.approval_ticket?.waiting_status,
+        decisionLabel: body?.request?.decision_label,
+        reasonLabel: body?.request?.reason_label,
+        policySummary: body?.request?.policy_summary
+      }),
       ticketId
     };
   } catch {
@@ -159,16 +188,7 @@ export async function retrySensitiveAccessNotificationDispatch(
       }
     );
 
-    const body = (await response.json().catch(() => null)) as
-      | {
-          detail?: string;
-          notification?: {
-            status?: "pending" | "delivered" | "failed";
-            error?: string | null;
-            target?: string | null;
-          };
-        }
-      | null;
+    const body = (await response.json().catch(() => null)) as NotificationRetryResponseBody | null;
 
     if (!response.ok) {
       return {
@@ -190,7 +210,8 @@ export async function retrySensitiveAccessNotificationDispatch(
       message: formatNotificationRetryResultMessage({
         status: body?.notification?.status,
         error: body?.notification?.error,
-        target: effectiveTarget
+        target: effectiveTarget,
+        waitingStatus: body?.approval_ticket?.waiting_status
       }),
       dispatchId,
       target: effectiveTarget
