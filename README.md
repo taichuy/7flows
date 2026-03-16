@@ -13,6 +13,8 @@
 - 对外仍按“开源给协作，商业给治理”组织叙事，但仓库授权以根目录 `LICENSE` 为准：当前采用 Apache 2.0 基底 + 附加条件的 `7Flows Community License`，不要把项目误写成纯 `MIT` 或纯 `Apache-2.0`。
 - 调试、流式输出、回放优先复用 `run_events`，AI / 自动化 追溯以 `runs`、`node_runs`、`run_events`、`run_artifacts`、`tool_call_records`、`ai_call_records` 为事实来源。
 - `llm_agent` 正在按可恢复 phase pipeline 演进，assistant 只负责 evidence 提炼，不拥有流程控制权。
+- `OSS / Community` 默认执行模型保持 `worker-first`：普通 workflow 节点继续轻执行，不把 sandbox 当作所有部署的开箱前提；但 sandbox 协议、能力声明和扩展接入点默认开放。
+- 官方可提供一个轻量默认 / reference sandbox backend，但只维护少量受控 JS / Python builtin package set；企业第三方依赖、私有镜像和长期环境维护责任优先留给企业自定义 backend。
 
 ## 开源与商业边界
 
@@ -36,6 +38,7 @@
 ## 当前未完成边界
 
 - `loop` 节点尚未在 MVP 执行器中开放执行。
+- 独立的 `SandboxBackendRegistration / SandboxExecution` 协议尚未落地；当前 `sandbox_code` 在编辑器与持久化链路仍保持 `planned`，host-subprocess 只算 MVP 参考执行路径，不应误写成正式沙箱产品能力。
 - `WAITING_CALLBACK` 仍缺少后台自动唤醒与完整 scheduler / callback bus。
 - 发布网关虽然已拆出多个子模块，但主网关和发布治理仍在持续治理中。
 - 节点配置、工作流编辑器和发布治理前端仍处于“可继续扩展”的阶段，不应假装成品已齐全。
@@ -81,6 +84,8 @@ docker compose -f .\docker-compose.middleware.yaml up -d
 - RustFS API: `39000`
 - RustFS Console: `39001`
 - Sandbox: `38194`
+
+`Sandbox` 容器当前更接近可选的参考执行后端，不是普通 workflow 开发必须先启用的硬前置。
 
 ### 2. 启动后端 API
 

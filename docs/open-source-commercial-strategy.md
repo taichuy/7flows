@@ -33,6 +33,8 @@
 - 社区版负责 adoption、开发者入口、协作编排体验、协议沉淀和生态扩展。
 - 商业版负责组织治理、责任边界、成本控制、部署保障和官方服务。
 - 商业能力必须建立在同一 kernel 上，不允许另起执行引擎、另起流程语义或第二套内部 DSL。
+- 社区 / 开源默认执行模型保持 `worker-first`：普通 workflow 节点继续轻执行，不把默认 sandbox 作为所有部署的硬前置；但 sandbox 协议、能力声明和扩展接入点默认开放。
+- 官方可以提供轻量默认 / reference sandbox backend，但只维护少量官方受控依赖；企业第三方依赖、私有镜像和长期环境维护责任优先留给企业自定义 backend。
 
 ### 3.2 社区版专注方向
 
@@ -83,6 +85,7 @@
 - OpenClaw / 本地 AI 助手场景下的执行透明、工具调用追踪、基础回放和错误定位
 - 轻量 Skill Catalog、API / MCP retrieval 与 `llm_agent` 注入能力
 - 可视化编排、基础自部署、插件协议、SDK、社区模板与社区扩展入口
+- 默认轻执行体验，以及开放的 sandbox backend 协议 / capability contract / 接入点
 - 面向真实 adoption 的基础协作能力
 - 社区版专注“让个人和小团队先把 workflow 跑起来、看得清、调得动”，而不是先做重治理控制面
 
@@ -104,6 +107,7 @@
 ### 5.4 Managed / Service
 
 - 官方托管执行、日志、artifact、queue 等持续资源能力
+- 官方托管或官方维护的隔离执行后端、受控 builtin package set，以及需要持续运维保障的执行资源能力
 - SLA、专属支持、升级保障、迁移服务
 - 咨询、定制集成、企业导入等官方交付能力
 
@@ -175,6 +179,7 @@
 ## 9. 当前仍需继续明确的现实约束
 
 - 当前仓库主要落地的是 Community kernel 与运行时基础，不应提前承诺已具备 Team / Enterprise 成熟控制面。
+- 当前代码还没有独立的 `SandboxBackendRegistration / SandboxExecution` 协议，也没有把高风险隔离路径全面收口到 capability-driven 的 fail-closed 语义；相关内容当前仍属于目标设计，不应误写成已完整交付。
 - 当前 `LICENSE` 已切换为 Apache 2.0 基底 + 附加条件的 community license；后续仍需继续明确“多租户”“商业化对立面”“前端品牌替换”和“商业授权触发条件”的执行口径。
 - `organization / workspace / member / role / publish governance` 仍主要停留在目标设计，后续需要收敛成最小可实现领域模型。
 - 当前代码还没有 product-level `SkillDoc` 模型、skill retrieval API / MCP 或 `llm_agent` 注入链；后续不能把这条方向误写成已完成的 SkillHub、本地下载中心或客户端接管系统。

@@ -58,6 +58,8 @@ description: 面向 7Flows `web/` 目录的前端代码审查技能。适用于 
 
 - 当前 runtime 仍未完整实现 loop、插件代理、MCP、发布协议映射。
 - 前端不应把这些能力假装成已可用；占位、禁用和实验态表达都属于设计质量的一部分。
+- sandbox 相关 UI 还应继续区分“默认轻执行”“已注册的 sandbox backend capability”“需要强隔离但当前 unavailable”三种状态，不应把缺少 backend 的高风险路径伪装成还能正常执行。
+- 后端私有扩展如镜像、挂载、私有 registry 等不应默认暴露成面向所有 workflow 作者的主配置表单；若需要显示，也应带上 capability / admin 边界。
 
 ### 5. 是否同时照顾到主切口与内核边界
 

@@ -15,7 +15,7 @@ docker compose -f .\docker-compose.middleware.yaml up -d
 - RustFS Console: `39001`
 - Sandbox: `38194`
 
-`docker/sandbox/config.yaml` 是默认沙盒配置模板，后续如果要接代理、限网或更严格隔离，可以直接在这里扩展。
+`docker/sandbox/config.yaml` 是默认 / reference sandbox backend 的配置模板，后续如果要接代理、限网或更严格隔离，可以直接在这里扩展。它当前更适合作为可选参考执行后端，而不是普通 workflow 开发的硬前置依赖。
 
 ## 启动整套容器
 

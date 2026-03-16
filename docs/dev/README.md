@@ -5,7 +5,7 @@
 ## 文档列表
 
 - `runtime-foundation.md`
-  说明当前已经落地的数据库迁移、运行态模型、最小工作流执行链路，以及 Docker / 本地开发如何使用。
+  说明当前已经落地的数据库迁移、运行态模型、最小工作流执行链路，以及 `worker-first` 默认执行边界、sandbox backend 现状和 Docker / 本地开发如何使用。
 - `user-preferences.md`
   记录开发过程中确认的长期有效用户偏好，供后续实现、文档维护和 skill 优化复用。
 
@@ -26,5 +26,6 @@
 ## 当前优先级
 
 - 当前研发优先级不再在本页重复维护，统一以 `runtime-foundation.md` 的“下一步规划”为准。
+- 涉及 sandbox / execution 方向时，先区分“当前代码事实”“目标设计中的 sandbox backend 协议”“社区默认轻执行边界”，不要把三者混成同一层结论。
 - 如果任务涉及产品切口、版本分层、开源/商业边界或 OpenClaw 场景，应先补读 `docs/open-source-commercial-strategy.md`。
 - 如果任务由 AI 协作推进，应先判断是否命中开发收尾 / skill 治理这类元流程 skill，再按模块读取对应的领域 skill，而不是只靠单轮对话上下文判断。

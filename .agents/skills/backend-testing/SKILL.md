@@ -54,6 +54,8 @@ description: 用于为 7Flows 的 `api/` 改动补测试、审查后端测试缺
 - run、node run、run events、artifact / evidence 是否按事实层落库和暴露
 - waiting / resume / callback ticket 是否沿同一条 durable runtime 主链工作
 - credential、plugin compat、tool gateway 是否保持授权和执行边界
+- `sandbox_code`、高风险 `tool/plugin` 或显式要求强隔离的路径，是否在没有兼容且健康的 sandbox backend 时诚实地 blocked / unavailable，而不是静默回退到宿主轻执行
+- sandbox backend capability、compat adapter capability 与 execution fallback trace 是否各自沿正确主链暴露，而不是把“生态桥接”和“隔离执行”测成同一层能力
 - native / OpenAI / Anthropic published surface 是否只做发布映射，而不是分叉第二条执行链
 
 ## 验证要求

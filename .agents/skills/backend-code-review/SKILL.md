@@ -49,6 +49,9 @@ description: 基于 7Flows 当前仓库结构与产品架构，对 `api/` 下的
 
 - 当前 `api/app/services/runtime.py` 是最小执行闭环，不应被持续膨胀为“万能 God object”。
 - 插件代理、发布网关、MCP、沙盒、凭证、安全等应逐步拆到独立层次。
+- sandbox backend registration / execution protocol 与 compat adapter registration / invoke 不应混成同一种对象；前者解决隔离执行，后者解决外部生态桥接。
+- 对 `sandbox_code`、高风险 `tool/plugin` 或显式要求强隔离的路径，如果实现仍会在 backend 缺失时静默退回宿主轻执行，应优先指出这是边界错误而不只是实现细节。
+- 镜像、挂载、私有 registry、wheelhouse、bundle 安装等企业依赖细节，不应直接污染 workflow 核心 IR；若代码把这些细节硬塞进主模型，应视为设计漂移。
 
 ### 3. 是否绕过显式授权和显式 loop
 

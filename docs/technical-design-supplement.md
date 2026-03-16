@@ -241,6 +241,7 @@ type CompatibilityAdapterRegistration = {
 - `supportedExecutionClasses` 是 compat adapter 对“自己能真正兑现哪些 execution class”的显式声明。
 - 7Flows host 侧不会再把任意 `microvm / sandbox` 请求原样被动透传给一个只声明 `subprocess` 的 adapter；未声明支持时会在 `ToolGateway -> PluginCallProxy` 这条主链上先显式降级，并把 requested/effective/fallback 继续写进 trace / artifact。
 - 若 adapter 明确声明支持 `sandbox` 或 `microvm`，host 侧才会把对应 execution payload 原样透传到 `/invoke`，让 compat adapter 继续兑现真实隔离边界。
+- compat adapter registration 与 sandbox backend registration 可以复用相似的注册 / health / capability 形态，但它们不是同一种运行时对象：compat adapter 解决生态桥接，sandbox backend 解决隔离执行。
 
 ### 14.6 Dify 兼容层生命周期管理
 
@@ -511,6 +512,44 @@ type NodeExecutionPolicy = {
 | `microvm` | 极少数高权限或高合规节点 | 更强隔离，首版先预留 |
 
 插件与工具不应一律独立容器。只有当能力本身涉及脚本执行、浏览器操作、文件写入、宿主访问面扩大或来源不可信时，才默认进入 `sandbox` 或未来的 `microvm`。
+
+### 16.1.1 OSS 默认轻执行与 Sandbox Backend 边界
+
+- `OSS / Community` 默认保持 `worker-first`：普通 workflow 节点继续轻执行，不把默认 sandbox 作为所有部署的硬前置。
+- sandbox 协议、能力声明和接入点默认开放；社区、官方或企业后端都应沿统一 contract 挂入，而不是反向改写 workflow semantics。
+- 对需要强隔离且不可安全降级的路径，例如 `sandbox_code`、高风险 `tool/plugin` 或显式要求受控 `sandbox / microvm` 的 profile，应在没有兼容且健康的 sandbox backend 时 `fail-closed` 为 blocked / unavailable，而不是静默退回 `inline`。
+- core IR 优先只理解最小 sandbox contract，例如 `profile`、`language`、运行时限制、依赖引用和 capability 声明；镜像、挂载、私有 registry、wheelhouse、bundle 安装等企业依赖细节，优先留在 backend/profile/admin 扩展。
+
+推荐的最小 capability 与注册模型：
+
+```ts
+type DependencyMode = 'builtin' | 'dependency_ref' | 'backend_managed'
+
+type SandboxBackendCapability = {
+  supportedExecutionClasses: ('sandbox' | 'microvm')[]
+  supportedLanguages: string[]
+  supportedProfiles: string[]
+  supportedDependencyModes: DependencyMode[]
+  supportsBuiltinPackageSets: boolean
+  supportsBackendExtensions: boolean
+  supportsNetworkPolicy: boolean
+  supportsFilesystemPolicy: boolean
+}
+
+type SandboxBackendRegistration = {
+  id: string
+  kind: 'official' | 'custom'
+  endpoint: string
+  enabled: boolean
+  healthStatus: 'healthy' | 'degraded' | 'offline'
+  capability: SandboxBackendCapability
+}
+```
+
+补充约束：
+
+- `image / mount / bundle` 可以是后续候选的 shared dependency mode；但在至少两个 backend 真实共享相同语义之前，优先通过 `backendExtensions` 或 profile registry 表达，不要过早抬升成 workflow 核心字段。
+- 官方默认 backend 若存在，应只维护少量官方受控 builtin package set；企业第三方依赖环境应通过自定义 backend 自行实现。
 
 对 `sandbox` 执行类，建议默认安全策略如下：
 
@@ -1438,6 +1477,49 @@ Tool Gateway 至少负责：
 
 - Tool Gateway 在解析出统一 `ResolvedExecutionPolicy` 后，应把标准化 `execution` payload（`class / source / profile / timeoutMs / networkPolicy / filesystemPolicy`）连同 `traceId` 一起透传给 compat adapter 的 `/invoke` 请求，而不是只在 7Flows 内部 trace / artifact 中可见。
 - compat adapter 可以先把这份 `execution` payload 视为执行提示 contract；即便当前仍回落到 adapter service / host subprocess，也不应丢失这份信息，以便后续逐步演进到真实 `sandbox` / `microvm` 隔离兑现。
+
+### 23.1.1 Sandbox Backend 执行协议
+
+`sandbox_code` 与高风险 `tool/plugin` 应优先复用同一套 sandbox backend 协议，而不是分别发明独立执行面。
+
+```ts
+type SandboxExecutionRequest = {
+  profile: string
+  language: string
+  code?: string
+  command?: string[]
+  files?: ArtifactReference[]
+  dependencyMode: DependencyMode
+  builtinPackageSet?: string
+  dependencyRef?: string
+  runtimePolicy: {
+    timeoutMs?: number
+    networkPolicy?: 'inherit' | 'restricted' | 'isolated'
+    filesystemPolicy?: 'inherit' | 'readonly_tmp' | 'ephemeral'
+  }
+  traceId: string
+  backendExtensions?: Record<string, unknown>
+}
+
+type SandboxExecutionResult = {
+  status: 'success' | 'failed' | 'waiting'
+  summary: string
+  structured?: Record<string, unknown>
+  stdout?: string
+  stderr?: string
+  artifactRefs?: string[]
+  requestedExecutionClass: 'sandbox' | 'microvm'
+  effectiveExecutionClass: 'sandbox' | 'microvm'
+  backendRef: string
+  fallbackReason?: string
+}
+```
+
+约束：
+
+- `backendExtensions` 对 7Flows core 保持 opaque；host 只做透传、审计和 capability gating，不负责解释镜像、挂载、私有 registry 或内部 runner 细节。
+- 只有当 sandbox backend capability 已声明支持相应 profile / language / dependency mode / policy 维度时，运行时才应把请求发出；否则应在 host 侧显式阻断。
+- 对强隔离必需路径，这里的“阻断”应表现为 blocked / unavailable，而不是回退到普通 worker 执行。
 
 ### 23.2 标准化工具返回
 

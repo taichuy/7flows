@@ -58,7 +58,11 @@
 - 外部或通用 skill 格式只能通过适配映射到内部统一 `SkillDoc` 结构，不能反向主导 7Flows 的内部模型。
 - 原始大体量工具结果应优先进入 artifact store，通过摘要、引用和 evidence 供主 AI 消费，不要无节制直接塞进主 prompt。
 - 沙盒是核心能力，不是附属特性；代码执行、危险工具、插件脚本应优先考虑隔离边界。
+- `OSS / Community` 默认执行模型保持 `worker-first`：普通 workflow 节点继续轻执行，不把默认 sandbox 作为所有部署的硬前置；但 sandbox 协议、能力声明和接入点默认开放。
 - 执行隔离采用分级策略，不做“所有节点默认重沙箱化”；可信内建节点优先 `inline` 或 `subprocess`，只有代码执行、自定义节点、插件脚本、高风险工具等少量节点进入 `sandbox` 或 `microvm`。
+- 对需要强隔离且不可安全降级的路径，例如 `sandbox_code`、高风险 `tool/plugin` 或显式要求受控 `sandbox / microvm` 的执行，应在没有兼容且健康的 sandbox backend 时 `fail-closed` 为 blocked / unavailable，不要静默退回 `inline` 或不受控宿主执行。
+- sandbox backend registration / execution protocol 是独立的运行时能力；它可以借鉴 compat adapter registration 的建模风格，但不要把 sandbox backend 和外部插件 compat adapter 混成同一种对象。
+- 7Flows core 只理解最小 sandbox contract，例如 `profile`、`language`、运行时限制、依赖引用与 capability 声明；自定义镜像、挂载、私有 registry、wheelhouse、bundle 安装等企业依赖细节，应优先留在 backend/profile/admin 扩展中，而不是直接污染工作流核心语义。
 - `sensitivity_level` 与 `execution class` 是两条独立治理轴：前者管理资源访问、审批与审计，后者管理执行隔离与宿主风险，不能混为一个字段或一个策略开关。
 - 敏感资源访问控制应优先做成统一运行时能力，基于分级、审批、通知与审计闭环管理；先不要预置行业分类，也不要一开始拆成独立人工审核节点。
 
@@ -66,6 +70,7 @@
 
 - 7Flows 首版只兼容 Dify 插件生态，不承诺兼容完整 Dify ChatFlow DSL、UI 配置格式或整个平台结构。
 - OpenClaw 集成边界是 `workflow-backed provider`：OpenClaw 对接的是 7Flows 发布网关，不直接理解 7Flows 内部 DSL。
+- compat adapter 解决外部生态接入，sandbox backend 解决隔离执行；两者都可以是可注册、可替换的外接能力，但职责边界不能混淆。
 - 发布层统一从 `7Flows IR` 和事件总线映射到原生、OpenAI、Anthropic 接口，不能为外部协议分叉内部执行链。
 
 ### 3.3 MVP 诚实性

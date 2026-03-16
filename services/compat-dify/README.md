@@ -7,6 +7,11 @@
 - `GET /healthz`
 - `POST /invoke`
 
+补充边界：
+
+- `compat:dify` 是外部生态兼容层，不是 sandbox backend。
+- `/invoke` 当前会接收统一的 `execution` payload 与 `executionContract`，用于表达 7Flows host 侧已解析的执行提示与受约束 contract；但真正的强隔离执行后端仍应走独立的 sandbox backend 协议，而不是把 compat adapter 直接当成隔离执行注册中心。
+
 ## 本地运行
 
 ```powershell
@@ -32,6 +37,7 @@ cd services/compat-dify
 - `translate`
   - 默认模式
   - `/invoke` 会先按本地 `constrained_ir` 校验请求，再翻译成 Dify plugin daemon 的真实 dispatch payload
+  - 会保留 host 侧透传的 `execution` 提示 contract，便于后续和已声明 capability 的执行边界对齐
   - 返回值会包含脱敏后的 `translatedRequest` 预览，便于调试翻译结果
 - `proxy`
   - 需要同时配置 `PLUGIN_DAEMON_URL` 和 `PLUGIN_DAEMON_API_KEY`

@@ -22,13 +22,13 @@
 
 ## 当前已记录偏好
 
-## 2026-03-16 开源默认轻执行与代码节点受控依赖
+## 2026-03-16 开源默认轻执行、强隔离 fail-closed 与代码节点受控依赖
 
-- 偏好：7Flows 的社区 / 开源默认执行模型保持 `worker-first` 的轻量可扩展架构，不把默认沙箱作为所有部署的硬前置；普通 workflow 节点继续在 worker / 进程内轻执行，`sandbox_code` 与高风险 `tool/plugin` 再通过可替换的 sandbox adapter 进入轻量或强隔离后端。对 JS / Python 代码节点，首轮只开放仓库已维护的常用受控内置依赖，不把任意自定义依赖安装作为默认能力；更重的自定义依赖、复杂运行环境与长期维护责任优先通过插件、自定义节点或用户自建 sandbox backend 承载。
-- 来源：用户在本轮围绕 n8n / Dify 的执行模型、OpenClaw 本地助手边界、`sandbox_code` 的默认形态，以及代码节点依赖开放策略的连续讨论中，明确要求“普通节点轻执行、高风险节点隔离执行、开源默认不强绑默认沙箱”。
-- 影响范围：`docs/dev/runtime-foundation.md`、后续 `SandboxAdapter` / `sandbox_code` 设计、ToolGateway 高风险执行策略、插件 runtime、editor 能力表达、开源默认部署说明，以及代码节点依赖注入边界。
-- 落地动作：本轮把“工作流运行节点 vs 不可信代码执行节点”的边界、OSS 默认 `worker-first`、sandbox backend 可插拔，以及“代码节点仅开放受控内置依赖、重依赖走插件 / 自定义节点”的方向同步到当前事实索引与开发记录，作为后续 execution adapter 演进基线。
-- 备注：这里强调的是开源默认体验先轻，再通过扩展打开 sandbox；不是删除 sandbox 架构本身。sandbox 仍保留为高风险节点与可选扩展能力。
+- 偏好：7Flows 的社区 / 开源默认执行模型保持 `worker-first` 的轻量可扩展架构，不把默认沙箱作为所有部署的硬前置；普通 workflow 节点继续在 worker / 进程内轻执行，`sandbox_code` 与高风险 `tool/plugin` 再通过可替换的 sandbox backend 进入轻量或强隔离后端。对需要强隔离且不可安全降级的路径，应在没有兼容且健康的 sandbox backend 时 `fail-closed` 为 blocked / unavailable，而不是静默退回宿主轻执行。对 JS / Python 代码节点，首轮只开放仓库已维护的常用受控内置依赖，不把任意自定义依赖安装作为默认能力；更重的自定义依赖、复杂运行环境与长期维护责任优先通过用户自建 sandbox backend 承载。
+- 来源：用户在本轮围绕 n8n / Dify 的执行模型、OpenClaw 本地助手边界、`sandbox_code` 的默认形态、sandbox backend 协议，以及企业第三方依赖开放策略的连续讨论中，明确要求“普通节点轻执行、高风险节点隔离执行、开源默认不强绑默认沙箱，同时把强隔离路径 fail-closed 和 backend 接口开放写清楚”。
+- 影响范围：`AGENTS.md`、`docs/product-design.md`、`docs/technical-design-supplement.md`、`docs/open-source-commercial-strategy.md`、`docs/dev/runtime-foundation.md`、后续 `SandboxAdapter` / `sandbox_code` 设计、ToolGateway 高风险执行策略、插件 runtime、editor 能力表达、开源默认部署说明，以及代码节点依赖注入边界。
+- 落地动作：本轮把“工作流运行节点 vs 不可信代码执行节点”的边界、OSS 默认 `worker-first`、sandbox backend registration / protocol 独立于 plugin compat adapter、高风险隔离路径 `fail-closed`，以及“代码节点仅开放受控内置依赖、企业第三方依赖留在 backend/profile/admin 扩展”的方向同步到正式文档、README、skill 与当前事实索引，作为后续 execution adapter 演进基线。
+- 备注：这里强调的是开源默认体验先轻，再通过开放协议和可替换 backend 打开 sandbox；不是删除 sandbox 架构本身。sandbox 仍保留为高风险节点与可选扩展能力，但企业第三方依赖细节不应直接进入核心 IR。
 
 ## 2026-03-16 Product Skill 保持轻量自由结构
 
