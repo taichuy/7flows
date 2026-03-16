@@ -2,6 +2,11 @@
 
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import {
+  WORKFLOW_EXECUTION_CLASS_OPTIONS,
+  WORKFLOW_EXECUTION_FILESYSTEM_POLICY_OPTIONS,
+  WORKFLOW_EXECUTION_NETWORK_POLICY_OPTIONS
+} from "@/lib/workflow-runtime-policy";
+import {
   cloneRecord,
   dedupeStrings,
   parseNumericFieldValue,
@@ -21,10 +26,14 @@ export function LlmAgentToolPolicyForm({
   onChange
 }: LlmAgentToolPolicyFormProps) {
   const toolPolicy = toRecord(config.toolPolicy) ?? {};
+  const execution = toRecord(toolPolicy.execution) ?? {};
   const allowedToolIds = dedupeStrings(toStringArray(toolPolicy.allowedToolIds));
   const callableTools = tools.filter((tool) => tool.callable);
 
-  const updateToolPolicy = (patch: { allowedToolIds?: string[]; timeoutMs?: number | undefined }) => {
+  const updateToolPolicy = (patch: {
+    allowedToolIds?: string[];
+    timeoutMs?: number | undefined;
+  }) => {
     const nextConfig = cloneRecord(config);
     const nextToolPolicy = cloneRecord(toolPolicy);
 
@@ -42,6 +51,50 @@ export function LlmAgentToolPolicyForm({
     } else if (Object.prototype.hasOwnProperty.call(patch, "timeoutMs")) {
       delete nextToolPolicy.timeoutMs;
     }
+
+    if (Object.keys(nextToolPolicy).length === 0) {
+      delete nextConfig.toolPolicy;
+    } else {
+      nextConfig.toolPolicy = nextToolPolicy;
+    }
+
+    onChange(nextConfig);
+  };
+
+  const updateExecutionField = (
+    field: "class" | "profile" | "timeoutMs" | "networkPolicy" | "filesystemPolicy",
+    value: string | number | undefined
+  ) => {
+    const nextConfig = cloneRecord(config);
+    const nextToolPolicy = cloneRecord(toolPolicy);
+    const nextExecution = cloneRecord(execution);
+
+    if (value === undefined || value === "") {
+      delete nextExecution[field];
+    } else {
+      nextExecution[field] = value;
+    }
+
+    const normalizedExecution = normalizeToolPolicyExecution(nextExecution);
+    if (normalizedExecution) {
+      nextToolPolicy.execution = normalizedExecution;
+    } else {
+      delete nextToolPolicy.execution;
+    }
+
+    if (Object.keys(nextToolPolicy).length === 0) {
+      delete nextConfig.toolPolicy;
+    } else {
+      nextConfig.toolPolicy = nextToolPolicy;
+    }
+
+    onChange(nextConfig);
+  };
+
+  const clearExecutionOverride = () => {
+    const nextConfig = cloneRecord(config);
+    const nextToolPolicy = cloneRecord(toolPolicy);
+    delete nextToolPolicy.execution;
 
     if (Object.keys(nextToolPolicy).length === 0) {
       delete nextConfig.toolPolicy;
@@ -76,6 +129,102 @@ export function LlmAgentToolPolicyForm({
           placeholder="为空时沿用运行时默认值"
         />
       </label>
+
+      <div className="binding-field compact-stack">
+        <div className="section-heading compact-heading">
+          <div>
+            <span className="binding-label">Tool execution override</span>
+            <small className="section-copy">
+              仅在需要把 Agent 可调用工具强制收口到特定 execution class / profile 时填写；留空表示沿用工具默认能力声明。
+            </small>
+          </div>
+          {Object.keys(execution).length > 0 ? (
+            <div className="tool-badge-row">
+              <span className="event-chip">explicit override</span>
+              <button className="sync-button" type="button" onClick={clearExecutionOverride}>
+                Clear execution override
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <label className="binding-field">
+          <span className="binding-label">Execution class</span>
+          <select
+            className="binding-select"
+            value={typeof execution.class === "string" ? execution.class : ""}
+            onChange={(event) => updateExecutionField("class", event.target.value || undefined)}
+          >
+            <option value="">follow tool default</option>
+            {WORKFLOW_EXECUTION_CLASS_OPTIONS.map((option) => (
+              <option key={`tool-policy-execution-class-${option}`} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="binding-field">
+          <span className="binding-label">Profile</span>
+          <input
+            className="trace-text-input"
+            value={typeof execution.profile === "string" ? execution.profile : ""}
+            onChange={(event) => updateExecutionField("profile", event.target.value)}
+            placeholder="browser-safe / filesystem-heavy / trusted-local"
+          />
+        </label>
+
+        <label className="binding-field">
+          <span className="binding-label">Timeout ms</span>
+          <input
+            className="trace-text-input"
+            type="number"
+            min={1}
+            step={1000}
+            value={typeof execution.timeoutMs === "number" ? String(execution.timeoutMs) : ""}
+            onChange={(event) =>
+              updateExecutionField("timeoutMs", parseNumericFieldValue(event.target.value))
+            }
+            placeholder="为空时沿用工具或运行时默认值"
+          />
+        </label>
+
+        <label className="binding-field">
+          <span className="binding-label">Network policy</span>
+          <select
+            className="binding-select"
+            value={typeof execution.networkPolicy === "string" ? execution.networkPolicy : ""}
+            onChange={(event) =>
+              updateExecutionField("networkPolicy", event.target.value || undefined)
+            }
+          >
+            <option value="">follow tool default</option>
+            {WORKFLOW_EXECUTION_NETWORK_POLICY_OPTIONS.map((option) => (
+              <option key={`tool-policy-network-${option}`} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="binding-field">
+          <span className="binding-label">Filesystem policy</span>
+          <select
+            className="binding-select"
+            value={typeof execution.filesystemPolicy === "string" ? execution.filesystemPolicy : ""}
+            onChange={(event) =>
+              updateExecutionField("filesystemPolicy", event.target.value || undefined)
+            }
+          >
+            <option value="">follow tool default</option>
+            {WORKFLOW_EXECUTION_FILESYSTEM_POLICY_OPTIONS.map((option) => (
+              <option key={`tool-policy-filesystem-${option}`} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       <div className="tool-badge-row">
         <button
@@ -114,4 +263,29 @@ export function LlmAgentToolPolicyForm({
       </small>
     </div>
   );
+}
+
+function normalizeToolPolicyExecution(execution: Record<string, unknown>) {
+  const normalizedExecution: Record<string, unknown> = {};
+
+  if (typeof execution.class === "string" && execution.class.trim()) {
+    normalizedExecution.class = execution.class.trim();
+  }
+  if (typeof execution.profile === "string" && execution.profile.trim()) {
+    normalizedExecution.profile = execution.profile.trim();
+  }
+  if (typeof execution.timeoutMs === "number") {
+    normalizedExecution.timeoutMs = Math.max(1, Math.round(execution.timeoutMs));
+  }
+  if (typeof execution.networkPolicy === "string" && execution.networkPolicy.trim()) {
+    normalizedExecution.networkPolicy = execution.networkPolicy.trim();
+  }
+  if (
+    typeof execution.filesystemPolicy === "string" &&
+    execution.filesystemPolicy.trim()
+  ) {
+    normalizedExecution.filesystemPolicy = execution.filesystemPolicy.trim();
+  }
+
+  return Object.keys(normalizedExecution).length > 0 ? normalizedExecution : undefined;
 }
