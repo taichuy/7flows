@@ -18,6 +18,8 @@ import type {
 } from "@/lib/get-workflow-library";
 import { type WorkflowRunListItem } from "@/lib/get-workflow-runs";
 import {
+  WorkflowDefinitionPreflightError,
+  type WorkflowDefinitionPreflightIssue,
   type WorkflowDetail,
   type WorkflowListItem,
   validateWorkflowDefinition
@@ -56,6 +58,47 @@ type WorkflowEditorWorkbenchProps = {
   adapters: PluginAdapterRegistryItem[];
   recentRuns: WorkflowRunListItem[];
 };
+
+const PREFLIGHT_CATEGORY_LABELS: Record<string, string> = {
+  schema: "contract/schema",
+  node_support: "node support",
+  tool_reference: "tool reference",
+  tool_execution: "tool execution",
+  publish_version: "publish version"
+};
+
+function summarizePreflightIssues(
+  issues: WorkflowDefinitionPreflightIssue[]
+): string | null {
+  if (issues.length === 0) {
+    return null;
+  }
+
+  const grouped = new Map<string, WorkflowDefinitionPreflightIssue[]>();
+  issues.forEach((issue) => {
+    const existing = grouped.get(issue.category);
+    if (existing) {
+      existing.push(issue);
+      return;
+    }
+    grouped.set(issue.category, [issue]);
+  });
+
+  return Array.from(grouped.entries())
+    .map(([category, categoryIssues]) => {
+      const label = PREFLIGHT_CATEGORY_LABELS[category] ?? category;
+      const head = categoryIssues
+        .slice(0, 2)
+        .map((issue) => issue.message)
+        .join("；");
+      const suffix =
+        categoryIssues.length > 2
+          ? `；另有 ${categoryIssues.length - 2} 项同类问题`
+          : "";
+      return `${label}：${head}${suffix}`;
+    })
+    .join(" | ");
+}
 
 export function WorkflowEditorWorkbench({
   workflow,
@@ -246,10 +289,18 @@ export function WorkflowEditorWorkbench({
         setMessage(`已保存 workflow，当前版本 ${body?.version ?? graph.workflowVersion}。`);
         setMessageTone("success");
       } catch (error) {
+        const preflightIssueSummary =
+          error instanceof WorkflowDefinitionPreflightError
+            ? summarizePreflightIssues(error.issues)
+            : null;
         setMessage(
-          error instanceof Error
-            ? error.message
-            : "无法连接后端保存 workflow，请确认 API 已启动。"
+          error instanceof WorkflowDefinitionPreflightError
+            ? preflightIssueSummary
+              ? `${error.message} ${preflightIssueSummary}`
+              : error.message
+            : error instanceof Error
+              ? error.message
+              : "无法连接后端保存 workflow，请确认 API 已启动。"
         );
         setMessageTone("error");
       }

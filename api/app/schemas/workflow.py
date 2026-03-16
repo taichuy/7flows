@@ -167,9 +167,15 @@ class WorkflowDefinitionPreflightRequest(BaseModel):
     definition: dict = Field(default_factory=dict)
 
 
+class WorkflowDefinitionPreflightIssue(BaseModel):
+    category: str
+    message: str
+
+
 class WorkflowDefinitionPreflightResult(BaseModel):
     definition: dict
     next_version: str
+    issues: list[WorkflowDefinitionPreflightIssue] = Field(default_factory=list)
 
 
 class WorkflowListItem(BaseModel):

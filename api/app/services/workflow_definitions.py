@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
@@ -20,8 +21,21 @@ from app.services.workflow_publish_version_references import (
 )
 
 
+@dataclass(frozen=True)
+class WorkflowDefinitionValidationIssue:
+    category: str
+    message: str
+
+
 class WorkflowDefinitionValidationError(ValueError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        issues: list[WorkflowDefinitionValidationIssue] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.issues = list(issues or [])
 
 
 def validate_workflow_definition(definition: dict[str, Any] | None) -> dict[str, Any]:
@@ -29,13 +43,21 @@ def validate_workflow_definition(definition: dict[str, Any] | None) -> dict[str,
         document = WorkflowDefinitionDocument.model_validate(definition or {})
     except ValidationError as exc:
         messages = []
+        issues: list[WorkflowDefinitionValidationIssue] = []
         for error in exc.errors():
             location = ".".join(str(item) for item in error["loc"])
             if location:
-                messages.append(f"{location}: {error['msg']}")
+                message = f"{location}: {error['msg']}"
             else:
-                messages.append(error["msg"])
-        raise WorkflowDefinitionValidationError("; ".join(messages)) from exc
+                message = error["msg"]
+            messages.append(message)
+            issues.append(
+                WorkflowDefinitionValidationIssue(
+                    category="schema",
+                    message=message,
+                )
+            )
+        raise WorkflowDefinitionValidationError("; ".join(messages), issues=issues) from exc
 
     return document.model_dump(mode="python", exclude_none=True)
 
@@ -259,7 +281,17 @@ def validate_persistable_workflow_definition(
         raise WorkflowDefinitionValidationError(
             "Workflow definition contains node types that are not currently available "
             "for persistence: "
-            f"{rendered_nodes}."
+            f"{rendered_nodes}.",
+            issues=[
+                WorkflowDefinitionValidationIssue(
+                    category="node_support",
+                    message=(
+                        f"Node '{item['id']}:{item['name']}' uses unavailable type "
+                        f"'{item['type']}' ({item['support_status']}). {item['support_summary']}"
+                    ).strip(),
+                )
+                for item in unavailable_nodes
+            ],
         )
 
     invalid_tool_references = collect_invalid_workflow_tool_references(
@@ -269,7 +301,14 @@ def validate_persistable_workflow_definition(
     if invalid_tool_references:
         raise WorkflowDefinitionValidationError(
             "Workflow definition references missing or drifted tool catalog entries: "
-            + "; ".join(invalid_tool_references)
+            + "; ".join(invalid_tool_references),
+            issues=[
+                WorkflowDefinitionValidationIssue(
+                    category="tool_reference",
+                    message=issue,
+                )
+                for issue in invalid_tool_references
+            ],
         )
 
     invalid_tool_execution_references = collect_invalid_workflow_tool_execution_references(
@@ -281,7 +320,14 @@ def validate_persistable_workflow_definition(
         raise WorkflowDefinitionValidationError(
             "Workflow definition requests tool execution capabilities that are not currently "
             "available: "
-            + "; ".join(invalid_tool_execution_references)
+            + "; ".join(invalid_tool_execution_references),
+            issues=[
+                WorkflowDefinitionValidationIssue(
+                    category="tool_execution",
+                    message=issue,
+                )
+                for issue in invalid_tool_execution_references
+            ],
         )
 
     invalid_publish_version_references = collect_invalid_workflow_publish_version_references(
@@ -291,7 +337,14 @@ def validate_persistable_workflow_definition(
     if invalid_publish_version_references:
         raise WorkflowDefinitionValidationError(
             "Workflow definition references unknown publish workflow versions: "
-            + "; ".join(invalid_publish_version_references)
+            + "; ".join(invalid_publish_version_references),
+            issues=[
+                WorkflowDefinitionValidationIssue(
+                    category="publish_version",
+                    message=issue,
+                )
+                for issue in invalid_publish_version_references
+            ],
         )
 
     return validated_definition

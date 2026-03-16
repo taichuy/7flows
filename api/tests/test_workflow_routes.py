@@ -1083,6 +1083,7 @@ def test_validate_workflow_definition_preflight_returns_normalized_definition(
     body = response.json()
     assert body["next_version"] == "0.1.1"
     assert body["definition"]["nodes"][1]["runtimePolicy"]["execution"]["class"] == "inline"
+    assert body["issues"] == []
 
 
 def test_validate_workflow_definition_preflight_rejects_invalid_publish_reference(
@@ -1104,7 +1105,10 @@ def test_validate_workflow_definition_preflight_rejects_invalid_publish_referenc
     )
 
     assert response.status_code == 422
-    assert "unknown publish workflow versions" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert "unknown publish workflow versions" in detail["message"]
+    assert detail["issues"][0]["category"] == "publish_version"
+    assert "workflow version '9.9.9'" in detail["issues"][0]["message"]
 
 
 def test_create_workflow_rejects_invalid_publish_contract_schema(

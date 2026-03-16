@@ -17,6 +17,7 @@ from app.schemas.workflow import (
 from app.services.compiled_blueprints import CompiledBlueprintService
 from app.services.workflow_definitions import (
     WorkflowDefinitionValidationError,
+    WorkflowDefinitionValidationIssue,
     build_workflow_adapter_reference_list,
     build_workflow_tool_reference_index,
     bump_workflow_version,
@@ -37,6 +38,18 @@ from app.services.workflow_views import (
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 workflow_mutation_service = WorkflowMutationService(CompiledBlueprintService())
+
+
+def _render_validation_issues(
+    issues: list[WorkflowDefinitionValidationIssue],
+) -> list[dict[str, str]]:
+    return [
+        {
+            "category": issue.category,
+            "message": issue.message,
+        }
+        for issue in issues
+    ]
 
 
 def _validate_workflow_definition_for_persistence(
@@ -174,12 +187,16 @@ def validate_workflow_definition_preflight(
     except WorkflowDefinitionValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail=str(exc),
+            detail={
+                "message": str(exc),
+                "issues": _render_validation_issues(exc.issues),
+            },
         ) from exc
 
     return WorkflowDefinitionPreflightResult(
         definition=definition,
         next_version=next_version,
+        issues=[],
     )
 
 

@@ -50,7 +50,29 @@ export type WorkflowDetail = WorkflowListItem & {
 export type WorkflowDefinitionPreflightResult = {
   definition: WorkflowDetail["definition"];
   next_version: string;
+  issues: WorkflowDefinitionPreflightIssue[];
 };
+
+export type WorkflowDefinitionPreflightIssue = {
+  category:
+    | "schema"
+    | "node_support"
+    | "tool_reference"
+    | "tool_execution"
+    | "publish_version"
+    | string;
+  message: string;
+};
+
+export class WorkflowDefinitionPreflightError extends Error {
+  readonly issues: WorkflowDefinitionPreflightIssue[];
+
+  constructor(message: string, issues: WorkflowDefinitionPreflightIssue[] = []) {
+    super(message);
+    this.name = "WorkflowDefinitionPreflightError";
+    this.issues = issues;
+  }
+}
 
 export async function getWorkflows(): Promise<WorkflowListItem[]> {
   try {
@@ -98,6 +120,17 @@ export async function validateWorkflowDefinition(
   workflowId: string,
   definition: WorkflowDetail["definition"]
 ): Promise<WorkflowDefinitionPreflightResult> {
+  type WorkflowDefinitionPreflightErrorBody = {
+    detail?:
+      | string
+      | {
+          message?: string;
+          issues?: WorkflowDefinitionPreflightIssue[];
+        };
+  };
+
+  type WorkflowDefinitionPreflightSuccessBody = Partial<WorkflowDefinitionPreflightResult>;
+
   const response = await fetch(
     `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(workflowId)}/validate-definition`,
     {
@@ -110,14 +143,25 @@ export async function validateWorkflowDefinition(
   );
 
   const body = (await response.json().catch(() => null)) as
-    | ({ detail?: string } & Partial<WorkflowDefinitionPreflightResult>)
+    | WorkflowDefinitionPreflightErrorBody
+    | WorkflowDefinitionPreflightSuccessBody
     | null;
   if (!response.ok) {
-    throw new Error(body?.detail ?? `Validation failed with status ${response.status}.`);
+    const detail = (body as WorkflowDefinitionPreflightErrorBody | null)?.detail;
+    if (typeof detail === "string") {
+      throw new WorkflowDefinitionPreflightError(detail);
+    }
+    throw new WorkflowDefinitionPreflightError(
+      detail?.message ?? `Validation failed with status ${response.status}.`,
+      Array.isArray(detail?.issues) ? detail.issues : []
+    );
   }
 
+  const successBody = body as WorkflowDefinitionPreflightSuccessBody | null;
+
   return {
-    definition: body?.definition ?? definition,
-    next_version: body?.next_version ?? "0.1.0"
+    definition: successBody?.definition ?? definition,
+    next_version: successBody?.next_version ?? "0.1.0",
+    issues: Array.isArray(successBody?.issues) ? successBody.issues : []
   };
 }
