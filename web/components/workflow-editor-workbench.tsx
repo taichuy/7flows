@@ -120,13 +120,13 @@ function summarizePreflightIssues(
       const label = PREFLIGHT_CATEGORY_LABELS[category] ?? category;
       const head = categoryIssues
         .slice(0, 2)
-        .map((issue) => issue.message)
+        .map((issue) => issue.path ?? issue.field ?? issue.message)
         .join("；");
       const suffix =
         categoryIssues.length > 2
           ? `；另有 ${categoryIssues.length - 2} 项同类问题`
           : "";
-      return `${label}：${head}${suffix}`;
+      return head ? `${label}：${head}${suffix}` : `${label} ${categoryIssues.length} 项`;
     })
     .join(" | ");
 }

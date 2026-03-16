@@ -82,7 +82,15 @@ export function WorkspaceStarterLibrary({
         return summary;
       }, {})
     )
-      .map(([category, count]) => `${categoryLabels[category] ?? category} ${count} 项`)
+      .map(([category, count]) => {
+        const sample = issues
+          .filter((issue) => issue.category === category)
+          .slice(0, 2)
+          .map((issue) => issue.path ?? issue.field ?? issue.message)
+          .join("、");
+        const prefix = `${categoryLabels[category] ?? category} ${count} 项`;
+        return sample ? `${prefix}（${sample}）` : prefix;
+      })
       .join("；");
   };
 

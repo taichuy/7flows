@@ -13,6 +13,13 @@ def _workflow_detail_message(response) -> str:
     return str(detail)
 
 
+def _workflow_detail_issues(response) -> list[dict]:
+    detail = response.json()["detail"]
+    if isinstance(detail, dict) and isinstance(detail.get("issues"), list):
+        return [issue for issue in detail["issues"] if isinstance(issue, dict)]
+    return []
+
+
 def _valid_definition(answer: str = "done", runtime_policy: dict | None = None) -> dict:
     return {
         "nodes": [
@@ -474,6 +481,13 @@ def test_update_workflow_rejects_publish_binding_beyond_next_persisted_version(
     assert response.status_code == 422
     assert "references unknown publish workflow versions" in _workflow_detail_message(response)
     assert "0.1.0, 0.1.1" in _workflow_detail_message(response)
+    issues = _workflow_detail_issues(response)
+    assert any(
+        issue.get("category") == "publish_version"
+        and issue.get("path") == "publish.0.workflowVersion"
+        and issue.get("field") == "workflowVersion"
+        for issue in issues
+    )
 
 
 def test_list_workflow_runs_returns_aggregated_summary(
@@ -979,6 +993,13 @@ def test_create_workflow_rejects_missing_catalog_tool_binding(client: TestClient
     assert response.status_code == 422
     assert "references missing or drifted tool catalog entries" in _workflow_detail_message(response)
     assert "native.missing" in _workflow_detail_message(response)
+    issues = _workflow_detail_issues(response)
+    assert any(
+        issue.get("category") == "tool_reference"
+        and issue.get("path") == "nodes.1.config.tool.toolId"
+        and issue.get("field") == "toolId"
+        for issue in issues
+    )
 
 
 def test_create_workflow_rejects_missing_tool_policy_reference(client: TestClient) -> None:
@@ -1011,6 +1032,13 @@ def test_create_workflow_rejects_missing_tool_policy_reference(client: TestClien
     assert response.status_code == 422
     assert "toolPolicy.allowedToolIds references missing catalog tools" in _workflow_detail_message(response)
     assert "native.missing" in _workflow_detail_message(response)
+    issues = _workflow_detail_issues(response)
+    assert any(
+        issue.get("category") == "tool_reference"
+        and issue.get("path") == "nodes.1.config.toolPolicy.allowedToolIds"
+        and issue.get("field") == "allowedToolIds"
+        for issue in issues
+    )
 
 
 def test_create_workflow_rejects_duplicate_variable_names(client: TestClient) -> None:
@@ -1067,6 +1095,13 @@ def test_create_workflow_rejects_invalid_node_contract_schema(client: TestClient
 
     assert response.status_code == 422
     assert "inputSchema.type" in _workflow_detail_message(response)
+    issues = _workflow_detail_issues(response)
+    assert any(
+        issue.get("category") == "schema"
+        and issue.get("path") == "nodes.1.inputSchema.type"
+        and issue.get("field") == "type"
+        for issue in issues
+    )
 
 
 def test_validate_workflow_definition_preflight_returns_normalized_definition(

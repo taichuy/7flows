@@ -32,8 +32,14 @@ def _render_validation_issues(
 ) -> list[dict[str, str]]:
     return [
         {
-            "category": issue.category,
-            "message": issue.message,
+            key: value
+            for key, value in {
+                "category": issue.category,
+                "message": issue.message,
+                "path": issue.path,
+                "field": issue.field,
+            }.items()
+            if value is not None
         }
         for issue in issues
     ]

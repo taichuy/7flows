@@ -62,6 +62,8 @@ export type WorkflowDefinitionPreflightIssue = {
     | "publish_version"
     | string;
   message: string;
+  path?: string;
+  field?: string;
 };
 
 type WorkflowValidationErrorDetail =

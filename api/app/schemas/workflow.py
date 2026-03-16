@@ -170,6 +170,8 @@ class WorkflowDefinitionPreflightRequest(BaseModel):
 class WorkflowDefinitionPreflightIssue(BaseModel):
     category: str
     message: str
+    path: str | None = None
+    field: str | None = None
 
 
 class WorkflowDefinitionPreflightResult(BaseModel):

@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 from collections.abc import Collection
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.workflow import WorkflowVersion
+
+
+@dataclass(frozen=True)
+class WorkflowPublishVersionReferenceIssue:
+    message: str
+    path: str
+    field: str = "workflowVersion"
 
 
 def build_allowed_publish_workflow_versions(
@@ -34,7 +42,7 @@ def collect_invalid_workflow_publish_version_references(
     definition: dict[str, Any] | None,
     *,
     allowed_versions: Collection[str] | None,
-) -> list[str]:
+) -> list[WorkflowPublishVersionReferenceIssue]:
     if allowed_versions is None or not isinstance(definition, dict):
         return []
 
@@ -53,7 +61,7 @@ def collect_invalid_workflow_publish_version_references(
         return []
 
     allowed_version_set = set(normalized_allowed_versions)
-    issues: list[str] = []
+    issues: list[WorkflowPublishVersionReferenceIssue] = []
     for index, endpoint in enumerate(publish):
         if not isinstance(endpoint, dict):
             continue
@@ -69,12 +77,17 @@ def collect_invalid_workflow_publish_version_references(
             else endpoint_id
         )
         issues.append(
-            f"Published endpoint '{endpoint_label}' references unknown workflow version "
-            f"'{workflow_version}'. Allowed versions: {', '.join(normalized_allowed_versions)}. "
-            "Leave workflowVersion empty to track the current saved version."
+            WorkflowPublishVersionReferenceIssue(
+                message=(
+                    f"Published endpoint '{endpoint_label}' references unknown workflow version "
+                    f"'{workflow_version}'. Allowed versions: {', '.join(normalized_allowed_versions)}. "
+                    "Leave workflowVersion empty to track the current saved version."
+                ),
+                path=f"publish.{index}.workflowVersion",
+            )
         )
 
-    deduped_issues: list[str] = []
+    deduped_issues: list[WorkflowPublishVersionReferenceIssue] = []
     for issue in issues:
         if issue not in deduped_issues:
             deduped_issues.append(issue)

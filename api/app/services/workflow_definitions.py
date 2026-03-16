@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
+import re
 from typing import Any
 
 from pydantic import ValidationError
@@ -25,6 +26,8 @@ from app.services.workflow_publish_version_references import (
 class WorkflowDefinitionValidationIssue:
     category: str
     message: str
+    path: str | None = None
+    field: str | None = None
 
 
 class WorkflowDefinitionValidationError(ValueError):
@@ -45,16 +48,21 @@ def validate_workflow_definition(definition: dict[str, Any] | None) -> dict[str,
         messages = []
         issues: list[WorkflowDefinitionValidationIssue] = []
         for error in exc.errors():
-            location = ".".join(str(item) for item in error["loc"])
+            raw_message = str(error["msg"])
+            location = _format_issue_path(error.get("loc"))
+            path = _derive_issue_path(location, raw_message)
             if location:
-                message = f"{location}: {error['msg']}"
+                message = f"{location}: {raw_message}"
             else:
-                message = error["msg"]
+                message = raw_message
             messages.append(message)
             issues.append(
                 WorkflowDefinitionValidationIssue(
                     category="schema",
                     message=message,
+                    path=path or location or None,
+                    field=_extract_issue_field_from_path(path)
+                    or _extract_issue_field(error.get("loc")),
                 )
             )
         raise WorkflowDefinitionValidationError("; ".join(messages), issues=issues) from exc
@@ -116,7 +124,7 @@ def collect_unavailable_persisted_workflow_nodes(
 
     support_index = _node_support_index()
     issues: list[dict[str, str]] = []
-    for node in nodes:
+    for index, node in enumerate(nodes):
         if not isinstance(node, dict):
             continue
         node_type = node.get("type")
@@ -134,6 +142,8 @@ def collect_unavailable_persisted_workflow_nodes(
                 "type": node_type,
                 "support_status": support_status,
                 "support_summary": support_summary,
+                "path": f"nodes.{index}.type",
+                "field": "type",
             }
         )
     return issues
@@ -143,7 +153,7 @@ def collect_invalid_workflow_tool_references(
     definition: dict[str, Any] | None,
     *,
     tool_index: Mapping[str, PluginToolItem] | None,
-) -> list[str]:
+) -> list[WorkflowDefinitionValidationIssue]:
     if tool_index is None or not isinstance(definition, dict):
         return []
 
@@ -151,8 +161,8 @@ def collect_invalid_workflow_tool_references(
     if not isinstance(nodes, list):
         return []
 
-    issues: list[str] = []
-    for node in nodes:
+    issues: list[WorkflowDefinitionValidationIssue] = []
+    for node_index, node in enumerate(nodes):
         if not isinstance(node, dict):
             continue
 
@@ -168,6 +178,7 @@ def collect_invalid_workflow_tool_references(
             issues.extend(
                 _collect_tool_node_binding_issues(
                     node_label=node_label,
+                    node_index=node_index,
                     config=config,
                     tool_index=tool_index,
                 )
@@ -178,12 +189,13 @@ def collect_invalid_workflow_tool_references(
             issues.extend(
                 _collect_agent_tool_policy_issues(
                     node_label=node_label,
+                    node_index=node_index,
                     config=config,
                     tool_index=tool_index,
                 )
             )
 
-    deduped_issues: list[str] = []
+    deduped_issues: list[WorkflowDefinitionValidationIssue] = []
     for issue in issues:
         if issue not in deduped_issues:
             deduped_issues.append(issue)
@@ -193,9 +205,10 @@ def collect_invalid_workflow_tool_references(
 def _collect_tool_node_binding_issues(
     *,
     node_label: str,
+    node_index: int,
     config: dict[str, Any],
     tool_index: Mapping[str, PluginToolItem],
-) -> list[str]:
+) -> list[WorkflowDefinitionValidationIssue]:
     binding = config.get("tool")
     tool_id: str | None = None
     ecosystem: str | None = None
@@ -211,13 +224,25 @@ def _collect_tool_node_binding_issues(
     tool = tool_index.get(tool_id)
     if tool is None:
         return [
-            f"Tool node '{node_label}' references missing catalog tool '{tool_id}'."
+            WorkflowDefinitionValidationIssue(
+                category="tool_reference",
+                message=f"Tool node '{node_label}' references missing catalog tool '{tool_id}'.",
+                path=_resolve_tool_binding_path(config, node_index=node_index, suffix="toolId"),
+                field="toolId",
+            )
         ]
 
     if ecosystem is not None and ecosystem != tool.ecosystem:
         return [
-            f"Tool node '{node_label}' declares ecosystem '{ecosystem}' for catalog tool "
-            f"'{tool_id}', but the current catalog reports '{tool.ecosystem}'."
+            WorkflowDefinitionValidationIssue(
+                category="tool_reference",
+                message=(
+                    f"Tool node '{node_label}' declares ecosystem '{ecosystem}' for catalog tool "
+                    f"'{tool_id}', but the current catalog reports '{tool.ecosystem}'."
+                ),
+                path=_resolve_tool_binding_path(config, node_index=node_index, suffix="ecosystem"),
+                field="ecosystem",
+            )
         ]
 
     return []
@@ -226,9 +251,10 @@ def _collect_tool_node_binding_issues(
 def _collect_agent_tool_policy_issues(
     *,
     node_label: str,
+    node_index: int,
     config: dict[str, Any],
     tool_index: Mapping[str, PluginToolItem],
-) -> list[str]:
+) -> list[WorkflowDefinitionValidationIssue]:
     tool_policy = config.get("toolPolicy")
     if not isinstance(tool_policy, dict):
         return []
@@ -252,8 +278,15 @@ def _collect_agent_tool_policy_issues(
 
     rendered_tool_ids = ", ".join(missing_tool_ids)
     return [
-        f"LLM agent node '{node_label}' toolPolicy.allowedToolIds references missing "
-        f"catalog tools: {rendered_tool_ids}."
+        WorkflowDefinitionValidationIssue(
+            category="tool_reference",
+            message=(
+                f"LLM agent node '{node_label}' toolPolicy.allowedToolIds references missing "
+                f"catalog tools: {rendered_tool_ids}."
+            ),
+            path=f"nodes.{node_index}.config.toolPolicy.allowedToolIds",
+            field="allowedToolIds",
+        )
     ]
 
 
@@ -262,6 +295,51 @@ def _normalize_optional_string(value: Any) -> str | None:
         return None
     normalized = value.strip()
     return normalized or None
+
+
+def _format_issue_path(location: Any) -> str:
+    if not isinstance(location, tuple | list):
+        return ""
+    return ".".join(str(item) for item in location)
+
+
+def _extract_issue_field(location: Any) -> str | None:
+    if not isinstance(location, tuple | list):
+        return None
+    for item in reversed(location):
+        if isinstance(item, str):
+            return item
+    return None
+
+
+def _extract_issue_field_from_path(path: str) -> str | None:
+    if not path:
+        return None
+    return path.rsplit(".", 1)[-1]
+
+
+def _derive_issue_path(location: str, message: str) -> str:
+    pattern = re.compile(
+        r"(inputSchema(?:\.[\w]+)*|outputSchema(?:\.[\w]+)*|toolPolicy\.allowedToolIds|workflowVersion|conditionExpression|config(?:\.[\w]+)+|runtimePolicy(?:\.[\w]+)+)"
+    )
+    matched = pattern.search(message)
+    if matched is None:
+        return location
+    relative_path = matched.group(1)
+    if not location:
+        return relative_path
+    return f"{location}.{relative_path}"
+
+
+def _resolve_tool_binding_path(
+    config: Mapping[str, Any],
+    *,
+    node_index: int,
+    suffix: str,
+) -> str:
+    if isinstance(config.get("tool"), dict):
+        return f"nodes.{node_index}.config.tool.{suffix}"
+    return f"nodes.{node_index}.config.{suffix}"
 
 
 def validate_persistable_workflow_definition(
@@ -289,6 +367,8 @@ def validate_persistable_workflow_definition(
                         f"Node '{item['id']}:{item['name']}' uses unavailable type "
                         f"'{item['type']}' ({item['support_status']}). {item['support_summary']}"
                     ).strip(),
+                    path=item.get("path"),
+                    field=item.get("field"),
                 )
                 for item in unavailable_nodes
             ],
@@ -301,14 +381,8 @@ def validate_persistable_workflow_definition(
     if invalid_tool_references:
         raise WorkflowDefinitionValidationError(
             "Workflow definition references missing or drifted tool catalog entries: "
-            + "; ".join(invalid_tool_references),
-            issues=[
-                WorkflowDefinitionValidationIssue(
-                    category="tool_reference",
-                    message=issue,
-                )
-                for issue in invalid_tool_references
-            ],
+            + "; ".join(issue.message for issue in invalid_tool_references),
+            issues=invalid_tool_references,
         )
 
     invalid_tool_execution_references = collect_invalid_workflow_tool_execution_references(
@@ -337,11 +411,13 @@ def validate_persistable_workflow_definition(
     if invalid_publish_version_references:
         raise WorkflowDefinitionValidationError(
             "Workflow definition references unknown publish workflow versions: "
-            + "; ".join(invalid_publish_version_references),
+            + "; ".join(issue.message for issue in invalid_publish_version_references),
             issues=[
                 WorkflowDefinitionValidationIssue(
                     category="publish_version",
-                    message=issue,
+                    message=issue.message,
+                    path=issue.path,
+                    field=issue.field,
                 )
                 for issue in invalid_publish_version_references
             ],
