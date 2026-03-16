@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { buildWorkflowVariableValidationIssues } from "@/lib/workflow-variable-validation";
 
@@ -11,6 +11,7 @@ type WorkflowEditorVariableFormProps = {
     options?: { successMessage?: string }
   ) => void;
   highlightedVariableIndex?: number | null;
+  highlightedVariableFieldPath?: string | null;
 };
 
 type NormalizedWorkflowVariable = {
@@ -24,9 +25,11 @@ type NormalizedWorkflowVariable = {
 export function WorkflowEditorVariableForm({
   variables,
   onChange,
-  highlightedVariableIndex = null
+  highlightedVariableIndex = null,
+  highlightedVariableFieldPath = null
 }: WorkflowEditorVariableFormProps) {
   const [feedback, setFeedback] = useState<string | null>(null);
+  const articleRef = useRef<HTMLElement | null>(null);
 
   const normalizedVariables = useMemo(
     () => variables.map((variable) => normalizeWorkflowVariable(variable)),
@@ -36,6 +39,22 @@ export function WorkflowEditorVariableForm({
     () => buildWorkflowVariableValidationIssues({ variables }),
     [variables]
   );
+
+  useEffect(() => {
+    if (highlightedVariableIndex === null) {
+      return;
+    }
+
+    const fieldKey = normalizeValidationFieldKey(highlightedVariableFieldPath);
+    const target = articleRef.current?.querySelector<HTMLElement>(
+      `[data-variable-index="${highlightedVariableIndex}"][data-validation-field="${fieldKey}"] input, ` +
+        `[data-variable-index="${highlightedVariableIndex}"][data-validation-field="${fieldKey}"] select, ` +
+        `[data-variable-index="${highlightedVariableIndex}"][data-validation-field="${fieldKey}"] textarea`
+    );
+
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
+    target?.focus();
+  }, [highlightedVariableFieldPath, highlightedVariableIndex]);
 
   const commit = (
     nextVariables: Array<Record<string, unknown>>,
@@ -156,7 +175,7 @@ export function WorkflowEditorVariableForm({
   };
 
   return (
-    <article className="diagnostic-panel editor-panel">
+    <article className="diagnostic-panel editor-panel" ref={articleRef}>
       <div className="section-heading">
         <div>
           <p className="eyebrow">Workflow variables</p>
@@ -207,7 +226,11 @@ export function WorkflowEditorVariableForm({
                   {variable.hasDefault ? <span className="event-chip">has default</span> : null}
                 </div>
 
-                <label className="binding-field">
+                <label
+                  className="binding-field"
+                  data-variable-index={index}
+                  data-validation-field="name"
+                >
                   <span className="binding-label">Variable name</span>
                   <input
                     className="trace-text-input"
@@ -217,7 +240,11 @@ export function WorkflowEditorVariableForm({
                   />
                 </label>
 
-                <label className="binding-field">
+                <label
+                  className="binding-field"
+                  data-variable-index={index}
+                  data-validation-field="type"
+                >
                   <span className="binding-label">Type</span>
                   <input
                     className="trace-text-input"
@@ -227,7 +254,11 @@ export function WorkflowEditorVariableForm({
                   />
                 </label>
 
-                <label className="binding-field">
+                <label
+                  className="binding-field"
+                  data-variable-index={index}
+                  data-validation-field="description"
+                >
                   <span className="binding-label">Description</span>
                   <input
                     className="trace-text-input"
@@ -240,7 +271,11 @@ export function WorkflowEditorVariableForm({
                 </label>
 
                 {rawType === "boolean" ? (
-                  <label className="binding-field">
+                  <label
+                    className="binding-field"
+                    data-variable-index={index}
+                    data-validation-field="default"
+                  >
                     <span className="binding-label">Default value</span>
                     <select
                       className="binding-select"
@@ -266,7 +301,11 @@ export function WorkflowEditorVariableForm({
                     </select>
                   </label>
                 ) : rawType === "number" || rawType === "integer" || rawType === "string" ? (
-                  <label className="binding-field">
+                  <label
+                    className="binding-field"
+                    data-variable-index={index}
+                    data-validation-field="default"
+                  >
                     <span className="binding-label">Default value</span>
                     <input
                       className="trace-text-input"
@@ -291,7 +330,11 @@ export function WorkflowEditorVariableForm({
                     />
                   </label>
                 ) : (
-                  <label className="binding-field">
+                  <label
+                    className="binding-field"
+                    data-variable-index={index}
+                    data-validation-field="default"
+                  >
                     <span className="binding-label">Default value JSON</span>
                     <textarea
                       key={`${key}-default-json`}
@@ -346,6 +389,18 @@ function createWorkflowVariableDraft(name: string): Record<string, unknown> {
     description: "",
     default: ""
   };
+}
+
+function normalizeValidationFieldKey(fieldPath: string | null | undefined) {
+  if (!fieldPath) {
+    return "name";
+  }
+
+  if (fieldPath === "default" || fieldPath.startsWith("default.")) {
+    return "default";
+  }
+
+  return fieldPath;
 }
 
 function createUniqueVariableName(existingNames: string[]) {

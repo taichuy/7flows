@@ -551,9 +551,19 @@ export function WorkflowEditorWorkbench({
                   ? validationFocusTarget.endpointIndex
                   : null
               }
+              highlightedPublishEndpointFieldPath={
+                validationFocusTarget?.scope === "publish"
+                  ? validationFocusTarget.fieldPath ?? null
+                  : null
+              }
               highlightedVariableIndex={
                 validationFocusTarget?.scope === "variables"
                   ? validationFocusTarget.variableIndex
+                  : null
+              }
+              highlightedVariableFieldPath={
+                validationFocusTarget?.scope === "variables"
+                  ? validationFocusTarget.fieldPath ?? null
                   : null
               }
             />

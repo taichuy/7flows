@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 import {
   AUTH_MODES,
   PUBLISH_PROTOCOLS,
@@ -15,6 +17,7 @@ type WorkflowEditorPublishEndpointCardProps = {
   workflowVersion: string;
   validationMessages: string[];
   highlighted?: boolean;
+  highlightedFieldPath?: string | null;
   onUpdateEndpoint: (
     index: number,
     updater: (current: Record<string, unknown>) => Record<string, unknown>
@@ -33,16 +36,37 @@ export function WorkflowEditorPublishEndpointCard({
   workflowVersion,
   validationMessages,
   highlighted = false,
+  highlightedFieldPath = null,
   onUpdateEndpoint,
   onDeleteEndpoint,
   onApplySchemaField
 }: WorkflowEditorPublishEndpointCardProps) {
+  const sectionRef = useRef<HTMLElement | null>(null);
   const versionChip = endpoint.workflowVersion
     ? `pinned ${endpoint.workflowVersion}`
     : `tracks current ${workflowVersion}`;
 
+  useEffect(() => {
+    if (!highlighted) {
+      return;
+    }
+
+    const fieldKey = normalizePublishFieldKey(highlightedFieldPath);
+    const target = sectionRef.current?.querySelector<HTMLElement>(
+      `[data-validation-field="${fieldKey}"] input, ` +
+        `[data-validation-field="${fieldKey}"] select, ` +
+        `[data-validation-field="${fieldKey}"] textarea`
+    );
+
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
+    target?.focus();
+  }, [highlighted, highlightedFieldPath]);
+
   return (
-    <section className={`entry-card compact-card ${highlighted ? "validation-focus-ring" : ""}`.trim()}>
+    <section
+      className={`entry-card compact-card ${highlighted ? "validation-focus-ring" : ""}`.trim()}
+      ref={sectionRef}
+    >
       <div className="binding-card-header">
         <div>
           <p className="status-meta">Endpoint draft</p>
@@ -68,7 +92,7 @@ export function WorkflowEditorPublishEndpointCard({
         </div>
       ) : null}
 
-      <label className="binding-field">
+      <label className="binding-field" data-validation-field="name">
         <span className="binding-label">Name</span>
         <input
           className="trace-text-input"
@@ -82,7 +106,7 @@ export function WorkflowEditorPublishEndpointCard({
         />
       </label>
 
-      <label className="binding-field">
+      <label className="binding-field" data-validation-field="id">
         <span className="binding-label">Endpoint id</span>
         <input
           className="trace-text-input"
@@ -97,7 +121,7 @@ export function WorkflowEditorPublishEndpointCard({
       </label>
 
       <div className="publish-meta-grid">
-        <label className="binding-field">
+        <label className="binding-field" data-validation-field="alias">
           <span className="binding-label">Alias</span>
           <input
             className="trace-text-input"
@@ -111,7 +135,7 @@ export function WorkflowEditorPublishEndpointCard({
           />
         </label>
 
-        <label className="binding-field">
+        <label className="binding-field" data-validation-field="path">
           <span className="binding-label">Path</span>
           <input
             className="trace-text-input"
@@ -127,7 +151,7 @@ export function WorkflowEditorPublishEndpointCard({
       </div>
 
       <div className="publish-meta-grid">
-        <label className="binding-field">
+        <label className="binding-field" data-validation-field="protocol">
           <span className="binding-label">Protocol</span>
           <select
             className="binding-select"
@@ -147,7 +171,7 @@ export function WorkflowEditorPublishEndpointCard({
           </select>
         </label>
 
-        <label className="binding-field">
+        <label className="binding-field" data-validation-field="authMode">
           <span className="binding-label">Auth mode</span>
           <select
             className="binding-select"
@@ -167,7 +191,7 @@ export function WorkflowEditorPublishEndpointCard({
           </select>
         </label>
 
-        <label className="binding-field">
+        <label className="binding-field" data-validation-field="workflowVersion">
           <span className="binding-label">Workflow version</span>
           <input
             className="trace-text-input"
@@ -203,7 +227,7 @@ export function WorkflowEditorPublishEndpointCard({
         </div>
       ) : null}
 
-      <label className="binding-field">
+      <label className="binding-field" data-validation-field="streaming">
         <span className="binding-label">Streaming</span>
         <input
           type="checkbox"
@@ -217,7 +241,7 @@ export function WorkflowEditorPublishEndpointCard({
         />
       </label>
 
-      <label className="binding-field">
+      <label className="binding-field" data-validation-field="inputSchema">
         <span className="binding-label">Input schema JSON</span>
         <textarea
           key={`${endpoint.id}-input-schema-${JSON.stringify(endpoint.inputSchema)}`}
@@ -227,7 +251,7 @@ export function WorkflowEditorPublishEndpointCard({
         />
       </label>
 
-      <label className="binding-field">
+      <label className="binding-field" data-validation-field="outputSchema">
         <span className="binding-label">Output schema JSON</span>
         <textarea
           key={`${endpoint.id}-output-schema-${JSON.stringify(endpoint.outputSchema ?? {})}`}
@@ -263,7 +287,7 @@ export function WorkflowEditorPublishEndpointCard({
 
         {endpoint.rateLimit ? (
           <div className="publish-meta-grid">
-            <label className="binding-field">
+            <label className="binding-field" data-validation-field="rateLimit.requests">
               <span className="binding-label">Requests</span>
               <input
                 className="trace-text-input"
@@ -281,7 +305,7 @@ export function WorkflowEditorPublishEndpointCard({
               />
             </label>
 
-            <label className="binding-field">
+            <label className="binding-field" data-validation-field="rateLimit.windowSeconds">
               <span className="binding-label">Window seconds</span>
               <input
                 className="trace-text-input"
@@ -331,7 +355,7 @@ export function WorkflowEditorPublishEndpointCard({
         {endpoint.cache ? (
           <>
             <div className="publish-meta-grid">
-              <label className="binding-field">
+              <label className="binding-field" data-validation-field="cache.enabled">
                 <span className="binding-label">Enabled</span>
                 <input
                   type="checkbox"
@@ -347,7 +371,7 @@ export function WorkflowEditorPublishEndpointCard({
                 />
               </label>
 
-              <label className="binding-field">
+              <label className="binding-field" data-validation-field="cache.ttl">
                 <span className="binding-label">TTL seconds</span>
                 <input
                   className="trace-text-input"
@@ -365,7 +389,7 @@ export function WorkflowEditorPublishEndpointCard({
                 />
               </label>
 
-              <label className="binding-field">
+              <label className="binding-field" data-validation-field="cache.maxEntries">
                 <span className="binding-label">Max entries</span>
                 <input
                   className="trace-text-input"
@@ -416,4 +440,34 @@ export function WorkflowEditorPublishEndpointCard({
       </button>
     </section>
   );
+}
+
+function normalizePublishFieldKey(fieldPath: string | null | undefined) {
+  if (!fieldPath) {
+    return "name";
+  }
+
+  if (fieldPath.startsWith("inputSchema")) {
+    return "inputSchema";
+  }
+  if (fieldPath.startsWith("outputSchema")) {
+    return "outputSchema";
+  }
+  if (fieldPath.startsWith("rateLimit.requests")) {
+    return "rateLimit.requests";
+  }
+  if (fieldPath.startsWith("rateLimit.windowSeconds")) {
+    return "rateLimit.windowSeconds";
+  }
+  if (fieldPath.startsWith("cache.enabled")) {
+    return "cache.enabled";
+  }
+  if (fieldPath.startsWith("cache.ttl")) {
+    return "cache.ttl";
+  }
+  if (fieldPath.startsWith("cache.maxEntries")) {
+    return "cache.maxEntries";
+  }
+
+  return fieldPath;
 }

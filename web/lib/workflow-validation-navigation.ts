@@ -16,11 +16,13 @@ export type WorkflowValidationFocusTarget =
   | {
       scope: "publish";
       endpointIndex: number;
+      fieldPath?: string;
       label: string;
     }
   | {
       scope: "variables";
       variableIndex: number;
+      fieldPath?: string;
       label: string;
     };
 
@@ -92,12 +94,14 @@ function resolveWorkflowValidationFocusTarget(
   const publishMatch = /^publish\.(\d+)\./.exec(path);
   if (publishMatch) {
     const endpointIndex = Number.parseInt(publishMatch[1] ?? "", 10);
+    const fieldPath = path.replace(/^publish\.\d+\./, "");
     const endpoint = readIndexedRecord(definition.publish, endpointIndex);
     const endpointId = normalizeString(endpoint?.id) ?? `endpoint_${endpointIndex + 1}`;
     const endpointName = normalizeString(endpoint?.name);
     return {
       scope: "publish",
       endpointIndex,
+      fieldPath: fieldPath || undefined,
       label: endpointName && endpointName !== endpointId
         ? `Publish · ${endpointName}`
         : `Publish · ${endpointId}`
@@ -107,11 +111,13 @@ function resolveWorkflowValidationFocusTarget(
   const variableMatch = /^variables\.(\d+)\./.exec(path);
   if (variableMatch) {
     const variableIndex = Number.parseInt(variableMatch[1] ?? "", 10);
+    const fieldPath = path.replace(/^variables\.\d+\./, "");
     const variable = readIndexedRecord(definition.variables, variableIndex);
     const variableName = normalizeString(variable?.name) ?? `variable_${variableIndex + 1}`;
     return {
       scope: "variables",
       variableIndex,
+      fieldPath: fieldPath || undefined,
       label: `Variable · ${variableName}`
     };
   }

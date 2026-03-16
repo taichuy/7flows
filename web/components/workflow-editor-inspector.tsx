@@ -47,7 +47,9 @@ type WorkflowEditorInspectorProps = {
   onDeleteSelectedEdge: () => void;
   highlightedNodeSection?: "config" | "contract" | "runtime" | null;
   highlightedPublishEndpointIndex?: number | null;
+  highlightedPublishEndpointFieldPath?: string | null;
   highlightedVariableIndex?: number | null;
+  highlightedVariableFieldPath?: string | null;
 };
 
 export function WorkflowEditorInspector({
@@ -76,7 +78,9 @@ export function WorkflowEditorInspector({
   onDeleteSelectedEdge,
   highlightedNodeSection = null,
   highlightedPublishEndpointIndex = null,
-  highlightedVariableIndex = null
+  highlightedPublishEndpointFieldPath = null,
+  highlightedVariableIndex = null,
+  highlightedVariableFieldPath = null
 }: WorkflowEditorInspectorProps) {
   return (
     <>
@@ -227,12 +231,14 @@ export function WorkflowEditorInspector({
         publishEndpoints={workflowPublish}
         onChange={onWorkflowPublishChange}
         highlightedEndpointIndex={highlightedPublishEndpointIndex}
+        highlightedEndpointFieldPath={highlightedPublishEndpointFieldPath}
       />
 
       <WorkflowEditorVariableForm
         variables={workflowVariables}
         onChange={onWorkflowVariablesChange}
         highlightedVariableIndex={highlightedVariableIndex}
+        highlightedVariableFieldPath={highlightedVariableFieldPath}
       />
 
       <article
