@@ -165,6 +165,7 @@
 - 2026-03-14 起，详细历史已归档到 `docs/expired/2026-03-14-runtime-foundation-history-expired.md`，压缩过程说明归档到 `docs/history/2026-03-14-runtime-foundation-compression.md`；主文档只保留当前仍成立的代码事实、结构热点和当前优先级。
 - 后续若再超过可维护体量，应继续按“当前代码事实优先、历史另行归档、下一步规划保留”的原则压缩。
 
+- 2026-03-16 再补做一轮关键模块抽查后，可以更明确地写清一个当前约束：强隔离 `fail-closed` 语义目前主要只在 `sandbox_code` 上被真正兑现，`RuntimeExecutionAdapterRegistry` 会阻断无 backend 的 `sandbox_code` 降级执行，但 `PluginExecutionDispatchPlanner` 仍会把 native tool 固定为 `inline`，compat adapter 在声明 execution class 不支持时也会回落到 adapter 首个支持项。也就是说，当前 execution-aware contract 与 trace 已足够承接后续开发，但“高风险 tool/plugin 全面 capability-driven fail-closed”仍属于下一阶段要继续补齐的 P0 架构缺口。
 ## 下一步规划
 
 1. **P0：继续把 graded execution 从 execution-aware 扩成真实隔离能力**
