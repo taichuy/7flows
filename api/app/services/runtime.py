@@ -74,7 +74,16 @@ class RuntimeService(
         sandbox_backend_client: SandboxBackendClient | None = None,
     ) -> None:
         self._uses_default_plugin_proxy = plugin_call_proxy is None
-        self._plugin_call_proxy = plugin_call_proxy or get_plugin_call_proxy()
+        self._sandbox_backend_client = sandbox_backend_client
+        if plugin_call_proxy is not None:
+            self._plugin_call_proxy = plugin_call_proxy
+        elif sandbox_backend_client is None:
+            self._plugin_call_proxy = get_plugin_call_proxy()
+        else:
+            self._plugin_call_proxy = PluginCallProxy(
+                get_plugin_registry(),
+                sandbox_backend_client=sandbox_backend_client,
+            )
         self._resume_scheduler = resume_scheduler or get_run_resume_scheduler()
         self._flow_compiler = FlowCompiler()
         self._compiled_blueprints = CompiledBlueprintService(self._flow_compiler)
@@ -92,7 +101,6 @@ class RuntimeService(
             )
         self._callback_tickets = RunCallbackTicketService()
         self._llm_provider = LLMProviderService()
-        self._sandbox_backend_client = sandbox_backend_client
         self._execution_adapter_registry = RuntimeExecutionAdapterRegistry(
             artifact_store=self._artifact_store,
             context_service=self._context_service,
@@ -271,7 +279,10 @@ class RuntimeService(
 
         registry = get_plugin_registry()
         get_plugin_registry_store().hydrate_registry(db, registry)
-        self._plugin_call_proxy = PluginCallProxy(registry)
+        self._plugin_call_proxy = PluginCallProxy(
+            registry,
+            sandbox_backend_client=self._sandbox_backend_client,
+        )
         self._execution_adapter_registry = RuntimeExecutionAdapterRegistry(
             artifact_store=self._artifact_store,
             context_service=self._context_service,

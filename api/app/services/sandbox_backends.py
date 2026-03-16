@@ -280,6 +280,39 @@ class SandboxBackendClient:
         self,
         request: SandboxExecutionRequest,
     ) -> SandboxBackendSelection:
+        return self._describe_backend_selection(
+            execution_class=request.execution_class,
+            language=request.language,
+            profile=request.profile,
+            network_policy=request.network_policy,
+            filesystem_policy=request.filesystem_policy,
+        )
+
+    def describe_tool_execution_backend(
+        self,
+        *,
+        execution_class: str,
+        profile: str | None = None,
+        network_policy: str | None = None,
+        filesystem_policy: str | None = None,
+    ) -> SandboxBackendSelection:
+        return self._describe_backend_selection(
+            execution_class=execution_class,
+            language=None,
+            profile=profile,
+            network_policy=network_policy,
+            filesystem_policy=filesystem_policy,
+        )
+
+    def _describe_backend_selection(
+        self,
+        *,
+        execution_class: str,
+        language: str | None,
+        profile: str | None,
+        network_policy: str | None,
+        filesystem_policy: str | None,
+    ) -> SandboxBackendSelection:
         backend_healths = self._health_checker.probe_all(self._registry)
         if not backend_healths:
             return SandboxBackendSelection(
@@ -299,25 +332,25 @@ class SandboxBackendClient:
                 reasons.append(f"{health.id}: {health.detail or 'backend is offline'}")
                 continue
             capability = health.capability
-            if request.execution_class not in capability.supported_execution_classes:
+            if execution_class not in capability.supported_execution_classes:
                 reasons.append(
-                    f"{health.id}: does not support execution class '{request.execution_class}'"
+                    f"{health.id}: does not support execution class '{execution_class}'"
                 )
                 continue
-            if capability.supported_languages and request.language not in capability.supported_languages:
-                reasons.append(f"{health.id}: does not support language '{request.language}'")
+            if language and capability.supported_languages and language not in capability.supported_languages:
+                reasons.append(f"{health.id}: does not support language '{language}'")
                 continue
             if (
-                request.profile
+                profile
                 and capability.supported_profiles
-                and request.profile not in capability.supported_profiles
+                and profile not in capability.supported_profiles
             ):
-                reasons.append(f"{health.id}: does not expose profile '{request.profile}'")
+                reasons.append(f"{health.id}: does not expose profile '{profile}'")
                 continue
-            if request.network_policy and not capability.supports_network_policy:
+            if network_policy and not capability.supports_network_policy:
                 reasons.append(f"{health.id}: does not support networkPolicy hints")
                 continue
-            if request.filesystem_policy and not capability.supports_filesystem_policy:
+            if filesystem_policy and not capability.supports_filesystem_policy:
                 reasons.append(f"{health.id}: does not support filesystemPolicy hints")
                 continue
             return SandboxBackendSelection(
@@ -333,7 +366,7 @@ class SandboxBackendClient:
             available=False,
             reason=(
                 "No compatible sandbox backend is currently available for the requested "
-                f"execution class '{request.execution_class}'. {detail}"
+                f"execution class '{execution_class}'. {detail}"
             ),
         )
 

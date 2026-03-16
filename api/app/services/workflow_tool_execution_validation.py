@@ -5,6 +5,7 @@ from typing import Any
 
 from app.schemas.plugin import PluginToolItem
 from app.services.plugin_runtime import CompatibilityAdapterRegistration
+from app.services.sandbox_backends import SandboxBackendClient, get_sandbox_backend_client
 
 
 def collect_invalid_workflow_tool_execution_references(
@@ -12,6 +13,7 @@ def collect_invalid_workflow_tool_execution_references(
     *,
     tool_index: Mapping[str, PluginToolItem] | None,
     adapters: Sequence[CompatibilityAdapterRegistration] | None,
+    sandbox_backend_client: SandboxBackendClient | None = None,
 ) -> list[str]:
     if tool_index is None or not isinstance(definition, dict):
         return []
@@ -22,6 +24,7 @@ def collect_invalid_workflow_tool_execution_references(
 
     issues: list[str] = []
     adapter_list = list(adapters or ())
+    backend_client = sandbox_backend_client or get_sandbox_backend_client()
     for node in nodes:
         if not isinstance(node, dict):
             continue
@@ -42,6 +45,7 @@ def collect_invalid_workflow_tool_execution_references(
                     config=config,
                     tool_index=tool_index,
                     adapters=adapter_list,
+                    sandbox_backend_client=backend_client,
                 )
             )
             continue
@@ -53,6 +57,7 @@ def collect_invalid_workflow_tool_execution_references(
                     config=config,
                     tool_index=tool_index,
                     adapters=adapter_list,
+                    sandbox_backend_client=backend_client,
                 )
             )
 
@@ -70,6 +75,7 @@ def _collect_tool_node_execution_issues(
     config: dict[str, Any],
     tool_index: Mapping[str, PluginToolItem],
     adapters: Sequence[CompatibilityAdapterRegistration],
+    sandbox_backend_client: SandboxBackendClient,
 ) -> list[str]:
     binding = config.get("tool")
     tool_id: str | None = None
@@ -116,8 +122,10 @@ def _collect_tool_node_execution_issues(
         tool=tool,
         ecosystem=ecosystem,
         adapter_id=adapter_id,
+        execution_payload=(runtime_policy.get("execution") if isinstance(runtime_policy, dict) else None),
         requested_execution_class=requested_execution_class,
         adapters=adapters,
+        sandbox_backend_client=sandbox_backend_client,
     )
     if target_issue is not None:
         issues.append(target_issue)
@@ -130,6 +138,7 @@ def _collect_agent_execution_issues(
     config: dict[str, Any],
     tool_index: Mapping[str, PluginToolItem],
     adapters: Sequence[CompatibilityAdapterRegistration],
+    sandbox_backend_client: SandboxBackendClient,
 ) -> list[str]:
     issues: list[str] = []
     tool_policy = config.get("toolPolicy")
@@ -158,8 +167,10 @@ def _collect_agent_execution_issues(
                     tool=tool,
                     ecosystem=tool.ecosystem,
                     adapter_id=None,
+                    execution_payload=tool_policy.get("execution"),
                     requested_execution_class=policy_execution_class,
                     adapters=adapters,
+                    sandbox_backend_client=sandbox_backend_client,
                 )
                 if target_issue is not None:
                     issues.append(target_issue)
@@ -203,8 +214,10 @@ def _collect_agent_execution_issues(
                     tool=tool,
                     ecosystem=ecosystem,
                     adapter_id=adapter_id,
+                    execution_payload=raw_tool_call.get("execution"),
                     requested_execution_class=requested_execution_class,
                     adapters=adapters,
+                    sandbox_backend_client=sandbox_backend_client,
                 )
                 if target_issue is not None:
                     issues.append(target_issue)
@@ -246,8 +259,10 @@ def _build_execution_support_issue(
     tool: PluginToolItem,
     ecosystem: str | None,
     adapter_id: str | None,
+    execution_payload: Any,
     requested_execution_class: str,
     adapters: Sequence[CompatibilityAdapterRegistration],
+    sandbox_backend_client: SandboxBackendClient,
 ) -> str | None:
     if tool.ecosystem == "native":
         if requested_execution_class == "inline":
@@ -275,13 +290,46 @@ def _build_execution_support_issue(
 
     supported_execution_classes = tuple(adapter.supported_execution_classes or ("subprocess",))
     if requested_execution_class in supported_execution_classes:
-        return None
+        return _build_sandbox_backend_issue(
+            context=context,
+            tool_id=tool_id,
+            requested_execution_class=requested_execution_class,
+            execution_payload=execution_payload,
+            sandbox_backend_client=sandbox_backend_client,
+        )
 
     supported_summary = ", ".join(supported_execution_classes)
     return (
         f"{context} explicitly requests execution class '{requested_execution_class}' for "
         f"tool '{tool_id}', but adapter '{adapter.id}' currently supports only "
         f"{supported_summary}."
+    )
+
+
+def _build_sandbox_backend_issue(
+    *,
+    context: str,
+    tool_id: str,
+    requested_execution_class: str,
+    execution_payload: Any,
+    sandbox_backend_client: SandboxBackendClient,
+) -> str | None:
+    if requested_execution_class not in {"sandbox", "microvm"}:
+        return None
+
+    execution = execution_payload if isinstance(execution_payload, dict) else {}
+    selection = sandbox_backend_client.describe_tool_execution_backend(
+        execution_class=requested_execution_class,
+        profile=_normalize_optional_string(execution.get("profile")),
+        network_policy=_normalize_optional_string(execution.get("networkPolicy")),
+        filesystem_policy=_normalize_optional_string(execution.get("filesystemPolicy")),
+    )
+    if selection.available:
+        return None
+    return (
+        f"{context} explicitly requests execution class '{requested_execution_class}' for "
+        f"tool '{tool_id}', but no compatible sandbox backend is currently available. "
+        f"{selection.reason or ''}".strip()
     )
 
 

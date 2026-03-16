@@ -99,6 +99,8 @@ class PluginExecutionDispatchPlan:
     requested_filesystem_policy: str | None
     executor_ref: str
     effective_execution: dict[str, Any] = field(default_factory=dict)
+    sandbox_backend_id: str | None = None
+    sandbox_backend_executor_ref: str | None = None
     fallback_reason: str | None = None
     blocked_reason: str | None = None
 
@@ -112,6 +114,8 @@ class PluginExecutionDispatchPlan:
             "requested_network_policy": self.requested_network_policy,
             "requested_filesystem_policy": self.requested_filesystem_policy,
             "executor_ref": self.executor_ref,
+            "sandbox_backend_id": self.sandbox_backend_id,
+            "sandbox_backend_executor_ref": self.sandbox_backend_executor_ref,
             "fallback_reason": self.fallback_reason,
             "blocked_reason": self.blocked_reason,
         }

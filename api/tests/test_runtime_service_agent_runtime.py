@@ -288,6 +288,8 @@ def test_llm_agent_tool_policy_execution_records_tool_execution_trace(
         "requested_network_policy": None,
         "requested_filesystem_policy": None,
         "executor_ref": "tool:native-inline",
+        "sandbox_backend_id": None,
+        "sandbox_backend_executor_ref": None,
         "fallback_reason": "native_tools_currently_inline_only",
         "blocked_reason": None,
     }
@@ -420,6 +422,8 @@ def test_llm_agent_tool_call_execution_override_wins_over_tool_policy(
         "requested_network_policy": "isolated",
         "requested_filesystem_policy": "ephemeral",
         "executor_ref": "tool:native-inline",
+        "sandbox_backend_id": None,
+        "sandbox_backend_executor_ref": None,
         "fallback_reason": "native_tools_currently_inline_only",
         "blocked_reason": None,
     }

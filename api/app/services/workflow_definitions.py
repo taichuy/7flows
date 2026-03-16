@@ -13,6 +13,7 @@ from app.schemas.plugin import PluginToolItem
 from app.schemas.workflow import WorkflowDefinitionDocument
 from app.services.plugin_registry_store import get_plugin_registry_store
 from app.services.plugin_runtime import CompatibilityAdapterRegistration, get_plugin_registry
+from app.services.sandbox_backends import get_sandbox_backend_client
 from app.services.workflow_tool_execution_validation import (
     collect_invalid_workflow_tool_execution_references,
 )
@@ -409,6 +410,7 @@ def validate_persistable_workflow_definition(
         validated_definition,
         tool_index=tool_index,
         adapters=adapters,
+        sandbox_backend_client=get_sandbox_backend_client(),
     )
     if invalid_tool_execution_references:
         raise WorkflowDefinitionValidationError(

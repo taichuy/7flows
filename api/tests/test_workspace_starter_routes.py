@@ -1,6 +1,42 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.services import workflow_definitions
+from app.services.sandbox_backends import (
+    SandboxBackendCapability,
+    SandboxBackendClient,
+    SandboxBackendHealth,
+    SandboxBackendHealthChecker,
+    SandboxBackendRegistration,
+    SandboxBackendRegistry,
+)
+
+
+def _sandbox_backend_client(*, execution_classes: tuple[str, ...]) -> SandboxBackendClient:
+    registry = SandboxBackendRegistry()
+    registry.register_backend(
+        SandboxBackendRegistration(
+            id="sandbox-default",
+            kind="official",
+            endpoint="http://sandbox.local",
+            enabled=True,
+        )
+    )
+    health_checker = SandboxBackendHealthChecker(client_factory=lambda _timeout_ms: None)
+    health_checker.probe_all = lambda _registry: [  # type: ignore[method-assign]
+        SandboxBackendHealth(
+            id="sandbox-default",
+            kind="official",
+            endpoint="http://sandbox.local",
+            enabled=True,
+            status="healthy",
+            capability=SandboxBackendCapability(
+                supported_execution_classes=execution_classes,
+            ),
+        )
+    ]
+    return SandboxBackendClient(registry, health_checker=health_checker)
+
 
 def _valid_definition() -> dict:
     return {
@@ -176,7 +212,7 @@ def test_workspace_starter_create_rejects_unsupported_agent_tool_execution(
         "/api/workspace-starters",
         json={
             "workspace_id": "default",
-            "name": "Execution Guard Starter",
+            "name": "Execution Guard Starter Ready",
             "description": "Template for execution guard",
             "business_track": "编排节点能力",
             "default_workflow_name": "Execution Guard Workflow",
@@ -186,8 +222,6 @@ def test_workspace_starter_create_rejects_unsupported_agent_tool_execution(
             "definition": _agent_tool_policy_definition(
                 tool_id="compat:dify:plugin:demo/search"
             ),
-            "created_from_workflow_id": "wf-demo",
-            "created_from_workflow_version": "0.1.0",
         },
     )
 
@@ -196,6 +230,59 @@ def test_workspace_starter_create_rejects_unsupported_agent_tool_execution(
     assert "tool execution capabilities" in message
     assert "microvm" in message
     assert any(issue["category"] == "tool_execution" for issue in issues)
+
+
+def test_workspace_starter_create_accepts_supported_agent_tool_execution(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    adapter_response = client.post(
+        "/api/plugins/adapters",
+        json={
+            "id": "dify-ready-microvm",
+            "ecosystem": "compat:dify-ready",
+            "endpoint": "http://adapter.local/dify",
+            "supported_execution_classes": ["subprocess", "microvm"],
+        },
+    )
+    assert adapter_response.status_code == 201
+
+    tool_response = client.post(
+        "/api/plugins/tools",
+        json={
+            "id": "compat:dify-ready:plugin:demo/search",
+            "name": "Demo Search",
+            "ecosystem": "compat:dify-ready",
+            "description": "Search via adapter",
+            "input_schema": {"type": "object"},
+            "output_schema": {"type": "object"},
+        },
+    )
+    assert tool_response.status_code == 201
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(execution_classes=("microvm",)),
+    )
+
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Execution Guard Starter Ready",
+            "description": "Template for execution guard",
+            "business_track": "编排节点能力",
+            "default_workflow_name": "Execution Guard Workflow",
+            "workflow_focus": "Execution guard focus",
+            "recommended_next_step": "Wire sandbox backend contract",
+            "tags": ["execution", "guard"],
+            "definition": _agent_tool_policy_definition(
+                tool_id="compat:dify-ready:plugin:demo/search"
+            ),
+        },
+    )
+
+    assert response.status_code == 201
 
 
 def test_workspace_starter_create_rejects_invalid_variables(

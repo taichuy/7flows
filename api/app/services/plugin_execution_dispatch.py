@@ -7,11 +7,18 @@ from app.services.plugin_runtime_types import (
     PluginExecutionDispatchPlan,
 )
 from app.services.runtime_execution_policy import default_execution_class_for_tool_ecosystem
+from app.services.sandbox_backends import SandboxBackendClient, get_sandbox_backend_client
 
 
 class PluginExecutionDispatchPlanner:
-    def __init__(self, registry: PluginRegistry) -> None:
+    def __init__(
+        self,
+        registry: PluginRegistry,
+        *,
+        sandbox_backend_client: SandboxBackendClient | None = None,
+    ) -> None:
         self._registry = registry
+        self._sandbox_backend_client = sandbox_backend_client or get_sandbox_backend_client()
 
     def describe(
         self,
@@ -58,6 +65,8 @@ class PluginExecutionDispatchPlanner:
                     requested_execution=requested_execution,
                     effective_execution_class=effective_execution_class,
                     execution_source=execution_source,
+                    sandbox_backend_id=None,
+                    sandbox_backend_executor_ref=None,
                 ),
                 fallback_reason=fallback_reason,
             )
@@ -76,6 +85,8 @@ class PluginExecutionDispatchPlanner:
         )
         fallback_reason = None
         blocked_reason = None
+        sandbox_backend_id = None
+        sandbox_backend_executor_ref = None
         if requested_execution_class != effective_execution_class:
             if self._requires_fail_closed(
                 requested_execution_class=requested_execution_class,
@@ -88,6 +99,21 @@ class PluginExecutionDispatchPlanner:
                 )
             else:
                 fallback_reason = "compat_adapter_execution_class_not_supported"
+        if blocked_reason is None and effective_execution_class in {"sandbox", "microvm"}:
+            backend_selection = self._sandbox_backend_client.describe_tool_execution_backend(
+                execution_class=effective_execution_class,
+                profile=requested_execution_profile,
+                network_policy=requested_network_policy,
+                filesystem_policy=requested_filesystem_policy,
+            )
+            if not backend_selection.available or backend_selection.backend_id is None:
+                blocked_reason = (
+                    backend_selection.reason
+                    or "No compatible sandbox backend is currently available."
+                )
+            else:
+                sandbox_backend_id = backend_selection.backend_id
+                sandbox_backend_executor_ref = backend_selection.executor_ref
         return PluginExecutionDispatchPlan(
             requested_execution_class=requested_execution_class,
             effective_execution_class=effective_execution_class,
@@ -105,7 +131,11 @@ class PluginExecutionDispatchPlanner:
                 requested_execution=requested_execution,
                 effective_execution_class=effective_execution_class,
                 execution_source=execution_source,
+                sandbox_backend_id=sandbox_backend_id,
+                sandbox_backend_executor_ref=sandbox_backend_executor_ref,
             ),
+            sandbox_backend_id=sandbox_backend_id,
+            sandbox_backend_executor_ref=sandbox_backend_executor_ref,
             fallback_reason=fallback_reason,
             blocked_reason=blocked_reason,
         )
@@ -133,6 +163,8 @@ class PluginExecutionDispatchPlanner:
         requested_execution: dict[str, object],
         effective_execution_class: str,
         execution_source: str,
+        sandbox_backend_id: str | None,
+        sandbox_backend_executor_ref: str | None,
     ) -> dict[str, object]:
         if not requested_execution:
             return {}
@@ -140,4 +172,9 @@ class PluginExecutionDispatchPlanner:
         effective_execution = dict(requested_execution)
         effective_execution["class"] = effective_execution_class
         effective_execution["source"] = execution_source
+        if sandbox_backend_id is not None:
+            effective_execution["sandboxBackend"] = {
+                "id": sandbox_backend_id,
+                "executorRef": sandbox_backend_executor_ref,
+            }
         return effective_execution

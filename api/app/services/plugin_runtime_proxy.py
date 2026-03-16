@@ -20,6 +20,7 @@ from app.services.plugin_runtime_types import (
     PluginInvocationError,
     PluginToolDefinition,
 )
+from app.services.sandbox_backends import SandboxBackendClient, get_sandbox_backend_client
 
 
 def default_plugin_client_factory(timeout_ms: int) -> httpx.Client:
@@ -33,10 +34,14 @@ class PluginCallProxy:
         registry: PluginRegistry,
         *,
         client_factory: ClientFactory | None = None,
+        sandbox_backend_client: SandboxBackendClient | None = None,
     ) -> None:
         self._registry = registry
         self._client_factory = client_factory or default_plugin_client_factory
-        self._execution_dispatch_planner = PluginExecutionDispatchPlanner(registry)
+        self._execution_dispatch_planner = PluginExecutionDispatchPlanner(
+            registry,
+            sandbox_backend_client=sandbox_backend_client or get_sandbox_backend_client(),
+        )
 
     def invoke(self, request: PluginCallRequest) -> PluginCallResponse:
         tool = self._registry.get_tool(request.tool_id)

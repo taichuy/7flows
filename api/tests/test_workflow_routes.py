@@ -3,6 +3,41 @@
 from fastapi.testclient import TestClient
 
 from app.models.run import NodeRun, Run, RunEvent
+from app.services import workflow_definitions
+from app.services.sandbox_backends import (
+    SandboxBackendCapability,
+    SandboxBackendClient,
+    SandboxBackendHealth,
+    SandboxBackendHealthChecker,
+    SandboxBackendRegistration,
+    SandboxBackendRegistry,
+)
+
+
+def _sandbox_backend_client(*, execution_classes: tuple[str, ...]) -> SandboxBackendClient:
+    registry = SandboxBackendRegistry()
+    registry.register_backend(
+        SandboxBackendRegistration(
+            id="sandbox-default",
+            kind="official",
+            endpoint="http://sandbox.local",
+            enabled=True,
+        )
+    )
+    health_checker = SandboxBackendHealthChecker(client_factory=lambda _timeout_ms: None)
+    health_checker.probe_all = lambda _registry: [  # type: ignore[method-assign]
+        SandboxBackendHealth(
+            id="sandbox-default",
+            kind="official",
+            endpoint="http://sandbox.local",
+            enabled=True,
+            status="healthy",
+            capability=SandboxBackendCapability(
+                supported_execution_classes=execution_classes,
+            ),
+        )
+    ]
+    return SandboxBackendClient(registry, health_checker=health_checker)
 
 
 def _workflow_detail_message(response) -> str:
@@ -785,7 +820,10 @@ def test_create_workflow_rejects_unsupported_tool_execution_class(client: TestCl
     assert "dify-default" in detail
 
 
-def test_create_workflow_accepts_supported_tool_execution_class(client: TestClient) -> None:
+def test_create_workflow_accepts_supported_tool_execution_class(
+    client: TestClient,
+    monkeypatch,
+) -> None:
     adapter_response = client.post(
         "/api/plugins/adapters",
         json={
@@ -809,6 +847,11 @@ def test_create_workflow_accepts_supported_tool_execution_class(client: TestClie
         },
     )
     assert tool_response.status_code == 201
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(execution_classes=("microvm",)),
+    )
 
     response = client.post(
         "/api/workflows",
