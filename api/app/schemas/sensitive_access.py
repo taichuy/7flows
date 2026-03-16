@@ -21,6 +21,7 @@ NotificationStatus = Literal["pending", "delivered", "failed"]
 NotificationChannelDeliveryMode = Literal["inline", "worker"]
 NotificationChannelHealthStatus = Literal["ready", "degraded"]
 NotificationChannelTargetKind = Literal["in_app", "http_url", "email_list"]
+NotificationChannelConfigFactStatus = Literal["configured", "missing", "info"]
 
 
 class SensitiveResourceCreateRequest(BaseModel):
@@ -93,6 +94,24 @@ class NotificationDispatchItem(BaseModel):
     created_at: datetime
 
 
+class NotificationChannelConfigFactItem(BaseModel):
+    key: str
+    label: str
+    status: NotificationChannelConfigFactStatus
+    value: str
+
+
+class NotificationChannelDispatchSummaryItem(BaseModel):
+    pending_count: int = 0
+    delivered_count: int = 0
+    failed_count: int = 0
+    latest_dispatch_at: datetime | None = None
+    latest_delivered_at: datetime | None = None
+    latest_failure_at: datetime | None = None
+    latest_failure_error: str | None = None
+    latest_failure_target: str | None = None
+
+
 class NotificationChannelCapabilityItem(BaseModel):
     channel: NotificationChannel
     delivery_mode: NotificationChannelDeliveryMode
@@ -102,6 +121,9 @@ class NotificationChannelCapabilityItem(BaseModel):
     summary: str
     target_hint: str
     target_example: str
+    health_reason: str
+    config_facts: list[NotificationChannelConfigFactItem] = Field(default_factory=list)
+    dispatch_summary: NotificationChannelDispatchSummaryItem
 
 
 class NotificationDispatchRetryResponse(BaseModel):

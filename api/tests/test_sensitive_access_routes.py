@@ -242,6 +242,21 @@ def test_list_notification_channels_returns_capabilities(client: TestClient) -> 
     assert channels["webhook"]["target_kind"] == "http_url"
     assert channels["slack"]["health_status"] == "ready"
     assert channels["email"]["target_kind"] == "email_list"
+    assert channels["email"]["health_reason"]
+    assert channels["email"]["dispatch_summary"] == {
+        "pending_count": 0,
+        "delivered_count": 0,
+        "failed_count": 0,
+        "latest_dispatch_at": None,
+        "latest_delivered_at": None,
+        "latest_failure_at": None,
+        "latest_failure_error": None,
+        "latest_failure_target": None,
+    }
+    assert any(
+        fact["key"] == "smtp_host" and fact["status"] == "missing"
+        for fact in channels["email"]["config_facts"]
+    )
 
 
 def test_retry_notification_dispatch_creates_new_attempt(

@@ -64,6 +64,23 @@ export type NotificationChannelCapabilityItem = {
   summary: string;
   target_hint: string;
   target_example: string;
+  health_reason: string;
+  config_facts: Array<{
+    key: string;
+    label: string;
+    status: "configured" | "missing" | "info";
+    value: string;
+  }>;
+  dispatch_summary: {
+    pending_count: number;
+    delivered_count: number;
+    failed_count: number;
+    latest_dispatch_at?: string | null;
+    latest_delivered_at?: string | null;
+    latest_failure_at?: string | null;
+    latest_failure_error?: string | null;
+    latest_failure_target?: string | null;
+  };
 };
 
 export type SensitiveAccessInboxEntry = {

@@ -7,6 +7,8 @@ from app.schemas.sensitive_access import (
     ApprovalTicketDecisionResponse,
     ApprovalTicketItem,
     NotificationChannelCapabilityItem,
+    NotificationChannelConfigFactItem,
+    NotificationChannelDispatchSummaryItem,
     NotificationDispatchItem,
     NotificationDispatchRetryResponse,
     SensitiveAccessRequestCreateRequest,
@@ -15,8 +17,8 @@ from app.schemas.sensitive_access import (
     SensitiveResourceCreateRequest,
     SensitiveResourceItem,
 )
-from app.services.notification_channel_governance import (
-    list_notification_channel_capabilities,
+from app.services.notification_channel_diagnostics import (
+    list_notification_channel_diagnostics,
 )
 from app.services.sensitive_access_control import (
     ApprovalDecisionBundle,
@@ -177,19 +179,41 @@ def list_approval_tickets(
     "/notification-channels",
     response_model=list[NotificationChannelCapabilityItem],
 )
-def list_notification_channels() -> list[NotificationChannelCapabilityItem]:
+def list_notification_channels(
+    db: Session = Depends(get_db),
+) -> list[NotificationChannelCapabilityItem]:
     return [
         NotificationChannelCapabilityItem(
-            channel=item.channel,
-            delivery_mode=item.delivery_mode,
-            target_kind=item.target_kind,
-            configured=item.configured,
-            health_status=item.health_status,
-            summary=item.summary,
-            target_hint=item.target_hint,
-            target_example=item.target_example,
+            channel=item.capability.channel,
+            delivery_mode=item.capability.delivery_mode,
+            target_kind=item.capability.target_kind,
+            configured=item.capability.configured,
+            health_status=item.capability.health_status,
+            summary=item.capability.summary,
+            target_hint=item.capability.target_hint,
+            target_example=item.capability.target_example,
+            health_reason=item.health_reason,
+            config_facts=[
+                NotificationChannelConfigFactItem(
+                    key=fact.key,
+                    label=fact.label,
+                    status=fact.status,
+                    value=fact.value,
+                )
+                for fact in item.config_facts
+            ],
+            dispatch_summary=NotificationChannelDispatchSummaryItem(
+                pending_count=item.dispatch_summary.pending_count,
+                delivered_count=item.dispatch_summary.delivered_count,
+                failed_count=item.dispatch_summary.failed_count,
+                latest_dispatch_at=item.dispatch_summary.latest_dispatch_at,
+                latest_delivered_at=item.dispatch_summary.latest_delivered_at,
+                latest_failure_at=item.dispatch_summary.latest_failure_at,
+                latest_failure_error=item.dispatch_summary.latest_failure_error,
+                latest_failure_target=item.dispatch_summary.latest_failure_target,
+            ),
         )
-        for item in list_notification_channel_capabilities()
+        for item in list_notification_channel_diagnostics(db)
     ]
 
 
