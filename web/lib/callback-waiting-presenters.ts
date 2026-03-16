@@ -3,6 +3,11 @@ import type {
   RunCallbackTicketItem
 } from "@/lib/get-run-views";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
+import {
+  formatSensitiveAccessDecisionLabel,
+  formatSensitiveAccessReasonLabel,
+  getSensitiveAccessPolicySummary
+} from "@/lib/sensitive-access-presenters";
 
 function getEpoch(value?: string | null): number {
   if (!value) {
@@ -38,6 +43,7 @@ type CallbackWaitingExplanationInput = {
 export type CallbackWaitingRecommendedAction = {
   kind:
     | "open_inbox"
+    | "resolve_inline_sensitive_access"
     | "inspect_termination"
     | "cleanup_expired_tickets"
     | "monitor_callback"
@@ -284,6 +290,21 @@ export function formatCallbackWaitingNotificationSummary(
   ]);
 }
 
+export function formatCallbackWaitingSensitiveAccessSummary(
+  entry?: SensitiveAccessTimelineEntry | null
+): string | null {
+  if (!entry) {
+    return null;
+  }
+
+  return formatOptionalParts([
+    entry.resource.label,
+    formatSensitiveAccessDecisionLabel(entry.request),
+    formatSensitiveAccessReasonLabel(entry.request),
+    getSensitiveAccessPolicySummary(entry.request)
+  ]);
+}
+
 export function getCallbackWaitingHeadline({
   lifecycle,
   callbackTickets = [],
@@ -371,14 +392,24 @@ export function getCallbackWaitingRecommendedAction({
   const expiredTicketCount = lifecycle?.expired_ticket_count ?? 0;
   const lateCallbackCount = lifecycle?.late_callback_count ?? 0;
   const pendingTicketCount = callbackTickets.filter((ticket) => ticket.status === "pending").length;
+  const inlineSensitiveAccessEntry = pickCallbackWaitingInlineSensitiveAccessEntry(
+    sensitiveAccessEntries
+  );
 
   if (pendingApprovalCount > 0) {
-    if (failedNotificationCount > 0) {
+    if (inlineSensitiveAccessEntry) {
+      if (failedNotificationCount > 0) {
+        return {
+          kind: "resolve_inline_sensitive_access",
+          label: "Retry notification here first",
+          detail: `${formatCountLabel(pendingApprovalCount, "approval")} is still pending and ${formatCountLabel(failedNotificationCount, "failed notification")} suggests the approver may not have seen the request yet. Use the inline operator actions below to retarget or retry the latest notification before forcing resume.`
+        };
+      }
+
       return {
-        kind: "open_inbox",
-        label: "Open inbox slice and retry notification",
-        detail: `${formatCountLabel(pendingApprovalCount, "approval")} is still pending and ${formatCountLabel(failedNotificationCount, "failed notification")} suggests the approver may never have seen the request yet. Retry or retarget the latest notification before forcing resume.`,
-        ctaLabel: "Open approval inbox"
+        kind: "resolve_inline_sensitive_access",
+        label: "Handle approval here first",
+        detail: `${formatCountLabel(pendingApprovalCount, "approval")} is still pending, so resume should start from approval handling instead of retrying the run. The inline operator actions below can approve or reject without leaving this callback summary.`
       };
     }
 

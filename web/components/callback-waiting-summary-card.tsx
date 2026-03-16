@@ -12,6 +12,7 @@ import {
   formatApprovalSummary,
   formatCallbackLifecycleLabel,
   formatCallbackWaitingNotificationSummary,
+  formatCallbackWaitingSensitiveAccessSummary,
   formatScheduledResumeLabel,
   getCallbackWaitingRecommendedAction,
   getCallbackWaitingHeadline,
@@ -61,6 +62,9 @@ export function CallbackWaitingSummaryCard({
   const inlineSensitiveAccessEntry = pickCallbackWaitingInlineSensitiveAccessEntry(
     sensitiveAccessEntries
   );
+  const sensitiveAccessSummary = formatCallbackWaitingSensitiveAccessSummary(
+    inlineSensitiveAccessEntry
+  );
   const notificationSummary = formatCallbackWaitingNotificationSummary(inlineSensitiveAccessEntry);
   const chips = listCallbackWaitingChips({
     lifecycle,
@@ -100,6 +104,8 @@ export function CallbackWaitingSummaryCard({
   const hasContent =
     headline ||
     approvalSummary ||
+    sensitiveAccessSummary ||
+    notificationSummary ||
     scheduledResume ||
     lifecycleSummary ||
     waitingReason ||
@@ -136,6 +142,9 @@ export function CallbackWaitingSummaryCard({
       ) : null}
       {waitingReason ? <p className="run-error-message">{waitingReason}</p> : null}
       {approvalSummary ? <p className="section-copy entry-copy">Approval: {approvalSummary}</p> : null}
+      {sensitiveAccessSummary ? (
+        <p className="section-copy entry-copy">Sensitive access: {sensitiveAccessSummary}</p>
+      ) : null}
       {notificationSummary ? (
         <p className="section-copy entry-copy">Notification: {notificationSummary}</p>
       ) : null}
