@@ -4,6 +4,28 @@ import type {
 } from "@/lib/get-run-views";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 
+function getEpoch(value?: string | null): number {
+  if (!value) {
+    return 0;
+  }
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function getLatestNotificationTimestamp(entry: SensitiveAccessTimelineEntry): number {
+  return entry.notifications.reduce((latest, notification) => {
+    return Math.max(latest, getEpoch(notification.created_at));
+  }, 0);
+}
+
+function getEntrySortTimestamp(entry: SensitiveAccessTimelineEntry): number {
+  return Math.max(
+    getLatestNotificationTimestamp(entry),
+    getEpoch(entry.approval_ticket?.created_at),
+    getEpoch(entry.request.created_at)
+  );
+}
+
 type CallbackWaitingExplanationInput = {
   lifecycle?: CallbackWaitingLifecycleSummary | null;
   callbackTickets?: RunCallbackTicketItem[];
@@ -36,6 +58,16 @@ function countFailedNotifications(entries: SensitiveAccessTimelineEntry[]): numb
       count + entry.notifications.filter((notification) => notification.status === "failed").length
     );
   }, 0);
+}
+
+function hasRetriableNotification(entry: SensitiveAccessTimelineEntry): boolean {
+  return entry.notifications.some((notification) => notification.status !== "delivered");
+}
+
+function hasPendingWaitingApproval(entry: SensitiveAccessTimelineEntry): boolean {
+  return (
+    entry.approval_ticket?.status === "pending" && entry.approval_ticket?.waiting_status === "waiting"
+  );
 }
 
 function formatCountLabel(count: number, singular: string, plural = `${singular}s`): string {
@@ -190,6 +222,66 @@ export function formatApprovalSummary(
   }
 
   return null;
+}
+
+export function pickCallbackWaitingInlineSensitiveAccessEntry(
+  entries: SensitiveAccessTimelineEntry[] | undefined
+): SensitiveAccessTimelineEntry | null {
+  if (!entries?.length) {
+    return null;
+  }
+
+  const candidates = entries.filter(
+    (entry) => hasPendingWaitingApproval(entry) || hasRetriableNotification(entry)
+  );
+
+  if (!candidates.length) {
+    return null;
+  }
+
+  return [...candidates].sort((left, right) => {
+    const leftPending = hasPendingWaitingApproval(left) ? 1 : 0;
+    const rightPending = hasPendingWaitingApproval(right) ? 1 : 0;
+    if (leftPending !== rightPending) {
+      return rightPending - leftPending;
+    }
+
+    const leftFailed = left.notifications.filter((item) => item.status === "failed").length;
+    const rightFailed = right.notifications.filter((item) => item.status === "failed").length;
+    if (leftFailed !== rightFailed) {
+      return rightFailed - leftFailed;
+    }
+
+    const leftRetriable = hasRetriableNotification(left) ? 1 : 0;
+    const rightRetriable = hasRetriableNotification(right) ? 1 : 0;
+    if (leftRetriable !== rightRetriable) {
+      return rightRetriable - leftRetriable;
+    }
+
+    return getEntrySortTimestamp(right) - getEntrySortTimestamp(left);
+  })[0];
+}
+
+export function formatCallbackWaitingNotificationSummary(
+  entry?: SensitiveAccessTimelineEntry | null
+): string | null {
+  if (!entry?.notifications.length) {
+    return null;
+  }
+
+  const latest = [...entry.notifications].sort(
+    (left, right) => getEpoch(right.created_at) - getEpoch(left.created_at)
+  )[0];
+
+  if (!latest) {
+    return null;
+  }
+
+  return formatOptionalParts([
+    `latest notify ${latest.channel} ${latest.status}`,
+    latest.target,
+    latest.error
+  ]);
 }
 
 export function getCallbackWaitingHeadline({

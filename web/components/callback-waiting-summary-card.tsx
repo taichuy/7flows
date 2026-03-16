@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CallbackWaitingInlineActions } from "@/components/callback-waiting-inline-actions";
+import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
 import type {
   CallbackWaitingLifecycleSummary,
   RunCallbackTicketItem
@@ -10,10 +11,12 @@ import { formatTimestamp } from "@/lib/runtime-presenters";
 import {
   formatApprovalSummary,
   formatCallbackLifecycleLabel,
+  formatCallbackWaitingNotificationSummary,
   formatScheduledResumeLabel,
   getCallbackWaitingRecommendedAction,
   getCallbackWaitingHeadline,
-  listCallbackWaitingChips
+  listCallbackWaitingChips,
+  pickCallbackWaitingInlineSensitiveAccessEntry
 } from "@/lib/callback-waiting-presenters";
 
 type CallbackWaitingSummaryCardProps = {
@@ -55,6 +58,10 @@ export function CallbackWaitingSummaryCard({
     scheduledWaitingStatus
   });
   const lifecycleSummary = formatCallbackLifecycleLabel(lifecycle);
+  const inlineSensitiveAccessEntry = pickCallbackWaitingInlineSensitiveAccessEntry(
+    sensitiveAccessEntries
+  );
+  const notificationSummary = formatCallbackWaitingNotificationSummary(inlineSensitiveAccessEntry);
   const chips = listCallbackWaitingChips({
     lifecycle,
     callbackTickets,
@@ -129,6 +136,9 @@ export function CallbackWaitingSummaryCard({
       ) : null}
       {waitingReason ? <p className="run-error-message">{waitingReason}</p> : null}
       {approvalSummary ? <p className="section-copy entry-copy">Approval: {approvalSummary}</p> : null}
+      {notificationSummary ? (
+        <p className="section-copy entry-copy">Notification: {notificationSummary}</p>
+      ) : null}
       {scheduledResume ? <p className="section-copy entry-copy">Resume: {scheduledResume}</p> : null}
       {lifecycleSummary ? (
         <p className="section-copy entry-copy">Lifecycle: {lifecycleSummary}</p>
@@ -151,6 +161,14 @@ export function CallbackWaitingSummaryCard({
           {lifecycle?.termination_reason ? ` · ${lifecycle.termination_reason}` : ""}
           {terminationAt !== "n/a" ? ` · ${terminationAt}` : ""}
         </p>
+      ) : null}
+      {inlineSensitiveAccessEntry ? (
+        <SensitiveAccessInlineActions
+          compact
+          notifications={inlineSensitiveAccessEntry.notifications}
+          runId={runId ?? null}
+          ticket={inlineSensitiveAccessEntry.approval_ticket}
+        />
       ) : null}
       <CallbackWaitingInlineActions
         allowManualResume={!hasTermination}
