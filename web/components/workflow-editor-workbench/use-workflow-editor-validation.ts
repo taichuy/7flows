@@ -8,6 +8,9 @@ import type { WorkflowDefinitionPreflightIssue, WorkflowDetail } from "@/lib/get
 import type { WorkspaceStarterValidationIssue } from "@/lib/get-workspace-starters";
 import { buildWorkflowDefinitionContractValidationIssues } from "@/lib/workflow-contract-schema-validation";
 import {
+  buildWorkflowPublishIdentityValidationIssues,
+} from "@/lib/workflow-publish-identity-validation";
+import {
   buildAllowedPublishWorkflowVersions,
   buildWorkflowPublishVersionValidationIssues
 } from "@/lib/workflow-publish-version-validation";
@@ -28,6 +31,7 @@ const PREFLIGHT_CATEGORY_LABELS: Record<string, string> = {
   node_support: "node support",
   tool_reference: "tool reference",
   tool_execution: "tool execution",
+  publish_identity: "publish identity",
   publish_version: "publish version",
   variables: "variables"
 };
@@ -169,6 +173,14 @@ export function useWorkflowEditorValidation({
     () => summarizeIssueMessages(publishVersionValidationIssues),
     [publishVersionValidationIssues]
   );
+  const publishIdentityValidationIssues = useMemo(
+    () => buildWorkflowPublishIdentityValidationIssues(currentDefinition),
+    [currentDefinition]
+  );
+  const publishIdentityValidationSummary = useMemo(
+    () => summarizeIssueMessages(publishIdentityValidationIssues),
+    [publishIdentityValidationIssues]
+  );
   const variableValidationIssues = useMemo(
     () => buildWorkflowVariableValidationIssues(currentDefinition),
     [currentDefinition]
@@ -203,6 +215,12 @@ export function useWorkflowEditorValidation({
         path: issue.path,
         field: issue.field
       })),
+      ...publishIdentityValidationIssues.map((issue) => ({
+        category: "publish_identity",
+        message: issue.message,
+        path: issue.path,
+        field: issue.field
+      })),
       ...variableValidationIssues,
       ...serverValidationIssues
     ];
@@ -210,6 +228,7 @@ export function useWorkflowEditorValidation({
   }, [
     contractValidationIssues,
     currentDefinition,
+    publishIdentityValidationIssues,
     publishVersionValidationIssues,
     serverValidationIssues,
     toolExecutionValidationIssues,
@@ -235,6 +254,9 @@ export function useWorkflowEditorValidation({
         publishVersionValidationSummary
           ? `当前 workflow definition 还有 publish version 引用待修正问题：${publishVersionValidationSummary}${publishVersionValidationSummary.endsWith("。") ? "" : "。"}如果 endpoint 要跟随本次保存版本，请把 workflowVersion 留空。`
           : null,
+        publishIdentityValidationSummary
+          ? `当前 workflow definition 还有 publish identity 待修正问题：${publishIdentityValidationSummary}${publishIdentityValidationSummary.endsWith("。") ? "" : "。"}请先调整 endpoint id / alias / path，避免发布标识冲突。`
+          : null,
         variableValidationSummary
           ? `当前 workflow definition 还有 variables 待修正问题：${variableValidationSummary}${variableValidationSummary.endsWith("。") ? "" : "。"}请先修正变量名，再继续保存。`
           : null
@@ -243,6 +265,7 @@ export function useWorkflowEditorValidation({
         .join(" "),
     [
       contractValidationSummary,
+      publishIdentityValidationSummary,
       publishVersionValidationSummary,
       toolExecutionValidationSummary,
       toolReferenceValidationSummary,
@@ -255,6 +278,7 @@ export function useWorkflowEditorValidation({
   return {
     availableWorkflowVersions,
     contractValidationIssues,
+    publishIdentityValidationIssues,
     persistBlockedMessage,
     publishVersionValidationIssues,
     toolExecutionValidationIssues,

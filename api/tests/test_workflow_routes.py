@@ -347,6 +347,35 @@ def _invalid_variable_definition() -> dict:
     return definition
 
 
+def _invalid_publish_identity_definition() -> dict:
+    definition = _valid_publish_definition()
+    definition["publish"] = [
+        {
+            "id": "native-chat",
+            "name": "Native Chat",
+            "alias": "Support.Chat",
+            "path": "/support/chat",
+            "protocol": "native",
+            "workflowVersion": "0.1.0",
+            "authMode": "internal",
+            "streaming": False,
+            "inputSchema": {"type": "object"},
+        },
+        {
+            "id": "native-chat",
+            "name": "Support Chat Alias Clash",
+            "alias": "support.chat",
+            "path": "support/chat/",
+            "protocol": "openai",
+            "workflowVersion": "0.1.0",
+            "authMode": "api_key",
+            "streaming": True,
+            "inputSchema": {"type": "object"},
+        },
+    ]
+    return definition
+
+
 def test_create_workflow_persists_initial_version(client: TestClient) -> None:
     response = client.post(
         "/api/workflows",
@@ -379,6 +408,25 @@ def test_create_workflow_rejects_invalid_variables(client: TestClient) -> None:
     assert any(issue["category"] == "variables" for issue in issues)
     assert any(issue.get("path") == "variables.0.name" for issue in issues)
     assert any(issue.get("path") == "variables.2.name" for issue in issues)
+
+
+def test_create_workflow_rejects_duplicate_publish_identities(client: TestClient) -> None:
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Invalid Publish Identity Workflow",
+            "definition": _invalid_publish_identity_definition(),
+        },
+    )
+
+    assert response.status_code == 422
+    message = _workflow_detail_message(response)
+    issues = _workflow_detail_issues(response)
+    assert "publish endpoint identities that are not valid for persistence" in message
+    assert any(issue["category"] == "publish_identity" for issue in issues)
+    assert any(issue.get("path") == "publish.0.id" for issue in issues)
+    assert any(issue.get("path") == "publish.1.alias" for issue in issues)
+    assert any(issue.get("path") == "publish.1.path" for issue in issues)
 
 
 def test_create_workflow_rejects_invalid_definition(client: TestClient) -> None:
@@ -1107,7 +1155,12 @@ def test_create_workflow_rejects_duplicate_publish_endpoint_metadata(
     )
 
     assert response.status_code == 422
-    assert "Workflow published endpoint ids must be unique" in _workflow_detail_message(response)
+    assert "publish endpoint identities that are not valid for persistence" in _workflow_detail_message(
+        response
+    )
+    assert any(
+        issue.get("category") == "publish_identity" for issue in _workflow_detail_issues(response)
+    )
 
 
 def test_create_workflow_rejects_invalid_node_contract_schema(client: TestClient) -> None:
@@ -1184,6 +1237,27 @@ def test_validate_workflow_definition_preflight_rejects_invalid_publish_referenc
     assert "unknown publish workflow versions" in detail["message"]
     assert detail["issues"][0]["category"] == "publish_version"
     assert "workflow version '9.9.9'" in detail["issues"][0]["message"]
+
+
+def test_validate_workflow_definition_preflight_rejects_duplicate_publish_identities(
+    client: TestClient,
+) -> None:
+    created = client.post(
+        "/api/workflows",
+        json={"name": "Publish Identity Preflight Workflow", "definition": _valid_definition()},
+    )
+    assert created.status_code == 201
+    workflow_id = created.json()["id"]
+
+    response = client.post(
+        f"/api/workflows/{workflow_id}/validate-definition",
+        json={"definition": _invalid_publish_identity_definition()},
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "publish endpoint identities" in detail["message"]
+    assert any(issue["category"] == "publish_identity" for issue in detail["issues"])
 
 
 def test_create_workflow_rejects_invalid_publish_contract_schema(

@@ -20,6 +20,9 @@ from app.services.workflow_library_catalog import build_node_catalog_items
 from app.services.workflow_publish_version_references import (
     collect_invalid_workflow_publish_version_references,
 )
+from app.services.workflow_publish_identity_validation import (
+    collect_invalid_workflow_publish_identities,
+)
 from app.services.workflow_variable_validation import collect_invalid_workflow_variables
 
 
@@ -43,6 +46,22 @@ class WorkflowDefinitionValidationError(ValueError):
 
 
 def validate_workflow_definition(definition: dict[str, Any] | None) -> dict[str, Any]:
+    invalid_publish_identities = collect_invalid_workflow_publish_identities(definition)
+    if invalid_publish_identities:
+        raise WorkflowDefinitionValidationError(
+            "Workflow definition contains publish endpoint identities that are not valid for persistence: "
+            + "; ".join(issue["message"] for issue in invalid_publish_identities),
+            issues=[
+                WorkflowDefinitionValidationIssue(
+                    category="publish_identity",
+                    message=issue["message"],
+                    path=issue.get("path"),
+                    field=issue.get("field"),
+                )
+                for issue in invalid_publish_identities
+            ],
+        )
+
     try:
         document = WorkflowDefinitionDocument.model_validate(definition or {})
     except ValidationError as exc:

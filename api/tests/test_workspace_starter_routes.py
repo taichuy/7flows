@@ -98,6 +98,35 @@ def _invalid_variable_definition() -> dict:
     return definition
 
 
+def _invalid_publish_identity_definition() -> dict:
+    definition = _valid_definition()
+    definition["publish"] = [
+        {
+            "id": "starter-api",
+            "name": "Starter API",
+            "alias": "Starter.Chat",
+            "path": "/starter/chat",
+            "protocol": "native",
+            "workflowVersion": "0.1.0",
+            "authMode": "internal",
+            "streaming": False,
+            "inputSchema": {"type": "object"},
+        },
+        {
+            "id": "starter-api",
+            "name": "Starter API Duplicate",
+            "alias": "starter.chat",
+            "path": "starter/chat/",
+            "protocol": "openai",
+            "workflowVersion": "0.1.0",
+            "authMode": "api_key",
+            "streaming": True,
+            "inputSchema": {"type": "object"},
+        },
+    ]
+    return definition
+
+
 def test_workspace_starter_create_rejects_unsupported_agent_tool_execution(
     client: TestClient,
 ) -> None:
@@ -174,6 +203,32 @@ def test_workspace_starter_create_rejects_invalid_variables(
     assert "workflow variables that are not valid for persistence" in message
     assert any(issue["category"] == "variables" for issue in issues)
     assert any(issue.get("path") == "variables.0.name" for issue in issues)
+
+
+def test_workspace_starter_create_rejects_duplicate_publish_identities(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Invalid Publish Identity Starter",
+            "description": "Should reject duplicate publish identities",
+            "business_track": "API 调用开放",
+            "default_workflow_name": "Invalid Publish Identity Starter Workflow",
+            "workflow_focus": "Publish identity validation",
+            "recommended_next_step": "Deduplicate endpoint id / alias / path",
+            "tags": ["publish", "identity"],
+            "definition": _invalid_publish_identity_definition(),
+        },
+    )
+
+    assert response.status_code == 422
+    message, issues = _validation_detail(response.json())
+    assert "publish endpoint identities that are not valid for persistence" in message
+    assert any(issue["category"] == "publish_identity" for issue in issues)
+    assert any(issue.get("path") == "publish.0.id" for issue in issues)
+    assert any(issue.get("path") == "publish.1.alias" for issue in issues)
 
 
 def test_workspace_starter_list_supports_filters_and_search(client: TestClient) -> None:
