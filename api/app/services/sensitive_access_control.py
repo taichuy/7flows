@@ -156,11 +156,17 @@ class SensitiveAccessControlService:
         db: Session,
         *,
         approval_ticket_id: str | None = None,
+        run_id: str | None = None,
+        node_run_id: str | None = None,
+        access_request_id: str | None = None,
         status: str | None = None,
     ) -> list[NotificationDispatchRecord]:
         return list_notification_dispatches(
             db,
             approval_ticket_id=approval_ticket_id,
+            run_id=run_id,
+            node_run_id=node_run_id,
+            access_request_id=access_request_id,
             status=status,
         )
 

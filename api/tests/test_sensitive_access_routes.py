@@ -657,6 +657,30 @@ def test_sensitive_access_listing_filters_support_node_and_ticket_scopes(
     assert len(notifications) == 1
     assert notifications[0]["approval_ticket_id"] == first_body["approval_ticket"]["id"]
 
+    scoped_notifications_response = client.get(
+        "/api/sensitive-access/notification-dispatches",
+        params={
+            "run_id": "run-scope-1",
+            "node_run_id": "node-run-scope-1",
+            "access_request_id": first_body["request"]["id"],
+        },
+    )
+    assert scoped_notifications_response.status_code == 200
+    scoped_notifications = scoped_notifications_response.json()
+    assert [item["approval_ticket_id"] for item in scoped_notifications] == [
+        first_body["approval_ticket"]["id"]
+    ]
+
+    unmatched_notifications_response = client.get(
+        "/api/sensitive-access/notification-dispatches",
+        params={
+            "node_run_id": "node-run-scope-1",
+            "access_request_id": second_body["request"]["id"],
+        },
+    )
+    assert unmatched_notifications_response.status_code == 200
+    assert unmatched_notifications_response.json() == []
+
     unmatched_tickets_response = client.get(
         "/api/sensitive-access/approval-tickets",
         params={

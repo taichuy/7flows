@@ -91,14 +91,30 @@ def list_notification_dispatches(
     db: Session,
     *,
     approval_ticket_id: str | None = None,
+    run_id: str | None = None,
+    node_run_id: str | None = None,
+    access_request_id: str | None = None,
     status: str | None = None,
 ) -> list[NotificationDispatchRecord]:
     statement = select(NotificationDispatchRecord).order_by(
         NotificationDispatchRecord.created_at.desc()
     )
+    if run_id or node_run_id or access_request_id:
+        statement = statement.join(
+            ApprovalTicketRecord,
+            ApprovalTicketRecord.id == NotificationDispatchRecord.approval_ticket_id,
+        )
     if approval_ticket_id:
         statement = statement.where(
             NotificationDispatchRecord.approval_ticket_id == approval_ticket_id
+        )
+    if run_id:
+        statement = statement.where(ApprovalTicketRecord.run_id == run_id)
+    if node_run_id:
+        statement = statement.where(ApprovalTicketRecord.node_run_id == node_run_id)
+    if access_request_id:
+        statement = statement.where(
+            ApprovalTicketRecord.access_request_id == access_request_id
         )
     if status:
         statement = statement.where(NotificationDispatchRecord.status == status)

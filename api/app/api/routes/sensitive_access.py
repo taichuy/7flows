@@ -357,12 +357,18 @@ def bulk_decide_approval_tickets(
 @router.get("/notification-dispatches", response_model=list[NotificationDispatchItem])
 def list_notification_dispatches(
     approval_ticket_id: str | None = Query(default=None),
+    run_id: str | None = Query(default=None),
+    node_run_id: str | None = Query(default=None),
+    access_request_id: str | None = Query(default=None),
     status: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> list[NotificationDispatchItem]:
     records = service.list_notification_dispatches(
         db,
         approval_ticket_id=approval_ticket_id,
+        run_id=run_id,
+        node_run_id=node_run_id,
+        access_request_id=access_request_id,
         status=status,
     )
     return [serialize_notification_dispatch(record) for record in records]

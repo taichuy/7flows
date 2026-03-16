@@ -169,7 +169,12 @@ export async function getSensitiveAccessInboxSnapshot({
       accessRequestId,
       approvalTicketId
     }),
-    getNotificationDispatches({ approvalTicketId }),
+    getNotificationDispatches({
+      approvalTicketId,
+      runId,
+      nodeRunId,
+      accessRequestId
+    }),
     getNotificationChannels()
   ]);
 
@@ -273,13 +278,31 @@ async function getApprovalTickets({
 }
 
 async function getNotificationDispatches({
-  approvalTicketId
+  approvalTicketId,
+  runId,
+  nodeRunId,
+  accessRequestId
 }: {
   approvalTicketId?: string;
+  runId?: string;
+  nodeRunId?: string;
+  accessRequestId?: string;
 } = {}): Promise<NotificationDispatchItem[]> {
-  const query = approvalTicketId?.trim()
-    ? `?${new URLSearchParams({ approval_ticket_id: approvalTicketId.trim() }).toString()}`
-    : "";
+  const params = new URLSearchParams();
+  if (approvalTicketId?.trim()) {
+    params.set("approval_ticket_id", approvalTicketId.trim());
+  }
+  if (runId?.trim()) {
+    params.set("run_id", runId.trim());
+  }
+  if (nodeRunId?.trim()) {
+    params.set("node_run_id", nodeRunId.trim());
+  }
+  if (accessRequestId?.trim()) {
+    params.set("access_request_id", accessRequestId.trim());
+  }
+
+  const query = params.size > 0 ? `?${params.toString()}` : "";
   return fetchSensitiveAccessList<NotificationDispatchItem>(
     `/api/sensitive-access/notification-dispatches${query}`
   );
