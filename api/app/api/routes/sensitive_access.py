@@ -12,12 +12,12 @@ from app.schemas.sensitive_access import (
     ApprovalTicketItem,
     NotificationChannelCapabilityItem,
     NotificationChannelConfigFactItem,
+    NotificationChannelDispatchSummaryItem,
     NotificationDispatchBulkRetriedItem,
     NotificationDispatchBulkRetryRequest,
     NotificationDispatchBulkRetryResult,
     NotificationDispatchBulkSkippedItem,
     NotificationDispatchBulkSkippedSummary,
-    NotificationChannelDispatchSummaryItem,
     NotificationDispatchItem,
     NotificationDispatchRetryResponse,
     SensitiveAccessRequestCreateRequest,
@@ -196,7 +196,7 @@ def create_sensitive_access_request(
             action_type=payload.action_type,
             purpose_text=payload.purpose_text,
             notification_channel=payload.notification_channel,
-            notification_target=payload.notification_target,
+            notification_target=payload.notification_target or "",
         )
     except SensitiveAccessControlError as exc:
         _raise_sensitive_access_error(exc)

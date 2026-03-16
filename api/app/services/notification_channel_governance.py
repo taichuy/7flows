@@ -31,6 +31,60 @@ class NotificationDispatchPreflight:
     error: str | None = None
 
 
+def get_notification_channel_default_target(
+    channel: str,
+    settings: Settings | None = None,
+) -> str | None:
+    settings = settings or get_settings()
+    if channel == "in_app":
+        return "sensitive-access-inbox"
+
+    target_by_channel = {
+        "webhook": settings.notification_webhook_default_target,
+        "slack": settings.notification_slack_default_target,
+        "feishu": settings.notification_feishu_default_target,
+        "email": settings.notification_email_default_target,
+    }
+    target = target_by_channel.get(channel, "")
+    normalized = target.strip()
+    return normalized or None
+
+
+def _resolve_notification_target(
+    channel: str,
+    target: str,
+    settings: Settings,
+) -> str:
+    explicit_target = target.strip()
+    if explicit_target:
+        return explicit_target
+    return get_notification_channel_default_target(channel, settings) or ""
+
+
+def _missing_target_error(channel: str) -> str:
+    if channel == "webhook":
+        return (
+            "Webhook delivery requires a notification target URL. Provide notification_target "
+            "or configure SEVENFLOWS_NOTIFICATION_WEBHOOK_DEFAULT_TARGET."
+        )
+    if channel == "slack":
+        return (
+            "Slack delivery requires an incoming webhook URL. Provide notification_target "
+            "or configure SEVENFLOWS_NOTIFICATION_SLACK_DEFAULT_TARGET."
+        )
+    if channel == "feishu":
+        return (
+            "Feishu delivery requires a bot webhook URL. Provide notification_target "
+            "or configure SEVENFLOWS_NOTIFICATION_FEISHU_DEFAULT_TARGET."
+        )
+    if channel == "email":
+        return (
+            "Email delivery requires at least one recipient. Provide notification_target "
+            "or configure SEVENFLOWS_NOTIFICATION_EMAIL_DEFAULT_TARGET."
+        )
+    return f"Notification channel '{channel}' requires a notification_target."
+
+
 def _smtp_email_configured(settings: Settings) -> bool:
     return bool(
         settings.notification_email_smtp_host.strip()
@@ -122,7 +176,7 @@ def evaluate_notification_dispatch_preflight(
     settings: Settings | None = None,
 ) -> NotificationDispatchPreflight:
     settings = settings or get_settings()
-    normalized_target = target.strip()
+    normalized_target = _resolve_notification_target(channel, target, settings)
     if channel == "in_app":
         return NotificationDispatchPreflight(
             normalized_target=normalized_target or "sensitive-access-inbox",
@@ -130,6 +184,12 @@ def evaluate_notification_dispatch_preflight(
         )
 
     if channel == "webhook":
+        if not normalized_target:
+            return NotificationDispatchPreflight(
+                normalized_target="",
+                status="failed",
+                error=_missing_target_error(channel),
+            )
         if not is_http_target(normalized_target):
             return NotificationDispatchPreflight(
                 normalized_target=normalized_target,
@@ -142,6 +202,12 @@ def evaluate_notification_dispatch_preflight(
         )
 
     if channel == "slack":
+        if not normalized_target:
+            return NotificationDispatchPreflight(
+                normalized_target="",
+                status="failed",
+                error=_missing_target_error(channel),
+            )
         if not is_http_target(normalized_target):
             return NotificationDispatchPreflight(
                 normalized_target=normalized_target,
@@ -157,6 +223,12 @@ def evaluate_notification_dispatch_preflight(
         )
 
     if channel == "feishu":
+        if not normalized_target:
+            return NotificationDispatchPreflight(
+                normalized_target="",
+                status="failed",
+                error=_missing_target_error(channel),
+            )
         if not is_http_target(normalized_target):
             return NotificationDispatchPreflight(
                 normalized_target=normalized_target,
@@ -172,6 +244,12 @@ def evaluate_notification_dispatch_preflight(
         )
 
     if channel == "email":
+        if not normalized_target:
+            return NotificationDispatchPreflight(
+                normalized_target="",
+                status="failed",
+                error=_missing_target_error(channel),
+            )
         if not parse_email_recipients(normalized_target):
             return NotificationDispatchPreflight(
                 normalized_target=normalized_target,

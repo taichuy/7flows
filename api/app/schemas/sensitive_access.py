@@ -60,7 +60,14 @@ class SensitiveAccessRequestCreateRequest(BaseModel):
     action_type: AccessActionType
     purpose_text: str | None = None
     notification_channel: NotificationChannel = "in_app"
-    notification_target: str = Field(default="sensitive-access-inbox", min_length=1, max_length=256)
+    notification_target: str | None = Field(default=None, max_length=256)
+
+    @model_validator(mode="after")
+    def normalize_notification_target(self) -> "SensitiveAccessRequestCreateRequest":
+        if self.notification_target is not None:
+            normalized = self.notification_target.strip()
+            self.notification_target = normalized or None
+        return self
 
 
 class SensitiveAccessRequestItem(BaseModel):

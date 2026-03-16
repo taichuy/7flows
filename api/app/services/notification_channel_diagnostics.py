@@ -12,6 +12,7 @@ from app.core.config import Settings, get_settings
 from app.models.sensitive_access import NotificationDispatchRecord
 from app.services.notification_channel_governance import (
     NotificationChannelCapability,
+    get_notification_channel_default_target,
     list_notification_channel_capabilities,
     parse_email_recipients,
 )
@@ -91,6 +92,7 @@ def _build_channel_config_facts(
     capability: NotificationChannelCapability,
     settings: Settings,
 ) -> list[NotificationChannelConfigFact]:
+    default_target = get_notification_channel_default_target(capability.channel, settings)
     facts = [
         NotificationChannelConfigFact(
             key="delivery_mode",
@@ -107,6 +109,16 @@ def _build_channel_config_facts(
             label="Target contract",
             status="info",
             value=capability.target_hint,
+        ),
+        NotificationChannelConfigFact(
+            key="default_target",
+            label="Default target",
+            status="configured" if default_target else "info",
+            value=(
+                _summarize_target(capability.channel, default_target)
+                if default_target
+                else "No preset target; each request must provide notification_target."
+            ),
         ),
     ]
 

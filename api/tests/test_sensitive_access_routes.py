@@ -282,6 +282,71 @@ def test_list_notification_channels_returns_capabilities(client: TestClient) -> 
         fact["key"] == "smtp_host" and fact["status"] == "missing"
         for fact in channels["email"]["config_facts"]
     )
+    assert any(
+        fact["key"] == "default_target" and "each request must provide" in fact["value"]
+        for fact in channels["slack"]["config_facts"]
+    )
+
+
+def test_create_sensitive_access_request_uses_channel_default_target_when_omitted(
+    client: TestClient,
+    sqlite_session: Session,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    scheduled_dispatches = []
+    monkeypatch.setattr(
+        sensitive_access_routes,
+        "service",
+        SensitiveAccessControlService(
+            resume_scheduler=RunResumeScheduler(dispatcher=lambda _request: None),
+            notification_dispatch_scheduler=NotificationDispatchScheduler(
+                dispatcher=scheduled_dispatches.append
+            ),
+            settings=Settings(
+                notification_slack_default_target="https://hooks.slack.com/services/T000/B000/SECRET",
+            ),
+        ),
+    )
+
+    resource_response = client.post(
+        "/api/sensitive-access/resources",
+        json={
+            "label": "Workspace production export",
+            "sensitivity_level": "L3",
+            "source": "workspace_resource",
+            "metadata": {"path": "/exports/prod.csv"},
+        },
+    )
+    resource_id = resource_response.json()["id"]
+
+    request_response = client.post(
+        "/api/sensitive-access/requests",
+        json={
+            "requester_type": "ai",
+            "requester_id": "assistant-export-default-target",
+            "resource_id": resource_id,
+            "action_type": "read",
+            "purpose_text": "notify operator for export review",
+            "notification_channel": "slack",
+        },
+    )
+
+    assert request_response.status_code == 201
+    notification = request_response.json()["notifications"][0]
+    assert notification["channel"] == "slack"
+    assert notification["target"] == "https://hooks.slack.com/services/T000/B000/SECRET"
+    assert notification["status"] == "pending"
+    assert notification["error"] is None
+
+    assert len(scheduled_dispatches) == 1
+    assert scheduled_dispatches[0].dispatch_id == notification["id"]
+
+    stored_notification = sqlite_session.get(NotificationDispatchRecord, notification["id"])
+    assert stored_notification is not None
+    assert (
+        stored_notification.target
+        == "https://hooks.slack.com/services/T000/B000/SECRET"
+    )
 
 
 def test_bulk_decide_approval_tickets_allows_partial_success(
@@ -485,7 +550,11 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
     bulk_retry_response = client.post(
         "/api/sensitive-access/notification-dispatches/bulk-retry",
         json={
-            "dispatch_ids": [first_notification["id"], "missing-dispatch", first_notification["id"]],
+            "dispatch_ids": [
+                first_notification["id"],
+                "missing-dispatch",
+                first_notification["id"],
+            ],
         },
     )
 

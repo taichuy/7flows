@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     callback_ticket_cleanup_schedule_enabled: bool = True
     callback_ticket_cleanup_interval_seconds: int = 300
     notification_delivery_timeout_seconds: float = 10.0
+    notification_webhook_default_target: str = ""
+    notification_slack_default_target: str = ""
+    notification_feishu_default_target: str = ""
+    notification_email_default_target: str = ""
     notification_email_smtp_host: str = ""
     notification_email_smtp_port: int = 587
     notification_email_smtp_username: str = ""
