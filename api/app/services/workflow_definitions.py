@@ -9,6 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.schemas.plugin import PluginToolItem
 from app.schemas.workflow import WorkflowDefinitionDocument
+from app.services.plugin_registry_store import get_plugin_registry_store
+from app.services.plugin_runtime import CompatibilityAdapterRegistration, get_plugin_registry
+from app.services.workflow_tool_execution_validation import (
+    collect_invalid_workflow_tool_execution_references,
+)
 from app.services.workflow_library_catalog import build_node_catalog_items
 from app.services.workflow_publish_version_references import (
     collect_invalid_workflow_publish_version_references,
@@ -50,6 +55,23 @@ def build_workflow_tool_reference_index(
             workspace_id=workspace_id,
         )
     }
+
+
+def build_workflow_adapter_reference_list(
+    db: Session,
+    *,
+    workspace_id: str = "default",
+) -> list[CompatibilityAdapterRegistration]:
+    registry = get_plugin_registry()
+    get_plugin_registry_store().hydrate_registry(db, registry)
+
+    visible_adapters: list[CompatibilityAdapterRegistration] = []
+    for adapter in registry.list_adapters():
+        workspace_ids = tuple(adapter.workspace_ids or ())
+        if workspace_ids and workspace_id not in workspace_ids:
+            continue
+        visible_adapters.append(adapter)
+    return visible_adapters
 
 
 @lru_cache(maxsize=1)
@@ -224,6 +246,7 @@ def validate_persistable_workflow_definition(
     definition: dict[str, Any] | None,
     *,
     tool_index: Mapping[str, PluginToolItem] | None = None,
+    adapters: list[CompatibilityAdapterRegistration] | None = None,
     allowed_publish_versions: set[str] | None = None,
 ) -> dict[str, Any]:
     validated_definition = validate_workflow_definition(definition)
@@ -247,6 +270,18 @@ def validate_persistable_workflow_definition(
         raise WorkflowDefinitionValidationError(
             "Workflow definition references missing or drifted tool catalog entries: "
             + "; ".join(invalid_tool_references)
+        )
+
+    invalid_tool_execution_references = collect_invalid_workflow_tool_execution_references(
+        validated_definition,
+        tool_index=tool_index,
+        adapters=adapters,
+    )
+    if invalid_tool_execution_references:
+        raise WorkflowDefinitionValidationError(
+            "Workflow definition requests tool execution capabilities that are not currently "
+            "available: "
+            + "; ".join(invalid_tool_execution_references)
         )
 
     invalid_publish_version_references = collect_invalid_workflow_publish_version_references(

@@ -25,6 +25,7 @@ from app.schemas.workspace_starter import (
     WorkspaceStarterTemplateUpdate,
 )
 from app.services.workflow_definitions import (
+    build_workflow_adapter_reference_list,
     build_workflow_tool_reference_index,
     bump_workflow_version,
     validate_persistable_workflow_definition,
@@ -191,6 +192,10 @@ class WorkspaceStarterTemplateService:
                     db,
                     workspace_id=record.workspace_id,
                 ),
+                adapters=build_workflow_adapter_reference_list(
+                    db,
+                    workspace_id=record.workspace_id,
+                ),
                 allowed_publish_versions=self._build_allowed_publish_versions_for_template(
                     db,
                     workflow_id=record.created_from_workflow_id,
@@ -330,6 +335,10 @@ class WorkspaceStarterTemplateService:
                 db,
                 workspace_id=record.workspace_id,
             ),
+            adapters=build_workflow_adapter_reference_list(
+                db,
+                workspace_id=record.workspace_id,
+            ),
             allowed_publish_versions=build_allowed_publish_workflow_versions(
                 db,
                 workflow_id=workflow.id,
@@ -355,6 +364,10 @@ class WorkspaceStarterTemplateService:
             record.definition = validate_persistable_workflow_definition(
                 workflow.definition,
                 tool_index=build_workflow_tool_reference_index(
+                    db,
+                    workspace_id=record.workspace_id,
+                ),
+                adapters=build_workflow_adapter_reference_list(
                     db,
                     workspace_id=record.workspace_id,
                 ),
@@ -413,6 +426,10 @@ class WorkspaceStarterTemplateService:
         record.definition = validate_persistable_workflow_definition(
             payload.definition,
             tool_index=build_workflow_tool_reference_index(
+                db,
+                workspace_id=payload.workspace_id,
+            ),
+            adapters=build_workflow_adapter_reference_list(
                 db,
                 workspace_id=payload.workspace_id,
             ),

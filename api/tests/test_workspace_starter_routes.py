@@ -28,12 +28,38 @@ def _planned_loop_definition() -> dict:
     }
 
 
+def _agent_tool_policy_definition(*, tool_id: str) -> dict:
+    return {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "agent",
+                "type": "llm_agent",
+                "name": "Agent",
+                "config": {
+                    "prompt": "Plan with tools",
+                    "toolPolicy": {
+                        "allowedToolIds": [tool_id],
+                        "execution": {"class": "microvm"},
+                    },
+                },
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+            {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+        ],
+    }
+
+
 def _create_workspace_starter(
     client: TestClient,
     *,
     name: str,
     business_track: str,
     description: str,
+    definition: dict | None = None,
 ) -> dict:
     response = client.post(
         "/api/workspace-starters",
@@ -46,7 +72,7 @@ def _create_workspace_starter(
             "workflow_focus": f"{name} focus",
             "recommended_next_step": f"{name} next",
             "tags": [name.lower(), business_track],
-            "definition": _valid_definition(),
+            "definition": definition or _valid_definition(),
             "created_from_workflow_id": "wf-demo",
             "created_from_workflow_version": "0.1.0",
         },
@@ -54,6 +80,58 @@ def _create_workspace_starter(
 
     assert response.status_code == 201
     return response.json()
+
+
+def test_workspace_starter_create_rejects_unsupported_agent_tool_execution(
+    client: TestClient,
+) -> None:
+    adapter_response = client.post(
+        "/api/plugins/adapters",
+        json={
+            "id": "dify-default",
+            "ecosystem": "compat:dify",
+            "endpoint": "http://adapter.local/dify",
+            "supported_execution_classes": ["subprocess"],
+        },
+    )
+    assert adapter_response.status_code == 201
+
+    tool_response = client.post(
+        "/api/plugins/tools",
+        json={
+            "id": "compat:dify:plugin:demo/search",
+            "name": "Demo Search",
+            "ecosystem": "compat:dify",
+            "description": "Search via adapter",
+            "input_schema": {"type": "object"},
+            "output_schema": {"type": "object"},
+        },
+    )
+    assert tool_response.status_code == 201
+
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Execution Guard Starter",
+            "description": "Template for execution guard",
+            "business_track": "编排节点能力",
+            "default_workflow_name": "Execution Guard Workflow",
+            "workflow_focus": "Execution guard focus",
+            "recommended_next_step": "Fix adapter capability mismatch",
+            "tags": ["execution", "guard"],
+            "definition": _agent_tool_policy_definition(
+                tool_id="compat:dify:plugin:demo/search"
+            ),
+            "created_from_workflow_id": "wf-demo",
+            "created_from_workflow_version": "0.1.0",
+        },
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "tool execution capabilities" in detail
+    assert "microvm" in detail
 
 
 def test_workspace_starter_list_supports_filters_and_search(client: TestClient) -> None:

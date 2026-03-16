@@ -15,6 +15,7 @@ from app.schemas.workflow import (
 from app.services.compiled_blueprints import CompiledBlueprintService
 from app.services.workflow_definitions import (
     WorkflowDefinitionValidationError,
+    build_workflow_adapter_reference_list,
     build_workflow_tool_reference_index,
     bump_workflow_version,
     validate_persistable_workflow_definition,
@@ -56,6 +57,7 @@ def create_workflow(payload: WorkflowCreate, db: Session = Depends(get_db)) -> W
         definition = validate_persistable_workflow_definition(
             payload.definition,
             tool_index=build_workflow_tool_reference_index(db),
+            adapters=build_workflow_adapter_reference_list(db),
             allowed_publish_versions=build_allowed_publish_workflow_versions(
                 db,
                 current_version="0.1.0",
@@ -107,6 +109,7 @@ def update_workflow(
             definition = validate_persistable_workflow_definition(
                 payload.definition,
                 tool_index=build_workflow_tool_reference_index(db),
+                adapters=build_workflow_adapter_reference_list(db),
                 allowed_publish_versions=build_allowed_publish_workflow_versions(
                     db,
                     workflow_id=workflow.id,

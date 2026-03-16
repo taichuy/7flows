@@ -4,11 +4,13 @@ import { useMemo, useState, useTransition } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import type { PluginAdapterRegistryItem } from "@/lib/get-plugin-registry";
 import { buildWorkflowDefinitionContractValidationIssues } from "@/lib/workflow-contract-schema-validation";
 import {
   buildAllowedPublishWorkflowVersions,
   buildWorkflowPublishVersionValidationIssues
 } from "@/lib/workflow-publish-version-validation";
+import { buildWorkflowToolExecutionValidationIssues } from "@/lib/workflow-tool-execution-validation";
 import { buildWorkflowToolReferenceValidationIssues } from "@/lib/workflow-tool-reference-validation";
 import type {
   WorkflowLibrarySourceLane,
@@ -47,6 +49,7 @@ type WorkflowEditorWorkbenchProps = {
   nodeSourceLanes: WorkflowLibrarySourceLane[];
   toolSourceLanes: WorkflowLibrarySourceLane[];
   tools: PluginToolRegistryItem[];
+  adapters: PluginAdapterRegistryItem[];
   recentRuns: WorkflowRunListItem[];
 };
 
@@ -57,6 +60,7 @@ export function WorkflowEditorWorkbench({
   nodeSourceLanes,
   toolSourceLanes,
   tools,
+  adapters,
   recentRuns
 }: WorkflowEditorWorkbenchProps) {
   const editorNodeLibrary = getPaletteNodeCatalog(nodeCatalog);
@@ -129,6 +133,27 @@ export function WorkflowEditorWorkbench({
       ? `${head}；另有 ${toolReferenceValidationIssues.length - 3} 项待修正。`
       : head;
   }, [toolReferenceValidationIssues]);
+  const toolExecutionValidationIssues = useMemo(
+    () =>
+      buildWorkflowToolExecutionValidationIssues(
+        graph.currentDefinition,
+        tools,
+        adapters
+      ),
+    [adapters, graph.currentDefinition, tools]
+  );
+  const toolExecutionValidationSummary = useMemo(() => {
+    if (toolExecutionValidationIssues.length === 0) {
+      return null;
+    }
+    const head = toolExecutionValidationIssues
+      .slice(0, 3)
+      .map((issue) => issue.message)
+      .join("；");
+    return toolExecutionValidationIssues.length > 3
+      ? `${head}；另有 ${toolExecutionValidationIssues.length - 3} 项待修正。`
+      : head;
+  }, [toolExecutionValidationIssues]);
   const publishVersionValidationIssues = useMemo(
     () =>
       buildWorkflowPublishVersionValidationIssues(
@@ -159,6 +184,9 @@ export function WorkflowEditorWorkbench({
   const toolReferenceBlockedMessage = toolReferenceValidationSummary
     ? `当前 workflow definition 还有 tool catalog 引用待修正问题：${toolReferenceValidationSummary}${toolReferenceValidationSummary.endsWith("。") ? "" : "。"}请先修正 tool binding / LLM Agent tool policy 后再保存。`
     : null;
+  const toolExecutionBlockedMessage = toolExecutionValidationSummary
+    ? `当前 workflow definition 还有 tool execution capability 待修正问题：${toolExecutionValidationSummary}${toolExecutionValidationSummary.endsWith("。") ? "" : "。"}请先对齐 adapter 绑定与 execution class，再继续保存。`
+    : null;
   const publishVersionBlockedMessage = publishVersionValidationSummary
     ? `当前 workflow definition 还有 publish version 引用待修正问题：${publishVersionValidationSummary}${publishVersionValidationSummary.endsWith("。") ? "" : "。"}如果 endpoint 要跟随本次保存版本，请把 workflowVersion 留空。`
     : null;
@@ -166,6 +194,7 @@ export function WorkflowEditorWorkbench({
     unsupportedNodesBlockedMessage,
     contractBlockedMessage,
     toolReferenceBlockedMessage,
+    toolExecutionBlockedMessage,
     publishVersionBlockedMessage
   ]
     .filter(Boolean)
@@ -287,6 +316,7 @@ export function WorkflowEditorWorkbench({
             unsupportedNodes={unsupportedNodes}
             contractValidationIssuesCount={contractValidationIssues.length}
             toolReferenceValidationIssuesCount={toolReferenceValidationIssues.length}
+            toolExecutionValidationIssuesCount={toolExecutionValidationIssues.length}
             publishVersionValidationIssuesCount={publishVersionValidationIssues.length}
             persistBlockedMessage={persistBlockedMessage || null}
             isSaving={isSaving}

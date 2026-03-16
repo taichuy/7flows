@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { WorkflowEditorWorkbench } from "@/components/workflow-editor-workbench";
 import { WorkflowPublishPanel } from "@/components/workflow-publish-panel";
+import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import {
   type PublishedEndpointInvocationCacheStatus,
@@ -65,10 +66,11 @@ export default async function WorkflowEditorPage({
 }: WorkflowEditorPageProps) {
   const { workflowId } = await params;
   const resolvedSearchParams = await searchParams;
-  const [workflow, workflows, workflowLibrary, recentRuns, publishedEndpoints] = await Promise.all([
+  const [workflow, workflows, workflowLibrary, pluginRegistry, recentRuns, publishedEndpoints] = await Promise.all([
     getWorkflowDetail(workflowId),
     getWorkflows(),
     getWorkflowLibrarySnapshot(),
+    getPluginRegistrySnapshot(),
     getWorkflowRuns(workflowId),
     getWorkflowPublishedEndpoints(workflowId, {
       includeAllVersions: true
@@ -164,6 +166,7 @@ export default async function WorkflowEditorPage({
         nodeSourceLanes={workflowLibrary.nodeSourceLanes}
         toolSourceLanes={workflowLibrary.toolSourceLanes}
         tools={workflowLibrary.tools}
+        adapters={pluginRegistry.adapters}
         recentRuns={recentRuns}
       />
       <WorkflowPublishPanel

@@ -8,6 +8,7 @@ export type PluginAdapterRegistryItem = {
   healthcheck_path: string;
   workspace_ids: string[];
   plugin_kinds: string[];
+  supported_execution_classes: string[];
   status: string;
   detail?: string | null;
 };

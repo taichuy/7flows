@@ -39,6 +39,39 @@ def _planned_loop_definition() -> dict:
     }
 
 
+def _bound_tool_definition(
+    *,
+    tool_id: str,
+    ecosystem: str,
+    adapter_id: str | None = None,
+    runtime_policy: dict | None = None,
+) -> dict:
+    binding = {
+        "toolId": tool_id,
+        "ecosystem": ecosystem,
+    }
+    if adapter_id is not None:
+        binding["adapterId"] = adapter_id
+
+    return {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "tool",
+                "type": "tool",
+                "name": "Tool",
+                "config": {"tool": binding},
+                "runtimePolicy": runtime_policy,
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool"},
+            {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "output"},
+        ],
+    }
+
+
 def _valid_mcp_definition() -> dict:
     return {
         "nodes": [
@@ -603,6 +636,92 @@ def test_create_workflow_rejects_invalid_execution_runtime_policy(client: TestCl
     assert response.status_code == 422
     detail = response.json()["detail"]
     assert "Input should be 'inline', 'subprocess', 'sandbox' or 'microvm'" in detail
+
+
+def test_create_workflow_rejects_unsupported_tool_execution_class(client: TestClient) -> None:
+    adapter_response = client.post(
+        "/api/plugins/adapters",
+        json={
+            "id": "dify-default",
+            "ecosystem": "compat:dify",
+            "endpoint": "http://adapter.local/dify",
+            "supported_execution_classes": ["subprocess"],
+        },
+    )
+    assert adapter_response.status_code == 201
+
+    tool_response = client.post(
+        "/api/plugins/tools",
+        json={
+            "id": "compat:dify:plugin:demo/search",
+            "name": "Demo Search",
+            "ecosystem": "compat:dify",
+            "description": "Search via adapter",
+            "input_schema": {"type": "object"},
+            "output_schema": {"type": "object"},
+        },
+    )
+    assert tool_response.status_code == 201
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Unsupported Tool Execution Workflow",
+            "definition": _bound_tool_definition(
+                tool_id="compat:dify:plugin:demo/search",
+                ecosystem="compat:dify",
+                adapter_id="dify-default",
+                runtime_policy={"execution": {"class": "microvm"}},
+            ),
+        },
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "tool execution capabilities" in detail
+    assert "microvm" in detail
+    assert "dify-default" in detail
+
+
+def test_create_workflow_accepts_supported_tool_execution_class(client: TestClient) -> None:
+    adapter_response = client.post(
+        "/api/plugins/adapters",
+        json={
+            "id": "dify-microvm",
+            "ecosystem": "compat:dify",
+            "endpoint": "http://adapter.local/dify-microvm",
+            "supported_execution_classes": ["subprocess", "microvm"],
+        },
+    )
+    assert adapter_response.status_code == 201
+
+    tool_response = client.post(
+        "/api/plugins/tools",
+        json={
+            "id": "compat:dify:plugin:demo/search-2",
+            "name": "Demo Search 2",
+            "ecosystem": "compat:dify",
+            "description": "Search via adapter",
+            "input_schema": {"type": "object"},
+            "output_schema": {"type": "object"},
+        },
+    )
+    assert tool_response.status_code == 201
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Supported Tool Execution Workflow",
+            "definition": _bound_tool_definition(
+                tool_id="compat:dify:plugin:demo/search-2",
+                ecosystem="compat:dify",
+                adapter_id="dify-microvm",
+                runtime_policy={"execution": {"class": "microvm"}},
+            ),
+        },
+    )
+
+    assert response.status_code == 201
 
 
 def test_create_workflow_accepts_authorized_context_mcp_query(client: TestClient) -> None:
