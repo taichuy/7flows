@@ -82,6 +82,12 @@ def _create_workspace_starter(
     return response.json()
 
 
+def _validation_detail(body: dict) -> tuple[str, list[dict[str, str]]]:
+    detail = body["detail"]
+    assert isinstance(detail, dict)
+    return detail["message"], detail["issues"]
+
+
 def test_workspace_starter_create_rejects_unsupported_agent_tool_execution(
     client: TestClient,
 ) -> None:
@@ -129,9 +135,10 @@ def test_workspace_starter_create_rejects_unsupported_agent_tool_execution(
     )
 
     assert response.status_code == 422
-    detail = response.json()["detail"]
-    assert "tool execution capabilities" in detail
-    assert "microvm" in detail
+    message, issues = _validation_detail(response.json())
+    assert "tool execution capabilities" in message
+    assert "microvm" in message
+    assert any(issue["category"] == "tool_execution" for issue in issues)
 
 
 def test_workspace_starter_list_supports_filters_and_search(client: TestClient) -> None:
@@ -231,8 +238,10 @@ def test_workspace_starter_update_rejects_unavailable_persisted_nodes(
     )
 
     assert response.status_code == 422
-    assert "not currently available for persistence" in response.json()["detail"]
-    assert "loop" in response.json()["detail"]
+    message, issues = _validation_detail(response.json())
+    assert "not currently available for persistence" in message
+    assert "loop" in message
+    assert any(issue["category"] == "node_support" for issue in issues)
 
 
 def test_workspace_starter_create_rejects_unavailable_persisted_nodes(
@@ -254,8 +263,10 @@ def test_workspace_starter_create_rejects_unavailable_persisted_nodes(
     )
 
     assert response.status_code == 422
-    assert "not currently available for persistence" in response.json()["detail"]
-    assert "loop" in response.json()["detail"]
+    message, issues = _validation_detail(response.json())
+    assert "not currently available for persistence" in message
+    assert "loop" in message
+    assert any(issue["category"] == "node_support" for issue in issues)
 
 
 def test_workspace_starter_create_rejects_missing_catalog_tool_binding(
@@ -299,8 +310,10 @@ def test_workspace_starter_create_rejects_missing_catalog_tool_binding(
     )
 
     assert response.status_code == 422
-    assert "references missing or drifted tool catalog entries" in response.json()["detail"]
-    assert "native.missing" in response.json()["detail"]
+    message, issues = _validation_detail(response.json())
+    assert "references missing or drifted tool catalog entries" in message
+    assert "native.missing" in message
+    assert any(issue["category"] == "tool_reference" for issue in issues)
 
 
 def test_workspace_starter_create_rejects_unknown_publish_workflow_version(
@@ -337,8 +350,10 @@ def test_workspace_starter_create_rejects_unknown_publish_workflow_version(
     )
 
     assert response.status_code == 422
-    assert "references unknown publish workflow versions" in response.json()["detail"]
-    assert "0.1.0, 0.1.1" in response.json()["detail"]
+    message, issues = _validation_detail(response.json())
+    assert "references unknown publish workflow versions" in message
+    assert "0.1.0, 0.1.1" in message
+    assert any(issue["category"] == "publish_version" for issue in issues)
 
 
 def test_workspace_starter_rebase_rejects_source_workflow_with_unavailable_nodes(
@@ -361,8 +376,10 @@ def test_workspace_starter_rebase_rejects_source_workflow_with_unavailable_nodes
     response = client.post(f"/api/workspace-starters/{created['id']}/rebase")
 
     assert response.status_code == 422
-    assert "not currently available for persistence" in response.json()["detail"]
-    assert "loop" in response.json()["detail"]
+    message, issues = _validation_detail(response.json())
+    assert "not currently available for persistence" in message
+    assert "loop" in message
+    assert any(issue["category"] == "node_support" for issue in issues)
 
 
 def test_workspace_starter_refresh_rejects_source_workflow_with_unavailable_nodes(
@@ -385,8 +402,10 @@ def test_workspace_starter_refresh_rejects_source_workflow_with_unavailable_node
     response = client.post(f"/api/workspace-starters/{created['id']}/refresh")
 
     assert response.status_code == 422
-    assert "not currently available for persistence" in response.json()["detail"]
-    assert "loop" in response.json()["detail"]
+    message, issues = _validation_detail(response.json())
+    assert "not currently available for persistence" in message
+    assert "loop" in message
+    assert any(issue["category"] == "node_support" for issue in issues)
 
 
 def test_workspace_starter_archive_and_restore_change_visibility(

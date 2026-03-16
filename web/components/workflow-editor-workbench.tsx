@@ -24,6 +24,11 @@ import {
   type WorkflowListItem,
   validateWorkflowDefinition
 } from "@/lib/get-workflows";
+import {
+  createWorkspaceStarterTemplate,
+  type WorkspaceStarterValidationIssue,
+  WorkspaceStarterValidationError
+} from "@/lib/get-workspace-starters";
 import { buildWorkspaceStarterPayload } from "@/lib/workspace-starter-payload";
 import { inferWorkflowBusinessTrack } from "@/lib/workflow-starters";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
@@ -66,6 +71,31 @@ const PREFLIGHT_CATEGORY_LABELS: Record<string, string> = {
   tool_execution: "tool execution",
   publish_version: "publish version"
 };
+
+function summarizeWorkspaceStarterValidationIssues(
+  issues: WorkspaceStarterValidationIssue[]
+): string | null {
+  if (issues.length === 0) {
+    return null;
+  }
+
+  const grouped = new Map<string, WorkspaceStarterValidationIssue[]>();
+  issues.forEach((issue) => {
+    const existing = grouped.get(issue.category);
+    if (existing) {
+      existing.push(issue);
+      return;
+    }
+    grouped.set(issue.category, [issue]);
+  });
+
+  return Array.from(grouped.entries())
+    .map(([category, categoryIssues]) => {
+      const label = PREFLIGHT_CATEGORY_LABELS[category] ?? category;
+      return `${label} ${categoryIssues.length} 项`;
+    })
+    .join("；");
+}
 
 function summarizePreflightIssues(
   issues: WorkflowDefinitionPreflightIssue[]
@@ -329,29 +359,24 @@ export function WorkflowEditorWorkbench({
       setMessageTone("idle");
 
       try {
-        const response = await fetch(`${getApiBaseUrl()}/api/workspace-starters`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(starterPayload)
-        });
-        const body = (await response.json().catch(() => null)) as
-          | { detail?: string; name?: string }
-          | null;
-
-        if (!response.ok) {
-          setMessage(body?.detail ?? `保存模板失败，API 返回 ${response.status}。`);
-          setMessageTone("error");
-          return;
-        }
+        const body = await createWorkspaceStarterTemplate(starterPayload);
 
         setMessage(
           `已保存 workspace starter：${body?.name ?? starterPayload.name}。回到创建页即可复用。`
         );
         setMessageTone("success");
-      } catch {
-        setMessage("无法连接后端保存 workspace starter，请确认 API 已启动。");
+      } catch (error) {
+        const validationSummary =
+          error instanceof WorkspaceStarterValidationError
+            ? summarizeWorkspaceStarterValidationIssues(error.issues)
+            : null;
+        setMessage(
+          error instanceof WorkspaceStarterValidationError
+            ? validationSummary
+              ? `${error.message}（${validationSummary}）`
+              : error.message
+            : "无法连接后端保存 workspace starter，请确认 API 已启动。"
+        );
         setMessageTone("error");
       }
     });

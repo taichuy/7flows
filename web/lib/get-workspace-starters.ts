@@ -1,5 +1,8 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
-import type { WorkflowDetail } from "@/lib/get-workflows";
+import type {
+  WorkflowDefinitionPreflightIssue,
+  WorkflowDetail
+} from "@/lib/get-workflows";
 import type { WorkflowBusinessTrack } from "@/lib/workflow-business-tracks";
 
 export type WorkspaceStarterTemplateItem = {
@@ -106,6 +109,94 @@ export type WorkspaceStarterBulkActionResult = {
   skipped_items: WorkspaceStarterBulkSkippedItem[];
   skipped_reason_summary: WorkspaceStarterBulkSkippedSummary[];
 };
+
+export type WorkspaceStarterValidationIssue = WorkflowDefinitionPreflightIssue;
+
+export class WorkspaceStarterValidationError extends Error {
+  readonly issues: WorkspaceStarterValidationIssue[];
+
+  constructor(message: string, issues: WorkspaceStarterValidationIssue[] = []) {
+    super(message);
+    this.name = "WorkspaceStarterValidationError";
+    this.issues = issues;
+  }
+}
+
+type WorkspaceStarterValidationErrorBody = {
+  detail?:
+    | string
+    | {
+        message?: string;
+        issues?: WorkspaceStarterValidationIssue[];
+      };
+};
+
+function parseWorkspaceStarterValidationError(
+  body: WorkspaceStarterValidationErrorBody | null,
+  fallbackMessage: string
+): WorkspaceStarterValidationError {
+  const detail = body?.detail;
+  if (typeof detail === "string") {
+    return new WorkspaceStarterValidationError(detail);
+  }
+
+  return new WorkspaceStarterValidationError(
+    detail?.message ?? fallbackMessage,
+    Array.isArray(detail?.issues) ? detail.issues : []
+  );
+}
+
+export async function createWorkspaceStarterTemplate(payload: Record<string, unknown>) {
+  const response = await fetch(`${getApiBaseUrl()}/api/workspace-starters`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  const body = (await response.json().catch(() => null)) as
+    | WorkspaceStarterTemplateItem
+    | WorkspaceStarterValidationErrorBody
+    | null;
+
+  if (!response.ok || !body || !("id" in body)) {
+    throw parseWorkspaceStarterValidationError(
+      body as WorkspaceStarterValidationErrorBody | null,
+      `保存模板失败，API 返回 ${response.status}。`
+    );
+  }
+
+  return body;
+}
+
+export async function updateWorkspaceStarterTemplate(
+  templateId: string,
+  payload: Record<string, unknown>
+) {
+  const response = await fetch(
+    `${getApiBaseUrl()}/api/workspace-starters/${encodeURIComponent(templateId)}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    }
+  );
+  const body = (await response.json().catch(() => null)) as
+    | WorkspaceStarterTemplateItem
+    | WorkspaceStarterValidationErrorBody
+    | null;
+
+  if (!response.ok || !body || !("id" in body)) {
+    throw parseWorkspaceStarterValidationError(
+      body as WorkspaceStarterValidationErrorBody | null,
+      `更新模板失败，API 返回 ${response.status}。`
+    );
+  }
+
+  return body;
+}
 
 export async function getWorkspaceStarterTemplates(): Promise<
   WorkspaceStarterTemplateItem[]

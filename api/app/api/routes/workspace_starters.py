@@ -16,7 +16,10 @@ from app.schemas.workspace_starter import (
     WorkspaceStarterTemplateItem,
     WorkspaceStarterTemplateUpdate,
 )
-from app.services.workflow_definitions import WorkflowDefinitionValidationError
+from app.services.workflow_definitions import (
+    WorkflowDefinitionValidationError,
+    WorkflowDefinitionValidationIssue,
+)
 from app.services.workspace_starter_templates import (
     get_workspace_starter_template_service,
 )
@@ -24,10 +27,25 @@ from app.services.workspace_starter_templates import (
 router = APIRouter(prefix="/workspace-starters", tags=["workspace-starters"])
 
 
+def _render_validation_issues(
+    issues: list[WorkflowDefinitionValidationIssue],
+) -> list[dict[str, str]]:
+    return [
+        {
+            "category": issue.category,
+            "message": issue.message,
+        }
+        for issue in issues
+    ]
+
+
 def _raise_definition_validation_error(exc: WorkflowDefinitionValidationError) -> None:
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        detail=str(exc),
+        detail={
+            "message": str(exc),
+            "issues": _render_validation_issues(exc.issues),
+        },
     ) from exc
 
 

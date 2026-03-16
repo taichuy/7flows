@@ -5,8 +5,11 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import {
   bulkUpdateWorkspaceStarters,
+  updateWorkspaceStarterTemplate,
   type WorkspaceStarterBulkAction,
   type WorkspaceStarterBulkActionResult,
+  type WorkspaceStarterValidationIssue,
+  WorkspaceStarterValidationError,
   type WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
 import {
@@ -59,6 +62,29 @@ export function WorkspaceStarterLibrary({
   const [lastBulkResult, setLastBulkResult] = useState<WorkspaceStarterBulkActionResult | null>(
     null
   );
+
+  const summarizeValidationIssues = (issues: WorkspaceStarterValidationIssue[]) => {
+    if (issues.length === 0) {
+      return null;
+    }
+
+    const categoryLabels: Record<string, string> = {
+      schema: "结构",
+      node_support: "节点支持",
+      tool_reference: "工具引用",
+      tool_execution: "执行能力",
+      publish_version: "发布版本"
+    };
+    return Object.entries(
+      issues.reduce<Record<string, number>>((summary, issue) => {
+        const category = issue.category || "unknown";
+        summary[category] = (summary[category] ?? 0) + 1;
+        return summary;
+      }, {})
+    )
+      .map(([category, count]) => `${categoryLabels[category] ?? category} ${count} 项`)
+      .join("；");
+  };
 
   const filteredTemplates = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
@@ -196,26 +222,10 @@ export function WorkspaceStarterLibrary({
       setMessageTone("idle");
 
       try {
-        const response = await fetch(
-          `${getApiBaseUrl()}/api/workspace-starters/${encodeURIComponent(selectedTemplate.id)}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(buildUpdatePayload(formState))
-          }
+        const body = await updateWorkspaceStarterTemplate(
+          selectedTemplate.id,
+          buildUpdatePayload(formState)
         );
-        const body = (await response.json().catch(() => null)) as
-          | WorkspaceStarterTemplateItem
-          | { detail?: string }
-          | null;
-
-        if (!response.ok || !body || !("id" in body)) {
-          setMessage(body && "detail" in body ? body.detail ?? "更新失败。" : "更新失败。");
-          setMessageTone("error");
-          return;
-        }
 
         setTemplates((current) =>
           current.map((template) => (template.id === body.id ? body : template))
@@ -223,8 +233,18 @@ export function WorkspaceStarterLibrary({
         setSelectedTemplateId(body.id);
         setMessage(`已更新 workspace starter：${body.name}。`);
         setMessageTone("success");
-      } catch {
-        setMessage("无法连接后端更新 workspace starter，请确认 API 已启动。");
+      } catch (error) {
+        const validationSummary =
+          error instanceof WorkspaceStarterValidationError
+            ? summarizeValidationIssues(error.issues)
+            : null;
+        setMessage(
+          error instanceof WorkspaceStarterValidationError
+            ? validationSummary
+              ? `${error.message}（${validationSummary}）`
+              : error.message
+            : "无法连接后端更新 workspace starter，请确认 API 已启动。"
+        );
         setMessageTone("error");
       }
     });
