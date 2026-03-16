@@ -46,8 +46,19 @@ class PluginExecutionDispatchPlanner:
         if request.ecosystem == "native":
             effective_execution_class = "inline"
             fallback_reason = None
+            blocked_reason = None
             if requested_execution_class != effective_execution_class:
-                fallback_reason = "native_tools_currently_inline_only"
+                if self._requires_fail_closed(
+                    requested_execution_class=requested_execution_class,
+                    execution_source=execution_source,
+                ):
+                    blocked_reason = (
+                        "Native tool execution currently supports only 'inline'. "
+                        f"Requested execution class '{requested_execution_class}' must fail closed "
+                        "until a native sandbox execution path is implemented."
+                    )
+                else:
+                    fallback_reason = "native_tools_currently_inline_only"
             return PluginExecutionDispatchPlan(
                 requested_execution_class=requested_execution_class,
                 effective_execution_class=effective_execution_class,
@@ -69,6 +80,7 @@ class PluginExecutionDispatchPlanner:
                     sandbox_backend_executor_ref=None,
                 ),
                 fallback_reason=fallback_reason,
+                blocked_reason=blocked_reason,
             )
 
         resolved_adapter = adapter or self._registry.resolve_adapter(

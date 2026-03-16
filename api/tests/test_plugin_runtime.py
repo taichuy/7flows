@@ -517,6 +517,69 @@ def test_plugin_call_proxy_keeps_default_execution_fallback_for_compat_adapter()
     }
 
 
+def test_plugin_call_proxy_fail_closes_explicit_native_isolation_request() -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(id="native.search", name="Native Search"),
+        invoker=lambda _request: {"documents": ["doc-1"]},
+    )
+
+    proxy = PluginCallProxy(registry)
+
+    dispatch = proxy.describe_execution_dispatch(
+        PluginCallRequest(
+            tool_id="native.search",
+            ecosystem="native",
+            inputs={"query": "sevenflows"},
+            trace_id="trace-native-execution",
+            execution={
+                "class": "sandbox",
+                "source": "tool_call",
+                "profile": "risk-reviewed",
+                "timeoutMs": 3000,
+            },
+        )
+    )
+
+    assert dispatch.as_trace_payload() == {
+        "requested_execution_class": "sandbox",
+        "effective_execution_class": "inline",
+        "execution_source": "tool_call",
+        "requested_execution_profile": "risk-reviewed",
+        "requested_execution_timeout_ms": 3000,
+        "requested_network_policy": None,
+        "requested_filesystem_policy": None,
+        "executor_ref": "tool:native-inline",
+        "sandbox_backend_id": None,
+        "sandbox_backend_executor_ref": None,
+        "fallback_reason": None,
+        "blocked_reason": (
+            "Native tool execution currently supports only 'inline'. Requested execution "
+            "class 'sandbox' must fail closed until a native sandbox execution path is "
+            "implemented."
+        ),
+    }
+
+    with pytest.raises(
+        PluginInvocationError,
+        match="Native tool execution currently supports only 'inline'",
+    ):
+        proxy.invoke(
+            PluginCallRequest(
+                tool_id="native.search",
+                ecosystem="native",
+                inputs={"query": "sevenflows"},
+                trace_id="trace-native-execution",
+                execution={
+                    "class": "sandbox",
+                    "source": "tool_call",
+                    "profile": "risk-reviewed",
+                    "timeoutMs": 3000,
+                },
+            )
+        )
+
+
 def test_plugin_call_proxy_binds_sandbox_backend_for_compat_adapter() -> None:
     registry = PluginRegistry()
     registry.register_tool(

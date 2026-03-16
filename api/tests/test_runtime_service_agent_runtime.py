@@ -168,7 +168,7 @@ def test_llm_agent_with_assistant_distills_tool_results_into_evidence(
     assert "assistant.completed" in [event.event_type for event in artifacts.events]
 
 
-def test_llm_agent_tool_policy_execution_records_tool_execution_trace(
+def test_llm_agent_tool_policy_execution_fail_closes_explicit_native_isolation(
     sqlite_session: Session,
 ) -> None:
     workflow = Workflow(
@@ -226,58 +226,40 @@ def test_llm_agent_tool_policy_execution_records_tool_execution_trace(
         },
     )
 
-    artifacts = RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
-        sqlite_session,
-        workflow,
-        {"topic": "agent"},
-    )
+    with pytest.raises(
+        WorkflowExecutionError,
+        match="Native tool execution currently supports only 'inline'",
+    ):
+        RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
+            sqlite_session,
+            workflow,
+            {"topic": "agent"},
+        )
 
-    agent_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "agent")
+    run = sqlite_session.scalars(
+        select(Run).where(Run.workflow_id == workflow.id).order_by(Run.created_at.desc())
+    ).first()
+    assert run is not None
+    assert run.status == "failed"
+
+    agent_run = sqlite_session.scalars(
+        select(NodeRun)
+        .where(NodeRun.run_id == run.id, NodeRun.node_id == "agent")
+        .order_by(NodeRun.started_at.desc())
+    ).first()
+    assert agent_run is not None
+
+    events = sqlite_session.scalars(
+        select(RunEvent)
+        .where(RunEvent.run_id == run.id, RunEvent.node_run_id == agent_run.id)
+        .order_by(RunEvent.id.asc())
+    ).all()
+
     dispatched_event = next(
-        event
-        for event in artifacts.events
-        if event.node_run_id == agent_run.id and event.event_type == "tool.execution.dispatched"
+        event for event in events if event.event_type == "tool.execution.dispatched"
     )
     assert dispatched_event.payload == {
         "node_id": "agent",
-        "tool_id": "native.search",
-        "tool_name": "Native Search",
-        "requested_execution_class": "sandbox",
-        "effective_execution_class": "inline",
-        "execution_source": "tool_policy",
-        "requested_execution_profile": "risk-reviewed",
-        "requested_execution_timeout_ms": 15000,
-        "requested_network_policy": None,
-        "requested_filesystem_policy": None,
-        "executor_ref": "tool:native-inline",
-    }
-
-    fallback_event = next(
-        event
-        for event in artifacts.events
-        if event.node_run_id == agent_run.id and event.event_type == "tool.execution.fallback"
-    )
-    assert fallback_event.payload == {
-        "node_id": "agent",
-        "tool_id": "native.search",
-        "tool_name": "Native Search",
-        "requested_execution_class": "sandbox",
-        "effective_execution_class": "inline",
-        "execution_source": "tool_policy",
-        "requested_execution_profile": "risk-reviewed",
-        "requested_execution_timeout_ms": 15000,
-        "requested_network_policy": None,
-        "requested_filesystem_policy": None,
-        "executor_ref": "tool:native-inline",
-        "reason": "native_tools_currently_inline_only",
-    }
-
-    tool_result_artifact = next(
-        artifact
-        for artifact in artifacts.artifacts
-        if artifact.node_run_id == agent_run.id and artifact.artifact_kind == "tool_result"
-    )
-    assert tool_result_artifact.metadata_payload == {
         "tool_id": "native.search",
         "tool_name": "native.search",
         "requested_execution_class": "sandbox",
@@ -288,14 +270,32 @@ def test_llm_agent_tool_policy_execution_records_tool_execution_trace(
         "requested_network_policy": None,
         "requested_filesystem_policy": None,
         "executor_ref": "tool:native-inline",
-        "sandbox_backend_id": None,
-        "sandbox_backend_executor_ref": None,
-        "fallback_reason": "native_tools_currently_inline_only",
-        "blocked_reason": None,
+    }
+
+    blocked_event = next(
+        event for event in events if event.event_type == "tool.execution.blocked"
+    )
+    assert blocked_event.payload == {
+        "node_id": "agent",
+        "tool_id": "native.search",
+        "tool_name": "native.search",
+        "requested_execution_class": "sandbox",
+        "effective_execution_class": "inline",
+        "execution_source": "tool_policy",
+        "requested_execution_profile": "risk-reviewed",
+        "requested_execution_timeout_ms": 15000,
+        "requested_network_policy": None,
+        "requested_filesystem_policy": None,
+        "executor_ref": "tool:native-inline",
+        "reason": (
+            "Native tool execution currently supports only 'inline'. Requested execution "
+            "class 'sandbox' must fail closed until a native sandbox execution path is "
+            "implemented."
+        ),
     }
 
 
-def test_llm_agent_tool_call_execution_override_wins_over_tool_policy(
+def test_llm_agent_tool_call_execution_override_fail_closes_native_isolation(
     sqlite_session: Session,
 ) -> None:
     workflow = Workflow(
@@ -360,58 +360,40 @@ def test_llm_agent_tool_call_execution_override_wins_over_tool_policy(
         },
     )
 
-    artifacts = RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
-        sqlite_session,
-        workflow,
-        {"topic": "agent"},
-    )
+    with pytest.raises(
+        WorkflowExecutionError,
+        match="Native tool execution currently supports only 'inline'",
+    ):
+        RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
+            sqlite_session,
+            workflow,
+            {"topic": "agent"},
+        )
 
-    agent_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "agent")
+    run = sqlite_session.scalars(
+        select(Run).where(Run.workflow_id == workflow.id).order_by(Run.created_at.desc())
+    ).first()
+    assert run is not None
+    assert run.status == "failed"
+
+    agent_run = sqlite_session.scalars(
+        select(NodeRun)
+        .where(NodeRun.run_id == run.id, NodeRun.node_id == "agent")
+        .order_by(NodeRun.started_at.desc())
+    ).first()
+    assert agent_run is not None
+
+    events = sqlite_session.scalars(
+        select(RunEvent)
+        .where(RunEvent.run_id == run.id, RunEvent.node_run_id == agent_run.id)
+        .order_by(RunEvent.id.asc())
+    ).all()
+
     dispatched_event = next(
-        event
-        for event in artifacts.events
-        if event.node_run_id == agent_run.id and event.event_type == "tool.execution.dispatched"
+        event for event in events if event.event_type == "tool.execution.dispatched"
     )
     assert dispatched_event.payload == {
         "node_id": "agent",
-        "tool_id": "native.search",
-        "tool_name": "Native Search",
-        "requested_execution_class": "microvm",
-        "effective_execution_class": "inline",
-        "execution_source": "tool_call",
-        "requested_execution_profile": "per-call-override",
-        "requested_execution_timeout_ms": 5000,
-        "requested_network_policy": "isolated",
-        "requested_filesystem_policy": "ephemeral",
-        "executor_ref": "tool:native-inline",
-    }
-
-    fallback_event = next(
-        event
-        for event in artifacts.events
-        if event.node_run_id == agent_run.id and event.event_type == "tool.execution.fallback"
-    )
-    assert fallback_event.payload == {
-        "node_id": "agent",
-        "tool_id": "native.search",
-        "tool_name": "Native Search",
-        "requested_execution_class": "microvm",
-        "effective_execution_class": "inline",
-        "execution_source": "tool_call",
-        "requested_execution_profile": "per-call-override",
-        "requested_execution_timeout_ms": 5000,
-        "requested_network_policy": "isolated",
-        "requested_filesystem_policy": "ephemeral",
-        "executor_ref": "tool:native-inline",
-        "reason": "native_tools_currently_inline_only",
-    }
-
-    tool_result_artifact = next(
-        artifact
-        for artifact in artifacts.artifacts
-        if artifact.node_run_id == agent_run.id and artifact.artifact_kind == "tool_result"
-    )
-    assert tool_result_artifact.metadata_payload == {
         "tool_id": "native.search",
         "tool_name": "native.search",
         "requested_execution_class": "microvm",
@@ -422,10 +404,28 @@ def test_llm_agent_tool_call_execution_override_wins_over_tool_policy(
         "requested_network_policy": "isolated",
         "requested_filesystem_policy": "ephemeral",
         "executor_ref": "tool:native-inline",
-        "sandbox_backend_id": None,
-        "sandbox_backend_executor_ref": None,
-        "fallback_reason": "native_tools_currently_inline_only",
-        "blocked_reason": None,
+    }
+
+    blocked_event = next(
+        event for event in events if event.event_type == "tool.execution.blocked"
+    )
+    assert blocked_event.payload == {
+        "node_id": "agent",
+        "tool_id": "native.search",
+        "tool_name": "native.search",
+        "requested_execution_class": "microvm",
+        "effective_execution_class": "inline",
+        "execution_source": "tool_call",
+        "requested_execution_profile": "per-call-override",
+        "requested_execution_timeout_ms": 5000,
+        "requested_network_policy": "isolated",
+        "requested_filesystem_policy": "ephemeral",
+        "executor_ref": "tool:native-inline",
+        "reason": (
+            "Native tool execution currently supports only 'inline'. Requested execution "
+            "class 'microvm' must fail closed until a native sandbox execution path is "
+            "implemented."
+        ),
     }
 
 

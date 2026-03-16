@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.run import NodeRun, Run, RunEvent
 from app.models.workflow import Workflow, WorkflowCompiledBlueprint
 from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
 from app.services.runtime import RuntimeService, WorkflowExecutionError
@@ -389,7 +390,7 @@ def test_runtime_service_executes_sandbox_code_via_registered_backend(
         "backendId": "sandbox-default",
     }
 
-def test_runtime_service_falls_back_non_inline_execution_class_for_tool_nodes(
+def test_runtime_service_fail_closes_explicit_native_tool_isolation_request(
     sqlite_session: Session,
 ) -> None:
     workflow = Workflow(
@@ -438,74 +439,40 @@ def test_runtime_service_falls_back_non_inline_execution_class_for_tool_nodes(
         },
     )
 
-    artifacts = RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
-        sqlite_session,
-        workflow,
-        {"topic": "fallback"},
-    )
+    with pytest.raises(
+        WorkflowExecutionError,
+        match="Native tool execution currently supports only 'inline'",
+    ):
+        RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
+            sqlite_session,
+            workflow,
+            {"topic": "fallback"},
+        )
 
-    tool_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "tool")
-    assert tool_run.output_payload == {"answer": "inline", "mode": "fallback"}
+    run = sqlite_session.scalars(
+        select(Run).where(Run.workflow_id == workflow.id).order_by(Run.created_at.desc())
+    ).first()
+    assert run is not None
+    assert run.status == "failed"
 
-    fallback_event = next(
-        event
-        for event in artifacts.events
-        if event.node_run_id == tool_run.id and event.event_type == "node.execution.fallback"
-    )
-    assert fallback_event.payload == {
-        "node_id": "tool",
-        "node_type": "tool",
-        "requested_execution_class": "microvm",
-        "effective_execution_class": "inline",
-        "executor_ref": "runtime:inline-fallback:microvm",
-        "reason": "execution_class_not_implemented_for_node_type",
-    }
+    tool_run = sqlite_session.scalars(
+        select(NodeRun)
+        .where(NodeRun.run_id == run.id, NodeRun.node_id == "tool")
+        .order_by(NodeRun.started_at.desc())
+    ).first()
+    assert tool_run is not None
+
+    events = sqlite_session.scalars(
+        select(RunEvent)
+        .where(RunEvent.run_id == run.id, RunEvent.node_run_id == tool_run.id)
+        .order_by(RunEvent.id.asc())
+    ).all()
 
     tool_execution_dispatched_event = next(
-        event
-        for event in artifacts.events
-        if event.node_run_id == tool_run.id and event.event_type == "tool.execution.dispatched"
+        event for event in events if event.event_type == "tool.execution.dispatched"
     )
     assert tool_execution_dispatched_event.payload == {
         "node_id": "tool",
-        "tool_id": "native.inline-test",
-        "tool_name": "Inline Test",
-        "requested_execution_class": "microvm",
-        "effective_execution_class": "inline",
-        "execution_source": "runtime_policy",
-        "requested_execution_profile": "strict",
-        "requested_execution_timeout_ms": None,
-        "requested_network_policy": None,
-        "requested_filesystem_policy": None,
-        "executor_ref": "tool:native-inline",
-    }
-
-    tool_execution_fallback_event = next(
-        event
-        for event in artifacts.events
-        if event.node_run_id == tool_run.id and event.event_type == "tool.execution.fallback"
-    )
-    assert tool_execution_fallback_event.payload == {
-        "node_id": "tool",
-        "tool_id": "native.inline-test",
-        "tool_name": "Inline Test",
-        "requested_execution_class": "microvm",
-        "effective_execution_class": "inline",
-        "execution_source": "runtime_policy",
-        "requested_execution_profile": "strict",
-        "requested_execution_timeout_ms": None,
-        "requested_network_policy": None,
-        "requested_filesystem_policy": None,
-        "executor_ref": "tool:native-inline",
-        "reason": "native_tools_currently_inline_only",
-    }
-
-    tool_result_artifact = next(
-        artifact
-        for artifact in artifacts.artifacts
-        if artifact.node_run_id == tool_run.id and artifact.artifact_kind == "tool_result"
-    )
-    assert tool_result_artifact.metadata_payload == {
         "tool_id": "native.inline-test",
         "tool_name": "native.inline-test",
         "requested_execution_class": "microvm",
@@ -516,10 +483,28 @@ def test_runtime_service_falls_back_non_inline_execution_class_for_tool_nodes(
         "requested_network_policy": None,
         "requested_filesystem_policy": None,
         "executor_ref": "tool:native-inline",
-        "sandbox_backend_id": None,
-        "sandbox_backend_executor_ref": None,
-        "fallback_reason": "native_tools_currently_inline_only",
-        "blocked_reason": None,
+    }
+
+    tool_execution_blocked_event = next(
+        event for event in events if event.event_type == "tool.execution.blocked"
+    )
+    assert tool_execution_blocked_event.payload == {
+        "node_id": "tool",
+        "tool_id": "native.inline-test",
+        "tool_name": "native.inline-test",
+        "requested_execution_class": "microvm",
+        "effective_execution_class": "inline",
+        "execution_source": "runtime_policy",
+        "requested_execution_profile": "strict",
+        "requested_execution_timeout_ms": None,
+        "requested_network_policy": None,
+        "requested_filesystem_policy": None,
+        "executor_ref": "tool:native-inline",
+        "reason": (
+            "Native tool execution currently supports only 'inline'. Requested execution "
+            "class 'microvm' must fail closed until a native sandbox execution path is "
+            "implemented."
+        ),
     }
 
 
