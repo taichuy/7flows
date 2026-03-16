@@ -117,6 +117,45 @@ class RuntimeNodePreparationSupportMixin:
             )
             return node_run
 
+        availability = self._execution_adapter_registry.describe_node_execution_availability(
+            node=node,
+            execution_policy=execution_policy,
+        )
+        if not availability.available:
+            blocked_node_run = self._build_blocked_node_run(
+                node=node,
+                run_id=run.id,
+                node_input=node_input,
+                reason=availability.blocking_reason
+                or "Node execution is unavailable for the requested execution class.",
+            )
+            db.add(blocked_node_run)
+            db.flush()
+            events.append(
+                self._build_event(
+                    run.id,
+                    blocked_node_run.id,
+                    "node.execution.unavailable",
+                    {
+                        "node_id": node["id"],
+                        "node_type": node.get("type", "unknown"),
+                        "requested_execution_class": execution_policy.execution_class,
+                        "reason": blocked_node_run.error_message,
+                    },
+                )
+            )
+            events.append(
+                self._build_event(
+                    run.id,
+                    blocked_node_run.id,
+                    "node.blocked",
+                    {"node_id": node["id"], "reason": blocked_node_run.error_message},
+                )
+            )
+            raise WorkflowExecutionError(
+                blocked_node_run.error_message or "Node execution is unavailable."
+            )
+
         if len(join_decision.expected_source_ids) > 1 and join_decision.mode == "all":
             events.append(
                 self._build_event(

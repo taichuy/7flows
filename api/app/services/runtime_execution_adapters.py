@@ -11,7 +11,12 @@ from app.services.artifact_store import RuntimeArtifactStore
 from app.services.context_service import ContextService
 from app.services.runtime_execution_policy import ResolvedExecutionPolicy
 from app.services.runtime_sandbox_code import HostSandboxCodeExecutor
-from app.services.runtime_types import AuthorizedContextRefs, NodeExecutionResult, RuntimeEvent
+from app.services.runtime_types import (
+    AuthorizedContextRefs,
+    NodeExecutionResult,
+    RuntimeEvent,
+    WorkflowExecutionError,
+)
 
 
 @dataclass(frozen=True)
@@ -26,6 +31,13 @@ class NodeExecutionRequest:
     outputs: dict[str, dict]
     execution_policy: ResolvedExecutionPolicy
     inline_executor: Callable[[], NodeExecutionResult]
+
+
+@dataclass(frozen=True)
+class NodeExecutionAvailability:
+    available: bool
+    blocking_reason: str | None = None
+    executor_ref: str | None = None
 
 
 class InlineExecutionAdapter:
@@ -74,6 +86,10 @@ class SandboxCodeExecutionAdapter:
         self._context_service = context_service
 
     def execute(self, request: NodeExecutionRequest) -> NodeExecutionResult:
+        if request.execution_policy.execution_class != "subprocess":
+            raise WorkflowExecutionError(
+                "Host subprocess sandbox_code adapter only supports explicit subprocess execution."
+            )
         events = [
             RuntimeEvent(
                 "node.execution.dispatched",
@@ -81,24 +97,11 @@ class SandboxCodeExecutionAdapter:
                     "node_id": request.node.get("id"),
                     "node_type": request.node.get("type"),
                     "requested_execution_class": request.execution_policy.execution_class,
+                    "effective_execution_class": "subprocess",
                     "executor_ref": self.adapter_ref,
                 },
             )
         ]
-        if request.execution_policy.execution_class in {"inline", "sandbox", "microvm"}:
-            events.append(
-                RuntimeEvent(
-                    "node.execution.fallback",
-                    {
-                        "node_id": request.node.get("id"),
-                        "node_type": request.node.get("type"),
-                        "requested_execution_class": request.execution_policy.execution_class,
-                        "effective_execution_class": "subprocess",
-                        "executor_ref": self.adapter_ref,
-                        "reason": "host_subprocess_adapter_is_current_mvp_path",
-                    },
-                )
-            )
 
         execution = self._sandbox_code_executor.execute(
             config=dict(request.node.get("config") or {}),
@@ -172,9 +175,49 @@ class RuntimeExecutionAdapterRegistry:
             context_service=context_service,
         )
 
+    def describe_node_execution_availability(
+        self,
+        *,
+        node: dict[str, Any],
+        execution_policy: ResolvedExecutionPolicy,
+    ) -> NodeExecutionAvailability:
+        if node.get("type") != "sandbox_code":
+            return NodeExecutionAvailability(available=True)
+
+        if execution_policy.execution_class == "subprocess":
+            return NodeExecutionAvailability(
+                available=True,
+                executor_ref=self._sandbox_code_adapter.adapter_ref,
+            )
+
+        if execution_policy.execution_class == "inline":
+            return NodeExecutionAvailability(
+                available=False,
+                blocking_reason=(
+                    "sandbox_code cannot run with execution class 'inline'. "
+                    "Use explicit 'subprocess' for the current host-controlled MVP path, "
+                    "or register a sandbox backend for 'sandbox' / 'microvm'."
+                ),
+            )
+
+        return NodeExecutionAvailability(
+            available=False,
+            blocking_reason=(
+                f"sandbox_code requested execution class '{execution_policy.execution_class}', "
+                "but no compatible sandbox backend is registered. "
+                "Strong-isolation paths must fail closed until a sandbox backend is available."
+            ),
+        )
+
     def execute(self, request: NodeExecutionRequest) -> NodeExecutionResult:
         if request.node.get("type") == "sandbox_code":
-            return self._sandbox_code_adapter.execute(request)
+            if request.execution_policy.execution_class == "subprocess":
+                return self._sandbox_code_adapter.execute(request)
+            raise WorkflowExecutionError(
+                "sandbox_code execution class "
+                f"'{request.execution_policy.execution_class}' is unavailable "
+                "without a registered sandbox backend."
+            )
         if request.execution_policy.execution_class == "inline":
             return self._inline_adapter.execute(request)
         return self._fallback_adapters[request.execution_policy.execution_class].execute(request)

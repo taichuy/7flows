@@ -120,7 +120,7 @@ def test_runtime_service_records_effective_execution_policy(sqlite_session: Sess
     assert tool_started.payload["execution"] == tool_run.input_payload["execution"]
 
 
-def test_runtime_service_executes_sandbox_code_via_host_subprocess(
+def test_runtime_service_blocks_sandbox_code_without_registered_backend(
     sqlite_session: Session,
 ) -> None:
     workflow = Workflow(
@@ -155,6 +155,80 @@ def test_runtime_service_executes_sandbox_code_via_host_subprocess(
     sqlite_session.add(workflow)
     sqlite_session.commit()
 
+    service = RuntimeService()
+    with pytest.raises(
+        WorkflowExecutionError,
+        match="Strong-isolation paths must fail closed until a sandbox backend is available",
+    ):
+        service.execute_workflow(
+            sqlite_session,
+            workflow,
+            {"topic": "sandbox"},
+        )
+
+    persisted_run = service.list_workflow_runs(sqlite_session, workflow.id)[0]
+    artifacts = service.load_run(sqlite_session, persisted_run.id)
+    assert artifacts is not None
+    assert artifacts.run.status == "failed"
+    sandbox_run = next(
+        node_run for node_run in artifacts.node_runs if node_run.node_id == "sandbox"
+    )
+    assert sandbox_run.status == "blocked"
+    assert sandbox_run.input_payload["execution"] == {
+        "class": "sandbox",
+        "source": "default",
+    }
+    assert "sandbox backend" in (sandbox_run.error_message or "")
+
+    unavailable_event = next(
+        event
+        for event in artifacts.events
+        if event.node_run_id == sandbox_run.id and event.event_type == "node.execution.unavailable"
+    )
+    assert unavailable_event.payload == {
+        "node_id": "sandbox",
+        "node_type": "sandbox_code",
+        "requested_execution_class": "sandbox",
+        "reason": sandbox_run.error_message,
+    }
+
+
+def test_runtime_service_executes_sandbox_code_via_explicit_subprocess_mvp(
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-sandbox-code-subprocess",
+        name="Sandbox Code Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "sandbox",
+                    "type": "sandbox_code",
+                    "name": "Sandbox",
+                    "config": {
+                        "language": "python",
+                        "code": (
+                            'topic = node_input["trigger_input"]["topic"]\n'
+                            'result = {"answer": topic.upper(), "requested": '
+                            'node_input["execution"]["class"]}'
+                        ),
+                    },
+                    "runtimePolicy": {"execution": {"class": "subprocess"}},
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "sandbox"},
+                {"id": "e2", "sourceNodeId": "sandbox", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
     artifacts = RuntimeService().execute_workflow(
         sqlite_session,
         workflow,
@@ -165,12 +239,12 @@ def test_runtime_service_executes_sandbox_code_via_host_subprocess(
         node_run for node_run in artifacts.node_runs if node_run.node_id == "sandbox"
     )
     assert sandbox_run.input_payload["execution"] == {
-        "class": "sandbox",
-        "source": "default",
+        "class": "subprocess",
+        "source": "runtime_policy",
     }
     assert sandbox_run.output_payload == {
         "answer": "SANDBOX",
-        "requested": "sandbox",
+        "requested": "subprocess",
     }
     assert len(sandbox_run.artifact_refs or []) == 1
 
@@ -180,10 +254,10 @@ def test_runtime_service_executes_sandbox_code_via_host_subprocess(
     assert sandbox_artifact.artifact_kind == "sandbox_result"
     assert sandbox_artifact.payload == {
         "language": "python",
-        "result": {"answer": "SANDBOX", "requested": "sandbox"},
+        "result": {"answer": "SANDBOX", "requested": "subprocess"},
         "stdout": "",
         "stderr": "",
-        "requestedExecutionClass": "sandbox",
+        "requestedExecutionClass": "subprocess",
         "effectiveExecutionClass": "subprocess",
         "executorRef": "host_subprocess_python",
     }
@@ -193,16 +267,13 @@ def test_runtime_service_executes_sandbox_code_via_host_subprocess(
         for event in artifacts.events
         if event.node_run_id == sandbox_run.id and event.event_type == "node.execution.dispatched"
     )
-    assert dispatched_event.payload["requested_execution_class"] == "sandbox"
-    assert dispatched_event.payload["executor_ref"] == "runtime:host-subprocess-sandbox-code"
-
-    fallback_event = next(
-        event
-        for event in artifacts.events
-        if event.node_run_id == sandbox_run.id and event.event_type == "node.execution.fallback"
-    )
-    assert fallback_event.payload["effective_execution_class"] == "subprocess"
-    assert fallback_event.payload["reason"] == "host_subprocess_adapter_is_current_mvp_path"
+    assert dispatched_event.payload == {
+        "node_id": "sandbox",
+        "node_type": "sandbox_code",
+        "requested_execution_class": "subprocess",
+        "effective_execution_class": "subprocess",
+        "executor_ref": "runtime:host-subprocess-sandbox-code",
+    }
 
 
 def test_runtime_service_falls_back_non_inline_execution_class_for_tool_nodes(
