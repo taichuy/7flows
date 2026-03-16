@@ -14,6 +14,7 @@ import {
   formatLatestCallbackTicketLabel,
   formatLatestLateCallbackLabel,
   formatScheduledResumeLabel,
+  getCallbackWaitingRecommendedAction,
   getCallbackWaitingHeadline,
   listCallbackWaitingChips
 } from "@/lib/callback-waiting-presenters";
@@ -65,6 +66,14 @@ export function WorkflowPublishInvocationCallbackSection({
     scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status
   });
   const approvalSummary = formatApprovalSummary(sensitiveAccessEntries);
+  const recommendedAction = getCallbackWaitingRecommendedAction({
+    lifecycle: callbackLifecycle,
+    callbackTickets,
+    sensitiveAccessEntries,
+    scheduledResumeDelaySeconds: waitingLifecycle?.scheduled_resume_delay_seconds,
+    scheduledResumeSource: waitingLifecycle?.scheduled_resume_source,
+    scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status
+  });
   const latestTicket = formatLatestCallbackTicketLabel(callbackLifecycle);
   const latestLateCallback = formatLatestLateCallbackLabel(callbackLifecycle);
   const terminationLabel = formatCallbackTerminationLabel(callbackLifecycle);
@@ -116,6 +125,12 @@ export function WorkflowPublishInvocationCallbackSection({
               {renderMetaRow("Approvals", approvalSummary)}
               {renderMetaRow("Scheduled resume", scheduledResume)}
               {renderMetaRow("Termination", terminationLabel)}
+              {renderMetaRow(
+                "Recommended next action",
+                recommendedAction
+                  ? `${recommendedAction.label} · ${recommendedAction.detail}`
+                  : null
+              )}
             </dl>
           </div>
           <div className="payload-card compact-card">

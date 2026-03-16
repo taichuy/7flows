@@ -13,6 +13,11 @@ type CallbackWaitingExplanationInput = {
   scheduledWaitingStatus?: string | null;
 };
 
+export type CallbackWaitingRecommendedAction = {
+  label: string;
+  detail: string;
+};
+
 function formatCountLabel(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
@@ -241,4 +246,69 @@ export function listCallbackWaitingChips({
   }
 
   return chips;
+}
+
+export function getCallbackWaitingRecommendedAction({
+  lifecycle,
+  callbackTickets = [],
+  sensitiveAccessEntries = [],
+  scheduledResumeDelaySeconds
+}: CallbackWaitingExplanationInput): CallbackWaitingRecommendedAction | null {
+  const pendingApprovalCount = sensitiveAccessEntries.filter(
+    (entry) => entry.approval_ticket?.status === "pending"
+  ).length;
+  const expiredTicketCount = lifecycle?.expired_ticket_count ?? 0;
+  const lateCallbackCount = lifecycle?.late_callback_count ?? 0;
+  const pendingTicketCount = callbackTickets.filter((ticket) => ticket.status === "pending").length;
+
+  if (pendingApprovalCount > 0) {
+    return {
+      label: "Open inbox slice first",
+      detail: `${formatCountLabel(pendingApprovalCount, "approval")} is still pending, so resume should start from approval handling instead of retrying the run.`
+    };
+  }
+
+  if (lifecycle?.terminated) {
+    return {
+      label: "Inspect termination before retrying",
+      detail: formatOptionalParts([
+        "Callback waiting has already terminated",
+        lifecycle.termination_reason,
+        "manual resume should wait until the termination reason is understood"
+      ]) ?? "Callback waiting has already terminated."
+    };
+  }
+
+  if (expiredTicketCount > 0) {
+    return {
+      label: "Cleanup expired tickets first",
+      detail: `${formatCountLabel(expiredTicketCount, "expired callback ticket")} is blocking a clean resume path, so cleanup-and-resume is the safest next move.`
+    };
+  }
+
+  if (pendingTicketCount > 0) {
+    return {
+      label: "Wait for callback result",
+      detail: `${formatCountLabel(pendingTicketCount, "callback ticket")} is still pending, so the main action is to monitor the ticket or the external tool rather than forcing another resume.`
+    };
+  }
+
+  if (lateCallbackCount > 0 || callbackTickets.length > 0) {
+    return {
+      label: "Try manual resume now",
+      detail:
+        lateCallbackCount > 0
+          ? `${formatCountLabel(lateCallbackCount, "late callback")} has already arrived, so an operator resume can pull the run forward without waiting for the next scheduler tick.`
+          : "Callback ticket history already exists and no approval is still pending, so a manual resume is the fastest way to verify whether the run can continue immediately."
+    };
+  }
+
+  if (scheduledResumeDelaySeconds) {
+    return {
+      label: "Watch the scheduled resume",
+      detail: `The runtime already scheduled a resume in ${scheduledResumeDelaySeconds}s, so intervention is optional unless the operator wants to bypass the backoff.`
+    };
+  }
+
+  return null;
 }

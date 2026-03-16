@@ -11,6 +11,7 @@ import {
   formatApprovalSummary,
   formatCallbackLifecycleLabel,
   formatScheduledResumeLabel,
+  getCallbackWaitingRecommendedAction,
   getCallbackWaitingHeadline,
   listCallbackWaitingChips
 } from "@/lib/callback-waiting-presenters";
@@ -60,6 +61,14 @@ export function CallbackWaitingSummaryCard({
     sensitiveAccessEntries,
     scheduledResumeDelaySeconds
   });
+  const recommendedAction = getCallbackWaitingRecommendedAction({
+    lifecycle,
+    callbackTickets,
+    sensitiveAccessEntries,
+    scheduledResumeDelaySeconds,
+    scheduledResumeSource,
+    scheduledWaitingStatus
+  });
   const terminationAt = formatTimestamp(lifecycle?.terminated_at);
   const hasTermination = Boolean(lifecycle?.terminated);
   const hasContent =
@@ -104,6 +113,11 @@ export function CallbackWaitingSummaryCard({
       {scheduledResume ? <p className="section-copy entry-copy">Resume: {scheduledResume}</p> : null}
       {lifecycleSummary ? (
         <p className="section-copy entry-copy">Lifecycle: {lifecycleSummary}</p>
+      ) : null}
+      {recommendedAction ? (
+        <p className="section-copy entry-copy">
+          Recommended next action: <strong>{recommendedAction.label}.</strong> {recommendedAction.detail}
+        </p>
       ) : null}
       {hasTermination ? (
         <p className="run-error-message">
