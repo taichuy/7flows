@@ -60,6 +60,7 @@ export type WorkflowDefinitionPreflightIssue = {
     | "tool_reference"
     | "tool_execution"
     | "publish_version"
+    | "variables"
     | string;
   message: string;
   path?: string;

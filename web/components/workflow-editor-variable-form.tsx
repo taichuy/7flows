@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { buildWorkflowVariableValidationIssues } from "@/lib/workflow-variable-validation";
+
 type WorkflowEditorVariableFormProps = {
   variables: Array<Record<string, unknown>>;
   onChange: (
@@ -31,8 +33,8 @@ export function WorkflowEditorVariableForm({
     [variables]
   );
   const validationIssues = useMemo(
-    () => buildVariableValidationIssues(normalizedVariables),
-    [normalizedVariables]
+    () => buildWorkflowVariableValidationIssues({ variables }),
+    [variables]
   );
 
   const commit = (
@@ -182,7 +184,7 @@ export function WorkflowEditorVariableForm({
           <p>当前 workflow variables 还有待修正的问题：</p>
           <ul className="roadmap-list compact-list">
             {validationIssues.map((issue) => (
-              <li key={issue}>{issue}</li>
+              <li key={`${issue.path ?? issue.message}`}>{issue.message}</li>
             ))}
           </ul>
         </div>
@@ -331,28 +333,6 @@ function normalizeWorkflowVariable(value: Record<string, unknown>): NormalizedWo
     defaultValue: value.default,
     hasDefault: Object.prototype.hasOwnProperty.call(value, "default")
   };
-}
-
-function buildVariableValidationIssues(variables: NormalizedWorkflowVariable[]) {
-  const issues: string[] = [];
-  const nameCounts = new Map<string, number>();
-
-  for (const variable of variables) {
-    const normalizedName = variable.name.trim();
-    if (!normalizedName) {
-      issues.push("变量名不能为空。");
-      continue;
-    }
-    nameCounts.set(normalizedName, (nameCounts.get(normalizedName) ?? 0) + 1);
-  }
-
-  for (const [name, count] of nameCounts.entries()) {
-    if (count > 1) {
-      issues.push(`变量名 ${name} 重复，后端保存前需要去重。`);
-    }
-  }
-
-  return issues;
 }
 
 function cloneRecord(value: Record<string, unknown>) {

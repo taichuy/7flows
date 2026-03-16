@@ -12,6 +12,7 @@ import {
 } from "@/lib/workflow-publish-version-validation";
 import { buildWorkflowToolExecutionValidationIssues } from "@/lib/workflow-tool-execution-validation";
 import { buildWorkflowToolReferenceValidationIssues } from "@/lib/workflow-tool-reference-validation";
+import { buildWorkflowVariableValidationIssues } from "@/lib/workflow-variable-validation";
 import type {
   WorkflowLibrarySourceLane,
   WorkflowNodeCatalogItem
@@ -75,7 +76,8 @@ const PREFLIGHT_CATEGORY_LABELS: Record<string, string> = {
   node_support: "node support",
   tool_reference: "tool reference",
   tool_execution: "tool execution",
-  publish_version: "publish version"
+  publish_version: "publish version",
+  variables: "variables"
 };
 
 function summarizeWorkspaceStarterValidationIssues(
@@ -260,6 +262,22 @@ export function WorkflowEditorWorkbench({
       ? `${head}；另有 ${publishVersionValidationIssues.length - 3} 项待修正。`
       : head;
   }, [publishVersionValidationIssues]);
+  const variableValidationIssues = useMemo(
+    () => buildWorkflowVariableValidationIssues(graph.currentDefinition),
+    [graph.currentDefinition]
+  );
+  const variableValidationSummary = useMemo(() => {
+    if (variableValidationIssues.length === 0) {
+      return null;
+    }
+    const head = variableValidationIssues
+      .slice(0, 3)
+      .map((issue) => issue.message)
+      .join("；");
+    return variableValidationIssues.length > 3
+      ? `${head}；另有 ${variableValidationIssues.length - 3} 项待修正。`
+      : head;
+  }, [variableValidationIssues]);
   const validationNavigatorItems = useMemo(() => {
     const localIssues: WorkflowDefinitionPreflightIssue[] = [
       ...contractValidationIssues.map((issue) => ({
@@ -286,6 +304,7 @@ export function WorkflowEditorWorkbench({
         path: issue.path,
         field: issue.field
       })),
+      ...variableValidationIssues,
       ...serverValidationIssues
     ];
     return buildWorkflowValidationNavigatorItems(graph.currentDefinition, localIssues);
@@ -293,6 +312,7 @@ export function WorkflowEditorWorkbench({
     contractValidationIssues,
     graph.currentDefinition,
     publishVersionValidationIssues,
+    variableValidationIssues,
     serverValidationIssues,
     toolExecutionValidationIssues,
     toolReferenceValidationIssues
@@ -313,12 +333,16 @@ export function WorkflowEditorWorkbench({
   const publishVersionBlockedMessage = publishVersionValidationSummary
     ? `当前 workflow definition 还有 publish version 引用待修正问题：${publishVersionValidationSummary}${publishVersionValidationSummary.endsWith("。") ? "" : "。"}如果 endpoint 要跟随本次保存版本，请把 workflowVersion 留空。`
     : null;
+  const variableBlockedMessage = variableValidationSummary
+    ? `当前 workflow definition 还有 variables 待修正问题：${variableValidationSummary}${variableValidationSummary.endsWith("。") ? "" : "。"}请先修正变量名，再继续保存。`
+    : null;
   const persistBlockedMessage = [
     unsupportedNodesBlockedMessage,
     contractBlockedMessage,
     toolReferenceBlockedMessage,
     toolExecutionBlockedMessage,
-    publishVersionBlockedMessage
+    publishVersionBlockedMessage,
+    variableBlockedMessage
   ]
     .filter(Boolean)
     .join(" ");

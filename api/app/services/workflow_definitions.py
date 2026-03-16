@@ -20,6 +20,7 @@ from app.services.workflow_library_catalog import build_node_catalog_items
 from app.services.workflow_publish_version_references import (
     collect_invalid_workflow_publish_version_references,
 )
+from app.services.workflow_variable_validation import collect_invalid_workflow_variables
 
 
 @dataclass(frozen=True)
@@ -420,6 +421,22 @@ def validate_persistable_workflow_definition(
                     field=issue.field,
                 )
                 for issue in invalid_publish_version_references
+            ],
+        )
+
+    invalid_variables = collect_invalid_workflow_variables(validated_definition)
+    if invalid_variables:
+        raise WorkflowDefinitionValidationError(
+            "Workflow definition contains workflow variables that are not valid for persistence: "
+            + "; ".join(issue["message"] for issue in invalid_variables),
+            issues=[
+                WorkflowDefinitionValidationIssue(
+                    category="variables",
+                    message=issue["message"],
+                    path=issue.get("path"),
+                    field=issue.get("field"),
+                )
+                for issue in invalid_variables
             ],
         )
 

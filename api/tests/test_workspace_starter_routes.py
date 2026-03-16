@@ -88,6 +88,16 @@ def _validation_detail(body: dict) -> tuple[str, list[dict[str, str]]]:
     return detail["message"], detail["issues"]
 
 
+def _invalid_variable_definition() -> dict:
+    definition = _valid_definition()
+    definition["variables"] = [
+        {"name": "shared_input", "type": "string"},
+        {"name": " shared_input ", "type": "number"},
+        {"name": "   ", "type": "string"},
+    ]
+    return definition
+
+
 def test_workspace_starter_create_rejects_unsupported_agent_tool_execution(
     client: TestClient,
 ) -> None:
@@ -139,6 +149,31 @@ def test_workspace_starter_create_rejects_unsupported_agent_tool_execution(
     assert "tool execution capabilities" in message
     assert "microvm" in message
     assert any(issue["category"] == "tool_execution" for issue in issues)
+
+
+def test_workspace_starter_create_rejects_invalid_variables(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Invalid Variables Starter",
+            "description": "Should reject duplicate variable names",
+            "business_track": "应用新建编排",
+            "default_workflow_name": "Invalid Variables Workflow",
+            "workflow_focus": "Variable validation",
+            "recommended_next_step": "Deduplicate variable names",
+            "tags": ["variables"],
+            "definition": _invalid_variable_definition(),
+        },
+    )
+
+    assert response.status_code == 422
+    message, issues = _validation_detail(response.json())
+    assert "workflow variables that are not valid for persistence" in message
+    assert any(issue["category"] == "variables" for issue in issues)
+    assert any(issue.get("path") == "variables.0.name" for issue in issues)
 
 
 def test_workspace_starter_list_supports_filters_and_search(client: TestClient) -> None:

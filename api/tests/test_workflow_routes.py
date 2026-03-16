@@ -337,6 +337,16 @@ def _valid_publish_definition() -> dict:
     return definition
 
 
+def _invalid_variable_definition() -> dict:
+    definition = _valid_definition()
+    definition["variables"] = [
+        {"name": "shared_input", "type": "string"},
+        {"name": " shared_input ", "type": "string"},
+        {"name": "   ", "type": "string"},
+    ]
+    return definition
+
+
 def test_create_workflow_persists_initial_version(client: TestClient) -> None:
     response = client.post(
         "/api/workflows",
@@ -351,6 +361,24 @@ def test_create_workflow_persists_initial_version(client: TestClient) -> None:
     assert [version["version"] for version in body["versions"]] == ["0.1.0"]
     assert body["versions"][0]["compiled_blueprint_id"] is not None
     assert body["versions"][0]["compiled_blueprint_compiler_version"] == "flow-compiler.v1"
+
+
+def test_create_workflow_rejects_invalid_variables(client: TestClient) -> None:
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Invalid Variable Workflow",
+            "definition": _invalid_variable_definition(),
+        },
+    )
+
+    assert response.status_code == 422
+    message = _workflow_detail_message(response)
+    issues = _workflow_detail_issues(response)
+    assert "workflow variables that are not valid for persistence" in message
+    assert any(issue["category"] == "variables" for issue in issues)
+    assert any(issue.get("path") == "variables.0.name" for issue in issues)
+    assert any(issue.get("path") == "variables.2.name" for issue in issues)
 
 
 def test_create_workflow_rejects_invalid_definition(client: TestClient) -> None:

@@ -168,7 +168,10 @@ def test_create_workflow_rejects_publish_binding_to_unknown_version(
     )
 
     assert response.status_code == 422
-    assert "references unknown workflow version" in response.json()["detail"]
+    detail = response.json()["detail"]
+    assert isinstance(detail, dict)
+    assert "references unknown workflow version" in detail["message"]
+    assert any(issue["category"] == "publish_version" for issue in detail["issues"])
 
 
 def test_publish_binding_promotes_selected_version_and_offlines_previous_one(
