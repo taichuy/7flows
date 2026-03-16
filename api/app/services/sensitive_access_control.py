@@ -160,6 +160,7 @@ class SensitiveAccessControlService:
         node_run_id: str | None = None,
         access_request_id: str | None = None,
         status: str | None = None,
+        channel: str | None = None,
     ) -> list[NotificationDispatchRecord]:
         return list_notification_dispatches(
             db,
@@ -168,6 +169,7 @@ class SensitiveAccessControlService:
             node_run_id=node_run_id,
             access_request_id=access_request_id,
             status=status,
+            channel=channel,
         )
 
     def _create_notification_dispatch(

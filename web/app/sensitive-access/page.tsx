@@ -5,7 +5,9 @@ import { SensitiveAccessInboxPanel } from "@/components/sensitive-access-inbox-p
 import {
   getSensitiveAccessInboxSnapshot,
   type ApprovalTicketItem,
-  type NotificationChannelCapabilityItem
+  type NotificationChannelCapabilityItem,
+  type NotificationDispatchItem,
+  type SensitiveAccessRequestItem
 } from "@/lib/get-sensitive-access";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 
@@ -23,6 +25,30 @@ const WAITING_STATUS_OPTIONS: Array<ApprovalTicketItem["waiting_status"]> = [
   "waiting",
   "resumed",
   "failed"
+];
+const REQUEST_DECISION_OPTIONS: Array<NonNullable<SensitiveAccessRequestItem["decision"]>> = [
+  "allow",
+  "deny",
+  "require_approval",
+  "allow_masked"
+];
+const REQUESTER_TYPE_OPTIONS: Array<SensitiveAccessRequestItem["requester_type"]> = [
+  "human",
+  "ai",
+  "workflow",
+  "tool"
+];
+const NOTIFICATION_STATUS_OPTIONS: Array<NotificationDispatchItem["status"]> = [
+  "pending",
+  "delivered",
+  "failed"
+];
+const NOTIFICATION_CHANNEL_OPTIONS: Array<NotificationDispatchItem["channel"]> = [
+  "in_app",
+  "webhook",
+  "feishu",
+  "slack",
+  "email"
 ];
 
 const CHANNEL_TARGET_KIND_LABELS: Record<
@@ -70,6 +96,10 @@ export default async function SensitiveAccessInboxPage({
   const resolvedSearchParams = (await searchParams) ?? {};
   const requestedStatus = firstSearchValue(resolvedSearchParams.status);
   const requestedWaitingStatus = firstSearchValue(resolvedSearchParams.waiting_status);
+  const requestedDecision = firstSearchValue(resolvedSearchParams.decision);
+  const requestedRequesterType = firstSearchValue(resolvedSearchParams.requester_type);
+  const requestedNotificationStatus = firstSearchValue(resolvedSearchParams.notification_status);
+  const requestedNotificationChannel = firstSearchValue(resolvedSearchParams.notification_channel);
   const requestedRunId = firstSearchValue(resolvedSearchParams.run_id)?.trim();
   const requestedNodeRunId = firstSearchValue(resolvedSearchParams.node_run_id)?.trim();
   const requestedAccessRequestId = firstSearchValue(resolvedSearchParams.access_request_id)?.trim();
@@ -82,6 +112,26 @@ export default async function SensitiveAccessInboxPage({
   )
     ? (requestedWaitingStatus as ApprovalTicketItem["waiting_status"])
     : null;
+  const activeDecision = REQUEST_DECISION_OPTIONS.includes(
+    requestedDecision as NonNullable<SensitiveAccessRequestItem["decision"]>
+  )
+    ? (requestedDecision as NonNullable<SensitiveAccessRequestItem["decision"]>)
+    : null;
+  const activeRequesterType = REQUESTER_TYPE_OPTIONS.includes(
+    requestedRequesterType as SensitiveAccessRequestItem["requester_type"]
+  )
+    ? (requestedRequesterType as SensitiveAccessRequestItem["requester_type"])
+    : null;
+  const activeNotificationStatus = NOTIFICATION_STATUS_OPTIONS.includes(
+    requestedNotificationStatus as NotificationDispatchItem["status"]
+  )
+    ? (requestedNotificationStatus as NotificationDispatchItem["status"])
+    : null;
+  const activeNotificationChannel = NOTIFICATION_CHANNEL_OPTIONS.includes(
+    requestedNotificationChannel as NotificationDispatchItem["channel"]
+  )
+    ? (requestedNotificationChannel as NotificationDispatchItem["channel"])
+    : null;
   const activeRunId = requestedRunId ? requestedRunId : null;
   const activeNodeRunId = requestedNodeRunId ? requestedNodeRunId : null;
   const activeAccessRequestId = requestedAccessRequestId ? requestedAccessRequestId : null;
@@ -89,6 +139,10 @@ export default async function SensitiveAccessInboxPage({
   const snapshot = await getSensitiveAccessInboxSnapshot({
     ticketStatus: activeStatus ?? undefined,
     waitingStatus: activeWaitingStatus ?? undefined,
+    requestDecision: activeDecision ?? undefined,
+    requesterType: activeRequesterType ?? undefined,
+    notificationStatus: activeNotificationStatus ?? undefined,
+    notificationChannel: activeNotificationChannel ?? undefined,
     runId: activeRunId ?? undefined,
     nodeRunId: activeNodeRunId ?? undefined,
     accessRequestId: activeAccessRequestId ?? undefined,
@@ -153,6 +207,10 @@ export default async function SensitiveAccessInboxPage({
               href={buildSensitiveAccessInboxHref({
                 status: null,
                 waitingStatus: activeWaitingStatus,
+                requestDecision: activeDecision,
+                requesterType: activeRequesterType,
+                notificationStatus: activeNotificationStatus,
+                notificationChannel: activeNotificationChannel,
                 runId: activeRunId,
                 nodeRunId: activeNodeRunId,
                 accessRequestId: activeAccessRequestId,
@@ -167,6 +225,10 @@ export default async function SensitiveAccessInboxPage({
                 href={buildSensitiveAccessInboxHref({
                   status,
                   waitingStatus: activeWaitingStatus,
+                  requestDecision: activeDecision,
+                  requesterType: activeRequesterType,
+                  notificationStatus: activeNotificationStatus,
+                  notificationChannel: activeNotificationChannel,
                   runId: activeRunId,
                   nodeRunId: activeNodeRunId,
                   accessRequestId: activeAccessRequestId,
@@ -185,6 +247,10 @@ export default async function SensitiveAccessInboxPage({
               href={buildSensitiveAccessInboxHref({
                 status: activeStatus,
                 waitingStatus: null,
+                requestDecision: activeDecision,
+                requesterType: activeRequesterType,
+                notificationStatus: activeNotificationStatus,
+                notificationChannel: activeNotificationChannel,
                 runId: activeRunId,
                 nodeRunId: activeNodeRunId,
                 accessRequestId: activeAccessRequestId,
@@ -199,6 +265,10 @@ export default async function SensitiveAccessInboxPage({
                 href={buildSensitiveAccessInboxHref({
                   status: activeStatus,
                   waitingStatus: status,
+                  requestDecision: activeDecision,
+                  requesterType: activeRequesterType,
+                  notificationStatus: activeNotificationStatus,
+                  notificationChannel: activeNotificationChannel,
                   runId: activeRunId,
                   nodeRunId: activeNodeRunId,
                   accessRequestId: activeAccessRequestId,
@@ -211,7 +281,174 @@ export default async function SensitiveAccessInboxPage({
             ))}
           </div>
 
-          {activeRunId || activeNodeRunId || activeAccessRequestId || activeApprovalTicketId ? (
+          <div className="summary-strip">
+            <Link
+              className={`event-chip inbox-filter-link${activeDecision === null ? " active" : ""}`}
+              href={buildSensitiveAccessInboxHref({
+                status: activeStatus,
+                waitingStatus: activeWaitingStatus,
+                requestDecision: null,
+                requesterType: activeRequesterType,
+                notificationStatus: activeNotificationStatus,
+                notificationChannel: activeNotificationChannel,
+                runId: activeRunId,
+                nodeRunId: activeNodeRunId,
+                accessRequestId: activeAccessRequestId,
+                approvalTicketId: activeApprovalTicketId
+              })}
+            >
+              全部决策
+            </Link>
+            {REQUEST_DECISION_OPTIONS.map((decision) => (
+              <Link
+                className={`event-chip inbox-filter-link${activeDecision === decision ? " active" : ""}`}
+                href={buildSensitiveAccessInboxHref({
+                  status: activeStatus,
+                  waitingStatus: activeWaitingStatus,
+                  requestDecision: decision,
+                  requesterType: activeRequesterType,
+                  notificationStatus: activeNotificationStatus,
+                  notificationChannel: activeNotificationChannel,
+                  runId: activeRunId,
+                  nodeRunId: activeNodeRunId,
+                  accessRequestId: activeAccessRequestId,
+                  approvalTicketId: activeApprovalTicketId
+                })}
+                key={decision}
+              >
+                {decision}
+              </Link>
+            ))}
+          </div>
+
+          <div className="summary-strip">
+            <Link
+              className={`event-chip inbox-filter-link${activeRequesterType === null ? " active" : ""}`}
+              href={buildSensitiveAccessInboxHref({
+                status: activeStatus,
+                waitingStatus: activeWaitingStatus,
+                requestDecision: activeDecision,
+                requesterType: null,
+                notificationStatus: activeNotificationStatus,
+                notificationChannel: activeNotificationChannel,
+                runId: activeRunId,
+                nodeRunId: activeNodeRunId,
+                accessRequestId: activeAccessRequestId,
+                approvalTicketId: activeApprovalTicketId
+              })}
+            >
+              全部发起方
+            </Link>
+            {REQUESTER_TYPE_OPTIONS.map((requesterType) => (
+              <Link
+                className={`event-chip inbox-filter-link${activeRequesterType === requesterType ? " active" : ""}`}
+                href={buildSensitiveAccessInboxHref({
+                  status: activeStatus,
+                  waitingStatus: activeWaitingStatus,
+                  requestDecision: activeDecision,
+                  requesterType,
+                  notificationStatus: activeNotificationStatus,
+                  notificationChannel: activeNotificationChannel,
+                  runId: activeRunId,
+                  nodeRunId: activeNodeRunId,
+                  accessRequestId: activeAccessRequestId,
+                  approvalTicketId: activeApprovalTicketId
+                })}
+                key={requesterType}
+              >
+                {requesterType}
+              </Link>
+            ))}
+          </div>
+
+          <div className="summary-strip">
+            <Link
+              className={`event-chip inbox-filter-link${activeNotificationStatus === null ? " active" : ""}`}
+              href={buildSensitiveAccessInboxHref({
+                status: activeStatus,
+                waitingStatus: activeWaitingStatus,
+                requestDecision: activeDecision,
+                requesterType: activeRequesterType,
+                notificationStatus: null,
+                notificationChannel: activeNotificationChannel,
+                runId: activeRunId,
+                nodeRunId: activeNodeRunId,
+                accessRequestId: activeAccessRequestId,
+                approvalTicketId: activeApprovalTicketId
+              })}
+            >
+              全部通知状态
+            </Link>
+            {NOTIFICATION_STATUS_OPTIONS.map((notificationStatus) => (
+              <Link
+                className={`event-chip inbox-filter-link${activeNotificationStatus === notificationStatus ? " active" : ""}`}
+                href={buildSensitiveAccessInboxHref({
+                  status: activeStatus,
+                  waitingStatus: activeWaitingStatus,
+                  requestDecision: activeDecision,
+                  requesterType: activeRequesterType,
+                  notificationStatus,
+                  notificationChannel: activeNotificationChannel,
+                  runId: activeRunId,
+                  nodeRunId: activeNodeRunId,
+                  accessRequestId: activeAccessRequestId,
+                  approvalTicketId: activeApprovalTicketId
+                })}
+                key={notificationStatus}
+              >
+                {notificationStatus}
+              </Link>
+            ))}
+          </div>
+
+          <div className="summary-strip">
+            <Link
+              className={`event-chip inbox-filter-link${activeNotificationChannel === null ? " active" : ""}`}
+              href={buildSensitiveAccessInboxHref({
+                status: activeStatus,
+                waitingStatus: activeWaitingStatus,
+                requestDecision: activeDecision,
+                requesterType: activeRequesterType,
+                notificationStatus: activeNotificationStatus,
+                notificationChannel: null,
+                runId: activeRunId,
+                nodeRunId: activeNodeRunId,
+                accessRequestId: activeAccessRequestId,
+                approvalTicketId: activeApprovalTicketId
+              })}
+            >
+              全部渠道
+            </Link>
+            {NOTIFICATION_CHANNEL_OPTIONS.map((notificationChannel) => (
+              <Link
+                className={`event-chip inbox-filter-link${activeNotificationChannel === notificationChannel ? " active" : ""}`}
+                href={buildSensitiveAccessInboxHref({
+                  status: activeStatus,
+                  waitingStatus: activeWaitingStatus,
+                  requestDecision: activeDecision,
+                  requesterType: activeRequesterType,
+                  notificationStatus: activeNotificationStatus,
+                  notificationChannel,
+                  runId: activeRunId,
+                  nodeRunId: activeNodeRunId,
+                  accessRequestId: activeAccessRequestId,
+                  approvalTicketId: activeApprovalTicketId
+                })}
+                key={notificationChannel}
+              >
+                {notificationChannel}
+              </Link>
+            ))}
+          </div>
+
+          {activeRunId ||
+          activeNodeRunId ||
+          activeAccessRequestId ||
+          activeApprovalTicketId ||
+          activeDecision ||
+          activeRequesterType ||
+          activeNotificationStatus ||
+          activeNotificationChannel ? (
             <div className="summary-strip">
               {activeRunId ? <span className="event-chip">run slice {activeRunId}</span> : null}
               {activeNodeRunId ? <span className="event-chip">node run {activeNodeRunId}</span> : null}
@@ -221,11 +458,25 @@ export default async function SensitiveAccessInboxPage({
               {activeApprovalTicketId ? (
                 <span className="event-chip">ticket {activeApprovalTicketId.slice(0, 8)}</span>
               ) : null}
+              {activeDecision ? <span className="event-chip">decision {activeDecision}</span> : null}
+              {activeRequesterType ? (
+                <span className="event-chip">requester {activeRequesterType}</span>
+              ) : null}
+              {activeNotificationStatus ? (
+                <span className="event-chip">notify {activeNotificationStatus}</span>
+              ) : null}
+              {activeNotificationChannel ? (
+                <span className="event-chip">channel {activeNotificationChannel}</span>
+              ) : null}
               <Link
                 className="event-chip inbox-filter-link"
                 href={buildSensitiveAccessInboxHref({
-                  status: activeStatus,
-                  waitingStatus: activeWaitingStatus,
+                  status: null,
+                  waitingStatus: null,
+                  requestDecision: null,
+                  requesterType: null,
+                  notificationStatus: null,
+                  notificationChannel: null,
                   runId: null,
                   nodeRunId: null,
                   accessRequestId: null,

@@ -95,6 +95,7 @@ def list_notification_dispatches(
     node_run_id: str | None = None,
     access_request_id: str | None = None,
     status: str | None = None,
+    channel: str | None = None,
 ) -> list[NotificationDispatchRecord]:
     statement = select(NotificationDispatchRecord).order_by(
         NotificationDispatchRecord.created_at.desc()
@@ -118,6 +119,8 @@ def list_notification_dispatches(
         )
     if status:
         statement = statement.where(NotificationDispatchRecord.status == status)
+    if channel:
+        statement = statement.where(NotificationDispatchRecord.channel == channel)
     return db.scalars(statement).all()
 
 

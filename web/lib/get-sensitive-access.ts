@@ -144,6 +144,10 @@ export type SensitiveAccessInboxSnapshot = {
 type SensitiveAccessInboxOptions = {
   ticketStatus?: ApprovalTicketItem["status"];
   waitingStatus?: ApprovalTicketItem["waiting_status"];
+  requestDecision?: NonNullable<SensitiveAccessRequestItem["decision"]>;
+  requesterType?: SensitiveAccessRequestItem["requester_type"];
+  notificationStatus?: NotificationDispatchItem["status"];
+  notificationChannel?: NotificationDispatchItem["channel"];
   runId?: string;
   nodeRunId?: string;
   accessRequestId?: string;
@@ -153,6 +157,10 @@ type SensitiveAccessInboxOptions = {
 export async function getSensitiveAccessInboxSnapshot({
   ticketStatus,
   waitingStatus,
+  requestDecision,
+  requesterType,
+  notificationStatus,
+  notificationChannel,
   runId,
   nodeRunId,
   accessRequestId,
@@ -160,7 +168,13 @@ export async function getSensitiveAccessInboxSnapshot({
 }: SensitiveAccessInboxOptions = {}): Promise<SensitiveAccessInboxSnapshot> {
   const [resources, requests, tickets, notifications, channels] = await Promise.all([
     getSensitiveResources(),
-    getSensitiveAccessRequests({ runId, nodeRunId, accessRequestId }),
+    getSensitiveAccessRequests({
+      decision: requestDecision,
+      requesterType,
+      runId,
+      nodeRunId,
+      accessRequestId
+    }),
     getApprovalTickets({
       status: ticketStatus,
       waitingStatus,
@@ -173,7 +187,9 @@ export async function getSensitiveAccessInboxSnapshot({
       approvalTicketId,
       runId,
       nodeRunId,
-      accessRequestId
+      accessRequestId,
+      status: notificationStatus,
+      channel: notificationChannel
     }),
     getNotificationChannels()
   ]);
@@ -182,6 +198,18 @@ export async function getSensitiveAccessInboxSnapshot({
   const resourcesById = new Map(resources.map((item) => [item.id, item]));
   const notificationsByTicketId = groupNotificationsByTicket(notifications);
   const entries = tickets
+    .filter((ticket) => {
+      if ((requestDecision || requesterType) && !requestsById.has(ticket.access_request_id)) {
+        return false;
+      }
+      if (
+        (notificationStatus || notificationChannel) &&
+        (notificationsByTicketId[ticket.id] ?? []).length === 0
+      ) {
+        return false;
+      }
+      return true;
+    })
     .map((ticket) => {
       const request = requestsById.get(ticket.access_request_id) ?? null;
       return {
@@ -211,15 +239,25 @@ async function getSensitiveResources(): Promise<SensitiveResourceItem[]> {
 }
 
 async function getSensitiveAccessRequests({
+  decision,
+  requesterType,
   runId,
   nodeRunId,
   accessRequestId
 }: {
+  decision?: NonNullable<SensitiveAccessRequestItem["decision"]>;
+  requesterType?: SensitiveAccessRequestItem["requester_type"];
   runId?: string;
   nodeRunId?: string;
   accessRequestId?: string;
 } = {}): Promise<SensitiveAccessRequestItem[]> {
   const params = new URLSearchParams();
+  if (decision) {
+    params.set("decision", decision);
+  }
+  if (requesterType) {
+    params.set("requester_type", requesterType);
+  }
   if (runId?.trim()) {
     params.set("run_id", runId.trim());
   }
@@ -281,12 +319,16 @@ async function getNotificationDispatches({
   approvalTicketId,
   runId,
   nodeRunId,
-  accessRequestId
+  accessRequestId,
+  status,
+  channel
 }: {
   approvalTicketId?: string;
   runId?: string;
   nodeRunId?: string;
   accessRequestId?: string;
+  status?: NotificationDispatchItem["status"];
+  channel?: NotificationDispatchItem["channel"];
 } = {}): Promise<NotificationDispatchItem[]> {
   const params = new URLSearchParams();
   if (approvalTicketId?.trim()) {
@@ -300,6 +342,12 @@ async function getNotificationDispatches({
   }
   if (accessRequestId?.trim()) {
     params.set("access_request_id", accessRequestId.trim());
+  }
+  if (status) {
+    params.set("status", status);
+  }
+  if (channel) {
+    params.set("channel", channel);
   }
 
   const query = params.size > 0 ? `?${params.toString()}` : "";

@@ -1,11 +1,17 @@
 import type {
   ApprovalTicketItem,
+  NotificationDispatchItem,
+  SensitiveAccessRequestItem,
   SensitiveAccessTimelineEntry
 } from "@/lib/get-sensitive-access";
 
 type SensitiveAccessInboxHrefOptions = {
   status?: ApprovalTicketItem["status"] | null;
   waitingStatus?: ApprovalTicketItem["waiting_status"] | null;
+  requestDecision?: NonNullable<SensitiveAccessRequestItem["decision"]> | null;
+  requesterType?: SensitiveAccessRequestItem["requester_type"] | null;
+  notificationStatus?: NotificationDispatchItem["status"] | null;
+  notificationChannel?: NotificationDispatchItem["channel"] | null;
   runId?: string | null;
   nodeRunId?: string | null;
   accessRequestId?: string | null;
@@ -15,6 +21,10 @@ type SensitiveAccessInboxHrefOptions = {
 export function buildSensitiveAccessInboxHref({
   status,
   waitingStatus,
+  requestDecision,
+  requesterType,
+  notificationStatus,
+  notificationChannel,
   runId,
   nodeRunId,
   accessRequestId,
@@ -26,6 +36,18 @@ export function buildSensitiveAccessInboxHref({
   }
   if (waitingStatus) {
     params.set("waiting_status", waitingStatus);
+  }
+  if (requestDecision) {
+    params.set("decision", requestDecision);
+  }
+  if (requesterType) {
+    params.set("requester_type", requesterType);
+  }
+  if (notificationStatus) {
+    params.set("notification_status", notificationStatus);
+  }
+  if (notificationChannel) {
+    params.set("notification_channel", notificationChannel);
   }
   if (runId?.trim()) {
     params.set("run_id", runId.trim());

@@ -740,6 +740,27 @@ def test_sensitive_access_listing_filters_support_node_and_ticket_scopes(
         first_body["approval_ticket"]["id"]
     ]
 
+    notification_status_response = client.get(
+        "/api/sensitive-access/notification-dispatches",
+        params={
+            "approval_ticket_id": first_body["approval_ticket"]["id"],
+            "status": notifications[0]["status"],
+            "channel": notifications[0]["channel"],
+        },
+    )
+    assert notification_status_response.status_code == 200
+    assert [item["id"] for item in notification_status_response.json()] == [notifications[0]["id"]]
+
+    unmatched_channel_response = client.get(
+        "/api/sensitive-access/notification-dispatches",
+        params={
+            "approval_ticket_id": first_body["approval_ticket"]["id"],
+            "channel": "slack",
+        },
+    )
+    assert unmatched_channel_response.status_code == 200
+    assert unmatched_channel_response.json() == []
+
     unmatched_notifications_response = client.get(
         "/api/sensitive-access/notification-dispatches",
         params={

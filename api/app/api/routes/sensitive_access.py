@@ -361,6 +361,7 @@ def list_notification_dispatches(
     node_run_id: str | None = Query(default=None),
     access_request_id: str | None = Query(default=None),
     status: str | None = Query(default=None),
+    channel: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> list[NotificationDispatchItem]:
     records = service.list_notification_dispatches(
@@ -370,6 +371,7 @@ def list_notification_dispatches(
         node_run_id=node_run_id,
         access_request_id=access_request_id,
         status=status,
+        channel=channel,
     )
     return [serialize_notification_dispatch(record) for record in records]
 
