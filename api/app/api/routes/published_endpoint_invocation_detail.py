@@ -11,6 +11,7 @@ from app.api.routes.published_endpoint_invocation_support import (
 from app.api.routes.sensitive_access_http import build_sensitive_access_blocking_response
 from app.core.database import get_db
 from app.models.run import NodeRun, Run, RunCallbackTicket
+from app.schemas.run_views import RunCallbackTicketItem
 from app.models.workflow import Workflow, WorkflowPublishedApiKey, WorkflowPublishedEndpoint
 from app.schemas.workflow_publish import (
     PublishedEndpointInvocationApiKeyUsageItem,
@@ -32,6 +33,20 @@ router = APIRouter(prefix="/workflows", tags=["published-endpoint-activity"])
 published_invocation_service = PublishedInvocationService()
 published_cache_service = PublishedEndpointCacheService()
 published_invocation_detail_access_service = PublishedInvocationDetailAccessService()
+
+
+def _resolve_blocking_node_run_id(
+    *,
+    run_id: str | None,
+    callback_ticket_items: list[RunCallbackTicketItem],
+    waiting_lifecycle_lookup: dict,
+) -> str | None:
+    if run_id and (waiting_lifecycle := waiting_lifecycle_lookup.get(run_id)) is not None:
+        return waiting_lifecycle.node_run_id
+    for ticket in callback_ticket_items:
+        if ticket.node_run_id:
+            return ticket.node_run_id
+    return None
 
 
 @router.get(
@@ -101,6 +116,8 @@ def get_published_endpoint_invocation_detail(
     waiting_lifecycle_lookup = {}
     callback_ticket_items = []
     sensitive_access_entries = []
+    blocking_sensitive_access_entries = []
+    blocking_node_run_id = None
     if record.run_id:
         node_runs = (
             db.scalars(select(NodeRun).where(NodeRun.run_id == record.run_id)).all()
@@ -112,6 +129,9 @@ def get_published_endpoint_invocation_detail(
             .where(RunCallbackTicket.run_id == record.run_id)
             .order_by(RunCallbackTicket.created_at.desc(), RunCallbackTicket.id.desc())
         ).all()
+        callback_ticket_items = [
+            serialize_callback_ticket_item(ticket) for ticket in callback_tickets
+        ]
         if run is not None:
             waiting_reason_lookup, waiting_lifecycle_lookup = build_waiting_lifecycle_lookup(
                 run_lookup,
@@ -122,13 +142,22 @@ def get_published_endpoint_invocation_detail(
                 db,
                 run_id=record.run_id,
             )
+            blocking_node_run_id = _resolve_blocking_node_run_id(
+                run_id=record.run_id,
+                callback_ticket_items=callback_ticket_items,
+                waiting_lifecycle_lookup=waiting_lifecycle_lookup,
+            )
             sensitive_access_entries = [
                 serialize_sensitive_access_timeline_entry(bundle)
                 for bundle in sensitive_access_timeline.bundles
             ]
-        callback_ticket_items = [
-            serialize_callback_ticket_item(ticket) for ticket in callback_tickets
-        ]
+            if blocking_node_run_id:
+                blocking_sensitive_access_entries = [
+                    serialize_sensitive_access_timeline_entry(bundle)
+                    for bundle in sensitive_access_timeline.by_node_run.get(
+                        blocking_node_run_id, []
+                    )
+                ]
 
     invocation = serialize_published_invocation_item(
         record,
@@ -165,6 +194,8 @@ def get_published_endpoint_invocation_detail(
             else None
         ),
         callback_tickets=callback_ticket_items,
+        blocking_node_run_id=blocking_node_run_id,
+        blocking_sensitive_access_entries=blocking_sensitive_access_entries,
         sensitive_access_entries=sensitive_access_entries,
         cache=PublishedEndpointInvocationCacheReference(
             cache_status=record.cache_status or "bypass",

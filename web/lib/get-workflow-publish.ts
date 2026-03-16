@@ -212,6 +212,8 @@ export type PublishedEndpointInvocationDetailResponse = {
   invocation: PublishedEndpointInvocationItem;
   run?: PublishedEndpointInvocationRunReference | null;
   callback_tickets: PublishedEndpointInvocationCallbackTicketItem[];
+  blocking_node_run_id?: string | null;
+  blocking_sensitive_access_entries: SensitiveAccessTimelineEntry[];
   sensitive_access_entries: SensitiveAccessTimelineEntry[];
   cache: PublishedEndpointInvocationCacheReference;
 };

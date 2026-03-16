@@ -465,6 +465,10 @@ class PublishedEndpointInvocationDetailResponse(BaseModel):
     invocation: PublishedEndpointInvocationItem
     run: PublishedEndpointInvocationRunReference | None = None
     callback_tickets: list[RunCallbackTicketItem] = Field(default_factory=list)
+    blocking_node_run_id: str | None = None
+    blocking_sensitive_access_entries: list[SensitiveAccessTimelineEntryItem] = Field(
+        default_factory=list
+    )
     sensitive_access_entries: list[SensitiveAccessTimelineEntryItem] = Field(
         default_factory=list
     )

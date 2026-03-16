@@ -22,6 +22,8 @@ export function WorkflowPublishInvocationDetailPanel({
     invocation,
     run,
     callback_tickets: callbackTickets,
+    blocking_node_run_id: blockingNodeRunId,
+    blocking_sensitive_access_entries: blockingSensitiveAccessEntries,
     sensitive_access_entries: sensitiveAccessEntries,
     cache
   } = detail;
@@ -135,6 +137,23 @@ export function WorkflowPublishInvocationDetailPanel({
         callbackTickets={callbackTickets}
         sensitiveAccessEntries={sensitiveAccessEntries}
       />
+
+      {blockingSensitiveAccessEntries.length > 0 &&
+      blockingSensitiveAccessEntries.length < sensitiveAccessEntries.length ? (
+        <div>
+          <strong>Blocking approval timeline</strong>
+          <p className="section-copy entry-copy">
+            Focus the approval history for the waiting node run first so operator triage can stay
+            on the blocker instead of scanning the entire run timeline.
+            {blockingNodeRunId ? ` Current blocking node run: ${blockingNodeRunId}.` : ""}
+          </p>
+          <SensitiveAccessTimelineEntryList
+            defaultRunId={run?.id ?? invocation.run_id ?? null}
+            entries={blockingSensitiveAccessEntries}
+            emptyCopy="当前阻塞节点没有关联 sensitive access timeline。"
+          />
+        </div>
+      ) : null}
 
       <div>
         <strong>Approval timeline</strong>

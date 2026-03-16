@@ -1364,6 +1364,28 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
         finished_at=None,
         created_at=now,
     )
+    unrelated_node_run = NodeRun(
+        id="node-run-publish-detail-other",
+        run_id=run.id,
+        node_id="tool_other",
+        node_name="Other Tool",
+        node_type="tool",
+        status="succeeded",
+        phase="completed",
+        retry_count=0,
+        input_payload={"query": "other"},
+        output_payload={"ok": True},
+        checkpoint_payload={},
+        working_context={},
+        evidence_context=None,
+        artifact_refs=[],
+        error_message=None,
+        waiting_reason=None,
+        started_at=now,
+        phase_started_at=now,
+        finished_at=now + timedelta(seconds=5),
+        created_at=now,
+    )
     callback_ticket = RunCallbackTicket(
         id="cb-publish-detail",
         run_id=run.id,
@@ -1424,6 +1446,30 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
         error=None,
         created_at=now,
     )
+    unrelated_resource = SensitiveResourceRecord(
+        id="resource-publish-detail-other",
+        label="Published Other Tool",
+        description="A non-blocking access record from another node run.",
+        sensitivity_level="L1",
+        source="local_capability",
+        metadata_payload={"tool_id": "native.other", "workflow_id": workflow_id},
+        created_at=now,
+        updated_at=now,
+    )
+    unrelated_request = SensitiveAccessRequestRecord(
+        id="access-request-publish-detail-other",
+        run_id=run.id,
+        node_run_id=unrelated_node_run.id,
+        requester_type="workflow",
+        requester_id=unrelated_node_run.node_id,
+        resource_id=unrelated_resource.id,
+        action_type="invoke",
+        purpose_text="Invoke an unrelated tool.",
+        decision="deny",
+        reason_code="policy_denied",
+        created_at=now + timedelta(seconds=5),
+        decided_at=now + timedelta(seconds=6),
+    )
     cache_entry = WorkflowPublishedCacheEntry(
         id="cache-entry-publish-detail",
         workflow_id=workflow_id,
@@ -1442,11 +1488,14 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     )
     sqlite_session.add(run)
     sqlite_session.add(node_run)
+    sqlite_session.add(unrelated_node_run)
     sqlite_session.add(callback_ticket)
     sqlite_session.add(sensitive_resource)
     sqlite_session.add(sensitive_request)
     sqlite_session.add(approval_ticket)
     sqlite_session.add(notification_dispatch)
+    sqlite_session.add(unrelated_resource)
+    sqlite_session.add(unrelated_request)
     sqlite_session.add(cache_entry)
 
     invocation_service = PublishedInvocationService()
@@ -1541,7 +1590,13 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
             "expired_at": None,
         }
     ]
-    assert len(detail_body["sensitive_access_entries"]) == 1
+    assert detail_body["blocking_node_run_id"] == node_run.id
+    assert len(detail_body["blocking_sensitive_access_entries"]) == 1
+    assert (
+        detail_body["blocking_sensitive_access_entries"][0]["request"]["id"]
+        == sensitive_request.id
+    )
+    assert len(detail_body["sensitive_access_entries"]) == 2
     assert detail_body["sensitive_access_entries"][0]["resource"]["label"] == (
         "Published Search Tool"
     )
@@ -1580,6 +1635,10 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
             "created_at": expected_now,
         }
     ]
+    assert detail_body["sensitive_access_entries"][1]["resource"]["label"] == (
+        "Published Other Tool"
+    )
+    assert detail_body["sensitive_access_entries"][1]["request"]["decision"] == "deny"
     assert detail_body["cache"] == {
         "cache_status": "hit",
         "cache_key": cache_entry.cache_key,
