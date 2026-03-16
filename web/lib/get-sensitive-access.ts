@@ -55,6 +55,17 @@ export type NotificationDispatchItem = {
   created_at: string;
 };
 
+export type NotificationChannelCapabilityItem = {
+  channel: "in_app" | "webhook" | "feishu" | "slack" | "email";
+  delivery_mode: "inline" | "worker";
+  target_kind: "in_app" | "http_url" | "email_list";
+  configured: boolean;
+  health_status: "ready" | "degraded";
+  summary: string;
+  target_hint: string;
+  target_example: string;
+};
+
 export type SensitiveAccessInboxEntry = {
   ticket: ApprovalTicketItem;
   request: SensitiveAccessRequestItem | null;
@@ -85,6 +96,7 @@ export type SensitiveAccessInboxSummary = {
 
 export type SensitiveAccessInboxSnapshot = {
   entries: SensitiveAccessInboxEntry[];
+  channels: NotificationChannelCapabilityItem[];
   resources: SensitiveResourceItem[];
   requests: SensitiveAccessRequestItem[];
   notifications: NotificationDispatchItem[];
@@ -102,11 +114,12 @@ export async function getSensitiveAccessInboxSnapshot({
   waitingStatus,
   runId
 }: SensitiveAccessInboxOptions = {}): Promise<SensitiveAccessInboxSnapshot> {
-  const [resources, requests, tickets, notifications] = await Promise.all([
+  const [resources, requests, tickets, notifications, channels] = await Promise.all([
     getSensitiveResources(),
     getSensitiveAccessRequests(),
     getApprovalTickets({ status: ticketStatus, waitingStatus, runId }),
-    getNotificationDispatches()
+    getNotificationDispatches(),
+    getNotificationChannels()
   ]);
 
   const requestsById = new Map(requests.map((item) => [item.id, item]));
@@ -129,6 +142,7 @@ export async function getSensitiveAccessInboxSnapshot({
 
   return {
     entries,
+    channels,
     resources,
     requests,
     notifications,
@@ -173,6 +187,12 @@ async function getApprovalTickets({
 async function getNotificationDispatches(): Promise<NotificationDispatchItem[]> {
   return fetchSensitiveAccessList<NotificationDispatchItem>(
     "/api/sensitive-access/notification-dispatches"
+  );
+}
+
+async function getNotificationChannels(): Promise<NotificationChannelCapabilityItem[]> {
+  return fetchSensitiveAccessList<NotificationChannelCapabilityItem>(
+    "/api/sensitive-access/notification-channels"
   );
 }
 

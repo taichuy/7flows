@@ -18,6 +18,9 @@ ApprovalTicketStatus = Literal["pending", "approved", "rejected", "expired"]
 ApprovalTicketWaitingStatus = Literal["waiting", "resumed", "failed"]
 NotificationChannel = Literal["in_app", "webhook", "feishu", "slack", "email"]
 NotificationStatus = Literal["pending", "delivered", "failed"]
+NotificationChannelDeliveryMode = Literal["inline", "worker"]
+NotificationChannelHealthStatus = Literal["ready", "degraded"]
+NotificationChannelTargetKind = Literal["in_app", "http_url", "email_list"]
 
 
 class SensitiveResourceCreateRequest(BaseModel):
@@ -88,6 +91,17 @@ class NotificationDispatchItem(BaseModel):
     delivered_at: datetime | None = None
     error: str | None = None
     created_at: datetime
+
+
+class NotificationChannelCapabilityItem(BaseModel):
+    channel: NotificationChannel
+    delivery_mode: NotificationChannelDeliveryMode
+    target_kind: NotificationChannelTargetKind
+    configured: bool
+    health_status: NotificationChannelHealthStatus
+    summary: str
+    target_hint: str
+    target_example: str
 
 
 class NotificationDispatchRetryResponse(BaseModel):

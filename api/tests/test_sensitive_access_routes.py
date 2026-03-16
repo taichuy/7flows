@@ -3,6 +3,7 @@ from pytest import MonkeyPatch
 from sqlalchemy.orm import Session
 
 from app.api.routes import sensitive_access as sensitive_access_routes
+from app.core.config import Settings
 from app.models.sensitive_access import (
     ApprovalTicketRecord,
     NotificationDispatchRecord,
@@ -165,7 +166,7 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
     assert len(stored_notifications) == 1
 
 
-def test_request_external_notification_channel_is_enqueued_for_worker_delivery(
+def test_request_external_notification_channel_fails_fast_when_target_is_not_supported(
     client: TestClient,
     sqlite_session: Session,
     monkeypatch: MonkeyPatch,
@@ -178,6 +179,11 @@ def test_request_external_notification_channel_is_enqueued_for_worker_delivery(
             resume_scheduler=RunResumeScheduler(dispatcher=lambda _request: None),
             notification_dispatch_scheduler=NotificationDispatchScheduler(
                 dispatcher=scheduled_dispatches.append
+            ),
+            settings=Settings(
+                notification_email_smtp_host="smtp.example.test",
+                notification_email_smtp_port=2525,
+                notification_email_from_address="noreply@example.test",
             ),
         ),
     )
@@ -215,16 +221,27 @@ def test_request_external_notification_channel_is_enqueued_for_worker_delivery(
     assert approval_ticket["waiting_status"] == "waiting"
     assert notification["channel"] == "slack"
     assert notification["target"] == "#ops-review"
-    assert notification["status"] == "pending"
-    assert notification["error"] is None
+    assert notification["status"] == "failed"
+    assert "incoming webhook URL" in notification["error"]
 
-    assert len(scheduled_dispatches) == 1
-    assert scheduled_dispatches[0].dispatch_id == notification["id"]
-    assert scheduled_dispatches[0].source == "sensitive_access_request"
+    assert scheduled_dispatches == []
 
     stored_notification = sqlite_session.get(NotificationDispatchRecord, notification["id"])
     assert stored_notification is not None
-    assert stored_notification.status == "pending"
+    assert stored_notification.status == "failed"
+
+
+def test_list_notification_channels_returns_capabilities(client: TestClient) -> None:
+    response = client.get("/api/sensitive-access/notification-channels")
+
+    assert response.status_code == 200
+    body = response.json()
+    channels = {item["channel"]: item for item in body}
+    assert set(channels) == {"in_app", "webhook", "slack", "feishu", "email"}
+    assert channels["in_app"]["delivery_mode"] == "inline"
+    assert channels["webhook"]["target_kind"] == "http_url"
+    assert channels["slack"]["health_status"] == "ready"
+    assert channels["email"]["target_kind"] == "email_list"
 
 
 def test_retry_notification_dispatch_creates_new_attempt(
@@ -240,6 +257,11 @@ def test_retry_notification_dispatch_creates_new_attempt(
             resume_scheduler=RunResumeScheduler(dispatcher=lambda _request: None),
             notification_dispatch_scheduler=NotificationDispatchScheduler(
                 dispatcher=scheduled_dispatches.append
+            ),
+            settings=Settings(
+                notification_email_smtp_host="smtp.example.test",
+                notification_email_smtp_port=2525,
+                notification_email_from_address="noreply@example.test",
             ),
         ),
     )
@@ -272,6 +294,7 @@ def test_retry_notification_dispatch_creates_new_attempt(
     request_body = request_response.json()
     approval_ticket = request_body["approval_ticket"]
     first_notification = request_body["notifications"][0]
+    assert first_notification["status"] == "pending"
 
     retry_response = client.post(
         f"/api/sensitive-access/notification-dispatches/{first_notification['id']}/retry"

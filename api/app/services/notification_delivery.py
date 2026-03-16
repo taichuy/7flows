@@ -5,9 +5,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.message import EmailMessage
-from email.utils import formataddr, getaddresses
+from email.utils import formataddr
 from typing import Any, Protocol
-from urllib.parse import urlparse
 
 import httpx
 from sqlalchemy.orm import Session
@@ -18,6 +17,10 @@ from app.models.sensitive_access import (
     NotificationDispatchRecord,
     SensitiveAccessRequestRecord,
     SensitiveResourceRecord,
+)
+from app.services.notification_channel_governance import (
+    is_http_target,
+    parse_email_recipients,
 )
 
 
@@ -46,20 +49,6 @@ SMTPClientFactory = Callable[[str, int, float, bool], Any]
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
-
-
-def _is_http_target(target: str) -> bool:
-    parsed = urlparse(target.strip())
-    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
-
-
-def _parse_email_recipients(target: str) -> list[str]:
-    normalized = target.strip()
-    if normalized.lower().startswith("mailto:"):
-        normalized = urlparse(normalized).path
-    normalized = normalized.replace(";", ",")
-    recipients = [address.strip() for _, address in getaddresses([normalized]) if address]
-    return [address for address in recipients if "@" in address and " " not in address]
 
 
 def _build_notification_text(context: NotificationDeliveryContext) -> str:
@@ -187,7 +176,7 @@ class WebhookNotificationAdapter:
         context: NotificationDeliveryContext,
     ) -> NotificationDeliveryOutcome:
         target = context.notification.target.strip()
-        if not _is_http_target(target):
+        if not is_http_target(target):
             return NotificationDeliveryOutcome(
                 status="failed",
                 error="Webhook notification target must be an http(s) URL.",
@@ -217,7 +206,7 @@ class SlackNotificationAdapter:
         context: NotificationDeliveryContext,
     ) -> NotificationDeliveryOutcome:
         target = context.notification.target.strip()
-        if not _is_http_target(target):
+        if not is_http_target(target):
             return NotificationDeliveryOutcome(
                 status="failed",
                 error=(
@@ -249,7 +238,7 @@ class FeishuNotificationAdapter:
         context: NotificationDeliveryContext,
     ) -> NotificationDeliveryOutcome:
         target = context.notification.target.strip()
-        if not _is_http_target(target):
+        if not is_http_target(target):
             return NotificationDeliveryOutcome(
                 status="failed",
                 error=(
@@ -315,7 +304,7 @@ class EmailNotificationAdapter:
                 ),
             )
 
-        recipients = _parse_email_recipients(context.notification.target)
+        recipients = parse_email_recipients(context.notification.target)
         if not recipients:
             return NotificationDeliveryOutcome(
                 status="failed",

@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 import { SensitiveAccessInboxPanel } from "@/components/sensitive-access-inbox-panel";
 import {
   getSensitiveAccessInboxSnapshot,
-  type ApprovalTicketItem
+  type ApprovalTicketItem,
+  type NotificationChannelCapabilityItem
 } from "@/lib/get-sensitive-access";
 
 type SensitiveAccessInboxPageProps = {
@@ -22,6 +23,15 @@ const WAITING_STATUS_OPTIONS: Array<ApprovalTicketItem["waiting_status"]> = [
   "resumed",
   "failed"
 ];
+
+const CHANNEL_TARGET_KIND_LABELS: Record<
+  NotificationChannelCapabilityItem["target_kind"],
+  string
+> = {
+  in_app: "站内 inbox",
+  http_url: "Webhook URL",
+  email_list: "邮箱列表"
+};
 
 export const metadata: Metadata = {
   title: "Sensitive Access Inbox | 7Flows Studio"
@@ -183,6 +193,48 @@ export default async function SensitiveAccessInboxPage({
               </Link>
             </div>
           ) : null}
+        </article>
+
+        <article className="diagnostic-panel panel-span">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Channels</p>
+              <h2>通知渠道健康与 target 规则</h2>
+            </div>
+            <p className="section-copy">
+              用统一的 channel capability 事实说明哪些渠道当前可投递、哪些 target 形式被支持，避免 worker
+              侧才暴露“其实配不通”的问题。
+            </p>
+          </div>
+
+          <div className="activity-list">
+            {snapshot.channels.map((channel) => (
+              <article className="activity-row" key={channel.channel}>
+                <div className="activity-header">
+                  <div>
+                    <h3>{channel.channel}</h3>
+                    <p>{channel.summary}</p>
+                  </div>
+                  <div className="tool-badge-row">
+                    <span className={`health-pill ${channel.health_status}`}>
+                      {channel.health_status === "ready" ? "ready" : "degraded"}
+                    </span>
+                    <span className="event-chip">{channel.delivery_mode}</span>
+                  </div>
+                </div>
+                <div className="tool-badge-row">
+                  <span className="event-chip">
+                    target {CHANNEL_TARGET_KIND_LABELS[channel.target_kind]}
+                  </span>
+                  <span className="event-chip">
+                    {channel.configured ? "configured" : "not configured"}
+                  </span>
+                </div>
+                <p className="binding-meta">{channel.target_hint}</p>
+                <p className="section-copy entry-copy">示例：{channel.target_example}</p>
+              </article>
+            ))}
+          </div>
         </article>
       </section>
 

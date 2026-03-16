@@ -6,6 +6,7 @@ from app.schemas.sensitive_access import (
     ApprovalTicketDecisionRequest,
     ApprovalTicketDecisionResponse,
     ApprovalTicketItem,
+    NotificationChannelCapabilityItem,
     NotificationDispatchItem,
     NotificationDispatchRetryResponse,
     SensitiveAccessRequestCreateRequest,
@@ -14,12 +15,8 @@ from app.schemas.sensitive_access import (
     SensitiveResourceCreateRequest,
     SensitiveResourceItem,
 )
-from app.services.sensitive_access_presenters import (
-    serialize_approval_ticket,
-    serialize_notification_dispatch,
-    serialize_sensitive_access_request,
-    serialize_sensitive_access_timeline_entry,
-    serialize_sensitive_resource,
+from app.services.notification_channel_governance import (
+    list_notification_channel_capabilities,
 )
 from app.services.sensitive_access_control import (
     ApprovalDecisionBundle,
@@ -27,6 +24,13 @@ from app.services.sensitive_access_control import (
     SensitiveAccessControlError,
     SensitiveAccessControlService,
     SensitiveAccessRequestBundle,
+)
+from app.services.sensitive_access_presenters import (
+    serialize_approval_ticket,
+    serialize_notification_dispatch,
+    serialize_sensitive_access_request,
+    serialize_sensitive_access_timeline_entry,
+    serialize_sensitive_resource,
 )
 
 router = APIRouter(prefix="/sensitive-access", tags=["sensitive-access"])
@@ -167,6 +171,26 @@ def list_approval_tickets(
         run_id=run_id,
     )
     return [serialize_approval_ticket(record) for record in records]
+
+
+@router.get(
+    "/notification-channels",
+    response_model=list[NotificationChannelCapabilityItem],
+)
+def list_notification_channels() -> list[NotificationChannelCapabilityItem]:
+    return [
+        NotificationChannelCapabilityItem(
+            channel=item.channel,
+            delivery_mode=item.delivery_mode,
+            target_kind=item.target_kind,
+            configured=item.configured,
+            health_status=item.health_status,
+            summary=item.summary,
+            target_hint=item.target_hint,
+            target_example=item.target_example,
+        )
+        for item in list_notification_channel_capabilities()
+    ]
 
 
 @router.post(

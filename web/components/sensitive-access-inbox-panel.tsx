@@ -76,6 +76,12 @@ const NOTIFICATION_STATUS_LABELS: Record<
   failed: "投递失败"
 };
 
+function pickLatestNotification(entry: SensitiveAccessInboxEntry) {
+  return [...entry.notifications].sort(
+    (left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime()
+  )[0];
+}
+
 function DecisionSubmitButton({
   label,
   value,
@@ -145,7 +151,7 @@ function SensitiveAccessNotificationRetryForm({
     retrySensitiveAccessNotificationDispatch,
     initialRetryState
   );
-  const notification = entry.notifications[0];
+  const notification = pickLatestNotification(entry);
 
   if (
     !notification ||
@@ -207,6 +213,7 @@ export function SensitiveAccessInboxPanel({ entries }: SensitiveAccessInboxPanel
         {entries.map((entry) => {
           const request = entry.request;
           const resource = entry.resource;
+          const latestNotification = pickLatestNotification(entry);
 
           return (
             <article className="activity-row" key={entry.ticket.id}>
@@ -263,6 +270,15 @@ export function SensitiveAccessInboxPanel({ entries }: SensitiveAccessInboxPanel
               ) : (
                 <p className="empty-state compact">当前票据还没有关联的通知投递记录。</p>
               )}
+
+              {latestNotification?.error ? (
+                <div className="entry-card compact-card">
+                  <p className="entry-card-title">Latest notification status</p>
+                  <p className="section-copy entry-copy">
+                    {latestNotification.channel} 当前未成功投递：{latestNotification.error}
+                  </p>
+                </div>
+              ) : null}
 
               <SensitiveAccessTicketDecisionForm entry={entry} />
               <SensitiveAccessNotificationRetryForm entry={entry} />

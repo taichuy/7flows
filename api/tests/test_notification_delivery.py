@@ -70,6 +70,15 @@ def test_notification_delivery_service_delivers_webhook_dispatch(
         notification_dispatch_scheduler=NotificationDispatchScheduler(
             dispatcher=lambda _request: None
         ),
+        settings=Settings(
+            notification_email_smtp_host="smtp.example.test",
+            notification_email_smtp_port=2525,
+            notification_email_smtp_username="mailer",
+            notification_email_smtp_password="secret",
+            notification_email_from_address="noreply@example.test",
+            notification_email_from_name="7Flows Ops",
+            notification_email_starttls=True,
+        ),
     )
     resource_id = _create_high_sensitivity_resource(
         service,
@@ -120,6 +129,15 @@ def test_notification_delivery_service_marks_webhook_failure(
         resume_scheduler=RunResumeScheduler(dispatcher=lambda _request: None),
         notification_dispatch_scheduler=NotificationDispatchScheduler(
             dispatcher=lambda _request: None
+        ),
+        settings=Settings(
+            notification_email_smtp_host="smtp.example.test",
+            notification_email_smtp_port=2525,
+            notification_email_smtp_username="mailer",
+            notification_email_smtp_password="secret",
+            notification_email_from_address="noreply@example.test",
+            notification_email_from_name="7Flows Ops",
+            notification_email_starttls=True,
         ),
     )
     resource_id = _create_high_sensitivity_resource(
@@ -174,6 +192,15 @@ def test_notification_delivery_service_delivers_email_dispatch(
         notification_dispatch_scheduler=NotificationDispatchScheduler(
             dispatcher=lambda _request: None
         ),
+        settings=Settings(
+            notification_email_smtp_host="smtp.example.test",
+            notification_email_smtp_port=2525,
+            notification_email_smtp_username="mailer",
+            notification_email_smtp_password="secret",
+            notification_email_from_address="noreply@example.test",
+            notification_email_from_name="7Flows Ops",
+            notification_email_starttls=True,
+        ),
     )
     resource_id = _create_high_sensitivity_resource(
         service,
@@ -194,6 +221,8 @@ def test_notification_delivery_service_delivers_email_dispatch(
         notification_target="ops@example.com; security@example.com",
     )
     sqlite_session.commit()
+
+    assert bundle.notifications[0].status == "pending"
 
     context = NotificationDeliveryService(
         settings=Settings(
@@ -256,6 +285,8 @@ def test_notification_delivery_service_marks_email_failure_when_not_configured(
         notification_target="ops@example.com",
     )
     sqlite_session.commit()
+
+    assert bundle.notifications[0].status == "failed"
 
     context = NotificationDeliveryService(
         settings=Settings(

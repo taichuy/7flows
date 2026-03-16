@@ -5,11 +5,15 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+from app.core.config import Settings, get_settings
 from app.models.sensitive_access import (
     ApprovalTicketRecord,
     NotificationDispatchRecord,
     SensitiveAccessRequestRecord,
     SensitiveResourceRecord,
+)
+from app.services.notification_channel_governance import (
+    evaluate_notification_dispatch_preflight,
 )
 from app.services.notification_dispatch_scheduler import (
     NotificationDispatchScheduler,
@@ -62,11 +66,13 @@ class SensitiveAccessControlService:
         *,
         resume_scheduler: RunResumeScheduler | None = None,
         notification_dispatch_scheduler: NotificationDispatchScheduler | None = None,
+        settings: Settings | None = None,
     ) -> None:
         self._resume_scheduler = resume_scheduler or get_run_resume_scheduler()
         self._notification_dispatch_scheduler = (
             notification_dispatch_scheduler or get_notification_dispatch_scheduler()
         )
+        self._settings = settings or get_settings()
 
     def create_resource(
         self,
@@ -156,12 +162,17 @@ class SensitiveAccessControlService:
         target: str,
     ) -> NotificationDispatchRecord:
         created_at = _utcnow()
-        if channel == "in_app":
+        preflight = evaluate_notification_dispatch_preflight(
+            channel=channel,
+            target=target,
+            settings=self._settings,
+        )
+        if preflight.status == "delivered":
             return NotificationDispatchRecord(
                 id=str(uuid4()),
                 approval_ticket_id=approval_ticket_id,
                 channel=channel,
-                target=target,
+                target=preflight.normalized_target,
                 status="delivered",
                 delivered_at=created_at,
                 error=None,
@@ -172,10 +183,10 @@ class SensitiveAccessControlService:
             id=str(uuid4()),
             approval_ticket_id=approval_ticket_id,
             channel=channel,
-            target=target,
-            status="pending",
+            target=preflight.normalized_target,
+            status=preflight.status,
             delivered_at=None,
-            error=None,
+            error=preflight.error,
             created_at=created_at,
         )
 
