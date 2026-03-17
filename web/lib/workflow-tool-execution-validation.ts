@@ -159,11 +159,44 @@ function buildAgentExecutionIssues({
   const mockPlan = toRecord(config.mockPlan);
 
   const policyExecutionClass = extractExplicitExecutionClass(toolPolicy?.execution);
-  if (toolPolicy && Array.isArray(toolPolicy.allowedToolIds) && policyExecutionClass) {
+  const normalizedAllowedToolIds = normalizeToolIdList(toolPolicy?.allowedToolIds);
+  if (toolPolicy && policyExecutionClass && normalizedAllowedToolIds.length === 0) {
+    const incompatibleToolIds = Array.from(toolIndex.entries())
+      .sort(([leftToolId], [rightToolId]) => leftToolId.localeCompare(rightToolId))
+      .filter(([, tool]) => tool.callable)
+      .flatMap(([toolId, tool]) => {
+        const capabilityIssue = buildExecutionCapabilityIssue({
+          context: `LLM Agent 节点 ${nodeName} (${nodeId}) 的 toolPolicy.execution`,
+          nodeId,
+          nodeName,
+          toolId,
+          tool,
+          ecosystem: tool.ecosystem,
+          adapterId: null,
+          requestedExecutionClass: policyExecutionClass,
+          adapters,
+          path: `nodes.${nodeIndex}.config.toolPolicy.execution`,
+          field: "execution"
+        });
+        return capabilityIssue ? [toolId] : [];
+      });
+    if (incompatibleToolIds.length > 0) {
+      issues.push({
+        nodeId,
+        nodeName,
+        message: `LLM Agent 节点 ${nodeName} (${nodeId}) 显式声明了 toolPolicy.execution = ${policyExecutionClass}，但没有通过 toolPolicy.allowedToolIds 收口工具范围；当前 workspace 里仍有与该执行目标不兼容的工具：${incompatibleToolIds.join(
+          ", "
+        )}。请先限定 allowedToolIds，或移除显式 execution target。`,
+        path: `nodes.${nodeIndex}.config.toolPolicy.execution`,
+        field: "execution"
+      });
+    }
+  }
+
+  if (toolPolicy && policyExecutionClass && normalizedAllowedToolIds.length > 0) {
     const seen = new Set<string>();
-    toolPolicy.allowedToolIds.forEach((item) => {
-      const toolId = normalizeString(item);
-      if (!toolId || seen.has(toolId)) {
+    normalizedAllowedToolIds.forEach((toolId) => {
+      if (seen.has(toolId)) {
         return;
       }
       seen.add(toolId);
@@ -258,6 +291,24 @@ function buildAgentExecutionIssues({
 
 function normalizeString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeToolIdList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [] as string[];
+  }
+
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+  value.forEach((item) => {
+    const toolId = normalizeString(item);
+    if (!toolId || seen.has(toolId)) {
+      return;
+    }
+    seen.add(toolId);
+    normalized.push(toolId);
+  });
+  return normalized;
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {

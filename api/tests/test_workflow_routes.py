@@ -886,6 +886,42 @@ def test_create_workflow_rejects_unsupported_tool_execution_class(client: TestCl
     assert "dify-default" in detail
 
 
+def test_create_workflow_rejects_unscoped_agent_tool_execution_target(client: TestClient) -> None:
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Unscoped Agent Tool Execution Workflow",
+            "definition": {
+                "nodes": [
+                    {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                    {
+                        "id": "agent",
+                        "type": "llm_agent",
+                        "name": "Agent",
+                        "config": {
+                            "prompt": "Plan with tools",
+                            "toolPolicy": {
+                                "execution": {"class": "microvm"},
+                            },
+                        },
+                    },
+                    {"id": "output", "type": "output", "name": "Output", "config": {}},
+                ],
+                "edges": [
+                    {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                    {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+                ],
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    detail = _workflow_detail_message(response)
+    assert "tool execution capabilities" in detail
+    assert "without narrowing toolPolicy.allowedToolIds" in detail
+    assert "execution-incompatible tools:" in detail
+
+
 def test_create_workflow_accepts_supported_tool_execution_class(
     client: TestClient,
     monkeypatch,

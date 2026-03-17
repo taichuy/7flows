@@ -232,6 +232,51 @@ def test_workspace_starter_create_rejects_unsupported_agent_tool_execution(
     assert any(issue["category"] == "tool_execution" for issue in issues)
 
 
+def test_workspace_starter_create_rejects_unscoped_agent_tool_execution_target(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Execution Scope Guard Starter",
+            "description": "Template for unscoped execution target guard",
+            "business_track": "编排节点能力",
+            "default_workflow_name": "Execution Scope Guard Workflow",
+            "workflow_focus": "Execution scope guard focus",
+            "recommended_next_step": "Scope allowed tools before forcing isolation",
+            "tags": ["execution", "scope"],
+            "definition": {
+                "nodes": [
+                    {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                    {
+                        "id": "agent",
+                        "type": "llm_agent",
+                        "name": "Agent",
+                        "config": {
+                            "prompt": "Plan with tools",
+                            "toolPolicy": {
+                                "execution": {"class": "microvm"},
+                            },
+                        },
+                    },
+                    {"id": "output", "type": "output", "name": "Output", "config": {}},
+                ],
+                "edges": [
+                    {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                    {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+                ],
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    message, issues = _validation_detail(response.json())
+    assert "without narrowing toolPolicy.allowedToolIds" in message
+    assert "execution-incompatible tools:" in message
+    assert any(issue["category"] == "tool_execution" for issue in issues)
+
+
 def test_workspace_starter_create_accepts_supported_agent_tool_execution(
     client: TestClient,
     monkeypatch,

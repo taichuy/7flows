@@ -145,15 +145,32 @@ def _collect_agent_execution_issues(
     mock_plan = config.get("mockPlan")
 
     if isinstance(tool_policy, dict):
-        allowed_tool_ids = tool_policy.get("allowedToolIds")
         policy_execution_class = _extract_explicit_execution_class(
             tool_policy.get("execution")
         )
-        if isinstance(allowed_tool_ids, list):
+        allowed_tool_ids = tool_policy.get("allowedToolIds")
+        normalized_allowed_tool_ids = _normalize_tool_id_list(allowed_tool_ids)
+        if policy_execution_class is not None and not normalized_allowed_tool_ids:
+            incompatible_tool_ids = _collect_execution_incompatible_tool_ids(
+                tool_index=tool_index,
+                requested_execution_class=policy_execution_class,
+                execution_payload=tool_policy.get("execution"),
+                adapters=adapters,
+                sandbox_backend_client=sandbox_backend_client,
+            )
+            if incompatible_tool_ids:
+                rendered_tool_ids = ", ".join(incompatible_tool_ids)
+                issues.append(
+                    f"LLM agent node '{node_label}' declares toolPolicy.execution class "
+                    f"'{policy_execution_class}' without narrowing toolPolicy.allowedToolIds, "
+                    "but the current workspace tool catalog still contains execution-incompatible "
+                    f"tools: {rendered_tool_ids}. Scope allowedToolIds to compatible tools or "
+                    "remove the explicit execution target."
+                )
+        if normalized_allowed_tool_ids:
             seen_tool_ids: set[str] = set()
-            for item in allowed_tool_ids:
-                tool_id = _normalize_optional_string(item)
-                if tool_id is None or tool_id in seen_tool_ids:
+            for tool_id in normalized_allowed_tool_ids:
+                if tool_id in seen_tool_ids:
                     continue
                 seen_tool_ids.add(tool_id)
                 tool = tool_index.get(tool_id)
@@ -355,6 +372,49 @@ def _extract_explicit_execution_class(value: Any) -> str | None:
     if not isinstance(value, dict):
         return None
     return _normalize_optional_string(value.get("class"))
+
+
+def _normalize_tool_id_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        tool_id = _normalize_optional_string(item)
+        if tool_id is None or tool_id in seen:
+            continue
+        normalized.append(tool_id)
+        seen.add(tool_id)
+    return normalized
+
+
+def _collect_execution_incompatible_tool_ids(
+    *,
+    tool_index: Mapping[str, PluginToolItem],
+    requested_execution_class: str,
+    execution_payload: Any,
+    adapters: Sequence[CompatibilityAdapterRegistration],
+    sandbox_backend_client: SandboxBackendClient,
+) -> list[str]:
+    incompatible_tool_ids: list[str] = []
+    for tool_id, tool in sorted(tool_index.items()):
+        if not tool.callable:
+            continue
+        issue = _build_execution_support_issue(
+            context="LLM agent toolPolicy.execution",
+            tool_id=tool_id,
+            tool=tool,
+            ecosystem=tool.ecosystem,
+            adapter_id=None,
+            execution_payload=execution_payload,
+            requested_execution_class=requested_execution_class,
+            adapters=adapters,
+            sandbox_backend_client=sandbox_backend_client,
+        )
+        if issue is not None:
+            incompatible_tool_ids.append(tool_id)
+    return incompatible_tool_ids
 
 
 def _normalize_optional_string(value: Any) -> str | None:
