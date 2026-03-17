@@ -51,7 +51,7 @@
 |- api/           FastAPI、runtime、migrations、tasks、published surfaces
 |- web/           Next.js 工作台、workflow editor、run diagnostics
 |- docker/        中间件 compose、整套容器 compose、sandbox 配置
-|- docs/          产品/技术基线、当前事实索引、历史记录、废弃归档
+|- docs/          产品/技术基线、当前事实索引、本地私有留痕占位、废弃归档
 |- scripts/       辅助脚本
 `- services/      预留给兼容层或独立服务
 ```
@@ -59,12 +59,12 @@
 文档建议按下面顺序阅读：
 
 1. `AGENTS.md`
-2. `docs/product-design.md`
-3. `docs/open-source-commercial-strategy.md`
-4. `docs/technical-design-supplement.md`
-5. `docs/dev/runtime-foundation.md`
-6. `docs/dev/team-conventions.md`
-7. `docs/history/`
+2. `docs/dev/user-preferences.md`
+3. `docs/product-design.md`
+4. `docs/open-source-commercial-strategy.md`
+5. `docs/technical-design-supplement.md`
+6. `docs/dev/runtime-foundation.md`
+7. `docs/dev/team-conventions.md`
 8. `docs/adr/`
 9. `.agents/skills/*/SKILL.md`
 
@@ -159,7 +159,7 @@ docker compose up -d --build
 - API 当前已提供 health、workflows、workflow publish、published gateway、runs、run views、system overview、plugins、credentials、workspace starters 等主干路由。
 - Web 首页当前更偏“工作台 / 诊断入口”，会展示服务健康、adapter、tools、workflow、credentials、recent runs、敏感访问审批摘要与 run events 聚合摘要。
 - `web/app/sensitive-access/page.tsx` 已提供最小审批 / 通知收件箱入口，可查看 `ApprovalTicket / NotificationDispatch`、直接做批准 / 拒绝决策，并对最新失败通知执行手动重试；页面现在也会展示 notification channel health 与 target 规则，帮助 operator 提前判断哪些渠道当前 ready、哪些 target 形式才会进入真实 worker 主链。
-- The minimal workflow editor can already edit and save workflow definitions. Structured forms now cover `runtimePolicy.execution / retry / join`, node `input/output schema`, and workflow `publish` draft configuration, while formal publish governance, approval timeline, and notification delivery are still being filled in.
+- 最小 workflow editor 已经可以编辑并保存工作流定义。结构化表单目前已覆盖 `runtimePolicy.execution / retry / join`、节点 `input/output schema` 与 workflow `publish` draft 配置，但正式的 publish governance、approval timeline 与 notification delivery 仍在持续补齐。
 
 ## 文档分层
 
@@ -168,14 +168,14 @@ docker compose up -d --build
 - `docs/technical-design-supplement.md`：插件兼容、插件 UI、安全、变量传递、调试模式、缓存、Durable Runtime 细节。
 - `docs/dev/runtime-foundation.md`：当前代码事实、结构热点、近期优先级。
 - `docs/dev/team-conventions.md`：共享协作约定、审查守则与团队级工程偏好。
-- `docs/dev/user-preferences.md`：已废弃的单人阶段偏好入口，现仅保留迁移说明。
+- `docs/dev/user-preferences.md`：稳定的用户偏好、自治开发偏好与默认汇报口径。
 - `docs/.taichuy/`：本地开发设计讨论素材和文案草稿，默认不进 Git，也不作为仓库事实基线。
-- `docs/.private/`：当前开发者自己的本地私有笔记目录，默认不进 Git，也不是共享事实来源。
-- `docs/adr/`：Architecture Decision Records 与长期协作决策。
-- `docs/history/`：按日期归档的开发记录、阶段性方案与验证留痕。
+- `docs/.private/`：当前开发者自己的本地私有笔记目录与按日期开发留痕目录，默认不进 Git，也不是共享事实来源。
+- `docs/adr/`：架构决策记录与长期协作决策。
+- `docs/history/`：不再作为共享 history 使用，当前只保留迁移说明。
 - `docs/expired/`：已废弃但保留历史价值的文档。
-- Shared governance docs, ADRs, new skills, and newly added standing repo rules are English-first from 2026-03-17 onward; legacy Chinese documents can be migrated incrementally.
-- Default repository pull requests should target `taichuy_dev` unless maintainers explicitly announce a different integration branch.
+- 当前共享仓库中的重点文档、ADR、skills 与新增治理条目默认使用中文；如果关键入口里仍有英文且影响检索，应优先翻回中文。
+- 默认仓库 PR 目标分支是 `taichuy_dev`，除非维护者明确说明临时替代分支。
 
 ## AI 协作与 Skills
 

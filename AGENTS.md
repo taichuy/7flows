@@ -1,8 +1,8 @@
-# 7Flows AGENTS Guide
+# 7Flows AGENTS 协作指南
 
 本文件定义 7Flows 仓库级协作约定。项目仍处于构建初期，优先保证方向一致、文档可追溯、约束可沉淀。
 
-- Shared repo canonical language is English from 2026-03-17 onward. New shared docs, ADRs, skills, and newly added standing governance sections should be written in English; legacy Chinese content may remain until migrated.
+- 当前共享仓库中的重点文档、ADR、skills 和新增治理条目默认使用中文；如果关键入口里出现英文且已经影响检索，应优先翻回中文。
 
 ## 1. 项目定位
 
@@ -17,18 +17,18 @@
 
 进行设计、实现、审查前，优先按下面顺序建立上下文：
 
-1. `docs/product-design.md`
+1. `docs/dev/user-preferences.md`
+   稳定的用户偏好、自治开发偏好和默认汇报口径。
+2. `docs/product-design.md`
    产品定位、核心模型、MVP 边界、发布策略、前端骨架。
-2. `docs/open-source-commercial-strategy.md`
+3. `docs/open-source-commercial-strategy.md`
    对外切口、开源/商业边界、版本分层、传播对象与付费对象。
-3. `docs/technical-design-supplement.md`
+4. `docs/technical-design-supplement.md`
    插件兼容、插件 UI、安全、变量传递、调试模式、缓存等技术细则。
-4. `docs/dev/runtime-foundation.md`
+5. `docs/dev/runtime-foundation.md`
    当前已落地运行时事实和近期优先级。
-5. `docs/dev/team-conventions.md`
+6. `docs/dev/team-conventions.md`
    当前共享协作约定、审查守则与团队级工程偏好。
-6. `docs/history/*.md`
-   按日期归档的开发记录、阶段性决策与实现留痕；仅在需要追溯具体轮次时再读取。
 7. `README.md`
    当前工程结构与本地开发方式。
 8. `.agents/skills/*/SKILL.md`
@@ -37,12 +37,12 @@
 补充约定：
 
 - `docs/.taichuy/` 只用于本地开发设计讨论素材、文案草稿和内部推导，不纳入 Git，也不是默认事实来源；只有用户明确要求时再读取。
-- `docs/.private/` 只用于当前开发者自己的本地笔记、环境偏好与临时记忆，必须保持 git ignore，不得作为共享事实来源；只有当前本地开发者明确需要时才读取。
+- `docs/.private/` 只用于当前开发者自己的本地笔记、环境偏好、临时记忆与按日期开发留痕，必须保持 git ignore，不得作为共享事实来源；只有当前本地开发者明确需要时才读取。
 
 如果“设计文档”和“当前实现”冲突：
 
 - 代码与 `docs/dev/` 反映当前事实；
-- `docs/history/` 反映阶段性决策过程与开发留痕；
+- `docs/.private/history/` 只反映当前本地开发者自己的阶段性留痕，不是共享事实来源；
 - `docs/product-design.md`、`docs/open-source-commercial-strategy.md` 和 `docs/technical-design-supplement.md` 反映目标方向；
 - 发生偏差时，要么修实现，要么补文档，不要默认忽略。
 
@@ -83,11 +83,11 @@
 - 当前后端优先打稳运行时基础设施：迁移、Run / NodeRun / RunEvent、最小执行器、Docker 自动迁移。
 - 尚未完整落地的能力，不能在代码、文档或 UI 中假装已完成；需要明确标注为占位、未实现或实验态。
 
-### 3.4 Collaboration And Supply-Chain Safety
+### 3.4 协作与供应链安全
 
 - `AGENTS.md`、`.agents/skills/`、`docs/dev/team-conventions.md`、`docs/adr/`、`scripts/`、`docker/`、CI/workflow 配置、package manager hook、shell / PowerShell / Python / batch 脚本，以及 prompt / automation instruction 都属于 `P0` review 范围。
 - 允许在本地验证后自动提交到分支，但涉及上述高风险范围的改动在合并前必须经过人工审查，并使用专门的 review skill 做谨慎总结。
-- Default repository pull requests must target `taichuy_dev` unless maintainers explicitly set a temporary alternative target.
+- 默认仓库 PR 目标分支是 `taichuy_dev`；除非维护者明确说明临时替代分支，否则不要改默认口径。
 - 本仓库开发与测试路径必须保持 local-first、loopback-first；不要引入必需的远程脚本、CDN 资源、外部 webhook、外部通知端点或第三方托管依赖来完成本地开发主链。
 - 禁止把任何非本地开发组件的外部链接、远程安装脚本、`curl | bash`、隐藏下载动作或隐式联网执行路径写入共享开发脚本、skill、prompt、README 或协作守则。
 - 允许引用的开发依赖应优先是 workspace 内文件、本机 sibling repo、本地回环服务或仓库内已有组件；任何超出该范围的连接都应视为异常并在 review 中重点审查。
@@ -98,14 +98,14 @@
 - `web/`：前端工作台、未来工作流编辑器和调试面板。
 - `docs/`：产品与技术基线文档，以及总索引。
 - `docs/.taichuy/`：本地开发设计讨论素材和草稿，默认 git ignore，不作为默认检索入口或仓库知识基线。
-- `docs/.private/`：当前开发者的本地私有笔记目录，默认 git ignore，不进入共享仓库。
+- `docs/.private/`：当前开发者的本地私有笔记目录，默认 git ignore，不进入共享仓库；如需按日期保留个人开发留痕，放在 `docs/.private/history/`。
 - `docs/dev/`：当前有效的开发索引文档，仅保留 `runtime-foundation.md`、`team-conventions.md` 等持续维护的当前事实。
 - `docs/adr/`：需要跨回合长期保留“背景 / 决策 / 后果”的架构与协作决策记录。
-- `docs/history/`：按日期归档的开发记录、阶段性方案、实现说明与验证留痕。
+- `docs/history/`：不再作为共享 history 使用，当前仅保留占位说明，提醒按日期个人留痕迁到 `docs/.private/history/`。
 - `docs/expired/`：已废弃但仍保留历史价值的文档，不作为默认检索入口。
 - `.agents/skills/`：仓库内可复用技能，承载专项任务规范与参考资料；它属于 AI 协作开发资产，不等同于产品运行时的 `SkillDoc`。
 
-## 5. Team Conventions And Local Notes
+## 5. 共享规则与本地记忆
 
 开发过程中，需要先区分“共享规则”与“个人记忆”，不要再把两者混写在同一份共享文档里。
 
@@ -116,11 +116,18 @@
 - 审查守则、验证基线、提交与文档闭环规则
 - 已从单人经验提升为共享仓库规范的禁用项
 
+稳定的用户偏好与自治开发偏好写入 `docs/dev/user-preferences.md`，适用于：
+
+- 当前用户长期稳定强调的工程判断标准
+- 自治开发的默认上下文建立顺序、选题方式和汇报口径
+- 适合跨多个 AI 会话持续复用、但不属于团队普适协作守则的稳定偏好
+
 本地个人记忆写入 `docs/.private/`，适用于：
 
 - 当前开发者自己的机器偏好、代理、提醒脚本、个人工作流快捷方式
 - 不适合进入共享仓库的临时实验记录
 - 只对某一个本地开发者有意义的长期记忆
+- 当前开发者自己的按日期开发留痕
 
 不要写入共享仓库的内容：
 
@@ -132,6 +139,7 @@
 
 - 仓库级通用规则，更新本 `AGENTS.md`
 - 团队级协作约定，更新 `docs/dev/team-conventions.md`
+- 用户稳定偏好或自治开发偏好，更新 `docs/dev/user-preferences.md`
 - 领域专项规则，更新对应 `.agents/skills/.../SKILL.md` 或其 `references/`
 - 需要长期保留背景 / 取舍 / 后果的关键决策，额外写入 `docs/adr/`
 
@@ -142,7 +150,7 @@
 - `autonomous-development`
   用于用户要求 AI 作为持续迭代开发者，自主判断阶段问题、选择单轮最高优先级任务，并按 7Flows 的工程观推进主链闭环。
 - `development-closure`
-  用于一轮开发收尾时统一处理验证、`docs/history/`、`runtime-foundation`、Git 提交与下一步规划。
+  用于一轮开发收尾时统一处理验证、共享文档同步、本地留痕取舍、Git 提交与下一步规划。
 - `skill-governance`
   用于优化 `.agents/skills/`、AGENTS 协作流程和 skill 索引，同步治理 skill 漂移与分层规则。
 - `safe-change-review`
@@ -178,7 +186,7 @@
 出现以下情况时，应考虑同步优化相关 skill：
 
 - 同类 review / refactor / testing 建议已反复出现
-- 同类收尾遗漏已反复出现，例如漏验证、漏补 `history`、漏更 `runtime-foundation`、漏提交 Git
+- 同类收尾遗漏已反复出现，例如漏验证、漏更 `runtime-foundation`、漏更 `user-preferences`、漏提交 Git
 - 用户多次强调某类实现方式或禁用项
 - 现有 skill 与项目现状明显脱节
 - 前后端、实现与收尾之间出现明显能力断层
@@ -186,47 +194,35 @@
 
 ## 7. 开发记录与溯源
 
-所有重要开发动作都应该在 `docs/history/` 留痕；`docs/dev/` 只保留当前有效索引。目标不是写流水账，而是保证后续能回答“为什么这样做、改了什么、影响哪里、如何验证”。
+共享仓库中的文档应优先保留“当前事实、稳定规则、长期决策”，不要继续把按日期的个人开发过程堆成公共 history。
 
-对会跨多个回合持续约束实现方向的架构、协作、安全、集成和审查决策，额外补 `docs/adr/`，把“背景 / 决策 / 后果”单独沉淀，避免它们淹没在日期流水中。
+建议按下面分层维护：
 
-建议在以下场景新增或更新开发文档：
-
-- 架构边界调整
-- 运行时模型变化
-- 新增协议、插件、沙盒、安全、缓存、调试能力
-- 重要的前端交互方案确定
-- 技术选型或约束变更
-- 需要跨任务延续的上下文
-
-开发记录建议包含：
-
-- 背景
-- 目标
-- 决策或实现方式
-- 影响范围
-- 验证方式
-- 未决问题或下一步
+- 当前事实、结构热点与近期优先级：更新 `docs/dev/runtime-foundation.md`
+- 稳定的用户偏好与自治开发偏好：更新 `docs/dev/user-preferences.md`
+- 团队级共享协作守则：更新 `docs/dev/team-conventions.md`
+- 跨多个回合都需要保留“背景 / 决策 / 后果”的决策：更新 `docs/adr/`
+- 当前开发者自己的按日期开发留痕：如确有需要，写入 `docs/.private/history/`
 
 每次完成一轮开发后，额外要求：
 
-- 必须更新相应的 `docs/history/` 记录，不能只改代码不补留痕。
 - 必须同步更新 `docs/dev/runtime-foundation.md` 中与当前事实相关的部分。
-- 必须在 `docs/dev/runtime-foundation.md` 写出“下一步规划”，并按明确优先级排序，不允许只写无序想法。
-- 必须把 `docs/dev/runtime-foundation.md` 维持为“当前事实索引”而不是无限追加的流水账；当内容过长（例如超过约 1500 行或已明显削弱指导作用）时，应结合当前代码现状压缩到约 1000 行以内，并保留当前“下一步规划”作为最高优先级指引；阶段性历史改动归档到 `docs/history/`，已废弃文档归档到 `docs/expired/`。
+- 若稳定的自治开发偏好、汇报口径或公共文档分层发生变化，必须同步更新 `docs/dev/user-preferences.md`。
+- 若共享协作守则变化，必须同步更新 `docs/dev/team-conventions.md`、`AGENTS.md` 或相关 skill。
+- 若存在长期站住的架构 / 协作 / 安全决策，必须同步更新 `docs/adr/`。
+- 当前开发者如果确实需要保留个人过程连续性，可在 `docs/.private/history/` 写本地留痕，但不要把它重新抬成共享事实源。
 - 必须在收尾阶段进行充分测试；如果测试不通过，应继续修复代码或更新测试脚本，直到结果正确、零警告、零错误；若受外部阻塞暂时无法达到，必须在最终汇报中明确说明。
 - 必须在完成必要验证后执行一次非交互式 Git 提交；如果本轮只有中间态探索、暂不适合提交，需要在最终汇报里明确说明原因。
 - 必须在最终汇报中结合当前项目现状给出下一步开发建议，并显式标明优先级顺序。
 
-文件命名建议：
+本地个人留痕若需要按日期命名，建议使用：
 
-- 新的日期开发记录：`docs/history/YYYY-MM-DD-<topic>.md`
-- 长期索引或专题文档：使用稳定语义名，例如 `runtime-foundation.md`
+- `docs/.private/history/YYYY-MM-DD-<topic>.md`
 
 ## 8. 废弃文档处理
 
 - 不要静默删除仍有历史价值的设计或开发文档。
-- 已废弃文档统一存放到 `docs/expired/`，不要继续混放在 `docs/dev/` 或 `docs/history/` 中。
+- 已废弃文档统一存放到 `docs/expired/`，不要继续混放在 `docs/dev/` 或共享当前事实入口中。
 - 废弃文档需要在文件名中显式带上 `expired` 标记。
 - 废弃时应在文档开头补充原因、替代文档和废弃日期。
 
@@ -241,7 +237,7 @@
 
 1. 这次改动是贴近当前已落地事实，还是在推进目标设计？
 2. 是否会触碰 `7Flows IR`、授权模型、事件流、沙盒、发布映射这些高风险边界？
-3. 是否需要同步更新 `docs/dev/` 当前索引或 `docs/history/` 开发记录？
+3. 是否需要同步更新 `docs/dev/` 当前索引、`docs/dev/user-preferences.md`，或当前开发者自己的本地留痕？
 4. 是否需要把新的稳定规则沉淀到某个 skill？
 5. 是否产生了新的共享协作约定，需要记入 `docs/dev/team-conventions.md`、`AGENTS.md`、某个 skill，或仅应保留在 `docs/.private/`？
 
@@ -252,7 +248,7 @@
 - 先沉淀规则，再扩大复用。
 - 先保证可追溯，再追求“快做完”。
 - AI 协作默认先判断是否命中 `autonomous-development`、`development-closure` 等“元流程 skill + 领域 skill”的组合，不要只加载单个模块 skill 就跳过验证、文档同步和收尾闭环。
-- 共享仓库中的新规则、skill、ADR、当前事实索引和治理文档从现在开始默认使用 English；历史中文内容按实际需要渐进迁移，不做一次性大爆炸翻译。
+- 共享仓库中的新规则、skill、ADR、当前事实索引和治理文档默认使用中文；若关键入口仍有英文且影响检索，应优先翻回中文。
 - 读取、搜索、查看包含中文的文档或源码时，默认显式使用 UTF-8；如果编码不确定，先确认编码再分析或修改。
 - 每轮任务收尾时，默认把“当前事实、文档更新、按优先级排序的下一步计划”一起闭环，不把后续规划留在对话外。
 - 提交代码，PowerShell 这边不接受 &&，所以请注意分步提交

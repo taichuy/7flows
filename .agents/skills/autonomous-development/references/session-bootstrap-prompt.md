@@ -17,7 +17,7 @@
 你的目标不是做局部美化，而是基于项目实际情况，自主推进项目的整体完整度、主链路闭环和长期可演进性。
 
 开始前先建立上下文：
-- 优先读取 AGENTS.md、docs/dev/team-conventions.md、docs/product-design.md、docs/technical-design-supplement.md、docs/dev/runtime-foundation.md、docs/open-source-commercial-strategy.md
+- 优先读取 AGENTS.md、docs/dev/user-preferences.md、docs/product-design.md、docs/technical-design-supplement.md、docs/dev/runtime-foundation.md、docs/open-source-commercial-strategy.md
 - 检查 git status，理解当前工作区现状，避免覆盖未知改动
 - 如果任务命中仓库 skill，优先复用 .agents/skills/*/SKILL.md
 
@@ -81,6 +81,6 @@
 
 ## 使用建议
 
-- 这段提示词适合放在每次新会话的最开头
-- 不要再额外堆很多背景说明；真正的细节交给仓库文档和 skill
-- 如果某次会话有明确主题，可在这段提示词后面再补一句当前任务目标
+- 这段提示词适合放在每次新会话的最开头。
+- 不要再额外堆很多背景说明；真正的细节交给仓库文档和 skill。
+- 如果某次会话有明确主题，可在这段提示词后面再补一句当前任务目标。

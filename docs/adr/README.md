@@ -1,28 +1,30 @@
-# ADRs
+# ADR 索引说明
 
-This directory stores Architecture Decision Records and durable collaboration decisions whose rationale must survive multiple rounds.
+本目录用于存放 Architecture Decision Record，以及需要跨多个回合长期保留的协作 / 安全 / 架构决策。
 
-Use an ADR when:
+适合写 ADR 的场景：
 
-- the decision changes architecture, collaboration, security, integration, or review boundaries
-- the team needs a stable record of context, decision, and consequences
-- a dated history entry is not enough to explain why future work should keep following the same rule
+- 决策会改变架构、协作、安全、集成或审查边界。
+- 团队需要稳定记录“背景 / 决策 / 后果”。
+- 仅靠当前事实索引或临时过程说明，已经不足以解释后续为什么要继续遵守某条规则。
 
-Use `docs/history/` when:
+不适合写 ADR 的场景：
 
-- you need a chronological implementation record
-- the change is round-specific and mainly about what was done and how it was verified
+- 当前开发者自己的按日期开发过程留痕。
+- 只与某一轮实现细节有关、不会长期约束后续工作的说明。
 
-## Naming
+这类按日期的个人开发留痕应放在 `docs/.private/history/`，不作为共享事实来源。
+
+## 命名约定
 
 - `0000-template.md`
 - `0001-<topic>.md`
-- keep filenames stable, short, and descriptive
+- 文件名保持稳定、简短、可描述
 
-## Minimum structure
+## 最小结构
 
-1. Status
-2. Context
-3. Decision
-4. Consequences
-5. Follow-up
+1. 状态
+2. 背景
+3. 决策
+4. 后果
+5. 后续动作

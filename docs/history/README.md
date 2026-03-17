@@ -1,9 +1,15 @@
-# 7Flows History Docs
+# History 目录说明
 
-这里统一存放按日期命名的开发记录、阶段性决策、实现说明和验证留痕。
+`docs/history/` 不再作为共享知识库维护按日期的开发留痕。
 
-## 使用约定
+当前约定如下：
 
-- 新的日期开发记录统一写到 `docs/history/YYYY-MM-DD-<topic>.md`。
-- 文档应重点回答“为什么这样做、影响哪里、如何验证”。
-- 这里保留的是历史过程，不替代 `docs/dev/runtime-foundation.md` 的当前事实索引作用。
+- 当前开发者自己的按日期开发过程、临时推导和个人连续性记录，写入 `docs/.private/history/`。
+- 共享仓库只保留稳定规则、当前事实和长期决策：
+  - `AGENTS.md`
+  - `docs/dev/team-conventions.md`
+  - `docs/dev/user-preferences.md`
+  - `docs/dev/runtime-foundation.md`
+  - `docs/adr/`
+
+如果未来确实需要恢复共享 history，也应先重新确认它是否真的属于“共享事实”，而不是继续把个人流水账放回公共入口。

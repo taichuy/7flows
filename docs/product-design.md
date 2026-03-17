@@ -1,6 +1,6 @@
 # 7Flows 产品设计方案
 
-> 文档分层约定：本文与 `docs/technical-design-supplement.md` 只保留产品/技术基线；开源/商业边界与版本分层见 `docs/open-source-commercial-strategy.md`；当前实现索引放在 `docs/dev/`；带日期开发记录统一归档到 `docs/history/`；废弃文档统一归档到 `docs/expired/`。
+> 文档分层约定：本文与 `docs/technical-design-supplement.md` 只保留产品 / 技术基线；开源 / 商业边界与版本分层见 `docs/open-source-commercial-strategy.md`；当前实现索引放在 `docs/dev/`；当前开发者自己的按日期过程留痕如需保留，请放在 `docs/.private/history/`；废弃文档统一归档到 `docs/expired/`。
 
 ## 1. 产品定位与问题定义
 
