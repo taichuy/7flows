@@ -2,6 +2,7 @@ import type {
   PluginAdapterRegistryItem,
   PluginToolRegistryItem
 } from "@/lib/get-plugin-registry";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { WorkflowDefinition } from "@/lib/workflow-editor";
 import {
   buildExecutionCapabilityIssue,
@@ -20,6 +21,7 @@ export function buildWorkflowToolExecutionValidationIssues(
   definition: WorkflowDefinition,
   tools: PluginToolRegistryItem[],
   adapters: PluginAdapterRegistryItem[],
+  sandboxReadiness?: SandboxReadinessCheck | null,
   workspaceId = "default"
 ): WorkflowToolExecutionValidationIssue[] {
   if (!Array.isArray(definition?.nodes) || tools.length === 0) {
@@ -48,7 +50,8 @@ export function buildWorkflowToolExecutionValidationIssues(
           nodeIndex,
           config,
           toolIndex,
-          adapters: visibleAdapters
+          adapters: visibleAdapters,
+          sandboxReadiness
         })
       );
       return;
@@ -62,7 +65,8 @@ export function buildWorkflowToolExecutionValidationIssues(
           nodeIndex,
           config,
           toolIndex,
-          adapters: visibleAdapters
+          adapters: visibleAdapters,
+          sandboxReadiness
         })
       );
     }
@@ -84,9 +88,11 @@ function buildToolNodeExecutionIssues({
   nodeIndex,
   config,
   toolIndex,
-  adapters
+  adapters,
+  sandboxReadiness
 }: WorkflowToolExecutionValidationContext & {
   node: { runtimePolicy?: unknown };
+  sandboxReadiness?: SandboxReadinessCheck | null;
 }): WorkflowToolExecutionValidationIssue[] {
   const binding = toRecord(config.tool);
   const toolId = normalizeString(binding?.toolId ?? config.toolId);
@@ -137,6 +143,7 @@ function buildToolNodeExecutionIssues({
     adapterId,
     requestedExecutionClass,
     adapters,
+    sandboxReadiness,
     path: `nodes.${nodeIndex}.runtimePolicy.execution`,
     field: "execution"
   });
@@ -152,7 +159,8 @@ function buildAgentExecutionIssues({
   nodeIndex,
   config,
   toolIndex,
-  adapters
+  adapters,
+  sandboxReadiness
 }: WorkflowToolExecutionValidationContext): WorkflowToolExecutionValidationIssue[] {
   const issues: WorkflowToolExecutionValidationIssue[] = [];
   const toolPolicy = toRecord(config.toolPolicy);
@@ -175,6 +183,7 @@ function buildAgentExecutionIssues({
           adapterId: null,
           requestedExecutionClass: policyExecutionClass,
           adapters,
+          sandboxReadiness,
           path: `nodes.${nodeIndex}.config.toolPolicy.execution`,
           field: "execution"
         });
@@ -216,6 +225,7 @@ function buildAgentExecutionIssues({
         adapterId: null,
         requestedExecutionClass: policyExecutionClass,
         adapters,
+        sandboxReadiness,
         path: `nodes.${nodeIndex}.config.toolPolicy.execution`,
         field: "execution"
       });
@@ -277,6 +287,7 @@ function buildAgentExecutionIssues({
         adapterId,
         requestedExecutionClass,
         adapters,
+        sandboxReadiness,
         path: `nodes.${nodeIndex}.config.mockPlan.toolCalls.${index}.execution`,
         field: "execution"
       });

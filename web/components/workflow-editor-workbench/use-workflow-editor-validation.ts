@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 
 import type { PluginAdapterRegistryItem, PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { WorkflowNodeCatalogItem } from "@/lib/get-workflow-library";
 import type { WorkflowDefinitionPreflightIssue, WorkflowDetail } from "@/lib/get-workflows";
 import type { WorkspaceStarterValidationIssue } from "@/lib/get-workspace-starters";
@@ -114,6 +115,7 @@ type UseWorkflowEditorValidationOptions = {
   nodeCatalog: WorkflowNodeCatalogItem[];
   tools: PluginToolRegistryItem[];
   adapters: PluginAdapterRegistryItem[];
+  sandboxReadiness?: SandboxReadinessCheck | null;
   serverValidationIssues: WorkflowDefinitionPreflightIssue[];
 };
 
@@ -124,6 +126,7 @@ export function useWorkflowEditorValidation({
   nodeCatalog,
   tools,
   adapters,
+  sandboxReadiness,
   serverValidationIssues
 }: UseWorkflowEditorValidationOptions) {
   const unsupportedNodes = useMemo(
@@ -159,8 +162,14 @@ export function useWorkflowEditorValidation({
     [toolReferenceValidationIssues]
   );
   const toolExecutionValidationIssues = useMemo(
-    () => buildWorkflowToolExecutionValidationIssues(currentDefinition, tools, adapters),
-    [adapters, currentDefinition, tools]
+    () =>
+      buildWorkflowToolExecutionValidationIssues(
+        currentDefinition,
+        tools,
+        adapters,
+        sandboxReadiness
+      ),
+    [adapters, currentDefinition, sandboxReadiness, tools]
   );
   const toolExecutionValidationSummary = useMemo(
     () => summarizeIssueMessages(toolExecutionValidationIssues),
@@ -250,7 +259,7 @@ export function useWorkflowEditorValidation({
           ? `当前 workflow definition 还有 tool catalog 引用待修正问题：${toolReferenceValidationSummary}${toolReferenceValidationSummary.endsWith("。") ? "" : "。"}请先修正 tool binding / LLM Agent tool policy 后再保存。`
           : null,
         toolExecutionValidationSummary
-          ? `当前 workflow definition 还有 tool execution capability 待修正问题：${toolExecutionValidationSummary}${toolExecutionValidationSummary.endsWith("。") ? "" : "。"}请先对齐 adapter 绑定与 execution class，再继续保存。`
+          ? `当前 workflow definition 还有 tool execution capability 待修正问题：${toolExecutionValidationSummary}${toolExecutionValidationSummary.endsWith("。") ? "" : "。"}请先对齐 adapter 绑定、execution class 与 sandbox readiness，再继续保存。`
           : null,
         publishVersionValidationSummary
           ? `当前 workflow definition 还有 publish version 引用待修正问题：${publishVersionValidationSummary}${publishVersionValidationSummary.endsWith("。") ? "" : "。"}如果 endpoint 要跟随本次保存版本，请把 workflowVersion 留空。`

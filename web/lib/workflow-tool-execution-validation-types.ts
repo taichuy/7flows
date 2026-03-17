@@ -2,6 +2,7 @@ import type {
   PluginAdapterRegistryItem,
   PluginToolRegistryItem
 } from "@/lib/get-plugin-registry";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 
 export type WorkflowToolExecutionValidationIssue = {
   nodeId: string;
@@ -18,6 +19,7 @@ export type WorkflowToolExecutionValidationContext = {
   config: Record<string, unknown>;
   toolIndex: Map<string, PluginToolRegistryItem>;
   adapters: PluginAdapterRegistryItem[];
+  sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
 export type WorkflowExecutionCapabilityIssueOptions = {
@@ -30,6 +32,7 @@ export type WorkflowExecutionCapabilityIssueOptions = {
   adapterId: string | null;
   requestedExecutionClass: string;
   adapters: PluginAdapterRegistryItem[];
+  sandboxReadiness?: SandboxReadinessCheck | null;
   path: string;
   field: string;
 };

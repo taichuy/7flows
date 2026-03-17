@@ -1,4 +1,5 @@
 import type { PluginAdapterRegistryItem } from "@/lib/get-plugin-registry";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 
 import type {
   WorkflowExecutionCapabilityIssueOptions,
@@ -58,6 +59,7 @@ export function buildExecutionCapabilityIssue({
   adapterId,
   requestedExecutionClass,
   adapters,
+  sandboxReadiness,
   path,
   field
 }: WorkflowExecutionCapabilityIssueOptions): WorkflowToolExecutionValidationIssue | null {
@@ -97,19 +99,33 @@ export function buildExecutionCapabilityIssue({
   const supportedExecutionClasses = adapter.supported_execution_classes?.length
     ? adapter.supported_execution_classes
     : ["subprocess"];
-  if (supportedExecutionClasses.includes(requestedExecutionClass)) {
-    return null;
+  if (!supportedExecutionClasses.includes(requestedExecutionClass)) {
+    return {
+      nodeId,
+      nodeName,
+      message: `${context} 显式请求了 ${requestedExecutionClass}，但 adapter ${adapter.id} 当前只支持 ${supportedExecutionClasses.join(
+        ", "
+      )}。`,
+      path,
+      field
+    };
   }
 
-  return {
+  const sandboxReadinessIssue = buildSandboxReadinessIssue({
+    context,
     nodeId,
     nodeName,
-    message: `${context} 显式请求了 ${requestedExecutionClass}，但 adapter ${adapter.id} 当前只支持 ${supportedExecutionClasses.join(
-      ", "
-    )}。`,
+    toolId,
+    requestedExecutionClass,
+    sandboxReadiness,
     path,
     field
-  };
+  });
+  if (sandboxReadinessIssue) {
+    return sandboxReadinessIssue;
+  }
+
+  return null;
 }
 
 export function extractExplicitExecutionClass(value: unknown) {
@@ -140,6 +156,49 @@ function resolveAdapterForExecution({
   }
 
   return adapters.find((adapter) => adapter.enabled && adapter.ecosystem === ecosystem) ?? null;
+}
+
+function buildSandboxReadinessIssue({
+  context,
+  nodeId,
+  nodeName,
+  toolId,
+  requestedExecutionClass,
+  sandboxReadiness,
+  path,
+  field
+}: {
+  context: string;
+  nodeId: string;
+  nodeName: string;
+  toolId: string;
+  requestedExecutionClass: string;
+  sandboxReadiness?: SandboxReadinessCheck | null;
+  path: string;
+  field: string;
+}): WorkflowToolExecutionValidationIssue | null {
+  if (requestedExecutionClass !== "sandbox" && requestedExecutionClass !== "microvm") {
+    return null;
+  }
+  if (!sandboxReadiness) {
+    return null;
+  }
+
+  const readiness = sandboxReadiness.execution_classes.find(
+    (item) => item.execution_class === requestedExecutionClass
+  );
+  if (readiness?.available) {
+    return null;
+  }
+
+  const reason = readiness?.reason?.trim();
+  return {
+    nodeId,
+    nodeName,
+    message: `${context} 显式请求了 ${requestedExecutionClass}，但当前 sandbox readiness 还没有为工具 ${toolId} 准备好对应执行链路。${reason ? ` ${reason}` : ""}`,
+    path,
+    field
+  };
 }
 
 function normalizeString(value: unknown) {
