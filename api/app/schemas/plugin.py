@@ -58,6 +58,7 @@ class PluginToolItem(BaseModel):
     source: str
     plugin_meta: dict[str, Any] | None = None
     callable: bool
+    supported_execution_classes: list[str] = Field(default_factory=list)
 
 
 class PluginToolSyncResult(BaseModel):

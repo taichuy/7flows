@@ -614,7 +614,7 @@ def test_runtime_service_fail_closes_explicit_native_tool_isolation_request(
 
     with pytest.raises(
         WorkflowExecutionError,
-        match="Native tool execution currently supports only 'inline'",
+        match="does not support requested execution class 'microvm'",
     ):
         RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
             sqlite_session,
@@ -674,9 +674,8 @@ def test_runtime_service_fail_closes_explicit_native_tool_isolation_request(
         "requested_filesystem_policy": None,
         "executor_ref": "tool:native-inline",
         "reason": (
-            "Native tool execution currently supports only 'inline'. Requested execution "
-            "class 'microvm' must fail closed until a native sandbox execution path is "
-            "implemented."
+            "Native tool 'native.inline-test' does not support requested execution class "
+            "'microvm'. Supported classes: inline."
         ),
     }
 

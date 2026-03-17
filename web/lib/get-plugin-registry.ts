@@ -23,6 +23,7 @@ export type PluginToolRegistryItem = {
   source: string;
   plugin_meta?: Record<string, unknown> | null;
   callable: boolean;
+  supported_execution_classes: string[];
 };
 
 export type PluginRegistrySnapshot = {

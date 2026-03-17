@@ -85,8 +85,19 @@ class PluginCallProxy:
                 f"Native plugin tool '{request.tool_id}' does not provide an invoker."
             )
 
+        bound_request = PluginCallRequest(
+            tool_id=request.tool_id,
+            ecosystem=request.ecosystem,
+            inputs=request.inputs,
+            adapter_id=request.adapter_id,
+            credentials=request.credentials,
+            timeout_ms=request.timeout_ms,
+            trace_id=request.trace_id,
+            execution=execution_dispatch.effective_execution,
+        )
+
         started_at = time.perf_counter()
-        result = invoker(request)
+        result = invoker(bound_request)
         duration_ms = int((time.perf_counter() - started_at) * 1000)
 
         if isinstance(result, PluginCallResponse):

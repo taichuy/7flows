@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 _ADAPTER_EXECUTION_CLASSES = ("subprocess", "sandbox", "microvm")
+_TOOL_EXECUTION_CLASSES = ("inline", "subprocess", "sandbox", "microvm")
 
 
 def normalize_supported_execution_classes(values: object) -> tuple[str, ...]:
@@ -22,6 +23,28 @@ def normalize_supported_execution_classes(values: object) -> tuple[str, ...]:
 
     if not normalized:
         return ("subprocess",)
+    return tuple(normalized)
+
+
+def normalize_supported_tool_execution_classes(
+    values: object,
+    *,
+    default: tuple[str, ...] = (),
+) -> tuple[str, ...]:
+    normalized: list[str] = []
+    seen: set[str] = set()
+    if isinstance(values, (list, tuple, set)):
+        for value in values:
+            if not isinstance(value, str):
+                continue
+            candidate = value.strip().lower()
+            if candidate not in _TOOL_EXECUTION_CLASSES or candidate in seen:
+                continue
+            normalized.append(candidate)
+            seen.add(candidate)
+
+    if not normalized:
+        return default
     return tuple(normalized)
 
 
@@ -44,6 +67,20 @@ class PluginToolDefinition:
     source: str = "builtin"
     plugin_meta: dict[str, Any] | None = None
     constrained_ir: dict[str, Any] | None = None
+    supported_execution_classes: tuple[str, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        default_supported_execution_classes = (
+            ("inline",) if self.ecosystem == "native" else ()
+        )
+        object.__setattr__(
+            self,
+            "supported_execution_classes",
+            normalize_supported_tool_execution_classes(
+                self.supported_execution_classes,
+                default=default_supported_execution_classes,
+            ),
+        )
 
 
 @dataclass(frozen=True)

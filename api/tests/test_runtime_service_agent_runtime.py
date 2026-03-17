@@ -228,7 +228,7 @@ def test_llm_agent_tool_policy_execution_fail_closes_explicit_native_isolation(
 
     with pytest.raises(
         WorkflowExecutionError,
-        match="Native tool execution currently supports only 'inline'",
+        match="does not support requested execution class 'sandbox'",
     ):
         RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
             sqlite_session,
@@ -288,9 +288,8 @@ def test_llm_agent_tool_policy_execution_fail_closes_explicit_native_isolation(
         "requested_filesystem_policy": None,
         "executor_ref": "tool:native-inline",
         "reason": (
-            "Native tool execution currently supports only 'inline'. Requested execution "
-            "class 'sandbox' must fail closed until a native sandbox execution path is "
-            "implemented."
+            "Native tool 'native.search' does not support requested execution class "
+            "'sandbox'. Supported classes: inline."
         ),
     }
 
@@ -362,7 +361,7 @@ def test_llm_agent_tool_call_execution_override_fail_closes_native_isolation(
 
     with pytest.raises(
         WorkflowExecutionError,
-        match="Native tool execution currently supports only 'inline'",
+        match="does not support requested execution class 'microvm'",
     ):
         RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
             sqlite_session,
@@ -422,9 +421,8 @@ def test_llm_agent_tool_call_execution_override_fail_closes_native_isolation(
         "requested_filesystem_policy": "ephemeral",
         "executor_ref": "tool:native-inline",
         "reason": (
-            "Native tool execution currently supports only 'inline'. Requested execution "
-            "class 'microvm' must fail closed until a native sandbox execution path is "
-            "implemented."
+            "Native tool 'native.search' does not support requested execution class "
+            "'microvm'. Supported classes: inline."
         ),
     }
 

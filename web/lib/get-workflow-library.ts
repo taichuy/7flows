@@ -252,7 +252,8 @@ function normalizeToolItem(input: Record<string, unknown>): PluginToolRegistryIt
     output_schema: isRecord(input.output_schema) ? { ...input.output_schema } : null,
     source: asString(input.source, "builtin"),
     plugin_meta: isRecord(input.plugin_meta) ? { ...input.plugin_meta } : null,
-    callable: Boolean(input.callable)
+    callable: Boolean(input.callable),
+    supported_execution_classes: asStringArray(input.supported_execution_classes)
   };
 }
 

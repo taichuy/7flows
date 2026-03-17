@@ -59,6 +59,7 @@ def _serialize_tool(tool_id: str) -> PluginToolItem:
         source=tool.source,
         plugin_meta=tool.plugin_meta,
         callable=(tool.ecosystem != "native") or registry.has_native_invoker(tool.id),
+        supported_execution_classes=list(tool.supported_execution_classes),
     )
 
 

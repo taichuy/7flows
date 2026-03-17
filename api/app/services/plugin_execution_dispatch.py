@@ -26,8 +26,14 @@ class PluginExecutionDispatchPlanner:
         *,
         adapter: CompatibilityAdapterRegistration | None = None,
     ) -> PluginExecutionDispatchPlan:
+        tool = self._registry.get_tool(request.tool_id)
         requested_execution = dict(request.execution or {})
         default_execution_class = default_execution_class_for_tool_ecosystem(request.ecosystem)
+        if request.ecosystem == "native" and tool is not None:
+            supported_native_execution_classes = (
+                tool.supported_execution_classes or ("inline",)
+            )
+            default_execution_class = supported_native_execution_classes[0]
         requested_execution_class = str(
             requested_execution.get("class") or default_execution_class
         ).strip().lower() or default_execution_class
@@ -44,21 +50,46 @@ class PluginExecutionDispatchPlanner:
         )
 
         if request.ecosystem == "native":
-            effective_execution_class = "inline"
+            supported_execution_classes = (
+                tool.supported_execution_classes if tool is not None else ("inline",)
+            ) or ("inline",)
+            effective_execution_class = (
+                requested_execution_class
+                if requested_execution_class in supported_execution_classes
+                else supported_execution_classes[0]
+            )
             fallback_reason = None
             blocked_reason = None
+            sandbox_backend_id = None
+            sandbox_backend_executor_ref = None
             if requested_execution_class != effective_execution_class:
                 if self._requires_fail_closed(
                     requested_execution_class=requested_execution_class,
                     execution_source=execution_source,
                 ):
+                    supported_summary = ", ".join(supported_execution_classes)
                     blocked_reason = (
-                        "Native tool execution currently supports only 'inline'. "
-                        f"Requested execution class '{requested_execution_class}' must fail closed "
-                        "until a native sandbox execution path is implemented."
+                        f"Native tool '{request.tool_id}' does not support requested execution "
+                        f"class '{requested_execution_class}'. Supported classes: "
+                        f"{supported_summary}."
                     )
                 else:
-                    fallback_reason = "native_tools_currently_inline_only"
+                    fallback_reason = "native_tool_execution_class_not_supported"
+            if blocked_reason is None and effective_execution_class in {"sandbox", "microvm"}:
+                backend_selection = self._sandbox_backend_client.describe_tool_execution_backend(
+                    execution_class=effective_execution_class,
+                    profile=requested_execution_profile,
+                    network_policy=requested_network_policy,
+                    filesystem_policy=requested_filesystem_policy,
+                )
+                if not backend_selection.available or backend_selection.backend_id is None:
+                    blocked_reason = (
+                        backend_selection.reason
+                        or "No compatible sandbox backend is currently available."
+                    )
+                else:
+                    sandbox_backend_id = backend_selection.backend_id
+                    sandbox_backend_executor_ref = backend_selection.executor_ref
             return PluginExecutionDispatchPlan(
                 requested_execution_class=requested_execution_class,
                 effective_execution_class=effective_execution_class,
@@ -71,14 +102,20 @@ class PluginExecutionDispatchPlanner:
                 ),
                 requested_network_policy=requested_network_policy,
                 requested_filesystem_policy=requested_filesystem_policy,
-                executor_ref="tool:native-inline",
+                executor_ref=(
+                    f"tool:native-{effective_execution_class}"
+                    if effective_execution_class != "inline"
+                    else "tool:native-inline"
+                ),
                 effective_execution=self._build_effective_execution_payload(
                     requested_execution=requested_execution,
                     effective_execution_class=effective_execution_class,
                     execution_source=execution_source,
-                    sandbox_backend_id=None,
-                    sandbox_backend_executor_ref=None,
+                    sandbox_backend_id=sandbox_backend_id,
+                    sandbox_backend_executor_ref=sandbox_backend_executor_ref,
                 ),
+                sandbox_backend_id=sandbox_backend_id,
+                sandbox_backend_executor_ref=sandbox_backend_executor_ref,
                 fallback_reason=fallback_reason,
                 blocked_reason=blocked_reason,
             )

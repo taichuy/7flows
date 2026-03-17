@@ -3,7 +3,8 @@
 from fastapi.testclient import TestClient
 
 from app.models.run import NodeRun, Run, RunEvent
-from app.services import workflow_definitions
+from app.services import workflow_definitions, workflow_library
+from app.services.plugin_runtime import PluginRegistry, PluginToolDefinition
 from app.services.sandbox_backends import (
     SandboxBackendCapability,
     SandboxBackendClient,
@@ -122,7 +123,11 @@ def _bound_tool_definition(
     }
 
 
-def _sandbox_code_definition(*, config: dict | None = None, runtime_policy: dict | None = None) -> dict:
+def _sandbox_code_definition(
+    *,
+    config: dict | None = None,
+    runtime_policy: dict | None = None,
+) -> dict:
     return {
         "nodes": [
             {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
@@ -971,6 +976,45 @@ def test_create_workflow_accepts_supported_tool_execution_class(
     assert response.status_code == 201
 
 
+def test_create_workflow_accepts_native_tool_declared_sandbox_execution(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="native.risk-search",
+            name="Risk Search",
+            supported_execution_classes=("inline", "sandbox"),
+        ),
+        invoker=lambda request: {
+            "documents": ["doc-1"],
+            "execution": request.execution,
+        },
+    )
+    monkeypatch.setattr(workflow_library, "get_plugin_registry", lambda: registry)
+    monkeypatch.setattr(workflow_definitions, "get_plugin_registry", lambda: registry)
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(execution_classes=("sandbox",)),
+    )
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Native Sandbox Tool Workflow",
+            "definition": _bound_tool_definition(
+                tool_id="native.risk-search",
+                ecosystem="native",
+                runtime_policy={"execution": {"class": "sandbox"}},
+            ),
+        },
+    )
+
+    assert response.status_code == 201
+
+
 def test_create_workflow_accepts_authorized_context_mcp_query(client: TestClient) -> None:
     response = client.post(
         "/api/workflows",
@@ -1103,7 +1147,9 @@ def test_create_workflow_rejects_selector_on_non_branch_node(client: TestClient)
     )
 
     assert response.status_code == 422
-    assert "Only condition/router nodes may define config.selector" in _workflow_detail_message(response)
+    assert "Only condition/router nodes may define config.selector" in (
+        _workflow_detail_message(response)
+    )
 
 
 def test_create_workflow_rejects_expression_on_non_branch_node(client: TestClient) -> None:
@@ -1116,7 +1162,9 @@ def test_create_workflow_rejects_expression_on_non_branch_node(client: TestClien
     )
 
     assert response.status_code == 422
-    assert "Only condition/router nodes may define config.expression" in _workflow_detail_message(response)
+    assert "Only condition/router nodes may define config.expression" in (
+        _workflow_detail_message(response)
+    )
 
 
 def test_create_workflow_rejects_unsafe_edge_condition_expression(client: TestClient) -> None:
@@ -1145,7 +1193,9 @@ def test_create_workflow_rejects_join_required_node_ids_outside_incoming_edges(
     )
 
     assert response.status_code == 422
-    assert "join.requiredNodeIds references non-incoming sources" in _workflow_detail_message(response)
+    assert "join.requiredNodeIds references non-incoming sources" in (
+        _workflow_detail_message(response)
+    )
 
 
 def test_create_workflow_rejects_mapping_to_runtime_managed_input_root(
@@ -1212,7 +1262,9 @@ def test_create_workflow_rejects_missing_catalog_tool_binding(client: TestClient
     )
 
     assert response.status_code == 422
-    assert "references missing or drifted tool catalog entries" in _workflow_detail_message(response)
+    assert "references missing or drifted tool catalog entries" in (
+        _workflow_detail_message(response)
+    )
     assert "native.missing" in _workflow_detail_message(response)
     issues = _workflow_detail_issues(response)
     assert any(
@@ -1251,7 +1303,9 @@ def test_create_workflow_rejects_missing_tool_policy_reference(client: TestClien
     )
 
     assert response.status_code == 422
-    assert "toolPolicy.allowedToolIds references missing catalog tools" in _workflow_detail_message(response)
+    assert "toolPolicy.allowedToolIds references missing catalog tools" in (
+        _workflow_detail_message(response)
+    )
     assert "native.missing" in _workflow_detail_message(response)
     issues = _workflow_detail_issues(response)
     assert any(
@@ -1300,8 +1354,8 @@ def test_create_workflow_rejects_duplicate_publish_endpoint_metadata(
     )
 
     assert response.status_code == 422
-    assert "publish endpoint identities that are not valid for persistence" in _workflow_detail_message(
-        response
+    assert "publish endpoint identities that are not valid for persistence" in (
+        _workflow_detail_message(response)
     )
     assert any(
         issue.get("category") == "publish_identity" for issue in _workflow_detail_issues(response)

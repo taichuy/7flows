@@ -114,6 +114,7 @@ def test_register_and_list_plugin_tool(client, monkeypatch) -> None:
         "source": "plugin",
         "plugin_meta": {"origin": "dify"},
         "callable": True,
+        "supported_execution_classes": [],
     }
 
     list_response = client.get("/api/plugins/tools")
@@ -130,6 +131,7 @@ def test_register_and_list_plugin_tool(client, monkeypatch) -> None:
             "source": "builtin",
             "plugin_meta": None,
             "callable": True,
+            "supported_execution_classes": ["inline"],
         },
         create_response.json(),
     ]
@@ -211,6 +213,7 @@ def test_sync_plugin_tools_from_adapter(client, monkeypatch) -> None:
                 "source": "plugin",
                 "plugin_meta": {"origin": "dify"},
                 "callable": True,
+                "supported_execution_classes": [],
             }
         ],
     }

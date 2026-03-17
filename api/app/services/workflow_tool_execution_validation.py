@@ -122,7 +122,9 @@ def _collect_tool_node_execution_issues(
         tool=tool,
         ecosystem=ecosystem,
         adapter_id=adapter_id,
-        execution_payload=(runtime_policy.get("execution") if isinstance(runtime_policy, dict) else None),
+        execution_payload=(
+            runtime_policy.get("execution") if isinstance(runtime_policy, dict) else None
+        ),
         requested_execution_class=requested_execution_class,
         adapters=adapters,
         sandbox_backend_client=sandbox_backend_client,
@@ -282,11 +284,20 @@ def _build_execution_support_issue(
     sandbox_backend_client: SandboxBackendClient,
 ) -> str | None:
     if tool.ecosystem == "native":
-        if requested_execution_class == "inline":
-            return None
+        supported_execution_classes = tuple(tool.supported_execution_classes or ("inline",))
+        if requested_execution_class in supported_execution_classes:
+            return _build_sandbox_backend_issue(
+                context=context,
+                tool_id=tool_id,
+                requested_execution_class=requested_execution_class,
+                execution_payload=execution_payload,
+                sandbox_backend_client=sandbox_backend_client,
+            )
+        supported_summary = ", ".join(supported_execution_classes)
         return (
             f"{context} explicitly requests execution class '{requested_execution_class}' for "
-            f"native tool '{tool_id}', but native tools currently support only 'inline'."
+            f"native tool '{tool_id}', but this tool currently supports only "
+            f"{supported_summary}."
         )
 
     resolved_ecosystem = ecosystem or tool.ecosystem

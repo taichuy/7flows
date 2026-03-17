@@ -64,13 +64,27 @@ export function buildExecutionCapabilityIssue({
   field
 }: WorkflowExecutionCapabilityIssueOptions): WorkflowToolExecutionValidationIssue | null {
   if (tool.ecosystem === "native") {
-    if (requestedExecutionClass === "inline") {
-      return null;
+    const supportedExecutionClasses = tool.supported_execution_classes?.length
+      ? tool.supported_execution_classes
+      : ["inline"];
+    if (supportedExecutionClasses.includes(requestedExecutionClass)) {
+      return buildSandboxReadinessIssue({
+        context,
+        nodeId,
+        nodeName,
+        toolId,
+        requestedExecutionClass,
+        sandboxReadiness,
+        path,
+        field
+      });
     }
     return {
       nodeId,
       nodeName,
-      message: `${context} 显式请求了 ${requestedExecutionClass}，但原生工具 ${toolId} 当前只支持 inline。`,
+      message: `${context} 显式请求了 ${requestedExecutionClass}，但原生工具 ${toolId} 当前只支持 ${supportedExecutionClasses.join(
+        ", "
+      )}。`,
       path,
       field
     };

@@ -35,7 +35,11 @@ class _StaticSandboxHealthChecker:
         return list(self._healths)
 
 
-def _sandbox_backend_client(*, execution_classes: tuple[str, ...], profiles: tuple[str, ...] = ()) -> SandboxBackendClient:
+def _sandbox_backend_client(
+    *,
+    execution_classes: tuple[str, ...],
+    profiles: tuple[str, ...] = (),
+) -> SandboxBackendClient:
     sandbox_registry = SandboxBackendRegistry()
     sandbox_registry.register_backend(
         SandboxBackendRegistration(
@@ -554,15 +558,14 @@ def test_plugin_call_proxy_fail_closes_explicit_native_isolation_request() -> No
         "sandbox_backend_executor_ref": None,
         "fallback_reason": None,
         "blocked_reason": (
-            "Native tool execution currently supports only 'inline'. Requested execution "
-            "class 'sandbox' must fail closed until a native sandbox execution path is "
-            "implemented."
+            "Native tool 'native.search' does not support requested execution class "
+            "'sandbox'. Supported classes: inline."
         ),
     }
 
     with pytest.raises(
         PluginInvocationError,
-        match="Native tool execution currently supports only 'inline'",
+        match="does not support requested execution class 'sandbox'",
     ):
         proxy.invoke(
             PluginCallRequest(
@@ -578,6 +581,95 @@ def test_plugin_call_proxy_fail_closes_explicit_native_isolation_request() -> No
                 },
             )
         )
+
+
+def test_plugin_call_proxy_binds_sandbox_backend_for_native_tool() -> None:
+    registry = PluginRegistry()
+    captured_execution: dict[str, object] = {}
+
+    def invoker(request: PluginCallRequest) -> dict[str, object]:
+        captured_execution.update(request.execution)
+        return {"documents": ["doc-1"], "execution": request.execution}
+
+    registry.register_tool(
+        PluginToolDefinition(
+            id="native.search",
+            name="Native Search",
+            supported_execution_classes=("inline", "sandbox"),
+        ),
+        invoker=invoker,
+    )
+
+    proxy = PluginCallProxy(
+        registry,
+        sandbox_backend_client=_sandbox_backend_client(
+            execution_classes=("sandbox",),
+            profiles=("risk-reviewed",),
+        ),
+    )
+
+    dispatch = proxy.describe_execution_dispatch(
+        PluginCallRequest(
+            tool_id="native.search",
+            ecosystem="native",
+            inputs={"query": "sevenflows"},
+            trace_id="trace-native-sandbox",
+            execution={
+                "class": "sandbox",
+                "source": "tool_call",
+                "profile": "risk-reviewed",
+                "timeoutMs": 3000,
+                "networkPolicy": "restricted",
+                "filesystemPolicy": "ephemeral",
+            },
+        )
+    )
+
+    assert dispatch.as_trace_payload() == {
+        "requested_execution_class": "sandbox",
+        "effective_execution_class": "sandbox",
+        "execution_source": "tool_call",
+        "requested_execution_profile": "risk-reviewed",
+        "requested_execution_timeout_ms": 3000,
+        "requested_network_policy": "restricted",
+        "requested_filesystem_policy": "ephemeral",
+        "executor_ref": "tool:native-sandbox",
+        "sandbox_backend_id": "sandbox-default",
+        "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
+        "fallback_reason": None,
+        "blocked_reason": None,
+    }
+
+    response = proxy.invoke(
+        PluginCallRequest(
+            tool_id="native.search",
+            ecosystem="native",
+            inputs={"query": "sevenflows"},
+            trace_id="trace-native-sandbox",
+            execution={
+                "class": "sandbox",
+                "source": "tool_call",
+                "profile": "risk-reviewed",
+                "timeoutMs": 3000,
+                "networkPolicy": "restricted",
+                "filesystemPolicy": "ephemeral",
+            },
+        )
+    )
+
+    assert response.status == "success"
+    assert captured_execution == {
+        "class": "sandbox",
+        "source": "tool_call",
+        "profile": "risk-reviewed",
+        "timeoutMs": 3000,
+        "networkPolicy": "restricted",
+        "filesystemPolicy": "ephemeral",
+        "sandboxBackend": {
+            "id": "sandbox-default",
+            "executorRef": "sandbox-backend:sandbox-default",
+        },
+    }
 
 
 def test_plugin_call_proxy_binds_sandbox_backend_for_compat_adapter() -> None:
