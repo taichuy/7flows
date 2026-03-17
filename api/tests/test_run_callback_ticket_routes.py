@@ -420,6 +420,152 @@ def test_cleanup_service_applies_backoff_after_repeated_callback_expirations(
     assert lifecycle["last_resume_backoff_attempt"] == 2
 
 
+def test_cleanup_service_schedules_only_one_resume_per_run_in_single_batch(
+    sqlite_session: Session,
+) -> None:
+    run_id, ticket = _create_waiting_callback_run(sqlite_session, suffix="route-duplicate-batch")
+    primary_ticket = sqlite_session.get(RunCallbackTicket, ticket)
+    node_run = sqlite_session.scalar(
+        select(NodeRun).where(NodeRun.run_id == run_id, NodeRun.node_id == "agent")
+    )
+    assert primary_ticket is not None
+    assert node_run is not None
+
+    expired_at = datetime.now(UTC) - timedelta(minutes=5)
+    primary_ticket.expires_at = expired_at
+    sqlite_session.add(
+        RunCallbackTicket(
+            id="duplicate-expired-ticket",
+            run_id=run_id,
+            node_run_id=node_run.id,
+            tool_call_id=None,
+            tool_id="native.search",
+            tool_call_index=0,
+            waiting_status="waiting_callback",
+            status="pending",
+            reason="stale duplicate pending ticket",
+            created_at=expired_at - timedelta(minutes=1),
+            expires_at=expired_at,
+        )
+    )
+    sqlite_session.commit()
+
+    scheduled_resumes = []
+    cleanup_service = RunCallbackTicketCleanupService(
+        resume_scheduler=RunResumeScheduler(dispatcher=scheduled_resumes.append)
+    )
+
+    result = cleanup_service.cleanup_stale_tickets(
+        sqlite_session,
+        source="scheduler_cleanup",
+        schedule_resumes=True,
+        resume_source="callback_ticket_monitor",
+    )
+    sqlite_session.commit()
+    sqlite_session.refresh(node_run)
+
+    resume_events = sqlite_session.scalars(
+        select(RunEvent)
+        .where(
+            RunEvent.run_id == run_id,
+            RunEvent.event_type == "run.resume.scheduled",
+        )
+        .order_by(RunEvent.id.asc())
+    ).all()
+
+    assert result.matched_count == 2
+    assert result.expired_count == 2
+    assert result.scheduled_resume_count == 1
+    assert result.scheduled_resume_run_ids == [run_id]
+    assert len(scheduled_resumes) == 1
+    assert scheduled_resumes[0].run_id == run_id
+    assert len(resume_events) == 1
+    assert node_run.checkpoint_payload["scheduled_resume"] == {
+        "delay_seconds": 0.0,
+        "reason": "cleanup route pending",
+        "source": "callback_ticket_monitor",
+        "waiting_status": "waiting_callback",
+        "backoff_attempt": 1,
+    }
+
+
+def test_cleanup_service_skips_resume_for_expired_ticket_outside_current_waiting_node(
+    sqlite_session: Session,
+) -> None:
+    run_id, _ticket = _create_waiting_callback_run(sqlite_session, suffix="route-stale-node")
+    run = sqlite_session.get(Run, run_id)
+    active_node_run = sqlite_session.scalar(
+        select(NodeRun).where(NodeRun.run_id == run_id, NodeRun.node_id == "agent")
+    )
+    assert run is not None
+    assert active_node_run is not None
+
+    stale_node_run = NodeRun(
+        id="node-run-stale-callback",
+        run_id=run_id,
+        node_id="stale_agent",
+        node_name="Stale Agent",
+        node_type="llm_agent",
+        status="waiting_callback",
+        phase="waiting_callback",
+        waiting_reason="stale callback pending",
+        checkpoint_payload={},
+    )
+    expired_at = datetime.now(UTC) - timedelta(minutes=5)
+    stale_ticket = RunCallbackTicket(
+        id="stale-node-ticket",
+        run_id=run_id,
+        node_run_id=stale_node_run.id,
+        tool_call_id=None,
+        tool_id="native.search",
+        tool_call_index=0,
+        waiting_status="waiting_callback",
+        status="pending",
+        reason="stale callback ticket",
+        created_at=expired_at - timedelta(minutes=1),
+        expires_at=expired_at,
+    )
+    sqlite_session.add(stale_node_run)
+    sqlite_session.add(stale_ticket)
+    sqlite_session.commit()
+
+    scheduled_resumes = []
+    cleanup_service = RunCallbackTicketCleanupService(
+        resume_scheduler=RunResumeScheduler(dispatcher=scheduled_resumes.append)
+    )
+
+    result = cleanup_service.cleanup_stale_tickets(
+        sqlite_session,
+        source="scheduler_cleanup",
+        schedule_resumes=True,
+        resume_source="callback_ticket_monitor",
+        run_id=run_id,
+        node_run_id=stale_node_run.id,
+    )
+    sqlite_session.commit()
+    sqlite_session.refresh(stale_node_run)
+    sqlite_session.refresh(run)
+
+    resume_events = sqlite_session.scalars(
+        select(RunEvent)
+        .where(
+            RunEvent.run_id == run_id,
+            RunEvent.event_type == "run.resume.scheduled",
+        )
+        .order_by(RunEvent.id.asc())
+    ).all()
+
+    assert result.matched_count == 1
+    assert result.expired_count == 1
+    assert result.scheduled_resume_count == 0
+    assert result.scheduled_resume_run_ids == []
+    assert scheduled_resumes == []
+    assert "scheduled_resume" not in (stale_node_run.checkpoint_payload or {})
+    assert resume_events == []
+    assert run.checkpoint_payload["waiting_node_run_id"] == active_node_run.id
+    assert run.status == "waiting"
+
+
 def test_cleanup_stale_run_callback_tickets_route_scopes_to_run_and_node(
     client: TestClient,
     sqlite_session: Session,

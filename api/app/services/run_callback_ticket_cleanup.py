@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -143,6 +144,7 @@ class RunCallbackTicketCleanupService:
                     schedule_resumes=schedule_resumes,
                     resume_source=resume_source,
                     cleanup=True,
+                    already_scheduled_run_ids=resume_scheduled_run_ids,
                     now=effective_now,
                 )
                 snapshot = outcome.snapshot
@@ -182,6 +184,7 @@ class RunCallbackTicketCleanupService:
         schedule_resumes: bool,
         resume_source: str,
         cleanup: bool,
+        already_scheduled_run_ids: set[str] | None = None,
         now: datetime | None = None,
     ) -> CallbackTicketExpirationOutcome:
         effective_now = now or _utcnow()
@@ -212,8 +215,9 @@ class RunCallbackTicketCleanupService:
         scheduled_resume = False
         terminated = False
         if node_run is not None:
+            existing_checkpoint_payload = dict(node_run.checkpoint_payload or {})
             checkpoint_payload = record_callback_ticket_expired(
-                node_run.checkpoint_payload,
+                existing_checkpoint_payload,
                 reason="callback_ticket_expired",
                 expired_at=snapshot.expired_at,
             )
@@ -222,10 +226,11 @@ class RunCallbackTicketCleanupService:
                 max_expired_ticket_count=self._max_expired_ticket_count,
             )
             checkpoint_payload.pop("callback_ticket", None)
-            checkpoint_payload.pop("scheduled_resume", None)
             node_run.checkpoint_payload = checkpoint_payload
 
             if run is not None and should_terminate_callback_waiting(checkpoint_payload):
+                checkpoint_payload.pop("scheduled_resume", None)
+                node_run.checkpoint_payload = checkpoint_payload
                 terminated = self._terminate_waiting_callback(
                     db,
                     run=run,
@@ -237,6 +242,12 @@ class RunCallbackTicketCleanupService:
             elif (
                 schedule_resumes
                 and run is not None
+                and self._is_current_waiting_callback_node(
+                    run=run,
+                    node_run=node_run,
+                    snapshot=snapshot,
+                )
+                and run.id not in (already_scheduled_run_ids or set())
                 and self._schedule_resume_if_needed(
                     db,
                     run=run,
@@ -246,11 +257,50 @@ class RunCallbackTicketCleanupService:
                 )
             ):
                 scheduled_resume = True
+            elif (
+                run is not None
+                and self._is_current_waiting_callback_node(
+                    run=run,
+                    node_run=node_run,
+                    snapshot=snapshot,
+                )
+                and run.id in (already_scheduled_run_ids or set())
+                and "scheduled_resume" in existing_checkpoint_payload
+            ):
+                checkpoint_payload["scheduled_resume"] = deepcopy(
+                    existing_checkpoint_payload["scheduled_resume"]
+                )
+                node_run.checkpoint_payload = checkpoint_payload
+            else:
+                checkpoint_payload.pop("scheduled_resume", None)
+                node_run.checkpoint_payload = checkpoint_payload
 
         return CallbackTicketExpirationOutcome(
             snapshot=snapshot,
             scheduled_resume=scheduled_resume,
             terminated=terminated,
+        )
+
+    def _is_current_waiting_callback_node(
+        self,
+        *,
+        run: Run,
+        node_run: NodeRun,
+        snapshot: CallbackTicketSnapshot,
+    ) -> bool:
+        if run.status != "waiting":
+            return False
+        run_checkpoint_payload = dict(run.checkpoint_payload or {})
+        if run_checkpoint_payload.get("waiting_node_run_id") != node_run.id:
+            return False
+        waiting_status = str(
+            snapshot.waiting_status or node_run.phase or node_run.status or ""
+        ).strip()
+        if waiting_status != "waiting_callback":
+            return False
+        return (
+            str(node_run.status or "").strip() == "waiting_callback"
+            or str(node_run.phase or "").strip() == "waiting_callback"
         )
 
     def _load_runs(
@@ -323,7 +373,7 @@ class RunCallbackTicketCleanupService:
         scheduled_resume = self._resume_scheduler.schedule(
             run_id=run.id,
             delay_seconds=delay_seconds,
-            reason=snapshot.reason or node_run.waiting_reason or "callback pending",
+            reason=node_run.waiting_reason or snapshot.reason or "callback pending",
             source=source,
             db=db,
         )
