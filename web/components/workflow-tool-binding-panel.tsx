@@ -1,9 +1,11 @@
 import Link from "next/link";
 
 import { updateWorkflowToolBinding } from "@/app/actions/workflow";
+import { ToolGovernanceSummary } from "@/components/tool-governance-summary";
 import { WorkflowToolBindingForm } from "@/components/workflow-tool-binding-form";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { WorkflowDetail, WorkflowListItem } from "@/lib/get-workflows";
+import { getToolGovernanceSummary } from "@/lib/tool-governance";
 
 type WorkflowToolBindingPanelProps = {
   workflows: WorkflowListItem[];
@@ -17,6 +19,8 @@ type ToolNodeBinding = {
   currentToolId: string;
   currentEcosystem: string;
   currentBindingMode: string;
+  currentTool: PluginToolRegistryItem | null;
+  missingCatalogEntry: boolean;
 };
 
 export function WorkflowToolBindingPanel({
@@ -24,7 +28,16 @@ export function WorkflowToolBindingPanel({
   selectedWorkflow,
   tools
 }: WorkflowToolBindingPanelProps) {
-  const toolNodes = getToolNodeBindings(selectedWorkflow);
+  const toolNodes = getToolNodeBindings(selectedWorkflow, tools);
+  const boundToolNodes = toolNodes.filter((node) => node.currentToolId);
+  const governedToolNodes = boundToolNodes.filter((node) => node.currentTool).length;
+  const strongIsolationToolNodes = boundToolNodes.filter((node) => {
+    if (!node.currentTool) {
+      return false;
+    }
+    return getToolGovernanceSummary(node.currentTool).requiresStrongIsolationByDefault;
+  }).length;
+  const missingCatalogBindings = toolNodes.filter((node) => node.missingCatalogEntry).length;
 
   return (
     <article className="diagnostic-panel panel-span" id="workflow-binding">
@@ -83,7 +96,23 @@ export function WorkflowToolBindingPanel({
                       <span>Versions</span>
                       <strong>{selectedWorkflow.versions.length}</strong>
                     </article>
+                    <article className="summary-card">
+                      <span>Governed bindings</span>
+                      <strong>{governedToolNodes}</strong>
+                    </article>
+                    <article className="summary-card">
+                      <span>Strong isolation</span>
+                      <strong>{strongIsolationToolNodes}</strong>
+                    </article>
+                    <article className="summary-card">
+                      <span>Catalog gaps</span>
+                      <strong>{missingCatalogBindings}</strong>
+                    </article>
                   </div>
+                  <p className="binding-meta">
+                    这里现在直接暴露当前 workflow 已绑定工具的治理状态，避免作者只有进入编辑器后才发现某些节点默认需要
+                    `sandbox / microvm` 或已经脱离当前 catalog。
+                  </p>
                 </div>
               </div>
 
@@ -116,6 +145,19 @@ export function WorkflowToolBindingPanel({
                           " 未设置"
                         )}
                       </p>
+                      {node.currentTool ? (
+                        <ToolGovernanceSummary
+                          tool={node.currentTool}
+                          title="Current tool governance"
+                          subtitle="当前绑定会沿既有 workflow 版本链继续生效。保存改绑前先确认默认执行边界。"
+                          trailingChip={node.currentToolId}
+                        />
+                      ) : null}
+                      {node.missingCatalogEntry ? (
+                        <p className="sync-message error">
+                          当前绑定的工具已不在 catalog 里。请先同步目录，或改绑到仍可用的工具定义。
+                        </p>
+                      ) : null}
                       <WorkflowToolBindingForm
                         workflowId={selectedWorkflow.id}
                         nodeId={node.id}
@@ -138,7 +180,10 @@ export function WorkflowToolBindingPanel({
   );
 }
 
-function getToolNodeBindings(selectedWorkflow: WorkflowDetail | null): ToolNodeBinding[] {
+function getToolNodeBindings(
+  selectedWorkflow: WorkflowDetail | null,
+  tools: PluginToolRegistryItem[]
+): ToolNodeBinding[] {
   if (!selectedWorkflow?.definition?.nodes) {
     return [];
   }
@@ -156,13 +201,18 @@ function getToolNodeBindings(selectedWorkflow: WorkflowDetail | null): ToolNodeB
         typeof toolConfig?.toolId === "string" ? String(toolConfig.toolId) : flatToolId;
       const ecosystem =
         typeof toolConfig?.ecosystem === "string" ? String(toolConfig.ecosystem) : "native";
+      const currentTool = boundToolId
+        ? tools.find((tool) => tool.id === boundToolId) ?? null
+        : null;
 
       return {
         id: node.id,
         name: node.name,
         currentToolId: boundToolId,
         currentEcosystem: boundToolId ? ecosystem : "-",
-        currentBindingMode: toolConfig ? "config.tool" : flatToolId ? "config.toolId" : "-"
+        currentBindingMode: toolConfig ? "config.tool" : flatToolId ? "config.toolId" : "-",
+        currentTool,
+        missingCatalogEntry: Boolean(boundToolId) && !currentTool
       };
     });
 }
