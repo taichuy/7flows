@@ -143,6 +143,11 @@ cd web
 pnpm lint
 ```
 
+```powershell
+cd web
+pnpm test
+```
+
 ## 容器化启动
 
 如果希望直接跑整套容器：

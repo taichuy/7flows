@@ -41,6 +41,15 @@ type CallbackWaitingExplanationInput = {
   scheduledWaitingStatus?: string | null;
 };
 
+function hasScheduledResumeDelay(
+  scheduledResumeDelaySeconds?: number | null
+): scheduledResumeDelaySeconds is number {
+  return (
+    typeof scheduledResumeDelaySeconds === "number" &&
+    Number.isFinite(scheduledResumeDelaySeconds)
+  );
+}
+
 export type CallbackWaitingDetailRow = {
   label: string;
   value: string;
@@ -126,7 +135,7 @@ export function formatScheduledResumeLabel({
   CallbackWaitingExplanationInput,
   "scheduledResumeDelaySeconds" | "scheduledResumeSource" | "scheduledWaitingStatus"
 >): string | null {
-  if (!scheduledResumeDelaySeconds) {
+  if (!hasScheduledResumeDelay(scheduledResumeDelaySeconds)) {
     return null;
   }
 
@@ -518,7 +527,7 @@ export function listCallbackWaitingOperatorStatuses({
     });
   }
 
-  if (scheduledResumeDelaySeconds) {
+  if (hasScheduledResumeDelay(scheduledResumeDelaySeconds)) {
     statuses.push({
       kind: "scheduled_resume_pending",
       label: "scheduled resume queued",
@@ -707,13 +716,13 @@ export function listCallbackWaitingChips({
     }
     if (typeof lifecycle.last_resume_delay_seconds === "number") {
       chips.push(`resume ${lifecycle.last_resume_delay_seconds}s`);
-    } else if (scheduledResumeDelaySeconds) {
+    } else if (hasScheduledResumeDelay(scheduledResumeDelaySeconds)) {
       chips.push(`scheduled ${scheduledResumeDelaySeconds}s`);
     }
     if (lifecycle.terminated) {
       chips.push("terminated");
     }
-  } else if (scheduledResumeDelaySeconds) {
+  } else if (hasScheduledResumeDelay(scheduledResumeDelaySeconds)) {
     chips.push(`scheduled ${scheduledResumeDelaySeconds}s`);
   }
 
@@ -803,7 +812,7 @@ export function getCallbackWaitingRecommendedAction({
     };
   }
 
-  if (scheduledResumeDelaySeconds) {
+  if (hasScheduledResumeDelay(scheduledResumeDelaySeconds)) {
     return {
       kind: "watch_scheduled_resume",
       label: "Watch the scheduled resume",
