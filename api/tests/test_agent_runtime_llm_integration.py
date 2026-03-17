@@ -771,6 +771,350 @@ def test_llm_agent_can_explicitly_request_skill_reference_before_planning(
     assert "Escalate to finance before any extra spend." in second_plan_content
 
 
+
+def test_llm_agent_assistant_phase_can_explicitly_request_skill_reference(
+    sqlite_session: Session,
+) -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(id="native.search", name="Native Search"),
+        invoker=lambda request: {
+            "status": "success",
+            "content_type": "json",
+            "summary": "search results ready",
+            "structured": {"documents": ["doc1"]},
+            "meta": {"tool_name": "Native Search"},
+        },
+    )
+    runtime = _create_runtime_with_llm(
+        [
+            _openai_response(
+                'SKILL_REFERENCE_REQUEST {"skill_id":"skill-operator-brief",'
+                '"reference_id":"ref-review-checklist",'
+                '"reason":"Need the exact operator checklist before distilling evidence."}'
+            ),
+            _openai_response(
+                json.dumps(
+                    {
+                        "summary": "Evidence distilled with exact checklist.",
+                        "key_points": ["Operator checklist captured"],
+                        "conflicts": [],
+                        "unknowns": [],
+                        "confidence": 0.91,
+                    }
+                )
+            ),
+            _openai_response("Final answer based on distilled evidence."),
+        ],
+        registry=registry,
+    )
+
+    sqlite_session.add(
+        SkillRecord(
+            id="skill-operator-brief",
+            workspace_id="default",
+            name="Operator Brief",
+            description="Draft concise operator-facing replies.",
+            body="Keep the answer concise and operational.",
+        )
+    )
+    sqlite_session.add(
+        SkillReferenceRecord(
+            id="ref-review-checklist",
+            skill_id="skill-operator-brief",
+            name="Review Checklist",
+            description="M47 appendix.",
+            body="Verify checklist owners before shipping.",
+        )
+    )
+
+    workflow = Workflow(
+        id="wf-agent-skill-assistant-request",
+        name="Agent Skill Assistant Request Test",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llm_agent",
+                    "name": "Agent",
+                    "config": {
+                        "goal": "Summarize findings for the operator.",
+                        "prompt": "Analyze search results",
+                        "skillIds": ["skill-operator-brief"],
+                        "skillBinding": {
+                            "enabledPhases": ["assistant_distill"],
+                            "promptBudgetChars": 512,
+                            "references": [],
+                        },
+                        "model": {
+                            "provider": "openai",
+                            "modelId": "gpt-4o",
+                            "apiKey": "sk-test-key",
+                        },
+                        "assistant": {"enabled": True, "trigger": "always"},
+                        "mockPlan": {
+                            "toolCalls": [
+                                {"toolId": "native.search", "inputs": {"query": "test"}}
+                            ],
+                            "needAssistant": True,
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    artifacts = runtime.execute_workflow(sqlite_session, workflow, {"topic": "ops reply"})
+
+    assert artifacts.run.status == "succeeded"
+
+    requested_event = next(
+        event
+        for event in artifacts.events
+        if event.event_type == "agent.skill.references.requested"
+    )
+    assert requested_event.payload == {
+        "node_id": "agent",
+        "phase": "assistant_distill",
+        "skill_id": "skill-operator-brief",
+        "reference_id": "ref-review-checklist",
+        "status": "loaded",
+        "request_index": 1,
+        "request_total": 1,
+        "reason": "Need the exact operator checklist before distilling evidence.",
+        "retrieval_http_path": (
+            "/api/skills/skill-operator-brief/references/ref-review-checklist"
+            "?workspace_id=default"
+        ),
+        "retrieval_mcp_method": "skills.get_reference",
+        "retrieval_mcp_params": {
+            "skill_id": "skill-operator-brief",
+            "reference_id": "ref-review-checklist",
+            "workspace_id": "default",
+        },
+    }
+
+    loaded_events = [
+        event for event in artifacts.events if event.event_type == "agent.skill.references.loaded"
+    ]
+    assert loaded_events[-1].payload == {
+        "node_id": "agent",
+        "phase": "assistant_distill",
+        "references": [
+            {
+                "skill_id": "skill-operator-brief",
+                "skill_name": "Operator Brief",
+                "reference_id": "ref-review-checklist",
+                "reference_name": "Review Checklist",
+                "load_source": "llm_explicit_request",
+                "fetch_reason": "Need the exact operator checklist before distilling evidence.",
+                "fetch_request_index": 1,
+                "fetch_request_total": 1,
+                "retrieval_http_path": (
+                    "/api/skills/skill-operator-brief/references/ref-review-checklist"
+                    "?workspace_id=default"
+                ),
+                "retrieval_mcp_method": "skills.get_reference",
+                "retrieval_mcp_params": {
+                    "skill_id": "skill-operator-brief",
+                    "reference_id": "ref-review-checklist",
+                    "workspace_id": "default",
+                },
+            }
+        ],
+    }
+
+    roles = [record.role for record in artifacts.ai_calls]
+    assert "assistant_distill_skill_reference_request" in roles
+    assert "assistant_distill" in roles
+    assert "main_finalize" in roles
+
+    captured_requests = runtime._llm_provider._captured_requests  # type: ignore[attr-defined]
+    assert len(captured_requests) == 3
+
+    request_content = "\n".join(
+        str(message.get("content", ""))
+        for message in captured_requests[0]["body"]["messages"]
+        if isinstance(message, dict)
+    )
+    distill_content = "\n".join(
+        str(message.get("content", ""))
+        for message in captured_requests[1]["body"]["messages"]
+        if isinstance(message, dict)
+    )
+    assert "Verify checklist owners before shipping." not in request_content
+    assert "Verify checklist owners before shipping." in distill_content
+
+
+
+def test_llm_agent_finalize_phase_can_explicitly_request_skill_reference(
+    sqlite_session: Session,
+) -> None:
+    runtime = _create_runtime_with_llm(
+        [
+            _openai_response(
+                'SKILL_REFERENCE_REQUEST {"skill_id":"skill-operator-brief",'
+                '"reference_id":"ref-canonical-signoff",'
+                '"reason":"Need the exact sign-off clause before finalizing."}'
+            ),
+            _openai_response("Escalate to finance before any extra spend."),
+        ]
+    )
+
+    sqlite_session.add(
+        SkillRecord(
+            id="skill-operator-brief",
+            workspace_id="default",
+            name="Operator Brief",
+            description="Draft concise operator-facing replies.",
+            body="Keep the answer concise and operational.",
+        )
+    )
+    sqlite_session.add(
+        SkillReferenceRecord(
+            id="ref-canonical-signoff",
+            skill_id="skill-operator-brief",
+            name="Canonical Sign-off",
+            description="Required closing clause.",
+            body="Always close with: Escalate to finance before any extra spend.",
+        )
+    )
+
+    workflow = Workflow(
+        id="wf-agent-skill-finalize-request",
+        name="Agent Skill Finalize Request Test",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llm_agent",
+                    "name": "Agent",
+                    "config": {
+                        "goal": "Draft a concise operator response.",
+                        "prompt": "Draft the final reply.",
+                        "skillIds": ["skill-operator-brief"],
+                        "skillBinding": {
+                            "enabledPhases": ["main_finalize"],
+                            "promptBudgetChars": 512,
+                            "references": [],
+                        },
+                        "model": {
+                            "provider": "openai",
+                            "modelId": "gpt-4o",
+                            "apiKey": "sk-test-key",
+                        },
+                        "assistant": {"enabled": False},
+                        "mockPlan": {"toolCalls": []},
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    artifacts = runtime.execute_workflow(sqlite_session, workflow, {"topic": "ops reply"})
+
+    assert artifacts.run.status == "succeeded"
+    agent_run = next(nr for nr in artifacts.node_runs if nr.node_id == "agent")
+    assert agent_run.output_payload["result"] == "Escalate to finance before any extra spend."
+
+    requested_event = next(
+        event
+        for event in artifacts.events
+        if event.event_type == "agent.skill.references.requested"
+    )
+    assert requested_event.payload == {
+        "node_id": "agent",
+        "phase": "main_finalize",
+        "skill_id": "skill-operator-brief",
+        "reference_id": "ref-canonical-signoff",
+        "status": "loaded",
+        "request_index": 1,
+        "request_total": 1,
+        "reason": "Need the exact sign-off clause before finalizing.",
+        "retrieval_http_path": (
+            "/api/skills/skill-operator-brief/references/ref-canonical-signoff"
+            "?workspace_id=default"
+        ),
+        "retrieval_mcp_method": "skills.get_reference",
+        "retrieval_mcp_params": {
+            "skill_id": "skill-operator-brief",
+            "reference_id": "ref-canonical-signoff",
+            "workspace_id": "default",
+        },
+    }
+
+    loaded_events = [
+        event for event in artifacts.events if event.event_type == "agent.skill.references.loaded"
+    ]
+    assert loaded_events[-1].payload == {
+        "node_id": "agent",
+        "phase": "main_finalize",
+        "references": [
+            {
+                "skill_id": "skill-operator-brief",
+                "skill_name": "Operator Brief",
+                "reference_id": "ref-canonical-signoff",
+                "reference_name": "Canonical Sign-off",
+                "load_source": "llm_explicit_request",
+                "fetch_reason": "Need the exact sign-off clause before finalizing.",
+                "fetch_request_index": 1,
+                "fetch_request_total": 1,
+                "retrieval_http_path": (
+                    "/api/skills/skill-operator-brief/references/ref-canonical-signoff"
+                    "?workspace_id=default"
+                ),
+                "retrieval_mcp_method": "skills.get_reference",
+                "retrieval_mcp_params": {
+                    "skill_id": "skill-operator-brief",
+                    "reference_id": "ref-canonical-signoff",
+                    "workspace_id": "default",
+                },
+            }
+        ],
+    }
+
+    roles = [record.role for record in artifacts.ai_calls]
+    assert "main_finalize_skill_reference_request" in roles
+    assert "main_finalize" in roles
+
+    captured_requests = runtime._llm_provider._captured_requests  # type: ignore[attr-defined]
+    assert len(captured_requests) == 2
+
+    request_content = "\n".join(
+        str(message.get("content", ""))
+        for message in captured_requests[0]["body"]["messages"]
+        if isinstance(message, dict)
+    )
+    finalize_content = "\n".join(
+        str(message.get("content", ""))
+        for message in captured_requests[1]["body"]["messages"]
+        if isinstance(message, dict)
+    )
+    assert "Always close with: Escalate to finance before any extra spend." not in request_content
+    assert "Always close with: Escalate to finance before any extra spend." in finalize_content
+
+
+
 # ---------------------------------------------------------------------------
 # Test: LLM finalize with tools
 # ---------------------------------------------------------------------------

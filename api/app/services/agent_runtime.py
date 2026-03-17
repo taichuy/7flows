@@ -392,6 +392,35 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
                 phase="assistant_distill",
                 loaded_references=assistant_skill_reference_loads,
             )
+            (
+                assistant_node_input,
+                assistant_explicit_skill_reference_loads,
+                assistant_skill_reference_request_event,
+            ) = self._maybe_apply_phase_skill_reference_request(
+                db,
+                run_id=run_id,
+                node_run=node_run,
+                node=node,
+                phase="assistant_distill",
+                config=config,
+                model_config=model_config,
+                base_node_input=enriched_node_input,
+                phase_node_input=assistant_node_input,
+                retrieval_query=assistant_skill_query,
+                current_loaded_references=assistant_skill_reference_loads,
+                plan=plan,
+                tool_results=tool_results,
+                evidence_pack=evidence_pack,
+            )
+            if assistant_skill_reference_request_event is not None:
+                events.append(assistant_skill_reference_request_event)
+            if assistant_explicit_skill_reference_loads:
+                self._emit_skill_reference_fetch_event(
+                    events,
+                    node=node,
+                    phase="assistant_distill",
+                    loaded_references=assistant_explicit_skill_reference_loads,
+                )
             distilled_evidence, distill_llm_response = self._distill_evidence(
                 config,
                 model_config,
@@ -466,17 +495,46 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             phase="main_finalize",
             loaded_references=finalize_skill_reference_loads,
         )
+        (
+            finalize_node_input,
+            finalize_explicit_skill_reference_loads,
+            finalize_skill_reference_request_event,
+        ) = self._maybe_apply_phase_skill_reference_request(
+            db,
+            run_id=run_id,
+            node_run=node_run,
+            node=node,
+            phase="main_finalize",
+            config=config,
+            model_config=model_config,
+            base_node_input=enriched_node_input,
+            phase_node_input=finalize_node_input,
+            retrieval_query=finalize_skill_query,
+            current_loaded_references=finalize_skill_reference_loads,
+            plan=plan,
+            tool_results=tool_results,
+            evidence_pack=evidence_pack,
+        )
+        if finalize_skill_reference_request_event is not None:
+            events.append(finalize_skill_reference_request_event)
+        if finalize_explicit_skill_reference_loads:
+            self._emit_skill_reference_fetch_event(
+                events,
+                node=node,
+                phase="main_finalize",
+                loaded_references=finalize_explicit_skill_reference_loads,
+            )
         final_output, finalize_llm_response, streaming_deltas_emitted = self._finalize_output(
             config=config,
             model_config=model_config,
             plan=plan,
-                tool_results=tool_results,
-                evidence_pack=evidence_pack,
-                artifact_refs=artifact_refs,
-                node_input=finalize_node_input,
-                events=events,
-                node=node,
-            )
+            tool_results=tool_results,
+            evidence_pack=evidence_pack,
+            artifact_refs=artifact_refs,
+            node_input=finalize_node_input,
+            events=events,
+            node=node,
+        )
         self._record_ai_call(
             db,
             run_id=run_id,
@@ -874,6 +932,150 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
         return "\n".join(parts)
 
     @staticmethod
+    def _phase_skill_reference_request_role(phase: str) -> str:
+        return f"{phase}_skill_reference_request"
+
+    @staticmethod
+    def _phase_skill_reference_request_task_label(phase: str) -> str:
+        if phase == "assistant_distill":
+            return "distilling tool results into structured evidence"
+        if phase == "main_finalize":
+            return "finalizing the operator-visible response"
+        return "the current phase"
+
+    def _build_phase_skill_reference_request_prompt(
+        self,
+        *,
+        phase: str,
+        config: dict[str, Any],
+        retrieval_query: str,
+    ) -> str:
+        task = self._phase_skill_reference_request_task_label(phase)
+        parts = [
+            f"Decide whether you need exactly one deeper skill reference body before {task}.",
+            "Only request a reference when the current skill summaries/handles are not enough.",
+        ]
+        goal = str(config.get("goal") or "").strip()
+        if goal:
+            parts.append(f"Goal: {goal}")
+        prompt = str(config.get("prompt") or "").strip()
+        if prompt:
+            parts.append(f"Prompt: {prompt}")
+        if retrieval_query.strip():
+            parts.append("[Current phase context]\n" + retrieval_query.strip())
+        return "\n\n".join(parts)
+
+    def _maybe_apply_phase_skill_reference_request(
+        self,
+        db: Session,
+        *,
+        run_id: str,
+        node_run: NodeRun,
+        node: dict[str, Any],
+        phase: str,
+        config: dict[str, Any],
+        model_config: dict[str, Any],
+        base_node_input: dict[str, Any],
+        phase_node_input: dict[str, Any],
+        retrieval_query: str,
+        current_loaded_references: list[dict[str, Any]],
+        plan: Any | None = None,
+        tool_results: list[ToolExecutionResult] | None = None,
+        evidence_pack: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]], RuntimeEvent | None]:
+        if phase not in {"assistant_distill", "main_finalize"}:
+            return phase_node_input, [], None
+        if not self._has_pending_skill_references(phase_node_input):
+            return phase_node_input, [], None
+
+        phase_model_config = (
+            self._assistant_model_config(config, model_config)
+            if phase == "assistant_distill"
+            else model_config
+        )
+        if not self._has_valid_model_config(phase_model_config):
+            return phase_node_input, [], None
+
+        task = self._phase_skill_reference_request_task_label(phase)
+        try:
+            llm_response = self._call_llm(
+                model_config=phase_model_config,
+                system_prompt=(
+                    f"You are preparing {task}. If the current [Skills] section only gives "
+                    "summaries/handles and you need exactly one deeper skill reference body, "
+                    "start your response with a single line in the format: "
+                    'SKILL_REFERENCE_REQUEST {"skill_id":"...","reference_id":"...",'
+                    '"reason":"..."}. Only request one reference and only when it is genuinely '
+                    "necessary."
+                ),
+                user_prompt=self._build_phase_skill_reference_request_prompt(
+                    phase=phase,
+                    config=config,
+                    retrieval_query=retrieval_query,
+                ),
+                node_input=phase_node_input,
+            )
+        except WorkflowExecutionError:
+            _log.warning(
+                "LLM %s skill reference request call failed, continuing without extra skill fetch",
+                phase,
+            )
+            return phase_node_input, [], None
+
+        request, _ = self._parse_plan_response(
+            llm_response.text,
+            allow_skill_reference_request=True,
+        )
+        if request is None:
+            return phase_node_input, [], None
+
+        input_value: dict[str, Any] = {
+            "phase": phase,
+            "skill_context": phase_node_input.get("skill_context"),
+        }
+        if tool_results:
+            input_value["tool_results"] = [
+                self._tool_result_to_dict(result) for result in tool_results
+            ]
+        if evidence_pack:
+            input_value["evidence_pack"] = evidence_pack
+        if phase == "main_finalize":
+            input_value["working_context"] = node_run.working_context
+        if plan is not None and getattr(plan, "analysis", ""):
+            input_value["plan_analysis"] = str(plan.analysis)
+
+        self._record_ai_call(
+            db,
+            run_id=run_id,
+            node_run=node_run,
+            role=self._phase_skill_reference_request_role(phase),
+            model_config=phase_model_config,
+            input_value=input_value,
+            output_value={
+                "phase": phase,
+                "skill_reference_request": {
+                    "skill_id": request.skill_id,
+                    "reference_id": request.reference_id,
+                    "reason": request.reason,
+                },
+            },
+            assistant=phase == "assistant_distill",
+            llm_response=llm_response,
+        )
+
+        updated_node_input, delta_loads, event = self._apply_phase_skill_reference_request(
+            db,
+            config=config,
+            node=node,
+            phase=phase,
+            base_node_input=base_node_input,
+            retrieval_query=retrieval_query,
+            current_loaded_references=current_loaded_references,
+            request=request,
+        )
+        return updated_node_input, delta_loads, event
+
+    @staticmethod
     def _append_skill_reference_load_spec(
         reference_load_specs_by_skill: dict[str, list[dict[str, Any]]],
         *,
@@ -954,12 +1156,13 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             str(item.get("reference_id") or "").strip(),
         )
 
-    def _apply_plan_skill_reference_request(
+    def _apply_phase_skill_reference_request(
         self,
         db: Session,
         *,
         config: dict[str, Any],
         node: dict[str, Any],
+        phase: str,
         base_node_input: dict[str, Any],
         retrieval_query: str,
         current_loaded_references: list[dict[str, Any]],
@@ -981,7 +1184,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             status = "skill_not_bound"
             return phase_node_input, [], self._build_skill_reference_request_event(
                 node=node,
-                phase="main_plan",
+                phase=phase,
                 request=request,
                 status=status,
                 retrieval=retrieval,
@@ -997,7 +1200,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             status = "reference_not_found"
             return phase_node_input, [], self._build_skill_reference_request_event(
                 node=node,
-                phase="main_plan",
+                phase=phase,
                 request=request,
                 status=status,
                 retrieval=retrieval,
@@ -1011,7 +1214,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             status = "already_loaded"
             return phase_node_input, [], self._build_skill_reference_request_event(
                 node=node,
-                phase="main_plan",
+                phase=phase,
                 request=request,
                 status=status,
                 retrieval=retrieval,
@@ -1020,7 +1223,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
         skill_context, enriched_loaded_references = self._resolve_skill_context(
             db,
             config,
-            phase="main_plan",
+            phase=phase,
             retrieval_query=retrieval_query,
             explicit_request=request,
         )
@@ -1036,7 +1239,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             status = "requested_not_inlined"
             return phase_node_input, [], self._build_skill_reference_request_event(
                 node=node,
-                phase="main_plan",
+                phase=phase,
                 request=request,
                 status=status,
                 retrieval=retrieval,
@@ -1053,10 +1256,32 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             phase_node_input.pop("skill_context", None)
         return phase_node_input, delta_loads, self._build_skill_reference_request_event(
             node=node,
-            phase="main_plan",
+            phase=phase,
             request=request,
             status=status,
             retrieval=retrieval,
+        )
+
+    def _apply_plan_skill_reference_request(
+        self,
+        db: Session,
+        *,
+        config: dict[str, Any],
+        node: dict[str, Any],
+        base_node_input: dict[str, Any],
+        retrieval_query: str,
+        current_loaded_references: list[dict[str, Any]],
+        request: AgentSkillReferenceRequest,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]], RuntimeEvent | None]:
+        return self._apply_phase_skill_reference_request(
+            db,
+            config=config,
+            node=node,
+            phase="main_plan",
+            base_node_input=base_node_input,
+            retrieval_query=retrieval_query,
+            current_loaded_references=current_loaded_references,
+            request=request,
         )
 
     @staticmethod
