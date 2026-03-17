@@ -1,4 +1,4 @@
-﻿# Deprecated: Single-Maintainer User Preferences
+# Deprecated: Single-Maintainer User Preferences
 
 - Deprecated on: 2026-03-17
 - Reason: shared repo conventions were split into committed team conventions and uncommitted per-developer local notes.
@@ -332,4 +332,3 @@
 - 影响范围：`docs/dev/runtime-foundation.md`、`docs/history/`、`docs/expired/`、仓库协作约定，以及后续任务的事实同步与优先级规划。
 - 落地动作：本轮已把压缩过程说明放到 `docs/history/2026-03-14-runtime-foundation-compression.md`，并将旧版长文归档到 `docs/expired/2026-03-14-runtime-foundation-history-expired.md`；后续若再次膨胀，将继续按“当前事实优先、历史另行归档”的方式维护。
 - 备注：这条偏好优先级高于继续往主文档追加历史过程，因为 `runtime-foundation.md` 首先要服务后续开发决策，而不是充当完整流水账。
-
