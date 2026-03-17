@@ -3,6 +3,7 @@ import { SensitiveAccessBlockedCard } from "@/components/sensitive-access-blocke
 import { WorkflowPublishActivityPanel } from "@/components/workflow-publish-activity-panel";
 import { WorkflowPublishApiKeyManager } from "@/components/workflow-publish-api-key-manager";
 import { WorkflowPublishLifecycleForm } from "@/components/workflow-publish-lifecycle-form";
+import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type {
   PublishedEndpointApiKeyItem,
   PublishedEndpointCacheInventoryResponse,
@@ -17,6 +18,7 @@ import { formatTimestamp } from "@/lib/runtime-presenters";
 
 type WorkflowPublishBindingCardProps = {
   workflow: WorkflowDetail;
+  tools: PluginToolRegistryItem[];
   binding: WorkflowPublishedEndpointItem;
   cacheInventory: SensitiveAccessGuardedResult<PublishedEndpointCacheInventoryResponse>;
   apiKeys: PublishedEndpointApiKeyItem[];
@@ -29,6 +31,7 @@ type WorkflowPublishBindingCardProps = {
 
 export function WorkflowPublishBindingCard({
   workflow,
+  tools,
   binding,
   cacheInventory,
   apiKeys,
@@ -136,6 +139,7 @@ export function WorkflowPublishBindingCard({
 
       <WorkflowPublishActivityPanel
         workflowId={workflow.id}
+        tools={tools}
         binding={binding}
         apiKeys={apiKeys}
         invocationAudit={invocationAudit}

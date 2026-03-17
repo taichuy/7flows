@@ -1,7 +1,9 @@
 import Link from "next/link";
 
 import { SensitiveAccessTimelineEntryList } from "@/components/sensitive-access-timeline-entry-list";
+import { ToolGovernanceSummary } from "@/components/tool-governance-summary";
 import { WorkflowPublishInvocationCallbackSection } from "@/components/workflow-publish-invocation-callback-section";
+import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { PublishedEndpointInvocationDetailResponse } from "@/lib/get-workflow-publish";
 import {
   buildBlockingPublishedInvocationInboxHref,
@@ -12,6 +14,7 @@ import { formatDurationMs, formatKeyList, formatTimestamp } from "@/lib/runtime-
 type WorkflowPublishInvocationDetailPanelProps = {
   detail: PublishedEndpointInvocationDetailResponse;
   clearHref: string;
+  tools: PluginToolRegistryItem[];
 };
 
 function formatJsonPreview(value: unknown): string {
@@ -20,7 +23,8 @@ function formatJsonPreview(value: unknown): string {
 
 export function WorkflowPublishInvocationDetailPanel({
   detail,
-  clearHref
+  clearHref,
+  tools
 }: WorkflowPublishInvocationDetailPanelProps) {
   const {
     invocation,
@@ -43,6 +47,14 @@ export function WorkflowPublishInvocationDetailPanel({
     callbackTickets,
     sensitiveAccessEntries
   });
+  const toolsById = new Map(tools.map((tool) => [tool.id, tool]));
+  const involvedToolIds = Array.from(
+    new Set(callbackTickets.map((ticket) => ticket.tool_id).filter((toolId): toolId is string => Boolean(toolId)))
+  );
+  const involvedTools = involvedToolIds
+    .map((toolId) => toolsById.get(toolId) ?? null)
+    .filter((tool): tool is PluginToolRegistryItem => tool !== null);
+  const unresolvedToolIds = involvedToolIds.filter((toolId) => !toolsById.has(toolId));
 
   return (
     <article className="entry-card compact-card publish-invocation-detail-panel">
@@ -152,6 +164,37 @@ export function WorkflowPublishInvocationDetailPanel({
         callbackTickets={callbackTickets}
         sensitiveAccessEntries={sensitiveAccessEntries}
       />
+
+      {involvedTools.length > 0 || unresolvedToolIds.length > 0 ? (
+        <div>
+          <strong>Tool governance context</strong>
+          <p className="section-copy entry-copy">
+            把 callback waiting 关联 tool 的默认执行边界和敏感级别一起带到 publish detail，避免 operator 只看到阻断结果却看不见治理原因。
+          </p>
+          {unresolvedToolIds.length ? (
+            <div className="tool-badge-row">
+              {unresolvedToolIds.map((toolId) => (
+                <span className="event-chip" key={`missing-tool-${toolId}`}>
+                  missing catalog entry {toolId}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {involvedTools.length ? (
+            <div className="publish-cache-list">
+              {involvedTools.map((tool) => (
+                <ToolGovernanceSummary
+                  key={`tool-governance-${tool.id}`}
+                  tool={tool}
+                  title="Execution and sensitivity"
+                  subtitle={tool.name}
+                  trailingChip={tool.id}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {blockingSensitiveAccessEntries.length > 0 &&
       blockingSensitiveAccessEntries.length < sensitiveAccessEntries.length ? (

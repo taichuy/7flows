@@ -1,4 +1,5 @@
 import { WorkflowPublishBindingCard } from "@/components/workflow-publish-binding-card";
+import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type {
   PublishedEndpointApiKeyItem,
   PublishedEndpointCacheInventoryResponse,
@@ -12,6 +13,7 @@ import type { WorkflowDetail } from "@/lib/get-workflows";
 
 type WorkflowPublishPanelProps = {
   workflow: WorkflowDetail;
+  tools: PluginToolRegistryItem[];
   bindings: WorkflowPublishedEndpointItem[];
   cacheInventories: Record<string, SensitiveAccessGuardedResult<PublishedEndpointCacheInventoryResponse>>;
   apiKeysByBinding: Record<string, PublishedEndpointApiKeyItem[]>;
@@ -30,6 +32,7 @@ type WorkflowPublishPanelProps = {
 
 export function WorkflowPublishPanel({
   workflow,
+  tools,
   bindings,
   cacheInventories,
   apiKeysByBinding,
@@ -104,6 +107,7 @@ export function WorkflowPublishPanel({
               <WorkflowPublishBindingCard
                 key={binding.id}
                 workflow={workflow}
+                tools={tools}
                 binding={binding}
                 cacheInventory={cacheInventories[binding.id] ?? null}
                 apiKeys={apiKeysByBinding[binding.id] ?? []}

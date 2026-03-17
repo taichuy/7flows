@@ -50,6 +50,7 @@ function buildInvocationDetailHref(
 
 export function WorkflowPublishActivityPanel({
   workflowId,
+  tools,
   binding,
   apiKeys,
   invocationAudit,
@@ -106,6 +107,7 @@ export function WorkflowPublishActivityPanel({
       />
 
       <WorkflowPublishActivityDetails
+        tools={tools}
         invocationAudit={invocationAudit}
         selectedInvocationId={selectedInvocationId}
         selectedInvocationDetail={selectedInvocationDetail}

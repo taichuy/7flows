@@ -2,6 +2,7 @@ import { SensitiveAccessBlockedCard } from "@/components/sensitive-access-blocke
 import { WorkflowPublishTrafficTimeline } from "@/components/workflow-publish-traffic-timeline";
 import { WorkflowPublishInvocationDetailPanel } from "@/components/workflow-publish-invocation-detail-panel";
 import { WorkflowPublishInvocationEntryCard } from "@/components/workflow-publish-invocation-entry-card";
+import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type {
   PublishedEndpointInvocationDetailResponse,
   PublishedEndpointInvocationListResponse
@@ -190,6 +191,7 @@ export function WorkflowPublishActivityInsights({
 }
 
 type WorkflowPublishActivityDetailsProps = {
+  tools: PluginToolRegistryItem[];
   invocationAudit: PublishedEndpointInvocationListResponse | null;
   selectedInvocationId: string | null;
   selectedInvocationDetail: SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>;
@@ -198,6 +200,7 @@ type WorkflowPublishActivityDetailsProps = {
 };
 
 export function WorkflowPublishActivityDetails({
+  tools,
   invocationAudit,
   selectedInvocationId,
   selectedInvocationDetail,
@@ -265,6 +268,7 @@ export function WorkflowPublishActivityDetails({
               <WorkflowPublishInvocationDetailPanel
                 clearHref={clearInvocationDetailHref}
                 detail={selectedInvocationDetail.data}
+                tools={tools}
               />
             ) : selectedInvocationDetail?.kind === "blocked" ? (
               <SensitiveAccessBlockedCard

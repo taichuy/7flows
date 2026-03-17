@@ -1,9 +1,11 @@
 import { syncAdapterTools } from "@/app/actions/workflow";
 import { AdapterSyncForm } from "@/components/adapter-sync-form";
+import { ToolGovernanceSummary } from "@/components/tool-governance-summary";
 import type {
   PluginAdapterRegistryItem,
   PluginToolRegistryItem
 } from "@/lib/get-plugin-registry";
+import { compareToolsByGovernance } from "@/lib/tool-governance";
 
 type PluginRegistryPanelProps = {
   adapters: PluginAdapterRegistryItem[];
@@ -14,6 +16,8 @@ export function PluginRegistryPanel({
   adapters,
   tools
 }: PluginRegistryPanelProps) {
+  const sortedTools = [...tools].sort(compareToolsByGovernance);
+
   return (
     <>
       <article className="diagnostic-panel">
@@ -77,10 +81,10 @@ export function PluginRegistryPanel({
         </div>
 
         <div className="tool-list">
-          {tools.length === 0 ? (
+          {sortedTools.length === 0 ? (
             <p className="empty-state">尚未同步任何 compat 工具。</p>
           ) : (
-            tools.map((tool) => {
+            sortedTools.map((tool) => {
               const inputFields = getInputFieldNames(tool.input_schema);
               const origin = readPluginMetaString(tool.plugin_meta, "origin");
               const author = readPluginMetaString(tool.plugin_meta, "author");
@@ -110,6 +114,8 @@ export function PluginRegistryPanel({
                   </div>
 
                   <div className="tool-detail-grid">
+                    <ToolGovernanceSummary tool={tool} />
+
                     <div className="payload-card compact-card">
                       <div className="payload-card-header">
                         <span className="status-meta">Input fields</span>

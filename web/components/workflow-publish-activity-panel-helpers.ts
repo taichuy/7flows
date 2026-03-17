@@ -1,4 +1,7 @@
 import type {
+  PluginToolRegistryItem,
+} from "@/lib/get-plugin-registry";
+import type {
   PublishedEndpointApiKeyItem,
   PublishedEndpointInvocationDetailResponse,
   PublishedEndpointInvocationFacetItem,
@@ -17,6 +20,7 @@ import {
 
 export type WorkflowPublishActivityPanelProps = {
   workflowId: string;
+  tools: PluginToolRegistryItem[];
   binding: WorkflowPublishedEndpointItem;
   apiKeys: PublishedEndpointApiKeyItem[];
   invocationAudit: PublishedEndpointInvocationListResponse | null;

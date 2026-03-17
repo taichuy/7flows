@@ -174,6 +174,7 @@ export default async function WorkflowEditorPage({
       />
       <WorkflowPublishPanel
         workflow={workflow}
+        tools={pluginRegistry.tools}
         bindings={publishedEndpoints}
         cacheInventories={cacheInventories}
         apiKeysByBinding={apiKeysByBinding}
