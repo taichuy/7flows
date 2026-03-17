@@ -173,6 +173,7 @@ docker compose up -d --build
 
 ## AI 协作与 Skills
 
+- `.agents/skills/autonomous-development`：当用户要求 AI 作为持续迭代开发者时，用于按 7Flows 工程观判断阶段问题、单轮优先级和主链闭环推进方向。
 - `.agents/skills/development-closure`：一轮开发收尾时的验证、文档同步、提交与下一步规划闭环。
 - `.agents/skills/skill-governance`：优化 skill、AGENTS 规则和 AI 协作流程时的分层与索引治理。
 - `.agents/skills/backend-code-review`：后端 review、运行时、迁移、发布接口、插件代理与安全边界审查。
@@ -181,7 +182,7 @@ docker compose up -d --build
 - `.agents/skills/component-refactoring`：复杂 React 组件、配置面板、调试面板和编辑器壳层拆分。
 - `.agents/skills/frontend-testing`：前端测试设计、补测和测试基础设施判断。
 - `.agents/skills/orpc-contract-first`：只有在明确引入 oRPC 合同优先 API 层时才启用。
-- AI 协作开发默认先判断是否需要“元流程 skill + 领域 skill”组合，再结合 `docs/dev/runtime-foundation.md` 和产品/技术/策略基线落地。
+- AI 协作开发默认先判断是否需要 `autonomous-development` / `development-closure` 这类“元流程 skill + 领域 skill”组合，再结合 `docs/dev/runtime-foundation.md` 和产品/技术/策略基线落地。
 
 ## 当前优先级
 

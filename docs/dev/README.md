@@ -14,7 +14,7 @@
 - `docs/open-source-commercial-strategy.md`
   说明 OpenClaw-first 对外切口、开源/商业边界、版本分层与传播/付费对象。
 - `.agents/skills/`
-  说明 AI 在开发收尾、skill 治理、后端 review / testing、前端 review / testing、组件重构和合同优先等任务上的专项工作流。
+  说明 AI 在持续自治开发、开发收尾、skill 治理、后端 review / testing、前端 review / testing、组件重构和合同优先等任务上的专项工作流。
 
 ## 文档维护约定
 

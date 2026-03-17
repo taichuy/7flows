@@ -12,7 +12,7 @@
 - `docs/dev/`：当前有效索引，例如 `runtime-foundation.md`、`user-preferences.md`
 - `docs/history/`：按日期归档的开发记录与阶段性决策
 - `docs/expired/`：废弃但保留历史价值的文档
-- `.agents/skills/`：AI 协作开发时优先复用的元流程 skill、专项流程、审查规则和参考资料
+- `.agents/skills/`：AI 协作开发时优先复用的元流程 skill、专项流程、审查规则和参考资料，例如持续自治开发、开发收尾、审查、测试和组件拆分
 
 ## 本地可以可以参考项目仓库和代码：
 E:\code\taichuCode\dify
