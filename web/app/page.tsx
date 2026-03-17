@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { CredentialStorePanel } from "@/components/credential-store-panel";
 import { PluginRegistryPanel } from "@/components/plugin-registry-panel";
+import { SandboxReadinessPanel } from "@/components/sandbox-readiness-panel";
 import { StatusCard } from "@/components/status-card";
 import { WorkflowToolBindingPanel } from "@/components/workflow-tool-binding-panel";
 import { getCredentials } from "@/lib/get-credentials";
@@ -91,6 +92,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         {overview.services.map((service) => (
           <StatusCard key={service.name} service={service} />
         ))}
+      </section>
+
+      <section className="diagnostics-layout">
+        <SandboxReadinessPanel readiness={overview.sandbox_readiness} />
       </section>
 
       <section className="diagnostics-layout">

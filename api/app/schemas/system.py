@@ -39,6 +39,28 @@ class SandboxBackendCheck(BaseModel):
     detail: str | None = None
 
 
+class SandboxExecutionClassReadinessCheck(BaseModel):
+    execution_class: str
+    available: bool
+    backend_ids: list[str] = Field(default_factory=list)
+    reason: str | None = None
+
+
+class SandboxReadinessCheck(BaseModel):
+    enabled_backend_count: int = 0
+    healthy_backend_count: int = 0
+    degraded_backend_count: int = 0
+    offline_backend_count: int = 0
+    execution_classes: list[SandboxExecutionClassReadinessCheck] = Field(default_factory=list)
+    supported_languages: list[str] = Field(default_factory=list)
+    supported_profiles: list[str] = Field(default_factory=list)
+    supported_dependency_modes: list[str] = Field(default_factory=list)
+    supports_builtin_package_sets: bool = False
+    supports_backend_extensions: bool = False
+    supports_network_policy: bool = False
+    supports_filesystem_policy: bool = False
+
+
 class PluginToolCheck(BaseModel):
     id: str
     name: str
@@ -88,5 +110,6 @@ class SystemOverview(BaseModel):
     capabilities: list[str]
     plugin_adapters: list[CompatibilityAdapterCheck] = Field(default_factory=list)
     sandbox_backends: list[SandboxBackendCheck] = Field(default_factory=list)
+    sandbox_readiness: SandboxReadinessCheck = Field(default_factory=SandboxReadinessCheck)
     plugin_tools: list[PluginToolCheck] = Field(default_factory=list)
     runtime_activity: RuntimeActivityCheck = Field(default_factory=RuntimeActivityCheck)
