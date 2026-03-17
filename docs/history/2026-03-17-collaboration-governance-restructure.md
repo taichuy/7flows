@@ -32,6 +32,7 @@ The repository owner also decided that shared repo governance should use English
 
 - Added `.agents/skills/safe-change-review/SKILL.md`.
 - Updated `AGENTS.md` with `P0` review scope for prompt / skill / governance / script / bootstrap / local-execution-boundary changes.
+- Declared `taichuy_dev` as the default pull request target branch for future contributors unless maintainers explicitly provide a temporary override.
 - Wrote the local-first / loopback-first rule into shared conventions: no required remote scripts, CDN bootstrap assets, external notification endpoints, or hidden downloads inside local development flows.
 
 ### 4. Active index and skill migration

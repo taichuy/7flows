@@ -87,6 +87,7 @@
 
 - `AGENTS.md`、`.agents/skills/`、`docs/dev/team-conventions.md`、`docs/adr/`、`scripts/`、`docker/`、CI/workflow 配置、package manager hook、shell / PowerShell / Python / batch 脚本，以及 prompt / automation instruction 都属于 `P0` review 范围。
 - 允许在本地验证后自动提交到分支，但涉及上述高风险范围的改动在合并前必须经过人工审查，并使用专门的 review skill 做谨慎总结。
+- Default repository pull requests must target `taichuy_dev` unless maintainers explicitly set a temporary alternative target.
 - 本仓库开发与测试路径必须保持 local-first、loopback-first；不要引入必需的远程脚本、CDN 资源、外部 webhook、外部通知端点或第三方托管依赖来完成本地开发主链。
 - 禁止把任何非本地开发组件的外部链接、远程安装脚本、`curl | bash`、隐藏下载动作或隐式联网执行路径写入共享开发脚本、skill、prompt、README 或协作守则。
 - 允许引用的开发依赖应优先是 workspace 内文件、本机 sibling repo、本地回环服务或仓库内已有组件；任何超出该范围的连接都应视为异常并在 review 中重点审查。

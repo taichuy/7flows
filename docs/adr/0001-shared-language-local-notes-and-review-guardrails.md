@@ -18,6 +18,7 @@
 5. High-risk governance changes may be auto-committed to a branch after validation, but require human review before merge.
 6. Prompt, skill, governance, script, bootstrap, and local-execution-boundary changes are `P0` review scope and must be reviewed with the `safe-change-review` skill.
 7. Local development flows must stay local-first and loopback-first; shared development paths must not depend on remote scripts, external notification endpoints, or externally hosted bootstrap assets.
+8. Default repository pull requests target `taichuy_dev` unless maintainers explicitly announce a temporary override.
 
 ## Consequences
 

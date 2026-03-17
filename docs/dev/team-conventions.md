@@ -38,6 +38,7 @@ This file stores shared, durable collaboration conventions for every contributor
 ## Review And Merge Guardrails
 
 - Auto-committing to a branch after local validation is allowed.
+- Default repository pull requests must target the `taichuy_dev` branch unless maintainers explicitly announce a temporary override.
 - Human review is required before merge for prompt, governance, skill, script, and local-execution-boundary changes.
 - Use `.agents/skills/safe-change-review/SKILL.md` for that review path.
 

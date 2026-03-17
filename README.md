@@ -175,6 +175,7 @@ docker compose up -d --build
 - `docs/history/`：按日期归档的开发记录、阶段性方案与验证留痕。
 - `docs/expired/`：已废弃但保留历史价值的文档。
 - Shared governance docs, ADRs, new skills, and newly added standing repo rules are English-first from 2026-03-17 onward; legacy Chinese documents can be migrated incrementally.
+- Default repository pull requests should target `taichuy_dev` unless maintainers explicitly announce a different integration branch.
 
 ## AI 协作与 Skills
 

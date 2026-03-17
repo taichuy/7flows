@@ -57,5 +57,6 @@ Before approval, produce a short review summary that states:
 ## Merge policy
 
 - Auto-commit to a branch after validation is allowed.
+- Verify that the pull request targets `taichuy_dev`, unless maintainers explicitly documented a temporary alternative integration branch.
 - Human review before merge is mandatory for this skill's trigger scope.
 - If the reviewer cannot confidently explain the new behavior, do not approve the merge.
