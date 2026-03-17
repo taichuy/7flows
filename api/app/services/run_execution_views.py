@@ -7,7 +7,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.run import RunCallbackTicket
-from app.schemas.run_views import RunExecutionNodeItem, RunExecutionSummary, RunExecutionView
+from app.schemas.run_views import (
+    RunExecutionNodeItem,
+    RunExecutionSummary,
+    RunExecutionView,
+    SkillReferenceLoadItem,
+    SkillReferenceLoadReferenceItem,
+)
 from app.services.run_view_serializers import (
     serialize_ai_call,
     serialize_callback_ticket,
@@ -16,11 +22,14 @@ from app.services.run_view_serializers import (
     serialize_run_callback_waiting_summary,
     serialize_tool_call,
 )
-from app.services.runtime_execution_policy import execution_policy_from_node_run_input
+from app.services.runtime_execution_policy import (
+    execution_policy_from_node_run_input,
+)
 from app.services.runtime_records import ExecutionArtifacts
-from app.services.sensitive_access_presenters import serialize_sensitive_access_timeline_entry
+from app.services.sensitive_access_presenters import (
+    serialize_sensitive_access_timeline_entry,
+)
 from app.services.sensitive_access_timeline import SensitiveAccessTimelineSnapshot
-
 
 _EXECUTION_SIGNAL_EVENT_TYPES = {
     "node.execution.dispatched",
@@ -30,6 +39,8 @@ _EXECUTION_SIGNAL_EVENT_TYPES = {
     "tool.execution.fallback",
     "tool.execution.blocked",
 }
+
+_SKILL_REFERENCE_LOAD_EVENT_TYPE = "agent.skill.references.loaded"
 
 
 @dataclass
@@ -60,6 +71,14 @@ class RunExecutionSignalSummary:
     sandbox_backend_counts: dict[str, int] = field(default_factory=dict)
 
 
+@dataclass
+class RunSkillReferenceLoadSummary:
+    by_node_run: dict[str, list[SkillReferenceLoadItem]] = field(default_factory=dict)
+    reference_count: int = 0
+    phase_counts: dict[str, int] = field(default_factory=dict)
+    source_counts: dict[str, int] = field(default_factory=dict)
+
+
 def list_callback_tickets(db: Session, run_id: str) -> list[RunCallbackTicket]:
     return db.scalars(
         select(RunCallbackTicket)
@@ -75,6 +94,7 @@ def build_run_execution_view(
 ) -> RunExecutionView:
     assistant_call_count = sum(1 for call in artifacts.ai_calls if call.assistant)
     execution_signals = summarize_execution_signals(artifacts)
+    skill_reference_loads = summarize_skill_reference_loads(artifacts)
     return RunExecutionView(
         run_id=artifacts.run.id,
         workflow_id=artifacts.run.workflow_id,
@@ -98,6 +118,7 @@ def build_run_execution_view(
             ai_call_count=len(artifacts.ai_calls),
             assistant_call_count=assistant_call_count,
             callback_ticket_count=len(callback_tickets),
+            skill_reference_load_count=skill_reference_loads.reference_count,
             sensitive_access_request_count=sensitive_access_timeline.request_count,
             sensitive_access_approval_ticket_count=sensitive_access_timeline.approval_ticket_count,
             sensitive_access_notification_count=sensitive_access_timeline.notification_count,
@@ -114,6 +135,8 @@ def build_run_execution_view(
             execution_effective_class_counts=execution_signals.effective_class_counts,
             execution_executor_ref_counts=execution_signals.executor_ref_counts,
             execution_sandbox_backend_counts=execution_signals.sandbox_backend_counts,
+            skill_reference_phase_counts=skill_reference_loads.phase_counts,
+            skill_reference_source_counts=skill_reference_loads.source_counts,
             callback_ticket_status_counts=dict(
                 sorted(Counter(item.status for item in callback_tickets).items())
             ),
@@ -130,6 +153,7 @@ def build_run_execution_view(
             artifacts,
             callback_tickets,
             sensitive_access_timeline.by_node_run,
+            skill_reference_loads.by_node_run,
         ),
     )
 
@@ -138,6 +162,7 @@ def build_execution_nodes(
     artifacts: ExecutionArtifacts,
     callback_tickets: list[RunCallbackTicket],
     sensitive_access_by_node_run,
+    skill_reference_loads_by_node_run: dict[str, list[SkillReferenceLoadItem]],
 ) -> list[RunExecutionNodeItem]:
     artifacts_by_node_run = _group_by_node_run(artifacts.artifacts)
     tool_calls_by_node_run = _group_by_node_run(artifacts.tool_calls)
@@ -157,6 +182,7 @@ def build_execution_nodes(
             ai_calls_by_node_run=ai_calls_by_node_run,
             tickets_by_node_run=tickets_by_node_run,
             sensitive_access_by_node_run=sensitive_access_by_node_run,
+            skill_reference_loads=skill_reference_loads_by_node_run.get(node_run.id, []),
             execution_signal=execution_signals.by_node_run.get(node_run.id),
         )
         for node_run in artifacts.node_runs
@@ -172,6 +198,7 @@ def _build_execution_node_item(
     ai_calls_by_node_run,
     tickets_by_node_run,
     sensitive_access_by_node_run,
+    skill_reference_loads: list[SkillReferenceLoadItem],
     execution_signal: NodeExecutionSignalSnapshot | None,
 ) -> RunExecutionNodeItem:
     execution_policy = execution_policy_from_node_run_input(
@@ -228,6 +255,10 @@ def _build_execution_node_item(
             serialize_callback_ticket(ticket)
             for ticket in tickets_by_node_run[node_run.id]
         ],
+        skill_reference_load_count=sum(
+            len(load.references) for load in skill_reference_loads
+        ),
+        skill_reference_loads=skill_reference_loads,
         sensitive_access_entries=[
             serialize_sensitive_access_timeline_entry(bundle)
             for bundle in sensitive_access_by_node_run.get(node_run.id, [])
@@ -301,14 +332,96 @@ def summarize_execution_signals(artifacts: ExecutionArtifacts) -> RunExecutionSi
     )
     return RunExecutionSignalSummary(
         by_node_run=dict(by_node_run),
-        dispatched_node_count=sum(1 for snapshot in by_node_run.values() if snapshot.dispatched_count > 0),
-        fallback_node_count=sum(1 for snapshot in by_node_run.values() if snapshot.fallback_count > 0),
-        blocked_node_count=sum(1 for snapshot in by_node_run.values() if snapshot.blocked_count > 0),
-        unavailable_node_count=sum(1 for snapshot in by_node_run.values() if snapshot.unavailable_count > 0),
+        dispatched_node_count=sum(
+            1 for snapshot in by_node_run.values() if snapshot.dispatched_count > 0
+        ),
+        fallback_node_count=sum(
+            1 for snapshot in by_node_run.values() if snapshot.fallback_count > 0
+        ),
+        blocked_node_count=sum(
+            1 for snapshot in by_node_run.values() if snapshot.blocked_count > 0
+        ),
+        unavailable_node_count=sum(
+            1 for snapshot in by_node_run.values() if snapshot.unavailable_count > 0
+        ),
         requested_class_counts=dict(sorted(requested_class_counts.items())),
         effective_class_counts=dict(sorted(effective_class_counts.items())),
         executor_ref_counts=dict(sorted(executor_ref_counts.items())),
         sandbox_backend_counts=dict(sorted(sandbox_backend_counts.items())),
+    )
+
+
+def summarize_skill_reference_loads(
+    artifacts: ExecutionArtifacts,
+) -> RunSkillReferenceLoadSummary:
+    by_node_run: dict[str, list[SkillReferenceLoadItem]] = defaultdict(list)
+    phase_counts: Counter[str] = Counter()
+    source_counts: Counter[str] = Counter()
+    reference_count = 0
+
+    for event in artifacts.events:
+        if event.node_run_id is None or event.event_type != _SKILL_REFERENCE_LOAD_EVENT_TYPE:
+            continue
+        payload = event.payload or {}
+        phase = str(payload.get("phase") or "unknown").strip() or "unknown"
+        references: list[SkillReferenceLoadReferenceItem] = []
+        for raw_reference in payload.get("references") or []:
+            if not isinstance(raw_reference, dict):
+                continue
+            skill_id = str(raw_reference.get("skill_id") or "").strip()
+            reference_id = str(raw_reference.get("reference_id") or "").strip()
+            if not skill_id or not reference_id:
+                continue
+            retrieval_mcp_params = raw_reference.get("retrieval_mcp_params") or {}
+            if not isinstance(retrieval_mcp_params, dict):
+                retrieval_mcp_params = {}
+            load_source = str(raw_reference.get("load_source") or "unknown").strip() or "unknown"
+            references.append(
+                SkillReferenceLoadReferenceItem(
+                    skill_id=skill_id,
+                    skill_name=(
+                        str(raw_reference.get("skill_name")).strip()
+                        if raw_reference.get("skill_name") is not None
+                        else None
+                    ),
+                    reference_id=reference_id,
+                    reference_name=(
+                        str(raw_reference.get("reference_name")).strip()
+                        if raw_reference.get("reference_name") is not None
+                        else None
+                    ),
+                    load_source=load_source,
+                    retrieval_http_path=(
+                        str(raw_reference.get("retrieval_http_path")).strip()
+                        if raw_reference.get("retrieval_http_path") is not None
+                        else None
+                    ),
+                    retrieval_mcp_method=(
+                        str(raw_reference.get("retrieval_mcp_method")).strip()
+                        if raw_reference.get("retrieval_mcp_method") is not None
+                        else None
+                    ),
+                    retrieval_mcp_params={
+                        str(key): str(value)
+                        for key, value in retrieval_mcp_params.items()
+                        if str(key).strip() and value is not None
+                    },
+                )
+            )
+            source_counts[load_source] += 1
+        if not references:
+            continue
+        phase_counts[phase] += len(references)
+        reference_count += len(references)
+        by_node_run[str(event.node_run_id)].append(
+            SkillReferenceLoadItem(phase=phase, references=references)
+        )
+
+    return RunSkillReferenceLoadSummary(
+        by_node_run=dict(by_node_run),
+        reference_count=reference_count,
+        phase_counts=dict(sorted(phase_counts.items())),
+        source_counts=dict(sorted(source_counts.items())),
     )
 
 

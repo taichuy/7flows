@@ -30,6 +30,15 @@ export function RunDiagnosticsExecutionOverview({
         <SummaryCard label="Callback tickets" value={executionView.summary.callback_ticket_count} />
       </div>
 
+      {executionView.summary.skill_reference_load_count > 0 ? (
+        <div className="summary-strip">
+          <SummaryCard
+            label="Skill refs loaded"
+            value={executionView.summary.skill_reference_load_count}
+          />
+        </div>
+      ) : null}
+
       <div className="summary-strip">
         <SummaryCard
           label="Execution dispatched"
@@ -110,6 +119,23 @@ export function RunDiagnosticsExecutionOverview({
         metrics={executionView.summary.execution_sandbox_backend_counts}
         prefix="sandbox-backend"
       />
+
+      {executionView.summary.skill_reference_load_count > 0 ? (
+        <>
+          <MetricChipRow
+            title="Skill reference phases"
+            emptyCopy="No skill reference loads were recorded for this run."
+            metrics={executionView.summary.skill_reference_phase_counts}
+            prefix="skill-phase"
+          />
+          <MetricChipRow
+            title="Skill reference sources"
+            emptyCopy="No skill reference sources were recorded for this run."
+            metrics={executionView.summary.skill_reference_source_counts}
+            prefix="skill-source"
+          />
+        </>
+      ) : null}
 
       {executionView.summary.sensitive_access_request_count > 0 ? (
         <>

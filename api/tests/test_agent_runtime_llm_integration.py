@@ -467,6 +467,34 @@ def test_llm_agent_skill_binding_limits_injection_to_selected_phase(
     assert "This body should stay out of prompt injection" not in plan_content
     assert "[Skills]" not in finalize_content
 
+    loaded_events = [
+        event for event in artifacts.events if event.event_type == "agent.skill.references.loaded"
+    ]
+    assert len(loaded_events) == 1
+    assert loaded_events[0].payload == {
+        "node_id": "agent",
+        "phase": "main_plan",
+        "references": [
+            {
+                "skill_id": "skill-research-brief",
+                "skill_name": "Research Brief",
+                "reference_id": "ref-handoff",
+                "reference_name": "Operator Handoff",
+                "load_source": "skill_binding",
+                "retrieval_http_path": (
+                    "/api/skills/skill-research-brief/references/ref-handoff"
+                    "?workspace_id=default"
+                ),
+                "retrieval_mcp_method": "skills.get_reference",
+                "retrieval_mcp_params": {
+                    "skill_id": "skill-research-brief",
+                    "reference_id": "ref-handoff",
+                    "workspace_id": "default",
+                },
+            }
+        ],
+    }
+
 
 def test_llm_agent_lazy_fetches_matching_skill_reference_body_at_runtime(
     sqlite_session: Session,
@@ -560,7 +588,23 @@ def test_llm_agent_lazy_fetches_matching_skill_reference_body_at_runtime(
         "node_id": "agent",
         "phase": "main_plan",
         "references": [
-            {"skill_id": "skill-research-brief", "reference_id": "ref-budget"}
+            {
+                "skill_id": "skill-research-brief",
+                "skill_name": "Research Brief",
+                "reference_id": "ref-budget",
+                "reference_name": "Budget Control",
+                "load_source": "retrieval_query_match",
+                "retrieval_http_path": (
+                    "/api/skills/skill-research-brief/references/ref-budget"
+                    "?workspace_id=default"
+                ),
+                "retrieval_mcp_method": "skills.get_reference",
+                "retrieval_mcp_params": {
+                    "skill_id": "skill-research-brief",
+                    "reference_id": "ref-budget",
+                    "workspace_id": "default",
+                },
+            }
         ],
     }
 

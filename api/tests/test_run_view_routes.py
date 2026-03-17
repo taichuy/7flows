@@ -334,6 +334,140 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     }
 
 
+def test_get_run_execution_view_surfaces_skill_reference_loads(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow: Workflow,
+) -> None:
+    run = Run(
+        id="run-skill-reference-view",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        status="running",
+        input_payload={"message": "inspect skill trace"},
+        created_at=datetime(2026, 3, 17, 16, 0, tzinfo=UTC),
+    )
+    node_run = NodeRun(
+        id="node-run-skill-agent",
+        run_id=run.id,
+        node_id="agent_skill",
+        node_name="Agent Skill",
+        node_type="llm_agent",
+        status="running",
+        phase="running_main",
+        input_payload={"execution": {"class": "inline"}},
+        created_at=datetime(2026, 3, 17, 16, 0, tzinfo=UTC),
+    )
+    sqlite_session.add_all(
+        [
+            run,
+            node_run,
+            RunEvent(
+                run_id=run.id,
+                node_run_id=node_run.id,
+                event_type="agent.skill.references.loaded",
+                payload={
+                    "node_id": node_run.node_id,
+                    "phase": "main_plan",
+                    "references": [
+                        {
+                            "skill_id": "skill-research-brief",
+                            "skill_name": "Research Brief",
+                            "reference_id": "ref-handoff",
+                            "reference_name": "Operator Handoff",
+                            "load_source": "skill_binding",
+                            "retrieval_http_path": (
+                                "/api/skills/skill-research-brief/references/ref-handoff"
+                                "?workspace_id=default"
+                            ),
+                            "retrieval_mcp_method": "skills.get_reference",
+                            "retrieval_mcp_params": {
+                                "skill_id": "skill-research-brief",
+                                "reference_id": "ref-handoff",
+                                "workspace_id": "default",
+                            },
+                        },
+                        {
+                            "skill_id": "skill-research-brief",
+                            "skill_name": "Research Brief",
+                            "reference_id": "ref-budget",
+                            "reference_name": "Budget Control",
+                            "load_source": "retrieval_query_match",
+                            "retrieval_http_path": (
+                                "/api/skills/skill-research-brief/references/ref-budget"
+                                "?workspace_id=default"
+                            ),
+                            "retrieval_mcp_method": "skills.get_reference",
+                            "retrieval_mcp_params": {
+                                "skill_id": "skill-research-brief",
+                                "reference_id": "ref-budget",
+                                "workspace_id": "default",
+                            },
+                        },
+                    ],
+                },
+                created_at=datetime(2026, 3, 17, 16, 0, 30, tzinfo=UTC),
+            ),
+        ]
+    )
+    sqlite_session.commit()
+
+    response = client.get(f"/api/runs/{run.id}/execution-view")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["summary"]["skill_reference_load_count"] == 2
+    assert body["summary"]["skill_reference_phase_counts"] == {"main_plan": 2}
+    assert body["summary"]["skill_reference_source_counts"] == {
+        "retrieval_query_match": 1,
+        "skill_binding": 1,
+    }
+    assert len(body["nodes"]) == 1
+    node = body["nodes"][0]
+    assert node["skill_reference_load_count"] == 2
+    assert node["skill_reference_loads"] == [
+        {
+            "phase": "main_plan",
+            "references": [
+                {
+                    "skill_id": "skill-research-brief",
+                    "skill_name": "Research Brief",
+                    "reference_id": "ref-handoff",
+                    "reference_name": "Operator Handoff",
+                    "load_source": "skill_binding",
+                    "retrieval_http_path": (
+                        "/api/skills/skill-research-brief/references/ref-handoff"
+                        "?workspace_id=default"
+                    ),
+                    "retrieval_mcp_method": "skills.get_reference",
+                    "retrieval_mcp_params": {
+                        "skill_id": "skill-research-brief",
+                        "reference_id": "ref-handoff",
+                        "workspace_id": "default",
+                    },
+                },
+                {
+                    "skill_id": "skill-research-brief",
+                    "skill_name": "Research Brief",
+                    "reference_id": "ref-budget",
+                    "reference_name": "Budget Control",
+                    "load_source": "retrieval_query_match",
+                    "retrieval_http_path": (
+                        "/api/skills/skill-research-brief/references/ref-budget"
+                        "?workspace_id=default"
+                    ),
+                    "retrieval_mcp_method": "skills.get_reference",
+                    "retrieval_mcp_params": {
+                        "skill_id": "skill-research-brief",
+                        "reference_id": "ref-budget",
+                        "workspace_id": "default",
+                    },
+                },
+            ],
+        }
+    ]
+
+
 def test_get_run_evidence_view_returns_evidence_nodes_only(
     client: TestClient,
     sqlite_session: Session,

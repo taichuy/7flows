@@ -12,6 +12,7 @@ import {
   ExecutionNodeAiCallList,
   ExecutionNodeArtifactSection,
   ExecutionNodeCallbackTicketList,
+  ExecutionNodeSkillReferenceLoadList,
   ExecutionNodeSensitiveAccessSection,
   ExecutionNodeToolCallList
 } from "@/components/run-diagnostics-execution/execution-node-card-sections";
@@ -104,6 +105,9 @@ export function ExecutionNodeCard({ node, runId }: { node: RunExecutionNodeItem;
         <span className="event-chip">artifacts {node.artifacts.length}</span>
         <span className="event-chip">tools {node.tool_calls.length}</span>
         <span className="event-chip">ai {node.ai_calls.length}</span>
+        {node.skill_reference_load_count > 0 ? (
+          <span className="event-chip">skill refs {node.skill_reference_load_count}</span>
+        ) : null}
         {node.callback_tickets.length > 0 ? (
           <span className="event-chip">tickets {node.callback_tickets.length}</span>
         ) : null}
@@ -130,6 +134,8 @@ export function ExecutionNodeCard({ node, runId }: { node: RunExecutionNodeItem;
       <ExecutionNodeToolCallList toolCalls={node.tool_calls} />
 
       <ExecutionNodeAiCallList aiCalls={node.ai_calls} />
+
+      <ExecutionNodeSkillReferenceLoadList skillReferenceLoads={node.skill_reference_loads} />
 
       <ExecutionNodeCallbackTicketList callbackTickets={node.callback_tickets} />
 

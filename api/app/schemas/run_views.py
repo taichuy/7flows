@@ -50,6 +50,7 @@ class RunExecutionSummary(BaseModel):
     ai_call_count: int = 0
     assistant_call_count: int = 0
     callback_ticket_count: int = 0
+    skill_reference_load_count: int = 0
     sensitive_access_request_count: int = 0
     sensitive_access_approval_ticket_count: int = 0
     sensitive_access_notification_count: int = 0
@@ -60,6 +61,8 @@ class RunExecutionSummary(BaseModel):
     execution_effective_class_counts: dict[str, int] = Field(default_factory=dict)
     execution_executor_ref_counts: dict[str, int] = Field(default_factory=dict)
     execution_sandbox_backend_counts: dict[str, int] = Field(default_factory=dict)
+    skill_reference_phase_counts: dict[str, int] = Field(default_factory=dict)
+    skill_reference_source_counts: dict[str, int] = Field(default_factory=dict)
     callback_ticket_status_counts: dict[str, int] = Field(default_factory=dict)
     sensitive_access_decision_counts: dict[str, int] = Field(default_factory=dict)
     sensitive_access_approval_status_counts: dict[str, int] = Field(default_factory=dict)
@@ -89,6 +92,22 @@ class CallbackWaitingLifecycleSummary(BaseModel):
     last_resume_reason: str | None = None
     last_resume_source: str | None = None
     last_resume_backoff_attempt: int = 0
+
+
+class SkillReferenceLoadReferenceItem(BaseModel):
+    skill_id: str
+    skill_name: str | None = None
+    reference_id: str
+    reference_name: str | None = None
+    load_source: str
+    retrieval_http_path: str | None = None
+    retrieval_mcp_method: str | None = None
+    retrieval_mcp_params: dict[str, str] = Field(default_factory=dict)
+
+
+class SkillReferenceLoadItem(BaseModel):
+    phase: str
+    references: list[SkillReferenceLoadReferenceItem] = Field(default_factory=list)
 
 
 class RunExecutionNodeItem(BaseModel):
@@ -127,6 +146,8 @@ class RunExecutionNodeItem(BaseModel):
     tool_calls: list[ToolCallItem] = Field(default_factory=list)
     ai_calls: list[AICallItem] = Field(default_factory=list)
     callback_tickets: list[RunCallbackTicketItem] = Field(default_factory=list)
+    skill_reference_load_count: int = 0
+    skill_reference_loads: list[SkillReferenceLoadItem] = Field(default_factory=list)
     sensitive_access_entries: list[SensitiveAccessTimelineEntryItem] = Field(
         default_factory=list
     )

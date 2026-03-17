@@ -70,6 +70,22 @@ export type RunCallbackTicketItem = {
   expired_at?: string | null;
 };
 
+export type SkillReferenceLoadReferenceItem = {
+  skill_id: string;
+  skill_name?: string | null;
+  reference_id: string;
+  reference_name?: string | null;
+  load_source: string;
+  retrieval_http_path?: string | null;
+  retrieval_mcp_method?: string | null;
+  retrieval_mcp_params: Record<string, string>;
+};
+
+export type SkillReferenceLoadItem = {
+  phase: string;
+  references: SkillReferenceLoadReferenceItem[];
+};
+
 export type CallbackWaitingLifecycleSummary = {
   wait_cycle_count: number;
   issued_ticket_count: number;
@@ -143,6 +159,8 @@ export type RunExecutionNodeItem = {
   tool_calls: ToolCallItem[];
   ai_calls: AICallItem[];
   callback_tickets: RunCallbackTicketItem[];
+  skill_reference_load_count: number;
+  skill_reference_loads: SkillReferenceLoadItem[];
   sensitive_access_entries: SensitiveAccessTimelineEntry[];
   callback_waiting_lifecycle?: CallbackWaitingLifecycleSummary | null;
 };
@@ -166,6 +184,7 @@ export type RunExecutionView = {
     ai_call_count: number;
     assistant_call_count: number;
     callback_ticket_count: number;
+    skill_reference_load_count: number;
     sensitive_access_request_count: number;
     sensitive_access_approval_ticket_count: number;
     sensitive_access_notification_count: number;
@@ -176,6 +195,8 @@ export type RunExecutionView = {
     execution_effective_class_counts: Record<string, number>;
     execution_executor_ref_counts: Record<string, number>;
     execution_sandbox_backend_counts: Record<string, number>;
+    skill_reference_phase_counts: Record<string, number>;
+    skill_reference_source_counts: Record<string, number>;
     callback_ticket_status_counts: Record<string, number>;
     sensitive_access_decision_counts: Record<string, number>;
     sensitive_access_approval_status_counts: Record<string, number>;

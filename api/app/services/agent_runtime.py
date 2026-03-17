@@ -86,7 +86,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             phase="main_plan",
             base_node_input=enriched_node_input,
         )
-        default_skill_context = self._resolve_skill_context(
+        default_skill_context, default_skill_reference_loads = self._resolve_skill_context(
             db,
             config,
             phase="main_plan",
@@ -100,7 +100,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             system_prompt=config.get("systemPrompt"),
             authorized_context=node_input.get("authorized_context", {}),
             global_context=node_input.get("global_context", {}),
-            skill_context=default_skill_context[0],
+            skill_context=default_skill_context,
         )
 
         self._transition_phase(node_run, "preparing", events, node)
@@ -108,15 +108,15 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
         if plan is None:
             self._transition_phase(node_run, "running_main", events, node)
             plan_node_input = dict(enriched_node_input)
-            if default_skill_context[0]:
-                plan_node_input["skill_context"] = default_skill_context[0]
+            if default_skill_context:
+                plan_node_input["skill_context"] = default_skill_context
             else:
                 plan_node_input.pop("skill_context", None)
             self._emit_skill_reference_fetch_event(
                 events,
                 node=node,
                 phase="main_plan",
-                lazy_reference_ids_by_skill=default_skill_context[1],
+                loaded_references=default_skill_reference_loads,
             )
             plan = self._build_plan(config, model_config, plan_node_input)
             plan_llm_response = plan.llm_response
@@ -320,7 +320,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
                 tool_results=tool_results,
                 evidence_pack=evidence_pack,
             )
-            assistant_node_input, assistant_lazy_refs = self._build_phase_node_input(
+            assistant_node_input, assistant_skill_reference_loads = self._build_phase_node_input(
                 db,
                 config=config,
                 base_node_input=enriched_node_input,
@@ -331,7 +331,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
                 events,
                 node=node,
                 phase="assistant_distill",
-                lazy_reference_ids_by_skill=assistant_lazy_refs,
+                loaded_references=assistant_skill_reference_loads,
             )
             distilled_evidence, distill_llm_response = self._distill_evidence(
                 config,
@@ -394,7 +394,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             tool_results=tool_results,
             evidence_pack=evidence_pack,
         )
-        finalize_node_input, finalize_lazy_refs = self._build_phase_node_input(
+        finalize_node_input, finalize_skill_reference_loads = self._build_phase_node_input(
             db,
             config=config,
             base_node_input=enriched_node_input,
@@ -405,7 +405,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             events,
             node=node,
             phase="main_finalize",
-            lazy_reference_ids_by_skill=finalize_lazy_refs,
+            loaded_references=finalize_skill_reference_loads,
         )
         final_output, finalize_llm_response, streaming_deltas_emitted = self._finalize_output(
             config=config,
@@ -637,12 +637,12 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
         *,
         phase: str,
         retrieval_query: str | None = None,
-    ) -> tuple[list[dict[str, Any]], dict[str, list[str]]]:
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         raw_skill_ids = config.get("skillIds")
         if not isinstance(raw_skill_ids, list):
-            return [], {}
+            return [], []
         if not self._skill_phase_enabled(config, phase):
-            return [], {}
+            return [], []
         workspace_id = str(config.get("workspaceId") or "default")
         try:
             selected_reference_ids_by_skill = self._selected_skill_reference_ids_by_phase(
@@ -667,13 +667,14 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
                 selected_reference_ids_by_skill=merged_reference_ids_by_skill,
                 prompt_budget_chars=self._skill_prompt_budget_chars(config),
             )
-            actual_lazy_reference_ids_by_skill = self._collect_inlined_skill_reference_ids(
+            loaded_references = self._collect_inlined_skill_reference_loads(
                 skill_docs,
-                candidate_reference_ids_by_skill=lazy_reference_ids_by_skill,
+                selected_reference_ids_by_skill=selected_reference_ids_by_skill,
+                lazy_reference_ids_by_skill=lazy_reference_ids_by_skill,
             )
             return (
                 [skill.model_dump(mode="python") for skill in skill_docs],
-                actual_lazy_reference_ids_by_skill,
+                loaded_references,
             )
         except SkillCatalogError as exc:
             raise WorkflowExecutionError(str(exc)) from exc
@@ -686,9 +687,9 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
         base_node_input: dict[str, Any],
         phase: str,
         retrieval_query: str | None = None,
-    ) -> tuple[dict[str, Any], dict[str, list[str]]]:
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         phase_node_input = dict(base_node_input)
-        skill_context, lazy_reference_ids_by_skill = self._resolve_skill_context(
+        skill_context, loaded_references = self._resolve_skill_context(
             db,
             config,
             phase=phase,
@@ -698,7 +699,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
             phase_node_input["skill_context"] = skill_context
         else:
             phase_node_input.pop("skill_context", None)
-        return phase_node_input, lazy_reference_ids_by_skill
+        return phase_node_input, loaded_references
 
     def _skill_phase_enabled(self, config: dict[str, Any], phase: str) -> bool:
         skill_binding = self._skill_binding_policy(config)
@@ -799,24 +800,49 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
         return merged
 
     @staticmethod
-    def _collect_inlined_skill_reference_ids(
+    def _collect_inlined_skill_reference_loads(
         skill_docs: list[Any],
         *,
-        candidate_reference_ids_by_skill: dict[str, list[str]],
-    ) -> dict[str, list[str]]:
-        inlined: dict[str, list[str]] = {}
+        selected_reference_ids_by_skill: dict[str, list[str]],
+        lazy_reference_ids_by_skill: dict[str, list[str]],
+    ) -> list[dict[str, Any]]:
+        loaded_references: list[dict[str, Any]] = []
         for skill_doc in skill_docs:
-            candidate_ids = set(candidate_reference_ids_by_skill.get(skill_doc.id, []))
-            if not candidate_ids:
-                continue
-            inlined_ids = [
-                reference.id
+            references_by_id = {
+                reference.id: reference
                 for reference in skill_doc.references
-                if reference.id in candidate_ids and reference.body
-            ]
-            if inlined_ids:
-                inlined[skill_doc.id] = inlined_ids
-        return inlined
+                if isinstance(reference.body, str) and reference.body
+            }
+            if not references_by_id:
+                continue
+            for load_source, reference_ids in (
+                ("skill_binding", selected_reference_ids_by_skill.get(skill_doc.id, [])),
+                ("retrieval_query_match", lazy_reference_ids_by_skill.get(skill_doc.id, [])),
+            ):
+                for reference_id in reference_ids:
+                    reference = references_by_id.get(reference_id)
+                    if reference is None:
+                        continue
+                    retrieval = reference.retrieval
+                    loaded_references.append(
+                        {
+                            "skill_id": skill_doc.id,
+                            "skill_name": skill_doc.name,
+                            "reference_id": reference.id,
+                            "reference_name": reference.name,
+                            "load_source": load_source,
+                            "retrieval_http_path": (
+                                retrieval.http_path if retrieval is not None else None
+                            ),
+                            "retrieval_mcp_method": (
+                                retrieval.mcp_method if retrieval is not None else None
+                            ),
+                            "retrieval_mcp_params": (
+                                dict(retrieval.mcp_params) if retrieval is not None else {}
+                            ),
+                        }
+                    )
+        return loaded_references
 
     @staticmethod
     def _emit_skill_reference_fetch_event(
@@ -824,14 +850,9 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
         *,
         node: dict[str, Any],
         phase: str,
-        lazy_reference_ids_by_skill: dict[str, list[str]],
+        loaded_references: list[dict[str, Any]],
     ) -> None:
-        references = [
-            {"skill_id": skill_id, "reference_id": reference_id}
-            for skill_id, reference_ids in sorted(lazy_reference_ids_by_skill.items())
-            for reference_id in reference_ids
-        ]
-        if not references:
+        if not loaded_references:
             return
         events.append(
             RuntimeEvent(
@@ -839,7 +860,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
                 {
                     "node_id": node["id"],
                     "phase": phase,
-                    "references": references,
+                    "references": loaded_references,
                 },
             )
         )
