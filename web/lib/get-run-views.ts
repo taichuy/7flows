@@ -122,7 +122,9 @@ export type RunCallbackWaitingSummary = {
   canceled_ticket_count: number;
   late_callback_count: number;
   resume_schedule_count: number;
+  scheduled_resume_pending_node_count: number;
   resume_source_counts: Record<string, number>;
+  scheduled_resume_source_counts: Record<string, number>;
   termination_reason_counts: Record<string, number>;
 };
 
@@ -166,6 +168,10 @@ export type RunExecutionNodeItem = {
   skill_reference_loads: SkillReferenceLoadItem[];
   sensitive_access_entries: SensitiveAccessTimelineEntry[];
   callback_waiting_lifecycle?: CallbackWaitingLifecycleSummary | null;
+  scheduled_resume_delay_seconds?: number | null;
+  scheduled_resume_reason?: string | null;
+  scheduled_resume_source?: string | null;
+  scheduled_waiting_status?: string | null;
 };
 
 export type RunExecutionView = {

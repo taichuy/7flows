@@ -20,6 +20,7 @@ from app.services.run_view_serializers import (
     serialize_callback_waiting_lifecycle_summary,
     serialize_run_artifact,
     serialize_run_callback_waiting_summary,
+    serialize_callback_waiting_scheduled_resume,
     serialize_tool_call,
 )
 from app.services.runtime_execution_policy import (
@@ -205,6 +206,9 @@ def _build_execution_node_item(
         node_run.input_payload,
         node_type=node_run.node_type,
     )
+    scheduled_resume = serialize_callback_waiting_scheduled_resume(
+        node_run.checkpoint_payload
+    )
     return RunExecutionNodeItem(
         node_run_id=node_run.id,
         node_id=node_run.node_id,
@@ -266,6 +270,12 @@ def _build_execution_node_item(
         callback_waiting_lifecycle=serialize_callback_waiting_lifecycle_summary(
             node_run.checkpoint_payload
         ),
+        scheduled_resume_delay_seconds=scheduled_resume[
+            "scheduled_resume_delay_seconds"
+        ],
+        scheduled_resume_reason=scheduled_resume["scheduled_resume_reason"],
+        scheduled_resume_source=scheduled_resume["scheduled_resume_source"],
+        scheduled_waiting_status=scheduled_resume["scheduled_waiting_status"],
     )
 
 

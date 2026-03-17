@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import UTC, datetime
+from math import isfinite
 from typing import Any
 
 CALLBACK_WAITING_LIFECYCLE_KEY = "callback_waiting_lifecycle"
+CALLBACK_WAITING_SCHEDULED_RESUME_KEY = "scheduled_resume"
 _CALLBACK_WAITING_BACKOFF_SECONDS = (0.0, 5.0, 15.0, 30.0, 60.0)
 
 
@@ -23,6 +25,16 @@ def _coerce_non_negative_int(value: object) -> int:
         return max(int(value), 0)
     except (TypeError, ValueError):
         return 0
+
+
+def _optional_non_negative_float(value: object) -> float | None:
+    try:
+        normalized = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not isfinite(normalized):
+        return None
+    return max(normalized, 0.0)
 
 
 def _optional_string(value: object) -> str | None:
@@ -84,6 +96,26 @@ def load_callback_waiting_lifecycle(checkpoint_payload: dict[str, Any] | None) -
         "last_resume_source": _optional_string(raw_lifecycle.get("last_resume_source")),
         "last_resume_backoff_attempt": _coerce_non_negative_int(
             raw_lifecycle.get("last_resume_backoff_attempt")
+        ),
+    }
+
+
+def load_callback_waiting_scheduled_resume(
+    checkpoint_payload: dict[str, Any] | None,
+) -> dict[str, Any]:
+    if not isinstance(checkpoint_payload, dict):
+        checkpoint_payload = {}
+    raw = checkpoint_payload.get(CALLBACK_WAITING_SCHEDULED_RESUME_KEY)
+    scheduled_resume = raw if isinstance(raw, dict) else {}
+    return {
+        "delay_seconds": _optional_non_negative_float(
+            scheduled_resume.get("delay_seconds")
+        ),
+        "reason": _optional_string(scheduled_resume.get("reason")),
+        "source": _optional_string(scheduled_resume.get("source")),
+        "waiting_status": _optional_string(scheduled_resume.get("waiting_status")),
+        "backoff_attempt": _coerce_non_negative_int(
+            scheduled_resume.get("backoff_attempt")
         ),
     }
 

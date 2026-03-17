@@ -63,7 +63,14 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
                 "last_resume_reason": "search callback pending",
                 "last_resume_source": "callback_ticket_monitor",
                 "last_resume_backoff_attempt": 2,
-            }
+            },
+            "scheduled_resume": {
+                "delay_seconds": 0,
+                "reason": "search callback pending",
+                "source": "callback_ticket_monitor",
+                "waiting_status": "waiting_callback",
+                "backoff_attempt": 2,
+            },
         },
         artifact_refs=["artifact://artifact-tool", "artifact://artifact-evidence"],
         waiting_reason="Waiting for external search callback.",
@@ -260,7 +267,9 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
         "canceled_ticket_count": 0,
         "late_callback_count": 1,
         "resume_schedule_count": 1,
+        "scheduled_resume_pending_node_count": 1,
         "resume_source_counts": {"callback_ticket_monitor": 1},
+        "scheduled_resume_source_counts": {"callback_ticket_monitor": 1},
         "termination_reason_counts": {},
     }
     assert len(body["nodes"]) == 1
@@ -332,6 +341,10 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
         "last_resume_source": "callback_ticket_monitor",
         "last_resume_backoff_attempt": 2,
     }
+    assert node["scheduled_resume_delay_seconds"] == 0
+    assert node["scheduled_resume_reason"] == "search callback pending"
+    assert node["scheduled_resume_source"] == "callback_ticket_monitor"
+    assert node["scheduled_waiting_status"] == "waiting_callback"
 
 
 def test_get_run_execution_view_surfaces_skill_reference_loads(

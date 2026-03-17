@@ -33,7 +33,9 @@ class RunCallbackWaitingSummary(BaseModel):
     canceled_ticket_count: int = 0
     late_callback_count: int = 0
     resume_schedule_count: int = 0
+    scheduled_resume_pending_node_count: int = 0
     resume_source_counts: dict[str, int] = Field(default_factory=dict)
+    scheduled_resume_source_counts: dict[str, int] = Field(default_factory=dict)
     termination_reason_counts: dict[str, int] = Field(default_factory=dict)
 
 
@@ -155,6 +157,10 @@ class RunExecutionNodeItem(BaseModel):
         default_factory=list
     )
     callback_waiting_lifecycle: CallbackWaitingLifecycleSummary | None = None
+    scheduled_resume_delay_seconds: float | None = None
+    scheduled_resume_reason: str | None = None
+    scheduled_resume_source: str | None = None
+    scheduled_waiting_status: str | None = None
 
 
 class RunExecutionView(BaseModel):

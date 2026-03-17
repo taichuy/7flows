@@ -10,7 +10,10 @@ from app.schemas.workflow_publish import (
     PublishedEndpointInvocationWaitingLifecycle,
 )
 from app.services.published_invocations import classify_invocation_reason
-from app.services.run_view_serializers import serialize_callback_waiting_lifecycle_summary
+from app.services.run_view_serializers import (
+    serialize_callback_waiting_lifecycle_summary,
+    serialize_callback_waiting_scheduled_resume,
+)
 
 
 def _resolve_callback_waiting_lifecycle(node_run: NodeRun):
@@ -120,14 +123,9 @@ def serialize_waiting_lifecycle(
     callback_tickets: list[RunCallbackTicket],
 ) -> PublishedEndpointInvocationWaitingLifecycle:
     lifecycle = _resolve_callback_waiting_lifecycle(node_run)
-    checkpoint_payload = (
+    scheduled_resume = serialize_callback_waiting_scheduled_resume(
         node_run.checkpoint_payload
-        if isinstance(node_run.checkpoint_payload, dict)
-        else {}
     )
-    raw_scheduled_resume = checkpoint_payload.get("scheduled_resume")
-    scheduled_resume = raw_scheduled_resume if isinstance(raw_scheduled_resume, dict) else {}
-    scheduled_delay = scheduled_resume.get("delay_seconds")
     return PublishedEndpointInvocationWaitingLifecycle(
         node_run_id=node_run.id,
         node_status=node_run.status,
@@ -141,26 +139,12 @@ def serialize_waiting_lifecycle(
             sorted(Counter(ticket.status for ticket in callback_tickets).items())
         ),
         callback_waiting_lifecycle=lifecycle,
-        scheduled_resume_delay_seconds=(
-            float(scheduled_delay)
-            if isinstance(scheduled_delay, (int, float))
-            else None
-        ),
-        scheduled_resume_reason=(
-            str(scheduled_resume.get("reason"))
-            if scheduled_resume.get("reason") is not None
-            else None
-        ),
-        scheduled_resume_source=(
-            str(scheduled_resume.get("source"))
-            if scheduled_resume.get("source") is not None
-            else None
-        ),
-        scheduled_waiting_status=(
-            str(scheduled_resume.get("waiting_status"))
-            if scheduled_resume.get("waiting_status") is not None
-            else None
-        ),
+        scheduled_resume_delay_seconds=scheduled_resume[
+            "scheduled_resume_delay_seconds"
+        ],
+        scheduled_resume_reason=scheduled_resume["scheduled_resume_reason"],
+        scheduled_resume_source=scheduled_resume["scheduled_resume_source"],
+        scheduled_waiting_status=scheduled_resume["scheduled_waiting_status"],
     )
 
 

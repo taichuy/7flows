@@ -80,6 +80,10 @@ export function RunDiagnosticsExecutionOverview({
           <SummaryCard label="Callback waits" value={callbackWaiting.node_count} />
           <SummaryCard label="Expired tickets" value={callbackWaiting.expired_ticket_count} />
           <SummaryCard label="Resume schedules" value={callbackWaiting.resume_schedule_count} />
+          <SummaryCard
+            label="Scheduled resumes pending"
+            value={callbackWaiting.scheduled_resume_pending_node_count}
+          />
           <SummaryCard label="Late callbacks" value={callbackWaiting.late_callback_count} />
           <SummaryCard label="Terminated waits" value={callbackWaiting.terminated_node_count} />
         </div>
@@ -169,6 +173,12 @@ export function RunDiagnosticsExecutionOverview({
             emptyCopy="No callback resumes have been scheduled yet."
             metrics={callbackWaiting.resume_source_counts}
             prefix="resume-source"
+          />
+          <MetricChipRow
+            title="Pending scheduled resume sources"
+            emptyCopy="No callback waiting nodes currently have a scheduled resume queued."
+            metrics={callbackWaiting.scheduled_resume_source_counts}
+            prefix="scheduled-resume-source"
           />
           <MetricChipRow
             title="Termination reasons"

@@ -122,6 +122,9 @@ export function ExecutionNodeCard({ node, runId }: { node: RunExecutionNodeItem;
         inboxHref={inboxHref}
         runId={runId}
         nodeRunId={node.node_run_id}
+        scheduledResumeDelaySeconds={node.scheduled_resume_delay_seconds}
+        scheduledResumeSource={node.scheduled_resume_source}
+        scheduledWaitingStatus={node.scheduled_waiting_status}
       />
 
       <MetricChipRow

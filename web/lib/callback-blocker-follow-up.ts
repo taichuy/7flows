@@ -40,6 +40,7 @@ function hasCallbackSignals(node: RunExecutionNodeItem) {
   return Boolean(
     node.waiting_reason ||
       node.callback_waiting_lifecycle ||
+      typeof node.scheduled_resume_delay_seconds === "number" ||
       node.callback_tickets.length > 0 ||
       node.sensitive_access_entries.length > 0
   );
@@ -129,7 +130,10 @@ export async function fetchCallbackBlockerSnapshot({
   const operatorStatuses = listCallbackWaitingOperatorStatuses({
     lifecycle: node.callback_waiting_lifecycle,
     callbackTickets: node.callback_tickets,
-    sensitiveAccessEntries: node.sensitive_access_entries
+    sensitiveAccessEntries: node.sensitive_access_entries,
+    scheduledResumeDelaySeconds: node.scheduled_resume_delay_seconds,
+    scheduledResumeSource: node.scheduled_resume_source,
+    scheduledWaitingStatus: node.scheduled_waiting_status
   });
 
   return {
@@ -138,7 +142,10 @@ export async function fetchCallbackBlockerSnapshot({
     recommendedAction: getCallbackWaitingRecommendedAction({
       lifecycle: node.callback_waiting_lifecycle,
       callbackTickets: node.callback_tickets,
-      sensitiveAccessEntries: node.sensitive_access_entries
+      sensitiveAccessEntries: node.sensitive_access_entries,
+      scheduledResumeDelaySeconds: node.scheduled_resume_delay_seconds,
+      scheduledResumeSource: node.scheduled_resume_source,
+      scheduledWaitingStatus: node.scheduled_waiting_status
     })
   };
 }

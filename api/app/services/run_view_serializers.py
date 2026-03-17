@@ -17,7 +17,10 @@ from app.schemas.run_views import (
     RunCallbackTicketItem,
     RunCallbackWaitingSummary,
 )
-from app.services.callback_waiting_lifecycle import load_callback_waiting_lifecycle
+from app.services.callback_waiting_lifecycle import (
+    load_callback_waiting_lifecycle,
+    load_callback_waiting_scheduled_resume,
+)
 
 
 def normalize_datetime(value: datetime | None) -> datetime | None:
@@ -56,6 +59,18 @@ def serialize_callback_waiting_lifecycle_summary(
     return CallbackWaitingLifecycleSummary(**lifecycle)
 
 
+def serialize_callback_waiting_scheduled_resume(
+    checkpoint_payload: dict | None,
+) -> dict[str, str | float | None]:
+    scheduled_resume = load_callback_waiting_scheduled_resume(checkpoint_payload)
+    return {
+        "scheduled_resume_delay_seconds": scheduled_resume["delay_seconds"],
+        "scheduled_resume_reason": scheduled_resume["reason"],
+        "scheduled_resume_source": scheduled_resume["source"],
+        "scheduled_waiting_status": scheduled_resume["waiting_status"],
+    }
+
+
 def serialize_run_callback_waiting_summary(
     node_runs: list[NodeRun],
 ) -> RunCallbackWaitingSummary:
@@ -72,6 +87,16 @@ def serialize_run_callback_waiting_summary(
         for summary in lifecycle_summaries
         if summary.last_resume_source is not None
     )
+    scheduled_resume_summaries = [
+        serialize_callback_waiting_scheduled_resume(node_run.checkpoint_payload)
+        for node_run in node_runs
+    ]
+    scheduled_resume_source_counts = Counter(
+        summary["scheduled_resume_source"]
+        for summary in scheduled_resume_summaries
+        if summary["scheduled_resume_delay_seconds"] is not None
+        and summary["scheduled_resume_source"] is not None
+    )
     termination_reason_counts = Counter(
         summary.termination_reason
         for summary in lifecycle_summaries
@@ -86,7 +111,15 @@ def serialize_run_callback_waiting_summary(
         canceled_ticket_count=sum(summary.canceled_ticket_count for summary in lifecycle_summaries),
         late_callback_count=sum(summary.late_callback_count for summary in lifecycle_summaries),
         resume_schedule_count=sum(summary.resume_schedule_count for summary in lifecycle_summaries),
+        scheduled_resume_pending_node_count=sum(
+            1
+            for summary in scheduled_resume_summaries
+            if summary["scheduled_resume_delay_seconds"] is not None
+        ),
         resume_source_counts=dict(sorted(resume_source_counts.items())),
+        scheduled_resume_source_counts=dict(
+            sorted(scheduled_resume_source_counts.items())
+        ),
         termination_reason_counts=dict(sorted(termination_reason_counts.items())),
     )
 
