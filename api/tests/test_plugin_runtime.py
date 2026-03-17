@@ -39,6 +39,9 @@ def _sandbox_backend_client(
     *,
     execution_classes: tuple[str, ...],
     profiles: tuple[str, ...] = (),
+    dependency_modes: tuple[str, ...] = (),
+    supports_builtin_package_sets: bool = False,
+    supports_backend_extensions: bool = False,
 ) -> SandboxBackendClient:
     sandbox_registry = SandboxBackendRegistry()
     sandbox_registry.register_backend(
@@ -51,6 +54,9 @@ def _sandbox_backend_client(
             capability=SandboxBackendCapability(
                 supported_execution_classes=execution_classes,
                 supported_profiles=profiles,
+                supported_dependency_modes=dependency_modes,
+                supports_builtin_package_sets=supports_builtin_package_sets,
+                supports_backend_extensions=supports_backend_extensions,
                 supports_network_policy=True,
                 supports_filesystem_policy=True,
             ),
@@ -69,6 +75,9 @@ def _sandbox_backend_client(
                     capability=SandboxBackendCapability(
                         supported_execution_classes=execution_classes,
                         supported_profiles=profiles,
+                        supported_dependency_modes=dependency_modes,
+                        supports_builtin_package_sets=supports_builtin_package_sets,
+                        supports_backend_extensions=supports_backend_extensions,
                         supports_network_policy=True,
                         supports_filesystem_policy=True,
                     ),
@@ -314,6 +323,9 @@ def test_plugin_call_proxy_forwards_execution_payload_to_compat_adapter() -> Non
             "timeoutMs": 4000,
             "networkPolicy": "isolated",
             "filesystemPolicy": "ephemeral",
+            "dependencyMode": "builtin",
+            "builtinPackageSet": "py-data-basic",
+            "backendExtensions": {"mountPreset": "analytics"},
             "sandboxBackend": {
                 "id": "sandbox-default",
                 "executorRef": "sandbox-backend:sandbox-default",
@@ -337,10 +349,99 @@ def test_plugin_call_proxy_forwards_execution_payload_to_compat_adapter() -> Non
         sandbox_backend_client=_sandbox_backend_client(
             execution_classes=("microvm",),
             profiles=("compat-isolation",),
+            dependency_modes=("builtin",),
+            supports_builtin_package_sets=True,
+            supports_backend_extensions=True,
         ),
     )
 
+    request = PluginCallRequest(
+        tool_id="compat:dify:plugin:demo/search",
+        ecosystem="compat:dify",
+        inputs={"query": "sevenflows"},
+        trace_id="trace-compat-execution",
+        execution={
+            "class": "microvm",
+            "source": "tool_call",
+            "profile": "compat-isolation",
+            "timeoutMs": 4000,
+            "networkPolicy": "isolated",
+            "filesystemPolicy": "ephemeral",
+            "dependencyMode": "builtin",
+            "builtinPackageSet": "py-data-basic",
+            "backendExtensions": {"mountPreset": "analytics"},
+        },
+    )
+    dispatch = proxy.describe_execution_dispatch(request)
+    assert dispatch.as_trace_payload() == {
+        "requested_execution_class": "microvm",
+        "effective_execution_class": "microvm",
+        "execution_source": "tool_call",
+        "requested_execution_profile": "compat-isolation",
+        "requested_execution_timeout_ms": 4000,
+        "requested_network_policy": "isolated",
+        "requested_filesystem_policy": "ephemeral",
+        "requested_dependency_mode": "builtin",
+        "requested_builtin_package_set": "py-data-basic",
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": {"mountPreset": "analytics"},
+        "executor_ref": "tool:compat-adapter:dify-default",
+        "sandbox_backend_id": "sandbox-default",
+        "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
+        "fallback_reason": None,
+        "blocked_reason": None,
+    }
+
     response = proxy.invoke(
+        request
+    )
+
+    assert response.status == "success"
+    assert response.output == {"documents": ["doc-1"]}
+    assert response.duration_ms == 9
+
+
+def test_plugin_call_proxy_fail_closes_backend_extension_request_without_backend_support() -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="compat:dify:plugin:demo/search",
+            name="Search",
+            ecosystem="compat:dify",
+            source="plugin",
+            constrained_ir=_demo_search_constrained_ir(),
+        )
+    )
+    registry.register_adapter(
+        CompatibilityAdapterRegistration(
+            id="dify-default",
+            ecosystem="compat:dify",
+            endpoint="http://adapter.local/dify",
+            supported_execution_classes=("subprocess", "microvm"),
+        )
+    )
+
+    proxy = PluginCallProxy(
+        registry,
+        client_factory=lambda timeout_ms: httpx.Client(
+            transport=httpx.MockTransport(
+                lambda _request: httpx.Response(
+                    200,
+                    json={
+                        "status": "success",
+                        "output": {"documents": ["doc-1"]},
+                        "durationMs": 9,
+                    },
+                )
+            ),
+            timeout=timeout_ms / 1000,
+        ),
+        sandbox_backend_client=_sandbox_backend_client(
+            execution_classes=("microvm",),
+        ),
+    )
+
+    dispatch = proxy.describe_execution_dispatch(
         PluginCallRequest(
             tool_id="compat:dify:plugin:demo/search",
             ecosystem="compat:dify",
@@ -353,13 +454,55 @@ def test_plugin_call_proxy_forwards_execution_payload_to_compat_adapter() -> Non
                 "timeoutMs": 4000,
                 "networkPolicy": "isolated",
                 "filesystemPolicy": "ephemeral",
+                "backendExtensions": {"mountPreset": "analytics"},
             },
         )
     )
 
-    assert response.status == "success"
-    assert response.output == {"documents": ["doc-1"]}
-    assert response.duration_ms == 9
+    assert dispatch.as_trace_payload() == {
+        "requested_execution_class": "microvm",
+        "effective_execution_class": "microvm",
+        "execution_source": "tool_call",
+        "requested_execution_profile": "compat-isolation",
+        "requested_execution_timeout_ms": 4000,
+        "requested_network_policy": "isolated",
+        "requested_filesystem_policy": "ephemeral",
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": {"mountPreset": "analytics"},
+        "executor_ref": "tool:compat-adapter:dify-default",
+        "sandbox_backend_id": None,
+        "sandbox_backend_executor_ref": None,
+        "fallback_reason": None,
+        "blocked_reason": (
+            "No compatible sandbox backend is currently available for the requested "
+            "execution class 'microvm'. sandbox-default: does not support "
+            "backendExtensions payloads"
+        ),
+    }
+
+    with pytest.raises(
+        PluginInvocationError,
+        match="does not support backendExtensions payloads",
+    ):
+        proxy.invoke(
+            PluginCallRequest(
+                tool_id="compat:dify:plugin:demo/search",
+                ecosystem="compat:dify",
+                inputs={"query": "sevenflows"},
+                trace_id="trace-compat-execution",
+                execution={
+                    "class": "microvm",
+                    "source": "tool_call",
+                    "profile": "compat-isolation",
+                    "timeoutMs": 4000,
+                    "networkPolicy": "isolated",
+                    "filesystemPolicy": "ephemeral",
+                    "backendExtensions": {"mountPreset": "analytics"},
+                },
+            )
+        )
 
 
 def test_plugin_call_proxy_blocks_explicit_unsupported_execution_class_for_compat_adapter() -> None:
@@ -424,6 +567,10 @@ def test_plugin_call_proxy_blocks_explicit_unsupported_execution_class_for_compa
         "requested_execution_timeout_ms": 4000,
         "requested_network_policy": "isolated",
         "requested_filesystem_policy": "ephemeral",
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:compat-adapter:dify-default",
         "sandbox_backend_id": None,
         "sandbox_backend_executor_ref": None,
@@ -513,6 +660,10 @@ def test_plugin_call_proxy_keeps_default_execution_fallback_for_compat_adapter()
         "requested_execution_timeout_ms": None,
         "requested_network_policy": None,
         "requested_filesystem_policy": None,
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:compat-adapter:dify-default",
         "sandbox_backend_id": None,
         "sandbox_backend_executor_ref": None,
@@ -553,6 +704,10 @@ def test_plugin_call_proxy_fail_closes_explicit_native_isolation_request() -> No
         "requested_execution_timeout_ms": 3000,
         "requested_network_policy": None,
         "requested_filesystem_policy": None,
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:native-inline",
         "sandbox_backend_id": None,
         "sandbox_backend_executor_ref": None,
@@ -633,6 +788,10 @@ def test_plugin_call_proxy_binds_sandbox_backend_for_native_tool() -> None:
         "requested_execution_timeout_ms": 3000,
         "requested_network_policy": "restricted",
         "requested_filesystem_policy": "ephemeral",
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:native-sandbox",
         "sandbox_backend_id": "sandbox-default",
         "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
@@ -670,6 +829,83 @@ def test_plugin_call_proxy_binds_sandbox_backend_for_native_tool() -> None:
             "executorRef": "sandbox-backend:sandbox-default",
         },
     }
+
+
+def test_plugin_call_proxy_fail_closes_native_builtin_package_request() -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="native.search",
+            name="Native Search",
+            supported_execution_classes=("inline", "sandbox"),
+        ),
+        invoker=lambda _request: {"documents": ["doc-1"]},
+    )
+
+    proxy = PluginCallProxy(
+        registry,
+        sandbox_backend_client=_sandbox_backend_client(
+            execution_classes=("sandbox",),
+            dependency_modes=("builtin",),
+        ),
+    )
+
+    dispatch = proxy.describe_execution_dispatch(
+        PluginCallRequest(
+            tool_id="native.search",
+            ecosystem="native",
+            inputs={"query": "sevenflows"},
+            trace_id="trace-native-builtin",
+            execution={
+                "class": "sandbox",
+                "source": "tool_call",
+                "dependencyMode": "builtin",
+                "builtinPackageSet": "py-data-basic",
+            },
+        )
+    )
+
+    assert dispatch.as_trace_payload() == {
+        "requested_execution_class": "sandbox",
+        "effective_execution_class": "sandbox",
+        "execution_source": "tool_call",
+        "requested_execution_profile": None,
+        "requested_execution_timeout_ms": None,
+        "requested_network_policy": None,
+        "requested_filesystem_policy": None,
+        "requested_dependency_mode": "builtin",
+        "requested_builtin_package_set": "py-data-basic",
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
+        "executor_ref": "tool:native-sandbox",
+        "sandbox_backend_id": None,
+        "sandbox_backend_executor_ref": None,
+        "fallback_reason": None,
+        "blocked_reason": (
+            "No compatible sandbox backend is currently available for the requested "
+            "execution class 'sandbox'. sandbox-default: does not support "
+            "builtin package set hints"
+        ),
+    }
+
+    with pytest.raises(
+        PluginInvocationError,
+        match="does not support builtin package set hints",
+    ):
+        proxy.invoke(
+            PluginCallRequest(
+                tool_id="native.search",
+                ecosystem="native",
+                inputs={"query": "sevenflows"},
+                trace_id="trace-native-builtin",
+                execution={
+                    "class": "sandbox",
+                    "source": "tool_call",
+                    "dependencyMode": "builtin",
+                    "builtinPackageSet": "py-data-basic",
+                },
+            )
+        )
 
 
 def test_plugin_call_proxy_uses_default_execution_class_for_native_tool() -> None:
@@ -714,6 +950,10 @@ def test_plugin_call_proxy_uses_default_execution_class_for_native_tool() -> Non
         "requested_execution_timeout_ms": None,
         "requested_network_policy": None,
         "requested_filesystem_policy": None,
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:native-sandbox",
         "sandbox_backend_id": "sandbox-default",
         "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
@@ -819,6 +1059,10 @@ def test_plugin_call_proxy_binds_sandbox_backend_for_compat_adapter() -> None:
         "requested_execution_timeout_ms": 4000,
         "requested_network_policy": "isolated",
         "requested_filesystem_policy": "ephemeral",
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:compat-adapter:dify-microvm",
         "sandbox_backend_id": "sandbox-default",
         "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",

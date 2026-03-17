@@ -9,6 +9,8 @@ from app.services.plugin_runtime_types import (
 from app.services.runtime_execution_policy import default_execution_class_for_tool_ecosystem
 from app.services.sandbox_backends import SandboxBackendClient, get_sandbox_backend_client
 
+_DEPENDENCY_MODES = {"builtin", "dependency_ref", "backend_managed"}
+
 
 class PluginExecutionDispatchPlanner:
     def __init__(
@@ -56,6 +58,23 @@ class PluginExecutionDispatchPlanner:
         requested_filesystem_policy = self._normalize_optional_string(
             requested_execution.get("filesystemPolicy")
         )
+        requested_dependency_mode = self._normalize_optional_enum(
+            requested_execution.get("dependencyMode"),
+            allowed=_DEPENDENCY_MODES,
+        )
+        requested_builtin_package_set = self._normalize_optional_string(
+            requested_execution.get("builtinPackageSet")
+        )
+        if requested_dependency_mode != "builtin":
+            requested_builtin_package_set = None
+        requested_dependency_ref = self._normalize_optional_string(
+            requested_execution.get("dependencyRef")
+        )
+        if requested_dependency_mode != "dependency_ref":
+            requested_dependency_ref = None
+        requested_backend_extensions = self._normalize_optional_object(
+            requested_execution.get("backendExtensions")
+        )
 
         if request.ecosystem == "native":
             supported_execution_classes = (
@@ -87,8 +106,11 @@ class PluginExecutionDispatchPlanner:
                 backend_selection = self._sandbox_backend_client.describe_tool_execution_backend(
                     execution_class=effective_execution_class,
                     profile=requested_execution_profile,
+                    dependency_mode=requested_dependency_mode,
+                    builtin_package_set=requested_builtin_package_set,
                     network_policy=requested_network_policy,
                     filesystem_policy=requested_filesystem_policy,
+                    backend_extensions=requested_backend_extensions,
                 )
                 if not backend_selection.available or backend_selection.backend_id is None:
                     blocked_reason = (
@@ -110,6 +132,10 @@ class PluginExecutionDispatchPlanner:
                 ),
                 requested_network_policy=requested_network_policy,
                 requested_filesystem_policy=requested_filesystem_policy,
+                requested_dependency_mode=requested_dependency_mode,
+                requested_builtin_package_set=requested_builtin_package_set,
+                requested_dependency_ref=requested_dependency_ref,
+                requested_backend_extensions=requested_backend_extensions,
                 executor_ref=(
                     f"tool:native-{effective_execution_class}"
                     if effective_execution_class != "inline"
@@ -119,6 +145,10 @@ class PluginExecutionDispatchPlanner:
                     requested_execution=requested_execution,
                     effective_execution_class=effective_execution_class,
                     execution_source=execution_source,
+                    requested_dependency_mode=requested_dependency_mode,
+                    requested_builtin_package_set=requested_builtin_package_set,
+                    requested_dependency_ref=requested_dependency_ref,
+                    requested_backend_extensions=requested_backend_extensions,
                     sandbox_backend_id=sandbox_backend_id,
                     sandbox_backend_executor_ref=sandbox_backend_executor_ref,
                 ),
@@ -160,8 +190,11 @@ class PluginExecutionDispatchPlanner:
             backend_selection = self._sandbox_backend_client.describe_tool_execution_backend(
                 execution_class=effective_execution_class,
                 profile=requested_execution_profile,
+                dependency_mode=requested_dependency_mode,
+                builtin_package_set=requested_builtin_package_set,
                 network_policy=requested_network_policy,
                 filesystem_policy=requested_filesystem_policy,
+                backend_extensions=requested_backend_extensions,
             )
             if not backend_selection.available or backend_selection.backend_id is None:
                 blocked_reason = (
@@ -183,11 +216,19 @@ class PluginExecutionDispatchPlanner:
             ),
             requested_network_policy=requested_network_policy,
             requested_filesystem_policy=requested_filesystem_policy,
+            requested_dependency_mode=requested_dependency_mode,
+            requested_builtin_package_set=requested_builtin_package_set,
+            requested_dependency_ref=requested_dependency_ref,
+            requested_backend_extensions=requested_backend_extensions,
             executor_ref=f"tool:compat-adapter:{resolved_adapter.id}",
             effective_execution=self._build_effective_execution_payload(
                 requested_execution=requested_execution,
                 effective_execution_class=effective_execution_class,
                 execution_source=execution_source,
+                requested_dependency_mode=requested_dependency_mode,
+                requested_builtin_package_set=requested_builtin_package_set,
+                requested_dependency_ref=requested_dependency_ref,
+                requested_backend_extensions=requested_backend_extensions,
                 sandbox_backend_id=sandbox_backend_id,
                 sandbox_backend_executor_ref=sandbox_backend_executor_ref,
             ),
@@ -211,7 +252,21 @@ class PluginExecutionDispatchPlanner:
     @staticmethod
     def _normalize_optional_string(value: object) -> str | None:
         if isinstance(value, str):
-            return str(value)
+            normalized = str(value).strip()
+            return normalized or None
+        return None
+
+    @staticmethod
+    def _normalize_optional_enum(value: object, *, allowed: set[str]) -> str | None:
+        if not isinstance(value, str):
+            return None
+        normalized = value.strip().lower()
+        return normalized if normalized in allowed else None
+
+    @staticmethod
+    def _normalize_optional_object(value: object) -> dict[str, object] | None:
+        if isinstance(value, dict):
+            return value
         return None
 
     @staticmethod
@@ -220,12 +275,32 @@ class PluginExecutionDispatchPlanner:
         requested_execution: dict[str, object],
         effective_execution_class: str,
         execution_source: str,
+        requested_dependency_mode: str | None,
+        requested_builtin_package_set: str | None,
+        requested_dependency_ref: str | None,
+        requested_backend_extensions: dict[str, object] | None,
         sandbox_backend_id: str | None,
         sandbox_backend_executor_ref: str | None,
     ) -> dict[str, object]:
         effective_execution = dict(requested_execution)
         effective_execution["class"] = effective_execution_class
         effective_execution["source"] = execution_source
+        if requested_dependency_mode is not None:
+            effective_execution["dependencyMode"] = requested_dependency_mode
+        else:
+            effective_execution.pop("dependencyMode", None)
+        if requested_builtin_package_set is not None:
+            effective_execution["builtinPackageSet"] = requested_builtin_package_set
+        else:
+            effective_execution.pop("builtinPackageSet", None)
+        if requested_dependency_ref is not None:
+            effective_execution["dependencyRef"] = requested_dependency_ref
+        else:
+            effective_execution.pop("dependencyRef", None)
+        if requested_backend_extensions is not None:
+            effective_execution["backendExtensions"] = requested_backend_extensions
+        else:
+            effective_execution.pop("backendExtensions", None)
         if sandbox_backend_id is not None:
             effective_execution["sandboxBackend"] = {
                 "id": sandbox_backend_id,

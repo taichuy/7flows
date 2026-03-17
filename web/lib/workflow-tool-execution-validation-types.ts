@@ -31,6 +31,7 @@ export type WorkflowExecutionCapabilityIssueOptions = {
   ecosystem: string | null;
   adapterId: string | null;
   requestedExecutionClass: string;
+  executionPayload: Record<string, unknown> | null;
   adapters: PluginAdapterRegistryItem[];
   sandboxReadiness?: SandboxReadinessCheck | null;
   path: string;

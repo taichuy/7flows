@@ -269,6 +269,10 @@ def test_llm_agent_tool_policy_execution_fail_closes_explicit_native_isolation(
         "requested_execution_timeout_ms": 15000,
         "requested_network_policy": None,
         "requested_filesystem_policy": None,
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:native-inline",
     }
 
@@ -286,6 +290,10 @@ def test_llm_agent_tool_policy_execution_fail_closes_explicit_native_isolation(
         "requested_execution_timeout_ms": 15000,
         "requested_network_policy": None,
         "requested_filesystem_policy": None,
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:native-inline",
         "reason": (
             "Native tool 'native.search' does not support requested execution class "
@@ -402,6 +410,10 @@ def test_llm_agent_tool_call_execution_override_fail_closes_native_isolation(
         "requested_execution_timeout_ms": 5000,
         "requested_network_policy": "isolated",
         "requested_filesystem_policy": "ephemeral",
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:native-inline",
     }
 
@@ -419,6 +431,10 @@ def test_llm_agent_tool_call_execution_override_fail_closes_native_isolation(
         "requested_execution_timeout_ms": 5000,
         "requested_network_policy": "isolated",
         "requested_filesystem_policy": "ephemeral",
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:native-inline",
         "reason": (
             "Native tool 'native.search' does not support requested execution class "
@@ -570,6 +586,10 @@ def test_llm_agent_tool_call_execution_override_fail_closes_for_unsupported_comp
         "requested_execution_timeout_ms": 4000,
         "requested_network_policy": "isolated",
         "requested_filesystem_policy": "ephemeral",
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:compat-adapter:dify-default",
     }
 
@@ -587,6 +607,10 @@ def test_llm_agent_tool_call_execution_override_fail_closes_for_unsupported_comp
         "requested_execution_timeout_ms": 4000,
         "requested_network_policy": "isolated",
         "requested_filesystem_policy": "ephemeral",
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:compat-adapter:dify-default",
         "reason": (
             "Compatibility adapter 'dify-default' does not support requested execution class "

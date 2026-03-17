@@ -58,6 +58,7 @@ export function buildExecutionCapabilityIssue({
   ecosystem,
   adapterId,
   requestedExecutionClass,
+  executionPayload,
   adapters,
   sandboxReadiness,
   path,
@@ -74,6 +75,7 @@ export function buildExecutionCapabilityIssue({
         nodeName,
         toolId,
         requestedExecutionClass,
+        executionPayload,
         sandboxReadiness,
         path,
         field
@@ -131,6 +133,7 @@ export function buildExecutionCapabilityIssue({
     nodeName,
     toolId,
     requestedExecutionClass,
+    executionPayload,
     sandboxReadiness,
     path,
     field
@@ -154,7 +157,10 @@ export function buildDefaultExecutionCapabilityIssue({
   sandboxReadiness,
   path,
   field
-}: Omit<WorkflowExecutionCapabilityIssueOptions, "requestedExecutionClass">): WorkflowToolExecutionValidationIssue | null {
+}: Omit<
+  WorkflowExecutionCapabilityIssueOptions,
+  "requestedExecutionClass" | "executionPayload"
+>): WorkflowToolExecutionValidationIssue | null {
   const defaultExecutionClass = normalizeStrongDefaultExecutionClass(tool.default_execution_class);
   if (!defaultExecutionClass) {
     return null;
@@ -272,6 +278,7 @@ function buildSandboxReadinessIssue({
   nodeName,
   toolId,
   requestedExecutionClass,
+  executionPayload,
   sandboxReadiness,
   path,
   field
@@ -281,6 +288,7 @@ function buildSandboxReadinessIssue({
   nodeName: string;
   toolId: string;
   requestedExecutionClass: string;
+  executionPayload: Record<string, unknown> | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   path: string;
   field: string;
@@ -296,6 +304,47 @@ function buildSandboxReadinessIssue({
     (item) => item.execution_class === requestedExecutionClass
   );
   if (readiness?.available) {
+    const dependencyMode = normalizeDependencyMode(executionPayload?.dependencyMode);
+    if (
+      dependencyMode &&
+      !sandboxReadiness.supported_dependency_modes.includes(dependencyMode)
+    ) {
+      return {
+        nodeId,
+        nodeName,
+        message: `${context} 显式请求了 ${requestedExecutionClass}，但当前 sandbox readiness 聚合视图还不支持 dependencyMode = ${dependencyMode}，工具 ${toolId} 不能稳定落到对应强隔离后端。`,
+        path,
+        field
+      };
+    }
+
+    if (
+      dependencyMode === "builtin" &&
+      normalizeString(executionPayload?.builtinPackageSet) &&
+      !sandboxReadiness.supports_builtin_package_sets
+    ) {
+      return {
+        nodeId,
+        nodeName,
+        message: `${context} 显式请求了 ${requestedExecutionClass} 并附带 builtinPackageSet，但当前 sandbox readiness 聚合视图还不支持 builtin package set hints，工具 ${toolId} 不能稳定落到兼容后端。`,
+        path,
+        field
+      };
+    }
+
+    if (
+      toRecord(executionPayload?.backendExtensions) &&
+      !sandboxReadiness.supports_backend_extensions
+    ) {
+      return {
+        nodeId,
+        nodeName,
+        message: `${context} 显式请求了 ${requestedExecutionClass} 并附带 backendExtensions，但当前 sandbox readiness 聚合视图还不支持 backendExtensions payload，工具 ${toolId} 不能稳定落到兼容后端。`,
+        path,
+        field
+      };
+    }
+
     return null;
   }
 
@@ -372,6 +421,14 @@ function buildSensitivityReason(
 
 function normalizeString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeDependencyMode(value: unknown) {
+  const normalized = normalizeString(value)?.toLowerCase();
+  if (!normalized || !["builtin", "dependency_ref", "backend_managed"].includes(normalized)) {
+    return null;
+  }
+  return normalized;
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {

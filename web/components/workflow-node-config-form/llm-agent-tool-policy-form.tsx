@@ -302,6 +302,29 @@ export function LlmAgentToolPolicyForm({
 
 function normalizeToolPolicyExecution(execution: Record<string, unknown>) {
   const normalizedExecution: Record<string, unknown> = {};
+  const dependencyMode =
+    typeof execution.dependencyMode === "string" && execution.dependencyMode.trim()
+      ? execution.dependencyMode.trim()
+      : undefined;
+  const builtinPackageSet =
+    dependencyMode === "builtin" &&
+    typeof execution.builtinPackageSet === "string" &&
+    execution.builtinPackageSet.trim()
+      ? execution.builtinPackageSet.trim()
+      : undefined;
+  const dependencyRef =
+    dependencyMode === "dependency_ref" &&
+    typeof execution.dependencyRef === "string" &&
+    execution.dependencyRef.trim()
+      ? execution.dependencyRef.trim()
+      : undefined;
+  const backendExtensions =
+    execution.backendExtensions &&
+    typeof execution.backendExtensions === "object" &&
+    !Array.isArray(execution.backendExtensions) &&
+    Object.keys(execution.backendExtensions as Record<string, unknown>).length > 0
+      ? (execution.backendExtensions as Record<string, unknown>)
+      : undefined;
 
   if (typeof execution.class === "string" && execution.class.trim()) {
     normalizedExecution.class = execution.class.trim();
@@ -320,6 +343,18 @@ function normalizeToolPolicyExecution(execution: Record<string, unknown>) {
     execution.filesystemPolicy.trim()
   ) {
     normalizedExecution.filesystemPolicy = execution.filesystemPolicy.trim();
+  }
+  if (dependencyMode) {
+    normalizedExecution.dependencyMode = dependencyMode;
+  }
+  if (builtinPackageSet) {
+    normalizedExecution.builtinPackageSet = builtinPackageSet;
+  }
+  if (dependencyRef) {
+    normalizedExecution.dependencyRef = dependencyRef;
+  }
+  if (backendExtensions) {
+    normalizedExecution.backendExtensions = backendExtensions;
   }
 
   return Object.keys(normalizedExecution).length > 0 ? normalizedExecution : undefined;

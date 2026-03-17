@@ -17,7 +17,13 @@ from app.services.sandbox_backends import (
 )
 
 
-def _sandbox_backend_client(*, execution_classes: tuple[str, ...]) -> SandboxBackendClient:
+def _sandbox_backend_client(
+    *,
+    execution_classes: tuple[str, ...],
+    dependency_modes: tuple[str, ...] = (),
+    supports_builtin_package_sets: bool = False,
+    supports_backend_extensions: bool = False,
+) -> SandboxBackendClient:
     registry = SandboxBackendRegistry()
     registry.register_backend(
         SandboxBackendRegistration(
@@ -37,6 +43,9 @@ def _sandbox_backend_client(*, execution_classes: tuple[str, ...]) -> SandboxBac
             status="healthy",
             capability=SandboxBackendCapability(
                 supported_execution_classes=execution_classes,
+                supported_dependency_modes=dependency_modes,
+                supports_builtin_package_sets=supports_builtin_package_sets,
+                supports_backend_extensions=supports_backend_extensions,
             ),
         )
     ]
@@ -1126,6 +1135,128 @@ def test_create_workflow_accepts_supported_tool_execution_class(
                 ecosystem="compat:dify",
                 adapter_id="dify-microvm",
                 runtime_policy={"execution": {"class": "microvm"}},
+            ),
+        },
+    )
+
+    assert response.status_code == 201
+
+
+def test_create_workflow_rejects_tool_execution_dependency_contract_without_backend_support(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    adapter_response = client.post(
+        "/api/plugins/adapters",
+        json={
+            "id": "dify-microvm-deps",
+            "ecosystem": "compat:dify-deps",
+            "endpoint": "http://adapter.local/dify-deps",
+            "supported_execution_classes": ["subprocess", "microvm"],
+        },
+    )
+    assert adapter_response.status_code == 201
+
+    tool_response = client.post(
+        "/api/plugins/tools",
+        json={
+            "id": "compat:dify-deps:plugin:demo/search",
+            "name": "Demo Search Deps",
+            "ecosystem": "compat:dify-deps",
+            "description": "Search via adapter",
+            "input_schema": {"type": "object"},
+            "output_schema": {"type": "object"},
+        },
+    )
+    assert tool_response.status_code == 201
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(
+            execution_classes=("microvm",),
+            dependency_modes=("builtin",),
+        ),
+    )
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Dependency Contract Workflow",
+            "definition": _bound_tool_definition(
+                tool_id="compat:dify-deps:plugin:demo/search",
+                ecosystem="compat:dify-deps",
+                adapter_id="dify-microvm-deps",
+                runtime_policy={
+                    "execution": {
+                        "class": "microvm",
+                        "dependencyMode": "builtin",
+                        "builtinPackageSet": "py-data-basic",
+                    }
+                },
+            ),
+        },
+    )
+
+    assert response.status_code == 422
+    detail = _workflow_detail_message(response)
+    assert "tool execution capabilities" in detail
+    assert "builtin package set hints" in detail
+
+
+def test_create_workflow_accepts_tool_execution_dependency_contract_with_ready_backend(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    adapter_response = client.post(
+        "/api/plugins/adapters",
+        json={
+            "id": "dify-microvm-ready-deps",
+            "ecosystem": "compat:dify-ready-deps",
+            "endpoint": "http://adapter.local/dify-ready-deps",
+            "supported_execution_classes": ["subprocess", "microvm"],
+        },
+    )
+    assert adapter_response.status_code == 201
+
+    tool_response = client.post(
+        "/api/plugins/tools",
+        json={
+            "id": "compat:dify-ready-deps:plugin:demo/search",
+            "name": "Demo Search Ready Deps",
+            "ecosystem": "compat:dify-ready-deps",
+            "description": "Search via adapter",
+            "input_schema": {"type": "object"},
+            "output_schema": {"type": "object"},
+        },
+    )
+    assert tool_response.status_code == 201
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(
+            execution_classes=("microvm",),
+            dependency_modes=("builtin",),
+            supports_builtin_package_sets=True,
+            supports_backend_extensions=True,
+        ),
+    )
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Dependency Contract Ready Workflow",
+            "definition": _bound_tool_definition(
+                tool_id="compat:dify-ready-deps:plugin:demo/search",
+                ecosystem="compat:dify-ready-deps",
+                adapter_id="dify-microvm-ready-deps",
+                runtime_policy={
+                    "execution": {
+                        "class": "microvm",
+                        "dependencyMode": "builtin",
+                        "builtinPackageSet": "py-data-basic",
+                        "backendExtensions": {"mountPreset": "analytics"},
+                    }
+                },
             ),
         },
     )

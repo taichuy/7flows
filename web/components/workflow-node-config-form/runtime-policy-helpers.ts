@@ -2,11 +2,13 @@
 
 import type {
   WorkflowExecutionClass,
+  WorkflowExecutionDependencyMode,
   WorkflowExecutionFilesystemPolicy,
   WorkflowExecutionNetworkPolicy
 } from "@/lib/workflow-runtime-policy";
 import {
   WORKFLOW_EXECUTION_CLASS_OPTIONS,
+  WORKFLOW_EXECUTION_DEPENDENCY_MODE_OPTIONS,
   WORKFLOW_EXECUTION_FILESYSTEM_POLICY_OPTIONS,
   WORKFLOW_EXECUTION_NETWORK_POLICY_OPTIONS,
   resolveDefaultExecutionClass
@@ -65,12 +67,33 @@ export function normalizeExecutionPolicy(
   const filesystemPolicy = isExecutionFilesystemPolicy(execution.filesystemPolicy)
     ? execution.filesystemPolicy
     : "inherit";
+  const dependencyMode = isExecutionDependencyMode(execution.dependencyMode)
+    ? execution.dependencyMode
+    : undefined;
+  const builtinPackageSet =
+    dependencyMode === "builtin" && typeof execution.builtinPackageSet === "string"
+      ? execution.builtinPackageSet.trim()
+      : "";
+  const dependencyRef =
+    dependencyMode === "dependency_ref" && typeof execution.dependencyRef === "string"
+      ? execution.dependencyRef.trim()
+      : "";
+  const backendExtensions =
+    execution.backendExtensions &&
+    typeof execution.backendExtensions === "object" &&
+    !Array.isArray(execution.backendExtensions)
+      ? (execution.backendExtensions as Record<string, unknown>)
+      : undefined;
 
   const hasAdditionalSettings =
     Boolean(profile) ||
     timeoutMs !== undefined ||
     networkPolicy !== "inherit" ||
-    filesystemPolicy !== "inherit";
+    filesystemPolicy !== "inherit" ||
+    dependencyMode !== undefined ||
+    Boolean(builtinPackageSet) ||
+    Boolean(dependencyRef) ||
+    Boolean(backendExtensions && Object.keys(backendExtensions).length > 0);
 
   if (!hasAdditionalSettings && className === defaultClass) {
     return undefined;
@@ -90,6 +113,18 @@ export function normalizeExecutionPolicy(
   }
   if (filesystemPolicy !== "inherit") {
     normalizedExecution.filesystemPolicy = filesystemPolicy;
+  }
+  if (dependencyMode) {
+    normalizedExecution.dependencyMode = dependencyMode;
+  }
+  if (builtinPackageSet) {
+    normalizedExecution.builtinPackageSet = builtinPackageSet;
+  }
+  if (dependencyRef) {
+    normalizedExecution.dependencyRef = dependencyRef;
+  }
+  if (backendExtensions && Object.keys(backendExtensions).length > 0) {
+    normalizedExecution.backendExtensions = backendExtensions;
   }
   return normalizedExecution;
 }
@@ -147,6 +182,15 @@ function isExecutionFilesystemPolicy(
     typeof value === "string" &&
     WORKFLOW_EXECUTION_FILESYSTEM_POLICY_OPTIONS.includes(
       value as WorkflowExecutionFilesystemPolicy
+      )
+  );
+}
+
+function isExecutionDependencyMode(value: unknown): value is WorkflowExecutionDependencyMode {
+  return (
+    typeof value === "string" &&
+    WORKFLOW_EXECUTION_DEPENDENCY_MODE_OPTIONS.includes(
+      value as WorkflowExecutionDependencyMode
     )
   );
 }

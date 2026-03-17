@@ -33,6 +33,10 @@ def _build_base_payload(
         "requested_execution_timeout_ms": trace_payload.get("requested_execution_timeout_ms"),
         "requested_network_policy": trace_payload.get("requested_network_policy"),
         "requested_filesystem_policy": trace_payload.get("requested_filesystem_policy"),
+        "requested_dependency_mode": trace_payload.get("requested_dependency_mode"),
+        "requested_builtin_package_set": trace_payload.get("requested_builtin_package_set"),
+        "requested_dependency_ref": trace_payload.get("requested_dependency_ref"),
+        "requested_backend_extensions": trace_payload.get("requested_backend_extensions"),
         "executor_ref": executor_ref,
     }
     sandbox_backend_id = trace_payload.get("sandbox_backend_id")

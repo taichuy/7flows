@@ -7,6 +7,8 @@ from app.schemas.plugin import PluginToolItem
 from app.services.plugin_runtime import CompatibilityAdapterRegistration
 from app.services.sandbox_backends import SandboxBackendClient, get_sandbox_backend_client
 
+_DEPENDENCY_MODES = {"builtin", "dependency_ref", "backend_managed"}
+
 
 def collect_invalid_workflow_tool_execution_references(
     definition: dict[str, Any] | None,
@@ -488,11 +490,19 @@ def _describe_sandbox_backend_unavailable(
         return None
 
     execution = execution_payload if isinstance(execution_payload, dict) else {}
+    dependency_mode = _normalize_optional_dependency_mode(execution.get("dependencyMode"))
+    builtin_package_set = _normalize_optional_string(execution.get("builtinPackageSet"))
+    if dependency_mode != "builtin":
+        builtin_package_set = None
+    backend_extensions = _normalize_optional_object(execution.get("backendExtensions"))
     selection = sandbox_backend_client.describe_tool_execution_backend(
         execution_class=requested_execution_class,
         profile=_normalize_optional_string(execution.get("profile")),
+        dependency_mode=dependency_mode,
+        builtin_package_set=builtin_package_set,
         network_policy=_normalize_optional_string(execution.get("networkPolicy")),
         filesystem_policy=_normalize_optional_string(execution.get("filesystemPolicy")),
+        backend_extensions=backend_extensions,
     )
     if selection.available:
         return None
@@ -578,3 +588,16 @@ def _normalize_optional_string(value: Any) -> str | None:
         return None
     normalized = value.strip()
     return normalized or None
+
+
+def _normalize_optional_dependency_mode(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().lower()
+    return normalized if normalized in _DEPENDENCY_MODES else None
+
+
+def _normalize_optional_object(value: Any) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    return value

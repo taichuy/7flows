@@ -17,6 +17,12 @@ export const WORKFLOW_EXECUTION_FILESYSTEM_POLICY_OPTIONS = [
   "ephemeral"
 ] as const;
 
+export const WORKFLOW_EXECUTION_DEPENDENCY_MODE_OPTIONS = [
+  "builtin",
+  "dependency_ref",
+  "backend_managed"
+] as const;
+
 export type WorkflowExecutionClass =
   (typeof WORKFLOW_EXECUTION_CLASS_OPTIONS)[number];
 
@@ -26,12 +32,19 @@ export type WorkflowExecutionNetworkPolicy =
 export type WorkflowExecutionFilesystemPolicy =
   (typeof WORKFLOW_EXECUTION_FILESYSTEM_POLICY_OPTIONS)[number];
 
+export type WorkflowExecutionDependencyMode =
+  (typeof WORKFLOW_EXECUTION_DEPENDENCY_MODE_OPTIONS)[number];
+
 export type WorkflowExecutionPolicy = {
   class: WorkflowExecutionClass;
   profile?: string;
   timeoutMs?: number;
   networkPolicy?: WorkflowExecutionNetworkPolicy;
   filesystemPolicy?: WorkflowExecutionFilesystemPolicy;
+  dependencyMode?: WorkflowExecutionDependencyMode;
+  builtinPackageSet?: string;
+  dependencyRef?: string;
+  backendExtensions?: Record<string, unknown>;
 };
 
 export type WorkflowRetryPolicy = {

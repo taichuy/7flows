@@ -168,6 +168,10 @@ class PluginExecutionDispatchPlan:
     requested_network_policy: str | None
     requested_filesystem_policy: str | None
     executor_ref: str
+    requested_dependency_mode: str | None = None
+    requested_builtin_package_set: str | None = None
+    requested_dependency_ref: str | None = None
+    requested_backend_extensions: dict[str, Any] | None = None
     effective_execution: dict[str, Any] = field(default_factory=dict)
     sandbox_backend_id: str | None = None
     sandbox_backend_executor_ref: str | None = None
@@ -183,6 +187,10 @@ class PluginExecutionDispatchPlan:
             "requested_execution_timeout_ms": self.requested_execution_timeout_ms,
             "requested_network_policy": self.requested_network_policy,
             "requested_filesystem_policy": self.requested_filesystem_policy,
+            "requested_dependency_mode": self.requested_dependency_mode,
+            "requested_builtin_package_set": self.requested_builtin_package_set,
+            "requested_dependency_ref": self.requested_dependency_ref,
+            "requested_backend_extensions": self.requested_backend_extensions,
             "executor_ref": self.executor_ref,
             "sandbox_backend_id": self.sandbox_backend_id,
             "sandbox_backend_executor_ref": self.sandbox_backend_executor_ref,

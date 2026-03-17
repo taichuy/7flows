@@ -12,7 +12,13 @@ from app.services.sandbox_backends import (
 )
 
 
-def _sandbox_backend_client(*, execution_classes: tuple[str, ...]) -> SandboxBackendClient:
+def _sandbox_backend_client(
+    *,
+    execution_classes: tuple[str, ...],
+    dependency_modes: tuple[str, ...] = (),
+    supports_builtin_package_sets: bool = False,
+    supports_backend_extensions: bool = False,
+) -> SandboxBackendClient:
     registry = SandboxBackendRegistry()
     registry.register_backend(
         SandboxBackendRegistration(
@@ -32,6 +38,9 @@ def _sandbox_backend_client(*, execution_classes: tuple[str, ...]) -> SandboxBac
             status="healthy",
             capability=SandboxBackendCapability(
                 supported_execution_classes=execution_classes,
+                supported_dependency_modes=dependency_modes,
+                supports_builtin_package_sets=supports_builtin_package_sets,
+                supports_backend_extensions=supports_backend_extensions,
             ),
         )
     ]
@@ -466,6 +475,92 @@ def test_workspace_starter_create_accepts_supported_agent_tool_execution(
     )
 
     assert response.status_code == 201
+
+
+def test_workspace_starter_create_rejects_tool_execution_dependency_contract(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    adapter_response = client.post(
+        "/api/plugins/adapters",
+        json={
+            "id": "dify-ready-microvm-deps",
+            "ecosystem": "compat:dify-ready-deps",
+            "endpoint": "http://adapter.local/dify-deps",
+            "supported_execution_classes": ["subprocess", "microvm"],
+        },
+    )
+    assert adapter_response.status_code == 201
+
+    tool_response = client.post(
+        "/api/plugins/tools",
+        json={
+            "id": "compat:dify-ready-deps:plugin:demo/search",
+            "name": "Demo Search",
+            "ecosystem": "compat:dify-ready-deps",
+            "description": "Search via adapter",
+            "input_schema": {"type": "object"},
+            "output_schema": {"type": "object"},
+        },
+    )
+    assert tool_response.status_code == 201
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(
+            execution_classes=("microvm",),
+            dependency_modes=("builtin",),
+        ),
+    )
+
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Dependency Contract Starter",
+            "description": "Template for dependency contract guard",
+            "business_track": "编排节点能力",
+            "default_workflow_name": "Dependency Contract Workflow",
+            "workflow_focus": "Dependency contract focus",
+            "recommended_next_step": "Provision builtin package set support first",
+            "tags": ["execution", "dependency"],
+            "definition": {
+                "nodes": [
+                    {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                    {
+                        "id": "tool_node",
+                        "type": "tool",
+                        "name": "Tool",
+                        "config": {
+                            "tool": {
+                                "toolId": "compat:dify-ready-deps:plugin:demo/search",
+                                "ecosystem": "compat:dify-ready-deps",
+                                "adapterId": "dify-ready-microvm-deps",
+                            }
+                        },
+                        "runtimePolicy": {
+                            "execution": {
+                                "class": "microvm",
+                                "dependencyMode": "builtin",
+                                "builtinPackageSet": "py-data-basic",
+                            }
+                        },
+                    },
+                    {"id": "output", "type": "output", "name": "Output", "config": {}},
+                ],
+                "edges": [
+                    {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool_node"},
+                    {"id": "e2", "sourceNodeId": "tool_node", "targetNodeId": "output"},
+                ],
+            },
+        },
+    )
+
+    assert response.status_code == 422
+    message, issues = _validation_detail(response.json())
+    assert "tool execution capabilities" in message
+    assert "builtin package set hints" in message
+    assert any(issue["category"] == "tool_execution" for issue in issues)
 
 
 def test_workspace_starter_create_rejects_sensitivity_driven_default_execution(

@@ -655,6 +655,10 @@ def test_runtime_service_fail_closes_explicit_native_tool_isolation_request(
         "requested_execution_timeout_ms": None,
         "requested_network_policy": None,
         "requested_filesystem_policy": None,
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:native-inline",
     }
 
@@ -672,6 +676,10 @@ def test_runtime_service_fail_closes_explicit_native_tool_isolation_request(
         "requested_execution_timeout_ms": None,
         "requested_network_policy": None,
         "requested_filesystem_policy": None,
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
         "executor_ref": "tool:native-inline",
         "reason": (
             "Native tool 'native.inline-test' does not support requested execution class "

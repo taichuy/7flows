@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ExecutionClass = Literal["inline", "subprocess", "sandbox", "microvm"]
 ExecutionNetworkPolicy = Literal["inherit", "restricted", "isolated"]
 ExecutionFilesystemPolicy = Literal["inherit", "readonly_tmp", "ephemeral"]
+ExecutionDependencyMode = Literal["builtin", "dependency_ref", "backend_managed"]
 JoinMode = Literal["any", "all"]
 JoinUnmetBehavior = Literal["skip", "fail"]
 JoinMergeStrategy = Literal["error", "overwrite", "keep_first", "append"]
@@ -49,12 +50,26 @@ class WorkflowNodeExecutionPolicy(BaseModel):
     timeoutMs: int | None = Field(default=None, ge=1, le=600_000)
     networkPolicy: ExecutionNetworkPolicy | None = None
     filesystemPolicy: ExecutionFilesystemPolicy | None = None
+    dependencyMode: ExecutionDependencyMode | None = None
+    builtinPackageSet: str | None = Field(default=None, min_length=1, max_length=128)
+    dependencyRef: str | None = Field(default=None, min_length=1, max_length=256)
+    backendExtensions: dict[str, Any] | None = None
 
     @model_validator(mode="after")
-    def normalize_profile(self) -> WorkflowNodeExecutionPolicy:
+    def normalize_execution_fields(self) -> WorkflowNodeExecutionPolicy:
         if self.profile is not None:
             normalized_profile = self.profile.strip()
             self.profile = normalized_profile or None
+        if self.builtinPackageSet is not None and self.dependencyMode != "builtin":
+            raise ValueError(
+                "execution.builtinPackageSet requires execution.dependencyMode = 'builtin'."
+            )
+        if self.dependencyRef is not None and self.dependencyMode != "dependency_ref":
+            raise ValueError(
+                "execution.dependencyRef requires execution.dependencyMode = 'dependency_ref'."
+            )
+        if self.backendExtensions is not None and not isinstance(self.backendExtensions, dict):
+            raise ValueError("execution.backendExtensions must be an object when provided.")
         return self
 
 
