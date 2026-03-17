@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import {
   fetchCallbackBlockerSnapshot,
@@ -22,6 +20,10 @@ import {
   summarizeBulkRunFollowUp
 } from "@/lib/operator-action-result-presenters";
 
+import {
+  revalidateOperatorFollowUpByRunIds,
+  revalidateOperatorFollowUpPaths
+} from "./operator-follow-up-revalidation";
 import { fetchRunSnapshot, fetchRunSnapshots } from "./run-snapshot";
 
 export type DecideSensitiveAccessApprovalTicketState = {
@@ -137,16 +139,6 @@ async function buildBulkRunFollowUpMetrics(runIds: Array<string | null | undefin
   };
 }
 
-function revalidateSensitiveAccessPaths(runIds: Array<string | null | undefined>) {
-  revalidatePath("/");
-  revalidatePath("/sensitive-access");
-
-  const uniqueRunIds = [...new Set(runIds.map((item) => item?.trim()).filter(Boolean))];
-  for (const runId of uniqueRunIds) {
-    revalidatePath(`/runs/${runId}`);
-  }
-}
-
 function normalizeBulkApprovalScopeItems(items: BulkApprovalScopeItem[]) {
   const seen = new Set<string>();
   return items
@@ -248,8 +240,11 @@ export async function decideSensitiveAccessApprovalTicket(
       };
     }
 
-    revalidateSensitiveAccessPaths([runId]);
     const runSnapshot = await fetchRunSnapshot(runId);
+    revalidateOperatorFollowUpPaths({
+      runIds: [runId],
+      workflowIds: [runSnapshot?.workflowId]
+    });
     const afterBlockers = await fetchCallbackBlockerSnapshot({
       runId,
       nodeRunId: nodeRunId || null
@@ -327,8 +322,11 @@ export async function retrySensitiveAccessNotificationDispatch(
       };
     }
 
-    revalidateSensitiveAccessPaths([runId]);
     const runSnapshot = await fetchRunSnapshot(runId);
+    revalidateOperatorFollowUpPaths({
+      runIds: [runId],
+      workflowIds: [runSnapshot?.workflowId]
+    });
     const afterBlockers = await fetchCallbackBlockerSnapshot({
       runId,
       nodeRunId: nodeRunId || null
@@ -422,12 +420,11 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
       };
     }
 
-    revalidateSensitiveAccessPaths(body?.decided_items?.map((item) => item.run_id) ?? []);
-
     const updatedCount = body?.decided_count ?? 0;
     const skippedCount = body?.skipped_count ?? 0;
     const skippedReasonSummary = body?.skipped_reason_summary ?? [];
     const affectedRunIds = body?.decided_items?.map((item) => item.run_id) ?? [];
+    await revalidateOperatorFollowUpByRunIds(affectedRunIds);
     const updatedTicketIds = new Set(body?.decided_items?.map((item) => item.id) ?? []);
     const blockerScopes = tickets
       .filter((item) => updatedTicketIds.has(item.ticketId))
@@ -531,14 +528,11 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
       };
     }
 
-    revalidateSensitiveAccessPaths(
-      body?.retried_items?.map((item) => item.approval_ticket.run_id) ?? []
-    );
-
     const updatedCount = body?.retried_count ?? 0;
     const skippedCount = body?.skipped_count ?? 0;
     const skippedReasonSummary = body?.skipped_reason_summary ?? [];
     const affectedRunIds = body?.retried_items?.map((item) => item.approval_ticket.run_id) ?? [];
+    await revalidateOperatorFollowUpByRunIds(affectedRunIds);
     const updatedTicketIds = new Set(
       body?.retried_items?.map((item) => item.approval_ticket.id) ?? []
     );

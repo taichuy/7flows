@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import {
   fetchCallbackBlockerSnapshot,
   formatCallbackBlockerDeltaSummary
@@ -9,6 +7,7 @@ import {
 import { formatManualResumeResultMessage } from "@/lib/operator-action-result-presenters";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 
+import { revalidateOperatorFollowUpPaths } from "./operator-follow-up-revalidation";
 import { fetchRunSnapshot } from "./run-snapshot";
 
 export type ResumeRunState = {
@@ -19,12 +18,6 @@ export type ResumeRunState = {
 
 const INITIAL_REASON = "operator_manual_resume_attempt";
 const INITIAL_SOURCE = "operator_callback_resume";
-
-function revalidateRunPaths(runId: string) {
-  revalidatePath("/");
-  revalidatePath("/sensitive-access");
-  revalidatePath(`/runs/${runId}`);
-}
 
 export async function resumeRun(
   _: ResumeRunState,
@@ -69,8 +62,11 @@ export async function resumeRun(
       };
     }
 
-    revalidateRunPaths(runId);
     const runSnapshot = await fetchRunSnapshot(runId);
+    revalidateOperatorFollowUpPaths({
+      runIds: [runId],
+      workflowIds: [runSnapshot?.workflowId]
+    });
     const afterBlockers = await fetchCallbackBlockerSnapshot({
       runId,
       nodeRunId: nodeRunId || null
@@ -86,6 +82,7 @@ export async function resumeRun(
         runSnapshot:
           runSnapshot ?? {
             status: body?.status,
+            workflowId: null,
             currentNodeId: null,
             waitingReason: null
           }

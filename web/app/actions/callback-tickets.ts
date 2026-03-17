@@ -1,7 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import {
   fetchCallbackBlockerSnapshot,
@@ -9,6 +7,7 @@ import {
 } from "@/lib/callback-blocker-follow-up";
 import { formatCleanupResultMessage } from "@/lib/operator-action-result-presenters";
 
+import { revalidateOperatorFollowUpPaths } from "./operator-follow-up-revalidation";
 import { fetchRunSnapshot } from "./run-snapshot";
 
 export type CleanupRunCallbackTicketsState = {
@@ -24,16 +23,6 @@ type CleanupRunCallbackTicketsResponseBody = {
   terminated_count: number;
   run_ids: string[];
 };
-
-function revalidateCallbackPaths(runIds: Array<string | null | undefined>) {
-  revalidatePath("/");
-  revalidatePath("/sensitive-access");
-
-  const uniqueRunIds = [...new Set(runIds.map((item) => item?.trim()).filter(Boolean))];
-  for (const runId of uniqueRunIds) {
-    revalidatePath(`/runs/${runId}`);
-  }
-}
 
 export async function cleanupRunCallbackTickets(
   _: CleanupRunCallbackTicketsState,
@@ -82,13 +71,15 @@ export async function cleanupRunCallbackTickets(
       };
     }
 
-    revalidateCallbackPaths(body?.run_ids?.length ? body.run_ids : [runId]);
-
     const expiredCount = body?.expired_count ?? 0;
     const scheduledResumeCount = body?.scheduled_resume_count ?? 0;
     const terminatedCount = body?.terminated_count ?? 0;
     const matchedCount = body?.matched_count ?? 0;
     const runSnapshot = await fetchRunSnapshot(runId);
+    revalidateOperatorFollowUpPaths({
+      runIds: body?.run_ids?.length ? body.run_ids : [runId],
+      workflowIds: [runSnapshot?.workflowId]
+    });
     const afterBlockers = await fetchCallbackBlockerSnapshot({
       runId,
       nodeRunId: nodeRunId || null

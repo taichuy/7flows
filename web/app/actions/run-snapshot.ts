@@ -4,6 +4,7 @@ export type RunSnapshot = {
   status?: string | null;
   currentNodeId?: string | null;
   waitingReason?: string | null;
+  workflowId?: string | null;
 };
 
 export type RunSnapshotWithId = {
@@ -13,6 +14,7 @@ export type RunSnapshotWithId = {
 
 type RunDetailResponseBody = {
   status?: string;
+  workflow_id?: string | null;
   current_node_id?: string | null;
   node_runs?: Array<{
     node_id?: string | null;
@@ -48,6 +50,7 @@ export async function fetchRunSnapshot(runId: string): Promise<RunSnapshot | nul
     const body = (await response.json().catch(() => null)) as RunDetailResponseBody | null;
     return {
       status: body?.status,
+      workflowId: body?.workflow_id,
       currentNodeId: body?.current_node_id,
       waitingReason: readCurrentWaitingReason(body)
     };
