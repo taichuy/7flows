@@ -9,6 +9,7 @@ import type {
 } from "@/lib/get-workflow-publish";
 import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import {
+  buildPublishedInvocationWaitingOverview,
   formatPublishedInvocationReasonLabel,
   formatPublishedInvocationSurfaceLabel,
   formatPublishedRunStatusLabel,
@@ -45,6 +46,11 @@ export function WorkflowPublishActivityInsights({
   const timeline = invocationAudit?.facets.timeline ?? [];
   const timelineGranularity = invocationAudit?.facets.timeline_granularity ?? "hour";
   const rateLimitPolicy = binding.rate_limit_policy;
+  const waitingOverview = buildPublishedInvocationWaitingOverview({
+    summary,
+    runStatusCounts,
+    reasonCounts
+  });
   const windowUsed = rateLimitWindowAudit
     ? rateLimitWindowAudit.summary.succeeded_count + rateLimitWindowAudit.summary.failed_count
     : 0;
@@ -74,6 +80,10 @@ export function WorkflowPublishActivityInsights({
         <article className="status-card compact-card">
           <span className="status-label">Last run status</span>
           <strong>{summary?.last_run_status ?? "n/a"}</strong>
+        </article>
+        <article className="status-card compact-card">
+          <span className="status-label">Waiting now</span>
+          <strong>{waitingOverview.activeWaitingCount}</strong>
         </article>
       </div>
 
@@ -122,6 +132,43 @@ export function WorkflowPublishActivityInsights({
               ))}
             </div>
           ) : null}
+        </div>
+
+        <div className="payload-card compact-card">
+          <div className="payload-card-header">
+            <span className="status-meta">Waiting follow-up</span>
+          </div>
+          <p className="section-copy entry-copy">{waitingOverview.headline}</p>
+          {waitingOverview.chips.length ? (
+            <p className="binding-meta">{waitingOverview.chips.join(" · ")}</p>
+          ) : null}
+          <dl className="compact-meta-list">
+            <div>
+              <dt>Active waiting</dt>
+              <dd>{waitingOverview.activeWaitingCount}</dd>
+            </div>
+            <div>
+              <dt>Callback waits</dt>
+              <dd>{waitingOverview.callbackWaitingCount}</dd>
+            </div>
+            <div>
+              <dt>Approval/input waits</dt>
+              <dd>{waitingOverview.waitingInputCount}</dd>
+            </div>
+            <div>
+              <dt>Generic waits</dt>
+              <dd>{waitingOverview.generalWaitingCount}</dd>
+            </div>
+            <div>
+              <dt>Sync waiting rejected</dt>
+              <dd>{waitingOverview.syncWaitingRejectedCount}</dd>
+            </div>
+            <div>
+              <dt>Latest run status</dt>
+              <dd>{waitingOverview.lastRunStatusLabel ?? "n/a"}</dd>
+            </div>
+          </dl>
+          <p className="section-copy entry-copy">{waitingOverview.detail}</p>
         </div>
 
         <div className="payload-card compact-card">

@@ -1,9 +1,23 @@
 import type {
+  PublishedEndpointInvocationFacetItem,
   PublishedEndpointInvocationCallbackTicketItem,
-  PublishedEndpointInvocationItem
+  PublishedEndpointInvocationItem,
+  PublishedEndpointInvocationSummary
 } from "@/lib/get-workflow-publish";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
+
+type PublishedInvocationWaitingOverview = {
+  activeWaitingCount: number;
+  callbackWaitingCount: number;
+  waitingInputCount: number;
+  generalWaitingCount: number;
+  syncWaitingRejectedCount: number;
+  lastRunStatusLabel: string | null;
+  headline: string;
+  detail: string;
+  chips: string[];
+};
 
 export const PUBLISHED_INVOCATION_REASON_CODES = [
   "api_key_invalid",
@@ -111,6 +125,33 @@ const RUN_STATUS_LABELS: Record<string, string> = {
   timed_out: "Run timed out"
 };
 
+function getFacetCount(
+  facets: PublishedEndpointInvocationFacetItem[] | null | undefined,
+  value: string
+) {
+  return facets?.find((item) => item.value === value)?.count ?? 0;
+}
+
+function formatCountLabel(count: number, label: string) {
+  return `${count} ${label}${count === 1 ? "" : "s"}`;
+}
+
+function joinFragments(fragments: string[]) {
+  if (fragments.length === 0) {
+    return null;
+  }
+
+  if (fragments.length === 1) {
+    return fragments[0];
+  }
+
+  if (fragments.length === 2) {
+    return `${fragments[0]} and ${fragments[1]}`;
+  }
+
+  return `${fragments.slice(0, -1).join(", ")}, and ${fragments[fragments.length - 1]}`;
+}
+
 export function formatPublishedInvocationReasonLabel(
   reasonCode: string | null | undefined
 ) {
@@ -147,6 +188,105 @@ export function formatPublishedRunStatusLabel(runStatus: string | null | undefin
   }
 
   return RUN_STATUS_LABELS[runStatus] ?? runStatus.replaceAll("_", " ");
+}
+
+export function buildPublishedInvocationWaitingOverview({
+  summary,
+  runStatusCounts,
+  reasonCounts
+}: {
+  summary?: PublishedEndpointInvocationSummary | null;
+  runStatusCounts?: PublishedEndpointInvocationFacetItem[] | null;
+  reasonCounts?: PublishedEndpointInvocationFacetItem[] | null;
+}): PublishedInvocationWaitingOverview {
+  const generalWaitingCount = getFacetCount(runStatusCounts, "waiting");
+  const waitingInputCount = getFacetCount(runStatusCounts, "waiting_input");
+  const callbackWaitingCount = getFacetCount(runStatusCounts, "waiting_callback");
+  const activeWaitingCount = generalWaitingCount + waitingInputCount + callbackWaitingCount;
+  const syncWaitingRejectedCount = getFacetCount(reasonCounts, "sync_waiting_unsupported");
+  const lastRunStatusLabel = summary?.last_run_status
+    ? formatPublishedRunStatusLabel(summary.last_run_status)
+    : null;
+
+  const chips: string[] = [];
+  if (activeWaitingCount > 0) {
+    chips.push(`${formatCountLabel(activeWaitingCount, "active waiting run")}`);
+  }
+  if (callbackWaitingCount > 0) {
+    chips.push(`${formatCountLabel(callbackWaitingCount, "callback wait")}`);
+  }
+  if (waitingInputCount > 0) {
+    chips.push(`${formatCountLabel(waitingInputCount, "approval/input wait")}`);
+  }
+  if (syncWaitingRejectedCount > 0) {
+    chips.push(`${formatCountLabel(syncWaitingRejectedCount, "sync waiting rejection")}`);
+  }
+  if (lastRunStatusLabel) {
+    chips.push(`latest ${lastRunStatusLabel}`);
+  }
+
+  if (activeWaitingCount > 0) {
+    const blockers = joinFragments(
+      [
+        callbackWaitingCount > 0
+          ? `${formatCountLabel(callbackWaitingCount, "run")} are still waiting on callback tickets or external tool responses`
+          : null,
+        waitingInputCount > 0
+          ? `${formatCountLabel(waitingInputCount, "run")} are paused on approval or operator input`
+          : null,
+        generalWaitingCount > 0
+          ? `${formatCountLabel(generalWaitingCount, "run")} are marked as generic waiting and should be checked in the latest invocation detail`
+          : null
+      ].filter((value): value is string => Boolean(value))
+    );
+    const detailParts = [
+      blockers,
+      syncWaitingRejectedCount > 0
+        ? `${formatCountLabel(syncWaitingRejectedCount, "sync invocation")} were rejected because synchronous publish surfaces cannot stay in waiting.`
+        : null,
+      lastRunStatusLabel ? `Latest run status: ${lastRunStatusLabel}.` : null
+    ].filter((value): value is string => Boolean(value));
+    return {
+      activeWaitingCount,
+      callbackWaitingCount,
+      waitingInputCount,
+      generalWaitingCount,
+      syncWaitingRejectedCount,
+      lastRunStatusLabel,
+      headline: `${formatCountLabel(activeWaitingCount, "publish invocation")} are still attached to the durable runtime waiting path.`,
+      detail: detailParts.join(" "),
+      chips
+    };
+  }
+
+  if (syncWaitingRejectedCount > 0) {
+    return {
+      activeWaitingCount,
+      callbackWaitingCount,
+      waitingInputCount,
+      generalWaitingCount,
+      syncWaitingRejectedCount,
+      lastRunStatusLabel,
+      headline: `No active waiting runs remain, but ${formatCountLabel(syncWaitingRejectedCount, "sync publish invocation")} hit the waiting boundary.`,
+      detail:
+        "These requests reached a workflow that wanted to pause, but the synchronous publish surface could only reject the call. Prefer async routes or open a recent invocation detail to inspect the waiting lifecycle.",
+      chips
+    };
+  }
+
+  return {
+    activeWaitingCount,
+    callbackWaitingCount,
+    waitingInputCount,
+    generalWaitingCount,
+    syncWaitingRejectedCount,
+    lastRunStatusLabel,
+    headline: "Current publish traffic does not show active waiting pressure.",
+    detail: lastRunStatusLabel
+      ? `The latest filtered run status is ${lastRunStatusLabel}, and no synchronous waiting boundary was hit in this slice.`
+      : "The current audit slice has no waiting runs or synchronous waiting rejections to triage.",
+    chips
+  };
 }
 
 export function formatRateLimitPressure(
