@@ -3,6 +3,7 @@
 import type { Node } from "@xyflow/react";
 
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import { getToolGovernanceSummary } from "@/lib/tool-governance";
 import type { WorkflowCanvasNodeData } from "@/lib/workflow-editor";
 import { CredentialPicker } from "@/components/workflow-node-config-form/credential-picker";
 import {
@@ -35,6 +36,7 @@ export function ToolNodeConfigForm({
   const unsupportedFields = selectedTool
     ? getUnsupportedToolFieldNames(selectedTool.input_schema, schemaFields)
     : [];
+  const selectedToolGovernance = selectedTool ? getToolGovernanceSummary(selectedTool) : null;
   const inputs = toRecord(config.inputs) ?? {};
 
   const handleToolSelection = (toolId: string) => {
@@ -183,11 +185,35 @@ export function ToolNodeConfigForm({
             <span className="event-chip">{selectedTool.ecosystem}</span>
             <span className="event-chip">{selectedTool.source}</span>
             <span className="event-chip">{selectedTool.callable ? "callable" : "catalog only"}</span>
+            {selectedToolGovernance?.sensitivityLevel ? (
+              <span className="event-chip">
+                sensitivity {selectedToolGovernance.sensitivityLevel}
+              </span>
+            ) : null}
+            {selectedToolGovernance?.defaultExecutionClass ? (
+              <span className="event-chip">
+                default {selectedToolGovernance.defaultExecutionClass}
+              </span>
+            ) : null}
           </div>
 
           <p className="section-copy">
             {selectedTool.description || "当前目录项没有补充描述。"}
           </p>
+
+          {selectedToolGovernance ? (
+            <div className="binding-field compact-stack">
+              <span className="binding-label">Governance summary</span>
+              <p className="section-copy">{selectedToolGovernance.summary}</p>
+              <div className="tool-badge-row">
+                {selectedToolGovernance.supportedExecutionClasses.map((executionClass) => (
+                  <span className="event-chip" key={`${selectedTool.id}-${executionClass}`}>
+                    supports {executionClass}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           <label className="binding-field">
             <span className="binding-label">Adapter ID</span>

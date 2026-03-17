@@ -2,6 +2,10 @@
 
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import {
+  compareToolsByGovernance,
+  getToolGovernanceSummary
+} from "@/lib/tool-governance";
+import {
   WORKFLOW_EXECUTION_CLASS_OPTIONS,
   WORKFLOW_EXECUTION_FILESYSTEM_POLICY_OPTIONS,
   WORKFLOW_EXECUTION_NETWORK_POLICY_OPTIONS
@@ -28,7 +32,10 @@ export function LlmAgentToolPolicyForm({
   const toolPolicy = toRecord(config.toolPolicy) ?? {};
   const execution = toRecord(toolPolicy.execution) ?? {};
   const allowedToolIds = dedupeStrings(toStringArray(toolPolicy.allowedToolIds));
-  const callableTools = tools.filter((tool) => tool.callable);
+  const callableTools = tools.filter((tool) => tool.callable).sort(compareToolsByGovernance);
+  const governedCallableToolCount = callableTools.filter(
+    (tool) => getToolGovernanceSummary(tool).requiresStrongIsolationByDefault
+  ).length;
 
   const updateToolPolicy = (patch: {
     allowedToolIds?: string[];
@@ -237,17 +244,45 @@ export function LlmAgentToolPolicyForm({
       </div>
 
       {callableTools.length > 0 ? (
-        <div className="tool-badge-row">
+        <p className="section-copy">
+          当前可调用工具共 {callableTools.length} 个，其中 {governedCallableToolCount} 个默认执行级别已收口到
+          `sandbox / microvm`。如果这里显式覆盖 execution class，建议同时通过
+          `allowedToolIds` 收窄范围，避免把高敏工具和低隔离目标混在一起。
+        </p>
+      ) : null}
+
+      {callableTools.length > 0 ? (
+        <div className="binding-field compact-stack">
           {callableTools.map((tool) => {
             const checked = allowedToolIds.includes(tool.id);
+            const governance = getToolGovernanceSummary(tool);
             return (
-              <label key={tool.id}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={(event) => toggleAllowedTool(tool.id, event.target.checked)}
-                />{" "}
-                {tool.name || tool.id}
+              <label className="binding-field compact-stack" key={tool.id}>
+                <span>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) => toggleAllowedTool(tool.id, event.target.checked)}
+                  />{" "}
+                  {tool.name || tool.id}
+                </span>
+                <div className="tool-badge-row">
+                  <span className="event-chip">{tool.ecosystem}</span>
+                  {governance.sensitivityLevel ? (
+                    <span className="event-chip">sensitivity {governance.sensitivityLevel}</span>
+                  ) : null}
+                  {governance.defaultExecutionClass ? (
+                    <span className="event-chip">
+                      default {governance.defaultExecutionClass}
+                    </span>
+                  ) : null}
+                  {governance.supportedExecutionClasses.map((executionClass) => (
+                    <span className="event-chip" key={`${tool.id}-${executionClass}`}>
+                      {executionClass}
+                    </span>
+                  ))}
+                </div>
+                <small className="section-copy">{governance.summary}</small>
               </label>
             );
           })}
