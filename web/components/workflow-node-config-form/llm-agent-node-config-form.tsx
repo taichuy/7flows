@@ -6,6 +6,7 @@ import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { WorkflowCanvasNodeData } from "@/lib/workflow-editor";
 import { AuthorizedContextFields } from "@/components/workflow-node-config-form/authorized-context-fields";
 import { CredentialPicker } from "@/components/workflow-node-config-form/credential-picker";
+import { LlmAgentSkillSection } from "@/components/workflow-node-config-form/llm-agent-skill-section";
 import { LlmAgentToolPolicyForm } from "@/components/workflow-node-config-form/llm-agent-tool-policy-form";
 import {
   cloneRecord,
@@ -98,18 +99,12 @@ export function LlmAgentNodeConfigForm({
     onChange(nextConfig);
   };
 
-  const updateSkillIds = (rawValue: string) => {
+  const updateSkillIds = (nextSkillIds: string[]) => {
     const nextConfig = cloneRecord(config);
-    const nextSkillIds = dedupeStrings(
-      rawValue
-        .split(/[\n,]/)
-        .map((item) => item.trim())
-        .filter(Boolean)
-    );
     if (nextSkillIds.length === 0) {
       delete nextConfig.skillIds;
     } else {
-      nextConfig.skillIds = nextSkillIds;
+      nextConfig.skillIds = dedupeStrings(nextSkillIds);
     }
     onChange(nextConfig);
   };
@@ -266,18 +261,7 @@ export function LlmAgentNodeConfigForm({
         />
       </label>
 
-      <label className="binding-field">
-        <span className="binding-label">Skill IDs</span>
-        <textarea
-          className="editor-json-area"
-          value={skillIds.join("\n")}
-          onChange={(event) => updateSkillIds(event.target.value)}
-          placeholder="每行一个 skill id；运行时会把对应 SkillDoc 注入 llm_agent prompt"
-        />
-        <small className="section-copy">
-          这里只绑定服务侧 Skill Catalog 的 `skillIds`，用于主 AI 的认知注入；不接管本地执行。
-        </small>
-      </label>
+      <LlmAgentSkillSection skillIds={skillIds} onChange={updateSkillIds} />
 
       <div className="binding-field">
         <span className="binding-label">Capability toggles</span>
