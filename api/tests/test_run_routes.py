@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 from app.api.routes import runs as run_routes
 from app.models.run import Run, RunCallbackTicket, RunEvent
 from app.models.workflow import Workflow, WorkflowVersion
-from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
 from app.services.compiled_blueprints import CompiledBlueprintService
+from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
 from app.services.run_resume_scheduler import RunResumeScheduler
 from app.services.runtime import RuntimeService
 
@@ -305,7 +305,13 @@ def test_resume_run_route_forwards_source_and_reason(
 
     captured: dict[str, str | None] = {}
 
-    def fake_resume_run(db, target_run_id: str, *, source: str = "manual", reason: str | None = None):
+    def fake_resume_run(
+        db,
+        target_run_id: str,
+        *,
+        source: str = "manual",
+        reason: str | None = None,
+    ):
         captured["run_id"] = target_run_id
         captured["source"] = source
         captured["reason"] = reason
@@ -1523,3 +1529,132 @@ def test_receive_run_callback_route_returns_expired_for_stale_ticket(
         "waiting_status": "waiting_callback",
         "backoff_attempt": 1,
     }
+
+
+def test_receive_run_callback_route_clears_stale_scheduled_resume_after_run_left_waiting(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-route-callback-left-waiting",
+        name="Route Callback Left Waiting Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llm_agent",
+                    "name": "Agent",
+                    "config": {
+                        "assistant": {"enabled": False},
+                        "toolPolicy": {"allowedToolIds": ["native.search"]},
+                        "mockPlan": {
+                            "toolCalls": [
+                                {
+                                    "toolId": "native.search",
+                                    "inputs": {"query": "route-left-waiting"},
+                                }
+                            ]
+                        },
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+            ],
+        },
+    )
+    workflow_version = WorkflowVersion(
+        id="wf-route-callback-left-waiting-v1",
+        workflow_id=workflow.id,
+        version=workflow.version,
+        definition=workflow.definition,
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.add(workflow_version)
+    sqlite_session.commit()
+
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(id="native.search", name="Native Search"),
+        invoker=lambda _request: {
+            "status": "waiting",
+            "content_type": "json",
+            "summary": "waiting for callback",
+            "structured": {"externalTicket": "route-left-waiting"},
+            "meta": {
+                "tool_name": "Native Search",
+                "waiting_reason": "route callback pending",
+                "waiting_status": "waiting_callback",
+            },
+        },
+    )
+    first_pass = RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
+        sqlite_session,
+        workflow,
+        {"topic": "route-left-waiting"},
+    )
+    waiting_run = next(node_run for node_run in first_pass.node_runs if node_run.node_id == "agent")
+    callback_ticket = waiting_run.checkpoint_payload["callback_ticket"]["ticket"]
+    ticket_record = sqlite_session.get(RunCallbackTicket, callback_ticket)
+
+    assert ticket_record is not None
+
+    waiting_run.checkpoint_payload = {
+        **dict(waiting_run.checkpoint_payload or {}),
+        "scheduled_resume": {
+            "delay_seconds": 30.0,
+            "reason": "route callback pending",
+            "source": "callback_ticket_monitor",
+            "waiting_status": "waiting_callback",
+            "backoff_attempt": 2,
+        },
+    }
+    first_pass.run.status = "running"
+    waiting_run.status = "running"
+    sqlite_session.commit()
+
+    response = client.post(
+        f"/api/runs/callbacks/{callback_ticket}",
+        json={
+            "source": "route_test",
+            "result": {
+                "status": "success",
+                "content_type": "json",
+                "summary": "late callback after resume",
+                "structured": {"documents": ["ignored"]},
+                "meta": {"tool_name": "Native Search"},
+            },
+        },
+    )
+
+    sqlite_session.refresh(ticket_record)
+    sqlite_session.refresh(waiting_run)
+    late_event = sqlite_session.scalar(
+        select(RunEvent)
+        .where(
+            RunEvent.run_id == first_pass.run.id,
+            RunEvent.event_type == "run.callback.ticket.late",
+        )
+        .order_by(RunEvent.id.desc())
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["callback_status"] == "ignored"
+    assert body["run"]["status"] == "running"
+    assert ticket_record.status == "canceled"
+    assert ticket_record.canceled_at is not None
+    assert "callback_ticket" not in (waiting_run.checkpoint_payload or {})
+    assert "scheduled_resume" not in (waiting_run.checkpoint_payload or {})
+    assert (
+        waiting_run.checkpoint_payload["callback_waiting_lifecycle"]["canceled_ticket_count"] == 1
+    )
+    assert waiting_run.checkpoint_payload["callback_waiting_lifecycle"]["late_callback_count"] == 1
+    assert late_event is not None
+    assert late_event.payload["reason"] == "callback_received_after_run_left_waiting"
+    assert late_event.payload["source"] == "route_test"

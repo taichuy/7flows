@@ -225,7 +225,11 @@ class RuntimeRunSupportMixin:
                     reason="callback_received_after_run_left_waiting",
                     canceled_at=record.canceled_at,
                 )
-            if checkpoint_payload.pop("callback_ticket", None) is not None or canceled_records:
+            callback_ticket_removed = checkpoint_payload.pop("callback_ticket", None) is not None
+            scheduled_resume_removed = (
+                checkpoint_payload.pop("scheduled_resume", None) is not None
+            )
+            if callback_ticket_removed or scheduled_resume_removed or canceled_records:
                 node_run.checkpoint_payload = checkpoint_payload
             self._record_late_callback_state(
                 db,
