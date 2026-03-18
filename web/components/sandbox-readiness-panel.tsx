@@ -1,47 +1,23 @@
-import type {
-  SandboxExecutionClassReadinessCheck,
-  SandboxReadinessCheck
-} from "@/lib/get-system-overview";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import {
+  buildSandboxExecutionClassCapabilityChips,
+  formatSandboxReadinessDetail,
+  formatSandboxReadinessHeadline,
+  listSandboxAvailableClasses,
+  listSandboxBlockedClasses,
+  listSandboxReadinessCapabilityChips
+} from "@/lib/sandbox-readiness-presenters";
 
 type SandboxReadinessPanelProps = {
   readiness: SandboxReadinessCheck;
 };
 
-const capabilityLabels = [
-  {
-    enabled: "supports_builtin_package_sets",
-    label: "builtin package sets"
-  },
-  {
-    enabled: "supports_backend_extensions",
-    label: "backend extensions"
-  },
-  {
-    enabled: "supports_network_policy",
-    label: "network policy"
-  },
-  {
-    enabled: "supports_filesystem_policy",
-    label: "filesystem policy"
-  }
-] as const satisfies Array<{
-  enabled: keyof Pick<
-    SandboxReadinessCheck,
-    | "supports_builtin_package_sets"
-    | "supports_backend_extensions"
-    | "supports_network_policy"
-    | "supports_filesystem_policy"
-  >;
-  label: string;
-}>;
-
 export function SandboxReadinessPanel({ readiness }: SandboxReadinessPanelProps) {
-  const availableClasses = readiness.execution_classes
-    .filter((entry) => entry.available)
-    .map((entry) => entry.execution_class);
-  const capabilityChips = capabilityLabels
-    .filter((entry) => readiness[entry.enabled])
-    .map((entry) => entry.label);
+  const availableClasses = listSandboxAvailableClasses(readiness);
+  const blockedClasses = listSandboxBlockedClasses(readiness);
+  const capabilityChips = listSandboxReadinessCapabilityChips(readiness);
+  const readinessHeadline = formatSandboxReadinessHeadline(readiness);
+  const readinessDetail = formatSandboxReadinessDetail(readiness);
 
   return (
     <article className="diagnostic-panel panel-span">
@@ -62,20 +38,36 @@ export function SandboxReadinessPanel({ readiness }: SandboxReadinessPanelProps)
           <strong>{readiness.enabled_backend_count}</strong>
         </article>
         <article className="summary-card">
-          <span>Healthy / degraded</span>
+          <span>Healthy / degraded / offline</span>
           <strong>
-            {readiness.healthy_backend_count} / {readiness.degraded_backend_count}
+            {readiness.healthy_backend_count} / {readiness.degraded_backend_count} / {readiness.offline_backend_count}
           </strong>
         </article>
         <article className="summary-card">
           <span>Available classes</span>
           <strong>{availableClasses.length ? availableClasses.join(" / ") : "none"}</strong>
         </article>
+        <article className="summary-card">
+          <span>Blocked classes</span>
+          <strong>
+            {blockedClasses.length
+              ? blockedClasses.map((entry) => entry.execution_class).join(" / ")
+              : "none"}
+          </strong>
+        </article>
       </div>
+
+      <article className="payload-card compact-card">
+        <div className="payload-card-header">
+          <span className="status-meta">Fail-closed signal</span>
+        </div>
+        <p className="section-copy entry-copy">{readinessHeadline}</p>
+        {readinessDetail ? <p className="binding-meta">{readinessDetail}</p> : null}
+      </article>
 
       <div className="activity-list">
         {readiness.execution_classes.map((entry) => {
-          const classCapabilityChips = buildExecutionClassCapabilityChips(entry);
+          const classCapabilityChips = buildSandboxExecutionClassCapabilityChips(entry);
 
           return (
             <article className="activity-row" key={entry.execution_class}>
@@ -137,29 +129,4 @@ export function SandboxReadinessPanel({ readiness }: SandboxReadinessPanelProps)
       </div>
     </article>
   );
-}
-
-function buildExecutionClassCapabilityChips(
-  entry: SandboxExecutionClassReadinessCheck
-): string[] {
-  const chips = [
-    ...entry.supported_languages.map((language) => `language ${language}`),
-    ...entry.supported_profiles.map((profile) => `profile ${profile}`),
-    ...entry.supported_dependency_modes.map((mode) => `dependency ${mode}`)
-  ];
-
-  if (entry.supports_builtin_package_sets) {
-    chips.push("builtin package sets");
-  }
-  if (entry.supports_backend_extensions) {
-    chips.push("backend extensions");
-  }
-  if (entry.supports_network_policy) {
-    chips.push("network policy");
-  }
-  if (entry.supports_filesystem_policy) {
-    chips.push("filesystem policy");
-  }
-
-  return chips;
 }

@@ -2,6 +2,8 @@
 
 import { useTransition, type Dispatch, type SetStateAction } from "react";
 
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
 import {
   WorkflowDefinitionPreflightError,
   type WorkflowDefinitionPreflightIssue,
@@ -33,6 +35,7 @@ type UseWorkflowEditorPersistenceOptions = {
   workflowVersion: string;
   currentDefinition: WorkflowDetail["definition"];
   currentDefinitionSignature: string;
+  sandboxReadiness?: SandboxReadinessCheck | null;
   persistBlockedMessage: string;
   setPersistedWorkflowName: (name: string) => void;
   setPersistedDefinition: (definition: WorkflowDetail["definition"]) => void;
@@ -52,6 +55,7 @@ export function useWorkflowEditorPersistence({
   workflowVersion,
   currentDefinition,
   currentDefinitionSignature,
+  sandboxReadiness,
   persistBlockedMessage,
   setPersistedWorkflowName,
   setPersistedDefinition,
@@ -103,11 +107,16 @@ export function useWorkflowEditorPersistence({
           error instanceof WorkflowDefinitionPreflightError
             ? summarizePreflightIssues(error.issues)
             : null;
+        const sandboxReadinessPreflightHint =
+          error instanceof WorkflowDefinitionPreflightError &&
+          error.issues.some((issue) => issue.category === "tool_execution")
+            ? formatSandboxReadinessPreflightHint(sandboxReadiness)
+            : null;
         setMessage(
           error instanceof WorkflowDefinitionPreflightError
-            ? preflightIssueSummary
-              ? `${error.message} ${preflightIssueSummary}`
-              : error.message
+            ? [error.message, preflightIssueSummary, sandboxReadinessPreflightHint]
+                .filter(Boolean)
+                .join(" ")
             : error instanceof Error
               ? error.message
               : "无法连接后端保存 workflow，请确认 API 已启动。"

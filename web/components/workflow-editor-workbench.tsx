@@ -108,6 +108,7 @@ export function WorkflowEditorWorkbench({
     workflowVersion: graph.workflowVersion,
     currentDefinition: graph.currentDefinition,
     persistBlockedMessage: validation.persistBlockedMessage,
+    sandboxReadiness,
     setPersistedWorkflowName: graph.setPersistedWorkflowName,
     setPersistedDefinition: graph.setPersistedDefinition,
     setWorkflowVersion: graph.setWorkflowVersion,

@@ -7,6 +7,7 @@ import type {
   SandboxBackendCheck,
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
+import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
 import type { WorkflowNodeCatalogItem } from "@/lib/get-workflow-library";
 import type { WorkflowDefinitionPreflightIssue, WorkflowDetail } from "@/lib/get-workflows";
 import type { WorkspaceStarterValidationIssue } from "@/lib/get-workspace-starters";
@@ -134,6 +135,10 @@ export function useWorkflowEditorValidation({
   sandboxBackends,
   serverValidationIssues
 }: UseWorkflowEditorValidationOptions) {
+  const sandboxReadinessPreflightHint = useMemo(
+    () => formatSandboxReadinessPreflightHint(sandboxReadiness),
+    [sandboxReadiness]
+  );
   const unsupportedNodes = useMemo(
     () => summarizeUnsupportedWorkflowNodes(nodeCatalog, currentDefinition.nodes ?? []),
     [currentDefinition.nodes, nodeCatalog]
@@ -211,6 +216,10 @@ export function useWorkflowEditorValidation({
     () => summarizeIssueMessages(serverValidationIssues),
     [serverValidationIssues]
   );
+  const hasServerToolExecutionIssues = useMemo(
+    () => serverValidationIssues.some((issue) => issue.category === "tool_execution"),
+    [serverValidationIssues]
+  );
   const validationNavigatorItems = useMemo<WorkflowValidationNavigatorItem[]>(() => {
     const localIssues: WorkflowDefinitionPreflightIssue[] = [
       ...contractValidationIssues.map((issue) => ({
@@ -271,7 +280,7 @@ export function useWorkflowEditorValidation({
           ? `当前 workflow definition 还有 tool catalog 引用待修正问题：${toolReferenceValidationSummary}${toolReferenceValidationSummary.endsWith("。") ? "" : "。"}请先修正 tool binding / LLM Agent tool policy 后再保存。`
           : null,
         toolExecutionValidationSummary
-          ? `当前 workflow definition 还有 execution capability 待修正问题：${toolExecutionValidationSummary}${toolExecutionValidationSummary.endsWith("。") ? "" : "。"}请先对齐 adapter 绑定、execution class 与 sandbox readiness，再继续保存。`
+          ? `当前 workflow definition 还有 execution capability 待修正问题：${toolExecutionValidationSummary}${toolExecutionValidationSummary.endsWith("。") ? "" : "。"}${sandboxReadinessPreflightHint ? ` ${sandboxReadinessPreflightHint}` : ""}请先对齐 adapter 绑定、execution class 与 sandbox readiness，再继续保存。`
           : null,
         publishVersionValidationSummary
           ? `当前 workflow definition 还有 publish version 引用待修正问题：${publishVersionValidationSummary}${publishVersionValidationSummary.endsWith("。") ? "" : "。"}如果 endpoint 要跟随本次保存版本，请把 workflowVersion 留空。`
@@ -283,15 +292,17 @@ export function useWorkflowEditorValidation({
           ? `当前 workflow definition 还有 variables 待修正问题：${variableValidationSummary}${variableValidationSummary.endsWith("。") ? "" : "。"}请先修正变量名，再继续保存。`
           : null,
         serverValidationSummary
-          ? `当前 persisted workflow 已出现服务器侧 definition drift：${serverValidationSummary}${serverValidationSummary.endsWith("。") ? "" : "。"}请先对齐当前工具目录、skill 引用或 sandbox readiness，再继续保存。`
+          ? `当前 persisted workflow 已出现服务器侧 definition drift：${serverValidationSummary}${serverValidationSummary.endsWith("。") ? "" : "。"}${hasServerToolExecutionIssues && sandboxReadinessPreflightHint ? ` ${sandboxReadinessPreflightHint}` : ""}请先对齐当前工具目录、skill 引用或 sandbox readiness，再继续保存。`
           : null
       ]
         .filter(Boolean)
         .join(" "),
     [
       contractValidationSummary,
+      hasServerToolExecutionIssues,
       publishIdentityValidationSummary,
       publishVersionValidationSummary,
+      sandboxReadinessPreflightHint,
       serverValidationSummary,
       toolExecutionValidationSummary,
       toolReferenceValidationSummary,
