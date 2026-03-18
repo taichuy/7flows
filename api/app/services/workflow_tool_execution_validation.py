@@ -15,6 +15,7 @@ from app.services.sandbox_backends import (
     SandboxExecutionRequest,
     get_sandbox_backend_client,
 )
+from app.services.tool_execution_isolation import is_strong_tool_execution_class
 
 _DEPENDENCY_MODES = {"builtin", "dependency_ref", "backend_managed"}
 
@@ -475,6 +476,18 @@ def _build_execution_support_issue(
     if tool.ecosystem == "native":
         supported_execution_classes = tuple(tool.supported_execution_classes or ("inline",))
         if requested_execution_class in supported_execution_classes:
+            if is_strong_tool_execution_class(requested_execution_class):
+                return WorkflowToolExecutionValidationIssue(
+                    message=(
+                        f"{context} explicitly requests execution class '{requested_execution_class}' for "
+                        f"native tool '{tool_id}', but 7Flows does not yet implement sandbox-backed tool "
+                        "execution for native / compat tool paths. Current host / adapter invokers cannot "
+                        "honestly enforce this strong-isolation contract, so the path must fail closed until "
+                        "a sandbox tool runner is available."
+                    ),
+                    path=path,
+                    field=field,
+                )
             return _build_sandbox_backend_issue(
                 context=context,
                 tool_id=tool_id,
@@ -517,6 +530,18 @@ def _build_execution_support_issue(
 
     supported_execution_classes = tuple(adapter.supported_execution_classes or ("subprocess",))
     if requested_execution_class in supported_execution_classes:
+        if is_strong_tool_execution_class(requested_execution_class):
+            return WorkflowToolExecutionValidationIssue(
+                message=(
+                    f"{context} explicitly requests execution class '{requested_execution_class}' for "
+                    f"tool '{tool_id}', but 7Flows does not yet implement sandbox-backed tool execution "
+                    "for native / compat tool paths. Current host / adapter invokers cannot honestly "
+                    "enforce this strong-isolation contract, so the path must fail closed until a sandbox "
+                    "tool runner is available."
+                ),
+                path=path,
+                field=field,
+            )
         return _build_sandbox_backend_issue(
             context=context,
             tool_id=tool_id,
@@ -570,6 +595,18 @@ def _build_default_execution_support_issue(
                 path=path,
                 field=field,
             )
+        if is_strong_tool_execution_class(default_execution_class):
+            return WorkflowToolExecutionValidationIssue(
+                message=(
+                    f"{context} relies on native tool '{tool_id}' default execution class "
+                    f"'{default_execution_class}', but 7Flows does not yet implement sandbox-backed tool "
+                    "execution for native / compat tool paths. Current host / adapter invokers cannot "
+                    "honestly enforce this strong-isolation contract, so the path must fail closed until a "
+                    "sandbox tool runner is available."
+                ),
+                path=path,
+                field=field,
+            )
         backend_issue = _build_default_sandbox_backend_issue(
             context=context,
             tool_id=tool_id,
@@ -610,6 +647,18 @@ def _build_default_execution_support_issue(
                 f"{context} relies on tool '{tool_id}' default execution class "
                 f"'{default_execution_class}', but adapter '{adapter.id}' currently supports only "
                 f"{supported_summary}."
+            ),
+            path=path,
+            field=field,
+        )
+
+    if is_strong_tool_execution_class(default_execution_class):
+        return WorkflowToolExecutionValidationIssue(
+            message=(
+                f"{context} relies on tool '{tool_id}' default execution class '{default_execution_class}', "
+                "but 7Flows does not yet implement sandbox-backed tool execution for native / compat tool "
+                "paths. Current host / adapter invokers cannot honestly enforce this strong-isolation "
+                "contract, so the path must fail closed until a sandbox tool runner is available."
             ),
             path=path,
             field=field,

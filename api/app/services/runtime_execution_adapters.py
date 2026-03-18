@@ -25,6 +25,7 @@ from app.services.sandbox_backends import (
     SandboxExecutionRequest,
     get_sandbox_backend_client,
 )
+from app.services.tool_execution_isolation import is_strong_tool_execution_class
 
 
 @dataclass(frozen=True)
@@ -373,6 +374,18 @@ class RuntimeExecutionAdapterRegistry:
     ) -> NodeExecutionAvailability:
         node_type = str(node.get("type") or "unknown")
         if node_type != "sandbox_code":
+            if node_type == "tool" and is_strong_tool_execution_class(
+                execution_policy.execution_class
+            ):
+                return NodeExecutionAvailability(
+                    available=False,
+                    blocking_reason=(
+                        "Tool nodes do not yet implement sandbox-backed tool execution for requested "
+                        f"execution class '{execution_policy.execution_class}'. Current native / compat "
+                        "invokers still run from the host / adapter boundary, so strong-isolation tool "
+                        "paths must fail closed until a sandbox tool runner is available."
+                    ),
+                )
             if node_type != "tool" and execution_policy.execution_class in {
                 "sandbox",
                 "microvm",

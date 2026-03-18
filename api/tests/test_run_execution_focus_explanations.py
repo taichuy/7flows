@@ -73,3 +73,26 @@ def test_build_run_execution_focus_explanation_maps_unsupported_strong_isolation
         "下一步：先把 execution class 调回当前实现支持范围，"
         "或补齐对应 execution adapter；在此之前继续保持 fail-closed。"
     )
+
+
+def test_build_run_execution_focus_explanation_maps_tool_runner_gap() -> None:
+    explanation = build_run_execution_focus_explanation(
+        _build_execution_node(
+            execution_blocking_reason=(
+                "Tool nodes do not yet implement sandbox-backed tool execution for requested "
+                "execution class 'microvm'. Current native / compat invokers still run from the "
+                "host / adapter boundary, so strong-isolation tool paths must fail closed until "
+                "a sandbox tool runner is available."
+            ),
+            execution_unavailable_count=1,
+        )
+    )
+
+    assert explanation is not None
+    assert explanation.primary_signal == (
+        "执行阻断：当前 tool 路径还不能真实兑现请求的强隔离 execution class。"
+    )
+    assert explanation.follow_up == (
+        "下一步：先把 tool execution class 调回当前宿主执行支持范围，"
+        "或后续补齐 sandbox tool runner；在此之前继续保持 fail-closed。"
+    )

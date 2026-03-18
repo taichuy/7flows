@@ -1213,7 +1213,7 @@ def test_create_workflow_rejects_unscoped_agent_tool_execution_target(client: Te
     assert "execution-incompatible tools:" in detail
 
 
-def test_create_workflow_accepts_supported_tool_execution_class(
+def test_create_workflow_rejects_supported_tool_execution_class_until_tool_runner_exists(
     client: TestClient,
     monkeypatch,
 ) -> None:
@@ -1259,7 +1259,10 @@ def test_create_workflow_accepts_supported_tool_execution_class(
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 422
+    detail = _workflow_detail_message(response)
+    assert "sandbox-backed tool execution" in detail
+    assert "must fail closed" in detail
 
 
 def test_create_workflow_rejects_tool_execution_dependency_contract_without_backend_support(
@@ -1320,10 +1323,11 @@ def test_create_workflow_rejects_tool_execution_dependency_contract_without_back
     assert response.status_code == 422
     detail = _workflow_detail_message(response)
     assert "tool execution capabilities" in detail
-    assert "builtin package set hints" in detail
+    assert "sandbox-backed tool execution" in detail
+    assert "must fail closed" in detail
 
 
-def test_create_workflow_accepts_tool_execution_dependency_contract_with_ready_backend(
+def test_create_workflow_rejects_tool_execution_dependency_contract_until_tool_runner_exists(
     client: TestClient,
     monkeypatch,
 ) -> None:
@@ -1381,7 +1385,10 @@ def test_create_workflow_accepts_tool_execution_dependency_contract_with_ready_b
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 422
+    detail = _workflow_detail_message(response)
+    assert "sandbox-backed tool execution" in detail
+    assert "must fail closed" in detail
 
 
 def test_create_workflow_rejects_sensitivity_driven_default_execution_when_adapter_not_ready(
@@ -1445,7 +1452,7 @@ def test_create_workflow_rejects_sensitivity_driven_default_execution_when_adapt
     assert "dify-sensitive-default" in detail
 
 
-def test_create_workflow_accepts_native_tool_declared_sandbox_execution(
+def test_create_workflow_rejects_native_tool_declared_sandbox_execution_until_tool_runner_exists(
     client: TestClient,
     monkeypatch,
 ) -> None:
@@ -1481,7 +1488,10 @@ def test_create_workflow_accepts_native_tool_declared_sandbox_execution(
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 422
+    detail = _workflow_detail_message(response)
+    assert "sandbox-backed tool execution" in detail
+    assert "must fail closed" in detail
 
 
 def test_create_workflow_rejects_tool_default_sandbox_when_backend_unavailable(
@@ -1523,7 +1533,7 @@ def test_create_workflow_rejects_tool_default_sandbox_when_backend_unavailable(
     assert response.status_code == 422
     detail = _workflow_detail_message(response)
     assert "default execution class 'sandbox'" in detail
-    assert "no compatible sandbox backend is currently available" in detail
+    assert "sandbox-backed tool execution" in detail
 
 
 def test_create_workflow_rejects_allowed_tool_default_microvm_when_backend_unavailable(
@@ -1593,13 +1603,13 @@ def test_create_workflow_rejects_allowed_tool_default_microvm_when_backend_unava
     detail = _workflow_detail_message(response)
     assert "toolPolicy.allowedToolIds" in detail
     assert "default execution class 'microvm'" in detail
-    assert "no compatible sandbox backend is currently available" in detail
+    assert "sandbox-backed tool execution" in detail
     issues = _workflow_detail_issues(response)
     assert any(
         issue.get("category") == "tool_execution"
         and issue.get("path") == "nodes.1.config.toolPolicy.allowedToolIds"
         and issue.get("field") == "allowedToolIds"
-        and "default execution class 'microvm'" in issue.get("message", "")
+        and "sandbox-backed tool execution" in issue.get("message", "")
         for issue in issues
     )
 
@@ -2002,8 +2012,9 @@ def test_validate_workflow_definition_preflight_returns_normalized_definition(
     assert body["issues"] == []
 
 
-def test_get_workflow_detail_surfaces_definition_issues_after_sandbox_drift(
+def test_get_workflow_detail_surfaces_definition_issues_for_persisted_tool_runner_gap(
     client: TestClient,
+    sqlite_session,
     monkeypatch,
 ) -> None:
     adapter_response = client.post(
@@ -2044,7 +2055,7 @@ def test_get_workflow_detail_surfaces_definition_issues_after_sandbox_drift(
                 tool_id="compat:dify:plugin:demo/detail-search",
                 ecosystem="compat:dify",
                 adapter_id="dify-microvm-detail",
-                runtime_policy={"execution": {"class": "microvm"}},
+                runtime_policy={"execution": {"class": "subprocess"}},
             ),
         },
     )
@@ -2052,11 +2063,16 @@ def test_get_workflow_detail_surfaces_definition_issues_after_sandbox_drift(
     assert created.json()["definition_issues"] == []
     workflow_id = created.json()["id"]
 
-    monkeypatch.setattr(
-        workflow_definitions,
-        "get_sandbox_backend_client",
-        lambda: _sandbox_backend_client(execution_classes=()),
+    workflow = sqlite_session.get(Workflow, workflow_id)
+    assert workflow is not None
+    workflow.definition = _bound_tool_definition(
+        tool_id="compat:dify:plugin:demo/detail-search",
+        ecosystem="compat:dify",
+        adapter_id="dify-microvm-detail",
+        runtime_policy={"execution": {"class": "microvm"}},
     )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
 
     response = client.get(f"/api/workflows/{workflow_id}")
 
@@ -2066,7 +2082,7 @@ def test_get_workflow_detail_surfaces_definition_issues_after_sandbox_drift(
         issue.get("category") == "tool_execution"
         and issue.get("path") == "nodes.1.runtimePolicy.execution"
         and issue.get("field") == "execution"
-        and "microvm" in issue.get("message", "")
+        and "sandbox-backed tool execution" in issue.get("message", "")
         for issue in body["definition_issues"]
     )
 

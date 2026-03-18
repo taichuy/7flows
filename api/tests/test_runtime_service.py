@@ -9,6 +9,7 @@ from app.services.runtime import RuntimeService, WorkflowExecutionError
 from app.services.sandbox_backends import (
     SandboxBackendCapability,
     SandboxBackendClient,
+    SandboxBackendRegistry,
     SandboxBackendSelection,
     SandboxExecutionRequest,
     SandboxExecutionResponse,
@@ -80,8 +81,8 @@ def test_runtime_service_records_effective_execution_policy(sqlite_session: Sess
                     "config": {"mock_output": {"answer": "done"}},
                     "runtimePolicy": {
                         "execution": {
-                            "class": "sandbox",
-                            "profile": "browser-safe",
+                            "class": "subprocess",
+                            "profile": "host-fallback",
                             "timeoutMs": 30000,
                             "networkPolicy": "restricted",
                         }
@@ -113,9 +114,9 @@ def test_runtime_service_records_effective_execution_policy(sqlite_session: Sess
         "source": "default",
     }
     assert tool_run.input_payload["execution"] == {
-        "class": "sandbox",
+        "class": "subprocess",
         "source": "runtime_policy",
-        "profile": "browser-safe",
+        "profile": "host-fallback",
         "timeoutMs": 30000,
         "networkPolicy": "restricted",
     }
@@ -126,6 +127,109 @@ def test_runtime_service_records_effective_execution_policy(sqlite_session: Sess
         if event.event_type == "node.started" and event.payload.get("node", {}).get("id") == "tool"
     )
     assert tool_started.payload["execution"] == tool_run.input_payload["execution"]
+
+
+def test_runtime_service_blocks_tool_strong_isolation_until_tool_runner_exists(
+    sqlite_session: Session,
+) -> None:
+    registry = PluginRegistry()
+    invoked = False
+
+    def invoker(_request):
+        nonlocal invoked
+        invoked = True
+        return {"documents": ["doc-1"]}
+
+    registry.register_tool(
+        PluginToolDefinition(
+            id="native.risk-search",
+            name="Risk Search",
+            supported_execution_classes=("inline", "sandbox"),
+        ),
+        invoker=invoker,
+    )
+
+    workflow = Workflow(
+        id="wf-tool-strong-isolation-blocked",
+        name="Tool Strong Isolation Blocked Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "tool",
+                    "type": "tool",
+                    "name": "Tool",
+                    "config": {
+                        "tool": {
+                            "toolId": "native.risk-search",
+                            "ecosystem": "native",
+                        }
+                    },
+                    "runtimePolicy": {
+                        "execution": {
+                            "class": "sandbox",
+                            "profile": "risk-reviewed",
+                            "timeoutMs": 3000,
+                        }
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool"},
+                {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    with pytest.raises(
+        WorkflowExecutionError,
+        match="sandbox-backed tool execution",
+    ):
+        RuntimeService(
+            plugin_call_proxy=PluginCallProxy(
+                registry,
+                sandbox_backend_client=SandboxBackendClient(SandboxBackendRegistry()),
+            ),
+            sandbox_backend_client=SandboxBackendClient(SandboxBackendRegistry()),
+        ).execute_workflow(
+            sqlite_session,
+            workflow,
+            {"topic": "blocked"},
+        )
+
+    run = sqlite_session.scalars(
+        select(Run).where(Run.workflow_id == workflow.id).order_by(Run.created_at.desc())
+    ).first()
+    assert run is not None
+    assert run.status == "failed"
+
+    tool_run = sqlite_session.scalars(
+        select(NodeRun)
+        .where(NodeRun.run_id == run.id, NodeRun.node_id == "tool")
+        .order_by(NodeRun.started_at.desc())
+    ).first()
+    assert tool_run is not None
+    assert tool_run.status == "blocked"
+    assert "sandbox-backed tool execution" in (tool_run.error_message or "")
+    assert invoked is False
+
+    events = sqlite_session.scalars(
+        select(RunEvent)
+        .where(RunEvent.run_id == run.id, RunEvent.node_run_id == tool_run.id)
+        .order_by(RunEvent.id.asc())
+    ).all()
+    unavailable_event = next(
+        event for event in events if event.event_type == "node.execution.unavailable"
+    )
+    assert unavailable_event.payload["node_id"] == "tool"
+    assert unavailable_event.payload["node_type"] == "tool"
+    assert unavailable_event.payload["requested_execution_class"] == "sandbox"
+    assert "sandbox-backed tool execution" in str(unavailable_event.payload["reason"])
 
 
 def test_runtime_service_blocks_sandbox_code_without_registered_backend(
@@ -670,7 +774,7 @@ def test_runtime_service_fail_closes_explicit_native_tool_isolation_request(
 
     with pytest.raises(
         WorkflowExecutionError,
-        match="does not support requested execution class 'microvm'",
+        match="sandbox-backed tool execution",
     ):
         RuntimeService(plugin_call_proxy=PluginCallProxy(registry)).execute_workflow(
             sqlite_session,
@@ -697,49 +801,18 @@ def test_runtime_service_fail_closes_explicit_native_tool_isolation_request(
         .order_by(RunEvent.id.asc())
     ).all()
 
-    tool_execution_dispatched_event = next(
-        event for event in events if event.event_type == "tool.execution.dispatched"
+    unavailable_event = next(
+        event for event in events if event.event_type == "node.execution.unavailable"
     )
-    assert tool_execution_dispatched_event.payload == {
+    assert unavailable_event.payload == {
         "node_id": "tool",
-        "tool_id": "native.inline-test",
-        "tool_name": "native.inline-test",
+        "node_type": "tool",
         "requested_execution_class": "microvm",
-        "effective_execution_class": "inline",
-        "execution_source": "runtime_policy",
-        "requested_execution_profile": "strict",
-        "requested_execution_timeout_ms": None,
-        "requested_network_policy": None,
-        "requested_filesystem_policy": None,
-        "requested_dependency_mode": None,
-        "requested_builtin_package_set": None,
-        "requested_dependency_ref": None,
-        "requested_backend_extensions": None,
-        "executor_ref": "tool:native-inline",
-    }
-
-    tool_execution_blocked_event = next(
-        event for event in events if event.event_type == "tool.execution.blocked"
-    )
-    assert tool_execution_blocked_event.payload == {
-        "node_id": "tool",
-        "tool_id": "native.inline-test",
-        "tool_name": "native.inline-test",
-        "requested_execution_class": "microvm",
-        "effective_execution_class": "inline",
-        "execution_source": "runtime_policy",
-        "requested_execution_profile": "strict",
-        "requested_execution_timeout_ms": None,
-        "requested_network_policy": None,
-        "requested_filesystem_policy": None,
-        "requested_dependency_mode": None,
-        "requested_builtin_package_set": None,
-        "requested_dependency_ref": None,
-        "requested_backend_extensions": None,
-        "executor_ref": "tool:native-inline",
         "reason": (
-            "Native tool 'native.inline-test' does not support requested execution class "
-            "'microvm'. Supported classes: inline."
+            "Tool nodes do not yet implement sandbox-backed tool execution for requested "
+            "execution class 'microvm'. Current native / compat invokers still run from the "
+            "host / adapter boundary, so strong-isolation tool paths must fail closed until "
+            "a sandbox tool runner is available."
         ),
     }
 

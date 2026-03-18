@@ -62,6 +62,17 @@ def _resolve_execution_blocking_explanation(
                 ),
             )
 
+        if "sandbox-backed tool execution" in normalized:
+            return RunExecutionFocusExplanation(
+                primary_signal=(
+                    "执行阻断：当前 tool 路径还不能真实兑现请求的强隔离 execution class。"
+                ),
+                follow_up=(
+                    "下一步：先把 tool execution class 调回当前宿主执行支持范围，"
+                    "或后续补齐 sandbox tool runner；在此之前继续保持 fail-closed。"
+                ),
+            )
+
         if (
             "no compatible sandbox backend" in normalized
             or "strong-isolation paths must fail closed" in normalized

@@ -238,9 +238,9 @@ type CompatibilityAdapterRegistration = {
 }
 ```
 
-- `supportedExecutionClasses` 是 compat adapter 对“自己能真正兑现哪些 execution class”的显式声明。
-- 7Flows host 侧不会再把任意 `microvm / sandbox` 请求原样被动透传给一个只声明 `subprocess` 的 adapter；未声明支持时会在 `ToolGateway -> PluginCallProxy` 这条主链上先显式降级，并把 requested/effective/fallback 继续写进 trace / artifact。
-- 若 adapter 明确声明支持 `sandbox` 或 `microvm`，host 侧才会把对应 execution payload 原样透传到 `/invoke`，让 compat adapter 继续兑现真实隔离边界。
+- `supportedExecutionClasses` 是 compat adapter 对“自己声明支持哪些 execution class”的显式契约，但不能被误写成“当前代码已经真实兑现”。
+- 7Flows host 侧不会再把任意 `microvm / sandbox` 请求原样被动透传给一个只声明 `subprocess` 的 adapter；未声明支持时会在 `ToolGateway -> PluginCallProxy` 这条主链上先显式阻断或降级，并把 requested/effective/fallback / blocked 继续写进 trace / artifact。
+- **当前共享事实**：即使 native tool / compat adapter 自身声明支持 `sandbox` 或 `microvm`，只要 7Flows 还没有落地真正的 sandbox tool runner，这类 tool/plugin 强隔离路径也必须继续 `fail-closed`，不能假装 host / adapter 调用已经兑现真实隔离边界。
 - compat adapter registration 与 sandbox backend registration 可以复用相似的注册 / health / capability 形态，但它们不是同一种运行时对象：compat adapter 解决生态桥接，sandbox backend 解决隔离执行。
 
 ### 14.6 Dify 兼容层生命周期管理
@@ -1475,8 +1475,9 @@ Tool Gateway 至少负责：
 
 当前 compat adapter 调用约定额外要求：
 
-- Tool Gateway 在解析出统一 `ResolvedExecutionPolicy` 后，应把标准化 `execution` payload（`class / source / profile / timeoutMs / networkPolicy / filesystemPolicy`）连同 `traceId` 一起透传给 compat adapter 的 `/invoke` 请求，而不是只在 7Flows 内部 trace / artifact 中可见。
-- compat adapter 可以先把这份 `execution` payload 视为执行提示 contract；即便当前仍回落到 adapter service / host subprocess，也不应丢失这份信息，以便后续逐步演进到真实 `sandbox` / `microvm` 隔离兑现。
+- Tool Gateway 在解析出统一 `ResolvedExecutionPolicy` 后，应把标准化 `execution` payload（`class / source / profile / timeoutMs / networkPolicy / filesystemPolicy`）连同 `traceId` 一起透传给当前真正可执行的 compat adapter `/invoke` 请求，而不是只在 7Flows 内部 trace / artifact 中可见。
+- **当前共享事实**：tool/plugin 的 `sandbox / microvm` 请求仍停在 host 侧治理与阻断，不会继续透传到 native invoker 或 compat adapter `/invoke`；只有当前实现真正支持的执行路径才会继续下发。
+- **目标方向**：后续若补齐 sandbox tool runner，再让 compat adapter 或其他 tool runtime 在真实隔离边界内消费这份 `execution` payload，而不是继续把 host / adapter 调用误写成已隔离执行。
 
 ### 23.1.1 Sandbox Backend 执行协议
 

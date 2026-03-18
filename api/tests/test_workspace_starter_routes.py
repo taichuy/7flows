@@ -424,7 +424,7 @@ def test_workspace_starter_create_rejects_unscoped_agent_tool_execution_target(
     assert any(issue["category"] == "tool_execution" for issue in issues)
 
 
-def test_workspace_starter_create_accepts_supported_agent_tool_execution(
+def test_workspace_starter_create_rejects_supported_agent_tool_execution_until_tool_runner_exists(
     client: TestClient,
     monkeypatch,
 ) -> None:
@@ -474,7 +474,10 @@ def test_workspace_starter_create_accepts_supported_agent_tool_execution(
         },
     )
 
-    assert response.status_code == 201
+    assert response.status_code == 422
+    message, _issues = _validation_detail(response.json())
+    assert "sandbox-backed tool execution" in message
+    assert "must fail closed" in message
 
 
 def test_workspace_starter_create_rejects_tool_execution_dependency_contract(
@@ -559,7 +562,8 @@ def test_workspace_starter_create_rejects_tool_execution_dependency_contract(
     assert response.status_code == 422
     message, issues = _validation_detail(response.json())
     assert "tool execution capabilities" in message
-    assert "builtin package set hints" in message
+    assert "sandbox-backed tool execution" in message
+    assert "must fail closed" in message
     assert any(issue["category"] == "tool_execution" for issue in issues)
 
 
@@ -688,6 +692,7 @@ def test_workspace_starter_create_rejects_allowed_tool_default_microvm_when_back
     message, issues = _validation_detail(response.json())
     assert "toolPolicy.allowedToolIds" in message
     assert "default execution class 'microvm'" in message
+    assert "sandbox-backed tool execution" in message
     assert any(issue["category"] == "tool_execution" for issue in issues)
 
 

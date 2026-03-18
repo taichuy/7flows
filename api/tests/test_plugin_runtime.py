@@ -294,7 +294,7 @@ def test_plugin_call_proxy_invokes_compat_adapter() -> None:
     assert response.duration_ms == 17
 
 
-def test_plugin_call_proxy_forwards_execution_payload_to_compat_adapter() -> None:
+def test_plugin_call_proxy_fail_closes_explicit_strong_isolation_for_compat_adapter() -> None:
     registry = PluginRegistry()
     registry.register_tool(
         PluginToolDefinition(
@@ -314,23 +314,11 @@ def test_plugin_call_proxy_forwards_execution_payload_to_compat_adapter() -> Non
         )
     )
 
+    invoked = False
+
     def handler(request: httpx.Request) -> httpx.Response:
-        payload = json.loads(request.content.decode())
-        assert payload["execution"] == {
-            "class": "microvm",
-            "source": "tool_call",
-            "profile": "compat-isolation",
-            "timeoutMs": 4000,
-            "networkPolicy": "isolated",
-            "filesystemPolicy": "ephemeral",
-            "dependencyMode": "builtin",
-            "builtinPackageSet": "py-data-basic",
-            "backendExtensions": {"mountPreset": "analytics"},
-            "sandboxBackend": {
-                "id": "sandbox-default",
-                "executorRef": "sandbox-backend:sandbox-default",
-            },
-        }
+        nonlocal invoked
+        invoked = True
         return httpx.Response(
             200,
             json={
@@ -386,19 +374,25 @@ def test_plugin_call_proxy_forwards_execution_payload_to_compat_adapter() -> Non
         "requested_dependency_ref": None,
         "requested_backend_extensions": {"mountPreset": "analytics"},
         "executor_ref": "tool:compat-adapter:dify-default",
-        "sandbox_backend_id": "sandbox-default",
-        "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
+        "sandbox_backend_id": None,
+        "sandbox_backend_executor_ref": None,
         "fallback_reason": None,
-        "blocked_reason": None,
+        "blocked_reason": (
+            "Tool 'compat:dify:plugin:demo/search' requests execution class 'microvm', but "
+            "7Flows does not yet implement sandbox-backed tool execution for native / compat "
+            "tool paths. Current host / adapter invokers cannot honestly enforce this "
+            "strong-isolation contract, so the path must fail closed until a sandbox tool "
+            "runner is available."
+        ),
     }
 
-    response = proxy.invoke(
-        request
-    )
+    with pytest.raises(
+        PluginInvocationError,
+        match="does not yet implement sandbox-backed tool execution",
+    ):
+        proxy.invoke(request)
 
-    assert response.status == "success"
-    assert response.output == {"documents": ["doc-1"]}
-    assert response.duration_ms == 9
+    assert invoked is False
 
 
 def test_plugin_call_proxy_fail_closes_backend_extension_request_without_backend_support() -> None:
@@ -476,15 +470,17 @@ def test_plugin_call_proxy_fail_closes_backend_extension_request_without_backend
         "sandbox_backend_executor_ref": None,
         "fallback_reason": None,
         "blocked_reason": (
-            "No compatible sandbox backend is currently available for the requested "
-            "execution class 'microvm'. sandbox-default: does not support "
-            "backendExtensions payloads"
+            "Tool 'compat:dify:plugin:demo/search' requests execution class 'microvm', but "
+            "7Flows does not yet implement sandbox-backed tool execution for native / compat "
+            "tool paths. Current host / adapter invokers cannot honestly enforce this "
+            "strong-isolation contract, so the path must fail closed until a sandbox tool "
+            "runner is available."
         ),
     }
 
     with pytest.raises(
         PluginInvocationError,
-        match="does not support backendExtensions payloads",
+        match="does not yet implement sandbox-backed tool execution",
     ):
         proxy.invoke(
             PluginCallRequest(
@@ -888,12 +884,13 @@ def test_plugin_call_proxy_fail_closes_tool_sensitivity_isolation_request() -> N
         )
 
 
-def test_plugin_call_proxy_binds_sandbox_backend_for_native_tool() -> None:
+def test_plugin_call_proxy_fail_closes_supported_strong_isolation_for_native_tool() -> None:
     registry = PluginRegistry()
-    captured_execution: dict[str, object] = {}
+    invoked = False
 
     def invoker(request: PluginCallRequest) -> dict[str, object]:
-        captured_execution.update(request.execution)
+        nonlocal invoked
+        invoked = True
         return {"documents": ["doc-1"], "execution": request.execution}
 
     registry.register_tool(
@@ -943,42 +940,39 @@ def test_plugin_call_proxy_binds_sandbox_backend_for_native_tool() -> None:
         "requested_dependency_ref": None,
         "requested_backend_extensions": None,
         "executor_ref": "tool:native-sandbox",
-        "sandbox_backend_id": "sandbox-default",
-        "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
+        "sandbox_backend_id": None,
+        "sandbox_backend_executor_ref": None,
         "fallback_reason": None,
-        "blocked_reason": None,
+        "blocked_reason": (
+            "Tool 'native.search' requests execution class 'sandbox', but 7Flows does not yet "
+            "implement sandbox-backed tool execution for native / compat tool paths. Current "
+            "host / adapter invokers cannot honestly enforce this strong-isolation contract, "
+            "so the path must fail closed until a sandbox tool runner is available."
+        ),
     }
 
-    response = proxy.invoke(
-        PluginCallRequest(
-            tool_id="native.search",
-            ecosystem="native",
-            inputs={"query": "sevenflows"},
-            trace_id="trace-native-sandbox",
-            execution={
-                "class": "sandbox",
-                "source": "tool_call",
-                "profile": "risk-reviewed",
-                "timeoutMs": 3000,
-                "networkPolicy": "restricted",
-                "filesystemPolicy": "ephemeral",
-            },
+    with pytest.raises(
+        PluginInvocationError,
+        match="does not yet implement sandbox-backed tool execution",
+    ):
+        proxy.invoke(
+            PluginCallRequest(
+                tool_id="native.search",
+                ecosystem="native",
+                inputs={"query": "sevenflows"},
+                trace_id="trace-native-sandbox",
+                execution={
+                    "class": "sandbox",
+                    "source": "tool_call",
+                    "profile": "risk-reviewed",
+                    "timeoutMs": 3000,
+                    "networkPolicy": "restricted",
+                    "filesystemPolicy": "ephemeral",
+                },
+            )
         )
-    )
 
-    assert response.status == "success"
-    assert captured_execution == {
-        "class": "sandbox",
-        "source": "tool_call",
-        "profile": "risk-reviewed",
-        "timeoutMs": 3000,
-        "networkPolicy": "restricted",
-        "filesystemPolicy": "ephemeral",
-        "sandboxBackend": {
-            "id": "sandbox-default",
-            "executorRef": "sandbox-backend:sandbox-default",
-        },
-    }
+    assert invoked is False
 
 
 def test_plugin_call_proxy_fail_closes_native_builtin_package_request() -> None:
@@ -1032,15 +1026,16 @@ def test_plugin_call_proxy_fail_closes_native_builtin_package_request() -> None:
         "sandbox_backend_executor_ref": None,
         "fallback_reason": None,
         "blocked_reason": (
-            "No compatible sandbox backend is currently available for the requested "
-            "execution class 'sandbox'. sandbox-default: does not support "
-            "builtin package set hints"
+            "Tool 'native.search' requests execution class 'sandbox', but 7Flows does not "
+            "yet implement sandbox-backed tool execution for native / compat tool paths. "
+            "Current host / adapter invokers cannot honestly enforce this strong-isolation "
+            "contract, so the path must fail closed until a sandbox tool runner is available."
         ),
     }
 
     with pytest.raises(
         PluginInvocationError,
-        match="does not support builtin package set hints",
+        match="does not yet implement sandbox-backed tool execution",
     ):
         proxy.invoke(
             PluginCallRequest(
@@ -1058,12 +1053,13 @@ def test_plugin_call_proxy_fail_closes_native_builtin_package_request() -> None:
         )
 
 
-def test_plugin_call_proxy_uses_default_execution_class_for_native_tool() -> None:
+def test_plugin_call_proxy_fail_closes_default_strong_isolation_for_native_tool() -> None:
     registry = PluginRegistry()
-    captured_execution: dict[str, object] = {}
+    invoked = False
 
     def invoker(request: PluginCallRequest) -> dict[str, object]:
-        captured_execution.update(request.execution)
+        nonlocal invoked
+        invoked = True
         return {"documents": ["doc-1"], "execution": request.execution}
 
     registry.register_tool(
@@ -1105,33 +1101,34 @@ def test_plugin_call_proxy_uses_default_execution_class_for_native_tool() -> Non
         "requested_dependency_ref": None,
         "requested_backend_extensions": None,
         "executor_ref": "tool:native-sandbox",
-        "sandbox_backend_id": "sandbox-default",
-        "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
+        "sandbox_backend_id": None,
+        "sandbox_backend_executor_ref": None,
         "fallback_reason": None,
-        "blocked_reason": None,
+        "blocked_reason": (
+            "Tool 'native.risk-search' requests execution class 'sandbox', but 7Flows does not "
+            "yet implement sandbox-backed tool execution for native / compat tool paths. Current "
+            "host / adapter invokers cannot honestly enforce this strong-isolation contract, so "
+            "the path must fail closed until a sandbox tool runner is available."
+        ),
     }
 
-    response = proxy.invoke(
-        PluginCallRequest(
-            tool_id="native.risk-search",
-            ecosystem="native",
-            inputs={"query": "sevenflows"},
-            trace_id="trace-native-default-sandbox",
+    with pytest.raises(
+        PluginInvocationError,
+        match="does not yet implement sandbox-backed tool execution",
+    ):
+        proxy.invoke(
+            PluginCallRequest(
+                tool_id="native.risk-search",
+                ecosystem="native",
+                inputs={"query": "sevenflows"},
+                trace_id="trace-native-default-sandbox",
+            )
         )
-    )
 
-    assert response.status == "success"
-    assert captured_execution == {
-        "class": "sandbox",
-        "source": "tool_default",
-        "sandboxBackend": {
-            "id": "sandbox-default",
-            "executorRef": "sandbox-backend:sandbox-default",
-        },
-    }
+    assert invoked is False
 
 
-def test_plugin_call_proxy_binds_sandbox_backend_for_compat_adapter() -> None:
+def test_plugin_call_proxy_fail_closes_supported_strong_isolation_for_compat_adapter() -> None:
     registry = PluginRegistry()
     registry.register_tool(
         PluginToolDefinition(
@@ -1150,23 +1147,13 @@ def test_plugin_call_proxy_binds_sandbox_backend_for_compat_adapter() -> None:
             supported_execution_classes=("subprocess", "microvm"),
         )
     )
+    invoked = False
+
     def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal invoked
+        invoked = True
         payload = json.loads(request.content.decode())
-        if payload["traceId"] == "trace-compat-execution":
-            assert payload["execution"] == {
-                "class": "microvm",
-                "source": "tool_call",
-                "profile": "compat-isolation",
-                "timeoutMs": 4000,
-                "networkPolicy": "isolated",
-                "filesystemPolicy": "ephemeral",
-                "sandboxBackend": {
-                    "id": "sandbox-default",
-                    "executorRef": "sandbox-backend:sandbox-default",
-                },
-            }
-        else:
-            assert payload["execution"] == {"class": "subprocess", "source": "default"}
+        assert payload["execution"] == {"class": "subprocess", "source": "default"}
         return httpx.Response(
             200,
             json={"status": "success", "output": {"documents": ["doc-1"]}, "durationMs": 9},
@@ -1214,30 +1201,40 @@ def test_plugin_call_proxy_binds_sandbox_backend_for_compat_adapter() -> None:
         "requested_dependency_ref": None,
         "requested_backend_extensions": None,
         "executor_ref": "tool:compat-adapter:dify-microvm",
-        "sandbox_backend_id": "sandbox-default",
-        "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
+        "sandbox_backend_id": None,
+        "sandbox_backend_executor_ref": None,
         "fallback_reason": None,
-        "blocked_reason": None,
+        "blocked_reason": (
+            "Tool 'compat:dify:plugin:demo/search' requests execution class 'microvm', but "
+            "7Flows does not yet implement sandbox-backed tool execution for native / compat "
+            "tool paths. Current host / adapter invokers cannot honestly enforce this "
+            "strong-isolation contract, so the path must fail closed until a sandbox tool "
+            "runner is available."
+        ),
     }
 
-    response = proxy.invoke(
-        PluginCallRequest(
-            tool_id="compat:dify:plugin:demo/search",
-            ecosystem="compat:dify",
-            inputs={"query": "sevenflows"},
-            trace_id="trace-compat-execution",
-            execution={
-                "class": "microvm",
-                "source": "tool_call",
-                "profile": "compat-isolation",
-                "timeoutMs": 4000,
-                "networkPolicy": "isolated",
-                "filesystemPolicy": "ephemeral",
-            },
+    with pytest.raises(
+        PluginInvocationError,
+        match="does not yet implement sandbox-backed tool execution",
+    ):
+        proxy.invoke(
+            PluginCallRequest(
+                tool_id="compat:dify:plugin:demo/search",
+                ecosystem="compat:dify",
+                inputs={"query": "sevenflows"},
+                trace_id="trace-compat-execution",
+                execution={
+                    "class": "microvm",
+                    "source": "tool_call",
+                    "profile": "compat-isolation",
+                    "timeoutMs": 4000,
+                    "networkPolicy": "isolated",
+                    "filesystemPolicy": "ephemeral",
+                },
+            )
         )
-    )
 
-    assert response.status == "success"
+    assert invoked is False
 
     response = proxy.invoke(
         PluginCallRequest(

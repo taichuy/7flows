@@ -8,6 +8,10 @@ from app.services.plugin_runtime_types import (
 )
 from app.services.runtime_execution_policy import default_execution_class_for_tool_ecosystem
 from app.services.sandbox_backends import SandboxBackendClient, get_sandbox_backend_client
+from app.services.tool_execution_isolation import (
+    build_tool_execution_not_yet_isolated_reason,
+    is_strong_tool_execution_class,
+)
 
 _DEPENDENCY_MODES = {"builtin", "dependency_ref", "backend_managed"}
 
@@ -103,24 +107,13 @@ class PluginExecutionDispatchPlanner:
                     )
                 else:
                     fallback_reason = "native_tool_execution_class_not_supported"
-            if blocked_reason is None and effective_execution_class in {"sandbox", "microvm"}:
-                backend_selection = self._sandbox_backend_client.describe_tool_execution_backend(
+            if blocked_reason is None and is_strong_tool_execution_class(
+                effective_execution_class
+            ):
+                blocked_reason = build_tool_execution_not_yet_isolated_reason(
+                    tool_id=request.tool_id,
                     execution_class=effective_execution_class,
-                    profile=requested_execution_profile,
-                    dependency_mode=requested_dependency_mode,
-                    builtin_package_set=requested_builtin_package_set,
-                    network_policy=requested_network_policy,
-                    filesystem_policy=requested_filesystem_policy,
-                    backend_extensions=requested_backend_extensions,
                 )
-                if not backend_selection.available or backend_selection.backend_id is None:
-                    blocked_reason = (
-                        backend_selection.reason
-                        or "No compatible sandbox backend is currently available."
-                    )
-                else:
-                    sandbox_backend_id = backend_selection.backend_id
-                    sandbox_backend_executor_ref = backend_selection.executor_ref
             return PluginExecutionDispatchPlan(
                 requested_execution_class=requested_execution_class,
                 effective_execution_class=effective_execution_class,
@@ -187,24 +180,13 @@ class PluginExecutionDispatchPlanner:
                 )
             else:
                 fallback_reason = "compat_adapter_execution_class_not_supported"
-        if blocked_reason is None and effective_execution_class in {"sandbox", "microvm"}:
-            backend_selection = self._sandbox_backend_client.describe_tool_execution_backend(
+        if blocked_reason is None and is_strong_tool_execution_class(
+            effective_execution_class
+        ):
+            blocked_reason = build_tool_execution_not_yet_isolated_reason(
+                tool_id=request.tool_id,
                 execution_class=effective_execution_class,
-                profile=requested_execution_profile,
-                dependency_mode=requested_dependency_mode,
-                builtin_package_set=requested_builtin_package_set,
-                network_policy=requested_network_policy,
-                filesystem_policy=requested_filesystem_policy,
-                backend_extensions=requested_backend_extensions,
             )
-            if not backend_selection.available or backend_selection.backend_id is None:
-                blocked_reason = (
-                    backend_selection.reason
-                    or "No compatible sandbox backend is currently available."
-                )
-            else:
-                sandbox_backend_id = backend_selection.backend_id
-                sandbox_backend_executor_ref = backend_selection.executor_ref
         return PluginExecutionDispatchPlan(
             requested_execution_class=requested_execution_class,
             effective_execution_class=effective_execution_class,
