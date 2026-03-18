@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 
 import type { PluginAdapterRegistryItem, PluginToolRegistryItem } from "@/lib/get-plugin-registry";
@@ -59,7 +59,15 @@ export function WorkflowEditorWorkbench({
   const plannedNodeLibrary = getPlannedNodeCatalog(nodeCatalog);
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<WorkflowEditorMessageTone>("idle");
-  const [serverValidationIssues, setServerValidationIssues] = useState<WorkflowDefinitionPreflightIssue[]>([]);
+  const persistedDefinitionSignature = useMemo(
+    () => JSON.stringify(workflow.definition),
+    [workflow.definition]
+  );
+  const [serverValidationIssues, setServerValidationIssues] = useState<WorkflowDefinitionPreflightIssue[]>(
+    workflow.definition_issues ?? []
+  );
+  const [serverValidationIssueSourceSignature, setServerValidationIssueSourceSignature] =
+    useState<string>(persistedDefinitionSignature);
   const [validationFocusTarget, setValidationFocusTarget] =
     useState<WorkflowValidationFocusTarget | null>(null);
 
@@ -69,6 +77,10 @@ export function WorkflowEditorWorkbench({
     setMessage,
     setMessageTone
   });
+  const currentDefinitionSignature = useMemo(
+    () => JSON.stringify(graph.currentDefinition),
+    [graph.currentDefinition]
+  );
   const runOverlay = useWorkflowRunOverlay({
     workflowId: workflow.id,
     recentRuns
@@ -93,12 +105,33 @@ export function WorkflowEditorWorkbench({
     setPersistedWorkflowName: graph.setPersistedWorkflowName,
     setPersistedDefinition: graph.setPersistedDefinition,
     setWorkflowVersion: graph.setWorkflowVersion,
+    currentDefinitionSignature,
     setServerValidationIssues,
+    setServerValidationIssueSourceSignature,
     setMessage,
     setMessageTone,
     focusNode: graph.focusNode,
     setValidationFocusTarget
   });
+
+  useEffect(() => {
+    setServerValidationIssues(workflow.definition_issues ?? []);
+    setServerValidationIssueSourceSignature(persistedDefinitionSignature);
+  }, [persistedDefinitionSignature, workflow.definition_issues]);
+
+  useEffect(() => {
+    if (serverValidationIssues.length === 0) {
+      return;
+    }
+    if (serverValidationIssueSourceSignature === currentDefinitionSignature) {
+      return;
+    }
+    setServerValidationIssues([]);
+  }, [
+    currentDefinitionSignature,
+    serverValidationIssueSourceSignature,
+    serverValidationIssues.length
+  ]);
 
   const displayedNodes = applyRunOverlayToNodes(
     graph.nodes,

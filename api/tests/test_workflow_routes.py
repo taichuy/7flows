@@ -2002,6 +2002,75 @@ def test_validate_workflow_definition_preflight_returns_normalized_definition(
     assert body["issues"] == []
 
 
+def test_get_workflow_detail_surfaces_definition_issues_after_sandbox_drift(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    adapter_response = client.post(
+        "/api/plugins/adapters",
+        json={
+            "id": "dify-microvm-detail",
+            "ecosystem": "compat:dify",
+            "endpoint": "http://adapter.local/dify-microvm-detail",
+            "supported_execution_classes": ["subprocess", "microvm"],
+        },
+    )
+    assert adapter_response.status_code == 201
+
+    tool_response = client.post(
+        "/api/plugins/tools",
+        json={
+            "id": "compat:dify:plugin:demo/detail-search",
+            "name": "Detail Search",
+            "ecosystem": "compat:dify",
+            "description": "Search via adapter",
+            "input_schema": {"type": "object"},
+            "output_schema": {"type": "object"},
+        },
+    )
+    assert tool_response.status_code == 201
+
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(execution_classes=("microvm",)),
+    )
+
+    created = client.post(
+        "/api/workflows",
+        json={
+            "name": "Detail Execution Drift Workflow",
+            "definition": _bound_tool_definition(
+                tool_id="compat:dify:plugin:demo/detail-search",
+                ecosystem="compat:dify",
+                adapter_id="dify-microvm-detail",
+                runtime_policy={"execution": {"class": "microvm"}},
+            ),
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["definition_issues"] == []
+    workflow_id = created.json()["id"]
+
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(execution_classes=()),
+    )
+
+    response = client.get(f"/api/workflows/{workflow_id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert any(
+        issue.get("category") == "tool_execution"
+        and issue.get("path") == "nodes.1.runtimePolicy.execution"
+        and issue.get("field") == "execution"
+        and "microvm" in issue.get("message", "")
+        for issue in body["definition_issues"]
+    )
+
+
 def test_validate_workflow_definition_preflight_rejects_invalid_publish_reference(
     client: TestClient,
 ) -> None:

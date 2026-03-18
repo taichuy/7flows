@@ -46,6 +46,7 @@ export type WorkflowDetail = WorkflowListItem & {
     variables?: Array<Record<string, unknown>>;
     publish?: Array<Record<string, unknown>>;
   };
+  definition_issues?: WorkflowDefinitionPreflightIssue[];
   created_at: string;
   updated_at: string;
   versions: Array<{

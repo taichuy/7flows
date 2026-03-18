@@ -9,12 +9,29 @@ from app.models.run import NodeRun, Run, RunEvent
 from app.models.workflow import Workflow, WorkflowCompiledBlueprint, WorkflowVersion
 from app.schemas.plugin import PluginToolItem
 from app.schemas.run import WorkflowRunListItem
-from app.schemas.workflow import WorkflowDetail, WorkflowListItem, WorkflowVersionItem
+from app.schemas.workflow import (
+    WorkflowDefinitionPreflightIssue,
+    WorkflowDetail,
+    WorkflowListItem,
+    WorkflowVersionItem,
+)
+from app.services.workflow_definitions import (
+    WorkflowDefinitionValidationError,
+    WorkflowDefinitionValidationIssue,
+    build_workflow_adapter_reference_list,
+    build_workflow_skill_reference_ids_index,
+    build_workflow_skill_reference_index,
+    build_workflow_tool_reference_index,
+    validate_persistable_workflow_definition,
+)
 from app.services.workflow_definition_governance import (
     count_workflow_nodes,
     summarize_workflow_definition_tool_governance,
 )
 from app.services.workflow_library import get_workflow_library_service
+from app.services.workflow_publish_version_references import (
+    build_allowed_publish_workflow_versions,
+)
 
 
 def _normalize_datetime(value: datetime | None) -> datetime:
@@ -81,6 +98,7 @@ def serialize_workflow_detail(
     versions: list[WorkflowVersion],
     compiled_blueprints: dict[str, WorkflowCompiledBlueprint] | None = None,
     tool_index: dict[str, PluginToolItem] | None = None,
+    definition_issues: list[WorkflowDefinitionPreflightIssue] | None = None,
 ) -> WorkflowDetail:
     compiled_blueprints = compiled_blueprints or {}
     tool_index = tool_index or {}
@@ -95,6 +113,7 @@ def serialize_workflow_detail(
             tool_index=tool_index,
         ),
         definition=workflow.definition,
+        definition_issues=definition_issues or [],
         created_at=workflow.created_at,
         updated_at=workflow.updated_at,
         versions=[
@@ -146,7 +165,41 @@ def build_workflow_detail(db: Session, workflow: Workflow) -> WorkflowDetail:
         sort_workflow_versions(versions),
         load_compiled_blueprint_lookup(db, workflow.id),
         load_workflow_view_tool_index(db),
+        build_workflow_definition_issues(db, workflow),
     )
+
+
+def _serialize_definition_issue(
+    issue: WorkflowDefinitionValidationIssue,
+) -> WorkflowDefinitionPreflightIssue:
+    return WorkflowDefinitionPreflightIssue(
+        category=issue.category,
+        message=issue.message,
+        path=issue.path,
+        field=issue.field,
+    )
+
+
+def build_workflow_definition_issues(
+    db: Session,
+    workflow: Workflow,
+) -> list[WorkflowDefinitionPreflightIssue]:
+    try:
+        validate_persistable_workflow_definition(
+            workflow.definition,
+            tool_index=build_workflow_tool_reference_index(db),
+            adapters=build_workflow_adapter_reference_list(db),
+            skill_index=build_workflow_skill_reference_index(db),
+            skill_reference_ids_index=build_workflow_skill_reference_ids_index(db),
+            allowed_publish_versions=build_allowed_publish_workflow_versions(
+                db,
+                workflow_id=workflow.id,
+                current_version=workflow.version,
+            ),
+        )
+    except WorkflowDefinitionValidationError as exc:
+        return [_serialize_definition_issue(issue) for issue in exc.issues]
+    return []
 
 
 def list_workflow_version_items(db: Session, workflow_id: str) -> list[WorkflowVersionItem]:

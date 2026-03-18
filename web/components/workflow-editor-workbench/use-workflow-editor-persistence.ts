@@ -32,11 +32,13 @@ type UseWorkflowEditorPersistenceOptions = {
   workflowName: string;
   workflowVersion: string;
   currentDefinition: WorkflowDetail["definition"];
+  currentDefinitionSignature: string;
   persistBlockedMessage: string;
   setPersistedWorkflowName: (name: string) => void;
   setPersistedDefinition: (definition: WorkflowDetail["definition"]) => void;
   setWorkflowVersion: (version: string) => void;
   setServerValidationIssues: Dispatch<SetStateAction<WorkflowDefinitionPreflightIssue[]>>;
+  setServerValidationIssueSourceSignature: Dispatch<SetStateAction<string>>;
   setMessage: Dispatch<SetStateAction<string | null>>;
   setMessageTone: Dispatch<SetStateAction<WorkflowEditorMessageTone>>;
   focusNode: (nodeId: string | null) => void;
@@ -49,11 +51,13 @@ export function useWorkflowEditorPersistence({
   workflowName,
   workflowVersion,
   currentDefinition,
+  currentDefinitionSignature,
   persistBlockedMessage,
   setPersistedWorkflowName,
   setPersistedDefinition,
   setWorkflowVersion,
   setServerValidationIssues,
+  setServerValidationIssueSourceSignature,
   setMessage,
   setMessageTone,
   focusNode,
@@ -75,7 +79,6 @@ export function useWorkflowEditorPersistence({
 
       try {
         const preflight = await validateWorkflowDefinition(workflowId, currentDefinition);
-        setServerValidationIssues([]);
         const normalizedWorkflowName = workflowName.trim() || fallbackWorkflowName;
         const body = await updateWorkflow(workflowId, {
           name: normalizedWorkflowName,
@@ -85,12 +88,17 @@ export function useWorkflowEditorPersistence({
         setPersistedWorkflowName(normalizedWorkflowName);
         setPersistedDefinition(preflight.definition);
         setWorkflowVersion(body?.version ?? workflowVersion);
+        setServerValidationIssues(body?.definition_issues ?? []);
+        setServerValidationIssueSourceSignature(JSON.stringify(body?.definition ?? preflight.definition));
         setMessage(`已保存 workflow，当前版本 ${body?.version ?? workflowVersion}。`);
         setMessageTone("success");
       } catch (error) {
-        setServerValidationIssues(
-          error instanceof WorkflowDefinitionPreflightError ? error.issues : []
-        );
+        if (error instanceof WorkflowDefinitionPreflightError) {
+          setServerValidationIssues(error.issues);
+          setServerValidationIssueSourceSignature(currentDefinitionSignature);
+        } else {
+          setServerValidationIssues([]);
+        }
         const preflightIssueSummary =
           error instanceof WorkflowDefinitionPreflightError
             ? summarizePreflightIssues(error.issues)

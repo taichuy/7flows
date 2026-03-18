@@ -210,6 +210,7 @@ class WorkflowVersionItem(BaseModel):
 
 class WorkflowDetail(WorkflowListItem):
     definition: dict
+    definition_issues: list[WorkflowDefinitionPreflightIssue] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
     versions: list[WorkflowVersionItem] = Field(default_factory=list)

@@ -199,6 +199,10 @@ export function useWorkflowEditorValidation({
     () => summarizeIssueMessages(variableValidationIssues),
     [variableValidationIssues]
   );
+  const serverValidationSummary = useMemo(
+    () => summarizeIssueMessages(serverValidationIssues),
+    [serverValidationIssues]
+  );
   const validationNavigatorItems = useMemo<WorkflowValidationNavigatorItem[]>(() => {
     const localIssues: WorkflowDefinitionPreflightIssue[] = [
       ...contractValidationIssues.map((issue) => ({
@@ -269,6 +273,9 @@ export function useWorkflowEditorValidation({
           : null,
         variableValidationSummary
           ? `当前 workflow definition 还有 variables 待修正问题：${variableValidationSummary}${variableValidationSummary.endsWith("。") ? "" : "。"}请先修正变量名，再继续保存。`
+          : null,
+        serverValidationSummary
+          ? `当前 persisted workflow 已出现服务器侧 definition drift：${serverValidationSummary}${serverValidationSummary.endsWith("。") ? "" : "。"}请先对齐当前工具目录、skill 引用或 sandbox readiness，再继续保存。`
           : null
       ]
         .filter(Boolean)
@@ -277,6 +284,7 @@ export function useWorkflowEditorValidation({
       contractValidationSummary,
       publishIdentityValidationSummary,
       publishVersionValidationSummary,
+      serverValidationSummary,
       toolExecutionValidationSummary,
       toolReferenceValidationSummary,
       unsupportedNodeSummary,
