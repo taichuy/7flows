@@ -1172,11 +1172,15 @@ def test_invoke_published_native_endpoint_uses_response_cache(
         "miss": 2,
         "bypass": 0,
     }
-    assert [item["cache_status"] for item in invocation_body["items"]] == [
-        "miss",
+    assert sorted(item["cache_status"] for item in invocation_body["items"]) == [
         "hit",
         "miss",
+        "miss",
     ]
+    assert [item["created_at"] for item in invocation_body["items"]] == sorted(
+        (item["created_at"] for item in invocation_body["items"]),
+        reverse=True,
+    )
 
     list_response = client.get(f"/api/workflows/{workflow_id}/published-endpoints")
     assert list_response.status_code == 200
@@ -1536,6 +1540,17 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
         "waiting_reason": "callback pending",
         "callback_ticket_count": 1,
         "callback_ticket_status_counts": {"pending": 1},
+        "sensitive_access_summary": {
+            "request_count": 1,
+            "approval_ticket_count": 1,
+            "pending_approval_count": 0,
+            "approved_approval_count": 1,
+            "rejected_approval_count": 0,
+            "expired_approval_count": 0,
+            "pending_notification_count": 0,
+            "delivered_notification_count": 1,
+            "failed_notification_count": 0,
+        },
         "callback_waiting_lifecycle": {
             "wait_cycle_count": 1,
             "issued_ticket_count": 1,
