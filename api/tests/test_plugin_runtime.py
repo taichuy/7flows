@@ -672,6 +672,90 @@ def test_plugin_call_proxy_keeps_default_execution_fallback_for_compat_adapter()
     }
 
 
+def test_plugin_call_proxy_fail_closes_tool_default_strong_execution_for_compat_adapter() -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="compat:dify:plugin:demo/search",
+            name="Search",
+            ecosystem="compat:dify",
+            source="plugin",
+            constrained_ir=_demo_search_constrained_ir(),
+            supported_execution_classes=("subprocess", "microvm"),
+            default_execution_class="microvm",
+        )
+    )
+    registry.register_adapter(
+        CompatibilityAdapterRegistration(
+            id="dify-default",
+            ecosystem="compat:dify",
+            endpoint="http://adapter.local/dify",
+            supported_execution_classes=("subprocess",),
+        )
+    )
+
+    proxy = PluginCallProxy(
+        registry,
+        client_factory=lambda timeout_ms: httpx.Client(
+            transport=httpx.MockTransport(
+                lambda _request: httpx.Response(
+                    200,
+                    json={
+                        "status": "success",
+                        "output": {"documents": ["doc-1"]},
+                        "durationMs": 9,
+                    },
+                )
+            ),
+            timeout=timeout_ms / 1000,
+        ),
+    )
+
+    dispatch = proxy.describe_execution_dispatch(
+        PluginCallRequest(
+            tool_id="compat:dify:plugin:demo/search",
+            ecosystem="compat:dify",
+            inputs={"query": "sevenflows"},
+            trace_id="trace-compat-default-microvm",
+        )
+    )
+
+    assert dispatch.as_trace_payload() == {
+        "requested_execution_class": "microvm",
+        "effective_execution_class": "subprocess",
+        "execution_source": "tool_default",
+        "requested_execution_profile": None,
+        "requested_execution_timeout_ms": None,
+        "requested_network_policy": None,
+        "requested_filesystem_policy": None,
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
+        "executor_ref": "tool:compat-adapter:dify-default",
+        "sandbox_backend_id": None,
+        "sandbox_backend_executor_ref": None,
+        "fallback_reason": None,
+        "blocked_reason": (
+            "Compatibility adapter 'dify-default' does not support requested execution class "
+            "'microvm'. Supported classes: subprocess."
+        ),
+    }
+
+    with pytest.raises(
+        PluginInvocationError,
+        match="does not support requested execution class 'microvm'",
+    ):
+        proxy.invoke(
+            PluginCallRequest(
+                tool_id="compat:dify:plugin:demo/search",
+                ecosystem="compat:dify",
+                inputs={"query": "sevenflows"},
+                trace_id="trace-compat-default-microvm",
+            )
+        )
+
+
 def test_plugin_call_proxy_fail_closes_explicit_native_isolation_request() -> None:
     registry = PluginRegistry()
     registry.register_tool(
@@ -731,6 +815,72 @@ def test_plugin_call_proxy_fail_closes_explicit_native_isolation_request() -> No
                 execution={
                     "class": "sandbox",
                     "source": "tool_call",
+                    "profile": "risk-reviewed",
+                    "timeoutMs": 3000,
+                },
+            )
+        )
+
+
+def test_plugin_call_proxy_fail_closes_tool_sensitivity_isolation_request() -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(id="native.search", name="Native Search"),
+        invoker=lambda _request: {"documents": ["doc-1"]},
+    )
+
+    proxy = PluginCallProxy(registry)
+
+    dispatch = proxy.describe_execution_dispatch(
+        PluginCallRequest(
+            tool_id="native.search",
+            ecosystem="native",
+            inputs={"query": "sevenflows"},
+            trace_id="trace-native-sensitivity-execution",
+            execution={
+                "class": "sandbox",
+                "source": "tool_sensitivity",
+                "profile": "risk-reviewed",
+                "timeoutMs": 3000,
+            },
+        )
+    )
+
+    assert dispatch.as_trace_payload() == {
+        "requested_execution_class": "sandbox",
+        "effective_execution_class": "inline",
+        "execution_source": "tool_sensitivity",
+        "requested_execution_profile": "risk-reviewed",
+        "requested_execution_timeout_ms": 3000,
+        "requested_network_policy": None,
+        "requested_filesystem_policy": None,
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
+        "executor_ref": "tool:native-inline",
+        "sandbox_backend_id": None,
+        "sandbox_backend_executor_ref": None,
+        "fallback_reason": None,
+        "blocked_reason": (
+            "Native tool 'native.search' does not support requested execution class "
+            "'sandbox'. Supported classes: inline."
+        ),
+    }
+
+    with pytest.raises(
+        PluginInvocationError,
+        match="does not support requested execution class 'sandbox'",
+    ):
+        proxy.invoke(
+            PluginCallRequest(
+                tool_id="native.search",
+                ecosystem="native",
+                inputs={"query": "sevenflows"},
+                trace_id="trace-native-sensitivity-execution",
+                execution={
+                    "class": "sandbox",
+                    "source": "tool_sensitivity",
                     "profile": "risk-reviewed",
                     "timeoutMs": 3000,
                 },
@@ -945,7 +1095,7 @@ def test_plugin_call_proxy_uses_default_execution_class_for_native_tool() -> Non
     assert dispatch.as_trace_payload() == {
         "requested_execution_class": "sandbox",
         "effective_execution_class": "sandbox",
-        "execution_source": "default",
+        "execution_source": "tool_default",
         "requested_execution_profile": None,
         "requested_execution_timeout_ms": None,
         "requested_network_policy": None,
@@ -973,7 +1123,7 @@ def test_plugin_call_proxy_uses_default_execution_class_for_native_tool() -> Non
     assert response.status == "success"
     assert captured_execution == {
         "class": "sandbox",
-        "source": "default",
+        "source": "tool_default",
         "sandboxBackend": {
             "id": "sandbox-default",
             "executorRef": "sandbox-backend:sandbox-default",

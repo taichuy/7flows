@@ -48,6 +48,7 @@ class PluginExecutionDispatchPlanner:
             and execution_source == "default"
         ):
             requested_execution_class = tool.default_execution_class
+            execution_source = "tool_default"
         requested_execution_profile = self._normalize_optional_string(
             requested_execution.get("profile")
         )
@@ -244,10 +245,11 @@ class PluginExecutionDispatchPlanner:
         requested_execution_class: str,
         execution_source: str,
     ) -> bool:
-        return (
-            requested_execution_class != "inline"
-            and execution_source in {"tool_call", "tool_policy", "runtime_policy"}
-        )
+        if execution_source in {"tool_call", "tool_policy", "runtime_policy"}:
+            return requested_execution_class != "inline"
+        if execution_source in {"tool_default", "tool_sensitivity"}:
+            return requested_execution_class in {"sandbox", "microvm"}
+        return False
 
     @staticmethod
     def _normalize_optional_string(value: object) -> str | None:
