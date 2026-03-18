@@ -138,12 +138,15 @@ function formatBulkRunFollowUp({
 
 export function formatOperatorOutcomeExplanationMessage(input: {
   explanation?: OutcomeExplanationInput | null;
+  runFollowUpExplanation?: OutcomeExplanationInput | null;
   blockerDeltaSummary?: string | null;
   runSnapshot?: RunSnapshotInput | null;
   fallback: string;
 }) {
   const primarySignal = input.explanation?.primary_signal?.trim() || null;
   const followUp = input.explanation?.follow_up?.trim() || null;
+  const runFollowUpPrimarySignal = input.runFollowUpExplanation?.primary_signal?.trim() || null;
+  const runFollowUpFollowUp = input.runFollowUpExplanation?.follow_up?.trim() || null;
   if (!primarySignal && !followUp) {
     return input.fallback;
   }
@@ -153,7 +156,8 @@ export function formatOperatorOutcomeExplanationMessage(input: {
       primarySignal,
       followUp,
       input.blockerDeltaSummary,
-      formatRunSnapshot(input.runSnapshot ?? {})
+      joinParts([runFollowUpPrimarySignal, runFollowUpFollowUp]) ??
+        formatRunSnapshot(input.runSnapshot ?? {})
     ]) ?? input.fallback
   );
 }

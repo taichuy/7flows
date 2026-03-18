@@ -62,6 +62,7 @@ type ApprovalDecisionResponseBody = {
     waiting_status?: "waiting" | "resumed" | "failed";
   };
   run_snapshot?: OperatorRunSnapshotBody | null;
+  run_follow_up?: OperatorRunFollowUpBody | null;
 };
 
 type NotificationRetryResponseBody = {
@@ -77,6 +78,7 @@ type NotificationRetryResponseBody = {
     target?: string | null;
   };
   run_snapshot?: OperatorRunSnapshotBody | null;
+  run_follow_up?: OperatorRunFollowUpBody | null;
 };
 
 type OperatorRunSnapshotBody = {
@@ -326,6 +328,7 @@ export async function decideSensitiveAccessApprovalTicket(
       status: "success",
       message: formatOperatorOutcomeExplanationMessage({
         explanation: body?.outcome_explanation,
+        runFollowUpExplanation: body?.run_follow_up?.explanation,
         blockerDeltaSummary,
         runSnapshot,
         fallback: formatApprovalDecisionResultMessage(decision as "approved" | "rejected", {
@@ -406,6 +409,7 @@ export async function retrySensitiveAccessNotificationDispatch(
       status: "success",
       message: formatOperatorOutcomeExplanationMessage({
         explanation: body?.outcome_explanation,
+        runFollowUpExplanation: body?.run_follow_up?.explanation,
         blockerDeltaSummary,
         runSnapshot,
         fallback: formatNotificationRetryResultMessage({

@@ -41,7 +41,7 @@ describe("sensitive access actions", () => {
     vi.stubGlobal("fetch", vi.fn());
   });
 
-  it("单条审批直接消费后端 callback blocker delta 与 run snapshot", async () => {
+  it("单条审批优先消费后端 run follow-up explanation", async () => {
     vi.mocked(fetchRunSnapshot).mockResolvedValue({
       status: "waiting",
       workflowId: "wf-fallback"
@@ -62,6 +62,19 @@ describe("sensitive access actions", () => {
         },
         approval_ticket: {
           waiting_status: "resumed"
+        },
+        run_follow_up: {
+          affected_run_count: 1,
+          sampled_run_count: 1,
+          waiting_run_count: 0,
+          running_run_count: 1,
+          succeeded_run_count: 0,
+          failed_run_count: 0,
+          unknown_run_count: 0,
+          explanation: {
+            primary_signal: "本次影响 1 个 run；整体状态分布：running 1。已回读 1 个样本。",
+            follow_up: "run run-1：当前 run 状态：running。 当前节点：review。 重点信号：runtime 已继续推进。"
+          }
         },
         run_snapshot: {
           workflow_id: "wf-1",
@@ -94,7 +107,8 @@ describe("sensitive access actions", () => {
     expect(result.message).toContain("审批已通过。");
     expect(result.message).toContain("后端已把 waiting blocker 重新交回 runtime。");
     expect(result.message).toContain("阻塞变化：已解除 approval pending。");
-    expect(result.message).toContain("当前 run 状态：running。");
+    expect(result.message).toContain("本次影响 1 个 run；整体状态分布：running 1。已回读 1 个样本。");
+    expect(result.message).toContain("run run-1：当前 run 状态：running。 当前节点：review。 重点信号：runtime 已继续推进。");
     expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(revalidateOperatorFollowUpPaths).toHaveBeenCalledWith({
       runIds: ["run-1"],
@@ -196,7 +210,7 @@ describe("sensitive access actions", () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("单条通知重试直接消费后端 callback blocker delta 与 run snapshot", async () => {
+  it("单条通知重试优先消费后端 run follow-up explanation", async () => {
     vi.mocked(fetchRunSnapshot).mockResolvedValue({
       status: "waiting",
       workflowId: "wf-fallback"
@@ -221,6 +235,19 @@ describe("sensitive access actions", () => {
         },
         approval_ticket: {
           waiting_status: "waiting"
+        },
+        run_follow_up: {
+          affected_run_count: 1,
+          sampled_run_count: 1,
+          waiting_run_count: 1,
+          running_run_count: 0,
+          succeeded_run_count: 0,
+          failed_run_count: 0,
+          unknown_run_count: 0,
+          explanation: {
+            primary_signal: "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
+            follow_up: "run run-1：当前 run 状态：waiting。 当前节点：review。 重点信号：仍在等待审批结果。"
+          }
         },
         run_snapshot: {
           workflow_id: "wf-1",
@@ -253,7 +280,8 @@ describe("sensitive access actions", () => {
     expect(result.message).toContain("通知已重新投递。");
     expect(result.message).toContain("等待审批人与 callback 后续推进。");
     expect(result.message).toContain("阻塞变化：仍有 1 个 operator blocker 需要审批。");
-    expect(result.message).toContain("当前 run 状态：waiting。");
+    expect(result.message).toContain("本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。");
+    expect(result.message).toContain("run run-1：当前 run 状态：waiting。 当前节点：review。 重点信号：仍在等待审批结果。");
     expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(revalidateOperatorFollowUpPaths).toHaveBeenCalledWith({
       runIds: ["run-1"],

@@ -252,6 +252,28 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
             ),
         },
     }
+    assert decision_body["run_follow_up"] is not None
+    assert decision_body["run_follow_up"]["affected_run_count"] == 1
+    assert decision_body["run_follow_up"]["sampled_run_count"] == 1
+    assert decision_body["run_follow_up"]["waiting_run_count"] == 1
+    assert decision_body["run_follow_up"]["running_run_count"] == 0
+    assert decision_body["run_follow_up"]["succeeded_run_count"] == 0
+    assert decision_body["run_follow_up"]["failed_run_count"] == 0
+    assert decision_body["run_follow_up"]["unknown_run_count"] == 0
+    assert decision_body["run_follow_up"]["sampled_runs"] == [
+        {
+            "run_id": run.id,
+            "snapshot": decision_body["run_snapshot"],
+        }
+    ]
+    assert decision_body["run_follow_up"]["explanation"] == {
+        "primary_signal": "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
+        "follow_up": (
+            f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
+            "重点信号：等待原因：waiting approval 后续动作："
+            "下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。"
+        ),
+    }
 
     stored_request = sqlite_session.get(
         SensitiveAccessRequestRecord,
@@ -657,7 +679,8 @@ def test_bulk_decide_approval_tickets_allows_partial_success(
             "primary_signal": "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
             "follow_up": (
                 f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
-                "重点信号：等待原因：waiting approval 后续动作：下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。"
+                "重点信号：等待原因：waiting approval 后续动作："
+                "下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。"
             ),
         },
         "sampled_runs": [
@@ -817,6 +840,28 @@ def test_retry_notification_dispatch_creates_new_attempt(
                 "下一步：优先处理这条 sensitive access 审批票据，再观察 waiting 节点是否恢复。"
             ),
         },
+    }
+    assert retry_body["run_follow_up"] is not None
+    assert retry_body["run_follow_up"]["affected_run_count"] == 1
+    assert retry_body["run_follow_up"]["sampled_run_count"] == 1
+    assert retry_body["run_follow_up"]["waiting_run_count"] == 1
+    assert retry_body["run_follow_up"]["running_run_count"] == 0
+    assert retry_body["run_follow_up"]["succeeded_run_count"] == 0
+    assert retry_body["run_follow_up"]["failed_run_count"] == 0
+    assert retry_body["run_follow_up"]["unknown_run_count"] == 0
+    assert retry_body["run_follow_up"]["sampled_runs"] == [
+        {
+            "run_id": run.id,
+            "snapshot": retry_body["run_snapshot"],
+        }
+    ]
+    assert retry_body["run_follow_up"]["explanation"] == {
+        "primary_signal": "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
+        "follow_up": (
+            f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
+            "重点信号：等待原因：waiting approval 后续动作："
+            "下一步：优先处理这条 sensitive access 审批票据，再观察 waiting 节点是否恢复。"
+        ),
     }
 
     assert len(scheduled_dispatches) == 2
@@ -979,7 +1024,8 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
             "primary_signal": "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
             "follow_up": (
                 f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
-                "重点信号：等待原因：waiting approval 后续动作：下一步：优先处理这条 sensitive access 审批票据，再观察 waiting 节点是否恢复。"
+                "重点信号：等待原因：waiting approval 后续动作："
+                "下一步：优先处理这条 sensitive access 审批票据，再观察 waiting 节点是否恢复。"
             ),
         },
         "sampled_runs": [

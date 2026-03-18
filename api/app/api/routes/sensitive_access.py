@@ -67,6 +67,25 @@ router = APIRouter(prefix="/sensitive-access", tags=["sensitive-access"])
 service = SensitiveAccessControlService()
 
 
+def _resolve_single_run_follow_up(
+    db: Session,
+    *,
+    run_id: str | None,
+):
+    run_follow_up = build_operator_run_follow_up_summary(db, [run_id])
+    run_snapshot = next(
+        (
+            item.snapshot
+            for item in run_follow_up.sampled_runs
+            if item.run_id == str(run_id or "").strip()
+        ),
+        None,
+    )
+    if run_snapshot is None:
+        run_snapshot = load_operator_run_snapshot(db, run_id)
+    return run_follow_up, run_snapshot
+
+
 def _serialize_access_bundle(
     bundle: SensitiveAccessRequestBundle,
 ) -> SensitiveAccessRequestResponse:
@@ -85,6 +104,10 @@ def _serialize_approval_bundle(
     db: Session,
     callback_blocker_delta=None,
 ) -> ApprovalTicketDecisionResponse:
+    run_follow_up, run_snapshot = _resolve_single_run_follow_up(
+        db,
+        run_id=bundle.approval_ticket.run_id,
+    )
     return ApprovalTicketDecisionResponse(
         request=serialize_sensitive_access_request(bundle.access_request),
         approval_ticket=serialize_approval_ticket(bundle.approval_ticket),
@@ -93,7 +116,8 @@ def _serialize_approval_bundle(
         ],
         outcome_explanation=build_approval_decision_outcome_explanation(bundle),
         callback_blocker_delta=callback_blocker_delta,
-        run_snapshot=load_operator_run_snapshot(db, bundle.approval_ticket.run_id),
+        run_snapshot=run_snapshot,
+        run_follow_up=run_follow_up,
     )
 
 
@@ -103,12 +127,17 @@ def _serialize_notification_retry_bundle(
     db: Session,
     callback_blocker_delta=None,
 ) -> NotificationDispatchRetryResponse:
+    run_follow_up, run_snapshot = _resolve_single_run_follow_up(
+        db,
+        run_id=bundle.approval_ticket.run_id,
+    )
     return NotificationDispatchRetryResponse(
         approval_ticket=serialize_approval_ticket(bundle.approval_ticket),
         notification=serialize_notification_dispatch(bundle.notification),
         outcome_explanation=build_notification_retry_outcome_explanation(bundle),
         callback_blocker_delta=callback_blocker_delta,
-        run_snapshot=load_operator_run_snapshot(db, bundle.approval_ticket.run_id),
+        run_snapshot=run_snapshot,
+        run_follow_up=run_follow_up,
     )
 
 
