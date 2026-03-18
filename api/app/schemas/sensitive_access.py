@@ -4,6 +4,10 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 from app.schemas.explanations import SignalFollowUpExplanation
+from app.schemas.operator_follow_up import (
+    OperatorRunFollowUpSummary,
+    OperatorRunSnapshot,
+)
 
 SensitivityLevel = Literal["L0", "L1", "L2", "L3"]
 AccessDecision = Literal["allow", "deny", "require_approval", "allow_masked"]
@@ -150,6 +154,7 @@ class NotificationDispatchRetryResponse(BaseModel):
     approval_ticket: ApprovalTicketItem
     notification: NotificationDispatchItem
     outcome_explanation: SignalFollowUpExplanation | None = None
+    run_snapshot: OperatorRunSnapshot | None = None
 
 
 class NotificationDispatchRetryRequest(BaseModel):
@@ -184,6 +189,7 @@ class ApprovalTicketDecisionResponse(BaseModel):
     approval_ticket: ApprovalTicketItem
     notifications: list[NotificationDispatchItem] = Field(default_factory=list)
     outcome_explanation: SignalFollowUpExplanation | None = None
+    run_snapshot: OperatorRunSnapshot | None = None
 
 
 class ApprovalTicketBulkDecisionRequest(BaseModel):
@@ -232,6 +238,7 @@ class ApprovalTicketBulkDecisionResult(BaseModel):
         default_factory=list
     )
     outcome_explanation: SignalFollowUpExplanation | None = None
+    run_follow_up: OperatorRunFollowUpSummary | None = None
 
 
 class NotificationDispatchBulkRetryRequest(BaseModel):
@@ -279,3 +286,4 @@ class NotificationDispatchBulkRetryResult(BaseModel):
         default_factory=list
     )
     outcome_explanation: SignalFollowUpExplanation | None = None
+    run_follow_up: OperatorRunFollowUpSummary | None = None

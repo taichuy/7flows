@@ -56,6 +56,7 @@ type ApprovalDecisionResponseBody = {
   approval_ticket?: {
     waiting_status?: "waiting" | "resumed" | "failed";
   };
+  run_snapshot?: OperatorRunSnapshotBody | null;
 };
 
 type NotificationRetryResponseBody = {
@@ -72,6 +73,28 @@ type NotificationRetryResponseBody = {
     error?: string | null;
     target?: string | null;
   };
+  run_snapshot?: OperatorRunSnapshotBody | null;
+};
+
+type OperatorRunSnapshotBody = {
+  workflow_id?: string | null;
+  status?: string | null;
+  current_node_id?: string | null;
+  waiting_reason?: string | null;
+};
+
+type OperatorRunFollowUpBody = {
+  affected_run_count?: number;
+  sampled_run_count?: number;
+  waiting_run_count?: number;
+  running_run_count?: number;
+  succeeded_run_count?: number;
+  failed_run_count?: number;
+  unknown_run_count?: number;
+  sampled_runs?: Array<{
+    run_id: string;
+    snapshot?: OperatorRunSnapshotBody | null;
+  }>;
 };
 
 type ApprovalTicketBulkDecisionResponseBody = {
@@ -87,6 +110,7 @@ type ApprovalTicketBulkDecisionResponseBody = {
     run_id?: string | null;
   }>;
   skipped_reason_summary: SensitiveAccessBulkSkipSummary[];
+  run_follow_up?: OperatorRunFollowUpBody | null;
 };
 
 type NotificationDispatchBulkRetryResponseBody = {
@@ -104,6 +128,7 @@ type NotificationDispatchBulkRetryResponseBody = {
     };
   }>;
   skipped_reason_summary: SensitiveAccessBulkSkipSummary[];
+  run_follow_up?: OperatorRunFollowUpBody | null;
 };
 
 type BulkApprovalScopeItem = {
@@ -141,6 +166,42 @@ function createEmptyBulkResultMetrics() {
     blockerClearedCount: 0,
     blockerFullyClearedCount: 0,
     blockerStillBlockedCount: 0
+  };
+}
+
+function toRunSnapshot(snapshot?: OperatorRunSnapshotBody | null) {
+  if (!snapshot) {
+    return null;
+  }
+
+  return {
+    status: snapshot.status ?? null,
+    workflowId: snapshot.workflow_id ?? null,
+    currentNodeId: snapshot.current_node_id ?? null,
+    waitingReason: snapshot.waiting_reason ?? null
+  };
+}
+
+function toBulkRunSamples(summary?: OperatorRunFollowUpBody | null) {
+  return (summary?.sampled_runs ?? []).map((item) => ({
+    runId: item.run_id,
+    snapshot: toRunSnapshot(item.snapshot)
+  }));
+}
+
+function toBulkRunFollowUpSummary(summary?: OperatorRunFollowUpBody | null) {
+  if (!summary) {
+    return null;
+  }
+
+  return {
+    affectedRunCount: summary.affected_run_count ?? 0,
+    sampledRunCount: summary.sampled_run_count ?? 0,
+    waitingRunCount: summary.waiting_run_count ?? 0,
+    runningRunCount: summary.running_run_count ?? 0,
+    succeededRunCount: summary.succeeded_run_count ?? 0,
+    failedRunCount: summary.failed_run_count ?? 0,
+    unknownRunCount: summary.unknown_run_count ?? 0
   };
 }
 
@@ -261,7 +322,7 @@ export async function decideSensitiveAccessApprovalTicket(
       };
     }
 
-    const runSnapshot = await fetchRunSnapshot(runId);
+    const runSnapshot = toRunSnapshot(body?.run_snapshot) ?? (await fetchRunSnapshot(runId));
     revalidateOperatorFollowUpPaths({
       runIds: [runId],
       workflowIds: [runSnapshot?.workflowId]
@@ -354,7 +415,7 @@ export async function retrySensitiveAccessNotificationDispatch(
       };
     }
 
-    const runSnapshot = await fetchRunSnapshot(runId);
+    const runSnapshot = toRunSnapshot(body?.run_snapshot) ?? (await fetchRunSnapshot(runId));
     revalidateOperatorFollowUpPaths({
       runIds: [runId],
       workflowIds: [runSnapshot?.workflowId]
@@ -479,7 +540,19 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
         nodeRunId: item.nodeRunId
       }));
     const beforeBlockers = filterBlockerSnapshotsByScope(beforeCandidateBlockers, blockerScopes);
-    const { sampledRuns, followUpSummary } = await buildBulkRunFollowUpMetrics(affectedRunIds);
+    const backendSampledRuns = toBulkRunSamples(body?.run_follow_up);
+    const backendFollowUpSummary = toBulkRunFollowUpSummary(body?.run_follow_up);
+    const { sampledRuns, followUpSummary } = body?.run_follow_up
+      ? {
+          sampledRuns: backendSampledRuns,
+          followUpSummary:
+            backendFollowUpSummary ??
+            summarizeBulkRunFollowUp({
+              affectedRunCount: body.run_follow_up.affected_run_count ?? affectedRunIds.length,
+              sampledRuns: backendSampledRuns
+            })
+        }
+      : await buildBulkRunFollowUpMetrics(affectedRunIds);
     const afterAutomation = (await getSystemOverview()).callback_waiting_automation;
     const afterBlockers = await fetchCallbackBlockerSnapshots(
       blockerScopes,
@@ -607,7 +680,19 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
         nodeRunId: item.nodeRunId
       }));
     const beforeBlockers = filterBlockerSnapshotsByScope(beforeCandidateBlockers, blockerScopes);
-    const { sampledRuns, followUpSummary } = await buildBulkRunFollowUpMetrics(affectedRunIds);
+    const backendSampledRuns = toBulkRunSamples(body?.run_follow_up);
+    const backendFollowUpSummary = toBulkRunFollowUpSummary(body?.run_follow_up);
+    const { sampledRuns, followUpSummary } = body?.run_follow_up
+      ? {
+          sampledRuns: backendSampledRuns,
+          followUpSummary:
+            backendFollowUpSummary ??
+            summarizeBulkRunFollowUp({
+              affectedRunCount: body.run_follow_up.affected_run_count ?? affectedRunIds.length,
+              sampledRuns: backendSampledRuns
+            })
+        }
+      : await buildBulkRunFollowUpMetrics(affectedRunIds);
     const afterAutomation = (await getSystemOverview()).callback_waiting_automation;
     const afterBlockers = await fetchCallbackBlockerSnapshots(
       blockerScopes,

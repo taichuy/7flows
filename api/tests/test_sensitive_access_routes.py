@@ -104,7 +104,46 @@ def test_request_low_sensitivity_access_allows_without_ticket(
 def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
     client: TestClient,
     sqlite_session: Session,
+    monkeypatch: MonkeyPatch,
+    sample_workflow: Workflow,
 ) -> None:
+    monkeypatch.setattr(
+        sensitive_access_routes,
+        "service",
+        SensitiveAccessControlService(
+            resume_scheduler=RunResumeScheduler(dispatcher=lambda _request: None),
+            settings=Settings(),
+        ),
+    )
+
+    run = Run(
+        id="run-approval-success",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        status="waiting",
+        current_node_id="mock_tool",
+        input_payload={},
+        checkpoint_payload={},
+        created_at=datetime.now(UTC),
+    )
+    node_run = NodeRun(
+        id="node-run-approval-success",
+        run_id=run.id,
+        node_id="mock_tool",
+        node_name="Mock Tool",
+        node_type="tool",
+        status="waiting_callback",
+        phase="waiting_callback",
+        input_payload={},
+        checkpoint_payload={},
+        working_context={},
+        artifact_refs=[],
+        waiting_reason="waiting approval",
+        created_at=datetime.now(UTC),
+    )
+    sqlite_session.add_all([run, node_run])
+    sqlite_session.commit()
+
     resource_response = client.post(
         "/api/sensitive-access/resources",
         json={
@@ -119,6 +158,8 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
     request_response = client.post(
         "/api/sensitive-access/requests",
         json={
+            "run_id": run.id,
+            "node_run_id": node_run.id,
             "requester_type": "ai",
             "requester_id": "assistant-main",
             "resource_id": resource_id,
@@ -183,6 +224,12 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
             "An operator approved the request and the blocked workflow can resume. "
             "如果 run 仍停在 waiting，请继续检查 callback 到达情况或定时恢复链路。"
         ),
+    }
+    assert decision_body["run_snapshot"] == {
+        "workflow_id": sample_workflow.id,
+        "status": "waiting",
+        "current_node_id": "mock_tool",
+        "waiting_reason": "waiting approval",
     }
 
     stored_request = sqlite_session.get(
@@ -461,7 +508,46 @@ def test_create_sensitive_access_request_uses_channel_default_target_when_omitte
 def test_bulk_decide_approval_tickets_allows_partial_success(
     client: TestClient,
     sqlite_session: Session,
+    monkeypatch: MonkeyPatch,
+    sample_workflow: Workflow,
 ) -> None:
+    monkeypatch.setattr(
+        sensitive_access_routes,
+        "service",
+        SensitiveAccessControlService(
+            resume_scheduler=RunResumeScheduler(dispatcher=lambda _request: None),
+            settings=Settings(),
+        ),
+    )
+
+    run = Run(
+        id="run-approval-bulk",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        status="waiting",
+        current_node_id="mock_tool",
+        input_payload={},
+        checkpoint_payload={},
+        created_at=datetime.now(UTC),
+    )
+    node_run = NodeRun(
+        id="node-run-approval-bulk",
+        run_id=run.id,
+        node_id="mock_tool",
+        node_name="Mock Tool",
+        node_type="tool",
+        status="waiting_callback",
+        phase="waiting_callback",
+        input_payload={},
+        checkpoint_payload={},
+        working_context={},
+        artifact_refs=[],
+        waiting_reason="waiting approval",
+        created_at=datetime.now(UTC),
+    )
+    sqlite_session.add_all([run, node_run])
+    sqlite_session.commit()
+
     resource_response = client.post(
         "/api/sensitive-access/resources",
         json={
@@ -476,6 +562,8 @@ def test_bulk_decide_approval_tickets_allows_partial_success(
     request_response = client.post(
         "/api/sensitive-access/requests",
         json={
+            "run_id": run.id,
+            "node_run_id": node_run.id,
             "requester_type": "ai",
             "requester_id": "assistant-bulk",
             "resource_id": resource_id,
@@ -524,6 +612,26 @@ def test_bulk_decide_approval_tickets_allows_partial_success(
             "后续请继续回看对应 run detail / inbox slice，确认 waiting 是否真正继续前进。"
         ),
     }
+    assert body["run_follow_up"] == {
+        "affected_run_count": 1,
+        "sampled_run_count": 1,
+        "waiting_run_count": 1,
+        "running_run_count": 0,
+        "succeeded_run_count": 0,
+        "failed_run_count": 0,
+        "unknown_run_count": 0,
+        "sampled_runs": [
+            {
+                "run_id": run.id,
+                "snapshot": {
+                    "workflow_id": sample_workflow.id,
+                    "status": "waiting",
+                    "current_node_id": "mock_tool",
+                    "waiting_reason": "waiting approval",
+                },
+            }
+        ],
+    }
 
     stored_ticket = sqlite_session.get(ApprovalTicketRecord, ticket_id)
     assert stored_ticket is not None
@@ -536,8 +644,36 @@ def test_retry_notification_dispatch_creates_new_attempt(
     client: TestClient,
     sqlite_session: Session,
     monkeypatch: MonkeyPatch,
+    sample_workflow: Workflow,
 ) -> None:
     scheduled_dispatches = []
+    run = Run(
+        id="run-notification-retry",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        status="waiting",
+        current_node_id="mock_tool",
+        input_payload={},
+        checkpoint_payload={},
+        created_at=datetime.now(UTC),
+    )
+    node_run = NodeRun(
+        id="node-run-notification-retry",
+        run_id=run.id,
+        node_id="mock_tool",
+        node_name="Mock Tool",
+        node_type="tool",
+        status="waiting_callback",
+        phase="waiting_callback",
+        input_payload={},
+        checkpoint_payload={},
+        working_context={},
+        artifact_refs=[],
+        waiting_reason="waiting approval",
+        created_at=datetime.now(UTC),
+    )
+    sqlite_session.add_all([run, node_run])
+    sqlite_session.commit()
     monkeypatch.setattr(
         sensitive_access_routes,
         "service",
@@ -568,6 +704,8 @@ def test_retry_notification_dispatch_creates_new_attempt(
     request_response = client.post(
         "/api/sensitive-access/requests",
         json={
+            "run_id": run.id,
+            "node_run_id": node_run.id,
             "requester_type": "ai",
             "requester_id": "assistant-main",
             "resource_id": resource_id,
@@ -599,7 +737,16 @@ def test_retry_notification_dispatch_creates_new_attempt(
     assert retried_notification["error"] is None
     assert retry_body["outcome_explanation"] == {
         "primary_signal": "通知已按 ops@example.com 重新入队，等待 worker 投递。",
-        "follow_up": "这一步只负责重新送达审批请求，不会直接恢复 run；后续仍取决于审批结果或后续 callback。",
+        "follow_up": (
+            "这一步只负责重新送达审批请求，不会直接恢复 run；"
+            "后续仍取决于审批结果或后续 callback。"
+        ),
+    }
+    assert retry_body["run_snapshot"] == {
+        "workflow_id": sample_workflow.id,
+        "status": "waiting",
+        "current_node_id": "mock_tool",
+        "waiting_reason": "waiting approval",
     }
 
     assert len(scheduled_dispatches) == 2
@@ -619,8 +766,36 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
     client: TestClient,
     sqlite_session: Session,
     monkeypatch: MonkeyPatch,
+    sample_workflow: Workflow,
 ) -> None:
     scheduled_dispatches = []
+    run = Run(
+        id="run-notification-bulk",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        status="waiting",
+        current_node_id="mock_tool",
+        input_payload={},
+        checkpoint_payload={},
+        created_at=datetime.now(UTC),
+    )
+    node_run = NodeRun(
+        id="node-run-notification-bulk",
+        run_id=run.id,
+        node_id="mock_tool",
+        node_name="Mock Tool",
+        node_type="tool",
+        status="waiting_callback",
+        phase="waiting_callback",
+        input_payload={},
+        checkpoint_payload={},
+        working_context={},
+        artifact_refs=[],
+        waiting_reason="waiting approval",
+        created_at=datetime.now(UTC),
+    )
+    sqlite_session.add_all([run, node_run])
+    sqlite_session.commit()
     monkeypatch.setattr(
         sensitive_access_routes,
         "service",
@@ -651,6 +826,8 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
     request_response = client.post(
         "/api/sensitive-access/requests",
         json={
+            "run_id": run.id,
+            "node_run_id": node_run.id,
             "requester_type": "ai",
             "requester_id": "assistant-bulk-retry",
             "resource_id": resource_id,
@@ -705,8 +882,29 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
         "primary_signal": "本次已重试 1 条通知，其中 1 条正在等待 worker 投递。",
         "follow_up": (
             "另有 1 条未处理（通知不存在 1 条），请先刷新当前 ticket 的最新通知列表。 "
-            "通知重试只负责把审批请求重新送达目标，不会直接恢复 run；后续仍取决于审批结果或 callback。"
+            "通知重试只负责把审批请求重新送达目标，不会直接恢复 run；"
+            "后续仍取决于审批结果或 callback。"
         ),
+    }
+    assert body["run_follow_up"] == {
+        "affected_run_count": 1,
+        "sampled_run_count": 1,
+        "waiting_run_count": 1,
+        "running_run_count": 0,
+        "succeeded_run_count": 0,
+        "failed_run_count": 0,
+        "unknown_run_count": 0,
+        "sampled_runs": [
+            {
+                "run_id": run.id,
+                "snapshot": {
+                    "workflow_id": sample_workflow.id,
+                    "status": "waiting",
+                    "current_node_id": "mock_tool",
+                    "waiting_reason": "waiting approval",
+                },
+            }
+        ],
     }
 
     assert len(scheduled_dispatches) == 2

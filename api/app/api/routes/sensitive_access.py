@@ -30,6 +30,10 @@ from app.schemas.sensitive_access import (
 from app.services.notification_channel_diagnostics import (
     list_notification_channel_diagnostics,
 )
+from app.services.operator_run_follow_up import (
+    build_operator_run_follow_up_summary,
+    load_operator_run_snapshot,
+)
 from app.services.sensitive_access_action_explanations import (
     build_approval_decision_outcome_explanation,
     build_bulk_approval_decision_outcome_explanation,
@@ -68,7 +72,11 @@ def _serialize_access_bundle(
     )
 
 
-def _serialize_approval_bundle(bundle: ApprovalDecisionBundle) -> ApprovalTicketDecisionResponse:
+def _serialize_approval_bundle(
+    bundle: ApprovalDecisionBundle,
+    *,
+    db: Session,
+) -> ApprovalTicketDecisionResponse:
     return ApprovalTicketDecisionResponse(
         request=serialize_sensitive_access_request(bundle.access_request),
         approval_ticket=serialize_approval_ticket(bundle.approval_ticket),
@@ -76,16 +84,20 @@ def _serialize_approval_bundle(bundle: ApprovalDecisionBundle) -> ApprovalTicket
             serialize_notification_dispatch(item) for item in bundle.notifications
         ],
         outcome_explanation=build_approval_decision_outcome_explanation(bundle),
+        run_snapshot=load_operator_run_snapshot(db, bundle.approval_ticket.run_id),
     )
 
 
 def _serialize_notification_retry_bundle(
     bundle: NotificationDispatchRetryBundle,
+    *,
+    db: Session,
 ) -> NotificationDispatchRetryResponse:
     return NotificationDispatchRetryResponse(
         approval_ticket=serialize_approval_ticket(bundle.approval_ticket),
         notification=serialize_notification_dispatch(bundle.notification),
         outcome_explanation=build_notification_retry_outcome_explanation(bundle),
+        run_snapshot=load_operator_run_snapshot(db, bundle.approval_ticket.run_id),
     )
 
 
@@ -320,7 +332,7 @@ def decide_approval_ticket(
     except SensitiveAccessControlError as exc:
         _raise_sensitive_access_error(exc)
     db.commit()
-    return _serialize_approval_bundle(bundle)
+    return _serialize_approval_bundle(bundle, db=db)
 
 
 @router.post(
@@ -369,6 +381,10 @@ def bulk_decide_approval_tickets(
             decided_count=len(decided_items),
             skipped_items=skipped_items,
         ),
+        run_follow_up=build_operator_run_follow_up_summary(
+            db,
+            [item.run_id for item in decided_items],
+        ),
     )
 
 
@@ -412,7 +428,7 @@ def retry_notification_dispatch(
     except SensitiveAccessControlError as exc:
         _raise_sensitive_access_error(exc)
     db.commit()
-    return _serialize_notification_retry_bundle(bundle)
+    return _serialize_notification_retry_bundle(bundle, db=db)
 
 
 @router.post(
@@ -463,5 +479,9 @@ def bulk_retry_notification_dispatches(
         outcome_explanation=build_bulk_notification_retry_outcome_explanation(
             retried_items=retried_items,
             skipped_items=skipped_items,
+        ),
+        run_follow_up=build_operator_run_follow_up_summary(
+            db,
+            [item.approval_ticket.run_id for item in retried_items],
         ),
     )
