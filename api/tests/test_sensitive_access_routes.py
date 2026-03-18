@@ -177,6 +177,13 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
     assert decision_body["approval_ticket"]["waiting_status"] == "resumed"
     assert decision_body["approval_ticket"]["approved_by"] == "ops-reviewer"
     assert len(decision_body["notifications"]) == 1
+    assert decision_body["outcome_explanation"] == {
+        "primary_signal": "审批已通过，对应 waiting 链路已交回 runtime 恢复。",
+        "follow_up": (
+            "An operator approved the request and the blocked workflow can resume. "
+            "如果 run 仍停在 waiting，请继续检查 callback 到达情况或定时恢复链路。"
+        ),
+    }
 
     stored_request = sqlite_session.get(
         SensitiveAccessRequestRecord,
@@ -510,6 +517,13 @@ def test_bulk_decide_approval_tickets_allows_partial_success(
             "detail": "Approval ticket not found.",
         }
     ]
+    assert body["outcome_explanation"] == {
+        "primary_signal": "本次已批准 1 条审批票据，并把对应 waiting 链路交回 runtime 恢复。",
+        "follow_up": (
+            "另有 1 条未处理（票据不存在 1 条），请先刷新 inbox slice 再决定是否补做。 "
+            "后续请继续回看对应 run detail / inbox slice，确认 waiting 是否真正继续前进。"
+        ),
+    }
 
     stored_ticket = sqlite_session.get(ApprovalTicketRecord, ticket_id)
     assert stored_ticket is not None
@@ -583,6 +597,10 @@ def test_retry_notification_dispatch_creates_new_attempt(
     assert retried_notification["target"] == "ops@example.com"
     assert retried_notification["status"] == "pending"
     assert retried_notification["error"] is None
+    assert retry_body["outcome_explanation"] == {
+        "primary_signal": "通知已按 ops@example.com 重新入队，等待 worker 投递。",
+        "follow_up": "这一步只负责重新送达审批请求，不会直接恢复 run；后续仍取决于审批结果或后续 callback。",
+    }
 
     assert len(scheduled_dispatches) == 2
     assert scheduled_dispatches[0].dispatch_id == first_notification["id"]
@@ -683,6 +701,13 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
             "detail": "Notification dispatch not found.",
         }
     ]
+    assert body["outcome_explanation"] == {
+        "primary_signal": "本次已重试 1 条通知，其中 1 条正在等待 worker 投递。",
+        "follow_up": (
+            "另有 1 条未处理（通知不存在 1 条），请先刷新当前 ticket 的最新通知列表。 "
+            "通知重试只负责把审批请求重新送达目标，不会直接恢复 run；后续仍取决于审批结果或 callback。"
+        ),
+    }
 
     assert len(scheduled_dispatches) == 2
     assert scheduled_dispatches[0].dispatch_id == first_notification["id"]

@@ -15,6 +15,11 @@ type ApprovalDecisionSnapshotInput = {
   runSnapshot?: RunSnapshotInput | null;
 };
 
+type OutcomeExplanationInput = {
+  primary_signal?: string | null;
+  follow_up?: string | null;
+};
+
 type CleanupRunCallbackTicketsSummary = {
   matchedCount: number;
   expiredCount: number;
@@ -104,6 +109,54 @@ function formatBulkRunFollowUp({
       ? `其余 ${affectedRunCount - sampledCount} 个 run 可继续到对应 run detail / inbox slice 查看后续推进。`
       : null
   ]);
+}
+
+export function formatOperatorOutcomeExplanationMessage(input: {
+  explanation?: OutcomeExplanationInput | null;
+  blockerDeltaSummary?: string | null;
+  runSnapshot?: RunSnapshotInput | null;
+  fallback: string;
+}) {
+  const primarySignal = input.explanation?.primary_signal?.trim() || null;
+  const followUp = input.explanation?.follow_up?.trim() || null;
+  if (!primarySignal && !followUp) {
+    return input.fallback;
+  }
+
+  return (
+    joinParts([
+      primarySignal,
+      followUp,
+      input.blockerDeltaSummary,
+      formatRunSnapshot(input.runSnapshot ?? {})
+    ]) ?? input.fallback
+  );
+}
+
+export function formatBulkOperatorOutcomeExplanationMessage(input: {
+  explanation?: OutcomeExplanationInput | null;
+  blockerDeltaSummary?: string | null;
+  affectedRunCount: number;
+  sampledRuns: BulkRunSnapshotSample[];
+  fallback: string;
+}) {
+  const primarySignal = input.explanation?.primary_signal?.trim() || null;
+  const followUp = input.explanation?.follow_up?.trim() || null;
+  if (!primarySignal && !followUp) {
+    return input.fallback;
+  }
+
+  return (
+    joinParts([
+      primarySignal,
+      followUp,
+      input.blockerDeltaSummary,
+      formatBulkRunFollowUp({
+        affectedRunCount: input.affectedRunCount,
+        sampledRuns: input.sampledRuns
+      })
+    ]) ?? input.fallback
+  );
 }
 
 export function summarizeBulkRunFollowUp({

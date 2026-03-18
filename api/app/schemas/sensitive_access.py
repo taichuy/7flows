@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.explanations import SignalFollowUpExplanation
+
 SensitivityLevel = Literal["L0", "L1", "L2", "L3"]
 AccessDecision = Literal["allow", "deny", "require_approval", "allow_masked"]
 AccessRequesterType = Literal["human", "ai", "workflow", "tool"]
@@ -147,6 +149,7 @@ class NotificationChannelCapabilityItem(BaseModel):
 class NotificationDispatchRetryResponse(BaseModel):
     approval_ticket: ApprovalTicketItem
     notification: NotificationDispatchItem
+    outcome_explanation: SignalFollowUpExplanation | None = None
 
 
 class NotificationDispatchRetryRequest(BaseModel):
@@ -180,6 +183,7 @@ class ApprovalTicketDecisionResponse(BaseModel):
     request: SensitiveAccessRequestItem
     approval_ticket: ApprovalTicketItem
     notifications: list[NotificationDispatchItem] = Field(default_factory=list)
+    outcome_explanation: SignalFollowUpExplanation | None = None
 
 
 class ApprovalTicketBulkDecisionRequest(BaseModel):
@@ -227,6 +231,7 @@ class ApprovalTicketBulkDecisionResult(BaseModel):
     skipped_reason_summary: list[ApprovalTicketBulkSkippedSummary] = Field(
         default_factory=list
     )
+    outcome_explanation: SignalFollowUpExplanation | None = None
 
 
 class NotificationDispatchBulkRetryRequest(BaseModel):
@@ -273,3 +278,4 @@ class NotificationDispatchBulkRetryResult(BaseModel):
     skipped_reason_summary: list[NotificationDispatchBulkSkippedSummary] = Field(
         default_factory=list
     )
+    outcome_explanation: SignalFollowUpExplanation | None = None

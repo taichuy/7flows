@@ -30,6 +30,12 @@ from app.schemas.sensitive_access import (
 from app.services.notification_channel_diagnostics import (
     list_notification_channel_diagnostics,
 )
+from app.services.sensitive_access_action_explanations import (
+    build_approval_decision_outcome_explanation,
+    build_bulk_approval_decision_outcome_explanation,
+    build_bulk_notification_retry_outcome_explanation,
+    build_notification_retry_outcome_explanation,
+)
 from app.services.sensitive_access_control import (
     ApprovalDecisionBundle,
     NotificationDispatchRetryBundle,
@@ -69,6 +75,7 @@ def _serialize_approval_bundle(bundle: ApprovalDecisionBundle) -> ApprovalTicket
         notifications=[
             serialize_notification_dispatch(item) for item in bundle.notifications
         ],
+        outcome_explanation=build_approval_decision_outcome_explanation(bundle),
     )
 
 
@@ -78,6 +85,7 @@ def _serialize_notification_retry_bundle(
     return NotificationDispatchRetryResponse(
         approval_ticket=serialize_approval_ticket(bundle.approval_ticket),
         notification=serialize_notification_dispatch(bundle.notification),
+        outcome_explanation=build_notification_retry_outcome_explanation(bundle),
     )
 
 
@@ -356,6 +364,11 @@ def bulk_decide_approval_tickets(
         decided_items=decided_items,
         skipped_items=skipped_items,
         skipped_reason_summary=_summarize_approval_ticket_bulk_skips(skipped_items),
+        outcome_explanation=build_bulk_approval_decision_outcome_explanation(
+            status=payload.status,
+            decided_count=len(decided_items),
+            skipped_items=skipped_items,
+        ),
     )
 
 
@@ -446,5 +459,9 @@ def bulk_retry_notification_dispatches(
         skipped_items=skipped_items,
         skipped_reason_summary=_summarize_notification_dispatch_bulk_skips(
             skipped_items
+        ),
+        outcome_explanation=build_bulk_notification_retry_outcome_explanation(
+            retried_items=retried_items,
+            skipped_items=skipped_items,
         ),
     )

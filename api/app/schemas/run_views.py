@@ -3,6 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.explanations import SignalFollowUpExplanation
 from app.schemas.run import AICallItem, RunArtifactItem, ToolCallItem
 from app.schemas.sensitive_access import SensitiveAccessTimelineEntryItem
 
@@ -141,9 +142,7 @@ class RunExecutionSkillTrace(BaseModel):
     nodes: list[RunExecutionSkillTraceNodeItem] = Field(default_factory=list)
 
 
-class RunExecutionFocusExplanation(BaseModel):
-    primary_signal: str | None = None
-    follow_up: str | None = None
+RunExecutionFocusExplanation = SignalFollowUpExplanation
 
 
 class RunExecutionNodeItem(BaseModel):

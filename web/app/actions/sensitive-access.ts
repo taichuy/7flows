@@ -14,8 +14,10 @@ import type {
 } from "@/lib/get-sensitive-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import {
+  formatBulkOperatorOutcomeExplanationMessage,
   formatBulkApprovalDecisionResultMessage,
   formatBulkNotificationRetryResultMessage,
+  formatOperatorOutcomeExplanationMessage,
   formatApprovalDecisionResultMessage,
   formatNotificationRetryResultMessage,
   summarizeBulkRunFollowUp
@@ -42,6 +44,10 @@ export type RetrySensitiveAccessNotificationDispatchState = {
 
 type ApprovalDecisionResponseBody = {
   detail?: string;
+  outcome_explanation?: {
+    primary_signal?: string | null;
+    follow_up?: string | null;
+  } | null;
   request?: {
     decision_label?: string | null;
     reason_label?: string | null;
@@ -54,6 +60,10 @@ type ApprovalDecisionResponseBody = {
 
 type NotificationRetryResponseBody = {
   detail?: string;
+  outcome_explanation?: {
+    primary_signal?: string | null;
+    follow_up?: string | null;
+  } | null;
   approval_ticket?: {
     waiting_status?: "waiting" | "resumed" | "failed";
   };
@@ -68,6 +78,10 @@ type ApprovalTicketBulkDecisionResponseBody = {
   requested_count: number;
   decided_count: number;
   skipped_count: number;
+  outcome_explanation?: {
+    primary_signal?: string | null;
+    follow_up?: string | null;
+  } | null;
   decided_items: Array<{
     id: string;
     run_id?: string | null;
@@ -79,6 +93,10 @@ type NotificationDispatchBulkRetryResponseBody = {
   requested_count: number;
   retried_count: number;
   skipped_count: number;
+  outcome_explanation?: {
+    primary_signal?: string | null;
+    follow_up?: string | null;
+  } | null;
   retried_items: Array<{
     approval_ticket: {
       id: string;
@@ -256,16 +274,24 @@ export async function decideSensitiveAccessApprovalTicket(
 
     return {
       status: "success",
-      message: formatApprovalDecisionResultMessage(decision as "approved" | "rejected", {
-        waitingStatus: body?.approval_ticket?.waiting_status,
-        decisionLabel: body?.request?.decision_label,
-        reasonLabel: body?.request?.reason_label,
-        policySummary: body?.request?.policy_summary,
+      message: formatOperatorOutcomeExplanationMessage({
+        explanation: body?.outcome_explanation,
         blockerDeltaSummary: formatCallbackBlockerDeltaSummary({
           before: beforeBlockers,
           after: afterBlockers
         }),
-        runSnapshot
+        runSnapshot,
+        fallback: formatApprovalDecisionResultMessage(decision as "approved" | "rejected", {
+          waitingStatus: body?.approval_ticket?.waiting_status,
+          decisionLabel: body?.request?.decision_label,
+          reasonLabel: body?.request?.reason_label,
+          policySummary: body?.request?.policy_summary,
+          blockerDeltaSummary: formatCallbackBlockerDeltaSummary({
+            before: beforeBlockers,
+            after: afterBlockers
+          }),
+          runSnapshot
+        })
       }),
       ticketId
     };
@@ -345,16 +371,24 @@ export async function retrySensitiveAccessNotificationDispatch(
 
     return {
       status: "success",
-      message: formatNotificationRetryResultMessage({
-        status: body?.notification?.status,
-        error: body?.notification?.error,
-        target: effectiveTarget,
-        waitingStatus: body?.approval_ticket?.waiting_status,
+      message: formatOperatorOutcomeExplanationMessage({
+        explanation: body?.outcome_explanation,
         blockerDeltaSummary: formatCallbackBlockerDeltaSummary({
           before: beforeBlockers,
           after: afterBlockers
         }),
-        runSnapshot
+        runSnapshot,
+        fallback: formatNotificationRetryResultMessage({
+          status: body?.notification?.status,
+          error: body?.notification?.error,
+          target: effectiveTarget,
+          waitingStatus: body?.approval_ticket?.waiting_status,
+          blockerDeltaSummary: formatCallbackBlockerDeltaSummary({
+            before: beforeBlockers,
+            after: afterBlockers
+          }),
+          runSnapshot
+        })
       }),
       dispatchId,
       target: effectiveTarget
@@ -460,14 +494,20 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
     return {
       action: input.status,
       status: "success",
-      message: formatBulkApprovalDecisionResultMessage({
-        decision: input.status,
-        updatedCount,
-        skippedCount,
-        skippedSummary: buildBulkSkipSummaryMessage(skippedReasonSummary),
+      message: formatBulkOperatorOutcomeExplanationMessage({
+        explanation: body?.outcome_explanation,
+        blockerDeltaSummary: blockerDelta.summary,
         affectedRunCount: followUpSummary.affectedRunCount,
         sampledRuns,
-        blockerDeltaSummary: blockerDelta.summary
+        fallback: formatBulkApprovalDecisionResultMessage({
+          decision: input.status,
+          updatedCount,
+          skippedCount,
+          skippedSummary: buildBulkSkipSummaryMessage(skippedReasonSummary),
+          affectedRunCount: followUpSummary.affectedRunCount,
+          sampledRuns,
+          blockerDeltaSummary: blockerDelta.summary
+        })
       }),
       requestedCount: body?.requested_count ?? ticketIds.length,
       updatedCount,
@@ -582,13 +622,19 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
     return {
       action: "retry",
       status: "success",
-      message: formatBulkNotificationRetryResultMessage({
-        updatedCount,
-        skippedCount,
-        skippedSummary: buildBulkSkipSummaryMessage(skippedReasonSummary),
+      message: formatBulkOperatorOutcomeExplanationMessage({
+        explanation: body?.outcome_explanation,
+        blockerDeltaSummary: blockerDelta.summary,
         affectedRunCount: followUpSummary.affectedRunCount,
         sampledRuns,
-        blockerDeltaSummary: blockerDelta.summary
+        fallback: formatBulkNotificationRetryResultMessage({
+          updatedCount,
+          skippedCount,
+          skippedSummary: buildBulkSkipSummaryMessage(skippedReasonSummary),
+          affectedRunCount: followUpSummary.affectedRunCount,
+          sampledRuns,
+          blockerDeltaSummary: blockerDelta.summary
+        })
       }),
       requestedCount: body?.requested_count ?? dispatchIds.length,
       updatedCount,
