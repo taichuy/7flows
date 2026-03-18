@@ -1,6 +1,7 @@
 import type {
   CallbackWaitingLifecycleSummary,
-  RunCallbackTicketItem
+  RunCallbackTicketItem,
+  RunExecutionNodeItem
 } from "@/lib/get-run-views";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 
@@ -232,11 +233,19 @@ export type PublishedEndpointInvocationSkillTrace = {
   nodes: PublishedEndpointInvocationSkillTraceNodeItem[];
 };
 
+export type PublishedEndpointInvocationExecutionFocusReason =
+  | "blocking_node_run"
+  | "blocked_execution"
+  | "current_node"
+  | "fallback_node";
+
 export type PublishedEndpointInvocationDetailResponse = {
   invocation: PublishedEndpointInvocationItem;
   run?: PublishedEndpointInvocationRunReference | null;
   callback_tickets: PublishedEndpointInvocationCallbackTicketItem[];
   blocking_node_run_id?: string | null;
+  execution_focus_reason?: PublishedEndpointInvocationExecutionFocusReason | null;
+  execution_focus_node?: RunExecutionNodeItem | null;
   skill_trace?: PublishedEndpointInvocationSkillTrace | null;
   blocking_sensitive_access_entries: SensitiveAccessTimelineEntry[];
   sensitive_access_entries: SensitiveAccessTimelineEntry[];

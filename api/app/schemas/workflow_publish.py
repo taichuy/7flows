@@ -9,6 +9,7 @@ from app.schemas.run import RunDetail
 from app.schemas.run_views import (
     CallbackWaitingLifecycleSummary,
     RunCallbackTicketItem,
+    RunExecutionNodeItem,
     SkillReferenceLoadItem,
 )
 from app.schemas.sensitive_access import SensitiveAccessTimelineEntryItem
@@ -496,11 +497,21 @@ class PublishedEndpointInvocationSkillTrace(BaseModel):
     nodes: list[PublishedEndpointInvocationSkillTraceNodeItem] = Field(default_factory=list)
 
 
+PublishedEndpointInvocationExecutionFocusReason = Literal[
+    "blocking_node_run",
+    "blocked_execution",
+    "current_node",
+    "fallback_node",
+]
+
+
 class PublishedEndpointInvocationDetailResponse(BaseModel):
     invocation: PublishedEndpointInvocationItem
     run: PublishedEndpointInvocationRunReference | None = None
     callback_tickets: list[RunCallbackTicketItem] = Field(default_factory=list)
     blocking_node_run_id: str | None = None
+    execution_focus_reason: PublishedEndpointInvocationExecutionFocusReason | None = None
+    execution_focus_node: RunExecutionNodeItem | None = None
     skill_trace: PublishedEndpointInvocationSkillTrace | None = None
     blocking_sensitive_access_entries: list[SensitiveAccessTimelineEntryItem] = Field(
         default_factory=list

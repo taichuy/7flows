@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ExecutionNodeCard } from "@/components/run-diagnostics-execution/execution-node-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import { SensitiveAccessTimelineEntryList } from "@/components/sensitive-access-timeline-entry-list";
 import { ToolGovernanceSummary } from "@/components/tool-governance-summary";
@@ -30,6 +31,21 @@ function formatMetricSummary(metrics: Record<string, number>) {
     .join(" · ");
 }
 
+function formatExecutionFocusReasonLabel(reason: string | null | undefined) {
+  switch (reason) {
+    case "blocking_node_run":
+      return "blocking node run";
+    case "blocked_execution":
+      return "blocked execution";
+    case "current_node":
+      return "current node";
+    case "fallback_node":
+      return "execution fallback";
+    default:
+      return "execution focus";
+  }
+}
+
 export function WorkflowPublishInvocationDetailPanel({
   detail,
   clearHref,
@@ -41,6 +57,8 @@ export function WorkflowPublishInvocationDetailPanel({
     run,
     callback_tickets: callbackTickets,
     blocking_node_run_id: blockingNodeRunId,
+    execution_focus_reason: executionFocusReason,
+    execution_focus_node: executionFocusNode,
     skill_trace: skillTrace,
     blocking_sensitive_access_entries: blockingSensitiveAccessEntries,
     sensitive_access_entries: sensitiveAccessEntries,
@@ -169,6 +187,26 @@ export function WorkflowPublishInvocationDetailPanel({
           <pre className="trace-preview">{formatJsonPreview(invocation.response_preview)}</pre>
         </div>
       </div>
+
+      {runId && executionFocusNode ? (
+        <div>
+          <strong>Execution focus</strong>
+          <p className="section-copy entry-copy">
+            当前 publish invocation detail 直接复用 run diagnostics 的 execution 事实，优先聚焦当前最相关的 node run。
+          </p>
+          <div className="tool-badge-row">
+            <span className="event-chip">
+              {formatExecutionFocusReasonLabel(executionFocusReason)}
+            </span>
+            <span className="event-chip">node run {executionFocusNode.node_run_id}</span>
+          </div>
+          <ExecutionNodeCard
+            node={executionFocusNode}
+            runId={runId}
+            callbackWaitingAutomation={callbackWaitingAutomation}
+          />
+        </div>
+      ) : null}
 
       <WorkflowPublishInvocationCallbackSection
         invocation={invocation}

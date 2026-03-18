@@ -1612,6 +1612,15 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
         }
     ]
     assert detail_body["blocking_node_run_id"] == node_run.id
+    assert detail_body["execution_focus_reason"] == "blocking_node_run"
+    assert detail_body["execution_focus_node"]["node_run_id"] == node_run.id
+    assert detail_body["execution_focus_node"]["node_id"] == "tool_wait"
+    assert detail_body["execution_focus_node"]["node_name"] == "Tool Wait"
+    assert detail_body["execution_focus_node"]["status"] == "waiting"
+    assert detail_body["execution_focus_node"]["phase"] == "waiting_callback"
+    assert detail_body["execution_focus_node"]["execution_class"] == "inline"
+    assert detail_body["execution_focus_node"]["waiting_reason"] == "callback pending"
+    assert detail_body["execution_focus_node"]["callback_tickets"][0]["ticket"] == callback_ticket.id
     assert len(detail_body["blocking_sensitive_access_entries"]) == 1
     assert (
         detail_body["blocking_sensitive_access_entries"][0]["request"]["id"]
