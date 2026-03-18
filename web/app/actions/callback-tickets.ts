@@ -6,7 +6,10 @@ import {
   formatCallbackBlockerDeltaSummary
 } from "@/lib/callback-blocker-follow-up";
 import { getSystemOverview } from "@/lib/get-system-overview";
-import { formatCleanupResultMessage } from "@/lib/operator-action-result-presenters";
+import {
+  formatCleanupResultMessage,
+  formatOperatorOutcomeExplanationMessage
+} from "@/lib/operator-action-result-presenters";
 
 import { revalidateOperatorFollowUpPaths } from "./operator-follow-up-revalidation";
 import { fetchRunSnapshot } from "./run-snapshot";
@@ -23,6 +26,10 @@ type CleanupRunCallbackTicketsResponseBody = {
   scheduled_resume_count: number;
   terminated_count: number;
   run_ids: string[];
+  outcome_explanation?: {
+    primary_signal?: string | null;
+    follow_up?: string | null;
+  } | null;
   run_follow_up?: {
     explanation?: {
       primary_signal?: string | null;
@@ -98,17 +105,26 @@ export async function cleanupRunCallbackTickets(
 
     return {
       status: "success",
-      message: formatCleanupResultMessage({
-        matchedCount,
-        expiredCount,
-        scheduledResumeCount,
-        terminatedCount,
+      message: formatOperatorOutcomeExplanationMessage({
+        explanation: body?.outcome_explanation,
         blockerDeltaSummary: formatCallbackBlockerDeltaSummary({
           before: beforeBlockers,
           after: afterBlockers
         }),
         runFollowUpExplanation: body?.run_follow_up?.explanation,
-        runSnapshot
+        runSnapshot,
+        fallback: formatCleanupResultMessage({
+          matchedCount,
+          expiredCount,
+          scheduledResumeCount,
+          terminatedCount,
+          blockerDeltaSummary: formatCallbackBlockerDeltaSummary({
+            before: beforeBlockers,
+            after: afterBlockers
+          }),
+          runFollowUpExplanation: body?.run_follow_up?.explanation,
+          runSnapshot
+        })
       }),
       scopeKey
     };

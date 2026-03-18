@@ -8,6 +8,9 @@ from app.schemas.run import (
     CallbackTicketCleanupResponse,
 )
 from app.services.operator_run_follow_up import build_operator_run_follow_up_summary
+from app.services.run_action_explanations import (
+    build_callback_cleanup_outcome_explanation,
+)
 from app.services.run_callback_ticket_cleanup import (
     CallbackTicketCleanupResult,
     RunCallbackTicketCleanupService,
@@ -20,6 +23,7 @@ cleanup_service = RunCallbackTicketCleanupService()
 def _serialize_cleanup_result(
     result: CallbackTicketCleanupResult,
     *,
+    outcome_explanation=None,
     run_follow_up=None,
 ) -> CallbackTicketCleanupResponse:
     return CallbackTicketCleanupResponse(
@@ -51,6 +55,7 @@ def _serialize_cleanup_result(
             )
             for item in result.items
         ],
+        outcome_explanation=outcome_explanation,
         run_follow_up=run_follow_up,
     )
 
@@ -73,4 +78,12 @@ def cleanup_stale_run_callback_tickets(
     if not payload.dry_run:
         db.commit()
     run_follow_up = build_operator_run_follow_up_summary(db, result.run_ids)
-    return _serialize_cleanup_result(result, run_follow_up=run_follow_up)
+    outcome_explanation = build_callback_cleanup_outcome_explanation(
+        result,
+        run_follow_up,
+    )
+    return _serialize_cleanup_result(
+        result,
+        outcome_explanation=outcome_explanation,
+        run_follow_up=run_follow_up,
+    )

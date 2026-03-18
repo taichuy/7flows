@@ -68,6 +68,7 @@ class CallbackTicketCleanupResponse(BaseModel):
     scheduled_resume_run_ids: list[str] = Field(default_factory=list)
     terminated_run_ids: list[str] = Field(default_factory=list)
     items: list[CallbackTicketCleanupItem] = Field(default_factory=list)
+    outcome_explanation: SignalFollowUpExplanation | None = None
     run_follow_up: OperatorRunFollowUpSummary | None = None
 
 
