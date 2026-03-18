@@ -40,6 +40,7 @@ export function WorkflowPublishInvocationDetailPanel({
   const {
     invocation,
     run,
+    run_follow_up: runFollowUp,
     callback_tickets: callbackTickets,
     blocking_node_run_id: blockingNodeRunId,
     execution_focus_reason: executionFocusReason,
@@ -76,6 +77,17 @@ export function WorkflowPublishInvocationDetailPanel({
   const executionFocusFollowUp =
     detail.execution_focus_explanation?.follow_up ??
     (executionFocusNode ? formatExecutionFocusFollowUp(executionFocusNode) : null);
+  const runFollowUpPrimarySignal = runFollowUp?.explanation?.primary_signal?.trim() || null;
+  const runFollowUpFollowUp = runFollowUp?.explanation?.follow_up?.trim() || null;
+  const runFollowUpStatusSummary = runFollowUp
+    ? formatMetricSummary({
+        waiting: runFollowUp.waiting_run_count,
+        running: runFollowUp.running_run_count,
+        succeeded: runFollowUp.succeeded_run_count,
+        failed: runFollowUp.failed_run_count,
+        unknown: runFollowUp.unknown_run_count
+      })
+    : null;
 
   return (
     <article className="entry-card compact-card publish-invocation-detail-panel">
@@ -179,6 +191,28 @@ export function WorkflowPublishInvocationDetailPanel({
           <pre className="trace-preview">{formatJsonPreview(invocation.response_preview)}</pre>
         </div>
       </div>
+
+      {runFollowUp ? (
+        <div>
+          <strong>Canonical follow-up</strong>
+          <p className="section-copy entry-copy">
+            publish invocation detail 现在直接复用 operator follow-up 的后端事实链，不再只给局部 waiting / execution 片段，方便从发布入口直接判断下一步该回看 run 还是 inbox。
+          </p>
+          <div className="tool-badge-row">
+            <span className="event-chip">affected {runFollowUp.affected_run_count}</span>
+            <span className="event-chip">sampled {runFollowUp.sampled_run_count}</span>
+            {runFollowUpStatusSummary ? (
+              <span className="event-chip">status {runFollowUpStatusSummary}</span>
+            ) : null}
+          </div>
+          {runFollowUpPrimarySignal ? (
+            <p className="section-copy entry-copy">{runFollowUpPrimarySignal}</p>
+          ) : null}
+          {runFollowUpFollowUp ? (
+            <p className="binding-meta">{runFollowUpFollowUp}</p>
+          ) : null}
+        </div>
+      ) : null}
 
       {runId && executionFocusNode ? (
         <div>

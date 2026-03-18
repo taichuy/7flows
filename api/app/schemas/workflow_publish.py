@@ -5,6 +5,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.operator_follow_up import OperatorRunFollowUpSummary
 from app.schemas.run import RunDetail
 from app.schemas.run_views import (
     CallbackWaitingLifecycleSummary,
@@ -512,6 +513,7 @@ PublishedEndpointInvocationExecutionFocusReason = Literal[
 class PublishedEndpointInvocationDetailResponse(BaseModel):
     invocation: PublishedEndpointInvocationItem
     run: PublishedEndpointInvocationRunReference | None = None
+    run_follow_up: OperatorRunFollowUpSummary | None = None
     callback_tickets: list[RunCallbackTicketItem] = Field(default_factory=list)
     blocking_node_run_id: str | None = None
     execution_focus_reason: PublishedEndpointInvocationExecutionFocusReason | None = None

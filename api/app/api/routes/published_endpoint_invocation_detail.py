@@ -28,6 +28,7 @@ from app.services.published_invocation_detail_access import (
     PublishedInvocationDetailAccessService,
 )
 from app.services.published_invocations import PublishedInvocationService
+from app.services.operator_run_follow_up import build_operator_run_follow_up_summary
 from app.services.run_execution_focus_explanations import (
     build_run_execution_focus_explanation,
 )
@@ -259,6 +260,7 @@ def get_published_endpoint_invocation_detail(
     execution_focus_reason = None
     execution_focus_node = None
     execution_focus_explanation = None
+    run_follow_up = None
     if record.run_id:
         node_runs = (
             db.scalars(select(NodeRun).where(NodeRun.run_id == record.run_id)).all()
@@ -338,6 +340,7 @@ def get_published_endpoint_invocation_detail(
                     else None
                 ),
             )
+            run_follow_up = build_operator_run_follow_up_summary(db, [record.run_id])
 
     invocation = serialize_published_invocation_item(
         record,
@@ -378,6 +381,7 @@ def get_published_endpoint_invocation_detail(
             if run is not None
             else None
         ),
+        run_follow_up=run_follow_up,
         callback_tickets=callback_ticket_items,
         blocking_node_run_id=blocking_node_run_id,
         execution_focus_reason=execution_focus_reason,

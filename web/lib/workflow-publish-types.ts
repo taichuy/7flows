@@ -247,9 +247,38 @@ export type RunExecutionFocusExplanation = {
   follow_up?: string | null;
 };
 
+export type OperatorRunFollowUpSnapshot = {
+  workflow_id?: string | null;
+  status?: string | null;
+  current_node_id?: string | null;
+  waiting_reason?: string | null;
+  execution_focus_reason?: PublishedEndpointInvocationExecutionFocusReason | null;
+  execution_focus_node_id?: string | null;
+  execution_focus_node_run_id?: string | null;
+  execution_focus_explanation?: RunExecutionFocusExplanation | null;
+};
+
+export type OperatorRunFollowUpSnapshotSample = {
+  run_id: string;
+  snapshot?: OperatorRunFollowUpSnapshot | null;
+};
+
+export type OperatorRunFollowUpSummary = {
+  affected_run_count: number;
+  sampled_run_count: number;
+  waiting_run_count: number;
+  running_run_count: number;
+  succeeded_run_count: number;
+  failed_run_count: number;
+  unknown_run_count: number;
+  sampled_runs: OperatorRunFollowUpSnapshotSample[];
+  explanation?: RunExecutionFocusExplanation | null;
+};
+
 export type PublishedEndpointInvocationDetailResponse = {
   invocation: PublishedEndpointInvocationItem;
   run?: PublishedEndpointInvocationRunReference | null;
+  run_follow_up?: OperatorRunFollowUpSummary | null;
   callback_tickets: PublishedEndpointInvocationCallbackTicketItem[];
   blocking_node_run_id?: string | null;
   execution_focus_reason?: PublishedEndpointInvocationExecutionFocusReason | null;

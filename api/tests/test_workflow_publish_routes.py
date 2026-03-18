@@ -1635,6 +1635,32 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
             "下一步：优先确认外部系统是否已经回调，不要重复触发 resume 或额外发起同类请求。"
         ),
     }
+    assert detail_body["run_follow_up"]["affected_run_count"] == 1
+    assert detail_body["run_follow_up"]["sampled_run_count"] == 1
+    assert detail_body["run_follow_up"]["waiting_run_count"] == 1
+    assert detail_body["run_follow_up"]["sampled_runs"][0]["run_id"] == run.id
+    assert detail_body["run_follow_up"]["sampled_runs"][0]["snapshot"] == {
+        "workflow_id": workflow_id,
+        "status": "waiting",
+        "current_node_id": "tool_wait",
+        "waiting_reason": "callback pending",
+        "execution_focus_reason": "blocking_node_run",
+        "execution_focus_node_id": "tool_wait",
+        "execution_focus_node_run_id": node_run.id,
+        "execution_focus_explanation": {
+            "primary_signal": "等待原因：callback pending",
+            "follow_up": (
+                "下一步：优先确认 callback ticket 是否已回调；"
+                "若尚未回调，继续沿 ticket / inbox 事实链跟进。"
+            ),
+        },
+    }
+    assert detail_body["run_follow_up"]["explanation"]["primary_signal"] == (
+        "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。"
+    )
+    assert "run run-publish-detail：当前 run 状态：waiting。" in detail_body["run_follow_up"][
+        "explanation"
+    ]["follow_up"]
     assert detail_body["execution_focus_node"]["node_id"] == "tool_wait"
     assert detail_body["execution_focus_node"]["node_name"] == "Tool Wait"
     assert detail_body["execution_focus_node"]["status"] == "waiting"
