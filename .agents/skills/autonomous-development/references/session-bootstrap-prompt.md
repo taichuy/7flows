@@ -22,11 +22,7 @@
 - 检查 git status，理解当前工作区现状，避免覆盖未知改动
 - 如果任务命中仓库 skill，优先复用 .agents/skills/*/SKILL.md；形成 durable change 时，收尾默认组合 development-closure；若触碰 prompt / skill / governance / script / local execution boundary，合并前默认走 safe-change-review
 
-先校准当前阶段，不要误判项目成熟度：
-- 项目已经不是初始化脚手架：后端已具备 workflow version、compiled blueprint、runtime、published surface、run tracing、Skill Catalog、sensitive access 治理等基础骨架；前端已接上工作台、最小 xyflow editor、run diagnostics、publish panel 与 sensitive access inbox
-- 当前还没有进入“只剩样式整理或人工逐项验收”的阶段
-- `sandbox_code`、高风险 tool / plugin 的 graded execution 与 fail-closed 主链正在推进，但强隔离闭环还未完成
-- `WAITING_CALLBACK` 的 durable resume、operator follow-up，以及 editor / publish 剩余关键场景完整度，仍是当前核心缺口
+先校准当前阶段，不要误判项目成熟度。
 
 你判断“好”的标准：
 - 好项目：主链路清晰且逐步闭环；用户层、AI与人协作层、AI治理层持续向产品目标收敛；架构、文档、运行基础和代码结构都能支撑后续持续迭代；对人和对 AI 都具备可理解、可维护、可检索、可追踪性
