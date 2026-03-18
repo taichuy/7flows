@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatPublishedInvocationWaitingFollowUp,
+  formatPublishedInvocationWaitingHeadline,
   listPublishedInvocationSensitiveAccessChips,
   listPublishedInvocationSensitiveAccessRows
 } from "./published-invocation-presenters";
@@ -49,5 +51,46 @@ describe("published invocation presenters", () => {
         value: "1 delivered · 1 failed"
       }
     ]);
+  });
+
+  it("优先使用后端下发的 waiting primary signal", () => {
+    expect(
+      formatPublishedInvocationWaitingHeadline({
+        explanation: {
+          primary_signal: "当前 callback waiting 仍卡在 1 条待处理审批。",
+          follow_up: "先处理审批，再观察 waiting 节点是否恢复。"
+        },
+        fallbackHeadline: "fallback headline",
+        nodeRunId: "node-run-1",
+        nodeStatus: "waiting_callback"
+      })
+    ).toBe("当前 callback waiting 仍卡在 1 条待处理审批。");
+    expect(
+      formatPublishedInvocationWaitingFollowUp({
+        primary_signal: "当前 callback waiting 仍卡在 1 条待处理审批。",
+        follow_up: "  先处理审批，再观察 waiting 节点是否恢复。  "
+      })
+    ).toBe("先处理审批，再观察 waiting 节点是否恢复。");
+  });
+
+  it("在没有后端解释时回退到既有 waiting headline", () => {
+    expect(
+      formatPublishedInvocationWaitingHeadline({
+        explanation: null,
+        fallbackHeadline: "callback lifecycle fallback",
+        nodeRunId: "node-run-1",
+        nodeStatus: "waiting_callback"
+      })
+    ).toBe("callback lifecycle fallback");
+
+    expect(
+      formatPublishedInvocationWaitingHeadline({
+        explanation: null,
+        fallbackHeadline: null,
+        nodeRunId: "node-run-1",
+        nodeStatus: "waiting_callback"
+      })
+    ).toBe("node run node-run-1 is still waiting_callback.");
+    expect(formatPublishedInvocationWaitingFollowUp(null)).toBeNull();
   });
 });

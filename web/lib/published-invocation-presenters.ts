@@ -2,7 +2,8 @@ import type {
   PublishedEndpointInvocationFacetItem,
   PublishedEndpointInvocationCallbackTicketItem,
   PublishedEndpointInvocationItem,
-  PublishedEndpointInvocationSummary
+  PublishedEndpointInvocationSummary,
+  RunExecutionFocusExplanation
 } from "@/lib/get-workflow-publish";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
@@ -239,6 +240,37 @@ export function listPublishedInvocationSensitiveAccessRows(
         ]
       : [])
   ];
+}
+
+export function formatPublishedInvocationWaitingHeadline({
+  explanation,
+  fallbackHeadline,
+  nodeRunId,
+  nodeStatus
+}: {
+  explanation?: RunExecutionFocusExplanation | null;
+  fallbackHeadline?: string | null;
+  nodeRunId?: string | null;
+  nodeStatus?: string | null;
+}) {
+  const primarySignal = explanation?.primary_signal?.trim();
+  if (primarySignal) {
+    return primarySignal;
+  }
+  if (fallbackHeadline) {
+    return fallbackHeadline;
+  }
+  if (nodeRunId && nodeStatus) {
+    return `node run ${nodeRunId} is still ${nodeStatus}.`;
+  }
+  return null;
+}
+
+export function formatPublishedInvocationWaitingFollowUp(
+  explanation?: RunExecutionFocusExplanation | null
+) {
+  const followUp = explanation?.follow_up?.trim();
+  return followUp || null;
 }
 
 export function formatPublishedInvocationReasonLabel(

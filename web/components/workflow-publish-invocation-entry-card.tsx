@@ -10,6 +10,8 @@ import {
 } from "@/lib/callback-waiting-presenters";
 import {
   buildPublishedInvocationInboxHref,
+  formatPublishedInvocationWaitingFollowUp,
+  formatPublishedInvocationWaitingHeadline,
   formatPublishedInvocationCacheStatusLabel,
   formatPublishedInvocationReasonLabel,
   formatPublishedInvocationSurfaceLabel,
@@ -78,6 +80,14 @@ export function WorkflowPublishInvocationEntryCard({
     scheduledResumeDelaySeconds: waitingLifecycle?.scheduled_resume_delay_seconds,
     scheduledResumeDueAt: waitingLifecycle?.scheduled_resume_due_at
   });
+  const waitingExplanation = waitingLifecycle?.callback_waiting_explanation;
+  const waitingOverviewHeadline = formatPublishedInvocationWaitingHeadline({
+    explanation: waitingExplanation,
+    fallbackHeadline: waitingHeadline,
+    nodeRunId: waitingLifecycle?.node_run_id,
+    nodeStatus: waitingLifecycle?.node_status
+  });
+  const waitingOverviewFollowUp = formatPublishedInvocationWaitingFollowUp(waitingExplanation);
   const sensitiveAccessChips = listPublishedInvocationSensitiveAccessChips(
     waitingLifecycle?.sensitive_access_summary
   );
@@ -181,10 +191,10 @@ export function WorkflowPublishInvocationEntryCard({
             <div className="payload-card-header">
               <span className="status-meta">Waiting overview</span>
             </div>
-            <p className="section-copy entry-copy">
-              {waitingHeadline ??
-                `node run ${waitingLifecycle.node_run_id} is still ${waitingLifecycle.node_status}.`}
-            </p>
+            <p className="section-copy entry-copy">{waitingOverviewHeadline}</p>
+            {waitingOverviewFollowUp ? (
+              <p className="binding-meta">{waitingOverviewFollowUp}</p>
+            ) : null}
             {waitingChips.length || sensitiveAccessChips.length ? (
               <p className="binding-meta">
                 {[...waitingChips, ...sensitiveAccessChips].join(" · ")}
