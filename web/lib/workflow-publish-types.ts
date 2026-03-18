@@ -226,7 +226,7 @@ export type PublishedEndpointInvocationSkillTraceNodeItem = {
 };
 
 export type PublishedEndpointInvocationSkillTrace = {
-  scope: "blocking_node_run" | "run";
+  scope: "execution_focus_node" | "run";
   reference_count: number;
   phase_counts: Record<string, number>;
   source_counts: Record<string, number>;

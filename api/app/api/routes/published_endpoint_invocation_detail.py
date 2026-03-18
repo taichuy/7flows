@@ -28,11 +28,11 @@ from app.services.published_invocation_detail_access import (
     PublishedInvocationDetailAccessService,
 )
 from app.services.published_invocations import PublishedInvocationService
-from app.services.run_views import RunViewService
 from app.services.run_execution_views import (
     resolve_execution_focus_node,
     summarize_skill_reference_loads,
 )
+from app.services.run_views import RunViewService
 from app.services.runtime_records import ExecutionArtifacts
 from app.services.sensitive_access_presenters import (
     serialize_sensitive_access_timeline_entry,
@@ -58,6 +58,8 @@ def _resolve_blocking_node_run_id(
         if ticket.node_run_id:
             return ticket.node_run_id
     return None
+
+
 def _count_skill_references(loads) -> int:
     return sum(len(load.references) for load in loads)
 
@@ -99,7 +101,7 @@ def _build_skill_trace(
     run: Run | None,
     node_runs: list[NodeRun],
     events: list[RunEvent],
-    blocking_node_run_id: str | None,
+    execution_focus_node_run_id: str | None,
 ) -> PublishedEndpointInvocationSkillTrace | None:
     if run is None or not node_runs or not events:
         return None
@@ -115,17 +117,20 @@ def _build_skill_trace(
         return None
 
     node_run_lookup = {node_run.id: node_run for node_run in node_runs}
-    if blocking_node_run_id and blocking_node_run_id in summary.by_node_run:
-        scoped_loads = summary.by_node_run[blocking_node_run_id]
+    if (
+        execution_focus_node_run_id
+        and execution_focus_node_run_id in summary.by_node_run
+    ):
+        scoped_loads = summary.by_node_run[execution_focus_node_run_id]
         return PublishedEndpointInvocationSkillTrace(
-            scope="blocking_node_run",
+            scope="execution_focus_node",
             reference_count=_count_skill_references(scoped_loads),
             phase_counts=_summarize_skill_reference_phases(scoped_loads),
             source_counts=_summarize_skill_reference_sources(scoped_loads),
             nodes=[
                 _serialize_skill_trace_node(
-                    node_run_id=blocking_node_run_id,
-                    node_run=node_run_lookup.get(blocking_node_run_id),
+                    node_run_id=execution_focus_node_run_id,
+                    node_run=node_run_lookup.get(execution_focus_node_run_id),
                     loads=scoped_loads,
                 )
             ],
@@ -272,12 +277,6 @@ def get_published_endpoint_invocation_detail(
                         blocking_node_run_id, []
                     )
                 ]
-            skill_trace = _build_skill_trace(
-                run=run,
-                node_runs=node_runs,
-                events=run_events,
-                blocking_node_run_id=blocking_node_run_id,
-            )
             execution_view = run_view_service.get_execution_view(db, record.run_id)
             if execution_view is not None:
                 blocking_node_run_id = (
@@ -288,6 +287,16 @@ def get_published_endpoint_invocation_detail(
                     blocking_node_run_id=blocking_node_run_id,
                     current_node_id=run.current_node_id,
                 )
+            skill_trace = _build_skill_trace(
+                run=run,
+                node_runs=node_runs,
+                events=run_events,
+                execution_focus_node_run_id=(
+                    execution_focus_node.node_run_id
+                    if execution_focus_node is not None
+                    else None
+                ),
+            )
 
     invocation = serialize_published_invocation_item(
         record,

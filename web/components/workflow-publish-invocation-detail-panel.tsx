@@ -217,8 +217,8 @@ export function WorkflowPublishInvocationDetailPanel({
           <strong>Skill trace</strong>
           <p className="section-copy entry-copy">
             把 publish invocation 背后的 skill reference load 直接带到当前详情页，避免外部调用排障还要跳回 run detail 才能看见 agent 真正注入了哪些参考资料。
-            {skillTrace.scope === "blocking_node_run" && skillTrace.nodes[0]?.node_run_id
-              ? ` 当前优先聚焦阻塞节点 ${skillTrace.nodes[0].node_run_id}。`
+            {skillTrace.scope === "execution_focus_node" && skillTrace.nodes[0]?.node_run_id
+              ? ` 当前优先聚焦 execution focus 节点 ${skillTrace.nodes[0].node_run_id}。`
               : " 当前展示整个 run 的 skill 注入摘要。"}
           </p>
           <div className="tool-badge-row">

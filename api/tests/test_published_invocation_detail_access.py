@@ -524,7 +524,7 @@ def test_get_published_invocation_detail_surfaces_blocking_skill_trace(
     assert detail_response.status_code == 200
     detail_body = detail_response.json()
     assert detail_body["skill_trace"] == {
-        "scope": "blocking_node_run",
+        "scope": "execution_focus_node",
         "reference_count": 2,
         "phase_counts": {"main_plan": 2},
         "source_counts": {"retrieval_query_match": 1, "skill_binding": 1},
@@ -547,7 +547,9 @@ def test_get_published_invocation_detail_surfaces_blocking_skill_trace(
                                 "fetch_reason": None,
                                 "fetch_request_index": None,
                                 "fetch_request_total": None,
-                                "retrieval_http_path": "/api/skills/skill-ops-review/references/ref-escalation",
+                                "retrieval_http_path": (
+                                    "/api/skills/skill-ops-review/references/ref-escalation"
+                                ),
                                 "retrieval_mcp_method": "skills.get_reference",
                                 "retrieval_mcp_params": {
                                     "skill_id": "skill-ops-review",
@@ -563,13 +565,116 @@ def test_get_published_invocation_detail_surfaces_blocking_skill_trace(
                                 "fetch_reason": "Matched query terms: callback, blocker",
                                 "fetch_request_index": 1,
                                 "fetch_request_total": 1,
-                                "retrieval_http_path": "/api/skills/skill-ops-review/references/ref-risk",
+                                "retrieval_http_path": (
+                                    "/api/skills/skill-ops-review/references/ref-risk"
+                                ),
                                 "retrieval_mcp_method": "skills.get_reference",
                                 "retrieval_mcp_params": {
                                     "skill_id": "skill-ops-review",
                                     "reference_id": "ref-risk",
                                 },
                             },
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+
+
+def test_get_published_invocation_detail_scopes_skill_trace_to_current_execution_focus(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    workflow_id, binding, run, node_run, invocation = _create_published_invocation_fixture(
+        client,
+        sqlite_session,
+    )
+    callback_ticket = sqlite_session.scalar(
+        select(RunCallbackTicket).where(RunCallbackTicket.run_id == run.id)
+    )
+    if callback_ticket is not None:
+        sqlite_session.delete(callback_ticket)
+
+    run.status = "running"
+    node_run.status = "running"
+    node_run.phase = "main_plan"
+    node_run.waiting_reason = None
+    node_run.checkpoint_payload = {}
+    sqlite_session.add(
+        RunEvent(
+            run_id=run.id,
+            node_run_id=node_run.id,
+            event_type="agent.skill.references.loaded",
+            payload={
+                "node_id": node_run.node_id,
+                "phase": "main_plan",
+                "references": [
+                    {
+                        "skill_id": "skill-runtime-check",
+                        "skill_name": "Runtime Check",
+                        "reference_id": "ref-focus",
+                        "reference_name": "Focus Node Guide",
+                        "load_source": "skill_binding",
+                        "retrieval_http_path": (
+                            "/api/skills/skill-runtime-check/references/ref-focus"
+                        ),
+                        "retrieval_mcp_method": "skills.get_reference",
+                        "retrieval_mcp_params": {
+                            "skill_id": "skill-runtime-check",
+                            "reference_id": "ref-focus",
+                        },
+                    }
+                ],
+            },
+            created_at=datetime.now(UTC),
+        )
+    )
+    sqlite_session.commit()
+
+    detail_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/{invocation.id}",
+        params={"requester_id": "publish-detail-reviewer"},
+    )
+
+    assert detail_response.status_code == 200
+    detail_body = detail_response.json()
+    assert detail_body["blocking_node_run_id"] is None
+    assert detail_body["execution_focus_reason"] == "current_node"
+    assert detail_body["execution_focus_node"]["node_run_id"] == node_run.id
+    assert detail_body["skill_trace"] == {
+        "scope": "execution_focus_node",
+        "reference_count": 1,
+        "phase_counts": {"main_plan": 1},
+        "source_counts": {"skill_binding": 1},
+        "nodes": [
+            {
+                "node_run_id": node_run.id,
+                "node_id": node_run.node_id,
+                "node_name": node_run.node_name,
+                "reference_count": 1,
+                "loads": [
+                    {
+                        "phase": "main_plan",
+                        "references": [
+                            {
+                                "skill_id": "skill-runtime-check",
+                                "skill_name": "Runtime Check",
+                                "reference_id": "ref-focus",
+                                "reference_name": "Focus Node Guide",
+                                "load_source": "skill_binding",
+                                "fetch_reason": None,
+                                "fetch_request_index": None,
+                                "fetch_request_total": None,
+                                "retrieval_http_path": (
+                                    "/api/skills/skill-runtime-check/references/ref-focus"
+                                ),
+                                "retrieval_mcp_method": "skills.get_reference",
+                                "retrieval_mcp_params": {
+                                    "skill_id": "skill-runtime-check",
+                                    "reference_id": "ref-focus",
+                                },
+                            }
                         ],
                     }
                 ],

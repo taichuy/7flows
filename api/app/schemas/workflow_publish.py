@@ -492,7 +492,7 @@ class PublishedEndpointInvocationSkillTraceNodeItem(BaseModel):
 
 
 class PublishedEndpointInvocationSkillTrace(BaseModel):
-    scope: Literal["blocking_node_run", "run"]
+    scope: Literal["execution_focus_node", "run"]
     reference_count: int = 0
     phase_counts: dict[str, int] = Field(default_factory=dict)
     source_counts: dict[str, int] = Field(default_factory=dict)
