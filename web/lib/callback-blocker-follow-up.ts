@@ -4,6 +4,7 @@ import {
   type CallbackWaitingOperatorStatus,
   type CallbackWaitingRecommendedAction
 } from "@/lib/callback-waiting-presenters";
+import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
 import { getRunExecutionView, type RunExecutionNodeItem } from "@/lib/get-run-views";
 
 export type CallbackBlockerSnapshot = {
@@ -107,10 +108,12 @@ function getRecommendedActionLabel(snapshot?: CallbackBlockerSnapshot | null) {
 
 export async function fetchCallbackBlockerSnapshot({
   runId,
-  nodeRunId
+  nodeRunId,
+  callbackWaitingAutomation
 }: {
   runId?: string | null;
   nodeRunId?: string | null;
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
 }): Promise<CallbackBlockerSnapshot | null> {
   const normalizedRunId = runId?.trim();
   if (!normalizedRunId) {
@@ -131,6 +134,7 @@ export async function fetchCallbackBlockerSnapshot({
     lifecycle: node.callback_waiting_lifecycle,
     callbackTickets: node.callback_tickets,
     sensitiveAccessEntries: node.sensitive_access_entries,
+    callbackWaitingAutomation,
     scheduledResumeDelaySeconds: node.scheduled_resume_delay_seconds,
     scheduledResumeSource: node.scheduled_resume_source,
     scheduledWaitingStatus: node.scheduled_waiting_status,
@@ -145,6 +149,7 @@ export async function fetchCallbackBlockerSnapshot({
       lifecycle: node.callback_waiting_lifecycle,
       callbackTickets: node.callback_tickets,
       sensitiveAccessEntries: node.sensitive_access_entries,
+      callbackWaitingAutomation,
       scheduledResumeDelaySeconds: node.scheduled_resume_delay_seconds,
       scheduledResumeSource: node.scheduled_resume_source,
       scheduledWaitingStatus: node.scheduled_waiting_status,
@@ -156,14 +161,19 @@ export async function fetchCallbackBlockerSnapshot({
 
 export async function fetchCallbackBlockerSnapshots(
   scopes: CallbackBlockerScope[],
-  limit = 3
+  limit = 3,
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null
 ): Promise<CallbackBlockerScopedSnapshot[]> {
   const normalizedScopes = normalizeScopes(scopes, limit);
   return Promise.all(
     normalizedScopes.map(async ({ runId, nodeRunId }) => ({
       runId,
       nodeRunId,
-      snapshot: await fetchCallbackBlockerSnapshot({ runId, nodeRunId })
+      snapshot: await fetchCallbackBlockerSnapshot({
+        runId,
+        nodeRunId,
+        callbackWaitingAutomation
+      })
     }))
   );
 }

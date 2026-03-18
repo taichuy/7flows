@@ -18,17 +18,23 @@ import {
   isPendingWaitingTicket,
   pickRetriableNotification
 } from "@/components/sensitive-access-inbox-panel-helpers";
+import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
 import type {
   SensitiveAccessBulkAction,
   SensitiveAccessBulkActionResult,
   SensitiveAccessInboxEntry
 } from "@/lib/get-sensitive-access";
+import { resolveSensitiveAccessInboxEntryScope } from "@/lib/sensitive-access-inbox-entry-scope";
 
 type SensitiveAccessInboxPanelProps = {
   entries: SensitiveAccessInboxEntry[];
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
 };
 
-export function SensitiveAccessInboxPanel({ entries }: SensitiveAccessInboxPanelProps) {
+export function SensitiveAccessInboxPanel({
+  entries,
+  callbackWaitingAutomation
+}: SensitiveAccessInboxPanelProps) {
   const [bulkOperator, setBulkOperator] = useState(DEFAULT_OPERATOR_ID);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [bulkMessageTone, setBulkMessageTone] = useState<SensitiveAccessMessageTone>("idle");
@@ -57,20 +63,24 @@ export function SensitiveAccessInboxPanel({ entries }: SensitiveAccessInboxPanel
 
   const decisionTicketIds = entries
     .filter((entry) => isPendingWaitingTicket(entry))
-    .map((entry) => ({
-      ticketId: entry.ticket.id,
-      runId: entry.ticket.run_id ?? entry.request?.run_id ?? null,
-      nodeRunId: entry.ticket.node_run_id ?? entry.request?.node_run_id ?? null
-    }));
+    .map((entry) => {
+      const scope = resolveSensitiveAccessInboxEntryScope(entry);
+      return {
+        ticketId: entry.ticket.id,
+        runId: scope.runId,
+        nodeRunId: scope.nodeRunId
+      };
+    });
   const retryDispatchIds = entries.flatMap((entry) => {
     const notification = pickRetriableNotification(entry);
+    const scope = resolveSensitiveAccessInboxEntryScope(entry);
     return notification
       ? [
           {
             dispatchId: notification.id,
             approvalTicketId: entry.ticket.id,
-            runId: entry.ticket.run_id ?? entry.request?.run_id ?? null,
-            nodeRunId: entry.ticket.node_run_id ?? entry.request?.node_run_id ?? null
+            runId: scope.runId,
+            nodeRunId: scope.nodeRunId
           }
         ]
       : [];
@@ -144,7 +154,11 @@ export function SensitiveAccessInboxPanel({ entries }: SensitiveAccessInboxPanel
 
       <div className="activity-list">
         {entries.map((entry) => (
-          <SensitiveAccessInboxEntryCard entry={entry} key={entry.ticket.id} />
+          <SensitiveAccessInboxEntryCard
+            callbackWaitingAutomation={callbackWaitingAutomation}
+            entry={entry}
+            key={entry.ticket.id}
+          />
         ))}
       </div>
     </article>

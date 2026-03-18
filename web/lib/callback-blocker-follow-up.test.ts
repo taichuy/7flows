@@ -133,4 +133,56 @@ describe("callback blocker follow-up", () => {
       label: "Watch the scheduled resume"
     });
   });
+
+  it("把 callback waiting automation 传进 blocker 快照推荐动作", async () => {
+    const executionView = createExecutionView();
+    executionView.nodes[0] = {
+      ...executionView.nodes[0],
+      scheduled_resume_delay_seconds: 5,
+      scheduled_resume_source: "callback_ticket_monitor",
+      scheduled_resume_scheduled_at: "2024-03-18T10:00:00Z",
+      scheduled_resume_due_at: "2024-03-18T10:05:00Z"
+    };
+    vi.mocked(getRunExecutionView).mockResolvedValue(executionView);
+
+    const snapshot = await fetchCallbackBlockerSnapshot({
+      runId: "run-callback-follow-up",
+      nodeRunId: "node-run-1",
+      callbackWaitingAutomation: {
+        status: "partial",
+        scheduler_required: true,
+        detail: "`WAITING_CALLBACK` 只完成了部分后台补偿配置。",
+        scheduler_health_status: "degraded",
+        scheduler_health_detail: "waiting resume monitor 最近没有成功执行。",
+        steps: [
+          {
+            key: "waiting_resume_monitor",
+            label: "Requeue due waiting callbacks",
+            task: "runtime.monitor_waiting_resumes",
+            source: "scheduler_waiting_resume_monitor",
+            enabled: true,
+            interval_seconds: 30,
+            detail: "周期扫描到期的 waiting callback。",
+            scheduler_health: {
+              health_status: "degraded",
+              detail: "最近执行事实已超过调度窗口。",
+              last_status: "succeeded",
+              last_started_at: null,
+              last_finished_at: "2026-03-18T09:00:00Z",
+              matched_count: 0,
+              affected_count: 0
+            }
+          }
+        ]
+      }
+    });
+
+    expect(snapshot?.recommendedAction).toMatchObject({
+      kind: "manual_resume",
+      label: "Scheduled resume is overdue"
+    });
+    expect(snapshot?.recommendedAction?.detail).toContain(
+      "automation Requeue due waiting callbacks: degraded"
+    );
+  });
 });

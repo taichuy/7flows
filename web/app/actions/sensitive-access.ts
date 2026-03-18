@@ -12,6 +12,7 @@ import type {
   SensitiveAccessBulkActionResult,
   SensitiveAccessBulkSkipSummary
 } from "@/lib/get-sensitive-access";
+import { getSystemOverview } from "@/lib/get-system-overview";
 import {
   formatBulkApprovalDecisionResultMessage,
   formatBulkNotificationRetryResultMessage,
@@ -211,9 +212,11 @@ export async function decideSensitiveAccessApprovalTicket(
   }
 
   try {
+    const callbackWaitingAutomation = (await getSystemOverview()).callback_waiting_automation;
     const beforeBlockers = await fetchCallbackBlockerSnapshot({
       runId,
-      nodeRunId: nodeRunId || null
+      nodeRunId: nodeRunId || null,
+      callbackWaitingAutomation
     });
     const response = await fetch(
       `${getApiBaseUrl()}/api/sensitive-access/approval-tickets/${encodeURIComponent(ticketId)}/decision`,
@@ -247,7 +250,8 @@ export async function decideSensitiveAccessApprovalTicket(
     });
     const afterBlockers = await fetchCallbackBlockerSnapshot({
       runId,
-      nodeRunId: nodeRunId || null
+      nodeRunId: nodeRunId || null,
+      callbackWaitingAutomation
     });
 
     return {
@@ -293,9 +297,11 @@ export async function retrySensitiveAccessNotificationDispatch(
   }
 
   try {
+    const callbackWaitingAutomation = (await getSystemOverview()).callback_waiting_automation;
     const beforeBlockers = await fetchCallbackBlockerSnapshot({
       runId,
-      nodeRunId: nodeRunId || null
+      nodeRunId: nodeRunId || null,
+      callbackWaitingAutomation
     });
     const response = await fetch(
       `${getApiBaseUrl()}/api/sensitive-access/notification-dispatches/${encodeURIComponent(dispatchId)}/retry`,
@@ -329,7 +335,8 @@ export async function retrySensitiveAccessNotificationDispatch(
     });
     const afterBlockers = await fetchCallbackBlockerSnapshot({
       runId,
-      nodeRunId: nodeRunId || null
+      nodeRunId: nodeRunId || null,
+      callbackWaitingAutomation
     });
     const effectiveTarget =
       typeof body?.notification?.target === "string" && body.notification.target.trim().length > 0
@@ -389,7 +396,12 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
   }
 
   try {
-    const beforeCandidateBlockers = await fetchCallbackBlockerSnapshots(candidateBlockerScopes);
+    const callbackWaitingAutomation = (await getSystemOverview()).callback_waiting_automation;
+    const beforeCandidateBlockers = await fetchCallbackBlockerSnapshots(
+      candidateBlockerScopes,
+      3,
+      callbackWaitingAutomation
+    );
     const response = await fetch(`${getApiBaseUrl()}/api/sensitive-access/approval-tickets/bulk-decision`, {
       method: "POST",
       headers: {
@@ -434,7 +446,11 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
       }));
     const beforeBlockers = filterBlockerSnapshotsByScope(beforeCandidateBlockers, blockerScopes);
     const { sampledRuns, followUpSummary } = await buildBulkRunFollowUpMetrics(affectedRunIds);
-    const afterBlockers = await fetchCallbackBlockerSnapshots(blockerScopes);
+    const afterBlockers = await fetchCallbackBlockerSnapshots(
+      blockerScopes,
+      3,
+      callbackWaitingAutomation
+    );
     const blockerDelta = summarizeBulkCallbackBlockerDelta({
       before: beforeBlockers,
       after: afterBlockers
@@ -501,7 +517,12 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
   }
 
   try {
-    const beforeCandidateBlockers = await fetchCallbackBlockerSnapshots(candidateBlockerScopes);
+    const callbackWaitingAutomation = (await getSystemOverview()).callback_waiting_automation;
+    const beforeCandidateBlockers = await fetchCallbackBlockerSnapshots(
+      candidateBlockerScopes,
+      3,
+      callbackWaitingAutomation
+    );
     const response = await fetch(`${getApiBaseUrl()}/api/sensitive-access/notification-dispatches/bulk-retry`, {
       method: "POST",
       headers: {
@@ -546,7 +567,11 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
       }));
     const beforeBlockers = filterBlockerSnapshotsByScope(beforeCandidateBlockers, blockerScopes);
     const { sampledRuns, followUpSummary } = await buildBulkRunFollowUpMetrics(affectedRunIds);
-    const afterBlockers = await fetchCallbackBlockerSnapshots(blockerScopes);
+    const afterBlockers = await fetchCallbackBlockerSnapshots(
+      blockerScopes,
+      3,
+      callbackWaitingAutomation
+    );
     const blockerDelta = summarizeBulkCallbackBlockerDelta({
       before: beforeBlockers,
       after: afterBlockers

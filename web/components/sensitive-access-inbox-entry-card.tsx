@@ -22,8 +22,10 @@ import {
   pickRetriableNotification
 } from "@/components/sensitive-access-inbox-panel-helpers";
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
+import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
 import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import { resolveSensitiveAccessInboxEntryScope } from "@/lib/sensitive-access-inbox-entry-scope";
 import {
   formatSensitiveAccessDecisionLabel,
   formatSensitiveAccessReasonLabel,
@@ -32,6 +34,7 @@ import {
 
 type SensitiveAccessInboxEntryCardProps = {
   entry: SensitiveAccessInboxEntry;
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
 };
 
 type SensitiveAccessTicketDecisionFormProps = {
@@ -82,6 +85,7 @@ function SensitiveAccessTicketDecisionForm({
     decideSensitiveAccessApprovalTicket,
     initialDecisionState
   );
+  const scope = resolveSensitiveAccessInboxEntryScope(entry);
 
   if (!isPendingWaitingTicket(entry)) {
     return null;
@@ -90,7 +94,8 @@ function SensitiveAccessTicketDecisionForm({
   return (
     <form action={formAction} className="inbox-decision-form">
       <input type="hidden" name="ticketId" value={entry.ticket.id} />
-      <input type="hidden" name="runId" value={entry.ticket.run_id ?? ""} />
+      <input type="hidden" name="runId" value={scope.runId ?? ""} />
+      <input type="hidden" name="nodeRunId" value={scope.nodeRunId ?? ""} />
       <label className="status-meta" htmlFor={`approvedBy-${entry.ticket.id}`}>
         Operator
       </label>
@@ -121,6 +126,7 @@ function SensitiveAccessNotificationRetryForm({
     initialRetryState
   );
   const notification = pickRetriableNotification(entry);
+  const scope = resolveSensitiveAccessInboxEntryScope(entry);
 
   if (!notification) {
     return null;
@@ -129,7 +135,8 @@ function SensitiveAccessNotificationRetryForm({
   return (
     <form action={formAction} className="inbox-decision-form">
       <input type="hidden" name="dispatchId" value={notification.id} />
-      <input type="hidden" name="runId" value={entry.ticket.run_id ?? ""} />
+      <input type="hidden" name="runId" value={scope.runId ?? ""} />
+      <input type="hidden" name="nodeRunId" value={scope.nodeRunId ?? ""} />
       <label className="status-meta" htmlFor={`notificationTarget-${notification.id}`}>
         Notification target
       </label>
@@ -155,7 +162,8 @@ function SensitiveAccessNotificationRetryForm({
 }
 
 export function SensitiveAccessInboxEntryCard({
-  entry
+  entry,
+  callbackWaitingAutomation
 }: SensitiveAccessInboxEntryCardProps) {
   const request = entry.request;
   const resource = entry.resource;
@@ -224,6 +232,7 @@ export function SensitiveAccessInboxEntryCard({
           <p className="entry-card-title">Callback waiting follow-up</p>
           <CallbackWaitingSummaryCard
             callbackTickets={callbackWaitingContext.callbackTickets}
+            callbackWaitingAutomation={callbackWaitingAutomation}
             lifecycle={callbackWaitingContext.lifecycle}
             nodeRunId={callbackWaitingContext.nodeRunId}
             runId={callbackWaitingContext.runId}

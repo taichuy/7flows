@@ -5,6 +5,7 @@ import {
   fetchCallbackBlockerSnapshot,
   formatCallbackBlockerDeltaSummary
 } from "@/lib/callback-blocker-follow-up";
+import { getSystemOverview } from "@/lib/get-system-overview";
 import { formatCleanupResultMessage } from "@/lib/operator-action-result-presenters";
 
 import { revalidateOperatorFollowUpPaths } from "./operator-follow-up-revalidation";
@@ -41,9 +42,11 @@ export async function cleanupRunCallbackTickets(
   }
 
   try {
+    const callbackWaitingAutomation = (await getSystemOverview()).callback_waiting_automation;
     const beforeBlockers = await fetchCallbackBlockerSnapshot({
       runId,
-      nodeRunId: nodeRunId || null
+      nodeRunId: nodeRunId || null,
+      callbackWaitingAutomation
     });
     const response = await fetch(`${getApiBaseUrl()}/api/runs/callback-tickets/cleanup`, {
       method: "POST",
@@ -82,7 +85,8 @@ export async function cleanupRunCallbackTickets(
     });
     const afterBlockers = await fetchCallbackBlockerSnapshot({
       runId,
-      nodeRunId: nodeRunId || null
+      nodeRunId: nodeRunId || null,
+      callbackWaitingAutomation
     });
 
     return {

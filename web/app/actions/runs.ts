@@ -6,6 +6,7 @@ import {
 } from "@/lib/callback-blocker-follow-up";
 import { formatManualResumeResultMessage } from "@/lib/operator-action-result-presenters";
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import { getSystemOverview } from "@/lib/get-system-overview";
 
 import { revalidateOperatorFollowUpPaths } from "./operator-follow-up-revalidation";
 import { fetchRunSnapshot } from "./run-snapshot";
@@ -36,9 +37,11 @@ export async function resumeRun(
   }
 
   try {
+    const callbackWaitingAutomation = (await getSystemOverview()).callback_waiting_automation;
     const beforeBlockers = await fetchCallbackBlockerSnapshot({
       runId,
-      nodeRunId: nodeRunId || null
+      nodeRunId: nodeRunId || null,
+      callbackWaitingAutomation
     });
     const response = await fetch(`${getApiBaseUrl()}/api/runs/${runId}/resume`, {
       method: "POST",
@@ -69,7 +72,8 @@ export async function resumeRun(
     });
     const afterBlockers = await fetchCallbackBlockerSnapshot({
       runId,
-      nodeRunId: nodeRunId || null
+      nodeRunId: nodeRunId || null,
+      callbackWaitingAutomation
     });
 
     return {

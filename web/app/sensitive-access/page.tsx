@@ -22,6 +22,7 @@ import {
   type NotificationDispatchItem,
   type SensitiveAccessRequestItem
 } from "@/lib/get-sensitive-access";
+import { getSystemOverview } from "@/lib/get-system-overview";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 
 type SensitiveAccessInboxPageProps = {
@@ -127,6 +128,7 @@ export default async function SensitiveAccessInboxPage({
     accessRequestId: filters.accessRequestId ?? undefined,
     approvalTicketId: filters.approvalTicketId ?? undefined
   });
+  const systemOverview = await getSystemOverview();
 
   return (
     <main className="page-shell workspace-page">
@@ -261,7 +263,10 @@ export default async function SensitiveAccessInboxPage({
       </section>
 
       <section className="diagnostics-layout">
-        <SensitiveAccessInboxPanel entries={snapshot.entries} />
+        <SensitiveAccessInboxPanel
+          callbackWaitingAutomation={systemOverview.callback_waiting_automation}
+          entries={snapshot.entries}
+        />
       </section>
     </main>
   );
