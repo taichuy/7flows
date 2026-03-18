@@ -4,6 +4,13 @@ type RunSnapshotInput = {
   status?: string | null;
   currentNodeId?: string | null;
   waitingReason?: string | null;
+  executionFocusReason?: string | null;
+  executionFocusNodeId?: string | null;
+  executionFocusNodeRunId?: string | null;
+  executionFocusExplanation?: {
+    primary_signal?: string | null;
+    follow_up?: string | null;
+  } | null;
 };
 
 type ApprovalDecisionSnapshotInput = {
@@ -53,16 +60,33 @@ function joinParts(parts: Array<string | null | undefined>) {
   return parts.filter((part): part is string => Boolean(part && part.trim())).join(" ");
 }
 
-function formatRunSnapshot({ status, currentNodeId, waitingReason }: RunSnapshotInput) {
+function formatRunSnapshot({
+  status,
+  currentNodeId,
+  waitingReason,
+  executionFocusNodeId,
+  executionFocusExplanation
+}: RunSnapshotInput) {
   const normalizedStatus = status?.trim() || null;
   if (!normalizedStatus) {
     return null;
   }
 
+  const executionFocusPrimarySignal =
+    executionFocusExplanation?.primary_signal?.trim() || null;
+  const executionFocusFollowUp = executionFocusExplanation?.follow_up?.trim() || null;
+  const normalizedFocusNodeId = executionFocusNodeId?.trim() || null;
+  const normalizedCurrentNodeId = currentNodeId?.trim() || null;
+
   return joinParts([
     `当前 run 状态：${normalizedStatus}。`,
-    currentNodeId ? `当前节点：${currentNodeId}。` : null,
-    waitingReason ? `waiting reason：${waitingReason}。` : null
+    normalizedCurrentNodeId ? `当前节点：${normalizedCurrentNodeId}。` : null,
+    normalizedFocusNodeId && normalizedFocusNodeId !== normalizedCurrentNodeId
+      ? `聚焦节点：${normalizedFocusNodeId}。`
+      : null,
+    executionFocusPrimarySignal ? `重点信号：${executionFocusPrimarySignal}` : null,
+    executionFocusFollowUp ? `后续动作：${executionFocusFollowUp}` : null,
+    !executionFocusPrimarySignal && waitingReason ? `waiting reason：${waitingReason}。` : null
   ]);
 }
 

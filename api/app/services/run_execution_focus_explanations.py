@@ -156,6 +156,78 @@ def _resolve_execution_blocking_explanation(
     return None
 
 
+def _resolve_execution_fallback_explanation(
+    node: RunExecutionNodeItem,
+) -> RunExecutionFocusExplanation | None:
+    reason = (node.execution_fallback_reason or "").strip()
+    normalized = reason.lower()
+
+    if reason:
+        if normalized == "execution_class_not_implemented_for_node_type":
+            return RunExecutionFocusExplanation(
+                primary_signal=(
+                    "执行降级：当前节点尚未实现请求的 execution class，已临时回退到 inline。"
+                ),
+                follow_up=(
+                    "下一步：如果这条节点需要受控执行或强隔离，"
+                    "应补齐对应 execution adapter；不要把当前 fallback 当成长期默认。"
+                ),
+            )
+
+        if normalized == "native_tool_execution_class_not_supported":
+            return RunExecutionFocusExplanation(
+                primary_signal=(
+                    "执行降级：当前 native tool 不支持请求的 execution class，"
+                    "已回退到 tool 默认执行边界。"
+                ),
+                follow_up=(
+                    "下一步：核对 tool governance 与 supported execution classes；"
+                    "如果确实需要更重隔离，应先补齐该 tool 的执行能力。"
+                ),
+            )
+
+        if normalized == "compat_adapter_execution_class_not_supported":
+            return RunExecutionFocusExplanation(
+                primary_signal=(
+                    "执行降级：当前 compat adapter 不支持请求的 execution class，"
+                    "已回退到 adapter 支持范围。"
+                ),
+                follow_up=(
+                    "下一步：核对 compat adapter 的 capability 声明；"
+                    "如果仍要求该 execution class，应先补齐 adapter 支持。"
+                ),
+            )
+
+        fallback_count_copy = ""
+        if node.execution_fallback_count > 0:
+            fallback_count_copy = f"，累计记录 {node.execution_fallback_count} 次"
+
+        return RunExecutionFocusExplanation(
+            primary_signal=(
+                "执行降级：当前节点因 "
+                f"{reason} 发生 execution fallback{fallback_count_copy}。"
+            ),
+            follow_up=(
+                "下一步：确认该 fallback 是否符合当前 execution policy；"
+                "若不符合，应回到 execution capability 与 runtime adapter 事实链继续治理。"
+            ),
+        )
+
+    if node.execution_fallback_count > 0:
+        return RunExecutionFocusExplanation(
+            primary_signal=(
+                "执行降级：当前节点记录了 "
+                f"{node.execution_fallback_count} 次 execution fallback。"
+            ),
+            follow_up=(
+                "下一步：确认 fallback 是否仍可接受；若不可接受，"
+                "应回到 execution capability 与 runtime adapter 事实链继续治理。"
+            ),
+        )
+
+    return None
+
+
 def build_run_execution_focus_explanation(
     node: RunExecutionNodeItem | None,
 ) -> RunExecutionFocusExplanation | None:
@@ -163,12 +235,13 @@ def build_run_execution_focus_explanation(
         return None
 
     blocking_explanation = _resolve_execution_blocking_explanation(node)
+    fallback_explanation = _resolve_execution_fallback_explanation(node)
     if blocking_explanation is not None:
         primary_signal = blocking_explanation.primary_signal
     elif node.waiting_reason:
         primary_signal = f"等待原因：{node.waiting_reason}"
-    elif node.execution_fallback_reason:
-        primary_signal = f"执行降级：{node.execution_fallback_reason}"
+    elif fallback_explanation is not None:
+        primary_signal = fallback_explanation.primary_signal
     elif node.execution_unavailable_count > 0:
         primary_signal = (
             "当前节点记录了 "
@@ -223,11 +296,8 @@ def build_run_execution_focus_explanation(
                 "下一步：优先沿 waiting / callback 事实链排查，"
                 "不要只盯单次 invocation 返回。"
             )
-        elif node.execution_fallback_reason:
-            follow_up = (
-                "下一步：确认 fallback 是否可接受；若不可接受，"
-                "再回到原始 execution backend / capability 做治理。"
-            )
+        elif fallback_explanation is not None:
+            follow_up = fallback_explanation.follow_up
         else:
             follow_up = None
 

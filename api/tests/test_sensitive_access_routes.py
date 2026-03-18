@@ -230,6 +230,15 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
         "status": "waiting",
         "current_node_id": "mock_tool",
         "waiting_reason": "waiting approval",
+        "execution_focus_reason": "blocking_node_run",
+        "execution_focus_node_id": "mock_tool",
+        "execution_focus_node_run_id": node_run.id,
+        "execution_focus_explanation": {
+            "primary_signal": "等待原因：waiting approval",
+            "follow_up": (
+                "下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。"
+            ),
+        },
     }
 
     stored_request = sqlite_session.get(
@@ -628,6 +637,15 @@ def test_bulk_decide_approval_tickets_allows_partial_success(
                     "status": "waiting",
                     "current_node_id": "mock_tool",
                     "waiting_reason": "waiting approval",
+                    "execution_focus_reason": "blocking_node_run",
+                    "execution_focus_node_id": "mock_tool",
+                    "execution_focus_node_run_id": node_run.id,
+                    "execution_focus_explanation": {
+                        "primary_signal": "等待原因：waiting approval",
+                        "follow_up": (
+                            "下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。"
+                        ),
+                    },
                 },
             }
         ],
@@ -747,6 +765,15 @@ def test_retry_notification_dispatch_creates_new_attempt(
         "status": "waiting",
         "current_node_id": "mock_tool",
         "waiting_reason": "waiting approval",
+        "execution_focus_reason": "blocking_node_run",
+        "execution_focus_node_id": "mock_tool",
+        "execution_focus_node_run_id": node_run.id,
+        "execution_focus_explanation": {
+            "primary_signal": "等待原因：waiting approval",
+            "follow_up": (
+                "下一步：优先处理这条 sensitive access 审批票据，再观察 waiting 节点是否恢复。"
+            ),
+        },
     }
 
     assert len(scheduled_dispatches) == 2
@@ -902,6 +929,15 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
                     "status": "waiting",
                     "current_node_id": "mock_tool",
                     "waiting_reason": "waiting approval",
+                    "execution_focus_reason": "blocking_node_run",
+                    "execution_focus_node_id": "mock_tool",
+                    "execution_focus_node_run_id": node_run.id,
+                    "execution_focus_explanation": {
+                        "primary_signal": "等待原因：waiting approval",
+                        "follow_up": (
+                            "下一步：优先处理这条 sensitive access 审批票据，再观察 waiting 节点是否恢复。"
+                        ),
+                    },
                 },
             }
         ],

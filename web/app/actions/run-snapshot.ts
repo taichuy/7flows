@@ -5,6 +5,13 @@ export type RunSnapshot = {
   currentNodeId?: string | null;
   waitingReason?: string | null;
   workflowId?: string | null;
+  executionFocusReason?: string | null;
+  executionFocusNodeId?: string | null;
+  executionFocusNodeRunId?: string | null;
+  executionFocusExplanation?: {
+    primary_signal?: string | null;
+    follow_up?: string | null;
+  } | null;
 };
 
 export type RunSnapshotWithId = {

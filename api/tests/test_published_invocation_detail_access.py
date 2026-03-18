@@ -517,6 +517,72 @@ def test_get_published_invocation_detail_maps_blocking_sensitive_access_from_exe
     assert blocking_entry["approval_ticket"]["status"] == "pending"
 
 
+def test_get_published_invocation_detail_surfaces_execution_fallback_explanation(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    workflow_id, binding, run, node_run, invocation = _create_published_invocation_fixture(
+        client,
+        sqlite_session,
+    )
+
+    callback_ticket = sqlite_session.scalar(
+        select(RunCallbackTicket).where(RunCallbackTicket.run_id == run.id)
+    )
+    if callback_ticket is not None:
+        sqlite_session.delete(callback_ticket)
+
+    run.status = "succeeded"
+    run.current_node_id = None
+    run.checkpoint_payload = {}
+    node_run.status = "succeeded"
+    node_run.phase = "main_plan"
+    node_run.waiting_reason = None
+    node_run.checkpoint_payload = {}
+    invocation.run_status = "succeeded"
+    sqlite_session.add(
+        RunEvent(
+            run_id=run.id,
+            node_run_id=node_run.id,
+            event_type="tool.execution.fallback",
+            payload={
+                "node_id": node_run.node_id,
+                "requested_execution_class": "microvm",
+                "effective_execution_class": "inline",
+                "executor_ref": "runtime:inline-fallback:microvm",
+                "reason": "execution_class_not_implemented_for_node_type",
+            },
+            created_at=datetime.now(UTC),
+        )
+    )
+    sqlite_session.commit()
+
+    detail_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/{invocation.id}"
+    )
+
+    assert detail_response.status_code == 200
+    detail_body = detail_response.json()
+    assert detail_body["blocking_node_run_id"] is None
+    assert detail_body["execution_focus_reason"] == "fallback_node"
+    assert detail_body["execution_focus_node"]["node_run_id"] == node_run.id
+    assert detail_body["execution_focus_node"]["execution_class"] == "inline"
+    assert detail_body["execution_focus_node"]["effective_execution_class"] == "inline"
+    assert (
+        detail_body["execution_focus_node"]["execution_fallback_reason"]
+        == "execution_class_not_implemented_for_node_type"
+    )
+    assert detail_body["execution_focus_explanation"] == {
+        "primary_signal": (
+            "执行降级：当前节点尚未实现请求的 execution class，已临时回退到 inline。"
+        ),
+        "follow_up": (
+            "下一步：如果这条节点需要受控执行或强隔离，应补齐对应 execution adapter；"
+            "不要把当前 fallback 当成长期默认。"
+        ),
+    }
+
+
 def test_get_published_invocation_detail_surfaces_blocking_skill_trace(
     client: TestClient,
     sqlite_session: Session,

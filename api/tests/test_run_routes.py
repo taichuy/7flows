@@ -182,6 +182,18 @@ def test_get_run_execution_view_summarizes_execution_fallback_signals(
     assert body["summary"]["execution_executor_ref_counts"] == {
         "runtime:inline-fallback:microvm": 1
     }
+    assert body["blocking_node_run_id"] is None
+    assert body["execution_focus_reason"] == "fallback_node"
+    assert body["execution_focus_node"]["node_id"] == "tool"
+    assert body["execution_focus_explanation"] == {
+        "primary_signal": (
+            "执行降级：当前节点尚未实现请求的 execution class，已临时回退到 inline。"
+        ),
+        "follow_up": (
+            "下一步：如果这条节点需要受控执行或强隔离，应补齐对应 execution adapter；"
+            "不要把当前 fallback 当成长期默认。"
+        ),
+    }
 
     node = next(item for item in body["nodes"] if item["node_id"] == "tool")
     assert node["execution_class"] == "microvm"

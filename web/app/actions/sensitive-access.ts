@@ -81,6 +81,13 @@ type OperatorRunSnapshotBody = {
   status?: string | null;
   current_node_id?: string | null;
   waiting_reason?: string | null;
+  execution_focus_reason?: string | null;
+  execution_focus_node_id?: string | null;
+  execution_focus_node_run_id?: string | null;
+  execution_focus_explanation?: {
+    primary_signal?: string | null;
+    follow_up?: string | null;
+  } | null;
 };
 
 type OperatorRunFollowUpBody = {
@@ -178,7 +185,16 @@ function toRunSnapshot(snapshot?: OperatorRunSnapshotBody | null) {
     status: snapshot.status ?? null,
     workflowId: snapshot.workflow_id ?? null,
     currentNodeId: snapshot.current_node_id ?? null,
-    waitingReason: snapshot.waiting_reason ?? null
+    waitingReason: snapshot.waiting_reason ?? null,
+    executionFocusReason: snapshot.execution_focus_reason ?? null,
+    executionFocusNodeId: snapshot.execution_focus_node_id ?? null,
+    executionFocusNodeRunId: snapshot.execution_focus_node_run_id ?? null,
+    executionFocusExplanation: snapshot.execution_focus_explanation
+      ? {
+          primary_signal: snapshot.execution_focus_explanation.primary_signal ?? null,
+          follow_up: snapshot.execution_focus_explanation.follow_up ?? null
+        }
+      : null
   };
 }
 

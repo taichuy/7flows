@@ -1,4 +1,16 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+from app.schemas.explanations import SignalFollowUpExplanation
+
+
+OperatorRunExecutionFocusReason = Literal[
+    "blocking_node_run",
+    "blocked_execution",
+    "current_node",
+    "fallback_node",
+]
 
 
 class OperatorRunSnapshot(BaseModel):
@@ -6,6 +18,10 @@ class OperatorRunSnapshot(BaseModel):
     status: str | None = None
     current_node_id: str | None = None
     waiting_reason: str | None = None
+    execution_focus_reason: OperatorRunExecutionFocusReason | None = None
+    execution_focus_node_id: str | None = None
+    execution_focus_node_run_id: str | None = None
+    execution_focus_explanation: SignalFollowUpExplanation | None = None
 
 
 class OperatorRunSnapshotSample(BaseModel):
