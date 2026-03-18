@@ -11,16 +11,21 @@ export type SensitiveAccessInboxEntryScope = {
 };
 
 export function resolveSensitiveAccessInboxEntryScope(
-  entry: Pick<SensitiveAccessInboxEntry, "ticket" | "request" | "callbackWaitingContext">
+  entry: Pick<
+    SensitiveAccessInboxEntry,
+    "ticket" | "request" | "callbackWaitingContext" | "executionContext"
+  >
 ): SensitiveAccessInboxEntryScope {
   return {
     runId:
       trimOrNull(entry.ticket.run_id) ??
       trimOrNull(entry.request?.run_id) ??
-      trimOrNull(entry.callbackWaitingContext?.runId),
+      trimOrNull(entry.callbackWaitingContext?.runId) ??
+      trimOrNull(entry.executionContext?.runId),
     nodeRunId:
       trimOrNull(entry.ticket.node_run_id) ??
       trimOrNull(entry.request?.node_run_id) ??
-      trimOrNull(entry.callbackWaitingContext?.nodeRunId)
+      trimOrNull(entry.callbackWaitingContext?.nodeRunId) ??
+      trimOrNull(entry.executionContext?.entryNode?.node_run_id)
   };
 }

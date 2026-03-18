@@ -4,6 +4,10 @@ import {
   buildSensitiveAccessInboxEntryCallbackContext,
   type SensitiveAccessInboxCallbackContext
 } from "@/lib/sensitive-access-inbox-callback-context";
+import {
+  buildSensitiveAccessInboxEntryExecutionContext,
+  type SensitiveAccessInboxExecutionContext
+} from "@/lib/sensitive-access-inbox-execution-context";
 
 export type SensitiveResourceItem = {
   id: string;
@@ -97,6 +101,7 @@ export type SensitiveAccessInboxEntry = {
   resource: SensitiveResourceItem | null;
   notifications: NotificationDispatchItem[];
   callbackWaitingContext?: SensitiveAccessInboxCallbackContext | null;
+  executionContext?: SensitiveAccessInboxExecutionContext | null;
 };
 
 export type SensitiveAccessTimelineEntry = {
@@ -253,6 +258,10 @@ export async function getSensitiveAccessInboxSnapshot({
     .map((entry) => ({
       ...entry,
       callbackWaitingContext: buildSensitiveAccessInboxEntryCallbackContext(
+        entry,
+        executionViewsByRunId.get(entry.ticket.run_id ?? entry.request?.run_id ?? "") ?? null
+      ),
+      executionContext: buildSensitiveAccessInboxEntryExecutionContext(
         entry,
         executionViewsByRunId.get(entry.ticket.run_id ?? entry.request?.run_id ?? "") ?? null
       )

@@ -24,8 +24,10 @@ import {
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
 import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
+import { formatExecutionFocusReasonLabel } from "@/lib/run-execution-focus-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
 import { resolveSensitiveAccessInboxEntryScope } from "@/lib/sensitive-access-inbox-entry-scope";
+import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 import {
   formatSensitiveAccessDecisionLabel,
   formatSensitiveAccessReasonLabel,
@@ -169,6 +171,13 @@ export function SensitiveAccessInboxEntryCard({
   const resource = entry.resource;
   const latestNotification = pickLatestNotification(entry);
   const callbackWaitingContext = entry.callbackWaitingContext;
+  const executionContext = entry.executionContext;
+  const focusInboxHref = executionContext
+    ? buildSensitiveAccessInboxHref({
+        runId: executionContext.runId,
+        nodeRunId: executionContext.focusNode.node_run_id
+      })
+    : null;
 
   return (
     <article className="activity-row">
@@ -224,6 +233,62 @@ export function SensitiveAccessInboxEntryCard({
         <div className="entry-card compact-card">
           <p className="entry-card-title">Policy summary</p>
           <p className="section-copy entry-copy">{getSensitiveAccessPolicySummary(request)}</p>
+        </div>
+      ) : null}
+
+      {executionContext ? (
+        <div className="entry-card compact-card">
+          <p className="entry-card-title">Execution focus</p>
+          <div className="tool-badge-row">
+            <span className="event-chip">
+              {formatExecutionFocusReasonLabel(executionContext.focusReason)}
+            </span>
+            <span className={`event-chip`}>{executionContext.focusNode.status}</span>
+            <span className="event-chip">node run {executionContext.focusNode.node_run_id}</span>
+            {executionContext.focusNode.execution_blocked_count > 0 ? (
+              <span className="event-chip">
+                blocked {executionContext.focusNode.execution_blocked_count}
+              </span>
+            ) : null}
+            {executionContext.focusNode.execution_unavailable_count > 0 ? (
+              <span className="event-chip">
+                unavailable {executionContext.focusNode.execution_unavailable_count}
+              </span>
+            ) : null}
+          </div>
+          <p className="section-copy entry-copy">
+            {executionContext.focusMatchesEntry
+              ? "当前票据已经命中后端选出的 canonical blocker；优先按本条目上的 approval / callback follow-up 恢复即可。"
+              : executionContext.entryNode
+                ? `当前票据关联节点 ${executionContext.entryNode.node_name}，但当前 run 的 canonical blocker 已切到 ${executionContext.focusNode.node_name}；建议先跳到该 focus 节点统一排障。`
+                : `当前票据还没有稳定映射到具体 node run，但当前 run 的 canonical blocker 已定位到 ${executionContext.focusNode.node_name}。`}
+          </p>
+          <p className="binding-meta">
+            {executionContext.focusNode.node_type} · phase {executionContext.focusNode.phase ?? "n/a"}
+            {` · exec ${executionContext.focusNode.execution_class}`}
+            {executionContext.focusNode.effective_execution_class
+              ? ` · effective ${executionContext.focusNode.effective_execution_class}`
+              : ""}
+          </p>
+          {executionContext.focusNode.execution_blocking_reason ? (
+            <p className="section-copy entry-copy">
+              Execution blocked: {executionContext.focusNode.execution_blocking_reason}
+            </p>
+          ) : executionContext.focusNode.waiting_reason ? (
+            <p className="section-copy entry-copy">
+              Waiting reason: {executionContext.focusNode.waiting_reason}
+            </p>
+          ) : null}
+          <div className="tool-badge-row">
+            <Link className="event-chip inbox-filter-link" href={`/runs/${executionContext.runId}`}>
+              open run
+            </Link>
+            {focusInboxHref ? (
+              <Link className="event-chip inbox-filter-link" href={focusInboxHref}>
+                slice to focus node
+              </Link>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

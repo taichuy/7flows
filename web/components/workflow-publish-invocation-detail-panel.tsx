@@ -12,6 +12,10 @@ import {
   buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationInboxHref
 } from "@/lib/published-invocation-presenters";
+import {
+  formatExecutionFocusReasonLabel,
+  formatMetricSummary
+} from "@/lib/run-execution-focus-presenters";
 import { formatDurationMs, formatKeyList, formatTimestamp } from "@/lib/runtime-presenters";
 
 type WorkflowPublishInvocationDetailPanelProps = {
@@ -23,27 +27,6 @@ type WorkflowPublishInvocationDetailPanelProps = {
 
 function formatJsonPreview(value: unknown): string {
   return JSON.stringify(value ?? null, null, 2);
-}
-
-function formatMetricSummary(metrics: Record<string, number>) {
-  return Object.entries(metrics)
-    .map(([key, count]) => `${key} ${count}`)
-    .join(" · ");
-}
-
-function formatExecutionFocusReasonLabel(reason: string | null | undefined) {
-  switch (reason) {
-    case "blocking_node_run":
-      return "blocking node run";
-    case "blocked_execution":
-      return "blocked execution";
-    case "current_node":
-      return "current node";
-    case "fallback_node":
-      return "execution fallback";
-    default:
-      return "execution focus";
-  }
 }
 
 export function WorkflowPublishInvocationDetailPanel({

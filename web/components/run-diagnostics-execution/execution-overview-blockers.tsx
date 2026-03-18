@@ -4,28 +4,11 @@ import type { RunExecutionNodeItem, RunExecutionView } from "@/lib/get-run-views
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
+import {
+  formatExecutionFocusReasonLabel,
+  formatMetricSummary
+} from "@/lib/run-execution-focus-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
-
-function formatMetricSummary(metrics: Record<string, number>) {
-  return Object.entries(metrics)
-    .map(([key, count]) => `${key} ${count}`)
-    .join(" · ");
-}
-
-function formatExecutionFocusReasonLabel(reason: string | null | undefined) {
-  switch (reason) {
-    case "blocking_node_run":
-      return "blocking node run";
-    case "blocked_execution":
-      return "blocked execution";
-    case "current_node":
-      return "current node";
-    case "fallback_node":
-      return "execution fallback";
-    default:
-      return "execution focus";
-  }
-}
 
 function countPendingApprovals(node: RunExecutionNodeItem): number {
   return node.sensitive_access_entries.filter((entry) => entry.approval_ticket?.status === "pending")
