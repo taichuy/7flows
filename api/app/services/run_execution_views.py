@@ -8,8 +8,11 @@ from sqlalchemy.orm import Session
 
 from app.models.run import RunCallbackTicket
 from app.schemas.run_views import (
+    RunExecutionFocusReason,
     RunExecutionNodeItem,
     RunExecutionSummary,
+    RunExecutionSkillTrace,
+    RunExecutionSkillTraceNodeItem,
     RunExecutionView,
     SkillReferenceLoadItem,
     SkillReferenceLoadReferenceItem,
@@ -96,6 +99,18 @@ def build_run_execution_view(
     assistant_call_count = sum(1 for call in artifacts.ai_calls if call.assistant)
     execution_signals = summarize_execution_signals(artifacts)
     skill_reference_loads = summarize_skill_reference_loads(artifacts)
+    nodes = build_execution_nodes(
+        artifacts,
+        callback_tickets,
+        sensitive_access_timeline.by_node_run,
+        skill_reference_loads.by_node_run,
+    )
+    blocking_node_run_id = resolve_blocking_node_run_id(nodes)
+    execution_focus_node, execution_focus_reason = resolve_execution_focus_node(
+        execution_nodes=nodes,
+        blocking_node_run_id=blocking_node_run_id,
+        current_node_id=artifacts.run.current_node_id,
+    )
     return RunExecutionView(
         run_id=artifacts.run.id,
         workflow_id=artifacts.run.workflow_id,
@@ -150,12 +165,17 @@ def build_run_execution_view(
             ),
             callback_waiting=serialize_run_callback_waiting_summary(artifacts.node_runs),
         ),
-        nodes=build_execution_nodes(
-            artifacts,
-            callback_tickets,
-            sensitive_access_timeline.by_node_run,
-            skill_reference_loads.by_node_run,
+        blocking_node_run_id=blocking_node_run_id,
+        execution_focus_reason=execution_focus_reason,
+        execution_focus_node=execution_focus_node,
+        skill_trace=build_run_execution_skill_trace(
+            node_runs=artifacts.node_runs,
+            summary=skill_reference_loads,
+            execution_focus_node_run_id=(
+                execution_focus_node.node_run_id if execution_focus_node is not None else None
+            ),
         ),
+        nodes=nodes,
     )
 
 
@@ -285,6 +305,176 @@ def _build_execution_node_item(
         ],
         scheduled_resume_requeue_source=scheduled_resume[
             "scheduled_resume_requeue_source"
+        ],
+    )
+
+
+def _count_pending_approvals(node: RunExecutionNodeItem) -> int:
+    return sum(
+        1
+        for entry in node.sensitive_access_entries
+        if entry.approval_ticket is not None and entry.approval_ticket.status == "pending"
+    )
+
+
+def _count_pending_tickets(node: RunExecutionNodeItem) -> int:
+    return sum(1 for ticket in node.callback_tickets if ticket.status == "pending")
+
+
+def _has_waiting_blocker(node: RunExecutionNodeItem) -> bool:
+    if _count_pending_approvals(node) > 0 or _count_pending_tickets(node) > 0:
+        return True
+    if node.callback_waiting_lifecycle is not None and not node.callback_waiting_lifecycle.terminated:
+        return True
+    if node.waiting_reason and (
+        node.callback_tickets or node.sensitive_access_entries or node.status.startswith("waiting")
+    ):
+        return True
+    return False
+
+
+def _blocker_node_score(node: RunExecutionNodeItem) -> tuple[int, int, int, int]:
+    lifecycle = node.callback_waiting_lifecycle
+    pending_approvals = _count_pending_approvals(node)
+    pending_tickets = _count_pending_tickets(node)
+    score = pending_approvals * 100
+    score += pending_tickets * 80
+    score += (lifecycle.expired_ticket_count if lifecycle is not None else 0) * 20
+    score += (lifecycle.late_callback_count if lifecycle is not None else 0) * 15
+    score += len(node.callback_tickets) * 5
+    score += len(node.sensitive_access_entries) * 3
+    if node.waiting_reason:
+        score += 10
+    if node.status.startswith("waiting"):
+        score += 10
+    if lifecycle is not None and lifecycle.terminated:
+        score -= 25
+    return (
+        score,
+        pending_approvals,
+        pending_tickets,
+        len(node.callback_tickets) + len(node.sensitive_access_entries),
+    )
+
+
+def resolve_blocking_node_run_id(execution_nodes: list[RunExecutionNodeItem]) -> str | None:
+    blocker_nodes = [node for node in execution_nodes if _has_waiting_blocker(node)]
+    if not blocker_nodes:
+        return None
+
+    blocker_nodes.sort(key=_blocker_node_score, reverse=True)
+    return blocker_nodes[0].node_run_id
+
+
+def resolve_execution_focus_node(
+    *,
+    execution_nodes: list[RunExecutionNodeItem],
+    blocking_node_run_id: str | None,
+    current_node_id: str | None,
+) -> tuple[RunExecutionNodeItem | None, RunExecutionFocusReason | None]:
+    if blocking_node_run_id:
+        for node in execution_nodes:
+            if node.node_run_id == blocking_node_run_id:
+                return node, "blocking_node_run"
+
+    for node in reversed(execution_nodes):
+        if node.execution_blocking_reason or node.execution_blocked_count > 0:
+            return node, "blocked_execution"
+        if node.execution_unavailable_count > 0:
+            return node, "blocked_execution"
+
+    if current_node_id:
+        for node in reversed(execution_nodes):
+            if node.node_id == current_node_id:
+                return node, "current_node"
+
+    for node in reversed(execution_nodes):
+        if node.execution_fallback_reason or node.execution_fallback_count > 0:
+            return node, "fallback_node"
+
+    return None, None
+
+
+def _count_skill_references(loads: list[SkillReferenceLoadItem]) -> int:
+    return sum(len(load.references) for load in loads)
+
+
+def _summarize_skill_reference_sources(
+    loads: list[SkillReferenceLoadItem],
+) -> dict[str, int]:
+    source_counts: Counter[str] = Counter()
+    for load in loads:
+        for reference in load.references:
+            source = reference.load_source or "unknown"
+            source_counts[source] += 1
+    return dict(sorted(source_counts.items()))
+
+
+def _summarize_skill_reference_phases(loads: list[SkillReferenceLoadItem]) -> dict[str, int]:
+    phase_counts: Counter[str] = Counter()
+    for load in loads:
+        if load.references:
+            phase_counts[load.phase] += len(load.references)
+    return dict(sorted(phase_counts.items()))
+
+
+def _serialize_run_execution_skill_trace_node(
+    *,
+    node_run_id: str,
+    node_run,
+    loads: list[SkillReferenceLoadItem],
+) -> RunExecutionSkillTraceNodeItem:
+    return RunExecutionSkillTraceNodeItem(
+        node_run_id=node_run_id,
+        node_id=(node_run.node_id if node_run is not None else None),
+        node_name=(node_run.node_name if node_run is not None else None),
+        reference_count=_count_skill_references(loads),
+        loads=list(loads),
+    )
+
+
+def build_run_execution_skill_trace(
+    *,
+    node_runs: list,
+    summary: RunSkillReferenceLoadSummary,
+    execution_focus_node_run_id: str | None,
+) -> RunExecutionSkillTrace | None:
+    if summary.reference_count <= 0:
+        return None
+
+    node_run_lookup = {node_run.id: node_run for node_run in node_runs}
+    if (
+        execution_focus_node_run_id
+        and execution_focus_node_run_id in summary.by_node_run
+    ):
+        scoped_loads = summary.by_node_run[execution_focus_node_run_id]
+        return RunExecutionSkillTrace(
+            scope="execution_focus_node",
+            reference_count=_count_skill_references(scoped_loads),
+            phase_counts=_summarize_skill_reference_phases(scoped_loads),
+            source_counts=_summarize_skill_reference_sources(scoped_loads),
+            nodes=[
+                _serialize_run_execution_skill_trace_node(
+                    node_run_id=execution_focus_node_run_id,
+                    node_run=node_run_lookup.get(execution_focus_node_run_id),
+                    loads=scoped_loads,
+                )
+            ],
+        )
+
+    node_ids = [node_run.id for node_run in node_runs if node_run.id in summary.by_node_run]
+    return RunExecutionSkillTrace(
+        scope="run",
+        reference_count=summary.reference_count,
+        phase_counts=summary.phase_counts,
+        source_counts=summary.source_counts,
+        nodes=[
+            _serialize_run_execution_skill_trace_node(
+                node_run_id=node_run_id,
+                node_run=node_run_lookup.get(node_run_id),
+                loads=summary.by_node_run[node_run_id],
+            )
+            for node_run_id in node_ids
         ],
     )
 

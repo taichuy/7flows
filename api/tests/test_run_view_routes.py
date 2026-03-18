@@ -275,6 +275,10 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
         "scheduled_resume_source_counts": {"callback_ticket_monitor": 1},
         "termination_reason_counts": {},
     }
+    assert body["blocking_node_run_id"] == node_run.id
+    assert body["execution_focus_reason"] == "blocking_node_run"
+    assert body["execution_focus_node"]["node_run_id"] == node_run.id
+    assert body["skill_trace"] is None
     assert len(body["nodes"]) == 1
     node = body["nodes"][0]
     assert node["node_run_id"] == node_run.id
@@ -504,6 +508,67 @@ def test_get_run_execution_view_surfaces_skill_reference_loads(
     assert body["summary"]["skill_reference_source_counts"] == {
         "retrieval_query_match": 1,
         "skill_binding": 1,
+    }
+    assert body["blocking_node_run_id"] is None
+    assert body["execution_focus_reason"] is None
+    assert body["execution_focus_node"] is None
+    assert body["skill_trace"] == {
+        "scope": "run",
+        "reference_count": 2,
+        "phase_counts": {"main_plan": 2},
+        "source_counts": {
+            "retrieval_query_match": 1,
+            "skill_binding": 1,
+        },
+        "nodes": [
+            {
+                "node_run_id": "node-run-skill-agent",
+                "node_id": "agent_skill",
+                "node_name": "Agent Skill",
+                "reference_count": 2,
+                "loads": [
+                    {
+                        "phase": "main_plan",
+                        "references": [
+                            {
+                                "skill_id": "skill-research-brief",
+                                "skill_name": "Research Brief",
+                                "reference_id": "ref-handoff",
+                                "reference_name": "Operator Handoff",
+                                "load_source": "skill_binding",
+                                "fetch_reason": None,
+                                "fetch_request_index": None,
+                                "fetch_request_total": None,
+                                "retrieval_http_path": "/api/skills/skill-research-brief/references/ref-handoff?workspace_id=default",
+                                "retrieval_mcp_method": "skills.get_reference",
+                                "retrieval_mcp_params": {
+                                    "skill_id": "skill-research-brief",
+                                    "reference_id": "ref-handoff",
+                                    "workspace_id": "default",
+                                },
+                            },
+                            {
+                                "skill_id": "skill-research-brief",
+                                "skill_name": "Research Brief",
+                                "reference_id": "ref-budget",
+                                "reference_name": "Budget Control",
+                                "load_source": "retrieval_query_match",
+                                "fetch_reason": "Matched query terms: budget, guardrails",
+                                "fetch_request_index": None,
+                                "fetch_request_total": None,
+                                "retrieval_http_path": "/api/skills/skill-research-brief/references/ref-budget?workspace_id=default",
+                                "retrieval_mcp_method": "skills.get_reference",
+                                "retrieval_mcp_params": {
+                                    "skill_id": "skill-research-brief",
+                                    "reference_id": "ref-budget",
+                                    "workspace_id": "default",
+                                },
+                            },
+                        ],
+                    }
+                ],
+            }
+        ],
     }
     assert len(body["nodes"]) == 1
     node = body["nodes"][0]

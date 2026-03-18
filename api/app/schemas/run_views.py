@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -116,6 +117,30 @@ class SkillReferenceLoadItem(BaseModel):
     references: list[SkillReferenceLoadReferenceItem] = Field(default_factory=list)
 
 
+RunExecutionFocusReason = Literal[
+    "blocking_node_run",
+    "blocked_execution",
+    "current_node",
+    "fallback_node",
+]
+
+
+class RunExecutionSkillTraceNodeItem(BaseModel):
+    node_run_id: str
+    node_id: str | None = None
+    node_name: str | None = None
+    reference_count: int = 0
+    loads: list[SkillReferenceLoadItem] = Field(default_factory=list)
+
+
+class RunExecutionSkillTrace(BaseModel):
+    scope: Literal["execution_focus_node", "run"]
+    reference_count: int = 0
+    phase_counts: dict[str, int] = Field(default_factory=dict)
+    source_counts: dict[str, int] = Field(default_factory=dict)
+    nodes: list[RunExecutionSkillTraceNodeItem] = Field(default_factory=list)
+
+
 class RunExecutionNodeItem(BaseModel):
     node_run_id: str
     node_id: str
@@ -179,6 +204,10 @@ class RunExecutionView(BaseModel):
     compiled_blueprint_id: str | None = None
     status: str
     summary: RunExecutionSummary = Field(default_factory=RunExecutionSummary)
+    blocking_node_run_id: str | None = None
+    execution_focus_reason: RunExecutionFocusReason | None = None
+    execution_focus_node: RunExecutionNodeItem | None = None
+    skill_trace: RunExecutionSkillTrace | None = None
     nodes: list[RunExecutionNodeItem] = Field(default_factory=list)
 
 

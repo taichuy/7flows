@@ -89,6 +89,28 @@ export type SkillReferenceLoadItem = {
   references: SkillReferenceLoadReferenceItem[];
 };
 
+export type RunExecutionFocusReason =
+  | "blocking_node_run"
+  | "blocked_execution"
+  | "current_node"
+  | "fallback_node";
+
+export type RunExecutionSkillTraceNodeItem = {
+  node_run_id: string;
+  node_id?: string | null;
+  node_name?: string | null;
+  reference_count: number;
+  loads: SkillReferenceLoadItem[];
+};
+
+export type RunExecutionSkillTrace = {
+  scope: "execution_focus_node" | "run";
+  reference_count: number;
+  phase_counts: Record<string, number>;
+  source_counts: Record<string, number>;
+  nodes: RunExecutionSkillTraceNodeItem[];
+};
+
 export type CallbackWaitingLifecycleSummary = {
   wait_cycle_count: number;
   issued_ticket_count: number;
@@ -218,6 +240,10 @@ export type RunExecutionView = {
     sensitive_access_notification_status_counts: Record<string, number>;
     callback_waiting: RunCallbackWaitingSummary;
   };
+  blocking_node_run_id?: string | null;
+  execution_focus_reason?: RunExecutionFocusReason | null;
+  execution_focus_node?: RunExecutionNodeItem | null;
+  skill_trace?: RunExecutionSkillTrace | null;
   nodes: RunExecutionNodeItem[];
 };
 

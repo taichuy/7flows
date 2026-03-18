@@ -29,7 +29,10 @@ from app.services.published_invocation_detail_access import (
 )
 from app.services.published_invocations import PublishedInvocationService
 from app.services.run_views import RunViewService
-from app.services.run_execution_views import summarize_skill_reference_loads
+from app.services.run_execution_views import (
+    resolve_execution_focus_node,
+    summarize_skill_reference_loads,
+)
 from app.services.runtime_records import ExecutionArtifacts
 from app.services.sensitive_access_presenters import (
     serialize_sensitive_access_timeline_entry,
@@ -55,37 +58,6 @@ def _resolve_blocking_node_run_id(
         if ticket.node_run_id:
             return ticket.node_run_id
     return None
-
-
-def _resolve_execution_focus_node(
-    *,
-    execution_nodes,
-    blocking_node_run_id: str | None,
-    current_node_id: str | None,
-):
-    if blocking_node_run_id:
-        for node in execution_nodes:
-            if node.node_run_id == blocking_node_run_id:
-                return node, "blocking_node_run"
-
-    for node in reversed(execution_nodes):
-        if node.execution_blocking_reason or node.execution_blocked_count > 0:
-            return node, "blocked_execution"
-        if node.execution_unavailable_count > 0:
-            return node, "blocked_execution"
-
-    if current_node_id:
-        for node in reversed(execution_nodes):
-            if node.node_id == current_node_id:
-                return node, "current_node"
-
-    for node in reversed(execution_nodes):
-        if node.execution_fallback_reason or node.execution_fallback_count > 0:
-            return node, "fallback_node"
-
-    return None, None
-
-
 def _count_skill_references(loads) -> int:
     return sum(len(load.references) for load in loads)
 
@@ -308,7 +280,10 @@ def get_published_endpoint_invocation_detail(
             )
             execution_view = run_view_service.get_execution_view(db, record.run_id)
             if execution_view is not None:
-                execution_focus_node, execution_focus_reason = _resolve_execution_focus_node(
+                blocking_node_run_id = (
+                    blocking_node_run_id or execution_view.blocking_node_run_id
+                )
+                execution_focus_node, execution_focus_reason = resolve_execution_focus_node(
                     execution_nodes=execution_view.nodes,
                     blocking_node_run_id=blocking_node_run_id,
                     current_node_id=run.current_node_id,
