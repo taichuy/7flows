@@ -39,6 +39,8 @@ type CallbackWaitingExplanationInput = {
   scheduledResumeDelaySeconds?: number | null;
   scheduledResumeSource?: string | null;
   scheduledWaitingStatus?: string | null;
+  scheduledResumeScheduledAt?: string | null;
+  scheduledResumeDueAt?: string | null;
 };
 
 function hasScheduledResumeDelay(
@@ -80,6 +82,12 @@ export type CallbackWaitingRecommendedAction = {
   label: string;
   detail: string;
   ctaLabel?: string;
+};
+
+type ScheduledResumeTimingState = {
+  scheduledAtLabel: string | null;
+  dueAtLabel: string | null;
+  isOverdue: boolean;
 };
 
 function countPendingApprovals(entries: SensitiveAccessTimelineEntry[]): number {
@@ -130,20 +138,87 @@ function buildDetailRows(
 export function formatScheduledResumeLabel({
   scheduledResumeDelaySeconds,
   scheduledResumeSource,
-  scheduledWaitingStatus
+  scheduledWaitingStatus,
+  scheduledResumeScheduledAt,
+  scheduledResumeDueAt
 }: Pick<
   CallbackWaitingExplanationInput,
-  "scheduledResumeDelaySeconds" | "scheduledResumeSource" | "scheduledWaitingStatus"
+  | "scheduledResumeDelaySeconds"
+  | "scheduledResumeSource"
+  | "scheduledWaitingStatus"
+  | "scheduledResumeScheduledAt"
+  | "scheduledResumeDueAt"
 >): string | null {
-  if (!hasScheduledResumeDelay(scheduledResumeDelaySeconds)) {
+  const timingState = resolveScheduledResumeTiming({
+    scheduledResumeDelaySeconds,
+    scheduledResumeScheduledAt,
+    scheduledResumeDueAt
+  });
+
+  if (!hasScheduledResumeDelay(scheduledResumeDelaySeconds) && !timingState) {
     return null;
   }
 
   return formatOptionalParts([
-    `scheduled resume ${scheduledResumeDelaySeconds}s`,
+    hasScheduledResumeDelay(scheduledResumeDelaySeconds)
+      ? `scheduled resume ${scheduledResumeDelaySeconds}s`
+      : "scheduled resume",
     scheduledResumeSource,
-    scheduledWaitingStatus
+    scheduledWaitingStatus,
+    timingState?.isOverdue ? "overdue" : null,
+    timingState?.dueAtLabel ? `due ${timingState.dueAtLabel}` : null
   ]);
+}
+
+export function formatScheduledResumeTimingLabel({
+  scheduledResumeDelaySeconds,
+  scheduledResumeScheduledAt,
+  scheduledResumeDueAt
+}: Pick<
+  CallbackWaitingExplanationInput,
+  "scheduledResumeDelaySeconds" | "scheduledResumeScheduledAt" | "scheduledResumeDueAt"
+>): string | null {
+  const timingState = resolveScheduledResumeTiming({
+    scheduledResumeDelaySeconds,
+    scheduledResumeScheduledAt,
+    scheduledResumeDueAt
+  });
+  if (!timingState) {
+    return null;
+  }
+
+  return formatOptionalParts([
+    timingState.scheduledAtLabel ? `scheduled ${timingState.scheduledAtLabel}` : null,
+    timingState.dueAtLabel ? `due ${timingState.dueAtLabel}` : null,
+    timingState.isOverdue ? "overdue" : null
+  ]);
+}
+
+function resolveScheduledResumeTiming({
+  scheduledResumeDelaySeconds,
+  scheduledResumeScheduledAt,
+  scheduledResumeDueAt
+}: Pick<
+  CallbackWaitingExplanationInput,
+  "scheduledResumeDelaySeconds" | "scheduledResumeScheduledAt" | "scheduledResumeDueAt"
+>): ScheduledResumeTimingState | null {
+  if (
+    !hasScheduledResumeDelay(scheduledResumeDelaySeconds) &&
+    !scheduledResumeScheduledAt &&
+    !scheduledResumeDueAt
+  ) {
+    return null;
+  }
+
+  const scheduledAtLabel = formatOptionalTimestamp(scheduledResumeScheduledAt);
+  const dueAtLabel = formatOptionalTimestamp(scheduledResumeDueAt);
+  const dueAtEpoch = getEpoch(scheduledResumeDueAt);
+
+  return {
+    scheduledAtLabel,
+    dueAtLabel,
+    isOverdue: dueAtEpoch > 0 && dueAtEpoch <= Date.now()
+  };
 }
 
 export function formatCallbackLifecycleLabel(
@@ -347,7 +422,7 @@ export function formatCallbackWaitingSensitiveAccessSummary(
 
 function formatOptionalTimestamp(value?: string | null): string | null {
   const formatted = formatTimestamp(value);
-  return formatted === "n/a" ? null : formatted;
+  return formatted.toLowerCase() === "n/a" ? null : formatted;
 }
 
 function formatCallbackTicketToolSummary(ticket: RunCallbackTicketItem): string {
@@ -469,10 +544,16 @@ export function listCallbackTicketDetailRows(
 export function getCallbackWaitingHeadline({
   lifecycle,
   callbackTickets = [],
-  sensitiveAccessEntries = []
+  sensitiveAccessEntries = [],
+  scheduledResumeDelaySeconds,
+  scheduledResumeDueAt
 }: CallbackWaitingExplanationInput): string | null {
   const pendingApprovalCount = countPendingApprovals(sensitiveAccessEntries);
   const pendingTicketCount = callbackTickets.filter((ticket) => ticket.status === "pending").length;
+  const scheduledResumeTiming = resolveScheduledResumeTiming({
+    scheduledResumeDelaySeconds,
+    scheduledResumeDueAt
+  });
 
   if (pendingApprovalCount > 0 && pendingTicketCount > 0) {
     return `${formatCountLabel(pendingApprovalCount, "approval")} and ${formatCountLabel(pendingTicketCount, "callback ticket")} are both blocking resume.`;
@@ -492,6 +573,12 @@ export function getCallbackWaitingHeadline({
   if ((lifecycle?.late_callback_count ?? 0) > 0) {
     return `${formatCountLabel(lifecycle?.late_callback_count ?? 0, "late callback")} was recorded during resume handling.`;
   }
+  if (scheduledResumeTiming?.isOverdue) {
+    return formatOptionalParts([
+      "Scheduled resume is overdue",
+      scheduledResumeTiming.dueAtLabel ? `due ${scheduledResumeTiming.dueAtLabel}` : null
+    ]);
+  }
   if (callbackTickets.length > 0 || lifecycle) {
     return "Callback waiting is tracked for this run.";
   }
@@ -504,12 +591,19 @@ export function listCallbackWaitingOperatorStatuses({
   sensitiveAccessEntries = [],
   scheduledResumeDelaySeconds,
   scheduledResumeSource,
-  scheduledWaitingStatus
+  scheduledWaitingStatus,
+  scheduledResumeScheduledAt,
+  scheduledResumeDueAt
 }: CallbackWaitingExplanationInput): CallbackWaitingOperatorStatus[] {
   const statuses: CallbackWaitingOperatorStatus[] = [];
   const pendingApprovalCount = countPendingApprovals(sensitiveAccessEntries);
   const pendingTicketCount = callbackTickets.filter((ticket) => ticket.status === "pending").length;
   const lateCallbackCount = lifecycle?.late_callback_count ?? 0;
+  const scheduledResumeTiming = resolveScheduledResumeTiming({
+    scheduledResumeDelaySeconds,
+    scheduledResumeScheduledAt,
+    scheduledResumeDueAt
+  });
 
   if (pendingApprovalCount > 0) {
     statuses.push({
@@ -527,16 +621,32 @@ export function listCallbackWaitingOperatorStatuses({
     });
   }
 
-  if (hasScheduledResumeDelay(scheduledResumeDelaySeconds)) {
+  if (hasScheduledResumeDelay(scheduledResumeDelaySeconds) || scheduledResumeTiming) {
     statuses.push({
       kind: "scheduled_resume_pending",
-      label: "scheduled resume queued",
+      label: scheduledResumeTiming?.isOverdue
+        ? "scheduled resume overdue"
+        : "scheduled resume queued",
       detail:
         formatOptionalParts([
-          `runtime will retry in ${scheduledResumeDelaySeconds}s`,
+          scheduledResumeTiming?.isOverdue
+            ? "scheduled resume passed its due time"
+            : hasScheduledResumeDelay(scheduledResumeDelaySeconds)
+              ? `runtime will retry in ${scheduledResumeDelaySeconds}s`
+              : "runtime already queued a scheduled resume",
           scheduledResumeSource,
-          scheduledWaitingStatus
-        ]) ?? `runtime will retry in ${scheduledResumeDelaySeconds}s`
+          scheduledWaitingStatus,
+          formatScheduledResumeTimingLabel({
+            scheduledResumeDelaySeconds,
+            scheduledResumeScheduledAt,
+            scheduledResumeDueAt
+          })
+        ]) ??
+        (scheduledResumeTiming?.isOverdue
+          ? "scheduled resume passed its due time"
+          : hasScheduledResumeDelay(scheduledResumeDelaySeconds)
+            ? `runtime will retry in ${scheduledResumeDelaySeconds}s`
+            : "runtime already queued a scheduled resume")
     });
   }
 
@@ -580,7 +690,9 @@ export function listCallbackWaitingBlockerRows(
     sensitiveAccessEntries = [],
     scheduledResumeDelaySeconds,
     scheduledResumeSource,
-    scheduledWaitingStatus
+    scheduledWaitingStatus,
+    scheduledResumeScheduledAt,
+    scheduledResumeDueAt
   }: CallbackWaitingExplanationInput,
   options?: {
     includeRecommendedActionRow?: boolean;
@@ -598,7 +710,9 @@ export function listCallbackWaitingBlockerRows(
     sensitiveAccessEntries,
     scheduledResumeDelaySeconds,
     scheduledResumeSource,
-    scheduledWaitingStatus
+    scheduledWaitingStatus,
+    scheduledResumeScheduledAt,
+    scheduledResumeDueAt
   });
   const recommendedAction = getCallbackWaitingRecommendedAction({
     lifecycle,
@@ -606,7 +720,9 @@ export function listCallbackWaitingBlockerRows(
     sensitiveAccessEntries,
     scheduledResumeDelaySeconds,
     scheduledResumeSource,
-    scheduledWaitingStatus
+    scheduledWaitingStatus,
+    scheduledResumeScheduledAt,
+    scheduledResumeDueAt
   });
 
   return buildDetailRows([
@@ -635,7 +751,17 @@ export function listCallbackWaitingBlockerRows(
       value: formatScheduledResumeLabel({
         scheduledResumeDelaySeconds,
         scheduledResumeSource,
-        scheduledWaitingStatus
+        scheduledWaitingStatus,
+        scheduledResumeScheduledAt,
+        scheduledResumeDueAt
+      })
+    },
+    {
+      label: "Resume timing",
+      value: formatScheduledResumeTimingLabel({
+        scheduledResumeDelaySeconds,
+        scheduledResumeScheduledAt,
+        scheduledResumeDueAt
       })
     },
     {
@@ -689,9 +815,14 @@ export function listCallbackWaitingChips({
   lifecycle,
   callbackTickets = [],
   sensitiveAccessEntries = [],
-  scheduledResumeDelaySeconds
+  scheduledResumeDelaySeconds,
+  scheduledResumeDueAt
 }: CallbackWaitingExplanationInput): string[] {
   const chips: string[] = [];
+  const scheduledResumeTiming = resolveScheduledResumeTiming({
+    scheduledResumeDelaySeconds,
+    scheduledResumeDueAt
+  });
 
   if (callbackTickets.length > 0) {
     chips.push(`tickets ${callbackTickets.length}`);
@@ -716,12 +847,20 @@ export function listCallbackWaitingChips({
     }
     if (typeof lifecycle.last_resume_delay_seconds === "number") {
       chips.push(`resume ${lifecycle.last_resume_delay_seconds}s`);
-    } else if (hasScheduledResumeDelay(scheduledResumeDelaySeconds)) {
+    }
+    if (scheduledResumeTiming?.isOverdue) {
+      chips.push("resume overdue");
+    } else if (
+      typeof lifecycle.last_resume_delay_seconds !== "number" &&
+      hasScheduledResumeDelay(scheduledResumeDelaySeconds)
+    ) {
       chips.push(`scheduled ${scheduledResumeDelaySeconds}s`);
     }
     if (lifecycle.terminated) {
       chips.push("terminated");
     }
+  } else if (scheduledResumeTiming?.isOverdue) {
+    chips.push("resume overdue");
   } else if (hasScheduledResumeDelay(scheduledResumeDelaySeconds)) {
     chips.push(`scheduled ${scheduledResumeDelaySeconds}s`);
   }
@@ -733,13 +872,20 @@ export function getCallbackWaitingRecommendedAction({
   lifecycle,
   callbackTickets = [],
   sensitiveAccessEntries = [],
-  scheduledResumeDelaySeconds
+  scheduledResumeDelaySeconds,
+  scheduledResumeScheduledAt,
+  scheduledResumeDueAt
 }: CallbackWaitingExplanationInput): CallbackWaitingRecommendedAction | null {
   const pendingApprovalCount = countPendingApprovals(sensitiveAccessEntries);
   const failedNotificationCount = countFailedNotifications(sensitiveAccessEntries);
   const expiredTicketCount = lifecycle?.expired_ticket_count ?? 0;
   const lateCallbackCount = lifecycle?.late_callback_count ?? 0;
   const pendingTicketCount = callbackTickets.filter((ticket) => ticket.status === "pending").length;
+  const scheduledResumeTiming = resolveScheduledResumeTiming({
+    scheduledResumeDelaySeconds,
+    scheduledResumeScheduledAt,
+    scheduledResumeDueAt
+  });
   const inlineSensitiveAccessEntry = pickCallbackWaitingInlineSensitiveAccessEntry(
     sensitiveAccessEntries
   );
@@ -788,6 +934,20 @@ export function getCallbackWaitingRecommendedAction({
       label: "Cleanup expired tickets first",
       detail: `${formatCountLabel(expiredTicketCount, "expired callback ticket")} is blocking a clean resume path, so cleanup-and-resume is the safest next move.`,
       ctaLabel: "Cleanup expired tickets"
+    };
+  }
+
+  if (scheduledResumeTiming?.isOverdue) {
+    return {
+      kind: "manual_resume",
+      label: "Scheduled resume is overdue",
+      detail:
+        formatOptionalParts([
+          "The runtime already missed the scheduled resume window",
+          scheduledResumeTiming.dueAtLabel ? `due ${scheduledResumeTiming.dueAtLabel}` : null,
+          "inspect the scheduler or worker and use manual resume if the run should already have progressed"
+        ]) ?? "The runtime already missed the scheduled resume window.",
+      ctaLabel: "Try manual resume"
     };
   }
 

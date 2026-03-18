@@ -60,18 +60,23 @@ export function WorkflowPublishInvocationEntryCard({
     formatScheduledResumeLabel({
       scheduledResumeDelaySeconds: waitingLifecycle?.scheduled_resume_delay_seconds,
       scheduledResumeSource: waitingLifecycle?.scheduled_resume_source,
-      scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status
+      scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status,
+      scheduledResumeScheduledAt: waitingLifecycle?.scheduled_resume_scheduled_at,
+      scheduledResumeDueAt: waitingLifecycle?.scheduled_resume_due_at
     }) ?? "n/a";
   const callbackLifecycleLabel = formatCallbackLifecycleLabel(callbackLifecycle);
   const waitingHeadline = getCallbackWaitingHeadline({
     lifecycle: callbackLifecycle,
     scheduledResumeDelaySeconds: waitingLifecycle?.scheduled_resume_delay_seconds,
     scheduledResumeSource: waitingLifecycle?.scheduled_resume_source,
-    scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status
+    scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status,
+    scheduledResumeScheduledAt: waitingLifecycle?.scheduled_resume_scheduled_at,
+    scheduledResumeDueAt: waitingLifecycle?.scheduled_resume_due_at
   });
   const waitingChips = listCallbackWaitingChips({
     lifecycle: callbackLifecycle,
-    scheduledResumeDelaySeconds: waitingLifecycle?.scheduled_resume_delay_seconds
+    scheduledResumeDelaySeconds: waitingLifecycle?.scheduled_resume_delay_seconds,
+    scheduledResumeDueAt: waitingLifecycle?.scheduled_resume_due_at
   });
   const sensitiveAccessChips = listPublishedInvocationSensitiveAccessChips(
     waitingLifecycle?.sensitive_access_summary
@@ -80,7 +85,9 @@ export function WorkflowPublishInvocationEntryCard({
     lifecycle: callbackLifecycle,
     scheduledResumeDelaySeconds: waitingLifecycle?.scheduled_resume_delay_seconds,
     scheduledResumeSource: waitingLifecycle?.scheduled_resume_source,
-    scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status
+    scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status,
+    scheduledResumeScheduledAt: waitingLifecycle?.scheduled_resume_scheduled_at,
+    scheduledResumeDueAt: waitingLifecycle?.scheduled_resume_due_at
   });
   const sensitiveAccessRows = listPublishedInvocationSensitiveAccessRows(
     waitingLifecycle?.sensitive_access_summary

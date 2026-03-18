@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CallbackWaitingLifecycleSummary } from "./get-run-views";
 import {
@@ -7,6 +7,7 @@ import {
   listCallbackWaitingChips,
   listCallbackWaitingOperatorStatuses
 } from "./callback-waiting-presenters";
+import { formatTimestamp } from "./runtime-presenters";
 
 function createLifecycle(
   overrides: Partial<CallbackWaitingLifecycleSummary> = {}
@@ -27,6 +28,15 @@ function createLifecycle(
 }
 
 describe("callback waiting presenters", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-18T10:06:00Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("保留 0 秒 scheduled resume 标签", () => {
     expect(
       formatScheduledResumeLabel({
@@ -69,6 +79,49 @@ describe("callback waiting presenters", () => {
       kind: "watch_scheduled_resume",
       label: "Watch the scheduled resume",
       ctaLabel: "Open waiting inbox"
+    });
+  });
+
+  it("当 scheduled resume 已过 due_at 时，展示 overdue 状态", () => {
+    const scheduledAt = formatTimestamp("2026-03-18T10:00:00Z");
+    const dueAt = formatTimestamp("2026-03-18T10:05:00Z");
+
+    expect(
+      listCallbackWaitingOperatorStatuses({
+        scheduledResumeDelaySeconds: 5,
+        scheduledResumeSource: "callback_ticket_monitor",
+        scheduledWaitingStatus: "waiting_callback",
+        scheduledResumeScheduledAt: "2026-03-18T10:00:00Z",
+        scheduledResumeDueAt: "2026-03-18T10:05:00Z"
+      })
+    ).toContainEqual({
+      kind: "scheduled_resume_pending",
+      label: "scheduled resume overdue",
+      detail: `scheduled resume passed its due time · callback_ticket_monitor · waiting_callback · scheduled ${scheduledAt} · due ${dueAt} · overdue`
+    });
+  });
+
+  it("在 chips 中把 overdue resume 单独标出来", () => {
+    expect(
+      listCallbackWaitingChips({
+        lifecycle: createLifecycle(),
+        scheduledResumeDelaySeconds: 5,
+        scheduledResumeDueAt: "2026-03-18T10:05:00Z"
+      })
+    ).toContain("resume overdue");
+  });
+
+  it("当 scheduled resume 逾期未触发时，建议人工恢复而不是继续等待", () => {
+    expect(
+      getCallbackWaitingRecommendedAction({
+        scheduledResumeDelaySeconds: 5,
+        scheduledResumeScheduledAt: "2026-03-18T10:00:00Z",
+        scheduledResumeDueAt: "2026-03-18T10:05:00Z"
+      })
+    ).toMatchObject({
+      kind: "manual_resume",
+      label: "Scheduled resume is overdue",
+      ctaLabel: "Try manual resume"
     });
   });
 });

@@ -14,6 +14,8 @@ export type SensitiveAccessInboxCallbackContext = {
   scheduledResumeDelaySeconds?: number | null;
   scheduledResumeSource?: string | null;
   scheduledWaitingStatus?: string | null;
+  scheduledResumeScheduledAt?: string | null;
+  scheduledResumeDueAt?: string | null;
 };
 
 function trimOrNull(value?: string | null) {
@@ -90,6 +92,8 @@ export function buildSensitiveAccessInboxEntryCallbackContext(
     sensitiveAccessEntries: buildInlineSensitiveAccessEntries(entry),
     scheduledResumeDelaySeconds: node.scheduled_resume_delay_seconds,
     scheduledResumeSource: node.scheduled_resume_source,
-    scheduledWaitingStatus: node.scheduled_waiting_status
+    scheduledWaitingStatus: node.scheduled_waiting_status,
+    scheduledResumeScheduledAt: node.scheduled_resume_scheduled_at,
+    scheduledResumeDueAt: node.scheduled_resume_due_at
   };
 }

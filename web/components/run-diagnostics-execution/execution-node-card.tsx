@@ -154,6 +154,8 @@ export function ExecutionNodeCard({ node, runId }: { node: RunExecutionNodeItem;
         scheduledResumeDelaySeconds={node.scheduled_resume_delay_seconds}
         scheduledResumeSource={node.scheduled_resume_source}
         scheduledWaitingStatus={node.scheduled_waiting_status}
+        scheduledResumeScheduledAt={node.scheduled_resume_scheduled_at}
+        scheduledResumeDueAt={node.scheduled_resume_due_at}
       />
 
       <MetricChipRow

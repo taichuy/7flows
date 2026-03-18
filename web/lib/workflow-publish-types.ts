@@ -84,6 +84,8 @@ export type PublishedEndpointInvocationItem = {
     scheduled_resume_reason?: string | null;
     scheduled_resume_source?: string | null;
     scheduled_waiting_status?: string | null;
+    scheduled_resume_scheduled_at?: string | null;
+    scheduled_resume_due_at?: string | null;
   } | null;
   reason_code?: string | null;
   error_message?: string | null;

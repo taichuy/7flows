@@ -231,7 +231,9 @@ function createExecutionView(): RunExecutionView {
         scheduled_resume_delay_seconds: 5,
         scheduled_resume_reason: "callback pending",
         scheduled_resume_source: "callback_ticket_monitor",
-        scheduled_waiting_status: "waiting_callback"
+        scheduled_waiting_status: "waiting_callback",
+        scheduled_resume_scheduled_at: "2026-03-18T10:00:00Z",
+        scheduled_resume_due_at: "2026-03-18T10:05:00Z"
       }
     ]
   };
@@ -248,6 +250,8 @@ describe("sensitive access inbox callback context", () => {
     expect(context?.waitingReason).toBe("Waiting for callback approval");
     expect(context?.callbackTickets).toHaveLength(1);
     expect(context?.scheduledResumeSource).toBe("callback_ticket_monitor");
+    expect(context?.scheduledResumeScheduledAt).toBe("2026-03-18T10:00:00Z");
+    expect(context?.scheduledResumeDueAt).toBe("2026-03-18T10:05:00Z");
     expect(context?.sensitiveAccessEntries).toHaveLength(1);
     expect(context?.sensitiveAccessEntries[0]?.approval_ticket?.id).toBe("ticket-1");
   });

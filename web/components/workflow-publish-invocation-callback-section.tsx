@@ -39,13 +39,16 @@ export function WorkflowPublishInvocationCallbackSection({
     sensitiveAccessEntries,
     scheduledResumeDelaySeconds: waitingLifecycle?.scheduled_resume_delay_seconds,
     scheduledResumeSource: waitingLifecycle?.scheduled_resume_source,
-    scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status
+    scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status,
+    scheduledResumeScheduledAt: waitingLifecycle?.scheduled_resume_scheduled_at,
+    scheduledResumeDueAt: waitingLifecycle?.scheduled_resume_due_at
   });
   const chips = listCallbackWaitingChips({
     lifecycle: callbackLifecycle,
     callbackTickets,
     sensitiveAccessEntries,
-    scheduledResumeDelaySeconds: waitingLifecycle?.scheduled_resume_delay_seconds
+    scheduledResumeDelaySeconds: waitingLifecycle?.scheduled_resume_delay_seconds,
+    scheduledResumeDueAt: waitingLifecycle?.scheduled_resume_due_at
   });
   const blockerRows = listCallbackWaitingBlockerRows({
     lifecycle: callbackLifecycle,
@@ -53,7 +56,9 @@ export function WorkflowPublishInvocationCallbackSection({
     sensitiveAccessEntries,
     scheduledResumeDelaySeconds: waitingLifecycle?.scheduled_resume_delay_seconds,
     scheduledResumeSource: waitingLifecycle?.scheduled_resume_source,
-    scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status
+    scheduledWaitingStatus: waitingLifecycle?.scheduled_waiting_status,
+    scheduledResumeScheduledAt: waitingLifecycle?.scheduled_resume_scheduled_at,
+    scheduledResumeDueAt: waitingLifecycle?.scheduled_resume_due_at
   });
   const eventRows = listCallbackWaitingEventRows({
     lifecycle: callbackLifecycle,
@@ -89,6 +94,8 @@ export function WorkflowPublishInvocationCallbackSection({
         scheduledResumeDelaySeconds={waitingLifecycle?.scheduled_resume_delay_seconds}
         scheduledResumeSource={waitingLifecycle?.scheduled_resume_source}
         scheduledWaitingStatus={waitingLifecycle?.scheduled_waiting_status}
+        scheduledResumeScheduledAt={waitingLifecycle?.scheduled_resume_scheduled_at}
+        scheduledResumeDueAt={waitingLifecycle?.scheduled_resume_due_at}
         inboxHref={inboxHref}
         runId={invocation.run_id ?? null}
         nodeRunId={waitingLifecycle?.node_run_id ?? null}

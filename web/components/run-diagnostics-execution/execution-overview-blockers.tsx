@@ -128,6 +128,8 @@ export function RunDiagnosticsExecutionOverviewBlockers({
                 scheduledResumeDelaySeconds={node.scheduled_resume_delay_seconds}
                 scheduledResumeSource={node.scheduled_resume_source}
                 scheduledWaitingStatus={node.scheduled_waiting_status}
+                scheduledResumeScheduledAt={node.scheduled_resume_scheduled_at}
+                scheduledResumeDueAt={node.scheduled_resume_due_at}
                 sensitiveAccessEntries={node.sensitive_access_entries}
                 waitingReason={node.waiting_reason}
               />

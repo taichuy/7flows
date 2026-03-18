@@ -133,7 +133,9 @@ export async function fetchCallbackBlockerSnapshot({
     sensitiveAccessEntries: node.sensitive_access_entries,
     scheduledResumeDelaySeconds: node.scheduled_resume_delay_seconds,
     scheduledResumeSource: node.scheduled_resume_source,
-    scheduledWaitingStatus: node.scheduled_waiting_status
+    scheduledWaitingStatus: node.scheduled_waiting_status,
+    scheduledResumeScheduledAt: node.scheduled_resume_scheduled_at,
+    scheduledResumeDueAt: node.scheduled_resume_due_at
   });
 
   return {
@@ -145,7 +147,9 @@ export async function fetchCallbackBlockerSnapshot({
       sensitiveAccessEntries: node.sensitive_access_entries,
       scheduledResumeDelaySeconds: node.scheduled_resume_delay_seconds,
       scheduledResumeSource: node.scheduled_resume_source,
-      scheduledWaitingStatus: node.scheduled_waiting_status
+      scheduledWaitingStatus: node.scheduled_waiting_status,
+      scheduledResumeScheduledAt: node.scheduled_resume_scheduled_at,
+      scheduledResumeDueAt: node.scheduled_resume_due_at
     })
   };
 }
