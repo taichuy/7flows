@@ -461,6 +461,62 @@ def test_get_published_invocation_detail_includes_sensitive_access_summary_for_w
     }
 
 
+def test_get_published_invocation_detail_maps_blocking_sensitive_access_from_execution_view(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    workflow_id, binding, run, node_run, invocation = _create_published_invocation_fixture(
+        client,
+        sqlite_session,
+    )
+    _seed_pending_blocking_sensitive_access(
+        sqlite_session,
+        run_id=run.id,
+        node_run_id=node_run.id,
+    )
+
+    callback_ticket = sqlite_session.scalar(
+        select(RunCallbackTicket).where(RunCallbackTicket.run_id == run.id)
+    )
+    if callback_ticket is not None:
+        sqlite_session.delete(callback_ticket)
+
+    run.status = "failed"
+    run.checkpoint_payload = {}
+    node_run.status = "failed"
+    node_run.phase = "main_plan"
+    node_run.waiting_reason = None
+    node_run.checkpoint_payload = {}
+    sqlite_session.add(
+        RunEvent(
+            run_id=run.id,
+            node_run_id=node_run.id,
+            event_type="tool.execution.blocked",
+            payload={
+                "requested_execution_class": "sandbox",
+                "reason": "No compatible sandbox backend is healthy for execution class 'sandbox'.",
+            },
+            created_at=datetime.now(UTC),
+        )
+    )
+    sqlite_session.commit()
+
+    detail_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/{invocation.id}",
+        params={"requester_id": "publish-blocker-reviewer"},
+    )
+
+    assert detail_response.status_code == 200
+    detail_body = detail_response.json()
+    assert detail_body["blocking_node_run_id"] == node_run.id
+    assert detail_body["execution_focus_reason"] == "blocking_node_run"
+    assert detail_body["execution_focus_node"]["node_run_id"] == node_run.id
+    assert len(detail_body["blocking_sensitive_access_entries"]) == 1
+    blocking_entry = detail_body["blocking_sensitive_access_entries"][0]
+    assert blocking_entry["request"]["node_run_id"] == node_run.id
+    assert blocking_entry["approval_ticket"]["status"] == "pending"
+
+
 def test_get_published_invocation_detail_surfaces_blocking_skill_trace(
     client: TestClient,
     sqlite_session: Session,

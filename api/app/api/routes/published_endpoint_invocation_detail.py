@@ -60,6 +60,19 @@ def _resolve_blocking_node_run_id(
     return None
 
 
+def _serialize_blocking_sensitive_access_entries(
+    *,
+    blocking_node_run_id: str | None,
+    sensitive_access_timeline,
+) -> list:
+    if not blocking_node_run_id:
+        return []
+    return [
+        serialize_sensitive_access_timeline_entry(bundle)
+        for bundle in sensitive_access_timeline.by_node_run.get(blocking_node_run_id, [])
+    ]
+
+
 def _count_skill_references(loads) -> int:
     return sum(len(load.references) for load in loads)
 
@@ -270,13 +283,6 @@ def get_published_endpoint_invocation_detail(
                 serialize_sensitive_access_timeline_entry(bundle)
                 for bundle in sensitive_access_timeline.bundles
             ]
-            if blocking_node_run_id:
-                blocking_sensitive_access_entries = [
-                    serialize_sensitive_access_timeline_entry(bundle)
-                    for bundle in sensitive_access_timeline.by_node_run.get(
-                        blocking_node_run_id, []
-                    )
-                ]
             execution_view = run_view_service.get_execution_view(db, record.run_id)
             if execution_view is not None:
                 blocking_node_run_id = (
@@ -287,6 +293,19 @@ def get_published_endpoint_invocation_detail(
                     blocking_node_run_id=blocking_node_run_id,
                     current_node_id=run.current_node_id,
                 )
+                if (
+                    blocking_node_run_id is None
+                    and execution_focus_reason == "blocked_execution"
+                    and execution_focus_node is not None
+                    and execution_focus_node.sensitive_access_entries
+                ):
+                    blocking_node_run_id = execution_focus_node.node_run_id
+            blocking_sensitive_access_entries = (
+                _serialize_blocking_sensitive_access_entries(
+                    blocking_node_run_id=blocking_node_run_id,
+                    sensitive_access_timeline=sensitive_access_timeline,
+                )
+            )
             skill_trace = _build_skill_trace(
                 run=run,
                 node_runs=node_runs,
