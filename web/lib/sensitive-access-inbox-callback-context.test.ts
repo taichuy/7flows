@@ -27,7 +27,7 @@ function createInboxEntry(
       requester_type: "tool",
       requester_id: "native.search",
       resource_id: "resource-1",
-      action_type: "invoke",
+      action_type: "invoke" as const,
       purpose_text: "Need approval before external callback resumes the run.",
       decision: "require_approval",
       decision_label: "Require approval",
@@ -240,6 +240,62 @@ function createExecutionView(): RunExecutionView {
   };
 }
 
+function createAdditionalSensitiveAccessEntry(): RunExecutionView["nodes"][number]["sensitive_access_entries"][number] {
+  return {
+    request: {
+      id: "request-2",
+      run_id: "run-1",
+      node_run_id: "node-run-1",
+      requester_type: "tool" as const,
+      requester_id: "native.notify",
+      resource_id: "resource-2",
+      action_type: "invoke",
+      purpose_text: "Notify operator before callback resumes.",
+      decision: "require_approval" as const,
+      decision_label: "Require approval",
+      reason_code: "notification_delivery_failed",
+      reason_label: "Notification delivery failed",
+      policy_summary: "Retry notification before forcing resume.",
+      created_at: "2026-03-18T10:02:00Z",
+      decided_at: null
+    },
+    resource: {
+      id: "resource-2",
+      label: "Notification channel",
+      description: "Operator notification target",
+      sensitivity_level: "L2",
+      source: "local_capability",
+      metadata: {},
+      created_at: "2026-03-18T09:02:00Z",
+      updated_at: "2026-03-18T09:02:00Z"
+    },
+    approval_ticket: {
+      id: "ticket-2",
+      access_request_id: "request-2",
+      run_id: "run-1",
+      node_run_id: "node-run-1",
+      status: "pending" as const,
+      waiting_status: "waiting" as const,
+      approved_by: null,
+      decided_at: null,
+      expires_at: "2026-03-18T10:07:00Z",
+      created_at: "2026-03-18T10:02:00Z"
+    },
+    notifications: [
+      {
+        id: "dispatch-2",
+        approval_ticket_id: "ticket-2",
+        channel: "email" as const,
+        target: "ops@example.com",
+        status: "failed" as const,
+        error: "SMTP timeout",
+        created_at: "2026-03-18T10:02:30Z",
+        delivered_at: null
+      }
+    ]
+  };
+}
+
 describe("sensitive access inbox callback context", () => {
   it("为 inbox 条目复用 run detail 的 callback waiting 解释上下文", () => {
     const entry = createInboxEntry();
@@ -273,5 +329,34 @@ describe("sensitive access inbox callback context", () => {
 
     expect(context?.nodeRunId).toBe("node-run-1");
     expect(context?.callbackTickets[0]?.ticket).toBe("callback-ticket-1");
+  });
+
+  it("为 inbox callback follow-up 复用整节点的 sensitive access blockers", () => {
+    const executionView = createExecutionView();
+    executionView.nodes[0]!.sensitive_access_entries.push(createAdditionalSensitiveAccessEntry());
+
+    const context = buildSensitiveAccessInboxEntryCallbackContext(createInboxEntry(), executionView);
+
+    expect(context?.sensitiveAccessEntries).toHaveLength(2);
+    expect(
+      context?.sensitiveAccessEntries.map((item) => item.approval_ticket?.id).sort()
+    ).toEqual(["ticket-1", "ticket-2"]);
+    expect(context?.sensitiveAccessEntries[1]?.notifications[0]?.status).toBe("failed");
+  });
+
+  it("当 execution view 尚未回填当前票据时，仍保留当前 inbox 条目", () => {
+    const executionView = createExecutionView();
+    executionView.nodes[0]!.sensitive_access_entries = [createAdditionalSensitiveAccessEntry()];
+
+    const context = buildSensitiveAccessInboxEntryCallbackContext(createInboxEntry(), executionView);
+
+    expect(context?.sensitiveAccessEntries).toHaveLength(2);
+    expect(
+      context?.sensitiveAccessEntries.map((item) => item.approval_ticket?.id).sort()
+    ).toEqual(["ticket-1", "ticket-2"]);
+    expect(
+      context?.sensitiveAccessEntries.find((item) => item.approval_ticket?.id === "ticket-1")
+        ?.request.reason_code
+    ).toBe("sensitive_callback");
   });
 });

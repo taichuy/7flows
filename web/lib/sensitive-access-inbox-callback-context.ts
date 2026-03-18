@@ -49,6 +49,46 @@ function buildInlineSensitiveAccessEntries(
   ];
 }
 
+function getSensitiveAccessEntryKey(entry: SensitiveAccessTimelineEntry) {
+  const requestId = trimOrNull(entry.request.id);
+  const ticketId = trimOrNull(entry.approval_ticket?.id);
+  return `${requestId ?? "request"}:${ticketId ?? "ticket"}`;
+}
+
+function mergeSensitiveAccessEntries(
+  executionEntries: SensitiveAccessTimelineEntry[],
+  inlineEntries: SensitiveAccessTimelineEntry[]
+) {
+  if (executionEntries.length === 0) {
+    return inlineEntries;
+  }
+
+  if (inlineEntries.length === 0) {
+    return executionEntries;
+  }
+
+  const mergedEntries = [...executionEntries];
+  const entryIndexes = new Map<string, number>();
+
+  mergedEntries.forEach((item, index) => {
+    entryIndexes.set(getSensitiveAccessEntryKey(item), index);
+  });
+
+  inlineEntries.forEach((item) => {
+    const key = getSensitiveAccessEntryKey(item);
+    const existingIndex = entryIndexes.get(key);
+    if (existingIndex === undefined) {
+      entryIndexes.set(key, mergedEntries.length);
+      mergedEntries.push(item);
+      return;
+    }
+
+    mergedEntries[existingIndex] = item;
+  });
+
+  return mergedEntries;
+}
+
 function pickExecutionNode(
   entry: SensitiveAccessInboxEntry,
   executionView?: Pick<RunExecutionView, "nodes"> | null
@@ -79,6 +119,7 @@ export function buildSensitiveAccessInboxEntryCallbackContext(
 ): SensitiveAccessInboxCallbackContext | null {
   const runId = trimOrNull(entry.ticket.run_id) ?? trimOrNull(entry.request?.run_id);
   const node = pickExecutionNode(entry, executionView);
+  const inlineSensitiveAccessEntries = buildInlineSensitiveAccessEntries(entry);
   if (!runId || !node || !hasCallbackSignals(node)) {
     return null;
   }
@@ -89,7 +130,10 @@ export function buildSensitiveAccessInboxEntryCallbackContext(
     waitingReason: node.waiting_reason,
     lifecycle: node.callback_waiting_lifecycle,
     callbackTickets: node.callback_tickets,
-    sensitiveAccessEntries: buildInlineSensitiveAccessEntries(entry),
+    sensitiveAccessEntries: mergeSensitiveAccessEntries(
+      node.sensitive_access_entries,
+      inlineSensitiveAccessEntries
+    ),
     scheduledResumeDelaySeconds: node.scheduled_resume_delay_seconds,
     scheduledResumeSource: node.scheduled_resume_source,
     scheduledWaitingStatus: node.scheduled_waiting_status,
