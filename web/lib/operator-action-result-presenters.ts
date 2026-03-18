@@ -33,6 +33,7 @@ type CleanupRunCallbackTicketsSummary = {
   scheduledResumeCount: number;
   terminatedCount: number;
   blockerDeltaSummary?: string | null;
+  runFollowUpExplanation?: OutcomeExplanationInput | null;
   runSnapshot?: RunSnapshotInput | null;
 };
 
@@ -306,14 +307,20 @@ export function formatCleanupResultMessage({
   scheduledResumeCount,
   terminatedCount,
   blockerDeltaSummary,
+  runFollowUpExplanation,
   runSnapshot
 }: CleanupRunCallbackTicketsSummary) {
   const runSnapshotSummary = formatRunSnapshot(runSnapshot ?? {});
+  const runFollowUpSummary = joinParts([
+    runFollowUpExplanation?.primary_signal,
+    runFollowUpExplanation?.follow_up
+  ]);
 
   if (matchedCount === 0) {
     return joinParts([
       "当前 slice 没有发现已过期的 callback ticket；如果 run 仍在等待，问题更可能在未完成审批、外部 callback 未到达，或尚未到定时恢复窗口。",
       blockerDeltaSummary,
+      runFollowUpSummary,
       runSnapshotSummary
     ]);
   }
@@ -327,6 +334,7 @@ export function formatCleanupResultMessage({
       ? `另有 ${terminatedCount} 条等待链路被终止，需要按失败路径继续排障。`
       : null,
     blockerDeltaSummary,
+    runFollowUpSummary,
     runSnapshotSummary
   ]);
 }

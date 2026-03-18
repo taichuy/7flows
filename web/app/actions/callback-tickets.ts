@@ -23,6 +23,12 @@ type CleanupRunCallbackTicketsResponseBody = {
   scheduled_resume_count: number;
   terminated_count: number;
   run_ids: string[];
+  run_follow_up?: {
+    explanation?: {
+      primary_signal?: string | null;
+      follow_up?: string | null;
+    } | null;
+  } | null;
 };
 
 export async function cleanupRunCallbackTickets(
@@ -101,6 +107,7 @@ export async function cleanupRunCallbackTickets(
           before: beforeBlockers,
           after: afterBlockers
         }),
+        runFollowUpExplanation: body?.run_follow_up?.explanation,
         runSnapshot
       }),
       scopeKey

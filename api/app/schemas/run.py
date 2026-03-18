@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.operator_follow_up import OperatorRunFollowUpSummary
+
 
 class RunCreate(BaseModel):
     input_payload: dict = Field(default_factory=dict)
@@ -64,6 +66,7 @@ class CallbackTicketCleanupResponse(BaseModel):
     scheduled_resume_run_ids: list[str] = Field(default_factory=list)
     terminated_run_ids: list[str] = Field(default_factory=list)
     items: list[CallbackTicketCleanupItem] = Field(default_factory=list)
+    run_follow_up: OperatorRunFollowUpSummary | None = None
 
 
 class NodeRunItem(BaseModel):

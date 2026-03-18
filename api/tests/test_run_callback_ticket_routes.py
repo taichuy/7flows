@@ -141,6 +141,12 @@ def test_cleanup_stale_run_callback_tickets_route_expires_stale_tickets(
     assert body["run_ids"] == [run_id]
     assert body["scheduled_resume_run_ids"] == [run_id]
     assert body["terminated_run_ids"] == []
+    assert body["run_follow_up"]["affected_run_count"] == 1
+    assert body["run_follow_up"]["sampled_run_count"] == 1
+    assert body["run_follow_up"]["waiting_run_count"] == 1
+    assert body["run_follow_up"]["sampled_runs"][0]["run_id"] == run_id
+    assert body["run_follow_up"]["sampled_runs"][0]["snapshot"]["status"] == "waiting"
+    assert body["run_follow_up"]["explanation"] is not None
     assert body["items"][0]["ticket"] == ticket
     assert body["items"][0]["node_id"] == "agent"
     assert body["items"][0]["status"] == "expired"
@@ -270,6 +276,9 @@ def test_cleanup_stale_run_callback_tickets_route_supports_dry_run(
     assert body["scheduled_resume_count"] == 0
     assert body["terminated_count"] == 0
     assert body["terminated_run_ids"] == []
+    assert body["run_follow_up"]["affected_run_count"] == 1
+    assert body["run_follow_up"]["sampled_run_count"] == 1
+    assert body["run_follow_up"]["waiting_run_count"] == 1
     assert body["items"][0]["ticket"] == ticket
     assert body["items"][0]["status"] == "pending"
     assert ticket_record.status == "pending"

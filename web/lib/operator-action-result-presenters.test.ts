@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatBulkOperatorOutcomeExplanationMessage,
+  formatCleanupResultMessage,
   formatOperatorOutcomeExplanationMessage
 } from "@/lib/operator-action-result-presenters";
 
@@ -68,5 +69,27 @@ describe("operator-action-result-presenters", () => {
     expect(message).toContain("run run-12345678：当前 run 状态：waiting。");
     expect(message).toContain("重点信号：等待原因：waiting approval");
     expect(message).not.toContain("waiting reason：waiting approval");
+  });
+
+  it("callback cleanup 结果优先展示 backend run follow-up explanation", () => {
+    const message = formatCleanupResultMessage({
+      matchedCount: 1,
+      expiredCount: 1,
+      scheduledResumeCount: 1,
+      terminatedCount: 0,
+      blockerDeltaSummary: "阻塞变化：已解除 waiting external callback。",
+      runFollowUpExplanation: {
+        primary_signal: "本次影响 1 个 run；当前仍有 1 个 run 处于 waiting。",
+        follow_up: "样本 run 已切到 approval pending，下一步应先处理审批再观察 resume。"
+      },
+      runSnapshot: {
+        status: "waiting",
+        waitingReason: "waiting approval"
+      }
+    });
+
+    expect(message).toContain("本次影响 1 个 run；当前仍有 1 个 run 处于 waiting。");
+    expect(message).toContain("样本 run 已切到 approval pending，下一步应先处理审批再观察 resume。");
+    expect(message).toContain("阻塞变化：已解除 waiting external callback。");
   });
 });
