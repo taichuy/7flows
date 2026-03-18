@@ -2,7 +2,7 @@
 
 import {
   fetchCallbackBlockerSnapshot,
-  formatCallbackBlockerDeltaSummary
+  formatCallbackAutomationHealthDeltaSummary
 } from "@/lib/callback-blocker-follow-up";
 import {
   formatManualResumeResultMessage,
@@ -22,6 +22,18 @@ export type ResumeRunState = {
 
 const INITIAL_REASON = "operator_manual_resume_attempt";
 const INITIAL_SOURCE = "operator_callback_resume";
+
+function joinUniqueMessageParts(parts: Array<string | null | undefined>) {
+  const normalized: string[] = [];
+  for (const part of parts) {
+    const trimmed = part?.trim();
+    if (!trimmed || normalized.includes(trimmed)) {
+      continue;
+    }
+    normalized.push(trimmed);
+  }
+  return normalized.join(" ");
+}
 
 export async function resumeRun(
   _: ResumeRunState,
@@ -70,6 +82,9 @@ export async function resumeRun(
             primary_signal?: string | null;
             follow_up?: string | null;
           } | null;
+          callback_blocker_delta?: {
+            summary?: string | null;
+          } | null;
         }
       | null;
 
@@ -92,10 +107,15 @@ export async function resumeRun(
       nodeRunId: nodeRunId || null,
       callbackWaitingAutomation: afterAutomation
     });
-    const blockerDeltaSummary = formatCallbackBlockerDeltaSummary({
+    const automationDeltaSummary = formatCallbackAutomationHealthDeltaSummary({
       before: beforeBlockers,
       after: afterBlockers
     });
+    const blockerDeltaSummary =
+      joinUniqueMessageParts([
+        body?.callback_blocker_delta?.summary,
+        automationDeltaSummary
+      ]) || null;
 
     return {
       status: "success",

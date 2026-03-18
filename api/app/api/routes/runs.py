@@ -20,6 +20,10 @@ from app.schemas.run import (
     RunResumeResponse,
     RunTrace,
 )
+from app.services.callback_blocker_deltas import (
+    build_callback_blocker_delta_summary,
+    capture_callback_blocker_snapshot,
+)
 from app.services.operator_run_follow_up import build_operator_run_follow_up_summary
 from app.services.run_action_explanations import build_manual_resume_outcome_explanation
 from app.services.run_trace_export_access import RunTraceExportAccessService
@@ -99,6 +103,7 @@ def resume_run(
     payload: RunResumeRequest | None = None,
     db: Session = Depends(get_db),
 ) -> RunResumeResponse:
+    before_blocker = capture_callback_blocker_snapshot(db, run_id=run_id)
     try:
         request = payload or RunResumeRequest()
         artifacts = runtime_service.resume_run(
@@ -113,10 +118,15 @@ def resume_run(
             detail=str(exc),
         ) from exc
 
+    after_blocker = capture_callback_blocker_snapshot(db, run_id=artifacts.run.id)
     run_follow_up = build_operator_run_follow_up_summary(db, [run_id])
     return RunResumeResponse(
         run=serialize_run_detail(artifacts),
         outcome_explanation=build_manual_resume_outcome_explanation(run_follow_up),
+        callback_blocker_delta=build_callback_blocker_delta_summary(
+            before=before_blocker,
+            after=after_blocker,
+        ),
         run_follow_up=run_follow_up,
     )
 

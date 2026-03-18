@@ -150,7 +150,7 @@ function formatAutomationHealthState(health?: CallbackWaitingAutomationHealthSna
     .join(" · ");
 }
 
-function formatAutomationHealthDelta({
+export function formatCallbackAutomationHealthDeltaSummary({
   before,
   after
 }: {
@@ -309,7 +309,7 @@ export function formatCallbackBlockerDeltaSummary({
     after && beforeActionLabel === afterActionLabel && afterActionLabel
       ? `建议动作仍是“${afterActionLabel}”。`
       : null,
-    formatAutomationHealthDelta({ before, after })
+    formatCallbackAutomationHealthDeltaSummary({ before, after })
   ]);
 }
 

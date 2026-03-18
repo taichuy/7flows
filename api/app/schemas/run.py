@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.schemas.explanations import SignalFollowUpExplanation
 from app.schemas.operator_follow_up import OperatorRunFollowUpSummary
+from app.schemas.sensitive_access import CallbackBlockerDeltaSummary
 
 
 class RunCreate(BaseModel):
@@ -225,6 +226,7 @@ class RunDetail(BaseModel):
 class RunResumeResponse(BaseModel):
     run: RunDetail
     outcome_explanation: SignalFollowUpExplanation | None = None
+    callback_blocker_delta: CallbackBlockerDeltaSummary | None = None
     run_follow_up: OperatorRunFollowUpSummary | None = None
 
 

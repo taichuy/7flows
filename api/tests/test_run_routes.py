@@ -14,6 +14,7 @@ from app.schemas.operator_follow_up import (
     OperatorRunSnapshot,
     OperatorRunSnapshotSample,
 )
+from app.schemas.sensitive_access import CallbackBlockerDeltaSummary
 from app.services.compiled_blueprints import CompiledBlueprintService
 from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
 from app.services.run_resume_scheduler import RunResumeScheduler
@@ -490,6 +491,43 @@ def test_resume_run_route_returns_operator_follow_up_summary(
         "build_operator_run_follow_up_summary",
         fake_build_operator_run_follow_up_summary,
     )
+    captured_snapshots: list[str] = []
+
+    def fake_capture_callback_blocker_snapshot(
+        db,
+        *,
+        run_id: str | None,
+        node_run_id: str | None = None,
+    ):
+        assert node_run_id is None
+        captured_snapshots.append(run_id or "")
+        return f"snapshot:{run_id}"
+
+    def fake_build_callback_blocker_delta_summary(*, before, after):
+        assert before == f"snapshot:{run_id}"
+        assert after == f"snapshot:{run_id}"
+        return CallbackBlockerDeltaSummary(
+            sampled_scope_count=1,
+            changed_scope_count=1,
+            cleared_scope_count=0,
+            fully_cleared_scope_count=0,
+            still_blocked_scope_count=1,
+            summary=(
+                "阻塞变化：当前仍是 waiting external callback。 "
+                "建议动作仍是“Wait for callback result”。"
+            ),
+        )
+
+    monkeypatch.setattr(
+        run_routes,
+        "capture_callback_blocker_snapshot",
+        fake_capture_callback_blocker_snapshot,
+    )
+    monkeypatch.setattr(
+        run_routes,
+        "build_callback_blocker_delta_summary",
+        fake_build_callback_blocker_delta_summary,
+    )
 
     resume_response = client.post(
         f"/api/runs/{run_id}/resume",
@@ -509,8 +547,20 @@ def test_resume_run_route_returns_operator_follow_up_summary(
             "run sample：当前 run 状态：waiting。 当前节点：mock_tool。"
         ),
     }
+    assert body["callback_blocker_delta"] == {
+        "sampled_scope_count": 1,
+        "changed_scope_count": 1,
+        "cleared_scope_count": 0,
+        "fully_cleared_scope_count": 0,
+        "still_blocked_scope_count": 1,
+        "summary": (
+            "阻塞变化：当前仍是 waiting external callback。 "
+            "建议动作仍是“Wait for callback result”。"
+        ),
+    }
     assert body["run_follow_up"]["affected_run_count"] == 1
     assert body["run_follow_up"]["sampled_runs"][0]["snapshot"]["status"] == "waiting"
+    assert captured_snapshots == [run_id, run_id]
 
 
 def _parse_trace_datetime(value: str) -> datetime:
