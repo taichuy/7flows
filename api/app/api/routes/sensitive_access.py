@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.models.sensitive_access import ApprovalTicketRecord, NotificationDispatchRecord
 from app.schemas.sensitive_access import (
     ApprovalTicketBulkDecisionRequest,
     ApprovalTicketBulkDecisionResult,
@@ -26,6 +27,12 @@ from app.schemas.sensitive_access import (
     SensitiveAccessRequestResponse,
     SensitiveResourceCreateRequest,
     SensitiveResourceItem,
+)
+from app.services.callback_blocker_deltas import (
+    CallbackBlockerScopedSnapshot,
+    build_bulk_callback_blocker_delta_summary,
+    build_callback_blocker_delta_summary,
+    capture_callback_blocker_snapshot,
 )
 from app.services.notification_channel_diagnostics import (
     list_notification_channel_diagnostics,
@@ -76,6 +83,7 @@ def _serialize_approval_bundle(
     bundle: ApprovalDecisionBundle,
     *,
     db: Session,
+    callback_blocker_delta=None,
 ) -> ApprovalTicketDecisionResponse:
     return ApprovalTicketDecisionResponse(
         request=serialize_sensitive_access_request(bundle.access_request),
@@ -84,6 +92,7 @@ def _serialize_approval_bundle(
             serialize_notification_dispatch(item) for item in bundle.notifications
         ],
         outcome_explanation=build_approval_decision_outcome_explanation(bundle),
+        callback_blocker_delta=callback_blocker_delta,
         run_snapshot=load_operator_run_snapshot(db, bundle.approval_ticket.run_id),
     )
 
@@ -92,11 +101,13 @@ def _serialize_notification_retry_bundle(
     bundle: NotificationDispatchRetryBundle,
     *,
     db: Session,
+    callback_blocker_delta=None,
 ) -> NotificationDispatchRetryResponse:
     return NotificationDispatchRetryResponse(
         approval_ticket=serialize_approval_ticket(bundle.approval_ticket),
         notification=serialize_notification_dispatch(bundle.notification),
         outcome_explanation=build_notification_retry_outcome_explanation(bundle),
+        callback_blocker_delta=callback_blocker_delta,
         run_snapshot=load_operator_run_snapshot(db, bundle.approval_ticket.run_id),
     )
 
@@ -319,6 +330,12 @@ def decide_approval_ticket(
     payload: ApprovalTicketDecisionRequest,
     db: Session = Depends(get_db),
 ) -> ApprovalTicketDecisionResponse:
+    approval_ticket = db.get(ApprovalTicketRecord, ticket_id)
+    before_blocker = capture_callback_blocker_snapshot(
+        db,
+        run_id=approval_ticket.run_id if approval_ticket is not None else None,
+        node_run_id=approval_ticket.node_run_id if approval_ticket is not None else None,
+    )
     try:
         bundle = service.decide_ticket(
             db,
@@ -332,7 +349,19 @@ def decide_approval_ticket(
     except SensitiveAccessControlError as exc:
         _raise_sensitive_access_error(exc)
     db.commit()
-    return _serialize_approval_bundle(bundle, db=db)
+    after_blocker = capture_callback_blocker_snapshot(
+        db,
+        run_id=bundle.approval_ticket.run_id,
+        node_run_id=bundle.approval_ticket.node_run_id,
+    )
+    return _serialize_approval_bundle(
+        bundle,
+        db=db,
+        callback_blocker_delta=build_callback_blocker_delta_summary(
+            before=before_blocker,
+            after=after_blocker,
+        ),
+    )
 
 
 @router.post(
@@ -345,8 +374,22 @@ def bulk_decide_approval_tickets(
 ) -> ApprovalTicketBulkDecisionResult:
     decided_items: list[ApprovalTicketItem] = []
     skipped_items: list[ApprovalTicketBulkSkippedItem] = []
+    before_blockers_by_scope: dict[tuple[str, str | None], CallbackBlockerScopedSnapshot] = {}
 
     for ticket_id in payload.ticket_ids:
+        approval_ticket = db.get(ApprovalTicketRecord, ticket_id)
+        if approval_ticket is not None and approval_ticket.run_id:
+            scope_key = (approval_ticket.run_id, approval_ticket.node_run_id)
+            if scope_key not in before_blockers_by_scope:
+                before_blockers_by_scope[scope_key] = CallbackBlockerScopedSnapshot(
+                    run_id=approval_ticket.run_id,
+                    node_run_id=approval_ticket.node_run_id,
+                    snapshot=capture_callback_blocker_snapshot(
+                        db,
+                        run_id=approval_ticket.run_id,
+                        node_run_id=approval_ticket.node_run_id,
+                    ),
+                )
         try:
             bundle = service.decide_ticket(
                 db,
@@ -368,6 +411,24 @@ def bulk_decide_approval_tickets(
         decided_items.append(serialize_approval_ticket(bundle.approval_ticket))
 
     db.commit()
+    after_blockers = [
+        CallbackBlockerScopedSnapshot(
+            run_id=item.run_id,
+            node_run_id=item.node_run_id,
+            snapshot=capture_callback_blocker_snapshot(
+                db,
+                run_id=item.run_id,
+                node_run_id=item.node_run_id,
+            ),
+        )
+        for item in decided_items
+        if item.run_id
+    ]
+    before_blockers = [
+        before_blockers_by_scope[(item.run_id, item.node_run_id)]
+        for item in decided_items
+        if item.run_id and (item.run_id, item.node_run_id) in before_blockers_by_scope
+    ]
     return ApprovalTicketBulkDecisionResult(
         status=payload.status,
         requested_count=len(payload.ticket_ids),
@@ -380,6 +441,10 @@ def bulk_decide_approval_tickets(
             status=payload.status,
             decided_count=len(decided_items),
             skipped_items=skipped_items,
+        ),
+        callback_blocker_delta=build_bulk_callback_blocker_delta_summary(
+            before_blockers,
+            after_blockers,
         ),
         run_follow_up=build_operator_run_follow_up_summary(
             db,
@@ -419,6 +484,17 @@ def retry_notification_dispatch(
     payload: NotificationDispatchRetryRequest | None = None,
     db: Session = Depends(get_db),
 ) -> NotificationDispatchRetryResponse:
+    notification = db.get(NotificationDispatchRecord, dispatch_id)
+    approval_ticket = (
+        db.get(ApprovalTicketRecord, notification.approval_ticket_id)
+        if notification is not None
+        else None
+    )
+    before_blocker = capture_callback_blocker_snapshot(
+        db,
+        run_id=approval_ticket.run_id if approval_ticket is not None else None,
+        node_run_id=approval_ticket.node_run_id if approval_ticket is not None else None,
+    )
     try:
         bundle = service.retry_notification_dispatch(
             db,
@@ -428,7 +504,19 @@ def retry_notification_dispatch(
     except SensitiveAccessControlError as exc:
         _raise_sensitive_access_error(exc)
     db.commit()
-    return _serialize_notification_retry_bundle(bundle, db=db)
+    after_blocker = capture_callback_blocker_snapshot(
+        db,
+        run_id=bundle.approval_ticket.run_id,
+        node_run_id=bundle.approval_ticket.node_run_id,
+    )
+    return _serialize_notification_retry_bundle(
+        bundle,
+        db=db,
+        callback_blocker_delta=build_callback_blocker_delta_summary(
+            before=before_blocker,
+            after=after_blocker,
+        ),
+    )
 
 
 @router.post(
@@ -441,8 +529,27 @@ def bulk_retry_notification_dispatches(
 ) -> NotificationDispatchBulkRetryResult:
     retried_items: list[NotificationDispatchBulkRetriedItem] = []
     skipped_items: list[NotificationDispatchBulkSkippedItem] = []
+    before_blockers_by_scope: dict[tuple[str, str | None], CallbackBlockerScopedSnapshot] = {}
 
     for dispatch_id in payload.dispatch_ids:
+        notification = db.get(NotificationDispatchRecord, dispatch_id)
+        approval_ticket = (
+            db.get(ApprovalTicketRecord, notification.approval_ticket_id)
+            if notification is not None
+            else None
+        )
+        if approval_ticket is not None and approval_ticket.run_id:
+            scope_key = (approval_ticket.run_id, approval_ticket.node_run_id)
+            if scope_key not in before_blockers_by_scope:
+                before_blockers_by_scope[scope_key] = CallbackBlockerScopedSnapshot(
+                    run_id=approval_ticket.run_id,
+                    node_run_id=approval_ticket.node_run_id,
+                    snapshot=capture_callback_blocker_snapshot(
+                        db,
+                        run_id=approval_ticket.run_id,
+                        node_run_id=approval_ticket.node_run_id,
+                    ),
+                )
         try:
             bundle = service.retry_notification_dispatch(
                 db,
@@ -467,6 +574,26 @@ def bulk_retry_notification_dispatches(
         )
 
     db.commit()
+    after_blockers = [
+        CallbackBlockerScopedSnapshot(
+            run_id=item.approval_ticket.run_id,
+            node_run_id=item.approval_ticket.node_run_id,
+            snapshot=capture_callback_blocker_snapshot(
+                db,
+                run_id=item.approval_ticket.run_id,
+                node_run_id=item.approval_ticket.node_run_id,
+            ),
+        )
+        for item in retried_items
+        if item.approval_ticket.run_id
+    ]
+    before_blockers = [
+        before_blockers_by_scope[(item.approval_ticket.run_id, item.approval_ticket.node_run_id)]
+        for item in retried_items
+        if item.approval_ticket.run_id
+        and (item.approval_ticket.run_id, item.approval_ticket.node_run_id)
+        in before_blockers_by_scope
+    ]
     return NotificationDispatchBulkRetryResult(
         requested_count=len(payload.dispatch_ids),
         retried_count=len(retried_items),
@@ -479,6 +606,10 @@ def bulk_retry_notification_dispatches(
         outcome_explanation=build_bulk_notification_retry_outcome_explanation(
             retried_items=retried_items,
             skipped_items=skipped_items,
+        ),
+        callback_blocker_delta=build_bulk_callback_blocker_delta_summary(
+            before_blockers,
+            after_blockers,
         ),
         run_follow_up=build_operator_run_follow_up_summary(
             db,

@@ -1,18 +1,11 @@
 "use server";
 
 import { getApiBaseUrl } from "@/lib/api-base-url";
-import {
-  fetchCallbackBlockerSnapshot,
-  fetchCallbackBlockerSnapshots,
-  formatCallbackBlockerDeltaSummary,
-  summarizeBulkCallbackBlockerDelta
-} from "@/lib/callback-blocker-follow-up";
 import type {
   SensitiveAccessBulkAction,
   SensitiveAccessBulkActionResult,
   SensitiveAccessBulkSkipSummary
 } from "@/lib/get-sensitive-access";
-import { getSystemOverview } from "@/lib/get-system-overview";
 import {
   formatBulkOperatorOutcomeExplanationMessage,
   formatBulkApprovalDecisionResultMessage,
@@ -42,12 +35,24 @@ export type RetrySensitiveAccessNotificationDispatchState = {
   target: string;
 };
 
+type OutcomeExplanationBody = {
+  primary_signal?: string | null;
+  follow_up?: string | null;
+};
+
+type CallbackBlockerDeltaResponseBody = {
+  sampled_scope_count?: number;
+  changed_scope_count?: number;
+  cleared_scope_count?: number;
+  fully_cleared_scope_count?: number;
+  still_blocked_scope_count?: number;
+  summary?: string | null;
+};
+
 type ApprovalDecisionResponseBody = {
   detail?: string;
-  outcome_explanation?: {
-    primary_signal?: string | null;
-    follow_up?: string | null;
-  } | null;
+  outcome_explanation?: OutcomeExplanationBody | null;
+  callback_blocker_delta?: CallbackBlockerDeltaResponseBody | null;
   request?: {
     decision_label?: string | null;
     reason_label?: string | null;
@@ -61,10 +66,8 @@ type ApprovalDecisionResponseBody = {
 
 type NotificationRetryResponseBody = {
   detail?: string;
-  outcome_explanation?: {
-    primary_signal?: string | null;
-    follow_up?: string | null;
-  } | null;
+  outcome_explanation?: OutcomeExplanationBody | null;
+  callback_blocker_delta?: CallbackBlockerDeltaResponseBody | null;
   approval_ticket?: {
     waiting_status?: "waiting" | "resumed" | "failed";
   };
@@ -108,13 +111,12 @@ type ApprovalTicketBulkDecisionResponseBody = {
   requested_count: number;
   decided_count: number;
   skipped_count: number;
-  outcome_explanation?: {
-    primary_signal?: string | null;
-    follow_up?: string | null;
-  } | null;
+  outcome_explanation?: OutcomeExplanationBody | null;
+  callback_blocker_delta?: CallbackBlockerDeltaResponseBody | null;
   decided_items: Array<{
     id: string;
     run_id?: string | null;
+    node_run_id?: string | null;
   }>;
   skipped_reason_summary: SensitiveAccessBulkSkipSummary[];
   run_follow_up?: OperatorRunFollowUpBody | null;
@@ -124,14 +126,13 @@ type NotificationDispatchBulkRetryResponseBody = {
   requested_count: number;
   retried_count: number;
   skipped_count: number;
-  outcome_explanation?: {
-    primary_signal?: string | null;
-    follow_up?: string | null;
-  } | null;
+  outcome_explanation?: OutcomeExplanationBody | null;
+  callback_blocker_delta?: CallbackBlockerDeltaResponseBody | null;
   retried_items: Array<{
     approval_ticket: {
       id: string;
       run_id?: string | null;
+      node_run_id?: string | null;
     };
   }>;
   skipped_reason_summary: SensitiveAccessBulkSkipSummary[];
@@ -270,31 +271,12 @@ function normalizeBulkNotificationScopeItems(items: BulkNotificationScopeItem[])
     });
 }
 
-function buildBlockerScopeKey(runId: string | null, nodeRunId: string | null) {
-  return `${runId ?? ""}::${nodeRunId ?? ""}`;
-}
-
-function filterBlockerSnapshotsByScope(
-  snapshots: Awaited<ReturnType<typeof fetchCallbackBlockerSnapshots>>,
-  scopes: Array<{ runId?: string | null; nodeRunId?: string | null }>
-) {
-  const allowedKeys = new Set(
-    scopes
-      .map((scope) => buildBlockerScopeKey(scope.runId?.trim() || null, scope.nodeRunId?.trim() || null))
-      .filter((key) => key !== "::")
-  );
-  return snapshots.filter((item) =>
-    allowedKeys.has(buildBlockerScopeKey(item.runId, item.nodeRunId?.trim() || null))
-  );
-}
-
 export async function decideSensitiveAccessApprovalTicket(
   _: DecideSensitiveAccessApprovalTicketState,
   formData: FormData
 ): Promise<DecideSensitiveAccessApprovalTicketState> {
   const ticketId = String(formData.get("ticketId") ?? "").trim();
   const runId = String(formData.get("runId") ?? "").trim();
-  const nodeRunId = String(formData.get("nodeRunId") ?? "").trim();
   const decision = String(formData.get("status") ?? "").trim();
   const approvedBy = String(formData.get("approvedBy") ?? "").trim();
 
@@ -307,12 +289,6 @@ export async function decideSensitiveAccessApprovalTicket(
   }
 
   try {
-    const callbackWaitingAutomation = (await getSystemOverview()).callback_waiting_automation;
-    const beforeBlockers = await fetchCallbackBlockerSnapshot({
-      runId,
-      nodeRunId: nodeRunId || null,
-      callbackWaitingAutomation
-    });
     const response = await fetch(
       `${getApiBaseUrl()}/api/sensitive-access/approval-tickets/${encodeURIComponent(ticketId)}/decision`,
       {
@@ -343,30 +319,20 @@ export async function decideSensitiveAccessApprovalTicket(
       runIds: [runId],
       workflowIds: [runSnapshot?.workflowId]
     });
-    const afterBlockers = await fetchCallbackBlockerSnapshot({
-      runId,
-      nodeRunId: nodeRunId || null,
-      callbackWaitingAutomation
-    });
+    const blockerDeltaSummary = body?.callback_blocker_delta?.summary;
 
     return {
       status: "success",
       message: formatOperatorOutcomeExplanationMessage({
         explanation: body?.outcome_explanation,
-        blockerDeltaSummary: formatCallbackBlockerDeltaSummary({
-          before: beforeBlockers,
-          after: afterBlockers
-        }),
+        blockerDeltaSummary,
         runSnapshot,
         fallback: formatApprovalDecisionResultMessage(decision as "approved" | "rejected", {
           waitingStatus: body?.approval_ticket?.waiting_status,
           decisionLabel: body?.request?.decision_label,
           reasonLabel: body?.request?.reason_label,
           policySummary: body?.request?.policy_summary,
-          blockerDeltaSummary: formatCallbackBlockerDeltaSummary({
-            before: beforeBlockers,
-            after: afterBlockers
-          }),
+          blockerDeltaSummary,
           runSnapshot
         })
       }),
@@ -387,7 +353,6 @@ export async function retrySensitiveAccessNotificationDispatch(
 ): Promise<RetrySensitiveAccessNotificationDispatchState> {
   const dispatchId = String(formData.get("dispatchId") ?? "").trim();
   const runId = String(formData.get("runId") ?? "").trim();
-  const nodeRunId = String(formData.get("nodeRunId") ?? "").trim();
   const target = String(formData.get("target") ?? "").trim();
 
   if (!dispatchId) {
@@ -400,12 +365,6 @@ export async function retrySensitiveAccessNotificationDispatch(
   }
 
   try {
-    const callbackWaitingAutomation = (await getSystemOverview()).callback_waiting_automation;
-    const beforeBlockers = await fetchCallbackBlockerSnapshot({
-      runId,
-      nodeRunId: nodeRunId || null,
-      callbackWaitingAutomation
-    });
     const response = await fetch(
       `${getApiBaseUrl()}/api/sensitive-access/notification-dispatches/${encodeURIComponent(dispatchId)}/retry`,
       {
@@ -436,11 +395,7 @@ export async function retrySensitiveAccessNotificationDispatch(
       runIds: [runId],
       workflowIds: [runSnapshot?.workflowId]
     });
-    const afterBlockers = await fetchCallbackBlockerSnapshot({
-      runId,
-      nodeRunId: nodeRunId || null,
-      callbackWaitingAutomation
-    });
+    const blockerDeltaSummary = body?.callback_blocker_delta?.summary;
     const effectiveTarget =
       typeof body?.notification?.target === "string" && body.notification.target.trim().length > 0
         ? body.notification.target.trim()
@@ -450,20 +405,14 @@ export async function retrySensitiveAccessNotificationDispatch(
       status: "success",
       message: formatOperatorOutcomeExplanationMessage({
         explanation: body?.outcome_explanation,
-        blockerDeltaSummary: formatCallbackBlockerDeltaSummary({
-          before: beforeBlockers,
-          after: afterBlockers
-        }),
+        blockerDeltaSummary,
         runSnapshot,
         fallback: formatNotificationRetryResultMessage({
           status: body?.notification?.status,
           error: body?.notification?.error,
           target: effectiveTarget,
           waitingStatus: body?.approval_ticket?.waiting_status,
-          blockerDeltaSummary: formatCallbackBlockerDeltaSummary({
-            before: beforeBlockers,
-            after: afterBlockers
-          }),
+          blockerDeltaSummary,
           runSnapshot
         })
       }),
@@ -487,10 +436,6 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
 }): Promise<SensitiveAccessBulkActionResult> {
   const tickets = normalizeBulkApprovalScopeItems(input.tickets);
   const ticketIds = tickets.map((item) => item.ticketId);
-  const candidateBlockerScopes = tickets.map((item) => ({
-    runId: item.runId,
-    nodeRunId: item.nodeRunId
-  }));
   const approvedBy = input.approvedBy.trim();
 
   if (ticketIds.length === 0 || !approvedBy) {
@@ -507,12 +452,6 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
   }
 
   try {
-    const beforeAutomation = (await getSystemOverview()).callback_waiting_automation;
-    const beforeCandidateBlockers = await fetchCallbackBlockerSnapshots(
-      candidateBlockerScopes,
-      3,
-      beforeAutomation
-    );
     const response = await fetch(`${getApiBaseUrl()}/api/sensitive-access/approval-tickets/bulk-decision`, {
       method: "POST",
       headers: {
@@ -548,14 +487,6 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
     const skippedReasonSummary = body?.skipped_reason_summary ?? [];
     const affectedRunIds = body?.decided_items?.map((item) => item.run_id) ?? [];
     await revalidateOperatorFollowUpByRunIds(affectedRunIds);
-    const updatedTicketIds = new Set(body?.decided_items?.map((item) => item.id) ?? []);
-    const blockerScopes = tickets
-      .filter((item) => updatedTicketIds.has(item.ticketId))
-      .map((item) => ({
-        runId: item.runId,
-        nodeRunId: item.nodeRunId
-      }));
-    const beforeBlockers = filterBlockerSnapshotsByScope(beforeCandidateBlockers, blockerScopes);
     const backendSampledRuns = toBulkRunSamples(body?.run_follow_up);
     const backendFollowUpSummary = toBulkRunFollowUpSummary(body?.run_follow_up);
     const { sampledRuns, followUpSummary } = body?.run_follow_up
@@ -569,23 +500,14 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
             })
         }
       : await buildBulkRunFollowUpMetrics(affectedRunIds);
-    const afterAutomation = (await getSystemOverview()).callback_waiting_automation;
-    const afterBlockers = await fetchCallbackBlockerSnapshots(
-      blockerScopes,
-      3,
-      afterAutomation
-    );
-    const blockerDelta = summarizeBulkCallbackBlockerDelta({
-      before: beforeBlockers,
-      after: afterBlockers
-    });
+    const blockerDelta = body?.callback_blocker_delta;
 
     return {
       action: input.status,
       status: "success",
       message: formatBulkOperatorOutcomeExplanationMessage({
         explanation: body?.outcome_explanation,
-        blockerDeltaSummary: blockerDelta.summary,
+        blockerDeltaSummary: blockerDelta?.summary,
         affectedRunCount: followUpSummary.affectedRunCount,
         sampledRuns,
         fallback: formatBulkApprovalDecisionResultMessage({
@@ -595,18 +517,18 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
           skippedSummary: buildBulkSkipSummaryMessage(skippedReasonSummary),
           affectedRunCount: followUpSummary.affectedRunCount,
           sampledRuns,
-          blockerDeltaSummary: blockerDelta.summary
+          blockerDeltaSummary: blockerDelta?.summary
         })
       }),
       requestedCount: body?.requested_count ?? ticketIds.length,
       updatedCount,
       skippedCount,
       skippedReasonSummary,
-      blockerSampleCount: blockerDelta.sampledScopeCount,
-      blockerChangedCount: blockerDelta.changedScopeCount,
-      blockerClearedCount: blockerDelta.clearedScopeCount,
-      blockerFullyClearedCount: blockerDelta.fullyClearedScopeCount,
-      blockerStillBlockedCount: blockerDelta.stillBlockedScopeCount,
+      blockerSampleCount: blockerDelta?.sampled_scope_count ?? 0,
+      blockerChangedCount: blockerDelta?.changed_scope_count ?? 0,
+      blockerClearedCount: blockerDelta?.cleared_scope_count ?? 0,
+      blockerFullyClearedCount: blockerDelta?.fully_cleared_scope_count ?? 0,
+      blockerStillBlockedCount: blockerDelta?.still_blocked_scope_count ?? 0,
       ...followUpSummary
     };
   } catch {
@@ -628,10 +550,6 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
 }): Promise<SensitiveAccessBulkActionResult> {
   const dispatches = normalizeBulkNotificationScopeItems(input.dispatches);
   const dispatchIds = dispatches.map((item) => item.dispatchId);
-  const candidateBlockerScopes = dispatches.map((item) => ({
-    runId: item.runId,
-    nodeRunId: item.nodeRunId
-  }));
 
   if (dispatchIds.length === 0) {
     return {
@@ -647,12 +565,6 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
   }
 
   try {
-    const beforeAutomation = (await getSystemOverview()).callback_waiting_automation;
-    const beforeCandidateBlockers = await fetchCallbackBlockerSnapshots(
-      candidateBlockerScopes,
-      3,
-      beforeAutomation
-    );
     const response = await fetch(`${getApiBaseUrl()}/api/sensitive-access/notification-dispatches/bulk-retry`, {
       method: "POST",
       headers: {
@@ -684,18 +596,6 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
     const skippedReasonSummary = body?.skipped_reason_summary ?? [];
     const affectedRunIds = body?.retried_items?.map((item) => item.approval_ticket.run_id) ?? [];
     await revalidateOperatorFollowUpByRunIds(affectedRunIds);
-    const updatedTicketIds = new Set(
-      body?.retried_items?.map((item) => item.approval_ticket.id) ?? []
-    );
-    const blockerScopes = dispatches
-      .filter(
-        (item) => item.approvalTicketId && updatedTicketIds.has(item.approvalTicketId)
-      )
-      .map((item) => ({
-        runId: item.runId,
-        nodeRunId: item.nodeRunId
-      }));
-    const beforeBlockers = filterBlockerSnapshotsByScope(beforeCandidateBlockers, blockerScopes);
     const backendSampledRuns = toBulkRunSamples(body?.run_follow_up);
     const backendFollowUpSummary = toBulkRunFollowUpSummary(body?.run_follow_up);
     const { sampledRuns, followUpSummary } = body?.run_follow_up
@@ -709,23 +609,14 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
             })
         }
       : await buildBulkRunFollowUpMetrics(affectedRunIds);
-    const afterAutomation = (await getSystemOverview()).callback_waiting_automation;
-    const afterBlockers = await fetchCallbackBlockerSnapshots(
-      blockerScopes,
-      3,
-      afterAutomation
-    );
-    const blockerDelta = summarizeBulkCallbackBlockerDelta({
-      before: beforeBlockers,
-      after: afterBlockers
-    });
+    const blockerDelta = body?.callback_blocker_delta;
 
     return {
       action: "retry",
       status: "success",
       message: formatBulkOperatorOutcomeExplanationMessage({
         explanation: body?.outcome_explanation,
-        blockerDeltaSummary: blockerDelta.summary,
+        blockerDeltaSummary: blockerDelta?.summary,
         affectedRunCount: followUpSummary.affectedRunCount,
         sampledRuns,
         fallback: formatBulkNotificationRetryResultMessage({
@@ -734,18 +625,18 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
           skippedSummary: buildBulkSkipSummaryMessage(skippedReasonSummary),
           affectedRunCount: followUpSummary.affectedRunCount,
           sampledRuns,
-          blockerDeltaSummary: blockerDelta.summary
+          blockerDeltaSummary: blockerDelta?.summary
         })
       }),
       requestedCount: body?.requested_count ?? dispatchIds.length,
       updatedCount,
       skippedCount,
       skippedReasonSummary,
-      blockerSampleCount: blockerDelta.sampledScopeCount,
-      blockerChangedCount: blockerDelta.changedScopeCount,
-      blockerClearedCount: blockerDelta.clearedScopeCount,
-      blockerFullyClearedCount: blockerDelta.fullyClearedScopeCount,
-      blockerStillBlockedCount: blockerDelta.stillBlockedScopeCount,
+      blockerSampleCount: blockerDelta?.sampled_scope_count ?? 0,
+      blockerChangedCount: blockerDelta?.changed_scope_count ?? 0,
+      blockerClearedCount: blockerDelta?.cleared_scope_count ?? 0,
+      blockerFullyClearedCount: blockerDelta?.fully_cleared_scope_count ?? 0,
+      blockerStillBlockedCount: blockerDelta?.still_blocked_scope_count ?? 0,
       ...followUpSummary
     };
   } catch {

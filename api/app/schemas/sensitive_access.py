@@ -150,10 +150,20 @@ class NotificationChannelCapabilityItem(BaseModel):
     dispatch_summary: NotificationChannelDispatchSummaryItem
 
 
+class CallbackBlockerDeltaSummary(BaseModel):
+    sampled_scope_count: int = 0
+    changed_scope_count: int = 0
+    cleared_scope_count: int = 0
+    fully_cleared_scope_count: int = 0
+    still_blocked_scope_count: int = 0
+    summary: str | None = None
+
+
 class NotificationDispatchRetryResponse(BaseModel):
     approval_ticket: ApprovalTicketItem
     notification: NotificationDispatchItem
     outcome_explanation: SignalFollowUpExplanation | None = None
+    callback_blocker_delta: CallbackBlockerDeltaSummary | None = None
     run_snapshot: OperatorRunSnapshot | None = None
 
 
@@ -190,6 +200,7 @@ class ApprovalTicketDecisionResponse(BaseModel):
     approval_ticket: ApprovalTicketItem
     notifications: list[NotificationDispatchItem] = Field(default_factory=list)
     outcome_explanation: SignalFollowUpExplanation | None = None
+    callback_blocker_delta: CallbackBlockerDeltaSummary | None = None
     run_snapshot: OperatorRunSnapshot | None = None
 
 
@@ -239,6 +250,7 @@ class ApprovalTicketBulkDecisionResult(BaseModel):
         default_factory=list
     )
     outcome_explanation: SignalFollowUpExplanation | None = None
+    callback_blocker_delta: CallbackBlockerDeltaSummary | None = None
     run_follow_up: OperatorRunFollowUpSummary | None = None
 
 
@@ -287,4 +299,5 @@ class NotificationDispatchBulkRetryResult(BaseModel):
         default_factory=list
     )
     outcome_explanation: SignalFollowUpExplanation | None = None
+    callback_blocker_delta: CallbackBlockerDeltaSummary | None = None
     run_follow_up: OperatorRunFollowUpSummary | None = None

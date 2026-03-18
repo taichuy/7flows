@@ -225,6 +225,18 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
             "如果 run 仍停在 waiting，请继续检查 callback 到达情况或定时恢复链路。"
         ),
     }
+    assert decision_body["callback_blocker_delta"] == {
+        "sampled_scope_count": 1,
+        "changed_scope_count": 1,
+        "cleared_scope_count": 1,
+        "fully_cleared_scope_count": 1,
+        "still_blocked_scope_count": 0,
+        "summary": (
+            "阻塞变化：已解除 approval pending。 "
+            "阻塞变化：当前 callback summary 已没有显式 operator blocker。 "
+            "建议动作已清空；下一步应结合最新 run 状态确认是否真正离开 waiting。"
+        ),
+    }
     assert decision_body["run_snapshot"] == {
         "workflow_id": sample_workflow.id,
         "status": "waiting",
@@ -621,6 +633,18 @@ def test_bulk_decide_approval_tickets_allows_partial_success(
             "后续请继续回看对应 run detail / inbox slice，确认 waiting 是否真正继续前进。"
         ),
     }
+    assert body["callback_blocker_delta"] == {
+        "sampled_scope_count": 1,
+        "changed_scope_count": 1,
+        "cleared_scope_count": 1,
+        "fully_cleared_scope_count": 1,
+        "still_blocked_scope_count": 0,
+        "summary": (
+            "已回读 1 个 blocker 样本；发生变化 1 个。 "
+            "其中已解除阻塞 1 个。 "
+            "已完全清空显式 operator blocker 1 个。"
+        ),
+    }
     assert body["run_follow_up"] == {
         "affected_run_count": 1,
         "sampled_run_count": 1,
@@ -643,7 +667,8 @@ def test_bulk_decide_approval_tickets_allows_partial_success(
                     "execution_focus_explanation": {
                         "primary_signal": "等待原因：waiting approval",
                         "follow_up": (
-                            "下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。"
+                            "下一步：优先沿 waiting / callback 事实链排查，"
+                            "不要只盯单次 invocation 返回。"
                         ),
                     },
                 },
@@ -758,6 +783,17 @@ def test_retry_notification_dispatch_creates_new_attempt(
         "follow_up": (
             "这一步只负责重新送达审批请求，不会直接恢复 run；"
             "后续仍取决于审批结果或后续 callback。"
+        ),
+    }
+    assert retry_body["callback_blocker_delta"] == {
+        "sampled_scope_count": 1,
+        "changed_scope_count": 1,
+        "cleared_scope_count": 0,
+        "fully_cleared_scope_count": 0,
+        "still_blocked_scope_count": 1,
+        "summary": (
+            "阻塞变化：当前仍是 approval pending。 "
+            "建议动作已切换为“Retry notification here first”。"
         ),
     }
     assert retry_body["run_snapshot"] == {
@@ -913,6 +949,17 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
             "后续仍取决于审批结果或 callback。"
         ),
     }
+    assert body["callback_blocker_delta"] == {
+        "sampled_scope_count": 1,
+        "changed_scope_count": 1,
+        "cleared_scope_count": 0,
+        "fully_cleared_scope_count": 0,
+        "still_blocked_scope_count": 1,
+        "summary": (
+            "已回读 1 个 blocker 样本；发生变化 1 个。 "
+            "动作后仍有 1 个样本存在 operator blocker。"
+        ),
+    }
     assert body["run_follow_up"] == {
         "affected_run_count": 1,
         "sampled_run_count": 1,
@@ -935,7 +982,8 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
                     "execution_focus_explanation": {
                         "primary_signal": "等待原因：waiting approval",
                         "follow_up": (
-                            "下一步：优先处理这条 sensitive access 审批票据，再观察 waiting 节点是否恢复。"
+                            "下一步：优先处理这条 sensitive access 审批票据，"
+                            "再观察 waiting 节点是否恢复。"
                         ),
                     },
                 },
