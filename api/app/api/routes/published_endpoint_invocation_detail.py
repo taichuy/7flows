@@ -28,6 +28,9 @@ from app.services.published_invocation_detail_access import (
     PublishedInvocationDetailAccessService,
 )
 from app.services.published_invocations import PublishedInvocationService
+from app.services.run_execution_focus_explanations import (
+    build_run_execution_focus_explanation,
+)
 from app.services.run_execution_views import (
     resolve_execution_focus_node,
     summarize_skill_reference_loads,
@@ -240,6 +243,7 @@ def get_published_endpoint_invocation_detail(
     blocking_node_run_id = None
     execution_focus_reason = None
     execution_focus_node = None
+    execution_focus_explanation = None
     if record.run_id:
         node_runs = (
             db.scalars(select(NodeRun).where(NodeRun.run_id == record.run_id)).all()
@@ -300,6 +304,9 @@ def get_published_endpoint_invocation_detail(
                     and execution_focus_node.sensitive_access_entries
                 ):
                     blocking_node_run_id = execution_focus_node.node_run_id
+                execution_focus_explanation = build_run_execution_focus_explanation(
+                    execution_focus_node
+                )
             blocking_sensitive_access_entries = (
                 _serialize_blocking_sensitive_access_entries(
                     blocking_node_run_id=blocking_node_run_id,
@@ -355,6 +362,7 @@ def get_published_endpoint_invocation_detail(
         blocking_node_run_id=blocking_node_run_id,
         execution_focus_reason=execution_focus_reason,
         execution_focus_node=execution_focus_node,
+        execution_focus_explanation=execution_focus_explanation,
         skill_trace=skill_trace,
         blocking_sensitive_access_entries=blocking_sensitive_access_entries,
         sensitive_access_entries=sensitive_access_entries,

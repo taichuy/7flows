@@ -1616,6 +1616,13 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     assert detail_body["blocking_node_run_id"] == node_run.id
     assert detail_body["execution_focus_reason"] == "blocking_node_run"
     assert detail_body["execution_focus_node"]["node_run_id"] == node_run.id
+    assert detail_body["execution_focus_explanation"] == {
+        "primary_signal": "等待原因：callback pending",
+        "follow_up": (
+            "下一步：优先确认 callback ticket 是否已回调；"
+            "若尚未回调，继续沿 ticket / inbox 事实链跟进。"
+        ),
+    }
     assert detail_body["execution_focus_node"]["node_id"] == "tool_wait"
     assert detail_body["execution_focus_node"]["node_name"] == "Tool Wait"
     assert detail_body["execution_focus_node"]["status"] == "waiting"

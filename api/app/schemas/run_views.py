@@ -141,6 +141,11 @@ class RunExecutionSkillTrace(BaseModel):
     nodes: list[RunExecutionSkillTraceNodeItem] = Field(default_factory=list)
 
 
+class RunExecutionFocusExplanation(BaseModel):
+    primary_signal: str | None = None
+    follow_up: str | None = None
+
+
 class RunExecutionNodeItem(BaseModel):
     node_run_id: str
     node_id: str
@@ -207,6 +212,7 @@ class RunExecutionView(BaseModel):
     blocking_node_run_id: str | None = None
     execution_focus_reason: RunExecutionFocusReason | None = None
     execution_focus_node: RunExecutionNodeItem | None = None
+    execution_focus_explanation: RunExecutionFocusExplanation | None = None
     skill_trace: RunExecutionSkillTrace | None = None
     nodes: list[RunExecutionNodeItem] = Field(default_factory=list)
 

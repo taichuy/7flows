@@ -239,6 +239,11 @@ export type PublishedEndpointInvocationExecutionFocusReason =
   | "current_node"
   | "fallback_node";
 
+export type RunExecutionFocusExplanation = {
+  primary_signal?: string | null;
+  follow_up?: string | null;
+};
+
 export type PublishedEndpointInvocationDetailResponse = {
   invocation: PublishedEndpointInvocationItem;
   run?: PublishedEndpointInvocationRunReference | null;
@@ -246,6 +251,7 @@ export type PublishedEndpointInvocationDetailResponse = {
   blocking_node_run_id?: string | null;
   execution_focus_reason?: PublishedEndpointInvocationExecutionFocusReason | null;
   execution_focus_node?: RunExecutionNodeItem | null;
+  execution_focus_explanation?: RunExecutionFocusExplanation | null;
   skill_trace?: PublishedEndpointInvocationSkillTrace | null;
   blocking_sensitive_access_entries: SensitiveAccessTimelineEntry[];
   sensitive_access_entries: SensitiveAccessTimelineEntry[];

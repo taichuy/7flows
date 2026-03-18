@@ -43,8 +43,12 @@ export function RunDiagnosticsExecutionOverviewBlockers({
 }) {
   const focusNode = executionView.execution_focus_node ?? null;
   const skillTrace = executionView.skill_trace ?? null;
-  const focusNodePrimarySignal = focusNode ? formatExecutionFocusPrimarySignal(focusNode) : null;
-  const focusNodeFollowUp = focusNode ? formatExecutionFocusFollowUp(focusNode) : null;
+  const focusNodePrimarySignal =
+    executionView.execution_focus_explanation?.primary_signal ??
+    (focusNode ? formatExecutionFocusPrimarySignal(focusNode) : null);
+  const focusNodeFollowUp =
+    executionView.execution_focus_explanation?.follow_up ??
+    (focusNode ? formatExecutionFocusFollowUp(focusNode) : null);
   const blockerNodes = pickTopBlockerNodes(executionView).filter(
     (node) => node.node_run_id !== focusNode?.node_run_id
   );

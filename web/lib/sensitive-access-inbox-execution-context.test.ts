@@ -189,6 +189,10 @@ function createExecutionView(
     },
     execution_focus_reason: "blocking_node_run",
     execution_focus_node: focusNode,
+    execution_focus_explanation: {
+      primary_signal: "等待原因：Waiting for callback approval",
+      follow_up: "下一步：优先处理这条 sensitive access 审批票据，再观察 waiting 节点是否恢复。"
+    },
     skill_trace: null,
     nodes: [focusNode],
     ...overrides
@@ -258,6 +262,10 @@ describe("sensitive access inbox execution context", () => {
     expect(context).not.toBeNull();
     expect(context?.runId).toBe("run-1");
     expect(context?.focusReason).toBe("blocking_node_run");
+    expect(context?.focusExplanation).toEqual({
+      primary_signal: "等待原因：Waiting for callback approval",
+      follow_up: "下一步：优先处理这条 sensitive access 审批票据，再观察 waiting 节点是否恢复。"
+    });
     expect(context?.focusNode.node_run_id).toBe("node-run-1");
     expect(context?.focusMatchesEntry).toBe(true);
   });

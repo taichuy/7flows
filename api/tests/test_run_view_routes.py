@@ -278,6 +278,13 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     assert body["blocking_node_run_id"] == node_run.id
     assert body["execution_focus_reason"] == "blocking_node_run"
     assert body["execution_focus_node"]["node_run_id"] == node_run.id
+    assert body["execution_focus_explanation"] == {
+        "primary_signal": "等待原因：Waiting for external search callback.",
+        "follow_up": (
+            "下一步：优先处理这条 sensitive access 审批票据，"
+            "再观察 waiting 节点是否恢复。"
+        ),
+    }
     assert body["skill_trace"] is None
     assert len(body["nodes"]) == 1
     node = body["nodes"][0]
@@ -512,6 +519,7 @@ def test_get_run_execution_view_surfaces_skill_reference_loads(
     assert body["blocking_node_run_id"] is None
     assert body["execution_focus_reason"] is None
     assert body["execution_focus_node"] is None
+    assert body["execution_focus_explanation"] is None
     assert body["skill_trace"] == {
         "scope": "run",
         "reference_count": 2,
@@ -539,7 +547,10 @@ def test_get_run_execution_view_surfaces_skill_reference_loads(
                                 "fetch_reason": None,
                                 "fetch_request_index": None,
                                 "fetch_request_total": None,
-                                "retrieval_http_path": "/api/skills/skill-research-brief/references/ref-handoff?workspace_id=default",
+                                "retrieval_http_path": (
+                                    "/api/skills/skill-research-brief/"
+                                    "references/ref-handoff?workspace_id=default"
+                                ),
                                 "retrieval_mcp_method": "skills.get_reference",
                                 "retrieval_mcp_params": {
                                     "skill_id": "skill-research-brief",
@@ -556,7 +567,10 @@ def test_get_run_execution_view_surfaces_skill_reference_loads(
                                 "fetch_reason": "Matched query terms: budget, guardrails",
                                 "fetch_request_index": None,
                                 "fetch_request_total": None,
-                                "retrieval_http_path": "/api/skills/skill-research-brief/references/ref-budget?workspace_id=default",
+                                "retrieval_http_path": (
+                                    "/api/skills/skill-research-brief/"
+                                    "references/ref-budget?workspace_id=default"
+                                ),
                                 "retrieval_mcp_method": "skills.get_reference",
                                 "retrieval_mcp_params": {
                                     "skill_id": "skill-research-brief",

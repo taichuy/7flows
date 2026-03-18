@@ -10,12 +10,15 @@ from app.models.run import RunCallbackTicket
 from app.schemas.run_views import (
     RunExecutionFocusReason,
     RunExecutionNodeItem,
-    RunExecutionSummary,
     RunExecutionSkillTrace,
     RunExecutionSkillTraceNodeItem,
+    RunExecutionSummary,
     RunExecutionView,
     SkillReferenceLoadItem,
     SkillReferenceLoadReferenceItem,
+)
+from app.services.run_execution_focus_explanations import (
+    build_run_execution_focus_explanation,
 )
 from app.services.run_view_serializers import (
     serialize_ai_call,
@@ -168,6 +171,9 @@ def build_run_execution_view(
         blocking_node_run_id=blocking_node_run_id,
         execution_focus_reason=execution_focus_reason,
         execution_focus_node=execution_focus_node,
+        execution_focus_explanation=build_run_execution_focus_explanation(
+            execution_focus_node
+        ),
         skill_trace=build_run_execution_skill_trace(
             node_runs=artifacts.node_runs,
             summary=skill_reference_loads,
@@ -324,7 +330,10 @@ def _count_pending_tickets(node: RunExecutionNodeItem) -> int:
 def _has_waiting_blocker(node: RunExecutionNodeItem) -> bool:
     if _count_pending_approvals(node) > 0 or _count_pending_tickets(node) > 0:
         return True
-    if node.callback_waiting_lifecycle is not None and not node.callback_waiting_lifecycle.terminated:
+    if (
+        node.callback_waiting_lifecycle is not None
+        and not node.callback_waiting_lifecycle.terminated
+    ):
         return True
     if node.waiting_reason and (
         node.callback_tickets or node.sensitive_access_entries or node.status.startswith("waiting")

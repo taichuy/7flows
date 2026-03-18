@@ -69,12 +69,12 @@ export function WorkflowPublishInvocationDetailPanel({
     .map((toolId) => toolsById.get(toolId) ?? null)
     .filter((tool): tool is PluginToolRegistryItem => tool !== null);
   const unresolvedToolIds = involvedToolIds.filter((toolId) => !toolsById.has(toolId));
-  const executionFocusPrimarySignal = executionFocusNode
-    ? formatExecutionFocusPrimarySignal(executionFocusNode)
-    : null;
-  const executionFocusFollowUp = executionFocusNode
-    ? formatExecutionFocusFollowUp(executionFocusNode)
-    : null;
+  const executionFocusPrimarySignal =
+    detail.execution_focus_explanation?.primary_signal ??
+    (executionFocusNode ? formatExecutionFocusPrimarySignal(executionFocusNode) : null);
+  const executionFocusFollowUp =
+    detail.execution_focus_explanation?.follow_up ??
+    (executionFocusNode ? formatExecutionFocusFollowUp(executionFocusNode) : null);
 
   return (
     <article className="entry-card compact-card publish-invocation-detail-panel">

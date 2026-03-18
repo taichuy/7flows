@@ -111,6 +111,11 @@ export type RunExecutionSkillTrace = {
   nodes: RunExecutionSkillTraceNodeItem[];
 };
 
+export type RunExecutionFocusExplanation = {
+  primary_signal?: string | null;
+  follow_up?: string | null;
+};
+
 export type CallbackWaitingLifecycleSummary = {
   wait_cycle_count: number;
   issued_ticket_count: number;
@@ -244,6 +249,7 @@ export type RunExecutionView = {
   blocking_node_run_id?: string | null;
   execution_focus_reason?: RunExecutionFocusReason | null;
   execution_focus_node?: RunExecutionNodeItem | null;
+  execution_focus_explanation?: RunExecutionFocusExplanation | null;
   skill_trace?: RunExecutionSkillTrace | null;
   nodes: RunExecutionNodeItem[];
 };

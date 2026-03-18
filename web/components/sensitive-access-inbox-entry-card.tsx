@@ -179,10 +179,12 @@ export function SensitiveAccessInboxEntryCard({
   const callbackWaitingContext = entry.callbackWaitingContext;
   const executionContext = entry.executionContext;
   const executionFocusPrimarySignal = executionContext
-    ? formatExecutionFocusPrimarySignal(executionContext.focusNode)
+    ? executionContext.focusExplanation?.primary_signal ??
+      formatExecutionFocusPrimarySignal(executionContext.focusNode)
     : null;
   const executionFocusFollowUp = executionContext
-    ? formatExecutionFocusFollowUp(executionContext.focusNode)
+    ? executionContext.focusExplanation?.follow_up ??
+      formatExecutionFocusFollowUp(executionContext.focusNode)
     : null;
   const focusInboxHref = executionContext
     ? buildSensitiveAccessInboxHref({
