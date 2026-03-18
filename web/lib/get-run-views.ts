@@ -141,6 +141,10 @@ export type RunExecutionNodeItem = {
   execution_timeout_ms?: number | null;
   execution_network_policy?: string | null;
   execution_filesystem_policy?: string | null;
+  execution_dependency_mode?: string | null;
+  execution_builtin_package_set?: string | null;
+  execution_dependency_ref?: string | null;
+  execution_backend_extensions?: Record<string, unknown> | null;
   execution_dispatched_count: number;
   execution_fallback_count: number;
   execution_blocked_count: number;

@@ -20,6 +20,16 @@ import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summar
 import { SensitiveAccessTimelineEntryList } from "@/components/sensitive-access-timeline-entry-list";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 
+function formatExecutionBackendExtensions(
+  value: RunExecutionNodeItem["execution_backend_extensions"]
+): string | null {
+  if (!value || Object.keys(value).length === 0) {
+    return null;
+  }
+
+  return JSON.stringify(value);
+}
+
 export function ExecutionNodeCard({ node, runId }: { node: RunExecutionNodeItem; runId: string }) {
   const latestApprovalEntry = node.sensitive_access_entries.find((entry) => entry.approval_ticket);
   const inboxHref =
@@ -33,6 +43,9 @@ export function ExecutionNodeCard({ node, runId }: { node: RunExecutionNodeItem;
           approvalTicketId: latestApprovalEntry?.approval_ticket?.id ?? null
         })
       : null;
+  const backendExtensionsPreview = formatExecutionBackendExtensions(
+    node.execution_backend_extensions
+  );
 
   return (
     <article className="timeline-row">
@@ -83,7 +96,23 @@ export function ExecutionNodeCard({ node, runId }: { node: RunExecutionNodeItem;
         {node.execution_filesystem_policy ? (
           <span className="event-chip">fs {node.execution_filesystem_policy}</span>
         ) : null}
+        {node.execution_dependency_mode ? (
+          <span className="event-chip">deps {node.execution_dependency_mode}</span>
+        ) : null}
+        {node.execution_builtin_package_set ? (
+          <span className="event-chip">builtin {node.execution_builtin_package_set}</span>
+        ) : null}
+        {node.execution_dependency_ref ? (
+          <span className="event-chip">dep ref {node.execution_dependency_ref}</span>
+        ) : null}
+        {backendExtensionsPreview ? (
+          <span className="event-chip">backend ext {Object.keys(node.execution_backend_extensions ?? {}).length}</span>
+        ) : null}
       </div>
+
+      {backendExtensionsPreview ? (
+        <p className="activity-copy">Backend extensions {backendExtensionsPreview}</p>
+      ) : null}
 
       <div className="event-type-strip">
         <span className="event-chip">dispatch {node.execution_dispatched_count}</span>

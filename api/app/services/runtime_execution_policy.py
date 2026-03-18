@@ -73,6 +73,10 @@ class ResolvedExecutionPolicy:
             "execution_timeout_ms": self.timeout_ms,
             "execution_network_policy": self.network_policy,
             "execution_filesystem_policy": self.filesystem_policy,
+            "execution_dependency_mode": self.dependency_mode,
+            "execution_builtin_package_set": self.builtin_package_set,
+            "execution_dependency_ref": self.dependency_ref,
+            "execution_backend_extensions": self.backend_extensions,
         }
 
 

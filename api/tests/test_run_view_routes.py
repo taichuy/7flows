@@ -318,6 +318,8 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
             "created_at": "2026-03-11T10:00:32",
         }
     ]
+
+
     assert node["callback_waiting_lifecycle"] == {
         "wait_cycle_count": 2,
         "issued_ticket_count": 2,
@@ -345,6 +347,68 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     assert node["scheduled_resume_reason"] == "search callback pending"
     assert node["scheduled_resume_source"] == "callback_ticket_monitor"
     assert node["scheduled_waiting_status"] == "waiting_callback"
+
+
+def test_get_run_execution_view_includes_dependency_contract_fields(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow: Workflow,
+) -> None:
+    run = Run(
+        id="run-execution-contract",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        compiled_blueprint_id="bp-execution-contract",
+        status="running",
+        input_payload={"message": "inspect dependency contract"},
+        created_at=datetime(2026, 3, 18, 9, 0, tzinfo=UTC),
+    )
+    node_run = NodeRun(
+        id="node-run-sandbox-contract",
+        run_id=run.id,
+        node_id="sandbox_eval",
+        node_name="Sandbox Eval",
+        node_type="sandbox_code",
+        status="running",
+        phase="executing",
+        input_payload={
+            "execution": {
+                "class": "sandbox",
+                "source": "runtime_policy",
+                "profile": "python-safe",
+                "timeoutMs": 15000,
+                "networkPolicy": "restricted",
+                "filesystemPolicy": "ephemeral",
+                "dependencyMode": "dependency_ref",
+                "dependencyRef": "bundle:finance-safe-v1",
+                "backendExtensions": {"mountPreset": "finance", "gpu": False},
+            }
+        },
+        created_at=datetime(2026, 3, 18, 9, 0, tzinfo=UTC),
+        started_at=datetime(2026, 3, 18, 9, 0, tzinfo=UTC),
+        phase_started_at=datetime(2026, 3, 18, 9, 0, tzinfo=UTC),
+    )
+    sqlite_session.add_all([run, node_run])
+    sqlite_session.commit()
+
+    response = client.get(f"/api/runs/{run.id}/execution-view")
+
+    assert response.status_code == 200
+    body = response.json()
+    node = body["nodes"][0]
+    assert node["execution_class"] == "sandbox"
+    assert node["execution_source"] == "runtime_policy"
+    assert node["execution_profile"] == "python-safe"
+    assert node["execution_timeout_ms"] == 15000
+    assert node["execution_network_policy"] == "restricted"
+    assert node["execution_filesystem_policy"] == "ephemeral"
+    assert node["execution_dependency_mode"] == "dependency_ref"
+    assert node["execution_builtin_package_set"] is None
+    assert node["execution_dependency_ref"] == "bundle:finance-safe-v1"
+    assert node["execution_backend_extensions"] == {
+        "mountPreset": "finance",
+        "gpu": False,
+    }
 
 
 def test_get_run_execution_view_surfaces_skill_reference_loads(

@@ -128,6 +128,10 @@ class RunExecutionNodeItem(BaseModel):
     execution_timeout_ms: int | None = None
     execution_network_policy: str | None = None
     execution_filesystem_policy: str | None = None
+    execution_dependency_mode: str | None = None
+    execution_builtin_package_set: str | None = None
+    execution_dependency_ref: str | None = None
+    execution_backend_extensions: dict | None = None
     execution_dispatched_count: int = 0
     execution_fallback_count: int = 0
     execution_blocked_count: int = 0
