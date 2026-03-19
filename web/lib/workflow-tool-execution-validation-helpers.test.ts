@@ -227,7 +227,7 @@ describe("workflow tool execution validation helpers", () => {
     expect(issue?.message).toContain("sandbox-backed tool execution");
   });
 
-  it("即使 backend 已声明 tool execution capability，原生工具强隔离仍保持 fail-closed", () => {
+  it("当 backend 已声明 tool execution capability 时，原生工具强隔离不再被 editor 误报", () => {
     const issue = buildExecutionCapabilityIssue({
       context: "节点 tool.runtimePolicy.execution",
       nodeId: "node-native-1",
@@ -247,12 +247,40 @@ describe("workflow tool execution validation helpers", () => {
       field: "execution"
     });
 
-    expect(issue?.message).toContain("sandbox-backed tool runner");
-    expect(issue?.message).toContain("原生工具 native.risk-search");
-    expect(issue?.message).toContain("fail-closed");
+    expect(issue).toBeNull();
   });
 
-  it("原生工具的默认强隔离执行级别不会被 editor 误判为 ready", () => {
+  it("在 backend 缺少 tool execution capability 时，原生工具强隔离仍会 fail-closed", () => {
+    const issue = buildExecutionCapabilityIssue({
+      context: "节点 tool.runtimePolicy.execution",
+      nodeId: "node-native-1",
+      nodeName: "Native Tool",
+      toolId: "native.risk-search",
+      tool: createNativeTool(),
+      ecosystem: "native",
+      adapterId: null,
+      requestedExecutionClass: "sandbox",
+      executionPayload: {
+        class: "sandbox"
+      },
+      adapters: [],
+      sandboxReadiness: createSandboxReadiness(),
+      sandboxBackends: createSandboxBackends([
+        {
+          capability: {
+            supports_tool_execution: false
+          }
+        }
+      ]),
+      path: "nodes[0].runtimePolicy.execution",
+      field: "execution"
+    });
+
+    expect(issue?.message).toContain("没有单个 sandbox backend 能同时满足工具 native.risk-search 的执行约束");
+    expect(issue?.message).toContain("sandbox-backed tool execution");
+  });
+
+  it("原生工具的默认强隔离执行级别在 backend ready 时不再被 editor 误判", () => {
     const issue = buildDefaultExecutionCapabilityIssue({
       context: "节点 toolPolicy.allowedToolIds",
       nodeId: "node-native-default",
@@ -268,7 +296,32 @@ describe("workflow tool execution validation helpers", () => {
       field: "allowedToolIds"
     });
 
+    expect(issue).toBeNull();
+  });
+
+  it("原生工具的默认强隔离执行级别在 backend 缺少 tool execution capability 时保持 fail-closed", () => {
+    const issue = buildDefaultExecutionCapabilityIssue({
+      context: "节点 toolPolicy.allowedToolIds",
+      nodeId: "node-native-default",
+      nodeName: "Native Default Tool",
+      toolId: "native.risk-search",
+      tool: createNativeTool({ default_execution_class: "microvm" }),
+      ecosystem: "native",
+      adapterId: null,
+      adapters: [],
+      sandboxReadiness: createSandboxReadiness(),
+      sandboxBackends: createSandboxBackends([
+        {
+          capability: {
+            supports_tool_execution: false
+          }
+        }
+      ]),
+      path: "nodes[0].config.toolPolicy.allowedToolIds",
+      field: "allowedToolIds"
+    });
+
     expect(issue?.message).toContain("默认执行级别 microvm");
-    expect(issue?.message).toContain("native tool 也接入同一条强隔离执行主链");
+    expect(issue?.message).toContain("sandbox-backed tool execution");
   });
 });

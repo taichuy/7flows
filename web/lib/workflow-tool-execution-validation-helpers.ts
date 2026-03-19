@@ -88,15 +88,7 @@ export function buildExecutionCapabilityIssue({
       if (sandboxIssue) {
         return sandboxIssue;
       }
-      return buildNativeToolRunnerGapIssue({
-        context,
-        nodeId,
-        nodeName,
-        toolId,
-        executionClass: requestedExecutionClass,
-        path,
-        field
-      });
+      return null;
     }
     return {
       nodeId,
@@ -216,16 +208,7 @@ export function buildDefaultExecutionCapabilityIssue({
     if (sandboxIssue) {
       return sandboxIssue;
     }
-    return buildNativeToolRunnerGapIssue({
-      context,
-      nodeId,
-      nodeName,
-      toolId,
-      executionClass: defaultExecutionClass,
-      path,
-      field,
-      isDefaultExecution: true
-    });
+    return null;
   }
 
   const resolvedEcosystem = ecosystem ?? tool.ecosystem;
@@ -512,44 +495,6 @@ function buildDefaultSandboxReadinessIssue({
     nodeId,
     nodeName,
     message: `${context} 依赖工具 ${toolId} 的默认执行级别 ${defaultExecutionClass}，但当前 sandbox readiness 还没有准备好对应执行链路。${reason ? ` ${reason}` : ""}`,
-    path,
-    field
-  };
-}
-
-function buildNativeToolRunnerGapIssue({
-  context,
-  nodeId,
-  nodeName,
-  toolId,
-  executionClass,
-  path,
-  field,
-  isDefaultExecution = false
-}: {
-  context: string;
-  nodeId: string;
-  nodeName: string;
-  toolId: string;
-  executionClass: string;
-  path: string;
-  field: string;
-  isDefaultExecution?: boolean;
-}): WorkflowToolExecutionValidationIssue | null {
-  if (executionClass !== "sandbox" && executionClass !== "microvm") {
-    return null;
-  }
-
-  const executionSummary = isDefaultExecution
-    ? `默认执行级别 ${executionClass}`
-    : `显式请求了 ${executionClass}`;
-
-  return {
-    nodeId,
-    nodeName,
-    message:
-      `${context} ${executionSummary}，但当前 runtime 只对 compat adapter 工具路径兑现了 sandbox-backed tool runner。` +
-      ` 原生工具 ${toolId} 仍会沿 host 侧 fail-closed，直到 native tool 也接入同一条强隔离执行主链。`,
     path,
     field
   };
