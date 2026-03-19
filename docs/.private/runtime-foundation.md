@@ -37,6 +37,7 @@
 - `RunDetail.execution_focus_node` 现已直接携带 `callback_waiting_explanation`，`fetchRunSnapshot` 也对旧契约保留 execution-view 回退：单 run snapshot 不再因为 run detail 已带 execution focus 就把 waiting blocker explanation 吃丢。
 - publish activity list 现已补齐顶层 `execution_focus_explanation / callback_waiting_explanation` 共享契约：活动卡片可以直接消费和 detail / run snapshot 同名字段，并对旧数据保留 `run_follow_up.sampled_runs` / waiting lifecycle 回退，不再只停留在聚合计数。
 - publish activity list 与 invocation detail 现在也开始真正消费 `run_follow_up.sampled_runs[].snapshot` 里的 compact focus evidence：sampled run 不再只显示状态 / waiting reason，已经会把 artifact / tool call / raw_ref 计数、compact evidence card 与 snapshot summary 一起带回发布入口，减少从 publish 入口排障时再跳回 run detail 的必要性。
+- sensitive access inbox entry card 已切到共享 `SensitiveAccessInlineActions + InlineOperatorActionFeedback + OperatorFocusEvidenceCard` 结果链：审批 / 通知重试不再停留在纯文本反馈，inbox entry 上的 execution focus evidence 也开始复用同一张 evidence card，减少 operator 结果页之间的重复拼装与体验断层。
 - `llm_agent` 已经在朝 phase pipeline 演进，assistant 仍只负责 evidence 提炼，不拥有流程控制权。
 - Skill Catalog 最小链路已成立：`SkillDoc`、catalog API、phase binding、reference retrieval 与 runtime 注入主链已经存在。
 
@@ -96,7 +97,7 @@
 5. **P1：继续治理 run diagnostics / publish detail / skill trace 的共享解释层**
    - 继续统一 waiting、execution、operator action 与 published invocation detail 的解释模型。
 - `execution_focus_explanation`、`callback_waiting_explanation`、敏感访问 operator `outcome_explanation` 与 action 级 `callback_blocker_delta` 已开始收口到后端事实链；单 run `run_snapshot`、批量 `run_follow_up`、publish activity list 与 `fetchRunSnapshot` 已进一步对齐，`callback cleanup` 与手动恢复结果也开始吃同一份 blocker / follow-up 事实链；本轮又把 compact focus evidence 接进 operator snapshot，让 action result 也能直接提示 artifact / raw_ref / backend 级证据。
-- 本轮已把 publish activity list 与 sensitive access operator action result 都补齐为 shared explanation / focus evidence contract 的消费方；下一步可继续把同类 contract 推进到更多 operator result 页面，减少双请求和页面级兜底拼装。
+- 本轮已把 publish activity list、sensitive access operator action result 与 inbox entry card 都补齐为 shared explanation / focus evidence contract 的消费方；下一步可继续把同类 contract 推进到更多 operator result 页面，减少双请求和页面级兜底拼装。
 - 本轮又把 publish activity list / invocation detail 的 sampled run UI 补齐为真正消费 compact focus evidence：前端已开始复用统一 `OperatorFocusEvidenceCard` 展示 tool call / artifact preview 与 sampled count，不再停留在聚合计数；下一步可继续把相同 snapshot evidence contract 推进到更多 action detail / follow-up 页面，减少“有共享事实但入口仍只显示聚合计数”的残留断层。
 - 本轮已把 sensitive access bulk governance card 从纯文字摘要推进为真正消费 `sampledRuns[].snapshot` 的 focus evidence 入口：批量治理结果现在会直接展示 sampled run 的 compact snapshot 摘要、focus node / waiting reason、artifact / tool / raw_ref 计数与 run detail 跳转，减少 operator 在 bulk action 后还要回退到 inbox / run detail 才能定位受影响 run 的断层。
 

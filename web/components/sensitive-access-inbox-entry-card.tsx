@@ -1,28 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
-import { useFormStatus } from "react-dom";
-
-import {
-  decideSensitiveAccessApprovalTicket,
-  retrySensitiveAccessNotificationDispatch,
-  type DecideSensitiveAccessApprovalTicketState,
-  type RetrySensitiveAccessNotificationDispatchState
-} from "@/app/actions/sensitive-access";
 import {
   ACTION_TYPE_LABELS,
   APPROVAL_STATUS_LABELS,
-  DEFAULT_OPERATOR_ID,
   NOTIFICATION_STATUS_LABELS,
   REQUESTER_TYPE_LABELS,
   WAITING_STATUS_LABELS,
-  isPendingWaitingTicket,
-  pickLatestNotification,
-  pickRetriableNotification
+  pickLatestNotification
 } from "@/components/sensitive-access-inbox-panel-helpers";
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
-import { ArtifactPreviewList } from "@/components/run-diagnostics-execution/shared";
+import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
+import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
 import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
@@ -48,136 +37,13 @@ type SensitiveAccessInboxEntryCardProps = {
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
 };
 
-type SensitiveAccessTicketDecisionFormProps = {
-  entry: SensitiveAccessInboxEntry;
-};
-
-const initialDecisionState: DecideSensitiveAccessApprovalTicketState = {
-  status: "idle",
-  message: "",
-  ticketId: ""
-};
-
-const initialRetryState: RetrySensitiveAccessNotificationDispatchState = {
-  status: "idle",
-  message: "",
-  dispatchId: "",
-  target: ""
-};
-
-function DecisionSubmitButton({
-  label,
-  value,
-  variant = "primary"
-}: {
-  label: string;
-  value: "approved" | "rejected";
-  variant?: "primary" | "secondary";
-}) {
-  const { pending } = useFormStatus();
-
-  return (
-    <button
-      className={variant === "secondary" ? "action-link-button" : "sync-button"}
-      disabled={pending}
-      name="status"
-      type="submit"
-      value={value}
-    >
-      {pending ? "提交中..." : label}
-    </button>
-  );
-}
-
-function SensitiveAccessTicketDecisionForm({
-  entry
-}: SensitiveAccessTicketDecisionFormProps) {
-  const [state, formAction] = useActionState(
-    decideSensitiveAccessApprovalTicket,
-    initialDecisionState
-  );
-  const scope = resolveSensitiveAccessInboxEntryScope(entry);
-
-  if (!isPendingWaitingTicket(entry)) {
-    return null;
-  }
-
-  return (
-    <form action={formAction} className="inbox-decision-form">
-      <input type="hidden" name="ticketId" value={entry.ticket.id} />
-      <input type="hidden" name="runId" value={scope.runId ?? ""} />
-      <input type="hidden" name="nodeRunId" value={scope.nodeRunId ?? ""} />
-      <label className="status-meta" htmlFor={`approvedBy-${entry.ticket.id}`}>
-        Operator
-      </label>
-      <input
-        className="inbox-operator-input"
-        defaultValue={DEFAULT_OPERATOR_ID}
-        id={`approvedBy-${entry.ticket.id}`}
-        name="approvedBy"
-        placeholder="输入审批人标识"
-        type="text"
-      />
-      <div className="binding-actions">
-        <DecisionSubmitButton label="批准并恢复" value="approved" />
-        <DecisionSubmitButton label="拒绝访问" value="rejected" variant="secondary" />
-      </div>
-      {state.message && state.ticketId === entry.ticket.id ? (
-        <p className={`sync-message ${state.status}`}>{state.message}</p>
-      ) : null}
-    </form>
-  );
-}
-
-function SensitiveAccessNotificationRetryForm({
-  entry
-}: SensitiveAccessTicketDecisionFormProps) {
-  const [state, formAction] = useActionState(
-    retrySensitiveAccessNotificationDispatch,
-    initialRetryState
-  );
-  const notification = pickRetriableNotification(entry);
-  const scope = resolveSensitiveAccessInboxEntryScope(entry);
-
-  if (!notification) {
-    return null;
-  }
-
-  return (
-    <form action={formAction} className="inbox-decision-form">
-      <input type="hidden" name="dispatchId" value={notification.id} />
-      <input type="hidden" name="runId" value={scope.runId ?? ""} />
-      <input type="hidden" name="nodeRunId" value={scope.nodeRunId ?? ""} />
-      <label className="status-meta" htmlFor={`notificationTarget-${notification.id}`}>
-        Notification target
-      </label>
-      <input
-        className="inbox-operator-input"
-        defaultValue={notification.target}
-        id={`notificationTarget-${notification.id}`}
-        name="target"
-        placeholder="输入新的通知目标；留空则沿用当前目标"
-        type="text"
-      />
-      <div className="binding-actions">
-        <button className="action-link-button" type="submit">
-          改派目标并重试
-        </button>
-      </div>
-      {notification.error ? <p className="empty-state compact">{notification.error}</p> : null}
-      {state.message && state.dispatchId === notification.id ? (
-        <p className={`sync-message ${state.status}`}>{state.message}</p>
-      ) : null}
-    </form>
-  );
-}
-
 export function SensitiveAccessInboxEntryCard({
   entry,
   callbackWaitingAutomation
 }: SensitiveAccessInboxEntryCardProps) {
   const request = entry.request;
   const resource = entry.resource;
+  const scope = resolveSensitiveAccessInboxEntryScope(entry);
   const latestNotification = pickLatestNotification(entry);
   const callbackWaitingContext = entry.callbackWaitingContext;
   const executionContext = entry.executionContext;
@@ -195,7 +61,14 @@ export function SensitiveAccessInboxEntryCard({
   const focusArtifactSummary = executionContext
     ? formatExecutionFocusArtifactSummary(executionContext.focusNode)
     : null;
-  const focusArtifacts = executionContext?.focusNode.artifacts.slice(0, 2) ?? [];
+  const focusArtifacts =
+    executionContext?.focusNode.artifacts.slice(0, 2).map((artifact, index) => ({
+      key: artifact.uri?.trim() || artifact.summary?.trim() || `focus-artifact-${index}`,
+      artifactKind: artifact.artifact_kind,
+      contentType: artifact.content_type,
+      summary: artifact.summary,
+      uri: artifact.uri
+    })) ?? [];
   const focusInboxHref = executionContext
     ? buildSensitiveAccessInboxHref({
         runId: executionContext.runId,
@@ -300,65 +173,14 @@ export function SensitiveAccessInboxEntryCard({
           {executionFocusFollowUp ? (
             <p className="binding-meta">{executionFocusFollowUp}</p>
           ) : null}
-          {focusToolCallSummaries.length > 0 || focusArtifactSummary ? (
-            <div className="event-list">
-              <div className="entry-card compact-card">
-                <div className="payload-card-header">
-                  <span className="status-meta">Focused tool execution</span>
-                  {focusToolCallSummaries.length > 0 ? (
-                    <span className="event-chip">tool calls {focusToolCallSummaries.length}</span>
-                  ) : null}
-                  {executionContext.focusNode.artifact_refs.length > 0 ? (
-                    <span className="event-chip">
-                      artifact refs {executionContext.focusNode.artifact_refs.length}
-                    </span>
-                  ) : null}
-                </div>
-                {focusArtifactSummary ? (
-                  <p className="section-copy entry-copy">{focusArtifactSummary}</p>
-                ) : null}
-                {focusToolCallSummaries.length > 0 ? (
-                  <div className="event-list">
-                    {focusToolCallSummaries.map((toolCall) => (
-                      <article className="event-row compact-card" key={toolCall.id}>
-                        <div className="payload-card-header">
-                          <span className="status-meta">{toolCall.title}</span>
-                          {toolCall.rawRef ? <span className="event-chip">raw ref</span> : null}
-                        </div>
-                        {toolCall.badges.length > 0 ? (
-                          <div className="tool-badge-row">
-                            {toolCall.badges.map((badge) => (
-                              <span className="event-chip" key={`${toolCall.id}:${badge}`}>
-                                {badge}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
-                        <p className="section-copy entry-copy">{toolCall.detail}</p>
-                        {toolCall.rawRef ? (
-                          <p className="binding-meta">raw_ref {toolCall.rawRef}</p>
-                        ) : null}
-                      </article>
-                    ))}
-                  </div>
-                ) : null}
-                {focusArtifacts.length > 0 ? (
-                  <>
-                    <p className="binding-meta">
-                      Focused artifacts（当前卡片仅展示前 {focusArtifacts.length} 条）
-                    </p>
-                    <ArtifactPreviewList artifacts={focusArtifacts} />
-                    {executionContext.focusNode.artifacts.length > focusArtifacts.length ? (
-                      <p className="binding-meta">
-                        其余 {executionContext.focusNode.artifacts.length - focusArtifacts.length} 条 artifact
-                        请跳转 run detail 查看。
-                      </p>
-                    ) : null}
-                  </>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+          <OperatorFocusEvidenceCard
+            artifactCount={executionContext.focusNode.artifacts.length}
+            artifactRefCount={executionContext.focusNode.artifact_refs.length}
+            artifactSummary={focusArtifactSummary}
+            artifacts={focusArtifacts}
+            toolCallCount={executionContext.focusNode.tool_calls.length}
+            toolCallSummaries={focusToolCallSummaries}
+          />
           <div className="tool-badge-row">
             <Link className="event-chip inbox-filter-link" href={`/runs/${executionContext.runId}`}>
               open run
@@ -457,8 +279,13 @@ export function SensitiveAccessInboxEntryCard({
         </div>
       ) : null}
 
-      <SensitiveAccessTicketDecisionForm entry={entry} />
-      <SensitiveAccessNotificationRetryForm entry={entry} />
+      <SensitiveAccessInlineActions
+        compact
+        nodeRunId={scope.nodeRunId}
+        notifications={entry.notifications}
+        runId={scope.runId}
+        ticket={entry.ticket}
+      />
     </article>
   );
 }
