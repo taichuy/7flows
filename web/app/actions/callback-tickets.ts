@@ -5,6 +5,10 @@ import {
   formatCleanupResultMessage,
   formatOperatorOutcomeExplanationMessage
 } from "@/lib/operator-action-result-presenters";
+import {
+  buildActionCallbackBlockerDeltaSummary,
+  fetchScopedCallbackBlockerSnapshot
+} from "./callback-blocker-action-summary";
 
 import { revalidateOperatorFollowUpPaths } from "./operator-follow-up-revalidation";
 import {
@@ -59,6 +63,10 @@ export async function cleanupRunCallbackTickets(
   }
 
   try {
+    const beforeBlockers = await fetchScopedCallbackBlockerSnapshot({
+      runId,
+      nodeRunId
+    });
     const response = await fetch(`${getApiBaseUrl()}/api/runs/callback-tickets/cleanup`, {
       method: "POST",
       headers: {
@@ -95,7 +103,15 @@ export async function cleanupRunCallbackTickets(
       runIds: body?.run_ids?.length ? body.run_ids : [runId],
       workflowIds: [runSnapshot?.workflowId]
     });
-    const blockerDeltaSummary = body?.callback_blocker_delta?.summary?.trim() || null;
+    const afterBlockers = await fetchScopedCallbackBlockerSnapshot({
+      runId,
+      nodeRunId
+    });
+    const blockerDeltaSummary = buildActionCallbackBlockerDeltaSummary({
+      backendSummary: body?.callback_blocker_delta?.summary,
+      before: beforeBlockers,
+      after: afterBlockers
+    });
 
     return {
       status: "success",

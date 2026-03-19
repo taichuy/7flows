@@ -1,15 +1,14 @@
 "use server";
 
 import {
-  fetchCallbackBlockerSnapshot,
-  formatCallbackAutomationHealthDeltaSummary
-} from "@/lib/callback-blocker-follow-up";
+  buildActionCallbackBlockerDeltaSummary,
+  fetchScopedCallbackBlockerSnapshot
+} from "./callback-blocker-action-summary";
 import {
   formatManualResumeResultMessage,
   formatOperatorOutcomeExplanationMessage
 } from "@/lib/operator-action-result-presenters";
 import { getApiBaseUrl } from "@/lib/api-base-url";
-import { getSystemOverview } from "@/lib/get-system-overview";
 
 import { revalidateOperatorFollowUpPaths } from "./operator-follow-up-revalidation";
 import {
@@ -28,18 +27,6 @@ export type ResumeRunState = OperatorInlineActionResultState & {
 const INITIAL_REASON = "operator_manual_resume_attempt";
 const INITIAL_SOURCE = "operator_callback_resume";
 
-function joinUniqueMessageParts(parts: Array<string | null | undefined>) {
-  const normalized: string[] = [];
-  for (const part of parts) {
-    const trimmed = part?.trim();
-    if (!trimmed || normalized.includes(trimmed)) {
-      continue;
-    }
-    normalized.push(trimmed);
-  }
-  return normalized.join(" ");
-}
-
 export async function resumeRun(
   _: ResumeRunState,
   formData: FormData
@@ -57,11 +44,9 @@ export async function resumeRun(
   }
 
   try {
-    const beforeAutomation = (await getSystemOverview()).callback_waiting_automation;
-    const beforeBlockers = await fetchCallbackBlockerSnapshot({
+    const beforeBlockers = await fetchScopedCallbackBlockerSnapshot({
       runId,
-      nodeRunId: nodeRunId || null,
-      callbackWaitingAutomation: beforeAutomation
+      nodeRunId
     });
     const response = await fetch(`${getApiBaseUrl()}/api/runs/${runId}/resume`, {
       method: "POST",
@@ -114,21 +99,15 @@ export async function resumeRun(
       runIds: [runId],
       workflowIds: [runSnapshot?.workflowId]
     });
-    const afterAutomation = (await getSystemOverview()).callback_waiting_automation;
-    const afterBlockers = await fetchCallbackBlockerSnapshot({
+    const afterBlockers = await fetchScopedCallbackBlockerSnapshot({
       runId,
-      nodeRunId: nodeRunId || null,
-      callbackWaitingAutomation: afterAutomation
+      nodeRunId
     });
-    const automationDeltaSummary = formatCallbackAutomationHealthDeltaSummary({
+    const blockerDeltaSummary = buildActionCallbackBlockerDeltaSummary({
+      backendSummary: body?.callback_blocker_delta?.summary,
       before: beforeBlockers,
       after: afterBlockers
     });
-    const blockerDeltaSummary =
-      joinUniqueMessageParts([
-        body?.callback_blocker_delta?.summary,
-        automationDeltaSummary
-      ]) || null;
 
     return {
       status: "success",

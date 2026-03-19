@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cleanupRunCallbackTickets } from "@/app/actions/callback-tickets";
+import {
+  buildActionCallbackBlockerDeltaSummary,
+  fetchScopedCallbackBlockerSnapshot
+} from "@/app/actions/callback-blocker-action-summary";
 import { revalidateOperatorFollowUpPaths } from "@/app/actions/operator-follow-up-revalidation";
 import { fetchRunSnapshot } from "@/app/actions/run-snapshot";
 
@@ -10,6 +14,16 @@ vi.mock("@/lib/api-base-url", () => ({
 
 vi.mock("@/app/actions/operator-follow-up-revalidation", () => ({
   revalidateOperatorFollowUpPaths: vi.fn()
+}));
+
+vi.mock("@/app/actions/callback-blocker-action-summary", () => ({
+  fetchScopedCallbackBlockerSnapshot: vi.fn(),
+  buildActionCallbackBlockerDeltaSummary: vi.fn(
+    ({ backendSummary }: { backendSummary?: string | null }) =>
+      [backendSummary, "Automation 摘要：scheduler 已重新接管该 waiting run。"]
+        .filter((item): item is string => Boolean(item && item.trim()))
+        .join(" ")
+  )
 }));
 
 vi.mock("@/app/actions/run-snapshot", () => ({
@@ -98,11 +112,26 @@ describe("callback ticket actions", () => {
     expect(result.message).toContain("下一步：继续观察 run 是否真正离开 waiting。");
     expect(result.message).toContain("本次影响 1 个 run；整体状态分布：running 1。已回读 1 个样本。");
     expect(result.message).toContain("样本 run 已离开 callback waiting。");
-    expect(result.message).toContain("阻塞变化：已解除 waiting external callback。 建议动作已切换为“Handle approval here first”。");
+    expect(result.message).toContain(
+      "阻塞变化：已解除 waiting external callback。 建议动作已切换为“Handle approval here first”。 Automation 摘要：scheduler 已重新接管该 waiting run。"
+    );
     expect(result.blockerDeltaSummary).toBe(
-      "阻塞变化：已解除 waiting external callback。 建议动作已切换为“Handle approval here first”。"
+      "阻塞变化：已解除 waiting external callback。 建议动作已切换为“Handle approval here first”。 Automation 摘要：scheduler 已重新接管该 waiting run。"
     );
     expect(fetchRunSnapshot).not.toHaveBeenCalled();
+    expect(fetchScopedCallbackBlockerSnapshot).toHaveBeenNthCalledWith(1, {
+      runId: "run-cleanup",
+      nodeRunId: "node-run-cleanup"
+    });
+    expect(fetchScopedCallbackBlockerSnapshot).toHaveBeenNthCalledWith(2, {
+      runId: "run-cleanup",
+      nodeRunId: "node-run-cleanup"
+    });
+    expect(buildActionCallbackBlockerDeltaSummary).toHaveBeenCalledWith({
+      backendSummary: "阻塞变化：已解除 waiting external callback。 建议动作已切换为“Handle approval here first”。",
+      before: undefined,
+      after: undefined
+    });
     expect(revalidateOperatorFollowUpPaths).toHaveBeenCalledWith({
       runIds: ["run-cleanup"],
       workflowIds: ["wf-cleanup"]

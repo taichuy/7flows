@@ -203,7 +203,8 @@ describe("callback operator actions", () => {
         primary_signal: "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
         follow_up: "run run-1：当前 run 状态：waiting。 当前节点：review。 重点信号：等待原因：waiting callback"
       },
-      blockerDeltaSummary: "阻塞变化：已清理当前 slice 内的过期 callback ticket。"
+      blockerDeltaSummary:
+        "阻塞变化：已清理当前 slice 内的过期 callback ticket。 自动化健康变化：scheduler 已重新接管该 waiting run。"
     });
     expect(result.runSnapshot).toMatchObject({
       workflowId: "wf-1",

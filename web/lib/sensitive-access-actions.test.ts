@@ -10,6 +10,10 @@ import {
   revalidateOperatorFollowUpByRunIds,
   revalidateOperatorFollowUpPaths
 } from "@/app/actions/operator-follow-up-revalidation";
+import {
+  buildActionCallbackBlockerDeltaSummary,
+  fetchScopedCallbackBlockerSnapshot
+} from "@/app/actions/callback-blocker-action-summary";
 import { fetchRunSnapshot } from "@/app/actions/run-snapshot";
 
 vi.mock("@/lib/api-base-url", () => ({
@@ -19,6 +23,16 @@ vi.mock("@/lib/api-base-url", () => ({
 vi.mock("@/app/actions/operator-follow-up-revalidation", () => ({
   revalidateOperatorFollowUpByRunIds: vi.fn(),
   revalidateOperatorFollowUpPaths: vi.fn()
+}));
+
+vi.mock("@/app/actions/callback-blocker-action-summary", () => ({
+  fetchScopedCallbackBlockerSnapshot: vi.fn(),
+  buildActionCallbackBlockerDeltaSummary: vi.fn(
+    ({ backendSummary }: { backendSummary?: string | null }) =>
+      [backendSummary, "Automation 摘要：scheduler 已重新接管该 waiting run。"]
+        .filter((item): item is string => Boolean(item && item.trim()))
+        .join(" ")
+  )
 }));
 
 vi.mock("@/app/actions/run-snapshot", () => ({
@@ -108,6 +122,7 @@ describe("sensitive access actions", () => {
     const formData = new FormData();
     formData.set("ticketId", "ticket-1");
     formData.set("runId", "run-1");
+    formData.set("nodeRunId", "node-run-1");
     formData.set("status", "approved");
     formData.set("approvedBy", "operator-1");
 
@@ -128,7 +143,9 @@ describe("sensitive access actions", () => {
       primary_signal: "本次影响 1 个 run；整体状态分布：running 1。已回读 1 个样本。",
       follow_up: "run run-1：当前 run 状态：running。 当前节点：review。 重点信号：runtime 已继续推进。"
     });
-    expect(result.blockerDeltaSummary).toBe("阻塞变化：已解除 approval pending。");
+    expect(result.blockerDeltaSummary).toBe(
+      "阻塞变化：已解除 approval pending。 Automation 摘要：scheduler 已重新接管该 waiting run。"
+    );
     expect(result.runSnapshot).toMatchObject({
       workflowId: "wf-1",
       status: "running",
@@ -136,13 +153,28 @@ describe("sensitive access actions", () => {
     });
     expect(result.message).toContain("审批已通过。");
     expect(result.message).toContain("后端已把 waiting blocker 重新交回 runtime。");
-    expect(result.message).toContain("阻塞变化：已解除 approval pending。");
+    expect(result.message).toContain(
+      "阻塞变化：已解除 approval pending。 Automation 摘要：scheduler 已重新接管该 waiting run。"
+    );
     expect(result.message).toContain("本次影响 1 个 run；整体状态分布：running 1。已回读 1 个样本。");
     expect(result.message).toContain("run run-1：当前 run 状态：running。 当前节点：review。 重点信号：runtime 已继续推进。");
     expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(revalidateOperatorFollowUpPaths).toHaveBeenCalledWith({
       runIds: ["run-1"],
       workflowIds: ["wf-1"]
+    });
+    expect(fetchScopedCallbackBlockerSnapshot).toHaveBeenNthCalledWith(1, {
+      runId: "run-1",
+      nodeRunId: "node-run-1"
+    });
+    expect(fetchScopedCallbackBlockerSnapshot).toHaveBeenNthCalledWith(2, {
+      runId: "run-1",
+      nodeRunId: "node-run-1"
+    });
+    expect(buildActionCallbackBlockerDeltaSummary).toHaveBeenCalledWith({
+      backendSummary: "阻塞变化：已解除 approval pending。",
+      before: undefined,
+      after: undefined
     });
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
@@ -295,6 +327,7 @@ describe("sensitive access actions", () => {
     const formData = new FormData();
     formData.set("dispatchId", "dispatch-1");
     formData.set("runId", "run-1");
+    formData.set("nodeRunId", "node-run-1");
     formData.set("target", "ops@example.com");
 
     const result = await retrySensitiveAccessNotificationDispatch(
@@ -315,7 +348,9 @@ describe("sensitive access actions", () => {
       primary_signal: "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
       follow_up: "run run-1：当前 run 状态：waiting。 当前节点：review。 重点信号：仍在等待审批结果。"
     });
-    expect(result.blockerDeltaSummary).toBe("阻塞变化：仍有 1 个 operator blocker 需要审批。");
+    expect(result.blockerDeltaSummary).toBe(
+      "阻塞变化：仍有 1 个 operator blocker 需要审批。 Automation 摘要：scheduler 已重新接管该 waiting run。"
+    );
     expect(result.runSnapshot).toMatchObject({
       workflowId: "wf-1",
       status: "waiting",
@@ -323,13 +358,28 @@ describe("sensitive access actions", () => {
     });
     expect(result.message).toContain("通知已重新投递。");
     expect(result.message).toContain("等待审批人与 callback 后续推进。");
-    expect(result.message).toContain("阻塞变化：仍有 1 个 operator blocker 需要审批。");
+    expect(result.message).toContain(
+      "阻塞变化：仍有 1 个 operator blocker 需要审批。 Automation 摘要：scheduler 已重新接管该 waiting run。"
+    );
     expect(result.message).toContain("本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。");
     expect(result.message).toContain("run run-1：当前 run 状态：waiting。 当前节点：review。 重点信号：仍在等待审批结果。");
     expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(revalidateOperatorFollowUpPaths).toHaveBeenCalledWith({
       runIds: ["run-1"],
       workflowIds: ["wf-1"]
+    });
+    expect(fetchScopedCallbackBlockerSnapshot).toHaveBeenNthCalledWith(1, {
+      runId: "run-1",
+      nodeRunId: "node-run-1"
+    });
+    expect(fetchScopedCallbackBlockerSnapshot).toHaveBeenNthCalledWith(2, {
+      runId: "run-1",
+      nodeRunId: "node-run-1"
+    });
+    expect(buildActionCallbackBlockerDeltaSummary).toHaveBeenCalledWith({
+      backendSummary: "阻塞变化：仍有 1 个 operator blocker 需要审批。",
+      before: undefined,
+      after: undefined
     });
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });

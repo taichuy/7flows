@@ -15,6 +15,10 @@ import {
   formatNotificationRetryResultMessage,
   summarizeBulkRunFollowUp
 } from "@/lib/operator-action-result-presenters";
+import {
+  buildActionCallbackBlockerDeltaSummary,
+  fetchScopedCallbackBlockerSnapshot
+} from "./callback-blocker-action-summary";
 
 import {
   revalidateOperatorFollowUpByRunIds,
@@ -252,6 +256,7 @@ export async function decideSensitiveAccessApprovalTicket(
 ): Promise<DecideSensitiveAccessApprovalTicketState> {
   const ticketId = String(formData.get("ticketId") ?? "").trim();
   const runId = String(formData.get("runId") ?? "").trim();
+  const nodeRunId = String(formData.get("nodeRunId") ?? "").trim();
   const decision = String(formData.get("status") ?? "").trim();
   const approvedBy = String(formData.get("approvedBy") ?? "").trim();
 
@@ -264,6 +269,10 @@ export async function decideSensitiveAccessApprovalTicket(
   }
 
   try {
+    const beforeBlockers = await fetchScopedCallbackBlockerSnapshot({
+      runId,
+      nodeRunId
+    });
     const response = await fetch(
       `${getApiBaseUrl()}/api/sensitive-access/approval-tickets/${encodeURIComponent(ticketId)}/decision`,
       {
@@ -294,7 +303,15 @@ export async function decideSensitiveAccessApprovalTicket(
       runIds: [runId],
       workflowIds: [runSnapshot?.workflowId]
     });
-    const blockerDeltaSummary = body?.callback_blocker_delta?.summary;
+    const afterBlockers = await fetchScopedCallbackBlockerSnapshot({
+      runId,
+      nodeRunId
+    });
+    const blockerDeltaSummary = buildActionCallbackBlockerDeltaSummary({
+      backendSummary: body?.callback_blocker_delta?.summary,
+      before: beforeBlockers,
+      after: afterBlockers
+    });
 
     return {
       status: "success",
@@ -333,6 +350,7 @@ export async function retrySensitiveAccessNotificationDispatch(
 ): Promise<RetrySensitiveAccessNotificationDispatchState> {
   const dispatchId = String(formData.get("dispatchId") ?? "").trim();
   const runId = String(formData.get("runId") ?? "").trim();
+  const nodeRunId = String(formData.get("nodeRunId") ?? "").trim();
   const target = String(formData.get("target") ?? "").trim();
 
   if (!dispatchId) {
@@ -345,6 +363,10 @@ export async function retrySensitiveAccessNotificationDispatch(
   }
 
   try {
+    const beforeBlockers = await fetchScopedCallbackBlockerSnapshot({
+      runId,
+      nodeRunId
+    });
     const response = await fetch(
       `${getApiBaseUrl()}/api/sensitive-access/notification-dispatches/${encodeURIComponent(dispatchId)}/retry`,
       {
@@ -375,7 +397,15 @@ export async function retrySensitiveAccessNotificationDispatch(
       runIds: [runId],
       workflowIds: [runSnapshot?.workflowId]
     });
-    const blockerDeltaSummary = body?.callback_blocker_delta?.summary;
+    const afterBlockers = await fetchScopedCallbackBlockerSnapshot({
+      runId,
+      nodeRunId
+    });
+    const blockerDeltaSummary = buildActionCallbackBlockerDeltaSummary({
+      backendSummary: body?.callback_blocker_delta?.summary,
+      before: beforeBlockers,
+      after: afterBlockers
+    });
     const effectiveTarget =
       typeof body?.notification?.target === "string" && body.notification.target.trim().length > 0
         ? body.notification.target.trim()
