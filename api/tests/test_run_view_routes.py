@@ -396,6 +396,79 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
             "created_at": "2026-03-11T10:00:32",
         }
     ]
+    run_snapshot = node["sensitive_access_entries"][0]["run_snapshot"]
+    assert run_snapshot is not None
+    assert run_snapshot["workflow_id"] == sample_workflow.id
+    assert run_snapshot["status"] == "waiting"
+    assert run_snapshot["current_node_id"] is None
+    assert run_snapshot["waiting_reason"] == "Waiting for external search callback."
+    assert run_snapshot["execution_focus_reason"] == "blocked_execution"
+    assert run_snapshot["execution_focus_node_id"] == "agent_plan"
+    assert run_snapshot["execution_focus_node_run_id"] == "node-run-agent"
+    assert run_snapshot["execution_focus_node_name"] == "Agent Plan"
+    assert run_snapshot["execution_focus_node_type"] == "llm_agent"
+    assert run_snapshot["execution_focus_explanation"] == {
+        "primary_signal": "等待原因：Waiting for external search callback.",
+        "follow_up": "下一步：优先处理这条 sensitive access 审批票据，再观察 waiting 节点是否恢复。",
+    }
+    assert run_snapshot["callback_waiting_explanation"] == {
+        "primary_signal": "当前 callback waiting 仍卡在 1 条待处理审批。",
+        "follow_up": "下一步：先在当前 operator 入口完成审批或拒绝，再观察 waiting 节点是否自动恢复。",
+    }
+    assert run_snapshot["execution_focus_artifact_count"] == 2
+    assert run_snapshot["execution_focus_artifact_ref_count"] == 2
+    assert run_snapshot["execution_focus_tool_call_count"] == 1
+    assert run_snapshot["execution_focus_raw_ref_count"] == 1
+    assert run_snapshot["execution_focus_artifact_refs"] == [
+        "artifact://artifact-tool",
+        "artifact://artifact-evidence",
+    ]
+    assert [item["uri"] for item in run_snapshot["execution_focus_artifacts"]] == [
+        "artifact://artifact-tool",
+        "artifact://artifact-evidence",
+    ]
+    assert run_snapshot["execution_focus_tool_calls"] == [
+        {
+            "id": "tool-call-agent",
+            "tool_id": "compat:dify:plugin/search",
+            "tool_name": "search",
+            "phase": "tool_execute",
+            "status": "waiting",
+            "effective_execution_class": "sandbox",
+            "execution_sandbox_backend_id": "sandbox-default",
+            "execution_sandbox_runner_kind": "compat-adapter",
+            "execution_blocking_reason": None,
+            "execution_fallback_reason": None,
+            "response_summary": "Waiting for callback payload.",
+            "response_content_type": "json",
+            "raw_ref": "artifact://artifact-tool",
+        }
+    ]
+    assert run_snapshot["execution_focus_skill_trace"] is None
+
+    run_follow_up = node["sensitive_access_entries"][0]["run_follow_up"]
+    assert run_follow_up is not None
+    assert run_follow_up["affected_run_count"] == 1
+    assert run_follow_up["sampled_run_count"] == 1
+    assert run_follow_up["waiting_run_count"] == 1
+    assert run_follow_up["running_run_count"] == 0
+    assert run_follow_up["succeeded_run_count"] == 0
+    assert run_follow_up["failed_run_count"] == 0
+    assert run_follow_up["unknown_run_count"] == 0
+    assert run_follow_up["sampled_runs"] == [
+        {
+            "run_id": "run-execution-view",
+            "snapshot": run_snapshot,
+        }
+    ]
+    assert run_follow_up["explanation"] == {
+        "primary_signal": "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
+        "follow_up": (
+            "run run-execution-view：当前 run 状态：waiting。 聚焦节点：agent_plan。 "
+            "重点信号：当前 callback waiting 仍卡在 1 条待处理审批。 "
+            "后续动作：下一步：先在当前 operator 入口完成审批或拒绝，再观察 waiting 节点是否自动恢复。"
+        ),
+    }
 
 
     assert node["callback_waiting_lifecycle"] == {

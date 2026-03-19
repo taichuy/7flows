@@ -20,6 +20,11 @@ from app.schemas.run_views import (
 from app.services.run_execution_focus_explanations import (
     build_run_execution_focus_explanation,
 )
+from app.services.operator_follow_up_snapshots import (
+    build_operator_run_snapshot,
+    build_single_run_follow_up_summary,
+    build_waiting_reason_lookup,
+)
 from app.services.callback_waiting_explanations import (
     build_callback_waiting_explanation,
 )
@@ -126,6 +131,30 @@ def build_run_execution_view(
         blocking_node_run_id=blocking_node_run_id,
         current_node_id=artifacts.run.current_node_id,
     )
+    execution_focus_explanation = build_run_execution_focus_explanation(execution_focus_node)
+    skill_trace = build_run_execution_skill_trace(
+        node_runs=artifacts.node_runs,
+        summary=skill_reference_loads,
+        execution_focus_node_run_id=(
+            execution_focus_node.node_run_id if execution_focus_node is not None else None
+        ),
+    )
+    waiting_reason_lookup = build_waiting_reason_lookup([artifacts.run], artifacts.node_runs)
+    run_snapshot = build_operator_run_snapshot(
+        artifacts.run,
+        waiting_reason=waiting_reason_lookup.get(artifacts.run.id),
+        execution_focus_reason=execution_focus_reason,
+        execution_focus_node=execution_focus_node,
+        execution_focus_explanation=execution_focus_explanation,
+        skill_trace=skill_trace,
+    )
+    run_follow_up = build_single_run_follow_up_summary(artifacts.run.id, run_snapshot)
+    _attach_operator_follow_up_to_sensitive_access_entries(
+        nodes,
+        sensitive_access_timeline.by_node_run,
+        run_snapshot=run_snapshot,
+        run_follow_up=run_follow_up,
+    )
     return RunExecutionView(
         run_id=artifacts.run.id,
         workflow_id=artifacts.run.workflow_id,
@@ -183,18 +212,34 @@ def build_run_execution_view(
         blocking_node_run_id=blocking_node_run_id,
         execution_focus_reason=execution_focus_reason,
         execution_focus_node=execution_focus_node,
-        execution_focus_explanation=build_run_execution_focus_explanation(
-            execution_focus_node
-        ),
-        skill_trace=build_run_execution_skill_trace(
-            node_runs=artifacts.node_runs,
-            summary=skill_reference_loads,
-            execution_focus_node_run_id=(
-                execution_focus_node.node_run_id if execution_focus_node is not None else None
-            ),
-        ),
+        execution_focus_explanation=execution_focus_explanation,
+        skill_trace=skill_trace,
         nodes=nodes,
     )
+
+
+def _attach_operator_follow_up_to_sensitive_access_entries(
+    nodes: list[RunExecutionNodeItem],
+    sensitive_access_by_node_run,
+    *,
+    run_snapshot,
+    run_follow_up,
+) -> None:
+    if run_snapshot is None and run_follow_up.affected_run_count <= 0:
+        return
+
+    for node in nodes:
+        bundles = sensitive_access_by_node_run.get(node.node_run_id, [])
+        if not bundles:
+            continue
+        node.sensitive_access_entries = [
+            serialize_sensitive_access_timeline_entry(
+                bundle,
+                run_snapshot=run_snapshot,
+                run_follow_up=run_follow_up,
+            )
+            for bundle in bundles
+        ]
 
 
 def build_execution_nodes(
