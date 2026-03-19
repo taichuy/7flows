@@ -78,7 +78,7 @@ function buildExecutionFocusArtifactSamples(
   }));
 }
 
-function buildExecutionFocusExplainableNode(
+export function buildExecutionFocusExplainableNode(
   runSnapshot?: RunSnapshot | null
 ): Pick<RunExecutionNodeItem, "tool_calls" | "artifact_refs" | "artifacts"> | null {
   if (!runSnapshot) {

@@ -127,7 +127,8 @@ describe("fetchRunSnapshot", () => {
           response_content_type: "application/json",
           raw_ref: "artifact://artifact-1"
         }
-      ]
+      ],
+      executionFocusSkillTrace: null
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -249,7 +250,8 @@ describe("fetchRunSnapshot", () => {
           response_content_type: "application/json",
           raw_ref: "artifact://artifact-legacy"
         }
-      ]
+      ],
+      executionFocusSkillTrace: null
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -369,7 +371,8 @@ describe("fetchRunSnapshot", () => {
           response_content_type: "application/json",
           raw_ref: "artifact://artifact-234"
         }
-      ]
+      ],
+      executionFocusSkillTrace: null
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -418,7 +421,8 @@ describe("fetchRunSnapshot", () => {
       executionFocusRawRefCount: 0,
       executionFocusArtifactRefs: [],
       executionFocusArtifacts: [],
-      executionFocusToolCalls: []
+      executionFocusToolCalls: [],
+      executionFocusSkillTrace: null
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

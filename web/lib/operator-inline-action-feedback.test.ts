@@ -1,5 +1,8 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
 import {
   buildOperatorInlineActionFeedbackModel,
   hasStructuredOperatorInlineActionResult
@@ -194,5 +197,35 @@ describe("operator inline action feedback", () => {
     );
     expect(model.focusSkillReferenceLoads).toHaveLength(1);
     expect(model.focusSkillReferenceLoads[0]?.references).toHaveLength(2);
+  });
+
+  it("在 waiting callback 的 operator 结果里复用 callback waiting summary，且不重复渲染动作按钮", () => {
+    const html = renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        title: "恢复结果",
+        message: "恢复已提交。",
+        runId: "run-1",
+        outcomeExplanation: {
+          primary_signal: "恢复请求已写回 runtime。"
+        },
+        runSnapshot: {
+          status: "waiting",
+          waitingReason: "waiting callback approval",
+          executionFocusNodeId: "agent_review",
+          executionFocusNodeRunId: "node-run-1",
+          executionFocusNodeName: "Agent Review",
+          callbackWaitingExplanation: {
+            primary_signal: "当前 run 仍在等待 callback approval。",
+            follow_up: "优先检查 approval / notification blocker 是否已经解除。"
+          }
+        }
+      })
+    );
+
+    expect(html).toContain("当前 run 仍在等待 callback approval");
+    expect(html).toContain("优先检查 approval / notification blocker 是否已经解除");
+    expect(html).not.toContain("立即尝试恢复");
+    expect(html).not.toContain("处理过期 ticket 并尝试恢复");
   });
 });

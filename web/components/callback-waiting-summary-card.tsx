@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 
 import { CallbackWaitingInlineActions } from "@/components/callback-waiting-inline-actions";
@@ -55,6 +56,7 @@ type CallbackWaitingSummaryCardProps = {
   focusSkillReferenceCount?: number | null;
   focusSkillReferenceNodeId?: string | null;
   focusSkillReferenceNodeName?: string | null;
+  showInlineActions?: boolean;
   className?: string;
 };
 
@@ -81,6 +83,7 @@ export function CallbackWaitingSummaryCard({
   focusSkillReferenceCount = null,
   focusSkillReferenceNodeId = null,
   focusSkillReferenceNodeName = null,
+  showInlineActions = true,
   className = ""
 }: CallbackWaitingSummaryCardProps) {
   const headline =
@@ -317,7 +320,7 @@ export function CallbackWaitingSummaryCard({
           {terminationAt !== "n/a" ? ` · ${terminationAt}` : ""}
         </p>
       ) : null}
-      {inlineSensitiveAccessEntry ? (
+      {showInlineActions && inlineSensitiveAccessEntry ? (
         <SensitiveAccessInlineActions
           compact
           nodeRunId={inlineSensitiveAccessEntry.approval_ticket?.node_run_id ?? nodeRunId ?? null}
@@ -326,14 +329,16 @@ export function CallbackWaitingSummaryCard({
           ticket={inlineSensitiveAccessEntry.approval_ticket}
         />
       ) : null}
-      <CallbackWaitingInlineActions
-        allowManualResume={!hasTermination}
-        compact
-        nodeRunId={nodeRunId}
-        preferredAction={preferredInlineAction}
-        runId={runId ?? null}
-        statusHint={inlineStatusHint}
-      />
+      {showInlineActions ? (
+        <CallbackWaitingInlineActions
+          allowManualResume={!hasTermination}
+          compact
+          nodeRunId={nodeRunId}
+          preferredAction={preferredInlineAction}
+          runId={runId ?? null}
+          statusHint={inlineStatusHint}
+        />
+      ) : null}
     </div>
   );
 }

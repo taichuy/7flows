@@ -165,6 +165,9 @@ describe("buildSensitiveAccessBulkResultNarrative", () => {
         artifactRefCount: 1,
         toolCallCount: 3,
         rawRefCount: 1,
+        skillReferenceCount: 0,
+        skillReferencePhaseSummary: null,
+        skillReferenceSourceSummary: null,
         focusArtifactSummary:
           "聚焦节点已沉淀 1 个 artifact（tool_result 1）。 run artifact refs 1 条。 至少 1 条 tool call 已把原始结果落到 raw_ref，可直接回看 sandbox / tool 输出。",
         focusToolCallSummaries: [
@@ -191,7 +194,8 @@ describe("buildSensitiveAccessBulkResultNarrative", () => {
             summary: "聚焦 tool 已产出结构化摘要。",
             uri: "artifact://focus-1"
           }
-        ]
+        ],
+        focusSkillReferenceLoads: []
       }
     ]);
   });

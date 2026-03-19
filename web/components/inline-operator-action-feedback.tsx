@@ -1,8 +1,11 @@
+import React from "react";
 import Link from "next/link";
 
+import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import {
+  buildExecutionFocusExplainableNode,
   buildOperatorInlineActionFeedbackModel,
   type OperatorInlineActionResultState
 } from "@/lib/operator-inline-action-feedback";
@@ -25,6 +28,13 @@ export function InlineOperatorActionFeedback({
     message,
     ...structuredResult
   });
+  const runSnapshot = structuredResult.runSnapshot;
+  const hasCallbackWaitingSummary = Boolean(
+    runSnapshot?.callbackWaitingExplanation?.primary_signal?.trim() ||
+      runSnapshot?.callbackWaitingExplanation?.follow_up?.trim() ||
+      runSnapshot?.waitingReason?.trim()
+  );
+  const callbackWaitingFocusNode = buildExecutionFocusExplainableNode(runSnapshot);
 
   if (!message && !model.hasStructuredContent) {
     return null;
@@ -104,19 +114,36 @@ export function InlineOperatorActionFeedback({
         </div>
       ) : null}
 
-      <OperatorFocusEvidenceCard
-        artifactCount={model.artifactCount}
-        artifactRefCount={model.artifactRefCount}
-        artifactSummary={model.focusArtifactSummary}
-        artifacts={model.focusArtifacts}
-        toolCallCount={model.toolCallCount}
-        toolCallSummaries={model.focusToolCallSummaries}
-      />
-      <SkillReferenceLoadList
-        skillReferenceLoads={model.focusSkillReferenceLoads}
-        title="Focused skill trace"
-        description="当前 operator 结果会直接复用 focus node 的 compact skill trace，方便确认 agent 本轮实际加载了哪些参考资料。"
-      />
+      {hasCallbackWaitingSummary ? (
+        <CallbackWaitingSummaryCard
+          callbackWaitingExplanation={runSnapshot?.callbackWaitingExplanation ?? null}
+          focusNodeEvidence={callbackWaitingFocusNode}
+          focusSkillReferenceCount={runSnapshot?.executionFocusSkillTrace?.reference_count ?? 0}
+          focusSkillReferenceLoads={runSnapshot?.executionFocusSkillTrace?.loads ?? []}
+          focusSkillReferenceNodeId={runSnapshot?.executionFocusNodeId ?? null}
+          focusSkillReferenceNodeName={runSnapshot?.executionFocusNodeName ?? null}
+          nodeRunId={runSnapshot?.executionFocusNodeRunId ?? null}
+          runId={runId}
+          showInlineActions={false}
+          waitingReason={runSnapshot?.waitingReason ?? null}
+        />
+      ) : (
+        <>
+          <OperatorFocusEvidenceCard
+            artifactCount={model.artifactCount}
+            artifactRefCount={model.artifactRefCount}
+            artifactSummary={model.focusArtifactSummary}
+            artifacts={model.focusArtifacts}
+            toolCallCount={model.toolCallCount}
+            toolCallSummaries={model.focusToolCallSummaries}
+          />
+          <SkillReferenceLoadList
+            skillReferenceLoads={model.focusSkillReferenceLoads}
+            title="Focused skill trace"
+            description="当前 operator 结果会直接复用 focus node 的 compact skill trace，方便确认 agent 本轮实际加载了哪些参考资料。"
+          />
+        </>
+      )}
     </div>
   );
 }
