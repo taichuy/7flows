@@ -1275,6 +1275,7 @@ def test_invoke_published_native_endpoint_rejects_unimplemented_token_auth_mode(
     assert body["summary"]["last_status"] == "rejected"
     assert body["items"][0]["status"] == "rejected"
     assert body["items"][0]["run_id"] is None
+    assert body["items"][0]["run_follow_up"] is None
 
 
 def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
@@ -1524,6 +1525,22 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     expected_now = now.replace(tzinfo=None).isoformat()
     expected_callback_expires_at = (now + timedelta(minutes=5)).replace(tzinfo=None).isoformat()
     expected_cache_expires_at = (now + timedelta(minutes=10)).replace(tzinfo=None).isoformat()
+
+    activity_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
+    )
+    assert activity_response.status_code == 200
+    activity_body = activity_response.json()
+    assert activity_body["items"][0]["run_follow_up"]["affected_run_count"] == 1
+    assert activity_body["items"][0]["run_follow_up"]["sampled_run_count"] == 1
+    assert activity_body["items"][0]["run_follow_up"]["waiting_run_count"] == 1
+    assert activity_body["items"][0]["run_follow_up"]["sampled_runs"][0]["run_id"] == run.id
+    assert activity_body["items"][0]["run_follow_up"]["explanation"]["primary_signal"] == (
+        "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。"
+    )
+    assert "run run-publish-detail：当前 run 状态：waiting。" in activity_body["items"][0][
+        "run_follow_up"
+    ]["explanation"]["follow_up"]
 
     detail_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/{invocation.id}"

@@ -91,6 +91,7 @@ export type PublishedEndpointInvocationItem = {
     scheduled_resume_requeued_at?: string | null;
     scheduled_resume_requeue_source?: string | null;
   } | null;
+  run_follow_up?: OperatorRunFollowUpSummary | null;
   reason_code?: string | null;
   error_message?: string | null;
   request_preview: {

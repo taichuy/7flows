@@ -294,7 +294,6 @@ def build_operator_run_follow_up_summary(
     if not normalized_run_ids:
         return OperatorRunFollowUpSummary()
 
-    sampled_run_ids = normalized_run_ids[: max(sample_limit, 0)]
     runs = db.query(Run).filter(Run.id.in_(normalized_run_ids)).all()
     run_lookup = {run.id: run for run in runs}
     existing_run_ids = list(run_lookup)
@@ -304,7 +303,61 @@ def build_operator_run_follow_up_summary(
         else []
     )
     waiting_reason_lookup = _build_waiting_reason_lookup(runs, node_runs)
-    execution_view_map = _load_execution_view_map(db, sampled_run_ids)
+    execution_view_map = _load_execution_view_map(
+        db, normalized_run_ids[: max(sample_limit, 0)]
+    )
+
+    return _build_operator_run_follow_up_summary(
+        normalized_run_ids,
+        run_lookup=run_lookup,
+        waiting_reason_lookup=waiting_reason_lookup,
+        execution_view_map=execution_view_map,
+        sample_limit=sample_limit,
+    )
+
+
+def build_operator_run_follow_up_summary_map(
+    db: Session,
+    run_ids: Iterable[str | None],
+    *,
+    sample_limit: int = 1,
+) -> dict[str, OperatorRunFollowUpSummary]:
+    normalized_run_ids = _normalize_run_ids(run_ids)
+    if not normalized_run_ids:
+        return {}
+
+    runs = db.query(Run).filter(Run.id.in_(normalized_run_ids)).all()
+    run_lookup = {run.id: run for run in runs}
+    existing_run_ids = list(run_lookup)
+    node_runs = (
+        db.query(NodeRun).filter(NodeRun.run_id.in_(existing_run_ids)).all()
+        if existing_run_ids
+        else []
+    )
+    waiting_reason_lookup = _build_waiting_reason_lookup(runs, node_runs)
+    execution_view_map = _load_execution_view_map(db, existing_run_ids)
+
+    return {
+        run_id: _build_operator_run_follow_up_summary(
+            [run_id],
+            run_lookup=run_lookup,
+            waiting_reason_lookup=waiting_reason_lookup,
+            execution_view_map=execution_view_map,
+            sample_limit=sample_limit,
+        )
+        for run_id in existing_run_ids
+    }
+
+
+def _build_operator_run_follow_up_summary(
+    normalized_run_ids: list[str],
+    *,
+    run_lookup: dict[str, Run],
+    waiting_reason_lookup: dict[str, str | None],
+    execution_view_map: dict[str, RunExecutionView],
+    sample_limit: int,
+) -> OperatorRunFollowUpSummary:
+    sampled_run_ids = normalized_run_ids[: max(sample_limit, 0)]
 
     summary = OperatorRunFollowUpSummary(
         affected_run_count=len(normalized_run_ids),

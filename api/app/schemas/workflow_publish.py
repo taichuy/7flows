@@ -329,6 +329,7 @@ class PublishedEndpointInvocationItem(BaseModel):
     run_current_node_id: str | None = None
     run_waiting_reason: str | None = None
     run_waiting_lifecycle: PublishedEndpointInvocationWaitingLifecycle | None = None
+    run_follow_up: OperatorRunFollowUpSummary | None = None
     reason_code: str | None = None
     error_message: str | None = None
     request_preview: dict

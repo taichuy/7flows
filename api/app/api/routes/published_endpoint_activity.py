@@ -43,6 +43,7 @@ from app.services.published_invocation_exports import (
     build_published_invocation_export_payload,
     serialize_published_invocation_export_jsonl,
 )
+from app.services.operator_run_follow_up import build_operator_run_follow_up_summary_map
 from app.services.published_invocations import (
     PublishedInvocationService,
 )
@@ -204,6 +205,7 @@ def _build_published_endpoint_invocation_list_response(
     )
     waiting_reason_lookup = {}
     waiting_lifecycle_lookup = {}
+    run_follow_up_lookup = {}
     if run_ids:
         node_runs = db.scalars(select(NodeRun).where(NodeRun.run_id.in_(run_ids))).all()
         callback_tickets = db.scalars(
@@ -218,6 +220,11 @@ def _build_published_endpoint_invocation_list_response(
             node_runs,
             callback_tickets,
             sensitive_access_timelines,
+        )
+        run_follow_up_lookup = build_operator_run_follow_up_summary_map(
+            db,
+            run_ids,
+            sample_limit=1,
         )
 
     return records, PublishedEndpointInvocationListResponse(
@@ -261,6 +268,7 @@ def _build_published_endpoint_invocation_list_response(
                 run_lookup=run_lookup,
                 waiting_reason_lookup=waiting_reason_lookup,
                 waiting_lifecycle_lookup=waiting_lifecycle_lookup,
+                run_follow_up_lookup=run_follow_up_lookup,
             )
             for record in records
         ],

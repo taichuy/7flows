@@ -19,6 +19,7 @@ import {
   listPublishedInvocationSensitiveAccessChips,
   listPublishedInvocationSensitiveAccessRows
 } from "@/lib/published-invocation-presenters";
+import { formatMetricSummary } from "@/lib/run-execution-focus-presenters";
 import { formatDurationMs, formatKeyList, formatTimestamp } from "@/lib/runtime-presenters";
 
 type PublishedInvocationItem = PublishedEndpointInvocationListResponse["items"][number];
@@ -107,6 +108,18 @@ export function WorkflowPublishInvocationEntryCard({
     callbackTickets: [],
     sensitiveAccessEntries: []
   });
+  const runFollowUp = item.run_follow_up;
+  const runFollowUpPrimarySignal = runFollowUp?.explanation?.primary_signal?.trim() || null;
+  const runFollowUpFollowUp = runFollowUp?.explanation?.follow_up?.trim() || null;
+  const runFollowUpStatusSummary = runFollowUp
+    ? formatMetricSummary({
+        waiting: runFollowUp.waiting_run_count,
+        running: runFollowUp.running_run_count,
+        succeeded: runFollowUp.succeeded_run_count,
+        failed: runFollowUp.failed_run_count,
+        unknown: runFollowUp.unknown_run_count
+      })
+    : null;
 
   return (
     <article className="payload-card compact-card">
@@ -178,6 +191,31 @@ export function WorkflowPublishInvocationEntryCard({
           <dd>{scheduledResumeLabel}</dd>
         </div>
       </dl>
+      {runFollowUp?.affected_run_count ? (
+        <div className="payload-card compact-card">
+          <div className="payload-card-header">
+            <span className="status-meta">Canonical follow-up</span>
+          </div>
+          <p className="section-copy entry-copy">
+            {runFollowUpPrimarySignal ?? "当前 invocation 已接入 canonical follow-up 事实链。"}
+          </p>
+          {runFollowUpFollowUp ? <p className="binding-meta">{runFollowUpFollowUp}</p> : null}
+          <dl className="compact-meta-list">
+            <div>
+              <dt>Affected runs</dt>
+              <dd>{runFollowUp.affected_run_count}</dd>
+            </div>
+            <div>
+              <dt>Sampled runs</dt>
+              <dd>{runFollowUp.sampled_run_count}</dd>
+            </div>
+            <div>
+              <dt>Status summary</dt>
+              <dd>{runFollowUpStatusSummary ?? "n/a"}</dd>
+            </div>
+          </dl>
+        </div>
+      ) : null}
       {item.run_status === "waiting" ? (
         <p className="section-copy entry-copy">
           该请求已成功接入 durable runtime，当前仍处于 waiting；可直接打开 run detail 继续追踪

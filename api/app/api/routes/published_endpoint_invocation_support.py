@@ -10,6 +10,7 @@ from app.schemas.workflow_publish import (
     PublishedEndpointInvocationSensitiveAccessSummary,
     PublishedEndpointInvocationWaitingLifecycle,
 )
+from app.schemas.operator_follow_up import OperatorRunFollowUpSummary
 from app.services.published_invocations import classify_invocation_reason
 from app.services.run_view_serializers import (
     serialize_callback_waiting_lifecycle_summary,
@@ -54,6 +55,7 @@ def serialize_published_invocation_item(
         str, PublishedEndpointInvocationWaitingLifecycle | None
     ]
     | None = None,
+    run_follow_up_lookup: dict[str, OperatorRunFollowUpSummary] | None = None,
 ) -> PublishedEndpointInvocationItem:
     api_key_metadata = api_key_lookup.get(record.api_key_id) if api_key_lookup else None
     run = run_lookup.get(record.run_id) if run_lookup and record.run_id else None
@@ -65,6 +67,11 @@ def serialize_published_invocation_item(
     waiting_lifecycle = (
         waiting_lifecycle_lookup.get(record.run_id)
         if waiting_lifecycle_lookup and record.run_id
+        else None
+    )
+    run_follow_up = (
+        run_follow_up_lookup.get(record.run_id)
+        if run_follow_up_lookup and record.run_id
         else None
     )
     return PublishedEndpointInvocationItem(
@@ -89,6 +96,7 @@ def serialize_published_invocation_item(
         run_current_node_id=run.current_node_id if run else None,
         run_waiting_reason=waiting_reason,
         run_waiting_lifecycle=waiting_lifecycle,
+        run_follow_up=run_follow_up,
         reason_code=classify_invocation_reason(
             status=record.status,
             error_message=record.error_message,
