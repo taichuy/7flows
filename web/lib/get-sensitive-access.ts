@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
-import type { RunExecutionView } from "@/lib/get-run-views";
+import type { RunExecutionView, SkillReferenceLoadItem } from "@/lib/get-run-views";
 import {
   buildSensitiveAccessInboxEntryCallbackContext,
   type SensitiveAccessInboxCallbackContext
@@ -110,6 +110,12 @@ export type OperatorRunSnapshotSummary = {
     response_content_type?: string | null;
     raw_ref?: string | null;
   }>;
+  executionFocusSkillTrace?: {
+    reference_count: number;
+    phase_counts: Record<string, number>;
+    source_counts: Record<string, number>;
+    loads: SkillReferenceLoadItem[];
+  } | null;
 };
 
 export type SensitiveAccessBulkRunSample = {

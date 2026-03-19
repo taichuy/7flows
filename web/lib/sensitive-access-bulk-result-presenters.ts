@@ -6,7 +6,10 @@ import {
   buildOperatorInlineActionFeedbackModel,
   type OperatorInlineFocusArtifactPreview
 } from "@/lib/operator-inline-action-feedback";
-import type { ExecutionFocusToolCallSummary } from "@/lib/run-execution-focus-presenters";
+import type {
+  ExecutionFocusToolCallSummary
+} from "@/lib/run-execution-focus-presenters";
+import type { SkillReferenceLoadItem } from "@/lib/get-run-views";
 
 export type SensitiveAccessBulkNarrativeItem = {
   label: string;
@@ -25,9 +28,13 @@ export type SensitiveAccessBulkRunSampleCard = {
   artifactRefCount: number;
   toolCallCount: number;
   rawRefCount: number;
+  skillReferenceCount: number;
+  skillReferencePhaseSummary: string | null;
+  skillReferenceSourceSummary: string | null;
   focusArtifactSummary: string | null;
   focusToolCallSummaries: ExecutionFocusToolCallSummary[];
   focusArtifacts: OperatorInlineFocusArtifactPreview[];
+  focusSkillReferenceLoads: SkillReferenceLoadItem[];
 };
 
 export function buildSensitiveAccessBulkResultNarrative(
@@ -82,9 +89,13 @@ export function buildSensitiveAccessBulkRunSampleCards(
         artifactRefCount: model.artifactRefCount,
         toolCallCount: model.toolCallCount,
         rawRefCount: model.rawRefCount,
+        skillReferenceCount: model.skillReferenceCount,
+        skillReferencePhaseSummary: model.skillReferencePhaseSummary,
+        skillReferenceSourceSummary: model.skillReferenceSourceSummary,
         focusArtifactSummary: model.focusArtifactSummary,
         focusToolCallSummaries: model.focusToolCallSummaries,
-        focusArtifacts: model.focusArtifacts
+        focusArtifacts: model.focusArtifacts,
+        focusSkillReferenceLoads: model.focusSkillReferenceLoads
       };
     })
     .filter(
@@ -98,7 +109,9 @@ export function buildSensitiveAccessBulkRunSampleCards(
             item.artifactCount > 0 ||
             item.artifactRefCount > 0 ||
             item.toolCallCount > 0 ||
-            item.rawRefCount > 0
+            item.rawRefCount > 0 ||
+            item.skillReferenceCount > 0 ||
+            item.focusSkillReferenceLoads.length > 0
         )
     );
 }

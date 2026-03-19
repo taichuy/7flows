@@ -1,5 +1,10 @@
 import type { RunSnapshot } from "@/app/actions/run-snapshot";
-import type { RunArtifactItem, RunExecutionNodeItem, ToolCallItem } from "@/lib/get-run-views";
+import type {
+  RunArtifactItem,
+  RunExecutionNodeItem,
+  SkillReferenceLoadItem,
+  ToolCallItem
+} from "@/lib/get-run-views";
 import {
   formatExecutionFocusArtifactSummary,
   listExecutionFocusToolCallSummaries,
@@ -36,9 +41,13 @@ export type OperatorInlineActionFeedbackModel = {
   artifactRefCount: number;
   toolCallCount: number;
   rawRefCount: number;
+  skillReferenceCount: number;
+  skillReferencePhaseSummary: string | null;
+  skillReferenceSourceSummary: string | null;
   focusArtifactSummary: string | null;
   focusToolCallSummaries: ExecutionFocusToolCallSummary[];
   focusArtifacts: OperatorInlineFocusArtifactPreview[];
+  focusSkillReferenceLoads: SkillReferenceLoadItem[];
 };
 
 export type OperatorInlineFocusArtifactPreview = {
@@ -137,6 +146,17 @@ function buildExecutionFocusExplainableNode(
   };
 }
 
+function formatMetricSummary(metrics?: Record<string, number> | null) {
+  if (!metrics || typeof metrics !== "object") {
+    return null;
+  }
+
+  const parts = Object.entries(metrics)
+    .filter(([key, value]) => key.trim() && Number.isFinite(value) && value > 0)
+    .map(([key, value]) => `${key} ${value}`);
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
 export function hasStructuredOperatorInlineActionResult(input: OperatorInlineActionResultState) {
   return Boolean(buildOperatorInlineActionFeedbackModel(input).hasStructuredContent);
 }
@@ -171,6 +191,13 @@ export function buildOperatorInlineActionFeedbackModel(
     input.runSnapshot?.executionFocusRawRefCount ??
     input.runSnapshot?.executionFocusToolCalls?.filter((item) => normalizeText(item?.raw_ref)).length ??
     0;
+  const skillReferenceCount = input.runSnapshot?.executionFocusSkillTrace?.reference_count ?? 0;
+  const skillReferencePhaseSummary = formatMetricSummary(
+    input.runSnapshot?.executionFocusSkillTrace?.phase_counts
+  );
+  const skillReferenceSourceSummary = formatMetricSummary(
+    input.runSnapshot?.executionFocusSkillTrace?.source_counts
+  );
   const focusExplainableNode = buildExecutionFocusExplainableNode(input.runSnapshot);
   const focusArtifactSummary = focusExplainableNode
     ? formatExecutionFocusArtifactSummary(focusExplainableNode)
@@ -179,6 +206,7 @@ export function buildOperatorInlineActionFeedbackModel(
     ? listExecutionFocusToolCallSummaries(focusExplainableNode)
     : [];
   const focusArtifacts = buildExecutionFocusArtifactSamples(input.runSnapshot);
+  const focusSkillReferenceLoads = input.runSnapshot?.executionFocusSkillTrace?.loads ?? [];
   const headline =
     outcomePrimarySignal ??
     runFollowUpPrimarySignal ??
@@ -202,9 +230,11 @@ export function buildOperatorInlineActionFeedbackModel(
         artifactRefCount > 0 ||
         toolCallCount > 0 ||
         rawRefCount > 0 ||
+        skillReferenceCount > 0 ||
         focusArtifactSummary ||
         focusToolCallSummaries.length > 0 ||
-        focusArtifacts.length > 0
+        focusArtifacts.length > 0 ||
+        focusSkillReferenceLoads.length > 0
     ),
     headline,
     outcomeFollowUp,
@@ -228,8 +258,12 @@ export function buildOperatorInlineActionFeedbackModel(
     artifactRefCount,
     toolCallCount,
     rawRefCount,
+    skillReferenceCount,
+    skillReferencePhaseSummary,
+    skillReferenceSourceSummary,
     focusArtifactSummary,
     focusToolCallSummaries,
-    focusArtifacts
+    focusArtifacts,
+    focusSkillReferenceLoads
   };
 }

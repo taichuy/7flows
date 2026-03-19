@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
+import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import {
   buildOperatorInlineActionFeedbackModel,
   type OperatorInlineActionResultState
@@ -76,7 +77,8 @@ export function InlineOperatorActionFeedback({
       {model.artifactCount > 0 ||
       model.artifactRefCount > 0 ||
       model.toolCallCount > 0 ||
-      model.rawRefCount > 0 ? (
+      model.rawRefCount > 0 ||
+      model.skillReferenceCount > 0 ? (
         <div className="tool-badge-row">
           {model.artifactCount > 0 ? (
             <span className="event-chip">artifacts {model.artifactCount}</span>
@@ -90,6 +92,15 @@ export function InlineOperatorActionFeedback({
           {model.rawRefCount > 0 ? (
             <span className="event-chip">raw refs {model.rawRefCount}</span>
           ) : null}
+          {model.skillReferenceCount > 0 ? (
+            <span className="event-chip">skill refs {model.skillReferenceCount}</span>
+          ) : null}
+          {model.skillReferencePhaseSummary ? (
+            <span className="event-chip">phases {model.skillReferencePhaseSummary}</span>
+          ) : null}
+          {model.skillReferenceSourceSummary ? (
+            <span className="event-chip">sources {model.skillReferenceSourceSummary}</span>
+          ) : null}
         </div>
       ) : null}
 
@@ -100,6 +111,11 @@ export function InlineOperatorActionFeedback({
         artifacts={model.focusArtifacts}
         toolCallCount={model.toolCallCount}
         toolCallSummaries={model.focusToolCallSummaries}
+      />
+      <SkillReferenceLoadList
+        skillReferenceLoads={model.focusSkillReferenceLoads}
+        title="Focused skill trace"
+        description="当前 operator 结果会直接复用 focus node 的 compact skill trace，方便确认 agent 本轮实际加载了哪些参考资料。"
       />
     </div>
   );

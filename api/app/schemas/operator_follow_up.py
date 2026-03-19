@@ -35,6 +35,32 @@ class OperatorRunFocusToolCallItem(BaseModel):
     raw_ref: str | None = None
 
 
+class OperatorRunFocusSkillReferenceItem(BaseModel):
+    skill_id: str
+    skill_name: str | None = None
+    reference_id: str
+    reference_name: str | None = None
+    load_source: str
+    fetch_reason: str | None = None
+    fetch_request_index: int | None = None
+    fetch_request_total: int | None = None
+    retrieval_http_path: str | None = None
+    retrieval_mcp_method: str | None = None
+    retrieval_mcp_params: dict[str, str] = Field(default_factory=dict)
+
+
+class OperatorRunFocusSkillLoadItem(BaseModel):
+    phase: str
+    references: list[OperatorRunFocusSkillReferenceItem] = Field(default_factory=list)
+
+
+class OperatorRunFocusSkillTrace(BaseModel):
+    reference_count: int = 0
+    phase_counts: dict[str, int] = Field(default_factory=dict)
+    source_counts: dict[str, int] = Field(default_factory=dict)
+    loads: list[OperatorRunFocusSkillLoadItem] = Field(default_factory=list)
+
+
 class OperatorRunSnapshot(BaseModel):
     workflow_id: str | None = None
     status: str | None = None
@@ -58,6 +84,7 @@ class OperatorRunSnapshot(BaseModel):
     execution_focus_tool_calls: list[OperatorRunFocusToolCallItem] = Field(
         default_factory=list
     )
+    execution_focus_skill_trace: OperatorRunFocusSkillTrace | None = None
 
 
 class OperatorRunSnapshotSample(BaseModel):

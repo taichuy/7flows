@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import type { SkillReferenceLoadItem } from "@/lib/get-run-views";
 
 export type RunSnapshot = {
   status?: string | null;
@@ -44,6 +45,12 @@ export type RunSnapshot = {
     response_content_type?: string | null;
     raw_ref?: string | null;
   }>;
+  executionFocusSkillTrace?: {
+    reference_count: number;
+    phase_counts: Record<string, number>;
+    source_counts: Record<string, number>;
+    loads: SkillReferenceLoadItem[];
+  } | null;
 };
 
 export type RunSnapshotWithId = {
@@ -95,6 +102,12 @@ export type OperatorRunSnapshotBody = {
     response_content_type?: string | null;
     raw_ref?: string | null;
   }>;
+  execution_focus_skill_trace?: {
+    reference_count?: number | null;
+    phase_counts?: Record<string, number> | null;
+    source_counts?: Record<string, number> | null;
+    loads?: SkillReferenceLoadItem[] | null;
+  } | null;
 };
 
 type RunDetailResponseBody = {
@@ -185,7 +198,103 @@ type RunExecutionViewResponseBody = {
     primary_signal?: string | null;
     follow_up?: string | null;
   } | null;
+  skill_trace?: {
+    scope?: string | null;
+    reference_count?: number | null;
+    phase_counts?: Record<string, number> | null;
+    source_counts?: Record<string, number> | null;
+    nodes?: Array<{
+      loads?: SkillReferenceLoadItem[] | null;
+    }> | null;
+  } | null;
 };
+
+function normalizeSkillTraceCounts(input?: Record<string, number> | null) {
+  if (!input || typeof input !== "object") {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(input)
+      .filter(([key, value]) => typeof key === "string" && key.trim() && Number.isFinite(value))
+      .map(([key, value]) => [key, Number(value)])
+  );
+}
+
+function normalizeSkillReferenceLoads(loads?: SkillReferenceLoadItem[] | null): SkillReferenceLoadItem[] {
+  if (!Array.isArray(loads)) {
+    return [];
+  }
+
+  return loads
+    .map((load) => ({
+      phase: typeof load?.phase === "string" && load.phase.trim() ? load.phase : "unknown",
+      references: Array.isArray(load?.references)
+        ? load.references
+            .map((reference) => ({
+              skill_id: typeof reference?.skill_id === "string" ? reference.skill_id : "",
+              skill_name: reference?.skill_name ?? null,
+              reference_id: typeof reference?.reference_id === "string" ? reference.reference_id : "",
+              reference_name: reference?.reference_name ?? null,
+              load_source:
+                typeof reference?.load_source === "string" && reference.load_source.trim()
+                  ? reference.load_source
+                  : "unknown",
+              fetch_reason: reference?.fetch_reason ?? null,
+              fetch_request_index:
+                typeof reference?.fetch_request_index === "number"
+                  ? reference.fetch_request_index
+                  : null,
+              fetch_request_total:
+                typeof reference?.fetch_request_total === "number"
+                  ? reference.fetch_request_total
+                  : null,
+              retrieval_http_path: reference?.retrieval_http_path ?? null,
+              retrieval_mcp_method: reference?.retrieval_mcp_method ?? null,
+              retrieval_mcp_params:
+                reference?.retrieval_mcp_params && typeof reference.retrieval_mcp_params === "object"
+                  ? Object.fromEntries(
+                      Object.entries(reference.retrieval_mcp_params).map(([key, value]) => [
+                        key,
+                        String(value)
+                      ])
+                    )
+                  : {}
+            }))
+            .filter((reference) => reference.skill_id && reference.reference_id)
+        : []
+    }))
+    .filter((load) => load.references.length > 0);
+}
+
+function normalizeFocusSkillTrace(
+  skillTrace?: OperatorRunSnapshotBody["execution_focus_skill_trace"] | RunExecutionViewResponseBody["skill_trace"]
+) {
+  if (!skillTrace || typeof skillTrace !== "object") {
+    return null;
+  }
+
+  const loads =
+    "loads" in skillTrace && Array.isArray(skillTrace.loads)
+      ? normalizeSkillReferenceLoads(skillTrace.loads)
+      : "nodes" in skillTrace && Array.isArray(skillTrace.nodes)
+        ? normalizeSkillReferenceLoads(skillTrace.nodes[0]?.loads)
+        : [];
+  const referenceCount = typeof skillTrace.reference_count === "number" ? skillTrace.reference_count : 0;
+  const phaseCounts = normalizeSkillTraceCounts(skillTrace.phase_counts);
+  const sourceCounts = normalizeSkillTraceCounts(skillTrace.source_counts);
+
+  if (referenceCount <= 0 && loads.length === 0) {
+    return null;
+  }
+
+  return {
+    reference_count: referenceCount,
+    phase_counts: phaseCounts,
+    source_counts: sourceCounts,
+    loads
+  };
+}
 
 function readCurrentWaitingReason(body: RunDetailResponseBody | null) {
   const currentNodeId = body?.current_node_id?.trim();
@@ -349,7 +458,8 @@ export function normalizeOperatorRunSnapshot(
     executionFocusRawRefCount: snapshot.execution_focus_raw_ref_count ?? 0,
     executionFocusArtifactRefs: normalizeStringList(snapshot.execution_focus_artifact_refs),
     executionFocusArtifacts: normalizeFocusArtifacts(snapshot.execution_focus_artifacts),
-    executionFocusToolCalls: normalizeFocusToolCalls(snapshot.execution_focus_tool_calls)
+    executionFocusToolCalls: normalizeFocusToolCalls(snapshot.execution_focus_tool_calls),
+    executionFocusSkillTrace: normalizeFocusSkillTrace(snapshot.execution_focus_skill_trace)
   };
 }
 
@@ -454,7 +564,10 @@ export async function fetchRunSnapshot(runId: string): Promise<RunSnapshot | nul
       executionFocusArtifactRefs:
         bodyArtifactRefs.length > 0 ? bodyArtifactRefs : executionViewArtifactRefs,
       executionFocusArtifacts: bodyArtifacts.length > 0 ? bodyArtifacts : executionViewArtifacts,
-      executionFocusToolCalls: bodyToolCalls.length > 0 ? bodyToolCalls : executionViewToolCalls
+      executionFocusToolCalls: bodyToolCalls.length > 0 ? bodyToolCalls : executionViewToolCalls,
+      executionFocusSkillTrace: normalizeFocusSkillTrace(
+        executionView?.skill_trace?.scope === "execution_focus_node" ? executionView.skill_trace : null
+      )
     };
   } catch {
     return null;

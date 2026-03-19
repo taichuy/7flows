@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
+import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import type {
   SensitiveAccessBulkAction,
   SensitiveAccessBulkActionResult
@@ -187,7 +188,8 @@ export function SensitiveAccessBulkGovernanceCard({
                     {sample.artifactCount > 0 ||
                     sample.artifactRefCount > 0 ||
                     sample.toolCallCount > 0 ||
-                    sample.rawRefCount > 0 ? (
+                    sample.rawRefCount > 0 ||
+                    sample.skillReferenceCount > 0 ? (
                       <div className="tool-badge-row">
                         {sample.artifactCount > 0 ? (
                           <span className="event-chip">artifacts {sample.artifactCount}</span>
@@ -203,6 +205,21 @@ export function SensitiveAccessBulkGovernanceCard({
                         {sample.rawRefCount > 0 ? (
                           <span className="event-chip">raw refs {sample.rawRefCount}</span>
                         ) : null}
+                        {sample.skillReferenceCount > 0 ? (
+                          <span className="event-chip">
+                            skill refs {sample.skillReferenceCount}
+                          </span>
+                        ) : null}
+                        {sample.skillReferencePhaseSummary ? (
+                          <span className="event-chip">
+                            phases {sample.skillReferencePhaseSummary}
+                          </span>
+                        ) : null}
+                        {sample.skillReferenceSourceSummary ? (
+                          <span className="event-chip">
+                            sources {sample.skillReferenceSourceSummary}
+                          </span>
+                        ) : null}
                       </div>
                     ) : null}
                     <OperatorFocusEvidenceCard
@@ -212,6 +229,11 @@ export function SensitiveAccessBulkGovernanceCard({
                       artifacts={sample.focusArtifacts}
                       toolCallCount={sample.toolCallCount}
                       toolCallSummaries={sample.focusToolCallSummaries}
+                    />
+                    <SkillReferenceLoadList
+                      skillReferenceLoads={sample.focusSkillReferenceLoads}
+                      title="Focused skill trace"
+                      description="批量治理结果现在也会复用 compact snapshot 里的 skill trace，方便直接确认受影响 run 的 focus node 注入来源。"
                     />
                   </div>
                 ))}

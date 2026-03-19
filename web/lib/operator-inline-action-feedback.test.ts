@@ -129,4 +129,70 @@ describe("operator inline action feedback", () => {
       }
     ]);
   });
+
+  it("把 compact run snapshot 的 focused skill trace 转成可复用结果模型", () => {
+    const model = buildOperatorInlineActionFeedbackModel({
+      runSnapshot: {
+        status: "waiting",
+        executionFocusNodeName: "Agent Review",
+        executionFocusSkillTrace: {
+          reference_count: 2,
+          phase_counts: { main_plan: 2 },
+          source_counts: { retrieval_query_match: 1, skill_binding: 1 },
+          loads: [
+            {
+              phase: "main_plan",
+              references: [
+                {
+                  skill_id: "skill-research-brief",
+                  skill_name: "Research Brief",
+                  reference_id: "ref-handoff",
+                  reference_name: "Operator Handoff",
+                  load_source: "skill_binding",
+                  fetch_reason: null,
+                  fetch_request_index: null,
+                  fetch_request_total: null,
+                  retrieval_http_path:
+                    "/api/skills/skill-research-brief/references/ref-handoff?workspace_id=default",
+                  retrieval_mcp_method: "skills.get_reference",
+                  retrieval_mcp_params: {
+                    skill_id: "skill-research-brief",
+                    reference_id: "ref-handoff",
+                    workspace_id: "default"
+                  }
+                },
+                {
+                  skill_id: "skill-research-brief",
+                  skill_name: "Research Brief",
+                  reference_id: "ref-budget",
+                  reference_name: "Budget Control",
+                  load_source: "retrieval_query_match",
+                  fetch_reason: "Matched query terms: budget, guardrails",
+                  fetch_request_index: null,
+                  fetch_request_total: null,
+                  retrieval_http_path:
+                    "/api/skills/skill-research-brief/references/ref-budget?workspace_id=default",
+                  retrieval_mcp_method: "skills.get_reference",
+                  retrieval_mcp_params: {
+                    skill_id: "skill-research-brief",
+                    reference_id: "ref-budget",
+                    workspace_id: "default"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    });
+
+    expect(model.hasStructuredContent).toBe(true);
+    expect(model.skillReferenceCount).toBe(2);
+    expect(model.skillReferencePhaseSummary).toBe("main_plan 2");
+    expect(model.skillReferenceSourceSummary).toBe(
+      "retrieval_query_match 1, skill_binding 1"
+    );
+    expect(model.focusSkillReferenceLoads).toHaveLength(1);
+    expect(model.focusSkillReferenceLoads[0]?.references).toHaveLength(2);
+  });
 });

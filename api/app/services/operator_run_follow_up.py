@@ -6,6 +6,9 @@ from app.models.run import NodeRun, Run
 from app.schemas.explanations import SignalFollowUpExplanation
 from app.schemas.operator_follow_up import (
     OperatorRunFocusArtifactItem,
+    OperatorRunFocusSkillLoadItem,
+    OperatorRunFocusSkillReferenceItem,
+    OperatorRunFocusSkillTrace,
     OperatorRunFocusToolCallItem,
     OperatorRunFollowUpSummary,
     OperatorRunSnapshot,
@@ -192,6 +195,33 @@ def _serialize_operator_focus_tool_call(
     )
 
 
+def _serialize_operator_focus_skill_loads(loads) -> list[OperatorRunFocusSkillLoadItem]:
+    serialized: list[OperatorRunFocusSkillLoadItem] = []
+    for load in loads or []:
+        serialized.append(
+            OperatorRunFocusSkillLoadItem(
+                phase=load.phase,
+                references=[
+                    OperatorRunFocusSkillReferenceItem(
+                        skill_id=reference.skill_id,
+                        skill_name=reference.skill_name,
+                        reference_id=reference.reference_id,
+                        reference_name=reference.reference_name,
+                        load_source=reference.load_source,
+                        fetch_reason=reference.fetch_reason,
+                        fetch_request_index=reference.fetch_request_index,
+                        fetch_request_total=reference.fetch_request_total,
+                        retrieval_http_path=reference.retrieval_http_path,
+                        retrieval_mcp_method=reference.retrieval_mcp_method,
+                        retrieval_mcp_params=dict(reference.retrieval_mcp_params),
+                    )
+                    for reference in load.references
+                ],
+            )
+        )
+    return serialized
+
+
 def _normalize_run_ids(run_ids: Iterable[str | None], *, limit: int | None = None) -> list[str]:
     normalized: list[str] = []
     for run_id in run_ids:
@@ -260,6 +290,23 @@ def build_operator_run_snapshot(
     )
     focus_artifacts = list(execution_focus_node.artifacts or []) if execution_focus_node else []
     focus_tool_calls = list(execution_focus_node.tool_calls or []) if execution_focus_node else []
+    focus_skill_trace = None
+    if (
+        execution_view is not None
+        and execution_view.skill_trace is not None
+        and execution_view.skill_trace.scope == "execution_focus_node"
+    ):
+        focus_trace_node = next(iter(execution_view.skill_trace.nodes), None)
+        focus_skill_trace = OperatorRunFocusSkillTrace(
+            reference_count=execution_view.skill_trace.reference_count,
+            phase_counts=dict(execution_view.skill_trace.phase_counts),
+            source_counts=dict(execution_view.skill_trace.source_counts),
+            loads=(
+                _serialize_operator_focus_skill_loads(focus_trace_node.loads)
+                if focus_trace_node is not None
+                else []
+            ),
+        )
     return OperatorRunSnapshot(
         workflow_id=run.workflow_id,
         status=run.status,
@@ -307,6 +354,7 @@ def build_operator_run_snapshot(
             _serialize_operator_focus_tool_call(item)
             for item in focus_tool_calls[:MAX_OPERATOR_FOCUS_TOOL_CALL_SAMPLES]
         ],
+        execution_focus_skill_trace=focus_skill_trace,
     )
 
 

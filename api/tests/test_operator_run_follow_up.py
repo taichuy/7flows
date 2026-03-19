@@ -323,6 +323,55 @@ def test_load_operator_run_snapshot_surfaces_focus_evidence_samples(
             created_at=now,
         )
     )
+    sqlite_session.add(
+        RunEvent(
+            run_id=run.id,
+            node_run_id=node_run.id,
+            event_type="agent.skill.references.loaded",
+            payload={
+                "node_id": node_run.node_id,
+                "phase": "main_plan",
+                "references": [
+                    {
+                        "skill_id": "skill-research-brief",
+                        "skill_name": "Research Brief",
+                        "reference_id": "ref-handoff",
+                        "reference_name": "Operator Handoff",
+                        "load_source": "skill_binding",
+                        "retrieval_http_path": (
+                            "/api/skills/skill-research-brief/references/ref-handoff"
+                            "?workspace_id=default"
+                        ),
+                        "retrieval_mcp_method": "skills.get_reference",
+                        "retrieval_mcp_params": {
+                            "skill_id": "skill-research-brief",
+                            "reference_id": "ref-handoff",
+                            "workspace_id": "default",
+                        },
+                    },
+                    {
+                        "skill_id": "skill-research-brief",
+                        "skill_name": "Research Brief",
+                        "reference_id": "ref-budget",
+                        "reference_name": "Budget Control",
+                        "load_source": "retrieval_query_match",
+                        "fetch_reason": "Matched query terms: budget, guardrails",
+                        "retrieval_http_path": (
+                            "/api/skills/skill-research-brief/references/ref-budget"
+                            "?workspace_id=default"
+                        ),
+                        "retrieval_mcp_method": "skills.get_reference",
+                        "retrieval_mcp_params": {
+                            "skill_id": "skill-research-brief",
+                            "reference_id": "ref-budget",
+                            "workspace_id": "default",
+                        },
+                    },
+                ],
+            },
+            created_at=now,
+        )
+    )
     sqlite_session.commit()
 
     snapshot = load_operator_run_snapshot(sqlite_session, run.id)
@@ -355,6 +404,62 @@ def test_load_operator_run_snapshot_surfaces_focus_evidence_samples(
         "response_summary": "tool completed",
         "response_content_type": "application/json",
         "raw_ref": f"artifact://{artifact.id}",
+    }
+    assert snapshot.execution_focus_skill_trace is not None
+    assert snapshot.execution_focus_skill_trace.model_dump() == {
+        "reference_count": 2,
+        "phase_counts": {"main_plan": 2},
+        "source_counts": {
+            "retrieval_query_match": 1,
+            "skill_binding": 1,
+        },
+        "loads": [
+            {
+                "phase": "main_plan",
+                "references": [
+                    {
+                        "skill_id": "skill-research-brief",
+                        "skill_name": "Research Brief",
+                        "reference_id": "ref-handoff",
+                        "reference_name": "Operator Handoff",
+                        "load_source": "skill_binding",
+                        "fetch_reason": None,
+                        "fetch_request_index": None,
+                        "fetch_request_total": None,
+                        "retrieval_http_path": (
+                            "/api/skills/skill-research-brief/"
+                            "references/ref-handoff?workspace_id=default"
+                        ),
+                        "retrieval_mcp_method": "skills.get_reference",
+                        "retrieval_mcp_params": {
+                            "skill_id": "skill-research-brief",
+                            "reference_id": "ref-handoff",
+                            "workspace_id": "default",
+                        },
+                    },
+                    {
+                        "skill_id": "skill-research-brief",
+                        "skill_name": "Research Brief",
+                        "reference_id": "ref-budget",
+                        "reference_name": "Budget Control",
+                        "load_source": "retrieval_query_match",
+                        "fetch_reason": "Matched query terms: budget, guardrails",
+                        "fetch_request_index": None,
+                        "fetch_request_total": None,
+                        "retrieval_http_path": (
+                            "/api/skills/skill-research-brief/"
+                            "references/ref-budget?workspace_id=default"
+                        ),
+                        "retrieval_mcp_method": "skills.get_reference",
+                        "retrieval_mcp_params": {
+                            "skill_id": "skill-research-brief",
+                            "reference_id": "ref-budget",
+                            "workspace_id": "default",
+                        },
+                    },
+                ],
+            }
+        ],
     }
 
 
