@@ -1,10 +1,15 @@
 "use client";
 
+import Link from "next/link";
+
 import type {
   SensitiveAccessBulkAction,
   SensitiveAccessBulkActionResult
 } from "@/lib/get-sensitive-access";
-import { buildSensitiveAccessBulkResultNarrative } from "@/lib/sensitive-access-bulk-result-presenters";
+import {
+  buildSensitiveAccessBulkResultNarrative,
+  buildSensitiveAccessBulkRunSampleCards
+} from "@/lib/sensitive-access-bulk-result-presenters";
 
 type SensitiveAccessBulkGovernanceCardProps = {
   inScopeCount: number;
@@ -33,6 +38,9 @@ export function SensitiveAccessBulkGovernanceCard({
   messageTone,
   onAction
 }: SensitiveAccessBulkGovernanceCardProps) {
+  const narrativeItems = lastResult ? buildSensitiveAccessBulkResultNarrative(lastResult) : [];
+  const sampledRunCards = lastResult ? buildSensitiveAccessBulkRunSampleCards(lastResult) : [];
+
   return (
     <div className="binding-card compact-card">
       <div className="binding-card-header">
@@ -123,14 +131,82 @@ export function SensitiveAccessBulkGovernanceCard({
             </div>
           ) : null}
 
-          {buildSensitiveAccessBulkResultNarrative(lastResult).length > 0 ? (
+          {narrativeItems.length > 0 ? (
             <div className="binding-section">
-              {buildSensitiveAccessBulkResultNarrative(lastResult).map((item) => (
+              {narrativeItems.map((item) => (
                 <p className="binding-meta" key={`${item.label}-${item.text}`}>
                   <strong>{item.label}：</strong>
                   {item.text}
                 </p>
               ))}
+            </div>
+          ) : null}
+
+          {sampledRunCards.length > 0 ? (
+            <div className="binding-section">
+              <p className="section-copy entry-copy">
+                Sampled run focus evidence 直接复用 runtime 返回的 compact snapshot，方便在批量治理结果里继续定位受影响 run 的当前执行焦点。
+              </p>
+              <div className="publish-cache-list">
+                {sampledRunCards.map((sample) => (
+                  <div className="payload-card compact-card" key={sample.runId}>
+                    <div className="payload-card-header">
+                      <span className="status-meta">Run {sample.shortRunId}</span>
+                      <Link
+                        className="event-chip inbox-filter-link"
+                        href={`/runs/${encodeURIComponent(sample.runId)}`}
+                      >
+                        open run
+                      </Link>
+                    </div>
+                    {sample.summary ? <p className="binding-meta">{sample.summary}</p> : null}
+                    {sample.runStatus ||
+                    sample.currentNodeId ||
+                    sample.focusNodeLabel ||
+                    sample.waitingReason ? (
+                      <dl className="compact-meta-list">
+                        <div>
+                          <dt>Run status</dt>
+                          <dd>{sample.runStatus ?? "n/a"}</dd>
+                        </div>
+                        <div>
+                          <dt>Current node</dt>
+                          <dd>{sample.currentNodeId ?? "n/a"}</dd>
+                        </div>
+                        <div>
+                          <dt>Focus node</dt>
+                          <dd>{sample.focusNodeLabel ?? "n/a"}</dd>
+                        </div>
+                        <div>
+                          <dt>Waiting reason</dt>
+                          <dd>{sample.waitingReason ?? "n/a"}</dd>
+                        </div>
+                      </dl>
+                    ) : null}
+                    {sample.artifactCount > 0 ||
+                    sample.artifactRefCount > 0 ||
+                    sample.toolCallCount > 0 ||
+                    sample.rawRefCount > 0 ? (
+                      <div className="tool-badge-row">
+                        {sample.artifactCount > 0 ? (
+                          <span className="event-chip">artifacts {sample.artifactCount}</span>
+                        ) : null}
+                        {sample.artifactRefCount > 0 ? (
+                          <span className="event-chip">
+                            artifact refs {sample.artifactRefCount}
+                          </span>
+                        ) : null}
+                        {sample.toolCallCount > 0 ? (
+                          <span className="event-chip">tool calls {sample.toolCallCount}</span>
+                        ) : null}
+                        {sample.rawRefCount > 0 ? (
+                          <span className="event-chip">raw refs {sample.rawRefCount}</span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
             </div>
           ) : null}
         </>

@@ -2,11 +2,25 @@ import type {
   SensitiveAccessBulkActionResult,
   SignalFollowUpExplanation
 } from "@/lib/get-sensitive-access";
-import { formatRunSnapshotSummary } from "@/lib/operator-action-result-presenters";
+import { buildOperatorInlineActionFeedbackModel } from "@/lib/operator-inline-action-feedback";
 
 export type SensitiveAccessBulkNarrativeItem = {
   label: string;
   text: string;
+};
+
+export type SensitiveAccessBulkRunSampleCard = {
+  runId: string;
+  shortRunId: string;
+  summary: string | null;
+  runStatus: string | null;
+  currentNodeId: string | null;
+  focusNodeLabel: string | null;
+  waitingReason: string | null;
+  artifactCount: number;
+  artifactRefCount: number;
+  toolCallCount: number;
+  rawRefCount: number;
 };
 
 export function buildSensitiveAccessBulkResultNarrative(
@@ -38,15 +52,45 @@ export function buildSensitiveAccessBulkResultNarrative(
     items.push({ label: "Next step", text: runFollowUpFollowUp });
   }
 
-  for (const sample of result.sampledRuns ?? []) {
-    const summary = formatRunSnapshotSummary(sample.snapshot ?? {});
-    if (!summary) {
-      continue;
-    }
-    items.push({ label: `Run ${sample.runId.slice(0, 8)}`, text: summary });
-  }
-
   return items;
+}
+
+export function buildSensitiveAccessBulkRunSampleCards(
+  result: SensitiveAccessBulkActionResult
+): SensitiveAccessBulkRunSampleCard[] {
+  return (result.sampledRuns ?? [])
+    .map((sample) => {
+      const model = buildOperatorInlineActionFeedbackModel({
+        runSnapshot: sample.snapshot ?? null
+      });
+      return {
+        runId: sample.runId,
+        shortRunId: sample.runId.slice(0, 8),
+        summary: model.runSnapshotSummary ?? model.headline,
+        runStatus: model.runStatus,
+        currentNodeId: model.currentNodeId,
+        focusNodeLabel: model.focusNodeLabel,
+        waitingReason: model.waitingReason,
+        artifactCount: model.artifactCount,
+        artifactRefCount: model.artifactRefCount,
+        toolCallCount: model.toolCallCount,
+        rawRefCount: model.rawRefCount
+      };
+    })
+    .filter(
+      (item) =>
+        Boolean(
+          item.summary ||
+            item.runStatus ||
+            item.currentNodeId ||
+            item.focusNodeLabel ||
+            item.waitingReason ||
+            item.artifactCount > 0 ||
+            item.artifactRefCount > 0 ||
+            item.toolCallCount > 0 ||
+            item.rawRefCount > 0
+        )
+    );
 }
 
 function normalizeExplanationText(
