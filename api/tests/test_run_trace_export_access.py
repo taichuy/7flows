@@ -106,6 +106,12 @@ def test_export_run_trace_requires_approval_for_moderate_sensitive_runs(
     assert export_body["approval_ticket"]["status"] == "pending"
     assert export_body["approval_ticket"]["waiting_status"] == "waiting"
     assert export_body["notifications"][0]["target"] == "sensitive-access-inbox"
+    assert export_body["outcome_explanation"]["primary_signal"]
+    assert "审批" in export_body["outcome_explanation"]["follow_up"]
+    assert export_body["run_snapshot"]["status"]
+    assert export_body["run_follow_up"]["affected_run_count"] == 1
+    assert export_body["run_follow_up"]["sampled_run_count"] == 1
+    assert export_body["run_follow_up"]["explanation"]["primary_signal"]
 
     export_request_records = sqlite_session.scalars(
         select(SensitiveAccessRequestRecord).where(

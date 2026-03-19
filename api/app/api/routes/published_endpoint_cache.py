@@ -77,6 +77,7 @@ def list_published_endpoint_cache_entries(
             requester_id=requester_id,
             purpose_text=purpose_text,
         ),
+        db=db,
         approval_detail=(
             "Published cache inventory requires approval before the payload can be viewed."
         ),

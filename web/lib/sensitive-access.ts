@@ -1,3 +1,8 @@
+import type {
+  OperatorRunSnapshotSummary,
+  SignalFollowUpExplanation
+} from "@/lib/get-sensitive-access";
+
 export type SensitiveAccessBlockingResource = {
   id: string;
   label: string;
@@ -47,6 +52,18 @@ export type SensitiveAccessBlockingPayload = {
   access_request: SensitiveAccessBlockingRequest;
   approval_ticket?: SensitiveAccessBlockingApprovalTicket | null;
   notifications: SensitiveAccessBlockingNotification[];
+  outcome_explanation?: SignalFollowUpExplanation | null;
+  run_snapshot?: OperatorRunSnapshotSummary | null;
+  run_follow_up?: {
+    explanation?: SignalFollowUpExplanation | null;
+    affected_run_count?: number;
+    sampled_run_count?: number;
+    waiting_run_count?: number;
+    running_run_count?: number;
+    succeeded_run_count?: number;
+    failed_run_count?: number;
+    unknown_run_count?: number;
+  } | null;
 };
 
 export type SensitiveAccessGuardedResult<T> =

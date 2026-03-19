@@ -247,6 +247,7 @@ def get_published_endpoint_invocation_detail(
             requester_id=requester_id,
             purpose_text=purpose_text,
         ),
+        db=db,
         approval_detail=(
             "Published invocation detail requires approval before the payload can be viewed."
         ),

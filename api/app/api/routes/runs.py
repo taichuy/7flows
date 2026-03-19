@@ -62,6 +62,7 @@ def _enforce_trace_export_sensitive_access(
     )
     return build_sensitive_access_blocking_response(
         bundle,
+        db=db,
         approval_detail="Run trace export requires approval before the payload can be exported.",
         deny_detail="Run trace export is denied by the sensitive access policy.",
     )

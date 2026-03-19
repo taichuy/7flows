@@ -825,6 +825,13 @@ def test_export_published_endpoint_invocations_requires_approval_for_sensitive_r
     assert export_body["access_request"]["action_type"] == "export"
     assert export_body["access_request"]["decision"] == "require_approval"
     assert export_body["approval_ticket"]["status"] == "pending"
+    assert export_body["outcome_explanation"]["primary_signal"]
+    assert "审批" in export_body["outcome_explanation"]["follow_up"]
+    assert export_body["run_snapshot"]["status"] == "succeeded"
+    assert export_body["run_snapshot"]["workflow_id"] == workflow_id
+    assert export_body["run_follow_up"]["affected_run_count"] == 1
+    assert export_body["run_follow_up"]["sampled_run_count"] == 1
+    assert export_body["run_follow_up"]["explanation"]["primary_signal"]
 
     approval_response = client.post(
         f"/api/sensitive-access/approval-tickets/{export_body['approval_ticket']['id']}/decision",

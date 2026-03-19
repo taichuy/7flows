@@ -386,6 +386,7 @@ def export_published_endpoint_invocations(
             requester_id=requester_id,
             purpose_text=purpose_text,
         ),
+        db=db,
         approval_detail=(
             "Published invocation export requires approval before the payload can be exported."
         ),

@@ -319,6 +319,13 @@ def test_get_published_invocation_detail_requires_approval_for_high_sensitive_ru
     assert detail_body["access_request"]["requester_id"] == "ops-reviewer"
     assert detail_body["approval_ticket"]["status"] == "pending"
     assert detail_body["notifications"][0]["target"] == "sensitive-access-inbox"
+    assert detail_body["outcome_explanation"]["primary_signal"]
+    assert "审批" in detail_body["outcome_explanation"]["follow_up"]
+    assert detail_body["run_snapshot"]["status"] == "waiting"
+    assert detail_body["run_snapshot"]["execution_focus_node_id"]
+    assert detail_body["run_follow_up"]["affected_run_count"] == 1
+    assert detail_body["run_follow_up"]["sampled_run_count"] == 1
+    assert detail_body["run_follow_up"]["explanation"]["primary_signal"]
 
     access_request_records = sqlite_session.scalars(
         select(SensitiveAccessRequestRecord).where(
@@ -874,6 +881,13 @@ def test_list_published_cache_inventory_requires_approval_for_high_sensitive_run
     assert inventory_body["access_request"]["requester_id"] == "ops-reviewer"
     assert inventory_body["access_request"]["decision"] == "require_approval"
     assert inventory_body["approval_ticket"]["status"] == "pending"
+    assert inventory_body["outcome_explanation"]["primary_signal"]
+    assert "审批" in inventory_body["outcome_explanation"]["follow_up"]
+    assert inventory_body["run_snapshot"]["status"] == "waiting"
+    assert inventory_body["run_snapshot"]["execution_focus_node_id"]
+    assert inventory_body["run_follow_up"]["affected_run_count"] == 1
+    assert inventory_body["run_follow_up"]["sampled_run_count"] == 1
+    assert inventory_body["run_follow_up"]["explanation"]["primary_signal"]
 
     approval_response = client.post(
         f"/api/sensitive-access/approval-tickets/{inventory_body['approval_ticket']['id']}/decision",

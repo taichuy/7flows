@@ -1,7 +1,9 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 
+import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
 import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
 import type { SensitiveAccessBlockingPayload } from "@/lib/sensitive-access";
 import {
@@ -43,6 +45,13 @@ export function SensitiveAccessBlockedCard({
     accessRequestId: payload.access_request.id,
     approvalTicketId: payload.approval_ticket?.id ?? null
   });
+  const hasStructuredFollowUp = Boolean(
+    payload.outcome_explanation?.primary_signal?.trim() ||
+      payload.outcome_explanation?.follow_up?.trim() ||
+      payload.run_follow_up?.explanation?.primary_signal?.trim() ||
+      payload.run_follow_up?.explanation?.follow_up?.trim() ||
+      payload.run_snapshot
+  );
 
   return (
     <article className="entry-card compact-card">
@@ -134,6 +143,18 @@ export function SensitiveAccessBlockedCard({
             </span>
           ))}
         </div>
+      ) : null}
+
+      {hasStructuredFollowUp ? (
+        <InlineOperatorActionFeedback
+          message=""
+          outcomeExplanation={payload.outcome_explanation ?? null}
+          runFollowUpExplanation={payload.run_follow_up?.explanation ?? null}
+          runId={runId}
+          runSnapshot={payload.run_snapshot ?? null}
+          status="success"
+          title="Canonical follow-up"
+        />
       ) : null}
 
       <SensitiveAccessInlineActions
