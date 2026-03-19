@@ -1267,6 +1267,59 @@ def test_create_workflow_rejects_supported_tool_execution_class_until_tool_runne
     assert "must fail closed" in detail
 
 
+def test_create_workflow_allows_compat_tool_execution_when_backend_supports_tool_runner(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    adapter_response = client.post(
+        "/api/plugins/adapters",
+        json={
+            "id": "dify-microvm-runner-ready",
+            "ecosystem": "compat:dify-runner-ready",
+            "endpoint": "http://adapter.local/dify-microvm-runner-ready",
+            "supported_execution_classes": ["subprocess", "microvm"],
+        },
+    )
+    assert adapter_response.status_code == 201
+
+    tool_response = client.post(
+        "/api/plugins/tools",
+        json={
+            "id": "compat:dify-runner-ready:plugin:demo/search",
+            "name": "Runner Ready Search",
+            "ecosystem": "compat:dify-runner-ready",
+            "description": "Search via adapter",
+            "input_schema": {"type": "object"},
+            "output_schema": {"type": "object"},
+        },
+    )
+    assert tool_response.status_code == 201
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(
+            execution_classes=("microvm",),
+            supports_tool_execution=True,
+        ),
+    )
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Runner Ready Tool Execution Workflow",
+            "definition": _bound_tool_definition(
+                tool_id="compat:dify-runner-ready:plugin:demo/search",
+                ecosystem="compat:dify-runner-ready",
+                adapter_id="dify-microvm-runner-ready",
+                runtime_policy={"execution": {"class": "microvm"}},
+            ),
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["definition_issues"] == []
+
+
 def test_create_workflow_rejects_tool_execution_dependency_contract_without_backend_support(
     client: TestClient,
     monkeypatch,

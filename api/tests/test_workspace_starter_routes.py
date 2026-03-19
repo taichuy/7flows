@@ -482,6 +482,85 @@ def test_workspace_starter_create_rejects_supported_agent_tool_execution_until_t
     assert "must fail closed" in message
 
 
+def test_workspace_starter_create_allows_compat_tool_execution_when_backend_supports_tool_runner(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    adapter_response = client.post(
+        "/api/plugins/adapters",
+        json={
+            "id": "dify-ready-microvm-runner",
+            "ecosystem": "compat:dify-ready-runner",
+            "endpoint": "http://adapter.local/dify-ready-runner",
+            "supported_execution_classes": ["subprocess", "microvm"],
+        },
+    )
+    assert adapter_response.status_code == 201
+
+    tool_response = client.post(
+        "/api/plugins/tools",
+        json={
+            "id": "compat:dify-ready-runner:plugin:demo/search",
+            "name": "Demo Search Runner Ready",
+            "ecosystem": "compat:dify-ready-runner",
+            "description": "Search via adapter",
+            "input_schema": {"type": "object"},
+            "output_schema": {"type": "object"},
+        },
+    )
+    assert tool_response.status_code == 201
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(
+            execution_classes=("microvm",),
+            supports_tool_execution=True,
+        ),
+    )
+
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Execution Guard Starter Runner Ready",
+            "description": "Template for execution guard",
+            "business_track": "编排节点能力",
+            "default_workflow_name": "Execution Guard Workflow",
+            "workflow_focus": "Execution guard focus",
+            "recommended_next_step": "Wire sandbox backend contract",
+            "tags": ["execution", "guard"],
+            "definition": {
+                "nodes": [
+                    {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                    {
+                        "id": "tool_node",
+                        "type": "tool",
+                        "name": "Tool",
+                        "config": {
+                            "tool": {
+                                "toolId": "compat:dify-ready-runner:plugin:demo/search",
+                                "ecosystem": "compat:dify-ready-runner",
+                                "adapterId": "dify-ready-microvm-runner",
+                            }
+                        },
+                        "runtimePolicy": {"execution": {"class": "microvm"}},
+                    },
+                    {"id": "output", "type": "output", "name": "Output", "config": {}},
+                ],
+                "edges": [
+                    {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool_node"},
+                    {"id": "e2", "sourceNodeId": "tool_node", "targetNodeId": "output"},
+                ],
+            },
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == "Execution Guard Starter Runner Ready"
+    assert body["definition"]["nodes"][1]["runtimePolicy"]["execution"]["class"] == "microvm"
+
+
 def test_workspace_starter_create_rejects_tool_execution_dependency_contract(
     client: TestClient,
     monkeypatch,
