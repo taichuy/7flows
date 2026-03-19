@@ -156,6 +156,9 @@ describe("callback operator actions", () => {
         scheduled_resume_count: 1,
         terminated_count: 0,
         run_ids: ["run-1"],
+        callback_blocker_delta: {
+          summary: "阻塞变化：已清理当前 slice 内的过期 callback ticket。"
+        },
         outcome_explanation: {
           primary_signal: "已处理过期 callback ticket。",
           follow_up: "后端已安排恢复，下一步观察 run 是否真正离开 waiting。"

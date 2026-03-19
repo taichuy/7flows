@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.api.routes import run_callback_tickets as run_callback_ticket_routes
 from app.models.run import NodeRun, Run, RunCallbackTicket, RunEvent
 from app.models.workflow import Workflow, WorkflowVersion
+from app.schemas.sensitive_access import CallbackBlockerDeltaSummary
 from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
 from app.services.run_callback_ticket_cleanup import RunCallbackTicketCleanupService
 from app.services.run_resume_scheduler import RunResumeScheduler
@@ -103,10 +104,50 @@ def test_cleanup_stale_run_callback_tickets_route_expires_stale_tickets(
         "_resume_scheduler",
         RunResumeScheduler(dispatcher=scheduled_resumes.append),
     )
+    captured_scopes: list[tuple[str | None, str | None]] = []
+
+    def fake_capture_callback_blocker_snapshot(
+        db,
+        *,
+        run_id: str | None,
+        node_run_id: str | None = None,
+    ):
+        captured_scopes.append((run_id, node_run_id))
+        return f"snapshot:{run_id}:{node_run_id}"
+
+    def fake_build_callback_blocker_delta_summary(*, before, after):
+        assert before == f"snapshot:{run_id}:{ticket_record.node_run_id}"
+        assert after == f"snapshot:{run_id}:{ticket_record.node_run_id}"
+        return CallbackBlockerDeltaSummary(
+            sampled_scope_count=1,
+            changed_scope_count=1,
+            cleared_scope_count=1,
+            fully_cleared_scope_count=0,
+            still_blocked_scope_count=1,
+            summary=(
+                "阻塞变化：已解除 waiting external callback。 "
+                "建议动作已切换为“Handle approval here first”。"
+            ),
+        )
+
+    monkeypatch.setattr(
+        run_callback_ticket_routes,
+        "capture_callback_blocker_snapshot",
+        fake_capture_callback_blocker_snapshot,
+    )
+    monkeypatch.setattr(
+        run_callback_ticket_routes,
+        "build_callback_blocker_delta_summary",
+        fake_build_callback_blocker_delta_summary,
+    )
 
     response = client.post(
         "/api/runs/callback-tickets/cleanup",
-        json={"source": "route_cleanup"},
+        json={
+            "source": "route_cleanup",
+            "run_id": run_id,
+            "node_run_id": ticket_record.node_run_id,
+        },
     )
 
     sqlite_session.refresh(ticket_record)
@@ -151,6 +192,17 @@ def test_cleanup_stale_run_callback_tickets_route_expires_stale_tickets(
             "若仍停留，优先检查审批、callback 或定时恢复事实链。"
         ),
     }
+    assert body["callback_blocker_delta"] == {
+        "sampled_scope_count": 1,
+        "changed_scope_count": 1,
+        "cleared_scope_count": 1,
+        "fully_cleared_scope_count": 0,
+        "still_blocked_scope_count": 1,
+        "summary": (
+            "阻塞变化：已解除 waiting external callback。 "
+            "建议动作已切换为“Handle approval here first”。"
+        ),
+    }
     assert body["run_snapshot"]["status"] == "waiting"
     assert body["run_snapshot"]["waiting_reason"] == "cleanup route pending"
     assert body["run_follow_up"]["affected_run_count"] == 1
@@ -174,6 +226,10 @@ def test_cleanup_stale_run_callback_tickets_route_expires_stale_tickets(
     assert len(scheduled_resumes) == 1
     assert scheduled_resumes[0].run_id == run_id
     assert scheduled_resumes[0].source == "route_cleanup"
+    assert captured_scopes == [
+        (run_id, ticket_record.node_run_id),
+        (run_id, ticket_record.node_run_id),
+    ]
     assert node_run is not None
     assert node_run.checkpoint_payload["scheduled_resume"] == {
         "delay_seconds": 0.0,
@@ -265,10 +321,50 @@ def test_cleanup_stale_run_callback_tickets_route_supports_dry_run(
         "_resume_scheduler",
         RunResumeScheduler(dispatcher=scheduled_resumes.append),
     )
+    captured_scopes: list[tuple[str | None, str | None]] = []
+
+    def fake_capture_callback_blocker_snapshot(
+        db,
+        *,
+        run_id: str | None,
+        node_run_id: str | None = None,
+    ):
+        captured_scopes.append((run_id, node_run_id))
+        return f"snapshot:{run_id}:{node_run_id}"
+
+    def fake_build_callback_blocker_delta_summary(*, before, after):
+        assert before == f"snapshot:{run_id}:None"
+        assert after == f"snapshot:{run_id}:None"
+        return CallbackBlockerDeltaSummary(
+            sampled_scope_count=1,
+            changed_scope_count=0,
+            cleared_scope_count=0,
+            fully_cleared_scope_count=0,
+            still_blocked_scope_count=1,
+            summary=(
+                "阻塞变化：当前仍是 waiting external callback。 "
+                "建议动作仍是“Wait for callback result”。"
+            ),
+        )
+
+    monkeypatch.setattr(
+        run_callback_ticket_routes,
+        "capture_callback_blocker_snapshot",
+        fake_capture_callback_blocker_snapshot,
+    )
+    monkeypatch.setattr(
+        run_callback_ticket_routes,
+        "build_callback_blocker_delta_summary",
+        fake_build_callback_blocker_delta_summary,
+    )
 
     response = client.post(
         "/api/runs/callback-tickets/cleanup",
-        json={"source": "route_cleanup_dry_run", "dry_run": True},
+        json={
+            "source": "route_cleanup_dry_run",
+            "dry_run": True,
+            "run_id": run_id,
+        },
     )
 
     sqlite_session.refresh(ticket_record)
@@ -295,6 +391,17 @@ def test_cleanup_stale_run_callback_tickets_route_supports_dry_run(
             "请确认当前 scope 后执行非 dry-run cleanup。"
         ),
     }
+    assert body["callback_blocker_delta"] == {
+        "sampled_scope_count": 1,
+        "changed_scope_count": 0,
+        "cleared_scope_count": 0,
+        "fully_cleared_scope_count": 0,
+        "still_blocked_scope_count": 1,
+        "summary": (
+            "阻塞变化：当前仍是 waiting external callback。 "
+            "建议动作仍是“Wait for callback result”。"
+        ),
+    }
     assert body["run_snapshot"]["status"] == "waiting"
     assert body["run_snapshot"]["waiting_reason"] == "cleanup route pending"
     assert body["run_follow_up"]["affected_run_count"] == 1
@@ -306,6 +413,7 @@ def test_cleanup_stale_run_callback_tickets_route_supports_dry_run(
     assert ticket_record.expired_at is None
     assert matching_events == []
     assert scheduled_resumes == []
+    assert captured_scopes == [(run_id, None), (run_id, None)]
 
 
 def test_cleanup_service_can_schedule_immediate_resume_for_expired_callback_tickets(

@@ -7,6 +7,10 @@ from app.schemas.run import (
     CallbackTicketCleanupRequest,
     CallbackTicketCleanupResponse,
 )
+from app.services.callback_blocker_deltas import (
+    build_callback_blocker_delta_summary,
+    capture_callback_blocker_snapshot,
+)
 from app.services.operator_run_follow_up import (
     build_operator_run_follow_up_summary,
     load_operator_run_snapshot,
@@ -27,6 +31,7 @@ def _serialize_cleanup_result(
     result: CallbackTicketCleanupResult,
     *,
     outcome_explanation=None,
+    callback_blocker_delta=None,
     run_snapshot=None,
     run_follow_up=None,
 ) -> CallbackTicketCleanupResponse:
@@ -60,6 +65,7 @@ def _serialize_cleanup_result(
             for item in result.items
         ],
         outcome_explanation=outcome_explanation,
+        callback_blocker_delta=callback_blocker_delta,
         run_snapshot=run_snapshot,
         run_follow_up=run_follow_up,
     )
@@ -82,6 +88,17 @@ def cleanup_stale_run_callback_tickets(
     payload: CallbackTicketCleanupRequest,
     db: Session = Depends(get_db),
 ) -> CallbackTicketCleanupResponse:
+    scoped_run_id = (payload.run_id or "").strip() or None
+    scoped_node_run_id = (payload.node_run_id or "").strip() or None
+    before_blocker = (
+        capture_callback_blocker_snapshot(
+            db,
+            run_id=scoped_run_id,
+            node_run_id=scoped_node_run_id,
+        )
+        if scoped_run_id is not None
+        else None
+    )
     result = cleanup_service.cleanup_stale_tickets(
         db,
         source=payload.source,
@@ -103,9 +120,24 @@ def cleanup_stale_run_callback_tickets(
         requested_run_id=payload.run_id,
         affected_run_ids=result.run_ids,
     )
+    after_blocker = (
+        capture_callback_blocker_snapshot(
+            db,
+            run_id=primary_run_id,
+            node_run_id=scoped_node_run_id,
+        )
+        if before_blocker is not None and primary_run_id is not None
+        else None
+    )
     return _serialize_cleanup_result(
         result,
         outcome_explanation=outcome_explanation,
+        callback_blocker_delta=build_callback_blocker_delta_summary(
+            before=before_blocker,
+            after=after_blocker,
+        )
+        if before_blocker is not None
+        else None,
         run_snapshot=load_operator_run_snapshot(db, primary_run_id),
         run_follow_up=run_follow_up,
     )

@@ -2,11 +2,6 @@
 
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import {
-  fetchCallbackBlockerSnapshot,
-  formatCallbackBlockerDeltaSummary
-} from "@/lib/callback-blocker-follow-up";
-import { getSystemOverview } from "@/lib/get-system-overview";
-import {
   formatCleanupResultMessage,
   formatOperatorOutcomeExplanationMessage
 } from "@/lib/operator-action-result-presenters";
@@ -35,6 +30,9 @@ type CleanupRunCallbackTicketsResponseBody = {
     primary_signal?: string | null;
     follow_up?: string | null;
   } | null;
+  callback_blocker_delta?: {
+    summary?: string | null;
+  } | null;
   run_snapshot?: OperatorRunSnapshotBody | null;
   run_follow_up?: {
     explanation?: {
@@ -61,12 +59,6 @@ export async function cleanupRunCallbackTickets(
   }
 
   try {
-    const beforeAutomation = (await getSystemOverview()).callback_waiting_automation;
-    const beforeBlockers = await fetchCallbackBlockerSnapshot({
-      runId,
-      nodeRunId: nodeRunId || null,
-      callbackWaitingAutomation: beforeAutomation
-    });
     const response = await fetch(`${getApiBaseUrl()}/api/runs/callback-tickets/cleanup`, {
       method: "POST",
       headers: {
@@ -103,16 +95,7 @@ export async function cleanupRunCallbackTickets(
       runIds: body?.run_ids?.length ? body.run_ids : [runId],
       workflowIds: [runSnapshot?.workflowId]
     });
-    const afterAutomation = (await getSystemOverview()).callback_waiting_automation;
-    const afterBlockers = await fetchCallbackBlockerSnapshot({
-      runId,
-      nodeRunId: nodeRunId || null,
-      callbackWaitingAutomation: afterAutomation
-    });
-    const blockerDeltaSummary = formatCallbackBlockerDeltaSummary({
-      before: beforeBlockers,
-      after: afterBlockers
-    });
+    const blockerDeltaSummary = body?.callback_blocker_delta?.summary?.trim() || null;
 
     return {
       status: "success",

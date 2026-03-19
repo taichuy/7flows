@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanupRunCallbackTickets } from "@/app/actions/callback-tickets";
 import { revalidateOperatorFollowUpPaths } from "@/app/actions/operator-follow-up-revalidation";
 import { fetchRunSnapshot } from "@/app/actions/run-snapshot";
-import { getSystemOverview } from "@/lib/get-system-overview";
 
 vi.mock("@/lib/api-base-url", () => ({
   getApiBaseUrl: () => "http://api.test"
@@ -31,17 +30,6 @@ vi.mock("@/app/actions/run-snapshot", () => ({
       : null)
 }));
 
-vi.mock("@/lib/get-system-overview", () => ({
-  getSystemOverview: vi.fn()
-}));
-
-vi.mock("@/lib/callback-blocker-follow-up", () => ({
-  fetchCallbackBlockerSnapshot: vi.fn(async () => ({
-    scopeCount: 1
-  })),
-  formatCallbackBlockerDeltaSummary: vi.fn(() => "阻塞变化：scheduled resume 已排队。")
-}));
-
 function jsonResponse(body: unknown, ok = true) {
   return new Response(JSON.stringify(body), {
     status: ok ? 200 : 500,
@@ -55,16 +43,6 @@ describe("callback ticket actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal("fetch", vi.fn());
-    vi.mocked(getSystemOverview).mockResolvedValue(({
-      callback_waiting_automation: {
-        status: "healthy",
-        scheduler_required: true,
-        detail: "mock automation healthy",
-        scheduler_health_status: "healthy",
-        scheduler_health_detail: "mock scheduler healthy",
-        steps: []
-      }
-    } as unknown) as Awaited<ReturnType<typeof getSystemOverview>>);
   });
 
   it("callback cleanup 优先消费后端 run_snapshot", async () => {
@@ -81,6 +59,9 @@ describe("callback ticket actions", () => {
         scheduled_resume_count: 1,
         terminated_count: 0,
         run_ids: ["run-cleanup"],
+        callback_blocker_delta: {
+          summary: "阻塞变化：已解除 waiting external callback。 建议动作已切换为“Handle approval here first”。"
+        },
         run_snapshot: {
           workflow_id: "wf-cleanup",
           status: "running",
@@ -117,6 +98,10 @@ describe("callback ticket actions", () => {
     expect(result.message).toContain("下一步：继续观察 run 是否真正离开 waiting。");
     expect(result.message).toContain("本次影响 1 个 run；整体状态分布：running 1。已回读 1 个样本。");
     expect(result.message).toContain("样本 run 已离开 callback waiting。");
+    expect(result.message).toContain("阻塞变化：已解除 waiting external callback。 建议动作已切换为“Handle approval here first”。");
+    expect(result.blockerDeltaSummary).toBe(
+      "阻塞变化：已解除 waiting external callback。 建议动作已切换为“Handle approval here first”。"
+    );
     expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(revalidateOperatorFollowUpPaths).toHaveBeenCalledWith({
       runIds: ["run-cleanup"],
