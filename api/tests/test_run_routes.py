@@ -361,6 +361,13 @@ def test_get_run_execution_view_blocks_unsupported_strong_isolation_for_generic_
     node = next(item for item in body["nodes"] if item["node_id"] == "branch")
     assert node["execution_class"] == "microvm"
     assert node["effective_execution_class"] is None
+    assert node["execution_focus_explanation"] == {
+        "primary_signal": "执行阻断：当前 condition 节点尚未实现请求的强隔离 execution class。",
+        "follow_up": (
+            "下一步：先把 execution class 调回当前实现支持范围，"
+            "或补齐对应 execution adapter；在此之前继续保持 fail-closed。"
+        ),
+    }
     assert node["execution_dispatched_count"] == 0
     assert node["execution_fallback_count"] == 0
     assert node["execution_blocked_count"] == 0
@@ -554,6 +561,13 @@ def test_get_run_execution_view_surfaces_selected_backend_for_tool_runner_gap(
     node = next(item for item in body["nodes"] if item["node_id"] == "risk_tool")
     assert node["execution_class"] == "microvm"
     assert node["effective_execution_class"] is None
+    assert node["execution_focus_explanation"] == {
+        "primary_signal": "执行阻断：当前 tool 路径还不能真实兑现请求的强隔离 execution class。",
+        "follow_up": (
+            "下一步：先把 tool execution class 调回当前宿主执行支持范围，"
+            "或后续补齐 sandbox tool runner；在此之前继续保持 fail-closed。"
+        ),
+    }
     assert node["execution_dispatched_count"] == 0
     assert node["execution_fallback_count"] == 0
     assert node["execution_blocked_count"] == 0

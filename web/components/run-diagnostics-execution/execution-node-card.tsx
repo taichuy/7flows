@@ -112,8 +112,11 @@ export function ExecutionNodeCard({
   );
   const requestedExecutionSummary = formatRequestedExecutionSummary(node);
   const showRequestedExecution = shouldShowRequestedExecution(node);
-  const executionPrimarySignal = formatExecutionFocusPrimarySignal(node);
-  const executionFollowUp = formatExecutionFocusFollowUp(node);
+  const executionPrimarySignal =
+    node.execution_focus_explanation?.primary_signal ??
+    formatExecutionFocusPrimarySignal(node);
+  const executionFollowUp =
+    node.execution_focus_explanation?.follow_up ?? formatExecutionFocusFollowUp(node);
   const rawBlockingCopy = node.execution_blocking_reason
     ? `Execution blocked: ${node.execution_blocking_reason}`
     : null;

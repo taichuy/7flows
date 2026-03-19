@@ -290,6 +290,13 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     node = body["nodes"][0]
     assert node["node_run_id"] == node_run.id
     assert node["phase"] == "waiting_callback"
+    assert node["execution_focus_explanation"] == {
+        "primary_signal": "等待原因：Waiting for external search callback.",
+        "follow_up": (
+            "下一步：优先处理这条 sensitive access 审批票据，"
+            "再观察 waiting 节点是否恢复。"
+        ),
+    }
     assert node["event_count"] == 2
     assert node["event_type_counts"] == {
         "run.callback.ticket.issued": 1,

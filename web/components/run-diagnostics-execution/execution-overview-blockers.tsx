@@ -144,8 +144,12 @@ export function RunDiagnosticsExecutionOverviewBlockers({
           const pendingTickets = countPendingTickets(node);
           const lifecycle = node.callback_waiting_lifecycle;
           const inboxHref = buildNodeInboxHref(node);
-          const primarySignal = formatExecutionFocusPrimarySignal(node);
-          const followUp = formatExecutionFocusFollowUp(node);
+          const primarySignal =
+            node.execution_focus_explanation?.primary_signal ??
+            formatExecutionFocusPrimarySignal(node);
+          const followUp =
+            node.execution_focus_explanation?.follow_up ??
+            formatExecutionFocusFollowUp(node);
 
           return (
             <article className="payload-card compact-card" key={node.node_run_id}>

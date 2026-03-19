@@ -257,7 +257,7 @@ def _build_execution_node_item(
     callback_waiting_lifecycle = serialize_callback_waiting_lifecycle_summary(
         node_run.checkpoint_payload
     )
-    return RunExecutionNodeItem(
+    node_item = RunExecutionNodeItem(
         node_run_id=node_run.id,
         node_id=node_run.node_id,
         node_name=node_run.node_name,
@@ -340,34 +340,6 @@ def _build_execution_node_item(
         skill_reference_loads=skill_reference_loads,
         sensitive_access_entries=sensitive_access_entries,
         callback_waiting_lifecycle=callback_waiting_lifecycle,
-        callback_waiting_explanation=build_callback_waiting_explanation(
-            lifecycle=callback_waiting_lifecycle,
-            pending_callback_ticket_count=sum(
-                1 for ticket in callback_tickets if ticket.status == "pending"
-            ),
-            pending_approval_count=sum(
-                1
-                for entry in sensitive_access_entries
-                if entry.approval_ticket is not None
-                and entry.approval_ticket.status == "pending"
-            ),
-            failed_notification_count=sum(
-                1
-                for entry in sensitive_access_entries
-                for notification in entry.notifications
-                if notification.status == "failed"
-            ),
-            scheduled_resume_delay_seconds=scheduled_resume[
-                "scheduled_resume_delay_seconds"
-            ],
-            scheduled_resume_due_at=scheduled_resume["scheduled_resume_due_at"],
-            scheduled_resume_requeued_at=scheduled_resume[
-                "scheduled_resume_requeued_at"
-            ],
-            scheduled_resume_requeue_source=scheduled_resume[
-                "scheduled_resume_requeue_source"
-            ],
-        ),
         scheduled_resume_delay_seconds=scheduled_resume[
             "scheduled_resume_delay_seconds"
         ],
@@ -385,7 +357,38 @@ def _build_execution_node_item(
             "scheduled_resume_requeue_source"
         ],
     )
-
+    node_item.execution_focus_explanation = build_run_execution_focus_explanation(
+        node_item
+    )
+    node_item.callback_waiting_explanation = build_callback_waiting_explanation(
+        lifecycle=callback_waiting_lifecycle,
+        pending_callback_ticket_count=sum(
+            1 for ticket in callback_tickets if ticket.status == "pending"
+        ),
+        pending_approval_count=sum(
+            1
+            for entry in sensitive_access_entries
+            if entry.approval_ticket is not None
+            and entry.approval_ticket.status == "pending"
+        ),
+        failed_notification_count=sum(
+            1
+            for entry in sensitive_access_entries
+            for notification in entry.notifications
+            if notification.status == "failed"
+        ),
+        scheduled_resume_delay_seconds=scheduled_resume[
+            "scheduled_resume_delay_seconds"
+        ],
+        scheduled_resume_due_at=scheduled_resume["scheduled_resume_due_at"],
+        scheduled_resume_requeued_at=scheduled_resume[
+            "scheduled_resume_requeued_at"
+        ],
+        scheduled_resume_requeue_source=scheduled_resume[
+            "scheduled_resume_requeue_source"
+        ],
+    )
+    return node_item
 
 def _count_pending_approvals(node: RunExecutionNodeItem) -> int:
     return sum(
