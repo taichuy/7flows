@@ -60,7 +60,7 @@
 - 如果本轮主题是治理/prompt/skill/文档，不要只做抽象描述；要把可复用资产落到仓库里，并和当前代码事实对齐
 - 让本轮结果可记录、可衔接、可追踪
 - 如果你判断项目已经进入需要人工逐项进行界面设计的阶段，请运行：
-  node "e:\\code\\taichuCode\\ai-presson-wen\\aionui\\notice\\kill-port-8050.js"
+  node "scripts\kill-port-notice.js"
 
 明确禁止：
 - 不要优先做非阻塞型重构、样式整理或局部美化
