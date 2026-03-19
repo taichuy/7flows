@@ -21,6 +21,7 @@ import {
   formatExecutionFocusReasonLabel,
   formatExecutionFocusPrimarySignal,
   formatMetricSummary,
+  listExecutionFocusArtifactPreviews,
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
@@ -61,14 +62,9 @@ export function SensitiveAccessInboxEntryCard({
   const focusArtifactSummary = executionContext
     ? formatExecutionFocusArtifactSummary(executionContext.focusNode)
     : null;
-  const focusArtifacts =
-    executionContext?.focusNode.artifacts.slice(0, 2).map((artifact, index) => ({
-      key: artifact.uri?.trim() || artifact.summary?.trim() || `focus-artifact-${index}`,
-      artifactKind: artifact.artifact_kind,
-      contentType: artifact.content_type,
-      summary: artifact.summary,
-      uri: artifact.uri
-    })) ?? [];
+  const focusArtifacts = executionContext
+    ? listExecutionFocusArtifactPreviews(executionContext.focusNode)
+    : [];
   const focusInboxHref = executionContext
     ? buildSensitiveAccessInboxHref({
         runId: executionContext.runId,

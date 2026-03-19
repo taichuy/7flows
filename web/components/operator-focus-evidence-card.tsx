@@ -1,7 +1,7 @@
 import type {
+  ExecutionFocusArtifactPreview,
   ExecutionFocusToolCallSummary
 } from "@/lib/run-execution-focus-presenters";
-import type { OperatorInlineFocusArtifactPreview } from "@/lib/operator-inline-action-feedback";
 
 type OperatorFocusEvidenceCardProps = {
   title?: string;
@@ -10,7 +10,7 @@ type OperatorFocusEvidenceCardProps = {
   artifactRefCount?: number;
   toolCallCount?: number;
   toolCallSummaries: ExecutionFocusToolCallSummary[];
-  artifacts: OperatorInlineFocusArtifactPreview[];
+  artifacts: ExecutionFocusArtifactPreview[];
 };
 
 export function OperatorFocusEvidenceCard({

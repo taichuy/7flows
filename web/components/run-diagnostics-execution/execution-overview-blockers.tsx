@@ -87,6 +87,7 @@ export function RunDiagnosticsExecutionOverviewBlockers({
               callbackWaitingAutomation={callbackWaitingAutomation}
               callbackWaitingExplanation={focusNode.callback_waiting_explanation}
               className="callback-waiting-summary-card"
+              focusNodeEvidence={focusNode}
               inboxHref={buildNodeInboxHref(focusNode)}
               lifecycle={focusNode.callback_waiting_lifecycle}
               nodeRunId={focusNode.node_run_id}
@@ -178,6 +179,7 @@ export function RunDiagnosticsExecutionOverviewBlockers({
                 callbackWaitingAutomation={callbackWaitingAutomation}
                 callbackWaitingExplanation={node.callback_waiting_explanation}
                 className="callback-waiting-summary-card"
+                focusNodeEvidence={node}
                 inboxHref={inboxHref}
                 lifecycle={lifecycle}
                 nodeRunId={node.node_run_id}

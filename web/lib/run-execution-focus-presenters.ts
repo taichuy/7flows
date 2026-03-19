@@ -29,6 +29,14 @@ type ExecutionFocusToolExplainableNode = Pick<
   "tool_calls" | "artifact_refs" | "artifacts"
 >;
 
+export type ExecutionFocusArtifactPreview = {
+  key: string;
+  artifactKind: string;
+  contentType: string | null;
+  summary: string | null;
+  uri: string | null;
+};
+
 export type ExecutionFocusToolCallSummary = {
   id: string;
   title: string;
@@ -162,6 +170,22 @@ export function listExecutionFocusToolCallSummaries(
     detail: buildToolExecutionDetail(toolCall),
     badges: buildToolExecutionBadges(toolCall),
     rawRef: trimOrNull(toolCall.raw_ref)
+  }));
+}
+
+export function listExecutionFocusArtifactPreviews(
+  node: Pick<RunExecutionNodeItem, "artifacts">,
+  limit = 2
+): ExecutionFocusArtifactPreview[] {
+  return node.artifacts.slice(0, limit).map((artifact, index) => ({
+    key:
+      trimOrNull(artifact.uri) ??
+      trimOrNull(artifact.summary) ??
+      `focus-artifact-${index}`,
+    artifactKind: trimOrNull(artifact.artifact_kind) ?? "artifact",
+    contentType: trimOrNull(artifact.content_type),
+    summary: trimOrNull(artifact.summary),
+    uri: trimOrNull(artifact.uri)
   }));
 }
 

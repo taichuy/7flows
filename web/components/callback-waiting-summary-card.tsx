@@ -1,15 +1,22 @@
 import Link from "next/link";
 
 import { CallbackWaitingInlineActions } from "@/components/callback-waiting-inline-actions";
+import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
 import type {
   CallbackWaitingLifecycleSummary,
   RunCallbackTicketItem,
-  RunExecutionFocusExplanation
+  RunExecutionFocusExplanation,
+  RunExecutionNodeItem
 } from "@/lib/get-run-views";
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import {
+  formatExecutionFocusArtifactSummary,
+  listExecutionFocusArtifactPreviews,
+  listExecutionFocusToolCallSummaries
+} from "@/lib/run-execution-focus-presenters";
 import {
   formatCallbackLifecycleLabel,
   formatScheduledResumeLabel,
@@ -38,6 +45,7 @@ type CallbackWaitingSummaryCardProps = {
   inboxHref?: string | null;
   runId?: string | null;
   nodeRunId?: string | null;
+  focusNodeEvidence?: Pick<RunExecutionNodeItem, "artifact_refs" | "artifacts" | "tool_calls"> | null;
   className?: string;
 };
 
@@ -58,6 +66,7 @@ export function CallbackWaitingSummaryCard({
   inboxHref,
   runId,
   nodeRunId,
+  focusNodeEvidence,
   className = ""
 }: CallbackWaitingSummaryCardProps) {
   const headline =
@@ -164,6 +173,15 @@ export function CallbackWaitingSummaryCard({
     recommendedAction?.kind === "watch_scheduled_resume"
       ? inboxHref
       : null;
+  const focusToolCallSummaries = focusNodeEvidence
+    ? listExecutionFocusToolCallSummaries(focusNodeEvidence)
+    : [];
+  const focusArtifactSummary = focusNodeEvidence
+    ? formatExecutionFocusArtifactSummary(focusNodeEvidence)
+    : null;
+  const focusArtifacts = focusNodeEvidence
+    ? listExecutionFocusArtifactPreviews(focusNodeEvidence)
+    : [];
   const hasContent =
     headline ||
     blockerRows.length > 0 ||
@@ -217,6 +235,17 @@ export function CallbackWaitingSummaryCard({
         </p>
       ))}
       {callbackFollowUp ? <p className="section-copy entry-copy">{callbackFollowUp}</p> : null}
+      {focusNodeEvidence ? (
+        <OperatorFocusEvidenceCard
+          title="Waiting node focus evidence"
+          artifactCount={focusNodeEvidence.artifacts.length}
+          artifactRefCount={focusNodeEvidence.artifact_refs.length}
+          artifactSummary={focusArtifactSummary}
+          artifacts={focusArtifacts}
+          toolCallCount={focusNodeEvidence.tool_calls.length}
+          toolCallSummaries={focusToolCallSummaries}
+        />
+      ) : null}
       {recommendedCtaHref ? (
         <div className="event-type-strip">
           <Link className="event-chip inbox-filter-link" href={recommendedCtaHref}>

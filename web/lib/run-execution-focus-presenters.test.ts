@@ -6,6 +6,7 @@ import {
   formatExecutionFocusArtifactSummary,
   formatExecutionFocusFollowUp,
   formatExecutionFocusPrimarySignal,
+  listExecutionFocusArtifactPreviews,
   listExecutionFocusToolCallSummaries
 } from "./run-execution-focus-presenters";
 
@@ -318,5 +319,64 @@ describe("run execution focus presenters", () => {
     expect(summary).toContain("聚焦节点已沉淀 1 个 artifact（tool_result 1）。");
     expect(summary).toContain("run artifact refs 1 条。");
     expect(summary).toContain("至少 1 条 tool call 已把原始结果落到 raw_ref");
+  });
+
+  it("把 execution focus artifact 预览压成 callback/operator 可复用的结构", () => {
+    const previews = listExecutionFocusArtifactPreviews(
+      createExecutionNode({
+        artifacts: [
+          {
+            id: "artifact-1",
+            run_id: "run-1",
+            node_run_id: "node-run-1",
+            artifact_kind: "tool_result",
+            content_type: "application/json",
+            summary: "search result",
+            uri: "artifact://tool-result-1",
+            metadata_payload: {},
+            created_at: "2026-03-18T10:00:00Z"
+          },
+          {
+            id: "artifact-2",
+            run_id: "run-1",
+            node_run_id: "node-run-1",
+            artifact_kind: "sandbox_result",
+            content_type: "text/plain",
+            summary: "sandbox stdout",
+            uri: "artifact://sandbox-result-1",
+            metadata_payload: {},
+            created_at: "2026-03-18T10:00:01Z"
+          },
+          {
+            id: "artifact-3",
+            run_id: "run-1",
+            node_run_id: "node-run-1",
+            artifact_kind: "trace",
+            content_type: "application/json",
+            summary: "detailed trace",
+            uri: "artifact://trace-1",
+            metadata_payload: {},
+            created_at: "2026-03-18T10:00:02Z"
+          }
+        ]
+      })
+    );
+
+    expect(previews).toEqual([
+      {
+        key: "artifact://tool-result-1",
+        artifactKind: "tool_result",
+        contentType: "application/json",
+        summary: "search result",
+        uri: "artifact://tool-result-1"
+      },
+      {
+        key: "artifact://sandbox-result-1",
+        artifactKind: "sandbox_result",
+        contentType: "text/plain",
+        summary: "sandbox stdout",
+        uri: "artifact://sandbox-result-1"
+      }
+    ]);
   });
 });

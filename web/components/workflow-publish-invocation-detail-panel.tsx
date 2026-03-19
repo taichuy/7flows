@@ -307,6 +307,7 @@ export function WorkflowPublishInvocationDetailPanel({
         sensitiveAccessEntries={sensitiveAccessEntries}
         callbackWaitingAutomation={callbackWaitingAutomation}
         callbackWaitingExplanation={callbackWaitingExplanation}
+        executionFocusNode={executionFocusNode}
       />
 
       {skillTrace ? (

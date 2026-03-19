@@ -6,6 +6,7 @@ import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
 import type {
   PublishedEndpointInvocationItem,
   PublishedEndpointInvocationCallbackTicketItem,
+  PublishedEndpointInvocationDetailResponse,
   RunExecutionFocusExplanation
 } from "@/lib/get-workflow-publish";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
@@ -24,6 +25,7 @@ type WorkflowPublishInvocationCallbackSectionProps = {
   sensitiveAccessEntries: SensitiveAccessTimelineEntry[];
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   callbackWaitingExplanation?: RunExecutionFocusExplanation | null;
+  executionFocusNode?: PublishedEndpointInvocationDetailResponse["execution_focus_node"];
 };
 
 function formatJsonPreview(value: unknown): string {
@@ -35,7 +37,8 @@ export function WorkflowPublishInvocationCallbackSection({
   callbackTickets,
   sensitiveAccessEntries,
   callbackWaitingAutomation,
-  callbackWaitingExplanation
+  callbackWaitingExplanation,
+  executionFocusNode
 }: WorkflowPublishInvocationCallbackSectionProps) {
   const waitingLifecycle = invocation.run_waiting_lifecycle;
   const callbackLifecycle = waitingLifecycle?.callback_waiting_lifecycle;
@@ -112,6 +115,7 @@ export function WorkflowPublishInvocationCallbackSection({
         callbackTickets={callbackTickets}
         callbackWaitingAutomation={callbackWaitingAutomation}
         callbackWaitingExplanation={resolvedCallbackWaitingExplanation}
+        focusNodeEvidence={executionFocusNode ?? null}
         lifecycle={callbackLifecycle}
         sensitiveAccessEntries={sensitiveAccessEntries}
         waitingReason={waitingLifecycle?.waiting_reason ?? invocation.run_waiting_reason}
