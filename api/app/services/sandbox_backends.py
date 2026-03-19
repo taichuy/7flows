@@ -66,6 +66,7 @@ class SandboxBackendCapability:
     supported_languages: tuple[str, ...] = field(default_factory=tuple)
     supported_profiles: tuple[str, ...] = field(default_factory=tuple)
     supported_dependency_modes: tuple[str, ...] = field(default_factory=tuple)
+    supports_tool_execution: bool = False
     supports_builtin_package_sets: bool = False
     supports_backend_extensions: bool = False
     supports_network_policy: bool = False
@@ -94,7 +95,7 @@ class SandboxBackendCapability:
         )
 
     @classmethod
-    def from_payload(cls, payload: object) -> "SandboxBackendCapability":
+    def from_payload(cls, payload: object) -> SandboxBackendCapability:
         if not isinstance(payload, dict):
             return cls()
         return cls(
@@ -102,6 +103,7 @@ class SandboxBackendCapability:
             supported_languages=payload.get("supportedLanguages") or (),
             supported_profiles=payload.get("supportedProfiles") or (),
             supported_dependency_modes=payload.get("supportedDependencyModes") or (),
+            supports_tool_execution=bool(payload.get("supportsToolExecution", False)),
             supports_builtin_package_sets=bool(payload.get("supportsBuiltinPackageSets", False)),
             supports_backend_extensions=bool(payload.get("supportsBackendExtensions", False)),
             supports_network_policy=bool(payload.get("supportsNetworkPolicy", False)),
@@ -114,6 +116,7 @@ class SandboxBackendCapability:
             "supported_languages": list(self.supported_languages),
             "supported_profiles": list(self.supported_profiles),
             "supported_dependency_modes": list(self.supported_dependency_modes),
+            "supports_tool_execution": self.supports_tool_execution,
             "supports_builtin_package_sets": self.supports_builtin_package_sets,
             "supports_backend_extensions": self.supports_backend_extensions,
             "supports_network_policy": self.supports_network_policy,
@@ -181,6 +184,28 @@ class SandboxBackendSelection:
     reason: str | None = None
     capability: SandboxBackendCapability = field(default_factory=SandboxBackendCapability)
     health_status: str | None = None
+
+
+@dataclass(frozen=True)
+class SandboxToolExecutionRequest:
+    execution_class: str
+    tool_id: str
+    ecosystem: str
+    adapter_id: str
+    adapter_endpoint: str
+    inputs: dict[str, Any]
+    credentials: dict[str, str]
+    timeout_ms: int
+    trace_id: str
+    execution: dict[str, Any]
+    execution_contract: dict[str, Any]
+    profile: str | None = None
+    dependency_mode: str | None = None
+    builtin_package_set: str | None = None
+    dependency_ref: str | None = None
+    network_policy: str | None = None
+    filesystem_policy: str | None = None
+    backend_extensions: dict[str, Any] | None = None
 
 
 SandboxBackendClientFactory = Callable[[int | None], httpx.Client]
@@ -317,6 +342,101 @@ class SandboxBackendClient:
             backend_extensions=backend_extensions,
         )
 
+    def execute_tool(self, request: SandboxToolExecutionRequest) -> SandboxExecutionResponse:
+        selection = self.describe_tool_execution_backend(
+            execution_class=request.execution_class,
+            profile=request.profile,
+            dependency_mode=request.dependency_mode,
+            builtin_package_set=request.builtin_package_set,
+            network_policy=request.network_policy,
+            filesystem_policy=request.filesystem_policy,
+            backend_extensions=request.backend_extensions,
+        )
+        if not selection.available or selection.backend_id is None:
+            raise RuntimeError(selection.reason or "Sandbox backend is unavailable.")
+        if not selection.capability.supports_tool_execution:
+            raise RuntimeError(
+                "Selected sandbox backend does not support sandbox-backed tool execution."
+            )
+
+        registration = self._registry.get_backend(selection.backend_id)
+        if registration is None:
+            raise RuntimeError(
+                f"Sandbox backend '{selection.backend_id}' is no longer registered."
+            )
+
+        payload: dict[str, Any] = {
+            "executionClass": request.execution_class,
+            "command": ["sevenflows-tool-runner", "compat-adapter"],
+            "input": {
+                "kind": "tool_execution",
+                "toolId": request.tool_id,
+                "ecosystem": request.ecosystem,
+                "adapter": {
+                    "id": request.adapter_id,
+                    "endpoint": request.adapter_endpoint,
+                },
+                "inputs": request.inputs,
+                "credentials": request.credentials,
+                "timeout": request.timeout_ms,
+                "traceId": request.trace_id,
+                "execution": request.execution,
+                "executionContract": request.execution_contract,
+            },
+            "traceId": request.trace_id,
+        }
+        if request.profile is not None:
+            payload["profile"] = request.profile
+        if request.dependency_mode is not None:
+            payload["dependencyMode"] = request.dependency_mode
+        if request.builtin_package_set is not None:
+            payload["builtinPackageSet"] = request.builtin_package_set
+        if request.dependency_ref is not None:
+            payload["dependencyRef"] = request.dependency_ref
+        if request.timeout_ms is not None:
+            payload["timeoutMs"] = request.timeout_ms
+        if request.network_policy is not None:
+            payload["networkPolicy"] = request.network_policy
+        if request.filesystem_policy is not None:
+            payload["filesystemPolicy"] = request.filesystem_policy
+        if request.backend_extensions:
+            payload["backendExtensions"] = request.backend_extensions
+
+        try:
+            with self._client_factory(request.timeout_ms) as client:
+                response = client.post(
+                    _join_endpoint(registration.endpoint, registration.execute_path),
+                    json=payload,
+                    headers=_auth_headers(registration.api_key),
+                )
+                response.raise_for_status()
+                body = _safe_json(response)
+        except (httpx.HTTPError, ValueError) as exc:
+            raise RuntimeError(
+                f"Sandbox backend '{registration.id}' tool execution failed: {exc}"
+            ) from exc
+
+        ok = body.get("ok")
+        status = str(body.get("status") or "").strip().lower()
+        if ok is False or status in {"error", "failed"}:
+            raise RuntimeError(
+                str(
+                    body.get("error")
+                    or f"Sandbox backend '{registration.id}' tool execution failed."
+                )
+            )
+
+        return SandboxExecutionResponse(
+            backend_id=registration.id,
+            executor_ref=str(body.get("executorRef") or f"sandbox-backend:{registration.id}"),
+            effective_execution_class=str(
+                body.get("effectiveExecutionClass") or request.execution_class
+            ),
+            result=body.get("result"),
+            stdout=str(body.get("stdout") or ""),
+            stderr=str(body.get("stderr") or ""),
+        )
+
     def _describe_backend_selection(
         self,
         *,
@@ -353,7 +473,11 @@ class SandboxBackendClient:
                     f"{health.id}: does not support execution class '{execution_class}'"
                 )
                 continue
-            if language and capability.supported_languages and language not in capability.supported_languages:
+            if (
+                language
+                and capability.supported_languages
+                and language not in capability.supported_languages
+            ):
                 reasons.append(f"{health.id}: does not support language '{language}'")
                 continue
             if (

@@ -563,9 +563,50 @@ def _build_execution_support_issue(
             )
             if backend_issue is not None:
                 return backend_issue
+            selection = describe_tool_execution_backend_selection(
+                sandbox_backend_client=sandbox_backend_client,
+                execution_class=requested_execution_class,
+                profile=_normalize_optional_string(
+                    execution_payload.get("profile")
+                    if isinstance(execution_payload, dict)
+                    else None
+                ),
+                dependency_mode=_normalize_optional_dependency_mode(
+                    execution_payload.get("dependencyMode")
+                    if isinstance(execution_payload, dict)
+                    else None
+                ),
+                builtin_package_set=_normalize_optional_string(
+                    execution_payload.get("builtinPackageSet")
+                    if isinstance(execution_payload, dict)
+                    else None
+                ),
+                network_policy=_normalize_optional_string(
+                    execution_payload.get("networkPolicy")
+                    if isinstance(execution_payload, dict)
+                    else None
+                ),
+                filesystem_policy=_normalize_optional_string(
+                    execution_payload.get("filesystemPolicy")
+                    if isinstance(execution_payload, dict)
+                    else None
+                ),
+                backend_extensions=_normalize_optional_object(
+                    execution_payload.get("backendExtensions")
+                    if isinstance(execution_payload, dict)
+                    else None
+                ),
+            )
+            if (
+                selection is not None
+                and selection.available
+                and selection.capability.supports_tool_execution
+            ):
+                return None
             runner_gap_reason = build_tool_execution_not_yet_isolated_reason(
                 tool_id=tool_id,
                 execution_class=requested_execution_class,
+                backend_selection=selection,
             )
             return WorkflowToolExecutionValidationIssue(
                 message=(
@@ -708,9 +749,20 @@ def _build_default_execution_support_issue(
         )
         if backend_issue is not None:
             return backend_issue
+        selection = describe_tool_execution_backend_selection(
+            sandbox_backend_client=sandbox_backend_client,
+            execution_class=default_execution_class,
+        )
+        if (
+            selection is not None
+            and selection.available
+            and selection.capability.supports_tool_execution
+        ):
+            return None
         runner_gap_reason = build_tool_execution_not_yet_isolated_reason(
             tool_id=tool_id,
             execution_class=default_execution_class,
+            backend_selection=selection,
         )
         return WorkflowToolExecutionValidationIssue(
             message=(

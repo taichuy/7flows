@@ -40,8 +40,10 @@ def _sandbox_backend_client(
     execution_classes: tuple[str, ...],
     profiles: tuple[str, ...] = (),
     dependency_modes: tuple[str, ...] = (),
+    supports_tool_execution: bool = False,
     supports_builtin_package_sets: bool = False,
     supports_backend_extensions: bool = False,
+    client_factory=None,
 ) -> SandboxBackendClient:
     sandbox_registry = SandboxBackendRegistry()
     sandbox_registry.register_backend(
@@ -55,6 +57,7 @@ def _sandbox_backend_client(
                 supported_execution_classes=execution_classes,
                 supported_profiles=profiles,
                 supported_dependency_modes=dependency_modes,
+                supports_tool_execution=supports_tool_execution,
                 supports_builtin_package_sets=supports_builtin_package_sets,
                 supports_backend_extensions=supports_backend_extensions,
                 supports_network_policy=True,
@@ -76,6 +79,7 @@ def _sandbox_backend_client(
                         supported_execution_classes=execution_classes,
                         supported_profiles=profiles,
                         supported_dependency_modes=dependency_modes,
+                        supports_tool_execution=supports_tool_execution,
                         supports_builtin_package_sets=supports_builtin_package_sets,
                         supports_backend_extensions=supports_backend_extensions,
                         supports_network_policy=True,
@@ -84,6 +88,7 @@ def _sandbox_backend_client(
                 )
             ]
         ),
+        client_factory=client_factory,
     )
 
 
@@ -1366,6 +1371,142 @@ def test_plugin_call_proxy_fail_closes_supported_strong_isolation_for_compat_ada
 
     assert response.status == "success"
     assert response.output == {"documents": ["doc-1"]}
+
+
+def test_plugin_call_proxy_invokes_compat_adapter_via_sandbox_backend_when_supported() -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="compat:dify:plugin:demo/search-sandbox",
+            name="Search Sandbox",
+            ecosystem="compat:dify",
+            source="plugin",
+            constrained_ir=_demo_search_constrained_ir(),
+        )
+    )
+    registry.register_adapter(
+        CompatibilityAdapterRegistration(
+            id="dify-microvm-sandbox",
+            ecosystem="compat:dify",
+            endpoint="http://adapter.local/dify-sandbox",
+            supported_execution_classes=("subprocess", "microvm"),
+        )
+    )
+    adapter_invoked = False
+
+    def direct_handler(_request: httpx.Request) -> httpx.Response:
+        nonlocal adapter_invoked
+        adapter_invoked = True
+        raise AssertionError(
+            "direct adapter invoke should not be used for sandbox-backed execution"
+        )
+
+    def sandbox_handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == "http://sandbox.local/execute"
+        payload = json.loads(request.content.decode())
+        assert payload["executionClass"] == "microvm"
+        assert payload["command"] == ["sevenflows-tool-runner", "compat-adapter"]
+        assert payload["traceId"] == "trace-compat-sandbox"
+        assert payload["profile"] == "compat-isolation"
+        assert payload["networkPolicy"] == "isolated"
+        assert payload["filesystemPolicy"] == "ephemeral"
+        assert payload["input"]["kind"] == "tool_execution"
+        assert payload["input"]["toolId"] == "compat:dify:plugin:demo/search-sandbox"
+        assert payload["input"]["ecosystem"] == "compat:dify"
+        assert payload["input"]["adapter"] == {
+            "id": "dify-microvm-sandbox",
+            "endpoint": "http://adapter.local/dify-sandbox",
+        }
+        assert payload["input"]["inputs"] == {"query": "sevenflows"}
+        assert payload["input"]["credentials"] == {}
+        assert payload["input"]["timeout"] == 4000
+        assert payload["input"]["traceId"] == "trace-compat-sandbox"
+        assert payload["input"]["execution"] == {
+            "class": "microvm",
+            "source": "tool_call",
+            "profile": "compat-isolation",
+            "timeoutMs": 4000,
+            "networkPolicy": "isolated",
+            "filesystemPolicy": "ephemeral",
+            "sandboxBackend": {
+                "id": "sandbox-default",
+                "executorRef": "sandbox-backend:sandbox-default",
+            },
+        }
+        assert payload["input"]["executionContract"]["kind"] == "tool_execution"
+        assert payload["input"]["executionContract"]["ecosystem"] == "compat:dify"
+        assert payload["input"]["executionContract"]["inputContract"][0]["name"] == "query"
+        return httpx.Response(
+            200,
+            json={
+                "ok": True,
+                "executorRef": "sandbox-backend:sandbox-default:tool-runner",
+                "effectiveExecutionClass": "microvm",
+                "result": {
+                    "status": "success",
+                    "output": {"documents": ["doc-1"]},
+                    "logs": ["sandbox tool runner invoked"],
+                    "durationMs": 17,
+                },
+            },
+        )
+
+    proxy = PluginCallProxy(
+        registry,
+        client_factory=lambda timeout_ms: httpx.Client(
+            transport=httpx.MockTransport(direct_handler),
+            timeout=timeout_ms / 1000,
+        ),
+        sandbox_backend_client=_sandbox_backend_client(
+            execution_classes=("microvm",),
+            profiles=("compat-isolation",),
+            supports_tool_execution=True,
+            client_factory=lambda timeout_ms: httpx.Client(
+                transport=httpx.MockTransport(sandbox_handler),
+                timeout=timeout_ms / 1000,
+            ),
+        ),
+    )
+
+    dispatch = proxy.describe_execution_dispatch(
+        PluginCallRequest(
+            tool_id="compat:dify:plugin:demo/search-sandbox",
+            ecosystem="compat:dify",
+            inputs={"query": "sevenflows"},
+            trace_id="trace-compat-sandbox",
+            execution={
+                "class": "microvm",
+                "source": "tool_call",
+                "profile": "compat-isolation",
+                "timeoutMs": 4000,
+                "networkPolicy": "isolated",
+                "filesystemPolicy": "ephemeral",
+            },
+        )
+    )
+    assert dispatch.blocked_reason is None
+
+    response = proxy.invoke(
+        PluginCallRequest(
+            tool_id="compat:dify:plugin:demo/search-sandbox",
+            ecosystem="compat:dify",
+            inputs={"query": "sevenflows"},
+            trace_id="trace-compat-sandbox",
+            execution={
+                "class": "microvm",
+                "source": "tool_call",
+                "profile": "compat-isolation",
+                "timeoutMs": 4000,
+                "networkPolicy": "isolated",
+                "filesystemPolicy": "ephemeral",
+            },
+        )
+    )
+
+    assert adapter_invoked is False
+    assert response.status == "success"
+    assert response.output == {"documents": ["doc-1"]}
+    assert response.logs == ["sandbox tool runner invoked"]
 
 
 def test_plugin_call_proxy_rejects_unsupported_contract_fields() -> None:

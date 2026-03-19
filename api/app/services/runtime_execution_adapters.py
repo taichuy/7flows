@@ -383,6 +383,11 @@ class RuntimeExecutionAdapterRegistry:
             if node_type == "tool" and is_strong_tool_execution_class(
                 execution_policy.execution_class
             ):
+                tool_binding = dict((node.get("config") or {}).get("tool") or {})
+                tool_id = str(
+                    tool_binding.get("toolId") or node.get("id") or node.get("name") or "tool"
+                )
+                ecosystem = str(tool_binding.get("ecosystem") or "native").strip() or "native"
                 backend_selection = describe_tool_execution_backend_selection(
                     sandbox_backend_client=self._sandbox_backend_client,
                     execution_class=execution_policy.execution_class,
@@ -398,11 +403,18 @@ class RuntimeExecutionAdapterRegistry:
                         available=False,
                         blocking_reason=backend_selection.reason,
                     )
+                if (
+                    ecosystem != "native"
+                    and backend_selection is not None
+                    and backend_selection.available
+                    and backend_selection.capability.supports_tool_execution
+                ):
+                    return NodeExecutionAvailability(available=True)
                 return NodeExecutionAvailability(
                     available=False,
                     blocking_reason=(
                         build_tool_execution_not_yet_isolated_reason(
-                            tool_id=str(node.get("id") or node.get("name") or "tool"),
+                            tool_id=tool_id,
                             execution_class=execution_policy.execution_class,
                             backend_selection=backend_selection,
                         )

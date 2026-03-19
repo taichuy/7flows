@@ -16,6 +16,7 @@ def _sandbox_backend_client(
     *,
     execution_classes: tuple[str, ...],
     dependency_modes: tuple[str, ...] = (),
+    supports_tool_execution: bool = False,
     supports_builtin_package_sets: bool = False,
     supports_backend_extensions: bool = False,
 ) -> SandboxBackendClient:
@@ -39,6 +40,7 @@ def _sandbox_backend_client(
             capability=SandboxBackendCapability(
                 supported_execution_classes=execution_classes,
                 supported_dependency_modes=dependency_modes,
+                supports_tool_execution=supports_tool_execution,
                 supports_builtin_package_sets=supports_builtin_package_sets,
                 supports_backend_extensions=supports_backend_extensions,
             ),

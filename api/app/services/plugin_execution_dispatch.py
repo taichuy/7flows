@@ -217,11 +217,20 @@ class PluginExecutionDispatchPlanner:
                 if backend_selection is not None and backend_selection.available:
                     sandbox_backend_id = backend_selection.backend_id
                     sandbox_backend_executor_ref = backend_selection.executor_ref
-                blocked_reason = build_tool_execution_not_yet_isolated_reason(
-                    tool_id=request.tool_id,
-                    execution_class=effective_execution_class,
-                    backend_selection=backend_selection,
-                )
+                    if backend_selection.capability.supports_tool_execution:
+                        blocked_reason = None
+                    else:
+                        blocked_reason = build_tool_execution_not_yet_isolated_reason(
+                            tool_id=request.tool_id,
+                            execution_class=effective_execution_class,
+                            backend_selection=backend_selection,
+                        )
+                else:
+                    blocked_reason = build_tool_execution_not_yet_isolated_reason(
+                        tool_id=request.tool_id,
+                        execution_class=effective_execution_class,
+                        backend_selection=backend_selection,
+                    )
         return PluginExecutionDispatchPlan(
             requested_execution_class=requested_execution_class,
             effective_execution_class=effective_execution_class,
