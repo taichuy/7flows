@@ -7,6 +7,7 @@ import type {
   RunExecutionFocusExplanation
 } from "@/lib/get-workflow-publish";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
+import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import {
   buildOperatorInlineActionFeedbackModel,
   type OperatorInlineFocusArtifactPreview
@@ -326,22 +327,6 @@ function normalizeExplanation(
   };
 }
 
-function hasPublishedInvocationRunFollowUpSampleCallbackWaitingFacts(snapshot: RunSnapshot) {
-  return Boolean(
-    snapshot.callbackWaitingExplanation?.primary_signal?.trim() ||
-      snapshot.callbackWaitingExplanation?.follow_up?.trim() ||
-      snapshot.callbackWaitingLifecycle ||
-      snapshot.waitingReason?.trim() ||
-      typeof snapshot.scheduledResumeDelaySeconds === "number" ||
-      snapshot.scheduledResumeSource?.trim() ||
-      snapshot.scheduledWaitingStatus?.trim() ||
-      snapshot.scheduledResumeScheduledAt?.trim() ||
-      snapshot.scheduledResumeDueAt?.trim() ||
-      snapshot.scheduledResumeRequeuedAt?.trim() ||
-      snapshot.scheduledResumeRequeueSource?.trim()
-  );
-}
-
 export function resolvePublishedInvocationExecutionFocusExplanation(
   item: PublishedEndpointInvocationItem
 ): RunExecutionFocusExplanation | null {
@@ -401,9 +386,7 @@ export function listPublishedInvocationRunFollowUpSampleViews(
       explanation_source: explanationSource,
       explanation,
       snapshot_summary: snapshotSummary,
-      has_callback_waiting_summary: hasPublishedInvocationRunFollowUpSampleCallbackWaitingFacts(
-        runSnapshot
-      ),
+      has_callback_waiting_summary: hasCallbackWaitingSummaryFacts(runSnapshot),
       execution_focus_artifact_count: sample.snapshot?.execution_focus_artifact_count ?? 0,
       execution_focus_artifact_ref_count: sample.snapshot?.execution_focus_artifact_ref_count ?? 0,
       execution_focus_tool_call_count: sample.snapshot?.execution_focus_tool_call_count ?? 0,

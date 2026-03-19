@@ -3,6 +3,7 @@ import type {
   SensitiveAccessBulkRunSample,
   SignalFollowUpExplanation
 } from "@/lib/get-sensitive-access";
+import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import {
   buildExecutionFocusExplainableNode,
   buildOperatorInlineActionFeedbackModel,
@@ -112,7 +113,7 @@ export function buildSensitiveAccessBulkRunSampleCards(
       return {
         runId: sample.runId,
         shortRunId: sample.runId.slice(0, 8),
-        hasCallbackWaitingSummary: hasCallbackWaitingFacts({
+        hasCallbackWaitingSummary: hasCallbackWaitingSummaryFacts({
           callbackWaitingExplanation,
           callbackWaitingLifecycle,
           waitingReason: model.waitingReason,
@@ -171,36 +172,6 @@ export function buildSensitiveAccessBulkRunSampleCards(
             item.focusSkillReferenceLoads.length > 0
         )
     );
-}
-
-function hasCallbackWaitingFacts(
-  input: Pick<
-    SensitiveAccessBulkRunSampleCard,
-    | "callbackWaitingExplanation"
-    | "callbackWaitingLifecycle"
-    | "waitingReason"
-    | "scheduledResumeDelaySeconds"
-    | "scheduledResumeSource"
-    | "scheduledWaitingStatus"
-    | "scheduledResumeScheduledAt"
-    | "scheduledResumeDueAt"
-    | "scheduledResumeRequeuedAt"
-    | "scheduledResumeRequeueSource"
-  >
-) {
-  return Boolean(
-    input.callbackWaitingExplanation?.primary_signal?.trim() ||
-      input.callbackWaitingExplanation?.follow_up?.trim() ||
-      input.callbackWaitingLifecycle ||
-      input.waitingReason ||
-      typeof input.scheduledResumeDelaySeconds === "number" ||
-      input.scheduledResumeSource ||
-      input.scheduledWaitingStatus ||
-      input.scheduledResumeScheduledAt ||
-      input.scheduledResumeDueAt ||
-      input.scheduledResumeRequeuedAt ||
-      input.scheduledResumeRequeueSource
-  );
 }
 
 function normalizeText(value?: string | null) {

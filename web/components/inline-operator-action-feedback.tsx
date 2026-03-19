@@ -9,6 +9,7 @@ import {
   buildOperatorInlineActionFeedbackModel,
   type OperatorInlineActionResultState
 } from "@/lib/operator-inline-action-feedback";
+import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 
 type InlineOperatorActionFeedbackProps = {
   status: "idle" | "success" | "error";
@@ -29,11 +30,7 @@ export function InlineOperatorActionFeedback({
     ...structuredResult
   });
   const runSnapshot = structuredResult.runSnapshot;
-  const hasCallbackWaitingSummary = Boolean(
-    runSnapshot?.callbackWaitingExplanation?.primary_signal?.trim() ||
-      runSnapshot?.callbackWaitingExplanation?.follow_up?.trim() ||
-      runSnapshot?.waitingReason?.trim()
-  );
+  const hasCallbackWaitingSummary = hasCallbackWaitingSummaryFacts(runSnapshot);
   const callbackWaitingFocusNode = buildExecutionFocusExplainableNode(runSnapshot);
 
   if (!message && !model.hasStructuredContent) {
