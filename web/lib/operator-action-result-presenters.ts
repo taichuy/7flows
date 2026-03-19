@@ -7,6 +7,8 @@ type RunSnapshotInput = {
   executionFocusReason?: string | null;
   executionFocusNodeId?: string | null;
   executionFocusNodeRunId?: string | null;
+  executionFocusNodeName?: string | null;
+  executionFocusNodeType?: string | null;
   executionFocusExplanation?: {
     primary_signal?: string | null;
     follow_up?: string | null;
@@ -15,6 +17,32 @@ type RunSnapshotInput = {
     primary_signal?: string | null;
     follow_up?: string | null;
   } | null;
+  executionFocusArtifactCount?: number;
+  executionFocusArtifactRefCount?: number;
+  executionFocusToolCallCount?: number;
+  executionFocusRawRefCount?: number;
+  executionFocusArtifactRefs?: Array<string | null | undefined>;
+  executionFocusArtifacts?: Array<{
+    artifact_kind?: string | null;
+    content_type?: string | null;
+    summary?: string | null;
+    uri?: string | null;
+  }>;
+  executionFocusToolCalls?: Array<{
+    id?: string | null;
+    tool_id?: string | null;
+    tool_name?: string | null;
+    phase?: string | null;
+    status?: string | null;
+    effective_execution_class?: string | null;
+    execution_sandbox_backend_id?: string | null;
+    execution_sandbox_runner_kind?: string | null;
+    execution_blocking_reason?: string | null;
+    execution_fallback_reason?: string | null;
+    response_summary?: string | null;
+    response_content_type?: string | null;
+    raw_ref?: string | null;
+  }>;
 };
 
 type ApprovalDecisionSnapshotInput = {
@@ -65,13 +93,85 @@ function joinParts(parts: Array<string | null | undefined>) {
   return parts.filter((part): part is string => Boolean(part && part.trim())).join(" ");
 }
 
+function formatRunSnapshotEvidenceSummary({
+  executionFocusNodeName,
+  executionFocusNodeId,
+  executionFocusArtifactCount,
+  executionFocusArtifactRefCount,
+  executionFocusToolCallCount,
+  executionFocusRawRefCount,
+  executionFocusArtifacts,
+  executionFocusToolCalls
+}: RunSnapshotInput) {
+  const artifactCount = executionFocusArtifactCount ?? executionFocusArtifacts?.length ?? 0;
+  const artifactRefCount = executionFocusArtifactRefCount ?? 0;
+  const toolCallCount = executionFocusToolCallCount ?? executionFocusToolCalls?.length ?? 0;
+  const rawRefCount =
+    executionFocusRawRefCount ??
+    executionFocusToolCalls?.filter((toolCall) => Boolean(toolCall?.raw_ref?.trim())).length ??
+    0;
+
+  if (artifactCount <= 0 && artifactRefCount <= 0 && toolCallCount <= 0 && rawRefCount <= 0) {
+    return null;
+  }
+
+  const focusNodeLabel = executionFocusNodeName?.trim() || executionFocusNodeId?.trim() || "聚焦节点";
+  const sampleToolCall = executionFocusToolCalls?.find(
+    (toolCall) =>
+      Boolean(toolCall?.raw_ref?.trim()) ||
+      Boolean(toolCall?.response_summary?.trim()) ||
+      Boolean(toolCall?.execution_sandbox_backend_id?.trim()) ||
+      Boolean(toolCall?.execution_blocking_reason?.trim()) ||
+      Boolean(toolCall?.execution_fallback_reason?.trim())
+  );
+  const sampleArtifact = executionFocusArtifacts?.find(
+    (artifact) => Boolean(artifact?.summary?.trim()) || Boolean(artifact?.uri?.trim())
+  );
+
+  const summary = joinParts([
+    `${focusNodeLabel} 已关联 ${artifactCount} 个 artifact、${artifactRefCount} 条 artifact ref、${toolCallCount} 条 tool call。`,
+    rawRefCount > 0 ? `其中 ${rawRefCount} 条 tool call 已落到 raw_ref，可直接回看原始输出。` : null
+  ]);
+
+  const sample = sampleToolCall
+    ? joinParts([
+        "样本 tool：",
+        sampleToolCall.tool_name?.trim() || sampleToolCall.tool_id?.trim() || "tool",
+        sampleToolCall.status?.trim() ? `状态 ${sampleToolCall.status.trim()}。` : null,
+        sampleToolCall.effective_execution_class?.trim()
+          ? `effective ${sampleToolCall.effective_execution_class.trim()}。`
+          : null,
+        sampleToolCall.execution_sandbox_backend_id?.trim()
+          ? `backend ${sampleToolCall.execution_sandbox_backend_id.trim()}。`
+          : null,
+        sampleToolCall.raw_ref?.trim() ? `raw_ref ${sampleToolCall.raw_ref.trim()}。` : null,
+        sampleToolCall.response_summary?.trim() ? sampleToolCall.response_summary.trim() : null,
+        sampleToolCall.execution_blocking_reason?.trim()
+          ? `执行阻断：${sampleToolCall.execution_blocking_reason.trim()}`
+          : null,
+        sampleToolCall.execution_fallback_reason?.trim()
+          ? `执行降级：${sampleToolCall.execution_fallback_reason.trim()}`
+          : null
+      ])
+    : sampleArtifact
+      ? joinParts([
+          "样本 artifact：",
+          sampleArtifact.summary?.trim() || null,
+          sampleArtifact.uri?.trim() ? `(${sampleArtifact.uri.trim()})` : null
+        ])
+      : null;
+
+  return joinParts([summary, sample]);
+}
+
 export function formatRunSnapshotSummary({
   status,
   currentNodeId,
   waitingReason,
   executionFocusNodeId,
   executionFocusExplanation,
-  callbackWaitingExplanation
+  callbackWaitingExplanation,
+  ...evidence
 }: RunSnapshotInput) {
   const normalizedStatus = status?.trim() || null;
   if (!normalizedStatus) {
@@ -104,7 +204,16 @@ export function formatRunSnapshotSummary({
       : null,
     effectivePrimarySignal ? `重点信号：${effectivePrimarySignal}` : null,
     effectiveFollowUp ? `后续动作：${effectiveFollowUp}` : null,
-    !effectivePrimarySignal && waitingReason ? `waiting reason：${waitingReason}。` : null
+    !effectivePrimarySignal && waitingReason ? `waiting reason：${waitingReason}。` : null,
+    formatRunSnapshotEvidenceSummary({
+      executionFocusNodeId,
+      executionFocusExplanation,
+      callbackWaitingExplanation,
+      waitingReason,
+      status,
+      currentNodeId,
+      ...evidence
+    })
   ]);
 }
 

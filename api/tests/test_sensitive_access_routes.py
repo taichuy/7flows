@@ -221,6 +221,8 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
         "execution_focus_reason": "blocking_node_run",
         "execution_focus_node_id": "mock_tool",
         "execution_focus_node_run_id": node_run.id,
+        "execution_focus_node_name": "Mock Tool",
+        "execution_focus_node_type": "tool",
         "execution_focus_explanation": {
             "primary_signal": "等待原因：waiting approval",
             "follow_up": (
@@ -234,6 +236,13 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
                 "再观察 waiting 节点是否自动恢复。"
             ),
         },
+        "execution_focus_artifact_count": 0,
+        "execution_focus_artifact_ref_count": 0,
+        "execution_focus_tool_call_count": 0,
+        "execution_focus_raw_ref_count": 0,
+        "execution_focus_artifact_refs": [],
+        "execution_focus_artifacts": [],
+        "execution_focus_tool_calls": [],
     }
     assert request_body["run_follow_up"] == {
         "affected_run_count": 1,
@@ -305,6 +314,8 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
         "execution_focus_reason": "blocking_node_run",
         "execution_focus_node_id": "mock_tool",
         "execution_focus_node_run_id": node_run.id,
+        "execution_focus_node_name": "Mock Tool",
+        "execution_focus_node_type": "tool",
         "execution_focus_explanation": {
             "primary_signal": "等待原因：waiting approval",
             "follow_up": (
@@ -312,6 +323,13 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
             ),
         },
         "callback_waiting_explanation": None,
+        "execution_focus_artifact_count": 0,
+        "execution_focus_artifact_ref_count": 0,
+        "execution_focus_tool_call_count": 0,
+        "execution_focus_raw_ref_count": 0,
+        "execution_focus_artifact_refs": [],
+        "execution_focus_artifacts": [],
+        "execution_focus_tool_calls": [],
     }
     assert decision_body["run_follow_up"] is not None
     assert decision_body["run_follow_up"]["affected_run_count"] == 1
@@ -755,6 +773,8 @@ def test_bulk_decide_approval_tickets_allows_partial_success(
                     "execution_focus_reason": "blocking_node_run",
                     "execution_focus_node_id": "mock_tool",
                     "execution_focus_node_run_id": node_run.id,
+                    "execution_focus_node_name": "Mock Tool",
+                    "execution_focus_node_type": "tool",
                     "execution_focus_explanation": {
                         "primary_signal": "等待原因：waiting approval",
                         "follow_up": (
@@ -763,6 +783,13 @@ def test_bulk_decide_approval_tickets_allows_partial_success(
                         ),
                     },
                     "callback_waiting_explanation": None,
+                    "execution_focus_artifact_count": 0,
+                    "execution_focus_artifact_ref_count": 0,
+                    "execution_focus_tool_call_count": 0,
+                    "execution_focus_raw_ref_count": 0,
+                    "execution_focus_artifact_refs": [],
+                    "execution_focus_artifacts": [],
+                    "execution_focus_tool_calls": [],
                 },
             }
         ],
@@ -896,6 +923,8 @@ def test_retry_notification_dispatch_creates_new_attempt(
         "execution_focus_reason": "blocking_node_run",
         "execution_focus_node_id": "mock_tool",
         "execution_focus_node_run_id": node_run.id,
+        "execution_focus_node_name": "Mock Tool",
+        "execution_focus_node_type": "tool",
         "execution_focus_explanation": {
             "primary_signal": "等待原因：waiting approval",
             "follow_up": (
@@ -906,6 +935,13 @@ def test_retry_notification_dispatch_creates_new_attempt(
             "primary_signal": "当前 callback waiting 仍卡在 1 条待处理审批。",
             "follow_up": "下一步：先重试或改投审批通知，再处理审批结果；不要直接强制恢复 run。",
         },
+        "execution_focus_artifact_count": 0,
+        "execution_focus_artifact_ref_count": 0,
+        "execution_focus_tool_call_count": 0,
+        "execution_focus_raw_ref_count": 0,
+        "execution_focus_artifact_refs": [],
+        "execution_focus_artifacts": [],
+        "execution_focus_tool_calls": [],
     }
     assert retry_body["run_follow_up"] is not None
     assert retry_body["run_follow_up"]["affected_run_count"] == 1
@@ -1105,6 +1141,8 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
                     "execution_focus_reason": "blocking_node_run",
                     "execution_focus_node_id": "mock_tool",
                     "execution_focus_node_run_id": node_run.id,
+                    "execution_focus_node_name": "Mock Tool",
+                    "execution_focus_node_type": "tool",
                     "execution_focus_explanation": {
                         "primary_signal": "等待原因：waiting approval",
                         "follow_up": (
@@ -1119,6 +1157,13 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
                             "不要直接强制恢复 run。"
                         ),
                     },
+                    "execution_focus_artifact_count": 0,
+                    "execution_focus_artifact_ref_count": 0,
+                    "execution_focus_tool_call_count": 0,
+                    "execution_focus_raw_ref_count": 0,
+                    "execution_focus_artifact_refs": [],
+                    "execution_focus_artifacts": [],
+                    "execution_focus_tool_calls": [],
                 },
             }
         ],

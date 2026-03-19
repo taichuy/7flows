@@ -89,6 +89,8 @@ type OperatorRunSnapshotBody = {
   execution_focus_reason?: string | null;
   execution_focus_node_id?: string | null;
   execution_focus_node_run_id?: string | null;
+  execution_focus_node_name?: string | null;
+  execution_focus_node_type?: string | null;
   execution_focus_explanation?: {
     primary_signal?: string | null;
     follow_up?: string | null;
@@ -97,6 +99,32 @@ type OperatorRunSnapshotBody = {
     primary_signal?: string | null;
     follow_up?: string | null;
   } | null;
+  execution_focus_artifact_count?: number;
+  execution_focus_artifact_ref_count?: number;
+  execution_focus_tool_call_count?: number;
+  execution_focus_raw_ref_count?: number;
+  execution_focus_artifact_refs?: string[];
+  execution_focus_artifacts?: Array<{
+    artifact_kind?: string | null;
+    content_type?: string | null;
+    summary?: string | null;
+    uri?: string | null;
+  }>;
+  execution_focus_tool_calls?: Array<{
+    id?: string | null;
+    tool_id?: string | null;
+    tool_name?: string | null;
+    phase?: string | null;
+    status?: string | null;
+    effective_execution_class?: string | null;
+    execution_sandbox_backend_id?: string | null;
+    execution_sandbox_runner_kind?: string | null;
+    execution_blocking_reason?: string | null;
+    execution_fallback_reason?: string | null;
+    response_summary?: string | null;
+    response_content_type?: string | null;
+    raw_ref?: string | null;
+  }>;
 };
 
 type OperatorRunFollowUpBody = {
@@ -197,6 +225,8 @@ function toRunSnapshot(snapshot?: OperatorRunSnapshotBody | null) {
     executionFocusReason: snapshot.execution_focus_reason ?? null,
     executionFocusNodeId: snapshot.execution_focus_node_id ?? null,
     executionFocusNodeRunId: snapshot.execution_focus_node_run_id ?? null,
+    executionFocusNodeName: snapshot.execution_focus_node_name ?? null,
+    executionFocusNodeType: snapshot.execution_focus_node_type ?? null,
     executionFocusExplanation: snapshot.execution_focus_explanation
       ? {
           primary_signal: snapshot.execution_focus_explanation.primary_signal ?? null,
@@ -208,7 +238,39 @@ function toRunSnapshot(snapshot?: OperatorRunSnapshotBody | null) {
           primary_signal: snapshot.callback_waiting_explanation.primary_signal ?? null,
           follow_up: snapshot.callback_waiting_explanation.follow_up ?? null
         }
-      : null
+      : null,
+    executionFocusArtifactCount: snapshot.execution_focus_artifact_count ?? 0,
+    executionFocusArtifactRefCount: snapshot.execution_focus_artifact_ref_count ?? 0,
+    executionFocusToolCallCount: snapshot.execution_focus_tool_call_count ?? 0,
+    executionFocusRawRefCount: snapshot.execution_focus_raw_ref_count ?? 0,
+    executionFocusArtifactRefs: Array.isArray(snapshot.execution_focus_artifact_refs)
+      ? snapshot.execution_focus_artifact_refs.filter((item): item is string => Boolean(item?.trim()))
+      : [],
+    executionFocusArtifacts: Array.isArray(snapshot.execution_focus_artifacts)
+      ? snapshot.execution_focus_artifacts.map((item) => ({
+          artifact_kind: item?.artifact_kind ?? null,
+          content_type: item?.content_type ?? null,
+          summary: item?.summary ?? null,
+          uri: item?.uri ?? null
+        }))
+      : [],
+    executionFocusToolCalls: Array.isArray(snapshot.execution_focus_tool_calls)
+      ? snapshot.execution_focus_tool_calls.map((item) => ({
+          id: item?.id ?? null,
+          tool_id: item?.tool_id ?? null,
+          tool_name: item?.tool_name ?? null,
+          phase: item?.phase ?? null,
+          status: item?.status ?? null,
+          effective_execution_class: item?.effective_execution_class ?? null,
+          execution_sandbox_backend_id: item?.execution_sandbox_backend_id ?? null,
+          execution_sandbox_runner_kind: item?.execution_sandbox_runner_kind ?? null,
+          execution_blocking_reason: item?.execution_blocking_reason ?? null,
+          execution_fallback_reason: item?.execution_fallback_reason ?? null,
+          response_summary: item?.response_summary ?? null,
+          response_content_type: item?.response_content_type ?? null,
+          raw_ref: item?.raw_ref ?? null
+        }))
+      : []
   };
 }
 

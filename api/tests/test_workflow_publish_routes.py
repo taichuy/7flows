@@ -1677,6 +1677,8 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
         "execution_focus_reason": "blocking_node_run",
         "execution_focus_node_id": "tool_wait",
         "execution_focus_node_run_id": node_run.id,
+        "execution_focus_node_name": "Tool Wait",
+        "execution_focus_node_type": "tool",
         "execution_focus_explanation": {
             "primary_signal": "等待原因：callback pending",
             "follow_up": (
@@ -1690,6 +1692,13 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
                 "下一步：优先确认外部系统是否已经回调，不要重复触发 resume 或额外发起同类请求。"
             ),
         },
+        "execution_focus_artifact_count": 0,
+        "execution_focus_artifact_ref_count": 0,
+        "execution_focus_tool_call_count": 0,
+        "execution_focus_raw_ref_count": 0,
+        "execution_focus_artifact_refs": [],
+        "execution_focus_artifacts": [],
+        "execution_focus_tool_calls": [],
     }
     assert detail_body["run_follow_up"]["explanation"]["primary_signal"] == (
         "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。"

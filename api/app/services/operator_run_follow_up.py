@@ -3,17 +3,20 @@ from collections.abc import Iterable
 from sqlalchemy.orm import Session
 
 from app.models.run import NodeRun, Run
+from app.schemas.explanations import SignalFollowUpExplanation
 from app.schemas.operator_follow_up import (
+    OperatorRunFocusArtifactItem,
+    OperatorRunFocusToolCallItem,
     OperatorRunFollowUpSummary,
     OperatorRunSnapshot,
     OperatorRunSnapshotSample,
 )
-from app.schemas.explanations import SignalFollowUpExplanation
 from app.schemas.run_views import RunExecutionView
 from app.services.run_views import RunViewService
 
-
 run_view_service = RunViewService()
+MAX_OPERATOR_FOCUS_ARTIFACT_SAMPLES = 3
+MAX_OPERATOR_FOCUS_TOOL_CALL_SAMPLES = 3
 
 
 def _join_parts(parts: Iterable[str | None]) -> str | None:
@@ -125,17 +128,18 @@ def _build_operator_run_follow_up_explanation(
             f"已回读 {sample_count} 个样本。"
         )
     else:
-        primary_signal = f"本次影响 {summary.affected_run_count} 个 run；当前还未读取到可用的 run 快照。"
+        primary_signal = (
+            f"本次影响 {summary.affected_run_count} 个 run；"
+            "当前还未读取到可用的 run 快照。"
+        )
 
     sample_summaries = []
     for item in summary.sampled_runs:
         snapshot_summary = _format_run_snapshot_summary(item.snapshot)
         sample_summaries.append(
-            (
-                f"run {item.run_id}：{snapshot_summary}"
-                if snapshot_summary
-                else f"run {item.run_id}：暂未读取到最新快照。"
-            )
+            f"run {item.run_id}：{snapshot_summary}"
+            if snapshot_summary
+            else f"run {item.run_id}：暂未读取到最新快照。"
         )
 
     remaining_count = max(summary.affected_run_count - sample_count, 0)
@@ -143,7 +147,8 @@ def _build_operator_run_follow_up_explanation(
         [
             " ".join(sample_summaries) if sample_summaries else None,
             (
-                f"其余 {remaining_count} 个 run 可继续到对应 run detail / inbox slice 查看后续推进。"
+                f"其余 {remaining_count} 个 run 可继续到对应 run detail / inbox slice "
+                "查看后续推进。"
                 if remaining_count > 0
                 else None
             ),
@@ -153,6 +158,37 @@ def _build_operator_run_follow_up_explanation(
     return SignalFollowUpExplanation(
         primary_signal=primary_signal,
         follow_up=follow_up,
+    )
+
+
+def _serialize_operator_focus_artifact(
+    artifact,
+) -> OperatorRunFocusArtifactItem:
+    return OperatorRunFocusArtifactItem(
+        artifact_kind=artifact.artifact_kind,
+        content_type=artifact.content_type,
+        summary=artifact.summary,
+        uri=artifact.uri,
+    )
+
+
+def _serialize_operator_focus_tool_call(
+    tool_call,
+) -> OperatorRunFocusToolCallItem:
+    return OperatorRunFocusToolCallItem(
+        id=tool_call.id,
+        tool_id=tool_call.tool_id,
+        tool_name=tool_call.tool_name,
+        phase=tool_call.phase,
+        status=tool_call.status,
+        effective_execution_class=tool_call.effective_execution_class,
+        execution_sandbox_backend_id=tool_call.execution_sandbox_backend_id,
+        execution_sandbox_runner_kind=tool_call.execution_sandbox_runner_kind,
+        execution_blocking_reason=tool_call.execution_blocking_reason,
+        execution_fallback_reason=tool_call.execution_fallback_reason,
+        response_summary=tool_call.response_summary,
+        response_content_type=tool_call.response_content_type,
+        raw_ref=tool_call.raw_ref,
     )
 
 
@@ -219,6 +255,11 @@ def build_operator_run_snapshot(
     execution_focus_node = (
         execution_view.execution_focus_node if execution_view is not None else None
     )
+    focus_artifact_refs = (
+        list(execution_focus_node.artifact_refs or []) if execution_focus_node else []
+    )
+    focus_artifacts = list(execution_focus_node.artifacts or []) if execution_focus_node else []
+    focus_tool_calls = list(execution_focus_node.tool_calls or []) if execution_focus_node else []
     return OperatorRunSnapshot(
         workflow_id=run.workflow_id,
         status=run.status,
@@ -233,6 +274,12 @@ def build_operator_run_snapshot(
         execution_focus_node_run_id=(
             execution_focus_node.node_run_id if execution_focus_node is not None else None
         ),
+        execution_focus_node_name=(
+            execution_focus_node.node_name if execution_focus_node is not None else None
+        ),
+        execution_focus_node_type=(
+            execution_focus_node.node_type if execution_focus_node is not None else None
+        ),
         execution_focus_explanation=(
             execution_view.execution_focus_explanation
             if execution_view is not None
@@ -243,6 +290,23 @@ def build_operator_run_snapshot(
             if execution_focus_node is not None
             else None
         ),
+        execution_focus_artifact_count=len(focus_artifacts),
+        execution_focus_artifact_ref_count=len(focus_artifact_refs),
+        execution_focus_tool_call_count=len(focus_tool_calls),
+        execution_focus_raw_ref_count=sum(
+            1 for item in focus_tool_calls if getattr(item, "raw_ref", None)
+        ),
+        execution_focus_artifact_refs=focus_artifact_refs[
+            :MAX_OPERATOR_FOCUS_ARTIFACT_SAMPLES
+        ],
+        execution_focus_artifacts=[
+            _serialize_operator_focus_artifact(item)
+            for item in focus_artifacts[:MAX_OPERATOR_FOCUS_ARTIFACT_SAMPLES]
+        ],
+        execution_focus_tool_calls=[
+            _serialize_operator_focus_tool_call(item)
+            for item in focus_tool_calls[:MAX_OPERATOR_FOCUS_TOOL_CALL_SAMPLES]
+        ],
     )
 
 

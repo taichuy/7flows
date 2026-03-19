@@ -31,10 +31,36 @@ describe("fetchRunSnapshot", () => {
           execution_focus_node: {
             node_id: "tool-a",
             node_run_id: "node-run-1",
+            node_name: "Tool A",
+            node_type: "tool",
             callback_waiting_explanation: {
               primary_signal: "当前 callback waiting 仍卡在 1 条待处理审批。",
               follow_up: "下一步：先处理审批，再观察 waiting 节点是否恢复。"
-            }
+            },
+            artifact_refs: ["artifact://artifact-1"],
+            artifacts: [
+              {
+                artifact_kind: "tool_result",
+                content_type: "application/json",
+                summary: "tool raw payload",
+                uri: "artifact://artifact-1"
+              }
+            ],
+            tool_calls: [
+              {
+                id: "tool-call-1",
+                tool_id: "tool-a",
+                tool_name: "Tool A",
+                phase: "execute",
+                status: "succeeded",
+                effective_execution_class: "microvm",
+                execution_sandbox_backend_id: "sandbox-default",
+                execution_sandbox_runner_kind: "container",
+                response_summary: "tool completed",
+                response_content_type: "application/json",
+                raw_ref: "artifact://artifact-1"
+              }
+            ]
           },
           execution_focus_explanation: {
             primary_signal: "执行阻断：当前节点仍在等待审批。",
@@ -62,6 +88,8 @@ describe("fetchRunSnapshot", () => {
       executionFocusReason: "blocked_execution",
       executionFocusNodeId: "tool-a",
       executionFocusNodeRunId: "node-run-1",
+      executionFocusNodeName: "Tool A",
+      executionFocusNodeType: "tool",
       executionFocusExplanation: {
         primary_signal: "执行阻断：当前节点仍在等待审批。",
         follow_up: "下一步：优先回看审批时间线，而不是只看 waiting reason。"
@@ -69,7 +97,37 @@ describe("fetchRunSnapshot", () => {
       callbackWaitingExplanation: {
         primary_signal: "当前 callback waiting 仍卡在 1 条待处理审批。",
         follow_up: "下一步：先处理审批，再观察 waiting 节点是否恢复。"
-      }
+      },
+      executionFocusArtifactCount: 1,
+      executionFocusArtifactRefCount: 1,
+      executionFocusToolCallCount: 1,
+      executionFocusRawRefCount: 1,
+      executionFocusArtifactRefs: ["artifact://artifact-1"],
+      executionFocusArtifacts: [
+        {
+          artifact_kind: "tool_result",
+          content_type: "application/json",
+          summary: "tool raw payload",
+          uri: "artifact://artifact-1"
+        }
+      ],
+      executionFocusToolCalls: [
+        {
+          id: "tool-call-1",
+          tool_id: "tool-a",
+          tool_name: "Tool A",
+          phase: "execute",
+          status: "succeeded",
+          effective_execution_class: "microvm",
+          execution_sandbox_backend_id: "sandbox-default",
+          execution_sandbox_runner_kind: "container",
+          execution_blocking_reason: null,
+          execution_fallback_reason: null,
+          response_summary: "tool completed",
+          response_content_type: "application/json",
+          raw_ref: "artifact://artifact-1"
+        }
+      ]
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -105,10 +163,36 @@ describe("fetchRunSnapshot", () => {
           execution_focus_node: {
             node_id: "tool-a",
             node_run_id: "node-run-legacy",
+            node_name: "Tool A",
+            node_type: "tool",
             callback_waiting_explanation: {
               primary_signal: "当前仍有 1 条 callback ticket 等待外部回调。",
               follow_up: "下一步：先等待外部 callback 到达，再观察自动 resume。"
-            }
+            },
+            artifact_refs: ["artifact://artifact-legacy"],
+            artifacts: [
+              {
+                artifact_kind: "tool_result",
+                content_type: "application/json",
+                summary: "legacy raw payload",
+                uri: "artifact://artifact-legacy"
+              }
+            ],
+            tool_calls: [
+              {
+                id: "tool-call-legacy",
+                tool_id: "tool-a",
+                tool_name: "Tool A",
+                phase: "execute",
+                status: "succeeded",
+                effective_execution_class: "microvm",
+                execution_sandbox_backend_id: "sandbox-default",
+                execution_sandbox_runner_kind: "container",
+                response_summary: "legacy completed",
+                response_content_type: "application/json",
+                raw_ref: "artifact://artifact-legacy"
+              }
+            ]
           }
         });
       }
@@ -126,6 +210,8 @@ describe("fetchRunSnapshot", () => {
       executionFocusReason: "blocked_execution",
       executionFocusNodeId: "tool-a",
       executionFocusNodeRunId: "node-run-legacy",
+      executionFocusNodeName: "Tool A",
+      executionFocusNodeType: "tool",
       executionFocusExplanation: {
         primary_signal: "执行阻断：当前节点仍在等待审批。",
         follow_up: "下一步：优先回看审批时间线，而不是只看 waiting reason。"
@@ -133,7 +219,37 @@ describe("fetchRunSnapshot", () => {
       callbackWaitingExplanation: {
         primary_signal: "当前仍有 1 条 callback ticket 等待外部回调。",
         follow_up: "下一步：先等待外部 callback 到达，再观察自动 resume。"
-      }
+      },
+      executionFocusArtifactCount: 1,
+      executionFocusArtifactRefCount: 1,
+      executionFocusToolCallCount: 1,
+      executionFocusRawRefCount: 1,
+      executionFocusArtifactRefs: ["artifact://artifact-legacy"],
+      executionFocusArtifacts: [
+        {
+          artifact_kind: "tool_result",
+          content_type: "application/json",
+          summary: "legacy raw payload",
+          uri: "artifact://artifact-legacy"
+        }
+      ],
+      executionFocusToolCalls: [
+        {
+          id: "tool-call-legacy",
+          tool_id: "tool-a",
+          tool_name: "Tool A",
+          phase: "execute",
+          status: "succeeded",
+          effective_execution_class: "microvm",
+          execution_sandbox_backend_id: "sandbox-default",
+          execution_sandbox_runner_kind: "container",
+          execution_blocking_reason: null,
+          execution_fallback_reason: null,
+          response_summary: "legacy completed",
+          response_content_type: "application/json",
+          raw_ref: "artifact://artifact-legacy"
+        }
+      ]
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -163,10 +279,36 @@ describe("fetchRunSnapshot", () => {
           execution_focus_node: {
             node_id: "tool-a",
             node_run_id: "node-run-1",
+            node_name: "Tool A",
+            node_type: "tool",
             callback_waiting_explanation: {
               primary_signal: "当前仍有 1 条 callback ticket 等待外部回调。",
               follow_up: "下一步：先等待外部 callback 到达，再观察自动 resume。"
-            }
+            },
+            artifact_refs: ["artifact://artifact-234"],
+            artifacts: [
+              {
+                artifact_kind: "tool_result",
+                content_type: "application/json",
+                summary: "tool payload 234",
+                uri: "artifact://artifact-234"
+              }
+            ],
+            tool_calls: [
+              {
+                id: "tool-call-234",
+                tool_id: "tool-a",
+                tool_name: "Tool A",
+                phase: "execute",
+                status: "succeeded",
+                effective_execution_class: "microvm",
+                execution_sandbox_backend_id: "sandbox-default",
+                execution_sandbox_runner_kind: "container",
+                response_summary: "tool 234 completed",
+                response_content_type: "application/json",
+                raw_ref: "artifact://artifact-234"
+              }
+            ]
           },
           execution_focus_explanation: {
             primary_signal: "执行阻断：当前节点仍在等待审批。",
@@ -188,6 +330,8 @@ describe("fetchRunSnapshot", () => {
       executionFocusReason: "blocked_execution",
       executionFocusNodeId: "tool-a",
       executionFocusNodeRunId: "node-run-1",
+      executionFocusNodeName: "Tool A",
+      executionFocusNodeType: "tool",
       executionFocusExplanation: {
         primary_signal: "执行阻断：当前节点仍在等待审批。",
         follow_up: "下一步：优先回看审批时间线，而不是只看 waiting reason。"
@@ -195,7 +339,37 @@ describe("fetchRunSnapshot", () => {
       callbackWaitingExplanation: {
         primary_signal: "当前仍有 1 条 callback ticket 等待外部回调。",
         follow_up: "下一步：先等待外部 callback 到达，再观察自动 resume。"
-      }
+      },
+      executionFocusArtifactCount: 1,
+      executionFocusArtifactRefCount: 1,
+      executionFocusToolCallCount: 1,
+      executionFocusRawRefCount: 1,
+      executionFocusArtifactRefs: ["artifact://artifact-234"],
+      executionFocusArtifacts: [
+        {
+          artifact_kind: "tool_result",
+          content_type: "application/json",
+          summary: "tool payload 234",
+          uri: "artifact://artifact-234"
+        }
+      ],
+      executionFocusToolCalls: [
+        {
+          id: "tool-call-234",
+          tool_id: "tool-a",
+          tool_name: "Tool A",
+          phase: "execute",
+          status: "succeeded",
+          effective_execution_class: "microvm",
+          execution_sandbox_backend_id: "sandbox-default",
+          execution_sandbox_runner_kind: "container",
+          execution_blocking_reason: null,
+          execution_fallback_reason: null,
+          response_summary: "tool 234 completed",
+          response_content_type: "application/json",
+          raw_ref: "artifact://artifact-234"
+        }
+      ]
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
@@ -234,8 +408,17 @@ describe("fetchRunSnapshot", () => {
       executionFocusReason: null,
       executionFocusNodeId: null,
       executionFocusNodeRunId: null,
+      executionFocusNodeName: null,
+      executionFocusNodeType: null,
       executionFocusExplanation: null,
-      callbackWaitingExplanation: null
+      callbackWaitingExplanation: null,
+      executionFocusArtifactCount: 0,
+      executionFocusArtifactRefCount: 0,
+      executionFocusToolCallCount: 0,
+      executionFocusRawRefCount: 0,
+      executionFocusArtifactRefs: [],
+      executionFocusArtifacts: [],
+      executionFocusToolCalls: []
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });

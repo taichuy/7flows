@@ -1,6 +1,6 @@
 from datetime import UTC, datetime
 
-from app.models.run import NodeRun, Run, RunEvent
+from app.models.run import NodeRun, Run, RunArtifact, RunEvent, ToolCallRecord
 from app.services.callback_waiting_lifecycle import (
     build_callback_waiting_scheduled_resume,
     record_callback_resume_schedule,
@@ -163,7 +163,9 @@ def test_build_operator_run_follow_up_summary_counts_all_affected_runs(
         ),
         "follow_up": (
             "run run-follow-up-waiting：当前 run 状态：waiting。 当前节点：mock_tool。 "
-            "重点信号：等待原因：waiting approval 后续动作：下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。 "
+            "重点信号：等待原因：waiting approval 后续动作："
+            "下一步：优先沿 waiting / callback 事实链排查，"
+            "不要只盯单次 invocation 返回。 "
             "run run-follow-up-running：当前 run 状态：running。 当前节点：mock_tool。 "
             "run run-follow-up-succeeded：当前 run 状态：succeeded。 当前节点：output。 "
             "其余 1 个 run 可继续到对应 run detail / inbox slice 查看后续推进。"
@@ -239,6 +241,120 @@ def test_load_operator_run_snapshot_surfaces_execution_fallback_focus(
             "下一步：如果这条节点需要受控执行或强隔离，应补齐对应 execution adapter；"
             "不要把当前 fallback 当成长期默认。"
         ),
+    }
+
+
+def test_load_operator_run_snapshot_surfaces_focus_evidence_samples(
+    sqlite_session,
+    sample_workflow,
+):
+    now = datetime.now(UTC)
+    run = Run(
+        id="run-follow-up-evidence",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        compiled_blueprint_id=None,
+        status="succeeded",
+        current_node_id="mock_tool",
+        input_payload={},
+        checkpoint_payload={},
+        created_at=now,
+    )
+    artifact = RunArtifact(
+        id="artifact-follow-up-evidence",
+        run_id=run.id,
+        node_run_id="node-run-follow-up-evidence",
+        artifact_kind="tool_result",
+        content_type="application/json",
+        summary="sandbox tool raw payload",
+        metadata_payload={},
+        created_at=now,
+    )
+    node_run = NodeRun(
+        id="node-run-follow-up-evidence",
+        run_id=run.id,
+        node_id="mock_tool",
+        node_name="Mock Tool",
+        node_type="tool",
+        status="succeeded",
+        phase="completed",
+        input_payload={},
+        checkpoint_payload={},
+        working_context={},
+        artifact_refs=[f"artifact://{artifact.id}"],
+        finished_at=now,
+        created_at=now,
+    )
+    tool_call = ToolCallRecord(
+        id="tool-call-follow-up-evidence",
+        run_id=run.id,
+        node_run_id=node_run.id,
+        tool_id="mock_tool",
+        tool_name="Mock Tool",
+        phase="execute",
+        status="succeeded",
+        request_summary="call tool",
+        execution_trace={
+            "effective_execution_class": "microvm",
+            "sandbox_backend_id": "sandbox-default",
+            "sandbox_runner_kind": "container",
+        },
+        response_summary="tool completed",
+        response_content_type="application/json",
+        response_meta={},
+        raw_artifact_id=artifact.id,
+        created_at=now,
+        finished_at=now,
+    )
+    sqlite_session.add_all([run, artifact, node_run, tool_call])
+    sqlite_session.add(
+        RunEvent(
+            run_id=run.id,
+            node_run_id=node_run.id,
+            event_type="tool.execution.dispatched",
+            payload={
+                "node_id": node_run.node_id,
+                "requested_execution_class": "microvm",
+                "effective_execution_class": "microvm",
+                "executor_ref": "tool:compat-adapter:dify-default",
+                "sandbox_backend_id": "sandbox-default",
+                "sandbox_runner_kind": "container",
+            },
+            created_at=now,
+        )
+    )
+    sqlite_session.commit()
+
+    snapshot = load_operator_run_snapshot(sqlite_session, run.id)
+
+    assert snapshot is not None
+    assert snapshot.execution_focus_node_name == "Mock Tool"
+    assert snapshot.execution_focus_node_type == "tool"
+    assert snapshot.execution_focus_artifact_count == 1
+    assert snapshot.execution_focus_artifact_ref_count == 1
+    assert snapshot.execution_focus_tool_call_count == 1
+    assert snapshot.execution_focus_raw_ref_count == 1
+    assert snapshot.execution_focus_artifact_refs == [f"artifact://{artifact.id}"]
+    assert snapshot.execution_focus_artifacts[0].model_dump() == {
+        "artifact_kind": "tool_result",
+        "content_type": "application/json",
+        "summary": "sandbox tool raw payload",
+        "uri": f"artifact://{artifact.id}",
+    }
+    assert snapshot.execution_focus_tool_calls[0].model_dump() == {
+        "id": tool_call.id,
+        "tool_id": "mock_tool",
+        "tool_name": "Mock Tool",
+        "phase": "execute",
+        "status": "succeeded",
+        "effective_execution_class": "microvm",
+        "execution_sandbox_backend_id": "sandbox-default",
+        "execution_sandbox_runner_kind": "container",
+        "execution_blocking_reason": None,
+        "execution_fallback_reason": None,
+        "response_summary": "tool completed",
+        "response_content_type": "application/json",
+        "raw_ref": f"artifact://{artifact.id}",
     }
 
 
@@ -324,6 +440,7 @@ def test_load_operator_run_snapshot_prefers_callback_waiting_explanation(
         "follow_up": (
             "run run-follow-up-callback-waiting：当前 run 状态：waiting。 当前节点：mock_tool。 "
             "重点信号：系统已经安排 30s 后再次尝试恢复 callback waiting。 "
-            "后续动作：下一步：先观察自动恢复链路；只有在需要绕过当前 backoff 时，再手动 resume 或 cleanup。"
+            "后续动作：下一步：先观察自动恢复链路；"
+            "只有在需要绕过当前 backoff 时，再手动 resume 或 cleanup。"
         ),
     }

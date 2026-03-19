@@ -17,7 +17,32 @@ describe("operator-action-result-presenters", () => {
         status: "waiting",
         currentNodeId: "mock_tool",
         waitingReason: "waiting approval",
+        executionFocusNodeName: "Mock Tool",
         executionFocusNodeId: "mock_tool",
+        executionFocusArtifactCount: 1,
+        executionFocusArtifactRefCount: 1,
+        executionFocusToolCallCount: 1,
+        executionFocusRawRefCount: 1,
+        executionFocusArtifactRefs: ["artifact://artifact-1"],
+        executionFocusArtifacts: [
+          {
+            artifact_kind: "tool_result",
+            content_type: "application/json",
+            summary: "tool raw payload",
+            uri: "artifact://artifact-1"
+          }
+        ],
+        executionFocusToolCalls: [
+          {
+            tool_name: "Mock Tool",
+            tool_id: "mock_tool",
+            status: "succeeded",
+            effective_execution_class: "microvm",
+            execution_sandbox_backend_id: "sandbox-default",
+            raw_ref: "artifact://artifact-1",
+            response_summary: "tool completed"
+          }
+        ],
         executionFocusExplanation: {
           primary_signal: "等待原因：waiting approval",
           follow_up: "下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。"
@@ -31,6 +56,8 @@ describe("operator-action-result-presenters", () => {
     expect(message).toContain(
       "后续动作：下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。"
     );
+    expect(message).toContain("Mock Tool 已关联 1 个 artifact、1 条 artifact ref、1 条 tool call。");
+    expect(message).toContain("其中 1 条 tool call 已落到 raw_ref");
     expect(message).not.toContain("waiting reason：waiting approval");
   });
 

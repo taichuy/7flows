@@ -80,8 +80,36 @@ export type OperatorRunSnapshotSummary = {
   executionFocusReason?: string | null;
   executionFocusNodeId?: string | null;
   executionFocusNodeRunId?: string | null;
+  executionFocusNodeName?: string | null;
+  executionFocusNodeType?: string | null;
   executionFocusExplanation?: SignalFollowUpExplanation | null;
   callbackWaitingExplanation?: SignalFollowUpExplanation | null;
+  executionFocusArtifactCount?: number;
+  executionFocusArtifactRefCount?: number;
+  executionFocusToolCallCount?: number;
+  executionFocusRawRefCount?: number;
+  executionFocusArtifactRefs?: string[];
+  executionFocusArtifacts?: Array<{
+    artifact_kind?: string | null;
+    content_type?: string | null;
+    summary?: string | null;
+    uri?: string | null;
+  }>;
+  executionFocusToolCalls?: Array<{
+    id?: string | null;
+    tool_id?: string | null;
+    tool_name?: string | null;
+    phase?: string | null;
+    status?: string | null;
+    effective_execution_class?: string | null;
+    execution_sandbox_backend_id?: string | null;
+    execution_sandbox_runner_kind?: string | null;
+    execution_blocking_reason?: string | null;
+    execution_fallback_reason?: string | null;
+    response_summary?: string | null;
+    response_content_type?: string | null;
+    raw_ref?: string | null;
+  }>;
 };
 
 export type SensitiveAccessBulkRunSample = {
