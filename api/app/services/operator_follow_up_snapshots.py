@@ -184,8 +184,18 @@ def _serialize_operator_focus_tool_call(
         tool_name=tool_call.tool_name,
         phase=tool_call.phase,
         status=tool_call.status,
+        requested_execution_class=tool_call.requested_execution_class,
+        requested_execution_source=tool_call.requested_execution_source,
+        requested_execution_profile=tool_call.requested_execution_profile,
+        requested_execution_timeout_ms=tool_call.requested_execution_timeout_ms,
+        requested_execution_network_policy=tool_call.requested_execution_network_policy,
+        requested_execution_filesystem_policy=tool_call.requested_execution_filesystem_policy,
         effective_execution_class=tool_call.effective_execution_class,
+        execution_executor_ref=tool_call.execution_executor_ref,
         execution_sandbox_backend_id=tool_call.execution_sandbox_backend_id,
+        execution_sandbox_backend_executor_ref=(
+            tool_call.execution_sandbox_backend_executor_ref
+        ),
         execution_sandbox_runner_kind=tool_call.execution_sandbox_runner_kind,
         execution_blocking_reason=tool_call.execution_blocking_reason,
         execution_fallback_reason=tool_call.execution_fallback_reason,

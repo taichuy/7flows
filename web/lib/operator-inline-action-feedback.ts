@@ -97,16 +97,25 @@ export function buildExecutionFocusExplainableNode(
     latency_ms: 0,
     retry_count: 0,
     created_at: "",
-    requested_execution_class: null,
-    requested_execution_source: null,
-    requested_execution_profile: null,
-    requested_execution_timeout_ms: null,
-    requested_execution_network_policy: null,
-    requested_execution_filesystem_policy: null,
+    requested_execution_class: normalizeText(toolCall?.requested_execution_class),
+    requested_execution_source: normalizeText(toolCall?.requested_execution_source),
+    requested_execution_profile: normalizeText(toolCall?.requested_execution_profile),
+    requested_execution_timeout_ms:
+      typeof toolCall?.requested_execution_timeout_ms === "number"
+        ? toolCall.requested_execution_timeout_ms
+        : null,
+    requested_execution_network_policy: normalizeText(
+      toolCall?.requested_execution_network_policy
+    ),
+    requested_execution_filesystem_policy: normalizeText(
+      toolCall?.requested_execution_filesystem_policy
+    ),
     effective_execution_class: normalizeText(toolCall?.effective_execution_class),
-    execution_executor_ref: null,
+    execution_executor_ref: normalizeText(toolCall?.execution_executor_ref),
     execution_sandbox_backend_id: normalizeText(toolCall?.execution_sandbox_backend_id),
-    execution_sandbox_backend_executor_ref: null,
+    execution_sandbox_backend_executor_ref: normalizeText(
+      toolCall?.execution_sandbox_backend_executor_ref
+    ),
     execution_sandbox_runner_kind: normalizeText(toolCall?.execution_sandbox_runner_kind),
     execution_blocking_reason: normalizeText(toolCall?.execution_blocking_reason),
     execution_fallback_reason: normalizeText(toolCall?.execution_fallback_reason),

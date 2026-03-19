@@ -36,8 +36,16 @@ export type RunSnapshot = {
     tool_name?: string | null;
     phase?: string | null;
     status?: string | null;
+    requested_execution_class?: string | null;
+    requested_execution_source?: string | null;
+    requested_execution_profile?: string | null;
+    requested_execution_timeout_ms?: number | null;
+    requested_execution_network_policy?: string | null;
+    requested_execution_filesystem_policy?: string | null;
     effective_execution_class?: string | null;
+    execution_executor_ref?: string | null;
     execution_sandbox_backend_id?: string | null;
+    execution_sandbox_backend_executor_ref?: string | null;
     execution_sandbox_runner_kind?: string | null;
     execution_blocking_reason?: string | null;
     execution_fallback_reason?: string | null;
@@ -93,8 +101,16 @@ export type OperatorRunSnapshotBody = {
     tool_name?: string | null;
     phase?: string | null;
     status?: string | null;
+    requested_execution_class?: string | null;
+    requested_execution_source?: string | null;
+    requested_execution_profile?: string | null;
+    requested_execution_timeout_ms?: number | null;
+    requested_execution_network_policy?: string | null;
+    requested_execution_filesystem_policy?: string | null;
     effective_execution_class?: string | null;
+    execution_executor_ref?: string | null;
     execution_sandbox_backend_id?: string | null;
+    execution_sandbox_backend_executor_ref?: string | null;
     execution_sandbox_runner_kind?: string | null;
     execution_blocking_reason?: string | null;
     execution_fallback_reason?: string | null;
@@ -137,8 +153,16 @@ type RunDetailResponseBody = {
       tool_name?: string | null;
       phase?: string | null;
       status?: string | null;
+      requested_execution_class?: string | null;
+      requested_execution_source?: string | null;
+      requested_execution_profile?: string | null;
+      requested_execution_timeout_ms?: number | null;
+      requested_execution_network_policy?: string | null;
+      requested_execution_filesystem_policy?: string | null;
       effective_execution_class?: string | null;
+      execution_executor_ref?: string | null;
       execution_sandbox_backend_id?: string | null;
+      execution_sandbox_backend_executor_ref?: string | null;
       execution_sandbox_runner_kind?: string | null;
       execution_blocking_reason?: string | null;
       execution_fallback_reason?: string | null;
@@ -184,8 +208,16 @@ type RunExecutionViewResponseBody = {
       tool_name?: string | null;
       phase?: string | null;
       status?: string | null;
+      requested_execution_class?: string | null;
+      requested_execution_source?: string | null;
+      requested_execution_profile?: string | null;
+      requested_execution_timeout_ms?: number | null;
+      requested_execution_network_policy?: string | null;
+      requested_execution_filesystem_policy?: string | null;
       effective_execution_class?: string | null;
+      execution_executor_ref?: string | null;
       execution_sandbox_backend_id?: string | null;
+      execution_sandbox_backend_executor_ref?: string | null;
       execution_sandbox_runner_kind?: string | null;
       execution_blocking_reason?: string | null;
       execution_fallback_reason?: string | null;
@@ -398,8 +430,16 @@ function normalizeFocusToolCalls(
         tool_name?: string | null;
         phase?: string | null;
         status?: string | null;
+        requested_execution_class?: string | null;
+        requested_execution_source?: string | null;
+        requested_execution_profile?: string | null;
+        requested_execution_timeout_ms?: number | null;
+        requested_execution_network_policy?: string | null;
+        requested_execution_filesystem_policy?: string | null;
         effective_execution_class?: string | null;
+        execution_executor_ref?: string | null;
         execution_sandbox_backend_id?: string | null;
+        execution_sandbox_backend_executor_ref?: string | null;
         execution_sandbox_runner_kind?: string | null;
         execution_blocking_reason?: string | null;
         execution_fallback_reason?: string | null;
@@ -418,8 +458,32 @@ function normalizeFocusToolCalls(
     tool_name: item?.tool_name ?? null,
     phase: item?.phase ?? null,
     status: item?.status ?? null,
+    ...(item?.requested_execution_class != null
+      ? { requested_execution_class: item.requested_execution_class }
+      : {}),
+    ...(item?.requested_execution_source != null
+      ? { requested_execution_source: item.requested_execution_source }
+      : {}),
+    ...(item?.requested_execution_profile != null
+      ? { requested_execution_profile: item.requested_execution_profile }
+      : {}),
+    ...(typeof item?.requested_execution_timeout_ms === "number"
+      ? { requested_execution_timeout_ms: item.requested_execution_timeout_ms }
+      : {}),
+    ...(item?.requested_execution_network_policy != null
+      ? { requested_execution_network_policy: item.requested_execution_network_policy }
+      : {}),
+    ...(item?.requested_execution_filesystem_policy != null
+      ? { requested_execution_filesystem_policy: item.requested_execution_filesystem_policy }
+      : {}),
     effective_execution_class: item?.effective_execution_class ?? null,
+    ...(item?.execution_executor_ref != null
+      ? { execution_executor_ref: item.execution_executor_ref }
+      : {}),
     execution_sandbox_backend_id: item?.execution_sandbox_backend_id ?? null,
+    ...(item?.execution_sandbox_backend_executor_ref != null
+      ? { execution_sandbox_backend_executor_ref: item.execution_sandbox_backend_executor_ref }
+      : {}),
     execution_sandbox_runner_kind: item?.execution_sandbox_runner_kind ?? null,
     execution_blocking_reason: item?.execution_blocking_reason ?? null,
     execution_fallback_reason: item?.execution_fallback_reason ?? null,

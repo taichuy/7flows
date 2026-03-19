@@ -65,6 +65,9 @@ export function OperatorFocusEvidenceCard({
                   </div>
                 ) : null}
                 <p className="section-copy entry-copy">{toolCall.detail}</p>
+                {toolCall.traceSummary ? (
+                  <p className="binding-meta">{toolCall.traceSummary}</p>
+                ) : null}
                 {toolCall.rawRef ? <p className="binding-meta">raw_ref {toolCall.rawRef}</p> : null}
               </article>
             ))}

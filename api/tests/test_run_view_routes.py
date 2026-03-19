@@ -409,11 +409,17 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     assert run_snapshot["execution_focus_node_type"] == "llm_agent"
     assert run_snapshot["execution_focus_explanation"] == {
         "primary_signal": "等待原因：Waiting for external search callback.",
-        "follow_up": "下一步：优先处理这条 sensitive access 审批票据，再观察 waiting 节点是否恢复。",
+        "follow_up": (
+            "下一步：优先处理这条 sensitive access 审批票据，"
+            "再观察 waiting 节点是否恢复。"
+        ),
     }
     assert run_snapshot["callback_waiting_explanation"] == {
         "primary_signal": "当前 callback waiting 仍卡在 1 条待处理审批。",
-        "follow_up": "下一步：先在当前 operator 入口完成审批或拒绝，再观察 waiting 节点是否自动恢复。",
+        "follow_up": (
+            "下一步：先在当前 operator 入口完成审批或拒绝，"
+            "再观察 waiting 节点是否自动恢复。"
+        ),
     }
     assert run_snapshot["execution_focus_artifact_count"] == 2
     assert run_snapshot["execution_focus_artifact_ref_count"] == 2
@@ -434,8 +440,16 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
             "tool_name": "search",
             "phase": "tool_execute",
             "status": "waiting",
+            "requested_execution_class": "sandbox",
+            "requested_execution_source": "runtime_policy",
+            "requested_execution_profile": "risk-reviewed",
+            "requested_execution_timeout_ms": 3000,
+            "requested_execution_network_policy": "isolated",
+            "requested_execution_filesystem_policy": "ephemeral",
             "effective_execution_class": "sandbox",
+            "execution_executor_ref": "tool:compat-adapter:dify-default",
             "execution_sandbox_backend_id": "sandbox-default",
+            "execution_sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
             "execution_sandbox_runner_kind": "compat-adapter",
             "execution_blocking_reason": None,
             "execution_fallback_reason": None,
@@ -466,7 +480,8 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
         "follow_up": (
             "run run-execution-view：当前 run 状态：waiting。 聚焦节点：agent_plan。 "
             "重点信号：当前 callback waiting 仍卡在 1 条待处理审批。 "
-            "后续动作：下一步：先在当前 operator 入口完成审批或拒绝，再观察 waiting 节点是否自动恢复。"
+            "后续动作：下一步：先在当前 operator 入口完成审批或拒绝，"
+            "再观察 waiting 节点是否自动恢复。"
         ),
     }
 

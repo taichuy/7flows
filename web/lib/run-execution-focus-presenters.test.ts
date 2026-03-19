@@ -217,14 +217,14 @@ describe("run execution focus presenters", () => {
           execution_trace: null,
           requested_execution_class: "sandbox",
           requested_execution_source: "tool_policy",
-          requested_execution_profile: null,
-          requested_execution_timeout_ms: null,
-          requested_execution_network_policy: null,
-          requested_execution_filesystem_policy: null,
+          requested_execution_profile: "risk-reviewed",
+          requested_execution_timeout_ms: 3000,
+          requested_execution_network_policy: "isolated",
+          requested_execution_filesystem_policy: "ephemeral",
           effective_execution_class: "sandbox",
-          execution_executor_ref: null,
+          execution_executor_ref: "tool:compat-adapter:dify-default",
           execution_sandbox_backend_id: "docker",
-          execution_sandbox_backend_executor_ref: null,
+          execution_sandbox_backend_executor_ref: "sandbox-backend:docker",
           execution_sandbox_runner_kind: "container",
           execution_blocking_reason: "sandbox backend unavailable",
           execution_fallback_reason: null,
@@ -250,13 +250,16 @@ describe("run execution focus presenters", () => {
           "phase waiting_callback",
           "requested sandbox",
           "effective sandbox",
+          "profile risk-reviewed",
           "backend docker",
           "runner container",
           "content json",
           "blocked",
           "raw payload"
         ],
-        rawRef: "artifact://tool-call-1/raw"
+        rawRef: "artifact://tool-call-1/raw",
+        traceSummary:
+          "执行链：source tool_policy · timeout 3000ms · network isolated · filesystem ephemeral · executor tool:compat-adapter:dify-default · backend ref sandbox-backend:docker。"
       }
     ]);
   });

@@ -101,8 +101,35 @@ function buildPublishedInvocationRunFollowUpSampleSnapshot(
         tool_name: toolCall.tool_name ?? null,
         phase: toolCall.phase ?? null,
         status: toolCall.status ?? null,
+        ...(toolCall.requested_execution_class != null
+          ? { requested_execution_class: toolCall.requested_execution_class }
+          : {}),
+        ...(toolCall.requested_execution_source != null
+          ? { requested_execution_source: toolCall.requested_execution_source }
+          : {}),
+        ...(toolCall.requested_execution_profile != null
+          ? { requested_execution_profile: toolCall.requested_execution_profile }
+          : {}),
+        ...(typeof toolCall.requested_execution_timeout_ms === "number"
+          ? { requested_execution_timeout_ms: toolCall.requested_execution_timeout_ms }
+          : {}),
+        ...(toolCall.requested_execution_network_policy != null
+          ? { requested_execution_network_policy: toolCall.requested_execution_network_policy }
+          : {}),
+        ...(toolCall.requested_execution_filesystem_policy != null
+          ? { requested_execution_filesystem_policy: toolCall.requested_execution_filesystem_policy }
+          : {}),
         effective_execution_class: toolCall.effective_execution_class ?? null,
+        ...(toolCall.execution_executor_ref != null
+          ? { execution_executor_ref: toolCall.execution_executor_ref }
+          : {}),
         execution_sandbox_backend_id: toolCall.execution_sandbox_backend_id ?? null,
+        ...(toolCall.execution_sandbox_backend_executor_ref != null
+          ? {
+              execution_sandbox_backend_executor_ref:
+                toolCall.execution_sandbox_backend_executor_ref
+            }
+          : {}),
         execution_sandbox_runner_kind: toolCall.execution_sandbox_runner_kind ?? null,
         execution_blocking_reason: toolCall.execution_blocking_reason ?? null,
         execution_fallback_reason: toolCall.execution_fallback_reason ?? null,

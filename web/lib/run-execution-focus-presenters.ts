@@ -43,6 +43,7 @@ export type ExecutionFocusToolCallSummary = {
   detail: string;
   badges: string[];
   rawRef: string | null;
+  traceSummary?: string | null;
 };
 
 function trimOrNull(value?: string | null) {
@@ -61,6 +62,7 @@ function buildToolExecutionBadges(
     ToolCallItem,
     | "phase"
     | "requested_execution_class"
+    | "requested_execution_profile"
     | "effective_execution_class"
     | "execution_sandbox_backend_id"
     | "execution_sandbox_runner_kind"
@@ -73,6 +75,7 @@ function buildToolExecutionBadges(
   const badges: string[] = [];
   const phase = trimOrNull(toolCall.phase);
   const requestedExecutionClass = trimOrNull(toolCall.requested_execution_class);
+  const requestedExecutionProfile = trimOrNull(toolCall.requested_execution_profile);
   const effectiveExecutionClass = trimOrNull(toolCall.effective_execution_class);
   const sandboxBackendId = trimOrNull(toolCall.execution_sandbox_backend_id);
   const sandboxRunnerKind = trimOrNull(toolCall.execution_sandbox_runner_kind);
@@ -86,6 +89,9 @@ function buildToolExecutionBadges(
   }
   if (effectiveExecutionClass) {
     badges.push(`effective ${effectiveExecutionClass}`);
+  }
+  if (requestedExecutionProfile) {
+    badges.push(`profile ${requestedExecutionProfile}`);
   }
   if (sandboxBackendId) {
     badges.push(`backend ${sandboxBackendId}`);
@@ -109,12 +115,53 @@ function buildToolExecutionBadges(
   return badges;
 }
 
+function buildToolExecutionTraceSummary(
+  toolCall: Pick<
+    ToolCallItem,
+    | "requested_execution_source"
+    | "requested_execution_timeout_ms"
+    | "requested_execution_network_policy"
+    | "requested_execution_filesystem_policy"
+    | "execution_executor_ref"
+    | "execution_sandbox_backend_executor_ref"
+  >
+) {
+  const traceFacts = [
+    trimOrNull(toolCall.requested_execution_source)
+      ? `source ${trimOrNull(toolCall.requested_execution_source)}`
+      : null,
+    typeof toolCall.requested_execution_timeout_ms === "number"
+      ? `timeout ${toolCall.requested_execution_timeout_ms}ms`
+      : null,
+    trimOrNull(toolCall.requested_execution_network_policy)
+      ? `network ${trimOrNull(toolCall.requested_execution_network_policy)}`
+      : null,
+    trimOrNull(toolCall.requested_execution_filesystem_policy)
+      ? `filesystem ${trimOrNull(toolCall.requested_execution_filesystem_policy)}`
+      : null,
+    trimOrNull(toolCall.execution_executor_ref)
+      ? `executor ${trimOrNull(toolCall.execution_executor_ref)}`
+      : null,
+    trimOrNull(toolCall.execution_sandbox_backend_executor_ref)
+      ? `backend ref ${trimOrNull(toolCall.execution_sandbox_backend_executor_ref)}`
+      : null
+  ].filter((item): item is string => Boolean(item));
+
+  return traceFacts.length > 0 ? `执行链：${traceFacts.join(" · ")}。` : null;
+}
+
 function buildToolExecutionDetail(
   toolCall: Pick<
     ToolCallItem,
     | "request_summary"
     | "response_summary"
     | "response_content_type"
+    | "requested_execution_source"
+    | "requested_execution_timeout_ms"
+    | "requested_execution_network_policy"
+    | "requested_execution_filesystem_policy"
+    | "execution_executor_ref"
+    | "execution_sandbox_backend_executor_ref"
     | "execution_blocking_reason"
     | "execution_fallback_reason"
     | "raw_ref"
@@ -164,13 +211,18 @@ function countArtifactsByKind(artifacts: RunArtifactItem[]) {
 export function listExecutionFocusToolCallSummaries(
   node: ExecutionFocusToolExplainableNode
 ): ExecutionFocusToolCallSummary[] {
-  return node.tool_calls.map((toolCall) => ({
-    id: toolCall.id,
-    title: `${trimOrNull(toolCall.tool_name) ?? toolCall.tool_id} · ${toolCall.status}`,
-    detail: buildToolExecutionDetail(toolCall),
-    badges: buildToolExecutionBadges(toolCall),
-    rawRef: trimOrNull(toolCall.raw_ref)
-  }));
+  return node.tool_calls.map((toolCall) => {
+    const traceSummary = buildToolExecutionTraceSummary(toolCall);
+
+    return {
+      id: toolCall.id,
+      title: `${trimOrNull(toolCall.tool_name) ?? toolCall.tool_id} · ${toolCall.status}`,
+      detail: buildToolExecutionDetail(toolCall),
+      badges: buildToolExecutionBadges(toolCall),
+      rawRef: trimOrNull(toolCall.raw_ref),
+      ...(traceSummary ? { traceSummary } : {})
+    };
+  });
 }
 
 export function listExecutionFocusArtifactPreviews(

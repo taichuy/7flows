@@ -92,8 +92,16 @@ describe("operator inline action feedback", () => {
             tool_name: "Sandbox Search",
             phase: "execute",
             status: "completed",
+            requested_execution_class: "sandbox",
+            requested_execution_source: "runtime_policy",
+            requested_execution_profile: "risk-reviewed",
+            requested_execution_timeout_ms: 3000,
+            requested_execution_network_policy: "isolated",
+            requested_execution_filesystem_policy: "ephemeral",
             effective_execution_class: "sandbox",
+            execution_executor_ref: "tool:compat-adapter:dify-default",
             execution_sandbox_backend_id: "sandbox-default",
+            execution_sandbox_backend_executor_ref: "sandbox-backend:sandbox-default",
             execution_sandbox_runner_kind: "tool",
             response_summary: "搜索结果已回写 artifact。",
             response_content_type: "application/json",
@@ -113,13 +121,17 @@ describe("operator inline action feedback", () => {
         detail: "搜索结果已回写 artifact。",
         badges: [
           "phase execute",
+          "requested sandbox",
           "effective sandbox",
+          "profile risk-reviewed",
           "backend sandbox-default",
           "runner tool",
           "content application/json",
           "raw payload"
         ],
-        rawRef: "artifact://tool-call-raw"
+        rawRef: "artifact://tool-call-raw",
+        traceSummary:
+          "执行链：source runtime_policy · timeout 3000ms · network isolated · filesystem ephemeral · executor tool:compat-adapter:dify-default · backend ref sandbox-backend:sandbox-default。"
       }
     ]);
     expect(model.focusArtifacts).toEqual([
