@@ -37,7 +37,10 @@
 - `RunDetail.execution_focus_node` 现已直接携带 `callback_waiting_explanation`，`fetchRunSnapshot` 也对旧契约保留 execution-view 回退：单 run snapshot 不再因为 run detail 已带 execution focus 就把 waiting blocker explanation 吃丢。
 - publish activity list 现已补齐顶层 `execution_focus_explanation / callback_waiting_explanation` 共享契约：活动卡片可以直接消费和 detail / run snapshot 同名字段，并对旧数据保留 `run_follow_up.sampled_runs` / waiting lifecycle 回退，不再只停留在聚合计数。
 - publish activity list 与 invocation detail 现在也开始真正消费 `run_follow_up.sampled_runs[].snapshot` 里的 compact focus evidence：sampled run 不再只显示状态 / waiting reason，已经会把 artifact / tool call / raw_ref 计数、compact evidence card 与 snapshot summary 一起带回发布入口，减少从 publish 入口排障时再跳回 run detail 的必要性。
+- run trace export、published invocation export、published invocation detail 与 cache inventory 的敏感访问阻断响应现在都会携带统一 `outcome_explanation + run_snapshot + run_follow_up` 契约，前端阻断卡片也直接复用同一份 canonical follow-up 结果链，不再只剩 detail 文案和票据状态。
+- 本轮又把 sensitive access 阻断响应里的 run 上下文回填补齐到 metadata-only `run_ids` 场景：cache inventory / published invocation export 不再因为 `access_request.run_id` 为空就丢失 `run_snapshot` 与 `run_follow_up`，`SensitiveAccessBlockedCard` 也已有独立测试覆盖 canonical follow-up 的静态渲染入口。
 - sensitive access inbox entry card 已切到共享 `SensitiveAccessInlineActions + InlineOperatorActionFeedback + OperatorFocusEvidenceCard` 结果链：审批 / 通知重试不再停留在纯文本反馈，inbox entry 上的 execution focus evidence 也开始复用同一张 evidence card，减少 operator 结果页之间的重复拼装与体验断层。
+- callback waiting follow-up 现已把 focus node 的 skill trace / node-level skill loads 一起收进共享 `CallbackWaitingSummaryCard`：run overview blocker、sensitive access inbox 与 publish callback section 会围绕同一张卡片展示 waiting 解释、focus evidence 与 injected references，不再由每个入口单独拼一套 skill trace 摘要。
 - `llm_agent` 已经在朝 phase pipeline 演进，assistant 仍只负责 evidence 提炼，不拥有流程控制权。
 - Skill Catalog 最小链路已成立：`SkillDoc`、catalog API、phase binding、reference retrieval 与 runtime 注入主链已经存在。
 
@@ -100,6 +103,7 @@
 - 本轮已把 publish activity list、sensitive access operator action result 与 inbox entry card 都补齐为 shared explanation / focus evidence contract 的消费方；下一步可继续把同类 contract 推进到更多 operator result 页面，减少双请求和页面级兜底拼装。
 - 本轮又把 publish activity list / invocation detail 的 sampled run UI 补齐为真正消费 compact focus evidence：前端已开始复用统一 `OperatorFocusEvidenceCard` 展示 tool call / artifact preview 与 sampled count，不再停留在聚合计数；下一步可继续把相同 snapshot evidence contract 推进到更多 action detail / follow-up 页面，减少“有共享事实但入口仍只显示聚合计数”的残留断层。
 - 本轮已把 sensitive access bulk governance card 从纯文字摘要推进为真正消费 `sampledRuns[].snapshot` 的 focus evidence 入口：批量治理结果现在会直接展示 sampled run 的 compact snapshot 摘要、focus node / waiting reason、artifact / tool / raw_ref 计数与 run detail 跳转，减少 operator 在 bulk action 后还要回退到 inbox / run detail 才能定位受影响 run 的断层。
+- 本轮又把 callback waiting follow-up 的 skill trace 展示下沉到共享 `CallbackWaitingSummaryCard`：run overview blocker、inbox callback follow-up 与 publish callback section 现在统一复用同一份 skill trace / node-level load 解释模型；下一步可继续把相同 contract 往更多 callback / approval action detail 结果页推进，减少详情页外另起 skill trace 摘要卡片的残留断层。
 
 6. **P1：继续治理 runtime、compat 与 editor 的真实热点文件**
    - 只在职责混杂、边界泄漏、改动传播过大时拆分热点模块。
