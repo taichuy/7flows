@@ -65,7 +65,7 @@ function joinParts(parts: Array<string | null | undefined>) {
   return parts.filter((part): part is string => Boolean(part && part.trim())).join(" ");
 }
 
-function formatRunSnapshot({
+export function formatRunSnapshotSummary({
   status,
   currentNodeId,
   waitingReason,
@@ -134,7 +134,7 @@ function formatBulkRunFollowUp({
   const sampleSummary = sampledRuns
     .map(({ runId, snapshot }) => {
       const shortRunId = runId.slice(0, 8);
-      const snapshotSummary = formatRunSnapshot(snapshot ?? {});
+      const snapshotSummary = formatRunSnapshotSummary(snapshot ?? {});
       return snapshotSummary
         ? `run ${shortRunId}：${snapshotSummary}`
         : `run ${shortRunId}：暂未读取到最新快照。`;
@@ -170,7 +170,7 @@ export function formatOperatorOutcomeExplanationMessage(input: {
 
   const runFollowUpSummary =
     joinParts([runFollowUpPrimarySignal, runFollowUpFollowUp]) ||
-    formatRunSnapshot(input.runSnapshot ?? {});
+    formatRunSnapshotSummary(input.runSnapshot ?? {});
 
   return (
     joinParts([
@@ -280,7 +280,7 @@ export function formatManualResumeResultMessage(input?: {
     return "已发起恢复尝试，请立即回看当前 run 时间线，确认是否真正离开 waiting 状态。";
   }
 
-  const snapshotSummary = formatRunSnapshot(input?.runSnapshot ?? {});
+  const snapshotSummary = formatRunSnapshotSummary(input?.runSnapshot ?? {});
 
   if (runStatus === "waiting") {
     return joinParts([
@@ -334,7 +334,7 @@ export function formatCleanupResultMessage({
   runFollowUpExplanation,
   runSnapshot
 }: CleanupRunCallbackTicketsSummary) {
-  const runSnapshotSummary = formatRunSnapshot(runSnapshot ?? {});
+  const runSnapshotSummary = formatRunSnapshotSummary(runSnapshot ?? {});
   const runFollowUpSummary = joinParts([
     runFollowUpExplanation?.primary_signal,
     runFollowUpExplanation?.follow_up
@@ -372,7 +372,7 @@ export function formatApprovalDecisionResultMessage(
   snapshot?: ApprovalDecisionSnapshotInput
 ) {
   const snapshotSummary = formatApprovalSnapshot(snapshot ?? {});
-  const runSnapshotSummary = formatRunSnapshot(snapshot?.runSnapshot ?? {});
+  const runSnapshotSummary = formatRunSnapshotSummary(snapshot?.runSnapshot ?? {});
 
   if (decision === "approved") {
     return joinParts([
@@ -407,7 +407,7 @@ export function formatNotificationRetryResultMessage(input: {
   const waitingSummary = input.waitingStatus
     ? ` 当前 waiting 链路：${input.waitingStatus}。`
     : "";
-  const runSnapshotSummary = formatRunSnapshot(input.runSnapshot ?? {});
+  const runSnapshotSummary = formatRunSnapshotSummary(input.runSnapshot ?? {});
 
   if (input.status === "delivered") {
     return joinParts([

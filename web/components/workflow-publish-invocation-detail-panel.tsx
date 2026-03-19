@@ -10,7 +10,8 @@ import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { PublishedEndpointInvocationDetailResponse } from "@/lib/get-workflow-publish";
 import {
   buildBlockingPublishedInvocationInboxHref,
-  buildPublishedInvocationInboxHref
+  buildPublishedInvocationInboxHref,
+  listPublishedInvocationRunFollowUpSampleViews
 } from "@/lib/published-invocation-presenters";
 import {
   formatExecutionFocusFollowUp,
@@ -30,7 +31,6 @@ type WorkflowPublishInvocationDetailPanelProps = {
 function formatJsonPreview(value: unknown): string {
   return JSON.stringify(value ?? null, null, 2);
 }
-
 export function WorkflowPublishInvocationDetailPanel({
   detail,
   clearHref,
@@ -88,6 +88,7 @@ export function WorkflowPublishInvocationDetailPanel({
         unknown: runFollowUp.unknown_run_count
       })
     : null;
+  const runFollowUpSamples = listPublishedInvocationRunFollowUpSampleViews(runFollowUp);
 
   return (
     <article className="entry-card compact-card publish-invocation-detail-panel">
@@ -210,6 +211,49 @@ export function WorkflowPublishInvocationDetailPanel({
           ) : null}
           {runFollowUpFollowUp ? (
             <p className="binding-meta">{runFollowUpFollowUp}</p>
+          ) : null}
+          {runFollowUpSamples.length ? (
+            <div className="publish-meta-grid">
+              {runFollowUpSamples.map((sample) => {
+                const samplePrimarySignal = sample.explanation?.primary_signal?.trim() || null;
+                const sampleFollowUp = sample.explanation?.follow_up?.trim() || null;
+                const sampleReasonLabel =
+                  sample.explanation_source === "callback_waiting"
+                    ? "callback waiting"
+                    : sample.explanation_source === "execution_focus"
+                      ? "execution focus"
+                      : "run snapshot";
+
+                return (
+                  <div className="payload-card compact-card" key={sample.run_id}>
+                    <div className="payload-card-header">
+                      <Link className="inline-link" href={`/runs/${encodeURIComponent(sample.run_id)}`}>
+                        {sample.run_id}
+                      </Link>
+                      <span className="status-meta">{sampleReasonLabel}</span>
+                    </div>
+                    <p className="section-copy entry-copy">
+                      {samplePrimarySignal ?? "该 sampled run 已回接 canonical follow-up 快照。"}
+                    </p>
+                    {sampleFollowUp ? <p className="binding-meta">{sampleFollowUp}</p> : null}
+                    <dl className="compact-meta-list">
+                      <div>
+                        <dt>Status</dt>
+                        <dd>{sample.status ?? "n/a"}</dd>
+                      </div>
+                      <div>
+                        <dt>Current node</dt>
+                        <dd>{sample.current_node_id ?? "n/a"}</dd>
+                      </div>
+                      <div>
+                        <dt>Waiting reason</dt>
+                        <dd>{sample.waiting_reason ?? "n/a"}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                );
+              })}
+            </div>
           ) : null}
         </div>
       ) : null}
