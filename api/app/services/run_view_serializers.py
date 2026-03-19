@@ -190,6 +190,8 @@ def serialize_tool_call(tool_call: ToolCallRecord) -> ToolCallItem:
         execution_blocking_reason=execution_trace.get("blocked_reason"),
         execution_fallback_reason=execution_trace.get("fallback_reason"),
         response_summary=tool_call.response_summary,
+        response_content_type=tool_call.response_content_type,
+        response_meta=dict(tool_call.response_meta or {}),
         raw_ref=(
             f"artifact://{tool_call.raw_artifact_id}"
             if tool_call.raw_artifact_id is not None

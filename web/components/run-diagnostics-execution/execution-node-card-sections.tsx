@@ -97,6 +97,8 @@ export function ExecutionNodeToolCallList({ toolCalls }: { toolCalls: ToolCallIt
                 {formatJsonPayload({
                   request_summary: toolCall.request_summary,
                   response_summary: toolCall.response_summary,
+                  response_content_type: toolCall.response_content_type,
+                  response_meta: toolCall.response_meta,
                   raw_ref: toolCall.raw_ref,
                   execution_trace: toolCall.execution_trace
                 })}

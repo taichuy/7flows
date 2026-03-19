@@ -445,6 +445,25 @@ def test_runtime_service_preserves_normalized_sandbox_tool_result_artifact(
     assert artifacts.run.status == "succeeded"
     tool_call = artifacts.tool_calls[0]
     assert tool_call.raw_artifact_id == "tool-result-normalized"
+    assert tool_call.response_content_type == "json"
+    assert tool_call.response_meta["runner"] == "sandbox-tool-runner"
+    assert tool_call.response_meta["tool_name"] == "native.risk-search"
+    assert tool_call.response_meta["tool_id"] == "native.risk-search"
+    assert tool_call.response_meta["latency_ms"] == 19
+    assert tool_call.response_meta["requested_execution_class"] == "sandbox"
+    assert tool_call.response_meta["effective_execution_class"] == "sandbox"
+    assert tool_call.response_meta["execution_source"] == "runtime_policy"
+    assert tool_call.response_meta["requested_execution_profile"] == "risk-reviewed"
+    assert tool_call.response_meta["requested_execution_timeout_ms"] == 3000
+    assert tool_call.response_meta["executor_ref"] == "tool:native-sandbox"
+    assert tool_call.response_meta["sandbox_backend_id"] == "sandbox-default"
+    assert (
+        tool_call.response_meta["sandbox_backend_executor_ref"]
+        == "sandbox-backend:sandbox-default"
+    )
+    assert tool_call.response_meta["sandbox_runner_kind"] == "native-tool"
+    assert tool_call.response_meta["tool_call_id"] == tool_call.id
+    assert tool_call.response_meta["runner_logs"] == ["sandbox stdout"]
 
     tool_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "tool")
     assert tool_run.output_payload == {

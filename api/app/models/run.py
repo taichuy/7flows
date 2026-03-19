@@ -107,6 +107,8 @@ class ToolCallRecord(Base):
     request_summary: Mapped[str] = mapped_column(Text, default="", nullable=False)
     execution_trace: Mapped[dict] = mapped_column(JSON, default=dict)
     response_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    response_content_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    response_meta: Mapped[dict] = mapped_column(JSON, default=dict)
     raw_artifact_id: Mapped[str | None] = mapped_column(
         ForeignKey("run_artifacts.id"),
         nullable=True,

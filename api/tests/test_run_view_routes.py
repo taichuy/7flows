@@ -129,6 +129,13 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
                     "blocked_reason": None,
                 },
                 response_summary="Waiting for callback payload.",
+                response_content_type="json",
+                response_meta={
+                    "tool_name": "search",
+                    "tool_id": "compat:dify:plugin/search",
+                    "waiting_reason": "Waiting for external search callback.",
+                    "sandbox_runner_trace": {"runner": "compat-adapter"},
+                },
                 raw_artifact_id="artifact-tool",
                 latency_ms=1200,
                 retry_count=0,
@@ -337,6 +344,13 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     assert node["tool_calls"][0]["execution_sandbox_runner_kind"] == "compat-adapter"
     assert node["tool_calls"][0]["execution_blocking_reason"] is None
     assert node["tool_calls"][0]["execution_fallback_reason"] is None
+    assert node["tool_calls"][0]["response_content_type"] == "json"
+    assert node["tool_calls"][0]["response_meta"] == {
+        "tool_name": "search",
+        "tool_id": "compat:dify:plugin/search",
+        "waiting_reason": "Waiting for external search callback.",
+        "sandbox_runner_trace": {"runner": "compat-adapter"},
+    }
     assert (
         node["tool_calls"][0]["execution_trace"]["executor_ref"]
         == "tool:compat-adapter:dify-default"

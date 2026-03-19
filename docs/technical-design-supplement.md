@@ -1477,6 +1477,7 @@ Tool Gateway 至少负责：
 
 - Tool Gateway 在解析出统一 `ResolvedExecutionPolicy` 后，应把标准化 `execution` payload（`class / source / profile / timeoutMs / networkPolicy / filesystemPolicy`）连同 `traceId` 一起透传给当前真正可执行的 compat adapter `/invoke` 请求，而不是只在 7Flows 内部 trace / artifact 中可见。
 - **当前共享事实**：compat adapter 与 native tool 的 `sandbox / microvm` 请求在 sandbox backend 声明 `supports_tool_execution` 后，都不会再继续透传到原始 host invoker / adapter `/invoke`，而是统一改走 sandbox-backed tool runner；只有 runner capability 不满足时才按同一条事实链 `fail-closed`。
+- **当前共享事实**：sandbox-backed tool runner 返回的 normalized result `summary / content_type / raw_ref / meta` 已继续接回 runtime tool fact chain；`tool_call_records`、run view 序列化与 diagnostics UI 现在都会保留并暴露这组响应事实，减少 native / compat / callback 路径在 operator 视角的再次分叉。
 - **后续重点**：继续把 native / compat sandbox tool runner 的 payload contract、artifact / trace 语义和更多作者侧解释入口统一起来，避免两条工具路径在 UI 与治理面再次分叉。
 
 ### 23.1.1 Sandbox Backend 执行协议

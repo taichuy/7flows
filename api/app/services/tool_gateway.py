@@ -183,6 +183,8 @@ class ToolGateway:
             result.meta.setdefault("tool_call_id", call_record.id)
             call_record.status = result.status
             call_record.response_summary = result.summary
+            call_record.response_content_type = result.content_type
+            call_record.response_meta = dict(result.meta or {})
             raw_ref = result.raw_ref or ""
             if raw_ref.startswith("artifact://"):
                 call_record.raw_artifact_id = raw_ref.removeprefix("artifact://")
@@ -318,6 +320,8 @@ class ToolGateway:
         if tool_call_record is not None:
             tool_call_record.status = result.status
             tool_call_record.response_summary = result.summary
+            tool_call_record.response_content_type = result.content_type
+            tool_call_record.response_meta = dict(result.meta or {})
             raw_ref = result.raw_ref or ""
             if raw_ref.startswith("artifact://"):
                 tool_call_record.raw_artifact_id = raw_ref.removeprefix("artifact://")

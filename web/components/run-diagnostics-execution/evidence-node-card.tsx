@@ -89,6 +89,8 @@ export function EvidenceNodeCard({ node }: { node: RunEvidenceNodeItem }) {
               <pre>
                 {formatJsonPayload({
                   response_summary: toolCall.response_summary,
+                  response_content_type: toolCall.response_content_type,
+                  response_meta: toolCall.response_meta,
                   raw_ref: toolCall.raw_ref
                 })}
               </pre>

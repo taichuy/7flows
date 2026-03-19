@@ -58,6 +58,7 @@ function buildToolExecutionBadges(
     | "execution_sandbox_runner_kind"
     | "execution_blocking_reason"
     | "execution_fallback_reason"
+    | "response_content_type"
     | "raw_ref"
   >
 ) {
@@ -67,6 +68,7 @@ function buildToolExecutionBadges(
   const effectiveExecutionClass = trimOrNull(toolCall.effective_execution_class);
   const sandboxBackendId = trimOrNull(toolCall.execution_sandbox_backend_id);
   const sandboxRunnerKind = trimOrNull(toolCall.execution_sandbox_runner_kind);
+  const responseContentType = trimOrNull(toolCall.response_content_type);
 
   if (phase) {
     badges.push(`phase ${phase}`);
@@ -82,6 +84,9 @@ function buildToolExecutionBadges(
   }
   if (sandboxRunnerKind) {
     badges.push(`runner ${sandboxRunnerKind}`);
+  }
+  if (responseContentType) {
+    badges.push(`content ${responseContentType}`);
   }
   if (trimOrNull(toolCall.execution_blocking_reason)) {
     badges.push("blocked");
@@ -101,6 +106,7 @@ function buildToolExecutionDetail(
     ToolCallItem,
     | "request_summary"
     | "response_summary"
+    | "response_content_type"
     | "execution_blocking_reason"
     | "execution_fallback_reason"
     | "raw_ref"
@@ -119,6 +125,11 @@ function buildToolExecutionDetail(
   const responseSummary = trimOrNull(toolCall.response_summary);
   if (responseSummary) {
     return responseSummary;
+  }
+
+  const responseContentType = trimOrNull(toolCall.response_content_type);
+  if (responseContentType) {
+    return `响应类型：${responseContentType}`;
   }
 
   const requestSummary = trimOrNull(toolCall.request_summary);

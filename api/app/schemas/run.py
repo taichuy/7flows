@@ -184,6 +184,8 @@ class ToolCallItem(BaseModel):
     execution_blocking_reason: str | None = None
     execution_fallback_reason: str | None = None
     response_summary: str | None = None
+    response_content_type: str | None = None
+    response_meta: dict = Field(default_factory=dict)
     raw_ref: str | None = None
     latency_ms: int = 0
     retry_count: int = 0

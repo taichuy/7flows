@@ -37,6 +37,8 @@ export type ToolCallItem = {
   execution_blocking_reason?: string | null;
   execution_fallback_reason?: string | null;
   response_summary?: string | null;
+  response_content_type?: string | null;
+  response_meta?: Record<string, unknown>;
   raw_ref?: string | null;
   latency_ms: number;
   retry_count: number;
