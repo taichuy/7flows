@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
-import { getRunExecutionView } from "@/lib/get-run-views";
+import type { RunExecutionView } from "@/lib/get-run-views";
 import {
   buildSensitiveAccessInboxEntryCallbackContext,
   type SensitiveAccessInboxCallbackContext
@@ -191,6 +191,23 @@ export type SensitiveAccessInboxSnapshot = {
   summary: SensitiveAccessInboxSummary;
 };
 
+type SensitiveAccessInboxEntryBody = {
+  ticket: ApprovalTicketItem;
+  request?: SensitiveAccessRequestItem | null;
+  resource?: SensitiveResourceItem | null;
+  notifications: NotificationDispatchItem[];
+};
+
+type SensitiveAccessInboxResponseBody = {
+  entries?: SensitiveAccessInboxEntryBody[];
+  channels?: NotificationChannelCapabilityItem[];
+  resources?: SensitiveResourceItem[];
+  requests?: SensitiveAccessRequestItem[];
+  notifications?: NotificationDispatchItem[];
+  execution_views?: RunExecutionView[];
+  summary?: SensitiveAccessInboxSummary | null;
+};
+
 type SensitiveAccessInboxOptions = {
   ticketStatus?: ApprovalTicketItem["status"];
   waitingStatus?: ApprovalTicketItem["waiting_status"];
@@ -216,72 +233,67 @@ export async function getSensitiveAccessInboxSnapshot({
   accessRequestId,
   approvalTicketId
 }: SensitiveAccessInboxOptions = {}): Promise<SensitiveAccessInboxSnapshot> {
-  const [resources, requests, tickets, notifications, channels] = await Promise.all([
-    getSensitiveResources(),
-    getSensitiveAccessRequests({
-      decision: requestDecision,
-      requesterType,
-      runId,
-      nodeRunId,
-      accessRequestId
-    }),
-    getApprovalTickets({
-      status: ticketStatus,
-      waitingStatus,
-      runId,
-      nodeRunId,
-      accessRequestId,
-      approvalTicketId
-    }),
-    getNotificationDispatches({
-      approvalTicketId,
-      runId,
-      nodeRunId,
-      accessRequestId,
-      status: notificationStatus,
-      channel: notificationChannel
-    }),
-    getNotificationChannels()
-  ]);
+  const params = new URLSearchParams();
+  if (ticketStatus) {
+    params.set("status", ticketStatus);
+  }
+  if (waitingStatus) {
+    params.set("waiting_status", waitingStatus);
+  }
+  if (requestDecision) {
+    params.set("decision", requestDecision);
+  }
+  if (requesterType) {
+    params.set("requester_type", requesterType);
+  }
+  if (notificationStatus) {
+    params.set("notification_status", notificationStatus);
+  }
+  if (notificationChannel) {
+    params.set("notification_channel", notificationChannel);
+  }
+  if (runId?.trim()) {
+    params.set("run_id", runId.trim());
+  }
+  if (nodeRunId?.trim()) {
+    params.set("node_run_id", nodeRunId.trim());
+  }
+  if (accessRequestId?.trim()) {
+    params.set("access_request_id", accessRequestId.trim());
+  }
+  if (approvalTicketId?.trim()) {
+    params.set("approval_ticket_id", approvalTicketId.trim());
+  }
 
-  const requestsById = new Map(requests.map((item) => [item.id, item]));
-  const resourcesById = new Map(resources.map((item) => [item.id, item]));
-  const notificationsByTicketId = groupNotificationsByTicket(notifications);
-  const baseEntries = tickets
-    .filter((ticket) => {
-      if ((requestDecision || requesterType) && !requestsById.has(ticket.access_request_id)) {
-        return false;
-      }
-      if (
-        (notificationStatus || notificationChannel) &&
-        (notificationsByTicketId[ticket.id] ?? []).length === 0
-      ) {
-        return false;
-      }
-      return true;
-    })
-    .map((ticket) => {
-      const request = requestsById.get(ticket.access_request_id) ?? null;
-      return {
-        ticket,
-        request,
-        resource: request ? (resourcesById.get(request.resource_id) ?? null) : null,
-        notifications: notificationsByTicketId[ticket.id] ?? []
-      } satisfies SensitiveAccessInboxEntry;
+  const query = params.size > 0 ? `?${params.toString()}` : "";
+
+  let body: SensitiveAccessInboxResponseBody | null = null;
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/sensitive-access/inbox${query}`, {
+      cache: "no-store"
     });
+    if (response.ok) {
+      body = (await response.json()) as SensitiveAccessInboxResponseBody;
+    }
+  } catch {
+    body = null;
+  }
 
-  const runIds = [
-    ...new Set(
-      baseEntries
-        .map((entry) => entry.ticket.run_id ?? entry.request?.run_id)
-        .filter((runId): runId is string => Boolean(runId && runId.trim()))
-    )
-  ];
+  const resources = body?.resources ?? [];
+  const requests = body?.requests ?? [];
+  const notifications = body?.notifications ?? [];
+  const channels = body?.channels ?? [];
   const executionViewsByRunId = new Map(
-    await Promise.all(runIds.map(async (runId) => [runId, await getRunExecutionView(runId)] as const))
+    (body?.execution_views ?? []).map((item) => [item.run_id, item] as const)
   );
 
-  const entries = baseEntries
+  const entries = (body?.entries ?? [])
+    .map((entry) => ({
+      ticket: entry.ticket,
+      request: entry.request ?? null,
+      resource: entry.resource ?? null,
+      notifications: entry.notifications ?? []
+    }))
     .map((entry) => ({
       ...entry,
       callbackWaitingContext: buildSensitiveAccessInboxEntryCallbackContext(
@@ -304,7 +316,7 @@ export async function getSensitiveAccessInboxSnapshot({
     resources,
     requests,
     notifications,
-    summary: buildInboxSummary(entries)
+    summary: body?.summary ?? buildInboxSummary(entries)
   };
 }
 

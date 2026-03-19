@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -185,6 +185,37 @@ class SensitiveAccessTimelineEntryItem(BaseModel):
     approval_ticket: ApprovalTicketItem | None = None
     notifications: list[NotificationDispatchItem] = Field(default_factory=list)
     outcome_explanation: SignalFollowUpExplanation | None = None
+
+
+class SensitiveAccessInboxEntryItem(BaseModel):
+    ticket: ApprovalTicketItem
+    request: SensitiveAccessRequestItem | None = None
+    resource: SensitiveResourceItem | None = None
+    notifications: list[NotificationDispatchItem] = Field(default_factory=list)
+
+
+class SensitiveAccessInboxSummary(BaseModel):
+    ticket_count: int = 0
+    pending_ticket_count: int = 0
+    approved_ticket_count: int = 0
+    rejected_ticket_count: int = 0
+    expired_ticket_count: int = 0
+    waiting_ticket_count: int = 0
+    resumed_ticket_count: int = 0
+    failed_ticket_count: int = 0
+    pending_notification_count: int = 0
+    delivered_notification_count: int = 0
+    failed_notification_count: int = 0
+
+
+class SensitiveAccessInboxResponse(BaseModel):
+    entries: list[SensitiveAccessInboxEntryItem] = Field(default_factory=list)
+    channels: list[NotificationChannelCapabilityItem] = Field(default_factory=list)
+    resources: list[SensitiveResourceItem] = Field(default_factory=list)
+    requests: list[SensitiveAccessRequestItem] = Field(default_factory=list)
+    notifications: list[NotificationDispatchItem] = Field(default_factory=list)
+    execution_views: list[dict[str, Any]] = Field(default_factory=list)
+    summary: SensitiveAccessInboxSummary = Field(default_factory=SensitiveAccessInboxSummary)
 
 
 class SensitiveAccessRequestResponse(SensitiveAccessTimelineEntryItem):

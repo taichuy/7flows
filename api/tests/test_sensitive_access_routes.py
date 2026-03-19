@@ -229,7 +229,10 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
         },
         "callback_waiting_explanation": {
             "primary_signal": "当前 callback waiting 仍卡在 1 条待处理审批。",
-            "follow_up": "下一步：先在当前 operator 入口完成审批或拒绝，再观察 waiting 节点是否自动恢复。",
+            "follow_up": (
+                "下一步：先在当前 operator 入口完成审批或拒绝，"
+                "再观察 waiting 节点是否自动恢复。"
+            ),
         },
     }
     assert request_body["run_follow_up"] == {
@@ -1111,7 +1114,10 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
                     },
                     "callback_waiting_explanation": {
                         "primary_signal": "当前 callback waiting 仍卡在 1 条待处理审批。",
-                        "follow_up": "下一步：先重试或改投审批通知，再处理审批结果；不要直接强制恢复 run。",
+                        "follow_up": (
+                            "下一步：先重试或改投审批通知，再处理审批结果；"
+                            "不要直接强制恢复 run。"
+                        ),
                     },
                 },
             }
@@ -1402,3 +1408,102 @@ def test_sensitive_access_listing_filters_support_node_and_ticket_scopes(
     )
     assert unmatched_tickets_response.status_code == 200
     assert unmatched_tickets_response.json() == []
+
+
+
+def test_sensitive_access_inbox_returns_filtered_entries_and_execution_views(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow: Workflow,
+) -> None:
+    run = Run(
+        id="run-inbox-1",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        status="waiting",
+        current_node_id="mock_tool",
+        input_payload={},
+        checkpoint_payload={},
+        created_at=datetime.now(UTC),
+    )
+    node_run = NodeRun(
+        id="node-run-inbox-1",
+        run_id=run.id,
+        node_id="mock_tool",
+        node_name="Mock Tool",
+        node_type="tool",
+        status="waiting_callback",
+        phase="waiting_callback",
+        input_payload={},
+        checkpoint_payload={},
+        working_context={},
+        artifact_refs=[],
+        waiting_reason="waiting approval",
+        created_at=datetime.now(UTC),
+    )
+    sqlite_session.add_all([run, node_run])
+    sqlite_session.commit()
+
+    resource_response = client.post(
+        "/api/sensitive-access/resources",
+        json={
+            "label": "Inbox approval secret",
+            "sensitivity_level": "L3",
+            "source": "published_secret",
+            "metadata": {"endpoint_id": "pub-inbox-1"},
+        },
+    )
+    resource_id = resource_response.json()["id"]
+
+    request_response = client.post(
+        "/api/sensitive-access/requests",
+        json={
+            "run_id": run.id,
+            "node_run_id": node_run.id,
+            "requester_type": "ai",
+            "requester_id": "assistant-inbox",
+            "resource_id": resource_id,
+            "action_type": "read",
+            "purpose_text": "inspect inbox contract",
+        },
+    )
+
+    assert request_response.status_code == 201
+    request_body = request_response.json()
+
+    response = client.get(
+        "/api/sensitive-access/inbox",
+        params={
+            "status": "pending",
+            "waiting_status": "waiting",
+            "decision": "require_approval",
+            "run_id": run.id,
+            "approval_ticket_id": request_body["approval_ticket"]["id"],
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["ticket"]["id"] for item in body["entries"]] == [
+        request_body["approval_ticket"]["id"]
+    ]
+    assert body["entries"][0]["request"]["id"] == request_body["request"]["id"]
+    assert body["entries"][0]["resource"]["id"] == resource_id
+    assert [item["id"] for item in body["entries"][0]["notifications"]] == [
+        request_body["notifications"][0]["id"]
+    ]
+    assert [item["run_id"] for item in body["execution_views"]] == [run.id]
+    assert body["summary"] == {
+        "ticket_count": 1,
+        "pending_ticket_count": 1,
+        "approved_ticket_count": 0,
+        "rejected_ticket_count": 0,
+        "expired_ticket_count": 0,
+        "waiting_ticket_count": 1,
+        "resumed_ticket_count": 0,
+        "failed_ticket_count": 0,
+        "pending_notification_count": 0,
+        "delivered_notification_count": 1,
+        "failed_notification_count": 0,
+    }
+    assert any(item["channel"] == "in_app" for item in body["channels"])

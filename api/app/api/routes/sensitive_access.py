@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -22,6 +24,9 @@ from app.schemas.sensitive_access import (
     NotificationDispatchItem,
     NotificationDispatchRetryRequest,
     NotificationDispatchRetryResponse,
+    SensitiveAccessInboxEntryItem,
+    SensitiveAccessInboxResponse,
+    SensitiveAccessInboxSummary,
     SensitiveAccessRequestCreateRequest,
     SensitiveAccessRequestItem,
     SensitiveAccessRequestResponse,
@@ -41,6 +46,7 @@ from app.services.operator_run_follow_up import (
     build_operator_run_follow_up_summary,
     load_operator_run_snapshot,
 )
+from app.services.run_views import RunViewService
 from app.services.sensitive_access_action_explanations import (
     build_approval_decision_outcome_explanation,
     build_bulk_approval_decision_outcome_explanation,
@@ -65,6 +71,7 @@ from app.services.sensitive_access_presenters import (
 
 router = APIRouter(prefix="/sensitive-access", tags=["sensitive-access"])
 service = SensitiveAccessControlService()
+run_view_service = RunViewService()
 
 
 def _resolve_single_run_follow_up(
@@ -276,6 +283,178 @@ def create_sensitive_access_request(
     return _serialize_access_bundle(bundle, db=db)
 
 
+def _serialize_notification_channels(
+    db: Session,
+) -> list[NotificationChannelCapabilityItem]:
+    return [
+        NotificationChannelCapabilityItem(
+            channel=item.capability.channel,
+            delivery_mode=item.capability.delivery_mode,
+            target_kind=item.capability.target_kind,
+            configured=item.capability.configured,
+            health_status=item.capability.health_status,
+            summary=item.capability.summary,
+            target_hint=item.capability.target_hint,
+            target_example=item.capability.target_example,
+            health_reason=item.health_reason,
+            config_facts=[
+                NotificationChannelConfigFactItem(
+                    key=fact.key,
+                    label=fact.label,
+                    status=fact.status,
+                    value=fact.value,
+                )
+                for fact in item.config_facts
+            ],
+            dispatch_summary=NotificationChannelDispatchSummaryItem(
+                pending_count=item.dispatch_summary.pending_count,
+                delivered_count=item.dispatch_summary.delivered_count,
+                failed_count=item.dispatch_summary.failed_count,
+                latest_dispatch_at=item.dispatch_summary.latest_dispatch_at,
+                latest_delivered_at=item.dispatch_summary.latest_delivered_at,
+                latest_failure_at=item.dispatch_summary.latest_failure_at,
+                latest_failure_error=item.dispatch_summary.latest_failure_error,
+                latest_failure_target=item.dispatch_summary.latest_failure_target,
+            ),
+        )
+        for item in list_notification_channel_diagnostics(db)
+    ]
+
+
+def _build_sensitive_access_inbox_summary(
+    entries: list[SensitiveAccessInboxEntryItem],
+) -> SensitiveAccessInboxSummary:
+    notifications = [item for entry in entries for item in entry.notifications]
+    return SensitiveAccessInboxSummary(
+        ticket_count=len(entries),
+        pending_ticket_count=sum(1 for entry in entries if entry.ticket.status == "pending"),
+        approved_ticket_count=sum(1 for entry in entries if entry.ticket.status == "approved"),
+        rejected_ticket_count=sum(1 for entry in entries if entry.ticket.status == "rejected"),
+        expired_ticket_count=sum(1 for entry in entries if entry.ticket.status == "expired"),
+        waiting_ticket_count=sum(
+            1 for entry in entries if entry.ticket.waiting_status == "waiting"
+        ),
+        resumed_ticket_count=sum(
+            1 for entry in entries if entry.ticket.waiting_status == "resumed"
+        ),
+        failed_ticket_count=sum(
+            1 for entry in entries if entry.ticket.waiting_status == "failed"
+        ),
+        pending_notification_count=sum(1 for item in notifications if item.status == "pending"),
+        delivered_notification_count=sum(1 for item in notifications if item.status == "delivered"),
+        failed_notification_count=sum(1 for item in notifications if item.status == "failed"),
+    )
+
+
+@router.get("/inbox", response_model=SensitiveAccessInboxResponse)
+def get_sensitive_access_inbox(
+    status: str | None = Query(default=None),
+    waiting_status: str | None = Query(default=None),
+    decision: str | None = Query(default=None),
+    requester_type: str | None = Query(default=None),
+    notification_status: str | None = Query(default=None),
+    notification_channel: str | None = Query(default=None),
+    run_id: str | None = Query(default=None),
+    node_run_id: str | None = Query(default=None),
+    access_request_id: str | None = Query(default=None),
+    approval_ticket_id: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+) -> SensitiveAccessInboxResponse:
+    resources = [
+        serialize_sensitive_resource(record) for record in service.list_resources(db)
+    ]
+    requests = [
+        serialize_sensitive_access_request(record)
+        for record in service.list_access_requests(
+            db,
+            decision=decision,
+            requester_type=requester_type,
+            run_id=run_id,
+            node_run_id=node_run_id,
+            access_request_id=access_request_id,
+        )
+    ]
+    tickets = [
+        serialize_approval_ticket(record)
+        for record in service.list_approval_tickets(
+            db,
+            status=status,
+            waiting_status=waiting_status,
+            run_id=run_id,
+            node_run_id=node_run_id,
+            access_request_id=access_request_id,
+            approval_ticket_id=approval_ticket_id,
+        )
+    ]
+    notifications = [
+        serialize_notification_dispatch(record)
+        for record in service.list_notification_dispatches(
+            db,
+            approval_ticket_id=approval_ticket_id,
+            run_id=run_id,
+            node_run_id=node_run_id,
+            access_request_id=access_request_id,
+            status=notification_status,
+            channel=notification_channel,
+        )
+    ]
+    channels = _serialize_notification_channels(db)
+
+    requests_by_id = {item.id: item for item in requests}
+    resources_by_id = {item.id: item for item in resources}
+    notifications_by_ticket_id: dict[str, list[NotificationDispatchItem]] = defaultdict(list)
+    for item in notifications:
+        notifications_by_ticket_id[item.approval_ticket_id].append(item)
+
+    entries: list[SensitiveAccessInboxEntryItem] = []
+    for ticket in tickets:
+        request = requests_by_id.get(ticket.access_request_id)
+        if (decision or requester_type) and request is None:
+            continue
+
+        ticket_notifications = notifications_by_ticket_id.get(ticket.id, [])
+        if (notification_status or notification_channel) and not ticket_notifications:
+            continue
+
+        entries.append(
+            SensitiveAccessInboxEntryItem(
+                ticket=ticket,
+                request=request,
+                resource=(
+                    resources_by_id.get(request.resource_id)
+                    if request is not None
+                    else None
+                ),
+                notifications=ticket_notifications,
+            )
+        )
+
+    entries.sort(key=lambda item: item.ticket.created_at, reverse=True)
+
+    execution_views = []
+    seen_run_ids: set[str] = set()
+    for entry in entries:
+        ticket_run_id = (entry.ticket.run_id or "").strip()
+        request_run_id = (entry.request.run_id or "").strip() if entry.request else ""
+        entry_run_id = ticket_run_id or request_run_id
+        if not entry_run_id or entry_run_id in seen_run_ids:
+            continue
+        seen_run_ids.add(entry_run_id)
+        execution_view = run_view_service.get_execution_view(db, entry_run_id)
+        if execution_view is not None:
+            execution_views.append(execution_view.model_dump(mode="json"))
+
+    return SensitiveAccessInboxResponse(
+        entries=entries,
+        channels=channels,
+        resources=resources,
+        requests=requests,
+        notifications=notifications,
+        execution_views=execution_views,
+        summary=_build_sensitive_access_inbox_summary(entries),
+    )
+
+
 @router.get("/requests", response_model=list[SensitiveAccessRequestItem])
 def list_sensitive_access_requests(
     decision: str | None = Query(default=None),
@@ -325,39 +504,7 @@ def list_approval_tickets(
 def list_notification_channels(
     db: Session = Depends(get_db),
 ) -> list[NotificationChannelCapabilityItem]:
-    return [
-        NotificationChannelCapabilityItem(
-            channel=item.capability.channel,
-            delivery_mode=item.capability.delivery_mode,
-            target_kind=item.capability.target_kind,
-            configured=item.capability.configured,
-            health_status=item.capability.health_status,
-            summary=item.capability.summary,
-            target_hint=item.capability.target_hint,
-            target_example=item.capability.target_example,
-            health_reason=item.health_reason,
-            config_facts=[
-                NotificationChannelConfigFactItem(
-                    key=fact.key,
-                    label=fact.label,
-                    status=fact.status,
-                    value=fact.value,
-                )
-                for fact in item.config_facts
-            ],
-            dispatch_summary=NotificationChannelDispatchSummaryItem(
-                pending_count=item.dispatch_summary.pending_count,
-                delivered_count=item.dispatch_summary.delivered_count,
-                failed_count=item.dispatch_summary.failed_count,
-                latest_dispatch_at=item.dispatch_summary.latest_dispatch_at,
-                latest_delivered_at=item.dispatch_summary.latest_delivered_at,
-                latest_failure_at=item.dispatch_summary.latest_failure_at,
-                latest_failure_error=item.dispatch_summary.latest_failure_error,
-                latest_failure_target=item.dispatch_summary.latest_failure_target,
-            ),
-        )
-        for item in list_notification_channel_diagnostics(db)
-    ]
+    return _serialize_notification_channels(db)
 
 
 @router.post(
