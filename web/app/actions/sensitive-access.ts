@@ -536,6 +536,9 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
           blockerDeltaSummary: blockerDelta?.summary
         })
       }),
+      outcomeExplanation: body?.outcome_explanation ?? null,
+      runFollowUpExplanation: body?.run_follow_up?.explanation ?? null,
+      blockerDeltaSummary: blockerDelta?.summary ?? null,
       requestedCount: body?.requested_count ?? ticketIds.length,
       updatedCount,
       skippedCount,
@@ -545,6 +548,7 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
       blockerClearedCount: blockerDelta?.cleared_scope_count ?? 0,
       blockerFullyClearedCount: blockerDelta?.fully_cleared_scope_count ?? 0,
       blockerStillBlockedCount: blockerDelta?.still_blocked_scope_count ?? 0,
+      sampledRuns,
       ...followUpSummary
     };
   } catch {
@@ -645,6 +649,9 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
           blockerDeltaSummary: blockerDelta?.summary
         })
       }),
+      outcomeExplanation: body?.outcome_explanation ?? null,
+      runFollowUpExplanation: body?.run_follow_up?.explanation ?? null,
+      blockerDeltaSummary: blockerDelta?.summary ?? null,
       requestedCount: body?.requested_count ?? dispatchIds.length,
       updatedCount,
       skippedCount,
@@ -654,6 +661,7 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
       blockerClearedCount: blockerDelta?.cleared_scope_count ?? 0,
       blockerFullyClearedCount: blockerDelta?.fully_cleared_scope_count ?? 0,
       blockerStillBlockedCount: blockerDelta?.still_blocked_scope_count ?? 0,
+      sampledRuns,
       ...followUpSummary
     };
   } catch {

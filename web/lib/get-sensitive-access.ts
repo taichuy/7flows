@@ -72,6 +72,23 @@ export type SignalFollowUpExplanation = {
   follow_up?: string | null;
 };
 
+export type OperatorRunSnapshotSummary = {
+  status?: string | null;
+  workflowId?: string | null;
+  currentNodeId?: string | null;
+  waitingReason?: string | null;
+  executionFocusReason?: string | null;
+  executionFocusNodeId?: string | null;
+  executionFocusNodeRunId?: string | null;
+  executionFocusExplanation?: SignalFollowUpExplanation | null;
+  callbackWaitingExplanation?: SignalFollowUpExplanation | null;
+};
+
+export type SensitiveAccessBulkRunSample = {
+  runId: string;
+  snapshot: OperatorRunSnapshotSummary | null;
+};
+
 export type NotificationChannelCapabilityItem = {
   channel: "in_app" | "webhook" | "feishu" | "slack" | "email";
   delivery_mode: "inline" | "worker";
@@ -143,6 +160,9 @@ export type SensitiveAccessBulkActionResult = {
   action: SensitiveAccessBulkAction;
   status: "success" | "error";
   message: string;
+  outcomeExplanation?: SignalFollowUpExplanation | null;
+  runFollowUpExplanation?: SignalFollowUpExplanation | null;
+  blockerDeltaSummary?: string | null;
   requestedCount: number;
   updatedCount: number;
   skippedCount: number;
@@ -159,6 +179,7 @@ export type SensitiveAccessBulkActionResult = {
   blockerClearedCount: number;
   blockerFullyClearedCount: number;
   blockerStillBlockedCount: number;
+  sampledRuns?: SensitiveAccessBulkRunSample[];
 };
 
 export type SensitiveAccessInboxSnapshot = {

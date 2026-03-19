@@ -4,6 +4,7 @@ import type {
   SensitiveAccessBulkAction,
   SensitiveAccessBulkActionResult
 } from "@/lib/get-sensitive-access";
+import { buildSensitiveAccessBulkResultNarrative } from "@/lib/sensitive-access-bulk-result-presenters";
 
 type SensitiveAccessBulkGovernanceCardProps = {
   inScopeCount: number;
@@ -119,6 +120,17 @@ export function SensitiveAccessBulkGovernanceCard({
                   still blocked {lastResult.blockerStillBlockedCount}
                 </span>
               ) : null}
+            </div>
+          ) : null}
+
+          {buildSensitiveAccessBulkResultNarrative(lastResult).length > 0 ? (
+            <div className="binding-section">
+              {buildSensitiveAccessBulkResultNarrative(lastResult).map((item) => (
+                <p className="binding-meta" key={`${item.label}-${item.text}`}>
+                  <strong>{item.label}：</strong>
+                  {item.text}
+                </p>
+              ))}
             </div>
           ) : null}
         </>
