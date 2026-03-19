@@ -4,7 +4,10 @@ import type {
   PluginAdapterRegistryItem,
   PluginToolRegistryItem
 } from "./get-plugin-registry";
-import type { SandboxReadinessCheck } from "./get-system-overview";
+import type {
+  SandboxBackendCheck,
+  SandboxReadinessCheck
+} from "./get-system-overview";
 import { buildExecutionCapabilityIssue } from "./workflow-tool-execution-validation-helpers";
 
 function createCompatTool(): PluginToolRegistryItem {
@@ -53,6 +56,7 @@ function createSandboxReadiness(): SandboxReadinessCheck {
         supported_languages: ["python"],
         supported_profiles: ["python-safe"],
         supported_dependency_modes: ["builtin"],
+        supports_tool_execution: true,
         supports_builtin_package_sets: true,
         supports_backend_extensions: false,
         supports_network_policy: true,
@@ -66,6 +70,7 @@ function createSandboxReadiness(): SandboxReadinessCheck {
         supported_languages: ["python"],
         supported_profiles: [],
         supported_dependency_modes: ["dependency_ref"],
+        supports_tool_execution: true,
         supports_builtin_package_sets: false,
         supports_backend_extensions: true,
         supports_network_policy: false,
@@ -76,11 +81,47 @@ function createSandboxReadiness(): SandboxReadinessCheck {
     supported_languages: ["python"],
     supported_profiles: ["python-safe"],
     supported_dependency_modes: ["builtin", "dependency_ref"],
+    supports_tool_execution: true,
     supports_builtin_package_sets: true,
     supports_backend_extensions: true,
     supports_network_policy: true,
     supports_filesystem_policy: true
   };
+}
+
+function createSandboxBackends(
+  overrides?: Partial<SandboxBackendCheck>[]
+): SandboxBackendCheck[] {
+  const defaults: SandboxBackendCheck[] = [
+    {
+      id: "sandbox-default",
+      kind: "process",
+      endpoint: "http://sandbox.local",
+      enabled: true,
+      status: "healthy",
+      capability: {
+        supported_execution_classes: ["sandbox", "microvm"],
+        supported_languages: ["python"],
+        supported_profiles: ["python-safe"],
+        supported_dependency_modes: ["builtin", "dependency_ref"],
+        supports_tool_execution: true,
+        supports_builtin_package_sets: true,
+        supports_backend_extensions: true,
+        supports_network_policy: true,
+        supports_filesystem_policy: true
+      },
+      detail: null
+    }
+  ];
+
+  return (overrides ?? defaults).map((override, index) => ({
+    ...defaults[index]!,
+    ...override,
+    capability: {
+      ...defaults[index]!.capability,
+      ...(override?.capability ?? {})
+    }
+  }));
 }
 
 describe("workflow tool execution validation helpers", () => {
@@ -128,5 +169,34 @@ describe("workflow tool execution validation helpers", () => {
     });
 
     expect(issue?.message).toContain("networkPolicy = egress-deny");
+  });
+
+  it("在 backend 未声明 tool execution capability 时阻断强隔离工具", () => {
+    const issue = buildExecutionCapabilityIssue({
+      context: "节点 toolPolicy.execution",
+      nodeId: "node-1",
+      nodeName: "Node 1",
+      toolId: "compat:dify:plugin:demo/search",
+      tool: createCompatTool(),
+      ecosystem: "compat:dify",
+      adapterId: "dify-default",
+      requestedExecutionClass: "sandbox",
+      executionPayload: {
+        class: "sandbox"
+      },
+      adapters: [createAdapter()],
+      sandboxReadiness: createSandboxReadiness(),
+      sandboxBackends: createSandboxBackends([
+        {
+          capability: {
+            supports_tool_execution: false
+          }
+        }
+      ]),
+      path: "nodes[0].config.toolPolicy.execution",
+      field: "execution"
+    });
+
+    expect(issue?.message).toContain("sandbox-backed tool execution");
   });
 });

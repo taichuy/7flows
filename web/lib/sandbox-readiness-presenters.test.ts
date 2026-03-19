@@ -26,6 +26,7 @@ function createReadiness(
         supported_languages: ["python"],
         supported_profiles: ["default"],
         supported_dependency_modes: ["builtin"],
+        supports_tool_execution: true,
         supports_builtin_package_sets: true,
         supports_backend_extensions: false,
         supports_network_policy: true,
@@ -39,6 +40,7 @@ function createReadiness(
         supported_languages: ["python"],
         supported_profiles: ["default"],
         supported_dependency_modes: ["builtin"],
+        supports_tool_execution: true,
         supports_builtin_package_sets: true,
         supports_backend_extensions: false,
         supports_network_policy: true,
@@ -49,6 +51,7 @@ function createReadiness(
     supported_languages: ["python"],
     supported_profiles: ["default"],
     supported_dependency_modes: ["builtin"],
+    supports_tool_execution: true,
     supports_builtin_package_sets: true,
     supports_backend_extensions: false,
     supports_network_policy: true,
@@ -70,6 +73,7 @@ describe("sandbox readiness presenters", () => {
           supported_languages: [],
           supported_profiles: [],
           supported_dependency_modes: [],
+          supports_tool_execution: false,
           supports_builtin_package_sets: false,
           supports_backend_extensions: false,
           supports_network_policy: false,
@@ -84,6 +88,7 @@ describe("sandbox readiness presenters", () => {
           supported_languages: [],
           supported_profiles: [],
           supported_dependency_modes: [],
+          supports_tool_execution: false,
           supports_builtin_package_sets: false,
           supports_backend_extensions: false,
           supports_network_policy: false,
@@ -95,6 +100,7 @@ describe("sandbox readiness presenters", () => {
       supported_languages: [],
       supported_profiles: [],
       supported_dependency_modes: [],
+      supports_tool_execution: false,
       supports_builtin_package_sets: false,
       supports_network_policy: false
     });
@@ -124,6 +130,7 @@ describe("sandbox readiness presenters", () => {
           supported_languages: ["python"],
           supported_profiles: ["default"],
           supported_dependency_modes: ["builtin"],
+          supports_tool_execution: true,
           supports_builtin_package_sets: true,
           supports_backend_extensions: false,
           supports_network_policy: true,
@@ -137,6 +144,7 @@ describe("sandbox readiness presenters", () => {
           supported_languages: [],
           supported_profiles: [],
           supported_dependency_modes: [],
+          supports_tool_execution: false,
           supports_builtin_package_sets: false,
           supports_backend_extensions: false,
           supports_network_policy: false,
@@ -162,6 +170,7 @@ describe("sandbox readiness presenters", () => {
   it("在链路可用时汇总 capability chips 与降级提醒", () => {
     const readiness = createReadiness({
       degraded_backend_count: 1,
+      supports_tool_execution: true,
       supports_backend_extensions: true,
       supports_filesystem_policy: true
     });
@@ -173,6 +182,7 @@ describe("sandbox readiness presenters", () => {
       "当前有 1 个已启用 backend 处于 degraded"
     );
     expect(listSandboxReadinessCapabilityChips(readiness)).toEqual([
+      "tool execution",
       "builtin package sets",
       "backend extensions",
       "network policy",

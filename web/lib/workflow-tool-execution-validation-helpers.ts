@@ -318,7 +318,8 @@ function buildSandboxReadinessIssue({
     requestedExecutionClass,
     executionPayload,
     sandboxReadiness,
-    sandboxBackends
+    sandboxBackends,
+    requireToolExecutionCapability: true
   });
   if (compatibility.available) {
     return null;
@@ -471,7 +472,8 @@ function buildDefaultSandboxReadinessIssue({
     requestedExecutionClass: defaultExecutionClass,
     executionPayload: null,
     sandboxReadiness,
-    sandboxBackends
+    sandboxBackends,
+    requireToolExecutionCapability: true
   });
   if (compatibility.available) {
     return null;
@@ -503,26 +505,39 @@ export function describeSandboxBackendCompatibility({
   executionPayload,
   sandboxReadiness,
   sandboxBackends,
-  language
+  language,
+  requireToolExecutionCapability = false
 }: {
   requestedExecutionClass: string;
   executionPayload: Record<string, unknown> | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   sandboxBackends?: SandboxBackendCheck[] | null;
   language?: string | null;
+  requireToolExecutionCapability?: boolean;
 }): { available: boolean; reason: string | null } {
   if (requestedExecutionClass !== "sandbox" && requestedExecutionClass !== "microvm") {
     return { available: true, reason: null };
   }
 
   const enabledBackends = (sandboxBackends ?? []).filter((backend) => backend.enabled);
+  const readiness = sandboxReadiness?.execution_classes.find(
+    (item) => item.execution_class === requestedExecutionClass
+  );
   if (enabledBackends.length === 0) {
+    if (
+      requireToolExecutionCapability &&
+      readiness?.available &&
+      !(readiness.supports_tool_execution ?? sandboxReadiness?.supports_tool_execution)
+    ) {
+      return {
+        available: false,
+        reason:
+          "当前 sandbox readiness 只说明该 execution class 对代码执行可用，但还没有 backend 宣告 sandbox-backed tool execution capability。"
+      };
+    }
     return {
       available: false,
-      reason:
-        sandboxReadiness?.execution_classes.find(
-          (item) => item.execution_class === requestedExecutionClass
-        )?.reason ?? null
+      reason: readiness?.reason ?? null
     };
   }
 
@@ -546,6 +561,10 @@ export function describeSandboxBackendCompatibility({
       reasons.push(
         `${backend.id}: does not support executionClass = ${requestedExecutionClass}`
       );
+      continue;
+    }
+    if (requireToolExecutionCapability && !capability.supports_tool_execution) {
+      reasons.push(`${backend.id}: does not support sandbox-backed tool execution`);
       continue;
     }
     if (
@@ -594,9 +613,7 @@ export function describeSandboxBackendCompatibility({
     return { available: true, reason: null };
   }
 
-  const readinessReason = sandboxReadiness?.execution_classes
-    .find((item) => item.execution_class === requestedExecutionClass)
-    ?.reason?.trim();
+  const readinessReason = readiness?.reason?.trim();
   const detail = reasons.length > 0 ? reasons.join("；") : readinessReason;
   return {
     available: false,

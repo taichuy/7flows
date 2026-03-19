@@ -20,6 +20,7 @@ export type SandboxBackendCapabilityCheck = {
   supported_languages: string[];
   supported_profiles: string[];
   supported_dependency_modes: string[];
+  supports_tool_execution: boolean;
   supports_builtin_package_sets: boolean;
   supports_backend_extensions: boolean;
   supports_network_policy: boolean;
@@ -43,6 +44,7 @@ export type SandboxExecutionClassReadinessCheck = {
   supported_languages: string[];
   supported_profiles: string[];
   supported_dependency_modes: string[];
+  supports_tool_execution: boolean;
   supports_builtin_package_sets: boolean;
   supports_backend_extensions: boolean;
   supports_network_policy: boolean;
@@ -59,6 +61,7 @@ export type SandboxReadinessCheck = {
   supported_languages: string[];
   supported_profiles: string[];
   supported_dependency_modes: string[];
+  supports_tool_execution: boolean;
   supports_builtin_package_sets: boolean;
   supports_backend_extensions: boolean;
   supports_network_policy: boolean;
@@ -172,6 +175,7 @@ const fallback: SystemOverview = {
     supported_languages: [],
     supported_profiles: [],
     supported_dependency_modes: [],
+    supports_tool_execution: false,
     supports_builtin_package_sets: false,
     supports_backend_extensions: false,
     supports_network_policy: false,

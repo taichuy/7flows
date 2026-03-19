@@ -5,6 +5,10 @@ import type {
 
 const readinessCapabilityLabels = [
   {
+    enabled: "supports_tool_execution",
+    label: "tool execution"
+  },
+  {
     enabled: "supports_builtin_package_sets",
     label: "builtin package sets"
   },
@@ -23,6 +27,7 @@ const readinessCapabilityLabels = [
 ] as const satisfies Array<{
   enabled: keyof Pick<
     SandboxReadinessCheck,
+    | "supports_tool_execution"
     | "supports_builtin_package_sets"
     | "supports_backend_extensions"
     | "supports_network_policy"
@@ -60,6 +65,9 @@ export function buildSandboxExecutionClassCapabilityChips(
     ...entry.supported_dependency_modes.map((mode) => `dependency ${mode}`)
   ];
 
+  if (entry.supports_tool_execution) {
+    chips.push("tool execution");
+  }
   if (entry.supports_builtin_package_sets) {
     chips.push("builtin package sets");
   }

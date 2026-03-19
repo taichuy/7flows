@@ -169,6 +169,7 @@ def _serialize_sandbox_backend(backend) -> SandboxBackendCheck:
             supported_languages=list(backend.capability.supported_languages),
             supported_profiles=list(backend.capability.supported_profiles),
             supported_dependency_modes=list(backend.capability.supported_dependency_modes),
+            supports_tool_execution=backend.capability.supports_tool_execution,
             supports_builtin_package_sets=backend.capability.supports_builtin_package_sets,
             supports_backend_extensions=backend.capability.supports_backend_extensions,
             supports_network_policy=backend.capability.supports_network_policy,
@@ -224,6 +225,9 @@ def _build_sandbox_readiness(sandbox_backends: list) -> SandboxReadinessCheck:
         supported_languages=languages,
         supported_profiles=profiles,
         supported_dependency_modes=dependency_modes,
+        supports_tool_execution=any(
+            backend.capability.supports_tool_execution for backend in operable_backends
+        ),
         supports_builtin_package_sets=any(
             backend.capability.supports_builtin_package_sets for backend in operable_backends
         ),
@@ -275,6 +279,10 @@ def _build_sandbox_execution_class_readiness(
                 for backend in class_operable_backends
                 for dependency_mode in backend.capability.supported_dependency_modes
             }
+        ),
+        supports_tool_execution=any(
+            backend.capability.supports_tool_execution
+            for backend in class_operable_backends
         ),
         supports_builtin_package_sets=any(
             backend.capability.supports_builtin_package_sets

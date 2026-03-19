@@ -23,6 +23,7 @@ class SandboxBackendCapabilityCheck(BaseModel):
     supported_languages: list[str] = Field(default_factory=list)
     supported_profiles: list[str] = Field(default_factory=list)
     supported_dependency_modes: list[str] = Field(default_factory=list)
+    supports_tool_execution: bool = False
     supports_builtin_package_sets: bool = False
     supports_backend_extensions: bool = False
     supports_network_policy: bool = False
@@ -46,6 +47,7 @@ class SandboxExecutionClassReadinessCheck(BaseModel):
     supported_languages: list[str] = Field(default_factory=list)
     supported_profiles: list[str] = Field(default_factory=list)
     supported_dependency_modes: list[str] = Field(default_factory=list)
+    supports_tool_execution: bool = False
     supports_builtin_package_sets: bool = False
     supports_backend_extensions: bool = False
     supports_network_policy: bool = False
@@ -62,6 +64,7 @@ class SandboxReadinessCheck(BaseModel):
     supported_languages: list[str] = Field(default_factory=list)
     supported_profiles: list[str] = Field(default_factory=list)
     supported_dependency_modes: list[str] = Field(default_factory=list)
+    supports_tool_execution: bool = False
     supports_builtin_package_sets: bool = False
     supports_backend_extensions: bool = False
     supports_network_policy: bool = False
