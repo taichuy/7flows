@@ -15,14 +15,27 @@ def build_tool_execution_not_yet_isolated_reason(
     *,
     tool_id: str,
     execution_class: str,
+    backend_selection: SandboxBackendSelection | None = None,
 ) -> str:
     normalized_execution_class = execution_class.strip().lower() or execution_class
-    requested_execution_summary = (
-        f"Tool '{tool_id}' requests execution class "
-        f"'{normalized_execution_class}', but "
-    )
+    requested_execution_summary = f"Tool '{tool_id}' requests execution class '{normalized_execution_class}'. "
+    backend_summary = ""
+    if (
+        backend_selection is not None
+        and backend_selection.available
+        and backend_selection.backend_id is not None
+    ):
+        backend_summary = (
+            f"A compatible sandbox backend has already been selected "
+            f"({backend_selection.backend_id}"
+        )
+        if backend_selection.executor_ref:
+            backend_summary += f", {backend_selection.executor_ref}"
+        backend_summary += "), but "
+
     return (
         requested_execution_summary
+        + backend_summary
         + "7Flows does not yet "
         "implement sandbox-backed tool execution for native / compat tool paths. "
         "Current host / adapter invokers cannot honestly enforce this strong-isolation contract, "

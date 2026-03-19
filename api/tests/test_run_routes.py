@@ -19,6 +19,21 @@ from app.services.compiled_blueprints import CompiledBlueprintService
 from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
 from app.services.run_resume_scheduler import RunResumeScheduler
 from app.services.runtime import RuntimeService
+from app.services.sandbox_backends import (
+    SandboxBackendCapability,
+    SandboxBackendClient,
+    SandboxBackendHealth,
+    SandboxBackendRegistration,
+    SandboxBackendRegistry,
+)
+
+
+class _StaticSandboxHealthChecker:
+    def __init__(self, healths: list[SandboxBackendHealth]) -> None:
+        self._healths = healths
+
+    def probe_all(self, registry: SandboxBackendRegistry) -> list[SandboxBackendHealth]:
+        return list(self._healths)
 
 
 def test_execute_workflow_route(
@@ -420,6 +435,136 @@ def test_get_run_execution_view_summarizes_unavailable_sandbox_execution(
     assert node["execution_blocked_count"] == 0
     assert node["execution_unavailable_count"] == 1
     assert "sandbox backend" in (node["execution_blocking_reason"] or "")
+
+
+def test_get_run_execution_view_surfaces_selected_backend_for_tool_runner_gap(
+    client: TestClient,
+    sqlite_session: Session,
+    monkeypatch,
+) -> None:
+    workflow = Workflow(
+        id="wf-execution-view-tool-strong-isolation",
+        name="Execution View Tool Strong Isolation",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "risk_tool",
+                    "type": "tool",
+                    "name": "Risk Tool",
+                    "config": {
+                        "mock_output": {"answer": "blocked"},
+                    },
+                    "runtimePolicy": {
+                        "execution": {
+                            "class": "microvm",
+                            "profile": "tool-risk",
+                            "networkPolicy": "isolated",
+                            "filesystemPolicy": "ephemeral",
+                        }
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "risk_tool"},
+                {"id": "e2", "sourceNodeId": "risk_tool", "targetNodeId": "output"},
+            ],
+        },
+    )
+    workflow_version = WorkflowVersion(
+        id="wf-execution-view-tool-strong-isolation-v1",
+        workflow_id=workflow.id,
+        version=workflow.version,
+        definition=workflow.definition,
+        created_at=datetime.now(UTC),
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.add(workflow_version)
+    CompiledBlueprintService().ensure_for_workflow_version(sqlite_session, workflow_version)
+    sqlite_session.commit()
+
+    sandbox_registry = SandboxBackendRegistry()
+    sandbox_capability = SandboxBackendCapability(
+        supported_execution_classes=("microvm",),
+        supported_profiles=("tool-risk",),
+        supports_network_policy=True,
+        supports_filesystem_policy=True,
+    )
+    sandbox_registry.register_backend(
+        SandboxBackendRegistration(
+            id="sandbox-default",
+            kind="official",
+            endpoint="http://sandbox.local",
+            enabled=True,
+            health_status="healthy",
+            capability=sandbox_capability,
+        )
+    )
+    sandbox_backend_client = SandboxBackendClient(
+        sandbox_registry,
+        health_checker=_StaticSandboxHealthChecker(
+            [
+                SandboxBackendHealth(
+                    id="sandbox-default",
+                    kind="official",
+                    endpoint="http://sandbox.local",
+                    enabled=True,
+                    status="healthy",
+                    capability=sandbox_capability,
+                )
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        run_routes,
+        "runtime_service",
+        RuntimeService(sandbox_backend_client=sandbox_backend_client),
+    )
+
+    response = client.post(
+        f"/api/workflows/{workflow.id}/runs",
+        json={"input_payload": {"message": "tool runner gap"}},
+    )
+    assert response.status_code == 422
+
+    persisted_run = run_routes.runtime_service.list_workflow_runs(sqlite_session, workflow.id)[0]
+    execution_view_response = client.get(f"/api/runs/{persisted_run.id}/execution-view")
+
+    assert execution_view_response.status_code == 200
+    body = execution_view_response.json()
+    assert body["summary"]["execution_dispatched_node_count"] == 0
+    assert body["summary"]["execution_fallback_node_count"] == 0
+    assert body["summary"]["execution_blocked_node_count"] == 0
+    assert body["summary"]["execution_unavailable_node_count"] == 1
+    assert body["summary"]["execution_requested_class_counts"] == {"microvm": 1}
+    assert body["summary"]["execution_effective_class_counts"] == {}
+    assert body["summary"]["execution_executor_ref_counts"] == {}
+    assert body["summary"]["execution_sandbox_backend_counts"] == {"sandbox-default": 1}
+    assert body["execution_focus_explanation"] == {
+        "primary_signal": "执行阻断：当前 tool 路径还不能真实兑现请求的强隔离 execution class。",
+        "follow_up": (
+            "下一步：先把 tool execution class 调回当前宿主执行支持范围，"
+            "或后续补齐 sandbox tool runner；在此之前继续保持 fail-closed。"
+        ),
+    }
+
+    node = next(item for item in body["nodes"] if item["node_id"] == "risk_tool")
+    assert node["execution_class"] == "microvm"
+    assert node["effective_execution_class"] is None
+    assert node["execution_dispatched_count"] == 0
+    assert node["execution_fallback_count"] == 0
+    assert node["execution_blocked_count"] == 0
+    assert node["execution_unavailable_count"] == 1
+    assert node["execution_sandbox_backend_id"] == "sandbox-default"
+    assert (
+        node["execution_sandbox_backend_executor_ref"]
+        == "sandbox-backend:sandbox-default"
+    )
+    assert "sandbox-backed tool execution" in (node["execution_blocking_reason"] or "")
+    assert "sandbox-default" in (node["execution_blocking_reason"] or "")
 
 
 def test_get_run_supports_summary_mode_without_events(

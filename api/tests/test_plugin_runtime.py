@@ -374,11 +374,13 @@ def test_plugin_call_proxy_fail_closes_explicit_strong_isolation_for_compat_adap
         "requested_dependency_ref": None,
         "requested_backend_extensions": {"mountPreset": "analytics"},
         "executor_ref": "tool:compat-adapter:dify-default",
-        "sandbox_backend_id": None,
-        "sandbox_backend_executor_ref": None,
+        "sandbox_backend_id": "sandbox-default",
+        "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
         "fallback_reason": None,
         "blocked_reason": (
-            "Tool 'compat:dify:plugin:demo/search' requests execution class 'microvm', but "
+            "Tool 'compat:dify:plugin:demo/search' requests execution class 'microvm'. "
+            "A compatible sandbox backend has already been selected "
+            "(sandbox-default, sandbox-backend:sandbox-default), but "
             "7Flows does not yet implement sandbox-backed tool execution for native / compat "
             "tool paths. Current host / adapter invokers cannot honestly enforce this "
             "strong-isolation contract, so the path must fail closed until a sandbox tool "
@@ -932,11 +934,14 @@ def test_plugin_call_proxy_fail_closes_supported_strong_isolation_for_native_too
         "requested_dependency_ref": None,
         "requested_backend_extensions": None,
         "executor_ref": "tool:native-sandbox",
-        "sandbox_backend_id": None,
-        "sandbox_backend_executor_ref": None,
+        "sandbox_backend_id": "sandbox-default",
+        "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
         "fallback_reason": None,
         "blocked_reason": (
-            "Tool 'native.search' requests execution class 'sandbox', but 7Flows does not yet "
+            "Tool 'native.search' requests execution class 'sandbox'. "
+            "A compatible sandbox backend has already been selected "
+            "(sandbox-default, sandbox-backend:sandbox-default), but "
+            "7Flows does not yet "
             "implement sandbox-backed tool execution for native / compat tool paths. Current "
             "host / adapter invokers cannot honestly enforce this strong-isolation contract, "
             "so the path must fail closed until a sandbox tool runner is available."
@@ -1143,12 +1148,15 @@ def test_plugin_call_proxy_fail_closes_default_strong_isolation_for_native_tool(
         "requested_dependency_ref": None,
         "requested_backend_extensions": None,
         "executor_ref": "tool:native-sandbox",
-        "sandbox_backend_id": None,
-        "sandbox_backend_executor_ref": None,
+        "sandbox_backend_id": "sandbox-default",
+        "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
         "fallback_reason": None,
         "blocked_reason": (
-            "Tool 'native.risk-search' requests execution class 'sandbox', but 7Flows does not "
-            "yet implement sandbox-backed tool execution for native / compat tool paths. Current "
+            "Tool 'native.risk-search' requests execution class 'sandbox'. "
+            "A compatible sandbox backend has already been selected "
+            "(sandbox-default, sandbox-backend:sandbox-default), but "
+            "7Flows does not yet implement sandbox-backed tool execution for native / compat "
+            "tool paths. Current "
             "host / adapter invokers cannot honestly enforce this strong-isolation contract, so "
             "the path must fail closed until a sandbox tool runner is available."
         ),
@@ -1310,11 +1318,13 @@ def test_plugin_call_proxy_fail_closes_supported_strong_isolation_for_compat_ada
         "requested_dependency_ref": None,
         "requested_backend_extensions": None,
         "executor_ref": "tool:compat-adapter:dify-microvm",
-        "sandbox_backend_id": None,
-        "sandbox_backend_executor_ref": None,
+        "sandbox_backend_id": "sandbox-default",
+        "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
         "fallback_reason": None,
         "blocked_reason": (
-            "Tool 'compat:dify:plugin:demo/search' requests execution class 'microvm', but "
+            "Tool 'compat:dify:plugin:demo/search' requests execution class 'microvm'. "
+            "A compatible sandbox backend has already been selected "
+            "(sandbox-default, sandbox-backend:sandbox-default), but "
             "7Flows does not yet implement sandbox-backed tool execution for native / compat "
             "tool paths. Current host / adapter invokers cannot honestly enforce this "
             "strong-isolation contract, so the path must fail closed until a sandbox tool "

@@ -141,6 +141,20 @@ class RuntimeNodePreparationSupportMixin:
                         "node_type": node.get("type", "unknown"),
                         "requested_execution_class": execution_policy.execution_class,
                         "reason": blocked_node_run.error_message,
+                        **(
+                            {"sandbox_backend_id": availability.sandbox_backend_id}
+                            if availability.sandbox_backend_id is not None
+                            else {}
+                        ),
+                        **(
+                            {
+                                "sandbox_backend_executor_ref": (
+                                    availability.sandbox_backend_executor_ref
+                                )
+                            }
+                            if availability.sandbox_backend_executor_ref is not None
+                            else {}
+                        ),
                     },
                 )
             )
@@ -149,7 +163,24 @@ class RuntimeNodePreparationSupportMixin:
                     run.id,
                     blocked_node_run.id,
                     "node.blocked",
-                    {"node_id": node["id"], "reason": blocked_node_run.error_message},
+                    {
+                        "node_id": node["id"],
+                        "reason": blocked_node_run.error_message,
+                        **(
+                            {"sandbox_backend_id": availability.sandbox_backend_id}
+                            if availability.sandbox_backend_id is not None
+                            else {}
+                        ),
+                        **(
+                            {
+                                "sandbox_backend_executor_ref": (
+                                    availability.sandbox_backend_executor_ref
+                                )
+                            }
+                            if availability.sandbox_backend_executor_ref is not None
+                            else {}
+                        ),
+                    },
                 )
             )
             raise WorkflowExecutionError(

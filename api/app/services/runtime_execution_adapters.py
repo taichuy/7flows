@@ -26,6 +26,7 @@ from app.services.sandbox_backends import (
     get_sandbox_backend_client,
 )
 from app.services.tool_execution_isolation import (
+    build_tool_execution_not_yet_isolated_reason,
     describe_tool_execution_backend_selection,
     is_strong_tool_execution_class,
 )
@@ -50,6 +51,8 @@ class NodeExecutionAvailability:
     available: bool
     blocking_reason: str | None = None
     executor_ref: str | None = None
+    sandbox_backend_id: str | None = None
+    sandbox_backend_executor_ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -398,12 +401,21 @@ class RuntimeExecutionAdapterRegistry:
                 return NodeExecutionAvailability(
                     available=False,
                     blocking_reason=(
-                        "Tool nodes do not yet implement sandbox-backed tool execution "
-                        "for requested execution class "
-                        f"'{execution_policy.execution_class}'. Current native / compat "
-                        "invokers still run from the host / adapter boundary, so "
-                        "strong-isolation tool "
-                        "paths must fail closed until a sandbox tool runner is available."
+                        build_tool_execution_not_yet_isolated_reason(
+                            tool_id=str(node.get("id") or node.get("name") or "tool"),
+                            execution_class=execution_policy.execution_class,
+                            backend_selection=backend_selection,
+                        )
+                    ),
+                    sandbox_backend_id=(
+                        backend_selection.backend_id
+                        if backend_selection is not None and backend_selection.available
+                        else None
+                    ),
+                    sandbox_backend_executor_ref=(
+                        backend_selection.executor_ref
+                        if backend_selection is not None and backend_selection.available
+                        else None
                     ),
                 )
             if node_type != "tool" and execution_policy.execution_class in {

@@ -1654,6 +1654,12 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
                 "若尚未回调，继续沿 ticket / inbox 事实链跟进。"
             ),
         },
+        "callback_waiting_explanation": {
+            "primary_signal": "当前仍有 1 条 callback ticket 等待外部回调。",
+            "follow_up": (
+                "下一步：优先确认外部系统是否已经回调，不要重复触发 resume 或额外发起同类请求。"
+            ),
+        },
     }
     assert detail_body["run_follow_up"]["explanation"]["primary_signal"] == (
         "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。"
