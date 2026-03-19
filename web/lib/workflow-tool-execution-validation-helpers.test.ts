@@ -113,7 +113,11 @@ function createSandboxReadiness(): SandboxReadinessCheck {
 }
 
 function createSandboxBackends(
-  overrides?: Partial<SandboxBackendCheck>[]
+  overrides?: Array<
+    Omit<Partial<SandboxBackendCheck>, "capability"> & {
+      capability?: Partial<SandboxBackendCheck["capability"]>;
+    }
+  >
 ): SandboxBackendCheck[] {
   const defaults: SandboxBackendCheck[] = [
     {

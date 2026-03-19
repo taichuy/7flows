@@ -82,6 +82,12 @@ export async function resumeRun(
             primary_signal?: string | null;
             follow_up?: string | null;
           } | null;
+          run_follow_up?: {
+            explanation?: {
+              primary_signal?: string | null;
+              follow_up?: string | null;
+            } | null;
+          } | null;
           callback_blocker_delta?: {
             summary?: string | null;
           } | null;
@@ -121,6 +127,7 @@ export async function resumeRun(
       status: "success",
       message: formatOperatorOutcomeExplanationMessage({
         explanation: body?.outcome_explanation,
+        runFollowUpExplanation: body?.run_follow_up?.explanation,
         blockerDeltaSummary,
         runSnapshot:
           runSnapshot ?? {
