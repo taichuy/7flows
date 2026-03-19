@@ -388,6 +388,83 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
     assert len(stored_notifications) == 1
 
 
+def test_request_high_sensitivity_access_resolves_run_context_from_node_run_id(
+    client: TestClient,
+    sqlite_session: Session,
+    monkeypatch: MonkeyPatch,
+    sample_workflow: Workflow,
+) -> None:
+    monkeypatch.setattr(
+        sensitive_access_routes,
+        "service",
+        SensitiveAccessControlService(
+            resume_scheduler=RunResumeScheduler(dispatcher=lambda _request: None),
+            settings=Settings(),
+        ),
+    )
+
+    run = Run(
+        id="run-approval-node-run-only",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        status="waiting",
+        current_node_id="mock_tool",
+        input_payload={},
+        checkpoint_payload={},
+        created_at=datetime.now(UTC),
+    )
+    node_run = NodeRun(
+        id="node-run-approval-node-run-only",
+        run_id=run.id,
+        node_id="mock_tool",
+        node_name="Mock Tool",
+        node_type="tool",
+        status="waiting_callback",
+        phase="waiting_callback",
+        input_payload={},
+        checkpoint_payload={},
+        working_context={},
+        artifact_refs=[],
+        waiting_reason="waiting approval",
+        created_at=datetime.now(UTC),
+    )
+    sqlite_session.add_all([run, node_run])
+    sqlite_session.commit()
+
+    resource_response = client.post(
+        "/api/sensitive-access/resources",
+        json={
+            "label": "Published production secret",
+            "sensitivity_level": "L3",
+            "source": "published_secret",
+            "metadata": {"endpoint_id": "pub-node-run-only"},
+        },
+    )
+
+    request_response = client.post(
+        "/api/sensitive-access/requests",
+        json={
+            "node_run_id": node_run.id,
+            "requester_type": "ai",
+            "requester_id": "assistant-main",
+            "resource_id": resource_response.json()["id"],
+            "action_type": "read",
+            "purpose_text": "inspect published auth secret",
+        },
+    )
+
+    assert request_response.status_code == 201
+    body = request_response.json()
+    assert body["request"]["run_id"] is None
+    assert body["approval_ticket"]["run_id"] is None
+    assert body["run_snapshot"] is not None
+    assert body["run_snapshot"]["workflow_id"] == sample_workflow.id
+    assert body["run_snapshot"]["execution_focus_node_run_id"] == node_run.id
+    assert body["run_follow_up"] is not None
+    assert body["run_follow_up"]["affected_run_count"] == 1
+    assert body["run_follow_up"]["sampled_runs"][0]["run_id"] == run.id
+
+
 def test_decide_expired_approval_ticket_marks_ticket_expired_and_returns_error(
     client: TestClient,
     sqlite_session: Session,

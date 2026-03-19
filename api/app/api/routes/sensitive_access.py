@@ -68,6 +68,11 @@ from app.services.sensitive_access_presenters import (
     serialize_sensitive_access_timeline_entry,
     serialize_sensitive_resource,
 )
+from app.services.sensitive_access_run_resolution import (
+    collect_sensitive_access_run_ids,
+    load_run_ids_by_node_run_id,
+    resolve_sensitive_access_run_id,
+)
 
 router = APIRouter(prefix="/sensitive-access", tags=["sensitive-access"])
 service = SensitiveAccessControlService()
@@ -78,18 +83,25 @@ def _resolve_single_run_follow_up(
     db: Session,
     *,
     run_id: str | None,
+    node_run_id: str | None = None,
 ):
-    run_follow_up = build_operator_run_follow_up_summary(db, [run_id])
+    run_ids_by_node_run_id = load_run_ids_by_node_run_id(db, [node_run_id])
+    resolved_run_id = resolve_sensitive_access_run_id(
+        run_id=run_id,
+        node_run_id=node_run_id,
+        run_ids_by_node_run_id=run_ids_by_node_run_id,
+    )
+    run_follow_up = build_operator_run_follow_up_summary(db, [resolved_run_id])
     run_snapshot = next(
         (
             item.snapshot
             for item in run_follow_up.sampled_runs
-            if item.run_id == str(run_id or "").strip()
+            if item.run_id == str(resolved_run_id or "").strip()
         ),
         None,
     )
     if run_snapshot is None:
-        run_snapshot = load_operator_run_snapshot(db, run_id)
+        run_snapshot = load_operator_run_snapshot(db, resolved_run_id)
     return run_follow_up, run_snapshot
 
 
@@ -101,9 +113,19 @@ def _serialize_access_bundle(
     timeline_entry = serialize_sensitive_access_timeline_entry(bundle)
     run_follow_up = None
     run_snapshot = None
-    run_id = bundle.access_request.run_id
+    run_id = resolve_sensitive_access_run_id(
+        run_id=bundle.access_request.run_id,
+        node_run_id=bundle.access_request.node_run_id,
+        run_ids_by_node_run_id=load_run_ids_by_node_run_id(
+            db, [bundle.access_request.node_run_id]
+        ),
+    )
     if run_id:
-        run_follow_up, run_snapshot = _resolve_single_run_follow_up(db, run_id=run_id)
+        run_follow_up, run_snapshot = _resolve_single_run_follow_up(
+            db,
+            run_id=run_id,
+            node_run_id=bundle.access_request.node_run_id,
+        )
     return SensitiveAccessRequestResponse(
         request=timeline_entry.request,
         resource=timeline_entry.resource,
@@ -124,6 +146,7 @@ def _serialize_approval_bundle(
     run_follow_up, run_snapshot = _resolve_single_run_follow_up(
         db,
         run_id=bundle.approval_ticket.run_id,
+        node_run_id=bundle.approval_ticket.node_run_id,
     )
     return ApprovalTicketDecisionResponse(
         request=serialize_sensitive_access_request(bundle.access_request),
@@ -147,6 +170,7 @@ def _serialize_notification_retry_bundle(
     run_follow_up, run_snapshot = _resolve_single_run_follow_up(
         db,
         run_id=bundle.approval_ticket.run_id,
+        node_run_id=bundle.approval_ticket.node_run_id,
     )
     return NotificationDispatchRetryResponse(
         approval_ticket=serialize_approval_ticket(bundle.approval_ticket),
@@ -346,6 +370,23 @@ def _build_sensitive_access_inbox_summary(
     )
 
 
+def _resolve_inbox_execution_view_run_ids(
+    db: Session,
+    entries: list[SensitiveAccessInboxEntryItem],
+) -> list[str]:
+    return collect_sensitive_access_run_ids(
+        db,
+        scopes=[
+            (
+                entry.ticket.run_id or (entry.request.run_id if entry.request else None),
+                entry.ticket.node_run_id
+                or (entry.request.node_run_id if entry.request else None),
+            )
+            for entry in entries
+        ],
+    )
+
+
 @router.get("/inbox", response_model=SensitiveAccessInboxResponse)
 def get_sensitive_access_inbox(
     status: str | None = Query(default=None),
@@ -432,14 +473,7 @@ def get_sensitive_access_inbox(
     entries.sort(key=lambda item: item.ticket.created_at, reverse=True)
 
     execution_views = []
-    seen_run_ids: set[str] = set()
-    for entry in entries:
-        ticket_run_id = (entry.ticket.run_id or "").strip()
-        request_run_id = (entry.request.run_id or "").strip() if entry.request else ""
-        entry_run_id = ticket_run_id or request_run_id
-        if not entry_run_id or entry_run_id in seen_run_ids:
-            continue
-        seen_run_ids.add(entry_run_id)
+    for entry_run_id in _resolve_inbox_execution_view_run_ids(db, entries):
         execution_view = run_view_service.get_execution_view(db, entry_run_id)
         if execution_view is not None:
             execution_views.append(execution_view.model_dump(mode="json"))
@@ -517,9 +551,16 @@ def decide_approval_ticket(
     db: Session = Depends(get_db),
 ) -> ApprovalTicketDecisionResponse:
     approval_ticket = db.get(ApprovalTicketRecord, ticket_id)
+    approval_ticket_run_id = resolve_sensitive_access_run_id(
+        run_id=approval_ticket.run_id if approval_ticket is not None else None,
+        node_run_id=approval_ticket.node_run_id if approval_ticket is not None else None,
+        run_ids_by_node_run_id=load_run_ids_by_node_run_id(
+            db, [approval_ticket.node_run_id if approval_ticket is not None else None]
+        ),
+    )
     before_blocker = capture_callback_blocker_snapshot(
         db,
-        run_id=approval_ticket.run_id if approval_ticket is not None else None,
+        run_id=approval_ticket_run_id,
         node_run_id=approval_ticket.node_run_id if approval_ticket is not None else None,
     )
     try:
@@ -535,9 +576,16 @@ def decide_approval_ticket(
     except SensitiveAccessControlError as exc:
         _raise_sensitive_access_error(exc)
     db.commit()
+    after_run_id = resolve_sensitive_access_run_id(
+        run_id=bundle.approval_ticket.run_id,
+        node_run_id=bundle.approval_ticket.node_run_id,
+        run_ids_by_node_run_id=load_run_ids_by_node_run_id(
+            db, [bundle.approval_ticket.node_run_id]
+        ),
+    )
     after_blocker = capture_callback_blocker_snapshot(
         db,
-        run_id=bundle.approval_ticket.run_id,
+        run_id=after_run_id,
         node_run_id=bundle.approval_ticket.node_run_id,
     )
     return _serialize_approval_bundle(
@@ -561,18 +609,29 @@ def bulk_decide_approval_tickets(
     decided_items: list[ApprovalTicketItem] = []
     skipped_items: list[ApprovalTicketBulkSkippedItem] = []
     before_blockers_by_scope: dict[tuple[str, str | None], CallbackBlockerScopedSnapshot] = {}
+    run_ids_by_node_run_id: dict[str, str] = {}
 
     for ticket_id in payload.ticket_ids:
         approval_ticket = db.get(ApprovalTicketRecord, ticket_id)
-        if approval_ticket is not None and approval_ticket.run_id:
-            scope_key = (approval_ticket.run_id, approval_ticket.node_run_id)
+        run_ids_by_node_run_id.update(
+            load_run_ids_by_node_run_id(
+                db, [approval_ticket.node_run_id if approval_ticket is not None else None]
+            )
+        )
+        resolved_run_id = resolve_sensitive_access_run_id(
+            run_id=approval_ticket.run_id if approval_ticket is not None else None,
+            node_run_id=approval_ticket.node_run_id if approval_ticket is not None else None,
+            run_ids_by_node_run_id=run_ids_by_node_run_id,
+        )
+        if approval_ticket is not None and resolved_run_id:
+            scope_key = (resolved_run_id, approval_ticket.node_run_id)
             if scope_key not in before_blockers_by_scope:
                 before_blockers_by_scope[scope_key] = CallbackBlockerScopedSnapshot(
-                    run_id=approval_ticket.run_id,
+                    run_id=resolved_run_id,
                     node_run_id=approval_ticket.node_run_id,
                     snapshot=capture_callback_blocker_snapshot(
                         db,
-                        run_id=approval_ticket.run_id,
+                        run_id=resolved_run_id,
                         node_run_id=approval_ticket.node_run_id,
                     ),
                 )
@@ -597,23 +656,41 @@ def bulk_decide_approval_tickets(
         decided_items.append(serialize_approval_ticket(bundle.approval_ticket))
 
     db.commit()
-    after_blockers = [
-        CallbackBlockerScopedSnapshot(
+    run_ids_by_node_run_id.update(
+        load_run_ids_by_node_run_id(db, [item.node_run_id for item in decided_items])
+    )
+    after_blockers = []
+    for item in decided_items:
+        resolved_run_id = resolve_sensitive_access_run_id(
             run_id=item.run_id,
             node_run_id=item.node_run_id,
-            snapshot=capture_callback_blocker_snapshot(
-                db,
+            run_ids_by_node_run_id=run_ids_by_node_run_id,
+        )
+        if not resolved_run_id:
+            continue
+        after_blockers.append(
+            CallbackBlockerScopedSnapshot(
+                run_id=resolved_run_id,
+                node_run_id=item.node_run_id,
+                snapshot=capture_callback_blocker_snapshot(
+                    db,
+                    run_id=resolved_run_id,
+                    node_run_id=item.node_run_id,
+                ),
+            )
+        )
+    before_blockers = [
+        before_blockers_by_scope[(resolved_run_id, item.node_run_id)]
+        for item in decided_items
+        for resolved_run_id in [
+            resolve_sensitive_access_run_id(
                 run_id=item.run_id,
                 node_run_id=item.node_run_id,
-            ),
-        )
-        for item in decided_items
-        if item.run_id
-    ]
-    before_blockers = [
-        before_blockers_by_scope[(item.run_id, item.node_run_id)]
-        for item in decided_items
-        if item.run_id and (item.run_id, item.node_run_id) in before_blockers_by_scope
+                run_ids_by_node_run_id=run_ids_by_node_run_id,
+            )
+        ]
+        if resolved_run_id
+        and (resolved_run_id, item.node_run_id) in before_blockers_by_scope
     ]
     return ApprovalTicketBulkDecisionResult(
         status=payload.status,
@@ -634,7 +711,10 @@ def bulk_decide_approval_tickets(
         ),
         run_follow_up=build_operator_run_follow_up_summary(
             db,
-            [item.run_id for item in decided_items],
+            collect_sensitive_access_run_ids(
+                db,
+                scopes=[(item.run_id, item.node_run_id) for item in decided_items],
+            ),
         ),
     )
 
@@ -676,9 +756,16 @@ def retry_notification_dispatch(
         if notification is not None
         else None
     )
+    approval_ticket_run_id = resolve_sensitive_access_run_id(
+        run_id=approval_ticket.run_id if approval_ticket is not None else None,
+        node_run_id=approval_ticket.node_run_id if approval_ticket is not None else None,
+        run_ids_by_node_run_id=load_run_ids_by_node_run_id(
+            db, [approval_ticket.node_run_id if approval_ticket is not None else None]
+        ),
+    )
     before_blocker = capture_callback_blocker_snapshot(
         db,
-        run_id=approval_ticket.run_id if approval_ticket is not None else None,
+        run_id=approval_ticket_run_id,
         node_run_id=approval_ticket.node_run_id if approval_ticket is not None else None,
     )
     try:
@@ -690,9 +777,16 @@ def retry_notification_dispatch(
     except SensitiveAccessControlError as exc:
         _raise_sensitive_access_error(exc)
     db.commit()
+    after_run_id = resolve_sensitive_access_run_id(
+        run_id=bundle.approval_ticket.run_id,
+        node_run_id=bundle.approval_ticket.node_run_id,
+        run_ids_by_node_run_id=load_run_ids_by_node_run_id(
+            db, [bundle.approval_ticket.node_run_id]
+        ),
+    )
     after_blocker = capture_callback_blocker_snapshot(
         db,
-        run_id=bundle.approval_ticket.run_id,
+        run_id=after_run_id,
         node_run_id=bundle.approval_ticket.node_run_id,
     )
     return _serialize_notification_retry_bundle(
@@ -716,6 +810,7 @@ def bulk_retry_notification_dispatches(
     retried_items: list[NotificationDispatchBulkRetriedItem] = []
     skipped_items: list[NotificationDispatchBulkSkippedItem] = []
     before_blockers_by_scope: dict[tuple[str, str | None], CallbackBlockerScopedSnapshot] = {}
+    run_ids_by_node_run_id: dict[str, str] = {}
 
     for dispatch_id in payload.dispatch_ids:
         notification = db.get(NotificationDispatchRecord, dispatch_id)
@@ -724,15 +819,25 @@ def bulk_retry_notification_dispatches(
             if notification is not None
             else None
         )
-        if approval_ticket is not None and approval_ticket.run_id:
-            scope_key = (approval_ticket.run_id, approval_ticket.node_run_id)
+        run_ids_by_node_run_id.update(
+            load_run_ids_by_node_run_id(
+                db, [approval_ticket.node_run_id if approval_ticket is not None else None]
+            )
+        )
+        resolved_run_id = resolve_sensitive_access_run_id(
+            run_id=approval_ticket.run_id if approval_ticket is not None else None,
+            node_run_id=approval_ticket.node_run_id if approval_ticket is not None else None,
+            run_ids_by_node_run_id=run_ids_by_node_run_id,
+        )
+        if approval_ticket is not None and resolved_run_id:
+            scope_key = (resolved_run_id, approval_ticket.node_run_id)
             if scope_key not in before_blockers_by_scope:
                 before_blockers_by_scope[scope_key] = CallbackBlockerScopedSnapshot(
-                    run_id=approval_ticket.run_id,
+                    run_id=resolved_run_id,
                     node_run_id=approval_ticket.node_run_id,
                     snapshot=capture_callback_blocker_snapshot(
                         db,
-                        run_id=approval_ticket.run_id,
+                        run_id=resolved_run_id,
                         node_run_id=approval_ticket.node_run_id,
                     ),
                 )
@@ -760,25 +865,45 @@ def bulk_retry_notification_dispatches(
         )
 
     db.commit()
-    after_blockers = [
-        CallbackBlockerScopedSnapshot(
+    run_ids_by_node_run_id.update(
+        load_run_ids_by_node_run_id(
+            db, [item.approval_ticket.node_run_id for item in retried_items]
+        )
+    )
+    after_blockers = []
+    for item in retried_items:
+        resolved_run_id = resolve_sensitive_access_run_id(
             run_id=item.approval_ticket.run_id,
             node_run_id=item.approval_ticket.node_run_id,
-            snapshot=capture_callback_blocker_snapshot(
-                db,
+            run_ids_by_node_run_id=run_ids_by_node_run_id,
+        )
+        if not resolved_run_id:
+            continue
+        after_blockers.append(
+            CallbackBlockerScopedSnapshot(
+                run_id=resolved_run_id,
+                node_run_id=item.approval_ticket.node_run_id,
+                snapshot=capture_callback_blocker_snapshot(
+                    db,
+                    run_id=resolved_run_id,
+                    node_run_id=item.approval_ticket.node_run_id,
+                ),
+            )
+        )
+    before_blockers = [
+        before_blockers_by_scope[
+            (resolved_run_id, item.approval_ticket.node_run_id)
+        ]
+        for item in retried_items
+        for resolved_run_id in [
+            resolve_sensitive_access_run_id(
                 run_id=item.approval_ticket.run_id,
                 node_run_id=item.approval_ticket.node_run_id,
-            ),
-        )
-        for item in retried_items
-        if item.approval_ticket.run_id
-    ]
-    before_blockers = [
-        before_blockers_by_scope[(item.approval_ticket.run_id, item.approval_ticket.node_run_id)]
-        for item in retried_items
-        if item.approval_ticket.run_id
-        and (item.approval_ticket.run_id, item.approval_ticket.node_run_id)
-        in before_blockers_by_scope
+                run_ids_by_node_run_id=run_ids_by_node_run_id,
+            )
+        ]
+        if resolved_run_id
+        and (resolved_run_id, item.approval_ticket.node_run_id) in before_blockers_by_scope
     ]
     return NotificationDispatchBulkRetryResult(
         requested_count=len(payload.dispatch_ids),
@@ -799,6 +924,12 @@ def bulk_retry_notification_dispatches(
         ),
         run_follow_up=build_operator_run_follow_up_summary(
             db,
-            [item.approval_ticket.run_id for item in retried_items],
+            collect_sensitive_access_run_ids(
+                db,
+                scopes=[
+                    (item.approval_ticket.run_id, item.approval_ticket.node_run_id)
+                    for item in retried_items
+                ],
+            ),
         ),
     )

@@ -12,6 +12,7 @@ from app.services.sensitive_access_action_explanations import (
     build_sensitive_access_timeline_outcome_explanation,
 )
 from app.services.sensitive_access_reasoning import describe_sensitive_access_reasoning
+from app.services.sensitive_access_run_resolution import collect_sensitive_access_run_ids
 from app.services.sensitive_access_types import SensitiveAccessRequestBundle
 
 __all__ = [
@@ -86,30 +87,29 @@ def _build_sensitive_access_run_context(
         ).model_dump(mode="json")
     }
 
-    run_ids: list[str] = []
-
-    def append_run_id(value: object | None) -> None:
-        normalized = str(value or "").strip()
-        if normalized and normalized not in run_ids:
-            run_ids.append(normalized)
-
-    append_run_id(bundle.access_request.run_id)
-    if bundle.approval_ticket is not None:
-        append_run_id(bundle.approval_ticket.run_id)
-
     metadata_payload = (
         bundle.resource.metadata_payload
         if isinstance(bundle.resource.metadata_payload, dict)
         else {}
     )
-    append_run_id(metadata_payload.get("run_id"))
-
     metadata_run_ids = metadata_payload.get("run_ids")
+    extra_run_ids: list[object | None] = [metadata_payload.get("run_id")]
     if isinstance(metadata_run_ids, (list, tuple, set)):
-        for item in metadata_run_ids:
-            append_run_id(item)
+        extra_run_ids.extend(metadata_run_ids)
     elif isinstance(metadata_run_ids, str):
-        append_run_id(metadata_run_ids)
+        extra_run_ids.append(metadata_run_ids)
+
+    run_ids = collect_sensitive_access_run_ids(
+        db,
+        scopes=[
+            (bundle.access_request.run_id, bundle.access_request.node_run_id),
+            (
+                bundle.approval_ticket.run_id if bundle.approval_ticket is not None else None,
+                bundle.approval_ticket.node_run_id if bundle.approval_ticket is not None else None,
+            ),
+        ],
+        extra_run_ids=extra_run_ids,
+    )
 
     if not run_ids:
         return payload
