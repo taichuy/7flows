@@ -213,6 +213,7 @@ class RunDetailExecutionFocusNode(BaseModel):
     node_name: str
     node_type: str
     status: str
+    callback_waiting_explanation: SignalFollowUpExplanation | None = None
     phase: str | None = None
     execution_class: str | None = None
     execution_source: str | None = None

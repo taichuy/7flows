@@ -377,6 +377,21 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     assert node["scheduled_resume_scheduled_at"] == "2026-03-11T10:05:00Z"
     assert node["scheduled_resume_due_at"] == "2026-03-11T10:05:00Z"
 
+    run_detail_response = client.get(
+        f"/api/runs/{run.id}", params={"include_events": "false"}
+    )
+
+    assert run_detail_response.status_code == 200
+    run_detail_body = run_detail_response.json()
+    assert run_detail_body["execution_focus_reason"] == "blocking_node_run"
+    assert run_detail_body["execution_focus_node"]["node_run_id"] == node_run.id
+    assert run_detail_body["execution_focus_node"]["callback_waiting_explanation"] == {
+        "primary_signal": "当前 callback waiting 仍卡在 1 条待处理审批。",
+        "follow_up": (
+            "下一步：先在当前 operator 入口完成审批或拒绝，再观察 waiting 节点是否自动恢复。"
+        ),
+    }
+
 
 def test_get_run_execution_view_includes_dependency_contract_fields(
     client: TestClient,

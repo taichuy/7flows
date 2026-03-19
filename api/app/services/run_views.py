@@ -38,6 +38,7 @@ def _serialize_run_detail_execution_focus_node(
         node_name=focus_node.node_name,
         node_type=focus_node.node_type,
         status=focus_node.status,
+        callback_waiting_explanation=focus_node.callback_waiting_explanation,
         phase=focus_node.phase,
         execution_class=focus_node.execution_class,
         execution_source=focus_node.execution_source,

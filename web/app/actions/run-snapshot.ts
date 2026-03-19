@@ -31,6 +31,10 @@ type RunDetailResponseBody = {
   execution_focus_node?: {
     node_id?: string | null;
     node_run_id?: string | null;
+    callback_waiting_explanation?: {
+      primary_signal?: string | null;
+      follow_up?: string | null;
+    } | null;
   } | null;
   execution_focus_explanation?: {
     primary_signal?: string | null;
@@ -83,6 +87,37 @@ function hasRunDetailExecutionFocus(body: RunDetailResponseBody | null) {
   );
 }
 
+function hasRunDetailCallbackWaitingExplanation(body: RunDetailResponseBody | null) {
+  const executionFocusNode = body?.execution_focus_node;
+  if (!executionFocusNode || typeof executionFocusNode !== "object") {
+    return true;
+  }
+
+  return Object.prototype.hasOwnProperty.call(
+    executionFocusNode,
+    "callback_waiting_explanation"
+  );
+}
+
+function normalizeSignalFollowUpExplanation(
+  explanation:
+    | {
+        primary_signal?: string | null;
+        follow_up?: string | null;
+      }
+    | null
+    | undefined
+) {
+  if (!explanation) {
+    return null;
+  }
+
+  return {
+    primary_signal: explanation.primary_signal ?? null,
+    follow_up: explanation.follow_up ?? null
+  };
+}
+
 async function fetchRunExecutionView(
   runId: string
 ): Promise<RunExecutionViewResponseBody | null> {
@@ -118,9 +153,10 @@ export async function fetchRunSnapshot(runId: string): Promise<RunSnapshot | nul
     }
 
     const body = (await response.json().catch(() => null)) as RunDetailResponseBody | null;
-    const executionView = hasRunDetailExecutionFocus(body)
-      ? null
-      : await fetchRunExecutionView(normalizedRunId);
+    const executionView =
+      hasRunDetailExecutionFocus(body) && hasRunDetailCallbackWaitingExplanation(body)
+        ? null
+        : await fetchRunExecutionView(normalizedRunId);
 
     return {
       status: body?.status ?? executionView?.status ?? null,
@@ -135,26 +171,16 @@ export async function fetchRunSnapshot(runId: string): Promise<RunSnapshot | nul
         body?.execution_focus_node?.node_run_id ??
         executionView?.execution_focus_node?.node_run_id ??
         null,
-      executionFocusExplanation: body?.execution_focus_explanation
-        ? {
-            primary_signal: body.execution_focus_explanation.primary_signal ?? null,
-            follow_up: body.execution_focus_explanation.follow_up ?? null
-          }
-        : executionView?.execution_focus_explanation
-        ? {
-            primary_signal:
-              executionView.execution_focus_explanation.primary_signal ?? null,
-            follow_up: executionView.execution_focus_explanation.follow_up ?? null
-          }
-        : null,
-      callbackWaitingExplanation: executionView?.execution_focus_node?.callback_waiting_explanation
-        ? {
-            primary_signal:
-              executionView.execution_focus_node.callback_waiting_explanation.primary_signal ?? null,
-            follow_up:
-              executionView.execution_focus_node.callback_waiting_explanation.follow_up ?? null
-          }
-        : null
+      executionFocusExplanation:
+        normalizeSignalFollowUpExplanation(body?.execution_focus_explanation) ??
+        normalizeSignalFollowUpExplanation(executionView?.execution_focus_explanation),
+      callbackWaitingExplanation:
+        normalizeSignalFollowUpExplanation(
+          body?.execution_focus_node?.callback_waiting_explanation
+        ) ??
+        normalizeSignalFollowUpExplanation(
+          executionView?.execution_focus_node?.callback_waiting_explanation
+        )
     };
   } catch {
     return null;
