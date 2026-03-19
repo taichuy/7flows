@@ -13,6 +13,7 @@ from app.services.sandbox_backends import (
     SandboxBackendSelection,
     SandboxExecutionRequest,
     SandboxExecutionResponse,
+    SandboxToolExecutionRequest,
 )
 
 
@@ -232,6 +233,124 @@ def test_runtime_service_blocks_tool_strong_isolation_until_tool_runner_exists(
     assert "No sandbox backend is registered" in str(unavailable_event.payload["reason"])
 
 
+def test_runtime_service_executes_native_tool_via_sandbox_runner(
+    sqlite_session: Session,
+) -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="native.risk-search",
+            name="Risk Search",
+            ecosystem="native",
+            input_schema={
+                "type": "object",
+                "properties": {"trigger": {"type": "object"}},
+                "required": ["trigger"],
+                "additionalProperties": False,
+            },
+            supported_execution_classes=("inline", "sandbox"),
+        )
+    )
+
+    workflow = Workflow(
+        id="wf-tool-strong-isolation-runner",
+        name="Tool Strong Isolation Runner Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "tool",
+                    "type": "tool",
+                    "name": "Tool",
+                    "config": {
+                        "tool": {
+                            "toolId": "native.risk-search",
+                            "ecosystem": "native",
+                        }
+                    },
+                    "runtimePolicy": {
+                        "execution": {
+                            "class": "sandbox",
+                            "profile": "risk-reviewed",
+                            "timeoutMs": 3000,
+                        }
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool"},
+                {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    sandbox_backend_client = _SandboxBackendClientStub()
+    artifacts = RuntimeService(
+        plugin_call_proxy=PluginCallProxy(
+            registry,
+            sandbox_backend_client=sandbox_backend_client,
+        ),
+        sandbox_backend_client=sandbox_backend_client,
+    ).execute_workflow(
+        sqlite_session,
+        workflow,
+        {"topic": "runner"},
+    )
+
+    assert artifacts.run.status == "succeeded"
+    assert artifacts.run.output_payload == {
+        "tool": {
+            "documents": ["RUNNER"],
+            "requested": "sandbox",
+        }
+    }
+    assert len(sandbox_backend_client.tool_requests) == 1
+    assert sandbox_backend_client.tool_requests[0].runner_kind == "native-tool"
+    assert sandbox_backend_client.tool_requests[0].profile == "risk-reviewed"
+
+    tool_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "tool")
+    assert tool_run.input_payload["execution"] == {
+        "class": "sandbox",
+        "source": "runtime_policy",
+        "profile": "risk-reviewed",
+        "timeoutMs": 3000,
+    }
+    assert tool_run.output_payload == {
+        "documents": ["RUNNER"],
+        "requested": "sandbox",
+    }
+
+    dispatched_event = next(
+        event
+        for event in artifacts.events
+        if event.node_run_id == tool_run.id and event.event_type == "tool.execution.dispatched"
+    )
+    assert dispatched_event.payload == {
+        "node_id": "tool",
+        "tool_id": "native.risk-search",
+        "tool_name": "native.risk-search",
+        "requested_execution_class": "sandbox",
+        "effective_execution_class": "sandbox",
+        "execution_source": "runtime_policy",
+        "requested_execution_profile": "risk-reviewed",
+        "requested_execution_timeout_ms": 3000,
+        "requested_network_policy": None,
+        "requested_filesystem_policy": None,
+        "requested_dependency_mode": None,
+        "requested_builtin_package_set": None,
+        "requested_dependency_ref": None,
+        "requested_backend_extensions": None,
+        "executor_ref": "tool:native-sandbox",
+        "sandbox_backend_id": "sandbox-default",
+        "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
+    }
+
+
 def test_runtime_service_blocks_sandbox_code_without_registered_backend(
     sqlite_session: Session,
 ) -> None:
@@ -378,6 +497,7 @@ def test_runtime_service_executes_sandbox_code_via_explicit_subprocess_mvp(
 class _SandboxBackendClientStub(SandboxBackendClient):
     def __init__(self) -> None:
         self.requests: list[SandboxExecutionRequest] = []
+        self.tool_requests: list[SandboxToolExecutionRequest] = []
 
     def describe_execution_backend(
         self,
@@ -409,6 +529,54 @@ class _SandboxBackendClientStub(SandboxBackendClient):
                 "requested": request.execution_class,
             },
             stdout="sandbox stdout",
+            stderr="",
+        )
+
+    def describe_tool_execution_backend(
+        self,
+        *,
+        execution_class: str,
+        profile: str | None = None,
+        dependency_mode: str | None = None,
+        builtin_package_set: str | None = None,
+        network_policy: str | None = None,
+        filesystem_policy: str | None = None,
+        backend_extensions: dict | None = None,
+    ) -> SandboxBackendSelection:
+        return SandboxBackendSelection(
+            available=True,
+            backend_id="sandbox-default",
+            executor_ref="sandbox-backend:sandbox-default",
+            capability=SandboxBackendCapability(
+                supported_execution_classes=(execution_class,),
+                supported_profiles=((profile,) if profile is not None else ()),
+                supported_dependency_modes=(
+                    (dependency_mode,) if dependency_mode is not None else ()
+                ),
+                supports_tool_execution=True,
+                supports_builtin_package_sets=True,
+                supports_network_policy=True,
+                supports_filesystem_policy=True,
+            ),
+            health_status="healthy",
+        )
+
+    def execute_tool(self, request: SandboxToolExecutionRequest) -> SandboxExecutionResponse:
+        self.tool_requests.append(request)
+        return SandboxExecutionResponse(
+            backend_id="sandbox-default",
+            executor_ref="sandbox-backend:sandbox-default:tool-runner",
+            effective_execution_class=request.execution_class,
+            result={
+                "status": "success",
+                "output": {
+                    "documents": [request.inputs["trigger"]["topic"].upper()],
+                    "requested": request.execution_class,
+                },
+                "logs": ["sandbox tool runner invoked"],
+                "durationMs": 19,
+            },
+            stdout="",
             stderr="",
         )
 

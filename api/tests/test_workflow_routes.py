@@ -1549,6 +1549,45 @@ def test_create_workflow_rejects_native_tool_declared_sandbox_execution_until_to
     assert "must fail closed" in detail
 
 
+def test_create_workflow_allows_native_tool_execution_when_backend_supports_tool_runner(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="native.risk-search-runner-ready",
+            name="Risk Search Runner Ready",
+            supported_execution_classes=("inline", "sandbox"),
+        )
+    )
+    monkeypatch.setattr(workflow_library, "get_plugin_registry", lambda: registry)
+    monkeypatch.setattr(workflow_definitions, "get_plugin_registry", lambda: registry)
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(
+            execution_classes=("sandbox",),
+            supports_tool_execution=True,
+        ),
+    )
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Native Runner Ready Workflow",
+            "definition": _bound_tool_definition(
+                tool_id="native.risk-search-runner-ready",
+                ecosystem="native",
+                runtime_policy={"execution": {"class": "sandbox"}},
+            ),
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["definition_issues"] == []
+
+
 def test_create_workflow_rejects_tool_default_sandbox_when_backend_unavailable(
     client: TestClient,
     monkeypatch,
@@ -1589,6 +1628,45 @@ def test_create_workflow_rejects_tool_default_sandbox_when_backend_unavailable(
     detail = _workflow_detail_message(response)
     assert "default execution class 'sandbox'" in detail
     assert "no compatible sandbox backend is currently available" in detail.lower()
+
+
+def test_create_workflow_allows_native_tool_default_sandbox_when_backend_supports_tool_runner(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="native.risk-search-default-runner-ready",
+            name="Risk Search Default Runner Ready",
+            supported_execution_classes=("inline", "sandbox"),
+            default_execution_class="sandbox",
+        )
+    )
+    monkeypatch.setattr(workflow_library, "get_plugin_registry", lambda: registry)
+    monkeypatch.setattr(workflow_definitions, "get_plugin_registry", lambda: registry)
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(
+            execution_classes=("sandbox",),
+            supports_tool_execution=True,
+        ),
+    )
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Native Default Runner Ready Workflow",
+            "definition": _bound_tool_definition(
+                tool_id="native.risk-search-default-runner-ready",
+                ecosystem="native",
+            ),
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["definition_issues"] == []
 
 
 def test_create_workflow_rejects_allowed_tool_default_microvm_when_backend_unavailable(

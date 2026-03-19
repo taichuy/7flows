@@ -191,14 +191,15 @@ class SandboxToolExecutionRequest:
     execution_class: str
     tool_id: str
     ecosystem: str
-    adapter_id: str
-    adapter_endpoint: str
     inputs: dict[str, Any]
     credentials: dict[str, str]
     timeout_ms: int
     trace_id: str
     execution: dict[str, Any]
     execution_contract: dict[str, Any]
+    runner_kind: str = "compat-adapter"
+    adapter_id: str | None = None
+    adapter_endpoint: str | None = None
     profile: str | None = None
     dependency_mode: str | None = None
     builtin_package_set: str | None = None
@@ -367,15 +368,11 @@ class SandboxBackendClient:
 
         payload: dict[str, Any] = {
             "executionClass": request.execution_class,
-            "command": ["sevenflows-tool-runner", "compat-adapter"],
+            "command": ["sevenflows-tool-runner", request.runner_kind],
             "input": {
                 "kind": "tool_execution",
                 "toolId": request.tool_id,
                 "ecosystem": request.ecosystem,
-                "adapter": {
-                    "id": request.adapter_id,
-                    "endpoint": request.adapter_endpoint,
-                },
                 "inputs": request.inputs,
                 "credentials": request.credentials,
                 "timeout": request.timeout_ms,
@@ -385,6 +382,11 @@ class SandboxBackendClient:
             },
             "traceId": request.trace_id,
         }
+        if request.adapter_id is not None and request.adapter_endpoint is not None:
+            payload["input"]["adapter"] = {
+                "id": request.adapter_id,
+                "endpoint": request.adapter_endpoint,
+            }
         if request.profile is not None:
             payload["profile"] = request.profile
         if request.dependency_mode is not None:

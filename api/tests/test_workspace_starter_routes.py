@@ -1,7 +1,8 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.services import workflow_definitions
+from app.services import workflow_definitions, workflow_library
+from app.services.plugin_runtime import PluginRegistry, PluginToolDefinition
 from app.services.sandbox_backends import (
     SandboxBackendCapability,
     SandboxBackendClient,
@@ -775,6 +776,56 @@ def test_workspace_starter_create_rejects_allowed_tool_default_microvm_when_back
     assert "default execution class 'microvm'" in message
     assert "no compatible sandbox backend is currently available" in message.lower()
     assert any(issue["category"] == "tool_execution" for issue in issues)
+
+
+def test_workspace_starter_create_allows_native_default_sandbox_with_tool_runner(
+    client: TestClient,
+    monkeypatch,
+) -> None:
+    registry = PluginRegistry()
+    registry.register_tool(
+        PluginToolDefinition(
+            id="native.risk-search-default-runner-ready",
+            name="Risk Search Default Runner Ready",
+            supported_execution_classes=("inline", "sandbox"),
+            default_execution_class="sandbox",
+        )
+    )
+    monkeypatch.setattr(workflow_library, "get_plugin_registry", lambda: registry)
+    monkeypatch.setattr(workflow_definitions, "get_plugin_registry", lambda: registry)
+    monkeypatch.setattr(
+        workflow_definitions,
+        "get_sandbox_backend_client",
+        lambda: _sandbox_backend_client(
+            execution_classes=("sandbox",),
+            supports_tool_execution=True,
+        ),
+    )
+
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Native Default Runner Ready Starter",
+            "description": "Template for native runner-ready default execution",
+            "business_track": "编排节点能力",
+            "default_workflow_name": "Native Default Runner Ready Workflow",
+            "workflow_focus": "Native default execution focus",
+            "recommended_next_step": "Bind sandbox runner-backed native tool",
+            "tags": ["execution", "native"],
+            "definition": _bound_tool_definition(
+                tool_id="native.risk-search-default-runner-ready",
+                ecosystem="native",
+            ),
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["name"] == "Native Default Runner Ready Starter"
+    assert body["definition"]["nodes"][1]["config"]["tool"]["toolId"] == (
+        "native.risk-search-default-runner-ready"
+    )
 
 
 def test_workspace_starter_create_rejects_invalid_variables(

@@ -66,6 +66,58 @@ def build_execution_contract(tool: PluginToolDefinition) -> dict[str, Any]:
     }
 
 
+def build_sandbox_tool_execution_contract(tool: PluginToolDefinition) -> dict[str, Any]:
+    constrained_ir = tool.constrained_ir
+    if isinstance(constrained_ir, dict):
+        return build_execution_contract(tool)
+
+    input_schema = tool.input_schema if isinstance(tool.input_schema, dict) else {}
+    raw_properties = input_schema.get("properties")
+    properties = raw_properties if isinstance(raw_properties, dict) else {}
+    required_fields = {
+        str(item)
+        for item in (input_schema.get("required") or [])
+        if isinstance(item, str) and item.strip()
+    }
+    contract_fields: list[dict[str, Any]] = []
+    for field_name, raw_schema in properties.items():
+        normalized_field_name = str(field_name or "").strip()
+        if not normalized_field_name:
+            continue
+        json_schema = raw_schema if isinstance(raw_schema, dict) else {}
+        contract_fields.append(
+            {
+                "name": normalized_field_name,
+                "required": normalized_field_name in required_fields,
+                "valueSource": "llm",
+                "jsonSchema": dict(json_schema),
+            }
+        )
+
+    additional_properties = input_schema.get("additionalProperties")
+    if isinstance(additional_properties, bool):
+        allow_additional_properties = additional_properties
+    else:
+        allow_additional_properties = not contract_fields
+
+    field_names = [str(field["name"]) for field in contract_fields]
+    return {
+        "irVersion": "2026-03-10",
+        "kind": "tool_execution",
+        "ecosystem": tool.ecosystem,
+        "toolId": tool.id,
+        "inputContract": contract_fields,
+        "constraints": {
+            "additionalProperties": allow_additional_properties,
+            "credentialFields": [],
+            "fileFields": [],
+            "llmFillableFields": field_names,
+            "userConfigFields": [],
+        },
+        "pluginMeta": dict(tool.plugin_meta or {}),
+    }
+
+
 def normalize_contract_bound_request(
     request: PluginCallRequest,
     execution_contract: dict[str, Any],

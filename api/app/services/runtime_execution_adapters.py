@@ -387,7 +387,6 @@ class RuntimeExecutionAdapterRegistry:
                 tool_id = str(
                     tool_binding.get("toolId") or node.get("id") or node.get("name") or "tool"
                 )
-                ecosystem = str(tool_binding.get("ecosystem") or "native").strip() or "native"
                 backend_selection = describe_tool_execution_backend_selection(
                     sandbox_backend_client=self._sandbox_backend_client,
                     execution_class=execution_policy.execution_class,
@@ -404,8 +403,7 @@ class RuntimeExecutionAdapterRegistry:
                         blocking_reason=backend_selection.reason,
                     )
                 if (
-                    ecosystem != "native"
-                    and backend_selection is not None
+                    backend_selection is not None
                     and backend_selection.available
                     and backend_selection.capability.supports_tool_execution
                 ):
