@@ -402,7 +402,7 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     assert run_snapshot["status"] == "waiting"
     assert run_snapshot["current_node_id"] is None
     assert run_snapshot["waiting_reason"] == "Waiting for external search callback."
-    assert run_snapshot["execution_focus_reason"] == "blocked_execution"
+    assert run_snapshot["execution_focus_reason"] == "blocking_node_run"
     assert run_snapshot["execution_focus_node_id"] == "agent_plan"
     assert run_snapshot["execution_focus_node_run_id"] == "node-run-agent"
     assert run_snapshot["execution_focus_node_name"] == "Agent Plan"

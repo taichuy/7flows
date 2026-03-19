@@ -13,7 +13,7 @@ function normalizeIds(values: Array<string | null | undefined>) {
   return [...new Set(values.map((item) => item?.trim()).filter(Boolean))];
 }
 
-export function revalidateOperatorFollowUpPaths({
+export async function revalidateOperatorFollowUpPaths({
   runIds = [],
   workflowIds = []
 }: RevalidateOperatorFollowUpPathsInput) {
@@ -34,12 +34,12 @@ export async function revalidateOperatorFollowUpByRunIds(
 ) {
   const normalizedRunIds = normalizeIds(runIds);
   if (normalizedRunIds.length === 0) {
-    revalidateOperatorFollowUpPaths({});
+    await revalidateOperatorFollowUpPaths({});
     return;
   }
 
   const runSnapshots = await fetchRunSnapshots(normalizedRunIds, normalizedRunIds.length);
-  revalidateOperatorFollowUpPaths({
+  await revalidateOperatorFollowUpPaths({
     runIds: normalizedRunIds,
     workflowIds: runSnapshots.map((item) => item.snapshot?.workflowId)
   });
