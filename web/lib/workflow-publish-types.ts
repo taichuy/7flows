@@ -1,7 +1,8 @@
 import type {
   CallbackWaitingLifecycleSummary,
   RunCallbackTicketItem,
-  RunExecutionNodeItem
+  RunExecutionNodeItem,
+  SkillReferenceLoadItem
 } from "@/lib/get-run-views";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 
@@ -288,6 +289,12 @@ export type OperatorRunFollowUpSnapshot = {
     response_content_type?: string | null;
     raw_ref?: string | null;
   }>;
+  execution_focus_skill_trace?: {
+    reference_count: number;
+    phase_counts: Record<string, number>;
+    source_counts: Record<string, number>;
+    loads: SkillReferenceLoadItem[];
+  } | null;
 };
 
 export type OperatorRunFollowUpSnapshotSample = {
@@ -408,4 +415,3 @@ export type WorkflowPublishedEndpointItem = {
   activity?: PublishedEndpointInvocationSummary | null;
   cache_inventory?: PublishedEndpointCacheInventorySummary | null;
 };
-import type { SkillReferenceLoadItem } from "@/lib/get-run-views";

@@ -47,9 +47,13 @@ export type PublishedInvocationRunFollowUpSampleView = {
   execution_focus_artifact_ref_count: number;
   execution_focus_tool_call_count: number;
   execution_focus_raw_ref_count: number;
+  skill_reference_count: number;
+  skill_reference_phase_summary: string | null;
+  skill_reference_source_summary: string | null;
   focus_artifact_summary: string | null;
   focus_tool_call_summaries: ExecutionFocusToolCallSummary[];
   focus_artifacts: OperatorInlineFocusArtifactPreview[];
+  focus_skill_reference_loads: NonNullable<RunSnapshot["executionFocusSkillTrace"]>["loads"];
 };
 
 function buildPublishedInvocationRunFollowUpSampleSnapshot(
@@ -105,7 +109,15 @@ function buildPublishedInvocationRunFollowUpSampleSnapshot(
         response_summary: toolCall.response_summary ?? null,
         response_content_type: toolCall.response_content_type ?? null,
         raw_ref: toolCall.raw_ref ?? null
-      })) ?? []
+      })) ?? [],
+    executionFocusSkillTrace: sample?.snapshot?.execution_focus_skill_trace
+      ? {
+          reference_count: sample.snapshot.execution_focus_skill_trace.reference_count ?? 0,
+          phase_counts: sample.snapshot.execution_focus_skill_trace.phase_counts ?? {},
+          source_counts: sample.snapshot.execution_focus_skill_trace.source_counts ?? {},
+          loads: sample.snapshot.execution_focus_skill_trace.loads ?? []
+        }
+      : null
   };
 }
 
@@ -317,9 +329,13 @@ export function listPublishedInvocationRunFollowUpSampleViews(
       execution_focus_artifact_ref_count: sample.snapshot?.execution_focus_artifact_ref_count ?? 0,
       execution_focus_tool_call_count: sample.snapshot?.execution_focus_tool_call_count ?? 0,
       execution_focus_raw_ref_count: sample.snapshot?.execution_focus_raw_ref_count ?? 0,
+      skill_reference_count: focusEvidenceModel.skillReferenceCount,
+      skill_reference_phase_summary: focusEvidenceModel.skillReferencePhaseSummary,
+      skill_reference_source_summary: focusEvidenceModel.skillReferenceSourceSummary,
       focus_artifact_summary: focusEvidenceModel.focusArtifactSummary,
       focus_tool_call_summaries: focusEvidenceModel.focusToolCallSummaries,
-      focus_artifacts: focusEvidenceModel.focusArtifacts
+      focus_artifacts: focusEvidenceModel.focusArtifacts,
+      focus_skill_reference_loads: focusEvidenceModel.focusSkillReferenceLoads
     };
   });
 }

@@ -281,6 +281,31 @@ describe("published invocation presenters", () => {
                   raw_ref: "artifact://wait-raw"
                 }
               ],
+              execution_focus_skill_trace: {
+                reference_count: 2,
+                phase_counts: {
+                  plan: 1,
+                  execute: 1
+                },
+                source_counts: {
+                  catalog: 2
+                },
+                loads: [
+                  {
+                    phase: "plan",
+                    references: [
+                      {
+                        skill_id: "skill.callback",
+                        skill_name: "Callback guide",
+                        reference_id: "ref.callback.guide",
+                        reference_name: "Callback handling guide",
+                        load_source: "catalog",
+                        retrieval_mcp_params: {}
+                      }
+                    ]
+                  }
+                ]
+              },
               execution_focus_artifacts: [
                 {
                   summary: "callback payload snapshot",
@@ -320,6 +345,9 @@ describe("published invocation presenters", () => {
         execution_focus_artifact_ref_count: 1,
         execution_focus_tool_call_count: 1,
         execution_focus_raw_ref_count: 1,
+        skill_reference_count: 2,
+        skill_reference_phase_summary: "plan 1, execute 1",
+        skill_reference_source_summary: "catalog 2",
         focus_artifact_summary:
           "聚焦节点已沉淀 1 个 artifact（artifact 1）。 至少 1 条 tool call 已把原始结果落到 raw_ref，可直接回看 sandbox / tool 输出。",
         focus_tool_call_summaries: [
@@ -339,6 +367,21 @@ describe("published invocation presenters", () => {
             summary: "callback payload snapshot",
             uri: "artifact://wait-artifact"
           }
+        ],
+        focus_skill_reference_loads: [
+          {
+            phase: "plan",
+            references: [
+              {
+                skill_id: "skill.callback",
+                skill_name: "Callback guide",
+                reference_id: "ref.callback.guide",
+                reference_name: "Callback handling guide",
+                load_source: "catalog",
+                retrieval_mcp_params: {}
+              }
+            ]
+          }
         ]
       },
       {
@@ -357,9 +400,13 @@ describe("published invocation presenters", () => {
         execution_focus_artifact_ref_count: 0,
         execution_focus_tool_call_count: 0,
         execution_focus_raw_ref_count: 0,
+        skill_reference_count: 0,
+        skill_reference_phase_summary: null,
+        skill_reference_source_summary: null,
         focus_artifact_summary: null,
         focus_tool_call_summaries: [],
-        focus_artifacts: []
+        focus_artifacts: [],
+        focus_skill_reference_loads: []
       }
     ]);
   });

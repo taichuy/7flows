@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
+import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import type { PublishedEndpointInvocationListResponse } from "@/lib/get-workflow-publish";
 import {
   formatCallbackLifecycleLabel,
@@ -242,15 +243,65 @@ export function WorkflowPublishInvocationEntryCard({
             <p className="binding-meta">{runFollowUpSample.snapshot_summary}</p>
           ) : null}
           {runFollowUpSample ? (
-            <OperatorFocusEvidenceCard
-              title="Sampled run focus evidence"
-              artifactCount={runFollowUpSample.execution_focus_artifact_count}
-              artifactRefCount={runFollowUpSample.execution_focus_artifact_ref_count}
-              artifactSummary={runFollowUpSample.focus_artifact_summary}
-              artifacts={runFollowUpSample.focus_artifacts}
-              toolCallCount={runFollowUpSample.execution_focus_tool_call_count}
-              toolCallSummaries={runFollowUpSample.focus_tool_call_summaries}
-            />
+            <>
+              {runFollowUpSample.execution_focus_artifact_count > 0 ||
+              runFollowUpSample.execution_focus_artifact_ref_count > 0 ||
+              runFollowUpSample.execution_focus_tool_call_count > 0 ||
+              runFollowUpSample.execution_focus_raw_ref_count > 0 ||
+              runFollowUpSample.skill_reference_count > 0 ? (
+                <div className="tool-badge-row">
+                  {runFollowUpSample.execution_focus_artifact_count > 0 ? (
+                    <span className="event-chip">
+                      artifacts {runFollowUpSample.execution_focus_artifact_count}
+                    </span>
+                  ) : null}
+                  {runFollowUpSample.execution_focus_artifact_ref_count > 0 ? (
+                    <span className="event-chip">
+                      artifact refs {runFollowUpSample.execution_focus_artifact_ref_count}
+                    </span>
+                  ) : null}
+                  {runFollowUpSample.execution_focus_tool_call_count > 0 ? (
+                    <span className="event-chip">
+                      tool calls {runFollowUpSample.execution_focus_tool_call_count}
+                    </span>
+                  ) : null}
+                  {runFollowUpSample.execution_focus_raw_ref_count > 0 ? (
+                    <span className="event-chip">
+                      raw refs {runFollowUpSample.execution_focus_raw_ref_count}
+                    </span>
+                  ) : null}
+                  {runFollowUpSample.skill_reference_count > 0 ? (
+                    <span className="event-chip">
+                      skill refs {runFollowUpSample.skill_reference_count}
+                    </span>
+                  ) : null}
+                  {runFollowUpSample.skill_reference_phase_summary ? (
+                    <span className="event-chip">
+                      phases {runFollowUpSample.skill_reference_phase_summary}
+                    </span>
+                  ) : null}
+                  {runFollowUpSample.skill_reference_source_summary ? (
+                    <span className="event-chip">
+                      sources {runFollowUpSample.skill_reference_source_summary}
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
+              <OperatorFocusEvidenceCard
+                title="Sampled run focus evidence"
+                artifactCount={runFollowUpSample.execution_focus_artifact_count}
+                artifactRefCount={runFollowUpSample.execution_focus_artifact_ref_count}
+                artifactSummary={runFollowUpSample.focus_artifact_summary}
+                artifacts={runFollowUpSample.focus_artifacts}
+                toolCallCount={runFollowUpSample.execution_focus_tool_call_count}
+                toolCallSummaries={runFollowUpSample.focus_tool_call_summaries}
+              />
+              <SkillReferenceLoadList
+                skillReferenceLoads={runFollowUpSample.focus_skill_reference_loads}
+                title="Focused skill trace"
+                description="发布活动卡片现在也会复用 compact snapshot 里的 skill trace，方便直接确认 sampled run 的 focus node 注入来源。"
+              />
+            </>
           ) : null}
         </div>
       ) : null}

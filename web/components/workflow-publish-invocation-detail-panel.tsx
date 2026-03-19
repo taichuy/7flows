@@ -240,6 +240,49 @@ export function WorkflowPublishInvocationDetailPanel({
                     {sample.snapshot_summary ? (
                       <p className="binding-meta">{sample.snapshot_summary}</p>
                     ) : null}
+                    {sample.execution_focus_artifact_count > 0 ||
+                    sample.execution_focus_artifact_ref_count > 0 ||
+                    sample.execution_focus_tool_call_count > 0 ||
+                    sample.execution_focus_raw_ref_count > 0 ||
+                    sample.skill_reference_count > 0 ? (
+                      <div className="tool-badge-row">
+                        {sample.execution_focus_artifact_count > 0 ? (
+                          <span className="event-chip">
+                            artifacts {sample.execution_focus_artifact_count}
+                          </span>
+                        ) : null}
+                        {sample.execution_focus_artifact_ref_count > 0 ? (
+                          <span className="event-chip">
+                            artifact refs {sample.execution_focus_artifact_ref_count}
+                          </span>
+                        ) : null}
+                        {sample.execution_focus_tool_call_count > 0 ? (
+                          <span className="event-chip">
+                            tool calls {sample.execution_focus_tool_call_count}
+                          </span>
+                        ) : null}
+                        {sample.execution_focus_raw_ref_count > 0 ? (
+                          <span className="event-chip">
+                            raw refs {sample.execution_focus_raw_ref_count}
+                          </span>
+                        ) : null}
+                        {sample.skill_reference_count > 0 ? (
+                          <span className="event-chip">
+                            skill refs {sample.skill_reference_count}
+                          </span>
+                        ) : null}
+                        {sample.skill_reference_phase_summary ? (
+                          <span className="event-chip">
+                            phases {sample.skill_reference_phase_summary}
+                          </span>
+                        ) : null}
+                        {sample.skill_reference_source_summary ? (
+                          <span className="event-chip">
+                            sources {sample.skill_reference_source_summary}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {sample.focus_artifact_summary ||
                     sample.focus_tool_call_summaries.length > 0 ||
                     sample.focus_artifacts.length > 0 ? (
@@ -253,6 +296,11 @@ export function WorkflowPublishInvocationDetailPanel({
                         toolCallSummaries={sample.focus_tool_call_summaries}
                       />
                     ) : null}
+                    <SkillReferenceLoadList
+                      skillReferenceLoads={sample.focus_skill_reference_loads}
+                      title="Focused skill trace"
+                      description="publish invocation detail 里的 sampled run 现在也直接复用 compact snapshot 的 skill trace，避免还要回跳 run detail 才能确认 focus node 实际加载了哪些参考资料。"
+                    />
                     <dl className="compact-meta-list">
                       <div>
                         <dt>Status</dt>
