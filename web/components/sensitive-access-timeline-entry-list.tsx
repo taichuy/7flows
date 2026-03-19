@@ -115,9 +115,28 @@ function matchesNotificationFilter(
 
 function resolveRunId(
   entry: SensitiveAccessTimelineEntry,
-  defaultRunId?: string | null
+  defaultRunId?: string | null,
+  sampledRunId?: string | null
 ): string | null {
-  return entry.request.run_id ?? entry.approval_ticket?.run_id ?? defaultRunId ?? null;
+  return (
+    entry.request.run_id ??
+    entry.approval_ticket?.run_id ??
+    sampledRunId ??
+    defaultRunId ??
+    null
+  );
+}
+
+function resolveFollowUpSnapshot(
+  entry: SensitiveAccessTimelineEntry
+): { runId: string | null; snapshot: SensitiveAccessTimelineEntry["run_snapshot"] } {
+  const sampledRun =
+    entry.run_follow_up?.sampled_runs.find((sample) => sample.snapshot != null) ?? null;
+
+  return {
+    runId: sampledRun?.run_id ?? null,
+    snapshot: entry.run_snapshot ?? sampledRun?.snapshot ?? null
+  };
 }
 
 function shouldSurfaceCallbackWaitingSummary(entry: SensitiveAccessTimelineEntry) {
@@ -299,11 +318,12 @@ export function SensitiveAccessTimelineEntryList({
 
       <div className="event-list">
         {filteredEntries.map((entry) => {
-          const runId = resolveRunId(entry, defaultRunId);
+          const followUpSnapshot = resolveFollowUpSnapshot(entry);
+          const runId = resolveRunId(entry, defaultRunId, followUpSnapshot.runId);
           const inboxSliceHref = buildSensitiveAccessTimelineInboxHref(entry, defaultRunId);
           const shouldRenderCallbackWaitingSummary = shouldSurfaceCallbackWaitingSummary(entry);
           const hasStructuredOperatorFeedback = Boolean(
-            entry.run_snapshot || entry.run_follow_up?.explanation
+            followUpSnapshot.snapshot || entry.run_follow_up?.explanation
           );
           const nodeRunId = entry.approval_ticket?.node_run_id ?? entry.request.node_run_id ?? null;
 
@@ -365,7 +385,7 @@ export function SensitiveAccessTimelineEntryList({
                   outcomeExplanation={entry.outcome_explanation ?? null}
                   runFollowUpExplanation={entry.run_follow_up?.explanation ?? null}
                   runId={runId}
-                  runSnapshot={entry.run_snapshot ?? null}
+                  runSnapshot={followUpSnapshot.snapshot}
                   status="success"
                   title="Operator follow-up"
                 />

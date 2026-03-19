@@ -190,6 +190,119 @@ describe("SensitiveAccessTimelineEntryList", () => {
     expect(markup).not.toContain("Sensitive access:");
   });
 
+  it("在 entry 自身没有 run_snapshot 时回退到 sampled run snapshot", () => {
+    const baseEntry = buildTimelineEntry();
+    const markup = renderToStaticMarkup(
+      createElement(SensitiveAccessTimelineEntryList, {
+        entries: [
+          buildTimelineEntry({
+            request: {
+              ...baseEntry.request,
+              run_id: null,
+              node_run_id: null
+            },
+            approval_ticket: {
+              ...baseEntry.approval_ticket!,
+              run_id: null,
+              node_run_id: null
+            },
+            run_snapshot: null,
+            run_follow_up: {
+              affected_run_count: 1,
+              sampled_run_count: 1,
+              waiting_run_count: 1,
+              running_run_count: 0,
+              succeeded_run_count: 0,
+              failed_run_count: 0,
+              unknown_run_count: 0,
+              sampled_runs: [
+                {
+                  run_id: "run-sampled-1",
+                  snapshot: {
+                    status: "waiting",
+                    workflowId: "workflow-1",
+                    currentNodeId: "tool_wait",
+                    waitingReason: "callback pending",
+                    executionFocusNodeId: "tool_wait",
+                    executionFocusNodeRunId: "node-run-sampled-1",
+                    executionFocusNodeName: "Tool Wait",
+                    callbackWaitingExplanation: {
+                      primary_signal: "当前 sampled run 仍在等待 callback。",
+                      follow_up: "优先确认外部系统是否已经回调。"
+                    },
+                    callbackWaitingLifecycle: {
+                      wait_cycle_count: 1,
+                      issued_ticket_count: 1,
+                      expired_ticket_count: 0,
+                      consumed_ticket_count: 0,
+                      canceled_ticket_count: 0,
+                      late_callback_count: 0,
+                      resume_schedule_count: 1,
+                      max_expired_ticket_count: 0,
+                      terminated: false,
+                      last_ticket_status: "pending",
+                      last_ticket_reason: "waiting_callback",
+                      last_ticket_updated_at: "2026-03-19T00:05:00Z",
+                      last_resume_delay_seconds: 60,
+                      last_resume_reason: "waiting_callback",
+                      last_resume_source: "runtime_retry",
+                      last_resume_backoff_attempt: 1
+                    },
+                    scheduledResumeDelaySeconds: 60,
+                    scheduledResumeReason: "waiting_callback",
+                    scheduledResumeSource: "runtime_retry",
+                    scheduledWaitingStatus: "waiting",
+                    scheduledResumeScheduledAt: "2026-03-19T00:05:00Z",
+                    scheduledResumeDueAt: "2026-03-19T00:06:00Z",
+                    scheduledResumeRequeuedAt: "2026-03-19T00:06:15Z",
+                    scheduledResumeRequeueSource: "waiting_resume_monitor",
+                    executionFocusArtifactCount: 1,
+                    executionFocusArtifactRefCount: 1,
+                    executionFocusToolCallCount: 1,
+                    executionFocusRawRefCount: 1,
+                    executionFocusArtifactRefs: ["artifact://focus-sampled-1"],
+                    executionFocusArtifacts: [
+                      {
+                        artifact_kind: "tool_result",
+                        content_type: "application/json",
+                        summary: "sampled run 保留了最近一次 tool 输出摘要。",
+                        uri: "artifact://focus-sampled-1"
+                      }
+                    ],
+                    executionFocusToolCalls: [
+                      {
+                        id: "tool-call-sampled-1",
+                        tool_id: "search",
+                        tool_name: "Search Tool",
+                        phase: "waiting_callback",
+                        status: "waiting",
+                        response_summary: "sampled run 的 tool 调用仍在等待 callback。",
+                        raw_ref: "raw://tool-call-sampled-1"
+                      }
+                    ]
+                  }
+                }
+              ],
+              explanation: {
+                primary_signal: "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
+                follow_up: "run run-sampled-1：当前 run 状态：waiting。"
+              }
+            }
+          })
+        ],
+        emptyCopy: "empty",
+        defaultRunId: null
+      })
+    );
+
+    expect(markup).toContain("open run run-samp");
+    expect(markup).toContain("当前 sampled run 仍在等待 callback。");
+    expect(markup).toContain("scheduled resume requeued");
+    expect(markup).toContain("requeued by waiting_resume_monitor");
+    expect(markup).toContain("tool calls 1");
+    expect(markup).not.toContain("Sensitive access:");
+  });
+
   it("不会为已经完成且无需 follow-up 的 entry 重复渲染 callback waiting 摘要", () => {
     const baseEntry = buildTimelineEntry();
     const markup = renderToStaticMarkup(
