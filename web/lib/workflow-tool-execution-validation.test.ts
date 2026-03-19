@@ -6,7 +6,10 @@ import type {
 } from "./get-system-overview";
 import type { WorkflowDefinition } from "./workflow-editor";
 import type { WorkflowNodeRuntimePolicy } from "./workflow-runtime-policy";
-import { buildWorkflowToolExecutionValidationIssues } from "./workflow-tool-execution-validation";
+import {
+  buildWorkflowNodeExecutionValidationIssues,
+  buildWorkflowToolExecutionValidationIssues
+} from "./workflow-tool-execution-validation";
 
 function createDefinition(overrides?: {
   config?: Record<string, unknown>;
@@ -31,6 +34,31 @@ function createDefinition(overrides?: {
     edges: [
       { id: "e1", sourceNodeId: "trigger", targetNodeId: "sandbox" },
       { id: "e2", sourceNodeId: "sandbox", targetNodeId: "output" }
+    ],
+    variables: [],
+    publish: []
+  };
+}
+
+function createGenericNodeDefinition(
+  nodeType: string,
+  runtimePolicy?: WorkflowNodeRuntimePolicy
+): WorkflowDefinition {
+  return {
+    nodes: [
+      { id: "trigger", type: "trigger", name: "Trigger", config: {} },
+      {
+        id: "middle",
+        type: nodeType,
+        name: "Middle",
+        config: {},
+        ...(runtimePolicy ? { runtimePolicy } : {})
+      },
+      { id: "output", type: "output", name: "Output", config: {} }
+    ],
+    edges: [
+      { id: "e1", sourceNodeId: "trigger", targetNodeId: "middle" },
+      { id: "e2", sourceNodeId: "middle", targetNodeId: "output" }
     ],
     variables: [],
     publish: []
@@ -121,6 +149,71 @@ function createSandboxBackends(
 }
 
 describe("workflow tool execution validation", () => {
+  it("对非 tool/sandbox 节点的 subprocess execution class 做 fail-closed", () => {
+    const issues = buildWorkflowNodeExecutionValidationIssues(
+      createGenericNodeDefinition("llm_agent", {
+        execution: {
+          class: "subprocess"
+        }
+      })
+    );
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.path).toBe("nodes.1.runtimePolicy.execution");
+    expect(issues[0]?.message).toContain("节点 Middle (middle)");
+    expect(issues[0]?.message).toContain("execution class 'subprocess'");
+    expect(issues[0]?.message).toContain("llm_agent");
+  });
+
+  it("对非 tool/sandbox 节点的强隔离 execution class 做 fail-closed", () => {
+    const issues = buildWorkflowNodeExecutionValidationIssues(
+      createGenericNodeDefinition("output", {
+        execution: {
+          class: "microvm"
+        }
+      })
+    );
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.message).toContain("强隔离 execution class 'microvm'");
+    expect(issues[0]?.message).toContain("fail-closed");
+    expect(issues[0]?.message).toContain("output");
+  });
+
+  it("忽略 tool 与 sandbox_code 节点的 node execution 本地校验", () => {
+    const issues = buildWorkflowNodeExecutionValidationIssues({
+      nodes: [
+        {
+          id: "tool-node",
+          type: "tool",
+          name: "Tool",
+          config: {},
+          runtimePolicy: {
+            execution: {
+              class: "microvm"
+            }
+          }
+        },
+        {
+          id: "sandbox",
+          type: "sandbox_code",
+          name: "Sandbox",
+          config: {},
+          runtimePolicy: {
+            execution: {
+              class: "microvm"
+            }
+          }
+        }
+      ],
+      edges: [],
+      variables: [],
+      publish: []
+    });
+
+    expect(issues).toHaveLength(0);
+  });
+
   it("在没有 tool catalog 时仍校验 sandbox_code 默认强隔离 readiness", () => {
     const issues = buildWorkflowToolExecutionValidationIssues(
       createDefinition(),

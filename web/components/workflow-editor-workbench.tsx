@@ -167,6 +167,7 @@ export function WorkflowEditorWorkbench({
           unsupportedNodes={validation.unsupportedNodes}
           contractValidationIssuesCount={validation.contractValidationIssues.length}
           toolReferenceValidationIssuesCount={validation.toolReferenceValidationIssues.length}
+          nodeExecutionValidationIssuesCount={validation.nodeExecutionValidationIssues.length}
           toolExecutionValidationIssuesCount={validation.toolExecutionValidationIssues.length}
           publishVersionValidationIssuesCount={validation.publishVersionValidationIssues.length}
           persistBlockedMessage={validation.persistBlockedMessage || null}

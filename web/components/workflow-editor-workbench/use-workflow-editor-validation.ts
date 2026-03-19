@@ -19,7 +19,10 @@ import {
   buildAllowedPublishWorkflowVersions,
   buildWorkflowPublishVersionValidationIssues
 } from "@/lib/workflow-publish-version-validation";
-import { buildWorkflowToolExecutionValidationIssues } from "@/lib/workflow-tool-execution-validation";
+import {
+  buildWorkflowNodeExecutionValidationIssues,
+  buildWorkflowToolExecutionValidationIssues
+} from "@/lib/workflow-tool-execution-validation";
 import { buildWorkflowToolReferenceValidationIssues } from "@/lib/workflow-tool-reference-validation";
 import {
   buildWorkflowValidationNavigatorItems,
@@ -189,6 +192,14 @@ export function useWorkflowEditorValidation({
     () => summarizeIssueMessages(toolExecutionValidationIssues),
     [toolExecutionValidationIssues]
   );
+  const nodeExecutionValidationIssues = useMemo(
+    () => buildWorkflowNodeExecutionValidationIssues(currentDefinition),
+    [currentDefinition]
+  );
+  const nodeExecutionValidationSummary = useMemo(
+    () => summarizeIssueMessages(nodeExecutionValidationIssues),
+    [nodeExecutionValidationIssues]
+  );
   const publishVersionValidationIssues = useMemo(
     () => buildWorkflowPublishVersionValidationIssues(currentDefinition, availableWorkflowVersions),
     [availableWorkflowVersions, currentDefinition]
@@ -239,6 +250,12 @@ export function useWorkflowEditorValidation({
         path: issue.path,
         field: issue.field
       })),
+      ...nodeExecutionValidationIssues.map((issue) => ({
+        category: "node_execution",
+        message: issue.message,
+        path: issue.path,
+        field: issue.field
+      })),
       ...toolExecutionValidationIssues.map((issue) => ({
         category: "tool_execution",
         message: issue.message,
@@ -264,6 +281,7 @@ export function useWorkflowEditorValidation({
   }, [
     contractValidationIssues,
     currentDefinition,
+    nodeExecutionValidationIssues,
     publishIdentityValidationIssues,
     publishVersionValidationIssues,
     serverValidationIssues,
@@ -283,6 +301,9 @@ export function useWorkflowEditorValidation({
           : null,
         toolReferenceValidationSummary
           ? `当前 workflow definition 还有 tool catalog 引用待修正问题：${toolReferenceValidationSummary}${toolReferenceValidationSummary.endsWith("。") ? "" : "。"}请先修正 tool binding / LLM Agent tool policy 后再保存。`
+          : null,
+        nodeExecutionValidationSummary
+          ? `当前 workflow definition 还有 node execution 待修正问题：${nodeExecutionValidationSummary}${nodeExecutionValidationSummary.endsWith("。") ? "" : "。"}请先把节点 execution class 调回当前实现支持范围，再继续保存。`
           : null,
         toolExecutionValidationSummary
           ? `当前 workflow definition 还有 execution capability 待修正问题：${toolExecutionValidationSummary}${toolExecutionValidationSummary.endsWith("。") ? "" : "。"}${sandboxReadinessPreflightHint ? ` ${sandboxReadinessPreflightHint}` : ""}请先对齐 adapter 绑定、execution class 与 sandbox readiness，再继续保存。`
@@ -306,6 +327,7 @@ export function useWorkflowEditorValidation({
       contractValidationSummary,
       hasServerNodeExecutionIssues,
       hasServerToolExecutionIssues,
+      nodeExecutionValidationSummary,
       publishIdentityValidationSummary,
       publishVersionValidationSummary,
       sandboxReadinessPreflightHint,
@@ -321,6 +343,7 @@ export function useWorkflowEditorValidation({
   return {
     availableWorkflowVersions,
     contractValidationIssues,
+    nodeExecutionValidationIssues,
     publishIdentityValidationIssues,
     persistBlockedMessage,
     publishVersionValidationIssues,

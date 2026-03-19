@@ -99,13 +99,75 @@ export function buildWorkflowToolExecutionValidationIssues(
     }
   });
 
-  const dedupedIssues: WorkflowToolExecutionValidationIssue[] = [];
-  issues.forEach((issue) => {
-    if (!dedupedIssues.some((candidate) => candidate.message === issue.message)) {
-      dedupedIssues.push(issue);
+  return dedupeExecutionValidationIssues(issues);
+}
+
+export function buildWorkflowNodeExecutionValidationIssues(
+  definition: WorkflowDefinition
+): WorkflowToolExecutionValidationIssue[] {
+  if (!Array.isArray(definition?.nodes)) {
+    return [];
+  }
+
+  const issues: WorkflowToolExecutionValidationIssue[] = [];
+
+  definition.nodes.forEach((node, nodeIndex) => {
+    const nodeType = normalizeString(node?.type) ?? "unknown";
+    if (nodeType === "tool" || nodeType === "sandbox_code") {
+      return;
     }
+
+    const requestedExecutionClass = extractExplicitExecutionClass(
+      toRecord(node?.runtimePolicy)?.execution
+    );
+    if (!requestedExecutionClass || requestedExecutionClass === "inline") {
+      return;
+    }
+
+    const nodeId = typeof node?.id === "string" && node.id.trim() ? node.id.trim() : "unknown-node";
+    const nodeName =
+      typeof node?.name === "string" && node.name.trim() ? node.name.trim() : nodeId;
+    const context = `节点 ${nodeName} (${nodeId})`;
+    const path = `nodes.${nodeIndex}.runtimePolicy.execution`;
+
+    if (requestedExecutionClass === "subprocess") {
+      issues.push({
+        nodeId,
+        nodeName,
+        message:
+          `${context} 请求 execution class 'subprocess'，但节点类型 '${nodeType}' 还没有实现专用 ` +
+          "subprocess execution adapter。请先保持 'inline'，直到兼容 adapter 真正落地。",
+        path,
+        field: "execution"
+      });
+      return;
+    }
+
+    if (requestedExecutionClass === "sandbox" || requestedExecutionClass === "microvm") {
+      issues.push({
+        nodeId,
+        nodeName,
+        message:
+          `${context} 请求强隔离 execution class '${requestedExecutionClass}'，但节点类型 ` +
+          `'${nodeType}' 还没有兼容的 execution adapter。强隔离路径在适配器落地前必须 fail-closed。`,
+        path,
+        field: "execution"
+      });
+      return;
+    }
+
+    issues.push({
+      nodeId,
+      nodeName,
+      message:
+        `${context} 请求了不受支持的 execution class '${requestedExecutionClass}'。请先保持 ` +
+        "'inline'，直到兼容 execution adapter 可用。",
+      path,
+      field: "execution"
+    });
   });
-  return dedupedIssues;
+
+  return dedupeExecutionValidationIssues(issues);
 }
 
 function buildSandboxCodeExecutionIssues({
@@ -495,6 +557,16 @@ function buildAgentExecutionIssues({
 
 function normalizeString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function dedupeExecutionValidationIssues(issues: WorkflowToolExecutionValidationIssue[]) {
+  const dedupedIssues: WorkflowToolExecutionValidationIssue[] = [];
+  issues.forEach((issue) => {
+    if (!dedupedIssues.some((candidate) => candidate.message === issue.message)) {
+      dedupedIssues.push(issue);
+    }
+  });
+  return dedupedIssues;
 }
 
 function normalizeDependencyMode(value: unknown) {
