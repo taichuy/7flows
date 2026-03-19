@@ -206,23 +206,23 @@ def test_get_run_execution_view_includes_sandbox_backend_binding_summary(
     assert focus_node["execution_fallback_reason"] is None
 
 
-def test_get_run_execution_view_summarizes_execution_fallback_signals(
+def test_get_run_execution_view_blocks_unsupported_subprocess_for_generic_nodes(
     client: TestClient,
     sqlite_session: Session,
 ) -> None:
     workflow = Workflow(
-        id="wf-execution-view-fallback",
-        name="Execution View Fallback",
+        id="wf-execution-view-subprocess-blocked",
+        name="Execution View Subprocess Blocked",
         version="0.1.0",
         status="draft",
         definition={
             "nodes": [
                 {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
                 {
-                    "id": "tool",
-                    "type": "tool",
-                    "name": "Tool",
-                    "config": {"mock_output": {"answer": "done"}},
+                    "id": "branch",
+                    "type": "condition",
+                    "name": "Branch",
+                    "config": {"selected": "true"},
                     "runtimePolicy": {
                         "execution": {"class": "subprocess", "profile": "strict"}
                     },
@@ -230,13 +230,13 @@ def test_get_run_execution_view_summarizes_execution_fallback_signals(
                 {"id": "output", "type": "output", "name": "Output", "config": {}},
             ],
             "edges": [
-                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool"},
-                {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "output"},
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "branch"},
+                {"id": "e2", "sourceNodeId": "branch", "targetNodeId": "output"},
             ],
         },
     )
     workflow_version = WorkflowVersion(
-        id="wf-execution-view-fallback-v1",
+        id="wf-execution-view-subprocess-blocked-v1",
         workflow_id=workflow.id,
         version=workflow.version,
         definition=workflow.definition,
@@ -249,46 +249,48 @@ def test_get_run_execution_view_summarizes_execution_fallback_signals(
 
     response = client.post(
         f"/api/workflows/{workflow.id}/runs",
-        json={"input_payload": {"message": "fallback summary"}},
+        json={"input_payload": {"message": "subprocess blocked summary"}},
     )
-    assert response.status_code == 201
-    run_id = response.json()["id"]
+    assert response.status_code == 422
+    persisted_run = run_routes.runtime_service.list_workflow_runs(sqlite_session, workflow.id)[0]
+    run_id = persisted_run.id
 
     execution_view_response = client.get(f"/api/runs/{run_id}/execution-view")
 
     assert execution_view_response.status_code == 200
     body = execution_view_response.json()
     assert body["summary"]["execution_dispatched_node_count"] == 0
-    assert body["summary"]["execution_fallback_node_count"] == 1
+    assert body["summary"]["execution_fallback_node_count"] == 0
     assert body["summary"]["execution_blocked_node_count"] == 0
-    assert body["summary"]["execution_unavailable_node_count"] == 0
+    assert body["summary"]["execution_unavailable_node_count"] == 1
     assert body["summary"]["execution_requested_class_counts"] == {"subprocess": 1}
-    assert body["summary"]["execution_effective_class_counts"] == {"inline": 1}
-    assert body["summary"]["execution_executor_ref_counts"] == {
-        "runtime:inline-fallback:subprocess": 1
-    }
+    assert body["summary"]["execution_effective_class_counts"] == {}
+    assert body["summary"]["execution_executor_ref_counts"] == {}
     assert body["blocking_node_run_id"] is None
-    assert body["execution_focus_reason"] == "fallback_node"
-    assert body["execution_focus_node"]["node_id"] == "tool"
+    assert body["execution_focus_reason"] == "blocked_execution"
+    assert body["execution_focus_node"]["node_id"] == "branch"
     assert body["execution_focus_explanation"] == {
         "primary_signal": (
-            "执行降级：当前节点尚未实现请求的 execution class，已临时回退到 inline。"
+            "执行阻断：当前 condition 节点尚未实现请求的 subprocess execution class。"
         ),
         "follow_up": (
-            "下一步：如果这条节点需要受控执行或强隔离，应补齐对应 execution adapter；"
-            "不要把当前 fallback 当成长期默认。"
+            "下一步：先把 execution class 调回 inline，"
+            "或补齐对应 execution adapter；显式 execution-class 请求不要静默降级。"
         ),
     }
 
-    node = next(item for item in body["nodes"] if item["node_id"] == "tool")
+    node = next(item for item in body["nodes"] if item["node_id"] == "branch")
     assert node["execution_class"] == "subprocess"
-    assert node["effective_execution_class"] == "inline"
-    assert node["execution_executor_ref"] == "runtime:inline-fallback:subprocess"
+    assert node["effective_execution_class"] is None
+    assert node["execution_executor_ref"] is None
     assert node["execution_dispatched_count"] == 0
-    assert node["execution_fallback_count"] == 1
+    assert node["execution_fallback_count"] == 0
     assert node["execution_blocked_count"] == 0
-    assert node["execution_unavailable_count"] == 0
-    assert node["execution_fallback_reason"] == "execution_class_not_implemented_for_node_type"
+    assert node["execution_unavailable_count"] == 1
+    assert node["execution_fallback_reason"] is None
+    assert "does not implement requested execution class 'subprocess'" in (
+        node["execution_blocking_reason"] or ""
+    )
 
     run_detail_response = client.get(
         f"/api/runs/{run_id}", params={"include_events": "false"}
@@ -297,16 +299,16 @@ def test_get_run_execution_view_summarizes_execution_fallback_signals(
     assert run_detail_response.status_code == 200
     run_detail_body = run_detail_response.json()
     assert run_detail_body["blocking_node_run_id"] is None
-    assert run_detail_body["execution_focus_reason"] == "fallback_node"
-    assert run_detail_body["execution_focus_node"]["node_id"] == "tool"
-    assert run_detail_body["execution_focus_node"]["node_type"] == "tool"
+    assert run_detail_body["execution_focus_reason"] == "blocked_execution"
+    assert run_detail_body["execution_focus_node"]["node_id"] == "branch"
+    assert run_detail_body["execution_focus_node"]["node_type"] == "condition"
     assert run_detail_body["execution_focus_explanation"] == {
         "primary_signal": (
-            "执行降级：当前节点尚未实现请求的 execution class，已临时回退到 inline。"
+            "执行阻断：当前 condition 节点尚未实现请求的 subprocess execution class。"
         ),
         "follow_up": (
-            "下一步：如果这条节点需要受控执行或强隔离，应补齐对应 execution adapter；"
-            "不要把当前 fallback 当成长期默认。"
+            "下一步：先把 execution class 调回 inline，"
+            "或补齐对应 execution adapter；显式 execution-class 请求不要静默降级。"
         ),
     }
 

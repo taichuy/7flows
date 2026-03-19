@@ -125,28 +125,26 @@ class InlineExecutionAdapter:
         return request.inline_executor()
 
 
-class InlineExecutionFallbackAdapter:
-    def __init__(self, execution_class: str) -> None:
-        self._execution_class = execution_class
-        self.adapter_ref = f"runtime:inline-fallback:{execution_class}"
-
-    def execute(self, request: NodeExecutionRequest) -> NodeExecutionResult:
-        result = request.inline_executor()
-        result.events.insert(
-            0,
-            RuntimeEvent(
-                "node.execution.fallback",
-                {
-                    "node_id": request.node.get("id"),
-                    "node_type": request.node.get("type"),
-                    "requested_execution_class": self._execution_class,
-                    "effective_execution_class": "inline",
-                    "executor_ref": self.adapter_ref,
-                    "reason": "execution_class_not_implemented_for_node_type",
-                },
-            ),
+def _build_unsupported_node_execution_reason(*, node_type: str, execution_class: str) -> str:
+    if execution_class == "subprocess":
+        return (
+            f"Node type '{node_type}' does not implement requested execution class "
+            "'subprocess'. Explicit execution-class requests must stay blocked until "
+            "a compatible execution adapter is available."
         )
-        return result
+
+    if execution_class in {"sandbox", "microvm"}:
+        return (
+            f"Node type '{node_type}' does not implement requested strong-isolation "
+            f"execution class '{execution_class}'. Strong-isolation paths must fail "
+            "closed until a compatible execution adapter is available."
+        )
+
+    return (
+        f"Node type '{node_type}' does not implement requested execution class "
+        f"'{execution_class}'. Explicit execution-class requests must stay blocked until "
+        "a compatible execution adapter is available."
+    )
 
 
 class SandboxCodeExecutionAdapter:
@@ -356,11 +354,6 @@ class RuntimeExecutionAdapterRegistry:
     ) -> None:
         self._sandbox_backend_client = sandbox_backend_client or get_sandbox_backend_client()
         self._inline_adapter = InlineExecutionAdapter()
-        self._fallback_adapters = {
-            "subprocess": InlineExecutionFallbackAdapter("subprocess"),
-            "sandbox": InlineExecutionFallbackAdapter("sandbox"),
-            "microvm": InlineExecutionFallbackAdapter("microvm"),
-        }
         self._sandbox_code_adapter = SandboxCodeExecutionAdapter(
             sandbox_code_executor=sandbox_code_executor or HostSandboxCodeExecutor(),
             artifact_store=artifact_store,
@@ -428,17 +421,15 @@ class RuntimeExecutionAdapterRegistry:
                         else None
                     ),
                 )
-            if node_type != "tool" and execution_policy.execution_class in {
-                "sandbox",
-                "microvm",
-            }:
+            if node_type == "tool":
+                return NodeExecutionAvailability(available=True)
+
+            if execution_policy.execution_class != "inline":
                 return NodeExecutionAvailability(
                     available=False,
-                    blocking_reason=(
-                        f"Node type '{node_type}' does not implement requested "
-                        f"strong-isolation execution class '{execution_policy.execution_class}'. "
-                        "Strong-isolation paths must fail closed until a compatible "
-                        "execution adapter is available."
+                    blocking_reason=_build_unsupported_node_execution_reason(
+                        node_type=node_type,
+                        execution_class=execution_policy.execution_class,
                     ),
                 )
             return NodeExecutionAvailability(available=True)
@@ -508,6 +499,7 @@ class RuntimeExecutionAdapterRegistry:
         )
 
     def execute(self, request: NodeExecutionRequest) -> NodeExecutionResult:
+        node_type = str(request.node.get("type") or "unknown")
         if request.node.get("type") == "sandbox_code":
             if request.execution_policy.execution_class == "subprocess":
                 return self._sandbox_code_adapter.execute(request)
@@ -518,6 +510,15 @@ class RuntimeExecutionAdapterRegistry:
                 f"'{request.execution_policy.execution_class}' is unavailable "
                 "without a registered sandbox backend."
             )
+
+        if node_type == "tool":
+            return self._inline_adapter.execute(request)
+
         if request.execution_policy.execution_class == "inline":
             return self._inline_adapter.execute(request)
-        return self._fallback_adapters[request.execution_policy.execution_class].execute(request)
+        raise WorkflowExecutionError(
+            _build_unsupported_node_execution_reason(
+                node_type=node_type,
+                execution_class=request.execution_policy.execution_class,
+            )
+        )

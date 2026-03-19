@@ -73,6 +73,18 @@ def _resolve_execution_blocking_explanation(
                 ),
             )
 
+        if "does not implement requested execution class 'subprocess'" in normalized:
+            return RunExecutionFocusExplanation(
+                primary_signal=(
+                    "执行阻断：当前 "
+                    f"{node.node_type} 节点尚未实现请求的 subprocess execution class。"
+                ),
+                follow_up=(
+                    "下一步：先把 execution class 调回 inline，"
+                    "或补齐对应 execution adapter；显式 execution-class 请求不要静默降级。"
+                ),
+            )
+
         if (
             "no compatible sandbox backend" in normalized
             or "strong-isolation paths must fail closed" in normalized

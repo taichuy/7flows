@@ -233,6 +233,83 @@ def test_runtime_service_blocks_tool_strong_isolation_until_tool_runner_exists(
     assert "No sandbox backend is registered" in str(unavailable_event.payload["reason"])
 
 
+def test_runtime_service_blocks_generic_subprocess_execution_without_adapter(
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-generic-subprocess-blocked",
+        name="Generic Subprocess Blocked Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                {
+                    "id": "branch",
+                    "type": "condition",
+                    "name": "Branch",
+                    "config": {"selected": "true"},
+                    "runtimePolicy": {
+                        "execution": {
+                            "class": "subprocess",
+                            "profile": "host-reviewed",
+                        }
+                    },
+                },
+                {"id": "output", "type": "output", "name": "Output", "config": {}},
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "branch"},
+                {"id": "e2", "sourceNodeId": "branch", "targetNodeId": "output"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    with pytest.raises(
+        WorkflowExecutionError,
+        match="does not implement requested execution class 'subprocess'",
+    ):
+        RuntimeService().execute_workflow(
+            sqlite_session,
+            workflow,
+            {"topic": "blocked"},
+        )
+
+    run = sqlite_session.scalars(
+        select(Run).where(Run.workflow_id == workflow.id).order_by(Run.created_at.desc())
+    ).first()
+    assert run is not None
+    assert run.status == "failed"
+
+    branch_run = sqlite_session.scalars(
+        select(NodeRun)
+        .where(NodeRun.run_id == run.id, NodeRun.node_id == "branch")
+        .order_by(NodeRun.started_at.desc())
+    ).first()
+    assert branch_run is not None
+    assert branch_run.status == "blocked"
+    assert "does not implement requested execution class 'subprocess'" in (
+        branch_run.error_message or ""
+    )
+
+    events = sqlite_session.scalars(
+        select(RunEvent)
+        .where(RunEvent.run_id == run.id, RunEvent.node_run_id == branch_run.id)
+        .order_by(RunEvent.id.asc())
+    ).all()
+    unavailable_event = next(
+        event for event in events if event.event_type == "node.execution.unavailable"
+    )
+    assert unavailable_event.payload["node_id"] == "branch"
+    assert unavailable_event.payload["node_type"] == "condition"
+    assert unavailable_event.payload["requested_execution_class"] == "subprocess"
+    assert "does not implement requested execution class 'subprocess'" in str(
+        unavailable_event.payload["reason"]
+    )
+
+
 def test_runtime_service_executes_native_tool_via_sandbox_runner(
     sqlite_session: Session,
 ) -> None:
@@ -2214,4 +2291,3 @@ def test_runtime_service_rejects_loop_nodes(sqlite_session: Session) -> None:
 
     with pytest.raises(WorkflowExecutionError):
         service.execute_workflow(sqlite_session, workflow, {})
-
