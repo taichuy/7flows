@@ -13,7 +13,10 @@ import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summar
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
-import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
+import type {
+  NotificationChannelCapabilityItem,
+  SensitiveAccessInboxEntry
+} from "@/lib/get-sensitive-access";
 import {
   formatExecutionFocusArtifactSummary,
   formatExecutionFocusFollowUp,
@@ -33,11 +36,13 @@ import {
 
 type SensitiveAccessInboxEntryCardProps = {
   entry: SensitiveAccessInboxEntry;
+  notificationChannels?: NotificationChannelCapabilityItem[];
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
 };
 
 export function SensitiveAccessInboxEntryCard({
   entry,
+  notificationChannels = [],
   callbackWaitingAutomation
 }: SensitiveAccessInboxEntryCardProps) {
   const request = entry.request;
@@ -237,6 +242,7 @@ export function SensitiveAccessInboxEntryCard({
         compact
         nodeRunId={scope.nodeRunId}
         notifications={entry.notifications}
+        notificationChannels={notificationChannels}
         runId={scope.runId}
         ticket={entry.ticket}
       />

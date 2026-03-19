@@ -20,6 +20,7 @@ import {
 } from "@/components/sensitive-access-inbox-panel-helpers";
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
 import type {
+  NotificationChannelCapabilityItem,
   SensitiveAccessBulkAction,
   SensitiveAccessBulkActionResult,
   SensitiveAccessInboxEntry
@@ -28,11 +29,13 @@ import { resolveSensitiveAccessInboxEntryScope } from "@/lib/sensitive-access-in
 
 type SensitiveAccessInboxPanelProps = {
   entries: SensitiveAccessInboxEntry[];
+  channels?: NotificationChannelCapabilityItem[];
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
 };
 
 export function SensitiveAccessInboxPanel({
   entries,
+  channels = [],
   callbackWaitingAutomation
 }: SensitiveAccessInboxPanelProps) {
   const [bulkOperator, setBulkOperator] = useState(DEFAULT_OPERATOR_ID);
@@ -158,6 +161,7 @@ export function SensitiveAccessInboxPanel({
             callbackWaitingAutomation={callbackWaitingAutomation}
             entry={entry}
             key={entry.ticket.id}
+            notificationChannels={channels}
           />
         ))}
       </div>

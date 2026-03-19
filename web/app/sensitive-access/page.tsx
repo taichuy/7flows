@@ -265,6 +265,7 @@ export default async function SensitiveAccessInboxPage({
       <section className="diagnostics-layout">
         <SensitiveAccessInboxPanel
           callbackWaitingAutomation={systemOverview.callback_waiting_automation}
+          channels={snapshot.channels}
           entries={snapshot.entries}
         />
       </section>
