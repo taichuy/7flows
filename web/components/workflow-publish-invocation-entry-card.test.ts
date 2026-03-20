@@ -111,7 +111,9 @@ function buildInvocationItem(): PublishedEndpointInvocationListResponse["items"]
                 phase: "execute",
                 status: "waiting",
                 effective_execution_class: "sandbox",
+                execution_executor_ref: "tool:compat-adapter:dify-default",
                 execution_sandbox_backend_id: "sandbox-default",
+                execution_sandbox_runner_kind: "container",
                 response_summary: "callback payload 已写入 artifact",
                 raw_ref: "artifact://callback-tool-raw"
               }
@@ -163,6 +165,10 @@ describe("WorkflowPublishInvocationEntryCard", () => {
     expect(html).toContain("requeued by waiting_resume_monitor");
     expect(html).toContain("snapshot-node");
     expect(html).toContain("snapshot waiting reason");
+    expect(html).toContain("effective sandbox");
+    expect(html).toContain("executor tool:compat-adapter:dify-default");
+    expect(html).toContain("backend sandbox-default");
+    expect(html).toContain("runner container");
     expect(html).not.toContain("legacy-node");
     expect(html).toContain("Waiting node focus evidence");
     expect(html).toContain("Callback recovery checklist");

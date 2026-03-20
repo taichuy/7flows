@@ -36,6 +36,8 @@ type ExecutionFocusToolExplainableNode = Pick<
   "tool_calls" | "artifact_refs" | "artifacts"
 >;
 
+type ExecutionFocusRuntimeFactExplainableNode = Pick<RunExecutionNodeItem, "tool_calls">;
+
 export type ExecutionFocusArtifactPreview = {
   key: string;
   artifactKind: string;
@@ -268,6 +270,55 @@ export function listExecutionFocusToolCallSummaries(
       ...(traceSummary ? { traceSummary } : {})
     };
   });
+}
+
+function summarizeExecutionRuntimeFacts(
+  toolCalls: ToolCallItem[],
+  label: string,
+  resolveValue: (toolCall: ToolCallItem) => string | null
+) {
+  const counts = toolCalls.reduce<Record<string, number>>((summary, toolCall) => {
+    const value = resolveValue(toolCall);
+    if (!value) {
+      return summary;
+    }
+    summary[value] = (summary[value] ?? 0) + 1;
+    return summary;
+  }, {});
+  const entries = Object.entries(counts);
+  if (entries.length === 0) {
+    return null;
+  }
+
+  const summary = entries
+    .slice(0, 2)
+    .map(([value, count]) => (count > 1 ? `${value}×${count}` : value))
+    .join(", ");
+
+  return `${label} ${summary}${entries.length > 2 ? ` +${entries.length - 2}` : ""}`;
+}
+
+export function listExecutionFocusRuntimeFactBadges(
+  node: ExecutionFocusRuntimeFactExplainableNode | null | undefined
+) {
+  if (!node || node.tool_calls.length === 0) {
+    return [];
+  }
+
+  return [
+    summarizeExecutionRuntimeFacts(node.tool_calls, "effective", (toolCall) =>
+      trimOrNull(toolCall.effective_execution_class)
+    ),
+    summarizeExecutionRuntimeFacts(node.tool_calls, "executor", (toolCall) =>
+      trimOrNull(toolCall.execution_executor_ref)
+    ),
+    summarizeExecutionRuntimeFacts(node.tool_calls, "backend", (toolCall) =>
+      trimOrNull(toolCall.execution_sandbox_backend_id)
+    ),
+    summarizeExecutionRuntimeFacts(node.tool_calls, "runner", (toolCall) =>
+      trimOrNull(toolCall.execution_sandbox_runner_kind)
+    )
+  ].filter((item): item is string => Boolean(item));
 }
 
 export function listExecutionFocusArtifactPreviews(

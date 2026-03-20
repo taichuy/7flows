@@ -22,7 +22,8 @@ import {
   formatExecutionFocusFollowUp,
   formatExecutionFocusPrimarySignal,
   formatExecutionFocusReasonLabel,
-  formatMetricSummary
+  formatMetricSummary,
+  listExecutionFocusRuntimeFactBadges
 } from "@/lib/run-execution-focus-presenters";
 import { formatDurationMs, formatKeyList, formatTimestamp } from "@/lib/runtime-presenters";
 
@@ -232,6 +233,9 @@ export function WorkflowPublishInvocationDetailPanel({
                 const sampleFocusNodeEvidence = buildExecutionFocusExplainableNode(
                   sample.run_snapshot
                 );
+                const sampleExecutionFactBadges = listExecutionFocusRuntimeFactBadges(
+                  sampleFocusNodeEvidence
+                );
                 const sampleReasonLabel =
                   sample.explanation_source === "callback_waiting"
                     ? "callback waiting"
@@ -265,7 +269,8 @@ export function WorkflowPublishInvocationDetailPanel({
                     sample.execution_focus_artifact_ref_count > 0 ||
                     sample.execution_focus_tool_call_count > 0 ||
                     sample.execution_focus_raw_ref_count > 0 ||
-                    sample.skill_reference_count > 0 ? (
+                    sample.skill_reference_count > 0 ||
+                    sampleExecutionFactBadges.length > 0 ? (
                       <div className="tool-badge-row">
                         {sample.execution_focus_artifact_count > 0 ? (
                           <span className="event-chip">
@@ -302,6 +307,11 @@ export function WorkflowPublishInvocationDetailPanel({
                             sources {sample.skill_reference_source_summary}
                           </span>
                         ) : null}
+                        {sampleExecutionFactBadges.map((badge) => (
+                          <span className="event-chip" key={`${sample.run_id}-${badge}`}>
+                            {badge}
+                          </span>
+                        ))}
                       </div>
                     ) : null}
                     {sample.has_callback_waiting_summary ? (

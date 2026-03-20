@@ -6,7 +6,10 @@ import {
   buildOperatorInlineActionFeedbackModel,
   type OperatorInlineFocusArtifactPreview
 } from "@/lib/operator-inline-action-feedback";
-import type { ExecutionFocusToolCallSummary } from "@/lib/run-execution-focus-presenters";
+import {
+  listExecutionFocusRuntimeFactBadges,
+  type ExecutionFocusToolCallSummary
+} from "@/lib/run-execution-focus-presenters";
 
 export type OperatorRunSampleCard = {
   runId: string;
@@ -19,6 +22,7 @@ export type OperatorRunSampleCard = {
   focusNodeLabel: string | null;
   focusNodeRunId: string | null;
   waitingReason: string | null;
+  executionFactBadges: string[];
   callbackWaitingExplanation: NonNullable<RunSnapshotWithId["snapshot"]>["callbackWaitingExplanation"] | null;
   callbackWaitingLifecycle: NonNullable<RunSnapshotWithId["snapshot"]>["callbackWaitingLifecycle"] | null;
   callbackWaitingFocusNodeEvidence: ReturnType<typeof buildExecutionFocusExplainableNode>;
@@ -54,6 +58,7 @@ export function buildOperatorRunSampleCards(
     .map((sample) => {
       const snapshot = sample.snapshot ?? null;
       const model = buildOperatorInlineActionFeedbackModel({ runSnapshot: snapshot });
+      const focusNodeEvidence = buildExecutionFocusExplainableNode(snapshot);
       const callbackWaitingExplanation = snapshot?.callbackWaitingExplanation ?? null;
       const callbackWaitingLifecycle = snapshot?.callbackWaitingLifecycle ?? null;
       const scheduledResumeDelaySeconds =
@@ -89,9 +94,10 @@ export function buildOperatorRunSampleCards(
         focusNodeLabel: model.focusNodeLabel,
         focusNodeRunId: normalizeText(snapshot?.executionFocusNodeRunId),
         waitingReason: model.waitingReason,
+        executionFactBadges: listExecutionFocusRuntimeFactBadges(focusNodeEvidence),
         callbackWaitingExplanation,
         callbackWaitingLifecycle,
-        callbackWaitingFocusNodeEvidence: buildExecutionFocusExplainableNode(snapshot),
+        callbackWaitingFocusNodeEvidence: focusNodeEvidence,
         scheduledResumeDelaySeconds,
         scheduledResumeSource,
         scheduledWaitingStatus,
@@ -120,6 +126,7 @@ export function buildOperatorRunSampleCards(
             item.currentNodeId ||
             item.focusNodeLabel ||
             item.waitingReason ||
+            item.executionFactBadges.length > 0 ||
             item.artifactCount > 0 ||
             item.artifactRefCount > 0 ||
             item.toolCallCount > 0 ||

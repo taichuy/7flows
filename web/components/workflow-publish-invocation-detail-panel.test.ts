@@ -232,7 +232,9 @@ function buildDetail(): PublishedEndpointInvocationDetailResponse {
                 phase: "execute",
                 status: "waiting",
                 effective_execution_class: "sandbox",
+                execution_executor_ref: "tool:compat-adapter:dify-default",
                 execution_sandbox_backend_id: "sandbox-default",
+                execution_sandbox_runner_kind: "container",
                 response_summary: "callback payload 已写入 artifact",
                 raw_ref: "artifact://callback-tool-raw"
               }
@@ -312,6 +314,10 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     expect(html).not.toContain("legacy-run-node");
     expect(html).toContain("Waiting node focus evidence");
     expect(html).toContain("Callback recovery checklist");
+    expect(html).toContain("effective sandbox");
+    expect(html).toContain("executor tool:compat-adapter:dify-default");
+    expect(html).toContain("backend sandbox-default");
+    expect(html).toContain("runner container");
     expect(html).not.toContain("Sampled run focus evidence");
     expect(html.match(/Focused skill trace/g)?.length ?? 0).toBe(1);
   });

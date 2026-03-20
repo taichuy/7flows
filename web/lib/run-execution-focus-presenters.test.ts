@@ -7,6 +7,7 @@ import {
   formatExecutionFocusFollowUp,
   formatExecutionFocusPrimarySignal,
   listExecutionFocusArtifactPreviews,
+  listExecutionFocusRuntimeFactBadges,
   listExecutionFocusToolCallSummaries
 } from "./run-execution-focus-presenters";
 
@@ -402,6 +403,96 @@ describe("run execution focus presenters", () => {
     expect(summary).toContain("聚焦节点已沉淀 1 个 artifact（tool_result 1）。");
     expect(summary).toContain("run artifact refs 1 条。");
     expect(summary).toContain("至少 1 条 tool call 已把原始结果落到 raw_ref");
+  });
+
+  it("把 focus tool calls 的实际 execution facts 压成 compact badges", () => {
+    const badges = listExecutionFocusRuntimeFactBadges(
+      createExecutionNode({
+        tool_calls: [
+          {
+            id: "tool-call-1",
+            run_id: "run-1",
+            node_run_id: "node-run-1",
+            tool_id: "native.search",
+            tool_name: "Native Search",
+            phase: "execute",
+            status: "succeeded",
+            request_summary: "search knowledge base",
+            execution_trace: null,
+            requested_execution_class: null,
+            requested_execution_source: null,
+            requested_execution_profile: null,
+            requested_execution_timeout_ms: null,
+            requested_execution_network_policy: null,
+            requested_execution_filesystem_policy: null,
+            requested_execution_dependency_mode: null,
+            requested_execution_builtin_package_set: null,
+            requested_execution_dependency_ref: null,
+            requested_execution_backend_extensions: null,
+            effective_execution_class: "sandbox",
+            execution_executor_ref: "tool:compat-adapter:dify-default",
+            execution_sandbox_backend_id: "sandbox-default",
+            execution_sandbox_backend_executor_ref: null,
+            execution_sandbox_runner_kind: "container",
+            execution_blocking_reason: null,
+            execution_fallback_reason: null,
+            response_summary: "found 2 docs",
+            response_content_type: "json",
+            response_meta: {},
+            raw_ref: "artifact://tool-call-1/raw",
+            latency_ms: 120,
+            retry_count: 0,
+            error_message: null,
+            created_at: "2026-03-18T10:00:00Z",
+            finished_at: "2026-03-18T10:00:01Z"
+          },
+          {
+            id: "tool-call-2",
+            run_id: "run-1",
+            node_run_id: "node-run-1",
+            tool_id: "native.search",
+            tool_name: "Native Search",
+            phase: "execute",
+            status: "succeeded",
+            request_summary: "search docs again",
+            execution_trace: null,
+            requested_execution_class: null,
+            requested_execution_source: null,
+            requested_execution_profile: null,
+            requested_execution_timeout_ms: null,
+            requested_execution_network_policy: null,
+            requested_execution_filesystem_policy: null,
+            requested_execution_dependency_mode: null,
+            requested_execution_builtin_package_set: null,
+            requested_execution_dependency_ref: null,
+            requested_execution_backend_extensions: null,
+            effective_execution_class: "sandbox",
+            execution_executor_ref: "tool:compat-adapter:dify-default",
+            execution_sandbox_backend_id: "sandbox-default",
+            execution_sandbox_backend_executor_ref: null,
+            execution_sandbox_runner_kind: "container",
+            execution_blocking_reason: null,
+            execution_fallback_reason: null,
+            response_summary: "found 1 doc",
+            response_content_type: "json",
+            response_meta: {},
+            raw_ref: null,
+            latency_ms: 150,
+            retry_count: 0,
+            error_message: null,
+            created_at: "2026-03-18T10:00:02Z",
+            finished_at: "2026-03-18T10:00:03Z"
+          }
+        ]
+      })
+    );
+
+    expect(badges).toEqual([
+      "effective sandbox×2",
+      "executor tool:compat-adapter:dify-default×2",
+      "backend sandbox-default×2",
+      "runner container×2"
+    ]);
   });
 
   it("把 execution focus artifact 预览压成 callback/operator 可复用的结构", () => {

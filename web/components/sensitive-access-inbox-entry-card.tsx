@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import {
   ACTION_TYPE_LABELS,
@@ -22,6 +23,7 @@ import {
   formatExecutionFocusFollowUp,
   formatExecutionFocusReasonLabel,
   formatExecutionFocusPrimarySignal,
+  listExecutionFocusRuntimeFactBadges,
   listExecutionFocusArtifactPreviews,
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
@@ -67,6 +69,9 @@ export function SensitiveAccessInboxEntryCard({
     : null;
   const focusArtifacts = executionContext
     ? listExecutionFocusArtifactPreviews(executionContext.focusNode)
+    : [];
+  const executionFactBadges = executionContext
+    ? listExecutionFocusRuntimeFactBadges(executionContext.focusNode)
     : [];
   const focusInboxHref = executionContext
     ? buildSensitiveAccessInboxHref({
@@ -153,6 +158,15 @@ export function SensitiveAccessInboxEntryCard({
           <p className="binding-meta">
             {executionContext.focusNode.node_type} · focus node {executionContext.focusNode.node_id}
           </p>
+          {executionFactBadges.length > 0 ? (
+            <div className="tool-badge-row">
+              {executionFactBadges.map((badge) => (
+                <span className="event-chip" key={`${executionContext.runId}-${badge}`}>
+                  {badge}
+                </span>
+              ))}
+            </div>
+          ) : null}
           {executionFocusPrimarySignal ? (
             <p className="section-copy entry-copy">{executionFocusPrimarySignal}</p>
           ) : null}

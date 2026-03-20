@@ -227,6 +227,19 @@ describe("operator inline action feedback", () => {
           executionFocusNodeId: "agent_review",
           executionFocusNodeRunId: "node-run-1",
           executionFocusNodeName: "Agent Review",
+          executionFocusToolCalls: [
+            {
+              id: "tool-call-waiting-1",
+              tool_id: "callback.wait",
+              tool_name: "Callback Wait",
+              phase: "execute",
+              status: "waiting",
+              effective_execution_class: "sandbox",
+              execution_executor_ref: "tool:compat-adapter:dify-default",
+              execution_sandbox_backend_id: "sandbox-default",
+              execution_sandbox_runner_kind: "container"
+            }
+          ],
           callbackWaitingLifecycle: {
             wait_cycle_count: 1,
             issued_ticket_count: 1,
@@ -269,6 +282,10 @@ describe("operator inline action feedback", () => {
     expect(html).toContain("优先检查 approval / notification blocker 是否已经解除");
     expect(html).toContain("scheduled resume requeued");
     expect(html).toContain("scheduler_waiting_resume_monitor");
+    expect(html).toContain("effective sandbox");
+    expect(html).toContain("executor tool:compat-adapter:dify-default");
+    expect(html).toContain("backend sandbox-default");
+    expect(html).toContain("runner container");
     expect(html).not.toContain("立即尝试恢复");
     expect(html).not.toContain("处理过期 ticket 并尝试恢复");
   });

@@ -62,6 +62,7 @@ describe("SensitiveAccessBulkGovernanceCard", () => {
                 phase: "execute",
                 status: "completed",
                 effective_execution_class: "sandbox",
+                execution_executor_ref: "tool:compat-adapter:dify-default",
                 execution_sandbox_backend_id: "sandbox-default",
                 execution_sandbox_runner_kind: "tool",
                 response_summary: "callback payload 已写入 artifact",
@@ -121,6 +122,10 @@ describe("SensitiveAccessBulkGovernanceCard", () => {
     expect(html).toContain("优先观察定时恢复是否已重新排队");
     expect(html).toContain("scheduled resume requeued");
     expect(html).toContain("requeued by waiting_resume_monitor");
+    expect(html).toContain("effective sandbox");
+    expect(html).toContain("executor tool:compat-adapter:dify-default");
+    expect(html).toContain("backend sandbox-default");
+    expect(html).toContain("runner tool");
     expect(html.match(/Waiting node focus evidence/g)?.length ?? 0).toBe(1);
     expect(html.match(/Focused skill trace/g)?.length ?? 0).toBe(1);
     expect(html).toContain("Callback recovery checklist");

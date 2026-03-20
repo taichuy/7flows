@@ -28,7 +28,10 @@ import {
   resolvePublishedInvocationCallbackWaitingExplanation,
   resolvePublishedInvocationExecutionFocusExplanation
 } from "@/lib/published-invocation-presenters";
-import { formatMetricSummary } from "@/lib/run-execution-focus-presenters";
+import {
+  formatMetricSummary,
+  listExecutionFocusRuntimeFactBadges
+} from "@/lib/run-execution-focus-presenters";
 import { formatDurationMs, formatKeyList, formatTimestamp } from "@/lib/runtime-presenters";
 
 type PublishedInvocationItem = PublishedEndpointInvocationListResponse["items"][number];
@@ -140,6 +143,10 @@ export function WorkflowPublishInvocationEntryCard({
     ? buildExecutionFocusExplainableNode(runFollowUpSample.run_snapshot)
     : null;
   const runSnapshot = normalizePublishedInvocationRunSnapshot(item.run_snapshot);
+  const executionFactFocusNodeEvidence = buildExecutionFocusExplainableNode(
+    runSnapshot ?? runFollowUpSample?.run_snapshot ?? null
+  );
+  const executionFactBadges = listExecutionFocusRuntimeFactBadges(executionFactFocusNodeEvidence);
   const runStatus = runSnapshot?.status ?? item.run_status ?? null;
   const currentNodeId = runSnapshot?.currentNodeId ?? item.run_current_node_id ?? null;
   const waitingReason = runSnapshot?.waitingReason ?? item.run_waiting_reason ?? null;
@@ -214,6 +221,15 @@ export function WorkflowPublishInvocationEntryCard({
           <dd>{scheduledResumeLabel}</dd>
         </div>
       </dl>
+      {executionFactBadges.length > 0 ? (
+        <div className="tool-badge-row">
+          {executionFactBadges.map((badge) => (
+            <span className="event-chip" key={`${item.id}-${badge}`}>
+              {badge}
+            </span>
+          ))}
+        </div>
+      ) : null}
       {runFollowUp?.affected_run_count ? (
         <div className="payload-card compact-card">
           <div className="payload-card-header">

@@ -59,6 +59,16 @@ export function OperatorRunSampleCardList({
             </dl>
           ) : null}
 
+          {sample.executionFactBadges.length > 0 ? (
+            <div className="tool-badge-row">
+              {sample.executionFactBadges.map((badge) => (
+                <span className="event-chip" key={`${sample.runId}-${badge}`}>
+                  {badge}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
           <CallbackWaitingSummaryCard
             callbackWaitingExplanation={sample.callbackWaitingExplanation}
             lifecycle={sample.callbackWaitingLifecycle}

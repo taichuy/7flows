@@ -12,6 +12,7 @@ import {
 } from "@/lib/operator-inline-action-feedback";
 import { buildOperatorRunSampleCards } from "@/lib/operator-run-sample-cards";
 import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
+import { listExecutionFocusRuntimeFactBadges } from "@/lib/run-execution-focus-presenters";
 
 type InlineOperatorActionFeedbackProps = {
   status: "idle" | "success" | "error";
@@ -35,6 +36,7 @@ export function InlineOperatorActionFeedback({
   const runSnapshot = structuredResult.runSnapshot;
   const hasCallbackWaitingSummary = hasCallbackWaitingSummaryFacts(runSnapshot);
   const callbackWaitingFocusNode = buildExecutionFocusExplainableNode(runSnapshot);
+  const executionFactBadges = listExecutionFocusRuntimeFactBadges(callbackWaitingFocusNode);
   const sampledRunCards = buildOperatorRunSampleCards(
     (runFollowUp?.sampledRuns ?? []).filter(
       (sample) => sample.snapshot && (!runId || sample.runId !== runId || !runSnapshot)
@@ -93,7 +95,8 @@ export function InlineOperatorActionFeedback({
       model.artifactRefCount > 0 ||
       model.toolCallCount > 0 ||
       model.rawRefCount > 0 ||
-      model.skillReferenceCount > 0 ? (
+      model.skillReferenceCount > 0 ||
+      executionFactBadges.length > 0 ? (
         <div className="tool-badge-row">
           {model.artifactCount > 0 ? (
             <span className="event-chip">artifacts {model.artifactCount}</span>
@@ -116,6 +119,11 @@ export function InlineOperatorActionFeedback({
           {model.skillReferenceSourceSummary ? (
             <span className="event-chip">sources {model.skillReferenceSourceSummary}</span>
           ) : null}
+          {executionFactBadges.map((badge) => (
+            <span className="event-chip" key={`run-snapshot-${badge}`}>
+              {badge}
+            </span>
+          ))}
         </div>
       ) : null}
 

@@ -10,6 +10,7 @@ import {
   formatExecutionFocusReasonLabel,
   formatMetricSummary,
   listExecutionFocusArtifactPreviews,
+  listExecutionFocusRuntimeFactBadges,
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
 
@@ -30,6 +31,7 @@ export function RunDetailExecutionFocusCard({
   if (!focus) {
     return null;
   }
+  const executionFactBadges = listExecutionFocusRuntimeFactBadges(focus.evidence);
 
   return (
     <div className={className}>
@@ -66,6 +68,11 @@ export function RunDetailExecutionFocusCard({
           {focus.skillReferenceCount > 0 ? (
             <span className="event-chip">skill refs {focus.skillReferenceCount}</span>
           ) : null}
+          {executionFactBadges.map((badge) => (
+            <span className="event-chip" key={`${focus.nodeRunId}-${badge}`}>
+              {badge}
+            </span>
+          ))}
         </div>
 
         <p className="binding-meta">node {focus.nodeId}</p>
