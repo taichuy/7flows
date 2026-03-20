@@ -139,6 +139,21 @@ export function WorkflowPublishInvocationEntryCard({
   const runFollowUpSampleHasCallbackWaitingSummary =
     runFollowUpSample?.has_callback_waiting_summary ?? false;
   const shouldDeferToSharedCallbackWaitingSummary = runFollowUpSampleHasCallbackWaitingSummary;
+  const sharedCallbackWaitingExplanation = runFollowUpSampleHasCallbackWaitingSummary
+    ? runFollowUpSample?.run_snapshot.callbackWaitingExplanation ?? null
+    : null;
+  const sharedCallbackWaitingPrimarySignal =
+    sharedCallbackWaitingExplanation?.primary_signal?.trim() || null;
+  const sharedCallbackWaitingFollowUp =
+    sharedCallbackWaitingExplanation?.follow_up?.trim() || null;
+  const canonicalFollowUpHeadline =
+    runFollowUpPrimarySignal && runFollowUpPrimarySignal !== sharedCallbackWaitingPrimarySignal
+      ? runFollowUpPrimarySignal
+      : "当前 invocation 已接入 canonical follow-up 事实链。";
+  const shouldShowCanonicalFollowUp =
+    Boolean(runFollowUpFollowUp) &&
+    !shouldDeferToSharedCallbackWaitingSummary &&
+    runFollowUpFollowUp !== sharedCallbackWaitingFollowUp;
   const runFollowUpSamplePrimarySignal = runFollowUpSample?.explanation?.primary_signal?.trim() || null;
   const runFollowUpSampleFocusNodeEvidence = runFollowUpSample
     ? buildExecutionFocusExplainableNode(runFollowUpSample.run_snapshot)
@@ -242,10 +257,10 @@ export function WorkflowPublishInvocationEntryCard({
           <div className="payload-card-header">
             <span className="status-meta">Canonical follow-up</span>
           </div>
-          <p className="section-copy entry-copy">
-            {runFollowUpPrimarySignal ?? "当前 invocation 已接入 canonical follow-up 事实链。"}
-          </p>
-          {runFollowUpFollowUp ? <p className="binding-meta">{runFollowUpFollowUp}</p> : null}
+          <p className="section-copy entry-copy">{canonicalFollowUpHeadline}</p>
+          {shouldShowCanonicalFollowUp ? (
+            <p className="binding-meta">{runFollowUpFollowUp}</p>
+          ) : null}
           <dl className="compact-meta-list">
             <div>
               <dt>Affected runs</dt>

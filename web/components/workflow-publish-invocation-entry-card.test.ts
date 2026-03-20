@@ -254,10 +254,12 @@ describe("WorkflowPublishInvocationEntryCard", () => {
 
     expect(html).toContain("当前 waiting 节点仍在等待 callback");
     expect(html).toContain("Recommended next step");
+    expect(html).toContain("本次影响 1 个 run；已回读 1 个样本。");
     expect(html).not.toContain("顶层 execution focus 仍在等待 callback。");
     expect(html).not.toContain("顶层 execution focus 建议先观察重排队。");
     expect(html).not.toContain("顶层快照说明该 invocation 仍在等待 callback。");
     expect(html).not.toContain("优先看 snapshot waiting reason 与 callback lifecycle。");
     expect(html).not.toContain("当前 run 状态：waiting。");
+    expect(html).not.toContain("run run-callback-1：继续观察 callback waiting。");
   });
 });
