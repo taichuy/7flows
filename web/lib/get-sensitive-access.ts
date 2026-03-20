@@ -397,8 +397,16 @@ export async function getSensitiveAccessInboxSnapshot({
 
       return {
         ...entry,
-        callbackWaitingContext: buildSensitiveAccessInboxEntryCallbackContext(entry, runContext.snapshot),
-        executionContext: buildSensitiveAccessInboxEntryExecutionContext(entry, runContext.snapshot)
+        callbackWaitingContext: buildSensitiveAccessInboxEntryCallbackContext(
+          entry,
+          runContext.snapshot,
+          runContext.runId
+        ),
+        executionContext: buildSensitiveAccessInboxEntryExecutionContext(
+          entry,
+          runContext.snapshot,
+          runContext.runId
+        )
       };
     })
     .sort(

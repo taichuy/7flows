@@ -54,9 +54,11 @@ function buildInlineSensitiveAccessEntries(
 
 export function buildSensitiveAccessInboxEntryCallbackContext(
   entry: SensitiveAccessInboxEntry,
-  runSnapshot?: RunSnapshot | null
+  runSnapshot?: RunSnapshot | null,
+  canonicalRunId?: string | null
 ): SensitiveAccessInboxCallbackContext | null {
   const runId =
+    trimOrNull(canonicalRunId) ??
     trimOrNull(entry.ticket.run_id) ??
     trimOrNull(entry.request?.run_id) ??
     trimOrNull(entry.runFollowUp?.sampledRuns[0]?.runId);

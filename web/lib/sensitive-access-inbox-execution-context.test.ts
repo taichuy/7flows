@@ -209,4 +209,38 @@ describe("sensitive access inbox execution context", () => {
 
     expect(context?.runId).toBe("run-from-follow-up");
   });
+
+  it("优先复用上层已解析的 canonical runId，而不是直接取首个 sampled run", () => {
+    const entry = createInboxEntry({
+      ticket: {
+        ...createInboxEntry().ticket,
+        run_id: null
+      },
+      request: {
+        ...createInboxEntry().request!,
+        run_id: null
+      },
+      runFollowUp: {
+        affectedRunCount: 2,
+        sampledRunCount: 2,
+        waitingRunCount: 1,
+        runningRunCount: 0,
+        succeededRunCount: 0,
+        failedRunCount: 1,
+        unknownRunCount: 0,
+        sampledRuns: [
+          { runId: "run-stale", snapshot: createRunSnapshot() },
+          { runId: "run-current", snapshot: createRunSnapshot() }
+        ]
+      }
+    });
+
+    const context = buildSensitiveAccessInboxEntryExecutionContext(
+      entry,
+      createRunSnapshot(),
+      "run-current"
+    );
+
+    expect(context?.runId).toBe("run-current");
+  });
 });
