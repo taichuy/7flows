@@ -158,4 +158,33 @@ describe("SensitiveAccessInboxEntryCard", () => {
     expect(html).toContain("href=\"/runs/1234567890-current-run\"");
     expect(html).toContain("run 12345678");
   });
+
+  it("keeps inline approval actions at run-level when only callback waiting exposes a display node scope", () => {
+    const entry = buildEntry();
+    entry.ticket.run_id = null;
+    entry.request!.run_id = null;
+    entry.ticket.node_run_id = null;
+    entry.request!.node_run_id = null;
+    entry.executionContext = {
+      ...entry.executionContext!,
+      runId: "run-current-scope",
+      focusMatchesEntry: false,
+      entryNodeRunId: null,
+      focusNode: {
+        ...entry.executionContext!.focusNode,
+        node_run_id: "node-focus-display"
+      }
+    };
+    entry.callbackWaitingContext = {
+      runId: "run-current-scope",
+      nodeRunId: "node-focus-display",
+      callbackTickets: [],
+      sensitiveAccessEntries: []
+    };
+
+    const html = renderToStaticMarkup(createElement(SensitiveAccessInboxEntryCard, { entry }));
+
+    expect(html).toContain('href="/runs/run-current-scope"');
+    expect(html).toContain('name="nodeRunId" value=""');
+  });
 });

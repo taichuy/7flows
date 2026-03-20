@@ -25,7 +25,7 @@ import type {
   SensitiveAccessBulkActionResult,
   SensitiveAccessInboxEntry
 } from "@/lib/get-sensitive-access";
-import { resolveSensitiveAccessInboxEntryScope } from "@/lib/sensitive-access-inbox-entry-scope";
+import { resolveSensitiveAccessInboxEntryActionScope } from "@/lib/sensitive-access-inbox-entry-scope";
 
 type SensitiveAccessInboxPanelProps = {
   entries: SensitiveAccessInboxEntry[];
@@ -67,7 +67,7 @@ export function SensitiveAccessInboxPanel({
   const decisionTicketIds = entries
     .filter((entry) => isPendingWaitingTicket(entry))
     .map((entry) => {
-      const scope = resolveSensitiveAccessInboxEntryScope(entry);
+      const scope = resolveSensitiveAccessInboxEntryActionScope(entry);
       return {
         ticketId: entry.ticket.id,
         runId: scope.runId,
@@ -76,7 +76,7 @@ export function SensitiveAccessInboxPanel({
     });
   const retryDispatchIds = entries.flatMap((entry) => {
     const notification = pickRetriableNotification(entry);
-    const scope = resolveSensitiveAccessInboxEntryScope(entry);
+    const scope = resolveSensitiveAccessInboxEntryActionScope(entry);
     return notification
       ? [
           {

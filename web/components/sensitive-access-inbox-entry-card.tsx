@@ -28,7 +28,7 @@ import {
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
-import { resolveSensitiveAccessInboxEntryScope } from "@/lib/sensitive-access-inbox-entry-scope";
+import { resolveSensitiveAccessInboxEntryScopes } from "@/lib/sensitive-access-inbox-entry-scope";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 import {
   formatSensitiveAccessDecisionLabel,
@@ -49,7 +49,9 @@ export function SensitiveAccessInboxEntryCard({
 }: SensitiveAccessInboxEntryCardProps) {
   const request = entry.request;
   const resource = entry.resource;
-  const scope = resolveSensitiveAccessInboxEntryScope(entry);
+  const scopes = resolveSensitiveAccessInboxEntryScopes(entry);
+  const displayScope = scopes.display;
+  const actionScope = scopes.action;
   const latestNotification = pickLatestNotification(entry);
   const callbackWaitingContext = entry.callbackWaitingContext;
   const executionContext = entry.executionContext;
@@ -115,9 +117,9 @@ export function SensitiveAccessInboxEntryCard({
         {request && formatSensitiveAccessReasonLabel(request) ? (
           <span className="event-chip">reason {formatSensitiveAccessReasonLabel(request)}</span>
         ) : null}
-        {scope.runId ? (
-          <Link className="event-chip inbox-filter-link" href={`/runs/${scope.runId}`}>
-            run {scope.runId.slice(0, 8)}
+        {displayScope.runId ? (
+          <Link className="event-chip inbox-filter-link" href={`/runs/${displayScope.runId}`}>
+            run {displayScope.runId.slice(0, 8)}
           </Link>
         ) : null}
         <span className="event-chip">created {formatTimestamp(entry.ticket.created_at)}</span>
@@ -245,10 +247,10 @@ export function SensitiveAccessInboxEntryCard({
 
       <SensitiveAccessInlineActions
         compact
-        nodeRunId={scope.nodeRunId}
+        nodeRunId={actionScope.nodeRunId}
         notifications={entry.notifications}
         notificationChannels={notificationChannels}
-        runId={scope.runId}
+        runId={actionScope.runId}
         ticket={entry.ticket}
       />
     </article>
