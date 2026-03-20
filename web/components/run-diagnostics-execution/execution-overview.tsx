@@ -1,4 +1,7 @@
-import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import type { RunExecutionView } from "@/lib/get-run-views";
 
 import { RunDiagnosticsExecutionOverviewBlockers } from "@/components/run-diagnostics-execution/execution-overview-blockers";
@@ -6,10 +9,12 @@ import { MetricChipRow, SummaryCard } from "@/components/run-diagnostics-executi
 
 export function RunDiagnosticsExecutionOverview({
   executionView,
-  callbackWaitingAutomation
+  callbackWaitingAutomation,
+  sandboxReadiness = null
 }: {
   executionView: RunExecutionView | null;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 }) {
   if (!executionView) {
     return <p className="empty-state">Execution view is unavailable for this run.</p>;
@@ -170,6 +175,7 @@ export function RunDiagnosticsExecutionOverview({
       <RunDiagnosticsExecutionOverviewBlockers
         executionView={executionView}
         callbackWaitingAutomation={callbackWaitingAutomation}
+        sandboxReadiness={sandboxReadiness}
       />
 
       {callbackWaiting.node_count > 0 ? (

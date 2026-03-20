@@ -55,6 +55,7 @@ export default async function RunDiagnosticsPage({
       executionView={executionView}
       evidenceView={evidenceView}
       callbackWaitingAutomation={systemOverview.callback_waiting_automation}
+      sandboxReadiness={systemOverview.sandbox_readiness}
     />
   );
 }

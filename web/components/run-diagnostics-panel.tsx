@@ -12,7 +12,10 @@ import { RunDiagnosticsTraceFiltersSection } from "@/components/run-diagnostics-
 import { RunDiagnosticsTraceResultsSection } from "@/components/run-diagnostics-panel/trace-results-section";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import type { RunDetail } from "@/lib/get-run-detail";
-import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import type { RunEvidenceView, RunExecutionView } from "@/lib/get-run-views";
 import {
   DEFAULT_RUN_TRACE_LIMIT,
@@ -32,6 +35,7 @@ type RunDiagnosticsPanelProps = {
   executionView: RunExecutionView | null;
   evidenceView: RunEvidenceView | null;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
 export function RunDiagnosticsPanel({
@@ -41,7 +45,8 @@ export function RunDiagnosticsPanel({
   traceQuery,
   executionView,
   evidenceView,
-  callbackWaitingAutomation
+  callbackWaitingAutomation,
+  sandboxReadiness = null
 }: RunDiagnosticsPanelProps) {
   const eventTypes = run.event_type_counts;
   const activeTraceQuery = trace
@@ -123,6 +128,7 @@ export function RunDiagnosticsPanel({
         eventTypes={eventTypes}
         activeFilters={activeFilters}
         activeTraceQuery={activeTraceQuery}
+        sandboxReadiness={sandboxReadiness}
       />
 
       <RunDiagnosticsTraceFiltersSection
@@ -137,6 +143,7 @@ export function RunDiagnosticsPanel({
         executionView={executionView}
         evidenceView={evidenceView}
         callbackWaitingAutomation={callbackWaitingAutomation}
+        sandboxReadiness={sandboxReadiness}
       />
 
       <RunDiagnosticsTraceResultsSection

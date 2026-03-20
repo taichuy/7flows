@@ -3,7 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { RunDiagnosticsExecutionOverviewBlockers } from "@/components/run-diagnostics-execution/execution-overview-blockers";
-import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import type { RunExecutionNodeItem, RunExecutionSkillTrace, RunExecutionView } from "@/lib/get-run-views";
 
 vi.mock("@/components/callback-waiting-summary-card", () => ({
@@ -95,6 +98,40 @@ function buildCallbackWaitingAutomation(): CallbackWaitingAutomationCheck {
     scheduler_health_status: "healthy",
     scheduler_health_detail: "scheduler running",
     steps: []
+  };
+}
+
+function buildSandboxReadiness(): SandboxReadinessCheck {
+  return {
+    enabled_backend_count: 0,
+    healthy_backend_count: 0,
+    degraded_backend_count: 0,
+    offline_backend_count: 0,
+    execution_classes: [
+      {
+        execution_class: "sandbox",
+        available: false,
+        backend_ids: [],
+        supported_languages: [],
+        supported_profiles: [],
+        supported_dependency_modes: [],
+        supports_tool_execution: false,
+        supports_builtin_package_sets: false,
+        supports_backend_extensions: false,
+        supports_network_policy: false,
+        supports_filesystem_policy: false,
+        reason:
+          "No sandbox backend is currently enabled. Strong-isolation execution must fail closed until a compatible backend is configured."
+      }
+    ],
+    supported_languages: [],
+    supported_profiles: [],
+    supported_dependency_modes: [],
+    supports_tool_execution: false,
+    supports_builtin_package_sets: false,
+    supports_backend_extensions: false,
+    supports_network_policy: false,
+    supports_filesystem_policy: false
   };
 }
 
@@ -484,7 +521,8 @@ describe("RunDiagnosticsExecutionOverviewBlockers", () => {
             }
           }
         },
-        callbackWaitingAutomation: buildCallbackWaitingAutomation()
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
       })
     );
 
@@ -495,5 +533,7 @@ describe("RunDiagnosticsExecutionOverviewBlockers", () => {
     expect(html).toContain("skill-reference-load-list");
     expect(html).toContain("Focused skill trace count 1 first ref Focus checklist");
     expect(html).toContain("effective inline");
+    expect(html).toContain("Live sandbox readiness");
+    expect(html).toContain("当前 live sandbox readiness 显示 sandbox 仍 blocked。");
   });
 });

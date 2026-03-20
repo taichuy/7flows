@@ -1,5 +1,8 @@
 import React from "react";
-import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import type { RunExecutionNodeItem, RunExecutionSkillTrace } from "@/lib/get-run-views";
 import {
   formatDuration,
@@ -19,6 +22,7 @@ import {
   ExecutionNodeToolCallList
 } from "@/components/run-diagnostics-execution/execution-node-card-sections";
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
+import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SensitiveAccessTimelineEntryList } from "@/components/sensitive-access-timeline-entry-list";
 import { pickCallbackWaitingSkillTraceForNode } from "@/lib/callback-waiting-focus-skill-trace";
 import { hasExecutionNodeCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
@@ -91,11 +95,13 @@ export function ExecutionNodeCard({
   node,
   runId,
   callbackWaitingAutomation,
+  sandboxReadiness = null,
   skillTrace = null
 }: {
   node: RunExecutionNodeItem;
   runId: string;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
+  sandboxReadiness?: SandboxReadinessCheck | null;
   skillTrace?: RunExecutionSkillTrace | null;
 }) {
   const latestApprovalEntry = node.sensitive_access_entries.find((entry) => entry.approval_ticket);
@@ -235,6 +241,8 @@ export function ExecutionNodeCard({
       {rawBlockingCopy && executionPrimarySignal !== `执行阻断：${node.execution_blocking_reason}` ? (
         <p className="activity-copy">{rawBlockingCopy}</p>
       ) : null}
+
+      <SandboxExecutionReadinessCard node={node} readiness={sandboxReadiness} />
 
       <div className="event-type-strip">
         <span className="event-chip">events {node.event_count}</span>

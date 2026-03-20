@@ -4,6 +4,41 @@ import { describe, expect, it } from "vitest";
 
 import { RunDetailExecutionFocusCard } from "@/components/run-detail-execution-focus-card";
 import type { RunDetail } from "@/lib/get-run-detail";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+
+function buildSandboxReadiness(): SandboxReadinessCheck {
+  return {
+    enabled_backend_count: 0,
+    healthy_backend_count: 0,
+    degraded_backend_count: 0,
+    offline_backend_count: 0,
+    execution_classes: [
+      {
+        execution_class: "sandbox",
+        available: false,
+        backend_ids: [],
+        supported_languages: [],
+        supported_profiles: [],
+        supported_dependency_modes: [],
+        supports_tool_execution: false,
+        supports_builtin_package_sets: false,
+        supports_backend_extensions: false,
+        supports_network_policy: false,
+        supports_filesystem_policy: false,
+        reason:
+          "No sandbox backend is currently enabled. Strong-isolation execution must fail closed until a compatible backend is configured."
+      }
+    ],
+    supported_languages: [],
+    supported_profiles: [],
+    supported_dependency_modes: [],
+    supports_tool_execution: false,
+    supports_builtin_package_sets: false,
+    supports_backend_extensions: false,
+    supports_network_policy: false,
+    supports_filesystem_policy: false
+  };
+}
 
 function buildRunDetail(): RunDetail {
   return {
@@ -204,5 +239,32 @@ describe("RunDetailExecutionFocusCard", () => {
     expect(html).toContain("executor tool:compat-adapter:dify-default");
     expect(html).toContain("backend sandbox-default");
     expect(html).toContain("runner container");
+  });
+
+  it("shows live sandbox readiness for blocked strong-isolation focus nodes", () => {
+    const run = buildRunDetail();
+    run.execution_focus_reason = "blocked_execution";
+    run.execution_focus_node = {
+      ...run.execution_focus_node!,
+      status: "blocked",
+      execution_blocking_reason: "No compatible sandbox backend is available.",
+      effective_execution_class: "inline"
+    };
+    run.execution_focus_explanation = {
+      primary_signal: "当前节点因强隔离 backend 不可用而阻断。",
+      follow_up: "先恢复兼容 backend，再重新调度该节点。"
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(RunDetailExecutionFocusCard, {
+        run,
+        title: "Execution focus",
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("Live sandbox readiness");
+    expect(html).toContain("当前 live sandbox readiness 显示 sandbox 仍 blocked。");
+    expect(html).toContain("Strong-isolation execution must fail closed");
   });
 });

@@ -2,8 +2,10 @@ import React from "react";
 
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
+import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import type { RunDetail } from "@/lib/get-run-detail";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { buildRunDetailExecutionFocusViewModel } from "@/lib/run-detail-execution-focus";
 import {
   formatExecutionFocusArtifactSummary,
@@ -19,13 +21,15 @@ type RunDetailExecutionFocusCardProps = {
   title?: string;
   description?: string | null;
   className?: string;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
 export function RunDetailExecutionFocusCard({
   run,
   title = "Canonical execution focus",
   description = null,
-  className = ""
+  className = "",
+  sandboxReadiness = null
 }: RunDetailExecutionFocusCardProps) {
   const focus = buildRunDetailExecutionFocusViewModel(run);
   if (!focus) {
@@ -81,6 +85,13 @@ export function RunDetailExecutionFocusCard({
         </div>
 
         <p className="binding-meta">node {focus.nodeId}</p>
+
+        {run.execution_focus_node ? (
+          <SandboxExecutionReadinessCard
+            node={run.execution_focus_node}
+            readiness={sandboxReadiness}
+          />
+        ) : null}
 
         {focus.hasCallbackSummary ? (
           <CallbackWaitingSummaryCard

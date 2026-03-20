@@ -5,7 +5,9 @@ import type { RunExecutionNodeItem, RunExecutionView } from "@/lib/get-run-views
 
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
+import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { pickCallbackWaitingSkillTraceForNode } from "@/lib/callback-waiting-focus-skill-trace";
 import {
   hasCallbackWaitingSummaryFacts,
@@ -138,10 +140,12 @@ function renderNodeFollowUp({
 
 export function RunDiagnosticsExecutionOverviewBlockers({
   executionView,
-  callbackWaitingAutomation
+  callbackWaitingAutomation,
+  sandboxReadiness = null
 }: {
   executionView: RunExecutionView;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 }) {
   const focusNode = executionView.execution_focus_node ?? null;
   const skillTrace = executionView.skill_trace ?? null;
@@ -197,6 +201,10 @@ export function RunDiagnosticsExecutionOverviewBlockers({
             {focusNodeFollowUp && !focusNodeHasCallbackWaitingSummary ? (
               <p className="binding-meta">{focusNodeFollowUp}</p>
             ) : null}
+            <SandboxExecutionReadinessCard
+              node={focusNode}
+              readiness={sandboxReadiness}
+            />
             {renderNodeFollowUp({
               callbackWaitingAutomation,
               inboxHref: buildNodeInboxHref(focusNode, executionView.run_id),
@@ -258,6 +266,10 @@ export function RunDiagnosticsExecutionOverviewBlockers({
               {followUp && !hasCallbackWaitingSummary ? (
                 <p className="binding-meta">{followUp}</p>
               ) : null}
+              <SandboxExecutionReadinessCard
+                node={node}
+                readiness={sandboxReadiness}
+              />
               {renderNodeFollowUp({
                 callbackWaitingAutomation,
                 inboxHref,

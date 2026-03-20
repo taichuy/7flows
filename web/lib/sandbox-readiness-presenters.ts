@@ -2,6 +2,31 @@ import type {
   SandboxExecutionClassReadinessCheck,
   SandboxReadinessCheck
 } from "./get-system-overview";
+import type { RunExecutionNodeItem } from "./get-run-views";
+
+type SandboxReadinessExecutionNode = {
+  node_type: RunExecutionNodeItem["node_type"];
+  execution_class?: RunExecutionNodeItem["execution_class"] | null;
+  requested_execution_class?: RunExecutionNodeItem["requested_execution_class"] | null;
+  effective_execution_class?: RunExecutionNodeItem["effective_execution_class"] | null;
+  execution_blocking_reason?: RunExecutionNodeItem["execution_blocking_reason"] | null;
+  execution_sandbox_backend_id?: RunExecutionNodeItem["execution_sandbox_backend_id"] | null;
+  execution_blocked_count?: number;
+  execution_unavailable_count?: number;
+};
+
+export type SandboxExecutionReadinessInsight = {
+  executionClass: string;
+  status: "blocked" | "ready" | "tool_capability_missing";
+  headline: string;
+  detail: string | null;
+  chips: string[];
+};
+
+function trimOrNull(value?: string | null) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
 
 const readinessCapabilityLabels = [
   {
@@ -82,6 +107,116 @@ export function buildSandboxExecutionClassCapabilityChips(
   }
 
   return chips;
+}
+
+export function buildSandboxExecutionReadinessInsight(
+  readiness: SandboxReadinessCheck,
+  node: SandboxReadinessExecutionNode
+): SandboxExecutionReadinessInsight | null {
+  const blockingReason = trimOrNull(node.execution_blocking_reason);
+  const hasExecutionFailure =
+    Boolean(blockingReason) ||
+    (node.execution_blocked_count ?? 0) > 0 ||
+    (node.execution_unavailable_count ?? 0) > 0;
+
+  if (!hasExecutionFailure) {
+    return null;
+  }
+
+  const targetExecutionClass = [
+    trimOrNull(node.requested_execution_class),
+    trimOrNull(node.execution_class),
+    trimOrNull(node.effective_execution_class)
+  ].find((value) =>
+    value ? readiness.execution_classes.some((entry) => entry.execution_class === value) : false
+  );
+
+  if (!targetExecutionClass) {
+    return null;
+  }
+
+  const readinessEntry = readiness.execution_classes.find(
+    (entry) => entry.execution_class === targetExecutionClass
+  );
+  if (!readinessEntry) {
+    return null;
+  }
+
+  const capabilityChips = buildSandboxExecutionClassCapabilityChips(readinessEntry);
+  const currentlyAvailableClasses = listSandboxAvailableClasses(readiness).filter(
+    (executionClass) => executionClass !== targetExecutionClass
+  );
+  const historicalBackendId = trimOrNull(node.execution_sandbox_backend_id);
+  const backendMismatch =
+    historicalBackendId &&
+    readinessEntry.backend_ids.length > 0 &&
+    !readinessEntry.backend_ids.includes(historicalBackendId);
+
+  if (!readinessEntry.available) {
+    const detail = [
+      trimOrNull(readinessEntry.reason) ??
+        `当前还没有兼容 execution class '${targetExecutionClass}' 的 sandbox backend。`,
+      currentlyAvailableClasses.length > 0
+        ? `当前仍可复用的 execution class：${currentlyAvailableClasses.join(" / ")}。`
+        : null,
+      historicalBackendId
+        ? `这次 run 记录的 backend 是 ${historicalBackendId}。`
+        : null,
+      "在此之前，同类强隔离路径重试仍会继续 fail-closed。"
+    ]
+      .filter((item): item is string => Boolean(item))
+      .join(" ");
+
+    return {
+      executionClass: targetExecutionClass,
+      status: "blocked",
+      headline: `当前 live sandbox readiness 显示 ${targetExecutionClass} 仍 blocked。`,
+      detail,
+      chips: capabilityChips
+    };
+  }
+
+  if (node.node_type === "tool" && !readinessEntry.supports_tool_execution) {
+    const detail = [
+      readinessEntry.backend_ids.length > 0
+        ? `当前 ${targetExecutionClass} ready via ${readinessEntry.backend_ids.join(", ")}。`
+        : null,
+      "但这组 backend 还没有声明 sandbox-backed tool execution capability；tool 路径继续请求强隔离时仍应保持 fail-closed。",
+      backendMismatch
+        ? `历史 run 记录的 backend 是 ${historicalBackendId}，当前 ready backend 已变成 ${readinessEntry.backend_ids.join(", ")}。`
+        : null
+    ]
+      .filter((item): item is string => Boolean(item))
+      .join(" ");
+
+    return {
+      executionClass: targetExecutionClass,
+      status: "tool_capability_missing",
+      headline: `当前 live sandbox readiness 显示 ${targetExecutionClass} 已 ready，但还没有 sandbox-backed tool execution capability。`,
+      detail,
+      chips: capabilityChips
+    };
+  }
+
+  const detail = [
+    readinessEntry.backend_ids.length > 0
+      ? `当前 ${targetExecutionClass} ready via ${readinessEntry.backend_ids.join(", ")}。`
+      : null,
+    backendMismatch
+      ? `历史 run 记录的 backend 是 ${historicalBackendId}，当前 ready backend 已变成 ${readinessEntry.backend_ids.join(", ")}。`
+      : null,
+    "这说明当前阻断更可能来自 run 当时的 backend 健康度、节点配置或 capability 漂移，而不是此刻全局链路仍未恢复。"
+  ]
+    .filter((item): item is string => Boolean(item))
+    .join(" ");
+
+  return {
+    executionClass: targetExecutionClass,
+    status: "ready",
+    headline: `当前 live sandbox readiness 显示 ${targetExecutionClass} 已 ready。`,
+    detail,
+    chips: capabilityChips
+  };
 }
 
 export function formatSandboxReadinessHeadline(readiness: SandboxReadinessCheck): string {

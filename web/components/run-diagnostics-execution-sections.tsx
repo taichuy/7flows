@@ -1,4 +1,7 @@
-import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import type { RunEvidenceView, RunExecutionView } from "@/lib/get-run-views";
 
 import { EvidenceNodeCard } from "@/components/run-diagnostics-execution/evidence-node-card";
@@ -10,12 +13,14 @@ type RunDiagnosticsExecutionSectionsProps = {
   executionView: RunExecutionView | null;
   evidenceView: RunEvidenceView | null;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
 export function RunDiagnosticsExecutionSections({
   executionView,
   evidenceView,
-  callbackWaitingAutomation
+  callbackWaitingAutomation,
+  sandboxReadiness = null
 }: RunDiagnosticsExecutionSectionsProps) {
   return (
     <>
@@ -35,6 +40,7 @@ export function RunDiagnosticsExecutionSections({
           <RunDiagnosticsExecutionOverview
             executionView={executionView}
             callbackWaitingAutomation={callbackWaitingAutomation}
+            sandboxReadiness={sandboxReadiness}
           />
         </article>
 
@@ -79,6 +85,7 @@ export function RunDiagnosticsExecutionSections({
                   node={node}
                   runId={executionView.run_id}
                   callbackWaitingAutomation={callbackWaitingAutomation}
+                  sandboxReadiness={sandboxReadiness}
                   skillTrace={executionView.skill_trace ?? null}
                 />
               ))}

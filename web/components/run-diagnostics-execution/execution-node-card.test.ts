@@ -3,7 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { ExecutionNodeCard } from "@/components/run-diagnostics-execution/execution-node-card";
-import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import type { RunExecutionNodeItem, RunExecutionSkillTrace } from "@/lib/get-run-views";
 
 vi.mock("@/components/callback-waiting-summary-card", () => ({
@@ -81,6 +84,40 @@ function buildCallbackWaitingAutomation(): CallbackWaitingAutomationCheck {
     scheduler_health_status: "healthy",
     scheduler_health_detail: "scheduler running",
     steps: []
+  };
+}
+
+function buildSandboxReadiness(): SandboxReadinessCheck {
+  return {
+    enabled_backend_count: 0,
+    healthy_backend_count: 0,
+    degraded_backend_count: 0,
+    offline_backend_count: 0,
+    execution_classes: [
+      {
+        execution_class: "sandbox",
+        available: false,
+        backend_ids: [],
+        supported_languages: [],
+        supported_profiles: [],
+        supported_dependency_modes: [],
+        supports_tool_execution: false,
+        supports_builtin_package_sets: false,
+        supports_backend_extensions: false,
+        supports_network_policy: false,
+        supports_filesystem_policy: false,
+        reason:
+          "No sandbox backend is currently enabled. Strong-isolation execution must fail closed until a compatible backend is configured."
+      }
+    ],
+    supported_languages: [],
+    supported_profiles: [],
+    supported_dependency_modes: [],
+    supports_tool_execution: false,
+    supports_builtin_package_sets: false,
+    supports_backend_extensions: false,
+    supports_network_policy: false,
+    supports_filesystem_policy: false
   };
 }
 
@@ -383,5 +420,37 @@ describe("ExecutionNodeCard", () => {
     expect(html).toContain("executor tool-runtime");
     expect(html).toContain("sandbox sandbox-default");
     expect(html).toContain("runner tool");
+  });
+
+  it("shows live sandbox readiness when a node is blocked on strong isolation", () => {
+    const blockedNode = {
+      ...buildExecutionNode(),
+      status: "blocked",
+      callback_waiting_lifecycle: null,
+      callback_waiting_explanation: null,
+      execution_blocking_reason: "No compatible sandbox backend is available.",
+      execution_blocked_count: 1,
+      scheduled_resume_delay_seconds: null,
+      scheduled_resume_reason: null,
+      scheduled_resume_source: null,
+      scheduled_waiting_status: null,
+      scheduled_resume_scheduled_at: null,
+      scheduled_resume_due_at: null,
+      scheduled_resume_requeued_at: null,
+      scheduled_resume_requeue_source: null
+    } satisfies RunExecutionNodeItem;
+
+    const html = renderToStaticMarkup(
+      createElement(ExecutionNodeCard, {
+        node: blockedNode,
+        runId: "run-callback-1",
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("Live sandbox readiness");
+    expect(html).toContain("当前 live sandbox readiness 显示 sandbox 仍 blocked。");
+    expect(html).toContain("Strong-isolation execution must fail closed");
   });
 });
