@@ -144,6 +144,10 @@ describe("published invocation presenters", () => {
         rateLimitWindowStartedAt: "2026-03-21T00:00:00Z"
       })
     ).toMatchObject({
+      totalCallsLabel: "Total calls",
+      succeededCallsLabel: "Succeeded",
+      failedCallsLabel: "Failed",
+      rejectedCallsLabel: "Rejected",
       lastRunStatusLabel: "Last run status",
       waitingNowLabel: "Waiting now",
       trafficMixTitle: "Traffic mix",

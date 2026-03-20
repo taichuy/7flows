@@ -172,6 +172,10 @@ export type PublishedInvocationEntrySurfaceCopy = {
 };
 
 export type PublishedInvocationActivityInsightsSurfaceCopy = {
+  totalCallsLabel: string;
+  succeededCallsLabel: string;
+  failedCallsLabel: string;
+  rejectedCallsLabel: string;
   lastRunStatusLabel: string;
   waitingNowLabel: string;
   trafficMixTitle: string;
@@ -368,6 +372,10 @@ export function buildPublishedInvocationActivityInsightsSurfaceCopy({
   rateLimitWindowStartedAt?: string | null;
 } = {}): PublishedInvocationActivityInsightsSurfaceCopy {
   return {
+    totalCallsLabel: "Total calls",
+    succeededCallsLabel: "Succeeded",
+    failedCallsLabel: "Failed",
+    rejectedCallsLabel: "Rejected",
     lastRunStatusLabel: "Last run status",
     waitingNowLabel: "Waiting now",
     trafficMixTitle: "Traffic mix",

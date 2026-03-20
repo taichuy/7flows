@@ -398,6 +398,27 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain("count 2");
   });
 
+  it("uses shared activity insights copy for publish summary labels", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishActivityInsights, {
+        binding: {
+          rate_limit_policy: null
+        } as WorkflowPublishActivityPanelProps["binding"],
+        invocationAudit: buildInvocationAudit(),
+        rateLimitWindowAudit: buildRateLimitWindowAudit(),
+        sandboxReadiness: buildSandboxReadiness(),
+        activeTimeWindow: "24h"
+      })
+    );
+
+    expect(html).toContain("Total calls");
+    expect(html).toContain("Succeeded");
+    expect(html).toContain("Failed");
+    expect(html).toContain("Rejected");
+    expect(html).toContain("Last run status");
+    expect(html).toContain("Waiting now");
+  });
+
   it("bridges selected invocation next step into activity details", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowPublishActivityDetails, {

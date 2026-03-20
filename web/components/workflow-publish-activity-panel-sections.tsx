@@ -102,19 +102,19 @@ export function WorkflowPublishActivityInsights({
     <>
       <div className="publish-summary-grid">
         <article className="status-card compact-card">
-          <span className="status-label">Total calls</span>
+          <span className="status-label">{insightsSurfaceCopy.totalCallsLabel}</span>
           <strong>{summary?.total_count ?? 0}</strong>
         </article>
         <article className="status-card compact-card">
-          <span className="status-label">Succeeded</span>
+          <span className="status-label">{insightsSurfaceCopy.succeededCallsLabel}</span>
           <strong>{summary?.succeeded_count ?? 0}</strong>
         </article>
         <article className="status-card compact-card">
-          <span className="status-label">Failed</span>
+          <span className="status-label">{insightsSurfaceCopy.failedCallsLabel}</span>
           <strong>{summary?.failed_count ?? 0}</strong>
         </article>
         <article className="status-card compact-card">
-          <span className="status-label">Rejected</span>
+          <span className="status-label">{insightsSurfaceCopy.rejectedCallsLabel}</span>
           <strong>{summary?.rejected_count ?? 0}</strong>
         </article>
         <article className="status-card compact-card">
