@@ -1,7 +1,10 @@
 "use client";
 
+import React from "react";
 import { useMemo, useState } from "react";
 
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
 import { validateContractSchema } from "@/lib/workflow-contract-schema-validation";
 import { WorkflowEditorPublishEndpointCard } from "./workflow-editor-publish-endpoint-card";
 import { buildPublishedEndpointValidationIssues } from "./workflow-editor-publish-form-validation";
@@ -17,6 +20,7 @@ type WorkflowEditorPublishFormProps = {
   workflowVersion: string;
   availableWorkflowVersions: string[];
   publishEndpoints: Array<Record<string, unknown>>;
+  sandboxReadiness?: SandboxReadinessCheck | null;
   onChange: (
     nextPublish: Array<Record<string, unknown>>,
     options?: { successMessage?: string }
@@ -29,11 +33,13 @@ export function WorkflowEditorPublishForm({
   workflowVersion,
   availableWorkflowVersions,
   publishEndpoints,
+  sandboxReadiness,
   onChange,
   highlightedEndpointIndex = null,
   highlightedEndpointFieldPath = null
 }: WorkflowEditorPublishFormProps) {
   const [feedback, setFeedback] = useState<string | null>(null);
+  const sandboxPreflightHint = formatSandboxReadinessPreflightHint(sandboxReadiness);
 
   const normalizedEndpoints = useMemo(
     () => publishEndpoints.map((endpoint, index) => normalizePublishedEndpoint(endpoint, index)),
@@ -144,6 +150,12 @@ export function WorkflowEditorPublishForm({
       <p className="section-copy entry-copy">
         `workflowVersion` 留空时会自动跟随当前保存出来的 workflow version，避免 draft 被默认钉死在旧版本。
       </p>
+      {sandboxPreflightHint ? (
+        <p className="section-copy entry-copy">
+          当前 publish draft 与正式 publish 页面共用同一条 strong-isolation / capability 链路；保存前可先对照：
+          {sandboxPreflightHint}
+        </p>
+      ) : null}
 
       <div className="tool-badge-row">
         <span className="event-chip">draft count {normalizedEndpoints.length}</span>

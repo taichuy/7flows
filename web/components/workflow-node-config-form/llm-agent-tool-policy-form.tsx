@@ -1,6 +1,9 @@
 "use client";
 
+import React from "react";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
 import {
   compareToolsByGovernance,
   getToolExecutionOverrideScope,
@@ -21,12 +24,14 @@ import {
 type LlmAgentToolPolicyFormProps = {
   config: Record<string, unknown>;
   tools: PluginToolRegistryItem[];
+  sandboxReadiness?: SandboxReadinessCheck | null;
   onChange: (nextConfig: Record<string, unknown>) => void;
 };
 
 export function LlmAgentToolPolicyForm({
   config,
   tools,
+  sandboxReadiness,
   onChange
 }: LlmAgentToolPolicyFormProps) {
   const toolPolicy = toRecord(config.toolPolicy) ?? {};
@@ -48,6 +53,7 @@ export function LlmAgentToolPolicyForm({
   const selectedExecutionClass = typeof execution.class === "string" ? execution.class : "";
   const hasInvalidSelectedExecutionClass =
     selectedExecutionClass.trim().length > 0 && unsupportedExecutionTools.length > 0;
+  const sandboxPreflightHint = formatSandboxReadinessPreflightHint(sandboxReadiness);
 
   const updateToolPolicy = (patch: {
     allowedToolIds?: string[];
@@ -303,6 +309,12 @@ export function LlmAgentToolPolicyForm({
           当前可调用工具共 {callableTools.length} 个，其中 {governedCallableToolCount} 个默认执行级别已收口到
           `sandbox / microvm`。如果这里显式覆盖 execution class，建议同时通过
           `allowedToolIds` 收窄范围，避免把高敏工具和低隔离目标混在一起。
+        </p>
+      ) : null}
+      {sandboxPreflightHint && callableTools.length > 0 ? (
+        <p className="section-copy">
+          当前 tool policy 若继续把 Agent 收口到 strong-isolation execution class，请先对照 live sandbox
+          readiness：{sandboxPreflightHint}
         </p>
       ) : null}
 

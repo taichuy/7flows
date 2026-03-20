@@ -287,6 +287,7 @@ export function WorkflowEditorWorkbench({
                   ? validationFocusTarget.fieldPath ?? null
                   : null
               }
+              sandboxReadiness={sandboxReadiness}
             />
           </aside>
         </section>

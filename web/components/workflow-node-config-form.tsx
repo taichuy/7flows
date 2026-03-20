@@ -11,11 +11,20 @@ export function WorkflowNodeConfigForm({
   node,
   nodes,
   tools,
+  sandboxReadiness,
   onChange
 }: WorkflowNodeConfigFormProps) {
   switch (node.data.nodeType) {
     case "llm_agent":
-      return <LlmAgentNodeConfigForm node={node} nodes={nodes} tools={tools} onChange={onChange} />;
+      return (
+        <LlmAgentNodeConfigForm
+          node={node}
+          nodes={nodes}
+          tools={tools}
+          sandboxReadiness={sandboxReadiness}
+          onChange={onChange}
+        />
+      );
     case "tool":
       return <ToolNodeConfigForm node={node} tools={tools} onChange={onChange} />;
     case "mcp_query":

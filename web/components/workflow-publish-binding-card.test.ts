@@ -12,7 +12,12 @@ vi.mock("@/components/workflow-publish-activity-panel", () => ({
 }));
 
 vi.mock("@/components/workflow-publish-lifecycle-form", () => ({
-  WorkflowPublishLifecycleForm: () => createElement("div", null, "lifecycle-form")
+  WorkflowPublishLifecycleForm: ({ sandboxReadiness }: { sandboxReadiness?: SandboxReadinessCheck | null }) =>
+    createElement(
+      "div",
+      null,
+      `lifecycle-form:${sandboxReadiness?.execution_classes?.[0]?.execution_class ?? "none"}`
+    )
 }));
 
 vi.mock("@/components/workflow-publish-api-key-manager", () => ({
@@ -167,5 +172,6 @@ describe("WorkflowPublishBindingCard", () => {
     expect(html).toContain("Strong-isolation publish preflight");
     expect(html).toContain("ready sandbox");
     expect(html).toContain("activity-panel");
+    expect(html).toContain("lifecycle-form:sandbox");
   });
 });

@@ -3,6 +3,7 @@
 import type { Node } from "@xyflow/react";
 
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { WorkflowCanvasNodeData } from "@/lib/workflow-editor";
 import { AuthorizedContextFields } from "@/components/workflow-node-config-form/authorized-context-fields";
 import { CredentialPicker } from "@/components/workflow-node-config-form/credential-picker";
@@ -23,6 +24,7 @@ type LlmAgentNodeConfigFormProps = {
   node: Node<WorkflowCanvasNodeData>;
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   tools: PluginToolRegistryItem[];
+  sandboxReadiness?: SandboxReadinessCheck | null;
   onChange: (nextConfig: Record<string, unknown>) => void;
 };
 
@@ -30,6 +32,7 @@ export function LlmAgentNodeConfigForm({
   node,
   nodes,
   tools,
+  sandboxReadiness,
   onChange
 }: LlmAgentNodeConfigFormProps) {
   const config = cloneRecord(node.data.config);
@@ -338,7 +341,12 @@ export function LlmAgentNodeConfigForm({
         </small>
       </div>
 
-      <LlmAgentToolPolicyForm config={config} tools={tools} onChange={onChange} />
+      <LlmAgentToolPolicyForm
+        config={config}
+        tools={tools}
+        sandboxReadiness={sandboxReadiness}
+        onChange={onChange}
+      />
 
       <div className="binding-field">
         <span className="binding-label">Assistant distill</span>

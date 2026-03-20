@@ -3,12 +3,14 @@
 import type { Node } from "@xyflow/react";
 
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { WorkflowCanvasNodeData } from "@/lib/workflow-editor";
 
 export type WorkflowNodeConfigFormProps = {
   node: Node<WorkflowCanvasNodeData>;
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   tools: PluginToolRegistryItem[];
+  sandboxReadiness?: SandboxReadinessCheck | null;
   onChange: (nextConfig: Record<string, unknown>) => void;
 };
 

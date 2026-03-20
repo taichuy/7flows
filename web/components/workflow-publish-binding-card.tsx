@@ -250,6 +250,7 @@ export function WorkflowPublishBindingCard({
         workflowId={workflow.id}
         bindingId={binding.id}
         currentStatus={binding.lifecycle_status}
+        sandboxReadiness={sandboxReadiness}
         action={updatePublishedEndpointLifecycle}
       />
 

@@ -4,11 +4,13 @@ import React from "react";
 import { useMemo, useState } from "react";
 
 import { SensitiveAccessBlockedCard } from "@/components/sensitive-access-blocked-card";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import {
   buildPublishedEndpointInvocationExportUrl,
   type PublishedEndpointInvocationExportFormat,
   type PublishedEndpointInvocationListOptions
 } from "@/lib/get-workflow-publish";
+import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
 import {
   resolvePublishWindowRange,
   type WorkflowPublishInvocationActiveFilter
@@ -22,6 +24,7 @@ type WorkflowPublishExportActionsProps = {
   workflowId: string;
   bindingId: string;
   activeInvocationFilter: WorkflowPublishInvocationActiveFilter | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
   formats?: PublishedEndpointInvocationExportFormat[];
   requesterId?: string;
   blockedTitle?: string;
@@ -40,6 +43,7 @@ export function WorkflowPublishExportActions({
   workflowId,
   bindingId,
   activeInvocationFilter,
+  sandboxReadiness,
   formats = DEFAULT_FORMATS,
   requesterId = "publish-activity-export-ui",
   blockedTitle = "Publish activity export access blocked",
@@ -52,6 +56,7 @@ export function WorkflowPublishExportActions({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [blockedPayload, setBlockedPayload] =
     useState<SensitiveAccessBlockingPayload | null>(null);
+  const sandboxPreflightHint = formatSandboxReadinessPreflightHint(sandboxReadiness);
 
   const exportOptions = useMemo<PublishedEndpointInvocationListOptions>(
     () => ({
@@ -131,6 +136,13 @@ export function WorkflowPublishExportActions({
           {activeFormat === format ? `导出 ${format.toUpperCase()}...` : EXPORT_LABELS[format]}
         </button>
       ))}
+
+      {sandboxPreflightHint ? (
+        <p className="section-copy entry-copy trace-export-feedback">
+          当前 activity export 只导出历史 invocation 事实；若要判断这个 binding 现在还能否继续承载
+          strong-isolation 路径，仍要回到 live readiness 对照：{sandboxPreflightHint}
+        </p>
+      ) : null}
 
       {successMessage ? (
         <p className="sync-message success trace-export-feedback">{successMessage}</p>

@@ -3,6 +3,7 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type {
   WorkflowCanvasEdgeData,
   WorkflowCanvasNodeData
@@ -50,6 +51,7 @@ type WorkflowEditorInspectorProps = {
   highlightedPublishEndpointFieldPath?: string | null;
   highlightedVariableIndex?: number | null;
   highlightedVariableFieldPath?: string | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
 export function WorkflowEditorInspector({
@@ -80,7 +82,8 @@ export function WorkflowEditorInspector({
   highlightedPublishEndpointIndex = null,
   highlightedPublishEndpointFieldPath = null,
   highlightedVariableIndex = null,
-  highlightedVariableFieldPath = null
+  highlightedVariableFieldPath = null,
+  sandboxReadiness
 }: WorkflowEditorInspectorProps) {
   return (
     <>
@@ -115,6 +118,7 @@ export function WorkflowEditorInspector({
               node={selectedNode}
               nodes={nodes}
               tools={tools}
+              sandboxReadiness={sandboxReadiness}
               onChange={onNodeConfigChange}
             />
 
@@ -229,6 +233,7 @@ export function WorkflowEditorInspector({
         workflowVersion={workflowVersion}
         availableWorkflowVersions={availableWorkflowVersions}
         publishEndpoints={workflowPublish}
+        sandboxReadiness={sandboxReadiness}
         onChange={onWorkflowPublishChange}
         highlightedEndpointIndex={highlightedPublishEndpointIndex}
         highlightedEndpointFieldPath={highlightedPublishEndpointFieldPath}
