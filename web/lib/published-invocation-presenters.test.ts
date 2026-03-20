@@ -10,6 +10,7 @@ import {
   buildPublishedInvocationCallbackDrilldownSurfaceCopy,
   buildPublishedInvocationCanonicalFollowUpCopy,
   buildPublishedInvocationDetailSurfaceCopy,
+  buildPublishedInvocationEntryInboxLinkSurface,
   buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationFailureMessageDiagnosis,
   buildPublishedInvocationFailureReasonCardSurface,
@@ -267,6 +268,35 @@ describe("published invocation presenters", () => {
     expect(formatPublishedInvocationSampleReasonLabel("callback_waiting")).toBe("callback waiting");
     expect(formatPublishedInvocationSampleReasonLabel("execution_focus")).toBe("execution focus");
     expect(formatPublishedInvocationSampleReasonLabel(null)).toBe("run snapshot");
+  });
+
+  it("统一 publish entry 的 inbox CTA 语义", () => {
+    expect(
+      buildPublishedInvocationEntryInboxLinkSurface({
+        blockingInboxHref: "/sensitive-access/inbox?run_id=run-1&node_run_id=node-run-1",
+        waitingInboxHref: "/sensitive-access/inbox?run_id=run-1"
+      })
+    ).toEqual({
+      href: "/sensitive-access/inbox?run_id=run-1&node_run_id=node-run-1",
+      label: "open blocker inbox slice"
+    });
+
+    expect(
+      buildPublishedInvocationEntryInboxLinkSurface({
+        blockingInboxHref: null,
+        waitingInboxHref: "/sensitive-access/inbox?run_id=run-1"
+      })
+    ).toEqual({
+      href: "/sensitive-access/inbox?run_id=run-1",
+      label: "open waiting inbox"
+    });
+
+    expect(
+      buildPublishedInvocationEntryInboxLinkSurface({
+        blockingInboxHref: null,
+        waitingInboxHref: null
+      })
+    ).toBeNull();
   });
 
   it("为 publish entry/detail 统一拼装 meta rows 与 follow-up chips", () => {

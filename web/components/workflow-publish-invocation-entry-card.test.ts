@@ -360,6 +360,51 @@ describe("WorkflowPublishInvocationEntryCard", () => {
     expect(html).not.toContain("open waiting inbox");
   });
 
+  it("falls back to waiting inbox links when no blocker summary exists", () => {
+    const item = buildInvocationItem();
+    item.run_waiting_lifecycle = {
+      node_run_id: "node-run-tool-wait",
+      node_status: "waiting_callback",
+      waiting_reason: "callback pending",
+      callback_ticket_count: 1,
+      callback_ticket_status_counts: { pending: 1 },
+      callback_waiting_lifecycle: {
+        wait_cycle_count: 1,
+        issued_ticket_count: 1,
+        expired_ticket_count: 0,
+        consumed_ticket_count: 0,
+        canceled_ticket_count: 0,
+        late_callback_count: 0,
+        resume_schedule_count: 1,
+        max_expired_ticket_count: 0,
+        terminated: false,
+        last_resume_delay_seconds: 45,
+        last_resume_source: "callback_ticket_monitor",
+        last_resume_backoff_attempt: 0
+      },
+      callback_waiting_explanation: item.callback_waiting_explanation,
+      sensitive_access_summary: null,
+      scheduled_resume_delay_seconds: 45,
+      scheduled_resume_source: "callback_ticket_monitor",
+      scheduled_waiting_status: "waiting_callback",
+      scheduled_resume_scheduled_at: "2026-03-20T10:00:00Z",
+      scheduled_resume_due_at: "2026-03-20T10:00:45Z",
+      scheduled_resume_requeued_at: null,
+      scheduled_resume_requeue_source: null
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationEntryCard, {
+        item,
+        detailHref: "/published/invocation-1",
+        detailActive: false
+      })
+    );
+
+    expect(html).toContain("open waiting inbox");
+    expect(html).not.toContain("open blocker inbox slice");
+  });
+
   it("uses shared entry CTA and error prefix copy", () => {
     const item = buildInvocationItem();
     item.error_message = "sandbox backend offline during invocation";

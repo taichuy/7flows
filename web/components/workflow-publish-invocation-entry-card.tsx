@@ -19,6 +19,7 @@ import {
   buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationCanonicalFollowUpCopy,
   buildPublishedInvocationEntrySurfaceCopy,
+  buildPublishedInvocationEntryInboxLinkSurface,
   buildPublishedInvocationInboxHref,
   buildPublishedInvocationRecommendedNextStep,
   listPublishedInvocationEntryMetaRows,
@@ -134,10 +135,10 @@ export function WorkflowPublishInvocationEntryCard({
         blockingSensitiveAccessEntries: []
       })
     : null;
-  const primaryInboxHref = blockingInboxHref ?? inboxHref;
-  const primaryInboxLabel = blockingInboxHref
-    ? "open blocker inbox slice"
-    : "open waiting inbox";
+  const primaryInboxLink = buildPublishedInvocationEntryInboxLinkSurface({
+    blockingInboxHref,
+    waitingInboxHref: inboxHref
+  });
   const runFollowUp = item.run_follow_up;
   const runFollowUpStatusSummary = runFollowUp
     ? formatMetricSummary({
@@ -229,10 +230,10 @@ export function WorkflowPublishInvocationEntryCard({
         {formatPublishedInvocationSurfaceLabel(item.request_surface)} · {item.request_source} ·{" "}
         {formatTimestamp(item.created_at)} · {formatDurationMs(item.duration_ms)}
       </p>
-      {primaryInboxHref ? (
+      {primaryInboxLink ? (
         <div className="tool-badge-row">
-          <Link className="event-chip inbox-filter-link" href={primaryInboxHref}>
-            {primaryInboxLabel}
+          <Link className="event-chip inbox-filter-link" href={primaryInboxLink.href}>
+            {primaryInboxLink.label}
           </Link>
         </div>
       ) : null}

@@ -93,6 +93,11 @@ export type PublishedInvocationRecommendedNextStep = {
   href_label: string | null;
 };
 
+export type PublishedInvocationInboxLinkSurface = {
+  href: string;
+  label: string;
+};
+
 export type PublishedInvocationMetaRow = {
   key: string;
   label: string;
@@ -1355,6 +1360,30 @@ export function buildPublishedInvocationRecommendedNextStep({
     },
     operatorFollowUp: canonicalFollowUp?.follow_up ?? null
   });
+}
+
+export function buildPublishedInvocationEntryInboxLinkSurface({
+  blockingInboxHref,
+  waitingInboxHref
+}: {
+  blockingInboxHref?: string | null;
+  waitingInboxHref?: string | null;
+}): PublishedInvocationInboxLinkSurface | null {
+  if (blockingInboxHref?.trim()) {
+    return {
+      href: blockingInboxHref,
+      label: "open blocker inbox slice"
+    };
+  }
+
+  if (waitingInboxHref?.trim()) {
+    return {
+      href: waitingInboxHref,
+      label: "open waiting inbox"
+    };
+  }
+
+  return null;
 }
 
 function buildPublishedInvocationRunFollowUpSampleSnapshot(
