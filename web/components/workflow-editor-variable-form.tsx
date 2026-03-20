@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { buildWorkflowVariableValidationIssues } from "@/lib/workflow-variable-validation";
+import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 
 type WorkflowEditorVariableFormProps = {
   variables: Array<Record<string, unknown>>;
@@ -12,6 +15,8 @@ type WorkflowEditorVariableFormProps = {
   ) => void;
   highlightedVariableIndex?: number | null;
   highlightedVariableFieldPath?: string | null;
+  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
 type NormalizedWorkflowVariable = {
@@ -26,10 +31,13 @@ export function WorkflowEditorVariableForm({
   variables,
   onChange,
   highlightedVariableIndex = null,
-  highlightedVariableFieldPath = null
+  highlightedVariableFieldPath = null,
+  focusedValidationItem = null,
+  sandboxReadiness = null
 }: WorkflowEditorVariableFormProps) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
+  const normalizedHighlightedField = normalizeValidationFieldKey(highlightedVariableFieldPath);
 
   const normalizedVariables = useMemo(
     () => variables.map((variable) => normalizeWorkflowVariable(variable)),
@@ -45,16 +53,15 @@ export function WorkflowEditorVariableForm({
       return;
     }
 
-    const fieldKey = normalizeValidationFieldKey(highlightedVariableFieldPath);
     const target = articleRef.current?.querySelector<HTMLElement>(
-      `[data-variable-index="${highlightedVariableIndex}"][data-validation-field="${fieldKey}"] input, ` +
-        `[data-variable-index="${highlightedVariableIndex}"][data-validation-field="${fieldKey}"] select, ` +
-        `[data-variable-index="${highlightedVariableIndex}"][data-validation-field="${fieldKey}"] textarea`
+      `[data-variable-index="${highlightedVariableIndex}"][data-validation-field="${normalizedHighlightedField}"] input, ` +
+        `[data-variable-index="${highlightedVariableIndex}"][data-validation-field="${normalizedHighlightedField}"] select, ` +
+        `[data-variable-index="${highlightedVariableIndex}"][data-validation-field="${normalizedHighlightedField}"] textarea`
     );
 
     target?.scrollIntoView({ block: "center", behavior: "smooth" });
     target?.focus();
-  }, [highlightedVariableFieldPath, highlightedVariableIndex]);
+  }, [highlightedVariableIndex, normalizedHighlightedField]);
 
   const commit = (
     nextVariables: Array<Record<string, unknown>>,
@@ -188,6 +195,13 @@ export function WorkflowEditorVariableForm({
         能围绕同一组事实演进，而不是继续散落在节点局部 config 中。
       </p>
 
+      {focusedValidationItem ? (
+        <WorkflowValidationRemediationCard
+          item={focusedValidationItem}
+          sandboxReadiness={sandboxReadiness}
+        />
+      ) : null}
+
       <div className="tool-badge-row">
         <span className="event-chip">variable count {normalizedVariables.length}</span>
       </div>
@@ -227,7 +241,11 @@ export function WorkflowEditorVariableForm({
                 </div>
 
                 <label
-                  className="binding-field"
+                  className={`binding-field ${
+                    highlightedVariableIndex === index && normalizedHighlightedField === "name"
+                      ? "validation-focus-ring"
+                      : ""
+                  }`.trim()}
                   data-variable-index={index}
                   data-validation-field="name"
                 >
@@ -241,7 +259,11 @@ export function WorkflowEditorVariableForm({
                 </label>
 
                 <label
-                  className="binding-field"
+                  className={`binding-field ${
+                    highlightedVariableIndex === index && normalizedHighlightedField === "type"
+                      ? "validation-focus-ring"
+                      : ""
+                  }`.trim()}
                   data-variable-index={index}
                   data-validation-field="type"
                 >
@@ -255,7 +277,11 @@ export function WorkflowEditorVariableForm({
                 </label>
 
                 <label
-                  className="binding-field"
+                  className={`binding-field ${
+                    highlightedVariableIndex === index && normalizedHighlightedField === "description"
+                      ? "validation-focus-ring"
+                      : ""
+                  }`.trim()}
                   data-variable-index={index}
                   data-validation-field="description"
                 >
@@ -272,7 +298,11 @@ export function WorkflowEditorVariableForm({
 
                 {rawType === "boolean" ? (
                   <label
-                    className="binding-field"
+                    className={`binding-field ${
+                      highlightedVariableIndex === index && normalizedHighlightedField === "default"
+                        ? "validation-focus-ring"
+                        : ""
+                    }`.trim()}
                     data-variable-index={index}
                     data-validation-field="default"
                   >
@@ -302,7 +332,11 @@ export function WorkflowEditorVariableForm({
                   </label>
                 ) : rawType === "number" || rawType === "integer" || rawType === "string" ? (
                   <label
-                    className="binding-field"
+                    className={`binding-field ${
+                      highlightedVariableIndex === index && normalizedHighlightedField === "default"
+                        ? "validation-focus-ring"
+                        : ""
+                    }`.trim()}
                     data-variable-index={index}
                     data-validation-field="default"
                   >
@@ -331,7 +365,11 @@ export function WorkflowEditorVariableForm({
                   </label>
                 ) : (
                   <label
-                    className="binding-field"
+                    className={`binding-field ${
+                      highlightedVariableIndex === index && normalizedHighlightedField === "default"
+                        ? "validation-focus-ring"
+                        : ""
+                    }`.trim()}
                     data-variable-index={index}
                     data-validation-field="default"
                   >

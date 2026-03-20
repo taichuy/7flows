@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { Node } from "@xyflow/react";
 
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import type { WorkflowCanvasNodeData } from "@/lib/workflow-editor";
 import { validateContractSchema } from "@/lib/workflow-contract-schema-validation";
+import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { toRecord } from "@/components/workflow-node-config-form/shared";
 
 type WorkflowNodeIoSchemaFormProps = {
@@ -12,6 +15,9 @@ type WorkflowNodeIoSchemaFormProps = {
   onInputSchemaChange: (nextSchema: Record<string, unknown> | undefined) => void;
   onOutputSchemaChange: (nextSchema: Record<string, unknown> | undefined) => void;
   highlighted?: boolean;
+  highlightedFieldPath?: string | null;
+  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
 const EMPTY_OBJECT_SCHEMA = JSON.stringify(
@@ -28,12 +34,17 @@ export function WorkflowNodeIoSchemaForm({
   node,
   onInputSchemaChange,
   onOutputSchemaChange,
-  highlighted = false
+  highlighted = false,
+  highlightedFieldPath = null,
+  focusedValidationItem = null,
+  sandboxReadiness = null
 }: WorkflowNodeIoSchemaFormProps) {
+  const sectionRef = useRef<HTMLDivElement | null>(null);
   const [inputSchemaText, setInputSchemaText] = useState(stringifySchema(node.data.inputSchema));
   const [outputSchemaText, setOutputSchemaText] = useState(stringifySchema(node.data.outputSchema));
   const [inputErrorMessage, setInputErrorMessage] = useState<string | null>(null);
   const [outputErrorMessage, setOutputErrorMessage] = useState<string | null>(null);
+  const normalizedHighlightedField = normalizeSchemaFieldKey(highlightedFieldPath);
 
   useEffect(() => {
     setInputSchemaText(stringifySchema(node.data.inputSchema));
@@ -42,11 +53,27 @@ export function WorkflowNodeIoSchemaForm({
     setOutputErrorMessage(null);
   }, [node.id, node.data.inputSchema, node.data.outputSchema]);
 
+  useEffect(() => {
+    if (!normalizedHighlightedField) {
+      return;
+    }
+
+    const target = sectionRef.current?.querySelector<HTMLElement>(
+      `[data-validation-field="${normalizedHighlightedField}"] textarea`
+    );
+
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
+    target?.focus();
+  }, [normalizedHighlightedField]);
+
   const inputSchemaFieldsCount = countSchemaFields(node.data.inputSchema);
   const outputSchemaFieldsCount = countSchemaFields(node.data.outputSchema);
 
   return (
-    <div className={`binding-form ${highlighted ? "validation-focus-ring" : ""}`.trim()}>
+    <div
+      className={`binding-form ${highlighted ? "validation-focus-ring" : ""}`.trim()}
+      ref={sectionRef}
+    >
       <div className="section-heading">
         <div>
           <p className="eyebrow">Node contract</p>
@@ -60,7 +87,17 @@ export function WorkflowNodeIoSchemaForm({
         <span className="event-chip">output fields {outputSchemaFieldsCount}</span>
       </div>
 
-      <label className="binding-field">
+      {focusedValidationItem && normalizedHighlightedField ? (
+        <WorkflowValidationRemediationCard
+          item={focusedValidationItem}
+          sandboxReadiness={sandboxReadiness}
+        />
+      ) : null}
+
+      <label
+        className={`binding-field ${normalizedHighlightedField === "inputSchema" ? "validation-focus-ring" : ""}`.trim()}
+        data-validation-field="inputSchema"
+      >
         <span className="binding-label">Input schema JSON</span>
         <textarea
           className="editor-json-area"
@@ -108,7 +145,10 @@ export function WorkflowNodeIoSchemaForm({
         </button>
       </div>
 
-      <label className="binding-field">
+      <label
+        className={`binding-field ${normalizedHighlightedField === "outputSchema" ? "validation-focus-ring" : ""}`.trim()}
+        data-validation-field="outputSchema"
+      >
         <span className="binding-label">Output schema JSON</span>
         <textarea
           className="editor-json-area"
@@ -206,4 +246,21 @@ function countSchemaFields(value: Record<string, unknown> | null | undefined) {
   const schema = toRecord(value);
   const properties = toRecord(schema?.properties);
   return properties ? Object.keys(properties).length : 0;
+}
+
+function normalizeSchemaFieldKey(fieldPath?: string | null) {
+  const normalized = fieldPath?.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized === "inputSchema" || normalized.startsWith("inputSchema.")) {
+    return "inputSchema";
+  }
+
+  if (normalized === "outputSchema" || normalized.startsWith("outputSchema.")) {
+    return "outputSchema";
+  }
+
+  return null;
 }

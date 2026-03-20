@@ -20,6 +20,7 @@ import type {
 } from "@/lib/get-workflows";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
+import { pickWorkflowValidationRemediationItem } from "@/lib/workflow-validation-remediation";
 import { getPaletteNodeCatalog, getPlannedNodeCatalog } from "@/lib/workflow-node-catalog";
 
 import { WorkflowEditorCanvas } from "@/components/workflow-editor-workbench/workflow-editor-canvas";
@@ -119,6 +120,10 @@ export function WorkflowEditorWorkbench({
 
     return sandboxReadinessPreflightHint;
   }, [sandboxReadinessPreflightHint, validation.toolExecutionValidationIssues.length]);
+  const preflightValidationItem = useMemo(
+    () => pickWorkflowValidationRemediationItem(validation.validationNavigatorItems),
+    [validation.validationNavigatorItems]
+  );
   const persistence = useWorkflowEditorPersistence({
     workflowId: workflow.id,
     fallbackWorkflowName: workflow.name,
@@ -126,6 +131,7 @@ export function WorkflowEditorWorkbench({
     workflowVersion: graph.workflowVersion,
     currentDefinition: graph.currentDefinition,
     persistBlockedMessage: validation.persistBlockedMessage,
+    validationNavigatorItems: validation.validationNavigatorItems,
     sandboxReadiness,
     setPersistedWorkflowName: graph.setPersistedWorkflowName,
     setPersistedDefinition: graph.setPersistedDefinition,
@@ -209,6 +215,8 @@ export function WorkflowEditorWorkbench({
             messageTone={messageTone}
             executionPreflightMessage={executionPreflightMessage}
             toolExecutionValidationIssueCount={validation.toolExecutionValidationIssues.length}
+            focusedValidationItem={validationFocusItem}
+            preflightValidationItem={preflightValidationItem}
             validationNavigatorItems={validation.validationNavigatorItems}
             runs={runOverlay.availableRuns}
             selectedRunId={runOverlay.selectedRunId}

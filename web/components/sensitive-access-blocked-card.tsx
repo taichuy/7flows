@@ -10,8 +10,10 @@ import {
   type SensitiveAccessBlockingPayload
 } from "@/lib/sensitive-access";
 import {
+  buildSensitiveAccessBlockedRecommendedNextStep,
   formatSensitiveAccessDecisionLabel,
   formatSensitiveAccessReasonLabel,
+  getSensitiveAccessCanonicalOutcomeExplanation,
   getSensitiveAccessBlockedPolicySummary
 } from "@/lib/sensitive-access-presenters";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
@@ -56,6 +58,18 @@ export function SensitiveAccessBlockedCard({
       (payload.run_follow_up?.sampledRuns.length ?? 0) > 0 ||
       payload.run_snapshot
   );
+  const canonicalOutcomeExplanation = getSensitiveAccessCanonicalOutcomeExplanation({
+    outcomeExplanation: payload.outcome_explanation ?? null,
+    runSnapshot: payload.run_snapshot ?? null,
+    runFollowUpExplanation: payload.run_follow_up?.explanation ?? null
+  });
+  const recommendedNextStep = buildSensitiveAccessBlockedRecommendedNextStep({
+    inboxHref,
+    runId,
+    outcomeExplanation: payload.outcome_explanation ?? null,
+    runSnapshot: payload.run_snapshot ?? null,
+    runFollowUpExplanation: payload.run_follow_up?.explanation ?? null
+  });
 
   return (
     <article className="entry-card compact-card">
@@ -152,7 +166,8 @@ export function SensitiveAccessBlockedCard({
       {hasStructuredFollowUp ? (
         <InlineOperatorActionFeedback
           message=""
-          outcomeExplanation={payload.outcome_explanation ?? null}
+          outcomeExplanation={canonicalOutcomeExplanation}
+          recommendedNextStep={recommendedNextStep}
           runFollowUpExplanation={payload.run_follow_up?.explanation ?? null}
           runFollowUp={payload.run_follow_up ?? null}
           runId={runId}

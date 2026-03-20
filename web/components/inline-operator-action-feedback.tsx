@@ -13,7 +13,10 @@ import {
 import { formatRunSnapshotSummary } from "@/lib/operator-action-result-presenters";
 import { buildOperatorRunSampleCards } from "@/lib/operator-run-sample-cards";
 import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
-import { buildOperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
+import {
+  buildOperatorRecommendedNextStep,
+  type OperatorRecommendedNextStep
+} from "@/lib/operator-follow-up-presenters";
 import { listExecutionFocusRuntimeFactBadges } from "@/lib/run-execution-focus-presenters";
 
 type InlineOperatorActionFeedbackProps = {
@@ -21,6 +24,7 @@ type InlineOperatorActionFeedbackProps = {
   message: string;
   title: string;
   runId?: string | null;
+  recommendedNextStep?: OperatorRecommendedNextStep | null;
 } & OperatorInlineActionResultState;
 
 export function InlineOperatorActionFeedback({
@@ -28,6 +32,7 @@ export function InlineOperatorActionFeedback({
   message,
   title,
   runId = null,
+  recommendedNextStep: recommendedNextStepOverride = null,
   ...structuredResult
 }: InlineOperatorActionFeedbackProps) {
   const model = buildOperatorInlineActionFeedbackModel({
@@ -44,24 +49,26 @@ export function InlineOperatorActionFeedback({
   const callbackWaitingFollowUp = runSnapshot?.callbackWaitingExplanation?.follow_up?.trim() || null;
   const callbackWaitingFocusNode = buildExecutionFocusExplainableNode(runSnapshot);
   const executionFactBadges = listExecutionFocusRuntimeFactBadges(callbackWaitingFocusNode);
-  const recommendedNextStep = !hasCallbackWaitingSummary
-    ? buildOperatorRecommendedNextStep({
-        execution: {
-          active: Boolean(
-            runId || model.runFollowUpFollowUp || model.runSnapshotSummary || model.focusNodeLabel
-          ),
-          label: runId ? "run detail" : "execution follow-up",
-          detail: model.runFollowUpFollowUp,
-          href: runId ? `/runs/${encodeURIComponent(runId)}` : null,
-          href_label: runId ? "open run" : null,
-          fallback_detail:
-            model.runSnapshotSummary ??
-            "当前 operator action 已返回新的 run snapshot；优先回到 run detail 确认 waiting、focus node 与最新执行证据。"
-        },
-        operatorFollowUp: model.outcomeFollowUp,
-        operatorLabel: "operator result"
-      })
-    : null;
+  const recommendedNextStep =
+    recommendedNextStepOverride ??
+    (!hasCallbackWaitingSummary
+      ? buildOperatorRecommendedNextStep({
+          execution: {
+            active: Boolean(
+              runId || model.runFollowUpFollowUp || model.runSnapshotSummary || model.focusNodeLabel
+            ),
+            label: runId ? "run detail" : "execution follow-up",
+            detail: model.runFollowUpFollowUp,
+            href: runId ? `/runs/${encodeURIComponent(runId)}` : null,
+            href_label: runId ? "open run" : null,
+            fallback_detail:
+              model.runSnapshotSummary ??
+              "当前 operator action 已返回新的 run snapshot；优先回到 run detail 确认 waiting、focus node 与最新执行证据。"
+          },
+          operatorFollowUp: model.outcomeFollowUp,
+          operatorLabel: "operator result"
+        })
+      : null);
   const shouldRenderOutcomeFollowUp =
     Boolean(model.outcomeFollowUp) && model.outcomeFollowUp !== recommendedNextStep?.detail;
   const shouldRenderRunFollowUpFollowUp =

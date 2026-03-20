@@ -371,6 +371,8 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
 
     expect(html).toContain("Canonical follow-up");
     expect(html).toContain("本次影响 1 个 run；已回读 1 个样本。");
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("callback waiting");
     expect(html).toContain("当前 waiting 节点仍在等待 callback。");
     expect(html).toContain("优先观察定时恢复是否已重新排队。");
     expect(html).not.toContain("run run-callback-1：继续观察 callback waiting。");
@@ -567,5 +569,33 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
 
     expect(html).toContain("当前 live sandbox readiness 显示 sandbox 已 ready。");
     expect(html).toContain("历史 run 记录的 backend 是 sandbox-stale");
+  });
+
+  it("routes execution-focus follow-up back to run detail when no callback blocker exists", () => {
+    const detail = buildDetail();
+    detail.run_follow_up = null;
+    detail.callback_waiting_explanation = null;
+    detail.callback_tickets = [];
+    detail.sensitive_access_entries = [];
+    detail.blocking_sensitive_access_entries = [];
+    detail.execution_focus_reason = "blocked_execution";
+    detail.execution_focus_explanation = {
+      primary_signal: "sandbox execution 仍被阻断。",
+      follow_up: "优先打开 run，继续检查 execution focus node 的 fallback / blocking reason。"
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationDetailPanel, {
+        detail,
+        clearHref: "/published?clear=1",
+        tools: [],
+        callbackWaitingAutomation
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("execution focus");
+    expect(html).toContain("open run");
+    expect(html).toContain("优先打开 run，继续检查 execution focus node 的 fallback / blocking reason。");
   });
 });

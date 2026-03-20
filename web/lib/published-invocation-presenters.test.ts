@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildPublishedInvocationCanonicalFollowUpCopy,
+  buildPublishedInvocationRecommendedNextStep,
   formatPublishedInvocationWaitingFollowUp,
   formatPublishedInvocationWaitingHeadline,
   listPublishedInvocationRunFollowUpSampleSummaries,
@@ -55,6 +56,50 @@ describe("published invocation presenters", () => {
       headline: "当前 invocation 已接入 canonical follow-up 事实链。",
       follow_up: null,
       has_shared_callback_waiting_summary: true
+    });
+  });
+
+  it("callback waiting 优先把下一步指向 blocker inbox", () => {
+    expect(
+      buildPublishedInvocationRecommendedNextStep({
+        runId: "run-callback-1",
+        canonicalFollowUp: {
+          headline: "当前 invocation 已接入 canonical follow-up 事实链。",
+          follow_up: null,
+          has_shared_callback_waiting_summary: true
+        },
+        callbackWaitingFollowUp: "先处理审批票据，再观察 waiting 节点是否恢复。",
+        executionFocusFollowUp: "打开 run 看 execution focus。",
+        blockingInboxHref: "/sensitive-access/inbox?runId=run-callback-1&nodeRunId=node-run-1",
+        approvalInboxHref: "/sensitive-access/inbox?runId=run-callback-1"
+      })
+    ).toEqual({
+      label: "approval blocker",
+      detail: "先处理审批票据，再观察 waiting 节点是否恢复。",
+      href: "/sensitive-access/inbox?runId=run-callback-1&nodeRunId=node-run-1",
+      href_label: "open blocker inbox slice"
+    });
+  });
+
+  it("没有 callback blocker 时把下一步回收到 execution focus run", () => {
+    expect(
+      buildPublishedInvocationRecommendedNextStep({
+        runId: "run-focus-1",
+        canonicalFollowUp: {
+          headline: "当前 invocation 已接入 canonical follow-up 事实链。",
+          follow_up: null,
+          has_shared_callback_waiting_summary: false
+        },
+        callbackWaitingFollowUp: null,
+        executionFocusFollowUp: "优先打开 run 继续检查 focus node。",
+        blockingInboxHref: null,
+        approvalInboxHref: null
+      })
+    ).toEqual({
+      label: "execution focus",
+      detail: "优先打开 run 继续检查 focus node。",
+      href: "/runs/run-focus-1",
+      href_label: "open run"
     });
   });
 

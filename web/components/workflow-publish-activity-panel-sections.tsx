@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 import type {
   CallbackWaitingAutomationCheck,
@@ -15,13 +16,20 @@ import type {
 } from "@/lib/get-workflow-publish";
 import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import {
+  buildBlockingPublishedInvocationInboxHref,
+  buildPublishedInvocationCanonicalFollowUpCopy,
+  buildPublishedInvocationInboxHref,
+  buildPublishedInvocationRecommendedNextStep,
   buildPublishedInvocationWaitingOverview,
   formatPublishedInvocationReasonLabel,
   formatPublishedInvocationSurfaceLabel,
   formatPublishedRunStatusLabel,
-  formatRateLimitPressure
+  formatRateLimitPressure,
+  listPublishedInvocationRunFollowUpSampleViews
 } from "@/lib/published-invocation-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import { hasExecutionNodeCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
+import { formatExecutionFocusFollowUp } from "@/lib/run-execution-focus-presenters";
 import {
   formatSandboxReadinessDetail,
   formatSandboxReadinessHeadline,
@@ -449,6 +457,44 @@ export function WorkflowPublishActivityDetails({
   const apiKeyUsage = invocationAudit?.facets.api_key_usage ?? [];
   const failureReasons = invocationAudit?.facets.recent_failure_reasons ?? [];
   const reasonCounts = invocationAudit?.facets.reason_counts ?? [];
+  const selectedInvocationDrilldown =
+    selectedInvocationDetail?.kind === "ok"
+      ? (() => {
+          const detail = selectedInvocationDetail.data;
+          const samples = listPublishedInvocationRunFollowUpSampleViews(detail.run_follow_up ?? null);
+          const sharedCallbackWaitingExplanations = samples
+            .filter((sample) => sample.has_callback_waiting_summary)
+            .map((sample) => sample.run_snapshot.callbackWaitingExplanation);
+          const canonicalFollowUp = buildPublishedInvocationCanonicalFollowUpCopy({
+            explanation: detail.run_follow_up?.explanation ?? null,
+            sharedCallbackWaitingExplanations,
+            fallbackHeadline: "当前 invocation 已接入 canonical follow-up 事实链。"
+          });
+          const executionFocusFollowUp =
+            detail.execution_focus_explanation?.follow_up ??
+            (detail.execution_focus_node &&
+            !hasExecutionNodeCallbackWaitingSummaryFacts(detail.execution_focus_node)
+              ? formatExecutionFocusFollowUp(detail.execution_focus_node)
+              : null);
+
+          return buildPublishedInvocationRecommendedNextStep({
+            runId: detail.run?.id ?? detail.invocation.run_id ?? null,
+            canonicalFollowUp,
+            callbackWaitingFollowUp: detail.callback_waiting_explanation?.follow_up ?? null,
+            executionFocusFollowUp,
+            blockingInboxHref: buildBlockingPublishedInvocationInboxHref({
+              runId: detail.run?.id ?? detail.invocation.run_id ?? null,
+              blockingNodeRunId: detail.blocking_node_run_id,
+              blockingSensitiveAccessEntries: detail.blocking_sensitive_access_entries
+            }),
+            approvalInboxHref: buildPublishedInvocationInboxHref({
+              invocation: detail.invocation,
+              callbackTickets: detail.callback_tickets,
+              sensitiveAccessEntries: detail.sensitive_access_entries
+            })
+          });
+        })()
+      : null;
 
   return (
     <>
@@ -512,6 +558,26 @@ export function WorkflowPublishActivityDetails({
             );
           })}
         </div>
+      ) : null}
+
+      {selectedInvocationId && selectedInvocationDetail?.kind === "ok" && selectedInvocationDrilldown ? (
+        <article className="entry-card compact-card">
+          <div className="payload-card-header">
+            <div>
+              <p className="entry-card-title">Selected invocation next step</p>
+              <p className="binding-meta">{selectedInvocationId}</p>
+            </div>
+            <span className="event-chip">{selectedInvocationDrilldown.label}</span>
+          </div>
+          <p className="section-copy entry-copy">{selectedInvocationDrilldown.detail}</p>
+          {selectedInvocationDrilldown.href && selectedInvocationDrilldown.href_label ? (
+            <div className="tool-badge-row">
+              <Link className="event-chip inbox-filter-link" href={selectedInvocationDrilldown.href}>
+                {selectedInvocationDrilldown.href_label}
+              </Link>
+            </div>
+          ) : null}
+        </article>
       ) : null}
 
       {items.length ? (

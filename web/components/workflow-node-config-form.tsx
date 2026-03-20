@@ -30,7 +30,16 @@ export function WorkflowNodeConfigForm({
         />
       );
     case "tool":
-      return <ToolNodeConfigForm node={node} tools={tools} onChange={onChange} />;
+      return (
+        <ToolNodeConfigForm
+          node={node}
+          tools={tools}
+          sandboxReadiness={sandboxReadiness}
+          highlightedFieldPath={highlightedFieldPath}
+          focusedValidationItem={focusedValidationItem}
+          onChange={onChange}
+        />
+      );
     case "mcp_query":
       return <McpQueryNodeConfigForm node={node} nodes={nodes} onChange={onChange} />;
     case "condition":

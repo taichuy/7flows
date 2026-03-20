@@ -7,6 +7,10 @@ import type {
   SensitiveAccessRequestItem,
   SignalFollowUpExplanation
 } from "@/lib/get-sensitive-access";
+import {
+  buildOperatorRecommendedNextStep,
+  type OperatorRecommendedNextStep
+} from "@/lib/operator-follow-up-presenters";
 
 const DECISION_LABELS: Record<string, string> = {
   allow: "allowed",
@@ -84,7 +88,7 @@ export function getSensitiveAccessBlockedPolicySummary(
   return getSensitiveAccessPolicySummary(payload.access_request);
 }
 
-export function getSensitiveAccessTimelineCanonicalOutcomeExplanation({
+export function getSensitiveAccessCanonicalOutcomeExplanation({
   outcomeExplanation,
   runSnapshot,
   runFollowUpExplanation
@@ -120,4 +124,55 @@ export function getSensitiveAccessTimelineCanonicalOutcomeExplanation({
     primary_signal: primarySignal,
     follow_up: followUp
   };
+}
+
+export const getSensitiveAccessTimelineCanonicalOutcomeExplanation =
+  getSensitiveAccessCanonicalOutcomeExplanation;
+
+export function buildSensitiveAccessBlockedRecommendedNextStep({
+  inboxHref,
+  runId,
+  outcomeExplanation,
+  runSnapshot,
+  runFollowUpExplanation
+}: {
+  inboxHref?: string | null;
+  runId?: string | null;
+  outcomeExplanation?: SignalFollowUpExplanation | null;
+  runSnapshot?: OperatorRunSnapshotSummary | null;
+  runFollowUpExplanation?: SignalFollowUpExplanation | null;
+}): OperatorRecommendedNextStep | null {
+  const blockerFollowUp =
+    normalizeCopy(outcomeExplanation?.follow_up) ??
+    normalizeCopy(runSnapshot?.callbackWaitingExplanation?.follow_up) ??
+    normalizeCopy(runSnapshot?.executionFocusExplanation?.follow_up) ??
+    normalizeCopy(runFollowUpExplanation?.follow_up);
+
+  const executionFollowUp =
+    normalizeCopy(runFollowUpExplanation?.follow_up) ??
+    normalizeCopy(runSnapshot?.executionFocusExplanation?.follow_up) ??
+    normalizeCopy(runSnapshot?.callbackWaitingExplanation?.follow_up);
+
+  return buildOperatorRecommendedNextStep({
+    callback: {
+      active: Boolean(inboxHref || blockerFollowUp),
+      label: "approval blocker",
+      detail: blockerFollowUp,
+      href: inboxHref?.trim() || null,
+      href_label: inboxHref?.trim() ? "open inbox slice" : null,
+      fallback_detail:
+        "当前敏感访问仍被 approval blocker 拦住；优先处理审批票据、通知与 waiting 恢复，再继续查看 run detail 或原入口。"
+    },
+    execution: {
+      active: Boolean(runId || executionFollowUp),
+      label: "run detail",
+      detail: executionFollowUp,
+      href: runId?.trim() ? `/runs/${encodeURIComponent(runId.trim())}` : null,
+      href_label: runId?.trim() ? "open run" : null,
+      fallback_detail:
+        "当前阻断结果已经回接 canonical run snapshot；如果审批已处理，优先打开 run detail 确认 waiting 与 focus node 是否恢复。"
+    },
+    operatorFollowUp: blockerFollowUp,
+    operatorLabel: "approval follow-up"
+  });
 }

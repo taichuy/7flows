@@ -18,9 +18,13 @@ import {
 import { buildWorkspaceStarterPayload } from "@/lib/workspace-starter-payload";
 import { inferWorkflowBusinessTrack } from "@/lib/workflow-starters";
 import {
+  buildWorkflowValidationNavigatorItems,
   type WorkflowValidationNavigatorItem
 } from "@/lib/workflow-validation-navigation";
-import { buildWorkflowValidationRemediation } from "@/lib/workflow-validation-remediation";
+import {
+  buildWorkflowValidationRemediation,
+  pickWorkflowValidationRemediationItem
+} from "@/lib/workflow-validation-remediation";
 
 import {
   summarizePreflightIssues,
@@ -37,6 +41,7 @@ type UseWorkflowEditorPersistenceOptions = {
   currentDefinitionSignature: string;
   sandboxReadiness?: SandboxReadinessCheck | null;
   persistBlockedMessage: string;
+  validationNavigatorItems: WorkflowValidationNavigatorItem[];
   setPersistedWorkflowName: (name: string) => void;
   setPersistedDefinition: (definition: WorkflowDetail["definition"]) => void;
   setWorkflowVersion: (version: string) => void;
@@ -57,6 +62,7 @@ export function useWorkflowEditorPersistence({
   currentDefinitionSignature,
   sandboxReadiness,
   persistBlockedMessage,
+  validationNavigatorItems,
   setPersistedWorkflowName,
   setPersistedDefinition,
   setWorkflowVersion,
@@ -70,8 +76,20 @@ export function useWorkflowEditorPersistence({
   const [isSaving, startSavingTransition] = useTransition();
   const [isSavingStarter, startSaveStarterTransition] = useTransition();
 
+  const applyValidationFocus = (item?: WorkflowValidationNavigatorItem | null) => {
+    if (!item) {
+      return;
+    }
+
+    setValidationFocusItem(item);
+    if (item.target.scope === "node") {
+      focusNode(item.target.nodeId);
+    }
+  };
+
   const handleSave = () => {
     if (persistBlockedMessage) {
+      applyValidationFocus(pickWorkflowValidationRemediationItem(validationNavigatorItems));
       setMessage(persistBlockedMessage);
       setMessageTone("error");
       return;
@@ -100,6 +118,11 @@ export function useWorkflowEditorPersistence({
         if (error instanceof WorkflowDefinitionPreflightError) {
           setServerValidationIssues(error.issues);
           setServerValidationIssueSourceSignature(currentDefinitionSignature);
+          applyValidationFocus(
+            pickWorkflowValidationRemediationItem(
+              buildWorkflowValidationNavigatorItems(currentDefinition, error.issues)
+            )
+          );
         } else {
           setServerValidationIssues([]);
         }
@@ -127,11 +150,7 @@ export function useWorkflowEditorPersistence({
   };
 
   const handleNavigateValidationIssue = (item: WorkflowValidationNavigatorItem) => {
-    setValidationFocusItem(item);
-
-    if (item.target.scope === "node") {
-      focusNode(item.target.nodeId);
-    }
+    applyValidationFocus(item);
 
     const remediation = buildWorkflowValidationRemediation(item, sandboxReadiness);
     setMessage(`已定位到 ${remediation.title}。${remediation.suggestion}`);
@@ -140,6 +159,7 @@ export function useWorkflowEditorPersistence({
 
   const handleSaveAsWorkspaceStarter = () => {
     if (persistBlockedMessage) {
+      applyValidationFocus(pickWorkflowValidationRemediationItem(validationNavigatorItems));
       setMessage(persistBlockedMessage);
       setMessageTone("error");
       return;

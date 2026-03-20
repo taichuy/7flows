@@ -13,6 +13,7 @@ import { type WorkflowRunListItem } from "@/lib/get-workflow-runs";
 import type { WorkflowListItem } from "@/lib/get-workflows";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
+import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { WorkflowRunOverlayPanel } from "@/components/workflow-run-overlay-panel";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
 
@@ -31,6 +32,8 @@ type WorkflowEditorSidebarProps = {
   messageTone: WorkflowEditorMessageTone;
   executionPreflightMessage: string | null;
   toolExecutionValidationIssueCount: number;
+  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
+  preflightValidationItem?: WorkflowValidationNavigatorItem | null;
   validationNavigatorItems: WorkflowValidationNavigatorItem[];
   runs: WorkflowRunListItem[];
   selectedRunId: string | null;
@@ -61,6 +64,8 @@ export function WorkflowEditorSidebar({
   messageTone,
   executionPreflightMessage,
   toolExecutionValidationIssueCount,
+  focusedValidationItem = null,
+  preflightValidationItem = null,
   validationNavigatorItems,
   runs,
   selectedRunId,
@@ -81,6 +86,7 @@ export function WorkflowEditorSidebar({
   const pluginBackedNodeCount = editorNodeLibrary.filter(
     (item) => item.bindingRequired
   ).length;
+  const remediationItem = focusedValidationItem ?? preflightValidationItem;
 
   return (
     <aside className="editor-sidebar">
@@ -237,6 +243,13 @@ export function WorkflowEditorSidebar({
           intro={executionPreflightMessage}
           hideWhenHealthy={toolExecutionValidationIssueCount === 0}
         />
+
+        {remediationItem ? (
+          <WorkflowValidationRemediationCard
+            item={remediationItem}
+            sandboxReadiness={sandboxReadiness}
+          />
+        ) : null}
 
         {validationNavigatorItems.length > 0 ? (
           <div className="validation-issue-list">

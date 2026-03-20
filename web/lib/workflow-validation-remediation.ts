@@ -9,6 +9,17 @@ export type WorkflowValidationRemediation = {
   followUp?: string | null;
 };
 
+const DEFAULT_REMEDIATION_CATEGORY_PRIORITY = [
+  "tool_execution",
+  "node_execution",
+  "tool_reference",
+  "publish_version",
+  "publish_draft",
+  "variables",
+  "schema",
+  "starter_portability"
+] as const;
+
 export function buildWorkflowValidationRemediation(
   item: WorkflowValidationNavigatorItem,
   sandboxReadiness?: SandboxReadinessCheck | null
@@ -26,6 +37,40 @@ export function buildWorkflowValidationRemediation(
   };
 }
 
+export function pickWorkflowValidationRemediationItem(
+  items: WorkflowValidationNavigatorItem[]
+): WorkflowValidationNavigatorItem | null {
+  if (items.length === 0) {
+    return null;
+  }
+
+  let bestItem: WorkflowValidationNavigatorItem | null = null;
+  let bestScore: [number, number, number] | null = null;
+
+  items.forEach((item, index) => {
+    const priorityIndex = DEFAULT_REMEDIATION_CATEGORY_PRIORITY.indexOf(
+      item.category as (typeof DEFAULT_REMEDIATION_CATEGORY_PRIORITY)[number]
+    );
+    const score: [number, number, number] = [
+      priorityIndex === -1 ? DEFAULT_REMEDIATION_CATEGORY_PRIORITY.length : priorityIndex,
+      item.target.fieldPath ? 0 : 1,
+      index
+    ];
+
+    if (
+      !bestScore ||
+      score[0] < bestScore[0] ||
+      (score[0] === bestScore[0] && score[1] < bestScore[1]) ||
+      (score[0] === bestScore[0] && score[1] === bestScore[1] && score[2] < bestScore[2])
+    ) {
+      bestItem = item;
+      bestScore = score;
+    }
+  });
+
+  return bestItem;
+}
+
 function resolveFieldLabel(item: WorkflowValidationNavigatorItem) {
   const fieldPath = item.target.fieldPath ?? "";
 
@@ -40,6 +85,14 @@ function resolveFieldLabel(item: WorkflowValidationNavigatorItem) {
 }
 
 function resolvePublishFieldLabel(fieldPath: string) {
+  if (fieldPath === "inputSchema" || fieldPath.startsWith("inputSchema.")) {
+    return "Input schema";
+  }
+
+  if (fieldPath === "outputSchema" || fieldPath.startsWith("outputSchema.")) {
+    return "Output schema";
+  }
+
   switch (fieldPath) {
     case "workflowVersion":
       return "Workflow version";
@@ -55,10 +108,6 @@ function resolvePublishFieldLabel(fieldPath: string) {
       return "Protocol";
     case "authMode":
       return "Auth mode";
-    case "inputSchema":
-      return "Input schema";
-    case "outputSchema":
-      return "Output schema";
     case "cache.varyBy":
       return "Cache varyBy";
     case "cache.ttl":
@@ -71,6 +120,10 @@ function resolvePublishFieldLabel(fieldPath: string) {
 }
 
 function resolveVariableFieldLabel(fieldPath: string) {
+  if (fieldPath === "default" || fieldPath.startsWith("default.")) {
+    return "Default value";
+  }
+
   switch (fieldPath) {
     case "name":
       return "Variable name";
@@ -84,6 +137,14 @@ function resolveVariableFieldLabel(fieldPath: string) {
 }
 
 function resolveNodeFieldLabel(fieldPath: string) {
+  if (fieldPath === "inputSchema" || fieldPath.startsWith("inputSchema.")) {
+    return "Input schema";
+  }
+
+  if (fieldPath === "outputSchema" || fieldPath.startsWith("outputSchema.")) {
+    return "Output schema";
+  }
+
   switch (fieldPath) {
     case "runtimePolicy.execution":
       return "Execution policy";
@@ -115,10 +176,6 @@ function resolveNodeFieldLabel(fieldPath: string) {
       return "Tool adapter";
     case "config.tool.toolId":
       return "Tool id";
-    case "inputSchema":
-      return "Input schema";
-    case "outputSchema":
-      return "Output schema";
     default:
       return fieldPath || "Node field";
   }
@@ -136,6 +193,10 @@ function resolveSuggestion(item: WorkflowValidationNavigatorItem, fieldPath: str
 }
 
 function resolvePublishSuggestion(item: WorkflowValidationNavigatorItem, fieldPath: string | null) {
+  if (fieldPath?.startsWith("inputSchema") || fieldPath?.startsWith("outputSchema")) {
+    return "把 schema 修成合法 contract object；如果当前还不需要输出约束，可先清空 `outputSchema`，但不要留下无效 schema。";
+  }
+
   switch (fieldPath) {
     case "workflowVersion":
       return "如果这个 endpoint 要跟随本次保存生成的新版本，请把 `Workflow version` 留空；只有需要固定到既有版本时才填写语义版本号。";
@@ -143,9 +204,6 @@ function resolvePublishSuggestion(item: WorkflowValidationNavigatorItem, fieldPa
       return "把 alias 改成当前 workflow 内唯一、稳定且适合对外暴露的标识；如果只是想沿用 endpoint id，可直接留空。";
     case "path":
       return "把 path 改成以 `/` 开头的稳定路由，并避免与其他 publish endpoint 冲突。";
-    case "inputSchema":
-    case "outputSchema":
-      return "把 schema 修成合法 contract object；如果当前还不需要输出约束，可先清空 `outputSchema`，但不要留下无效 schema。";
     case "cache.varyBy":
       return "去掉重复或无意义的缓存维度，只保留真正决定缓存隔离边界的字段，避免同一请求被拆成多份缓存。";
     case "name":
@@ -169,6 +227,10 @@ function resolveVariableSuggestion(fieldPath: string | null) {
 function resolveNodeSuggestion(item: WorkflowValidationNavigatorItem, fieldPath: string | null) {
   if (!fieldPath) {
     return "先处理当前高亮 section，再继续保存，避免把节点配置问题拖到 runtime 才暴露。";
+  }
+
+  if (fieldPath.startsWith("inputSchema") || fieldPath.startsWith("outputSchema")) {
+    return "把 schema 修成合法 contract object；如果当前先不需要严格约束，可先清空对应 schema，但不要把无效 contract 留在 definition 里。";
   }
 
   if (fieldPath.startsWith("runtimePolicy.execution")) {

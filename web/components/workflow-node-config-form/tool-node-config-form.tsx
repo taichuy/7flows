@@ -1,10 +1,14 @@
 "use client";
 
+import React from "react";
 import type { Node } from "@xyflow/react";
 
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { getToolGovernanceSummary } from "@/lib/tool-governance";
 import type { WorkflowCanvasNodeData } from "@/lib/workflow-editor";
+import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { CredentialPicker } from "@/components/workflow-node-config-form/credential-picker";
 import {
   cloneRecord,
@@ -20,14 +24,21 @@ import {
 type ToolNodeConfigFormProps = {
   node: Node<WorkflowCanvasNodeData>;
   tools: PluginToolRegistryItem[];
+  sandboxReadiness?: SandboxReadinessCheck | null;
+  highlightedFieldPath?: string | null;
+  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
   onChange: (nextConfig: Record<string, unknown>) => void;
 };
 
 export function ToolNodeConfigForm({
   node,
   tools,
+  sandboxReadiness = null,
+  highlightedFieldPath = null,
+  focusedValidationItem = null,
   onChange
 }: ToolNodeConfigFormProps) {
+  const sectionRef = React.useRef<HTMLDivElement | null>(null);
   const config = cloneRecord(node.data.config);
   const binding = readToolBinding(config);
   const boundToolId = binding?.toolId ?? "";
@@ -38,6 +49,21 @@ export function ToolNodeConfigForm({
     : [];
   const selectedToolGovernance = selectedTool ? getToolGovernanceSummary(selectedTool) : null;
   const inputs = toRecord(config.inputs) ?? {};
+  const normalizedHighlightedField = normalizeToolBindingFieldKey(highlightedFieldPath);
+
+  React.useEffect(() => {
+    if (!normalizedHighlightedField) {
+      return;
+    }
+
+    const target = sectionRef.current?.querySelector<HTMLElement>(
+      `[data-validation-field="${normalizedHighlightedField}"] input, ` +
+        `[data-validation-field="${normalizedHighlightedField}"] select`
+    );
+
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
+    target?.focus();
+  }, [normalizedHighlightedField]);
 
   const handleToolSelection = (toolId: string) => {
     const nextConfig = cloneRecord(config);
@@ -152,7 +178,14 @@ export function ToolNodeConfigForm({
   };
 
   return (
-    <div className="binding-form">
+    <div className="binding-form" ref={sectionRef}>
+      {focusedValidationItem && normalizedHighlightedField ? (
+        <WorkflowValidationRemediationCard
+          item={focusedValidationItem}
+          sandboxReadiness={sandboxReadiness}
+        />
+      ) : null}
+
       <div className="section-heading">
         <div>
           <p className="eyebrow">Structured config</p>
@@ -160,7 +193,10 @@ export function ToolNodeConfigForm({
         </div>
       </div>
 
-      <label className="binding-field">
+      <label
+        className={`binding-field ${normalizedHighlightedField === "tool.toolId" ? "validation-focus-ring" : ""}`.trim()}
+        data-validation-field="tool.toolId"
+      >
         <span className="binding-label">Catalog tool</span>
         <select
           className="binding-select"
@@ -215,7 +251,10 @@ export function ToolNodeConfigForm({
             </div>
           ) : null}
 
-          <label className="binding-field">
+          <label
+            className={`binding-field ${normalizedHighlightedField === "tool.adapterId" ? "validation-focus-ring" : ""}`.trim()}
+            data-validation-field="tool.adapterId"
+          >
             <span className="binding-label">Adapter ID</span>
             <input
               className="trace-text-input"
@@ -397,4 +436,21 @@ export function ToolNodeConfigForm({
       )}
     </div>
   );
+}
+
+function normalizeToolBindingFieldKey(fieldPath?: string | null) {
+  const normalized = fieldPath?.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized === "config.tool" || normalized === "config.tool.toolId") {
+    return "tool.toolId";
+  }
+
+  if (normalized === "config.tool.adapterId") {
+    return "tool.adapterId";
+  }
+
+  return null;
 }

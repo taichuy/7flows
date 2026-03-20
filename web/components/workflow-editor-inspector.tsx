@@ -136,6 +136,13 @@ export function WorkflowEditorInspector({
               onInputSchemaChange={onNodeInputSchemaChange}
               onOutputSchemaChange={onNodeOutputSchemaChange}
               highlighted={highlightedNodeSection === "contract"}
+              highlightedFieldPath={
+                highlightedNodeSection === "contract" ? highlightedNodeFieldPath : null
+              }
+              focusedValidationItem={
+                highlightedNodeSection === "contract" ? focusedValidationItem : null
+              }
+              sandboxReadiness={sandboxReadiness}
             />
 
             <label className="binding-field">
@@ -263,6 +270,10 @@ export function WorkflowEditorInspector({
         onChange={onWorkflowVariablesChange}
         highlightedVariableIndex={highlightedVariableIndex}
         highlightedVariableFieldPath={highlightedVariableFieldPath}
+        focusedValidationItem={
+          focusedValidationItem?.target.scope === "variables" ? focusedValidationItem : null
+        }
+        sandboxReadiness={sandboxReadiness}
       />
 
       <article

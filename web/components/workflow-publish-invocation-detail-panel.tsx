@@ -19,6 +19,7 @@ import { hasExecutionNodeCallbackWaitingSummaryFacts } from "@/lib/callback-wait
 import { buildExecutionFocusExplainableNode } from "@/lib/operator-inline-action-feedback";
 import {
   buildPublishedInvocationCanonicalFollowUpCopy,
+  buildPublishedInvocationRecommendedNextStep,
   buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationInboxHref,
   listPublishedInvocationRunFollowUpSampleViews,
@@ -118,6 +119,14 @@ export function WorkflowPublishInvocationDetailPanel({
     explanation: runFollowUp?.explanation ?? null,
     sharedCallbackWaitingExplanations,
     fallbackHeadline: "当前 invocation 已接入 canonical follow-up 事实链。"
+  });
+  const recommendedNextStep = buildPublishedInvocationRecommendedNextStep({
+    runId,
+    canonicalFollowUp,
+    callbackWaitingFollowUp: callbackWaitingExplanation?.follow_up ?? null,
+    executionFocusFollowUp,
+    blockingInboxHref,
+    approvalInboxHref
   });
 
   return (
@@ -420,6 +429,21 @@ export function WorkflowPublishInvocationDetailPanel({
               })}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {recommendedNextStep ? (
+        <div className="entry-card compact-card">
+          <div className="payload-card-header">
+            <span className="status-meta">Recommended next step</span>
+            <span className="event-chip">{recommendedNextStep.label}</span>
+            {recommendedNextStep.href && recommendedNextStep.href_label ? (
+              <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
+                {recommendedNextStep.href_label}
+              </Link>
+            ) : null}
+          </div>
+          <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
         </div>
       ) : null}
 
