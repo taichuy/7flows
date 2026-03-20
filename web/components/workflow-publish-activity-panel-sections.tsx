@@ -31,10 +31,12 @@ import {
   formatPublishedInvocationApiKeyUsageMix,
   formatPublishedInvocationCacheSurfaceMix,
   formatPublishedInvocationFailureReasonLastSeen,
+  formatPublishedInvocationOptionalRunStatus,
   formatPublishedInvocationReasonLabel,
   formatPublishedInvocationRunStatusMix,
   formatPublishedInvocationSurfaceLabel,
   formatRateLimitPressure,
+  listPublishedInvocationFacetCountLabels,
   listPublishedInvocationRunFollowUpSampleViews
 } from "@/lib/published-invocation-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
@@ -120,7 +122,12 @@ export function WorkflowPublishActivityInsights({
         </article>
         <article className="status-card compact-card">
           <span className="status-label">{insightsSurfaceCopy.lastRunStatusLabel}</span>
-          <strong>{summary?.last_run_status ?? "n/a"}</strong>
+          <strong>
+            {formatPublishedInvocationOptionalRunStatus(
+              summary?.last_run_status,
+              insightsSurfaceCopy.lastRunStatusEmptyLabel
+            )}
+          </strong>
         </article>
         <article className="status-card compact-card">
           <span className="status-label">{insightsSurfaceCopy.waitingNowLabel}</span>
@@ -162,9 +169,12 @@ export function WorkflowPublishActivityInsights({
           </dl>
           {requestSurfaceCounts.length ? (
             <div className="tool-badge-row">
-              {requestSurfaceCounts.map((item) => (
-                <span className="event-chip" key={item.value}>
-                  {formatPublishedInvocationSurfaceLabel(item.value)} {item.count}
+              {listPublishedInvocationFacetCountLabels(
+                requestSurfaceCounts,
+                formatPublishedInvocationSurfaceLabel
+              ).map((label) => (
+                <span className="event-chip" key={label}>
+                  {label}
                 </span>
               ))}
             </div>
@@ -202,7 +212,9 @@ export function WorkflowPublishActivityInsights({
             </div>
             <div>
               <dt>{insightsSurfaceCopy.latestRunStatusLabel}</dt>
-              <dd>{waitingOverview.lastRunStatusLabel ?? "n/a"}</dd>
+              <dd>
+                {waitingOverview.lastRunStatusLabel ?? insightsSurfaceCopy.latestRunStatusEmptyLabel}
+              </dd>
             </div>
           </dl>
           <p className="section-copy entry-copy">{waitingOverview.detail}</p>

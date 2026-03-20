@@ -416,6 +416,7 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain("Failed");
     expect(html).toContain("Rejected");
     expect(html).toContain("Last run status");
+    expect(html).toContain("Run failed");
     expect(html).toContain("Waiting now");
     expect(html).toContain("Cache hit 0 / Cache miss 0 / Cache bypass 0");
     expect(html).toContain("n/a");

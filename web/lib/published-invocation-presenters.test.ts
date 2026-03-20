@@ -15,6 +15,7 @@ import {
   buildPublishedInvocationTrafficTimelineSurfaceCopy,
   buildPublishedInvocationUnavailableDetailSurfaceCopy,
   formatPublishedInvocationApiKeyUsageMix,
+  formatPublishedInvocationOptionalRunStatus,
   formatPublishedInvocationCacheSurfaceMix,
   formatPublishedInvocationFailureReasonLastSeen,
   formatPublishedInvocationRunStatusMix,
@@ -23,6 +24,8 @@ import {
   formatPublishedInvocationWaitingFollowUp,
   formatPublishedInvocationWaitingHeadline,
   hasPublishedInvocationBlockingSensitiveAccessSummary,
+  listPublishedInvocationApiKeyCountLabels,
+  listPublishedInvocationFacetCountLabels,
   listPublishedInvocationRunFollowUpSampleSummaries,
   listPublishedInvocationRunFollowUpSampleViews,
   listPublishedInvocationSensitiveAccessChips,
@@ -154,6 +157,7 @@ describe("published invocation presenters", () => {
       failedCallsLabel: "Failed",
       rejectedCallsLabel: "Rejected",
       lastRunStatusLabel: "Last run status",
+      lastRunStatusEmptyLabel: "n/a",
       waitingNowLabel: "Waiting now",
       trafficMixTitle: "Traffic mix",
       trafficWorkflowLabel: "Workflow",
@@ -169,6 +173,7 @@ describe("published invocation presenters", () => {
       genericWaitsLabel: "Generic waits",
       syncWaitingRejectedLabel: "Sync waiting rejected",
       latestRunStatusLabel: "Latest run status",
+      latestRunStatusEmptyLabel: "n/a",
       rateLimitWindowTitle: "Rate limit window",
       rateLimitPolicyLabel: "Policy",
       rateLimitUsedLabel: "Used",
@@ -212,6 +217,46 @@ describe("published invocation presenters", () => {
     ).toBe("Run failed 2 / Waiting callback 1");
 
     expect(formatPublishedInvocationRunStatusMix([], "n/a")).toBe("n/a");
+  });
+
+  it("为 publish activity / timeline 提供共享状态与 facet 标签拼装", () => {
+    expect(formatPublishedInvocationOptionalRunStatus("failed", "n/a")).toBe("Run failed");
+    expect(formatPublishedInvocationOptionalRunStatus(null, "n/a")).toBe("n/a");
+
+    expect(
+      listPublishedInvocationFacetCountLabels(
+        [
+          { value: "native.workflow", count: 3 },
+          { value: "native.alias", count: 1 },
+          { value: "native.path", count: 1 }
+        ],
+        (value) => value,
+        2
+      )
+    ).toEqual(["native.workflow 3", "native.alias 1"]);
+
+    expect(
+      listPublishedInvocationApiKeyCountLabels(
+        [
+          {
+            api_key_id: "key-1",
+            key_prefix: "sk-primary",
+            name: "Primary key",
+            count: 2
+          },
+          {
+            api_key_id: "key-2",
+            key_prefix: null,
+            name: null,
+            count: 1
+          }
+        ],
+        {
+          limit: 2,
+          prefix: "key"
+        }
+      )
+    ).toEqual(["key Primary key 2", "key key-2 1"]);
   });
 
   it("为 publish activity details 提供统一标题与空态 copy", () => {

@@ -6,7 +6,9 @@ import {
   formatPublishedInvocationCacheStatusLabel,
   formatPublishedInvocationReasonLabel,
   formatPublishedInvocationSurfaceLabel,
-  formatPublishedRunStatusLabel
+  formatPublishedRunStatusLabel,
+  listPublishedInvocationApiKeyCountLabels,
+  listPublishedInvocationFacetCountLabels
 } from "@/lib/published-invocation-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
 
@@ -32,21 +34,6 @@ function formatTimelineBucketLabel(
         }
       : {})
   }).format(date);
-}
-
-function topBucketLabels(
-  items: Array<{ value: string; count: number }>,
-  formatter: (value: string) => string
-) {
-  return items.slice(0, 2).map((item) => `${formatter(item.value)} ${item.count}`);
-}
-
-function topApiKeyLabels(
-  items: PublishedEndpointInvocationTimeBucketItem["api_key_counts"]
-) {
-  return items
-    .slice(0, 2)
-    .map((item) => `${item.name ?? item.key_prefix ?? item.api_key_id} ${item.count}`);
 }
 
 export function WorkflowPublishTrafficTimeline({
@@ -75,23 +62,30 @@ export function WorkflowPublishTrafficTimeline({
               timelineMaxCount > 0
                 ? Math.max((bucket.total_count / timelineMaxCount) * 100, bucket.total_count > 0 ? 12 : 0)
                 : 0;
-            const surfaceLabels = topBucketLabels(
+            const surfaceLabels = listPublishedInvocationFacetCountLabels(
               bucket.request_surface_counts,
-              formatPublishedInvocationSurfaceLabel
+              formatPublishedInvocationSurfaceLabel,
+              2
             );
-            const cacheLabels = topBucketLabels(
+            const cacheLabels = listPublishedInvocationFacetCountLabels(
               bucket.cache_status_counts,
-              formatPublishedInvocationCacheStatusLabel
+              formatPublishedInvocationCacheStatusLabel,
+              2
             );
-            const runStatusLabels = topBucketLabels(
+            const runStatusLabels = listPublishedInvocationFacetCountLabels(
               bucket.run_status_counts,
-              formatPublishedRunStatusLabel
+              formatPublishedRunStatusLabel,
+              2
             );
-            const reasonLabels = topBucketLabels(
+            const reasonLabels = listPublishedInvocationFacetCountLabels(
               bucket.reason_counts,
-              formatPublishedInvocationReasonLabel
+              formatPublishedInvocationReasonLabel,
+              2
             );
-            const apiKeyLabels = topApiKeyLabels(bucket.api_key_counts);
+            const apiKeyLabels = listPublishedInvocationApiKeyCountLabels(bucket.api_key_counts, {
+              limit: 2,
+              prefix: surfaceCopy.apiKeyLabelPrefix
+            });
 
             return (
               <article className="payload-card compact-card" key={bucket.bucket_start}>
@@ -171,7 +165,7 @@ export function WorkflowPublishTrafficTimeline({
                   <div className="tool-badge-row">
                     {apiKeyLabels.map((label) => (
                       <span className="event-chip" key={label}>
-                        {surfaceCopy.apiKeyLabelPrefix} {label}
+                        {label}
                       </span>
                     ))}
                   </div>

@@ -4,6 +4,7 @@ import type {
   PublishedEndpointInvocationCallbackTicketItem,
   PublishedEndpointInvocationItem,
   PublishedEndpointInvocationSummary,
+  PublishedEndpointInvocationTimeBucketItem,
   OperatorRunFollowUpSnapshot,
   RunExecutionFocusExplanation
 } from "@/lib/get-workflow-publish";
@@ -180,6 +181,7 @@ export type PublishedInvocationActivityInsightsSurfaceCopy = {
   failedCallsLabel: string;
   rejectedCallsLabel: string;
   lastRunStatusLabel: string;
+  lastRunStatusEmptyLabel: string;
   waitingNowLabel: string;
   trafficMixTitle: string;
   trafficWorkflowLabel: string;
@@ -195,6 +197,7 @@ export type PublishedInvocationActivityInsightsSurfaceCopy = {
   genericWaitsLabel: string;
   syncWaitingRejectedLabel: string;
   latestRunStatusLabel: string;
+  latestRunStatusEmptyLabel: string;
   rateLimitWindowTitle: string;
   rateLimitPolicyLabel: string;
   rateLimitUsedLabel: string;
@@ -384,6 +387,7 @@ export function buildPublishedInvocationActivityInsightsSurfaceCopy({
     failedCallsLabel: "Failed",
     rejectedCallsLabel: "Rejected",
     lastRunStatusLabel: "Last run status",
+    lastRunStatusEmptyLabel: "n/a",
     waitingNowLabel: "Waiting now",
     trafficMixTitle: "Traffic mix",
     trafficWorkflowLabel: "Workflow",
@@ -399,6 +403,7 @@ export function buildPublishedInvocationActivityInsightsSurfaceCopy({
     genericWaitsLabel: "Generic waits",
     syncWaitingRejectedLabel: "Sync waiting rejected",
     latestRunStatusLabel: "Latest run status",
+    latestRunStatusEmptyLabel: "n/a",
     rateLimitWindowTitle: "Rate limit window",
     rateLimitPolicyLabel: "Policy",
     rateLimitUsedLabel: "Used",
@@ -1280,6 +1285,40 @@ export function formatPublishedRunStatusLabel(runStatus: string | null | undefin
   return RUN_STATUS_LABELS[runStatus] ?? runStatus.replaceAll("_", " ");
 }
 
+export function formatPublishedInvocationOptionalRunStatus(
+  runStatus: string | null | undefined,
+  emptyLabel: string | null = "n/a"
+) {
+  return runStatus ? formatPublishedRunStatusLabel(runStatus) : emptyLabel;
+}
+
+export function listPublishedInvocationFacetCountLabels(
+  items: PublishedEndpointInvocationFacetItem[] | null | undefined,
+  formatter: (value: string) => string,
+  limit?: number
+) {
+  const limitedItems = typeof limit === "number" ? (items ?? []).slice(0, limit) : (items ?? []);
+  return limitedItems.map((item) => `${formatter(item.value)} ${item.count}`);
+}
+
+export function listPublishedInvocationApiKeyCountLabels(
+  items: PublishedEndpointInvocationTimeBucketItem["api_key_counts"],
+  {
+    limit,
+    prefix
+  }: {
+    limit?: number;
+    prefix?: string | null;
+  } = {}
+) {
+  const limitedItems = typeof limit === "number" ? items.slice(0, limit) : items;
+
+  return limitedItems.map((item) => {
+    const label = `${item.name ?? item.key_prefix ?? item.api_key_id} ${item.count}`;
+    return prefix?.trim() ? `${prefix.trim()} ${label}` : label;
+  });
+}
+
 export function formatPublishedInvocationCacheSurfaceMix(
   cacheStatusCounts: PublishedEndpointInvocationFacetItem[] | null | undefined
 ) {
@@ -1320,9 +1359,7 @@ export function buildPublishedInvocationWaitingOverview({
   const callbackWaitingCount = getFacetCount(runStatusCounts, "waiting_callback");
   const activeWaitingCount = generalWaitingCount + waitingInputCount + callbackWaitingCount;
   const syncWaitingRejectedCount = getFacetCount(reasonCounts, "sync_waiting_unsupported");
-  const lastRunStatusLabel = summary?.last_run_status
-    ? formatPublishedRunStatusLabel(summary.last_run_status)
-    : null;
+  const lastRunStatusLabel = formatPublishedInvocationOptionalRunStatus(summary?.last_run_status, null);
 
   const chips: string[] = [];
   if (activeWaitingCount > 0) {
