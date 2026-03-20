@@ -431,6 +431,8 @@ describe("RunDiagnosticsExecutionOverviewBlockers", () => {
     expect(html).toContain("trace node node-run-blocker");
     expect(html).toContain("fallback refs 0");
     expect(html).toContain("fallback node Blocker node");
+    expect(html).toContain("run detail 已直接带回后端选择的 canonical execution focus");
+    expect(html).toContain("当前节点直接来自后端选出的 canonical execution focus");
     expect(html).toContain("effective sandbox");
     expect(html).toContain("executor tool-runtime");
     expect(html).toContain("backend sandbox-default");

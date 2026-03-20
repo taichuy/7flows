@@ -91,6 +91,15 @@ export type PublishedCacheInventorySurfaceCopy = {
   emptyState: string;
 };
 
+export type PublishedInvocationCallbackDrilldownSurfaceCopy = {
+  title: string;
+  description: string;
+  inboxLinkLabel: string;
+  blockersTitle: string;
+  blockersEmptyHeadline: string;
+  latestEventsTitle: string;
+};
+
 export function buildPublishedInvocationDetailSurfaceCopy({
   blockingNodeRunId,
   focusSkillTraceNodeRunId
@@ -133,6 +142,18 @@ export function buildPublishedCacheInventorySurfaceCopy({
       : state === "unavailable"
         ? "当前暂时无法拉取 cache inventory，活动 summary 仍可继续使用。"
         : "当前还没有活跃缓存条目，首次命中前这里会保持为空。"
+  };
+}
+
+export function buildPublishedInvocationCallbackDrilldownSurfaceCopy(): PublishedInvocationCallbackDrilldownSurfaceCopy {
+  return {
+    title: "Callback waiting drilldown",
+    description:
+      "Callback ticket lifecycle, approval blockers and resume scheduling stay together here so published-surface debugging does not need to jump between run detail, inbox and async tickets.",
+    inboxLinkLabel: "open inbox slice",
+    blockersTitle: "Resume blockers",
+    blockersEmptyHeadline: "Callback waiting is not active.",
+    latestEventsTitle: "Latest callback events"
   };
 }
 

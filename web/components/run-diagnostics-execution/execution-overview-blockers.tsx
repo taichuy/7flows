@@ -22,6 +22,7 @@ import {
 import { resolveSensitiveAccessTimelineEntryRunId } from "@/lib/sensitive-access";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 import {
+  buildExecutionFocusDiagnosticsBlockerSurfaceCopy,
   formatExecutionFocusArtifactSummary,
   formatExecutionFocusFollowUp,
   formatExecutionFocusPrimarySignal,
@@ -157,6 +158,7 @@ export function RunDiagnosticsExecutionOverviewBlockers({
     (focusNode ? formatExecutionFocusFollowUp(focusNode) : null);
   const focusNodeExecutionFactBadges = listExecutionFocusRuntimeFactBadges(focusNode);
   const focusNodeHasCallbackWaitingSummary = hasExecutionNodeCallbackWaitingSummaryFacts(focusNode);
+  const surfaceCopy = buildExecutionFocusDiagnosticsBlockerSurfaceCopy();
   const blockerNodes = pickTopBlockerNodes(executionView).filter(
     (node) => node.node_run_id !== focusNode?.node_run_id
   );
@@ -167,11 +169,8 @@ export function RunDiagnosticsExecutionOverviewBlockers({
 
   return (
     <section>
-      <strong>Priority blockers</strong>
-      <p className="section-copy entry-copy">
-        Run diagnostics now consumes the backend-selected execution focus first, so operator recovery
-        starts from the same canonical node that publish detail and runtime facts already agree on.
-      </p>
+      <strong>{surfaceCopy.sectionTitle}</strong>
+      <p className="section-copy entry-copy">{surfaceCopy.sectionDescription}</p>
       {focusNode ? (
         <div className="publish-cache-list">
           <article className="payload-card compact-card">
@@ -185,7 +184,7 @@ export function RunDiagnosticsExecutionOverviewBlockers({
             <p className="timeline-meta">
               {focusNode.node_type} · node run {focusNode.node_run_id}
             </p>
-            <p className="binding-meta">This node is selected from backend execution facts.</p>
+            <p className="binding-meta">{surfaceCopy.focusNodeDescription}</p>
             {focusNodeExecutionFactBadges.length > 0 ? (
               <div className="tool-badge-row">
                 {focusNodeExecutionFactBadges.map((badge) => (

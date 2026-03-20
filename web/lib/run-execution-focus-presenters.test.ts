@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { RunExecutionNodeItem } from "@/lib/get-run-views";
 
 import {
+  buildExecutionFocusDiagnosticsBlockerSurfaceCopy,
   buildExecutionFocusSurfaceDescription,
   formatExecutionFocusArtifactSummary,
   formatExecutionFocusFollowUp,
@@ -75,6 +76,14 @@ describe("run execution focus presenters", () => {
       "canonical execution focus"
     );
     expect(buildExecutionFocusSurfaceDescription("overlay")).toContain("画布里也能先看当前最相关的 blocker");
+  });
+
+  it("为 diagnostics blocker 卡片提供共享 helper copy", () => {
+    expect(buildExecutionFocusDiagnosticsBlockerSurfaceCopy()).toEqual({
+      sectionTitle: "Priority blockers",
+      sectionDescription: expect.stringContaining("canonical execution focus"),
+      focusNodeDescription: expect.stringContaining("后端选出的 canonical execution focus")
+    });
   });
 
   it("优先展示 execution blocking reason", () => {

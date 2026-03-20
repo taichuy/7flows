@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildPublishedCacheInventorySurfaceCopy,
+  buildPublishedInvocationCallbackDrilldownSurfaceCopy,
   buildPublishedInvocationCanonicalFollowUpCopy,
   buildPublishedInvocationDetailSurfaceCopy,
   buildPublishedInvocationRecommendedNextStep,
@@ -48,6 +49,17 @@ describe("published invocation presenters", () => {
         state: "unavailable"
       }).emptyState
     ).toBe("当前暂时无法拉取 cache inventory，活动 summary 仍可继续使用。");
+  });
+
+  it("为 callback waiting drilldown 提供统一 helper copy", () => {
+    expect(buildPublishedInvocationCallbackDrilldownSurfaceCopy()).toEqual({
+      title: "Callback waiting drilldown",
+      description: expect.stringContaining("approval blockers and resume scheduling"),
+      inboxLinkLabel: "open inbox slice",
+      blockersTitle: "Resume blockers",
+      blockersEmptyHeadline: "Callback waiting is not active.",
+      latestEventsTitle: "Latest callback events"
+    });
   });
 
   it("shared callback waiting summary 存在时隐藏顶层 follow-up，但保留 invocation 级摘要", () => {

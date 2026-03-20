@@ -64,6 +64,12 @@ export type ExecutionFocusToolCallSummary = {
 
 export type ExecutionFocusSurface = "diagnostics" | "overlay";
 
+export type ExecutionFocusDiagnosticsBlockerSurfaceCopy = {
+  sectionTitle: string;
+  sectionDescription: string;
+  focusNodeDescription: string;
+};
+
 function trimOrNull(value?: string | null) {
   const normalized = value?.trim();
   return normalized ? normalized : null;
@@ -75,6 +81,15 @@ export function buildExecutionFocusSurfaceDescription(surface: ExecutionFocusSur
   }
 
   return "run detail 已直接带回后端选择的 canonical execution focus，这里优先展示当前最该看的 blocker / fallback / waiting 节点，再决定是否继续展开 execution view。";
+}
+
+export function buildExecutionFocusDiagnosticsBlockerSurfaceCopy(): ExecutionFocusDiagnosticsBlockerSurfaceCopy {
+  return {
+    sectionTitle: "Priority blockers",
+    sectionDescription: buildExecutionFocusSurfaceDescription("diagnostics"),
+    focusNodeDescription:
+      "当前节点直接来自后端选出的 canonical execution focus，方便 diagnostics、publish detail 与 runtime 事实链对齐到同一条恢复路径。"
+  };
 }
 
 export function formatMetricSummary(metrics: Record<string, number>) {

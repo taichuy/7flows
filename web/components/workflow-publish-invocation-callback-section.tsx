@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
@@ -17,7 +18,10 @@ import {
   listCallbackWaitingChips,
   listCallbackWaitingEventRows
 } from "@/lib/callback-waiting-presenters";
-import { buildPublishedInvocationInboxHref } from "@/lib/published-invocation-presenters";
+import {
+  buildPublishedInvocationCallbackDrilldownSurfaceCopy,
+  buildPublishedInvocationInboxHref
+} from "@/lib/published-invocation-presenters";
 
 type WorkflowPublishInvocationCallbackSectionProps = {
   invocation: PublishedEndpointInvocationItem;
@@ -95,19 +99,16 @@ export function WorkflowPublishInvocationCallbackSection({
     callbackTickets,
     sensitiveAccessEntries
   });
+  const surfaceCopy = buildPublishedInvocationCallbackDrilldownSurfaceCopy();
 
   return (
     <section>
-      <strong>Callback waiting drilldown</strong>
-      <p className="section-copy entry-copy">
-        Callback ticket lifecycle, approval blockers and resume scheduling stay together here so
-        published-surface debugging does not need to jump between run detail, inbox and async
-        tickets.
-      </p>
+      <strong>{surfaceCopy.title}</strong>
+      <p className="section-copy entry-copy">{surfaceCopy.description}</p>
       {inboxHref ? (
         <div className="tool-badge-row">
           <Link className="event-chip inbox-filter-link" href={inboxHref}>
-            open inbox slice
+            {surfaceCopy.inboxLinkLabel}
           </Link>
         </div>
       ) : null}
@@ -139,9 +140,9 @@ export function WorkflowPublishInvocationCallbackSection({
         <div className="publish-meta-grid">
           <div className="payload-card compact-card">
             <div className="payload-card-header">
-              <span className="status-meta">Resume blockers</span>
+              <span className="status-meta">{surfaceCopy.blockersTitle}</span>
             </div>
-            <p className="section-copy entry-copy">{headline ?? "Callback waiting is not active."}</p>
+            <p className="section-copy entry-copy">{headline ?? surfaceCopy.blockersEmptyHeadline}</p>
             {followUp ? <p className="binding-meta">{followUp}</p> : null}
             {chips.length ? (
               <p className="binding-meta">{chips.join(" · ")}</p>
@@ -157,7 +158,7 @@ export function WorkflowPublishInvocationCallbackSection({
           </div>
           <div className="payload-card compact-card">
             <div className="payload-card-header">
-              <span className="status-meta">Latest callback events</span>
+              <span className="status-meta">{surfaceCopy.latestEventsTitle}</span>
             </div>
             <dl className="compact-meta-list">
               {eventRows.map((row) => (
