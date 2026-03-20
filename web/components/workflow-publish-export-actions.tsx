@@ -19,6 +19,7 @@ import {
   parseSensitiveAccessBlockingResponse,
   type SensitiveAccessBlockingPayload
 } from "@/lib/sensitive-access";
+import { buildSensitiveAccessBlockedSurfaceCopy } from "@/lib/sensitive-access-presenters";
 
 type WorkflowPublishExportActionsProps = {
   workflowId: string;
@@ -46,9 +47,8 @@ export function WorkflowPublishExportActions({
   sandboxReadiness,
   formats = DEFAULT_FORMATS,
   requesterId = "publish-activity-export-ui",
-  blockedTitle = "Publish activity export access blocked",
-  blockedSummary =
-    "当前 publish activity export 已接入统一敏感访问控制；可先查看审批票据和关联 run，再决定是否继续导出。"
+  blockedTitle,
+  blockedSummary
 }: WorkflowPublishExportActionsProps) {
   const [activeFormat, setActiveFormat] =
     useState<PublishedEndpointInvocationExportFormat | null>(null);
@@ -57,6 +57,14 @@ export function WorkflowPublishExportActions({
   const [blockedPayload, setBlockedPayload] =
     useState<SensitiveAccessBlockingPayload | null>(null);
   const sandboxPreflightHint = formatSandboxReadinessPreflightHint(sandboxReadiness);
+  const blockedCopy = blockedPayload
+    ? buildSensitiveAccessBlockedSurfaceCopy({
+        surfaceLabel: "Publish activity export",
+        payload: blockedPayload,
+        title: blockedTitle,
+        summary: blockedSummary
+      })
+    : null;
 
   const exportOptions = useMemo<PublishedEndpointInvocationListOptions>(
     () => ({
@@ -156,8 +164,8 @@ export function WorkflowPublishExportActions({
         <div className="trace-export-blocked">
           <SensitiveAccessBlockedCard
             payload={blockedPayload}
-            summary={blockedSummary}
-            title={blockedTitle}
+            summary={blockedCopy?.summary}
+            title={blockedCopy?.title ?? "Publish activity export access blocked"}
           />
         </div>
       ) : null}

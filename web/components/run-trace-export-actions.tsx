@@ -11,6 +11,7 @@ import {
   parseSensitiveAccessBlockingResponse,
   type SensitiveAccessBlockingPayload
 } from "@/lib/sensitive-access";
+import { buildSensitiveAccessBlockedSurfaceCopy } from "@/lib/sensitive-access-presenters";
 
 type RunTraceExportFormat = "json" | "jsonl";
 
@@ -35,15 +36,22 @@ export function RunTraceExportActions({
   query,
   formats = DEFAULT_FORMATS,
   requesterId = "run-diagnostics-export-ui",
-  blockedTitle = "Trace export access blocked",
-  blockedSummary =
-    "当前 trace export 已接入统一敏感访问控制；可先查看审批票据和关联 run，再决定是否继续申请导出。"
+  blockedTitle,
+  blockedSummary
 }: RunTraceExportActionsProps) {
   const [activeFormat, setActiveFormat] = useState<RunTraceExportFormat | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [blockedPayload, setBlockedPayload] =
     useState<SensitiveAccessBlockingPayload | null>(null);
+  const blockedCopy = blockedPayload
+    ? buildSensitiveAccessBlockedSurfaceCopy({
+        surfaceLabel: "Trace export",
+        payload: blockedPayload,
+        title: blockedTitle,
+        summary: blockedSummary
+      })
+    : null;
 
   async function handleExport(format: RunTraceExportFormat) {
     setActiveFormat(format);
@@ -111,8 +119,8 @@ export function RunTraceExportActions({
         <div className="trace-export-blocked">
           <SensitiveAccessBlockedCard
             payload={blockedPayload}
-            summary={blockedSummary}
-            title={blockedTitle}
+            summary={blockedCopy?.summary}
+            title={blockedCopy?.title ?? "Trace export access blocked"}
           />
         </div>
       ) : null}

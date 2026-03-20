@@ -59,6 +59,109 @@ function normalizeCopy(value?: string | null) {
   return normalized ? normalized : null;
 }
 
+function trimTrailingSentencePunctuation(value: string) {
+  return value.replace(/[。．.!！？?]+$/u, "");
+}
+
+function resolveSensitiveAccessBlockedPrimarySignal({
+  outcomeExplanation,
+  runSnapshot,
+  runFollowUpExplanation
+}: {
+  outcomeExplanation?: SignalFollowUpExplanation | null;
+  runSnapshot?: OperatorRunSnapshotSummary | null;
+  runFollowUpExplanation?: SignalFollowUpExplanation | null;
+}) {
+  return (
+    normalizeCopy(runFollowUpExplanation?.primary_signal) ??
+    normalizeCopy(runSnapshot?.callbackWaitingExplanation?.primary_signal) ??
+    normalizeCopy(runSnapshot?.executionFocusExplanation?.primary_signal) ??
+    normalizeCopy(outcomeExplanation?.primary_signal)
+  );
+}
+
+function buildSensitiveAccessBlockedSurfaceTitle({
+  surfaceLabel,
+  payload
+}: {
+  surfaceLabel: string;
+  payload: SensitiveAccessBlockingPayload;
+}) {
+  const approvalStatus = payload.approval_ticket?.status ?? null;
+
+  if (approvalStatus === "rejected") {
+    return `${surfaceLabel} rejected by approval review`;
+  }
+
+  if (approvalStatus === "expired") {
+    return `${surfaceLabel} approval expired`;
+  }
+
+  if (
+    approvalStatus === "pending" ||
+    payload.approval_ticket?.waiting_status === "waiting" ||
+    payload.access_request.decision === "require_approval"
+  ) {
+    return `${surfaceLabel} waiting on approval`;
+  }
+
+  if (payload.notifications.some((item) => item.status === "failed")) {
+    return `${surfaceLabel} blocked by notification delivery`;
+  }
+
+  if (payload.notifications.some((item) => item.status === "pending")) {
+    return `${surfaceLabel} waiting on notification delivery`;
+  }
+
+  if (payload.access_request.decision === "deny") {
+    return `${surfaceLabel} blocked by sensitive access policy`;
+  }
+
+  return `${surfaceLabel} blocked by sensitive access control`;
+}
+
+export function buildSensitiveAccessBlockedSurfaceCopy({
+  surfaceLabel,
+  payload,
+  title,
+  summary
+}: {
+  surfaceLabel: string;
+  payload: SensitiveAccessBlockingPayload;
+  title?: string | null;
+  summary?: string | null;
+}) {
+  const primarySignal = resolveSensitiveAccessBlockedPrimarySignal({
+    outcomeExplanation: payload.outcome_explanation ?? null,
+    runSnapshot: payload.run_snapshot ?? null,
+    runFollowUpExplanation: payload.run_follow_up?.explanation ?? null
+  });
+  const reasonLabel = formatSensitiveAccessReasonLabel(payload.access_request);
+  const policySummary = getSensitiveAccessBlockedPolicySummary(payload);
+  const decisionLabel = formatSensitiveAccessDecisionLabel(payload.access_request);
+  const normalizedTitle = normalizeCopy(title);
+  const normalizedSummary = normalizeCopy(summary);
+  const evidenceSentence = primarySignal
+    ? `当前信号：${trimTrailingSentencePunctuation(primarySignal)}`
+    : policySummary
+      ? `当前策略：${trimTrailingSentencePunctuation(policySummary)}`
+      : reasonLabel
+        ? `当前原因：${trimTrailingSentencePunctuation(reasonLabel)}`
+        : `当前决策：${trimTrailingSentencePunctuation(decisionLabel)}`;
+
+  return {
+    title:
+      normalizedTitle ??
+      buildSensitiveAccessBlockedSurfaceTitle({
+        surfaceLabel,
+        payload
+      }),
+    summary:
+      normalizedSummary ??
+      `当前 ${surfaceLabel} 已接入统一敏感访问控制；导出动作不会绕过审批、通知与 run follow-up 事实链。${evidenceSentence}。`
+  };
+}
+
 export function formatSensitiveAccessDecisionLabel(request: RequestLike | BlockingRequestLike): string {
   return (
     request.decision_label ??
