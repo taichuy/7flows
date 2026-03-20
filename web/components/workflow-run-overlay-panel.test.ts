@@ -174,6 +174,8 @@ describe("WorkflowRunOverlayPanel", () => {
     );
 
     expect(html).toContain("Execution focus");
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("open run");
     expect(html).toContain("当前 live sandbox readiness 显示 sandbox 已 ready。");
     expect(html).toContain("历史 run 记录的 backend 是 sandbox-stale");
   });

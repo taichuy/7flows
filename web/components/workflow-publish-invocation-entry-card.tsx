@@ -18,6 +18,7 @@ import {
 import {
   buildPublishedInvocationCanonicalFollowUpCopy,
   buildPublishedInvocationInboxHref,
+  buildPublishedInvocationRecommendedNextStep,
   formatPublishedInvocationWaitingFollowUp,
   formatPublishedInvocationWaitingHeadline,
   formatPublishedInvocationCacheStatusLabel,
@@ -152,6 +153,13 @@ export function WorkflowPublishInvocationEntryCard({
       ? [sharedCallbackWaitingExplanation]
       : [],
     fallbackHeadline: "当前 invocation 已接入 canonical follow-up 事实链。"
+  });
+  const recommendedNextStep = buildPublishedInvocationRecommendedNextStep({
+    runId: item.run_id ?? null,
+    canonicalFollowUp,
+    callbackWaitingFollowUp: waitingLifecycle ? waitingExplanation?.follow_up ?? null : null,
+    executionFocusFollowUp,
+    approvalInboxHref: inboxHref
   });
   const runFollowUpSamplePrimarySignal = runFollowUpSample?.explanation?.primary_signal?.trim() || null;
   const runFollowUpSampleFocusNodeEvidence = runFollowUpSample
@@ -412,6 +420,22 @@ export function WorkflowPublishInvocationEntryCard({
                 </>
               )}
             </>
+          ) : null}
+        </div>
+      ) : null}
+      {recommendedNextStep ? (
+        <div className="payload-card compact-card">
+          <div className="payload-card-header">
+            <span className="status-meta">Recommended next step</span>
+            <span className="event-chip">{recommendedNextStep.label}</span>
+          </div>
+          <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
+          {recommendedNextStep.href && recommendedNextStep.href_label ? (
+            <div className="tool-badge-row">
+              <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
+                {recommendedNextStep.href_label}
+              </Link>
+            </div>
           ) : null}
         </div>
       ) : null}

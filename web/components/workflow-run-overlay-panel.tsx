@@ -157,6 +157,8 @@ export function WorkflowRunOverlayPanel({
               <RunDetailExecutionFocusCard
                 className="runtime-overlay-focus-card"
                 description="这里直接复用 run detail 的 execution focus，作者在画布里也能先看当前最相关的 blocker / waiting 节点，而不是立刻跳出到完整 diagnostics。"
+                recommendedNextStepHref={`/runs/${encodeURIComponent(run.id)}`}
+                recommendedNextStepHrefLabel="open run"
                 run={run}
                 sandboxReadiness={sandboxReadiness}
                 title="Execution focus"

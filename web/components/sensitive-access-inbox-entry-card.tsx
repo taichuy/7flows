@@ -19,6 +19,7 @@ import type {
   SensitiveAccessInboxEntry
 } from "@/lib/get-sensitive-access";
 import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
+import { buildOperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import {
   formatExecutionFocusArtifactSummary,
   formatExecutionFocusFollowUp,
@@ -96,6 +97,32 @@ export function SensitiveAccessInboxEntryCard({
   });
   const focusSkillTraceReferenceLoads = executionContext?.skillTrace?.loads ?? [];
   const focusSkillTraceReferenceCount = executionContext?.skillTrace?.reference_count ?? null;
+  const recommendedNextStep = !shouldDeferToSharedCallbackWaitingSummary && executionContext
+    ? buildOperatorRecommendedNextStep({
+        execution: {
+          active: true,
+          label: executionContext.focusMatchesEntry
+            ? "current approval ticket"
+            : focusInboxHref
+              ? "focus node"
+              : "run detail",
+          detail: executionFocusFollowUp,
+          href: executionContext.focusMatchesEntry
+            ? null
+            : focusInboxHref ?? `/runs/${encodeURIComponent(executionContext.runId)}`,
+          href_label: executionContext.focusMatchesEntry
+            ? null
+            : focusInboxHref
+              ? "slice to focus node"
+              : "open run",
+          fallback_detail: executionContext.focusMatchesEntry
+            ? "当前票据已命中 canonical blocker；优先处理本条审批，再确认 run 是否继续推进。"
+            : focusInboxHref
+              ? `当前 run 的 canonical blocker 已定位到 ${executionContext.focusNode.node_name}；优先切到该 focus node 的 inbox slice 统一排障。`
+              : "当前 run 已回接 canonical execution focus；优先打开 run 继续检查 focus node 和执行证据。"
+        }
+      })
+    : null;
 
   return (
     <article className="activity-row">
@@ -173,6 +200,20 @@ export function SensitiveAccessInboxEntryCard({
           <p className="binding-meta">
             {executionContext.focusNode.node_type} · focus node {executionContext.focusNode.node_id}
           </p>
+          {recommendedNextStep ? (
+            <div className="entry-card compact-card">
+              <div className="payload-card-header">
+                <span className="status-meta">Recommended next step</span>
+                <span className="event-chip">{recommendedNextStep.label}</span>
+                {recommendedNextStep.href && recommendedNextStep.href_label ? (
+                  <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
+                    {recommendedNextStep.href_label}
+                  </Link>
+                ) : null}
+              </div>
+              <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
+            </div>
+          ) : null}
           {executionFactBadges.length > 0 && !shouldDeferToSharedCallbackWaitingSummary ? (
             <div className="tool-badge-row">
               {executionFactBadges.map((badge) => (

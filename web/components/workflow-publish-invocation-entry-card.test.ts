@@ -355,7 +355,11 @@ describe("WorkflowPublishInvocationEntryCard", () => {
       })
     );
 
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("execution focus");
+    expect(html).toContain("open run");
     expect(html).toContain("当前 live sandbox readiness 显示 sandbox 已 ready。");
     expect(html).toContain("历史 run 记录的 backend 是 sandbox-stale");
+    expect(html).toContain("compare with live readiness");
   });
 });

@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
@@ -6,6 +7,7 @@ import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-re
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import type { RunDetail } from "@/lib/get-run-detail";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import { buildOperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import { buildRunDetailExecutionFocusViewModel } from "@/lib/run-detail-execution-focus";
 import {
   formatExecutionFocusArtifactSummary,
@@ -22,6 +24,8 @@ type RunDetailExecutionFocusCardProps = {
   description?: string | null;
   className?: string;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  recommendedNextStepHref?: string | null;
+  recommendedNextStepHrefLabel?: string | null;
 };
 
 export function RunDetailExecutionFocusCard({
@@ -29,7 +33,9 @@ export function RunDetailExecutionFocusCard({
   title = "Canonical execution focus",
   description = null,
   className = "",
-  sandboxReadiness = null
+  sandboxReadiness = null,
+  recommendedNextStepHref = null,
+  recommendedNextStepHrefLabel = null
 }: RunDetailExecutionFocusCardProps) {
   const focus = buildRunDetailExecutionFocusViewModel(run);
   if (!focus) {
@@ -37,6 +43,19 @@ export function RunDetailExecutionFocusCard({
   }
   const shouldDeferToCallbackWaitingSummary = focus.hasCallbackSummary;
   const executionFactBadges = listExecutionFocusRuntimeFactBadges(focus.evidence);
+  const recommendedNextStep = !shouldDeferToCallbackWaitingSummary
+    ? buildOperatorRecommendedNextStep({
+        execution: {
+          active: Boolean((focus.followUp && focus.followUp.trim()) || recommendedNextStepHref),
+          label: "execution focus",
+          detail: focus.followUp,
+          href: recommendedNextStepHref,
+          href_label: recommendedNextStepHrefLabel,
+          fallback_detail:
+            "当前 run 已回接 canonical execution focus；优先继续检查 focus node、runtime evidence 和 execution fallback / blocking 原因。"
+        }
+      })
+    : null;
 
   return (
     <div className={className}>
@@ -53,8 +72,19 @@ export function RunDetailExecutionFocusCard({
         {focus.primarySignal && !shouldDeferToCallbackWaitingSummary ? (
           <p className="section-copy entry-copy">{focus.primarySignal}</p>
         ) : null}
-        {focus.followUp && !shouldDeferToCallbackWaitingSummary ? (
-          <p className="binding-meta">{focus.followUp}</p>
+        {recommendedNextStep ? (
+          <div className="entry-card compact-card">
+            <div className="payload-card-header">
+              <span className="status-meta">Recommended next step</span>
+              <span className="event-chip">{recommendedNextStep.label}</span>
+              {recommendedNextStep.href && recommendedNextStep.href_label ? (
+                <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
+                  {recommendedNextStep.href_label}
+                </Link>
+              ) : null}
+            </div>
+            <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
+          </div>
         ) : null}
 
         <div className="tool-badge-row">

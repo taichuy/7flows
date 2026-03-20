@@ -13,6 +13,7 @@ import {
   buildOperatorInlineActionFeedbackModel,
   type OperatorInlineFocusArtifactPreview
 } from "@/lib/operator-inline-action-feedback";
+import { buildOperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import { formatRunSnapshotSummary } from "@/lib/operator-action-result-presenters";
 import type { ExecutionFocusToolCallSummary } from "@/lib/run-execution-focus-presenters";
 import { resolveSensitiveAccessTimelineEntryRunId } from "@/lib/sensitive-access";
@@ -66,6 +67,58 @@ export type PublishedInvocationCanonicalFollowUpCopy = {
   follow_up: string | null;
   has_shared_callback_waiting_summary: boolean;
 };
+
+export type PublishedInvocationRecommendedNextStep = {
+  label: string;
+  detail: string;
+  href: string | null;
+  href_label: string | null;
+};
+
+export function buildPublishedInvocationRecommendedNextStep({
+  runId,
+  canonicalFollowUp,
+  callbackWaitingFollowUp,
+  executionFocusFollowUp,
+  blockingInboxHref,
+  approvalInboxHref
+}: {
+  runId?: string | null;
+  canonicalFollowUp?: PublishedInvocationCanonicalFollowUpCopy | null;
+  callbackWaitingFollowUp?: string | null;
+  executionFocusFollowUp?: string | null;
+  blockingInboxHref?: string | null;
+  approvalInboxHref?: string | null;
+}): PublishedInvocationRecommendedNextStep | null {
+  return buildOperatorRecommendedNextStep({
+    callback: {
+      active: Boolean(
+        (callbackWaitingFollowUp && callbackWaitingFollowUp.trim()) ||
+          canonicalFollowUp?.has_shared_callback_waiting_summary
+      ),
+      label: blockingInboxHref ? "approval blocker" : "callback waiting",
+      detail: callbackWaitingFollowUp,
+      href: blockingInboxHref ?? approvalInboxHref ?? null,
+      href_label: blockingInboxHref
+        ? "open blocker inbox slice"
+        : approvalInboxHref
+          ? "open approval inbox slice"
+          : null,
+      fallback_detail:
+        "当前 invocation 的下一步仍落在 callback waiting / approval 事实链；优先确认票据、回调和自动 resume 是否正在推进。"
+    },
+    execution: {
+      active: Boolean((executionFocusFollowUp && executionFocusFollowUp.trim()) || runId),
+      label: "execution focus",
+      detail: executionFocusFollowUp,
+      href: runId ? `/runs/${encodeURIComponent(runId)}` : null,
+      href_label: runId ? "open run" : null,
+      fallback_detail:
+        "当前 invocation 已回接 canonical execution focus；优先打开 run 继续检查 focus node、runtime evidence 和 execution fallback / blocking 原因。"
+    },
+    operatorFollowUp: canonicalFollowUp?.follow_up ?? null
+  });
+}
 
 function buildPublishedInvocationRunFollowUpSampleSnapshot(
   sample?: PublishedInvocationRunFollowUpSample | null,

@@ -158,11 +158,34 @@ describe("SensitiveAccessInboxEntryCard", () => {
     const html = renderToStaticMarkup(createElement(SensitiveAccessInboxEntryCard, { entry: buildEntry() }));
 
     expect(html).toContain("当前 focus 节点仍需要 operator 审批");
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("current approval ticket");
     expect(html).toContain("effective sandbox");
     expect(html).toContain("executor tool:compat-adapter:dify-default");
     expect(html).toContain("backend sandbox-default");
     expect(html).toContain("runner container");
     expect(html).toContain("/runs/run-1");
+  });
+
+  it("routes the inbox next step to the canonical focus node slice when blocker drifted", () => {
+    const entry = buildEntry();
+    entry.executionContext = {
+      ...entry.executionContext!,
+      focusMatchesEntry: false,
+      entryNodeRunId: "node-run-entry",
+      focusNode: {
+        ...entry.executionContext!.focusNode,
+        node_run_id: "node-run-focus",
+        node_name: "Focus Node"
+      }
+    };
+
+    const html = renderToStaticMarkup(createElement(SensitiveAccessInboxEntryCard, { entry }));
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("focus node");
+    expect(html).toContain("slice to focus node");
+    expect(html).toContain("node_run_id=node-run-focus");
   });
 
   it("falls back to canonical scope when the ticket run_id is missing", () => {
