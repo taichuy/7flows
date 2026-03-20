@@ -228,4 +228,39 @@ describe("SensitiveAccessInboxEntryCard", () => {
     expect(html).toContain('name="nodeRunId" value="node-run-entry"');
     expect(html).not.toContain('name="nodeRunId" value="node-run-display"');
   });
+
+  it("keeps only one sensitive access action block when callback waiting follow-up is present", () => {
+    const entry = buildEntry();
+    entry.callbackWaitingContext = {
+      runId: "run-1",
+      displayNodeRunId: "node-run-display",
+      actionNodeRunId: "node-run-entry",
+      callbackTickets: [],
+      sensitiveAccessEntries: [
+        {
+          request: entry.request!,
+          resource: entry.resource!,
+          approval_ticket: entry.ticket,
+          notifications: []
+        }
+      ]
+    };
+    entry.ticket.node_run_id = "node-run-entry";
+    entry.request!.node_run_id = "node-run-entry";
+    entry.executionContext = {
+      ...entry.executionContext!,
+      focusMatchesEntry: false,
+      entryNodeRunId: "node-run-entry",
+      focusNode: {
+        ...entry.executionContext!.focusNode,
+        node_run_id: "node-run-display"
+      }
+    };
+
+    const html = renderToStaticMarkup(createElement(SensitiveAccessInboxEntryCard, { entry }));
+    const operatorActionBlockCount = (html.match(/Operator actions/g) ?? []).length;
+
+    expect(operatorActionBlockCount).toBe(1);
+    expect(html).toContain("Callback actions");
+  });
 });

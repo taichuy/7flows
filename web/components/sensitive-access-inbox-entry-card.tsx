@@ -218,6 +218,7 @@ export function SensitiveAccessInboxEntryCard({
             scheduledResumeRequeuedAt={callbackWaitingContext.scheduledResumeRequeuedAt}
             scheduledResumeRequeueSource={callbackWaitingContext.scheduledResumeRequeueSource}
             sensitiveAccessEntries={callbackWaitingContext.sensitiveAccessEntries}
+            showSensitiveAccessInlineActions={false}
             waitingReason={callbackWaitingContext.waitingReason}
             focusSkillReferenceNodeId={executionContext?.focusNode.node_id ?? null}
             focusSkillReferenceNodeName={executionContext?.focusNode.node_name ?? null}

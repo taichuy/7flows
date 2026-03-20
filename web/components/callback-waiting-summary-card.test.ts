@@ -18,6 +18,9 @@ vi.mock("@/components/sensitive-access-inline-actions", () => ({
 }));
 
 type FocusNodeEvidence = NonNullable<ComponentProps<typeof CallbackWaitingSummaryCard>["focusNodeEvidence"]>;
+type SensitiveAccessEntry = NonNullable<
+  ComponentProps<typeof CallbackWaitingSummaryCard>["sensitiveAccessEntries"]
+>[number];
 
 function buildFocusNodeEvidence(): FocusNodeEvidence {
   return {
@@ -65,6 +68,51 @@ function buildFocusNodeEvidence(): FocusNodeEvidence {
   };
 }
 
+function buildSensitiveAccessEntry(): SensitiveAccessEntry {
+  return {
+    request: {
+      id: "request-1",
+      run_id: "run-1",
+      node_run_id: "node-run-action",
+      requester_type: "tool",
+      requester_id: "native.search",
+      resource_id: "resource-1",
+      action_type: "invoke",
+      purpose_text: "query remote search",
+      decision: "require_approval",
+      decision_label: null,
+      reason_code: "policy_requires_approval",
+      reason_label: null,
+      policy_summary: "高敏能力调用需要人工审批。",
+      created_at: "2026-03-20T10:00:00Z",
+      decided_at: null
+    },
+    resource: {
+      id: "resource-1",
+      label: "Remote search capability",
+      description: "External search adapter",
+      sensitivity_level: "L2",
+      source: "local_capability",
+      metadata: {},
+      created_at: "2026-03-20T09:50:00Z",
+      updated_at: "2026-03-20T09:50:00Z"
+    },
+    approval_ticket: {
+      id: "ticket-1",
+      access_request_id: "request-1",
+      run_id: "run-1",
+      node_run_id: "node-run-action",
+      status: "pending",
+      waiting_status: "waiting",
+      approved_by: null,
+      decided_at: null,
+      expires_at: "2026-03-20T11:00:00Z",
+      created_at: "2026-03-20T10:00:00Z"
+    },
+    notifications: []
+  };
+}
+
 describe("CallbackWaitingSummaryCard", () => {
   it("puts compact execution fact badges before the evidence card when enabled", () => {
     const html = renderToStaticMarkup(
@@ -101,5 +149,20 @@ describe("CallbackWaitingSummaryCard", () => {
     expect(html).toContain("Waiting node focus evidence");
     expect(html).toContain("effective sandbox");
     expect(html.indexOf("effective sandbox")).toBeGreaterThan(html.indexOf("Waiting node focus evidence"));
+  });
+
+  it("can keep callback actions while suppressing duplicate sensitive access actions", () => {
+    const html = renderToStaticMarkup(
+      createElement(CallbackWaitingSummaryCard, {
+        actionNodeRunId: "node-run-action",
+        nodeRunId: "node-run-display",
+        runId: "run-1",
+        sensitiveAccessEntries: [buildSensitiveAccessEntry()],
+        showSensitiveAccessInlineActions: false
+      })
+    );
+
+    expect(html).toContain("data-testid=\"callback-waiting-inline-actions\"");
+    expect(html).not.toContain("data-testid=\"sensitive-access-inline-actions\"");
   });
 });

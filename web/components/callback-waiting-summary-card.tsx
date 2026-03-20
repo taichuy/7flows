@@ -74,6 +74,8 @@ type CallbackWaitingSummaryCardProps = {
   focusSkillReferenceNodeName?: string | null;
   showFocusExecutionFacts?: boolean;
   showInlineActions?: boolean;
+  showSensitiveAccessInlineActions?: boolean;
+  showCallbackInlineActions?: boolean;
   className?: string;
 };
 
@@ -103,8 +105,13 @@ export function CallbackWaitingSummaryCard({
   focusSkillReferenceNodeName = null,
   showFocusExecutionFacts = false,
   showInlineActions = true,
+  showSensitiveAccessInlineActions,
+  showCallbackInlineActions,
   className = ""
 }: CallbackWaitingSummaryCardProps) {
+  const shouldShowSensitiveAccessInlineActions =
+    showSensitiveAccessInlineActions ?? showInlineActions;
+  const shouldShowCallbackInlineActions = showCallbackInlineActions ?? showInlineActions;
   const headline =
     callbackWaitingExplanation?.primary_signal?.trim() ||
     getCallbackWaitingHeadline({
@@ -353,7 +360,7 @@ export function CallbackWaitingSummaryCard({
           {terminationAt !== "n/a" ? ` · ${terminationAt}` : ""}
         </p>
       ) : null}
-      {showInlineActions && inlineSensitiveAccessEntry ? (
+      {shouldShowSensitiveAccessInlineActions && inlineSensitiveAccessEntry ? (
         <SensitiveAccessInlineActions
           compact
           nodeRunId={
@@ -364,7 +371,7 @@ export function CallbackWaitingSummaryCard({
           ticket={inlineSensitiveAccessEntry.approval_ticket}
         />
       ) : null}
-      {showInlineActions ? (
+      {shouldShowCallbackInlineActions ? (
         <CallbackWaitingInlineActions
           allowManualResume={!hasTermination}
           compact
