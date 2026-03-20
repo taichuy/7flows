@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { fetchRunSnapshots } from "./run-snapshot";
+import { fetchRunSnapshots, type RunSnapshotWithId } from "./run-snapshot";
 
 type RevalidateOperatorFollowUpPathsInput = {
   runIds?: Array<string | null | undefined>;
@@ -10,7 +10,11 @@ type RevalidateOperatorFollowUpPathsInput = {
 };
 
 function normalizeIds(values: Array<string | null | undefined>) {
-  return [...new Set(values.map((item) => item?.trim()).filter(Boolean))];
+  return [...new Set(values.map((item) => item?.trim()).filter((item): item is string => Boolean(item)))];
+}
+
+function extractWorkflowIds(samples: RunSnapshotWithId[]) {
+  return normalizeIds(samples.map((item) => item.snapshot?.workflowId));
 }
 
 export async function revalidateOperatorFollowUpPaths({
@@ -30,7 +34,10 @@ export async function revalidateOperatorFollowUpPaths({
 }
 
 export async function revalidateOperatorFollowUpByRunIds(
-  runIds: Array<string | null | undefined>
+  runIds: Array<string | null | undefined>,
+  options?: {
+    sampledRuns?: RunSnapshotWithId[];
+  }
 ) {
   const normalizedRunIds = normalizeIds(runIds);
   if (normalizedRunIds.length === 0) {
@@ -38,9 +45,20 @@ export async function revalidateOperatorFollowUpByRunIds(
     return;
   }
 
-  const runSnapshots = await fetchRunSnapshots(normalizedRunIds, normalizedRunIds.length);
+  const sampledRuns = (options?.sampledRuns ?? []).filter((item) =>
+    normalizedRunIds.includes(item.runId)
+  );
+  const resolvedRunIds = new Set(
+    sampledRuns
+      .filter((item) => Boolean(item.snapshot?.workflowId?.trim()))
+      .map((item) => item.runId)
+  );
+  const missingRunIds = normalizedRunIds.filter((runId) => !resolvedRunIds.has(runId));
+  const fetchedRunSnapshots =
+    missingRunIds.length > 0 ? await fetchRunSnapshots(missingRunIds, missingRunIds.length) : [];
+
   await revalidateOperatorFollowUpPaths({
     runIds: normalizedRunIds,
-    workflowIds: runSnapshots.map((item) => item.snapshot?.workflowId)
+    workflowIds: [...extractWorkflowIds(sampledRuns), ...extractWorkflowIds(fetchedRunSnapshots)]
   });
 }

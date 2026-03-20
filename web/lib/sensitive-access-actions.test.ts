@@ -341,7 +341,20 @@ describe("sensitive access actions", () => {
     expect(result.message).toContain("继续等待审批人与 callback 后续推进。");
     expect(result.message).toContain("已回读 1 个 blocker 样本；发生变化 1 个。");
     expect(result.message).toContain("本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。");
-    expect(revalidateOperatorFollowUpByRunIds).toHaveBeenCalledWith(["run-1"]);
+    expect(revalidateOperatorFollowUpByRunIds).toHaveBeenCalledWith(["run-1"], {
+      sampledRuns: [
+        {
+          runId: "run-1",
+          snapshot: {
+            workflowId: "wf-1",
+            status: "waiting",
+            currentNodeId: "review",
+            waitingReason: null,
+            executionFocusReason: null
+          }
+        }
+      ]
+    });
     expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
@@ -545,7 +558,20 @@ describe("sensitive access actions", () => {
     expect(result.message).toContain("继续观察 waiting 与 callback 后续推进。");
     expect(result.message).toContain("已回读 1 个 blocker 样本；发生变化 1 个。");
     expect(result.message).toContain("本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。");
-    expect(revalidateOperatorFollowUpByRunIds).toHaveBeenCalledWith(["run-1"]);
+    expect(revalidateOperatorFollowUpByRunIds).toHaveBeenCalledWith(["run-1"], {
+      sampledRuns: [
+        {
+          runId: "run-1",
+          snapshot: {
+            workflowId: "wf-1",
+            status: "waiting",
+            currentNodeId: "review",
+            waitingReason: null,
+            executionFocusReason: null
+          }
+        }
+      ]
+    });
     expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });

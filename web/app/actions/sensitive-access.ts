@@ -29,6 +29,7 @@ import {
   fetchRunSnapshots,
   normalizeOperatorRunFollowUp,
   normalizeOperatorRunSnapshot,
+  type RunSnapshotWithId,
   type OperatorRunFollowUpBody,
   type OperatorRunSnapshotBody
 } from "./run-snapshot";
@@ -166,7 +167,7 @@ function createEmptyBulkResultMetrics() {
 const toRunSnapshot = normalizeOperatorRunSnapshot;
 
 function toBulkRunSamples(summary?: OperatorRunFollowUpBody | null) {
-  return (summary?.sampled_runs ?? []).map((item) => ({
+  return (summary?.sampled_runs ?? []).map((item): RunSnapshotWithId => ({
     runId: item.run_id,
     snapshot: toRunSnapshot(item.snapshot)
   }));
@@ -490,8 +491,10 @@ export async function bulkDecideSensitiveAccessApprovalTickets(input: {
     const skippedCount = body?.skipped_count ?? 0;
     const skippedReasonSummary = body?.skipped_reason_summary ?? [];
     const affectedRunIds = body?.decided_items?.map((item) => item.run_id) ?? [];
-    await revalidateOperatorFollowUpByRunIds(affectedRunIds);
     const backendSampledRuns = toBulkRunSamples(body?.run_follow_up);
+    await revalidateOperatorFollowUpByRunIds(affectedRunIds, {
+      sampledRuns: backendSampledRuns
+    });
     const backendFollowUpSummary = toBulkRunFollowUpSummary(body?.run_follow_up);
     const { sampledRuns, followUpSummary } = body?.run_follow_up
       ? {
@@ -604,8 +607,10 @@ export async function bulkRetrySensitiveAccessNotificationDispatches(input: {
     const skippedCount = body?.skipped_count ?? 0;
     const skippedReasonSummary = body?.skipped_reason_summary ?? [];
     const affectedRunIds = body?.retried_items?.map((item) => item.approval_ticket.run_id) ?? [];
-    await revalidateOperatorFollowUpByRunIds(affectedRunIds);
     const backendSampledRuns = toBulkRunSamples(body?.run_follow_up);
+    await revalidateOperatorFollowUpByRunIds(affectedRunIds, {
+      sampledRuns: backendSampledRuns
+    });
     const backendFollowUpSummary = toBulkRunFollowUpSummary(body?.run_follow_up);
     const { sampledRuns, followUpSummary } = body?.run_follow_up
       ? {
