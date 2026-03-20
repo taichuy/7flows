@@ -11,6 +11,7 @@ export type WorkflowValidationFocusTarget =
       scope: "node";
       nodeId: string;
       section: "config" | "contract" | "runtime";
+      fieldPath?: string;
       label: string;
     }
   | {
@@ -87,6 +88,7 @@ function resolveWorkflowValidationFocusTarget(
       scope: "node",
       nodeId,
       section,
+      fieldPath: remainder || undefined,
       label: `Node · ${nodeName}`
     };
   }

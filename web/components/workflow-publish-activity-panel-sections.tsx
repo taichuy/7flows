@@ -122,6 +122,83 @@ function buildFailureReasonInsight({
   return null;
 }
 
+function buildFailureReasonCardDiagnosis({
+  message,
+  reasonCounts,
+  sandboxReadiness
+}: {
+  message: string;
+  reasonCounts: NonNullable<PublishedEndpointInvocationListResponse>["facets"]["reason_counts"];
+  sandboxReadiness?: SandboxReadinessCheck | null;
+}) {
+  const normalizedMessage = message.toLowerCase();
+  const runtimeFailedCount = facetCount(reasonCounts, "runtime_failed");
+  const rateLimitExceededCount = facetCount(reasonCounts, "rate_limit_exceeded");
+  const authRejectedCount =
+    facetCount(reasonCounts, "api_key_invalid") + facetCount(reasonCounts, "api_key_required");
+  const mentionsQuota =
+    normalizedMessage.includes("rate limit") ||
+    normalizedMessage.includes("quota") ||
+    normalizedMessage.includes("429");
+  const mentionsAuth =
+    normalizedMessage.includes("api key") ||
+    normalizedMessage.includes("unauthor") ||
+    normalizedMessage.includes("forbidden") ||
+    normalizedMessage.includes("auth");
+  const mentionsSandbox =
+    normalizedMessage.includes("sandbox") ||
+    normalizedMessage.includes("microvm") ||
+    normalizedMessage.includes("execution class") ||
+    normalizedMessage.includes("backend offline") ||
+    normalizedMessage.includes("tool execution");
+
+  if (mentionsSandbox || runtimeFailedCount > 0) {
+    if (!sandboxReadiness) {
+      return {
+        headline: "这条 failure 很可能落在执行链路或强隔离能力上。",
+        detail: "继续结合 invocation detail / run diagnostics 查看 execution focus，区分 live blockage 与历史故障。"
+      };
+    }
+
+    const hasLiveReadinessPressure =
+      listSandboxBlockedClasses(sandboxReadiness).length > 0 ||
+      sandboxReadiness.offline_backend_count > 0 ||
+      sandboxReadiness.degraded_backend_count > 0;
+    const readinessHeadline = formatSandboxReadinessHeadline(sandboxReadiness);
+    const readinessDetail = formatSandboxReadinessDetail(sandboxReadiness);
+
+    return hasLiveReadinessPressure
+      ? {
+          headline: "当前 live sandbox readiness 仍在报警。",
+          detail: `${readinessHeadline}${readinessDetail ? ` ${readinessDetail}` : ""} 这说明这条 failure 不能只按历史 message 处理，先确认强隔离 backend / capability 是否仍 blocked。`
+        }
+      : {
+          headline: "当前 live sandbox readiness 已恢复。",
+          detail:
+            "这更像 run 当时的 backend 健康度、definition capability 不匹配或协议转换历史故障；继续看 invocation detail / run diagnostics 的 execution focus。"
+        };
+  }
+
+  if (mentionsQuota || rateLimitExceededCount > 0) {
+    return {
+      headline: "这条 failure 更像 quota / rate limit 侧信号。",
+      detail:
+        runtimeFailedCount > 0
+          ? "先看上面的 rate limit window，再把 quota hit 与 execution/runtime failed 拆成两条链路排查，避免误把拒绝当成执行链路故障。"
+          : "优先回看上面的 rate limit window，而不是直接把这条 message 当成 runtime 故障。"
+    };
+  }
+
+  if (mentionsAuth || authRejectedCount > 0) {
+    return {
+      headline: "这条 failure 更像鉴权 / API key 边界问题。",
+      detail: "先检查调用方 key 是否过期、binding 暴露方式是否匹配，再决定是否继续深挖执行链路。"
+    };
+  }
+
+  return null;
+}
+
 export function WorkflowPublishActivityInsights({
   binding,
   invocationAudit,
@@ -371,6 +448,7 @@ export function WorkflowPublishActivityDetails({
   const items = invocationAudit?.items ?? [];
   const apiKeyUsage = invocationAudit?.facets.api_key_usage ?? [];
   const failureReasons = invocationAudit?.facets.recent_failure_reasons ?? [];
+  const reasonCounts = invocationAudit?.facets.reason_counts ?? [];
 
   return (
     <>
@@ -409,16 +487,30 @@ export function WorkflowPublishActivityDetails({
 
       {failureReasons.length ? (
         <div className="publish-cache-list">
-          {failureReasons.map((item) => (
-            <article className="payload-card compact-card" key={item.message}>
-              <div className="payload-card-header">
-                <span className="status-meta">Failure reason</span>
-                <span className="event-chip">count {item.count}</span>
-              </div>
-              <p className="binding-meta">{item.message}</p>
-              <p className="section-copy entry-copy">最近一次出现在 {formatTimestamp(item.last_invoked_at)}。</p>
-            </article>
-          ))}
+          {failureReasons.map((item) => {
+            const diagnosis = buildFailureReasonCardDiagnosis({
+              message: item.message,
+              reasonCounts,
+              sandboxReadiness
+            });
+
+            return (
+              <article className="payload-card compact-card" key={item.message}>
+                <div className="payload-card-header">
+                  <span className="status-meta">Failure reason</span>
+                  <span className="event-chip">count {item.count}</span>
+                </div>
+                <p className="binding-meta">{item.message}</p>
+                {diagnosis ? (
+                  <>
+                    <p className="section-copy entry-copy">{diagnosis.headline}</p>
+                    <p className="binding-meta">{diagnosis.detail}</p>
+                  </>
+                ) : null}
+                <p className="section-copy entry-copy">最近一次出现在 {formatTimestamp(item.last_invoked_at)}。</p>
+              </article>
+            );
+          })}
         </div>
       ) : null}
 

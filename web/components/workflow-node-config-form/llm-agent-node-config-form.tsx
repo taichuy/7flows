@@ -4,6 +4,7 @@ import type { Node } from "@xyflow/react";
 
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import type { WorkflowCanvasNodeData } from "@/lib/workflow-editor";
 import { AuthorizedContextFields } from "@/components/workflow-node-config-form/authorized-context-fields";
 import { CredentialPicker } from "@/components/workflow-node-config-form/credential-picker";
@@ -25,6 +26,8 @@ type LlmAgentNodeConfigFormProps = {
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   tools: PluginToolRegistryItem[];
   sandboxReadiness?: SandboxReadinessCheck | null;
+  highlightedFieldPath?: string | null;
+  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
   onChange: (nextConfig: Record<string, unknown>) => void;
 };
 
@@ -33,6 +36,8 @@ export function LlmAgentNodeConfigForm({
   nodes,
   tools,
   sandboxReadiness,
+  highlightedFieldPath,
+  focusedValidationItem,
   onChange
 }: LlmAgentNodeConfigFormProps) {
   const config = cloneRecord(node.data.config);
@@ -345,6 +350,8 @@ export function LlmAgentNodeConfigForm({
         config={config}
         tools={tools}
         sandboxReadiness={sandboxReadiness}
+        highlightedFieldPath={highlightedFieldPath}
+        focusedValidationItem={focusedValidationItem}
         onChange={onChange}
       />
 

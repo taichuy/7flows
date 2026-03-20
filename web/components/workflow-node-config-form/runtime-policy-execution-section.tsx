@@ -2,7 +2,9 @@
 
 import React from "react";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { buildSandboxExecutionPolicyPreflightInsight } from "@/lib/sandbox-readiness-presenters";
+import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import {
   cloneRecord,
   parseNumericFieldValue,
@@ -25,6 +27,8 @@ type WorkflowNodeRuntimePolicyExecutionSectionProps = {
   nodeType: string;
   runtimePolicy: Record<string, unknown>;
   onChange: (nextRuntimePolicy: Record<string, unknown> | undefined) => void;
+  highlightedFieldPath?: string | null;
+  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
@@ -33,8 +37,11 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
   nodeType,
   runtimePolicy,
   onChange,
+  highlightedFieldPath = null,
+  focusedValidationItem = null,
   sandboxReadiness = null
 }: WorkflowNodeRuntimePolicyExecutionSectionProps) {
+  const sectionRef = React.useRef<HTMLDivElement | null>(null);
   const execution = readExecutionPolicy(runtimePolicy, nodeType);
   const sandboxExecutionInsight =
     sandboxReadiness && (execution.className === "sandbox" || execution.className === "microvm")
@@ -46,6 +53,21 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
           filesystemPolicy: execution.filesystemPolicy
         })
       : null;
+  const normalizedHighlightedField = normalizeRuntimeExecutionFieldKey(highlightedFieldPath);
+
+  React.useEffect(() => {
+    if (!normalizedHighlightedField) {
+      return;
+    }
+
+    const target = sectionRef.current?.querySelector<HTMLElement>(
+      `[data-validation-field="${normalizedHighlightedField}"] input, ` +
+        `[data-validation-field="${normalizedHighlightedField}"] select`
+    );
+
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
+    target?.focus();
+  }, [normalizedHighlightedField]);
 
   const updateExecutionField = (
     field: "class" | "profile" | "timeoutMs" | "networkPolicy" | "filesystemPolicy",
@@ -77,7 +99,7 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
   };
 
   return (
-    <div className="binding-field compact-stack">
+    <div className="binding-field compact-stack" ref={sectionRef}>
       <div className="section-heading compact-heading">
         <div>
           <span className="binding-label">Execution policy</span>
@@ -99,7 +121,14 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
         </div>
       </div>
 
-      <label className="binding-field">
+      {focusedValidationItem && normalizedHighlightedField ? (
+        <WorkflowValidationRemediationCard
+          item={focusedValidationItem}
+          sandboxReadiness={sandboxReadiness}
+        />
+      ) : null}
+
+      <label className="binding-field" data-validation-field="execution.class">
         <span className="binding-label">Execution class</span>
         <select
           className="binding-select"
@@ -114,7 +143,7 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
         </select>
       </label>
 
-      <label className="binding-field">
+      <label className="binding-field" data-validation-field="execution.profile">
         <span className="binding-label">Profile</span>
         <input
           className="trace-text-input"
@@ -124,7 +153,7 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
         />
       </label>
 
-      <label className="binding-field">
+      <label className="binding-field" data-validation-field="execution.timeoutMs">
         <span className="binding-label">Timeout ms</span>
         <input
           className="trace-text-input"
@@ -139,7 +168,7 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
         />
       </label>
 
-      <label className="binding-field">
+      <label className="binding-field" data-validation-field="execution.networkPolicy">
         <span className="binding-label">Network policy</span>
         <select
           className="binding-select"
@@ -154,7 +183,7 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
         </select>
       </label>
 
-      <label className="binding-field">
+      <label className="binding-field" data-validation-field="execution.filesystemPolicy">
         <span className="binding-label">Filesystem policy</span>
         <select
           className="binding-select"
@@ -189,5 +218,22 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
       ) : null}
     </div>
   );
+}
+
+function normalizeRuntimeExecutionFieldKey(fieldPath?: string | null) {
+  const normalized = fieldPath?.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized === "runtimePolicy.execution") {
+    return "execution.class";
+  }
+
+  if (normalized.startsWith("runtimePolicy.execution.")) {
+    return normalized.replace(/^runtimePolicy\./, "");
+  }
+
+  return null;
 }
 

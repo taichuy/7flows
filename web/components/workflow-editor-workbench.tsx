@@ -18,7 +18,7 @@ import type {
   WorkflowDetail,
   WorkflowListItem
 } from "@/lib/get-workflows";
-import type { WorkflowValidationFocusTarget } from "@/lib/workflow-validation-navigation";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
 import { getPaletteNodeCatalog, getPlannedNodeCatalog } from "@/lib/workflow-node-catalog";
 
@@ -74,8 +74,8 @@ export function WorkflowEditorWorkbench({
   );
   const [serverValidationIssueSourceSignature, setServerValidationIssueSourceSignature] =
     useState<string>(persistedDefinitionSignature);
-  const [validationFocusTarget, setValidationFocusTarget] =
-    useState<WorkflowValidationFocusTarget | null>(null);
+  const [validationFocusItem, setValidationFocusItem] =
+    useState<WorkflowValidationNavigatorItem | null>(null);
 
   const graph = useWorkflowEditorGraph({
     workflow,
@@ -136,7 +136,7 @@ export function WorkflowEditorWorkbench({
     setMessage,
     setMessageTone,
     focusNode: graph.focusNode,
-    setValidationFocusTarget
+    setValidationFocusItem
   });
 
   useEffect(() => {
@@ -262,31 +262,38 @@ export function WorkflowEditorWorkbench({
               onUpdateSelectedEdge={graph.updateSelectedEdge}
               onDeleteSelectedEdge={graph.handleDeleteSelectedEdge}
               highlightedNodeSection={
-                validationFocusTarget?.scope === "node" &&
-                validationFocusTarget.nodeId === graph.selectedNodeId
-                  ? validationFocusTarget.section
+                validationFocusItem?.target.scope === "node" &&
+                validationFocusItem.target.nodeId === graph.selectedNodeId
+                  ? validationFocusItem.target.section
+                  : null
+              }
+              highlightedNodeFieldPath={
+                validationFocusItem?.target.scope === "node" &&
+                validationFocusItem.target.nodeId === graph.selectedNodeId
+                  ? validationFocusItem.target.fieldPath ?? null
                   : null
               }
               highlightedPublishEndpointIndex={
-                validationFocusTarget?.scope === "publish"
-                  ? validationFocusTarget.endpointIndex
+                validationFocusItem?.target.scope === "publish"
+                  ? validationFocusItem.target.endpointIndex
                   : null
               }
               highlightedPublishEndpointFieldPath={
-                validationFocusTarget?.scope === "publish"
-                  ? validationFocusTarget.fieldPath ?? null
+                validationFocusItem?.target.scope === "publish"
+                  ? validationFocusItem.target.fieldPath ?? null
                   : null
               }
               highlightedVariableIndex={
-                validationFocusTarget?.scope === "variables"
-                  ? validationFocusTarget.variableIndex
+                validationFocusItem?.target.scope === "variables"
+                  ? validationFocusItem.target.variableIndex
                   : null
               }
               highlightedVariableFieldPath={
-                validationFocusTarget?.scope === "variables"
-                  ? validationFocusTarget.fieldPath ?? null
+                validationFocusItem?.target.scope === "variables"
+                  ? validationFocusItem.target.fieldPath ?? null
                   : null
               }
+              focusedValidationItem={validationFocusItem}
               sandboxReadiness={sandboxReadiness}
             />
           </aside>

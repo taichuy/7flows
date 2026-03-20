@@ -5,7 +5,9 @@ import { useMemo, useState } from "react";
 
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { validateContractSchema } from "@/lib/workflow-contract-schema-validation";
+import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { WorkflowEditorPublishEndpointCard } from "./workflow-editor-publish-endpoint-card";
 import { buildPublishedEndpointValidationIssues } from "./workflow-editor-publish-form-validation";
 import {
@@ -25,6 +27,7 @@ type WorkflowEditorPublishFormProps = {
     nextPublish: Array<Record<string, unknown>>,
     options?: { successMessage?: string }
   ) => void;
+  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
   highlightedEndpointIndex?: number | null;
   highlightedEndpointFieldPath?: string | null;
 };
@@ -35,6 +38,7 @@ export function WorkflowEditorPublishForm({
   publishEndpoints,
   sandboxReadiness,
   onChange,
+  focusedValidationItem = null,
   highlightedEndpointIndex = null,
   highlightedEndpointFieldPath = null
 }: WorkflowEditorPublishFormProps) {
@@ -155,6 +159,12 @@ export function WorkflowEditorPublishForm({
           当前 publish draft 与正式 publish 页面共用同一条 strong-isolation / capability 链路；保存前可先对照：
           {sandboxPreflightHint}
         </p>
+      ) : null}
+      {focusedValidationItem ? (
+        <WorkflowValidationRemediationCard
+          item={focusedValidationItem}
+          sandboxReadiness={sandboxReadiness}
+        />
       ) : null}
 
       <div className="tool-badge-row">

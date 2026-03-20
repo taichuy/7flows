@@ -12,6 +12,8 @@ export function WorkflowNodeConfigForm({
   nodes,
   tools,
   sandboxReadiness,
+  highlightedFieldPath,
+  focusedValidationItem,
   onChange
 }: WorkflowNodeConfigFormProps) {
   switch (node.data.nodeType) {
@@ -22,6 +24,8 @@ export function WorkflowNodeConfigForm({
           nodes={nodes}
           tools={tools}
           sandboxReadiness={sandboxReadiness}
+          highlightedFieldPath={highlightedFieldPath}
+          focusedValidationItem={focusedValidationItem}
           onChange={onChange}
         />
       );

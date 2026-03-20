@@ -18,9 +18,9 @@ import {
 import { buildWorkspaceStarterPayload } from "@/lib/workspace-starter-payload";
 import { inferWorkflowBusinessTrack } from "@/lib/workflow-starters";
 import {
-  type WorkflowValidationFocusTarget,
   type WorkflowValidationNavigatorItem
 } from "@/lib/workflow-validation-navigation";
+import { buildWorkflowValidationRemediation } from "@/lib/workflow-validation-remediation";
 
 import {
   summarizePreflightIssues,
@@ -45,7 +45,7 @@ type UseWorkflowEditorPersistenceOptions = {
   setMessage: Dispatch<SetStateAction<string | null>>;
   setMessageTone: Dispatch<SetStateAction<WorkflowEditorMessageTone>>;
   focusNode: (nodeId: string | null) => void;
-  setValidationFocusTarget: Dispatch<SetStateAction<WorkflowValidationFocusTarget | null>>;
+  setValidationFocusItem: Dispatch<SetStateAction<WorkflowValidationNavigatorItem | null>>;
 };
 
 export function useWorkflowEditorPersistence({
@@ -65,7 +65,7 @@ export function useWorkflowEditorPersistence({
   setMessage,
   setMessageTone,
   focusNode,
-  setValidationFocusTarget
+  setValidationFocusItem
 }: UseWorkflowEditorPersistenceOptions) {
   const [isSaving, startSavingTransition] = useTransition();
   const [isSavingStarter, startSaveStarterTransition] = useTransition();
@@ -127,13 +127,14 @@ export function useWorkflowEditorPersistence({
   };
 
   const handleNavigateValidationIssue = (item: WorkflowValidationNavigatorItem) => {
-    setValidationFocusTarget(item.target);
+    setValidationFocusItem(item);
 
     if (item.target.scope === "node") {
       focusNode(item.target.nodeId);
     }
 
-    setMessage(`已定位到 ${item.target.label}，请根据提示修正后再保存。`);
+    const remediation = buildWorkflowValidationRemediation(item, sandboxReadiness);
+    setMessage(`已定位到 ${remediation.title}。${remediation.suggestion}`);
     setMessageTone("error");
   };
 

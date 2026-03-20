@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { LlmAgentToolPolicyForm } from "@/components/workflow-node-config-form/llm-agent-tool-policy-form";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 
 function buildSandboxReadiness(): SandboxReadinessCheck {
   return {
@@ -71,5 +72,34 @@ describe("LlmAgentToolPolicyForm", () => {
     expect(html).toContain("live sandbox readiness");
     expect(html).toContain("当前 sandbox readiness：");
     expect(html).toContain("fail-closed");
+  });
+
+  it("shows field-level remediation for focused tool policy issues", () => {
+    const focusedValidationItem: WorkflowValidationNavigatorItem = {
+      key: "tool-policy-allowed-tools",
+      category: "tool_execution",
+      message: "allow list 中包含不兼容当前 execution override 的工具。",
+      target: {
+        scope: "node",
+        nodeId: "node-1",
+        section: "config",
+        fieldPath: "config.toolPolicy.allowedToolIds",
+        label: "Node · Agent"
+      }
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(LlmAgentToolPolicyForm, {
+        config: {},
+        tools: [buildTool()],
+        sandboxReadiness: buildSandboxReadiness(),
+        highlightedFieldPath: "config.toolPolicy.allowedToolIds",
+        focusedValidationItem,
+        onChange: () => undefined
+      })
+    );
+
+    expect(html).toContain("Node · Agent · Allowed tools");
+    expect(html).toContain("把 allow list 收口到与当前 execution override 兼容的工具");
   });
 });

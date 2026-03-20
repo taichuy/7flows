@@ -3,6 +3,7 @@
 import type { Edge, Node } from "@xyflow/react";
 
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import type {
   WorkflowCanvasEdgeData,
   WorkflowCanvasNodeData
@@ -26,6 +27,8 @@ type WorkflowNodeRuntimePolicyFormProps = {
   edges: Array<Edge<WorkflowCanvasEdgeData>>;
   onChange: (nextRuntimePolicy: Record<string, unknown> | undefined) => void;
   highlighted?: boolean;
+  highlightedFieldPath?: string | null;
+  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
@@ -39,6 +42,8 @@ export function WorkflowNodeRuntimePolicyForm({
   edges,
   onChange,
   highlighted = false,
+  highlightedFieldPath = null,
+  focusedValidationItem = null,
   sandboxReadiness = null
 }: WorkflowNodeRuntimePolicyFormProps) {
   const runtimePolicy = cloneRecord(node.data.runtimePolicy ?? {});
@@ -135,6 +140,8 @@ export function WorkflowNodeRuntimePolicyForm({
         nodeType={node.data.nodeType}
         runtimePolicy={runtimePolicy}
         onChange={onChange}
+        highlightedFieldPath={highlightedFieldPath}
+        focusedValidationItem={focusedValidationItem}
         sandboxReadiness={sandboxReadiness}
       />
 

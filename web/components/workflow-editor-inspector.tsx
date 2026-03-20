@@ -4,6 +4,7 @@ import type { Edge, Node } from "@xyflow/react";
 
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import type {
   WorkflowCanvasEdgeData,
   WorkflowCanvasNodeData
@@ -47,10 +48,12 @@ type WorkflowEditorInspectorProps = {
   ) => void;
   onDeleteSelectedEdge: () => void;
   highlightedNodeSection?: "config" | "contract" | "runtime" | null;
+  highlightedNodeFieldPath?: string | null;
   highlightedPublishEndpointIndex?: number | null;
   highlightedPublishEndpointFieldPath?: string | null;
   highlightedVariableIndex?: number | null;
   highlightedVariableFieldPath?: string | null;
+  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
@@ -79,10 +82,12 @@ export function WorkflowEditorInspector({
   onUpdateSelectedEdge,
   onDeleteSelectedEdge,
   highlightedNodeSection = null,
+  highlightedNodeFieldPath = null,
   highlightedPublishEndpointIndex = null,
   highlightedPublishEndpointFieldPath = null,
   highlightedVariableIndex = null,
   highlightedVariableFieldPath = null,
+  focusedValidationItem = null,
   sandboxReadiness
 }: WorkflowEditorInspectorProps) {
   return (
@@ -119,6 +124,10 @@ export function WorkflowEditorInspector({
               nodes={nodes}
               tools={tools}
               sandboxReadiness={sandboxReadiness}
+              highlightedFieldPath={highlightedNodeSection === "config" ? highlightedNodeFieldPath : null}
+              focusedValidationItem={
+                highlightedNodeSection === "config" ? focusedValidationItem : null
+              }
               onChange={onNodeConfigChange}
             />
 
@@ -148,6 +157,12 @@ export function WorkflowEditorInspector({
               edges={edges}
               onChange={onNodeRuntimePolicyUpdate}
               highlighted={highlightedNodeSection === "runtime"}
+              highlightedFieldPath={
+                highlightedNodeSection === "runtime" ? highlightedNodeFieldPath : null
+              }
+              focusedValidationItem={
+                highlightedNodeSection === "runtime" ? focusedValidationItem : null
+              }
               sandboxReadiness={sandboxReadiness}
             />
 
@@ -236,6 +251,9 @@ export function WorkflowEditorInspector({
         publishEndpoints={workflowPublish}
         sandboxReadiness={sandboxReadiness}
         onChange={onWorkflowPublishChange}
+        focusedValidationItem={
+          focusedValidationItem?.target.scope === "publish" ? focusedValidationItem : null
+        }
         highlightedEndpointIndex={highlightedPublishEndpointIndex}
         highlightedEndpointFieldPath={highlightedPublishEndpointFieldPath}
       />

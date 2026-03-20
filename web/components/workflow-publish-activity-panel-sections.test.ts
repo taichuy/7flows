@@ -2,7 +2,10 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { WorkflowPublishActivityInsights } from "@/components/workflow-publish-activity-panel-sections";
+import {
+  WorkflowPublishActivityDetails,
+  WorkflowPublishActivityInsights
+} from "@/components/workflow-publish-activity-panel-sections";
 import type { WorkflowPublishActivityPanelProps } from "@/components/workflow-publish-activity-panel-helpers";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { PublishedEndpointInvocationListResponse } from "@/lib/get-workflow-publish";
@@ -133,5 +136,31 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain("quota hit 与执行链路异常拆开排查");
     expect(html).toContain("结合 live sandbox readiness");
     expect(html).toContain("强隔离 execution class 会 fail-closed");
+  });
+
+  it("shows live diagnosis inside failure reason cards", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishActivityDetails, {
+        tools: [],
+        invocationAudit: buildInvocationAudit(),
+        selectedInvocationId: null,
+        selectedInvocationDetail: null,
+        callbackWaitingAutomation: {
+          status: "disabled",
+          scheduler_required: false,
+          detail: "disabled in test",
+          scheduler_health_status: "idle",
+          scheduler_health_detail: "not configured",
+          steps: []
+        },
+        sandboxReadiness: buildSandboxReadiness(),
+        buildInvocationDetailHref: () => "#",
+        clearInvocationDetailHref: null
+      })
+    );
+
+    expect(html).toContain("Failure reason");
+    expect(html).toContain("当前 live sandbox readiness 仍在报警");
+    expect(html).toContain("先确认强隔离 backend / capability 是否仍 blocked");
   });
 });

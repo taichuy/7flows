@@ -3,7 +3,9 @@
 import React from "react";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
+import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import {
   compareToolsByGovernance,
   getToolExecutionOverrideScope,
@@ -25,6 +27,8 @@ type LlmAgentToolPolicyFormProps = {
   config: Record<string, unknown>;
   tools: PluginToolRegistryItem[];
   sandboxReadiness?: SandboxReadinessCheck | null;
+  highlightedFieldPath?: string | null;
+  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
   onChange: (nextConfig: Record<string, unknown>) => void;
 };
 
@@ -32,8 +36,11 @@ export function LlmAgentToolPolicyForm({
   config,
   tools,
   sandboxReadiness,
+  highlightedFieldPath = null,
+  focusedValidationItem = null,
   onChange
 }: LlmAgentToolPolicyFormProps) {
+  const sectionRef = React.useRef<HTMLDivElement | null>(null);
   const toolPolicy = toRecord(config.toolPolicy) ?? {};
   const execution = toRecord(toolPolicy.execution) ?? {};
   const allowedToolIds = dedupeStrings(toStringArray(toolPolicy.allowedToolIds));
@@ -54,6 +61,22 @@ export function LlmAgentToolPolicyForm({
   const hasInvalidSelectedExecutionClass =
     selectedExecutionClass.trim().length > 0 && unsupportedExecutionTools.length > 0;
   const sandboxPreflightHint = formatSandboxReadinessPreflightHint(sandboxReadiness);
+  const normalizedHighlightedField = normalizeToolPolicyFieldKey(highlightedFieldPath);
+
+  React.useEffect(() => {
+    if (!normalizedHighlightedField) {
+      return;
+    }
+
+    const target = sectionRef.current?.querySelector<HTMLElement>(
+      `[data-validation-field="${normalizedHighlightedField}"] input, ` +
+        `[data-validation-field="${normalizedHighlightedField}"] select, ` +
+        `[data-validation-field="${normalizedHighlightedField}"] textarea`
+    );
+
+    target?.scrollIntoView({ block: "center", behavior: "smooth" });
+    target?.focus();
+  }, [normalizedHighlightedField]);
 
   const updateToolPolicy = (patch: {
     allowedToolIds?: string[];
@@ -149,8 +172,14 @@ export function LlmAgentToolPolicyForm({
   };
 
   return (
-    <div className="binding-field">
+    <div className="binding-field" ref={sectionRef}>
       <span className="binding-label">Tool policy</span>
+      {focusedValidationItem && normalizedHighlightedField ? (
+        <WorkflowValidationRemediationCard
+          item={focusedValidationItem}
+          sandboxReadiness={sandboxReadiness}
+        />
+      ) : null}
 
       <label className="binding-field">
         <span className="binding-label">Per-tool timeout (ms)</span>
@@ -183,7 +212,7 @@ export function LlmAgentToolPolicyForm({
           ) : null}
         </div>
 
-        <label className="binding-field">
+        <label className="binding-field" data-validation-field="execution.class">
           <span className="binding-label">Execution class</span>
           <select
             className="binding-select"
@@ -232,7 +261,7 @@ export function LlmAgentToolPolicyForm({
           </div>
         ) : null}
 
-        <label className="binding-field">
+        <label className="binding-field" data-validation-field="execution.profile">
           <span className="binding-label">Profile</span>
           <input
             className="trace-text-input"
@@ -242,7 +271,7 @@ export function LlmAgentToolPolicyForm({
           />
         </label>
 
-        <label className="binding-field">
+        <label className="binding-field" data-validation-field="execution.timeoutMs">
           <span className="binding-label">Timeout ms</span>
           <input
             className="trace-text-input"
@@ -257,7 +286,7 @@ export function LlmAgentToolPolicyForm({
           />
         </label>
 
-        <label className="binding-field">
+        <label className="binding-field" data-validation-field="execution.networkPolicy">
           <span className="binding-label">Network policy</span>
           <select
             className="binding-select"
@@ -275,7 +304,7 @@ export function LlmAgentToolPolicyForm({
           </select>
         </label>
 
-        <label className="binding-field">
+        <label className="binding-field" data-validation-field="execution.filesystemPolicy">
           <span className="binding-label">Filesystem policy</span>
           <select
             className="binding-select"
@@ -319,7 +348,7 @@ export function LlmAgentToolPolicyForm({
       ) : null}
 
       {callableTools.length > 0 ? (
-        <div className="binding-field compact-stack">
+        <div className="binding-field compact-stack" data-validation-field="allowedToolIds">
           {callableTools.map((tool) => {
             const checked = allowedToolIds.includes(tool.id);
             const governance = getToolGovernanceSummary(tool);
@@ -365,6 +394,27 @@ export function LlmAgentToolPolicyForm({
       </small>
     </div>
   );
+}
+
+function normalizeToolPolicyFieldKey(fieldPath?: string | null) {
+  const normalized = fieldPath?.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized === "config.toolPolicy.allowedToolIds") {
+    return "allowedToolIds";
+  }
+
+  if (normalized === "config.toolPolicy.execution") {
+    return "execution.class";
+  }
+
+  if (normalized.startsWith("config.toolPolicy.execution.")) {
+    return normalized.replace(/^config\.toolPolicy\./, "");
+  }
+
+  return null;
 }
 
 function normalizeToolPolicyExecution(execution: Record<string, unknown>) {

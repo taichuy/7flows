@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { WorkflowEditorPublishForm } from "@/components/workflow-editor-publish-form";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 
 vi.mock("@/components/workflow-editor-publish-endpoint-card", () => ({
   WorkflowEditorPublishEndpointCard: ({ endpointIndex }: { endpointIndex: number }) =>
@@ -60,5 +61,33 @@ describe("WorkflowEditorPublishForm", () => {
     expect(html).toContain("strong-isolation / capability");
     expect(html).toContain("当前 sandbox readiness：");
     expect(html).toContain("fail-closed");
+  });
+
+  it("shows field-level remediation when a publish validation issue is focused", () => {
+    const focusedValidationItem: WorkflowValidationNavigatorItem = {
+      key: "publish-version",
+      category: "publish_version",
+      message: "Public Search 绑定了不存在的 workflow version。",
+      target: {
+        scope: "publish",
+        endpointIndex: 0,
+        fieldPath: "workflowVersion",
+        label: "Publish · Public Search"
+      }
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorPublishForm, {
+        workflowVersion: "1.0.0",
+        availableWorkflowVersions: ["1.0.0"],
+        publishEndpoints: [],
+        sandboxReadiness: buildSandboxReadiness(),
+        focusedValidationItem,
+        onChange: () => undefined
+      })
+    );
+
+    expect(html).toContain("Publish · Public Search · Workflow version");
+    expect(html).toContain("如果这个 endpoint 要跟随本次保存生成的新版本");
   });
 });
