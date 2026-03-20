@@ -17,6 +17,8 @@ import type {
 import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import { buildSensitiveAccessBlockedSurfaceCopy } from "@/lib/sensitive-access-presenters";
 import {
+  buildPublishedInvocationActivityDetailsSurfaceCopy,
+  buildPublishedInvocationActivityInsightsSurfaceCopy,
   buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationFailureMessageDiagnosis,
   buildPublishedInvocationFailureReasonInsight,
@@ -27,6 +29,7 @@ import {
   buildPublishedInvocationUnavailableDetailSurfaceCopy,
   buildPublishedInvocationRecommendedNextStep,
   buildPublishedInvocationWaitingOverview,
+  formatPublishedInvocationFailureReasonLastSeen,
   formatPublishedInvocationReasonLabel,
   formatPublishedInvocationSurfaceLabel,
   formatPublishedRunStatusLabel,
@@ -85,6 +88,9 @@ export function WorkflowPublishActivityInsights({
     windowRejected,
     failedCount: summary?.failed_count ?? 0,
     timeWindowLabel: formatTimeWindowLabel(activeTimeWindow ?? "all")
+  });
+  const insightsSurfaceCopy = buildPublishedInvocationActivityInsightsSurfaceCopy({
+    rateLimitWindowStartedAt: rateLimitWindowAudit?.filters.created_from ?? null
   });
   const failureReasonInsight = buildPublishedInvocationFailureReasonInsight({
     reasonCounts,
@@ -235,16 +241,13 @@ export function WorkflowPublishActivityInsights({
                   <dd>{windowRejected}</dd>
                 </div>
               </dl>
-              <p className="section-copy entry-copy">
-                当前窗口从 {formatTimestamp(rateLimitWindowAudit?.filters.created_from ?? null)} 开始统计成功和失败调用，
-                `rejected` 仅作为治理信号，不占配额。
-              </p>
+              <p className="section-copy entry-copy">{insightsSurfaceCopy.rateLimitWindowDescription}</p>
               {rateLimitWindowInsight ? (
                 <p className="section-copy entry-copy">{rateLimitWindowInsight}</p>
               ) : null}
             </>
           ) : (
-            <p className="empty-state compact">当前 binding 没有启用 rate limit，开放调用不会按时间窗口限流。</p>
+            <p className="empty-state compact">{insightsSurfaceCopy.rateLimitDisabledEmptyState}</p>
           )}
         </div>
       </div>
@@ -258,9 +261,7 @@ export function WorkflowPublishActivityInsights({
       {reasonCounts.length ? (
         <div className="entry-card compact-card">
           <p className="entry-card-title">Issue signals</p>
-          <p className="section-copy entry-copy">
-            将 `rejected / failed` 聚合为稳定原因码，便于区分限流、鉴权和当前同步协议边界。
-          </p>
+          <p className="section-copy entry-copy">{insightsSurfaceCopy.issueSignalsDescription}</p>
           {failureReasonInsight ? (
             <p className="section-copy entry-copy">{failureReasonInsight}</p>
           ) : null}
@@ -299,6 +300,7 @@ export function WorkflowPublishActivityDetails({
   clearInvocationDetailHref
 }: WorkflowPublishActivityDetailsProps) {
   const items = invocationAudit?.items ?? [];
+  const detailsSurfaceCopy = buildPublishedInvocationActivityDetailsSurfaceCopy();
   const entrySurfaceCopy = buildPublishedInvocationEntrySurfaceCopy();
   const apiKeyUsage = invocationAudit?.facets.api_key_usage ?? [];
   const failureReasons = invocationAudit?.facets.recent_failure_reasons ?? [];
@@ -407,7 +409,9 @@ export function WorkflowPublishActivityDetails({
                     <p className="binding-meta">{diagnosis.detail}</p>
                   </>
                 ) : null}
-                <p className="section-copy entry-copy">最近一次出现在 {formatTimestamp(item.last_invoked_at)}。</p>
+                <p className="section-copy entry-copy">
+                  {formatPublishedInvocationFailureReasonLastSeen(item.last_invoked_at)}
+                </p>
               </article>
             );
           })}
@@ -418,7 +422,7 @@ export function WorkflowPublishActivityDetails({
         <article className="entry-card compact-card">
           <div className="payload-card-header">
             <div>
-              <p className="entry-card-title">Selected invocation next step</p>
+              <p className="entry-card-title">{detailsSurfaceCopy.selectedInvocationNextStepTitle}</p>
               <p className="binding-meta">{selectedInvocationId}</p>
             </div>
             <span className="event-chip">{selectedInvocationDrilldown.label}</span>
@@ -481,7 +485,7 @@ export function WorkflowPublishActivityDetails({
           </div>
         </>
       ) : (
-        <p className="empty-state compact">当前还没有 invocation 审计记录。endpoint 发布后，外部入口命中会在这里留下治理事实。</p>
+        <p className="empty-state compact">{detailsSurfaceCopy.invocationAuditEmptyState}</p>
       )}
     </>
   );

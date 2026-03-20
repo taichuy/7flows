@@ -16,6 +16,7 @@ import {
 } from "@/lib/operator-inline-action-feedback";
 import { buildOperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import { formatRunSnapshotSummary } from "@/lib/operator-action-result-presenters";
+import { formatTimestamp } from "@/lib/runtime-presenters";
 import type { ExecutionFocusToolCallSummary } from "@/lib/run-execution-focus-presenters";
 import {
   formatSandboxReadinessDetail,
@@ -126,6 +127,17 @@ export type PublishedInvocationEntrySurfaceCopy = {
   detailPanelDescription: string;
 };
 
+export type PublishedInvocationActivityInsightsSurfaceCopy = {
+  rateLimitWindowDescription: string;
+  rateLimitDisabledEmptyState: string;
+  issueSignalsDescription: string;
+};
+
+export type PublishedInvocationActivityDetailsSurfaceCopy = {
+  selectedInvocationNextStepTitle: string;
+  invocationAuditEmptyState: string;
+};
+
 type PublishedInvocationFailureReasonItem = {
   message: string;
   count: number;
@@ -206,6 +218,33 @@ export function buildPublishedInvocationEntrySurfaceCopy(): PublishedInvocationE
     detailPanelDescription:
       "详情面板会补 run / callback ticket / callback lifecycle / cache 四类稳定排障入口。"
   };
+}
+
+export function buildPublishedInvocationActivityInsightsSurfaceCopy({
+  rateLimitWindowStartedAt
+}: {
+  rateLimitWindowStartedAt?: string | null;
+} = {}): PublishedInvocationActivityInsightsSurfaceCopy {
+  return {
+    rateLimitWindowDescription: rateLimitWindowStartedAt
+      ? `当前窗口从 ${formatTimestamp(rateLimitWindowStartedAt)} 开始统计成功和失败调用，\`rejected\` 仅作为治理信号，不占配额。`
+      : "当前窗口按当前筛选时间窗统计成功和失败调用，`rejected` 仅作为治理信号，不占配额。",
+    rateLimitDisabledEmptyState: "当前 binding 没有启用 rate limit，开放调用不会按时间窗口限流。",
+    issueSignalsDescription:
+      "将 `rejected / failed` 聚合为稳定原因码，便于区分限流、鉴权和当前同步协议边界。"
+  };
+}
+
+export function buildPublishedInvocationActivityDetailsSurfaceCopy(): PublishedInvocationActivityDetailsSurfaceCopy {
+  return {
+    selectedInvocationNextStepTitle: "Selected invocation next step",
+    invocationAuditEmptyState:
+      "当前还没有 invocation 审计记录。endpoint 发布后，外部入口命中会在这里留下治理事实。"
+  };
+}
+
+export function formatPublishedInvocationFailureReasonLastSeen(lastInvokedAt?: string | null) {
+  return `最近一次出现在 ${formatTimestamp(lastInvokedAt)}。`;
 }
 
 export function buildPublishedInvocationRateLimitWindowInsight({

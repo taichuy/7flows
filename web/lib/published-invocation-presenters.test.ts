@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildPublishedInvocationActivityDetailsSurfaceCopy,
+  buildPublishedInvocationActivityInsightsSurfaceCopy,
   buildPublishedCacheInventorySurfaceCopy,
   buildPublishedInvocationCallbackDrilldownSurfaceCopy,
   buildPublishedInvocationCanonicalFollowUpCopy,
@@ -11,6 +13,7 @@ import {
   buildPublishedInvocationRateLimitWindowInsight,
   buildPublishedInvocationRecommendedNextStep,
   buildPublishedInvocationUnavailableDetailSurfaceCopy,
+  formatPublishedInvocationFailureReasonLastSeen,
   formatPublishedInvocationWaitingRuntimeFallback,
   formatPublishedInvocationWaitingFollowUp,
   formatPublishedInvocationWaitingHeadline,
@@ -77,6 +80,42 @@ describe("published invocation presenters", () => {
       succeededDescription: expect.stringContaining("publish 调用链"),
       detailPanelDescription: expect.stringContaining("callback lifecycle / cache")
     });
+  });
+
+  it("为 publish activity insights 提供统一辅助文案", () => {
+    expect(
+      buildPublishedInvocationActivityInsightsSurfaceCopy({
+        rateLimitWindowStartedAt: "2026-03-21T00:00:00Z"
+      })
+    ).toMatchObject({
+      rateLimitWindowDescription: expect.stringContaining("当前窗口从"),
+      rateLimitDisabledEmptyState: "当前 binding 没有启用 rate limit，开放调用不会按时间窗口限流。",
+      issueSignalsDescription:
+        "将 `rejected / failed` 聚合为稳定原因码，便于区分限流、鉴权和当前同步协议边界。"
+    });
+    expect(
+      buildPublishedInvocationActivityInsightsSurfaceCopy({
+        rateLimitWindowStartedAt: "2026-03-21T00:00:00Z"
+      }).rateLimitWindowDescription
+    ).toContain("`rejected` 仅作为治理信号，不占配额");
+
+    expect(buildPublishedInvocationActivityInsightsSurfaceCopy().rateLimitWindowDescription).toContain(
+      "当前窗口按当前筛选时间窗统计成功和失败调用"
+    );
+  });
+
+  it("为 publish activity details 提供统一标题与空态 copy", () => {
+    expect(buildPublishedInvocationActivityDetailsSurfaceCopy()).toEqual({
+      selectedInvocationNextStepTitle: "Selected invocation next step",
+      invocationAuditEmptyState:
+        "当前还没有 invocation 审计记录。endpoint 发布后，外部入口命中会在这里留下治理事实。"
+    });
+  });
+
+  it("格式化 failure reason 最近出现时间", () => {
+    expect(formatPublishedInvocationFailureReasonLastSeen("2026-03-21T00:15:00Z")).toContain(
+      "最近一次出现在"
+    );
   });
 
   it("为 publish activity rate limit window 提供统一 insight", () => {
