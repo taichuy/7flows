@@ -49,7 +49,10 @@ export type SensitiveAccessTimelineSurface =
   | "publish_blocking_invocation";
 
 export type SensitiveAccessTimelineSurfaceCopy = {
+  title: string;
   description: string;
+  emptyState: string;
+  inboxLinkLabel: string;
 };
 
 function formatFallbackLabel(value: string | null | undefined): string | null {
@@ -138,21 +141,30 @@ export function buildSensitiveAccessTimelineSurfaceCopy({
 }): SensitiveAccessTimelineSurfaceCopy {
   if (surface === "publish_blocking_invocation") {
     return {
+      title: "Blocking approval timeline",
       description:
-        `Focus the approval history for the waiting node run first so operator triage can stay on the blocker instead of scanning the entire run timeline.${blockingNodeRunId?.trim() ? ` Current blocking node run: ${blockingNodeRunId.trim()}.` : ""}`
+        `Focus the approval history for the waiting node run first so operator triage can stay on the blocker instead of scanning the entire run timeline.${blockingNodeRunId?.trim() ? ` Current blocking node run: ${blockingNodeRunId.trim()}.` : ""}`,
+      emptyState: "当前阻塞节点没有关联 sensitive access timeline。",
+      inboxLinkLabel: "open blocker inbox slice"
     };
   }
 
   if (surface === "publish_invocation") {
     return {
+      title: "Approval timeline",
       description:
-        "Sensitive access decisions, approval tickets and notification delivery are grouped here so published-surface debugging no longer has to jump back to the inbox."
+        "Sensitive access decisions, approval tickets and notification delivery are grouped here so published-surface debugging no longer has to jump back to the inbox.",
+      emptyState: "当前这次 invocation 没有关联 sensitive access timeline。",
+      inboxLinkLabel: "open approval inbox slice"
     };
   }
 
   return {
+    title: "Sensitive access timeline",
     description:
-      "Approval tickets, notification delivery and policy decisions stay grouped here so operator triage can continue without leaving the execution node."
+      "Approval tickets, notification delivery and policy decisions stay grouped here so operator triage can continue without leaving the execution node.",
+    emptyState: "当前这个 execution node 没有关联 sensitive access timeline。",
+    inboxLinkLabel: "open inbox slice"
   };
 }
 

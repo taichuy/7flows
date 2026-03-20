@@ -19,8 +19,15 @@ vi.mock("@/components/run-diagnostics-execution/execution-node-card", () => ({
 }));
 
 vi.mock("@/components/sensitive-access-timeline-entry-list", () => ({
-  SensitiveAccessTimelineEntryList: () =>
-    createElement("div", { "data-testid": "sensitive-access-timeline-entry-list" })
+  SensitiveAccessTimelineEntryList: ({ emptyCopy }: { emptyCopy: string }) =>
+    createElement(
+      "div",
+      {
+        "data-testid": "sensitive-access-timeline-entry-list",
+        "data-empty-copy": emptyCopy
+      },
+      emptyCopy
+    )
 }));
 
 vi.mock("@/components/tool-governance-summary", () => ({
@@ -597,5 +604,30 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     expect(html).toContain("execution focus");
     expect(html).toContain("open run");
     expect(html).toContain("优先打开 run，继续检查 execution focus node 的 fallback / blocking reason。");
+  });
+
+  it("uses shared approval timeline surface copy in publish detail", () => {
+    const detail = buildDetail();
+    const placeholderEntry =
+      {} as PublishedEndpointInvocationDetailResponse["sensitive_access_entries"][number];
+
+    detail.blocking_node_run_id = "node-run-blocked";
+    detail.blocking_sensitive_access_entries = [placeholderEntry];
+    detail.sensitive_access_entries = [placeholderEntry, placeholderEntry];
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationDetailPanel, {
+        detail,
+        clearHref: "/published?clear=1",
+        tools: [],
+        callbackWaitingAutomation
+      })
+    );
+
+    expect(html).toContain("Blocking approval timeline");
+    expect(html).toContain("open blocker inbox slice");
+    expect(html).toContain("当前阻塞节点没有关联 sensitive access timeline。");
+    expect(html).toContain("Approval timeline");
+    expect(html).toContain("当前这次 invocation 没有关联 sensitive access timeline。");
   });
 });

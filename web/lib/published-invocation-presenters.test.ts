@@ -48,9 +48,15 @@ describe("published invocation presenters", () => {
       liveSandboxReadinessTitle: "Live sandbox readiness",
       injectedReferencesTitle: "Injected references",
       toolGovernanceSummaryTitle: "Execution and sensitivity",
+      blockingApprovalTimelineTitle: "Blocking approval timeline",
       canonicalFollowUpDescription: expect.stringContaining("operator follow-up"),
       blockingApprovalTimelineDescription: expect.stringContaining("node-run-blocked"),
+      blockingApprovalTimelineInboxLabel: "open blocker inbox slice",
+      blockingApprovalTimelineEmptyState: "当前阻塞节点没有关联 sensitive access timeline。",
+      approvalTimelineTitle: "Approval timeline",
       approvalTimelineDescription: expect.stringContaining("published-surface debugging"),
+      approvalTimelineInboxLabel: "open approval inbox slice",
+      approvalTimelineEmptyState: "当前这次 invocation 没有关联 sensitive access timeline。",
       skillTraceDescription: expect.stringContaining("node-run-focus")
     });
   });

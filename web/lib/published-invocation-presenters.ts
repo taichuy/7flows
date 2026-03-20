@@ -107,8 +107,14 @@ export type PublishedInvocationDetailSurfaceCopy = {
   toolGovernanceTitle: string;
   toolGovernanceSummaryTitle: string;
   toolGovernanceDescription: string;
+  blockingApprovalTimelineTitle: string;
   blockingApprovalTimelineDescription: string;
+  blockingApprovalTimelineInboxLabel: string;
+  blockingApprovalTimelineEmptyState: string;
+  approvalTimelineTitle: string;
   approvalTimelineDescription: string;
+  approvalTimelineInboxLabel: string;
+  approvalTimelineEmptyState: string;
 };
 
 export type PublishedCacheInventorySurfaceCopy = {
@@ -227,8 +233,14 @@ export function buildPublishedInvocationDetailSurfaceCopy({
     toolGovernanceSummaryTitle: "Execution and sensitivity",
     toolGovernanceDescription:
       "把 callback waiting 关联 tool 的默认执行边界和敏感级别一起带到 publish detail，避免 operator 只看到阻断结果却看不见治理原因。",
+    blockingApprovalTimelineTitle: blockingApprovalTimelineCopy.title,
     blockingApprovalTimelineDescription: blockingApprovalTimelineCopy.description,
-    approvalTimelineDescription: approvalTimelineCopy.description
+    blockingApprovalTimelineInboxLabel: blockingApprovalTimelineCopy.inboxLinkLabel,
+    blockingApprovalTimelineEmptyState: blockingApprovalTimelineCopy.emptyState,
+    approvalTimelineTitle: approvalTimelineCopy.title,
+    approvalTimelineDescription: approvalTimelineCopy.description,
+    approvalTimelineInboxLabel: approvalTimelineCopy.inboxLinkLabel,
+    approvalTimelineEmptyState: approvalTimelineCopy.emptyState
   };
 }
 

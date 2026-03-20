@@ -556,37 +556,37 @@ export function WorkflowPublishInvocationDetailPanel({
       {blockingSensitiveAccessEntries.length > 0 &&
       blockingSensitiveAccessEntries.length < sensitiveAccessEntries.length ? (
         <div>
-          <strong>Blocking approval timeline</strong>
+          <strong>{detailSurfaceCopy.blockingApprovalTimelineTitle}</strong>
           <p className="section-copy entry-copy">{detailSurfaceCopy.blockingApprovalTimelineDescription}</p>
           {blockingInboxHref ? (
             <div className="tool-badge-row">
               <Link className="event-chip inbox-filter-link" href={blockingInboxHref}>
-                open blocker inbox slice
+                {detailSurfaceCopy.blockingApprovalTimelineInboxLabel}
               </Link>
             </div>
           ) : null}
           <SensitiveAccessTimelineEntryList
             defaultRunId={runId}
             entries={blockingSensitiveAccessEntries}
-            emptyCopy="当前阻塞节点没有关联 sensitive access timeline。"
+            emptyCopy={detailSurfaceCopy.blockingApprovalTimelineEmptyState}
           />
         </div>
       ) : null}
 
       <div>
-        <strong>Approval timeline</strong>
+        <strong>{detailSurfaceCopy.approvalTimelineTitle}</strong>
         <p className="section-copy entry-copy">{detailSurfaceCopy.approvalTimelineDescription}</p>
         {approvalInboxHref ? (
           <div className="tool-badge-row">
             <Link className="event-chip inbox-filter-link" href={approvalInboxHref}>
-              open approval inbox slice
+              {detailSurfaceCopy.approvalTimelineInboxLabel}
             </Link>
           </div>
         ) : null}
         <SensitiveAccessTimelineEntryList
           defaultRunId={runId}
           entries={sensitiveAccessEntries}
-          emptyCopy="当前这次 invocation 没有关联 sensitive access timeline。"
+          emptyCopy={detailSurfaceCopy.approvalTimelineEmptyState}
         />
       </div>
     </article>

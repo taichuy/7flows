@@ -58,7 +58,10 @@ describe("sensitive access presenters", () => {
         surface: "execution_node"
       })
     ).toEqual({
-      description: expect.stringContaining("without leaving the execution node")
+      title: "Sensitive access timeline",
+      description: expect.stringContaining("without leaving the execution node"),
+      emptyState: "当前这个 execution node 没有关联 sensitive access timeline。",
+      inboxLinkLabel: "open inbox slice"
     });
 
     expect(
@@ -66,7 +69,10 @@ describe("sensitive access presenters", () => {
         surface: "publish_invocation"
       })
     ).toEqual({
-      description: expect.stringContaining("published-surface debugging")
+      title: "Approval timeline",
+      description: expect.stringContaining("published-surface debugging"),
+      emptyState: "当前这次 invocation 没有关联 sensitive access timeline。",
+      inboxLinkLabel: "open approval inbox slice"
     });
 
     expect(
@@ -75,7 +81,10 @@ describe("sensitive access presenters", () => {
         blockingNodeRunId: "node-run-blocked"
       })
     ).toEqual({
-      description: expect.stringContaining("node-run-blocked")
+      title: "Blocking approval timeline",
+      description: expect.stringContaining("node-run-blocked"),
+      emptyState: "当前阻塞节点没有关联 sensitive access timeline。",
+      inboxLinkLabel: "open blocker inbox slice"
     });
   });
 
