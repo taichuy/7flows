@@ -20,6 +20,7 @@ import { buildCallbackWaitingFocusSkillTraceModel } from "@/lib/callback-waiting
 import {
   formatExecutionFocusArtifactSummary,
   listExecutionFocusArtifactPreviews,
+  listExecutionFocusRuntimeFactBadges,
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
 import {
@@ -32,6 +33,20 @@ import {
   listCallbackWaitingOperatorStatuses,
   pickCallbackWaitingInlineSensitiveAccessEntry
 } from "@/lib/callback-waiting-presenters";
+
+type CallbackWaitingFocusNodeEvidence = Pick<
+  RunExecutionNodeItem,
+  "artifact_refs" | "artifacts" | "tool_calls"
+> &
+  Partial<
+    Pick<
+      RunExecutionNodeItem,
+      | "effective_execution_class"
+      | "execution_executor_ref"
+      | "execution_sandbox_backend_id"
+      | "execution_sandbox_runner_kind"
+    >
+  >;
 
 type CallbackWaitingSummaryCardProps = {
   lifecycle?: CallbackWaitingLifecycleSummary | null;
@@ -50,12 +65,13 @@ type CallbackWaitingSummaryCardProps = {
   inboxHref?: string | null;
   runId?: string | null;
   nodeRunId?: string | null;
-  focusNodeEvidence?: Pick<RunExecutionNodeItem, "artifact_refs" | "artifacts" | "tool_calls"> | null;
+  focusNodeEvidence?: CallbackWaitingFocusNodeEvidence | null;
   focusSkillTrace?: RunExecutionSkillTrace | null;
   focusSkillReferenceLoads?: SkillReferenceLoadItem[];
   focusSkillReferenceCount?: number | null;
   focusSkillReferenceNodeId?: string | null;
   focusSkillReferenceNodeName?: string | null;
+  showFocusExecutionFacts?: boolean;
   showInlineActions?: boolean;
   className?: string;
 };
@@ -83,6 +99,7 @@ export function CallbackWaitingSummaryCard({
   focusSkillReferenceCount = null,
   focusSkillReferenceNodeId = null,
   focusSkillReferenceNodeName = null,
+  showFocusExecutionFacts = false,
   showInlineActions = true,
   className = ""
 }: CallbackWaitingSummaryCardProps) {
@@ -199,6 +216,10 @@ export function CallbackWaitingSummaryCard({
   const focusArtifacts = focusNodeEvidence
     ? listExecutionFocusArtifactPreviews(focusNodeEvidence)
     : [];
+  const focusExecutionFactBadges =
+    showFocusExecutionFacts && focusNodeEvidence
+      ? listExecutionFocusRuntimeFactBadges(focusNodeEvidence)
+      : [];
   const focusSkillTraceModel = buildCallbackWaitingFocusSkillTraceModel({
     skillTrace: focusSkillTrace,
     fallbackNodeRunId: nodeRunId,
@@ -260,6 +281,15 @@ export function CallbackWaitingSummaryCard({
         </p>
       ))}
       {callbackFollowUp ? <p className="section-copy entry-copy">{callbackFollowUp}</p> : null}
+      {focusExecutionFactBadges.length ? (
+        <div className="tool-badge-row">
+          {focusExecutionFactBadges.map((badge) => (
+            <span className="event-chip" key={badge}>
+              {badge}
+            </span>
+          ))}
+        </div>
+      ) : null}
       {focusNodeEvidence ? (
         <OperatorFocusEvidenceCard
           title="Waiting node focus evidence"

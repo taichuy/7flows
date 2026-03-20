@@ -307,11 +307,13 @@ export function WorkflowPublishInvocationDetailPanel({
                             sources {sample.skill_reference_source_summary}
                           </span>
                         ) : null}
-                        {sampleExecutionFactBadges.map((badge) => (
-                          <span className="event-chip" key={`${sample.run_id}-${badge}`}>
-                            {badge}
-                          </span>
-                        ))}
+                        {!sample.has_callback_waiting_summary
+                          ? sampleExecutionFactBadges.map((badge) => (
+                              <span className="event-chip" key={`${sample.run_id}-${badge}`}>
+                                {badge}
+                              </span>
+                            ))
+                          : null}
                       </div>
                     ) : null}
                     {sample.has_callback_waiting_summary ? (
@@ -333,6 +335,7 @@ export function WorkflowPublishInvocationDetailPanel({
                         }
                         nodeRunId={sample.run_snapshot.executionFocusNodeRunId ?? null}
                         runId={sample.run_id}
+                        showFocusExecutionFacts
                         scheduledResumeDelaySeconds={
                           sample.run_snapshot.scheduledResumeDelaySeconds ?? null
                         }
