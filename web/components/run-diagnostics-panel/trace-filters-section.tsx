@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { RunTraceExportActions } from "@/components/run-trace-export-actions";
 import { DEFAULT_RUN_TRACE_LIMIT, type RunTraceQuery } from "@/lib/get-run-trace";
+import { buildRunDiagnosticsTraceSurfaceCopy } from "@/lib/run-diagnostics-presenters";
 
 import { TRACE_LIMIT_OPTIONS } from "@/components/run-diagnostics-panel/shared";
 
@@ -21,6 +22,10 @@ export function RunDiagnosticsTraceFiltersSection({
   nodeRunOptions,
   activeFilters
 }: RunDiagnosticsTraceFiltersSectionProps) {
+  const surfaceCopy = buildRunDiagnosticsTraceSurfaceCopy({
+    defaultLimit: DEFAULT_RUN_TRACE_LIMIT
+  });
+
   return (
     <section className="diagnostics-layout">
       <article className="diagnostic-panel">
@@ -29,9 +34,7 @@ export function RunDiagnosticsTraceFiltersSection({
             <p className="eyebrow">Trace</p>
             <h2>Trace filters & export</h2>
           </div>
-          <p className="section-copy">
-            这里直接消费 `/trace`，用于人类排障；AI 和自动化仍应优先直连机器接口。
-          </p>
+          <p className="section-copy">{surfaceCopy.sectionDescription}</p>
         </div>
 
         <form className="trace-filter-form" action={`/runs/${runId}`} method="get">
@@ -125,10 +128,10 @@ export function RunDiagnosticsTraceFiltersSection({
 
           <div className="trace-filter-actions trace-field-span">
             <button className="sync-button" type="submit">
-              应用过滤
+              {surfaceCopy.applyFiltersLabel}
             </button>
             <Link className="inline-link" href={`/runs/${runId}`}>
-              重置过滤
+              {surfaceCopy.resetFiltersLabel}
             </Link>
             <RunTraceExportActions
               query={activeTraceQuery}
@@ -139,14 +142,14 @@ export function RunDiagnosticsTraceFiltersSection({
         </form>
 
         <div className="trace-filter-hints">
-          <span className="event-chip">默认 limit {DEFAULT_RUN_TRACE_LIMIT}</span>
-          <span className="event-chip">时间窗输入按 UTC ISO 传给 API</span>
-          <span className="event-chip">翻页通过 opaque cursor 保持当前过滤条件</span>
+          <span className="event-chip">{surfaceCopy.defaultLimitHint}</span>
+          <span className="event-chip">{surfaceCopy.utcTimeWindowHint}</span>
+          <span className="event-chip">{surfaceCopy.cursorPaginationHint}</span>
         </div>
 
         <div className="trace-active-filter-row">
           {activeFilters.length === 0 ? (
-            <p className="empty-state compact">当前是默认 trace 视图，没有额外过滤条件。</p>
+            <p className="empty-state compact">{surfaceCopy.emptyState}</p>
           ) : (
             activeFilters.map((filter) => (
               <span className="event-chip" key={filter}>

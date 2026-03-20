@@ -22,6 +22,7 @@ import {
   type RunTrace,
   type RunTraceQuery
 } from "@/lib/get-run-trace";
+import { buildRunDiagnosticsHeroSurfaceCopy } from "@/lib/run-diagnostics-presenters";
 import {
   formatDuration,
   formatTimestamp
@@ -71,6 +72,7 @@ export function RunDiagnosticsPanel({
   const activeFilters = summarizeActiveFilters(activeTraceQuery);
   const traceHref = buildPageTraceHref(run.id, activeTraceQuery);
   const eventsApiHref = `${getApiBaseUrl()}/api/runs/${encodeURIComponent(run.id)}/events`;
+  const heroSurfaceCopy = buildRunDiagnosticsHeroSurfaceCopy();
 
   return (
     <main className="shell">
@@ -78,10 +80,7 @@ export function RunDiagnosticsPanel({
         <div className="hero-copy">
           <p className="eyebrow">Run Diagnostics</p>
           <h1>{run.workflow_id}</h1>
-          <p className="hero-text">
-            这页现在直接消费 `run trace`，可以按事件类型、节点、时间窗和
-            payload key 顺着 `run_events` 排障，同时保留导出与原始事件入口。
-          </p>
+          <p className="hero-text">{heroSurfaceCopy.description}</p>
           <div className="pill-row">
             <span className="pill">run {run.id}</span>
             <span className="pill">version {run.workflow_version}</span>
@@ -90,10 +89,10 @@ export function RunDiagnosticsPanel({
           </div>
           <div className="hero-actions">
             <Link className="inline-link" href="/">
-              返回系统首页
+              {heroSurfaceCopy.homeLinkLabel}
             </Link>
             <a className="inline-link" href={eventsApiHref} target="_blank" rel="noreferrer">
-              打开原始 events API
+              {heroSurfaceCopy.eventsApiLinkLabel}
             </a>
           </div>
         </div>

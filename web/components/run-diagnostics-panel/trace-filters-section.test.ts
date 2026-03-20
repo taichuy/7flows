@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { RunDiagnosticsTraceFiltersSection } from "@/components/run-diagnostics-panel/trace-filters-section";
+import { buildRunDiagnosticsTraceSurfaceCopy } from "@/lib/run-diagnostics-presenters";
 
 const { exportActionSpy } = vi.hoisted(() => ({
   exportActionSpy: vi.fn()
@@ -47,5 +48,32 @@ describe("RunDiagnosticsTraceFiltersSection", () => {
     );
     const props = exportActionSpy.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(props).not.toHaveProperty("blockedSummary");
+  });
+
+  it("renders shared trace helper copy instead of local hardcoded text", () => {
+    const surfaceCopy = buildRunDiagnosticsTraceSurfaceCopy({
+      defaultLimit: 100
+    });
+
+    const html = renderToStaticMarkup(
+      createElement(RunDiagnosticsTraceFiltersSection, {
+        runId: "run-1",
+        activeTraceQuery: {
+          limit: 100,
+          order: "desc"
+        },
+        eventTypeOptions: ["node.started"],
+        nodeRunOptions: ["node-run-1"],
+        activeFilters: []
+      })
+    );
+
+    expect(html).toContain(surfaceCopy.sectionDescription);
+    expect(html).toContain(surfaceCopy.applyFiltersLabel);
+    expect(html).toContain(surfaceCopy.resetFiltersLabel);
+    expect(html).toContain(surfaceCopy.defaultLimitHint);
+    expect(html).toContain(surfaceCopy.utcTimeWindowHint);
+    expect(html).toContain(surfaceCopy.cursorPaginationHint);
+    expect(html).toContain(surfaceCopy.emptyState);
   });
 });
