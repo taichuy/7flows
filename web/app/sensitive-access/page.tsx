@@ -6,8 +6,13 @@ import { SensitiveAccessInboxFilterSection } from "@/components/sensitive-access
 import { SensitiveAccessInboxPanel } from "@/components/sensitive-access-inbox-panel";
 import {
   APPROVAL_STATUS_OPTIONS,
+  buildSensitiveAccessInboxScopeChips,
+  buildSensitiveAccessInboxSliceChips,
+  clearSensitiveAccessInboxScopeFilters,
+  clearSensitiveAccessInboxSliceFilters,
   firstSearchValue,
-  hasActiveInboxFilters,
+  hasActiveInboxScopeFilters,
+  hasActiveInboxSliceFilters,
   NOTIFICATION_CHANNEL_OPTIONS,
   NOTIFICATION_STATUS_OPTIONS,
   REQUEST_DECISION_OPTIONS,
@@ -115,6 +120,8 @@ export default async function SensitiveAccessInboxPage({
 }: SensitiveAccessInboxPageProps) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const filters = buildFilters(resolvedSearchParams);
+  const activeScopeChips = buildSensitiveAccessInboxScopeChips(filters);
+  const activeSliceChips = buildSensitiveAccessInboxSliceChips(filters);
 
   const snapshot = await getSensitiveAccessInboxSnapshot({
     ticketStatus: filters.status ?? undefined,
@@ -213,44 +220,32 @@ export default async function SensitiveAccessInboxPage({
             title="notification_channel"
           />
 
-          {hasActiveInboxFilters(filters) ? (
+          {hasActiveInboxScopeFilters(filters) ? (
             <div className="summary-strip">
-              {filters.runId ? <span className="event-chip">run slice {filters.runId}</span> : null}
-              {filters.nodeRunId ? (
-                <span className="event-chip">node run {filters.nodeRunId}</span>
-              ) : null}
-              {filters.accessRequestId ? (
-                <span className="event-chip">request {filters.accessRequestId.slice(0, 8)}</span>
-              ) : null}
-              {filters.approvalTicketId ? (
-                <span className="event-chip">ticket {filters.approvalTicketId.slice(0, 8)}</span>
-              ) : null}
-              {filters.requestDecision ? (
-                <span className="event-chip">decision {filters.requestDecision}</span>
-              ) : null}
-              {filters.requesterType ? (
-                <span className="event-chip">requester {filters.requesterType}</span>
-              ) : null}
-              {filters.notificationStatus ? (
-                <span className="event-chip">notify {filters.notificationStatus}</span>
-              ) : null}
-              {filters.notificationChannel ? (
-                <span className="event-chip">channel {filters.notificationChannel}</span>
-              ) : null}
+              {activeScopeChips.map((chip) => (
+                <span className="event-chip" key={chip.key}>
+                  {chip.label}
+                </span>
+              ))}
               <Link
                 className="event-chip inbox-filter-link"
-                href={buildSensitiveAccessInboxHref({
-                  status: null,
-                  waitingStatus: null,
-                  requestDecision: null,
-                  requesterType: null,
-                  notificationStatus: null,
-                  notificationChannel: null,
-                  runId: null,
-                  nodeRunId: null,
-                  accessRequestId: null,
-                  approvalTicketId: null
-                })}
+                href={buildSensitiveAccessInboxHref(clearSensitiveAccessInboxScopeFilters(filters))}
+              >
+                clear scope filters
+              </Link>
+            </div>
+          ) : null}
+
+          {hasActiveInboxSliceFilters(filters) ? (
+            <div className="summary-strip">
+              {activeSliceChips.map((chip) => (
+                <span className="event-chip" key={chip.key}>
+                  {chip.label}
+                </span>
+              ))}
+              <Link
+                className="event-chip inbox-filter-link"
+                href={buildSensitiveAccessInboxHref(clearSensitiveAccessInboxSliceFilters(filters))}
               >
                 clear detail slice
               </Link>

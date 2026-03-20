@@ -18,6 +18,11 @@ export type SensitiveAccessInboxPageFilterState = {
   approvalTicketId: string | null;
 };
 
+export type SensitiveAccessInboxFilterChip = {
+  key: string;
+  label: string;
+};
+
 export const APPROVAL_STATUS_OPTIONS: Array<ApprovalTicketItem["status"]> = [
   "pending",
   "approved",
@@ -92,14 +97,102 @@ export function formatChannelTimestamp(value?: string | null) {
 }
 
 export function hasActiveInboxFilters(filters: SensitiveAccessInboxPageFilterState) {
+  return hasActiveInboxScopeFilters(filters) || hasActiveInboxSliceFilters(filters);
+}
+
+export function hasActiveInboxScopeFilters(filters: SensitiveAccessInboxPageFilterState) {
   return Boolean(
-    filters.runId ||
-      filters.nodeRunId ||
-      filters.accessRequestId ||
-      filters.approvalTicketId ||
+    filters.status ||
+      filters.waitingStatus ||
       filters.requestDecision ||
       filters.requesterType ||
       filters.notificationStatus ||
       filters.notificationChannel
   );
+}
+
+export function hasActiveInboxSliceFilters(filters: SensitiveAccessInboxPageFilterState) {
+  return Boolean(
+    filters.runId || filters.nodeRunId || filters.accessRequestId || filters.approvalTicketId
+  );
+}
+
+export function buildSensitiveAccessInboxScopeChips(
+  filters: SensitiveAccessInboxPageFilterState
+): SensitiveAccessInboxFilterChip[] {
+  const chips: SensitiveAccessInboxFilterChip[] = [];
+
+  if (filters.status) {
+    chips.push({ key: "status", label: `ticket ${filters.status}` });
+  }
+  if (filters.waitingStatus) {
+    chips.push({ key: "waitingStatus", label: `recovery ${filters.waitingStatus}` });
+  }
+  if (filters.requestDecision) {
+    chips.push({ key: "requestDecision", label: `decision ${filters.requestDecision}` });
+  }
+  if (filters.requesterType) {
+    chips.push({ key: "requesterType", label: `requester ${filters.requesterType}` });
+  }
+  if (filters.notificationStatus) {
+    chips.push({ key: "notificationStatus", label: `notify ${filters.notificationStatus}` });
+  }
+  if (filters.notificationChannel) {
+    chips.push({ key: "notificationChannel", label: `channel ${filters.notificationChannel}` });
+  }
+
+  return chips;
+}
+
+export function buildSensitiveAccessInboxSliceChips(
+  filters: SensitiveAccessInboxPageFilterState
+): SensitiveAccessInboxFilterChip[] {
+  const chips: SensitiveAccessInboxFilterChip[] = [];
+
+  if (filters.runId) {
+    chips.push({ key: "runId", label: `run slice ${filters.runId}` });
+  }
+  if (filters.nodeRunId) {
+    chips.push({ key: "nodeRunId", label: `node run ${filters.nodeRunId}` });
+  }
+  if (filters.accessRequestId) {
+    chips.push({
+      key: "accessRequestId",
+      label: `request ${filters.accessRequestId.slice(0, 8)}`
+    });
+  }
+  if (filters.approvalTicketId) {
+    chips.push({
+      key: "approvalTicketId",
+      label: `ticket ${filters.approvalTicketId.slice(0, 8)}`
+    });
+  }
+
+  return chips;
+}
+
+export function clearSensitiveAccessInboxScopeFilters(
+  filters: SensitiveAccessInboxPageFilterState
+): SensitiveAccessInboxPageFilterState {
+  return {
+    ...filters,
+    status: null,
+    waitingStatus: null,
+    requestDecision: null,
+    requesterType: null,
+    notificationStatus: null,
+    notificationChannel: null
+  };
+}
+
+export function clearSensitiveAccessInboxSliceFilters(
+  filters: SensitiveAccessInboxPageFilterState
+): SensitiveAccessInboxPageFilterState {
+  return {
+    ...filters,
+    runId: null,
+    nodeRunId: null,
+    accessRequestId: null,
+    approvalTicketId: null
+  };
 }
