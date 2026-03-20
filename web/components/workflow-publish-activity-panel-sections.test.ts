@@ -10,10 +10,26 @@ import type { WorkflowPublishActivityPanelProps } from "@/components/workflow-pu
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { PublishedEndpointInvocationDetailResponse } from "@/lib/get-workflow-publish";
 import type { PublishedEndpointInvocationListResponse } from "@/lib/get-workflow-publish";
+import type { SensitiveAccessBlockingPayload } from "@/lib/sensitive-access";
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
     createElement("a", { href: href ?? "#", ...props }, children)
+}));
+
+vi.mock("@/components/sensitive-access-blocked-card", () => ({
+  SensitiveAccessBlockedCard: ({
+    title,
+    summary
+  }: {
+    title: string;
+    summary?: string;
+  }) => createElement("div", null, `${title} :: ${summary ?? ""}`)
+}));
+
+vi.mock("@/components/workflow-publish-invocation-entry-card", () => ({
+  WorkflowPublishInvocationEntryCard: () =>
+    createElement("div", { "data-testid": "workflow-publish-invocation-entry-card" })
 }));
 
 function buildSandboxReadiness(): SandboxReadinessCheck {
@@ -235,6 +251,48 @@ function buildSelectedInvocationDetail(): PublishedEndpointInvocationDetailRespo
   };
 }
 
+function buildBlockedPayload(): SensitiveAccessBlockingPayload {
+  return {
+    detail: "Invocation detail is guarded by sensitive access control.",
+    resource: {
+      id: "resource-1",
+      label: "Invocation detail",
+      description: "Protected invocation detail payload",
+      sensitivity_level: "L3",
+      source: "workspace_resource",
+      metadata: {}
+    },
+    access_request: {
+      id: "request-1",
+      run_id: "run-selected-1",
+      node_run_id: "node-run-wait",
+      requester_type: "human",
+      requester_id: "ops-reviewer",
+      resource_id: "resource-1",
+      action_type: "read",
+      decision: "require_approval",
+      reason_code: "approval_required_high_sensitive_access",
+      policy_summary: null
+    },
+    approval_ticket: {
+      id: "ticket-1",
+      access_request_id: "request-1",
+      run_id: "run-selected-1",
+      node_run_id: "node-run-wait",
+      status: "pending",
+      waiting_status: "waiting",
+      approved_by: null
+    },
+    notifications: [],
+    outcome_explanation: {
+      primary_signal: "审批票据仍在等待处理。",
+      follow_up: "先处理审批票据，再申请查看 invocation detail。"
+    },
+    run_snapshot: null,
+    run_follow_up: null
+  };
+}
+
 describe("WorkflowPublishActivityInsights", () => {
   it("explains rate-limit pressure and runtime failures against live sandbox readiness", () => {
     const html = renderToStaticMarkup(
@@ -311,5 +369,41 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain("approval blocker");
     expect(html).toContain("open blocker inbox slice");
     expect(html).toContain("优先处理 blocker inbox，再观察 waiting 节点是否恢复。");
+  });
+
+  it("uses shared blocked surface copy for invocation detail access", () => {
+    const invocationAudit = {
+      ...buildInvocationAudit(),
+      items: [{ id: "invocation-1" } as never]
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishActivityDetails, {
+        tools: [],
+        invocationAudit,
+        selectedInvocationId: "invocation-1",
+        selectedInvocationDetail: {
+          kind: "blocked",
+          statusCode: 403,
+          payload: buildBlockedPayload()
+        },
+        callbackWaitingAutomation: {
+          status: "disabled",
+          scheduler_required: false,
+          detail: "disabled in test",
+          scheduler_health_status: "idle",
+          scheduler_health_detail: "not configured",
+          steps: []
+        },
+        sandboxReadiness: buildSandboxReadiness(),
+        buildInvocationDetailHref: () => "#",
+        clearInvocationDetailHref: "/workflows/workflow-1?publish_invocation=invocation-1"
+      })
+    );
+
+    expect(html).toContain("Invocation detail waiting on approval");
+    expect(html).toContain("详情查看不会绕过审批、通知与 run follow-up 事实链");
+    expect(html).toContain("当前信号：审批票据仍在等待处理。");
+    expect(html).not.toContain("Invocation detail access blocked");
   });
 });

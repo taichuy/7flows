@@ -15,6 +15,7 @@ import type {
   PublishedEndpointInvocationListResponse
 } from "@/lib/get-workflow-publish";
 import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
+import { buildSensitiveAccessBlockedSurfaceCopy } from "@/lib/sensitive-access-presenters";
 import {
   buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationCanonicalFollowUpCopy,
@@ -495,6 +496,14 @@ export function WorkflowPublishActivityDetails({
           });
         })()
       : null;
+  const selectedInvocationBlockedCopy =
+    selectedInvocationDetail?.kind === "blocked"
+      ? buildSensitiveAccessBlockedSurfaceCopy({
+          surfaceLabel: "Invocation detail",
+          payload: selectedInvocationDetail.payload,
+          guardedActionLabel: "详情查看"
+        })
+      : null;
 
   return (
     <>
@@ -595,8 +604,8 @@ export function WorkflowPublishActivityDetails({
               <SensitiveAccessBlockedCard
                 clearHref={clearInvocationDetailHref}
                 payload={selectedInvocationDetail.payload}
-                summary="当前 invocation detail 已被纳入统一敏感访问控制；可先查看审批票据和关联 run，再决定是否继续申请明细查看。"
-                title="Invocation detail access blocked"
+                summary={selectedInvocationBlockedCopy?.summary}
+                title={selectedInvocationBlockedCopy?.title ?? "Invocation detail access blocked"}
               />
             ) : (
               <article className="entry-card compact-card">

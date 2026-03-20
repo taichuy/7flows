@@ -124,12 +124,14 @@ export function buildSensitiveAccessBlockedSurfaceCopy({
   surfaceLabel,
   payload,
   title,
-  summary
+  summary,
+  guardedActionLabel
 }: {
   surfaceLabel: string;
   payload: SensitiveAccessBlockingPayload;
   title?: string | null;
   summary?: string | null;
+  guardedActionLabel?: string | null;
 }) {
   const primarySignal = resolveSensitiveAccessBlockedPrimarySignal({
     outcomeExplanation: payload.outcome_explanation ?? null,
@@ -141,6 +143,7 @@ export function buildSensitiveAccessBlockedSurfaceCopy({
   const decisionLabel = formatSensitiveAccessDecisionLabel(payload.access_request);
   const normalizedTitle = normalizeCopy(title);
   const normalizedSummary = normalizeCopy(summary);
+  const normalizedActionLabel = normalizeCopy(guardedActionLabel) ?? "导出动作";
   const evidenceSentence = primarySignal
     ? `当前信号：${trimTrailingSentencePunctuation(primarySignal)}`
     : policySummary
@@ -158,7 +161,7 @@ export function buildSensitiveAccessBlockedSurfaceCopy({
       }),
     summary:
       normalizedSummary ??
-      `当前 ${surfaceLabel} 已接入统一敏感访问控制；导出动作不会绕过审批、通知与 run follow-up 事实链。${evidenceSentence}。`
+      `当前 ${surfaceLabel} 已接入统一敏感访问控制；${normalizedActionLabel}不会绕过审批、通知与 run follow-up 事实链。${evidenceSentence}。`
   };
 }
 

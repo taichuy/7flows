@@ -22,6 +22,7 @@ import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import type { WorkflowPublishInvocationActiveFilter } from "@/lib/workflow-publish-governance";
 import type { WorkflowDetail } from "@/lib/get-workflows";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import { buildSensitiveAccessBlockedSurfaceCopy } from "@/lib/sensitive-access-presenters";
 
 type WorkflowPublishBindingCardProps = {
   workflow: WorkflowDetail;
@@ -55,6 +56,14 @@ export function WorkflowPublishBindingCard({
   const cacheSummary = binding.cache_inventory;
   const activity = binding.activity;
   const resolvedCacheInventory = cacheInventory?.kind === "ok" ? cacheInventory.data : null;
+  const cacheInventoryBlockedCopy =
+    cacheInventory?.kind === "blocked"
+      ? buildSensitiveAccessBlockedSurfaceCopy({
+          surfaceLabel: "Cache inventory",
+          payload: cacheInventory.payload,
+          guardedActionLabel: "cache inventory 查看"
+        })
+      : null;
   const varyBy =
     cacheSummary && cacheSummary.vary_by.length > 0
       ? cacheSummary.vary_by
@@ -208,8 +217,8 @@ export function WorkflowPublishBindingCard({
             {cacheInventory?.kind === "blocked" ? (
               <SensitiveAccessBlockedCard
                 payload={cacheInventory.payload}
-                summary="当前 binding 的 cache inventory 已被标记为敏感详情入口；summary 仍可见，但具体 cache entries 需走审批。"
-                title="Cache inventory access blocked"
+                summary={cacheInventoryBlockedCopy?.summary}
+                title={cacheInventoryBlockedCopy?.title ?? "Cache inventory access blocked"}
               />
             ) : resolvedCacheInventory?.items?.length ? (
               <div className="publish-cache-list">

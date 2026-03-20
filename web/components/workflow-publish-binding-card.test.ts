@@ -6,6 +6,7 @@ import { WorkflowPublishBindingCard } from "@/components/workflow-publish-bindin
 import type { CallbackWaitingAutomationCheck, SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { WorkflowDetail } from "@/lib/get-workflows";
 import type { WorkflowPublishedEndpointItem } from "@/lib/get-workflow-publish";
+import type { SensitiveAccessBlockingPayload } from "@/lib/sensitive-access";
 
 vi.mock("@/components/workflow-publish-activity-panel", () => ({
   WorkflowPublishActivityPanel: () => createElement("div", null, "activity-panel")
@@ -22,6 +23,16 @@ vi.mock("@/components/workflow-publish-lifecycle-form", () => ({
 
 vi.mock("@/components/workflow-publish-api-key-manager", () => ({
   WorkflowPublishApiKeyManager: () => createElement("div", null, "api-key-manager")
+}));
+
+vi.mock("@/components/sensitive-access-blocked-card", () => ({
+  SensitiveAccessBlockedCard: ({
+    title,
+    summary
+  }: {
+    title: string;
+    summary?: string;
+  }) => createElement("div", null, `${title} :: ${summary ?? ""}`)
 }));
 
 function buildSandboxReadiness(): SandboxReadinessCheck {
@@ -150,6 +161,48 @@ function buildBinding(): WorkflowPublishedEndpointItem {
   };
 }
 
+function buildBlockedPayload(): SensitiveAccessBlockingPayload {
+  return {
+    detail: "Cache inventory is guarded by sensitive access control.",
+    resource: {
+      id: "resource-1",
+      label: "Cache inventory",
+      description: "Protected cache entry inventory",
+      sensitivity_level: "L3",
+      source: "workspace_resource",
+      metadata: {}
+    },
+    access_request: {
+      id: "request-1",
+      run_id: "run-1",
+      node_run_id: "node-run-1",
+      requester_type: "human",
+      requester_id: "ops-reviewer",
+      resource_id: "resource-1",
+      action_type: "read",
+      decision: "require_approval",
+      reason_code: "approval_required_high_sensitive_access",
+      policy_summary: null
+    },
+    approval_ticket: {
+      id: "ticket-1",
+      access_request_id: "request-1",
+      run_id: "run-1",
+      node_run_id: "node-run-1",
+      status: "pending",
+      waiting_status: "waiting",
+      approved_by: null
+    },
+    notifications: [],
+    outcome_explanation: {
+      primary_signal: "审批票据仍在等待处理。",
+      follow_up: "先处理审批票据，再回来看 cache inventory。"
+    },
+    run_snapshot: null,
+    run_follow_up: null
+  };
+}
+
 describe("WorkflowPublishBindingCard", () => {
   it("shows strong-isolation preflight at the binding layer", () => {
     const html = renderToStaticMarkup(
@@ -173,5 +226,46 @@ describe("WorkflowPublishBindingCard", () => {
     expect(html).toContain("ready sandbox");
     expect(html).toContain("activity-panel");
     expect(html).toContain("lifecycle-form:sandbox");
+  });
+
+  it("uses shared blocked surface copy for cache inventory", () => {
+    const binding = buildBinding();
+    binding.cache_inventory = {
+      enabled: true,
+      ttl: 300,
+      max_entries: 20,
+      vary_by: ["messages"],
+      active_entry_count: 1,
+      total_hit_count: 3,
+      last_hit_at: "2026-03-20T10:11:00Z",
+      nearest_expires_at: "2026-03-20T10:15:00Z",
+      latest_created_at: "2026-03-20T10:10:30Z"
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishBindingCard, {
+        workflow: buildWorkflow(),
+        tools: [],
+        binding,
+        cacheInventory: {
+          kind: "blocked",
+          statusCode: 403,
+          payload: buildBlockedPayload()
+        },
+        apiKeys: [],
+        invocationAudit: null,
+        selectedInvocationId: null,
+        selectedInvocationDetail: null as never,
+        rateLimitWindowAudit: null,
+        activeInvocationFilter: null,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("Cache inventory waiting on approval");
+    expect(html).toContain("cache inventory 查看不会绕过审批、通知与 run follow-up 事实链");
+    expect(html).toContain("当前信号：审批票据仍在等待处理。");
+    expect(html).not.toContain("Cache inventory access blocked");
   });
 });
