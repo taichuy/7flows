@@ -16,6 +16,7 @@ import {
   listCallbackWaitingChips
 } from "@/lib/callback-waiting-presenters";
 import {
+  buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationCanonicalFollowUpCopy,
   buildPublishedInvocationInboxHref,
   buildPublishedInvocationRecommendedNextStep,
@@ -25,6 +26,7 @@ import {
   formatPublishedInvocationReasonLabel,
   formatPublishedInvocationSurfaceLabel,
   formatPublishedRunStatusLabel,
+  hasPublishedInvocationBlockingSensitiveAccessSummary,
   listPublishedInvocationSensitiveAccessChips,
   listPublishedInvocationSensitiveAccessRows,
   normalizePublishedInvocationRunSnapshot,
@@ -130,6 +132,19 @@ export function WorkflowPublishInvocationEntryCard({
     callbackTickets: [],
     sensitiveAccessEntries: []
   });
+  const blockingInboxHref = hasPublishedInvocationBlockingSensitiveAccessSummary(
+    waitingLifecycle?.sensitive_access_summary
+  )
+    ? buildBlockingPublishedInvocationInboxHref({
+        runId: item.run_id ?? null,
+        blockingNodeRunId: waitingLifecycle?.node_run_id ?? null,
+        blockingSensitiveAccessEntries: []
+      })
+    : null;
+  const primaryInboxHref = blockingInboxHref ?? inboxHref;
+  const primaryInboxLabel = blockingInboxHref
+    ? "open blocker inbox slice"
+    : "open waiting inbox";
   const runFollowUp = item.run_follow_up;
   const runFollowUpStatusSummary = runFollowUp
     ? formatMetricSummary({
@@ -159,6 +174,7 @@ export function WorkflowPublishInvocationEntryCard({
     canonicalFollowUp,
     callbackWaitingFollowUp: waitingLifecycle ? waitingExplanation?.follow_up ?? null : null,
     executionFocusFollowUp,
+    blockingInboxHref,
     approvalInboxHref: inboxHref
   });
   const runFollowUpSamplePrimarySignal = runFollowUpSample?.explanation?.primary_signal?.trim() || null;
@@ -202,10 +218,10 @@ export function WorkflowPublishInvocationEntryCard({
         {formatPublishedInvocationSurfaceLabel(item.request_surface)} · {item.request_source} ·{" "}
         {formatTimestamp(item.created_at)} · {formatDurationMs(item.duration_ms)}
       </p>
-      {inboxHref ? (
+      {primaryInboxHref ? (
         <div className="tool-badge-row">
-          <Link className="event-chip inbox-filter-link" href={inboxHref}>
-            open waiting inbox
+          <Link className="event-chip inbox-filter-link" href={primaryInboxHref}>
+            {primaryInboxLabel}
           </Link>
         </div>
       ) : null}

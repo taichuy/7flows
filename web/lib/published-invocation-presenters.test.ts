@@ -5,6 +5,7 @@ import {
   buildPublishedInvocationRecommendedNextStep,
   formatPublishedInvocationWaitingFollowUp,
   formatPublishedInvocationWaitingHeadline,
+  hasPublishedInvocationBlockingSensitiveAccessSummary,
   listPublishedInvocationRunFollowUpSampleSummaries,
   listPublishedInvocationRunFollowUpSampleViews,
   listPublishedInvocationSensitiveAccessChips,
@@ -79,6 +80,36 @@ describe("published invocation presenters", () => {
       href: "/sensitive-access/inbox?runId=run-callback-1&nodeRunId=node-run-1",
       href_label: "open blocker inbox slice"
     });
+  });
+
+  it("把待审批与通知异常视为 publish entry blocker", () => {
+    expect(
+      hasPublishedInvocationBlockingSensitiveAccessSummary({
+        request_count: 1,
+        approval_ticket_count: 1,
+        pending_approval_count: 1,
+        approved_approval_count: 0,
+        rejected_approval_count: 0,
+        expired_approval_count: 0,
+        pending_notification_count: 0,
+        delivered_notification_count: 0,
+        failed_notification_count: 0
+      })
+    ).toBe(true);
+
+    expect(
+      hasPublishedInvocationBlockingSensitiveAccessSummary({
+        request_count: 1,
+        approval_ticket_count: 1,
+        pending_approval_count: 0,
+        approved_approval_count: 1,
+        rejected_approval_count: 0,
+        expired_approval_count: 0,
+        pending_notification_count: 0,
+        delivered_notification_count: 1,
+        failed_notification_count: 0
+      })
+    ).toBe(false);
   });
 
   it("没有 callback blocker 时把下一步回收到 execution focus run", () => {

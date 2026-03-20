@@ -297,6 +297,68 @@ describe("WorkflowPublishInvocationEntryCard", () => {
     expect(html).not.toContain("run run-callback-1：继续观察 callback waiting。");
   });
 
+  it("prioritizes approval blocker inbox links when waiting lifecycle exposes sensitive-access blockers", () => {
+    const item = buildInvocationItem();
+    item.callback_waiting_explanation = {
+      primary_signal: "当前 callback waiting 仍卡在 1 条待处理审批。",
+      follow_up: "先处理审批票据，再观察 waiting 节点是否恢复。"
+    };
+    item.run_waiting_lifecycle = {
+      node_run_id: "node-run-tool-wait",
+      node_status: "waiting_callback",
+      waiting_reason: "approval pending",
+      callback_ticket_count: 1,
+      callback_ticket_status_counts: { pending: 1 },
+      callback_waiting_lifecycle: {
+        wait_cycle_count: 1,
+        issued_ticket_count: 1,
+        expired_ticket_count: 0,
+        consumed_ticket_count: 0,
+        canceled_ticket_count: 0,
+        late_callback_count: 0,
+        resume_schedule_count: 1,
+        max_expired_ticket_count: 0,
+        terminated: false,
+        last_resume_delay_seconds: 45,
+        last_resume_source: "callback_ticket_monitor",
+        last_resume_backoff_attempt: 0
+      },
+      callback_waiting_explanation: item.callback_waiting_explanation,
+      sensitive_access_summary: {
+        request_count: 1,
+        approval_ticket_count: 1,
+        pending_approval_count: 1,
+        approved_approval_count: 0,
+        rejected_approval_count: 0,
+        expired_approval_count: 0,
+        pending_notification_count: 0,
+        delivered_notification_count: 0,
+        failed_notification_count: 0
+      },
+      scheduled_resume_delay_seconds: 45,
+      scheduled_resume_source: "callback_ticket_monitor",
+      scheduled_waiting_status: "waiting_callback",
+      scheduled_resume_scheduled_at: "2026-03-20T10:00:00Z",
+      scheduled_resume_due_at: "2026-03-20T10:00:45Z",
+      scheduled_resume_requeued_at: null,
+      scheduled_resume_requeue_source: null
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationEntryCard, {
+        item,
+        detailHref: "/published/invocation-1",
+        detailActive: false
+      })
+    );
+
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("open blocker inbox slice");
+    expect(html).toContain("run_id=run-callback-1");
+    expect(html).toContain("node_run_id=node-run-tool-wait");
+    expect(html).not.toContain("open waiting inbox");
+  });
+
   it("shows live sandbox readiness when the sampled run carries a blocked strong-isolation snapshot", () => {
     const item = buildInvocationItem();
     item.run_follow_up = {

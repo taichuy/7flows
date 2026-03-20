@@ -75,6 +75,22 @@ export type PublishedInvocationRecommendedNextStep = {
   href_label: string | null;
 };
 
+export function hasPublishedInvocationBlockingSensitiveAccessSummary(
+  summary?: PublishedInvocationSensitiveAccessSummary | null
+) {
+  if (!summary) {
+    return false;
+  }
+
+  return Boolean(
+    summary.pending_approval_count > 0 ||
+      summary.rejected_approval_count > 0 ||
+      summary.expired_approval_count > 0 ||
+      summary.pending_notification_count > 0 ||
+      summary.failed_notification_count > 0
+  );
+}
+
 export function buildPublishedInvocationRecommendedNextStep({
   runId,
   canonicalFollowUp,
