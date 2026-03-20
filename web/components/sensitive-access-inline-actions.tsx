@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -172,6 +173,7 @@ export function SensitiveAccessInlineActions({
               message={decisionState.message}
               outcomeExplanation={decisionState.outcomeExplanation}
               runFollowUpExplanation={decisionState.runFollowUpExplanation}
+              runFollowUp={decisionState.runFollowUp}
               blockerDeltaSummary={decisionState.blockerDeltaSummary}
               runId={runId}
               runSnapshot={decisionState.runSnapshot}
@@ -254,6 +256,7 @@ export function SensitiveAccessInlineActions({
               message={retryState.message}
               outcomeExplanation={retryState.outcomeExplanation}
               runFollowUpExplanation={retryState.runFollowUpExplanation}
+              runFollowUp={retryState.runFollowUp}
               blockerDeltaSummary={retryState.blockerDeltaSummary}
               runId={runId}
               runSnapshot={retryState.runSnapshot}

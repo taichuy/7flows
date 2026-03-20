@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
@@ -74,6 +75,7 @@ export function CallbackWaitingInlineActions({
           message={resumeState.message}
           outcomeExplanation={resumeState.outcomeExplanation}
           runFollowUpExplanation={resumeState.runFollowUpExplanation}
+          runFollowUp={resumeState.runFollowUp}
           blockerDeltaSummary={resumeState.blockerDeltaSummary}
           runId={runId}
           runSnapshot={resumeState.runSnapshot}
@@ -99,6 +101,7 @@ export function CallbackWaitingInlineActions({
           message={cleanupState.message}
           outcomeExplanation={cleanupState.outcomeExplanation}
           runFollowUpExplanation={cleanupState.runFollowUpExplanation}
+          runFollowUp={cleanupState.runFollowUp}
           blockerDeltaSummary={cleanupState.blockerDeltaSummary}
           runId={runId}
           runSnapshot={cleanupState.runSnapshot}
