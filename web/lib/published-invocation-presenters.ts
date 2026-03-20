@@ -118,6 +118,14 @@ export type PublishedInvocationUnavailableDetailSurfaceCopy = {
   detail: string;
 };
 
+export type PublishedInvocationEntrySurfaceCopy = {
+  canonicalFollowUpFallbackHeadline: string;
+  sampledRunSkillTraceDescription: string;
+  callbackLifecycleFallback: string;
+  succeededDescription: string;
+  detailPanelDescription: string;
+};
+
 type PublishedInvocationFailureReasonItem = {
   message: string;
   count: number;
@@ -185,6 +193,68 @@ export function buildPublishedInvocationCallbackDrilldownSurfaceCopy(): Publishe
     blockersEmptyHeadline: "Callback waiting is not active.",
     latestEventsTitle: "Latest callback events"
   };
+}
+
+export function buildPublishedInvocationEntrySurfaceCopy(): PublishedInvocationEntrySurfaceCopy {
+  return {
+    canonicalFollowUpFallbackHeadline: "当前 invocation 已接入 canonical follow-up 事实链。",
+    sampledRunSkillTraceDescription:
+      "发布活动卡片现在也会复用 compact snapshot 里的 skill trace，方便直接确认 sampled run 的 focus node 注入来源。",
+    callbackLifecycleFallback: "tracked in detail panel",
+    succeededDescription:
+      "该请求已经走完整条 publish 调用链，run 已结束，可以直接对照 response preview 做回放。",
+    detailPanelDescription:
+      "详情面板会补 run / callback ticket / callback lifecycle / cache 四类稳定排障入口。"
+  };
+}
+
+export function buildPublishedInvocationRateLimitWindowInsight({
+  pressure,
+  remainingQuota,
+  windowRejected,
+  failedCount,
+  timeWindowLabel
+}: {
+  pressure:
+    | {
+        percentage: number;
+        label: string;
+      }
+    | null;
+  remainingQuota: number | null;
+  windowRejected: number;
+  failedCount: number;
+  timeWindowLabel: string;
+}) {
+  if (!pressure || remainingQuota === null) {
+    return null;
+  }
+
+  if (windowRejected > 0) {
+    return `当前窗口已经出现 ${windowRejected} 次限流拒绝；如果失败面板同时看到 runtime failed，先把 quota hit 与执行链路异常拆开排查。`;
+  }
+
+  if (pressure.percentage >= 80) {
+    return `当前${timeWindowLabel}切片里已用掉 ${pressure.label} 配额，只剩 ${remainingQuota} 次；继续放量前先观察是否开始转成 rate_limit_exceeded。`;
+  }
+
+  if (failedCount > 0) {
+    return `当前窗口还剩 ${remainingQuota} 次配额，说明这段时间里的 failed 更可能来自运行时、鉴权或协议边界，而不是 rate limit 本身。`;
+  }
+
+  return `当前窗口还剩 ${remainingQuota} 次配额，rate limit 现在还不是这条 binding 的主阻塞面。`;
+}
+
+export function formatPublishedInvocationWaitingRuntimeFallback({
+  currentNodeId,
+  waitingReason
+}: {
+  currentNodeId?: string | null;
+  waitingReason?: string | null;
+}) {
+  return `该请求已成功接入 durable runtime，当前仍处于 waiting；可直接打开 run detail 继续追踪${
+    currentNodeId ? `，当前节点 ${currentNodeId}` : ""
+  }${waitingReason ? `，等待原因 ${waitingReason}` : ""}。`;
 }
 
 export function buildPublishedInvocationUnavailableDetailSurfaceCopy(): PublishedInvocationUnavailableDetailSurfaceCopy {

@@ -18,8 +18,10 @@ import {
 import {
   buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationCanonicalFollowUpCopy,
+  buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationInboxHref,
   buildPublishedInvocationRecommendedNextStep,
+  formatPublishedInvocationWaitingRuntimeFallback,
   formatPublishedInvocationWaitingFollowUp,
   formatPublishedInvocationWaitingHeadline,
   formatPublishedInvocationCacheStatusLabel,
@@ -78,6 +80,7 @@ export function WorkflowPublishInvocationEntryCard({
   detailActive,
   sandboxReadiness
 }: WorkflowPublishInvocationEntryCardProps) {
+  const surfaceCopy = buildPublishedInvocationEntrySurfaceCopy();
   const waitingLifecycle = item.run_waiting_lifecycle;
   const callbackLifecycle = waitingLifecycle?.callback_waiting_lifecycle;
   const scheduledResumeLabel =
@@ -167,7 +170,7 @@ export function WorkflowPublishInvocationEntryCard({
     sharedCallbackWaitingExplanations: sharedCallbackWaitingExplanation
       ? [sharedCallbackWaitingExplanation]
       : [],
-    fallbackHeadline: "当前 invocation 已接入 canonical follow-up 事实链。"
+    fallbackHeadline: surfaceCopy.canonicalFollowUpFallbackHeadline
   });
   const recommendedNextStep = buildPublishedInvocationRecommendedNextStep({
     runId: item.run_id ?? null,
@@ -431,7 +434,7 @@ export function WorkflowPublishInvocationEntryCard({
                   <SkillReferenceLoadList
                     skillReferenceLoads={runFollowUpSample.focus_skill_reference_loads}
                     title="Focused skill trace"
-                    description="发布活动卡片现在也会复用 compact snapshot 里的 skill trace，方便直接确认 sampled run 的 focus node 注入来源。"
+                    description={surfaceCopy.sampledRunSkillTraceDescription}
                   />
                 </>
               )}
@@ -459,9 +462,7 @@ export function WorkflowPublishInvocationEntryCard({
         <>
           <p className="section-copy entry-copy">
             {executionFocusPrimarySignal ??
-              `该请求已成功接入 durable runtime，当前仍处于 waiting；可直接打开 run detail 继续追踪${
-                currentNodeId ? `，当前节点 ${currentNodeId}` : ""
-              }${waitingReason ? `，等待原因 ${waitingReason}` : ""}。`}
+              formatPublishedInvocationWaitingRuntimeFallback({ currentNodeId, waitingReason })}
           </p>
           {executionFocusFollowUp ? <p className="binding-meta">{executionFocusFollowUp}</p> : null}
         </>
@@ -503,7 +504,7 @@ export function WorkflowPublishInvocationEntryCard({
               </div>
               <div>
                 <dt>Callback lifecycle</dt>
-                <dd>{callbackLifecycleLabel ?? "tracked in detail panel"}</dd>
+                <dd>{callbackLifecycleLabel ?? surfaceCopy.callbackLifecycleFallback}</dd>
               </div>
               {!shouldDeferToSharedCallbackWaitingSummary
                 ? waitingBlockerRows.map((row) => (
@@ -526,9 +527,7 @@ export function WorkflowPublishInvocationEntryCard({
         </div>
       ) : null}
       {item.run_status === "succeeded" ? (
-        <p className="section-copy entry-copy">
-          该请求已经走完整条 publish 调用链，run 已结束，可以直接对照 response preview 做回放。
-        </p>
+        <p className="section-copy entry-copy">{surfaceCopy.succeededDescription}</p>
       ) : null}
       {item.error_message ? <p className="section-copy entry-copy">error: {item.error_message}</p> : null}
       {hasInvocationDrilldown(item) ? (
@@ -536,9 +535,7 @@ export function WorkflowPublishInvocationEntryCard({
           <Link className="inline-link" href={detailHref}>
             {detailActive ? "查看当前详情" : "打开 invocation detail"}
           </Link>
-          <span className="section-copy entry-copy">
-            详情面板会补 run / callback ticket / callback lifecycle / cache 四类稳定排障入口。
-          </span>
+          <span className="section-copy entry-copy">{surfaceCopy.detailPanelDescription}</span>
         </div>
       ) : null}
     </article>

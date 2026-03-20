@@ -5,10 +5,13 @@ import {
   buildPublishedInvocationCallbackDrilldownSurfaceCopy,
   buildPublishedInvocationCanonicalFollowUpCopy,
   buildPublishedInvocationDetailSurfaceCopy,
+  buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationFailureMessageDiagnosis,
   buildPublishedInvocationFailureReasonInsight,
+  buildPublishedInvocationRateLimitWindowInsight,
   buildPublishedInvocationRecommendedNextStep,
   buildPublishedInvocationUnavailableDetailSurfaceCopy,
+  formatPublishedInvocationWaitingRuntimeFallback,
   formatPublishedInvocationWaitingFollowUp,
   formatPublishedInvocationWaitingHeadline,
   hasPublishedInvocationBlockingSensitiveAccessSummary,
@@ -64,6 +67,53 @@ describe("published invocation presenters", () => {
       blockersEmptyHeadline: "Callback waiting is not active.",
       latestEventsTitle: "Latest callback events"
     });
+  });
+
+  it("为 publish entry / detail 提供统一 surface copy", () => {
+    expect(buildPublishedInvocationEntrySurfaceCopy()).toEqual({
+      canonicalFollowUpFallbackHeadline: "当前 invocation 已接入 canonical follow-up 事实链。",
+      sampledRunSkillTraceDescription: expect.stringContaining("compact snapshot"),
+      callbackLifecycleFallback: "tracked in detail panel",
+      succeededDescription: expect.stringContaining("publish 调用链"),
+      detailPanelDescription: expect.stringContaining("callback lifecycle / cache")
+    });
+  });
+
+  it("为 publish activity rate limit window 提供统一 insight", () => {
+    expect(
+      buildPublishedInvocationRateLimitWindowInsight({
+        pressure: { percentage: 90, label: "90%" },
+        remainingQuota: 1,
+        windowRejected: 0,
+        failedCount: 0,
+        timeWindowLabel: "最近 24 小时"
+      })
+    ).toBe(
+      "当前最近 24 小时切片里已用掉 90% 配额，只剩 1 次；继续放量前先观察是否开始转成 rate_limit_exceeded。"
+    );
+
+    expect(
+      buildPublishedInvocationRateLimitWindowInsight({
+        pressure: { percentage: 40, label: "40%" },
+        remainingQuota: 3,
+        windowRejected: 1,
+        failedCount: 2,
+        timeWindowLabel: "全部时间"
+      })
+    ).toBe(
+      "当前窗口已经出现 1 次限流拒绝；如果失败面板同时看到 runtime failed，先把 quota hit 与执行链路异常拆开排查。"
+    );
+  });
+
+  it("为 waiting invocation 提供统一 durable runtime fallback copy", () => {
+    expect(
+      formatPublishedInvocationWaitingRuntimeFallback({
+        currentNodeId: "tool_wait",
+        waitingReason: "callback pending"
+      })
+    ).toBe(
+      "该请求已成功接入 durable runtime，当前仍处于 waiting；可直接打开 run detail 继续追踪，当前节点 tool_wait，等待原因 callback pending。"
+    );
   });
 
   it("为 publish failure diagnosis 提供共享 helper copy", () => {

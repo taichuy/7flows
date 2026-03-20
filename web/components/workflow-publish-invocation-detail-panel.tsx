@@ -20,6 +20,7 @@ import { buildExecutionFocusExplainableNode } from "@/lib/operator-inline-action
 import {
   buildPublishedInvocationDetailSurfaceCopy,
   buildPublishedInvocationCanonicalFollowUpCopy,
+  buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationRecommendedNextStep,
   buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationInboxHref,
@@ -55,6 +56,7 @@ export function WorkflowPublishInvocationDetailPanel({
   callbackWaitingAutomation,
   sandboxReadiness
 }: WorkflowPublishInvocationDetailPanelProps) {
+  const entrySurfaceCopy = buildPublishedInvocationEntrySurfaceCopy();
   const {
     invocation,
     run,
@@ -121,7 +123,7 @@ export function WorkflowPublishInvocationDetailPanel({
   const canonicalFollowUp = buildPublishedInvocationCanonicalFollowUpCopy({
     explanation: runFollowUp?.explanation ?? null,
     sharedCallbackWaitingExplanations,
-    fallbackHeadline: "当前 invocation 已接入 canonical follow-up 事实链。"
+    fallbackHeadline: entrySurfaceCopy.canonicalFollowUpFallbackHeadline
   });
   const detailSurfaceCopy = buildPublishedInvocationDetailSurfaceCopy({
     blockingNodeRunId,

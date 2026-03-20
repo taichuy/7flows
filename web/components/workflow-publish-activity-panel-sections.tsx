@@ -21,7 +21,9 @@ import {
   buildPublishedInvocationFailureMessageDiagnosis,
   buildPublishedInvocationFailureReasonInsight,
   buildPublishedInvocationCanonicalFollowUpCopy,
+  buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationInboxHref,
+  buildPublishedInvocationRateLimitWindowInsight,
   buildPublishedInvocationUnavailableDetailSurfaceCopy,
   buildPublishedInvocationRecommendedNextStep,
   buildPublishedInvocationWaitingOverview,
@@ -50,38 +52,6 @@ type WorkflowPublishActivityInsightsProps = {
     : never;
 };
 
-function buildRateLimitWindowInsight({
-  pressure,
-  remainingQuota,
-  windowRejected,
-  failedCount,
-  activeTimeWindow
-}: {
-  pressure: ReturnType<typeof formatRateLimitPressure> | null;
-  remainingQuota: number | null;
-  windowRejected: number;
-  failedCount: number;
-  activeTimeWindow: WorkflowPublishActivityInsightsProps["activeTimeWindow"];
-}) {
-  if (!pressure || remainingQuota === null) {
-    return null;
-  }
-
-  if (windowRejected > 0) {
-    return `当前窗口已经出现 ${windowRejected} 次限流拒绝；如果失败面板同时看到 runtime failed，先把 quota hit 与执行链路异常拆开排查。`;
-  }
-
-  if (pressure.percentage >= 80) {
-    return `当前 ${formatTimeWindowLabel(activeTimeWindow ?? "all")} 切片里已用掉 ${pressure.label} 配额，只剩 ${remainingQuota} 次；继续放量前先观察是否开始转成 rate_limit_exceeded。`;
-  }
-
-  if (failedCount > 0) {
-    return `当前窗口还剩 ${remainingQuota} 次配额，说明这段时间里的 failed 更可能来自运行时、鉴权或协议边界，而不是 rate limit 本身。`;
-  }
-
-  return `当前窗口还剩 ${remainingQuota} 次配额，rate limit 现在还不是这条 binding 的主阻塞面。`;
-}
-
 export function WorkflowPublishActivityInsights({
   binding,
   invocationAudit,
@@ -109,12 +79,12 @@ export function WorkflowPublishActivityInsights({
   const windowRejected = rateLimitWindowAudit?.summary.rejected_count ?? 0;
   const remainingQuota = rateLimitPolicy ? Math.max(rateLimitPolicy.requests - windowUsed, 0) : null;
   const pressure = rateLimitPolicy ? formatRateLimitPressure(rateLimitPolicy.requests, windowUsed) : null;
-  const rateLimitWindowInsight = buildRateLimitWindowInsight({
+  const rateLimitWindowInsight = buildPublishedInvocationRateLimitWindowInsight({
     pressure,
     remainingQuota,
     windowRejected,
     failedCount: summary?.failed_count ?? 0,
-    activeTimeWindow
+    timeWindowLabel: formatTimeWindowLabel(activeTimeWindow ?? "all")
   });
   const failureReasonInsight = buildPublishedInvocationFailureReasonInsight({
     reasonCounts,
@@ -329,6 +299,7 @@ export function WorkflowPublishActivityDetails({
   clearInvocationDetailHref
 }: WorkflowPublishActivityDetailsProps) {
   const items = invocationAudit?.items ?? [];
+  const entrySurfaceCopy = buildPublishedInvocationEntrySurfaceCopy();
   const apiKeyUsage = invocationAudit?.facets.api_key_usage ?? [];
   const failureReasons = invocationAudit?.facets.recent_failure_reasons ?? [];
   const reasonCounts = invocationAudit?.facets.reason_counts ?? [];
@@ -343,7 +314,7 @@ export function WorkflowPublishActivityDetails({
           const canonicalFollowUp = buildPublishedInvocationCanonicalFollowUpCopy({
             explanation: detail.run_follow_up?.explanation ?? null,
             sharedCallbackWaitingExplanations,
-            fallbackHeadline: "当前 invocation 已接入 canonical follow-up 事实链。"
+            fallbackHeadline: entrySurfaceCopy.canonicalFollowUpFallbackHeadline
           });
           const executionFocusFollowUp =
             detail.execution_focus_explanation?.follow_up ??
