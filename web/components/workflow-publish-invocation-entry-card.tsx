@@ -463,11 +463,15 @@ export function WorkflowPublishInvocationEntryCard({
       {item.run_status === "succeeded" ? (
         <p className="section-copy entry-copy">{surfaceCopy.succeededDescription}</p>
       ) : null}
-      {item.error_message ? <p className="section-copy entry-copy">error: {item.error_message}</p> : null}
+      {item.error_message ? (
+        <p className="section-copy entry-copy">
+          {surfaceCopy.errorMessagePrefix}: {item.error_message}
+        </p>
+      ) : null}
       {hasInvocationDrilldown(item) ? (
         <div className="publish-invocation-actions">
           <Link className="inline-link" href={detailHref}>
-            {detailActive ? "查看当前详情" : "打开 invocation detail"}
+            {detailActive ? surfaceCopy.detailActionActiveLabel : surfaceCopy.detailActionLabel}
           </Link>
           <span className="section-copy entry-copy">{surfaceCopy.detailPanelDescription}</span>
         </div>

@@ -212,6 +212,7 @@ describe("WorkflowPublishInvocationEntryCard", () => {
     expect(html).toContain("Callback recovery checklist");
     expect(html).not.toContain("Sampled run focus evidence");
     expect(html.match(/Focused skill trace/g)?.length ?? 0).toBe(1);
+    expect(html).toContain("打开 invocation detail");
   });
 
   it("prefers the current run sample and surfaces its execution badges before evidence", () => {
@@ -357,6 +358,31 @@ describe("WorkflowPublishInvocationEntryCard", () => {
     expect(html).toContain("run_id=run-callback-1");
     expect(html).toContain("node_run_id=node-run-tool-wait");
     expect(html).not.toContain("open waiting inbox");
+  });
+
+  it("uses shared entry CTA and error prefix copy", () => {
+    const item = buildInvocationItem();
+    item.error_message = "sandbox backend offline during invocation";
+
+    const inactiveHtml = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationEntryCard, {
+        item,
+        detailHref: "/published/invocation-1",
+        detailActive: false
+      })
+    );
+
+    const activeHtml = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationEntryCard, {
+        item,
+        detailHref: "/published/invocation-1",
+        detailActive: true
+      })
+    );
+
+    expect(inactiveHtml).toContain("打开 invocation detail");
+    expect(activeHtml).toContain("查看当前详情");
+    expect(inactiveHtml).toContain("error: sandbox backend offline during invocation");
   });
 
   it("shows live sandbox readiness when the sampled run carries a blocked strong-isolation snapshot", () => {

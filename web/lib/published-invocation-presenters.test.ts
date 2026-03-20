@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildPublishedInvocationActivityBlockedDetailSurfaceCopy,
+  buildPublishedInvocationApiKeyUsageCardSurface,
   buildPublishedInvocationActivityDetailsSurfaceCopy,
   buildPublishedInvocationActivityInsightsSurfaceCopy,
   buildPublishedInvocationActivityTrafficMixSurface,
@@ -11,8 +12,10 @@ import {
   buildPublishedInvocationDetailSurfaceCopy,
   buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationFailureMessageDiagnosis,
+  buildPublishedInvocationFailureReasonCardSurface,
   buildPublishedInvocationFailureReasonInsight,
   buildPublishedInvocationRateLimitWindowInsight,
+  buildPublishedInvocationSelectedNextStepSurface,
   buildPublishedInvocationTrafficTimelineBucketSurface,
   buildPublishedInvocationRecommendedNextStep,
   buildPublishedInvocationTrafficTimelineSurfaceCopy,
@@ -152,7 +155,107 @@ describe("published invocation presenters", () => {
       recommendedNextStepTitle: "Recommended next step",
       callbackLifecycleFallback: "tracked in detail panel",
       succeededDescription: expect.stringContaining("publish 调用链"),
+      detailActionLabel: "打开 invocation detail",
+      detailActionActiveLabel: "查看当前详情",
+      errorMessagePrefix: "error",
       detailPanelDescription: expect.stringContaining("callback lifecycle / cache")
+    });
+  });
+
+  it("为 publish activity details 提供共享卡片 surface", () => {
+    expect(
+      buildPublishedInvocationApiKeyUsageCardSurface({
+        item: {
+          api_key_id: "key-1",
+          name: null,
+          key_prefix: null,
+          status: null,
+          invocation_count: 3,
+          succeeded_count: 1,
+          failed_count: 1,
+          rejected_count: 1,
+          last_invoked_at: "2026-03-21T00:16:00Z",
+          last_status: null
+        } as never
+      })
+    ).toEqual({
+      title: "key-1",
+      chipLabel: "no-prefix",
+      rows: [
+        { key: "calls", label: "Calls", value: "3", href: null },
+        { key: "status-mix", label: "Status mix", value: "ok 1 / failed 1 / rejected 1", href: null },
+        { key: "status", label: "Status", value: "n/a", href: null },
+        { key: "last-used", label: "Last used", value: expect.any(String), href: null }
+      ]
+    });
+
+    expect(
+      buildPublishedInvocationFailureReasonCardSurface({
+        item: {
+          message: "sandbox backend offline during invocation",
+          count: 2,
+          last_invoked_at: "2026-03-21T00:15:00Z"
+        },
+        reasonCounts: [{ value: "runtime_failed", count: 2 }],
+        sandboxReadiness: {
+          enabled_backend_count: 0,
+          healthy_backend_count: 0,
+          degraded_backend_count: 0,
+          offline_backend_count: 1,
+          execution_classes: [
+            {
+              execution_class: "sandbox",
+              available: false,
+              backend_ids: [],
+              supported_languages: [],
+              supported_profiles: [],
+              supported_dependency_modes: [],
+              supports_tool_execution: false,
+              supports_builtin_package_sets: false,
+              supports_backend_extensions: false,
+              supports_network_policy: false,
+              supports_filesystem_policy: false,
+              reason: "No sandbox backend is currently enabled."
+            }
+          ],
+          supported_languages: [],
+          supported_profiles: [],
+          supported_dependency_modes: [],
+          supports_tool_execution: false,
+          supports_builtin_package_sets: false,
+          supports_backend_extensions: false,
+          supports_network_policy: false,
+          supports_filesystem_policy: false
+        }
+      })
+    ).toMatchObject({
+      title: "Failure reason",
+      countLabel: "count 2",
+      message: "sandbox backend offline during invocation",
+      diagnosis: {
+        headline: "当前 live sandbox readiness 仍在报警。",
+        detail: expect.stringContaining("blocked")
+      },
+      lastSeenLabel: expect.any(String)
+    });
+
+    expect(
+      buildPublishedInvocationSelectedNextStepSurface({
+        invocationId: "invocation-1",
+        nextStep: {
+          label: "approval blocker",
+          detail: "先处理审批票据。",
+          href: "/sensitive-access/inbox?run_id=run-1",
+          href_label: "open blocker inbox slice"
+        }
+      })
+    ).toEqual({
+      title: "Selected invocation next step",
+      invocationId: "invocation-1",
+      label: "approval blocker",
+      detail: "先处理审批票据。",
+      href: "/sensitive-access/inbox?run_id=run-1",
+      hrefLabel: "open blocker inbox slice"
     });
   });
 

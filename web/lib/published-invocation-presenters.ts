@@ -4,6 +4,7 @@ import type {
   PublishedEndpointInvocationCallbackTicketItem,
   PublishedEndpointInvocationDetailResponse,
   PublishedEndpointInvocationItem,
+  PublishedEndpointInvocationListResponse,
   PublishedEndpointInvocationSummary,
   PublishedEndpointInvocationTimeBucketItem,
   OperatorRunFollowUpSnapshot,
@@ -194,6 +195,9 @@ export type PublishedInvocationEntrySurfaceCopy = {
   recommendedNextStepTitle: string;
   callbackLifecycleFallback: string;
   succeededDescription: string;
+  detailActionLabel: string;
+  detailActionActiveLabel: string;
+  errorMessagePrefix: string;
   detailPanelDescription: string;
 };
 
@@ -255,6 +259,29 @@ export type PublishedInvocationActivityDetailsSurfaceCopy = {
   blockedDetailSurfaceLabel: string;
   blockedDetailGuardedActionLabel: string;
   unavailableDetail: PublishedInvocationUnavailableDetailSurfaceCopy;
+};
+
+export type PublishedInvocationApiKeyUsageCardSurface = {
+  title: string;
+  chipLabel: string;
+  rows: PublishedInvocationMetaRow[];
+};
+
+export type PublishedInvocationFailureReasonCardSurface = {
+  title: string;
+  countLabel: string;
+  message: string;
+  diagnosis: PublishedInvocationFailureMessageDiagnosis | null;
+  lastSeenLabel: string;
+};
+
+export type PublishedInvocationSelectedNextStepSurface = {
+  title: string;
+  invocationId: string;
+  label: string;
+  detail: string;
+  href: string | null;
+  hrefLabel: string | null;
 };
 
 type PublishedInvocationFailureReasonItem = {
@@ -439,6 +466,9 @@ export function buildPublishedInvocationEntrySurfaceCopy(): PublishedInvocationE
     callbackLifecycleFallback: "tracked in detail panel",
     succeededDescription:
       "该请求已经走完整条 publish 调用链，run 已结束，可以直接对照 response preview 做回放。",
+    detailActionLabel: "打开 invocation detail",
+    detailActionActiveLabel: "查看当前详情",
+    errorMessagePrefix: "error",
     detailPanelDescription:
       "详情面板会补 run / callback ticket / callback lifecycle / cache 四类稳定排障入口。"
   };
@@ -572,6 +602,84 @@ export function formatPublishedInvocationApiKeyUsageMix({
   rejected_count: number;
 }) {
   return `ok ${succeeded_count} / failed ${failed_count} / rejected ${rejected_count}`;
+}
+
+export function buildPublishedInvocationApiKeyUsageCardSurface({
+  item,
+  surfaceCopy = buildPublishedInvocationActivityDetailsSurfaceCopy()
+}: {
+  item: NonNullable<PublishedEndpointInvocationListResponse["facets"]["api_key_usage"]>[number];
+  surfaceCopy?: PublishedInvocationActivityDetailsSurfaceCopy;
+}): PublishedInvocationApiKeyUsageCardSurface {
+  return {
+    title: item.name ?? item.api_key_id,
+    chipLabel: item.key_prefix ?? surfaceCopy.apiKeyUsageMissingPrefixLabel,
+    rows: [
+      buildPublishedInvocationMetaRow(
+        "calls",
+        surfaceCopy.apiKeyUsageInvocationCountLabel,
+        String(item.invocation_count)
+      ),
+      buildPublishedInvocationMetaRow(
+        "status-mix",
+        surfaceCopy.apiKeyUsageStatusMixLabel,
+        formatPublishedInvocationApiKeyUsageMix(item)
+      ),
+      buildPublishedInvocationMetaRow(
+        "status",
+        surfaceCopy.apiKeyUsageStatusLabel,
+        item.last_status ?? item.status ?? surfaceCopy.apiKeyUsageStatusEmptyLabel
+      ),
+      buildPublishedInvocationMetaRow(
+        "last-used",
+        surfaceCopy.apiKeyUsageLastUsedLabel,
+        formatTimestamp(item.last_invoked_at)
+      )
+    ]
+  };
+}
+
+export function buildPublishedInvocationFailureReasonCardSurface({
+  item,
+  reasonCounts,
+  sandboxReadiness,
+  surfaceCopy = buildPublishedInvocationActivityDetailsSurfaceCopy()
+}: {
+  item: PublishedInvocationFailureReasonItem;
+  reasonCounts: PublishedEndpointInvocationFacetItem[];
+  sandboxReadiness?: SandboxReadinessCheck | null;
+  surfaceCopy?: PublishedInvocationActivityDetailsSurfaceCopy;
+}): PublishedInvocationFailureReasonCardSurface {
+  return {
+    title: surfaceCopy.failureReasonTitle,
+    countLabel: `${surfaceCopy.failureReasonCountLabelPrefix} ${item.count}`,
+    message: item.message,
+    diagnosis: buildPublishedInvocationFailureMessageDiagnosis({
+      message: item.message,
+      reasonCounts,
+      sandboxReadiness
+    }),
+    lastSeenLabel: formatPublishedInvocationFailureReasonLastSeen(item.last_invoked_at)
+  };
+}
+
+export function buildPublishedInvocationSelectedNextStepSurface({
+  invocationId,
+  nextStep,
+  surfaceCopy = buildPublishedInvocationActivityDetailsSurfaceCopy()
+}: {
+  invocationId: string;
+  nextStep: PublishedInvocationRecommendedNextStep;
+  surfaceCopy?: PublishedInvocationActivityDetailsSurfaceCopy;
+}): PublishedInvocationSelectedNextStepSurface {
+  return {
+    title: surfaceCopy.selectedInvocationNextStepTitle,
+    invocationId,
+    label: nextStep.label,
+    detail: nextStep.detail,
+    href: nextStep.href,
+    hrefLabel: nextStep.href_label
+  };
 }
 
 export function formatPublishedInvocationFailureReasonLastSeen(lastInvokedAt?: string | null) {

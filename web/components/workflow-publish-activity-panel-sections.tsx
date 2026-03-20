@@ -16,21 +16,21 @@ import type {
 } from "@/lib/get-workflow-publish";
 import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import {
+  buildPublishedInvocationApiKeyUsageCardSurface,
   buildPublishedInvocationActivityBlockedDetailSurfaceCopy,
   buildPublishedInvocationActivityDetailsSurfaceCopy,
   buildPublishedInvocationActivityInsightsSurfaceCopy,
   buildPublishedInvocationActivityTrafficMixSurface,
   buildBlockingPublishedInvocationInboxHref,
-  buildPublishedInvocationFailureMessageDiagnosis,
+  buildPublishedInvocationFailureReasonCardSurface,
   buildPublishedInvocationFailureReasonInsight,
   buildPublishedInvocationCanonicalFollowUpCopy,
   buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationInboxHref,
   buildPublishedInvocationRateLimitWindowInsight,
   buildPublishedInvocationRecommendedNextStep,
+  buildPublishedInvocationSelectedNextStepSurface,
   buildPublishedInvocationWaitingOverview,
-  formatPublishedInvocationApiKeyUsageMix,
-  formatPublishedInvocationFailureReasonLastSeen,
   formatPublishedInvocationReasonLabel,
   formatRateLimitPressure,
   listPublishedInvocationActivitySummaryRows,
@@ -38,7 +38,6 @@ import {
   listPublishedInvocationRateLimitRows,
   listPublishedInvocationRunFollowUpSampleViews
 } from "@/lib/published-invocation-presenters";
-import { formatTimestamp } from "@/lib/runtime-presenters";
 import { hasExecutionNodeCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import { formatExecutionFocusFollowUp } from "@/lib/run-execution-focus-presenters";
 
@@ -314,91 +313,89 @@ export function WorkflowPublishActivityDetails({
     selectedInvocationDetail?.kind === "blocked"
       ? buildPublishedInvocationActivityBlockedDetailSurfaceCopy(selectedInvocationDetail.payload)
       : null;
+  const selectedInvocationNextStepSurface =
+    selectedInvocationId && selectedInvocationDetail?.kind === "ok" && selectedInvocationDrilldown
+      ? buildPublishedInvocationSelectedNextStepSurface({
+          invocationId: selectedInvocationId,
+          nextStep: selectedInvocationDrilldown,
+          surfaceCopy: detailsSurfaceCopy
+        })
+      : null;
 
   return (
     <>
       {apiKeyUsage.length ? (
         <div className="publish-cache-list">
-          {apiKeyUsage.map((item) => (
-            <article className="payload-card compact-card" key={item.api_key_id}>
-              <div className="payload-card-header">
-                <span className="status-meta">{item.name ?? item.api_key_id}</span>
-                <span className="event-chip">{item.key_prefix ?? detailsSurfaceCopy.apiKeyUsageMissingPrefixLabel}</span>
-              </div>
-              <dl className="compact-meta-list">
-                <div>
-                  <dt>{detailsSurfaceCopy.apiKeyUsageInvocationCountLabel}</dt>
-                  <dd>{item.invocation_count}</dd>
-                </div>
-                <div>
-                  <dt>{detailsSurfaceCopy.apiKeyUsageStatusMixLabel}</dt>
-                  <dd>{formatPublishedInvocationApiKeyUsageMix(item)}</dd>
-                </div>
-                <div>
-                  <dt>{detailsSurfaceCopy.apiKeyUsageStatusLabel}</dt>
-                  <dd>
-                    {item.last_status ??
-                      item.status ??
-                      detailsSurfaceCopy.apiKeyUsageStatusEmptyLabel}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{detailsSurfaceCopy.apiKeyUsageLastUsedLabel}</dt>
-                  <dd>{formatTimestamp(item.last_invoked_at)}</dd>
-                </div>
-              </dl>
-            </article>
-          ))}
-        </div>
-      ) : null}
-
-      {failureReasons.length ? (
-        <div className="publish-cache-list">
-          {failureReasons.map((item) => {
-            const diagnosis = buildPublishedInvocationFailureMessageDiagnosis({
-              message: item.message,
-              reasonCounts,
-              sandboxReadiness
+          {apiKeyUsage.map((item) => {
+            const cardSurface = buildPublishedInvocationApiKeyUsageCardSurface({
+              item,
+              surfaceCopy: detailsSurfaceCopy
             });
 
             return (
-              <article className="payload-card compact-card" key={item.message}>
+              <article className="payload-card compact-card" key={item.api_key_id}>
                 <div className="payload-card-header">
-                  <span className="status-meta">{detailsSurfaceCopy.failureReasonTitle}</span>
-                  <span className="event-chip">
-                    {detailsSurfaceCopy.failureReasonCountLabelPrefix} {item.count}
-                  </span>
+                  <span className="status-meta">{cardSurface.title}</span>
+                  <span className="event-chip">{cardSurface.chipLabel}</span>
                 </div>
-                <p className="binding-meta">{item.message}</p>
-                {diagnosis ? (
-                  <>
-                    <p className="section-copy entry-copy">{diagnosis.headline}</p>
-                    <p className="binding-meta">{diagnosis.detail}</p>
-                  </>
-                ) : null}
-                <p className="section-copy entry-copy">
-                  {formatPublishedInvocationFailureReasonLastSeen(item.last_invoked_at)}
-                </p>
+                <dl className="compact-meta-list">
+                  {cardSurface.rows.map((row) => (
+                    <div key={`${item.api_key_id}:${row.key}`}>
+                      <dt>{row.label}</dt>
+                      <dd>{row.value}</dd>
+                    </div>
+                  ))}
+                </dl>
               </article>
             );
           })}
         </div>
       ) : null}
 
-      {selectedInvocationId && selectedInvocationDetail?.kind === "ok" && selectedInvocationDrilldown ? (
+      {failureReasons.length ? (
+        <div className="publish-cache-list">
+          {failureReasons.map((item) => {
+            const cardSurface = buildPublishedInvocationFailureReasonCardSurface({
+              item,
+              reasonCounts,
+              sandboxReadiness,
+              surfaceCopy: detailsSurfaceCopy
+            });
+
+            return (
+              <article className="payload-card compact-card" key={item.message}>
+                <div className="payload-card-header">
+                  <span className="status-meta">{cardSurface.title}</span>
+                  <span className="event-chip">{cardSurface.countLabel}</span>
+                </div>
+                <p className="binding-meta">{cardSurface.message}</p>
+                {cardSurface.diagnosis ? (
+                  <>
+                    <p className="section-copy entry-copy">{cardSurface.diagnosis.headline}</p>
+                    <p className="binding-meta">{cardSurface.diagnosis.detail}</p>
+                  </>
+                ) : null}
+                <p className="section-copy entry-copy">{cardSurface.lastSeenLabel}</p>
+              </article>
+            );
+          })}
+        </div>
+      ) : null}
+
+      {selectedInvocationNextStepSurface ? (
         <article className="entry-card compact-card">
           <div className="payload-card-header">
             <div>
-              <p className="entry-card-title">{detailsSurfaceCopy.selectedInvocationNextStepTitle}</p>
-              <p className="binding-meta">{selectedInvocationId}</p>
+              <p className="entry-card-title">{selectedInvocationNextStepSurface.title}</p>
+              <p className="binding-meta">{selectedInvocationNextStepSurface.invocationId}</p>
             </div>
-            <span className="event-chip">{selectedInvocationDrilldown.label}</span>
+            <span className="event-chip">{selectedInvocationNextStepSurface.label}</span>
           </div>
-          <p className="section-copy entry-copy">{selectedInvocationDrilldown.detail}</p>
-          {selectedInvocationDrilldown.href && selectedInvocationDrilldown.href_label ? (
+          <p className="section-copy entry-copy">{selectedInvocationNextStepSurface.detail}</p>
+          {selectedInvocationNextStepSurface.href && selectedInvocationNextStepSurface.hrefLabel ? (
             <div className="tool-badge-row">
-              <Link className="event-chip inbox-filter-link" href={selectedInvocationDrilldown.href}>
-                {selectedInvocationDrilldown.href_label}
+              <Link className="event-chip inbox-filter-link" href={selectedInvocationNextStepSurface.href}>
+                {selectedInvocationNextStepSurface.hrefLabel}
               </Link>
             </div>
           ) : null}
