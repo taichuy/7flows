@@ -121,7 +121,6 @@ export function WorkflowRunOverlayPanel({
                   打开 run diagnostics
                 </Link>
                 <RunTraceExportActions
-                  blockedSummary="当前 overlay trace export 已接入统一敏感访问控制；可先查看审批票据和关联 run，再决定是否继续申请导出。"
                   formats={["json"]}
                   query={{
                     limit: DEFAULT_RUN_TRACE_LIMIT,

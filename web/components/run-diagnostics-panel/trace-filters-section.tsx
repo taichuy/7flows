@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 
 import { RunTraceExportActions } from "@/components/run-trace-export-actions";
@@ -130,7 +131,6 @@ export function RunDiagnosticsTraceFiltersSection({
               重置过滤
             </Link>
             <RunTraceExportActions
-              blockedSummary="当前 diagnostics trace export 已接入统一敏感访问控制；可先查看审批票据和关联 run，再决定是否继续申请导出。"
               query={activeTraceQuery}
               requesterId="run-diagnostics-trace-export"
               runId={runId}

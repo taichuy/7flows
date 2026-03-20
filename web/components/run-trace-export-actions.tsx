@@ -20,8 +20,6 @@ type RunTraceExportActionsProps = {
   query: RunTraceQuery;
   formats?: RunTraceExportFormat[];
   requesterId?: string;
-  blockedTitle?: string;
-  blockedSummary?: string;
 };
 
 const DEFAULT_FORMATS: RunTraceExportFormat[] = ["json", "jsonl"];
@@ -35,9 +33,7 @@ export function RunTraceExportActions({
   runId,
   query,
   formats = DEFAULT_FORMATS,
-  requesterId = "run-diagnostics-export-ui",
-  blockedTitle,
-  blockedSummary
+  requesterId = "run-diagnostics-export-ui"
 }: RunTraceExportActionsProps) {
   const [activeFormat, setActiveFormat] = useState<RunTraceExportFormat | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -47,9 +43,7 @@ export function RunTraceExportActions({
   const blockedCopy = blockedPayload
     ? buildSensitiveAccessBlockedSurfaceCopy({
         surfaceLabel: "Trace export",
-        payload: blockedPayload,
-        title: blockedTitle,
-        summary: blockedSummary
+        payload: blockedPayload
       })
     : null;
 

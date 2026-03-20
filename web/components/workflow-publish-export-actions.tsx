@@ -28,8 +28,6 @@ type WorkflowPublishExportActionsProps = {
   sandboxReadiness?: SandboxReadinessCheck | null;
   formats?: PublishedEndpointInvocationExportFormat[];
   requesterId?: string;
-  blockedTitle?: string;
-  blockedSummary?: string;
 };
 
 const DEFAULT_FORMATS: PublishedEndpointInvocationExportFormat[] = ["json", "jsonl"];
@@ -46,9 +44,7 @@ export function WorkflowPublishExportActions({
   activeInvocationFilter,
   sandboxReadiness,
   formats = DEFAULT_FORMATS,
-  requesterId = "publish-activity-export-ui",
-  blockedTitle,
-  blockedSummary
+  requesterId = "publish-activity-export-ui"
 }: WorkflowPublishExportActionsProps) {
   const [activeFormat, setActiveFormat] =
     useState<PublishedEndpointInvocationExportFormat | null>(null);
@@ -60,9 +56,7 @@ export function WorkflowPublishExportActions({
   const blockedCopy = blockedPayload
     ? buildSensitiveAccessBlockedSurfaceCopy({
         surfaceLabel: "Publish activity export",
-        payload: blockedPayload,
-        title: blockedTitle,
-        summary: blockedSummary
+        payload: blockedPayload
       })
     : null;
 

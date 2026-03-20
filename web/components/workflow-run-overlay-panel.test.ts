@@ -5,6 +5,11 @@ import { describe, expect, it, vi } from "vitest";
 import { WorkflowRunOverlayPanel } from "@/components/workflow-run-overlay-panel";
 import type { RunDetail } from "@/lib/get-run-detail";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import { DEFAULT_RUN_TRACE_LIMIT } from "@/lib/get-run-trace";
+
+const { exportActionSpy } = vi.hoisted(() => ({
+  exportActionSpy: vi.fn()
+}));
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
@@ -12,7 +17,10 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("@/components/run-trace-export-actions", () => ({
-  RunTraceExportActions: () => createElement("div", { "data-testid": "run-trace-export-actions" })
+  RunTraceExportActions: (props: Record<string, unknown>) => {
+    exportActionSpy(props);
+    return createElement("div", { "data-testid": "run-trace-export-actions" });
+  }
 }));
 
 function buildSandboxReadiness(): SandboxReadinessCheck {
@@ -178,5 +186,18 @@ describe("WorkflowRunOverlayPanel", () => {
     expect(html).toContain("open run");
     expect(html).toContain("当前 live sandbox readiness 显示 sandbox 已 ready。");
     expect(html).toContain("历史 run 记录的 backend 是 sandbox-stale");
+    expect(exportActionSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: "run-1",
+        requesterId: "workflow-run-overlay-export",
+        formats: ["json"],
+        query: {
+          limit: DEFAULT_RUN_TRACE_LIMIT,
+          order: "asc"
+        }
+      })
+    );
+    const props = exportActionSpy.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(props).not.toHaveProperty("blockedSummary");
   });
 });
