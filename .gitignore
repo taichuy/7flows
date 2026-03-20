@@ -152,3 +152,4 @@ __pycache__/
 # Local internal draft docs
 docs/.taichuy/
 docs/.private/
+.idea/

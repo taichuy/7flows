@@ -4,20 +4,6 @@
 
 更多定位说明见 [docs/open-source-positioning.md](/E:/code/taichuCode/7flows/docs/open-source-positioning.md)，授权细节以 [LICENSE](/E:/code/taichuCode/7flows/LICENSE) 为准。
 
-## 当前已落地能力
-
-- 工作流定义已支持最小结构校验、immutable version snapshot 与 compiled blueprint 绑定。
-- Runtime 已支持 DAG 调度、条件 / 路由分支、join、edge mapping、waiting / resume、callback ticket、artifact 引用和统一事件落库。
-- Published surface 已具备 native / OpenAI / Anthropic 三类入口，以及 API key、缓存、调用审计与最小 SSE。
-- 前端工作台已接上 system overview、workflow library、workflow editor、run diagnostics、publish panel、plugin registry、credential store 与 sensitive access inbox 等入口。
-- `services/compat-dify` 已提供最小兼容服务骨架，用于承接 `7Flows IR -> Dify invoke payload` 翻译与代理调用。
-
-## 当前诚实边界
-
-- `loop` 节点尚未在 MVP 执行器中正式开放执行。
-- 独立的 `SandboxBackendRegistration / SandboxExecution` 协议仍在持续成型，强隔离链路还没有完全闭环。
-- 节点配置、发布治理和 operator 工作面已有骨架，但仍在持续补齐，不应误写成完整成品。
-- 开源入口文档只说明当前项目能做什么；更细的产品目标设计与技术边界见 `docs/` 下对应文档。
 
 ## 仓库结构
 
@@ -49,10 +35,10 @@
 
 ### 1. 启动中间件
 
-```powershell
+```shell
 cd docker
-Copy-Item .\middleware.env.example .\middleware.env
-docker compose -f .\docker-compose.middleware.yaml up -d
+copy middleware.env.example middleware.env
+docker compose -f docker-compose.middleware.yaml up -d
 ```
 
 默认端口：
@@ -65,9 +51,9 @@ docker compose -f .\docker-compose.middleware.yaml up -d
 
 ### 2. 启动 API
 
-```powershell
+```shell
 cd api
-Copy-Item .env.example .env
+copy .env.example .env
 uv sync --extra dev
 uv run alembic upgrade head
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -75,48 +61,48 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ### 3. 启动 Worker
 
-```powershell
+```shell
 cd api
 uv run celery -A app.core.celery_app.celery_app worker --loglevel INFO --pool solo
 ```
 
 ### 4. 启动 Scheduler
 
-```powershell
+```shell
 cd api
 uv run celery -A app.core.celery_app.celery_app beat --loglevel INFO
 ```
 
 ### 5. 启动前端
 
-```powershell
+```shell
 cd web
-Copy-Item .env.example .env.local
+copy .env.example .env.local
 pnpm install
 pnpm dev
 ```
 
 ### 6. 整套容器启动
 
-```powershell
+```shell
 cd docker
-Copy-Item .\.env.example .\.env
+copy .env.example .env
 docker compose up -d --build
 ```
 
 ## 常用验证
 
-```powershell
+```shell
 cd api
 uv run pytest
 ```
 
-```powershell
+```shell
 cd services/compat-dify
 ..\..\api\.venv\Scripts\python.exe -m pytest
 ```
 
-```powershell
+```shell
 cd web
 pnpm lint
 pnpm test

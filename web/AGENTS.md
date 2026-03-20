@@ -1,6 +1,6 @@
 # web 协作说明
 
-先读根目录 [AGENTS.md](/E:/code/taichuCode/7flows/AGENTS.md)，再处理 `web/`。
+先读根目录 [AGENTS.md](../AGENTS.md)，再处理 `web/`。
 
 ## 默认技能
 
