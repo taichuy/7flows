@@ -13,6 +13,7 @@ import {
   resolveSensitiveAccessTimelineEntryRunContext
 } from "@/lib/sensitive-access";
 import { pickCallbackWaitingInlineSensitiveAccessEntry } from "@/lib/callback-waiting-presenters";
+import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import {
   formatSensitiveAccessDecisionLabel,
   formatSensitiveAccessReasonLabel,
@@ -298,7 +299,11 @@ export function SensitiveAccessTimelineEntryList({
           const runContext = resolveSensitiveAccessTimelineEntryRunContext(entry, defaultRunId);
           const runId = runContext.runId;
           const inboxSliceHref = buildSensitiveAccessTimelineInboxHref(entry, defaultRunId);
-          const shouldRenderCallbackWaitingSummary = shouldSurfaceCallbackWaitingSummary(entry);
+          const hasStructuredCallbackWaitingSummary = hasCallbackWaitingSummaryFacts(
+            runContext.snapshot
+          );
+          const shouldRenderCallbackWaitingSummary =
+            shouldSurfaceCallbackWaitingSummary(entry) && !hasStructuredCallbackWaitingSummary;
           const hasStructuredOperatorFeedback = Boolean(
             runContext.snapshot ||
               runContext.runFollowUp?.explanation ||
@@ -361,7 +366,9 @@ export function SensitiveAccessTimelineEntryList({
               {hasStructuredOperatorFeedback ? (
                 <InlineOperatorActionFeedback
                   message=""
-                  outcomeExplanation={entry.outcome_explanation ?? null}
+                  outcomeExplanation={
+                    shouldRenderCallbackWaitingSummary ? null : entry.outcome_explanation ?? null
+                  }
                   runFollowUpExplanation={runContext.runFollowUp?.explanation ?? null}
                   runFollowUp={runContext.runFollowUp ?? null}
                   runId={runId}
@@ -383,7 +390,7 @@ export function SensitiveAccessTimelineEntryList({
                 </>
               )}
 
-              {shouldRenderCallbackWaitingSummary && !hasStructuredOperatorFeedback ? (
+              {shouldRenderCallbackWaitingSummary ? (
                 <CallbackWaitingSummaryCard
                   callbackWaitingExplanation={entry.outcome_explanation ?? null}
                   className="payload-card compact-card"

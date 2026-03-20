@@ -6,6 +6,7 @@ import { SensitiveAccessTimelineEntryList } from "@/components/sensitive-access-
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 
 const inlineFeedbackProps: Array<Record<string, unknown>> = [];
+const callbackSummaryProps: Array<Record<string, unknown>> = [];
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
@@ -29,7 +30,13 @@ vi.mock("@/components/inline-operator-action-feedback", () => ({
 }));
 
 vi.mock("@/components/callback-waiting-summary-card", () => ({
-  CallbackWaitingSummaryCard: () => createElement("div", { "data-testid": "callback-waiting-summary" })
+  CallbackWaitingSummaryCard: (props: Record<string, unknown>) => {
+    callbackSummaryProps.push(props);
+    return createElement("div", {
+      "data-testid": "callback-waiting-summary",
+      "data-run-id": String(props.runId ?? "")
+    });
+  }
 }));
 
 vi.mock("@/components/sensitive-access-inline-actions", () => ({
@@ -128,6 +135,7 @@ function buildEntry(): SensitiveAccessTimelineEntry {
 describe("SensitiveAccessTimelineEntryList", () => {
   beforeEach(() => {
     inlineFeedbackProps.length = 0;
+    callbackSummaryProps.length = 0;
   });
 
   it("uses the matching sampled run snapshot instead of the first stale sample", () => {
@@ -146,5 +154,44 @@ describe("SensitiveAccessTimelineEntryList", () => {
       (inlineFeedbackProps[0]?.runSnapshot as { currentNodeId?: string | null } | undefined)
         ?.currentNodeId
     ).toBe("current-node");
+  });
+
+  it("keeps the shared callback waiting summary when only structured follow-up explanation exists", () => {
+    const entry = buildEntry();
+    const runFollowUpExplanation = {
+      primary_signal: "本次影响 1 个 run；operator follow-up 已刷新。",
+      follow_up: "先看共享 callback waiting 建议，再决定是否人工 override。"
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessTimelineEntryList, {
+        entries: [
+          {
+            ...entry,
+            run_follow_up: {
+              ...entry.run_follow_up!,
+              explanation: runFollowUpExplanation,
+              sampled_runs: []
+            }
+          }
+        ],
+        emptyCopy: "no entries"
+      })
+    );
+
+    expect(html).toContain('data-testid="inline-operator-feedback"');
+    expect(html).toContain('data-testid="callback-waiting-summary"');
+    expect(inlineFeedbackProps).toHaveLength(1);
+    expect(inlineFeedbackProps[0]?.outcomeExplanation ?? null).toBeNull();
+    expect(inlineFeedbackProps[0]?.runFollowUpExplanation).toEqual(runFollowUpExplanation);
+    expect(callbackSummaryProps).toHaveLength(1);
+    expect(
+      (
+        callbackSummaryProps[0]?.callbackWaitingExplanation as
+          | { primary_signal?: string | null }
+          | undefined
+      )?.primary_signal
+    ).toBe("当前阻断来自敏感访问审批票据。");
+    expect(callbackSummaryProps[0]?.showInlineActions).toBe(false);
   });
 });
