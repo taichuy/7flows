@@ -12,9 +12,8 @@ import { getApiBaseUrl } from "@/lib/api-base-url";
 
 import { revalidateOperatorFollowUpPaths } from "./operator-follow-up-revalidation";
 import {
-  fetchRunSnapshot,
+  resolveCanonicalOperatorRunSnapshot,
   normalizeOperatorRunFollowUp,
-  normalizeOperatorRunSnapshot,
   type OperatorRunFollowUpBody,
   type OperatorRunSnapshotBody
 } from "./run-snapshot";
@@ -90,8 +89,11 @@ export async function resumeRun(
       };
     }
 
-    const runSnapshot =
-      normalizeOperatorRunSnapshot(body?.run_snapshot) ?? (await fetchRunSnapshot(runId));
+    const runSnapshot = resolveCanonicalOperatorRunSnapshot({
+      runId,
+      runSnapshot: body?.run_snapshot,
+      runFollowUp: body?.run_follow_up
+    });
     revalidateOperatorFollowUpPaths({
       runIds: [runId],
       workflowIds: [runSnapshot?.workflowId]

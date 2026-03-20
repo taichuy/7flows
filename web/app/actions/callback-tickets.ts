@@ -12,9 +12,8 @@ import {
 
 import { revalidateOperatorFollowUpPaths } from "./operator-follow-up-revalidation";
 import {
-  fetchRunSnapshot,
+  resolveCanonicalOperatorRunSnapshot,
   normalizeOperatorRunFollowUp,
-  normalizeOperatorRunSnapshot,
   type OperatorRunFollowUpBody,
   type OperatorRunSnapshotBody
 } from "./run-snapshot";
@@ -94,8 +93,11 @@ export async function cleanupRunCallbackTickets(
     const scheduledResumeCount = body?.scheduled_resume_count ?? 0;
     const terminatedCount = body?.terminated_count ?? 0;
     const matchedCount = body?.matched_count ?? 0;
-    const runSnapshot =
-      normalizeOperatorRunSnapshot(body?.run_snapshot) ?? (await fetchRunSnapshot(runId));
+    const runSnapshot = resolveCanonicalOperatorRunSnapshot({
+      runId,
+      runSnapshot: body?.run_snapshot,
+      runFollowUp: body?.run_follow_up
+    });
     revalidateOperatorFollowUpPaths({
       runIds: body?.run_ids?.length ? body.run_ids : [runId],
       workflowIds: [runSnapshot?.workflowId]

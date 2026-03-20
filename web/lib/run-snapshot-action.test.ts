@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   fetchRunSnapshot,
-  normalizeOperatorRunSnapshot
+  normalizeOperatorRunSnapshot,
+  resolveCanonicalOperatorRunSnapshot
 } from "@/app/actions/run-snapshot";
 
 type MockJsonResponse = {
@@ -81,6 +82,68 @@ describe("fetchRunSnapshot", () => {
       scheduledResumeDueAt: "2026-03-20T10:00:30Z",
       scheduledResumeRequeuedAt: "2026-03-20T10:01:00Z",
       scheduledResumeRequeueSource: "scheduler_waiting_resume_monitor"
+    });
+  });
+
+  it("resolveCanonicalOperatorRunSnapshot 优先使用 run_snapshot，缺失时回退到同响应里的 sampled run snapshot", () => {
+    expect(
+      resolveCanonicalOperatorRunSnapshot({
+        runId: "run-1",
+        runSnapshot: {
+          workflow_id: "workflow-direct",
+          status: "running",
+          current_node_id: "review"
+        },
+        runFollowUp: {
+          sampled_runs: [
+            {
+              run_id: "run-1",
+              snapshot: {
+                workflow_id: "workflow-sampled",
+                status: "waiting",
+                current_node_id: "approval_gate"
+              }
+            }
+          ]
+        }
+      })
+    ).toMatchObject({
+      workflowId: "workflow-direct",
+      status: "running",
+      currentNodeId: "review"
+    });
+
+    expect(
+      resolveCanonicalOperatorRunSnapshot({
+        runId: "run-1",
+        runSnapshot: null,
+        runFollowUp: {
+          sampled_runs: [
+            {
+              run_id: "run-2",
+              snapshot: {
+                workflow_id: "workflow-other",
+                status: "failed",
+                current_node_id: "other"
+              }
+            },
+            {
+              run_id: "run-1",
+              snapshot: {
+                workflow_id: "workflow-sampled",
+                status: "waiting",
+                current_node_id: "approval_gate",
+                waiting_reason: "waiting approval"
+              }
+            }
+          ]
+        }
+      })
+    ).toMatchObject({
+      workflowId: "workflow-sampled",
+      status: "waiting",
+      currentNodeId: "approval_gate",
+      waitingReason: "waiting approval"
     });
   });
 

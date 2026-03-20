@@ -679,6 +679,33 @@ export function normalizeOperatorRunFollowUp(
   };
 }
 
+export function resolveCanonicalOperatorRunSnapshot(input: {
+  runId?: string | null;
+  runSnapshot?: OperatorRunSnapshotBody | null;
+  runFollowUp?: OperatorRunFollowUpBody | null;
+}): RunSnapshot | null {
+  const normalizedRunId = input.runId?.trim() || null;
+  const directSnapshot = normalizeOperatorRunSnapshot(input.runSnapshot);
+  if (directSnapshot) {
+    return directSnapshot;
+  }
+
+  const followUp = normalizeOperatorRunFollowUp(input.runFollowUp);
+  if (!followUp) {
+    return null;
+  }
+
+  if (normalizedRunId) {
+    const matchingSnapshot =
+      followUp.sampledRuns.find((item) => item.runId === normalizedRunId)?.snapshot ?? null;
+    if (matchingSnapshot) {
+      return matchingSnapshot;
+    }
+  }
+
+  return followUp.sampledRuns.find((item) => item.snapshot != null)?.snapshot ?? null;
+}
+
 async function fetchRunExecutionView(
   runId: string
 ): Promise<RunExecutionViewResponseBody | null> {

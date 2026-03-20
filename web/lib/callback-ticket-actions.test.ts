@@ -6,7 +6,6 @@ import {
   fetchScopedCallbackBlockerSnapshot
 } from "@/app/actions/callback-blocker-action-summary";
 import { revalidateOperatorFollowUpPaths } from "@/app/actions/operator-follow-up-revalidation";
-import { fetchRunSnapshot } from "@/app/actions/run-snapshot";
 
 vi.mock("@/lib/api-base-url", () => ({
   getApiBaseUrl: () => "http://api.test"
@@ -27,7 +26,50 @@ vi.mock("@/app/actions/callback-blocker-action-summary", () => ({
 }));
 
 vi.mock("@/app/actions/run-snapshot", () => ({
-  fetchRunSnapshot: vi.fn(),
+  resolveCanonicalOperatorRunSnapshot: vi.fn((input?: {
+    runId?: string | null;
+    runSnapshot?: {
+      workflow_id?: string | null;
+      status?: string | null;
+      current_node_id?: string | null;
+      waiting_reason?: string | null;
+    } | null;
+    runFollowUp?: {
+      sampled_runs?: Array<{
+        run_id: string;
+        snapshot?: {
+          workflow_id?: string | null;
+          status?: string | null;
+          current_node_id?: string | null;
+          waiting_reason?: string | null;
+        } | null;
+      }>;
+    } | null;
+  }) => {
+    const direct = input?.runSnapshot;
+    if (direct) {
+      return {
+        workflowId: direct.workflow_id ?? null,
+        status: direct.status ?? null,
+        currentNodeId: direct.current_node_id ?? null,
+        waitingReason: direct.waiting_reason ?? null
+      };
+    }
+
+    const samples = input?.runFollowUp?.sampled_runs ?? [];
+    const fallback =
+      samples.find((item) => item.run_id === input?.runId)?.snapshot ??
+      samples.find((item) => item.snapshot != null)?.snapshot ??
+      null;
+    return fallback
+      ? {
+          workflowId: fallback.workflow_id ?? null,
+          status: fallback.status ?? null,
+          currentNodeId: fallback.current_node_id ?? null,
+          waitingReason: fallback.waiting_reason ?? null
+        }
+      : null;
+  }),
   normalizeOperatorRunFollowUp: vi.fn((summary?: {
     affected_run_count?: number;
     sampled_run_count?: number;
@@ -100,12 +142,6 @@ describe("callback ticket actions", () => {
   });
 
   it("callback cleanup 优先消费后端 run_snapshot", async () => {
-    vi.mocked(fetchRunSnapshot).mockResolvedValue({
-      workflowId: "wf-cleanup",
-      status: "waiting",
-      currentNodeId: "approval_gate",
-      waitingReason: "waiting callback"
-    });
     vi.mocked(global.fetch).mockResolvedValue(
       jsonResponse({
         matched_count: 1,
@@ -214,7 +250,6 @@ describe("callback ticket actions", () => {
         }
       ]
     });
-    expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(fetchScopedCallbackBlockerSnapshot).toHaveBeenNthCalledWith(1, {
       runId: "run-cleanup",
       nodeRunId: "node-run-cleanup"

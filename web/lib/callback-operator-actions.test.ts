@@ -4,7 +4,6 @@ import {
   cleanupRunCallbackTickets
 } from "@/app/actions/callback-tickets";
 import { revalidateOperatorFollowUpPaths } from "@/app/actions/operator-follow-up-revalidation";
-import { fetchRunSnapshot } from "@/app/actions/run-snapshot";
 import { resumeRun } from "@/app/actions/runs";
 import {
   fetchCallbackBlockerSnapshot,
@@ -23,8 +22,55 @@ vi.mock("@/app/actions/operator-follow-up-revalidation", () => ({
 }));
 
 vi.mock("@/app/actions/run-snapshot", () => ({
-  fetchRunSnapshot: vi.fn(),
   fetchRunSnapshots: vi.fn(),
+  resolveCanonicalOperatorRunSnapshot: vi.fn((input?: {
+    runId?: string | null;
+    runSnapshot?: Record<string, unknown> | null;
+    runFollowUp?: {
+      sampled_runs?: Array<{
+        run_id: string;
+        snapshot?: Record<string, unknown> | null;
+      }>;
+    } | null;
+  }) => {
+    const direct = input?.runSnapshot;
+    if (direct) {
+      return {
+        workflowId: direct.workflow_id ?? null,
+        status: direct.status ?? null,
+        currentNodeId: direct.current_node_id ?? null,
+        waitingReason: direct.waiting_reason ?? null,
+        executionFocusNodeId: direct.execution_focus_node_id ?? null,
+        executionFocusExplanation: direct.execution_focus_explanation ?? null,
+        callbackWaitingExplanation: direct.callback_waiting_explanation ?? null,
+        executionFocusArtifactCount: direct.execution_focus_artifact_count ?? 0,
+        executionFocusArtifactRefCount: direct.execution_focus_artifact_ref_count ?? 0,
+        executionFocusToolCallCount: direct.execution_focus_tool_call_count ?? 0,
+        executionFocusRawRefCount: direct.execution_focus_raw_ref_count ?? 0
+      };
+    }
+
+    const samples = input?.runFollowUp?.sampled_runs ?? [];
+    const fallback =
+      samples.find((item) => item.run_id === input?.runId)?.snapshot ??
+      samples.find((item) => item.snapshot != null)?.snapshot ??
+      null;
+    return fallback
+      ? {
+          workflowId: fallback.workflow_id ?? null,
+          status: fallback.status ?? null,
+          currentNodeId: fallback.current_node_id ?? null,
+          waitingReason: fallback.waiting_reason ?? null,
+          executionFocusNodeId: fallback.execution_focus_node_id ?? null,
+          executionFocusExplanation: fallback.execution_focus_explanation ?? null,
+          callbackWaitingExplanation: fallback.callback_waiting_explanation ?? null,
+          executionFocusArtifactCount: fallback.execution_focus_artifact_count ?? 0,
+          executionFocusArtifactRefCount: fallback.execution_focus_artifact_ref_count ?? 0,
+          executionFocusToolCallCount: fallback.execution_focus_tool_call_count ?? 0,
+          executionFocusRawRefCount: fallback.execution_focus_raw_ref_count ?? 0
+        }
+      : null;
+  }),
   normalizeOperatorRunFollowUp: vi.fn((summary?: {
     affected_run_count?: number;
     sampled_run_count?: number;
@@ -176,7 +222,6 @@ describe("callback operator actions", () => {
       executionFocusToolCallCount: 1,
       executionFocusRawRefCount: 1
     });
-    expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(revalidateOperatorFollowUpPaths).toHaveBeenCalledWith({
       runIds: ["run-1"],
       workflowIds: ["wf-1"]
@@ -247,7 +292,6 @@ describe("callback operator actions", () => {
       currentNodeId: "review",
       waitingReason: "waiting callback"
     });
-    expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(revalidateOperatorFollowUpPaths).toHaveBeenCalledWith({
       runIds: ["run-1"],
       workflowIds: ["wf-1"]

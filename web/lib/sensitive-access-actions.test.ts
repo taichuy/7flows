@@ -14,7 +14,6 @@ import {
   buildActionCallbackBlockerDeltaSummary,
   fetchScopedCallbackBlockerSnapshot
 } from "@/app/actions/callback-blocker-action-summary";
-import { fetchRunSnapshot } from "@/app/actions/run-snapshot";
 
 vi.mock("@/lib/api-base-url", () => ({
   getApiBaseUrl: () => "http://api.test"
@@ -36,8 +35,55 @@ vi.mock("@/app/actions/callback-blocker-action-summary", () => ({
 }));
 
 vi.mock("@/app/actions/run-snapshot", () => ({
-  fetchRunSnapshot: vi.fn(),
   fetchRunSnapshots: vi.fn(),
+  resolveCanonicalOperatorRunSnapshot: vi.fn((input?: {
+    runId?: string | null;
+    runSnapshot?: {
+      workflow_id?: string | null;
+      status?: string | null;
+      current_node_id?: string | null;
+      waiting_reason?: string | null;
+      execution_focus_reason?: string | null;
+    } | null;
+    runFollowUp?: {
+      sampled_runs?: Array<{
+        run_id: string;
+        snapshot?: {
+          workflow_id?: string | null;
+          status?: string | null;
+          current_node_id?: string | null;
+          waiting_reason?: string | null;
+          execution_focus_reason?: string | null;
+        } | null;
+      }>;
+    } | null;
+  }) => {
+    const direct = input?.runSnapshot;
+    if (direct) {
+      return {
+        workflowId: direct.workflow_id ?? null,
+        status: direct.status ?? null,
+        currentNodeId: direct.current_node_id ?? null,
+        waitingReason: direct.waiting_reason ?? null,
+        executionFocusReason: direct.execution_focus_reason ?? null
+      };
+    }
+
+    const samples = input?.runFollowUp?.sampled_runs ?? [];
+    const fallback =
+      samples.find((item) => item.run_id === input?.runId)?.snapshot ??
+      samples.find((item) => item.snapshot != null)?.snapshot ??
+      null;
+    return fallback
+      ? {
+          workflowId: fallback.workflow_id ?? null,
+          status: fallback.status ?? null,
+          currentNodeId: fallback.current_node_id ?? null,
+          waitingReason: fallback.waiting_reason ?? null,
+          executionFocusReason: fallback.execution_focus_reason ?? null
+        }
+      : null;
+  }),
   normalizeOperatorRunFollowUp: vi.fn((summary?: {
     affected_run_count?: number;
     sampled_run_count?: number;
@@ -114,10 +160,6 @@ describe("sensitive access actions", () => {
   });
 
   it("单条审批优先消费后端 run follow-up explanation", async () => {
-    vi.mocked(fetchRunSnapshot).mockResolvedValue({
-      status: "waiting",
-      workflowId: "wf-fallback"
-    });
     vi.mocked(global.fetch).mockResolvedValue(
       jsonResponse({
         outcome_explanation: {
@@ -232,7 +274,6 @@ describe("sensitive access actions", () => {
     );
     expect(result.message).toContain("本次影响 1 个 run；整体状态分布：running 1。已回读 1 个样本。");
     expect(result.message).toContain("run run-1：当前 run 状态：running。 当前节点：review。 重点信号：runtime 已继续推进。");
-    expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(revalidateOperatorFollowUpPaths).toHaveBeenCalledWith({
       runIds: ["run-1"],
       workflowIds: ["wf-1"]
@@ -355,15 +396,10 @@ describe("sensitive access actions", () => {
         }
       ]
     });
-    expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
   it("单条通知重试优先消费后端 run follow-up explanation", async () => {
-    vi.mocked(fetchRunSnapshot).mockResolvedValue({
-      status: "waiting",
-      workflowId: "wf-fallback"
-    });
     vi.mocked(global.fetch).mockResolvedValue(
       jsonResponse({
         outcome_explanation: {
@@ -450,7 +486,6 @@ describe("sensitive access actions", () => {
     );
     expect(result.message).toContain("本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。");
     expect(result.message).toContain("run run-1：当前 run 状态：waiting。 当前节点：review。 重点信号：仍在等待审批结果。");
-    expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(revalidateOperatorFollowUpPaths).toHaveBeenCalledWith({
       runIds: ["run-1"],
       workflowIds: ["wf-1"]
@@ -572,7 +607,6 @@ describe("sensitive access actions", () => {
         }
       ]
     });
-    expect(fetchRunSnapshot).not.toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 });

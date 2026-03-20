@@ -25,8 +25,8 @@ import {
   revalidateOperatorFollowUpPaths
 } from "./operator-follow-up-revalidation";
 import {
-  fetchRunSnapshot,
   fetchRunSnapshots,
+  resolveCanonicalOperatorRunSnapshot,
   normalizeOperatorRunFollowUp,
   normalizeOperatorRunSnapshot,
   type RunSnapshotWithId,
@@ -286,7 +286,11 @@ export async function decideSensitiveAccessApprovalTicket(
       };
     }
 
-    const runSnapshot = toRunSnapshot(body?.run_snapshot) ?? (await fetchRunSnapshot(runId));
+    const runSnapshot = resolveCanonicalOperatorRunSnapshot({
+      runId,
+      runSnapshot: body?.run_snapshot,
+      runFollowUp: body?.run_follow_up
+    });
     revalidateOperatorFollowUpPaths({
       runIds: [runId],
       workflowIds: [runSnapshot?.workflowId]
@@ -381,7 +385,11 @@ export async function retrySensitiveAccessNotificationDispatch(
       };
     }
 
-    const runSnapshot = toRunSnapshot(body?.run_snapshot) ?? (await fetchRunSnapshot(runId));
+    const runSnapshot = resolveCanonicalOperatorRunSnapshot({
+      runId,
+      runSnapshot: body?.run_snapshot,
+      runFollowUp: body?.run_follow_up
+    });
     revalidateOperatorFollowUpPaths({
       runIds: [runId],
       workflowIds: [runSnapshot?.workflowId]
