@@ -18,17 +18,29 @@ import {
   buildPublishedInvocationTrafficTimelineSurfaceCopy,
   buildPublishedInvocationUnavailableDetailSurfaceCopy,
   formatPublishedInvocationApiKeyUsageMix,
+  formatPublishedInvocationMetricCounts,
   formatPublishedInvocationOptionalRunStatus,
   formatPublishedInvocationCacheSurfaceMix,
   formatPublishedInvocationFailureReasonLastSeen,
+  formatPublishedInvocationRequestKeysSummary,
   formatPublishedInvocationRunStatusMix,
   formatPublishedInvocationSampleReasonLabel,
   formatPublishedInvocationWaitingRuntimeFallback,
   formatPublishedInvocationWaitingFollowUp,
   formatPublishedInvocationWaitingHeadline,
   hasPublishedInvocationBlockingSensitiveAccessSummary,
+  listPublishedInvocationActivitySummaryRows,
+  listPublishedInvocationActivityWaitingRows,
   listPublishedInvocationApiKeyCountLabels,
+  listPublishedInvocationCacheDrilldownRows,
+  listPublishedInvocationCanonicalFollowUpChips,
+  listPublishedInvocationDetailRunRows,
+  listPublishedInvocationEntryMetaRows,
+  listPublishedInvocationEntryWaitingRows,
   listPublishedInvocationFacetCountLabels,
+  listPublishedInvocationRateLimitRows,
+  listPublishedInvocationRunFollowUpEvidenceChips,
+  listPublishedInvocationRunFollowUpSampleMetaRows,
   listPublishedInvocationRunFollowUpSampleSummaries,
   listPublishedInvocationRunFollowUpSampleViews,
   listPublishedInvocationSensitiveAccessChips,
@@ -126,6 +138,7 @@ describe("published invocation presenters", () => {
 
   it("为 publish entry / detail 提供统一 surface copy", () => {
     expect(buildPublishedInvocationEntrySurfaceCopy()).toEqual({
+      waitingOverviewTitle: "Waiting overview",
       canonicalFollowUpTitle: "Canonical follow-up",
       canonicalFollowUpFallbackHeadline: "当前 invocation 已接入 canonical follow-up 事实链。",
       canonicalFollowUpAffectedRunsLabel: "Affected runs",
@@ -147,6 +160,172 @@ describe("published invocation presenters", () => {
     expect(formatPublishedInvocationSampleReasonLabel("callback_waiting")).toBe("callback waiting");
     expect(formatPublishedInvocationSampleReasonLabel("execution_focus")).toBe("execution focus");
     expect(formatPublishedInvocationSampleReasonLabel(null)).toBe("run snapshot");
+  });
+
+  it("为 publish entry/detail 统一拼装 meta rows 与 follow-up chips", () => {
+    expect(
+      listPublishedInvocationEntryMetaRows({
+        invocation: {
+          api_key_name: null,
+          api_key_prefix: "sk-test",
+          request_preview: { keys: ["query"] },
+          run_id: "run-1",
+          run_waiting_lifecycle: {
+            callback_ticket_count: 2,
+            callback_ticket_status_counts: { pending: 1, approved: 1 }
+          }
+        } as never,
+        runStatus: "waiting_callback",
+        currentNodeId: "tool_wait",
+        waitingReason: "callback pending",
+        scheduledResumeLabel: "45s later"
+      })
+    ).toEqual([
+      { key: "api-key", label: "API key", value: "sk-test", href: null },
+      { key: "request-keys", label: "Request keys", value: "query", href: null },
+      { key: "run", label: "Run", value: "run-1", href: "/runs/run-1" },
+      { key: "run-status", label: "Run status", value: "Waiting callback", href: null },
+      { key: "current-node", label: "Current node", value: "tool_wait", href: null },
+      { key: "waiting-reason", label: "Waiting reason", value: "callback pending", href: null },
+      {
+        key: "callback-tickets",
+        label: "Callback tickets",
+        value: "2 · pending 1 · approved 1",
+        href: null
+      },
+      { key: "scheduled-resume", label: "Scheduled resume", value: "45s later", href: null }
+    ]);
+
+    expect(
+      listPublishedInvocationDetailRunRows({
+        runId: "run-1",
+        runStatus: "waiting",
+        currentNodeId: "tool_wait",
+        waitingReason: "callback pending",
+        waitingNodeRunId: "node-run-1",
+        startedAt: "2026-03-20T10:00:00Z",
+        finishedAt: null
+      })
+    ).toEqual(
+      expect.arrayContaining([
+        { key: "run", label: "Run", value: "run-1", href: "/runs/run-1" },
+        { key: "status", label: "Status", value: "waiting", href: null },
+        { key: "current-node", label: "Current node", value: "tool_wait", href: null },
+        { key: "waiting-reason", label: "Waiting reason", value: "callback pending", href: null },
+        { key: "waiting-node-run", label: "Waiting node run", value: "node-run-1", href: null }
+      ])
+    );
+
+    expect(
+      listPublishedInvocationCacheDrilldownRows({
+        cache: {
+          cache_status: "miss",
+          cache_key: "cache-key-1",
+          cache_entry_id: "entry-1",
+          inventory_entry: {
+            hit_count: 3,
+            last_hit_at: "2026-03-20T10:01:00Z",
+            expires_at: null
+          }
+        }
+      } as never)
+    ).toEqual(
+      expect.arrayContaining([
+        { key: "status", label: "Status", value: "miss", href: null },
+        { key: "cache-key", label: "Cache key", value: "cache-key-1", href: null },
+        { key: "entry", label: "Entry", value: "entry-1", href: null },
+        { key: "entry-hits", label: "Entry hits", value: "3", href: null }
+      ])
+    );
+
+    expect(
+      listPublishedInvocationCanonicalFollowUpChips({
+        affectedRunCount: 2,
+        sampledRunCount: 1,
+        statusSummary: "waiting 1 · failed 1"
+      })
+    ).toEqual(["affected 2", "sampled 1", "status waiting 1 · failed 1"]);
+
+    expect(formatPublishedInvocationMetricCounts({ pending: 1, approved: 1, failed: 0 })).toBe(
+      "pending 1 · approved 1"
+    );
+    expect(formatPublishedInvocationRequestKeysSummary(["query", "messages"])).toBe(
+      "request keys: query, messages"
+    );
+  });
+
+  it("为 publish entry waiting overview 统一拼装 meta rows", () => {
+    expect(
+      listPublishedInvocationEntryWaitingRows({
+        nodeRunId: "node-run-1",
+        nodeStatus: "waiting_callback",
+        callbackTicketCount: 2,
+        callbackTicketStatusCounts: { pending: 1, approved: 1 },
+        callbackLifecycleLabel: "pending -> delivered",
+        callbackLifecycleFallback: "tracked in detail panel"
+      })
+    ).toEqual([
+      { key: "node-run", label: "Node run", value: "node-run-1", href: null },
+      { key: "node-status", label: "Node status", value: "waiting_callback", href: null },
+      {
+        key: "callback-tickets",
+        label: "Callback tickets",
+        value: "2 · pending 1 · approved 1",
+        href: null
+      },
+      {
+        key: "callback-lifecycle",
+        label: "Callback lifecycle",
+        value: "pending -> delivered",
+        href: null
+      }
+    ]);
+  });
+
+  it("为 sampled run 统一拼装 evidence badges 与 sample meta rows", () => {
+    const sample = listPublishedInvocationRunFollowUpSampleViews({
+      affected_run_count: 1,
+      sampled_run_count: 1,
+      waiting_run_count: 1,
+      running_run_count: 0,
+      succeeded_run_count: 0,
+      failed_run_count: 0,
+      unknown_run_count: 0,
+      explanation: null,
+      sampled_runs: [
+        {
+          run_id: "run-1",
+          snapshot: {
+            status: "waiting",
+            current_node_id: "tool_wait",
+            waiting_reason: "callback pending",
+            execution_focus_artifact_count: 2,
+            execution_focus_artifact_ref_count: 1,
+            execution_focus_tool_call_count: 3,
+            execution_focus_raw_ref_count: 1,
+            execution_focus_skill_trace: {
+              reference_count: 4,
+              loads: []
+            },
+            execution_focus_skill_reference_phase_summary: "plan×2",
+            execution_focus_skill_reference_source_summary: "catalog×1"
+          }
+        }
+      ]
+    } as never)[0];
+
+    expect(listPublishedInvocationRunFollowUpEvidenceChips(sample)).toEqual([
+      "artifacts 2",
+      "artifact refs 1",
+      "tool calls 3",
+      "raw refs 1",
+      "skill refs 4"
+    ]);
+    expect(listPublishedInvocationRunFollowUpSampleMetaRows(sample)).toEqual([
+      { key: "status", label: "Status", value: "waiting", href: null },
+      { key: "current-node", label: "Current node", value: "tool_wait", href: null },
+      { key: "waiting-reason", label: "Waiting reason", value: "callback pending", href: null }
+    ]);
   });
 
   it("为 publish activity insights 提供统一辅助文案", () => {
@@ -198,6 +377,81 @@ describe("published invocation presenters", () => {
     expect(buildPublishedInvocationActivityInsightsSurfaceCopy().rateLimitWindowDescription).toContain(
       "当前窗口按当前筛选时间窗统计成功和失败调用"
     );
+  });
+
+  it("为 publish activity insights 统一拼装 summary / waiting / rate-limit rows", () => {
+    const surfaceCopy = buildPublishedInvocationActivityInsightsSurfaceCopy();
+    const waitingOverview = {
+      activeWaitingCount: 3,
+      callbackWaitingCount: 1,
+      waitingInputCount: 1,
+      generalWaitingCount: 1,
+      syncWaitingRejectedCount: 2,
+      lastRunStatusLabel: "waiting_callback",
+      headline: "headline",
+      detail: "detail",
+      chips: ["chip"]
+    };
+
+    expect(
+      listPublishedInvocationActivitySummaryRows({
+        summary: {
+          total_count: 10,
+          succeeded_count: 6,
+          failed_count: 2,
+          rejected_count: 2,
+          cache_hit_count: 4,
+          cache_miss_count: 5,
+          cache_bypass_count: 1,
+          last_run_status: "waiting_callback"
+        },
+        waitingOverview,
+        surfaceCopy
+      })
+    ).toEqual([
+      { key: "total-calls", label: "Total calls", value: "10", href: null },
+      { key: "succeeded-calls", label: "Succeeded", value: "6", href: null },
+      { key: "failed-calls", label: "Failed", value: "2", href: null },
+      { key: "rejected-calls", label: "Rejected", value: "2", href: null },
+      { key: "last-run-status", label: "Last run status", value: "Waiting callback", href: null },
+      { key: "waiting-now", label: "Waiting now", value: "3", href: null }
+    ]);
+
+    expect(
+      listPublishedInvocationActivityWaitingRows({
+        waitingOverview,
+        surfaceCopy
+      })
+    ).toEqual([
+      { key: "active-waiting", label: "Active waiting", value: "3", href: null },
+      { key: "callback-waits", label: "Callback waits", value: "1", href: null },
+      { key: "approval-input-waits", label: "Approval/input waits", value: "1", href: null },
+      { key: "generic-waits", label: "Generic waits", value: "1", href: null },
+      { key: "sync-waiting-rejected", label: "Sync waiting rejected", value: "2", href: null },
+      {
+        key: "latest-run-status",
+        label: "Latest run status",
+        value: "waiting_callback",
+        href: null
+      }
+    ]);
+
+    expect(
+      listPublishedInvocationRateLimitRows({
+        rateLimitPolicy: { requests: 20, windowSeconds: 60 },
+        windowUsed: 12,
+        remainingQuota: 8,
+        pressureLabel: "60%",
+        windowRejected: 3,
+        surfaceCopy
+      })
+    ).toEqual([
+      { key: "rate-limit-policy", label: "Policy", value: "20 / 60s", href: null },
+      { key: "rate-limit-used", label: "Used", value: "12", href: null },
+      { key: "rate-limit-remaining", label: "Remaining", value: "8", href: null },
+      { key: "rate-limit-pressure", label: "Pressure", value: "60%", href: null },
+      { key: "rate-limit-rejected", label: "Rejected", value: "3", href: null }
+    ]);
   });
 
   it("为 publish activity traffic mix 提供共享 cache/run-state 摘要", () => {

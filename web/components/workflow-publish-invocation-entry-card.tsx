@@ -21,13 +21,15 @@ import {
   buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationInboxHref,
   buildPublishedInvocationRecommendedNextStep,
+  listPublishedInvocationEntryMetaRows,
+  listPublishedInvocationEntryWaitingRows,
+  listPublishedInvocationRunFollowUpEvidenceChips,
   formatPublishedInvocationWaitingRuntimeFallback,
   formatPublishedInvocationWaitingFollowUp,
   formatPublishedInvocationWaitingHeadline,
   formatPublishedInvocationCacheStatusLabel,
   formatPublishedInvocationReasonLabel,
   formatPublishedInvocationSurfaceLabel,
-  formatPublishedRunStatusLabel,
   hasPublishedInvocationBlockingSensitiveAccessSummary,
   listPublishedInvocationSensitiveAccessChips,
   listPublishedInvocationSensitiveAccessRows,
@@ -41,7 +43,7 @@ import {
   listExecutionFocusRuntimeFactBadges
 } from "@/lib/run-execution-focus-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
-import { formatDurationMs, formatKeyList, formatTimestamp } from "@/lib/runtime-presenters";
+import { formatDurationMs, formatTimestamp } from "@/lib/runtime-presenters";
 
 type PublishedInvocationItem = PublishedEndpointInvocationListResponse["items"][number];
 
@@ -51,18 +53,6 @@ type WorkflowPublishInvocationEntryCardProps = {
   detailActive: boolean;
   sandboxReadiness?: SandboxReadinessCheck | null;
 };
-
-function formatMetricCounts(metrics: Record<string, number> | null | undefined): string {
-  if (!metrics) {
-    return "n/a";
-  }
-
-  const parts = Object.entries(metrics)
-    .filter(([, count]) => count > 0)
-    .map(([label, count]) => `${label} ${count}`);
-
-  return parts.length ? parts.join(" · ") : "0";
-}
 
 function hasInvocationDrilldown(item: PublishedInvocationItem): boolean {
   return Boolean(
@@ -203,6 +193,24 @@ export function WorkflowPublishInvocationEntryCard({
   const runStatus = runSnapshot?.status ?? item.run_status ?? null;
   const currentNodeId = runSnapshot?.currentNodeId ?? item.run_current_node_id ?? null;
   const waitingReason = runSnapshot?.waitingReason ?? item.run_waiting_reason ?? null;
+  const entryMetaRows = listPublishedInvocationEntryMetaRows({
+    invocation: item,
+    runStatus,
+    currentNodeId,
+    waitingReason,
+    scheduledResumeLabel
+  });
+  const waitingMetaRows = listPublishedInvocationEntryWaitingRows({
+    nodeRunId: waitingLifecycle?.node_run_id ?? null,
+    nodeStatus: waitingLifecycle?.node_status ?? null,
+    callbackTicketCount: waitingLifecycle?.callback_ticket_count ?? 0,
+    callbackTicketStatusCounts: waitingLifecycle?.callback_ticket_status_counts,
+    callbackLifecycleLabel,
+    callbackLifecycleFallback: surfaceCopy.callbackLifecycleFallback
+  });
+  const runFollowUpEvidenceChips = runFollowUpSample
+    ? listPublishedInvocationRunFollowUpEvidenceChips(runFollowUpSample)
+    : [];
 
   return (
     <article className="payload-card compact-card">
@@ -229,50 +237,20 @@ export function WorkflowPublishInvocationEntryCard({
         </div>
       ) : null}
       <dl className="compact-meta-list">
-        <div>
-          <dt>API key</dt>
-          <dd>{item.api_key_name ?? item.api_key_prefix ?? "internal"}</dd>
-        </div>
-        <div>
-          <dt>Request keys</dt>
-          <dd>{formatKeyList(item.request_preview.keys ?? [])}</dd>
-        </div>
-        <div>
-          <dt>Run</dt>
-          <dd>
-            {item.run_id ? (
-              <Link className="inline-link" href={`/runs/${encodeURIComponent(item.run_id)}`}>
-                {item.run_id}
-              </Link>
-            ) : (
-              "not-started"
-            )}
-          </dd>
-        </div>
-        <div>
-          <dt>Run status</dt>
-          <dd>{formatPublishedRunStatusLabel(runStatus)}</dd>
-        </div>
-        <div>
-          <dt>Current node</dt>
-          <dd>{currentNodeId ?? "n/a"}</dd>
-        </div>
-        <div>
-          <dt>Waiting reason</dt>
-          <dd>{waitingReason ?? "n/a"}</dd>
-        </div>
-        <div>
-          <dt>Callback tickets</dt>
-          <dd>
-            {item.run_waiting_lifecycle
-              ? `${item.run_waiting_lifecycle.callback_ticket_count} · ${formatMetricCounts(item.run_waiting_lifecycle.callback_ticket_status_counts)}`
-              : "n/a"}
-          </dd>
-        </div>
-        <div>
-          <dt>Scheduled resume</dt>
-          <dd>{scheduledResumeLabel}</dd>
-        </div>
+        {entryMetaRows.map((row) => (
+          <div key={`${item.id}-${row.key}`}>
+            <dt>{row.label}</dt>
+            <dd>
+              {row.href ? (
+                <Link className="inline-link" href={row.href}>
+                  {row.value}
+                </Link>
+              ) : (
+                row.value
+              )}
+            </dd>
+          </div>
+        ))}
       </dl>
       {executionFactBadges.length > 0 && !shouldDeferToSharedCallbackWaitingSummary ? (
         <div className="tool-badge-row">
@@ -339,41 +317,11 @@ export function WorkflowPublishInvocationEntryCard({
               runFollowUpSample.execution_focus_raw_ref_count > 0 ||
               runFollowUpSample.skill_reference_count > 0 ? (
                 <div className="tool-badge-row">
-                  {runFollowUpSample.execution_focus_artifact_count > 0 ? (
-                    <span className="event-chip">
-                      artifacts {runFollowUpSample.execution_focus_artifact_count}
+                  {runFollowUpEvidenceChips.map((chip) => (
+                    <span className="event-chip" key={`${runFollowUpSample.run_id}-${chip}`}>
+                      {chip}
                     </span>
-                  ) : null}
-                  {runFollowUpSample.execution_focus_artifact_ref_count > 0 ? (
-                    <span className="event-chip">
-                      artifact refs {runFollowUpSample.execution_focus_artifact_ref_count}
-                    </span>
-                  ) : null}
-                  {runFollowUpSample.execution_focus_tool_call_count > 0 ? (
-                    <span className="event-chip">
-                      tool calls {runFollowUpSample.execution_focus_tool_call_count}
-                    </span>
-                  ) : null}
-                  {runFollowUpSample.execution_focus_raw_ref_count > 0 ? (
-                    <span className="event-chip">
-                      raw refs {runFollowUpSample.execution_focus_raw_ref_count}
-                    </span>
-                  ) : null}
-                  {runFollowUpSample.skill_reference_count > 0 ? (
-                    <span className="event-chip">
-                      skill refs {runFollowUpSample.skill_reference_count}
-                    </span>
-                  ) : null}
-                  {runFollowUpSample.skill_reference_phase_summary ? (
-                    <span className="event-chip">
-                      phases {runFollowUpSample.skill_reference_phase_summary}
-                    </span>
-                  ) : null}
-                  {runFollowUpSample.skill_reference_source_summary ? (
-                    <span className="event-chip">
-                      sources {runFollowUpSample.skill_reference_source_summary}
-                    </span>
-                  ) : null}
+                  ))}
                 </div>
               ) : null}
               {runFollowUpSampleHasCallbackWaitingSummary ? (
@@ -471,7 +419,7 @@ export function WorkflowPublishInvocationEntryCard({
         <div className="publish-meta-grid">
           <div className="payload-card compact-card">
             <div className="payload-card-header">
-              <span className="status-meta">Waiting overview</span>
+              <span className="status-meta">{surfaceCopy.waitingOverviewTitle}</span>
             </div>
             {!shouldDeferToSharedCallbackWaitingSummary ? (
               <p className="section-copy entry-copy">{waitingOverviewHeadline}</p>
@@ -486,26 +434,12 @@ export function WorkflowPublishInvocationEntryCard({
               </p>
             ) : null}
             <dl className="compact-meta-list">
-              <div>
-                <dt>Node run</dt>
-                <dd>{waitingLifecycle.node_run_id}</dd>
-              </div>
-              <div>
-                <dt>Node status</dt>
-                <dd>{waitingLifecycle.node_status}</dd>
-              </div>
-              <div>
-                <dt>Callback tickets</dt>
-                <dd>
-                  {waitingLifecycle.callback_ticket_count
-                    ? `${waitingLifecycle.callback_ticket_count} · ${formatMetricCounts(waitingLifecycle.callback_ticket_status_counts)}`
-                    : "0"}
-                </dd>
-              </div>
-              <div>
-                <dt>Callback lifecycle</dt>
-                <dd>{callbackLifecycleLabel ?? surfaceCopy.callbackLifecycleFallback}</dd>
-              </div>
+              {waitingMetaRows.map((row) => (
+                <div key={`${item.id}:${row.key}`}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.value}</dd>
+                </div>
+              ))}
               {!shouldDeferToSharedCallbackWaitingSummary
                 ? waitingBlockerRows.map((row) => (
                     <div key={`${item.id}:${row.label}`}>

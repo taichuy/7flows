@@ -2,6 +2,7 @@ import type { RunSnapshot } from "@/app/actions/run-snapshot";
 import type {
   PublishedEndpointInvocationFacetItem,
   PublishedEndpointInvocationCallbackTicketItem,
+  PublishedEndpointInvocationDetailResponse,
   PublishedEndpointInvocationItem,
   PublishedEndpointInvocationSummary,
   PublishedEndpointInvocationTimeBucketItem,
@@ -18,7 +19,7 @@ import {
 } from "@/lib/operator-inline-action-feedback";
 import { buildOperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import { formatRunSnapshotSummary } from "@/lib/operator-action-result-presenters";
-import { formatTimestamp } from "@/lib/runtime-presenters";
+import { formatKeyList, formatTimestamp } from "@/lib/runtime-presenters";
 import type { ExecutionFocusToolCallSummary } from "@/lib/run-execution-focus-presenters";
 import {
   formatSandboxReadinessDetail,
@@ -86,6 +87,13 @@ export type PublishedInvocationRecommendedNextStep = {
   detail: string;
   href: string | null;
   href_label: string | null;
+};
+
+export type PublishedInvocationMetaRow = {
+  key: string;
+  label: string;
+  value: string;
+  href: string | null;
 };
 
 export type PublishedInvocationDetailSurfaceCopy = {
@@ -172,6 +180,7 @@ export type PublishedInvocationUnavailableDetailSurfaceCopy = {
 };
 
 export type PublishedInvocationEntrySurfaceCopy = {
+  waitingOverviewTitle: string;
   canonicalFollowUpTitle: string;
   canonicalFollowUpFallbackHeadline: string;
   canonicalFollowUpAffectedRunsLabel: string;
@@ -253,6 +262,15 @@ type PublishedInvocationFailureReasonItem = {
   count: number;
   last_invoked_at?: string | null;
 };
+
+function buildPublishedInvocationMetaRow(
+  key: string,
+  label: string,
+  value: string,
+  href: string | null = null
+): PublishedInvocationMetaRow {
+  return { key, label, value, href };
+}
 
 export function buildPublishedInvocationDetailSurfaceCopy({
   blockingNodeRunId,
@@ -405,6 +423,7 @@ export function buildPublishedInvocationTrafficTimelineBucketSurface({
 
 export function buildPublishedInvocationEntrySurfaceCopy(): PublishedInvocationEntrySurfaceCopy {
   return {
+    waitingOverviewTitle: "Waiting overview",
     canonicalFollowUpTitle: "Canonical follow-up",
     canonicalFollowUpFallbackHeadline: "当前 invocation 已接入 canonical follow-up 事实链。",
     canonicalFollowUpAffectedRunsLabel: "Affected runs",
@@ -557,6 +576,383 @@ export function formatPublishedInvocationApiKeyUsageMix({
 
 export function formatPublishedInvocationFailureReasonLastSeen(lastInvokedAt?: string | null) {
   return `最近一次出现在 ${formatTimestamp(lastInvokedAt)}。`;
+}
+
+export function formatPublishedInvocationMetricCounts(
+  metrics: Record<string, number> | null | undefined
+): string {
+  if (!metrics) {
+    return "n/a";
+  }
+
+  const parts = Object.entries(metrics)
+    .filter(([, count]) => count > 0)
+    .map(([label, count]) => `${label} ${count}`);
+
+  return parts.length ? parts.join(" · ") : "0";
+}
+
+export function formatPublishedInvocationRequestKeysSummary(
+  requestKeys: string[] | null | undefined
+): string {
+  return `request keys: ${formatKeyList(requestKeys ?? [])}`;
+}
+
+export function listPublishedInvocationEntryMetaRows({
+  invocation,
+  runStatus,
+  currentNodeId,
+  waitingReason,
+  scheduledResumeLabel
+}: {
+  invocation: PublishedEndpointInvocationItem;
+  runStatus: string | null;
+  currentNodeId: string | null;
+  waitingReason: string | null;
+  scheduledResumeLabel: string;
+}): PublishedInvocationMetaRow[] {
+  return [
+    buildPublishedInvocationMetaRow(
+      "api-key",
+      "API key",
+      invocation.api_key_name ?? invocation.api_key_prefix ?? "internal"
+    ),
+    buildPublishedInvocationMetaRow(
+      "request-keys",
+      "Request keys",
+      formatKeyList(invocation.request_preview.keys ?? [])
+    ),
+    buildPublishedInvocationMetaRow(
+      "run",
+      "Run",
+      invocation.run_id ?? "not-started",
+      invocation.run_id ? `/runs/${encodeURIComponent(invocation.run_id)}` : null
+    ),
+    buildPublishedInvocationMetaRow(
+      "run-status",
+      "Run status",
+      formatPublishedRunStatusLabel(runStatus)
+    ),
+    buildPublishedInvocationMetaRow("current-node", "Current node", currentNodeId ?? "n/a"),
+    buildPublishedInvocationMetaRow("waiting-reason", "Waiting reason", waitingReason ?? "n/a"),
+    buildPublishedInvocationMetaRow(
+      "callback-tickets",
+      "Callback tickets",
+      invocation.run_waiting_lifecycle
+        ? `${invocation.run_waiting_lifecycle.callback_ticket_count} · ${formatPublishedInvocationMetricCounts(invocation.run_waiting_lifecycle.callback_ticket_status_counts)}`
+        : "n/a"
+    ),
+    buildPublishedInvocationMetaRow("scheduled-resume", "Scheduled resume", scheduledResumeLabel)
+  ];
+}
+
+export function listPublishedInvocationEntryWaitingRows({
+  nodeRunId,
+  nodeStatus,
+  callbackTicketCount,
+  callbackTicketStatusCounts,
+  callbackLifecycleLabel,
+  callbackLifecycleFallback
+}: {
+  nodeRunId: string | null;
+  nodeStatus: string | null;
+  callbackTicketCount: number;
+  callbackTicketStatusCounts: Record<string, number> | null | undefined;
+  callbackLifecycleLabel: string | null;
+  callbackLifecycleFallback: string;
+}): PublishedInvocationMetaRow[] {
+  return [
+    buildPublishedInvocationMetaRow("node-run", "Node run", nodeRunId ?? "n/a"),
+    buildPublishedInvocationMetaRow("node-status", "Node status", nodeStatus ?? "n/a"),
+    buildPublishedInvocationMetaRow(
+      "callback-tickets",
+      "Callback tickets",
+      callbackTicketCount
+        ? `${callbackTicketCount} · ${formatPublishedInvocationMetricCounts(callbackTicketStatusCounts)}`
+        : "0"
+    ),
+    buildPublishedInvocationMetaRow(
+      "callback-lifecycle",
+      "Callback lifecycle",
+      callbackLifecycleLabel ?? callbackLifecycleFallback
+    )
+  ];
+}
+
+export function listPublishedInvocationDetailRunRows({
+  runId,
+  runStatus,
+  currentNodeId,
+  waitingReason,
+  waitingNodeRunId,
+  startedAt,
+  finishedAt
+}: {
+  runId: string | null;
+  runStatus: string | null;
+  currentNodeId: string | null;
+  waitingReason: string | null;
+  waitingNodeRunId: string | null;
+  startedAt: string | null | undefined;
+  finishedAt: string | null | undefined;
+}): PublishedInvocationMetaRow[] {
+  return [
+    buildPublishedInvocationMetaRow(
+      "run",
+      "Run",
+      runId ?? "not-started",
+      runId ? `/runs/${encodeURIComponent(runId)}` : null
+    ),
+    buildPublishedInvocationMetaRow("status", "Status", runStatus ?? "n/a"),
+    buildPublishedInvocationMetaRow("current-node", "Current node", currentNodeId ?? "n/a"),
+    buildPublishedInvocationMetaRow("waiting-reason", "Waiting reason", waitingReason ?? "n/a"),
+    buildPublishedInvocationMetaRow(
+      "waiting-node-run",
+      "Waiting node run",
+      waitingNodeRunId ?? "n/a"
+    ),
+    buildPublishedInvocationMetaRow("started", "Started", formatTimestamp(startedAt)),
+    buildPublishedInvocationMetaRow("finished", "Finished", formatTimestamp(finishedAt))
+  ];
+}
+
+export function listPublishedInvocationCacheDrilldownRows({
+  cache
+}: {
+  cache: PublishedEndpointInvocationDetailResponse["cache"];
+}): PublishedInvocationMetaRow[] {
+  return [
+    buildPublishedInvocationMetaRow("status", "Status", cache.cache_status),
+    buildPublishedInvocationMetaRow("cache-key", "Cache key", cache.cache_key ?? "n/a"),
+    buildPublishedInvocationMetaRow("entry", "Entry", cache.cache_entry_id ?? "n/a"),
+    buildPublishedInvocationMetaRow(
+      "entry-hits",
+      "Entry hits",
+      String(cache.inventory_entry?.hit_count ?? 0)
+    ),
+    buildPublishedInvocationMetaRow(
+      "last-hit",
+      "Last hit",
+      formatTimestamp(cache.inventory_entry?.last_hit_at)
+    ),
+    buildPublishedInvocationMetaRow(
+      "expires",
+      "Expires",
+      formatTimestamp(cache.inventory_entry?.expires_at)
+    )
+  ];
+}
+
+export function listPublishedInvocationCanonicalFollowUpChips({
+  affectedRunCount,
+  sampledRunCount,
+  statusSummary
+}: {
+  affectedRunCount: number;
+  sampledRunCount: number;
+  statusSummary: string | null;
+}): string[] {
+  return [
+    `affected ${affectedRunCount}`,
+    `sampled ${sampledRunCount}`,
+    ...(statusSummary ? [`status ${statusSummary}`] : [])
+  ];
+}
+
+export function listPublishedInvocationRunFollowUpEvidenceChips(
+  sample: PublishedInvocationRunFollowUpSampleView
+): string[] {
+  return [
+    ...(sample.execution_focus_artifact_count > 0
+      ? [`artifacts ${sample.execution_focus_artifact_count}`]
+      : []),
+    ...(sample.execution_focus_artifact_ref_count > 0
+      ? [`artifact refs ${sample.execution_focus_artifact_ref_count}`]
+      : []),
+    ...(sample.execution_focus_tool_call_count > 0
+      ? [`tool calls ${sample.execution_focus_tool_call_count}`]
+      : []),
+    ...(sample.execution_focus_raw_ref_count > 0
+      ? [`raw refs ${sample.execution_focus_raw_ref_count}`]
+      : []),
+    ...(sample.skill_reference_count > 0 ? [`skill refs ${sample.skill_reference_count}`] : []),
+    ...(sample.skill_reference_phase_summary
+      ? [`phases ${sample.skill_reference_phase_summary}`]
+      : []),
+    ...(sample.skill_reference_source_summary
+      ? [`sources ${sample.skill_reference_source_summary}`]
+      : [])
+  ];
+}
+
+export function listPublishedInvocationRunFollowUpSampleMetaRows(
+  sample: PublishedInvocationRunFollowUpSampleView
+): PublishedInvocationMetaRow[] {
+  return [
+    buildPublishedInvocationMetaRow("status", "Status", sample.status ?? "n/a"),
+    buildPublishedInvocationMetaRow(
+      "current-node",
+      "Current node",
+      sample.current_node_id ?? "n/a"
+    ),
+    buildPublishedInvocationMetaRow(
+      "waiting-reason",
+      "Waiting reason",
+      sample.waiting_reason ?? "n/a"
+    )
+  ];
+}
+
+export function listPublishedInvocationActivitySummaryRows({
+  summary,
+  waitingOverview,
+  surfaceCopy
+}: {
+  summary?: PublishedEndpointInvocationSummary | null;
+  waitingOverview: PublishedInvocationWaitingOverview;
+  surfaceCopy: Pick<
+    PublishedInvocationActivityInsightsSurfaceCopy,
+    | "totalCallsLabel"
+    | "succeededCallsLabel"
+    | "failedCallsLabel"
+    | "rejectedCallsLabel"
+    | "lastRunStatusLabel"
+    | "lastRunStatusEmptyLabel"
+    | "waitingNowLabel"
+  >;
+}): PublishedInvocationMetaRow[] {
+  return [
+    buildPublishedInvocationMetaRow("total-calls", surfaceCopy.totalCallsLabel, String(summary?.total_count ?? 0)),
+    buildPublishedInvocationMetaRow(
+      "succeeded-calls",
+      surfaceCopy.succeededCallsLabel,
+      String(summary?.succeeded_count ?? 0)
+    ),
+    buildPublishedInvocationMetaRow(
+      "failed-calls",
+      surfaceCopy.failedCallsLabel,
+      String(summary?.failed_count ?? 0)
+    ),
+    buildPublishedInvocationMetaRow(
+      "rejected-calls",
+      surfaceCopy.rejectedCallsLabel,
+      String(summary?.rejected_count ?? 0)
+    ),
+    buildPublishedInvocationMetaRow(
+      "last-run-status",
+      surfaceCopy.lastRunStatusLabel,
+      formatPublishedInvocationOptionalRunStatus(
+        summary?.last_run_status,
+        surfaceCopy.lastRunStatusEmptyLabel
+      ) ?? surfaceCopy.lastRunStatusEmptyLabel
+    ),
+    buildPublishedInvocationMetaRow(
+      "waiting-now",
+      surfaceCopy.waitingNowLabel,
+      String(waitingOverview.activeWaitingCount)
+    )
+  ];
+}
+
+export function listPublishedInvocationActivityWaitingRows({
+  waitingOverview,
+  surfaceCopy
+}: {
+  waitingOverview: PublishedInvocationWaitingOverview;
+  surfaceCopy: Pick<
+    PublishedInvocationActivityInsightsSurfaceCopy,
+    | "activeWaitingLabel"
+    | "callbackWaitsLabel"
+    | "approvalInputWaitsLabel"
+    | "genericWaitsLabel"
+    | "syncWaitingRejectedLabel"
+    | "latestRunStatusLabel"
+    | "latestRunStatusEmptyLabel"
+  >;
+}): PublishedInvocationMetaRow[] {
+  return [
+    buildPublishedInvocationMetaRow(
+      "active-waiting",
+      surfaceCopy.activeWaitingLabel,
+      String(waitingOverview.activeWaitingCount)
+    ),
+    buildPublishedInvocationMetaRow(
+      "callback-waits",
+      surfaceCopy.callbackWaitsLabel,
+      String(waitingOverview.callbackWaitingCount)
+    ),
+    buildPublishedInvocationMetaRow(
+      "approval-input-waits",
+      surfaceCopy.approvalInputWaitsLabel,
+      String(waitingOverview.waitingInputCount)
+    ),
+    buildPublishedInvocationMetaRow(
+      "generic-waits",
+      surfaceCopy.genericWaitsLabel,
+      String(waitingOverview.generalWaitingCount)
+    ),
+    buildPublishedInvocationMetaRow(
+      "sync-waiting-rejected",
+      surfaceCopy.syncWaitingRejectedLabel,
+      String(waitingOverview.syncWaitingRejectedCount)
+    ),
+    buildPublishedInvocationMetaRow(
+      "latest-run-status",
+      surfaceCopy.latestRunStatusLabel,
+      waitingOverview.lastRunStatusLabel ?? surfaceCopy.latestRunStatusEmptyLabel
+    )
+  ];
+}
+
+export function listPublishedInvocationRateLimitRows({
+  rateLimitPolicy,
+  windowUsed,
+  remainingQuota,
+  pressureLabel,
+  windowRejected,
+  surfaceCopy
+}: {
+  rateLimitPolicy: { requests: number; windowSeconds: number };
+  windowUsed: number;
+  remainingQuota: number | null;
+  pressureLabel: string;
+  windowRejected: number;
+  surfaceCopy: Pick<
+    PublishedInvocationActivityInsightsSurfaceCopy,
+    | "rateLimitPolicyLabel"
+    | "rateLimitUsedLabel"
+    | "rateLimitRemainingLabel"
+    | "rateLimitPressureLabel"
+    | "rateLimitRejectedLabel"
+  >;
+}): PublishedInvocationMetaRow[] {
+  return [
+    buildPublishedInvocationMetaRow(
+      "rate-limit-policy",
+      surfaceCopy.rateLimitPolicyLabel,
+      `${rateLimitPolicy.requests} / ${rateLimitPolicy.windowSeconds}s`
+    ),
+    buildPublishedInvocationMetaRow(
+      "rate-limit-used",
+      surfaceCopy.rateLimitUsedLabel,
+      String(windowUsed)
+    ),
+    buildPublishedInvocationMetaRow(
+      "rate-limit-remaining",
+      surfaceCopy.rateLimitRemainingLabel,
+      String(remainingQuota ?? 0)
+    ),
+    buildPublishedInvocationMetaRow(
+      "rate-limit-pressure",
+      surfaceCopy.rateLimitPressureLabel,
+      pressureLabel
+    ),
+    buildPublishedInvocationMetaRow(
+      "rate-limit-rejected",
+      surfaceCopy.rateLimitRejectedLabel,
+      String(windowRejected)
+    )
+  ];
 }
 
 export function buildPublishedInvocationRateLimitWindowInsight({

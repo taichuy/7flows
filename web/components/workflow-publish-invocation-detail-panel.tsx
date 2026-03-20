@@ -24,7 +24,13 @@ import {
   buildPublishedInvocationRecommendedNextStep,
   buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationInboxHref,
+  formatPublishedInvocationRequestKeysSummary,
   formatPublishedInvocationSampleReasonLabel,
+  listPublishedInvocationCacheDrilldownRows,
+  listPublishedInvocationCanonicalFollowUpChips,
+  listPublishedInvocationDetailRunRows,
+  listPublishedInvocationRunFollowUpEvidenceChips,
+  listPublishedInvocationRunFollowUpSampleMetaRows,
   listPublishedInvocationRunFollowUpSampleViews,
   normalizePublishedInvocationRunSnapshot
 } from "@/lib/published-invocation-presenters";
@@ -36,7 +42,7 @@ import {
   formatMetricSummary,
   listExecutionFocusRuntimeFactBadges
 } from "@/lib/run-execution-focus-presenters";
-import { formatDurationMs, formatKeyList, formatTimestamp } from "@/lib/runtime-presenters";
+import { formatDurationMs, formatTimestamp } from "@/lib/runtime-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
 
 type WorkflowPublishInvocationDetailPanelProps = {
@@ -139,6 +145,23 @@ export function WorkflowPublishInvocationDetailPanel({
     blockingInboxHref,
     approvalInboxHref
   });
+  const runDrilldownRows = listPublishedInvocationDetailRunRows({
+    runId: run?.id ?? invocation.run_id ?? null,
+    runStatus,
+    currentNodeId,
+    waitingReason,
+    waitingNodeRunId: waitingLifecycle?.node_run_id ?? null,
+    startedAt: run?.started_at,
+    finishedAt: run?.finished_at ?? invocation.finished_at
+  });
+  const cacheDrilldownRows = listPublishedInvocationCacheDrilldownRows({ cache });
+  const canonicalFollowUpChips = runFollowUp
+    ? listPublishedInvocationCanonicalFollowUpChips({
+        affectedRunCount: runFollowUp.affected_run_count,
+        sampledRunCount: runFollowUp.sampled_run_count,
+        statusSummary: runFollowUpStatusSummary
+      })
+    : [];
 
   return (
     <article className="entry-card compact-card publish-invocation-detail-panel">
@@ -165,34 +188,20 @@ export function WorkflowPublishInvocationDetailPanel({
             ) : null}
           </div>
           <dl className="compact-meta-list">
-            <div>
-              <dt>Run</dt>
-              <dd>{run?.id ?? invocation.run_id ?? "not-started"}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{runStatus ?? "n/a"}</dd>
-            </div>
-            <div>
-              <dt>Current node</dt>
-              <dd>{currentNodeId ?? "n/a"}</dd>
-            </div>
-            <div>
-              <dt>Waiting reason</dt>
-              <dd>{waitingReason ?? "n/a"}</dd>
-            </div>
-            <div>
-              <dt>Waiting node run</dt>
-              <dd>{waitingLifecycle?.node_run_id ?? "n/a"}</dd>
-            </div>
-            <div>
-              <dt>Started</dt>
-              <dd>{formatTimestamp(run?.started_at)}</dd>
-            </div>
-            <div>
-              <dt>Finished</dt>
-              <dd>{formatTimestamp(run?.finished_at ?? invocation.finished_at)}</dd>
-            </div>
+            {runDrilldownRows.map((row) => (
+              <div key={row.key}>
+                <dt>{row.label}</dt>
+                <dd>
+                  {row.href ? (
+                    <Link className="inline-link" href={row.href}>
+                      {row.value}
+                    </Link>
+                  ) : (
+                    row.value
+                  )}
+                </dd>
+              </div>
+            ))}
           </dl>
         </div>
 
@@ -201,30 +210,12 @@ export function WorkflowPublishInvocationDetailPanel({
             <span className="status-meta">{detailSurfaceCopy.cacheDrilldownTitle}</span>
           </div>
           <dl className="compact-meta-list">
-            <div>
-              <dt>Status</dt>
-              <dd>{cache.cache_status}</dd>
-            </div>
-            <div>
-              <dt>Cache key</dt>
-              <dd>{cache.cache_key ?? "n/a"}</dd>
-            </div>
-            <div>
-              <dt>Entry</dt>
-              <dd>{cache.cache_entry_id ?? "n/a"}</dd>
-            </div>
-            <div>
-              <dt>Entry hits</dt>
-              <dd>{cache.inventory_entry?.hit_count ?? 0}</dd>
-            </div>
-            <div>
-              <dt>Last hit</dt>
-              <dd>{formatTimestamp(cache.inventory_entry?.last_hit_at)}</dd>
-            </div>
-            <div>
-              <dt>Expires</dt>
-              <dd>{formatTimestamp(cache.inventory_entry?.expires_at)}</dd>
-            </div>
+            {cacheDrilldownRows.map((row) => (
+              <div key={row.key}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </div>
+            ))}
           </dl>
         </div>
       </div>
@@ -233,7 +224,7 @@ export function WorkflowPublishInvocationDetailPanel({
         <div>
           <strong>{detailSurfaceCopy.requestPreviewTitle}</strong>
           <p className="section-copy entry-copy">
-            request keys: {formatKeyList(invocation.request_preview.keys ?? [])}
+            {formatPublishedInvocationRequestKeysSummary(invocation.request_preview.keys ?? [])}
           </p>
           <pre className="trace-preview">{formatJsonPreview(invocation.request_preview)}</pre>
         </div>
@@ -248,11 +239,11 @@ export function WorkflowPublishInvocationDetailPanel({
           <strong>{detailSurfaceCopy.canonicalFollowUpTitle}</strong>
           <p className="section-copy entry-copy">{detailSurfaceCopy.canonicalFollowUpDescription}</p>
           <div className="tool-badge-row">
-            <span className="event-chip">affected {runFollowUp.affected_run_count}</span>
-            <span className="event-chip">sampled {runFollowUp.sampled_run_count}</span>
-            {runFollowUpStatusSummary ? (
-              <span className="event-chip">status {runFollowUpStatusSummary}</span>
-            ) : null}
+            {canonicalFollowUpChips.map((chip) => (
+              <span className="event-chip" key={chip}>
+                {chip}
+              </span>
+            ))}
           </div>
           <p className="section-copy entry-copy">{canonicalFollowUp.headline}</p>
           {canonicalFollowUp.follow_up ? (
@@ -274,6 +265,8 @@ export function WorkflowPublishInvocationDetailPanel({
                 );
                 const sampleReasonLabel =
                   formatPublishedInvocationSampleReasonLabel(sample.explanation_source);
+                const sampleEvidenceChips = listPublishedInvocationRunFollowUpEvidenceChips(sample);
+                const sampleMetaRows = listPublishedInvocationRunFollowUpSampleMetaRows(sample);
 
                 return (
                   <div className="payload-card compact-card" key={sample.run_id}>
@@ -309,41 +302,11 @@ export function WorkflowPublishInvocationDetailPanel({
                     sample.skill_reference_count > 0 ||
                     sampleExecutionFactBadges.length > 0 ? (
                       <div className="tool-badge-row">
-                        {sample.execution_focus_artifact_count > 0 ? (
-                          <span className="event-chip">
-                            artifacts {sample.execution_focus_artifact_count}
+                        {sampleEvidenceChips.map((chip) => (
+                          <span className="event-chip" key={`${sample.run_id}-${chip}`}>
+                            {chip}
                           </span>
-                        ) : null}
-                        {sample.execution_focus_artifact_ref_count > 0 ? (
-                          <span className="event-chip">
-                            artifact refs {sample.execution_focus_artifact_ref_count}
-                          </span>
-                        ) : null}
-                        {sample.execution_focus_tool_call_count > 0 ? (
-                          <span className="event-chip">
-                            tool calls {sample.execution_focus_tool_call_count}
-                          </span>
-                        ) : null}
-                        {sample.execution_focus_raw_ref_count > 0 ? (
-                          <span className="event-chip">
-                            raw refs {sample.execution_focus_raw_ref_count}
-                          </span>
-                        ) : null}
-                        {sample.skill_reference_count > 0 ? (
-                          <span className="event-chip">
-                            skill refs {sample.skill_reference_count}
-                          </span>
-                        ) : null}
-                        {sample.skill_reference_phase_summary ? (
-                          <span className="event-chip">
-                            phases {sample.skill_reference_phase_summary}
-                          </span>
-                        ) : null}
-                        {sample.skill_reference_source_summary ? (
-                          <span className="event-chip">
-                            sources {sample.skill_reference_source_summary}
-                          </span>
-                        ) : null}
+                        ))}
                         {!sample.has_callback_waiting_summary
                           ? sampleExecutionFactBadges.map((badge) => (
                               <span className="event-chip" key={`${sample.run_id}-${badge}`}>
@@ -414,18 +377,12 @@ export function WorkflowPublishInvocationDetailPanel({
                       />
                     ) : null}
                     <dl className="compact-meta-list">
-                      <div>
-                        <dt>Status</dt>
-                        <dd>{sample.status ?? "n/a"}</dd>
-                      </div>
-                      <div>
-                        <dt>Current node</dt>
-                        <dd>{sample.current_node_id ?? "n/a"}</dd>
-                      </div>
-                      <div>
-                        <dt>Waiting reason</dt>
-                        <dd>{sample.waiting_reason ?? "n/a"}</dd>
-                      </div>
+                      {sampleMetaRows.map((row) => (
+                        <div key={`${sample.run_id}-${row.key}`}>
+                          <dt>{row.label}</dt>
+                          <dd>{row.value}</dd>
+                        </div>
+                      ))}
                     </dl>
                   </div>
                 );

@@ -31,9 +31,11 @@ import {
   buildPublishedInvocationWaitingOverview,
   formatPublishedInvocationApiKeyUsageMix,
   formatPublishedInvocationFailureReasonLastSeen,
-  formatPublishedInvocationOptionalRunStatus,
   formatPublishedInvocationReasonLabel,
   formatRateLimitPressure,
+  listPublishedInvocationActivitySummaryRows,
+  listPublishedInvocationActivityWaitingRows,
+  listPublishedInvocationRateLimitRows,
   listPublishedInvocationRunFollowUpSampleViews
 } from "@/lib/published-invocation-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
@@ -92,6 +94,25 @@ export function WorkflowPublishActivityInsights({
   const insightsSurfaceCopy = buildPublishedInvocationActivityInsightsSurfaceCopy({
     rateLimitWindowStartedAt: rateLimitWindowAudit?.filters.created_from ?? null
   });
+  const summaryRows = listPublishedInvocationActivitySummaryRows({
+    summary,
+    waitingOverview,
+    surfaceCopy: insightsSurfaceCopy
+  });
+  const waitingRows = listPublishedInvocationActivityWaitingRows({
+    waitingOverview,
+    surfaceCopy: insightsSurfaceCopy
+  });
+  const rateLimitRows = rateLimitPolicy
+    ? listPublishedInvocationRateLimitRows({
+        rateLimitPolicy,
+        windowUsed,
+        remainingQuota,
+        pressureLabel: pressure?.label ?? "0%",
+        windowRejected,
+        surfaceCopy: insightsSurfaceCopy
+      })
+    : [];
   const trafficMixSurface = buildPublishedInvocationActivityTrafficMixSurface({
     requestSourceCounts,
     requestSurfaceCounts,
@@ -108,35 +129,12 @@ export function WorkflowPublishActivityInsights({
   return (
     <>
       <div className="publish-summary-grid">
-        <article className="status-card compact-card">
-          <span className="status-label">{insightsSurfaceCopy.totalCallsLabel}</span>
-          <strong>{summary?.total_count ?? 0}</strong>
-        </article>
-        <article className="status-card compact-card">
-          <span className="status-label">{insightsSurfaceCopy.succeededCallsLabel}</span>
-          <strong>{summary?.succeeded_count ?? 0}</strong>
-        </article>
-        <article className="status-card compact-card">
-          <span className="status-label">{insightsSurfaceCopy.failedCallsLabel}</span>
-          <strong>{summary?.failed_count ?? 0}</strong>
-        </article>
-        <article className="status-card compact-card">
-          <span className="status-label">{insightsSurfaceCopy.rejectedCallsLabel}</span>
-          <strong>{summary?.rejected_count ?? 0}</strong>
-        </article>
-        <article className="status-card compact-card">
-          <span className="status-label">{insightsSurfaceCopy.lastRunStatusLabel}</span>
-          <strong>
-            {formatPublishedInvocationOptionalRunStatus(
-              summary?.last_run_status,
-              insightsSurfaceCopy.lastRunStatusEmptyLabel
-            )}
-          </strong>
-        </article>
-        <article className="status-card compact-card">
-          <span className="status-label">{insightsSurfaceCopy.waitingNowLabel}</span>
-          <strong>{waitingOverview.activeWaitingCount}</strong>
-        </article>
+        {summaryRows.map((row) => (
+          <article className="status-card compact-card" key={row.key}>
+            <span className="status-label">{row.label}</span>
+            <strong>{row.value}</strong>
+          </article>
+        ))}
       </div>
 
       <div className="publish-meta-grid">
@@ -186,32 +184,12 @@ export function WorkflowPublishActivityInsights({
             <p className="binding-meta">{waitingOverview.chips.join(" · ")}</p>
           ) : null}
           <dl className="compact-meta-list">
-            <div>
-              <dt>{insightsSurfaceCopy.activeWaitingLabel}</dt>
-              <dd>{waitingOverview.activeWaitingCount}</dd>
-            </div>
-            <div>
-              <dt>{insightsSurfaceCopy.callbackWaitsLabel}</dt>
-              <dd>{waitingOverview.callbackWaitingCount}</dd>
-            </div>
-            <div>
-              <dt>{insightsSurfaceCopy.approvalInputWaitsLabel}</dt>
-              <dd>{waitingOverview.waitingInputCount}</dd>
-            </div>
-            <div>
-              <dt>{insightsSurfaceCopy.genericWaitsLabel}</dt>
-              <dd>{waitingOverview.generalWaitingCount}</dd>
-            </div>
-            <div>
-              <dt>{insightsSurfaceCopy.syncWaitingRejectedLabel}</dt>
-              <dd>{waitingOverview.syncWaitingRejectedCount}</dd>
-            </div>
-            <div>
-              <dt>{insightsSurfaceCopy.latestRunStatusLabel}</dt>
-              <dd>
-                {waitingOverview.lastRunStatusLabel ?? insightsSurfaceCopy.latestRunStatusEmptyLabel}
-              </dd>
-            </div>
+            {waitingRows.map((row) => (
+              <div key={row.key}>
+                <dt>{row.label}</dt>
+                <dd>{row.value}</dd>
+              </div>
+            ))}
           </dl>
           <p className="section-copy entry-copy">{waitingOverview.detail}</p>
         </div>
@@ -223,28 +201,12 @@ export function WorkflowPublishActivityInsights({
           {rateLimitPolicy ? (
             <>
               <dl className="compact-meta-list">
-                <div>
-                  <dt>{insightsSurfaceCopy.rateLimitPolicyLabel}</dt>
-                  <dd>
-                    {rateLimitPolicy.requests} / {rateLimitPolicy.windowSeconds}s
-                  </dd>
-                </div>
-                <div>
-                  <dt>{insightsSurfaceCopy.rateLimitUsedLabel}</dt>
-                  <dd>{windowUsed}</dd>
-                </div>
-                <div>
-                  <dt>{insightsSurfaceCopy.rateLimitRemainingLabel}</dt>
-                  <dd>{remainingQuota}</dd>
-                </div>
-                <div>
-                  <dt>{insightsSurfaceCopy.rateLimitPressureLabel}</dt>
-                  <dd>{pressure?.label ?? "0%"}</dd>
-                </div>
-                <div>
-                  <dt>{insightsSurfaceCopy.rateLimitRejectedLabel}</dt>
-                  <dd>{windowRejected}</dd>
-                </div>
+                {rateLimitRows.map((row) => (
+                  <div key={row.key}>
+                    <dt>{row.label}</dt>
+                    <dd>{row.value}</dd>
+                  </div>
+                ))}
               </dl>
               <p className="section-copy entry-copy">{insightsSurfaceCopy.rateLimitWindowDescription}</p>
               {rateLimitWindowInsight ? (
