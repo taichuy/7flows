@@ -1211,6 +1211,7 @@ type CacheInvalidateEvent = {
 - waiting 后能通过 checkpoint 恢复
 - 工具慢、assistant 慢、外部回调慢时，主流程实例不丢失
 - 运行态、事件流、artifact、AI/tool 调用都可追溯
+- 运行基础事实层先独立成立，再把同一份事实分发给人类界面、人 + AI 协作入口和 AI 自治入口，避免不同消费方式各自维护一套运行真相
 
 ### 20.2 当前 Phase 1 落地事实（2026-03-11）
 

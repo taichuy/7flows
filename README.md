@@ -1,6 +1,6 @@
 # 7Flows
 
-7Flows 是一个面向多 Agent 协作的可视化工作流平台。当前项目以 OpenClaw / 本地 AI 助手“黑盒变透明”为切口，对外提供可编排、可调试、可发布、可兼容、可追溯的开源基础能力；对内继续坚持以 `7Flows IR`、runtime、published surface、trace facts 和 compat adapter 作为统一内核。
+7Flows 是一个面向多 Agent 协作的可视化工作流平台。当前项目以 OpenClaw / 本地 AI 助手“黑盒变透明”为切口，对外提供可编排、可调试、可发布、可兼容、可追溯的开源基础能力；对内继续坚持以 `7Flows IR`、runtime、published surface、trace facts 和 compat adapter 作为统一内核，并服务“人”“人 + AI 协作”“AI 自治”三种使用场景下的事实统一、可观察和结果 / 数据一致性。
 
 更多定位说明见 [docs/open-source-positioning.md](/E:/code/taichuCode/7flows/docs/open-source-positioning.md)，授权细节以 [LICENSE](/E:/code/taichuCode/7flows/LICENSE) 为准。
 
