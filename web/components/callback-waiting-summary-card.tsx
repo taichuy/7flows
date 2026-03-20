@@ -109,9 +109,6 @@ export function CallbackWaitingSummaryCard({
   showCallbackInlineActions,
   className = ""
 }: CallbackWaitingSummaryCardProps) {
-  const shouldShowSensitiveAccessInlineActions =
-    showSensitiveAccessInlineActions ?? showInlineActions;
-  const shouldShowCallbackInlineActions = showCallbackInlineActions ?? showInlineActions;
   const headline =
     callbackWaitingExplanation?.primary_signal?.trim() ||
     getCallbackWaitingHeadline({
@@ -178,6 +175,14 @@ export function CallbackWaitingSummaryCard({
     scheduledResumeRequeuedAt,
     scheduledResumeRequeueSource
   });
+  const shouldShowSensitiveAccessInlineActions =
+    showSensitiveAccessInlineActions ?? showInlineActions;
+  const shouldHideCallbackInlineActionsByDefault =
+    recommendedAction?.kind === "resolve_inline_sensitive_access" ||
+    recommendedAction?.kind === "open_inbox";
+  const shouldShowCallbackInlineActions =
+    showCallbackInlineActions ??
+    (showInlineActions && !shouldHideCallbackInlineActionsByDefault);
   const blockerRows = listCallbackWaitingBlockerRows(
     {
       lifecycle,

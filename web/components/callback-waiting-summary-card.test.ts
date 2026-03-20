@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
+import type { CallbackWaitingLifecycleSummary } from "@/lib/get-run-views";
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
@@ -113,6 +114,24 @@ function buildSensitiveAccessEntry(): SensitiveAccessEntry {
   };
 }
 
+function buildLifecycle(
+  overrides: Partial<CallbackWaitingLifecycleSummary> = {}
+): CallbackWaitingLifecycleSummary {
+  return {
+    wait_cycle_count: 1,
+    issued_ticket_count: 0,
+    expired_ticket_count: 0,
+    consumed_ticket_count: 0,
+    canceled_ticket_count: 0,
+    late_callback_count: 0,
+    resume_schedule_count: 0,
+    max_expired_ticket_count: 0,
+    terminated: false,
+    last_resume_backoff_attempt: 0,
+    ...overrides
+  };
+}
+
 describe("CallbackWaitingSummaryCard", () => {
   it("puts compact execution fact badges before the evidence card when enabled", () => {
     const html = renderToStaticMarkup(
@@ -151,7 +170,7 @@ describe("CallbackWaitingSummaryCard", () => {
     expect(html.indexOf("effective sandbox")).toBeGreaterThan(html.indexOf("Waiting node focus evidence"));
   });
 
-  it("can keep callback actions while suppressing duplicate sensitive access actions", () => {
+  it("suppresses callback actions when approval handling should happen first", () => {
     const html = renderToStaticMarkup(
       createElement(CallbackWaitingSummaryCard, {
         actionNodeRunId: "node-run-action",
@@ -162,7 +181,20 @@ describe("CallbackWaitingSummaryCard", () => {
       })
     );
 
-    expect(html).toContain("data-testid=\"callback-waiting-inline-actions\"");
+    expect(html).not.toContain("data-testid=\"callback-waiting-inline-actions\"");
     expect(html).not.toContain("data-testid=\"sensitive-access-inline-actions\"");
+  });
+
+  it("keeps callback actions when manual callback intervention is the next step", () => {
+    const html = renderToStaticMarkup(
+      createElement(CallbackWaitingSummaryCard, {
+        lifecycle: buildLifecycle({
+          late_callback_count: 1
+        }),
+        runId: "run-1"
+      })
+    );
+
+    expect(html).toContain("data-testid=\"callback-waiting-inline-actions\"");
   });
 });

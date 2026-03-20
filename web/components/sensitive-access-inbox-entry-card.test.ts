@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SensitiveAccessInboxEntryCard } from "@/components/sensitive-access-inbox-entry-card";
 import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
+import type { CallbackWaitingLifecycleSummary } from "@/lib/get-run-views";
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
@@ -134,6 +135,24 @@ function buildEntry(): SensitiveAccessInboxEntry {
   };
 }
 
+function buildCallbackLifecycle(
+  overrides: Partial<CallbackWaitingLifecycleSummary> = {}
+): CallbackWaitingLifecycleSummary {
+  return {
+    wait_cycle_count: 1,
+    issued_ticket_count: 0,
+    expired_ticket_count: 0,
+    consumed_ticket_count: 0,
+    canceled_ticket_count: 0,
+    late_callback_count: 0,
+    resume_schedule_count: 0,
+    max_expired_ticket_count: 0,
+    terminated: false,
+    last_resume_backoff_attempt: 0,
+    ...overrides
+  };
+}
+
 describe("SensitiveAccessInboxEntryCard", () => {
   it("surfaces canonical execution runtime facts on the inbox focus card", () => {
     const html = renderToStaticMarkup(createElement(SensitiveAccessInboxEntryCard, { entry: buildEntry() }));
@@ -229,7 +248,7 @@ describe("SensitiveAccessInboxEntryCard", () => {
     expect(html).not.toContain('name="nodeRunId" value="node-run-display"');
   });
 
-  it("keeps only one sensitive access action block when callback waiting follow-up is present", () => {
+  it("keeps only the bottom approval block when callback waiting still waits on approval", () => {
     const entry = buildEntry();
     entry.callbackWaitingContext = {
       runId: "run-1",
@@ -261,6 +280,35 @@ describe("SensitiveAccessInboxEntryCard", () => {
     const operatorActionBlockCount = (html.match(/Operator actions/g) ?? []).length;
 
     expect(operatorActionBlockCount).toBe(1);
+    expect(html).not.toContain("Callback actions");
+  });
+
+  it("keeps callback actions when callback resume is the real next operator step", () => {
+    const entry = buildEntry();
+    entry.callbackWaitingContext = {
+      runId: "run-1",
+      displayNodeRunId: "node-run-display",
+      actionNodeRunId: "node-run-entry",
+      lifecycle: buildCallbackLifecycle({
+        late_callback_count: 1
+      }),
+      callbackTickets: [],
+      sensitiveAccessEntries: []
+    };
+    entry.ticket.node_run_id = "node-run-entry";
+    entry.request!.node_run_id = "node-run-entry";
+    entry.executionContext = {
+      ...entry.executionContext!,
+      focusMatchesEntry: false,
+      entryNodeRunId: "node-run-entry",
+      focusNode: {
+        ...entry.executionContext!.focusNode,
+        node_run_id: "node-run-display"
+      }
+    };
+
+    const html = renderToStaticMarkup(createElement(SensitiveAccessInboxEntryCard, { entry }));
+
     expect(html).toContain("Callback actions");
   });
 });
