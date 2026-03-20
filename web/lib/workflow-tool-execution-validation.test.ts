@@ -149,7 +149,31 @@ function createSandboxBackends(
 }
 
 describe("workflow tool execution validation", () => {
-  it("对非 tool/sandbox 节点的 subprocess execution class 做 fail-closed", () => {
+  it("允许 condition 节点显式声明 subprocess execution class", () => {
+    const issues = buildWorkflowNodeExecutionValidationIssues(
+      createGenericNodeDefinition("condition", {
+        execution: {
+          class: "subprocess"
+        }
+      })
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("允许 router 节点显式声明 subprocess execution class", () => {
+    const issues = buildWorkflowNodeExecutionValidationIssues(
+      createGenericNodeDefinition("router", {
+        execution: {
+          class: "subprocess"
+        }
+      })
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("继续对未实现 subprocess adapter 的节点做 fail-closed", () => {
     const issues = buildWorkflowNodeExecutionValidationIssues(
       createGenericNodeDefinition("llm_agent", {
         execution: {

@@ -131,6 +131,10 @@ export function buildWorkflowNodeExecutionValidationIssues(
     const path = `nodes.${nodeIndex}.runtimePolicy.execution`;
 
     if (requestedExecutionClass === "subprocess") {
+      if (nodeType === "condition" || nodeType === "router") {
+        return;
+      }
+
       issues.push({
         nodeId,
         nodeName,
