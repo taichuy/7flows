@@ -433,18 +433,30 @@ describe("fetchRunSnapshot", () => {
         return createJsonResponse({
           status: "waiting",
           workflow_id: "workflow-1",
-          execution_focus_reason: "blocked_execution",
-          execution_focus_node: {
-            node_id: "tool-a",
-            node_run_id: "node-run-1",
-            node_name: "Tool A",
-            node_type: "tool",
+          run_snapshot: {
+            status: "waiting",
+            workflow_id: "workflow-1",
+            current_node_id: "tool-a",
+            waiting_reason: "waiting approval",
+            execution_focus_reason: "blocked_execution",
+            execution_focus_node_id: "tool-a",
+            execution_focus_node_run_id: "node-run-1",
+            execution_focus_node_name: "Tool A",
+            execution_focus_node_type: "tool",
+            execution_focus_explanation: {
+              primary_signal: "执行阻断：当前节点仍在等待审批。",
+              follow_up: "下一步：优先回看审批时间线，而不是只看 waiting reason。"
+            },
             callback_waiting_explanation: {
               primary_signal: "当前仍有 1 条 callback ticket 等待外部回调。",
               follow_up: "下一步：先等待外部 callback 到达，再观察自动 resume。"
             },
-            artifact_refs: ["artifact://artifact-234"],
-            artifacts: [
+            execution_focus_artifact_count: 1,
+            execution_focus_artifact_ref_count: 1,
+            execution_focus_tool_call_count: 1,
+            execution_focus_raw_ref_count: 1,
+            execution_focus_artifact_refs: ["artifact://artifact-234"],
+            execution_focus_artifacts: [
               {
                 artifact_kind: "tool_result",
                 content_type: "application/json",
@@ -452,7 +464,7 @@ describe("fetchRunSnapshot", () => {
                 uri: "artifact://artifact-234"
               }
             ],
-            tool_calls: [
+            execution_focus_tool_calls: [
               {
                 id: "tool-call-234",
                 tool_id: "tool-a",
@@ -468,9 +480,9 @@ describe("fetchRunSnapshot", () => {
               }
             ]
           },
-          execution_focus_explanation: {
-            primary_signal: "执行阻断：当前节点仍在等待审批。",
-            follow_up: "下一步：优先回看审批时间线，而不是只看 waiting reason。"
+          run_follow_up: {
+            affected_run_count: 1,
+            sampled_run_count: 1
           }
         });
       }

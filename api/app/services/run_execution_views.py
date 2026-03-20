@@ -213,6 +213,8 @@ def build_run_execution_view(
         execution_focus_reason=execution_focus_reason,
         execution_focus_node=execution_focus_node,
         execution_focus_explanation=execution_focus_explanation,
+        run_snapshot=run_snapshot,
+        run_follow_up=run_follow_up,
         skill_trace=skill_trace,
         nodes=nodes,
     )

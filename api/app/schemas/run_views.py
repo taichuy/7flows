@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.schemas.explanations import SignalFollowUpExplanation
 from app.schemas.run import AICallItem, RunArtifactItem, ToolCallItem
+from app.schemas.operator_follow_up import OperatorRunFollowUpSummary, OperatorRunSnapshot
 from app.schemas.sensitive_access import SensitiveAccessTimelineEntryItem
 
 
@@ -225,6 +226,8 @@ class RunExecutionView(BaseModel):
     execution_focus_reason: RunExecutionFocusReason | None = None
     execution_focus_node: RunExecutionNodeItem | None = None
     execution_focus_explanation: RunExecutionFocusExplanation | None = None
+    run_snapshot: OperatorRunSnapshot | None = None
+    run_follow_up: OperatorRunFollowUpSummary | None = None
     skill_trace: RunExecutionSkillTrace | None = None
     nodes: list[RunExecutionNodeItem] = Field(default_factory=list)
 

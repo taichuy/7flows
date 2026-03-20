@@ -1,5 +1,3 @@
-from collections import Counter
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -12,9 +10,9 @@ from app.api.routes.published_endpoint_invocation_support import (
 )
 from app.api.routes.sensitive_access_http import build_sensitive_access_blocking_response
 from app.core.database import get_db
-from app.models.run import NodeRun, Run, RunCallbackTicket, RunEvent
+from app.models.run import NodeRun, Run, RunCallbackTicket
 from app.models.workflow import Workflow, WorkflowPublishedApiKey, WorkflowPublishedEndpoint
-from app.schemas.run_views import RunCallbackTicketItem
+from app.schemas.run_views import RunCallbackTicketItem, RunExecutionSkillTrace
 from app.schemas.workflow_publish import (
     PublishedEndpointInvocationApiKeyUsageItem,
     PublishedEndpointInvocationCacheReference,
@@ -23,21 +21,13 @@ from app.schemas.workflow_publish import (
     PublishedEndpointInvocationSkillTrace,
     PublishedEndpointInvocationSkillTraceNodeItem,
 )
-from app.services.operator_run_follow_up import build_operator_run_follow_up_summary
 from app.services.published_cache import PublishedEndpointCacheService
 from app.services.published_invocation_detail_access import (
     PublishedInvocationDetailAccessService,
 )
 from app.services.published_invocations import PublishedInvocationService
-from app.services.run_execution_focus_explanations import (
-    build_run_execution_focus_explanation,
-)
-from app.services.run_execution_views import (
-    resolve_execution_focus_node,
-    summarize_skill_reference_loads,
-)
+from app.services.operator_run_follow_up import build_operator_run_follow_up_summary
 from app.services.run_views import RunViewService
-from app.services.runtime_records import ExecutionArtifacts
 from app.services.sensitive_access_presenters import (
     serialize_sensitive_access_timeline_entry,
 )
@@ -112,95 +102,26 @@ def _resolve_callback_waiting_explanation(
     return None
 
 
-def _count_skill_references(loads) -> int:
-    return sum(len(load.references) for load in loads)
-
-
-def _summarize_skill_reference_sources(loads) -> dict[str, int]:
-    source_counts: Counter[str] = Counter()
-    for load in loads:
-        for reference in load.references:
-            source = reference.load_source or "unknown"
-            source_counts[source] += 1
-    return dict(sorted(source_counts.items()))
-
-
-def _summarize_skill_reference_phases(loads) -> dict[str, int]:
-    phase_counts: Counter[str] = Counter()
-    for load in loads:
-        if load.references:
-            phase_counts[load.phase] += len(load.references)
-    return dict(sorted(phase_counts.items()))
-
-
-def _serialize_skill_trace_node(
-    *,
-    node_run_id: str,
-    node_run: NodeRun | None,
-    loads,
-) -> PublishedEndpointInvocationSkillTraceNodeItem:
-    return PublishedEndpointInvocationSkillTraceNodeItem(
-        node_run_id=node_run_id,
-        node_id=(node_run.node_id if node_run is not None else None),
-        node_name=(node_run.node_name if node_run is not None else None),
-        reference_count=_count_skill_references(loads),
-        loads=list(loads),
-    )
-
-
-def _build_skill_trace(
-    *,
-    run: Run | None,
-    node_runs: list[NodeRun],
-    events: list[RunEvent],
-    execution_focus_node_run_id: str | None,
+def _serialize_execution_view_skill_trace(
+    skill_trace: RunExecutionSkillTrace | None,
 ) -> PublishedEndpointInvocationSkillTrace | None:
-    if run is None or not node_runs or not events:
+    if skill_trace is None:
         return None
 
-    summary = summarize_skill_reference_loads(
-        ExecutionArtifacts(
-            run=run,
-            node_runs=node_runs,
-            events=events,
-        )
-    )
-    if summary.reference_count <= 0:
-        return None
-
-    node_run_lookup = {node_run.id: node_run for node_run in node_runs}
-    if (
-        execution_focus_node_run_id
-        and execution_focus_node_run_id in summary.by_node_run
-    ):
-        scoped_loads = summary.by_node_run[execution_focus_node_run_id]
-        return PublishedEndpointInvocationSkillTrace(
-            scope="execution_focus_node",
-            reference_count=_count_skill_references(scoped_loads),
-            phase_counts=_summarize_skill_reference_phases(scoped_loads),
-            source_counts=_summarize_skill_reference_sources(scoped_loads),
-            nodes=[
-                _serialize_skill_trace_node(
-                    node_run_id=execution_focus_node_run_id,
-                    node_run=node_run_lookup.get(execution_focus_node_run_id),
-                    loads=scoped_loads,
-                )
-            ],
-        )
-
-    node_ids = [node_run.id for node_run in node_runs if node_run.id in summary.by_node_run]
     return PublishedEndpointInvocationSkillTrace(
-        scope="run",
-        reference_count=summary.reference_count,
-        phase_counts=summary.phase_counts,
-        source_counts=summary.source_counts,
+        scope=skill_trace.scope,
+        reference_count=skill_trace.reference_count,
+        phase_counts=dict(skill_trace.phase_counts),
+        source_counts=dict(skill_trace.source_counts),
         nodes=[
-            _serialize_skill_trace_node(
-                node_run_id=node_run_id,
-                node_run=node_run_lookup.get(node_run_id),
-                loads=summary.by_node_run[node_run_id],
+            PublishedEndpointInvocationSkillTraceNodeItem(
+                node_run_id=node.node_run_id,
+                node_id=node.node_id,
+                node_name=node.node_name,
+                reference_count=node.reference_count,
+                loads=list(node.loads),
             )
-            for node_run_id in node_ids
+            for node in skill_trace.nodes
         ],
     )
 
@@ -272,7 +193,6 @@ def get_published_endpoint_invocation_detail(
     waiting_reason_lookup: dict[str, str | None] = {}
     waiting_lifecycle_lookup = {}
     node_runs: list[NodeRun] = []
-    run_events: list[RunEvent] = []
     callback_ticket_items = []
     sensitive_access_entries = []
     blocking_sensitive_access_entries = []
@@ -286,15 +206,6 @@ def get_published_endpoint_invocation_detail(
     if record.run_id:
         node_runs = (
             db.scalars(select(NodeRun).where(NodeRun.run_id == record.run_id)).all()
-            if run is not None
-            else []
-        )
-        run_events = (
-            db.scalars(
-                select(RunEvent)
-                .where(RunEvent.run_id == record.run_id)
-                .order_by(RunEvent.id.asc())
-            ).all()
             if run is not None
             else []
         )
@@ -327,11 +238,8 @@ def get_published_endpoint_invocation_detail(
                 blocking_node_run_id = (
                     blocking_node_run_id or execution_view.blocking_node_run_id
                 )
-                execution_focus_node, execution_focus_reason = resolve_execution_focus_node(
-                    execution_nodes=execution_view.nodes,
-                    blocking_node_run_id=blocking_node_run_id,
-                    current_node_id=run.current_node_id,
-                )
+                execution_focus_reason = execution_view.execution_focus_reason
+                execution_focus_node = execution_view.execution_focus_node
                 if (
                     blocking_node_run_id is None
                     and execution_focus_reason == "blocked_execution"
@@ -339,24 +247,19 @@ def get_published_endpoint_invocation_detail(
                     and execution_focus_node.sensitive_access_entries
                 ):
                     blocking_node_run_id = execution_focus_node.node_run_id
-                execution_focus_explanation = build_run_execution_focus_explanation(
-                    execution_focus_node
+                execution_focus_explanation = execution_view.execution_focus_explanation
+                skill_trace = _serialize_execution_view_skill_trace(
+                    execution_view.skill_trace
                 )
-            skill_trace = _build_skill_trace(
-                run=run,
-                node_runs=node_runs,
-                events=run_events,
-                execution_focus_node_run_id=(
-                    execution_focus_node.node_run_id
-                    if execution_focus_node is not None
-                    else None
-                ),
-            )
-            run_follow_up = build_operator_run_follow_up_summary(db, [record.run_id])
-            timeline_run_snapshot = _resolve_run_snapshot_from_follow_up(
-                run_follow_up,
-                run_id=record.run_id,
-            )
+                run_follow_up = execution_view.run_follow_up
+                timeline_run_snapshot = execution_view.run_snapshot
+            if run_follow_up is None:
+                run_follow_up = build_operator_run_follow_up_summary(db, [record.run_id])
+            if timeline_run_snapshot is None:
+                timeline_run_snapshot = _resolve_run_snapshot_from_follow_up(
+                    run_follow_up,
+                    run_id=record.run_id,
+                )
             sensitive_access_entries = [
                 serialize_sensitive_access_timeline_entry(
                     bundle,

@@ -313,6 +313,20 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
             "再观察 waiting 节点是否恢复。"
         ),
     }
+    assert body["run_snapshot"] is not None
+    assert body["run_snapshot"]["workflow_id"] == sample_workflow.id
+    assert body["run_snapshot"]["status"] == "waiting"
+    assert body["run_snapshot"]["execution_focus_reason"] == "blocking_node_run"
+    assert body["run_snapshot"]["execution_focus_node_run_id"] == node_run.id
+    assert body["run_follow_up"] is not None
+    assert body["run_follow_up"]["affected_run_count"] == 1
+    assert body["run_follow_up"]["sampled_run_count"] == 1
+    assert body["run_follow_up"]["sampled_runs"] == [
+        {
+            "run_id": run.id,
+            "snapshot": body["run_snapshot"],
+        }
+    ]
     assert body["skill_trace"] is None
     assert len(body["nodes"]) == 1
     node = body["nodes"][0]
@@ -485,6 +499,8 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
 
     run_follow_up = node["sensitive_access_entries"][0]["run_follow_up"]
     assert run_follow_up is not None
+    assert run_snapshot == body["run_snapshot"]
+    assert run_follow_up == body["run_follow_up"]
     assert run_follow_up["affected_run_count"] == 1
     assert run_follow_up["sampled_run_count"] == 1
     assert run_follow_up["waiting_run_count"] == 1
