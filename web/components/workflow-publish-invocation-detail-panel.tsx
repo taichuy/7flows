@@ -27,6 +27,7 @@ import {
   normalizePublishedInvocationRunSnapshot
 } from "@/lib/published-invocation-presenters";
 import {
+  buildExecutionFocusSectionSurfaceCopy,
   formatExecutionFocusFollowUp,
   formatExecutionFocusPrimarySignal,
   formatExecutionFocusReasonLabel,
@@ -103,6 +104,7 @@ export function WorkflowPublishInvocationDetailPanel({
     (executionFocusNode ? formatExecutionFocusFollowUp(executionFocusNode) : null);
   const executionFocusHasCallbackWaitingSummary =
     hasExecutionNodeCallbackWaitingSummaryFacts(executionFocusNode);
+  const executionFocusSurfaceCopy = buildExecutionFocusSectionSurfaceCopy("publish_detail");
   const runFollowUpStatusSummary = runFollowUp
     ? formatMetricSummary({
         waiting: runFollowUp.waiting_run_count,
@@ -452,9 +454,7 @@ export function WorkflowPublishInvocationDetailPanel({
       {runId && executionFocusNode ? (
         <div>
           <strong>Execution focus</strong>
-          <p className="section-copy entry-copy">
-            当前 publish invocation detail 直接复用 run diagnostics 的 execution 事实，优先聚焦当前最相关的 node run。
-          </p>
+          <p className="section-copy entry-copy">{executionFocusSurfaceCopy.sectionDescription}</p>
           {executionFocusPrimarySignal && !executionFocusHasCallbackWaitingSummary ? (
             <p className="section-copy entry-copy">{executionFocusPrimarySignal}</p>
           ) : null}

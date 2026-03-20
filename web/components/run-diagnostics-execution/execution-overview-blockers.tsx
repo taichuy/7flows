@@ -133,7 +133,7 @@ function renderNodeFollowUp({
       <SkillReferenceLoadList
         skillReferenceLoads={skillReferenceLoads}
         title="Focused skill trace"
-        description="Priority blocker 卡片现在也会直接复用 canonical focus skill trace，方便在 run diagnostics 主入口确认当前阻断节点实际加载了哪些参考资料。"
+        description={buildExecutionFocusDiagnosticsBlockerSurfaceCopy().focusedSkillTraceDescription}
       />
     </>
   );

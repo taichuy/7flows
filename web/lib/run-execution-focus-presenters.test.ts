@@ -4,6 +4,7 @@ import type { RunExecutionNodeItem } from "@/lib/get-run-views";
 
 import {
   buildExecutionFocusDiagnosticsBlockerSurfaceCopy,
+  buildExecutionFocusSectionSurfaceCopy,
   buildExecutionFocusSurfaceDescription,
   formatExecutionFocusArtifactSummary,
   formatExecutionFocusFollowUp,
@@ -76,13 +77,25 @@ describe("run execution focus presenters", () => {
       "canonical execution focus"
     );
     expect(buildExecutionFocusSurfaceDescription("overlay")).toContain("画布里也能先看当前最相关的 blocker");
+    expect(buildExecutionFocusSurfaceDescription("publish_detail")).toContain(
+      "publish invocation detail 直接复用 run diagnostics 的 execution 事实"
+    );
+  });
+
+  it("为 publish detail 提供共享 execution focus surface copy", () => {
+    expect(buildExecutionFocusSectionSurfaceCopy("publish_detail")).toEqual({
+      sectionDescription: expect.stringContaining("publish invocation detail"),
+      focusNodeDescription: expect.stringContaining("publish detail、diagnostics"),
+      focusedSkillTraceDescription: expect.stringContaining("publish invocation detail")
+    });
   });
 
   it("为 diagnostics blocker 卡片提供共享 helper copy", () => {
     expect(buildExecutionFocusDiagnosticsBlockerSurfaceCopy()).toEqual({
       sectionTitle: "Priority blockers",
       sectionDescription: expect.stringContaining("canonical execution focus"),
-      focusNodeDescription: expect.stringContaining("后端选出的 canonical execution focus")
+      focusNodeDescription: expect.stringContaining("后端选出的 canonical execution focus"),
+      focusedSkillTraceDescription: expect.stringContaining("Priority blocker 卡片")
     });
   });
 

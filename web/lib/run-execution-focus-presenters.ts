@@ -62,12 +62,19 @@ export type ExecutionFocusToolCallSummary = {
   traceSummary?: string | null;
 };
 
-export type ExecutionFocusSurface = "diagnostics" | "overlay";
+export type ExecutionFocusSurface = "diagnostics" | "overlay" | "publish_detail";
+
+export type ExecutionFocusSectionSurfaceCopy = {
+  sectionDescription: string;
+  focusNodeDescription: string;
+  focusedSkillTraceDescription: string;
+};
 
 export type ExecutionFocusDiagnosticsBlockerSurfaceCopy = {
   sectionTitle: string;
   sectionDescription: string;
   focusNodeDescription: string;
+  focusedSkillTraceDescription: string;
 };
 
 function trimOrNull(value?: string | null) {
@@ -75,20 +82,52 @@ function trimOrNull(value?: string | null) {
   return normalized ? normalized : null;
 }
 
-export function buildExecutionFocusSurfaceDescription(surface: ExecutionFocusSurface) {
+export function buildExecutionFocusSectionSurfaceCopy(
+  surface: ExecutionFocusSurface
+): ExecutionFocusSectionSurfaceCopy {
   if (surface === "overlay") {
-    return "这里直接复用 run detail 的 execution focus，作者在画布里也能先看当前最相关的 blocker / waiting 节点，而不是立刻跳出到完整 diagnostics。";
+    return {
+      sectionDescription:
+        "这里直接复用 run detail 的 execution focus，作者在画布里也能先看当前最相关的 blocker / waiting 节点，而不是立刻跳出到完整 diagnostics。",
+      focusNodeDescription:
+        "当前节点直接来自后端选出的 canonical execution focus，方便画布 overlay 与 diagnostics / runtime 事实链继续对齐。",
+      focusedSkillTraceDescription:
+        "overlay 里的 execution focus 也会继续复用 canonical focus skill trace，方便作者留在当前 run 视角确认 agent 实际加载了哪些参考资料。"
+    };
   }
 
-  return "run detail 已直接带回后端选择的 canonical execution focus，这里优先展示当前最该看的 blocker / fallback / waiting 节点，再决定是否继续展开 execution view。";
+  if (surface === "publish_detail") {
+    return {
+      sectionDescription:
+        "当前 publish invocation detail 直接复用 run diagnostics 的 execution 事实，优先聚焦当前最相关的 node run。",
+      focusNodeDescription:
+        "当前节点直接来自后端选出的 canonical execution focus，方便 publish detail、diagnostics 与 runtime 事实链继续对齐到同一条恢复路径。",
+      focusedSkillTraceDescription:
+        "publish invocation detail 里的 execution focus 也会直接复用 canonical focus skill trace，避免还要跳回 run diagnostics 才能确认当前 node run 实际加载了哪些参考资料。"
+    };
+  }
+
+  return {
+    sectionDescription:
+      "run detail 已直接带回后端选择的 canonical execution focus，这里优先展示当前最该看的 blocker / fallback / waiting 节点，再决定是否继续展开 execution view。",
+    focusNodeDescription:
+      "当前节点直接来自后端选出的 canonical execution focus，方便 diagnostics、publish detail 与 runtime 事实链对齐到同一条恢复路径。",
+    focusedSkillTraceDescription:
+      "Priority blocker 卡片现在也会直接复用 canonical focus skill trace，方便在 run diagnostics 主入口确认当前阻断节点实际加载了哪些参考资料。"
+  };
+}
+
+export function buildExecutionFocusSurfaceDescription(surface: ExecutionFocusSurface) {
+  return buildExecutionFocusSectionSurfaceCopy(surface).sectionDescription;
 }
 
 export function buildExecutionFocusDiagnosticsBlockerSurfaceCopy(): ExecutionFocusDiagnosticsBlockerSurfaceCopy {
+  const surfaceCopy = buildExecutionFocusSectionSurfaceCopy("diagnostics");
   return {
     sectionTitle: "Priority blockers",
-    sectionDescription: buildExecutionFocusSurfaceDescription("diagnostics"),
-    focusNodeDescription:
-      "当前节点直接来自后端选出的 canonical execution focus，方便 diagnostics、publish detail 与 runtime 事实链对齐到同一条恢复路径。"
+    sectionDescription: surfaceCopy.sectionDescription,
+    focusNodeDescription: surfaceCopy.focusNodeDescription,
+    focusedSkillTraceDescription: surfaceCopy.focusedSkillTraceDescription
   };
 }
 
