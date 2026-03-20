@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { RunDetailExecutionFocusCard } from "@/components/run-detail-execution-focus-card";
 import { RunTraceExportActions } from "@/components/run-trace-export-actions";
 import type { RunDetail } from "@/lib/get-run-detail";
 import {
@@ -148,6 +149,13 @@ export function WorkflowRunOverlayPanel({
                   ) : null}
                 </div>
               ) : null}
+
+              <RunDetailExecutionFocusCard
+                className="runtime-overlay-focus-card"
+                description="这里直接复用 run detail 的 execution focus，作者在画布里也能先看当前最相关的 blocker / waiting 节点，而不是立刻跳出到完整 diagnostics。"
+                run={run}
+                title="Execution focus"
+              />
 
               <div className="timeline-list runtime-overlay-timeline">
                 {run.node_runs.length === 0 ? (

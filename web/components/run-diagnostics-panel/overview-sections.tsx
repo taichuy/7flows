@@ -2,6 +2,7 @@ import { formatDuration, formatTimestamp } from "@/lib/runtime-presenters";
 import type { RunDetail } from "@/lib/get-run-detail";
 import type { RunTraceQuery } from "@/lib/get-run-trace";
 
+import { RunDetailExecutionFocusCard } from "@/components/run-detail-execution-focus-card";
 import { PayloadCard, countErroredNodes } from "@/components/run-diagnostics-panel/shared";
 
 type RunDiagnosticsOverviewSectionsProps = {
@@ -67,6 +68,11 @@ export function RunDiagnosticsOverviewSections({
               <pre>{run.error_message}</pre>
             </div>
           ) : null}
+
+          <RunDetailExecutionFocusCard
+            run={run}
+            description="run detail 已直接带回后端选择的 canonical execution focus，这里优先展示当前最该看的 blocker / fallback / waiting 节点，再决定是否继续展开 execution view。"
+          />
         </article>
 
         <article className="diagnostic-panel">

@@ -1,4 +1,13 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import type {
+  AICallItem,
+  CallbackWaitingLifecycleSummary,
+  RunArtifactItem,
+  RunExecutionFocusExplanation,
+  RunExecutionFocusReason,
+  SkillReferenceLoadItem,
+  ToolCallItem
+} from "@/lib/get-run-views";
 
 export type NodeRunItem = {
   id: string;
@@ -6,10 +15,18 @@ export type NodeRunItem = {
   node_name: string;
   node_type: string;
   status: string;
+  phase?: string | null;
+  retry_count?: number;
   input_payload: Record<string, unknown>;
+  checkpoint_payload?: Record<string, unknown>;
+  working_context?: Record<string, unknown>;
+  evidence_context?: Record<string, unknown> | null;
+  artifact_refs?: string[];
   output_payload?: Record<string, unknown> | null;
   error_message?: string | null;
+  waiting_reason?: string | null;
   started_at?: string | null;
+  phase_started_at?: string | null;
   finished_at?: string | null;
 };
 
@@ -26,10 +43,13 @@ export type RunDetail = {
   id: string;
   workflow_id: string;
   workflow_version: string;
+  compiled_blueprint_id?: string | null;
   status: string;
   input_payload: Record<string, unknown>;
+  checkpoint_payload?: Record<string, unknown>;
   output_payload?: Record<string, unknown> | null;
   error_message?: string | null;
+  current_node_id?: string | null;
   started_at?: string | null;
   finished_at?: string | null;
   created_at: string;
@@ -38,13 +58,15 @@ export type RunDetail = {
   first_event_at?: string | null;
   last_event_at?: string | null;
   blocking_node_run_id?: string | null;
-  execution_focus_reason?: string | null;
+  execution_focus_reason?: RunExecutionFocusReason | null;
   execution_focus_node?: {
     node_run_id: string;
     node_id: string;
     node_name: string;
     node_type: string;
     status: string;
+    callback_waiting_explanation?: RunExecutionFocusExplanation | null;
+    callback_waiting_lifecycle?: CallbackWaitingLifecycleSummary | null;
     phase?: string | null;
     execution_class?: string | null;
     execution_source?: string | null;
@@ -62,14 +84,32 @@ export type RunDetail = {
     execution_executor_ref?: string | null;
     execution_sandbox_backend_id?: string | null;
     execution_sandbox_backend_executor_ref?: string | null;
+    execution_sandbox_runner_kind?: string | null;
     execution_blocking_reason?: string | null;
     execution_fallback_reason?: string | null;
+    scheduled_resume_delay_seconds?: number | null;
+    scheduled_resume_reason?: string | null;
+    scheduled_resume_source?: string | null;
+    scheduled_waiting_status?: string | null;
+    scheduled_resume_scheduled_at?: string | null;
+    scheduled_resume_due_at?: string | null;
+    scheduled_resume_requeued_at?: string | null;
+    scheduled_resume_requeue_source?: string | null;
+    artifact_refs?: string[];
+    artifacts?: RunArtifactItem[];
+    tool_calls?: ToolCallItem[];
   } | null;
-  execution_focus_explanation?: {
-    primary_signal?: string | null;
-    follow_up?: string | null;
+  execution_focus_explanation?: RunExecutionFocusExplanation | null;
+  execution_focus_skill_trace?: {
+    reference_count?: number | null;
+    phase_counts?: Record<string, number> | null;
+    source_counts?: Record<string, number> | null;
+    loads?: SkillReferenceLoadItem[] | null;
   } | null;
   node_runs: NodeRunItem[];
+  artifacts?: RunArtifactItem[];
+  tool_calls?: ToolCallItem[];
+  ai_calls?: AICallItem[];
   events: RunEventItem[];
 };
 
