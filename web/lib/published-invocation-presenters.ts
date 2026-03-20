@@ -187,6 +187,7 @@ export type PublishedInvocationActivityInsightsSurfaceCopy = {
   trafficPathLabel: string;
   trafficCacheSurfaceLabel: string;
   trafficRunStatesLabel: string;
+  trafficRunStatesEmptyLabel: string;
   waitingFollowUpTitle: string;
   activeWaitingLabel: string;
   callbackWaitsLabel: string;
@@ -390,6 +391,7 @@ export function buildPublishedInvocationActivityInsightsSurfaceCopy({
     trafficPathLabel: "Path",
     trafficCacheSurfaceLabel: "Cache surface",
     trafficRunStatesLabel: "Run states",
+    trafficRunStatesEmptyLabel: "n/a",
     waitingFollowUpTitle: "Waiting follow-up",
     activeWaitingLabel: "Active waiting",
     callbackWaitsLabel: "Callback waits",
@@ -1276,6 +1278,32 @@ export function formatPublishedRunStatusLabel(runStatus: string | null | undefin
   }
 
   return RUN_STATUS_LABELS[runStatus] ?? runStatus.replaceAll("_", " ");
+}
+
+export function formatPublishedInvocationCacheSurfaceMix(
+  cacheStatusCounts: PublishedEndpointInvocationFacetItem[] | null | undefined
+) {
+  return ["hit", "miss", "bypass"]
+    .map((cacheStatus) => {
+      return `${formatPublishedInvocationCacheStatusLabel(cacheStatus)} ${getFacetCount(
+        cacheStatusCounts,
+        cacheStatus
+      )}`;
+    })
+    .join(" / ");
+}
+
+export function formatPublishedInvocationRunStatusMix(
+  runStatusCounts: PublishedEndpointInvocationFacetItem[] | null | undefined,
+  emptyLabel = "n/a"
+) {
+  if (!runStatusCounts?.length) {
+    return emptyLabel;
+  }
+
+  return runStatusCounts
+    .map((item) => `${formatPublishedRunStatusLabel(item.value)} ${item.count}`)
+    .join(" / ");
 }
 
 export function buildPublishedInvocationWaitingOverview({

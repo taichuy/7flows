@@ -15,7 +15,9 @@ import {
   buildPublishedInvocationTrafficTimelineSurfaceCopy,
   buildPublishedInvocationUnavailableDetailSurfaceCopy,
   formatPublishedInvocationApiKeyUsageMix,
+  formatPublishedInvocationCacheSurfaceMix,
   formatPublishedInvocationFailureReasonLastSeen,
+  formatPublishedInvocationRunStatusMix,
   formatPublishedInvocationSampleReasonLabel,
   formatPublishedInvocationWaitingRuntimeFallback,
   formatPublishedInvocationWaitingFollowUp,
@@ -159,6 +161,7 @@ describe("published invocation presenters", () => {
       trafficPathLabel: "Path",
       trafficCacheSurfaceLabel: "Cache surface",
       trafficRunStatesLabel: "Run states",
+      trafficRunStatesEmptyLabel: "n/a",
       waitingFollowUpTitle: "Waiting follow-up",
       activeWaitingLabel: "Active waiting",
       callbackWaitsLabel: "Callback waits",
@@ -187,6 +190,28 @@ describe("published invocation presenters", () => {
     expect(buildPublishedInvocationActivityInsightsSurfaceCopy().rateLimitWindowDescription).toContain(
       "当前窗口按当前筛选时间窗统计成功和失败调用"
     );
+  });
+
+  it("为 publish activity traffic mix 提供共享 cache/run-state 摘要", () => {
+    expect(
+      formatPublishedInvocationCacheSurfaceMix([
+        { value: "hit", count: 2 },
+        { value: "miss", count: 1 },
+        { value: "bypass", count: 0 }
+      ])
+    ).toBe("Cache hit 2 / Cache miss 1 / Cache bypass 0");
+
+    expect(
+      formatPublishedInvocationRunStatusMix(
+        [
+          { value: "failed", count: 2 },
+          { value: "waiting_callback", count: 1 }
+        ],
+        "n/a"
+      )
+    ).toBe("Run failed 2 / Waiting callback 1");
+
+    expect(formatPublishedInvocationRunStatusMix([], "n/a")).toBe("n/a");
   });
 
   it("为 publish activity details 提供统一标题与空态 copy", () => {

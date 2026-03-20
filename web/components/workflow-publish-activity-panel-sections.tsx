@@ -29,10 +29,11 @@ import {
   buildPublishedInvocationRecommendedNextStep,
   buildPublishedInvocationWaitingOverview,
   formatPublishedInvocationApiKeyUsageMix,
+  formatPublishedInvocationCacheSurfaceMix,
   formatPublishedInvocationFailureReasonLastSeen,
   formatPublishedInvocationReasonLabel,
+  formatPublishedInvocationRunStatusMix,
   formatPublishedInvocationSurfaceLabel,
-  formatPublishedRunStatusLabel,
   formatRateLimitPressure,
   listPublishedInvocationRunFollowUpSampleViews
 } from "@/lib/published-invocation-presenters";
@@ -147,19 +148,15 @@ export function WorkflowPublishActivityInsights({
             </div>
             <div>
               <dt>{insightsSurfaceCopy.trafficCacheSurfaceLabel}</dt>
-              <dd>
-                hit {facetCount(cacheStatusCounts, "hit")} / miss {facetCount(cacheStatusCounts, "miss")} /
-                bypass {facetCount(cacheStatusCounts, "bypass")}
-              </dd>
+              <dd>{formatPublishedInvocationCacheSurfaceMix(cacheStatusCounts)}</dd>
             </div>
             <div>
               <dt>{insightsSurfaceCopy.trafficRunStatesLabel}</dt>
               <dd>
-                {runStatusCounts.length
-                  ? runStatusCounts
-                      .map((item) => `${formatPublishedRunStatusLabel(item.value)} ${item.count}`)
-                      .join(" / ")
-                  : "n/a"}
+                {formatPublishedInvocationRunStatusMix(
+                  runStatusCounts,
+                  insightsSurfaceCopy.trafficRunStatesEmptyLabel
+                )}
               </dd>
             </div>
           </dl>
