@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.services.operator_run_follow_up import (
     build_operator_run_follow_up_summary,
     load_operator_run_snapshot,
+    resolve_operator_run_snapshot_from_follow_up,
 )
 from app.services.sensitive_access_action_explanations import (
     build_sensitive_access_timeline_outcome_explanation,
@@ -116,12 +117,10 @@ def _build_sensitive_access_run_context(
 
     primary_run_id = run_ids[0]
     run_follow_up = build_operator_run_follow_up_summary(db, run_ids)
-    run_snapshot = next(
-        (item.snapshot for item in run_follow_up.sampled_runs if item.run_id == primary_run_id),
-        None,
+    run_snapshot = resolve_operator_run_snapshot_from_follow_up(
+        run_follow_up,
+        run_id=primary_run_id,
     )
-    if run_snapshot is None and run_follow_up.sampled_runs:
-        run_snapshot = run_follow_up.sampled_runs[0].snapshot
     if run_snapshot is None:
         run_snapshot = load_operator_run_snapshot(db, primary_run_id)
 

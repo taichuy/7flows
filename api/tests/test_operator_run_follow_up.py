@@ -1,6 +1,11 @@
 from datetime import UTC, datetime
 
 from app.models.run import NodeRun, Run, RunArtifact, RunEvent, ToolCallRecord
+from app.schemas.operator_follow_up import (
+    OperatorRunFollowUpSummary,
+    OperatorRunSnapshot,
+    OperatorRunSnapshotSample,
+)
 from app.services.callback_waiting_lifecycle import (
     build_callback_waiting_scheduled_resume,
     record_callback_resume_schedule,
@@ -9,6 +14,7 @@ from app.services.callback_waiting_lifecycle import (
 from app.services.operator_run_follow_up import (
     build_operator_run_follow_up_summary,
     load_operator_run_snapshot,
+    resolve_operator_run_snapshot_from_follow_up,
 )
 
 
@@ -171,6 +177,65 @@ def test_build_operator_run_follow_up_summary_counts_all_affected_runs(
             "其余 1 个 run 可继续到对应 run detail / inbox slice 查看后续推进。"
         ),
     }
+
+
+def test_resolve_operator_run_snapshot_from_follow_up_matches_run_id_before_first_sample() -> None:
+    primary_snapshot = resolve_operator_run_snapshot_from_follow_up(
+        run_follow_up=OperatorRunFollowUpSummary(
+            affected_run_count=2,
+            sampled_run_count=2,
+            sampled_runs=[
+                OperatorRunSnapshotSample(
+                    run_id="run-stale",
+                    snapshot=OperatorRunSnapshot(
+                        workflow_id="wf-stale",
+                        status="waiting",
+                        current_node_id="tool_wait",
+                    ),
+                ),
+                OperatorRunSnapshotSample(
+                    run_id="run-primary",
+                    snapshot=OperatorRunSnapshot(
+                        workflow_id="wf-primary",
+                        status="succeeded",
+                        current_node_id="output",
+                    ),
+                ),
+            ],
+        ),
+        run_id="run-primary",
+    )
+
+    assert primary_snapshot is not None
+    assert primary_snapshot.workflow_id == "wf-primary"
+    assert primary_snapshot.status == "succeeded"
+
+    fallback_snapshot = resolve_operator_run_snapshot_from_follow_up(
+        run_follow_up=OperatorRunFollowUpSummary(
+            affected_run_count=2,
+            sampled_run_count=2,
+            sampled_runs=[
+                OperatorRunSnapshotSample(
+                    run_id="run-stale",
+                    snapshot=OperatorRunSnapshot(
+                        workflow_id="wf-stale",
+                        status="waiting",
+                    ),
+                ),
+                OperatorRunSnapshotSample(
+                    run_id="run-primary",
+                    snapshot=OperatorRunSnapshot(
+                        workflow_id="wf-primary",
+                        status="succeeded",
+                    ),
+                ),
+            ],
+        ),
+        run_id="run-missing",
+    )
+
+    assert fallback_snapshot is not None
+    assert fallback_snapshot.workflow_id == "wf-stale"
 
 
 def test_load_operator_run_snapshot_surfaces_execution_fallback_focus(

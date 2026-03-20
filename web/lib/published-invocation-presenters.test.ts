@@ -299,6 +299,73 @@ describe("published invocation presenters", () => {
     });
   });
 
+  it("在缺少 top-level snapshot 时按当前 run_id 选择 sampled snapshot", () => {
+    const item: Parameters<typeof resolvePublishedInvocationExecutionFocusExplanation>[0] = {
+      id: "invocation-4",
+      workflow_id: "wf-1",
+      binding_id: "binding-1",
+      endpoint_id: "endpoint-1",
+      endpoint_alias: "alias-1",
+      route_path: "/published/test",
+      protocol: "openai",
+      auth_mode: "api_key",
+      request_source: "workflow",
+      request_surface: "native.workflow",
+      status: "succeeded",
+      cache_status: "bypass",
+      run_id: "run-primary",
+      request_preview: {},
+      created_at: "2026-03-19T00:00:00Z",
+      run_follow_up: {
+        affected_run_count: 2,
+        sampled_run_count: 2,
+        waiting_run_count: 1,
+        running_run_count: 0,
+        succeeded_run_count: 1,
+        failed_run_count: 0,
+        unknown_run_count: 0,
+        sampled_runs: [
+          {
+            run_id: "run-stale",
+            snapshot: {
+              execution_focus_explanation: {
+                primary_signal: "stale focus",
+                follow_up: "stale follow-up"
+              },
+              callback_waiting_explanation: {
+                primary_signal: "stale callback",
+                follow_up: "stale callback follow-up"
+              }
+            }
+          },
+          {
+            run_id: "run-primary",
+            snapshot: {
+              execution_focus_explanation: {
+                primary_signal: "primary focus",
+                follow_up: "match run id"
+              },
+              callback_waiting_explanation: {
+                primary_signal: "primary callback",
+                follow_up: "match callback by run id"
+              }
+            }
+          }
+        ],
+        explanation: null
+      }
+    };
+
+    expect(resolvePublishedInvocationExecutionFocusExplanation(item)).toEqual({
+      primary_signal: "primary focus",
+      follow_up: "match run id"
+    });
+    expect(resolvePublishedInvocationCallbackWaitingExplanation(item)).toEqual({
+      primary_signal: "primary callback",
+      follow_up: "match callback by run id"
+    });
+  });
+
   it("把 canonical follow-up 的 sampled runs 转成 publish 侧可直接展示的样本视图", () => {
     const views = listPublishedInvocationRunFollowUpSampleViews({
       affected_run_count: 2,

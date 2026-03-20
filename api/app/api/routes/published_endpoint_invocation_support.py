@@ -15,6 +15,9 @@ from app.schemas.workflow_publish import (
 from app.services.callback_waiting_explanations import (
     build_callback_waiting_explanation,
 )
+from app.services.operator_run_follow_up import (
+    resolve_operator_run_snapshot_from_follow_up,
+)
 from app.services.published_invocations import classify_invocation_reason
 from app.services.run_view_serializers import (
     serialize_callback_waiting_lifecycle_summary,
@@ -63,17 +66,6 @@ def _pick_latest_node_run(node_runs: list[NodeRun]) -> NodeRun | None:
     return max(node_runs, key=_node_run_recency_key)
 
 
-def _resolve_run_follow_up_snapshot(
-    run_follow_up: OperatorRunFollowUpSummary | None,
-) -> OperatorRunSnapshot | None:
-    if run_follow_up is None:
-        return None
-    for sample in run_follow_up.sampled_runs:
-        if sample.snapshot is not None:
-            return sample.snapshot
-    return None
-
-
 def _resolve_run_snapshot(
     *,
     record_run_id: str | None,
@@ -84,7 +76,10 @@ def _resolve_run_snapshot(
         snapshot = run_snapshot_lookup.get(record_run_id)
         if snapshot is not None:
             return snapshot
-    return _resolve_run_follow_up_snapshot(run_follow_up)
+    return resolve_operator_run_snapshot_from_follow_up(
+        run_follow_up,
+        run_id=record_run_id,
+    )
 
 
 def serialize_published_invocation_item(

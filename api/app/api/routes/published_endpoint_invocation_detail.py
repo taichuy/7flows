@@ -21,7 +21,10 @@ from app.schemas.workflow_publish import (
     PublishedEndpointInvocationSkillTrace,
     PublishedEndpointInvocationSkillTraceNodeItem,
 )
-from app.services.operator_run_follow_up import build_operator_run_follow_up_summary
+from app.services.operator_run_follow_up import (
+    build_operator_run_follow_up_summary,
+    resolve_operator_run_snapshot_from_follow_up,
+)
 from app.services.published_cache import PublishedEndpointCacheService
 from app.services.published_invocation_detail_access import (
     PublishedInvocationDetailAccessService,
@@ -71,20 +74,6 @@ def _serialize_blocking_sensitive_access_entries(
         )
         for bundle in sensitive_access_timeline.by_node_run.get(blocking_node_run_id, [])
     ]
-
-
-def _resolve_run_snapshot_from_follow_up(run_follow_up, *, run_id: str | None):
-    normalized_run_id = str(run_id or "").strip()
-    if run_follow_up is None or not normalized_run_id:
-        return None
-    return next(
-        (
-            item.snapshot
-            for item in run_follow_up.sampled_runs
-            if item.run_id == normalized_run_id
-        ),
-        None,
-    )
 
 
 def _resolve_callback_waiting_explanation(
@@ -256,7 +245,7 @@ def get_published_endpoint_invocation_detail(
             if run_follow_up is None:
                 run_follow_up = build_operator_run_follow_up_summary(db, [record.run_id])
             if timeline_run_snapshot is None:
-                timeline_run_snapshot = _resolve_run_snapshot_from_follow_up(
+                timeline_run_snapshot = resolve_operator_run_snapshot_from_follow_up(
                     run_follow_up,
                     run_id=record.run_id,
                 )

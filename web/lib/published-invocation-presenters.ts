@@ -340,13 +340,29 @@ function normalizeExplanation(
   };
 }
 
+function resolvePublishedInvocationSampleSnapshot(
+  item: PublishedEndpointInvocationItem
+) {
+  const normalizedRunId = item.run_id?.trim() || null;
+  const sampledRuns = item.run_follow_up?.sampled_runs ?? [];
+
+  if (normalizedRunId) {
+    const matchedSample = sampledRuns.find((sample) => sample.run_id === normalizedRunId);
+    if (matchedSample?.snapshot) {
+      return matchedSample.snapshot;
+    }
+  }
+
+  return sampledRuns.find((sample) => sample.snapshot)?.snapshot ?? null;
+}
+
 export function resolvePublishedInvocationExecutionFocusExplanation(
   item: PublishedEndpointInvocationItem
 ): RunExecutionFocusExplanation | null {
   return (
     normalizeExplanation(item.execution_focus_explanation) ??
     normalizeExplanation(item.run_snapshot?.execution_focus_explanation) ??
-    normalizeExplanation(item.run_follow_up?.sampled_runs[0]?.snapshot?.execution_focus_explanation)
+    normalizeExplanation(resolvePublishedInvocationSampleSnapshot(item)?.execution_focus_explanation)
   );
 }
 
@@ -357,7 +373,7 @@ export function resolvePublishedInvocationCallbackWaitingExplanation(
     normalizeExplanation(item.callback_waiting_explanation) ??
     normalizeExplanation(item.run_snapshot?.callback_waiting_explanation) ??
     normalizeExplanation(item.run_waiting_lifecycle?.callback_waiting_explanation) ??
-    normalizeExplanation(item.run_follow_up?.sampled_runs[0]?.snapshot?.callback_waiting_explanation)
+    normalizeExplanation(resolvePublishedInvocationSampleSnapshot(item)?.callback_waiting_explanation)
   );
 }
 

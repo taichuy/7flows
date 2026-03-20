@@ -440,3 +440,75 @@ def test_serialize_published_invocation_item_prefers_run_snapshot_lookup() -> No
         "primary_signal": "canonical callback explanation",
         "follow_up": "use canonical snapshot explanation",
     }
+
+
+def test_serialize_published_invocation_item_matches_run_id_when_follow_up_contains_multiple_samples() -> None:
+    now = datetime(2026, 3, 20, 15, 30, tzinfo=UTC)
+    record = SimpleNamespace(
+        id="invocation-2",
+        workflow_id="wf-1",
+        binding_id="binding-1",
+        endpoint_id="endpoint-1",
+        endpoint_alias="demo-endpoint",
+        route_path="/demo",
+        protocol="native",
+        auth_mode="none",
+        request_source="workflow",
+        status="succeeded",
+        cache_status="hit",
+        api_key_id=None,
+        run_id="run-primary",
+        run_status="succeeded",
+        error_message=None,
+        request_preview={"question": "hello"},
+        response_preview={"answer": "world"},
+        duration_ms=12,
+        created_at=now,
+        finished_at=now,
+    )
+
+    item = serialize_published_invocation_item(
+        record,
+        request_surface="native.workflow",
+        run_follow_up_lookup={
+            record.run_id: OperatorRunFollowUpSummary(
+                affected_run_count=2,
+                sampled_run_count=2,
+                succeeded_run_count=2,
+                sampled_runs=[
+                    OperatorRunSnapshotSample(
+                        run_id="run-stale",
+                        snapshot=OperatorRunSnapshot(
+                            workflow_id="wf-stale",
+                            status="waiting",
+                            current_node_id="tool_wait",
+                            execution_focus_explanation={
+                                "primary_signal": "stale snapshot",
+                                "follow_up": "should not win",
+                            },
+                        ),
+                    ),
+                    OperatorRunSnapshotSample(
+                        run_id=record.run_id,
+                        snapshot=OperatorRunSnapshot(
+                            workflow_id="wf-primary",
+                            status="succeeded",
+                            current_node_id="output",
+                            execution_focus_explanation={
+                                "primary_signal": "primary snapshot",
+                                "follow_up": "match current run id",
+                            },
+                        ),
+                    ),
+                ],
+            )
+        },
+    )
+
+    assert item.run_snapshot is not None
+    assert item.run_snapshot.workflow_id == "wf-primary"
+    assert item.execution_focus_explanation is not None
+    assert item.execution_focus_explanation.model_dump() == {
+        "primary_signal": "primary snapshot",
+        "follow_up": "match current run id",
+    }

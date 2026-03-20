@@ -69,6 +69,27 @@ def load_operator_run_snapshot(
     )
 
 
+def resolve_operator_run_snapshot_from_follow_up(
+    run_follow_up: OperatorRunFollowUpSummary | None,
+    *,
+    run_id: str | None = None,
+) -> OperatorRunSnapshot | None:
+    if run_follow_up is None:
+        return None
+
+    normalized_run_id = str(run_id or "").strip()
+    if normalized_run_id:
+        for item in run_follow_up.sampled_runs:
+            if item.run_id == normalized_run_id and item.snapshot is not None:
+                return item.snapshot
+
+    for item in run_follow_up.sampled_runs:
+        if item.snapshot is not None:
+            return item.snapshot
+
+    return None
+
+
 def build_operator_run_snapshot_map(
     db: Session,
     run_ids: Iterable[str | None],

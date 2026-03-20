@@ -46,6 +46,7 @@ from app.services.operator_run_follow_up import (
     build_operator_run_follow_up_summary,
     build_operator_run_follow_up_summary_map,
     load_operator_run_snapshot,
+    resolve_operator_run_snapshot_from_follow_up,
 )
 from app.services.sensitive_access_action_explanations import (
     build_approval_decision_outcome_explanation,
@@ -90,13 +91,9 @@ def _resolve_single_run_follow_up(
         run_ids_by_node_run_id=run_ids_by_node_run_id,
     )
     run_follow_up = build_operator_run_follow_up_summary(db, [resolved_run_id])
-    run_snapshot = next(
-        (
-            item.snapshot
-            for item in run_follow_up.sampled_runs
-            if item.run_id == str(resolved_run_id or "").strip()
-        ),
-        None,
+    run_snapshot = resolve_operator_run_snapshot_from_follow_up(
+        run_follow_up,
+        run_id=resolved_run_id,
     )
     if run_snapshot is None:
         run_snapshot = load_operator_run_snapshot(db, resolved_run_id)
@@ -498,10 +495,9 @@ def get_sensitive_access_inbox(
         run_follow_up = (
             run_follow_up_by_run_id.get(resolved_run_id) if resolved_run_id else None
         )
-        run_snapshot = (
-            run_follow_up.sampled_runs[0].snapshot
-            if run_follow_up is not None and run_follow_up.sampled_runs
-            else None
+        run_snapshot = resolve_operator_run_snapshot_from_follow_up(
+            run_follow_up,
+            run_id=resolved_run_id,
         )
         hydrated_entries.append(
             entry.model_copy(
