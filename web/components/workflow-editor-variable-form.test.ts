@@ -39,4 +39,30 @@ describe("WorkflowEditorVariableForm", () => {
     expect(html).toContain("变量名重复");
     expect(html).toContain("validation-focus-ring");
   });
+
+  it("shows the shared save gate summary for variable blockers", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorVariableForm, {
+        variables: [
+          {
+            name: "locale",
+            type: "string"
+          }
+        ],
+        persistBlockers: [
+          {
+            id: "variables",
+            label: "Variables",
+            detail: "当前 workflow definition 还有 variables 待修正问题：变量名重复。",
+            nextStep: "请先修正变量名，再继续保存。"
+          }
+        ],
+        onChange: () => undefined
+      })
+    );
+
+    expect(html).toContain("Variable save gate");
+    expect(html).toContain("当前保存会被 1 类问题阻断：Variables。");
+    expect(html).toContain("请先修正变量名，再继续保存");
+  });
 });

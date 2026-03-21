@@ -13,6 +13,7 @@ import { type WorkflowRunListItem } from "@/lib/get-workflow-runs";
 import type { WorkflowListItem } from "@/lib/get-workflows";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
+import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-blocker-notice";
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { WorkflowRunOverlayPanel } from "@/components/workflow-run-overlay-panel";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
@@ -244,17 +245,11 @@ export function WorkflowEditorSidebar({
         </div>
 
         {persistBlockers.length > 0 ? (
-          <div className="sync-message error">
-            <strong>Save gate</strong>
-            <p className="section-copy entry-copy">{persistBlockerSummary}</p>
-            <ul className="event-list compact-list">
-              {persistBlockers.slice(0, 4).map((blocker) => (
-                <li key={blocker.id}>
-                  <strong>{blocker.label}</strong>：{blocker.detail} {blocker.nextStep}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <WorkflowPersistBlockerNotice
+            title="Save gate"
+            summary={persistBlockerSummary}
+            blockers={persistBlockers}
+          />
         ) : null}
 
         <p className={`sync-message ${messageTone}`}>{feedbackMessage}</p>

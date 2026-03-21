@@ -90,4 +90,27 @@ describe("WorkflowEditorPublishForm", () => {
     expect(html).toContain("Publish · Public Search · Workflow version");
     expect(html).toContain("如果这个 endpoint 要跟随本次保存生成的新版本");
   });
+
+  it("shows the shared save gate summary for publish blockers", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorPublishForm, {
+        workflowVersion: "1.0.0",
+        availableWorkflowVersions: ["1.0.0"],
+        publishEndpoints: [],
+        persistBlockers: [
+          {
+            id: "publish_draft",
+            label: "Publish draft",
+            detail: "当前 workflow definition 还有 publish draft 待修正问题：版本绑定无效。",
+            nextStep: "请先在 publish draft 表单里修正发布标识、schema、缓存或版本设置，再继续保存。"
+          }
+        ],
+        onChange: () => undefined
+      })
+    );
+
+    expect(html).toContain("Publish save gate");
+    expect(html).toContain("当前保存会被 1 类问题阻断：Publish draft。");
+    expect(html).toContain("请先在 publish draft 表单里修正发布标识、schema、缓存或版本设置");
+  });
 });

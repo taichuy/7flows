@@ -7,6 +7,9 @@ import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { validateContractSchema } from "@/lib/workflow-contract-schema-validation";
+import type { WorkflowPersistBlocker } from "@/components/workflow-editor-workbench/persist-blockers";
+import { summarizeWorkflowPersistBlockers } from "@/components/workflow-editor-workbench/persist-blockers";
+import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-blocker-notice";
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { WorkflowEditorPublishEndpointCard } from "./workflow-editor-publish-endpoint-card";
 import { buildPublishedEndpointValidationIssues } from "./workflow-editor-publish-form-validation";
@@ -28,6 +31,7 @@ type WorkflowEditorPublishFormProps = {
     options?: { successMessage?: string }
   ) => void;
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
+  persistBlockers?: WorkflowPersistBlocker[];
   highlightedEndpointIndex?: number | null;
   highlightedEndpointFieldPath?: string | null;
 };
@@ -39,6 +43,7 @@ export function WorkflowEditorPublishForm({
   sandboxReadiness,
   onChange,
   focusedValidationItem = null,
+  persistBlockers = [],
   highlightedEndpointIndex = null,
   highlightedEndpointFieldPath = null
 }: WorkflowEditorPublishFormProps) {
@@ -59,6 +64,14 @@ export function WorkflowEditorPublishForm({
   const validationIssuesByEndpoint = useMemo(
     () => groupValidationIssuesByEndpoint(validationIssues),
     [validationIssues]
+  );
+  const publishPersistBlockers = useMemo(
+    () => persistBlockers.filter((blocker) => blocker.id === "publish_draft"),
+    [persistBlockers]
+  );
+  const publishPersistBlockerSummary = useMemo(
+    () => summarizeWorkflowPersistBlockers(publishPersistBlockers),
+    [publishPersistBlockers]
   );
 
   const commit = (
@@ -166,6 +179,11 @@ export function WorkflowEditorPublishForm({
           sandboxReadiness={sandboxReadiness}
         />
       ) : null}
+      <WorkflowPersistBlockerNotice
+        title="Publish save gate"
+        summary={publishPersistBlockerSummary}
+        blockers={publishPersistBlockers}
+      />
 
       <div className="tool-badge-row">
         <span className="event-chip">draft count {normalizedEndpoints.length}</span>
@@ -185,7 +203,7 @@ export function WorkflowEditorPublishForm({
 
       {validationIssues.length > 0 ? (
         <div className="sync-message error">
-          <p>当前 publish draft 还有待修正问题，先在编辑器里处理掉会更稳妥：</p>
+          <p>当前 publish draft 里还有这些字段级问题：</p>
           <ul className="roadmap-list compact-list">
             {validationIssues.map((issue) => (
               <li key={issue.key}>{issue.message}</li>

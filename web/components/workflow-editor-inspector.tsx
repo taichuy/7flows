@@ -14,6 +14,7 @@ import type { WorkflowPersistBlocker } from "@/components/workflow-editor-workbe
 import { WorkflowNodeConfigForm } from "@/components/workflow-node-config-form";
 import { WorkflowNodeIoSchemaForm } from "@/components/workflow-node-config-form/node-io-schema-form";
 import { WorkflowNodeRuntimePolicyForm } from "@/components/workflow-node-config-form/runtime-policy-form";
+import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-blocker-notice";
 import { WorkflowEditorPublishForm } from "@/components/workflow-editor-publish-form";
 import { WorkflowEditorVariableForm } from "@/components/workflow-editor-variable-form";
 
@@ -269,19 +270,11 @@ export function WorkflowEditorInspector({
             </div>
           </div>
 
-          <div className="sync-message error">
-            <strong>Inspector remediation</strong>
-            <p className="section-copy entry-copy">
-              {persistBlockerSummary ?? persistBlockedMessage}
-            </p>
-            <ul className="event-list compact-list">
-              {persistBlockers.slice(0, 4).map((blocker) => (
-                <li key={blocker.id}>
-                  <strong>{blocker.label}</strong>：{blocker.detail} {blocker.nextStep}
-                </li>
-              ))}
-            </ul>
-          </div>
+          <WorkflowPersistBlockerNotice
+            title="Inspector remediation"
+            summary={persistBlockerSummary ?? persistBlockedMessage}
+            blockers={persistBlockers}
+          />
         </article>
       ) : null}
 
@@ -294,6 +287,7 @@ export function WorkflowEditorInspector({
         focusedValidationItem={
           focusedValidationItem?.target.scope === "publish" ? focusedValidationItem : null
         }
+        persistBlockers={persistBlockers}
         highlightedEndpointIndex={highlightedPublishEndpointIndex}
         highlightedEndpointFieldPath={highlightedPublishEndpointFieldPath}
       />
@@ -306,6 +300,7 @@ export function WorkflowEditorInspector({
         focusedValidationItem={
           focusedValidationItem?.target.scope === "variables" ? focusedValidationItem : null
         }
+        persistBlockers={persistBlockers}
         sandboxReadiness={sandboxReadiness}
       />
 

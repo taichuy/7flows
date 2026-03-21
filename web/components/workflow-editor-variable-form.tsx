@@ -5,6 +5,9 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { buildWorkflowVariableValidationIssues } from "@/lib/workflow-variable-validation";
+import type { WorkflowPersistBlocker } from "@/components/workflow-editor-workbench/persist-blockers";
+import { summarizeWorkflowPersistBlockers } from "@/components/workflow-editor-workbench/persist-blockers";
+import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-blocker-notice";
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 
 type WorkflowEditorVariableFormProps = {
@@ -16,6 +19,7 @@ type WorkflowEditorVariableFormProps = {
   highlightedVariableIndex?: number | null;
   highlightedVariableFieldPath?: string | null;
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
+  persistBlockers?: WorkflowPersistBlocker[];
   sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
@@ -33,6 +37,7 @@ export function WorkflowEditorVariableForm({
   highlightedVariableIndex = null,
   highlightedVariableFieldPath = null,
   focusedValidationItem = null,
+  persistBlockers = [],
   sandboxReadiness = null
 }: WorkflowEditorVariableFormProps) {
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -46,6 +51,14 @@ export function WorkflowEditorVariableForm({
   const validationIssues = useMemo(
     () => buildWorkflowVariableValidationIssues({ variables }),
     [variables]
+  );
+  const variablePersistBlockers = useMemo(
+    () => persistBlockers.filter((blocker) => blocker.id === "variables"),
+    [persistBlockers]
+  );
+  const variablePersistBlockerSummary = useMemo(
+    () => summarizeWorkflowPersistBlockers(variablePersistBlockers),
+    [variablePersistBlockers]
   );
 
   useEffect(() => {
@@ -201,6 +214,11 @@ export function WorkflowEditorVariableForm({
           sandboxReadiness={sandboxReadiness}
         />
       ) : null}
+      <WorkflowPersistBlockerNotice
+        title="Variable save gate"
+        summary={variablePersistBlockerSummary}
+        blockers={variablePersistBlockers}
+      />
 
       <div className="tool-badge-row">
         <span className="event-chip">variable count {normalizedVariables.length}</span>
@@ -214,7 +232,7 @@ export function WorkflowEditorVariableForm({
 
       {validationIssues.length > 0 ? (
         <div className="sync-message error">
-          <p>当前 workflow variables 还有待修正的问题：</p>
+          <p>当前 workflow variables 里还有这些字段级问题：</p>
           <ul className="roadmap-list compact-list">
             {validationIssues.map((issue) => (
               <li key={`${issue.path ?? issue.message}`}>{issue.message}</li>
