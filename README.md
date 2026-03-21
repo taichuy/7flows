@@ -107,3 +107,9 @@ cd web
 pnpm lint
 pnpm test
 ```
+
+## 社区与支持
+
+感谢以下社区的支持与讨论：
+
+- [Linux.do](https://linux.do/)
