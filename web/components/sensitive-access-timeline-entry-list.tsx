@@ -16,7 +16,7 @@ import {
 } from "@/lib/callback-waiting-presenters";
 import {
   buildOperatorFollowUpSurfaceCopy,
-  buildOperatorRecommendedNextStep
+  formatOperatorOpenRunLinkLabel
 } from "@/lib/operator-follow-up-presenters";
 import { buildRunDetailHref } from "@/lib/workbench-links";
 import {
@@ -26,6 +26,7 @@ import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import {
   formatSensitiveAccessDecisionLabel,
   formatSensitiveAccessReasonLabel,
+  buildSensitiveAccessBlockedRecommendedNextStep,
   getSensitiveAccessPolicySummary,
   getSensitiveAccessTimelineCanonicalOutcomeExplanation
 } from "@/lib/sensitive-access-presenters";
@@ -340,28 +341,12 @@ export function SensitiveAccessTimelineEntryList({
                   canonicalOutcomeExplanation?.follow_up ??
                   null
               })
-            : buildOperatorRecommendedNextStep({
-                execution: {
-                  active: Boolean(
-                    inboxSliceHref ||
-                      runId ||
-                      runContext.runFollowUp?.explanation?.follow_up ||
-                      canonicalOutcomeExplanation?.follow_up
-                  ),
-                  label: inboxSliceHref ? "approval blocker" : "run detail",
-                  detail: runContext.runFollowUp?.explanation?.follow_up ?? null,
-                  href: inboxSliceHref ?? (runId ? buildRunDetailHref(runId) : null),
-                  href_label: inboxSliceHref
-                    ? operatorSurfaceCopy.openInboxSliceLabel
-                    : runId
-                      ? operatorSurfaceCopy.openRunLabel
-                      : null,
-                  fallback_detail: inboxSliceHref
-                    ? "当前 timeline entry 仍然落在 approval / callback blocker 上；优先切到对应 inbox slice 继续处理。"
-                    : "当前 timeline entry 已回接 canonical run snapshot；优先打开 run 确认最新 waiting / focus 状态。"
-                },
-                operatorFollowUp: canonicalOutcomeExplanation?.follow_up ?? null,
-                operatorLabel: "operator follow-up"
+            : buildSensitiveAccessBlockedRecommendedNextStep({
+                inboxHref: inboxSliceHref,
+                runId,
+                outcomeExplanation: canonicalOutcomeExplanation,
+                runSnapshot: runContext.snapshot,
+                runFollowUpExplanation: runContext.runFollowUp?.explanation ?? null
               });
           const inboxLinkLabel =
             recommendedNextStep?.href === inboxSliceHref && recommendedNextStep.href_label
@@ -401,7 +386,7 @@ export function SensitiveAccessTimelineEntryList({
                 <div className="tool-badge-row">
                   {runId ? (
                     <Link className="event-chip inbox-filter-link" href={buildRunDetailHref(runId)}>
-                      open run {runId.slice(0, 8)}
+                      {formatOperatorOpenRunLinkLabel(runId, operatorSurfaceCopy)}
                     </Link>
                   ) : null}
                   {inboxSliceHref ? (

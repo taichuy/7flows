@@ -376,6 +376,26 @@ describe("operator inline action feedback", () => {
     expect(html).toContain("run run-cleanup：当前 run 已回到 approval_gate，继续观察后续节点。");
   });
 
+  it("在缺少 run follow-up 文案时回退到 canonical execution focus fallback", () => {
+    const html = renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        title: "Cleanup 结果",
+        message: "cleanup 已完成。",
+        runId: "run-cleanup",
+        outcomeExplanation: {
+          primary_signal: "cleanup 已处理过期 ticket。"
+        },
+        runSnapshot: null,
+        runFollowUpExplanation: null
+      })
+    );
+
+    expect(html).toContain(
+      "当前 run 已回接 canonical execution focus；优先继续检查 focus node、runtime evidence 和 execution fallback / blocking 原因。"
+    );
+  });
+
   it("inline operator feedback 会展开额外 sampled run 的 compact follow-up 卡片", () => {
     const html = renderToStaticMarkup(
       createElement(InlineOperatorActionFeedback, {

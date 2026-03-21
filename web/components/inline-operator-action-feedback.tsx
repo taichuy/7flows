@@ -16,11 +16,13 @@ import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import {
   buildOperatorFollowUpSurfaceCopy,
   buildOperatorRecommendedNextStep,
+  buildOperatorRunDetailCandidate,
   buildOperatorRunSnapshotMetaRows,
   type OperatorRecommendedNextStep
 } from "@/lib/operator-follow-up-presenters";
 import { listExecutionFocusRuntimeFactBadges } from "@/lib/run-execution-focus-presenters";
 import { buildRunDetailHref } from "@/lib/workbench-links";
+import { buildRunDetailExecutionFocusSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 
 type InlineOperatorActionFeedbackProps = {
   status: "idle" | "success" | "error";
@@ -53,22 +55,22 @@ export function InlineOperatorActionFeedback({
   const callbackWaitingFollowUp = runSnapshot?.callbackWaitingExplanation?.follow_up?.trim() || null;
   const callbackWaitingFocusNode = buildExecutionFocusExplainableNode(runSnapshot);
   const executionFactBadges = listExecutionFocusRuntimeFactBadges(callbackWaitingFocusNode);
+  const executionSurfaceCopy = buildRunDetailExecutionFocusSurfaceCopy();
   const recommendedNextStep =
     recommendedNextStepOverride ??
     (!hasCallbackWaitingSummary
       ? buildOperatorRecommendedNextStep({
-          execution: {
+          execution: buildOperatorRunDetailCandidate({
             active: Boolean(
               runId || model.runFollowUpFollowUp || model.runSnapshotSummary || model.focusNodeLabel
             ),
+            runId,
             label: runId ? "run detail" : "execution follow-up",
             detail: model.runFollowUpFollowUp,
-            href: runId ? buildRunDetailHref(runId) : null,
-            href_label: runId ? surfaceCopy.openRunLabel : null,
-            fallback_detail:
-              model.runSnapshotSummary ??
-              "当前 operator action 已返回新的 run snapshot；优先回到 run detail 确认 waiting、focus node 与最新执行证据。"
-          },
+            fallbackDetail:
+              model.runSnapshotSummary ?? executionSurfaceCopy.recommendedNextStepFallbackDetail,
+            surfaceCopy
+          }),
           operatorFollowUp: model.outcomeFollowUp,
           operatorLabel: "operator result"
         })

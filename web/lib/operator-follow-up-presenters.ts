@@ -1,3 +1,5 @@
+import { buildRunDetailHref } from "@/lib/workbench-links";
+
 export type OperatorRecommendedNextStep = {
   label: string;
   detail: string;
@@ -25,7 +27,7 @@ export type OperatorRunSnapshotMetaRow = {
   value: string;
 };
 
-type OperatorRecommendedNextStepCandidate = {
+export type OperatorRecommendedNextStepCandidate = {
   active?: boolean;
   label: string;
   detail?: string | null;
@@ -35,6 +37,11 @@ type OperatorRecommendedNextStepCandidate = {
 };
 
 function normalizeFollowUpCopy(value?: string | null) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function normalizeHref(value?: string | null) {
   const normalized = value?.trim();
   return normalized ? normalized : null;
 }
@@ -94,6 +101,75 @@ export function buildOperatorRunSnapshotMetaRows({
       value: waitingReason ?? surfaceCopy.unavailableValueLabel
     }
   ];
+}
+
+export function buildOperatorRunDetailCandidate({
+  active,
+  runId,
+  label = "run detail",
+  detail,
+  fallbackDetail,
+  hrefLabel,
+  surfaceCopy = buildOperatorFollowUpSurfaceCopy()
+}: {
+  active?: boolean;
+  runId?: string | null;
+  label?: string;
+  detail?: string | null;
+  fallbackDetail: string;
+  hrefLabel?: string | null;
+  surfaceCopy?: OperatorFollowUpSurfaceCopy;
+}): OperatorRecommendedNextStepCandidate {
+  const normalizedRunId = normalizeFollowUpCopy(runId);
+
+  return {
+    active: active ?? Boolean(normalizedRunId || detail),
+    label,
+    detail,
+    href: normalizedRunId ? buildRunDetailHref(normalizedRunId) : null,
+    href_label: normalizedRunId ? hrefLabel?.trim() || surfaceCopy.openRunLabel : null,
+    fallback_detail: fallbackDetail
+  };
+}
+
+export function buildOperatorInboxSliceCandidate({
+  active,
+  href,
+  label = "approval blocker",
+  detail,
+  fallbackDetail,
+  hrefLabel,
+  surfaceCopy = buildOperatorFollowUpSurfaceCopy()
+}: {
+  active?: boolean;
+  href?: string | null;
+  label?: string;
+  detail?: string | null;
+  fallbackDetail: string;
+  hrefLabel?: string | null;
+  surfaceCopy?: OperatorFollowUpSurfaceCopy;
+}): OperatorRecommendedNextStepCandidate {
+  const normalizedHref = normalizeHref(href);
+
+  return {
+    active: active ?? Boolean(normalizedHref || detail),
+    label,
+    detail,
+    href: normalizedHref,
+    href_label: normalizedHref ? hrefLabel?.trim() || surfaceCopy.openInboxSliceLabel : null,
+    fallback_detail: fallbackDetail
+  };
+}
+
+export function formatOperatorOpenRunLinkLabel(
+  runId: string,
+  surfaceCopy = buildOperatorFollowUpSurfaceCopy()
+) {
+  const normalizedRunId = normalizeFollowUpCopy(runId);
+
+  return normalizedRunId
+    ? `${surfaceCopy.openRunLabel} ${normalizedRunId.slice(0, 8)}`
+    : surfaceCopy.openRunLabel;
 }
 
 function resolveCandidate(
