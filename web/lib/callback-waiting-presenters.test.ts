@@ -2,9 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CallbackWaitingLifecycleSummary } from "./get-run-views";
 import {
+  buildCallbackWaitingInlineActionStatusHint,
+  buildCallbackWaitingInlineActionTitle,
   buildCallbackWaitingSummarySurfaceCopy,
   formatScheduledResumeLabel,
   getCallbackWaitingRecommendedAction,
+  isObserveFirstCallbackWaitingAction,
   listCallbackWaitingBlockerRows,
   listCallbackWaitingChips,
   listCallbackWaitingOperatorStatuses
@@ -264,5 +267,37 @@ describe("callback waiting presenters", () => {
         }
       })
     ).toContain("scheduler degraded");
+  });
+
+  it("把 observe-first 动作统一标记为 optional override 标题", () => {
+    const surfaceCopy = buildCallbackWaitingSummarySurfaceCopy();
+
+    expect(isObserveFirstCallbackWaitingAction("monitor_callback")).toBe(true);
+    expect(isObserveFirstCallbackWaitingAction("watch_scheduled_resume")).toBe(true);
+    expect(isObserveFirstCallbackWaitingAction("manual_resume")).toBe(false);
+    expect(
+      buildCallbackWaitingInlineActionTitle({
+        actionKind: "watch_scheduled_resume",
+        surfaceCopy
+      })
+    ).toBe(surfaceCopy.optionalInlineActionTitle);
+  });
+
+  it("把 observe-first 和 preferred action 提示统一收口到 shared surface", () => {
+    const surfaceCopy = buildCallbackWaitingSummarySurfaceCopy();
+
+    expect(
+      buildCallbackWaitingInlineActionStatusHint({
+        actionKind: "monitor_callback",
+        surfaceCopy
+      })
+    ).toBe(surfaceCopy.monitorCallbackStatusHint);
+    expect(
+      buildCallbackWaitingInlineActionStatusHint({
+        actionKind: "manual_resume",
+        preferredAction: "cleanup",
+        surfaceCopy
+      })
+    ).toBe(surfaceCopy.preferredCleanupStatusHint);
   });
 });

@@ -13,6 +13,13 @@ import {
   getCleanupExpectationCopy,
   getManualResumeExpectationCopy
 } from "@/lib/operator-action-result-presenters";
+import {
+  buildCallbackWaitingInlineActionStatusHint,
+  buildCallbackWaitingInlineActionTitle,
+  buildCallbackWaitingSummarySurfaceCopy,
+  type CallbackWaitingInlineActionPreference,
+  type CallbackWaitingRecommendedAction
+} from "@/lib/callback-waiting-presenters";
 import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
 
 type CallbackWaitingInlineActionsProps = {
@@ -21,7 +28,8 @@ type CallbackWaitingInlineActionsProps = {
   compact?: boolean;
   title?: string;
   allowManualResume?: boolean;
-  preferredAction?: "resume" | "cleanup" | null;
+  preferredAction?: CallbackWaitingInlineActionPreference;
+  recommendedActionKind?: CallbackWaitingRecommendedAction["kind"] | null;
   statusHint?: string | null;
 };
 
@@ -41,15 +49,30 @@ export function CallbackWaitingInlineActions({
   runId,
   nodeRunId = null,
   compact = false,
-  title = "Callback actions",
+  title,
   allowManualResume = true,
   preferredAction = null,
+  recommendedActionKind = null,
   statusHint = null
 }: CallbackWaitingInlineActionsProps) {
+  const surfaceCopy = buildCallbackWaitingSummarySurfaceCopy();
   const router = useRouter();
   const [cleanupState, cleanupAction] = useActionState(cleanupRunCallbackTickets, initialState);
   const [resumeState, resumeAction] = useActionState(resumeRun, initialResumeState);
   const scopeKey = `${runId ?? ""}:${nodeRunId ?? ""}`;
+  const resolvedTitle =
+    title ??
+    buildCallbackWaitingInlineActionTitle({
+      actionKind: recommendedActionKind,
+      surfaceCopy
+    });
+  const resolvedStatusHint =
+    statusHint ??
+    buildCallbackWaitingInlineActionStatusHint({
+      actionKind: recommendedActionKind,
+      preferredAction,
+      surfaceCopy
+    });
 
   useEffect(() => {
     if (cleanupState.status === "success" || resumeState.status === "success") {
@@ -68,7 +91,7 @@ export function CallbackWaitingInlineActions({
       <input type="hidden" name="reason" value="operator_manual_resume_attempt" />
       <div className="binding-actions">
         <button className="action-link-button" type="submit">
-          立即尝试恢复
+          {surfaceCopy.manualResumeActionLabel}
         </button>
       </div>
       <p className="empty-state compact">{getManualResumeExpectationCopy()}</p>
@@ -82,7 +105,7 @@ export function CallbackWaitingInlineActions({
           runId={runId}
           runSnapshot={resumeState.runSnapshot}
           status={resumeState.status}
-          title="恢复结果"
+          title={surfaceCopy.manualResumeResultTitle}
         />
       ) : null}
     </form>
@@ -94,7 +117,7 @@ export function CallbackWaitingInlineActions({
       <input type="hidden" name="nodeRunId" value={nodeRunId ?? ""} />
       <div className="binding-actions">
         <button className="action-link-button" type="submit">
-          处理过期 ticket 并尝试恢复
+          {surfaceCopy.cleanupActionLabel}
         </button>
       </div>
       <p className="empty-state compact">{getCleanupExpectationCopy()}</p>
@@ -108,7 +131,7 @@ export function CallbackWaitingInlineActions({
           runId={runId}
           runSnapshot={cleanupState.runSnapshot}
           status={cleanupState.status}
-          title="Cleanup 结果"
+          title={surfaceCopy.cleanupResultTitle}
         />
       ) : null}
     </form>
@@ -123,14 +146,8 @@ export function CallbackWaitingInlineActions({
 
   return (
     <div className={compact ? "entry-card compact-card" : undefined}>
-      {compact ? <p className="entry-card-title">{title}</p> : null}
-      {statusHint ? <p className="empty-state compact">{statusHint}</p> : null}
-      {preferredAction === "resume" ? (
-        <p className="empty-state compact">建议先手动恢复；若仍卡住，再处理过期 ticket。</p>
-      ) : null}
-      {preferredAction === "cleanup" ? (
-        <p className="empty-state compact">建议先清理当前 slice 内的过期 ticket，再安排恢复。</p>
-      ) : null}
+      {compact ? <p className="entry-card-title">{resolvedTitle}</p> : null}
+      {resolvedStatusHint ? <p className="empty-state compact">{resolvedStatusHint}</p> : null}
       {orderedForms.map((form, index) =>
         form ? <div key={`${preferredAction ?? "default"}-${index}`}>{form}</div> : null
       )}

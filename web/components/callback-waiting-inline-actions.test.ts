@@ -121,4 +121,17 @@ describe("CallbackWaitingInlineActions", () => {
     expect(html).toContain("Optional callback override");
     expect(html).not.toContain("<p class=\"entry-card-title\">Callback actions</p>");
   });
+
+  it("reuses shared observe-first copy when the caller only passes the recommended action kind", () => {
+    const html = renderToStaticMarkup(
+      createElement(CallbackWaitingInlineActions, {
+        runId: "run-1",
+        compact: true,
+        recommendedActionKind: "watch_scheduled_resume"
+      })
+    );
+
+    expect(html).toContain("Optional callback override");
+    expect(html).toContain("系统已安排定时恢复；仅在需要绕过当前 backoff 时，再手动恢复或清理过期 ticket。");
+  });
 });

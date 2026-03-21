@@ -118,9 +118,21 @@ export type CallbackWaitingRecommendedAction = {
   ctaLabel?: string;
 };
 
+export type CallbackWaitingInlineActionPreference = "resume" | "cleanup" | null;
+
 export type CallbackWaitingSummarySurfaceCopy = {
   recommendedNextStepTitle: string;
   defaultInboxLinkLabel: string;
+  defaultInlineActionTitle: string;
+  optionalInlineActionTitle: string;
+  monitorCallbackStatusHint: string;
+  watchScheduledResumeStatusHint: string;
+  preferredResumeStatusHint: string;
+  preferredCleanupStatusHint: string;
+  manualResumeActionLabel: string;
+  cleanupActionLabel: string;
+  manualResumeResultTitle: string;
+  cleanupResultTitle: string;
   manualOverrideOptionalLabel: string;
   optionalOverrideDescription: string;
   waitingNodeFocusEvidenceTitle: string;
@@ -143,6 +155,18 @@ export function buildCallbackWaitingSummarySurfaceCopy(): CallbackWaitingSummary
   return {
     recommendedNextStepTitle: operatorSurfaceCopy.recommendedNextStepTitle,
     defaultInboxLinkLabel: operatorSurfaceCopy.openInboxSliceLabel,
+    defaultInlineActionTitle: "Callback actions",
+    optionalInlineActionTitle: "Optional callback override",
+    monitorCallbackStatusHint:
+      "建议先观察 callback ticket 与外部系统；若确认回调已到达但 run 仍未推进，再尝试手动恢复。",
+    watchScheduledResumeStatusHint:
+      "系统已安排定时恢复；仅在需要绕过当前 backoff 时，再手动恢复或清理过期 ticket。",
+    preferredResumeStatusHint: "建议先手动恢复；若仍卡住，再处理过期 ticket。",
+    preferredCleanupStatusHint: "建议先清理当前 slice 内的过期 ticket，再安排恢复。",
+    manualResumeActionLabel: "立即尝试恢复",
+    cleanupActionLabel: "处理过期 ticket 并尝试恢复",
+    manualResumeResultTitle: "恢复结果",
+    cleanupResultTitle: "Cleanup 结果",
     manualOverrideOptionalLabel: "manual override optional",
     optionalOverrideDescription:
       "Callback actions stay available below as optional operator overrides when the current waiting path needs to be bypassed.",
@@ -159,6 +183,52 @@ export function buildCallbackWaitingSummarySurfaceCopy(): CallbackWaitingSummary
       "当前 callback waiting、operator inbox 和 publish detail 现在围绕同一份 skill trace / load 事实解释 agent 注入来源。",
     terminatedLabel: "callback waiting terminated"
   };
+}
+
+export function isObserveFirstCallbackWaitingAction(
+  actionKind?: CallbackWaitingRecommendedAction["kind"] | null
+) {
+  return actionKind === "monitor_callback" || actionKind === "watch_scheduled_resume";
+}
+
+export function buildCallbackWaitingInlineActionTitle({
+  actionKind,
+  surfaceCopy = buildCallbackWaitingSummarySurfaceCopy()
+}: {
+  actionKind?: CallbackWaitingRecommendedAction["kind"] | null;
+  surfaceCopy?: CallbackWaitingSummarySurfaceCopy;
+}) {
+  return isObserveFirstCallbackWaitingAction(actionKind)
+    ? surfaceCopy.optionalInlineActionTitle
+    : surfaceCopy.defaultInlineActionTitle;
+}
+
+export function buildCallbackWaitingInlineActionStatusHint({
+  actionKind,
+  preferredAction,
+  surfaceCopy = buildCallbackWaitingSummarySurfaceCopy()
+}: {
+  actionKind?: CallbackWaitingRecommendedAction["kind"] | null;
+  preferredAction?: CallbackWaitingInlineActionPreference;
+  surfaceCopy?: CallbackWaitingSummarySurfaceCopy;
+}) {
+  if (actionKind === "monitor_callback") {
+    return surfaceCopy.monitorCallbackStatusHint;
+  }
+
+  if (actionKind === "watch_scheduled_resume") {
+    return surfaceCopy.watchScheduledResumeStatusHint;
+  }
+
+  if (preferredAction === "resume") {
+    return surfaceCopy.preferredResumeStatusHint;
+  }
+
+  if (preferredAction === "cleanup") {
+    return surfaceCopy.preferredCleanupStatusHint;
+  }
+
+  return null;
 }
 
 export function buildCallbackWaitingRecommendedNextStep({

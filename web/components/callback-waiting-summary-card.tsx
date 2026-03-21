@@ -26,12 +26,15 @@ import {
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
 import {
+  buildCallbackWaitingInlineActionStatusHint,
+  buildCallbackWaitingInlineActionTitle,
   buildCallbackWaitingSummarySurfaceCopy,
   buildCallbackWaitingRecommendedNextStep,
   formatCallbackLifecycleLabel,
   formatScheduledResumeLabel,
   getCallbackWaitingRecommendedAction,
   getCallbackWaitingHeadline,
+  isObserveFirstCallbackWaitingAction,
   listCallbackWaitingBlockerRows,
   listCallbackWaitingChips,
   listCallbackWaitingOperatorStatuses,
@@ -189,12 +192,9 @@ export function CallbackWaitingSummaryCard({
   });
   const shouldShowSensitiveAccessInlineActions =
     showSensitiveAccessInlineActions ?? showInlineActions;
-  const isObserveFirstRecommendedAction =
-    recommendedAction?.kind === "monitor_callback" ||
-    recommendedAction?.kind === "watch_scheduled_resume";
-  const callbackInlineActionTitle = isObserveFirstRecommendedAction
-    ? "Optional callback override"
-    : "Callback actions";
+  const isObserveFirstRecommendedAction = isObserveFirstCallbackWaitingAction(
+    recommendedAction?.kind ?? null
+  );
   const shouldHideCallbackInlineActionsByDefault =
     recommendedAction?.kind === "resolve_inline_sensitive_access" ||
     recommendedAction?.kind === "open_inbox";
@@ -227,12 +227,15 @@ export function CallbackWaitingSummaryCard({
       : recommendedAction?.kind === "cleanup_expired_tickets"
         ? "cleanup"
         : null;
-  const inlineStatusHint =
-    recommendedAction?.kind === "monitor_callback"
-      ? "建议先观察 callback ticket 与外部系统；若确认回调已到达但 run 仍未推进，再尝试手动恢复。"
-      : recommendedAction?.kind === "watch_scheduled_resume"
-        ? "系统已安排定时恢复；仅在需要绕过当前 backoff 时，再手动恢复或清理过期 ticket。"
-        : null;
+  const callbackInlineActionTitle = buildCallbackWaitingInlineActionTitle({
+    actionKind: recommendedAction?.kind ?? null,
+    surfaceCopy
+  });
+  const inlineStatusHint = buildCallbackWaitingInlineActionStatusHint({
+    actionKind: recommendedAction?.kind ?? null,
+    preferredAction: preferredInlineAction,
+    surfaceCopy
+  });
   const shouldRenderStandaloneCallbackFollowUp =
     Boolean(callbackFollowUp) && callbackFollowUp !== recommendedNextStep?.detail;
   const recommendedNextStepHrefLabel = recommendedNextStep?.href_label ?? null;
@@ -415,6 +418,7 @@ export function CallbackWaitingSummaryCard({
           compact
           nodeRunId={inlineActionNodeRunId}
           preferredAction={preferredInlineAction}
+          recommendedActionKind={recommendedAction?.kind ?? null}
           runId={runId ?? null}
           title={callbackInlineActionTitle}
           statusHint={inlineStatusHint}
