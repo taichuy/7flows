@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import type { Edge, Node } from "@xyflow/react";
 
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
@@ -9,6 +10,7 @@ import type {
   WorkflowCanvasEdgeData,
   WorkflowCanvasNodeData
 } from "@/lib/workflow-editor";
+import type { WorkflowPersistBlocker } from "@/components/workflow-editor-workbench/persist-blockers";
 import { WorkflowNodeConfigForm } from "@/components/workflow-node-config-form";
 import { WorkflowNodeIoSchemaForm } from "@/components/workflow-node-config-form/node-io-schema-form";
 import { WorkflowNodeRuntimePolicyForm } from "@/components/workflow-node-config-form/runtime-policy-form";
@@ -54,6 +56,9 @@ type WorkflowEditorInspectorProps = {
   highlightedVariableIndex?: number | null;
   highlightedVariableFieldPath?: string | null;
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
+  persistBlockedMessage?: string | null;
+  persistBlockerSummary?: string | null;
+  persistBlockers: WorkflowPersistBlocker[];
   sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
@@ -88,6 +93,9 @@ export function WorkflowEditorInspector({
   highlightedVariableIndex = null,
   highlightedVariableFieldPath = null,
   focusedValidationItem = null,
+  persistBlockedMessage = null,
+  persistBlockerSummary = null,
+  persistBlockers,
   sandboxReadiness
 }: WorkflowEditorInspectorProps) {
   return (
@@ -251,6 +259,31 @@ export function WorkflowEditorInspector({
           </p>
         )}
       </article>
+
+      {persistBlockedMessage ? (
+        <article className="diagnostic-panel editor-panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Status</p>
+              <h2>Save gate</h2>
+            </div>
+          </div>
+
+          <div className="sync-message error">
+            <strong>Inspector remediation</strong>
+            <p className="section-copy entry-copy">
+              {persistBlockerSummary ?? persistBlockedMessage}
+            </p>
+            <ul className="event-list compact-list">
+              {persistBlockers.slice(0, 4).map((blocker) => (
+                <li key={blocker.id}>
+                  <strong>{blocker.label}</strong>：{blocker.detail} {blocker.nextStep}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </article>
+      ) : null}
 
       <WorkflowEditorPublishForm
         workflowVersion={workflowVersion}

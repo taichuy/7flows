@@ -311,6 +311,9 @@ export function WorkflowEditorWorkbench({
                   : null
               }
               focusedValidationItem={validationFocusItem}
+              persistBlockedMessage={validation.persistBlockedMessage || null}
+              persistBlockerSummary={persistBlockerSummary}
+              persistBlockers={validation.persistBlockers}
               sandboxReadiness={sandboxReadiness}
             />
           </aside>
