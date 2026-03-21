@@ -152,6 +152,14 @@ function resolveNodeFieldLabel(fieldPath: string) {
       return "Execution class";
     case "runtimePolicy.execution.profile":
       return "Execution profile";
+    case "runtimePolicy.execution.dependencyMode":
+      return "Dependency mode";
+    case "runtimePolicy.execution.builtinPackageSet":
+      return "Builtin package set";
+    case "runtimePolicy.execution.dependencyRef":
+      return "Dependency ref";
+    case "runtimePolicy.execution.backendExtensions":
+      return "Backend extensions JSON";
     case "runtimePolicy.execution.timeoutMs":
       return "Execution timeout";
     case "runtimePolicy.execution.networkPolicy":
@@ -166,6 +174,14 @@ function resolveNodeFieldLabel(fieldPath: string) {
       return "Tool execution class";
     case "config.toolPolicy.execution.profile":
       return "Tool execution profile";
+    case "config.toolPolicy.execution.dependencyMode":
+      return "Tool dependency mode";
+    case "config.toolPolicy.execution.builtinPackageSet":
+      return "Tool builtin package set";
+    case "config.toolPolicy.execution.dependencyRef":
+      return "Tool dependency ref";
+    case "config.toolPolicy.execution.backendExtensions":
+      return "Tool backend extensions JSON";
     case "config.toolPolicy.execution.timeoutMs":
       return "Tool execution timeout";
     case "config.toolPolicy.execution.networkPolicy":
@@ -236,6 +252,10 @@ function resolveNodeSuggestion(item: WorkflowValidationNavigatorItem, fieldPath:
   if (fieldPath.startsWith("runtimePolicy.execution")) {
     if (
       fieldPath.endsWith("profile") ||
+      fieldPath.endsWith("dependencyMode") ||
+      fieldPath.endsWith("builtinPackageSet") ||
+      fieldPath.endsWith("dependencyRef") ||
+      fieldPath.endsWith("backendExtensions") ||
       fieldPath.endsWith("networkPolicy") ||
       fieldPath.endsWith("filesystemPolicy")
     ) {
@@ -250,6 +270,18 @@ function resolveNodeSuggestion(item: WorkflowValidationNavigatorItem, fieldPath:
   }
 
   if (fieldPath.startsWith("config.toolPolicy.execution")) {
+    if (
+      fieldPath.endsWith("profile") ||
+      fieldPath.endsWith("dependencyMode") ||
+      fieldPath.endsWith("builtinPackageSet") ||
+      fieldPath.endsWith("dependencyRef") ||
+      fieldPath.endsWith("backendExtensions") ||
+      fieldPath.endsWith("networkPolicy") ||
+      fieldPath.endsWith("filesystemPolicy")
+    ) {
+      return "把这组 toolPolicy execution override 改回当前工具共同支持的 capability，或清空 override 回退到默认值；不要把 capability 尚未兑现的字段继续写进 definition。";
+    }
+
     return "先把 toolPolicy execution override 收回到所选工具的共享支持范围；如果当前没有共同支持的强隔离 class，就清空 override，避免 Agent 在保存后继续 fail-closed。";
   }
 

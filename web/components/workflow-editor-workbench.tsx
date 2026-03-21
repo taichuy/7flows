@@ -112,7 +112,7 @@ export function WorkflowEditorWorkbench({
       return [
         `保存前还有 ${validation.toolExecutionValidationIssues.length} 个 execution capability 问题。`,
         sandboxReadinessPreflightHint,
-        "先对齐 tool policy、execution class 与 live sandbox readiness，再继续保存。"
+        "先对齐 tool binding、tool 节点 runtimePolicy / LLM Agent tool policy，以及 live sandbox readiness，再继续保存。"
       ]
         .filter(Boolean)
         .join(" ");

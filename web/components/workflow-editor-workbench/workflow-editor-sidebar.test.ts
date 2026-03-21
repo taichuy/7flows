@@ -54,7 +54,7 @@ describe("WorkflowEditorSidebar", () => {
         message: null,
         messageTone: "idle",
         executionPreflightMessage:
-          "保存前还有 2 个 execution capability 问题；先对齐 tool policy 与 live sandbox readiness。",
+          "保存前还有 2 个 execution capability 问题；先对齐 tool binding、tool 节点 runtimePolicy / LLM Agent tool policy，以及 live sandbox readiness。",
         toolExecutionValidationIssueCount: 2,
         validationNavigatorItems: [],
         runs: [],
