@@ -14,6 +14,7 @@ import {
   type RunTrace
 } from "@/lib/get-run-trace";
 import type { WorkflowRunListItem } from "@/lib/get-workflow-runs";
+import { buildOperatorRunDetailLinkSurface } from "@/lib/operator-follow-up-presenters";
 import { buildExecutionFocusSurfaceDescription } from "@/lib/run-execution-focus-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
 import {
@@ -21,7 +22,6 @@ import {
   formatDurationMs,
   formatTimestamp
 } from "@/lib/runtime-presenters";
-import { buildRunDetailHref } from "@/lib/workbench-links";
 
 type WorkflowRunOverlayPanelProps = {
   runs: WorkflowRunListItem[];
@@ -58,6 +58,12 @@ export function WorkflowRunOverlayPanel({
       : null;
   const tracePreview = trace?.events.slice(-6) ?? [];
   const sandboxReadinessNode = buildSandboxReadinessNodeFromRunSnapshot(runSnapshot);
+  const runDrilldownLink = run
+    ? buildOperatorRunDetailLinkSurface({
+        runId: run.id,
+        hrefLabel: "打开 run diagnostics"
+      })
+    : null;
 
   return (
     <article className="diagnostic-panel editor-panel">
@@ -125,9 +131,11 @@ export function WorkflowRunOverlayPanel({
               </p>
 
               <div className="hero-actions">
-                <Link className="inline-link" href={buildRunDetailHref(run.id)}>
-                  打开 run diagnostics
-                </Link>
+                {runDrilldownLink ? (
+                  <Link className="inline-link" href={runDrilldownLink.href}>
+                    {runDrilldownLink.label}
+                  </Link>
+                ) : null}
                 <RunTraceExportActions
                   formats={["json"]}
                   query={{

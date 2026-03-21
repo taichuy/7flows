@@ -32,8 +32,11 @@ import {
   type OperatorInlineFocusArtifactPreview
 } from "@/lib/operator-inline-action-feedback";
 import {
+  buildOperatorInboxSliceCandidate,
+  buildOperatorInboxSliceLinkSurface,
   buildOperatorFollowUpSurfaceCopy,
-  buildOperatorRecommendedNextStep
+  buildOperatorRecommendedNextStep,
+  buildOperatorRunDetailCandidate
 } from "@/lib/operator-follow-up-presenters";
 import { formatRunSnapshotSummary } from "@/lib/operator-action-result-presenters";
 import { formatKeyList, formatTimestamp } from "@/lib/runtime-presenters";
@@ -1747,33 +1750,32 @@ export function buildPublishedInvocationRecommendedNextStep({
   blockingInboxHref?: string | null;
   approvalInboxHref?: string | null;
 }): PublishedInvocationRecommendedNextStep | null {
-  const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
   const executionSurfaceCopy = buildRunDetailExecutionFocusSurfaceCopy();
+
   return buildOperatorRecommendedNextStep({
-    callback: {
+    callback: buildOperatorInboxSliceCandidate({
       active: Boolean(
         (callbackWaitingFollowUp && callbackWaitingFollowUp.trim()) ||
           canonicalFollowUp?.has_shared_callback_waiting_summary
       ),
+      href: blockingInboxHref ?? approvalInboxHref ?? null,
       label: blockingInboxHref ? "approval blocker" : "callback waiting",
       detail: callbackWaitingFollowUp,
-      href: blockingInboxHref ?? approvalInboxHref ?? null,
-      href_label: blockingInboxHref
+      hrefLabel: blockingInboxHref
         ? "open blocker inbox slice"
         : approvalInboxHref
           ? "open approval inbox slice"
           : null,
-      fallback_detail:
+      fallbackDetail:
         "当前 invocation 的下一步仍落在 callback waiting / approval 事实链；优先确认票据、回调和自动 resume 是否正在推进。"
-    },
-    execution: {
+    }),
+    execution: buildOperatorRunDetailCandidate({
       active: Boolean((executionFocusFollowUp && executionFocusFollowUp.trim()) || runId),
+      runId,
       label: "execution focus",
       detail: executionFocusFollowUp,
-      href: runId ? buildRunDetailHref(runId) : null,
-      href_label: runId ? operatorSurfaceCopy.openRunLabel : null,
-      fallback_detail: executionSurfaceCopy.recommendedNextStepFallbackDetail
-    },
+      fallbackDetail: executionSurfaceCopy.recommendedNextStepFallbackDetail
+    }),
     operatorFollowUp: canonicalFollowUp?.follow_up ?? null
   });
 }
@@ -1785,21 +1787,16 @@ export function buildPublishedInvocationEntryInboxLinkSurface({
   blockingInboxHref?: string | null;
   waitingInboxHref?: string | null;
 }): PublishedInvocationInboxLinkSurface | null {
-  if (blockingInboxHref?.trim()) {
-    return {
+  return (
+    buildOperatorInboxSliceLinkSurface({
       href: blockingInboxHref,
-      label: "open blocker inbox slice"
-    };
-  }
-
-  if (waitingInboxHref?.trim()) {
-    return {
+      hrefLabel: "open blocker inbox slice"
+    }) ??
+    buildOperatorInboxSliceLinkSurface({
       href: waitingInboxHref,
-      label: "open waiting inbox"
-    };
-  }
-
-  return null;
+      hrefLabel: "open waiting inbox"
+    })
+  );
 }
 
 function buildPublishedInvocationRunFollowUpSampleSnapshot(

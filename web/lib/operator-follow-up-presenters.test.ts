@@ -121,6 +121,18 @@ describe("operator follow-up presenters", () => {
     });
   });
 
+  it("允许 run detail 直达链接覆写展示文案，同时继续复用统一 href", () => {
+    expect(
+      buildOperatorRunDetailLinkSurface({
+        runId: "run-123456789",
+        hrefLabel: "打开 run"
+      })
+    ).toEqual({
+      href: "/runs/run-123456789",
+      label: "打开 run"
+    });
+  });
+
   it("为直达 inbox slice 链接复用统一 href 与标签 surface", () => {
     expect(
       buildOperatorInboxSliceLinkSurface({
@@ -129,6 +141,18 @@ describe("operator follow-up presenters", () => {
     ).toEqual({
       href: "/sensitive-access?run_id=run-1",
       label: "open inbox slice"
+    });
+  });
+
+  it("允许 inbox slice 直达链接覆写展示文案，同时继续复用统一 href", () => {
+    expect(
+      buildOperatorInboxSliceLinkSurface({
+        href: "/sensitive-access?run_id=run-1",
+        hrefLabel: "open blocker inbox slice"
+      })
+    ).toEqual({
+      href: "/sensitive-access?run_id=run-1",
+      label: "open blocker inbox slice"
     });
   });
 });

@@ -17,6 +17,7 @@ import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { PublishedEndpointInvocationDetailResponse } from "@/lib/get-workflow-publish";
 import { hasExecutionNodeCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import { buildExecutionFocusExplainableNode } from "@/lib/operator-inline-action-feedback";
+import { buildOperatorRunDetailLinkSurface } from "@/lib/operator-follow-up-presenters";
 import {
   buildPublishedInvocationDetailSurfaceCopy,
   buildPublishedInvocationCanonicalFollowUpCopy,
@@ -138,6 +139,10 @@ export function WorkflowPublishInvocationDetailPanel({
     focusSkillTraceNodeRunId:
       skillTrace?.scope === "execution_focus_node" ? skillTrace.nodes[0]?.node_run_id ?? null : null
   });
+  const runDrilldownLink = buildOperatorRunDetailLinkSurface({
+    runId: run?.id,
+    hrefLabel: detailSurfaceCopy.openRunLabel
+  });
   const skillTraceSurface = skillTrace ? buildPublishedInvocationSkillTraceSurface(skillTrace) : null;
   const recommendedNextStep = buildPublishedInvocationRecommendedNextStep({
     runId,
@@ -188,9 +193,9 @@ export function WorkflowPublishInvocationDetailPanel({
         <div className="payload-card compact-card">
           <div className="payload-card-header">
             <span className="status-meta">{detailSurfaceCopy.runDrilldownTitle}</span>
-            {run?.id ? (
-              <Link className="inline-link" href={buildRunDetailHref(run.id)}>
-                {detailSurfaceCopy.openRunLabel}
+            {runDrilldownLink ? (
+              <Link className="inline-link" href={runDrilldownLink.href}>
+                {runDrilldownLink.label}
               </Link>
             ) : null}
           </div>
