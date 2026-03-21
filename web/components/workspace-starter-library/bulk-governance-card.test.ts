@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type {
   WorkspaceStarterBulkPreview,
   WorkspaceStarterBulkActionResult,
+  WorkspaceStarterSourceGovernanceScopeSummary,
   WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
 
@@ -294,15 +295,31 @@ describe("WorkspaceStarterBulkGovernanceCard", () => {
         delete: emptyBulkPreviewAction("delete")
       }
     };
+    const sourceGovernanceScope: WorkspaceStarterSourceGovernanceScopeSummary = {
+      workspace_id: "default",
+      total_count: 2,
+      attention_count: 1,
+      counts: {
+        drifted: 1,
+        missing_source: 0,
+        no_source: 1,
+        synced: 0
+      },
+      chips: ["来源漂移 1", "无来源 1"],
+      summary:
+        "当前筛选范围 2 个 starter 中，来源漂移 1 个，无来源 1 个；AI/operator 可以直接按 follow-up queue 继续治理。",
+      follow_up_template_ids: ["starter-sandbox"]
+    };
 
     const html = renderToStaticMarkup(
       createElement(WorkspaceStarterBulkGovernanceCard, {
         inScopeCount: 2,
-        inScopeTemplates: templates,
+        sourceGovernanceScope,
         preview,
         previewNotice: null,
         isMutating: false,
         isLoadingPreview: false,
+        isLoadingSourceGovernanceScope: false,
         lastResult,
         previewFocusTargets: buildWorkspaceStarterBulkPreviewFocusTargets(preview, templates),
         resultFocusTargets: buildWorkspaceStarterBulkResultFocusTargets(lastResult, templates),
@@ -317,7 +334,9 @@ describe("WorkspaceStarterBulkGovernanceCard", () => {
     expect(html).toContain("Scope");
     expect(html).toContain("来源漂移 1");
     expect(html).toContain("无来源 1");
-    expect(html).toContain("当前筛选范围 2 个 starter 中，来源漂移 1 个，无来源 1 个；无需打开详情卡也能先识别需要 follow-up 的 starter。");
+    expect(html).toContain(
+      "当前筛选范围 2 个 starter 中，来源漂移 1 个，无来源 1 个；AI/operator 可以直接按 follow-up queue 继续治理。"
+    );
     expect(html).toContain("刷新 preview:");
     expect(html).toContain("候选 1 个；阻塞 1 个（无来源 1）");
     expect(html).toContain("Preview focus");

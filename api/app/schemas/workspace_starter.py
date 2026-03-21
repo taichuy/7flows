@@ -183,6 +183,25 @@ class WorkspaceStarterSourceGovernance(BaseModel):
     outcome_explanation: SignalFollowUpExplanation | None = None
 
 
+class WorkspaceStarterSourceGovernanceCounts(BaseModel):
+    no_source: int = 0
+    missing_source: int = 0
+    synced: int = 0
+    drifted: int = 0
+
+
+class WorkspaceStarterSourceGovernanceScopeSummary(BaseModel):
+    workspace_id: str
+    total_count: int = 0
+    attention_count: int = 0
+    counts: WorkspaceStarterSourceGovernanceCounts = Field(
+        default_factory=WorkspaceStarterSourceGovernanceCounts
+    )
+    chips: list[str] = Field(default_factory=list)
+    summary: str
+    follow_up_template_ids: list[str] = Field(default_factory=list)
+
+
 class WorkspaceStarterSourceDiff(BaseModel):
     template_id: str
     workspace_id: str

@@ -19,6 +19,9 @@ from app.schemas.workspace_starter import (
     WorkspaceStarterHistoryItem,
     WorkspaceStarterSourceDiff,
     WorkspaceStarterSourceGovernance,
+    WorkspaceStarterSourceGovernanceCounts,
+    WorkspaceStarterSourceGovernanceKind,
+    WorkspaceStarterSourceGovernanceScopeSummary,
     WorkspaceStarterTemplateCreate,
     WorkspaceStarterTemplateItem,
     WorkspaceStarterTemplateUpdate,
@@ -36,6 +39,8 @@ from app.services.workspace_starter_template_validation import (
 
 
 class WorkspaceStarterTemplateService:
+    _SOURCE_GOVERNANCE_FOLLOW_UP_KINDS = frozenset({"drifted", "missing_source"})
+
     def _normalize_datetime(self, value: datetime | None) -> datetime | None:
         if value is None:
             return None
@@ -159,6 +164,115 @@ class WorkspaceStarterTemplateService:
             ).all()
         }
 
+    def build_source_governance_by_template_id(
+        self,
+        records: list[WorkspaceStarterTemplateRecord],
+        source_workflows_by_id: dict[str, Workflow],
+    ) -> dict[str, WorkspaceStarterSourceGovernance]:
+        return {
+            record.id: build_workspace_starter_source_governance(
+                record,
+                source_workflows_by_id.get(record.created_from_workflow_id)
+                if record.created_from_workflow_id
+                else None,
+            )
+            for record in records
+        }
+
+    def filter_records_by_source_governance(
+        self,
+        records: list[WorkspaceStarterTemplateRecord],
+        source_governance_by_template_id: dict[str, WorkspaceStarterSourceGovernance],
+        *,
+        source_governance_kind: WorkspaceStarterSourceGovernanceKind | None = None,
+        needs_follow_up: bool = False,
+    ) -> list[WorkspaceStarterTemplateRecord]:
+        if source_governance_kind is None and not needs_follow_up:
+            return records
+
+        filtered_records: list[WorkspaceStarterTemplateRecord] = []
+        for record in records:
+            source_governance = source_governance_by_template_id.get(record.id)
+            if source_governance is None:
+                continue
+            if (
+                source_governance_kind is not None
+                and source_governance.kind != source_governance_kind
+            ):
+                continue
+            if (
+                needs_follow_up
+                and source_governance.kind
+                not in self._SOURCE_GOVERNANCE_FOLLOW_UP_KINDS
+            ):
+                continue
+            filtered_records.append(record)
+        return filtered_records
+
+    def build_source_governance_scope_summary(
+        self,
+        records: list[WorkspaceStarterTemplateRecord],
+        source_governance_by_template_id: dict[str, WorkspaceStarterSourceGovernance],
+        *,
+        workspace_id: str,
+    ) -> WorkspaceStarterSourceGovernanceScopeSummary:
+        counts = WorkspaceStarterSourceGovernanceCounts()
+        follow_up_template_ids: list[str] = []
+
+        for record in records:
+            source_governance = source_governance_by_template_id.get(record.id)
+            if source_governance is None:
+                continue
+            setattr(
+                counts,
+                source_governance.kind,
+                getattr(counts, source_governance.kind) + 1,
+            )
+            if source_governance.kind in self._SOURCE_GOVERNANCE_FOLLOW_UP_KINDS:
+                follow_up_template_ids.append(record.id)
+
+        chips = [
+            f"来源漂移 {counts.drifted}" if counts.drifted > 0 else None,
+            f"来源缺失 {counts.missing_source}"
+            if counts.missing_source > 0
+            else None,
+            f"无来源 {counts.no_source}" if counts.no_source > 0 else None,
+            f"已对齐 {counts.synced}" if counts.synced > 0 else None,
+        ]
+        normalized_chips = [chip for chip in chips if chip is not None]
+
+        summary_parts = [
+            f"当前筛选范围 {len(records)} 个 starter 中",
+            f"来源漂移 {counts.drifted} 个" if counts.drifted > 0 else None,
+            f"来源缺失 {counts.missing_source} 个"
+            if counts.missing_source > 0
+            else None,
+            f"无来源 {counts.no_source} 个" if counts.no_source > 0 else None,
+            f"已对齐 {counts.synced} 个" if counts.synced > 0 else None,
+        ]
+        normalized_summary_parts = [part for part in summary_parts if part is not None]
+        attention_count = counts.drifted + counts.missing_source
+        summary = (
+            "当前筛选范围暂无 workspace starter，可以先放宽筛选条件或回到创建页新增模板。"
+            if not records
+            else f"{'，'.join(normalized_summary_parts)}；"
+            + (
+                "AI/operator 可以直接按 follow-up queue 继续治理。"
+                if attention_count > 0
+                else "当前没有明显的来源治理阻塞，可以直接复用这些 starter。"
+            )
+        )
+
+        return WorkspaceStarterSourceGovernanceScopeSummary(
+            workspace_id=workspace_id,
+            total_count=len(records),
+            attention_count=attention_count,
+            counts=counts,
+            chips=normalized_chips,
+            summary=summary,
+            follow_up_template_ids=follow_up_template_ids,
+        )
+
     def list_templates_by_ids(
         self,
         db: Session,
@@ -267,17 +381,21 @@ class WorkspaceStarterTemplateService:
         self,
         db: Session,
         records: list[WorkspaceStarterTemplateRecord],
+        *,
+        source_governance_by_template_id: dict[str, WorkspaceStarterSourceGovernance]
+        | None = None,
     ) -> list[WorkspaceStarterTemplateItem]:
-        source_workflows_by_id = self.load_source_workflows(db, records)
+        if source_governance_by_template_id is None:
+            source_workflows_by_id = self.load_source_workflows(db, records)
+            source_governance_by_template_id = self.build_source_governance_by_template_id(
+                records,
+                source_workflows_by_id,
+            )
+
         return [
             self.serialize(
                 record,
-                source_governance=build_workspace_starter_source_governance(
-                    record,
-                    source_workflows_by_id.get(record.created_from_workflow_id)
-                    if record.created_from_workflow_id
-                    else None,
-                ),
+                source_governance=source_governance_by_template_id.get(record.id),
             )
             for record in records
         ]

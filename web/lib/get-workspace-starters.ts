@@ -61,8 +61,14 @@ export type WorkspaceStarterSourceActionDecisionPayload = {
   fact_chips: string[];
 };
 
+export type WorkspaceStarterSourceGovernanceKind =
+  | "no_source"
+  | "missing_source"
+  | "synced"
+  | "drifted";
+
 export type WorkspaceStarterSourceGovernance = {
-  kind: "no_source" | "missing_source" | "synced" | "drifted";
+  kind: WorkspaceStarterSourceGovernanceKind;
   status_label: string;
   summary: string;
   source_workflow_id?: string | null;
@@ -71,6 +77,23 @@ export type WorkspaceStarterSourceGovernance = {
   source_version?: string | null;
   action_decision?: WorkspaceStarterSourceActionDecisionPayload | null;
   outcome_explanation?: SignalFollowUpExplanation | null;
+};
+
+export type WorkspaceStarterSourceGovernanceCounts = {
+  no_source: number;
+  missing_source: number;
+  synced: number;
+  drifted: number;
+};
+
+export type WorkspaceStarterSourceGovernanceScopeSummary = {
+  workspace_id: string;
+  total_count: number;
+  attention_count: number;
+  counts: WorkspaceStarterSourceGovernanceCounts;
+  chips: string[];
+  summary: string;
+  follow_up_template_ids: string[];
 };
 
 export type WorkspaceStarterSourceDiff = {
@@ -344,13 +367,17 @@ export async function getWorkspaceStarterTemplatesWithFilters({
   businessTrack,
   search,
   includeArchived = false,
-  archivedOnly = false
+  archivedOnly = false,
+  sourceGovernanceKind,
+  needsFollowUp = false
 }: {
   workspaceId?: string;
   businessTrack?: WorkflowBusinessTrack;
   search?: string;
   includeArchived?: boolean;
   archivedOnly?: boolean;
+  sourceGovernanceKind?: WorkspaceStarterSourceGovernanceKind;
+  needsFollowUp?: boolean;
 } = {}): Promise<WorkspaceStarterTemplateItem[]> {
   const params = new URLSearchParams();
   params.set("workspace_id", workspaceId);
@@ -365,6 +392,12 @@ export async function getWorkspaceStarterTemplatesWithFilters({
   }
   if (archivedOnly) {
     params.set("archived_only", "true");
+  }
+  if (sourceGovernanceKind) {
+    params.set("source_governance_kind", sourceGovernanceKind);
+  }
+  if (needsFollowUp) {
+    params.set("needs_follow_up", "true");
   }
 
   try {
@@ -382,6 +415,62 @@ export async function getWorkspaceStarterTemplatesWithFilters({
     return (await response.json()) as WorkspaceStarterTemplateItem[];
   } catch {
     return [];
+  }
+}
+
+export async function getWorkspaceStarterSourceGovernanceScopeSummary({
+  workspaceId = "default",
+  businessTrack,
+  search,
+  includeArchived = false,
+  archivedOnly = false,
+  sourceGovernanceKind,
+  needsFollowUp = false
+}: {
+  workspaceId?: string;
+  businessTrack?: WorkflowBusinessTrack;
+  search?: string;
+  includeArchived?: boolean;
+  archivedOnly?: boolean;
+  sourceGovernanceKind?: WorkspaceStarterSourceGovernanceKind;
+  needsFollowUp?: boolean;
+} = {}): Promise<WorkspaceStarterSourceGovernanceScopeSummary | null> {
+  const params = new URLSearchParams();
+  params.set("workspace_id", workspaceId);
+  if (businessTrack) {
+    params.set("business_track", businessTrack);
+  }
+  if (search?.trim()) {
+    params.set("search", search.trim());
+  }
+  if (includeArchived) {
+    params.set("include_archived", "true");
+  }
+  if (archivedOnly) {
+    params.set("archived_only", "true");
+  }
+  if (sourceGovernanceKind) {
+    params.set("source_governance_kind", sourceGovernanceKind);
+  }
+  if (needsFollowUp) {
+    params.set("needs_follow_up", "true");
+  }
+
+  try {
+    const response = await fetch(
+      `${getApiBaseUrl()}/api/workspace-starters/governance-summary?${params.toString()}`,
+      {
+        cache: "no-store"
+      }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as WorkspaceStarterSourceGovernanceScopeSummary;
+  } catch {
+    return null;
   }
 }
 

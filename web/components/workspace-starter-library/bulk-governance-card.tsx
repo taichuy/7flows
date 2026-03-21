@@ -6,7 +6,7 @@ import type {
   WorkspaceStarterBulkAction,
   WorkspaceStarterBulkActionResult,
   WorkspaceStarterBulkPreview,
-  WorkspaceStarterTemplateItem
+  WorkspaceStarterSourceGovernanceScopeSummary
 } from "@/lib/get-workspace-starters";
 
 import {
@@ -14,7 +14,6 @@ import {
   type WorkspaceStarterBulkResultFocusTarget,
   buildWorkspaceStarterBulkPreviewNarrative,
   buildWorkspaceStarterBulkResultNarrative,
-  buildWorkspaceStarterSourceGovernanceScopeSummary,
   getWorkspaceStarterBulkActionButtonLabel,
   getWorkspaceStarterBulkActionLabel,
   getWorkspaceStarterBulkSkipReasonLabel
@@ -22,11 +21,12 @@ import {
 
 type WorkspaceStarterBulkGovernanceCardProps = {
   inScopeCount: number;
-  inScopeTemplates: WorkspaceStarterTemplateItem[];
+  sourceGovernanceScope: WorkspaceStarterSourceGovernanceScopeSummary | null;
   preview: WorkspaceStarterBulkPreview | null;
   previewNotice: string | null;
   isMutating: boolean;
   isLoadingPreview: boolean;
+  isLoadingSourceGovernanceScope: boolean;
   lastResult: WorkspaceStarterBulkActionResult | null;
   previewFocusTargets: WorkspaceStarterBulkPreviewFocusTarget[];
   resultFocusTargets: WorkspaceStarterBulkResultFocusTarget[];
@@ -45,11 +45,12 @@ const BULK_ACTIONS: WorkspaceStarterBulkAction[] = [
 
 export function WorkspaceStarterBulkGovernanceCard({
   inScopeCount,
-  inScopeTemplates,
+  sourceGovernanceScope,
   preview,
   previewNotice,
   isMutating,
   isLoadingPreview,
+  isLoadingSourceGovernanceScope,
   lastResult,
   previewFocusTargets,
   resultFocusTargets,
@@ -59,7 +60,6 @@ export function WorkspaceStarterBulkGovernanceCard({
 }: WorkspaceStarterBulkGovernanceCardProps) {
   const previewNarrativeItems = buildWorkspaceStarterBulkPreviewNarrative(preview);
   const narrativeItems = lastResult ? buildWorkspaceStarterBulkResultNarrative(lastResult) : [];
-  const sourceGovernanceScope = buildWorkspaceStarterSourceGovernanceScopeSummary(inScopeTemplates);
   const outcomePrimarySignal = lastResult?.outcome_explanation?.primary_signal?.trim() || null;
   const outcomeFollowUp = lastResult?.outcome_explanation?.follow_up?.trim() || null;
 
@@ -90,6 +90,11 @@ export function WorkspaceStarterBulkGovernanceCard({
       <p className="section-copy starter-summary-copy">
         删除仍然遵循“先归档再删除”；rebase 会同步 source-derived 字段，批量操作前请先确认当前筛选范围。
       </p>
+      {isLoadingSourceGovernanceScope ? (
+        <p className="section-copy starter-summary-copy">
+          <strong>Source governance:</strong> 正在从后端读取当前筛选范围的来源治理聚合。
+        </p>
+      ) : null}
       {sourceGovernanceScope ? (
         <div className="binding-section">
           <p className="binding-meta">Scope</p>
@@ -106,6 +111,11 @@ export function WorkspaceStarterBulkGovernanceCard({
             <strong>Source governance:</strong> {sourceGovernanceScope.summary}
           </p>
         </div>
+      ) : null}
+      {!isLoadingSourceGovernanceScope && !sourceGovernanceScope ? (
+        <p className="section-copy starter-summary-copy">
+          <strong>Source governance:</strong> 当前无法从后端读取筛选范围的来源治理聚合。
+        </p>
       ) : null}
       {isLoadingPreview ? (
         <p className="section-copy starter-summary-copy">

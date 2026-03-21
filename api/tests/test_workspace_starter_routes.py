@@ -1048,6 +1048,273 @@ def test_workspace_starter_routes_surface_source_governance(
         assert "来源 workflow 0.2.0" in source_governance["outcome_explanation"]["primary_signal"]
 
 
+def test_workspace_starter_list_filters_by_source_governance_and_follow_up(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    drifted = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Drifted Governance Starter",
+            "description": "Starter that should drift after source update.",
+            "business_track": "编排节点能力",
+            "default_workflow_name": sample_workflow.name,
+            "workflow_focus": "Drifted governance filter",
+            "recommended_next_step": "Refresh after source update.",
+            "tags": ["drifted", "governance"],
+            "created_from_workflow_id": sample_workflow.id,
+            "created_from_workflow_version": sample_workflow.version,
+            "definition": sample_workflow.definition,
+        },
+    )
+    assert drifted.status_code == 201
+    drifted_id = drifted.json()["id"]
+
+    sample_workflow.version = "0.2.0"
+    sample_workflow.definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "mock_tool",
+                "type": "tool",
+                "name": "Renamed Mock Tool",
+                "config": {"mock_output": {"answer": "updated"}},
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "mock_tool"},
+            {"id": "e2", "sourceNodeId": "mock_tool", "targetNodeId": "output"},
+        ],
+    }
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    synced = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Synced Governance Starter",
+            "description": "Starter that stays aligned with source workflow.",
+            "business_track": "编排节点能力",
+            "default_workflow_name": sample_workflow.name,
+            "workflow_focus": "Synced governance filter",
+            "recommended_next_step": "Reuse starter directly.",
+            "tags": ["synced", "governance"],
+            "created_from_workflow_id": sample_workflow.id,
+            "created_from_workflow_version": sample_workflow.version,
+            "definition": sample_workflow.definition,
+        },
+    )
+    assert synced.status_code == 201
+    synced_id = synced.json()["id"]
+
+    no_source = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Manual Governance Starter",
+            "description": "Starter without source workflow binding.",
+            "business_track": "应用新建编排",
+            "default_workflow_name": "Manual Governance Workflow",
+            "workflow_focus": "No source governance filter",
+            "recommended_next_step": "Reuse independent snapshot.",
+            "tags": ["manual", "snapshot"],
+            "definition": sample_workflow.definition,
+        },
+    )
+    assert no_source.status_code == 201
+    no_source_id = no_source.json()["id"]
+
+    missing_source = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Missing Source Governance Starter",
+            "description": "Starter with missing source workflow.",
+            "business_track": "API 调用开放",
+            "default_workflow_name": "Missing Governance Workflow",
+            "workflow_focus": "Missing source governance filter",
+            "recommended_next_step": "Repair missing binding.",
+            "tags": ["missing", "governance"],
+            "created_from_workflow_id": "wf-missing-governance",
+            "created_from_workflow_version": "0.1.0",
+            "definition": sample_workflow.definition,
+        },
+    )
+    assert missing_source.status_code == 201
+    missing_source_id = missing_source.json()["id"]
+
+    drifted_response = client.get(
+        "/api/workspace-starters",
+        params={"source_governance_kind": "drifted"},
+    )
+    assert drifted_response.status_code == 200
+    assert [item["id"] for item in drifted_response.json()] == [drifted_id]
+
+    synced_response = client.get(
+        "/api/workspace-starters",
+        params={"source_governance_kind": "synced"},
+    )
+    assert synced_response.status_code == 200
+    assert [item["id"] for item in synced_response.json()] == [synced_id]
+
+    no_source_response = client.get(
+        "/api/workspace-starters",
+        params={"source_governance_kind": "no_source"},
+    )
+    assert no_source_response.status_code == 200
+    assert [item["id"] for item in no_source_response.json()] == [no_source_id]
+
+    follow_up_response = client.get(
+        "/api/workspace-starters",
+        params={"needs_follow_up": "true"},
+    )
+    assert follow_up_response.status_code == 200
+    follow_up_items = follow_up_response.json()
+    assert {item["id"] for item in follow_up_items} == {drifted_id, missing_source_id}
+    assert {item["source_governance"]["kind"] for item in follow_up_items} == {
+        "drifted",
+        "missing_source",
+    }
+
+
+def test_workspace_starter_governance_summary_returns_breakdown_and_follow_up_queue(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    drifted = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Summary Drifted Starter",
+            "description": "Starter included in governance summary drift count.",
+            "business_track": "编排节点能力",
+            "default_workflow_name": sample_workflow.name,
+            "workflow_focus": "Governance summary drift",
+            "recommended_next_step": "Refresh from source.",
+            "tags": ["summary", "drifted"],
+            "created_from_workflow_id": sample_workflow.id,
+            "created_from_workflow_version": sample_workflow.version,
+            "definition": sample_workflow.definition,
+        },
+    )
+    assert drifted.status_code == 201
+    drifted_id = drifted.json()["id"]
+
+    sample_workflow.version = "0.2.0"
+    sample_workflow.definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "mock_tool",
+                "type": "tool",
+                "name": "Summary Updated Tool",
+                "config": {"mock_output": {"answer": "updated"}},
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "mock_tool"},
+            {"id": "e2", "sourceNodeId": "mock_tool", "targetNodeId": "output"},
+        ],
+    }
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    synced = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Summary Synced Starter",
+            "description": "Starter included in synced governance summary.",
+            "business_track": "编排节点能力",
+            "default_workflow_name": sample_workflow.name,
+            "workflow_focus": "Governance summary synced",
+            "recommended_next_step": "Reuse starter directly.",
+            "tags": ["summary", "synced"],
+            "created_from_workflow_id": sample_workflow.id,
+            "created_from_workflow_version": sample_workflow.version,
+            "definition": sample_workflow.definition,
+        },
+    )
+    assert synced.status_code == 201
+
+    no_source = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Summary Manual Starter",
+            "description": "Starter included in no-source governance summary.",
+            "business_track": "应用新建编排",
+            "default_workflow_name": "Summary Manual Workflow",
+            "workflow_focus": "Governance summary no source",
+            "recommended_next_step": "Reuse snapshot.",
+            "tags": ["summary", "manual"],
+            "definition": sample_workflow.definition,
+        },
+    )
+    assert no_source.status_code == 201
+
+    missing_source = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Summary Missing Starter",
+            "description": "Starter included in missing-source governance summary.",
+            "business_track": "API 调用开放",
+            "default_workflow_name": "Summary Missing Workflow",
+            "workflow_focus": "Governance summary missing source",
+            "recommended_next_step": "Repair source binding.",
+            "tags": ["summary", "missing"],
+            "created_from_workflow_id": "wf-summary-missing",
+            "created_from_workflow_version": "0.1.0",
+            "definition": sample_workflow.definition,
+        },
+    )
+    assert missing_source.status_code == 201
+    missing_source_id = missing_source.json()["id"]
+
+    summary_response = client.get("/api/workspace-starters/governance-summary")
+    assert summary_response.status_code == 200
+    summary = summary_response.json()
+    assert summary["workspace_id"] == "default"
+    assert summary["total_count"] == 4
+    assert summary["attention_count"] == 2
+    assert summary["counts"] == {
+        "no_source": 1,
+        "missing_source": 1,
+        "synced": 1,
+        "drifted": 1,
+    }
+    assert set(summary["follow_up_template_ids"]) == {drifted_id, missing_source_id}
+    assert "来源漂移 1 个" in summary["summary"]
+    assert "来源缺失 1 个" in summary["summary"]
+    assert summary["chips"] == ["来源漂移 1", "来源缺失 1", "无来源 1", "已对齐 1"]
+
+    follow_up_summary_response = client.get(
+        "/api/workspace-starters/governance-summary",
+        params={"needs_follow_up": "true"},
+    )
+    assert follow_up_summary_response.status_code == 200
+    follow_up_summary = follow_up_summary_response.json()
+    assert follow_up_summary["total_count"] == 2
+    assert follow_up_summary["attention_count"] == 2
+    assert follow_up_summary["counts"] == {
+        "no_source": 0,
+        "missing_source": 1,
+        "synced": 0,
+        "drifted": 1,
+    }
+    assert set(follow_up_summary["follow_up_template_ids"]) == {
+        drifted_id,
+        missing_source_id,
+    }
+
+
 def test_workspace_starter_update_persists_metadata_changes(client: TestClient) -> None:
     created = _create_workspace_starter(
         client,

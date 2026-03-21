@@ -42,6 +42,7 @@ export function WorkspaceStarterLibrary({
     historyItems,
     isBulkMutating,
     isLoadingBulkPreview,
+    isLoadingSourceGovernanceScope,
     isLoadingHistory,
     isLoadingSourceDiff,
     isMutating,
@@ -55,6 +56,7 @@ export function WorkspaceStarterLibrary({
     searchQuery,
     selectedTemplate,
     selectedTemplateId,
+    sourceGovernanceScope,
     selectedTemplateSandboxGovernance,
     selectedTemplateToolGovernance,
     selectedTrackMeta,
@@ -98,7 +100,9 @@ export function WorkspaceStarterLibrary({
           bulkPreviewNotice={bulkPreviewNotice}
           isBulkMutating={isBulkMutating}
           isLoadingBulkPreview={isLoadingBulkPreview}
+          isLoadingSourceGovernanceScope={isLoadingSourceGovernanceScope}
           lastBulkResult={lastBulkResult}
+          sourceGovernanceScope={sourceGovernanceScope}
           onTrackChange={setActiveTrack}
           onArchiveFilterChange={setArchiveFilter}
           onSearchQueryChange={setSearchQuery}

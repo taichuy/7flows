@@ -4,11 +4,13 @@ import { getApiBaseUrl } from "@/lib/api-base-url";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import {
   bulkUpdateWorkspaceStarters,
+  getWorkspaceStarterSourceGovernanceScopeSummary,
   previewWorkspaceStarterBulkActions,
   updateWorkspaceStarterTemplate,
   type WorkspaceStarterBulkAction,
   type WorkspaceStarterBulkPreview,
   type WorkspaceStarterBulkActionResult,
+  type WorkspaceStarterSourceGovernanceScopeSummary,
   WorkspaceStarterValidationError,
   type WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
@@ -99,6 +101,10 @@ export function useWorkspaceStarterLibraryState(
   const [lastBulkResult, setLastBulkResult] =
     useState<WorkspaceStarterBulkActionResult | null>(null);
   const [isLoadingBulkPreview, setIsLoadingBulkPreview] = useState(false);
+  const [sourceGovernanceScope, setSourceGovernanceScope] =
+    useState<WorkspaceStarterSourceGovernanceScopeSummary | null>(null);
+  const [isLoadingSourceGovernanceScope, setIsLoadingSourceGovernanceScope] =
+    useState(false);
 
   const filteredTemplates = useMemo(() => {
     return filterWorkspaceStarterTemplates(templates, {
@@ -192,6 +198,33 @@ export function useWorkspaceStarterLibraryState(
       ? false
       : Boolean(selectedTemplate && formState);
   const sourceGovernance = selectedTemplate?.source_governance ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingSourceGovernanceScope(true);
+
+    void getWorkspaceStarterSourceGovernanceScopeSummary({
+      businessTrack: activeTrack === "all" ? undefined : activeTrack,
+      search: searchQuery,
+      includeArchived: archiveFilter === "all",
+      archivedOnly: archiveFilter === "archived"
+    })
+      .then((summary) => {
+        if (!cancelled) {
+          setSourceGovernanceScope(summary);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingSourceGovernanceScope(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTrack, archiveFilter, searchQuery, templates]);
+
   useEffect(() => {
     const templateIds = filteredTemplates.map((template) => template.id);
     if (templateIds.length === 0) {
@@ -501,6 +534,7 @@ export function useWorkspaceStarterLibraryState(
     historyItems,
     isBulkMutating,
     isLoadingBulkPreview,
+    isLoadingSourceGovernanceScope,
     isLoadingHistory,
     isLoadingSourceDiff,
     isMutating,
@@ -514,6 +548,7 @@ export function useWorkspaceStarterLibraryState(
     searchQuery,
     selectedTemplate,
     selectedTemplateId,
+    sourceGovernanceScope,
     selectedTemplateSandboxGovernance,
     selectedTemplateToolGovernance,
     selectedTrackMeta,

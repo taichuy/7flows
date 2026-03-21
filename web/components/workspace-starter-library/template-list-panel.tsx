@@ -8,6 +8,7 @@ import type {
   WorkspaceStarterBulkAction,
   WorkspaceStarterBulkPreview,
   WorkspaceStarterBulkActionResult,
+  WorkspaceStarterSourceGovernanceScopeSummary,
   WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
 import {
@@ -39,7 +40,9 @@ type WorkspaceStarterTemplateListPanelProps = {
   bulkPreviewNotice: string | null;
   isBulkMutating: boolean;
   isLoadingBulkPreview: boolean;
+  isLoadingSourceGovernanceScope: boolean;
   lastBulkResult: WorkspaceStarterBulkActionResult | null;
+  sourceGovernanceScope: WorkspaceStarterSourceGovernanceScopeSummary | null;
   onTrackChange: (track: TrackFilter) => void;
   onArchiveFilterChange: (filter: ArchiveFilter) => void;
   onSearchQueryChange: (value: string) => void;
@@ -62,7 +65,9 @@ export function WorkspaceStarterTemplateListPanel({
   bulkPreviewNotice,
   isBulkMutating,
   isLoadingBulkPreview,
+  isLoadingSourceGovernanceScope,
   lastBulkResult,
+  sourceGovernanceScope,
   onTrackChange,
   onArchiveFilterChange,
   onSearchQueryChange,
@@ -164,11 +169,12 @@ export function WorkspaceStarterTemplateListPanel({
 
         <WorkspaceStarterBulkGovernanceCard
           inScopeCount={filteredTemplates.length}
-          inScopeTemplates={filteredTemplates}
+          sourceGovernanceScope={sourceGovernanceScope}
           preview={bulkPreview}
           previewNotice={bulkPreviewNotice}
           isMutating={isBulkMutating}
           isLoadingPreview={isLoadingBulkPreview}
+          isLoadingSourceGovernanceScope={isLoadingSourceGovernanceScope}
           lastResult={lastBulkResult}
           previewFocusTargets={previewFocusTargets}
           resultFocusTargets={resultFocusTargets}

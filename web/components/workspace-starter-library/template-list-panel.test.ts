@@ -68,7 +68,22 @@ describe("WorkspaceStarterTemplateListPanel", () => {
         bulkPreviewNotice: null,
         isBulkMutating: false,
         isLoadingBulkPreview: false,
+        isLoadingSourceGovernanceScope: false,
         lastBulkResult: null,
+        sourceGovernanceScope: {
+          workspace_id: "default",
+          total_count: 1,
+          attention_count: 1,
+          counts: {
+            drifted: 1,
+            missing_source: 0,
+            no_source: 0,
+            synced: 0
+          },
+          chips: ["来源漂移 1"],
+          summary: "当前筛选范围 1 个 starter 中，来源漂移 1 个；AI/operator 可以直接按 follow-up queue 继续治理。",
+          follow_up_template_ids: ["starter-drifted"]
+        },
         onTrackChange: () => {},
         onArchiveFilterChange: () => {},
         onSearchQueryChange: () => {},
