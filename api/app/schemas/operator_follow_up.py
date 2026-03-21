@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -154,6 +154,8 @@ class OperatorRunSnapshot(BaseModel):
 class OperatorRunSnapshotSample(BaseModel):
     run_id: str
     snapshot: OperatorRunSnapshot | None = None
+    callback_tickets: list[dict[str, Any]] = Field(default_factory=list)
+    sensitive_access_entries: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class OperatorRunFollowUpSummary(BaseModel):

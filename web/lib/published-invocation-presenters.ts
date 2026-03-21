@@ -17,6 +17,7 @@ import type {
 import { buildCallbackTicketInboxHref } from "@/lib/callback-ticket-links";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import type { SensitiveAccessBlockingPayload } from "@/lib/sensitive-access";
+import { buildSensitiveAccessTimelineInboxHref } from "@/lib/sensitive-access-links";
 import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import {
   CallbackWaitingDetailRow,
@@ -84,6 +85,8 @@ export type PublishedInvocationRunFollowUpSampleView = {
   current_node_id: string | null;
   waiting_reason: string | null;
   run_snapshot: RunSnapshot;
+  callback_tickets: PublishedEndpointInvocationCallbackTicketItem[];
+  sensitive_access_entries: SensitiveAccessTimelineEntry[];
   explanation_source: "callback_waiting" | "execution_focus" | null;
   explanation: RunExecutionFocusExplanation | null;
   snapshot_summary: string | null;
@@ -2182,6 +2185,8 @@ export function listPublishedInvocationRunFollowUpSampleViews(
       current_node_id: sample.snapshot?.current_node_id?.trim() || null,
       waiting_reason: sample.snapshot?.waiting_reason?.trim() || null,
       run_snapshot: runSnapshot,
+      callback_tickets: sample.callback_tickets ?? [],
+      sensitive_access_entries: sample.sensitive_access_entries ?? [],
       explanation_source: explanationSource,
       explanation,
       snapshot_summary: snapshotSummary,
@@ -2212,6 +2217,29 @@ export function resolvePublishedInvocationRunFollowUpSampleView(
   }
 
   return sampleViews[0] ?? null;
+}
+
+export function buildPublishedInvocationRunFollowUpSampleInboxHref(
+  sample?: PublishedInvocationRunFollowUpSampleView | null
+) {
+  if (!sample) {
+    return null;
+  }
+
+  const latestApprovalEntry = findLatestApprovalEntry(sample.sensitive_access_entries);
+  if (latestApprovalEntry) {
+    return buildSensitiveAccessTimelineInboxHref(latestApprovalEntry, sample.run_id);
+  }
+
+  const firstCallbackTicket = sample.callback_tickets[0] ?? null;
+  if (!firstCallbackTicket) {
+    return null;
+  }
+
+  return buildCallbackTicketInboxHref(firstCallbackTicket, {
+    runId: sample.run_id,
+    nodeRunId: firstCallbackTicket.node_run_id ?? null
+  });
 }
 
 export function buildPublishedInvocationCanonicalFollowUpCopy({

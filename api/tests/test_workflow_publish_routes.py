@@ -1750,6 +1750,12 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
         detail_body["execution_focus_node"]["callback_tickets"][0]["ticket"]
         == callback_ticket.id
     )
+    assert detail_body["run_follow_up"]["sampled_runs"][0]["callback_tickets"] == detail_body[
+        "execution_focus_node"
+    ]["callback_tickets"]
+    assert activity_body["items"][0]["run_follow_up"]["sampled_runs"][0][
+        "callback_tickets"
+    ] == detail_body["run_follow_up"]["sampled_runs"][0]["callback_tickets"]
     assert len(detail_body["blocking_sensitive_access_entries"]) == 1
     assert (
         detail_body["blocking_sensitive_access_entries"][0]["request"]["id"]
@@ -1768,6 +1774,17 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     assert detail_body["blocking_sensitive_access_entries"][0]["run_follow_up"] == detail_body[
         "run_follow_up"
     ]
+    expected_sample_sensitive_entry = {
+        key: value
+        for key, value in detail_body["blocking_sensitive_access_entries"][0].items()
+        if key not in {"run_snapshot", "run_follow_up"}
+    }
+    assert detail_body["run_follow_up"]["sampled_runs"][0][
+        "sensitive_access_entries"
+    ] == [expected_sample_sensitive_entry]
+    assert activity_body["items"][0]["run_follow_up"]["sampled_runs"][0][
+        "sensitive_access_entries"
+    ] == [expected_sample_sensitive_entry]
     assert len(detail_body["sensitive_access_entries"]) == 2
     assert detail_body["sensitive_access_entries"][0]["resource"]["label"] == (
         "Published Search Tool"

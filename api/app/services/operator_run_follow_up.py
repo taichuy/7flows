@@ -43,6 +43,22 @@ def _load_execution_view_map(
     return execution_view_map
 
 
+def _serialize_sample_focus_context(
+    execution_view: RunExecutionView | None,
+) -> tuple[list[dict], list[dict]]:
+    if execution_view is None or execution_view.execution_focus_node is None:
+        return [], []
+
+    focus_node = execution_view.execution_focus_node
+    return (
+        [ticket.model_dump() for ticket in focus_node.callback_tickets],
+        [
+            entry.model_dump(exclude={"run_snapshot", "run_follow_up"})
+            for entry in focus_node.sensitive_access_entries
+        ],
+    )
+
+
 def load_operator_run_snapshot(
     db: Session,
     run_id: str | None,
@@ -218,15 +234,21 @@ def _build_operator_run_follow_up_summary(
             summary.unknown_run_count += 1
 
     for run_id in sampled_run_ids:
+        execution_view = execution_view_map.get(run_id)
         snapshot = build_operator_run_snapshot(
             run_lookup.get(run_id),
             waiting_reason=waiting_reason_lookup.get(run_id),
-            execution_view=execution_view_map.get(run_id),
+            execution_view=execution_view,
+        )
+        callback_tickets, sensitive_access_entries = _serialize_sample_focus_context(
+            execution_view
         )
         summary.sampled_runs.append(
             OperatorRunSnapshotSample(
                 run_id=run_id,
                 snapshot=snapshot,
+                callback_tickets=callback_tickets,
+                sensitive_access_entries=sensitive_access_entries,
             )
         )
 

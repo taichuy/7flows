@@ -424,12 +424,22 @@ def build_operator_run_snapshot(
 def build_single_run_follow_up_summary(
     run_id: str,
     snapshot: OperatorRunSnapshot | None,
+    *,
+    callback_tickets: list[dict] | None = None,
+    sensitive_access_entries: list[dict] | None = None,
 ) -> OperatorRunFollowUpSummary:
     summary = OperatorRunFollowUpSummary(
         affected_run_count=1 if run_id else 0,
         sampled_run_count=1 if run_id else 0,
         sampled_runs=(
-            [OperatorRunSnapshotSample(run_id=run_id, snapshot=snapshot)]
+            [
+                OperatorRunSnapshotSample(
+                    run_id=run_id,
+                    snapshot=snapshot,
+                    callback_tickets=list(callback_tickets or []),
+                    sensitive_access_entries=list(sensitive_access_entries or []),
+                )
+            ]
             if run_id
             else []
         ),

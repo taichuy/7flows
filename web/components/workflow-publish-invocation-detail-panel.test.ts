@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { WorkflowPublishInvocationDetailPanel } from "@/components/workflow-publish-invocation-detail-panel";
+import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import type { PublishedEndpointInvocationDetailResponse } from "@/lib/get-workflow-publish";
 import type {
   CallbackWaitingAutomationCheck,
@@ -38,6 +39,55 @@ vi.mock("@/components/workflow-publish-invocation-callback-section", () => ({
   WorkflowPublishInvocationCallbackSection: () =>
     createElement("div", { "data-testid": "workflow-publish-invocation-callback-section" })
 }));
+
+function buildSampleApprovalEntry(): SensitiveAccessTimelineEntry {
+  return {
+    request: {
+      id: "request-1",
+      run_id: "run-callback-1",
+      node_run_id: "node-run-tool-wait",
+      requester_type: "tool",
+      requester_id: "published.search",
+      resource_id: "resource-1",
+      action_type: "invoke",
+      purpose_text: "Inspect published callback blocker",
+      decision: "require_approval",
+      decision_label: "Require approval",
+      reason_code: "policy_requires_approval",
+      reason_label: "Policy requires approval",
+      policy_summary: "An operator must approve this callback blocker.",
+      created_at: "2026-03-20T10:00:00Z",
+      decided_at: null
+    },
+    resource: {
+      id: "resource-1",
+      label: "Published callback gate",
+      description: "Protected callback endpoint",
+      sensitivity_level: "L2",
+      source: "local_capability",
+      metadata: {},
+      created_at: "2026-03-20T10:00:00Z",
+      updated_at: "2026-03-20T10:00:00Z"
+    },
+    approval_ticket: {
+      id: "ticket-1",
+      access_request_id: "request-1",
+      run_id: "run-callback-1",
+      node_run_id: "node-run-tool-wait",
+      status: "pending",
+      waiting_status: "waiting",
+      approved_by: null,
+      decided_at: null,
+      expires_at: "2026-03-20T10:30:00Z",
+      created_at: "2026-03-20T10:00:00Z"
+    },
+    notifications: [],
+    outcome_explanation: {
+      primary_signal: "当前 callback waiting 仍卡在 1 条待处理审批。",
+      follow_up: "优先处理审批票据，再观察 callback waiting 是否恢复。"
+    }
+  };
+}
 
 function buildDetail(): PublishedEndpointInvocationDetailResponse {
   return {
@@ -364,6 +414,45 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     expect(html).toContain("runner container");
     expect(html).not.toContain("Sampled run focus evidence");
     expect(html.match(/Focused skill trace/g)?.length ?? 0).toBe(1);
+  });
+
+  it("forwards sampled approval blocker context into the shared callback waiting summary", () => {
+    const detail = buildDetail();
+    detail.run_follow_up!.sampled_runs[0] = {
+      ...detail.run_follow_up!.sampled_runs[0],
+      callback_tickets: [
+        {
+          ticket: "callback-ticket-1",
+          run_id: "run-callback-1",
+          node_run_id: "node-run-tool-wait",
+          tool_call_id: null,
+          tool_id: "published.search",
+          tool_call_index: 0,
+          waiting_status: "waiting_callback",
+          status: "pending",
+          reason: "callback pending",
+          callback_payload: null,
+          created_at: "2026-03-20T10:00:00Z",
+          expires_at: "2026-03-20T10:30:00Z",
+          consumed_at: null,
+          canceled_at: null,
+          expired_at: null
+        }
+      ],
+      sensitive_access_entries: [buildSampleApprovalEntry()]
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationDetailPanel, {
+        detail,
+        clearHref: "/published?clear=1",
+        tools: [],
+        callbackWaitingAutomation
+      })
+    );
+
+    expect(html).toContain("approval_ticket_id=ticket-1");
+    expect(html).toContain("Handle approval here first");
   });
 
   it("keeps invocation-level summary but defers duplicated callback follow-up to the sampled shared summary", () => {

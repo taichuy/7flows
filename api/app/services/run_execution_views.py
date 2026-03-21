@@ -148,7 +148,25 @@ def build_run_execution_view(
         execution_focus_explanation=execution_focus_explanation,
         skill_trace=skill_trace,
     )
-    run_follow_up = build_single_run_follow_up_summary(artifacts.run.id, run_snapshot)
+    sample_callback_tickets = (
+        [ticket.model_dump() for ticket in execution_focus_node.callback_tickets]
+        if execution_focus_node is not None
+        else []
+    )
+    sample_sensitive_access_entries = (
+        [
+            entry.model_dump(exclude={"run_snapshot", "run_follow_up"})
+            for entry in execution_focus_node.sensitive_access_entries
+        ]
+        if execution_focus_node is not None
+        else []
+    )
+    run_follow_up = build_single_run_follow_up_summary(
+        artifacts.run.id,
+        run_snapshot,
+        callback_tickets=sample_callback_tickets,
+        sensitive_access_entries=sample_sensitive_access_entries,
+    )
     _attach_operator_follow_up_to_sensitive_access_entries(
         nodes,
         sensitive_access_timeline.by_node_run,

@@ -24,6 +24,7 @@ import {
   buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationSkillTraceSurface,
   buildPublishedInvocationRecommendedNextStep,
+  buildPublishedInvocationRunFollowUpSampleInboxHref,
   buildPublishedInvocationSelectedNextStepSurface,
   formatPublishedInvocationPayloadPreview,
   buildBlockingPublishedInvocationInboxHref,
@@ -282,12 +283,15 @@ export function WorkflowPublishInvocationDetailPanel({
               {runFollowUpSamples.map((sample) => {
                 const samplePrimarySignal = sample.explanation?.primary_signal?.trim() || null;
                 const sampleFollowUp = sample.explanation?.follow_up?.trim() || null;
-                const sampleFocusNodeEvidence = buildExecutionFocusExplainableNode(
-                  sample.run_snapshot
-                );
-                const sampleExecutionFactBadges = listExecutionFocusRuntimeFactBadges(
-                  sampleFocusNodeEvidence
-                );
+                  const sampleFocusNodeEvidence = buildExecutionFocusExplainableNode(
+                    sample.run_snapshot
+                  );
+                  const sampleInboxHref = buildPublishedInvocationRunFollowUpSampleInboxHref(
+                    sample
+                  );
+                  const sampleExecutionFactBadges = listExecutionFocusRuntimeFactBadges(
+                    sampleFocusNodeEvidence
+                  );
                 const sampleReadinessNode = buildSandboxReadinessNodeFromRunSnapshot(
                   sample.run_snapshot
                 );
@@ -364,6 +368,7 @@ export function WorkflowPublishInvocationDetailPanel({
                         callbackWaitingExplanation={
                           sample.run_snapshot.callbackWaitingExplanation ?? null
                         }
+                        callbackTickets={sample.callback_tickets}
                         lifecycle={sample.run_snapshot.callbackWaitingLifecycle ?? null}
                         focusNodeEvidence={sampleFocusNodeEvidence}
                         focusSkillReferenceCount={
@@ -394,6 +399,8 @@ export function WorkflowPublishInvocationDetailPanel({
                         }
                         scheduledResumeSource={sample.run_snapshot.scheduledResumeSource ?? null}
                         scheduledWaitingStatus={sample.run_snapshot.scheduledWaitingStatus ?? null}
+                        inboxHref={sampleInboxHref}
+                        sensitiveAccessEntries={sample.sensitive_access_entries}
                         showInlineActions={false}
                         waitingReason={sample.run_snapshot.waitingReason ?? null}
                       />

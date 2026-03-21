@@ -16,6 +16,7 @@ import {
   buildPublishedInvocationEntryInboxLinkSurface,
   buildPublishedInvocationInboxHref,
   buildPublishedInvocationRecommendedNextStep,
+  buildPublishedInvocationRunFollowUpSampleInboxHref,
   buildPublishedInvocationWaitingCardSurface,
   listPublishedInvocationEntryMetaRows,
   listPublishedInvocationRunFollowUpEvidenceChips,
@@ -144,6 +145,9 @@ export function WorkflowPublishInvocationEntryCard({
   const runFollowUpSampleFocusNodeEvidence = runFollowUpSample
     ? buildExecutionFocusExplainableNode(runFollowUpSample.run_snapshot)
     : null;
+  const runFollowUpSampleInboxHref = buildPublishedInvocationRunFollowUpSampleInboxHref(
+    runFollowUpSample
+  );
   const runSnapshot = normalizePublishedInvocationRunSnapshot(item.run_snapshot);
   const runSnapshotReadinessNode = buildSandboxReadinessNodeFromRunSnapshot(runSnapshot);
   const runFollowUpSampleReadinessNode = runFollowUpSample
@@ -300,6 +304,7 @@ export function WorkflowPublishInvocationEntryCard({
                   callbackWaitingExplanation={
                     runFollowUpSample.run_snapshot.callbackWaitingExplanation ?? null
                   }
+                  callbackTickets={runFollowUpSample.callback_tickets}
                   lifecycle={runFollowUpSample.run_snapshot.callbackWaitingLifecycle ?? null}
                   focusNodeEvidence={runFollowUpSampleFocusNodeEvidence}
                   focusSkillReferenceCount={
@@ -335,6 +340,8 @@ export function WorkflowPublishInvocationEntryCard({
                   scheduledWaitingStatus={
                     runFollowUpSample.run_snapshot.scheduledWaitingStatus ?? null
                   }
+                  inboxHref={runFollowUpSampleInboxHref}
+                  sensitiveAccessEntries={runFollowUpSample.sensitive_access_entries}
                   showFocusExecutionFacts={shouldDeferToSharedCallbackWaitingSummary}
                   showInlineActions={false}
                   waitingReason={runFollowUpSample.run_snapshot.waitingReason ?? null}
