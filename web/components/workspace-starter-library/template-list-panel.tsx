@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 
 import {
@@ -18,6 +19,7 @@ import type { WorkflowDefinitionToolGovernance } from "@/lib/workflow-definition
 import {
   buildWorkspaceStarterBulkPreviewFocusTargets,
   buildWorkspaceStarterBulkResultFocusTargets,
+  buildWorkspaceStarterSourceGovernancePresenter,
   formatTimestamp,
   type ArchiveFilter,
   type TrackFilter
@@ -162,6 +164,7 @@ export function WorkspaceStarterTemplateListPanel({
 
         <WorkspaceStarterBulkGovernanceCard
           inScopeCount={filteredTemplates.length}
+          inScopeTemplates={filteredTemplates}
           preview={bulkPreview}
           previewNotice={bulkPreviewNotice}
           isMutating={isBulkMutating}
@@ -189,6 +192,7 @@ export function WorkspaceStarterTemplateListPanel({
         <div className="starter-grid">
           {filteredTemplates.map((template) => {
             const toolGovernance = templateToolGovernanceById.get(template.id);
+            const sourceGovernance = buildWorkspaceStarterSourceGovernancePresenter(template);
 
             return (
               <button
@@ -203,6 +207,13 @@ export function WorkspaceStarterTemplateListPanel({
                     <span className="health-pill">
                       {getWorkflowBusinessTrack(template.business_track).priority}
                     </span>
+                    <span className="health-pill">{sourceGovernance.statusLabel}</span>
+                    {sourceGovernance.actionStatusLabel ? (
+                      <span className="event-chip">{sourceGovernance.actionStatusLabel}</span>
+                    ) : null}
+                    {sourceGovernance.sourceVersion ? (
+                      <span className="event-chip">source {sourceGovernance.sourceVersion}</span>
+                    ) : null}
                     {toolGovernance && toolGovernance.strongIsolationToolCount > 0 ? (
                       <span className="event-chip">strong isolation</span>
                     ) : null}
@@ -217,6 +228,12 @@ export function WorkspaceStarterTemplateListPanel({
                 <p className="starter-focus-copy">
                   {template.workflow_focus || "暂未填写 workflow focus。"}
                 </p>
+                <p className="binding-meta">
+                  <strong>Source:</strong> {sourceGovernance.summary}
+                </p>
+                {sourceGovernance.followUp && sourceGovernance.needsAttention ? (
+                  <p className="binding-meta">{sourceGovernance.followUp}</p>
+                ) : null}
                 <div className="starter-meta-row">
                   <span>{template.definition.nodes?.length ?? 0} nodes</span>
                   <span>{toolGovernance?.governedToolCount ?? 0} governed tools</span>

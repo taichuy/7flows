@@ -5,7 +5,8 @@ import React from "react";
 import type {
   WorkspaceStarterBulkAction,
   WorkspaceStarterBulkActionResult,
-  WorkspaceStarterBulkPreview
+  WorkspaceStarterBulkPreview,
+  WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
 
 import {
@@ -13,6 +14,7 @@ import {
   type WorkspaceStarterBulkResultFocusTarget,
   buildWorkspaceStarterBulkPreviewNarrative,
   buildWorkspaceStarterBulkResultNarrative,
+  buildWorkspaceStarterSourceGovernanceScopeSummary,
   getWorkspaceStarterBulkActionButtonLabel,
   getWorkspaceStarterBulkActionLabel,
   getWorkspaceStarterBulkSkipReasonLabel
@@ -20,6 +22,7 @@ import {
 
 type WorkspaceStarterBulkGovernanceCardProps = {
   inScopeCount: number;
+  inScopeTemplates: WorkspaceStarterTemplateItem[];
   preview: WorkspaceStarterBulkPreview | null;
   previewNotice: string | null;
   isMutating: boolean;
@@ -42,6 +45,7 @@ const BULK_ACTIONS: WorkspaceStarterBulkAction[] = [
 
 export function WorkspaceStarterBulkGovernanceCard({
   inScopeCount,
+  inScopeTemplates,
   preview,
   previewNotice,
   isMutating,
@@ -55,6 +59,7 @@ export function WorkspaceStarterBulkGovernanceCard({
 }: WorkspaceStarterBulkGovernanceCardProps) {
   const previewNarrativeItems = buildWorkspaceStarterBulkPreviewNarrative(preview);
   const narrativeItems = lastResult ? buildWorkspaceStarterBulkResultNarrative(lastResult) : [];
+  const sourceGovernanceScope = buildWorkspaceStarterSourceGovernanceScopeSummary(inScopeTemplates);
   const outcomePrimarySignal = lastResult?.outcome_explanation?.primary_signal?.trim() || null;
   const outcomeFollowUp = lastResult?.outcome_explanation?.follow_up?.trim() || null;
 
@@ -85,6 +90,23 @@ export function WorkspaceStarterBulkGovernanceCard({
       <p className="section-copy starter-summary-copy">
         删除仍然遵循“先归档再删除”；rebase 会同步 source-derived 字段，批量操作前请先确认当前筛选范围。
       </p>
+      {sourceGovernanceScope ? (
+        <div className="binding-section">
+          <p className="binding-meta">Scope</p>
+          {sourceGovernanceScope.chips.length > 0 ? (
+            <div className="starter-tag-row">
+              {sourceGovernanceScope.chips.map((item) => (
+                <span className="event-chip" key={item}>
+                  {item}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <p className="section-copy starter-summary-copy">
+            <strong>Source governance:</strong> {sourceGovernanceScope.summary}
+          </p>
+        </div>
+      ) : null}
       {isLoadingPreview ? (
         <p className="section-copy starter-summary-copy">
           <strong>Preview:</strong> 正在从后端预检当前筛选结果的批量治理候选。

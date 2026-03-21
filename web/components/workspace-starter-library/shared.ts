@@ -13,6 +13,7 @@ import type {
   WorkspaceStarterHistoryItem,
   WorkspaceStarterSourceDiff,
   WorkspaceStarterSourceDiffSummary,
+  WorkspaceStarterSourceGovernance,
   WorkspaceStarterTemplateItem,
   WorkspaceStarterValidationIssue
 } from "@/lib/get-workspace-starters";
@@ -88,6 +89,23 @@ export type WorkspaceStarterBulkResultFocusTarget = {
   archived: boolean;
 };
 
+export type WorkspaceStarterSourceGovernancePresenter = {
+  kind: WorkspaceStarterSourceGovernance["kind"] | "unknown";
+  statusLabel: string;
+  actionStatusLabel: string | null;
+  summary: string;
+  followUp: string | null;
+  sourceVersion: string | null;
+  factChips: string[];
+  needsAttention: boolean;
+};
+
+export type WorkspaceStarterSourceGovernanceScopeSummary = {
+  chips: string[];
+  summary: string;
+  attentionCount: number;
+};
+
 type WorkspaceStarterLibrarySearchParamSource =
   | URLSearchParams
   | Record<string, string | string[] | undefined>;
@@ -102,6 +120,14 @@ const WORKSPACE_STARTER_LIBRARY_ARCHIVE_FILTERS = new Set<ArchiveFilter>([
   "archived",
   "all"
 ]);
+
+const WORKSPACE_STARTER_SOURCE_GOVERNANCE_KIND_LABELS = {
+  no_source: "无来源",
+  missing_source: "来源缺失",
+  synced: "已对齐",
+  drifted: "来源漂移",
+  unknown: "治理缺口"
+} as const;
 
 export function filterWorkspaceStarterTemplates(
   templates: WorkspaceStarterTemplateItem[],
@@ -332,6 +358,101 @@ export function buildBulkActionMessage(
       : "";
 
   return `${updatedPart}${deletedPart}${skippedPart}${sandboxPart}。`;
+}
+
+export function buildWorkspaceStarterSourceGovernancePresenter(
+  template: Pick<WorkspaceStarterTemplateItem, "created_from_workflow_id" | "source_governance">
+): WorkspaceStarterSourceGovernancePresenter {
+  const governance = template.source_governance;
+  if (!governance) {
+    return {
+      kind: template.created_from_workflow_id ? "unknown" : "no_source",
+      statusLabel: template.created_from_workflow_id
+        ? WORKSPACE_STARTER_SOURCE_GOVERNANCE_KIND_LABELS.unknown
+        : WORKSPACE_STARTER_SOURCE_GOVERNANCE_KIND_LABELS.no_source,
+      actionStatusLabel: null,
+      summary: template.created_from_workflow_id
+        ? "当前 starter 已绑定来源 workflow，但列表缺少统一来源治理摘要。"
+        : "这个 starter 没有绑定来源 workflow，当前只保留模板快照。",
+      followUp: null,
+      sourceVersion: null,
+      factChips: [],
+      needsAttention: Boolean(template.created_from_workflow_id)
+    };
+  }
+
+  const governanceStatusLabel =
+    normalizeString(governance.status_label) ??
+    WORKSPACE_STARTER_SOURCE_GOVERNANCE_KIND_LABELS[governance.kind];
+  const actionStatusLabel = normalizeString(governance.action_decision?.status_label);
+
+  return {
+    kind: governance.kind,
+    statusLabel: governanceStatusLabel,
+    actionStatusLabel:
+      actionStatusLabel && actionStatusLabel !== governanceStatusLabel ? actionStatusLabel : null,
+    summary:
+      normalizeString(governance.outcome_explanation?.primary_signal) ??
+      normalizeString(governance.summary) ??
+      "暂无来源治理状态。",
+    followUp: normalizeString(governance.outcome_explanation?.follow_up),
+    sourceVersion: normalizeString(governance.source_version),
+    factChips: Array.from(new Set(normalizeStringArray(governance.action_decision?.fact_chips))).slice(
+      0,
+      2
+    ),
+    needsAttention: governance.kind === "drifted" || governance.kind === "missing_source"
+  };
+}
+
+export function buildWorkspaceStarterSourceGovernanceScopeSummary(
+  templates: WorkspaceStarterTemplateItem[]
+): WorkspaceStarterSourceGovernanceScopeSummary | null {
+  if (templates.length === 0) {
+    return null;
+  }
+
+  const counts = {
+    drifted: 0,
+    missing_source: 0,
+    no_source: 0,
+    synced: 0,
+    unknown: 0
+  } satisfies Record<WorkspaceStarterSourceGovernancePresenter["kind"], number>;
+
+  for (const template of templates) {
+    counts[buildWorkspaceStarterSourceGovernancePresenter(template).kind] += 1;
+  }
+
+  const chips = [
+    counts.drifted > 0 ? `来源漂移 ${counts.drifted}` : null,
+    counts.missing_source > 0 ? `来源缺失 ${counts.missing_source}` : null,
+    counts.no_source > 0 ? `无来源 ${counts.no_source}` : null,
+    counts.synced > 0 ? `已对齐 ${counts.synced}` : null,
+    counts.unknown > 0 ? `治理缺口 ${counts.unknown}` : null
+  ].filter((item): item is string => Boolean(item));
+
+  const summaryParts = [
+    `当前筛选范围 ${templates.length} 个 starter 中`,
+    counts.drifted > 0 ? `来源漂移 ${counts.drifted} 个` : null,
+    counts.missing_source > 0 ? `来源缺失 ${counts.missing_source} 个` : null,
+    counts.no_source > 0 ? `无来源 ${counts.no_source} 个` : null,
+    counts.synced > 0 ? `已对齐 ${counts.synced} 个` : null,
+    counts.unknown > 0 ? `还有 ${counts.unknown} 个缺少统一治理摘要` : null
+  ].filter((item): item is string => Boolean(item));
+
+  const attentionCount = counts.drifted + counts.missing_source + counts.unknown;
+  const summary =
+    `${summaryParts.join("，")}；` +
+    (attentionCount > 0
+      ? "无需打开详情卡也能先识别需要 follow-up 的 starter。"
+      : "当前没有明显的来源治理阻塞，可以直接参考 bulk preview 决策。");
+
+  return {
+    chips,
+    summary,
+    attentionCount
+  };
 }
 
 export function buildWorkspaceStarterBulkResultNarrative(

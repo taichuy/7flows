@@ -38,7 +38,63 @@ describe("WorkspaceStarterBulkGovernanceCard", () => {
         archived: false,
         archived_at: null,
         created_at: "2026-03-21T10:00:00Z",
-        updated_at: "2026-03-21T10:00:00Z"
+        updated_at: "2026-03-21T10:00:00Z",
+        source_governance: {
+          kind: "drifted",
+          status_label: "来源漂移",
+          summary: "Starter 与来源 workflow 仍有差异。",
+          source_workflow_id: "wf-demo",
+          source_workflow_name: "Demo workflow",
+          template_version: "0.1.4",
+          source_version: "0.1.5",
+          action_decision: {
+            recommended_action: "refresh",
+            status_label: "建议 refresh",
+            summary: "当前主要是来源快照漂移。",
+            can_refresh: true,
+            can_rebase: true,
+            fact_chips: ["source 0.1.5"]
+          },
+          outcome_explanation: {
+            primary_signal: "当前 starter 与来源 workflow 版本不一致。",
+            follow_up: "先看 result receipt，再决定是否继续 refresh 或 rebase。"
+          }
+        }
+      },
+      {
+        id: "starter-manual",
+        workspace_id: "default",
+        name: "Manual starter",
+        description: "",
+        business_track: "应用新建编排",
+        default_workflow_name: "Manual starter",
+        workflow_focus: "",
+        recommended_next_step: "",
+        tags: [],
+        definition: {
+          nodes: [],
+          edges: []
+        },
+        created_from_workflow_id: null,
+        created_from_workflow_version: null,
+        archived: false,
+        archived_at: null,
+        created_at: "2026-03-21T10:00:00Z",
+        updated_at: "2026-03-21T10:00:00Z",
+        source_governance: {
+          kind: "no_source",
+          status_label: "无来源",
+          summary: "这个 starter 没有绑定来源 workflow。",
+          source_workflow_id: null,
+          source_workflow_name: null,
+          template_version: null,
+          source_version: null,
+          action_decision: null,
+          outcome_explanation: {
+            primary_signal: "当前 starter 只保留模板快照。",
+            follow_up: "如果希望批量 refresh / rebase，需要先补来源绑定。"
+          }
+        }
       }
     ];
     const lastResult: WorkspaceStarterBulkActionResult = {
@@ -242,6 +298,7 @@ describe("WorkspaceStarterBulkGovernanceCard", () => {
     const html = renderToStaticMarkup(
       createElement(WorkspaceStarterBulkGovernanceCard, {
         inScopeCount: 2,
+        inScopeTemplates: templates,
         preview,
         previewNotice: null,
         isMutating: false,
@@ -257,6 +314,10 @@ describe("WorkspaceStarterBulkGovernanceCard", () => {
 
     expect(html).toContain("last run: 刷新");
     expect(html).toContain("刷新 1 · block 1");
+    expect(html).toContain("Scope");
+    expect(html).toContain("来源漂移 1");
+    expect(html).toContain("无来源 1");
+    expect(html).toContain("当前筛选范围 2 个 starter 中，来源漂移 1 个，无来源 1 个；无需打开详情卡也能先识别需要 follow-up 的 starter。");
     expect(html).toContain("刷新 preview:");
     expect(html).toContain("候选 1 个；阻塞 1 个（无来源 1）");
     expect(html).toContain("Preview focus");
