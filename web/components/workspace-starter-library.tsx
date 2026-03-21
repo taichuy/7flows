@@ -27,6 +27,7 @@ export function WorkspaceStarterLibrary({
     bulkActionCandidates,
     filteredTemplates,
     formState,
+    focusTemplateFromBulkResult,
     governedTemplateCount,
     handleBulkAction,
     handleRebaseFromSource,
@@ -103,6 +104,7 @@ export function WorkspaceStarterLibrary({
           onArchiveFilterChange={setArchiveFilter}
           onSearchQueryChange={setSearchQuery}
           onSelectTemplate={setSelectedTemplateId}
+          onFocusTemplate={focusTemplateFromBulkResult}
           onBulkAction={handleBulkAction}
         />
 

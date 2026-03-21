@@ -422,6 +422,18 @@ export function useWorkspaceStarterLibraryState(
     });
   };
 
+  const focusTemplateFromBulkResult = (templateId: string) => {
+    const targetTemplate = templates.find((template) => template.id === templateId);
+    if (!targetTemplate) {
+      return;
+    }
+
+    setSearchQuery("");
+    setActiveTrack(targetTemplate.business_track);
+    setArchiveFilter(targetTemplate.archived ? "archived" : "active");
+    setSelectedTemplateId(targetTemplate.id);
+  };
+
   return {
     activeTemplateCount,
     activeTrack,
@@ -456,6 +468,7 @@ export function useWorkspaceStarterLibraryState(
     selectedTemplateSandboxGovernance,
     selectedTemplateToolGovernance,
     selectedTrackMeta,
+    focusTemplateFromBulkResult,
     setActiveTrack,
     setArchiveFilter,
     setFormState,

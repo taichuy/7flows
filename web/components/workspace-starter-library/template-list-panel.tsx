@@ -14,7 +14,12 @@ import {
 } from "@/lib/workflow-business-tracks";
 import type { WorkflowDefinitionToolGovernance } from "@/lib/workflow-definition-tool-governance";
 
-import { formatTimestamp, type ArchiveFilter, type TrackFilter } from "./shared";
+import {
+  buildWorkspaceStarterBulkAffectedStarterTargets,
+  formatTimestamp,
+  type ArchiveFilter,
+  type TrackFilter
+} from "./shared";
 
 type WorkspaceStarterTemplateListPanelProps = {
   templates: WorkspaceStarterTemplateItem[];
@@ -33,6 +38,7 @@ type WorkspaceStarterTemplateListPanelProps = {
   onArchiveFilterChange: (filter: ArchiveFilter) => void;
   onSearchQueryChange: (value: string) => void;
   onSelectTemplate: (templateId: string) => void;
+  onFocusTemplate: (templateId: string) => void;
   onBulkAction: (action: WorkspaceStarterBulkAction) => void;
 };
 
@@ -53,8 +59,13 @@ export function WorkspaceStarterTemplateListPanel({
   onArchiveFilterChange,
   onSearchQueryChange,
   onSelectTemplate,
+  onFocusTemplate,
   onBulkAction
 }: WorkspaceStarterTemplateListPanelProps) {
+  const affectedStarterTargets = lastBulkResult
+    ? buildWorkspaceStarterBulkAffectedStarterTargets(lastBulkResult, templates)
+    : [];
+
   return (
     <article className="diagnostic-panel">
       <div className="section-heading">
@@ -144,6 +155,9 @@ export function WorkspaceStarterTemplateListPanel({
           candidateCounts={bulkCandidateCounts}
           isMutating={isBulkMutating}
           lastResult={lastBulkResult}
+          affectedStarterTargets={affectedStarterTargets}
+          selectedTemplateId={selectedTemplateId}
+          onFocusTemplate={onFocusTemplate}
           onAction={onBulkAction}
         />
       </div>

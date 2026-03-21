@@ -8,6 +8,7 @@ import type {
 } from "@/lib/get-workspace-starters";
 
 import {
+  type WorkspaceStarterBulkAffectedStarterTarget,
   buildWorkspaceStarterBulkResultNarrative,
   getWorkspaceStarterBulkActionButtonLabel,
   getWorkspaceStarterBulkActionLabel,
@@ -19,6 +20,9 @@ type WorkspaceStarterBulkGovernanceCardProps = {
   candidateCounts: Record<WorkspaceStarterBulkAction, number>;
   isMutating: boolean;
   lastResult: WorkspaceStarterBulkActionResult | null;
+  affectedStarterTargets: WorkspaceStarterBulkAffectedStarterTarget[];
+  selectedTemplateId: string | null;
+  onFocusTemplate: (templateId: string) => void;
   onAction: (action: WorkspaceStarterBulkAction) => void;
 };
 
@@ -35,6 +39,9 @@ export function WorkspaceStarterBulkGovernanceCard({
   candidateCounts,
   isMutating,
   lastResult,
+  affectedStarterTargets,
+  selectedTemplateId,
+  onFocusTemplate,
   onAction
 }: WorkspaceStarterBulkGovernanceCardProps) {
   const narrativeItems = lastResult ? buildWorkspaceStarterBulkResultNarrative(lastResult) : [];
@@ -96,6 +103,36 @@ export function WorkspaceStarterBulkGovernanceCard({
               <strong>{item.label}:</strong> {item.text}
             </p>
           ))}
+
+          {affectedStarterTargets.length > 0 ? (
+            <div className="binding-section">
+              <p className="binding-meta">Affected starter focus</p>
+              <p className="section-copy starter-summary-copy">
+                点击受影响 starter 会自动切换筛选范围，并把右侧详情聚焦到对应模板的
+                source diff / metadata。
+              </p>
+              <div className="starter-tag-row">
+                {affectedStarterTargets.map((item) => (
+                  <button
+                    key={item.templateId}
+                    className={`event-chip event-chip-button ${
+                      selectedTemplateId === item.templateId ? "active" : ""
+                    }`}
+                    type="button"
+                    onClick={() => onFocusTemplate(item.templateId)}
+                    disabled={isMutating}
+                    aria-pressed={selectedTemplateId === item.templateId}
+                  >
+                    {item.name}
+                    {item.sandboxNodeSummary ? ` · ${item.sandboxNodeSummary}` : ""}
+                    {item.driftNodeCount > 0 ? ` · drift ${item.driftNodeCount}` : ""}
+                    {item.sourceWorkflowVersion ? ` · source ${item.sourceWorkflowVersion}` : ""}
+                    {item.archived ? " · archived" : ""}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </>
       ) : null}
       <div className="binding-actions">

@@ -28,6 +28,15 @@ export type WorkspaceStarterNarrativeItem = {
   text: string;
 };
 
+export type WorkspaceStarterBulkAffectedStarterTarget = {
+  templateId: string;
+  name: string;
+  sourceWorkflowVersion: string | null;
+  sandboxNodeSummary: string;
+  driftNodeCount: number;
+  archived: boolean;
+};
+
 export function buildFormState(
   template: WorkspaceStarterTemplateItem
 ): WorkspaceStarterFormState {
@@ -196,6 +205,38 @@ export function buildWorkspaceStarterBulkResultNarrative(
   }
 
   return items;
+}
+
+export function buildWorkspaceStarterBulkAffectedStarterTargets(
+  result: Pick<WorkspaceStarterBulkActionResult, "sandbox_dependency_items">,
+  templates: WorkspaceStarterTemplateItem[]
+): WorkspaceStarterBulkAffectedStarterTarget[] {
+  const templatesById = new Map(templates.map((template) => [template.id, template] as const));
+  const seenTemplateIds = new Set<string>();
+
+  return (result.sandbox_dependency_items ?? []).flatMap((item) => {
+    if (seenTemplateIds.has(item.template_id)) {
+      return [];
+    }
+    seenTemplateIds.add(item.template_id);
+
+    const template = templatesById.get(item.template_id);
+    if (!template) {
+      return [];
+    }
+
+    const sandboxNodes = Array.from(new Set(normalizeStringArray(item.sandbox_dependency_nodes)));
+    return [
+      {
+        templateId: item.template_id,
+        name: item.name?.trim() || template.name,
+        sourceWorkflowVersion: normalizeString(item.source_workflow_version),
+        sandboxNodeSummary: sandboxNodes.length > 0 ? sandboxNodes.join("、") : "未命名节点",
+        driftNodeCount: countSummaryChanges(item.sandbox_dependency_changes),
+        archived: template.archived
+      }
+    ];
+  });
 }
 
 export function buildWorkspaceStarterHistoryMetaChips(

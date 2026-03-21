@@ -488,17 +488,24 @@ a {
   text-decoration: none;
 }
 
-.timeline-filter-button {
+.timeline-filter-button,
+.event-chip-button {
   appearance: none;
   cursor: pointer;
   font: inherit;
   color: inherit;
 }
 
-.inbox-filter-link.active {
+.inbox-filter-link.active,
+.event-chip-button.active {
   border-color: rgba(118, 92, 47, 0.28);
   background: rgba(244, 197, 92, 0.16);
   color: var(--ink);
+}
+
+.event-chip-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
 }
 
 .tool-row {
