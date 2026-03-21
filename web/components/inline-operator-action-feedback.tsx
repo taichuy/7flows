@@ -5,6 +5,7 @@ import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summar
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { OperatorRunSampleCardList } from "@/components/operator-run-sample-card-list";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
+import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import {
   buildExecutionFocusExplainableNode,
   buildOperatorInlineActionFeedbackModel,
@@ -30,6 +31,11 @@ type InlineOperatorActionFeedbackProps = {
   title: string;
   runId?: string | null;
   recommendedNextStep?: OperatorRecommendedNextStep | null;
+  callbackWaitingSummaryProps?: {
+    inboxHref?: string | null;
+    sensitiveAccessEntries?: SensitiveAccessTimelineEntry[];
+    showSensitiveAccessInlineActions?: boolean;
+  };
 } & OperatorInlineActionResultState;
 
 export function InlineOperatorActionFeedback({
@@ -37,7 +43,8 @@ export function InlineOperatorActionFeedback({
   message,
   title,
   runId = null,
-  recommendedNextStep: recommendedNextStepOverride = null,
+  recommendedNextStep: recommendedNextStepOverride,
+  callbackWaitingSummaryProps,
   ...structuredResult
 }: InlineOperatorActionFeedbackProps) {
   const model = buildOperatorInlineActionFeedbackModel({
@@ -57,9 +64,11 @@ export function InlineOperatorActionFeedback({
   const executionFactBadges = listExecutionFocusRuntimeFactBadges(callbackWaitingFocusNode);
   const executionSurfaceCopy = buildRunDetailExecutionFocusSurfaceCopy();
   const runDetailLink = buildOperatorRunDetailLinkSurface({ runId, surfaceCopy });
+  const hasExplicitRecommendedNextStepOverride = recommendedNextStepOverride !== undefined;
   const recommendedNextStep =
-    recommendedNextStepOverride ??
-    (!hasCallbackWaitingSummary
+    hasExplicitRecommendedNextStepOverride
+      ? recommendedNextStepOverride
+      : !hasCallbackWaitingSummary
       ? buildOperatorRecommendedNextStep({
           execution: buildOperatorRunDetailCandidate({
             active: Boolean(
@@ -75,7 +84,7 @@ export function InlineOperatorActionFeedback({
           operatorFollowUp: model.outcomeFollowUp,
           operatorLabel: "operator result"
         })
-      : null);
+      : null;
   const shouldRenderOutcomeFollowUp =
     Boolean(model.outcomeFollowUp) && model.outcomeFollowUp !== recommendedNextStep?.detail;
   const shouldRenderRunFollowUpFollowUp =
@@ -234,6 +243,11 @@ export function InlineOperatorActionFeedback({
           showFocusExecutionFacts={shouldDeferToSharedCallbackWaitingSummary}
           showInlineActions={false}
           waitingReason={runSnapshot?.waitingReason ?? null}
+          inboxHref={callbackWaitingSummaryProps?.inboxHref}
+          sensitiveAccessEntries={callbackWaitingSummaryProps?.sensitiveAccessEntries}
+          showSensitiveAccessInlineActions={
+            callbackWaitingSummaryProps?.showSensitiveAccessInlineActions ?? false
+          }
         />
       ) : (
         <>

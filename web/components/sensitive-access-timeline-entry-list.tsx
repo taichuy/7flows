@@ -434,8 +434,18 @@ export function SensitiveAccessTimelineEntryList({
 
               {hasStructuredOperatorFeedback ? (
                 <InlineOperatorActionFeedback
+                  callbackWaitingSummaryProps={{
+                    inboxHref: inboxSliceHref,
+                    sensitiveAccessEntries: [entry],
+                    showSensitiveAccessInlineActions: false
+                  }}
                   message=""
                   outcomeExplanation={shouldRenderCallbackWaitingSummary ? null : canonicalOutcomeExplanation}
+                  recommendedNextStep={
+                    shouldRenderCallbackWaitingSummary || hasStructuredCallbackWaitingSummary
+                      ? null
+                      : recommendedNextStep
+                  }
                   runFollowUpExplanation={runContext.runFollowUp?.explanation ?? null}
                   runFollowUp={runContext.runFollowUp ?? null}
                   runId={runId}

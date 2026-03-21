@@ -186,6 +186,7 @@ describe("SensitiveAccessTimelineEntryList", () => {
     expect(html).toContain('data-testid="callback-waiting-summary"');
     expect(inlineFeedbackProps).toHaveLength(1);
     expect(inlineFeedbackProps[0]?.outcomeExplanation ?? null).toBeNull();
+    expect(inlineFeedbackProps[0]?.recommendedNextStep ?? null).toBeNull();
     expect(inlineFeedbackProps[0]?.runFollowUpExplanation).toEqual(runFollowUpExplanation);
     expect(callbackSummaryProps).toHaveLength(1);
     expect(
@@ -196,6 +197,57 @@ describe("SensitiveAccessTimelineEntryList", () => {
       )?.primary_signal
     ).toBe("当前阻断来自敏感访问审批票据。");
     expect(callbackSummaryProps[0]?.showInlineActions).toBe(false);
+  });
+
+  it("passes sensitive-access callback context into inline feedback when run snapshot already carries callback waiting facts", () => {
+    const entry = buildEntry();
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessTimelineEntryList, {
+        entries: [
+          {
+            ...entry,
+            run_snapshot: {
+              status: "waiting",
+              currentNodeId: "approval_gate",
+              waitingReason: "approval pending",
+              executionFocusNodeId: "approval_gate",
+              executionFocusNodeRunId: "node-run-current",
+              executionFocusNodeName: "Approval Gate",
+              callbackWaitingExplanation: {
+                primary_signal: "当前 run snapshot 已回接 callback waiting 审批阻断。",
+                follow_up: "优先处理审批票据，再回来看 waiting 是否恢复。"
+              }
+            }
+          }
+        ],
+        emptyCopy: "no entries"
+      })
+    );
+
+    expect(html).toContain('data-testid="inline-operator-feedback"');
+    expect(callbackSummaryProps).toHaveLength(0);
+    expect(inlineFeedbackProps).toHaveLength(1);
+    expect(inlineFeedbackProps[0]?.recommendedNextStep ?? null).toBeNull();
+    expect(inlineFeedbackProps[0]?.callbackWaitingSummaryProps).toMatchObject({
+      inboxHref: expect.stringContaining("/sensitive-access?"),
+      showSensitiveAccessInlineActions: false
+    });
+    expect(
+      (
+        (inlineFeedbackProps[0]?.callbackWaitingSummaryProps as {
+          inboxHref?: string;
+          sensitiveAccessEntries?: SensitiveAccessTimelineEntry[];
+        })?.sensitiveAccessEntries ?? []
+      )[0]?.request.id
+    ).toBe("request-1");
+    expect(
+      (
+        inlineFeedbackProps[0]?.callbackWaitingSummaryProps as {
+          inboxHref?: string;
+        }
+      )?.inboxHref
+    ).toContain("run_id=run-current");
   });
 
   it("renders a standalone shared recommended next step when only operator follow-up remains", () => {
