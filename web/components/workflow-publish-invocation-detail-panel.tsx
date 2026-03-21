@@ -49,7 +49,6 @@ import {
 } from "@/lib/run-execution-focus-presenters";
 import { formatDurationMs, formatTimestamp } from "@/lib/runtime-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
-import { buildRunDetailHref } from "@/lib/workbench-links";
 
 type WorkflowPublishInvocationDetailPanelProps = {
   detail: PublishedEndpointInvocationDetailResponse;
@@ -293,9 +292,18 @@ export function WorkflowPublishInvocationDetailPanel({
                 return (
                   <div className="payload-card compact-card" key={sample.run_id}>
                     <div className="payload-card-header">
-                      <Link className="inline-link" href={buildRunDetailHref(sample.run_id)}>
-                        {sample.run_id}
-                      </Link>
+                      {(() => {
+                        const sampleRunLink = buildOperatorRunDetailLinkSurface({
+                          runId: sample.run_id,
+                          hrefLabel: sample.run_id
+                        });
+
+                        return sampleRunLink ? (
+                          <Link className="inline-link" href={sampleRunLink.href}>
+                            {sampleRunLink.label}
+                          </Link>
+                        ) : null;
+                      })()}
                       <span className="status-meta">{sampleReasonLabel}</span>
                     </div>
                     {samplePrimarySignal && !sample.has_callback_waiting_summary ? (

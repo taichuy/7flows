@@ -6,11 +6,11 @@ import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import type { RunExecutionView } from "@/lib/get-run-views";
 import {
+  buildOperatorRunDetailCandidate,
   buildOperatorRecommendedNextStep,
   buildOperatorRunSnapshotMetaRows,
   buildOperatorFollowUpSurfaceCopy
 } from "@/lib/operator-follow-up-presenters";
-import { buildRunDetailHref } from "@/lib/workbench-links";
 import {
   buildExecutionFocusSectionSurfaceCopy,
   formatExecutionFocusArtifactSummary,
@@ -54,28 +54,28 @@ export function RunDiagnosticsOperatorFollowUpCard({
     followUp?.explanation?.primary_signal?.trim() ||
     null;
   const recommendedNextStep = buildOperatorRecommendedNextStep({
-    callback: {
+    callback: buildOperatorRunDetailCandidate({
       active: hasCallbackWaitingFacts(snapshot),
       label: "observe waiting",
       detail:
         snapshot?.callback_waiting_explanation?.follow_up ??
         executionView.execution_focus_explanation?.follow_up ??
         null,
-      href: buildRunDetailHref(executionView.run_id),
-      href_label: surfaceCopy.openRunLabel,
-      fallback_detail: diagnosticsSurfaceCopy.callbackFallbackDetail
-    },
-    execution: {
+      runId: executionView.run_id,
+      fallbackDetail: diagnosticsSurfaceCopy.callbackFallbackDetail,
+      surfaceCopy
+    }),
+    execution: buildOperatorRunDetailCandidate({
       active: hasExecutionFacts(snapshot, executionView),
       label: "inspect execution focus",
       detail:
         snapshot?.execution_focus_explanation?.follow_up ??
         executionView.execution_focus_explanation?.follow_up ??
         null,
-      href: buildRunDetailHref(executionView.run_id),
-      href_label: surfaceCopy.openRunLabel,
-      fallback_detail: executionSurfaceCopy.recommendedNextStepFallbackDetail
-    },
+      runId: executionView.run_id,
+      fallbackDetail: executionSurfaceCopy.recommendedNextStepFallbackDetail,
+      surfaceCopy
+    }),
     operatorFollowUp: followUp?.explanation?.follow_up ?? null,
     operatorLabel: "operator follow-up"
   });

@@ -16,9 +16,9 @@ import {
 } from "@/lib/callback-waiting-presenters";
 import {
   buildOperatorFollowUpSurfaceCopy,
+  buildOperatorRunDetailLinkSurface,
   formatOperatorOpenRunLinkLabel
 } from "@/lib/operator-follow-up-presenters";
-import { buildRunDetailHref } from "@/lib/workbench-links";
 import {
   resolveSensitiveAccessTimelineEntryRunContext
 } from "@/lib/sensitive-access";
@@ -384,11 +384,21 @@ export function SensitiveAccessTimelineEntryList({
 
               {runId || inboxSliceHref ? (
                 <div className="tool-badge-row">
-                  {runId ? (
-                    <Link className="event-chip inbox-filter-link" href={buildRunDetailHref(runId)}>
-                      {formatOperatorOpenRunLinkLabel(runId, operatorSurfaceCopy)}
-                    </Link>
-                  ) : null}
+                  {(() => {
+                    const runLink = buildOperatorRunDetailLinkSurface({
+                      runId,
+                      hrefLabel: runId
+                        ? formatOperatorOpenRunLinkLabel(runId, operatorSurfaceCopy)
+                        : null,
+                      surfaceCopy: operatorSurfaceCopy
+                    });
+
+                    return runLink ? (
+                      <Link className="event-chip inbox-filter-link" href={runLink.href}>
+                        {runLink.label}
+                      </Link>
+                    ) : null;
+                  })()}
                   {inboxSliceHref ? (
                     <Link className="event-chip inbox-filter-link" href={inboxSliceHref}>
                       {inboxLinkLabel}

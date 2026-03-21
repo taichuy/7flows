@@ -7,9 +7,9 @@ import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import type { OperatorRunSampleCard } from "@/lib/operator-run-sample-cards";
 import {
   buildOperatorFollowUpSurfaceCopy,
+  buildOperatorRunDetailLinkSurface,
   buildOperatorRunSnapshotMetaRows
 } from "@/lib/operator-follow-up-presenters";
-import { buildRunDetailHref } from "@/lib/workbench-links";
 
 type OperatorRunSampleCardListProps = {
   cards: OperatorRunSampleCard[];
@@ -31,6 +31,10 @@ export function OperatorRunSampleCardList({
       {cards.map((sample) => {
         const showHeaderExecutionFacts =
           sample.executionFactBadges.length > 0 && !sample.hasCallbackWaitingSummary;
+        const runDetailLink = buildOperatorRunDetailLinkSurface({
+          runId: sample.runId,
+          surfaceCopy
+        });
         const snapshotMetaRows = buildOperatorRunSnapshotMetaRows({
           runStatus: sample.runStatus,
           currentNodeId: sample.currentNodeId,
@@ -44,12 +48,11 @@ export function OperatorRunSampleCardList({
 
           <div className="payload-card-header">
             <span className="status-meta">{surfaceCopy.runTitlePrefix} {sample.shortRunId}</span>
-            <Link
-              className="event-chip inbox-filter-link"
-              href={buildRunDetailHref(sample.runId)}
-            >
-              {surfaceCopy.openRunLabel}
-            </Link>
+            {runDetailLink ? (
+              <Link className="event-chip inbox-filter-link" href={runDetailLink.href}>
+                {runDetailLink.label}
+              </Link>
+            ) : null}
           </div>
 
           {sample.summary && !sample.hasCallbackWaitingSummary ? (

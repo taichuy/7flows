@@ -30,12 +30,14 @@ import {
   resolvePublishedInvocationExecutionFocusExplanation
 } from "@/lib/published-invocation-presenters";
 import {
+  buildOperatorRunDetailLinkSurface
+} from "@/lib/operator-follow-up-presenters";
+import {
   formatMetricSummary,
   listExecutionFocusRuntimeFactBadges
 } from "@/lib/run-execution-focus-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
 import { formatDurationMs, formatTimestamp } from "@/lib/runtime-presenters";
-import { buildRunDetailHref } from "@/lib/workbench-links";
 
 type PublishedInvocationItem = PublishedEndpointInvocationListResponse["items"][number];
 
@@ -248,13 +250,20 @@ export function WorkflowPublishInvocationEntryCard({
             <div>
               <dt>{surfaceCopy.canonicalFollowUpSampleFocusLabel}</dt>
               <dd>
-                {runFollowUpSample ? (
-                  <Link className="inline-link" href={buildRunDetailHref(runFollowUpSample.run_id)}>
-                    {runFollowUpSample.run_id}
-                  </Link>
-                ) : (
-                  "n/a"
-                )}
+                {(() => {
+                  const runLink = buildOperatorRunDetailLinkSurface({
+                    runId: runFollowUpSample?.run_id,
+                    hrefLabel: runFollowUpSample?.run_id ?? null
+                  });
+
+                  return runLink ? (
+                    <Link className="inline-link" href={runLink.href}>
+                      {runLink.label}
+                    </Link>
+                  ) : (
+                    "n/a"
+                  );
+                })()}
               </dd>
             </div>
           </dl>

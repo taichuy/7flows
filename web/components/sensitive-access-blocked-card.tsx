@@ -18,10 +18,10 @@ import {
 } from "@/lib/sensitive-access-presenters";
 import {
   buildOperatorFollowUpSurfaceCopy,
-  buildOperatorInboxSliceLinkSurface
+  buildOperatorInboxSliceLinkSurface,
+  buildOperatorRunDetailLinkSurface
 } from "@/lib/operator-follow-up-presenters";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
-import { buildRunDetailHref } from "@/lib/workbench-links";
 
 function normalizeApprovalStatus(value?: string | null) {
   return value === "pending" || value === "approved" || value === "rejected" || value === "expired"
@@ -58,6 +58,11 @@ export function SensitiveAccessBlockedCard({
   });
   const inboxLink = buildOperatorInboxSliceLinkSurface({
     href: inboxHref,
+    surfaceCopy: operatorSurfaceCopy
+  });
+  const runLink = buildOperatorRunDetailLinkSurface({
+    runId,
+    hrefLabel: runId,
     surfaceCopy: operatorSurfaceCopy
   });
   const hasStructuredFollowUp = Boolean(
@@ -129,15 +134,7 @@ export function SensitiveAccessBlockedCard({
         </div>
         <div>
           <dt>Run</dt>
-          <dd>
-            {runId ? (
-              <Link className="inline-link" href={buildRunDetailHref(runId)}>
-                {runId}
-              </Link>
-            ) : (
-              "n/a"
-            )}
-          </dd>
+          <dd>{runLink ? <Link className="inline-link" href={runLink.href}>{runLink.label}</Link> : "n/a"}</dd>
         </div>
         <div>
           <dt>Node run</dt>
