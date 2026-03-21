@@ -385,6 +385,30 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     expect(html).not.toContain("run run-callback-1：继续观察 callback waiting。");
   });
 
+  it("prefers the projected selected next-step surface when the activity panel already resolved it", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationDetailPanel, {
+        detail: buildDetail(),
+        clearHref: "/published?clear=1",
+        tools: [],
+        callbackWaitingAutomation,
+        selectedNextStepSurface: {
+          title: "Selected invocation next step",
+          invocationId: "invocation-1",
+          label: "approval blocker",
+          detail: "优先处理 blocker inbox，再观察 waiting 节点是否恢复。",
+          href: "/sensitive-access?run_id=run-callback-1&waiting_status=waiting",
+          hrefLabel: "open blocker inbox slice"
+        }
+      })
+    );
+
+    expect(html).toContain("Selected invocation next step");
+    expect(html.match(/Selected invocation next step/g)?.length ?? 0).toBe(1);
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("open blocker inbox slice");
+  });
+
   it("hides generic execution focus recommendation when the focused node already exposes callback waiting summary", () => {
     const detail = buildDetail();
     detail.execution_focus_reason = "blocking_node_run";

@@ -32,6 +32,31 @@ vi.mock("@/components/workflow-publish-invocation-entry-card", () => ({
     createElement("div", { "data-testid": "workflow-publish-invocation-entry-card" })
 }));
 
+vi.mock("@/components/workflow-publish-invocation-detail-panel", () => ({
+  WorkflowPublishInvocationDetailPanel: ({
+    selectedNextStepSurface
+  }: {
+    selectedNextStepSurface?: {
+      title?: string;
+      label?: string;
+      hrefLabel?: string;
+      detail?: string;
+    } | null;
+  }) =>
+    createElement(
+      "div",
+      { "data-testid": "workflow-publish-invocation-detail-panel" },
+      [
+        selectedNextStepSurface?.title,
+        selectedNextStepSurface?.label,
+        selectedNextStepSurface?.hrefLabel,
+        selectedNextStepSurface?.detail
+      ]
+        .filter(Boolean)
+        .join(" :: ")
+    )
+}));
+
 function buildSandboxReadiness(): SandboxReadinessCheck {
   return {
     enabled_backend_count: 0,
@@ -521,6 +546,42 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain("approval blocker");
     expect(html).toContain("open blocker inbox slice");
     expect(html).toContain("优先处理 blocker inbox，再观察 waiting 节点是否恢复。");
+  });
+
+  it("reuses the projected selected next-step surface inside detail panel without duplicating narrative", () => {
+    const invocationAudit = {
+      ...buildInvocationAudit(),
+      items: [{ id: "invocation-1" } as never]
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishActivityDetails, {
+        tools: [],
+        invocationAudit,
+        selectedInvocationId: "invocation-1",
+        selectedInvocationDetail: {
+          kind: "ok",
+          data: buildSelectedInvocationDetail()
+        },
+        callbackWaitingAutomation: {
+          status: "disabled",
+          scheduler_required: false,
+          detail: "disabled in test",
+          scheduler_health_status: "idle",
+          scheduler_health_detail: "not configured",
+          steps: []
+        },
+        sandboxReadiness: buildSandboxReadiness(),
+        buildInvocationDetailHref: () => "#",
+        clearInvocationDetailHref: "/workflows/workflow-1?publish_invocation=invocation-1"
+      })
+    );
+
+    expect(html).toContain("Selected invocation next step");
+    expect(html.match(/Selected invocation next step/g)?.length ?? 0).toBe(1);
+    expect(html).not.toContain("Recommended next step");
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("open blocker inbox slice");
   });
 
   it("uses shared API key status fallback copy inside activity details", () => {

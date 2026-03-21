@@ -332,7 +332,7 @@ export function WorkflowPublishActivityDetails({
         </div>
       ) : null}
 
-      {selectedInvocationSurface.nextStepSurface ? (
+      {selectedInvocationSurface.nextStepSurface && !clearInvocationDetailHref ? (
         <article className="entry-card compact-card">
           <div className="payload-card-header">
             <div>
@@ -365,6 +365,7 @@ export function WorkflowPublishActivityDetails({
               tools={tools}
               callbackWaitingAutomation={callbackWaitingAutomation}
               sandboxReadiness={sandboxReadiness}
+              selectedNextStepSurface={selectedInvocationSurface.nextStepSurface}
             />
           ) : clearInvocationDetailHref && selectedInvocationSurface.kind === "blocked" ? (
             <SensitiveAccessBlockedCard

@@ -1110,14 +1110,16 @@ export function buildPublishedInvocationFailureReasonCardSurface({
 export function buildPublishedInvocationSelectedNextStepSurface({
   invocationId,
   nextStep,
+  title,
   surfaceCopy = buildPublishedInvocationActivityDetailsSurfaceCopy()
 }: {
   invocationId: string;
   nextStep: PublishedInvocationRecommendedNextStep;
+  title?: string;
   surfaceCopy?: PublishedInvocationActivityDetailsSurfaceCopy;
 }): PublishedInvocationSelectedNextStepSurface {
   return {
-    title: surfaceCopy.selectedInvocationNextStepTitle,
+    title: title ?? surfaceCopy.selectedInvocationNextStepTitle,
     invocationId,
     label: nextStep.label,
     detail: nextStep.detail,

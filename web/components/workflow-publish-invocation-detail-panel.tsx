@@ -24,6 +24,7 @@ import {
   buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationSkillTraceSurface,
   buildPublishedInvocationRecommendedNextStep,
+  buildPublishedInvocationSelectedNextStepSurface,
   formatPublishedInvocationPayloadPreview,
   buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationInboxHref,
@@ -37,7 +38,8 @@ import {
   listPublishedInvocationRunFollowUpEvidenceChips,
   listPublishedInvocationRunFollowUpSampleMetaRows,
   listPublishedInvocationRunFollowUpSampleViews,
-  normalizePublishedInvocationRunSnapshot
+  normalizePublishedInvocationRunSnapshot,
+  type PublishedInvocationSelectedNextStepSurface
 } from "@/lib/published-invocation-presenters";
 import {
   buildExecutionFocusSectionSurfaceCopy,
@@ -56,13 +58,15 @@ type WorkflowPublishInvocationDetailPanelProps = {
   tools: PluginToolRegistryItem[];
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  selectedNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
 };
 export function WorkflowPublishInvocationDetailPanel({
   detail,
   clearHref,
   tools,
   callbackWaitingAutomation,
-  sandboxReadiness
+  sandboxReadiness,
+  selectedNextStepSurface = null
 }: WorkflowPublishInvocationDetailPanelProps) {
   const entrySurfaceCopy = buildPublishedInvocationEntrySurfaceCopy();
   const {
@@ -151,6 +155,15 @@ export function WorkflowPublishInvocationDetailPanel({
     blockingInboxHref,
     approvalInboxHref
   });
+  const resolvedNextStepSurface =
+    selectedNextStepSurface ??
+    (recommendedNextStep
+      ? buildPublishedInvocationSelectedNextStepSurface({
+          invocationId: invocation.id,
+          nextStep: recommendedNextStep,
+          title: detailSurfaceCopy.recommendedNextStepTitle
+        })
+      : null);
   const runDrilldownRows = listPublishedInvocationDetailRunRows({
     runId: run?.id ?? invocation.run_id ?? null,
     runStatus,
@@ -422,18 +435,18 @@ export function WorkflowPublishInvocationDetailPanel({
         </div>
       ) : null}
 
-      {recommendedNextStep ? (
+      {resolvedNextStepSurface ? (
         <div className="entry-card compact-card">
           <div className="payload-card-header">
-            <span className="status-meta">{detailSurfaceCopy.recommendedNextStepTitle}</span>
-            <span className="event-chip">{recommendedNextStep.label}</span>
-            {recommendedNextStep.href && recommendedNextStep.href_label ? (
-              <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
-                {recommendedNextStep.href_label}
+            <span className="status-meta">{resolvedNextStepSurface.title}</span>
+            <span className="event-chip">{resolvedNextStepSurface.label}</span>
+            {resolvedNextStepSurface.href && resolvedNextStepSurface.hrefLabel ? (
+              <Link className="event-chip inbox-filter-link" href={resolvedNextStepSurface.href}>
+                {resolvedNextStepSurface.hrefLabel}
               </Link>
             ) : null}
           </div>
-          <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
+          <p className="section-copy entry-copy">{resolvedNextStepSurface.detail}</p>
         </div>
       ) : null}
 
