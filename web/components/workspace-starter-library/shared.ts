@@ -1,4 +1,7 @@
-import type { WorkflowBusinessTrack } from "@/lib/workflow-business-tracks";
+import {
+  WORKFLOW_BUSINESS_TRACKS,
+  type WorkflowBusinessTrack
+} from "@/lib/workflow-business-tracks";
 import type {
   WorkspaceStarterBulkAction,
   WorkspaceStarterBulkActionResult,
@@ -10,6 +13,20 @@ import type {
 
 export type TrackFilter = "all" | WorkflowBusinessTrack;
 export type ArchiveFilter = "active" | "archived" | "all";
+
+export type WorkspaceStarterLibraryViewState = {
+  activeTrack: TrackFilter;
+  archiveFilter: ArchiveFilter;
+  searchQuery: string;
+  selectedTemplateId: string | null;
+};
+
+export const DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE: WorkspaceStarterLibraryViewState = {
+  activeTrack: "all",
+  archiveFilter: "active",
+  searchQuery: "",
+  selectedTemplateId: null
+};
 
 export type WorkspaceStarterFormState = {
   name: string;
@@ -36,6 +53,116 @@ export type WorkspaceStarterBulkAffectedStarterTarget = {
   driftNodeCount: number;
   archived: boolean;
 };
+
+type WorkspaceStarterLibrarySearchParamSource =
+  | URLSearchParams
+  | Record<string, string | string[] | undefined>;
+
+const WORKSPACE_STARTER_LIBRARY_TRACK_FILTERS = new Set<TrackFilter>([
+  "all",
+  ...WORKFLOW_BUSINESS_TRACKS.map((track) => track.id)
+]);
+
+const WORKSPACE_STARTER_LIBRARY_ARCHIVE_FILTERS = new Set<ArchiveFilter>([
+  "active",
+  "archived",
+  "all"
+]);
+
+export function filterWorkspaceStarterTemplates(
+  templates: WorkspaceStarterTemplateItem[],
+  viewState: Pick<WorkspaceStarterLibraryViewState, "activeTrack" | "archiveFilter" | "searchQuery">
+) {
+  const normalizedSearch = viewState.searchQuery.trim().toLowerCase();
+
+  return templates.filter((template) => {
+    if (viewState.archiveFilter === "active" && template.archived) {
+      return false;
+    }
+    if (viewState.archiveFilter === "archived" && !template.archived) {
+      return false;
+    }
+    if (viewState.activeTrack !== "all" && template.business_track !== viewState.activeTrack) {
+      return false;
+    }
+    if (!normalizedSearch) {
+      return true;
+    }
+
+    const haystack = [
+      template.name,
+      template.description,
+      template.workflow_focus,
+      template.default_workflow_name,
+      template.recommended_next_step,
+      template.tags.join(" ")
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    return haystack.includes(normalizedSearch);
+  });
+}
+
+export function readWorkspaceStarterLibraryViewState(
+  searchParams: WorkspaceStarterLibrarySearchParamSource
+): WorkspaceStarterLibraryViewState {
+  const trackValue = firstSearchValue(searchParams, "track");
+  const archiveValue = firstSearchValue(searchParams, "archive");
+
+  return {
+    activeTrack: WORKSPACE_STARTER_LIBRARY_TRACK_FILTERS.has(trackValue as TrackFilter)
+      ? (trackValue as TrackFilter)
+      : DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE.activeTrack,
+    archiveFilter: WORKSPACE_STARTER_LIBRARY_ARCHIVE_FILTERS.has(archiveValue as ArchiveFilter)
+      ? (archiveValue as ArchiveFilter)
+      : DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE.archiveFilter,
+    searchQuery: firstSearchValue(searchParams, "q") ?? DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE.searchQuery,
+    selectedTemplateId: firstSearchValue(searchParams, "starter")
+  };
+}
+
+export function resolveWorkspaceStarterLibraryViewState(
+  searchParams: WorkspaceStarterLibrarySearchParamSource,
+  templates: WorkspaceStarterTemplateItem[]
+): WorkspaceStarterLibraryViewState {
+  const viewState = readWorkspaceStarterLibraryViewState(searchParams);
+  const filteredTemplates = filterWorkspaceStarterTemplates(templates, viewState);
+  const hasSelectedTemplate = viewState.selectedTemplateId
+    ? filteredTemplates.some((template) => template.id === viewState.selectedTemplateId)
+    : false;
+
+  return {
+    ...viewState,
+    selectedTemplateId: hasSelectedTemplate
+      ? viewState.selectedTemplateId
+      : filteredTemplates[0]?.id ?? templates[0]?.id ?? null
+  };
+}
+
+export function buildWorkspaceStarterLibrarySearchParams(
+  viewState: WorkspaceStarterLibraryViewState
+) {
+  const searchParams = new URLSearchParams();
+
+  if (viewState.activeTrack !== DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE.activeTrack) {
+    searchParams.set("track", viewState.activeTrack);
+  }
+  if (viewState.archiveFilter !== DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE.archiveFilter) {
+    searchParams.set("archive", viewState.archiveFilter);
+  }
+
+  const normalizedSearchQuery = viewState.searchQuery.trim();
+  if (normalizedSearchQuery) {
+    searchParams.set("q", normalizedSearchQuery);
+  }
+  if (viewState.selectedTemplateId) {
+    searchParams.set("starter", viewState.selectedTemplateId);
+  }
+
+  searchParams.sort();
+  return searchParams;
+}
 
 export function buildFormState(
   template: WorkspaceStarterTemplateItem
@@ -404,6 +531,18 @@ function countSummaryChanges(summary: WorkspaceStarterSourceDiffSummary | null) 
 
 function normalizePayload(value: unknown): Record<string, unknown> | null {
   return isRecord(value) ? value : null;
+}
+
+function firstSearchValue(
+  source: WorkspaceStarterLibrarySearchParamSource,
+  key: string
+) {
+  if (source instanceof URLSearchParams) {
+    return normalizeString(source.get(key));
+  }
+
+  const value = source[key];
+  return normalizeString(Array.isArray(value) ? value[0] : value);
 }
 
 function normalizeSourceDiffSummary(value: unknown): WorkspaceStarterSourceDiffSummary | null {

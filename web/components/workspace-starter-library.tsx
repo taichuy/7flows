@@ -7,16 +7,19 @@ import { WorkspaceStarterMetadataPanel } from "@/components/workspace-starter-li
 import { WorkspaceStarterSourceDiffPanel } from "@/components/workspace-starter-library/source-diff-panel";
 import { WorkspaceStarterTemplateListPanel } from "@/components/workspace-starter-library/template-list-panel";
 import { useWorkspaceStarterLibraryState } from "@/components/workspace-starter-library/use-workspace-starter-library-state";
+import type { WorkspaceStarterLibraryViewState } from "@/components/workspace-starter-library/shared";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
 
 type WorkspaceStarterLibraryProps = {
   initialTemplates: WorkspaceStarterTemplateItem[];
+  initialViewState: WorkspaceStarterLibraryViewState;
   tools: PluginToolRegistryItem[];
 };
 
 export function WorkspaceStarterLibrary({
   initialTemplates,
+  initialViewState,
   tools
 }: WorkspaceStarterLibraryProps) {
   const {
@@ -65,7 +68,7 @@ export function WorkspaceStarterLibrary({
     strongIsolationTemplateCount,
     templateToolGovernanceById,
     templates
-  } = useWorkspaceStarterLibraryState(initialTemplates, tools);
+  } = useWorkspaceStarterLibraryState(initialTemplates, tools, initialViewState);
 
   return (
     <main className="editor-shell">

@@ -22,15 +22,18 @@ import { getWorkflowBusinessTrack } from "@/lib/workflow-business-tracks";
 import { summarizeWorkspaceStarterSourceStatus } from "@/lib/workspace-starter-source-status";
 
 import {
+  buildWorkspaceStarterLibrarySearchParams,
   buildBulkActionMessage,
   buildFormState,
   buildUpdatePayload,
+  filterWorkspaceStarterTemplates,
   getWorkspaceStarterBulkActionConfirmationMessage,
   getWorkspaceStarterBulkActionLabel,
   summarizeValidationIssues,
   type ArchiveFilter,
   type TrackFilter,
   type WorkspaceStarterFormState,
+  type WorkspaceStarterLibraryViewState,
   type WorkspaceStarterMessageTone
 } from "./shared";
 import { useWorkspaceStarterSource } from "./use-workspace-starter-source";
@@ -58,17 +61,29 @@ const EMPTY_TEMPLATE_SANDBOX_GOVERNANCE: WorkflowDefinitionSandboxGovernance = {
 
 export function useWorkspaceStarterLibraryState(
   initialTemplates: WorkspaceStarterTemplateItem[],
-  tools: PluginToolRegistryItem[]
+  tools: PluginToolRegistryItem[],
+  initialViewState: WorkspaceStarterLibraryViewState
 ) {
+  const resolvedInitialViewState = {
+    ...initialViewState,
+    selectedTemplateId: initialViewState.selectedTemplateId ?? initialTemplates[0]?.id ?? null
+  } satisfies WorkspaceStarterLibraryViewState;
+  const initialSelectedTemplate = resolvedInitialViewState.selectedTemplateId
+    ? initialTemplates.find((template) => template.id === resolvedInitialViewState.selectedTemplateId) ??
+      initialTemplates[0] ??
+      null
+    : initialTemplates[0] ?? null;
   const [templates, setTemplates] = useState(initialTemplates);
-  const [activeTrack, setActiveTrack] = useState<TrackFilter>("all");
-  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>("active");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTrack, setActiveTrack] = useState<TrackFilter>(resolvedInitialViewState.activeTrack);
+  const [archiveFilter, setArchiveFilter] = useState<ArchiveFilter>(
+    resolvedInitialViewState.archiveFilter
+  );
+  const [searchQuery, setSearchQuery] = useState(resolvedInitialViewState.searchQuery);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
-    initialTemplates[0]?.id ?? null
+    resolvedInitialViewState.selectedTemplateId
   );
   const [formState, setFormState] = useState<WorkspaceStarterFormState | null>(
-    initialTemplates[0] ? buildFormState(initialTemplates[0]) : null
+    initialSelectedTemplate ? buildFormState(initialSelectedTemplate) : null
   );
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] =
@@ -80,33 +95,10 @@ export function useWorkspaceStarterLibraryState(
     useState<WorkspaceStarterBulkActionResult | null>(null);
 
   const filteredTemplates = useMemo(() => {
-    const normalizedSearch = searchQuery.trim().toLowerCase();
-    return templates.filter((template) => {
-      if (archiveFilter === "active" && template.archived) {
-        return false;
-      }
-      if (archiveFilter === "archived" && !template.archived) {
-        return false;
-      }
-      if (activeTrack !== "all" && template.business_track !== activeTrack) {
-        return false;
-      }
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      const haystack = [
-        template.name,
-        template.description,
-        template.workflow_focus,
-        template.default_workflow_name,
-        template.recommended_next_step,
-        template.tags.join(" ")
-      ]
-        .join(" ")
-        .toLowerCase();
-
-      return haystack.includes(normalizedSearch);
+    return filterWorkspaceStarterTemplates(templates, {
+      activeTrack,
+      archiveFilter,
+      searchQuery
     });
   }, [activeTrack, archiveFilter, searchQuery, templates]);
 
@@ -246,6 +238,25 @@ export function useWorkspaceStarterLibraryState(
 
     setSelectedTemplateId(filteredTemplates[0].id);
   }, [filteredTemplates, selectedTemplateId]);
+
+  useEffect(() => {
+    const nextSearchParams = buildWorkspaceStarterLibrarySearchParams({
+      activeTrack,
+      archiveFilter,
+      searchQuery,
+      selectedTemplateId
+    });
+    const nextSearch = nextSearchParams.toString();
+    const currentSearch = window.location.search.startsWith("?")
+      ? window.location.search.slice(1)
+      : window.location.search;
+    if (nextSearch === currentSearch) {
+      return;
+    }
+
+    const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash}`;
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }, [activeTrack, archiveFilter, searchQuery, selectedTemplateId]);
 
   useEffect(() => {
     setFormState(selectedTemplate ? buildFormState(selectedTemplate) : null);

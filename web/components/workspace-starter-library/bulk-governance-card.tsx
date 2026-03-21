@@ -109,7 +109,8 @@ export function WorkspaceStarterBulkGovernanceCard({
               <p className="binding-meta">Affected starter focus</p>
               <p className="section-copy starter-summary-copy">
                 点击受影响 starter 会自动切换筛选范围，并把右侧详情聚焦到对应模板的
-                source diff / metadata。
+                source diff / metadata；当前焦点也会同步进 URL，方便刷新后恢复或直接分享给
+                operator。
               </p>
               <div className="starter-tag-row">
                 {affectedStarterTargets.map((item) => (
