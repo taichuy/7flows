@@ -4,6 +4,7 @@ import { BranchNodeConfigForm } from "@/components/workflow-node-config-form/bra
 import { LlmAgentNodeConfigForm } from "@/components/workflow-node-config-form/llm-agent-node-config-form";
 import { McpQueryNodeConfigForm } from "@/components/workflow-node-config-form/mcp-query-node-config-form";
 import { OutputNodeConfigForm } from "@/components/workflow-node-config-form/output-node-config-form";
+import { SandboxCodeNodeConfigForm } from "@/components/workflow-node-config-form/sandbox-code-node-config-form";
 import type { WorkflowNodeConfigFormProps } from "@/components/workflow-node-config-form/shared";
 import { ToolNodeConfigForm } from "@/components/workflow-node-config-form/tool-node-config-form";
 
@@ -42,6 +43,16 @@ export function WorkflowNodeConfigForm({
       );
     case "mcp_query":
       return <McpQueryNodeConfigForm node={node} nodes={nodes} onChange={onChange} />;
+    case "sandbox_code":
+      return (
+        <SandboxCodeNodeConfigForm
+          node={node}
+          sandboxReadiness={sandboxReadiness}
+          highlightedFieldPath={highlightedFieldPath}
+          focusedValidationItem={focusedValidationItem}
+          onChange={onChange}
+        />
+      );
     case "condition":
     case "router":
       return <BranchNodeConfigForm node={node} onChange={onChange} />;

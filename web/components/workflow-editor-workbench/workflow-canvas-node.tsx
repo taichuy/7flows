@@ -20,6 +20,8 @@ export function nodeColorByType(type: string) {
       return "#d0632d";
     case "tool":
       return "#2f6ca3";
+    case "sandbox_code":
+      return "#b45309";
     case "condition":
     case "router":
       return "#8b5cf6";

@@ -223,6 +223,16 @@ function resolveNodeFieldLabel(fieldPath: string) {
       return "Tool adapter";
     case "config.tool.toolId":
       return "Tool id";
+    case "config.language":
+      return "Sandbox language";
+    case "config.code":
+      return "Sandbox code";
+    case "config.dependencyMode":
+      return "Sandbox dependency mode";
+    case "config.builtinPackageSet":
+      return "Sandbox builtin package set";
+    case "config.dependencyRef":
+      return "Sandbox dependency ref";
     case "config.skillIds":
       return "Skill IDs";
     case "config.skillBinding":
@@ -334,6 +344,26 @@ function resolveNodeSuggestion(item: WorkflowValidationNavigatorItem, fieldPath:
     }
 
     return "先确认当前节点确实存在上游入边，再决定是否保留 join policy；如果不需要 join gate，就清空这段 override。";
+  }
+
+  if (fieldPath === "config.code") {
+    return "补一段非空代码，并显式写出 `result = {...}` 这类稳定输出，避免节点保存后直到 runtime 才暴露空执行体。";
+  }
+
+  if (fieldPath === "config.language") {
+    return "优先使用当前 sandbox readiness 已声明支持的语言；如果当前只打算走 host-controlled MVP 路径，也请保持语言声明和代码内容一致。";
+  }
+
+  if (fieldPath === "config.dependencyMode") {
+    return "先把 sandbox_code 的依赖声明收口到 `builtin / dependency_ref / backend_managed` 之一；如果当前没有额外依赖，直接清空这个字段更稳妥。";
+  }
+
+  if (fieldPath === "config.builtinPackageSet") {
+    return "只有在 `config.dependencyMode = builtin` 时才保留 builtin package set；否则请清空它，避免 definition 和实际依赖契约继续漂移。";
+  }
+
+  if (fieldPath === "config.dependencyRef") {
+    return "只有在 `config.dependencyMode = dependency_ref` 时才保留 dependency ref；否则请清空它，避免保存后继续被后端 fail-closed。";
   }
 
   if (fieldPath === "config.toolPolicy.allowedToolIds") {

@@ -134,12 +134,18 @@ def build_node_catalog_items(
             capability_group="integration",
             business_track="编排节点能力",
             tags=["sandbox", "code", "runtime-ready"],
-            palette=_build_palette(enabled=False, order=25, x=500, y=420),
-            defaults=_build_defaults(name="Sandbox Code"),
+            palette=_build_palette(enabled=True, order=25, x=500, y=420),
+            defaults=_build_defaults(
+                name="Sandbox Code",
+                config={
+                    "language": "python",
+                    "code": "result = {'ok': True}",
+                },
+            ),
             support_status="available",
             support_summary=(
-                "当前已进入 persistence / runtime 主链，并会在保存时按 sandbox readiness fail-closed；"
-                "由于缺少专门的节点表单与编辑体验，暂不开放进 editor palette。"
+                "当前已进入 editor / persistence / runtime 主链，并会在保存时按 sandbox readiness fail-closed；"
+                "默认仍走强隔离 execution class，若当前只想走 host-controlled MVP 路径，请在 runtime policy 中显式改成 subprocess。"
             ),
         ),
         WorkflowNodeCatalogItem(

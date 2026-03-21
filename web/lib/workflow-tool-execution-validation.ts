@@ -193,41 +193,74 @@ function buildSandboxCodeExecutionIssues({
     extractExplicitExecutionClass(execution) ?? resolveDefaultExecutionClass("sandbox_code");
   const context = `Sandbox code 节点 ${nodeName} (${nodeId})`;
   const executionPath = `nodes.${nodeIndex}.runtimePolicy.execution`;
+  const issues: WorkflowToolExecutionValidationIssue[] = [];
+  const code = normalizeString(config.code);
+  const configDependencyMode = normalizeDependencyMode(config.dependencyMode);
+  const configBuiltinPackageSet = normalizeString(config.builtinPackageSet);
+  const configDependencyRef = normalizeString(config.dependencyRef);
+
+  if (!code) {
+    issues.push({
+      nodeId,
+      nodeName,
+      message: `${context} 需要非空的 code 才能进入 sandbox / subprocess 执行链。`,
+      path: `nodes.${nodeIndex}.config.code`,
+      field: "code"
+    });
+  }
+
+  if (configBuiltinPackageSet && configDependencyMode !== "builtin") {
+    issues.push({
+      nodeId,
+      nodeName,
+      message: `${context} 的 config.builtinPackageSet 需要 config.dependencyMode = 'builtin'。`,
+      path: `nodes.${nodeIndex}.config.builtinPackageSet`,
+      field: "builtinPackageSet"
+    });
+  }
+
+  if (configDependencyRef && configDependencyMode !== "dependency_ref") {
+    issues.push({
+      nodeId,
+      nodeName,
+      message: `${context} 的 config.dependencyRef 需要 config.dependencyMode = 'dependency_ref'。`,
+      path: `nodes.${nodeIndex}.config.dependencyRef`,
+      field: "dependencyRef"
+    });
+  }
 
   if (requestedExecutionClass === "subprocess") {
-    return [];
+    return issues;
   }
 
   if (requestedExecutionClass === "inline") {
-    return [
-      {
-        nodeId,
-        nodeName,
-        message:
-          `${context} 不能使用 execution class 'inline'。当前 host-controlled MVP 路径请显式改用 ` +
-          `'subprocess'，或先为 'sandbox' / 'microvm' 准备兼容 backend。`,
-        path: executionPath,
-        field: "execution"
-      }
-    ];
+    issues.push({
+      nodeId,
+      nodeName,
+      message:
+        `${context} 不能使用 execution class 'inline'。当前 host-controlled MVP 路径请显式改用 ` +
+        `'subprocess'，或先为 'sandbox' / 'microvm' 准备兼容 backend。`,
+      path: executionPath,
+      field: "execution"
+    });
+    return issues;
   }
 
   if (requestedExecutionClass !== "sandbox" && requestedExecutionClass !== "microvm") {
-    return [
-      {
-        nodeId,
-        nodeName,
-        message:
-          `${context} 请求了不受支持的 execution class '${requestedExecutionClass}'。强隔离路径在 ` +
-          "兼容 sandbox backend 就绪前必须 fail-closed。",
-        path: executionPath,
-        field: "execution"
-      }
-    ];
+    issues.push({
+      nodeId,
+      nodeName,
+      message:
+        `${context} 请求了不受支持的 execution class '${requestedExecutionClass}'。强隔离路径在 ` +
+        "兼容 sandbox backend 就绪前必须 fail-closed。",
+      path: executionPath,
+      field: "execution"
+    });
+    return issues;
   }
 
   if (!sandboxReadiness) {
-    return [];
+    return issues;
   }
 
   const language = normalizeString(config.language)?.toLowerCase() ?? "python";
@@ -267,7 +300,8 @@ function buildSandboxCodeExecutionIssues({
     field: "execution"
   });
   if (capabilityIssue) {
-    return [capabilityIssue];
+    issues.push(capabilityIssue);
+    return issues;
   }
 
   const compatibility = describeSandboxBackendCompatibility({
@@ -290,20 +324,19 @@ function buildSandboxCodeExecutionIssues({
   });
 
   if (compatibility.available) {
-    return [];
+    return issues;
   }
 
-  return [
-    {
-      nodeId,
-      nodeName,
-      message:
-        `${context} 请求 execution class '${requestedExecutionClass}'，但当前没有兼容的 sandbox backend 可用。` +
-        `${compatibility.reason ? ` ${compatibility.reason}` : ""}`,
-      path: executionPath,
-      field: "execution"
-    }
-  ];
+  issues.push({
+    nodeId,
+    nodeName,
+    message:
+      `${context} 请求 execution class '${requestedExecutionClass}'，但当前没有兼容的 sandbox backend 可用。` +
+      `${compatibility.reason ? ` ${compatibility.reason}` : ""}`,
+    path: executionPath,
+    field: "execution"
+  });
+  return issues;
 }
 
 function buildToolNodeExecutionIssues({

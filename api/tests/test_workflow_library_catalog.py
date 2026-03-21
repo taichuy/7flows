@@ -76,8 +76,12 @@ def test_build_node_catalog_marks_planned_nodes_without_confusing_palette_visibi
     assert trigger_node.palette.enabled is False
 
     assert sandbox_node.support_status == "available"
-    assert sandbox_node.palette.enabled is False
-    assert "persistence / runtime 主链" in sandbox_node.support_summary
+    assert sandbox_node.palette.enabled is True
+    assert sandbox_node.defaults.config == {
+        "language": "python",
+        "code": "result = {'ok': True}",
+    }
+    assert "editor / persistence / runtime 主链" in sandbox_node.support_summary
 
     assert loop_node.support_status == "planned"
     assert loop_node.palette.enabled is False

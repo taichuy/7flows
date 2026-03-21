@@ -271,6 +271,56 @@ describe("workflow tool execution validation", () => {
     expect(issues[0]?.message).toContain("execution class 'sandbox'");
   });
 
+  it("对 sandbox_code 的 config 依赖契约漂移生成字段级 issue", () => {
+    const issues = buildWorkflowToolExecutionValidationIssues(
+      createDefinition({
+        config: {
+          dependencyRef: "bundle:analytics-safe-v1"
+        },
+        runtimePolicy: {
+          execution: {
+            class: "subprocess"
+          }
+        }
+      }),
+      [],
+      [],
+      {
+        sandboxReadiness: createSandboxReadiness()
+      }
+    );
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.path).toBe("nodes.1.config.dependencyRef");
+    expect(issues[0]?.field).toBe("dependencyRef");
+    expect(issues[0]?.message).toContain("config.dependencyMode = 'dependency_ref'");
+  });
+
+  it("对 sandbox_code 的空 code 生成字段级 issue", () => {
+    const issues = buildWorkflowToolExecutionValidationIssues(
+      createDefinition({
+        config: {
+          code: "   "
+        },
+        runtimePolicy: {
+          execution: {
+            class: "subprocess"
+          }
+        }
+      }),
+      [],
+      [],
+      {
+        sandboxReadiness: createSandboxReadiness()
+      }
+    );
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.path).toBe("nodes.1.config.code");
+    expect(issues[0]?.field).toBe("code");
+    expect(issues[0]?.message).toContain("需要非空的 code");
+  });
+
   it("按 runtimePolicy.execution 校验 sandbox_code 的 builtinPackageSet hints", () => {
     const issues = buildWorkflowToolExecutionValidationIssues(
       createDefinition({
