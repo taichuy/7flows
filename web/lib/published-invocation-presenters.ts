@@ -272,6 +272,9 @@ export type PublishedInvocationWaitingCardSurface = {
 };
 
 export type PublishedInvocationCallbackBlockerSurface = {
+  title: string;
+  displayHeadline: string;
+  latestEventsTitle: string;
   headline: string | null;
   followUp: string | null;
   chips: string[];
@@ -280,10 +283,13 @@ export type PublishedInvocationCallbackBlockerSurface = {
 };
 
 export type PublishedInvocationCallbackTicketSurface = {
+  title: string;
   ticketId: string;
   status: string;
   inboxHref: string | null;
+  inboxLinkLabel: string;
   detailRows: CallbackWaitingDetailRow[];
+  payloadPreviewTitle: string;
   payloadPreview: string | null;
 };
 
@@ -320,6 +326,13 @@ export type PublishedInvocationActivityInsightsSurfaceCopy = {
   rateLimitDisabledEmptyState: string;
   issueSignalsTitle: string;
   issueSignalsDescription: string;
+};
+
+export type PublishedInvocationIssueSignalsSurface = {
+  title: string;
+  description: string;
+  insight: string | null;
+  chips: string[];
 };
 
 export type PublishedInvocationSkillTraceNodeSurface = {
@@ -694,13 +707,15 @@ export function buildPublishedInvocationCallbackBlockerSurface({
   callbackTickets,
   sensitiveAccessEntries,
   callbackWaitingAutomation,
-  callbackWaitingExplanation
+  callbackWaitingExplanation,
+  surfaceCopy = buildPublishedInvocationCallbackDrilldownSurfaceCopy()
 }: {
   invocation: PublishedEndpointInvocationItem;
   callbackTickets: PublishedEndpointInvocationCallbackTicketItem[];
   sensitiveAccessEntries: SensitiveAccessTimelineEntry[];
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   callbackWaitingExplanation?: RunExecutionFocusExplanation | null;
+  surfaceCopy?: PublishedInvocationCallbackDrilldownSurfaceCopy;
 }): PublishedInvocationCallbackBlockerSurface {
   const waitingLifecycle = invocation.run_waiting_lifecycle ?? null;
   const callbackLifecycle = waitingLifecycle?.callback_waiting_lifecycle ?? null;
@@ -719,6 +734,15 @@ export function buildPublishedInvocationCallbackBlockerSurface({
   });
 
   return {
+    title: surfaceCopy.blockersTitle,
+    displayHeadline:
+      formatPublishedInvocationWaitingHeadline({
+        explanation: callbackWaitingExplanation,
+        fallbackHeadline,
+        nodeRunId: waitingLifecycle?.node_run_id ?? invocation.run_current_node_id ?? null,
+        nodeStatus: waitingLifecycle?.node_status ?? null
+      }) ?? surfaceCopy.blockersEmptyHeadline,
+    latestEventsTitle: surfaceCopy.latestEventsTitle,
     headline: formatPublishedInvocationWaitingHeadline({
       explanation: callbackWaitingExplanation,
       fallbackHeadline,
@@ -764,22 +788,27 @@ export function buildPublishedInvocationCallbackBlockerSurface({
 
 export function buildPublishedInvocationCallbackTicketSurface({
   invocation,
-  ticket
+  ticket,
+  surfaceCopy = buildPublishedInvocationCallbackDrilldownSurfaceCopy()
 }: {
   invocation: PublishedEndpointInvocationItem;
   ticket: PublishedEndpointInvocationCallbackTicketItem;
+  surfaceCopy?: PublishedInvocationCallbackDrilldownSurfaceCopy;
 }): PublishedInvocationCallbackTicketSurface {
   return {
+    title: surfaceCopy.ticketTitle,
     ticketId: ticket.ticket,
     status: ticket.status,
     inboxHref: buildCallbackTicketInboxHref(ticket, {
       runId: invocation.run_id ?? null,
       nodeRunId: invocation.run_waiting_lifecycle?.node_run_id ?? null
     }),
+    inboxLinkLabel: surfaceCopy.ticketInboxLinkLabel,
     detailRows: listCallbackTicketDetailRows(ticket, {
       mode: "detail",
       includeEmptyLifecycle: true
     }),
+    payloadPreviewTitle: surfaceCopy.payloadPreviewTitle,
     payloadPreview: ticket.callback_payload
       ? formatPublishedInvocationPayloadPreview(ticket.callback_payload)
       : null
@@ -870,6 +899,34 @@ export function buildPublishedInvocationActivityTrafficMixSurface({
       requestSurfaceCounts,
       formatPublishedInvocationSurfaceLabel
     )
+  };
+}
+
+export function buildPublishedInvocationIssueSignalsSurface({
+  reasonCounts,
+  failureReasons,
+  sandboxReadiness,
+  surfaceCopy = buildPublishedInvocationActivityInsightsSurfaceCopy()
+}: {
+  reasonCounts?: PublishedEndpointInvocationFacetItem[] | null;
+  failureReasons?: PublishedInvocationFailureReasonItem[] | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
+  surfaceCopy?: PublishedInvocationActivityInsightsSurfaceCopy;
+}): PublishedInvocationIssueSignalsSurface | null {
+  const chips = listPublishedInvocationIssueSignalChips(reasonCounts ?? []);
+  if (chips.length === 0) {
+    return null;
+  }
+
+  return {
+    title: surfaceCopy.issueSignalsTitle,
+    description: surfaceCopy.issueSignalsDescription,
+    insight: buildPublishedInvocationFailureReasonInsight({
+      reasonCounts,
+      failureReasons,
+      sandboxReadiness
+    }),
+    chips
   };
 }
 

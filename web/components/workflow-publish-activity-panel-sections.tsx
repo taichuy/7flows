@@ -23,17 +23,16 @@ import {
   buildPublishedInvocationActivityTrafficMixSurface,
   buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationFailureReasonCardSurface,
-  buildPublishedInvocationFailureReasonInsight,
   buildPublishedInvocationCanonicalFollowUpCopy,
   buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationInboxHref,
+  buildPublishedInvocationIssueSignalsSurface,
   buildPublishedInvocationRateLimitWindowInsight,
   buildPublishedInvocationRecommendedNextStep,
   buildPublishedInvocationSelectedNextStepSurface,
   buildPublishedInvocationWaitingOverview,
   formatRateLimitPressure,
   listPublishedInvocationActivitySummaryRows,
-  listPublishedInvocationIssueSignalChips,
   listPublishedInvocationActivityWaitingRows,
   listPublishedInvocationRateLimitRows,
   listPublishedInvocationRunFollowUpSampleViews
@@ -119,12 +118,12 @@ export function WorkflowPublishActivityInsights({
     runStatusCounts,
     runStatesEmptyLabel: insightsSurfaceCopy.trafficRunStatesEmptyLabel
   });
-  const failureReasonInsight = buildPublishedInvocationFailureReasonInsight({
+  const issueSignalsSurface = buildPublishedInvocationIssueSignalsSurface({
     reasonCounts,
     failureReasons: invocationAudit?.facets.recent_failure_reasons ?? [],
-    sandboxReadiness
+    sandboxReadiness,
+    surfaceCopy: insightsSurfaceCopy
   });
-  const issueSignalChips = listPublishedInvocationIssueSignalChips(reasonCounts);
 
   return (
     <>
@@ -225,15 +224,15 @@ export function WorkflowPublishActivityInsights({
         timeWindowLabel={formatTimeWindowLabel(activeTimeWindow ?? "all")}
       />
 
-      {reasonCounts.length ? (
+      {issueSignalsSurface ? (
         <div className="entry-card compact-card">
-          <p className="entry-card-title">{insightsSurfaceCopy.issueSignalsTitle}</p>
-          <p className="section-copy entry-copy">{insightsSurfaceCopy.issueSignalsDescription}</p>
-          {failureReasonInsight ? (
-            <p className="section-copy entry-copy">{failureReasonInsight}</p>
+          <p className="entry-card-title">{issueSignalsSurface.title}</p>
+          <p className="section-copy entry-copy">{issueSignalsSurface.description}</p>
+          {issueSignalsSurface.insight ? (
+            <p className="section-copy entry-copy">{issueSignalsSurface.insight}</p>
           ) : null}
           <div className="tool-badge-row">
-            {issueSignalChips.map((chip) => (
+            {issueSignalsSurface.chips.map((chip) => (
               <span className="event-chip" key={chip}>
                 {chip}
               </span>

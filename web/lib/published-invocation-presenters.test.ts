@@ -5,6 +5,7 @@ import {
   buildPublishedInvocationApiKeyUsageCardSurface,
   buildPublishedInvocationActivityDetailsSurfaceCopy,
   buildPublishedInvocationActivityInsightsSurfaceCopy,
+  buildPublishedInvocationIssueSignalsSurface,
   buildPublishedInvocationActivityTrafficMixSurface,
   buildPublishedCacheInventorySurfaceCopy,
   buildPublishedInvocationCallbackDrilldownSurfaceCopy,
@@ -193,7 +194,10 @@ describe("published invocation presenters", () => {
         follow_up: "inspect callback"
       }
     });
+    expect(blockerSurface.title).toBe("Resume blockers");
     expect(blockerSurface.headline).toBe("callback pending");
+    expect(blockerSurface.displayHeadline).toBe("callback pending");
+    expect(blockerSurface.latestEventsTitle).toBe("Latest callback events");
     expect(blockerSurface.chips).toContain("tickets 1");
     expect(blockerSurface.blockerRows.length).toBeGreaterThan(0);
     expect(blockerSurface.eventRows.length).toBeGreaterThan(0);
@@ -202,8 +206,11 @@ describe("published invocation presenters", () => {
       invocation: callbackInvocation,
       ticket: callbackTickets[0]
     });
+    expect(ticketSurface.title).toBe("Callback ticket");
     expect(ticketSurface.inboxHref).toContain("node-run-callback-1");
+    expect(ticketSurface.inboxLinkLabel).toBe("open ticket inbox slice");
     expect(ticketSurface.detailRows.length).toBeGreaterThan(0);
+    expect(ticketSurface.payloadPreviewTitle).toBe("callback payload preview");
     expect(ticketSurface.payloadPreview).toContain('"ok": true');
   });
 
@@ -693,6 +700,26 @@ describe("published invocation presenters", () => {
     expect(formatPublishedInvocationMissingToolCatalogEntry("tool-missing")).toBe(
       "missing catalog entry tool-missing"
     );
+    expect(
+      buildPublishedInvocationIssueSignalsSurface({
+        reasonCounts: [
+          { value: "runtime_failed", count: 2 },
+          { value: "rate_limit_exceeded", count: 1 }
+        ],
+        failureReasons: [
+          {
+            message: "sandbox backend offline",
+            count: 2,
+            last_invoked_at: "2026-03-21T00:00:00Z"
+          }
+        ],
+        sandboxReadiness: null
+      })
+    ).toMatchObject({
+      title: "Issue signals",
+      description: "将 `rejected / failed` 聚合为稳定原因码，便于区分限流、鉴权和当前同步协议边界。",
+      chips: ["Runtime failed 2", "Rate limit exceeded 1"]
+    });
 
     expect(
       buildPublishedInvocationSkillTraceSurface({

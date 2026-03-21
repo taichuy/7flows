@@ -38,12 +38,14 @@ export function WorkflowPublishInvocationCallbackSection({
   const callbackLifecycle = waitingLifecycle?.callback_waiting_lifecycle;
   const resolvedCallbackWaitingExplanation =
     callbackWaitingExplanation ?? waitingLifecycle?.callback_waiting_explanation ?? null;
+  const surfaceCopy = buildPublishedInvocationCallbackDrilldownSurfaceCopy();
   const blockerSurface = buildPublishedInvocationCallbackBlockerSurface({
     invocation,
     callbackTickets,
     sensitiveAccessEntries,
     callbackWaitingAutomation,
-    callbackWaitingExplanation: resolvedCallbackWaitingExplanation
+    callbackWaitingExplanation: resolvedCallbackWaitingExplanation,
+    surfaceCopy
   });
   const shouldRenderBlockers =
     Boolean(blockerSurface.headline) ||
@@ -54,7 +56,8 @@ export function WorkflowPublishInvocationCallbackSection({
   const ticketSurfaces = callbackTickets.map((ticket) =>
     buildPublishedInvocationCallbackTicketSurface({
       invocation,
-      ticket
+      ticket,
+      surfaceCopy
     })
   );
   const inboxHref = buildPublishedInvocationInboxHref({
@@ -62,7 +65,6 @@ export function WorkflowPublishInvocationCallbackSection({
     callbackTickets,
     sensitiveAccessEntries
   });
-  const surfaceCopy = buildPublishedInvocationCallbackDrilldownSurfaceCopy();
 
   return (
     <section>
@@ -103,11 +105,9 @@ export function WorkflowPublishInvocationCallbackSection({
         <div className="publish-meta-grid">
           <div className="payload-card compact-card">
             <div className="payload-card-header">
-              <span className="status-meta">{surfaceCopy.blockersTitle}</span>
+              <span className="status-meta">{blockerSurface.title}</span>
             </div>
-            <p className="section-copy entry-copy">
-              {blockerSurface.headline ?? surfaceCopy.blockersEmptyHeadline}
-            </p>
+            <p className="section-copy entry-copy">{blockerSurface.displayHeadline}</p>
             {blockerSurface.followUp ? (
               <p className="binding-meta">{blockerSurface.followUp}</p>
             ) : null}
@@ -125,7 +125,7 @@ export function WorkflowPublishInvocationCallbackSection({
           </div>
           <div className="payload-card compact-card">
             <div className="payload-card-header">
-              <span className="status-meta">{surfaceCopy.latestEventsTitle}</span>
+              <span className="status-meta">{blockerSurface.latestEventsTitle}</span>
             </div>
             <dl className="compact-meta-list">
               {blockerSurface.eventRows.map((row) => (
@@ -144,13 +144,13 @@ export function WorkflowPublishInvocationCallbackSection({
           {ticketSurfaces.map((ticket) => (
             <article className="payload-card compact-card" key={ticket.ticketId}>
               <div className="payload-card-header">
-                <span className="status-meta">{surfaceCopy.ticketTitle}</span>
+                <span className="status-meta">{ticket.title}</span>
                 <span className="event-chip">{ticket.status}</span>
               </div>
               {ticket.inboxHref ? (
                 <div className="tool-badge-row">
                   <Link className="event-chip inbox-filter-link" href={ticket.inboxHref}>
-                    {surfaceCopy.ticketInboxLinkLabel}
+                    {ticket.inboxLinkLabel}
                   </Link>
                 </div>
               ) : null}
@@ -164,7 +164,7 @@ export function WorkflowPublishInvocationCallbackSection({
               </dl>
               {ticket.payloadPreview ? (
                 <>
-                  <p className="section-copy entry-copy">{surfaceCopy.payloadPreviewTitle}</p>
+                  <p className="section-copy entry-copy">{ticket.payloadPreviewTitle}</p>
                   <pre className="trace-preview">{ticket.payloadPreview}</pre>
                 </>
               ) : null}
