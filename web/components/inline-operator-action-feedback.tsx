@@ -14,7 +14,9 @@ import { formatRunSnapshotSummary } from "@/lib/operator-action-result-presenter
 import { buildOperatorRunSampleCards } from "@/lib/operator-run-sample-cards";
 import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import {
+  buildOperatorFollowUpSurfaceCopy,
   buildOperatorRecommendedNextStep,
+  buildOperatorRunSnapshotMetaRows,
   type OperatorRecommendedNextStep
 } from "@/lib/operator-follow-up-presenters";
 import { listExecutionFocusRuntimeFactBadges } from "@/lib/run-execution-focus-presenters";
@@ -39,6 +41,7 @@ export function InlineOperatorActionFeedback({
     message,
     ...structuredResult
   });
+  const surfaceCopy = buildOperatorFollowUpSurfaceCopy();
   const runFollowUp = structuredResult.runFollowUp ?? null;
   const runSnapshot = structuredResult.runSnapshot;
   const hasCallbackWaitingSummary = hasCallbackWaitingSummaryFacts(runSnapshot);
@@ -60,7 +63,7 @@ export function InlineOperatorActionFeedback({
             label: runId ? "run detail" : "execution follow-up",
             detail: model.runFollowUpFollowUp,
             href: runId ? `/runs/${encodeURIComponent(runId)}` : null,
-            href_label: runId ? "open run" : null,
+            href_label: runId ? surfaceCopy.openRunLabel : null,
             fallback_detail:
               model.runSnapshotSummary ??
               "当前 operator action 已返回新的 run snapshot；优先回到 run detail 确认 waiting、focus node 与最新执行证据。"
@@ -75,6 +78,13 @@ export function InlineOperatorActionFeedback({
     Boolean(model.runFollowUpFollowUp) &&
     model.runFollowUpFollowUp !== callbackWaitingFollowUp &&
     model.runFollowUpFollowUp !== recommendedNextStep?.detail;
+  const snapshotMetaRows = buildOperatorRunSnapshotMetaRows({
+    runStatus: model.runStatus,
+    currentNodeId: model.currentNodeId,
+    focusNodeLabel: model.focusNodeLabel,
+    waitingReason: model.waitingReason,
+    surfaceCopy
+  });
   const sampledRunCards = buildOperatorRunSampleCards(
     (runFollowUp?.sampledRuns ?? []).filter(
       (sample) => sample.snapshot && (!runId || sample.runId !== runId || !runSnapshot)
@@ -95,7 +105,7 @@ export function InlineOperatorActionFeedback({
         <span className="status-meta">{title}</span>
         {runId ? (
           <Link className="event-chip inbox-filter-link" href={`/runs/${encodeURIComponent(runId)}`}>
-            open run
+            {surfaceCopy.openRunLabel}
           </Link>
         ) : null}
       </div>
@@ -105,7 +115,7 @@ export function InlineOperatorActionFeedback({
       {recommendedNextStep ? (
         <div className="entry-card compact-card">
           <div className="payload-card-header">
-            <span className="status-meta">Recommended next step</span>
+            <span className="status-meta">{surfaceCopy.recommendedNextStepTitle}</span>
             <span className="event-chip">{recommendedNextStep.label}</span>
             {recommendedNextStep.href && recommendedNextStep.href_label ? (
               <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
@@ -128,24 +138,14 @@ export function InlineOperatorActionFeedback({
         <p className="binding-meta">{model.runSnapshotSummary}</p>
       ) : null}
 
-      {model.runStatus || model.currentNodeId || model.focusNodeLabel || model.waitingReason ? (
+      {snapshotMetaRows.length ? (
         <dl className="compact-meta-list">
-          <div>
-            <dt>Run status</dt>
-            <dd>{model.runStatus ?? "n/a"}</dd>
-          </div>
-          <div>
-            <dt>Current node</dt>
-            <dd>{model.currentNodeId ?? "n/a"}</dd>
-          </div>
-          <div>
-            <dt>Focus node</dt>
-            <dd>{model.focusNodeLabel ?? "n/a"}</dd>
-          </div>
-          <div>
-            <dt>Waiting reason</dt>
-            <dd>{model.waitingReason ?? "n/a"}</dd>
-          </div>
+          {snapshotMetaRows.map((row) => (
+            <div key={row.key}>
+              <dt>{row.label}</dt>
+              <dd>{row.value}</dd>
+            </div>
+          ))}
         </dl>
       ) : null}
 
@@ -243,7 +243,7 @@ export function InlineOperatorActionFeedback({
           />
           <SkillReferenceLoadList
             skillReferenceLoads={model.focusSkillReferenceLoads}
-            title="Focused skill trace"
+            title={surfaceCopy.focusedSkillTraceTitle}
             description="当前 operator 结果会直接复用 focus node 的 compact skill trace，方便确认 agent 本轮实际加载了哪些参考资料。"
           />
         </>

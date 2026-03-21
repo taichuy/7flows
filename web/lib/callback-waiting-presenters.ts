@@ -8,6 +8,7 @@ import type {
 } from "@/lib/get-system-overview";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import {
+  buildOperatorFollowUpSurfaceCopy,
   buildOperatorRecommendedNextStep,
   type OperatorRecommendedNextStep
 } from "@/lib/operator-follow-up-presenters";
@@ -117,18 +118,59 @@ export type CallbackWaitingRecommendedAction = {
   ctaLabel?: string;
 };
 
+export type CallbackWaitingSummarySurfaceCopy = {
+  recommendedNextStepTitle: string;
+  defaultInboxLinkLabel: string;
+  manualOverrideOptionalLabel: string;
+  optionalOverrideDescription: string;
+  waitingNodeFocusEvidenceTitle: string;
+  focusedSkillTraceTitle: string;
+  executionFocusSkillTraceDescription: string;
+  runFallbackSkillTraceDescription: string;
+  inlineLoadsSkillTraceDescription: string;
+  injectedReferencesTitle: string;
+  injectedReferencesDescription: string;
+  terminatedLabel: string;
+};
+
 const CALLBACK_WAITING_RECOMMENDED_ACTIONS_WITH_INBOX_CTA = new Set<
   CallbackWaitingRecommendedAction["kind"]
 >(["open_inbox", "inspect_termination", "monitor_callback", "watch_scheduled_resume"]);
 
+export function buildCallbackWaitingSummarySurfaceCopy(): CallbackWaitingSummarySurfaceCopy {
+  const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
+
+  return {
+    recommendedNextStepTitle: operatorSurfaceCopy.recommendedNextStepTitle,
+    defaultInboxLinkLabel: "open inbox slice",
+    manualOverrideOptionalLabel: "manual override optional",
+    optionalOverrideDescription:
+      "Callback actions stay available below as optional operator overrides when the current waiting path needs to be bypassed.",
+    waitingNodeFocusEvidenceTitle: "Waiting node focus evidence",
+    focusedSkillTraceTitle: operatorSurfaceCopy.focusedSkillTraceTitle,
+    executionFocusSkillTraceDescription:
+      "当前 callback waiting follow-up 已直接消费 execution focus 节点的 skill trace，便于把等待原因与 agent 实际注入来源放到同一条排障链。",
+    runFallbackSkillTraceDescription:
+      "当前 waiting 节点没有独立 skill trace，因此这里回退展示整个 run 的注入摘要。",
+    inlineLoadsSkillTraceDescription:
+      "当前 waiting 节点已经记录了 skill reference loads，因此可以直接在 callback follow-up 中查看该节点的注入来源。",
+    injectedReferencesTitle: "Injected references",
+    injectedReferencesDescription:
+      "当前 callback waiting、operator inbox 和 publish detail 现在围绕同一份 skill trace / load 事实解释 agent 注入来源。",
+    terminatedLabel: "callback waiting terminated"
+  };
+}
+
 export function buildCallbackWaitingRecommendedNextStep({
   action,
   inboxHref,
-  operatorFollowUp
+  operatorFollowUp,
+  surfaceCopy = buildCallbackWaitingSummarySurfaceCopy()
 }: {
   action?: CallbackWaitingRecommendedAction | null;
   inboxHref?: string | null;
   operatorFollowUp?: string | null;
+  surfaceCopy?: CallbackWaitingSummarySurfaceCopy;
 }): OperatorRecommendedNextStep | null {
   if (!action) {
     return buildOperatorRecommendedNextStep({
@@ -147,7 +189,7 @@ export function buildCallbackWaitingRecommendedNextStep({
       label: action.label,
       detail: null,
       href,
-      href_label: href ? action.ctaLabel?.trim() || "Open inbox slice" : null,
+      href_label: href ? action.ctaLabel?.trim() || surfaceCopy.defaultInboxLinkLabel : null,
       fallback_detail: action.detail
     },
     operatorFollowUp,

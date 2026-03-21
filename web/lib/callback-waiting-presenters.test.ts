@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CallbackWaitingLifecycleSummary } from "./get-run-views";
 import {
+  buildCallbackWaitingSummarySurfaceCopy,
   formatScheduledResumeLabel,
   getCallbackWaitingRecommendedAction,
   listCallbackWaitingBlockerRows,
@@ -80,6 +81,18 @@ describe("callback waiting presenters", () => {
       kind: "watch_scheduled_resume",
       label: "Watch the scheduled resume",
       ctaLabel: "Open waiting inbox"
+    });
+  });
+
+  it("暴露 callback waiting 共享 surface copy", () => {
+    expect(buildCallbackWaitingSummarySurfaceCopy()).toMatchObject({
+      recommendedNextStepTitle: "Recommended next step",
+      defaultInboxLinkLabel: "open inbox slice",
+      manualOverrideOptionalLabel: "manual override optional",
+      waitingNodeFocusEvidenceTitle: "Waiting node focus evidence",
+      focusedSkillTraceTitle: "Focused skill trace",
+      injectedReferencesTitle: "Injected references",
+      terminatedLabel: "callback waiting terminated"
     });
   });
 

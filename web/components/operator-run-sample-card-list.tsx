@@ -5,6 +5,10 @@ import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summar
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import type { OperatorRunSampleCard } from "@/lib/operator-run-sample-cards";
+import {
+  buildOperatorFollowUpSurfaceCopy,
+  buildOperatorRunSnapshotMetaRows
+} from "@/lib/operator-follow-up-presenters";
 
 type OperatorRunSampleCardListProps = {
   cards: OperatorRunSampleCard[];
@@ -15,6 +19,8 @@ export function OperatorRunSampleCardList({
   cards,
   skillTraceDescription
 }: OperatorRunSampleCardListProps) {
+  const surfaceCopy = buildOperatorFollowUpSurfaceCopy();
+
   if (cards.length === 0) {
     return null;
   }
@@ -24,17 +30,24 @@ export function OperatorRunSampleCardList({
       {cards.map((sample) => {
         const showHeaderExecutionFacts =
           sample.executionFactBadges.length > 0 && !sample.hasCallbackWaitingSummary;
+        const snapshotMetaRows = buildOperatorRunSnapshotMetaRows({
+          runStatus: sample.runStatus,
+          currentNodeId: sample.currentNodeId,
+          focusNodeLabel: sample.focusNodeLabel,
+          waitingReason: sample.waitingReason,
+          surfaceCopy
+        });
 
         return (
           <div className="payload-card compact-card" key={sample.runId}>
 
           <div className="payload-card-header">
-            <span className="status-meta">Run {sample.shortRunId}</span>
+            <span className="status-meta">{surfaceCopy.runTitlePrefix} {sample.shortRunId}</span>
             <Link
               className="event-chip inbox-filter-link"
               href={`/runs/${encodeURIComponent(sample.runId)}`}
             >
-              open run
+              {surfaceCopy.openRunLabel}
             </Link>
           </div>
 
@@ -42,27 +55,14 @@ export function OperatorRunSampleCardList({
             <p className="binding-meta">{sample.summary}</p>
           ) : null}
 
-          {sample.runStatus ||
-          sample.currentNodeId ||
-          sample.focusNodeLabel ||
-          sample.waitingReason ? (
+          {snapshotMetaRows.length ? (
             <dl className="compact-meta-list">
-              <div>
-                <dt>Run status</dt>
-                <dd>{sample.runStatus ?? "n/a"}</dd>
-              </div>
-              <div>
-                <dt>Current node</dt>
-                <dd>{sample.currentNodeId ?? "n/a"}</dd>
-              </div>
-              <div>
-                <dt>Focus node</dt>
-                <dd>{sample.focusNodeLabel ?? "n/a"}</dd>
-              </div>
-              <div>
-                <dt>Waiting reason</dt>
-                <dd>{sample.waitingReason ?? "n/a"}</dd>
-              </div>
+              {snapshotMetaRows.map((row) => (
+                <div key={`${sample.runId}:${row.key}`}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.value}</dd>
+                </div>
+              ))}
             </dl>
           ) : null}
 
@@ -140,7 +140,7 @@ export function OperatorRunSampleCardList({
               />
               <SkillReferenceLoadList
                 skillReferenceLoads={sample.focusSkillReferenceLoads}
-                title="Focused skill trace"
+                title={surfaceCopy.focusedSkillTraceTitle}
                 description={skillTraceDescription}
               />
             </>

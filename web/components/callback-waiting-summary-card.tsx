@@ -24,6 +24,7 @@ import {
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
 import {
+  buildCallbackWaitingSummarySurfaceCopy,
   buildCallbackWaitingRecommendedNextStep,
   formatCallbackLifecycleLabel,
   formatScheduledResumeLabel,
@@ -110,6 +111,7 @@ export function CallbackWaitingSummaryCard({
   showCallbackInlineActions,
   className = ""
 }: CallbackWaitingSummaryCardProps) {
+  const surfaceCopy = buildCallbackWaitingSummarySurfaceCopy();
   const headline =
     callbackWaitingExplanation?.primary_signal?.trim() ||
     getCallbackWaitingHeadline({
@@ -179,7 +181,8 @@ export function CallbackWaitingSummaryCard({
   const recommendedNextStep = buildCallbackWaitingRecommendedNextStep({
     action: recommendedAction,
     inboxHref,
-    operatorFollowUp: callbackFollowUp
+    operatorFollowUp: callbackFollowUp,
+    surfaceCopy
   });
   const shouldShowSensitiveAccessInlineActions =
     showSensitiveAccessInlineActions ?? showInlineActions;
@@ -233,7 +236,7 @@ export function CallbackWaitingSummaryCard({
   const inboxLinkLabel =
     recommendedNextStep?.href === inboxHref && recommendedNextStepHrefLabel
       ? recommendedNextStepHrefLabel
-      : "open inbox slice";
+      : surfaceCopy.defaultInboxLinkLabel;
   const focusToolCallSummaries = focusNodeEvidence
     ? listExecutionFocusToolCallSummaries(focusNodeEvidence)
     : [];
@@ -313,10 +316,10 @@ export function CallbackWaitingSummaryCard({
       {recommendedAction && recommendedNextStep ? (
         <div className="entry-card compact-card">
           <div className="payload-card-header">
-            <span className="status-meta">Recommended next step</span>
+            <span className="status-meta">{surfaceCopy.recommendedNextStepTitle}</span>
             <span className="event-chip">{recommendedNextStep.label}</span>
             {isObserveFirstRecommendedAction ? (
-              <span className="event-chip">manual override optional</span>
+              <span className="event-chip">{surfaceCopy.manualOverrideOptionalLabel}</span>
             ) : null}
             {recommendedNextStep.href && recommendedNextStep.href_label ? (
               <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
@@ -326,10 +329,7 @@ export function CallbackWaitingSummaryCard({
           </div>
           <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
           {isObserveFirstRecommendedAction && shouldShowCallbackInlineActions ? (
-            <p className="binding-meta">
-              Callback actions stay available below as optional operator overrides when the current
-              waiting path needs to be bypassed.
-            </p>
+            <p className="binding-meta">{surfaceCopy.optionalOverrideDescription}</p>
           ) : null}
         </div>
       ) : null}
@@ -344,7 +344,7 @@ export function CallbackWaitingSummaryCard({
       ) : null}
       {focusNodeEvidence ? (
         <OperatorFocusEvidenceCard
-          title="Waiting node focus evidence"
+          title={surfaceCopy.waitingNodeFocusEvidenceTitle}
           artifactCount={focusNodeEvidence.artifacts.length}
           artifactRefCount={focusNodeEvidence.artifact_refs.length}
           artifactSummary={focusArtifactSummary}
@@ -356,15 +356,15 @@ export function CallbackWaitingSummaryCard({
       {focusSkillTraceModel ? (
         <div className="entry-card compact-card">
           <div className="payload-card-header">
-            <span className="status-meta">Focused skill trace</span>
+            <span className="status-meta">{surfaceCopy.focusedSkillTraceTitle}</span>
             <span className="event-chip">refs {focusSkillTraceModel.referenceCount}</span>
           </div>
           <p className="section-copy entry-copy">
             {focusSkillTraceModel.source === "execution_focus_node"
-              ? "当前 callback waiting follow-up 已直接消费 execution focus 节点的 skill trace，便于把等待原因与 agent 实际注入来源放到同一条排障链。"
+              ? surfaceCopy.executionFocusSkillTraceDescription
               : focusSkillTraceModel.source === "run"
-                ? "当前 waiting 节点没有独立 skill trace，因此这里回退展示整个 run 的注入摘要。"
-                : "当前 waiting 节点已经记录了 skill reference loads，因此可以直接在 callback follow-up 中查看该节点的注入来源。"}
+                ? surfaceCopy.runFallbackSkillTraceDescription
+                : surfaceCopy.inlineLoadsSkillTraceDescription}
           </p>
           <div className="tool-badge-row">
             {focusSkillTraceModel.phaseSummary ? (
@@ -381,8 +381,8 @@ export function CallbackWaitingSummaryCard({
               </p>
               <SkillReferenceLoadList
                 skillReferenceLoads={node.loads}
-                title="Injected references"
-                description="当前 callback waiting、operator inbox 和 publish detail 现在围绕同一份 skill trace / load 事实解释 agent 注入来源。"
+                title={surfaceCopy.injectedReferencesTitle}
+                description={surfaceCopy.injectedReferencesDescription}
               />
             </div>
           ))}
@@ -390,7 +390,7 @@ export function CallbackWaitingSummaryCard({
       ) : null}
       {hasTermination ? (
         <p className="run-error-message">
-          callback waiting terminated
+          {surfaceCopy.terminatedLabel}
           {lifecycle?.termination_reason ? ` · ${lifecycle.termination_reason}` : ""}
           {terminationAt !== "n/a" ? ` · ${terminationAt}` : ""}
         </p>
