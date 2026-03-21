@@ -18,9 +18,13 @@ from app.schemas.workspace_starter import (
     WorkspaceStarterHistoryAction,
     WorkspaceStarterHistoryItem,
     WorkspaceStarterSourceDiff,
+    WorkspaceStarterSourceGovernance,
     WorkspaceStarterTemplateCreate,
     WorkspaceStarterTemplateItem,
     WorkspaceStarterTemplateUpdate,
+)
+from app.services.workspace_starter_source_governance import (
+    build_workspace_starter_source_governance,
 )
 from app.services.workspace_starter_template_diff import (
     build_workspace_starter_source_diff,
@@ -133,6 +137,28 @@ class WorkspaceStarterTemplateService:
             .limit(1)
         ).first()
 
+    def load_source_workflows(
+        self,
+        db: Session,
+        records: list[WorkspaceStarterTemplateRecord],
+    ) -> dict[str, Workflow]:
+        source_workflow_ids = sorted(
+            {
+                record.created_from_workflow_id
+                for record in records
+                if record.created_from_workflow_id
+            }
+        )
+        if not source_workflow_ids:
+            return {}
+
+        return {
+            workflow.id: workflow
+            for workflow in db.scalars(
+                select(Workflow).where(Workflow.id.in_(source_workflow_ids))
+            ).all()
+        }
+
     def list_templates_by_ids(
         self,
         db: Session,
@@ -194,6 +220,8 @@ class WorkspaceStarterTemplateService:
     def serialize(
         self,
         record: WorkspaceStarterTemplateRecord,
+        *,
+        source_governance: WorkspaceStarterSourceGovernance | None = None,
     ) -> WorkspaceStarterTemplateItem:
         return WorkspaceStarterTemplateItem(
             id=record.id,
@@ -212,7 +240,47 @@ class WorkspaceStarterTemplateService:
             archived_at=record.archived_at,
             created_at=record.created_at,
             updated_at=record.updated_at,
+            source_governance=source_governance,
         )
+
+    def serialize_with_source_governance(
+        self,
+        db: Session,
+        record: WorkspaceStarterTemplateRecord,
+        *,
+        source_workflow: Workflow | None | object = ...,
+    ) -> WorkspaceStarterTemplateItem:
+        if source_workflow is ...:
+            source_workflow = self.load_source_workflows(db, [record]).get(
+                record.created_from_workflow_id or ""
+            )
+
+        return self.serialize(
+            record,
+            source_governance=build_workspace_starter_source_governance(
+                record,
+                source_workflow if isinstance(source_workflow, Workflow) else None,
+            ),
+        )
+
+    def serialize_many_with_source_governance(
+        self,
+        db: Session,
+        records: list[WorkspaceStarterTemplateRecord],
+    ) -> list[WorkspaceStarterTemplateItem]:
+        source_workflows_by_id = self.load_source_workflows(db, records)
+        return [
+            self.serialize(
+                record,
+                source_governance=build_workspace_starter_source_governance(
+                    record,
+                    source_workflows_by_id.get(record.created_from_workflow_id)
+                    if record.created_from_workflow_id
+                    else None,
+                ),
+            )
+            for record in records
+        ]
 
     def serialize_history(
         self,

@@ -44,7 +44,6 @@ export function WorkspaceStarterLibrary({
     isLoadingBulkPreview,
     isLoadingHistory,
     isLoadingSourceDiff,
-    isLoadingSourceWorkflow,
     isMutating,
     isRebasing,
     isRefreshing,
@@ -65,8 +64,7 @@ export function WorkspaceStarterLibrary({
     setSearchQuery,
     setSelectedTemplateId,
     sourceDiff,
-    sourceStatus,
-    sourceStatusMessage,
+    sourceGovernance,
     strongIsolationTemplateCount,
     templateToolGovernanceById,
     templates
@@ -128,9 +126,7 @@ export function WorkspaceStarterLibrary({
             selectedTemplate={selectedTemplate}
             selectedTemplateSandboxGovernance={selectedTemplateSandboxGovernance}
             selectedTemplateToolGovernance={selectedTemplateToolGovernance}
-            sourceStatus={sourceStatus}
-            sourceStatusMessage={sourceStatusMessage}
-            isLoadingSourceWorkflow={isLoadingSourceWorkflow}
+            sourceGovernance={sourceGovernance}
             sourceDiff={sourceDiff}
             isLoadingSourceDiff={isLoadingSourceDiff}
             isRefreshing={isRefreshing}

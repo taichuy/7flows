@@ -22,6 +22,7 @@ export type WorkspaceStarterTemplateItem = {
   archived_at?: string | null;
   created_at: string;
   updated_at: string;
+  source_governance?: WorkspaceStarterSourceGovernance | null;
 };
 
 export type WorkspaceStarterHistoryItem = {
@@ -58,6 +59,18 @@ export type WorkspaceStarterSourceActionDecisionPayload = {
   can_refresh: boolean;
   can_rebase: boolean;
   fact_chips: string[];
+};
+
+export type WorkspaceStarterSourceGovernance = {
+  kind: "no_source" | "missing_source" | "synced" | "drifted";
+  status_label: string;
+  summary: string;
+  source_workflow_id?: string | null;
+  source_workflow_name?: string | null;
+  template_version?: string | null;
+  source_version?: string | null;
+  action_decision?: WorkspaceStarterSourceActionDecisionPayload | null;
+  outcome_explanation?: SignalFollowUpExplanation | null;
 };
 
 export type WorkspaceStarterSourceDiff = {

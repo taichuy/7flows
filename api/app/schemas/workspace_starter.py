@@ -124,6 +124,7 @@ class WorkspaceStarterTemplateItem(WorkspaceStarterTemplateBase):
     archived_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    source_governance: WorkspaceStarterSourceGovernance | None = None
 
 
 class WorkspaceStarterHistoryItem(BaseModel):
@@ -160,6 +161,26 @@ class WorkspaceStarterSourceActionDecision(BaseModel):
     can_refresh: bool = False
     can_rebase: bool = False
     fact_chips: list[str] = Field(default_factory=list)
+
+
+WorkspaceStarterSourceGovernanceKind = Literal[
+    "no_source",
+    "missing_source",
+    "synced",
+    "drifted",
+]
+
+
+class WorkspaceStarterSourceGovernance(BaseModel):
+    kind: WorkspaceStarterSourceGovernanceKind
+    status_label: str
+    summary: str
+    source_workflow_id: str | None = None
+    source_workflow_name: str | None = None
+    template_version: str | None = None
+    source_version: str | None = None
+    action_decision: WorkspaceStarterSourceActionDecision | None = None
+    outcome_explanation: SignalFollowUpExplanation | None = None
 
 
 class WorkspaceStarterSourceDiff(BaseModel):

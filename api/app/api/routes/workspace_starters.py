@@ -5,10 +5,10 @@ from app.core.database import get_db
 from app.models.workflow import Workflow
 from app.schemas.workspace_starter import (
     WorkflowBusinessTrack,
-    WorkspaceStarterBulkPreview,
-    WorkspaceStarterBulkPreviewRequest,
     WorkspaceStarterBulkActionRequest,
     WorkspaceStarterBulkActionResult,
+    WorkspaceStarterBulkPreview,
+    WorkspaceStarterBulkPreviewRequest,
     WorkspaceStarterHistoryItem,
     WorkspaceStarterSourceDiff,
     WorkspaceStarterTemplateCreate,
@@ -92,7 +92,7 @@ def list_workspace_starters(
         include_archived=include_archived,
         archived_only=archived_only,
     )
-    return [service.serialize(record) for record in records]
+    return service.serialize_many_with_source_governance(db, records)
 
 
 @router.get("/{template_id}", response_model=WorkspaceStarterTemplateItem)
@@ -109,7 +109,7 @@ def get_workspace_starter(
             detail="Workspace starter template not found.",
         )
 
-    return service.serialize(record)
+    return service.serialize_with_source_governance(db, record)
 
 
 @router.get(
@@ -170,7 +170,7 @@ def create_workspace_starter(
     )
     db.commit()
     db.refresh(record)
-    return service.serialize(record)
+    return service.serialize_with_source_governance(db, record)
 
 
 @router.put("/{template_id}", response_model=WorkspaceStarterTemplateItem)
@@ -205,7 +205,7 @@ def update_workspace_starter(
     db.add(record)
     db.commit()
     db.refresh(record)
-    return service.serialize(record)
+    return service.serialize_with_source_governance(db, record)
 
 
 @router.get(
@@ -265,7 +265,7 @@ def archive_workspace_starter(
     db.add(record)
     db.commit()
     db.refresh(record)
-    return service.serialize(record)
+    return service.serialize_with_source_governance(db, record)
 
 
 @router.post("/{template_id}/restore", response_model=WorkspaceStarterTemplateItem)
@@ -293,7 +293,7 @@ def restore_workspace_starter(
     db.add(record)
     db.commit()
     db.refresh(record)
-    return service.serialize(record)
+    return service.serialize_with_source_governance(db, record)
 
 
 @router.post("/{template_id}/rebase", response_model=WorkspaceStarterTemplateItem)
@@ -357,7 +357,7 @@ def rebase_workspace_starter(
     db.add(record)
     db.commit()
     db.refresh(record)
-    return service.serialize(record)
+    return service.serialize_with_source_governance(db, record)
 
 
 @router.post("/{template_id}/refresh", response_model=WorkspaceStarterTemplateItem)
@@ -421,7 +421,7 @@ def refresh_workspace_starter(
     db.add(record)
     db.commit()
     db.refresh(record)
-    return service.serialize(record)
+    return service.serialize_with_source_governance(db, record)
 
 
 @router.delete("/{template_id}", status_code=status.HTTP_204_NO_CONTENT)

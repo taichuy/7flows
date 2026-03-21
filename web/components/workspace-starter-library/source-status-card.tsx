@@ -1,15 +1,17 @@
 "use client";
 
-import type { WorkspaceStarterSourceDiff, WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
-import type { WorkspaceStarterSourceStatus } from "@/lib/workspace-starter-source-status";
+import type {
+  WorkspaceStarterSourceActionDecisionPayload,
+  WorkspaceStarterSourceDiff,
+  WorkspaceStarterSourceGovernance,
+  WorkspaceStarterTemplateItem
+} from "@/lib/get-workspace-starters";
 
 import { buildWorkspaceStarterSourceActionDecision } from "./shared";
 
 type WorkspaceStarterSourceCardProps = {
   template: WorkspaceStarterTemplateItem;
-  sourceStatus: WorkspaceStarterSourceStatus | null;
-  sourceStatusMessage: string | null;
-  isLoadingSourceWorkflow: boolean;
+  sourceGovernance: WorkspaceStarterSourceGovernance | null;
   sourceDiff: WorkspaceStarterSourceDiff | null;
   isLoadingSourceDiff: boolean;
   isRefreshing: boolean;
@@ -20,9 +22,7 @@ type WorkspaceStarterSourceCardProps = {
 
 export function WorkspaceStarterSourceCard({
   template,
-  sourceStatus,
-  sourceStatusMessage,
-  isLoadingSourceWorkflow,
+  sourceGovernance,
   sourceDiff,
   isLoadingSourceDiff,
   isRefreshing,
@@ -31,17 +31,14 @@ export function WorkspaceStarterSourceCard({
   onRebase
 }: WorkspaceStarterSourceCardProps) {
   const hasSourceBinding = Boolean(template.created_from_workflow_id);
-  const actionDecision = buildWorkspaceStarterSourceActionDecision(sourceDiff);
-  const canRefresh =
-    hasSourceBinding &&
-    !isLoadingSourceWorkflow &&
-    !isLoadingSourceDiff &&
-    actionDecision.canRefresh;
-  const canRebase =
-    hasSourceBinding &&
-    !isLoadingSourceWorkflow &&
-    !isLoadingSourceDiff &&
-    actionDecision.canRebase;
+  const actionDecisionPayload =
+    sourceGovernance?.action_decision ?? sourceDiff?.action_decision ?? null;
+  const fallbackActionDecision = buildWorkspaceStarterSourceActionDecision(sourceDiff);
+  const actionDecision = actionDecisionPayload
+    ? normalizeActionDecision(actionDecisionPayload)
+    : fallbackActionDecision;
+  const canRefresh = hasSourceBinding && !isLoadingSourceDiff && actionDecision.canRefresh;
+  const canRebase = hasSourceBinding && !isLoadingSourceDiff && actionDecision.canRebase;
   const templateNextStep = template.recommended_next_step.trim();
 
   return (
@@ -50,15 +47,17 @@ export function WorkspaceStarterSourceCard({
         <div>
           <p className="entry-card-title">Source workflow drift</p>
           <p className="binding-meta">
-            {template.created_from_workflow_id ?? "no workflow binding"}
+            {sourceGovernance?.source_workflow_name?.trim() ||
+              template.created_from_workflow_id ||
+              "no workflow binding"}
           </p>
         </div>
-        <span className="health-pill">
-          {isLoadingSourceWorkflow ? "loading" : sourceStatus?.label ?? "-"}
-        </span>
+        <span className="health-pill">{sourceGovernance?.status_label ?? "-"}</span>
       </div>
       <p className="section-copy starter-summary-copy">
-        {sourceStatusMessage ?? sourceStatus?.summary ?? "暂无来源状态。"}
+        {sourceGovernance?.outcome_explanation?.primary_signal?.trim() ||
+          sourceGovernance?.summary ||
+          "暂无来源治理状态。"}
       </p>
       {hasSourceBinding ? (
         <>
@@ -77,7 +76,7 @@ export function WorkspaceStarterSourceCard({
           <p className="section-copy starter-summary-copy">
             {isLoadingSourceDiff
               ? "正在加载 source diff，稍后会把 refresh / rebase 建议收口到这里。"
-              : actionDecision.summary}
+              : sourceGovernance?.outcome_explanation?.follow_up?.trim() || actionDecision.summary}
           </p>
           {templateNextStep ? (
             <p className="section-copy starter-summary-copy">
@@ -112,26 +111,37 @@ export function WorkspaceStarterSourceCard({
           </div>
         </>
       ) : null}
-      {sourceStatus ? (
+      {sourceGovernance ? (
         <div className="summary-strip compact-strip">
           <div className="summary-card">
             <span>Template ver</span>
-            <strong>{sourceStatus.templateVersion ?? "n/a"}</strong>
+            <strong>{sourceGovernance.template_version ?? "n/a"}</strong>
           </div>
           <div className="summary-card">
             <span>Source ver</span>
-            <strong>{sourceStatus.sourceVersion ?? "n/a"}</strong>
+            <strong>{sourceGovernance.source_version ?? "n/a"}</strong>
           </div>
           <div className="summary-card">
-            <span>Node delta</span>
-            <strong>{sourceStatus.sourceNodeCount - sourceStatus.templateNodeCount}</strong>
+            <span>Governance kind</span>
+            <strong>{sourceGovernance.kind}</strong>
           </div>
           <div className="summary-card">
-            <span>Edge delta</span>
-            <strong>{sourceStatus.sourceEdgeCount - sourceStatus.templateEdgeCount}</strong>
+            <span>Recommended</span>
+            <strong>{actionDecision.recommendedAction}</strong>
           </div>
         </div>
       ) : null}
     </div>
   );
+}
+
+function normalizeActionDecision(actionDecision: WorkspaceStarterSourceActionDecisionPayload) {
+  return {
+    recommendedAction: actionDecision.recommended_action,
+    statusLabel: actionDecision.status_label,
+    summary: actionDecision.summary,
+    canRefresh: actionDecision.can_refresh,
+    canRebase: actionDecision.can_rebase,
+    factChips: actionDecision.fact_chips
+  };
 }

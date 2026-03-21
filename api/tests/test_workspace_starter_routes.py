@@ -984,6 +984,70 @@ def test_workspace_starter_detail_returns_single_template(client: TestClient) ->
     assert body["definition"]["nodes"][0]["id"] == "trigger"
 
 
+def test_workspace_starter_routes_surface_source_governance(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    response = client.post(
+        "/api/workspace-starters",
+        json={
+            "workspace_id": "default",
+            "name": "Governed Workspace Starter",
+            "description": "Starter backed by a source workflow.",
+            "business_track": "编排节点能力",
+            "default_workflow_name": sample_workflow.name,
+            "workflow_focus": "Keep starter governance aligned with the source workflow.",
+            "recommended_next_step": "Review source governance before reusing the starter.",
+            "tags": ["governed", "workspace starter"],
+            "created_from_workflow_id": sample_workflow.id,
+            "created_from_workflow_version": sample_workflow.version,
+            "definition": sample_workflow.definition,
+        },
+    )
+    assert response.status_code == 201
+    created = response.json()
+
+    sample_workflow.version = "0.2.0"
+    sample_workflow.definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "mock_tool",
+                "type": "tool",
+                "name": "Renamed Mock Tool",
+                "config": {"mock_output": {"answer": "updated"}},
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "mock_tool"},
+            {"id": "e2", "sourceNodeId": "mock_tool", "targetNodeId": "output"},
+        ],
+    }
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    list_response = client.get("/api/workspace-starters")
+    detail_response = client.get(f"/api/workspace-starters/{created['id']}")
+
+    assert list_response.status_code == 200
+    assert detail_response.status_code == 200
+
+    listed_item = next(
+        item for item in list_response.json() if item["id"] == created["id"]
+    )
+    for item in (listed_item, detail_response.json()):
+        source_governance = item["source_governance"]
+        assert source_governance["kind"] == "drifted"
+        assert source_governance["status_label"] == "建议 refresh"
+        assert source_governance["source_workflow_id"] == sample_workflow.id
+        assert source_governance["template_version"] == "0.1.0"
+        assert source_governance["source_version"] == "0.2.0"
+        assert source_governance["action_decision"]["recommended_action"] == "refresh"
+        assert "来源 workflow 0.2.0" in source_governance["outcome_explanation"]["primary_signal"]
+
+
 def test_workspace_starter_update_persists_metadata_changes(client: TestClient) -> None:
     created = _create_workspace_starter(
         client,

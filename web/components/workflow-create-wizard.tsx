@@ -82,6 +82,14 @@ export function WorkflowCreateWizard({
     () => buildWorkflowDefinitionSandboxGovernanceBadges(selectedStarter.sandboxGovernance),
     [selectedStarter.sandboxGovernance]
   );
+  const selectedStarterSourceGovernance = selectedStarter.sourceGovernance;
+  const selectedStarterSourceChips =
+    selectedStarterSourceGovernance?.actionDecision?.fact_chips ?? [];
+  const selectedStarterSourcePrimarySignal =
+    selectedStarterSourceGovernance?.outcomeExplanation?.primary_signal?.trim() ?? "";
+  const selectedStarterSourceFollowUp =
+    selectedStarterSourceGovernance?.outcomeExplanation?.follow_up?.trim() ?? "";
+  const selectedStarterManageHref = `/workspace-starters?starter=${encodeURIComponent(selectedStarter.id)}`;
   const selectedStarterSandboxDependencySummary = useMemo(
     () => describeWorkflowDefinitionSandboxDependency(selectedStarter.sandboxGovernance),
     [selectedStarter.sandboxGovernance]
@@ -301,6 +309,59 @@ export function WorkflowCreateWizard({
               <p className="starter-focus-copy">
                 下一步：{selectedStarter.recommendedNextStep}
               </p>
+              {selectedStarterSourceGovernance ? (
+                <div className="binding-form">
+                  <p className="binding-label">Source governance</p>
+                  <p className="binding-meta">
+                    创建页现在直接复用 workspace starter 的来源治理 follow-up，不再要求 operator / AI
+                    先跳回模板库自己拼装“是否漂移、下一步做什么”。
+                  </p>
+                  <div className="summary-strip compact-strip">
+                    <div className="summary-card">
+                      <span>Status</span>
+                      <strong>{selectedStarterSourceGovernance.statusLabel}</strong>
+                    </div>
+                    <div className="summary-card">
+                      <span>Template</span>
+                      <strong>{selectedStarterSourceGovernance.templateVersion ?? "未记录"}</strong>
+                    </div>
+                    <div className="summary-card">
+                      <span>Source</span>
+                      <strong>{selectedStarterSourceGovernance.sourceVersion ?? "不可用"}</strong>
+                    </div>
+                  </div>
+                  <p className="section-copy starter-summary-copy">
+                    {selectedStarterSourceGovernance.summary}
+                  </p>
+                  {selectedStarterSourcePrimarySignal ? (
+                    <p className="section-copy starter-summary-copy">
+                      <strong>Primary signal:</strong> {selectedStarterSourcePrimarySignal}
+                    </p>
+                  ) : null}
+                  {selectedStarterSourceFollowUp ? (
+                    <p className="section-copy starter-summary-copy">
+                      <strong>Next step:</strong> {selectedStarterSourceFollowUp}
+                    </p>
+                  ) : null}
+                  {selectedStarterSourceChips.length > 0 ? (
+                    <div className="starter-tag-row">
+                      {selectedStarterSourceChips.map((chip) => (
+                        <span className="event-chip" key={`${selectedStarter.id}-${chip}`}>
+                          {chip}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  <p className="binding-meta">
+                    需要补 refresh / rebase 或排查来源缺失时，直接去
+                    {" "}
+                    <Link className="inline-link secondary" href={selectedStarterManageHref}>
+                      管理这个 workspace starter
+                    </Link>
+                    。
+                  </p>
+                </div>
+              ) : null}
               {selectedStarter.referencedTools.length > 0 ? (
                 <div className="binding-form">
                   <p className="binding-label">Tool governance in this starter</p>

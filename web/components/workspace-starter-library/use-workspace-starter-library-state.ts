@@ -21,7 +21,6 @@ import {
   type WorkflowDefinitionToolGovernance
 } from "@/lib/workflow-definition-tool-governance";
 import { getWorkflowBusinessTrack } from "@/lib/workflow-business-tracks";
-import { summarizeWorkspaceStarterSourceStatus } from "@/lib/workspace-starter-source-status";
 
 import {
   buildWorkspaceStarterLibrarySearchParams,
@@ -139,14 +138,11 @@ export function useWorkspaceStarterLibraryState(
     historyItems,
     isLoadingHistory,
     isLoadingSourceDiff,
-    isLoadingSourceWorkflow,
     isRebasing,
     isRefreshing,
     reloadHistory,
     reloadSourceDiff,
-    sourceDiff,
-    sourceStatusMessage,
-    sourceWorkflow
+    sourceDiff
   } = useWorkspaceStarterSource({
     selectedTemplate,
     setMessage,
@@ -195,13 +191,7 @@ export function useWorkspaceStarterLibraryState(
       JSON.stringify(buildUpdatePayload(buildFormState(selectedTemplate)))
       ? false
       : Boolean(selectedTemplate && formState);
-  const sourceStatus = useMemo(
-    () =>
-      selectedTemplate
-        ? summarizeWorkspaceStarterSourceStatus(selectedTemplate, sourceWorkflow)
-        : null,
-    [selectedTemplate, sourceWorkflow]
-  );
+  const sourceGovernance = selectedTemplate?.source_governance ?? null;
   useEffect(() => {
     const templateIds = filteredTemplates.map((template) => template.id);
     if (templateIds.length === 0) {
@@ -513,7 +503,6 @@ export function useWorkspaceStarterLibraryState(
     isLoadingBulkPreview,
     isLoadingHistory,
     isLoadingSourceDiff,
-    isLoadingSourceWorkflow,
     isMutating,
     isRebasing,
     isRefreshing,
@@ -535,8 +524,7 @@ export function useWorkspaceStarterLibraryState(
     setSearchQuery,
     setSelectedTemplateId,
     sourceDiff,
-    sourceStatus,
-    sourceStatusMessage,
+    sourceGovernance,
     strongIsolationTemplateCount,
     templateToolGovernanceById,
     templates

@@ -6,7 +6,10 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from app.schemas.plugin import PluginToolItem
-from app.schemas.workspace_starter import WorkflowBusinessTrack
+from app.schemas.workspace_starter import (
+    WorkflowBusinessTrack,
+    WorkspaceStarterSourceGovernance,
+)
 
 WorkflowLibrarySourceKind = Literal["starter", "node", "tool"]
 WorkflowLibrarySourceScope = Literal["builtin", "workspace", "ecosystem"]
@@ -100,6 +103,7 @@ class WorkflowLibraryStarterItem(BaseModel):
     archived_at: datetime | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+    source_governance: WorkspaceStarterSourceGovernance | None = None
 
 
 class WorkflowLibrarySnapshot(BaseModel):

@@ -38,6 +38,7 @@ export type WorkflowStarterTemplate = {
   governedToolCount: number;
   strongIsolationToolCount: number;
   sandboxGovernance: WorkflowDefinitionSandboxGovernance;
+  sourceGovernance: WorkflowLibraryStarterItem["sourceGovernance"];
   tags: string[];
   definition: WorkflowDefinition;
 };
@@ -149,6 +150,7 @@ function buildWorkflowStarterTemplate(
     governedToolCount: toolGovernance.governedToolCount,
     strongIsolationToolCount: toolGovernance.strongIsolationToolCount,
     sandboxGovernance,
+    sourceGovernance: starter.sourceGovernance ?? null,
     tags: starter.tags,
     definition
   };

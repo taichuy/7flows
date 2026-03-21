@@ -9,7 +9,6 @@ import {
   type WorkspaceStarterSourceDiff,
   type WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
-import type { WorkflowDetail } from "@/lib/get-workflows";
 
 import type { WorkspaceStarterMessageTone } from "./shared";
 
@@ -28,72 +27,12 @@ export function useWorkspaceStarterSource({
   setMessage,
   setMessageTone
 }: UseWorkspaceStarterSourceOptions) {
-  const [sourceWorkflow, setSourceWorkflow] = useState<WorkflowDetail | null>(null);
-  const [sourceStatusMessage, setSourceStatusMessage] = useState<string | null>(null);
-  const [isLoadingSourceWorkflow, setIsLoadingSourceWorkflow] = useState(false);
   const [historyItems, setHistoryItems] = useState<WorkspaceStarterHistoryItem[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [sourceDiff, setSourceDiff] = useState<WorkspaceStarterSourceDiff | null>(null);
   const [isLoadingSourceDiff, setIsLoadingSourceDiff] = useState(false);
   const [isRefreshing, startRefreshingTransition] = useTransition();
   const [isRebasing, startRebasingTransition] = useTransition();
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!selectedTemplate?.created_from_workflow_id) {
-      setSourceWorkflow(null);
-      setSourceStatusMessage(null);
-      setIsLoadingSourceWorkflow(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    setIsLoadingSourceWorkflow(true);
-    setSourceStatusMessage(null);
-
-    void fetch(
-      `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(
-        selectedTemplate.created_from_workflow_id
-      )}`,
-      {
-        cache: "no-store"
-      }
-    )
-      .then(async (response) => {
-        if (cancelled) {
-          return;
-        }
-
-        if (!response.ok) {
-          setSourceWorkflow(null);
-          setSourceStatusMessage(
-            response.status === 404
-              ? "源 workflow 已不存在。"
-              : `读取源 workflow 失败，API 返回 ${response.status}。`
-          );
-          setIsLoadingSourceWorkflow(false);
-          return;
-        }
-
-        setSourceWorkflow((await response.json()) as WorkflowDetail);
-        setIsLoadingSourceWorkflow(false);
-      })
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
-
-        setSourceWorkflow(null);
-        setSourceStatusMessage("无法连接后端读取源 workflow，请确认 API 已启动。");
-        setIsLoadingSourceWorkflow(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedTemplate?.created_from_workflow_id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,8 +133,6 @@ export function useWorkspaceStarterSource({
   };
 
   const clearSelectionArtifacts = () => {
-    setSourceWorkflow(null);
-    setSourceStatusMessage(null);
     setHistoryItems([]);
     setSourceDiff(null);
   };
@@ -302,14 +239,11 @@ export function useWorkspaceStarterSource({
     historyItems,
     isLoadingHistory,
     isLoadingSourceDiff,
-    isLoadingSourceWorkflow,
     isRebasing,
     isRefreshing,
     reloadHistory,
     reloadSourceDiff,
-    sourceDiff,
-    sourceStatusMessage,
-    sourceWorkflow
+    sourceDiff
   };
 }
 

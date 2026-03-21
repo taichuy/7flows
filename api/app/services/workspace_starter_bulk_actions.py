@@ -804,7 +804,7 @@ def _archive_template(
     )
     db.add(record)
     db.flush()
-    accumulator.updated_items.append(service.serialize(record))
+    accumulator.updated_items.append(service.serialize_with_source_governance(db, record))
     _append_updated_receipt_item(
         accumulator,
         record.id,
@@ -841,7 +841,7 @@ def _restore_template(
     )
     db.add(record)
     db.flush()
-    accumulator.updated_items.append(service.serialize(record))
+    accumulator.updated_items.append(service.serialize_with_source_governance(db, record))
     _append_updated_receipt_item(
         accumulator,
         record.id,
@@ -1050,7 +1050,13 @@ def _refresh_template_from_workflow(
     )
     db.add(record)
     db.flush()
-    accumulator.updated_items.append(service.serialize(record))
+    accumulator.updated_items.append(
+        service.serialize_with_source_governance(
+            db,
+            record,
+            source_workflow=source_workflow,
+        )
+    )
     _append_updated_receipt_item(
         accumulator,
         record.id,
@@ -1138,7 +1144,13 @@ def _rebase_template_from_workflow(
     )
     db.add(record)
     db.flush()
-    accumulator.updated_items.append(service.serialize(record))
+    accumulator.updated_items.append(
+        service.serialize_with_source_governance(
+            db,
+            record,
+            source_workflow=source_workflow,
+        )
+    )
     _append_updated_receipt_item(
         accumulator,
         record.id,

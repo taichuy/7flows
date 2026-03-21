@@ -1,6 +1,7 @@
 import { ToolGovernanceSummary } from "@/components/tool-governance-summary";
 import { WorkspaceStarterSourceCard } from "@/components/workspace-starter-library/source-status-card";
 import type {
+  WorkspaceStarterSourceGovernance,
   WorkspaceStarterSourceDiff,
   WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
@@ -11,7 +12,6 @@ import {
   type WorkflowDefinitionSandboxGovernanceNode
 } from "@/lib/workflow-definition-sandbox-governance";
 import type { WorkflowDefinitionToolGovernance } from "@/lib/workflow-definition-tool-governance";
-import type { WorkspaceStarterSourceStatus } from "@/lib/workspace-starter-source-status";
 
 import { formatTimestamp } from "./shared";
 
@@ -19,9 +19,7 @@ type WorkspaceStarterDefinitionSnapshotPanelProps = {
   selectedTemplate: WorkspaceStarterTemplateItem | null;
   selectedTemplateSandboxGovernance: WorkflowDefinitionSandboxGovernance;
   selectedTemplateToolGovernance: WorkflowDefinitionToolGovernance;
-  sourceStatus: WorkspaceStarterSourceStatus | null;
-  sourceStatusMessage: string | null;
-  isLoadingSourceWorkflow: boolean;
+  sourceGovernance: WorkspaceStarterSourceGovernance | null;
   sourceDiff: WorkspaceStarterSourceDiff | null;
   isLoadingSourceDiff: boolean;
   isRefreshing: boolean;
@@ -34,9 +32,7 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
   selectedTemplate,
   selectedTemplateSandboxGovernance,
   selectedTemplateToolGovernance,
-  sourceStatus,
-  sourceStatusMessage,
-  isLoadingSourceWorkflow,
+  sourceGovernance,
   sourceDiff,
   isLoadingSourceDiff,
   isRefreshing,
@@ -75,7 +71,7 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
             </div>
             <div className="summary-card">
               <span>Source status</span>
-              <strong>{sourceStatus?.label ?? "-"}</strong>
+              <strong>{sourceGovernance?.status_label ?? "-"}</strong>
             </div>
             <div className="summary-card">
               <span>Governed tools</span>
@@ -109,9 +105,7 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
 
           <WorkspaceStarterSourceCard
             template={selectedTemplate}
-            sourceStatus={sourceStatus}
-            sourceStatusMessage={sourceStatusMessage}
-            isLoadingSourceWorkflow={isLoadingSourceWorkflow}
+            sourceGovernance={sourceGovernance}
             sourceDiff={sourceDiff}
             isLoadingSourceDiff={isLoadingSourceDiff}
             isRefreshing={isRefreshing}

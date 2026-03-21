@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.plugin import PluginToolRecord
+from app.models.workflow import Workflow
 from app.schemas.plugin import PluginToolItem
 from app.schemas.workflow_library import (
     WorkflowLibrarySnapshot,
@@ -28,6 +29,9 @@ from app.services.workflow_library_catalog import (
     build_starter_source_lanes,
     build_tool_source_lanes,
     build_workspace_starter_source,
+)
+from app.services.workspace_starter_source_governance import (
+    build_workspace_starter_source_governance,
 )
 from app.services.workspace_starter_templates import get_workspace_starter_template_service
 
@@ -136,29 +140,60 @@ class WorkflowLibraryService:
         service = get_workspace_starter_template_service()
         records = service.list_templates(db, workspace_id=workspace_id)
         workspace_source = build_workspace_starter_source()
+        source_workflows_by_id = self._load_source_workflows(db, records)
         return [
             WorkflowLibraryStarterItem(
-                id=item.id,
+                id=serialized.id,
                 origin="workspace",
-                workspace_id=item.workspace_id,
-                name=item.name,
-                description=item.description,
-                business_track=item.business_track,
-                default_workflow_name=item.default_workflow_name,
-                workflow_focus=item.workflow_focus,
-                recommended_next_step=item.recommended_next_step,
-                tags=list(item.tags),
-                definition=deepcopy(item.definition),
+                workspace_id=serialized.workspace_id,
+                name=serialized.name,
+                description=serialized.description,
+                business_track=serialized.business_track,
+                default_workflow_name=serialized.default_workflow_name,
+                workflow_focus=serialized.workflow_focus,
+                recommended_next_step=serialized.recommended_next_step,
+                tags=list(serialized.tags),
+                definition=deepcopy(serialized.definition),
                 source=workspace_source,
-                created_from_workflow_id=item.created_from_workflow_id,
-                created_from_workflow_version=item.created_from_workflow_version,
-                archived=item.archived,
-                archived_at=item.archived_at,
-                created_at=item.created_at,
-                updated_at=item.updated_at,
+                created_from_workflow_id=serialized.created_from_workflow_id,
+                created_from_workflow_version=serialized.created_from_workflow_version,
+                archived=serialized.archived,
+                archived_at=serialized.archived_at,
+                created_at=serialized.created_at,
+                updated_at=serialized.updated_at,
+                source_governance=build_workspace_starter_source_governance(
+                    record,
+                    source_workflows_by_id.get(record.created_from_workflow_id)
+                    if record.created_from_workflow_id
+                    else None,
+                ),
             )
-            for item in (service.serialize(record) for record in records)
+            for record, serialized in (
+                (record, service.serialize(record)) for record in records
+            )
         ]
+
+    def _load_source_workflows(
+        self,
+        db: Session,
+        records,
+    ) -> dict[str, Workflow]:
+        source_workflow_ids = sorted(
+            {
+                record.created_from_workflow_id
+                for record in records
+                if record.created_from_workflow_id
+            }
+        )
+        if not source_workflow_ids:
+            return {}
+
+        return {
+            workflow.id: workflow
+            for workflow in db.scalars(
+                select(Workflow).where(Workflow.id.in_(source_workflow_ids))
+            ).all()
+        }
 
     def _serialize_tool_definition(
         self,
