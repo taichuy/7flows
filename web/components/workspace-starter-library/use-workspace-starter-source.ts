@@ -233,7 +233,12 @@ export function useWorkspaceStarterSource({
         setSelectedTemplateId(body.id);
         await reloadHistory(body.id);
         await reloadSourceDiff(body.id);
-        setMessage(`已刷新 workspace starter：${body.name}。`);
+        setMessage(
+          `已刷新 workspace starter：${body.name}。${buildSandboxDriftSuccessSuffix(
+            sourceDiff,
+            "refresh"
+          )}`
+        );
         setMessageTone("success");
       } catch {
         setMessage("无法连接后端刷新 starter，请确认 API 已启动。");
@@ -275,7 +280,12 @@ export function useWorkspaceStarterSource({
         setSelectedTemplateId(body.id);
         await reloadHistory(body.id);
         await reloadSourceDiff(body.id);
-        setMessage(`已完成 workspace starter rebase：${body.name}。`);
+        setMessage(
+          `已完成 workspace starter rebase：${body.name}。${buildSandboxDriftSuccessSuffix(
+            sourceDiff,
+            "rebase"
+          )}`
+        );
         setMessageTone("success");
       } catch {
         setMessage("无法连接后端执行 starter rebase，请确认 API 已启动。");
@@ -301,4 +311,23 @@ export function useWorkspaceStarterSource({
     sourceStatusMessage,
     sourceWorkflow
   };
+}
+
+function buildSandboxDriftSuccessSuffix(
+  sourceDiff: WorkspaceStarterSourceDiff | null,
+  action: "refresh" | "rebase"
+) {
+  const sandboxDriftCount = sourceDiff
+    ? sourceDiff.sandbox_dependency_summary.added_count +
+      sourceDiff.sandbox_dependency_summary.removed_count +
+      sourceDiff.sandbox_dependency_summary.changed_count
+    : 0;
+
+  if (sandboxDriftCount <= 0) {
+    return "";
+  }
+
+  return action === "refresh"
+    ? ` 已同步 ${sandboxDriftCount} 个 sandbox 依赖漂移节点。`
+    : ` 已接受 ${sandboxDriftCount} 个 sandbox 依赖漂移节点的来源变更。`;
 }

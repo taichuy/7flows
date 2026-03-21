@@ -313,6 +313,21 @@ def rebase_workspace_starter(
         diff = service.rebase_from_workflow(db, record, source_workflow)
     except WorkflowDefinitionValidationError as exc:
         _raise_definition_validation_error(exc)
+    payload = {
+        "source_workflow_id": source_workflow.id,
+        "source_workflow_version": source_workflow.version,
+        "changed": diff.changed,
+        "rebase_fields": diff.rebase_fields,
+        "node_changes": diff.node_summary.model_dump(),
+        "edge_changes": diff.edge_summary.model_dump(),
+    }
+    if diff.sandbox_dependency_entries:
+        payload["sandbox_dependency_changes"] = (
+            diff.sandbox_dependency_summary.model_dump()
+        )
+        payload["sandbox_dependency_nodes"] = [
+            entry.id for entry in diff.sandbox_dependency_entries
+        ]
     service.record_history(
         db,
         template_id=record.id,
@@ -323,14 +338,7 @@ def rebase_workspace_starter(
             if diff.changed
             else f"检查了源 workflow「{source_workflow.name}」，starter 与源 definition 已对齐。"
         ),
-        payload={
-            "source_workflow_id": source_workflow.id,
-            "source_workflow_version": source_workflow.version,
-            "changed": diff.changed,
-            "rebase_fields": diff.rebase_fields,
-            "node_changes": diff.node_summary.model_dump(),
-            "edge_changes": diff.edge_summary.model_dump(),
-        },
+        payload=payload,
     )
     db.add(record)
     db.commit()
@@ -365,10 +373,24 @@ def refresh_workspace_starter(
         )
 
     previous_version = record.created_from_workflow_version
+    diff = service.build_source_diff(record, source_workflow)
     try:
         changed = service.refresh_from_workflow(db, record, source_workflow)
     except WorkflowDefinitionValidationError as exc:
         _raise_definition_validation_error(exc)
+    payload = {
+        "source_workflow_id": source_workflow.id,
+        "previous_workflow_version": previous_version,
+        "source_workflow_version": source_workflow.version,
+        "changed": changed,
+    }
+    if diff.sandbox_dependency_entries:
+        payload["sandbox_dependency_changes"] = (
+            diff.sandbox_dependency_summary.model_dump()
+        )
+        payload["sandbox_dependency_nodes"] = [
+            entry.id for entry in diff.sandbox_dependency_entries
+        ]
     service.record_history(
         db,
         template_id=record.id,
@@ -379,12 +401,7 @@ def refresh_workspace_starter(
             if changed
             else f"检查了源 workflow「{source_workflow.name}」，模板快照已是最新。"
         ),
-        payload={
-            "source_workflow_id": source_workflow.id,
-            "previous_workflow_version": previous_version,
-            "source_workflow_version": source_workflow.version,
-            "changed": changed,
-        },
+        payload=payload,
     )
     db.add(record)
     db.commit()

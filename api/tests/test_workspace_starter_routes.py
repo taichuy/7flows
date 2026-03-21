@@ -76,6 +76,43 @@ def _planned_loop_definition() -> dict:
     }
 
 
+def _sandbox_dependency_definition(
+    *,
+    dependency_mode: str,
+    builtin_package_set: str | None = None,
+    dependency_ref: str | None = None,
+    backend_extensions: dict | None = None,
+) -> dict:
+    execution: dict[str, object] = {
+        "class": "subprocess",
+        "dependencyMode": dependency_mode,
+    }
+    if builtin_package_set is not None:
+        execution["builtinPackageSet"] = builtin_package_set
+    if dependency_ref is not None:
+        execution["dependencyRef"] = dependency_ref
+    if backend_extensions is not None:
+        execution["backendExtensions"] = backend_extensions
+
+    return {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "sandbox",
+                "type": "sandbox_code",
+                "name": "Sandbox Code",
+                "config": {"language": "python", "code": "print('ok')"},
+                "runtimePolicy": {"execution": execution},
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "sandbox"},
+            {"id": "e2", "sourceNodeId": "sandbox", "targetNodeId": "output"},
+        ],
+    }
+
+
 def _agent_tool_policy_definition(
     *,
     tool_id: str,
@@ -1296,6 +1333,48 @@ def test_workspace_starter_refresh_updates_snapshot_and_records_history(
     }
 
 
+def test_workspace_starter_refresh_records_sandbox_dependency_drift_in_history(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    created = _create_workspace_starter(
+        client,
+        name="Refresh Sandbox Starter",
+        business_track="编排节点能力",
+        description="Template for sandbox refresh flow",
+        definition=_sandbox_dependency_definition(
+            dependency_mode="builtin",
+            builtin_package_set="py-data-basic",
+        ),
+    )
+
+    sample_workflow.version = "0.1.1"
+    sample_workflow.definition = _sandbox_dependency_definition(
+        dependency_mode="dependency_ref",
+        dependency_ref="deps://analytics-v2",
+        backend_extensions={"mountPreset": "analytics"},
+    )
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    refresh_response = client.post(f"/api/workspace-starters/{created['id']}/refresh")
+    assert refresh_response.status_code == 200
+
+    history_response = client.get(f"/api/workspace-starters/{created['id']}/history")
+    assert history_response.status_code == 200
+    history_items = history_response.json()
+    assert history_items[0]["action"] == "refreshed"
+    assert history_items[0]["payload"]["sandbox_dependency_changes"] == {
+        "template_count": 1,
+        "source_count": 1,
+        "added_count": 0,
+        "removed_count": 0,
+        "changed_count": 1,
+    }
+    assert history_items[0]["payload"]["sandbox_dependency_nodes"] == ["sandbox"]
+
+
 def test_workspace_starter_source_diff_reports_node_edge_and_name_drift(
     client: TestClient,
     sqlite_session: Session,
@@ -1367,6 +1446,64 @@ def test_workspace_starter_source_diff_reports_node_edge_and_name_drift(
         entry for entry in body["edge_entries"] if entry["id"] == "e1"
     )
     assert changed_edge["changed_fields"] == ["targetNodeId"]
+
+
+def test_workspace_starter_source_diff_surfaces_sandbox_dependency_drift(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    created = _create_workspace_starter(
+        client,
+        name="Sandbox Drift Starter",
+        business_track="编排节点能力",
+        description="Template for sandbox source diff",
+        definition=_sandbox_dependency_definition(
+            dependency_mode="builtin",
+            builtin_package_set="py-data-basic",
+        ),
+    )
+
+    sample_workflow.version = "0.1.1"
+    sample_workflow.definition = _sandbox_dependency_definition(
+        dependency_mode="dependency_ref",
+        dependency_ref="deps://analytics-v2",
+        backend_extensions={"mountPreset": "analytics"},
+    )
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    response = client.get(f"/api/workspace-starters/{created['id']}/source-diff")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sandbox_dependency_summary"] == {
+        "template_count": 1,
+        "source_count": 1,
+        "added_count": 0,
+        "removed_count": 0,
+        "changed_count": 1,
+    }
+    sandbox_entry = body["sandbox_dependency_entries"][0]
+    assert sandbox_entry["id"] == "sandbox"
+    assert sandbox_entry["status"] == "changed"
+    assert sandbox_entry["changed_fields"] == [
+        "backendExtensions",
+        "builtinPackageSet",
+        "dependencyMode",
+        "dependencyRef",
+    ]
+    assert sandbox_entry["template_facts"] == [
+        "execution = subprocess",
+        "dependencyMode = builtin",
+        "builtinPackageSet = py-data-basic",
+    ]
+    assert sandbox_entry["source_facts"] == [
+        "execution = subprocess",
+        "dependencyMode = dependency_ref",
+        "dependencyRef = deps://analytics-v2",
+        "backendExtensions = mountPreset",
+    ]
 
 
 def test_workspace_starter_rebase_syncs_source_derived_fields_and_records_history(
@@ -1758,5 +1895,127 @@ def test_workspace_starter_bulk_rebase_skips_source_workflow_with_unavailable_no
             "reason": "source_workflow_invalid",
             "count": 1,
             "detail": rebase_result["skipped_items"][0]["detail"],
+        }
+    ]
+
+
+def test_workspace_starter_bulk_refresh_returns_sandbox_dependency_summary(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    derived = _create_workspace_starter(
+        client,
+        name="Bulk Refresh Sandbox Starter",
+        business_track="编排节点能力",
+        description="Template for bulk sandbox refresh flow",
+        definition=_sandbox_dependency_definition(
+            dependency_mode="builtin",
+            builtin_package_set="py-data-basic",
+        ),
+    )
+
+    sample_workflow.version = "0.1.5"
+    sample_workflow.definition = _sandbox_dependency_definition(
+        dependency_mode="dependency_ref",
+        dependency_ref="deps://analytics-v2",
+        backend_extensions={"mountPreset": "analytics"},
+    )
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    refresh_response = client.post(
+        "/api/workspace-starters/bulk",
+        json={
+            "workspace_id": "default",
+            "action": "refresh",
+            "template_ids": [derived["id"]],
+        },
+    )
+
+    assert refresh_response.status_code == 200
+    refresh_result = refresh_response.json()
+    assert refresh_result["sandbox_dependency_changes"] == {
+        "template_count": 1,
+        "source_count": 1,
+        "added_count": 0,
+        "removed_count": 0,
+        "changed_count": 1,
+    }
+    assert refresh_result["sandbox_dependency_items"] == [
+        {
+            "template_id": derived["id"],
+            "name": "Bulk Refresh Sandbox Starter",
+            "source_workflow_id": "wf-demo",
+            "source_workflow_version": "0.1.5",
+            "sandbox_dependency_changes": {
+                "template_count": 1,
+                "source_count": 1,
+                "added_count": 0,
+                "removed_count": 0,
+                "changed_count": 1,
+            },
+            "sandbox_dependency_nodes": ["sandbox"],
+        }
+    ]
+
+
+def test_workspace_starter_bulk_rebase_returns_sandbox_dependency_summary(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow,
+) -> None:
+    derived = _create_workspace_starter(
+        client,
+        name="Bulk Rebase Sandbox Starter",
+        business_track="编排节点能力",
+        description="Template for bulk sandbox rebase flow",
+        definition=_sandbox_dependency_definition(
+            dependency_mode="builtin",
+            builtin_package_set="py-data-basic",
+        ),
+    )
+
+    sample_workflow.version = "0.1.6"
+    sample_workflow.definition = _sandbox_dependency_definition(
+        dependency_mode="dependency_ref",
+        dependency_ref="deps://analytics-v3",
+        backend_extensions={"mountPreset": "analytics-v3"},
+    )
+    sqlite_session.add(sample_workflow)
+    sqlite_session.commit()
+
+    rebase_response = client.post(
+        "/api/workspace-starters/bulk",
+        json={
+            "workspace_id": "default",
+            "action": "rebase",
+            "template_ids": [derived["id"]],
+        },
+    )
+
+    assert rebase_response.status_code == 200
+    rebase_result = rebase_response.json()
+    assert rebase_result["sandbox_dependency_changes"] == {
+        "template_count": 1,
+        "source_count": 1,
+        "added_count": 0,
+        "removed_count": 0,
+        "changed_count": 1,
+    }
+    assert rebase_result["sandbox_dependency_items"] == [
+        {
+            "template_id": derived["id"],
+            "name": "Bulk Rebase Sandbox Starter",
+            "source_workflow_id": "wf-demo",
+            "source_workflow_version": "0.1.6",
+            "sandbox_dependency_changes": {
+                "template_count": 1,
+                "source_count": 1,
+                "added_count": 0,
+                "removed_count": 0,
+                "changed_count": 1,
+            },
+            "sandbox_dependency_nodes": ["sandbox"],
         }
     ]

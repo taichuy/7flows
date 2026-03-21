@@ -121,6 +121,8 @@ class WorkspaceStarterSourceDiffEntry(BaseModel):
     label: str
     status: Literal["added", "removed", "changed"]
     changed_fields: list[str] = Field(default_factory=list)
+    template_facts: list[str] = Field(default_factory=list)
+    source_facts: list[str] = Field(default_factory=list)
 
 
 class WorkspaceStarterSourceDiffSummary(BaseModel):
@@ -145,8 +147,12 @@ class WorkspaceStarterSourceDiff(BaseModel):
     rebase_fields: list[str] = Field(default_factory=list)
     node_summary: WorkspaceStarterSourceDiffSummary
     edge_summary: WorkspaceStarterSourceDiffSummary
+    sandbox_dependency_summary: WorkspaceStarterSourceDiffSummary
     node_entries: list[WorkspaceStarterSourceDiffEntry] = Field(default_factory=list)
     edge_entries: list[WorkspaceStarterSourceDiffEntry] = Field(default_factory=list)
+    sandbox_dependency_entries: list[WorkspaceStarterSourceDiffEntry] = Field(
+        default_factory=list
+    )
 
 
 class WorkspaceStarterBulkActionRequest(BaseModel):
@@ -187,6 +193,15 @@ class WorkspaceStarterBulkDeletedItem(BaseModel):
     name: str | None = None
 
 
+class WorkspaceStarterBulkSandboxDependencyItem(BaseModel):
+    template_id: str
+    name: str | None = None
+    source_workflow_id: str | None = None
+    source_workflow_version: str | None = None
+    sandbox_dependency_changes: WorkspaceStarterSourceDiffSummary
+    sandbox_dependency_nodes: list[str] = Field(default_factory=list)
+
+
 class WorkspaceStarterBulkActionResult(BaseModel):
     workspace_id: str
     action: WorkspaceStarterBulkAction
@@ -197,5 +212,9 @@ class WorkspaceStarterBulkActionResult(BaseModel):
     deleted_items: list[WorkspaceStarterBulkDeletedItem] = Field(default_factory=list)
     skipped_items: list[WorkspaceStarterBulkSkippedItem] = Field(default_factory=list)
     skipped_reason_summary: list[WorkspaceStarterBulkSkippedSummary] = Field(
+        default_factory=list
+    )
+    sandbox_dependency_changes: WorkspaceStarterSourceDiffSummary | None = None
+    sandbox_dependency_items: list[WorkspaceStarterBulkSandboxDependencyItem] = Field(
         default_factory=list
     )

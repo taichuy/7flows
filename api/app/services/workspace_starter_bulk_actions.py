@@ -9,8 +9,10 @@ from app.schemas.workspace_starter import (
     WorkspaceStarterBulkActionRequest,
     WorkspaceStarterBulkActionResult,
     WorkspaceStarterBulkDeletedItem,
+    WorkspaceStarterBulkSandboxDependencyItem,
     WorkspaceStarterBulkSkippedItem,
     WorkspaceStarterBulkSkippedSummary,
+    WorkspaceStarterSourceDiffSummary,
     WorkspaceStarterTemplateItem,
 )
 from app.services.workflow_definitions import WorkflowDefinitionValidationError
@@ -25,6 +27,9 @@ class WorkspaceStarterBulkActionAccumulator:
     updated_items: list[WorkspaceStarterTemplateItem] = field(default_factory=list)
     deleted_items: list[WorkspaceStarterBulkDeletedItem] = field(default_factory=list)
     skipped_items: list[WorkspaceStarterBulkSkippedItem] = field(default_factory=list)
+    sandbox_dependency_items: list[WorkspaceStarterBulkSandboxDependencyItem] = field(
+        default_factory=list
+    )
 
     def build_result(
         self,
@@ -41,6 +46,10 @@ class WorkspaceStarterBulkActionAccumulator:
             deleted_items=self.deleted_items,
             skipped_items=self.skipped_items,
             skipped_reason_summary=summarize_bulk_skips(self.skipped_items),
+            sandbox_dependency_changes=summarize_bulk_sandbox_dependency_items(
+                self.sandbox_dependency_items
+            ),
+            sandbox_dependency_items=self.sandbox_dependency_items,
         )
 
 
@@ -108,6 +117,27 @@ def summarize_bulk_skips(
             summary_by_reason[item.reason] = summary
         summary.count += 1
     return sorted(summary_by_reason.values(), key=lambda item: item.reason)
+
+
+def summarize_bulk_sandbox_dependency_items(
+    items: list[WorkspaceStarterBulkSandboxDependencyItem],
+) -> WorkspaceStarterSourceDiffSummary | None:
+    if not items:
+        return None
+
+    return WorkspaceStarterSourceDiffSummary(
+        template_count=sum(
+            item.sandbox_dependency_changes.template_count for item in items
+        ),
+        source_count=sum(item.sandbox_dependency_changes.source_count for item in items),
+        added_count=sum(item.sandbox_dependency_changes.added_count for item in items),
+        removed_count=sum(
+            item.sandbox_dependency_changes.removed_count for item in items
+        ),
+        changed_count=sum(
+            item.sandbox_dependency_changes.changed_count for item in items
+        ),
+    )
 
 
 def _archive_template(
@@ -257,6 +287,7 @@ def _refresh_template_from_workflow(
 ) -> None:
     try:
         previous_version = record.created_from_workflow_version
+        diff = service.build_source_diff(record, source_workflow)
         changed = service.refresh_from_workflow(db, record, source_workflow)
     except WorkflowDefinitionValidationError as exc:
         accumulator.skipped_items.append(
@@ -269,6 +300,33 @@ def _refresh_template_from_workflow(
         )
         return
 
+    payload = {
+        "bulk": True,
+        "source_workflow_id": source_workflow.id,
+        "previous_workflow_version": previous_version,
+        "source_workflow_version": source_workflow.version,
+        "changed": changed,
+    }
+    if diff.sandbox_dependency_entries:
+        payload["sandbox_dependency_changes"] = (
+            diff.sandbox_dependency_summary.model_dump()
+        )
+        payload["sandbox_dependency_nodes"] = [
+            entry.id for entry in diff.sandbox_dependency_entries
+        ]
+        accumulator.sandbox_dependency_items.append(
+            WorkspaceStarterBulkSandboxDependencyItem(
+                template_id=record.id,
+                name=record.name,
+                source_workflow_id=source_workflow.id,
+                source_workflow_version=source_workflow.version,
+                sandbox_dependency_changes=diff.sandbox_dependency_summary,
+                sandbox_dependency_nodes=[
+                    entry.id for entry in diff.sandbox_dependency_entries
+                ],
+            )
+        )
+
     service.record_history(
         db,
         template_id=record.id,
@@ -279,13 +337,7 @@ def _refresh_template_from_workflow(
             if changed
             else f"批量检查了源 workflow「{source_workflow.name}」，模板快照已是最新。"
         ),
-        payload={
-            "bulk": True,
-            "source_workflow_id": source_workflow.id,
-            "previous_workflow_version": previous_version,
-            "source_workflow_version": source_workflow.version,
-            "changed": changed,
-        },
+        payload=payload,
     )
     db.add(record)
     db.flush()
@@ -312,6 +364,35 @@ def _rebase_template_from_workflow(
         )
         return
 
+    payload = {
+        "bulk": True,
+        "source_workflow_id": source_workflow.id,
+        "source_workflow_version": source_workflow.version,
+        "changed": diff.changed,
+        "rebase_fields": diff.rebase_fields,
+        "node_changes": diff.node_summary.model_dump(),
+        "edge_changes": diff.edge_summary.model_dump(),
+    }
+    if diff.sandbox_dependency_entries:
+        payload["sandbox_dependency_changes"] = (
+            diff.sandbox_dependency_summary.model_dump()
+        )
+        payload["sandbox_dependency_nodes"] = [
+            entry.id for entry in diff.sandbox_dependency_entries
+        ]
+        accumulator.sandbox_dependency_items.append(
+            WorkspaceStarterBulkSandboxDependencyItem(
+                template_id=record.id,
+                name=record.name,
+                source_workflow_id=source_workflow.id,
+                source_workflow_version=source_workflow.version,
+                sandbox_dependency_changes=diff.sandbox_dependency_summary,
+                sandbox_dependency_nodes=[
+                    entry.id for entry in diff.sandbox_dependency_entries
+                ],
+            )
+        )
+
     service.record_history(
         db,
         template_id=record.id,
@@ -322,15 +403,7 @@ def _rebase_template_from_workflow(
             if diff.changed
             else f"批量检查了源 workflow「{source_workflow.name}」，当前已对齐。"
         ),
-        payload={
-            "bulk": True,
-            "source_workflow_id": source_workflow.id,
-            "source_workflow_version": source_workflow.version,
-            "changed": diff.changed,
-            "rebase_fields": diff.rebase_fields,
-            "node_changes": diff.node_summary.model_dump(),
-            "edge_changes": diff.edge_summary.model_dump(),
-        },
+        payload=payload,
     )
     db.add(record)
     db.flush()

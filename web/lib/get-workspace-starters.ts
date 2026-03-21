@@ -39,6 +39,8 @@ export type WorkspaceStarterSourceDiffEntry = {
   label: string;
   status: "added" | "removed" | "changed";
   changed_fields: string[];
+  template_facts: string[];
+  source_facts: string[];
 };
 
 export type WorkspaceStarterSourceDiffSummary = {
@@ -63,8 +65,10 @@ export type WorkspaceStarterSourceDiff = {
   rebase_fields: string[];
   node_summary: WorkspaceStarterSourceDiffSummary;
   edge_summary: WorkspaceStarterSourceDiffSummary;
+  sandbox_dependency_summary: WorkspaceStarterSourceDiffSummary;
   node_entries: WorkspaceStarterSourceDiffEntry[];
   edge_entries: WorkspaceStarterSourceDiffEntry[];
+  sandbox_dependency_entries: WorkspaceStarterSourceDiffEntry[];
 };
 
 export type WorkspaceStarterBulkAction =
@@ -98,6 +102,15 @@ export type WorkspaceStarterBulkDeletedItem = {
   name?: string | null;
 };
 
+export type WorkspaceStarterBulkSandboxDependencyItem = {
+  template_id: string;
+  name?: string | null;
+  source_workflow_id?: string | null;
+  source_workflow_version?: string | null;
+  sandbox_dependency_changes: WorkspaceStarterSourceDiffSummary;
+  sandbox_dependency_nodes: string[];
+};
+
 export type WorkspaceStarterBulkActionResult = {
   workspace_id: string;
   action: WorkspaceStarterBulkAction;
@@ -108,6 +121,8 @@ export type WorkspaceStarterBulkActionResult = {
   deleted_items: WorkspaceStarterBulkDeletedItem[];
   skipped_items: WorkspaceStarterBulkSkippedItem[];
   skipped_reason_summary: WorkspaceStarterBulkSkippedSummary[];
+  sandbox_dependency_changes?: WorkspaceStarterSourceDiffSummary | null;
+  sandbox_dependency_items: WorkspaceStarterBulkSandboxDependencyItem[];
 };
 
 export type WorkspaceStarterValidationIssue = WorkflowDefinitionPreflightIssue;
@@ -347,7 +362,9 @@ export async function bulkUpdateWorkspaceStarters({
       updated_items: [],
       deleted_items: [],
       skipped_items: [],
-      skipped_reason_summary: []
+      skipped_reason_summary: [],
+      sandbox_dependency_changes: null,
+      sandbox_dependency_items: []
     };
   }
 

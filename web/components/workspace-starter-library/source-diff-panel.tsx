@@ -39,22 +39,20 @@ export function WorkspaceStarterSourceDiffPanel({
             <div className="summary-card">
               <span>Node changes</span>
               <strong>
-                {sourceDiff.node_summary.added_count +
-                  sourceDiff.node_summary.removed_count +
-                  sourceDiff.node_summary.changed_count}
+                {getSummaryChangeCount(sourceDiff.node_summary)}
               </strong>
             </div>
             <div className="summary-card">
               <span>Edge changes</span>
-              <strong>
-                {sourceDiff.edge_summary.added_count +
-                  sourceDiff.edge_summary.removed_count +
-                  sourceDiff.edge_summary.changed_count}
-              </strong>
+              <strong>{getSummaryChangeCount(sourceDiff.edge_summary)}</strong>
             </div>
             <div className="summary-card">
               <span>Workflow name</span>
               <strong>{sourceDiff.workflow_name_changed ? "Drifted" : "Synced"}</strong>
+            </div>
+            <div className="summary-card">
+              <span>Sandbox drift</span>
+              <strong>{getSummaryChangeCount(sourceDiff.sandbox_dependency_summary)}</strong>
             </div>
             <div className="summary-card">
               <span>Rebase fields</span>
@@ -108,6 +106,11 @@ export function WorkspaceStarterSourceDiffPanel({
             summary={sourceDiff.edge_summary}
             entries={sourceDiff.edge_entries}
           />
+          <DiffSection
+            title="Sandbox dependency drift"
+            summary={sourceDiff.sandbox_dependency_summary}
+            entries={sourceDiff.sandbox_dependency_entries}
+          />
         </>
       )}
     </article>
@@ -158,6 +161,30 @@ function DiffSection({
                   ))}
                 </div>
               ) : null}
+              {entry.template_facts.length > 0 ? (
+                <>
+                  <p className="binding-meta">template facts</p>
+                  <div className="starter-tag-row">
+                    {entry.template_facts.map((fact) => (
+                      <span className="event-chip" key={`${entry.id}-template-${fact}`}>
+                        {fact}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+              {entry.source_facts.length > 0 ? (
+                <>
+                  <p className="binding-meta">source facts</p>
+                  <div className="starter-tag-row">
+                    {entry.source_facts.map((fact) => (
+                      <span className="event-chip" key={`${entry.id}-source-${fact}`}>
+                        {fact}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : null}
             </div>
           ))}
         </div>
@@ -175,17 +202,31 @@ function getRebaseRecommendation(sourceDiff: WorkspaceStarterSourceDiff | null) 
     return "当前模板快照和来源 workflow 已对齐，无需执行 rebase。";
   }
 
+  const sandboxDependencyDrift =
+    getSummaryChangeCount(sourceDiff.sandbox_dependency_summary) > 0;
   const definitionDrift =
-    sourceDiff.node_summary.added_count +
-      sourceDiff.node_summary.removed_count +
-      sourceDiff.node_summary.changed_count +
-      sourceDiff.edge_summary.added_count +
-      sourceDiff.edge_summary.removed_count +
-      sourceDiff.edge_summary.changed_count >
+    getSummaryChangeCount(sourceDiff.node_summary) +
+      getSummaryChangeCount(sourceDiff.edge_summary) >
     0;
+
+  if (sandboxDependencyDrift && definitionDrift && sourceDiff.workflow_name_changed) {
+    return "源 workflow 已同时推进结构、sandbox 依赖治理和默认名称。若模板要继续继承来源演进，优先执行 rebase；如果想先观察最新快照，可先 refresh，再决定是否接受命名同步。";
+  }
+
+  if (sandboxDependencyDrift && definitionDrift) {
+    return "当前 drift 已触及 sandbox_code 的 runtimePolicy.execution。若团队确认模板应继续跟随来源演进，优先执行 rebase 或 refresh，并重点复核 dependencyMode、builtinPackageSet、dependencyRef 与 backendExtensions。";
+  }
+
+  if (sandboxDependencyDrift && sourceDiff.workflow_name_changed) {
+    return "当前 drift 主要来自 sandbox 依赖治理与默认 workflow 名称变化。refresh 只会更新快照与版本；如果希望模板命名也跟随来源，同时接受新的 sandbox dependency 合约，请执行 rebase。";
+  }
 
   if (definitionDrift && sourceDiff.workflow_name_changed) {
     return "源 workflow 的 definition 和默认名称都已变化。如果模板要继续跟随来源演进，优先执行 rebase；如果只想先观察最新快照，可先 refresh 再决定是否接受名称同步。";
+  }
+
+  if (sandboxDependencyDrift) {
+    return "当前 drift 主要来自 sandbox_code 的依赖治理变化。继续 refresh 或 rebase 前，优先核对 dependencyMode、builtinPackageSet、dependencyRef 与 backendExtensions 是否仍符合当前 sandbox readiness。";
   }
 
   if (definitionDrift) {
@@ -197,4 +238,8 @@ function getRebaseRecommendation(sourceDiff: WorkspaceStarterSourceDiff | null) 
   }
 
   return "当前存在来源漂移，建议先检查变更字段，再决定是否执行 rebase。";
+}
+
+function getSummaryChangeCount(summary: WorkspaceStarterSourceDiff["node_summary"]) {
+  return summary.added_count + summary.removed_count + summary.changed_count;
 }

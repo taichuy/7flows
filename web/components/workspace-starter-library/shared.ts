@@ -1,12 +1,11 @@
-import {
-  getWorkspaceStarterBulkActionLabel
-} from "@/components/workspace-starter-library/bulk-governance-card";
 import type { WorkflowBusinessTrack } from "@/lib/workflow-business-tracks";
 import type {
   WorkspaceStarterBulkAction,
   WorkspaceStarterBulkActionResult,
-  WorkspaceStarterValidationIssue,
-  WorkspaceStarterTemplateItem
+  WorkspaceStarterHistoryItem,
+  WorkspaceStarterSourceDiffSummary,
+  WorkspaceStarterTemplateItem,
+  WorkspaceStarterValidationIssue
 } from "@/lib/get-workspace-starters";
 
 export type TrackFilter = "all" | WorkflowBusinessTrack;
@@ -23,6 +22,11 @@ export type WorkspaceStarterFormState = {
 };
 
 export type WorkspaceStarterMessageTone = "idle" | "success" | "error";
+
+export type WorkspaceStarterNarrativeItem = {
+  label: string;
+  text: string;
+};
 
 export function buildFormState(
   template: WorkspaceStarterTemplateItem
@@ -67,10 +71,63 @@ export function formatTimestamp(value: string) {
   }).format(date);
 }
 
+export function getWorkspaceStarterBulkActionLabel(action: WorkspaceStarterBulkAction) {
+  return {
+    archive: "归档",
+    restore: "恢复",
+    refresh: "刷新",
+    rebase: "rebase",
+    delete: "删除"
+  }[action];
+}
+
+export function getWorkspaceStarterBulkActionButtonLabel(action: WorkspaceStarterBulkAction) {
+  return {
+    archive: "批量归档当前结果",
+    restore: "批量恢复当前结果",
+    refresh: "批量刷新来源快照",
+    rebase: "批量执行 rebase",
+    delete: "批量删除已归档"
+  }[action];
+}
+
+export function getWorkspaceStarterBulkActionConfirmationMessage(
+  action: WorkspaceStarterBulkAction,
+  count: number
+) {
+  return {
+    archive: `确认批量归档当前筛选结果中的 ${count} 个 starter 吗？`,
+    restore: `确认批量恢复当前筛选结果中的 ${count} 个 starter 吗？`,
+    refresh: `确认批量刷新当前筛选结果中的 ${count} 个 starter 来源快照吗？`,
+    rebase: `确认对当前筛选结果中的 ${count} 个 starter 批量执行 rebase 吗？`,
+    delete: `确认永久删除当前筛选结果中的 ${count} 个已归档 starter 吗？此操作不可撤销。`
+  }[action];
+}
+
+const SKIP_REASON_LABELS = {
+  not_found: "不存在",
+  already_archived: "已归档",
+  not_archived: "未归档",
+  no_source_workflow: "无来源",
+  source_workflow_missing: "来源缺失",
+  source_workflow_invalid: "来源无效",
+  delete_requires_archive: "需先归档"
+} as const;
+
+export function getWorkspaceStarterBulkSkipReasonLabel(reason: string) {
+  return SKIP_REASON_LABELS[reason as keyof typeof SKIP_REASON_LABELS] ?? reason;
+}
+
 export function buildBulkActionMessage(
   result: Pick<
     WorkspaceStarterBulkActionResult,
-    "action" | "updated_count" | "skipped_count" | "deleted_items" | "skipped_reason_summary"
+    | "action"
+    | "updated_count"
+    | "skipped_count"
+    | "deleted_items"
+    | "skipped_reason_summary"
+    | "sandbox_dependency_changes"
+    | "sandbox_dependency_items"
   >
 ) {
   const actionLabel = getWorkspaceStarterBulkActionLabel(result.action as WorkspaceStarterBulkAction);
@@ -83,13 +140,179 @@ export function buildBulkActionMessage(
       ? `，跳过 ${result.skipped_count} 个模板${
           result.skipped_reason_summary?.length
             ? `（${result.skipped_reason_summary
-                .map((item) => `${item.reason} ${item.count}`)
+                .map((item) => `${getWorkspaceStarterBulkSkipReasonLabel(item.reason)} ${item.count}`)
                 .join(" / ")}）`
             : ""
         }`
       : "";
+  const sandboxSummary = normalizeSourceDiffSummary(result.sandbox_dependency_changes);
+  const sandboxNodeCount = countSummaryChanges(sandboxSummary);
+  const sandboxTemplateCount = Array.isArray(result.sandbox_dependency_items)
+    ? result.sandbox_dependency_items.length
+    : 0;
+  const sandboxPart =
+    sandboxSummary && sandboxNodeCount > 0
+      ? `，涉及 ${sandboxTemplateCount} 个 starter / ${sandboxNodeCount} 个 sandbox 依赖漂移节点`
+      : "";
 
-  return `${updatedPart}${deletedPart}${skippedPart}。`;
+  return `${updatedPart}${deletedPart}${skippedPart}${sandboxPart}。`;
+}
+
+export function buildWorkspaceStarterBulkResultNarrative(
+  result: WorkspaceStarterBulkActionResult
+): WorkspaceStarterNarrativeItem[] {
+  const sandboxSummary = normalizeSourceDiffSummary(result.sandbox_dependency_changes);
+  const sandboxNodeCount = countSummaryChanges(sandboxSummary);
+  if (!sandboxSummary || sandboxNodeCount <= 0) {
+    return [];
+  }
+
+  const templateFacts = (result.sandbox_dependency_items ?? [])
+    .map((item) => {
+      const templateName = item.name?.trim() || item.template_id;
+      const nodeText = item.sandbox_dependency_nodes.length
+        ? item.sandbox_dependency_nodes.join("、")
+        : "未命名节点";
+      return `${templateName}（${nodeText}）`;
+    })
+    .join("；");
+
+  const items: WorkspaceStarterNarrativeItem[] = [
+    {
+      label: "Sandbox drift",
+      text:
+        `本次批量${getWorkspaceStarterBulkActionLabel(result.action)}涉及 ${
+          result.sandbox_dependency_items.length
+        } 个 starter、${sandboxNodeCount} 个 sandbox 依赖漂移节点；` +
+        summarizeSourceDiffCounts(sandboxSummary)
+    }
+  ];
+
+  if (templateFacts) {
+    items.push({
+      label: "Affected starters",
+      text: templateFacts
+    });
+  }
+
+  return items;
+}
+
+export function buildWorkspaceStarterHistoryMetaChips(
+  item: WorkspaceStarterHistoryItem
+) {
+  const payload = normalizePayload(item.payload);
+  if (!payload) {
+    return [];
+  }
+
+  const chips: string[] = [];
+  if (payload.bulk === true) {
+    chips.push("批量");
+  }
+
+  const previousVersion = normalizeString(payload.previous_workflow_version);
+  const sourceVersion = normalizeString(payload.source_workflow_version);
+  if (previousVersion) {
+    chips.push(`prev ${previousVersion}`);
+  }
+  if (sourceVersion) {
+    chips.push(`source ${sourceVersion}`);
+  }
+
+  if (typeof payload.changed === "boolean") {
+    chips.push(payload.changed ? "已应用变更" : "已对齐");
+  }
+
+  const rebaseFields = normalizeStringArray(payload.rebase_fields);
+  if (rebaseFields.length > 0) {
+    chips.push(`rebase ${rebaseFields.length}`);
+  }
+
+  const sandboxSummary = normalizeSourceDiffSummary(payload.sandbox_dependency_changes);
+  const sandboxNodeCount = countSummaryChanges(sandboxSummary);
+  if (sandboxNodeCount > 0) {
+    chips.push(`sandbox drift ${sandboxNodeCount}`);
+  }
+
+  return chips;
+}
+
+export function buildWorkspaceStarterHistoryNarrative(
+  item: WorkspaceStarterHistoryItem
+): WorkspaceStarterNarrativeItem[] {
+  const payload = normalizePayload(item.payload);
+  if (!payload) {
+    return [];
+  }
+
+  const items: WorkspaceStarterNarrativeItem[] = [];
+  const sourceWorkflowId = normalizeString(payload.source_workflow_id);
+  const previousVersion = normalizeString(payload.previous_workflow_version);
+  const sourceVersion = normalizeString(payload.source_workflow_version);
+  const sandboxSummary = normalizeSourceDiffSummary(payload.sandbox_dependency_changes);
+  const sandboxNodes = normalizeStringArray(payload.sandbox_dependency_nodes);
+  const rebaseFields = normalizeStringArray(payload.rebase_fields);
+  const nodeChanges = normalizeSourceDiffSummary(payload.node_changes);
+  const edgeChanges = normalizeSourceDiffSummary(payload.edge_changes);
+
+  if (sourceWorkflowId || previousVersion || sourceVersion) {
+    const sourceParts = [];
+    if (sourceWorkflowId) {
+      sourceParts.push(`来源 workflow：${sourceWorkflowId}`);
+    }
+    if (previousVersion && sourceVersion) {
+      sourceParts.push(`版本从 ${previousVersion} 对齐到 ${sourceVersion}`);
+    } else if (sourceVersion) {
+      sourceParts.push(`来源版本：${sourceVersion}`);
+    }
+    items.push({
+      label: "Source",
+      text: sourceParts.join("；")
+    });
+  }
+
+  if (typeof payload.changed === "boolean") {
+    items.push({
+      label: "Result",
+      text: payload.changed
+        ? "本次治理已把模板快照应用到最新来源事实。"
+        : "本次只完成对齐检查，模板快照已是最新状态。"
+    });
+  }
+
+  if (sandboxSummary && countSummaryChanges(sandboxSummary) > 0) {
+    items.push({
+      label: "Sandbox drift",
+      text:
+        `sandbox 依赖治理发生漂移；${summarizeSourceDiffCounts(sandboxSummary)}` +
+        (sandboxNodes.length > 0 ? `；涉及节点：${sandboxNodes.join("、")}` : "")
+    });
+  }
+
+  const structureFacts = [
+    nodeChanges && countSummaryChanges(nodeChanges) > 0
+      ? `节点变化：${summarizeSourceDiffCounts(nodeChanges)}`
+      : null,
+    edgeChanges && countSummaryChanges(edgeChanges) > 0
+      ? `连线变化：${summarizeSourceDiffCounts(edgeChanges)}`
+      : null
+  ].filter(Boolean);
+  if (structureFacts.length > 0) {
+    items.push({
+      label: "Structure drift",
+      text: structureFacts.join("；")
+    });
+  }
+
+  if (rebaseFields.length > 0) {
+    items.push({
+      label: "Rebase fields",
+      text: rebaseFields.join("、")
+    });
+  }
+
+  return items;
 }
 
 export function summarizeValidationIssues(
@@ -124,4 +347,69 @@ export function summarizeValidationIssues(
       return sample ? `${prefix}（${sample}）` : prefix;
     })
     .join("；");
+}
+
+function summarizeSourceDiffCounts(summary: WorkspaceStarterSourceDiffSummary) {
+  return `新增 ${summary.added_count} / 移除 ${summary.removed_count} / 变更 ${summary.changed_count}`;
+}
+
+function countSummaryChanges(summary: WorkspaceStarterSourceDiffSummary | null) {
+  if (!summary) {
+    return 0;
+  }
+
+  return summary.added_count + summary.removed_count + summary.changed_count;
+}
+
+function normalizePayload(value: unknown): Record<string, unknown> | null {
+  return isRecord(value) ? value : null;
+}
+
+function normalizeSourceDiffSummary(value: unknown): WorkspaceStarterSourceDiffSummary | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const templateCount = normalizeNumber(value.template_count);
+  const sourceCount = normalizeNumber(value.source_count);
+  const addedCount = normalizeNumber(value.added_count);
+  const removedCount = normalizeNumber(value.removed_count);
+  const changedCount = normalizeNumber(value.changed_count);
+  if (
+    templateCount === null ||
+    sourceCount === null ||
+    addedCount === null ||
+    removedCount === null ||
+    changedCount === null
+  ) {
+    return null;
+  }
+
+  return {
+    template_count: templateCount,
+    source_count: sourceCount,
+    added_count: addedCount,
+    removed_count: removedCount,
+    changed_count: changedCount
+  };
+}
+
+function normalizeString(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeStringArray(value: unknown) {
+  return Array.isArray(value)
+    ? value
+        .map((item) => (typeof item === "string" ? item.trim() : ""))
+        .filter(Boolean)
+    : [];
+}
+
+function normalizeNumber(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

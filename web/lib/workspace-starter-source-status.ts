@@ -1,5 +1,6 @@
 import type { WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
 import type { WorkflowDetail } from "@/lib/get-workflows";
+import { summarizeWorkflowDefinitionSandboxGovernance } from "@/lib/workflow-definition-sandbox-governance";
 
 export type WorkspaceStarterSourceStatus = {
   kind: "no-source" | "missing" | "synced" | "drifted";
@@ -52,6 +53,9 @@ export function summarizeWorkspaceStarterSourceStatus(
   const sourceEdgeCount = countItems(sourceWorkflow.definition.edges);
   const templateVersion = template.created_from_workflow_version ?? null;
   const sourceVersion = sourceWorkflow.version;
+  const sandboxDependencyDrift =
+    stringifySandboxDependencyFacts(template.definition) !==
+    stringifySandboxDependencyFacts(sourceWorkflow.definition);
   const definitionsMatch =
     stringifyDefinition(template.definition) ===
     stringifyDefinition(sourceWorkflow.definition);
@@ -73,7 +77,11 @@ export function summarizeWorkspaceStarterSourceStatus(
 
   const driftReasons = [
     versionsMatch ? null : "版本号已经前进",
-    definitionsMatch ? null : "definition 已发生变化"
+    definitionsMatch
+      ? null
+      : sandboxDependencyDrift
+        ? "sandbox 依赖约束已变化"
+        : "definition 已发生变化"
   ].filter(Boolean);
 
   return {
@@ -109,4 +117,20 @@ function countItems(value: unknown[] | undefined) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringifySandboxDependencyFacts(definition: WorkspaceStarterTemplateItem["definition"]) {
+  const governance = summarizeWorkflowDefinitionSandboxGovernance(definition);
+  return JSON.stringify(
+    governance.nodes
+      .map((node) => ({
+        id: node.id,
+        executionClass: node.executionClass,
+        dependencyMode: node.dependencyMode ?? null,
+        builtinPackageSet: node.builtinPackageSet ?? null,
+        dependencyRef: node.dependencyRef ?? null,
+        backendExtensionKeys: [...node.backendExtensionKeys].sort()
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id))
+  );
 }

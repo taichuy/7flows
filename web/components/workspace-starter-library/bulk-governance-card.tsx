@@ -1,9 +1,18 @@
 "use client";
 
+import React from "react";
+
 import type {
   WorkspaceStarterBulkAction,
   WorkspaceStarterBulkActionResult
 } from "@/lib/get-workspace-starters";
+
+import {
+  buildWorkspaceStarterBulkResultNarrative,
+  getWorkspaceStarterBulkActionButtonLabel,
+  getWorkspaceStarterBulkActionLabel,
+  getWorkspaceStarterBulkSkipReasonLabel
+} from "./shared";
 
 type WorkspaceStarterBulkGovernanceCardProps = {
   inScopeCount: number;
@@ -28,6 +37,8 @@ export function WorkspaceStarterBulkGovernanceCard({
   lastResult,
   onAction
 }: WorkspaceStarterBulkGovernanceCardProps) {
+  const narrativeItems = lastResult ? buildWorkspaceStarterBulkResultNarrative(lastResult) : [];
+
   return (
     <div className="binding-card compact-card">
       <div className="binding-card-header">
@@ -50,20 +61,42 @@ export function WorkspaceStarterBulkGovernanceCard({
         删除仍然遵循“先归档再删除”；rebase 会同步 source-derived 字段，批量操作前请先确认当前筛选范围。
       </p>
       {lastResult ? (
-        <div className="starter-tag-row">
-          <span className="health-pill">
-            last run: {getWorkspaceStarterBulkActionLabel(lastResult.action)}
-          </span>
-          {lastResult.skipped_reason_summary.length > 0 ? (
-            lastResult.skipped_reason_summary.map((item) => (
+        <>
+          <div className="starter-tag-row">
+            <span className="health-pill">
+              last run: {getWorkspaceStarterBulkActionLabel(lastResult.action)}
+            </span>
+            <span className="event-chip">updated {lastResult.updated_count}</span>
+            {lastResult.deleted_items.length > 0 ? (
+              <span className="event-chip">deleted {lastResult.deleted_items.length}</span>
+            ) : null}
+            {lastResult.skipped_count > 0 ? (
+              <span className="event-chip">skipped {lastResult.skipped_count}</span>
+            ) : (
+              <span className="event-chip">no skips</span>
+            )}
+            {lastResult.skipped_reason_summary.map((item) => (
               <span className="event-chip" key={`${item.reason}-${item.count}`}>
-                {item.reason} {item.count}
+                {getWorkspaceStarterBulkSkipReasonLabel(item.reason)} {item.count}
               </span>
-            ))
-          ) : (
-            <span className="event-chip">no skips</span>
-          )}
-        </div>
+            ))}
+            {lastResult.sandbox_dependency_changes ? (
+              <span className="event-chip">
+                sandbox drift
+                {" "}
+                {lastResult.sandbox_dependency_changes.added_count +
+                  lastResult.sandbox_dependency_changes.removed_count +
+                  lastResult.sandbox_dependency_changes.changed_count}
+              </span>
+            ) : null}
+          </div>
+
+          {narrativeItems.map((item) => (
+            <p className="section-copy starter-summary-copy" key={`${item.label}-${item.text}`}>
+              <strong>{item.label}:</strong> {item.text}
+            </p>
+          ))}
+        </>
       ) : null}
       <div className="binding-actions">
         {BULK_ACTIONS.map((action) => (
@@ -80,37 +113,4 @@ export function WorkspaceStarterBulkGovernanceCard({
       </div>
     </div>
   );
-}
-
-export function getWorkspaceStarterBulkActionLabel(action: WorkspaceStarterBulkAction) {
-  return {
-    archive: "归档",
-    restore: "恢复",
-    refresh: "刷新",
-    rebase: "rebase",
-    delete: "删除"
-  }[action];
-}
-
-export function getWorkspaceStarterBulkActionButtonLabel(action: WorkspaceStarterBulkAction) {
-  return {
-    archive: "批量归档当前结果",
-    restore: "批量恢复当前结果",
-    refresh: "批量刷新来源快照",
-    rebase: "批量执行 rebase",
-    delete: "批量删除已归档"
-  }[action];
-}
-
-export function getWorkspaceStarterBulkActionConfirmationMessage(
-  action: WorkspaceStarterBulkAction,
-  count: number
-) {
-  return {
-    archive: `确认批量归档当前筛选结果中的 ${count} 个 starter 吗？`,
-    restore: `确认批量恢复当前筛选结果中的 ${count} 个 starter 吗？`,
-    refresh: `确认批量刷新当前筛选结果中的 ${count} 个 starter 来源快照吗？`,
-    rebase: `确认对当前筛选结果中的 ${count} 个 starter 批量执行 rebase 吗？`,
-    delete: `确认永久删除当前筛选结果中的 ${count} 个已归档 starter 吗？此操作不可撤销。`
-  }[action];
 }

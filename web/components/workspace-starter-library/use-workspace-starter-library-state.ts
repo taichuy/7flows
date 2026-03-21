@@ -20,15 +20,13 @@ import {
 } from "@/lib/workflow-definition-tool-governance";
 import { getWorkflowBusinessTrack } from "@/lib/workflow-business-tracks";
 import { summarizeWorkspaceStarterSourceStatus } from "@/lib/workspace-starter-source-status";
-import {
-  getWorkspaceStarterBulkActionConfirmationMessage,
-  getWorkspaceStarterBulkActionLabel
-} from "@/components/workspace-starter-library/bulk-governance-card";
 
 import {
   buildBulkActionMessage,
   buildFormState,
   buildUpdatePayload,
+  getWorkspaceStarterBulkActionConfirmationMessage,
+  getWorkspaceStarterBulkActionLabel,
   summarizeValidationIssues,
   type ArchiveFilter,
   type TrackFilter,
