@@ -2,7 +2,6 @@ import type {
   CallbackWaitingAutomationCheck,
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
-import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 import type {
   PluginToolRegistryItem,
 } from "@/lib/get-plugin-registry";
@@ -22,6 +21,7 @@ import {
   formatPublishedInvocationSurfaceLabel,
   formatPublishedRunStatusLabel
 } from "@/lib/published-invocation-presenters";
+export { buildWorkflowPublishActivityHref } from "@/lib/workflow-publish-activity-query";
 
 export type WorkflowPublishActivityPanelProps = {
   workflowId: string;
@@ -102,66 +102,4 @@ export function buildRunStatusOptions(
     dynamicValues.add(value);
   }
   return Array.from(dynamicValues);
-}
-
-export function buildWorkflowPublishActivityHref({
-  workflowId,
-  bindingId,
-  activeInvocationFilter,
-  invocationId
-}: {
-  workflowId: string;
-  bindingId?: string | null;
-  activeInvocationFilter?: WorkflowPublishInvocationActiveFilter | null;
-  invocationId?: string | null;
-}) {
-  const workflowHref = buildAuthorFacingWorkflowDetailLinkSurface({
-    workflowId,
-    variant: "editor"
-  }).href;
-  const searchParams = new URLSearchParams();
-  const normalizedBindingId = normalizeOptionalQueryValue(bindingId);
-  const normalizedRunStatus = normalizeOptionalQueryValue(activeInvocationFilter?.runStatus);
-  const normalizedApiKeyId = normalizeOptionalQueryValue(activeInvocationFilter?.apiKeyId);
-  const normalizedReasonCode = normalizeOptionalQueryValue(activeInvocationFilter?.reasonCode);
-  const normalizedInvocationId = normalizeOptionalQueryValue(invocationId);
-
-  if (normalizedBindingId) {
-    searchParams.set("publish_binding", normalizedBindingId);
-  }
-  if (activeInvocationFilter?.status) {
-    searchParams.set("publish_status", activeInvocationFilter.status);
-  }
-  if (activeInvocationFilter?.requestSource) {
-    searchParams.set("publish_request_source", activeInvocationFilter.requestSource);
-  }
-  if (activeInvocationFilter?.requestSurface) {
-    searchParams.set("publish_request_surface", activeInvocationFilter.requestSurface);
-  }
-  if (activeInvocationFilter?.cacheStatus) {
-    searchParams.set("publish_cache_status", activeInvocationFilter.cacheStatus);
-  }
-  if (normalizedRunStatus) {
-    searchParams.set("publish_run_status", normalizedRunStatus);
-  }
-  if (normalizedApiKeyId) {
-    searchParams.set("publish_api_key_id", normalizedApiKeyId);
-  }
-  if (normalizedReasonCode) {
-    searchParams.set("publish_reason_code", normalizedReasonCode);
-  }
-  if (activeInvocationFilter?.timeWindow && activeInvocationFilter.timeWindow !== "all") {
-    searchParams.set("publish_window", activeInvocationFilter.timeWindow);
-  }
-  if (normalizedInvocationId) {
-    searchParams.set("publish_invocation", normalizedInvocationId);
-  }
-
-  const query = searchParams.toString();
-  return query ? `${workflowHref}?${query}` : workflowHref;
-}
-
-function normalizeOptionalQueryValue(value: string | null | undefined) {
-  const normalizedValue = value?.trim();
-  return normalizedValue ? normalizedValue : null;
 }
