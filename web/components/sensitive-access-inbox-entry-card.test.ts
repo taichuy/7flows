@@ -164,7 +164,7 @@ describe("SensitiveAccessInboxEntryCard", () => {
       entryNodeRunId: "node-run-1",
       focusNodeName: "Tool Node",
       focusInboxHref: "/sensitive-access?run_id=run-1&node_run_id=node-run-1",
-      runHref: "/runs/run-1"
+      runId: "run-1"
     });
     const html = renderToStaticMarkup(createElement(SensitiveAccessInboxEntryCard, { entry: buildEntry() }));
 
@@ -196,7 +196,7 @@ describe("SensitiveAccessInboxEntryCard", () => {
       entryNodeRunId: "node-run-entry",
       focusNodeName: "Focus Node",
       focusInboxHref: "/sensitive-access?run_id=run-1&node_run_id=node-run-focus",
-      runHref: "/runs/run-1"
+      runId: "run-1"
     });
 
     const html = renderToStaticMarkup(createElement(SensitiveAccessInboxEntryCard, { entry }));

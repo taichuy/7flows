@@ -214,6 +214,28 @@ export function buildOperatorRunDetailLinkSurface({
   );
 }
 
+export function buildRequiredOperatorRunDetailLinkSurface({
+  runId,
+  hrefLabel,
+  surfaceCopy = buildOperatorFollowUpSurfaceCopy()
+}: {
+  runId: string;
+  hrefLabel?: string | null;
+  surfaceCopy?: OperatorFollowUpSurfaceCopy;
+}): OperatorFollowUpLinkSurface {
+  const linkSurface = buildOperatorRunDetailLinkSurface({
+    runId,
+    hrefLabel,
+    surfaceCopy
+  });
+
+  if (!linkSurface) {
+    throw new Error("Cannot build run detail link surface without a run id.");
+  }
+
+  return linkSurface;
+}
+
 export function buildOperatorInboxSliceLinkSurface({
   href,
   hrefLabel,

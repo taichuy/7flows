@@ -4,6 +4,7 @@ import {
   buildOperatorInboxSliceLinkSurface,
   buildOperatorInboxSliceCandidate,
   buildOperatorFollowUpSurfaceCopy,
+  buildRequiredOperatorRunDetailLinkSurface,
   buildOperatorRunDetailLinkSurface,
   buildOperatorRunDetailCandidate,
   buildOperatorRunSnapshotMetaRows,
@@ -131,6 +132,25 @@ describe("operator follow-up presenters", () => {
       href: "/runs/run-123456789",
       label: "打开 run"
     });
+  });
+
+  it("为必需 run detail surface 提供稳定 href 与标签", () => {
+    expect(
+      buildRequiredOperatorRunDetailLinkSurface({
+        runId: "run-123456789"
+      })
+    ).toEqual({
+      href: "/runs/run-123456789",
+      label: "open run"
+    });
+  });
+
+  it("在缺少 run id 时为必需 run detail surface 报错", () => {
+    expect(() =>
+      buildRequiredOperatorRunDetailLinkSurface({
+        runId: "   "
+      })
+    ).toThrow("Cannot build run detail link surface without a run id.");
   });
 
   it("为直达 inbox slice 链接复用统一 href 与标签 surface", () => {

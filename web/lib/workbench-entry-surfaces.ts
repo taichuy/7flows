@@ -1,3 +1,4 @@
+import { buildRequiredOperatorRunDetailLinkSurface } from "@/lib/operator-follow-up-presenters";
 import type { WorkbenchEntryLinksConfig } from "@/lib/workbench-entry-links";
 
 export type RunLibrarySurfaceCopy = {
@@ -155,14 +156,16 @@ export function buildSensitiveAccessInboxEntryExecutionSurfaceCopy({
   entryNodeRunId,
   focusNodeName,
   focusInboxHref,
-  runHref
+  runId
 }: {
   focusMatchesEntry: boolean;
   entryNodeRunId?: string | null;
   focusNodeName: string;
   focusInboxHref?: string | null;
-  runHref: string;
+  runId: string;
 }): SensitiveAccessInboxEntryExecutionSurfaceCopy {
+  const runDetailLink = buildRequiredOperatorRunDetailLinkSurface({ runId });
+
   return {
     focusDescription: focusMatchesEntry
       ? "当前票据已经命中后端选出的 canonical blocker；优先按本条目上的 approval / callback follow-up 恢复即可。"
@@ -174,12 +177,12 @@ export function buildSensitiveAccessInboxEntryExecutionSurfaceCopy({
       : focusInboxHref
         ? "focus node"
         : "run detail",
-    recommendedNextStepHref: focusMatchesEntry ? null : focusInboxHref ?? runHref,
+    recommendedNextStepHref: focusMatchesEntry ? null : focusInboxHref ?? runDetailLink.href,
     recommendedNextStepHrefLabel: focusMatchesEntry
       ? null
       : focusInboxHref
         ? "slice to focus node"
-        : "open run",
+        : runDetailLink.label,
     recommendedNextStepFallbackDetail: focusMatchesEntry
       ? "当前票据已命中 canonical blocker；优先处理本条审批，再确认 run 是否继续推进。"
       : focusInboxHref

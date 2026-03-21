@@ -1,8 +1,9 @@
+import React from "react";
 import Link from "next/link";
 
 import { formatDurationMs, formatJsonPayload, formatTimestamp } from "@/lib/runtime-presenters";
 import type { RunTrace, RunTraceQuery } from "@/lib/get-run-trace";
-import { buildRunDetailHref } from "@/lib/workbench-links";
+import { buildRequiredOperatorRunDetailLinkSurface } from "@/lib/operator-follow-up-presenters";
 
 import { buildPageTraceHref } from "@/components/run-diagnostics-panel/shared";
 
@@ -21,6 +22,11 @@ export function RunDiagnosticsTraceResultsSection({
   activeTraceQuery,
   traceHref
 }: RunDiagnosticsTraceResultsSectionProps) {
+  const clearFiltersLink = buildRequiredOperatorRunDetailLinkSurface({
+    runId,
+    hrefLabel: "清除过滤并重试"
+  });
+
   return (
     <section className="diagnostics-layout">
       <article className="diagnostic-panel">
@@ -41,8 +47,8 @@ export function RunDiagnosticsTraceResultsSection({
             </div>
             <p className="run-error-message">{traceError}</p>
             <div className="hero-actions">
-              <Link className="inline-link" href={buildRunDetailHref(runId)}>
-                清除过滤并重试
+              <Link className="inline-link" href={clearFiltersLink.href}>
+                {clearFiltersLink.label}
               </Link>
               <a className="activity-link" href={traceHref}>
                 刷新当前 trace

@@ -78,7 +78,7 @@ describe("workbench entry surface copy", () => {
       entryNodeRunId: "node-run-entry",
       focusNodeName: "Focus Node",
       focusInboxHref: "/sensitive-access?run_id=run-1&node_run_id=node-run-focus",
-      runHref: "/runs/run-1"
+      runId: "run-1"
     });
 
     expect(surfaceCopy.focusDescription).toContain("node run node-run-entry");

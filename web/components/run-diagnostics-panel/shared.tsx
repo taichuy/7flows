@@ -5,8 +5,8 @@ import {
   type RunTrace,
   type RunTraceQuery
 } from "@/lib/get-run-trace";
+import { buildRequiredOperatorRunDetailLinkSurface } from "@/lib/operator-follow-up-presenters";
 import { formatJsonPayload } from "@/lib/runtime-presenters";
-import { buildRunDetailHref } from "@/lib/workbench-links";
 
 export const TRACE_LIMIT_OPTIONS = [50, 100, 200, 500];
 
@@ -87,7 +87,7 @@ export function summarizeActiveFilters(query: RunTraceQuery) {
 
 export function buildPageTraceHref(runId: string, query: RunTraceQuery) {
   const queryString = buildRunTraceQueryString(query);
-  const runHref = buildRunDetailHref(runId);
+  const runHref = buildRequiredOperatorRunDetailLinkSurface({ runId }).href;
 
   return `${runHref}${queryString ? `?${queryString}` : ""}`;
 }

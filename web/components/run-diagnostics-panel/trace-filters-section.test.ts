@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { RunDiagnosticsTraceFiltersSection } from "@/components/run-diagnostics-panel/trace-filters-section";
+import { buildRequiredOperatorRunDetailLinkSurface } from "@/lib/operator-follow-up-presenters";
 import { buildRunDiagnosticsTraceSurfaceCopy } from "@/lib/run-diagnostics-presenters";
 
 const { exportActionSpy } = vi.hoisted(() => ({
@@ -75,5 +76,29 @@ describe("RunDiagnosticsTraceFiltersSection", () => {
     expect(html).toContain(surfaceCopy.utcTimeWindowHint);
     expect(html).toContain(surfaceCopy.cursorPaginationHint);
     expect(html).toContain(surfaceCopy.emptyState);
+  });
+
+  it("routes filter reset and form action through the shared run detail link surface", () => {
+    const resetRunLink = buildRequiredOperatorRunDetailLinkSurface({
+      runId: "run alpha/beta",
+      hrefLabel: "重置过滤"
+    });
+
+    const html = renderToStaticMarkup(
+      createElement(RunDiagnosticsTraceFiltersSection, {
+        runId: "run alpha/beta",
+        activeTraceQuery: {
+          limit: 100,
+          order: "asc"
+        },
+        eventTypeOptions: [],
+        nodeRunOptions: [],
+        activeFilters: []
+      })
+    );
+
+    expect(html).toContain(`action="${resetRunLink.href}"`);
+    expect(html).toContain(`href="${resetRunLink.href}"`);
+    expect(html).toContain(resetRunLink.label);
   });
 });

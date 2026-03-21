@@ -3,8 +3,8 @@ import Link from "next/link";
 
 import { RunTraceExportActions } from "@/components/run-trace-export-actions";
 import { DEFAULT_RUN_TRACE_LIMIT, type RunTraceQuery } from "@/lib/get-run-trace";
+import { buildRequiredOperatorRunDetailLinkSurface } from "@/lib/operator-follow-up-presenters";
 import { buildRunDiagnosticsTraceSurfaceCopy } from "@/lib/run-diagnostics-presenters";
-import { buildRunDetailHref } from "@/lib/workbench-links";
 
 import { TRACE_LIMIT_OPTIONS } from "@/components/run-diagnostics-panel/shared";
 
@@ -26,6 +26,10 @@ export function RunDiagnosticsTraceFiltersSection({
   const surfaceCopy = buildRunDiagnosticsTraceSurfaceCopy({
     defaultLimit: DEFAULT_RUN_TRACE_LIMIT
   });
+  const resetRunLink = buildRequiredOperatorRunDetailLinkSurface({
+    runId,
+    hrefLabel: surfaceCopy.resetFiltersLabel
+  });
 
   return (
     <section className="diagnostics-layout">
@@ -38,7 +42,7 @@ export function RunDiagnosticsTraceFiltersSection({
           <p className="section-copy">{surfaceCopy.sectionDescription}</p>
         </div>
 
-        <form className="trace-filter-form" action={buildRunDetailHref(runId)} method="get">
+        <form className="trace-filter-form" action={resetRunLink.href} method="get">
           <label className="binding-field">
             <span className="binding-label">Event type</span>
             <select
@@ -131,8 +135,8 @@ export function RunDiagnosticsTraceFiltersSection({
             <button className="sync-button" type="submit">
               {surfaceCopy.applyFiltersLabel}
             </button>
-            <Link className="inline-link" href={buildRunDetailHref(runId)}>
-              {surfaceCopy.resetFiltersLabel}
+            <Link className="inline-link" href={resetRunLink.href}>
+              {resetRunLink.label}
             </Link>
             <RunTraceExportActions
               query={activeTraceQuery}

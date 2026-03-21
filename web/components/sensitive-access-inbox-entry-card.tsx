@@ -26,7 +26,6 @@ import {
   buildOperatorRunDetailLinkSurface,
   formatOperatorOpenRunLinkLabel
 } from "@/lib/operator-follow-up-presenters";
-import { buildRunDetailHref } from "@/lib/workbench-links";
 import {
   formatExecutionFocusArtifactSummary,
   formatExecutionFocusFollowUp,
@@ -86,7 +85,6 @@ export function SensitiveAccessInboxEntryCard({
   const executionFactBadges = executionContext
     ? listExecutionFocusRuntimeFactBadges(executionContext.focusNode)
     : [];
-  const focusRunHref = executionContext ? buildRunDetailHref(executionContext.runId) : null;
   const focusInboxHref = executionContext
     ? buildSensitiveAccessInboxHref({
         runId: executionContext.runId,
@@ -110,12 +108,12 @@ export function SensitiveAccessInboxEntryCard({
   });
   const executionSurfaceCopy = executionContext
     ? buildSensitiveAccessInboxEntryExecutionSurfaceCopy({
-        focusMatchesEntry: executionContext.focusMatchesEntry,
-        entryNodeRunId: executionContext.entryNodeRunId,
-        focusNodeName: executionContext.focusNode.node_name,
-        focusInboxHref,
-        runHref: focusRunHref ?? buildRunDetailHref(executionContext.runId)
-      })
+      focusMatchesEntry: executionContext.focusMatchesEntry,
+      entryNodeRunId: executionContext.entryNodeRunId,
+      focusNodeName: executionContext.focusNode.node_name,
+      focusInboxHref,
+      runId: executionContext.runId
+    })
     : null;
   const shouldDeferToSharedCallbackWaitingSummary = hasCallbackWaitingSummaryFacts({
     callbackWaitingExplanation: callbackWaitingContext?.callbackWaitingExplanation,
