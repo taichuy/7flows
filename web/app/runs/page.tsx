@@ -6,12 +6,12 @@ import {
   WorkbenchEntryLinks
 } from "@/components/workbench-entry-links";
 import {
+  buildAuthorFacingWorkflowDetailLinkSurface,
   buildAuthorFacingRunDetailLinkSurface,
   buildRunLibrarySurfaceCopy
 } from "@/lib/workbench-entry-surfaces";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { formatCountMap, formatTimestamp } from "@/lib/runtime-presenters";
-import { buildWorkflowDetailHref } from "@/lib/workbench-links";
 
 export const metadata: Metadata = {
   title: "Runs | 7Flows Studio"
@@ -77,6 +77,10 @@ export default async function RunsPage() {
                 const runDetailLink = buildAuthorFacingRunDetailLinkSurface({
                   runId: run.id
                 });
+                const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
+                  workflowId: run.workflow_id,
+                  variant: "editor"
+                });
 
                 return (
                   <article className="activity-row" key={run.id}>
@@ -96,11 +100,8 @@ export default async function RunsPage() {
                       <Link className="activity-link" href={runDetailLink.href}>
                         {runDetailLink.label}
                       </Link>
-                      <Link
-                        className="inline-link secondary"
-                        href={buildWorkflowDetailHref(run.workflow_id)}
-                      >
-                        回到 workflow 编辑器
+                      <Link className="inline-link secondary" href={workflowDetailLink.href}>
+                        {workflowDetailLink.label}
                       </Link>
                     </div>
                   </article>

@@ -7,7 +7,7 @@ import {
   type WorkflowBusinessTrack
 } from "@/lib/workflow-business-tracks";
 import type { WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
-import { buildWorkflowDetailHref } from "@/lib/workbench-links";
+import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 import type {
   WorkspaceStarterFormState,
@@ -43,6 +43,13 @@ export function WorkspaceStarterMetadataPanel({
   onSave,
   onTemplateMutation
 }: WorkspaceStarterMetadataPanelProps) {
+  const sourceWorkflowLink = selectedTemplate?.created_from_workflow_id
+    ? buildAuthorFacingWorkflowDetailLinkSurface({
+        workflowId: selectedTemplate.created_from_workflow_id,
+        variant: "source"
+      })
+    : null;
+
   return (
     <article className="diagnostic-panel">
       <div className="section-heading">
@@ -222,12 +229,9 @@ export function WorkspaceStarterMetadataPanel({
                   )}
                 </>
               )}
-              {selectedTemplate.created_from_workflow_id ? (
-                <Link
-                  className="inline-link secondary"
-                  href={buildWorkflowDetailHref(selectedTemplate.created_from_workflow_id)}
-                >
-                  打开源 workflow
+              {sourceWorkflowLink ? (
+                <Link className="inline-link secondary" href={sourceWorkflowLink.href}>
+                  {sourceWorkflowLink.label}
                 </Link>
               ) : null}
               <button

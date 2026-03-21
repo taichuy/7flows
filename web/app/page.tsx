@@ -20,8 +20,10 @@ import {
   formatCountMap,
   formatTimestamp
 } from "@/lib/runtime-presenters";
-import { buildAuthorFacingRunDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
-import { buildWorkflowDetailHref } from "@/lib/workbench-links";
+import {
+  buildAuthorFacingRunDetailLinkSurface,
+  buildAuthorFacingWorkflowDetailLinkSurface
+} from "@/lib/workbench-entry-surfaces";
 
 const highlights = [
   "Dify 风格的本地源码开发路径",
@@ -245,13 +247,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </div>
           ) : (
             <div className="workflow-chip-row">
-              {workflows.map((workflow) => (
-                <WorkflowChipLink
-                  key={`editor-${workflow.id}`}
-                  workflow={workflow}
-                  href={buildWorkflowDetailHref(workflow.id)}
-                />
-              ))}
+              {workflows.map((workflow) => {
+                const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
+                  workflowId: workflow.id
+                });
+
+                return (
+                  <WorkflowChipLink
+                    key={`editor-${workflow.id}`}
+                    workflow={workflow}
+                    href={workflowDetailLink.href}
+                  />
+                );
+              })}
             </div>
           )}
         </article>

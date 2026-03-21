@@ -28,7 +28,7 @@ import {
   formatDuration,
   formatTimestamp
 } from "@/lib/runtime-presenters";
-import { buildWorkflowDetailHref } from "@/lib/workbench-links";
+import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 type RunDiagnosticsPanelProps = {
   run: RunDetail;
@@ -74,7 +74,10 @@ export function RunDiagnosticsPanel({
   const activeFilters = summarizeActiveFilters(activeTraceQuery);
   const traceHref = buildPageTraceHref(run.id, activeTraceQuery);
   const eventsApiHref = `${getApiBaseUrl()}/api/runs/${encodeURIComponent(run.id)}/events`;
-  const workflowHref = buildWorkflowDetailHref(run.workflow_id);
+  const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
+    workflowId: run.workflow_id,
+    variant: "editor"
+  });
   const heroSurfaceCopy = buildRunDiagnosticsHeroSurfaceCopy();
 
   return (
@@ -95,8 +98,8 @@ export function RunDiagnosticsPanel({
               keys={["workflowLibrary", "runLibrary", "operatorInbox", "home"]}
               overrides={{
                 workflowLibrary: {
-                  href: workflowHref,
-                  label: "回到 workflow 编辑器"
+                  href: workflowDetailLink.href,
+                  label: workflowDetailLink.label
                 },
                 runLibrary: {
                   label: "回到 run 列表"

@@ -62,6 +62,7 @@ describe("WorkspaceStarterMetadataPanel", () => {
 
     expect(html).toContain("带此 starter 回到创建页");
     expect(html).toContain('/workflows/new?needs_follow_up=true&amp;starter=starter-1');
+    expect(html).toContain("打开源 workflow");
     expect(html).toContain('/workflows/workflow%20alpha%2Fbeta');
   });
 });

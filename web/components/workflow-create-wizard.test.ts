@@ -347,6 +347,7 @@ describe("WorkflowCreateWizard", () => {
     expect(html).toContain(
       '/workspace-starters?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
     );
+    expect(html).toContain("打开最近 workflow");
     expect(html).toContain('href="/workflows/workflow%20latest%2F1"');
   });
 });

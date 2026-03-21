@@ -12,7 +12,7 @@ import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { RunTrace } from "@/lib/get-run-trace";
 import { type WorkflowRunListItem } from "@/lib/get-workflow-runs";
 import type { WorkflowListItem } from "@/lib/get-workflows";
-import { buildWorkflowDetailHref } from "@/lib/workbench-links";
+import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-blocker-notice";
@@ -124,14 +124,20 @@ export function WorkflowEditorSidebar({
         </label>
 
         <div className="workflow-chip-row compact-stack">
-          {workflows.map((item) => (
-            <WorkflowChipLink
-              key={item.id}
-              workflow={item}
-              href={buildWorkflowDetailHref(item.id)}
-              selected={item.id === workflowId}
-            />
-          ))}
+          {workflows.map((item) => {
+            const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
+              workflowId: item.id
+            });
+
+            return (
+              <WorkflowChipLink
+                key={item.id}
+                workflow={item}
+                href={workflowDetailLink.href}
+                selected={item.id === workflowId}
+              />
+            );
+          })}
         </div>
       </article>
 

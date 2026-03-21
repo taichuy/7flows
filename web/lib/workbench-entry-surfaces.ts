@@ -3,12 +3,24 @@ import {
   type OperatorFollowUpLinkSurface
 } from "@/lib/operator-follow-up-presenters";
 import type { WorkbenchEntryLinksConfig } from "@/lib/workbench-entry-links";
+import { buildWorkflowDetailHref } from "@/lib/workbench-links";
 
 export type AuthorFacingRunDetailLinkVariant = "activity" | "latest";
+export type AuthorFacingWorkflowDetailLinkVariant = "chip" | "editor" | "recent" | "source";
 
 const authorFacingRunDetailLinkLabels: Record<AuthorFacingRunDetailLinkVariant, string> = {
   activity: "查看 run 诊断面板",
   latest: "打开最新 run 诊断面板"
+};
+
+const authorFacingWorkflowDetailLinkLabels: Record<
+  AuthorFacingWorkflowDetailLinkVariant,
+  string
+> = {
+  chip: "打开 workflow 详情",
+  editor: "回到 workflow 编辑器",
+  recent: "打开最近 workflow",
+  source: "打开源 workflow"
 };
 
 export type RunLibrarySurfaceCopy = {
@@ -125,6 +137,19 @@ export function buildAuthorFacingRunDetailLinkSurface({
     runId,
     hrefLabel: authorFacingRunDetailLinkLabels[variant]
   });
+}
+
+export function buildAuthorFacingWorkflowDetailLinkSurface({
+  workflowId,
+  variant = "chip"
+}: {
+  workflowId: string;
+  variant?: AuthorFacingWorkflowDetailLinkVariant;
+}): OperatorFollowUpLinkSurface {
+  return {
+    href: buildWorkflowDetailHref(workflowId),
+    label: authorFacingWorkflowDetailLinkLabels[variant]
+  };
 }
 
 export function buildWorkflowLibrarySurfaceCopy(): WorkflowLibrarySurfaceCopy {

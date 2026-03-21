@@ -93,6 +93,7 @@ describe("RunsPage", () => {
     expect(html).toContain("运行诊断入口收口到独立列表");
     expect(html).toContain('/runs/run-1');
     expect(html).toContain('/workflows/workflow-1');
+    expect(html).toContain("回到 workflow 编辑器");
     expect(html).toContain('/sensitive-access');
     expect(html).toContain("callback_waiting · 1");
     expect(html).toContain("completed:1 / waiting_callback:1");

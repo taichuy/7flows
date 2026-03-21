@@ -23,13 +23,15 @@ import type {
   WorkflowLibraryStarterItem,
   WorkflowNodeCatalogItem
 } from "@/lib/get-workflow-library";
-import { buildWorkflowCreateWizardSurfaceCopy } from "@/lib/workbench-entry-surfaces";
+import {
+  buildAuthorFacingWorkflowDetailLinkSurface,
+  buildWorkflowCreateWizardSurfaceCopy
+} from "@/lib/workbench-entry-surfaces";
 import {
   createWorkflow,
   type WorkflowListItem,
   WorkflowDefinitionValidationError
 } from "@/lib/get-workflows";
-import { buildWorkflowDetailHref } from "@/lib/workbench-links";
 import {
   buildWorkflowEditorHrefFromWorkspaceStarterViewState,
   buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState,
@@ -128,6 +130,12 @@ export function WorkflowCreateWizard({
   const starterGovernanceHref = buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState(
     workspaceStarterGovernanceScope
   );
+  const recentWorkflowLink = workflows[0]
+    ? buildAuthorFacingWorkflowDetailLinkSurface({
+        workflowId: workflows[0].id,
+        variant: "recent"
+      })
+    : null;
   const surfaceCopy = buildWorkflowCreateWizardSurfaceCopy({
     starterGovernanceHref
   });
@@ -286,12 +294,9 @@ export function WorkflowCreateWizard({
           </div>
           <div className="hero-actions">
             <WorkbenchEntryLinks {...surfaceCopy.heroLinks} />
-            {workflows[0] ? (
-              <Link
-                className="inline-link secondary"
-                href={buildWorkflowDetailHref(workflows[0].id)}
-              >
-                打开最近 workflow
+            {recentWorkflowLink ? (
+              <Link className="inline-link secondary" href={recentWorkflowLink.href}>
+                {recentWorkflowLink.label}
               </Link>
             ) : null}
           </div>
@@ -589,13 +594,19 @@ export function WorkflowCreateWizard({
             </p>
           ) : (
             <div className="workflow-chip-row">
-              {workflows.map((workflow) => (
-                <WorkflowChipLink
-                  key={workflow.id}
-                  workflow={workflow}
-                  href={buildWorkflowDetailHref(workflow.id)}
-                />
-              ))}
+              {workflows.map((workflow) => {
+                const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
+                  workflowId: workflow.id
+                });
+
+                return (
+                  <WorkflowChipLink
+                    key={workflow.id}
+                    workflow={workflow}
+                    href={workflowDetailLink.href}
+                  />
+                );
+              })}
             </div>
           )}
         </article>

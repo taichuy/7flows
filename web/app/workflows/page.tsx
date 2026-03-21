@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 
 import { WorkbenchEntryLink, WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
-import { buildWorkflowLibrarySurfaceCopy } from "@/lib/workbench-entry-surfaces";
+import {
+  buildAuthorFacingWorkflowDetailLinkSurface,
+  buildWorkflowLibrarySurfaceCopy
+} from "@/lib/workbench-entry-surfaces";
 import { getWorkflows, type WorkflowListItem } from "@/lib/get-workflows";
 import { formatCountMap } from "@/lib/runtime-presenters";
-import { buildWorkflowDetailHref } from "@/lib/workbench-links";
 
 export const metadata: Metadata = {
   title: "Workflows | 7Flows Studio"
@@ -63,13 +65,19 @@ export default async function WorkflowsPage() {
             </div>
           ) : (
             <div className="workflow-chip-row">
-              {workflows.map((workflow) => (
-                <WorkflowChipLink
-                  key={`workflow-library-${workflow.id}`}
-                  workflow={workflow}
-                  href={buildWorkflowDetailHref(workflow.id)}
-                />
-              ))}
+              {workflows.map((workflow) => {
+                const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
+                  workflowId: workflow.id
+                });
+
+                return (
+                  <WorkflowChipLink
+                    key={`workflow-library-${workflow.id}`}
+                    workflow={workflow}
+                    href={workflowDetailLink.href}
+                  />
+                );
+              })}
             </div>
           )}
         </article>

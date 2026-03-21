@@ -3,7 +3,7 @@ import {
   type WorkflowBusinessTrack
 } from "@/lib/workflow-business-tracks";
 import type { WorkspaceStarterSourceGovernanceKind } from "@/lib/get-workspace-starters";
-import { buildWorkflowDetailHref } from "@/lib/workbench-links";
+import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 export type TrackFilter = "all" | WorkflowBusinessTrack;
 export type ArchiveFilter = "active" | "archived" | "all";
@@ -166,7 +166,10 @@ export function buildWorkflowEditorHrefFromWorkspaceStarterViewState(
 ) {
   const searchParams = buildWorkspaceStarterGovernanceSearchParams(viewState);
   const query = searchParams.toString();
-  const workflowHref = buildWorkflowDetailHref(workflowId);
+  const workflowHref = buildAuthorFacingWorkflowDetailLinkSurface({
+    workflowId,
+    variant: "editor"
+  }).href;
   return query ? `${workflowHref}?${query}` : workflowHref;
 }
 

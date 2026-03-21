@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildAuthorFacingRunDetailLinkSurface,
+  buildAuthorFacingWorkflowDetailLinkSurface,
   buildRunDetailExecutionFocusSurfaceCopy,
   buildRunDiagnosticsOperatorFollowUpSurfaceCopy,
   buildRunLibrarySurfaceCopy,
@@ -27,6 +28,40 @@ describe("workbench entry surface copy", () => {
     ).toEqual({
       href: "/runs/run-1",
       label: "打开最新 run 诊断面板"
+    });
+  });
+
+  it("keeps author-facing workflow entry labels on the shared workflow detail contract", () => {
+    expect(buildAuthorFacingWorkflowDetailLinkSurface({ workflowId: "workflow-1" })).toEqual({
+      href: "/workflows/workflow-1",
+      label: "打开 workflow 详情"
+    });
+    expect(
+      buildAuthorFacingWorkflowDetailLinkSurface({
+        workflowId: "workflow-1",
+        variant: "editor"
+      })
+    ).toEqual({
+      href: "/workflows/workflow-1",
+      label: "回到 workflow 编辑器"
+    });
+    expect(
+      buildAuthorFacingWorkflowDetailLinkSurface({
+        workflowId: "workflow-1",
+        variant: "recent"
+      })
+    ).toEqual({
+      href: "/workflows/workflow-1",
+      label: "打开最近 workflow"
+    });
+    expect(
+      buildAuthorFacingWorkflowDetailLinkSurface({
+        workflowId: "workflow-1",
+        variant: "source"
+      })
+    ).toEqual({
+      href: "/workflows/workflow-1",
+      label: "打开源 workflow"
     });
   });
 
