@@ -28,7 +28,7 @@ export type WorkflowPublishGovernanceSnapshot = {
   >;
 };
 
-type WorkflowPublishInvocationFilter = {
+export type WorkflowPublishInvocationFetchFilter = {
   bindingId: string;
   invocationId?: string;
   status?: "succeeded" | "failed" | "rejected";
@@ -53,7 +53,7 @@ export async function getWorkflowPublishGovernanceSnapshot(
   workflowId: string,
   bindings: WorkflowPublishedEndpointItem[],
   options?: {
-    activeInvocationFilter?: WorkflowPublishInvocationFilter | null;
+    activeInvocationFilter?: WorkflowPublishInvocationFetchFilter | null;
   }
 ): Promise<WorkflowPublishGovernanceSnapshot> {
   const [

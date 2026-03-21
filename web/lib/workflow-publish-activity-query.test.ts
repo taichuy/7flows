@@ -1,9 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildWorkflowPublishActivitySearchParams,
-  readWorkflowPublishActivityQueryScope
+  readWorkflowPublishActivityQueryScope,
+  resolveWorkflowPublishActivityFilters
 } from "@/lib/workflow-publish-activity-query";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("workflow publish activity query", () => {
   it("reads and normalizes publish query scope from record search params", () => {
@@ -84,5 +89,87 @@ describe("workflow publish activity query", () => {
       )
     ).toEqual(originalScope);
   });
-});
 
+  it("projects query scope into governance fetch and panel filters when binding exists", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-22T05:03:00.000Z"));
+
+    expect(
+      resolveWorkflowPublishActivityFilters(
+        {
+          bindingId: "binding-7",
+          status: "failed",
+          requestSource: "path",
+          requestSurface: "openai.responses",
+          cacheStatus: "hit",
+          runStatus: "waiting_callback",
+          apiKeyId: "key-7",
+          reasonCode: "rate_limit_exceeded",
+          timeWindow: "24h",
+          invocationId: "invocation-7"
+        },
+        [{ id: "binding-7" }, { id: "binding-8" }]
+      )
+    ).toEqual({
+      governanceFetchFilter: {
+        bindingId: "binding-7",
+        invocationId: "invocation-7",
+        status: "failed",
+        requestSource: "path",
+        requestSurface: "openai.responses",
+        cacheStatus: "hit",
+        runStatus: "waiting_callback",
+        apiKeyId: "key-7",
+        reasonCode: "rate_limit_exceeded",
+        createdFrom: "2026-03-21T05:03:00.000Z",
+        createdTo: "2026-03-22T05:03:00.000Z"
+      },
+      panelActiveFilter: {
+        bindingId: "binding-7",
+        status: "failed",
+        requestSource: "path",
+        requestSurface: "openai.responses",
+        cacheStatus: "hit",
+        runStatus: "waiting_callback",
+        apiKeyId: "key-7",
+        reasonCode: "rate_limit_exceeded",
+        timeWindow: "24h"
+      },
+      selectedInvocationId: "invocation-7"
+    });
+  });
+
+  it("drops binding-scoped projections when the requested binding is no longer present", () => {
+    expect(
+      resolveWorkflowPublishActivityFilters(
+        {
+          bindingId: "binding-missing",
+          status: "failed",
+          requestSource: "path",
+          requestSurface: "openai.responses",
+          cacheStatus: "hit",
+          runStatus: "waiting_callback",
+          apiKeyId: "key-7",
+          reasonCode: "rate_limit_exceeded",
+          timeWindow: "7d",
+          invocationId: "invocation-7"
+        },
+        [{ id: "binding-8" }]
+      )
+    ).toEqual({
+      governanceFetchFilter: null,
+      panelActiveFilter: {
+        bindingId: null,
+        status: null,
+        requestSource: null,
+        requestSurface: "openai.responses",
+        cacheStatus: "hit",
+        runStatus: "waiting_callback",
+        apiKeyId: null,
+        reasonCode: null,
+        timeWindow: "7d"
+      },
+      selectedInvocationId: null
+    });
+  });
+});

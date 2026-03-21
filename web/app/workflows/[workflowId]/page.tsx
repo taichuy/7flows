@@ -15,13 +15,10 @@ import {
   hasScopedWorkspaceStarterGovernanceFilters,
   readWorkspaceStarterLibraryViewState
 } from "@/lib/workspace-starter-governance-query";
-import type {
-  WorkflowPublishInvocationActiveFilter
-} from "@/lib/workflow-publish-governance";
 import {
-  resolvePublishWindowRange
-} from "@/lib/workflow-publish-governance";
-import { readWorkflowPublishActivityQueryScope } from "@/lib/workflow-publish-activity-query";
+  readWorkflowPublishActivityQueryScope,
+  resolveWorkflowPublishActivityFilters
+} from "@/lib/workflow-publish-activity-query";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
 
 type WorkflowEditorPageProps = {
@@ -77,27 +74,10 @@ export default async function WorkflowEditorPage({
   const publishActivityQueryScope = readWorkflowPublishActivityQueryScope(
     resolvedSearchParams
   );
-
-  const activeBindingId = publishActivityQueryScope.bindingId;
-  const selectedRequestSurface = publishActivityQueryScope.requestSurface;
-  const selectedCacheStatus = publishActivityQueryScope.cacheStatus;
-  const requestedRunStatus = publishActivityQueryScope.runStatus;
-  const requestedInvocationId = publishActivityQueryScope.invocationId;
-  const publishTimeWindow = publishActivityQueryScope.timeWindow;
-  const activeInvocationFilter =
-    activeBindingId && publishedEndpoints.some((binding) => binding.id === activeBindingId)
-      ? {
-          bindingId: activeBindingId,
-          status: publishActivityQueryScope.status ?? undefined,
-          requestSource: publishActivityQueryScope.requestSource ?? undefined,
-          requestSurface: selectedRequestSurface ?? undefined,
-          cacheStatus: selectedCacheStatus ?? undefined,
-          runStatus: requestedRunStatus ?? undefined,
-          apiKeyId: publishActivityQueryScope.apiKeyId ?? undefined,
-          reasonCode: publishActivityQueryScope.reasonCode ?? undefined,
-          ...resolvePublishWindowRange(publishTimeWindow)
-        }
-      : null;
+  const publishActivityFilters = resolveWorkflowPublishActivityFilters(
+    publishActivityQueryScope,
+    publishedEndpoints
+  );
 
   const {
     cacheInventories,
@@ -106,12 +86,7 @@ export default async function WorkflowEditorPage({
     invocationDetailsByBinding,
     rateLimitWindowAuditsByBinding
   } = await getWorkflowPublishGovernanceSnapshot(workflow.id, publishedEndpoints, {
-    activeInvocationFilter: activeInvocationFilter
-      ? {
-          ...activeInvocationFilter,
-          invocationId: requestedInvocationId ?? undefined
-        }
-      : null
+    activeInvocationFilter: publishActivityFilters.governanceFetchFilter
   });
 
   return (
@@ -139,21 +114,11 @@ export default async function WorkflowEditorPage({
         apiKeysByBinding={apiKeysByBinding}
         invocationAuditsByBinding={invocationAuditsByBinding}
         invocationDetailsByBinding={invocationDetailsByBinding}
-        selectedInvocationId={requestedInvocationId}
+        selectedInvocationId={publishActivityFilters.selectedInvocationId}
         rateLimitWindowAuditsByBinding={rateLimitWindowAuditsByBinding}
         callbackWaitingAutomation={systemOverview.callback_waiting_automation}
         sandboxReadiness={systemOverview.sandbox_readiness}
-        activeInvocationFilter={{
-          bindingId: activeInvocationFilter?.bindingId ?? null,
-          status: activeInvocationFilter?.status ?? null,
-          requestSource: activeInvocationFilter?.requestSource ?? null,
-          requestSurface: activeInvocationFilter?.requestSurface ?? selectedRequestSurface,
-          cacheStatus: activeInvocationFilter?.cacheStatus ?? selectedCacheStatus,
-          runStatus: activeInvocationFilter?.runStatus ?? requestedRunStatus?.trim() ?? null,
-          apiKeyId: activeInvocationFilter?.apiKeyId ?? null,
-          reasonCode: activeInvocationFilter?.reasonCode ?? null,
-          timeWindow: publishTimeWindow
-        } satisfies WorkflowPublishInvocationActiveFilter}
+        activeInvocationFilter={publishActivityFilters.panelActiveFilter}
       />
     </>
   );

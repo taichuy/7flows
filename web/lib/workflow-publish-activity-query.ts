@@ -2,8 +2,10 @@ import type {
   PublishedEndpointInvocationCacheStatus,
   PublishedEndpointInvocationRequestSource,
   PublishedEndpointInvocationRequestSurface,
-  PublishedEndpointInvocationStatus
+  PublishedEndpointInvocationStatus,
+  WorkflowPublishedEndpointItem
 } from "@/lib/get-workflow-publish";
+import type { WorkflowPublishInvocationFetchFilter } from "@/lib/get-workflow-publish-governance";
 import {
   PUBLISHED_INVOCATION_CACHE_STATUSES,
   PUBLISHED_INVOCATION_REASON_CODES,
@@ -12,6 +14,7 @@ import {
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 import {
   type WorkflowPublishInvocationActiveFilter,
+  resolvePublishWindowRange,
   resolvePublishTimeWindow
 } from "@/lib/workflow-publish-governance";
 
@@ -21,6 +24,12 @@ export type WorkflowPublishActivitySearchParamSource =
 
 export type WorkflowPublishActivityQueryScope = WorkflowPublishInvocationActiveFilter & {
   invocationId: string | null;
+};
+
+export type WorkflowPublishActivityResolvedFilters = {
+  governanceFetchFilter: WorkflowPublishInvocationFetchFilter | null;
+  panelActiveFilter: WorkflowPublishInvocationActiveFilter;
+  selectedInvocationId: string | null;
 };
 
 type WorkflowPublishActivityHrefOptions = {
@@ -178,6 +187,45 @@ export function buildWorkflowPublishActivityHref({
   const query = searchParams.toString();
 
   return query ? `${workflowHref}?${query}` : workflowHref;
+}
+
+export function resolveWorkflowPublishActivityFilters(
+  queryScope: WorkflowPublishActivityQueryScope,
+  bindings: ReadonlyArray<Pick<WorkflowPublishedEndpointItem, "id">>
+): WorkflowPublishActivityResolvedFilters {
+  const resolvedBindingId =
+    queryScope.bindingId && bindings.some((binding) => binding.id === queryScope.bindingId)
+      ? queryScope.bindingId
+      : null;
+
+  return {
+    governanceFetchFilter: resolvedBindingId
+      ? {
+          bindingId: resolvedBindingId,
+          invocationId: queryScope.invocationId ?? undefined,
+          status: queryScope.status ?? undefined,
+          requestSource: queryScope.requestSource ?? undefined,
+          requestSurface: queryScope.requestSurface ?? undefined,
+          cacheStatus: queryScope.cacheStatus ?? undefined,
+          runStatus: queryScope.runStatus ?? undefined,
+          apiKeyId: queryScope.apiKeyId ?? undefined,
+          reasonCode: queryScope.reasonCode ?? undefined,
+          ...resolvePublishWindowRange(queryScope.timeWindow)
+        }
+      : null,
+    panelActiveFilter: {
+      bindingId: resolvedBindingId,
+      status: resolvedBindingId ? queryScope.status : null,
+      requestSource: resolvedBindingId ? queryScope.requestSource : null,
+      requestSurface: queryScope.requestSurface,
+      cacheStatus: queryScope.cacheStatus,
+      runStatus: queryScope.runStatus,
+      apiKeyId: resolvedBindingId ? queryScope.apiKeyId : null,
+      reasonCode: resolvedBindingId ? queryScope.reasonCode : null,
+      timeWindow: queryScope.timeWindow
+    },
+    selectedInvocationId: resolvedBindingId ? queryScope.invocationId : null
+  };
 }
 
 function firstSearchValue(
