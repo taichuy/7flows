@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import type { WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
+import { buildWorkspaceStarterTemplateListSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 
 import { WorkspaceStarterTemplateListPanel } from "./template-list-panel";
 
@@ -16,6 +17,9 @@ vi.mock("next/link", () => ({
 
 describe("WorkspaceStarterTemplateListPanel", () => {
   it("surfaces source governance directly on starter cards", () => {
+    const surfaceCopy = buildWorkspaceStarterTemplateListSurfaceCopy({
+      createWorkflowHref: "/workflows/new"
+    });
     const templates: WorkspaceStarterTemplateItem[] = [
       {
         id: "starter-drifted",
@@ -113,11 +117,18 @@ describe("WorkspaceStarterTemplateListPanel", () => {
     expect(html).toContain("Source:</strong> 当前 starter 与来源 workflow 版本不一致。");
     expect(html).toContain("先打开 source diff，再决定 refresh 还是 rebase。");
     expect(html).toContain("全部治理状态");
-    expect(html).toContain("仅显示需要 follow-up 的 starter");
+    expect(html).toContain(surfaceCopy.sourceGovernanceMeta);
+    expect(html).toContain(surfaceCopy.followUpQueueLabel);
+    expect(html).toContain(surfaceCopy.followUpQueueMeta);
     expect(html).toContain("后端 summary 已把当前范围里的 follow-up queue 编成统一清单");
   });
 
   it("reuses the shared create entry contract in the empty state CTA", () => {
+    const createWorkflowHref =
+      "/workflows/new?needs_follow_up=true&q=sandbox&source_governance_kind=drifted";
+    const surfaceCopy = buildWorkspaceStarterTemplateListSurfaceCopy({
+      createWorkflowHref
+    });
     const html = renderToStaticMarkup(
       createElement(WorkspaceStarterTemplateListPanel, {
         templates: [],
@@ -128,8 +139,7 @@ describe("WorkspaceStarterTemplateListPanel", () => {
         sourceGovernanceKind: "drifted",
         needsFollowUp: true,
         searchQuery: " sandbox ",
-        createWorkflowHref:
-          "/workflows/new?needs_follow_up=true&q=sandbox&source_governance_kind=drifted",
+        createWorkflowHref,
         activeTemplateCount: 0,
         archivedTemplateCount: 0,
         templateToolGovernanceById: new Map(),
@@ -151,7 +161,8 @@ describe("WorkspaceStarterTemplateListPanel", () => {
       })
     );
 
-    expect(html).toContain("去创建第一个 starter");
+    expect(html).toContain(surfaceCopy.emptyStateDescription);
+    expect(html).toContain(surfaceCopy.emptyStateLinks.overrides?.createWorkflow?.label ?? "");
     expect(html).toContain(
       '/workflows/new?needs_follow_up=true&amp;q=sandbox&amp;source_governance_kind=drifted'
     );

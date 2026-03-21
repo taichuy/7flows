@@ -11,7 +11,9 @@ import {
   buildWorkflowCreateWizardSurfaceCopy,
   buildWorkflowEditorHeroSurfaceCopy,
   buildWorkflowLibrarySurfaceCopy,
-  buildWorkflowPublishPanelSurfaceCopy
+  buildWorkflowPublishPanelSurfaceCopy,
+  buildWorkspaceStarterGovernanceHeroSurfaceCopy,
+  buildWorkspaceStarterTemplateListSurfaceCopy
 } from "@/lib/workbench-entry-surfaces";
 
 describe("workbench entry surface copy", () => {
@@ -96,6 +98,41 @@ describe("workbench entry surface copy", () => {
     );
     expect(surfaceCopy.nextStepLinks.overrides?.operatorInbox?.label).toBe(
       "打开 sensitive access inbox"
+    );
+  });
+
+  it("keeps workspace starter governance hero CTA copy on the shared surface contract", () => {
+    const surfaceCopy = buildWorkspaceStarterGovernanceHeroSurfaceCopy({
+      createWorkflowHref:
+        "/workflows/new?needs_follow_up=true&starter=starter-a&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
+    });
+
+    expect(surfaceCopy.heroDescription).toContain("workspace starter");
+    expect(surfaceCopy.heroLinks).toMatchObject({
+      keys: ["createWorkflow", "home"],
+      primaryKey: "createWorkflow",
+      variant: "inline"
+    });
+    expect(surfaceCopy.heroLinks.overrides?.createWorkflow?.label).toBe("返回创建页");
+  });
+
+  it("keeps workspace starter template-list follow-up copy on the shared surface contract", () => {
+    const surfaceCopy = buildWorkspaceStarterTemplateListSurfaceCopy({
+      createWorkflowHref:
+        "/workflows/new?needs_follow_up=true&q=sandbox&source_governance_kind=drifted"
+    });
+
+    expect(surfaceCopy.sectionDescription).toContain("关键字收敛范围");
+    expect(surfaceCopy.sourceGovernanceMeta).toContain("deep link 口径一致");
+    expect(surfaceCopy.followUpQueueLabel).toBe("仅显示需要 follow-up 的 starter");
+    expect(surfaceCopy.followUpQueueMeta).toContain("来源漂移 / 来源缺失");
+    expect(surfaceCopy.emptyStateLinks).toMatchObject({
+      keys: ["createWorkflow"],
+      primaryKey: "createWorkflow",
+      variant: "inline"
+    });
+    expect(surfaceCopy.emptyStateLinks.overrides?.createWorkflow?.label).toBe(
+      "去创建第一个 starter"
     );
   });
 

@@ -11,6 +11,7 @@ import type {
   WorkspaceStarterSourceGovernanceScopeSummary,
   WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
+import { buildWorkspaceStarterTemplateListSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 import {
   getWorkflowBusinessTrack,
   WORKFLOW_BUSINESS_TRACKS
@@ -98,6 +99,7 @@ export function WorkspaceStarterTemplateListPanel({
     sourceGovernanceScope,
     templates
   );
+  const surfaceCopy = buildWorkspaceStarterTemplateListSurfaceCopy({ createWorkflowHref });
 
   return (
     <article className="diagnostic-panel">
@@ -106,10 +108,7 @@ export function WorkspaceStarterTemplateListPanel({
           <p className="eyebrow">Library</p>
           <h2>Template list</h2>
         </div>
-        <p className="section-copy">
-          先按主业务线和关键字收敛范围，再进入具体模板详情，避免 workspace starter
-          library 只停留在“知道它存在”。
-        </p>
+        <p className="section-copy">{surfaceCopy.sectionDescription}</p>
       </div>
 
       <div className="starter-track-bar" role="tablist" aria-label="Workspace starter tracks">
@@ -197,7 +196,7 @@ export function WorkspaceStarterTemplateListPanel({
             ))}
           </div>
           <p className="binding-meta">
-            source_governance_kind 直接映射后端治理契约，让列表筛选、summary 和 deep link 口径一致。
+            {surfaceCopy.sourceGovernanceMeta}
           </p>
         </div>
 
@@ -220,11 +219,11 @@ export function WorkspaceStarterTemplateListPanel({
               aria-pressed={needsFollowUp}
               onClick={() => onNeedsFollowUpChange(!needsFollowUp)}
             >
-              仅显示需要 follow-up 的 starter
+              {surfaceCopy.followUpQueueLabel}
             </button>
           </div>
           <p className="binding-meta">
-            needs_follow_up=true 当前只圈出来源漂移 / 来源缺失，便于 operator 直接处理治理热点。
+            {surfaceCopy.followUpQueueMeta}
           </p>
         </div>
 
@@ -249,21 +248,8 @@ export function WorkspaceStarterTemplateListPanel({
 
       {filteredTemplates.length === 0 ? (
         <div className="empty-state-block">
-          <p className="empty-state">
-            当前筛选条件下还没有 workspace starter。可以先回到创建页新建 workflow，
-            再从 editor 保存一个模板进入治理库。
-          </p>
-          <WorkbenchEntryLinks
-            keys={["createWorkflow"]}
-            overrides={{
-              createWorkflow: {
-                href: createWorkflowHref,
-                label: "去创建第一个 starter"
-              }
-            }}
-            primaryKey="createWorkflow"
-            variant="inline"
-          />
+          <p className="empty-state">{surfaceCopy.emptyStateDescription}</p>
+          <WorkbenchEntryLinks {...surfaceCopy.emptyStateLinks} />
         </div>
       ) : (
         <div className="starter-grid">

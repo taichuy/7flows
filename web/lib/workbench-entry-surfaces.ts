@@ -95,6 +95,71 @@ export type WorkflowCreateWizardSurfaceCopy = {
   sourceGovernanceFollowUpLinkLabel: string;
 };
 
+export type WorkspaceStarterGovernanceHeroSurfaceCopy = {
+  heroDescription: string;
+  heroLinks: WorkbenchEntryLinksConfig;
+};
+
+export type WorkspaceStarterTemplateListSurfaceCopy = {
+  sectionDescription: string;
+  sourceGovernanceMeta: string;
+  followUpQueueLabel: string;
+  followUpQueueMeta: string;
+  emptyStateDescription: string;
+  emptyStateLinks: WorkbenchEntryLinksConfig;
+};
+
+export function buildWorkspaceStarterGovernanceHeroSurfaceCopy({
+  createWorkflowHref
+}: {
+  createWorkflowHref: string;
+}): WorkspaceStarterGovernanceHeroSurfaceCopy {
+  return {
+    heroDescription:
+      "这条链路专门承接 editor 保存出来的 workspace starter，让团队能按业务主线查看、筛选、校对和更新模板元数据，而不是继续把模板治理留在编辑器里的单个按钮。",
+    heroLinks: {
+      keys: ["createWorkflow", "home"],
+      overrides: {
+        createWorkflow: {
+          href: createWorkflowHref,
+          label: "返回创建页"
+        }
+      },
+      primaryKey: "createWorkflow",
+      variant: "inline"
+    }
+  };
+}
+
+export function buildWorkspaceStarterTemplateListSurfaceCopy({
+  createWorkflowHref
+}: {
+  createWorkflowHref: string;
+}): WorkspaceStarterTemplateListSurfaceCopy {
+  return {
+    sectionDescription:
+      "先按主业务线和关键字收敛范围，再进入具体模板详情，避免 workspace starter library 只停留在“知道它存在”。",
+    sourceGovernanceMeta:
+      "source_governance_kind 直接映射后端治理契约，让列表筛选、summary 和 deep link 口径一致。",
+    followUpQueueLabel: "仅显示需要 follow-up 的 starter",
+    followUpQueueMeta:
+      "needs_follow_up=true 当前只圈出来源漂移 / 来源缺失，便于 operator 直接处理治理热点。",
+    emptyStateDescription:
+      "当前筛选条件下还没有 workspace starter。可以先回到创建页新建 workflow，再从 editor 保存一个模板进入治理库。",
+    emptyStateLinks: {
+      keys: ["createWorkflow"],
+      overrides: {
+        createWorkflow: {
+          href: createWorkflowHref,
+          label: "去创建第一个 starter"
+        }
+      },
+      primaryKey: "createWorkflow",
+      variant: "inline"
+    }
+  };
+}
+
 export function buildRunLibrarySurfaceCopy(): RunLibrarySurfaceCopy {
   return {
     heroDescription:
