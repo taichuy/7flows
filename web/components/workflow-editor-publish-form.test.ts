@@ -7,8 +7,22 @@ import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 
 vi.mock("@/components/workflow-editor-publish-endpoint-card", () => ({
-  WorkflowEditorPublishEndpointCard: ({ endpointIndex }: { endpointIndex: number }) =>
-    createElement("div", null, `endpoint-card:${endpointIndex}`)
+  WorkflowEditorPublishEndpointCard: ({
+    endpointIndex,
+    focusedValidationItem,
+    highlighted,
+    highlightedFieldPath
+  }: {
+    endpointIndex: number;
+    focusedValidationItem?: WorkflowValidationNavigatorItem | null;
+    highlighted?: boolean;
+    highlightedFieldPath?: string | null;
+  }) =>
+    createElement(
+      "div",
+      null,
+      `endpoint-card:${endpointIndex}:${focusedValidationItem?.target.fieldPath ?? "none"}:${highlighted ? "focused" : "idle"}:${highlightedFieldPath ?? "none"}`
+    )
 }));
 
 function buildSandboxReadiness(): SandboxReadinessCheck {
@@ -89,6 +103,42 @@ describe("WorkflowEditorPublishForm", () => {
 
     expect(html).toContain("Publish · Public Search · Workflow version");
     expect(html).toContain("如果这个 endpoint 要跟随本次保存生成的新版本");
+  });
+
+  it("routes focused publish remediation into the matching endpoint card", () => {
+    const focusedValidationItem: WorkflowValidationNavigatorItem = {
+      key: "publish-version",
+      category: "publish_version",
+      message: "Public Search 绑定了不存在的 workflow version。",
+      target: {
+        scope: "publish",
+        endpointIndex: 0,
+        fieldPath: "workflowVersion",
+        label: "Publish · Public Search"
+      }
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorPublishForm, {
+        workflowVersion: "1.0.0",
+        availableWorkflowVersions: ["1.0.0"],
+        publishEndpoints: [
+          {
+            id: "public-search",
+            name: "Public Search",
+            protocol: "openai",
+            authMode: "api_key",
+            streaming: true,
+            inputSchema: {}
+          }
+        ],
+        focusedValidationItem,
+        onChange: () => undefined
+      })
+    );
+
+    expect(html).toContain("endpoint-card:0:workflowVersion:focused:workflowVersion");
+    expect(html).not.toContain("当前高亮的 publish 问题还没有对应的 endpoint card");
   });
 
   it("shows the shared save gate summary for publish blockers", () => {

@@ -1,4 +1,6 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
+import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 
 import {
   AUTH_MODES,
@@ -18,6 +20,7 @@ type WorkflowEditorPublishEndpointCardProps = {
   endpointIndex: number;
   workflowVersion: string;
   validationMessages: string[];
+  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
   highlighted?: boolean;
   highlightedFieldPath?: string | null;
   onUpdateEndpoint: (
@@ -37,6 +40,7 @@ export function WorkflowEditorPublishEndpointCard({
   endpointIndex,
   workflowVersion,
   validationMessages,
+  focusedValidationItem = null,
   highlighted = false,
   highlightedFieldPath = null,
   onUpdateEndpoint,
@@ -44,6 +48,7 @@ export function WorkflowEditorPublishEndpointCard({
   onApplySchemaField
 }: WorkflowEditorPublishEndpointCardProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
+  const normalizedHighlightedField = normalizePublishFieldKey(highlightedFieldPath);
   const versionChip = endpoint.workflowVersion
     ? `pinned ${endpoint.workflowVersion}`
     : `tracks current ${workflowVersion}`;
@@ -53,16 +58,15 @@ export function WorkflowEditorPublishEndpointCard({
       return;
     }
 
-    const fieldKey = normalizePublishFieldKey(highlightedFieldPath);
     const target = sectionRef.current?.querySelector<HTMLElement>(
-      `[data-validation-field="${fieldKey}"] input, ` +
-        `[data-validation-field="${fieldKey}"] select, ` +
-        `[data-validation-field="${fieldKey}"] textarea`
+      `[data-validation-field="${normalizedHighlightedField}"] input, ` +
+        `[data-validation-field="${normalizedHighlightedField}"] select, ` +
+        `[data-validation-field="${normalizedHighlightedField}"] textarea`
     );
 
     target?.scrollIntoView({ block: "center", behavior: "smooth" });
     target?.focus();
-  }, [highlighted, highlightedFieldPath]);
+  }, [highlighted, normalizedHighlightedField]);
 
   return (
     <section
@@ -83,6 +87,10 @@ export function WorkflowEditorPublishEndpointCard({
         <span className="event-chip">{endpoint.streaming ? "streaming" : "non-streaming"}</span>
         <span className="event-chip">{versionChip}</span>
       </div>
+
+      {focusedValidationItem && normalizedHighlightedField ? (
+        <WorkflowValidationRemediationCard item={focusedValidationItem} />
+      ) : null}
 
       {validationMessages.length > 0 ? (
         <div className="sync-message error">
@@ -311,6 +319,9 @@ function normalizePublishFieldKey(fieldPath: string | null | undefined) {
   }
   if (fieldPath.startsWith("cache.maxEntries")) {
     return "cache.maxEntries";
+  }
+  if (fieldPath.startsWith("cache.varyBy")) {
+    return "cache.varyBy";
   }
 
   return fieldPath;

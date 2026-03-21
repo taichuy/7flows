@@ -36,6 +36,10 @@ type WorkflowEditorPublishFormProps = {
   highlightedEndpointFieldPath?: string | null;
 };
 
+type FocusedPublishValidationItem = WorkflowValidationNavigatorItem & {
+  target: Extract<WorkflowValidationNavigatorItem["target"], { scope: "publish" }>;
+};
+
 export function WorkflowEditorPublishForm({
   workflowVersion,
   availableWorkflowVersions,
@@ -73,6 +77,14 @@ export function WorkflowEditorPublishForm({
     () => summarizeWorkflowPersistBlockers(publishPersistBlockers),
     [publishPersistBlockers]
   );
+  const focusedPublishValidationItem =
+    focusedValidationItem?.target.scope === "publish"
+      ? (focusedValidationItem as FocusedPublishValidationItem)
+      : null;
+  const focusedPublishEndpointExists =
+    focusedPublishValidationItem !== null &&
+    focusedPublishValidationItem.target.endpointIndex >= 0 &&
+    focusedPublishValidationItem.target.endpointIndex < normalizedEndpoints.length;
 
   const commit = (
     nextPublish: Array<Record<string, unknown>>,
@@ -173,11 +185,8 @@ export function WorkflowEditorPublishForm({
           {sandboxPreflightHint}
         </p>
       ) : null}
-      {focusedValidationItem ? (
-        <WorkflowValidationRemediationCard
-          item={focusedValidationItem}
-          sandboxReadiness={sandboxReadiness}
-        />
+      {focusedPublishValidationItem && !focusedPublishEndpointExists ? (
+        <WorkflowValidationRemediationCard item={focusedPublishValidationItem} />
       ) : null}
       <WorkflowPersistBlockerNotice
         title="Publish save gate"
@@ -214,22 +223,34 @@ export function WorkflowEditorPublishForm({
 
       {normalizedEndpoints.length > 0 ? (
         <div className="binding-form compact-stack">
-          {normalizedEndpoints.map((endpoint, endpointIndex) => (
-            <WorkflowEditorPublishEndpointCard
-              key={`publish-endpoint-${endpointIndex}`}
-              endpoint={endpoint}
-              endpointIndex={endpointIndex}
-              workflowVersion={workflowVersion}
-              validationMessages={validationIssuesByEndpoint.get(String(endpointIndex)) ?? []}
-              highlighted={highlightedEndpointIndex === endpointIndex}
-              highlightedFieldPath={
-                highlightedEndpointIndex === endpointIndex ? highlightedEndpointFieldPath : null
-              }
-              onUpdateEndpoint={updateEndpoint}
-              onDeleteEndpoint={handleDeleteEndpoint}
-              onApplySchemaField={applySchemaField}
-            />
-          ))}
+          {normalizedEndpoints.map((endpoint, endpointIndex) => {
+            const endpointFocusedValidationItem =
+              focusedPublishValidationItem?.target.endpointIndex === endpointIndex
+                ? focusedPublishValidationItem
+                : null;
+
+            return (
+              <WorkflowEditorPublishEndpointCard
+                key={`publish-endpoint-${endpointIndex}`}
+                endpoint={endpoint}
+                endpointIndex={endpointIndex}
+                workflowVersion={workflowVersion}
+                validationMessages={validationIssuesByEndpoint.get(String(endpointIndex)) ?? []}
+                focusedValidationItem={endpointFocusedValidationItem}
+                highlighted={
+                  highlightedEndpointIndex === endpointIndex || endpointFocusedValidationItem !== null
+                }
+                highlightedFieldPath={
+                  highlightedEndpointIndex === endpointIndex
+                    ? highlightedEndpointFieldPath
+                    : endpointFocusedValidationItem?.target.fieldPath ?? null
+                }
+                onUpdateEndpoint={updateEndpoint}
+                onDeleteEndpoint={handleDeleteEndpoint}
+                onApplySchemaField={applySchemaField}
+              />
+            );
+          })}
         </div>
       ) : (
         <p className="empty-state compact">

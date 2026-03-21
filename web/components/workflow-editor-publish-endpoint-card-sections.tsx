@@ -1,3 +1,5 @@
+import React from "react";
+
 import {
   parsePositiveInteger,
   toRecord,
@@ -182,7 +184,7 @@ export function WorkflowEditorPublishEndpointCacheSection({
             </label>
           </div>
 
-          <label className="binding-field">
+          <label className="binding-field" data-validation-field="cache.varyBy">
             <span className="binding-label">Vary by</span>
             <input
               className="trace-text-input"
