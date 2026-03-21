@@ -17,30 +17,23 @@ import type {
 import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import {
   buildPublishedInvocationApiKeyUsageCardSurface,
-  buildPublishedInvocationActivityBlockedDetailSurfaceCopy,
   buildPublishedInvocationActivityDetailsSurfaceCopy,
   buildPublishedInvocationActivityInsightsSurfaceCopy,
   buildPublishedInvocationActivityTrafficMixSurface,
-  buildBlockingPublishedInvocationInboxHref,
   buildPublishedInvocationFailureReasonCardSurface,
-  buildPublishedInvocationCanonicalFollowUpCopy,
-  buildPublishedInvocationEntrySurfaceCopy,
-  buildPublishedInvocationInboxHref,
   buildPublishedInvocationIssueSignalsSurface,
   buildPublishedInvocationRateLimitWindowInsight,
-  buildPublishedInvocationRecommendedNextStep,
-  buildPublishedInvocationSelectedNextStepSurface,
   buildPublishedInvocationWaitingOverview,
   formatRateLimitPressure,
   listPublishedInvocationActivitySummaryRows,
   listPublishedInvocationActivityWaitingRows,
-  listPublishedInvocationRateLimitRows,
-  listPublishedInvocationRunFollowUpSampleViews
+  listPublishedInvocationRateLimitRows
 } from "@/lib/published-invocation-presenters";
-import { hasExecutionNodeCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
-import { formatExecutionFocusFollowUp } from "@/lib/run-execution-focus-presenters";
 
-import { formatTimeWindowLabel } from "@/components/workflow-publish-activity-panel-helpers";
+import {
+  formatTimeWindowLabel,
+  resolveWorkflowPublishSelectedInvocationDetailSurface
+} from "@/components/workflow-publish-activity-panel-helpers";
 import type { WorkflowPublishActivityPanelProps } from "@/components/workflow-publish-activity-panel-helpers";
 
 type WorkflowPublishActivityInsightsProps = {
@@ -267,59 +260,16 @@ export function WorkflowPublishActivityDetails({
 }: WorkflowPublishActivityDetailsProps) {
   const items = invocationAudit?.items ?? [];
   const detailsSurfaceCopy = buildPublishedInvocationActivityDetailsSurfaceCopy();
-  const entrySurfaceCopy = buildPublishedInvocationEntrySurfaceCopy();
   const apiKeyUsage = invocationAudit?.facets.api_key_usage ?? [];
   const failureReasons = invocationAudit?.facets.recent_failure_reasons ?? [];
   const reasonCounts = invocationAudit?.facets.reason_counts ?? [];
-  const selectedInvocationDrilldown =
-    selectedInvocationDetail?.kind === "ok"
-      ? (() => {
-          const detail = selectedInvocationDetail.data;
-          const samples = listPublishedInvocationRunFollowUpSampleViews(detail.run_follow_up ?? null);
-          const sharedCallbackWaitingExplanations = samples
-            .filter((sample) => sample.has_callback_waiting_summary)
-            .map((sample) => sample.run_snapshot.callbackWaitingExplanation);
-          const canonicalFollowUp = buildPublishedInvocationCanonicalFollowUpCopy({
-            explanation: detail.run_follow_up?.explanation ?? null,
-            sharedCallbackWaitingExplanations,
-            fallbackHeadline: entrySurfaceCopy.canonicalFollowUpFallbackHeadline
-          });
-          const executionFocusFollowUp =
-            detail.execution_focus_explanation?.follow_up ??
-            (detail.execution_focus_node &&
-            !hasExecutionNodeCallbackWaitingSummaryFacts(detail.execution_focus_node)
-              ? formatExecutionFocusFollowUp(detail.execution_focus_node)
-              : null);
-
-          return buildPublishedInvocationRecommendedNextStep({
-            runId: detail.run?.id ?? detail.invocation.run_id ?? null,
-            canonicalFollowUp,
-            callbackWaitingFollowUp: detail.callback_waiting_explanation?.follow_up ?? null,
-            executionFocusFollowUp,
-            blockingInboxHref: buildBlockingPublishedInvocationInboxHref({
-              runId: detail.run?.id ?? detail.invocation.run_id ?? null,
-              blockingNodeRunId: detail.blocking_node_run_id,
-              blockingSensitiveAccessEntries: detail.blocking_sensitive_access_entries
-            }),
-            approvalInboxHref: buildPublishedInvocationInboxHref({
-              invocation: detail.invocation,
-              callbackTickets: detail.callback_tickets,
-              sensitiveAccessEntries: detail.sensitive_access_entries
-            })
-          });
-        })()
-      : null;
-  const selectedInvocationBlockedCopy =
-    selectedInvocationDetail?.kind === "blocked"
-      ? buildPublishedInvocationActivityBlockedDetailSurfaceCopy(selectedInvocationDetail.payload)
-      : null;
-  const selectedInvocationNextStepSurface =
-    selectedInvocationId && selectedInvocationDetail?.kind === "ok" && selectedInvocationDrilldown
-      ? buildPublishedInvocationSelectedNextStepSurface({
-          invocationId: selectedInvocationId,
-          nextStep: selectedInvocationDrilldown,
-          surfaceCopy: detailsSurfaceCopy
-        })
+  const selectedInvocationSurface = resolveWorkflowPublishSelectedInvocationDetailSurface({
+    selectedInvocationId,
+    selectedInvocationDetail
+  });
+  const selectedInvocationUnavailableSurface =
+    selectedInvocationSurface.kind === "unavailable"
+      ? selectedInvocationSurface.unavailableSurfaceCopy
       : null;
 
   return (
@@ -382,20 +332,24 @@ export function WorkflowPublishActivityDetails({
         </div>
       ) : null}
 
-      {selectedInvocationNextStepSurface ? (
+      {selectedInvocationSurface.nextStepSurface ? (
         <article className="entry-card compact-card">
           <div className="payload-card-header">
             <div>
-              <p className="entry-card-title">{selectedInvocationNextStepSurface.title}</p>
-              <p className="binding-meta">{selectedInvocationNextStepSurface.invocationId}</p>
+              <p className="entry-card-title">{selectedInvocationSurface.nextStepSurface.title}</p>
+              <p className="binding-meta">{selectedInvocationSurface.nextStepSurface.invocationId}</p>
             </div>
-            <span className="event-chip">{selectedInvocationNextStepSurface.label}</span>
+            <span className="event-chip">{selectedInvocationSurface.nextStepSurface.label}</span>
           </div>
-          <p className="section-copy entry-copy">{selectedInvocationNextStepSurface.detail}</p>
-          {selectedInvocationNextStepSurface.href && selectedInvocationNextStepSurface.hrefLabel ? (
+          <p className="section-copy entry-copy">{selectedInvocationSurface.nextStepSurface.detail}</p>
+          {selectedInvocationSurface.nextStepSurface.href &&
+          selectedInvocationSurface.nextStepSurface.hrefLabel ? (
             <div className="tool-badge-row">
-              <Link className="event-chip inbox-filter-link" href={selectedInvocationNextStepSurface.href}>
-                {selectedInvocationNextStepSurface.hrefLabel}
+              <Link
+                className="event-chip inbox-filter-link"
+                href={selectedInvocationSurface.nextStepSurface.href}
+              >
+                {selectedInvocationSurface.nextStepSurface.hrefLabel}
               </Link>
             </div>
           ) : null}
@@ -404,37 +358,31 @@ export function WorkflowPublishActivityDetails({
 
       {items.length ? (
         <>
-          {selectedInvocationId && clearInvocationDetailHref ? (
-            selectedInvocationDetail?.kind === "ok" ? (
-              <WorkflowPublishInvocationDetailPanel
-                clearHref={clearInvocationDetailHref}
-                detail={selectedInvocationDetail.data}
-                tools={tools}
-                callbackWaitingAutomation={callbackWaitingAutomation}
-                sandboxReadiness={sandboxReadiness}
-              />
-            ) : selectedInvocationDetail?.kind === "blocked" && selectedInvocationBlockedCopy ? (
-              <SensitiveAccessBlockedCard
-                clearHref={clearInvocationDetailHref}
-                payload={selectedInvocationDetail.payload}
-                summary={selectedInvocationBlockedCopy.summary}
-                title={selectedInvocationBlockedCopy.title}
-              />
-            ) : (() => {
-              const unavailableCopy = detailsSurfaceCopy.unavailableDetail;
-
-              return (
-                <article className="entry-card compact-card">
-                  <div className="payload-card-header">
-                    <div>
-                      <p className="entry-card-title">{unavailableCopy.title}</p>
-                      <p className="binding-meta">{unavailableCopy.summary}</p>
-                    </div>
-                  </div>
-                  <p className="section-copy entry-copy">{unavailableCopy.detail}</p>
-                </article>
-              );
-            })()
+          {clearInvocationDetailHref && selectedInvocationSurface.kind === "ok" ? (
+            <WorkflowPublishInvocationDetailPanel
+              clearHref={clearInvocationDetailHref}
+              detail={selectedInvocationSurface.detail}
+              tools={tools}
+              callbackWaitingAutomation={callbackWaitingAutomation}
+              sandboxReadiness={sandboxReadiness}
+            />
+          ) : clearInvocationDetailHref && selectedInvocationSurface.kind === "blocked" ? (
+            <SensitiveAccessBlockedCard
+              clearHref={clearInvocationDetailHref}
+              payload={selectedInvocationSurface.payload}
+              summary={selectedInvocationSurface.blockedSurfaceCopy.summary}
+              title={selectedInvocationSurface.blockedSurfaceCopy.title}
+            />
+          ) : clearInvocationDetailHref && selectedInvocationUnavailableSurface ? (
+            <article className="entry-card compact-card">
+              <div className="payload-card-header">
+                <div>
+                  <p className="entry-card-title">{selectedInvocationUnavailableSurface.title}</p>
+                  <p className="binding-meta">{selectedInvocationUnavailableSurface.summary}</p>
+                </div>
+              </div>
+              <p className="section-copy entry-copy">{selectedInvocationUnavailableSurface.detail}</p>
+            </article>
           ) : null}
           <div className="publish-cache-list">
             {items.map((item) => (

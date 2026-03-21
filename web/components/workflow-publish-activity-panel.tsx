@@ -4,8 +4,8 @@ import { WorkflowPublishActivityFilterForm } from "@/components/workflow-publish
 import { WorkflowPublishExportActions } from "@/components/workflow-publish-export-actions";
 import {
   buildActiveFilterChips,
-  buildWorkflowPublishActivityHref,
   buildRunStatusOptions,
+  resolveWorkflowPublishActivityDetailLinks,
   type WorkflowPublishActivityPanelProps
 } from "@/components/workflow-publish-activity-panel-helpers";
 import {
@@ -21,8 +21,6 @@ export function WorkflowPublishActivityPanel({
   invocationAudit,
   selectedInvocationId,
   selectedInvocationDetail,
-  selectedInvocationDetailHref,
-  clearInvocationDetailHref,
   rateLimitWindowAudit,
   activeInvocationFilter,
   callbackWaitingAutomation,
@@ -30,12 +28,11 @@ export function WorkflowPublishActivityPanel({
 }: WorkflowPublishActivityPanelProps) {
   const activeFilterChips = buildActiveFilterChips(activeInvocationFilter, apiKeys);
   const runStatusOptions = buildRunStatusOptions(invocationAudit?.facets.run_status_counts);
-  const clearHref = clearInvocationDetailHref ??
-    buildWorkflowPublishActivityHref({
-      workflowId,
-      bindingId: binding.id,
-      activeInvocationFilter
-    });
+  const detailLinks = resolveWorkflowPublishActivityDetailLinks({
+    workflowId,
+    bindingId: binding.id,
+    activeInvocationFilter
+  });
 
   return (
     <div className="entry-card compact-card">
@@ -86,17 +83,8 @@ export function WorkflowPublishActivityPanel({
         selectedInvocationDetail={selectedInvocationDetail}
         callbackWaitingAutomation={callbackWaitingAutomation}
         sandboxReadiness={sandboxReadiness}
-        buildInvocationDetailHref={(invocationId) =>
-          selectedInvocationId === invocationId && selectedInvocationDetailHref
-            ? selectedInvocationDetailHref
-            : buildWorkflowPublishActivityHref({
-                workflowId,
-                bindingId: binding.id,
-                activeInvocationFilter,
-                invocationId
-              })
-        }
-        clearInvocationDetailHref={clearHref}
+        buildInvocationDetailHref={detailLinks.buildInvocationDetailHref}
+        clearInvocationDetailHref={detailLinks.clearInvocationDetailHref}
       />
     </div>
   );

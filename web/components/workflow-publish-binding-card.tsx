@@ -182,8 +182,6 @@ export function WorkflowPublishBindingCard({
         invocationAudit={invocationAudit}
         selectedInvocationId={selectedInvocationId}
         selectedInvocationDetail={selectedInvocationDetail}
-        selectedInvocationDetailHref={null}
-        clearInvocationDetailHref={null}
         rateLimitWindowAudit={rateLimitWindowAudit}
         callbackWaitingAutomation={callbackWaitingAutomation}
         sandboxReadiness={sandboxReadiness}
