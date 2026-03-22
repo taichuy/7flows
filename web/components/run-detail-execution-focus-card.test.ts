@@ -45,7 +45,7 @@ function buildSandboxReadiness(): SandboxReadinessCheck {
       kind: "open_workflow_library",
       label: "Open workflow library",
       href: "/workflows?execution=sandbox",
-      entry_key: "workflow_library"
+      entry_key: "workflowLibrary"
     }
   };
 }

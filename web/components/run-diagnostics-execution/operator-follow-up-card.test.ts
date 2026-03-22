@@ -4,9 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { RunDiagnosticsOperatorFollowUpCard } from "@/components/run-diagnostics-execution/operator-follow-up-card";
 import type { RunExecutionView } from "@/lib/get-run-views";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import { buildRunDiagnosticsOperatorFollowUpSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 
-function buildCallbackWaitingAutomation() {
+function buildCallbackWaitingAutomation(): CallbackWaitingAutomationCheck {
   return {
     status: "healthy",
     scheduler_required: true,
@@ -21,7 +25,7 @@ function buildCallbackWaitingAutomation() {
   };
 }
 
-function buildSandboxReadiness() {
+function buildSandboxReadiness(): SandboxReadinessCheck {
   return {
     enabled_backend_count: 0,
     healthy_backend_count: 0,
@@ -58,7 +62,7 @@ function buildSandboxReadiness() {
       kind: "open_workflow_library",
       label: "Open workflow library",
       href: "/workflows?execution=sandbox",
-      entry_key: "workflow_library"
+      entry_key: "workflowLibrary"
     }
   };
 }
@@ -425,7 +429,7 @@ describe("RunDiagnosticsOperatorFollowUpCard", () => {
             kind: "open_run_library",
             label: "Open run library",
             href: "/runs?focus=callback-waiting",
-            entry_key: "run_library"
+            entry_key: "runLibrary"
           },
           steps: []
         },
@@ -459,7 +463,7 @@ describe("RunDiagnosticsOperatorFollowUpCard", () => {
             kind: "open_run_library",
             label: "Open run library",
             href: "/runs?focus=callback-waiting",
-            entry_key: "run_library"
+            entry_key: "runLibrary"
           },
           steps: []
         },

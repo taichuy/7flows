@@ -6,7 +6,7 @@ import {
 } from "./system-overview-follow-up-presenters";
 
 describe("system overview follow-up presenters", () => {
-  it("normalizes aliased entry keys for callback recovery follow-up surfaces", () => {
+  it("uses canonical entry keys for callback recovery follow-up surfaces", () => {
     expect(
       buildCallbackWaitingAutomationSystemFollowUp({
         affected_run_count: 3,
@@ -16,7 +16,7 @@ describe("system overview follow-up presenters", () => {
           kind: "open_run_library",
           label: "Open run library",
           href: "/runs?focus=callback-waiting",
-          entry_key: "run_library"
+          entry_key: "runLibrary"
         }
       })
     ).toEqual({
@@ -42,7 +42,7 @@ describe("system overview follow-up presenters", () => {
           kind: "open_run_library",
           label: "Open run library",
           href: "/runs?focus=callback-waiting",
-          entry_key: "run_library"
+          entry_key: "runLibrary"
         }
       },
       sandboxActive: true,
@@ -54,7 +54,7 @@ describe("system overview follow-up presenters", () => {
           kind: "open_workflow_library",
           label: "Open workflow library",
           href: "/workflows?execution=sandbox",
-          entry_key: "workflow_library"
+          entry_key: "workflowLibrary"
         }
       }
     });
@@ -84,7 +84,7 @@ describe("system overview follow-up presenters", () => {
           kind: "open_workflow_library",
           label: "Open workflow library",
           href: "/workflows?execution=sandbox",
-          entry_key: "workflow_library"
+          entry_key: "workflowLibrary"
         }
       }
     });

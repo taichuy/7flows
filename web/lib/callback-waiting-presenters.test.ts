@@ -319,7 +319,7 @@ describe("callback waiting presenters", () => {
             kind: "open_run_library",
             label: "Open run library",
             href: "/runs?focus=callback-waiting",
-            entry_key: "run_library"
+            entry_key: "runLibrary"
           },
           steps: []
         },

@@ -1235,7 +1235,7 @@ describe("published invocation presenters", () => {
             kind: "open_workflow_library",
             label: "Open workflow library",
             href: "/workflows?execution=sandbox",
-            entry_key: "workflow_library"
+            entry_key: "workflowLibrary"
           }
         }
       })
@@ -1281,7 +1281,7 @@ describe("published invocation presenters", () => {
             kind: "open_workflow_library",
             label: "Open workflow library",
             href: "/workflows?execution=sandbox",
-            entry_key: "workflow_library"
+            entry_key: "workflowLibrary"
           }
         }
       })
@@ -1308,7 +1308,7 @@ describe("published invocation presenters", () => {
             kind: "open_run_library",
             label: "Open run library",
             href: "/runs?focus=callback-waiting",
-            entry_key: "run_library"
+            entry_key: "runLibrary"
           },
           steps: []
         }
@@ -1350,7 +1350,7 @@ describe("published invocation presenters", () => {
             kind: "open_run_library",
             label: "Open run library",
             href: "/runs?focus=callback-waiting",
-            entry_key: "run_library"
+            entry_key: "runLibrary"
           },
           steps: []
         }
@@ -1514,7 +1514,7 @@ describe("published invocation presenters", () => {
             kind: "open_run_library",
             label: "Open run library",
             href: "/runs?focus=callback-waiting",
-            entry_key: "run_library"
+            entry_key: "runLibrary"
           },
           steps: []
         },
@@ -1600,7 +1600,7 @@ describe("published invocation presenters", () => {
             kind: "open_workflow_library",
             label: "Open workflow library",
             href: "/workflows?execution=sandbox",
-            entry_key: "workflow_library"
+            entry_key: "workflowLibrary"
           }
         },
         blockingInboxHref: null,

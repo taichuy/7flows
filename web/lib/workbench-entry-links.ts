@@ -29,9 +29,13 @@ export type WorkbenchEntryLinkKey = keyof typeof WORKBENCH_ENTRY_LINK_REGISTRY;
 
 const WORKBENCH_ENTRY_LINK_KEY_ALIASES = {
   home: "home",
+  workflows: "workflowLibrary",
   workflow_library: "workflowLibrary",
+  runs: "runLibrary",
   run_library: "runLibrary",
+  sensitive_access: "operatorInbox",
   operator_inbox: "operatorInbox",
+  workspace_starters: "workspaceStarterLibrary",
   create_workflow: "createWorkflow",
   workspace_starter_library: "workspaceStarterLibrary"
 } as const satisfies Record<string, WorkbenchEntryLinkKey>;

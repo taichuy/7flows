@@ -4,10 +4,7 @@ import type {
   SystemOverviewRecommendedAction
 } from "@/lib/get-system-overview";
 import type { OperatorRecommendedNextStepCandidate } from "@/lib/operator-follow-up-presenters";
-import {
-  normalizeWorkbenchEntryLinkKey,
-  type WorkbenchEntryLinkKey
-} from "@/lib/workbench-entry-links";
+import { type WorkbenchEntryLinkKey } from "@/lib/workbench-entry-links";
 
 export type SystemOverviewFollowUpSource =
   | "sandbox_readiness"
@@ -25,7 +22,7 @@ export type SystemOverviewFollowUpSurface = {
 
 type NormalizedSystemOverviewRecommendedAction = {
   kind: string;
-  entryKey: WorkbenchEntryLinkKey | null;
+  entryKey: WorkbenchEntryLinkKey;
   href: string | null;
   label: string | null;
 };
@@ -77,7 +74,7 @@ function normalizeRecommendedAction(
 
   return {
     kind: action.kind.trim(),
-    entryKey: normalizeWorkbenchEntryLinkKey(action.entry_key),
+    entryKey: action.entry_key,
     href: action.href?.trim() || null,
     label: action.label?.trim() || null
   };

@@ -35,7 +35,7 @@ function buildCallbackWaitingAutomation(): CallbackWaitingAutomationCheck {
     primary_blocker_kind: "scheduler_unhealthy",
     recommended_action: {
       kind: "callback_waiting",
-      entry_key: "runs",
+      entry_key: "runLibrary",
       href: "/runs?status=waiting",
       label: "Open run library"
     },

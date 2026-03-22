@@ -5,7 +5,8 @@ import type {
 } from "@/lib/get-sensitive-access";
 import type {
   CallbackWaitingAutomationCheck,
-  SandboxReadinessCheck
+  SandboxReadinessCheck,
+  SystemOverviewRecommendedAction
 } from "@/lib/get-system-overview";
 import {
   formatSandboxReadinessDetail,
@@ -17,7 +18,6 @@ import type {
   WorkbenchEntryLinkKey,
   WorkbenchEntryLinkOverrides
 } from "@/lib/workbench-entry-links";
-import { normalizeWorkbenchEntryLinkKey } from "@/lib/workbench-entry-links";
 
 export type CrossEntryRiskDigestTone = "healthy" | "degraded" | "blocked";
 
@@ -93,17 +93,17 @@ function resolveRecommendedEntryKey({
   action,
   fallback
 }: {
-  action?: { entry_key?: string | null } | null;
+  action?: SystemOverviewRecommendedAction | null;
   fallback: WorkbenchEntryLinkKey;
 }) {
-  return normalizeWorkbenchEntryLinkKey(action?.entry_key) ?? fallback;
+  return action?.entry_key ?? fallback;
 }
 
 function applyRecommendedActionOverride(
   overrides: WorkbenchEntryLinkOverrides,
-  action?: { entry_key?: string | null; href?: string | null; label?: string | null } | null
+  action?: SystemOverviewRecommendedAction | null
 ) {
-  const entryKey = normalizeWorkbenchEntryLinkKey(action?.entry_key);
+  const entryKey = action?.entry_key;
   if (!entryKey) {
     return;
   }

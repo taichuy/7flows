@@ -1,4 +1,8 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import {
+  normalizeWorkbenchEntryLinkKey,
+  type WorkbenchEntryLinkKey
+} from "@/lib/workbench-entry-links";
 
 export type ServiceCheck = {
   name: string;
@@ -150,9 +154,9 @@ export type CallbackWaitingAutomationCheck = {
 
 export type SystemOverviewRecommendedAction = {
   kind: string;
-  entry_key: string;
-  href: string;
-  label: string;
+  entry_key: WorkbenchEntryLinkKey;
+  href: string | null;
+  label: string | null;
 };
 
 export type SystemOverview = {
@@ -235,8 +239,90 @@ export async function getSystemOverview(): Promise<SystemOverview> {
       return fallback;
     }
 
-    return (await response.json()) as SystemOverview;
+    return normalizeSystemOverview(await response.json());
   } catch {
     return fallback;
   }
+}
+
+function normalizeSystemOverview(input: unknown): SystemOverview {
+  if (!isRecord(input)) {
+    return fallback;
+  }
+
+  const raw = input as Partial<SystemOverview> & Record<string, unknown>;
+
+  return {
+    ...fallback,
+    ...raw,
+    sandbox_readiness: normalizeSandboxReadiness(raw.sandbox_readiness),
+    callback_waiting_automation: normalizeCallbackWaitingAutomation(
+      raw.callback_waiting_automation
+    )
+  };
+}
+
+function normalizeSandboxReadiness(input: unknown): SandboxReadinessCheck {
+  if (!isRecord(input)) {
+    return fallback.sandbox_readiness;
+  }
+
+  const raw = input as Partial<SandboxReadinessCheck> & Record<string, unknown>;
+
+  return {
+    ...fallback.sandbox_readiness,
+    ...raw,
+    recommended_action: normalizeSystemOverviewRecommendedAction(raw.recommended_action)
+  };
+}
+
+function normalizeCallbackWaitingAutomation(input: unknown): CallbackWaitingAutomationCheck {
+  if (!isRecord(input)) {
+    return fallback.callback_waiting_automation;
+  }
+
+  const raw = input as Partial<CallbackWaitingAutomationCheck> & Record<string, unknown>;
+
+  return {
+    ...fallback.callback_waiting_automation,
+    ...raw,
+    recommended_action: normalizeSystemOverviewRecommendedAction(raw.recommended_action)
+  };
+}
+
+function normalizeSystemOverviewRecommendedAction(
+  input: unknown
+): SystemOverviewRecommendedAction | null {
+  if (!isRecord(input)) {
+    return null;
+  }
+
+  const kind = asOptionalTrimmedString(input.kind);
+  const entryKey = normalizeWorkbenchEntryLinkKey(
+    asOptionalTrimmedString(input.entry_key)
+  );
+
+  if (!kind || !entryKey) {
+    return null;
+  }
+
+  return {
+    kind,
+    entry_key: entryKey,
+    href: asOptionalTrimmedString(input.href),
+    label: asOptionalTrimmedString(input.label)
+  };
+}
+
+function asOptionalTrimmedString(value: unknown) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalizedValue = value.trim();
+  return normalizedValue || null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

@@ -5,7 +5,9 @@ import { normalizeWorkbenchEntryLinkKey } from "./workbench-entry-links";
 describe("normalizeWorkbenchEntryLinkKey", () => {
   it("accepts canonical and aliased workbench entry keys", () => {
     expect(normalizeWorkbenchEntryLinkKey("workflowLibrary")).toBe("workflowLibrary");
+    expect(normalizeWorkbenchEntryLinkKey("workflows")).toBe("workflowLibrary");
     expect(normalizeWorkbenchEntryLinkKey(" workflow_library ")).toBe("workflowLibrary");
+    expect(normalizeWorkbenchEntryLinkKey("runs")).toBe("runLibrary");
     expect(normalizeWorkbenchEntryLinkKey("run_library")).toBe("runLibrary");
   });
 

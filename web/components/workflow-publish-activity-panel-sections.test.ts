@@ -459,7 +459,7 @@ describe("WorkflowPublishActivityInsights", () => {
             kind: "open_run_library",
             label: "Open run library",
             href: "/runs?focus=callback-waiting",
-            entry_key: "run_library"
+            entry_key: "runLibrary"
           }
         }),
         sandboxReadiness: buildSandboxReadiness(),
@@ -496,7 +496,7 @@ describe("WorkflowPublishActivityInsights", () => {
             kind: "open_workflow_library",
             label: "Open workflow library",
             href: "/workflows?execution=sandbox",
-            entry_key: "workflow_library"
+            entry_key: "workflowLibrary"
           }
         },
         buildInvocationDetailHref: () => "#",
@@ -738,7 +738,7 @@ describe("WorkflowPublishActivityInsights", () => {
             kind: "open_workflow_library",
             label: "Open workflow library",
             href: "/workflows?execution=sandbox",
-            entry_key: "workflow_library"
+            entry_key: "workflowLibrary"
           }
         },
         buildInvocationDetailHref: () => "#",
