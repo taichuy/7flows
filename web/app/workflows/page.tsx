@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 
+import { CrossEntryRiskDigestPanel } from "@/components/cross-entry-risk-digest-panel";
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import { WorkbenchEntryLink, WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
+import { buildCrossEntryRiskDigest } from "@/lib/cross-entry-risk-digest";
+import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import {
   buildAuthorFacingWorkflowDetailLinkSurface,
   buildWorkflowLibrarySurfaceCopy
@@ -16,12 +19,19 @@ export const metadata: Metadata = {
 };
 
 export default async function WorkflowsPage() {
-  const [workflows, systemOverview] = await Promise.all([
+  const [workflows, systemOverview, sensitiveAccessInbox] = await Promise.all([
     getWorkflows(),
-    getSystemOverview()
+    getSystemOverview(),
+    getSensitiveAccessInboxSnapshot()
   ]);
   const summary = buildWorkflowLibrarySummary(workflows);
   const surfaceCopy = buildWorkflowLibrarySurfaceCopy();
+  const crossEntryRiskDigest = buildCrossEntryRiskDigest({
+    sandboxReadiness: systemOverview.sandbox_readiness,
+    callbackWaitingAutomation: systemOverview.callback_waiting_automation,
+    sensitiveAccessSummary: sensitiveAccessInbox.summary,
+    channels: sensitiveAccessInbox.channels
+  });
 
   return (
     <main className="page-shell workspace-page">
@@ -32,6 +42,14 @@ export default async function WorkflowsPage() {
           <p className="hero-copy">{surfaceCopy.heroDescription}</p>
         </div>
         <WorkbenchEntryLinks {...surfaceCopy.heroLinks} />
+      </section>
+
+      <section className="diagnostics-layout">
+        <CrossEntryRiskDigestPanel
+          digest={crossEntryRiskDigest}
+          eyebrow="Workflow overview"
+          intro="作者进入 workflow library 后先看到跨入口 blocker：当前强隔离是否可用、callback waiting 是否仍需 operator 跟进，以及 inbox backlog 是否会继续拖住发布与调试。"
+        />
       </section>
 
       <section className="diagnostics-layout">

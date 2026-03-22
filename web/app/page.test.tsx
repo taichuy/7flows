@@ -104,7 +104,7 @@ describe("HomePage", () => {
         recent_events: []
       },
       callback_waiting_automation: {
-        status: "healthy",
+        status: "configured",
         scheduler_required: true,
         detail: "healthy",
         scheduler_health_status: "healthy",
@@ -191,7 +191,7 @@ describe("HomePage", () => {
         recent_events: []
       },
       callback_waiting_automation: {
-        status: "healthy",
+        status: "configured",
         scheduler_required: true,
         detail: "healthy",
         scheduler_health_status: "healthy",
@@ -250,5 +250,161 @@ describe("HomePage", () => {
     );
 
     expect(html).toContain('href="/workflows/workflow%20alpha%2Fbeta"');
+  });
+
+  it("surfaces a shared cross-entry risk digest before separate operator panels", async () => {
+    vi.mocked(getSystemOverview).mockResolvedValue({
+      status: "ok",
+      environment: "local",
+      services: [],
+      capabilities: ["frontend-shell-ready"],
+      plugin_adapters: [],
+      sandbox_backends: [],
+      sandbox_readiness: {
+        enabled_backend_count: 2,
+        healthy_backend_count: 1,
+        degraded_backend_count: 0,
+        offline_backend_count: 1,
+        execution_classes: [
+          {
+            execution_class: "sandbox",
+            available: true,
+            backend_ids: ["sandbox-default"],
+            supported_languages: ["python"],
+            supported_profiles: ["default"],
+            supported_dependency_modes: ["none"],
+            supports_tool_execution: true,
+            supports_builtin_package_sets: false,
+            supports_backend_extensions: false,
+            supports_network_policy: true,
+            supports_filesystem_policy: true,
+            reason: null
+          },
+          {
+            execution_class: "microvm",
+            available: false,
+            backend_ids: [],
+            supported_languages: [],
+            supported_profiles: [],
+            supported_dependency_modes: [],
+            supports_tool_execution: false,
+            supports_builtin_package_sets: false,
+            supports_backend_extensions: false,
+            supports_network_policy: false,
+            supports_filesystem_policy: false,
+            reason: "microvm backend offline"
+          }
+        ],
+        supported_languages: ["python"],
+        supported_profiles: ["default"],
+        supported_dependency_modes: ["none"],
+        supports_tool_execution: true,
+        supports_builtin_package_sets: false,
+        supports_backend_extensions: false,
+        supports_network_policy: true,
+        supports_filesystem_policy: true
+      },
+      plugin_tools: [],
+      runtime_activity: {
+        summary: {
+          recent_run_count: 0,
+          recent_event_count: 0,
+          run_statuses: {},
+          event_types: {}
+        },
+        recent_runs: [],
+        recent_events: []
+      },
+      callback_waiting_automation: {
+        status: "partial",
+        scheduler_required: true,
+        detail: "cleanup is stale",
+        scheduler_health_status: "degraded",
+        scheduler_health_detail: "cleanup has not finished recently",
+        steps: [
+          {
+            key: "callback_ticket_cleanup",
+            label: "Callback ticket cleanup",
+            task: "cleanup",
+            source: "scheduler",
+            enabled: true,
+            interval_seconds: 60,
+            detail: "clean expired callback tickets",
+            scheduler_health: {
+              health_status: "stale",
+              detail: "cleanup has not run recently",
+              last_status: "stale",
+              last_started_at: null,
+              last_finished_at: null,
+              matched_count: 0,
+              affected_count: 0
+            }
+          }
+        ]
+      }
+    } as Awaited<ReturnType<typeof getSystemOverview>>);
+
+    vi.mocked(getPluginRegistrySnapshot).mockResolvedValue({
+      adapters: [],
+      tools: []
+    } as Awaited<ReturnType<typeof getPluginRegistrySnapshot>>);
+
+    vi.mocked(getWorkflows).mockResolvedValue([]);
+    vi.mocked(getWorkflowDetail).mockResolvedValue(null);
+    vi.mocked(getCredentials).mockResolvedValue([]);
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue({
+      channels: [
+        {
+          channel: "slack",
+          delivery_mode: "worker",
+          target_kind: "http_url",
+          configured: true,
+          health_status: "degraded",
+          summary: "slack webhook is timing out",
+          target_hint: "provide a webhook URL",
+          target_example: "https://hooks.slack.test/abc",
+          health_reason: "recent dispatches timed out",
+          config_facts: [],
+          dispatch_summary: {
+            pending_count: 1,
+            delivered_count: 0,
+            failed_count: 1,
+            latest_dispatch_at: null,
+            latest_delivered_at: null,
+            latest_failure_at: null,
+            latest_failure_error: null,
+            latest_failure_target: null
+          }
+        }
+      ],
+      resources: [],
+      requests: [],
+      notifications: [],
+      summary: {
+        ticket_count: 2,
+        pending_ticket_count: 2,
+        approved_ticket_count: 0,
+        rejected_ticket_count: 0,
+        expired_ticket_count: 0,
+        waiting_ticket_count: 1,
+        resumed_ticket_count: 0,
+        failed_ticket_count: 0,
+        pending_notification_count: 1,
+        delivered_notification_count: 0,
+        failed_notification_count: 1
+      },
+      entries: []
+    } as Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>);
+
+    const html = renderToStaticMarkup(
+      await HomePage({
+        searchParams: Promise.resolve({})
+      })
+    );
+
+    expect(html).toContain("Cross-entry risk digest");
+    expect(html).toContain("打开待处理 inbox");
+    expect(html).toContain("Approval &amp; notification backlog");
+    expect(html).toContain("2 pending / 1 waiting");
   });
 });

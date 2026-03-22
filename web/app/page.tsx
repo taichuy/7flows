@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { CallbackWaitingAutomationPanel } from "@/components/callback-waiting-automation-panel";
+import { CrossEntryRiskDigestPanel } from "@/components/cross-entry-risk-digest-panel";
 import { CredentialStorePanel } from "@/components/credential-store-panel";
 import { PluginRegistryPanel } from "@/components/plugin-registry-panel";
 import { SandboxReadinessPanel } from "@/components/sandbox-readiness-panel";
@@ -14,6 +15,7 @@ import { WorkflowToolBindingPanel } from "@/components/workflow-tool-binding-pan
 import { getCredentials } from "@/lib/get-credentials";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
+import { buildCrossEntryRiskDigest } from "@/lib/cross-entry-risk-digest";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
 import {
@@ -58,6 +60,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const pendingSensitiveEntries = sensitiveAccessInbox.entries
     .filter((entry) => entry.ticket.status === "pending")
     .slice(0, 3);
+  const crossEntryRiskDigest = buildCrossEntryRiskDigest({
+    sandboxReadiness: overview.sandbox_readiness,
+    callbackWaitingAutomation: overview.callback_waiting_automation,
+    sensitiveAccessSummary: sensitiveAccessInbox.summary,
+    channels: sensitiveAccessInbox.channels
+  });
   const selectedWorkflowId = requestedWorkflowId || workflows[0]?.id || "";
   const selectedWorkflow = await getWorkflowDetail(selectedWorkflowId);
 
@@ -109,6 +117,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         {overview.services.map((service) => (
           <StatusCard key={service.name} service={service} />
         ))}
+      </section>
+
+      <section className="diagnostics-layout">
+        <CrossEntryRiskDigestPanel
+          digest={crossEntryRiskDigest}
+          eyebrow="Workspace overview"
+          intro="把 live sandbox readiness、callback waiting automation 和 approval / notification backlog 收成一处，作者与 operator 进入工作台时先知道最阻塞主链的是哪一段，而不是先在多张卡片之间自己拼恢复事实。"
+        />
       </section>
 
       <section className="diagnostics-layout">

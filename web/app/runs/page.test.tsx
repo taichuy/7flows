@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import RunsPage from "@/app/runs/page";
+import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
 
 Object.assign(globalThis, { React });
@@ -17,6 +18,33 @@ vi.mock("next/link", () => ({
 vi.mock("@/lib/get-system-overview", () => ({
   getSystemOverview: vi.fn()
 }));
+
+vi.mock("@/lib/get-sensitive-access", () => ({
+  getSensitiveAccessInboxSnapshot: vi.fn()
+}));
+
+function buildSensitiveAccessInboxSnapshot() {
+  return {
+    channels: [],
+    resources: [],
+    requests: [],
+    notifications: [],
+    summary: {
+      ticket_count: 0,
+      pending_ticket_count: 0,
+      approved_ticket_count: 0,
+      rejected_ticket_count: 0,
+      expired_ticket_count: 0,
+      waiting_ticket_count: 0,
+      resumed_ticket_count: 0,
+      failed_ticket_count: 0,
+      pending_notification_count: 0,
+      delivered_notification_count: 0,
+      failed_notification_count: 0
+    },
+    entries: []
+  } as Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>;
+}
 
 describe("RunsPage", () => {
   it("renders recent run links and operator follow-up entry", async () => {
@@ -44,7 +72,7 @@ describe("RunsPage", () => {
       },
       plugin_tools: [],
       callback_waiting_automation: {
-        status: "healthy",
+        status: "configured",
         scheduler_required: true,
         detail: "healthy",
         scheduler_health_status: "healthy",
@@ -87,14 +115,25 @@ describe("RunsPage", () => {
         recent_events: []
       }
     });
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue({
+      ...buildSensitiveAccessInboxSnapshot(),
+      summary: {
+        ...buildSensitiveAccessInboxSnapshot().summary,
+        ticket_count: 1,
+        pending_ticket_count: 1,
+        waiting_ticket_count: 1
+      }
+    });
 
     const html = renderToStaticMarkup(await RunsPage());
 
     expect(html).toContain("运行诊断入口收口到独立列表");
+    expect(html).toContain("Cross-entry risk digest");
     expect(html).toContain('/runs/run-1');
     expect(html).toContain('/workflows/workflow-1');
     expect(html).toContain("回到 workflow 编辑器");
     expect(html).toContain('/sensitive-access');
+    expect(html).toContain("打开待处理 inbox");
     expect(html).toContain("callback_waiting · 1");
     expect(html).toContain("completed:1 / waiting_callback:1");
     expect(html).toContain("Live sandbox readiness");
@@ -126,7 +165,7 @@ describe("RunsPage", () => {
       },
       plugin_tools: [],
       callback_waiting_automation: {
-        status: "healthy",
+        status: "configured",
         scheduler_required: true,
         detail: "healthy",
         scheduler_health_status: "healthy",
@@ -144,6 +183,9 @@ describe("RunsPage", () => {
         recent_events: []
       }
     });
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot()
+    );
 
     const html = renderToStaticMarkup(await RunsPage());
 

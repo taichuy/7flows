@@ -73,7 +73,7 @@ function buildSystemOverview() {
       recent_events: []
     },
     callback_waiting_automation: {
-      status: "healthy",
+      status: "configured",
       scheduler_required: true,
       detail: "healthy",
       scheduler_health_status: "healthy",
@@ -114,10 +114,12 @@ describe("SensitiveAccessInboxPage", () => {
     );
 
     expect(html).toContain("审批、恢复与通知派发统一收口");
+    expect(html).toContain("Cross-entry risk digest");
     expect(html).toContain("Live sandbox readiness");
     expect(html).toContain(
       "强隔离执行链路当前可用，但仍有 1 个已启用 backend 处于 offline。"
     );
+    expect(html).toContain("Sandbox execution chain");
     expect(html).toContain("approval / resume / notification 已经汇到同一条 operator inbox");
   });
 });

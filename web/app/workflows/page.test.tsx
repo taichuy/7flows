@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import WorkflowsPage from "@/app/workflows/page";
+import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflows } from "@/lib/get-workflows";
 
@@ -22,6 +23,33 @@ vi.mock("@/lib/get-workflows", () => ({
 vi.mock("@/lib/get-system-overview", () => ({
   getSystemOverview: vi.fn()
 }));
+
+vi.mock("@/lib/get-sensitive-access", () => ({
+  getSensitiveAccessInboxSnapshot: vi.fn()
+}));
+
+function buildSensitiveAccessInboxSnapshot() {
+  return {
+    channels: [],
+    resources: [],
+    requests: [],
+    notifications: [],
+    summary: {
+      ticket_count: 0,
+      pending_ticket_count: 0,
+      approved_ticket_count: 0,
+      rejected_ticket_count: 0,
+      expired_ticket_count: 0,
+      waiting_ticket_count: 0,
+      resumed_ticket_count: 0,
+      failed_ticket_count: 0,
+      pending_notification_count: 0,
+      delivered_notification_count: 0,
+      failed_notification_count: 0
+    },
+    entries: []
+  } as Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>;
+}
 
 function buildSystemOverview() {
   return {
@@ -73,7 +101,7 @@ function buildSystemOverview() {
       recent_events: []
     },
     callback_waiting_automation: {
-      status: "healthy",
+      status: "configured",
       scheduler_required: true,
       detail: "healthy",
       scheduler_health_status: "healthy",
@@ -86,6 +114,9 @@ function buildSystemOverview() {
 describe("WorkflowsPage", () => {
   it("renders workflow chips and governance summary", async () => {
     vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot()
+    );
     vi.mocked(getWorkflows).mockResolvedValue([
       {
         id: "workflow-1",
@@ -118,6 +149,7 @@ describe("WorkflowsPage", () => {
     const html = renderToStaticMarkup(await WorkflowsPage());
 
     expect(html).toContain("作者、operator 与运行入口统一收口");
+    expect(html).toContain("Cross-entry risk digest");
     expect(html).toContain('/workflows/workflow-1');
     expect(html).toContain('/workflows/new');
     expect(html).toContain('/workspace-starters');
@@ -125,12 +157,16 @@ describe("WorkflowsPage", () => {
     expect(html).toContain('/sensitive-access');
     expect(html).toContain("draft:1 / published:1");
     expect(html).toContain("Alpha workflow · missing tools");
+    expect(html).toContain("Sandbox execution chain");
     expect(html).toContain("Live sandbox readiness");
     expect(html).toContain("强隔离路径会按 execution class fail-closed：sandbox 当前 blocked。");
   });
 
   it("shows a create entry when no workflows exist", async () => {
     vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot()
+    );
     vi.mocked(getWorkflows).mockResolvedValue([]);
 
     const html = renderToStaticMarkup(await WorkflowsPage());

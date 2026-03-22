@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { CrossEntryRiskDigestPanel } from "@/components/cross-entry-risk-digest-panel";
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import { SensitiveAccessChannelHealthPanel } from "@/components/sensitive-access-channel-health-panel";
 import { SensitiveAccessInboxFilterSection } from "@/components/sensitive-access-inbox-filter-section";
@@ -23,6 +24,10 @@ import {
 } from "@/components/sensitive-access-inbox-page-shared";
 import { SensitiveAccessInboxSliceForm } from "@/components/sensitive-access-inbox-slice-form";
 import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
+import {
+  buildCrossEntryRiskDigest,
+  type CrossEntryRiskDigest
+} from "@/lib/cross-entry-risk-digest";
 import {
   getSensitiveAccessInboxSnapshot,
   type ApprovalTicketItem,
@@ -140,6 +145,12 @@ export default async function SensitiveAccessInboxPage({
   });
   const systemOverview = await getSystemOverview();
   const surfaceCopy = buildSensitiveAccessInboxSurfaceCopy();
+  const crossEntryRiskDigest: CrossEntryRiskDigest = buildCrossEntryRiskDigest({
+    sandboxReadiness: systemOverview.sandbox_readiness,
+    callbackWaitingAutomation: systemOverview.callback_waiting_automation,
+    sensitiveAccessSummary: snapshot.summary,
+    channels: snapshot.channels
+  });
 
   return (
     <main className="page-shell workspace-page">
@@ -150,6 +161,14 @@ export default async function SensitiveAccessInboxPage({
           <p className="hero-copy">{surfaceCopy.heroDescription}</p>
         </div>
         <WorkbenchEntryLinks {...surfaceCopy.heroLinks} />
+      </section>
+
+      <section className="diagnostics-layout">
+        <CrossEntryRiskDigestPanel
+          digest={crossEntryRiskDigest}
+          eyebrow="Operator overview"
+          intro="审批、恢复、通知和强隔离恢复已经落到同一套工作台事实，但 operator 仍需要先看到跨入口主风险，再决定是回 inbox、run 诊断还是 workflow 列表继续处理。"
+        />
       </section>
 
       <section className="diagnostics-layout">

@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { CrossEntryRiskDigestPanel } from "@/components/cross-entry-risk-digest-panel";
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import {
   WorkbenchEntryLink,
   WorkbenchEntryLinks
 } from "@/components/workbench-entry-links";
+import { buildCrossEntryRiskDigest } from "@/lib/cross-entry-risk-digest";
+import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import {
   buildAuthorFacingWorkflowDetailLinkSurface,
   buildAuthorFacingRunDetailLinkSurface,
@@ -19,7 +22,10 @@ export const metadata: Metadata = {
 };
 
 export default async function RunsPage() {
-  const overview = await getSystemOverview();
+  const [overview, sensitiveAccessInbox] = await Promise.all([
+    getSystemOverview(),
+    getSensitiveAccessInboxSnapshot()
+  ]);
   const recentRuns = overview.runtime_activity.recent_runs;
   const activitySummary = overview.runtime_activity.summary;
   const latestRun = recentRuns[0] ?? null;
@@ -30,6 +36,12 @@ export default async function RunsPage() {
       })
     : null;
   const surfaceCopy = buildRunLibrarySurfaceCopy();
+  const crossEntryRiskDigest = buildCrossEntryRiskDigest({
+    sandboxReadiness: overview.sandbox_readiness,
+    callbackWaitingAutomation: overview.callback_waiting_automation,
+    sensitiveAccessSummary: sensitiveAccessInbox.summary,
+    channels: sensitiveAccessInbox.channels
+  });
 
   return (
     <main className="page-shell workspace-page">
@@ -40,6 +52,14 @@ export default async function RunsPage() {
           <p className="hero-copy">{surfaceCopy.heroDescription}</p>
         </div>
         <WorkbenchEntryLinks {...surfaceCopy.heroLinks} />
+      </section>
+
+      <section className="diagnostics-layout">
+        <CrossEntryRiskDigestPanel
+          digest={crossEntryRiskDigest}
+          eyebrow="Run overview"
+          intro="进入 run library 后先看跨入口 blocker：强隔离 execution class、callback recovery 与 operator backlog 是否已经收口，再决定去具体 run、workflow 或 inbox。"
+        />
       </section>
 
       <section className="diagnostics-layout runtime-layout">
