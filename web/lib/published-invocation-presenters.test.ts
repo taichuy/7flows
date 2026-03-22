@@ -382,17 +382,17 @@ describe("published invocation presenters", () => {
       lastSeenLabel: expect.any(String)
     });
 
-    expect(
-      buildPublishedInvocationSelectedNextStepSurface({
-        invocationId: "invocation-1",
-        nextStep: {
-          label: "approval blocker",
-          detail: "先处理审批票据。",
-          href: "/sensitive-access/inbox?run_id=run-1",
-          href_label: "open blocker inbox slice"
-        }
-      })
-    ).toEqual({
+    const selectedNextStepSurface = buildPublishedInvocationSelectedNextStepSurface({
+      invocationId: "invocation-1",
+      nextStep: {
+        label: "approval blocker",
+        detail: "先处理审批票据。",
+        href: "/sensitive-access/inbox?run_id=run-1",
+        href_label: "open blocker inbox slice"
+      }
+    });
+
+    expect(selectedNextStepSurface).toEqual({
       title: "Selected invocation next step",
       invocationId: "invocation-1",
       label: "approval blocker",
@@ -400,6 +400,32 @@ describe("published invocation presenters", () => {
       href: "/sensitive-access/inbox?run_id=run-1",
       hrefLabel: "open blocker inbox slice"
     });
+
+    expect(
+      buildPublishedInvocationFailureReasonCardSurface({
+        item: {
+          message: "sandbox backend offline during invocation",
+          count: 2,
+          last_invoked_at: "2026-03-21T00:15:00Z"
+        },
+        reasonCounts: [{ value: "runtime_failed", count: 2 }],
+        selectedInvocationErrorMessage: "  Sandbox backend offline during invocation  ",
+        selectedInvocationNextStepSurface: selectedNextStepSurface
+      }).selectedNextStepSurface
+    ).toEqual(selectedNextStepSurface);
+
+    expect(
+      buildPublishedInvocationFailureReasonCardSurface({
+        item: {
+          message: "sandbox backend offline during invocation",
+          count: 2,
+          last_invoked_at: "2026-03-21T00:15:00Z"
+        },
+        reasonCounts: [{ value: "runtime_failed", count: 2 }],
+        selectedInvocationErrorMessage: "different failure message",
+        selectedInvocationNextStepSurface: selectedNextStepSurface
+      }).selectedNextStepSurface
+    ).toBeNull();
   });
 
   it("为 sampled run 来源提供统一 surface label", () => {

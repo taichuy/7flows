@@ -413,6 +413,7 @@ export type PublishedInvocationFailureReasonCardSurface = {
   message: string;
   diagnosis: PublishedInvocationFailureMessageDiagnosis | null;
   lastSeenLabel: string;
+  selectedNextStepSurface: PublishedInvocationSelectedNextStepSurface | null;
 };
 
 export type PublishedInvocationSelectedNextStepSurface = {
@@ -1123,14 +1124,23 @@ export function buildPublishedInvocationFailureReasonCardSurface({
   reasonCounts,
   sandboxReadiness,
   callbackWaitingAutomation,
+  selectedInvocationErrorMessage,
+  selectedInvocationNextStepSurface,
   surfaceCopy = buildPublishedInvocationActivityDetailsSurfaceCopy()
 }: {
   item: PublishedInvocationFailureReasonItem;
   reasonCounts: PublishedEndpointInvocationFacetItem[];
   sandboxReadiness?: SandboxReadinessCheck | null;
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
+  selectedInvocationErrorMessage?: string | null;
+  selectedInvocationNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
   surfaceCopy?: PublishedInvocationActivityDetailsSurfaceCopy;
 }): PublishedInvocationFailureReasonCardSurface {
+  const normalizedMessage = normalizePublishedInvocationFailureReasonMessage(item.message);
+  const normalizedSelectedInvocationErrorMessage = normalizePublishedInvocationFailureReasonMessage(
+    selectedInvocationErrorMessage
+  );
+
   return {
     title: surfaceCopy.failureReasonTitle,
     countLabel: `${surfaceCopy.failureReasonCountLabelPrefix} ${item.count}`,
@@ -1141,7 +1151,13 @@ export function buildPublishedInvocationFailureReasonCardSurface({
       sandboxReadiness,
       callbackWaitingAutomation
     }),
-    lastSeenLabel: formatPublishedInvocationFailureReasonLastSeen(item.last_invoked_at)
+    lastSeenLabel: formatPublishedInvocationFailureReasonLastSeen(item.last_invoked_at),
+    selectedNextStepSurface:
+      normalizedMessage &&
+      normalizedSelectedInvocationErrorMessage &&
+      normalizedMessage === normalizedSelectedInvocationErrorMessage
+        ? selectedInvocationNextStepSurface ?? null
+        : null
   };
 }
 
@@ -1168,6 +1184,12 @@ export function buildPublishedInvocationSelectedNextStepSurface({
 
 export function formatPublishedInvocationFailureReasonLastSeen(lastInvokedAt?: string | null) {
   return `最近一次出现在 ${formatTimestamp(lastInvokedAt)}。`;
+}
+
+function normalizePublishedInvocationFailureReasonMessage(message?: string | null) {
+  const normalizedMessage = message?.trim().replace(/\s+/g, " ").toLowerCase();
+
+  return normalizedMessage ? normalizedMessage : null;
 }
 
 export function formatPublishedInvocationMetricCounts(

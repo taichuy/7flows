@@ -286,6 +286,14 @@ export function WorkflowPublishActivityDetails({
     callbackWaitingAutomation,
     sandboxReadiness
   });
+  const selectedInvocationFailureBridgeNextStepSurface =
+    clearInvocationDetailHref && selectedInvocationSurface.kind === "ok"
+      ? selectedInvocationSurface.nextStepSurface
+      : null;
+  const selectedInvocationFailureBridgeErrorMessage =
+    clearInvocationDetailHref && selectedInvocationSurface.kind === "ok"
+      ? selectedInvocationSurface.detail.invocation.error_message ?? null
+      : null;
   const selectedInvocationUnavailableSurface =
     selectedInvocationSurface.kind === "unavailable"
       ? selectedInvocationSurface.unavailableSurfaceCopy
@@ -329,6 +337,8 @@ export function WorkflowPublishActivityDetails({
               reasonCounts,
               sandboxReadiness,
               callbackWaitingAutomation,
+              selectedInvocationErrorMessage: selectedInvocationFailureBridgeErrorMessage,
+              selectedInvocationNextStepSurface: selectedInvocationFailureBridgeNextStepSurface,
               surfaceCopy: detailsSurfaceCopy
             });
 
@@ -351,6 +361,28 @@ export function WorkflowPublishActivityDetails({
                       </div>
                     ) : null}
                   </>
+                ) : null}
+                {cardSurface.selectedNextStepSurface ? (
+                  <div className="entry-card compact-card">
+                    <div className="payload-card-header">
+                      <span className="status-meta">{cardSurface.selectedNextStepSurface.invocationId}</span>
+                      <span className="event-chip">{cardSurface.selectedNextStepSurface.label}</span>
+                    </div>
+                    <p className="section-copy entry-copy">
+                      {cardSurface.selectedNextStepSurface.detail}
+                    </p>
+                    {cardSurface.selectedNextStepSurface.href &&
+                    cardSurface.selectedNextStepSurface.hrefLabel ? (
+                      <div className="tool-badge-row">
+                        <Link
+                          className="event-chip inbox-filter-link"
+                          href={cardSurface.selectedNextStepSurface.href}
+                        >
+                          {cardSurface.selectedNextStepSurface.hrefLabel}
+                        </Link>
+                      </div>
+                    ) : null}
+                  </div>
                 ) : null}
                 <p className="section-copy entry-copy">{cardSurface.lastSeenLabel}</p>
               </article>
