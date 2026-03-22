@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from app.api.routes import system as system_routes
-from app.models.run import Run, RunEvent
+from app.models.run import NodeRun, Run, RunEvent
 from app.models.scheduler import ScheduledTaskRunRecord
 from app.services.plugin_runtime import (
     CompatibilityAdapterHealth,
@@ -252,6 +252,15 @@ def test_system_overview_includes_plugin_adapter_health(
         "supports_backend_extensions": False,
         "supports_network_policy": True,
         "supports_filesystem_policy": True,
+        "affected_run_count": 0,
+        "affected_workflow_count": 0,
+        "primary_blocker_kind": "execution_class_blocked",
+        "recommended_action": {
+            "kind": "execution_class_blocked",
+            "entry_key": "workflowLibrary",
+            "href": "/workflows",
+            "label": "查看 workflow 隔离需求",
+        },
     }
     assert body["runtime_activity"] == {
         "summary": {
@@ -313,6 +322,10 @@ def test_system_overview_includes_plugin_adapter_health(
                 },
             },
         ],
+        "affected_run_count": 0,
+        "affected_workflow_count": 0,
+        "primary_blocker_kind": None,
+        "recommended_action": None,
     }
     assert any(service["name"] == "plugin-adapter:dify-default" for service in body["services"])
     assert any(service["name"] == "sandbox-backend:sandbox-default" for service in body["services"])
@@ -461,6 +474,15 @@ def test_system_overview_reports_sandbox_readiness_gap_reason(client, monkeypatc
         "supports_backend_extensions": False,
         "supports_network_policy": False,
         "supports_filesystem_policy": False,
+        "affected_run_count": 0,
+        "affected_workflow_count": 0,
+        "primary_blocker_kind": "execution_class_blocked",
+        "recommended_action": {
+            "kind": "execution_class_blocked",
+            "entry_key": "workflowLibrary",
+            "href": "/workflows",
+            "label": "查看 workflow 隔离需求",
+        },
     }
     assert body["callback_waiting_automation"] == {
         "status": "disabled",
@@ -515,6 +537,144 @@ def test_system_overview_reports_sandbox_readiness_gap_reason(client, monkeypatc
                 },
             },
         ],
+        "affected_run_count": 0,
+        "affected_workflow_count": 0,
+        "primary_blocker_kind": "automation_disabled",
+        "recommended_action": {
+            "kind": "automation_disabled",
+            "entry_key": "runLibrary",
+            "href": "/runs",
+            "label": "查看 callback recovery 状态",
+        },
+    }
+
+
+def test_system_overview_reports_impacted_workload_follow_up_contract(
+    client,
+    sqlite_session,
+    sample_workflow,
+    monkeypatch,
+) -> None:
+    sample_workflow.definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "isolated_code",
+                "type": "sandbox_code",
+                "name": "Isolated Code",
+                "config": {},
+                "runtimePolicy": {"execution": {"class": "microvm"}},
+            },
+        ],
+        "edges": [
+            {"id": "edge-1", "sourceNodeId": "trigger", "targetNodeId": "isolated_code"}
+        ],
+    }
+    sqlite_session.add(
+        Run(
+            id="run-microvm-blocked",
+            workflow_id=sample_workflow.id,
+            workflow_version=sample_workflow.version,
+            compiled_blueprint_id=None,
+            status="running",
+            current_node_id="isolated_code",
+            input_payload={},
+            checkpoint_payload={},
+            created_at=datetime.now(UTC),
+        )
+    )
+    sqlite_session.add(
+        Run(
+            id="run-waiting-callback",
+            workflow_id=sample_workflow.id,
+            workflow_version=sample_workflow.version,
+            compiled_blueprint_id=None,
+            status="waiting",
+            current_node_id="callback_node",
+            input_payload={},
+            checkpoint_payload={},
+            created_at=datetime.now(UTC),
+        )
+    )
+    sqlite_session.add(
+        NodeRun(
+            id="node-run-waiting-callback",
+            run_id="run-waiting-callback",
+            node_id="callback_node",
+            node_name="Callback Node",
+            node_type="agent",
+            status="waiting_callback",
+            phase="waiting_callback",
+            input_payload={},
+            checkpoint_payload={},
+            working_context={},
+            created_at=datetime.now(UTC),
+        )
+    )
+    sqlite_session.commit()
+
+    monkeypatch.setattr(
+        system_routes,
+        "get_settings",
+        lambda: _build_settings(
+            callback_ticket_cleanup_schedule_enabled=False,
+            waiting_resume_monitor_schedule_enabled=False,
+        ),
+    )
+    monkeypatch.setattr(system_routes, "check_database", lambda: True)
+    monkeypatch.setattr(system_routes.redis, "from_url", lambda url: _HealthyRedis())
+    monkeypatch.setattr(system_routes.boto3, "client", lambda *args, **kwargs: _HealthyS3Client())
+    monkeypatch.setattr(system_routes, "get_plugin_registry", lambda: PluginRegistry())
+    monkeypatch.setattr(
+        system_routes,
+        "get_sandbox_backend_registry",
+        lambda: SandboxBackendRegistry(),
+    )
+    monkeypatch.setattr(
+        system_routes,
+        "get_compatibility_adapter_health_checker",
+        lambda: _StaticHealthChecker([]),
+    )
+    monkeypatch.setattr(
+        system_routes,
+        "get_sandbox_backend_health_checker",
+        lambda: _StaticSandboxHealthChecker(
+            [
+                SandboxBackendHealth(
+                    id="sandbox-default",
+                    kind="official",
+                    endpoint="http://sandbox.local",
+                    enabled=True,
+                    status="healthy",
+                    capability=SandboxBackendCapability(
+                        supported_execution_classes=("sandbox",),
+                    ),
+                )
+            ]
+        ),
+    )
+
+    response = client.get("/api/system/overview")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["sandbox_readiness"]["affected_run_count"] == 2
+    assert body["sandbox_readiness"]["affected_workflow_count"] == 1
+    assert body["sandbox_readiness"]["primary_blocker_kind"] == "execution_class_blocked"
+    assert body["sandbox_readiness"]["recommended_action"] == {
+        "kind": "execution_class_blocked",
+        "entry_key": "workflowLibrary",
+        "href": "/workflows",
+        "label": "查看受强隔离阻断的 workflows",
+    }
+    assert body["callback_waiting_automation"]["affected_run_count"] == 1
+    assert body["callback_waiting_automation"]["affected_workflow_count"] == 1
+    assert body["callback_waiting_automation"]["primary_blocker_kind"] == "automation_disabled"
+    assert body["callback_waiting_automation"]["recommended_action"] == {
+        "kind": "automation_disabled",
+        "entry_key": "runLibrary",
+        "href": "/runs",
+        "label": "查看 waiting callback runs",
     }
 
 

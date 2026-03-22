@@ -66,6 +66,10 @@ export type SandboxReadinessCheck = {
   supports_backend_extensions: boolean;
   supports_network_policy: boolean;
   supports_filesystem_policy: boolean;
+  affected_run_count?: number;
+  affected_workflow_count?: number;
+  primary_blocker_kind?: string | null;
+  recommended_action?: SystemOverviewRecommendedAction | null;
 };
 
 export type PluginToolCheck = {
@@ -138,6 +142,17 @@ export type CallbackWaitingAutomationCheck = {
   scheduler_health_status: string;
   scheduler_health_detail: string;
   steps: CallbackWaitingAutomationStepCheck[];
+  affected_run_count?: number;
+  affected_workflow_count?: number;
+  primary_blocker_kind?: string | null;
+  recommended_action?: SystemOverviewRecommendedAction | null;
+};
+
+export type SystemOverviewRecommendedAction = {
+  kind: string;
+  entry_key: string;
+  href: string;
+  label: string;
 };
 
 export type SystemOverview = {
@@ -179,7 +194,11 @@ const fallback: SystemOverview = {
     supports_builtin_package_sets: false,
     supports_backend_extensions: false,
     supports_network_policy: false,
-    supports_filesystem_policy: false
+    supports_filesystem_policy: false,
+    affected_run_count: 0,
+    affected_workflow_count: 0,
+    primary_blocker_kind: null,
+    recommended_action: null
   },
   plugin_tools: [],
   runtime_activity: {
@@ -198,7 +217,11 @@ const fallback: SystemOverview = {
     detail: "`WAITING_CALLBACK` 后台补偿状态当前不可见，请先启动 api 服务。",
     scheduler_health_status: "unknown",
     scheduler_health_detail: "当前还拿不到 scheduler 最近执行事实。",
-    steps: []
+    steps: [],
+    affected_run_count: 0,
+    affected_workflow_count: 0,
+    primary_blocker_kind: null,
+    recommended_action: null
   }
 };
 

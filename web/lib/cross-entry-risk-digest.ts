@@ -13,6 +13,7 @@ import {
   listSandboxAvailableClasses,
   listSandboxBlockedClasses
 } from "@/lib/sandbox-readiness-presenters";
+import { WORKBENCH_ENTRY_LINK_REGISTRY } from "@/lib/workbench-entry-links";
 import type {
   WorkbenchEntryLinkKey,
   WorkbenchEntryLinkOverrides
@@ -57,6 +58,63 @@ function joinNonEmpty(parts: Array<string | null | undefined>, separator = "；"
     .map((part) => part?.trim())
     .filter((part): part is string => Boolean(part))
     .join(separator);
+}
+
+function formatImpactedScope(
+  affectedRunCount?: number | null,
+  affectedWorkflowCount?: number | null
+) {
+  const normalizedRunCount = Math.max(Number(affectedRunCount ?? 0), 0);
+  const normalizedWorkflowCount = Math.max(Number(affectedWorkflowCount ?? 0), 0);
+  if (normalizedRunCount <= 0 && normalizedWorkflowCount <= 0) {
+    return null;
+  }
+
+  return joinNonEmpty(
+    [
+      normalizedRunCount > 0 ? `${normalizedRunCount} 个 run` : null,
+      normalizedWorkflowCount > 0 ? `${normalizedWorkflowCount} 个 workflow` : null
+    ],
+    " / "
+  );
+}
+
+function formatImpactedMetricValue(
+  affectedRunCount?: number | null,
+  affectedWorkflowCount?: number | null
+) {
+  return `${Math.max(Number(affectedRunCount ?? 0), 0)} runs / ${Math.max(
+    Number(affectedWorkflowCount ?? 0),
+    0
+  )} workflows`;
+}
+
+function isWorkbenchEntryLinkKey(value?: string | null): value is WorkbenchEntryLinkKey {
+  return typeof value === "string" && value in WORKBENCH_ENTRY_LINK_REGISTRY;
+}
+
+function resolveRecommendedEntryKey({
+  action,
+  fallback
+}: {
+  action?: { entry_key?: string | null } | null;
+  fallback: WorkbenchEntryLinkKey;
+}) {
+  return isWorkbenchEntryLinkKey(action?.entry_key) ? action.entry_key : fallback;
+}
+
+function applyRecommendedActionOverride(
+  overrides: WorkbenchEntryLinkOverrides,
+  action?: { entry_key?: string | null; href?: string | null; label?: string | null } | null
+) {
+  if (!isWorkbenchEntryLinkKey(action?.entry_key)) {
+    return;
+  }
+
+  overrides[action.entry_key] = {
+    href: action.href?.trim() || undefined,
+    label: action.label?.trim() || undefined
+  };
 }
 
 function getAutomationAttentionStepCount(automation: CallbackWaitingAutomationCheck) {
@@ -119,19 +177,7 @@ function getOperatorTone({
 }
 
 function formatImpactedScopeSummary(summary: SensitiveAccessInboxSummary) {
-  const affectedRunCount = summary.affected_run_count ?? 0;
-  const affectedWorkflowCount = summary.affected_workflow_count ?? 0;
-  if (affectedRunCount <= 0 && affectedWorkflowCount <= 0) {
-    return null;
-  }
-
-  return joinNonEmpty(
-    [
-      affectedRunCount > 0 ? `${affectedRunCount} 个 run` : null,
-      affectedWorkflowCount > 0 ? `${affectedWorkflowCount} 个 workflow` : null
-    ],
-    " / "
-  );
+  return formatImpactedScope(summary.affected_run_count, summary.affected_workflow_count);
 }
 
 function formatOperatorBlockerSummary(

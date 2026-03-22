@@ -6,12 +6,13 @@ from datetime import UTC, datetime, timedelta
 import boto3
 import redis
 from fastapi import APIRouter, Depends
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import check_database, get_db
-from app.models.run import Run, RunEvent
+from app.models.run import NodeRun, Run, RunEvent
+from app.models.workflow import Workflow
 from app.schemas.system import (
     CallbackWaitingAutomationCheck,
     CallbackWaitingAutomationStepCheck,
@@ -26,17 +27,20 @@ from app.schemas.system import (
     SandboxExecutionClassReadinessCheck,
     SandboxReadinessCheck,
     ServiceCheck,
+    SystemOverviewRecommendedAction,
     SystemOverview,
 )
 from app.services.plugin_runtime import (
     get_compatibility_adapter_health_checker,
     get_plugin_registry,
 )
+from app.services.runtime_execution_policy import resolve_execution_policy
 from app.services.sandbox_backends import (
     get_sandbox_backend_health_checker,
     get_sandbox_backend_registry,
 )
 from app.services.scheduled_task_activity import ScheduledTaskActivityService
+from app.services.workflow_definition_governance import collect_workflow_definition_tool_ids
 
 router = APIRouter(tags=["system"])
 
@@ -45,6 +49,7 @@ _RECENT_EVENT_LIMIT = 8
 _PAYLOAD_PREVIEW_LIMIT = 180
 _SANDBOX_EXECUTION_CLASSES = ("sandbox", "microvm")
 _OPERABLE_SANDBOX_STATUSES = {"healthy", "degraded"}
+_ACTIVE_RUN_STATUSES = ("queued", "running", "waiting")
 _SCHEDULED_TASK_ACTIVITY = ScheduledTaskActivityService()
 
 
@@ -54,6 +59,208 @@ def _normalize_datetime(value: datetime | None) -> datetime | None:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value
+
+
+def _normalize_execution_class(value: str | None) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().lower()
+    if normalized not in {"inline", "subprocess", "sandbox", "microvm"}:
+        return None
+    return normalized
+
+
+def _build_tool_default_execution_class_lookup(registry) -> dict[str, str]:
+    lookup: dict[str, str] = {}
+    for tool in registry.list_tools():
+        normalized = _normalize_execution_class(
+            getattr(tool, "default_execution_class", None)
+        )
+        if normalized is None:
+            continue
+        lookup[str(tool.id)] = normalized
+    return lookup
+
+
+def _collect_workflow_required_execution_classes(
+    definition: dict | None,
+    *,
+    tool_default_execution_class_lookup: dict[str, str],
+) -> set[str]:
+    required_execution_classes: set[str] = set()
+    if not isinstance(definition, dict):
+        return required_execution_classes
+
+    nodes = definition.get("nodes")
+    if isinstance(nodes, list):
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            required_execution_classes.add(resolve_execution_policy(node).execution_class)
+
+    for tool_id in collect_workflow_definition_tool_ids(definition):
+        execution_class = tool_default_execution_class_lookup.get(tool_id)
+        if execution_class is not None:
+            required_execution_classes.add(execution_class)
+
+    return required_execution_classes
+
+
+def _build_sandbox_recommended_action(
+    *,
+    primary_blocker_kind: str | None,
+    affected_run_count: int,
+    affected_workflow_count: int,
+) -> SystemOverviewRecommendedAction | None:
+    if primary_blocker_kind is None:
+        return None
+
+    label = (
+        "查看受强隔离阻断的 workflows"
+        if primary_blocker_kind == "execution_class_blocked"
+        and (affected_run_count > 0 or affected_workflow_count > 0)
+        else "查看 workflow 隔离需求"
+    )
+    return SystemOverviewRecommendedAction(
+        kind=primary_blocker_kind,
+        entry_key="workflowLibrary",
+        href="/workflows",
+        label=label,
+    )
+
+
+def _apply_sandbox_follow_up_contract(
+    *,
+    readiness: SandboxReadinessCheck,
+    db: Session,
+    registry,
+) -> SandboxReadinessCheck:
+    blocked_execution_classes = {
+        execution_class.execution_class
+        for execution_class in readiness.execution_classes
+        if not execution_class.available
+    }
+    primary_blocker_kind: str | None = None
+    if blocked_execution_classes:
+        primary_blocker_kind = "execution_class_blocked"
+    elif readiness.offline_backend_count > 0:
+        primary_blocker_kind = "backend_offline"
+    elif readiness.degraded_backend_count > 0:
+        primary_blocker_kind = "backend_degraded"
+
+    affected_workflow_ids: set[str] = set()
+    affected_run_ids: set[str] = set()
+    if blocked_execution_classes:
+        tool_default_execution_class_lookup = _build_tool_default_execution_class_lookup(
+            registry
+        )
+        workflows = db.query(Workflow).all()
+        for workflow in workflows:
+            required_execution_classes = _collect_workflow_required_execution_classes(
+                workflow.definition,
+                tool_default_execution_class_lookup=tool_default_execution_class_lookup,
+            )
+            if blocked_execution_classes.intersection(required_execution_classes):
+                affected_workflow_ids.add(workflow.id)
+
+        if affected_workflow_ids:
+            active_runs = (
+                db.query(Run.id)
+                .filter(
+                    Run.workflow_id.in_(sorted(affected_workflow_ids)),
+                    Run.status.in_(_ACTIVE_RUN_STATUSES),
+                )
+                .all()
+            )
+            affected_run_ids = {run_id for (run_id,) in active_runs if run_id}
+
+    readiness.affected_run_count = len(affected_run_ids)
+    readiness.affected_workflow_count = len(affected_workflow_ids)
+    readiness.primary_blocker_kind = primary_blocker_kind
+    readiness.recommended_action = _build_sandbox_recommended_action(
+        primary_blocker_kind=primary_blocker_kind,
+        affected_run_count=readiness.affected_run_count,
+        affected_workflow_count=readiness.affected_workflow_count,
+    )
+    return readiness
+
+
+def _count_callback_attention_steps(
+    automation: CallbackWaitingAutomationCheck,
+) -> int:
+    return sum(
+        1
+        for step in automation.steps
+        if step.enabled and step.scheduler_health.health_status != "healthy"
+    )
+
+
+def _build_callback_recommended_action(
+    *,
+    primary_blocker_kind: str | None,
+    affected_run_count: int,
+) -> SystemOverviewRecommendedAction | None:
+    if primary_blocker_kind is None:
+        return None
+
+    label = (
+        "查看 waiting callback runs"
+        if affected_run_count > 0
+        else "查看 callback recovery 状态"
+    )
+    return SystemOverviewRecommendedAction(
+        kind=primary_blocker_kind,
+        entry_key="runLibrary",
+        href="/runs",
+        label=label,
+    )
+
+
+def _apply_callback_follow_up_contract(
+    *,
+    automation: CallbackWaitingAutomationCheck,
+    db: Session,
+) -> CallbackWaitingAutomationCheck:
+    waiting_callback_rows = (
+        db.query(NodeRun.run_id, Run.workflow_id)
+        .join(Run, Run.id == NodeRun.run_id)
+        .filter(
+            Run.status == "waiting",
+            or_(
+                NodeRun.status == "waiting_callback",
+                NodeRun.phase == "waiting_callback",
+            ),
+        )
+        .all()
+    )
+    affected_run_ids = {run_id for run_id, _workflow_id in waiting_callback_rows if run_id}
+    affected_workflow_ids = {
+        workflow_id
+        for _run_id, workflow_id in waiting_callback_rows
+        if workflow_id is not None and str(workflow_id).strip()
+    }
+
+    attention_step_count = _count_callback_attention_steps(automation)
+    primary_blocker_kind: str | None = None
+    if automation.scheduler_required and automation.status == "disabled":
+        primary_blocker_kind = "automation_disabled"
+    elif automation.scheduler_health_status in {"failed", "offline"}:
+        primary_blocker_kind = "scheduler_unhealthy"
+    elif (
+        automation.status != "configured"
+        or automation.scheduler_health_status != "healthy"
+        or attention_step_count > 0
+    ):
+        primary_blocker_kind = "automation_degraded"
+
+    automation.affected_run_count = len(affected_run_ids)
+    automation.affected_workflow_count = len(affected_workflow_ids)
+    automation.primary_blocker_kind = primary_blocker_kind
+    automation.recommended_action = _build_callback_recommended_action(
+        primary_blocker_kind=primary_blocker_kind,
+        affected_run_count=automation.affected_run_count,
+    )
+    return automation
 
 
 def _build_callback_step_scheduler_health(
@@ -551,6 +758,15 @@ def system_overview(db: Session = Depends(get_db)) -> SystemOverview:
     sandbox_backends = get_sandbox_backend_health_checker().probe_all(
         get_sandbox_backend_registry()
     )
+    sandbox_readiness = _apply_sandbox_follow_up_contract(
+        readiness=_build_sandbox_readiness(sandbox_backends),
+        db=db,
+        registry=registry,
+    )
+    callback_waiting_automation = _apply_callback_follow_up_contract(
+        automation=_build_callback_waiting_automation(settings, db),
+        db=db,
+    )
     adapter_services = [
         ServiceCheck(
             name=f"plugin-adapter:{adapter.id}",
@@ -583,9 +799,11 @@ def system_overview(db: Session = Depends(get_db)) -> SystemOverview:
             "runtime-run-tracking",
             "callback-waiting-automation-summary",
             "callback-waiting-automation-health",
+            "callback-waiting-follow-up-contract",
             "sandbox-ready",
             "sandbox-backend-registry",
             "sandbox-readiness-summary",
+            "sandbox-readiness-follow-up-contract",
             "plugin-call-proxy-foundation",
             "plugin-adapter-health-probe",
             "plugin-tool-catalog-visible",
@@ -603,7 +821,7 @@ def system_overview(db: Session = Depends(get_db)) -> SystemOverview:
             for adapter in adapter_healths
         ],
         sandbox_backends=[_serialize_sandbox_backend(backend) for backend in sandbox_backends],
-        sandbox_readiness=_build_sandbox_readiness(sandbox_backends),
+        sandbox_readiness=sandbox_readiness,
         plugin_tools=[
             PluginToolCheck(
                 id=tool.id,
@@ -615,7 +833,7 @@ def system_overview(db: Session = Depends(get_db)) -> SystemOverview:
             for tool in registry.list_tools()
         ],
         runtime_activity=_build_runtime_activity(db),
-        callback_waiting_automation=_build_callback_waiting_automation(settings, db),
+        callback_waiting_automation=callback_waiting_automation,
     )
 
 

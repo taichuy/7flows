@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -69,6 +71,10 @@ class SandboxReadinessCheck(BaseModel):
     supports_backend_extensions: bool = False
     supports_network_policy: bool = False
     supports_filesystem_policy: bool = False
+    affected_run_count: int = 0
+    affected_workflow_count: int = 0
+    primary_blocker_kind: str | None = None
+    recommended_action: SystemOverviewRecommendedAction | None = None
 
 
 class PluginToolCheck(BaseModel):
@@ -121,7 +127,7 @@ class CallbackWaitingAutomationStepCheck(BaseModel):
     enabled: bool
     interval_seconds: int | None = None
     detail: str = ""
-    scheduler_health: "CallbackWaitingAutomationStepSchedulerHealthCheck" = Field(
+    scheduler_health: CallbackWaitingAutomationStepSchedulerHealthCheck = Field(
         default_factory=lambda: CallbackWaitingAutomationStepSchedulerHealthCheck()
     )
 
@@ -136,6 +142,13 @@ class CallbackWaitingAutomationStepSchedulerHealthCheck(BaseModel):
     affected_count: int = 0
 
 
+class SystemOverviewRecommendedAction(BaseModel):
+    kind: str
+    entry_key: str
+    href: str
+    label: str
+
+
 class CallbackWaitingAutomationCheck(BaseModel):
     status: str = "disabled"
     scheduler_required: bool = True
@@ -143,6 +156,10 @@ class CallbackWaitingAutomationCheck(BaseModel):
     scheduler_health_status: str = "unknown"
     scheduler_health_detail: str = ""
     steps: list[CallbackWaitingAutomationStepCheck] = Field(default_factory=list)
+    affected_run_count: int = 0
+    affected_workflow_count: int = 0
+    primary_blocker_kind: str | None = None
+    recommended_action: SystemOverviewRecommendedAction | None = None
 
 
 class SystemOverview(BaseModel):
