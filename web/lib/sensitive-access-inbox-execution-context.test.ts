@@ -210,6 +210,77 @@ describe("sensitive access inbox execution context", () => {
     expect(context?.runId).toBe("run-from-follow-up");
   });
 
+  it("把 execution blocking / fallback 事实提升到 inbox focus node 上", () => {
+    const context = buildSensitiveAccessInboxEntryExecutionContext(
+      createInboxEntry(),
+      createRunSnapshot({
+        executionFocusToolCalls: [
+          {
+            id: "tool-call-blocked",
+            tool_id: "sandbox.code",
+            tool_name: "Sandbox Code",
+            phase: "tool",
+            status: "failed",
+            requested_execution_class: "sandbox",
+            requested_execution_source: "runtime_policy",
+            requested_execution_profile: null,
+            requested_execution_timeout_ms: null,
+            requested_execution_network_policy: null,
+            requested_execution_filesystem_policy: null,
+            requested_execution_dependency_mode: null,
+            requested_execution_builtin_package_set: null,
+            requested_execution_dependency_ref: null,
+            requested_execution_backend_extensions: null,
+            effective_execution_class: "sandbox",
+            execution_executor_ref: null,
+            execution_sandbox_backend_id: null,
+            execution_sandbox_backend_executor_ref: null,
+            execution_sandbox_runner_kind: null,
+            execution_blocking_reason: "No compatible sandbox backend is available.",
+            execution_fallback_reason: null,
+            response_summary: null,
+            response_content_type: null,
+            raw_ref: null
+          },
+          {
+            id: "tool-call-fallback",
+            tool_id: "sandbox.code",
+            tool_name: "Sandbox Code",
+            phase: "tool",
+            status: "succeeded",
+            requested_execution_class: "sandbox",
+            requested_execution_source: "runtime_policy",
+            requested_execution_profile: null,
+            requested_execution_timeout_ms: null,
+            requested_execution_network_policy: null,
+            requested_execution_filesystem_policy: null,
+            requested_execution_dependency_mode: null,
+            requested_execution_builtin_package_set: null,
+            requested_execution_dependency_ref: null,
+            requested_execution_backend_extensions: null,
+            effective_execution_class: "inline",
+            execution_executor_ref: null,
+            execution_sandbox_backend_id: null,
+            execution_sandbox_backend_executor_ref: null,
+            execution_sandbox_runner_kind: null,
+            execution_blocking_reason: null,
+            execution_fallback_reason: "Downgraded to host execution.",
+            response_summary: null,
+            response_content_type: null,
+            raw_ref: null
+          }
+        ]
+      })
+    );
+
+    expect(context?.focusNode.execution_blocked_count).toBe(1);
+    expect(context?.focusNode.execution_blocking_reason).toBe(
+      "No compatible sandbox backend is available."
+    );
+    expect(context?.focusNode.execution_fallback_count).toBe(1);
+    expect(context?.focusNode.execution_fallback_reason).toBe("Downgraded to host execution.");
+  });
+
   it("优先复用上层已解析的 canonical runId，而不是直接取首个 sampled run", () => {
     const entry = createInboxEntry({
       ticket: {

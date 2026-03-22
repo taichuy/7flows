@@ -3,7 +3,9 @@ import Link from "next/link";
 
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
+import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { OperatorRunSampleCard } from "@/lib/operator-run-sample-cards";
 import {
   buildOperatorFollowUpSurfaceCopy,
@@ -14,11 +16,13 @@ import {
 type OperatorRunSampleCardListProps = {
   cards: OperatorRunSampleCard[];
   skillTraceDescription: string;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
 export function OperatorRunSampleCardList({
   cards,
-  skillTraceDescription
+  skillTraceDescription,
+  sandboxReadiness = null
 }: OperatorRunSampleCardListProps) {
   const surfaceCopy = buildOperatorFollowUpSurfaceCopy();
 
@@ -78,6 +82,13 @@ export function OperatorRunSampleCardList({
                 </span>
               ))}
             </div>
+          ) : null}
+
+          {sample.sandboxReadinessNode ? (
+            <SandboxExecutionReadinessCard
+              node={sample.sandboxReadinessNode}
+              readiness={sandboxReadiness}
+            />
           ) : null}
 
           <CallbackWaitingSummaryCard

@@ -12,6 +12,7 @@ import {
   listExecutionFocusRuntimeFactBadges,
   type ExecutionFocusToolCallSummary
 } from "@/lib/run-execution-focus-presenters";
+import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
 
 export type OperatorRunSampleCard = {
   runId: string;
@@ -49,6 +50,7 @@ export type OperatorRunSampleCard = {
   focusToolCallSummaries: ExecutionFocusToolCallSummary[];
   focusArtifacts: OperatorInlineFocusArtifactPreview[];
   focusSkillReferenceLoads: SkillReferenceLoadItem[];
+  sandboxReadinessNode: ReturnType<typeof buildSandboxReadinessNodeFromRunSnapshot>;
 };
 
 function normalizeText(value?: string | null) {
@@ -97,6 +99,7 @@ export function buildOperatorRunSampleCards(
       const scheduledResumeDueAt = normalizeText(snapshot?.scheduledResumeDueAt);
       const scheduledResumeRequeuedAt = normalizeText(snapshot?.scheduledResumeRequeuedAt);
       const scheduledResumeRequeueSource = normalizeText(snapshot?.scheduledResumeRequeueSource);
+      const sandboxReadinessNode = buildSandboxReadinessNodeFromRunSnapshot(snapshot);
 
       return {
         runId: sample.runId,
@@ -144,7 +147,8 @@ export function buildOperatorRunSampleCards(
         focusArtifactSummary: model.focusArtifactSummary,
         focusToolCallSummaries: model.focusToolCallSummaries,
         focusArtifacts: model.focusArtifacts,
-        focusSkillReferenceLoads: model.focusSkillReferenceLoads
+        focusSkillReferenceLoads: model.focusSkillReferenceLoads,
+        sandboxReadinessNode
       };
     })
     .filter(

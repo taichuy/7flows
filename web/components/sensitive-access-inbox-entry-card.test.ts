@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SensitiveAccessInboxEntryCard } from "@/components/sensitive-access-inbox-entry-card";
 import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { CallbackWaitingLifecycleSummary } from "@/lib/get-run-views";
 import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
 import { buildSensitiveAccessInboxEntryExecutionSurfaceCopy } from "@/lib/workbench-entry-surfaces";
@@ -21,6 +22,40 @@ vi.mock("next/navigation", () => ({
     prefetch: async () => undefined
   })
 }));
+
+function buildSandboxReadiness(): SandboxReadinessCheck {
+  return {
+    enabled_backend_count: 0,
+    healthy_backend_count: 0,
+    degraded_backend_count: 0,
+    offline_backend_count: 0,
+    execution_classes: [
+      {
+        execution_class: "sandbox",
+        available: false,
+        backend_ids: [],
+        supported_languages: [],
+        supported_profiles: [],
+        supported_dependency_modes: [],
+        supports_tool_execution: false,
+        supports_builtin_package_sets: false,
+        supports_backend_extensions: false,
+        supports_network_policy: false,
+        supports_filesystem_policy: false,
+        reason:
+          "No sandbox backend is currently enabled. Strong-isolation execution must fail closed until a compatible backend is configured."
+      }
+    ],
+    supported_languages: [],
+    supported_profiles: [],
+    supported_dependency_modes: [],
+    supports_tool_execution: false,
+    supports_builtin_package_sets: false,
+    supports_backend_extensions: false,
+    supports_network_policy: false,
+    supports_filesystem_policy: false
+  };
+}
 
 function buildEntry(): SensitiveAccessInboxEntry {
   return {
@@ -396,5 +431,56 @@ describe("SensitiveAccessInboxEntryCard", () => {
     expect(html.indexOf("Callback waiting follow-up")).toBeLessThan(
       html.indexOf("effective sandbox")
     );
+  });
+
+  it("surfaces live sandbox readiness for blocked execution focus entries", () => {
+    const entry = buildEntry();
+    entry.runSnapshot = {
+      status: "failed",
+      currentNodeId: "tool-node",
+      executionFocusNodeId: "tool-node",
+      executionFocusNodeRunId: "node-run-1",
+      executionFocusNodeName: "Tool Node",
+      executionFocusNodeType: "tool",
+      executionFocusToolCalls: [
+        {
+          id: "tool-call-1",
+          tool_id: "native.search",
+          tool_name: "Native Search",
+          phase: "tool",
+          status: "failed",
+          requested_execution_class: "sandbox",
+          requested_execution_source: "runtime_policy",
+          requested_execution_profile: null,
+          requested_execution_timeout_ms: null,
+          requested_execution_network_policy: null,
+          requested_execution_filesystem_policy: null,
+          requested_execution_dependency_mode: null,
+          requested_execution_builtin_package_set: null,
+          requested_execution_dependency_ref: null,
+          requested_execution_backend_extensions: null,
+          effective_execution_class: "sandbox",
+          execution_executor_ref: null,
+          execution_sandbox_backend_id: null,
+          execution_sandbox_backend_executor_ref: null,
+          execution_sandbox_runner_kind: null,
+          execution_blocking_reason: "No compatible sandbox backend is available.",
+          execution_fallback_reason: null,
+          response_summary: null,
+          response_content_type: null,
+          raw_ref: null
+        }
+      ]
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessInboxEntryCard, {
+        entry,
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("Live sandbox readiness");
+    expect(html).toContain("当前 live sandbox readiness 显示 sandbox 仍 blocked。");
   });
 });

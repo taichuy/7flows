@@ -12,8 +12,10 @@ import {
 } from "@/components/sensitive-access-inbox-panel-helpers";
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
+import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type {
   NotificationChannelCapabilityItem,
   SensitiveAccessInboxEntry
@@ -36,6 +38,7 @@ import {
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
 import { resolveSensitiveAccessInboxEntryScopes } from "@/lib/sensitive-access-inbox-entry-scope";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 import {
@@ -49,12 +52,14 @@ type SensitiveAccessInboxEntryCardProps = {
   entry: SensitiveAccessInboxEntry;
   notificationChannels?: NotificationChannelCapabilityItem[];
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
 export function SensitiveAccessInboxEntryCard({
   entry,
   notificationChannels = [],
-  callbackWaitingAutomation
+  callbackWaitingAutomation,
+  sandboxReadiness = null
 }: SensitiveAccessInboxEntryCardProps) {
   const request = entry.request;
   const resource = entry.resource;
@@ -85,6 +90,7 @@ export function SensitiveAccessInboxEntryCard({
   const executionFactBadges = executionContext
     ? listExecutionFocusRuntimeFactBadges(executionContext.focusNode)
     : [];
+  const sandboxReadinessNode = buildSandboxReadinessNodeFromRunSnapshot(entry.runSnapshot);
   const focusInboxHref = executionContext
     ? buildSensitiveAccessInboxHref({
         runId: executionContext.runId,
@@ -235,6 +241,12 @@ export function SensitiveAccessInboxEntryCard({
               ))}
             </div>
           ) : null}
+          {sandboxReadinessNode ? (
+            <SandboxExecutionReadinessCard
+              node={sandboxReadinessNode}
+              readiness={sandboxReadiness}
+            />
+          ) : null}
           {executionFocusPrimarySignal && !shouldDeferToSharedCallbackWaitingSummary ? (
             <p className="section-copy entry-copy">{executionFocusPrimarySignal}</p>
           ) : null}
@@ -324,6 +336,7 @@ export function SensitiveAccessInboxEntryCard({
         notifications={entry.notifications}
         notificationChannels={notificationChannels}
         runId={actionScope.runId}
+        sandboxReadiness={sandboxReadiness}
         ticket={entry.ticket}
       />
     </article>

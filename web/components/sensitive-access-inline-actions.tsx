@@ -11,6 +11,7 @@ import {
   type DecideSensitiveAccessApprovalTicketState,
   type RetrySensitiveAccessNotificationDispatchState
 } from "@/app/actions/sensitive-access";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { NotificationChannelCapabilityItem } from "@/lib/get-sensitive-access";
 import {
   getApprovalExpectationCopy,
@@ -43,6 +44,7 @@ type SensitiveAccessInlineActionsProps = {
   notificationChannels?: NotificationChannelCapabilityItem[];
   runId?: string | null;
   nodeRunId?: string | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
   compact?: boolean;
 };
 
@@ -114,6 +116,7 @@ export function SensitiveAccessInlineActions({
   notificationChannels = [],
   runId = null,
   nodeRunId = null,
+  sandboxReadiness = null,
   compact = false
 }: SensitiveAccessInlineActionsProps) {
   const router = useRouter();
@@ -177,6 +180,7 @@ export function SensitiveAccessInlineActions({
               blockerDeltaSummary={decisionState.blockerDeltaSummary}
               runId={runId}
               runSnapshot={decisionState.runSnapshot}
+              sandboxReadiness={sandboxReadiness}
               status={decisionState.status}
               title="审批结果"
             />
@@ -260,6 +264,7 @@ export function SensitiveAccessInlineActions({
               blockerDeltaSummary={retryState.blockerDeltaSummary}
               runId={runId}
               runSnapshot={retryState.runSnapshot}
+              sandboxReadiness={sandboxReadiness}
               status={retryState.status}
               title="通知重试结果"
             />

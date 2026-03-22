@@ -19,6 +19,7 @@ import {
   pickRetriableNotification
 } from "@/components/sensitive-access-inbox-panel-helpers";
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type {
   NotificationChannelCapabilityItem,
   SensitiveAccessBulkAction,
@@ -31,12 +32,14 @@ type SensitiveAccessInboxPanelProps = {
   entries: SensitiveAccessInboxEntry[];
   channels?: NotificationChannelCapabilityItem[];
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
 export function SensitiveAccessInboxPanel({
   entries,
   channels = [],
-  callbackWaitingAutomation
+  callbackWaitingAutomation,
+  sandboxReadiness = null
 }: SensitiveAccessInboxPanelProps) {
   const [bulkOperator, setBulkOperator] = useState(DEFAULT_OPERATOR_ID);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
@@ -166,6 +169,7 @@ export function SensitiveAccessInboxPanel({
             entry={entry}
             key={entry.ticket.id}
             notificationChannels={channels}
+            sandboxReadiness={sandboxReadiness}
           />
         ))}
       </div>

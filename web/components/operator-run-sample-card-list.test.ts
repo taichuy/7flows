@@ -4,12 +4,47 @@ import { describe, expect, it, vi } from "vitest";
 
 import { OperatorRunSampleCardList } from "@/components/operator-run-sample-card-list";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { OperatorRunSampleCard } from "@/lib/operator-run-sample-cards";
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
     createElement("a", { href: href ?? "#", ...props }, children)
 }));
+
+function buildSandboxReadiness(): SandboxReadinessCheck {
+  return {
+    enabled_backend_count: 0,
+    healthy_backend_count: 0,
+    degraded_backend_count: 0,
+    offline_backend_count: 0,
+    execution_classes: [
+      {
+        execution_class: "sandbox",
+        available: false,
+        backend_ids: [],
+        supported_languages: [],
+        supported_profiles: [],
+        supported_dependency_modes: [],
+        supports_tool_execution: false,
+        supports_builtin_package_sets: false,
+        supports_backend_extensions: false,
+        supports_network_policy: false,
+        supports_filesystem_policy: false,
+        reason:
+          "No sandbox backend is currently enabled. Strong-isolation execution must fail closed until a compatible backend is configured."
+      }
+    ],
+    supported_languages: [],
+    supported_profiles: [],
+    supported_dependency_modes: [],
+    supports_tool_execution: false,
+    supports_builtin_package_sets: false,
+    supports_backend_extensions: false,
+    supports_network_policy: false,
+    supports_filesystem_policy: false
+  };
+}
 
 function buildSampleApprovalEntry(): SensitiveAccessTimelineEntry {
   return {
@@ -149,6 +184,7 @@ function buildSampleCard(
     focusToolCallSummaries: [],
     focusArtifacts: [],
     focusSkillReferenceLoads: [],
+    sandboxReadinessNode: null,
     ...overrides
   };
 }
@@ -226,5 +262,34 @@ describe("OperatorRunSampleCardList", () => {
     expect(html).toContain("Open approval inbox");
     expect(html).toContain("approval_ticket_id=approval-ticket-1");
     expect(html).toContain("Approvals: 1 approval still pending");
+  });
+
+  it("surfaces live sandbox readiness for blocked sampled runs", () => {
+    const html = renderToStaticMarkup(
+      createElement(OperatorRunSampleCardList, {
+        cards: [
+          buildSampleCard({
+            hasCallbackWaitingSummary: false,
+            callbackWaitingExplanation: null,
+            callbackWaitingFocusNodeEvidence: null,
+            sandboxReadinessNode: {
+              node_type: "tool",
+              execution_class: "sandbox",
+              requested_execution_class: "sandbox",
+              effective_execution_class: "sandbox",
+              execution_blocking_reason: "No compatible sandbox backend is available.",
+              execution_sandbox_backend_id: null,
+              execution_blocked_count: 1,
+              execution_unavailable_count: 0
+            }
+          })
+        ],
+        sandboxReadiness: buildSandboxReadiness(),
+        skillTraceDescription: "skill trace"
+      })
+    );
+
+    expect(html).toContain("Live sandbox readiness");
+    expect(html).toContain("当前 live sandbox readiness 显示 sandbox 仍 blocked。");
   });
 });

@@ -255,6 +255,7 @@ export default async function SensitiveAccessInboxPage({
           callbackWaitingAutomation={systemOverview.callback_waiting_automation}
           channels={snapshot.channels}
           entries={snapshot.entries}
+          sandboxReadiness={systemOverview.sandbox_readiness}
         />
       </section>
     </main>

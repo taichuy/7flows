@@ -143,6 +143,18 @@ function buildFocusNode(
     return null;
   }
 
+  const toolCalls = buildFocusToolCalls(runId, nodeRunId, runSnapshot);
+  const blockingToolCall =
+    toolCalls.find((toolCall) => trimOrNull(toolCall.execution_blocking_reason)) ?? null;
+  const fallbackToolCall =
+    toolCalls.find((toolCall) => trimOrNull(toolCall.execution_fallback_reason)) ?? null;
+  const executionBlockedCount = toolCalls.filter((toolCall) =>
+    trimOrNull(toolCall.execution_blocking_reason)
+  ).length;
+  const executionFallbackCount = toolCalls.filter((toolCall) =>
+    trimOrNull(toolCall.execution_fallback_reason)
+  ).length;
+
   return {
     node_run_id: nodeRunId,
     node_id: nodeId,
@@ -153,14 +165,14 @@ function buildFocusNode(
     scheduled_resume_due_at: runSnapshot.scheduledResumeDueAt ?? null,
     callback_tickets: [],
     sensitive_access_entries: buildInlineSensitiveAccessEntries(entry),
-    execution_fallback_count: 0,
-    execution_blocked_count: 0,
+    execution_fallback_count: executionFallbackCount,
+    execution_blocked_count: executionBlockedCount,
     execution_unavailable_count: 0,
-    execution_blocking_reason: null,
-    execution_fallback_reason: null,
+    execution_blocking_reason: blockingToolCall?.execution_blocking_reason ?? null,
+    execution_fallback_reason: fallbackToolCall?.execution_fallback_reason ?? null,
     artifact_refs: runSnapshot.executionFocusArtifactRefs ?? [],
     artifacts: buildFocusArtifacts(runId, nodeRunId, runSnapshot),
-    tool_calls: buildFocusToolCalls(runId, nodeRunId, runSnapshot)
+    tool_calls: toolCalls
   };
 }
 

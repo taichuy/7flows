@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
 import type { RunCallbackTicketItem } from "@/lib/get-run-views";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
 
 const callbackSummaryProps: Array<Record<string, unknown>> = [];
@@ -32,6 +33,40 @@ vi.mock("@/components/operator-run-sample-card-list", () => ({
 vi.mock("@/components/skill-reference-load-list", () => ({
   SkillReferenceLoadList: () => createElement("div", { "data-testid": "skill-reference-loads" })
 }));
+
+function buildSandboxReadiness(): SandboxReadinessCheck {
+  return {
+    enabled_backend_count: 0,
+    healthy_backend_count: 0,
+    degraded_backend_count: 0,
+    offline_backend_count: 0,
+    execution_classes: [
+      {
+        execution_class: "sandbox",
+        available: false,
+        backend_ids: [],
+        supported_languages: [],
+        supported_profiles: [],
+        supported_dependency_modes: [],
+        supports_tool_execution: false,
+        supports_builtin_package_sets: false,
+        supports_backend_extensions: false,
+        supports_network_policy: false,
+        supports_filesystem_policy: false,
+        reason:
+          "No sandbox backend is currently enabled. Strong-isolation execution must fail closed until a compatible backend is configured."
+      }
+    ],
+    supported_languages: [],
+    supported_profiles: [],
+    supported_dependency_modes: [],
+    supports_tool_execution: false,
+    supports_builtin_package_sets: false,
+    supports_backend_extensions: false,
+    supports_network_policy: false,
+    supports_filesystem_policy: false
+  };
+}
 
 function buildSensitiveAccessEntry(): SensitiveAccessTimelineEntry {
   return {
@@ -160,5 +195,57 @@ describe("InlineOperatorActionFeedback", () => {
       ((callbackSummaryProps[0]?.callbackTickets as RunCallbackTicketItem[] | undefined) ?? [])[0]?.ticket
     ).toBe("callback-ticket-1");
     expect(callbackSummaryProps[0]?.showSensitiveAccessInlineActions).toBe(false);
+  });
+
+  it("surfaces live sandbox readiness for blocked operator follow-up snapshots", () => {
+    const html = renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        message: "",
+        title: "Operator follow-up",
+        runId: "run-1",
+        sandboxReadiness: buildSandboxReadiness(),
+        runSnapshot: {
+          status: "failed",
+          currentNodeId: "sandbox_tool",
+          executionFocusNodeId: "sandbox_tool",
+          executionFocusNodeRunId: "node-run-1",
+          executionFocusNodeName: "Sandbox Tool",
+          executionFocusNodeType: "tool",
+          executionFocusToolCalls: [
+            {
+              id: "tool-call-1",
+              tool_id: "sandbox.code",
+              tool_name: "Sandbox Code",
+              phase: "tool",
+              status: "failed",
+              requested_execution_class: "sandbox",
+              requested_execution_source: "runtime_policy",
+              requested_execution_profile: null,
+              requested_execution_timeout_ms: null,
+              requested_execution_network_policy: null,
+              requested_execution_filesystem_policy: null,
+              requested_execution_dependency_mode: null,
+              requested_execution_builtin_package_set: null,
+              requested_execution_dependency_ref: null,
+              requested_execution_backend_extensions: null,
+              effective_execution_class: "sandbox",
+              execution_executor_ref: null,
+              execution_sandbox_backend_id: null,
+              execution_sandbox_backend_executor_ref: null,
+              execution_sandbox_runner_kind: null,
+              execution_blocking_reason: "No compatible sandbox backend is available.",
+              execution_fallback_reason: null,
+              response_summary: null,
+              response_content_type: null,
+              raw_ref: null
+            }
+          ]
+        }
+      })
+    );
+
+    expect(html).toContain("Live sandbox readiness");
+    expect(html).toContain("当前 live sandbox readiness 显示 sandbox 仍 blocked。");
   });
 });

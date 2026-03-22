@@ -4,8 +4,10 @@ import Link from "next/link";
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { OperatorRunSampleCardList } from "@/components/operator-run-sample-card-list";
+import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import type { RunCallbackTicketItem } from "@/lib/get-run-views";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import {
   buildExecutionFocusExplainableNode,
@@ -24,6 +26,7 @@ import {
   type OperatorRecommendedNextStep
 } from "@/lib/operator-follow-up-presenters";
 import { listExecutionFocusRuntimeFactBadges } from "@/lib/run-execution-focus-presenters";
+import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
 import { buildRunDetailExecutionFocusSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 
 type InlineOperatorActionFeedbackProps = {
@@ -32,6 +35,7 @@ type InlineOperatorActionFeedbackProps = {
   title: string;
   runId?: string | null;
   recommendedNextStep?: OperatorRecommendedNextStep | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
   callbackWaitingSummaryProps?: {
     inboxHref?: string | null;
     callbackTickets?: RunCallbackTicketItem[];
@@ -46,6 +50,7 @@ export function InlineOperatorActionFeedback({
   title,
   runId = null,
   recommendedNextStep: recommendedNextStepOverride,
+  sandboxReadiness = null,
   callbackWaitingSummaryProps,
   ...structuredResult
 }: InlineOperatorActionFeedbackProps) {
@@ -64,6 +69,7 @@ export function InlineOperatorActionFeedback({
   const callbackWaitingFollowUp = runSnapshot?.callbackWaitingExplanation?.follow_up?.trim() || null;
   const callbackWaitingFocusNode = buildExecutionFocusExplainableNode(runSnapshot);
   const executionFactBadges = listExecutionFocusRuntimeFactBadges(callbackWaitingFocusNode);
+  const sandboxReadinessNode = buildSandboxReadinessNodeFromRunSnapshot(runSnapshot);
   const executionSurfaceCopy = buildRunDetailExecutionFocusSurfaceCopy();
   const runDetailLink = buildOperatorRunDetailLinkSurface({ runId, surfaceCopy });
   const hasExplicitRecommendedNextStepOverride = recommendedNextStepOverride !== undefined;
@@ -202,6 +208,13 @@ export function InlineOperatorActionFeedback({
         </div>
       ) : null}
 
+      {sandboxReadinessNode ? (
+        <SandboxExecutionReadinessCard
+          node={sandboxReadinessNode}
+          readiness={sandboxReadiness}
+        />
+      ) : null}
+
       {runFollowUp && runFollowUp.affectedRunCount > 0 ? (
         <div className="tool-badge-row">
           <span className="event-chip">affected runs {runFollowUp.affectedRunCount}</span>
@@ -278,6 +291,7 @@ export function InlineOperatorActionFeedback({
           </p>
           <OperatorRunSampleCardList
             cards={sampledRunCards}
+            sandboxReadiness={sandboxReadiness}
             skillTraceDescription="当前 operator 结果会继续复用 sampled run focus node 的 compact skill trace，方便确认等待链路里实际加载了哪些参考资料。"
           />
         </div>
