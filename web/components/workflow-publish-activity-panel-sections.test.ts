@@ -441,6 +441,36 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain("Issue signals");
   });
 
+  it("bridges selected invocation next step into issue signals when failure matches", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishActivityInsights, {
+        binding: {
+          rate_limit_policy: {
+            requests: 3,
+            windowSeconds: 60
+          }
+        } as WorkflowPublishActivityPanelProps["binding"],
+        invocationAudit: buildInvocationAudit(),
+        rateLimitWindowAudit: buildRateLimitWindowAudit(),
+        selectedInvocationId: "invocation-1",
+        selectedInvocationDetail: {
+          kind: "ok",
+          data: buildSelectedInvocationDetail()
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness(),
+        activeTimeWindow: "24h"
+      })
+    );
+
+    expect(html).toContain("Issue signals");
+    expect(html).toContain("当前打开的 invocation-1 已对齐最近 failure reason");
+    expect(html).toContain("Selected invocation next step");
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("优先处理 blocker inbox，再观察 waiting 节点是否恢复。");
+    expect(html).toContain("open blocker inbox slice");
+  });
+
   it("reuses shared callback recovery CTA inside waiting follow-up", () => {
     const invocationAudit = buildInvocationAudit();
     invocationAudit.summary.last_run_status = "waiting_callback";

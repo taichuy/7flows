@@ -40,6 +40,8 @@ type WorkflowPublishActivityInsightsProps = {
   binding: WorkflowPublishActivityPanelProps["binding"];
   invocationAudit: PublishedEndpointInvocationListResponse | null;
   rateLimitWindowAudit: PublishedEndpointInvocationListResponse | null;
+  selectedInvocationId?: string | null;
+  selectedInvocationDetail?: SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse> | null;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
   activeTimeWindow: WorkflowPublishActivityPanelProps["activeInvocationFilter"] extends infer T
@@ -53,6 +55,8 @@ export function WorkflowPublishActivityInsights({
   binding,
   invocationAudit,
   rateLimitWindowAudit,
+  selectedInvocationId,
+  selectedInvocationDetail,
   callbackWaitingAutomation,
   sandboxReadiness,
   activeTimeWindow
@@ -88,6 +92,12 @@ export function WorkflowPublishActivityInsights({
   const insightsSurfaceCopy = buildPublishedInvocationActivityInsightsSurfaceCopy({
     rateLimitWindowStartedAt: rateLimitWindowAudit?.filters.created_from ?? null
   });
+  const selectedInvocationSurface = resolveWorkflowPublishSelectedInvocationDetailSurface({
+    selectedInvocationId: selectedInvocationId ?? null,
+    selectedInvocationDetail: selectedInvocationDetail ?? null,
+    callbackWaitingAutomation,
+    sandboxReadiness
+  });
   const summaryRows = listPublishedInvocationActivitySummaryRows({
     summary,
     waitingOverview,
@@ -120,6 +130,12 @@ export function WorkflowPublishActivityInsights({
     failureReasons: invocationAudit?.facets.recent_failure_reasons ?? [],
     sandboxReadiness,
     callbackWaitingAutomation,
+    selectedInvocationErrorMessage:
+      selectedInvocationSurface.kind === "ok"
+        ? selectedInvocationSurface.detail.invocation.error_message ?? null
+        : null,
+    selectedInvocationNextStepSurface:
+      selectedInvocationSurface.kind === "ok" ? selectedInvocationSurface.nextStepSurface : null,
     surfaceCopy: insightsSurfaceCopy
   });
 
@@ -235,6 +251,29 @@ export function WorkflowPublishActivityInsights({
           <p className="section-copy entry-copy">{issueSignalsSurface.description}</p>
           {issueSignalsSurface.insight ? (
             <p className="section-copy entry-copy">{issueSignalsSurface.insight}</p>
+          ) : null}
+          {issueSignalsSurface.selectedNextStepSurface ? (
+            <div className="entry-card compact-card">
+              <div className="payload-card-header">
+                <div>
+                  <p className="entry-card-title">{issueSignalsSurface.selectedNextStepSurface.title}</p>
+                  <p className="binding-meta">{issueSignalsSurface.selectedNextStepSurface.invocationId}</p>
+                </div>
+                <span className="event-chip">{issueSignalsSurface.selectedNextStepSurface.label}</span>
+              </div>
+              <p className="section-copy entry-copy">{issueSignalsSurface.selectedNextStepSurface.detail}</p>
+              {issueSignalsSurface.selectedNextStepSurface.href &&
+              issueSignalsSurface.selectedNextStepSurface.hrefLabel ? (
+                <div className="tool-badge-row">
+                  <Link
+                    className="event-chip inbox-filter-link"
+                    href={issueSignalsSurface.selectedNextStepSurface.href}
+                  >
+                    {issueSignalsSurface.selectedNextStepSurface.hrefLabel}
+                  </Link>
+                </div>
+              ) : null}
+            </div>
           ) : null}
           <div className="tool-badge-row">
             {issueSignalsSurface.chips.map((chip) => (

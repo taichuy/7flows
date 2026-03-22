@@ -814,8 +814,40 @@ describe("published invocation presenters", () => {
     ).toMatchObject({
       title: "Issue signals",
       description: "将 `rejected / failed` 聚合为稳定原因码，便于区分限流、鉴权和当前同步协议边界。",
-      chips: ["Runtime failed 2", "Rate limit exceeded 1"]
+      chips: ["Runtime failed 2", "Rate limit exceeded 1"],
+      selectedNextStepSurface: null
     });
+
+    const selectedNextStepSurface = buildPublishedInvocationSelectedNextStepSurface({
+      invocationId: "invocation-1",
+      nextStep: {
+        label: "approval blocker",
+        detail: "先处理 blocker inbox，再观察 waiting 节点是否恢复。",
+        href: "/sensitive-access/inbox?run_id=run-selected-1",
+        href_label: "open blocker inbox slice"
+      }
+    });
+
+    const bridgedIssueSignalsSurface = buildPublishedInvocationIssueSignalsSurface({
+      reasonCounts: [
+        { value: "runtime_failed", count: 2 },
+        { value: "rate_limit_exceeded", count: 1 }
+      ],
+      failureReasons: [
+        {
+          message: "sandbox backend offline",
+          count: 2,
+          last_invoked_at: "2026-03-21T00:00:00Z"
+        }
+      ],
+      selectedInvocationErrorMessage: " Sandbox backend offline ",
+      selectedInvocationNextStepSurface: selectedNextStepSurface,
+      sandboxReadiness: null
+    });
+
+    expect(bridgedIssueSignalsSurface?.selectedNextStepSurface).toEqual(selectedNextStepSurface);
+    expect(bridgedIssueSignalsSurface?.insight).toContain("invocation-1");
+    expect(bridgedIssueSignalsSurface?.followUpHref).toBeUndefined();
 
     expect(
       buildPublishedInvocationSkillTraceSurface({
@@ -1186,6 +1218,16 @@ describe("published invocation presenters", () => {
   });
 
   it("为 publish failure diagnosis 提供共享 helper copy", () => {
+    const selectedNextStepSurface = buildPublishedInvocationSelectedNextStepSurface({
+      invocationId: "invocation-1",
+      nextStep: {
+        label: "approval blocker",
+        detail: "先处理 blocker inbox，再观察 waiting 节点是否恢复。",
+        href: "/sensitive-access/inbox?run_id=run-selected-1",
+        href_label: "open blocker inbox slice"
+      }
+    });
+
     expect(
       buildPublishedInvocationFailureReasonInsight({
         reasonCounts: [{ value: "runtime_failed", count: 2 }],
@@ -1222,6 +1264,19 @@ describe("published invocation presenters", () => {
         }
       })
     ).toContain("结合 live sandbox readiness");
+    expect(
+      buildPublishedInvocationFailureReasonInsight({
+        failureReasons: [
+          {
+            message: "sandbox backend offline during invocation",
+            count: 2,
+            last_invoked_at: null
+          }
+        ],
+        selectedInvocationErrorMessage: "sandbox backend offline during invocation",
+        selectedInvocationNextStepSurface: selectedNextStepSurface
+      })
+    ).toContain("当前打开的 invocation-1 已对齐最近 failure reason");
     expect(
       buildPublishedInvocationFailureReasonInsight({
         reasonCounts: [{ value: "runtime_failed", count: 2 }],

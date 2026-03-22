@@ -359,6 +359,7 @@ export type PublishedInvocationIssueSignalsSurface = {
   description: string;
   insight: string | null;
   chips: string[];
+  selectedNextStepSurface: PublishedInvocationSelectedNextStepSurface | null;
   followUpHref?: string | null;
   followUpHrefLabel?: string | null;
 };
@@ -968,6 +969,8 @@ export function buildPublishedInvocationIssueSignalsSurface({
   failureReasons,
   sandboxReadiness,
   callbackWaitingAutomation,
+  selectedInvocationErrorMessage,
+  selectedInvocationNextStepSurface,
   surfaceCopy = buildPublishedInvocationActivityInsightsSurfaceCopy()
 }: {
   reasonCounts?: PublishedEndpointInvocationFacetItem[] | null;
@@ -975,6 +978,8 @@ export function buildPublishedInvocationIssueSignalsSurface({
   failureReasons?: PublishedInvocationFailureReasonItem[] | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
+  selectedInvocationErrorMessage?: string | null;
+  selectedInvocationNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
   surfaceCopy?: PublishedInvocationActivityInsightsSurfaceCopy;
 }): PublishedInvocationIssueSignalsSurface | null {
   const chips = listPublishedInvocationIssueSignalChips(reasonCounts ?? []);
@@ -982,13 +987,20 @@ export function buildPublishedInvocationIssueSignalsSurface({
     return null;
   }
 
-  const followUpSurface = buildPublishedInvocationDiagnosticFollowUpSurface({
-    reasonCounts,
-    runStatusCounts,
-    message: failureReasons?.[0]?.message ?? null,
-    sandboxReadiness,
-    callbackWaitingAutomation
+  const selectedNextStepSurface = resolvePublishedInvocationMatchedSelectedNextStepSurface({
+    failureMessage: failureReasons?.[0]?.message ?? null,
+    selectedInvocationErrorMessage,
+    selectedInvocationNextStepSurface
   });
+  const followUpSurface = selectedNextStepSurface
+    ? null
+    : buildPublishedInvocationDiagnosticFollowUpSurface({
+        reasonCounts,
+        runStatusCounts,
+        message: failureReasons?.[0]?.message ?? null,
+        sandboxReadiness,
+        callbackWaitingAutomation
+      });
 
   return {
     title: surfaceCopy.issueSignalsTitle,
@@ -997,9 +1009,12 @@ export function buildPublishedInvocationIssueSignalsSurface({
       reasonCounts,
       failureReasons,
       sandboxReadiness,
-      callbackWaitingAutomation
+      callbackWaitingAutomation,
+      selectedInvocationErrorMessage,
+      selectedInvocationNextStepSurface
     }),
     chips,
+    selectedNextStepSurface,
     ...(followUpSurface?.href ? { followUpHref: followUpSurface.href } : {}),
     ...(followUpSurface?.hrefLabel ? { followUpHrefLabel: followUpSurface.hrefLabel } : {})
   };
@@ -1136,10 +1151,11 @@ export function buildPublishedInvocationFailureReasonCardSurface({
   selectedInvocationNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
   surfaceCopy?: PublishedInvocationActivityDetailsSurfaceCopy;
 }): PublishedInvocationFailureReasonCardSurface {
-  const normalizedMessage = normalizePublishedInvocationFailureReasonMessage(item.message);
-  const normalizedSelectedInvocationErrorMessage = normalizePublishedInvocationFailureReasonMessage(
-    selectedInvocationErrorMessage
-  );
+  const matchedSelectedNextStepSurface = resolvePublishedInvocationMatchedSelectedNextStepSurface({
+    failureMessage: item.message,
+    selectedInvocationErrorMessage,
+    selectedInvocationNextStepSurface
+  });
 
   return {
     title: surfaceCopy.failureReasonTitle,
@@ -1152,12 +1168,7 @@ export function buildPublishedInvocationFailureReasonCardSurface({
       callbackWaitingAutomation
     }),
     lastSeenLabel: formatPublishedInvocationFailureReasonLastSeen(item.last_invoked_at),
-    selectedNextStepSurface:
-      normalizedMessage &&
-      normalizedSelectedInvocationErrorMessage &&
-      normalizedMessage === normalizedSelectedInvocationErrorMessage
-        ? selectedInvocationNextStepSurface ?? null
-        : null
+    selectedNextStepSurface: matchedSelectedNextStepSurface
   };
 }
 
@@ -1190,6 +1201,27 @@ function normalizePublishedInvocationFailureReasonMessage(message?: string | nul
   const normalizedMessage = message?.trim().replace(/\s+/g, " ").toLowerCase();
 
   return normalizedMessage ? normalizedMessage : null;
+}
+
+function resolvePublishedInvocationMatchedSelectedNextStepSurface({
+  failureMessage,
+  selectedInvocationErrorMessage,
+  selectedInvocationNextStepSurface
+}: {
+  failureMessage?: string | null;
+  selectedInvocationErrorMessage?: string | null;
+  selectedInvocationNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
+}) {
+  const normalizedFailureMessage = normalizePublishedInvocationFailureReasonMessage(failureMessage);
+  const normalizedSelectedInvocationErrorMessage = normalizePublishedInvocationFailureReasonMessage(
+    selectedInvocationErrorMessage
+  );
+
+  return normalizedFailureMessage &&
+    normalizedSelectedInvocationErrorMessage &&
+    normalizedFailureMessage === normalizedSelectedInvocationErrorMessage
+    ? selectedInvocationNextStepSurface ?? null
+    : null;
 }
 
 export function formatPublishedInvocationMetricCounts(
@@ -1689,17 +1721,31 @@ export function buildPublishedInvocationFailureReasonInsight({
   reasonCounts,
   failureReasons,
   sandboxReadiness,
-  callbackWaitingAutomation
+  callbackWaitingAutomation,
+  selectedInvocationErrorMessage,
+  selectedInvocationNextStepSurface
 }: {
   reasonCounts?: PublishedEndpointInvocationFacetItem[] | null;
   failureReasons?: PublishedInvocationFailureReasonItem[] | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
+  selectedInvocationErrorMessage?: string | null;
+  selectedInvocationNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
 }): string | null {
   const runtimeFailedCount = getFacetCount(reasonCounts, "runtime_failed");
   const rateLimitExceededCount = getFacetCount(reasonCounts, "rate_limit_exceeded");
   const authRejectedCount =
     getFacetCount(reasonCounts, "api_key_invalid") + getFacetCount(reasonCounts, "api_key_required");
+  const latestFailure = failureReasons?.[0]?.message?.trim();
+  const matchedSelectedNextStepSurface = resolvePublishedInvocationMatchedSelectedNextStepSurface({
+    failureMessage: latestFailure,
+    selectedInvocationErrorMessage,
+    selectedInvocationNextStepSurface
+  });
+
+  if (matchedSelectedNextStepSurface) {
+    return `当前打开的 ${matchedSelectedNextStepSurface.invocationId} 已对齐最近 failure reason；下面直接复用 selected invocation 的 canonical next step，避免继续只靠 failure message 推断动作。`;
+  }
 
   if (runtimeFailedCount > 0) {
     if (sandboxReadiness) {
@@ -1731,7 +1777,6 @@ export function buildPublishedInvocationFailureReasonInsight({
     return `当前拒绝更集中在 API key / auth 边界，先检查 key 轮换、binding 暴露方式与调用方鉴权，再回头看执行层。`;
   }
 
-  const latestFailure = failureReasons?.[0]?.message?.trim();
   if (latestFailure) {
     const followUpSurface = buildPublishedInvocationDiagnosticFollowUpSurface({
       reasonCounts,

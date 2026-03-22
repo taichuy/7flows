@@ -180,7 +180,7 @@ export function resolveWorkflowPublishSelectedInvocationDetailSurface({
   sandboxReadiness
 }: {
   selectedInvocationId: string | null;
-  selectedInvocationDetail: SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>;
+  selectedInvocationDetail: SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse> | null;
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
 }): WorkflowPublishSelectedInvocationDetailSurface {
