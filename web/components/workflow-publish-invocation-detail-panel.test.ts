@@ -735,6 +735,124 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     expect(html).toContain("优先打开 run，继续检查 execution focus node 的 fallback / blocking reason。");
   });
 
+  it("prefers shared sandbox readiness CTA when execution focus follow-up is missing", () => {
+    const detail = buildDetail();
+    detail.run_follow_up = null;
+    detail.callback_waiting_explanation = null;
+    detail.callback_tickets = [];
+    detail.sensitive_access_entries = [];
+    detail.blocking_sensitive_access_entries = [];
+    detail.execution_focus_reason = "blocked_execution";
+    detail.execution_focus_explanation = null;
+    detail.execution_focus_node = {
+      node_run_id: "node-run-focus",
+      node_id: "tool_wait",
+      node_name: "Tool wait",
+      node_type: "tool",
+      status: "blocked",
+      phase: "execute",
+      retry_count: 0,
+      artifact_refs: [],
+      error_message: null,
+      waiting_reason: null,
+      started_at: "2026-03-20T10:00:00Z",
+      finished_at: null,
+      execution_class: "sandbox",
+      execution_source: "runtime_policy",
+      execution_profile: null,
+      execution_timeout_ms: null,
+      execution_network_policy: null,
+      execution_filesystem_policy: null,
+      execution_dependency_mode: null,
+      execution_builtin_package_set: null,
+      execution_dependency_ref: null,
+      execution_backend_extensions: null,
+      execution_dispatched_count: 1,
+      execution_fallback_count: 0,
+      execution_blocked_count: 1,
+      execution_unavailable_count: 0,
+      requested_execution_class: "sandbox",
+      requested_execution_source: "runtime_policy",
+      requested_execution_profile: null,
+      requested_execution_timeout_ms: null,
+      requested_execution_network_policy: null,
+      requested_execution_filesystem_policy: null,
+      requested_execution_dependency_mode: null,
+      requested_execution_builtin_package_set: null,
+      requested_execution_dependency_ref: null,
+      requested_execution_backend_extensions: null,
+      execution_blocking_reason: "No compatible sandbox backend is available.",
+      effective_execution_class: "inline",
+      execution_sandbox_backend_id: "sandbox-stale",
+      execution_executor_ref: "tool:compat-adapter:dify-default",
+      execution_sandbox_backend_executor_ref: null,
+      execution_sandbox_runner_kind: "container",
+      execution_fallback_reason: null,
+      event_count: 0,
+      event_type_counts: {},
+      last_event_type: null,
+      artifacts: [],
+      tool_calls: [],
+      ai_calls: [],
+      callback_tickets: [],
+      skill_reference_load_count: 0,
+      skill_reference_loads: [],
+      sensitive_access_entries: []
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationDetailPanel, {
+        detail,
+        clearHref: "/published?clear=1",
+        tools: [],
+        callbackWaitingAutomation,
+        sandboxReadiness: {
+          enabled_backend_count: 0,
+          healthy_backend_count: 0,
+          degraded_backend_count: 0,
+          offline_backend_count: 0,
+          execution_classes: [
+            {
+              execution_class: "sandbox",
+              available: false,
+              backend_ids: [],
+              supported_languages: [],
+              supported_profiles: [],
+              supported_dependency_modes: [],
+              supports_tool_execution: false,
+              supports_builtin_package_sets: false,
+              supports_backend_extensions: false,
+              supports_network_policy: false,
+              supports_filesystem_policy: false,
+              reason: "execution class blocked"
+            }
+          ],
+          supported_languages: [],
+          supported_profiles: [],
+          supported_dependency_modes: [],
+          supports_tool_execution: false,
+          supports_builtin_package_sets: false,
+          supports_backend_extensions: false,
+          supports_network_policy: false,
+          supports_filesystem_policy: false,
+          affected_run_count: 4,
+          affected_workflow_count: 1,
+          primary_blocker_kind: "execution_class_blocked",
+          recommended_action: {
+            kind: "open_workflow_library",
+            label: "Open workflow library",
+            href: "/workflows?execution=sandbox",
+            entry_key: "workflow_library"
+          }
+        }
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("sandbox readiness");
+    expect(html).toContain("当前 live sandbox readiness 仍影响 4 个 run / 1 个 workflow");
+  });
+
   it("uses shared approval timeline surface copy in publish detail", () => {
     const detail = buildDetail();
     const placeholderEntry =

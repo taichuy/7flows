@@ -114,8 +114,9 @@ export function WorkflowPublishInvocationDetailPanel({
   const executionFocusPrimarySignal =
     detail.execution_focus_explanation?.primary_signal ??
     (executionFocusNode ? formatExecutionFocusPrimarySignal(executionFocusNode) : null);
+  const explicitExecutionFocusFollowUp = detail.execution_focus_explanation?.follow_up ?? null;
   const executionFocusFollowUp =
-    detail.execution_focus_explanation?.follow_up ??
+    explicitExecutionFocusFollowUp ??
     (executionFocusNode ? formatExecutionFocusFollowUp(executionFocusNode) : null);
   const executionFocusHasCallbackWaitingSummary =
     hasExecutionNodeCallbackWaitingSummaryFacts(executionFocusNode);
@@ -153,7 +154,7 @@ export function WorkflowPublishInvocationDetailPanel({
     canonicalFollowUp,
     callbackWaitingFollowUp: callbackWaitingExplanation?.follow_up ?? null,
     callbackWaitingAutomation,
-    executionFocusFollowUp,
+    executionFocusFollowUp: explicitExecutionFocusFollowUp,
     sandboxReadiness,
     blockingInboxHref,
     approvalInboxHref

@@ -35,8 +35,6 @@ import {
   type PublishedInvocationSelectedNextStepSurface,
   type PublishedInvocationUnavailableDetailSurfaceCopy
 } from "@/lib/published-invocation-presenters";
-import { hasExecutionNodeCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
-import { formatExecutionFocusFollowUp } from "@/lib/run-execution-focus-presenters";
 import { buildWorkflowPublishActivityHref } from "@/lib/workflow-publish-activity-query";
 
 export { buildWorkflowPublishActivityHref };
@@ -206,18 +204,12 @@ export function resolveWorkflowPublishSelectedInvocationDetailSurface({
       sharedCallbackWaitingExplanations,
       fallbackHeadline: entrySurfaceCopy.canonicalFollowUpFallbackHeadline
     });
-    const executionFocusFollowUp =
-      detail.execution_focus_explanation?.follow_up ??
-      (detail.execution_focus_node &&
-      !hasExecutionNodeCallbackWaitingSummaryFacts(detail.execution_focus_node)
-        ? formatExecutionFocusFollowUp(detail.execution_focus_node)
-        : null);
     const nextStep = buildPublishedInvocationRecommendedNextStep({
       runId: detail.run?.id ?? detail.invocation.run_id ?? null,
       canonicalFollowUp,
       callbackWaitingFollowUp: detail.callback_waiting_explanation?.follow_up ?? null,
       callbackWaitingAutomation,
-      executionFocusFollowUp,
+      executionFocusFollowUp: detail.execution_focus_explanation?.follow_up ?? null,
       sandboxReadiness,
       blockingInboxHref: buildBlockingPublishedInvocationInboxHref({
         runId: detail.run?.id ?? detail.invocation.run_id ?? null,
