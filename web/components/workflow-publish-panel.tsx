@@ -1,8 +1,12 @@
 import React from "react";
+import Link from "next/link";
 
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkflowPublishBindingCard } from "@/components/workflow-publish-binding-card";
+import {
+  buildWorkflowPublishPrimaryFollowUpSurface,
+} from "@/lib/published-invocation-presenters";
 import { buildWorkflowPublishPanelSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 import type {
   CallbackWaitingAutomationCheck,
@@ -56,6 +60,7 @@ export function WorkflowPublishPanel({
   sandboxReadiness
 }: WorkflowPublishPanelProps) {
   const surfaceCopy = buildWorkflowPublishPanelSurfaceCopy();
+  const primaryFollowUp = buildWorkflowPublishPrimaryFollowUpSurface(bindings);
   const publishedCount = bindings.filter(
     (binding) => binding.lifecycle_status === "published"
   ).length;
@@ -106,6 +111,22 @@ export function WorkflowPublishPanel({
             <strong>{cacheEnabledCount}</strong>
           </article>
         </div>
+
+        <article className="payload-card compact-card">
+          <div className="payload-card-header">
+            <span className="status-meta">Primary follow-up</span>
+            <span className={`health-pill ${primaryFollowUp.tone === "healthy" ? "healthy" : "pending"}`}>
+              {primaryFollowUp.tone === "healthy" ? "healthy" : "attention"}
+            </span>
+            {primaryFollowUp.href && primaryFollowUp.hrefLabel ? (
+              <Link className="event-chip inbox-filter-link" href={primaryFollowUp.href}>
+                {primaryFollowUp.hrefLabel}
+              </Link>
+            ) : null}
+          </div>
+          <p className="binding-meta">{primaryFollowUp.headline}</p>
+          <p className="section-copy entry-copy">{primaryFollowUp.detail}</p>
+        </article>
 
         <SandboxReadinessOverviewCard
           readiness={sandboxReadiness}

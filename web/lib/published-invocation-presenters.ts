@@ -7,6 +7,7 @@ import type {
   PublishedEndpointInvocationListResponse,
   PublishedEndpointInvocationSummary,
   PublishedEndpointInvocationTimeBucketItem,
+  WorkflowPublishedEndpointItem,
   OperatorRunFollowUpSnapshot,
   RunExecutionFocusExplanation
 } from "@/lib/get-workflow-publish";
@@ -105,8 +106,18 @@ type PublishedInvocationSensitiveAccessSummaryLike =
   | PublishedInvocationSensitiveAccessSummary
   | PublishedInvocationSensitiveAccessSummaryCounts;
 
+type WorkflowPublishSensitiveAccessAggregate = Required<PublishedInvocationSensitiveAccessSummaryCounts>;
+
 type PublishedInvocationDiagnosticFollowUpSurface = {
   source: "callback_waiting_automation" | "sandbox_readiness" | "sensitive_access";
+  detail: string;
+  href: string | null;
+  hrefLabel: string | null;
+};
+
+export type WorkflowPublishPrimaryFollowUpSurface = {
+  tone: "healthy" | "attention";
+  headline: string;
   detail: string;
   href: string | null;
   hrefLabel: string | null;
@@ -3209,6 +3220,213 @@ function buildPublishedInvocationSensitiveAccessFollowUpSurface(
     default:
       return null;
   }
+}
+
+export function buildWorkflowPublishPrimaryFollowUpSurface(
+  bindings: Array<Pick<WorkflowPublishedEndpointItem, "activity">>
+): WorkflowPublishPrimaryFollowUpSurface {
+  const aggregateSummary = bindings.reduce<WorkflowPublishSensitiveAccessAggregate>(
+    (summary, binding) => {
+      const activity = binding.activity;
+      return {
+        approval_ticket_count:
+          summary.approval_ticket_count + Math.max(Number(activity?.approval_ticket_count ?? 0), 0),
+        pending_approval_count:
+          summary.pending_approval_count + Math.max(Number(activity?.pending_approval_count ?? 0), 0),
+        approved_approval_count:
+          summary.approved_approval_count + Math.max(Number(activity?.approved_approval_count ?? 0), 0),
+        rejected_approval_count:
+          summary.rejected_approval_count + Math.max(Number(activity?.rejected_approval_count ?? 0), 0),
+        expired_approval_count:
+          summary.expired_approval_count + Math.max(Number(activity?.expired_approval_count ?? 0), 0),
+        pending_notification_count:
+          summary.pending_notification_count +
+          Math.max(Number(activity?.pending_notification_count ?? 0), 0),
+        delivered_notification_count:
+          summary.delivered_notification_count +
+          Math.max(Number(activity?.delivered_notification_count ?? 0), 0),
+        failed_notification_count:
+          summary.failed_notification_count +
+          Math.max(Number(activity?.failed_notification_count ?? 0), 0)
+      };
+    },
+    {
+      approval_ticket_count: 0,
+      pending_approval_count: 0,
+      approved_approval_count: 0,
+      rejected_approval_count: 0,
+      expired_approval_count: 0,
+      pending_notification_count: 0,
+      delivered_notification_count: 0,
+      failed_notification_count: 0
+    }
+  );
+  const failedInvocationCount = bindings.reduce(
+    (count, binding) => count + Math.max(Number(binding.activity?.failed_count ?? 0), 0),
+    0
+  );
+  const rejectedInvocationCount = bindings.reduce(
+    (count, binding) => count + Math.max(Number(binding.activity?.rejected_count ?? 0), 0),
+    0
+  );
+  const bindingsWithOperatorBacklog = bindings.reduce((count, binding) => {
+    return resolvePublishedInvocationSensitiveAccessPrimaryBacklog(binding.activity) ? count + 1 : count;
+  }, 0);
+
+  const inboxLabel = buildSensitiveAccessTimelineSurfaceCopy({
+    surface: "publish_invocation"
+  }).inboxLinkLabel;
+  const primaryBacklog = resolvePublishedInvocationSensitiveAccessPrimaryBacklog(aggregateSummary);
+
+  if (primaryBacklog) {
+    const linkSurface = buildOperatorInboxSliceLinkSurface({
+      href: primaryBacklog.href,
+      hrefLabel: inboxLabel
+    });
+    const impactedBindingsLabel =
+      bindingsWithOperatorBacklog > 0
+        ? bindingsWithOperatorBacklog === 1
+          ? "1 binding still exposes this backlog in the current publish slice."
+          : `${bindingsWithOperatorBacklog} bindings still expose this backlog in the current publish slice.`
+        : null;
+
+    switch (primaryBacklog.kind) {
+      case "pending_approval":
+        return {
+          tone: "attention",
+          headline: `Sensitive access approvals remain the primary publish backlog (${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)}).`,
+          detail:
+            joinFragments(
+              [
+                `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} are still holding publish traffic in sensitive access inbox.`,
+                impactedBindingsLabel,
+                "Clear the approval queue before treating the remaining binding-level failures as pure endpoint or runtime issues."
+              ].filter((fragment): fragment is string => Boolean(fragment))
+            ) ??
+            "Clear the approval queue before treating the remaining binding-level failures as pure endpoint or runtime issues.",
+          href: linkSurface?.href ?? null,
+          hrefLabel: linkSurface?.label ?? null
+        };
+      case "failed_notification":
+        return {
+          tone: "attention",
+          headline: `Notification delivery is currently the primary publish backlog (${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)}).`,
+          detail:
+            joinFragments(
+              [
+                `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} still need operator retry in sensitive access inbox.`,
+                impactedBindingsLabel,
+                "Recover delivery first, then revisit publish bindings that still look blocked."
+              ].filter((fragment): fragment is string => Boolean(fragment))
+            ) ?? "Recover delivery first, then revisit publish bindings that still look blocked.",
+          href: linkSurface?.href ?? null,
+          hrefLabel: linkSurface?.label ?? null
+        };
+      case "pending_notification":
+        return {
+          tone: "attention",
+          headline: `Pending notification delivery is still slowing publish follow-up (${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)}).`,
+          detail:
+            joinFragments(
+              [
+                `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} are still waiting for delivery confirmation in sensitive access inbox.`,
+                impactedBindingsLabel,
+                "Confirm the notification chain before assuming the binding-level failures need a separate runtime fix."
+              ].filter((fragment): fragment is string => Boolean(fragment))
+            ) ??
+            "Confirm the notification chain before assuming the binding-level failures need a separate runtime fix.",
+          href: linkSurface?.href ?? null,
+          hrefLabel: linkSurface?.label ?? null
+        };
+      case "rejected_approval":
+        return {
+          tone: "attention",
+          headline: `Rejected approvals are now the primary publish follow-up (${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)}).`,
+          detail:
+            joinFragments(
+              [
+                `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} still need operator review before a publish retry can succeed.`,
+                impactedBindingsLabel,
+                "Confirm whether the access policy changed before re-opening individual binding diagnostics."
+              ].filter((fragment): fragment is string => Boolean(fragment))
+            ) ??
+            "Confirm whether the access policy changed before re-opening individual binding diagnostics.",
+          href: linkSurface?.href ?? null,
+          hrefLabel: linkSurface?.label ?? null
+        };
+      case "expired_approval":
+        return {
+          tone: "attention",
+          headline: `Expired approvals remain the primary publish follow-up (${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)}).`,
+          detail:
+            joinFragments(
+              [
+                `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} need renewal or a fresh approval before publish retries can continue.`,
+                impactedBindingsLabel,
+                "Refresh the approval chain first, then decide whether any endpoint still needs separate runtime investigation."
+              ].filter((fragment): fragment is string => Boolean(fragment))
+            ) ??
+            "Refresh the approval chain first, then decide whether any endpoint still needs separate runtime investigation.",
+          href: linkSurface?.href ?? null,
+          hrefLabel: linkSurface?.label ?? null
+        };
+      case "waiting_resume":
+        return {
+          tone: "attention",
+          headline: `Waiting resumes remain the primary publish backlog (${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)}).`,
+          detail:
+            joinFragments(
+              [
+                `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} still need resume follow-up in sensitive access inbox.`,
+                impactedBindingsLabel,
+                "Clear the resume queue before drilling into binding-level publish diagnostics."
+              ].filter((fragment): fragment is string => Boolean(fragment))
+            ) ?? "Clear the resume queue before drilling into binding-level publish diagnostics.",
+          href: linkSurface?.href ?? null,
+          hrefLabel: linkSurface?.label ?? null
+        };
+      default:
+        return {
+          tone: "healthy",
+          headline: "Current publish bindings do not expose a shared sensitive-access backlog.",
+          detail:
+            "Use the binding cards below to inspect per-endpoint activity, cache, lifecycle and sampled invocation diagnostics.",
+          href: null,
+          hrefLabel: null
+        };
+    }
+  }
+
+  if (failedInvocationCount > 0 || rejectedInvocationCount > 0) {
+    return {
+      tone: "attention",
+      headline: "No shared sensitive-access backlog remains at the publish summary level.",
+      detail:
+        joinFragments(
+          [
+            failedInvocationCount > 0
+              ? `${formatCountLabel(failedInvocationCount, "failed invocation")} still appear in the current publish slice.`
+              : null,
+            rejectedInvocationCount > 0
+              ? `${formatCountLabel(rejectedInvocationCount, "rejected invocation")} still need binding-level diagnosis.`
+              : null,
+            "Continue from the binding activity panels below to inspect callback waiting, runtime failures or policy mismatches."
+          ].filter((fragment): fragment is string => Boolean(fragment))
+        ) ??
+        "Continue from the binding activity panels below to inspect callback waiting, runtime failures or policy mismatches.",
+      href: null,
+      hrefLabel: null
+    };
+  }
+
+  return {
+    tone: "healthy",
+    headline: "Current publish bindings do not show a shared operator backlog.",
+    detail:
+      "The top-level publish summary is currently clear; keep using the binding cards below for per-endpoint cache, rate-limit and invocation diagnostics.",
+    href: null,
+    hrefLabel: null
+  };
 }
 
 export function formatRateLimitPressure(

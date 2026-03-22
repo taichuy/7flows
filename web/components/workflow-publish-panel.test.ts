@@ -189,4 +189,103 @@ describe("WorkflowPublishPanel", () => {
     expect(html).toContain("返回系统首页");
     expect(html).toContain('href="/"');
   });
+
+  it("surfaces the shared sensitive-access backlog at publish summary level", () => {
+    const binding = buildBinding();
+    binding.activity = {
+      ...binding.activity!,
+      total_count: 5,
+      succeeded_count: 2,
+      failed_count: 1,
+      rejected_count: 2,
+      pending_approval_count: 2,
+      pending_notification_count: 0,
+      failed_notification_count: 0,
+      rejected_approval_count: 0,
+      expired_approval_count: 0
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishPanel, {
+        workflow: buildWorkflow(),
+        tools: [],
+        bindings: [binding],
+        cacheInventories: {},
+        apiKeysByBinding: {},
+        invocationAuditsByBinding: {},
+        invocationDetailsByBinding: {},
+        selectedInvocationId: null,
+        rateLimitWindowAuditsByBinding: {},
+        activeInvocationFilter: {
+          bindingId: null,
+          status: null,
+          requestSource: null,
+          requestSurface: null,
+          cacheStatus: null,
+          runStatus: null,
+          apiKeyId: null,
+          reasonCode: null,
+          timeWindow: "all"
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("Primary follow-up");
+    expect(html).toContain("Sensitive access approvals remain the primary publish backlog");
+    expect(html).toContain("2 pending approval tickets");
+    expect(html).toContain("binding-level failures");
+    expect(html).toContain('/sensitive-access?status=pending');
+    expect(html).toContain("approval inbox slice");
+  });
+
+  it("falls back to binding-level diagnosis when no shared backlog remains", () => {
+    const binding = buildBinding();
+    binding.activity = {
+      ...binding.activity!,
+      total_count: 4,
+      succeeded_count: 1,
+      failed_count: 2,
+      rejected_count: 1,
+      pending_approval_count: 0,
+      pending_notification_count: 0,
+      failed_notification_count: 0,
+      rejected_approval_count: 0,
+      expired_approval_count: 0
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishPanel, {
+        workflow: buildWorkflow(),
+        tools: [],
+        bindings: [binding],
+        cacheInventories: {},
+        apiKeysByBinding: {},
+        invocationAuditsByBinding: {},
+        invocationDetailsByBinding: {},
+        selectedInvocationId: null,
+        rateLimitWindowAuditsByBinding: {},
+        activeInvocationFilter: {
+          bindingId: null,
+          status: null,
+          requestSource: null,
+          requestSurface: null,
+          cacheStatus: null,
+          runStatus: null,
+          apiKeyId: null,
+          reasonCode: null,
+          timeWindow: "all"
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("No shared sensitive-access backlog remains at the publish summary level.");
+    expect(html).toContain("2 failed invocations");
+    expect(html).toContain("1 rejected invocation");
+    expect(html).toContain("binding-level diagnosis");
+    expect(html).not.toContain("Open inbox slice");
+  });
 });
