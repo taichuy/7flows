@@ -575,6 +575,35 @@ describe("workspace starter source action decision", () => {
     });
   });
 
+  it("offers the same create-entry next step for starters without source bindings", () => {
+    const surface = buildWorkspaceStarterSourceGovernanceSurface({
+      template: {
+        ...templates[0],
+        created_from_workflow_id: null,
+        source_governance: null
+      },
+      createWorkflowHref: "/workflows/new?starter=starter-active-a"
+    });
+
+    expect(surface.presenter).toEqual({
+      kind: "no_source",
+      statusLabel: "无来源",
+      actionStatusLabel: null,
+      summary: "这个 starter 没有绑定来源 workflow，当前只保留模板快照。",
+      followUp: null,
+      sourceVersion: null,
+      factChips: [],
+      needsAttention: false
+    });
+    expect(surface.recommendedNextStep).toEqual({
+      action: "create_workflow",
+      label: "带此 starter 回到创建页",
+      detail: "带此 starter 回到创建页继续创建 workflow，并保留当前模板上下文。",
+      focusTemplateId: null,
+      focusLabel: null
+    });
+  });
+
   it("falls back to a clear state when the shared source governance queue is empty", () => {
     const primaryFollowUp = buildWorkspaceStarterSourceGovernancePrimaryFollowUp({
       sourceGovernanceScope: {

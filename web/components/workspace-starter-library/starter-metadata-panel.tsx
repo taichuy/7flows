@@ -13,10 +13,11 @@ import {
 } from "@/lib/workspace-starter-governance-query";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
-import type {
-  WorkspaceStarterFormState,
-  WorkspaceStarterMessageTone
+import {
+  buildWorkspaceStarterSourceGovernancePresenter,
+  resolveWorkspaceStarterCreateWorkflowActionLabel
 } from "./shared";
+import type { WorkspaceStarterFormState, WorkspaceStarterMessageTone } from "./shared";
 
 type WorkspaceStarterMetadataPanelProps = {
   selectedTemplate: WorkspaceStarterTemplateItem | null;
@@ -49,6 +50,16 @@ export function WorkspaceStarterMetadataPanel({
   onSave,
   onTemplateMutation
 }: WorkspaceStarterMetadataPanelProps) {
+  const sourceGovernanceKind = selectedTemplate
+    ? buildWorkspaceStarterSourceGovernancePresenter(selectedTemplate).kind
+    : null;
+  const createWorkflowActionLabel = selectedTemplate
+    ? resolveWorkspaceStarterCreateWorkflowActionLabel({
+        governanceKind: sourceGovernanceKind,
+        createWorkflowHref,
+        archived: selectedTemplate.archived
+      }) ?? "带此 starter 回到创建页"
+    : "带此 starter 回到创建页";
   const sourceWorkflowLink = selectedTemplate?.created_from_workflow_id
     ? workspaceStarterGovernanceQueryScope
       ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
@@ -232,7 +243,7 @@ export function WorkspaceStarterMetadataPanel({
                       linkKey="createWorkflow"
                       override={{ href: createWorkflowHref }}
                     >
-                      带此 starter 回到创建页
+                      {createWorkflowActionLabel}
                     </WorkbenchEntryLink>
                   ) : (
                     <span className="binding-meta">

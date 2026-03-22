@@ -13,7 +13,10 @@ import {
 } from "@/lib/workflow-definition-sandbox-governance";
 import type { WorkflowDefinitionToolGovernance } from "@/lib/workflow-definition-tool-governance";
 
-import { formatTimestamp } from "./shared";
+import {
+  buildWorkspaceStarterSourceGovernancePresenter,
+  formatTimestamp
+} from "./shared";
 
 type WorkspaceStarterDefinitionSnapshotPanelProps = {
   selectedTemplate: WorkspaceStarterTemplateItem | null;
@@ -45,6 +48,9 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
   const sandboxGovernanceBadges = buildWorkflowDefinitionSandboxGovernanceBadges(
     selectedTemplateSandboxGovernance
   );
+  const sourceGovernancePresenter = selectedTemplate
+    ? buildWorkspaceStarterSourceGovernancePresenter(selectedTemplate)
+    : null;
   const sandboxDependencySummary = describeWorkflowDefinitionSandboxDependency(
     selectedTemplateSandboxGovernance
   );
@@ -73,7 +79,7 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
             </div>
             <div className="summary-card">
               <span>Source status</span>
-              <strong>{sourceGovernance?.status_label ?? "-"}</strong>
+              <strong>{sourceGovernancePresenter?.statusLabel ?? "-"}</strong>
             </div>
             <div className="summary-card">
               <span>Governed tools</span>

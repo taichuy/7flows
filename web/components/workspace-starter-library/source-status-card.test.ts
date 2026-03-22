@@ -148,4 +148,54 @@ describe("WorkspaceStarterSourceCard", () => {
     expect(html).not.toContain("从源 workflow 刷新快照");
     expect(html).not.toContain("执行 rebase");
   });
+
+  it("surfaces an honest governance gap when the selected starter still lacks source governance payload", () => {
+    const template: WorkspaceStarterTemplateItem = {
+      id: "starter-governance-gap",
+      workspace_id: "default",
+      name: "Gap starter",
+      description: "Starter with missing governance payload.",
+      business_track: "应用新建编排",
+      default_workflow_name: "Gap Workflow",
+      workflow_focus: "Expose governance gaps honestly.",
+      recommended_next_step: "Wait for the backend governance surface to recover.",
+      tags: ["workspace starter"],
+      definition: {
+        nodes: [
+          { id: "trigger", type: "trigger", name: "Trigger", config: {} },
+          { id: "output", type: "output", name: "Output", config: {} }
+        ],
+        edges: [{ id: "e1", sourceNodeId: "trigger", targetNodeId: "output" }],
+        variables: [],
+        publish: []
+      },
+      created_from_workflow_id: "wf-gap",
+      created_from_workflow_version: "0.5.0",
+      archived: false,
+      archived_at: null,
+      created_at: "2026-03-21T12:00:00Z",
+      updated_at: "2026-03-21T12:30:00Z"
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkspaceStarterSourceCard, {
+        template,
+        sourceGovernance: null,
+        sourceDiff: null,
+        isLoadingSourceDiff: false,
+        isRefreshing: false,
+        isRebasing: false,
+        createWorkflowHref: "/workflows/new?starter=starter-governance-gap",
+        onRefresh: vi.fn(),
+        onRebase: vi.fn()
+      })
+    );
+
+    expect(html).toContain("治理缺口");
+    expect(html).toContain("当前 starter 已绑定来源 workflow，但列表缺少统一来源治理摘要。");
+    expect(html).toContain("wf-gap");
+    expect(html).toContain("缺少 diff");
+    expect(html).not.toContain("从源 workflow 刷新快照");
+    expect(html).not.toContain("执行 rebase");
+  });
 });

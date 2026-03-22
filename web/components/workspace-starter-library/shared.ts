@@ -409,7 +409,7 @@ export function resolveWorkspaceStarterCreateWorkflowActionLabel({
   createWorkflowHref,
   archived
 }: {
-  governanceKind: WorkspaceStarterSourceGovernance["kind"] | null;
+  governanceKind: WorkspaceStarterSourceGovernancePresenter["kind"] | null;
   createWorkflowHref?: string | null;
   archived: boolean;
 }) {
@@ -434,13 +434,17 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
   actionDecision,
   createWorkflowHref
 }: {
-  template: Pick<WorkspaceStarterTemplateItem, "archived" | "created_from_workflow_id">;
+  template: Pick<
+    WorkspaceStarterTemplateItem,
+    "archived" | "created_from_workflow_id" | "source_governance"
+  >;
   sourceGovernance?: WorkspaceStarterSourceGovernance | null;
   actionDecision: WorkspaceStarterSourceActionDecision;
   createWorkflowHref?: string | null;
 }): WorkspaceStarterGovernanceRecommendedNextStep | null {
+  const governanceKind = getWorkspaceStarterSourceGovernanceKind(template);
   const createWorkflowActionLabel = resolveWorkspaceStarterCreateWorkflowActionLabel({
-    governanceKind: sourceGovernance?.kind ?? null,
+    governanceKind,
     createWorkflowHref,
     archived: template.archived
   });
@@ -498,23 +502,27 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
 
 export function buildWorkspaceStarterSourceGovernanceSurface({
   template,
-  createWorkflowHref
+  createWorkflowHref,
+  fallbackActionDecision = null
 }: {
   template: Pick<
     WorkspaceStarterTemplateItem,
     "archived" | "created_from_workflow_id" | "source_governance"
   >;
   createWorkflowHref?: string | null;
+  fallbackActionDecision?: WorkspaceStarterSourceActionDecision | null;
 }): WorkspaceStarterSourceGovernanceSurface {
   const presenter = buildWorkspaceStarterSourceGovernancePresenter(template);
-  const actionDecision = normalizeSourceActionDecision(template.source_governance?.action_decision) ?? {
-    recommendedAction: "none",
-    statusLabel: presenter.actionStatusLabel ?? presenter.statusLabel,
-    summary: presenter.followUp ?? presenter.summary,
-    canRefresh: false,
-    canRebase: false,
-    factChips: presenter.factChips
-  };
+  const actionDecision =
+    normalizeSourceActionDecision(template.source_governance?.action_decision) ??
+    fallbackActionDecision ?? {
+      recommendedAction: "none",
+      statusLabel: presenter.actionStatusLabel ?? presenter.statusLabel,
+      summary: presenter.followUp ?? presenter.summary,
+      canRefresh: false,
+      canRebase: false,
+      factChips: presenter.factChips
+    };
 
   return {
     presenter,

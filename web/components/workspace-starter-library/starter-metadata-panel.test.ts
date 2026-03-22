@@ -74,4 +74,69 @@ describe("WorkspaceStarterMetadataPanel", () => {
     expect(html).toContain("打开源 workflow");
     expect(html).toContain(scopedSourceWorkflowHref);
   });
+
+  it("keeps the missing-source create-entry label aligned with the shared governance surface", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkspaceStarterMetadataPanel, {
+        selectedTemplate: {
+          id: "starter-missing-source",
+          workspace_id: "default",
+          name: "Missing Source Starter",
+          description: "Starter description",
+          business_track: "应用新建编排",
+          default_workflow_name: "Governed workflow",
+          workflow_focus: "Keep source governance visible.",
+          recommended_next_step: "Return to create flow after reviewing metadata.",
+          tags: ["workspace starter"],
+          definition: {
+            nodes: [{ id: "trigger", type: "trigger", name: "Trigger", config: {} }],
+            edges: [],
+            variables: [],
+            publish: []
+          },
+          created_from_workflow_id: "workflow-missing",
+          archived: false,
+          created_at: "2026-03-22T00:00:00.000Z",
+          updated_at: "2026-03-22T00:00:00.000Z",
+          source_governance: {
+            kind: "missing_source",
+            status_label: "来源缺失",
+            summary: "原始来源 workflow 已不可访问。",
+            source_workflow_id: "workflow-missing",
+            source_workflow_name: null,
+            template_version: "0.1.0",
+            source_version: null,
+            action_decision: null,
+            outcome_explanation: {
+              primary_signal: "原始来源 workflow 已不可访问。",
+              follow_up: "确认模板后再回到创建页继续创建。"
+            }
+          }
+        },
+        formState: {
+          name: "Missing Source Starter",
+          description: "Starter description",
+          businessTrack: "应用新建编排",
+          defaultWorkflowName: "Governed workflow",
+          workflowFocus: "Keep source governance visible.",
+          recommendedNextStep: "Return to create flow after reviewing metadata.",
+          tagsText: "workspace starter"
+        },
+        selectedTrackPriority: "P0 应用新建编排",
+        hasPendingChanges: false,
+        isSaving: false,
+        isMutating: false,
+        message: null,
+        messageTone: "idle",
+        createWorkflowHref: "/workflows/new?starter=starter-missing-source",
+        workspaceStarterGovernanceQueryScope: null,
+        setFormState: vi.fn(),
+        onSave: vi.fn(),
+        onTemplateMutation: vi.fn()
+      })
+    );
+
+    expect(html).toContain("确认模板后带此 starter 回到创建页");
+    expect(html).toContain('/workflows/new?starter=starter-missing-source');
+  });
 });

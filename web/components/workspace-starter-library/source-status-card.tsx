@@ -3,7 +3,6 @@
 import Link from "next/link";
 
 import type {
-  WorkspaceStarterSourceActionDecisionPayload,
   WorkspaceStarterSourceDiff,
   WorkspaceStarterSourceGovernance,
   WorkspaceStarterTemplateItem
@@ -11,8 +10,7 @@ import type {
 
 import {
   buildWorkspaceStarterSourceActionDecision,
-  buildWorkspaceStarterSourceGovernanceRecommendedNextStep,
-  resolveWorkspaceStarterCreateWorkflowActionLabel
+  buildWorkspaceStarterSourceGovernanceSurface
 } from "./shared";
 
 type WorkspaceStarterSourceCardProps = {
@@ -39,30 +37,26 @@ export function WorkspaceStarterSourceCard({
   onRebase
 }: WorkspaceStarterSourceCardProps) {
   const hasSourceBinding = Boolean(template.created_from_workflow_id);
-  const actionDecisionPayload =
-    sourceGovernance?.action_decision ?? sourceDiff?.action_decision ?? null;
   const fallbackActionDecision = buildWorkspaceStarterSourceActionDecision(sourceDiff);
-  const actionDecision = actionDecisionPayload
-    ? normalizeActionDecision(actionDecisionPayload)
-    : fallbackActionDecision;
+  const sourceGovernanceSurface = buildWorkspaceStarterSourceGovernanceSurface({
+    template,
+    createWorkflowHref,
+    fallbackActionDecision
+  });
+  const presenter = sourceGovernanceSurface.presenter;
+  const actionDecision = sourceGovernanceSurface.actionDecision;
   const canRefresh = hasSourceBinding && !isLoadingSourceDiff && actionDecision.canRefresh;
   const canRebase = hasSourceBinding && !isLoadingSourceDiff && actionDecision.canRebase;
   const shouldShowSourceActions = isLoadingSourceDiff || canRefresh || canRebase;
   const templateNextStep = template.recommended_next_step.trim();
-  const createWorkflowActionLabel = resolveWorkspaceStarterCreateWorkflowActionLabel({
-    governanceKind: sourceGovernance?.kind ?? null,
-    createWorkflowHref,
-    archived: template.archived
-  });
-  const recommendedNextStep = buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
-    template,
-    sourceGovernance,
-    actionDecision,
-    createWorkflowHref
-  });
-  const governanceFollowUp = sourceGovernance?.outcome_explanation?.follow_up?.trim() || null;
+  const recommendedNextStep = sourceGovernanceSurface.recommendedNextStep;
+  const createWorkflowActionLabel =
+    recommendedNextStep?.action === "create_workflow" ? recommendedNextStep.label : null;
+  const governanceFollowUp = presenter.followUp;
   const shouldRenderStandaloneGovernanceFollowUp =
     Boolean(governanceFollowUp) && governanceFollowUp !== recommendedNextStep?.detail;
+  const shouldRenderGovernanceSummaryStrip =
+    Boolean(sourceGovernance) || presenter.kind === "unknown" || presenter.kind === "no_source";
 
   return (
     <div className="binding-card compact-card">
@@ -75,12 +69,10 @@ export function WorkspaceStarterSourceCard({
               "no workflow binding"}
           </p>
         </div>
-        <span className="health-pill">{sourceGovernance?.status_label ?? "-"}</span>
+        <span className="health-pill">{presenter.statusLabel}</span>
       </div>
       <p className="section-copy starter-summary-copy">
-        {sourceGovernance?.outcome_explanation?.primary_signal?.trim() ||
-          sourceGovernance?.summary ||
-          "暂无来源治理状态。"}
+        {presenter.summary}
       </p>
       {hasSourceBinding ? (
         <>
@@ -165,19 +157,19 @@ export function WorkspaceStarterSourceCard({
           </Link>
         </div>
       ) : null}
-      {sourceGovernance ? (
+      {shouldRenderGovernanceSummaryStrip ? (
         <div className="summary-strip compact-strip">
           <div className="summary-card">
             <span>Template ver</span>
-            <strong>{sourceGovernance.template_version ?? "n/a"}</strong>
+            <strong>{sourceGovernance?.template_version ?? template.created_from_workflow_version ?? "n/a"}</strong>
           </div>
           <div className="summary-card">
             <span>Source ver</span>
-            <strong>{sourceGovernance.source_version ?? "n/a"}</strong>
+            <strong>{presenter.sourceVersion ?? "n/a"}</strong>
           </div>
           <div className="summary-card">
             <span>Governance kind</span>
-            <strong>{sourceGovernance.kind}</strong>
+            <strong>{presenter.kind}</strong>
           </div>
           <div className="summary-card">
             <span>Recommended</span>
@@ -187,15 +179,4 @@ export function WorkspaceStarterSourceCard({
       ) : null}
     </div>
   );
-}
-
-function normalizeActionDecision(actionDecision: WorkspaceStarterSourceActionDecisionPayload) {
-  return {
-    recommendedAction: actionDecision.recommended_action,
-    statusLabel: actionDecision.status_label,
-    summary: actionDecision.summary,
-    canRefresh: actionDecision.can_refresh,
-    canRebase: actionDecision.can_rebase,
-    factChips: actionDecision.fact_chips
-  };
 }
