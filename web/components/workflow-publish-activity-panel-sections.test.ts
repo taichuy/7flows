@@ -631,6 +631,37 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain('/runs?focus=callback-waiting');
   });
 
+  it("reuses approval inbox CTA inside waiting follow-up when waiting input is blocked on approvals", () => {
+    const invocationAudit = buildInvocationAudit();
+    invocationAudit.summary.last_run_status = "waiting_input";
+    invocationAudit.summary.approval_ticket_count = 2;
+    invocationAudit.summary.pending_approval_count = 2;
+    invocationAudit.summary.approved_approval_count = 0;
+    invocationAudit.summary.rejected_approval_count = 0;
+    invocationAudit.summary.expired_approval_count = 0;
+    invocationAudit.summary.pending_notification_count = 0;
+    invocationAudit.summary.delivered_notification_count = 0;
+    invocationAudit.summary.failed_notification_count = 0;
+    invocationAudit.facets.run_status_counts = [{ value: "waiting_input", count: 2 }];
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishActivityInsights, {
+        binding: {
+          rate_limit_policy: null
+        } as WorkflowPublishActivityPanelProps["binding"],
+        invocationAudit,
+        rateLimitWindowAudit: buildRateLimitWindowAudit(),
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness(),
+        activeTimeWindow: "24h"
+      })
+    );
+
+    expect(html).toContain("2 approval tickets are still pending in sensitive access inbox");
+    expect(html).toContain("open approval inbox slice");
+    expect(html).toContain('/sensitive-access?status=pending');
+  });
+
   it("shows live diagnosis inside failure reason cards", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowPublishActivityDetails, {

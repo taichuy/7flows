@@ -1497,6 +1497,40 @@ describe("published invocation presenters", () => {
     });
   });
 
+  it("在纯 approval/input wait 的 waiting overview 里恢复 approval inbox CTA", () => {
+    expect(
+      buildPublishedInvocationWaitingOverview({
+        summary: {
+          total_count: 2,
+          succeeded_count: 0,
+          failed_count: 0,
+          rejected_count: 0,
+          cache_hit_count: 0,
+          cache_miss_count: 0,
+          cache_bypass_count: 0,
+          last_run_status: "waiting_input",
+          approval_ticket_count: 2,
+          pending_approval_count: 2,
+          approved_approval_count: 0,
+          rejected_approval_count: 0,
+          expired_approval_count: 0,
+          pending_notification_count: 0,
+          delivered_notification_count: 0,
+          failed_notification_count: 0
+        },
+        runStatusCounts: [{ value: "waiting_input", count: 2 }],
+        reasonCounts: []
+      })
+    ).toMatchObject({
+      waitingInputCount: 2,
+      detail: expect.stringContaining(
+        "2 approval tickets are still pending in sensitive access inbox"
+      ),
+      followUpHref: "/sensitive-access?status=pending",
+      followUpHrefLabel: "open approval inbox slice"
+    });
+  });
+
   it("为 invocation detail unavailable 提供共享 surface copy", () => {
     expect(buildPublishedInvocationUnavailableDetailSurfaceCopy()).toEqual({
       title: "Invocation detail unavailable",

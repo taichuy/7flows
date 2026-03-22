@@ -2845,10 +2845,16 @@ export function buildPublishedInvocationWaitingOverview({
   const activeWaitingCount = generalWaitingCount + waitingInputCount + callbackWaitingCount;
   const syncWaitingRejectedCount = getFacetCount(reasonCounts, "sync_waiting_unsupported");
   const lastRunStatusLabel = formatPublishedInvocationOptionalRunStatus(summary?.last_run_status, null);
+  const pendingApprovalCount = summary?.pending_approval_count ?? 0;
   const callbackFollowUpSurface = resolvePreferredSystemOverviewFollowUpSurface({
     callbackActive: callbackWaitingCount > 0,
     callbackWaitingAutomation
   });
+  const approvalInboxLabel = buildSensitiveAccessTimelineSurfaceCopy({
+    surface: "publish_invocation"
+  }).inboxLinkLabel;
+  const approvalFollowUpHref =
+    pendingApprovalCount > 0 ? buildSensitiveAccessInboxHref({ status: "pending" }) : null;
 
   const chips: string[] = [];
   if (activeWaitingCount > 0) {
@@ -2875,7 +2881,14 @@ export function buildPublishedInvocationWaitingOverview({
             `${formatCountLabel(callbackWaitingCount, "run")} are still waiting on callback tickets or external tool responses`
           : null,
         waitingInputCount > 0
-          ? `${formatCountLabel(waitingInputCount, "run")} are paused on approval or operator input`
+          ? joinFragments(
+              [
+                `${formatCountLabel(waitingInputCount, "run")} are paused on approval or operator input`,
+                pendingApprovalCount > 0
+                  ? `${formatCountLabel(pendingApprovalCount, "approval ticket")} are still pending in sensitive access inbox`
+                  : null
+              ].filter((value): value is string => Boolean(value))
+            )
           : null,
         generalWaitingCount > 0
           ? `${formatCountLabel(generalWaitingCount, "run")} are marked as generic waiting and should be checked in the latest invocation detail`
@@ -2899,9 +2912,15 @@ export function buildPublishedInvocationWaitingOverview({
       headline: `${formatCountLabel(activeWaitingCount, "publish invocation")} are still attached to the durable runtime waiting path.`,
       detail: detailParts.join(" "),
       chips,
-      ...(callbackFollowUpSurface?.href ? { followUpHref: callbackFollowUpSurface.href } : {}),
-      ...(callbackFollowUpSurface?.hrefLabel
-        ? { followUpHrefLabel: callbackFollowUpSurface.hrefLabel }
+      ...(callbackFollowUpSurface?.href ?? approvalFollowUpHref
+        ? { followUpHref: callbackFollowUpSurface?.href ?? approvalFollowUpHref }
+        : {}),
+      ...(callbackFollowUpSurface?.hrefLabel ?? approvalInboxLabel
+        ? {
+            followUpHrefLabel:
+              callbackFollowUpSurface?.hrefLabel ??
+              (approvalFollowUpHref ? approvalInboxLabel : null)
+          }
         : {})
     };
   }

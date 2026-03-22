@@ -1531,6 +1531,14 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     )
     assert activity_response.status_code == 200
     activity_body = activity_response.json()
+    assert activity_body["summary"]["approval_ticket_count"] == 1
+    assert activity_body["summary"]["pending_approval_count"] == 0
+    assert activity_body["summary"]["approved_approval_count"] == 1
+    assert activity_body["summary"]["rejected_approval_count"] == 0
+    assert activity_body["summary"]["expired_approval_count"] == 0
+    assert activity_body["summary"]["pending_notification_count"] == 0
+    assert activity_body["summary"]["delivered_notification_count"] == 1
+    assert activity_body["summary"]["failed_notification_count"] == 0
     assert activity_body["items"][0]["run_follow_up"]["affected_run_count"] == 1
     assert activity_body["items"][0]["run_follow_up"]["sampled_run_count"] == 1
     assert activity_body["items"][0]["run_follow_up"]["waiting_run_count"] == 1
@@ -1554,6 +1562,17 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
             "下一步：优先确认外部系统是否已经回调，不要重复触发 resume 或额外发起同类请求。"
         ),
     }
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding_activity = bindings_response.json()[0]["activity"]
+    assert binding_activity["approval_ticket_count"] == 1
+    assert binding_activity["pending_approval_count"] == 0
+    assert binding_activity["approved_approval_count"] == 1
+    assert binding_activity["delivered_notification_count"] == 1
 
     detail_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/{invocation.id}"

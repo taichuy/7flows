@@ -6,6 +6,8 @@ heavier summary, facet and timeline aggregation lives in smaller helpers.
 
 from __future__ import annotations
 
+from collections import Counter, defaultdict
+from dataclasses import replace
 from datetime import datetime
 
 from sqlalchemy import select
@@ -32,6 +34,57 @@ from app.services.published_invocation_types import (
     PublishedInvocationSummary,
     classify_invocation_reason,
 )
+from app.services.sensitive_access_timeline import load_sensitive_access_timelines
+
+
+def _build_sensitive_access_summary_counts_for_run_ids(
+    db: Session,
+    *,
+    run_ids: list[str],
+) -> dict[str, int]:
+    if not run_ids:
+        return {
+            "approval_ticket_count": 0,
+            "pending_approval_count": 0,
+            "approved_approval_count": 0,
+            "rejected_approval_count": 0,
+            "expired_approval_count": 0,
+            "pending_notification_count": 0,
+            "delivered_notification_count": 0,
+            "failed_notification_count": 0,
+        }
+
+    approval_status_counts: Counter[str] = Counter()
+    notification_status_counts: Counter[str] = Counter()
+    approval_ticket_count = 0
+    timelines = load_sensitive_access_timelines(db, run_ids=run_ids)
+    for timeline in timelines.values():
+        approval_ticket_count += timeline.approval_ticket_count
+        approval_status_counts.update(timeline.approval_status_counts or {})
+        notification_status_counts.update(timeline.notification_status_counts or {})
+
+    return {
+        "approval_ticket_count": approval_ticket_count,
+        "pending_approval_count": approval_status_counts.get("pending", 0),
+        "approved_approval_count": approval_status_counts.get("approved", 0),
+        "rejected_approval_count": approval_status_counts.get("rejected", 0),
+        "expired_approval_count": approval_status_counts.get("expired", 0),
+        "pending_notification_count": notification_status_counts.get("pending", 0),
+        "delivered_notification_count": notification_status_counts.get("delivered", 0),
+        "failed_notification_count": notification_status_counts.get("failed", 0),
+    }
+
+
+def _with_sensitive_access_summary_counts(
+    db: Session,
+    *,
+    summary: PublishedInvocationSummary,
+    run_ids: list[str],
+) -> PublishedInvocationSummary:
+    return replace(
+        summary,
+        **_build_sensitive_access_summary_counts_for_run_ids(db, run_ids=run_ids),
+    )
 
 
 def _resolve_record_reason_code(
@@ -126,7 +179,11 @@ class PublishedInvocationAuditMixin:
             created_from=created_from,
             created_to=created_to,
         )
-        summary = summarize_records(records)
+        summary = _with_sensitive_access_summary_counts(
+            db,
+            summary=summarize_records(records),
+            run_ids=[record.run_id for record in records if record.run_id],
+        )
         facets = build_binding_audit_facets(
             records,
             resolve_request_surface=_resolve_request_surface,
@@ -194,4 +251,20 @@ class PublishedInvocationAuditMixin:
             )
         ).all()
 
-        return summarize_records_for_bindings(records)
+        summaries = summarize_records_for_bindings(records)
+        run_ids_by_binding: dict[str, list[str]] = defaultdict(list)
+        seen_run_ids_by_binding: dict[str, set[str]] = defaultdict(set)
+        for record in records:
+            if not record.run_id or record.run_id in seen_run_ids_by_binding[record.binding_id]:
+                continue
+            seen_run_ids_by_binding[record.binding_id].add(record.run_id)
+            run_ids_by_binding[record.binding_id].append(record.run_id)
+
+        return {
+            binding_id: _with_sensitive_access_summary_counts(
+                db,
+                summary=summary,
+                run_ids=run_ids_by_binding.get(binding_id, []),
+            )
+            for binding_id, summary in summaries.items()
+        }

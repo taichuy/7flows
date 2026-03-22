@@ -72,6 +72,14 @@ def _serialize_published_invocation_summary(summary) -> PublishedEndpointInvocat
         last_run_id=summary.last_run_id,
         last_run_status=summary.last_run_status,
         last_reason_code=summary.last_reason_code,
+        approval_ticket_count=summary.approval_ticket_count,
+        pending_approval_count=summary.pending_approval_count,
+        approved_approval_count=summary.approved_approval_count,
+        rejected_approval_count=summary.rejected_approval_count,
+        expired_approval_count=summary.expired_approval_count,
+        pending_notification_count=summary.pending_notification_count,
+        delivered_notification_count=summary.delivered_notification_count,
+        failed_notification_count=summary.failed_notification_count,
     )
 def _serialize_facet_item(item) -> PublishedEndpointInvocationFacetItem:
     return PublishedEndpointInvocationFacetItem(

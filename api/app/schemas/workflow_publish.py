@@ -274,6 +274,14 @@ class PublishedEndpointInvocationSummary(BaseModel):
     last_run_id: str | None = None
     last_run_status: str | None = None
     last_reason_code: str | None = None
+    approval_ticket_count: int = 0
+    pending_approval_count: int = 0
+    approved_approval_count: int = 0
+    rejected_approval_count: int = 0
+    expired_approval_count: int = 0
+    pending_notification_count: int = 0
+    delivered_notification_count: int = 0
+    failed_notification_count: int = 0
 
 
 class PublishedEndpointInvocationWaitingLifecycle(BaseModel):

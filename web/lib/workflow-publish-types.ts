@@ -41,6 +41,14 @@ export type PublishedEndpointInvocationSummary = {
   last_run_id?: string | null;
   last_run_status?: string | null;
   last_reason_code?: string | null;
+  approval_ticket_count?: number;
+  pending_approval_count?: number;
+  approved_approval_count?: number;
+  rejected_approval_count?: number;
+  expired_approval_count?: number;
+  pending_notification_count?: number;
+  delivered_notification_count?: number;
+  failed_notification_count?: number;
 };
 
 export type PublishedEndpointInvocationItem = {
