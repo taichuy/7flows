@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
 import {
+  buildOperatorInlineActionSampleInboxContext,
   buildOperatorInlineActionFeedbackModel,
   hasStructuredOperatorInlineActionResult
 } from "@/lib/operator-inline-action-feedback";
@@ -60,6 +61,100 @@ describe("operator inline action feedback", () => {
         runSnapshot: null
       })
     ).toBe(false);
+  });
+
+  it("recovers an approval inbox CTA from the matched sampled run", () => {
+    expect(
+      buildOperatorInlineActionSampleInboxContext({
+        runId: "run-2",
+        runFollowUp: {
+          affectedRunCount: 2,
+          sampledRunCount: 2,
+          waitingRunCount: 1,
+          runningRunCount: 1,
+          succeededRunCount: 0,
+          failedRunCount: 0,
+          unknownRunCount: 0,
+          sampledRuns: [
+            {
+              runId: "run-1",
+              snapshot: null,
+              callbackTickets: [
+                {
+                  ticket: "callback-ticket-1",
+                  run_id: "run-1",
+                  node_run_id: "node-run-1",
+                  status: "pending",
+                  waiting_status: "waiting",
+                  tool_call_index: 0,
+                  created_at: "2026-03-20T10:00:00Z"
+                }
+              ],
+              sensitiveAccessEntries: []
+            },
+            {
+              runId: "run-2",
+              snapshot: {
+                executionFocusNodeRunId: "node-run-2"
+              },
+              callbackTickets: [],
+              sensitiveAccessEntries: [
+                {
+                  request: {
+                    id: "request-2",
+                    run_id: "run-2",
+                    node_run_id: "node-run-2",
+                    requester_type: "tool",
+                    requester_id: "native.search",
+                    resource_id: "resource-2",
+                    action_type: "invoke",
+                    decision: "require_approval",
+                    decision_label: "Require approval",
+                    reason_code: "policy_requires_approval",
+                    reason_label: "Policy requires approval",
+                    policy_summary: "approval required",
+                    created_at: "2026-03-20T10:00:00Z",
+                    decided_at: null,
+                    purpose_text: null
+                  },
+                  resource: {
+                    id: "resource-2",
+                    label: "Remote search",
+                    description: "External search capability",
+                    sensitivity_level: "L2",
+                    source: "local_capability",
+                    metadata: {},
+                    created_at: "2026-03-20T09:00:00Z",
+                    updated_at: "2026-03-20T09:00:00Z"
+                  },
+                  approval_ticket: {
+                    id: "ticket-2",
+                    access_request_id: "request-2",
+                    run_id: "run-2",
+                    node_run_id: "node-run-2",
+                    status: "pending",
+                    waiting_status: "waiting",
+                    approved_by: null,
+                    decided_at: null,
+                    expires_at: "2026-03-20T10:30:00Z",
+                    created_at: "2026-03-20T10:00:00Z"
+                  },
+                  notifications: [],
+                  outcome_explanation: null,
+                  run_snapshot: null,
+                  run_follow_up: null
+                }
+              ]
+            }
+          ]
+        }
+      })
+    ).toEqual({
+      kind: "approval blocker",
+      href:
+        "/sensitive-access?status=pending&waiting_status=waiting&run_id=run-2&node_run_id=node-run-2&access_request_id=request-2&approval_ticket_id=ticket-2",
+      hrefLabel: "open approval inbox slice"
+    });
   });
 
   it("把 compact run snapshot 的 tool execution evidence 转成可复用卡片模型", () => {

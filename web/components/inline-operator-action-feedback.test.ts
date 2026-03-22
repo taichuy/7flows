@@ -389,6 +389,54 @@ describe("InlineOperatorActionFeedback", () => {
     });
   });
 
+  it("recovers a sampled approval blocker CTA when the top-level run follow-up omitted it", () => {
+    const html = renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        message: "",
+        title: "Operator follow-up",
+        runId: "run-1",
+        runFollowUp: {
+          affectedRunCount: 1,
+          sampledRunCount: 1,
+          waitingRunCount: 1,
+          runningRunCount: 0,
+          succeededRunCount: 0,
+          failedRunCount: 0,
+          unknownRunCount: 0,
+          sampledRuns: [
+            {
+              runId: "run-1",
+              snapshot: {
+                status: "waiting",
+                currentNodeId: "approval_gate",
+                waitingReason: "approval pending",
+                executionFocusNodeId: "approval_gate",
+                executionFocusNodeRunId: "node-run-1",
+                executionFocusNodeName: "Approval Gate",
+                callbackWaitingExplanation: {
+                  primary_signal: "当前 run 仍在等待审批。",
+                  follow_up: "优先处理审批票据，再观察 waiting 是否恢复。"
+                }
+              },
+              callbackTickets: [],
+              sensitiveAccessEntries: [buildSensitiveAccessEntry()]
+            }
+          ]
+        },
+        runFollowUpExplanation: {
+          primary_signal: "operator follow-up 已刷新。",
+          follow_up: "优先处理审批票据，再观察 waiting 是否恢复。"
+        }
+      })
+    );
+
+    expect(html).toContain(operatorSurfaceCopy.recommendedNextStepTitle);
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("open approval inbox slice");
+    expect(html).toContain("approval_ticket_id=ticket-1");
+  });
+
   it("surfaces live sandbox readiness for blocked operator follow-up snapshots", () => {
     const html = renderToStaticMarkup(
       createElement(InlineOperatorActionFeedback, {

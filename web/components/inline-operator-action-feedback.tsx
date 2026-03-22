@@ -9,6 +9,7 @@ import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { CallbackWaitingSummaryProps } from "@/lib/callback-waiting-summary-props";
 import {
+  buildOperatorInlineActionSampleInboxContext,
   buildExecutionFocusExplainableNode,
   buildOperatorInlineActionFeedbackModel,
   type OperatorInlineActionResultState
@@ -71,6 +72,14 @@ export function InlineOperatorActionFeedback({
   const sandboxReadinessNode = buildSandboxReadinessNodeFromRunSnapshot(runSnapshot);
   const executionSurfaceCopy = buildRunDetailExecutionFocusSurfaceCopy();
   const runDetailLink = buildOperatorRunDetailLinkSurface({ runId, surfaceCopy });
+  const hasCanonicalRecommendedAction = Boolean(
+    runFollowUp?.recommendedAction?.kind ||
+      runFollowUp?.recommendedAction?.entryKey ||
+      runFollowUp?.recommendedAction?.href ||
+      runFollowUp?.recommendedAction?.label
+  );
+  const callbackFallbackDetail =
+    "当前 operator 结果仍落在 callback waiting / approval blocker 链；优先回到 inbox slice 核对票据与 waiting 恢复。";
   const canonicalCallbackRecommendedAction =
     runFollowUp?.recommendedAction ?? callbackWaitingSummaryProps?.recommendedAction ?? null;
   const canonicalCallbackOperatorFollowUp =
@@ -96,11 +105,39 @@ export function InlineOperatorActionFeedback({
   const sharedSandboxCandidate = executionNeedsSharedSandboxFollowUp
     ? buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness")
     : null;
+  const canonicalCallbackCandidate = buildOperatorRecommendedActionCandidate({
+    action: runFollowUp?.recommendedAction ?? null,
+    detail: model.runFollowUpFollowUp,
+    fallbackDetail: callbackFallbackDetail,
+    scope: "callback",
+    surfaceCopy
+  });
+  const sampledCallbackInboxContext =
+    !hasCanonicalRecommendedAction && !hasCallbackWaitingSummary
+      ? buildOperatorInlineActionSampleInboxContext({
+          runFollowUp,
+          runId
+        })
+      : null;
+  const sampledCallbackCandidate = sampledCallbackInboxContext
+    ? buildOperatorRecommendedActionCandidate({
+        action: {
+          kind: sampledCallbackInboxContext.kind,
+          entryKey: "operatorInbox",
+          href: sampledCallbackInboxContext.href,
+          label: sampledCallbackInboxContext.hrefLabel
+        },
+        detail: model.runFollowUpFollowUp,
+        fallbackDetail: callbackFallbackDetail,
+        scope: "callback",
+        surfaceCopy
+      })
+    : null;
   const canonicalExecutionCandidate = buildOperatorRecommendedActionCandidate({
     action: runFollowUp?.recommendedAction ?? null,
     detail: model.runFollowUpFollowUp,
     fallbackDetail: model.runSnapshotSummary ?? executionSurfaceCopy.recommendedNextStepFallbackDetail,
-    scope: "any",
+    scope: "execution",
     surfaceCopy
   });
   const executionCandidate = buildSharedOrLocalOperatorCandidate({
@@ -117,6 +154,7 @@ export function InlineOperatorActionFeedback({
       ? recommendedNextStepOverride
       : !hasCallbackWaitingSummary
       ? buildOperatorRecommendedNextStep({
+          callback: canonicalCallbackCandidate ?? sampledCallbackCandidate,
           execution: executionCandidate,
           operatorFollowUp: executionCandidate.active ? model.outcomeFollowUp : null,
           operatorLabel: "operator result"
