@@ -333,10 +333,11 @@ export function SensitiveAccessTimelineEntryList({
             runFollowUpExplanation: runContext.runFollowUp?.explanation ?? null
           });
           const inboxSliceHref = buildSensitiveAccessTimelineInboxHref(entry, defaultRunId);
+          const shouldSurfaceCallbackSummary = shouldSurfaceCallbackWaitingSummary(entry);
           const hasStructuredCallbackWaitingSummary = hasCallbackWaitingSummaryFacts(
             runContext.snapshot
           );
-          const callbackWaitingRecommendedAction = shouldSurfaceCallbackWaitingSummary(entry)
+          const callbackWaitingRecommendedAction = shouldSurfaceCallbackSummary
             ? getCallbackWaitingRecommendedAction({
                 sensitiveAccessEntries: [entry]
               })
@@ -382,7 +383,7 @@ export function SensitiveAccessTimelineEntryList({
           const callbackSummaryCallbackTickets =
             callbackTickets.length > 0 ? callbackTickets : sampledFollowUp?.callbackTickets ?? [];
           const shouldRenderCallbackWaitingSummary =
-            shouldSurfaceCallbackWaitingSummary(entry) && !hasStructuredCallbackWaitingSummary;
+            shouldSurfaceCallbackSummary && !hasStructuredCallbackWaitingSummary;
           const hasStructuredOperatorFeedback = Boolean(
             runContext.snapshot ||
               runContext.runFollowUp?.explanation ||
@@ -405,6 +406,8 @@ export function SensitiveAccessTimelineEntryList({
                 runSnapshot: runContext.snapshot,
                 runFollowUpExplanation: runContext.runFollowUp?.explanation ?? null,
                 recommendedAction: runContext.runFollowUp?.recommendedAction ?? null,
+                callbackWaitingAutomation,
+                callbackWaitingActive: shouldSurfaceCallbackSummary,
                 sandboxReadiness
               });
           const inboxLinkLabel =

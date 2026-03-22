@@ -7,7 +7,11 @@ import type {
   SensitiveAccessRequestItem,
   SignalFollowUpExplanation
 } from "@/lib/get-sensitive-access";
-import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
+import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import {
   buildOperatorRecommendedActionCandidate,
   buildOperatorFollowUpSurfaceCopy,
@@ -16,6 +20,7 @@ import {
   type OperatorRecommendedNextStep
 } from "@/lib/operator-follow-up-presenters";
 import {
+  buildCallbackWaitingAutomationFollowUpCandidate,
   buildSandboxReadinessFollowUpCandidate,
   shouldPreferSharedSandboxReadinessFollowUp
 } from "@/lib/system-overview-follow-up-presenters";
@@ -329,6 +334,8 @@ export function buildSensitiveAccessBlockedRecommendedNextStep({
   runSnapshot,
   runFollowUpExplanation,
   recommendedAction,
+  callbackWaitingAutomation,
+  callbackWaitingActive = false,
   sandboxReadiness
 }: {
   inboxHref?: string | null;
@@ -342,6 +349,14 @@ export function buildSensitiveAccessBlockedRecommendedNextStep({
     href?: string | null;
     label?: string | null;
   } | null;
+  callbackWaitingAutomation?: Pick<
+    CallbackWaitingAutomationCheck,
+    | "affected_run_count"
+    | "affected_workflow_count"
+    | "primary_blocker_kind"
+    | "recommended_action"
+  > | null;
+  callbackWaitingActive?: boolean;
   sandboxReadiness?: Pick<
     SandboxReadinessCheck,
     | "affected_run_count"
@@ -351,6 +366,7 @@ export function buildSensitiveAccessBlockedRecommendedNextStep({
   > | null;
 }): OperatorRecommendedNextStep | null {
   const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
+  const hasSharedCallbackWaitingSummary = hasCallbackWaitingSummaryFacts(runSnapshot);
   const blockerFollowUp =
     normalizeCopy(outcomeExplanation?.follow_up) ??
     normalizeCopy(runSnapshot?.callbackWaitingExplanation?.follow_up) ??
@@ -376,6 +392,16 @@ export function buildSensitiveAccessBlockedRecommendedNextStep({
     scope: "callback",
     surfaceCopy: operatorSurfaceCopy
   });
+  const shouldPreferSharedCallbackRecovery = Boolean(
+    callbackWaitingActive || hasSharedCallbackWaitingSummary || canonicalCallbackCandidate
+  );
+  const sharedCallbackRecoveryCandidate =
+    shouldPreferSharedCallbackRecovery && !canonicalCallbackCandidate
+      ? buildCallbackWaitingAutomationFollowUpCandidate(
+          callbackWaitingAutomation,
+          "callback recovery"
+        )
+      : null;
   const canonicalExecutionCandidate = buildOperatorRecommendedActionCandidate({
     action: recommendedAction,
     detail: executionFollowUp,
@@ -384,9 +410,13 @@ export function buildSensitiveAccessBlockedRecommendedNextStep({
     scope: "execution",
     surfaceCopy: operatorSurfaceCopy
   });
-  const callbackCandidate = !sharedSandboxCandidate && !canonicalExecutionCandidate
+  const shouldSurfaceCallbackCandidate = Boolean(
+    inboxHref || shouldPreferSharedCallbackRecovery
+  );
+  const callbackCandidate =
+    !sharedSandboxCandidate && !canonicalExecutionCandidate && shouldSurfaceCallbackCandidate
     ? buildSharedOrLocalOperatorCandidate({
-        sharedCandidate: canonicalCallbackCandidate,
+        sharedCandidate: canonicalCallbackCandidate ?? sharedCallbackRecoveryCandidate,
         active: Boolean(inboxHref),
         label: "approval blocker",
         detail: blockerFollowUp,

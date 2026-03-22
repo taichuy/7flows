@@ -9,6 +9,7 @@ import type {
   CallbackWaitingAutomationCheck,
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
+import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import type { CallbackWaitingSummaryProps } from "@/lib/callback-waiting-summary-props";
 import {
   resolveSensitiveAccessBlockingRunId,
@@ -97,6 +98,13 @@ export function SensitiveAccessBlockedCard({
           label: "Open approval inbox"
         }
       : null);
+  const callbackWaitingActive = Boolean(
+    payload.access_request.decision === "require_approval" ||
+      payload.approval_ticket?.status === "pending" ||
+      payload.approval_ticket?.status === "expired" ||
+      payload.approval_ticket?.waiting_status === "waiting" ||
+      hasCallbackWaitingSummaryFacts(payload.run_snapshot ?? null)
+  );
   const recommendedNextStep = buildSensitiveAccessBlockedRecommendedNextStep({
     inboxHref,
     runId,
@@ -104,6 +112,8 @@ export function SensitiveAccessBlockedCard({
     runSnapshot: payload.run_snapshot ?? null,
     runFollowUpExplanation: payload.run_follow_up?.explanation ?? null,
     recommendedAction: canonicalCallbackRecommendedAction,
+    callbackWaitingAutomation,
+    callbackWaitingActive,
     sandboxReadiness
   });
   const callbackWaitingSummaryProps: CallbackWaitingSummaryProps = {

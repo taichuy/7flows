@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { SensitiveAccessBlockingPayload } from "@/lib/sensitive-access";
-import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
 import {
   buildSensitiveAccessBlockedRecommendedNextStep,
@@ -92,6 +95,26 @@ function buildSandboxReadiness(): SandboxReadinessCheck {
       label: "Open workflow library",
       href: "/workflows?execution=sandbox",
       entry_key: "workflowLibrary"
+    }
+  };
+}
+
+function buildCallbackWaitingAutomation(): CallbackWaitingAutomationCheck {
+  return {
+    status: "degraded",
+    scheduler_required: true,
+    detail: "callback waiting automation degraded",
+    scheduler_health_status: "degraded",
+    scheduler_health_detail: "scheduler lagging",
+    steps: [],
+    affected_run_count: 3,
+    affected_workflow_count: 2,
+    primary_blocker_kind: "scheduler_unhealthy",
+    recommended_action: {
+      kind: "open_run_library",
+      label: "Open run library",
+      href: "/runs?status=callback_waiting",
+      entry_key: "runLibrary"
     }
   };
 }
@@ -274,6 +297,69 @@ describe("sensitive access presenters", () => {
         }
       })
     ).toBeNull();
+  });
+
+  it("callback waiting 仍活跃且本地 action 缺失时，优先复用 shared callback recovery contract", () => {
+    expect(
+      buildSensitiveAccessBlockedRecommendedNextStep({
+        inboxHref: "/sensitive-access/inbox?status=pending",
+        runId: "run-1",
+        outcomeExplanation: {
+          primary_signal: "审批票据仍在等待处理。",
+          follow_up: "本地 callback follow-up：先处理审批票据，再观察 waiting。"
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        callbackWaitingActive: true
+      })
+    ).toMatchObject({
+      label: "callback recovery",
+      href: "/runs?status=callback_waiting",
+      href_label: "Open run library",
+      detail:
+        "当前 callback recovery 仍影响 3 个 run / 2 个 workflow；scheduler 仍不健康，优先回到 run library 核对 waiting callback runs 与自动 resume 状态。"
+    });
+  });
+
+  it("shared callback recovery 不会抢过 live sandbox readiness", () => {
+    expect(
+      buildSensitiveAccessBlockedRecommendedNextStep({
+        inboxHref: "/sensitive-access/inbox?status=pending",
+        runId: "run-1",
+        outcomeExplanation: {
+          primary_signal: "审批票据仍在等待处理。",
+          follow_up: "本地 callback follow-up：先处理审批票据，再观察 waiting。"
+        },
+        runSnapshot: {
+          status: "failed",
+          executionFocusReason: "blocked_execution",
+          executionFocusNodeType: "tool",
+          executionFocusExplanation: {
+            primary_signal: "当前 focus 节点因强隔离 backend 不可用而阻断。",
+            follow_up: "先恢复兼容 backend，再重新调度该节点。"
+          },
+          executionFocusToolCalls: [
+            {
+              id: "tool-call-1",
+              tool_id: "sandbox.tool",
+              tool_name: "Sandbox Tool",
+              status: "failed",
+              requested_execution_class: "sandbox",
+              effective_execution_class: "inline",
+              execution_blocking_reason: "No compatible sandbox backend is available."
+            }
+          ]
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        callbackWaitingActive: true,
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    ).toMatchObject({
+      label: "sandbox readiness",
+      href: "/workflows?execution=sandbox",
+      href_label: "Open workflow library",
+      detail:
+        "当前 live sandbox readiness 仍影响 4 个 run / 1 个 workflow；优先回到 workflow library 处理强隔离 execution class 与隔离需求。"
+    });
   });
 
   it("命中强隔离阻断时优先复用 live sandbox readiness CTA", () => {
