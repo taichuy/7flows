@@ -356,9 +356,15 @@ describe("WorkspaceStarterBulkGovernanceCard", () => {
     expect(html).toContain("Affected starters:");
     expect(html).toContain("Sandbox starter（sandbox）");
     expect(html).toContain("无来源 1");
-    expect(html).toContain("Operator follow-up");
+    expect(html).toContain("Recommended next step");
     expect(html).toContain("Primary signal:");
-    expect(html).toContain("同一份 result receipt 现在会把 operator / AI 复用的 follow-up 解释直接放进后端共享契约");
+    expect(html).toContain(
+      "同一份 result receipt 现在会先投影稳定的 next-step presenter；`follow_up` 只保留为解释文本"
+    );
+    expect(html).toContain("修复来源绑定");
+    expect(html).toContain(
+      "当前 starter 缺少可用来源绑定；先补来源 workflow 或确认来源仍可访问，再重新执行批量刷新。"
+    );
     expect(html).toContain("先修复来源 workflow 的缺失或无效问题，再重新执行批量刷新。");
     expect(html).toContain("优先聚焦 starter：Manual starter");
     expect(html).toContain("Result receipt focus");

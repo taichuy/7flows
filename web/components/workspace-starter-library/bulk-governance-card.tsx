@@ -10,6 +10,7 @@ import type {
 } from "@/lib/get-workspace-starters";
 
 import {
+  buildWorkspaceStarterBulkResultRecommendedNextStep,
   type WorkspaceStarterBulkPreviewFocusTarget,
   type WorkspaceStarterBulkResultFocusTarget,
   type WorkspaceStarterSourceGovernanceFocusTarget,
@@ -68,6 +69,11 @@ export function WorkspaceStarterBulkGovernanceCard({
   const outcomePrimarySignal = lastResult?.outcome_explanation?.primary_signal?.trim() || null;
   const outcomeFollowUp = lastResult?.outcome_explanation?.follow_up?.trim() || null;
   const primaryResultFocusTarget = resultFocusTargets[0] ?? null;
+  const recommendedNextStep = lastResult
+    ? buildWorkspaceStarterBulkResultRecommendedNextStep(lastResult)
+    : null;
+  const shouldRenderStandaloneOutcomeFollowUp =
+    Boolean(outcomeFollowUp) && outcomeFollowUp !== recommendedNextStep?.detail;
 
   return (
     <div className="binding-card compact-card">
@@ -229,24 +235,42 @@ export function WorkspaceStarterBulkGovernanceCard({
             </p>
           ))}
 
-          {outcomePrimarySignal || outcomeFollowUp ? (
+          {outcomePrimarySignal || recommendedNextStep || shouldRenderStandaloneOutcomeFollowUp ? (
             <div className="binding-section">
-              <p className="binding-meta">Operator follow-up</p>
+              <p className="binding-meta">Recommended next step</p>
               <p className="section-copy starter-summary-copy">
-                同一份 result receipt 现在会把 operator / AI 复用的 follow-up 解释直接放进后端共享契约，
-                不再只依赖页面局部描述。
+                同一份 result receipt 现在会先投影稳定的 next-step presenter；`follow_up` 只保留为解释文本，
+                不再承担主要导航语义。
               </p>
               {outcomePrimarySignal ? (
                 <p className="section-copy starter-summary-copy">
                   <strong>Primary signal:</strong> {outcomePrimarySignal}
                 </p>
               ) : null}
-              {outcomeFollowUp ? (
-                <p className="section-copy starter-summary-copy">
-                  <strong>Next step:</strong> {outcomeFollowUp}
-                </p>
+              {recommendedNextStep ? (
+                <div className="entry-card compact-card">
+                  <div className="payload-card-header">
+                    <span className="status-meta">Recommended next step</span>
+                    <span className="event-chip">{recommendedNextStep.label}</span>
+                  </div>
+                  <p className="section-copy starter-summary-copy">{recommendedNextStep.detail}</p>
+                </div>
               ) : null}
-              {primaryResultFocusTarget ? (
+              {shouldRenderStandaloneOutcomeFollowUp ? (
+                <p className="binding-meta">{outcomeFollowUp}</p>
+              ) : null}
+              {recommendedNextStep?.focusTemplateId && recommendedNextStep.focusLabel ? (
+                <div className="binding-actions">
+                  <button
+                    className="sync-button secondary"
+                    type="button"
+                    onClick={() => onFocusTemplate(recommendedNextStep.focusTemplateId!)}
+                    disabled={isMutating}
+                  >
+                    {recommendedNextStep.focusLabel}
+                  </button>
+                </div>
+              ) : primaryResultFocusTarget ? (
                 <div className="binding-actions">
                   <button
                     className="sync-button secondary"

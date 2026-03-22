@@ -112,6 +112,14 @@ export type WorkspaceStarterSourceGovernancePresenter = {
   needsAttention: boolean;
 };
 
+export type WorkspaceStarterGovernanceRecommendedNextStep = {
+  action: "refresh" | "rebase" | "create_workflow" | "review_result_receipt";
+  label: string;
+  detail: string;
+  focusTemplateId: string | null;
+  focusLabel: string | null;
+};
+
 export type WorkspaceStarterSourceGovernanceScopeSummary = {
   chips: string[];
   summary: string;
@@ -382,6 +390,98 @@ export function buildWorkspaceStarterSourceGovernancePresenter(
   };
 }
 
+export function resolveWorkspaceStarterCreateWorkflowActionLabel({
+  governanceKind,
+  createWorkflowHref,
+  archived
+}: {
+  governanceKind: WorkspaceStarterSourceGovernance["kind"] | null;
+  createWorkflowHref?: string | null;
+  archived: boolean;
+}) {
+  if (!createWorkflowHref || archived) {
+    return null;
+  }
+
+  if (governanceKind === "missing_source") {
+    return "确认模板后带此 starter 回到创建页";
+  }
+
+  if (governanceKind === "no_source" || governanceKind === "synced") {
+    return "带此 starter 回到创建页";
+  }
+
+  return null;
+}
+
+export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
+  template,
+  sourceGovernance,
+  actionDecision,
+  createWorkflowHref
+}: {
+  template: Pick<WorkspaceStarterTemplateItem, "archived" | "created_from_workflow_id">;
+  sourceGovernance?: WorkspaceStarterSourceGovernance | null;
+  actionDecision: WorkspaceStarterSourceActionDecision;
+  createWorkflowHref?: string | null;
+}): WorkspaceStarterGovernanceRecommendedNextStep | null {
+  const createWorkflowActionLabel = resolveWorkspaceStarterCreateWorkflowActionLabel({
+    governanceKind: sourceGovernance?.kind ?? null,
+    createWorkflowHref,
+    archived: template.archived
+  });
+  const outcomeFollowUp = normalizeString(sourceGovernance?.outcome_explanation?.follow_up);
+  const governanceSummary = normalizeString(sourceGovernance?.summary);
+
+  if (createWorkflowActionLabel) {
+    return {
+      action: "create_workflow",
+      label: createWorkflowActionLabel,
+      detail:
+        outcomeFollowUp ??
+        (sourceGovernance?.kind === "missing_source"
+          ? "优先确认来源 workflow 是否仍可访问；如需继续推进，带此 starter 回到创建页重新建立治理链路。"
+          : "带此 starter 回到创建页继续创建 workflow，并保留当前模板上下文。"),
+      focusTemplateId: null,
+      focusLabel: null
+    };
+  }
+
+  if (!template.created_from_workflow_id) {
+    return null;
+  }
+
+  if (actionDecision.recommendedAction === "refresh") {
+    return {
+      action: "refresh",
+      label: actionDecision.statusLabel,
+      detail:
+        actionDecision.summary ||
+        outcomeFollowUp ||
+        governanceSummary ||
+        "优先 refresh 同步最新来源事实，再复核 source diff / metadata 是否已经收口。",
+      focusTemplateId: null,
+      focusLabel: null
+    };
+  }
+
+  if (actionDecision.recommendedAction === "rebase") {
+    return {
+      action: "rebase",
+      label: actionDecision.statusLabel,
+      detail:
+        actionDecision.summary ||
+        outcomeFollowUp ||
+        governanceSummary ||
+        "优先执行 rebase，让 starter 命名和来源 workflow 的 source-derived 字段保持一致。",
+      focusTemplateId: null,
+      focusLabel: null
+    };
+  }
+
+  return null;
+}
+
 export function buildWorkspaceStarterSourceGovernanceFocusTargets(
   sourceGovernanceScope: WorkspaceStarterSourceGovernanceScopeSummaryPayload | null,
   templates: WorkspaceStarterTemplateItem[]
@@ -522,6 +622,125 @@ export function buildWorkspaceStarterBulkResultNarrative(
   }
 
   return items;
+}
+
+function buildWorkspaceStarterBulkReceiptRecommendedDetail(
+  action: WorkspaceStarterBulkAction,
+  item: WorkspaceStarterBulkReceiptItem
+) {
+  if (
+    item.reason === "no_source_workflow" ||
+    item.reason === "source_workflow_missing" ||
+    item.reason === "source_workflow_invalid"
+  ) {
+    return `当前 starter 缺少可用来源绑定；先补来源 workflow 或确认来源仍可访问，再重新执行批量${getWorkspaceStarterBulkActionLabel(action)}。`;
+  }
+
+  if (item.reason === "name_drift_only") {
+    return "当前 starter 只有名称漂移；优先聚焦详情确认后执行 rebase，让命名与来源 workflow 保持一致。";
+  }
+
+  if (item.outcome === "updated" && action === "refresh") {
+    return "优先聚焦该 starter，复核 refresh 后的 source diff / metadata，确认来源事实已收口。";
+  }
+
+  if (item.outcome === "updated" && action === "rebase") {
+    return "优先聚焦该 starter，复核 rebase 后的 source diff / metadata，确认命名与来源字段已对齐。";
+  }
+
+  return normalizeString(item.detail);
+}
+
+function resolveWorkspaceStarterBulkResultNextStepLabel(
+  action: WorkspaceStarterBulkAction,
+  item: WorkspaceStarterBulkReceiptItem
+) {
+  if (
+    item.reason === "no_source_workflow" ||
+    item.reason === "source_workflow_missing" ||
+    item.reason === "source_workflow_invalid"
+  ) {
+    return "修复来源绑定";
+  }
+
+  if (item.reason === "name_drift_only") {
+    return "建议 rebase";
+  }
+
+  if (item.outcome === "updated" && action === "refresh") {
+    return "复核刷新结果";
+  }
+
+  if (item.outcome === "updated" && action === "rebase") {
+    return "复核 rebase 结果";
+  }
+
+  if (item.outcome === "skipped") {
+    return "查看跳过原因";
+  }
+
+  return "查看 result receipt";
+}
+
+export function buildWorkspaceStarterBulkResultRecommendedNextStep(
+  result: Pick<
+    WorkspaceStarterBulkActionResult,
+    "action" | "receipt_items" | "follow_up_template_ids" | "outcome_explanation"
+  >
+): WorkspaceStarterGovernanceRecommendedNextStep | null {
+  const prioritizedTemplateIds = Array.from(
+    new Set((result.follow_up_template_ids ?? []).map((templateId) => templateId.trim()).filter(Boolean))
+  );
+  const orderLookup = new Map(
+    prioritizedTemplateIds.map((templateId, index) => [templateId, index] as const)
+  );
+  const primaryReceiptItem = [...(result.receipt_items ?? [])]
+    .filter((item) => item.outcome !== "deleted")
+    .sort((left, right) => {
+      const leftOrder = orderLookup.get(left.template_id) ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = orderLookup.get(right.template_id) ?? Number.MAX_SAFE_INTEGER;
+
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
+
+      return 0;
+    })[0];
+  const outcomeFollowUp = normalizeString(result.outcome_explanation?.follow_up);
+
+  if (!primaryReceiptItem) {
+    return outcomeFollowUp
+      ? {
+          action: "review_result_receipt",
+          label: "查看 result receipt",
+          detail: outcomeFollowUp,
+          focusTemplateId: null,
+          focusLabel: null
+        }
+      : null;
+  }
+
+  const actionDecision = normalizeSourceActionDecision(primaryReceiptItem.action_decision);
+  const focusTemplateName = normalizeString(primaryReceiptItem.name) ?? primaryReceiptItem.template_id;
+
+  return {
+    action:
+      actionDecision?.recommendedAction === "refresh"
+        ? "refresh"
+        : actionDecision?.recommendedAction === "rebase"
+        ? "rebase"
+        : "review_result_receipt",
+    label:
+      actionDecision?.statusLabel ??
+      resolveWorkspaceStarterBulkResultNextStepLabel(result.action, primaryReceiptItem),
+    detail:
+      actionDecision?.summary ??
+      buildWorkspaceStarterBulkReceiptRecommendedDetail(result.action, primaryReceiptItem) ??
+      outcomeFollowUp ??
+      "优先聚焦本轮 result receipt 里最先需要处理的 starter，再决定后续治理动作。",
+    focusTemplateId: primaryReceiptItem.template_id,
+    focusLabel: focusTemplateName ? `优先聚焦 starter：${focusTemplateName}` : null
+  };
 }
 
 function getWorkspaceStarterBulkResultOutcomeLabel(

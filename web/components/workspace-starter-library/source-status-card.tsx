@@ -9,7 +9,11 @@ import type {
   WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
 
-import { buildWorkspaceStarterSourceActionDecision } from "./shared";
+import {
+  buildWorkspaceStarterSourceActionDecision,
+  buildWorkspaceStarterSourceGovernanceRecommendedNextStep,
+  resolveWorkspaceStarterCreateWorkflowActionLabel
+} from "./shared";
 
 type WorkspaceStarterSourceCardProps = {
   template: WorkspaceStarterTemplateItem;
@@ -45,11 +49,20 @@ export function WorkspaceStarterSourceCard({
   const canRebase = hasSourceBinding && !isLoadingSourceDiff && actionDecision.canRebase;
   const shouldShowSourceActions = isLoadingSourceDiff || canRefresh || canRebase;
   const templateNextStep = template.recommended_next_step.trim();
-  const createWorkflowActionLabel = resolveCreateWorkflowActionLabel({
+  const createWorkflowActionLabel = resolveWorkspaceStarterCreateWorkflowActionLabel({
     governanceKind: sourceGovernance?.kind ?? null,
     createWorkflowHref,
     archived: template.archived
   });
+  const recommendedNextStep = buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
+    template,
+    sourceGovernance,
+    actionDecision,
+    createWorkflowHref
+  });
+  const governanceFollowUp = sourceGovernance?.outcome_explanation?.follow_up?.trim() || null;
+  const shouldRenderStandaloneGovernanceFollowUp =
+    Boolean(governanceFollowUp) && governanceFollowUp !== recommendedNextStep?.detail;
 
   return (
     <div className="binding-card compact-card">
@@ -83,11 +96,24 @@ export function WorkspaceStarterSourceCard({
                 ))
               : null}
           </div>
-          <p className="section-copy starter-summary-copy">
-            {isLoadingSourceDiff
-              ? "正在加载 source diff，稍后会把 refresh / rebase 建议收口到这里。"
-              : sourceGovernance?.outcome_explanation?.follow_up?.trim() || actionDecision.summary}
-          </p>
+          {recommendedNextStep ? (
+            <div className="entry-card compact-card">
+              <div className="payload-card-header">
+                <span className="status-meta">Recommended next step</span>
+                <span className="event-chip">{recommendedNextStep.label}</span>
+              </div>
+              <p className="section-copy starter-summary-copy">{recommendedNextStep.detail}</p>
+            </div>
+          ) : (
+            <p className="section-copy starter-summary-copy">
+              {isLoadingSourceDiff
+                ? "正在加载 source diff，稍后会把 refresh / rebase 建议收口到这里。"
+                : governanceFollowUp || actionDecision.summary}
+            </p>
+          )}
+          {shouldRenderStandaloneGovernanceFollowUp ? (
+            <p className="binding-meta">{governanceFollowUp}</p>
+          ) : null}
           {templateNextStep ? (
             <p className="section-copy starter-summary-copy">
               <strong>Template note:</strong> {templateNextStep}
@@ -172,28 +198,4 @@ function normalizeActionDecision(actionDecision: WorkspaceStarterSourceActionDec
     canRebase: actionDecision.can_rebase,
     factChips: actionDecision.fact_chips
   };
-}
-
-function resolveCreateWorkflowActionLabel({
-  governanceKind,
-  createWorkflowHref,
-  archived
-}: {
-  governanceKind: WorkspaceStarterSourceGovernance["kind"] | null;
-  createWorkflowHref?: string | null;
-  archived: boolean;
-}) {
-  if (!createWorkflowHref || archived) {
-    return null;
-  }
-
-  if (governanceKind === "missing_source") {
-    return "确认模板后带此 starter 回到创建页";
-  }
-
-  if (governanceKind === "no_source" || governanceKind === "synced") {
-    return "带此 starter 回到创建页";
-  }
-
-  return null;
 }
