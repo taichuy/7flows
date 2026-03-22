@@ -85,8 +85,11 @@ type CallbackWaitingSummaryCardProps = {
   showInlineActions?: boolean;
   showSensitiveAccessInlineActions?: boolean;
   showCallbackInlineActions?: boolean;
+  suppressSensitiveAccessContextRows?: boolean;
   className?: string;
 };
+
+const SENSITIVE_ACCESS_CONTEXT_ROW_LABELS = new Set(["Approvals", "Sensitive access", "Notification"]);
 
 export function CallbackWaitingSummaryCard({
   lifecycle,
@@ -116,6 +119,7 @@ export function CallbackWaitingSummaryCard({
   showInlineActions = true,
   showSensitiveAccessInlineActions,
   showCallbackInlineActions,
+  suppressSensitiveAccessContextRows = false,
   className = ""
 }: CallbackWaitingSummaryCardProps) {
   const surfaceCopy = buildCallbackWaitingSummarySurfaceCopy();
@@ -231,6 +235,9 @@ export function CallbackWaitingSummaryCard({
       includeTerminationRow: false
     }
   );
+  const visibleBlockerRows = suppressSensitiveAccessContextRows
+    ? blockerRows.filter((row) => !SENSITIVE_ACCESS_CONTEXT_ROW_LABELS.has(row.label))
+    : blockerRows;
   const terminationAt = formatTimestamp(lifecycle?.terminated_at);
   const hasTermination = Boolean(lifecycle?.terminated);
   const preferredInlineAction =
@@ -278,7 +285,7 @@ export function CallbackWaitingSummaryCard({
   });
   const hasContent =
     headline ||
-    blockerRows.length > 0 ||
+    visibleBlockerRows.length > 0 ||
     scheduledResume ||
     lifecycleSummary ||
     waitingReason ||
@@ -323,7 +330,7 @@ export function CallbackWaitingSummaryCard({
           ))}
         </div>
       ) : null}
-      {blockerRows.map((row) => (
+      {visibleBlockerRows.map((row) => (
         <p className="section-copy entry-copy" key={row.label}>
           {row.label}: {row.value}
         </p>

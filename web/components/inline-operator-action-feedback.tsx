@@ -40,6 +40,7 @@ type InlineOperatorActionFeedbackProps = {
     inboxHref?: string | null;
     callbackTickets?: RunCallbackTicketItem[];
     sensitiveAccessEntries?: SensitiveAccessTimelineEntry[];
+    suppressSensitiveAccessContextRows?: boolean;
     showSensitiveAccessInlineActions?: boolean;
   };
 } & OperatorInlineActionResultState;
@@ -261,6 +262,9 @@ export function InlineOperatorActionFeedback({
           waitingReason={runSnapshot?.waitingReason ?? null}
           inboxHref={callbackWaitingSummaryProps?.inboxHref}
           sensitiveAccessEntries={callbackWaitingSummaryProps?.sensitiveAccessEntries}
+          suppressSensitiveAccessContextRows={
+            callbackWaitingSummaryProps?.suppressSensitiveAccessContextRows ?? false
+          }
           showSensitiveAccessInlineActions={
             callbackWaitingSummaryProps?.showSensitiveAccessInlineActions ?? false
           }

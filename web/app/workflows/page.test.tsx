@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import WorkflowsPage from "@/app/workflows/page";
+import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflows } from "@/lib/get-workflows";
 
 Object.assign(globalThis, { React });
@@ -18,8 +19,73 @@ vi.mock("@/lib/get-workflows", () => ({
   getWorkflows: vi.fn()
 }));
 
+vi.mock("@/lib/get-system-overview", () => ({
+  getSystemOverview: vi.fn()
+}));
+
+function buildSystemOverview() {
+  return {
+    status: "ok",
+    environment: "local",
+    services: [],
+    capabilities: [],
+    plugin_adapters: [],
+    sandbox_backends: [],
+    sandbox_readiness: {
+      enabled_backend_count: 1,
+      healthy_backend_count: 0,
+      degraded_backend_count: 1,
+      offline_backend_count: 0,
+      execution_classes: [
+        {
+          execution_class: "sandbox",
+          available: false,
+          backend_ids: [],
+          supported_languages: [],
+          supported_profiles: [],
+          supported_dependency_modes: [],
+          supports_tool_execution: false,
+          supports_builtin_package_sets: false,
+          supports_backend_extensions: false,
+          supports_network_policy: false,
+          supports_filesystem_policy: false,
+          reason: "sandbox-default healthcheck is still degraded."
+        }
+      ],
+      supported_languages: [],
+      supported_profiles: [],
+      supported_dependency_modes: [],
+      supports_tool_execution: false,
+      supports_builtin_package_sets: false,
+      supports_backend_extensions: false,
+      supports_network_policy: false,
+      supports_filesystem_policy: false
+    },
+    plugin_tools: [],
+    runtime_activity: {
+      summary: {
+        recent_run_count: 0,
+        recent_event_count: 0,
+        run_statuses: {},
+        event_types: {}
+      },
+      recent_runs: [],
+      recent_events: []
+    },
+    callback_waiting_automation: {
+      status: "healthy",
+      scheduler_required: true,
+      detail: "healthy",
+      scheduler_health_status: "healthy",
+      scheduler_health_detail: "healthy",
+      steps: []
+    }
+  };
+}
+
 describe("WorkflowsPage", () => {
   it("renders workflow chips and governance summary", async () => {
+    vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
     vi.mocked(getWorkflows).mockResolvedValue([
       {
         id: "workflow-1",
@@ -59,9 +125,12 @@ describe("WorkflowsPage", () => {
     expect(html).toContain('/sensitive-access');
     expect(html).toContain("draft:1 / published:1");
     expect(html).toContain("Alpha workflow · missing tools");
+    expect(html).toContain("Live sandbox readiness");
+    expect(html).toContain("强隔离路径会按 execution class fail-closed：sandbox 当前 blocked。");
   });
 
   it("shows a create entry when no workflows exist", async () => {
+    vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
     vi.mocked(getWorkflows).mockResolvedValue([]);
 
     const html = renderToStaticMarkup(await WorkflowsPage());

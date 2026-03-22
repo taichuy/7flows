@@ -97,6 +97,8 @@ describe("RunsPage", () => {
     expect(html).toContain('/sensitive-access');
     expect(html).toContain("callback_waiting · 1");
     expect(html).toContain("completed:1 / waiting_callback:1");
+    expect(html).toContain("Live sandbox readiness");
+    expect(html).toContain("当前还没有任何强隔离 execution class ready。");
   });
 
   it("shows a workflow fallback when there are no recent runs", async () => {

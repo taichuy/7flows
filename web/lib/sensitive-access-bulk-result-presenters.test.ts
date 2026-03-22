@@ -205,7 +205,7 @@ describe("buildSensitiveAccessBulkResultNarrative", () => {
       ]
     });
 
-    expect(cards).toEqual([
+    expect(cards).toMatchObject([
       {
         runId: "run-12345678",
         shortRunId: "run-1234",

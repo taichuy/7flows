@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import {
   WorkbenchEntryLink,
   WorkbenchEntryLinks
@@ -133,6 +134,12 @@ export default async function RunsPage() {
               ))
             )}
           </div>
+
+          <SandboxReadinessOverviewCard
+            intro="run library 先直接暴露当前 sandbox backend 的健康度与 blocked execution class，避免 operator 还没进入 run detail 就误判强隔离链路已经恢复。"
+            readiness={overview.sandbox_readiness}
+            title="Live sandbox readiness"
+          />
 
           <div className="entry-card">
             <p className="entry-card-title">{surfaceCopy.operatorEntryTitle}</p>

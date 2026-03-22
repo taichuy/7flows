@@ -437,6 +437,7 @@ export function SensitiveAccessTimelineEntryList({
                   callbackWaitingSummaryProps={{
                     inboxHref: inboxSliceHref,
                     sensitiveAccessEntries: [entry],
+                    suppressSensitiveAccessContextRows: true,
                     showSensitiveAccessInlineActions: false
                   }}
                   message=""

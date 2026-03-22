@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
+import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import { SensitiveAccessChannelHealthPanel } from "@/components/sensitive-access-channel-health-panel";
 import { SensitiveAccessInboxFilterSection } from "@/components/sensitive-access-inbox-filter-section";
 import { SensitiveAccessInboxPanel } from "@/components/sensitive-access-inbox-panel";
@@ -251,6 +252,14 @@ export default async function SensitiveAccessInboxPage({
       </section>
 
       <section className="diagnostics-layout">
+        <article className="diagnostic-panel">
+          <SandboxReadinessOverviewCard
+            intro="approval / resume / notification 已经汇到同一条 operator inbox，但强隔离恢复是否真的可执行，仍要先看 live sandbox readiness，而不是只等单条票据展开后再发现 backend 仍 blocked。"
+            readiness={systemOverview.sandbox_readiness}
+            title="Live sandbox readiness"
+          />
+        </article>
+
         <SensitiveAccessInboxPanel
           callbackWaitingAutomation={systemOverview.callback_waiting_automation}
           channels={snapshot.channels}

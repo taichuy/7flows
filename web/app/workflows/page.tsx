@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 
+import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import { WorkbenchEntryLink, WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
 import {
   buildAuthorFacingWorkflowDetailLinkSurface,
   buildWorkflowLibrarySurfaceCopy
 } from "@/lib/workbench-entry-surfaces";
+import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflows, type WorkflowListItem } from "@/lib/get-workflows";
 import { formatCountMap } from "@/lib/runtime-presenters";
 
@@ -14,7 +16,10 @@ export const metadata: Metadata = {
 };
 
 export default async function WorkflowsPage() {
-  const workflows = await getWorkflows();
+  const [workflows, systemOverview] = await Promise.all([
+    getWorkflows(),
+    getSystemOverview()
+  ]);
   const summary = buildWorkflowLibrarySummary(workflows);
   const surfaceCopy = buildWorkflowLibrarySurfaceCopy();
 
@@ -117,6 +122,12 @@ export default async function WorkflowsPage() {
               ))
             )}
           </div>
+
+          <SandboxReadinessOverviewCard
+            intro="workflow library 直接暴露当前 live sandbox readiness，让作者在进入具体 editor 之前就能知道 blocked / degraded / offline backend 是否会继续影响强隔离节点。"
+            readiness={systemOverview.sandbox_readiness}
+            title="Live sandbox readiness"
+          />
 
           <div className="entry-card">
             <p className="entry-card-title">{surfaceCopy.nextStepTitle}</p>
