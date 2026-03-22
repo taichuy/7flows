@@ -1,11 +1,15 @@
 import type { RunDetail } from "@/lib/get-run-detail";
 import type {
+  RunCallbackTicketItem,
   RunArtifactItem,
   RunExecutionFocusReason,
   SkillReferenceLoadItem,
   ToolCallItem
 } from "@/lib/get-run-views";
+import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
+import { buildCallbackTicketInboxHref } from "@/lib/callback-ticket-links";
 import { hasExecutionNodeCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
+import { buildSensitiveAccessTimelineInboxHref } from "@/lib/sensitive-access-links";
 import {
   formatExecutionFocusFollowUp,
   formatExecutionFocusPrimarySignal
@@ -30,6 +34,9 @@ export type RunDetailExecutionFocusViewModel = {
   waitingReason: string | null;
   callbackWaitingExplanation: RunDetailFocusNode["callback_waiting_explanation"];
   callbackWaitingLifecycle: RunDetailFocusNode["callback_waiting_lifecycle"];
+  callbackTickets: RunCallbackTicketItem[];
+  sensitiveAccessEntries: SensitiveAccessTimelineEntry[];
+  callbackSummaryInboxHref: string | null;
   scheduledResumeDelaySeconds: number | null;
   scheduledResumeReason: string | null;
   scheduledResumeSource: string | null;
@@ -69,6 +76,77 @@ function normalizeSkillReferenceLoads(
       Array.isArray(load.references) &&
       load.references.length > 0
   );
+}
+
+function matchesSensitiveAccessEntryNodeRun(
+  entry: SensitiveAccessTimelineEntry,
+  nodeRunId: string
+) {
+  return Boolean(
+    trimOrNull(entry.approval_ticket?.node_run_id) === nodeRunId ||
+      trimOrNull(entry.request?.node_run_id) === nodeRunId
+  );
+}
+
+function resolveCallbackSummarySample(run: RunDetail, focusNode: RunDetailFocusNode) {
+  const normalizedRunId = trimOrNull(run.id);
+  const normalizedNodeRunId = trimOrNull(focusNode.node_run_id);
+  const samples = run.run_follow_up?.sampled_runs ?? [];
+
+  if (normalizedRunId) {
+    const matchedRunSample = samples.find((sample) => trimOrNull(sample.run_id) === normalizedRunId) ?? null;
+    if (matchedRunSample) {
+      return matchedRunSample;
+    }
+  }
+
+  if (!normalizedNodeRunId) {
+    return null;
+  }
+
+  return (
+    samples.find(
+      (sample) => trimOrNull(sample.snapshot?.execution_focus_node_run_id) === normalizedNodeRunId
+    ) ??
+    samples.find((sample) =>
+      (sample.callback_tickets ?? []).some(
+        (ticket) => trimOrNull(ticket.node_run_id) === normalizedNodeRunId
+      )
+    ) ??
+    samples.find((sample) =>
+      (sample.sensitive_access_entries ?? []).some((entry) =>
+        matchesSensitiveAccessEntryNodeRun(entry, normalizedNodeRunId)
+      )
+    ) ??
+    null
+  );
+}
+
+function buildCallbackSummaryInboxHref({
+  run,
+  focusNode,
+  callbackTickets,
+  sensitiveAccessEntries
+}: {
+  run: RunDetail;
+  focusNode: RunDetailFocusNode;
+  callbackTickets: RunCallbackTicketItem[];
+  sensitiveAccessEntries: SensitiveAccessTimelineEntry[];
+}) {
+  const latestApprovalEntry = sensitiveAccessEntries.find((entry) => entry.approval_ticket != null) ?? null;
+  if (latestApprovalEntry) {
+    return buildSensitiveAccessTimelineInboxHref(latestApprovalEntry, run.id);
+  }
+
+  const firstCallbackTicket = callbackTickets[0] ?? null;
+  if (!firstCallbackTicket) {
+    return null;
+  }
+
+  return buildCallbackTicketInboxHref(firstCallbackTicket, {
+    runId: run.id,
+    nodeRunId: trimOrNull(firstCallbackTicket.node_run_id) ?? trimOrNull(focusNode.node_run_id)
+  });
 }
 
 export function buildRunDetailExecutionFocusViewModel(
@@ -116,6 +194,9 @@ export function buildRunDetailExecutionFocusViewModel(
   const skillReferenceLoads = normalizeSkillReferenceLoads(
     run.execution_focus_skill_trace?.loads
   );
+  const callbackSummarySample = resolveCallbackSummarySample(run, focusNode);
+  const callbackTickets = callbackSummarySample?.callback_tickets ?? [];
+  const sensitiveAccessEntries = callbackSummarySample?.sensitive_access_entries ?? [];
 
   return {
     nodeId: focusNode.node_id,
@@ -129,6 +210,14 @@ export function buildRunDetailExecutionFocusViewModel(
     waitingReason,
     callbackWaitingExplanation: focusNode.callback_waiting_explanation ?? null,
     callbackWaitingLifecycle: focusNode.callback_waiting_lifecycle ?? null,
+    callbackTickets,
+    sensitiveAccessEntries,
+    callbackSummaryInboxHref: buildCallbackSummaryInboxHref({
+      run,
+      focusNode,
+      callbackTickets,
+      sensitiveAccessEntries
+    }),
     scheduledResumeDelaySeconds:
       typeof focusNode.scheduled_resume_delay_seconds === "number"
         ? focusNode.scheduled_resume_delay_seconds

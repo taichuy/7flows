@@ -509,6 +509,38 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     expect(html).toContain("Handle approval here first");
   });
 
+  it("restores recommended approval CTA from sampled blocker context when top-level inbox facts are missing", () => {
+    const detail = buildDetail();
+    detail.invocation.run_waiting_lifecycle = null;
+    detail.blocking_node_run_id = null;
+    detail.callback_tickets = [];
+    detail.sensitive_access_entries = [];
+    detail.blocking_sensitive_access_entries = [];
+    detail.callback_waiting_explanation = {
+      primary_signal: "当前 waiting 节点仍在等待 callback。",
+      follow_up: "优先处理审批票据，再观察 waiting 节点是否恢复。"
+    };
+    detail.run_follow_up!.sampled_runs[0] = {
+      ...detail.run_follow_up!.sampled_runs[0],
+      callback_tickets: [],
+      sensitive_access_entries: [buildSampleApprovalEntry()]
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationDetailPanel, {
+        detail,
+        clearHref: "/published?clear=1",
+        tools: [],
+        callbackWaitingAutomation
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("open approval inbox slice");
+    expect(html).toContain("approval_ticket_id=ticket-1");
+    expect(html).toContain("优先处理审批票据，再观察 waiting 节点是否恢复。");
+  });
+
   it("passes shared callback blocker context into approval timeline lists", () => {
     const detail = buildDetail();
     const initialLength = sensitiveAccessTimelineProps.length;

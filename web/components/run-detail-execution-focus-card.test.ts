@@ -251,6 +251,162 @@ describe("RunDetailExecutionFocusCard", () => {
     expect(html).toContain("runner container");
   });
 
+  it("restores approval inbox CTA from local callback blocker context when canonical action is missing", () => {
+    const run = buildRunDetail();
+    run.execution_focus_explanation = {
+      primary_signal: "顶层 execution focus 仍在等待 callback。",
+      follow_up: "顶层 execution focus 建议先观察重排队。"
+    };
+    run.execution_focus_node = {
+      ...run.execution_focus_node!,
+      callback_waiting_explanation: {
+        primary_signal: "当前 waiting 节点仍在等待审批放行。",
+        follow_up: "先处理审批票据，再回来继续看 callback waiting。"
+      },
+      callback_waiting_lifecycle: {
+        wait_cycle_count: 1,
+        issued_ticket_count: 1,
+        expired_ticket_count: 0,
+        consumed_ticket_count: 0,
+        canceled_ticket_count: 0,
+        late_callback_count: 0,
+        resume_schedule_count: 0,
+        max_expired_ticket_count: 0,
+        terminated: false,
+        last_resume_delay_seconds: null,
+        last_resume_source: null,
+        last_resume_backoff_attempt: 0
+      }
+    };
+    run.run_follow_up = {
+      affected_run_count: 1,
+      sampled_run_count: 1,
+      waiting_run_count: 1,
+      running_run_count: 0,
+      succeeded_run_count: 0,
+      failed_run_count: 0,
+      unknown_run_count: 0,
+      recommended_action: null,
+      sampled_runs: [
+        {
+          run_id: "run-1",
+          snapshot: {
+            status: "waiting",
+            current_node_id: "tool_wait",
+            waiting_reason: "callback pending",
+            execution_focus_reason: "current_node",
+            execution_focus_node_id: "tool_wait",
+            execution_focus_node_run_id: "node-run-1",
+            execution_focus_node_name: "Tool Wait",
+            execution_focus_node_type: "tool",
+            execution_focus_explanation: {
+              primary_signal: "当前 waiting 节点仍在等待审批放行。",
+              follow_up: "先处理审批票据，再回来继续看 callback waiting。"
+            },
+            callback_waiting_explanation: {
+              primary_signal: "当前 waiting 节点仍在等待审批放行。",
+              follow_up: "先处理审批票据，再回来继续看 callback waiting。"
+            },
+            callback_waiting_lifecycle: {
+              wait_cycle_count: 1,
+              issued_ticket_count: 1,
+              expired_ticket_count: 0,
+              consumed_ticket_count: 0,
+              canceled_ticket_count: 0,
+              late_callback_count: 0,
+              resume_schedule_count: 0,
+              max_expired_ticket_count: 0,
+              terminated: false,
+              last_resume_delay_seconds: null,
+              last_resume_source: null,
+              last_resume_backoff_attempt: 0
+            },
+            scheduled_resume_delay_seconds: null,
+            scheduled_resume_reason: null,
+            scheduled_resume_source: null,
+            scheduled_waiting_status: null,
+            scheduled_resume_scheduled_at: null,
+            scheduled_resume_due_at: null,
+            scheduled_resume_requeued_at: null,
+            scheduled_resume_requeue_source: null,
+            execution_focus_artifact_count: 0,
+            execution_focus_artifact_ref_count: 0,
+            execution_focus_tool_call_count: 0,
+            execution_focus_raw_ref_count: 0,
+            execution_focus_artifact_refs: [],
+            execution_focus_artifacts: [],
+            execution_focus_tool_calls: [],
+            execution_focus_skill_trace: null
+          },
+          callback_tickets: [],
+          sensitive_access_entries: [
+            {
+              request: {
+                id: "access-request-1",
+                run_id: "run-1",
+                node_run_id: "node-run-1",
+                requester_type: "workflow",
+                requester_id: "requester-1",
+                resource_id: "resource-1",
+                action_type: "invoke",
+                purpose_text: "读取敏感配置",
+                decision: "require_approval",
+                decision_label: "require approval",
+                reason_code: "sensitive_access_requires_approval",
+                reason_label: "需要审批",
+                policy_summary: "L3 资源默认要求人工审批。",
+                created_at: "2026-03-20T10:00:00Z",
+                decided_at: null
+              },
+              resource: {
+                id: "resource-1",
+                label: "Search Tool",
+                description: "high-risk tool",
+                sensitivity_level: "L3",
+                source: "local_capability",
+                metadata: {},
+                created_at: "2026-03-20T10:00:00Z",
+                updated_at: "2026-03-20T10:00:00Z"
+              },
+              approval_ticket: {
+                id: "approval-ticket-1",
+                access_request_id: "access-request-1",
+                run_id: "run-1",
+                node_run_id: "node-run-1",
+                status: "pending",
+                waiting_status: "waiting",
+                approved_by: null,
+                decided_at: null,
+                expires_at: "2026-03-21T10:00:00Z",
+                created_at: "2026-03-20T10:00:00Z"
+              },
+              notifications: [],
+              outcome_explanation: null
+            }
+          ]
+        }
+      ],
+      explanation: {
+        primary_signal: "当前 run 已接入 canonical follow-up。",
+        follow_up: "优先使用本地 blocker context 恢复 approval inbox CTA。"
+      }
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(RunDetailExecutionFocusCard, {
+        run,
+        title: "Execution focus"
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("先处理审批票据，再回来继续看 callback waiting。");
+    expect(html).toContain("Open approval inbox");
+    expect(html).toContain(
+      'href="/sensitive-access?status=pending&amp;waiting_status=waiting&amp;run_id=run-1&amp;node_run_id=node-run-1&amp;access_request_id=access-request-1&amp;approval_ticket_id=approval-ticket-1"'
+    );
+  });
+
   it("shows live sandbox readiness for blocked strong-isolation focus nodes", () => {
     const run = buildRunDetail();
     run.execution_focus_reason = "blocked_execution";

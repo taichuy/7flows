@@ -162,6 +162,7 @@ export function RunDetailExecutionFocusCard({
 
         {focus.hasCallbackSummary ? (
           <CallbackWaitingSummaryCard
+            callbackTickets={focus.callbackTickets}
             callbackWaitingExplanation={focus.callbackWaitingExplanation}
             lifecycle={focus.callbackWaitingLifecycle}
             focusNodeEvidence={focus.evidence}
@@ -169,6 +170,7 @@ export function RunDetailExecutionFocusCard({
             focusSkillReferenceLoads={focus.skillReferenceLoads}
             focusSkillReferenceNodeId={focus.nodeId}
             focusSkillReferenceNodeName={focus.nodeName}
+            inboxHref={focus.callbackSummaryInboxHref}
             nodeRunId={focus.nodeRunId}
             operatorFollowUp={run.run_follow_up?.explanation?.follow_up ?? null}
             recommendedAction={run.run_follow_up?.recommended_action ?? null}
@@ -181,6 +183,7 @@ export function RunDetailExecutionFocusCard({
             scheduledResumeScheduledAt={focus.scheduledResumeScheduledAt}
             scheduledResumeSource={focus.scheduledResumeSource}
             scheduledWaitingStatus={focus.scheduledWaitingStatus}
+            sensitiveAccessEntries={focus.sensitiveAccessEntries}
             showFocusExecutionFacts={shouldDeferToCallbackWaitingSummary}
             showInlineActions={false}
             waitingReason={focus.waitingReason}

@@ -26,6 +26,7 @@ import {
   buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationInboxHref,
   buildPublishedInvocationRecommendedNextStep,
+  buildPublishedInvocationRunFollowUpSampleApprovalInboxHref,
   buildPublishedInvocationSelectedNextStepSurface,
   formatPublishedInvocationCacheStatusLabel,
   formatPublishedInvocationReasonLabel,
@@ -200,6 +201,14 @@ export function resolveWorkflowPublishSelectedInvocationDetailSurface({
     const runId = detail.run?.id ?? detail.invocation.run_id ?? null;
     const recommendedNextStepSample =
       samples.find((sample) => sample.run_id === runId) ?? samples[0] ?? null;
+    const approvalInboxHref = buildPublishedInvocationInboxHref({
+      invocation: detail.invocation,
+      callbackTickets: detail.callback_tickets,
+      sensitiveAccessEntries: detail.sensitive_access_entries
+    });
+    const recommendedNextStepApprovalInboxHref =
+      approvalInboxHref ??
+      buildPublishedInvocationRunFollowUpSampleApprovalInboxHref(recommendedNextStepSample);
     const sharedCallbackWaitingExplanations = samples
       .filter((sample) => sample.has_callback_waiting_summary)
       .map((sample) => sample.run_snapshot.callbackWaitingExplanation);
@@ -225,11 +234,7 @@ export function resolveWorkflowPublishSelectedInvocationDetailSurface({
         blockingNodeRunId: detail.blocking_node_run_id,
         blockingSensitiveAccessEntries: detail.blocking_sensitive_access_entries
       }),
-      approvalInboxHref: buildPublishedInvocationInboxHref({
-        invocation: detail.invocation,
-        callbackTickets: detail.callback_tickets,
-        sensitiveAccessEntries: detail.sensitive_access_entries
-      })
+      approvalInboxHref: recommendedNextStepApprovalInboxHref
     });
 
     return {

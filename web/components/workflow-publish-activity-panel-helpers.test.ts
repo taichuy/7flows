@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { PublishedEndpointInvocationDetailResponse } from "@/lib/get-workflow-publish";
+import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import type { SensitiveAccessBlockingPayload } from "@/lib/sensitive-access";
 import type { WorkflowPublishInvocationActiveFilter } from "@/lib/workflow-publish-governance";
 
@@ -165,6 +166,51 @@ function buildBlockedPayload(): SensitiveAccessBlockingPayload {
   };
 }
 
+function buildSampleApprovalEntry(): SensitiveAccessTimelineEntry {
+  return {
+    request: {
+      id: "request-1",
+      run_id: "run-selected-1",
+      node_run_id: "node-run-wait",
+      requester_type: "human",
+      requester_id: "ops-reviewer",
+      resource_id: "resource-1",
+      action_type: "read",
+      decision: "require_approval",
+      decision_label: "Require approval",
+      reason_code: "approval_required_high_risk",
+      reason_label: "Approval required",
+      policy_summary: "High risk resource requires approval",
+      created_at: "2026-03-21T00:00:00Z",
+      decided_at: null,
+      purpose_text: null
+    },
+    resource: {
+      id: "resource-1",
+      label: "Sensitive approval",
+      description: "Approval required resource",
+      sensitivity_level: "L3",
+      source: "workspace_resource",
+      metadata: {},
+      created_at: "2026-03-21T00:00:00Z",
+      updated_at: "2026-03-21T00:05:00Z"
+    },
+    approval_ticket: {
+      id: "ticket-1",
+      access_request_id: "request-1",
+      run_id: "run-selected-1",
+      node_run_id: "node-run-wait",
+      status: "pending",
+      waiting_status: "waiting",
+      created_at: "2026-03-21T00:00:00Z",
+      decided_at: null,
+      expires_at: null,
+      approved_by: null
+    },
+    notifications: []
+  };
+}
+
 describe("workflow publish activity panel helpers", () => {
   it("keeps publish activity self-links on the shared workflow editor contract", () => {
     const activeInvocationFilter = {
@@ -256,6 +302,41 @@ describe("workflow publish activity panel helpers", () => {
       hrefLabel: "open blocker inbox slice",
       detail: "优先处理 blocker inbox，再观察 waiting 节点是否恢复。"
     });
+  });
+
+  it("restores selected invocation approval CTA from sampled blocker context when top-level inbox facts are missing", () => {
+    const detail = buildSelectedInvocationDetail();
+    detail.invocation.run_waiting_lifecycle = null;
+    detail.blocking_node_run_id = null;
+    detail.callback_tickets = [];
+    detail.sensitive_access_entries = [];
+    detail.blocking_sensitive_access_entries = [];
+    detail.callback_waiting_explanation = {
+      primary_signal: "当前 waiting 节点仍在等待 callback。",
+      follow_up: "优先处理审批票据，再观察 waiting 节点是否恢复。"
+    };
+    detail.run_follow_up!.sampled_runs[0] = {
+      ...detail.run_follow_up!.sampled_runs[0],
+      sensitive_access_entries: [buildSampleApprovalEntry()]
+    };
+
+    const detailSurface = resolveWorkflowPublishSelectedInvocationDetailSurface({
+      selectedInvocationId: "invocation-1",
+      selectedInvocationDetail: {
+        kind: "ok",
+        data: detail
+      }
+    });
+
+    expect(detailSurface.kind).toBe("ok");
+    expect(detailSurface.nextStepSurface).toMatchObject({
+      title: "Selected invocation next step",
+      invocationId: "invocation-1",
+      label: "callback waiting",
+      hrefLabel: "open approval inbox slice",
+      detail: "优先处理审批票据，再观察 waiting 节点是否恢复。"
+    });
+    expect(detailSurface.nextStepSurface?.href).toContain("approval_ticket_id=ticket-1");
   });
 
   it("projects blocked invocation detail copy from shared guarded surface", () => {

@@ -2492,6 +2492,21 @@ export function buildPublishedInvocationRunFollowUpSampleInboxHref(
   });
 }
 
+export function buildPublishedInvocationRunFollowUpSampleApprovalInboxHref(
+  sample?: PublishedInvocationRunFollowUpSampleView | null
+) {
+  if (!sample) {
+    return null;
+  }
+
+  const latestApprovalEntry = findLatestApprovalEntry(sample.sensitive_access_entries);
+  if (!latestApprovalEntry) {
+    return null;
+  }
+
+  return buildSensitiveAccessTimelineInboxHref(latestApprovalEntry, sample.run_id);
+}
+
 export function buildPublishedInvocationCanonicalFollowUpCopy({
   explanation,
   sharedCallbackWaitingExplanations,

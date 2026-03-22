@@ -24,6 +24,7 @@ import {
   buildPublishedInvocationEntrySurfaceCopy,
   buildPublishedInvocationSkillTraceSurface,
   buildPublishedInvocationRecommendedNextStep,
+  buildPublishedInvocationRunFollowUpSampleApprovalInboxHref,
   buildPublishedInvocationRunFollowUpSampleInboxHref,
   buildPublishedInvocationSelectedNextStepSurface,
   formatPublishedInvocationPayloadPreview,
@@ -98,11 +99,6 @@ export function WorkflowPublishInvocationDetailPanel({
     blockingNodeRunId,
     blockingSensitiveAccessEntries
   });
-  const approvalInboxHref = buildPublishedInvocationInboxHref({
-    invocation,
-    callbackTickets,
-    sensitiveAccessEntries
-  });
   const toolsById = new Map(tools.map((tool) => [tool.id, tool]));
   const involvedToolIds = Array.from(
     new Set(callbackTickets.map((ticket) => ticket.tool_id).filter((toolId): toolId is string => Boolean(toolId)))
@@ -133,6 +129,14 @@ export function WorkflowPublishInvocationDetailPanel({
   const runFollowUpSamples = listPublishedInvocationRunFollowUpSampleViews(runFollowUp);
   const recommendedNextStepSample =
     runFollowUpSamples.find((sample) => sample.run_id === runId) ?? runFollowUpSamples[0] ?? null;
+  const approvalInboxHref = buildPublishedInvocationInboxHref({
+    invocation,
+    callbackTickets,
+    sensitiveAccessEntries
+  });
+  const recommendedNextStepApprovalInboxHref =
+    approvalInboxHref ??
+    buildPublishedInvocationRunFollowUpSampleApprovalInboxHref(recommendedNextStepSample);
   const sharedCallbackWaitingExplanations = runFollowUpSamples
     .filter((sample) => sample.has_callback_waiting_summary)
     .map((sample) => sample.run_snapshot.callbackWaitingExplanation);
@@ -162,7 +166,7 @@ export function WorkflowPublishInvocationDetailPanel({
     executionSnapshot: recommendedNextStepSample?.run_snapshot ?? runSnapshot,
     sandboxReadiness,
     blockingInboxHref,
-    approvalInboxHref
+    approvalInboxHref: recommendedNextStepApprovalInboxHref
   });
   const resolvedNextStepSurface =
     selectedNextStepSurface ??
