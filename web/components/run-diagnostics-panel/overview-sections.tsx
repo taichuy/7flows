@@ -1,6 +1,9 @@
 import { formatDuration, formatTimestamp } from "@/lib/runtime-presenters";
 import type { RunDetail } from "@/lib/get-run-detail";
-import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import type { RunTraceQuery } from "@/lib/get-run-trace";
 
 import { RunDetailExecutionFocusCard } from "@/components/run-detail-execution-focus-card";
@@ -12,6 +15,7 @@ type RunDiagnosticsOverviewSectionsProps = {
   eventTypes: Record<string, number>;
   activeFilters: string[];
   activeTraceQuery: RunTraceQuery;
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
@@ -20,6 +24,7 @@ export function RunDiagnosticsOverviewSections({
   eventTypes,
   activeFilters,
   activeTraceQuery,
+  callbackWaitingAutomation = null,
   sandboxReadiness = null
 }: RunDiagnosticsOverviewSectionsProps) {
   return (
@@ -76,6 +81,7 @@ export function RunDiagnosticsOverviewSections({
           <RunDetailExecutionFocusCard
             run={run}
             description={buildExecutionFocusSurfaceDescription("diagnostics")}
+            callbackWaitingAutomation={callbackWaitingAutomation}
             sandboxReadiness={sandboxReadiness}
           />
         </article>

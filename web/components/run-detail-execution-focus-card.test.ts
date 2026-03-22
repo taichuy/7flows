@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 
 import { RunDetailExecutionFocusCard } from "@/components/run-detail-execution-focus-card";
 import type { RunDetail } from "@/lib/get-run-detail";
-import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import { buildRunDetailExecutionFocusSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 
 function buildSandboxReadiness(): SandboxReadinessCheck {
@@ -47,6 +50,26 @@ function buildSandboxReadiness(): SandboxReadinessCheck {
       href: "/workflows?execution=sandbox",
       entry_key: "workflowLibrary"
     }
+  };
+}
+
+function buildCallbackWaitingAutomation(): CallbackWaitingAutomationCheck {
+  return {
+    status: "configured",
+    scheduler_required: true,
+    detail: "callback automation degraded",
+    scheduler_health_status: "unhealthy",
+    scheduler_health_detail: "scheduler is currently backlogged.",
+    affected_run_count: 2,
+    affected_workflow_count: 1,
+    primary_blocker_kind: "scheduler_unhealthy",
+    recommended_action: {
+      kind: "callback_waiting",
+      entry_key: "runLibrary",
+      href: "/runs?status=waiting",
+      label: "Open run library"
+    },
+    steps: []
   };
 }
 
@@ -249,6 +272,49 @@ describe("RunDetailExecutionFocusCard", () => {
     expect(html).toContain("executor tool:compat-adapter:dify-default");
     expect(html).toContain("backend sandbox-default");
     expect(html).toContain("runner container");
+  });
+
+  it("forwards shared callback recovery CTA into the callback summary when canonical action is missing", () => {
+    const run = buildRunDetail();
+    run.execution_focus_explanation = {
+      primary_signal: "顶层 execution focus 仍在等待 callback。",
+      follow_up: "顶层 execution focus 建议先观察重排队。"
+    };
+    run.execution_focus_node = {
+      ...run.execution_focus_node!,
+      callback_waiting_explanation: {
+        primary_signal: "当前 waiting 节点仍在等待 callback。",
+        follow_up: "优先看 callback recovery 是否恢复。"
+      },
+      callback_waiting_lifecycle: {
+        wait_cycle_count: 1,
+        issued_ticket_count: 1,
+        expired_ticket_count: 0,
+        consumed_ticket_count: 0,
+        canceled_ticket_count: 0,
+        late_callback_count: 0,
+        resume_schedule_count: 0,
+        max_expired_ticket_count: 0,
+        terminated: false,
+        last_resume_delay_seconds: null,
+        last_resume_source: null,
+        last_resume_backoff_attempt: 0
+      }
+    };
+    run.run_follow_up = null;
+
+    const html = renderToStaticMarkup(
+      createElement(RunDetailExecutionFocusCard, {
+        run,
+        title: "Execution focus",
+        callbackWaitingAutomation: buildCallbackWaitingAutomation()
+      })
+    );
+
+    expect(html).toContain("callback recovery");
+    expect(html).toContain("Open run library");
+    expect(html).toContain('/runs?status=waiting');
+    expect(html).toContain("当前 callback recovery 仍影响 2 个 run / 1 个 workflow");
   });
 
   it("restores approval inbox CTA from local callback blocker context when canonical action is missing", () => {

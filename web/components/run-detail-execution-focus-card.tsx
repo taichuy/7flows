@@ -6,7 +6,10 @@ import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-
 import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import type { RunDetail } from "@/lib/get-run-detail";
-import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import {
   buildOperatorRecommendedActionCandidate,
   buildOperatorFollowUpSurfaceCopy,
@@ -34,6 +37,7 @@ type RunDetailExecutionFocusCardProps = {
   description?: string | null;
   className?: string;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   recommendedNextStepHref?: string | null;
   recommendedNextStepHrefLabel?: string | null;
 };
@@ -44,6 +48,7 @@ export function RunDetailExecutionFocusCard({
   description = null,
   className = "",
   sandboxReadiness = null,
+  callbackWaitingAutomation = null,
   recommendedNextStepHref = null,
   recommendedNextStepHrefLabel = null
 }: RunDetailExecutionFocusCardProps) {
@@ -163,6 +168,7 @@ export function RunDetailExecutionFocusCard({
         {focus.hasCallbackSummary ? (
           <CallbackWaitingSummaryCard
             callbackTickets={focus.callbackTickets}
+            callbackWaitingAutomation={callbackWaitingAutomation}
             callbackWaitingExplanation={focus.callbackWaitingExplanation}
             lifecycle={focus.callbackWaitingLifecycle}
             focusNodeEvidence={focus.evidence}

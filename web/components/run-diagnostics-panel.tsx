@@ -144,6 +144,7 @@ export function RunDiagnosticsPanel({
         eventTypes={eventTypes}
         activeFilters={activeFilters}
         activeTraceQuery={activeTraceQuery}
+        callbackWaitingAutomation={callbackWaitingAutomation}
         sandboxReadiness={sandboxReadiness}
       />
 

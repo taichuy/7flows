@@ -261,6 +261,39 @@ describe("InlineOperatorActionFeedback", () => {
     expect(callbackSummaryProps[0]?.showSensitiveAccessInlineActions).toBe(false);
   });
 
+  it("prefers shared callback recovery CTA when only callback automation context remains", () => {
+    const html = renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        message: "",
+        title: "Operator follow-up",
+        runId: "run-1",
+        callbackWaitingSummaryProps: {
+          callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+          operatorFollowUp: "优先回到 waiting callback runs 看自动恢复状态。"
+        },
+        outcomeExplanation: {
+          primary_signal: "callback follow-up 已刷新。"
+        },
+        runSnapshot: {
+          status: "running",
+          currentNodeId: "callback_gate",
+          executionFocusNodeName: "Callback Gate"
+        },
+        runFollowUpExplanation: {
+          primary_signal: "本次影响 1 个 run；整体状态分布：running 1。已回读 1 个样本。",
+          follow_up: "局部 follow-up 仍只有泛化说明。"
+        }
+      })
+    );
+
+    expect(html).toContain(operatorSurfaceCopy.recommendedNextStepTitle);
+    expect(html).toContain("callback recovery");
+    expect(html).toContain("Open run library");
+    expect(html).toContain('/runs?status=waiting');
+    expect(html).toContain("当前 callback recovery 仍影响 2 个 run / 1 个 workflow");
+  });
+
   it("prefers refreshed action-result follow-up over parent callback summary props", () => {
     const staleInboxHref = "/sensitive-access?run_id=run-1&approval_ticket_id=stale-ticket";
     const refreshedInboxHref = "/sensitive-access?run_id=run-1&approval_ticket_id=fresh-ticket";

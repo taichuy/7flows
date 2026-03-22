@@ -29,6 +29,7 @@ import {
 import { listExecutionFocusRuntimeFactBadges } from "@/lib/run-execution-focus-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
 import {
+  buildCallbackWaitingAutomationFollowUpCandidate,
   buildSandboxReadinessFollowUpCandidate,
   shouldPreferSharedSandboxReadinessFollowUp
 } from "@/lib/system-overview-follow-up-presenters";
@@ -80,6 +81,13 @@ export function InlineOperatorActionFeedback({
   );
   const callbackFallbackDetail =
     "当前 operator 结果仍落在 callback waiting / approval blocker 链；优先回到 inbox slice 核对票据与 waiting 恢复。";
+  const sharedCallbackRecoveryCandidate =
+    !hasCanonicalRecommendedAction && (hasCallbackWaitingSummary || Boolean(callbackWaitingSummaryProps))
+      ? buildCallbackWaitingAutomationFollowUpCandidate(
+          callbackWaitingSummaryProps?.callbackWaitingAutomation,
+          "callback recovery"
+        )
+      : null;
   const canonicalCallbackRecommendedAction =
     runFollowUp?.recommendedAction ?? callbackWaitingSummaryProps?.recommendedAction ?? null;
   const canonicalCallbackOperatorFollowUp =
@@ -133,6 +141,18 @@ export function InlineOperatorActionFeedback({
         surfaceCopy
       })
     : null;
+  const callbackCandidate = buildSharedOrLocalOperatorCandidate({
+    sharedCandidate:
+      canonicalCallbackCandidate ?? sharedCallbackRecoveryCandidate ?? sampledCallbackCandidate,
+    active: hasCallbackWaitingSummary || Boolean(callbackWaitingSummaryProps),
+    href: callbackWaitingSummaryProps?.inboxHref,
+    runId,
+    label: "callback waiting",
+    detail: canonicalCallbackOperatorFollowUp,
+    hrefLabel: callbackWaitingSummaryProps?.inboxHref ? surfaceCopy.openInboxSliceLabel : null,
+    fallbackDetail: callbackFallbackDetail,
+    surfaceCopy
+  });
   const canonicalExecutionCandidate = buildOperatorRecommendedActionCandidate({
     action: runFollowUp?.recommendedAction ?? null,
     detail: model.runFollowUpFollowUp,
@@ -154,7 +174,7 @@ export function InlineOperatorActionFeedback({
       ? recommendedNextStepOverride
       : !hasCallbackWaitingSummary
       ? buildOperatorRecommendedNextStep({
-          callback: canonicalCallbackCandidate ?? sampledCallbackCandidate,
+          callback: callbackCandidate,
           execution: executionCandidate,
           operatorFollowUp: executionCandidate.active ? model.outcomeFollowUp : null,
           operatorLabel: "operator result"
