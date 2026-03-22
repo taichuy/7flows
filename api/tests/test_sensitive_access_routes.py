@@ -19,6 +19,72 @@ from app.services.run_resume_scheduler import RunResumeScheduler
 from app.services.sensitive_access_control import SensitiveAccessControlService
 
 
+def _assert_single_run_follow_up(
+    run_follow_up: dict,
+    *,
+    run_id: str,
+    snapshot: dict,
+    follow_up: str,
+) -> dict:
+    assert run_follow_up["affected_run_count"] == 1
+    assert run_follow_up["sampled_run_count"] == 1
+    assert run_follow_up["waiting_run_count"] == 1
+    assert run_follow_up["running_run_count"] == 0
+    assert run_follow_up["succeeded_run_count"] == 0
+    assert run_follow_up["failed_run_count"] == 0
+    assert run_follow_up["unknown_run_count"] == 0
+    assert run_follow_up["explanation"] == {
+        "primary_signal": "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
+        "follow_up": follow_up,
+    }
+
+    sampled_runs = run_follow_up["sampled_runs"]
+    assert len(sampled_runs) == 1
+    sampled_run = sampled_runs[0]
+    assert sampled_run["run_id"] == run_id
+    assert sampled_run["snapshot"] == snapshot
+    return sampled_run
+
+
+def _assert_single_sensitive_access_focus_entry(
+    sampled_run: dict,
+    *,
+    run_id: str,
+    node_run_id: str,
+    requester_id: str,
+    resource_id: str,
+    approval_ticket_id: str,
+    approval_status: str,
+    approval_waiting_status: str,
+    notification_status_by_id: dict[str, str],
+    request_decision: str | None = None,
+    request_reason_code: str | None = None,
+) -> None:
+    assert sampled_run["callback_tickets"] == []
+
+    entries = sampled_run["sensitive_access_entries"]
+    assert len(entries) == 1
+    entry = entries[0]
+
+    assert entry["request"]["run_id"] == run_id
+    assert entry["request"]["node_run_id"] == node_run_id
+    assert entry["request"]["requester_id"] == requester_id
+    assert entry["request"]["resource_id"] == resource_id
+    if request_decision is not None:
+        assert entry["request"]["decision"] == request_decision
+    if request_reason_code is not None:
+        assert entry["request"]["reason_code"] == request_reason_code
+
+    assert entry["resource"]["id"] == resource_id
+    assert entry["approval_ticket"] is not None
+    assert entry["approval_ticket"]["id"] == approval_ticket_id
+    assert entry["approval_ticket"]["status"] == approval_status
+    assert entry["approval_ticket"]["waiting_status"] == approval_waiting_status
+    assert {
+        item["id"]: item["status"] for item in entry["notifications"]
+    } == notification_status_by_id
+
+
 def test_create_sensitive_resource_and_list_it(
     client: TestClient,
     sqlite_session: Session,
@@ -254,29 +320,29 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
         "execution_focus_tool_calls": [],
         "execution_focus_skill_trace": None,
     }
-    assert request_body["run_follow_up"] == {
-        "affected_run_count": 1,
-        "sampled_run_count": 1,
-        "waiting_run_count": 1,
-        "running_run_count": 0,
-        "succeeded_run_count": 0,
-        "failed_run_count": 0,
-        "unknown_run_count": 0,
-        "explanation": {
-            "primary_signal": "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
-            "follow_up": (
-                f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
-                "重点信号：当前 callback waiting 仍卡在 1 条待处理审批。 后续动作："
-                "下一步：先在当前 operator 入口完成审批或拒绝，再观察 waiting 节点是否自动恢复。"
-            ),
-        },
-        "sampled_runs": [
-            {
-                "run_id": run.id,
-                "snapshot": request_body["run_snapshot"],
-            }
-        ],
-    }
+    sampled_run = _assert_single_run_follow_up(
+        request_body["run_follow_up"],
+        run_id=run.id,
+        snapshot=request_body["run_snapshot"],
+        follow_up=(
+            f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
+            "重点信号：当前 callback waiting 仍卡在 1 条待处理审批。 后续动作："
+            "下一步：先在当前 operator 入口完成审批或拒绝，再观察 waiting 节点是否自动恢复。"
+        ),
+    )
+    _assert_single_sensitive_access_focus_entry(
+        sampled_run,
+        run_id=run.id,
+        node_run_id=node_run.id,
+        requester_id="assistant-main",
+        resource_id=resource_id,
+        approval_ticket_id=approval_ticket["id"],
+        approval_status="pending",
+        approval_waiting_status="waiting",
+        notification_status_by_id={request_body["notifications"][0]["id"]: "delivered"},
+        request_decision="require_approval",
+        request_reason_code="approval_required_high_sensitive_access",
+    )
 
     decision_response = client.post(
         f"/api/sensitive-access/approval-tickets/{approval_ticket['id']}/decision",
@@ -351,28 +417,29 @@ def test_request_high_sensitivity_access_creates_approval_ticket_and_decision(
         "execution_focus_tool_calls": [],
         "execution_focus_skill_trace": None,
     }
-    assert decision_body["run_follow_up"] is not None
-    assert decision_body["run_follow_up"]["affected_run_count"] == 1
-    assert decision_body["run_follow_up"]["sampled_run_count"] == 1
-    assert decision_body["run_follow_up"]["waiting_run_count"] == 1
-    assert decision_body["run_follow_up"]["running_run_count"] == 0
-    assert decision_body["run_follow_up"]["succeeded_run_count"] == 0
-    assert decision_body["run_follow_up"]["failed_run_count"] == 0
-    assert decision_body["run_follow_up"]["unknown_run_count"] == 0
-    assert decision_body["run_follow_up"]["sampled_runs"] == [
-        {
-            "run_id": run.id,
-            "snapshot": decision_body["run_snapshot"],
-        }
-    ]
-    assert decision_body["run_follow_up"]["explanation"] == {
-        "primary_signal": "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
-        "follow_up": (
+    sampled_run = _assert_single_run_follow_up(
+        decision_body["run_follow_up"],
+        run_id=run.id,
+        snapshot=decision_body["run_snapshot"],
+        follow_up=(
             f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
             "重点信号：等待原因：waiting approval 后续动作："
             "下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。"
         ),
-    }
+    )
+    _assert_single_sensitive_access_focus_entry(
+        sampled_run,
+        run_id=run.id,
+        node_run_id=node_run.id,
+        requester_id="assistant-main",
+        resource_id=resource_id,
+        approval_ticket_id=approval_ticket["id"],
+        approval_status="approved",
+        approval_waiting_status="resumed",
+        notification_status_by_id={request_body["notifications"][0]["id"]: "delivered"},
+        request_decision="allow",
+        request_reason_code="approved_after_review",
+    )
 
     stored_request = sqlite_session.get(
         SensitiveAccessRequestRecord,
@@ -792,7 +859,8 @@ def test_bulk_decide_approval_tickets_allows_partial_success(
     )
 
     assert request_response.status_code == 201
-    ticket_id = request_response.json()["approval_ticket"]["id"]
+    request_body = request_response.json()
+    ticket_id = request_body["approval_ticket"]["id"]
 
     bulk_response = client.post(
         "/api/sensitive-access/approval-tickets/bulk-decision",
@@ -843,64 +911,64 @@ def test_bulk_decide_approval_tickets_allows_partial_success(
             "已完全清空显式 operator blocker 1 个。"
         ),
     }
-    assert body["run_follow_up"] == {
-        "affected_run_count": 1,
-        "sampled_run_count": 1,
-        "waiting_run_count": 1,
-        "running_run_count": 0,
-        "succeeded_run_count": 0,
-        "failed_run_count": 0,
-        "unknown_run_count": 0,
-        "explanation": {
-            "primary_signal": "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
-            "follow_up": (
-                f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
-                "重点信号：等待原因：waiting approval 后续动作："
-                "下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。"
-            ),
+    sampled_run = _assert_single_run_follow_up(
+        body["run_follow_up"],
+        run_id=run.id,
+        snapshot={
+            "workflow_id": sample_workflow.id,
+            "status": "waiting",
+            "current_node_id": "mock_tool",
+            "waiting_reason": "waiting approval",
+            "execution_focus_reason": "blocking_node_run",
+            "execution_focus_node_id": "mock_tool",
+            "execution_focus_node_run_id": node_run.id,
+            "execution_focus_node_name": "Mock Tool",
+            "execution_focus_node_type": "tool",
+            "execution_focus_explanation": {
+                "primary_signal": "等待原因：waiting approval",
+                "follow_up": (
+                    "下一步：优先沿 waiting / callback 事实链排查，"
+                    "不要只盯单次 invocation 返回。"
+                ),
+            },
+            "callback_waiting_explanation": None,
+            "callback_waiting_lifecycle": None,
+            "scheduled_resume_delay_seconds": None,
+            "scheduled_resume_reason": None,
+            "scheduled_resume_source": None,
+            "scheduled_waiting_status": None,
+            "scheduled_resume_scheduled_at": None,
+            "scheduled_resume_due_at": None,
+            "scheduled_resume_requeued_at": None,
+            "scheduled_resume_requeue_source": None,
+            "execution_focus_artifact_count": 0,
+            "execution_focus_artifact_ref_count": 0,
+            "execution_focus_tool_call_count": 0,
+            "execution_focus_raw_ref_count": 0,
+            "execution_focus_artifact_refs": [],
+            "execution_focus_artifacts": [],
+            "execution_focus_tool_calls": [],
+            "execution_focus_skill_trace": None,
         },
-        "sampled_runs": [
-            {
-                "run_id": run.id,
-                "snapshot": {
-                    "workflow_id": sample_workflow.id,
-                    "status": "waiting",
-                    "current_node_id": "mock_tool",
-                    "waiting_reason": "waiting approval",
-                    "execution_focus_reason": "blocking_node_run",
-                    "execution_focus_node_id": "mock_tool",
-                    "execution_focus_node_run_id": node_run.id,
-                    "execution_focus_node_name": "Mock Tool",
-                    "execution_focus_node_type": "tool",
-                    "execution_focus_explanation": {
-                        "primary_signal": "等待原因：waiting approval",
-                        "follow_up": (
-                            "下一步：优先沿 waiting / callback 事实链排查，"
-                            "不要只盯单次 invocation 返回。"
-                        ),
-                    },
-                    "callback_waiting_explanation": None,
-                    "callback_waiting_lifecycle": None,
-                    "scheduled_resume_delay_seconds": None,
-                    "scheduled_resume_reason": None,
-                    "scheduled_resume_source": None,
-                    "scheduled_waiting_status": None,
-                    "scheduled_resume_scheduled_at": None,
-                    "scheduled_resume_due_at": None,
-                    "scheduled_resume_requeued_at": None,
-                    "scheduled_resume_requeue_source": None,
-                    "execution_focus_artifact_count": 0,
-                    "execution_focus_artifact_ref_count": 0,
-                    "execution_focus_tool_call_count": 0,
-                    "execution_focus_raw_ref_count": 0,
-                    "execution_focus_artifact_refs": [],
-                    "execution_focus_artifacts": [],
-                    "execution_focus_tool_calls": [],
-                    "execution_focus_skill_trace": None,
-                },
-            }
-        ],
-    }
+        follow_up=(
+            f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
+            "重点信号：等待原因：waiting approval 后续动作："
+            "下一步：优先沿 waiting / callback 事实链排查，不要只盯单次 invocation 返回。"
+        ),
+    )
+    _assert_single_sensitive_access_focus_entry(
+        sampled_run,
+        run_id=run.id,
+        node_run_id=node_run.id,
+        requester_id="assistant-bulk",
+        resource_id=resource_id,
+        approval_ticket_id=ticket_id,
+        approval_status="approved",
+        approval_waiting_status="resumed",
+        notification_status_by_id={request_body["notifications"][0]["id"]: "delivered"},
+        request_decision="allow",
+        request_reason_code="approved_after_review",
+    )
 
     stored_ticket = sqlite_session.get(ApprovalTicketRecord, ticket_id)
     assert stored_ticket is not None
@@ -1060,28 +1128,32 @@ def test_retry_notification_dispatch_creates_new_attempt(
         "execution_focus_tool_calls": [],
         "execution_focus_skill_trace": None,
     }
-    assert retry_body["run_follow_up"] is not None
-    assert retry_body["run_follow_up"]["affected_run_count"] == 1
-    assert retry_body["run_follow_up"]["sampled_run_count"] == 1
-    assert retry_body["run_follow_up"]["waiting_run_count"] == 1
-    assert retry_body["run_follow_up"]["running_run_count"] == 0
-    assert retry_body["run_follow_up"]["succeeded_run_count"] == 0
-    assert retry_body["run_follow_up"]["failed_run_count"] == 0
-    assert retry_body["run_follow_up"]["unknown_run_count"] == 0
-    assert retry_body["run_follow_up"]["sampled_runs"] == [
-        {
-            "run_id": run.id,
-            "snapshot": retry_body["run_snapshot"],
-        }
-    ]
-    assert retry_body["run_follow_up"]["explanation"] == {
-        "primary_signal": "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
-        "follow_up": (
+    sampled_run = _assert_single_run_follow_up(
+        retry_body["run_follow_up"],
+        run_id=run.id,
+        snapshot=retry_body["run_snapshot"],
+        follow_up=(
             f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
             "重点信号：当前 callback waiting 仍卡在 1 条待处理审批。 后续动作："
             "下一步：先重试或改投审批通知，再处理审批结果；不要直接强制恢复 run。"
         ),
-    }
+    )
+    _assert_single_sensitive_access_focus_entry(
+        sampled_run,
+        run_id=run.id,
+        node_run_id=node_run.id,
+        requester_id="assistant-main",
+        resource_id=resource_id,
+        approval_ticket_id=approval_ticket["id"],
+        approval_status="pending",
+        approval_waiting_status="waiting",
+        notification_status_by_id={
+            first_notification["id"]: "failed",
+            retried_notification["id"]: "pending",
+        },
+        request_decision="require_approval",
+        request_reason_code="approval_required_high_sensitive_access",
+    )
 
     assert len(scheduled_dispatches) == 2
     assert scheduled_dispatches[0].dispatch_id == first_notification["id"]
@@ -1231,70 +1303,73 @@ def test_bulk_retry_notification_dispatches_allows_partial_success(
             "动作后仍有 1 个样本存在 operator blocker。"
         ),
     }
-    assert body["run_follow_up"] == {
-        "affected_run_count": 1,
-        "sampled_run_count": 1,
-        "waiting_run_count": 1,
-        "running_run_count": 0,
-        "succeeded_run_count": 0,
-        "failed_run_count": 0,
-        "unknown_run_count": 0,
-        "explanation": {
-            "primary_signal": "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。",
-            "follow_up": (
-                f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
-                "重点信号：当前 callback waiting 仍卡在 1 条待处理审批。 后续动作："
-                "下一步：先重试或改投审批通知，再处理审批结果；不要直接强制恢复 run。"
-            ),
+    sampled_run = _assert_single_run_follow_up(
+        body["run_follow_up"],
+        run_id=run.id,
+        snapshot={
+            "workflow_id": sample_workflow.id,
+            "status": "waiting",
+            "current_node_id": "mock_tool",
+            "waiting_reason": "waiting approval",
+            "execution_focus_reason": "blocking_node_run",
+            "execution_focus_node_id": "mock_tool",
+            "execution_focus_node_run_id": node_run.id,
+            "execution_focus_node_name": "Mock Tool",
+            "execution_focus_node_type": "tool",
+            "execution_focus_explanation": {
+                "primary_signal": "等待原因：waiting approval",
+                "follow_up": (
+                    "下一步：优先处理这条 sensitive access 审批票据，"
+                    "再观察 waiting 节点是否恢复。"
+                ),
+            },
+            "callback_waiting_explanation": {
+                "primary_signal": "当前 callback waiting 仍卡在 1 条待处理审批。",
+                "follow_up": (
+                    "下一步：先重试或改投审批通知，再处理审批结果；"
+                    "不要直接强制恢复 run。"
+                ),
+            },
+            "callback_waiting_lifecycle": None,
+            "scheduled_resume_delay_seconds": None,
+            "scheduled_resume_reason": None,
+            "scheduled_resume_source": None,
+            "scheduled_waiting_status": None,
+            "scheduled_resume_scheduled_at": None,
+            "scheduled_resume_due_at": None,
+            "scheduled_resume_requeued_at": None,
+            "scheduled_resume_requeue_source": None,
+            "execution_focus_artifact_count": 0,
+            "execution_focus_artifact_ref_count": 0,
+            "execution_focus_tool_call_count": 0,
+            "execution_focus_raw_ref_count": 0,
+            "execution_focus_artifact_refs": [],
+            "execution_focus_artifacts": [],
+            "execution_focus_tool_calls": [],
+            "execution_focus_skill_trace": None,
         },
-        "sampled_runs": [
-            {
-                "run_id": run.id,
-                "snapshot": {
-                    "workflow_id": sample_workflow.id,
-                    "status": "waiting",
-                    "current_node_id": "mock_tool",
-                    "waiting_reason": "waiting approval",
-                    "execution_focus_reason": "blocking_node_run",
-                    "execution_focus_node_id": "mock_tool",
-                    "execution_focus_node_run_id": node_run.id,
-                    "execution_focus_node_name": "Mock Tool",
-                    "execution_focus_node_type": "tool",
-                    "execution_focus_explanation": {
-                        "primary_signal": "等待原因：waiting approval",
-                        "follow_up": (
-                            "下一步：优先处理这条 sensitive access 审批票据，"
-                            "再观察 waiting 节点是否恢复。"
-                        ),
-                    },
-                    "callback_waiting_explanation": {
-                        "primary_signal": "当前 callback waiting 仍卡在 1 条待处理审批。",
-                        "follow_up": (
-                            "下一步：先重试或改投审批通知，再处理审批结果；"
-                            "不要直接强制恢复 run。"
-                        ),
-                    },
-                    "callback_waiting_lifecycle": None,
-                    "scheduled_resume_delay_seconds": None,
-                    "scheduled_resume_reason": None,
-                    "scheduled_resume_source": None,
-                    "scheduled_waiting_status": None,
-                    "scheduled_resume_scheduled_at": None,
-                    "scheduled_resume_due_at": None,
-                    "scheduled_resume_requeued_at": None,
-                    "scheduled_resume_requeue_source": None,
-                    "execution_focus_artifact_count": 0,
-                    "execution_focus_artifact_ref_count": 0,
-                    "execution_focus_tool_call_count": 0,
-                    "execution_focus_raw_ref_count": 0,
-                    "execution_focus_artifact_refs": [],
-                    "execution_focus_artifacts": [],
-                    "execution_focus_tool_calls": [],
-                    "execution_focus_skill_trace": None,
-                },
-            }
-        ],
-    }
+        follow_up=(
+            f"run {run.id}：当前 run 状态：waiting。 当前节点：mock_tool。 "
+            "重点信号：当前 callback waiting 仍卡在 1 条待处理审批。 后续动作："
+            "下一步：先重试或改投审批通知，再处理审批结果；不要直接强制恢复 run。"
+        ),
+    )
+    _assert_single_sensitive_access_focus_entry(
+        sampled_run,
+        run_id=run.id,
+        node_run_id=node_run.id,
+        requester_id="assistant-bulk-retry",
+        resource_id=resource_id,
+        approval_ticket_id=approval_ticket["id"],
+        approval_status="pending",
+        approval_waiting_status="waiting",
+        notification_status_by_id={
+            first_notification["id"]: "failed",
+            retried_item["notification"]["id"]: "pending",
+        },
+        request_decision="require_approval",
+        request_reason_code="approval_required_high_sensitive_access",
+    )
 
     assert len(scheduled_dispatches) == 2
     assert scheduled_dispatches[0].dispatch_id == first_notification["id"]
