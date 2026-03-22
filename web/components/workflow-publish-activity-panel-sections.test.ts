@@ -1158,8 +1158,10 @@ describe("WorkflowPublishActivityInsights", () => {
 
     expect(html).toContain("sandbox backend offline during invocation");
     expect(html).toContain("invocation-1");
+    expect(html).toContain("当前打开的 invocation-1 已对齐这条 failure reason。");
     expect(html).toContain("approval blocker");
     expect(html).toContain("优先处理 blocker inbox，再观察 waiting 节点是否恢复。");
+    expect(html).not.toContain("当前 live sandbox readiness 仍在报警。");
   });
 
   it("uses shared API key status fallback copy inside activity details", () => {

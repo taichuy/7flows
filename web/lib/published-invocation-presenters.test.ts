@@ -411,8 +411,15 @@ describe("published invocation presenters", () => {
         reasonCounts: [{ value: "runtime_failed", count: 2 }],
         selectedInvocationErrorMessage: "  Sandbox backend offline during invocation  ",
         selectedInvocationNextStepSurface: selectedNextStepSurface
-      }).selectedNextStepSurface
-    ).toEqual(selectedNextStepSurface);
+      })
+    ).toMatchObject({
+      diagnosis: {
+        headline: "当前打开的 invocation-1 已对齐这条 failure reason。",
+        detail:
+          "下面直接复用 selected invocation 的 canonical next step，避免继续只靠 failure message 推断动作。"
+      },
+      selectedNextStepSurface
+    });
 
     expect(
       buildPublishedInvocationFailureReasonCardSurface({

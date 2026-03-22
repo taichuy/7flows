@@ -1156,17 +1156,22 @@ export function buildPublishedInvocationFailureReasonCardSurface({
     selectedInvocationErrorMessage,
     selectedInvocationNextStepSurface
   });
+  const bridgedDiagnosis = matchedSelectedNextStepSurface
+    ? buildPublishedInvocationMatchedFailureReasonDiagnosis(matchedSelectedNextStepSurface)
+    : null;
 
   return {
     title: surfaceCopy.failureReasonTitle,
     countLabel: `${surfaceCopy.failureReasonCountLabelPrefix} ${item.count}`,
     message: item.message,
-    diagnosis: buildPublishedInvocationFailureMessageDiagnosis({
-      message: item.message,
-      reasonCounts,
-      sandboxReadiness,
-      callbackWaitingAutomation
-    }),
+    diagnosis:
+      bridgedDiagnosis ??
+      buildPublishedInvocationFailureMessageDiagnosis({
+        message: item.message,
+        reasonCounts,
+        sandboxReadiness,
+        callbackWaitingAutomation
+      }),
     lastSeenLabel: formatPublishedInvocationFailureReasonLastSeen(item.last_invoked_at),
     selectedNextStepSurface: matchedSelectedNextStepSurface
   };
@@ -1249,6 +1254,15 @@ function resolvePublishedInvocationMatchedFailureReasonMessage({
         normalizedSelectedInvocationErrorMessage
     ) ?? null
   );
+}
+
+function buildPublishedInvocationMatchedFailureReasonDiagnosis(
+  selectedNextStepSurface: PublishedInvocationSelectedNextStepSurface
+): PublishedInvocationFailureMessageDiagnosis {
+  return {
+    headline: `当前打开的 ${selectedNextStepSurface.invocationId} 已对齐这条 failure reason。`,
+    detail: "下面直接复用 selected invocation 的 canonical next step，避免继续只靠 failure message 推断动作。"
+  };
 }
 
 export function formatPublishedInvocationMetricCounts(
