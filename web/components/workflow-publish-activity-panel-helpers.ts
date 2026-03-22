@@ -176,10 +176,14 @@ export function resolveWorkflowPublishActivityDetailLinks({
 
 export function resolveWorkflowPublishSelectedInvocationDetailSurface({
   selectedInvocationId,
-  selectedInvocationDetail
+  selectedInvocationDetail,
+  callbackWaitingAutomation,
+  sandboxReadiness
 }: {
   selectedInvocationId: string | null;
   selectedInvocationDetail: SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>;
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
 }): WorkflowPublishSelectedInvocationDetailSurface {
   const detailsSurfaceCopy = buildPublishedInvocationActivityDetailsSurfaceCopy();
 
@@ -212,7 +216,9 @@ export function resolveWorkflowPublishSelectedInvocationDetailSurface({
       runId: detail.run?.id ?? detail.invocation.run_id ?? null,
       canonicalFollowUp,
       callbackWaitingFollowUp: detail.callback_waiting_explanation?.follow_up ?? null,
+      callbackWaitingAutomation,
       executionFocusFollowUp,
+      sandboxReadiness,
       blockingInboxHref: buildBlockingPublishedInvocationInboxHref({
         runId: detail.run?.id ?? detail.invocation.run_id ?? null,
         blockingNodeRunId: detail.blocking_node_run_id,

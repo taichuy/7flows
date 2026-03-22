@@ -1363,6 +1363,46 @@ describe("published invocation presenters", () => {
     });
   });
 
+  it("在缺少 callback waiting follow-up 时回退到 shared callback recovery contract", () => {
+    expect(
+      buildPublishedInvocationRecommendedNextStep({
+        runId: "run-callback-fallback-1",
+        canonicalFollowUp: {
+          headline: "当前 invocation 已接入 canonical follow-up 事实链。",
+          follow_up: null,
+          has_shared_callback_waiting_summary: false
+        },
+        callbackWaitingFollowUp: null,
+        callbackWaitingAutomation: {
+          status: "partial",
+          scheduler_required: true,
+          detail: "callback automation degraded",
+          scheduler_health_status: "degraded",
+          scheduler_health_detail: "waiting resume monitor degraded",
+          affected_run_count: 3,
+          affected_workflow_count: 2,
+          primary_blocker_kind: "scheduler_unhealthy",
+          recommended_action: {
+            kind: "open_run_library",
+            label: "Open run library",
+            href: "/runs?focus=callback-waiting",
+            entry_key: "run_library"
+          },
+          steps: []
+        },
+        executionFocusFollowUp: null,
+        blockingInboxHref: null,
+        approvalInboxHref: null
+      })
+    ).toEqual({
+      label: "callback recovery",
+      detail:
+        "当前 callback recovery 仍影响 3 个 run / 2 个 workflow；scheduler 仍不健康，优先回到 run library 核对 waiting callback runs 与自动 resume 状态。",
+      href: "/runs?focus=callback-waiting",
+      href_label: "Open run library"
+    });
+  });
+
   it("execution focus 没有显式 follow-up 时复用共享 fallback 详情", () => {
     expect(
       buildPublishedInvocationRecommendedNextStep({
@@ -1382,6 +1422,68 @@ describe("published invocation presenters", () => {
       detail: buildRunDetailExecutionFocusSurfaceCopy().recommendedNextStepFallbackDetail,
       href: "/runs/run-focus-fallback-1",
       href_label: "open run"
+    });
+  });
+
+  it("在缺少 execution focus follow-up 时优先复用 shared sandbox readiness contract", () => {
+    expect(
+      buildPublishedInvocationRecommendedNextStep({
+        runId: "run-focus-fallback-2",
+        canonicalFollowUp: {
+          headline: "当前 invocation 已接入 canonical follow-up 事实链。",
+          follow_up: null,
+          has_shared_callback_waiting_summary: false
+        },
+        callbackWaitingFollowUp: null,
+        executionFocusFollowUp: null,
+        sandboxReadiness: {
+          enabled_backend_count: 0,
+          execution_classes: [
+            {
+              execution_class: "sandbox_code",
+              available: false,
+              backend_ids: [],
+              supported_languages: [],
+              supported_profiles: [],
+              supported_dependency_modes: [],
+              supports_tool_execution: false,
+              supports_builtin_package_sets: false,
+              supports_backend_extensions: false,
+              supports_network_policy: false,
+              supports_filesystem_policy: false,
+              reason: "execution class blocked"
+            }
+          ],
+          supported_languages: [],
+          supported_profiles: [],
+          supported_dependency_modes: [],
+          supports_tool_execution: false,
+          supports_builtin_package_sets: false,
+          supports_backend_extensions: false,
+          supports_network_policy: false,
+          supports_filesystem_policy: false,
+          offline_backend_count: 0,
+          degraded_backend_count: 0,
+          healthy_backend_count: 0,
+          affected_run_count: 4,
+          affected_workflow_count: 1,
+          primary_blocker_kind: "execution_class_blocked",
+          recommended_action: {
+            kind: "open_workflow_library",
+            label: "Open workflow library",
+            href: "/workflows?execution=sandbox",
+            entry_key: "workflow_library"
+          }
+        },
+        blockingInboxHref: null,
+        approvalInboxHref: null
+      })
+    ).toEqual({
+      label: "sandbox readiness",
+      detail:
+        "当前 live sandbox readiness 仍影响 4 个 run / 1 个 workflow；优先回到 workflow library 处理强隔离 execution class 与隔离需求。",
+      href: "/workflows?execution=sandbox",
+      href_label: "Open workflow library"
     });
   });
 

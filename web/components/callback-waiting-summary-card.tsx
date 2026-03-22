@@ -205,6 +205,7 @@ export function CallbackWaitingSummaryCard({
   const recommendedNextStep = buildCallbackWaitingRecommendedNextStep({
     action: recommendedAction,
     inboxHref,
+    callbackWaitingAutomation,
     operatorFollowUp: callbackFollowUp,
     surfaceCopy
   });
@@ -338,7 +339,7 @@ export function CallbackWaitingSummaryCard({
       {shouldRenderStandaloneCallbackFollowUp ? (
         <p className="section-copy entry-copy">{callbackFollowUp}</p>
       ) : null}
-      {recommendedAction && recommendedNextStep ? (
+      {recommendedNextStep ? (
         <div className="entry-card compact-card">
           <div className="payload-card-header">
             <span className="status-meta">{surfaceCopy.recommendedNextStepTitle}</span>

@@ -13,6 +13,7 @@ import {
   type OperatorRecommendedNextStep
 } from "@/lib/operator-follow-up-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import { buildCallbackWaitingAutomationFollowUpCandidate } from "@/lib/system-overview-follow-up-presenters";
 import {
   formatSensitiveAccessDecisionLabel,
   formatSensitiveAccessReasonLabel,
@@ -234,16 +235,22 @@ export function buildCallbackWaitingInlineActionStatusHint({
 export function buildCallbackWaitingRecommendedNextStep({
   action,
   inboxHref,
+  callbackWaitingAutomation,
   operatorFollowUp,
   surfaceCopy = buildCallbackWaitingSummarySurfaceCopy()
 }: {
   action?: CallbackWaitingRecommendedAction | null;
   inboxHref?: string | null;
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   operatorFollowUp?: string | null;
   surfaceCopy?: CallbackWaitingSummarySurfaceCopy;
 }): OperatorRecommendedNextStep | null {
   if (!action) {
     return buildOperatorRecommendedNextStep({
+      callback: buildCallbackWaitingAutomationFollowUpCandidate(
+        callbackWaitingAutomation,
+        "callback recovery"
+      ),
       operatorFollowUp,
       operatorLabel: "callback waiting follow-up"
     });

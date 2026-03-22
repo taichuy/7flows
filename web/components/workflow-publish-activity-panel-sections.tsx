@@ -265,7 +265,9 @@ export function WorkflowPublishActivityDetails({
   const reasonCounts = invocationAudit?.facets.reason_counts ?? [];
   const selectedInvocationSurface = resolveWorkflowPublishSelectedInvocationDetailSurface({
     selectedInvocationId,
-    selectedInvocationDetail
+    selectedInvocationDetail,
+    callbackWaitingAutomation,
+    sandboxReadiness
   });
   const selectedInvocationUnavailableSurface =
     selectedInvocationSurface.kind === "unavailable"
@@ -388,6 +390,7 @@ export function WorkflowPublishActivityDetails({
           <div className="publish-cache-list">
             {items.map((item) => (
               <WorkflowPublishInvocationEntryCard
+                callbackWaitingAutomation={callbackWaitingAutomation}
                 detailActive={selectedInvocationId === item.id}
                 detailHref={buildInvocationDetailHref(item.id)}
                 item={item}

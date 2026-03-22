@@ -5,7 +5,10 @@ import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summar
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
-import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import type {
+  CallbackWaitingAutomationCheck,
+  SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import type { PublishedEndpointInvocationListResponse } from "@/lib/get-workflow-publish";
 import { buildExecutionFocusExplainableNode } from "@/lib/operator-inline-action-feedback";
 import { formatScheduledResumeLabel } from "@/lib/callback-waiting-presenters";
@@ -46,6 +49,7 @@ type WorkflowPublishInvocationEntryCardProps = {
   item: PublishedInvocationItem;
   detailHref: string;
   detailActive: boolean;
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
 };
 
@@ -63,6 +67,7 @@ export function WorkflowPublishInvocationEntryCard({
   item,
   detailHref,
   detailActive,
+  callbackWaitingAutomation,
   sandboxReadiness
 }: WorkflowPublishInvocationEntryCardProps) {
   const surfaceCopy = buildPublishedInvocationEntrySurfaceCopy();
@@ -137,7 +142,9 @@ export function WorkflowPublishInvocationEntryCard({
     runId: item.run_id ?? null,
     canonicalFollowUp,
     callbackWaitingFollowUp: waitingLifecycle ? waitingExplanation?.follow_up ?? null : null,
+    callbackWaitingAutomation,
     executionFocusFollowUp,
+    sandboxReadiness,
     blockingInboxHref,
     approvalInboxHref: inboxHref
   });

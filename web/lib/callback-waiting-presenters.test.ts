@@ -4,6 +4,7 @@ import type { CallbackWaitingLifecycleSummary } from "./get-run-views";
 import {
   buildCallbackWaitingInlineActionStatusHint,
   buildCallbackWaitingInlineActionTitle,
+  buildCallbackWaitingRecommendedNextStep,
   buildCallbackWaitingSummarySurfaceCopy,
   formatScheduledResumeLabel,
   getCallbackWaitingRecommendedAction,
@@ -299,5 +300,37 @@ describe("callback waiting presenters", () => {
         surfaceCopy
       })
     ).toBe(surfaceCopy.preferredCleanupStatusHint);
+  });
+
+  it("在缺少本地 recommended action 时回退到 system overview callback recovery contract", () => {
+    expect(
+      buildCallbackWaitingRecommendedNextStep({
+        action: null,
+        callbackWaitingAutomation: {
+          status: "partial",
+          scheduler_required: true,
+          detail: "callback automation degraded",
+          scheduler_health_status: "degraded",
+          scheduler_health_detail: "waiting resume monitor degraded",
+          affected_run_count: 3,
+          affected_workflow_count: 2,
+          primary_blocker_kind: "scheduler_unhealthy",
+          recommended_action: {
+            kind: "open_run_library",
+            label: "Open run library",
+            href: "/runs?focus=callback-waiting",
+            entry_key: "run_library"
+          },
+          steps: []
+        },
+        operatorFollowUp: null
+      })
+    ).toEqual({
+      label: "callback recovery",
+      detail:
+        "当前 callback recovery 仍影响 3 个 run / 2 个 workflow；scheduler 仍不健康，优先回到 run library 核对 waiting callback runs 与自动 resume 状态。",
+      href: "/runs?focus=callback-waiting",
+      href_label: "Open run library"
+    });
   });
 });

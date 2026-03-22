@@ -152,7 +152,9 @@ export function WorkflowPublishInvocationDetailPanel({
     runId,
     canonicalFollowUp,
     callbackWaitingFollowUp: callbackWaitingExplanation?.follow_up ?? null,
+    callbackWaitingAutomation,
     executionFocusFollowUp,
+    sandboxReadiness,
     blockingInboxHref,
     approvalInboxHref
   });

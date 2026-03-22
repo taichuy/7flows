@@ -43,6 +43,10 @@ import {
 import { formatRunSnapshotSummary } from "@/lib/operator-action-result-presenters";
 import { formatKeyList, formatTimestamp } from "@/lib/runtime-presenters";
 import {
+  buildCallbackWaitingAutomationFollowUpCandidate,
+  buildSandboxReadinessFollowUpCandidate
+} from "@/lib/system-overview-follow-up-presenters";
+import {
   formatMetricSummary,
   type ExecutionFocusToolCallSummary
 } from "@/lib/run-execution-focus-presenters";
@@ -1772,43 +1776,61 @@ export function buildPublishedInvocationRecommendedNextStep({
   runId,
   canonicalFollowUp,
   callbackWaitingFollowUp,
+  callbackWaitingAutomation,
   executionFocusFollowUp,
+  sandboxReadiness,
   blockingInboxHref,
   approvalInboxHref
 }: {
   runId?: string | null;
   canonicalFollowUp?: PublishedInvocationCanonicalFollowUpCopy | null;
   callbackWaitingFollowUp?: string | null;
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   executionFocusFollowUp?: string | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
   blockingInboxHref?: string | null;
   approvalInboxHref?: string | null;
 }): PublishedInvocationRecommendedNextStep | null {
   const executionSurfaceCopy = buildRunDetailExecutionFocusSurfaceCopy();
+  const hasExplicitCallbackFollowUp = Boolean(
+    (callbackWaitingFollowUp && callbackWaitingFollowUp.trim()) ||
+      canonicalFollowUp?.has_shared_callback_waiting_summary
+  );
+  const callbackCandidate = hasExplicitCallbackFollowUp
+    ? buildOperatorInboxSliceCandidate({
+        active: true,
+        href: blockingInboxHref ?? approvalInboxHref ?? null,
+        label: blockingInboxHref ? "approval blocker" : "callback waiting",
+        detail: callbackWaitingFollowUp,
+        hrefLabel: blockingInboxHref
+          ? "open blocker inbox slice"
+          : approvalInboxHref
+            ? "open approval inbox slice"
+            : null,
+        fallbackDetail:
+          "当前 invocation 的下一步仍落在 callback waiting / approval 事实链；优先确认票据、回调和自动 resume 是否正在推进。"
+      })
+    : buildCallbackWaitingAutomationFollowUpCandidate(callbackWaitingAutomation, "callback recovery");
+  const executionCandidate = executionFocusFollowUp?.trim()
+    ? buildOperatorRunDetailCandidate({
+        active: true,
+        runId,
+        label: "execution focus",
+        detail: executionFocusFollowUp,
+        fallbackDetail: executionSurfaceCopy.recommendedNextStepFallbackDetail
+      })
+    : buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness") ??
+      buildOperatorRunDetailCandidate({
+        active: Boolean(runId),
+        runId,
+        label: "execution focus",
+        detail: executionFocusFollowUp,
+        fallbackDetail: executionSurfaceCopy.recommendedNextStepFallbackDetail
+      });
 
   return buildOperatorRecommendedNextStep({
-    callback: buildOperatorInboxSliceCandidate({
-      active: Boolean(
-        (callbackWaitingFollowUp && callbackWaitingFollowUp.trim()) ||
-          canonicalFollowUp?.has_shared_callback_waiting_summary
-      ),
-      href: blockingInboxHref ?? approvalInboxHref ?? null,
-      label: blockingInboxHref ? "approval blocker" : "callback waiting",
-      detail: callbackWaitingFollowUp,
-      hrefLabel: blockingInboxHref
-        ? "open blocker inbox slice"
-        : approvalInboxHref
-          ? "open approval inbox slice"
-          : null,
-      fallbackDetail:
-        "当前 invocation 的下一步仍落在 callback waiting / approval 事实链；优先确认票据、回调和自动 resume 是否正在推进。"
-    }),
-    execution: buildOperatorRunDetailCandidate({
-      active: Boolean((executionFocusFollowUp && executionFocusFollowUp.trim()) || runId),
-      runId,
-      label: "execution focus",
-      detail: executionFocusFollowUp,
-      fallbackDetail: executionSurfaceCopy.recommendedNextStepFallbackDetail
-    }),
+    callback: callbackCandidate,
+    execution: executionCandidate,
     operatorFollowUp: canonicalFollowUp?.follow_up ?? null
   });
 }
