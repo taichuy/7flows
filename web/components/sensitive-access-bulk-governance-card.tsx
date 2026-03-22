@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React from "react";
 
 import { OperatorRunSampleCardList } from "@/components/operator-run-sample-card-list";
@@ -7,7 +8,9 @@ import type {
   SensitiveAccessBulkAction,
   SensitiveAccessBulkActionResult
 } from "@/lib/get-sensitive-access";
+import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
 import {
+  buildSensitiveAccessBulkRecommendedNextStep,
   buildSensitiveAccessBulkResultNarrative,
   buildSensitiveAccessBulkRunSampleCards
 } from "@/lib/sensitive-access-bulk-result-presenters";
@@ -44,9 +47,14 @@ export function SensitiveAccessBulkGovernanceCard({
   messageTone,
   onAction
 }: SensitiveAccessBulkGovernanceCardProps) {
+  const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
+  const recommendedNextStep = lastResult
+    ? buildSensitiveAccessBulkRecommendedNextStep(lastResult)
+    : null;
   const narrativeItems = lastResult ? buildSensitiveAccessBulkResultNarrative(lastResult) : [];
   const sampledRunCards = lastResult ? buildSensitiveAccessBulkRunSampleCards(lastResult) : [];
-  const hasStructuredResultSections = narrativeItems.length > 0 || sampledRunCards.length > 0;
+  const hasStructuredResultSections =
+    Boolean(recommendedNextStep) || narrativeItems.length > 0 || sampledRunCards.length > 0;
   const shouldShowMessage =
     Boolean(message) &&
     (isMutating || !lastResult || lastResult.status === "error" || !hasStructuredResultSections);
@@ -153,6 +161,21 @@ export function SensitiveAccessBulkGovernanceCard({
                   still blocked {lastResult.blockerStillBlockedCount}
                 </span>
               ) : null}
+            </div>
+          ) : null}
+
+          {recommendedNextStep ? (
+            <div className="binding-section">
+              <div className="starter-tag-row">
+                <span className="status-meta">{operatorSurfaceCopy.recommendedNextStepTitle}</span>
+                <span className="event-chip">{recommendedNextStep.label}</span>
+                {recommendedNextStep.href && recommendedNextStep.href_label ? (
+                  <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
+                    {recommendedNextStep.href_label}
+                  </Link>
+                ) : null}
+              </div>
+              <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
             </div>
           ) : null}
 

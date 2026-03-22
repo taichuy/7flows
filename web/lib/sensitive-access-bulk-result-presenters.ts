@@ -4,6 +4,11 @@ import type {
 } from "@/lib/get-sensitive-access";
 import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import {
+  buildOperatorRecommendedActionCandidate,
+  buildOperatorRecommendedNextStep,
+  type OperatorRecommendedNextStep
+} from "@/lib/operator-follow-up-presenters";
+import {
   buildOperatorRunSampleCards,
   type OperatorRunSampleCard
 } from "@/lib/operator-run-sample-cards";
@@ -15,12 +20,36 @@ export type SensitiveAccessBulkNarrativeItem = {
 
 export type SensitiveAccessBulkRunSampleCard = OperatorRunSampleCard;
 
+export function buildSensitiveAccessBulkRecommendedNextStep(
+  result: SensitiveAccessBulkActionResult
+): OperatorRecommendedNextStep | null {
+  const operatorFollowUp = normalizeExplanationText(result.runFollowUpExplanation, "follow_up");
+  const candidate = buildOperatorRecommendedActionCandidate({
+    action: result.runFollowUp?.recommendedAction ?? null,
+    detail: operatorFollowUp,
+    fallbackDetail:
+      "本次批量治理已经回接 canonical run follow-up；优先按推荐入口继续查看受影响 run 或 inbox slice。"
+  });
+
+  if (!candidate) {
+    return null;
+  }
+
+  return buildOperatorRecommendedNextStep({
+    execution: candidate,
+    operatorFollowUp,
+    operatorLabel: "bulk follow-up"
+  });
+}
+
 export function buildSensitiveAccessBulkResultNarrative(
   result: SensitiveAccessBulkActionResult
 ): SensitiveAccessBulkNarrativeItem[] {
   const items: SensitiveAccessBulkNarrativeItem[] = [];
   const seenTexts = new Set<string>();
   const sharedCallbackSummaryTexts = collectSharedCallbackSummaryTexts(result);
+  const recommendedNextStep = buildSensitiveAccessBulkRecommendedNextStep(result);
+  const deferredTexts = new Set(sharedCallbackSummaryTexts);
   const outcomePrimarySignal = normalizeExplanationText(result.outcomeExplanation, "primary_signal");
   const outcomeFollowUp = normalizeExplanationText(result.outcomeExplanation, "follow_up");
   const blockerDeltaSummary = result.blockerDeltaSummary?.trim() || null;
@@ -30,17 +59,23 @@ export function buildSensitiveAccessBulkResultNarrative(
   );
   const runFollowUpFollowUp = normalizeExplanationText(result.runFollowUpExplanation, "follow_up");
 
-  pushNarrativeItem(items, seenTexts, sharedCallbackSummaryTexts, "Primary signal", outcomePrimarySignal);
-  pushNarrativeItem(items, seenTexts, sharedCallbackSummaryTexts, "Follow-up", outcomeFollowUp);
-  pushNarrativeItem(items, seenTexts, sharedCallbackSummaryTexts, "Blocker delta", blockerDeltaSummary);
+  if (recommendedNextStep?.detail) {
+    deferredTexts.add(recommendedNextStep.detail);
+  }
+
+  pushNarrativeItem(items, seenTexts, deferredTexts, "Primary signal", outcomePrimarySignal);
+  pushNarrativeItem(items, seenTexts, deferredTexts, "Follow-up", outcomeFollowUp);
+  pushNarrativeItem(items, seenTexts, deferredTexts, "Blocker delta", blockerDeltaSummary);
   pushNarrativeItem(
     items,
     seenTexts,
-    sharedCallbackSummaryTexts,
+    deferredTexts,
     "Run follow-up",
     runFollowUpPrimarySignal
   );
-  pushNarrativeItem(items, seenTexts, sharedCallbackSummaryTexts, "Next step", runFollowUpFollowUp);
+  if (!recommendedNextStep) {
+    pushNarrativeItem(items, seenTexts, deferredTexts, "Next step", runFollowUpFollowUp);
+  }
 
   return items;
 }

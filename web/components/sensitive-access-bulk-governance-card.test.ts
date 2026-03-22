@@ -171,6 +171,73 @@ describe("SensitiveAccessBulkGovernanceCard", () => {
     expect(html).toContain("/runs/run-waiting-1");
   });
 
+  it("renders stable recommended next step from bulk run follow-up instead of duplicating narrative follow_up", () => {
+    const followUp = "先回到 workflow library 处理强隔离配置。";
+    const lastResult: SensitiveAccessBulkActionResult = {
+      action: "approved",
+      status: "success",
+      message: `批量批准已提交；${followUp}`,
+      runFollowUpExplanation: {
+        primary_signal: "1 个 run 已切回 workflow library 治理。",
+        follow_up: followUp
+      },
+      runFollowUp: {
+        affectedRunCount: 1,
+        sampledRunCount: 0,
+        waitingRunCount: 0,
+        runningRunCount: 1,
+        succeededRunCount: 0,
+        failedRunCount: 0,
+        unknownRunCount: 0,
+        recommendedAction: {
+          kind: "open_workflow_library",
+          entryKey: "workflowLibrary",
+          href: "/workflows?execution=sandbox",
+          label: "Open workflow library"
+        },
+        sampledRuns: []
+      },
+      requestedCount: 1,
+      updatedCount: 1,
+      skippedCount: 0,
+      skippedReasonSummary: [],
+      affectedRunCount: 1,
+      sampledRunCount: 0,
+      waitingRunCount: 0,
+      runningRunCount: 1,
+      succeededRunCount: 0,
+      failedRunCount: 0,
+      unknownRunCount: 0,
+      blockerSampleCount: 0,
+      blockerChangedCount: 0,
+      blockerClearedCount: 0,
+      blockerFullyClearedCount: 0,
+      blockerStillBlockedCount: 0
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessBulkGovernanceCard, {
+        inScopeCount: 1,
+        decisionCandidateCount: 1,
+        retryCandidateCount: 0,
+        operatorValue: "ops-reviewer",
+        onOperatorChange: () => {},
+        isMutating: false,
+        lastResult,
+        message: lastResult.message,
+        messageTone: "success",
+        onAction: () => {}
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("Open workflow library");
+    expect(html).toContain('/workflows?execution=sandbox');
+    expect(html.match(new RegExp(followUp, "g"))?.length ?? 0).toBe(1);
+    expect(html).not.toContain("<strong>Next step：</strong>");
+    expect(html).not.toContain(lastResult.message);
+  });
+
   it("defers duplicated bulk follow-up copy to the shared callback waiting summary", () => {
     const followUp = "优先观察定时恢复是否已重新排队。";
     const message = `批量重试已提交；${followUp}`;

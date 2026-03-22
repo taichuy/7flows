@@ -269,6 +269,7 @@ export type SensitiveAccessBulkActionResult = {
   message: string;
   outcomeExplanation?: SignalFollowUpExplanation | null;
   runFollowUpExplanation?: SignalFollowUpExplanation | null;
+  runFollowUp?: NonNullable<ReturnType<typeof normalizeOperatorRunFollowUp>> | null;
   blockerDeltaSummary?: string | null;
   requestedCount: number;
   updatedCount: number;

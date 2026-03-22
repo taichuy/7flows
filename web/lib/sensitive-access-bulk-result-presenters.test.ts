@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import type { SensitiveAccessBulkActionResult } from "@/lib/get-sensitive-access";
 import {
+  buildSensitiveAccessBulkRecommendedNextStep,
   buildSensitiveAccessBulkResultNarrative,
   buildSensitiveAccessBulkRunSampleCards
 } from "./sensitive-access-bulk-result-presenters";
@@ -138,6 +140,60 @@ describe("buildSensitiveAccessBulkResultNarrative", () => {
         text: "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。"
       }
     ]);
+  });
+
+  it("已有稳定 recommended_action 时，不再把 follow_up 继续投影成 narrative next step", () => {
+    const result: SensitiveAccessBulkActionResult = {
+      action: "approved",
+      status: "success",
+      message: "fallback",
+      runFollowUpExplanation: {
+        primary_signal: "1 个 run 已切回 workflow library 治理。",
+        follow_up: "先回到 workflow library 处理强隔离配置。"
+      },
+      runFollowUp: {
+        affectedRunCount: 1,
+        sampledRunCount: 0,
+        waitingRunCount: 0,
+        runningRunCount: 1,
+        succeededRunCount: 0,
+        failedRunCount: 0,
+        unknownRunCount: 0,
+        recommendedAction: {
+          kind: "open_workflow_library",
+          entryKey: "workflowLibrary",
+          href: "/workflows?execution=sandbox",
+          label: "Open workflow library"
+        },
+        sampledRuns: []
+      },
+      requestedCount: 1,
+      updatedCount: 1,
+      skippedCount: 0,
+      skippedReasonSummary: [],
+      affectedRunCount: 1,
+      sampledRunCount: 0,
+      waitingRunCount: 0,
+      runningRunCount: 1,
+      succeededRunCount: 0,
+      failedRunCount: 0,
+      unknownRunCount: 0,
+      blockerSampleCount: 0,
+      blockerChangedCount: 0,
+      blockerClearedCount: 0,
+      blockerFullyClearedCount: 0,
+      blockerStillBlockedCount: 0
+    };
+
+    expect(buildSensitiveAccessBulkResultNarrative(result)).toEqual([
+      { label: "Run follow-up", text: "1 个 run 已切回 workflow library 治理。" }
+    ]);
+    expect(buildSensitiveAccessBulkRecommendedNextStep(result)).toEqual({
+      label: "open_workflow_library",
+      detail: "先回到 workflow library 处理强隔离配置。",
+      href: "/workflows?execution=sandbox",
+      href_label: "Open workflow library"
+    });
   });
 
   it("把 sampled run snapshot 转成可渲染的 focus evidence 卡片模型", () => {
