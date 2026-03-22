@@ -198,6 +198,7 @@ class PluginCallProxy:
             duration_ms=int(
                 body.get("durationMs") or int((time.perf_counter() - started_at) * 1000)
             ),
+            meta=self._build_adapter_response_meta(body),
         )
 
     def _invoke_adapter_tool_via_sandbox(
@@ -321,6 +322,15 @@ class PluginCallProxy:
             logs.append(sandbox_response.stderr)
 
         meta = dict(body.get("meta") or {})
+        request_meta = PluginCallProxy._normalize_request_meta(
+            body.get("requestMeta")
+            or body.get("request_meta")
+            or meta.get("request_meta")
+            or meta.get("requestMeta")
+        )
+        if request_meta is not None:
+            meta["request_meta"] = request_meta
+            meta.pop("requestMeta", None)
         meta.setdefault("sandbox_backend_id", sandbox_response.backend_id)
         meta.setdefault("sandbox_backend_executor_ref", sandbox_response.executor_ref)
         meta.setdefault(
@@ -358,6 +368,45 @@ class PluginCallProxy:
         if not isinstance(value, str):
             return None
         normalized = value.strip()
+        return normalized or None
+
+    @staticmethod
+    def _build_adapter_response_meta(body: object) -> dict[str, object]:
+        if not isinstance(body, dict):
+            return {}
+
+        meta = dict(body.get("meta") or {})
+        request_meta = PluginCallProxy._normalize_request_meta(
+            body.get("requestMeta")
+            or body.get("request_meta")
+            or meta.get("request_meta")
+            or meta.get("requestMeta")
+        )
+        if request_meta is not None:
+            meta["request_meta"] = request_meta
+            meta.pop("requestMeta", None)
+        return meta
+
+    @staticmethod
+    def _normalize_request_meta(value: object) -> dict[str, object] | None:
+        if not isinstance(value, dict):
+            return None
+
+        normalized: dict[str, object] = {}
+        trace_id = PluginCallProxy._normalize_optional_string(
+            value.get("trace_id") or value.get("traceId")
+        )
+        if trace_id is not None:
+            normalized["trace_id"] = trace_id
+
+        execution = value.get("execution")
+        if isinstance(execution, dict) and execution:
+            normalized["execution"] = dict(execution)
+
+        execution_contract = value.get("execution_contract") or value.get("executionContract")
+        if isinstance(execution_contract, dict) and execution_contract:
+            normalized["execution_contract"] = dict(execution_contract)
+
         return normalized or None
 
     @staticmethod

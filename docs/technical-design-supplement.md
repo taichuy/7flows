@@ -1523,7 +1523,7 @@ Tool Gateway 至少负责：
 
 - Tool Gateway 在解析出统一 `ResolvedExecutionPolicy` 后，应把标准化 `execution` payload（`class / source / profile / timeoutMs / networkPolicy / filesystemPolicy`）连同 `traceId` 一起透传给当前真正可执行的 compat adapter `/invoke` 请求，而不是只在 7Flows 内部 trace / artifact 中可见。
 - **当前共享事实**：compat adapter 与 native tool 的 `sandbox / microvm` 请求在 sandbox backend 声明 `supports_tool_execution` 后，都不会再继续透传到原始 host invoker / adapter `/invoke`，而是统一改走 sandbox-backed tool runner；只有 runner capability 不满足时才按同一条事实链 `fail-closed`。
-- **当前共享事实**：sandbox-backed tool runner 返回的 normalized result `summary / content_type / raw_ref / meta` 已继续接回 runtime tool fact chain；`tool_call_records`、run view 序列化与 diagnostics UI 现在都会保留并暴露这组响应事实，减少 native / compat / callback 路径在 operator 视角的再次分叉。
+- **当前共享事实**：sandbox-backed tool runner 返回的 normalized result `summary / content_type / raw_ref / meta` 已继续接回 runtime tool fact chain；compat adapter `/invoke` 回执里的 `requestMeta` 也会继续落回 `tool_call_records.response_meta` 与 run execution trace，方便 operator 在 diagnostics 里核对 adapter 实际收到的 `traceId / execution / executionContract`，减少 native / compat / callback 路径在 operator 视角的再次分叉。
 - **当前共享事实**：单 run operator action 的后端返回面已继续收口到 compact `run_snapshot` 共享契约；手动恢复与 callback cleanup 现在都会直接返回包含 execution focus / callback waiting / artifact / raw_ref 摘要的 compact snapshot，前端优先消费同一份后端事实，不再默认额外回拉一次 `fetchRunSnapshot` 再做页面级兜底拼装。
 - **后续重点**：继续把 native / compat sandbox tool runner 的 payload contract、artifact / trace 语义和更多作者侧解释入口统一起来，避免两条工具路径在 UI 与治理面再次分叉。
 

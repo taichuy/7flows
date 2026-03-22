@@ -464,6 +464,48 @@ class ToolGateway:
                 sandbox_backend_executor_ref.strip()
             )
 
+        request_meta = response_meta.get("request_meta")
+        if isinstance(request_meta, dict):
+            adapter_request_trace_id = request_meta.get("trace_id") or request_meta.get(
+                "traceId"
+            )
+            if (
+                isinstance(adapter_request_trace_id, str)
+                and adapter_request_trace_id.strip()
+            ):
+                merged["adapter_request_trace_id"] = adapter_request_trace_id.strip()
+
+            adapter_request_execution = request_meta.get("execution")
+            if isinstance(adapter_request_execution, dict) and adapter_request_execution:
+                merged["adapter_request_execution"] = dict(adapter_request_execution)
+                adapter_request_execution_class = adapter_request_execution.get("class")
+                if (
+                    isinstance(adapter_request_execution_class, str)
+                    and adapter_request_execution_class.strip()
+                ):
+                    merged["adapter_request_execution_class"] = (
+                        adapter_request_execution_class.strip()
+                    )
+                adapter_request_execution_source = adapter_request_execution.get("source")
+                if (
+                    isinstance(adapter_request_execution_source, str)
+                    and adapter_request_execution_source.strip()
+                ):
+                    merged["adapter_request_execution_source"] = (
+                        adapter_request_execution_source.strip()
+                    )
+
+            adapter_request_execution_contract = request_meta.get(
+                "execution_contract"
+            ) or request_meta.get("executionContract")
+            if (
+                isinstance(adapter_request_execution_contract, dict)
+                and adapter_request_execution_contract
+            ):
+                merged["adapter_request_execution_contract"] = dict(
+                    adapter_request_execution_contract
+                )
+
         return merged
 
     def _build_sensitive_access_waiting_result(

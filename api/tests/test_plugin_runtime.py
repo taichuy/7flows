@@ -25,6 +25,7 @@ from app.services.sandbox_backends import (
     SandboxBackendRegistration,
     SandboxBackendRegistry,
 )
+from app.services.tool_gateway import ToolGateway
 
 
 class _StaticSandboxHealthChecker:
@@ -269,6 +270,11 @@ def test_plugin_call_proxy_invokes_compat_adapter() -> None:
                 "output": {"documents": ["doc-1"]},
                 "logs": ["adapter ok"],
                 "durationMs": 17,
+                "requestMeta": {
+                    "traceId": payload["traceId"],
+                    "execution": payload["execution"],
+                    "executionContract": payload["executionContract"],
+                },
             },
         )
 
@@ -297,6 +303,40 @@ def test_plugin_call_proxy_invokes_compat_adapter() -> None:
     assert response.output == {"documents": ["doc-1"]}
     assert response.logs == ["adapter ok"]
     assert response.duration_ms == 17
+    assert response.meta == {
+        "request_meta": {
+            "trace_id": "trace-compat",
+            "execution": {"class": "subprocess", "source": "default"},
+            "execution_contract": {
+                "irVersion": "2026-03-10",
+                "kind": "tool_execution",
+                "ecosystem": "compat:dify",
+                "toolId": "compat:dify:plugin:demo/search",
+                "inputContract": [
+                    {
+                        "name": "query",
+                        "required": True,
+                        "valueSource": "llm",
+                        "jsonSchema": {"type": "string"},
+                    },
+                    {
+                        "name": "limit",
+                        "required": False,
+                        "valueSource": "user",
+                        "jsonSchema": {"type": "number"},
+                    },
+                ],
+                "constraints": {
+                    "additionalProperties": False,
+                    "credentialFields": [],
+                    "fileFields": [],
+                    "llmFillableFields": ["query"],
+                    "userConfigFields": ["limit"],
+                },
+                "pluginMeta": {"origin": "dify"},
+            },
+        }
+    }
 
 
 def test_plugin_call_proxy_fail_closes_explicit_strong_isolation_for_compat_adapter() -> None:
@@ -1673,6 +1713,11 @@ def test_plugin_call_proxy_invokes_compat_adapter_via_sandbox_backend_when_suppo
                     "output": {"documents": ["doc-1"]},
                     "logs": ["sandbox tool runner invoked"],
                     "durationMs": 17,
+                    "requestMeta": {
+                        "traceId": payload["input"]["traceId"],
+                        "execution": payload["input"]["execution"],
+                        "executionContract": payload["input"]["executionContract"],
+                    },
                 },
             },
         )
@@ -1733,6 +1778,89 @@ def test_plugin_call_proxy_invokes_compat_adapter_via_sandbox_backend_when_suppo
     assert response.status == "success"
     assert response.output == {"documents": ["doc-1"]}
     assert response.logs == ["sandbox tool runner invoked"]
+    assert response.meta["request_meta"] == {
+        "trace_id": "trace-compat-sandbox",
+        "execution": {
+            "class": "microvm",
+            "source": "tool_call",
+            "profile": "compat-isolation",
+            "timeoutMs": 4000,
+            "networkPolicy": "isolated",
+            "filesystemPolicy": "ephemeral",
+            "sandboxBackend": {
+                "id": "sandbox-default",
+                "executorRef": "sandbox-backend:sandbox-default",
+            },
+        },
+        "execution_contract": {
+            "irVersion": "2026-03-10",
+            "kind": "tool_execution",
+            "ecosystem": "compat:dify",
+            "toolId": "compat:dify:plugin:demo/search",
+            "inputContract": [
+                {
+                    "name": "query",
+                    "required": True,
+                    "valueSource": "llm",
+                    "jsonSchema": {"type": "string"},
+                },
+                {
+                    "name": "limit",
+                    "required": False,
+                    "valueSource": "user",
+                    "jsonSchema": {"type": "number"},
+                },
+            ],
+            "constraints": {
+                "additionalProperties": False,
+                "credentialFields": [],
+                "fileFields": [],
+                "llmFillableFields": ["query"],
+                "userConfigFields": ["limit"],
+            },
+            "pluginMeta": {"origin": "dify"},
+        },
+    }
+
+
+def test_tool_gateway_merges_compat_adapter_request_meta_into_execution_trace() -> None:
+    merged = ToolGateway._merge_execution_trace_with_response_meta(
+        {
+            "requested_execution_class": "microvm",
+            "effective_execution_class": "microvm",
+            "execution_source": "tool_call",
+            "executor_ref": "tool:compat-adapter:dify-default",
+        },
+        {
+            "request_meta": {
+                "trace_id": "trace-compat-runtime",
+                "execution": {
+                    "class": "microvm",
+                    "source": "tool_call",
+                    "profile": "compat-isolation",
+                    "timeoutMs": 4000,
+                },
+                "execution_contract": {
+                    "kind": "tool_execution",
+                    "toolId": "compat:dify:plugin:demo/search-runtime",
+                },
+            }
+        },
+    )
+
+    assert merged["adapter_request_trace_id"] == "trace-compat-runtime"
+    assert merged["adapter_request_execution"] == {
+        "class": "microvm",
+        "source": "tool_call",
+        "profile": "compat-isolation",
+        "timeoutMs": 4000,
+    }
+    assert merged["adapter_request_execution_class"] == "microvm"
+    assert merged["adapter_request_execution_source"] == "tool_call"
+    assert merged["adapter_request_execution_contract"] == {
+        "kind": "tool_execution",
+        "toolId": "compat:dify:plugin:demo/search-runtime",
+    }
 
 
 def test_plugin_call_proxy_rejects_unsupported_contract_fields() -> None:

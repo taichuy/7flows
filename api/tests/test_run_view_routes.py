@@ -131,6 +131,19 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
                     "sandbox_backend_id": "sandbox-default",
                     "sandbox_backend_executor_ref": "sandbox-backend:sandbox-default",
                     "sandbox_runner_kind": "compat-adapter",
+                    "adapter_request_trace_id": "trace-compat-view",
+                    "adapter_request_execution": {
+                        "class": "sandbox",
+                        "source": "runtime_policy",
+                        "profile": "risk-reviewed",
+                        "timeoutMs": 3000,
+                    },
+                    "adapter_request_execution_class": "sandbox",
+                    "adapter_request_execution_source": "runtime_policy",
+                    "adapter_request_execution_contract": {
+                        "kind": "tool_execution",
+                        "toolId": "compat:dify:plugin/search",
+                    },
                     "fallback_reason": None,
                     "blocked_reason": None,
                 },
@@ -140,6 +153,19 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
                     "tool_name": "search",
                     "tool_id": "compat:dify:plugin/search",
                     "waiting_reason": "Waiting for external search callback.",
+                    "request_meta": {
+                        "trace_id": "trace-compat-view",
+                        "execution": {
+                            "class": "sandbox",
+                            "source": "runtime_policy",
+                            "profile": "risk-reviewed",
+                            "timeoutMs": 3000,
+                        },
+                        "execution_contract": {
+                            "kind": "tool_execution",
+                            "toolId": "compat:dify:plugin/search",
+                        },
+                    },
                     "sandbox_runner_trace": {"runner": "compat-adapter"},
                 },
                 raw_artifact_id="artifact-tool",
@@ -321,10 +347,15 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     assert body["run_follow_up"] is not None
     assert body["run_follow_up"]["affected_run_count"] == 1
     assert body["run_follow_up"]["sampled_run_count"] == 1
-    assert body["run_follow_up"]["sampled_runs"] == [
+    sampled_run = body["run_follow_up"]["sampled_runs"][0]
+    assert sampled_run["run_id"] == run.id
+    assert sampled_run["snapshot"] == body["run_snapshot"]
+    assert sampled_run["callback_tickets"] == body["execution_focus_node"]["callback_tickets"]
+    assert sampled_run["sensitive_access_entries"] == [
         {
-            "run_id": run.id,
-            "snapshot": body["run_snapshot"],
+            key: value
+            for key, value in body["execution_focus_node"]["sensitive_access_entries"][0].items()
+            if key not in {"run_snapshot", "run_follow_up"}
         }
     ]
     assert body["skill_trace"] is None
@@ -379,12 +410,35 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
         "tool_name": "search",
         "tool_id": "compat:dify:plugin/search",
         "waiting_reason": "Waiting for external search callback.",
+        "request_meta": {
+            "trace_id": "trace-compat-view",
+            "execution": {
+                "class": "sandbox",
+                "source": "runtime_policy",
+                "profile": "risk-reviewed",
+                "timeoutMs": 3000,
+            },
+            "execution_contract": {
+                "kind": "tool_execution",
+                "toolId": "compat:dify:plugin/search",
+            },
+        },
         "sandbox_runner_trace": {"runner": "compat-adapter"},
     }
     assert (
         node["tool_calls"][0]["execution_trace"]["executor_ref"]
         == "tool:compat-adapter:dify-default"
     )
+    assert (
+        node["tool_calls"][0]["execution_trace"]["adapter_request_trace_id"]
+        == "trace-compat-view"
+    )
+    assert node["tool_calls"][0]["execution_trace"]["adapter_request_execution"] == {
+        "class": "sandbox",
+        "source": "runtime_policy",
+        "profile": "risk-reviewed",
+        "timeoutMs": 3000,
+    }
     assert len(node["callback_tickets"]) == 1
     assert len(node["sensitive_access_entries"]) == 1
     assert node["callback_tickets"][0]["ticket"] == "ticket-agent"
@@ -508,10 +562,15 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     assert run_follow_up["succeeded_run_count"] == 0
     assert run_follow_up["failed_run_count"] == 0
     assert run_follow_up["unknown_run_count"] == 0
-    assert run_follow_up["sampled_runs"] == [
+    sampled_run = run_follow_up["sampled_runs"][0]
+    assert sampled_run["run_id"] == "run-execution-view"
+    assert sampled_run["snapshot"] == run_snapshot
+    assert sampled_run["callback_tickets"] == body["execution_focus_node"]["callback_tickets"]
+    assert sampled_run["sensitive_access_entries"] == [
         {
-            "run_id": "run-execution-view",
-            "snapshot": run_snapshot,
+            key: value
+            for key, value in body["execution_focus_node"]["sensitive_access_entries"][0].items()
+            if key not in {"run_snapshot", "run_follow_up"}
         }
     ]
     assert run_follow_up["explanation"] == {
