@@ -27,6 +27,10 @@ import {
   formatOperatorOpenRunLinkLabel
 } from "@/lib/operator-follow-up-presenters";
 import {
+  buildOperatorRunFollowUpSampleInboxContext,
+  resolveOperatorRunFollowUpSample
+} from "@/lib/operator-run-follow-up-samples";
+import {
   resolveSensitiveAccessTimelineEntryRunContext
 } from "@/lib/sensitive-access";
 import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
@@ -344,6 +348,39 @@ export function SensitiveAccessTimelineEntryList({
               inboxHref: inboxSliceHref,
               surfaceCopy: operatorSurfaceCopy
             });
+          const sampledFollowUp = resolveOperatorRunFollowUpSample(runContext.runFollowUp, runId);
+          const sampledSensitiveAccessEntry =
+            sampledFollowUp?.sensitiveAccessEntries?.find(
+              (sampledEntry) =>
+                Boolean(sampledEntry.approval_ticket?.node_run_id || sampledEntry.request.node_run_id)
+            ) ?? null;
+          const sampledCallbackContext =
+            runContext.runFollowUp?.recommendedAction == null
+              ? buildOperatorRunFollowUpSampleInboxContext({
+                  runFollowUp: runContext.runFollowUp,
+                  runId
+                })
+              : null;
+          const sampledCallbackRecommendedAction = sampledCallbackContext
+            ? {
+                kind: sampledCallbackContext.kind,
+                entry_key:
+                  sampledCallbackContext.kind === "approval blocker"
+                    ? "operatorInbox"
+                    : "callbackInbox",
+                href: sampledCallbackContext.href,
+                label: sampledCallbackContext.hrefLabel
+              }
+            : null;
+          const shouldPreferSampledCallbackContext = Boolean(
+            sampledCallbackContext &&
+              (canonicalCallbackRecommendedAction == null || sampledCallbackContext.href !== inboxSliceHref)
+          );
+          const callbackSummaryInboxHref = shouldPreferSampledCallbackContext
+            ? sampledCallbackContext?.href ?? inboxSliceHref
+            : inboxSliceHref;
+          const callbackSummaryCallbackTickets =
+            callbackTickets.length > 0 ? callbackTickets : sampledFollowUp?.callbackTickets ?? [];
           const shouldRenderCallbackWaitingSummary =
             shouldSurfaceCallbackWaitingSummary(entry) && !hasStructuredCallbackWaitingSummary;
           const hasStructuredOperatorFeedback = Boolean(
@@ -377,13 +414,17 @@ export function SensitiveAccessTimelineEntryList({
           const shouldRenderStandaloneRecommendedNextStep =
             !shouldRenderCallbackWaitingSummary && !hasStructuredOperatorFeedback && recommendedNextStep;
           const callbackWaitingSummaryProps: CallbackWaitingSummaryProps = {
-            inboxHref: inboxSliceHref,
-            callbackTickets,
+            inboxHref: callbackSummaryInboxHref,
+            callbackTickets: callbackSummaryCallbackTickets,
             callbackWaitingAutomation,
             sensitiveAccessEntries: [entry],
             suppressSensitiveAccessContextRows: true,
             showSensitiveAccessInlineActions: false,
-            recommendedAction: canonicalCallbackRecommendedAction,
+            recommendedAction:
+              runContext.runFollowUp?.recommendedAction ??
+              (shouldPreferSampledCallbackContext
+                ? sampledCallbackRecommendedAction
+                : canonicalCallbackRecommendedAction ?? sampledCallbackRecommendedAction),
             operatorFollowUp:
               runContext.runFollowUp?.explanation?.follow_up ??
               canonicalOutcomeExplanation?.follow_up ??
@@ -503,13 +544,25 @@ export function SensitiveAccessTimelineEntryList({
               {shouldRenderCallbackWaitingSummary ? (
                 <CallbackWaitingSummaryCard
                   callbackWaitingExplanation={entry.outcome_explanation ?? null}
-                  callbackTickets={callbackTickets}
+                  callbackTickets={callbackSummaryCallbackTickets}
                   callbackWaitingAutomation={callbackWaitingAutomation}
                   className="payload-card compact-card"
-                  inboxHref={inboxSliceHref}
-                  nodeRunId={nodeRunId}
+                  inboxHref={callbackSummaryInboxHref}
+                  nodeRunId={
+                    nodeRunId ??
+                    sampledFollowUp?.snapshot?.executionFocusNodeRunId ??
+                    sampledSensitiveAccessEntry?.approval_ticket?.node_run_id ??
+                    sampledSensitiveAccessEntry?.request.node_run_id ??
+                    sampledFollowUp?.callbackTickets?.[0]?.node_run_id ??
+                    null
+                  }
                   operatorFollowUp={runContext.runFollowUp?.explanation?.follow_up ?? null}
-                  recommendedAction={runContext.runFollowUp?.recommendedAction ?? null}
+                  recommendedAction={
+                    runContext.runFollowUp?.recommendedAction ??
+                    (shouldPreferSampledCallbackContext
+                      ? sampledCallbackRecommendedAction
+                      : canonicalCallbackRecommendedAction ?? sampledCallbackRecommendedAction)
+                  }
                   preferCanonicalRecommendedNextStep
                   runId={runId}
                   sensitiveAccessEntries={[entry]}

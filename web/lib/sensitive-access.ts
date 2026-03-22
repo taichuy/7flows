@@ -95,6 +95,8 @@ type SensitiveAccessBlockingPayloadBody = Omit<
         sampled_runs?: Array<{
           run_id?: string | null;
           snapshot?: OperatorRunSnapshotBody | OperatorRunSnapshotSummary | null;
+          callback_tickets?: unknown[] | null;
+          sensitive_access_entries?: SensitiveAccessTimelineEntry[] | null;
         }>;
       })
     | null;
@@ -227,7 +229,11 @@ export function normalizeSensitiveAccessRunFollowUp(
       sampledRuns: Array.isArray(normalizedSummary.sampledRuns)
         ? normalizedSummary.sampledRuns.map((item) => ({
             runId: typeof item?.runId === "string" ? item.runId : "",
-            snapshot: normalizeBlockingRunSnapshot(item?.snapshot ?? null)
+            snapshot: normalizeBlockingRunSnapshot(item?.snapshot ?? null),
+            callbackTickets: Array.isArray(item?.callbackTickets) ? item.callbackTickets : [],
+            sensitiveAccessEntries: Array.isArray(item?.sensitiveAccessEntries)
+              ? item.sensitiveAccessEntries
+              : []
           }))
         : []
     };
@@ -249,7 +255,11 @@ export function normalizeSensitiveAccessRunFollowUp(
             .filter((item) => typeof item?.run_id === "string" && item.run_id.trim())
             .map((item) => ({
               runId: item.run_id,
-              snapshot: normalizeBlockingRunSnapshot(item.snapshot ?? null)
+              snapshot: normalizeBlockingRunSnapshot(item.snapshot ?? null),
+              callbackTickets: Array.isArray(item.callback_tickets) ? item.callback_tickets : [],
+              sensitiveAccessEntries: Array.isArray(item.sensitive_access_entries)
+                ? item.sensitive_access_entries
+                : []
             }))
         : normalized.sampledRuns,
       explanation: normalizeSignalFollowUpExplanation(summary.explanation ?? null)

@@ -7,6 +7,7 @@ import {
 } from "@/app/actions/run-snapshot";
 import type {
   CallbackWaitingLifecycleSummary,
+  RunCallbackTicketItem,
   SkillReferenceLoadItem
 } from "@/lib/get-run-views";
 import {
@@ -217,6 +218,8 @@ export type SensitiveAccessTimelineEntry = {
     sampled_runs: Array<{
       run_id: string;
       snapshot?: OperatorRunSnapshotSummary | null;
+      callback_tickets?: RunCallbackTicketItem[];
+      sensitive_access_entries?: SensitiveAccessTimelineEntry[];
     }>;
     explanation?: SignalFollowUpExplanation | null;
   } | null;

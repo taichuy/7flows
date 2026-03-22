@@ -204,6 +204,156 @@ describe("SensitiveAccessTimelineEntryList", () => {
     expect(callbackSummaryProps[0]?.showInlineActions).toBe(false);
   });
 
+  it("restores sampled approval inbox CTA for the shared callback summary when direct ticket scope is missing", () => {
+    const entry = buildEntry();
+    const sampledEntry = buildEntry();
+    sampledEntry.request = {
+      ...sampledEntry.request,
+      id: "request-sampled-approval",
+      run_id: "run-sampled-approval",
+      node_run_id: "node-run-sampled-approval"
+    };
+    sampledEntry.approval_ticket = {
+      ...sampledEntry.approval_ticket!,
+      id: "ticket-sampled-approval",
+      access_request_id: "request-sampled-approval",
+      run_id: "run-sampled-approval",
+      node_run_id: "node-run-sampled-approval"
+    };
+
+    renderToStaticMarkup(
+      createElement(SensitiveAccessTimelineEntryList, {
+        entries: [
+          {
+            ...entry,
+            request: {
+              ...entry.request,
+              run_id: null,
+              node_run_id: null
+            },
+            approval_ticket: {
+              ...entry.approval_ticket!,
+              run_id: null,
+              node_run_id: null
+            },
+            run_follow_up: {
+              ...entry.run_follow_up!,
+              recommended_action: null,
+              sampled_runs: [
+                {
+                  run_id: "run-sampled-approval",
+                  snapshot: null,
+                  callback_tickets: [],
+                  sensitive_access_entries: [sampledEntry]
+                }
+              ]
+            }
+          }
+        ],
+        emptyCopy: "no entries",
+        callbackTickets: []
+      })
+    );
+
+    expect(callbackSummaryProps).toHaveLength(1);
+    expect(callbackSummaryProps[0]?.runId).toBe("run-sampled-approval");
+    expect(callbackSummaryProps[0]?.nodeRunId).toBe("node-run-sampled-approval");
+    expect(callbackSummaryProps[0]?.inboxHref).toBe(
+      "/sensitive-access?status=pending&waiting_status=waiting&run_id=run-sampled-approval&node_run_id=node-run-sampled-approval&access_request_id=request-sampled-approval&approval_ticket_id=ticket-sampled-approval"
+    );
+    expect(callbackSummaryProps[0]?.recommendedAction).toMatchObject({
+      kind: "approval blocker",
+      entry_key: "operatorInbox",
+      href:
+        "/sensitive-access?status=pending&waiting_status=waiting&run_id=run-sampled-approval&node_run_id=node-run-sampled-approval&access_request_id=request-sampled-approval&approval_ticket_id=ticket-sampled-approval"
+    });
+  });
+
+  it("restores sampled callback inbox CTA and tickets for the shared callback summary when local callback facts are missing", () => {
+    const entry = buildEntry();
+
+    renderToStaticMarkup(
+      createElement(SensitiveAccessTimelineEntryList, {
+        entries: [
+          {
+            ...entry,
+            request: {
+              ...entry.request,
+              decision: "allow",
+              decision_label: "allow",
+              reason_code: "sensitive_access_allowed",
+              reason_label: "允许",
+              run_id: null,
+              node_run_id: null
+            },
+            approval_ticket: {
+              ...entry.approval_ticket!,
+              status: "expired",
+              waiting_status: "waiting",
+              run_id: null,
+              node_run_id: null
+            },
+            outcome_explanation: {
+              primary_signal: "当前 waiting 链路仍依赖 sampled callback ticket。",
+              follow_up: "先看 sampled callback inbox，再判断是否需要人工恢复。"
+            },
+            run_follow_up: {
+              ...entry.run_follow_up!,
+              recommended_action: null,
+              explanation: {
+                primary_signal: "本次影响 1 个 run；sampled callback ticket 仍在等待回调。",
+                follow_up: "先看 sampled callback inbox，再判断是否需要人工恢复。"
+              },
+              sampled_runs: [
+                {
+                  run_id: "run-sampled-callback",
+                  snapshot: null,
+                  callback_tickets: [
+                    {
+                      ticket: "callback-ticket-1",
+                      run_id: "run-sampled-callback",
+                      node_run_id: "node-run-sampled-callback",
+                      status: "pending",
+                      waiting_status: "waiting",
+                      tool_call_index: 0,
+                      created_at: "2026-03-20T10:00:00Z"
+                    }
+                  ],
+                  sensitive_access_entries: []
+                }
+              ]
+            }
+          }
+        ],
+        emptyCopy: "no entries",
+        callbackTickets: []
+      })
+    );
+
+    expect(callbackSummaryProps).toHaveLength(1);
+    expect(callbackSummaryProps[0]?.runId).toBe("run-sampled-callback");
+    expect(callbackSummaryProps[0]?.nodeRunId).toBe("node-run-sampled-callback");
+    expect(callbackSummaryProps[0]?.inboxHref).toBe(
+      "/sensitive-access?run_id=run-sampled-callback&node_run_id=node-run-sampled-callback"
+    );
+    expect(callbackSummaryProps[0]?.callbackTickets).toEqual([
+      {
+        ticket: "callback-ticket-1",
+        run_id: "run-sampled-callback",
+        node_run_id: "node-run-sampled-callback",
+        status: "pending",
+        waiting_status: "waiting",
+        tool_call_index: 0,
+        created_at: "2026-03-20T10:00:00Z"
+      }
+    ]);
+    expect(callbackSummaryProps[0]?.recommendedAction).toMatchObject({
+      kind: "callback waiting",
+      entry_key: "callbackInbox",
+      href: "/sensitive-access?run_id=run-sampled-callback&node_run_id=node-run-sampled-callback"
+    });
+  });
+
   it("passes sensitive-access callback context into inline feedback when run snapshot already carries callback waiting facts", () => {
     const entry = buildEntry();
     const callbackTickets = [

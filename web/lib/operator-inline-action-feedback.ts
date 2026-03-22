@@ -1,12 +1,14 @@
 import type { OperatorRunFollowUpSummary, RunSnapshot } from "@/app/actions/run-snapshot";
-import { buildCallbackTicketInboxHref } from "@/lib/callback-ticket-links";
 import type {
   RunArtifactItem,
   RunExecutionNodeItem,
   SkillReferenceLoadItem,
   ToolCallItem
 } from "@/lib/get-run-views";
-import { buildSensitiveAccessTimelineInboxHref } from "@/lib/sensitive-access-links";
+import {
+  buildOperatorRunFollowUpSampleInboxContext,
+  type OperatorRunFollowUpSampleInboxContext
+} from "@/lib/operator-run-follow-up-samples";
 import {
   formatExecutionFocusArtifactSummary,
   listExecutionFocusToolCallSummaries,
@@ -53,11 +55,7 @@ export type OperatorInlineActionFeedbackModel = {
   focusSkillReferenceLoads: SkillReferenceLoadItem[];
 };
 
-export type OperatorInlineActionSampleInboxContext = {
-  kind: "approval blocker" | "callback waiting";
-  href: string;
-  hrefLabel: string | null;
-};
+export type OperatorInlineActionSampleInboxContext = OperatorRunFollowUpSampleInboxContext;
 
 export type OperatorInlineFocusArtifactPreview = {
   key: string;
@@ -72,62 +70,8 @@ function normalizeText(value?: string | null) {
   return normalized ? normalized : null;
 }
 
-function resolveOperatorInlineActionSample(
-  runFollowUp?: OperatorRunFollowUpSummary | null,
-  runId?: string | null
-) {
-  const sampledRuns = runFollowUp?.sampledRuns ?? [];
-  if (sampledRuns.length === 0) {
-    return null;
-  }
-
-  const normalizedRunId = normalizeText(runId);
-  if (!normalizedRunId) {
-    return sampledRuns[0] ?? null;
-  }
-
-  return sampledRuns.find((sample) => normalizeText(sample.runId) === normalizedRunId) ?? sampledRuns[0] ?? null;
-}
-
-export function buildOperatorInlineActionSampleInboxContext({
-  runFollowUp,
-  runId
-}: {
-  runFollowUp?: OperatorRunFollowUpSummary | null;
-  runId?: string | null;
-}): OperatorInlineActionSampleInboxContext | null {
-  const sample = resolveOperatorInlineActionSample(runFollowUp, runId);
-  if (!sample) {
-    return null;
-  }
-
-  const approvalEntry = sample.sensitiveAccessEntries?.find((entry) => entry.approval_ticket) ?? null;
-  if (approvalEntry) {
-    return {
-      kind: "approval blocker",
-      href: buildSensitiveAccessTimelineInboxHref(approvalEntry, sample.runId),
-      hrefLabel: "open approval inbox slice"
-    };
-  }
-
-  const callbackTicket = sample.callbackTickets?.[0] ?? null;
-  if (!callbackTicket) {
-    return null;
-  }
-
-  const href = buildCallbackTicketInboxHref(callbackTicket, {
-    runId: sample.runId,
-    nodeRunId: callbackTicket.node_run_id ?? sample.snapshot?.executionFocusNodeRunId ?? null
-  });
-
-  return href
-    ? {
-        kind: "callback waiting",
-        href,
-        hrefLabel: null
-      }
-    : null;
-}
+export const buildOperatorInlineActionSampleInboxContext =
+  buildOperatorRunFollowUpSampleInboxContext;
 
 function buildExecutionFocusArtifactSamples(
   runSnapshot?: RunSnapshot | null

@@ -6,6 +6,7 @@ import {
   resolveSensitiveAccessCanonicalRunSnapshot,
   type SensitiveAccessBlockingPayload
 } from "@/lib/sensitive-access";
+import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 
 type RawBlockingPayload = Omit<
   SensitiveAccessBlockingPayload,
@@ -42,6 +43,16 @@ type RawBlockingPayload = Omit<
         execution_focus_node_run_id: string;
         execution_focus_node_name: string;
       };
+      callback_tickets?: Array<{
+        ticket: string;
+        run_id: string;
+        node_run_id: string;
+        status: string;
+        waiting_status: string;
+        tool_call_index: number;
+        created_at: string;
+      }>;
+      sensitive_access_entries?: SensitiveAccessTimelineEntry[];
     }>;
   };
 };
@@ -122,7 +133,65 @@ function buildBlockingPayload(): RawBlockingPayload {
             execution_focus_node_id: "mock_tool",
             execution_focus_node_run_id: "node-run-1",
             execution_focus_node_name: "Mock Tool"
-          }
+          },
+          callback_tickets: [
+            {
+              ticket: "callback-ticket-1",
+              run_id: "run-1",
+              node_run_id: "node-run-1",
+              status: "pending",
+              waiting_status: "waiting",
+              tool_call_index: 0,
+              created_at: "2026-03-20T10:00:00Z"
+            }
+          ],
+          sensitive_access_entries: [
+            {
+              request: {
+                id: "request-1",
+                run_id: "run-1",
+                node_run_id: "node-run-1",
+                requester_type: "human",
+                requester_id: "ops-debugger",
+                resource_id: "resource-1",
+                action_type: "export",
+                purpose_text: "export trace",
+                decision: "require_approval",
+                decision_label: "Require approval",
+                reason_code: "policy_requires_approval",
+                reason_label: "Policy requires approval",
+                policy_summary: "Sensitive trace export requires approval.",
+                created_at: "2026-03-20T10:00:00Z",
+                decided_at: null
+              },
+              resource: {
+                id: "resource-1",
+                label: "Trace Export",
+                description: "Sensitive trace export",
+                sensitivity_level: "L2",
+                source: "workspace_resource",
+                metadata: {},
+                created_at: "2026-03-20T09:00:00Z",
+                updated_at: "2026-03-20T09:00:00Z"
+              },
+              approval_ticket: {
+                id: "ticket-1",
+                access_request_id: "request-1",
+                run_id: "run-1",
+                node_run_id: "node-run-1",
+                status: "pending",
+                waiting_status: "waiting",
+                approved_by: null,
+                decided_at: null,
+                expires_at: "2026-03-20T10:30:00Z",
+                created_at: "2026-03-20T10:00:00Z"
+              },
+              notifications: [],
+              outcome_explanation: null,
+              run_snapshot: null,
+              run_follow_up: null
+            }
+          ]
         }
       ]
     }
@@ -151,6 +220,8 @@ describe("parseSensitiveAccessBlockingResponse", () => {
     expect(parsed?.payload.run_follow_up?.sampledRuns[0]?.snapshot?.currentNodeId).toBe(
       "mock_tool"
     );
+    expect(parsed?.payload.run_follow_up?.sampledRuns[0]?.callbackTickets).toHaveLength(1);
+    expect(parsed?.payload.run_follow_up?.sampledRuns[0]?.sensitiveAccessEntries).toHaveLength(1);
   });
 
   it("parses denied 403 payloads through the guarded response helper", async () => {

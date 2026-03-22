@@ -13,10 +13,11 @@ import { buildRunDiagnosticsOperatorFollowUpSurfaceCopy } from "@/lib/workbench-
 type CallbackSummaryMockProps = {
   waitingReason?: string | null;
   nodeRunId?: string | null;
-  callbackTickets?: Array<{ id?: string | null }>;
+  callbackTickets?: Array<{ id?: string | null; ticket?: string | null }>;
   sensitiveAccessEntries?: Array<{ request?: { id?: string | null } | null }>;
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   inboxHref?: string | null;
+  recommendedAction?: { kind?: string | null; href?: string | null; label?: string | null } | null;
   preferCanonicalRecommendedNextStep?: boolean;
 };
 
@@ -398,6 +399,102 @@ describe("RunDiagnosticsOperatorFollowUpCard", () => {
       ],
       inboxHref:
         "/sensitive-access?status=pending&waiting_status=waiting&run_id=run-123&node_run_id=node-run-1&access_request_id=access-request-1&approval_ticket_id=approval-ticket-1",
+      preferCanonicalRecommendedNextStep: true
+    });
+  });
+
+  it("recovers sampled approval blocker CTA when diagnostics follow-up omitted the top-level action", () => {
+    const executionView = buildExecutionView();
+    executionView.execution_focus_node = null;
+    if (executionView.run_follow_up) {
+      executionView.run_follow_up.recommended_action = null;
+      executionView.run_follow_up.sampled_runs = [
+        {
+          run_id: "run-123",
+          snapshot: null,
+          callback_tickets: [
+            {
+              ticket: "callback-ticket-1",
+              run_id: "run-123",
+              node_run_id: "node-run-1",
+              tool_call_index: 0,
+              waiting_status: "waiting",
+              status: "pending",
+              created_at: "2026-03-21T10:00:00Z"
+            }
+          ],
+          sensitive_access_entries: [
+            {
+              request: {
+                id: "access-request-1",
+                run_id: "run-123",
+                node_run_id: "node-run-1",
+                requester_type: "workflow",
+                requester_id: "workflow-run",
+                resource_id: "resource-1",
+                action_type: "read",
+                created_at: "2026-03-21T10:00:00Z"
+              },
+              resource: {
+                id: "resource-1",
+                label: "Sandbox secret",
+                sensitivity_level: "L2",
+                source: "workflow_context",
+                metadata: {},
+                created_at: "2026-03-21T10:00:00Z",
+                updated_at: "2026-03-21T10:00:00Z"
+              },
+              approval_ticket: {
+                id: "approval-ticket-1",
+                access_request_id: "access-request-1",
+                status: "pending",
+                waiting_status: "waiting",
+                node_run_id: "node-run-1",
+                created_at: "2026-03-21T10:00:00Z"
+              },
+              notifications: []
+            }
+          ]
+        }
+      ];
+    }
+
+    const html = renderToStaticMarkup(
+      createElement(RunDiagnosticsOperatorFollowUpCard, {
+        executionView,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: null
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("open approval inbox slice");
+    expect(html).toContain(
+      'href="/sensitive-access?status=pending&amp;waiting_status=waiting&amp;run_id=run-123&amp;node_run_id=node-run-1&amp;access_request_id=access-request-1&amp;approval_ticket_id=approval-ticket-1"'
+    );
+    expect(callbackSummaryMock).toHaveBeenCalled();
+    expect(callbackSummaryMock.mock.calls[0]?.[0]).toMatchObject({
+      callbackTickets: [
+        expect.objectContaining({
+          ticket: "callback-ticket-1"
+        })
+      ],
+      sensitiveAccessEntries: [
+        expect.objectContaining({
+          request: expect.objectContaining({
+            id: "access-request-1"
+          })
+        })
+      ],
+      inboxHref:
+        "/sensitive-access?status=pending&waiting_status=waiting&run_id=run-123&node_run_id=node-run-1&access_request_id=access-request-1&approval_ticket_id=approval-ticket-1",
+      recommendedAction: expect.objectContaining({
+        kind: "approval blocker",
+        href:
+          "/sensitive-access?status=pending&waiting_status=waiting&run_id=run-123&node_run_id=node-run-1&access_request_id=access-request-1&approval_ticket_id=approval-ticket-1",
+        label: "open approval inbox slice"
+      }),
       preferCanonicalRecommendedNextStep: true
     });
   });

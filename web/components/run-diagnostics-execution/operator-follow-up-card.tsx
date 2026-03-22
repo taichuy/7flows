@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 
+import { normalizeOperatorRunFollowUp } from "@/app/actions/run-snapshot";
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
@@ -15,8 +16,13 @@ import {
   buildSharedOrLocalOperatorCandidate,
   buildOperatorRecommendedNextStep,
   buildOperatorRunSnapshotMetaRows,
-  buildOperatorFollowUpSurfaceCopy
+  buildOperatorFollowUpSurfaceCopy,
+  type OperatorRecommendedActionLike
 } from "@/lib/operator-follow-up-presenters";
+import {
+  buildOperatorRunFollowUpSampleInboxContext,
+  resolveOperatorRunFollowUpSample
+} from "@/lib/operator-run-follow-up-samples";
 import {
   buildCallbackWaitingAutomationFollowUpCandidate,
   buildSandboxReadinessFollowUpCandidate,
@@ -47,6 +53,7 @@ export function RunDiagnosticsOperatorFollowUpCard({
 }: RunDiagnosticsOperatorFollowUpCardProps) {
   const snapshot = executionView.run_snapshot;
   const followUp = executionView.run_follow_up;
+  const normalizedRunFollowUp = normalizeOperatorRunFollowUp(followUp ?? null);
 
   if (!snapshot && !followUp?.explanation && !executionView.execution_focus_explanation) {
     return null;
@@ -89,6 +96,28 @@ export function RunDiagnosticsOperatorFollowUpCard({
     scope: "callback",
     surfaceCopy
   });
+  const sampledCallbackContext =
+    sharedCallbackCandidate || canonicalCallbackCandidate
+      ? null
+      : buildOperatorRunFollowUpSampleInboxContext({
+          runFollowUp: normalizedRunFollowUp,
+          runId: executionView.run_id
+        });
+  const sampledCallbackAction: OperatorRecommendedActionLike | null = sampledCallbackContext
+    ? {
+        kind: sampledCallbackContext.kind,
+        entry_key: "operatorInbox",
+        href: sampledCallbackContext.href,
+        label: sampledCallbackContext.hrefLabel ?? surfaceCopy.openInboxSliceLabel
+      }
+    : null;
+  const sampledCallbackCandidate = buildOperatorRecommendedActionCandidate({
+    action: sampledCallbackAction,
+    detail: callbackFollowUp ?? followUp?.explanation?.follow_up ?? null,
+    fallbackDetail: diagnosticsSurfaceCopy.callbackFallbackDetail,
+    scope: "callback",
+    surfaceCopy
+  });
   const executionNeedsSharedSandboxFollowUp = shouldPreferSharedSandboxReadinessFollowUp({
     blockedExecution:
       executionView.execution_focus_reason === "blocked_execution" ||
@@ -113,7 +142,8 @@ export function RunDiagnosticsOperatorFollowUpCard({
   });
   const recommendedNextStep = buildOperatorRecommendedNextStep({
     callback: buildSharedOrLocalOperatorCandidate({
-      sharedCandidate: sharedCallbackCandidate ?? canonicalCallbackCandidate,
+      sharedCandidate:
+        sharedCallbackCandidate ?? canonicalCallbackCandidate ?? sampledCallbackCandidate,
       active: hasCallbackFacts,
       label: "observe waiting",
       detail: callbackFollowUp ?? followUp?.explanation?.follow_up ?? null,
@@ -158,18 +188,41 @@ export function RunDiagnosticsOperatorFollowUpCard({
     ? formatExecutionFocusArtifactSummary(focusNodeEvidence)
     : null;
   const focusSkillTrace = snapshot?.execution_focus_skill_trace ?? null;
+  const sampledFollowUp = resolveOperatorRunFollowUpSample(normalizedRunFollowUp, executionView.run_id);
   const callbackSummaryFocusNode = resolveCallbackSummaryFocusNode(executionView, snapshot);
-  const callbackSummaryInboxHref = buildCallbackSummaryInboxHref({
-    runId: executionView.run_id,
-    snapshot,
-    focusNode: callbackSummaryFocusNode
-  });
+  const callbackSummaryInboxHref =
+    buildCallbackSummaryInboxHref({
+      runId: executionView.run_id,
+      snapshot,
+      focusNode: callbackSummaryFocusNode
+    }) ?? sampledCallbackContext?.href ?? null;
+  const callbackSummaryCallbackTickets =
+    (callbackSummaryFocusNode?.callback_tickets.length ?? 0) > 0
+      ? callbackSummaryFocusNode?.callback_tickets ?? []
+      : sampledFollowUp?.callbackTickets ?? [];
+  const callbackSummarySensitiveAccessEntries =
+    (callbackSummaryFocusNode?.sensitive_access_entries.length ?? 0) > 0
+      ? callbackSummaryFocusNode?.sensitive_access_entries ?? []
+      : sampledFollowUp?.sensitiveAccessEntries ?? [];
+  const callbackSummaryRecommendedAction =
+    canonicalCallbackCandidate == null && sampledCallbackAction
+      ? sampledCallbackAction
+      : (followUp?.recommended_action ?? null);
   const callbackSummaryNodeRunId =
-    snapshot?.execution_focus_node_run_id ?? callbackSummaryFocusNode?.node_run_id ?? null;
+    snapshot?.execution_focus_node_run_id ??
+    callbackSummaryFocusNode?.node_run_id ??
+    sampledFollowUp?.snapshot?.executionFocusNodeRunId ??
+    null;
   const callbackSummaryNodeId =
-    snapshot?.execution_focus_node_id ?? callbackSummaryFocusNode?.node_id ?? null;
+    snapshot?.execution_focus_node_id ??
+    callbackSummaryFocusNode?.node_id ??
+    sampledFollowUp?.snapshot?.executionFocusNodeId ??
+    null;
   const callbackSummaryNodeName =
-    snapshot?.execution_focus_node_name ?? callbackSummaryFocusNode?.node_name ?? null;
+    snapshot?.execution_focus_node_name ??
+    callbackSummaryFocusNode?.node_name ??
+    sampledFollowUp?.snapshot?.executionFocusNodeName ??
+    null;
 
   return (
     <section>
@@ -217,7 +270,7 @@ export function RunDiagnosticsOperatorFollowUpCard({
       ) : null}
       {snapshot ? (
         <CallbackWaitingSummaryCard
-          callbackTickets={callbackSummaryFocusNode?.callback_tickets ?? []}
+          callbackTickets={callbackSummaryCallbackTickets}
           callbackWaitingAutomation={callbackWaitingAutomation}
           lifecycle={snapshot.callback_waiting_lifecycle ?? null}
           callbackWaitingExplanation={snapshot.callback_waiting_explanation ?? null}
@@ -238,9 +291,9 @@ export function RunDiagnosticsOperatorFollowUpCard({
           focusSkillReferenceNodeId={callbackSummaryNodeId}
           focusSkillReferenceNodeName={callbackSummaryNodeName}
           operatorFollowUp={followUp?.explanation?.follow_up ?? null}
-          recommendedAction={followUp?.recommended_action ?? null}
+          recommendedAction={callbackSummaryRecommendedAction}
           preferCanonicalRecommendedNextStep
-          sensitiveAccessEntries={callbackSummaryFocusNode?.sensitive_access_entries ?? []}
+          sensitiveAccessEntries={callbackSummarySensitiveAccessEntries}
           showFocusExecutionFacts
           showInlineActions={false}
         />
