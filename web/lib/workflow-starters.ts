@@ -29,6 +29,7 @@ export type WorkflowStarterTemplate = {
   trackFocus: string;
   defaultWorkflowName: string;
   source: WorkflowLibraryStarterItem["source"];
+  createdFromWorkflowId: string | null;
   workflowFocus: string;
   recommendedNextStep: string;
   nodeCount: number;
@@ -39,6 +40,7 @@ export type WorkflowStarterTemplate = {
   strongIsolationToolCount: number;
   sandboxGovernance: WorkflowDefinitionSandboxGovernance;
   sourceGovernance: WorkflowLibraryStarterItem["sourceGovernance"];
+  archived: boolean;
   tags: string[];
   definition: WorkflowDefinition;
 };
@@ -138,6 +140,7 @@ function buildWorkflowStarterTemplate(
     trackFocus: track.focus,
     defaultWorkflowName: starter.defaultWorkflowName,
     source: starter.source,
+    createdFromWorkflowId: starter.createdFromWorkflowId ?? null,
     workflowFocus: starter.workflowFocus,
     recommendedNextStep: starter.recommendedNextStep,
     nodeCount: definition.nodes?.length ?? 0,
@@ -151,6 +154,7 @@ function buildWorkflowStarterTemplate(
     strongIsolationToolCount: toolGovernance.strongIsolationToolCount,
     sandboxGovernance,
     sourceGovernance: starter.sourceGovernance ?? null,
+    archived: starter.archived,
     tags: starter.tags,
     definition
   };

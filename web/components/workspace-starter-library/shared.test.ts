@@ -15,6 +15,7 @@ import {
   buildWorkspaceStarterBulkResultFocusTargets,
   buildWorkspaceStarterBulkResultNarrative,
   buildWorkspaceStarterSourceActionDecision,
+  buildWorkspaceStarterSourceGovernanceSurface,
   buildWorkspaceStarterSourceGovernanceFocusTargets,
   buildWorkspaceStarterSourceGovernancePrimaryFollowUp,
   buildWorkspaceStarterLibrarySearchParams,
@@ -522,6 +523,55 @@ describe("workspace starter source action decision", () => {
         "后端 follow-up queue 已把 Active starter A 排在当前范围的首位，后面还有 1 个待处理 starter。 当前主要是来源快照漂移。 先看 source diff，再决定 refresh 还是 rebase。 当前 starter 与来源 workflow 版本不一致。",
       focusTemplateId: "starter-active-a",
       focusLabel: "优先聚焦 starter：Active starter A"
+    });
+  });
+
+  it("builds a reusable governance surface for create-entry callers", () => {
+    const surface = buildWorkspaceStarterSourceGovernanceSurface({
+      template: {
+        ...templates[0],
+        source_governance: {
+          kind: "missing_source",
+          status_label: "来源缺失",
+          summary: "原始来源 workflow 已不可访问。",
+          source_workflow_id: "wf-a",
+          source_workflow_name: "Active workflow",
+          template_version: "0.1.0",
+          source_version: null,
+          action_decision: null,
+          outcome_explanation: {
+            primary_signal: "原始来源 workflow 已不可访问。",
+            follow_up: "优先确认来源是否迁移；如需继续推进，回到创建页重建治理链路。"
+          }
+        }
+      },
+      createWorkflowHref: "/workflows/new?starter=starter-active-a"
+    });
+
+    expect(surface.presenter).toEqual({
+      kind: "missing_source",
+      statusLabel: "来源缺失",
+      actionStatusLabel: null,
+      summary: "原始来源 workflow 已不可访问。",
+      followUp: "优先确认来源是否迁移；如需继续推进，回到创建页重建治理链路。",
+      sourceVersion: null,
+      factChips: [],
+      needsAttention: true
+    });
+    expect(surface.actionDecision).toEqual({
+      recommendedAction: "none",
+      statusLabel: "来源缺失",
+      summary: "优先确认来源是否迁移；如需继续推进，回到创建页重建治理链路。",
+      canRefresh: false,
+      canRebase: false,
+      factChips: []
+    });
+    expect(surface.recommendedNextStep).toEqual({
+      action: "create_workflow",
+      label: "确认模板后带此 starter 回到创建页",
+      detail: "优先确认来源是否迁移；如需继续推进，回到创建页重建治理链路。",
+      focusTemplateId: null,
+      focusLabel: null
     });
   });
 

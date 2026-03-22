@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { buildWorkspaceStarterSourceGovernanceSurface } from "@/components/workspace-starter-library/shared";
 import { WorkbenchEntryLink, WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
 import { WorkflowStarterBrowser } from "@/components/workflow-starter-browser";
@@ -40,6 +41,7 @@ import {
 import {
   buildWorkflowStarterTemplates,
   buildWorkflowStarterTracks,
+  type WorkflowStarterTemplate,
   type WorkflowStarterTemplateId
 } from "@/lib/workflow-starters";
 
@@ -116,12 +118,33 @@ export function WorkflowCreateWizard({
     [selectedStarter]
   );
   const selectedStarterSourceGovernance = selectedStarter?.sourceGovernance ?? null;
-  const selectedStarterSourceChips =
-    selectedStarterSourceGovernance?.actionDecision?.fact_chips ?? [];
-  const selectedStarterSourcePrimarySignal =
-    selectedStarterSourceGovernance?.outcomeExplanation?.primary_signal?.trim() ?? "";
+  const selectedStarterSourceGovernanceSurface = useMemo(
+    () =>
+      selectedStarter
+        ? buildWorkspaceStarterSourceGovernanceSurface({
+            template: toWorkspaceStarterSourceGovernanceTemplate(selectedStarter)
+          })
+        : null,
+    [selectedStarter]
+  );
+  const selectedStarterSourcePresenter =
+    selectedStarterSourceGovernanceSurface?.presenter ?? null;
+  const selectedStarterSourceChips = selectedStarterSourcePresenter?.factChips ?? [];
   const selectedStarterSourceFollowUp =
-    selectedStarterSourceGovernance?.outcomeExplanation?.follow_up?.trim() ?? "";
+    selectedStarterSourceGovernanceSurface?.recommendedNextStep?.detail ??
+    selectedStarterSourcePresenter?.followUp ??
+    "";
+  const selectedStarterSourceFollowUpLabel =
+    selectedStarterSourceGovernanceSurface?.recommendedNextStep?.label ??
+    selectedStarterSourcePresenter?.actionStatusLabel ??
+    selectedStarterSourcePresenter?.statusLabel ??
+    "";
+  const shouldRenderSelectedStarterSourceGovernance = Boolean(
+    selectedStarter &&
+      (selectedStarter.origin === "workspace" ||
+        selectedStarter.createdFromWorkflowId ||
+        selectedStarterSourceGovernance)
+  );
   const workspaceStarterGovernanceScope = useMemo<WorkspaceStarterGovernanceQueryScope>(
     () =>
       pickWorkspaceStarterGovernanceQueryScope({
@@ -441,36 +464,39 @@ export function WorkflowCreateWizard({
               <p className="starter-focus-copy">
                 下一步：{selectedStarter.recommendedNextStep}
               </p>
-              {selectedStarterSourceGovernance ? (
+              {shouldRenderSelectedStarterSourceGovernance && selectedStarterSourcePresenter ? (
                 <div className="binding-form">
                   <p className="binding-label">Source governance</p>
                   <p className="binding-meta">{surfaceCopy.sourceGovernanceDescription}</p>
                   <div className="summary-strip compact-strip">
                     <div className="summary-card">
                       <span>Status</span>
-                      <strong>{selectedStarterSourceGovernance.statusLabel}</strong>
+                      <strong>{selectedStarterSourcePresenter.statusLabel}</strong>
                     </div>
                     <div className="summary-card">
                       <span>Template</span>
-                      <strong>{selectedStarterSourceGovernance.templateVersion ?? "未记录"}</strong>
+                      <strong>{selectedStarterSourceGovernance?.templateVersion ?? "未记录"}</strong>
                     </div>
                     <div className="summary-card">
                       <span>Source</span>
-                      <strong>{selectedStarterSourceGovernance.sourceVersion ?? "不可用"}</strong>
+                      <strong>{selectedStarterSourcePresenter.sourceVersion ?? "不可用"}</strong>
                     </div>
                   </div>
                   <p className="section-copy starter-summary-copy">
-                    {selectedStarterSourceGovernance.summary}
+                    {selectedStarterSourcePresenter.summary}
                   </p>
-                  {selectedStarterSourcePrimarySignal ? (
-                    <p className="section-copy starter-summary-copy">
-                      <strong>Primary signal:</strong> {selectedStarterSourcePrimarySignal}
-                    </p>
-                  ) : null}
                   {selectedStarterSourceFollowUp ? (
-                    <p className="section-copy starter-summary-copy">
-                      <strong>Next step:</strong> {selectedStarterSourceFollowUp}
-                    </p>
+                    <div className="entry-card compact-card">
+                      <div className="payload-card-header">
+                        <span className="status-meta">Recommended next step</span>
+                        {selectedStarterSourceFollowUpLabel ? (
+                          <span className="event-chip">{selectedStarterSourceFollowUpLabel}</span>
+                        ) : null}
+                      </div>
+                      <p className="section-copy starter-summary-copy">
+                        {selectedStarterSourceFollowUp}
+                      </p>
+                    </div>
                   ) : null}
                   {selectedStarterSourceChips.length > 0 ? (
                     <div className="starter-tag-row">
@@ -632,4 +658,32 @@ export function WorkflowCreateWizard({
       </section>
     </main>
   );
+}
+
+type WorkspaceStarterSourceGovernanceSurfaceTemplate = Parameters<
+  typeof buildWorkspaceStarterSourceGovernanceSurface
+>[0]["template"];
+
+function toWorkspaceStarterSourceGovernanceTemplate(
+  starter: WorkflowStarterTemplate
+): WorkspaceStarterSourceGovernanceSurfaceTemplate {
+  const governance = starter.sourceGovernance;
+
+  return {
+    archived: starter.archived,
+    created_from_workflow_id: starter.createdFromWorkflowId,
+    source_governance: governance
+      ? {
+          kind: governance.kind,
+          status_label: governance.statusLabel,
+          summary: governance.summary,
+          source_workflow_id: governance.sourceWorkflowId ?? null,
+          source_workflow_name: governance.sourceWorkflowName ?? null,
+          template_version: governance.templateVersion ?? null,
+          source_version: governance.sourceVersion ?? null,
+          action_decision: governance.actionDecision ?? null,
+          outcome_explanation: governance.outcomeExplanation ?? null
+        }
+      : null
+  };
 }

@@ -120,6 +120,12 @@ export type WorkspaceStarterGovernanceRecommendedNextStep = {
   focusLabel: string | null;
 };
 
+export type WorkspaceStarterSourceGovernanceSurface = {
+  presenter: WorkspaceStarterSourceGovernancePresenter;
+  actionDecision: WorkspaceStarterSourceActionDecision;
+  recommendedNextStep: WorkspaceStarterGovernanceRecommendedNextStep | null;
+};
+
 export type WorkspaceStarterSourceGovernancePrimaryFollowUp = {
   label: string;
   headline: string;
@@ -490,6 +496,38 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
   return null;
 }
 
+export function buildWorkspaceStarterSourceGovernanceSurface({
+  template,
+  createWorkflowHref
+}: {
+  template: Pick<
+    WorkspaceStarterTemplateItem,
+    "archived" | "created_from_workflow_id" | "source_governance"
+  >;
+  createWorkflowHref?: string | null;
+}): WorkspaceStarterSourceGovernanceSurface {
+  const presenter = buildWorkspaceStarterSourceGovernancePresenter(template);
+  const actionDecision = normalizeSourceActionDecision(template.source_governance?.action_decision) ?? {
+    recommendedAction: "none",
+    statusLabel: presenter.actionStatusLabel ?? presenter.statusLabel,
+    summary: presenter.followUp ?? presenter.summary,
+    canRefresh: false,
+    canRebase: false,
+    factChips: presenter.factChips
+  };
+
+  return {
+    presenter,
+    actionDecision,
+    recommendedNextStep: buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
+      template,
+      sourceGovernance: template.source_governance,
+      actionDecision,
+      createWorkflowHref
+    })
+  };
+}
+
 export function buildWorkspaceStarterSourceGovernanceFocusTargets(
   sourceGovernanceScope: WorkspaceStarterSourceGovernanceScopeSummaryPayload | null,
   templates: WorkspaceStarterTemplateItem[]
@@ -574,21 +612,8 @@ export function buildWorkspaceStarterSourceGovernancePrimaryFollowUp({
     };
   }
 
-  const presenter = buildWorkspaceStarterSourceGovernancePresenter(primaryTemplate);
-  const fallbackActionDecision: WorkspaceStarterSourceActionDecision = {
-    recommendedAction: "none",
-    statusLabel: presenter.actionStatusLabel ?? presenter.statusLabel,
-    summary: presenter.followUp ?? presenter.summary,
-    canRefresh: false,
-    canRebase: false,
-    factChips: presenter.factChips
-  };
-  const recommendedNextStep = buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
+  const { presenter, recommendedNextStep } = buildWorkspaceStarterSourceGovernanceSurface({
     template: primaryTemplate,
-    sourceGovernance: primaryTemplate.source_governance,
-    actionDecision:
-      normalizeSourceActionDecision(primaryTemplate.source_governance?.action_decision) ??
-      fallbackActionDecision,
     createWorkflowHref
   });
   const focusTemplateName = normalizeString(primaryTemplate.name) ?? primaryTemplate.id;
