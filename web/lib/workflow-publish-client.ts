@@ -10,8 +10,28 @@ import type {
   PublishedEndpointInvocationExportFormat,
   PublishedEndpointInvocationListOptions,
   PublishedEndpointInvocationListResponse,
+  WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
   WorkflowPublishedEndpointItem
 } from "@/lib/workflow-publish-types";
+
+export async function getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot(): Promise<WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null> {
+  try {
+    const response = await fetch(
+      `${getApiBaseUrl()}/api/workflows/published-endpoints/legacy-auth-governance`,
+      {
+        cache: "no-store"
+      }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    return (await response.json()) as WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot;
+  } catch {
+    return null;
+  }
+}
 
 export async function getWorkflowPublishedEndpoints(
   workflowId: string | null | undefined,

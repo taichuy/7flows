@@ -496,6 +496,151 @@ def test_bulk_cleanup_legacy_auth_bindings_requires_binding_ids(
     assert cleanup_response.status_code == 422
 
 
+def test_list_legacy_auth_governance_snapshot_across_workflows(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    first_create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Legacy Auth Cleanup Workflow",
+            "definition": _publishable_definition(),
+        },
+    )
+    assert first_create_response.status_code == 201
+    first_workflow_id = first_create_response.json()["id"]
+
+    for answer in ("updated-v1", "updated-v2"):
+        update_response = client.put(
+            f"/api/workflows/{first_workflow_id}",
+            json={
+                "definition": _publishable_definition(answer=answer, workflow_version=None),
+            },
+        )
+        assert update_response.status_code == 200
+
+    second_create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Replacement Ready Workflow",
+            "definition": _publishable_definition(answer="other"),
+        },
+    )
+    assert second_create_response.status_code == 201
+    second_workflow_id = second_create_response.json()["id"]
+
+    first_bindings = sqlite_session.scalars(
+        select(WorkflowPublishedEndpoint).where(
+            WorkflowPublishedEndpoint.workflow_id == first_workflow_id
+        )
+    ).all()
+    first_bindings_by_version = {
+        binding.workflow_version: binding for binding in first_bindings
+    }
+
+    first_draft_binding = first_bindings_by_version["0.1.2"]
+    first_published_binding = first_bindings_by_version["0.1.1"]
+    first_offline_binding = first_bindings_by_version["0.1.0"]
+
+    first_draft_binding.auth_mode = "token"
+    first_draft_binding.lifecycle_status = "draft"
+
+    first_published_binding.auth_mode = "token"
+    first_published_binding.lifecycle_status = "published"
+    first_published_binding.published_at = datetime.now(UTC)
+    first_published_binding.unpublished_at = None
+
+    first_offline_binding.auth_mode = "token"
+    first_offline_binding.lifecycle_status = "offline"
+    first_offline_binding.unpublished_at = datetime.now(UTC)
+
+    second_binding = sqlite_session.scalars(
+        select(WorkflowPublishedEndpoint).where(
+            WorkflowPublishedEndpoint.workflow_id == second_workflow_id
+        )
+    ).one()
+    second_binding.auth_mode = "token"
+    second_binding.lifecycle_status = "published"
+    second_binding.published_at = datetime.now(UTC)
+    second_binding.unpublished_at = None
+
+    sqlite_session.add_all(
+        [
+            first_draft_binding,
+            first_published_binding,
+            first_offline_binding,
+            second_binding,
+        ]
+    )
+    sqlite_session.commit()
+
+    response = client.get("/api/workflows/published-endpoints/legacy-auth-governance")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["generated_at"] is not None
+    assert body["workflow_count"] == 2
+    assert body["binding_count"] == 4
+    assert body["summary"] == {
+        "draft_candidate_count": 1,
+        "published_blocker_count": 2,
+        "offline_inventory_count": 1,
+    }
+    assert [item["key"] for item in body["checklist"]] == [
+        "draft_cleanup",
+        "published_follow_up",
+        "offline_inventory",
+    ]
+    assert body["workflows"] == [
+        {
+            "workflow_id": first_workflow_id,
+            "workflow_name": "Legacy Auth Cleanup Workflow",
+            "binding_count": 3,
+            "draft_candidate_count": 1,
+            "published_blocker_count": 1,
+            "offline_inventory_count": 1,
+        },
+        {
+            "workflow_id": second_workflow_id,
+            "workflow_name": "Replacement Ready Workflow",
+            "binding_count": 1,
+            "draft_candidate_count": 0,
+            "published_blocker_count": 1,
+            "offline_inventory_count": 0,
+        },
+    ]
+    assert body["buckets"]["draft_candidates"] == [
+        {
+            "workflow_id": first_workflow_id,
+            "workflow_name": "Legacy Auth Cleanup Workflow",
+            "binding_id": first_draft_binding.id,
+            "endpoint_id": "native-chat",
+            "endpoint_name": "Native Chat",
+            "workflow_version": "0.1.2",
+            "lifecycle_status": "draft",
+            "auth_mode": "token",
+        }
+    ]
+    assert {
+        item["workflow_name"] for item in body["buckets"]["published_blockers"]
+    } == {
+        "Legacy Auth Cleanup Workflow",
+        "Replacement Ready Workflow",
+    }
+    assert body["buckets"]["offline_inventory"] == [
+        {
+            "workflow_id": first_workflow_id,
+            "workflow_name": "Legacy Auth Cleanup Workflow",
+            "binding_id": first_offline_binding.id,
+            "endpoint_id": "native-chat",
+            "endpoint_name": "Native Chat",
+            "workflow_version": "0.1.0",
+            "lifecycle_status": "offline",
+            "auth_mode": "token",
+        }
+    ]
+
+
 def test_invoke_published_native_endpoint_uses_active_binding_blueprint(
     client: TestClient,
 ) -> None:

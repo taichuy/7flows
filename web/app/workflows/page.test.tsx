@@ -2,11 +2,12 @@ import * as React from "react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import WorkflowsPage from "@/app/workflows/page";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
+import { getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflows } from "@/lib/get-workflows";
 
@@ -31,6 +32,10 @@ vi.mock("@/lib/get-sensitive-access", () => ({
 
 vi.mock("@/lib/get-workflow-library", () => ({
   getWorkflowLibrarySnapshot: vi.fn()
+}));
+
+vi.mock("@/lib/get-workflow-publish", () => ({
+  getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot: vi.fn()
 }));
 
 function buildSensitiveAccessInboxSnapshot() {
@@ -129,6 +134,39 @@ function buildWorkflowLibrarySnapshot(
     ...overrides
   } as Awaited<ReturnType<typeof getWorkflowLibrarySnapshot>>;
 }
+
+function buildLegacyAuthGovernanceSnapshot(
+  overrides: Partial<
+    NonNullable<Awaited<ReturnType<typeof getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot>>>
+  > = {}
+) {
+  return {
+    generated_at: "2026-03-24T08:00:00Z",
+    workflow_count: 0,
+    binding_count: 0,
+    summary: {
+      draft_candidate_count: 0,
+      published_blocker_count: 0,
+      offline_inventory_count: 0
+    },
+    checklist: [],
+    workflows: [],
+    buckets: {
+      draft_candidates: [],
+      published_blockers: [],
+      offline_inventory: []
+    },
+    ...overrides
+  } as NonNullable<
+    Awaited<ReturnType<typeof getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot>>
+  >;
+}
+
+beforeEach(() => {
+  vi.mocked(getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot).mockResolvedValue(
+    buildLegacyAuthGovernanceSnapshot()
+  );
+});
 
 function buildStarter(
   overrides: Partial<Awaited<ReturnType<typeof getWorkflowLibrarySnapshot>>["starters"][number]> = {}
@@ -288,6 +326,148 @@ describe("WorkflowsPage", () => {
       "优先回到 Legacy Auth workflow 把 1 个 publish draft 的 authMode 切回 api_key / internal"
     );
     expect(html).toContain('/workflows/workflow-legacy-auth');
+  });
+
+  it("surfaces cross-workflow legacy auth governance artifact in the library", async () => {
+    vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot()
+    );
+    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshot());
+    vi.mocked(getWorkflows).mockResolvedValue([
+      {
+        id: "workflow-legacy-auth",
+        name: "Legacy Auth workflow",
+        version: "1.2.0",
+        status: "draft",
+        node_count: 5,
+        tool_governance: {
+          referenced_tool_ids: ["tool-1"],
+          missing_tool_ids: [],
+          governed_tool_count: 1,
+          strong_isolation_tool_count: 0
+        }
+      },
+      {
+        id: "workflow-replacement",
+        name: "Replacement Ready workflow",
+        version: "1.0.0",
+        status: "published",
+        node_count: 2,
+        tool_governance: {
+          referenced_tool_ids: ["tool-2"],
+          missing_tool_ids: [],
+          governed_tool_count: 1,
+          strong_isolation_tool_count: 0
+        }
+      }
+    ]);
+    vi.mocked(getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot).mockResolvedValue(
+      buildLegacyAuthGovernanceSnapshot({
+        workflow_count: 2,
+        binding_count: 4,
+        summary: {
+          draft_candidate_count: 1,
+          published_blocker_count: 2,
+          offline_inventory_count: 1
+        },
+        checklist: [
+          {
+            key: "draft_cleanup",
+            title: "先批量下线 draft legacy bindings",
+            tone: "ready",
+            tone_label: "可立即执行",
+            count: 1,
+            detail: "先处理 draft cleanup。"
+          },
+          {
+            key: "published_follow_up",
+            title: "再补发支持鉴权的 replacement bindings",
+            tone: "manual",
+            tone_label: "人工跟进",
+            count: 2,
+            detail: "再处理仍 live 的 published blocker。"
+          }
+        ],
+        workflows: [
+          {
+            workflow_id: "workflow-legacy-auth",
+            workflow_name: "Legacy Auth workflow",
+            binding_count: 3,
+            draft_candidate_count: 1,
+            published_blocker_count: 1,
+            offline_inventory_count: 1
+          },
+          {
+            workflow_id: "workflow-replacement",
+            workflow_name: "Replacement Ready workflow",
+            binding_count: 1,
+            draft_candidate_count: 0,
+            published_blocker_count: 1,
+            offline_inventory_count: 0
+          }
+        ],
+        buckets: {
+          draft_candidates: [
+            {
+              workflow_id: "workflow-legacy-auth",
+              workflow_name: "Legacy Auth workflow",
+              binding_id: "binding-draft",
+              endpoint_id: "native-chat",
+              endpoint_name: "Native Chat",
+              workflow_version: "1.2.0",
+              lifecycle_status: "draft",
+              auth_mode: "token"
+            }
+          ],
+          published_blockers: [
+            {
+              workflow_id: "workflow-legacy-auth",
+              workflow_name: "Legacy Auth workflow",
+              binding_id: "binding-live",
+              endpoint_id: "native-chat",
+              endpoint_name: "Native Chat",
+              workflow_version: "1.1.0",
+              lifecycle_status: "published",
+              auth_mode: "token"
+            },
+            {
+              workflow_id: "workflow-replacement",
+              workflow_name: "Replacement Ready workflow",
+              binding_id: "binding-live-2",
+              endpoint_id: "native-chat",
+              endpoint_name: "Native Chat",
+              workflow_version: "1.0.0",
+              lifecycle_status: "published",
+              auth_mode: "token"
+            }
+          ],
+          offline_inventory: [
+            {
+              workflow_id: "workflow-legacy-auth",
+              workflow_name: "Legacy Auth workflow",
+              binding_id: "binding-offline",
+              endpoint_id: "native-chat",
+              endpoint_name: "Native Chat",
+              workflow_version: "1.0.0",
+              lifecycle_status: "offline",
+              auth_mode: "token"
+            }
+          ]
+        }
+      })
+    );
+
+    const html = renderToStaticMarkup(await WorkflowsPage());
+
+    expect(html).toContain("Legacy publish auth artifact");
+    expect(html).toContain("跨 workflow operator checklist 与 governance export");
+    expect(html).toContain("Affected workflows");
+    expect(html).toContain("Legacy Auth workflow");
+    expect(html).toContain("Replacement Ready workflow");
+    expect(html).toContain("导出 JSON 清单");
+    expect(html).toContain("只看 blocker workflow");
+    expect(html).toContain('/workflows/workflow-legacy-auth?definition_issue=legacy_publish_auth');
   });
 
   it("filters the workflow chip list down to legacy publish auth blockers", async () => {

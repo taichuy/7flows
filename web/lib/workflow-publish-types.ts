@@ -440,6 +440,67 @@ export type WorkflowPublishedEndpointLegacyAuthCleanupResult = {
   skipped_items: WorkflowPublishedEndpointLegacyAuthCleanupSkipItem[];
 };
 
+export type WorkflowPublishedEndpointLegacyAuthGovernanceChecklistKey =
+  | "draft_cleanup"
+  | "published_follow_up"
+  | "offline_inventory";
+
+export type WorkflowPublishedEndpointLegacyAuthGovernanceChecklistTone =
+  | "ready"
+  | "manual"
+  | "inventory";
+
+export type WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem = {
+  workflow_id: string;
+  workflow_name: string;
+  binding_id: string;
+  endpoint_id: string;
+  endpoint_name: string;
+  workflow_version: string;
+  lifecycle_status: "draft" | "published" | "offline";
+  auth_mode: string;
+};
+
+export type WorkflowPublishedEndpointLegacyAuthGovernanceChecklistItem = {
+  key: WorkflowPublishedEndpointLegacyAuthGovernanceChecklistKey;
+  title: string;
+  tone: WorkflowPublishedEndpointLegacyAuthGovernanceChecklistTone;
+  tone_label: string;
+  count: number;
+  detail: string;
+};
+
+export type WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem = {
+  workflow_id: string;
+  workflow_name: string;
+  binding_count: number;
+  draft_candidate_count: number;
+  published_blocker_count: number;
+  offline_inventory_count: number;
+};
+
+export type WorkflowPublishedEndpointLegacyAuthGovernanceSummary = {
+  draft_candidate_count: number;
+  published_blocker_count: number;
+  offline_inventory_count: number;
+};
+
+export type WorkflowPublishedEndpointLegacyAuthGovernanceBuckets = {
+  draft_candidates: WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem[];
+  published_blockers: WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem[];
+  offline_inventory: WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem[];
+};
+
+export type WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot = {
+  generated_at: string;
+  workflow_count: number;
+  binding_count: number;
+  summary: WorkflowPublishedEndpointLegacyAuthGovernanceSummary;
+  checklist: WorkflowPublishedEndpointLegacyAuthGovernanceChecklistItem[];
+  workflows: WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem[];
+  buckets: WorkflowPublishedEndpointLegacyAuthGovernanceBuckets;
+};
+
 export type PublishedEndpointApiKeyItem = {
   id: string;
   workflow_id: string;

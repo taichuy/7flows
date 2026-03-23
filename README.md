@@ -2,7 +2,7 @@
 
 7Flows 是一个面向多 Agent 协作的可视化工作流平台。当前项目以 OpenClaw / 本地 AI 助手“黑盒变透明”为切口，对外提供可编排、可调试、可发布、可兼容、可追溯的开源基础能力；对内继续坚持以 `7Flows IR`、runtime、published surface、trace facts 和 compat adapter 作为统一内核，并服务“人”“人 + AI 协作”“AI 自治”三种使用场景下的事实统一、可观察和结果 / 数据一致性。
 
-当前 `web/` 工作台首页、`/workflows`、`/runs` 与 `/sensitive-access` 已开始共享同一套跨入口风险摘要，优先把 sandbox readiness、callback recovery automation 和 operator backlog 收成统一 follow-up 视图，减少作者与 operator 在多个入口之间自行拼装主链阻塞事实。workflow library 与 workflow detail publish panel 也继续沿同一条 publish auth 治理链路收口：列表侧可以筛出 legacy publish auth blocker，detail 侧则把历史 legacy draft binding 收成可批量 cleanup 的 backlog，而不是只停留在“知道有问题”的 inventory 提示。
+当前 `web/` 工作台首页、`/workflows`、`/runs` 与 `/sensitive-access` 已开始共享同一套跨入口风险摘要，优先把 sandbox readiness、callback recovery automation 和 operator backlog 收成统一 follow-up 视图，减少作者与 operator 在多个入口之间自行拼装主链阻塞事实。workflow library 与 workflow detail publish panel 也继续沿同一条 publish auth 治理链路收口：列表侧不仅可以筛出 legacy publish auth blocker，还会把跨 workflow 的 operator checklist 与 governance export artifact 收成统一 handoff 入口；detail 侧则把历史 legacy draft binding 收成可批量 cleanup 的 backlog，而不是只停留在“知道有问题”的 inventory 提示。
 
 更多定位说明见 [docs/open-source-positioning.md](/E:/code/taichuCode/7flows/docs/open-source-positioning.md)，授权细节以 [LICENSE](/E:/code/taichuCode/7flows/LICENSE) 为准。
 

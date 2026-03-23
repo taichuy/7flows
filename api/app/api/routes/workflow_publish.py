@@ -10,6 +10,7 @@ from app.schemas.workflow_publish import (
     WorkflowPublishedEndpointItem,
     WorkflowPublishedEndpointLegacyAuthCleanupRequest,
     WorkflowPublishedEndpointLegacyAuthCleanupResult,
+    WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
     WorkflowPublishedEndpointLifecycleUpdate,
 )
 from app.services.published_cache import PublishedEndpointCacheService
@@ -115,6 +116,16 @@ def _serialize_workflow_published_endpoint_item(
         cache_inventory=_serialize_published_cache_inventory_summary(cache_inventory),
         issues=issues,
     )
+
+
+@router.get(
+    "/published-endpoints/legacy-auth-governance",
+    response_model=WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
+)
+def get_workflow_published_endpoint_legacy_auth_governance(
+    db: Session = Depends(get_db),
+) -> WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot:
+    return workflow_publish_service.build_legacy_auth_governance_snapshot(db)
 
 
 @router.get(

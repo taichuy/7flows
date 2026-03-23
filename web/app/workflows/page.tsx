@@ -6,12 +6,14 @@ import { OperatorRecommendedNextStepCard } from "@/components/operator-recommend
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import { WorkbenchEntryLink, WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
+import { WorkflowLibraryLegacyAuthGovernanceCard } from "@/components/workflow-library-legacy-auth-governance-card";
 import { buildCrossEntryRiskDigest } from "@/lib/cross-entry-risk-digest";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import {
   getWorkflowLibrarySnapshot,
   type WorkflowLibraryStarterItem
 } from "@/lib/get-workflow-library";
+import { getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
 import type { OperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import {
   buildAuthorFacingWorkflowDetailLinkSurface,
@@ -53,7 +55,14 @@ export default async function WorkflowsPage({
     readWorkspaceStarterLibraryViewState(resolvedSearchParams)
   );
   const workflowLibraryViewState = readWorkflowLibraryViewState(resolvedSearchParams);
-  const [workflowInventory, filteredWorkflows, systemOverview, sensitiveAccessInbox, workflowLibrary] = await Promise.all([
+  const [
+    workflowInventory,
+    filteredWorkflows,
+    systemOverview,
+    sensitiveAccessInbox,
+    workflowLibrary,
+    legacyAuthGovernanceSnapshot
+  ] = await Promise.all([
     getWorkflows(),
     workflowLibraryViewState.definitionIssue
       ? getWorkflows({
@@ -62,7 +71,8 @@ export default async function WorkflowsPage({
       : Promise.resolve<WorkflowListItem[] | null>(null),
     getSystemOverview(),
     getSensitiveAccessInboxSnapshot(),
-    getWorkflowLibrarySnapshot()
+    getWorkflowLibrarySnapshot(),
+    getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot()
   ]);
   const workflows = filteredWorkflows ?? workflowInventory;
   const baseWorkflowLibraryHref = buildWorkflowLibraryHrefFromWorkspaceStarterViewState(
@@ -108,6 +118,19 @@ export default async function WorkflowsPage({
     sensitiveAccessSummary: sensitiveAccessInbox.summary,
     channels: sensitiveAccessInbox.channels
   });
+  const legacyAuthWorkflowDetailHrefsById = Object.fromEntries(
+    (legacyAuthGovernanceSnapshot?.workflows ?? []).map((workflow) => [
+      workflow.workflow_id,
+      buildFilteredWorkflowDetailLink({
+        workflowId: workflow.workflow_id,
+        viewState: workspaceStarterViewState,
+        workflowLibraryViewState: {
+          definitionIssue: "legacy_publish_auth"
+        },
+        variant: "editor"
+      }).href
+    ])
+  );
 
   return (
     <main className="page-shell workspace-page">
@@ -248,6 +271,12 @@ export default async function WorkflowsPage({
               <strong>{summary.workflowMissingToolCount}</strong>
             </article>
           </div>
+
+          <WorkflowLibraryLegacyAuthGovernanceCard
+            snapshot={legacyAuthGovernanceSnapshot}
+            workflowDetailHrefsById={legacyAuthWorkflowDetailHrefsById}
+            workflowLibraryFilterHref={legacyPublishAuthFilterHref}
+          />
 
           <div className="event-type-strip">
             {summary.workflowsWithLegacyPublishAuth.length === 0 ? (
