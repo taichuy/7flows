@@ -818,6 +818,82 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain("Native workflow route 1");
   });
 
+  it("surfaces binding summary focus when rate limit becomes the shared aggregate blocker", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishActivityInsights, {
+        binding: {
+          rate_limit_policy: {
+            requests: 10,
+            windowSeconds: 60
+          }
+        } as WorkflowPublishActivityPanelProps["binding"],
+        invocationAudit: {
+          filters: {},
+          summary: {
+            total_count: 9,
+            succeeded_count: 9,
+            failed_count: 0,
+            rejected_count: 0,
+            cache_hit_count: 0,
+            cache_miss_count: 0,
+            cache_bypass_count: 0,
+            last_run_status: "succeeded"
+          },
+          facets: {
+            status_counts: [],
+            request_source_counts: [{ value: "workflow", count: 9 }],
+            request_surface_counts: [{ value: "openai.responses", count: 9 }],
+            cache_status_counts: [{ value: "hit", count: 9 }],
+            run_status_counts: [],
+            reason_counts: [],
+            api_key_usage: [],
+            recent_failure_reasons: [],
+            timeline_granularity: "hour",
+            timeline: []
+          },
+          items: []
+        },
+        rateLimitWindowAudit: {
+          filters: {
+            created_from: "2026-03-21T00:00:00Z"
+          },
+          summary: {
+            total_count: 9,
+            succeeded_count: 9,
+            failed_count: 0,
+            rejected_count: 0,
+            cache_hit_count: 0,
+            cache_miss_count: 0,
+            cache_bypass_count: 0
+          },
+          facets: {
+            status_counts: [],
+            request_source_counts: [],
+            request_surface_counts: [],
+            cache_status_counts: [],
+            run_status_counts: [],
+            reason_counts: [],
+            api_key_usage: [],
+            recent_failure_reasons: [],
+            timeline_granularity: "hour",
+            timeline: []
+          },
+          items: []
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness(),
+        activeTimeWindow: "24h"
+      })
+    );
+
+    expect(html).toContain("Summary focus");
+    expect(html).toContain("attention");
+    expect(html).toContain("Rate limit pressure is the main aggregate to watch in this publish slice.");
+    expect(html).toContain(
+      "当前最近 24 小时切片里已用掉 90% 配额，只剩 1 次；继续放量前先观察是否开始转成 rate_limit_exceeded。"
+    );
+  });
+
   it("bridges selected invocation next step into activity details", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowPublishActivityDetails, {

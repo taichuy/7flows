@@ -132,6 +132,11 @@ export type WorkflowPublishSummaryCardSurface = {
   hrefLabel: string | null;
 };
 
+export type PublishedInvocationActivityPrimaryFollowUpSurface =
+  WorkflowPublishPrimaryFollowUpSurface;
+
+export type PublishedInvocationActivitySummaryCardSurface = WorkflowPublishSummaryCardSurface;
+
 type PublishedInvocationSensitiveAccessPrimaryBacklog = ReturnType<
   typeof resolveSensitiveAccessPrimaryBacklog
 >;
@@ -375,6 +380,7 @@ export type PublishedInvocationActivityInsightsSurfaceCopy = {
   lastRunStatusLabel: string;
   lastRunStatusEmptyLabel: string;
   waitingNowLabel: string;
+  summaryFocusLabel: string;
   trafficMixTitle: string;
   trafficWorkflowLabel: string;
   trafficAliasLabel: string;
@@ -951,6 +957,7 @@ export function buildPublishedInvocationActivityInsightsSurfaceCopy({
     lastRunStatusLabel: "Last run status",
     lastRunStatusEmptyLabel: "n/a",
     waitingNowLabel: "Waiting now",
+    summaryFocusLabel: "Summary focus",
     trafficMixTitle: "Traffic mix",
     trafficWorkflowLabel: "Workflow",
     trafficAliasLabel: "Alias",
@@ -1009,6 +1016,149 @@ export function buildPublishedInvocationActivityTrafficMixSurface({
       formatPublishedInvocationSurfaceLabel
     )
   };
+}
+
+export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
+  waitingOverview,
+  issueSignalsSurface,
+  trafficMixSurface,
+  rateLimitWindowInsight,
+  rateLimitPressure,
+  rateLimitWindowRejectedCount = 0
+}: {
+  waitingOverview: PublishedInvocationWaitingOverview;
+  issueSignalsSurface?: PublishedInvocationIssueSignalsSurface | null;
+  trafficMixSurface: PublishedInvocationActivityTrafficMixSurface;
+  rateLimitWindowInsight?: string | null;
+  rateLimitPressure?:
+    | {
+        percentage: number;
+        label: string;
+      }
+    | null;
+  rateLimitWindowRejectedCount?: number;
+}): PublishedInvocationActivityPrimaryFollowUpSurface {
+  if (waitingOverview.activeWaitingCount > 0 || waitingOverview.syncWaitingRejectedCount > 0) {
+    return {
+      tone: "attention",
+      headline: waitingOverview.headline,
+      detail: waitingOverview.detail,
+      href: waitingOverview.followUpHref ?? null,
+      hrefLabel: waitingOverview.followUpHrefLabel ?? null
+    };
+  }
+
+  if (issueSignalsSurface?.selectedNextStepSurface) {
+    const selectedNextStepSurface = issueSignalsSurface.selectedNextStepSurface;
+    return {
+      tone: "attention",
+      headline: `Issue signals already align with ${selectedNextStepSurface.invocationId}.`,
+      detail: joinFragments([
+        `Keep the aggregate diagnosis anchored to the selected invocation next step (${selectedNextStepSurface.label}).`,
+        selectedNextStepSurface.detail
+      ]) ?? selectedNextStepSurface.detail,
+      href: selectedNextStepSurface.href ?? null,
+      hrefLabel: selectedNextStepSurface.hrefLabel ?? null
+    };
+  }
+
+  if (issueSignalsSurface) {
+    return {
+      tone: "attention",
+      headline: "Issue signals still expose a publish follow-up in the current slice.",
+      detail:
+        issueSignalsSurface.insight ??
+        joinFragments([
+          issueSignalsSurface.description,
+          issueSignalsSurface.chips.length
+            ? `Keep the next action anchored to ${issueSignalsSurface.chips.join(" / ")}.`
+            : null
+        ]) ??
+        issueSignalsSurface.description,
+      href: issueSignalsSurface.followUpHref ?? null,
+      hrefLabel: issueSignalsSurface.followUpHrefLabel ?? null
+    };
+  }
+
+  if (
+    rateLimitWindowInsight &&
+    rateLimitPressure &&
+    (rateLimitWindowRejectedCount > 0 || rateLimitPressure.percentage >= 80)
+  ) {
+    return {
+      tone: "attention",
+      headline: "Rate limit pressure is the main aggregate to watch in this publish slice.",
+      detail: rateLimitWindowInsight,
+      href: null,
+      hrefLabel: null
+    };
+  }
+
+  const activeRequestSourceCount = [
+    trafficMixSurface.workflowCount,
+    trafficMixSurface.aliasCount,
+    trafficMixSurface.pathCount
+  ].filter((count) => count > 0).length;
+  const trafficMixDetail =
+    activeRequestSourceCount > 1 || trafficMixSurface.requestSurfaceLabels.length > 1
+      ? joinFragments([
+          activeRequestSourceCount > 1
+            ? `This slice currently mixes ${activeRequestSourceCount} request sources.`
+            : null,
+          trafficMixSurface.requestSurfaceLabels.length > 1
+            ? `Keep the route-specific diagnosis anchored to ${formatCountLabel(trafficMixSurface.requestSurfaceLabels.length, "request surface")} below, rather than collapsing multiple publish paths into one conclusion.`
+            : null
+        ])
+      : trafficMixSurface.requestSurfaceLabels[0]
+        ? `Current publish traffic is concentrated on ${trafficMixSurface.requestSurfaceLabels[0]}, with ${trafficMixSurface.runStatesSummary}.`
+        : `Current publish traffic does not show a split across request surfaces, and ${trafficMixSurface.runStatesSummary}.`;
+
+  return {
+    tone: "healthy",
+    headline: "Current publish activity does not expose a shared operator backlog.",
+    detail:
+      joinFragments([
+        trafficMixDetail,
+        "Use the traffic mix, rate-limit window, and sampled invocation detail below for per-surface diagnostics."
+      ]) ?? "Use the traffic mix, rate-limit window, and sampled invocation detail below for per-surface diagnostics.",
+    href: null,
+    hrefLabel: null
+  };
+}
+
+export function buildPublishedInvocationActivitySummaryCardSurfaces({
+  summary,
+  waitingOverview,
+  primaryFollowUp,
+  surfaceCopy = buildPublishedInvocationActivityInsightsSurfaceCopy()
+}: {
+  summary?: PublishedEndpointInvocationSummary | null;
+  waitingOverview: PublishedInvocationWaitingOverview;
+  primaryFollowUp: PublishedInvocationActivityPrimaryFollowUpSurface;
+  surfaceCopy?: PublishedInvocationActivityInsightsSurfaceCopy;
+}): PublishedInvocationActivitySummaryCardSurface[] {
+  return [
+    ...listPublishedInvocationActivitySummaryRows({
+      summary,
+      waitingOverview,
+      surfaceCopy
+    }).map((row) => ({
+      key: row.key,
+      label: row.label,
+      value: row.value,
+      detail: null,
+      href: row.href,
+      hrefLabel: null
+    })),
+    {
+      key: "summary-focus",
+      label: surfaceCopy.summaryFocusLabel,
+      value: primaryFollowUp.tone === "healthy" ? "clear" : "attention",
+      detail: formatWorkflowPublishSummaryFocusDetail(primaryFollowUp),
+      href: primaryFollowUp.href,
+      hrefLabel: primaryFollowUp.hrefLabel
+    }
+  ];
 }
 
 export function buildPublishedInvocationIssueSignalsSurface({
@@ -2443,20 +2593,22 @@ function getFacetCount(
 function formatCountLabel(count: number, label: string) {
   return `${count} ${label}${count === 1 ? "" : "s"}`;
 }
-function joinFragments(fragments: string[]) {
-  if (fragments.length === 0) {
+function joinFragments(fragments: Array<string | null | undefined | false>) {
+  const filteredFragments = fragments.filter((fragment): fragment is string => Boolean(fragment));
+
+  if (filteredFragments.length === 0) {
     return null;
   }
 
-  if (fragments.length === 1) {
-    return fragments[0];
+  if (filteredFragments.length === 1) {
+    return filteredFragments[0];
   }
 
-  if (fragments.length === 2) {
-    return `${fragments[0]} and ${fragments[1]}`;
+  if (filteredFragments.length === 2) {
+    return `${filteredFragments[0]} and ${filteredFragments[1]}`;
   }
 
-  return `${fragments.slice(0, -1).join(", ")}, and ${fragments[fragments.length - 1]}`;
+  return `${filteredFragments.slice(0, -1).join(", ")}, and ${filteredFragments[filteredFragments.length - 1]}`;
 }
 
 function normalizeExplanation(
@@ -3199,7 +3351,7 @@ function buildPublishedInvocationSensitiveAccessFollowUpSurface(
     case "pending_approval":
       return buildSurface({
         detail:
-          `Sensitive access inbox 里仍有 ${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)}；优先处理审批票据，再决定这是不是纯 publish/runtime failure。`,
+          `Sensitive access inbox 里仍有 ${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)}；优先处理审批��据，再决定这是不是��� publish/runtime failure。`,
         href: primaryBacklog.href
       });
     case "failed_notification":
@@ -3504,14 +3656,32 @@ export function buildWorkflowPublishSummaryCardSurfaces({
       key: "summary-focus",
       label: "Summary focus",
       value: resolvedPrimaryFollowUp.tone === "healthy" ? "clear" : "attention",
-      detail:
-        resolvedPrimaryFollowUp.tone === "healthy"
-          ? resolvedPrimaryFollowUp.headline
-          : resolvedPrimaryFollowUp.detail,
+      detail: formatWorkflowPublishSummaryFocusDetail(resolvedPrimaryFollowUp),
       href: resolvedPrimaryFollowUp.href,
       hrefLabel: resolvedPrimaryFollowUp.hrefLabel
     }
   ];
+}
+
+function formatWorkflowPublishSummaryFocusDetail(
+  primaryFollowUp: WorkflowPublishPrimaryFollowUpSurface
+) {
+  if (primaryFollowUp.tone === "healthy") {
+    return primaryFollowUp.headline;
+  }
+
+  const headline = primaryFollowUp.headline.trim();
+  const detail = primaryFollowUp.detail.trim();
+
+  if (!headline) {
+    return detail;
+  }
+
+  if (!detail || detail.includes(headline)) {
+    return detail || headline;
+  }
+
+  return `${headline} ${detail}`;
 }
 
 export function formatRateLimitPressure(

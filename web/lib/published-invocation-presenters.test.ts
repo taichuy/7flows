@@ -7,9 +7,12 @@ import {
   buildPublishedInvocationActivityBlockedDetailSurfaceCopy,
   buildPublishedInvocationApiKeyUsageCardSurface,
   buildPublishedInvocationActivityDetailsSurfaceCopy,
+  buildPublishedInvocationActivityPrimaryFollowUpSurface,
+  buildPublishedInvocationActivitySummaryCardSurfaces,
   buildPublishedInvocationActivityInsightsSurfaceCopy,
   buildPublishedInvocationIssueSignalsSurface,
   buildPublishedInvocationActivityTrafficMixSurface,
+  buildWorkflowPublishSummaryCardSurfaces,
   buildPublishedCacheInventorySurfaceCopy,
   buildPublishedInvocationCallbackDrilldownSurfaceCopy,
   buildPublishedInvocationCallbackBlockerSurface,
@@ -1021,6 +1024,114 @@ describe("published invocation presenters", () => {
       { key: "rate-limit-pressure", label: "Pressure", value: "60%", href: null },
       { key: "rate-limit-rejected", label: "Rejected", value: "3", href: null }
     ]);
+  });
+
+  it("为 publish activity summary focus 提供 shared follow-up contract", () => {
+    const surfaceCopy = buildPublishedInvocationActivityInsightsSurfaceCopy();
+    const waitingOverview = {
+      activeWaitingCount: 0,
+      callbackWaitingCount: 0,
+      waitingInputCount: 0,
+      generalWaitingCount: 0,
+      syncWaitingRejectedCount: 0,
+      lastRunStatusLabel: "failed",
+      headline: "Current publish traffic does not show active waiting pressure.",
+      detail: "The current audit slice has no waiting runs or synchronous waiting rejections to triage.",
+      chips: []
+    };
+    const trafficMixSurface = buildPublishedInvocationActivityTrafficMixSurface({
+      requestSourceCounts: [
+        { value: "workflow", count: 3 },
+        { value: "alias", count: 1 }
+      ],
+      requestSurfaceCounts: [
+        { value: "openai.responses", count: 3 },
+        { value: "native.workflow", count: 1 }
+      ],
+      cacheStatusCounts: [{ value: "hit", count: 2 }],
+      runStatusCounts: [{ value: "failed", count: 1 }],
+      runStatesEmptyLabel: "n/a"
+    });
+
+    const rateLimitPrimaryFollowUp = buildPublishedInvocationActivityPrimaryFollowUpSurface({
+      waitingOverview,
+      issueSignalsSurface: null,
+      trafficMixSurface,
+      rateLimitWindowInsight:
+        "当前最近 24 小时切片里已用掉 90% 配额，只剩 1 次；继续放量前先观察是否开始转成 rate_limit_exceeded。",
+      rateLimitPressure: { percentage: 90, label: "90%" },
+      rateLimitWindowRejectedCount: 0
+    });
+
+    expect(rateLimitPrimaryFollowUp).toEqual({
+      tone: "attention",
+      headline: "Rate limit pressure is the main aggregate to watch in this publish slice.",
+      detail:
+        "当前最近 24 小时切片里已用掉 90% 配额，只剩 1 次；继续放量前先观察是否开始转成 rate_limit_exceeded。",
+      href: null,
+      hrefLabel: null
+    });
+
+    expect(
+      buildPublishedInvocationActivitySummaryCardSurfaces({
+        summary: {
+          total_count: 4,
+          succeeded_count: 1,
+          failed_count: 2,
+          rejected_count: 1,
+          cache_hit_count: 0,
+          cache_miss_count: 0,
+          cache_bypass_count: 0,
+          last_run_status: "failed"
+        },
+        waitingOverview,
+        primaryFollowUp: rateLimitPrimaryFollowUp,
+        surfaceCopy
+      }).at(-1)
+    ).toEqual({
+      key: "summary-focus",
+      label: "Summary focus",
+      value: "attention",
+      detail:
+        "Rate limit pressure is the main aggregate to watch in this publish slice. 当前最近 24 小时切片里已用掉 90% 配额，只剩 1 次；继续放量前先观察是否开始转成 rate_limit_exceeded。",
+      href: null,
+      hrefLabel: null
+    });
+  });
+
+  it("让 publish summary focus 卡片保留 attention headline 与 detail", () => {
+    const summaryFocusCard = buildWorkflowPublishSummaryCardSurfaces({
+      bindings: [
+        {
+          lifecycle_status: "published",
+          activity: {
+            rejected_count: 2
+          },
+          cache_inventory: {
+            enabled: false,
+            active_entry_count: 0
+          }
+        }
+      ] as Parameters<typeof buildWorkflowPublishSummaryCardSurfaces>[0]["bindings"],
+      primaryFollowUp: {
+        tone: "attention",
+        headline: "Sensitive access approvals remain the primary publish backlog.",
+        detail:
+          "2 pending approval tickets still need operator action before binding-level failures become the main diagnosis.",
+        href: "/sensitive-access?status=pending",
+        hrefLabel: "Open approval inbox slice"
+      }
+    }).at(-1);
+
+    expect(summaryFocusCard).toEqual({
+      key: "summary-focus",
+      label: "Summary focus",
+      value: "attention",
+      detail:
+        "Sensitive access approvals remain the primary publish backlog. 2 pending approval tickets still need operator action before binding-level failures become the main diagnosis.",
+      href: "/sensitive-access?status=pending",
+      hrefLabel: "Open approval inbox slice"
+    });
   });
 
   it("为 publish activity traffic mix 提供共享 cache/run-state 摘要", () => {

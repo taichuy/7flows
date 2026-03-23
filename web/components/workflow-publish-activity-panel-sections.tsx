@@ -16,6 +16,8 @@ import type {
 } from "@/lib/get-workflow-publish";
 import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import {
+  buildPublishedInvocationActivityPrimaryFollowUpSurface,
+  buildPublishedInvocationActivitySummaryCardSurfaces,
   buildPublishedInvocationApiKeyUsageCardSurface,
   buildPublishedInvocationActivityDetailsSurfaceCopy,
   buildPublishedInvocationActivityInsightsSurfaceCopy,
@@ -25,7 +27,6 @@ import {
   buildPublishedInvocationRateLimitWindowInsight,
   buildPublishedInvocationWaitingOverview,
   formatRateLimitPressure,
-  listPublishedInvocationActivitySummaryRows,
   listPublishedInvocationActivityWaitingRows,
   listPublishedInvocationRateLimitRows
 } from "@/lib/published-invocation-presenters";
@@ -137,11 +138,6 @@ export function WorkflowPublishActivityInsights({
     callbackWaitingAutomation,
     sandboxReadiness
   });
-  const summaryRows = listPublishedInvocationActivitySummaryRows({
-    summary,
-    waitingOverview,
-    surfaceCopy: insightsSurfaceCopy
-  });
   const waitingRows = listPublishedInvocationActivityWaitingRows({
     waitingOverview,
     surfaceCopy: insightsSurfaceCopy
@@ -175,17 +171,37 @@ export function WorkflowPublishActivityInsights({
         ? selectedInvocationSurface.detail.invocation.error_message ?? null
         : null,
     selectedInvocationNextStepSurface:
-      selectedInvocationSurface.kind === "ok" ? selectedInvocationSurface.nextStepSurface : null,
+    selectedInvocationSurface.kind === "ok" ? selectedInvocationSurface.nextStepSurface : null,
+    surfaceCopy: insightsSurfaceCopy
+  });
+  const primaryFollowUp = buildPublishedInvocationActivityPrimaryFollowUpSurface({
+    waitingOverview,
+    issueSignalsSurface,
+    trafficMixSurface,
+    rateLimitWindowInsight,
+    rateLimitPressure: pressure,
+    rateLimitWindowRejectedCount: windowRejected
+  });
+  const summaryCards = buildPublishedInvocationActivitySummaryCardSurfaces({
+    summary,
+    waitingOverview,
+    primaryFollowUp,
     surfaceCopy: insightsSurfaceCopy
   });
 
   return (
     <>
-      <div className="publish-summary-grid">
-        {summaryRows.map((row) => (
-          <article className="status-card compact-card" key={row.key}>
-            <span className="status-label">{row.label}</span>
-            <strong>{row.value}</strong>
+      <div className="summary-strip compact-strip">
+        {summaryCards.map((card) => (
+          <article className="summary-card" key={card.key}>
+            <span>{card.label}</span>
+            <strong>{card.value}</strong>
+            {card.detail ? <p className="binding-meta">{card.detail}</p> : null}
+            {card.href && card.hrefLabel ? (
+              <Link className="inline-link" href={card.href}>
+                {card.hrefLabel}
+              </Link>
+            ) : null}
           </article>
         ))}
       </div>
