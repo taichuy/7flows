@@ -39,6 +39,7 @@ type InlineOperatorActionFeedbackProps = {
   status: "idle" | "success" | "error";
   message: string;
   title: string;
+  currentHref?: string | null;
   runId?: string | null;
   recommendedNextStep?: OperatorRecommendedNextStep | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
@@ -49,6 +50,7 @@ export function InlineOperatorActionFeedback({
   status,
   message,
   title,
+  currentHref = null,
   runId = null,
   recommendedNextStep: recommendedNextStepOverride,
   sandboxReadiness = null,
@@ -145,6 +147,7 @@ export function InlineOperatorActionFeedback({
     sharedCandidate:
       canonicalCallbackCandidate ?? sharedCallbackRecoveryCandidate ?? sampledCallbackCandidate,
     active: hasCallbackWaitingSummary || Boolean(callbackWaitingSummaryProps),
+    currentHref: currentHref ?? callbackWaitingSummaryProps?.currentHref ?? null,
     href: callbackWaitingSummaryProps?.inboxHref,
     runId,
     label: "callback waiting",
@@ -163,6 +166,7 @@ export function InlineOperatorActionFeedback({
   const executionCandidate = buildSharedOrLocalOperatorCandidate({
     sharedCandidate: sharedSandboxCandidate ?? canonicalExecutionCandidate,
     active: Boolean(runId),
+    currentHref: currentHref ?? callbackWaitingSummaryProps?.currentHref ?? null,
     runId,
     label: runId ? "run detail" : "execution follow-up",
     detail: model.runFollowUpFollowUp,
@@ -176,6 +180,7 @@ export function InlineOperatorActionFeedback({
       ? buildOperatorRecommendedNextStep({
           callback: callbackCandidate,
           execution: executionCandidate,
+          currentHref: currentHref ?? callbackWaitingSummaryProps?.currentHref ?? null,
           operatorFollowUp: executionCandidate.active ? model.outcomeFollowUp : null,
           operatorLabel: "operator result"
         })
@@ -326,6 +331,7 @@ export function InlineOperatorActionFeedback({
 
       {hasCallbackWaitingSummary ? (
         <CallbackWaitingSummaryCard
+          currentHref={currentHref ?? callbackWaitingSummaryProps?.currentHref ?? null}
           callbackWaitingExplanation={runSnapshot?.callbackWaitingExplanation ?? null}
           callbackTickets={callbackWaitingSummaryProps?.callbackTickets}
           callbackWaitingAutomation={callbackWaitingSummaryProps?.callbackWaitingAutomation ?? null}

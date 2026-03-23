@@ -3,7 +3,7 @@
 import React from "react";
 import { useActionState, useEffect } from "react";
 import { useFormStatus } from "react-dom";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import {
   decideSensitiveAccessApprovalTicket,
@@ -123,6 +123,12 @@ export function SensitiveAccessInlineActions({
   compact = false
 }: SensitiveAccessInlineActionsProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentHref = React.useMemo(() => {
+    const search = searchParams?.toString();
+    return search ? `${pathname}?${search}` : pathname;
+  }, [pathname, searchParams]);
   const [decisionState, decisionAction] = useActionState(
     decideSensitiveAccessApprovalTicket,
     initialDecisionState
@@ -177,6 +183,7 @@ export function SensitiveAccessInlineActions({
           {decisionState.message && decisionState.ticketId === ticket?.id ? (
             <InlineOperatorActionFeedback
               callbackWaitingSummaryProps={callbackWaitingSummaryProps}
+              currentHref={currentHref}
               message={decisionState.message}
               outcomeExplanation={decisionState.outcomeExplanation}
               runFollowUpExplanation={decisionState.runFollowUpExplanation}
@@ -262,6 +269,7 @@ export function SensitiveAccessInlineActions({
           {retryState.message && retryState.dispatchId === retriableNotification.id ? (
             <InlineOperatorActionFeedback
               callbackWaitingSummaryProps={callbackWaitingSummaryProps}
+              currentHref={currentHref}
               message={retryState.message}
               outcomeExplanation={retryState.outcomeExplanation}
               runFollowUpExplanation={retryState.runFollowUpExplanation}

@@ -27,9 +27,11 @@ vi.mock("react-dom", async () => {
 });
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/sensitive-access",
   useRouter: () => ({
     refresh: vi.fn()
-  })
+  }),
+  useSearchParams: () => new URLSearchParams("status=pending")
 }));
 
 vi.mock("@/app/actions/sensitive-access", () => ({

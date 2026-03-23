@@ -64,6 +64,7 @@ type CallbackWaitingFocusNodeEvidence = {
   >;
 
 type CallbackWaitingSummaryCardProps = {
+  currentHref?: string | null;
   lifecycle?: CallbackWaitingLifecycleSummary | null;
   callbackTickets?: RunCallbackTicketItem[];
   sensitiveAccessEntries?: SensitiveAccessTimelineEntry[];
@@ -101,6 +102,7 @@ type CallbackWaitingSummaryCardProps = {
 const SENSITIVE_ACCESS_CONTEXT_ROW_LABELS = new Set(["Approvals", "Sensitive access", "Notification"]);
 
 export function CallbackWaitingSummaryCard({
+  currentHref = null,
   lifecycle,
   callbackTickets = [],
   sensitiveAccessEntries = [],
@@ -236,6 +238,7 @@ export function CallbackWaitingSummaryCard({
     preferCanonicalRecommendedNextStep && canonicalRecommendedActionCandidate
       ? buildOperatorRecommendedNextStep({
           callback: canonicalRecommendedActionCandidate,
+          currentHref,
           operatorFollowUp: callbackFollowUp ?? operatorFollowUp,
           operatorLabel: "callback waiting follow-up"
         })
@@ -280,6 +283,7 @@ export function CallbackWaitingSummaryCard({
         ? "cleanup"
         : null;
   const sensitiveAccessCallbackWaitingSummaryProps: CallbackWaitingSummaryProps = {
+    currentHref,
     inboxHref,
     callbackTickets,
     callbackWaitingAutomation,
@@ -480,6 +484,7 @@ export function CallbackWaitingSummaryCard({
         <CallbackWaitingInlineActions
           allowManualResume={!hasTermination}
           callbackWaitingSummaryProps={{
+            currentHref,
             inboxHref,
             callbackTickets,
             callbackWaitingAutomation,

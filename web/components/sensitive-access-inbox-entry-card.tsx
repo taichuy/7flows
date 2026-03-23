@@ -58,13 +58,15 @@ type SensitiveAccessInboxEntryCardProps = {
   notificationChannels?: NotificationChannelCapabilityItem[];
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  currentHref?: string | null;
 };
 
 export function SensitiveAccessInboxEntryCard({
   entry,
   notificationChannels = [],
   callbackWaitingAutomation,
-  sandboxReadiness = null
+  sandboxReadiness = null,
+  currentHref = null
 }: SensitiveAccessInboxEntryCardProps) {
   const request = entry.request;
   const resource = entry.resource;
@@ -318,6 +320,7 @@ export function SensitiveAccessInboxEntryCard({
         <div className="entry-card compact-card">
           <p className="entry-card-title">Callback waiting follow-up</p>
           <CallbackWaitingSummaryCard
+            currentHref={currentHref}
             callbackTickets={callbackWaitingContext.callbackTickets}
             callbackWaitingAutomation={callbackWaitingAutomation}
             callbackWaitingExplanation={callbackWaitingContext.callbackWaitingExplanation}

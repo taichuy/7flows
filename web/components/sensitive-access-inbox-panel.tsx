@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import {
   bulkDecideSensitiveAccessApprovalTickets,
@@ -45,6 +46,12 @@ export function SensitiveAccessInboxPanel({
   recommendedNextStep = null,
   sandboxReadiness = null
 }: SensitiveAccessInboxPanelProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentHref = (() => {
+    const search = searchParams?.toString();
+    return search ? `${pathname}?${search}` : pathname;
+  })();
   const [bulkOperator, setBulkOperator] = useState(DEFAULT_OPERATOR_ID);
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [bulkMessageTone, setBulkMessageTone] = useState<SensitiveAccessMessageTone>("idle");
@@ -174,6 +181,7 @@ export function SensitiveAccessInboxPanel({
         {entries.map((entry) => (
           <SensitiveAccessInboxEntryCard
             callbackWaitingAutomation={callbackWaitingAutomation}
+            currentHref={currentHref}
             entry={entry}
             key={entry.ticket.id}
             notificationChannels={channels}

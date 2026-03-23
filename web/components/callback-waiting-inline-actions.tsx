@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useActionState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import {
   cleanupRunCallbackTickets,
@@ -60,6 +60,12 @@ export function CallbackWaitingInlineActions({
 }: CallbackWaitingInlineActionsProps) {
   const surfaceCopy = buildCallbackWaitingSummarySurfaceCopy();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentHref = React.useMemo(() => {
+    const search = searchParams?.toString();
+    return search ? `${pathname}?${search}` : pathname;
+  }, [pathname, searchParams]);
   const [cleanupState, cleanupAction] = useActionState(cleanupRunCallbackTickets, initialState);
   const [resumeState, resumeAction] = useActionState(resumeRun, initialResumeState);
   const scopeKey = `${runId ?? ""}:${nodeRunId ?? ""}`;
@@ -101,6 +107,7 @@ export function CallbackWaitingInlineActions({
       {resumeState.message && resumeState.runId === runId ? (
         <InlineOperatorActionFeedback
           callbackWaitingSummaryProps={callbackWaitingSummaryProps}
+          currentHref={currentHref}
           message={resumeState.message}
           outcomeExplanation={resumeState.outcomeExplanation}
           runFollowUpExplanation={resumeState.runFollowUpExplanation}
@@ -128,6 +135,7 @@ export function CallbackWaitingInlineActions({
       {cleanupState.message && cleanupState.scopeKey === scopeKey ? (
         <InlineOperatorActionFeedback
           callbackWaitingSummaryProps={callbackWaitingSummaryProps}
+          currentHref={currentHref}
           message={cleanupState.message}
           outcomeExplanation={cleanupState.outcomeExplanation}
           runFollowUpExplanation={cleanupState.runFollowUpExplanation}

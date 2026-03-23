@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
@@ -198,7 +199,13 @@ export function SensitiveAccessTimelineEntryList({
   callbackWaitingAutomation = null,
   sandboxReadiness = null
 }: SensitiveAccessTimelineEntryListProps) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
+  const currentHref = useMemo(() => {
+    const search = searchParams?.toString();
+    return search ? `${pathname}?${search}` : pathname;
+  }, [pathname, searchParams]);
   const [decisionFilter, setDecisionFilter] = useState<DecisionFilterValue>("all");
   const [ticketFilter, setTicketFilter] = useState<TicketFilterValue>("all");
   const [notificationFilter, setNotificationFilter] = useState<NotificationFilterValue>("all");
@@ -515,6 +522,7 @@ export function SensitiveAccessTimelineEntryList({
               {hasStructuredOperatorFeedback ? (
                 <InlineOperatorActionFeedback
                   callbackWaitingSummaryProps={callbackWaitingSummaryProps}
+                  currentHref={currentHref}
                   message=""
                   outcomeExplanation={shouldRenderCallbackWaitingSummary ? null : canonicalOutcomeExplanation}
                   recommendedNextStep={
@@ -546,6 +554,7 @@ export function SensitiveAccessTimelineEntryList({
 
               {shouldRenderCallbackWaitingSummary ? (
                 <CallbackWaitingSummaryCard
+                  currentHref={currentHref}
                   callbackWaitingExplanation={entry.outcome_explanation ?? null}
                   callbackTickets={callbackSummaryCallbackTickets}
                   callbackWaitingAutomation={callbackWaitingAutomation}

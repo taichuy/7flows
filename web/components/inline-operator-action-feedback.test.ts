@@ -470,6 +470,44 @@ describe("InlineOperatorActionFeedback", () => {
     expect(html).toContain("approval_ticket_id=ticket-1");
   });
 
+  it("drops self-links from inline feedback when the current page already matches the inbox slice", () => {
+    const html = renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        message: "",
+        title: "Operator follow-up",
+        currentHref:
+          "/sensitive-access?access_request_id=request-1&approval_ticket_id=ticket-1&node_run_id=node-run-1&run_id=run-1&status=pending&waiting_status=waiting",
+        runId: "run-1",
+        runFollowUp: {
+          affectedRunCount: 1,
+          sampledRunCount: 1,
+          waitingRunCount: 1,
+          runningRunCount: 0,
+          succeededRunCount: 0,
+          failedRunCount: 0,
+          unknownRunCount: 0,
+          recommendedAction: {
+            kind: "approval blocker",
+            entryKey: "operatorInbox",
+            href: "/sensitive-access?status=pending&waiting_status=waiting&run_id=run-1&node_run_id=node-run-1&access_request_id=request-1&approval_ticket_id=ticket-1",
+            label: "open approval inbox slice"
+          },
+          sampledRuns: []
+        },
+        runFollowUpExplanation: {
+          primary_signal: "operator follow-up 已刷新。",
+          follow_up: "优先处理审批票据，再观察 waiting 是否恢复。"
+        }
+      })
+    );
+
+    expect(html).toContain(operatorSurfaceCopy.recommendedNextStepTitle);
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("优先处理审批票据，再观察 waiting 是否恢复。");
+    expect(html).not.toContain("open approval inbox slice</a>");
+  });
+
   it("surfaces live sandbox readiness for blocked operator follow-up snapshots", () => {
     const html = renderToStaticMarkup(
       createElement(InlineOperatorActionFeedback, {

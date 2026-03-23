@@ -174,6 +174,7 @@ export function RunDetailExecutionFocusCard({
 
         {focus.hasCallbackSummary ? (
           <CallbackWaitingSummaryCard
+            currentHref={currentRunHref}
             callbackTickets={focus.callbackTickets}
             callbackWaitingAutomation={callbackWaitingAutomation}
             callbackWaitingExplanation={focus.callbackWaitingExplanation}

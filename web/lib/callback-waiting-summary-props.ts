@@ -4,6 +4,7 @@ import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import type { OperatorRecommendedActionLike } from "@/lib/operator-follow-up-presenters";
 
 export type CallbackWaitingSummaryProps = {
+  currentHref?: string | null;
   inboxHref?: string | null;
   callbackTickets?: RunCallbackTicketItem[];
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;

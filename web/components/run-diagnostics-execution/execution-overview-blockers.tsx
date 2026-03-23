@@ -32,6 +32,7 @@ import {
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import { buildRunDetailHref } from "@/lib/workbench-links";
 
 function buildNodeInboxHref(node: RunExecutionNodeItem, defaultRunId?: string | null): string | null {
   const latestApprovalEntry = node.sensitive_access_entries.find((entry) => entry.approval_ticket);
@@ -76,6 +77,7 @@ function renderNodeFollowUp({
   skillTrace: RunExecutionView["skill_trace"];
 }) {
   const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
+  const currentRunHref = buildRunDetailHref(runId);
   const nodeSkillTrace = pickCallbackWaitingSkillTraceForNode(skillTrace, node.node_run_id);
   const skillReferenceLoads = pickNodeSkillReferenceLoads(node, skillTrace);
   const hasCallbackWaitingSummary = hasCallbackWaitingSummaryFacts({
@@ -94,6 +96,7 @@ function renderNodeFollowUp({
   if (hasCallbackWaitingSummary) {
     return (
       <CallbackWaitingSummaryCard
+        currentHref={currentRunHref}
         callbackTickets={node.callback_tickets}
         callbackWaitingAutomation={callbackWaitingAutomation}
         callbackWaitingExplanation={node.callback_waiting_explanation}

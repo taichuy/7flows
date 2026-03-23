@@ -305,6 +305,24 @@ describe("CallbackWaitingSummaryCard", () => {
     );
   });
 
+  it("strips canonical callback self-links when the summary already sits on the exact inbox slice", () => {
+    const html = renderToStaticMarkup(
+      createElement(CallbackWaitingSummaryCard, {
+        currentHref: "/sensitive-access?approval_ticket_id=ticket-1&run_id=run-1",
+        lifecycle: buildLifecycle({ late_callback_count: 1 }),
+        inboxHref: "/sensitive-access?run_id=run-1&approval_ticket_id=ticket-1",
+        recommendedAction: canonicalRecommendedAction,
+        operatorFollowUp: "Open the approval inbox first, then retry the callback path.",
+        preferCanonicalRecommendedNextStep: true,
+        runId: "run-1"
+      })
+    );
+
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("Open the approval inbox first, then retry the callback path.");
+    expect(html).not.toContain("Open approval inbox</a>");
+  });
+
   it("passes shared callback waiting context into inline actions feedback", () => {
     const callbackTickets = [
       {

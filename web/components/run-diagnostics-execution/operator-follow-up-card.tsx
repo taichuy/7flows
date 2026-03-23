@@ -278,6 +278,7 @@ export function RunDiagnosticsOperatorFollowUpCard({
       ) : null}
       {snapshot ? (
         <CallbackWaitingSummaryCard
+          currentHref={currentRunHref}
           callbackTickets={callbackSummaryCallbackTickets}
           callbackWaitingAutomation={callbackWaitingAutomation}
           lifecycle={snapshot.callback_waiting_lifecycle ?? null}

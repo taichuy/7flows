@@ -102,6 +102,17 @@ function stripCandidateLink(
   };
 }
 
+function sanitizeCandidateForCurrentHref(
+  candidate: OperatorRecommendedNextStepCandidate | null | undefined,
+  currentHref?: string | null
+) {
+  if (!candidate?.href || !isSelfHref(candidate.href, currentHref)) {
+    return candidate ?? null;
+  }
+
+  return stripCandidateLink(candidate);
+}
+
 function isCallbackLikeOperatorRecommendedAction(
   action?: OperatorRecommendedActionLike | null
 ) {
@@ -481,17 +492,22 @@ function resolveCandidate(
 export function buildOperatorRecommendedNextStep({
   callback,
   execution,
+  currentHref,
   operatorFollowUp,
   operatorLabel = "operator follow-up"
 }: {
   callback?: OperatorRecommendedNextStepCandidate | null;
   execution?: OperatorRecommendedNextStepCandidate | null;
+  currentHref?: string | null;
   operatorFollowUp?: string | null;
   operatorLabel?: string;
 }): OperatorRecommendedNextStep | null {
+  const sanitizedCallback = sanitizeCandidateForCurrentHref(callback, currentHref);
+  const sanitizedExecution = sanitizeCandidateForCurrentHref(execution, currentHref);
+
   return (
-    resolveCandidate(callback, operatorFollowUp) ??
-    resolveCandidate(execution, operatorFollowUp) ??
+    resolveCandidate(sanitizedCallback, operatorFollowUp) ??
+    resolveCandidate(sanitizedExecution, operatorFollowUp) ??
     (normalizeFollowUpCopy(operatorFollowUp)
       ? {
           label: operatorLabel,

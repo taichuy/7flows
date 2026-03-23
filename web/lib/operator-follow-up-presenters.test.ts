@@ -6,6 +6,7 @@ import {
   buildOperatorInboxSliceLinkSurface,
   buildOperatorInboxSliceCandidate,
   buildOperatorFollowUpSurfaceCopy,
+  buildOperatorRecommendedNextStep,
   buildRequiredOperatorRunDetailLinkSurface,
   buildOperatorRunDetailLinkSurface,
   buildOperatorRunDetailCandidate,
@@ -247,6 +248,48 @@ describe("operator follow-up presenters", () => {
         scope: "execution"
       })
     ).toBeNull();
+  });
+
+  it("会在最终 next step 上移除指回当前页的 canonical 链接", () => {
+    expect(
+      buildOperatorRecommendedNextStep({
+        callback: {
+          active: true,
+          label: "approval blocker",
+          detail: "先处理当前审批票据。",
+          href: "/sensitive-access?approval_ticket_id=ticket-1&run_id=run-1",
+          href_label: "open approval inbox slice",
+          fallback_detail: "fallback"
+        },
+        currentHref: "/sensitive-access?run_id=run-1&approval_ticket_id=ticket-1"
+      })
+    ).toEqual({
+      label: "approval blocker",
+      detail: "先处理当前审批票据。",
+      href: null,
+      href_label: null
+    });
+  });
+
+  it("保留指向其他页面的 canonical next step 链接", () => {
+    expect(
+      buildOperatorRecommendedNextStep({
+        execution: {
+          active: true,
+          label: "run detail",
+          detail: "优先打开另一条 run。",
+          href: "/runs/run-2",
+          href_label: "open run",
+          fallback_detail: "fallback"
+        },
+        currentHref: "/runs/run-1"
+      })
+    ).toEqual({
+      label: "run detail",
+      detail: "优先打开另一条 run。",
+      href: "/runs/run-2",
+      href_label: "open run"
+    });
   });
 
   it("为直达 run 链接复用统一 href 与标签 surface", () => {

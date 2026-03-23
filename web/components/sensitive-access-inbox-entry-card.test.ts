@@ -15,12 +15,14 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/sensitive-access",
   useRouter: () => ({
     refresh: () => undefined,
     push: () => undefined,
     replace: () => undefined,
     prefetch: async () => undefined
-  })
+  }),
+  useSearchParams: () => new URLSearchParams("status=pending")
 }));
 
 function buildSandboxReadiness(): SandboxReadinessCheck {

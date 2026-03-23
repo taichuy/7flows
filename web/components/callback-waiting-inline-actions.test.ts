@@ -20,9 +20,11 @@ vi.mock("react", async () => {
 });
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/runs/run-1",
   useRouter: () => ({
     refresh: vi.fn()
-  })
+  }),
+  useSearchParams: () => new URLSearchParams()
 }));
 
 vi.mock("@/app/actions/callback-tickets", () => ({

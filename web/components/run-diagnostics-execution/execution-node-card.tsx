@@ -35,6 +35,7 @@ import {
 } from "@/lib/run-execution-focus-presenters";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 import { resolveSensitiveAccessTimelineEntryRunId } from "@/lib/sensitive-access";
+import { buildRunDetailHref } from "@/lib/workbench-links";
 
 function formatExecutionBackendExtensions(
   value: RunExecutionNodeItem["execution_backend_extensions"]
@@ -107,6 +108,7 @@ export function ExecutionNodeCard({
   sandboxReadiness?: SandboxReadinessCheck | null;
   skillTrace?: RunExecutionSkillTrace | null;
 }) {
+  const currentRunHref = buildRunDetailHref(runId);
   const latestApprovalEntry = node.sensitive_access_entries.find((entry) => entry.approval_ticket);
   const inboxHref =
     node.sensitive_access_entries.length > 0 || node.callback_tickets.length > 0
@@ -267,6 +269,7 @@ export function ExecutionNodeCard({
       </div>
 
       <CallbackWaitingSummaryCard
+        currentHref={currentRunHref}
         lifecycle={node.callback_waiting_lifecycle}
         callbackWaitingExplanation={node.callback_waiting_explanation}
         callbackTickets={node.callback_tickets}
