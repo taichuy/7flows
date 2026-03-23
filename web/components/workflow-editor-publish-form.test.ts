@@ -55,7 +55,16 @@ function buildSandboxReadiness(): SandboxReadinessCheck {
     supports_builtin_package_sets: false,
     supports_backend_extensions: false,
     supports_network_policy: false,
-    supports_filesystem_policy: false
+    supports_filesystem_policy: false,
+    affected_run_count: 4,
+    affected_workflow_count: 1,
+    primary_blocker_kind: "execution_class_blocked",
+    recommended_action: {
+      kind: "workflow library",
+      entry_key: "workflowLibrary",
+      href: "/workflows?execution=sandbox",
+      label: "Open workflow library"
+    }
   };
 }
 
@@ -75,6 +84,9 @@ describe("WorkflowEditorPublishForm", () => {
     expect(html).toContain("strong-isolation / capability");
     expect(html).toContain("当前 sandbox readiness：");
     expect(html).toContain("fail-closed");
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("Open workflow library");
+    expect(html).toContain('/workflows?execution=sandbox');
   });
 
   it("shows field-level remediation when a publish validation issue is focused", () => {

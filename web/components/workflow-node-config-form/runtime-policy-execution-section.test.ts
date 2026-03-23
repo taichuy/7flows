@@ -35,7 +35,16 @@ function buildSandboxReadiness(): SandboxReadinessCheck {
     supports_builtin_package_sets: true,
     supports_backend_extensions: false,
     supports_network_policy: false,
-    supports_filesystem_policy: true
+    supports_filesystem_policy: true,
+    affected_run_count: 4,
+    affected_workflow_count: 1,
+    primary_blocker_kind: "execution_class_blocked",
+    recommended_action: {
+      kind: "workflow library",
+      entry_key: "workflowLibrary",
+      href: "/workflows?execution=sandbox",
+      label: "Open workflow library"
+    }
   };
 }
 
@@ -70,6 +79,9 @@ describe("WorkflowNodeRuntimePolicyExecutionSection", () => {
     expect(html).toContain("profile = browser-safe");
     expect(html).toContain("networkPolicy = restricted");
     expect(html).toContain("backendExtensions payload");
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("Open workflow library");
+    expect(html).toContain('/workflows?execution=sandbox');
   });
 
   it("shows field-level remediation for focused runtime execution issues", () => {
@@ -104,5 +116,6 @@ describe("WorkflowNodeRuntimePolicyExecutionSection", () => {
 
     expect(html).toContain("Node · Sandbox code · Execution class");
     expect(html).toContain("先把 execution override 调回当前实现支持范围");
+    expect(html).toContain("Recommended next step");
   });
 });

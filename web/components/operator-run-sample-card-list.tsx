@@ -9,10 +9,15 @@ import type { CallbackWaitingSummaryProps } from "@/lib/callback-waiting-summary
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { OperatorRunSampleCard } from "@/lib/operator-run-sample-cards";
 import {
+  buildOperatorRecommendedNextStep,
   buildOperatorFollowUpSurfaceCopy,
   buildOperatorRunDetailLinkSurface,
   buildOperatorRunSnapshotMetaRows
 } from "@/lib/operator-follow-up-presenters";
+import {
+  buildSandboxReadinessFollowUpCandidate,
+  shouldPreferSharedSandboxReadinessFollowUp
+} from "@/lib/system-overview-follow-up-presenters";
 
 type OperatorRunSampleCardListProps = {
   cards: OperatorRunSampleCard[];
@@ -49,6 +54,31 @@ export function OperatorRunSampleCardList({
           waitingReason: sample.waitingReason,
           surfaceCopy
         });
+        const sampleSandboxCandidate =
+          !sample.hasCallbackWaitingSummary &&
+          sample.sandboxReadinessNode &&
+          shouldPreferSharedSandboxReadinessFollowUp({
+            blockedExecution: (sample.sandboxReadinessNode.execution_blocked_count ?? 0) > 0,
+            hasExecutionBlockingReason: Boolean(
+              sample.sandboxReadinessNode.execution_blocking_reason
+            ),
+            signals: [
+              sample.summary,
+              sample.waitingReason,
+              sample.focusNodeLabel,
+              sample.sandboxReadinessNode.node_type,
+              sample.sandboxReadinessNode.execution_blocking_reason
+            ]
+          })
+            ? buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness")
+            : null;
+        const sampleRecommendedNextStep = sampleSandboxCandidate
+          ? buildOperatorRecommendedNextStep({
+              execution: sampleSandboxCandidate,
+              operatorFollowUp: sample.summary,
+              operatorLabel: "sampled run"
+            })
+          : null;
 
         return (
           <div className="payload-card compact-card" key={sample.runId}>
@@ -92,6 +122,24 @@ export function OperatorRunSampleCardList({
               node={sample.sandboxReadinessNode}
               readiness={sandboxReadiness}
             />
+          ) : null}
+
+          {sampleRecommendedNextStep ? (
+            <div className="entry-card compact-card">
+              <div className="payload-card-header">
+                <span className="status-meta">{surfaceCopy.recommendedNextStepTitle}</span>
+                <span className="event-chip">{sampleRecommendedNextStep.label}</span>
+                {sampleRecommendedNextStep.href && sampleRecommendedNextStep.href_label ? (
+                  <Link
+                    className="event-chip inbox-filter-link"
+                    href={sampleRecommendedNextStep.href}
+                  >
+                    {sampleRecommendedNextStep.href_label}
+                  </Link>
+                ) : null}
+              </div>
+              <p className="section-copy entry-copy">{sampleRecommendedNextStep.detail}</p>
+            </div>
           ) : null}
 
           <CallbackWaitingSummaryCard

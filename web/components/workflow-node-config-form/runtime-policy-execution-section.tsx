@@ -1,9 +1,13 @@
 ﻿"use client";
 
 import React from "react";
+
+import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import { buildOperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { buildSandboxExecutionPolicyPreflightInsight } from "@/lib/sandbox-readiness-presenters";
+import { buildSandboxReadinessFollowUpCandidate } from "@/lib/system-overview-follow-up-presenters";
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import {
   cloneRecord,
@@ -60,6 +64,11 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
           filesystemPolicy: execution.filesystemPolicy
         })
       : null;
+  const sandboxRecommendedNextStep = sandboxExecutionInsight
+    ? buildOperatorRecommendedNextStep({
+        execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness")
+      })
+    : null;
   const normalizedHighlightedField = normalizeRuntimeExecutionFieldKey(highlightedFieldPath);
   const backendExtensionsValue = React.useMemo(
     () => formatJsonObjectFieldValue(execution.backendExtensions),
@@ -333,6 +342,7 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
           ) : null}
         </div>
       ) : null}
+      <OperatorRecommendedNextStepCard recommendedNextStep={sandboxRecommendedNextStep} />
     </div>
   );
 }
@@ -353,4 +363,3 @@ function normalizeRuntimeExecutionFieldKey(fieldPath?: string | null) {
 
   return null;
 }
-

@@ -1116,6 +1116,95 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     expect(html).toContain("当前 live sandbox readiness 仍影响 4 个 run / 1 个 workflow");
   });
 
+  it("adds shared sandbox remediation CTA inside sampled run cards", () => {
+    const detail = buildDetail();
+    detail.run_follow_up = {
+      affected_run_count: 1,
+      sampled_run_count: 1,
+      waiting_run_count: 0,
+      running_run_count: 0,
+      succeeded_run_count: 0,
+      failed_run_count: 1,
+      unknown_run_count: 0,
+      explanation: {
+        primary_signal: "本次影响 1 个 run；已回读 1 个样本。",
+        follow_up: "run run-callback-1：继续检查 sandbox 阻断。"
+      },
+      recommended_action: null,
+      sampled_runs: [
+        {
+          run_id: "run-callback-1",
+          snapshot: {
+            status: "failed",
+            current_node_id: "sandbox_tool",
+            waiting_reason: null,
+            execution_focus_reason: "blocked_execution",
+            execution_focus_node_id: "sandbox_tool",
+            execution_focus_node_run_id: "node-run-tool-wait",
+            execution_focus_node_name: "Sandbox tool",
+            execution_focus_node_type: "tool",
+            execution_focus_explanation: {
+              primary_signal: "当前 sampled run 因 sandbox backend 不可用而阻断。",
+              follow_up: "先恢复 backend，再回来复核 sampled run。"
+            },
+            execution_focus_tool_calls: [
+              {
+                id: "tool-call-1",
+                tool_id: "sandbox.code",
+                tool_name: "Sandbox Code",
+                phase: "tool",
+                status: "failed",
+                requested_execution_class: "sandbox",
+                requested_execution_source: "runtime_policy",
+                requested_execution_profile: null,
+                requested_execution_timeout_ms: null,
+                requested_execution_network_policy: null,
+                requested_execution_filesystem_policy: null,
+                requested_execution_dependency_mode: null,
+                requested_execution_builtin_package_set: null,
+                requested_execution_dependency_ref: null,
+                requested_execution_backend_extensions: null,
+                effective_execution_class: "sandbox",
+                execution_executor_ref: null,
+                execution_sandbox_backend_id: null,
+                execution_sandbox_backend_executor_ref: null,
+                execution_sandbox_runner_kind: null,
+                execution_blocking_reason: "No compatible sandbox backend is available.",
+                execution_fallback_reason: null,
+                response_summary: null,
+                response_content_type: null,
+                raw_ref: null
+              }
+            ],
+            execution_focus_artifact_count: 0,
+            execution_focus_artifact_ref_count: 0,
+            execution_focus_tool_call_count: 1,
+            execution_focus_raw_ref_count: 0
+          },
+          callback_tickets: [],
+          sensitive_access_entries: []
+        }
+      ]
+    } as never;
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationDetailPanel, {
+        detail,
+        clearHref: "/published?clear=1",
+        tools: [],
+        callbackWaitingAutomation,
+        sandboxReadiness: buildBlockedSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("当前 sampled run 因 sandbox backend 不可用而阻断。");
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("sandbox readiness");
+    expect(html).toContain("Open workflow library");
+    expect(html).toContain('/workflows?execution=sandbox');
+    expect(html).toContain("当前 live sandbox readiness 仍影响 4 个 run / 1 个 workflow");
+  });
+
   it("prefers shared sandbox readiness CTA when execution focus follow-up is missing", () => {
     const detail = buildDetail();
     detail.run_follow_up = null;

@@ -17,7 +17,10 @@ import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { PublishedEndpointInvocationDetailResponse } from "@/lib/get-workflow-publish";
 import { hasExecutionNodeCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import { buildExecutionFocusExplainableNode } from "@/lib/operator-inline-action-feedback";
-import { buildOperatorRunDetailLinkSurface } from "@/lib/operator-follow-up-presenters";
+import {
+  buildOperatorRecommendedNextStep,
+  buildOperatorRunDetailLinkSurface
+} from "@/lib/operator-follow-up-presenters";
 import {
   buildPublishedInvocationDetailSurfaceCopy,
   buildPublishedInvocationCanonicalFollowUpCopy,
@@ -54,6 +57,10 @@ import {
 } from "@/lib/run-execution-focus-presenters";
 import { formatDurationMs, formatTimestamp } from "@/lib/runtime-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
+import {
+  buildSandboxReadinessFollowUpCandidate,
+  shouldPreferSharedSandboxReadinessFollowUp
+} from "@/lib/system-overview-follow-up-presenters";
 
 type WorkflowPublishInvocationDetailPanelProps = {
   detail: PublishedEndpointInvocationDetailResponse;
@@ -320,6 +327,31 @@ export function WorkflowPublishInvocationDetailPanel({
                 const sampleReadinessNode = buildSandboxReadinessNodeFromRunSnapshot(
                   sample.run_snapshot
                 );
+                const sampleSandboxCandidate =
+                  !sample.has_callback_waiting_summary &&
+                  sampleReadinessNode &&
+                  shouldPreferSharedSandboxReadinessFollowUp({
+                    blockedExecution: sample.run_snapshot.executionFocusReason === "blocked_execution",
+                    hasExecutionBlockingReason: Boolean(
+                      sampleReadinessNode.execution_blocking_reason
+                    ),
+                    signals: [
+                      samplePrimarySignal,
+                      sampleFollowUp,
+                      sample.snapshot_summary,
+                      sample.run_snapshot.executionFocusNodeType,
+                      sampleReadinessNode.execution_blocking_reason
+                    ]
+                  })
+                    ? buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness")
+                    : null;
+                const sampleRecommendedNextStep = sampleSandboxCandidate
+                  ? buildOperatorRecommendedNextStep({
+                      execution: sampleSandboxCandidate,
+                      operatorFollowUp: sampleFollowUp ?? sample.snapshot_summary,
+                      operatorLabel: "sampled run"
+                    })
+                  : null;
                 const sampleReasonLabel =
                   formatPublishedInvocationSampleReasonLabel(
                     sample.explanation_source,
@@ -366,6 +398,27 @@ export function WorkflowPublishInvocationDetailPanel({
                         readiness={sandboxReadiness}
                         title={detailSurfaceCopy.liveSandboxReadinessTitle}
                       />
+                    ) : null}
+                    {sampleRecommendedNextStep ? (
+                      <div className="entry-card compact-card">
+                        <div className="payload-card-header">
+                          <span className="status-meta">
+                            {detailSurfaceCopy.recommendedNextStepTitle}
+                          </span>
+                          <span className="event-chip">{sampleRecommendedNextStep.label}</span>
+                          {sampleRecommendedNextStep.href && sampleRecommendedNextStep.href_label ? (
+                            <Link
+                              className="event-chip inbox-filter-link"
+                              href={sampleRecommendedNextStep.href}
+                            >
+                              {sampleRecommendedNextStep.href_label}
+                            </Link>
+                          ) : null}
+                        </div>
+                        <p className="section-copy entry-copy">
+                          {sampleRecommendedNextStep.detail}
+                        </p>
+                      </div>
                     ) : null}
                     {sample.execution_focus_artifact_count > 0 ||
                     sample.execution_focus_artifact_ref_count > 0 ||

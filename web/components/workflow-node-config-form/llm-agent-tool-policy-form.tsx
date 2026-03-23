@@ -1,13 +1,17 @@
 "use client";
 
 import React from "react";
+
+import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import { buildOperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import {
   buildSandboxExecutionPolicyPreflightInsight,
   formatSandboxReadinessPreflightHint
 } from "@/lib/sandbox-readiness-presenters";
+import { buildSandboxReadinessFollowUpCandidate } from "@/lib/system-overview-follow-up-presenters";
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import {
   compareToolsByGovernance,
@@ -108,6 +112,12 @@ export function LlmAgentToolPolicyForm({
             typeof execution.networkPolicy === "string" ? execution.networkPolicy : null,
           filesystemPolicy:
             typeof execution.filesystemPolicy === "string" ? execution.filesystemPolicy : null
+        })
+      : null;
+  const sandboxRecommendedNextStep =
+    callableTools.length > 0 && (toolExecutionInsight || sandboxPreflightHint)
+      ? buildOperatorRecommendedNextStep({
+          execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness")
         })
       : null;
 
@@ -507,6 +517,7 @@ export function LlmAgentToolPolicyForm({
           readiness：{sandboxPreflightHint}
         </p>
       ) : null}
+      <OperatorRecommendedNextStepCard recommendedNextStep={sandboxRecommendedNextStep} />
 
       {callableTools.length > 0 ? (
         <div className="binding-field compact-stack" data-validation-field="allowedToolIds">

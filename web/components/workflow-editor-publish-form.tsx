@@ -3,8 +3,11 @@
 import React from "react";
 import { useMemo, useState } from "react";
 
+import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
+import { buildOperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
+import { buildSandboxReadinessFollowUpCandidate } from "@/lib/system-overview-follow-up-presenters";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { validateContractSchema } from "@/lib/workflow-contract-schema-validation";
 import type { WorkflowPersistBlocker } from "@/components/workflow-editor-workbench/persist-blockers";
@@ -53,6 +56,11 @@ export function WorkflowEditorPublishForm({
 }: WorkflowEditorPublishFormProps) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const sandboxPreflightHint = formatSandboxReadinessPreflightHint(sandboxReadiness);
+  const sandboxRecommendedNextStep = sandboxPreflightHint
+    ? buildOperatorRecommendedNextStep({
+        execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness")
+      })
+    : null;
 
   const normalizedEndpoints = useMemo(
     () => publishEndpoints.map((endpoint, index) => normalizePublishedEndpoint(endpoint, index)),
@@ -186,8 +194,12 @@ export function WorkflowEditorPublishForm({
         </p>
       ) : null}
       {focusedPublishValidationItem && !focusedPublishEndpointExists ? (
-        <WorkflowValidationRemediationCard item={focusedPublishValidationItem} />
+        <WorkflowValidationRemediationCard
+          item={focusedPublishValidationItem}
+          sandboxReadiness={sandboxReadiness}
+        />
       ) : null}
+      <OperatorRecommendedNextStepCard recommendedNextStep={sandboxRecommendedNextStep} />
       <WorkflowPersistBlockerNotice
         title="Publish save gate"
         summary={publishPersistBlockerSummary}
@@ -237,6 +249,7 @@ export function WorkflowEditorPublishForm({
                 workflowVersion={workflowVersion}
                 validationMessages={validationIssuesByEndpoint.get(String(endpointIndex)) ?? []}
                 focusedValidationItem={endpointFocusedValidationItem}
+                sandboxReadiness={sandboxReadiness}
                 highlighted={
                   highlightedEndpointIndex === endpointIndex || endpointFocusedValidationItem !== null
                 }

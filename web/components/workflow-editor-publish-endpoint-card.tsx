@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 
@@ -21,6 +22,7 @@ type WorkflowEditorPublishEndpointCardProps = {
   workflowVersion: string;
   validationMessages: string[];
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
+  sandboxReadiness?: SandboxReadinessCheck | null;
   highlighted?: boolean;
   highlightedFieldPath?: string | null;
   onUpdateEndpoint: (
@@ -41,6 +43,7 @@ export function WorkflowEditorPublishEndpointCard({
   workflowVersion,
   validationMessages,
   focusedValidationItem = null,
+  sandboxReadiness = null,
   highlighted = false,
   highlightedFieldPath = null,
   onUpdateEndpoint,
@@ -89,7 +92,10 @@ export function WorkflowEditorPublishEndpointCard({
       </div>
 
       {focusedValidationItem && normalizedHighlightedField ? (
-        <WorkflowValidationRemediationCard item={focusedValidationItem} />
+        <WorkflowValidationRemediationCard
+          item={focusedValidationItem}
+          sandboxReadiness={sandboxReadiness}
+        />
       ) : null}
 
       {validationMessages.length > 0 ? (
