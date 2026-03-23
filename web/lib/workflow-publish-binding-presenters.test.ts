@@ -1,8 +1,16 @@
 import { describe, expect, it } from "vitest";
 
+import type { PublishedEndpointApiKeyItem } from "@/lib/get-workflow-publish";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { WorkflowPublishedEndpointItem } from "@/lib/get-workflow-publish";
+import { formatTimestamp } from "@/lib/runtime-presenters";
 import {
+  buildWorkflowPublishApiKeyManagerSurface,
+  buildWorkflowPublishApiKeyMutationFallbackErrorMessage,
+  buildWorkflowPublishApiKeyMutationNetworkErrorMessage,
+  buildWorkflowPublishApiKeyMutationSuccessMessage,
+  buildWorkflowPublishApiKeyMutationValidationMessage,
+  buildWorkflowPublishApiKeySecretReceiptCopy,
   buildWorkflowPublishBindingCardSurface,
   buildWorkflowPublishLifecycleActionSurface
 } from "@/lib/workflow-publish-binding-presenters";
@@ -102,6 +110,47 @@ function buildSandboxReadiness(): SandboxReadinessCheck {
   };
 }
 
+function buildApiKeys(): PublishedEndpointApiKeyItem[] {
+  return [
+    {
+      id: "key-1",
+      workflow_id: "workflow-1",
+      endpoint_id: "endpoint-1",
+      name: "New key",
+      key_prefix: "sf_pub_new",
+      status: "active",
+      last_used_at: "2026-03-20T10:05:00Z",
+      revoked_at: null,
+      created_at: "2026-03-20T10:10:00Z",
+      updated_at: "2026-03-20T10:10:00Z"
+    },
+    {
+      id: "key-2",
+      workflow_id: "workflow-1",
+      endpoint_id: "endpoint-1",
+      name: "Hot path",
+      key_prefix: "sf_pub_hot",
+      status: "active",
+      last_used_at: "2026-03-20T10:30:00Z",
+      revoked_at: null,
+      created_at: "2026-03-20T09:00:00Z",
+      updated_at: "2026-03-20T10:30:00Z"
+    },
+    {
+      id: "key-3",
+      workflow_id: "workflow-1",
+      endpoint_id: "endpoint-1",
+      name: "Revoked key",
+      key_prefix: "sf_pub_old",
+      status: "revoked",
+      last_used_at: "2026-03-20T11:00:00Z",
+      revoked_at: "2026-03-20T11:05:00Z",
+      created_at: "2026-03-20T08:00:00Z",
+      updated_at: "2026-03-20T11:05:00Z"
+    }
+  ];
+}
+
 describe("workflow-publish-binding-presenters", () => {
   it("builds a canonical surface for publish binding metadata and cache summaries", () => {
     const surface = buildWorkflowPublishBindingCardSurface(buildBinding());
@@ -137,6 +186,49 @@ describe("workflow-publish-binding-presenters", () => {
     });
     expect(surface.cacheInventoryVaryLabels).toEqual(["vary full-payload"]);
     expect(surface.apiKeyGovernanceEmptyState).toContain("auth_mode=session");
+  });
+
+  it("builds api key governance surface from the canonical key list", () => {
+    const surface = buildWorkflowPublishApiKeyManagerSurface(buildApiKeys());
+
+    expect(surface.summaryCards).toContainEqual({
+      key: "active-keys",
+      label: "Active keys",
+      value: "2"
+    });
+    expect(surface.summaryCards).toContainEqual({
+      key: "last-used",
+      label: "Last used",
+      value: formatTimestamp("2026-03-20T10:30:00Z")
+    });
+    expect(surface.createButtonLabel).toBe("创建 API key");
+    expect(surface.revokePendingLabel).toBe("撤销中...");
+    expect(surface.emptyState).toContain("建议先创建独立 key 再分发");
+    expect(buildWorkflowPublishApiKeySecretReceiptCopy("sf_pub_hot")).toContain("sf_pub_hot");
+  });
+
+  it("builds shared api key mutation messages", () => {
+    expect(buildWorkflowPublishApiKeyMutationValidationMessage("create")).toBe(
+      "缺少 API key 所需信息，无法创建。"
+    );
+    expect(buildWorkflowPublishApiKeyMutationFallbackErrorMessage("revoke")).toBe(
+      "撤销 API key 失败。"
+    );
+    expect(buildWorkflowPublishApiKeyMutationNetworkErrorMessage("create")).toContain(
+      "请确认 API 已启动"
+    );
+    expect(
+      buildWorkflowPublishApiKeyMutationSuccessMessage({
+        action: "create",
+        name: "Production Gateway"
+      })
+    ).toBe("Production Gateway 已创建，请立即保存 secret，本页不会再次展示。");
+    expect(
+      buildWorkflowPublishApiKeyMutationSuccessMessage({
+        action: "revoke",
+        name: "Production Gateway"
+      })
+    ).toBe("Production Gateway 已撤销。");
   });
 
   it("builds lifecycle action copy from status and live sandbox readiness", () => {

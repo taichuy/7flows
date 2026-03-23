@@ -11,6 +11,10 @@ import {
 } from "@/app/actions/publish";
 import type { PublishedEndpointApiKeyItem } from "@/lib/get-workflow-publish";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import {
+  buildWorkflowPublishApiKeyManagerSurface,
+  buildWorkflowPublishApiKeySecretReceiptCopy
+} from "@/lib/workflow-publish-binding-presenters";
 
 type WorkflowPublishApiKeyManagerProps = {
   workflowId: string;
@@ -18,22 +22,34 @@ type WorkflowPublishApiKeyManagerProps = {
   apiKeys: PublishedEndpointApiKeyItem[];
 };
 
-function CreateApiKeySubmitButton() {
+function CreateApiKeySubmitButton({
+  label,
+  pendingLabel
+}: {
+  label: string;
+  pendingLabel: string;
+}) {
   const { pending } = useFormStatus();
 
   return (
     <button className="sync-button" type="submit" disabled={pending}>
-      {pending ? "创建中..." : "创建 API key"}
+      {pending ? pendingLabel : label}
     </button>
   );
 }
 
-function RevokeApiKeySubmitButton() {
+function RevokeApiKeySubmitButton({
+  label,
+  pendingLabel
+}: {
+  label: string;
+  pendingLabel: string;
+}) {
   const { pending } = useFormStatus();
 
   return (
     <button className="sync-button secondary-button" type="submit" disabled={pending}>
-      {pending ? "撤销中..." : "撤销"}
+      {pending ? pendingLabel : label}
     </button>
   );
 }
@@ -41,11 +57,15 @@ function RevokeApiKeySubmitButton() {
 function WorkflowPublishApiKeyRevokeForm({
   workflowId,
   bindingId,
-  apiKey
+  apiKey,
+  revokeButtonLabel,
+  revokePendingLabel
 }: {
   workflowId: string;
   bindingId: string;
   apiKey: PublishedEndpointApiKeyItem;
+  revokeButtonLabel: string;
+  revokePendingLabel: string;
 }) {
   const initialState: RevokePublishedEndpointApiKeyState = {
     status: "idle",
@@ -65,7 +85,7 @@ function WorkflowPublishApiKeyRevokeForm({
       <input type="hidden" name="bindingId" value={bindingId} />
       <input type="hidden" name="keyId" value={apiKey.id} />
       <input type="hidden" name="keyName" value={apiKey.name} />
-      <RevokeApiKeySubmitButton />
+      <RevokeApiKeySubmitButton label={revokeButtonLabel} pendingLabel={revokePendingLabel} />
       {state.message ? (
         <p className={`sync-message ${state.status}`}>{state.message}</p>
       ) : null}
@@ -78,6 +98,7 @@ export function WorkflowPublishApiKeyManager({
   bindingId,
   apiKeys
 }: WorkflowPublishApiKeyManagerProps) {
+  const surface = buildWorkflowPublishApiKeyManagerSurface(apiKeys);
   const initialState: CreatePublishedEndpointApiKeyState = {
     status: "idle",
     message: "",
@@ -94,39 +115,38 @@ export function WorkflowPublishApiKeyManager({
 
   return (
     <div className="entry-card compact-card">
-      <p className="entry-card-title">API key governance</p>
-      <p className="section-copy entry-copy">
-        仅对 `auth_mode=api_key` 的 endpoint 生效。secret 只在创建后回显一次。
-      </p>
+      <p className="entry-card-title">{surface.title}</p>
+      <p className="section-copy entry-copy">{surface.description}</p>
 
       <div className="summary-strip compact-strip">
-        <article className="summary-card">
-          <span>Active keys</span>
-          <strong>{apiKeys.length}</strong>
-        </article>
-        <article className="summary-card">
-          <span>Last used</span>
-          <strong>{formatTimestamp(apiKeys[0]?.last_used_at)}</strong>
-        </article>
+        {surface.summaryCards.map((card) => (
+          <article className="summary-card" key={card.key}>
+            <span>{card.label}</span>
+            <strong>{card.value}</strong>
+          </article>
+        ))}
       </div>
 
       <form action={formAction} className="binding-form">
         <input type="hidden" name="workflowId" value={workflowId} />
         <input type="hidden" name="bindingId" value={bindingId} />
         <label className="binding-field">
-          <span className="binding-label">Key name</span>
+          <span className="binding-label">{surface.nameFieldLabel}</span>
           <input
             className="binding-input"
             name="name"
             type="text"
-            placeholder="例如 Production Gateway"
+            placeholder={surface.namePlaceholder}
             defaultValue={state.name}
             maxLength={128}
             required
           />
         </label>
         <div className="binding-actions">
-          <CreateApiKeySubmitButton />
+          <CreateApiKeySubmitButton
+            label={surface.createButtonLabel}
+            pendingLabel={surface.createPendingLabel}
+          />
           {state.message ? (
             <p className={`sync-message ${state.status}`}>{state.message}</p>
           ) : null}
@@ -135,10 +155,10 @@ export function WorkflowPublishApiKeyManager({
 
       {state.secretKey ? (
         <div className="publish-secret-box">
-          <p className="status-meta">One-time secret</p>
+          <p className="status-meta">{surface.secretLabel}</p>
           <code className="publish-secret-value">{state.secretKey}</code>
           <p className="section-copy entry-copy">
-            prefix {state.keyPrefix ?? "unknown"}。刷新页面后将无法再次查看该 secret。
+            {buildWorkflowPublishApiKeySecretReceiptCopy(state.keyPrefix)}
           </p>
         </div>
       ) : null}
@@ -153,11 +173,11 @@ export function WorkflowPublishApiKeyManager({
               </div>
               <dl className="compact-meta-list publish-key-meta">
                 <div>
-                  <dt>Created</dt>
+                  <dt>{surface.createdLabel}</dt>
                   <dd>{formatTimestamp(apiKey.created_at)}</dd>
                 </div>
                 <div>
-                  <dt>Last used</dt>
+                  <dt>{surface.lastUsedLabel}</dt>
                   <dd>{formatTimestamp(apiKey.last_used_at)}</dd>
                 </div>
               </dl>
@@ -165,14 +185,14 @@ export function WorkflowPublishApiKeyManager({
                 workflowId={workflowId}
                 bindingId={bindingId}
                 apiKey={apiKey}
+                revokeButtonLabel={surface.revokeButtonLabel}
+                revokePendingLabel={surface.revokePendingLabel}
               />
             </article>
           ))}
         </div>
       ) : (
-        <p className="empty-state compact">
-          当前还没有 active API key。若该 endpoint 已发布给外部系统，建议先创建独立 key 再分发。
-        </p>
+        <p className="empty-state compact">{surface.emptyState}</p>
       )}
     </div>
   );

@@ -3,6 +3,12 @@
 import { revalidatePath } from "next/cache";
 
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import {
+  buildWorkflowPublishApiKeyMutationFallbackErrorMessage,
+  buildWorkflowPublishApiKeyMutationNetworkErrorMessage,
+  buildWorkflowPublishApiKeyMutationSuccessMessage,
+  buildWorkflowPublishApiKeyMutationValidationMessage
+} from "@/lib/workflow-publish-binding-presenters";
 import { buildWorkflowDetailHref } from "@/lib/workbench-links";
 
 export type UpdatePublishedEndpointLifecycleState = {
@@ -114,7 +120,7 @@ export async function createPublishedEndpointApiKey(
   if (!workflowId || !bindingId || !name) {
     return {
       status: "error",
-      message: "缺少 API key 所需信息，无法创建。",
+      message: buildWorkflowPublishApiKeyMutationValidationMessage("create"),
       workflowId,
       bindingId,
       name,
@@ -145,7 +151,7 @@ export async function createPublishedEndpointApiKey(
     if (!response.ok) {
       return {
         status: "error",
-        message: body?.detail ?? "创建 API key 失败。",
+        message: body?.detail ?? buildWorkflowPublishApiKeyMutationFallbackErrorMessage("create"),
         workflowId,
         bindingId,
         name,
@@ -157,7 +163,10 @@ export async function createPublishedEndpointApiKey(
     revalidatePath(buildWorkflowDetailHref(workflowId));
     return {
       status: "success",
-      message: `${body?.name ?? name} 已创建，请立即保存 secret，本页不会再次展示。`,
+      message: buildWorkflowPublishApiKeyMutationSuccessMessage({
+        action: "create",
+        name: body?.name ?? name
+      }),
       workflowId,
       bindingId,
       name: "",
@@ -167,7 +176,7 @@ export async function createPublishedEndpointApiKey(
   } catch {
     return {
       status: "error",
-      message: "无法连接后端创建 API key。",
+      message: buildWorkflowPublishApiKeyMutationNetworkErrorMessage("create"),
       workflowId,
       bindingId,
       name,
@@ -189,7 +198,7 @@ export async function revokePublishedEndpointApiKey(
   if (!workflowId || !bindingId || !keyId) {
     return {
       status: "error",
-      message: "缺少 API key 标识，无法撤销。",
+      message: buildWorkflowPublishApiKeyMutationValidationMessage("revoke"),
       workflowId,
       bindingId,
       keyId
@@ -216,7 +225,7 @@ export async function revokePublishedEndpointApiKey(
     if (!response.ok) {
       return {
         status: "error",
-        message: body?.detail ?? "撤销 API key 失败。",
+        message: body?.detail ?? buildWorkflowPublishApiKeyMutationFallbackErrorMessage("revoke"),
         workflowId,
         bindingId,
         keyId
@@ -226,7 +235,11 @@ export async function revokePublishedEndpointApiKey(
     revalidatePath(buildWorkflowDetailHref(workflowId));
     return {
       status: "success",
-      message: `${body?.name ?? keyName ?? keyId} 已撤销。`,
+      message: buildWorkflowPublishApiKeyMutationSuccessMessage({
+        action: "revoke",
+        name: body?.name ?? keyName,
+        keyId
+      }),
       workflowId,
       bindingId,
       keyId
@@ -234,7 +247,7 @@ export async function revokePublishedEndpointApiKey(
   } catch {
     return {
       status: "error",
-      message: "无法连接后端撤销 API key。",
+      message: buildWorkflowPublishApiKeyMutationNetworkErrorMessage("revoke"),
       workflowId,
       bindingId,
       keyId
