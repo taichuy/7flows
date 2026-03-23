@@ -653,6 +653,12 @@ def _invalid_publish_identity_definition() -> dict:
     return definition
 
 
+def _unsupported_publish_auth_mode_definition() -> dict:
+    definition = _valid_publish_definition()
+    definition["publish"][0]["authMode"] = "token"
+    return definition
+
+
 def test_create_workflow_persists_initial_version(client: TestClient) -> None:
     response = client.post(
         "/api/workflows",
@@ -704,6 +710,25 @@ def test_create_workflow_rejects_duplicate_publish_identities(client: TestClient
     assert any(issue.get("path") == "publish.0.id" for issue in issues)
     assert any(issue.get("path") == "publish.1.alias" for issue in issues)
     assert any(issue.get("path") == "publish.1.path" for issue in issues)
+
+
+def test_create_workflow_rejects_unsupported_publish_auth_mode(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Invalid Publish Auth Workflow",
+            "definition": _unsupported_publish_auth_mode_definition(),
+        },
+    )
+
+    assert response.status_code == 422
+    message = _workflow_detail_message(response)
+    issues = _workflow_detail_issues(response)
+    assert "publish auth modes" in message
+    assert any(issue["category"] == "publish_draft" for issue in issues)
+    assert any(issue.get("path") == "publish.0.authMode" for issue in issues)
 
 
 def test_create_workflow_rejects_invalid_definition(client: TestClient) -> None:
@@ -2357,6 +2382,38 @@ def test_get_workflow_detail_accepts_persisted_condition_subprocess_execution(
     )
 
 
+def test_get_workflow_detail_surfaces_definition_issues_for_persisted_publish_auth_mode_gap(
+    client: TestClient,
+    sqlite_session,
+) -> None:
+    created = client.post(
+        "/api/workflows",
+        json={
+            "name": "Publish Auth Drift Workflow",
+            "definition": _valid_publish_definition(),
+        },
+    )
+    assert created.status_code == 201
+    workflow_id = created.json()["id"]
+
+    workflow = sqlite_session.get(Workflow, workflow_id)
+    assert workflow is not None
+    workflow.definition = _unsupported_publish_auth_mode_definition()
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    response = client.get(f"/api/workflows/{workflow_id}")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert any(
+        issue.get("category") == "publish_draft"
+        and issue.get("path") == "publish.0.authMode"
+        and issue.get("field") == "authMode"
+        for issue in body["definition_issues"]
+    )
+
+
 def test_validate_workflow_definition_preflight_rejects_invalid_publish_reference(
     client: TestClient,
 ) -> None:
@@ -2401,6 +2458,32 @@ def test_validate_workflow_definition_preflight_rejects_duplicate_publish_identi
     detail = response.json()["detail"]
     assert "publish endpoint identities" in detail["message"]
     assert any(issue["category"] == "publish_identity" for issue in detail["issues"])
+
+
+def test_validate_workflow_definition_preflight_rejects_unsupported_publish_auth_mode(
+    client: TestClient,
+) -> None:
+    created = client.post(
+        "/api/workflows",
+        json={"name": "Publish Auth Preflight Workflow", "definition": _valid_definition()},
+    )
+    assert created.status_code == 201
+    workflow_id = created.json()["id"]
+
+    response = client.post(
+        f"/api/workflows/{workflow_id}/validate-definition",
+        json={"definition": _unsupported_publish_auth_mode_definition()},
+    )
+
+    assert response.status_code == 422
+    detail = response.json()["detail"]
+    assert "publish auth modes" in detail["message"]
+    assert any(
+        issue["category"] == "publish_draft"
+        and issue["path"] == "publish.0.authMode"
+        and issue["field"] == "authMode"
+        for issue in detail["issues"]
+    )
 
 
 def test_create_workflow_rejects_invalid_publish_contract_schema(

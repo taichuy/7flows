@@ -1221,6 +1221,7 @@ def test_invoke_published_native_endpoint_uses_response_cache(
 
 def test_invoke_published_native_endpoint_rejects_unimplemented_token_auth_mode(
     client: TestClient,
+    sqlite_session: Session,
 ) -> None:
     create_response = client.post(
         "/api/workflows",
@@ -1234,7 +1235,7 @@ def test_invoke_published_native_endpoint_rejects_unimplemented_token_auth_mode(
                         "name": "Native Chat",
                         "protocol": "native",
                         "workflowVersion": "0.1.0",
-                        "authMode": "token",
+                        "authMode": "internal",
                         "streaming": False,
                         "inputSchema": {"type": "object"},
                     }
@@ -1251,6 +1252,12 @@ def test_invoke_published_native_endpoint_rejects_unimplemented_token_auth_mode(
     )
     assert bindings_response.status_code == 200
     binding_id = bindings_response.json()[0]["id"]
+
+    binding = sqlite_session.get(WorkflowPublishedEndpoint, binding_id)
+    assert binding is not None
+    binding.auth_mode = "token"
+    sqlite_session.add(binding)
+    sqlite_session.commit()
 
     publish_response = client.patch(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding_id}/lifecycle",

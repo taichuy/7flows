@@ -269,6 +269,8 @@ function resolvePublishSuggestion(item: WorkflowValidationNavigatorItem, fieldPa
   switch (fieldPath) {
     case "workflowVersion":
       return "如果这个 endpoint 要跟随本次保存生成的新版本，请把 `Workflow version` 留空；只有需要固定到既有版本时才填写语义版本号。";
+    case "authMode":
+      return "当前 publish gateway 只支持 `internal` / `api_key`。先切回已落地鉴权模式，避免把尚未兑现的 token auth 写进 definition、publish 页面和调用入口。";
     case "alias":
       return "把 alias 改成当前 workflow 内唯一、稳定且适合对外暴露的标识；如果只是想沿用 endpoint id，可直接留空。";
     case "path":

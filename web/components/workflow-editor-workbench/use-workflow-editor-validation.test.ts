@@ -84,6 +84,11 @@ describe("buildWorkflowEditorPublishDraftIssues", () => {
           category: "publish_draft",
           path: "publish.0.path",
           field: "path"
+        }),
+        expect.objectContaining({
+          category: "publish_draft",
+          path: "publish.1.authMode",
+          field: "authMode"
         })
       ])
     );
@@ -110,8 +115,8 @@ describe("buildWorkflowEditorPublishDraftIssues", () => {
           category: "publish_draft",
           target: expect.objectContaining({
             scope: "publish",
-            endpointIndex: 0,
-            fieldPath: "cache.varyBy",
+            endpointIndex: 1,
+            fieldPath: "authMode",
             label: "Publish · Public Search"
           })
         })

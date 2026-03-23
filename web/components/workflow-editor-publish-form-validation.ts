@@ -66,6 +66,19 @@ export function buildPublishedEndpointValidationIssues(
       }
     }
 
+    if (endpoint.authMode === "token") {
+      issues.push({
+        key: `${entryKey}-auth-mode-token`,
+        endpointKey,
+        endpointId: endpoint.id,
+        category: "publish_draft",
+        message:
+          `${endpointLabel} 当前不能使用 authMode = token；已落地 publish gateway 只支持 internal / api_key，避免把未实现鉴权模式写进 definition。`,
+        path: `publish.${index}.authMode`,
+        field: "authMode"
+      });
+    }
+
     pushSchemaValidationIssue(
       endpoint.inputSchema,
       {

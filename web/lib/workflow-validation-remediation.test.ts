@@ -84,6 +84,26 @@ describe("workflow validation remediation", () => {
     expect(remediation.suggestion).toContain("toolPolicy execution override");
   });
 
+  it("为 publish authMode 给出已落地鉴权模式建议", () => {
+    const item: WorkflowValidationNavigatorItem = {
+      key: "publish-auth-mode-token",
+      category: "publish_draft",
+      message: "Public Search 当前不能使用 authMode = token。",
+      target: {
+        scope: "publish",
+        endpointIndex: 0,
+        fieldPath: "authMode",
+        label: "Publish · Public Search"
+      }
+    };
+
+    const remediation = buildWorkflowValidationRemediation(item);
+
+    expect(remediation.title).toBe("Publish · Public Search · Auth mode");
+    expect(remediation.suggestion).toContain("internal");
+    expect(remediation.suggestion).toContain("api_key");
+  });
+
   it("优先把首个 remediation 落到 execution capability 字段级问题", () => {
     const picked = pickWorkflowValidationRemediationItem([
       {
