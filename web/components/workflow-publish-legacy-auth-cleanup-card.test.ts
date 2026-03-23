@@ -74,6 +74,7 @@ describe("WorkflowPublishLegacyAuthCleanupCard", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowPublishLegacyAuthCleanupCard, {
         workflowId: "workflow-1",
+        workflowName: "Demo workflow",
         bindings: [
           buildBinding({ id: "binding-draft", workflow_version: "1.2.0", lifecycle_status: "draft" }),
           buildBinding({ id: "binding-live", workflow_version: "1.1.0", lifecycle_status: "published" }),
@@ -87,6 +88,10 @@ describe("WorkflowPublishLegacyAuthCleanupCard", () => {
     expect(html).toContain("Draft cleanup candidate");
     expect(html).toContain("Published blocker");
     expect(html).toContain("Public Search (endpoint-1) · workflow 1.0.0 · offline");
+    expect(html).toContain("Operator checklist");
+    expect(html).toContain("Governance export");
+    expect(html).toContain("导出 JSON 清单");
+    expect(html).toContain("导出 JSONL 清单");
     expect(html).toContain("批量下线 legacy draft bindings");
   });
 

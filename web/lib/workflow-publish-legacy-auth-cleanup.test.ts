@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import type { WorkflowPublishedEndpointItem } from "@/lib/get-workflow-publish";
 import {
+  buildWorkflowPublishLegacyAuthCleanupExportFilename,
+  buildWorkflowPublishLegacyAuthCleanupExportPayload,
+  buildWorkflowPublishLegacyAuthCleanupExportSuccessMessage,
   buildWorkflowPublishLegacyAuthCleanupSuccessMessage,
   buildWorkflowPublishLegacyAuthCleanupSurface,
+  serializeWorkflowPublishLegacyAuthCleanupExportJsonl,
 } from "@/lib/workflow-publish-legacy-auth-cleanup";
 
 function buildBinding(
@@ -71,5 +75,66 @@ describe("workflow publish legacy auth cleanup helpers", () => {
         skipped_items: [],
       })
     ).toBe("已批量下线 2 条 legacy auth draft binding；另外 1 条仍需逐项处理。");
+  });
+
+  it("builds governance export payload and jsonl records from the current buckets", () => {
+    const payload = buildWorkflowPublishLegacyAuthCleanupExportPayload({
+      workflowId: "workflow-1",
+      workflowName: "Demo workflow",
+      bindings: [
+        buildBinding({ id: "binding-draft", lifecycle_status: "draft", workflow_version: "1.2.0" }),
+        buildBinding({ id: "binding-live", lifecycle_status: "published", workflow_version: "1.1.0" }),
+        buildBinding({ id: "binding-offline", lifecycle_status: "offline", workflow_version: "1.0.0" }),
+      ],
+      exportedAt: "2026-03-24T08:30:00Z",
+    });
+
+    expect(payload.export.exported_at).toBe("2026-03-24T08:30:00Z");
+    expect(payload.summary).toEqual({
+      draft_candidate_count: 1,
+      published_blocker_count: 1,
+      offline_inventory_count: 1,
+    });
+    expect(payload.checklist.map((item) => item.key)).toEqual([
+      "draft_cleanup",
+      "published_follow_up",
+      "offline_inventory",
+    ]);
+
+    const jsonl = serializeWorkflowPublishLegacyAuthCleanupExportJsonl({
+      ...payload,
+      export: {
+        ...payload.export,
+        format: "jsonl",
+      },
+    });
+    const lines = jsonl.trim().split("\n").map((line) => JSON.parse(line));
+
+    expect(lines[0]).toMatchObject({
+      record_type: "legacy_publish_auth_governance_export",
+      workflow: {
+        workflow_id: "workflow-1",
+        workflow_name: "Demo workflow",
+      },
+    });
+    expect(lines[1]).toMatchObject({
+      record_type: "legacy_publish_auth_binding",
+      bucket: "draft_candidates",
+      bindingId: "binding-draft",
+    });
+    expect(lines[3]).toMatchObject({
+      record_type: "legacy_publish_auth_binding",
+      bucket: "offline_inventory",
+      bindingId: "binding-offline",
+    });
+  });
+
+  it("builds readable export filenames and success feedback", () => {
+    expect(buildWorkflowPublishLegacyAuthCleanupExportFilename("Demo workflow", "jsonl")).toBe(
+      "demo-workflow-legacy-publish-auth-governance.jsonl"
+    );
+    expect(buildWorkflowPublishLegacyAuthCleanupExportSuccessMessage("json")).toBe(
+      "Legacy publish auth 治理JSON清单已开始下载。"
+    );
   });
 });
