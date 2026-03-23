@@ -891,6 +891,12 @@ describe("WorkflowPublishActivityInsights", () => {
     );
 
     expect(html).toContain("Traffic mix");
+    expect(html).toContain(
+      "This card currently aggregates 3 request sources in the current publish slice"
+    );
+    expect(html).toContain(
+      "Aggregate slice only; use the chips below or sampled invocation detail for route-level drilldown."
+    );
     expect(html).toContain("Cache hit 2 / Cache miss 1");
     expect(html).toContain("Run failed 2 / Waiting callback 1");
     expect(html).toContain("OpenAI responses 2");
@@ -970,6 +976,9 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain("Rate limit pressure is the main aggregate to watch in this publish slice.");
     expect(html).toContain(
       "当前最近 24 小时切片里已用掉 90% 配额，只剩 1 次；继续放量前先观察是否开始转成 rate_limit_exceeded。"
+    );
+    expect(html).toContain(
+      "Aggregate slice only; use the cards below for route-level or invocation-level diagnosis."
     );
   });
 

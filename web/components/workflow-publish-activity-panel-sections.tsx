@@ -105,6 +105,7 @@ export function WorkflowPublishActivityInsights({
           <div className="payload-card-header">
             <span className="status-meta">{insightsSurface.trafficMixCard.title}</span>
           </div>
+          <p className="section-copy entry-copy">{insightsSurface.trafficMixCard.detail}</p>
           <dl className="compact-meta-list">
             {insightsSurface.trafficMixCard.rows.map((row) => (
               <div key={row.key}>

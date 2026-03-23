@@ -1156,6 +1156,7 @@ describe("published invocation presenters", () => {
     });
 
     expect(rateLimitPrimaryFollowUp).toEqual({
+      scope: "aggregate",
       tone: "attention",
       headline: "Rate limit pressure is the main aggregate to watch in this publish slice.",
       detail:
@@ -1185,7 +1186,7 @@ describe("published invocation presenters", () => {
       label: "Summary focus",
       value: "attention",
       detail:
-        "Rate limit pressure is the main aggregate to watch in this publish slice. 当前最近 24 小时切片里已用掉 90% 配额，只剩 1 次；继续放量前先观察是否开始转成 rate_limit_exceeded。",
+        "Rate limit pressure is the main aggregate to watch in this publish slice. 当前最近 24 小时切片里已用掉 90% 配额，只剩 1 次；继续放量前先观察是否开始转成 rate_limit_exceeded。 Aggregate slice only; use the cards below for route-level or invocation-level diagnosis.",
       href: null,
       hrefLabel: null
     });
@@ -1459,8 +1460,13 @@ describe("published invocation presenters", () => {
       value: "attention"
     });
     expect(surface.summaryCards.at(-1)?.detail).toContain("waiting on callback tickets or external tool responses");
+    expect(surface.summaryCards.at(-1)?.detail).toContain(
+      "Aggregate slice only; use the cards below for route-level or invocation-level diagnosis."
+    );
     expect(surface.trafficMixCard).toEqual({
       title: "Traffic mix",
+      detail:
+        "This card currently aggregates 3 request sources in the current publish slice. The surface chips below currently cover 2 request surfaces; check them before treating one route as the primary blocker. Aggregate slice only; use the chips below or sampled invocation detail for route-level drilldown.",
       rows: [
         { key: "traffic-workflow", label: "Workflow", value: "3", href: null },
         { key: "traffic-alias", label: "Alias", value: "1", href: null },
@@ -1610,6 +1616,7 @@ describe("published invocation presenters", () => {
       hrefLabel: "open blocker inbox slice"
     });
     expect(surface.summaryCards.at(-1)?.detail).toContain("selected invocation next step");
+    expect(surface.summaryCards.at(-1)?.detail).not.toContain("Aggregate slice only");
   });
 
   it("在 waiting aggregate 已对齐当前 invocation 时复用页面级 canonical CTA", () => {
@@ -1711,6 +1718,7 @@ describe("published invocation presenters", () => {
       hrefLabel: "open blocker inbox slice"
     });
     expect(surface.summaryCards.at(-1)?.detail).toContain("selected invocation next step");
+    expect(surface.summaryCards.at(-1)?.detail).not.toContain("Aggregate slice only");
   });
 
   it("does not duplicate the waiting CTA when the selected invocation resolves to the same shared callback recovery action", () => {

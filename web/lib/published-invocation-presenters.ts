@@ -138,7 +138,9 @@ export type WorkflowPublishSummaryCardSurface = {
 };
 
 export type PublishedInvocationActivityPrimaryFollowUpSurface =
-  WorkflowPublishPrimaryFollowUpSurface;
+  WorkflowPublishPrimaryFollowUpSurface & {
+    scope: "aggregate" | "selected";
+  };
 
 export type PublishedInvocationActivitySummaryCardSurface = WorkflowPublishSummaryCardSurface;
 
@@ -386,7 +388,9 @@ export type PublishedInvocationActivityInsightsSurfaceCopy = {
   lastRunStatusEmptyLabel: string;
   waitingNowLabel: string;
   summaryFocusLabel: string;
+  summaryFocusAggregateHint: string;
   trafficMixTitle: string;
+  trafficMixAggregateHint: string;
   trafficWorkflowLabel: string;
   trafficAliasLabel: string;
   trafficPathLabel: string;
@@ -447,6 +451,7 @@ export type PublishedInvocationActivityTrafficMixSurface = {
 
 export type PublishedInvocationActivityTrafficMixCardSurface = {
   title: string;
+  detail: string;
   rows: PublishedInvocationMetaRow[];
   requestSurfaceLabels: string[];
 };
@@ -1000,7 +1005,11 @@ export function buildPublishedInvocationActivityInsightsSurfaceCopy({
     lastRunStatusEmptyLabel: "n/a",
     waitingNowLabel: "Waiting now",
     summaryFocusLabel: "Summary focus",
+    summaryFocusAggregateHint:
+      "Aggregate slice only; use the cards below for route-level or invocation-level diagnosis.",
     trafficMixTitle: "Traffic mix",
+    trafficMixAggregateHint:
+      "Aggregate slice only; use the chips below or sampled invocation detail for route-level drilldown.",
     trafficWorkflowLabel: "Workflow",
     trafficAliasLabel: "Alias",
     trafficPathLabel: "Path",
@@ -1087,6 +1096,7 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
   if (waitingOverview.activeWaitingCount > 0 || waitingOverview.syncWaitingRejectedCount > 0) {
     if (selectedWaitingNextStepSurface) {
       return {
+        scope: "selected",
         tone: "attention",
         headline: `Waiting follow-up already aligns with ${selectedWaitingNextStepSurface.invocationId}.`,
         detail:
@@ -1100,6 +1110,7 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
     }
 
     return {
+      scope: "aggregate",
       tone: "attention",
       headline: waitingOverview.headline,
       detail: waitingOverview.detail,
@@ -1111,6 +1122,7 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
   if (issueSignalsSurface?.selectedNextStepSurface) {
     const selectedNextStepSurface = issueSignalsSurface.selectedNextStepSurface;
     return {
+      scope: "selected",
       tone: "attention",
       headline: `Issue signals already align with ${selectedNextStepSurface.invocationId}.`,
       detail: joinFragments([
@@ -1129,6 +1141,7 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
     (rateLimitWindowRejectedCount > 0 || rateLimitPressure.percentage >= 80)
   ) {
     return {
+      scope: "selected",
       tone: "attention",
       headline: `Rate limit window already aligns with ${selectedRateLimitNextStepSurface.invocationId}.`,
       detail:
@@ -1143,6 +1156,7 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
 
   if (issueSignalsSurface) {
     return {
+      scope: "aggregate",
       tone: "attention",
       headline: "Issue signals still expose a publish follow-up in the current slice.",
       detail:
@@ -1165,6 +1179,7 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
     (rateLimitWindowRejectedCount > 0 || rateLimitPressure.percentage >= 80)
   ) {
     return {
+      scope: "aggregate",
       tone: "attention",
       headline: "Rate limit pressure is the main aggregate to watch in this publish slice.",
       detail: rateLimitWindowInsight,
@@ -1193,6 +1208,7 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
         : `Current publish traffic does not show a split across request surfaces, and ${trafficMixSurface.runStatesSummary}.`;
 
   return {
+    scope: "aggregate",
     tone: "healthy",
     headline: "Current publish activity does not expose a shared operator backlog.",
     detail:
@@ -1203,6 +1219,48 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
     href: null,
     hrefLabel: null
   };
+}
+
+function formatPublishedInvocationActivitySummaryFocusDetail(
+  primaryFollowUp: PublishedInvocationActivityPrimaryFollowUpSurface,
+  surfaceCopy: PublishedInvocationActivityInsightsSurfaceCopy
+) {
+  const detail = formatWorkflowPublishSummaryFocusDetail(primaryFollowUp);
+
+  if (primaryFollowUp.scope !== "aggregate") {
+    return detail;
+  }
+
+  return detail
+    ? `${detail} ${surfaceCopy.summaryFocusAggregateHint}`
+    : surfaceCopy.summaryFocusAggregateHint;
+}
+
+function buildPublishedInvocationActivityTrafficMixDetail({
+  trafficMixSurface,
+  surfaceCopy
+}: {
+  trafficMixSurface: PublishedInvocationActivityTrafficMixSurface;
+  surfaceCopy: PublishedInvocationActivityInsightsSurfaceCopy;
+}) {
+  const activeRequestSourceCount = [
+    trafficMixSurface.workflowCount,
+    trafficMixSurface.aliasCount,
+    trafficMixSurface.pathCount
+  ].filter((count) => count > 0).length;
+  const requestSurfaceCount = trafficMixSurface.requestSurfaceLabels.length;
+
+  const detailFragments = [
+    activeRequestSourceCount > 1
+      ? `This card currently aggregates ${formatCountLabel(activeRequestSourceCount, "request source")} in the current publish slice.`
+      : null,
+    requestSurfaceCount > 1
+      ? `The surface chips below currently cover ${formatCountLabel(requestSurfaceCount, "request surface")}; check them before treating one route as the primary blocker.`
+      : null,
+    surfaceCopy.trafficMixAggregateHint
+  ].filter((fragment): fragment is string => Boolean(fragment));
+
+  return detailFragments.join(" ");
 }
 
 export function buildPublishedInvocationActivitySummaryCardSurfaces({
@@ -1233,7 +1291,7 @@ export function buildPublishedInvocationActivitySummaryCardSurfaces({
       key: "summary-focus",
       label: surfaceCopy.summaryFocusLabel,
       value: primaryFollowUp.tone === "healthy" ? "clear" : "attention",
-      detail: formatWorkflowPublishSummaryFocusDetail(primaryFollowUp),
+      detail: formatPublishedInvocationActivitySummaryFocusDetail(primaryFollowUp, surfaceCopy),
       href: primaryFollowUp.href,
       hrefLabel: primaryFollowUp.hrefLabel
     }
@@ -1337,6 +1395,10 @@ export function buildPublishedInvocationActivityInsightsSurface({
     }),
     trafficMixCard: {
       title: surfaceCopy.trafficMixTitle,
+      detail: buildPublishedInvocationActivityTrafficMixDetail({
+        trafficMixSurface,
+        surfaceCopy
+      }),
       rows: [
         buildPublishedInvocationMetaRow(
           "traffic-workflow",
