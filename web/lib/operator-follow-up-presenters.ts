@@ -59,6 +59,49 @@ function normalizeHref(value?: string | null) {
   return normalized ? normalized : null;
 }
 
+function normalizeRelativeHref(href?: string | null) {
+  const normalized = href?.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const url = new URL(normalized, "https://sevenflows.local");
+  const sortedParams = [...url.searchParams.entries()].sort(([leftKey, leftValue], [rightKey, rightValue]) => {
+    if (leftKey === rightKey) {
+      return leftValue.localeCompare(rightValue);
+    }
+
+    return leftKey.localeCompare(rightKey);
+  });
+  const params = new URLSearchParams();
+  for (const [key, value] of sortedParams) {
+    params.append(key, value);
+  }
+
+  const query = params.toString();
+  const hash = url.hash?.trim() || "";
+  const baseHref = query ? `${url.pathname}?${query}` : url.pathname;
+
+  return hash ? `${baseHref}${hash}` : baseHref;
+}
+
+function isSelfHref(href?: string | null, currentHref?: string | null) {
+  const normalizedHref = normalizeRelativeHref(href);
+  const normalizedCurrentHref = normalizeRelativeHref(currentHref);
+
+  return Boolean(normalizedHref && normalizedCurrentHref && normalizedHref === normalizedCurrentHref);
+}
+
+function stripCandidateLink(
+  candidate: OperatorRecommendedNextStepCandidate
+): OperatorRecommendedNextStepCandidate {
+  return {
+    ...candidate,
+    href: null,
+    href_label: null
+  };
+}
+
 function isCallbackLikeOperatorRecommendedAction(
   action?: OperatorRecommendedActionLike | null
 ) {
@@ -233,6 +276,7 @@ export function buildOperatorNavigationCandidate({
 export function buildSharedOrLocalOperatorCandidate({
   sharedCandidate,
   active,
+  currentHref,
   href,
   runId,
   label,
@@ -243,6 +287,7 @@ export function buildSharedOrLocalOperatorCandidate({
 }: {
   sharedCandidate?: OperatorRecommendedNextStepCandidate | null;
   active?: boolean;
+  currentHref?: string | null;
   href?: string | null;
   runId?: string | null;
   label?: string;
@@ -251,19 +296,32 @@ export function buildSharedOrLocalOperatorCandidate({
   hrefLabel?: string | null;
   surfaceCopy?: OperatorFollowUpSurfaceCopy;
 }): OperatorRecommendedNextStepCandidate {
-  return (
-    sharedCandidate ??
-    buildOperatorNavigationCandidate({
-      active,
-      href,
-      runId,
-      label,
-      detail,
-      fallbackDetail,
-      hrefLabel,
-      surfaceCopy
-    })
-  );
+  const localCandidate = buildOperatorNavigationCandidate({
+    active,
+    href,
+    runId,
+    label,
+    detail,
+    fallbackDetail,
+    hrefLabel,
+    surfaceCopy
+  });
+  const sharedSelfHref = Boolean(sharedCandidate?.href && isSelfHref(sharedCandidate.href, currentHref));
+  const localSelfHref = Boolean(localCandidate.href && isSelfHref(localCandidate.href, currentHref));
+
+  if (sharedCandidate && !sharedSelfHref) {
+    return sharedCandidate;
+  }
+
+  if (localSelfHref) {
+    return stripCandidateLink(localCandidate);
+  }
+
+  if (sharedCandidate && sharedSelfHref && !localCandidate.active) {
+    return stripCandidateLink(sharedCandidate);
+  }
+
+  return localCandidate;
 }
 
 export function buildOperatorRecommendedActionCandidate({

@@ -559,7 +559,8 @@ describe("RunDetailExecutionFocusCard", () => {
     expect(html).toContain("Recommended next step");
     expect(html).toContain("execution focus");
     expect(html).toContain("当前 run 已回接 canonical execution focus；优先继续检查 focus node、runtime evidence 和 execution fallback / blocking 原因。");
-    expect(html).toContain("open run");
+    expect(html).toContain("jump to execution facts");
+    expect(html).toContain('href="/runs/run-1#run-diagnostics-execution-view"');
   });
 
   it("prefers canonical run follow-up action before local run CTA fallback", () => {

@@ -34,11 +34,13 @@ import {
   listExecutionFocusArtifactPreviews,
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
+import { buildRunDiagnosticsExecutionTimelineHref } from "@/lib/run-diagnostics-links";
 import { buildSensitiveAccessTimelineInboxHref } from "@/lib/sensitive-access-links";
 import {
   buildRunDetailExecutionFocusSurfaceCopy,
   buildRunDiagnosticsOperatorFollowUpSurfaceCopy
 } from "@/lib/workbench-entry-surfaces";
+import { buildRunDetailHref } from "@/lib/workbench-links";
 
 type RunDiagnosticsOperatorFollowUpCardProps = {
   executionView: RunExecutionView;
@@ -63,6 +65,8 @@ export function RunDiagnosticsOperatorFollowUpCard({
   const diagnosticsSurfaceCopy = buildRunDiagnosticsOperatorFollowUpSurfaceCopy();
   const executionSurfaceCopy = buildRunDetailExecutionFocusSurfaceCopy();
   const focusSurfaceCopy = buildExecutionFocusSectionSurfaceCopy("diagnostics");
+  const currentRunHref = buildRunDetailHref(executionView.run_id);
+  const executionTimelineHref = buildRunDiagnosticsExecutionTimelineHref(executionView.run_id);
   const snapshotMetaRows = buildOperatorRunSnapshotMetaRows({
     runStatus: snapshot?.status ?? executionView.status,
     currentNodeId: snapshot?.current_node_id ?? null,
@@ -145,18 +149,22 @@ export function RunDiagnosticsOperatorFollowUpCard({
       sharedCandidate:
         sharedCallbackCandidate ?? canonicalCallbackCandidate ?? sampledCallbackCandidate,
       active: hasCallbackFacts,
+      currentHref: currentRunHref,
+      href: executionTimelineHref,
       label: "observe waiting",
       detail: callbackFollowUp ?? followUp?.explanation?.follow_up ?? null,
-      runId: executionView.run_id,
+      hrefLabel: "jump to execution timeline",
       fallbackDetail: diagnosticsSurfaceCopy.callbackFallbackDetail,
       surfaceCopy
     }),
     execution: buildSharedOrLocalOperatorCandidate({
       sharedCandidate: sharedSandboxCandidate ?? canonicalExecutionCandidate,
       active: hasExecutionFocusFacts,
+      currentHref: currentRunHref,
+      href: executionTimelineHref,
       label: "inspect execution focus",
       detail: executionFollowUp ?? followUp?.explanation?.follow_up ?? null,
-      runId: executionView.run_id,
+      hrefLabel: "jump to execution timeline",
       fallbackDetail: executionSurfaceCopy.recommendedNextStepFallbackDetail,
       surfaceCopy
     }),

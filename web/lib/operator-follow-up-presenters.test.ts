@@ -163,6 +163,53 @@ describe("operator follow-up presenters", () => {
     });
   });
 
+  it("shared candidate 指回当前页时会回退到更具体的本地锚点", () => {
+    expect(
+      buildSharedOrLocalOperatorCandidate({
+        sharedCandidate: {
+          active: true,
+          label: "execution focus",
+          detail: "优先继续检查 execution focus。",
+          href: "/runs/run-123456789",
+          href_label: "open run",
+          fallback_detail: "fallback"
+        },
+        currentHref: "/runs/run-123456789",
+        href: "/runs/run-123456789#run-diagnostics-execution-timeline",
+        hrefLabel: "jump to execution timeline",
+        label: "execution focus",
+        detail: "优先继续检查 execution focus。",
+        fallbackDetail: "fallback"
+      })
+    ).toEqual({
+      active: true,
+      label: "execution focus",
+      detail: "优先继续检查 execution focus。",
+      href: "/runs/run-123456789#run-diagnostics-execution-timeline",
+      href_label: "jump to execution timeline",
+      fallback_detail: "fallback"
+    });
+  });
+
+  it("本地 candidate 仍指向当前页时会保留文案但移除死链接", () => {
+    expect(
+      buildSharedOrLocalOperatorCandidate({
+        currentHref: "/runs/run-123456789",
+        runId: "run-123456789",
+        label: "execution focus",
+        detail: "优先继续检查 execution focus。",
+        fallbackDetail: "fallback"
+      })
+    ).toEqual({
+      active: true,
+      label: "execution focus",
+      detail: "优先继续检查 execution focus。",
+      href: null,
+      href_label: null,
+      fallback_detail: "fallback"
+    });
+  });
+
   it("把后端 canonical callback action 映射成 inbox candidate", () => {
     expect(
       buildOperatorRecommendedActionCandidate({

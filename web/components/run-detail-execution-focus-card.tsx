@@ -29,7 +29,9 @@ import {
   listExecutionFocusRuntimeFactBadges,
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
+import { buildRunDiagnosticsExecutionViewHref } from "@/lib/run-diagnostics-links";
 import { buildRunDetailExecutionFocusSurfaceCopy } from "@/lib/workbench-entry-surfaces";
+import { buildRunDetailHref } from "@/lib/workbench-links";
 
 type RunDetailExecutionFocusCardProps = {
   run: RunDetail;
@@ -54,6 +56,10 @@ export function RunDetailExecutionFocusCard({
 }: RunDetailExecutionFocusCardProps) {
   const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
   const executionSurfaceCopy = buildRunDetailExecutionFocusSurfaceCopy();
+  const currentRunHref = buildRunDetailHref(run.id);
+  const localRecommendedNextStepHref = recommendedNextStepHref ?? buildRunDiagnosticsExecutionViewHref(run.id);
+  const localRecommendedNextStepHrefLabel =
+    recommendedNextStepHrefLabel ?? "jump to execution facts";
   const focus = buildRunDetailExecutionFocusViewModel(run);
   if (!focus) {
     return null;
@@ -78,11 +84,12 @@ export function RunDetailExecutionFocusCard({
   const executionCandidate = buildSharedOrLocalOperatorCandidate({
     sharedCandidate: sharedSandboxCandidate ?? canonicalExecutionCandidate,
     active: true,
-    href: recommendedNextStepHref,
+    currentHref: currentRunHref,
+    href: localRecommendedNextStepHref,
     runId: run.id,
     label: "execution focus",
     detail: explicitExecutionFollowUp ?? run.run_follow_up?.explanation?.follow_up ?? null,
-    hrefLabel: recommendedNextStepHrefLabel,
+    hrefLabel: localRecommendedNextStepHrefLabel,
     fallbackDetail: executionSurfaceCopy.recommendedNextStepFallbackDetail,
     surfaceCopy: operatorSurfaceCopy
   });

@@ -8,6 +8,10 @@ import { EvidenceNodeCard } from "@/components/run-diagnostics-execution/evidenc
 import { ExecutionNodeCard } from "@/components/run-diagnostics-execution/execution-node-card";
 import { RunDiagnosticsEvidenceOverview } from "@/components/run-diagnostics-execution/evidence-overview";
 import { RunDiagnosticsExecutionOverview } from "@/components/run-diagnostics-execution/execution-overview";
+import {
+  RUN_DIAGNOSTICS_EXECUTION_TIMELINE_SECTION_ID,
+  RUN_DIAGNOSTICS_EXECUTION_VIEW_SECTION_ID
+} from "@/lib/run-diagnostics-links";
 
 type RunDiagnosticsExecutionSectionsProps = {
   executionView: RunExecutionView | null;
@@ -25,7 +29,7 @@ export function RunDiagnosticsExecutionSections({
   return (
     <>
       <section className="diagnostics-layout">
-        <article className="diagnostic-panel">
+        <article className="diagnostic-panel" id={RUN_DIAGNOSTICS_EXECUTION_VIEW_SECTION_ID}>
           <div className="section-heading">
             <div>
               <p className="eyebrow">Execution View</p>
@@ -61,7 +65,7 @@ export function RunDiagnosticsExecutionSections({
       </section>
 
       <section className="diagnostics-layout">
-        <article className="diagnostic-panel">
+        <article className="diagnostic-panel" id={RUN_DIAGNOSTICS_EXECUTION_TIMELINE_SECTION_ID}>
           <div className="section-heading">
             <div>
               <p className="eyebrow">Execution Timeline</p>

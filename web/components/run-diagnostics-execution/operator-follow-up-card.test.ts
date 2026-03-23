@@ -334,7 +334,10 @@ describe("RunDiagnosticsOperatorFollowUpCard", () => {
     expect(html).toContain("callback pending");
     expect(html).toContain("Recommended next step");
     expect(html).toContain("observe waiting");
-    expect(html).toContain('href="/runs/run-123"');
+    expect(html).toContain(
+      'href="/runs/run-123#run-diagnostics-execution-timeline"'
+    );
+    expect(html).toContain("jump to execution timeline");
     expect(html).toContain("callback pending · node-run-1");
     expect(html).toContain("聚焦节点已沉淀 1 个 artifact");
     expect(html).toContain("Focused skill trace · 1");

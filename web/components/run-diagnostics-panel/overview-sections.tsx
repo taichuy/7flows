@@ -8,6 +8,7 @@ import type { RunTraceQuery } from "@/lib/get-run-trace";
 
 import { RunDetailExecutionFocusCard } from "@/components/run-detail-execution-focus-card";
 import { PayloadCard, countErroredNodes } from "@/components/run-diagnostics-panel/shared";
+import { buildRunDiagnosticsExecutionViewHref } from "@/lib/run-diagnostics-links";
 import { buildExecutionFocusSurfaceDescription } from "@/lib/run-execution-focus-presenters";
 
 type RunDiagnosticsOverviewSectionsProps = {
@@ -83,6 +84,8 @@ export function RunDiagnosticsOverviewSections({
             description={buildExecutionFocusSurfaceDescription("diagnostics")}
             callbackWaitingAutomation={callbackWaitingAutomation}
             sandboxReadiness={sandboxReadiness}
+            recommendedNextStepHref={buildRunDiagnosticsExecutionViewHref(run.id)}
+            recommendedNextStepHrefLabel="jump to execution facts"
           />
         </article>
 
