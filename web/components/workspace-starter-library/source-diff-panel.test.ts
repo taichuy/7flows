@@ -96,10 +96,15 @@ describe("WorkspaceStarterSourceDiffPanel", () => {
     expect(html).toContain("+1 / -0 / ~0");
     expect(html).toContain("Sandbox node");
     expect(html).toContain("config.timeout");
-    expect(html).toContain("source facts");
+    expect(html).toContain("Added");
+    expect(html).toContain("Changed");
+    expect(html).toContain("Template snapshot");
+    expect(html).toContain("Source workflow");
     expect(html).toContain("explicit execution");
     expect(html).toContain("dependencyMode");
     expect(html).toContain("strong isolation");
+    expect(html).not.toContain("template facts");
+    expect(html).not.toContain("source facts");
     expect(html).not.toContain("当前模板没有可用的 source diff");
   });
 });

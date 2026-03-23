@@ -3,6 +3,7 @@
 import type { WorkspaceStarterSourceDiff } from "@/lib/get-workspace-starters";
 
 import {
+  buildWorkspaceStarterSourceDiffPanelCopy,
   buildWorkspaceStarterSourceDiffSurface,
   type WorkspaceStarterSourceDiffSectionSurface
 } from "./shared";
@@ -20,24 +21,23 @@ export function WorkspaceStarterSourceDiffPanel({
   isRebasing,
   onRebase
 }: WorkspaceStarterSourceDiffPanelProps) {
+  const surfaceCopy = buildWorkspaceStarterSourceDiffPanelCopy();
   const surface = buildWorkspaceStarterSourceDiffSurface(sourceDiff);
 
   return (
     <article className="diagnostic-panel">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Diff</p>
-          <h2>Source drift detail</h2>
+          <p className="eyebrow">{surface?.eyebrow ?? surfaceCopy.eyebrow}</p>
+          <h2>{surface?.title ?? surfaceCopy.title}</h2>
         </div>
-        <p className="section-copy">
-          用后端统一 diff 结果展示 template snapshot 与 source workflow 的差异，避免治理页继续各自拼接判断逻辑。
-        </p>
+        <p className="section-copy">{surface?.description ?? surfaceCopy.description}</p>
       </div>
 
       {isLoading ? (
-        <p className="empty-state">正在加载 source diff...</p>
+        <p className="empty-state">{surface?.loadingMessage ?? surfaceCopy.loadingMessage}</p>
       ) : !surface ? (
-        <p className="empty-state">当前模板没有可用的 source diff。</p>
+        <p className="empty-state">{surfaceCopy.emptyMessage}</p>
       ) : (
         <>
           <div className="summary-strip compact-strip">
@@ -72,7 +72,7 @@ export function WorkspaceStarterSourceDiffPanel({
                 onClick={onRebase}
                 disabled={!surface.rebaseCard.canRebase || isRebasing}
               >
-                {isRebasing ? "Rebase 中..." : "执行 rebase"}
+                {isRebasing ? surface.rebaseCard.pendingLabel : surface.rebaseCard.actionLabel}
               </button>
             </div>
           </div>
@@ -118,30 +118,18 @@ function DiffSection({ section }: { section: WorkspaceStarterSourceDiffSectionSu
                   ))}
                 </div>
               ) : null}
-              {entry.templateFacts.length > 0 ? (
-                <>
-                  <p className="binding-meta">template facts</p>
+              {entry.factGroups.map((group) => (
+                <div key={group.key}>
+                  <p className="binding-meta">{group.label}</p>
                   <div className="starter-tag-row">
-                    {entry.templateFacts.map((fact) => (
-                      <span className="event-chip" key={`${entry.key}-template-${fact}`}>
+                    {group.facts.map((fact) => (
+                      <span className="event-chip" key={`${group.key}-${fact}`}>
                         {fact}
                       </span>
                     ))}
                   </div>
-                </>
-              ) : null}
-              {entry.sourceFacts.length > 0 ? (
-                <>
-                  <p className="binding-meta">source facts</p>
-                  <div className="starter-tag-row">
-                    {entry.sourceFacts.map((fact) => (
-                      <span className="event-chip" key={`${entry.key}-source-${fact}`}>
-                        {fact}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              ) : null}
+                </div>
+              ))}
             </div>
           ))}
         </div>

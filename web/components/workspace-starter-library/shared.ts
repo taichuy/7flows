@@ -189,14 +189,19 @@ export type WorkspaceStarterSourceDiffSummaryCard = {
   value: string;
 };
 
+export type WorkspaceStarterSourceDiffEntryFactGroupSurface = {
+  key: string;
+  label: string;
+  facts: string[];
+};
+
 export type WorkspaceStarterSourceDiffEntrySurface = {
   key: string;
   title: string;
   meta: string;
   statusLabel: string;
   changedFields: string[];
-  templateFacts: string[];
-  sourceFacts: string[];
+  factGroups: WorkspaceStarterSourceDiffEntryFactGroupSurface[];
 };
 
 export type WorkspaceStarterSourceDiffSectionSurface = {
@@ -209,6 +214,11 @@ export type WorkspaceStarterSourceDiffSectionSurface = {
 };
 
 export type WorkspaceStarterSourceDiffSurface = {
+  eyebrow: string;
+  title: string;
+  description: string;
+  loadingMessage: string;
+  emptyMessage: string;
   summaryCards: WorkspaceStarterSourceDiffSummaryCard[];
   rebaseCard: {
     title: string;
@@ -217,6 +227,8 @@ export type WorkspaceStarterSourceDiffSurface = {
     summary: string;
     chips: string[];
     canRebase: boolean;
+    actionLabel: string;
+    pendingLabel: string;
   };
   sections: WorkspaceStarterSourceDiffSectionSurface[];
 };
@@ -232,6 +244,27 @@ const WORKSPACE_STARTER_SOURCE_GOVERNANCE_KIND_LABELS = {
   synced: "已对齐",
   drifted: "来源漂移",
   unknown: "治理缺口"
+} as const;
+
+const WORKSPACE_STARTER_SOURCE_DIFF_ENTRY_STATUS_LABELS = {
+  added: "Added",
+  removed: "Removed",
+  changed: "Changed",
+  synced: "Synced"
+} as const;
+
+const WORKSPACE_STARTER_SOURCE_DIFF_FACT_GROUP_LABELS = {
+  template: "Template snapshot",
+  source: "Source workflow"
+} as const;
+
+const WORKSPACE_STARTER_SOURCE_DIFF_PANEL_COPY = {
+  eyebrow: "Diff",
+  title: "Source drift detail",
+  description:
+    "用后端统一 diff 结果展示 template snapshot 与 source workflow 的差异，避免治理页继续各自拼接判断逻辑。",
+  loadingMessage: "正在加载 source diff...",
+  emptyMessage: "当前模板没有可用的 source diff。"
 } as const;
 
 export function filterWorkspaceStarterTemplates(
@@ -1173,6 +1206,7 @@ export function buildWorkspaceStarterSourceDiffSurface(
     sourceDiff.rebase_fields.length > 0 ? sourceDiff.rebase_fields : ["no rebase needed"];
 
   return {
+    ...WORKSPACE_STARTER_SOURCE_DIFF_PANEL_COPY,
     summaryCards: [
       {
         label: "Node changes",
@@ -1203,7 +1237,9 @@ export function buildWorkspaceStarterSourceDiffSurface(
       statusLabel: actionDecision.statusLabel,
       summary: actionDecision.summary,
       chips: Array.from(new Set([...rebaseFieldChips, ...actionDecision.factChips])),
-      canRebase: actionDecision.canRebase
+      canRebase: actionDecision.canRebase,
+      actionLabel: "执行 rebase",
+      pendingLabel: "Rebase 中..."
     },
     sections: [
       buildWorkspaceStarterSourceDiffSectionSurface({
@@ -1226,6 +1262,10 @@ export function buildWorkspaceStarterSourceDiffSurface(
       })
     ]
   };
+}
+
+export function buildWorkspaceStarterSourceDiffPanelCopy() {
+  return WORKSPACE_STARTER_SOURCE_DIFF_PANEL_COPY;
 }
 
 export function buildWorkspaceStarterHistoryMetaChips(
@@ -1476,19 +1516,71 @@ function buildWorkspaceStarterSourceDiffSectionSurface({
     emptyMessage: "当前这一层没有差异。",
     entries: entries.map((entry, index) => {
       const id = normalizeString(entry.id) ?? `entry-${index + 1}`;
-      const statusLabel = normalizeString(entry.status) ?? "unknown";
+      const rawStatus = normalizeString(entry.status);
+      const entryKey = `${key}-${rawStatus ?? "unknown"}-${id}`;
 
       return {
-        key: `${key}-${statusLabel}-${id}`,
+        key: entryKey,
         title: normalizeString(entry.label) ?? id,
         meta: id,
-        statusLabel,
+        statusLabel: formatWorkspaceStarterSourceDiffStatusLabel(rawStatus),
         changedFields: normalizeStringArray(entry.changed_fields),
-        templateFacts: normalizeStringArray(entry.template_facts),
-        sourceFacts: normalizeStringArray(entry.source_facts)
+        factGroups: buildWorkspaceStarterSourceDiffEntryFactGroups({
+          entryKey,
+          templateFacts: normalizeStringArray(entry.template_facts),
+          sourceFacts: normalizeStringArray(entry.source_facts)
+        })
       };
     })
   };
+}
+
+function buildWorkspaceStarterSourceDiffEntryFactGroups({
+  entryKey,
+  templateFacts,
+  sourceFacts
+}: {
+  entryKey: string;
+  templateFacts: string[];
+  sourceFacts: string[];
+}): WorkspaceStarterSourceDiffEntryFactGroupSurface[] {
+  const groups: WorkspaceStarterSourceDiffEntryFactGroupSurface[] = [];
+
+  if (templateFacts.length > 0) {
+    groups.push({
+      key: `${entryKey}-template`,
+      label: WORKSPACE_STARTER_SOURCE_DIFF_FACT_GROUP_LABELS.template,
+      facts: templateFacts
+    });
+  }
+
+  if (sourceFacts.length > 0) {
+    groups.push({
+      key: `${entryKey}-source`,
+      label: WORKSPACE_STARTER_SOURCE_DIFF_FACT_GROUP_LABELS.source,
+      facts: sourceFacts
+    });
+  }
+
+  return groups;
+}
+
+function formatWorkspaceStarterSourceDiffStatusLabel(status: string | null) {
+  if (!status) {
+    return "Unknown";
+  }
+
+  const mappedLabel =
+    WORKSPACE_STARTER_SOURCE_DIFF_ENTRY_STATUS_LABELS[
+      status as keyof typeof WORKSPACE_STARTER_SOURCE_DIFF_ENTRY_STATUS_LABELS
+    ];
+  if (mappedLabel) {
+    return mappedLabel;
+  }
+
+  return status
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (value) => value.toUpperCase());
 }
 
 function countSummaryChanges(summary: WorkspaceStarterSourceDiffSummary | null) {

@@ -1064,6 +1064,11 @@ describe("workspace starter source action decision", () => {
     });
 
     expect(surface).not.toBeNull();
+    expect(surface?.eyebrow).toBe("Diff");
+    expect(surface?.title).toBe("Source drift detail");
+    expect(surface?.description).toContain("template snapshot");
+    expect(surface?.loadingMessage).toBe("正在加载 source diff...");
+    expect(surface?.emptyMessage).toBe("当前模板没有可用的 source diff。");
     expect(surface?.summaryCards).toEqual([
       { label: "Node changes", value: "1" },
       { label: "Edge changes", value: "0" },
@@ -1084,7 +1089,9 @@ describe("workspace starter source action decision", () => {
         "sandbox drift 1",
         "rebase 2"
       ],
-      canRebase: true
+      canRebase: true,
+      actionLabel: "执行 rebase",
+      pendingLabel: "Rebase 中..."
     });
     expect(surface?.sections).toEqual([
       {
@@ -1098,10 +1105,15 @@ describe("workspace starter source action decision", () => {
             key: "node-diff-added-node-sandbox",
             title: "Sandbox node",
             meta: "node-sandbox",
-            statusLabel: "added",
+            statusLabel: "Added",
             changedFields: ["config.timeout"],
-            templateFacts: [],
-            sourceFacts: ["sandbox_code", "explicit execution"]
+            factGroups: [
+              {
+                key: "node-diff-added-node-sandbox-source",
+                label: "Source workflow",
+                facts: ["sandbox_code", "explicit execution"]
+              }
+            ]
           }
         ]
       },
@@ -1124,10 +1136,20 @@ describe("workspace starter source action decision", () => {
             key: "sandbox-diff-changed-sandbox-node",
             title: "sandbox_code",
             meta: "sandbox-node",
-            statusLabel: "changed",
+            statusLabel: "Changed",
             changedFields: ["dependencyMode", "builtinPackageSet"],
-            templateFacts: ["host execution"],
-            sourceFacts: ["strong isolation"]
+            factGroups: [
+              {
+                key: "sandbox-diff-changed-sandbox-node-template",
+                label: "Template snapshot",
+                facts: ["host execution"]
+              },
+              {
+                key: "sandbox-diff-changed-sandbox-node-source",
+                label: "Source workflow",
+                facts: ["strong isolation"]
+              }
+            ]
           }
         ]
       }
