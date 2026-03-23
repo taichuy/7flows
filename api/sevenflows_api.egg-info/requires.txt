@@ -1,10 +1,11 @@
 alembic<2,>=1.14.0
 boto3<2,>=1.35.0
-cryptography<45,>=43.0.0
+cryptography<47,>=46.0.5
 celery<6,>=5.4.0
 fastapi<1,>=0.115.0
 httpx<1,>=0.28.0
 pydantic-settings<3,>=2.6.0
+pyjwt<3,>=2.12.0
 psycopg[binary]<4,>=3.2.0
 redis<6,>=5.2.0
 sqlalchemy<3,>=2.0.36

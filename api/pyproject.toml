@@ -11,11 +11,12 @@ requires-python = ">=3.11,<3.13"
 dependencies = [
   "alembic>=1.14.0,<2",
   "boto3>=1.35.0,<2",
-  "cryptography>=43.0.0,<45",
+  "cryptography>=46.0.5,<47",
   "celery>=5.4.0,<6",
   "fastapi>=0.115.0,<1",
   "httpx>=0.28.0,<1",
   "pydantic-settings>=2.6.0,<3",
+  "pyjwt>=2.12.0,<3",
   "psycopg[binary]>=3.2.0,<4",
   "redis>=5.2.0,<6",
   "sqlalchemy>=2.0.36,<3",
