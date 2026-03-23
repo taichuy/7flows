@@ -9,7 +9,7 @@ from app.models.sensitive_access import (
     SensitiveAccessRequestRecord,
     SensitiveResourceRecord,
 )
-from app.models.workflow import WorkflowPublishedInvocation
+from app.models.workflow import WorkflowPublishedEndpoint, WorkflowPublishedInvocation
 from tests.workflow_publish_helpers import publishable_definition
 
 
@@ -762,6 +762,158 @@ def test_export_published_endpoint_invocations_supports_json_and_jsonl(
     assert invocation_record["request_source"] == "path"
     assert invocation_record["run_snapshot"]["status"] == "succeeded"
     assert invocation_record["run_snapshot"]["execution_focus_reason"] is None
+
+
+def test_export_published_endpoint_invocations_includes_workflow_legacy_auth_handoff(
+    client: TestClient,
+    sqlite_session,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Published Invocation Export Governance Workflow",
+            "definition": publishable_definition(
+                answer="export-governance",
+                alias="native-export-governance",
+                path="/team/native-export-governance",
+            ),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    bindings_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints",
+        params={"include_all_versions": "true"},
+    )
+    assert bindings_response.status_code == 200
+    binding = bindings_response.json()[0]
+
+    publish_response = client.patch(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/lifecycle",
+        json={"status": "published"},
+    )
+    assert publish_response.status_code == 200
+
+    invoke_response = client.post(
+        f"/v1/workflows/{workflow_id}/published-endpoints/native-chat/run",
+        json={"input_payload": {"source": "workflow"}},
+    )
+    assert invoke_response.status_code == 200
+
+    binding_record = sqlite_session.get(WorkflowPublishedEndpoint, binding["id"])
+    assert binding_record is not None
+    binding_record.auth_mode = "token"
+    sqlite_session.commit()
+
+    export_json_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/export",
+        params={
+            "request_source": "workflow",
+            "limit": 10,
+            "format": "json",
+        },
+    )
+    assert export_json_response.status_code == 200
+    export_json_body = export_json_response.json()
+    assert export_json_body["legacy_auth_governance"] == {
+        "generated_at": export_json_body["legacy_auth_governance"]["generated_at"],
+        "workflow_count": 1,
+        "binding_count": 1,
+        "workflow": {
+            "workflow_id": workflow_id,
+            "workflow_name": "Published Invocation Export Governance Workflow",
+            "binding_count": 1,
+            "draft_candidate_count": 0,
+            "published_blocker_count": 1,
+            "offline_inventory_count": 0,
+        },
+        "summary": {
+            "draft_candidate_count": 0,
+            "published_blocker_count": 1,
+            "offline_inventory_count": 0,
+        },
+        "checklist": [
+            {
+                "key": "published_follow_up",
+                "title": "再补发支持鉴权的 replacement bindings",
+                "tone": "manual",
+                "tone_label": "人工跟进",
+                "count": 1,
+                "detail": (
+                    "对 Published Invocation Export Governance Workflow "
+                    "这类仍在 live 的 legacy binding，"
+                    "先回到当前 draft endpoint 把 authMode 切回 api_key/internal，"
+                    "并发布新版 binding，再决定历史版本是否下线。"
+                ),
+            }
+        ],
+        "buckets": {
+            "draft_candidates": [],
+            "published_blockers": [
+                {
+                    "workflow_id": workflow_id,
+                    "workflow_name": "Published Invocation Export Governance Workflow",
+                    "binding_id": binding["id"],
+                    "endpoint_id": "native-chat",
+                    "endpoint_name": "Native Chat",
+                    "workflow_version": "0.1.0",
+                    "lifecycle_status": "published",
+                    "auth_mode": "token",
+                }
+            ],
+            "offline_inventory": [],
+        },
+    }
+
+    export_jsonl_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/export",
+        params={
+            "request_source": "workflow",
+            "limit": 10,
+            "format": "jsonl",
+        },
+    )
+    assert export_jsonl_response.status_code == 200
+    jsonl_lines = export_jsonl_response.text.strip().splitlines()
+    assert len(jsonl_lines) == 4
+    meta_record = json.loads(jsonl_lines[0])
+    governance_record = json.loads(jsonl_lines[1])
+    governance_binding_record = json.loads(jsonl_lines[2])
+    invocation_record = json.loads(jsonl_lines[3])
+    assert meta_record["legacy_auth_governance"] == {
+        "binding_count": 1,
+        "workflow": {
+            "workflow_id": workflow_id,
+            "workflow_name": "Published Invocation Export Governance Workflow",
+            "binding_count": 1,
+            "draft_candidate_count": 0,
+            "published_blocker_count": 1,
+            "offline_inventory_count": 0,
+        },
+        "summary": {
+            "draft_candidate_count": 0,
+            "published_blocker_count": 1,
+            "offline_inventory_count": 0,
+        },
+    }
+    assert governance_record["record_type"] == "workflow_legacy_auth_governance"
+    assert governance_record["binding_count"] == 1
+    assert governance_record["workflow"]["workflow_id"] == workflow_id
+    assert governance_binding_record == {
+        "record_type": "workflow_legacy_auth_binding",
+        "bucket": "published_blockers",
+        "workflow_id": workflow_id,
+        "workflow_name": "Published Invocation Export Governance Workflow",
+        "binding_id": binding["id"],
+        "endpoint_id": "native-chat",
+        "endpoint_name": "Native Chat",
+        "workflow_version": "0.1.0",
+        "lifecycle_status": "published",
+        "auth_mode": "token",
+    }
+    assert invocation_record["record_type"] == "invocation"
+    assert invocation_record["request_source"] == "workflow"
 
 
 def test_export_published_endpoint_invocations_requires_approval_for_sensitive_runs(

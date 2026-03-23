@@ -56,6 +56,7 @@ export type WorkflowPublishActivityPanelProps = {
   activeInvocationFilter: WorkflowPublishInvocationActiveFilter | null;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  legacyAuthExportHint?: string | null;
   workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 

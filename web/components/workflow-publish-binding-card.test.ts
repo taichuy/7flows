@@ -9,7 +9,8 @@ import type { WorkflowPublishedEndpointItem } from "@/lib/get-workflow-publish";
 import type { SensitiveAccessBlockingPayload } from "@/lib/sensitive-access";
 
 vi.mock("@/components/workflow-publish-activity-panel", () => ({
-  WorkflowPublishActivityPanel: () => createElement("div", null, "activity-panel")
+  WorkflowPublishActivityPanel: ({ legacyAuthExportHint }: { legacyAuthExportHint?: string | null }) =>
+    createElement("div", null, `activity-panel:${legacyAuthExportHint ?? "none"}`)
 }));
 
 vi.mock("@/components/workflow-publish-lifecycle-form", () => ({
@@ -243,8 +244,33 @@ describe("WorkflowPublishBindingCard", () => {
     expect(html).toContain(">已发布</span>");
     expect(html).toContain("Strong-isolation publish preflight");
     expect(html).toContain("ready sandbox");
-    expect(html).toContain("activity-panel");
+    expect(html).toContain("activity-panel:none");
     expect(html).toContain("lifecycle-form:sandbox");
+  });
+
+  it("passes workflow-level legacy auth handoff hints into the activity panel", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishBindingCard, {
+        workflow: buildWorkflow(),
+        tools: [],
+        binding: buildBinding(),
+        legacyAuthExportHint:
+          "导出的 published invocation JSON / JSONL 也会附带当前 workflow 的 legacy publish auth handoff：draft 1 / published 0 / offline 0。",
+        cacheInventory: null as never,
+        apiKeys: [],
+        invocationAudit: null,
+        selectedInvocationId: null,
+        selectedInvocationDetail: null as never,
+        rateLimitWindowAudit: null,
+        activeInvocationFilter: null,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain(
+      "activity-panel:导出的 published invocation JSON / JSONL 也会附带当前 workflow 的 legacy publish auth handoff：draft 1 / published 0 / offline 0。"
+    );
   });
 
   it("renders publish governance blockers from binding issues", () => {

@@ -32,6 +32,7 @@ type WorkflowPublishBindingCardProps = {
   workflow: WorkflowDetail;
   tools: PluginToolRegistryItem[];
   binding: WorkflowPublishedEndpointItem;
+  legacyAuthExportHint?: string | null;
   cacheInventory: SensitiveAccessGuardedResult<PublishedEndpointCacheInventoryResponse>;
   apiKeys: PublishedEndpointApiKeyItem[];
   invocationAudit: PublishedEndpointInvocationListResponse | null;
@@ -48,6 +49,7 @@ export function WorkflowPublishBindingCard({
   workflow,
   tools,
   binding,
+  legacyAuthExportHint = null,
   cacheInventory,
   apiKeys,
   invocationAudit,
@@ -170,6 +172,7 @@ export function WorkflowPublishBindingCard({
         callbackWaitingAutomation={callbackWaitingAutomation}
         sandboxReadiness={sandboxReadiness}
         activeInvocationFilter={activeInvocationFilter}
+        legacyAuthExportHint={legacyAuthExportHint}
         workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
       />
 

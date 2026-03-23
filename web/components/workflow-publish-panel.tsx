@@ -6,6 +6,10 @@ import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkflowPublishBindingCard } from "@/components/workflow-publish-binding-card";
 import { WorkflowPublishLegacyAuthCleanupCard } from "@/components/workflow-publish-legacy-auth-cleanup-card";
 import {
+  buildWorkflowPublishLegacyAuthCleanupSurface,
+  buildWorkflowPublishLegacyAuthExportHint,
+} from "@/lib/workflow-publish-legacy-auth-cleanup";
+import {
   buildWorkflowPublishPrimaryFollowUpToneSurface,
   buildWorkflowPublishPrimaryFollowUpSurface,
   buildWorkflowPublishSummaryCardSurfaces,
@@ -72,6 +76,8 @@ export function WorkflowPublishPanel({
   const primaryFollowUpToneSurface = buildWorkflowPublishPrimaryFollowUpToneSurface(
     primaryFollowUp.tone
   );
+  const legacyAuthCleanupSurface = buildWorkflowPublishLegacyAuthCleanupSurface(bindings);
+  const legacyAuthExportHint = buildWorkflowPublishLegacyAuthExportHint(legacyAuthCleanupSurface);
   const summaryCards = buildWorkflowPublishSummaryCardSurfaces({
     bindings,
     primaryFollowUp
@@ -148,6 +154,7 @@ export function WorkflowPublishPanel({
                 workflow={workflow}
                 tools={tools}
                 binding={binding}
+                legacyAuthExportHint={legacyAuthExportHint}
                 cacheInventory={cacheInventories[binding.id] ?? null}
                 apiKeys={apiKeysByBinding[binding.id] ?? []}
                 invocationAudit={invocationAuditsByBinding[binding.id] ?? null}

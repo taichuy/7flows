@@ -51,10 +51,12 @@ from app.services.published_invocations import (
     PublishedInvocationService,
 )
 from app.services.sensitive_access_timeline import load_sensitive_access_timelines
+from app.services.workflow_publish import WorkflowPublishBindingService
 
 router = APIRouter(prefix="/workflows", tags=["published-endpoint-activity"])
 published_invocation_service = PublishedInvocationService()
 published_invocation_export_access_service = PublishedInvocationExportAccessService()
+workflow_publish_service = WorkflowPublishBindingService()
 
 
 def _serialize_published_invocation_summary(summary) -> PublishedEndpointInvocationSummary:
@@ -415,6 +417,10 @@ def export_published_endpoint_invocations(
         export_format=format,
         limit=limit,
         response=response,
+        legacy_auth_governance=workflow_publish_service.build_legacy_auth_governance_snapshot(
+            db,
+            workflow_id=workflow_id,
+        ),
     )
     filename = build_published_invocation_export_filename(binding, format)
     headers = {

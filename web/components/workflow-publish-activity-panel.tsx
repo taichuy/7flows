@@ -25,6 +25,7 @@ export function WorkflowPublishActivityPanel({
   activeInvocationFilter,
   callbackWaitingAutomation,
   sandboxReadiness,
+  legacyAuthExportHint,
   workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishActivityPanelProps) {
   const activeFilterChips = buildActiveFilterChips(activeInvocationFilter, apiKeys);
@@ -74,6 +75,10 @@ export function WorkflowPublishActivityPanel({
           sandboxReadiness={sandboxReadiness}
         />
       </div>
+
+      {legacyAuthExportHint ? (
+        <p className="section-copy entry-copy trace-export-feedback">{legacyAuthExportHint}</p>
+      ) : null}
 
       <WorkflowPublishActivityInsights
         binding={binding}

@@ -13,8 +13,13 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("@/components/workflow-publish-binding-card", () => ({
-  WorkflowPublishBindingCard: ({ binding }: { binding: { id: string } }) =>
-    createElement("div", null, `binding:${binding.id}`)
+  WorkflowPublishBindingCard: ({
+    binding,
+    legacyAuthExportHint
+  }: {
+    binding: { id: string };
+    legacyAuthExportHint?: string | null;
+  }) => createElement("div", null, `binding:${binding.id}:${legacyAuthExportHint ?? "none"}`)
 }));
 
 vi.mock("@/components/workflow-publish-legacy-auth-cleanup-card", () => ({
@@ -413,5 +418,49 @@ describe("WorkflowPublishPanel", () => {
       "Continue from the binding cards below to publish or re-enable an endpoint before treating this summary as operationally clear."
     );
     expect(html).not.toContain("Current publish bindings do not show a shared operator backlog.");
+  });
+
+  it("passes workflow-level legacy auth handoff hints into binding activity exports", () => {
+    const binding = buildBinding();
+    binding.auth_mode = "token";
+    binding.issues = [
+      {
+        category: "unsupported_auth_mode",
+        message: "Legacy token auth is still persisted on this binding.",
+        remediation: "Switch back to api_key or internal before publishing.",
+        blocks_lifecycle_publish: true
+      }
+    ];
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishPanel, {
+        workflow: buildWorkflow(),
+        tools: [],
+        bindings: [binding],
+        cacheInventories: {},
+        apiKeysByBinding: {},
+        invocationAuditsByBinding: {},
+        invocationDetailsByBinding: {},
+        selectedInvocationId: null,
+        rateLimitWindowAuditsByBinding: {},
+        activeInvocationFilter: {
+          bindingId: null,
+          status: null,
+          requestSource: null,
+          requestSurface: null,
+          cacheStatus: null,
+          runStatus: null,
+          apiKeyId: null,
+          reasonCode: null,
+          timeWindow: "all"
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain(
+      "binding:binding-1:导出的 published invocation JSON / JSONL 也会附带当前 workflow 的 legacy publish auth handoff：draft 0 / published 1 / offline 0。"
+    );
   });
 });

@@ -315,6 +315,24 @@ export function buildWorkflowPublishLegacyAuthCleanupExportPayload({
   };
 }
 
+export function buildWorkflowPublishLegacyAuthExportHint(
+  surface: Pick<
+    WorkflowPublishLegacyAuthCleanupSurface,
+    "shouldRender" | "candidateBindings" | "publishedBindings" | "offlineBindings"
+  >
+) {
+  if (!surface.shouldRender) {
+    return null;
+  }
+
+  return (
+    "导出的 published invocation JSON / JSONL 也会附带当前 workflow 的 legacy publish auth handoff：" +
+    `draft ${surface.candidateBindings.length} / ` +
+    `published ${surface.publishedBindings.length} / ` +
+    `offline ${surface.offlineBindings.length}。`
+  );
+}
+
 export function serializeWorkflowPublishLegacyAuthCleanupExportJsonl(
   payload: WorkflowPublishLegacyAuthCleanupExportPayload
 ) {

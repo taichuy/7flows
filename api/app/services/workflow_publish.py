@@ -322,8 +322,10 @@ class WorkflowPublishBindingService:
     def build_legacy_auth_governance_snapshot(
         self,
         db: Session,
+        *,
+        workflow_id: str | None = None,
     ) -> WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot:
-        rows = db.execute(
+        statement = (
             select(WorkflowPublishedEndpoint, Workflow.name)
             .join(Workflow, Workflow.id == WorkflowPublishedEndpoint.workflow_id)
             .order_by(
@@ -331,7 +333,11 @@ class WorkflowPublishBindingService:
                 WorkflowPublishedEndpoint.endpoint_name.asc(),
                 WorkflowPublishedEndpoint.workflow_version.desc(),
             )
-        ).all()
+        )
+        if workflow_id is not None:
+            statement = statement.where(WorkflowPublishedEndpoint.workflow_id == workflow_id)
+
+        rows = db.execute(statement).all()
 
         draft_candidates: list[WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem] = []
         published_blockers: list[WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem] = []

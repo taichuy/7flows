@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { WorkflowPublishedEndpointItem } from "@/lib/get-workflow-publish";
 import {
+  buildWorkflowPublishLegacyAuthExportHint,
   buildWorkflowPublishLegacyAuthCleanupExportFilename,
   buildWorkflowPublishLegacyAuthCleanupExportPayload,
   buildWorkflowPublishLegacyAuthCleanupExportSuccessMessage,
@@ -136,5 +137,23 @@ describe("workflow publish legacy auth cleanup helpers", () => {
     expect(buildWorkflowPublishLegacyAuthCleanupExportSuccessMessage("json")).toBe(
       "Legacy publish auth 治理JSON清单已开始下载。"
     );
+  });
+
+  it("builds publish activity export hints from workflow-level legacy auth backlog", () => {
+    const surface = buildWorkflowPublishLegacyAuthCleanupSurface([
+      buildBinding({ id: "binding-live", lifecycle_status: "published" }),
+      buildBinding({ id: "binding-offline", lifecycle_status: "offline" }),
+    ]);
+
+    expect(buildWorkflowPublishLegacyAuthExportHint(surface)).toBe(
+      "导出的 published invocation JSON / JSONL 也会附带当前 workflow 的 legacy publish auth handoff：draft 0 / published 1 / offline 1。"
+    );
+    expect(
+      buildWorkflowPublishLegacyAuthExportHint(
+        buildWorkflowPublishLegacyAuthCleanupSurface([
+          buildBinding({ id: "binding-clean", auth_mode: "api_key", issues: [] }),
+        ])
+      )
+    ).toBeNull();
   });
 });
