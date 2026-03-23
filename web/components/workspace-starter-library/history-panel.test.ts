@@ -7,7 +7,7 @@ import type { WorkspaceStarterHistoryItem } from "@/lib/get-workspace-starters";
 import { WorkspaceStarterHistoryPanel } from "./history-panel";
 
 describe("WorkspaceStarterHistoryPanel", () => {
-  it("renders structured sandbox drift facts before raw payload", () => {
+  it("renders structured sandbox drift facts with a structured payload snapshot", () => {
     const historyItems: WorkspaceStarterHistoryItem[] = [
       {
         id: "history-1",
@@ -83,6 +83,14 @@ describe("WorkspaceStarterHistoryPanel", () => {
     expect(html).toContain("涉及节点：sandbox");
     expect(html).toContain("Structure drift:");
     expect(html).toContain("Rebase fields:");
-    expect(html).toContain("查看原始 payload");
+    expect(html).toContain("查看结构化 payload");
+    expect(html).toContain("Scope flag:");
+    expect(html).toContain("Change flag:");
+    expect(html).toContain("Node summary:");
+    expect(html).toContain("Sandbox summary:");
+    expect(html).toContain("Rebase payload:");
+    expect(html).not.toContain("查看原始 payload");
+    expect(html).not.toContain("action_decision");
+    expect(html).not.toContain("can_refresh");
   });
 });

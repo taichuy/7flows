@@ -14,6 +14,8 @@ import {
   buildWorkspaceStarterBulkPreviewNarrative,
   buildWorkspaceStarterBulkResultFocusTargets,
   buildWorkspaceStarterBulkResultNarrative,
+  buildWorkspaceStarterBulkResultSurface,
+  buildWorkspaceStarterHistoryPayloadSnapshot,
   buildWorkspaceStarterSourceActionDecision,
   buildWorkspaceStarterSourceGovernanceSurface,
   buildWorkspaceStarterSourceGovernanceFocusTargets,
@@ -792,6 +794,136 @@ describe("workspace starter source action decision", () => {
         sandboxNodeSummary: "sandbox",
         driftNodeCount: 1,
         archived: false
+      }
+    ]);
+  });
+
+  it("builds bulk result surface from the shared presenter layer", () => {
+    const result: WorkspaceStarterBulkActionResult = {
+      workspace_id: "default",
+      action: "refresh",
+      requested_count: 2,
+      updated_count: 0,
+      skipped_count: 1,
+      updated_items: [],
+      deleted_items: [],
+      skipped_items: [],
+      skipped_reason_summary: [
+        {
+          reason: "no_source_workflow",
+          count: 1,
+          detail: "Workspace starter has no source workflow."
+        }
+      ],
+      sandbox_dependency_changes: null,
+      sandbox_dependency_items: [],
+      receipt_items: [
+        {
+          template_id: "starter-manual",
+          name: "Manual starter",
+          outcome: "skipped",
+          archived: false,
+          reason: "no_source_workflow",
+          detail: "Workspace starter has no source workflow.",
+          source_workflow_id: null,
+          source_workflow_version: null,
+          action_decision: null,
+          sandbox_dependency_changes: null,
+          sandbox_dependency_nodes: [],
+          changed: false,
+          rebase_fields: []
+        }
+      ],
+      outcome_explanation: {
+        primary_signal: null,
+        follow_up: "先补来源 workflow，再重新执行批量刷新。"
+      },
+      follow_up_template_ids: ["starter-manual"]
+    };
+
+    expect(buildWorkspaceStarterBulkResultSurface(result)).toEqual({
+      primarySignal: "本次批量刷新请求 2 个 starter。 当前没有 starter 被刷新。 跳过 1 个（无来源 1）。",
+      followUpExplanation: "先补来源 workflow，再重新执行批量刷新。",
+      recommendedNextStep: {
+        action: "review_result_receipt",
+        label: "修复来源绑定",
+        detail: "当前 starter 缺少可用来源绑定；先补来源 workflow 或确认来源仍可访问，再重新执行批量刷新。",
+        focusTemplateId: "starter-manual",
+        focusLabel: "优先聚焦 starter：Manual starter"
+      },
+      shouldRenderStandaloneFollowUpExplanation: true
+    });
+  });
+
+  it("builds structured history payload snapshots without raw governance blobs", () => {
+    expect(
+      buildWorkspaceStarterHistoryPayloadSnapshot({
+        id: "history-1",
+        template_id: "starter-sandbox",
+        workspace_id: "default",
+        action: "rebased",
+        summary: "批量从源 workflow 同步了 rebase 所需字段。",
+        created_at: "2026-03-21T11:30:00Z",
+        payload: {
+          bulk: true,
+          changed: true,
+          action_decision: {
+            recommended_action: "rebase",
+            status_label: "建议 rebase",
+            summary: "当前主要是默认 workflow 名称漂移。",
+            can_refresh: true,
+            can_rebase: true,
+            fact_chips: ["name drift"]
+          },
+          outcome_explanation: {
+            primary_signal: "当前主要是名称漂移。",
+            follow_up: "优先 rebase。"
+          },
+          node_changes: {
+            template_count: 1,
+            source_count: 1,
+            added_count: 0,
+            removed_count: 0,
+            changed_count: 1
+          },
+          edge_changes: {
+            template_count: 1,
+            source_count: 1,
+            added_count: 0,
+            removed_count: 0,
+            changed_count: 0
+          },
+          sandbox_dependency_changes: {
+            template_count: 1,
+            source_count: 1,
+            added_count: 0,
+            removed_count: 0,
+            changed_count: 1
+          },
+          sandbox_dependency_nodes: ["sandbox"],
+          rebase_fields: ["definition", "default_workflow_name"]
+        }
+      })
+    ).toEqual([
+      {
+        label: "Scope flag",
+        text: "这条记录来自批量治理回执。"
+      },
+      {
+        label: "Change flag",
+        text: "payload 标记本轮已应用来源变更。"
+      },
+      {
+        label: "Node summary",
+        text: "新增 0 / 移除 0 / 变更 1"
+      },
+      {
+        label: "Sandbox summary",
+        text: "新增 0 / 移除 0 / 变更 1；涉及节点：sandbox"
+      },
+      {
+        label: "Rebase payload",
+        text: "definition、default_workflow_name"
       }
     ]);
   });

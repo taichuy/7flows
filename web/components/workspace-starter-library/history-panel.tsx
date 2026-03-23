@@ -5,6 +5,7 @@ import React from "react";
 import type { WorkspaceStarterHistoryItem } from "@/lib/get-workspace-starters";
 
 import {
+  buildWorkspaceStarterHistoryPayloadSnapshot,
   buildWorkspaceStarterHistoryMetaChips,
   buildWorkspaceStarterHistoryNarrative,
   formatTimestamp
@@ -40,7 +41,7 @@ export function WorkspaceStarterHistoryPanel({
           {historyItems.map((item) => {
             const chips = buildWorkspaceStarterHistoryMetaChips(item);
             const narrativeItems = buildWorkspaceStarterHistoryNarrative(item);
-            const hasPayload = Object.keys(item.payload).length > 0;
+            const payloadSnapshotItems = buildWorkspaceStarterHistoryPayloadSnapshot(item);
 
             return (
               <div className="binding-card compact-card" key={item.id}>
@@ -68,10 +69,14 @@ export function WorkspaceStarterHistoryPanel({
                   </p>
                 ))}
 
-                {hasPayload ? (
+                {payloadSnapshotItems.length > 0 ? (
                   <details>
-                    <summary className="binding-meta">查看原始 payload</summary>
-                    <pre className="trace-preview">{JSON.stringify(item.payload, null, 2)}</pre>
+                    <summary className="binding-meta">查看结构化 payload</summary>
+                    {payloadSnapshotItems.map((entry) => (
+                      <p className="section-copy starter-summary-copy" key={`${item.id}-payload-${entry.label}`}>
+                        <strong>{entry.label}:</strong> {entry.text}
+                      </p>
+                    ))}
                   </details>
                 ) : null}
               </div>

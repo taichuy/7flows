@@ -10,7 +10,7 @@ import type {
 } from "@/lib/get-workspace-starters";
 
 import {
-  buildWorkspaceStarterBulkResultRecommendedNextStep,
+  buildWorkspaceStarterBulkResultSurface,
   type WorkspaceStarterBulkPreviewFocusTarget,
   type WorkspaceStarterBulkResultFocusTarget,
   type WorkspaceStarterSourceGovernanceFocusTarget,
@@ -69,14 +69,9 @@ export function WorkspaceStarterBulkGovernanceCard({
 }: WorkspaceStarterBulkGovernanceCardProps) {
   const previewNarrativeItems = buildWorkspaceStarterBulkPreviewNarrative(preview);
   const narrativeItems = lastResult ? buildWorkspaceStarterBulkResultNarrative(lastResult) : [];
-  const outcomePrimarySignal = lastResult?.outcome_explanation?.primary_signal?.trim() || null;
-  const outcomeFollowUp = lastResult?.outcome_explanation?.follow_up?.trim() || null;
   const primaryResultFocusTarget = resultFocusTargets[0] ?? null;
-  const recommendedNextStep = lastResult
-    ? buildWorkspaceStarterBulkResultRecommendedNextStep(lastResult)
-    : null;
-  const shouldRenderStandaloneOutcomeFollowUp =
-    Boolean(outcomeFollowUp) && outcomeFollowUp !== recommendedNextStep?.detail;
+  const resultSurface = lastResult ? buildWorkspaceStarterBulkResultSurface(lastResult) : null;
+  const recommendedNextStep = resultSurface?.recommendedNextStep ?? null;
 
   return (
     <div className="binding-card compact-card">
@@ -267,16 +262,18 @@ export function WorkspaceStarterBulkGovernanceCard({
             </p>
           ))}
 
-          {outcomePrimarySignal || recommendedNextStep || shouldRenderStandaloneOutcomeFollowUp ? (
+          {resultSurface?.primarySignal ||
+          recommendedNextStep ||
+          resultSurface?.shouldRenderStandaloneFollowUpExplanation ? (
             <div className="binding-section">
               <p className="binding-meta">Recommended next step</p>
               <p className="section-copy starter-summary-copy">
                 同一份 result receipt 现在会先投影稳定的 next-step presenter；`follow_up` 只保留为解释文本，
                 不再承担主要导航语义。
               </p>
-              {outcomePrimarySignal ? (
+              {resultSurface?.primarySignal ? (
                 <p className="section-copy starter-summary-copy">
-                  <strong>Primary signal:</strong> {outcomePrimarySignal}
+                  <strong>Primary signal:</strong> {resultSurface.primarySignal}
                 </p>
               ) : null}
               {recommendedNextStep ? (
@@ -288,8 +285,8 @@ export function WorkspaceStarterBulkGovernanceCard({
                   <p className="section-copy starter-summary-copy">{recommendedNextStep.detail}</p>
                 </div>
               ) : null}
-              {shouldRenderStandaloneOutcomeFollowUp ? (
-                <p className="binding-meta">{outcomeFollowUp}</p>
+              {resultSurface?.shouldRenderStandaloneFollowUpExplanation ? (
+                <p className="binding-meta">{resultSurface.followUpExplanation}</p>
               ) : null}
               {recommendedNextStep?.focusTemplateId && recommendedNextStep.focusLabel ? (
                 <div className="binding-actions">

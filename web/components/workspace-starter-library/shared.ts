@@ -140,6 +140,13 @@ export type WorkspaceStarterSourceGovernanceScopeSummary = {
   attentionCount: number;
 };
 
+export type WorkspaceStarterBulkResultSurface = {
+  primarySignal: string | null;
+  followUpExplanation: string | null;
+  recommendedNextStep: WorkspaceStarterGovernanceRecommendedNextStep | null;
+  shouldRenderStandaloneFollowUpExplanation: boolean;
+};
+
 const WORKSPACE_STARTER_SOURCE_GOVERNANCE_FOLLOW_UP_KINDS = new Set<WorkspaceStarterSourceGovernanceKind>([
   "drifted",
   "missing_source"
@@ -872,6 +879,25 @@ export function buildWorkspaceStarterBulkResultRecommendedNextStep(
   };
 }
 
+export function buildWorkspaceStarterBulkResultSurface(
+  result: WorkspaceStarterBulkActionResult
+): WorkspaceStarterBulkResultSurface {
+  const recommendedNextStep = buildWorkspaceStarterBulkResultRecommendedNextStep(result);
+  const primarySignal =
+    normalizeString(result.outcome_explanation?.primary_signal) ??
+    buildWorkspaceStarterBulkResultNarrative(result)[0]?.text ??
+    null;
+  const followUpExplanation = normalizeString(result.outcome_explanation?.follow_up);
+
+  return {
+    primarySignal,
+    followUpExplanation,
+    recommendedNextStep,
+    shouldRenderStandaloneFollowUpExplanation:
+      Boolean(followUpExplanation) && followUpExplanation !== recommendedNextStep?.detail
+  };
+}
+
 function getWorkspaceStarterBulkResultOutcomeLabel(
   action: WorkspaceStarterBulkAction,
   item: WorkspaceStarterBulkReceiptItem
@@ -1223,6 +1249,68 @@ export function buildWorkspaceStarterHistoryNarrative(
   if (rebaseFields.length > 0) {
     items.push({
       label: "Rebase fields",
+      text: rebaseFields.join("、")
+    });
+  }
+
+  return items;
+}
+
+export function buildWorkspaceStarterHistoryPayloadSnapshot(
+  item: WorkspaceStarterHistoryItem
+): WorkspaceStarterNarrativeItem[] {
+  const payload = normalizePayload(item.payload);
+  if (!payload) {
+    return [];
+  }
+
+  const items: WorkspaceStarterNarrativeItem[] = [];
+
+  if (payload.bulk === true) {
+    items.push({
+      label: "Scope flag",
+      text: "这条记录来自批量治理回执。"
+    });
+  }
+
+  if (typeof payload.changed === "boolean") {
+    items.push({
+      label: "Change flag",
+      text: payload.changed ? "payload 标记本轮已应用来源变更。" : "payload 标记本轮仅完成对齐检查。"
+    });
+  }
+
+  const nodeSummary = normalizeSourceDiffSummary(payload.node_changes);
+  if (nodeSummary && countSummaryChanges(nodeSummary) > 0) {
+    items.push({
+      label: "Node summary",
+      text: summarizeSourceDiffCounts(nodeSummary)
+    });
+  }
+
+  const edgeSummary = normalizeSourceDiffSummary(payload.edge_changes);
+  if (edgeSummary && countSummaryChanges(edgeSummary) > 0) {
+    items.push({
+      label: "Edge summary",
+      text: summarizeSourceDiffCounts(edgeSummary)
+    });
+  }
+
+  const sandboxSummary = normalizeSourceDiffSummary(payload.sandbox_dependency_changes);
+  const sandboxNodes = normalizeStringArray(payload.sandbox_dependency_nodes);
+  if (sandboxSummary && countSummaryChanges(sandboxSummary) > 0) {
+    items.push({
+      label: "Sandbox summary",
+      text:
+        summarizeSourceDiffCounts(sandboxSummary) +
+        (sandboxNodes.length > 0 ? `；涉及节点：${sandboxNodes.join("、")}` : "")
+    });
+  }
+
+  const rebaseFields = normalizeStringArray(payload.rebase_fields);
+  if (rebaseFields.length > 0) {
+    items.push({
+      label: "Rebase payload",
       text: rebaseFields.join("、")
     });
   }
