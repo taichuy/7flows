@@ -22,6 +22,7 @@ import {
 } from "@/lib/sandbox-readiness-presenters";
 import type {
   WorkbenchEntryLinkKey,
+  WorkbenchEntryLinkOverride,
   WorkbenchEntryLinkOverrides
 } from "@/lib/workbench-entry-links";
 
@@ -39,6 +40,12 @@ export type CrossEntryRiskDigestFocusArea = {
   summary: string;
   nextStep: string;
   entryKey: WorkbenchEntryLinkKey;
+  entryOverride?: WorkbenchEntryLinkOverride;
+};
+
+export type CrossEntryRiskDigestFollowUpEntry = {
+  entryKey: WorkbenchEntryLinkKey;
+  entryOverride?: WorkbenchEntryLinkOverride;
 };
 
 export type CrossEntryRiskDigest = {
@@ -47,6 +54,7 @@ export type CrossEntryRiskDigest = {
   detail: string;
   metrics: CrossEntryRiskDigestMetric[];
   focusAreas: CrossEntryRiskDigestFocusArea[];
+  primaryFollowUpEntry: CrossEntryRiskDigestFollowUpEntry;
   primaryEntryKey: WorkbenchEntryLinkKey;
   entryKeys: WorkbenchEntryLinkKey[];
   entryOverrides?: WorkbenchEntryLinkOverrides;
@@ -105,19 +113,36 @@ function resolveRecommendedEntryKey({
   return action?.entry_key ?? fallback;
 }
 
-function applyRecommendedActionOverride(
+function buildEntryOverride({
+  href,
+  label
+}: {
+  href?: string | null;
+  label?: string | null;
+}): WorkbenchEntryLinkOverride | undefined {
+  const normalizedHref = href?.trim() || undefined;
+  const normalizedLabel = label?.trim() || undefined;
+
+  if (!normalizedHref && !normalizedLabel) {
+    return undefined;
+  }
+
+  return {
+    href: normalizedHref,
+    label: normalizedLabel
+  };
+}
+
+function setEntryOverride(
   overrides: WorkbenchEntryLinkOverrides,
-  action?: SystemOverviewRecommendedAction | null
+  entryKey: WorkbenchEntryLinkKey,
+  entryOverride?: WorkbenchEntryLinkOverride
 ) {
-  const entryKey = action?.entry_key;
-  if (!entryKey) {
+  if (!entryOverride || overrides[entryKey]) {
     return;
   }
 
-  overrides[entryKey] = {
-    href: action?.href?.trim() || undefined,
-    label: action?.label?.trim() || undefined
-  };
+  overrides[entryKey] = entryOverride;
 }
 
 function getAutomationAttentionStepCount(automation: CallbackWaitingAutomationCheck) {
@@ -288,25 +313,25 @@ function getOverallTone(
   return "healthy";
 }
 
-function pickPrimaryEntryKey(
+function pickPrimaryFocusArea(
   focusAreas: CrossEntryRiskDigestFocusArea[]
-): WorkbenchEntryLinkKey {
+): CrossEntryRiskDigestFocusArea | null {
   const operatorArea = focusAreas.find((area) => area.id === "operator");
   if (operatorArea && operatorArea.tone !== "healthy") {
-    return operatorArea.entryKey;
+    return operatorArea;
   }
 
   const sandboxArea = focusAreas.find((area) => area.id === "sandbox");
   if (sandboxArea && sandboxArea.tone !== "healthy") {
-    return sandboxArea.entryKey;
+    return sandboxArea;
   }
 
   const callbackArea = focusAreas.find((area) => area.id === "callback");
   if (callbackArea && callbackArea.tone !== "healthy") {
-    return callbackArea.entryKey;
+    return callbackArea;
   }
 
-  return "workflowLibrary";
+  return null;
 }
 
 function buildEntryKeys(primaryEntryKey: WorkbenchEntryLinkKey): WorkbenchEntryLinkKey[] {
@@ -377,6 +402,9 @@ export function buildCrossEntryRiskDigest({
     blockers: operatorBlockers,
     channelAttentionCount: channelAttention.attentionCount
   });
+  const operatorInboxLinkSurface = buildOperatorInboxSliceLinkSurface({
+    href: operatorPrimaryBacklog?.href ?? null
+  });
   const operatorSummary =
     joinNonEmpty([
       formatImpactedScopeSummary(sensitiveAccessSummary)
@@ -399,9 +427,15 @@ export function buildCrossEntryRiskDigest({
       nextStep:
         sandboxFollowUpSurface?.detail ??
         "先确认 workflow 需要的 execution class 是否仍被 live readiness 覆盖，再继续处理运行阻塞。",
-      entryKey: resolveRecommendedEntryKey({
-        action: sandboxReadiness.recommended_action,
-        fallback: "workflowLibrary"
+      entryKey:
+        sandboxFollowUpSurface?.entryKey ??
+        resolveRecommendedEntryKey({
+          action: sandboxReadiness.recommended_action,
+          fallback: "workflowLibrary"
+        }),
+      entryOverride: buildEntryOverride({
+        href: sandboxFollowUpSurface?.href,
+        label: sandboxFollowUpSurface?.hrefLabel
       })
     },
     {
@@ -414,9 +448,15 @@ export function buildCrossEntryRiskDigest({
       nextStep:
         callbackFollowUpSurface?.detail ??
         "先看 waiting resume / cleanup 是否由 scheduler 正常接管，再进入单条 run 继续排障。",
-      entryKey: resolveRecommendedEntryKey({
-        action: callbackWaitingAutomation.recommended_action,
-        fallback: "runLibrary"
+      entryKey:
+        callbackFollowUpSurface?.entryKey ??
+        resolveRecommendedEntryKey({
+          action: callbackWaitingAutomation.recommended_action,
+          fallback: "runLibrary"
+        }),
+      entryOverride: buildEntryOverride({
+        href: callbackFollowUpSurface?.href,
+        label: callbackFollowUpSurface?.hrefLabel
       })
     },
     {
@@ -425,7 +465,11 @@ export function buildCrossEntryRiskDigest({
       tone: operatorTone,
       summary: operatorSummary,
       nextStep: buildOperatorBacklogNextStep(operatorPrimaryBacklog),
-      entryKey: "operatorInbox"
+      entryKey: "operatorInbox",
+      entryOverride: buildEntryOverride({
+        href: operatorInboxLinkSurface?.href,
+        label: operatorInboxLinkSurface?.label
+      })
     }
   ];
 
@@ -437,22 +481,17 @@ export function buildCrossEntryRiskDigest({
   const detail = attentionAreas.length
     ? attentionAreas.map((area) => area.summary).join(" ")
     : "sandbox readiness、callback recovery 与审批/通知健康目前口径一致，不需要再跨多个入口拼装恢复事实。";
-  const primaryEntryKey = pickPrimaryEntryKey(focusAreas);
+  const primaryFocusArea = pickPrimaryFocusArea(focusAreas);
+  const primaryEntryKey = primaryFocusArea?.entryKey ?? "workflowLibrary";
   const entryKeys = buildEntryKeys(primaryEntryKey);
 
   const entryOverrides: WorkbenchEntryLinkOverrides = {};
-  const operatorInboxLinkSurface = buildOperatorInboxSliceLinkSurface({
-    href: operatorPrimaryBacklog?.href ?? null
-  });
-  if (operatorInboxLinkSurface) {
-    entryOverrides.operatorInbox = {
-      href: operatorInboxLinkSurface.href,
-      label: operatorInboxLinkSurface.label
-    };
+  if (primaryFocusArea) {
+    setEntryOverride(entryOverrides, primaryFocusArea.entryKey, primaryFocusArea.entryOverride);
   }
-
-  applyRecommendedActionOverride(entryOverrides, sandboxReadiness.recommended_action);
-  applyRecommendedActionOverride(entryOverrides, callbackWaitingAutomation.recommended_action);
+  for (const area of focusAreas) {
+    setEntryOverride(entryOverrides, area.entryKey, area.entryOverride);
+  }
 
   return {
     tone,
@@ -488,6 +527,10 @@ export function buildCrossEntryRiskDigest({
       }
     ],
     focusAreas,
+    primaryFollowUpEntry: {
+      entryKey: primaryEntryKey,
+      entryOverride: primaryFocusArea?.entryOverride
+    },
     primaryEntryKey,
     entryKeys,
     entryOverrides: Object.keys(entryOverrides).length > 0 ? entryOverrides : undefined

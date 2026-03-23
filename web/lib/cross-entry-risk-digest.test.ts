@@ -172,9 +172,23 @@ describe("buildCrossEntryRiskDigest", () => {
       "/sensitive-access?status=pending"
     );
     expect(digest.entryOverrides?.operatorInbox?.label).toBe("open inbox slice");
+    expect(digest.primaryFollowUpEntry).toEqual({
+      entryKey: "operatorInbox",
+      entryOverride: {
+        href: "/sensitive-access?status=pending",
+        label: "open inbox slice"
+      }
+    });
     expect(digest.metrics).toContainEqual({
       label: "Approval",
       value: "2 pending / 2 waiting"
+    });
+    expect(digest.focusAreas.find((area) => area.id === "operator")).toMatchObject({
+      entryKey: "operatorInbox",
+      entryOverride: {
+        href: "/sensitive-access?status=pending",
+        label: "open inbox slice"
+      }
     });
     expect(digest.focusAreas.find((area) => area.id === "operator")?.summary).toContain(
       "2 个审批待处理"
@@ -324,7 +338,18 @@ describe("buildCrossEntryRiskDigest", () => {
 
     expect(digest.primaryEntryKey).toBe("workflowLibrary");
     expect(digest.focusAreas.find((area) => area.id === "sandbox")).toMatchObject({
-      entryKey: "workflowLibrary"
+      entryKey: "workflowLibrary",
+      entryOverride: {
+        href: "/workflows?execution=sandbox",
+        label: "Open workflow library"
+      }
+    });
+    expect(digest.primaryFollowUpEntry).toEqual({
+      entryKey: "workflowLibrary",
+      entryOverride: {
+        href: "/workflows?execution=sandbox",
+        label: "Open workflow library"
+      }
     });
     expect(digest.entryOverrides?.workflowLibrary).toEqual({
       href: "/workflows?execution=sandbox",

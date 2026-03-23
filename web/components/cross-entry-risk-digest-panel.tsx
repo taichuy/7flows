@@ -1,4 +1,4 @@
-import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
+import { WorkbenchEntryLink, WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import type {
   CrossEntryRiskDigest,
   CrossEntryRiskDigestTone
@@ -75,6 +75,13 @@ export function CrossEntryRiskDigestPanel({
         </div>
         <p className="binding-meta">{digest.headline}</p>
         <p className="section-copy entry-copy">{digest.detail}</p>
+        <div className="tool-badge-row">
+          <WorkbenchEntryLink
+            className="inline-link secondary"
+            linkKey={digest.primaryFollowUpEntry.entryKey}
+            override={digest.primaryFollowUpEntry.entryOverride}
+          />
+        </div>
       </article>
 
       <div className="activity-list">
@@ -90,6 +97,13 @@ export function CrossEntryRiskDigestPanel({
               </span>
             </div>
             <p className="activity-copy">{area.nextStep}</p>
+            <div className="tool-badge-row">
+              <WorkbenchEntryLink
+                className="inline-link secondary"
+                linkKey={area.entryKey}
+                override={area.entryOverride}
+              />
+            </div>
           </article>
         ))}
       </div>
