@@ -179,6 +179,7 @@ describe("WorkflowPublishPanel", () => {
 
     expect(html).toContain("Primary follow-up");
     expect(html).toContain("Summary focus");
+    expect(html).toContain('<span class="health-pill pending">attention</span>');
     expect(html).toContain("attention");
     expect(html).toContain("No publish bindings are configured for this workflow yet.");
     expect(html).toContain(
@@ -225,7 +226,9 @@ describe("WorkflowPublishPanel", () => {
     expect(html).toContain("ready sandbox");
     expect(html).toContain("binding:binding-1");
     expect(html).toContain("Summary focus");
+    expect(html).toContain('<span class="health-pill healthy">clear</span>');
     expect(html).toContain("clear");
+    expect(html).not.toContain('<span class="health-pill healthy">healthy</span>');
     expect(html).toContain("Current publish bindings do not show a shared operator backlog.");
     expect(html).toContain("回到 workflow 列表");
     expect(html).toContain('/workflows');

@@ -13,6 +13,7 @@ import {
   buildPublishedInvocationActivityInsightsSurfaceCopy,
   buildPublishedInvocationIssueSignalsSurface,
   buildPublishedInvocationActivityTrafficMixSurface,
+  buildWorkflowPublishPrimaryFollowUpToneSurface,
   buildWorkflowPublishPrimaryFollowUpSurface,
   buildWorkflowPublishSummaryCardSurfaces,
   buildPublishedCacheInventorySurfaceCopy,
@@ -1133,6 +1134,17 @@ describe("published invocation presenters", () => {
         "Sensitive access approvals remain the primary publish backlog. 2 pending approval tickets still need operator action before binding-level failures become the main diagnosis.",
       href: "/sensitive-access?status=pending",
       hrefLabel: "Open approval inbox slice"
+    });
+  });
+
+  it("把 publish summary follow-up tone 统一投影成 badge surface", () => {
+    expect(buildWorkflowPublishPrimaryFollowUpToneSurface("healthy")).toEqual({
+      toneClassName: "healthy",
+      label: "clear"
+    });
+    expect(buildWorkflowPublishPrimaryFollowUpToneSurface("attention")).toEqual({
+      toneClassName: "pending",
+      label: "attention"
     });
   });
 

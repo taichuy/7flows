@@ -79,7 +79,12 @@ export type WorkflowEditorHeroSurfaceCopy = {
 };
 
 export type WorkflowPublishPanelSurfaceCopy = {
+  eyebrow: string;
+  title: string;
   description: string;
+  primaryFollowUpTitle: string;
+  sandboxReadinessTitle: string;
+  sandboxReadinessDescription: string;
   headerLinks: WorkbenchEntryLinksConfig;
   emptyStateDescription: string;
 };
@@ -364,8 +369,14 @@ export function buildWorkflowEditorHeroSurfaceCopy({
 
 export function buildWorkflowPublishPanelSurfaceCopy(): WorkflowPublishPanelSurfaceCopy {
   return {
+    eyebrow: "Publish",
+    title: "Endpoint governance",
     description:
       "工作流页现在直接消费 publish binding、activity、rate-limit window 与 cache inventory 事实层，不再让开放 API 能力只停留在后端可用、前端不可见。",
+    primaryFollowUpTitle: "Primary follow-up",
+    sandboxReadinessTitle: "Live sandbox readiness",
+    sandboxReadinessDescription:
+      "Publish summary 先直接对齐当前 live sandbox readiness；进入 invocation entry/detail 前，就能先判断强隔离 execution class 是已 ready、正在 degraded，还是仍会 fail-closed。",
     headerLinks: {
       keys: ["workflowLibrary", "runLibrary", "operatorInbox", "home"],
       overrides: {

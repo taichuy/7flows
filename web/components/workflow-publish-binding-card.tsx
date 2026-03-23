@@ -62,9 +62,9 @@ export function WorkflowPublishBindingCard({
   const cacheInventoryBlockedCopy =
     cacheInventory?.kind === "blocked"
       ? buildSensitiveAccessBlockedSurfaceCopy({
-          surfaceLabel: "Cache inventory",
+          surfaceLabel: bindingSurface.cacheInventoryTitle,
           payload: cacheInventory.payload,
-          guardedActionLabel: "cache inventory 查看"
+          guardedActionLabel: bindingSurface.cacheInventoryGuardedActionLabel
         })
       : null;
   const cacheInventorySurfaceCopy = buildPublishedCacheInventorySurfaceCopy({
@@ -81,7 +81,7 @@ export function WorkflowPublishBindingCard({
     <article className="binding-card">
       <div className="binding-card-header">
         <div>
-          <p className="status-meta">Endpoint</p>
+          <p className="status-meta">{bindingSurface.headerEyebrow}</p>
           <h3>{binding.endpoint_name}</h3>
         </div>
         <span className={`health-pill ${binding.lifecycle_status}`}>
@@ -102,7 +102,7 @@ export function WorkflowPublishBindingCard({
       <div className="publish-meta-grid">
         <div className="payload-card compact-card">
           <div className="payload-card-header">
-            <span className="status-meta">Activity</span>
+            <span className="status-meta">{bindingSurface.activityTitle}</span>
           </div>
           <dl className="compact-meta-list">
             {bindingSurface.activityRows.map((row) => (
@@ -116,7 +116,7 @@ export function WorkflowPublishBindingCard({
 
         <div className="payload-card compact-card">
           <div className="payload-card-header">
-            <span className="status-meta">Policy</span>
+            <span className="status-meta">{bindingSurface.policyTitle}</span>
           </div>
           <dl className="compact-meta-list">
             {bindingSurface.policyRows.map((row) => (
@@ -131,8 +131,8 @@ export function WorkflowPublishBindingCard({
 
       <SandboxReadinessOverviewCard
         readiness={sandboxReadiness}
-        title="Strong-isolation publish preflight"
-        intro="这个 binding 与 sampled run 共用同一条 execution class / sandbox capability 链路；先在这里对照 live readiness，再决定是否继续深挖 invocation detail。"
+        title={bindingSurface.sandboxReadinessTitle}
+        intro={bindingSurface.sandboxReadinessDescription}
         hideWhenHealthy={(activity?.total_count ?? 0) === 0}
       />
 
@@ -151,7 +151,7 @@ export function WorkflowPublishBindingCard({
       />
 
       <div className="entry-card compact-card">
-        <p className="entry-card-title">Cache inventory</p>
+        <p className="entry-card-title">{bindingSurface.cacheInventoryTitle}</p>
         <p className="section-copy entry-copy">{cacheInventorySurfaceCopy.description}</p>
         <div className="summary-strip compact-strip">
           {bindingSurface.cacheInventorySummaryCards.map((card) => (
@@ -178,14 +178,17 @@ export function WorkflowPublishBindingCard({
                 payload={cacheInventory.payload}
                 sandboxReadiness={sandboxReadiness}
                 summary={cacheInventoryBlockedCopy?.summary}
-                title={cacheInventoryBlockedCopy?.title ?? "Cache inventory access blocked"}
+                title={
+                  cacheInventoryBlockedCopy?.title ??
+                  bindingSurface.cacheInventoryBlockedFallbackTitle
+                }
               />
             ) : resolvedCacheInventory?.items?.length ? (
               <div className="publish-cache-list">
                 {resolvedCacheInventory.items.map((item) => (
                   <article className="payload-card compact-card" key={item.id}>
                     <div className="payload-card-header">
-                      <span className="status-meta">Cache entry</span>
+                      <span className="status-meta">{bindingSurface.cacheEntryTitle}</span>
                       <span className="event-chip">hits {item.hit_count}</span>
                     </div>
                     <p className="binding-meta">
@@ -225,7 +228,7 @@ export function WorkflowPublishBindingCard({
         />
       ) : (
         <div className="entry-card compact-card">
-          <p className="entry-card-title">API key governance</p>
+          <p className="entry-card-title">{bindingSurface.apiKeyGovernanceTitle}</p>
           <p className="empty-state compact">{bindingSurface.apiKeyGovernanceEmptyState}</p>
         </div>
       )}

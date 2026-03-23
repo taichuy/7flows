@@ -164,6 +164,7 @@ describe("workflow-publish-binding-presenters", () => {
   it("builds a canonical surface for publish binding metadata and cache summaries", () => {
     const surface = buildWorkflowPublishBindingCardSurface(buildBinding());
 
+    expect(surface.headerEyebrow).toBe("Endpoint");
     expect(surface.lifecycleLabel).toBe("已发布");
     expect(surface.endpointSummary).toBe(
       "endpoint-1 · alias search.public · path /search/public"
@@ -179,6 +180,7 @@ describe("workflow-publish-binding-presenters", () => {
       label: "Cache",
       value: "hit 1 / miss 2"
     });
+    expect(surface.activityTitle).toBe("Activity");
     expect(surface.policyRows).toContainEqual({
       key: "rate-limit",
       label: "Rate limit",
@@ -194,7 +196,15 @@ describe("workflow-publish-binding-presenters", () => {
       label: "Entries",
       value: "2"
     });
+    expect(surface.policyTitle).toBe("Policy");
+    expect(surface.sandboxReadinessTitle).toBe("Strong-isolation publish preflight");
+    expect(surface.sandboxReadinessDescription).toContain("sampled run");
+    expect(surface.cacheInventoryTitle).toBe("Cache inventory");
+    expect(surface.cacheInventoryGuardedActionLabel).toBe("cache inventory 查看");
+    expect(surface.cacheInventoryBlockedFallbackTitle).toBe("Cache inventory access blocked");
     expect(surface.cacheInventoryVaryLabels).toEqual(["vary full-payload"]);
+    expect(surface.cacheEntryTitle).toBe("Cache entry");
+    expect(surface.apiKeyGovernanceTitle).toBe("API key governance");
     expect(surface.apiKeyGovernanceEmptyState).toContain("auth_mode=session");
   });
 

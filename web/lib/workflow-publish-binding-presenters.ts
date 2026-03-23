@@ -20,13 +20,23 @@ export type WorkflowPublishBindingSummaryCard = {
 };
 
 export type WorkflowPublishBindingCardSurface = {
+  headerEyebrow: string;
   lifecycleLabel: string;
   endpointSummary: string;
   protocolChips: string[];
+  activityTitle: string;
   activityRows: WorkflowPublishBindingMetaRow[];
+  policyTitle: string;
   policyRows: WorkflowPublishBindingMetaRow[];
+  sandboxReadinessTitle: string;
+  sandboxReadinessDescription: string;
+  cacheInventoryTitle: string;
+  cacheInventoryGuardedActionLabel: string;
+  cacheInventoryBlockedFallbackTitle: string;
   cacheInventorySummaryCards: WorkflowPublishBindingSummaryCard[];
   cacheInventoryVaryLabels: string[];
+  cacheEntryTitle: string;
+  apiKeyGovernanceTitle: string;
   apiKeyGovernanceEmptyState: string;
 };
 
@@ -190,6 +200,7 @@ export function buildWorkflowPublishBindingCardSurface(
       : ["full-payload"];
 
   return {
+    headerEyebrow: "Endpoint",
     lifecycleLabel: lifecycleSurface.label,
     endpointSummary: `${binding.endpoint_id} · alias ${binding.endpoint_alias} · path ${binding.route_path}`,
     protocolChips: [
@@ -198,6 +209,7 @@ export function buildWorkflowPublishBindingCardSurface(
       `workflow ${binding.workflow_version} -> ${binding.target_workflow_version}`,
       binding.streaming ? "streaming" : "non-streaming"
     ],
+    activityTitle: "Activity",
     activityRows: [
       buildWorkflowPublishBindingMetaRow("total", "Total", String(activity?.total_count ?? 0)),
       buildWorkflowPublishBindingMetaRow(
@@ -234,6 +246,13 @@ export function buildWorkflowPublishBindingCardSurface(
       ),
       buildWorkflowPublishBindingMetaRow("updated", "Updated", formatTimestamp(binding.updated_at))
     ],
+    policyTitle: "Policy",
+    sandboxReadinessTitle: "Strong-isolation publish preflight",
+    sandboxReadinessDescription:
+      "这个 binding 与 sampled run 共用同一条 execution class / sandbox capability 链路；先在这里对照 live readiness，再决定是否继续深挖 invocation detail。",
+    cacheInventoryTitle: "Cache inventory",
+    cacheInventoryGuardedActionLabel: "cache inventory 查看",
+    cacheInventoryBlockedFallbackTitle: "Cache inventory access blocked",
     cacheInventorySummaryCards: [
       buildWorkflowPublishBindingSummaryCard(
         "enabled",
@@ -257,6 +276,8 @@ export function buildWorkflowPublishBindingCardSurface(
       )
     ],
     cacheInventoryVaryLabels: varyBy.map((fieldPath) => `vary ${fieldPath}`),
+    cacheEntryTitle: "Cache entry",
+    apiKeyGovernanceTitle: "API key governance",
     apiKeyGovernanceEmptyState: `当前 binding 使用 auth_mode=${binding.auth_mode}，不需要单独管理 published API key。`
   };
 }

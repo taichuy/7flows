@@ -5,6 +5,7 @@ import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-ove
 import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkflowPublishBindingCard } from "@/components/workflow-publish-binding-card";
 import {
+  buildWorkflowPublishPrimaryFollowUpToneSurface,
   buildWorkflowPublishPrimaryFollowUpSurface,
   buildWorkflowPublishSummaryCardSurfaces,
 } from "@/lib/published-invocation-presenters";
@@ -62,6 +63,9 @@ export function WorkflowPublishPanel({
 }: WorkflowPublishPanelProps) {
   const surfaceCopy = buildWorkflowPublishPanelSurfaceCopy();
   const primaryFollowUp = buildWorkflowPublishPrimaryFollowUpSurface(bindings);
+  const primaryFollowUpToneSurface = buildWorkflowPublishPrimaryFollowUpToneSurface(
+    primaryFollowUp.tone
+  );
   const summaryCards = buildWorkflowPublishSummaryCardSurfaces({
     bindings,
     primaryFollowUp
@@ -72,8 +76,8 @@ export function WorkflowPublishPanel({
       <article className="diagnostic-panel panel-span">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">Publish</p>
-            <h2>Endpoint governance</h2>
+            <p className="eyebrow">{surfaceCopy.eyebrow}</p>
+            <h2>{surfaceCopy.title}</h2>
           </div>
           <p className="section-copy">{surfaceCopy.description}</p>
         </div>
@@ -97,9 +101,9 @@ export function WorkflowPublishPanel({
 
         <article className="payload-card compact-card">
           <div className="payload-card-header">
-            <span className="status-meta">Primary follow-up</span>
-            <span className={`health-pill ${primaryFollowUp.tone === "healthy" ? "healthy" : "pending"}`}>
-              {primaryFollowUp.tone === "healthy" ? "healthy" : "attention"}
+            <span className="status-meta">{surfaceCopy.primaryFollowUpTitle}</span>
+            <span className={`health-pill ${primaryFollowUpToneSurface.toneClassName}`}>
+              {primaryFollowUpToneSurface.label}
             </span>
             {primaryFollowUp.href && primaryFollowUp.hrefLabel ? (
               <Link className="event-chip inbox-filter-link" href={primaryFollowUp.href}>
@@ -113,8 +117,8 @@ export function WorkflowPublishPanel({
 
         <SandboxReadinessOverviewCard
           readiness={sandboxReadiness}
-          title="Live sandbox readiness"
-          intro="Publish summary 先直接对齐当前 live sandbox readiness；进入 invocation entry/detail 前，就能先判断强隔离 execution class 是已 ready、正在 degraded，还是仍会 fail-closed。"
+          title={surfaceCopy.sandboxReadinessTitle}
+          intro={surfaceCopy.sandboxReadinessDescription}
         />
 
         {bindings.length === 0 ? (

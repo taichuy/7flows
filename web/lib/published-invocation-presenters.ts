@@ -123,6 +123,11 @@ export type WorkflowPublishPrimaryFollowUpSurface = {
   hrefLabel: string | null;
 };
 
+export type WorkflowPublishPrimaryFollowUpToneSurface = {
+  toneClassName: "healthy" | "pending";
+  label: "clear" | "attention";
+};
+
 export type WorkflowPublishSummaryCardSurface = {
   key: string;
   label: string;
@@ -3863,6 +3868,22 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
   };
 }
 
+export function buildWorkflowPublishPrimaryFollowUpToneSurface(
+  tone: WorkflowPublishPrimaryFollowUpSurface["tone"]
+): WorkflowPublishPrimaryFollowUpToneSurface {
+  if (tone === "healthy") {
+    return {
+      toneClassName: "healthy",
+      label: "clear"
+    };
+  }
+
+  return {
+    toneClassName: "pending",
+    label: "attention"
+  };
+}
+
 export function buildWorkflowPublishSummaryCardSurfaces({
   bindings,
   primaryFollowUp
@@ -3873,6 +3894,9 @@ export function buildWorkflowPublishSummaryCardSurfaces({
   primaryFollowUp?: WorkflowPublishPrimaryFollowUpSurface | null;
 }): WorkflowPublishSummaryCardSurface[] {
   const resolvedPrimaryFollowUp = primaryFollowUp ?? buildWorkflowPublishPrimaryFollowUpSurface(bindings);
+  const summaryFocusToneSurface = buildWorkflowPublishPrimaryFollowUpToneSurface(
+    resolvedPrimaryFollowUp.tone
+  );
   const publishedCount = bindings.filter((binding) => binding.lifecycle_status === "published").length;
   const cacheEnabledCount = bindings.filter((binding) => binding.cache_inventory?.enabled).length;
   const cacheEntryCount = bindings.reduce(
@@ -3928,7 +3952,7 @@ export function buildWorkflowPublishSummaryCardSurfaces({
     {
       key: "summary-focus",
       label: "Summary focus",
-      value: resolvedPrimaryFollowUp.tone === "healthy" ? "clear" : "attention",
+      value: summaryFocusToneSurface.label,
       detail: formatWorkflowPublishSummaryFocusDetail(resolvedPrimaryFollowUp),
       href: resolvedPrimaryFollowUp.href,
       hrefLabel: resolvedPrimaryFollowUp.hrefLabel

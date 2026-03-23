@@ -150,6 +150,11 @@ describe("workbench entry surface copy", () => {
   it("reuses the shared workflow library CTA contract for publish governance", () => {
     const surfaceCopy = buildWorkflowPublishPanelSurfaceCopy();
 
+    expect(surfaceCopy.eyebrow).toBe("Publish");
+    expect(surfaceCopy.title).toBe("Endpoint governance");
+    expect(surfaceCopy.primaryFollowUpTitle).toBe("Primary follow-up");
+    expect(surfaceCopy.sandboxReadinessTitle).toBe("Live sandbox readiness");
+    expect(surfaceCopy.sandboxReadinessDescription).toContain("live sandbox readiness");
     expect(surfaceCopy.headerLinks).toMatchObject({
       keys: ["workflowLibrary", "runLibrary", "operatorInbox", "home"],
       primaryKey: "workflowLibrary",
