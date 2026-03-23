@@ -63,8 +63,52 @@ export type WorkflowPublishApiKeyMutationAction = "create" | "revoke";
 
 export type WorkflowPublishLifecycleMutationStatus = "published" | "offline";
 
+type WorkflowPublishLifecycleStatusSurface = {
+  label: string;
+  resultLabel: string;
+};
+
 function resolveWorkflowPublishExportLabel(format: PublishedEndpointInvocationExportFormat) {
   return format === "json" ? "导出 activity JSON" : "导出 activity JSONL";
+}
+
+function buildWorkflowPublishLifecycleStatusSurface(
+  lifecycleStatus: string | null | undefined
+): WorkflowPublishLifecycleStatusSurface {
+  const resolvedStatus = lifecycleStatus?.trim();
+
+  if (resolvedStatus === "draft") {
+    return {
+      label: "草稿",
+      resultLabel: "草稿"
+    };
+  }
+
+  if (resolvedStatus === "published") {
+    return {
+      label: "已发布",
+      resultLabel: "已发布"
+    };
+  }
+
+  if (resolvedStatus === "offline") {
+    return {
+      label: "已下线",
+      resultLabel: "已下线"
+    };
+  }
+
+  if (resolvedStatus) {
+    return {
+      label: `状态 ${resolvedStatus}`,
+      resultLabel: `状态已切换为 ${resolvedStatus}`
+    };
+  }
+
+  return {
+    label: "状态未知",
+    resultLabel: "状态已更新"
+  };
 }
 
 function buildWorkflowPublishBindingMetaRow(
@@ -137,13 +181,16 @@ export function buildWorkflowPublishBindingCardSurface(
 ): WorkflowPublishBindingCardSurface {
   const activity = binding.activity;
   const cacheSummary = binding.cache_inventory;
+  const lifecycleSurface = buildWorkflowPublishLifecycleStatusSurface(
+    binding.lifecycle_status
+  );
   const varyBy =
     cacheSummary && cacheSummary.vary_by.length > 0
       ? cacheSummary.vary_by
       : ["full-payload"];
 
   return {
-    lifecycleLabel: binding.lifecycle_status,
+    lifecycleLabel: lifecycleSurface.label,
     endpointSummary: `${binding.endpoint_id} · alias ${binding.endpoint_alias} · path ${binding.route_path}`,
     protocolChips: [
       binding.protocol,
@@ -296,17 +343,9 @@ function formatWorkflowPublishLifecycleMutationResult(
   lifecycleStatus: string | null | undefined,
   nextStatus: WorkflowPublishLifecycleMutationStatus
 ) {
-  const resolvedStatus = lifecycleStatus?.trim() || nextStatus;
-
-  if (resolvedStatus === "published") {
-    return "已发布";
-  }
-
-  if (resolvedStatus === "offline") {
-    return "已下线";
-  }
-
-  return `状态已切换为 ${resolvedStatus}`;
+  return buildWorkflowPublishLifecycleStatusSurface(
+    lifecycleStatus?.trim() || nextStatus
+  ).resultLabel;
 }
 
 export function buildWorkflowPublishLifecycleMutationValidationMessage() {

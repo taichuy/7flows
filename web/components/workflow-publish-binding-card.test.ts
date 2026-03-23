@@ -229,6 +229,7 @@ describe("WorkflowPublishBindingCard", () => {
       })
     );
 
+    expect(html).toContain(">已发布</span>");
     expect(html).toContain("Strong-isolation publish preflight");
     expect(html).toContain("ready sandbox");
     expect(html).toContain("activity-panel");

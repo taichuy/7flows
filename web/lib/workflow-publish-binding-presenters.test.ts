@@ -164,6 +164,7 @@ describe("workflow-publish-binding-presenters", () => {
   it("builds a canonical surface for publish binding metadata and cache summaries", () => {
     const surface = buildWorkflowPublishBindingCardSurface(buildBinding());
 
+    expect(surface.lifecycleLabel).toBe("已发布");
     expect(surface.endpointSummary).toBe(
       "endpoint-1 · alias search.public · path /search/public"
     );
@@ -195,6 +196,20 @@ describe("workflow-publish-binding-presenters", () => {
     });
     expect(surface.cacheInventoryVaryLabels).toEqual(["vary full-payload"]);
     expect(surface.apiKeyGovernanceEmptyState).toContain("auth_mode=session");
+  });
+
+  it("maps binding lifecycle enums to shared user-facing labels", () => {
+    const draftSurface = buildWorkflowPublishBindingCardSurface({
+      ...buildBinding(),
+      lifecycle_status: "draft"
+    });
+    const offlineSurface = buildWorkflowPublishBindingCardSurface({
+      ...buildBinding(),
+      lifecycle_status: "offline"
+    });
+
+    expect(draftSurface.lifecycleLabel).toBe("草稿");
+    expect(offlineSurface.lifecycleLabel).toBe("已下线");
   });
 
   it("builds api key governance surface from the canonical key list", () => {

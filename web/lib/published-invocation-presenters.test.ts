@@ -13,6 +13,7 @@ import {
   buildPublishedInvocationActivityInsightsSurfaceCopy,
   buildPublishedInvocationIssueSignalsSurface,
   buildPublishedInvocationActivityTrafficMixSurface,
+  buildWorkflowPublishPrimaryFollowUpSurface,
   buildWorkflowPublishSummaryCardSurfaces,
   buildPublishedCacheInventorySurfaceCopy,
   buildPublishedInvocationCallbackDrilldownSurfaceCopy,
@@ -1132,6 +1133,71 @@ describe("published invocation presenters", () => {
         "Sensitive access approvals remain the primary publish backlog. 2 pending approval tickets still need operator action before binding-level failures become the main diagnosis.",
       href: "/sensitive-access?status=pending",
       hrefLabel: "Open approval inbox slice"
+    });
+  });
+
+  it("在没有 live published endpoint 时把 lifecycle action 提升为 publish summary follow-up", () => {
+    expect(
+      buildWorkflowPublishPrimaryFollowUpSurface([
+        {
+          lifecycle_status: "draft",
+          activity: {
+            total_count: 0,
+            succeeded_count: 0,
+            failed_count: 0,
+            rejected_count: 0,
+            cache_hit_count: 0,
+            cache_miss_count: 0,
+            cache_bypass_count: 0
+          }
+        },
+        {
+          lifecycle_status: "offline",
+          activity: {
+            total_count: 0,
+            succeeded_count: 0,
+            failed_count: 0,
+            rejected_count: 0,
+            cache_hit_count: 0,
+            cache_miss_count: 0,
+            cache_bypass_count: 0
+          }
+        }
+      ])
+    ).toEqual({
+      tone: "attention",
+      headline: "No live published endpoint is active in this publish slice.",
+      detail:
+        "1 draft binding still needs an initial publish action. 1 offline binding needs to be re-enabled before this workflow exposes a live endpoint again. Continue from the binding cards below to publish or re-enable an endpoint before treating this summary as operationally clear.",
+      href: null,
+      hrefLabel: null
+    });
+  });
+
+  it("在 workflow 尚未配置 publish bindings 时不再把 publish summary 说成 clear", () => {
+    expect(buildWorkflowPublishPrimaryFollowUpSurface([])).toEqual({
+      tone: "attention",
+      headline: "No publish bindings are configured for this workflow yet.",
+      detail:
+        "Add a publish binding before expecting live endpoint traffic, lifecycle actions or invocation backlog in this summary.",
+      href: null,
+      hrefLabel: null
+    });
+  });
+
+  it("让 publish summary focus 在没有 bindings 时自动保持 attention", () => {
+    expect(
+      buildWorkflowPublishSummaryCardSurfaces({
+        bindings: []
+      }).at(-1)
+    ).toEqual({
+      key: "summary-focus",
+      label: "Summary focus",
+      value: "attention",
+      detail:
+        "No publish bindings are configured for this workflow yet. Add a publish binding before expecting live endpoint traffic, lifecycle actions or invocation backlog in this summary.",
+      href: null,
+      hrefLabel: null
     });
   });
 

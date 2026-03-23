@@ -3568,8 +3568,30 @@ function buildPublishedInvocationSensitiveAccessFollowUpSurface(
   }
 }
 
+function formatWorkflowPublishLifecycleCoverageDetail({
+  count,
+  lifecycleStatus
+}: {
+  count: number;
+  lifecycleStatus: "draft" | "offline" | "unknown";
+}) {
+  if (count <= 0) {
+    return null;
+  }
+
+  if (lifecycleStatus === "draft") {
+    return `${formatCountLabel(count, "draft binding")} ${count === 1 ? "still needs" : "still need"} an initial publish action.`;
+  }
+
+  if (lifecycleStatus === "offline") {
+    return `${formatCountLabel(count, "offline binding")} ${count === 1 ? "needs" : "need"} to be re-enabled before this workflow exposes a live endpoint again.`;
+  }
+
+  return `${formatCountLabel(count, "binding")} ${count === 1 ? "reports" : "report"} an unknown lifecycle state and should be checked before treating publish as healthy.`;
+}
+
 export function buildWorkflowPublishPrimaryFollowUpSurface(
-  bindings: Array<Pick<WorkflowPublishedEndpointItem, "activity">>
+  bindings: Array<Pick<WorkflowPublishedEndpointItem, "activity" | "lifecycle_status">>
 ): WorkflowPublishPrimaryFollowUpSurface {
   const aggregateSummary = bindings.reduce<WorkflowPublishSensitiveAccessAggregate>(
     (summary, binding) => {
@@ -3607,6 +3629,33 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
       failed_notification_count: 0
     }
   );
+  const lifecycleCoverage = bindings.reduce(
+    (summary, binding) => {
+      if (binding.lifecycle_status === "published") {
+        summary.published += 1;
+        return summary;
+      }
+
+      if (binding.lifecycle_status === "draft") {
+        summary.draft += 1;
+        return summary;
+      }
+
+      if (binding.lifecycle_status === "offline") {
+        summary.offline += 1;
+        return summary;
+      }
+
+      summary.unknown += 1;
+      return summary;
+    },
+    {
+      published: 0,
+      draft: 0,
+      offline: 0,
+      unknown: 0
+    }
+  );
   const failedInvocationCount = bindings.reduce(
     (count, binding) => count + Math.max(Number(binding.activity?.failed_count ?? 0), 0),
     0
@@ -3623,6 +3672,17 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
     surface: "publish_invocation"
   }).inboxLinkLabel;
   const primaryBacklog = resolvePublishedInvocationSensitiveAccessPrimaryBacklog(aggregateSummary);
+
+  if (bindings.length === 0) {
+    return {
+      tone: "attention",
+      headline: "No publish bindings are configured for this workflow yet.",
+      detail:
+        "Add a publish binding before expecting live endpoint traffic, lifecycle actions or invocation backlog in this summary.",
+      href: null,
+      hrefLabel: null
+    };
+  }
 
   if (primaryBacklog) {
     const linkSurface = buildOperatorInboxSliceLinkSurface({
@@ -3741,6 +3801,34 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
           hrefLabel: null
         };
     }
+  }
+
+  if (lifecycleCoverage.published === 0) {
+    const lifecycleFollowUpDetails = [
+      formatWorkflowPublishLifecycleCoverageDetail({
+        count: lifecycleCoverage.draft,
+        lifecycleStatus: "draft"
+      }),
+      formatWorkflowPublishLifecycleCoverageDetail({
+        count: lifecycleCoverage.offline,
+        lifecycleStatus: "offline"
+      }),
+      formatWorkflowPublishLifecycleCoverageDetail({
+        count: lifecycleCoverage.unknown,
+        lifecycleStatus: "unknown"
+      }),
+      "Continue from the binding cards below to publish or re-enable an endpoint before treating this summary as operationally clear."
+    ].filter((fragment): fragment is string => Boolean(fragment));
+
+    return {
+      tone: "attention",
+      headline: "No live published endpoint is active in this publish slice.",
+      detail:
+        lifecycleFollowUpDetails.join(" ") ||
+        "Continue from the binding cards below to publish or re-enable an endpoint before treating this summary as operationally clear.",
+      href: null,
+      hrefLabel: null
+    };
   }
 
   if (failedInvocationCount > 0 || rejectedInvocationCount > 0) {

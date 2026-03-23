@@ -149,6 +149,48 @@ function buildBinding(): WorkflowPublishedEndpointItem {
 }
 
 describe("WorkflowPublishPanel", () => {
+  it("surfaces missing publish bindings as the primary follow-up instead of clear summary", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishPanel, {
+        workflow: buildWorkflow(),
+        tools: [],
+        bindings: [],
+        cacheInventories: {},
+        apiKeysByBinding: {},
+        invocationAuditsByBinding: {},
+        invocationDetailsByBinding: {},
+        selectedInvocationId: null,
+        rateLimitWindowAuditsByBinding: {},
+        activeInvocationFilter: {
+          bindingId: null,
+          status: null,
+          requestSource: null,
+          requestSurface: null,
+          cacheStatus: null,
+          runStatus: null,
+          apiKeyId: null,
+          reasonCode: null,
+          timeWindow: "all"
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("Primary follow-up");
+    expect(html).toContain("Summary focus");
+    expect(html).toContain("attention");
+    expect(html).toContain("No publish bindings are configured for this workflow yet.");
+    expect(html).toContain(
+      "Add a publish binding before expecting live endpoint traffic, lifecycle actions or invocation backlog in this summary."
+    );
+    expect(html).toContain(
+      "当前 workflow definition 还没有声明 `publish`，因此没有可治理的开放 API endpoint。"
+    );
+    expect(html).not.toContain("Current publish bindings do not show a shared operator backlog.");
+    expect(html).not.toContain("clear");
+  });
+
   it("surfaces live sandbox readiness in publish summary", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowPublishPanel, {
@@ -295,5 +337,68 @@ describe("WorkflowPublishPanel", () => {
     expect(html).toContain("1 rejected invocation");
     expect(html).toContain("binding-level diagnosis");
     expect(html).not.toContain("Open inbox slice");
+  });
+
+  it("prioritizes lifecycle follow-up when bindings exist but none are live", () => {
+    const draftBinding = buildBinding();
+    draftBinding.lifecycle_status = "draft";
+    draftBinding.activity = {
+      ...draftBinding.activity!,
+      failed_count: 0,
+      rejected_count: 0
+    };
+
+    const offlineBinding = buildBinding();
+    offlineBinding.id = "binding-2";
+    offlineBinding.endpoint_id = "endpoint-2";
+    offlineBinding.endpoint_name = "Offline Search";
+    offlineBinding.endpoint_alias = "search.offline";
+    offlineBinding.route_path = "/search/offline";
+    offlineBinding.lifecycle_status = "offline";
+    offlineBinding.activity = {
+      ...offlineBinding.activity!,
+      failed_count: 0,
+      rejected_count: 0
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishPanel, {
+        workflow: buildWorkflow(),
+        tools: [],
+        bindings: [draftBinding, offlineBinding],
+        cacheInventories: {},
+        apiKeysByBinding: {},
+        invocationAuditsByBinding: {},
+        invocationDetailsByBinding: {},
+        selectedInvocationId: null,
+        rateLimitWindowAuditsByBinding: {},
+        activeInvocationFilter: {
+          bindingId: null,
+          status: null,
+          requestSource: null,
+          requestSurface: null,
+          cacheStatus: null,
+          runStatus: null,
+          apiKeyId: null,
+          reasonCode: null,
+          timeWindow: "all"
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("Primary follow-up");
+    expect(html).toContain("Summary focus");
+    expect(html).toContain("attention");
+    expect(html).toContain("No live published endpoint is active in this publish slice.");
+    expect(html).toContain("1 draft binding still needs an initial publish action.");
+    expect(html).toContain(
+      "1 offline binding needs to be re-enabled before this workflow exposes a live endpoint again."
+    );
+    expect(html).toContain(
+      "Continue from the binding cards below to publish or re-enable an endpoint before treating this summary as operationally clear."
+    );
+    expect(html).not.toContain("Current publish bindings do not show a shared operator backlog.");
   });
 });
