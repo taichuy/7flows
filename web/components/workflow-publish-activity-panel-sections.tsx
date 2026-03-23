@@ -180,6 +180,12 @@ export function WorkflowPublishActivityInsights({
               {insightsSurface.rateLimitWindowCard.insight ? (
                 <p className="section-copy entry-copy">{insightsSurface.rateLimitWindowCard.insight}</p>
               ) : null}
+              {insightsSurface.rateLimitWindowCard.selectedNextStepSurface ? (
+                <WorkflowPublishSelectedNextStepCard
+                  surface={insightsSurface.rateLimitWindowCard.selectedNextStepSurface}
+                  showTitle={false}
+                />
+              ) : null}
             </>
           ) : (
             <p className="empty-state compact">{insightsSurface.rateLimitWindowCard.emptyState}</p>
@@ -277,6 +283,10 @@ export function WorkflowPublishActivityDetails({
     selectedInvocationSurface.kind === "unavailable"
       ? selectedInvocationSurface.unavailableSurfaceCopy
       : null;
+  const selectedInvocationDetailValue =
+    selectedInvocationSurface.kind === "ok" ? selectedInvocationSurface.detail.invocation : null;
+  const selectedInvocationDetailNextStepSurface =
+    selectedInvocationSurface.kind === "ok" ? selectedInvocationSurface.nextStepSurface : null;
 
   return (
     <>
@@ -285,6 +295,8 @@ export function WorkflowPublishActivityDetails({
           {apiKeyUsage.map((item) => {
             const cardSurface = buildPublishedInvocationApiKeyUsageCardSurface({
               item,
+              selectedInvocation: selectedInvocationDetailValue,
+              selectedInvocationNextStepSurface: selectedInvocationDetailNextStepSurface,
               surfaceCopy: detailsSurfaceCopy
             });
 
@@ -302,6 +314,12 @@ export function WorkflowPublishActivityDetails({
                     </div>
                   ))}
                 </dl>
+                {cardSurface.selectedNextStepSurface ? (
+                  <WorkflowPublishSelectedNextStepCard
+                    surface={cardSurface.selectedNextStepSurface}
+                    showTitle={false}
+                  />
+                ) : null}
               </article>
             );
           })}

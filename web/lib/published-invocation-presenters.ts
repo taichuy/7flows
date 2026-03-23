@@ -468,6 +468,7 @@ export type PublishedInvocationActivityRateLimitWindowCardSurface = {
   rows: PublishedInvocationMetaRow[];
   description: string | null;
   insight: string | null;
+  selectedNextStepSurface: PublishedInvocationSelectedNextStepSurface | null;
   emptyState: string | null;
 };
 
@@ -499,6 +500,7 @@ export type PublishedInvocationApiKeyUsageCardSurface = {
   title: string;
   chipLabel: string;
   rows: PublishedInvocationMetaRow[];
+  selectedNextStepSurface: PublishedInvocationSelectedNextStepSurface | null;
 };
 
 export type PublishedInvocationFailureReasonCardSurface = {
@@ -1060,6 +1062,7 @@ export function buildPublishedInvocationActivityTrafficMixSurface({
 export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
   waitingOverview,
   selectedWaitingNextStepSurface,
+  selectedRateLimitNextStepSurface,
   issueSignalsSurface,
   trafficMixSurface,
   rateLimitWindowInsight,
@@ -1068,6 +1071,7 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
 }: {
   waitingOverview: PublishedInvocationWaitingOverview;
   selectedWaitingNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
+  selectedRateLimitNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
   issueSignalsSurface?: PublishedInvocationIssueSignalsSurface | null;
   trafficMixSurface: PublishedInvocationActivityTrafficMixSurface;
   rateLimitWindowInsight?: string | null;
@@ -1114,6 +1118,25 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
       ]) ?? selectedNextStepSurface.detail,
       href: selectedNextStepSurface.href ?? null,
       hrefLabel: selectedNextStepSurface.hrefLabel ?? null
+    };
+  }
+
+  if (
+    selectedRateLimitNextStepSurface &&
+    rateLimitWindowInsight &&
+    rateLimitPressure &&
+    (rateLimitWindowRejectedCount > 0 || rateLimitPressure.percentage >= 80)
+  ) {
+    return {
+      tone: "attention",
+      headline: `Rate limit window already aligns with ${selectedRateLimitNextStepSurface.invocationId}.`,
+      detail:
+        joinFragments([
+          `Keep the quota diagnosis anchored to the selected invocation next step (${selectedRateLimitNextStepSurface.label}).`,
+          selectedRateLimitNextStepSurface.detail
+        ]) ?? selectedRateLimitNextStepSurface.detail,
+      href: selectedRateLimitNextStepSurface.href ?? null,
+      hrefLabel: selectedRateLimitNextStepSurface.hrefLabel ?? null
     };
   }
 
@@ -1282,6 +1305,10 @@ export function buildPublishedInvocationActivityInsightsSurface({
     waitingOverviewFollowUpHref: waitingOverview.followUpHref ?? null,
     waitingOverviewFollowUpHrefLabel: waitingOverview.followUpHrefLabel ?? null
   });
+  const selectedRateLimitNextStepSurface = resolvePublishedInvocationRateLimitSelectedNextStepSurface({
+    selectedInvocation,
+    selectedInvocationNextStepSurface
+  });
   const rateLimitWindowInsight = buildPublishedInvocationRateLimitWindowInsight({
     pressure,
     remainingQuota,
@@ -1292,6 +1319,7 @@ export function buildPublishedInvocationActivityInsightsSurface({
   const primaryFollowUp = buildPublishedInvocationActivityPrimaryFollowUpSurface({
     waitingOverview,
     selectedWaitingNextStepSurface,
+    selectedRateLimitNextStepSurface,
     issueSignalsSurface,
     trafficMixSurface,
     rateLimitWindowInsight,
@@ -1364,6 +1392,7 @@ export function buildPublishedInvocationActivityInsightsSurface({
           }),
           description: surfaceCopy.rateLimitWindowDescription,
           insight: rateLimitWindowInsight,
+          selectedNextStepSurface: selectedRateLimitNextStepSurface,
           emptyState: null
         }
       : {
@@ -1372,6 +1401,7 @@ export function buildPublishedInvocationActivityInsightsSurface({
           rows: [],
           description: null,
           insight: null,
+          selectedNextStepSurface: null,
           emptyState: surfaceCopy.rateLimitDisabledEmptyState
         },
     issueSignalsSurface
@@ -1526,11 +1556,21 @@ export function formatPublishedInvocationApiKeyUsageMix({
 
 export function buildPublishedInvocationApiKeyUsageCardSurface({
   item,
+  selectedInvocation,
+  selectedInvocationNextStepSurface,
   surfaceCopy = buildPublishedInvocationActivityDetailsSurfaceCopy()
 }: {
   item: NonNullable<PublishedEndpointInvocationListResponse["facets"]["api_key_usage"]>[number];
+  selectedInvocation?: PublishedEndpointInvocationItem | null;
+  selectedInvocationNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
   surfaceCopy?: PublishedInvocationActivityDetailsSurfaceCopy;
 }): PublishedInvocationApiKeyUsageCardSurface {
+  const selectedNextStepSurface = resolvePublishedInvocationApiKeyUsageSelectedNextStepSurface({
+    item,
+    selectedInvocation,
+    selectedInvocationNextStepSurface
+  });
+
   return {
     title: item.name ?? item.api_key_id,
     chipLabel: item.key_prefix ?? surfaceCopy.apiKeyUsageMissingPrefixLabel,
@@ -1555,7 +1595,8 @@ export function buildPublishedInvocationApiKeyUsageCardSurface({
         surfaceCopy.apiKeyUsageLastUsedLabel,
         formatTimestamp(item.last_invoked_at)
       )
-    ]
+    ],
+    selectedNextStepSurface
   };
 }
 
@@ -1633,10 +1674,50 @@ function normalizePublishedInvocationFailureReasonMessage(message?: string | nul
   return normalizedMessage ? normalizedMessage : null;
 }
 
+function normalizePublishedInvocationReasonCode(reasonCode?: string | null) {
+  const normalizedReasonCode = reasonCode?.trim().replace(/\s+/g, "_").toLowerCase();
+
+  return normalizedReasonCode ? normalizedReasonCode : null;
+}
+
 function normalizePublishedInvocationRunStatus(status?: string | null) {
   const normalizedStatus = status?.trim().replace(/\s+/g, "_").toLowerCase();
 
   return normalizedStatus ? normalizedStatus : null;
+}
+
+function hasPublishedInvocationRateLimitSignal(
+  invocation?: PublishedEndpointInvocationItem | null
+) {
+  const normalizedReasonCode = normalizePublishedInvocationReasonCode(invocation?.reason_code);
+  const normalizedErrorMessage = normalizePublishedInvocationFailureReasonMessage(
+    invocation?.error_message
+  );
+
+  return Boolean(
+    normalizedReasonCode === "rate_limit_exceeded" ||
+      normalizedErrorMessage?.includes("rate limit") ||
+      normalizedErrorMessage?.includes("quota") ||
+      normalizedErrorMessage?.includes("429")
+  );
+}
+
+function hasPublishedInvocationApiKeyBoundarySignal(
+  invocation?: PublishedEndpointInvocationItem | null
+) {
+  const normalizedReasonCode = normalizePublishedInvocationReasonCode(invocation?.reason_code);
+  const normalizedErrorMessage = normalizePublishedInvocationFailureReasonMessage(
+    invocation?.error_message
+  );
+
+  return Boolean(
+    normalizedReasonCode === "api_key_invalid" ||
+      normalizedReasonCode === "api_key_required" ||
+      normalizedErrorMessage?.includes("api key") ||
+      normalizedErrorMessage?.includes("unauthor") ||
+      normalizedErrorMessage?.includes("forbidden") ||
+      normalizedErrorMessage?.includes("auth")
+  );
 }
 
 function resolvePublishedInvocationWaitingSelectedNextStepSurface({
@@ -1672,6 +1753,44 @@ function resolvePublishedInvocationWaitingSelectedNextStepSurface({
   }
 
   return selectedInvocationNextStepSurface;
+}
+
+function resolvePublishedInvocationRateLimitSelectedNextStepSurface({
+  selectedInvocation,
+  selectedInvocationNextStepSurface
+}: {
+  selectedInvocation?: PublishedEndpointInvocationItem | null;
+  selectedInvocationNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
+}) {
+  if (
+    !selectedInvocation ||
+    !selectedInvocationNextStepSurface ||
+    !hasPublishedInvocationRateLimitSignal(selectedInvocation)
+  ) {
+    return null;
+  }
+
+  return selectedInvocationNextStepSurface;
+}
+
+function resolvePublishedInvocationApiKeyUsageSelectedNextStepSurface({
+  item,
+  selectedInvocation,
+  selectedInvocationNextStepSurface
+}: {
+  item: NonNullable<PublishedEndpointInvocationListResponse["facets"]["api_key_usage"]>[number];
+  selectedInvocation?: PublishedEndpointInvocationItem | null;
+  selectedInvocationNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
+}) {
+  if (
+    !selectedInvocation ||
+    !selectedInvocationNextStepSurface ||
+    !hasPublishedInvocationApiKeyBoundarySignal(selectedInvocation)
+  ) {
+    return null;
+  }
+
+  return selectedInvocation.api_key_id === item.api_key_id ? selectedInvocationNextStepSurface : null;
 }
 
 function resolvePublishedInvocationMatchedSelectedNextStepSurface({

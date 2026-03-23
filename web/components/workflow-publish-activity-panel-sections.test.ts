@@ -810,6 +810,41 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain("count 2");
   });
 
+  it("bridges selected invocation next step into the matching API key usage card", () => {
+    const detail = buildSelectedInvocationDetail();
+    detail.invocation.api_key_id = "key-1";
+    detail.invocation.reason_code = "api_key_invalid";
+    detail.invocation.error_message = "Caller API key is invalid.";
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishActivityDetails, {
+        tools: [],
+        invocationAudit: buildInvocationAuditWithApiKeyUsage(),
+        selectedInvocationId: "invocation-1",
+        selectedInvocationDetail: {
+          kind: "ok",
+          data: detail
+        },
+        callbackWaitingAutomation: {
+          status: "disabled",
+          scheduler_required: false,
+          detail: "disabled in test",
+          scheduler_health_status: "idle",
+          scheduler_health_detail: "not configured",
+          steps: []
+        },
+        sandboxReadiness: buildSandboxReadiness(),
+        buildInvocationDetailHref: () => "#",
+        clearInvocationDetailHref: null
+      })
+    );
+
+    expect(html).toContain("Primary Key");
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("优先处理 blocker inbox，再观察 waiting 节点是否恢复。");
+    expect(html.match(/open blocker inbox slice/g)?.length ?? 0).toBeGreaterThan(1);
+  });
+
   it("uses shared activity insights copy for publish summary labels", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowPublishActivityInsights, {
@@ -932,6 +967,64 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain(
       "当前最近 24 小时切片里已用掉 90% 配额，只剩 1 次；继续放量前先观察是否开始转成 rate_limit_exceeded。"
     );
+  });
+
+  it("bridges selected invocation next step into the rate limit window card", () => {
+    const detail = buildSelectedInvocationDetail();
+    detail.invocation.reason_code = "rate_limit_exceeded";
+    detail.invocation.error_message = "Quota hit before runtime starts.";
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishActivityInsights, {
+        binding: {
+          rate_limit_policy: {
+            requests: 4,
+            windowSeconds: 60
+          }
+        } as WorkflowPublishActivityPanelProps["binding"],
+        invocationAudit: {
+          filters: {},
+          summary: {
+            total_count: 4,
+            succeeded_count: 1,
+            failed_count: 0,
+            rejected_count: 1,
+            cache_hit_count: 0,
+            cache_miss_count: 0,
+            cache_bypass_count: 0,
+            last_reason_code: "rate_limit_exceeded"
+          },
+          facets: {
+            status_counts: [],
+            request_source_counts: [{ value: "workflow", count: 4 }],
+            request_surface_counts: [{ value: "openai.responses", count: 4 }],
+            cache_status_counts: [],
+            run_status_counts: [],
+            reason_counts: [],
+            api_key_usage: [],
+            recent_failure_reasons: [],
+            timeline_granularity: "hour",
+            timeline: []
+          },
+          items: []
+        },
+        rateLimitWindowAudit: buildRateLimitWindowAudit(),
+        selectedInvocationId: "invocation-1",
+        selectedInvocationDetail: {
+          kind: "ok",
+          data: detail
+        },
+        selectedInvocationHref: "/workflows/workflow-1?publish_invocation=invocation-1",
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness(),
+        activeTimeWindow: "24h"
+      })
+    );
+
+    expect(html).toContain("Rate limit window");
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("优先处理 blocker inbox，再观察 waiting 节点是否恢复。");
+    expect(html.match(/open blocker inbox slice/g)?.length ?? 0).toBeGreaterThan(1);
   });
 
   it("bridges selected invocation next step into activity details", () => {

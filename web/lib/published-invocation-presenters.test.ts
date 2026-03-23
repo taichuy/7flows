@@ -335,8 +335,65 @@ describe("published invocation presenters", () => {
         { key: "status-mix", label: "Status mix", value: "ok 1 / failed 1 / rejected 1", href: null },
         { key: "status", label: "Status", value: "n/a", href: null },
         { key: "last-used", label: "Last used", value: expect.any(String), href: null }
-      ]
+      ],
+      selectedNextStepSurface: null
     });
+
+    const selectedApiKeyNextStepSurface = buildPublishedInvocationSelectedNextStepSurface({
+      invocationId: "invocation-1",
+      nextStep: {
+        label: "approval blocker",
+        detail: "先处理审批票据。",
+        href: "/sensitive-access/inbox?run_id=run-1",
+        href_label: "open blocker inbox slice"
+      }
+    });
+
+    expect(
+      buildPublishedInvocationApiKeyUsageCardSurface({
+        item: {
+          api_key_id: "key-1",
+          name: "Primary Key",
+          key_prefix: "sk-live",
+          status: "active",
+          invocation_count: 3,
+          succeeded_count: 1,
+          failed_count: 1,
+          rejected_count: 1,
+          last_invoked_at: "2026-03-21T00:16:00Z",
+          last_status: "failed"
+        } as never,
+        selectedInvocation: {
+          api_key_id: "key-1",
+          reason_code: "api_key_invalid",
+          error_message: "Caller API key is invalid."
+        } as never,
+        selectedInvocationNextStepSurface: selectedApiKeyNextStepSurface
+      }).selectedNextStepSurface
+    ).toEqual(selectedApiKeyNextStepSurface);
+
+    expect(
+      buildPublishedInvocationApiKeyUsageCardSurface({
+        item: {
+          api_key_id: "key-1",
+          name: "Primary Key",
+          key_prefix: "sk-live",
+          status: "active",
+          invocation_count: 3,
+          succeeded_count: 1,
+          failed_count: 1,
+          rejected_count: 1,
+          last_invoked_at: "2026-03-21T00:16:00Z",
+          last_status: "failed"
+        } as never,
+        selectedInvocation: {
+          api_key_id: "key-1",
+          reason_code: "runtime_failed",
+          error_message: "Sandbox backend offline during invocation."
+        } as never,
+        selectedInvocationNextStepSurface: selectedApiKeyNextStepSurface
+      }).selectedNextStepSurface
+    ).toBeNull();
 
     expect(
       buildPublishedInvocationFailureReasonCardSurface({
@@ -1412,6 +1469,115 @@ describe("published invocation presenters", () => {
       href: null
     });
     expect(surface.issueSignalsSurface?.selectedNextStepSurface).toEqual(selectedNextStepSurface);
+  });
+
+  it("在 rate limit aggregate 已对齐当前 invocation 时复用页面级 canonical CTA", () => {
+    const selectedNextStepSurface = buildPublishedInvocationSelectedNextStepSurface({
+      invocationId: "invocation-1",
+      nextStep: {
+        label: "approval blocker",
+        detail: "优先处理 blocker inbox，再确认限流恢复后是否需要重放。",
+        href: "/sensitive-access?run_id=run-selected-1&node_run_id=node-run-1",
+        href_label: "open blocker inbox slice"
+      }
+    });
+
+    const surface = buildPublishedInvocationActivityInsightsSurface({
+      invocationAudit: {
+        filters: {},
+        summary: {
+          total_count: 4,
+          succeeded_count: 1,
+          failed_count: 0,
+          rejected_count: 1,
+          cache_hit_count: 0,
+          cache_miss_count: 0,
+          cache_bypass_count: 0,
+          last_invoked_at: "2026-03-21T00:15:00Z",
+          last_status: "rejected",
+          last_cache_status: "miss",
+          last_run_id: null,
+          last_run_status: null,
+          last_reason_code: "rate_limit_exceeded"
+        },
+        facets: {
+          status_counts: [],
+          request_source_counts: [{ value: "workflow", count: 4 }],
+          request_surface_counts: [{ value: "openai.responses", count: 4 }],
+          cache_status_counts: [],
+          run_status_counts: [],
+          reason_counts: [{ value: "rate_limit_exceeded", count: 1 }],
+          api_key_usage: [],
+          recent_failure_reasons: [],
+          timeline_granularity: "hour",
+          timeline: []
+        },
+        items: []
+      },
+      rateLimitWindowAudit: {
+        filters: {
+          created_from: "2026-03-21T00:00:00Z"
+        },
+        summary: {
+          total_count: 4,
+          succeeded_count: 1,
+          failed_count: 0,
+          rejected_count: 1,
+          cache_hit_count: 0,
+          cache_miss_count: 0,
+          cache_bypass_count: 0
+        },
+        facets: {
+          status_counts: [],
+          request_source_counts: [],
+          request_surface_counts: [],
+          cache_status_counts: [],
+          run_status_counts: [],
+          reason_counts: [],
+          api_key_usage: [],
+          recent_failure_reasons: [],
+          timeline_granularity: "hour",
+          timeline: []
+        },
+        items: []
+      },
+      rateLimitPolicy: {
+        requests: 4,
+        windowSeconds: 60
+      },
+      callbackWaitingAutomation: null,
+      sandboxReadiness: null,
+      selectedInvocation: {
+        id: "invocation-1",
+        workflow_id: "workflow-1",
+        binding_id: "binding-1",
+        endpoint_id: "endpoint-1",
+        endpoint_alias: "alias-1",
+        route_path: "/published/test",
+        protocol: "openai",
+        auth_mode: "api_key",
+        request_source: "workflow",
+        request_surface: "openai.responses",
+        status: "rejected",
+        cache_status: "miss",
+        api_key_id: "key-1",
+        request_preview: { key_count: 1, keys: ["query"] },
+        response_preview: null,
+        created_at: "2026-03-21T00:10:00Z",
+        finished_at: "2026-03-21T00:10:01Z",
+        duration_ms: 1000,
+        reason_code: "rate_limit_exceeded",
+        error_message: "Quota hit before runtime starts."
+      },
+      selectedInvocationNextStepSurface: selectedNextStepSurface
+    });
+
+    expect(surface.rateLimitWindowCard.selectedNextStepSurface).toEqual(selectedNextStepSurface);
+    expect(surface.summaryCards.at(-1)).toMatchObject({
+      href: "/sensitive-access?run_id=run-selected-1&node_run_id=node-run-1",
+      hrefLabel: "open blocker inbox slice"
+    });
+    expect(surface.summaryCards.at(-1)?.detail).toContain("selected invocation next step");
   });
 
   it("在 waiting aggregate 已对齐当前 invocation 时复用页面级 canonical CTA", () => {
