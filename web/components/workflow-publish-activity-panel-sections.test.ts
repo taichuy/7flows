@@ -637,6 +637,40 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain('/runs?focus=callback-waiting');
   });
 
+  it("reuses the selected invocation CTA inside waiting follow-up when the current page already has canonical context", () => {
+    const invocationAudit = buildInvocationAudit();
+    invocationAudit.summary.last_run_status = "waiting_callback";
+    invocationAudit.summary.last_reason_code = null;
+    invocationAudit.facets.run_status_counts = [{ value: "waiting_callback", count: 2 }];
+    invocationAudit.facets.reason_counts = [];
+    invocationAudit.facets.recent_failure_reasons = [];
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishActivityInsights, {
+        binding: {
+          rate_limit_policy: null
+        } as WorkflowPublishActivityPanelProps["binding"],
+        invocationAudit,
+        rateLimitWindowAudit: buildRateLimitWindowAudit(),
+        selectedInvocationId: "invocation-1",
+        selectedInvocationDetail: {
+          kind: "ok",
+          data: buildSelectedInvocationDetail()
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness(),
+        activeTimeWindow: "24h"
+      })
+    );
+
+    expect(html).toContain("Waiting follow-up");
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("open blocker inbox slice");
+    expect(html).toContain("Summary focus");
+    expect(html).not.toContain("Open run library");
+    expect(html).not.toContain('/runs?focus=callback-waiting');
+  });
+
   it("reuses approval inbox CTA inside waiting follow-up when waiting input is blocked on approvals", () => {
     const invocationAudit = buildInvocationAudit();
     invocationAudit.summary.last_run_status = "waiting_input";

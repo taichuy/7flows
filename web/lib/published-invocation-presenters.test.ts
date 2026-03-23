@@ -1414,6 +1414,218 @@ describe("published invocation presenters", () => {
     expect(surface.issueSignalsSurface?.selectedNextStepSurface).toEqual(selectedNextStepSurface);
   });
 
+  it("在 waiting aggregate 已对齐当前 invocation 时复用页面级 canonical CTA", () => {
+    const selectedNextStepSurface = buildPublishedInvocationSelectedNextStepSurface({
+      invocationId: "invocation-1",
+      nextStep: {
+        label: "approval blocker",
+        detail: "优先处理 blocker inbox，再观察 waiting 节点是否恢复。",
+        href: "/sensitive-access?run_id=run-selected-1&waiting_status=waiting",
+        href_label: "open blocker inbox slice"
+      }
+    });
+
+    const surface = buildPublishedInvocationActivityInsightsSurface({
+      invocationAudit: {
+        filters: {},
+        summary: {
+          total_count: 2,
+          succeeded_count: 0,
+          failed_count: 1,
+          rejected_count: 1,
+          cache_hit_count: 0,
+          cache_miss_count: 0,
+          cache_bypass_count: 0,
+          last_invoked_at: "2026-03-21T00:15:00Z",
+          last_status: "failed",
+          last_cache_status: "miss",
+          last_run_id: "run-selected-1",
+          last_run_status: "waiting_callback",
+          last_reason_code: null
+        },
+        facets: {
+          status_counts: [],
+          request_source_counts: [],
+          request_surface_counts: [],
+          cache_status_counts: [],
+          run_status_counts: [{ value: "waiting_callback", count: 2 }],
+          reason_counts: [],
+          api_key_usage: [],
+          recent_failure_reasons: [],
+          timeline_granularity: "hour",
+          timeline: []
+        },
+        items: []
+      },
+      rateLimitWindowAudit: null,
+      rateLimitPolicy: null,
+      callbackWaitingAutomation: null,
+      selectedInvocation: {
+        id: "invocation-1",
+        workflow_id: "workflow-1",
+        binding_id: "binding-1",
+        endpoint_id: "endpoint-1",
+        endpoint_alias: "alias-1",
+        route_path: "/published/test",
+        protocol: "openai",
+        auth_mode: "api_key",
+        request_source: "workflow",
+        request_surface: "native.workflow",
+        status: "failed",
+        cache_status: "miss",
+        run_id: "run-selected-1",
+        run_status: "waiting",
+        run_current_node_id: "tool_wait",
+        run_waiting_reason: "callback pending",
+        run_waiting_lifecycle: null,
+        run_follow_up: {
+          affected_run_count: 1,
+          sampled_run_count: 1,
+          waiting_run_count: 1,
+          running_run_count: 0,
+          succeeded_run_count: 0,
+          failed_run_count: 0,
+          unknown_run_count: 0,
+          explanation: null,
+          sampled_runs: []
+        },
+        callback_waiting_explanation: {
+          primary_signal: "当前 waiting 节点仍在等待 callback。",
+          follow_up: "优先处理 blocker inbox，再观察 waiting 节点是否恢复。"
+        },
+        reason_code: "runtime_failed",
+        error_message: "sandbox backend offline during invocation",
+        request_preview: { key_count: 1, keys: ["query"] },
+        response_preview: { ok: false },
+        created_at: "2026-03-21T00:10:00Z",
+        finished_at: "2026-03-21T00:10:01Z",
+        duration_ms: 1000
+      },
+      selectedInvocationNextStepSurface: selectedNextStepSurface
+    });
+
+    expect(surface.waitingFollowUpCard.selectedNextStepSurface).toEqual(selectedNextStepSurface);
+    expect(surface.waitingFollowUpCard.followUpHref).toBeNull();
+    expect(surface.waitingFollowUpCard.followUpHrefLabel).toBeNull();
+    expect(surface.summaryCards.at(-1)).toMatchObject({
+      key: "summary-focus",
+      href: "/sensitive-access?run_id=run-selected-1&waiting_status=waiting",
+      hrefLabel: "open blocker inbox slice"
+    });
+    expect(surface.summaryCards.at(-1)?.detail).toContain("selected invocation next step");
+  });
+
+  it("does not duplicate the waiting CTA when the selected invocation resolves to the same shared callback recovery action", () => {
+    const selectedNextStepSurface = buildPublishedInvocationSelectedNextStepSurface({
+      invocationId: "invocation-1",
+      nextStep: {
+        label: "callback recovery",
+        detail: "当前 callback recovery 仍影响 3 个 run / 2 个 workflow；scheduler 仍不健康，优先回到 run library 核对 waiting callback runs 与自动 resume 状态。",
+        href: "/runs?focus=callback-waiting",
+        href_label: "Open run library"
+      }
+    });
+
+    const surface = buildPublishedInvocationActivityInsightsSurface({
+      invocationAudit: {
+        filters: {},
+        summary: {
+          total_count: 2,
+          succeeded_count: 0,
+          failed_count: 1,
+          rejected_count: 1,
+          cache_hit_count: 0,
+          cache_miss_count: 0,
+          cache_bypass_count: 0,
+          last_invoked_at: "2026-03-21T00:15:00Z",
+          last_status: "failed",
+          last_cache_status: "miss",
+          last_run_id: "run-selected-1",
+          last_run_status: "waiting_callback",
+          last_reason_code: null
+        },
+        facets: {
+          status_counts: [],
+          request_source_counts: [],
+          request_surface_counts: [],
+          cache_status_counts: [],
+          run_status_counts: [{ value: "waiting_callback", count: 2 }],
+          reason_counts: [],
+          api_key_usage: [],
+          recent_failure_reasons: [],
+          timeline_granularity: "hour",
+          timeline: []
+        },
+        items: []
+      },
+      rateLimitWindowAudit: null,
+      rateLimitPolicy: null,
+      callbackWaitingAutomation: {
+        status: "partial",
+        scheduler_required: true,
+        detail: "callback automation degraded",
+        scheduler_health_status: "degraded",
+        scheduler_health_detail: "waiting resume monitor degraded",
+        affected_run_count: 3,
+        affected_workflow_count: 2,
+        primary_blocker_kind: "scheduler_unhealthy",
+        recommended_action: {
+          kind: "open_run_library",
+          label: "Open run library",
+          href: "/runs?focus=callback-waiting",
+          entry_key: "runLibrary"
+        },
+        steps: []
+      },
+      selectedInvocation: {
+        id: "invocation-1",
+        workflow_id: "workflow-1",
+        binding_id: "binding-1",
+        endpoint_id: "endpoint-1",
+        endpoint_alias: "alias-1",
+        route_path: "/published/test",
+        protocol: "openai",
+        auth_mode: "api_key",
+        request_source: "workflow",
+        request_surface: "native.workflow",
+        status: "failed",
+        cache_status: "miss",
+        run_id: "run-selected-1",
+        run_status: "waiting",
+        run_current_node_id: "tool_wait",
+        run_waiting_reason: "callback pending",
+        run_waiting_lifecycle: null,
+        run_follow_up: {
+          affected_run_count: 1,
+          sampled_run_count: 1,
+          waiting_run_count: 1,
+          running_run_count: 0,
+          succeeded_run_count: 0,
+          failed_run_count: 0,
+          unknown_run_count: 0,
+          explanation: null,
+          sampled_runs: []
+        },
+        callback_waiting_explanation: {
+          primary_signal: "当前 waiting 节点仍在等待 callback。",
+          follow_up: "优先回到 run library 核对 waiting callback runs 与自动 resume 状态。"
+        },
+        reason_code: "runtime_failed",
+        error_message: "sandbox backend offline during invocation",
+        request_preview: { key_count: 1, keys: ["query"] },
+        response_preview: { ok: false },
+        created_at: "2026-03-21T00:10:00Z",
+        finished_at: "2026-03-21T00:10:01Z",
+        duration_ms: 1000
+      },
+      selectedInvocationNextStepSurface: selectedNextStepSurface
+    });
+
+    expect(surface.waitingFollowUpCard.selectedNextStepSurface).toBeNull();
+    expect(surface.waitingFollowUpCard.followUpHref).toBe("/runs?focus=callback-waiting");
+    expect(surface.waitingFollowUpCard.followUpHrefLabel).toBe("Open run library");
+  });
+
   it("为 traffic timeline bucket 提供共享 facet rows", () => {
     expect(
       buildPublishedInvocationTrafficTimelineBucketSurface({

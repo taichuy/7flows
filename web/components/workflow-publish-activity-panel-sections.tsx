@@ -70,6 +70,8 @@ export function WorkflowPublishActivityInsights({
     callbackWaitingAutomation,
     sandboxReadiness,
     timeWindowLabel,
+    selectedInvocation:
+      selectedInvocationSurface.kind === "ok" ? selectedInvocationSurface.detail.invocation : null,
     selectedInvocationErrorMessage:
       selectedInvocationSurface.kind === "ok"
         ? selectedInvocationSurface.detail.invocation.error_message ?? null
@@ -136,6 +138,12 @@ export function WorkflowPublishActivityInsights({
             ))}
           </dl>
           <p className="section-copy entry-copy">{insightsSurface.waitingFollowUpCard.detail}</p>
+          {insightsSurface.waitingFollowUpCard.selectedNextStepSurface ? (
+            <WorkflowPublishSelectedNextStepCard
+              surface={insightsSurface.waitingFollowUpCard.selectedNextStepSurface}
+              showTitle={false}
+            />
+          ) : null}
           {insightsSurface.waitingFollowUpCard.followUpHref &&
           insightsSurface.waitingFollowUpCard.followUpHrefLabel ? (
             <div className="tool-badge-row">

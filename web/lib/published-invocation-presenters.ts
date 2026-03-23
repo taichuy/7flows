@@ -457,6 +457,7 @@ export type PublishedInvocationActivityWaitingFollowUpCardSurface = {
   chips: string[];
   rows: PublishedInvocationMetaRow[];
   detail: string;
+  selectedNextStepSurface: PublishedInvocationSelectedNextStepSurface | null;
   followUpHref: string | null;
   followUpHrefLabel: string | null;
 };
@@ -1058,6 +1059,7 @@ export function buildPublishedInvocationActivityTrafficMixSurface({
 
 export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
   waitingOverview,
+  selectedWaitingNextStepSurface,
   issueSignalsSurface,
   trafficMixSurface,
   rateLimitWindowInsight,
@@ -1065,6 +1067,7 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
   rateLimitWindowRejectedCount = 0
 }: {
   waitingOverview: PublishedInvocationWaitingOverview;
+  selectedWaitingNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
   issueSignalsSurface?: PublishedInvocationIssueSignalsSurface | null;
   trafficMixSurface: PublishedInvocationActivityTrafficMixSurface;
   rateLimitWindowInsight?: string | null;
@@ -1077,6 +1080,20 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
   rateLimitWindowRejectedCount?: number;
 }): PublishedInvocationActivityPrimaryFollowUpSurface {
   if (waitingOverview.activeWaitingCount > 0 || waitingOverview.syncWaitingRejectedCount > 0) {
+    if (selectedWaitingNextStepSurface) {
+      return {
+        tone: "attention",
+        headline: `Waiting follow-up already aligns with ${selectedWaitingNextStepSurface.invocationId}.`,
+        detail:
+          joinFragments([
+            `Keep the publish waiting diagnosis anchored to the selected invocation next step (${selectedWaitingNextStepSurface.label}).`,
+            selectedWaitingNextStepSurface.detail
+          ]) ?? selectedWaitingNextStepSurface.detail,
+        href: selectedWaitingNextStepSurface.href ?? null,
+        hrefLabel: selectedWaitingNextStepSurface.hrefLabel ?? null
+      };
+    }
+
     return {
       tone: "attention",
       headline: waitingOverview.headline,
@@ -1206,6 +1223,7 @@ export function buildPublishedInvocationActivityInsightsSurface({
   callbackWaitingAutomation,
   sandboxReadiness,
   timeWindowLabel = "全部时间",
+  selectedInvocation,
   selectedInvocationErrorMessage,
   selectedInvocationNextStepSurface
 }: {
@@ -1215,6 +1233,7 @@ export function buildPublishedInvocationActivityInsightsSurface({
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   timeWindowLabel?: string;
+  selectedInvocation?: PublishedEndpointInvocationItem | null;
   selectedInvocationErrorMessage?: string | null;
   selectedInvocationNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
 }): PublishedInvocationActivityInsightsSurface {
@@ -1257,6 +1276,12 @@ export function buildPublishedInvocationActivityInsightsSurface({
     selectedInvocationNextStepSurface,
     surfaceCopy
   });
+  const selectedWaitingNextStepSurface = resolvePublishedInvocationWaitingSelectedNextStepSurface({
+    selectedInvocation,
+    selectedInvocationNextStepSurface,
+    waitingOverviewFollowUpHref: waitingOverview.followUpHref ?? null,
+    waitingOverviewFollowUpHrefLabel: waitingOverview.followUpHrefLabel ?? null
+  });
   const rateLimitWindowInsight = buildPublishedInvocationRateLimitWindowInsight({
     pressure,
     remainingQuota,
@@ -1266,6 +1291,7 @@ export function buildPublishedInvocationActivityInsightsSurface({
   });
   const primaryFollowUp = buildPublishedInvocationActivityPrimaryFollowUpSurface({
     waitingOverview,
+    selectedWaitingNextStepSurface,
     issueSignalsSurface,
     trafficMixSurface,
     rateLimitWindowInsight,
@@ -1320,8 +1346,9 @@ export function buildPublishedInvocationActivityInsightsSurface({
         surfaceCopy
       }),
       detail: waitingOverview.detail,
-      followUpHref: waitingOverview.followUpHref ?? null,
-      followUpHrefLabel: waitingOverview.followUpHrefLabel ?? null
+      selectedNextStepSurface: selectedWaitingNextStepSurface,
+      followUpHref: selectedWaitingNextStepSurface ? null : waitingOverview.followUpHref ?? null,
+      followUpHrefLabel: selectedWaitingNextStepSurface ? null : waitingOverview.followUpHrefLabel ?? null
     },
     rateLimitWindowCard: rateLimitPolicy
       ? {
@@ -1604,6 +1631,47 @@ function normalizePublishedInvocationFailureReasonMessage(message?: string | nul
   const normalizedMessage = message?.trim().replace(/\s+/g, " ").toLowerCase();
 
   return normalizedMessage ? normalizedMessage : null;
+}
+
+function normalizePublishedInvocationRunStatus(status?: string | null) {
+  const normalizedStatus = status?.trim().replace(/\s+/g, "_").toLowerCase();
+
+  return normalizedStatus ? normalizedStatus : null;
+}
+
+function resolvePublishedInvocationWaitingSelectedNextStepSurface({
+  selectedInvocation,
+  selectedInvocationNextStepSurface,
+  waitingOverviewFollowUpHref,
+  waitingOverviewFollowUpHrefLabel
+}: {
+  selectedInvocation?: PublishedEndpointInvocationItem | null;
+  selectedInvocationNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
+  waitingOverviewFollowUpHref?: string | null;
+  waitingOverviewFollowUpHrefLabel?: string | null;
+}) {
+  if (!selectedInvocation || !selectedInvocationNextStepSurface) {
+    return null;
+  }
+
+  const normalizedRunStatus = normalizePublishedInvocationRunStatus(selectedInvocation.run_status);
+  const hasWaitingSignal =
+    Boolean(selectedInvocation.run_waiting_lifecycle) ||
+    Boolean(selectedInvocation.callback_waiting_explanation) ||
+    (selectedInvocation.run_follow_up?.waiting_run_count ?? 0) > 0 ||
+    normalizedRunStatus === "waiting" ||
+    normalizedRunStatus === "waiting_callback" ||
+    normalizedRunStatus === "waiting_input";
+
+  const reusesWaitingOverviewFollowUp =
+    selectedInvocationNextStepSurface.href === (waitingOverviewFollowUpHref ?? null) &&
+    selectedInvocationNextStepSurface.hrefLabel === (waitingOverviewFollowUpHrefLabel ?? null);
+
+  if (!hasWaitingSignal || reusesWaitingOverviewFollowUp) {
+    return null;
+  }
+
+  return selectedInvocationNextStepSurface;
 }
 
 function resolvePublishedInvocationMatchedSelectedNextStepSurface({
