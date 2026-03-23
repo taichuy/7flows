@@ -165,4 +165,28 @@ describe("RunDiagnosticsTraceFiltersSection", () => {
     expect(html).toContain(`href="${resetRunLink.href}"`);
     expect(html).toContain(resetRunLink.label);
   });
+
+  it("keeps workspace scope on filter reset and form actions", () => {
+    const html = renderToStaticMarkup(
+      createElement(RunDiagnosticsTraceFiltersSection, {
+        runId: "run-1",
+        runDetailHref:
+          "/runs/run-1?track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&needs_follow_up=true",
+        activeTraceQuery: {
+          limit: 100,
+          order: "asc"
+        },
+        eventTypeOptions: [],
+        nodeRunOptions: [],
+        activeFilters: []
+      })
+    );
+
+    expect(html).toContain(
+      'action="/runs/run-1?track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;needs_follow_up=true"'
+    );
+    expect(html).toContain(
+      'href="/runs/run-1?track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;needs_follow_up=true"'
+    );
+  });
 });

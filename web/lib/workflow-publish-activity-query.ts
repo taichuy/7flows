@@ -13,6 +13,10 @@ import {
 } from "@/lib/published-invocation-presenters";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 import {
+  buildWorkflowEditorHrefFromWorkspaceStarterViewState,
+  type WorkspaceStarterGovernanceQueryScope
+} from "@/lib/workspace-starter-governance-query";
+import {
   type WorkflowPublishInvocationActiveFilter,
   resolvePublishWindowRange,
   resolvePublishTimeWindow
@@ -37,6 +41,7 @@ type WorkflowPublishActivityHrefOptions = {
   bindingId?: string | null;
   activeInvocationFilter?: WorkflowPublishInvocationActiveFilter | null;
   invocationId?: string | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 
 const PUBLISH_STATUSES = new Set<PublishedEndpointInvocationStatus>([
@@ -166,12 +171,18 @@ export function buildWorkflowPublishActivityHref({
   workflowId,
   bindingId,
   activeInvocationFilter,
-  invocationId
+  invocationId,
+  workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishActivityHrefOptions) {
-  const workflowHref = buildAuthorFacingWorkflowDetailLinkSurface({
-    workflowId,
-    variant: "editor"
-  }).href;
+  const workflowHref = workspaceStarterGovernanceQueryScope
+    ? buildWorkflowEditorHrefFromWorkspaceStarterViewState(
+        workflowId,
+        workspaceStarterGovernanceQueryScope
+      )
+    : buildAuthorFacingWorkflowDetailLinkSurface({
+        workflowId,
+        variant: "editor"
+      }).href;
   const searchParams = buildWorkflowPublishActivitySearchParams({
     bindingId: normalizeOptionalQueryValue(bindingId) ?? activeInvocationFilter?.bindingId ?? null,
     status: activeInvocationFilter?.status ?? null,
@@ -184,9 +195,8 @@ export function buildWorkflowPublishActivityHref({
     timeWindow: activeInvocationFilter?.timeWindow ?? DEFAULT_WORKFLOW_PUBLISH_ACTIVITY_QUERY_SCOPE.timeWindow,
     invocationId: invocationId ?? null
   });
-  const query = searchParams.toString();
 
-  return query ? `${workflowHref}?${query}` : workflowHref;
+  return appendSearchParamsToHref(workflowHref, searchParams);
 }
 
 export function resolveWorkflowPublishActivityFilters(
@@ -251,4 +261,16 @@ function firstSearchValue(
 function normalizeOptionalQueryValue(value: string | null | undefined) {
   const normalizedValue = value?.trim();
   return normalizedValue ? normalizedValue : null;
+}
+
+function appendSearchParamsToHref(href: string, additionalSearchParams: URLSearchParams) {
+  const [pathname, existingQuery = ""] = href.split("?");
+  const mergedSearchParams = new URLSearchParams(existingQuery);
+
+  additionalSearchParams.forEach((value, key) => {
+    mergedSearchParams.set(key, value);
+  });
+
+  const query = mergedSearchParams.toString();
+  return query ? `${pathname}?${query}` : pathname;
 }

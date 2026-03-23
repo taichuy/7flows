@@ -28,6 +28,7 @@ import {
   resolveWorkflowPublishSelectedInvocationDetailSurface
 } from "@/components/workflow-publish-activity-panel-helpers";
 import type { WorkflowPublishActivityPanelProps } from "@/components/workflow-publish-activity-panel-helpers";
+import type { WorkspaceStarterGovernanceQueryScope } from "@/lib/workspace-starter-governance-query";
 
 type WorkflowPublishActivityInsightsProps = {
   binding: WorkflowPublishActivityPanelProps["binding"];
@@ -244,6 +245,7 @@ type WorkflowPublishActivityDetailsProps = {
   sandboxReadiness?: SandboxReadinessCheck | null;
   buildInvocationDetailHref: (invocationId: string) => string;
   clearInvocationDetailHref: string | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 
 export function WorkflowPublishActivityDetails({
@@ -255,7 +257,8 @@ export function WorkflowPublishActivityDetails({
   callbackWaitingAutomation,
   sandboxReadiness,
   buildInvocationDetailHref,
-  clearInvocationDetailHref
+  clearInvocationDetailHref,
+  workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishActivityDetailsProps) {
   const items = invocationAudit?.items ?? [];
   const detailsSurfaceCopy = buildPublishedInvocationActivityDetailsSurfaceCopy();
@@ -385,6 +388,7 @@ export function WorkflowPublishActivityDetails({
               callbackWaitingAutomation={callbackWaitingAutomation}
               sandboxReadiness={sandboxReadiness}
               selectedNextStepSurface={selectedInvocationSurface.nextStepSurface}
+              workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
             />
           ) : clearInvocationDetailHref && selectedInvocationSurface.kind === "blocked" ? (
             <SensitiveAccessBlockedCard
@@ -418,6 +422,7 @@ export function WorkflowPublishActivityDetails({
                 item={item}
                 sandboxReadiness={sandboxReadiness}
                 key={item.id}
+                workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
               />
             ))}
           </div>

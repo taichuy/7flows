@@ -85,9 +85,27 @@ export function summarizeActiveFilters(query: RunTraceQuery) {
   return filters;
 }
 
-export function buildPageTraceHref(runId: string, query: RunTraceQuery) {
+export function buildPageTraceHref(
+  runId: string,
+  query: RunTraceQuery,
+  baseHref?: string | null
+) {
   const queryString = buildRunTraceQueryString(query);
-  const runHref = buildRequiredOperatorRunDetailLinkSurface({ runId }).href;
+  const runHref = baseHref ?? buildRequiredOperatorRunDetailLinkSurface({ runId }).href;
 
-  return `${runHref}${queryString ? `?${queryString}` : ""}`;
+  if (!queryString) {
+    return runHref;
+  }
+
+  const [pathname, existingQuery = ""] = runHref.split("?");
+  const mergedSearchParams = new URLSearchParams(existingQuery);
+  const traceSearchParams = new URLSearchParams(queryString);
+
+  traceSearchParams.forEach((value, key) => {
+    mergedSearchParams.set(key, value);
+  });
+
+  const mergedQuery = mergedSearchParams.toString();
+
+  return mergedQuery ? `${pathname}?${mergedQuery}` : pathname;
 }

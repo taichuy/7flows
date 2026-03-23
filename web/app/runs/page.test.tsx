@@ -200,4 +200,85 @@ describe("RunsPage", () => {
     expect(html).toContain("当前还没有历史 run");
     expect(html).toContain('/workflows');
   });
+
+  it("preserves workspace starter scope across run and workflow links", async () => {
+    vi.mocked(getSystemOverview).mockResolvedValue({
+      status: "ok",
+      environment: "local",
+      services: [],
+      capabilities: [],
+      plugin_adapters: [],
+      sandbox_backends: [],
+      sandbox_readiness: {
+        enabled_backend_count: 0,
+        healthy_backend_count: 0,
+        degraded_backend_count: 0,
+        offline_backend_count: 0,
+        execution_classes: [],
+        supported_languages: [],
+        supported_profiles: [],
+        supported_dependency_modes: [],
+        supports_tool_execution: false,
+        supports_builtin_package_sets: false,
+        supports_backend_extensions: false,
+        supports_network_policy: false,
+        supports_filesystem_policy: false
+      },
+      plugin_tools: [],
+      callback_waiting_automation: {
+        status: "configured",
+        scheduler_required: true,
+        detail: "healthy",
+        scheduler_health_status: "healthy",
+        scheduler_health_detail: "healthy",
+        steps: []
+      },
+      runtime_activity: {
+        summary: {
+          recent_run_count: 1,
+          recent_event_count: 1,
+          run_statuses: {
+            waiting_callback: 1
+          },
+          event_types: {}
+        },
+        recent_runs: [
+          {
+            id: "run-1",
+            workflow_id: "workflow-1",
+            workflow_version: "1.0.0",
+            status: "waiting_callback",
+            created_at: "2026-03-22T08:00:00Z",
+            finished_at: null,
+            event_count: 1
+          }
+        ],
+        recent_events: []
+      }
+    });
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot()
+    );
+
+    const html = renderToStaticMarkup(
+      await RunsPage({
+        searchParams: Promise.resolve({
+          track: "应用新建编排",
+          needs_follow_up: "true",
+          source_governance_kind: "drifted",
+          q: "drift"
+        })
+      })
+    );
+
+    expect(html).toContain(
+      '/runs/run-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
+    );
+    expect(html).toContain(
+      '/workflows/workflow-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
+    );
+    expect(html).toContain(
+      '/workflows?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
+    );
+  });
 });

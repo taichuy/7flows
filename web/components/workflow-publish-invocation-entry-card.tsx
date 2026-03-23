@@ -44,6 +44,10 @@ import {
 } from "@/lib/run-execution-focus-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
 import { formatDurationMs, formatTimestamp } from "@/lib/runtime-presenters";
+import {
+  buildRunDetailHrefFromWorkspaceStarterViewState,
+  type WorkspaceStarterGovernanceQueryScope
+} from "@/lib/workspace-starter-governance-query";
 
 type PublishedInvocationItem = PublishedEndpointInvocationListResponse["items"][number];
 
@@ -54,6 +58,7 @@ type WorkflowPublishInvocationEntryCardProps = {
   hideRecommendedNextStep?: boolean;
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 
 function hasInvocationDrilldown(item: PublishedInvocationItem): boolean {
@@ -72,7 +77,8 @@ export function WorkflowPublishInvocationEntryCard({
   detailActive,
   hideRecommendedNextStep = false,
   callbackWaitingAutomation,
-  sandboxReadiness
+  sandboxReadiness,
+  workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishInvocationEntryCardProps) {
   const surfaceCopy = buildPublishedInvocationEntrySurfaceCopy();
   const waitingLifecycle = item.run_waiting_lifecycle;
@@ -288,8 +294,16 @@ export function WorkflowPublishInvocationEntryCard({
                     hrefLabel: runFollowUpSample?.run_id ?? null
                   });
 
+                  const scopedRunHref =
+                    runFollowUpSample?.run_id && workspaceStarterGovernanceQueryScope
+                      ? buildRunDetailHrefFromWorkspaceStarterViewState(
+                          runFollowUpSample.run_id,
+                          workspaceStarterGovernanceQueryScope
+                        )
+                      : null;
+
                   return runLink ? (
-                    <Link className="inline-link" href={runLink.href}>
+                    <Link className="inline-link" href={scopedRunHref ?? runLink.href}>
                       {runLink.label}
                     </Link>
                   ) : (

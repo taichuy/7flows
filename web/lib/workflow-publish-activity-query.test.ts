@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  buildWorkflowPublishActivityHref,
   buildWorkflowPublishActivitySearchParams,
   readWorkflowPublishActivityQueryScope,
   resolveWorkflowPublishActivityFilters
@@ -171,5 +172,35 @@ describe("workflow publish activity query", () => {
       },
       selectedInvocationId: null
     });
+  });
+
+  it("merges workspace starter scope into publish activity hrefs without dropping publish filters", () => {
+    expect(
+      buildWorkflowPublishActivityHref({
+        workflowId: "workflow-1",
+        bindingId: "binding-1",
+        activeInvocationFilter: {
+          bindingId: "binding-1",
+          status: "failed",
+          requestSource: "path",
+          requestSurface: "openai.responses",
+          cacheStatus: "hit",
+          runStatus: "waiting_callback",
+          apiKeyId: null,
+          reasonCode: null,
+          timeWindow: "24h"
+        },
+        invocationId: "invocation-1",
+        workspaceStarterGovernanceQueryScope: {
+          activeTrack: "应用新建编排",
+          sourceGovernanceKind: "drifted",
+          needsFollowUp: true,
+          searchQuery: "drift",
+          selectedTemplateId: "starter-1"
+        }
+      })
+    ).toBe(
+      "/workflows/workflow-1?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&publish_binding=binding-1&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_window=24h&publish_invocation=invocation-1"
+    );
   });
 });

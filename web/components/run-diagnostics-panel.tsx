@@ -39,6 +39,9 @@ type RunDiagnosticsPanelProps = {
   evidenceView: RunEvidenceView | null;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  workflowDetailHref?: string | null;
+  runLibraryHref?: string | null;
+  runDetailHref?: string | null;
 };
 
 export function RunDiagnosticsPanel({
@@ -49,7 +52,10 @@ export function RunDiagnosticsPanel({
   executionView,
   evidenceView,
   callbackWaitingAutomation,
-  sandboxReadiness = null
+  sandboxReadiness = null,
+  workflowDetailHref = null,
+  runLibraryHref = null,
+  runDetailHref = null
 }: RunDiagnosticsPanelProps) {
   const eventTypes = run.event_type_counts;
   const activeTraceQuery = trace
@@ -72,7 +78,7 @@ export function RunDiagnosticsPanel({
     ])
   ).sort();
   const activeFilters = summarizeActiveFilters(activeTraceQuery);
-  const traceHref = buildPageTraceHref(run.id, activeTraceQuery);
+  const traceHref = buildPageTraceHref(run.id, activeTraceQuery, runDetailHref);
   const eventsApiHref = `${getApiBaseUrl()}/api/runs/${encodeURIComponent(run.id)}/events`;
   const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
     workflowId: run.workflow_id,
@@ -98,10 +104,11 @@ export function RunDiagnosticsPanel({
               keys={["workflowLibrary", "runLibrary", "operatorInbox", "home"]}
               overrides={{
                 workflowLibrary: {
-                  href: workflowDetailLink.href,
+                  href: workflowDetailHref ?? workflowDetailLink.href,
                   label: workflowDetailLink.label
                 },
                 runLibrary: {
+                  href: runLibraryHref ?? "/runs",
                   label: "回到 run 列表"
                 }
               }}
@@ -156,6 +163,7 @@ export function RunDiagnosticsPanel({
         activeFilters={activeFilters}
         callbackWaitingAutomation={callbackWaitingAutomation}
         sandboxReadiness={sandboxReadiness}
+        runDetailHref={runDetailHref}
       />
 
       <RunDiagnosticsExecutionSections
@@ -171,6 +179,7 @@ export function RunDiagnosticsPanel({
         traceError={traceError}
         activeTraceQuery={activeTraceQuery}
         traceHref={traceHref}
+        runDetailHref={runDetailHref}
       />
     </main>
   );

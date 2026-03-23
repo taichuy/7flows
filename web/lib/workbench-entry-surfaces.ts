@@ -174,7 +174,11 @@ export function buildWorkspaceStarterTemplateListSurfaceCopy({
   };
 }
 
-export function buildRunLibrarySurfaceCopy(): RunLibrarySurfaceCopy {
+export function buildRunLibrarySurfaceCopy({
+  workflowLibraryHref = "/workflows"
+}: {
+  workflowLibraryHref?: string;
+} = {}): RunLibrarySurfaceCopy {
   return {
     heroDescription:
       "首页和 operator 面板只保留摘要；从这里继续进入独立 run 诊断页、回到 workflow 编辑器，或沿着同一条执行事实继续排障。",
@@ -183,6 +187,9 @@ export function buildRunLibrarySurfaceCopy(): RunLibrarySurfaceCopy {
       overrides: {
         operatorInbox: {
           label: "回到 sensitive access inbox"
+        },
+        workflowLibrary: {
+          href: workflowLibraryHref
         }
       }
     },
@@ -197,6 +204,9 @@ export function buildRunLibrarySurfaceCopy(): RunLibrarySurfaceCopy {
       overrides: {
         operatorInbox: {
           label: "打开 sensitive access inbox"
+        },
+        workflowLibrary: {
+          href: workflowLibraryHref
         }
       },
       primaryKey: "operatorInbox",

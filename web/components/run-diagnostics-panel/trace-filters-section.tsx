@@ -20,6 +20,7 @@ type RunDiagnosticsTraceFiltersSectionProps = {
   activeFilters: string[];
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  runDetailHref?: string | null;
 };
 
 export function RunDiagnosticsTraceFiltersSection({
@@ -29,7 +30,8 @@ export function RunDiagnosticsTraceFiltersSection({
   nodeRunOptions,
   activeFilters,
   callbackWaitingAutomation = null,
-  sandboxReadiness = null
+  sandboxReadiness = null,
+  runDetailHref = null
 }: RunDiagnosticsTraceFiltersSectionProps) {
   const surfaceCopy = buildRunDiagnosticsTraceSurfaceCopy({
     defaultLimit: DEFAULT_RUN_TRACE_LIMIT
@@ -38,6 +40,7 @@ export function RunDiagnosticsTraceFiltersSection({
     runId,
     hrefLabel: surfaceCopy.resetFiltersLabel
   });
+  const resetRunHref = runDetailHref ?? resetRunLink.href;
 
   return (
     <section className="diagnostics-layout">
@@ -50,7 +53,7 @@ export function RunDiagnosticsTraceFiltersSection({
           <p className="section-copy">{surfaceCopy.sectionDescription}</p>
         </div>
 
-        <form className="trace-filter-form" action={resetRunLink.href} method="get">
+        <form className="trace-filter-form" action={resetRunHref} method="get">
           <label className="binding-field">
             <span className="binding-label">Event type</span>
             <select
@@ -143,7 +146,7 @@ export function RunDiagnosticsTraceFiltersSection({
             <button className="sync-button" type="submit">
               {surfaceCopy.applyFiltersLabel}
             </button>
-            <Link className="inline-link" href={resetRunLink.href}>
+            <Link className="inline-link" href={resetRunHref}>
               {resetRunLink.label}
             </Link>
             <RunTraceExportActions

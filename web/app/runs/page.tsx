@@ -5,7 +5,6 @@ import { CrossEntryRiskDigestPanel } from "@/components/cross-entry-risk-digest-
 import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import {
-  WorkbenchEntryLink,
   WorkbenchEntryLinks
 } from "@/components/workbench-entry-links";
 import { buildCrossEntryRiskDigest } from "@/lib/cross-entry-risk-digest";
@@ -18,12 +17,33 @@ import {
 } from "@/lib/workbench-entry-surfaces";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { formatCountMap, formatTimestamp } from "@/lib/runtime-presenters";
+import {
+  buildRunDetailHrefFromWorkspaceStarterViewState,
+  buildRunLibraryHrefFromWorkspaceStarterViewState,
+  buildWorkflowEditorHrefFromWorkspaceStarterViewState,
+  buildWorkflowLibraryHrefFromWorkspaceStarterViewState,
+  readWorkspaceStarterLibraryViewState
+} from "@/lib/workspace-starter-governance-query";
 
 export const metadata: Metadata = {
   title: "Runs | 7Flows Studio"
 };
 
-export default async function RunsPage() {
+type RunsPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function RunsPage({ searchParams }: RunsPageProps = {}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const workspaceStarterViewState = readWorkspaceStarterLibraryViewState(
+    resolvedSearchParams
+  );
+  const workflowLibraryHref = buildWorkflowLibraryHrefFromWorkspaceStarterViewState(
+    workspaceStarterViewState
+  );
+  const runLibraryHref = buildRunLibraryHrefFromWorkspaceStarterViewState(
+    workspaceStarterViewState
+  );
   const [overview, sensitiveAccessInbox] = await Promise.all([
     getSystemOverview(),
     getSensitiveAccessInboxSnapshot()
@@ -37,7 +57,10 @@ export default async function RunsPage() {
         variant: "latest"
       })
     : null;
-  const surfaceCopy = buildRunLibrarySurfaceCopy();
+  const latestRunDetailHref = latestRun
+    ? buildRunDetailHrefFromWorkspaceStarterViewState(latestRun.id, workspaceStarterViewState)
+    : null;
+  const surfaceCopy = buildRunLibrarySurfaceCopy({ workflowLibraryHref });
   const crossEntryRiskDigest = buildCrossEntryRiskDigest({
     sandboxReadiness: overview.sandbox_readiness,
     callbackWaitingAutomation: overview.callback_waiting_automation,
@@ -49,7 +72,7 @@ export default async function RunsPage() {
     callbackWaitingAutomation: overview.callback_waiting_automation,
     sandboxReadiness: overview.sandbox_readiness,
     sensitiveAccessSummary: sensitiveAccessInbox.summary,
-    currentHref: "/runs"
+    currentHref: runLibraryHref
   });
 
   return (
@@ -100,17 +123,27 @@ export default async function RunsPage() {
             {recentRuns.length === 0 ? (
               <div className="empty-state-block">
                 <p className="empty-state">{surfaceCopy.emptyState}</p>
-                <WorkbenchEntryLink className="inline-link" linkKey="workflowLibrary" />
+                <Link className="inline-link" href={workflowLibraryHref}>
+                  打开 workflow 列表
+                </Link>
               </div>
             ) : (
               recentRuns.map((run) => {
                 const runDetailLink = buildAuthorFacingRunDetailLinkSurface({
                   runId: run.id
                 });
+                const runDetailHref = buildRunDetailHrefFromWorkspaceStarterViewState(
+                  run.id,
+                  workspaceStarterViewState
+                );
                 const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
                   workflowId: run.workflow_id,
                   variant: "editor"
                 });
+                const workflowDetailHref = buildWorkflowEditorHrefFromWorkspaceStarterViewState(
+                  run.workflow_id,
+                  workspaceStarterViewState
+                );
 
                 return (
                   <article className="activity-row" key={run.id}>
@@ -127,10 +160,10 @@ export default async function RunsPage() {
                       Created {formatTimestamp(run.created_at)} · events {run.event_count}
                     </p>
                     <div className="section-actions">
-                      <Link className="activity-link" href={runDetailLink.href}>
+                      <Link className="activity-link" href={runDetailHref}>
                         {runDetailLink.label}
                       </Link>
-                      <Link className="inline-link secondary" href={workflowDetailLink.href}>
+                      <Link className="inline-link secondary" href={workflowDetailHref}>
                         {workflowDetailLink.label}
                       </Link>
                     </div>
@@ -179,7 +212,10 @@ export default async function RunsPage() {
             ) : null}
             <WorkbenchEntryLinks {...surfaceCopy.operatorEntryLinks} />
             {latestRunDetailLink ? (
-              <Link className="inline-link secondary" href={latestRunDetailLink.href}>
+              <Link
+                className="inline-link secondary"
+                href={latestRunDetailHref ?? latestRunDetailLink.href}
+              >
                 {latestRunDetailLink.label}
               </Link>
             ) : null}

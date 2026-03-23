@@ -845,4 +845,25 @@ describe("WorkflowPublishInvocationEntryCard", () => {
       vi.resetModules();
     }
   });
+
+  it("keeps workspace starter scope on sampled run drilldown links", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationEntryCard, {
+        item: buildInvocationItem(),
+        detailHref: "/workflows/workflow-1?publish_invocation=invocation-1",
+        detailActive: false,
+        workspaceStarterGovernanceQueryScope: {
+          activeTrack: "应用新建编排",
+          sourceGovernanceKind: "drifted",
+          needsFollowUp: true,
+          searchQuery: "drift",
+          selectedTemplateId: "starter-1"
+        }
+      })
+    );
+
+    expect(html).toContain(
+      '/runs/run-callback-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
+    );
+  });
 });

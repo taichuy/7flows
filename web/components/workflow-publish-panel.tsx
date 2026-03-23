@@ -25,6 +25,7 @@ import type {
 import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import type { WorkflowPublishInvocationActiveFilter } from "@/lib/workflow-publish-governance";
 import type { WorkflowDetail } from "@/lib/get-workflows";
+import type { WorkspaceStarterGovernanceQueryScope } from "@/lib/workspace-starter-governance-query";
 
 type WorkflowPublishPanelProps = {
   workflow: WorkflowDetail;
@@ -46,6 +47,7 @@ type WorkflowPublishPanelProps = {
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
   workflowLibraryHref?: string;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 
 export function WorkflowPublishPanel({
@@ -61,7 +63,8 @@ export function WorkflowPublishPanel({
   activeInvocationFilter,
   callbackWaitingAutomation,
   sandboxReadiness,
-  workflowLibraryHref
+  workflowLibraryHref,
+  workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishPanelProps) {
   const surfaceCopy = buildWorkflowPublishPanelSurfaceCopy({ workflowLibraryHref });
   const primaryFollowUp = buildWorkflowPublishPrimaryFollowUpSurface(bindings);
@@ -151,6 +154,7 @@ export function WorkflowPublishPanel({
                     ? activeInvocationFilter
                     : null
                 }
+                workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
               />
             ))}
           </div>

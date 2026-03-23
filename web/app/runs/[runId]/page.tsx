@@ -12,6 +12,12 @@ import {
   getRunTrace,
   parseRunTraceSearchParams
 } from "@/lib/get-run-trace";
+import {
+  buildRunDetailHrefFromWorkspaceStarterViewState,
+  buildRunLibraryHrefFromWorkspaceStarterViewState,
+  buildWorkflowEditorHrefFromWorkspaceStarterViewState,
+  readWorkspaceStarterLibraryViewState
+} from "@/lib/workspace-starter-governance-query";
 
 type RunDiagnosticsPageProps = {
   params: Promise<{ runId: string }>;
@@ -33,7 +39,11 @@ export default async function RunDiagnosticsPage({
   searchParams
 }: RunDiagnosticsPageProps) {
   const { runId } = await params;
-  const traceQuery = parseRunTraceSearchParams((await searchParams) ?? {});
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const traceQuery = parseRunTraceSearchParams(resolvedSearchParams);
+  const workspaceStarterViewState = readWorkspaceStarterLibraryViewState(
+    resolvedSearchParams
+  );
   const [run, traceResult, executionView, evidenceView, systemOverview] = await Promise.all([
     getRunDetail(runId),
     getRunTrace(runId, traceQuery),
@@ -56,6 +66,17 @@ export default async function RunDiagnosticsPage({
       evidenceView={evidenceView}
       callbackWaitingAutomation={systemOverview.callback_waiting_automation}
       sandboxReadiness={systemOverview.sandbox_readiness}
+      workflowDetailHref={buildWorkflowEditorHrefFromWorkspaceStarterViewState(
+        run.workflow_id,
+        workspaceStarterViewState
+      )}
+      runLibraryHref={buildRunLibraryHrefFromWorkspaceStarterViewState(
+        workspaceStarterViewState
+      )}
+      runDetailHref={buildRunDetailHrefFromWorkspaceStarterViewState(
+        run.id,
+        workspaceStarterViewState
+      )}
     />
   );
 }

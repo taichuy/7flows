@@ -21,6 +21,7 @@ import type {
 import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import type { WorkflowPublishInvocationActiveFilter } from "@/lib/workflow-publish-governance";
 import type { WorkflowDetail } from "@/lib/get-workflows";
+import type { WorkspaceStarterGovernanceQueryScope } from "@/lib/workspace-starter-governance-query";
 import { buildWorkflowPublishBindingCardSurface } from "@/lib/workflow-publish-binding-presenters";
 import { buildPublishedCacheInventorySurfaceCopy } from "@/lib/published-invocation-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
@@ -39,6 +40,7 @@ type WorkflowPublishBindingCardProps = {
   activeInvocationFilter: WorkflowPublishInvocationActiveFilter | null;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 
 export function WorkflowPublishBindingCard({
@@ -53,7 +55,8 @@ export function WorkflowPublishBindingCard({
   rateLimitWindowAudit,
   activeInvocationFilter,
   callbackWaitingAutomation,
-  sandboxReadiness
+  sandboxReadiness,
+  workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishBindingCardProps) {
   const bindingSurface = buildWorkflowPublishBindingCardSurface(binding);
   const cacheSummary = binding.cache_inventory;
@@ -148,6 +151,7 @@ export function WorkflowPublishBindingCard({
         callbackWaitingAutomation={callbackWaitingAutomation}
         sandboxReadiness={sandboxReadiness}
         activeInvocationFilter={activeInvocationFilter}
+        workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
       />
 
       <div className="entry-card compact-card">

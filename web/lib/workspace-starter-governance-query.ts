@@ -7,6 +7,7 @@ import {
   type AuthorFacingWorkflowDetailLinkVariant,
   buildAuthorFacingWorkflowDetailLinkSurface
 } from "@/lib/workbench-entry-surfaces";
+import { buildRunDetailHref } from "@/lib/workbench-links";
 
 export type TrackFilter = "all" | WorkflowBusinessTrack;
 export type ArchiveFilter = "active" | "archived" | "all";
@@ -171,6 +172,17 @@ export function buildWorkflowLibraryHrefFromWorkspaceStarterViewState(
   return query ? `/workflows?${query}` : "/workflows";
 }
 
+export function buildRunLibraryHrefFromWorkspaceStarterViewState(
+  viewState: Pick<
+    WorkspaceStarterLibraryViewState,
+    "activeTrack" | "sourceGovernanceKind" | "needsFollowUp" | "searchQuery" | "selectedTemplateId"
+  >
+) {
+  const searchParams = buildWorkspaceStarterGovernanceSearchParams(viewState);
+  const query = searchParams.toString();
+  return query ? `/runs?${query}` : "/runs";
+}
+
 export function buildWorkflowEditorHrefFromWorkspaceStarterViewState(
   workflowId: string,
   viewState: Pick<
@@ -185,6 +197,20 @@ export function buildWorkflowEditorHrefFromWorkspaceStarterViewState(
     variant: "editor"
   }).href;
   return query ? `${workflowHref}?${query}` : workflowHref;
+}
+
+export function buildRunDetailHrefFromWorkspaceStarterViewState(
+  runId: string,
+  viewState: Pick<
+    WorkspaceStarterLibraryViewState,
+    "activeTrack" | "sourceGovernanceKind" | "needsFollowUp" | "searchQuery" | "selectedTemplateId"
+  >
+) {
+  const searchParams = buildWorkspaceStarterGovernanceSearchParams(viewState);
+  const query = searchParams.toString();
+  const runHref = buildRunDetailHref(runId);
+
+  return query ? `${runHref}?${query}` : runHref;
 }
 
 export function buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({

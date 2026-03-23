@@ -24,14 +24,16 @@ export function WorkflowPublishActivityPanel({
   rateLimitWindowAudit,
   activeInvocationFilter,
   callbackWaitingAutomation,
-  sandboxReadiness
+  sandboxReadiness,
+  workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishActivityPanelProps) {
   const activeFilterChips = buildActiveFilterChips(activeInvocationFilter, apiKeys);
   const runStatusOptions = buildRunStatusOptions(invocationAudit?.facets.run_status_counts);
   const detailLinks = resolveWorkflowPublishActivityDetailLinks({
     workflowId,
     bindingId: binding.id,
-    activeInvocationFilter
+    activeInvocationFilter,
+    workspaceStarterGovernanceQueryScope
   });
   const selectedInvocationHref = selectedInvocationId
     ? detailLinks.buildInvocationDetailHref(selectedInvocationId)
@@ -50,6 +52,7 @@ export function WorkflowPublishActivityPanel({
         apiKeys={apiKeys}
         activeInvocationFilter={activeInvocationFilter}
         runStatusOptions={runStatusOptions}
+        workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
       />
 
       {activeFilterChips.length ? (
@@ -94,6 +97,7 @@ export function WorkflowPublishActivityPanel({
         sandboxReadiness={sandboxReadiness}
         buildInvocationDetailHref={detailLinks.buildInvocationDetailHref}
         clearInvocationDetailHref={detailLinks.clearInvocationDetailHref}
+        workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
       />
     </div>
   );

@@ -15,6 +15,7 @@ import {
   TIME_WINDOW_OPTIONS
 } from "@/components/workflow-publish-activity-panel-helpers";
 import type { WorkflowPublishActivityPanelProps } from "@/components/workflow-publish-activity-panel-helpers";
+import type { WorkspaceStarterGovernanceQueryScope } from "@/lib/workspace-starter-governance-query";
 
 type WorkflowPublishActivityFilterFormProps = {
   workflowId: string;
@@ -22,6 +23,7 @@ type WorkflowPublishActivityFilterFormProps = {
   apiKeys: PublishedEndpointApiKeyItem[];
   activeInvocationFilter: WorkflowPublishActivityPanelProps["activeInvocationFilter"];
   runStatusOptions: string[];
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 
 export function WorkflowPublishActivityFilterForm({
@@ -29,11 +31,15 @@ export function WorkflowPublishActivityFilterForm({
   bindingId,
   apiKeys,
   activeInvocationFilter,
-  runStatusOptions
+  runStatusOptions,
+  workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishActivityFilterFormProps) {
   return (
     <form
-      action={buildWorkflowPublishActivityHref({ workflowId })}
+      action={buildWorkflowPublishActivityHref({
+        workflowId,
+        workspaceStarterGovernanceQueryScope
+      })}
       className="trace-filter-form governance-filter-form"
       method="get"
     >
@@ -158,7 +164,14 @@ export function WorkflowPublishActivityFilterForm({
         <button className="ghost-button" type="submit">
           Apply filters
         </button>
-        <a className="inline-link" href={buildWorkflowPublishActivityHref({ workflowId, bindingId })}>
+        <a
+          className="inline-link"
+          href={buildWorkflowPublishActivityHref({
+            workflowId,
+            bindingId,
+            workspaceStarterGovernanceQueryScope
+          })}
+        >
           Reset
         </a>
       </div>

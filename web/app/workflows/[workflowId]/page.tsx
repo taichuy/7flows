@@ -73,6 +73,9 @@ export default async function WorkflowEditorPage({
     buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState(
       workspaceStarterViewState
     );
+  const workspaceStarterGovernanceQueryScope = pickWorkspaceStarterGovernanceQueryScope(
+    workspaceStarterViewState
+  );
   const hasScopedWorkspaceStarterFilters = hasScopedWorkspaceStarterGovernanceFilters(
     workspaceStarterViewState
   );
@@ -112,9 +115,7 @@ export default async function WorkflowEditorPage({
         createWorkflowHref={createWorkflowHref}
         workspaceStarterLibraryHref={workspaceStarterLibraryHref}
         hasScopedWorkspaceStarterFilters={hasScopedWorkspaceStarterFilters}
-        workspaceStarterGovernanceQueryScope={pickWorkspaceStarterGovernanceQueryScope(
-          workspaceStarterViewState
-        )}
+        workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
       />
       <WorkflowPublishPanel
         workflow={workflow}
@@ -130,6 +131,7 @@ export default async function WorkflowEditorPage({
         sandboxReadiness={systemOverview.sandbox_readiness}
         activeInvocationFilter={publishActivityFilters.panelActiveFilter}
         workflowLibraryHref={workflowLibraryHref}
+        workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
       />
     </>
   );

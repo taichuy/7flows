@@ -13,6 +13,7 @@ type RunDiagnosticsTraceResultsSectionProps = {
   traceError?: string | null;
   activeTraceQuery: RunTraceQuery;
   traceHref: string;
+  runDetailHref?: string | null;
 };
 
 export function RunDiagnosticsTraceResultsSection({
@@ -20,12 +21,14 @@ export function RunDiagnosticsTraceResultsSection({
   trace,
   traceError,
   activeTraceQuery,
-  traceHref
+  traceHref,
+  runDetailHref = null
 }: RunDiagnosticsTraceResultsSectionProps) {
   const clearFiltersLink = buildRequiredOperatorRunDetailLinkSurface({
     runId,
     hrefLabel: "清除过滤并重试"
   });
+  const clearFiltersHref = runDetailHref ?? clearFiltersLink.href;
 
   return (
     <section className="diagnostics-layout">
@@ -47,7 +50,7 @@ export function RunDiagnosticsTraceResultsSection({
             </div>
             <p className="run-error-message">{traceError}</p>
             <div className="hero-actions">
-              <Link className="inline-link" href={clearFiltersLink.href}>
+              <Link className="inline-link" href={clearFiltersHref}>
                 {clearFiltersLink.label}
               </Link>
               <a className="activity-link" href={traceHref}>
@@ -121,7 +124,7 @@ export function RunDiagnosticsTraceResultsSection({
                   href={buildPageTraceHref(runId, {
                     ...activeTraceQuery,
                     cursor: trace.summary.prev_cursor
-                  })}
+                  }, runDetailHref)}
                 >
                   上一窗口
                 </Link>
@@ -134,7 +137,7 @@ export function RunDiagnosticsTraceResultsSection({
                   href={buildPageTraceHref(runId, {
                     ...activeTraceQuery,
                     cursor: trace.summary.next_cursor
-                  })}
+                  }, runDetailHref)}
                 >
                   下一窗口
                 </Link>

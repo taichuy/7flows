@@ -40,6 +40,7 @@ import {
   type PublishedInvocationUnavailableDetailSurfaceCopy
 } from "@/lib/published-invocation-presenters";
 import { buildWorkflowPublishActivityHref } from "@/lib/workflow-publish-activity-query";
+import type { WorkspaceStarterGovernanceQueryScope } from "@/lib/workspace-starter-governance-query";
 
 export { buildWorkflowPublishActivityHref };
 
@@ -55,12 +56,14 @@ export type WorkflowPublishActivityPanelProps = {
   activeInvocationFilter: WorkflowPublishInvocationActiveFilter | null;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 
 type WorkflowPublishActivityDetailLinkOptions = {
   workflowId: string;
   bindingId?: string | null;
   activeInvocationFilter?: WorkflowPublishInvocationActiveFilter | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 
 export type WorkflowPublishActivityDetailLinks = {
@@ -158,7 +161,8 @@ export function buildRunStatusOptions(
 export function resolveWorkflowPublishActivityDetailLinks({
   workflowId,
   bindingId,
-  activeInvocationFilter
+  activeInvocationFilter,
+  workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishActivityDetailLinkOptions): WorkflowPublishActivityDetailLinks {
   return {
     buildInvocationDetailHref: (invocationId) =>
@@ -166,12 +170,14 @@ export function resolveWorkflowPublishActivityDetailLinks({
         workflowId,
         bindingId,
         activeInvocationFilter,
-        invocationId
+        invocationId,
+        workspaceStarterGovernanceQueryScope
       }),
     clearInvocationDetailHref: buildWorkflowPublishActivityHref({
       workflowId,
       bindingId,
-      activeInvocationFilter
+      activeInvocationFilter,
+      workspaceStarterGovernanceQueryScope
     })
   };
 }

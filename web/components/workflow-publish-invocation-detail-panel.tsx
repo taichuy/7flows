@@ -61,6 +61,10 @@ import {
   buildSandboxReadinessFollowUpCandidate,
   shouldPreferSharedSandboxReadinessFollowUp
 } from "@/lib/system-overview-follow-up-presenters";
+import {
+  buildRunDetailHrefFromWorkspaceStarterViewState,
+  type WorkspaceStarterGovernanceQueryScope
+} from "@/lib/workspace-starter-governance-query";
 
 type WorkflowPublishInvocationDetailPanelProps = {
   detail: PublishedEndpointInvocationDetailResponse;
@@ -70,6 +74,7 @@ type WorkflowPublishInvocationDetailPanelProps = {
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
   selectedNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 export function WorkflowPublishInvocationDetailPanel({
   detail,
@@ -78,7 +83,8 @@ export function WorkflowPublishInvocationDetailPanel({
   tools,
   callbackWaitingAutomation,
   sandboxReadiness,
-  selectedNextStepSurface = null
+  selectedNextStepSurface = null,
+  workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishInvocationDetailPanelProps) {
   const entrySurfaceCopy = buildPublishedInvocationEntrySurfaceCopy();
   const {
@@ -176,6 +182,13 @@ export function WorkflowPublishInvocationDetailPanel({
     runId: run?.id,
     hrefLabel: detailSurfaceCopy.openRunLabel
   });
+  const scopedRunDrilldownHref =
+    run?.id && workspaceStarterGovernanceQueryScope
+      ? buildRunDetailHrefFromWorkspaceStarterViewState(
+          run.id,
+          workspaceStarterGovernanceQueryScope
+        )
+      : null;
   const skillTraceSurface = skillTrace ? buildPublishedInvocationSkillTraceSurface(skillTrace) : null;
   const recommendedNextStep = buildPublishedInvocationRecommendedNextStep({
     runId,
@@ -242,7 +255,7 @@ export function WorkflowPublishInvocationDetailPanel({
           <div className="payload-card-header">
             <span className="status-meta">{detailSurfaceCopy.runDrilldownTitle}</span>
             {runDrilldownLink ? (
-              <Link className="inline-link" href={runDrilldownLink.href}>
+              <Link className="inline-link" href={scopedRunDrilldownHref ?? runDrilldownLink.href}>
                 {runDrilldownLink.label}
               </Link>
             ) : null}
@@ -376,8 +389,15 @@ export function WorkflowPublishInvocationDetailPanel({
                           hrefLabel: sample.run_id
                         });
 
+                        const scopedSampleRunHref = workspaceStarterGovernanceQueryScope
+                          ? buildRunDetailHrefFromWorkspaceStarterViewState(
+                              sample.run_id,
+                              workspaceStarterGovernanceQueryScope
+                            )
+                          : null;
+
                         return sampleRunLink ? (
-                          <Link className="inline-link" href={sampleRunLink.href}>
+                          <Link className="inline-link" href={scopedSampleRunHref ?? sampleRunLink.href}>
                             {sampleRunLink.label}
                           </Link>
                         ) : null;
