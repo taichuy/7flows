@@ -140,6 +140,15 @@ function printSection(title) {
   console.log(`\n=== ${title} ===`);
 }
 
+function shouldAllowAlertApiFallback() {
+  return process.env.CHECK_DEPENDABOT_DRIFT_ALERTS_OPTIONAL === '1';
+}
+
+function isDependabotAlertPermissionError(error) {
+  const message = String(error?.message || '');
+  return message.includes('dependabot/alerts') && message.includes('Resource not accessible by integration');
+}
+
 function buildMarkdownSummary({
   repository,
   defaultBranch,
@@ -147,6 +156,7 @@ function buildMarkdownSummary({
   openAlerts,
   results,
   actionableAlerts,
+  alertsUnavailable = false,
 }) {
   const lines = [
     '## GitHub 安全告警漂移检查',
@@ -167,7 +177,11 @@ function buildMarkdownSummary({
   lines.push('');
   lines.push('### Dependabot open alerts');
 
-  if (openAlerts.length === 0) {
+  if (alertsUnavailable) {
+    lines.push('');
+    lines.push('- 当前 token 无法读取 Dependabot alerts（`Resource not accessible by integration`）。');
+    lines.push('- 请为 workflow 配置 `DEPENDABOT_ALERTS_TOKEN`，或在本地使用具备告警读取权限的 `gh` 凭证重新运行。');
+  } else if (openAlerts.length === 0) {
     lines.push('');
     lines.push('- 当前没有 open alert。');
   } else {
@@ -185,6 +199,15 @@ function buildMarkdownSummary({
   lines.push('');
   lines.push('### 结论');
   lines.push('');
+
+  if (alertsUnavailable) {
+    lines.push('- 当前 workflow token 只能继续复验 `dependencyGraphManifests` 等仓库事实，无法直接比较 Dependabot open alerts。');
+    lines.push('- 若要在 workflow 中保留完整 drift 对比，请为仓库 secret 配置 `DEPENDABOT_ALERTS_TOKEN`。');
+    if (manifestNodes.length === 0) {
+      lines.push('- 同时当前 GraphQL 依赖图依旧没有返回 manifest，仍需继续检查 `Security & analysis` 中的 `Dependency graph` 与 `Automatic dependency submission`。');
+    }
+    return lines.join('\n');
+  }
 
   if (openAlerts.length === 0) {
     lines.push('- 当前没有 open alert。');
@@ -230,13 +253,24 @@ function main() {
       'query=query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { defaultBranchRef { name } dependencyGraphManifests(first: 100) { nodes { filename dependenciesCount parseable exceedsMaxSize } } } }',
     ]),
   );
-  const alerts = JSON.parse(
-    run('gh', ['api', `repos/${repository.owner}/${repository.repo}/dependabot/alerts`, '--paginate']),
-  );
-  const openAlerts = alerts.filter((alert) => alert.state === 'open');
+  let alerts = [];
+  let alertsUnavailable = false;
+
+  try {
+    alerts = JSON.parse(
+      run('gh', ['api', `repos/${repository.owner}/${repository.repo}/dependabot/alerts`, '--paginate']),
+    );
+  } catch (error) {
+    if (shouldAllowAlertApiFallback() && isDependabotAlertPermissionError(error)) {
+      alertsUnavailable = true;
+    } else {
+      throw error;
+    }
+  }
+
+  const openAlerts = alertsUnavailable ? [] : alerts.filter((alert) => alert.state === 'open');
   const manifestNodes = repositoryData.data.repository.dependencyGraphManifests.nodes;
-  const results = openAlerts.map(evaluateAlert);
-  const staleAlerts = results.filter((result) => result.state === 'patched-locally');
+  const results = alertsUnavailable ? [] : openAlerts.map(evaluateAlert);
   const actionableAlerts = results.filter((result) => result.state !== 'patched-locally');
 
   printSection('仓库事实');
@@ -248,6 +282,27 @@ function main() {
   });
 
   printSection('Dependabot open alerts');
+  if (alertsUnavailable) {
+    console.log('当前 token 无法读取 Dependabot alerts（HTTP 403: Resource not accessible by integration）。');
+    console.log('请为 workflow 配置 DEPENDABOT_ALERTS_TOKEN，或在本地使用具备告警读取权限的 gh 凭证重新运行。');
+    writeMarkdownSummary({
+      repository,
+      defaultBranch: repositoryData.data.repository.defaultBranchRef?.name,
+      manifestNodes,
+      openAlerts,
+      results,
+      actionableAlerts,
+      alertsUnavailable,
+    });
+    printSection('结论');
+    console.log('当前 workflow token 只能继续复验 dependencyGraphManifests 等仓库事实，无法直接比较 Dependabot open alerts。');
+    if (manifestNodes.length === 0) {
+      console.log('GitHub GraphQL 依赖图当前没有返回任何 manifest，仍需继续检查仓库 Settings -> Security & analysis 中的 Dependency graph 与 Automatic dependency submission。');
+    }
+    console.log('若要在 workflow 中保留完整 drift 对比，请为仓库 secret 配置 DEPENDABOT_ALERTS_TOKEN。');
+    process.exit(3);
+  }
+
   if (openAlerts.length === 0) {
     console.log('当前没有 open alert。');
     writeMarkdownSummary({
@@ -257,6 +312,7 @@ function main() {
       openAlerts,
       results,
       actionableAlerts,
+      alertsUnavailable,
     });
     process.exit(0);
   }
@@ -285,6 +341,7 @@ function main() {
       openAlerts,
       results,
       actionableAlerts,
+      alertsUnavailable,
     });
     process.exit(2);
   }
@@ -297,6 +354,7 @@ function main() {
     openAlerts,
     results,
     actionableAlerts,
+    alertsUnavailable,
   });
   process.exit(1);
 }

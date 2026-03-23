@@ -51,10 +51,12 @@ node scripts/check-dependabot-drift.js
   - 每日定时 `schedule`
   - `taichuy_dev` 上与 `web/package.json`、`web/pnpm-lock.yaml`、`scripts/check-dependabot-drift.js` 相关的 push
 - 工作流会上传 `dependabot-drift-report` artifact，并把摘要写入 workflow summary。
+- 工作流会优先读取仓库 secret `DEPENDABOT_ALERTS_TOKEN`；如果未配置，则退回 `github.token`，并在无法读取 Dependabot alerts 时输出降级 warning，而不是把整条自动复验链直接打断。
 - exit code 解释与本地一致：
   - `0`：没有 open alert
   - `1`：仍有真实未修或无法解析的告警，工作流失败
   - `2`：已确认是平台状态漂移，工作流保留 warning 与证据，但不把本轮代码视为失败
+-  `3`：workflow token 无法读取 Dependabot alerts；工作流会继续保留 dependency graph 事实与 warning，但完整 drift 对比仍需 `DEPENDABOT_ALERTS_TOKEN` 或本地 `gh` 凭证。
 - 当管理员完成 `Security & analysis` 检查后，优先手动重跑该 workflow，再判断告警是否自动收口。
 
 ## 当前仓库已验证的信号

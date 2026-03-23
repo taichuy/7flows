@@ -35,7 +35,8 @@ jobs:
       - name: Check Dependabot drift
         id: drift
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.DEPENDABOT_ALERTS_TOKEN != '' && secrets.DEPENDABOT_ALERTS_TOKEN || github.token }}
+          CHECK_DEPENDABOT_DRIFT_ALERTS_OPTIONAL: '1'
         shell: bash
         run: |
           set +e
@@ -53,6 +54,9 @@ jobs:
               ;;
             2)
               echo "::warning::Dependabot open alerts drift from the current lockfile fact. Review the workflow summary and keep the evidence before dismissing alerts."
+              ;;
+            3)
+              echo "::warning::Workflow token cannot read Dependabot alerts. Review the summary, and add DEPENDABOT_ALERTS_TOKEN if you want full drift comparison inside GitHub Actions."
               ;;
             *)
               echo "::error::Unexpected exit code: ${status}"
