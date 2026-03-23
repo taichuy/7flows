@@ -8,6 +8,12 @@ import type {
   WorkspaceStarterBulkPreview,
   WorkspaceStarterSourceGovernanceScopeSummary
 } from "@/lib/get-workspace-starters";
+import {
+  buildWorkspaceStarterBulkResultSurfaceCopy,
+  getWorkspaceStarterBulkActionButtonLabel,
+  getWorkspaceStarterBulkActionLabel,
+  getWorkspaceStarterBulkSkipReasonLabel
+} from "@/lib/workspace-starter-mutation-presenters";
 
 import {
   buildWorkspaceStarterBulkResultSurface,
@@ -16,10 +22,7 @@ import {
   type WorkspaceStarterSourceGovernanceFocusTarget,
   type WorkspaceStarterSourceGovernancePrimaryFollowUp,
   buildWorkspaceStarterBulkPreviewNarrative,
-  buildWorkspaceStarterBulkResultNarrative,
-  getWorkspaceStarterBulkActionButtonLabel,
-  getWorkspaceStarterBulkActionLabel,
-  getWorkspaceStarterBulkSkipReasonLabel
+  buildWorkspaceStarterBulkResultNarrative
 } from "./shared";
 
 type WorkspaceStarterBulkGovernanceCardProps = {
@@ -71,6 +74,7 @@ export function WorkspaceStarterBulkGovernanceCard({
   const narrativeItems = lastResult ? buildWorkspaceStarterBulkResultNarrative(lastResult) : [];
   const primaryResultFocusTarget = resultFocusTargets[0] ?? null;
   const resultSurface = lastResult ? buildWorkspaceStarterBulkResultSurface(lastResult) : null;
+  const resultSurfaceCopy = buildWorkspaceStarterBulkResultSurfaceCopy();
   const recommendedNextStep = resultSurface?.recommendedNextStep ?? null;
 
   return (
@@ -268,8 +272,7 @@ export function WorkspaceStarterBulkGovernanceCard({
             <div className="binding-section">
               <p className="binding-meta">Recommended next step</p>
               <p className="section-copy starter-summary-copy">
-                同一份 result receipt 现在会先投影稳定的 next-step presenter；`follow_up` 只保留为解释文本，
-                不再承担主要导航语义。
+                {resultSurfaceCopy.recommendedNextStepDescription}
               </p>
               {resultSurface?.primarySignal ? (
                 <p className="section-copy starter-summary-copy">
@@ -318,8 +321,7 @@ export function WorkspaceStarterBulkGovernanceCard({
             <div className="binding-section">
               <p className="binding-meta">Result receipt focus</p>
               <p className="section-copy starter-summary-copy">
-                result receipt 已把“已处理 / 已跳过”的 starter 收口到同一张清单里；点击任一条目会自动
-                切换筛选范围，并把右侧详情聚焦到对应模板的 source diff / metadata。
+                {resultSurfaceCopy.focusDescription}
               </p>
               <div className="starter-tag-row">
                 {resultFocusTargets.map((item) => (

@@ -25,24 +25,27 @@ import {
 import { getWorkflowBusinessTrack } from "@/lib/workflow-business-tracks";
 
 import {
-  buildWorkspaceStarterLibrarySearchParams,
-  buildBulkActionMessage,
-  buildFormState,
+  buildWorkspaceStarterBulkActionErrorMessage,
+  buildWorkspaceStarterBulkActionPendingMessage,
   buildWorkspaceStarterMutationFallbackErrorMessage,
   buildWorkspaceStarterMutationNetworkErrorMessage,
   buildWorkspaceStarterMutationPendingMessage,
   buildWorkspaceStarterMutationSuccessMessage,
+  getWorkspaceStarterBulkActionConfirmationMessage,
+  type WorkspaceStarterMessageTone
+} from "@/lib/workspace-starter-mutation-presenters";
+import {
+  buildWorkspaceStarterLibrarySearchParams,
+  buildBulkActionMessage,
+  buildFormState,
   buildUpdatePayload,
   filterWorkspaceStarterTemplates,
-  getWorkspaceStarterBulkActionConfirmationMessage,
-  getWorkspaceStarterBulkActionLabel,
   summarizeValidationIssues,
   type ArchiveFilter,
   type SourceGovernanceFilter,
   type TrackFilter,
   type WorkspaceStarterFormState,
-  type WorkspaceStarterLibraryViewState,
-  type WorkspaceStarterMessageTone
+  type WorkspaceStarterLibraryViewState
 } from "./shared";
 import { useWorkspaceStarterSource } from "./use-workspace-starter-source";
 
@@ -479,7 +482,6 @@ export function useWorkspaceStarterLibraryState(
       return;
     }
 
-    const actionLabel = getWorkspaceStarterBulkActionLabel(action);
     const requiresConfirmation = action === "rebase" || action === "delete";
     const shouldContinue =
       !requiresConfirmation ||
@@ -489,7 +491,7 @@ export function useWorkspaceStarterLibraryState(
     }
 
     startBulkMutatingTransition(async () => {
-      setMessage(`正在对当前筛选结果批量${actionLabel}...`);
+      setMessage(buildWorkspaceStarterBulkActionPendingMessage(action));
       setMessageTone("idle");
 
       try {
@@ -529,7 +531,9 @@ export function useWorkspaceStarterLibraryState(
         setMessage(buildBulkActionMessage(result));
         setMessageTone(result.updated_count > 0 ? "success" : "idle");
       } catch (error) {
-        setMessage(error instanceof Error ? error.message : `批量${actionLabel}失败。`);
+        setMessage(
+          error instanceof Error ? error.message : buildWorkspaceStarterBulkActionErrorMessage(action)
+        );
         setMessageTone("error");
       }
     });

@@ -8,6 +8,10 @@ import {
 } from "@/lib/workflow-business-tracks";
 import type { WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
 import {
+  buildWorkspaceStarterMetadataIdleMessage,
+  type WorkspaceStarterMessageTone
+} from "@/lib/workspace-starter-mutation-presenters";
+import {
   buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   type WorkspaceStarterGovernanceQueryScope
 } from "@/lib/workspace-starter-governance-query";
@@ -17,7 +21,7 @@ import {
   buildWorkspaceStarterSourceGovernancePresenter,
   resolveWorkspaceStarterCreateWorkflowActionLabel
 } from "./shared";
-import type { WorkspaceStarterFormState, WorkspaceStarterMessageTone } from "./shared";
+import type { WorkspaceStarterFormState } from "./shared";
 
 type WorkspaceStarterMetadataPanelProps = {
   selectedTemplate: WorkspaceStarterTemplateItem | null;
@@ -268,8 +272,7 @@ export function WorkspaceStarterMetadataPanel({
             </div>
 
             <p className={`sync-message ${messageTone}`}>
-              {message ??
-                "更新后会直接写回 workspace starter library，创建页会立刻复用最新元数据。"}
+              {message ?? buildWorkspaceStarterMetadataIdleMessage()}
             </p>
           </div>
         </>

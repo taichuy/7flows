@@ -9,14 +9,13 @@ import {
   type WorkspaceStarterSourceDiff,
   type WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
-
 import {
   buildWorkspaceStarterMutationFallbackErrorMessage,
   buildWorkspaceStarterMutationNetworkErrorMessage,
   buildWorkspaceStarterMutationPendingMessage,
   buildWorkspaceStarterMutationSuccessMessage,
   type WorkspaceStarterMessageTone
-} from "./shared";
+} from "@/lib/workspace-starter-mutation-presenters";
 
 type UseWorkspaceStarterSourceOptions = {
   selectedTemplate: WorkspaceStarterTemplateItem | null;
