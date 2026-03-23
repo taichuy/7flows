@@ -169,4 +169,58 @@ describe("WorkflowEditorSidebar", () => {
     expect(html).toContain("fail-closed");
     expect(html).toContain("blocked sandbox");
   });
+
+  it("shows shared starter save follow-up links after saving a workspace starter", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorSidebar, {
+        workflowId: "workflow-1",
+        workflowName: "Demo workflow",
+        workflows: [],
+        nodeSourceLanes: [],
+        toolSourceLanes: [],
+        editorNodeLibrary: [],
+        plannedNodeLibrary: [],
+        unsupportedNodes: [],
+        message: "已保存 workspace starter：Starter A。",
+        messageTone: "success",
+        messageKind: "workspace_starter_saved",
+        persistBlockerSummary: null,
+        persistBlockers: [],
+        executionPreflightMessage: null,
+        toolExecutionValidationIssueCount: 0,
+        validationNavigatorItems: [],
+        runs: [],
+        selectedRunId: null,
+        run: null,
+        runSnapshot: null,
+        trace: null,
+        traceError: null,
+        selectedNodeId: null,
+        sandboxReadiness: buildSandboxReadiness(),
+        createWorkflowHref:
+          "/workflows/new?needs_follow_up=true&q=drift&source_governance_kind=drifted",
+        workspaceStarterLibraryHref:
+          "/workspace-starters?needs_follow_up=true&q=drift&source_governance_kind=drifted",
+        hasScopedWorkspaceStarterFilters: true,
+        isLoadingRunOverlay: false,
+        isRefreshingRuns: false,
+        onWorkflowNameChange: () => undefined,
+        onAddNode: () => undefined,
+        onNavigateValidationIssue: () => undefined,
+        onSelectRunId: () => undefined,
+        onRefreshRuns: () => undefined
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("query scope");
+    expect(html).toContain("回到治理页");
+    expect(html).toContain("再新建一个 workflow");
+    expect(html).toContain(
+      'href="/workspace-starters?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted"'
+    );
+    expect(html).toContain(
+      'href="/workflows/new?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted"'
+    );
+  });
 });

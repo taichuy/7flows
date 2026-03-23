@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import type { RunSnapshotWithId } from "@/app/actions/run-snapshot";
 import type {
   WorkflowLibrarySourceLane,
@@ -19,7 +20,10 @@ import {
   buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   type WorkspaceStarterGovernanceQueryScope
 } from "@/lib/workspace-starter-governance-query";
-import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
+import {
+  buildAuthorFacingWorkflowDetailLinkSurface,
+  buildWorkflowEditorStarterSaveSurfaceCopy
+} from "@/lib/workbench-entry-surfaces";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-blocker-notice";
@@ -28,7 +32,7 @@ import { WorkflowRunOverlayPanel } from "@/components/workflow-run-overlay-panel
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
 
 import type { WorkflowPersistBlocker } from "./persist-blockers";
-import type { WorkflowEditorMessageTone } from "./shared";
+import type { WorkflowEditorMessageKind, WorkflowEditorMessageTone } from "./shared";
 
 type WorkflowEditorSidebarProps = {
   workflowId: string;
@@ -41,6 +45,7 @@ type WorkflowEditorSidebarProps = {
   unsupportedNodes: UnsupportedWorkflowNodeSummary[];
   message: string | null;
   messageTone: WorkflowEditorMessageTone;
+  messageKind?: WorkflowEditorMessageKind;
   persistBlockerSummary: string | null;
   persistBlockers: WorkflowPersistBlocker[];
   executionPreflightMessage: string | null;
@@ -58,6 +63,9 @@ type WorkflowEditorSidebarProps = {
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
+  createWorkflowHref?: string;
+  workspaceStarterLibraryHref?: string;
+  hasScopedWorkspaceStarterFilters?: boolean;
   isLoadingRunOverlay: boolean;
   isRefreshingRuns: boolean;
   onWorkflowNameChange: (value: string) => void;
@@ -78,6 +86,7 @@ export function WorkflowEditorSidebar({
   unsupportedNodes,
   message,
   messageTone,
+  messageKind = "default",
   persistBlockerSummary,
   persistBlockers,
   executionPreflightMessage,
@@ -95,6 +104,9 @@ export function WorkflowEditorSidebar({
   callbackWaitingAutomation,
   sandboxReadiness,
   workspaceStarterGovernanceQueryScope = null,
+  createWorkflowHref = "/workflows/new",
+  workspaceStarterLibraryHref = "/workspace-starters",
+  hasScopedWorkspaceStarterFilters = false,
   isLoadingRunOverlay,
   isRefreshingRuns,
   onWorkflowNameChange,
@@ -113,6 +125,14 @@ export function WorkflowEditorSidebar({
     (persistBlockers.length > 0
       ? "选择一个待修正项或点击保存，编辑器会跳到首个阻断点。"
       : "选择节点或连线后，这里会显示编辑器反馈。");
+  const starterSaveSurfaceCopy =
+    messageKind === "workspace_starter_saved"
+      ? buildWorkflowEditorStarterSaveSurfaceCopy({
+          createWorkflowHref,
+          workspaceStarterLibraryHref,
+          hasScopedWorkspaceStarterFilters
+        })
+      : null;
 
   return (
     <aside className="editor-sidebar">
@@ -279,6 +299,14 @@ export function WorkflowEditorSidebar({
         ) : null}
 
         <p className={`sync-message ${messageTone}`}>{feedbackMessage}</p>
+
+        {starterSaveSurfaceCopy ? (
+          <div className="binding-field compact-stack">
+            <span className="binding-label">{starterSaveSurfaceCopy.nextStepTitle}</span>
+            <small className="section-copy">{starterSaveSurfaceCopy.description}</small>
+            <WorkbenchEntryLinks {...starterSaveSurfaceCopy.nextStepLinks} />
+          </div>
+        ) : null}
 
         <SandboxReadinessOverviewCard
           readiness={sandboxReadiness}

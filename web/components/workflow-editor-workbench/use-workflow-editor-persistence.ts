@@ -16,6 +16,11 @@ import {
   WorkspaceStarterValidationError
 } from "@/lib/get-workspace-starters";
 import { buildWorkspaceStarterPayload } from "@/lib/workspace-starter-payload";
+import {
+  buildWorkspaceStarterMutationNetworkErrorMessage,
+  buildWorkspaceStarterMutationPendingMessage,
+  buildWorkspaceStarterMutationSuccessMessage
+} from "@/lib/workspace-starter-mutation-presenters";
 import { inferWorkflowBusinessTrack } from "@/lib/workflow-starters";
 import {
   buildWorkflowValidationNavigatorItems,
@@ -30,7 +35,7 @@ import {
   summarizePreflightIssues,
   summarizeWorkspaceStarterValidationIssues
 } from "./use-workflow-editor-validation";
-import type { WorkflowEditorMessageTone } from "./shared";
+import type { WorkflowEditorMessageKind, WorkflowEditorMessageTone } from "./shared";
 
 type UseWorkflowEditorPersistenceOptions = {
   workflowId: string;
@@ -49,6 +54,7 @@ type UseWorkflowEditorPersistenceOptions = {
   setServerValidationIssueSourceSignature: Dispatch<SetStateAction<string>>;
   setMessage: Dispatch<SetStateAction<string | null>>;
   setMessageTone: Dispatch<SetStateAction<WorkflowEditorMessageTone>>;
+  setMessageKind: Dispatch<SetStateAction<WorkflowEditorMessageKind>>;
   focusNode: (nodeId: string | null) => void;
   setValidationFocusItem: Dispatch<SetStateAction<WorkflowValidationNavigatorItem | null>>;
 };
@@ -70,6 +76,7 @@ export function useWorkflowEditorPersistence({
   setServerValidationIssueSourceSignature,
   setMessage,
   setMessageTone,
+  setMessageKind,
   focusNode,
   setValidationFocusItem
 }: UseWorkflowEditorPersistenceOptions) {
@@ -89,6 +96,7 @@ export function useWorkflowEditorPersistence({
 
   const handleSave = () => {
     if (persistBlockedMessage) {
+      setMessageKind("default");
       applyValidationFocus(pickWorkflowValidationRemediationItem(validationNavigatorItems));
       setMessage(persistBlockedMessage);
       setMessageTone("error");
@@ -96,6 +104,7 @@ export function useWorkflowEditorPersistence({
     }
 
     startSavingTransition(async () => {
+      setMessageKind("default");
       setMessage("正在保存 workflow definition...");
       setMessageTone("idle");
 
@@ -112,6 +121,7 @@ export function useWorkflowEditorPersistence({
         setWorkflowVersion(body?.version ?? workflowVersion);
         setServerValidationIssues(body?.definition_issues ?? []);
         setServerValidationIssueSourceSignature(JSON.stringify(body?.definition ?? preflight.definition));
+        setMessageKind("default");
         setMessage(`已保存 workflow，当前版本 ${body?.version ?? workflowVersion}。`);
         setMessageTone("success");
       } catch (error) {
@@ -135,6 +145,7 @@ export function useWorkflowEditorPersistence({
           error.issues.some((issue) => issue.category === "tool_execution")
             ? formatSandboxReadinessPreflightHint(sandboxReadiness)
             : null;
+        setMessageKind("default");
         setMessage(
           error instanceof WorkflowDefinitionPreflightError
             ? [error.message, preflightIssueSummary, sandboxReadinessPreflightHint]
@@ -153,12 +164,14 @@ export function useWorkflowEditorPersistence({
     applyValidationFocus(item);
 
     const remediation = buildWorkflowValidationRemediation(item, sandboxReadiness);
+    setMessageKind("default");
     setMessage(`已定位到 ${remediation.title}。${remediation.suggestion}`);
     setMessageTone("error");
   };
 
   const handleSaveAsWorkspaceStarter = () => {
     if (persistBlockedMessage) {
+      setMessageKind("default");
       applyValidationFocus(pickWorkflowValidationRemediationItem(validationNavigatorItems));
       setMessage(persistBlockedMessage);
       setMessageTone("error");
@@ -175,24 +188,32 @@ export function useWorkflowEditorPersistence({
     });
 
     startSaveStarterTransition(async () => {
-      setMessage("正在保存到 workspace starter library...");
+      setMessageKind("default");
+      setMessage(buildWorkspaceStarterMutationPendingMessage("create"));
       setMessageTone("idle");
 
       try {
         const body = await createWorkspaceStarterTemplate(starterPayload);
-        setMessage(`已保存 workspace starter：${body?.name ?? starterPayload.name}。回到创建页即可复用。`);
+        setMessageKind("workspace_starter_saved");
+        setMessage(
+          buildWorkspaceStarterMutationSuccessMessage({
+            action: "create",
+            templateName: body?.name ?? starterPayload.name
+          })
+        );
         setMessageTone("success");
       } catch (error) {
         const validationSummary =
           error instanceof WorkspaceStarterValidationError
             ? summarizeWorkspaceStarterValidationIssues(error.issues)
             : null;
+        setMessageKind("default");
         setMessage(
           error instanceof WorkspaceStarterValidationError
             ? validationSummary
               ? `${error.message}（${validationSummary}）`
               : error.message
-            : "无法连接后端保存 workspace starter，请确认 API 已启动。"
+            : buildWorkspaceStarterMutationNetworkErrorMessage("create")
         );
         setMessageTone("error");
       }

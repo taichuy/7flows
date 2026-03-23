@@ -27,7 +27,10 @@ import { getPaletteNodeCatalog, getPlannedNodeCatalog } from "@/lib/workflow-nod
 
 import { WorkflowEditorCanvas } from "@/components/workflow-editor-workbench/workflow-editor-canvas";
 import { WorkflowEditorHero } from "@/components/workflow-editor-workbench/workflow-editor-hero";
-import { type WorkflowEditorMessageTone } from "@/components/workflow-editor-workbench/shared";
+import {
+  type WorkflowEditorMessageKind,
+  type WorkflowEditorMessageTone
+} from "@/components/workflow-editor-workbench/shared";
 import { WorkflowEditorSidebar } from "@/components/workflow-editor-workbench/workflow-editor-sidebar";
 import { summarizeWorkflowPersistBlockers } from "@/components/workflow-editor-workbench/persist-blockers";
 import {
@@ -79,6 +82,7 @@ export function WorkflowEditorWorkbench({
   const plannedNodeLibrary = getPlannedNodeCatalog(nodeCatalog);
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<WorkflowEditorMessageTone>("idle");
+  const [messageKind, setMessageKind] = useState<WorkflowEditorMessageKind>("default");
   const persistedDefinitionSignature = useMemo(
     () => JSON.stringify(workflow.definition),
     [workflow.definition]
@@ -158,9 +162,22 @@ export function WorkflowEditorWorkbench({
     setServerValidationIssueSourceSignature,
     setMessage,
     setMessageTone,
+    setMessageKind,
     focusNode: graph.focusNode,
     setValidationFocusItem
   });
+
+  useEffect(() => {
+    if (messageKind !== "workspace_starter_saved") {
+      return;
+    }
+
+    if (messageTone === "success" && message?.startsWith("已保存 workspace starter：")) {
+      return;
+    }
+
+    setMessageKind("default");
+  }, [message, messageKind, messageTone]);
 
   useEffect(() => {
     setServerValidationIssues(workflow.definition_issues ?? []);
@@ -235,6 +252,7 @@ export function WorkflowEditorWorkbench({
             unsupportedNodes={validation.unsupportedNodes}
             message={message}
             messageTone={messageTone}
+            messageKind={messageKind}
             persistBlockerSummary={persistBlockerSummary}
             persistBlockers={validation.persistBlockers}
             executionPreflightMessage={executionPreflightMessage}
@@ -252,6 +270,9 @@ export function WorkflowEditorWorkbench({
             callbackWaitingAutomation={callbackWaitingAutomation}
             sandboxReadiness={sandboxReadiness}
             workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
+            createWorkflowHref={createWorkflowHref}
+            workspaceStarterLibraryHref={workspaceStarterLibraryHref}
+            hasScopedWorkspaceStarterFilters={hasScopedWorkspaceStarterFilters}
             isLoadingRunOverlay={runOverlay.isLoadingRunOverlay}
             isRefreshingRuns={runOverlay.isRefreshingRuns}
             onWorkflowNameChange={graph.setWorkflowName}

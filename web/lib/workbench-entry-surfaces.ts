@@ -79,6 +79,12 @@ export type WorkflowEditorHeroSurfaceCopy = {
   scopedGovernanceCreateWorkflowLabel: string;
 };
 
+export type WorkflowEditorStarterSaveSurfaceCopy = {
+  description: string;
+  nextStepTitle: string;
+  nextStepLinks: WorkbenchEntryLinksConfig;
+};
+
 export type WorkflowPublishPanelSurfaceCopy = {
   eyebrow: string;
   title: string;
@@ -367,6 +373,51 @@ export function buildWorkflowEditorHeroSurfaceCopy({
     scopedGovernanceBackLinkLabel: "回到治理页",
     scopedGovernanceInfix: "继续 follow-up，或在同一范围内",
     scopedGovernanceCreateWorkflowLabel: "再新建一个 workflow"
+  };
+}
+
+export function buildWorkflowEditorStarterSaveSurfaceCopy({
+  createWorkflowHref,
+  workspaceStarterLibraryHref,
+  hasScopedWorkspaceStarterFilters = false
+}: {
+  createWorkflowHref: string;
+  workspaceStarterLibraryHref: string;
+  hasScopedWorkspaceStarterFilters?: boolean;
+}): WorkflowEditorStarterSaveSurfaceCopy {
+  const heroSurfaceCopy = buildWorkflowEditorHeroSurfaceCopy({
+    createWorkflowHref,
+    workspaceStarterLibraryHref,
+    plannedNodeSummary: null
+  });
+  const createWizardSurfaceCopy = buildWorkflowCreateWizardSurfaceCopy({
+    starterGovernanceHref: workspaceStarterLibraryHref
+  });
+
+  return {
+    description: hasScopedWorkspaceStarterFilters
+      ? "这个保存结果继续复用当前 workspace starter 治理页的 query scope；优先回到治理页确认来源 follow-up，再在同一范围内创建 workflow 验证它已可复用。"
+      : "这个保存结果已经写回 workspace starter library；创建页会直接复用最新 starter 元数据，不再要求作者手动回填治理上下文。",
+    nextStepTitle: createWizardSurfaceCopy.recommendedNextStepTitle,
+    nextStepLinks: {
+      keys: ["workspaceStarterLibrary", "createWorkflow"],
+      overrides: {
+        workspaceStarterLibrary: {
+          href: workspaceStarterLibraryHref,
+          label: hasScopedWorkspaceStarterFilters
+            ? heroSurfaceCopy.scopedGovernanceBackLinkLabel
+            : createWizardSurfaceCopy.sourceGovernanceFollowUpLinkLabel
+        },
+        createWorkflow: {
+          href: createWorkflowHref,
+          label: hasScopedWorkspaceStarterFilters
+            ? heroSurfaceCopy.scopedGovernanceCreateWorkflowLabel
+            : createWizardSurfaceCopy.createWorkflowRecommendedNextStepLabel
+        }
+      },
+      primaryKey: "workspaceStarterLibrary",
+      variant: "inline"
+    }
   };
 }
 

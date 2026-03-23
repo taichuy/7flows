@@ -6,6 +6,7 @@ import {
   buildWorkspaceStarterBulkActionSuccessMessage,
   buildWorkspaceStarterBulkResultSurfaceCopy,
   buildWorkspaceStarterMetadataIdleMessage,
+  buildWorkspaceStarterMutationPendingMessage,
   buildWorkspaceStarterMutationNetworkErrorMessage,
   buildWorkspaceStarterMutationSuccessMessage,
   getWorkspaceStarterBulkActionConfirmationMessage,
@@ -14,6 +15,21 @@ import {
 } from "./workspace-starter-mutation-presenters";
 
 describe("workspace starter mutation presenters", () => {
+  it("keeps create/save copy on the shared mutation presenter", () => {
+    expect(buildWorkspaceStarterMutationPendingMessage("create")).toBe(
+      "正在保存到 workspace starter library..."
+    );
+    expect(
+      buildWorkspaceStarterMutationSuccessMessage({
+        action: "create",
+        templateName: "Starter A"
+      })
+    ).toBe("已保存 workspace starter：Starter A。");
+    expect(buildWorkspaceStarterMutationNetworkErrorMessage("create")).toContain(
+      "保存 workspace starter"
+    );
+  });
+
   it("keeps refresh and rebase sandbox drift success copy on the shared presenter", () => {
     expect(
       buildWorkspaceStarterMutationSuccessMessage({

@@ -7,7 +7,10 @@ import type {
 
 export type WorkspaceStarterMessageTone = "idle" | "success" | "error";
 
-export type WorkspaceStarterTemplateMutationAction = "update" | WorkspaceStarterBulkAction;
+export type WorkspaceStarterTemplateMutationAction =
+  | "create"
+  | "update"
+  | WorkspaceStarterBulkAction;
 
 export type WorkspaceStarterBulkResultSurfaceCopy = {
   recommendedNextStepDescription: string;
@@ -71,6 +74,8 @@ export function buildWorkspaceStarterMutationPendingMessage(
   action: WorkspaceStarterTemplateMutationAction
 ) {
   switch (action) {
+    case "create":
+      return "正在保存到 workspace starter library...";
     case "update":
       return "正在更新 workspace starter...";
     case "archive":
@@ -96,6 +101,8 @@ export function buildWorkspaceStarterMutationSuccessMessage({
   templateName: string;
 }) {
   switch (action) {
+    case "create":
+      return `已保存 workspace starter：${templateName}。`;
     case "update":
       return `已更新 workspace starter：${templateName}。`;
     case "archive":
@@ -119,6 +126,8 @@ export function buildWorkspaceStarterMutationFallbackErrorMessage(
   action: WorkspaceStarterTemplateMutationAction
 ) {
   switch (action) {
+    case "create":
+      return "保存失败。";
     case "update":
       return "更新失败。";
     case "archive":
@@ -138,6 +147,8 @@ export function buildWorkspaceStarterMutationNetworkErrorMessage(
   action: WorkspaceStarterTemplateMutationAction
 ) {
   switch (action) {
+    case "create":
+      return "无法连接后端保存 workspace starter，请确认 API 已启动。";
     case "update":
       return "无法连接后端更新 workspace starter，请确认 API 已启动。";
     case "archive":

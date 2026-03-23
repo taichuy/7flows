@@ -10,6 +10,7 @@ import {
   buildSensitiveAccessInboxSurfaceCopy,
   buildWorkflowCreateWizardSurfaceCopy,
   buildWorkflowEditorHeroSurfaceCopy,
+  buildWorkflowEditorStarterSaveSurfaceCopy,
   buildWorkflowLibrarySurfaceCopy,
   buildWorkflowPublishPanelSurfaceCopy,
   buildWorkspaceStarterGovernanceHeroSurfaceCopy,
@@ -246,5 +247,31 @@ describe("workbench entry surface copy", () => {
     expect(surfaceCopy.sourceGovernanceFollowUpLinkLabel).toBe(
       "管理这个 workspace starter"
     );
+  });
+
+  it("keeps workflow editor starter save follow-up on the shared surface contract", () => {
+    const surfaceCopy = buildWorkflowEditorStarterSaveSurfaceCopy({
+      createWorkflowHref:
+        "/workflows/new?needs_follow_up=true&q=drift&source_governance_kind=drifted",
+      workspaceStarterLibraryHref:
+        "/workspace-starters?needs_follow_up=true&q=drift&source_governance_kind=drifted",
+      hasScopedWorkspaceStarterFilters: true
+    });
+
+    expect(surfaceCopy.description).toContain("query scope");
+    expect(surfaceCopy.nextStepTitle).toBe("Recommended next step");
+    expect(surfaceCopy.nextStepLinks).toMatchObject({
+      keys: ["workspaceStarterLibrary", "createWorkflow"],
+      primaryKey: "workspaceStarterLibrary",
+      variant: "inline"
+    });
+    expect(surfaceCopy.nextStepLinks.overrides?.workspaceStarterLibrary).toMatchObject({
+      href: "/workspace-starters?needs_follow_up=true&q=drift&source_governance_kind=drifted",
+      label: "回到治理页"
+    });
+    expect(surfaceCopy.nextStepLinks.overrides?.createWorkflow).toMatchObject({
+      href: "/workflows/new?needs_follow_up=true&q=drift&source_governance_kind=drifted",
+      label: "再新建一个 workflow"
+    });
   });
 });
