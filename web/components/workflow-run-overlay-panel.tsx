@@ -22,6 +22,10 @@ import { buildOperatorRunSampleInboxHref } from "@/lib/operator-run-sample-cards
 import { buildExecutionFocusSurfaceDescription } from "@/lib/run-execution-focus-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
 import {
+  buildRunDetailHrefFromWorkspaceStarterViewState,
+  type WorkspaceStarterGovernanceQueryScope
+} from "@/lib/workspace-starter-governance-query";
+import {
   formatDuration,
   formatDurationMs,
   formatTimestamp
@@ -37,6 +41,7 @@ type WorkflowRunOverlayPanelProps = {
   selectedNodeId?: string | null;
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
   isLoading: boolean;
   isRefreshingRuns: boolean;
   onSelectRunId: (runId: string) => void;
@@ -53,6 +58,7 @@ export function WorkflowRunOverlayPanel({
   selectedNodeId,
   callbackWaitingAutomation,
   sandboxReadiness,
+  workspaceStarterGovernanceQueryScope = null,
   isLoading,
   isRefreshingRuns,
   onSelectRunId,
@@ -74,9 +80,20 @@ export function WorkflowRunOverlayPanel({
         showSensitiveAccessInlineActions: false
       }
     : undefined;
+  const resolveRunDetailHref = React.useCallback(
+    (candidateRunId: string) =>
+      workspaceStarterGovernanceQueryScope
+        ? buildRunDetailHrefFromWorkspaceStarterViewState(
+            candidateRunId,
+            workspaceStarterGovernanceQueryScope
+          )
+        : null,
+    [workspaceStarterGovernanceQueryScope]
+  );
   const runDrilldownLink = run
     ? buildOperatorRunDetailLinkSurface({
         runId: run.id,
+        runHref: resolveRunDetailHref(run.id),
         hrefLabel: "打开 run diagnostics"
       })
     : null;
@@ -195,6 +212,7 @@ export function WorkflowRunOverlayPanel({
                   <InlineOperatorActionFeedback
                     status="success"
                     message=""
+                    resolveRunDetailHref={resolveRunDetailHref}
                     runId={run.id}
                     runSnapshot={runSnapshotModel}
                     callbackWaitingSummaryProps={callbackWaitingSummaryProps}

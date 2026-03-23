@@ -19,6 +19,10 @@ import {
 } from "@/lib/operator-action-result-presenters";
 import type { CallbackWaitingSummaryProps } from "@/lib/callback-waiting-summary-props";
 import { buildSensitiveAccessNotificationRetryGuidance } from "@/lib/sensitive-access-notification-guidance";
+import {
+  buildRunDetailHrefFromWorkspaceStarterViewState,
+  readWorkspaceStarterLibraryViewState
+} from "@/lib/workspace-starter-governance-query";
 import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
 
 export const DEFAULT_INLINE_OPERATOR_ID = "studio-operator";
@@ -129,6 +133,18 @@ export function SensitiveAccessInlineActions({
     const search = searchParams?.toString();
     return search ? `${pathname}?${search}` : pathname;
   }, [pathname, searchParams]);
+  const workspaceStarterViewState = React.useMemo(
+    () => readWorkspaceStarterLibraryViewState(new URLSearchParams(searchParams?.toString())),
+    [searchParams]
+  );
+  const resolveRunDetailHref = React.useCallback(
+    (candidateRunId: string) =>
+      buildRunDetailHrefFromWorkspaceStarterViewState(
+        candidateRunId,
+        workspaceStarterViewState
+      ),
+    [workspaceStarterViewState]
+  );
   const [decisionState, decisionAction] = useActionState(
     decideSensitiveAccessApprovalTicket,
     initialDecisionState
@@ -186,6 +202,7 @@ export function SensitiveAccessInlineActions({
               currentHref={currentHref}
               message={decisionState.message}
               outcomeExplanation={decisionState.outcomeExplanation}
+              resolveRunDetailHref={resolveRunDetailHref}
               runFollowUpExplanation={decisionState.runFollowUpExplanation}
               runFollowUp={decisionState.runFollowUp}
               blockerDeltaSummary={decisionState.blockerDeltaSummary}
@@ -272,6 +289,7 @@ export function SensitiveAccessInlineActions({
               currentHref={currentHref}
               message={retryState.message}
               outcomeExplanation={retryState.outcomeExplanation}
+              resolveRunDetailHref={resolveRunDetailHref}
               runFollowUpExplanation={retryState.runFollowUpExplanation}
               runFollowUp={retryState.runFollowUp}
               blockerDeltaSummary={retryState.blockerDeltaSummary}

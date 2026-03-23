@@ -189,6 +189,60 @@ describe("InlineOperatorActionFeedback", () => {
     expect(html).toContain("先联系值班 operator 手动确认当前阻断。");
   });
 
+  it("preserves scoped run detail href through inline feedback and sampled runs", () => {
+    const resolveRunDetailHref = (runId: string) =>
+      `/runs/${runId}?needs_follow_up=true&q=starter&source_governance_kind=missing_source`;
+    const escapedScopedRunHref = resolveRunDetailHref("run-1").replaceAll("&", "&amp;");
+    const html = renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        message: "",
+        title: "Operator follow-up",
+        runId: "run-1",
+        resolveRunDetailHref,
+        runFollowUpExplanation: {
+          primary_signal: "当前 operator follow-up 已刷新。",
+          follow_up: "优先继续看当前 run detail。"
+        },
+        runFollowUp: {
+          affectedRunCount: 2,
+          sampledRunCount: 1,
+          waitingRunCount: 1,
+          runningRunCount: 0,
+          succeededRunCount: 0,
+          failedRunCount: 0,
+          unknownRunCount: 0,
+          sampledRuns: [
+            {
+              runId: "run-2",
+              snapshot: {
+                status: "waiting",
+                currentNodeId: "approval_gate",
+                executionFocusNodeId: "approval_gate",
+                executionFocusNodeRunId: "node-run-2",
+                executionFocusNodeName: "Approval Gate"
+              },
+              callbackTickets: [],
+              sensitiveAccessEntries: []
+            }
+          ]
+        }
+      })
+    );
+
+    expect(html).toContain(`href="${escapedScopedRunHref}"`);
+    expect(html).not.toContain('href="/runs/run-1"');
+    expect(runSampleListProps).toHaveLength(1);
+    expect(runSampleListProps[0]?.resolveRunDetailHref).toBe(resolveRunDetailHref);
+    expect(
+      (runSampleListProps[0]?.resolveRunDetailHref as ((runId: string) => string) | undefined)?.(
+        "run-2"
+      )
+    ).toBe(
+      "/runs/run-2?needs_follow_up=true&q=starter&source_governance_kind=missing_source"
+    );
+  });
+
   it("forwards callback waiting summary context to the shared summary card", () => {
     const inboxHref = "/sensitive-access?run_id=run-1&approval_ticket_id=ticket-1";
     const callbackWaitingAutomation = buildCallbackWaitingAutomation();

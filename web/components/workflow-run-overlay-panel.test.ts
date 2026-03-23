@@ -10,6 +10,7 @@ import type {
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
 import { DEFAULT_RUN_TRACE_LIMIT } from "@/lib/get-run-trace";
+import { buildRunDetailHrefFromWorkspaceStarterViewState } from "@/lib/workspace-starter-governance-query";
 
 const { exportActionSpy } = vi.hoisted(() => ({
   exportActionSpy: vi.fn()
@@ -360,5 +361,54 @@ describe("WorkflowRunOverlayPanel", () => {
 
     expect(html).toContain("/sensitive-access?run_id=run-1&amp;node_run_id=node-run-1");
     expect(html).toContain("scheduler is currently backlogged.");
+  });
+
+  it("keeps workspace starter scope on run diagnostics drilldown", () => {
+    const workspaceStarterGovernanceQueryScope = {
+      activeTrack: "应用新建编排" as const,
+      sourceGovernanceKind: "missing_source" as const,
+      needsFollowUp: true,
+      searchQuery: "starter",
+      selectedTemplateId: "starter-1"
+    };
+    const scopedRunHref = buildRunDetailHrefFromWorkspaceStarterViewState(
+      "run-1",
+      workspaceStarterGovernanceQueryScope
+    );
+    const escapedScopedRunHref = scopedRunHref.replaceAll("&", "&amp;");
+    const html = renderToStaticMarkup(
+      createElement(WorkflowRunOverlayPanel, {
+        runs: [
+          {
+            id: "run-1",
+            workflow_id: "workflow-1",
+            workflow_version: "v1",
+            status: "failed",
+            started_at: "2026-03-20T10:00:00Z",
+            finished_at: null,
+            created_at: "2026-03-20T10:00:00Z",
+            node_run_count: 1,
+            event_count: 0,
+            last_event_at: null
+          }
+        ],
+        selectedRunId: "run-1",
+        run: buildRunDetail(),
+        runSnapshot: buildRunSnapshot(),
+        trace: null,
+        traceError: null,
+        selectedNodeId: null,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness(),
+        workspaceStarterGovernanceQueryScope,
+        isLoading: false,
+        isRefreshingRuns: false,
+        onSelectRunId: () => undefined,
+        onRefreshRuns: () => undefined
+      })
+    );
+
+    expect(html).toContain(`href=\"${escapedScopedRunHref}\"`);
+    expect(html).not.toContain('href="/runs/run-1"');
   });
 });

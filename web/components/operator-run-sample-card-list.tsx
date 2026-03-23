@@ -22,6 +22,7 @@ import {
 type OperatorRunSampleCardListProps = {
   cards: OperatorRunSampleCard[];
   callbackWaitingSummaryProps?: CallbackWaitingSummaryProps;
+  resolveRunDetailHref?: ((runId: string) => string | null) | null;
   skillTraceDescription: string;
   sandboxReadiness?: SandboxReadinessCheck | null;
 };
@@ -29,6 +30,7 @@ type OperatorRunSampleCardListProps = {
 export function OperatorRunSampleCardList({
   cards,
   callbackWaitingSummaryProps,
+  resolveRunDetailHref = null,
   skillTraceDescription,
   sandboxReadiness = null
 }: OperatorRunSampleCardListProps) {
@@ -43,8 +45,10 @@ export function OperatorRunSampleCardList({
       {cards.map((sample) => {
         const showHeaderExecutionFacts =
           sample.executionFactBadges.length > 0 && !sample.hasCallbackWaitingSummary;
+        const scopedRunDetailHref = resolveRunDetailHref?.(sample.runId) ?? null;
         const runDetailLink = buildOperatorRunDetailLinkSurface({
           runId: sample.runId,
+          runHref: scopedRunDetailHref,
           surfaceCopy
         });
         const snapshotMetaRows = buildOperatorRunSnapshotMetaRows({

@@ -21,6 +21,10 @@ import {
   type CallbackWaitingRecommendedAction
 } from "@/lib/callback-waiting-presenters";
 import type { CallbackWaitingSummaryProps } from "@/lib/callback-waiting-summary-props";
+import {
+  buildRunDetailHrefFromWorkspaceStarterViewState,
+  readWorkspaceStarterLibraryViewState
+} from "@/lib/workspace-starter-governance-query";
 import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
 
 type CallbackWaitingInlineActionsProps = {
@@ -66,6 +70,18 @@ export function CallbackWaitingInlineActions({
     const search = searchParams?.toString();
     return search ? `${pathname}?${search}` : pathname;
   }, [pathname, searchParams]);
+  const workspaceStarterViewState = React.useMemo(
+    () => readWorkspaceStarterLibraryViewState(new URLSearchParams(searchParams?.toString())),
+    [searchParams]
+  );
+  const resolveRunDetailHref = React.useCallback(
+    (candidateRunId: string) =>
+      buildRunDetailHrefFromWorkspaceStarterViewState(
+        candidateRunId,
+        workspaceStarterViewState
+      ),
+    [workspaceStarterViewState]
+  );
   const [cleanupState, cleanupAction] = useActionState(cleanupRunCallbackTickets, initialState);
   const [resumeState, resumeAction] = useActionState(resumeRun, initialResumeState);
   const scopeKey = `${runId ?? ""}:${nodeRunId ?? ""}`;
@@ -110,6 +126,7 @@ export function CallbackWaitingInlineActions({
           currentHref={currentHref}
           message={resumeState.message}
           outcomeExplanation={resumeState.outcomeExplanation}
+          resolveRunDetailHref={resolveRunDetailHref}
           runFollowUpExplanation={resumeState.runFollowUpExplanation}
           runFollowUp={resumeState.runFollowUp}
           blockerDeltaSummary={resumeState.blockerDeltaSummary}
@@ -138,6 +155,7 @@ export function CallbackWaitingInlineActions({
           currentHref={currentHref}
           message={cleanupState.message}
           outcomeExplanation={cleanupState.outcomeExplanation}
+          resolveRunDetailHref={resolveRunDetailHref}
           runFollowUpExplanation={cleanupState.runFollowUpExplanation}
           runFollowUp={cleanupState.runFollowUp}
           blockerDeltaSummary={cleanupState.blockerDeltaSummary}

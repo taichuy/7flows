@@ -361,6 +361,7 @@ export function WorkflowEditorSidebar({
         selectedNodeId={selectedNodeId}
         callbackWaitingAutomation={callbackWaitingAutomation}
         sandboxReadiness={sandboxReadiness}
+        workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
         isLoading={isLoadingRunOverlay}
         isRefreshingRuns={isRefreshingRuns}
         onSelectRunId={onSelectRunId}

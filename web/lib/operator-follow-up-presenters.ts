@@ -187,6 +187,7 @@ export function buildOperatorRunSnapshotMetaRows({
 export function buildOperatorRunDetailCandidate({
   active,
   runId,
+  runHref,
   label = "run detail",
   detail,
   fallbackDetail,
@@ -195,6 +196,7 @@ export function buildOperatorRunDetailCandidate({
 }: {
   active?: boolean;
   runId?: string | null;
+  runHref?: string | null;
   label?: string;
   detail?: string | null;
   fallbackDetail: string;
@@ -207,8 +209,12 @@ export function buildOperatorRunDetailCandidate({
     active: active ?? Boolean(normalizedRunId || detail),
     label,
     detail,
-    href: normalizedRunId ? buildRunDetailHref(normalizedRunId) : null,
-    href_label: normalizedRunId ? hrefLabel?.trim() || surfaceCopy.openRunLabel : null,
+    href:
+      normalizeHref(runHref) ?? (normalizedRunId ? buildRunDetailHref(normalizedRunId) : null),
+    href_label:
+      normalizedRunId || normalizeHref(runHref)
+        ? hrefLabel?.trim() || surfaceCopy.openRunLabel
+        : null,
     fallback_detail: fallbackDetail
   };
 }
@@ -246,6 +252,7 @@ export function buildOperatorNavigationCandidate({
   active,
   href,
   runId,
+  runHref,
   label,
   detail,
   fallbackDetail,
@@ -255,6 +262,7 @@ export function buildOperatorNavigationCandidate({
   active?: boolean;
   href?: string | null;
   runId?: string | null;
+  runHref?: string | null;
   label?: string;
   detail?: string | null;
   fallbackDetail: string;
@@ -276,6 +284,7 @@ export function buildOperatorNavigationCandidate({
     : buildOperatorRunDetailCandidate({
         active,
         runId,
+        runHref,
         label,
         detail,
         fallbackDetail,
@@ -290,6 +299,7 @@ export function buildSharedOrLocalOperatorCandidate({
   currentHref,
   href,
   runId,
+  runHref,
   label,
   detail,
   fallbackDetail,
@@ -301,6 +311,7 @@ export function buildSharedOrLocalOperatorCandidate({
   currentHref?: string | null;
   href?: string | null;
   runId?: string | null;
+  runHref?: string | null;
   label?: string;
   detail?: string | null;
   fallbackDetail: string;
@@ -311,6 +322,7 @@ export function buildSharedOrLocalOperatorCandidate({
     active,
     href,
     runId,
+    runHref,
     label,
     detail,
     fallbackDetail,
@@ -408,10 +420,12 @@ function resolveLinkSurface(
 
 export function buildOperatorRunDetailLinkSurface({
   runId,
+  runHref,
   hrefLabel,
   surfaceCopy = buildOperatorFollowUpSurfaceCopy()
 }: {
   runId?: string | null;
+  runHref?: string | null;
   hrefLabel?: string | null;
   surfaceCopy?: OperatorFollowUpSurfaceCopy;
 }): OperatorFollowUpLinkSurface | null {
@@ -419,6 +433,7 @@ export function buildOperatorRunDetailLinkSurface({
     buildOperatorRunDetailCandidate({
       active: true,
       runId,
+      runHref,
       fallbackDetail: surfaceCopy.openRunLabel,
       hrefLabel,
       surfaceCopy
@@ -429,15 +444,18 @@ export function buildOperatorRunDetailLinkSurface({
 
 export function buildRequiredOperatorRunDetailLinkSurface({
   runId,
+  runHref,
   hrefLabel,
   surfaceCopy = buildOperatorFollowUpSurfaceCopy()
 }: {
   runId: string;
+  runHref?: string | null;
   hrefLabel?: string | null;
   surfaceCopy?: OperatorFollowUpSurfaceCopy;
 }): OperatorFollowUpLinkSurface {
   const linkSurface = buildOperatorRunDetailLinkSurface({
     runId,
+    runHref,
     hrefLabel,
     surfaceCopy
   });

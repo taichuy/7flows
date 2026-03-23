@@ -41,6 +41,7 @@ type InlineOperatorActionFeedbackProps = {
   title: string;
   currentHref?: string | null;
   runId?: string | null;
+  resolveRunDetailHref?: ((runId: string) => string | null) | null;
   recommendedNextStep?: OperatorRecommendedNextStep | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   callbackWaitingSummaryProps?: CallbackWaitingSummaryProps;
@@ -52,6 +53,7 @@ export function InlineOperatorActionFeedback({
   title,
   currentHref = null,
   runId = null,
+  resolveRunDetailHref = null,
   recommendedNextStep: recommendedNextStepOverride,
   sandboxReadiness = null,
   callbackWaitingSummaryProps,
@@ -74,7 +76,12 @@ export function InlineOperatorActionFeedback({
   const executionFactBadges = listExecutionFocusRuntimeFactBadges(callbackWaitingFocusNode);
   const sandboxReadinessNode = buildSandboxReadinessNodeFromRunSnapshot(runSnapshot);
   const executionSurfaceCopy = buildRunDetailExecutionFocusSurfaceCopy();
-  const runDetailLink = buildOperatorRunDetailLinkSurface({ runId, surfaceCopy });
+  const scopedRunDetailHref = runId ? resolveRunDetailHref?.(runId) ?? null : null;
+  const runDetailLink = buildOperatorRunDetailLinkSurface({
+    runId,
+    runHref: scopedRunDetailHref,
+    surfaceCopy
+  });
   const hasCanonicalRecommendedAction = Boolean(
     runFollowUp?.recommendedAction?.kind ||
       runFollowUp?.recommendedAction?.entryKey ||
@@ -167,6 +174,7 @@ export function InlineOperatorActionFeedback({
     sharedCandidate: sharedSandboxCandidate ?? canonicalExecutionCandidate,
     active: Boolean(runId),
     currentHref: currentHref ?? callbackWaitingSummaryProps?.currentHref ?? null,
+    runHref: scopedRunDetailHref,
     runId,
     label: runId ? "run detail" : "execution follow-up",
     detail: model.runFollowUpFollowUp,
@@ -396,6 +404,7 @@ export function InlineOperatorActionFeedback({
               operatorFollowUp: canonicalCallbackOperatorFollowUp,
               preferCanonicalRecommendedNextStep: preferCanonicalCallbackRecommendedNextStep
             }}
+            resolveRunDetailHref={resolveRunDetailHref}
             sandboxReadiness={sandboxReadiness}
             skillTraceDescription="当前 operator 结果会继续复用 sampled run focus node 的 compact skill trace，方便确认等待链路里实际加载了哪些参考资料。"
           />
