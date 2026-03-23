@@ -517,7 +517,7 @@ describe("WorkflowPublishActivityInsights", () => {
     );
 
     expect(html).toContain("Issue signals");
-    expect((html.match(/Selected invocation next step/g)?.length ?? 0)).toBeGreaterThan(1);
+    expect(html.match(/Selected invocation next step/g)?.length ?? 0).toBe(1);
     expect(html).toContain("当前打开的 invocation-1 已对齐聚合 failure reason");
     expect(html).toContain("Selected invocation next step");
     expect(html).toContain("approval blocker");

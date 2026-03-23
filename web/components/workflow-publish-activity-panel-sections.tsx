@@ -197,9 +197,6 @@ export function WorkflowPublishActivityInsights({
         timeline={timeline}
         timelineGranularity={timelineGranularity}
         timeWindowLabel={timeWindowLabel}
-        selectedNextStepSurface={
-          selectedInvocationSurface.kind === "ok" ? selectedInvocationSurface.nextStepSurface : null
-        }
       />
 
       {insightsSurface.issueSignalsSurface ? (

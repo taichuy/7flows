@@ -68,28 +68,17 @@ describe("WorkflowPublishTrafficTimeline", () => {
       `${formatTimestamp("2026-03-20T00:00:00Z")} - ${formatTimestamp("2026-03-20T01:00:00Z")}`
     );
   });
-
-  it("projects the selected invocation CTA into the traffic timeline aggregate", () => {
+  it("keeps traffic timeline focused on aggregate facts instead of projecting selected invocation CTA", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowPublishTrafficTimeline, {
         timeline: [],
         timelineGranularity: "hour",
-        timeWindowLabel: "最近 24 小时",
-        selectedNextStepSurface: {
-          title: "Selected invocation next step",
-          invocationId: "invocation-1",
-          label: "approval blocker",
-          detail: "优先处理 blocker inbox，再观察 waiting 节点是否恢复。",
-          href: "/sensitive-access?pending=1",
-          hrefLabel: "open blocker inbox slice"
-        }
+        timeWindowLabel: "最近 24 小时"
       })
     );
 
     expect(html).toContain("Traffic timeline");
-    expect(html).toContain("Selected invocation next step");
-    expect(html).toContain("invocation-1");
-    expect(html).toContain("approval blocker");
-    expect(html).toContain("open blocker inbox slice");
+    expect(html).not.toContain("Selected invocation next step");
+    expect(html).not.toContain("approval blocker");
   });
 });
