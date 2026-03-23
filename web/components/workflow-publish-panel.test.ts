@@ -17,6 +17,11 @@ vi.mock("@/components/workflow-publish-binding-card", () => ({
     createElement("div", null, `binding:${binding.id}`)
 }));
 
+vi.mock("@/components/workflow-publish-legacy-auth-cleanup-card", () => ({
+  WorkflowPublishLegacyAuthCleanupCard: ({ bindings }: { bindings: Array<{ id: string }> }) =>
+    createElement("div", null, `legacy-cleanup:${bindings.length}`)
+}));
+
 function buildSandboxReadiness(): SandboxReadinessCheck {
   return {
     enabled_backend_count: 1,
@@ -227,6 +232,7 @@ describe("WorkflowPublishPanel", () => {
     expect(html).toContain("backend");
     expect(html).toContain("ready sandbox");
     expect(html).toContain("binding:binding-1");
+    expect(html).toContain("legacy-cleanup:1");
     expect(html).toContain("Summary focus");
     expect(html).toContain('<span class="health-pill healthy">clear</span>');
     expect(html).toContain("clear");

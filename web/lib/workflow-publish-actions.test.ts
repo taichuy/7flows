@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { updatePublishedEndpointLifecycle } from "@/app/actions/publish";
+import {
+  cleanupLegacyPublishedEndpointBindings,
+  updatePublishedEndpointLifecycle,
+} from "@/app/actions/publish";
 
 const { revalidatePath } = vi.hoisted(() => ({
   revalidatePath: vi.fn()
@@ -28,6 +31,15 @@ function buildLifecycleFormData(nextStatus: "published" | "offline") {
   formData.set("workflowId", "wf-1");
   formData.set("bindingId", "binding-1");
   formData.set("nextStatus", nextStatus);
+  return formData;
+}
+
+function buildLegacyCleanupFormData(bindingIds: string[]) {
+  const formData = new FormData();
+  formData.set("workflowId", "wf-1");
+  for (const bindingId of bindingIds) {
+    formData.append("bindingId", bindingId);
+  }
   return formData;
 }
 
@@ -140,6 +152,66 @@ describe("workflow publish actions", () => {
       workflowId: "wf-1",
       bindingId: "",
       nextStatus: "published"
+    });
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it("uses shared legacy cleanup success feedback and revalidates the workflow detail", async () => {
+    vi.mocked(global.fetch).mockResolvedValue(
+      jsonResponse({
+        requested_count: 2,
+        updated_count: 1,
+        skipped_count: 1,
+        updated_binding_ids: ["binding-1"],
+        skipped_items: [],
+      })
+    );
+
+    const result = await cleanupLegacyPublishedEndpointBindings(
+      {
+        status: "idle",
+        message: "",
+        workflowId: "wf-1",
+        bindingIds: ["binding-1", "binding-2"],
+      },
+      buildLegacyCleanupFormData(["binding-1", "binding-2"])
+    );
+
+    expect(result).toEqual({
+      status: "success",
+      message: "已批量下线 1 条 legacy auth draft binding；另外 1 条仍需逐项处理。",
+      workflowId: "wf-1",
+      bindingIds: ["binding-1", "binding-2"],
+    });
+    expect(global.fetch).toHaveBeenCalledWith(
+      "http://api.test/api/workflows/wf-1/published-endpoints/legacy-auth-cleanup",
+      expect.objectContaining({
+        method: "POST",
+        cache: "no-store",
+      })
+    );
+    expect(revalidatePath).toHaveBeenCalledWith("/workflows/wf-1");
+  });
+
+  it("uses shared legacy cleanup validation feedback when candidates are missing", async () => {
+    const formData = new FormData();
+    formData.set("workflowId", "wf-1");
+
+    const result = await cleanupLegacyPublishedEndpointBindings(
+      {
+        status: "idle",
+        message: "",
+        workflowId: "wf-1",
+        bindingIds: [],
+      },
+      formData
+    );
+
+    expect(result).toEqual({
+      status: "error",
+      message: "缺少可批量下线的 legacy auth draft binding。",
+      workflowId: "wf-1",
+      bindingIds: [],
     });
     expect(global.fetch).not.toHaveBeenCalled();
   });

@@ -384,6 +384,118 @@ def test_unpublish_binding_marks_binding_offline(client: TestClient) -> None:
     assert body["unpublished_at"] is not None
 
 
+def test_bulk_cleanup_offlines_only_draft_legacy_auth_bindings(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Legacy Auth Cleanup Workflow",
+            "definition": _publishable_definition(),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    for answer in ("updated-v1", "updated-v2"):
+        update_response = client.put(
+            f"/api/workflows/{workflow_id}",
+            json={
+                "definition": _publishable_definition(answer=answer, workflow_version=None),
+            },
+        )
+        assert update_response.status_code == 200
+
+    bindings = sqlite_session.scalars(
+        select(WorkflowPublishedEndpoint).where(
+            WorkflowPublishedEndpoint.workflow_id == workflow_id
+        )
+    ).all()
+    bindings_by_version = {binding.workflow_version: binding for binding in bindings}
+
+    draft_binding = bindings_by_version["0.1.2"]
+    published_binding = bindings_by_version["0.1.1"]
+    offline_binding = bindings_by_version["0.1.0"]
+
+    draft_binding.auth_mode = "token"
+    draft_binding.lifecycle_status = "draft"
+
+    published_binding.auth_mode = "token"
+    published_binding.lifecycle_status = "published"
+    published_binding.published_at = datetime.now(UTC)
+    published_binding.unpublished_at = None
+
+    offline_binding.auth_mode = "token"
+    offline_binding.lifecycle_status = "offline"
+    offline_binding.unpublished_at = datetime.now(UTC)
+
+    sqlite_session.add_all([draft_binding, published_binding, offline_binding])
+    sqlite_session.commit()
+
+    cleanup_response = client.post(
+        f"/api/workflows/{workflow_id}/published-endpoints/legacy-auth-cleanup",
+        json={
+            "binding_ids": [
+                draft_binding.id,
+                published_binding.id,
+                offline_binding.id,
+                "missing-binding",
+            ]
+        },
+    )
+
+    assert cleanup_response.status_code == 200
+    body = cleanup_response.json()
+    assert body["requested_count"] == 4
+    assert body["updated_count"] == 1
+    assert body["skipped_count"] == 3
+    assert body["updated_binding_ids"] == [draft_binding.id]
+    assert {item["binding_id"]: item["reason"] for item in body["skipped_items"]} == {
+        published_binding.id: "binding_not_draft",
+        offline_binding.id: "binding_already_offline",
+        "missing-binding": "binding_not_found",
+    }
+
+    sqlite_session.expire_all()
+    stored_draft_binding = sqlite_session.get(WorkflowPublishedEndpoint, draft_binding.id)
+    stored_published_binding = sqlite_session.get(
+        WorkflowPublishedEndpoint, published_binding.id
+    )
+    stored_offline_binding = sqlite_session.get(WorkflowPublishedEndpoint, offline_binding.id)
+
+    assert stored_draft_binding is not None
+    assert stored_draft_binding.lifecycle_status == "offline"
+    assert stored_draft_binding.unpublished_at is not None
+
+    assert stored_published_binding is not None
+    assert stored_published_binding.lifecycle_status == "published"
+
+    assert stored_offline_binding is not None
+    assert stored_offline_binding.lifecycle_status == "offline"
+
+
+def test_bulk_cleanup_legacy_auth_bindings_requires_binding_ids(
+    client: TestClient,
+) -> None:
+    create_response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Legacy Auth Cleanup Validation Workflow",
+            "definition": _publishable_definition(),
+        },
+    )
+    assert create_response.status_code == 201
+    workflow_id = create_response.json()["id"]
+
+    cleanup_response = client.post(
+        f"/api/workflows/{workflow_id}/published-endpoints/legacy-auth-cleanup",
+        json={"binding_ids": []},
+    )
+
+    assert cleanup_response.status_code == 422
+
+
 def test_invoke_published_native_endpoint_uses_active_binding_blueprint(
     client: TestClient,
 ) -> None:

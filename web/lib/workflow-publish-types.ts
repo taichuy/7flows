@@ -416,6 +416,30 @@ export type WorkflowPublishedEndpointIssue = {
   blocks_lifecycle_publish: boolean;
 };
 
+export type WorkflowPublishedEndpointLegacyAuthCleanupSkipReason =
+  | "binding_not_found"
+  | "binding_not_legacy_auth"
+  | "binding_not_draft"
+  | "binding_already_offline";
+
+export type WorkflowPublishedEndpointLegacyAuthCleanupSkipItem = {
+  binding_id: string;
+  endpoint_id?: string | null;
+  endpoint_name?: string | null;
+  workflow_version?: string | null;
+  lifecycle_status?: "draft" | "published" | "offline" | null;
+  reason: WorkflowPublishedEndpointLegacyAuthCleanupSkipReason;
+  detail: string;
+};
+
+export type WorkflowPublishedEndpointLegacyAuthCleanupResult = {
+  requested_count: number;
+  updated_count: number;
+  skipped_count: number;
+  updated_binding_ids: string[];
+  skipped_items: WorkflowPublishedEndpointLegacyAuthCleanupSkipItem[];
+};
+
 export type PublishedEndpointApiKeyItem = {
   id: string;
   workflow_id: string;

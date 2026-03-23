@@ -60,10 +60,40 @@ PublishedEndpointInvocationReasonCode = Literal[
 ]
 PublishedEndpointInvocationTimeBucketGranularity = Literal["hour", "day"]
 PublishedEndpointIssueCategory = Literal["unsupported_auth_mode"]
+WorkflowPublishedEndpointLegacyAuthCleanupSkipReason = Literal[
+    "binding_not_found",
+    "binding_not_legacy_auth",
+    "binding_not_draft",
+    "binding_already_offline",
+]
 
 
 class WorkflowPublishedEndpointLifecycleUpdate(BaseModel):
     status: Literal["published", "offline"]
+
+
+class WorkflowPublishedEndpointLegacyAuthCleanupRequest(BaseModel):
+    binding_ids: list[str] = Field(default_factory=list, min_length=1)
+
+
+class WorkflowPublishedEndpointLegacyAuthCleanupSkipItem(BaseModel):
+    binding_id: str
+    endpoint_id: str | None = None
+    endpoint_name: str | None = None
+    workflow_version: str | None = None
+    lifecycle_status: PublishedEndpointLifecycleStatus | None = None
+    reason: WorkflowPublishedEndpointLegacyAuthCleanupSkipReason
+    detail: str
+
+
+class WorkflowPublishedEndpointLegacyAuthCleanupResult(BaseModel):
+    requested_count: int = 0
+    updated_count: int = 0
+    skipped_count: int = 0
+    updated_binding_ids: list[str] = Field(default_factory=list)
+    skipped_items: list[WorkflowPublishedEndpointLegacyAuthCleanupSkipItem] = Field(
+        default_factory=list
+    )
 
 
 class WorkflowPublishedEndpointIssue(BaseModel):

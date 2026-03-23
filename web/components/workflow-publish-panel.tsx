@@ -4,6 +4,7 @@ import Link from "next/link";
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkflowPublishBindingCard } from "@/components/workflow-publish-binding-card";
+import { WorkflowPublishLegacyAuthCleanupCard } from "@/components/workflow-publish-legacy-auth-cleanup-card";
 import {
   buildWorkflowPublishPrimaryFollowUpToneSurface,
   buildWorkflowPublishPrimaryFollowUpSurface,
@@ -125,6 +126,13 @@ export function WorkflowPublishPanel({
           title={surfaceCopy.sandboxReadinessTitle}
           intro={surfaceCopy.sandboxReadinessDescription}
         />
+
+        {bindings.length > 0 ? (
+          <WorkflowPublishLegacyAuthCleanupCard
+            workflowId={workflow.id}
+            bindings={bindings}
+          />
+        ) : null}
 
         {bindings.length === 0 ? (
           <div className="entry-card">

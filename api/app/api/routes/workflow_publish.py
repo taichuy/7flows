@@ -8,6 +8,8 @@ from app.schemas.workflow_publish import (
     PublishedEndpointInvocationSummary,
     PublishedEndpointLifecycleStatus,
     WorkflowPublishedEndpointItem,
+    WorkflowPublishedEndpointLegacyAuthCleanupRequest,
+    WorkflowPublishedEndpointLegacyAuthCleanupResult,
     WorkflowPublishedEndpointLifecycleUpdate,
 )
 from app.services.published_cache import PublishedEndpointCacheService
@@ -154,6 +156,35 @@ def list_workflow_published_endpoints(
         )
         for record in records
     ]
+
+
+@router.post(
+    "/{workflow_id}/published-endpoints/legacy-auth-cleanup",
+    response_model=WorkflowPublishedEndpointLegacyAuthCleanupResult,
+)
+def cleanup_workflow_published_endpoint_legacy_auth_bindings(
+    workflow_id: str,
+    payload: WorkflowPublishedEndpointLegacyAuthCleanupRequest,
+    db: Session = Depends(get_db),
+) -> WorkflowPublishedEndpointLegacyAuthCleanupResult:
+    workflow = db.get(Workflow, workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
+
+    try:
+        result = workflow_publish_service.bulk_offline_legacy_auth_draft_bindings(
+            db,
+            workflow_id=workflow_id,
+            binding_ids=payload.binding_ids,
+        )
+    except WorkflowPublishBindingError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    db.commit()
+    return result
 
 
 @router.patch(

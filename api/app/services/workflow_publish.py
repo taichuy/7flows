@@ -7,7 +7,11 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.workflow import WorkflowPublishedEndpoint, WorkflowVersion
-from app.schemas.workflow_publish import PublishedEndpointLifecycleStatus
+from app.schemas.workflow_publish import (
+    PublishedEndpointLifecycleStatus,
+    WorkflowPublishedEndpointLegacyAuthCleanupResult,
+    WorkflowPublishedEndpointLegacyAuthCleanupSkipItem,
+)
 from app.schemas.workflow_published_endpoint import (
     WorkflowPublishedEndpointDefinition,
     normalize_published_endpoint_alias,
@@ -280,6 +284,121 @@ class WorkflowPublishBindingService:
 
         db.add(record)
         return record
+
+    def bulk_offline_legacy_auth_draft_bindings(
+        self,
+        db: Session,
+        *,
+        workflow_id: str,
+        binding_ids: list[str],
+    ) -> WorkflowPublishedEndpointLegacyAuthCleanupResult:
+        normalized_binding_ids: list[str] = []
+        seen_binding_ids: set[str] = set()
+        for binding_id in binding_ids:
+            normalized_binding_id = binding_id.strip()
+            if not normalized_binding_id or normalized_binding_id in seen_binding_ids:
+                continue
+            normalized_binding_ids.append(normalized_binding_id)
+            seen_binding_ids.add(normalized_binding_id)
+
+        if not normalized_binding_ids:
+            raise WorkflowPublishBindingError(
+                "Select at least one legacy auth draft binding to clean up."
+            )
+
+        records = db.scalars(
+            select(WorkflowPublishedEndpoint).where(
+                WorkflowPublishedEndpoint.workflow_id == workflow_id,
+                WorkflowPublishedEndpoint.id.in_(normalized_binding_ids),
+            )
+        ).all()
+        records_by_id = {record.id: record for record in records}
+
+        updated_binding_ids: list[str] = []
+        skipped_items: list[WorkflowPublishedEndpointLegacyAuthCleanupSkipItem] = []
+
+        for binding_id in normalized_binding_ids:
+            record = records_by_id.get(binding_id)
+            if record is None:
+                skipped_items.append(
+                    WorkflowPublishedEndpointLegacyAuthCleanupSkipItem(
+                        binding_id=binding_id,
+                        reason="binding_not_found",
+                        detail="Published endpoint binding not found.",
+                    )
+                )
+                continue
+
+            issues = collect_invalid_published_endpoint_auth_mode_issues(
+                endpoint_id=record.endpoint_id,
+                endpoint_name=record.endpoint_name,
+                auth_mode=record.auth_mode,
+            )
+            blocking_issue = next(
+                (issue for issue in issues if issue.blocks_lifecycle_publish),
+                None,
+            )
+
+            if blocking_issue is None:
+                skipped_items.append(
+                    WorkflowPublishedEndpointLegacyAuthCleanupSkipItem(
+                        binding_id=record.id,
+                        endpoint_id=record.endpoint_id,
+                        endpoint_name=record.endpoint_name,
+                        workflow_version=record.workflow_version,
+                        lifecycle_status=record.lifecycle_status,
+                        reason="binding_not_legacy_auth",
+                        detail="Binding no longer uses unsupported legacy auth mode.",
+                    )
+                )
+                continue
+
+            if record.lifecycle_status == "offline":
+                skipped_items.append(
+                    WorkflowPublishedEndpointLegacyAuthCleanupSkipItem(
+                        binding_id=record.id,
+                        endpoint_id=record.endpoint_id,
+                        endpoint_name=record.endpoint_name,
+                        workflow_version=record.workflow_version,
+                        lifecycle_status=record.lifecycle_status,
+                        reason="binding_already_offline",
+                        detail="Binding is already offline and only remains in the cleanup inventory.",
+                    )
+                )
+                continue
+
+            if record.lifecycle_status != "draft":
+                skipped_items.append(
+                    WorkflowPublishedEndpointLegacyAuthCleanupSkipItem(
+                        binding_id=record.id,
+                        endpoint_id=record.endpoint_id,
+                        endpoint_name=record.endpoint_name,
+                        workflow_version=record.workflow_version,
+                        lifecycle_status=record.lifecycle_status,
+                        reason="binding_not_draft",
+                        detail=(
+                            "Only draft legacy bindings can be batch-offlined. "
+                            "Publish a supported replacement first if this binding is still live."
+                        ),
+                    )
+                )
+                continue
+
+            self.update_lifecycle_status(
+                db,
+                workflow_id=workflow_id,
+                binding_id=record.id,
+                lifecycle_status="offline",
+            )
+            updated_binding_ids.append(record.id)
+
+        return WorkflowPublishedEndpointLegacyAuthCleanupResult(
+            requested_count=len(normalized_binding_ids),
+            updated_count=len(updated_binding_ids),
+            skipped_count=len(skipped_items),
+            updated_binding_ids=updated_binding_ids,
+            skipped_items=skipped_items,
+        )
 
     def _ensure_external_identity_available(
         self,

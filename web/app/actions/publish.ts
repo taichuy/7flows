@@ -13,6 +13,13 @@ import {
   buildWorkflowPublishLifecycleMutationSuccessMessage,
   buildWorkflowPublishLifecycleMutationValidationMessage
 } from "@/lib/workflow-publish-binding-presenters";
+import type { WorkflowPublishedEndpointLegacyAuthCleanupResult } from "@/lib/get-workflow-publish";
+import {
+  buildWorkflowPublishLegacyAuthCleanupFallbackErrorMessage,
+  buildWorkflowPublishLegacyAuthCleanupNetworkErrorMessage,
+  buildWorkflowPublishLegacyAuthCleanupSuccessMessage,
+  buildWorkflowPublishLegacyAuthCleanupValidationMessage,
+} from "@/lib/workflow-publish-legacy-auth-cleanup";
 import { buildWorkflowDetailHref } from "@/lib/workbench-links";
 
 export type UpdatePublishedEndpointLifecycleState = {
@@ -39,6 +46,13 @@ export type RevokePublishedEndpointApiKeyState = {
   workflowId: string;
   bindingId: string;
   keyId: string;
+};
+
+export type CleanupLegacyPublishedEndpointBindingsState = {
+  status: "idle" | "success" | "error";
+  message: string;
+  workflowId: string;
+  bindingIds: string[];
 };
 
 export async function updatePublishedEndpointLifecycle(
@@ -191,6 +205,76 @@ export async function createPublishedEndpointApiKey(
       name,
       secretKey: null,
       keyPrefix: null
+    };
+  }
+}
+
+export async function cleanupLegacyPublishedEndpointBindings(
+  _: CleanupLegacyPublishedEndpointBindingsState,
+  formData: FormData
+): Promise<CleanupLegacyPublishedEndpointBindingsState> {
+  const workflowId = String(formData.get("workflowId") ?? "").trim();
+  const bindingIds = formData
+    .getAll("bindingId")
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+
+  if (!workflowId || bindingIds.length === 0) {
+    return {
+      status: "error",
+      message: buildWorkflowPublishLegacyAuthCleanupValidationMessage(),
+      workflowId,
+      bindingIds
+    };
+  }
+
+  try {
+    const response = await fetch(
+      `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(
+        workflowId
+      )}/published-endpoints/legacy-auth-cleanup`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ binding_ids: bindingIds }),
+        cache: "no-store"
+      }
+    );
+
+    const body = (await response.json().catch(() => null)) as
+      | ({ detail?: string } & Partial<WorkflowPublishedEndpointLegacyAuthCleanupResult>)
+      | null;
+
+    if (!response.ok) {
+      return {
+        status: "error",
+        message: body?.detail ?? buildWorkflowPublishLegacyAuthCleanupFallbackErrorMessage(),
+        workflowId,
+        bindingIds
+      };
+    }
+
+    revalidatePath(buildWorkflowDetailHref(workflowId));
+    return {
+      status: "success",
+      message: buildWorkflowPublishLegacyAuthCleanupSuccessMessage({
+        requested_count: body?.requested_count ?? bindingIds.length,
+        updated_count: body?.updated_count ?? 0,
+        skipped_count: body?.skipped_count ?? 0,
+        updated_binding_ids: body?.updated_binding_ids ?? [],
+        skipped_items: body?.skipped_items ?? []
+      }),
+      workflowId,
+      bindingIds
+    };
+  } catch {
+    return {
+      status: "error",
+      message: buildWorkflowPublishLegacyAuthCleanupNetworkErrorMessage(),
+      workflowId,
+      bindingIds
     };
   }
 }
