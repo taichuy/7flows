@@ -1,4 +1,8 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import {
+  buildWorkflowLibrarySearchParams,
+  type WorkflowListDefinitionIssueFilter
+} from "@/lib/workflow-library-query";
 import type { WorkflowNodeRuntimePolicy } from "@/lib/workflow-runtime-policy";
 
 export type WorkflowListItem = {
@@ -168,9 +172,15 @@ export async function updateWorkflow(
   return body as WorkflowDetail;
 }
 
-export async function getWorkflows(): Promise<WorkflowListItem[]> {
+export async function getWorkflows(options?: {
+  definitionIssue?: WorkflowListDefinitionIssueFilter | null;
+}): Promise<WorkflowListItem[]> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/workflows`, {
+    const searchParams = buildWorkflowLibrarySearchParams({
+      definitionIssue: options?.definitionIssue ?? null
+    });
+    const query = searchParams.toString();
+    const response = await fetch(`${getApiBaseUrl()}/api/workflows${query ? `?${query}` : ""}`, {
       cache: "no-store"
     });
 

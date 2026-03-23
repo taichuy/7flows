@@ -10,6 +10,10 @@ import { getWorkflowPublishedEndpoints } from "@/lib/get-workflow-publish";
 import { getWorkflowPublishGovernanceSnapshot } from "@/lib/get-workflow-publish-governance";
 import { getWorkflowRuns } from "@/lib/get-workflow-runs";
 import {
+  appendWorkflowLibraryViewState,
+  readWorkflowLibraryViewState
+} from "@/lib/workflow-library-query";
+import {
   buildWorkflowCreateHrefFromWorkspaceStarterViewState,
   buildWorkflowEditorHrefFromWorkspaceStarterViewState,
   buildWorkflowLibraryHrefFromWorkspaceStarterViewState,
@@ -64,15 +68,22 @@ export default async function WorkflowEditorPage({
   const workspaceStarterViewState = readWorkspaceStarterLibraryViewState(
     resolvedSearchParams
   );
-  const workflowLibraryHref = buildWorkflowLibraryHrefFromWorkspaceStarterViewState(
-    workspaceStarterViewState
+  const workflowLibraryViewState = readWorkflowLibraryViewState(resolvedSearchParams);
+  const workflowLibraryHref = appendWorkflowLibraryViewState(
+    buildWorkflowLibraryHrefFromWorkspaceStarterViewState(
+      workspaceStarterViewState
+    ),
+    workflowLibraryViewState
   );
   const createWorkflowHref = buildWorkflowCreateHrefFromWorkspaceStarterViewState(
     workspaceStarterViewState
   );
-  const currentEditorHref = buildWorkflowEditorHrefFromWorkspaceStarterViewState(
-    workflow.id,
-    workspaceStarterViewState
+  const currentEditorHref = appendWorkflowLibraryViewState(
+    buildWorkflowEditorHrefFromWorkspaceStarterViewState(
+      workflow.id,
+      workspaceStarterViewState
+    ),
+    workflowLibraryViewState
   );
   const workspaceStarterLibraryHref =
     buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState(

@@ -290,6 +290,75 @@ describe("WorkflowsPage", () => {
     expect(html).toContain('/workflows/workflow-legacy-auth');
   });
 
+  it("filters the workflow chip list down to legacy publish auth blockers", async () => {
+    vi.mocked(getWorkflows).mockReset();
+    vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot()
+    );
+    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshot());
+    vi.mocked(getWorkflows).mockImplementation(async (options?: { definitionIssue?: string | null }) => {
+      const legacyWorkflow = {
+        id: "workflow-legacy-auth",
+        name: "Legacy Auth workflow",
+        version: "1.2.0",
+        status: "draft",
+        node_count: 5,
+        definition_issues: [
+          {
+            category: "publish_draft",
+            message: "Public Search 当前不能使用 authMode = token。",
+            path: "publish.0.authMode",
+            field: "authMode"
+          }
+        ],
+        tool_governance: {
+          referenced_tool_ids: ["tool-1"],
+          missing_tool_ids: [],
+          governed_tool_count: 1,
+          strong_isolation_tool_count: 0
+        }
+      };
+      const cleanWorkflow = {
+        id: "workflow-clean",
+        name: "Clean workflow",
+        version: "1.0.0",
+        status: "published",
+        node_count: 2,
+        tool_governance: {
+          referenced_tool_ids: ["tool-2"],
+          missing_tool_ids: [],
+          governed_tool_count: 1,
+          strong_isolation_tool_count: 0
+        }
+      };
+
+      return options?.definitionIssue === "legacy_publish_auth"
+        ? [legacyWorkflow]
+        : [legacyWorkflow, cleanWorkflow];
+    });
+
+    const html = renderToStaticMarkup(
+      await WorkflowsPage({
+        searchParams: Promise.resolve({
+          definition_issue: "legacy_publish_auth"
+        })
+      })
+    );
+
+    expect(getWorkflows).toHaveBeenCalledTimes(2);
+    expect(getWorkflows).toHaveBeenNthCalledWith(1);
+    expect(getWorkflows).toHaveBeenNthCalledWith(2, {
+      definitionIssue: "legacy_publish_auth"
+    });
+    expect(html).toContain("当前列表只显示 legacy publish auth blocker，共 1 / 2 个 workflow");
+    expect(html).toContain(
+      '/workflows/workflow-legacy-auth?definition_issue=legacy_publish_auth'
+    );
+    expect(html).toContain('/workflows?definition_issue=legacy_publish_auth');
+    expect(html).not.toContain('/workflows/workflow-clean?definition_issue=legacy_publish_auth');
+  });
+
   it("routes the empty state back to starter governance when the first active starter still needs follow-up", async () => {
     vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(

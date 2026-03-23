@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -31,6 +31,8 @@ from app.services.workflow_definition_governance import (
     summarize_workflow_definition_tool_governance,
 )
 from app.services.workflow_library import get_workflow_library_service
+
+WorkflowListDefinitionIssueFilter = Literal["legacy_publish_auth"]
 from app.services.workflow_publish_version_references import (
     build_allowed_publish_workflow_versions,
 )
@@ -213,7 +215,25 @@ def build_workflow_definition_issues(
     return []
 
 
-def list_workflow_items(db: Session) -> list[WorkflowListItem]:
+def _matches_workflow_definition_issue_filter(
+    definition_issues: list[WorkflowDefinitionPreflightIssue],
+    *,
+    definition_issue: WorkflowListDefinitionIssueFilter | None,
+) -> bool:
+    if definition_issue == "legacy_publish_auth":
+        return any(
+            issue.category == "publish_draft" and issue.field == "authMode"
+            for issue in definition_issues
+        )
+
+    return True
+
+
+def list_workflow_items(
+    db: Session,
+    *,
+    definition_issue: WorkflowListDefinitionIssueFilter | None = None,
+) -> list[WorkflowListItem]:
     workflows = db.scalars(select(Workflow).order_by(Workflow.name.asc())).all()
     if not workflows:
         return []
@@ -223,21 +243,32 @@ def list_workflow_items(db: Session) -> list[WorkflowListItem]:
     skill_index = build_workflow_skill_reference_index(db)
     skill_reference_ids_index = build_workflow_skill_reference_ids_index(db)
 
-    return [
-        serialize_workflow_list_item(
+    items: list[WorkflowListItem] = []
+    for workflow in workflows:
+        definition_issues = build_workflow_definition_issues(
+            db,
             workflow,
             tool_index=tool_index,
-            definition_issues=build_workflow_definition_issues(
-                db,
+            adapters=adapters,
+            skill_index=skill_index,
+            skill_reference_ids_index=skill_reference_ids_index,
+        )
+
+        if not _matches_workflow_definition_issue_filter(
+            definition_issues,
+            definition_issue=definition_issue,
+        ):
+            continue
+
+        items.append(
+            serialize_workflow_list_item(
                 workflow,
                 tool_index=tool_index,
-                adapters=adapters,
-                skill_index=skill_index,
-                skill_reference_ids_index=skill_reference_ids_index,
-            ),
+                definition_issues=definition_issues,
+            )
         )
-        for workflow in workflows
-    ]
+
+    return items
 
 
 def list_workflow_version_items(db: Session, workflow_id: str) -> list[WorkflowVersionItem]:

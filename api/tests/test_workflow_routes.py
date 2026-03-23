@@ -2454,6 +2454,48 @@ def test_list_workflows_surfaces_definition_issues_for_persisted_publish_auth_mo
     )
 
 
+def test_list_workflows_can_filter_legacy_publish_auth_definition_issues(
+    client: TestClient,
+    sqlite_session,
+) -> None:
+    blocked = client.post(
+        "/api/workflows",
+        json={
+            "name": "Publish Auth Cleanup Workflow",
+            "definition": _valid_publish_definition(),
+        },
+    )
+    assert blocked.status_code == 201
+    blocked_workflow_id = blocked.json()["id"]
+
+    clean = client.post(
+        "/api/workflows",
+        json={
+            "name": "Clean Publish Workflow",
+            "definition": _valid_publish_definition(),
+        },
+    )
+    assert clean.status_code == 201
+
+    blocked_workflow = sqlite_session.get(Workflow, blocked_workflow_id)
+    assert blocked_workflow is not None
+    blocked_workflow.definition = _unsupported_publish_auth_mode_definition()
+    sqlite_session.add(blocked_workflow)
+    sqlite_session.commit()
+
+    response = client.get("/api/workflows?definition_issue=legacy_publish_auth")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == [blocked_workflow_id]
+    assert any(
+        issue.get("category") == "publish_draft"
+        and issue.get("path") == "publish.0.authMode"
+        and issue.get("field") == "authMode"
+        for issue in body[0]["definition_issues"]
+    )
+
+
 def test_validate_workflow_definition_preflight_rejects_invalid_publish_reference(
     client: TestClient,
 ) -> None:

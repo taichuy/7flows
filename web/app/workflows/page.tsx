@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 import { CrossEntryRiskDigestPanel } from "@/components/cross-entry-risk-digest-panel";
 import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
@@ -20,6 +21,11 @@ import { getSystemOverview, type SandboxReadinessCheck } from "@/lib/get-system-
 import { getWorkflows, type WorkflowListItem } from "@/lib/get-workflows";
 import { formatCountMap } from "@/lib/runtime-presenters";
 import { getWorkflowLegacyPublishAuthIssues } from "@/lib/workflow-definition-governance";
+import {
+  appendWorkflowLibraryViewState,
+  readWorkflowLibraryViewState,
+  type WorkflowLibraryViewState
+} from "@/lib/workflow-library-query";
 import {
   buildWorkflowCreateHrefFromWorkspaceStarterViewState,
   buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
@@ -46,16 +52,41 @@ export default async function WorkflowsPage({
   const workspaceStarterViewState = pickWorkspaceStarterGovernanceQueryScope(
     readWorkspaceStarterLibraryViewState(resolvedSearchParams)
   );
-  const [workflows, systemOverview, sensitiveAccessInbox, workflowLibrary] = await Promise.all([
+  const workflowLibraryViewState = readWorkflowLibraryViewState(resolvedSearchParams);
+  const [workflowInventory, filteredWorkflows, systemOverview, sensitiveAccessInbox, workflowLibrary] = await Promise.all([
     getWorkflows(),
+    workflowLibraryViewState.definitionIssue
+      ? getWorkflows({
+          definitionIssue: workflowLibraryViewState.definitionIssue
+        })
+      : Promise.resolve<WorkflowListItem[] | null>(null),
     getSystemOverview(),
     getSensitiveAccessInboxSnapshot(),
     getWorkflowLibrarySnapshot()
   ]);
-  const workflowLibraryHref = buildWorkflowLibraryHrefFromWorkspaceStarterViewState(
+  const workflows = filteredWorkflows ?? workflowInventory;
+  const baseWorkflowLibraryHref = buildWorkflowLibraryHrefFromWorkspaceStarterViewState(
     workspaceStarterViewState
   );
-  const summary = buildWorkflowLibrarySummary(workflows);
+  const workflowLibraryHref = appendWorkflowLibraryViewState(
+    baseWorkflowLibraryHref,
+    workflowLibraryViewState
+  );
+  const clearWorkflowLibraryFilterHref = appendWorkflowLibraryViewState(
+    baseWorkflowLibraryHref,
+    {
+      definitionIssue: null
+    }
+  );
+  const legacyPublishAuthFilterHref = appendWorkflowLibraryViewState(
+    baseWorkflowLibraryHref,
+    {
+      definitionIssue: "legacy_publish_auth"
+    }
+  );
+  const isLegacyPublishAuthFilterActive =
+    workflowLibraryViewState.definitionIssue === "legacy_publish_auth";
+  const summary = buildWorkflowLibrarySummary(workflowInventory);
   const surfaceCopy = buildWorkflowLibrarySurfaceCopy({
     createWorkflowHref: buildWorkflowCreateHrefFromWorkspaceStarterViewState(
       workspaceStarterViewState
@@ -68,7 +99,8 @@ export default async function WorkflowsPage({
     summary,
     sandboxReadiness: systemOverview.sandbox_readiness,
     starters: workflowLibrary.starters,
-    workspaceStarterViewState
+    workspaceStarterViewState,
+    workflowLibraryViewState
   });
   const crossEntryRiskDigest = buildCrossEntryRiskDigest({
     sandboxReadiness: systemOverview.sandbox_readiness,
@@ -122,12 +154,44 @@ export default async function WorkflowsPage({
             </article>
           </div>
 
+          <div className="summary-strip">
+            <Link
+              className={`event-chip inbox-filter-link${
+                !isLegacyPublishAuthFilterActive ? " active" : ""
+              }`}
+              href={clearWorkflowLibraryFilterHref}
+            >
+              全部 workflow
+            </Link>
+            <Link
+              className={`event-chip inbox-filter-link${
+                isLegacyPublishAuthFilterActive ? " active" : ""
+              }`}
+              href={legacyPublishAuthFilterHref}
+            >
+              Legacy publish auth blocker
+            </Link>
+          </div>
+
+          {isLegacyPublishAuthFilterActive ? (
+            <p className="section-copy">
+              当前列表只显示 legacy publish auth blocker，共 {workflows.length} / {summary.workflowCount} 个
+              workflow；逐个回 editor 保存后，再回 publish 面板补发新版 binding。
+            </p>
+          ) : null}
+
           {workflows.length === 0 ? (
             <div className="empty-state-block">
               <p className="empty-state">
-                {surfaceCopy.emptyState}
+                {isLegacyPublishAuthFilterActive && summary.workflowCount > 0
+                  ? "当前筛选范围里已经没有 legacy publish auth blocker。可以清除筛选，继续检查其余 workflow 治理信号。"
+                  : surfaceCopy.emptyState}
               </p>
-              {recommendedNextStep ? (
+              {isLegacyPublishAuthFilterActive && summary.workflowCount > 0 ? (
+                <Link className="inline-link" href={clearWorkflowLibraryFilterHref}>
+                  清除筛选
+                </Link>
+              ) : recommendedNextStep ? (
                 <OperatorRecommendedNextStepCard recommendedNextStep={recommendedNextStep} />
               ) : (
                 <WorkbenchEntryLink className="inline-link" linkKey="createWorkflow">
@@ -138,11 +202,11 @@ export default async function WorkflowsPage({
           ) : (
             <div className="workflow-chip-row">
               {workflows.map((workflow) => {
-                const workflowDetailLink = buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState(
-                  {
-                    workflowId: workflow.id,
-                    viewState: workspaceStarterViewState
-                  }
+                const workflowDetailLink = buildFilteredWorkflowDetailLink({
+                  workflowId: workflow.id,
+                  viewState: workspaceStarterViewState,
+                  workflowLibraryViewState
+                }
                 );
 
                 return (
@@ -192,9 +256,19 @@ export default async function WorkflowsPage({
               </p>
             ) : (
               summary.workflowsWithLegacyPublishAuth.map((workflow) => (
-                <span className="event-chip" key={`${workflow.id}-publish-auth`}>
+                <Link
+                  className="event-chip inbox-filter-link"
+                  href={buildFilteredWorkflowDetailLink({
+                    workflowId: workflow.id,
+                    viewState: workspaceStarterViewState,
+                    workflowLibraryViewState: {
+                      definitionIssue: "legacy_publish_auth"
+                    }
+                  }).href}
+                  key={`${workflow.id}-publish-auth`}
+                >
                   {workflow.name} · publish auth blocker
-                </span>
+                </Link>
               ))
             )}
           </div>
@@ -278,7 +352,8 @@ function buildWorkflowLibraryRecommendedNextStep({
   summary,
   sandboxReadiness,
   starters,
-  workspaceStarterViewState
+  workspaceStarterViewState,
+  workflowLibraryViewState
 }: {
   summary: ReturnType<typeof buildWorkflowLibrarySummary>;
   sandboxReadiness?: SandboxReadinessCheck | null;
@@ -286,13 +361,15 @@ function buildWorkflowLibraryRecommendedNextStep({
   workspaceStarterViewState: Parameters<
     typeof buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState
   >[0]["viewState"];
+  workflowLibraryViewState: WorkflowLibraryViewState;
 }): OperatorRecommendedNextStep | null {
   const workflowLegacyPublishAuth = summary.workflowsWithLegacyPublishAuth[0] ?? null;
   if (workflowLegacyPublishAuth) {
-    const workflowLink = buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+    const workflowLink = buildFilteredWorkflowDetailLink({
       workflowId: workflowLegacyPublishAuth.id,
       viewState: workspaceStarterViewState,
-      variant: "editor"
+      variant: "editor",
+      workflowLibraryViewState
     });
     const publishAuthIssueCount = getWorkflowLegacyPublishAuthIssues(
       workflowLegacyPublishAuth
@@ -310,10 +387,11 @@ function buildWorkflowLibraryRecommendedNextStep({
 
   const workflowMissingTools = summary.workflowsWithMissingTools[0] ?? null;
   if (workflowMissingTools) {
-    const workflowLink = buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+    const workflowLink = buildFilteredWorkflowDetailLink({
       workflowId: workflowMissingTools.id,
       viewState: workspaceStarterViewState,
-      variant: "editor"
+      variant: "editor",
+      workflowLibraryViewState
     });
     const missingToolCount = workflowMissingTools.tool_governance?.missing_tool_ids.length ?? 0;
 
@@ -329,10 +407,11 @@ function buildWorkflowLibraryRecommendedNextStep({
 
   const workflowStrongIsolation = summary.workflowsWithStrongIsolation[0] ?? null;
   if (workflowStrongIsolation && hasWorkflowLibrarySandboxRisk(sandboxReadiness)) {
-    const workflowLink = buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+    const workflowLink = buildFilteredWorkflowDetailLink({
       workflowId: workflowStrongIsolation.id,
       viewState: workspaceStarterViewState,
-      variant: "editor"
+      variant: "editor",
+      workflowLibraryViewState
     });
 
     return {
@@ -416,6 +495,29 @@ function buildWorkflowLibraryEmptyStateRecommendedNextStep(
       workspaceStarterViewState
     ),
     href_label: "打开 workspace starter library"
+  };
+}
+
+function buildFilteredWorkflowDetailLink({
+  workflowId,
+  viewState,
+  workflowLibraryViewState,
+  variant = "chip"
+}: {
+  workflowId: string;
+  viewState: Parameters<typeof buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState>[0]["viewState"];
+  workflowLibraryViewState: WorkflowLibraryViewState;
+  variant?: Parameters<typeof buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState>[0]["variant"];
+}) {
+  const workflowDetailLink = buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+    workflowId,
+    viewState,
+    variant
+  });
+
+  return {
+    ...workflowDetailLink,
+    href: appendWorkflowLibraryViewState(workflowDetailLink.href, workflowLibraryViewState)
   };
 }
 
