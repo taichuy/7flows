@@ -88,6 +88,7 @@ export default async function RunsPage({ searchParams }: RunsPageProps = {}) {
 
       <section className="diagnostics-layout">
         <CrossEntryRiskDigestPanel
+          currentHref={runLibraryHref}
           digest={crossEntryRiskDigest}
           eyebrow="Run overview"
           intro="进入 run library 后先看跨入口 blocker：强隔离 execution class、callback recovery 与 operator backlog 是否已经收口，再决定去具体 run、workflow 或 inbox。"

@@ -51,6 +51,9 @@ export default async function WorkflowsPage({
     getSensitiveAccessInboxSnapshot(),
     getWorkflowLibrarySnapshot()
   ]);
+  const workflowLibraryHref = buildWorkflowLibraryHrefFromWorkspaceStarterViewState(
+    workspaceStarterViewState
+  );
   const summary = buildWorkflowLibrarySummary(workflows);
   const surfaceCopy = buildWorkflowLibrarySurfaceCopy({
     createWorkflowHref: buildWorkflowCreateHrefFromWorkspaceStarterViewState(
@@ -86,6 +89,7 @@ export default async function WorkflowsPage({
 
       <section className="diagnostics-layout">
         <CrossEntryRiskDigestPanel
+          currentHref={workflowLibraryHref}
           digest={crossEntryRiskDigest}
           eyebrow="Workflow overview"
           intro="作者进入 workflow library 后先看到跨入口 blocker：当前强隔离是否可用、callback waiting 是否仍需 operator 跟进，以及 inbox backlog 是否会继续拖住发布与调试。"

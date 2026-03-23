@@ -9,6 +9,7 @@ type CrossEntryRiskDigestPanelProps = {
   eyebrow?: string;
   title?: string;
   intro: string;
+  currentHref?: string | null;
 };
 
 function getToneClassName(tone: CrossEntryRiskDigestTone) {
@@ -37,7 +38,8 @@ export function CrossEntryRiskDigestPanel({
   digest,
   eyebrow = "Operator overview",
   title = "Cross-entry risk digest",
-  intro
+  intro,
+  currentHref = null
 }: CrossEntryRiskDigestPanelProps) {
   return (
     <article className="diagnostic-panel panel-span">
@@ -49,6 +51,7 @@ export function CrossEntryRiskDigestPanel({
         <div className="section-actions">
           <p className="section-copy">{intro}</p>
           <WorkbenchEntryLinks
+            currentHref={currentHref}
             keys={digest.entryKeys}
             overrides={digest.entryOverrides}
             primaryKey={digest.primaryEntryKey}
@@ -78,6 +81,7 @@ export function CrossEntryRiskDigestPanel({
         <div className="tool-badge-row">
           <WorkbenchEntryLink
             className="inline-link secondary"
+            currentHref={currentHref}
             linkKey={digest.primaryFollowUpEntry.entryKey}
             override={digest.primaryFollowUpEntry.entryOverride}
           />
@@ -100,6 +104,7 @@ export function CrossEntryRiskDigestPanel({
             <div className="tool-badge-row">
               <WorkbenchEntryLink
                 className="inline-link secondary"
+                currentHref={currentHref}
                 linkKey={area.entryKey}
                 override={area.entryOverride}
               />

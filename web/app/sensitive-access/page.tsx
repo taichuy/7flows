@@ -185,6 +185,7 @@ export default async function SensitiveAccessInboxPage({
 
       <section className="diagnostics-layout">
         <CrossEntryRiskDigestPanel
+          currentHref={currentInboxHref}
           digest={crossEntryRiskDigest}
           eyebrow="Operator overview"
           intro="审批、恢复、通知和强隔离恢复已经落到同一套工作台事实，但 operator 仍需要先看到跨入口主风险，再决定是回 inbox、run 诊断还是 workflow 列表继续处理。"

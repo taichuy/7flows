@@ -97,4 +97,19 @@ describe("CrossEntryRiskDigestPanel", () => {
     expect(html).toContain("查看 run diagnostics");
     expect(html).toContain('/runs');
   });
+
+  it("drops self CTA links when the digest already points at the current scoped entry", () => {
+    const html = renderToStaticMarkup(
+      createElement(CrossEntryRiskDigestPanel, {
+        digest: buildDigest(),
+        intro: "统一展示跨入口 blocker。",
+        currentHref: "/sensitive-access?status=pending"
+      })
+    );
+
+    expect(html).toContain("open inbox slice");
+    expect(html).toContain('aria-current="page"');
+    expect(html).not.toContain('href="/sensitive-access?status=pending"');
+    expect(html).toContain('href="/workflows?execution=sandbox"');
+  });
 });

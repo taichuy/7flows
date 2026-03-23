@@ -182,7 +182,8 @@ export function SensitiveAccessInboxEntryCard({
             href: executionSurfaceCopy.recommendedNextStepHref,
             href_label: executionSurfaceCopy.recommendedNextStepHrefLabel,
             fallback_detail: executionSurfaceCopy.recommendedNextStepFallbackDetail
-          }
+          },
+        currentHref
       })
     : null;
 

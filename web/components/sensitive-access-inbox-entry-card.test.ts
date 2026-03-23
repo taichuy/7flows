@@ -432,6 +432,26 @@ describe("SensitiveAccessInboxEntryCard", () => {
     expect(html).not.toContain("Callback actions");
   });
 
+  it("removes a self-referential execution CTA when the current inbox slice already matches the focus node", () => {
+    const entry = buildEntry();
+    entry.executionContext = {
+      ...entry.executionContext!,
+      focusMatchesEntry: false
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessInboxEntryCard, {
+        entry,
+        currentHref: "/sensitive-access?node_run_id=node-run-1&run_id=run-1"
+      })
+    );
+
+    expect(html).toContain(operatorSurfaceCopy.recommendedNextStepTitle);
+    expect(html).toContain("focus node");
+    expect(html).toContain("优先处理 inbox 当前票据");
+    expect(html).not.toContain("slice to focus node");
+  });
+
   it("keeps callback actions when callback resume is the real next operator step", () => {
     const entry = buildEntry();
     entry.callbackWaitingContext = {

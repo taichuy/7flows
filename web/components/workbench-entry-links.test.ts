@@ -90,4 +90,30 @@ describe("workbench entry links", () => {
     expect(html).toContain("带此 starter 回到创建页");
     expect(html).toContain('/workflows/new?needs_follow_up=true&amp;starter=starter-1');
   });
+
+  it("drops self-referential shared links while preserving copy", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkbenchEntryLinks, {
+        keys: ["operatorInbox", "workflowLibrary"],
+        variant: "inline",
+        primaryKey: "operatorInbox",
+        currentHref: "/sensitive-access?status=pending",
+        overrides: {
+          operatorInbox: {
+            href: "/sensitive-access?status=pending",
+            label: "打开待处理收件箱"
+          },
+          workflowLibrary: {
+            href: "/workflows?execution=sandbox",
+            label: "Open workflow library"
+          }
+        }
+      })
+    );
+
+    expect(html).toContain("打开待处理收件箱");
+    expect(html).not.toContain('/sensitive-access?status=pending');
+    expect(html).toContain('aria-current="page"');
+    expect(html).toContain('/workflows?execution=sandbox');
+  });
 });
