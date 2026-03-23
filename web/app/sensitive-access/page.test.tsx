@@ -16,12 +16,14 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/sensitive-access",
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),
     refresh: vi.fn(),
     prefetch: vi.fn()
-  })
+  }),
+  useSearchParams: () => new URLSearchParams()
 }));
 
 vi.mock("@/lib/get-sensitive-access", () => ({
