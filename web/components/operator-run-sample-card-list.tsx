@@ -22,6 +22,7 @@ import {
 type OperatorRunSampleCardListProps = {
   cards: OperatorRunSampleCard[];
   callbackWaitingSummaryProps?: CallbackWaitingSummaryProps;
+  currentHref?: string | null;
   resolveRunDetailHref?: ((runId: string) => string | null) | null;
   skillTraceDescription: string;
   sandboxReadiness?: SandboxReadinessCheck | null;
@@ -30,6 +31,7 @@ type OperatorRunSampleCardListProps = {
 export function OperatorRunSampleCardList({
   cards,
   callbackWaitingSummaryProps,
+  currentHref = null,
   resolveRunDetailHref = null,
   skillTraceDescription,
   sandboxReadiness = null
@@ -79,6 +81,7 @@ export function OperatorRunSampleCardList({
         const sampleRecommendedNextStep = sampleSandboxCandidate
           ? buildOperatorRecommendedNextStep({
               execution: sampleSandboxCandidate,
+              currentHref: currentHref ?? callbackWaitingSummaryProps?.currentHref ?? null,
               operatorFollowUp: sample.summary,
               operatorLabel: "sampled run"
             })
@@ -147,6 +150,7 @@ export function OperatorRunSampleCardList({
           ) : null}
 
           <CallbackWaitingSummaryCard
+            currentHref={currentHref ?? callbackWaitingSummaryProps?.currentHref ?? null}
             callbackWaitingExplanation={sample.callbackWaitingExplanation}
             callbackTickets={sample.callbackTickets}
             callbackWaitingAutomation={

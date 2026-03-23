@@ -226,6 +226,7 @@ export function SensitiveAccessBulkGovernanceCard({
               <OperatorRunSampleCardList
                 cards={sampledRunCards}
                 callbackWaitingSummaryProps={callbackWaitingSummaryProps}
+                currentHref={currentHref}
                 resolveRunDetailHref={resolveRunDetailHref}
                 skillTraceDescription="批量治理结果现在也会复用 compact snapshot 里的 skill trace，方便直接确认受影响 run 的 focus node 注入来源。"
               />

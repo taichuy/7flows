@@ -102,4 +102,21 @@ describe("SandboxReadinessOverviewCard", () => {
 
     expect(html).not.toContain("Recommended next step");
   });
+
+  it("drops the sandbox follow-up link when the current page already matches it", () => {
+    const html = renderToStaticMarkup(
+      createElement(SandboxReadinessOverviewCard, {
+        readiness: buildReadiness(),
+        currentHref: "/workflows?risk=sandbox",
+        title: "Live sandbox readiness"
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("sandbox readiness");
+    expect(html).toContain(
+      "当前 live sandbox readiness 仍影响 4 个 run / 1 个 workflow；优先回到 workflow library 处理强隔离 execution class 与隔离需求。"
+    );
+    expect(html).not.toContain("Open workflow library</a>");
+  });
 });

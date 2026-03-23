@@ -402,8 +402,10 @@ export function InlineOperatorActionFeedback({
             callbackWaitingSummaryProps={{
               recommendedAction: canonicalCallbackRecommendedAction,
               operatorFollowUp: canonicalCallbackOperatorFollowUp,
+              currentHref: currentHref ?? callbackWaitingSummaryProps?.currentHref ?? null,
               preferCanonicalRecommendedNextStep: preferCanonicalCallbackRecommendedNextStep
             }}
+            currentHref={currentHref ?? callbackWaitingSummaryProps?.currentHref ?? null}
             resolveRunDetailHref={resolveRunDetailHref}
             sandboxReadiness={sandboxReadiness}
             skillTraceDescription="当前 operator 结果会继续复用 sampled run focus node 的 compact skill trace，方便确认等待链路里实际加载了哪些参考资料。"

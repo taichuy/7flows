@@ -11,6 +11,7 @@ import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-bloc
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 
 type WorkflowEditorVariableFormProps = {
+  currentHref?: string | null;
   variables: Array<Record<string, unknown>>;
   onChange: (
     nextVariables: Array<Record<string, unknown>>,
@@ -32,6 +33,7 @@ type NormalizedWorkflowVariable = {
 };
 
 export function WorkflowEditorVariableForm({
+  currentHref = null,
   variables,
   onChange,
   highlightedVariableIndex = null,
@@ -210,6 +212,7 @@ export function WorkflowEditorVariableForm({
 
       {focusedValidationItem ? (
         <WorkflowValidationRemediationCard
+          currentHref={currentHref}
           item={focusedValidationItem}
           sandboxReadiness={sandboxReadiness}
         />
@@ -219,6 +222,7 @@ export function WorkflowEditorVariableForm({
         summary={variablePersistBlockerSummary}
         blockers={variablePersistBlockers}
         sandboxReadiness={sandboxReadiness}
+        currentHref={currentHref}
       />
 
       <div className="tool-badge-row">

@@ -233,6 +233,7 @@ describe("InlineOperatorActionFeedback", () => {
     expect(html).toContain(`href="${escapedScopedRunHref}"`);
     expect(html).not.toContain('href="/runs/run-1"');
     expect(runSampleListProps).toHaveLength(1);
+    expect(runSampleListProps[0]?.currentHref).toBeNull();
     expect(runSampleListProps[0]?.resolveRunDetailHref).toBe(resolveRunDetailHref);
     expect(
       (runSampleListProps[0]?.resolveRunDetailHref as ((runId: string) => string) | undefined)?.(
@@ -240,6 +241,46 @@ describe("InlineOperatorActionFeedback", () => {
       )
     ).toBe(
       "/runs/run-2?needs_follow_up=true&q=starter&source_governance_kind=missing_source"
+    );
+  });
+
+  it("forwards currentHref to sampled run cards", () => {
+    renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        message: "",
+        title: "Operator follow-up",
+        currentHref: "/sensitive-access?run_id=run-1&approval_ticket_id=ticket-1",
+        runId: "run-1",
+        runFollowUp: {
+          affectedRunCount: 1,
+          sampledRunCount: 1,
+          waitingRunCount: 1,
+          runningRunCount: 0,
+          succeededRunCount: 0,
+          failedRunCount: 0,
+          unknownRunCount: 0,
+          sampledRuns: [
+            {
+              runId: "run-2",
+              snapshot: {
+                status: "waiting",
+                currentNodeId: "approval_gate",
+                executionFocusNodeId: "approval_gate",
+                executionFocusNodeRunId: "node-run-2",
+                executionFocusNodeName: "Approval Gate"
+              },
+              callbackTickets: [],
+              sensitiveAccessEntries: []
+            }
+          ]
+        }
+      })
+    );
+
+    expect(runSampleListProps).toHaveLength(1);
+    expect(runSampleListProps[0]?.currentHref).toBe(
+      "/sensitive-access?run_id=run-1&approval_ticket_id=ticket-1"
     );
   });
 

@@ -22,6 +22,7 @@ type WorkflowEditorPublishEndpointCardProps = {
   workflowVersion: string;
   validationMessages: string[];
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
+  currentHref?: string | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   highlighted?: boolean;
   highlightedFieldPath?: string | null;
@@ -43,6 +44,7 @@ export function WorkflowEditorPublishEndpointCard({
   workflowVersion,
   validationMessages,
   focusedValidationItem = null,
+  currentHref = null,
   sandboxReadiness = null,
   highlighted = false,
   highlightedFieldPath = null,
@@ -93,6 +95,7 @@ export function WorkflowEditorPublishEndpointCard({
 
       {focusedValidationItem && normalizedHighlightedField ? (
         <WorkflowValidationRemediationCard
+          currentHref={currentHref}
           item={focusedValidationItem}
           sandboxReadiness={sandboxReadiness}
         />

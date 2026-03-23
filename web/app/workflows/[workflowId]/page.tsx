@@ -11,6 +11,7 @@ import { getWorkflowPublishGovernanceSnapshot } from "@/lib/get-workflow-publish
 import { getWorkflowRuns } from "@/lib/get-workflow-runs";
 import {
   buildWorkflowCreateHrefFromWorkspaceStarterViewState,
+  buildWorkflowEditorHrefFromWorkspaceStarterViewState,
   buildWorkflowLibraryHrefFromWorkspaceStarterViewState,
   buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState,
   hasScopedWorkspaceStarterGovernanceFilters,
@@ -69,6 +70,10 @@ export default async function WorkflowEditorPage({
   const createWorkflowHref = buildWorkflowCreateHrefFromWorkspaceStarterViewState(
     workspaceStarterViewState
   );
+  const currentEditorHref = buildWorkflowEditorHrefFromWorkspaceStarterViewState(
+    workflow.id,
+    workspaceStarterViewState
+  );
   const workspaceStarterLibraryHref =
     buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState(
       workspaceStarterViewState
@@ -111,6 +116,7 @@ export default async function WorkflowEditorPage({
         sandboxReadiness={systemOverview.sandbox_readiness}
         sandboxBackends={systemOverview.sandbox_backends}
         recentRuns={recentRuns}
+        currentEditorHref={currentEditorHref}
         workflowLibraryHref={workflowLibraryHref}
         createWorkflowHref={createWorkflowHref}
         workspaceStarterLibraryHref={workspaceStarterLibraryHref}

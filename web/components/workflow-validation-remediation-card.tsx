@@ -10,11 +10,13 @@ import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-
 type WorkflowValidationRemediationCardProps = {
   item?: WorkflowValidationNavigatorItem | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  currentHref?: string | null;
 };
 
 export function WorkflowValidationRemediationCard({
   item,
-  sandboxReadiness
+  sandboxReadiness,
+  currentHref = null
 }: WorkflowValidationRemediationCardProps) {
   if (!item) {
     return null;
@@ -23,7 +25,8 @@ export function WorkflowValidationRemediationCard({
   const remediation = buildWorkflowValidationRemediation(item, sandboxReadiness);
   const recommendedNextStep = remediation.followUp
     ? buildOperatorRecommendedNextStep({
-        execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness")
+        execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness"),
+        currentHref
       })
     : null;
 

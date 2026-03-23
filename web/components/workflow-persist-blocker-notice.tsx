@@ -10,6 +10,7 @@ type WorkflowPersistBlockerNoticeProps = {
   summary?: string | null;
   blockers: WorkflowPersistBlocker[];
   sandboxReadiness?: SandboxReadinessCheck | null;
+  currentHref?: string | null;
   hideRecommendedNextStep?: boolean;
   limit?: number;
 };
@@ -19,6 +20,7 @@ export function WorkflowPersistBlockerNotice({
   summary = null,
   blockers,
   sandboxReadiness = null,
+  currentHref = null,
   hideRecommendedNextStep = false,
   limit = 4
 }: WorkflowPersistBlockerNoticeProps) {
@@ -28,7 +30,8 @@ export function WorkflowPersistBlockerNotice({
 
   const recommendedNextStep = buildWorkflowPersistBlockerRecommendedNextStep(
     blockers,
-    sandboxReadiness
+    sandboxReadiness,
+    currentHref
   );
 
   return (

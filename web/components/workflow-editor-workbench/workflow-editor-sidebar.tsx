@@ -39,6 +39,7 @@ import {
 import type { WorkflowEditorMessageKind, WorkflowEditorMessageTone } from "./shared";
 
 type WorkflowEditorSidebarProps = {
+  currentHref?: string;
   workflowId: string;
   workflowName: string;
   workflows: WorkflowListItem[];
@@ -81,6 +82,7 @@ type WorkflowEditorSidebarProps = {
 };
 
 export function WorkflowEditorSidebar({
+  currentHref,
   workflowId,
   workflowName,
   workflows,
@@ -128,7 +130,11 @@ export function WorkflowEditorSidebar({
   const remediationItem = focusedValidationItem ?? preflightValidationItem;
   const resolvedPersistBlockerRecommendedNextStep =
     persistBlockerRecommendedNextStep ??
-    buildWorkflowPersistBlockerRecommendedNextStep(persistBlockers, sandboxReadiness);
+    buildWorkflowPersistBlockerRecommendedNextStep(
+      persistBlockers,
+      sandboxReadiness,
+      currentHref
+    );
   const feedbackMessage =
     message ??
     (persistBlockers.length > 0
@@ -305,6 +311,7 @@ export function WorkflowEditorSidebar({
             summary={persistBlockerSummary}
             blockers={persistBlockers}
             sandboxReadiness={sandboxReadiness}
+            currentHref={currentHref}
             hideRecommendedNextStep={Boolean(persistBlockerRecommendedNextStep)}
           />
         ) : null}
@@ -320,6 +327,7 @@ export function WorkflowEditorSidebar({
         ) : null}
 
         <SandboxReadinessOverviewCard
+          currentHref={currentHref}
           readiness={sandboxReadiness}
           title="Execution preflight"
           intro={executionPreflightMessage}
@@ -329,6 +337,7 @@ export function WorkflowEditorSidebar({
 
         {remediationItem ? (
           <WorkflowValidationRemediationCard
+            currentHref={currentHref}
             item={remediationItem}
             sandboxReadiness={sandboxReadiness}
           />

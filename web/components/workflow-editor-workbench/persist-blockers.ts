@@ -195,7 +195,8 @@ export function buildWorkflowPersistBlockerRecommendedNextStep(
     | "affected_workflow_count"
     | "primary_blocker_kind"
     | "recommended_action"
-  > | null
+  > | null,
+  currentHref?: string | null
 ): OperatorRecommendedNextStep | null {
   if (blockers.length === 0) {
     return null;
@@ -211,6 +212,7 @@ export function buildWorkflowPersistBlockerRecommendedNextStep(
   }
 
   return buildOperatorRecommendedNextStep({
-    execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness")
+    execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness"),
+    currentHref
   });
 }

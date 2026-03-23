@@ -58,6 +58,7 @@ type WorkflowEditorWorkbenchProps = {
   sandboxReadiness?: SandboxReadinessCheck | null;
   sandboxBackends?: SandboxBackendCheck[] | null;
   recentRuns: WorkflowRunListItem[];
+  currentEditorHref?: string;
   workflowLibraryHref?: string;
   createWorkflowHref?: string;
   workspaceStarterLibraryHref?: string;
@@ -77,6 +78,7 @@ export function WorkflowEditorWorkbench({
   sandboxReadiness,
   sandboxBackends,
   recentRuns,
+  currentEditorHref,
   workflowLibraryHref,
   createWorkflowHref,
   workspaceStarterLibraryHref,
@@ -154,9 +156,10 @@ export function WorkflowEditorWorkbench({
     () =>
       buildWorkflowPersistBlockerRecommendedNextStep(
         validation.persistBlockers,
-        sandboxReadiness
+        sandboxReadiness,
+        currentEditorHref
       ),
-    [sandboxReadiness, validation.persistBlockers]
+    [currentEditorHref, sandboxReadiness, validation.persistBlockers]
   );
   const persistence = useWorkflowEditorPersistence({
     workflowId: workflow.id,
@@ -257,6 +260,7 @@ export function WorkflowEditorWorkbench({
 
         <section className="editor-workspace">
           <WorkflowEditorSidebar
+            currentHref={currentEditorHref}
             workflowId={workflow.id}
             workflowName={graph.workflowName}
             workflows={workflows}
@@ -310,6 +314,7 @@ export function WorkflowEditorWorkbench({
 
           <aside className="editor-inspector">
             <WorkflowEditorInspector
+              currentHref={currentEditorHref}
               selectedNode={selectedNode}
               selectedEdge={selectedEdge}
               nodes={graph.nodes}

@@ -199,6 +199,7 @@ export default async function RunsPage({ searchParams }: RunsPageProps = {}) {
           </div>
 
           <SandboxReadinessOverviewCard
+            currentHref={runLibraryHref}
             intro="run library 先直接暴露当前 sandbox backend 的健康度与 blocked execution class，避免 operator 还没进入 run detail 就误判强隔离链路已经恢复。"
             hideRecommendedNextStep={Boolean(recommendedNextStep)}
             readiness={overview.sandbox_readiness}

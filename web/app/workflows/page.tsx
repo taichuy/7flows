@@ -193,6 +193,7 @@ export default async function WorkflowsPage({
           </div>
 
           <SandboxReadinessOverviewCard
+            currentHref={workflowLibraryHref}
             intro="workflow library 直接暴露当前 live sandbox readiness，让作者在进入具体 editor 之前就能知道 blocked / degraded / offline backend 是否会继续影响强隔离节点。"
             hideRecommendedNextStep
             readiness={systemOverview.sandbox_readiness}

@@ -360,6 +360,50 @@ describe("OperatorRunSampleCardList", () => {
     expect(html).toContain("当前 live sandbox readiness 仍影响 4 个 run / 1 个 workflow");
   });
 
+  it("drops sampled-run sandbox CTA links when the current page already matches them", () => {
+    const html = renderToStaticMarkup(
+      createElement(OperatorRunSampleCardList, {
+        cards: [
+          buildSampleCard({
+            hasCallbackWaitingSummary: false,
+            callbackWaitingExplanation: null,
+            callbackWaitingFocusNodeEvidence: null,
+            summary: "当前 sampled run 因 sandbox backend 不可用而阻断。",
+            sandboxReadinessNode: {
+              node_type: "tool",
+              execution_class: "sandbox",
+              requested_execution_class: "sandbox",
+              effective_execution_class: "sandbox",
+              execution_blocking_reason: "No compatible sandbox backend is available.",
+              execution_sandbox_backend_id: null,
+              execution_blocked_count: 1,
+              execution_unavailable_count: 0
+            }
+          })
+        ],
+        currentHref: "/workflows?execution=sandbox",
+        sandboxReadiness: {
+          ...buildSandboxReadiness(),
+          affected_run_count: 4,
+          affected_workflow_count: 1,
+          primary_blocker_kind: "execution_class_blocked",
+          recommended_action: {
+            kind: "open_workflow_library",
+            label: "Open workflow library",
+            href: "/workflows?execution=sandbox",
+            entry_key: "workflowLibrary"
+          }
+        },
+        skillTraceDescription: "skill trace"
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("sandbox readiness");
+    expect(html).toContain("当前 live sandbox readiness 仍影响 4 个 run / 1 个 workflow");
+    expect(html).not.toContain("Open workflow library</a>");
+  });
+
   it("reuses the canonical callback CTA across sampled run cards", () => {
     const html = renderToStaticMarkup(
       createElement(OperatorRunSampleCardList, {
@@ -384,6 +428,30 @@ describe("OperatorRunSampleCardList", () => {
     expect(html).toContain(
       'href="/sensitive-access?run_id=run-1&amp;approval_ticket_id=approval-ticket-1"'
     );
+  });
+
+  it("drops sampled-run callback CTA links when the current page already matches the inbox slice", () => {
+    const html = renderToStaticMarkup(
+      createElement(OperatorRunSampleCardList, {
+        cards: [buildSampleCard()],
+        currentHref: "/sensitive-access?approval_ticket_id=approval-ticket-1&run_id=run-1",
+        callbackWaitingSummaryProps: {
+          recommendedAction: {
+            kind: "approval blocker",
+            entry_key: "operatorInbox",
+            href: "/sensitive-access?run_id=run-1&approval_ticket_id=approval-ticket-1",
+            label: "Open approval inbox"
+          },
+          operatorFollowUp: "优先处理审批票据，再观察 callback waiting 是否恢复。",
+          preferCanonicalRecommendedNextStep: true
+        },
+        skillTraceDescription: "skill trace"
+      })
+    );
+
+    expect(html).toContain("approval blocker");
+    expect(html).toContain("先看当前 tool 实际落在哪个 runner。");
+    expect(html).not.toContain("Open approval inbox</a>");
   });
 
   it("surfaces shared callback recovery CTA for sampled runs when only automation supplies it", () => {

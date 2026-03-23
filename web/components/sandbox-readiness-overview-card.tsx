@@ -19,6 +19,7 @@ type SandboxReadinessOverviewCardProps = {
   readiness?: SandboxReadinessCheck | null;
   title?: string;
   intro?: string | null;
+  currentHref?: string | null;
   hideWhenHealthy?: boolean;
   hideRecommendedNextStep?: boolean;
 };
@@ -27,6 +28,7 @@ export function SandboxReadinessOverviewCard({
   readiness,
   title = "Live sandbox readiness",
   intro = null,
+  currentHref = null,
   hideWhenHealthy = false,
   hideRecommendedNextStep = false
 }: SandboxReadinessOverviewCardProps) {
@@ -63,7 +65,8 @@ export function SandboxReadinessOverviewCard({
     blockedClasses.length > 0 ? "blocked" : hasOperationalRisk ? "degraded" : "ready";
   const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
   const recommendedNextStep = buildOperatorRecommendedNextStep({
-    execution: buildSandboxReadinessFollowUpCandidate(readiness, "sandbox readiness")
+    execution: buildSandboxReadinessFollowUpCandidate(readiness, "sandbox readiness"),
+    currentHref
   });
 
   return (

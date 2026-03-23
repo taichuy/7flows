@@ -294,6 +294,7 @@ export default async function SensitiveAccessInboxPage({
       <section className="diagnostics-layout">
         <article className="diagnostic-panel">
           <SandboxReadinessOverviewCard
+            currentHref={currentInboxHref}
             intro="approval / resume / notification 已经汇到同一条 operator inbox，但强隔离恢复是否真的可执行，仍要先看 live sandbox readiness，而不是只等单条票据展开后再发现 backend 仍 blocked。"
             hideRecommendedNextStep={Boolean(recommendedNextStep)}
             readiness={systemOverview.sandbox_readiness}

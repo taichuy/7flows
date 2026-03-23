@@ -23,6 +23,7 @@ import { WorkflowEditorPublishForm } from "@/components/workflow-editor-publish-
 import { WorkflowEditorVariableForm } from "@/components/workflow-editor-variable-form";
 
 type WorkflowEditorInspectorProps = {
+  currentHref?: string | null;
   selectedNode: Node<WorkflowCanvasNodeData> | null;
   selectedEdge: Edge<WorkflowCanvasEdgeData> | null;
   nodes: Array<Node<WorkflowCanvasNodeData>>;
@@ -70,6 +71,7 @@ type WorkflowEditorInspectorProps = {
 };
 
 export function WorkflowEditorInspector({
+  currentHref = null,
   selectedNode,
   selectedEdge,
   nodes,
@@ -284,12 +286,14 @@ export function WorkflowEditorInspector({
             summary={persistBlockerSummary ?? persistBlockedMessage}
             blockers={persistBlockers}
             sandboxReadiness={sandboxReadiness}
+            currentHref={currentHref}
             hideRecommendedNextStep={Boolean(persistBlockerRecommendedNextStep)}
           />
         </article>
       ) : null}
 
       <WorkflowEditorPublishForm
+        currentHref={currentHref}
         workflowVersion={workflowVersion}
         availableWorkflowVersions={availableWorkflowVersions}
         publishEndpoints={workflowPublish}
@@ -304,6 +308,7 @@ export function WorkflowEditorInspector({
       />
 
       <WorkflowEditorVariableForm
+        currentHref={currentHref}
         variables={workflowVariables}
         onChange={onWorkflowVariablesChange}
         highlightedVariableIndex={highlightedVariableIndex}

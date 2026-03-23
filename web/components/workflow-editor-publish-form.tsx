@@ -25,6 +25,7 @@ import {
 } from "./workflow-editor-publish-form-shared";
 
 type WorkflowEditorPublishFormProps = {
+  currentHref?: string | null;
   workflowVersion: string;
   availableWorkflowVersions: string[];
   publishEndpoints: Array<Record<string, unknown>>;
@@ -44,6 +45,7 @@ type FocusedPublishValidationItem = WorkflowValidationNavigatorItem & {
 };
 
 export function WorkflowEditorPublishForm({
+  currentHref = null,
   workflowVersion,
   availableWorkflowVersions,
   publishEndpoints,
@@ -58,7 +60,8 @@ export function WorkflowEditorPublishForm({
   const sandboxPreflightHint = formatSandboxReadinessPreflightHint(sandboxReadiness);
   const sandboxRecommendedNextStep = sandboxPreflightHint
     ? buildOperatorRecommendedNextStep({
-        execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness")
+        execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness"),
+        currentHref
       })
     : null;
 
@@ -195,6 +198,7 @@ export function WorkflowEditorPublishForm({
       ) : null}
       {focusedPublishValidationItem && !focusedPublishEndpointExists ? (
         <WorkflowValidationRemediationCard
+          currentHref={currentHref}
           item={focusedPublishValidationItem}
           sandboxReadiness={sandboxReadiness}
         />
@@ -205,6 +209,7 @@ export function WorkflowEditorPublishForm({
         summary={publishPersistBlockerSummary}
         blockers={publishPersistBlockers}
         sandboxReadiness={sandboxReadiness}
+        currentHref={currentHref}
       />
 
       <div className="tool-badge-row">
@@ -250,6 +255,7 @@ export function WorkflowEditorPublishForm({
                 workflowVersion={workflowVersion}
                 validationMessages={validationIssuesByEndpoint.get(String(endpointIndex)) ?? []}
                 focusedValidationItem={endpointFocusedValidationItem}
+                currentHref={currentHref}
                 sandboxReadiness={sandboxReadiness}
                 highlighted={
                   highlightedEndpointIndex === endpointIndex || endpointFocusedValidationItem !== null
