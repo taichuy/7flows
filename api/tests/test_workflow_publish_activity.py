@@ -135,6 +135,10 @@ def test_protocol_streaming_rejections_are_recorded_in_publish_audit(
         item["name"]: item["invocation_count"]
         for item in openai_activity["facets"]["api_key_usage"]
     } == {"Streaming Audit Key": 2}
+    assert (
+        openai_activity["facets"]["api_key_usage"][0]["last_reason_code"]
+        == "streaming_unsupported"
+    )
     assert [item["request_surface"] for item in openai_activity["items"]] == [
         "openai.responses",
         "openai.chat.completions",
@@ -275,10 +279,12 @@ def test_list_published_endpoint_invocations_supports_filters_and_api_key_audit(
     assert api_key_usage["Primary Key"]["succeeded_count"] == 2
     assert api_key_usage["Primary Key"]["failed_count"] == 0
     assert api_key_usage["Primary Key"]["rejected_count"] == 0
+    assert api_key_usage["Primary Key"]["last_reason_code"] is None
     assert api_key_usage["Fallback Key"]["invocation_count"] == 1
     assert api_key_usage["Fallback Key"]["succeeded_count"] == 1
     assert api_key_usage["Fallback Key"]["failed_count"] == 0
     assert api_key_usage["Fallback Key"]["rejected_count"] == 0
+    assert api_key_usage["Fallback Key"]["last_reason_code"] is None
     assert {
         item["value"]: item["count"] for item in all_activity["facets"]["reason_counts"]
     } == {"api_key_invalid": 1}

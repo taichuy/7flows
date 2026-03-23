@@ -135,6 +135,7 @@ export type PublishedEndpointInvocationApiKeyUsageItem = {
   rejected_count: number;
   last_invoked_at?: string | null;
   last_status?: PublishedEndpointInvocationStatus | null;
+  last_reason_code?: string | null;
 };
 
 export type PublishedEndpointInvocationFailureReasonItem = {

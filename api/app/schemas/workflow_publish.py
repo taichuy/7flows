@@ -380,6 +380,7 @@ class PublishedEndpointInvocationApiKeyUsageItem(BaseModel):
     rejected_count: int = 0
     last_invoked_at: datetime | None = None
     last_status: PublishedEndpointInvocationStatus | None = None
+    last_reason_code: str | None = None
 
 
 class PublishedEndpointInvocationFailureReasonItem(BaseModel):

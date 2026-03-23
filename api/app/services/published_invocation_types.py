@@ -138,6 +138,7 @@ class PublishedInvocationApiKeyUsage:
     rejected_count: int = 0
     last_invoked_at: datetime | None = None
     last_status: PublishedInvocationStatus | None = None
+    last_reason_code: str | None = None
 
 
 @dataclass(frozen=True)

@@ -61,6 +61,7 @@ def _build_api_key_bucket() -> FacetBucket:
         "rejected_count": 0,
         "last_invoked_at": None,
         "last_status": None,
+        "last_reason_code": None,
     }
 
 
@@ -185,6 +186,8 @@ def build_binding_audit_facets(
     reason_buckets: dict[str, FacetBucket] = defaultdict(_build_facet_bucket)
 
     for record in records:
+        reason_code = resolve_reason_code(record)
+
         status_bucket = status_buckets[record.status]
         status_bucket["count"] += 1
         if status_bucket["last_invoked_at"] is None:
@@ -230,6 +233,7 @@ def build_binding_audit_facets(
             if api_key_bucket["last_invoked_at"] is None:
                 api_key_bucket["last_invoked_at"] = record.created_at
                 api_key_bucket["last_status"] = record.status
+                api_key_bucket["last_reason_code"] = reason_code
 
         if record.status != "succeeded" and record.error_message:
             failure_bucket = failure_reason_buckets[record.error_message]
@@ -237,7 +241,6 @@ def build_binding_audit_facets(
             if failure_bucket["last_invoked_at"] is None:
                 failure_bucket["last_invoked_at"] = record.created_at
 
-        reason_code = resolve_reason_code(record)
         if reason_code is not None:
             reason_bucket = reason_buckets[reason_code]
             reason_bucket["count"] += 1
@@ -309,6 +312,7 @@ def build_api_key_usage(
                 rejected_count=int(bucket["rejected_count"]),
                 last_invoked_at=bucket["last_invoked_at"],
                 last_status=bucket["last_status"],
+                last_reason_code=bucket["last_reason_code"],
             )
         )
     api_key_usage.sort(

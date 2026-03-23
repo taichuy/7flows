@@ -324,7 +324,8 @@ describe("published invocation presenters", () => {
           failed_count: 1,
           rejected_count: 1,
           last_invoked_at: "2026-03-21T00:16:00Z",
-          last_status: null
+          last_status: null,
+          last_reason_code: null
         } as never
       })
     ).toEqual({
@@ -361,7 +362,8 @@ describe("published invocation presenters", () => {
           failed_count: 1,
           rejected_count: 1,
           last_invoked_at: "2026-03-21T00:16:00Z",
-          last_status: "failed"
+          last_status: "failed",
+          last_reason_code: "api_key_invalid"
         } as never,
         selectedInvocation: {
           api_key_id: "key-1",
@@ -384,7 +386,8 @@ describe("published invocation presenters", () => {
           failed_count: 1,
           rejected_count: 1,
           last_invoked_at: "2026-03-21T00:16:00Z",
-          last_status: "failed"
+          last_status: "failed",
+          last_reason_code: "runtime_failed"
         } as never,
         selectedInvocation: {
           api_key_id: "key-1",
@@ -394,6 +397,35 @@ describe("published invocation presenters", () => {
         selectedInvocationNextStepSurface: selectedApiKeyNextStepSurface
       }).selectedNextStepSurface
     ).toBeNull();
+
+    expect(
+      buildPublishedInvocationApiKeyUsageCardSurface({
+        item: {
+          api_key_id: "key-1",
+          name: "Primary Key",
+          key_prefix: "sk-live",
+          status: "active",
+          invocation_count: 3,
+          succeeded_count: 1,
+          failed_count: 1,
+          rejected_count: 1,
+          last_invoked_at: "2026-03-21T00:16:00Z",
+          last_status: "failed",
+          last_reason_code: "runtime_failed"
+        } as never,
+        selectedInvocation: {
+          api_key_id: "key-1",
+          reason_code: "api_key_invalid",
+          error_message: "Caller API key is invalid."
+        } as never,
+        selectedInvocationNextStepSurface: selectedApiKeyNextStepSurface
+      })
+    ).toMatchObject({
+      rows: expect.arrayContaining([
+        { key: "last-reason", label: "Last reason", value: "Runtime failed", href: null }
+      ]),
+      selectedNextStepSurface: null
+    });
 
     expect(
       buildPublishedInvocationFailureReasonCardSurface({
@@ -1881,6 +1913,7 @@ describe("published invocation presenters", () => {
       apiKeyUsageStatusLabel: "Status",
       apiKeyUsageStatusEmptyLabel: "n/a",
       apiKeyUsageLastUsedLabel: "Last used",
+      apiKeyUsageLastReasonLabel: "Last reason",
       failureReasonTitle: "Failure reason",
       failureReasonCountLabelPrefix: "count",
       blockedDetailSurfaceLabel: "Invocation detail",

@@ -205,7 +205,8 @@ function buildInvocationAuditWithApiKeyUsage(): PublishedEndpointInvocationListR
           failed_count: 1,
           rejected_count: 1,
           last_invoked_at: "2026-03-21T00:16:00Z",
-          last_status: "failed"
+          last_status: "failed",
+          last_reason_code: "api_key_invalid"
         }
       ]
     }
@@ -228,7 +229,8 @@ function buildInvocationAuditWithApiKeyUsageFallbackStatus(): PublishedEndpointI
           failed_count: 0,
           rejected_count: 0,
           last_invoked_at: "2026-03-21T00:16:00Z",
-          last_status: null
+          last_status: null,
+          last_reason_code: null
         }
       ]
     }
@@ -806,6 +808,8 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain("Calls");
     expect(html).toContain("Status mix");
     expect(html).toContain("ok 1 / failed 1 / rejected 1");
+    expect(html).toContain("Last reason");
+    expect(html).toContain("Invalid API key");
     expect(html).toContain("Failure reason");
     expect(html).toContain("count 2");
   });

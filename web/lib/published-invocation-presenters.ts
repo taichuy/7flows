@@ -489,6 +489,7 @@ export type PublishedInvocationActivityDetailsSurfaceCopy = {
   apiKeyUsageStatusLabel: string;
   apiKeyUsageStatusEmptyLabel: string;
   apiKeyUsageLastUsedLabel: string;
+  apiKeyUsageLastReasonLabel: string;
   failureReasonTitle: string;
   failureReasonCountLabelPrefix: string;
   blockedDetailSurfaceLabel: string;
@@ -1522,6 +1523,7 @@ export function buildPublishedInvocationActivityDetailsSurfaceCopy(): PublishedI
     apiKeyUsageStatusLabel: "Status",
     apiKeyUsageStatusEmptyLabel: "n/a",
     apiKeyUsageLastUsedLabel: "Last used",
+    apiKeyUsageLastReasonLabel: "Last reason",
     failureReasonTitle: "Failure reason",
     failureReasonCountLabelPrefix: "count",
     blockedDetailSurfaceLabel: "Invocation detail",
@@ -1594,7 +1596,16 @@ export function buildPublishedInvocationApiKeyUsageCardSurface({
         "last-used",
         surfaceCopy.apiKeyUsageLastUsedLabel,
         formatTimestamp(item.last_invoked_at)
-      )
+      ),
+      ...(item.last_reason_code
+        ? [
+            buildPublishedInvocationMetaRow(
+              "last-reason",
+              surfaceCopy.apiKeyUsageLastReasonLabel,
+              formatPublishedInvocationReasonLabel(item.last_reason_code)
+            )
+          ]
+        : [])
     ],
     selectedNextStepSurface
   };
@@ -1711,12 +1722,27 @@ function hasPublishedInvocationApiKeyBoundarySignal(
   );
 
   return Boolean(
-    normalizedReasonCode === "api_key_invalid" ||
-      normalizedReasonCode === "api_key_required" ||
+    hasPublishedInvocationAuthBoundaryReasonCode(normalizedReasonCode) ||
       normalizedErrorMessage?.includes("api key") ||
       normalizedErrorMessage?.includes("unauthor") ||
       normalizedErrorMessage?.includes("forbidden") ||
       normalizedErrorMessage?.includes("auth")
+  );
+}
+
+function hasPublishedInvocationAuthBoundaryReasonCode(reasonCode?: string | null) {
+  return Boolean(
+    reasonCode === "api_key_invalid" ||
+      reasonCode === "api_key_required" ||
+      reasonCode === "auth_mode_unsupported"
+  );
+}
+
+function hasPublishedInvocationApiKeyUsageBoundarySignal(
+  item: NonNullable<PublishedEndpointInvocationListResponse["facets"]["api_key_usage"]>[number]
+) {
+  return hasPublishedInvocationAuthBoundaryReasonCode(
+    normalizePublishedInvocationReasonCode(item.last_reason_code)
   );
 }
 
@@ -1785,7 +1811,8 @@ function resolvePublishedInvocationApiKeyUsageSelectedNextStepSurface({
   if (
     !selectedInvocation ||
     !selectedInvocationNextStepSurface ||
-    !hasPublishedInvocationApiKeyBoundarySignal(selectedInvocation)
+    !hasPublishedInvocationApiKeyBoundarySignal(selectedInvocation) ||
+    !hasPublishedInvocationApiKeyUsageBoundarySignal(item)
   ) {
     return null;
   }

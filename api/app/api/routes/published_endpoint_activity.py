@@ -102,6 +102,7 @@ def _serialize_api_key_usage_item(item) -> PublishedEndpointInvocationApiKeyUsag
         rejected_count=item.rejected_count,
         last_invoked_at=item.last_invoked_at,
         last_status=item.last_status,
+        last_reason_code=item.last_reason_code,
     )
 
 
