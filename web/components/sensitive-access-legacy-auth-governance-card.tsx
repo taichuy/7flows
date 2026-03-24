@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 
 import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
+import { buildLegacyPublishAuthGovernanceSurfaceCopy } from "@/lib/legacy-publish-auth-governance-presenters";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
@@ -57,6 +58,8 @@ export function SensitiveAccessLegacyAuthGovernanceCompactCard({
     return null;
   }
 
+  const legacyAuthSurfaceCopy = buildLegacyPublishAuthGovernanceSurfaceCopy();
+
   return (
     <div className="entry-card compact-card">
       <div className="payload-card-header">
@@ -94,7 +97,7 @@ export function SensitiveAccessLegacyAuthGovernanceCompactCard({
 
       <div className="publish-key-list">
         <div>
-          <p className="entry-card-title">Workflow follow-up</p>
+          <p className="entry-card-title">{legacyAuthSurfaceCopy.workflowFollowUpTitle}</p>
           <p className="section-copy entry-copy">{workflowDescription}</p>
         </div>
 
@@ -110,6 +113,8 @@ export function SensitiveAccessLegacyAuthGovernanceCard({
   if (!snapshot || snapshot.binding_count <= 0) {
     return null;
   }
+
+  const legacyAuthSurfaceCopy = buildLegacyPublishAuthGovernanceSurfaceCopy();
 
   return (
     <article className="diagnostic-panel panel-span">
@@ -172,7 +177,7 @@ export function SensitiveAccessLegacyAuthGovernanceCard({
 
       <div className="publish-key-list">
         <div>
-          <p className="entry-card-title">Workflow follow-up</p>
+          <p className="entry-card-title">{legacyAuthSurfaceCopy.workflowFollowUpTitle}</p>
           <p className="section-copy entry-copy">
             当前筛选切片命中的 workflow 会保留各自 backlog 计数；处理完 inbox 当前票据后，可继续沿同一份 handoff
             回到 workflow detail 收口 legacy binding。

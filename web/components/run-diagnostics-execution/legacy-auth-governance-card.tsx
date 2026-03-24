@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import type { RunExecutionView } from "@/lib/get-run-views";
+import { buildLegacyPublishAuthGovernanceSurfaceCopy } from "@/lib/legacy-publish-auth-governance-presenters";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 export function RunDiagnosticsLegacyAuthGovernanceCard({
@@ -19,6 +20,7 @@ export function RunDiagnosticsLegacyAuthGovernanceCard({
     snapshot.workflows.find((item) => item.workflow_id === executionView.workflow_id) ??
     snapshot.workflows[0] ??
     null;
+  const legacyAuthSurfaceCopy = buildLegacyPublishAuthGovernanceSurfaceCopy();
   const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
     workflowId: executionView.workflow_id,
     variant: "editor"
@@ -28,7 +30,7 @@ export function RunDiagnosticsLegacyAuthGovernanceCard({
     <section>
       <div className="section-heading compact-heading">
         <div>
-          <span className="binding-label">Legacy publish auth handoff</span>
+          <span className="binding-label">{legacyAuthSurfaceCopy.title}</span>
         </div>
         <div className="tool-badge-row">
           <span className="event-chip">{snapshot.binding_count} legacy bindings</span>
@@ -36,9 +38,7 @@ export function RunDiagnosticsLegacyAuthGovernanceCard({
         </div>
       </div>
 
-      <p className="section-copy entry-copy">
-        publish activity export 已经附带这份 workflow 级 legacy publish auth artifact；run diagnostics 继续直接复用同一份 checklist，避免 operator 在等待态排障时回退到另一套事实。
-      </p>
+      <p className="section-copy entry-copy">{legacyAuthSurfaceCopy.description}</p>
 
       <LegacyPublishAuthContractCard contract={snapshot.auth_mode_contract} />
 
@@ -74,11 +74,11 @@ export function RunDiagnosticsLegacyAuthGovernanceCard({
 
       <div className="binding-actions">
         <div>
-          <p className="entry-card-title">Workflow follow-up</p>
+          <p className="entry-card-title">{legacyAuthSurfaceCopy.workflowFollowUpTitle}</p>
           <p className="section-copy entry-copy">
             {workflowSummary
               ? `当前 workflow 仍有 ${workflowSummary.draft_candidate_count} 条 draft cleanup、${workflowSummary.published_blocker_count} 条 published blocker、${workflowSummary.offline_inventory_count} 条 offline inventory；回到 detail 后可继续沿同一份 handoff 收口。`
-              : "回到 workflow detail 继续处理 draft cleanup / published blocker；导出 artifact 时会和这里保持同一份 handoff 事实。"}
+              : legacyAuthSurfaceCopy.workflowFollowUpFallback}
           </p>
         </div>
         <Link className="activity-link" href={workflowDetailLink.href}>

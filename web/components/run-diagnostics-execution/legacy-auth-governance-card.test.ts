@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { RunDiagnosticsLegacyAuthGovernanceCard } from "@/components/run-diagnostics-execution/legacy-auth-governance-card";
 import type { RunExecutionView } from "@/lib/get-run-views";
+import { buildLegacyPublishAuthGovernanceSurfaceCopy } from "@/lib/legacy-publish-auth-governance-presenters";
 import {
   buildLegacyAuthGovernanceBindingFixture,
   buildLegacyAuthGovernanceDraftCleanupChecklistFixture,
@@ -136,22 +137,24 @@ function buildExecutionView(): RunExecutionView {
 
 describe("RunDiagnosticsLegacyAuthGovernanceCard", () => {
   it("renders the workflow legacy auth handoff in run diagnostics", () => {
+    const surfaceCopy = buildLegacyPublishAuthGovernanceSurfaceCopy();
     const html = renderToStaticMarkup(
       createElement(RunDiagnosticsLegacyAuthGovernanceCard, {
         executionView: buildExecutionView()
       })
     );
 
-    expect(html).toContain("Legacy publish auth handoff");
+    expect(html).toContain(surfaceCopy.title);
     expect(html).toContain("Publish auth contract");
     expect(html).toContain("supported api_key / internal");
     expect(html).toContain("legacy token");
     expect(html).toContain("shared workflow artifact");
-    expect(html).toContain("publish activity export 已经附带这份 workflow 级 legacy publish auth artifact");
+    expect(html).toContain(surfaceCopy.description);
     expect(html).toContain("Draft cleanup");
     expect(html).toContain("Published blockers");
     expect(html).toContain("先批量下线 draft legacy bindings");
     expect(html).toContain("再补发支持鉴权的 replacement bindings");
+    expect(html).toContain(surfaceCopy.workflowFollowUpTitle);
     expect(html).toContain("回到 workflow 编辑器");
     expect(html).toContain('href="/workflows/workflow-1"');
     expect(html).toContain("当前 workflow 仍有 1 条 draft cleanup、1 条 published blocker、0 条 offline inventory");
