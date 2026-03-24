@@ -13,7 +13,11 @@ from app.services.credential_encryption import (
     CredentialEncryptionError,
     CredentialEncryptionService,
 )
-from app.services.credential_store import CredentialStore, CredentialStoreError
+from app.services.credential_store import (
+    CredentialAccessPendingError,
+    CredentialStore,
+    CredentialStoreError,
+)
 from app.services.sensitive_access_control import SensitiveAccessControlService
 
 # ---------------------------------------------------------------------------
@@ -304,12 +308,132 @@ class TestCredentialStore:
         final_credentials = store.resolve_masked_runtime_credentials(
             sqlite_session,
             credentials=resolved,
+            requester_type="tool",
+            requester_id="tool-node",
         )
 
         assert final_credentials == {
             "plain": "literal-value",
             "api_key": "sk-masked",
             "region": "us-east-1",
+        }
+
+        audit_events = store.list_audit_events(
+            sqlite_session,
+            credential_id=record.id,
+            limit=10,
+        )
+        assert [event.action for event in audit_events[:3]] == [
+            "decrypted",
+            "masked_handle_issued",
+            "created",
+        ]
+        assert audit_events[0].actor_type == "tool"
+        assert audit_events[0].actor_id == "tool-node"
+        assert audit_events[0].run_id is None
+        assert audit_events[0].metadata_payload == {"field_names": ["api_key", "region"]}
+        assert audit_events[1].metadata_payload == {
+            "action_type": "use",
+            "purpose_text": None,
+            "field_names": ["api_key", "region"],
+        }
+
+    def test_resolve_runtime_credential_refs_records_pending_approval_audit_event(
+        self,
+        sqlite_session: Session,
+    ) -> None:
+        sensitive_access = SensitiveAccessControlService()
+        store = CredentialStore(sensitive_access_service=sensitive_access)
+        record = store.create(
+            sqlite_session,
+            name="High Sensitivity Credential",
+            credential_type="api_key",
+            data={"api_key": "sk-sensitive"},
+        )
+        sensitive_access.create_resource(
+            sqlite_session,
+            label="High Sensitivity Credential",
+            sensitivity_level="L3",
+            source="credential",
+            metadata={"credential_id": record.id},
+        )
+        sqlite_session.commit()
+
+        with pytest.raises(CredentialAccessPendingError, match="approval is still pending"):
+            store.resolve_runtime_credential_refs(
+                sqlite_session,
+                credentials={"auth": f"credential://{record.id}"},
+                run_id=None,
+                node_run_id=None,
+                requester_type="tool",
+                requester_id="tool-node",
+                action_type="use",
+                purpose_text="Need privileged credential for runtime access.",
+            )
+
+        audit_events = store.list_audit_events(
+            sqlite_session,
+            credential_id=record.id,
+            limit=5,
+        )
+        assert audit_events[0].action == "approval_pending"
+        assert audit_events[0].actor_type == "tool"
+        assert audit_events[0].actor_id == "tool-node"
+        assert audit_events[0].run_id is None
+        assert audit_events[0].node_run_id is None
+        assert audit_events[0].metadata_payload["action_type"] == "use"
+        assert audit_events[0].metadata_payload["purpose_text"] == (
+            "Need privileged credential for runtime access."
+        )
+        assert audit_events[0].metadata_payload["approval_ticket_id"]
+
+    def test_resolve_runtime_credential_refs_records_denied_audit_event(
+        self,
+        sqlite_session: Session,
+    ) -> None:
+        sensitive_access = SensitiveAccessControlService()
+        store = CredentialStore(sensitive_access_service=sensitive_access)
+        record = store.create(
+            sqlite_session,
+            name="High Sensitivity Export Credential",
+            credential_type="api_key",
+            data={"api_key": "sk-sensitive-export"},
+        )
+        sensitive_access.create_resource(
+            sqlite_session,
+            label="High Sensitivity Export Credential",
+            sensitivity_level="L3",
+            source="credential",
+            metadata={"credential_id": record.id},
+        )
+        sqlite_session.commit()
+
+        with pytest.raises(CredentialStoreError, match="deny_non_human_high_sensitive_mutation"):
+            store.resolve_runtime_credential_refs(
+                sqlite_session,
+                credentials={"auth": f"credential://{record.id}"},
+                run_id=None,
+                node_run_id=None,
+                requester_type="tool",
+                requester_id="tool-node",
+                action_type="export",
+                purpose_text="Attempt export.",
+            )
+
+        audit_events = store.list_audit_events(
+            sqlite_session,
+            credential_id=record.id,
+            limit=5,
+        )
+        assert audit_events[0].action == "access_denied"
+        assert audit_events[0].actor_type == "tool"
+        assert audit_events[0].actor_id == "tool-node"
+        assert audit_events[0].run_id is None
+        assert audit_events[0].node_run_id is None
+        assert audit_events[0].metadata_payload == {
+            "action_type": "export",
+            "purpose_text": "Attempt export.",
+            "reason_code": "deny_non_human_high_sensitive_mutation",
         }
 
     def test_resolve_empty_ref_raises(self, sqlite_session: Session) -> None:
@@ -421,6 +545,52 @@ class TestCredentialRoutes:
 
         resp = client.get("/api/credentials?include_revoked=true")
         assert len(resp.json()) == 1
+
+    def test_list_credential_activity_returns_recent_audit_entries(
+        self,
+        client: TestClient,
+    ) -> None:
+        create_resp = client.post(
+            "/api/credentials",
+            json={
+                "name": "Audit Key",
+                "credential_type": "api_key",
+                "data": {"api_key": "sk-audit"},
+                "description": "first version",
+            },
+        )
+        credential_id = create_resp.json()["id"]
+
+        update_resp = client.put(
+            f"/api/credentials/{credential_id}",
+            json={
+                "description": "second version",
+                "data": {"api_key": "sk-audit-2", "region": "us-east-1"},
+            },
+        )
+        assert update_resp.status_code == 200
+
+        revoke_resp = client.delete(f"/api/credentials/{credential_id}")
+        assert revoke_resp.status_code == 200
+
+        resp = client.get(
+            f"/api/credentials/activity?credential_id={credential_id}&limit=2"
+        )
+
+        assert resp.status_code == 200
+        body = resp.json()
+        assert [entry["action"] for entry in body] == ["revoked", "updated"]
+        assert body[0]["credential_id"] == credential_id
+        assert body[0]["summary"] == (
+            "control_plane:credentials_api 吊销了凭证，后续 runtime 不再允许解密。"
+        )
+        assert body[1]["summary"] == (
+            "control_plane:credentials_api 更新了 description、data，并重写字段 api_key、region。"
+        )
+        assert body[1]["metadata"] == {
+            "changed_fields": ["description", "data"],
+            "data_keys": ["api_key", "region"],
+        }
 
     def test_create_rejects_extra_fields(self, client: TestClient) -> None:
         resp = client.post(

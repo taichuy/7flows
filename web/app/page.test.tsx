@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import HomePage from "@/app/page";
-import { getCredentials } from "@/lib/get-credentials";
+import { getCredentialActivity, getCredentials } from "@/lib/get-credentials";
 import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
@@ -59,6 +59,7 @@ vi.mock("@/components/workflow-tool-binding-panel", () => ({
 }));
 
 vi.mock("@/lib/get-credentials", () => ({
+  getCredentialActivity: vi.fn(),
   getCredentials: vi.fn()
 }));
 
@@ -153,6 +154,7 @@ describe("HomePage", () => {
     vi.mocked(getWorkflows).mockResolvedValue([]);
     vi.mocked(getWorkflowDetail).mockResolvedValue(null);
     vi.mocked(getCredentials).mockResolvedValue([]);
+    vi.mocked(getCredentialActivity).mockResolvedValue([]);
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
       buildSensitiveAccessInboxSnapshotFixture()
     );
@@ -191,6 +193,7 @@ describe("HomePage", () => {
     ]);
     vi.mocked(getWorkflowDetail).mockResolvedValue(null);
     vi.mocked(getCredentials).mockResolvedValue([]);
+    vi.mocked(getCredentialActivity).mockResolvedValue([]);
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
       buildSensitiveAccessInboxSnapshotFixture()
     );
@@ -285,6 +288,7 @@ describe("HomePage", () => {
     vi.mocked(getWorkflows).mockResolvedValue([]);
     vi.mocked(getWorkflowDetail).mockResolvedValue(null);
     vi.mocked(getCredentials).mockResolvedValue([]);
+    vi.mocked(getCredentialActivity).mockResolvedValue([]);
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
       buildSensitiveAccessInboxSnapshotFixture({
         channels: [

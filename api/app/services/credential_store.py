@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from datetime import UTC, datetime
 from urllib.parse import quote, unquote
 from uuid import uuid4
@@ -7,7 +8,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.credential import Credential
+from app.models.credential import Credential, CredentialAuditRecord
 from app.services.credential_encryption import (
     CredentialEncryptionError,
     CredentialEncryptionService,
@@ -74,6 +75,14 @@ class CredentialStore:
         )
         db.add(record)
         db.flush()
+        self._record_audit_event(
+            db,
+            record=record,
+            action="created",
+            actor_type="control_plane",
+            actor_id="credentials_api",
+            metadata={"data_keys": sorted(data.keys())},
+        )
         return record
 
     def list_credentials(
@@ -102,14 +111,29 @@ class CredentialStore:
         record = self.get(db, credential_id=credential_id)
         if record.status == "revoked":
             raise CredentialStoreError("Cannot update a revoked credential.")
+        changed_fields: list[str] = []
         if name is not None:
             record.name = name.strip()
+            changed_fields.append("name")
         if description is not None:
             record.description = description.strip()
+            changed_fields.append("description")
         if data is not None:
             record.encrypted_data = self._encryption.encrypt(data)
+            changed_fields.append("data")
         db.add(record)
         db.flush()
+        self._record_audit_event(
+            db,
+            record=record,
+            action="updated",
+            actor_type="control_plane",
+            actor_id="credentials_api",
+            metadata={
+                "changed_fields": changed_fields,
+                "data_keys": sorted(data.keys()) if data is not None else [],
+            },
+        )
         return record
 
     def revoke(self, db: Session, *, credential_id: str) -> Credential:
@@ -118,9 +142,26 @@ class CredentialStore:
             record.status = "revoked"
             record.revoked_at = datetime.now(UTC)
             db.add(record)
+            db.flush()
+            self._record_audit_event(
+                db,
+                record=record,
+                action="revoked",
+                actor_type="control_plane",
+                actor_id="credentials_api",
+            )
         return record
 
-    def decrypt_data(self, db: Session, *, credential_id: str) -> dict[str, str]:
+    def decrypt_data(
+        self,
+        db: Session,
+        *,
+        credential_id: str,
+        actor_type: str = "system",
+        actor_id: str | None = None,
+        run_id: str | None = None,
+        node_run_id: str | None = None,
+    ) -> dict[str, str]:
         """Decrypt and return credential data. For runtime use only."""
         record = self.get(db, credential_id=credential_id)
         if record.status == "revoked":
@@ -129,6 +170,16 @@ class CredentialStore:
         record.last_used_at = datetime.now(UTC)
         db.add(record)
         db.flush()
+        self._record_audit_event(
+            db,
+            record=record,
+            action="decrypted",
+            actor_type=actor_type,
+            actor_id=actor_id,
+            run_id=run_id,
+            node_run_id=node_run_id,
+            metadata={"field_names": sorted(result.keys())},
+        )
         return result
 
     def get_data_keys(self, record: Credential) -> list[str]:
@@ -144,6 +195,10 @@ class CredentialStore:
         db: Session,
         *,
         credentials: dict[str, str],
+        run_id: str | None = None,
+        node_run_id: str | None = None,
+        requester_type: str = "workflow",
+        requester_id: str | None = None,
     ) -> dict[str, str]:
         resolved: dict[str, str] = {}
         decrypted_cache: dict[str, dict[str, str]] = {}
@@ -157,7 +212,14 @@ class CredentialStore:
             cred_id, field_name = handle
             decrypted = decrypted_cache.get(cred_id)
             if decrypted is None:
-                decrypted = self.decrypt_data(db, credential_id=cred_id)
+                decrypted = self.decrypt_data(
+                    db,
+                    credential_id=cred_id,
+                    actor_type=requester_type,
+                    actor_id=requester_id,
+                    run_id=run_id,
+                    node_run_id=node_run_id,
+                )
                 decrypted_cache[cred_id] = decrypted
 
             if field_name not in decrypted:
@@ -178,6 +240,7 @@ class CredentialStore:
         Plain string values pass through unchanged.
         """
         resolved: dict[str, str] = {}
+        decrypted_cache: dict[str, dict[str, str]] = {}
         for key, value in credentials.items():
             if isinstance(value, str) and value.startswith("credential://"):
                 cred_id = value.removeprefix("credential://").strip()
@@ -185,7 +248,15 @@ class CredentialStore:
                     raise CredentialStoreError(
                         f"Credential reference for key '{key}' has an empty ID."
                     )
-                decrypted = self.decrypt_data(db, credential_id=cred_id)
+                decrypted = decrypted_cache.get(cred_id)
+                if decrypted is None:
+                    decrypted = self.decrypt_data(
+                        db,
+                        credential_id=cred_id,
+                        actor_type="system",
+                        actor_id="credential_ref_resolver",
+                    )
+                    decrypted_cache[cred_id] = decrypted
                 resolved.update(decrypted)
             else:
                 resolved[key] = str(value)
@@ -217,11 +288,13 @@ class CredentialStore:
                 resolved_plain[key] = str(value)
 
         access_decisions: dict[str, str] = {}
+        credential_records: dict[str, Credential] = {}
         access_checked: set[str] = set()
         for _, cred_id in credential_refs:
             if cred_id in access_checked:
                 continue
             access_checked.add(cred_id)
+            credential_records[cred_id] = self.get(db, credential_id=cred_id)
             resource = self._sensitive_access.find_credential_resource(
                 db,
                 credential_id=cred_id,
@@ -243,28 +316,126 @@ class CredentialStore:
             decision = str(bundle.access_request.decision or "")
             access_decisions[cred_id] = decision or "allow"
             if decision == "require_approval":
+                self._record_audit_event(
+                    db,
+                    record=credential_records[cred_id],
+                    action="approval_pending",
+                    actor_type=requester_type,
+                    actor_id=requester_id,
+                    run_id=run_id,
+                    node_run_id=node_run_id,
+                    metadata={
+                        "action_type": action_type,
+                        "purpose_text": purpose_text,
+                        "approval_ticket_id": (
+                            bundle.approval_ticket.id
+                            if bundle.approval_ticket is not None
+                            else None
+                        ),
+                    },
+                )
                 raise CredentialAccessPendingError(bundle)
             if decision == "deny":
                 reason_code = str(bundle.access_request.reason_code or "access_denied")
+                self._record_audit_event(
+                    db,
+                    record=credential_records[cred_id],
+                    action="access_denied",
+                    actor_type=requester_type,
+                    actor_id=requester_id,
+                    run_id=run_id,
+                    node_run_id=node_run_id,
+                    metadata={
+                        "action_type": action_type,
+                        "purpose_text": purpose_text,
+                        "reason_code": reason_code,
+                    },
+                )
                 raise CredentialStoreError(
                     "Sensitive access denied for credential resource "
                     f"'{bundle.resource.label}' ({reason_code})."
                 )
 
         resolved = dict(resolved_plain)
+        decrypted_cache: dict[str, dict[str, str]] = {}
+        masked_handle_cache: dict[str, dict[str, str]] = {}
         for _, cred_id in credential_refs:
             decision = access_decisions.get(cred_id, "allow")
             if decision == "allow_masked":
-                resolved.update(
-                    self._build_masked_credential_handles(
+                if cred_id not in masked_handle_cache:
+                    masked_handle_cache[cred_id] = self._build_masked_credential_handles(
                         db,
                         credential_id=cred_id,
                     )
-                )
+                    self._record_audit_event(
+                        db,
+                        record=credential_records[cred_id],
+                        action="masked_handle_issued",
+                        actor_type=requester_type,
+                        actor_id=requester_id,
+                        run_id=run_id,
+                        node_run_id=node_run_id,
+                        metadata={
+                            "action_type": action_type,
+                            "purpose_text": purpose_text,
+                            "field_names": sorted(masked_handle_cache[cred_id].keys()),
+                        },
+                    )
+                resolved.update(masked_handle_cache[cred_id])
                 continue
 
-            resolved.update(self.decrypt_data(db, credential_id=cred_id))
+            if cred_id not in decrypted_cache:
+                decrypted_cache[cred_id] = self.decrypt_data(
+                    db,
+                    credential_id=cred_id,
+                    actor_type=requester_type,
+                    actor_id=requester_id,
+                    run_id=run_id,
+                    node_run_id=node_run_id,
+                )
+            resolved.update(decrypted_cache[cred_id])
         return resolved
+
+    def list_audit_events(
+        self,
+        db: Session,
+        *,
+        credential_id: str | None = None,
+        limit: int = 20,
+    ) -> list[CredentialAuditRecord]:
+        stmt = select(CredentialAuditRecord).order_by(CredentialAuditRecord.created_at.desc())
+        if credential_id is not None:
+            stmt = stmt.where(CredentialAuditRecord.credential_id == credential_id)
+        stmt = stmt.limit(limit)
+        return list(db.scalars(stmt).all())
+
+    def _record_audit_event(
+        self,
+        db: Session,
+        *,
+        record: Credential,
+        action: str,
+        actor_type: str,
+        actor_id: str | None = None,
+        run_id: str | None = None,
+        node_run_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> CredentialAuditRecord:
+        audit_record = CredentialAuditRecord(
+            id=str(uuid4()),
+            credential_id=record.id,
+            credential_name=record.name,
+            credential_type=record.credential_type,
+            action=action,
+            actor_type=actor_type,
+            actor_id=actor_id,
+            run_id=run_id,
+            node_run_id=node_run_id,
+            metadata_payload=dict(metadata or {}),
+        )
+        db.add(audit_record)
+        db.flush()
+        return audit_record
 
     def _build_masked_credential_handles(
         self,

@@ -12,7 +12,7 @@ import {
 } from "@/components/workbench-entry-links";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
 import { WorkflowToolBindingPanel } from "@/components/workflow-tool-binding-panel";
-import { getCredentials } from "@/lib/get-credentials";
+import { getCredentialActivity, getCredentials } from "@/lib/get-credentials";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import { buildCrossEntryRiskDigest } from "@/lib/cross-entry-risk-digest";
@@ -45,11 +45,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const requestedWorkflowId = readFirstSearchParam(resolvedSearchParams.workflow);
 
-  const [overview, pluginRegistry, workflows, credentials, sensitiveAccessInbox] = await Promise.all([
+  const [overview, pluginRegistry, workflows, credentials, credentialActivity, sensitiveAccessInbox] = await Promise.all([
     getSystemOverview(),
     getPluginRegistrySnapshot(),
     getWorkflows(),
     getCredentials(true),
+    getCredentialActivity(12),
     getSensitiveAccessInboxSnapshot()
   ]);
   const recentRuns = overview.runtime_activity.recent_runs;
@@ -164,7 +165,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       </section>
 
       <section className="diagnostics-layout">
-        <CredentialStorePanel credentials={credentials} />
+        <CredentialStorePanel credentials={credentials} activity={credentialActivity} />
       </section>
 
       <section className="diagnostics-layout">

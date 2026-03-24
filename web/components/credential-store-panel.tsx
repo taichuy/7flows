@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import React, { useActionState, useState } from "react";
 
 import {
   createCredential,
@@ -8,11 +8,12 @@ import {
   type CreateCredentialState,
   type RevokeCredentialState,
 } from "@/app/actions/credentials";
-import type { CredentialItem } from "@/lib/get-credentials";
+import type { CredentialAuditItem, CredentialItem } from "@/lib/get-credentials";
 import { formatTimestamp } from "@/lib/runtime-presenters";
 
 type Props = {
   credentials: CredentialItem[];
+  activity: CredentialAuditItem[];
 };
 
 const initialCreateState: CreateCredentialState = {
@@ -27,7 +28,7 @@ const initialRevokeState: RevokeCredentialState = {
   credentialId: "",
 };
 
-export function CredentialStorePanel({ credentials }: Props) {
+export function CredentialStorePanel({ credentials, activity }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [showRevoked, setShowRevoked] = useState(false);
   const [createState, createAction, createPending] = useActionState(
@@ -46,6 +47,10 @@ export function CredentialStorePanel({ credentials }: Props) {
   const revokedCount = credentials.filter(
     (c) => c.status === "revoked"
   ).length;
+  const visibleCredentialIds = new Set(visible.map((cred) => cred.id));
+  const visibleActivity = showRevoked
+    ? activity
+    : activity.filter((item) => visibleCredentialIds.has(item.credential_id));
 
   return (
     <section className="card" style={{ marginTop: "1.5rem" }}>
@@ -200,8 +205,76 @@ export function CredentialStorePanel({ credentials }: Props) {
           {revokeState.message}
         </div>
       )}
+
+      <div style={{ marginTop: "1.25rem" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            justifyContent: "space-between",
+            gap: "1rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <h3 style={{ margin: 0 }}>最近审计活动</h3>
+          <span style={{ fontSize: "0.85em", opacity: 0.7 }}>
+            记录创建 / 更新 / 吊销 / 运行时解密 / 审批命中等凭证事实
+          </span>
+        </div>
+
+        {visibleActivity.length === 0 ? (
+          <p style={{ marginTop: "0.75rem", opacity: 0.65 }}>
+            当前还没有可展示的凭证审计活动。
+          </p>
+        ) : (
+          <div className="activity-list" style={{ marginTop: "0.75rem" }}>
+            {visibleActivity.map((entry) => (
+              <article className="activity-row" key={entry.id}>
+                <div className="activity-header">
+                  <div>
+                    <h3>{entry.credential_name}</h3>
+                    <p>
+                      <code>{entry.credential_type}</code>
+                    </p>
+                  </div>
+                  <span className="health-pill healthy">{formatAuditActionLabel(entry.action)}</span>
+                </div>
+                <p className="activity-copy">{entry.summary}</p>
+                <p className="activity-copy">
+                  {formatTimestamp(entry.created_at)} · {formatAuditActor(entry)}
+                  {entry.run_id ? ` · run ${entry.run_id}` : ""}
+                  {entry.node_run_id ? ` · node ${entry.node_run_id}` : ""}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
+}
+
+function formatAuditActor(entry: CredentialAuditItem) {
+  return entry.actor_id ? `${entry.actor_type}:${entry.actor_id}` : entry.actor_type;
+}
+
+function formatAuditActionLabel(action: CredentialAuditItem["action"]) {
+  switch (action) {
+    case "created":
+      return "创建";
+    case "updated":
+      return "更新";
+    case "revoked":
+      return "吊销";
+    case "decrypted":
+      return "解密";
+    case "masked_handle_issued":
+      return "Masked";
+    case "approval_pending":
+      return "待审批";
+    case "access_denied":
+      return "已拒绝";
+  }
 }
 
 function CreateCredentialForm({
@@ -305,4 +378,3 @@ function CreateCredentialForm({
     </form>
   );
 }
-

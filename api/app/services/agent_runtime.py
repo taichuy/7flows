@@ -75,6 +75,10 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
         creds = self._credential_store.resolve_masked_runtime_credentials(
             db,
             credentials=resolved_credentials or {},
+            run_id=run_id,
+            node_run_id=node_run.id,
+            requester_type="workflow",
+            requester_id=str(node.get("id") or node_run.node_id),
         )
         if creds:
             model_config = dict(model_config)

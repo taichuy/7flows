@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+from typing import Any
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 CredentialStatus = Literal["active", "revoked"]
+CredentialAuditAction = Literal[
+    "created",
+    "updated",
+    "revoked",
+    "decrypted",
+    "masked_handle_issued",
+    "approval_pending",
+    "access_denied",
+]
 
 
 class CredentialCreateRequest(BaseModel):
@@ -41,3 +51,18 @@ class CredentialDetail(CredentialItem):
     """Same as CredentialItem plus the field names (no values)."""
 
     data_keys: list[str] = Field(default_factory=list)
+
+
+class CredentialAuditItem(BaseModel):
+    id: str
+    credential_id: str
+    credential_name: str
+    credential_type: str
+    action: CredentialAuditAction
+    actor_type: str
+    actor_id: str | None = None
+    run_id: str | None = None
+    node_run_id: str | None = None
+    summary: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime

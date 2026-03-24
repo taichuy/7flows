@@ -16,6 +16,28 @@ export type CredentialDetail = CredentialItem & {
   data_keys: string[];
 };
 
+export type CredentialAuditItem = {
+  id: string;
+  credential_id: string;
+  credential_name: string;
+  credential_type: string;
+  action:
+    | "created"
+    | "updated"
+    | "revoked"
+    | "decrypted"
+    | "masked_handle_issued"
+    | "approval_pending"
+    | "access_denied";
+  actor_type: string;
+  actor_id: string | null;
+  run_id: string | null;
+  node_run_id: string | null;
+  summary: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+};
+
 async function fetchJson<T>(path: string, fallback: T): Promise<T> {
   try {
     const res = await fetch(`${getApiBaseUrl()}${path}`, {
@@ -39,4 +61,16 @@ export async function getCredentialDetail(
   id: string
 ): Promise<CredentialDetail | null> {
   return fetchJson<CredentialDetail | null>(`/api/credentials/${id}`, null);
+}
+
+export async function getCredentialActivity(
+  limit = 12,
+  credentialId?: string
+): Promise<CredentialAuditItem[]> {
+  const params = new URLSearchParams();
+  params.set("limit", String(limit));
+  if (credentialId) {
+    params.set("credential_id", credentialId);
+  }
+  return fetchJson<CredentialAuditItem[]>(`/api/credentials/activity?${params.toString()}`, []);
 }

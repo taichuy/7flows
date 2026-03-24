@@ -152,6 +152,10 @@ class ToolGateway:
             invocation_credentials = self._credential_store.resolve_masked_runtime_credentials(
                 db,
                 credentials=dict(credentials or {}),
+                run_id=run_id,
+                node_run_id=node_run.id,
+                requester_type="tool",
+                requester_id=tool_id,
             )
             response = self._plugin_call_proxy.invoke(
                 PluginCallRequest(

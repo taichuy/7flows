@@ -1,5 +1,5 @@
 from app.core.database import Base
-from app.models.credential import Credential
+from app.models.credential import Credential, CredentialAuditRecord
 from app.models.plugin import PluginAdapterRecord, PluginToolRecord
 from app.models.run import AICallRecord, NodeRun, Run, RunArtifact, RunEvent, ToolCallRecord
 from app.models.scheduler import ScheduledTaskRunRecord
@@ -41,6 +41,7 @@ __all__ = [
     "ApprovalTicketRecord",
     "NotificationDispatchRecord",
     "Credential",
+    "CredentialAuditRecord",
     "PluginAdapterRecord",
     "PluginToolRecord",
     "WorkspaceStarterTemplateRecord",
