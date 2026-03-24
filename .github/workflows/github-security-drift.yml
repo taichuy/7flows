@@ -44,7 +44,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          node scripts/check-dependabot-drift.js | tee dependabot-drift.txt
+          node scripts/check-dependabot-drift.js --report-output dependabot-drift.json | tee dependabot-drift.txt
           status=${PIPESTATUS[0]}
           echo "status=${status}" >> "$GITHUB_OUTPUT"
 
@@ -73,4 +73,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: dependabot-drift-report
-          path: dependabot-drift.txt
+          path: |
+            dependabot-drift.txt
+            dependabot-drift.json

@@ -5,10 +5,12 @@ const os = require('os');
 const path = require('path');
 
 const {
+  buildDriftReport,
   buildMarkdownSummary,
   buildWorkspaceManifestCoverage,
   buildWorkspaceManifestInventory,
   evaluateAlert,
+  parseArgs,
   parseDependencySubmissionJsonReport,
   parseDependencySubmissionReport,
 } = require('./check-dependabot-drift.js');
@@ -426,4 +428,116 @@ test('buildMarkdownSummary surfaces latest dependency submission blocker evidenc
   assert.match(summary, /repository blocker: GitHub `Dependency graph` 未开启/);
   assert.match(summary, /blocked roots: `api`、`web`/);
   assert.match(summary, /submitted roots: `services\/compat-dify`（snapshot: `snapshot-compat`）/);
+});
+
+test('parseArgs accepts report output path', () => {
+  assert.deepEqual(parseArgs(['--report-output', 'dependabot-drift.json']), {
+    reportOutputPath: 'dependabot-drift.json',
+  });
+  assert.throws(() => parseArgs(['--report-output']), /需要路径参数/);
+  assert.throws(() => parseArgs(['--unknown']), /未知参数/);
+});
+
+test('buildDriftReport emits machine-readable drift evidence', () => {
+  const inventory = buildWorkspaceManifestInventory([
+    'api/pyproject.toml',
+    'api/uv.lock',
+    'web/package.json',
+    'web/pnpm-lock.yaml',
+  ]);
+  const manifestCoverage = buildWorkspaceManifestCoverage(inventory, []);
+  const openAlerts = [
+    {
+      number: 3,
+      dependency: {
+        manifest_path: 'web/pnpm-lock.yaml',
+        package: { name: 'next' },
+      },
+      security_vulnerability: {
+        first_patched_version: { identifier: '15.5.14' },
+      },
+    },
+  ];
+  const results = [
+    {
+      packageName: 'next',
+      manifestPath: 'web/pnpm-lock.yaml',
+      patchedVersion: '15.5.14',
+      localVersions: ['15.5.14'],
+      specifiers: ['^15.5.14'],
+      specifierSourcePath: 'web/package.json',
+      state: 'patched-locally',
+      reason: '本地锁文件中的解析版本已达到或超过 patched version。',
+    },
+  ];
+
+  const report = buildDriftReport({
+    repository: {
+      owner: 'taichuy',
+      repo: '7flows',
+    },
+    defaultBranch: 'taichuy_dev',
+    manifestNodes: [],
+    workspaceManifestInventory: inventory,
+    manifestCoverage,
+    openAlerts,
+    results,
+    actionableAlerts: [],
+    dependencySubmissionEvidence: {
+      workflowConfigured: true,
+      runAvailable: true,
+      runId: 23505567063,
+      status: 'completed',
+      conclusion: 'success',
+      event: 'workflow_dispatch',
+      htmlUrl: 'https://github.com/taichuy/7flows/actions/runs/23505567063',
+      report: {
+        repositoryBlocker:
+          'GitHub `Dependency graph` 未开启；workflow 已保留证据并降级为 warning，而不是把当前代码事实误判成实现失败。',
+        roots: [
+          { rootLabel: 'api', status: 'blocked' },
+          { rootLabel: 'web', status: 'blocked' },
+        ],
+        blockedRoots: [
+          { rootLabel: 'api', status: 'blocked' },
+          { rootLabel: 'web', status: 'blocked' },
+        ],
+        submittedRoots: [],
+      },
+    },
+    conclusion: {
+      exitCode: 2,
+      kind: 'platform_drift',
+      summary: '所有 open alerts 都已被当前锁文件修复，但 GitHub 依赖图 / 告警状态仍未收口。',
+    },
+  });
+
+  assert.equal(report.schemaVersion, 1);
+  assert.equal(report.repository.owner, 'taichuy');
+  assert.equal(report.manifestGraph.localRootCount, 2);
+  assert.deepEqual(report.manifestGraph.missingNativeGraphRoots, ['web']);
+  assert.deepEqual(report.manifestGraph.dependencySubmissionRoots, ['api']);
+  assert.equal(report.dependabotAlerts.openAlertCount, 1);
+  assert.equal(report.dependabotAlerts.actionableAlertCount, 0);
+  assert.deepEqual(report.dependabotAlerts.alerts, [
+    {
+      number: 3,
+      packageName: 'next',
+      manifestPath: 'web/pnpm-lock.yaml',
+      patchedVersion: '15.5.14',
+      localVersions: ['15.5.14'],
+      specifiers: ['^15.5.14'],
+      specifierSourcePath: 'web/package.json',
+      verdict: 'patched-locally',
+      note: '本地锁文件中的解析版本已达到或超过 patched version。',
+    },
+  ]);
+  assert.equal(report.dependencySubmissionEvidence.runId, 23505567063);
+  assert.match(report.dependencySubmissionEvidence.repositoryBlocker, /Dependency graph/);
+  assert.deepEqual(
+    report.dependencySubmissionEvidence.blockedRoots.map((item) => item.rootLabel),
+    ['api', 'web'],
+  );
+  assert.equal(report.conclusion.exitCode, 2);
+  assert.equal(report.conclusion.kind, 'platform_drift');
 });

@@ -643,6 +643,29 @@ function shouldAllowAlertApiFallback() {
   return process.env.CHECK_DEPENDABOT_DRIFT_ALERTS_OPTIONAL === '1';
 }
 
+function parseArgs(argv) {
+  const options = {
+    reportOutputPath: null,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const argument = argv[index];
+    if (argument === '--report-output') {
+      const outputPath = argv[index + 1];
+      if (!outputPath) {
+        throw new Error('--report-output 需要路径参数。');
+      }
+      options.reportOutputPath = outputPath;
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`未知参数: ${argument}`);
+  }
+
+  return options;
+}
+
 function isDependabotAlertPermissionError(error) {
   const message = String(error?.message || '');
   return message.includes('dependabot/alerts') && message.includes('Resource not accessible by integration');
@@ -798,7 +821,104 @@ function writeMarkdownSummary(params) {
   fs.writeFileSync(summaryPath, `${buildMarkdownSummary(params)}\n`, 'utf8');
 }
 
+function buildDriftReport({
+  repository,
+  defaultBranch,
+  manifestNodes,
+  workspaceManifestInventory,
+  manifestCoverage,
+  openAlerts,
+  results,
+  actionableAlerts,
+  alertsUnavailable = false,
+  dependencySubmissionEvidence = null,
+  conclusion,
+}) {
+  const { missingNativeGraphRoots, dependencySubmissionRoots } = buildGraphCoverageBuckets(
+    manifestCoverage,
+  );
+
+  return {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    repository,
+    defaultBranch: defaultBranch || null,
+    manifestGraph: {
+      localRootCount: workspaceManifestInventory.length,
+      manifestCount: manifestNodes.length,
+      roots: workspaceManifestInventory.map((item) => ({
+        rootLabel: item.rootLabel,
+        ecosystem: item.ecosystem,
+        manifestPath: item.manifestPath || null,
+        lockfilePath: item.lockfilePath || null,
+        dependencyGraphSupport: item.dependencyGraphSupport,
+      })),
+      manifests: manifestNodes.map((node) => ({
+        filename: node.filename,
+        dependenciesCount: node.dependenciesCount,
+        parseable: node.parseable,
+        exceedsMaxSize: Boolean(node.exceedsMaxSize),
+      })),
+      coverage: manifestCoverage.map((item) => ({
+        rootLabel: item.rootLabel,
+        ecosystem: item.ecosystem,
+        dependencyGraphSupport: item.dependencyGraphSupport,
+        dependencyGraphSupported: item.dependencyGraphSupported,
+        graphVisible: item.graphVisible,
+        matchedGraphFilenames: item.matchedGraphFilenames,
+      })),
+      missingNativeGraphRoots: missingNativeGraphRoots.map((item) => item.rootLabel),
+      dependencySubmissionRoots: dependencySubmissionRoots.map((item) => item.rootLabel),
+    },
+    dependabotAlerts: {
+      unavailable: alertsUnavailable,
+      openAlertCount: alertsUnavailable ? null : openAlerts.length,
+      actionableAlertCount: alertsUnavailable ? null : actionableAlerts.length,
+      alerts: results.map((result, index) => ({
+        number: openAlerts[index]?.number || null,
+        packageName: result.packageName,
+        manifestPath: result.manifestPath,
+        patchedVersion: result.patchedVersion || null,
+        localVersions: result.localVersions,
+        specifiers: result.specifiers,
+        specifierSourcePath: result.specifierSourcePath || null,
+        verdict: result.state,
+        note: result.reason,
+      })),
+    },
+    dependencySubmissionEvidence: dependencySubmissionEvidence
+      ? {
+          workflowConfigured: Boolean(dependencySubmissionEvidence.workflowConfigured),
+          runAvailable: Boolean(dependencySubmissionEvidence.runAvailable),
+          fetchError: dependencySubmissionEvidence.fetchError || null,
+          runId: dependencySubmissionEvidence.runId || null,
+          status: dependencySubmissionEvidence.status || null,
+          conclusion: dependencySubmissionEvidence.conclusion || null,
+          event: dependencySubmissionEvidence.event || null,
+          htmlUrl: dependencySubmissionEvidence.htmlUrl || null,
+          reportDownloadError: dependencySubmissionEvidence.reportDownloadError || null,
+          repositoryBlocker: dependencySubmissionEvidence.report?.repositoryBlocker || null,
+          roots: dependencySubmissionEvidence.report?.roots || [],
+          blockedRoots: dependencySubmissionEvidence.report?.blockedRoots || [],
+          submittedRoots: dependencySubmissionEvidence.report?.submittedRoots || [],
+        }
+      : null,
+    conclusion,
+  };
+}
+
+function writeDriftReport(reportOutputPath, params) {
+  if (!reportOutputPath) {
+    return;
+  }
+
+  const reportPath = path.resolve(repoRoot, reportOutputPath);
+  const report = buildDriftReport(params);
+  fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+}
+
 function main() {
+  const options = parseArgs(process.argv.slice(2));
   const trackedFiles = collectTrackedFiles(repoRoot);
   const workspaceManifestInventory = buildWorkspaceManifestInventory(trackedFiles);
   const remoteUrl = run('git', ['config', '--get', 'remote.origin.url']);
@@ -875,6 +995,18 @@ function main() {
   const dependencySubmissionEvidenceLines = buildDependencySubmissionEvidenceLines(
     dependencySubmissionEvidence,
   );
+  const sharedReportParams = {
+    repository,
+    defaultBranch: repositoryData.data.repository.defaultBranchRef?.name,
+    manifestNodes,
+    workspaceManifestInventory,
+    manifestCoverage,
+    openAlerts,
+    results,
+    actionableAlerts,
+    alertsUnavailable,
+    dependencySubmissionEvidence,
+  };
   if (dependencySubmissionEvidenceLines.length > 0) {
     printSection('Dependency submission evidence');
     dependencySubmissionEvidenceLines.forEach((line) => console.log(line));
@@ -884,18 +1016,7 @@ function main() {
   if (alertsUnavailable) {
     console.log('当前 token 无法读取 Dependabot alerts（HTTP 403: Resource not accessible by integration）。');
     console.log('请为 workflow 配置 DEPENDABOT_ALERTS_TOKEN，或在本地使用具备告警读取权限的 gh 凭证重新运行。');
-    writeMarkdownSummary({
-      repository,
-      defaultBranch: repositoryData.data.repository.defaultBranchRef?.name,
-      manifestNodes,
-      workspaceManifestInventory,
-      manifestCoverage,
-      openAlerts,
-      results,
-      actionableAlerts,
-      alertsUnavailable,
-      dependencySubmissionEvidence,
-    });
+    writeMarkdownSummary(sharedReportParams);
     printSection('结论');
     console.log('当前 workflow token 只能继续复验 dependencyGraphManifests 等仓库事实，无法直接比较 Dependabot open alerts。');
     if (missingNativeGraphRoots.length > 0) {
@@ -911,22 +1032,28 @@ function main() {
       console.log('仓库已配置显式 dependency submission workflow；若 manifests 仍缺席，优先查看最新 run summary / artifact，再判断是平台阻塞还是刷新延迟。');
     }
     console.log('若要在 workflow 中保留完整 drift 对比，请为仓库 secret 配置 DEPENDABOT_ALERTS_TOKEN。');
+    writeDriftReport(options.reportOutputPath, {
+      ...sharedReportParams,
+      conclusion: {
+        exitCode: 3,
+        kind: 'alerts_unavailable',
+        summary:
+          '当前 workflow token 无法读取 Dependabot alerts；请补充 DEPENDABOT_ALERTS_TOKEN 或使用具备权限的 gh 凭证。',
+      },
+    });
     process.exit(3);
   }
 
   if (openAlerts.length === 0) {
     console.log('当前没有 open alert。');
-    writeMarkdownSummary({
-      repository,
-      defaultBranch: repositoryData.data.repository.defaultBranchRef?.name,
-      manifestNodes,
-      workspaceManifestInventory,
-      manifestCoverage,
-      openAlerts,
-      results,
-      actionableAlerts,
-      alertsUnavailable,
-      dependencySubmissionEvidence,
+    writeMarkdownSummary(sharedReportParams);
+    writeDriftReport(options.reportOutputPath, {
+      ...sharedReportParams,
+      conclusion: {
+        exitCode: 0,
+        kind: 'clean',
+        summary: '当前没有 open alert。',
+      },
     });
     process.exit(0);
   }
@@ -957,38 +1084,33 @@ function main() {
       console.log('仓库已配置显式 dependency submission workflow；若 manifests 仍缺席，优先查看最新 run summary / artifact，再判断是平台阻塞还是刷新延迟。');
     }
     console.log('建议保留证据，不要直接 dismiss 告警；先修复依赖图刷新链路，再等待 GitHub 自动关闭。');
-    writeMarkdownSummary({
-      repository,
-      defaultBranch: repositoryData.data.repository.defaultBranchRef?.name,
-      manifestNodes,
-      workspaceManifestInventory,
-      manifestCoverage,
-      openAlerts,
-      results,
-      actionableAlerts,
-      alertsUnavailable,
-      dependencySubmissionEvidence,
+    writeMarkdownSummary(sharedReportParams);
+    writeDriftReport(options.reportOutputPath, {
+      ...sharedReportParams,
+      conclusion: {
+        exitCode: 2,
+        kind: 'platform_drift',
+        summary: '所有 open alerts 都已被当前锁文件修复，但 GitHub 依赖图 / 告警状态仍未收口。',
+      },
     });
     process.exit(2);
   }
 
   console.log('仍存在至少一个未被当前锁文件修复或无法解析的告警，需要继续修依赖或补排查。');
-  writeMarkdownSummary({
-    repository,
-    defaultBranch: repositoryData.data.repository.defaultBranchRef?.name,
-    manifestNodes,
-    workspaceManifestInventory,
-    manifestCoverage,
-    openAlerts,
-    results,
-    actionableAlerts,
-    alertsUnavailable,
-    dependencySubmissionEvidence,
+  writeMarkdownSummary(sharedReportParams);
+  writeDriftReport(options.reportOutputPath, {
+    ...sharedReportParams,
+    conclusion: {
+      exitCode: 1,
+      kind: 'actionable_alerts',
+      summary: '仍存在至少一个未被当前锁文件修复或无法解析的告警，需要继续修依赖或补排查。',
+    },
   });
   process.exit(1);
 }
 
 module.exports = {
+  buildDriftReport,
   buildMarkdownSummary,
   buildDependencySubmissionEvidenceLines,
   buildWorkspaceManifestCoverage,
@@ -1004,6 +1126,7 @@ module.exports = {
   fetchLatestDependencySubmissionEvidence,
   normalizePythonPackageName,
   normalizeVersion,
+  parseArgs,
   parseDependencySubmissionJsonReport,
   parseDependencySubmissionReport,
   parsePythonDependencyName,
