@@ -2638,7 +2638,7 @@ describe("published invocation presenters", () => {
       label: "execution focus",
       detail: "优先打开 run 继续检查 focus node。",
       href: "/runs/run-focus-1?node_run_id=node-run-focus#run-diagnostics-execution-timeline",
-      href_label: "open focused trace slice"
+      href_label: "jump to focused trace slice"
     });
   });
 

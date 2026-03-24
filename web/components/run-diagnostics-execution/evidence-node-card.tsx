@@ -31,8 +31,7 @@ export function EvidenceNodeCard({
   const focusedTraceLink = buildOperatorTraceSliceLinkSurface({
     runId,
     runHref: runDetailHref,
-    nodeRunId: node.node_run_id,
-    hrefLabel: "open focused trace slice"
+    nodeRunId: node.node_run_id
   });
 
   return (

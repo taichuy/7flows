@@ -445,7 +445,7 @@ describe("workflow publish activity panel helpers", () => {
       label: "execution focus",
       href:
         "/runs/run-selected-1?node_run_id=node-run-focus#run-diagnostics-execution-timeline",
-      hrefLabel: "open focused trace slice",
+      hrefLabel: "jump to focused trace slice",
       detail: "优先打开 run 继续检查 focus node。"
     });
   });

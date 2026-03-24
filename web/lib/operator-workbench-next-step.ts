@@ -90,8 +90,7 @@ function rehomeSelfHrefToRunDetail(
   const traceSliceLink = nodeRunId?.trim()
     ? buildOperatorTraceSliceLinkSurface({
         runId,
-        nodeRunId,
-        hrefLabel: "open focused trace slice"
+        nodeRunId
       })
     : null;
 

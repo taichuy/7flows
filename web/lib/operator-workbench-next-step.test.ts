@@ -179,7 +179,7 @@ describe("operator workbench next step presenters", () => {
     expect(recommendedNextStep).toMatchObject({
       label: "approval blocker",
       href: "/runs/run-1?node_run_id=node-run-1#run-diagnostics-execution-timeline",
-      href_label: "open focused trace slice"
+      href_label: "jump to focused trace slice"
     });
   });
 });

@@ -2727,8 +2727,7 @@ export function buildPublishedInvocationRecommendedNextStep({
     ? buildOperatorTraceSliceLinkSurface({
         runId,
         currentHref,
-        nodeRunId: executionSnapshot.executionFocusNodeRunId,
-        hrefLabel: "open focused trace slice"
+        nodeRunId: executionSnapshot.executionFocusNodeRunId
       })
     : null;
   const executionCandidate = buildSharedOrLocalOperatorCandidate({

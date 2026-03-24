@@ -1087,7 +1087,7 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
 
     expect(html).toContain("Recommended next step");
     expect(html).toContain("execution focus");
-    expect(html).toContain("open focused trace slice");
+    expect(html).toContain("jump to focused trace slice");
     expect(html).toContain("node_run_id=node-run-focus");
     expect(html).toContain("优先打开 run，继续检查 execution focus node 的 fallback / blocking reason。");
     expect(html).not.toContain("callback recovery");

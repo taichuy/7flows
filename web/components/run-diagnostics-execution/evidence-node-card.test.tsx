@@ -113,7 +113,7 @@ describe("EvidenceNodeCard", () => {
     expect(html).toContain(
       'href="/runs/run-1?needs_follow_up=true&amp;node_run_id=node-run-1#run-diagnostics-execution-timeline"'
     );
-    expect(html).toContain("open focused trace slice");
+    expect(html).toContain("jump to focused trace slice");
     expect(html).toContain(
       'href="/runs/run-1?needs_follow_up=true&amp;event_type=tool.completed&amp;node_run_id=node-run-1&amp;payload_key=raw_ref#run-diagnostics-execution-timeline"'
     );

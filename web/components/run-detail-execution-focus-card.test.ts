@@ -206,6 +206,17 @@ function buildRunDetail(): RunDetail {
 }
 
 describe("RunDetailExecutionFocusCard", () => {
+  it("uses the shared execution focus title by default", () => {
+    const html = renderToStaticMarkup(
+      createElement(RunDetailExecutionFocusCard, {
+        run: buildRunDetail()
+      })
+    );
+
+    expect(html).toContain("Execution focus");
+    expect(html).not.toContain("Canonical execution focus");
+  });
+
   it("renders compact runtime fact badges for the canonical focus node", () => {
     const html = renderToStaticMarkup(
       createElement(RunDetailExecutionFocusCard, {

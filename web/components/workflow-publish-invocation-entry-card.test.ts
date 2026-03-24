@@ -724,7 +724,7 @@ describe("WorkflowPublishInvocationEntryCard", () => {
 
     expect(html).toContain("Recommended next step");
     expect(html).toContain("execution focus");
-    expect(html).toContain("open focused trace slice");
+    expect(html).toContain("jump to focused trace slice");
     expect(html).toContain("node_run_id=node-run-tool-wait");
     expect(html).toContain("当前 live sandbox readiness 显示 sandbox 已 ready。");
     expect(html).toContain("backend 是 sandbox-stale");

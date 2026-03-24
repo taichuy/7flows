@@ -47,7 +47,7 @@ type RunDetailExecutionFocusCardProps = {
 
 export function RunDetailExecutionFocusCard({
   run,
-  title = "Canonical execution focus",
+  title,
   description = null,
   className = "",
   sandboxReadiness = null,
@@ -57,6 +57,7 @@ export function RunDetailExecutionFocusCard({
 }: RunDetailExecutionFocusCardProps) {
   const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
   const executionSurfaceCopy = buildRunDetailExecutionFocusSurfaceCopy();
+  const resolvedTitle = title ?? operatorSurfaceCopy.executionFocusTitle;
   const currentRunHref = buildRunDetailHref(run.id);
   const localRecommendedNextStepHref = recommendedNextStepHref ?? buildRunDiagnosticsExecutionViewHref(run.id);
   const localRecommendedNextStepHrefLabel =
@@ -114,7 +115,7 @@ export function RunDetailExecutionFocusCard({
     <div className={className}>
       <div className="entry-card compact-card">
         <div className="payload-card-header">
-          <span className="status-meta">{title}</span>
+          <span className="status-meta">{resolvedTitle}</span>
           <span className="event-chip">
             {formatExecutionFocusReasonLabel(focus.reason)}
           </span>
