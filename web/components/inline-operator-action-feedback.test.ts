@@ -10,6 +10,7 @@ import type {
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
 import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
+import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 
 const callbackSummaryProps: Array<Record<string, unknown>> = [];
 const runSampleListProps: Array<Record<string, unknown>> = [];
@@ -147,53 +148,16 @@ function buildCallbackWaitingAutomation(): CallbackWaitingAutomationCheck {
 }
 
 function buildLegacyAuthGovernanceSnapshot() {
-  return {
-    generated_at: "2026-03-24T08:49:00Z",
-    workflow_count: 1,
-    binding_count: 1,
-    summary: {
-      draft_candidate_count: 0,
-      published_blocker_count: 1,
-      offline_inventory_count: 0
+  return buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+    binding: {
+      workflow_id: "wf-demo",
+      workflow_name: "Demo Workflow",
+      binding_id: "binding-demo",
+      endpoint_id: "endpoint-demo",
+      endpoint_name: "Demo Endpoint",
+      workflow_version: "v1",
     },
-    checklist: [
-      {
-        key: "published_follow_up" as const,
-        title: "再补发支持鉴权的 replacement bindings",
-        tone: "manual" as const,
-        tone_label: "人工跟进",
-        count: 1,
-        detail:
-          "对 Demo Workflow 这类仍在 live 的 legacy binding，先回到当前 draft endpoint 把 authMode 切回 api_key/internal，并发布新版 binding，再决定历史版本是否下线。"
-      }
-    ],
-    workflows: [
-      {
-        workflow_id: "wf-demo",
-        workflow_name: "Demo Workflow",
-        binding_count: 1,
-        draft_candidate_count: 0,
-        published_blocker_count: 1,
-        offline_inventory_count: 0
-      }
-    ],
-    buckets: {
-      draft_candidates: [],
-      published_blockers: [
-        {
-          workflow_id: "wf-demo",
-          workflow_name: "Demo Workflow",
-          binding_id: "binding-demo",
-          endpoint_id: "endpoint-demo",
-          endpoint_name: "Demo Endpoint",
-          workflow_version: "v1",
-          lifecycle_status: "published" as const,
-          auth_mode: "token"
-        }
-      ],
-      offline_inventory: []
-    }
-  };
+  });
 }
 
 describe("InlineOperatorActionFeedback", () => {

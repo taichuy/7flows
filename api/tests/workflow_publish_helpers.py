@@ -171,6 +171,22 @@ def legacy_auth_published_follow_up_checklist(
     }
 
 
+def legacy_auth_draft_cleanup_checklist(
+    *, workflow_name: str, count: int = 1
+) -> dict[str, str | int]:
+    return {
+        "key": "draft_cleanup",
+        "title": "先批量下线 draft legacy bindings",
+        "tone": "ready",
+        "tone_label": "可立即执行",
+        "count": count,
+        "detail": (
+            f"先对 {workflow_name} 里的 {count} 条 draft legacy binding 执行批量 cleanup；"
+            "这一步不会动到仍在 live 的 published endpoint。"
+        ),
+    }
+
+
 def legacy_auth_governance_snapshot_for_single_published_blocker(
     *,
     generated_at: str,
@@ -210,6 +226,53 @@ def legacy_auth_governance_snapshot_for_single_published_blocker(
         "buckets": {
             "draft_candidates": [],
             "published_blockers": [published_blocker],
+            "offline_inventory": [],
+        },
+    }
+
+
+def legacy_auth_governance_snapshot_for_single_draft_candidate(
+    *,
+    generated_at: str,
+    workflow_id: str,
+    workflow_name: str,
+    workflow_version: str,
+    binding_id: str,
+    endpoint_id: str,
+    endpoint_name: str,
+) -> dict[str, object]:
+    workflow = legacy_auth_workflow_summary(
+        workflow_id=workflow_id,
+        workflow_name=workflow_name,
+        draft_candidate_count=1,
+        published_blocker_count=0,
+    )
+    draft_candidate = legacy_auth_binding(
+        workflow_id=workflow_id,
+        workflow_name=workflow_name,
+        binding_id=binding_id,
+        workflow_version=workflow_version,
+        endpoint_id=endpoint_id,
+        endpoint_name=endpoint_name,
+        lifecycle_status="draft",
+    )
+    return {
+        "generated_at": generated_at,
+        "workflow_count": 1,
+        "binding_count": 1,
+        "auth_mode_contract": legacy_auth_mode_contract(),
+        "summary": {
+            "draft_candidate_count": 1,
+            "published_blocker_count": 0,
+            "offline_inventory_count": 0,
+        },
+        "checklist": [
+            legacy_auth_draft_cleanup_checklist(workflow_name=workflow_name)
+        ],
+        "workflows": [workflow],
+        "buckets": {
+            "draft_candidates": [draft_candidate],
+            "published_blockers": [],
             "offline_inventory": [],
         },
     }

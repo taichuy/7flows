@@ -19,7 +19,10 @@ from app.models.workflow import (
 )
 from app.services.published_invocations import PublishedInvocationService
 from app.services.run_resume_scheduler import RunResumeScheduler
-from tests.workflow_publish_helpers import publishable_definition
+from tests.workflow_publish_helpers import (
+    legacy_auth_governance_snapshot_for_single_draft_candidate,
+    publishable_definition,
+)
 
 
 def _seed_run_sensitive_access(
@@ -490,9 +493,10 @@ def test_get_published_invocation_detail_includes_workflow_legacy_auth_handoff(
     assert binding_record is not None
 
     now = datetime.now(UTC)
+    legacy_draft_binding_id = str(uuid4())
     sqlite_session.add(
         WorkflowPublishedEndpoint(
-            id=str(uuid4()),
+            id=legacy_draft_binding_id,
             workflow_id=workflow_id,
             workflow_version_id=binding_record.workflow_version_id,
             workflow_version=binding_record.workflow_version,
@@ -522,35 +526,15 @@ def test_get_published_invocation_detail_includes_workflow_legacy_auth_handoff(
     assert detail_response.status_code == 200
     detail_body = detail_response.json()
     governance = detail_body["legacy_auth_governance"]
-    assert governance["binding_count"] == 1
-    assert governance["auth_mode_contract"] == {
-        "supported_auth_modes": ["api_key", "internal"],
-        "retired_legacy_auth_modes": ["token"],
-        "summary": (
-            "当前 publish gateway 只支持 durable authMode=api_key/internal；"
-            "token 仅作为 legacy inventory 出现在治理 handoff 中。"
-        ),
-        "follow_up": (
-            "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 "
-            "replacement binding，最后清理 draft/offline legacy backlog。"
-        ),
-    }
-    assert governance["summary"] == {
-        "draft_candidate_count": 1,
-        "published_blocker_count": 0,
-        "offline_inventory_count": 0,
-    }
-    assert governance["checklist"][0]["key"] == "draft_cleanup"
-    assert governance["workflows"] == [
-        {
-            "workflow_id": workflow_id,
-            "workflow_name": "Publish Invocation Sensitive Detail Workflow",
-            "binding_count": 1,
-            "draft_candidate_count": 1,
-            "published_blocker_count": 0,
-            "offline_inventory_count": 0,
-        }
-    ]
+    assert governance == legacy_auth_governance_snapshot_for_single_draft_candidate(
+        generated_at=governance["generated_at"],
+        workflow_id=workflow_id,
+        workflow_name="Publish Invocation Sensitive Detail Workflow",
+        workflow_version=binding_record.workflow_version,
+        binding_id=legacy_draft_binding_id,
+        endpoint_id="legacy-auth-endpoint",
+        endpoint_name="Legacy Auth Endpoint",
+    )
 
 
 def test_get_published_invocation_detail_maps_blocking_sensitive_access_from_execution_view(

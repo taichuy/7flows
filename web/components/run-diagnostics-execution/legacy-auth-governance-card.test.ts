@@ -4,6 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { RunDiagnosticsLegacyAuthGovernanceCard } from "@/components/run-diagnostics-execution/legacy-auth-governance-card";
 import type { RunExecutionView } from "@/lib/get-run-views";
+import {
+  buildLegacyAuthGovernanceBindingFixture,
+  buildLegacyAuthGovernanceDraftCleanupChecklistFixture,
+  buildLegacyAuthGovernancePublishedFollowUpChecklistFixture,
+  buildLegacyAuthGovernanceSnapshotFixture,
+  buildLegacyAuthGovernanceWorkflowFixture
+} from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
@@ -67,8 +74,7 @@ function buildExecutionView(): RunExecutionView {
     execution_focus_reason: null,
     execution_focus_node: null,
     execution_focus_explanation: null,
-    legacy_auth_governance: {
-      generated_at: "2026-03-24T08:00:00Z",
+    legacy_auth_governance: buildLegacyAuthGovernanceSnapshotFixture({
       workflow_count: 1,
       binding_count: 2,
       summary: {
@@ -77,39 +83,50 @@ function buildExecutionView(): RunExecutionView {
         offline_inventory_count: 0
       },
       checklist: [
-        {
-          key: "draft_cleanup",
-          title: "先批量下线 draft legacy bindings",
-          tone: "ready",
-          tone_label: "可立即执行",
-          count: 1,
+        buildLegacyAuthGovernanceDraftCleanupChecklistFixture({
+          workflow_name: "Demo Workflow",
           detail: "先处理 draft cleanup。"
-        },
-        {
-          key: "published_follow_up",
-          title: "再补发支持鉴权的 replacement bindings",
-          tone: "manual",
-          tone_label: "人工跟进",
-          count: 1,
+        }),
+        buildLegacyAuthGovernancePublishedFollowUpChecklistFixture({
+          workflow_name: "Demo Workflow",
           detail: "再处理 live legacy published blockers。"
-        }
+        })
       ],
       workflows: [
-        {
+        buildLegacyAuthGovernanceWorkflowFixture({
           workflow_id: "workflow-1",
           workflow_name: "Demo Workflow",
           binding_count: 2,
           draft_candidate_count: 1,
           published_blocker_count: 1,
           offline_inventory_count: 0
-        }
+        })
       ],
       buckets: {
-        draft_candidates: [],
-        published_blockers: [],
+        draft_candidates: [
+          buildLegacyAuthGovernanceBindingFixture({
+            workflow_id: "workflow-1",
+            workflow_name: "Demo Workflow",
+            binding_id: "binding-draft",
+            endpoint_id: "endpoint-draft",
+            endpoint_name: "Draft Endpoint",
+            workflow_version: "1.0.0",
+            lifecycle_status: "draft"
+          })
+        ],
+        published_blockers: [
+          buildLegacyAuthGovernanceBindingFixture({
+            workflow_id: "workflow-1",
+            workflow_name: "Demo Workflow",
+            binding_id: "binding-live",
+            endpoint_id: "endpoint-live",
+            endpoint_name: "Live Endpoint",
+            workflow_version: "1.0.0"
+          })
+        ],
         offline_inventory: []
       }
-    },
+    }),
     run_snapshot: null,
     run_follow_up: null,
     skill_trace: null,

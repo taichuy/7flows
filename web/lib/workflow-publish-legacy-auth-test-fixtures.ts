@@ -1,7 +1,11 @@
-import { DEFAULT_LEGACY_PUBLISH_AUTH_MODE_CONTRACT } from "@/lib/legacy-publish-auth-contract";
+import {
+  buildLegacyPublishAuthModeFollowUp,
+  DEFAULT_LEGACY_PUBLISH_AUTH_MODE_CONTRACT
+} from "@/lib/legacy-publish-auth-contract";
 import type {
   WorkflowPublishedEndpointIssue,
   WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem,
+  WorkflowPublishedEndpointLegacyAuthGovernanceChecklistItem,
   WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
   WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem,
   WorkflowPublishedEndpointLegacyAuthModeContract,
@@ -11,6 +15,26 @@ type LegacyAuthModeContractOverrides = Partial<WorkflowPublishedEndpointLegacyAu
 
 type LegacyAuthIssueOverrides = Omit<Partial<WorkflowPublishedEndpointIssue>, "auth_mode_contract"> & {
   auth_mode_contract?: LegacyAuthModeContractOverrides | null;
+};
+
+type LegacyAuthGovernanceChecklistOverrides =
+  Partial<WorkflowPublishedEndpointLegacyAuthGovernanceChecklistItem>;
+
+type LegacyAuthGovernanceDraftCleanupChecklistOverrides =
+  LegacyAuthGovernanceChecklistOverrides & {
+    workflow_name?: string;
+  };
+
+type LegacyAuthGovernancePublishedFollowUpChecklistOverrides =
+  LegacyAuthGovernanceChecklistOverrides & {
+    workflow_name?: string;
+    auth_mode_contract?: LegacyAuthModeContractOverrides | null;
+  };
+
+type LegacyAuthGovernanceSinglePublishedBlockerSnapshotOverrides = {
+  generated_at?: string;
+  auth_mode_contract?: LegacyAuthModeContractOverrides | null;
+  binding?: Partial<WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem>;
 };
 
 export function buildLegacyPublishAuthModeContractFixture(
@@ -78,6 +102,51 @@ export function buildLegacyAuthGovernanceWorkflowFixture(
   };
 }
 
+export function buildLegacyAuthGovernanceDraftCleanupChecklistFixture(
+  overrides: LegacyAuthGovernanceDraftCleanupChecklistOverrides = {}
+): WorkflowPublishedEndpointLegacyAuthGovernanceChecklistItem {
+  const { workflow_name = "Legacy Auth workflow", count = 1, detail, ...restOverrides } = overrides;
+
+  return {
+    key: "draft_cleanup",
+    title: "先批量下线 draft legacy bindings",
+    tone: "ready",
+    tone_label: "可立即执行",
+    count,
+    detail:
+      detail ??
+      `先对 ${workflow_name} 里的 ${count} 条 draft legacy binding 执行批量 cleanup；这一步不会动到仍在 live 的 published endpoint。`,
+    ...restOverrides,
+  };
+}
+
+export function buildLegacyAuthGovernancePublishedFollowUpChecklistFixture(
+  overrides: LegacyAuthGovernancePublishedFollowUpChecklistOverrides = {}
+): WorkflowPublishedEndpointLegacyAuthGovernanceChecklistItem {
+  const {
+    workflow_name = "Legacy Auth workflow",
+    count = 1,
+    detail,
+    auth_mode_contract: authModeContractOverride,
+    ...restOverrides
+  } = overrides;
+  const authModeContract = buildLegacyPublishAuthModeContractFixture(
+    authModeContractOverride ?? undefined
+  );
+
+  return {
+    key: "published_follow_up",
+    title: "再补发支持鉴权的 replacement bindings",
+    tone: "manual",
+    tone_label: "人工跟进",
+    count,
+    detail:
+      detail ??
+      `对 ${workflow_name} 这类仍在 live 的 legacy binding，${buildLegacyPublishAuthModeFollowUp(authModeContract)}`,
+    ...restOverrides,
+  };
+}
+
 export function buildLegacyAuthGovernanceSnapshotFixture(
   overrides: Partial<WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot> = {}
 ): WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot {
@@ -104,4 +173,45 @@ export function buildLegacyAuthGovernanceSnapshotFixture(
       ? buildLegacyPublishAuthModeContractFixture(authModeContractOverride)
       : buildLegacyPublishAuthModeContractFixture(),
   };
+}
+
+export function buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture(
+  overrides: LegacyAuthGovernanceSinglePublishedBlockerSnapshotOverrides = {}
+): WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot {
+  const {
+    generated_at = "2026-03-24T08:49:00Z",
+    auth_mode_contract: authModeContractOverride,
+    binding: bindingOverrides,
+  } = overrides;
+  const binding = buildLegacyAuthGovernanceBindingFixture(bindingOverrides ?? {});
+  const workflow = buildLegacyAuthGovernanceWorkflowFixture({
+    workflow_id: binding.workflow_id,
+    workflow_name: binding.workflow_name,
+  });
+
+  return buildLegacyAuthGovernanceSnapshotFixture({
+    generated_at,
+    workflow_count: 1,
+    binding_count: 1,
+    summary: {
+      draft_candidate_count: 0,
+      published_blocker_count: 1,
+      offline_inventory_count: 0,
+    },
+    checklist: [
+      buildLegacyAuthGovernancePublishedFollowUpChecklistFixture({
+        workflow_name: workflow.workflow_name,
+        auth_mode_contract: authModeContractOverride ?? undefined,
+      }),
+    ],
+    workflows: [workflow],
+    buckets: {
+      draft_candidates: [],
+      published_blockers: [binding],
+      offline_inventory: [],
+    },
+    auth_mode_contract: authModeContractOverride
+      ? buildLegacyPublishAuthModeContractFixture(authModeContractOverride)
+      : undefined,
+  });
 }
