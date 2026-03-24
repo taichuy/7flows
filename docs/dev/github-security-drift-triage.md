@@ -27,6 +27,8 @@ node scripts/check-dependabot-drift.js
 
 如果仓库内已存在 `.github/workflows/dependency-graph-submission.yml`，脚本还会顺带查询默认分支最新一条 `Dependency Graph Submission` run，并优先读取其中的 `dependency-submission-report` artifact（`dependency-submission.json`，必要时回退到 `dependency-submission.txt`）把摘要串进当前结论里，避免 `GitHub Security Drift` 只停留在“manifests 还是 0”而说不清到底是平台设置阻塞、部分 root 已提交，还是平台刷新延迟。若在 GitHub Actions 中消费这条证据链，`GitHub Security Drift` job 还必须显式具备 `actions: read`，否则会在读取 workflow run / artifact 时得到 `Resource not accessible by integration` 的 403。
 
+为避免 `push` 同时触发两条 workflow 时把 submission run 永久冻结在 `in_progress` 视角，脚本现在会在 GitHub Actions 中默认额外等待最多 `30` 秒，让最新 `Dependency Graph Submission` run 尽量先完成再冻结 drift 证据；本地 CLI 默认不等待，如需覆盖可设置 `CHECK_DEPENDABOT_DRIFT_SUBMISSION_WAIT_SECONDS`。
+
 ## 结果解释
 
 - `exit 0`

@@ -14,6 +14,8 @@ const {
   parseArgs,
   parseDependencySubmissionJsonReport,
   parseDependencySubmissionReport,
+  resolveDependencySubmissionEvidenceWaitSeconds,
+  waitForWorkflowRunCompletion,
 } = require('./check-dependabot-drift.js');
 
 function createFixtureRepo() {
@@ -521,6 +523,93 @@ test('parseArgs accepts report output path', () => {
   });
   assert.throws(() => parseArgs(['--report-output']), /需要路径参数/);
   assert.throws(() => parseArgs(['--unknown']), /未知参数/);
+});
+
+test('resolveDependencySubmissionEvidenceWaitSeconds only waits in GitHub Actions by default', () => {
+  assert.equal(resolveDependencySubmissionEvidenceWaitSeconds({}), 0);
+  assert.equal(resolveDependencySubmissionEvidenceWaitSeconds({ GITHUB_ACTIONS: 'true' }), 30);
+  assert.equal(
+    resolveDependencySubmissionEvidenceWaitSeconds({
+      GITHUB_ACTIONS: 'true',
+      CHECK_DEPENDABOT_DRIFT_SUBMISSION_WAIT_SECONDS: '12',
+    }),
+    12,
+  );
+  assert.equal(
+    resolveDependencySubmissionEvidenceWaitSeconds({
+      GITHUB_ACTIONS: 'true',
+      CHECK_DEPENDABOT_DRIFT_SUBMISSION_WAIT_SECONDS: '-1',
+    }),
+    30,
+  );
+});
+
+test('waitForWorkflowRunCompletion polls until run finishes', () => {
+  const states = [
+    {
+      id: 23510818246,
+      status: 'in_progress',
+      conclusion: null,
+      event: 'push',
+      html_url: 'https://github.com/taichuy/7flows/actions/runs/23510818246',
+      created_at: '2026-03-24T20:31:14Z',
+      updated_at: '2026-03-24T20:31:20Z',
+    },
+    {
+      id: 23510818246,
+      status: 'completed',
+      conclusion: 'success',
+      event: 'push',
+      html_url: 'https://github.com/taichuy/7flows/actions/runs/23510818246',
+      created_at: '2026-03-24T20:31:14Z',
+      updated_at: '2026-03-24T20:31:26Z',
+    },
+  ];
+  let index = 0;
+
+  const result = waitForWorkflowRunCompletion(states[0], {
+    timeoutSeconds: 6,
+    pollIntervalMs: 1000,
+    sleep: () => {},
+    fetchWorkflowRun: () => {
+      const current = states[Math.min(index, states.length - 1)];
+      index += 1;
+      return current;
+    },
+  });
+
+  assert.equal(result.waitApplied, true);
+  assert.equal(result.timedOut, false);
+  assert.equal(result.pollCount, 2);
+  assert.equal(result.workflowRun.status, 'completed');
+  assert.equal(result.workflowRun.conclusion, 'success');
+});
+
+test('waitForWorkflowRunCompletion keeps current status when timeout expires', () => {
+  const initialRun = {
+    id: 23510818246,
+    status: 'in_progress',
+    conclusion: null,
+    event: 'push',
+    html_url: 'https://github.com/taichuy/7flows/actions/runs/23510818246',
+    created_at: '2026-03-24T20:31:14Z',
+    updated_at: '2026-03-24T20:31:20Z',
+  };
+
+  const result = waitForWorkflowRunCompletion(initialRun, {
+    timeoutSeconds: 2,
+    pollIntervalMs: 1000,
+    sleep: () => {},
+    fetchWorkflowRun: () => ({
+      ...initialRun,
+      updated_at: '2026-03-24T20:31:21Z',
+    }),
+  });
+
+  assert.equal(result.waitApplied, true);
+  assert.equal(result.timedOut, true);
+  assert.equal(result.pollCount, 2);
+  assert.equal(result.workflowRun.status, 'in_progress');
 });
 
 test('buildDriftReport emits machine-readable drift evidence', () => {

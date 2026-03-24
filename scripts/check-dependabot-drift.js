@@ -19,6 +19,85 @@ const dependencyGraphSupportByEcosystem = {
   uv: 'dependency_submission',
 };
 
+function sleepSync(milliseconds) {
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) {
+    return;
+  }
+
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
+}
+
+function resolveDependencySubmissionEvidenceWaitSeconds(env = process.env) {
+  const fallback = env.GITHUB_ACTIONS === 'true' ? 30 : 0;
+  const rawValue = env.CHECK_DEPENDABOT_DRIFT_SUBMISSION_WAIT_SECONDS;
+
+  if (rawValue === undefined || rawValue === null || String(rawValue).trim() === '') {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(String(rawValue), 10);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function waitForWorkflowRunCompletion(
+  workflowRun,
+  {
+    timeoutSeconds = 0,
+    pollIntervalMs = 3000,
+    fetchWorkflowRun = null,
+    sleep = sleepSync,
+  } = {},
+) {
+  const result = {
+    workflowRun,
+    waitApplied: false,
+    timedOut: false,
+    pollCount: 0,
+    waitError: null,
+    timeoutSeconds,
+  };
+
+  if (
+    !workflowRun ||
+    workflowRun.status === 'completed' ||
+    timeoutSeconds <= 0 ||
+    typeof fetchWorkflowRun !== 'function'
+  ) {
+    return result;
+  }
+
+  result.waitApplied = true;
+
+  const maxAttempts = Math.max(1, Math.ceil((timeoutSeconds * 1000) / pollIntervalMs));
+  let currentRun = workflowRun;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    try {
+      currentRun = fetchWorkflowRun(workflowRun.id);
+      result.workflowRun = currentRun;
+      result.pollCount += 1;
+    } catch (error) {
+      result.waitError = error.message;
+      return result;
+    }
+
+    if (currentRun?.status === 'completed') {
+      return result;
+    }
+
+    if (attempt < maxAttempts - 1) {
+      sleep(pollIntervalMs);
+    }
+  }
+
+  result.timedOut = currentRun?.status !== 'completed';
+  return result;
+}
+
 function resolveDependencyGraphSupport(ecosystem) {
   return dependencyGraphSupportByEcosystem[ecosystem] || 'unknown';
 }
@@ -285,7 +364,7 @@ function fetchLatestDependencySubmissionEvidence(repository, defaultBranch) {
   }
 
   try {
-    const params = new URLSearchParams({ per_page: '1' });
+    const params = new URLSearchParams({ per_page: '3' });
     if (defaultBranch) {
       params.set('branch', defaultBranch);
     }
@@ -305,20 +384,40 @@ function fetchLatestDependencySubmissionEvidence(repository, defaultBranch) {
       };
     }
 
+    const waitTimeoutSeconds = resolveDependencySubmissionEvidenceWaitSeconds();
+    const waitResult = waitForWorkflowRunCompletion(latestRun, {
+      timeoutSeconds: waitTimeoutSeconds,
+      fetchWorkflowRun: (runId) =>
+        JSON.parse(
+          run('gh', ['api', `repos/${repository.owner}/${repository.repo}/actions/runs/${runId}`]),
+        ),
+      sleep: sleepSync,
+    });
+    const selectedRun = waitResult.workflowRun || latestRun;
+
     const evidence = {
       workflowConfigured: true,
       runAvailable: true,
-      runId: latestRun.id,
-      status: latestRun.status,
-      conclusion: latestRun.conclusion,
-      event: latestRun.event,
-      htmlUrl: latestRun.html_url,
-      createdAt: latestRun.created_at,
+      runId: selectedRun.id,
+      status: selectedRun.status,
+      conclusion: selectedRun.conclusion,
+      event: selectedRun.event,
+      htmlUrl: selectedRun.html_url,
+      createdAt: selectedRun.created_at,
+      updatedAt: selectedRun.updated_at || null,
+      waitApplied: waitResult.waitApplied,
+      waitTimedOut: waitResult.timedOut,
+      waitTimeoutSeconds: waitResult.waitApplied ? waitTimeoutSeconds : null,
+      waitPollCount: waitResult.pollCount,
     };
+
+    if (waitResult.waitError) {
+      evidence.waitError = waitResult.waitError;
+    }
 
     const artifactDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dependency-submission-report-'));
     try {
-      run('gh', ['run', 'download', String(latestRun.id), '-n', 'dependency-submission-report', '-D', artifactDir]);
+      run('gh', ['run', 'download', String(selectedRun.id), '-n', 'dependency-submission-report', '-D', artifactDir]);
       const reportJsonPath = path.join(artifactDir, 'dependency-submission.json');
       const reportPath = path.join(artifactDir, 'dependency-submission.txt');
       if (fs.existsSync(reportJsonPath)) {
@@ -365,6 +464,20 @@ function buildDependencySubmissionEvidenceLines(evidence) {
   const lines = [
     `- latest run: [#${evidence.runId}](${evidence.htmlUrl})（status: \`${evidence.status || 'unknown'}\`，conclusion: \`${evidence.conclusion || 'unknown'}\`，event: \`${evidence.event || 'unknown'}\`）`,
   ];
+
+  if (evidence.waitApplied && evidence.waitTimedOut) {
+    lines.push(
+      `- 当前脚本已额外等待 \`${evidence.waitTimeoutSeconds}\` 秒尝试拿到最终状态，但该 run 仍处于 \`${evidence.status || 'unknown'}\`；artifact 已先按当前可见事实保留。`,
+    );
+  } else if (evidence.waitApplied && evidence.status === 'completed') {
+    lines.push(
+      `- 当前脚本在冻结 drift 证据前已等待这条 submission run 完成（budget=\`${evidence.waitTimeoutSeconds}\` 秒，polls=\`${evidence.waitPollCount}\`）。`,
+    );
+  }
+
+  if (evidence.waitError) {
+    lines.push(`- 等待 submission run 完成时读取最新状态失败，已保留当前可见状态：${evidence.waitError}`);
+  }
 
   if (evidence.report?.repositoryBlocker) {
     lines.push(`- repository blocker: ${evidence.report.repositoryBlocker}`);
@@ -1024,6 +1137,17 @@ function buildDependencySubmissionEvidenceReport(dependencySubmissionEvidence) {
     event: dependencySubmissionEvidence.event || null,
     htmlUrl: dependencySubmissionEvidence.htmlUrl || null,
     createdAt: dependencySubmissionEvidence.createdAt || null,
+    updatedAt: dependencySubmissionEvidence.updatedAt || null,
+    waitApplied: Boolean(dependencySubmissionEvidence.waitApplied),
+    waitTimedOut: Boolean(dependencySubmissionEvidence.waitTimedOut),
+    waitTimeoutSeconds:
+      Number.isInteger(dependencySubmissionEvidence.waitTimeoutSeconds)
+        ? dependencySubmissionEvidence.waitTimeoutSeconds
+        : null,
+    waitPollCount: Number.isInteger(dependencySubmissionEvidence.waitPollCount)
+      ? dependencySubmissionEvidence.waitPollCount
+      : 0,
+    waitError: dependencySubmissionEvidence.waitError || null,
     reportDownloadError,
     reportDownloadBlockedByActionsReadPermission:
       Boolean(reportDownloadError) && isActionsReadPermissionError(reportDownloadError),
@@ -1395,8 +1519,10 @@ module.exports = {
   parseDependencySubmissionReport,
   parsePythonDependencyName,
   resolveAlertEvaluationSource,
+  resolveDependencySubmissionEvidenceWaitSeconds,
   buildDriftStepOutputs,
   isActionsReadPermissionError,
+  waitForWorkflowRunCompletion,
 };
 
 if (require.main === module) {
