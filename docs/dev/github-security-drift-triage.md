@@ -54,8 +54,9 @@ node scripts/check-dependabot-drift.js
 - 仓库提供 `.github/workflows/github-security-drift.yml`，会在以下时机自动复验：
   - 手动 `workflow_dispatch`
   - 每日定时 `schedule`
-  - `taichuy_dev` 上任意受脚本监控的 manifest（`**/package.json`、`**/pnpm-lock.yaml`、`**/pyproject.toml`、`**/uv.lock`）、`scripts/check-dependabot-drift.js`、`scripts/submit-dependency-snapshots.js` 或两条相关 workflow 的 push
+  - `taichuy_dev` 上任意受脚本监控的 manifest（`**/package.json`、`**/pnpm-lock.yaml`、`**/pyproject.toml`、`**/uv.lock`）、治理 helper `scripts/dependency-governance-actions.js`、`scripts/check-dependabot-drift.js`、`scripts/submit-dependency-snapshots.js` 或两条相关 workflow 的 push
 - 工作流会上传 `dependabot-drift-report` artifact，并把摘要写入 workflow summary。
+- 除了 summary / artifact，drift step 现在还会把 `recommended_actions_count`、`recommended_actions_json`、`primary_recommended_action_*`、`conclusion_kind`、`repository_blocker_kind` 与 `dependency_graph_missing_roots_json` 写入 `GITHUB_OUTPUT`，并透传为 job outputs，方便后续 workflow / agent 直接消费同一份 follow-up 契约，而不是再解析文本 summary。
 - 由于该 workflow 需要查询 `Dependency Graph Submission` 的最新 run 并下载其 artifact，`.github/workflows/github-security-drift.yml` 现在显式声明 `actions: read`、`contents: read` 与 `security-events: read`；若后续复制或裁剪该 workflow，请不要丢掉 `actions: read`。
 - artifact 现在会同时保留：
   - `dependabot-drift.txt`：给人读的命令输出
@@ -73,10 +74,12 @@ node scripts/check-dependabot-drift.js
 ## 显式 dependency submission
 
 - 仓库新增 `.github/workflows/dependency-graph-submission.yml`，会在 `workflow_dispatch`、每日定时和 `taichuy_dev` 上的 `package.json` / `pnpm-lock.yaml` / `pyproject.toml` / `uv.lock` 变更时执行。
+- 共享治理 helper `scripts/dependency-governance-actions.js` 的 push 也会触发该 workflow，避免 `recommendedActions` 契约改动后没有远端复验。
 - 当前它使用 `scripts/submit-dependency-snapshots.js` 为所有已跟踪的 submission roots 提交手工 snapshot；按当前代码事实，命中的 roots 是 `web`（pnpm）、`api`（uv）和 `services/compat-dify`（uv）。
 - workflow artifact 现在会同时保留：
   - `dependency-submission.txt`：给人读的摘要
   - `dependency-submission.json`：给 `check-dependabot-drift` 与后续自动化复验消费的机器可读报告，包含 root 级 `status`、`snapshotId`、`blockedReason`、`warning`、`blockedKind/blockedStatus/blockedMessage`、有序 `recommendedActions`（`priority/audience/code/summary/rationale/roots`），以及一次“提交后立即回看 `dependencyGraphManifests`”的 `dependencyGraphVisibility` 结构化证据；当多个 blocked roots 来自同一仓库级设置阻塞时，还会额外汇总为顶层 `repositoryBlockerEvidence`
+- submission step 现在还会把 `recommended_actions_count`、`recommended_actions_json`、`primary_recommended_action_*`、`repository_blocker_kind`、`repository_blocker_roots_json` 与 `dependency_graph_missing_roots_json` 写入 `GITHUB_OUTPUT`，并透传为 job outputs，方便后续 workflow / agent 按优先级直接接棒处理。
 - 当仓库级 `Dependency graph` 尚未开启时，该 workflow 现在会把 run 收口为“保留 summary + artifact 证据并输出 warning”的平台阻塞态，而不是继续把每次 push 打成无法区分真伪的红灯；此时优先处理仓库 `Settings -> Security & analysis`，不要误判成锁文件解析或本地脚本失效。
 - 如果 artifact 中已经出现 `repositoryBlockerEvidence.kind=dependency_graph_disabled` 且 `status=404`，说明阻塞来自 GitHub dependency submission API 的直接返回，而不是本地 inventory / lock 解析错误；管理员侧应优先处理仓库 `Dependency graph` 设置，再决定是否需要重跑 workflow。
 - 该脚本直接调用 GitHub dependency submission REST API：

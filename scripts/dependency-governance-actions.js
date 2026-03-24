@@ -1,3 +1,5 @@
+const fs = require('fs');
+
 function normalizeRecommendedActions(actions) {
   return (Array.isArray(actions) ? actions : [])
     .map((action) => ({
@@ -56,6 +58,60 @@ function buildRecommendedActionsMarkdownLines(actions) {
   });
 
   return lines;
+}
+
+function buildRecommendedActionsOutputs(actions) {
+  const normalized = dedupeRecommendedActions(actions);
+  const primaryAction = normalized[0] || null;
+
+  return {
+    recommended_actions_count: String(normalized.length),
+    recommended_actions_json: JSON.stringify(normalized),
+    primary_recommended_action_priority: primaryAction ? String(primaryAction.priority) : '',
+    primary_recommended_action_audience: primaryAction?.audience || '',
+    primary_recommended_action_code: primaryAction?.code || '',
+    primary_recommended_action_summary: primaryAction?.summary || '',
+    primary_recommended_action_rationale: primaryAction?.rationale || '',
+    primary_recommended_action_roots_json: JSON.stringify(primaryAction?.roots || []),
+  };
+}
+
+function serializeGitHubOutputValue(value) {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+
+  return JSON.stringify(value);
+}
+
+function writeGitHubOutputs(outputs, outputPath = process.env.GITHUB_OUTPUT) {
+  if (!outputPath) {
+    return;
+  }
+
+  const entries = Object.entries(outputs || {});
+  if (entries.length === 0) {
+    return;
+  }
+
+  const lines = [];
+  entries.forEach(([key, rawValue]) => {
+    const value = serializeGitHubOutputValue(rawValue);
+    const delimiter = `EOF_${key.toUpperCase()}`;
+    lines.push(`${key}<<${delimiter}`);
+    lines.push(value);
+    lines.push(delimiter);
+  });
+
+  fs.appendFileSync(outputPath, `${lines.join('\n')}\n`, 'utf8');
 }
 
 function buildSubmissionRecommendedActions({
@@ -286,9 +342,12 @@ function buildDriftRecommendedActions({
 }
 
 module.exports = {
+  buildRecommendedActionsOutputs,
   buildDriftRecommendedActions,
   buildRecommendedActionsMarkdownLines,
   buildSubmissionRecommendedActions,
   dedupeRecommendedActions,
   normalizeRecommendedActions,
+  serializeGitHubOutputValue,
+  writeGitHubOutputs,
 };

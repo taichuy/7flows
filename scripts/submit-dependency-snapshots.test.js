@@ -7,6 +7,7 @@ const {
   buildPnpmResolvedDependencies,
   buildSubmissionReport,
   buildSubmissionSummary,
+  buildSubmissionStepOutputs,
   buildSnapshotPayload,
   buildUvResolvedDependencies,
   collectDirectDependencyScopes,
@@ -615,4 +616,66 @@ test('buildSubmissionSummary and report include dependency graph visibility evid
       roots: ['api'],
     },
   ]);
+});
+
+test('buildSubmissionStepOutputs expose stable blocker and follow-up fields', () => {
+  const report = buildSubmissionReport(
+    [
+      {
+        rootLabel: 'web',
+        status: 'submitted',
+        ecosystem: 'pnpm',
+        manifestPath: 'web/package.json',
+        lockfilePath: 'web/pnpm-lock.yaml',
+        resolvedCount: 17,
+        directCount: 3,
+        runtimeCount: 11,
+        developmentCount: 6,
+        snapshotId: 'snapshot-web',
+      },
+      {
+        rootLabel: 'api',
+        status: 'blocked',
+        ecosystem: 'uv',
+        manifestPath: 'api/pyproject.toml',
+        lockfilePath: 'api/uv.lock',
+        resolvedCount: 18,
+        directCount: 5,
+        runtimeCount: 12,
+        developmentCount: 6,
+        blockedReason:
+          'GitHub 仓库当前未开启 `Dependency graph`；请先到 `Settings -> Security & analysis` 启用 `Dependency graph`。',
+        blockedKind: 'dependency_graph_disabled',
+        blockedStatus: 404,
+        blockedMessage: 'Dependency graph is disabled for this repository.',
+      },
+    ],
+    {
+      repository: { owner: 'taichuy', repo: '7flows' },
+      sha: 'abc123',
+      ref: 'refs/heads/taichuy_dev',
+      dependencyGraphVisibility: {
+        checkedAt: '2026-03-25T02:30:00.000Z',
+        defaultBranch: 'taichuy_dev',
+        manifestCount: 1,
+        manifests: [],
+        coverage: [],
+        visibleRoots: ['web'],
+        missingRoots: ['api'],
+      },
+    },
+  );
+
+  const outputs = buildSubmissionStepOutputs(report);
+
+  assert.equal(outputs.submission_mode, 'submission');
+  assert.equal(outputs.recommended_actions_count, '3');
+  assert.equal(outputs.primary_recommended_action_code, 'enable_dependency_graph');
+  assert.equal(outputs.primary_recommended_action_audience, 'repository_admin');
+  assert.equal(outputs.repository_blocker_kind, 'dependency_graph_disabled');
+  assert.equal(outputs.repository_blocker_status, '404');
+  assert.equal(outputs.repository_blocker_roots_json, JSON.stringify(['api']));
+  assert.equal(outputs.dependency_graph_visible_roots_json, JSON.stringify(['web']));
+  assert.equal(outputs.dependency_graph_missing_roots_json, JSON.stringify(['api']));
+  assert.equal(outputs.dependency_graph_check_error, '');
 });

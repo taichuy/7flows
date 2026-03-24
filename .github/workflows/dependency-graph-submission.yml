@@ -12,6 +12,7 @@ on:
       - '**/pnpm-lock.yaml'
       - '**/pyproject.toml'
       - '**/uv.lock'
+      - 'scripts/dependency-governance-actions.js'
       - 'scripts/submit-dependency-snapshots.js'
       - 'scripts/submit-dependency-snapshots.test.js'
       - '.github/workflows/dependency-graph-submission.yml'
@@ -19,6 +20,13 @@ on:
 jobs:
   submit-dependency-snapshots:
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.submit.outputs.status }}
+      recommended_actions_count: ${{ steps.submit.outputs.recommended_actions_count }}
+      primary_recommended_action_code: ${{ steps.submit.outputs.primary_recommended_action_code }}
+      primary_recommended_action_audience: ${{ steps.submit.outputs.primary_recommended_action_audience }}
+      repository_blocker_kind: ${{ steps.submit.outputs.repository_blocker_kind }}
+      dependency_graph_missing_roots_json: ${{ steps.submit.outputs.dependency_graph_missing_roots_json }}
     permissions:
       contents: write
 

@@ -6,6 +6,7 @@ const path = require('path');
 
 const {
   buildDriftReport,
+  buildDriftStepOutputs,
   buildMarkdownSummary,
   buildWorkspaceManifestCoverage,
   buildWorkspaceManifestInventory,
@@ -830,6 +831,94 @@ test('parseDependencySubmissionJsonReport keeps dependency graph visibility evid
       roots: ['api'],
     },
   ]);
+});
+
+test('buildDriftStepOutputs expose top follow-up and blocker facts', () => {
+  const report = buildDriftReport({
+    repository: {
+      owner: 'taichuy',
+      repo: '7flows',
+    },
+    defaultBranch: 'taichuy_dev',
+    manifestNodes: [],
+    workspaceManifestInventory: buildWorkspaceManifestInventory([
+      'api/pyproject.toml',
+      'api/uv.lock',
+      'web/package.json',
+      'web/pnpm-lock.yaml',
+    ]),
+    manifestCoverage: buildWorkspaceManifestCoverage(
+      buildWorkspaceManifestInventory([
+        'api/pyproject.toml',
+        'api/uv.lock',
+        'web/package.json',
+        'web/pnpm-lock.yaml',
+      ]),
+      [],
+    ),
+    openAlerts: [
+      {
+        number: 3,
+        dependency: {
+          manifest_path: 'web/pnpm-lock.yaml',
+          package: { name: 'next' },
+        },
+        security_vulnerability: {
+          first_patched_version: { identifier: '15.5.14' },
+        },
+      },
+    ],
+    results: [
+      {
+        packageName: 'next',
+        manifestPath: 'web/pnpm-lock.yaml',
+        patchedVersion: '15.5.14',
+        localVersions: ['15.5.14'],
+        specifiers: ['^15.5.14'],
+        specifierSourcePath: 'web/package.json',
+        state: 'patched-locally',
+        reason: '本地锁文件中的解析版本已达到或超过 patched version。',
+      },
+    ],
+    actionableAlerts: [],
+    dependencySubmissionEvidence: {
+      workflowConfigured: true,
+      runAvailable: true,
+      report: {
+        repositoryBlockerEvidence: {
+          kind: 'dependency_graph_disabled',
+          status: 404,
+          message: 'Dependency graph is disabled for this repository.',
+          rootLabels: ['api', 'web'],
+          consistentAcrossRoots: true,
+        },
+        dependencyGraphVisibility: {
+          checkedAt: '2026-03-25T02:46:00.000Z',
+          defaultBranch: 'taichuy_dev',
+          manifestCount: 1,
+          visibleRoots: ['web'],
+          missingRoots: ['api'],
+        },
+      },
+    },
+    conclusion: {
+      exitCode: 2,
+      kind: 'platform_drift',
+      summary: '所有 open alerts 都已被当前锁文件修复，但 GitHub 依赖图 / 告警状态仍未收口。',
+    },
+  });
+
+  const outputs = buildDriftStepOutputs(report);
+
+  assert.equal(outputs.conclusion_kind, 'platform_drift');
+  assert.equal(outputs.conclusion_exit_code, '2');
+  assert.equal(outputs.recommended_actions_count, '4');
+  assert.equal(outputs.primary_recommended_action_code, 'enable_dependency_graph');
+  assert.equal(outputs.primary_recommended_action_audience, 'repository_admin');
+  assert.equal(outputs.repository_blocker_kind, 'dependency_graph_disabled');
+  assert.equal(outputs.repository_blocker_status, '404');
+  assert.equal(outputs.dependency_submission_run_available, 'true');
+  assert.equal(outputs.dependency_graph_missing_roots_json, JSON.stringify(['api']));
 });
 
 test('buildMarkdownSummary surfaces submission-time manifest visibility evidence', () => {

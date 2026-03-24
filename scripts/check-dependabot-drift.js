@@ -4,9 +4,11 @@ const path = require('path');
 const { URLSearchParams } = require('url');
 const { execFileSync } = require('child_process');
 const {
+  buildRecommendedActionsOutputs,
   buildDriftRecommendedActions,
   buildRecommendedActionsMarkdownLines,
   normalizeRecommendedActions,
+  writeGitHubOutputs,
 } = require('./dependency-governance-actions');
 
 const repoRoot = path.resolve(__dirname, '..');
@@ -1134,6 +1136,41 @@ function writeDriftReport(reportOutputPath, params) {
   fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 }
 
+function buildDriftStepOutputs(report) {
+  const dependencySubmissionEvidence = report?.dependencySubmissionEvidence || null;
+  const dependencyGraphVisibility = dependencySubmissionEvidence?.dependencyGraphVisibility || null;
+  const repositoryBlockerEvidence = dependencySubmissionEvidence?.repositoryBlockerEvidence || null;
+
+  return {
+    ...buildRecommendedActionsOutputs(report?.recommendedActions),
+    conclusion_kind: report?.conclusion?.kind || '',
+    conclusion_exit_code:
+      Number.isInteger(report?.conclusion?.exitCode) ? String(report.conclusion.exitCode) : '',
+    alerts_unavailable: report?.dependabotAlerts?.unavailable ? 'true' : 'false',
+    open_alert_count:
+      typeof report?.dependabotAlerts?.openAlertCount === 'number'
+        ? String(report.dependabotAlerts.openAlertCount)
+        : '',
+    actionable_alert_count:
+      typeof report?.dependabotAlerts?.actionableAlertCount === 'number'
+        ? String(report.dependabotAlerts.actionableAlertCount)
+        : '',
+    dependency_submission_run_available: dependencySubmissionEvidence?.runAvailable ? 'true' : 'false',
+    repository_blocker_kind: repositoryBlockerEvidence?.kind || '',
+    repository_blocker_status:
+      Number.isInteger(repositoryBlockerEvidence?.status)
+        ? String(repositoryBlockerEvidence.status)
+        : '',
+    dependency_graph_missing_roots_json: JSON.stringify(
+      dependencyGraphVisibility?.missingRoots || [],
+    ),
+  };
+}
+
+function writeDriftStepOutputs(report) {
+  writeGitHubOutputs(buildDriftStepOutputs(report));
+}
+
 function main() {
   const options = parseArgs(process.argv.slice(2));
   const trackedFiles = collectTrackedFiles(repoRoot);
@@ -1249,7 +1286,7 @@ function main() {
       console.log('仓库已配置显式 dependency submission workflow；若 manifests 仍缺席，优先查看最新 run summary / artifact，再判断是平台阻塞还是刷新延迟。');
     }
     console.log('若要在 workflow 中保留完整 drift 对比，请为仓库 secret 配置 DEPENDABOT_ALERTS_TOKEN。');
-    writeDriftReport(options.reportOutputPath, {
+    const reportParams = {
       ...sharedReportParams,
       conclusion: {
         exitCode: 3,
@@ -1257,21 +1294,25 @@ function main() {
         summary:
           '当前 workflow token 无法读取 Dependabot alerts；请补充 DEPENDABOT_ALERTS_TOKEN 或使用具备权限的 gh 凭证。',
       },
-    });
+    };
+    writeDriftReport(options.reportOutputPath, reportParams);
+    writeDriftStepOutputs(buildDriftReport(reportParams));
     process.exit(3);
   }
 
   if (openAlerts.length === 0) {
     console.log('当前没有 open alert。');
     writeMarkdownSummary(sharedReportParams);
-    writeDriftReport(options.reportOutputPath, {
+    const reportParams = {
       ...sharedReportParams,
       conclusion: {
         exitCode: 0,
         kind: 'clean',
         summary: '当前没有 open alert。',
       },
-    });
+    };
+    writeDriftReport(options.reportOutputPath, reportParams);
+    writeDriftStepOutputs(buildDriftReport(reportParams));
     process.exit(0);
   }
 
@@ -1302,27 +1343,31 @@ function main() {
     }
     console.log('建议保留证据，不要直接 dismiss 告警；先修复依赖图刷新链路，再等待 GitHub 自动关闭。');
     writeMarkdownSummary(sharedReportParams);
-    writeDriftReport(options.reportOutputPath, {
+    const reportParams = {
       ...sharedReportParams,
       conclusion: {
         exitCode: 2,
         kind: 'platform_drift',
         summary: '所有 open alerts 都已被当前锁文件修复，但 GitHub 依赖图 / 告警状态仍未收口。',
       },
-    });
+    };
+    writeDriftReport(options.reportOutputPath, reportParams);
+    writeDriftStepOutputs(buildDriftReport(reportParams));
     process.exit(2);
   }
 
   console.log('仍存在至少一个未被当前锁文件修复或无法解析的告警，需要继续修依赖或补排查。');
   writeMarkdownSummary(sharedReportParams);
-  writeDriftReport(options.reportOutputPath, {
+  const reportParams = {
     ...sharedReportParams,
     conclusion: {
       exitCode: 1,
       kind: 'actionable_alerts',
       summary: '仍存在至少一个未被当前锁文件修复或无法解析的告警，需要继续修依赖或补排查。',
     },
-  });
+  };
+  writeDriftReport(options.reportOutputPath, reportParams);
+  writeDriftStepOutputs(buildDriftReport(reportParams));
   process.exit(1);
 }
 
@@ -1348,6 +1393,7 @@ module.exports = {
   parseDependencySubmissionReport,
   parsePythonDependencyName,
   resolveAlertEvaluationSource,
+  buildDriftStepOutputs,
   isActionsReadPermissionError,
 };
 

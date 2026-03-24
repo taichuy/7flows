@@ -4,9 +4,11 @@ const { execFileSync } = require('child_process');
 
 const { buildWorkspaceManifestCoverage } = require('./check-dependabot-drift');
 const {
+  buildRecommendedActionsOutputs,
   buildRecommendedActionsMarkdownLines,
   buildSubmissionRecommendedActions,
   normalizeRecommendedActions,
+  writeGitHubOutputs,
 } = require('./dependency-governance-actions');
 
 const {
@@ -824,6 +826,33 @@ function buildSubmissionReport(
   };
 }
 
+function buildSubmissionStepOutputs(report) {
+  const repositoryBlockerEvidence = report?.repositoryBlockerEvidence || null;
+  const dependencyGraphVisibility = report?.dependencyGraphVisibility || null;
+
+  return {
+    ...buildRecommendedActionsOutputs(report?.recommendedActions),
+    submission_mode: report?.mode || '',
+    repository_blocker_kind: repositoryBlockerEvidence?.kind || '',
+    repository_blocker_status:
+      Number.isInteger(repositoryBlockerEvidence?.status)
+        ? String(repositoryBlockerEvidence.status)
+        : '',
+    repository_blocker_roots_json: JSON.stringify(repositoryBlockerEvidence?.rootLabels || []),
+    dependency_graph_visible_roots_json: JSON.stringify(
+      dependencyGraphVisibility?.visibleRoots || [],
+    ),
+    dependency_graph_missing_roots_json: JSON.stringify(
+      dependencyGraphVisibility?.missingRoots || [],
+    ),
+    dependency_graph_check_error: dependencyGraphVisibility?.checkError || '',
+  };
+}
+
+function writeSubmissionStepOutputs(report) {
+  writeGitHubOutputs(buildSubmissionStepOutputs(report));
+}
+
 async function submitSnapshot(repository, payload, token) {
   const response = await fetch(
     `${process.env.GITHUB_API_URL || 'https://api.github.com'}/repos/${repository.owner}/${repository.repo}/dependency-graph/snapshots`,
@@ -1073,19 +1102,20 @@ async function main() {
     options.dryRun,
     dependencyGraphVisibility,
   );
+  const report = buildSubmissionReport(summaries, {
+    dryRun: options.dryRun,
+    repository,
+    sha,
+    ref,
+    dependencyGraphVisibility,
+  });
   if (options.reportOutputPath) {
     const reportPath = path.resolve(repoRoot, options.reportOutputPath);
-    const report = buildSubmissionReport(summaries, {
-      dryRun: options.dryRun,
-      repository,
-      sha,
-      ref,
-      dependencyGraphVisibility,
-    });
     fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
   }
   console.log(summaryLines.join('\n'));
   writeStepSummary(summaryLines);
+  writeSubmissionStepOutputs(report);
 
   if (hasRepositoryBlockers) {
     process.exitCode = 2;
@@ -1099,6 +1129,7 @@ module.exports = {
   buildRepositoryBlockerEvidence,
   buildSubmissionReport,
   buildSubmissionSummary,
+  buildSubmissionStepOutputs,
   buildScopedPnpmResolvedDependencies,
   buildSnapshotPayload,
   buildUvResolvedDependencies,

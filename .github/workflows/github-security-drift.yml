@@ -12,6 +12,7 @@ on:
       - '**/uv.lock'
       - '**/package.json'
       - '**/pnpm-lock.yaml'
+      - 'scripts/dependency-governance-actions.js'
       - 'scripts/check-dependabot-drift.js'
       - 'scripts/submit-dependency-snapshots.js'
       - '.github/workflows/github-security-drift.yml'
@@ -20,6 +21,14 @@ on:
 jobs:
   drift:
     runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.drift.outputs.status }}
+      conclusion_kind: ${{ steps.drift.outputs.conclusion_kind }}
+      recommended_actions_count: ${{ steps.drift.outputs.recommended_actions_count }}
+      primary_recommended_action_code: ${{ steps.drift.outputs.primary_recommended_action_code }}
+      primary_recommended_action_audience: ${{ steps.drift.outputs.primary_recommended_action_audience }}
+      repository_blocker_kind: ${{ steps.drift.outputs.repository_blocker_kind }}
+      dependency_graph_missing_roots_json: ${{ steps.drift.outputs.dependency_graph_missing_roots_json }}
     permissions:
       actions: read
       contents: read
