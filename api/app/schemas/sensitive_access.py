@@ -8,6 +8,9 @@ from app.schemas.operator_follow_up import (
     OperatorRunFollowUpSummary,
     OperatorRunSnapshot,
 )
+from app.schemas.workflow_legacy_auth_governance import (
+    WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
+)
 
 SensitivityLevel = Literal["L0", "L1", "L2", "L3"]
 AccessDecision = Literal["allow", "deny", "require_approval", "allow_masked"]
@@ -203,6 +206,7 @@ class SensitiveAccessInboxEntryItem(BaseModel):
     notifications: list[NotificationDispatchItem] = Field(default_factory=list)
     run_snapshot: OperatorRunSnapshot | None = None
     run_follow_up: OperatorRunFollowUpSummary | None = None
+    legacy_auth_governance: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | None = None
 
 
 class SensitiveAccessInboxBlockerSummary(BaseModel):

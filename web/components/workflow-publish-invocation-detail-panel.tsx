@@ -63,8 +63,10 @@ import {
 } from "@/lib/system-overview-follow-up-presenters";
 import {
   buildRunDetailHrefFromWorkspaceStarterViewState,
+  buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   type WorkspaceStarterGovernanceQueryScope
 } from "@/lib/workspace-starter-governance-query";
+import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 type WorkflowPublishInvocationDetailPanelProps = {
   detail: PublishedEndpointInvocationDetailResponse;
@@ -102,6 +104,7 @@ export function WorkflowPublishInvocationDetailPanel({
     cache
   } = detail;
   const waitingLifecycle = invocation.run_waiting_lifecycle;
+  const legacyAuthSnapshot = detail.legacy_auth_governance ?? null;
   const runSnapshot = normalizePublishedInvocationRunSnapshot(
     detail.run_snapshot ?? invocation.run_snapshot ?? null
   );
@@ -190,6 +193,20 @@ export function WorkflowPublishInvocationDetailPanel({
         )
       : null;
   const skillTraceSurface = skillTrace ? buildPublishedInvocationSkillTraceSurface(skillTrace) : null;
+  const legacyAuthWorkflowSummary =
+    legacyAuthSnapshot?.workflows.find((item) => item.workflow_id === invocation.workflow_id) ??
+    legacyAuthSnapshot?.workflows[0] ??
+    null;
+  const workflowDetailLink = workspaceStarterGovernanceQueryScope
+    ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+        workflowId: invocation.workflow_id,
+        viewState: workspaceStarterGovernanceQueryScope,
+        variant: "editor"
+      })
+    : buildAuthorFacingWorkflowDetailLinkSurface({
+        workflowId: invocation.workflow_id,
+        variant: "editor"
+      });
   const recommendedNextStep = buildPublishedInvocationRecommendedNextStep({
     runId,
     canonicalFollowUp,
@@ -546,6 +563,69 @@ export function WorkflowPublishInvocationDetailPanel({
               })}
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {legacyAuthSnapshot && legacyAuthSnapshot.binding_count > 0 ? (
+        <div>
+          <div className="section-heading compact-heading">
+            <div>
+              <span className="binding-label">{detailSurfaceCopy.legacyAuthGovernanceTitle}</span>
+            </div>
+            <div className="tool-badge-row">
+              <span className="event-chip">{legacyAuthSnapshot.binding_count} legacy bindings</span>
+              <span className="event-chip">shared workflow artifact</span>
+            </div>
+          </div>
+          <p className="section-copy entry-copy">
+            {detailSurfaceCopy.legacyAuthGovernanceDescription}
+          </p>
+
+          <div className="summary-strip compact-strip">
+            <article className="summary-card">
+              <span>Draft cleanup</span>
+              <strong>{legacyAuthSnapshot.summary.draft_candidate_count}</strong>
+            </article>
+            <article className="summary-card">
+              <span>Published blockers</span>
+              <strong>{legacyAuthSnapshot.summary.published_blocker_count}</strong>
+            </article>
+            <article className="summary-card">
+              <span>Offline inventory</span>
+              <strong>{legacyAuthSnapshot.summary.offline_inventory_count}</strong>
+            </article>
+          </div>
+
+          {legacyAuthSnapshot.checklist.length > 0 ? (
+            <div className="publish-key-list">
+              {legacyAuthSnapshot.checklist.map((item) => (
+                <article className="payload-card compact-card" key={item.key}>
+                  <div className="payload-card-header">
+                    <span className="status-meta">{item.tone_label}</span>
+                    <span className="event-chip">{item.count} items</span>
+                  </div>
+                  <p className="binding-meta">{item.title}</p>
+                  <p className="section-copy entry-copy">{item.detail}</p>
+                </article>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="binding-actions">
+            <div>
+              <p className="entry-card-title">
+                {detailSurfaceCopy.legacyAuthGovernanceWorkflowFollowUpTitle}
+              </p>
+              <p className="section-copy entry-copy">
+                {legacyAuthWorkflowSummary
+                  ? `当前 workflow 仍有 ${legacyAuthWorkflowSummary.draft_candidate_count} 条 draft cleanup、${legacyAuthWorkflowSummary.published_blocker_count} 条 published blocker、${legacyAuthWorkflowSummary.offline_inventory_count} 条 offline inventory；回到 detail 后可继续沿同一份 handoff 收口。`
+                  : detailSurfaceCopy.legacyAuthGovernanceWorkflowFollowUpFallback}
+              </p>
+            </div>
+            <Link className="activity-link" href={workflowDetailLink.href}>
+              {workflowDetailLink.label}
+            </Link>
+          </div>
         </div>
       ) : null}
 

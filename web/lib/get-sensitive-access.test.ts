@@ -159,6 +159,52 @@ describe("getSensitiveAccessInboxSnapshot", () => {
                   }
                 }
               ]
+            },
+            legacy_auth_governance: {
+              generated_at: "2026-03-24T08:00:00Z",
+              workflow_count: 1,
+              binding_count: 1,
+              summary: {
+                draft_candidate_count: 0,
+                published_blocker_count: 1,
+                offline_inventory_count: 0
+              },
+              checklist: [
+                {
+                  key: "published_follow_up",
+                  title: "再补发支持鉴权的 replacement bindings",
+                  tone: "manual",
+                  tone_label: "人工跟进",
+                  count: 1,
+                  detail: "live legacy published blockers 仍需 replacement binding。"
+                }
+              ],
+              workflows: [
+                {
+                  workflow_id: "wf-1",
+                  workflow_name: "Inbox Workflow",
+                  binding_count: 1,
+                  draft_candidate_count: 0,
+                  published_blocker_count: 1,
+                  offline_inventory_count: 0
+                }
+              ],
+              buckets: {
+                draft_candidates: [],
+                published_blockers: [
+                  {
+                    workflow_id: "wf-1",
+                    workflow_name: "Inbox Workflow",
+                    binding_id: "binding-1",
+                    endpoint_id: "endpoint-1",
+                    endpoint_name: "Inbox Endpoint",
+                    workflow_version: "1.0.0",
+                    lifecycle_status: "published",
+                    auth_mode: "token"
+                  }
+                ],
+                offline_inventory: []
+              }
             }
           }
         ],
@@ -261,6 +307,7 @@ describe("getSensitiveAccessInboxSnapshot", () => {
     expect(snapshot.entries[0]?.notifications).toHaveLength(1);
     expect(snapshot.entries[0]?.runSnapshot?.executionFocusNodeRunId).toBe("node-run-1");
     expect(snapshot.entries[0]?.runFollowUp?.sampledRuns[0]?.runId).toBe("run-1");
+    expect(snapshot.entries[0]?.legacyAuthGovernance?.binding_count).toBe(1);
     expect(snapshot.entries[0]?.executionContext?.focusMatchesEntry).toBe(true);
     expect(snapshot.entries[0]?.callbackWaitingContext?.displayNodeRunId).toBe("node-run-1");
     expect(snapshot.entries[0]?.callbackWaitingContext?.actionNodeRunId).toBe("node-run-1");

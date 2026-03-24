@@ -363,6 +363,7 @@ export type PublishedEndpointInvocationDetailResponse = {
   run?: PublishedEndpointInvocationRunReference | null;
   run_snapshot?: OperatorRunFollowUpSnapshot | null;
   run_follow_up?: OperatorRunFollowUpSummary | null;
+  legacy_auth_governance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
   callback_tickets: PublishedEndpointInvocationCallbackTicketItem[];
   blocking_node_run_id?: string | null;
   execution_focus_reason?: PublishedEndpointInvocationExecutionFocusReason | null;

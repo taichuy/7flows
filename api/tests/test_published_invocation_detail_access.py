@@ -478,6 +478,69 @@ def test_get_published_invocation_detail_includes_sensitive_access_summary_for_w
     }
 
 
+def test_get_published_invocation_detail_includes_workflow_legacy_auth_handoff(
+    client: TestClient,
+    sqlite_session: Session,
+) -> None:
+    workflow_id, binding, run, node_run, invocation = _create_published_invocation_fixture(
+        client,
+        sqlite_session,
+    )
+    binding_record = sqlite_session.get(WorkflowPublishedEndpoint, binding["id"])
+    assert binding_record is not None
+
+    now = datetime.now(UTC)
+    sqlite_session.add(
+        WorkflowPublishedEndpoint(
+            id=str(uuid4()),
+            workflow_id=workflow_id,
+            workflow_version_id=binding_record.workflow_version_id,
+            workflow_version=binding_record.workflow_version,
+            target_workflow_version_id=binding_record.target_workflow_version_id,
+            target_workflow_version=binding_record.target_workflow_version,
+            compiled_blueprint_id=binding_record.compiled_blueprint_id,
+            endpoint_id="legacy-auth-endpoint",
+            endpoint_name="Legacy Auth Endpoint",
+            endpoint_alias="legacy-auth-endpoint",
+            route_path="/published/legacy-auth-endpoint",
+            protocol=binding_record.protocol,
+            auth_mode="token",
+            streaming=False,
+            lifecycle_status="draft",
+            input_schema={"type": "object"},
+            created_at=now,
+            updated_at=now,
+        )
+    )
+    sqlite_session.commit()
+
+    detail_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/{invocation.id}",
+        params={"requester_id": "human-reviewer"},
+    )
+
+    assert detail_response.status_code == 200
+    detail_body = detail_response.json()
+    governance = detail_body["legacy_auth_governance"]
+    assert governance["binding_count"] == 1
+    assert governance["summary"] == {
+        "draft_candidate_count": 1,
+        "published_blocker_count": 0,
+        "offline_inventory_count": 0,
+    }
+    assert governance["checklist"][0]["key"] == "draft_cleanup"
+    assert governance["workflows"] == [
+        {
+            "workflow_id": workflow_id,
+            "workflow_name": "Publish Invocation Sensitive Detail Workflow",
+            "binding_count": 1,
+            "draft_candidate_count": 1,
+            "published_blocker_count": 0,
+            "offline_inventory_count": 0,
+        }
+    ]
+
+
 def test_get_published_invocation_detail_maps_blocking_sensitive_access_from_execution_view(
     client: TestClient,
     sqlite_session: Session,

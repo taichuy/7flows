@@ -5,6 +5,7 @@ import { CrossEntryRiskDigestPanel } from "@/components/cross-entry-risk-digest-
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import { SensitiveAccessChannelHealthPanel } from "@/components/sensitive-access-channel-health-panel";
 import { SensitiveAccessInboxFilterSection } from "@/components/sensitive-access-inbox-filter-section";
+import { SensitiveAccessLegacyAuthGovernanceCard } from "@/components/sensitive-access-legacy-auth-governance-card";
 import { SensitiveAccessInboxPanel } from "@/components/sensitive-access-inbox-panel";
 import {
   APPROVAL_STATUS_OPTIONS,
@@ -35,6 +36,7 @@ import {
   type SensitiveAccessRequestItem
 } from "@/lib/get-sensitive-access";
 import { buildSensitiveAccessInboxRecommendedNextStep } from "@/lib/operator-workbench-next-step";
+import { buildSensitiveAccessInboxLegacyAuthGovernanceSnapshot } from "@/lib/sensitive-access-legacy-auth-governance";
 import { buildSensitiveAccessInboxSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
@@ -146,6 +148,9 @@ export default async function SensitiveAccessInboxPage({
   });
   const systemOverview = await getSystemOverview();
   const surfaceCopy = buildSensitiveAccessInboxSurfaceCopy();
+  const legacyAuthGovernanceSnapshot = buildSensitiveAccessInboxLegacyAuthGovernanceSnapshot(
+    snapshot.entries
+  );
   const crossEntryRiskDigest: CrossEntryRiskDigest = buildCrossEntryRiskDigest({
     sandboxReadiness: systemOverview.sandbox_readiness,
     callbackWaitingAutomation: systemOverview.callback_waiting_automation,
@@ -191,6 +196,12 @@ export default async function SensitiveAccessInboxPage({
           intro="审批、恢复、通知和强隔离恢复已经落到同一套工作台事实，但 operator 仍需要先看到跨入口主风险，再决定是回 inbox、run 诊断还是 workflow 列表继续处理。"
         />
       </section>
+
+      {legacyAuthGovernanceSnapshot ? (
+        <section className="diagnostics-layout">
+          <SensitiveAccessLegacyAuthGovernanceCard snapshot={legacyAuthGovernanceSnapshot} />
+        </section>
+      ) : null}
 
       <section className="diagnostics-layout">
         <article className="diagnostic-panel panel-span">

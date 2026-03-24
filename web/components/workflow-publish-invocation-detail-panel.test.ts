@@ -344,6 +344,7 @@ function buildDetail(): PublishedEndpointInvocationDetailResponse {
         }
       ]
     },
+    legacy_auth_governance: null,
     callback_tickets: [],
     blocking_node_run_id: null,
     execution_focus_reason: null,
@@ -468,6 +469,91 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     expect(html).toContain("compat contract (tool_execution / tool callback.wait / ir 2026-03-10)");
     expect(html).not.toContain("Sampled run focus evidence");
     expect(html.match(/Focused skill trace/g)?.length ?? 0).toBe(1);
+  });
+
+  it("renders the shared workflow legacy auth handoff in publish audit detail", () => {
+    const detail = buildDetail();
+    detail.legacy_auth_governance = {
+      generated_at: "2026-03-20T10:00:00Z",
+      workflow_count: 1,
+      binding_count: 2,
+      summary: {
+        draft_candidate_count: 1,
+        published_blocker_count: 1,
+        offline_inventory_count: 0
+      },
+      checklist: [
+        {
+          key: "draft_cleanup",
+          title: "Draft cleanup",
+          tone: "ready",
+          tone_label: "ready now",
+          count: 1,
+          detail: "先下线 draft binding，再继续 publish audit follow-up。"
+        },
+        {
+          key: "published_follow_up",
+          title: "Published blockers",
+          tone: "manual",
+          tone_label: "manual follow-up",
+          count: 1,
+          detail: "当前仍有 published binding 使用 unsupported legacy auth mode。"
+        }
+      ],
+      workflows: [
+        {
+          workflow_id: "workflow-1",
+          workflow_name: "Workflow 1",
+          binding_count: 2,
+          draft_candidate_count: 1,
+          published_blocker_count: 1,
+          offline_inventory_count: 0
+        }
+      ],
+      buckets: {
+        draft_candidates: [
+          {
+            workflow_id: "workflow-1",
+            workflow_name: "Workflow 1",
+            binding_id: "binding-draft-1",
+            endpoint_id: "endpoint-draft-1",
+            endpoint_name: "Draft endpoint",
+            workflow_version: "0.1.0",
+            lifecycle_status: "draft",
+            auth_mode: "token"
+          }
+        ],
+        published_blockers: [
+          {
+            workflow_id: "workflow-1",
+            workflow_name: "Workflow 1",
+            binding_id: "binding-published-1",
+            endpoint_id: "endpoint-published-1",
+            endpoint_name: "Published endpoint",
+            workflow_version: "0.1.0",
+            lifecycle_status: "published",
+            auth_mode: "token"
+          }
+        ],
+        offline_inventory: []
+      }
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationDetailPanel, {
+        detail,
+        clearHref: "/published?clear=1",
+        tools: [],
+        callbackWaitingAutomation
+      })
+    );
+
+    expect(html).toContain("Legacy publish auth handoff");
+    expect(html).toContain("shared workflow artifact");
+    expect(html).toContain("Draft cleanup");
+    expect(html).toContain("Published blockers");
+    expect(html).toContain("当前 workflow 仍有 1 条 draft cleanup、1 条 published blocker、0 条 offline inventory");
+    expect(html).toContain("/workflows/workflow-1");
   });
 
   it("prefers shared callback recovery CTA when publish detail only carries local callback prose", () => {

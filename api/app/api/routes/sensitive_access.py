@@ -75,9 +75,11 @@ from app.services.sensitive_access_run_resolution import (
     load_run_ids_by_node_run_id,
     resolve_sensitive_access_run_id,
 )
+from app.services.workflow_publish import WorkflowPublishBindingService
 
 router = APIRouter(prefix="/sensitive-access", tags=["sensitive-access"])
 service = SensitiveAccessControlService()
+workflow_publish_service = WorkflowPublishBindingService()
 
 def _resolve_single_run_follow_up(
     db: Session,
@@ -484,6 +486,25 @@ def _resolve_inbox_run_ids(
     )
 
 
+def _load_inbox_entry_legacy_auth_governance(
+    db: Session,
+    *,
+    workflow_id: str | None,
+    snapshot_cache: dict[str, object | None],
+):
+    if not workflow_id:
+        return None
+
+    if workflow_id not in snapshot_cache:
+        snapshot = workflow_publish_service.build_legacy_auth_governance_snapshot(
+            db,
+            workflow_id=workflow_id,
+        )
+        snapshot_cache[workflow_id] = snapshot if snapshot.binding_count > 0 else None
+
+    return snapshot_cache[workflow_id]
+
+
 @router.get("/inbox", response_model=SensitiveAccessInboxResponse)
 def get_sensitive_access_inbox(
     status: str | None = Query(default=None),
@@ -578,6 +599,7 @@ def get_sensitive_access_inbox(
         sample_limit=1,
     )
     hydrated_entries: list[SensitiveAccessInboxEntryItem] = []
+    legacy_auth_snapshot_by_workflow_id: dict[str, object | None] = {}
     for entry in entries:
         resolved_run_id = entry_run_ids.get(entry.ticket.id)
         run_follow_up = (
@@ -587,11 +609,17 @@ def get_sensitive_access_inbox(
             run_follow_up,
             run_id=resolved_run_id,
         )
+        legacy_auth_governance = _load_inbox_entry_legacy_auth_governance(
+            db,
+            workflow_id=(run_snapshot.workflow_id if run_snapshot is not None else None),
+            snapshot_cache=legacy_auth_snapshot_by_workflow_id,
+        )
         hydrated_entries.append(
             entry.model_copy(
                 update={
                     "run_snapshot": run_snapshot,
                     "run_follow_up": run_follow_up,
+                    "legacy_auth_governance": legacy_auth_governance,
                 }
             )
         )

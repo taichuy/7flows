@@ -35,12 +35,14 @@ from app.services.sensitive_access_presenters import (
     serialize_sensitive_access_timeline_entry,
 )
 from app.services.sensitive_access_timeline import load_sensitive_access_timeline
+from app.services.workflow_publish import WorkflowPublishBindingService
 
 router = APIRouter(prefix="/workflows", tags=["published-endpoint-activity"])
 published_invocation_service = PublishedInvocationService()
 published_cache_service = PublishedEndpointCacheService()
 published_invocation_detail_access_service = PublishedInvocationDetailAccessService()
 run_view_service = RunViewService()
+workflow_publish_service = WorkflowPublishBindingService()
 
 
 def _resolve_blocking_node_run_id(
@@ -317,6 +319,10 @@ def get_published_endpoint_invocation_detail(
         ),
         run_snapshot=timeline_run_snapshot,
         run_follow_up=run_follow_up,
+        legacy_auth_governance=workflow_publish_service.build_legacy_auth_governance_snapshot(
+            db,
+            workflow_id=workflow_id,
+        ),
         callback_tickets=callback_ticket_items,
         blocking_node_run_id=blocking_node_run_id,
         execution_focus_reason=execution_focus_reason,

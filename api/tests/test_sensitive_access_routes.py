@@ -13,7 +13,7 @@ from app.models.sensitive_access import (
     SensitiveAccessRequestRecord,
     SensitiveResourceRecord,
 )
-from app.models.workflow import Workflow
+from app.models.workflow import Workflow, WorkflowPublishedEndpoint
 from app.services.notification_dispatch_scheduler import NotificationDispatchScheduler
 from app.services.run_resume_scheduler import RunResumeScheduler
 from app.services.sensitive_access_control import SensitiveAccessControlService
@@ -1689,6 +1689,31 @@ def test_sensitive_access_inbox_returns_filtered_entries_and_run_snapshots(
         created_at=datetime.now(UTC),
     )
     sqlite_session.add_all([run, node_run])
+    sqlite_session.add(
+        WorkflowPublishedEndpoint(
+            id="binding-inbox-handoff",
+            workflow_id=sample_workflow.id,
+            workflow_version_id="wf-demo-v1",
+            workflow_version=sample_workflow.version,
+            target_workflow_version_id="wf-demo-v1",
+            target_workflow_version=sample_workflow.version,
+            compiled_blueprint_id="bp-inbox-handoff",
+            endpoint_id="endpoint-inbox-handoff",
+            endpoint_name="Inbox Handoff Endpoint",
+            endpoint_alias="inbox-handoff-endpoint",
+            route_path="/published/inbox-handoff-endpoint",
+            protocol="native",
+            auth_mode="token",
+            streaming=False,
+            lifecycle_status="published",
+            input_schema={},
+            output_schema=None,
+            rate_limit_policy=None,
+            cache_policy=None,
+            created_at=datetime(2026, 3, 24, 8, 0, tzinfo=UTC),
+            updated_at=datetime(2026, 3, 24, 8, 0, tzinfo=UTC),
+        )
+    )
     sqlite_session.commit()
 
     resource_response = client.post(
@@ -1741,6 +1766,56 @@ def test_sensitive_access_inbox_returns_filtered_entries_and_run_snapshots(
     ]
     assert body["entries"][0]["run_snapshot"] == request_body["run_snapshot"]
     assert body["entries"][0]["run_follow_up"] == request_body["run_follow_up"]
+    assert body["entries"][0]["legacy_auth_governance"] == {
+        "generated_at": body["entries"][0]["legacy_auth_governance"]["generated_at"],
+        "workflow_count": 1,
+        "binding_count": 1,
+        "summary": {
+            "draft_candidate_count": 0,
+            "published_blocker_count": 1,
+            "offline_inventory_count": 0,
+        },
+        "checklist": [
+            {
+                "key": "published_follow_up",
+                "title": "再补发支持鉴权的 replacement bindings",
+                "tone": "manual",
+                "tone_label": "人工跟进",
+                "count": 1,
+                "detail": (
+                    "对 Demo Workflow 这类仍在 live 的 legacy binding，先回到当前 draft "
+                    "endpoint 把 authMode 切回 api_key/internal，"
+                    "并发布新版 binding，再决定历史版本是否下线。"
+                ),
+            }
+        ],
+        "workflows": [
+            {
+                "workflow_id": sample_workflow.id,
+                "workflow_name": "Demo Workflow",
+                "binding_count": 1,
+                "draft_candidate_count": 0,
+                "published_blocker_count": 1,
+                "offline_inventory_count": 0,
+            }
+        ],
+        "buckets": {
+            "draft_candidates": [],
+            "published_blockers": [
+                {
+                    "workflow_id": sample_workflow.id,
+                    "workflow_name": "Demo Workflow",
+                    "binding_id": "binding-inbox-handoff",
+                    "workflow_version": sample_workflow.version,
+                    "endpoint_id": "endpoint-inbox-handoff",
+                    "endpoint_name": "Inbox Handoff Endpoint",
+                    "lifecycle_status": "published",
+                    "auth_mode": "token",
+                }
+            ],
+            "offline_inventory": [],
+        },
+    }
     assert body["execution_views"] == []
     assert body["summary"] == {
         "ticket_count": 1,

@@ -226,6 +226,10 @@ export type PublishedInvocationDetailSurfaceCopy = {
   responsePreviewTitle: string;
   canonicalFollowUpTitle: string;
   canonicalFollowUpDescription: string;
+  legacyAuthGovernanceTitle: string;
+  legacyAuthGovernanceDescription: string;
+  legacyAuthGovernanceWorkflowFollowUpTitle: string;
+  legacyAuthGovernanceWorkflowFollowUpFallback: string;
   sampledRunFallback: string;
   sampledRunReasonCallbackWaitingLabel: string;
   sampledRunReasonExecutionFocusLabel: string;
@@ -611,6 +615,12 @@ export function buildPublishedInvocationDetailSurfaceCopy({
     canonicalFollowUpTitle: "Canonical follow-up",
     canonicalFollowUpDescription:
       "publish invocation detail 现在直接复用 operator follow-up 的后端事实链，不再只给局部 waiting / execution 片段，方便从发布入口直接判断下一步该回看 run 还是 inbox。",
+    legacyAuthGovernanceTitle: "Legacy publish auth handoff",
+    legacyAuthGovernanceDescription:
+      "publish activity export、run diagnostics 和 invocation detail 现在共享同一份 workflow 级 legacy publish auth artifact，避免 operator 在 audit 入口重新拼 draft cleanup / published blocker checklist。",
+    legacyAuthGovernanceWorkflowFollowUpTitle: "Workflow follow-up",
+    legacyAuthGovernanceWorkflowFollowUpFallback:
+      "回到 workflow detail 继续处理 draft cleanup / published blocker；当前 publish audit detail 与 export 现在共享同一份 workflow handoff。",
     sampledRunFallback: "该 sampled run 已回接 canonical follow-up 快照。",
     sampledRunReasonCallbackWaitingLabel: "callback waiting",
     sampledRunReasonExecutionFocusLabel: "execution focus",

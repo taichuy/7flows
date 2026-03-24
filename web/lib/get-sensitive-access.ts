@@ -19,6 +19,7 @@ import {
   type SensitiveAccessInboxExecutionContext
 } from "@/lib/sensitive-access-inbox-execution-context";
 import { resolveSensitiveAccessCanonicalRunSnapshot } from "@/lib/sensitive-access";
+import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 
 export type SensitiveResourceItem = {
   id: string;
@@ -190,6 +191,7 @@ export type SensitiveAccessInboxEntry = {
   notifications: NotificationDispatchItem[];
   runSnapshot?: OperatorRunSnapshotSummary | null;
   runFollowUp?: NonNullable<ReturnType<typeof normalizeOperatorRunFollowUp>> | null;
+  legacyAuthGovernance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
   callbackWaitingContext?: SensitiveAccessInboxCallbackContext | null;
   executionContext?: SensitiveAccessInboxExecutionContext | null;
 };
@@ -309,6 +311,7 @@ type SensitiveAccessInboxEntryBody = {
   notifications: NotificationDispatchItem[];
   run_snapshot?: OperatorRunSnapshotBody | OperatorRunSnapshotSummary | null;
   run_follow_up?: OperatorRunFollowUpBody | null;
+  legacy_auth_governance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
 };
 
 type SensitiveAccessInboxResponseBody = {
@@ -402,7 +405,8 @@ export async function getSensitiveAccessInboxSnapshot({
       resource: entry.resource ?? null,
       notifications: entry.notifications ?? [],
       runSnapshot: normalizeOperatorRunSnapshot(entry.run_snapshot) ?? null,
-      runFollowUp: normalizeOperatorRunFollowUp(entry.run_follow_up) ?? null
+      runFollowUp: normalizeOperatorRunFollowUp(entry.run_follow_up) ?? null,
+      legacyAuthGovernance: entry.legacy_auth_governance ?? null
     }))
     .map((entry) => {
       const runContext = resolveSensitiveAccessCanonicalRunSnapshot({

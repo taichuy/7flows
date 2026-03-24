@@ -585,6 +585,7 @@ class PublishedEndpointInvocationDetailResponse(BaseModel):
     run: PublishedEndpointInvocationRunReference | None = None
     run_snapshot: OperatorRunSnapshot | None = None
     run_follow_up: OperatorRunFollowUpSummary | None = None
+    legacy_auth_governance: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | None = None
     callback_tickets: list[RunCallbackTicketItem] = Field(default_factory=list)
     blocking_node_run_id: str | None = None
     execution_focus_reason: PublishedEndpointInvocationExecutionFocusReason | None = None
