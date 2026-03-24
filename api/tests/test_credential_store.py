@@ -664,6 +664,45 @@ class TestCredentialRoutes:
             "data_keys": ["api_key", "region"],
         }
 
+    def test_credential_sensitive_resource_exposes_governance_summary(
+        self,
+        client: TestClient,
+    ) -> None:
+        create_resp = client.post(
+            "/api/credentials",
+            json={
+                "name": "Privileged Key",
+                "credential_type": "api_key",
+                "data": {"api_key": "sk-privileged"},
+                "sensitivity_level": "L3",
+            },
+        )
+
+        assert create_resp.status_code == 201
+        body = create_resp.json()
+
+        resources_resp = client.get(
+            "/api/sensitive-access/resources",
+            params={"sensitivity_level": "L3"},
+        )
+
+        assert resources_resp.status_code == 200
+        resources = resources_resp.json()
+        resource = next(
+            item for item in resources if item["id"] == body["sensitive_resource_id"]
+        )
+        assert resource["credential_governance"] == {
+            "credential_id": body["id"],
+            "credential_name": "Privileged Key",
+            "credential_type": "api_key",
+            "credential_status": "active",
+            "sensitivity_level": "L3",
+            "sensitive_resource_id": body["sensitive_resource_id"],
+            "sensitive_resource_label": "Credential · Privileged Key",
+            "credential_ref": f"credential://{body['id']}",
+            "summary": "本次命中的凭据是 Privileged Key（api_key）；当前治理级别 L3，状态 生效中。",
+        }
+
     def test_create_rejects_extra_fields(self, client: TestClient) -> None:
         resp = client.post(
             "/api/credentials",

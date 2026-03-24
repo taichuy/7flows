@@ -4,6 +4,8 @@
 
 当前 `web/` 工作台首页、`/workflows`、`/runs` 与 `/sensitive-access` 已开始共享同一套跨入口风险摘要，优先把 sandbox readiness、callback recovery automation 和 operator backlog 收成统一 follow-up 视图，减少作者与 operator 在多个入口之间自行拼装主链阻塞事实。workflow library、`/workflows/new` 创建向导与 workflow detail publish panel 也继续沿同一条 publish auth 治理链路收口：列表侧不仅可以筛出 legacy publish auth blocker，还会把跨 workflow 的 operator checklist 与 governance export artifact 收成统一 handoff 入口；创建页会继续带出 source workflow 的 legacy publish auth follow-up，避免作者在 starter -> draft 这一步丢失治理事实；detail 侧则把历史 legacy draft binding 收成可批量 cleanup 的 backlog，而不是只停留在“知道有问题”的 inventory 提示。当前 published gateway 只承诺 `authMode=api_key` / `authMode=internal`；历史 `token` binding 仅作为 legacy inventory 出现在治理与审计 handoff 中，不再被当作待实现能力暗示支持。
 
+凭据治理主线也继续收口：控制面创建 / 更新 / 吊销凭据时会同步 sensitive resource 与审计活动，而 run detail、callback waiting summary 与 `/sensitive-access` inbox 现已直接消费同一份 `credential governance` 摘要，避免 operator 还要回首页 inventory 才能判断当前 waiting / masked / denied 命中的到底是哪把凭据、处于什么治理级别。
+
 更多定位说明见 [docs/open-source-positioning.md](/E:/code/taichuCode/7flows/docs/open-source-positioning.md)，授权细节以 [LICENSE](/E:/code/taichuCode/7flows/LICENSE) 为准。
 
 

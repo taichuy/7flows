@@ -7,6 +7,7 @@ import type {
   CallbackWaitingAutomationStepCheck
 } from "@/lib/get-system-overview";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
+import { formatCredentialGovernanceCompactSummary, getCredentialGovernanceSummary } from "@/lib/credential-governance";
 import {
   buildOperatorFollowUpSurfaceCopy,
   buildOperatorRecommendedNextStep,
@@ -813,8 +814,11 @@ export function formatCallbackWaitingSensitiveAccessSummary(
     return null;
   }
 
+  const credentialGovernance = getCredentialGovernanceSummary(entry.resource);
+
   return formatOptionalParts([
     entry.resource.label,
+    formatCredentialGovernanceCompactSummary(credentialGovernance),
     formatSensitiveAccessDecisionLabel(entry.request),
     formatSensitiveAccessReasonLabel(entry.request),
     getSensitiveAccessPolicySummary(entry.request)

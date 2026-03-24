@@ -254,6 +254,35 @@ describe("SensitiveAccessInboxEntryCard", () => {
     expect(html).toContain("node_run_id=node-run-focus");
   });
 
+  it("renders credential governance summary when the inbox entry is backed by a credential", () => {
+    const entry = buildEntry();
+    entry.resource = {
+      ...entry.resource!,
+      label: "Credential · Search Key",
+      source: "credential",
+      credential_governance: {
+        credential_id: "cred-1",
+        credential_name: "Search Key",
+        credential_type: "api_key",
+        credential_status: "active",
+        sensitivity_level: "L3",
+        sensitive_resource_id: "resource-1",
+        sensitive_resource_label: "Credential · Search Key",
+        credential_ref: "credential://cred-1",
+        summary: "本次命中的凭据是 Search Key（api_key）；当前治理级别 L3，状态 生效中。"
+      }
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessInboxEntryCard, { entry })
+    );
+
+    expect(html).toContain("Credential governance");
+    expect(html).toContain("credential Search Key");
+    expect(html).toContain("本次命中的凭据是 Search Key（api_key）；当前治理级别 L3，状态 生效中。");
+    expect(html).toContain("credential://cred-1");
+  });
+
   it("prefers sampled approval inbox ids when the canonical focus CTA only has a broad node slice", () => {
     const entry = buildEntry();
     entry.executionContext = {

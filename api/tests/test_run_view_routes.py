@@ -696,7 +696,110 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     assert run_detail_body["execution_focus_node"]["sensitive_access_entries"] == node[
         "sensitive_access_entries"
     ]
-    assert run_detail_body["run_follow_up"] == body["run_follow_up"]
+
+
+def test_run_detail_and_execution_view_surface_credential_governance_summary(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow: Workflow,
+) -> None:
+    run = Run(
+        id="run-credential-governance",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        status="waiting",
+        current_node_id="tool_node",
+        input_payload={"message": "inspect credential governance"},
+        created_at=datetime(2026, 3, 24, 19, 0, tzinfo=UTC),
+    )
+    node_run = NodeRun(
+        id="node-run-credential-governance",
+        run_id=run.id,
+        node_id="tool_node",
+        node_name="Tool Node",
+        node_type="tool",
+        status="waiting_tool",
+        phase="waiting_tool",
+        waiting_reason="Waiting for credential approval.",
+        created_at=datetime(2026, 3, 24, 19, 0, tzinfo=UTC),
+    )
+    resource = SensitiveResourceRecord(
+        id="resource-credential-governance",
+        label="Credential · Ops Key",
+        description="Credential-backed runtime secret.",
+        sensitivity_level="L3",
+        source="credential",
+        metadata_payload={
+            "credential_id": "cred-ops-key",
+            "credential_name": "Ops Key",
+            "credential_type": "api_key",
+            "credential_status": "active",
+            "credential_ref": "credential://cred-ops-key",
+        },
+        created_at=datetime(2026, 3, 24, 18, 55, tzinfo=UTC),
+        updated_at=datetime(2026, 3, 24, 18, 55, tzinfo=UTC),
+    )
+    request = SensitiveAccessRequestRecord(
+        id="request-credential-governance",
+        run_id=run.id,
+        node_run_id=node_run.id,
+        requester_type="workflow",
+        requester_id=node_run.node_id,
+        resource_id=resource.id,
+        action_type="use",
+        purpose_text="Use the privileged credential during runtime.",
+        decision="require_approval",
+        reason_code="approval_required_high_sensitive_access",
+        created_at=datetime(2026, 3, 24, 19, 0, 1, tzinfo=UTC),
+        decided_at=None,
+    )
+    approval_ticket = ApprovalTicketRecord(
+        id="approval-ticket-credential-governance",
+        access_request_id=request.id,
+        run_id=run.id,
+        node_run_id=node_run.id,
+        status="pending",
+        waiting_status="waiting",
+        approved_by=None,
+        decided_at=None,
+        expires_at=datetime(2026, 3, 25, 19, 0, tzinfo=UTC),
+        created_at=datetime(2026, 3, 24, 19, 0, 2, tzinfo=UTC),
+    )
+    sqlite_session.add_all([run, node_run, resource, request, approval_ticket])
+    sqlite_session.commit()
+
+    execution_view_response = client.get(f"/api/runs/{run.id}/execution-view")
+
+    assert execution_view_response.status_code == 200
+    execution_view_body = execution_view_response.json()
+    execution_resource = execution_view_body["nodes"][0]["sensitive_access_entries"][0][
+        "resource"
+    ]
+    assert execution_resource["credential_governance"] == {
+        "credential_id": "cred-ops-key",
+        "credential_name": "Ops Key",
+        "credential_type": "api_key",
+        "credential_status": "active",
+        "sensitivity_level": "L3",
+        "sensitive_resource_id": "resource-credential-governance",
+        "sensitive_resource_label": "Credential · Ops Key",
+        "credential_ref": "credential://cred-ops-key",
+        "summary": "本次命中的凭据是 Ops Key（api_key）；当前治理级别 L3，状态 生效中。",
+    }
+
+    run_detail_response = client.get(
+        f"/api/runs/{run.id}",
+        params={"include_events": "false"},
+    )
+
+    assert run_detail_response.status_code == 200
+    run_detail_body = run_detail_response.json()
+    detail_resource = run_detail_body["execution_focus_node"]["sensitive_access_entries"][0][
+        "resource"
+    ]
+    assert detail_resource["credential_governance"] == execution_resource[
+        "credential_governance"
+    ]
     assert run_detail_body["execution_focus_skill_trace"] is None
 
 

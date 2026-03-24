@@ -11,6 +11,7 @@ import {
   pickLatestNotification
 } from "@/components/sensitive-access-inbox-panel-helpers";
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
+import { CredentialGovernanceSummaryCard } from "@/components/credential-governance-summary-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
@@ -249,6 +250,8 @@ export function SensitiveAccessInboxEntryCard({
           <p className="section-copy entry-copy">{getSensitiveAccessPolicySummary(request)}</p>
         </div>
       ) : null}
+
+      <CredentialGovernanceSummaryCard resource={resource} />
 
       {executionContext ? (
         <div className="entry-card compact-card">

@@ -13,6 +13,9 @@ from app.schemas.sensitive_access import (
     SensitiveAccessTimelineEntryItem,
     SensitiveResourceItem,
 )
+from app.services.credential_governance import (
+    build_credential_governance_summary_from_sensitive_resource,
+)
 from app.services.sensitive_access_action_explanations import (
     build_sensitive_access_timeline_outcome_explanation,
 )
@@ -28,6 +31,9 @@ def serialize_sensitive_resource(record: SensitiveResourceRecord) -> SensitiveRe
         sensitivity_level=record.sensitivity_level,
         source=record.source,
         metadata=record.metadata_payload or {},
+        credential_governance=build_credential_governance_summary_from_sensitive_resource(
+            record
+        ),
         created_at=record.created_at,
         updated_at=record.updated_at,
     )

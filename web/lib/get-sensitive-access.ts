@@ -33,6 +33,17 @@ export type SensitiveResourceItem = {
     | "local_capability"
     | "published_secret";
   metadata: Record<string, unknown>;
+  credential_governance?: {
+    credential_id: string;
+    credential_name: string;
+    credential_type: string;
+    credential_status: "active" | "revoked";
+    sensitivity_level: "L0" | "L1" | "L2" | "L3";
+    sensitive_resource_id: string;
+    sensitive_resource_label: string;
+    credential_ref: string;
+    summary: string;
+  } | null;
   created_at: string;
   updated_at: string;
 };

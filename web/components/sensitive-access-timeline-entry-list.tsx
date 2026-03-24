@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
+import { CredentialGovernanceSummaryCard } from "@/components/credential-governance-summary-card";
 import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
 import type { RunCallbackTicketItem } from "@/lib/get-run-views";
 import type {
@@ -522,6 +523,8 @@ export function SensitiveAccessTimelineEntryList({
                   policy: {getSensitiveAccessPolicySummary(entry.request)}
                 </p>
               ) : null}
+
+              <CredentialGovernanceSummaryCard resource={entry.resource} />
 
               {shouldRenderStandaloneRecommendedNextStep ? (
                 <div className="entry-card compact-card">

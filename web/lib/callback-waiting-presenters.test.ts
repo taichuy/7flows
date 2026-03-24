@@ -7,6 +7,7 @@ import {
   buildCallbackWaitingInlineActionTitle,
   buildCallbackWaitingRecommendedNextStep,
   buildCallbackWaitingSummarySurfaceCopy,
+  formatCallbackWaitingSensitiveAccessSummary,
   formatScheduledResumeLabel,
   getCallbackWaitingRecommendedAction,
   isObserveFirstCallbackWaitingAction,
@@ -106,6 +107,47 @@ describe("callback waiting presenters", () => {
       href: "/sensitive-access?run_id=run-1&approval_ticket_id=ticket-1",
       label: "Open approval inbox"
     });
+  });
+
+  it("在 callback waiting sensitive access 摘要里带出凭据治理信息", () => {
+    expect(
+      formatCallbackWaitingSensitiveAccessSummary({
+        request: {
+          id: "request-1",
+          requester_type: "tool",
+          requester_id: "native.search",
+          resource_id: "resource-1",
+          action_type: "invoke",
+          decision: "require_approval",
+          decision_label: null,
+          reason_code: "approval_required_high_sensitive_access",
+          reason_label: null,
+          policy_summary: "High-sensitivity credential use requires approval.",
+          created_at: "2026-03-18T10:00:00Z"
+        },
+        resource: {
+          id: "resource-1",
+          label: "Credential · Ops Key",
+          sensitivity_level: "L3",
+          source: "credential",
+          metadata: {},
+          credential_governance: {
+            credential_id: "cred-ops-key",
+            credential_name: "Ops Key",
+            credential_type: "api_key",
+            credential_status: "active",
+            sensitivity_level: "L3",
+            sensitive_resource_id: "resource-1",
+            sensitive_resource_label: "Credential · Ops Key",
+            credential_ref: "credential://cred-ops-key",
+            summary: "本次命中的凭据是 Ops Key（api_key）；当前治理级别 L3，状态 生效中。"
+          },
+          created_at: "2026-03-18T10:00:00Z",
+          updated_at: "2026-03-18T10:00:00Z"
+        },
+        notifications: []
+      })
+    ).toContain("Ops Key · L3 治理 · 生效中");
   });
 
   it("没有稳定 CTA 时，不把裸 follow_up 投影成 recommended next step", () => {

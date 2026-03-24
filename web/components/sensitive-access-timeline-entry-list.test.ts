@@ -205,6 +205,38 @@ describe("SensitiveAccessTimelineEntryList", () => {
     expect(callbackSummaryProps[0]?.showInlineActions).toBe(false);
   });
 
+  it("renders credential governance summary when the timeline entry is backed by a credential", () => {
+    const entry = buildEntry();
+    entry.resource = {
+      ...entry.resource,
+      label: "Credential · Search Key",
+      source: "credential",
+      credential_governance: {
+        credential_id: "cred-1",
+        credential_name: "Search Key",
+        credential_type: "api_key",
+        credential_status: "active",
+        sensitivity_level: "L3",
+        sensitive_resource_id: "resource-1",
+        sensitive_resource_label: "Credential · Search Key",
+        credential_ref: "credential://cred-1",
+        summary: "本次命中的凭据是 Search Key（api_key）；当前治理级别 L3，状态 生效中。"
+      }
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessTimelineEntryList, {
+        entries: [entry],
+        emptyCopy: "no entries"
+      })
+    );
+
+    expect(html).toContain("Credential governance");
+    expect(html).toContain("credential Search Key");
+    expect(html).toContain("本次命中的凭据是 Search Key（api_key）；当前治理级别 L3，状态 生效中。");
+    expect(html).toContain("credential://cred-1");
+  });
+
   it("restores sampled approval inbox CTA for the shared callback summary when direct ticket scope is missing", () => {
     const entry = buildEntry();
     const sampledEntry = buildEntry();

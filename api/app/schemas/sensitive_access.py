@@ -3,6 +3,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.credential_governance import CredentialGovernanceSummary
 from app.schemas.explanations import SignalFollowUpExplanation
 from app.schemas.operator_follow_up import (
     OperatorRunFollowUpSummary,
@@ -63,6 +64,7 @@ class SensitiveResourceItem(BaseModel):
     sensitivity_level: SensitivityLevel
     source: SensitiveResourceSource
     metadata: dict = Field(default_factory=dict)
+    credential_governance: CredentialGovernanceSummary | None = None
     created_at: datetime
     updated_at: datetime
 
