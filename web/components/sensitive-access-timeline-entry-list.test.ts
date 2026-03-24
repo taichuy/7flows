@@ -190,6 +190,7 @@ describe("SensitiveAccessTimelineEntryList", () => {
     expect(html).toContain('data-testid="inline-operator-feedback"');
     expect(html).toContain('data-testid="callback-waiting-summary"');
     expect(inlineFeedbackProps).toHaveLength(1);
+    expect(inlineFeedbackProps[0]?.title).toBe(operatorSurfaceCopy.operatorFollowUpTitle);
     expect(inlineFeedbackProps[0]?.outcomeExplanation ?? null).toBeNull();
     expect(inlineFeedbackProps[0]?.recommendedNextStep ?? null).toBeNull();
     expect(inlineFeedbackProps[0]?.runFollowUpExplanation).toEqual(runFollowUpExplanation);

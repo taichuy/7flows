@@ -410,5 +410,6 @@ describe("WorkflowRunOverlayPanel", () => {
 
     expect(html).toContain(`href=\"${escapedScopedRunHref}\"`);
     expect(html).not.toContain('href="/runs/run-1"');
+    expect(html).toContain("查看 run 诊断面板");
   });
 });

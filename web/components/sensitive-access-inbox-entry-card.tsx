@@ -252,7 +252,7 @@ export function SensitiveAccessInboxEntryCard({
 
       {executionContext ? (
         <div className="entry-card compact-card">
-          <p className="entry-card-title">Execution focus</p>
+          <p className="entry-card-title">{operatorSurfaceCopy.executionFocusTitle}</p>
           <div className="tool-badge-row">
             <span className="event-chip">
               {formatExecutionFocusReasonLabel(executionContext.focusReason)}

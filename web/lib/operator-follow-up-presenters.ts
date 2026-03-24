@@ -17,6 +17,10 @@ export type OperatorFollowUpLinkSurface = {
 };
 
 export type OperatorFollowUpSurfaceCopy = {
+  operatorFollowUpTitle: string;
+  canonicalOperatorFollowUpTitle: string;
+  operatorFollowUpLabel: string;
+  executionFocusTitle: string;
   recommendedNextStepTitle: string;
   openInboxSliceLabel: string;
   runTitlePrefix: string;
@@ -28,6 +32,8 @@ export type OperatorFollowUpSurfaceCopy = {
   unavailableValueLabel: string;
   focusedSkillTraceTitle: string;
   injectedReferencesTitle: string;
+  executionTimelineLinkLabel: string;
+  focusedTraceSliceLinkLabel: string;
 };
 
 export type OperatorRunSnapshotMetaRow = {
@@ -141,6 +147,10 @@ function isCallbackLikeOperatorRecommendedAction(
 
 export function buildOperatorFollowUpSurfaceCopy(): OperatorFollowUpSurfaceCopy {
   return {
+    operatorFollowUpTitle: "Operator follow-up",
+    canonicalOperatorFollowUpTitle: "Canonical operator follow-up",
+    operatorFollowUpLabel: "operator follow-up",
+    executionFocusTitle: "Execution focus",
     recommendedNextStepTitle: "Recommended next step",
     openInboxSliceLabel: "open inbox slice",
     runTitlePrefix: "Run",
@@ -151,7 +161,9 @@ export function buildOperatorFollowUpSurfaceCopy(): OperatorFollowUpSurfaceCopy 
     waitingReasonLabel: "Waiting reason",
     unavailableValueLabel: "n/a",
     focusedSkillTraceTitle: "Focused skill trace",
-    injectedReferencesTitle: "Injected references"
+    injectedReferencesTitle: "Injected references",
+    executionTimelineLinkLabel: "jump to execution timeline",
+    focusedTraceSliceLinkLabel: "jump to focused trace slice"
   };
 }
 
@@ -483,14 +495,17 @@ export function buildOperatorExecutionTimelineLinkSurface({
   runId,
   runHref,
   currentHref,
-  hrefLabel = "jump to execution timeline"
+  hrefLabel,
+  surfaceCopy = buildOperatorFollowUpSurfaceCopy()
 }: {
   runId?: string | null;
   runHref?: string | null;
   currentHref?: string | null;
   hrefLabel?: string | null;
+  surfaceCopy?: OperatorFollowUpSurfaceCopy;
 }): OperatorFollowUpLinkSurface | null {
-  const normalizedHrefLabel = normalizeFollowUpCopy(hrefLabel) ?? "jump to execution timeline";
+  const normalizedHrefLabel =
+    normalizeFollowUpCopy(hrefLabel) ?? surfaceCopy.executionTimelineLinkLabel;
   const normalizedRunHref = normalizeHref(runHref);
   const normalizedRunId = normalizeFollowUpCopy(runId);
   const href = normalizedRunHref
@@ -516,7 +531,8 @@ export function buildOperatorTraceSliceLinkSurface({
   nodeRunId,
   eventType,
   payloadKey,
-  hrefLabel
+  hrefLabel,
+  surfaceCopy = buildOperatorFollowUpSurfaceCopy()
 }: {
   runId?: string | null;
   runHref?: string | null;
@@ -525,6 +541,7 @@ export function buildOperatorTraceSliceLinkSurface({
   eventType?: string | null;
   payloadKey?: string | null;
   hrefLabel?: string | null;
+  surfaceCopy?: OperatorFollowUpSurfaceCopy;
 }): OperatorFollowUpLinkSurface | null {
   const normalizedNodeRunId = normalizeFollowUpCopy(nodeRunId);
   const normalizedEventType = normalizeFollowUpCopy(eventType);
@@ -538,12 +555,13 @@ export function buildOperatorTraceSliceLinkSurface({
       runId,
       runHref,
       currentHref,
-      hrefLabel
+      hrefLabel,
+      surfaceCopy
     });
   }
 
   const normalizedHrefLabel =
-    normalizeFollowUpCopy(hrefLabel) ?? "jump to focused trace slice";
+    normalizeFollowUpCopy(hrefLabel) ?? surfaceCopy.focusedTraceSliceLinkLabel;
   const normalizedRunHref = normalizeHref(runHref);
   const normalizedRunId = normalizeFollowUpCopy(runId);
   const href = normalizedRunId

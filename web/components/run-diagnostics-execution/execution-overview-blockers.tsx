@@ -163,6 +163,7 @@ export function RunDiagnosticsExecutionOverviewBlockers({
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
 }) {
+  const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
   const focusNode = executionView.execution_focus_node ?? null;
   const skillTrace = executionView.skill_trace ?? null;
   const focusNodePrimarySignal =
@@ -190,7 +191,7 @@ export function RunDiagnosticsExecutionOverviewBlockers({
         <div className="publish-cache-list">
           <article className="payload-card compact-card">
             <div className="payload-card-header">
-              <span className="status-meta">Execution focus</span>
+              <span className="status-meta">{operatorSurfaceCopy.executionFocusTitle}</span>
               <span className="event-chip">
                 {formatExecutionFocusReasonLabel(executionView.execution_focus_reason)}
               </span>

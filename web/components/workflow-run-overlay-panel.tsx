@@ -17,10 +17,11 @@ import {
   type RunTrace
 } from "@/lib/get-run-trace";
 import type { WorkflowRunListItem } from "@/lib/get-workflow-runs";
-import { buildOperatorRunDetailLinkSurface } from "@/lib/operator-follow-up-presenters";
+import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
 import { buildOperatorRunSampleInboxHref } from "@/lib/operator-run-sample-cards";
 import { buildExecutionFocusSurfaceDescription } from "@/lib/run-execution-focus-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
+import { buildAuthorFacingRunDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 import {
   buildRunDetailHrefFromWorkspaceStarterViewState,
   type WorkspaceStarterGovernanceQueryScope
@@ -71,6 +72,7 @@ export function WorkflowRunOverlayPanel({
       : null;
   const tracePreview = trace?.events.slice(-6) ?? [];
   const sandboxReadinessNode = buildSandboxReadinessNodeFromRunSnapshot(runSnapshotModel);
+  const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
   const callbackWaitingSummaryProps = runSnapshot
     ? {
         inboxHref: buildOperatorRunSampleInboxHref(runSnapshot),
@@ -91,10 +93,9 @@ export function WorkflowRunOverlayPanel({
     [workspaceStarterGovernanceQueryScope]
   );
   const runDrilldownLink = run
-    ? buildOperatorRunDetailLinkSurface({
+    ? buildAuthorFacingRunDetailLinkSurface({
         runId: run.id,
-        runHref: resolveRunDetailHref(run.id),
-        hrefLabel: "打开 run diagnostics"
+        runHref: resolveRunDetailHref(run.id)
       })
     : null;
 
@@ -217,7 +218,7 @@ export function WorkflowRunOverlayPanel({
                     runSnapshot={runSnapshotModel}
                     callbackWaitingSummaryProps={callbackWaitingSummaryProps}
                     sandboxReadiness={sandboxReadiness}
-                    title="Execution focus"
+                    title={operatorSurfaceCopy.executionFocusTitle}
                   />
                   {sandboxReadinessNode ? (
                     <SandboxExecutionReadinessCard

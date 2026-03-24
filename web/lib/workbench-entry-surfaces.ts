@@ -217,13 +217,16 @@ export function buildRunLibrarySurfaceCopy({
 
 export function buildAuthorFacingRunDetailLinkSurface({
   runId,
+  runHref,
   variant = "activity"
 }: {
   runId: string;
+  runHref?: string | null;
   variant?: AuthorFacingRunDetailLinkVariant;
 }): OperatorFollowUpLinkSurface {
   return buildRequiredOperatorRunDetailLinkSurface({
     runId,
+    runHref,
     hrefLabel: authorFacingRunDetailLinkLabels[variant]
   });
 }

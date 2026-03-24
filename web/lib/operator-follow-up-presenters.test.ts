@@ -20,6 +20,10 @@ import {
 describe("operator follow-up presenters", () => {
   it("提供共享 operator follow-up surface copy", () => {
     expect(buildOperatorFollowUpSurfaceCopy()).toEqual({
+      operatorFollowUpTitle: "Operator follow-up",
+      canonicalOperatorFollowUpTitle: "Canonical operator follow-up",
+      operatorFollowUpLabel: "operator follow-up",
+      executionFocusTitle: "Execution focus",
       recommendedNextStepTitle: "Recommended next step",
       openInboxSliceLabel: "open inbox slice",
       runTitlePrefix: "Run",
@@ -30,7 +34,9 @@ describe("operator follow-up presenters", () => {
       waitingReasonLabel: "Waiting reason",
       unavailableValueLabel: "n/a",
       focusedSkillTraceTitle: "Focused skill trace",
-      injectedReferencesTitle: "Injected references"
+      injectedReferencesTitle: "Injected references",
+      executionTimelineLinkLabel: "jump to execution timeline",
+      focusedTraceSliceLinkLabel: "jump to focused trace slice"
     });
   });
 

@@ -556,7 +556,7 @@ export function SensitiveAccessTimelineEntryList({
                   runSnapshot={runContext.snapshot}
                   sandboxReadiness={sandboxReadiness}
                   status="success"
-                  title="Operator follow-up"
+                  title={operatorSurfaceCopy.operatorFollowUpTitle}
                 />
               ) : (
                 <>

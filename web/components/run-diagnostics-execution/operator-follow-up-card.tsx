@@ -170,7 +170,7 @@ export function RunDiagnosticsOperatorFollowUpCard({
       surfaceCopy
     }),
     operatorFollowUp: followUp?.explanation?.follow_up ?? null,
-    operatorLabel: "operator follow-up"
+    operatorLabel: surfaceCopy.operatorFollowUpLabel
   });
   const focusNodeEvidence = snapshot
     ? {
@@ -244,7 +244,7 @@ export function RunDiagnosticsOperatorFollowUpCard({
     <section>
       <div className="section-heading compact-heading">
         <div>
-          <span className="binding-label">Canonical operator follow-up</span>
+          <span className="binding-label">{surfaceCopy.canonicalOperatorFollowUpTitle}</span>
         </div>
         <div className="tool-badge-row">
           <span className="event-chip">run {executionView.run_id}</span>

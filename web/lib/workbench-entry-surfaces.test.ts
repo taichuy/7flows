@@ -26,6 +26,15 @@ describe("workbench entry surface copy", () => {
     expect(
       buildAuthorFacingRunDetailLinkSurface({
         runId: "run-1",
+        runHref: "/runs/run-1?active_track=%E5%BA%94%E7%94%A8"
+      })
+    ).toEqual({
+      href: "/runs/run-1?active_track=%E5%BA%94%E7%94%A8",
+      label: "查看 run 诊断面板"
+    });
+    expect(
+      buildAuthorFacingRunDetailLinkSurface({
+        runId: "run-1",
         variant: "latest"
       })
     ).toEqual({
