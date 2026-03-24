@@ -250,6 +250,132 @@ def test_build_waiting_lifecycle_lookup_includes_blocking_sensitive_access_summa
     assert waiting_lifecycle.sensitive_access_summary.approval_ticket_count == 1
     assert waiting_lifecycle.sensitive_access_summary.pending_approval_count == 1
     assert waiting_lifecycle.sensitive_access_summary.failed_notification_count == 1
+    assert waiting_lifecycle.sensitive_access_summary.primary_resource is not None
+    assert waiting_lifecycle.sensitive_access_summary.primary_resource.label == "Search tool"
+    assert waiting_lifecycle.sensitive_access_summary.primary_resource.source == "local_capability"
+
+
+def test_build_waiting_lifecycle_lookup_surfaces_primary_credential_governance() -> None:
+    now = datetime(2026, 3, 18, 10, 0, tzinfo=UTC)
+    run = Run(
+        id="run-sensitive-credential-summary",
+        workflow_id="wf-sensitive-credential-summary",
+        workflow_version="0.1.0",
+        status="waiting_input",
+        input_payload={"question": "hello"},
+        checkpoint_payload={"waiting_node_run_id": "node-run-sensitive-credential-summary"},
+        current_node_id="tool_wait",
+        error_message=None,
+        started_at=now,
+        finished_at=None,
+        created_at=now,
+    )
+    node_run = NodeRun(
+        id="node-run-sensitive-credential-summary",
+        run_id=run.id,
+        node_id="tool_wait",
+        node_name="Tool Wait",
+        node_type="tool",
+        status="waiting_input",
+        phase="waiting_input",
+        retry_count=0,
+        input_payload={"question": "hello"},
+        output_payload=None,
+        checkpoint_payload={},
+        working_context={},
+        evidence_context=None,
+        artifact_refs=[],
+        error_message=None,
+        waiting_reason="approval pending",
+        started_at=now,
+        phase_started_at=now,
+        finished_at=None,
+        created_at=now,
+    )
+    resource = SensitiveResourceRecord(
+        id="resource-sensitive-credential-summary",
+        label="OpenAI Prod Key",
+        description="Requires approval",
+        sensitivity_level="L3",
+        source="credential",
+        metadata_payload={
+            "credential_id": "credential-1",
+            "credential_name": "OpenAI Prod Key",
+            "credential_type": "openai_api_key",
+            "credential_ref": "credential://openai/prod",
+            "credential_status": "active",
+        },
+        created_at=now,
+        updated_at=now,
+    )
+    access_request = SensitiveAccessRequestRecord(
+        id="access-sensitive-credential-summary",
+        run_id=run.id,
+        node_run_id=node_run.id,
+        requester_type="workflow",
+        requester_id=node_run.node_id,
+        resource_id=resource.id,
+        action_type="invoke",
+        purpose_text="Invoke credential-backed tool",
+        decision="require_approval",
+        reason_code="approval_required_high_sensitive_access",
+        created_at=now,
+        decided_at=None,
+    )
+    approval_ticket = ApprovalTicketRecord(
+        id="approval-sensitive-credential-summary",
+        access_request_id=access_request.id,
+        run_id=run.id,
+        node_run_id=node_run.id,
+        status="pending",
+        waiting_status="waiting",
+        approved_by=None,
+        decided_at=None,
+        expires_at=now,
+        created_at=now,
+    )
+    bundle = SensitiveAccessRequestBundle(
+        resource=resource,
+        access_request=access_request,
+        approval_ticket=approval_ticket,
+        notifications=[],
+    )
+    sensitive_access_snapshot = SensitiveAccessTimelineSnapshot(
+        bundles=[bundle],
+        by_node_run={node_run.id: [bundle]},
+        request_count=1,
+        approval_ticket_count=1,
+        notification_count=0,
+        decision_counts={"require_approval": 1},
+        approval_status_counts={"pending": 1},
+        notification_status_counts={},
+    )
+
+    _, waiting_lifecycle_lookup = build_waiting_lifecycle_lookup(
+        {run.id: run},
+        [node_run],
+        [],
+        {run.id: sensitive_access_snapshot},
+    )
+
+    waiting_lifecycle = waiting_lifecycle_lookup[run.id]
+    assert waiting_lifecycle is not None
+    assert waiting_lifecycle.sensitive_access_summary is not None
+    assert waiting_lifecycle.sensitive_access_summary.primary_resource is not None
+    assert (
+        waiting_lifecycle.sensitive_access_summary.primary_resource.credential_governance.model_dump()
+        == {
+        "credential_id": "credential-1",
+        "credential_name": "OpenAI Prod Key",
+        "credential_type": "openai_api_key",
+        "credential_status": "active",
+        "sensitivity_level": "L3",
+        "sensitive_resource_id": "resource-sensitive-credential-summary",
+        "sensitive_resource_label": "OpenAI Prod Key",
+        "credential_ref": "credential://openai/prod",
+        "summary": "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。",
+    }
+    )
 
 
 def test_build_waiting_lifecycle_lookup_prefers_latest_current_waiting_node_run() -> None:

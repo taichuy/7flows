@@ -503,6 +503,11 @@ export function WorkflowPublishInvocationDetailPanel({
                         callbackTickets={sample.callback_tickets}
                         callbackWaitingAutomation={callbackWaitingAutomation}
                         lifecycle={sample.run_snapshot.callbackWaitingLifecycle ?? null}
+                        sensitiveAccessSummary={
+                          sample.run_id === runId
+                            ? invocation.run_waiting_lifecycle?.sensitive_access_summary ?? null
+                            : null
+                        }
                         focusNodeEvidence={sampleFocusNodeEvidence}
                         focusSkillReferenceCount={
                           sample.run_snapshot.executionFocusSkillTrace?.reference_count ?? 0

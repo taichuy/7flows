@@ -3676,7 +3676,28 @@ describe("published invocation presenters", () => {
         expired_approval_count: 0,
         pending_notification_count: 0,
         delivered_notification_count: 0,
-        failed_notification_count: 0
+        failed_notification_count: 0,
+        primary_resource: {
+          id: "resource-credential-1",
+          label: "OpenAI Prod Key",
+          description: "Primary credential blocker",
+          sensitivity_level: "L3",
+          source: "credential",
+          metadata: {},
+          credential_governance: {
+            credential_id: "credential-1",
+            credential_name: "OpenAI Prod Key",
+            credential_type: "openai_api_key",
+            credential_status: "active",
+            sensitivity_level: "L3",
+            sensitive_resource_id: "resource-credential-1",
+            sensitive_resource_label: "OpenAI Prod Key",
+            credential_ref: "credential://openai/prod",
+            summary: "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+          },
+          created_at: "2026-03-20T10:00:00Z",
+          updated_at: "2026-03-20T10:00:00Z"
+        }
       }
     } as never;
 
@@ -3696,6 +3717,15 @@ describe("published invocation presenters", () => {
     expect(surface?.waitingRows).toEqual(
       expect.arrayContaining([
         { key: "node-run", label: "Node run", value: "node-run-1", href: null }
+      ])
+    );
+    expect(surface?.sensitiveAccessChips).toContain("OpenAI Prod Key · L3 治理 · 生效中");
+    expect(surface?.sensitiveAccessRows).toEqual(
+      expect.arrayContaining([
+        {
+          label: "Credential governance",
+          value: "OpenAI Prod Key · L3 治理 · 生效中"
+        }
       ])
     );
   });

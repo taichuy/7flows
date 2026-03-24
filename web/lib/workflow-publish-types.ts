@@ -4,7 +4,10 @@ import type {
   RunExecutionNodeItem,
   SkillReferenceLoadItem
 } from "@/lib/get-run-views";
-import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
+import type {
+  SensitiveAccessTimelineEntry,
+  SensitiveResourceItem
+} from "@/lib/get-sensitive-access";
 
 export type PublishedEndpointInvocationStatus = "succeeded" | "failed" | "rejected";
 export type PublishedEndpointInvocationRequestSource = "workflow" | "alias" | "path";
@@ -90,6 +93,7 @@ export type PublishedEndpointInvocationItem = {
       pending_notification_count: number;
       delivered_notification_count: number;
       failed_notification_count: number;
+      primary_resource?: SensitiveResourceItem | null;
     } | null;
     scheduled_resume_delay_seconds?: number | null;
     scheduled_resume_reason?: string | null;

@@ -1894,62 +1894,76 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     assert detail_body["invocation"]["run_id"] == run.id
     assert detail_body["invocation"]["run_status"] == "waiting"
     assert detail_body["invocation"]["run_waiting_reason"] == "callback pending"
-    assert detail_body["invocation"]["run_waiting_lifecycle"] == {
-        "node_run_id": node_run.id,
-        "node_status": "waiting",
-        "waiting_reason": "callback pending",
-        "callback_ticket_count": 1,
-        "callback_ticket_status_counts": {"pending": 1},
-        "callback_waiting_explanation": {
-            "primary_signal": "当前仍有 1 条 callback ticket 等待外部回调。",
-            "follow_up": (
-                "下一步：优先确认外部系统是否已经回调，不要重复触发 resume 或额外发起同类请求。"
-            ),
-        },
-        "sensitive_access_summary": {
-            "request_count": 1,
-            "approval_ticket_count": 1,
-            "pending_approval_count": 0,
-            "approved_approval_count": 1,
-            "rejected_approval_count": 0,
-            "expired_approval_count": 0,
-            "pending_notification_count": 0,
-            "delivered_notification_count": 1,
-            "failed_notification_count": 0,
-        },
-        "callback_waiting_lifecycle": {
-            "wait_cycle_count": 1,
-            "issued_ticket_count": 1,
-            "expired_ticket_count": 0,
-            "consumed_ticket_count": 0,
-            "canceled_ticket_count": 0,
-            "late_callback_count": 0,
-            "resume_schedule_count": 1,
-            "max_expired_ticket_count": 0,
-            "terminated": False,
-            "termination_reason": None,
-            "terminated_at": None,
-            "last_ticket_status": "pending",
-            "last_ticket_reason": "callback pending",
-            "last_ticket_updated_at": now.isoformat().replace("+00:00", "Z"),
-            "last_late_callback_status": None,
-            "last_late_callback_reason": None,
-            "last_late_callback_at": None,
-            "last_resume_delay_seconds": 30.0,
-            "last_resume_reason": "callback pending",
-            "last_resume_source": "callback_ticket_monitor",
-            "last_resume_backoff_attempt": 0,
-        },
-        "scheduled_resume_delay_seconds": 30.0,
-        "scheduled_resume_reason": "callback pending",
-        "scheduled_resume_source": "callback_ticket_monitor",
-        "scheduled_waiting_status": "waiting_callback",
-        "scheduled_resume_scheduled_at": now.isoformat().replace("+00:00", "Z"),
-        "scheduled_resume_due_at": (now + timedelta(seconds=30)).isoformat().replace(
-            "+00:00", "Z"
+    waiting_lifecycle = detail_body["invocation"]["run_waiting_lifecycle"]
+    assert waiting_lifecycle["node_run_id"] == node_run.id
+    assert waiting_lifecycle["node_status"] == "waiting"
+    assert waiting_lifecycle["waiting_reason"] == "callback pending"
+    assert waiting_lifecycle["callback_ticket_count"] == 1
+    assert waiting_lifecycle["callback_ticket_status_counts"] == {"pending": 1}
+    assert waiting_lifecycle["callback_waiting_explanation"] == {
+        "primary_signal": "当前仍有 1 条 callback ticket 等待外部回调。",
+        "follow_up": (
+            "下一步：优先确认外部系统是否已经回调，不要重复触发 resume 或额外发起同类请求。"
         ),
-        "scheduled_resume_requeued_at": None,
-        "scheduled_resume_requeue_source": None,
+    }
+    assert waiting_lifecycle["callback_waiting_lifecycle"] == {
+        "wait_cycle_count": 1,
+        "issued_ticket_count": 1,
+        "expired_ticket_count": 0,
+        "consumed_ticket_count": 0,
+        "canceled_ticket_count": 0,
+        "late_callback_count": 0,
+        "resume_schedule_count": 1,
+        "max_expired_ticket_count": 0,
+        "terminated": False,
+        "termination_reason": None,
+        "terminated_at": None,
+        "last_ticket_status": "pending",
+        "last_ticket_reason": "callback pending",
+        "last_ticket_updated_at": now.isoformat().replace("+00:00", "Z"),
+        "last_late_callback_status": None,
+        "last_late_callback_reason": None,
+        "last_late_callback_at": None,
+        "last_resume_delay_seconds": 30.0,
+        "last_resume_reason": "callback pending",
+        "last_resume_source": "callback_ticket_monitor",
+        "last_resume_backoff_attempt": 0,
+    }
+    assert waiting_lifecycle["scheduled_resume_delay_seconds"] == 30.0
+    assert waiting_lifecycle["scheduled_resume_reason"] == "callback pending"
+    assert waiting_lifecycle["scheduled_resume_source"] == "callback_ticket_monitor"
+    assert waiting_lifecycle["scheduled_waiting_status"] == "waiting_callback"
+    assert waiting_lifecycle["scheduled_resume_scheduled_at"] == now.isoformat().replace(
+        "+00:00", "Z"
+    )
+    assert waiting_lifecycle["scheduled_resume_due_at"] == (
+        now + timedelta(seconds=30)
+    ).isoformat().replace("+00:00", "Z")
+    assert waiting_lifecycle["scheduled_resume_requeued_at"] is None
+    assert waiting_lifecycle["scheduled_resume_requeue_source"] is None
+
+    sensitive_access_summary = waiting_lifecycle["sensitive_access_summary"]
+    assert sensitive_access_summary == {
+        "request_count": 1,
+        "approval_ticket_count": 1,
+        "pending_approval_count": 0,
+        "approved_approval_count": 1,
+        "rejected_approval_count": 0,
+        "expired_approval_count": 0,
+        "pending_notification_count": 0,
+        "delivered_notification_count": 1,
+        "failed_notification_count": 0,
+        "primary_resource": {
+            "id": sensitive_access_summary["primary_resource"]["id"],
+            "label": "Published Search Tool",
+            "description": "Published invocation depends on approved search access.",
+            "sensitivity_level": "L2",
+            "source": "local_capability",
+            "metadata": {"tool_id": "native.search", "workflow_id": workflow_id},
+            "credential_governance": None,
+            "created_at": sensitive_access_summary["primary_resource"]["created_at"],
+            "updated_at": sensitive_access_summary["primary_resource"]["updated_at"],
+        },
     }
     assert detail_body["run"] == {
         "id": run.id,

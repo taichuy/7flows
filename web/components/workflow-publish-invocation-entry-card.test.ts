@@ -395,7 +395,28 @@ describe("WorkflowPublishInvocationEntryCard", () => {
         expired_approval_count: 0,
         pending_notification_count: 0,
         delivered_notification_count: 0,
-        failed_notification_count: 0
+        failed_notification_count: 0,
+        primary_resource: {
+          id: "resource-credential-1",
+          label: "OpenAI Prod Key",
+          description: "Primary credential blocker",
+          sensitivity_level: "L3",
+          source: "credential",
+          metadata: {},
+          credential_governance: {
+            credential_id: "credential-1",
+            credential_name: "OpenAI Prod Key",
+            credential_type: "openai_api_key",
+            credential_status: "active",
+            sensitivity_level: "L3",
+            sensitive_resource_id: "resource-credential-1",
+            sensitive_resource_label: "OpenAI Prod Key",
+            credential_ref: "credential://openai/prod",
+            summary: "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+          },
+          created_at: "2026-03-20T10:00:00Z",
+          updated_at: "2026-03-20T10:00:00Z"
+        }
       },
       scheduled_resume_delay_seconds: 45,
       scheduled_resume_source: "callback_ticket_monitor",
@@ -542,7 +563,28 @@ describe("WorkflowPublishInvocationEntryCard", () => {
         expired_approval_count: 0,
         pending_notification_count: 0,
         delivered_notification_count: 0,
-        failed_notification_count: 0
+        failed_notification_count: 0,
+        primary_resource: {
+          id: "resource-credential-1",
+          label: "OpenAI Prod Key",
+          description: "Primary credential blocker",
+          sensitivity_level: "L3",
+          source: "credential",
+          metadata: {},
+          credential_governance: {
+            credential_id: "credential-1",
+            credential_name: "OpenAI Prod Key",
+            credential_type: "openai_api_key",
+            credential_status: "active",
+            sensitivity_level: "L3",
+            sensitive_resource_id: "resource-credential-1",
+            sensitive_resource_label: "OpenAI Prod Key",
+            credential_ref: "credential://openai/prod",
+            summary: "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+          },
+          created_at: "2026-03-20T10:00:00Z",
+          updated_at: "2026-03-20T10:00:00Z"
+        }
       },
       scheduled_resume_delay_seconds: 45,
       scheduled_resume_source: "callback_ticket_monitor",
@@ -565,6 +607,8 @@ describe("WorkflowPublishInvocationEntryCard", () => {
     expect(html).toContain("open blocker inbox slice");
     expect(html).toContain("run_id=run-callback-1");
     expect(html).toContain("node_run_id=node-run-tool-wait");
+    expect(html).toContain("OpenAI Prod Key · L3 治理 · 生效中");
+    expect(html).toContain("Credential governance");
     expect(html).not.toContain("open waiting inbox");
   });
 

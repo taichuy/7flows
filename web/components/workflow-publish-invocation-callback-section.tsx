@@ -97,6 +97,7 @@ export function WorkflowPublishInvocationCallbackSection({
         focusSkillReferenceNodeName={executionFocusNode?.node_name ?? null}
         lifecycle={callbackLifecycle}
         sensitiveAccessEntries={sensitiveAccessEntries}
+        sensitiveAccessSummary={waitingLifecycle?.sensitive_access_summary ?? null}
         showFocusExecutionFacts
         waitingReason={waitingLifecycle?.waiting_reason ?? invocation.run_waiting_reason}
         scheduledResumeDelaySeconds={waitingLifecycle?.scheduled_resume_delay_seconds}

@@ -25,6 +25,8 @@ import {
   CallbackWaitingDetailRow,
   formatCallbackLifecycleLabel,
   getCallbackWaitingHeadline,
+  listCallbackWaitingSensitiveAccessSummaryChips,
+  listCallbackWaitingSensitiveAccessSummaryRows,
   listCallbackTicketDetailRows,
   listCallbackWaitingBlockerRows,
   listCallbackWaitingChips,
@@ -3329,86 +3331,18 @@ export function listPublishedInvocationRunFollowUpSampleSummaries(
 export function listPublishedInvocationSensitiveAccessChips(
   summary?: PublishedInvocationSensitiveAccessSummary | null
 ) {
-  if (!summary) {
-    return [];
-  }
-
-  const chips: string[] = [];
-  if (summary.pending_approval_count > 0) {
-    chips.push(`${formatCountLabel(summary.pending_approval_count, "approval pending")}`);
-  }
-  if (summary.rejected_approval_count > 0) {
-    chips.push(`${formatCountLabel(summary.rejected_approval_count, "approval rejected")}`);
-  }
-  if (summary.expired_approval_count > 0) {
-    chips.push(`${formatCountLabel(summary.expired_approval_count, "approval expired")}`);
-  }
-  if (summary.failed_notification_count > 0) {
-    chips.push(`${formatCountLabel(summary.failed_notification_count, "notification retry")}`);
-  }
-  if (summary.pending_notification_count > 0) {
-    chips.push(`${formatCountLabel(summary.pending_notification_count, "notification pending")}`);
-  }
-  return chips;
+  return listCallbackWaitingSensitiveAccessSummaryChips(summary);
 }
 
 export function listPublishedInvocationSensitiveAccessRows(
   summary?: PublishedInvocationSensitiveAccessSummary | null
 ) {
-  if (!summary || summary.request_count <= 0) {
-    return [];
-  }
-
-  const approvalParts = [
-    summary.pending_approval_count > 0
-      ? `${formatCountLabel(summary.pending_approval_count, "pending")}`
-      : null,
-    summary.approved_approval_count > 0
-      ? `${formatCountLabel(summary.approved_approval_count, "approved")}`
-      : null,
-    summary.rejected_approval_count > 0
-      ? `${formatCountLabel(summary.rejected_approval_count, "rejected")}`
-      : null,
-    summary.expired_approval_count > 0
-      ? `${formatCountLabel(summary.expired_approval_count, "expired")}`
-      : null
-  ].filter((value): value is string => Boolean(value));
-  const notificationParts = [
-    summary.pending_notification_count > 0
-      ? `${formatCountLabel(summary.pending_notification_count, "pending")}`
-      : null,
-    summary.delivered_notification_count > 0
-      ? `${formatCountLabel(summary.delivered_notification_count, "delivered")}`
-      : null,
-    summary.failed_notification_count > 0
-      ? `${formatCountLabel(summary.failed_notification_count, "failed")}`
-      : null
-  ].filter((value): value is string => Boolean(value));
-
-  return [
-    {
-      label: "Sensitive access",
-      value:
-        `${formatCountLabel(summary.request_count, "request")} · ` +
-        `${formatCountLabel(summary.approval_ticket_count, "approval ticket")}`
-    },
-    ...(approvalParts.length
-      ? [
-          {
-            label: "Approval blockers",
-            value: approvalParts.join(" · ")
-          }
-        ]
-      : []),
-    ...(notificationParts.length
-      ? [
-          {
-            label: "Notification delivery",
-            value: notificationParts.join(" · ")
-          }
-        ]
-      : [])
-  ];
+  return listCallbackWaitingSensitiveAccessSummaryRows(summary).map<CallbackWaitingDetailRow>(
+    (row) => ({
+      label: row.label,
+      value: row.value
+    })
+  );
 }
 
 export function formatPublishedInvocationWaitingHeadline({

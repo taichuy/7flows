@@ -14,7 +14,10 @@ from app.schemas.run_views import (
     RunExecutionNodeItem,
     SkillReferenceLoadItem,
 )
-from app.schemas.sensitive_access import SensitiveAccessTimelineEntryItem
+from app.schemas.sensitive_access import (
+    SensitiveAccessTimelineEntryItem,
+    SensitiveResourceItem,
+)
 from app.schemas.workflow_legacy_auth_governance import (
     WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem,
     WorkflowPublishedEndpointLegacyAuthGovernanceBuckets,
@@ -372,6 +375,7 @@ class PublishedEndpointInvocationSensitiveAccessSummary(BaseModel):
     pending_notification_count: int = 0
     delivered_notification_count: int = 0
     failed_notification_count: int = 0
+    primary_resource: SensitiveResourceItem | None = None
 
 
 class PublishedEndpointInvocationItem(BaseModel):

@@ -468,7 +468,10 @@ def test_get_published_invocation_detail_includes_sensitive_access_summary_for_w
 
     assert detail_response.status_code == 200
     detail_body = detail_response.json()
-    assert detail_body["invocation"]["run_waiting_lifecycle"]["sensitive_access_summary"] == {
+    sensitive_access_summary = detail_body["invocation"]["run_waiting_lifecycle"][
+        "sensitive_access_summary"
+    ]
+    assert sensitive_access_summary == {
         "request_count": 1,
         "approval_ticket_count": 1,
         "pending_approval_count": 1,
@@ -478,6 +481,20 @@ def test_get_published_invocation_detail_includes_sensitive_access_summary_for_w
         "pending_notification_count": 0,
         "delivered_notification_count": 0,
         "failed_notification_count": 1,
+        "primary_resource": {
+            "id": sensitive_access_summary["primary_resource"]["id"],
+            "label": "Published invocation blocker resource L2",
+            "description": "Seeded pending approval blocker for published invocation detail tests.",
+            "sensitivity_level": "L2",
+            "source": "local_capability",
+            "metadata": {
+                "run_id": run.id,
+                "tool_id": "native.search",
+            },
+            "credential_governance": None,
+            "created_at": sensitive_access_summary["primary_resource"]["created_at"],
+            "updated_at": sensitive_access_summary["primary_resource"]["updated_at"],
+        },
     }
 
 

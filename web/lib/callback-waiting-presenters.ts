@@ -6,8 +6,14 @@ import type {
   CallbackWaitingAutomationCheck,
   CallbackWaitingAutomationStepCheck
 } from "@/lib/get-system-overview";
-import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
-import { formatCredentialGovernanceCompactSummary, getCredentialGovernanceSummary } from "@/lib/credential-governance";
+import type {
+  SensitiveAccessTimelineEntry,
+  SensitiveResourceItem
+} from "@/lib/get-sensitive-access";
+import {
+  formatCredentialGovernanceCompactSummary,
+  getCredentialGovernanceSummary,
+} from "@/lib/credential-governance";
 import {
   buildOperatorFollowUpSurfaceCopy,
   buildOperatorRecommendedNextStep,
@@ -57,6 +63,19 @@ type CallbackWaitingExplanationInput = {
   scheduledResumeDueAt?: string | null;
   scheduledResumeRequeuedAt?: string | null;
   scheduledResumeRequeueSource?: string | null;
+};
+
+export type CallbackWaitingSensitiveAccessSummaryLike = {
+  request_count: number;
+  approval_ticket_count: number;
+  pending_approval_count: number;
+  approved_approval_count: number;
+  rejected_approval_count: number;
+  expired_approval_count: number;
+  pending_notification_count: number;
+  delivered_notification_count: number;
+  failed_notification_count: number;
+  primary_resource?: SensitiveResourceItem | null;
 };
 
 const AUTOMATION_STATUS_LABELS: Record<string, string> = {
@@ -822,6 +841,107 @@ export function formatCallbackWaitingSensitiveAccessSummary(
     formatSensitiveAccessDecisionLabel(entry.request),
     formatSensitiveAccessReasonLabel(entry.request),
     getSensitiveAccessPolicySummary(entry.request)
+  ]);
+}
+
+export function listCallbackWaitingSensitiveAccessSummaryChips(
+  summary?: CallbackWaitingSensitiveAccessSummaryLike | null
+) {
+  if (!summary) {
+    return [];
+  }
+
+  const chips: string[] = [];
+  const primaryResource = summary.primary_resource ?? null;
+  const credentialGovernance = getCredentialGovernanceSummary(primaryResource);
+
+  if (credentialGovernance) {
+    const compactSummary = formatCredentialGovernanceCompactSummary(credentialGovernance);
+    if (compactSummary) {
+      chips.push(compactSummary);
+    }
+  }
+  if (summary.pending_approval_count > 0) {
+    chips.push(`${formatCountLabel(summary.pending_approval_count, "approval pending")}`);
+  }
+  if (summary.rejected_approval_count > 0) {
+    chips.push(`${formatCountLabel(summary.rejected_approval_count, "approval rejected")}`);
+  }
+  if (summary.expired_approval_count > 0) {
+    chips.push(`${formatCountLabel(summary.expired_approval_count, "approval expired")}`);
+  }
+  if (summary.failed_notification_count > 0) {
+    chips.push(`${formatCountLabel(summary.failed_notification_count, "notification retry")}`);
+  }
+  if (summary.pending_notification_count > 0) {
+    chips.push(`${formatCountLabel(summary.pending_notification_count, "notification pending")}`);
+  }
+  return chips;
+}
+
+export function listCallbackWaitingSensitiveAccessSummaryRows(
+  summary?: CallbackWaitingSensitiveAccessSummaryLike | null
+) {
+  if (!summary || summary.request_count <= 0) {
+    return [];
+  }
+
+  const primaryResource = summary.primary_resource ?? null;
+  const credentialGovernance = getCredentialGovernanceSummary(primaryResource);
+  const approvalParts = [
+    summary.pending_approval_count > 0
+      ? `${formatCountLabel(summary.pending_approval_count, "pending")}`
+      : null,
+    summary.approved_approval_count > 0
+      ? `${formatCountLabel(summary.approved_approval_count, "approved")}`
+      : null,
+    summary.rejected_approval_count > 0
+      ? `${formatCountLabel(summary.rejected_approval_count, "rejected")}`
+      : null,
+    summary.expired_approval_count > 0
+      ? `${formatCountLabel(summary.expired_approval_count, "expired")}`
+      : null
+  ].filter((value): value is string => Boolean(value));
+  const notificationParts = [
+    summary.pending_notification_count > 0
+      ? `${formatCountLabel(summary.pending_notification_count, "pending")}`
+      : null,
+    summary.delivered_notification_count > 0
+      ? `${formatCountLabel(summary.delivered_notification_count, "delivered")}`
+      : null,
+    summary.failed_notification_count > 0
+      ? `${formatCountLabel(summary.failed_notification_count, "failed")}`
+      : null
+  ].filter((value): value is string => Boolean(value));
+
+  return buildDetailRows([
+    {
+      label: "Sensitive access",
+      value:
+        `${formatCountLabel(summary.request_count, "request")} · ` +
+        `${formatCountLabel(summary.approval_ticket_count, "approval ticket")}`
+    },
+    {
+      label: credentialGovernance ? "Credential governance" : "Sensitive resource",
+      value: primaryResource
+        ? formatOptionalParts([
+            credentialGovernance?.credential_name !== primaryResource.label
+              ? primaryResource.label
+              : null,
+            credentialGovernance
+              ? formatCredentialGovernanceCompactSummary(credentialGovernance)
+              : primaryResource.label
+          ])
+        : null
+    },
+    {
+      label: "Approval blockers",
+      value: approvalParts.length ? approvalParts.join(" · ") : null
+    },
+    {
+      label: "Notification delivery",
+      value: notificationParts.length ? notificationParts.join(" · ") : null
+    }
   ]);
 }
 

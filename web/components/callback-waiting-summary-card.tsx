@@ -26,6 +26,7 @@ import {
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
 import {
+  type CallbackWaitingSensitiveAccessSummaryLike,
   type CallbackWaitingRecommendedAction,
   buildCallbackWaitingInlineActionStatusHint,
   buildCallbackWaitingInlineActionTitle,
@@ -36,6 +37,8 @@ import {
   getCallbackWaitingRecommendedAction,
   getCallbackWaitingHeadline,
   isObserveFirstCallbackWaitingAction,
+  listCallbackWaitingSensitiveAccessSummaryChips,
+  listCallbackWaitingSensitiveAccessSummaryRows,
   listCallbackWaitingBlockerRows,
   listCallbackWaitingChips,
   listCallbackWaitingOperatorStatuses,
@@ -69,6 +72,7 @@ type CallbackWaitingSummaryCardProps = {
   lifecycle?: CallbackWaitingLifecycleSummary | null;
   callbackTickets?: RunCallbackTicketItem[];
   sensitiveAccessEntries?: SensitiveAccessTimelineEntry[];
+  sensitiveAccessSummary?: CallbackWaitingSensitiveAccessSummaryLike | null;
   callbackWaitingExplanation?: RunExecutionFocusExplanation | null;
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   waitingReason?: string | null;
@@ -101,13 +105,22 @@ type CallbackWaitingSummaryCardProps = {
   className?: string;
 };
 
-const SENSITIVE_ACCESS_CONTEXT_ROW_LABELS = new Set(["Approvals", "Sensitive access", "Notification"]);
+const SENSITIVE_ACCESS_CONTEXT_ROW_LABELS = new Set([
+  "Approvals",
+  "Sensitive access",
+  "Notification",
+  "Credential governance",
+  "Sensitive resource",
+  "Approval blockers",
+  "Notification delivery"
+]);
 
 export function CallbackWaitingSummaryCard({
   currentHref = null,
   lifecycle,
   callbackTickets = [],
   sensitiveAccessEntries = [],
+  sensitiveAccessSummary = null,
   callbackWaitingExplanation,
   callbackWaitingAutomation,
   waitingReason,
@@ -193,6 +206,9 @@ export function CallbackWaitingSummaryCard({
     scheduledResumeRequeuedAt,
     scheduledResumeRequeueSource
   });
+  const summarySensitiveAccessChips = sensitiveAccessEntries.length
+    ? []
+    : listCallbackWaitingSensitiveAccessSummaryChips(sensitiveAccessSummary);
   const baseRecommendedAction = getCallbackWaitingRecommendedAction({
     lifecycle,
     callbackTickets,
@@ -277,6 +293,14 @@ export function CallbackWaitingSummaryCard({
   const visibleBlockerRows = suppressSensitiveAccessContextRows
     ? blockerRows.filter((row) => !SENSITIVE_ACCESS_CONTEXT_ROW_LABELS.has(row.label))
     : blockerRows;
+  const fallbackSensitiveAccessRows = sensitiveAccessEntries.length
+    ? []
+    : listCallbackWaitingSensitiveAccessSummaryRows(sensitiveAccessSummary);
+  const visibleSensitiveAccessRows = suppressSensitiveAccessContextRows
+    ? fallbackSensitiveAccessRows.filter((row) => !SENSITIVE_ACCESS_CONTEXT_ROW_LABELS.has(row.label))
+    : fallbackSensitiveAccessRows;
+  const visibleContextRows = [...visibleBlockerRows, ...visibleSensitiveAccessRows];
+  const combinedChips = [...chips, ...summarySensitiveAccessChips];
   const terminationAt = formatTimestamp(lifecycle?.terminated_at);
   const hasTermination = Boolean(lifecycle?.terminated);
   const preferredInlineAction =
@@ -291,6 +315,7 @@ export function CallbackWaitingSummaryCard({
     callbackTickets,
     callbackWaitingAutomation,
     sensitiveAccessEntries,
+    sensitiveAccessSummary,
     suppressSensitiveAccessContextRows,
     showSensitiveAccessInlineActions: false,
     recommendedAction: canonicalRecommendedAction,
@@ -336,11 +361,11 @@ export function CallbackWaitingSummaryCard({
   });
   const hasContent =
     headline ||
-    visibleBlockerRows.length > 0 ||
+    visibleContextRows.length > 0 ||
     scheduledResume ||
     lifecycleSummary ||
     waitingReason ||
-    chips.length > 0 ||
+    combinedChips.length > 0 ||
     hasTermination;
 
   if (!hasContent) {
@@ -350,9 +375,9 @@ export function CallbackWaitingSummaryCard({
   return (
     <div className={className}>
       {headline ? <p className="section-copy entry-copy">{headline}</p> : null}
-      {chips.length ? (
+      {combinedChips.length ? (
         <div className="event-type-strip">
-          {chips.map((chip) => (
+          {combinedChips.map((chip) => (
             <span className="event-chip" key={chip}>
               {chip}
             </span>
@@ -364,7 +389,7 @@ export function CallbackWaitingSummaryCard({
           ) : null}
         </div>
       ) : null}
-      {!chips.length && inboxHref ? (
+      {!combinedChips.length && inboxHref ? (
         <div className="event-type-strip">
           <Link className="event-chip inbox-filter-link" href={inboxHref}>
             {inboxLinkLabel}
@@ -381,7 +406,7 @@ export function CallbackWaitingSummaryCard({
           ))}
         </div>
       ) : null}
-      {visibleBlockerRows.map((row) => (
+      {visibleContextRows.map((row) => (
         <p className="section-copy entry-copy" key={row.label}>
           {row.label}: {row.value}
         </p>
