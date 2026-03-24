@@ -3,30 +3,284 @@ import { getSystemOverview } from "@/lib/get-system-overview";
 
 type SystemOverview = Awaited<ReturnType<typeof getSystemOverview>>;
 type SensitiveAccessInboxSnapshot = Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>;
+type SandboxReadiness = SystemOverview["sandbox_readiness"];
+type SandboxExecutionClassReadiness = SandboxReadiness["execution_classes"][number];
+type RuntimeActivity = SystemOverview["runtime_activity"];
+type RuntimeActivitySummary = RuntimeActivity["summary"];
+type RecentRun = RuntimeActivity["recent_runs"][number];
+type RecentRunEvent = RuntimeActivity["recent_events"][number];
+type CallbackWaitingAutomation = SystemOverview["callback_waiting_automation"];
+type CallbackWaitingAutomationStep = CallbackWaitingAutomation["steps"][number];
+type CallbackWaitingAutomationStepSchedulerHealth =
+  CallbackWaitingAutomationStep["scheduler_health"];
 type SensitiveAccessInboxEntry = SensitiveAccessInboxSnapshot["entries"][number];
 type SensitiveAccessTicket = SensitiveAccessInboxEntry["ticket"];
 type SensitiveAccessRequest = NonNullable<SensitiveAccessInboxEntry["request"]>;
 type SensitiveAccessResource = NonNullable<SensitiveAccessInboxEntry["resource"]>;
 type SensitiveAccessExecutionContext = NonNullable<SensitiveAccessInboxEntry["executionContext"]>;
 type SensitiveAccessExecutionFocusNode = SensitiveAccessExecutionContext["focusNode"];
+type SensitiveAccessSummary = SensitiveAccessInboxSnapshot["summary"];
+type SensitiveAccessBlocker = NonNullable<SensitiveAccessSummary["blockers"]>[number];
+
+type SandboxExecutionClassReadinessFixtureOverrides =
+  Partial<SandboxExecutionClassReadiness>;
+
+type SandboxReadinessFixtureOverrides = Omit<
+  Partial<SandboxReadiness>,
+  "execution_classes"
+> & {
+  execution_classes?: SandboxExecutionClassReadiness[];
+};
+
+type RecentRunFixtureOverrides = Partial<RecentRun>;
+
+type RecentRunEventFixtureOverrides = Partial<RecentRunEvent>;
+
+type RuntimeActivityFixtureOverrides = Omit<
+  Partial<RuntimeActivity>,
+  "summary" | "recent_runs" | "recent_events"
+> & {
+  summary?: Partial<RuntimeActivitySummary>;
+  recent_runs?: RecentRun[];
+  recent_events?: RecentRunEvent[];
+};
+
+type CallbackWaitingAutomationStepFixtureOverrides = Omit<
+  Partial<CallbackWaitingAutomationStep>,
+  "scheduler_health"
+> & {
+  scheduler_health?: Partial<CallbackWaitingAutomationStepSchedulerHealth>;
+};
+
+type CallbackWaitingAutomationFixtureOverrides = Omit<
+  Partial<CallbackWaitingAutomation>,
+  "steps"
+> & {
+  steps?: CallbackWaitingAutomationStep[];
+};
+
+type SensitiveAccessSummaryFixtureOverrides = Partial<SensitiveAccessSummary>;
+
+type SensitiveAccessBlockerFixtureOverrides = Partial<SensitiveAccessBlocker>;
 
 type SystemOverviewFixtureOverrides = Omit<
   Partial<SystemOverview>,
   "sandbox_readiness" | "runtime_activity" | "callback_waiting_automation"
 > & {
-  sandbox_readiness?: Partial<SystemOverview["sandbox_readiness"]>;
-  runtime_activity?: Partial<SystemOverview["runtime_activity"]> & {
-    summary?: Partial<SystemOverview["runtime_activity"]["summary"]>;
-  };
-  callback_waiting_automation?: Partial<SystemOverview["callback_waiting_automation"]>;
+  sandbox_readiness?: SandboxReadinessFixtureOverrides;
+  runtime_activity?: RuntimeActivityFixtureOverrides;
+  callback_waiting_automation?: CallbackWaitingAutomationFixtureOverrides;
 };
 
 type SensitiveAccessInboxSnapshotFixtureOverrides = Omit<
   Partial<SensitiveAccessInboxSnapshot>,
   "summary"
 > & {
-  summary?: Partial<SensitiveAccessInboxSnapshot["summary"]>;
+  summary?: SensitiveAccessSummaryFixtureOverrides;
 };
+
+function countBy(items: string[]): Record<string, number> {
+  return items.reduce<Record<string, number>>((counts, item) => {
+    counts[item] = (counts[item] ?? 0) + 1;
+    return counts;
+  }, {});
+}
+
+export function buildSandboxExecutionClassReadinessFixture(
+  overrides: SandboxExecutionClassReadinessFixtureOverrides = {}
+): SandboxExecutionClassReadiness {
+  return {
+    execution_class: "sandbox",
+    available: true,
+    backend_ids: ["sandbox-default"],
+    supported_languages: ["python"],
+    supported_profiles: ["default"],
+    supported_dependency_modes: ["none"],
+    supports_tool_execution: true,
+    supports_builtin_package_sets: false,
+    supports_backend_extensions: false,
+    supports_network_policy: true,
+    supports_filesystem_policy: true,
+    reason: null,
+    ...overrides
+  };
+}
+
+export function buildSandboxReadinessFixture(
+  overrides: SandboxReadinessFixtureOverrides = {}
+): SandboxReadiness {
+  const executionClasses = overrides.execution_classes ?? [];
+  const defaultSnapshot: SandboxReadiness = {
+    enabled_backend_count: 0,
+    healthy_backend_count: 0,
+    degraded_backend_count: 0,
+    offline_backend_count: 0,
+    execution_classes: executionClasses,
+    supported_languages: [],
+    supported_profiles: [],
+    supported_dependency_modes: [],
+    supports_tool_execution: false,
+    supports_builtin_package_sets: false,
+    supports_backend_extensions: false,
+    supports_network_policy: false,
+    supports_filesystem_policy: false,
+    affected_run_count: 0,
+    affected_workflow_count: 0,
+    primary_blocker_kind: null,
+    recommended_action: null
+  };
+
+  return {
+    ...defaultSnapshot,
+    ...overrides
+  };
+}
+
+export function buildRecentRunFixture(overrides: RecentRunFixtureOverrides = {}): RecentRun {
+  return {
+    id: "run-1",
+    workflow_id: "workflow-1",
+    workflow_version: "1.0.0",
+    status: "waiting_callback",
+    created_at: "2026-03-24T08:00:00Z",
+    finished_at: null,
+    event_count: 1,
+    ...overrides
+  };
+}
+
+export function buildRecentRunEventFixture(
+  overrides: RecentRunEventFixtureOverrides = {}
+): RecentRunEvent {
+  return {
+    id: 1,
+    run_id: "run-1",
+    node_run_id: "node-run-1",
+    event_type: "callback_waiting",
+    payload_keys: ["reason"],
+    payload_preview: "callback waiting",
+    payload_size: 16,
+    created_at: "2026-03-24T08:00:10Z",
+    ...overrides
+  };
+}
+
+export function buildRuntimeActivityFixture(
+  overrides: RuntimeActivityFixtureOverrides = {}
+): RuntimeActivity {
+  const recentRuns = overrides.recent_runs ?? [];
+  const recentEvents = overrides.recent_events ?? [];
+  const derivedSummary: RuntimeActivitySummary = {
+    recent_run_count: recentRuns.length,
+    recent_event_count: recentEvents.length,
+    run_statuses: countBy(recentRuns.map((run) => run.status)),
+    event_types: countBy(recentEvents.map((event) => event.event_type))
+  };
+
+  return {
+    ...overrides,
+    summary: {
+      ...derivedSummary,
+      ...overrides.summary,
+      run_statuses: overrides.summary?.run_statuses ?? derivedSummary.run_statuses,
+      event_types: overrides.summary?.event_types ?? derivedSummary.event_types
+    },
+    recent_runs: recentRuns,
+    recent_events: recentEvents
+  };
+}
+
+export function buildCallbackWaitingAutomationStepFixture(
+  overrides: CallbackWaitingAutomationStepFixtureOverrides = {}
+): CallbackWaitingAutomationStep {
+  const { scheduler_health: schedulerHealthOverrides = {}, ...stepOverrides } = overrides;
+
+  return {
+    key: stepOverrides.key ?? "waiting_resume_monitor",
+    label: stepOverrides.label ?? "Waiting resume monitor",
+    task: stepOverrides.task ?? "resume",
+    source: stepOverrides.source ?? "scheduler",
+    enabled: stepOverrides.enabled ?? true,
+    interval_seconds: stepOverrides.interval_seconds ?? 30,
+    detail: stepOverrides.detail ?? "monitor overdue waiting resumes",
+    scheduler_health: {
+      health_status: schedulerHealthOverrides.health_status ?? "healthy",
+      detail: schedulerHealthOverrides.detail ?? "healthy",
+      last_status: schedulerHealthOverrides.last_status ?? "ok",
+      last_started_at:
+        schedulerHealthOverrides.last_started_at ?? "2026-03-24T08:00:00Z",
+      last_finished_at:
+        schedulerHealthOverrides.last_finished_at ?? "2026-03-24T08:00:10Z",
+      matched_count: schedulerHealthOverrides.matched_count ?? 0,
+      affected_count: schedulerHealthOverrides.affected_count ?? 0
+    },
+    ...stepOverrides
+  };
+}
+
+export function buildCallbackWaitingAutomationFixture(
+  overrides: CallbackWaitingAutomationFixtureOverrides = {}
+): CallbackWaitingAutomation {
+  const steps = overrides.steps ?? [];
+  const defaultSnapshot: CallbackWaitingAutomation = {
+    status: "configured",
+    scheduler_required: true,
+    detail: "healthy",
+    scheduler_health_status: "healthy",
+    scheduler_health_detail: "healthy",
+    steps,
+    affected_run_count: 0,
+    affected_workflow_count: 0,
+    primary_blocker_kind: null,
+    recommended_action: null
+  };
+
+  return {
+    ...defaultSnapshot,
+    ...overrides
+  };
+}
+
+export function buildSensitiveAccessBlockerFixture(
+  overrides: SensitiveAccessBlockerFixtureOverrides = {}
+): SensitiveAccessBlocker {
+  return {
+    kind: "pending_approval",
+    tone: "blocked",
+    item_count: 1,
+    affected_run_count: 1,
+    affected_workflow_count: 1,
+    ...overrides
+  };
+}
+
+export function buildSensitiveAccessSummaryFixture(
+  overrides: SensitiveAccessSummaryFixtureOverrides = {}
+): SensitiveAccessSummary {
+  const blockers = overrides.blockers ?? [];
+  const defaultSnapshot: SensitiveAccessSummary = {
+    ticket_count: 0,
+    pending_ticket_count: 0,
+    approved_ticket_count: 0,
+    rejected_ticket_count: 0,
+    expired_ticket_count: 0,
+    waiting_ticket_count: 0,
+    resumed_ticket_count: 0,
+    failed_ticket_count: 0,
+    pending_notification_count: 0,
+    delivered_notification_count: 0,
+    failed_notification_count: 0,
+    affected_run_count: 0,
+    affected_workflow_count: 0,
+    primary_blocker_kind: null,
+    blockers
+  };
+
+  return {
+    ...defaultSnapshot,
+    ...overrides
+  };
+}
 
 export function buildSystemOverviewFixture(
   overrides: SystemOverviewFixtureOverrides = {}
@@ -38,40 +292,10 @@ export function buildSystemOverviewFixture(
     capabilities: [],
     plugin_adapters: [],
     sandbox_backends: [],
-    sandbox_readiness: {
-      enabled_backend_count: 0,
-      healthy_backend_count: 0,
-      degraded_backend_count: 0,
-      offline_backend_count: 0,
-      execution_classes: [],
-      supported_languages: [],
-      supported_profiles: [],
-      supported_dependency_modes: [],
-      supports_tool_execution: false,
-      supports_builtin_package_sets: false,
-      supports_backend_extensions: false,
-      supports_network_policy: false,
-      supports_filesystem_policy: false
-    },
+    sandbox_readiness: buildSandboxReadinessFixture(),
     plugin_tools: [],
-    runtime_activity: {
-      summary: {
-        recent_run_count: 0,
-        recent_event_count: 0,
-        run_statuses: {},
-        event_types: {}
-      },
-      recent_runs: [],
-      recent_events: []
-    },
-    callback_waiting_automation: {
-      status: "configured",
-      scheduler_required: true,
-      detail: "healthy",
-      scheduler_health_status: "healthy",
-      scheduler_health_detail: "healthy",
-      steps: []
-    }
+    runtime_activity: buildRuntimeActivityFixture(),
+    callback_waiting_automation: buildCallbackWaitingAutomationFixture()
   } satisfies SystemOverview;
 
   return {
@@ -81,42 +305,12 @@ export function buildSystemOverviewFixture(
     capabilities: overrides.capabilities ?? defaultSnapshot.capabilities,
     plugin_adapters: overrides.plugin_adapters ?? defaultSnapshot.plugin_adapters,
     sandbox_backends: overrides.sandbox_backends ?? defaultSnapshot.sandbox_backends,
-    sandbox_readiness: {
-      ...defaultSnapshot.sandbox_readiness,
-      ...overrides.sandbox_readiness,
-      execution_classes:
-        overrides.sandbox_readiness?.execution_classes ??
-        defaultSnapshot.sandbox_readiness.execution_classes,
-      supported_languages:
-        overrides.sandbox_readiness?.supported_languages ??
-        defaultSnapshot.sandbox_readiness.supported_languages,
-      supported_profiles:
-        overrides.sandbox_readiness?.supported_profiles ??
-        defaultSnapshot.sandbox_readiness.supported_profiles,
-      supported_dependency_modes:
-        overrides.sandbox_readiness?.supported_dependency_modes ??
-        defaultSnapshot.sandbox_readiness.supported_dependency_modes
-    },
+    sandbox_readiness: buildSandboxReadinessFixture(overrides.sandbox_readiness),
     plugin_tools: overrides.plugin_tools ?? defaultSnapshot.plugin_tools,
-    runtime_activity: {
-      ...defaultSnapshot.runtime_activity,
-      ...overrides.runtime_activity,
-      summary: {
-        ...defaultSnapshot.runtime_activity.summary,
-        ...overrides.runtime_activity?.summary
-      },
-      recent_runs:
-        overrides.runtime_activity?.recent_runs ?? defaultSnapshot.runtime_activity.recent_runs,
-      recent_events:
-        overrides.runtime_activity?.recent_events ?? defaultSnapshot.runtime_activity.recent_events
-    },
-    callback_waiting_automation: {
-      ...defaultSnapshot.callback_waiting_automation,
-      ...overrides.callback_waiting_automation,
-      steps:
-        overrides.callback_waiting_automation?.steps ??
-        defaultSnapshot.callback_waiting_automation.steps
-    }
+    runtime_activity: buildRuntimeActivityFixture(overrides.runtime_activity),
+    callback_waiting_automation: buildCallbackWaitingAutomationFixture(
+      overrides.callback_waiting_automation
+    )
   };
 }
 
@@ -128,19 +322,7 @@ export function buildSensitiveAccessInboxSnapshotFixture(
     resources: [],
     requests: [],
     notifications: [],
-    summary: {
-      ticket_count: 0,
-      pending_ticket_count: 0,
-      approved_ticket_count: 0,
-      rejected_ticket_count: 0,
-      expired_ticket_count: 0,
-      waiting_ticket_count: 0,
-      resumed_ticket_count: 0,
-      failed_ticket_count: 0,
-      pending_notification_count: 0,
-      delivered_notification_count: 0,
-      failed_notification_count: 0
-    },
+    summary: buildSensitiveAccessSummaryFixture(),
     entries: []
   } satisfies SensitiveAccessInboxSnapshot;
 
@@ -151,10 +333,7 @@ export function buildSensitiveAccessInboxSnapshotFixture(
     resources: overrides.resources ?? defaultSnapshot.resources,
     requests: overrides.requests ?? defaultSnapshot.requests,
     notifications: overrides.notifications ?? defaultSnapshot.notifications,
-    summary: {
-      ...defaultSnapshot.summary,
-      ...overrides.summary
-    },
+    summary: buildSensitiveAccessSummaryFixture(overrides.summary),
     entries: overrides.entries ?? defaultSnapshot.entries
   };
 }
