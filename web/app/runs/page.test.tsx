@@ -312,7 +312,9 @@ describe("RunsPage", () => {
           run_statuses: {
             waiting_callback: 1
           },
-          event_types: {}
+          event_types: {
+            callback_waiting: 1
+          }
         },
         recent_runs: [
           {
@@ -325,7 +327,18 @@ describe("RunsPage", () => {
             event_count: 1
           }
         ],
-        recent_events: []
+        recent_events: [
+          {
+            id: 42,
+            run_id: "run-1",
+            node_run_id: "node-run-1",
+            event_type: "callback_waiting",
+            payload_keys: ["reason"],
+            payload_preview: "callback pending",
+            payload_size: 32,
+            created_at: "2026-03-22T08:01:00Z"
+          }
+        ]
       }
     });
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
@@ -352,5 +365,9 @@ describe("RunsPage", () => {
     expect(html).toContain(
       '/workflows?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
     );
+    expect(html).toContain(
+      '/runs/run-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;event_type=callback_waiting&amp;node_run_id=node-run-1#run-diagnostics-execution-timeline'
+    );
+    expect(html).toContain("callback pending");
   });
 });

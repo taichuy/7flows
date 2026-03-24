@@ -96,13 +96,38 @@ describe("HomePage", () => {
       plugin_tools: [],
       runtime_activity: {
         summary: {
-          recent_run_count: 0,
-          recent_event_count: 0,
-          run_statuses: {},
-          event_types: {}
+          recent_run_count: 1,
+          recent_event_count: 1,
+          run_statuses: {
+            waiting_callback: 1
+          },
+          event_types: {
+            callback_waiting: 1
+          }
         },
-        recent_runs: [],
-        recent_events: []
+        recent_runs: [
+          {
+            id: "run-home-1",
+            workflow_id: "workflow-home-1",
+            workflow_version: "1.0.0",
+            status: "waiting_callback",
+            created_at: "2026-03-22T08:00:00Z",
+            finished_at: null,
+            event_count: 1
+          }
+        ],
+        recent_events: [
+          {
+            id: 7,
+            run_id: "run-home-1",
+            node_run_id: "node-home-1",
+            event_type: "callback_waiting",
+            payload_keys: ["reason"],
+            payload_preview: "callback pending",
+            payload_size: 32,
+            created_at: "2026-03-22T08:01:00Z"
+          }
+        ]
       },
       callback_waiting_automation: {
         status: "configured",
@@ -183,13 +208,38 @@ describe("HomePage", () => {
       plugin_tools: [],
       runtime_activity: {
         summary: {
-          recent_run_count: 0,
-          recent_event_count: 0,
-          run_statuses: {},
-          event_types: {}
+          recent_run_count: 1,
+          recent_event_count: 1,
+          run_statuses: {
+            waiting_callback: 1
+          },
+          event_types: {
+            callback_waiting: 1
+          }
         },
-        recent_runs: [],
-        recent_events: []
+        recent_runs: [
+          {
+            id: "run-home-1",
+            workflow_id: "workflow-home-1",
+            workflow_version: "1.0.0",
+            status: "waiting_callback",
+            created_at: "2026-03-22T08:00:00Z",
+            finished_at: null,
+            event_count: 1
+          }
+        ],
+        recent_events: [
+          {
+            id: 7,
+            run_id: "run-home-1",
+            node_run_id: "node-home-1",
+            event_type: "callback_waiting",
+            payload_keys: ["reason"],
+            payload_preview: "callback pending",
+            payload_size: 32,
+            created_at: "2026-03-22T08:01:00Z"
+          }
+        ]
       },
       callback_waiting_automation: {
         status: "configured",
@@ -310,13 +360,38 @@ describe("HomePage", () => {
       plugin_tools: [],
       runtime_activity: {
         summary: {
-          recent_run_count: 0,
-          recent_event_count: 0,
-          run_statuses: {},
-          event_types: {}
+          recent_run_count: 1,
+          recent_event_count: 1,
+          run_statuses: {
+            waiting_callback: 1
+          },
+          event_types: {
+            callback_waiting: 1
+          }
         },
-        recent_runs: [],
-        recent_events: []
+        recent_runs: [
+          {
+            id: "run-home-1",
+            workflow_id: "workflow-home-1",
+            workflow_version: "1.0.0",
+            status: "waiting_callback",
+            created_at: "2026-03-22T08:00:00Z",
+            finished_at: null,
+            event_count: 1
+          }
+        ],
+        recent_events: [
+          {
+            id: 7,
+            run_id: "run-home-1",
+            node_run_id: "node-home-1",
+            event_type: "callback_waiting",
+            payload_keys: ["reason"],
+            payload_preview: "callback pending",
+            payload_size: 32,
+            created_at: "2026-03-22T08:01:00Z"
+          }
+        ]
       },
       callback_waiting_automation: {
         status: "partial",
@@ -469,5 +544,9 @@ describe("HomePage", () => {
     expect(html).toContain(operatorSurfaceCopy.openInboxSliceLabel);
     expect(html).toContain("Approval &amp; notification backlog");
     expect(html).toContain("2 pending / 1 waiting");
+    expect(html).toContain(
+      '/runs/run-home-1?event_type=callback_waiting&amp;node_run_id=node-home-1#run-diagnostics-execution-timeline'
+    );
+    expect(html).toContain("callback pending");
   });
 });

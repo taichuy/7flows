@@ -23,6 +23,10 @@ import {
   formatTimestamp
 } from "@/lib/runtime-presenters";
 import {
+  buildRuntimeActivityEventTraceLinkSurface,
+  buildRuntimeActivityEventTypeTraceLinkSurface
+} from "@/lib/runtime-activity-trace-links";
+import {
   buildAuthorFacingRunDetailLinkSurface,
   buildAuthorFacingWorkflowDetailLinkSurface
 } from "@/lib/workbench-entry-surfaces";
@@ -49,6 +53,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     getSensitiveAccessInboxSnapshot()
   ]);
   const recentRuns = overview.runtime_activity.recent_runs;
+  const recentEvents = overview.runtime_activity.recent_events;
   const activitySummary = overview.runtime_activity.summary;
   const latestRun = recentRuns[0];
   const latestRunDetailLink = latestRun
@@ -358,13 +363,74 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             {Object.keys(activitySummary.event_types).length === 0 ? (
               <p className="empty-state compact">当前还没有可聚合的事件类型统计。</p>
             ) : (
-              Object.entries(activitySummary.event_types).map(([eventType, count]) => (
-                <span className="event-chip" key={eventType}>
-                  {eventType} · {count}
-                </span>
-              ))
+              Object.entries(activitySummary.event_types).map(([eventType, count]) => {
+                const traceLink = buildRuntimeActivityEventTypeTraceLinkSurface({
+                  eventType,
+                  recentEvents
+                });
+
+                return traceLink ? (
+                  <Link
+                    className="event-chip inbox-filter-link"
+                    href={traceLink.href}
+                    key={eventType}
+                    title={traceLink.label}
+                  >
+                    {eventType} · {count}
+                  </Link>
+                ) : (
+                  <span className="event-chip" key={eventType}>
+                    {eventType} · {count}
+                  </span>
+                );
+              })
             )}
           </div>
+
+          {recentEvents.length === 0 ? (
+            <p className="empty-state compact">当前还没有最近事件样本可用于 trace 深链。</p>
+          ) : (
+            <div className="event-list">
+              {recentEvents.slice(0, 3).map((event) => {
+                const traceLink = buildRuntimeActivityEventTraceLinkSurface(event, {
+                  hrefLabel: "open recent event trace"
+                });
+
+                return (
+                  <article className="event-row" key={event.id}>
+                    <div className="event-meta">
+                      <span>{event.event_type}</span>
+                      <span>{formatTimestamp(event.created_at)}</span>
+                    </div>
+                    <p className="event-run">
+                      {event.node_run_id
+                        ? `run ${event.run_id} · node run ${event.node_run_id}`
+                        : `run ${event.run_id}`}
+                    </p>
+                    <p className="activity-copy">
+                      {event.payload_preview || "当前事件没有 payload preview。"}
+                    </p>
+                    {event.payload_keys.length > 0 ? (
+                      <div className="event-type-strip">
+                        {event.payload_keys.slice(0, 3).map((payloadKey) => (
+                          <span className="event-chip" key={`${event.id}-${payloadKey}`}>
+                            {payloadKey}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {traceLink ? (
+                      <div className="section-actions">
+                        <Link className="inline-link secondary" href={traceLink.href}>
+                          {traceLink.label}
+                        </Link>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          )}
 
           <div className="summary-strip">
             <article className="summary-card">

@@ -18,6 +18,10 @@ import {
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { formatCountMap, formatTimestamp } from "@/lib/runtime-presenters";
 import {
+  buildRuntimeActivityEventTraceLinkSurface,
+  buildRuntimeActivityEventTypeTraceLinkSurface
+} from "@/lib/runtime-activity-trace-links";
+import {
   buildRunDetailHrefFromWorkspaceStarterViewState,
   buildRunLibraryHrefFromWorkspaceStarterViewState,
   buildWorkflowEditorHrefFromWorkspaceStarterViewState,
@@ -49,6 +53,7 @@ export default async function RunsPage({ searchParams }: RunsPageProps = {}) {
     getSensitiveAccessInboxSnapshot()
   ]);
   const recentRuns = overview.runtime_activity.recent_runs;
+  const recentEvents = overview.runtime_activity.recent_events;
   const activitySummary = overview.runtime_activity.summary;
   const latestRun = recentRuns[0] ?? null;
   const latestRunDetailLink = latestRun
@@ -191,13 +196,78 @@ export default async function RunsPage({ searchParams }: RunsPageProps = {}) {
             {Object.keys(activitySummary.event_types).length === 0 ? (
               <p className="empty-state compact">当前还没有可聚合的事件类型统计。</p>
             ) : (
-              Object.entries(activitySummary.event_types).map(([eventType, count]) => (
-                <span className="event-chip" key={eventType}>
-                  {eventType} · {count}
-                </span>
-              ))
+              Object.entries(activitySummary.event_types).map(([eventType, count]) => {
+                const traceLink = buildRuntimeActivityEventTypeTraceLinkSurface({
+                  eventType,
+                  recentEvents,
+                  resolveRunHref: (runId) =>
+                    buildRunDetailHrefFromWorkspaceStarterViewState(runId, workspaceStarterViewState)
+                });
+
+                return traceLink ? (
+                  <Link
+                    className="event-chip inbox-filter-link"
+                    href={traceLink.href}
+                    key={eventType}
+                    title={traceLink.label}
+                  >
+                    {eventType} · {count}
+                  </Link>
+                ) : (
+                  <span className="event-chip" key={eventType}>
+                    {eventType} · {count}
+                  </span>
+                );
+              })
             )}
           </div>
+
+          {recentEvents.length === 0 ? (
+            <p className="empty-state compact">当前还没有最近事件样本可用于 trace 深链。</p>
+          ) : (
+            <div className="event-list">
+              {recentEvents.slice(0, 3).map((event) => {
+                const traceLink = buildRuntimeActivityEventTraceLinkSurface(event, {
+                  resolveRunHref: (runId) =>
+                    buildRunDetailHrefFromWorkspaceStarterViewState(runId, workspaceStarterViewState),
+                  hrefLabel: "open recent event trace"
+                });
+
+                return (
+                  <article className="event-row" key={event.id}>
+                    <div className="event-meta">
+                      <span>{event.event_type}</span>
+                      <span>{formatTimestamp(event.created_at)}</span>
+                    </div>
+                    <p className="event-run">
+                      {event.node_run_id
+                        ? `run ${event.run_id} · node run ${event.node_run_id}`
+                        : `run ${event.run_id}`}
+                    </p>
+                    <p className="activity-copy">
+                      {event.payload_preview || "当前事件没有 payload preview。"}
+                    </p>
+                    {event.payload_keys.length > 0 ? (
+                      <div className="event-type-strip">
+                        {event.payload_keys.slice(0, 3).map((payloadKey) => (
+                          <span className="event-chip" key={`${event.id}-${payloadKey}`}>
+                            {payloadKey}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {traceLink ? (
+                      <div className="section-actions">
+                        <Link className="inline-link secondary" href={traceLink.href}>
+                          {traceLink.label}
+                        </Link>
+                      </div>
+                    ) : null}
+                  </article>
+                );
+              })}
+            </div>
+          )}
 
           <SandboxReadinessOverviewCard
             currentHref={runLibraryHref}
