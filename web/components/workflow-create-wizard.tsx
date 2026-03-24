@@ -10,11 +10,17 @@ import { WorkflowChipLink } from "@/components/workflow-chip-link";
 import { WorkflowStarterBrowser } from "@/components/workflow-starter-browser";
 import { ToolGovernanceSummary } from "@/components/tool-governance-summary";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
 import type { WorkspaceStarterSourceGovernanceKind } from "@/lib/get-workspace-starters";
+import {
+  buildLegacyPublishAuthModeContractSummary,
+  buildLegacyPublishAuthModeFollowUp
+} from "@/lib/legacy-publish-auth-contract";
 import {
   getWorkflowBusinessTrack,
   WORKFLOW_BUSINESS_TRACKS
 } from "@/lib/workflow-business-tracks";
+import { appendWorkflowLibraryViewState } from "@/lib/workflow-library-query";
 import {
   buildWorkflowDefinitionSandboxGovernanceBadges,
   describeWorkflowDefinitionSandboxDependency
@@ -36,6 +42,7 @@ import {
 import {
   buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   buildWorkflowEditorHrefFromWorkspaceStarterViewState,
+  buildWorkflowLibraryHrefFromWorkspaceStarterViewState,
   buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState,
   hasScopedWorkspaceStarterGovernanceFilters,
   pickWorkspaceStarterGovernanceQueryScope,
@@ -51,6 +58,7 @@ import {
 type WorkflowCreateWizardProps = {
   catalogToolCount: number;
   governanceQueryScope: WorkspaceStarterGovernanceQueryScope;
+  legacyAuthGovernanceSnapshot?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
   workflows: WorkflowListItem[];
   starters: WorkflowLibraryStarterItem[];
   starterSourceLanes: WorkflowLibrarySourceLane[];
@@ -61,6 +69,7 @@ type WorkflowCreateWizardProps = {
 export function WorkflowCreateWizard({
   catalogToolCount,
   governanceQueryScope,
+  legacyAuthGovernanceSnapshot = null,
   workflows,
   starters,
   starterSourceLanes,
@@ -181,6 +190,21 @@ export function WorkflowCreateWizard({
         surfaceCopy
       })
     : null;
+  const selectedStarterLegacyAuthGovernanceSurface = useMemo(
+    () =>
+      selectedStarter
+        ? buildWorkflowCreateStarterLegacyAuthGovernanceSurface({
+            starter: selectedStarter,
+            legacyAuthGovernanceSnapshot,
+            workspaceStarterGovernanceScope
+          })
+        : null,
+    [
+      legacyAuthGovernanceSnapshot,
+      selectedStarter,
+      workspaceStarterGovernanceScope
+    ]
+  );
   const selectedStarterSandboxDependencySummary = useMemo(
     () =>
       selectedStarter
@@ -516,6 +540,52 @@ export function WorkflowCreateWizard({
                   ) : null}
                 </div>
               ) : null}
+              {selectedStarterLegacyAuthGovernanceSurface ? (
+                <div className="binding-form">
+                  <p className="binding-label">Source publish governance</p>
+                  <p className="binding-meta">
+                    当前 starter 的源 workflow 仍有 legacy publish auth backlog；创建新草稿前，先沿同一条治理链确认历史 binding 已经完成 cleanup 或 replacement，避免作者在创建页丢失 publish handoff。
+                  </p>
+                  <div className="summary-strip compact-strip">
+                    <div className="summary-card">
+                      <span>Source workflow</span>
+                      <strong>{selectedStarterLegacyAuthGovernanceSurface.workflowName}</strong>
+                    </div>
+                    <div className="summary-card">
+                      <span>Draft cleanup</span>
+                      <strong>{selectedStarterLegacyAuthGovernanceSurface.draftCandidateCount}</strong>
+                    </div>
+                    <div className="summary-card">
+                      <span>Published blockers</span>
+                      <strong>{selectedStarterLegacyAuthGovernanceSurface.publishedBlockerCount}</strong>
+                    </div>
+                    <div className="summary-card">
+                      <span>Offline inventory</span>
+                      <strong>{selectedStarterLegacyAuthGovernanceSurface.offlineInventoryCount}</strong>
+                    </div>
+                  </div>
+                  <p className="section-copy starter-summary-copy">
+                    {selectedStarterLegacyAuthGovernanceSurface.summary}
+                  </p>
+                  <p className="binding-meta">
+                    {selectedStarterLegacyAuthGovernanceSurface.followUp}
+                  </p>
+                  <div className="binding-actions">
+                    <Link
+                      className="inline-link"
+                      href={selectedStarterLegacyAuthGovernanceSurface.workflowDetailHref}
+                    >
+                      {selectedStarterLegacyAuthGovernanceSurface.workflowDetailLabel}
+                    </Link>
+                    <Link
+                      className="inline-link secondary"
+                      href={selectedStarterLegacyAuthGovernanceSurface.workflowLibraryHref}
+                    >
+                      {selectedStarterLegacyAuthGovernanceSurface.workflowLibraryLabel}
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
               {selectedStarter.referencedTools.length > 0 ? (
                 <div className="binding-form">
                   <p className="binding-label">Tool governance in this starter</p>
@@ -670,6 +740,19 @@ type WorkflowCreateStarterNextStepSurface = {
   hrefLabel: string | null;
 };
 
+type WorkflowCreateStarterLegacyAuthGovernanceSurface = {
+  workflowName: string;
+  draftCandidateCount: number;
+  publishedBlockerCount: number;
+  offlineInventoryCount: number;
+  summary: string;
+  followUp: string;
+  workflowDetailHref: string;
+  workflowDetailLabel: string;
+  workflowLibraryHref: string;
+  workflowLibraryLabel: string;
+};
+
 function toWorkspaceStarterSourceGovernanceTemplate(
   starter: WorkflowStarterTemplate
 ): WorkspaceStarterSourceGovernanceSurfaceTemplate {
@@ -744,5 +827,70 @@ function buildWorkflowCreateStarterNextStepSurface({
     hrefLabel: shouldLinkToStarterGovernance
       ? surfaceCopy.sourceGovernanceFollowUpLinkLabel
       : null
+  };
+}
+
+function buildWorkflowCreateStarterLegacyAuthGovernanceSurface({
+  starter,
+  legacyAuthGovernanceSnapshot,
+  workspaceStarterGovernanceScope
+}: {
+  starter: WorkflowStarterTemplate;
+  legacyAuthGovernanceSnapshot: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
+  workspaceStarterGovernanceScope: WorkspaceStarterGovernanceQueryScope;
+}): WorkflowCreateStarterLegacyAuthGovernanceSurface | null {
+  const sourceWorkflowId =
+    starter.sourceGovernance?.sourceWorkflowId?.trim() || starter.createdFromWorkflowId?.trim();
+
+  if (!sourceWorkflowId || legacyAuthGovernanceSnapshot === null) {
+    return null;
+  }
+
+  const workflow = legacyAuthGovernanceSnapshot.workflows.find(
+    (item) => item.workflow_id === sourceWorkflowId
+  );
+
+  if (
+    workflow === undefined ||
+    (workflow.draft_candidate_count <= 0 && workflow.published_blocker_count <= 0)
+  ) {
+    return null;
+  }
+
+  const workflowDetailLink = buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+    workflowId: workflow.workflow_id,
+    viewState: workspaceStarterGovernanceScope,
+    variant: "source"
+  });
+  const workflowLibraryHref = appendWorkflowLibraryViewState(
+    buildWorkflowLibraryHrefFromWorkspaceStarterViewState(workspaceStarterGovernanceScope),
+    {
+      definitionIssue: "legacy_publish_auth"
+    }
+  );
+  const workflowName =
+    workflow.workflow_name || starter.sourceGovernance?.sourceWorkflowName || sourceWorkflowId;
+  const contractSummary = buildLegacyPublishAuthModeContractSummary(
+    legacyAuthGovernanceSnapshot.auth_mode_contract
+  );
+  const followUp = buildLegacyPublishAuthModeFollowUp(
+    legacyAuthGovernanceSnapshot.auth_mode_contract
+  );
+  const summary =
+    workflow.published_blocker_count > 0
+      ? `${workflowName} 仍有 ${workflow.published_blocker_count} 条 live legacy binding，另外还有 ${workflow.draft_candidate_count} 条 draft cleanup 候选。${contractSummary}`
+      : `${workflowName} 仍有 ${workflow.draft_candidate_count} 条 draft legacy binding 可直接 cleanup。${contractSummary}`;
+
+  return {
+    workflowName,
+    draftCandidateCount: workflow.draft_candidate_count,
+    publishedBlockerCount: workflow.published_blocker_count,
+    offlineInventoryCount: workflow.offline_inventory_count,
+    summary,
+    followUp,
+    workflowDetailHref: workflowDetailLink.href,
+    workflowDetailLabel: workflowDetailLink.label,
+    workflowLibraryHref,
+    workflowLibraryLabel: "只看 legacy auth blocker workflows"
   };
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { WorkflowCreateWizard } from "@/components/workflow-create-wizard";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
+import { getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
 import {
   hasScopedWorkspaceStarterGovernanceFilters,
   pickWorkspaceStarterGovernanceQueryScope,
@@ -23,7 +24,7 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
   const shouldScopeWorkspaceStarters = hasScopedWorkspaceStarterGovernanceFilters(
     workspaceStarterViewState
   );
-  const [workflowLibrary, workflows] = await Promise.all([
+  const [workflowLibrary, workflows, legacyAuthGovernanceSnapshot] = await Promise.all([
     getWorkflowLibrarySnapshot({
       businessTrack:
         workspaceStarterViewState.activeTrack === "all"
@@ -37,13 +38,15 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
       needsFollowUp: workspaceStarterViewState.needsFollowUp,
       includeBuiltinStarters: !shouldScopeWorkspaceStarters
     }),
-    getWorkflows()
+    getWorkflows(),
+    getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot()
   ]);
 
   return (
     <WorkflowCreateWizard
       catalogToolCount={workflowLibrary.tools.length}
       governanceQueryScope={pickWorkspaceStarterGovernanceQueryScope(workspaceStarterViewState)}
+      legacyAuthGovernanceSnapshot={legacyAuthGovernanceSnapshot}
       starters={workflowLibrary.starters}
       starterSourceLanes={workflowLibrary.starterSourceLanes}
       nodeCatalog={workflowLibrary.nodes}

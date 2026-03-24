@@ -646,4 +646,123 @@ describe("WorkflowCreateWizard", () => {
       '/workspace-starters?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track='
     );
   });
+
+  it("surfaces source workflow legacy publish auth handoff in the create flow", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowCreateWizard, {
+        catalogToolCount: 0,
+        governanceQueryScope: {
+          activeTrack: "应用新建编排",
+          sourceGovernanceKind: "drifted",
+          needsFollowUp: true,
+          searchQuery: " publish ",
+          selectedTemplateId: "workspace-starter-1"
+        },
+        legacyAuthGovernanceSnapshot: {
+          generated_at: "2026-03-18T10:00:00Z",
+          workflow_count: 1,
+          binding_count: 2,
+          summary: {
+            draft_candidate_count: 1,
+            published_blocker_count: 1,
+            offline_inventory_count: 0
+          },
+          checklist: [],
+          workflows: [
+            {
+              workflow_id: "wf-source",
+              workflow_name: "Source Publish Workflow",
+              binding_count: 2,
+              draft_candidate_count: 1,
+              published_blocker_count: 1,
+              offline_inventory_count: 0
+            }
+          ],
+          buckets: {
+            draft_candidates: [],
+            published_blockers: [],
+            offline_inventory: []
+          }
+        },
+        workflows: [],
+        starterSourceLanes: [],
+        nodeCatalog: [
+          {
+            type: "trigger",
+            label: "Trigger",
+            description: "Trigger node",
+            ecosystem: "native",
+            source: {
+              kind: "node",
+              scope: "builtin",
+              status: "available",
+              governance: "repo",
+              ecosystem: "native",
+              label: "Native node catalog",
+              shortLabel: "native nodes",
+              summary: "Native nodes"
+            },
+            capabilityGroup: "entry",
+            businessTrack: "应用新建编排",
+            tags: [],
+            supportStatus: "available",
+            supportSummary: "",
+            bindingRequired: false,
+            bindingSourceLanes: [],
+            palette: { enabled: true, order: 0, defaultPosition: { x: 0, y: 0 } },
+            defaults: { name: "Trigger", config: {} }
+          }
+        ],
+        tools: [],
+        starters: [
+          {
+            id: "workspace-starter-1",
+            origin: "workspace",
+            workspaceId: "default",
+            name: "Governed Workspace Starter",
+            description: "Starter with source governance follow-up.",
+            businessTrack: "应用新建编排",
+            defaultWorkflowName: "Governed Workflow",
+            workflowFocus: "Keep source-aligned starter facts visible before creating.",
+            recommendedNextStep: "Create the draft after reviewing source governance.",
+            tags: ["workspace starter"],
+            definition: {
+              nodes: [{ id: "trigger", type: "trigger", name: "Trigger", config: {} }],
+              edges: [],
+              variables: [],
+              publish: []
+            },
+            source: {
+              kind: "starter",
+              scope: "workspace",
+              status: "available",
+              governance: "workspace",
+              ecosystem: "native",
+              label: "Workspace starters",
+              shortLabel: "workspace ready",
+              summary: "Workspace starter library"
+            },
+            archived: false,
+            createdFromWorkflowId: "wf-source",
+            sourceGovernance: {
+              kind: "drifted",
+              statusLabel: "建议 refresh",
+              summary: "当前主要是来源快照漂移。优先 refresh 同步最新 definition / version。",
+              sourceWorkflowId: "wf-source",
+              sourceWorkflowName: "Source Publish Workflow"
+            }
+          }
+        ]
+      })
+    );
+
+    expect(html).toContain("Source publish governance");
+    expect(html).toContain("Source Publish Workflow");
+    expect(html).toContain("Publish auth contract");
+    expect(html).toContain("打开源 workflow");
+    expect(html).toContain("只看 legacy auth blocker workflows");
+    expect(html).toContain('/workflows/wf-source?');
+    expect(html).toContain('definition_issue=legacy_publish_auth');
+    expect(html).toContain('starter=workspace-starter-1');
+  });
 });
