@@ -11,6 +11,16 @@ import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
+import {
+  buildSensitiveAccessExecutionContextFixture,
+  buildSensitiveAccessExecutionFocusNodeFixture,
+  buildSensitiveAccessInboxEntryFixture,
+  buildSensitiveAccessInboxSnapshotFixture,
+  buildSensitiveAccessRequestFixture,
+  buildSensitiveAccessResourceFixture,
+  buildSensitiveAccessTicketFixture,
+  buildSystemOverviewFixture
+} from "@/lib/workbench-page-test-fixtures";
 
 Object.assign(globalThis, { React });
 
@@ -69,104 +79,83 @@ vi.mock("@/lib/get-workflows", () => ({
   getWorkflows: vi.fn()
 }));
 
+function buildPluginRegistrySnapshot(
+  overrides: Partial<Awaited<ReturnType<typeof getPluginRegistrySnapshot>>> = {}
+) {
+  return {
+    adapters: [],
+    tools: [],
+    ...overrides
+  } as Awaited<ReturnType<typeof getPluginRegistrySnapshot>>;
+}
+
+function buildHomeSystemOverview(
+  overrides: Parameters<typeof buildSystemOverviewFixture>[0] = {}
+) {
+  const defaultRuntimeActivity = {
+    summary: {
+      recent_run_count: 1,
+      recent_event_count: 1,
+      run_statuses: {
+        waiting_callback: 1
+      },
+      event_types: {
+        callback_waiting: 1
+      }
+    },
+    recent_runs: [
+      {
+        id: "run-home-1",
+        workflow_id: "workflow-home-1",
+        workflow_version: "1.0.0",
+        status: "waiting_callback",
+        created_at: "2026-03-22T08:00:00Z",
+        finished_at: null,
+        event_count: 1
+      }
+    ],
+    recent_events: [
+      {
+        id: 7,
+        run_id: "run-home-1",
+        node_run_id: "node-home-1",
+        event_type: "callback_waiting",
+        payload_keys: ["reason"],
+        payload_preview: "callback pending",
+        payload_size: 32,
+        created_at: "2026-03-22T08:01:00Z"
+      }
+    ]
+  };
+  const runtimeActivityOverrides = overrides.runtime_activity;
+
+  return buildSystemOverviewFixture({
+    capabilities: ["frontend-shell-ready"],
+    ...overrides,
+    runtime_activity: {
+      ...defaultRuntimeActivity,
+      ...runtimeActivityOverrides,
+      summary: {
+        ...defaultRuntimeActivity.summary,
+        ...runtimeActivityOverrides?.summary
+      },
+      recent_runs: runtimeActivityOverrides?.recent_runs ?? defaultRuntimeActivity.recent_runs,
+      recent_events:
+        runtimeActivityOverrides?.recent_events ?? defaultRuntimeActivity.recent_events
+    }
+  });
+}
+
 describe("HomePage", () => {
   it("shows the shared create entry when no workflows exist", async () => {
-    vi.mocked(getSystemOverview).mockResolvedValue({
-      status: "ok",
-      environment: "local",
-      services: [],
-      capabilities: ["frontend-shell-ready"],
-      plugin_adapters: [],
-      sandbox_backends: [],
-      sandbox_readiness: {
-        enabled_backend_count: 0,
-        healthy_backend_count: 0,
-        degraded_backend_count: 0,
-        offline_backend_count: 0,
-        execution_classes: [],
-        supported_languages: [],
-        supported_profiles: [],
-        supported_dependency_modes: [],
-        supports_tool_execution: false,
-        supports_builtin_package_sets: false,
-        supports_backend_extensions: false,
-        supports_network_policy: false,
-        supports_filesystem_policy: false
-      },
-      plugin_tools: [],
-      runtime_activity: {
-        summary: {
-          recent_run_count: 1,
-          recent_event_count: 1,
-          run_statuses: {
-            waiting_callback: 1
-          },
-          event_types: {
-            callback_waiting: 1
-          }
-        },
-        recent_runs: [
-          {
-            id: "run-home-1",
-            workflow_id: "workflow-home-1",
-            workflow_version: "1.0.0",
-            status: "waiting_callback",
-            created_at: "2026-03-22T08:00:00Z",
-            finished_at: null,
-            event_count: 1
-          }
-        ],
-        recent_events: [
-          {
-            id: 7,
-            run_id: "run-home-1",
-            node_run_id: "node-home-1",
-            event_type: "callback_waiting",
-            payload_keys: ["reason"],
-            payload_preview: "callback pending",
-            payload_size: 32,
-            created_at: "2026-03-22T08:01:00Z"
-          }
-        ]
-      },
-      callback_waiting_automation: {
-        status: "configured",
-        scheduler_required: true,
-        detail: "healthy",
-        scheduler_health_status: "healthy",
-        scheduler_health_detail: "healthy",
-        steps: []
-      }
-    } as Awaited<ReturnType<typeof getSystemOverview>>);
-
-    vi.mocked(getPluginRegistrySnapshot).mockResolvedValue({
-      adapters: [],
-      tools: []
-    } as Awaited<ReturnType<typeof getPluginRegistrySnapshot>>);
-
+    vi.mocked(getSystemOverview).mockResolvedValue(buildHomeSystemOverview());
+    vi.mocked(getPluginRegistrySnapshot).mockResolvedValue(buildPluginRegistrySnapshot());
     vi.mocked(getWorkflows).mockResolvedValue([]);
     vi.mocked(getWorkflowDetail).mockResolvedValue(null);
     vi.mocked(getCredentials).mockResolvedValue([]);
-    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue({
-      channels: [],
-      resources: [],
-      requests: [],
-      notifications: [],
-      summary: {
-        ticket_count: 0,
-        pending_ticket_count: 0,
-        approved_ticket_count: 0,
-        rejected_ticket_count: 0,
-        expired_ticket_count: 0,
-        waiting_ticket_count: 0,
-        resumed_ticket_count: 0,
-        failed_ticket_count: 0,
-        pending_notification_count: 0,
-        delivered_notification_count: 0,
-        failed_notification_count: 0
-      },
-      entries: []
-    } as Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>);
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshotFixture()
+    );
 
     const html = renderToStaticMarkup(
       await HomePage({
@@ -183,79 +172,8 @@ describe("HomePage", () => {
   });
 
   it("reuses the shared workflow detail contract in editor chips", async () => {
-    vi.mocked(getSystemOverview).mockResolvedValue({
-      status: "ok",
-      environment: "local",
-      services: [],
-      capabilities: ["frontend-shell-ready"],
-      plugin_adapters: [],
-      sandbox_backends: [],
-      sandbox_readiness: {
-        enabled_backend_count: 0,
-        healthy_backend_count: 0,
-        degraded_backend_count: 0,
-        offline_backend_count: 0,
-        execution_classes: [],
-        supported_languages: [],
-        supported_profiles: [],
-        supported_dependency_modes: [],
-        supports_tool_execution: false,
-        supports_builtin_package_sets: false,
-        supports_backend_extensions: false,
-        supports_network_policy: false,
-        supports_filesystem_policy: false
-      },
-      plugin_tools: [],
-      runtime_activity: {
-        summary: {
-          recent_run_count: 1,
-          recent_event_count: 1,
-          run_statuses: {
-            waiting_callback: 1
-          },
-          event_types: {
-            callback_waiting: 1
-          }
-        },
-        recent_runs: [
-          {
-            id: "run-home-1",
-            workflow_id: "workflow-home-1",
-            workflow_version: "1.0.0",
-            status: "waiting_callback",
-            created_at: "2026-03-22T08:00:00Z",
-            finished_at: null,
-            event_count: 1
-          }
-        ],
-        recent_events: [
-          {
-            id: 7,
-            run_id: "run-home-1",
-            node_run_id: "node-home-1",
-            event_type: "callback_waiting",
-            payload_keys: ["reason"],
-            payload_preview: "callback pending",
-            payload_size: 32,
-            created_at: "2026-03-22T08:01:00Z"
-          }
-        ]
-      },
-      callback_waiting_automation: {
-        status: "configured",
-        scheduler_required: true,
-        detail: "healthy",
-        scheduler_health_status: "healthy",
-        scheduler_health_detail: "healthy",
-        steps: []
-      }
-    } as Awaited<ReturnType<typeof getSystemOverview>>);
-
-    vi.mocked(getPluginRegistrySnapshot).mockResolvedValue({
-      adapters: [],
-      tools: []
-    } as Awaited<ReturnType<typeof getPluginRegistrySnapshot>>);
-
+    vi.mocked(getSystemOverview).mockResolvedValue(buildHomeSystemOverview());
+    vi.mocked(getPluginRegistrySnapshot).mockResolvedValue(buildPluginRegistrySnapshot());
     vi.mocked(getWorkflows).mockResolvedValue([
       {
         id: "  workflow alpha/beta  ",
@@ -273,26 +191,9 @@ describe("HomePage", () => {
     ]);
     vi.mocked(getWorkflowDetail).mockResolvedValue(null);
     vi.mocked(getCredentials).mockResolvedValue([]);
-    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue({
-      channels: [],
-      resources: [],
-      requests: [],
-      notifications: [],
-      summary: {
-        ticket_count: 0,
-        pending_ticket_count: 0,
-        approved_ticket_count: 0,
-        rejected_ticket_count: 0,
-        expired_ticket_count: 0,
-        waiting_ticket_count: 0,
-        resumed_ticket_count: 0,
-        failed_ticket_count: 0,
-        pending_notification_count: 0,
-        delivered_notification_count: 0,
-        failed_notification_count: 0
-      },
-      entries: []
-    } as Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>);
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshotFixture()
+    );
 
     const html = renderToStaticMarkup(
       await HomePage({
@@ -306,228 +207,157 @@ describe("HomePage", () => {
   it("surfaces a shared cross-entry risk digest before separate operator panels", async () => {
     const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
 
-    vi.mocked(getSystemOverview).mockResolvedValue({
-      status: "ok",
-      environment: "local",
-      services: [],
-      capabilities: ["frontend-shell-ready"],
-      plugin_adapters: [],
-      sandbox_backends: [],
-      sandbox_readiness: {
-        enabled_backend_count: 2,
-        healthy_backend_count: 1,
-        degraded_backend_count: 0,
-        offline_backend_count: 1,
-        execution_classes: [
-          {
-            execution_class: "sandbox",
-            available: true,
-            backend_ids: ["sandbox-default"],
-            supported_languages: ["python"],
-            supported_profiles: ["default"],
-            supported_dependency_modes: ["none"],
-            supports_tool_execution: true,
-            supports_builtin_package_sets: false,
-            supports_backend_extensions: false,
-            supports_network_policy: true,
-            supports_filesystem_policy: true,
-            reason: null
-          },
-          {
-            execution_class: "microvm",
-            available: false,
-            backend_ids: [],
-            supported_languages: [],
-            supported_profiles: [],
-            supported_dependency_modes: [],
-            supports_tool_execution: false,
-            supports_builtin_package_sets: false,
-            supports_backend_extensions: false,
-            supports_network_policy: false,
-            supports_filesystem_policy: false,
-            reason: "microvm backend offline"
-          }
-        ],
-        supported_languages: ["python"],
-        supported_profiles: ["default"],
-        supported_dependency_modes: ["none"],
-        supports_tool_execution: true,
-        supports_builtin_package_sets: false,
-        supports_backend_extensions: false,
-        supports_network_policy: true,
-        supports_filesystem_policy: true
-      },
-      plugin_tools: [],
-      runtime_activity: {
-        summary: {
-          recent_run_count: 1,
-          recent_event_count: 1,
-          run_statuses: {
-            waiting_callback: 1
-          },
-          event_types: {
-            callback_waiting: 1
-          }
-        },
-        recent_runs: [
-          {
-            id: "run-home-1",
-            workflow_id: "workflow-home-1",
-            workflow_version: "1.0.0",
-            status: "waiting_callback",
-            created_at: "2026-03-22T08:00:00Z",
-            finished_at: null,
-            event_count: 1
-          }
-        ],
-        recent_events: [
-          {
-            id: 7,
-            run_id: "run-home-1",
-            node_run_id: "node-home-1",
-            event_type: "callback_waiting",
-            payload_keys: ["reason"],
-            payload_preview: "callback pending",
-            payload_size: 32,
-            created_at: "2026-03-22T08:01:00Z"
-          }
-        ]
-      },
-      callback_waiting_automation: {
-        status: "partial",
-        scheduler_required: true,
-        detail: "cleanup is stale",
-        scheduler_health_status: "degraded",
-        scheduler_health_detail: "cleanup has not finished recently",
-        steps: [
-          {
-            key: "callback_ticket_cleanup",
-            label: "Callback ticket cleanup",
-            task: "cleanup",
-            source: "scheduler",
-            enabled: true,
-            interval_seconds: 60,
-            detail: "clean expired callback tickets",
-            scheduler_health: {
-              health_status: "stale",
-              detail: "cleanup has not run recently",
-              last_status: "stale",
-              last_started_at: null,
-              last_finished_at: null,
-              matched_count: 0,
-              affected_count: 0
+    vi.mocked(getSystemOverview).mockResolvedValue(
+      buildHomeSystemOverview({
+        sandbox_readiness: {
+          enabled_backend_count: 2,
+          healthy_backend_count: 1,
+          degraded_backend_count: 0,
+          offline_backend_count: 1,
+          execution_classes: [
+            {
+              execution_class: "sandbox",
+              available: true,
+              backend_ids: ["sandbox-default"],
+              supported_languages: ["python"],
+              supported_profiles: ["default"],
+              supported_dependency_modes: ["none"],
+              supports_tool_execution: true,
+              supports_builtin_package_sets: false,
+              supports_backend_extensions: false,
+              supports_network_policy: true,
+              supports_filesystem_policy: true,
+              reason: null
+            },
+            {
+              execution_class: "microvm",
+              available: false,
+              backend_ids: [],
+              supported_languages: [],
+              supported_profiles: [],
+              supported_dependency_modes: [],
+              supports_tool_execution: false,
+              supports_builtin_package_sets: false,
+              supports_backend_extensions: false,
+              supports_network_policy: false,
+              supports_filesystem_policy: false,
+              reason: "microvm backend offline"
             }
-          }
-        ]
-      }
-    } as Awaited<ReturnType<typeof getSystemOverview>>);
-
-    vi.mocked(getPluginRegistrySnapshot).mockResolvedValue({
-      adapters: [],
-      tools: []
-    } as Awaited<ReturnType<typeof getPluginRegistrySnapshot>>);
-
+          ],
+          supported_languages: ["python"],
+          supported_profiles: ["default"],
+          supported_dependency_modes: ["none"],
+          supports_tool_execution: true,
+          supports_builtin_package_sets: false,
+          supports_backend_extensions: false,
+          supports_network_policy: true,
+          supports_filesystem_policy: true
+        },
+        callback_waiting_automation: {
+          status: "partial",
+          detail: "cleanup is stale",
+          scheduler_health_status: "degraded",
+          scheduler_health_detail: "cleanup has not finished recently",
+          steps: [
+            {
+              key: "callback_ticket_cleanup",
+              label: "Callback ticket cleanup",
+              task: "cleanup",
+              source: "scheduler",
+              enabled: true,
+              interval_seconds: 60,
+              detail: "clean expired callback tickets",
+              scheduler_health: {
+                health_status: "stale",
+                detail: "cleanup has not run recently",
+                last_status: "stale",
+                last_started_at: null,
+                last_finished_at: null,
+                matched_count: 0,
+                affected_count: 0
+              }
+            }
+          ]
+        }
+      })
+    );
+    vi.mocked(getPluginRegistrySnapshot).mockResolvedValue(buildPluginRegistrySnapshot());
     vi.mocked(getWorkflows).mockResolvedValue([]);
     vi.mocked(getWorkflowDetail).mockResolvedValue(null);
     vi.mocked(getCredentials).mockResolvedValue([]);
-    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue({
-      channels: [
-        {
-          channel: "slack",
-          delivery_mode: "worker",
-          target_kind: "http_url",
-          configured: true,
-          health_status: "degraded",
-          summary: "slack webhook is timing out",
-          target_hint: "provide a webhook URL",
-          target_example: "https://hooks.slack.test/abc",
-          health_reason: "recent dispatches timed out",
-          config_facts: [],
-          dispatch_summary: {
-            pending_count: 1,
-            delivered_count: 0,
-            failed_count: 1,
-            latest_dispatch_at: null,
-            latest_delivered_at: null,
-            latest_failure_at: null,
-            latest_failure_error: null,
-            latest_failure_target: null
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshotFixture({
+        channels: [
+          {
+            channel: "slack",
+            delivery_mode: "worker",
+            target_kind: "http_url",
+            configured: true,
+            health_status: "degraded",
+            summary: "slack webhook is timing out",
+            target_hint: "provide a webhook URL",
+            target_example: "https://hooks.slack.test/abc",
+            health_reason: "recent dispatches timed out",
+            config_facts: [],
+            dispatch_summary: {
+              pending_count: 1,
+              delivered_count: 0,
+              failed_count: 1,
+              latest_dispatch_at: null,
+              latest_delivered_at: null,
+              latest_failure_at: null,
+              latest_failure_error: null,
+              latest_failure_target: null
+            }
           }
-        }
-      ],
-      resources: [],
-      requests: [],
-      notifications: [],
-      summary: {
-        ticket_count: 2,
-        pending_ticket_count: 2,
-        approved_ticket_count: 0,
-        rejected_ticket_count: 0,
-        expired_ticket_count: 0,
-        waiting_ticket_count: 1,
-        resumed_ticket_count: 0,
-        failed_ticket_count: 0,
-        pending_notification_count: 1,
-        delivered_notification_count: 0,
-        failed_notification_count: 1
-      },
-      entries: [
-        {
-          ticket: {
-            id: "ticket-home-1",
-            access_request_id: "request-home-1",
-            run_id: "run-home-entry",
-            node_run_id: "node-home-entry",
-            status: "pending",
-            waiting_status: "waiting",
-            created_at: "2026-03-22T10:00:00Z"
-          },
-          request: {
-            id: "request-home-1",
-            run_id: "run-home-entry",
-            node_run_id: "node-home-entry",
-            requester_type: "ai",
-            requester_id: "agent-home",
-            resource_id: "resource-home-secret",
-            action_type: "read",
-            created_at: "2026-03-22T09:59:00Z"
-          },
-          resource: {
-            id: "resource-home-secret",
-            label: "Home secret",
-            sensitivity_level: "L3",
-            source: "credential",
-            metadata: {},
-            created_at: "2026-03-22T09:00:00Z",
-            updated_at: "2026-03-22T09:30:00Z"
-          },
-          notifications: [],
-          callbackWaitingContext: null,
-          executionContext: {
-            runId: "run-home-focus",
-            focusNode: {
-              node_run_id: "node-home-focus",
-              node_id: "home-approval-node",
-              node_name: "Home Approval",
-              node_type: "tool",
-              callback_tickets: [],
-              sensitive_access_entries: [],
-              execution_fallback_count: 0,
-              execution_blocked_count: 0,
-              execution_unavailable_count: 0,
-              artifact_refs: [],
-              artifacts: [],
-              tool_calls: []
-            },
-            focusReason: "current_node",
-            focusExplanation: null,
-            focusMatchesEntry: false,
-            entryNodeRunId: "node-home-entry",
-            skillTrace: null
-          }
-        }
-      ]
-    } as Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>);
+        ],
+        summary: {
+          ticket_count: 2,
+          pending_ticket_count: 2,
+          waiting_ticket_count: 1,
+          pending_notification_count: 1,
+          failed_notification_count: 1
+        },
+        entries: [
+          buildSensitiveAccessInboxEntryFixture({
+            ticket: buildSensitiveAccessTicketFixture({
+              id: "ticket-home-1",
+              access_request_id: "request-home-1",
+              run_id: "run-home-entry",
+              node_run_id: "node-home-entry",
+              created_at: "2026-03-22T10:00:00Z"
+            }),
+            request: buildSensitiveAccessRequestFixture({
+              id: "request-home-1",
+              run_id: "run-home-entry",
+              node_run_id: "node-home-entry",
+              requester_type: "ai",
+              requester_id: "agent-home",
+              resource_id: "resource-home-secret",
+              created_at: "2026-03-22T09:59:00Z"
+            }),
+            resource: buildSensitiveAccessResourceFixture({
+              id: "resource-home-secret",
+              label: "Home secret",
+              sensitivity_level: "L3",
+              source: "credential",
+              created_at: "2026-03-22T09:00:00Z",
+              updated_at: "2026-03-22T09:30:00Z"
+            }),
+            executionContext: buildSensitiveAccessExecutionContextFixture({
+              runId: "run-home-focus",
+              focusNode: buildSensitiveAccessExecutionFocusNodeFixture({
+                node_run_id: "node-home-focus",
+                node_id: "home-approval-node",
+                node_name: "Home Approval"
+              }),
+              focusMatchesEntry: false,
+              entryNodeRunId: "node-home-entry"
+            })
+          })
+        ]
+      })
+    );
 
     const html = renderToStaticMarkup(
       await HomePage({
