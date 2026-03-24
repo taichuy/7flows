@@ -1,10 +1,18 @@
 import { getCallbackWaitingAutomationHealthSnapshot } from "@/lib/callback-waiting-presenters";
 import type {
+  SensitiveAccessInboxEntry,
   NotificationChannelCapabilityItem,
   SensitiveAccessInboxSummary
 } from "@/lib/get-sensitive-access";
-import { buildOperatorInboxSliceLinkSurface } from "@/lib/operator-follow-up-presenters";
-import { resolveSensitiveAccessPrimaryBacklog } from "@/lib/sensitive-access-follow-up-presenters";
+import {
+  buildOperatorInboxSliceLinkSurface,
+  buildOperatorTraceSliceLinkSurface
+} from "@/lib/operator-follow-up-presenters";
+import {
+  findSensitiveAccessPrimaryBacklogEntry,
+  resolveSensitiveAccessPrimaryBacklog
+} from "@/lib/sensitive-access-follow-up-presenters";
+import { resolveSensitiveAccessInboxEntryScope } from "@/lib/sensitive-access-inbox-entry-scope";
 import type {
   CallbackWaitingAutomationCheck,
   SandboxReadinessCheck,
@@ -65,6 +73,13 @@ type BuildCrossEntryRiskDigestInput = {
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sensitiveAccessSummary: SensitiveAccessInboxSummary;
   channels: NotificationChannelCapabilityItem[];
+  sensitiveAccessEntries?: SensitiveAccessInboxEntry[];
+};
+
+type CrossEntryRiskDigestFollowUpSurface = {
+  entryKey: WorkbenchEntryLinkKey;
+  entryOverride?: WorkbenchEntryLinkOverride;
+  nextStep?: string;
 };
 
 function joinNonEmpty(parts: Array<string | null | undefined>, separator = "；") {
@@ -299,6 +314,68 @@ function buildOperatorBacklogNextStep(
   }
 }
 
+function buildFocusedTraceBacklogNextStep(
+  entry: SensitiveAccessInboxEntry,
+  backlogKind: NonNullable<ReturnType<typeof resolveSensitiveAccessPrimaryBacklog>>["kind"]
+) {
+  const resourceLabel = entry.resource?.label ?? entry.request?.resource_id ?? entry.ticket.id;
+
+  switch (backlogKind) {
+    case "pending_approval":
+      return `当前 ${resourceLabel} 的审批票据仍是 operator backlog 首要阻断；先打开对应 focused trace slice，对齐审批票据、waiting 原因与 execution focus，再回 inbox 完成审批。`;
+    case "waiting_resume":
+      return `当前 ${resourceLabel} 仍停在 waiting resume；先打开对应 focused trace slice，确认 callback / resume 与 focus node 是否继续推进。`;
+    case "failed_notification":
+      return `当前 ${resourceLabel} 的通知仍失败；先打开对应 focused trace slice，对齐通知补链与 run follow-up，再决定是否重试。`;
+    case "pending_notification":
+      return `当前 ${resourceLabel} 的通知仍在排队；先打开对应 focused trace slice，确认事件是否已经推进到无需人工介入。`;
+    case "rejected_approval":
+      return `当前 ${resourceLabel} 的审批已被拒绝；先打开对应 focused trace slice，确认当前 focus node 与后续处置路径是否一致。`;
+    case "expired_approval":
+      return `当前 ${resourceLabel} 的审批票据已过期；先打开对应 focused trace slice，决定是否重新发起审批或改走其他恢复路径。`;
+    default:
+      return `当前 ${resourceLabel} 仍在 operator backlog；先打开对应 focused trace slice，再决定后续处理路径。`;
+  }
+}
+
+function buildFocusedTraceFollowUpSurface(
+  primaryBacklog: ReturnType<typeof resolveSensitiveAccessPrimaryBacklog>,
+  entries: SensitiveAccessInboxEntry[]
+): CrossEntryRiskDigestFollowUpSurface | null {
+  if (!primaryBacklog) {
+    return null;
+  }
+
+  const primaryEntry = findSensitiveAccessPrimaryBacklogEntry(entries, primaryBacklog.kind);
+  if (!primaryEntry) {
+    return null;
+  }
+
+  const displayScope = resolveSensitiveAccessInboxEntryScope(primaryEntry);
+  if (!displayScope.runId?.trim() || !displayScope.nodeRunId?.trim()) {
+    return null;
+  }
+
+  const traceLinkSurface = buildOperatorTraceSliceLinkSurface({
+    runId: displayScope.runId,
+    nodeRunId: displayScope.nodeRunId,
+    hrefLabel: "jump to focused trace slice"
+  });
+
+  if (!traceLinkSurface) {
+    return null;
+  }
+
+  return {
+    entryKey: "runLibrary",
+    entryOverride: buildEntryOverride({
+      href: traceLinkSurface.href,
+      label: traceLinkSurface.label
+    }),
+    nextStep: buildFocusedTraceBacklogNextStep(primaryEntry, primaryBacklog.kind)
+  };
+}
+
 function getOverallTone(
   focusAreas: CrossEntryRiskDigestFocusArea[]
 ): CrossEntryRiskDigestTone {
@@ -349,7 +426,8 @@ export function buildCrossEntryRiskDigest({
   sandboxReadiness,
   callbackWaitingAutomation,
   sensitiveAccessSummary,
-  channels
+  channels,
+  sensitiveAccessEntries = []
 }: BuildCrossEntryRiskDigestInput): CrossEntryRiskDigest {
   const blockedClasses = listSandboxBlockedClasses(sandboxReadiness);
   const availableClasses = listSandboxAvailableClasses(sandboxReadiness);
@@ -402,6 +480,10 @@ export function buildCrossEntryRiskDigest({
     blockers: operatorBlockers,
     channelAttentionCount: channelAttention.attentionCount
   });
+  const operatorFocusedTraceSurface = buildFocusedTraceFollowUpSurface(
+    operatorPrimaryBacklog,
+    sensitiveAccessEntries
+  );
   const operatorInboxLinkSurface = buildOperatorInboxSliceLinkSurface({
     href: operatorPrimaryBacklog?.href ?? null
   });
@@ -464,12 +546,16 @@ export function buildCrossEntryRiskDigest({
       title: "Approval & notification backlog",
       tone: operatorTone,
       summary: operatorSummary,
-      nextStep: buildOperatorBacklogNextStep(operatorPrimaryBacklog),
-      entryKey: "operatorInbox",
-      entryOverride: buildEntryOverride({
-        href: operatorInboxLinkSurface?.href,
-        label: operatorInboxLinkSurface?.label
-      })
+      nextStep:
+        operatorFocusedTraceSurface?.nextStep ??
+        buildOperatorBacklogNextStep(operatorPrimaryBacklog),
+      entryKey: operatorFocusedTraceSurface?.entryKey ?? "operatorInbox",
+      entryOverride:
+        operatorFocusedTraceSurface?.entryOverride ??
+        buildEntryOverride({
+          href: operatorInboxLinkSurface?.href,
+          label: operatorInboxLinkSurface?.label
+        })
     }
   ];
 
@@ -489,6 +575,14 @@ export function buildCrossEntryRiskDigest({
   if (primaryFocusArea) {
     setEntryOverride(entryOverrides, primaryFocusArea.entryKey, primaryFocusArea.entryOverride);
   }
+  setEntryOverride(
+    entryOverrides,
+    "operatorInbox",
+    buildEntryOverride({
+      href: operatorInboxLinkSurface?.href,
+      label: operatorInboxLinkSurface?.label
+    })
+  );
   for (const area of focusAreas) {
     setEntryOverride(entryOverrides, area.entryKey, area.entryOverride);
   }

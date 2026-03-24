@@ -43,8 +43,10 @@ vi.mock("@/lib/get-workflow-publish", () => ({
   getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot: vi.fn()
 }));
 
-function buildSensitiveAccessInboxSnapshot() {
-  return {
+function buildSensitiveAccessInboxSnapshot(
+  overrides: Partial<Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>> = {}
+) {
+  const defaultSnapshot = {
     channels: [],
     resources: [],
     requests: [],
@@ -63,6 +65,15 @@ function buildSensitiveAccessInboxSnapshot() {
       failed_notification_count: 0
     },
     entries: []
+  } satisfies Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>;
+
+  return {
+    ...defaultSnapshot,
+    ...overrides,
+    summary: {
+      ...defaultSnapshot.summary,
+      ...overrides.summary
+    }
   } as Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>;
 }
 
@@ -314,6 +325,102 @@ describe("WorkflowsPage", () => {
       "优先回到 Legacy Auth workflow 处理 1 个 publish draft：先把 workflow draft endpoint 切回 api_key/internal 并保存"
     );
     expect(html).toContain('/workflows/workflow-legacy-auth');
+  });
+
+  it("projects workflow library digest to a focused trace slice when operator backlog already has focus-node facts", async () => {
+    vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot({
+        summary: {
+          ...buildSensitiveAccessInboxSnapshot().summary,
+          ticket_count: 1,
+          pending_ticket_count: 1,
+          waiting_ticket_count: 1
+        },
+        entries: [
+          {
+            ticket: {
+              id: "ticket-workflow-1",
+              access_request_id: "request-workflow-1",
+              run_id: "run-workflow-entry",
+              node_run_id: "node-workflow-entry",
+              status: "pending",
+              waiting_status: "waiting",
+              created_at: "2026-03-22T10:00:00Z"
+            },
+            request: {
+              id: "request-workflow-1",
+              run_id: "run-workflow-entry",
+              node_run_id: "node-workflow-entry",
+              requester_type: "ai",
+              requester_id: "agent-workflow",
+              resource_id: "resource-workflow-secret",
+              action_type: "read",
+              created_at: "2026-03-22T09:59:00Z"
+            },
+            resource: {
+              id: "resource-workflow-secret",
+              label: "Workflow secret",
+              sensitivity_level: "L3",
+              source: "credential",
+              metadata: {},
+              created_at: "2026-03-22T09:00:00Z",
+              updated_at: "2026-03-22T09:30:00Z"
+            },
+            notifications: [],
+            callbackWaitingContext: null,
+            executionContext: {
+              runId: "run-workflow-focus",
+              focusNode: {
+                node_run_id: "node-workflow-focus",
+                node_id: "workflow-approval-node",
+                node_name: "Workflow Approval",
+                node_type: "tool",
+                callback_tickets: [],
+                sensitive_access_entries: [],
+                execution_fallback_count: 0,
+                execution_blocked_count: 0,
+                execution_unavailable_count: 0,
+                artifact_refs: [],
+                artifacts: [],
+                tool_calls: []
+              },
+              focusReason: "current_node",
+              focusExplanation: null,
+              focusMatchesEntry: false,
+              entryNodeRunId: "node-workflow-entry",
+              skillTrace: null
+            }
+          }
+        ]
+      })
+    );
+    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshot());
+    vi.mocked(getWorkflows).mockResolvedValue([
+      {
+        id: "workflow-1",
+        name: "Alpha workflow",
+        version: "1.0.0",
+        status: "draft",
+        node_count: 1,
+        definition_issues: [],
+        tool_governance: {
+          referenced_tool_ids: [],
+          missing_tool_ids: [],
+          governed_tool_count: 0,
+          strong_isolation_tool_count: 0
+        }
+      }
+    ]);
+
+    const html = renderToStaticMarkup(await WorkflowsPage());
+
+    expect(html).toContain("Cross-entry risk digest");
+    expect(html).toContain("jump to focused trace slice");
+    expect(html).toContain(
+      '/runs/run-workflow-focus?node_run_id=node-workflow-focus#run-diagnostics-execution-timeline'
+    );
+    expect(html).toContain('/sensitive-access?status=pending');
   });
 
   it("surfaces cross-workflow legacy auth governance artifact in the library", async () => {

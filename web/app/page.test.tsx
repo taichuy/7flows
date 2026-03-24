@@ -396,7 +396,62 @@ describe("HomePage", () => {
         delivered_notification_count: 0,
         failed_notification_count: 1
       },
-      entries: []
+      entries: [
+        {
+          ticket: {
+            id: "ticket-home-1",
+            access_request_id: "request-home-1",
+            run_id: "run-home-entry",
+            node_run_id: "node-home-entry",
+            status: "pending",
+            waiting_status: "waiting",
+            created_at: "2026-03-22T10:00:00Z"
+          },
+          request: {
+            id: "request-home-1",
+            run_id: "run-home-entry",
+            node_run_id: "node-home-entry",
+            requester_type: "ai",
+            requester_id: "agent-home",
+            resource_id: "resource-home-secret",
+            action_type: "read",
+            created_at: "2026-03-22T09:59:00Z"
+          },
+          resource: {
+            id: "resource-home-secret",
+            label: "Home secret",
+            sensitivity_level: "L3",
+            source: "credential",
+            metadata: {},
+            created_at: "2026-03-22T09:00:00Z",
+            updated_at: "2026-03-22T09:30:00Z"
+          },
+          notifications: [],
+          callbackWaitingContext: null,
+          executionContext: {
+            runId: "run-home-focus",
+            focusNode: {
+              node_run_id: "node-home-focus",
+              node_id: "home-approval-node",
+              node_name: "Home Approval",
+              node_type: "tool",
+              callback_tickets: [],
+              sensitive_access_entries: [],
+              execution_fallback_count: 0,
+              execution_blocked_count: 0,
+              execution_unavailable_count: 0,
+              artifact_refs: [],
+              artifacts: [],
+              tool_calls: []
+            },
+            focusReason: "current_node",
+            focusExplanation: null,
+            focusMatchesEntry: false,
+            entryNodeRunId: "node-home-entry",
+            skillTrace: null
+          }
+        }
+      ]
     } as Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>);
 
     const html = renderToStaticMarkup(
@@ -406,6 +461,10 @@ describe("HomePage", () => {
     );
 
     expect(html).toContain("Cross-entry risk digest");
+    expect(html).toContain("jump to focused trace slice");
+    expect(html).toContain(
+      '/runs/run-home-focus?node_run_id=node-home-focus#run-diagnostics-execution-timeline'
+    );
     expect(html).toContain('/sensitive-access?status=pending');
     expect(html).toContain(operatorSurfaceCopy.openInboxSliceLabel);
     expect(html).toContain("Approval &amp; notification backlog");

@@ -15,7 +15,10 @@ import {
   type OperatorRecommendedNextStep,
   type OperatorRecommendedNextStepCandidate
 } from "@/lib/operator-follow-up-presenters";
-import { resolveSensitiveAccessPrimaryBacklog } from "@/lib/sensitive-access-follow-up-presenters";
+import {
+  findSensitiveAccessPrimaryBacklogEntry,
+  resolveSensitiveAccessPrimaryBacklog
+} from "@/lib/sensitive-access-follow-up-presenters";
 import { resolveSensitiveAccessInboxEntryActionScope } from "@/lib/sensitive-access-inbox-entry-scope";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 import {
@@ -197,35 +200,6 @@ export function buildRunLibraryRecommendedNextStep({
   });
 }
 
-function entryHasNotificationStatus(
-  entry: SensitiveAccessInboxEntry,
-  status: "failed" | "pending"
-) {
-  return entry.notifications.some((notification) => notification.status === status);
-}
-
-function findPrimaryBacklogEntry(
-  entries: SensitiveAccessInboxEntry[],
-  backlogKind: NonNullable<ReturnType<typeof resolveSensitiveAccessPrimaryBacklog>>["kind"]
-) {
-  switch (backlogKind) {
-    case "pending_approval":
-      return entries.find((entry) => entry.ticket.status === "pending") ?? null;
-    case "waiting_resume":
-      return entries.find((entry) => entry.ticket.waiting_status === "waiting") ?? null;
-    case "failed_notification":
-      return entries.find((entry) => entryHasNotificationStatus(entry, "failed")) ?? null;
-    case "pending_notification":
-      return entries.find((entry) => entryHasNotificationStatus(entry, "pending")) ?? null;
-    case "rejected_approval":
-      return entries.find((entry) => entry.ticket.status === "rejected") ?? null;
-    case "expired_approval":
-      return entries.find((entry) => entry.ticket.status === "expired") ?? null;
-    default:
-      return null;
-  }
-}
-
 function buildInboxEntryBacklogDetail(
   entry: SensitiveAccessInboxEntry,
   backlogKind: NonNullable<ReturnType<typeof resolveSensitiveAccessPrimaryBacklog>>["kind"]
@@ -341,7 +315,9 @@ export function buildSensitiveAccessInboxRecommendedNextStep({
     return null;
   }
 
-  const backlogEntry = backlog ? findPrimaryBacklogEntry(entries, backlog.kind) : null;
+  const backlogEntry = backlog
+    ? findSensitiveAccessPrimaryBacklogEntry(entries, backlog.kind)
+    : null;
   const backlogEntryCandidate = backlogEntry && backlog
     ? buildSensitiveAccessInboxEntryCandidate({
         entry: backlogEntry,

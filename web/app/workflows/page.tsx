@@ -117,7 +117,8 @@ export default async function WorkflowsPage({
     sandboxReadiness: systemOverview.sandbox_readiness,
     callbackWaitingAutomation: systemOverview.callback_waiting_automation,
     sensitiveAccessSummary: sensitiveAccessInbox.summary,
-    channels: sensitiveAccessInbox.channels
+    channels: sensitiveAccessInbox.channels,
+    sensitiveAccessEntries: sensitiveAccessInbox.entries
   });
   const legacyAuthWorkflowDetailHrefsById = Object.fromEntries(
     (legacyAuthGovernanceSnapshot?.workflows ?? []).map((workflow) => [

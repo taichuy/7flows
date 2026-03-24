@@ -65,7 +65,8 @@ export default async function RunsPage({ searchParams }: RunsPageProps = {}) {
     sandboxReadiness: overview.sandbox_readiness,
     callbackWaitingAutomation: overview.callback_waiting_automation,
     sensitiveAccessSummary: sensitiveAccessInbox.summary,
-    channels: sensitiveAccessInbox.channels
+    channels: sensitiveAccessInbox.channels,
+    sensitiveAccessEntries: sensitiveAccessInbox.entries
   });
   const recommendedNextStep = buildRunLibraryRecommendedNextStep({
     runtimeActivity: overview.runtime_activity,

@@ -24,8 +24,10 @@ vi.mock("@/lib/get-sensitive-access", () => ({
   getSensitiveAccessInboxSnapshot: vi.fn()
 }));
 
-function buildSensitiveAccessInboxSnapshot() {
-  return {
+function buildSensitiveAccessInboxSnapshot(
+  overrides: Partial<Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>> = {}
+) {
+  const defaultSnapshot = {
     channels: [],
     resources: [],
     requests: [],
@@ -44,6 +46,15 @@ function buildSensitiveAccessInboxSnapshot() {
       failed_notification_count: 0
     },
     entries: []
+  } satisfies Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>;
+
+  return {
+    ...defaultSnapshot,
+    ...overrides,
+    summary: {
+      ...defaultSnapshot.summary,
+      ...overrides.summary
+    }
   } as Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>;
 }
 
@@ -119,19 +130,80 @@ describe("RunsPage", () => {
       }
     });
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue({
-      ...buildSensitiveAccessInboxSnapshot(),
-      summary: {
-        ...buildSensitiveAccessInboxSnapshot().summary,
-        ticket_count: 1,
-        pending_ticket_count: 1,
-        waiting_ticket_count: 1
-      }
+      ...buildSensitiveAccessInboxSnapshot({
+        summary: {
+          ...buildSensitiveAccessInboxSnapshot().summary,
+          ticket_count: 1,
+          pending_ticket_count: 1,
+          waiting_ticket_count: 1
+        },
+        entries: [
+          {
+            ticket: {
+              id: "ticket-run-1",
+              access_request_id: "request-run-1",
+              run_id: "run-library-entry",
+              node_run_id: "node-library-entry",
+              status: "pending",
+              waiting_status: "waiting",
+              created_at: "2026-03-22T10:00:00Z"
+            },
+            request: {
+              id: "request-run-1",
+              run_id: "run-library-entry",
+              node_run_id: "node-library-entry",
+              requester_type: "ai",
+              requester_id: "agent-run",
+              resource_id: "resource-run-secret",
+              action_type: "read",
+              created_at: "2026-03-22T09:59:00Z"
+            },
+            resource: {
+              id: "resource-run-secret",
+              label: "Run secret",
+              sensitivity_level: "L3",
+              source: "credential",
+              metadata: {},
+              created_at: "2026-03-22T09:00:00Z",
+              updated_at: "2026-03-22T09:30:00Z"
+            },
+            notifications: [],
+            callbackWaitingContext: null,
+            executionContext: {
+              runId: "run-library-focus",
+              focusNode: {
+                node_run_id: "node-library-focus",
+                node_id: "run-approval-node",
+                node_name: "Run Approval",
+                node_type: "tool",
+                callback_tickets: [],
+                sensitive_access_entries: [],
+                execution_fallback_count: 0,
+                execution_blocked_count: 0,
+                execution_unavailable_count: 0,
+                artifact_refs: [],
+                artifacts: [],
+                tool_calls: []
+              },
+              focusReason: "current_node",
+              focusExplanation: null,
+              focusMatchesEntry: false,
+              entryNodeRunId: "node-library-entry",
+              skillTrace: null
+            }
+          }
+        ]
+      })
     });
 
     const html = renderToStaticMarkup(await RunsPage());
 
     expect(html).toContain("运行诊断入口收口到独立列表");
     expect(html).toContain("Cross-entry risk digest");
+    expect(html).toContain("jump to focused trace slice");
+    expect(html).toContain(
+      '/runs/run-library-focus?node_run_id=node-library-focus#run-diagnostics-execution-timeline'
+    );
     expect(html).toContain('/runs/run-1');
     expect(html).toContain('/workflows/workflow-1');
     expect(html).toContain("回到 workflow 编辑器");

@@ -64,7 +64,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     sandboxReadiness: overview.sandbox_readiness,
     callbackWaitingAutomation: overview.callback_waiting_automation,
     sensitiveAccessSummary: sensitiveAccessInbox.summary,
-    channels: sensitiveAccessInbox.channels
+    channels: sensitiveAccessInbox.channels,
+    sensitiveAccessEntries: sensitiveAccessInbox.entries
   });
   const selectedWorkflowId = requestedWorkflowId || workflows[0]?.id || "";
   const selectedWorkflow = await getWorkflowDetail(selectedWorkflowId);

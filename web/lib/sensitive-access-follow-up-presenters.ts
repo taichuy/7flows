@@ -1,3 +1,4 @@
+import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 
 export type SensitiveAccessPrimaryBacklogKind =
@@ -26,6 +27,13 @@ type ResolveSensitiveAccessPrimaryBacklogInput = {
 
 function normalizeCount(count?: number | null) {
   return Math.max(Number(count ?? 0), 0);
+}
+
+function entryHasNotificationStatus(
+  entry: SensitiveAccessInboxEntry,
+  status: "failed" | "pending"
+) {
+  return entry.notifications.some((notification) => notification.status === status);
 }
 
 export function resolveSensitiveAccessPrimaryBacklog({
@@ -76,4 +84,26 @@ export function resolveSensitiveAccessPrimaryBacklog({
   ];
 
   return candidates.find((candidate) => candidate.count > 0) ?? null;
+}
+
+export function findSensitiveAccessPrimaryBacklogEntry(
+  entries: SensitiveAccessInboxEntry[],
+  backlogKind: NonNullable<ReturnType<typeof resolveSensitiveAccessPrimaryBacklog>>["kind"]
+) {
+  switch (backlogKind) {
+    case "pending_approval":
+      return entries.find((entry) => entry.ticket.status === "pending") ?? null;
+    case "waiting_resume":
+      return entries.find((entry) => entry.ticket.waiting_status === "waiting") ?? null;
+    case "failed_notification":
+      return entries.find((entry) => entryHasNotificationStatus(entry, "failed")) ?? null;
+    case "pending_notification":
+      return entries.find((entry) => entryHasNotificationStatus(entry, "pending")) ?? null;
+    case "rejected_approval":
+      return entries.find((entry) => entry.ticket.status === "rejected") ?? null;
+    case "expired_approval":
+      return entries.find((entry) => entry.ticket.status === "expired") ?? null;
+    default:
+      return null;
+  }
 }

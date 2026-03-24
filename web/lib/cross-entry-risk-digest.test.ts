@@ -1,6 +1,75 @@
 import { describe, expect, it } from "vitest";
 
 import { buildCrossEntryRiskDigest } from "@/lib/cross-entry-risk-digest";
+import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
+
+function buildFocusedBacklogEntry(): SensitiveAccessInboxEntry {
+  return {
+    ticket: {
+      id: "ticket-1",
+      access_request_id: "request-1",
+      run_id: "run-entry",
+      node_run_id: "node-entry",
+      status: "pending",
+      waiting_status: "waiting",
+      approved_by: null,
+      decided_at: null,
+      expires_at: null,
+      created_at: "2026-03-22T10:00:00Z"
+    },
+    request: {
+      id: "request-1",
+      run_id: "run-entry",
+      node_run_id: "node-entry",
+      requester_type: "ai",
+      requester_id: "agent-1",
+      resource_id: "resource-prod-secret",
+      action_type: "read",
+      purpose_text: "read prod secret",
+      decision: "require_approval",
+      decision_label: "Require approval",
+      reason_code: "sensitive_access",
+      reason_label: "Sensitive access",
+      policy_summary: "needs approval",
+      created_at: "2026-03-22T09:59:00Z",
+      decided_at: null
+    },
+    resource: {
+      id: "resource-prod-secret",
+      label: "Prod secret",
+      description: "production secret",
+      sensitivity_level: "L3",
+      source: "credential",
+      metadata: {},
+      created_at: "2026-03-22T09:00:00Z",
+      updated_at: "2026-03-22T09:30:00Z"
+    },
+    notifications: [],
+    callbackWaitingContext: null,
+    executionContext: {
+      runId: "run-focus",
+      focusNode: {
+        node_run_id: "node-focus",
+        node_id: "approve-node",
+        node_name: "Approval gate",
+        node_type: "tool",
+        callback_tickets: [],
+        sensitive_access_entries: [],
+        execution_fallback_count: 0,
+        execution_blocked_count: 0,
+        execution_unavailable_count: 0,
+        artifact_refs: [],
+        artifacts: [],
+        tool_calls: []
+      },
+      focusReason: "current_node",
+      focusExplanation: null,
+      focusMatchesEntry: false,
+      entryNodeRunId: "node-entry",
+      skillTrace: null
+    }
+  };
+}
 
 describe("buildCrossEntryRiskDigest", () => {
   it("prioritizes operator inbox when approval backlog is still blocking resume", () => {
@@ -265,6 +334,84 @@ describe("buildCrossEntryRiskDigest", () => {
     expect(digest.tone).toBe("healthy");
     expect(digest.primaryEntryKey).toBe("workflowLibrary");
     expect(digest.headline).toContain("跨入口风险已收敛");
+  });
+
+  it("projects primary operator backlog to a focused trace slice when inbox entries carry run and node facts", () => {
+    const digest = buildCrossEntryRiskDigest({
+      sandboxReadiness: {
+        enabled_backend_count: 1,
+        healthy_backend_count: 1,
+        degraded_backend_count: 0,
+        offline_backend_count: 0,
+        execution_classes: [],
+        supported_languages: [],
+        supported_profiles: [],
+        supported_dependency_modes: [],
+        supports_tool_execution: false,
+        supports_builtin_package_sets: false,
+        supports_backend_extensions: false,
+        supports_network_policy: false,
+        supports_filesystem_policy: false
+      },
+      callbackWaitingAutomation: {
+        status: "configured",
+        scheduler_required: true,
+        detail: "healthy",
+        scheduler_health_status: "healthy",
+        scheduler_health_detail: "healthy",
+        steps: []
+      },
+      sensitiveAccessSummary: {
+        ticket_count: 1,
+        pending_ticket_count: 1,
+        approved_ticket_count: 0,
+        rejected_ticket_count: 0,
+        expired_ticket_count: 0,
+        waiting_ticket_count: 1,
+        resumed_ticket_count: 0,
+        failed_ticket_count: 0,
+        pending_notification_count: 0,
+        delivered_notification_count: 0,
+        failed_notification_count: 0,
+        affected_run_count: 1,
+        affected_workflow_count: 1,
+        primary_blocker_kind: "pending_approval",
+        blockers: [
+          {
+            kind: "pending_approval",
+            tone: "blocked",
+            item_count: 1,
+            affected_run_count: 1,
+            affected_workflow_count: 1
+          }
+        ]
+      },
+      channels: [],
+      sensitiveAccessEntries: [buildFocusedBacklogEntry()]
+    });
+
+    expect(digest.primaryEntryKey).toBe("runLibrary");
+    expect(digest.primaryFollowUpEntry).toEqual({
+      entryKey: "runLibrary",
+      entryOverride: {
+        href: "/runs/run-focus?node_run_id=node-focus#run-diagnostics-execution-timeline",
+        label: "jump to focused trace slice"
+      }
+    });
+    expect(digest.entryOverrides?.operatorInbox).toEqual({
+      href: "/sensitive-access?status=pending",
+      label: "open inbox slice"
+    });
+    expect(digest.focusAreas.find((area) => area.id === "operator")).toMatchObject({
+      entryKey: "runLibrary",
+      entryOverride: {
+        href: "/runs/run-focus?node_run_id=node-focus#run-diagnostics-execution-timeline",
+        label: "jump to focused trace slice"
+      }
+    });
+    expect(digest.focusAreas.find((area) => area.id === "operator")?.nextStep).toContain(
+      "Prod secret"
+    );
   });
 
   it("normalizes shared recommended action entry keys for cross-entry CTA overrides", () => {
