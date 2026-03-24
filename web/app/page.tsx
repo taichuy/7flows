@@ -68,6 +68,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const crossEntryRiskDigest = buildCrossEntryRiskDigest({
     sandboxReadiness: overview.sandbox_readiness,
     callbackWaitingAutomation: overview.callback_waiting_automation,
+    recentEvents,
     sensitiveAccessSummary: sensitiveAccessInbox.summary,
     channels: sensitiveAccessInbox.channels,
     sensitiveAccessEntries: sensitiveAccessInbox.entries
@@ -136,11 +137,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       <section className="diagnostics-layout">
         <CallbackWaitingAutomationPanel
           automation={overview.callback_waiting_automation}
+          recentEvents={recentEvents}
         />
       </section>
 
       <section className="diagnostics-layout">
-        <SandboxReadinessPanel readiness={overview.sandbox_readiness} />
+        <SandboxReadinessPanel
+          readiness={overview.sandbox_readiness}
+          recentEvents={recentEvents}
+        />
       </section>
 
       <section className="diagnostics-layout">

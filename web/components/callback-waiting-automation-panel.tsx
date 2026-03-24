@@ -1,8 +1,22 @@
-import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
+import Link from "next/link";
+
+import type {
+  CallbackWaitingAutomationCheck,
+  RecentRunEventCheck
+} from "@/lib/get-system-overview";
+import {
+  buildOperatorFollowUpSurfaceCopy,
+  buildOperatorRecommendedNextStep
+} from "@/lib/operator-follow-up-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import {
+  buildCallbackWaitingAutomationFollowUpCandidate,
+  buildCallbackWaitingAutomationSystemFollowUp
+} from "@/lib/system-overview-follow-up-presenters";
 
 type CallbackWaitingAutomationPanelProps = {
   automation: CallbackWaitingAutomationCheck;
+  recentEvents?: RecentRunEventCheck[];
 };
 
 const statusLabelMap: Record<string, string> = {
@@ -35,9 +49,20 @@ const stepHealthClassMap: Record<string, string> = {
 };
 
 export function CallbackWaitingAutomationPanel({
-  automation
+  automation,
+  recentEvents = []
 }: CallbackWaitingAutomationPanelProps) {
   const enabledSteps = automation.steps.filter((step) => step.enabled);
+  const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
+  const followUpSurface = buildCallbackWaitingAutomationSystemFollowUp(automation, {
+    recentEvents
+  });
+  const recommendedNextStep = buildOperatorRecommendedNextStep({
+    callback: buildCallbackWaitingAutomationFollowUpCandidate(
+      automation,
+      "callback recovery"
+    )
+  });
 
   return (
     <article className="diagnostic-panel panel-span">
@@ -73,6 +98,26 @@ export function CallbackWaitingAutomationPanel({
           <strong>{automation.scheduler_required ? "yes" : "no"}</strong>
         </article>
       </div>
+
+      {recommendedNextStep ? (
+        <article className="entry-card compact-card">
+          <div className="payload-card-header">
+            <span className="status-meta">{operatorSurfaceCopy.recommendedNextStepTitle}</span>
+            <span className="event-chip">{recommendedNextStep.label}</span>
+            {recommendedNextStep.href && recommendedNextStep.href_label ? (
+              <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
+                {recommendedNextStep.href_label}
+              </Link>
+            ) : null}
+            {followUpSurface?.traceLink ? (
+              <Link className="event-chip inbox-filter-link" href={followUpSurface.traceLink.href}>
+                {followUpSurface.traceLink.label}
+              </Link>
+            ) : null}
+          </div>
+          <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
+        </article>
+      ) : null}
 
       <div className="activity-list">
         {automation.steps.map((step) => (

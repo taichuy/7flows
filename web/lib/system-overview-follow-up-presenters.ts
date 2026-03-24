@@ -1,9 +1,14 @@
 import type {
   CallbackWaitingAutomationCheck,
+  RecentRunEventCheck,
   SandboxReadinessCheck,
   SystemOverviewRecommendedAction
 } from "@/lib/get-system-overview";
-import type { OperatorRecommendedNextStepCandidate } from "@/lib/operator-follow-up-presenters";
+import type {
+  OperatorFollowUpLinkSurface,
+  OperatorRecommendedNextStepCandidate
+} from "@/lib/operator-follow-up-presenters";
+import { buildRuntimeActivityEventTraceLinkSurface } from "@/lib/runtime-activity-trace-links";
 import { type WorkbenchEntryLinkKey } from "@/lib/workbench-entry-links";
 
 export type SystemOverviewFollowUpSource =
@@ -18,6 +23,8 @@ export type SystemOverviewFollowUpSurface = {
   hrefLabel: string | null;
   impactedScope: string | null;
   entryKey: WorkbenchEntryLinkKey | null;
+  traceLink: OperatorFollowUpLinkSurface | null;
+  traceEventType: string | null;
 };
 
 type NormalizedSystemOverviewRecommendedAction = {
@@ -33,7 +40,73 @@ type SystemOverviewFollowUpShape = {
   affectedWorkflowCount?: number | null;
   primaryBlockerKind?: string | null;
   recommendedAction?: SystemOverviewRecommendedAction | null;
+  recentEvents?: RecentRunEventCheck[] | null;
+  currentHref?: string | null;
+  buildTraceEventTypes: (kind: string) => string[];
+  traceHrefLabel: string;
   buildDetail: (args: { kind: string; impactedScope: string | null }) => string;
+};
+
+const SANDBOX_TRACE_EVENT_TYPES_BY_KIND: Record<string, string[]> = {
+  execution_class_blocked: [
+    "tool.execution.blocked",
+    "node.execution.unavailable",
+    "tool.execution.fallback",
+    "node.execution.fallback",
+    "tool.execution.dispatched",
+    "node.execution.dispatched"
+  ],
+  backend_offline: [
+    "tool.execution.blocked",
+    "node.execution.unavailable",
+    "tool.execution.fallback",
+    "node.execution.fallback",
+    "tool.execution.dispatched",
+    "node.execution.dispatched"
+  ],
+  backend_degraded: [
+    "tool.execution.fallback",
+    "node.execution.fallback",
+    "tool.execution.dispatched",
+    "node.execution.dispatched",
+    "tool.execution.blocked",
+    "node.execution.unavailable"
+  ],
+  default: [
+    "tool.execution.blocked",
+    "node.execution.unavailable",
+    "tool.execution.fallback",
+    "node.execution.fallback",
+    "tool.execution.dispatched",
+    "node.execution.dispatched"
+  ]
+};
+
+const CALLBACK_TRACE_EVENT_TYPES_BY_KIND: Record<string, string[]> = {
+  automation_disabled: [
+    "run.callback.ticket.issued",
+    "tool.waiting",
+    "run.resume.scheduled",
+    "run.resume.requeued",
+    "run.callback.ticket.expired",
+    "run.callback.waiting.terminated"
+  ],
+  scheduler_unhealthy: [
+    "run.resume.requeued",
+    "run.resume.scheduled",
+    "run.callback.ticket.expired",
+    "run.callback.waiting.terminated",
+    "run.callback.ticket.issued",
+    "tool.waiting"
+  ],
+  default: [
+    "run.callback.ticket.expired",
+    "run.callback.waiting.terminated",
+    "run.resume.requeued",
+    "run.resume.scheduled",
+    "run.callback.ticket.issued",
+    "tool.waiting"
+  ]
 };
 
 function joinNonEmpty(parts: Array<string | null | undefined>, separator = "；") {
@@ -41,6 +114,47 @@ function joinNonEmpty(parts: Array<string | null | undefined>, separator = "；"
     .map((part) => part?.trim())
     .filter((part): part is string => Boolean(part))
     .join(separator);
+}
+
+function trimOrNull(value?: string | null) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalizedValue = value.trim();
+  return normalizedValue || null;
+}
+
+function pickRecentTraceEvent(
+  recentEvents: RecentRunEventCheck[] | null | undefined,
+  prioritizedEventTypes: string[]
+) {
+  const normalizedRecentEvents = recentEvents ?? [];
+
+  for (const eventType of prioritizedEventTypes) {
+    const matchingEvent = normalizedRecentEvents.find(
+      (event) =>
+        trimOrNull(event.event_type) === eventType && trimOrNull(event.run_id)
+    );
+
+    if (matchingEvent) {
+      return matchingEvent;
+    }
+  }
+
+  return null;
+}
+
+function resolveSandboxTraceEventTypes(kind: string) {
+  return (
+    SANDBOX_TRACE_EVENT_TYPES_BY_KIND[kind] ?? SANDBOX_TRACE_EVENT_TYPES_BY_KIND.default
+  );
+}
+
+function resolveCallbackTraceEventTypes(kind: string) {
+  return (
+    CALLBACK_TRACE_EVENT_TYPES_BY_KIND[kind] ?? CALLBACK_TRACE_EVENT_TYPES_BY_KIND.default
+  );
 }
 
 export function messageMentionsSandboxExecution(message?: string | null) {
@@ -121,6 +235,10 @@ function buildSystemOverviewFollowUpSurface({
   affectedWorkflowCount,
   primaryBlockerKind,
   recommendedAction,
+  recentEvents,
+  currentHref,
+  buildTraceEventTypes,
+  traceHrefLabel,
   buildDetail
 }: SystemOverviewFollowUpShape): SystemOverviewFollowUpSurface | null {
   const action = normalizeRecommendedAction(recommendedAction);
@@ -130,6 +248,13 @@ function buildSystemOverviewFollowUpSurface({
 
   const impactedScope = formatSystemOverviewImpactedScope(affectedRunCount, affectedWorkflowCount);
   const kind = primaryBlockerKind ?? action.kind;
+  const sampledTraceEvent = pickRecentTraceEvent(recentEvents, buildTraceEventTypes(kind));
+  const traceLink = sampledTraceEvent
+    ? buildRuntimeActivityEventTraceLinkSurface(sampledTraceEvent, {
+        currentHref,
+        hrefLabel: traceHrefLabel
+      })
+    : null;
 
   return {
     source,
@@ -138,7 +263,9 @@ function buildSystemOverviewFollowUpSurface({
     href: action.href,
     hrefLabel: action.label,
     impactedScope,
-    entryKey: action.entryKey
+    entryKey: action.entryKey,
+    traceLink,
+    traceEventType: sampledTraceEvent?.event_type ?? null
   };
 }
 
@@ -167,7 +294,11 @@ export function buildSandboxReadinessSystemFollowUp(
     | "affected_workflow_count"
     | "primary_blocker_kind"
     | "recommended_action"
-  > | null
+  > | null,
+  options: {
+    recentEvents?: RecentRunEventCheck[] | null;
+    currentHref?: string | null;
+  } = {}
 ): SystemOverviewFollowUpSurface | null {
   return buildSystemOverviewFollowUpSurface({
     source: "sandbox_readiness",
@@ -175,6 +306,10 @@ export function buildSandboxReadinessSystemFollowUp(
     affectedWorkflowCount: readiness?.affected_workflow_count,
     primaryBlockerKind: readiness?.primary_blocker_kind,
     recommendedAction: readiness?.recommended_action,
+    recentEvents: options.recentEvents,
+    currentHref: options.currentHref,
+    buildTraceEventTypes: resolveSandboxTraceEventTypes,
+    traceHrefLabel: "open sampled sandbox trace",
     buildDetail: ({ kind, impactedScope }) =>
       kind === "execution_class_blocked"
         ? joinNonEmpty([
@@ -200,7 +335,11 @@ export function buildCallbackWaitingAutomationSystemFollowUp(
     | "affected_workflow_count"
     | "primary_blocker_kind"
     | "recommended_action"
-  > | null
+  > | null,
+  options: {
+    recentEvents?: RecentRunEventCheck[] | null;
+    currentHref?: string | null;
+  } = {}
 ): SystemOverviewFollowUpSurface | null {
   return buildSystemOverviewFollowUpSurface({
     source: "callback_waiting_automation",
@@ -208,6 +347,10 @@ export function buildCallbackWaitingAutomationSystemFollowUp(
     affectedWorkflowCount: automation?.affected_workflow_count,
     primaryBlockerKind: automation?.primary_blocker_kind,
     recommendedAction: automation?.recommended_action,
+    recentEvents: options.recentEvents,
+    currentHref: options.currentHref,
+    buildTraceEventTypes: resolveCallbackTraceEventTypes,
+    traceHrefLabel: "open sampled callback trace",
     buildDetail: ({ kind, impactedScope }) =>
       kind === "automation_disabled"
         ? joinNonEmpty([
@@ -229,6 +372,8 @@ export function buildCallbackWaitingAutomationSystemFollowUp(
 export function resolvePreferredSystemOverviewFollowUpSurface({
   callbackActive = false,
   callbackWaitingAutomation,
+  currentHref,
+  recentEvents,
   sandboxActive = false,
   sandboxReadiness
 }: {
@@ -240,6 +385,8 @@ export function resolvePreferredSystemOverviewFollowUpSurface({
     | "primary_blocker_kind"
     | "recommended_action"
   > | null;
+  currentHref?: string | null;
+  recentEvents?: RecentRunEventCheck[] | null;
   sandboxActive?: boolean;
   sandboxReadiness?: Pick<
     SandboxReadinessCheck,
@@ -250,14 +397,23 @@ export function resolvePreferredSystemOverviewFollowUpSurface({
   > | null;
 }): SystemOverviewFollowUpSurface | null {
   if (callbackActive) {
-    const callbackSurface = buildCallbackWaitingAutomationSystemFollowUp(callbackWaitingAutomation);
+    const callbackSurface = buildCallbackWaitingAutomationSystemFollowUp(
+      callbackWaitingAutomation,
+      {
+        currentHref,
+        recentEvents
+      }
+    );
     if (callbackSurface) {
       return callbackSurface;
     }
   }
 
   if (sandboxActive) {
-    return buildSandboxReadinessSystemFollowUp(sandboxReadiness);
+    return buildSandboxReadinessSystemFollowUp(sandboxReadiness, {
+      currentHref,
+      recentEvents
+    });
   }
 
   return null;

@@ -154,6 +154,7 @@ export default async function SensitiveAccessInboxPage({
   const crossEntryRiskDigest: CrossEntryRiskDigest = buildCrossEntryRiskDigest({
     sandboxReadiness: systemOverview.sandbox_readiness,
     callbackWaitingAutomation: systemOverview.callback_waiting_automation,
+    recentEvents: systemOverview.runtime_activity.recent_events,
     sensitiveAccessSummary: snapshot.summary,
     channels: snapshot.channels
   });

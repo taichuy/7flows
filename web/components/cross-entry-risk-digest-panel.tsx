@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { WorkbenchEntryLink, WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import type {
   CrossEntryRiskDigest,
@@ -108,6 +110,11 @@ export function CrossEntryRiskDigestPanel({
                 linkKey={area.entryKey}
                 override={area.entryOverride}
               />
+              {area.traceLink?.href && area.traceLink.label ? (
+                <Link className="inline-link secondary" href={area.traceLink.href}>
+                  {area.traceLink.label}
+                </Link>
+              ) : null}
             </div>
           </article>
         ))}

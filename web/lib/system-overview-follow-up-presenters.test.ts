@@ -28,7 +28,58 @@ describe("system overview follow-up presenters", () => {
       href: "/runs?focus=callback-waiting",
       hrefLabel: "Open run library",
       impactedScope: "3 个 run / 2 个 workflow",
-      entryKey: "runLibrary"
+      entryKey: "runLibrary",
+      traceLink: null,
+      traceEventType: null
+    });
+  });
+
+  it("adds a sampled callback trace link from runtime activity when recent events are available", () => {
+    expect(
+      buildCallbackWaitingAutomationSystemFollowUp(
+        {
+          affected_run_count: 3,
+          affected_workflow_count: 2,
+          primary_blocker_kind: "scheduler_unhealthy",
+          recommended_action: {
+            kind: "open_run_library",
+            label: "Open run library",
+            href: "/runs?focus=callback-waiting",
+            entry_key: "runLibrary"
+          }
+        },
+        {
+          recentEvents: [
+            {
+              id: 11,
+              run_id: "run-callback-issued",
+              node_run_id: "node-callback-issued",
+              event_type: "run.callback.ticket.issued",
+              payload_keys: ["ticket"],
+              payload_preview: "issued",
+              payload_size: 12,
+              created_at: "2026-03-24T13:00:00Z"
+            },
+            {
+              id: 12,
+              run_id: "run-callback-requeued",
+              node_run_id: "node-callback-requeued",
+              event_type: "run.resume.requeued",
+              payload_keys: ["reason"],
+              payload_preview: "requeued",
+              payload_size: 24,
+              created_at: "2026-03-24T13:05:00Z"
+            }
+          ]
+        }
+      )
+    ).toMatchObject({
+      source: "callback_waiting_automation",
+      traceEventType: "run.resume.requeued",
+      traceLink: {
+        href: "/runs/run-callback-requeued?event_type=run.resume.requeued&node_run_id=node-callback-requeued#run-diagnostics-execution-timeline",
+        label: "open sampled callback trace"
+      }
     });
   });
 

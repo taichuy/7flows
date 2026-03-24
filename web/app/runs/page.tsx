@@ -69,6 +69,7 @@ export default async function RunsPage({ searchParams }: RunsPageProps = {}) {
   const crossEntryRiskDigest = buildCrossEntryRiskDigest({
     sandboxReadiness: overview.sandbox_readiness,
     callbackWaitingAutomation: overview.callback_waiting_automation,
+    recentEvents,
     sensitiveAccessSummary: sensitiveAccessInbox.summary,
     channels: sensitiveAccessInbox.channels,
     sensitiveAccessEntries: sensitiveAccessInbox.entries

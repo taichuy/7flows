@@ -1,6 +1,6 @@
 import React from "react";
-import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import Link from "next/link";
+import type { RecentRunEventCheck, SandboxReadinessCheck } from "@/lib/get-system-overview";
 import {
   buildOperatorFollowUpSurfaceCopy,
   buildOperatorRecommendedNextStep
@@ -13,19 +13,29 @@ import {
   listSandboxBlockedClasses,
   listSandboxReadinessCapabilityChips
 } from "@/lib/sandbox-readiness-presenters";
-import { buildSandboxReadinessFollowUpCandidate } from "@/lib/system-overview-follow-up-presenters";
+import {
+  buildSandboxReadinessFollowUpCandidate,
+  buildSandboxReadinessSystemFollowUp
+} from "@/lib/system-overview-follow-up-presenters";
 
 type SandboxReadinessPanelProps = {
   readiness: SandboxReadinessCheck;
+  recentEvents?: RecentRunEventCheck[];
 };
 
-export function SandboxReadinessPanel({ readiness }: SandboxReadinessPanelProps) {
+export function SandboxReadinessPanel({
+  readiness,
+  recentEvents = []
+}: SandboxReadinessPanelProps) {
   const availableClasses = listSandboxAvailableClasses(readiness);
   const blockedClasses = listSandboxBlockedClasses(readiness);
   const capabilityChips = listSandboxReadinessCapabilityChips(readiness);
   const readinessHeadline = formatSandboxReadinessHeadline(readiness);
   const readinessDetail = formatSandboxReadinessDetail(readiness);
   const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
+  const followUpSurface = buildSandboxReadinessSystemFollowUp(readiness, {
+    recentEvents
+  });
   const recommendedNextStep = buildOperatorRecommendedNextStep({
     execution: buildSandboxReadinessFollowUpCandidate(readiness, "sandbox readiness")
   });
@@ -84,6 +94,11 @@ export function SandboxReadinessPanel({ readiness }: SandboxReadinessPanelProps)
             {recommendedNextStep.href && recommendedNextStep.href_label ? (
               <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
                 {recommendedNextStep.href_label}
+              </Link>
+            ) : null}
+            {followUpSurface?.traceLink ? (
+              <Link className="event-chip inbox-filter-link" href={followUpSurface.traceLink.href}>
+                {followUpSurface.traceLink.label}
               </Link>
             ) : null}
           </div>

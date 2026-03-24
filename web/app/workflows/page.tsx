@@ -116,6 +116,7 @@ export default async function WorkflowsPage({
   const crossEntryRiskDigest = buildCrossEntryRiskDigest({
     sandboxReadiness: systemOverview.sandbox_readiness,
     callbackWaitingAutomation: systemOverview.callback_waiting_automation,
+    recentEvents: systemOverview.runtime_activity.recent_events,
     sensitiveAccessSummary: sensitiveAccessInbox.summary,
     channels: sensitiveAccessInbox.channels,
     sensitiveAccessEntries: sensitiveAccessInbox.entries

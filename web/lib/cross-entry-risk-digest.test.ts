@@ -503,4 +503,128 @@ describe("buildCrossEntryRiskDigest", () => {
       label: "Open workflow library"
     });
   });
+
+  it("keeps the shared CTA while exposing sampled sandbox and callback traces as secondary links", () => {
+    const digest = buildCrossEntryRiskDigest({
+      sandboxReadiness: {
+        enabled_backend_count: 0,
+        healthy_backend_count: 0,
+        degraded_backend_count: 0,
+        offline_backend_count: 1,
+        execution_classes: [
+          {
+            execution_class: "sandbox",
+            available: false,
+            backend_ids: [],
+            supported_languages: [],
+            supported_profiles: [],
+            supported_dependency_modes: [],
+            supports_tool_execution: false,
+            supports_builtin_package_sets: false,
+            supports_backend_extensions: false,
+            supports_network_policy: false,
+            supports_filesystem_policy: false,
+            reason: "sandbox backend offline"
+          }
+        ],
+        supported_languages: [],
+        supported_profiles: [],
+        supported_dependency_modes: [],
+        supports_tool_execution: false,
+        supports_builtin_package_sets: false,
+        supports_backend_extensions: false,
+        supports_network_policy: false,
+        supports_filesystem_policy: false,
+        affected_run_count: 4,
+        affected_workflow_count: 1,
+        primary_blocker_kind: "execution_class_blocked",
+        recommended_action: {
+          kind: "open_workflow_library",
+          label: "Open workflow library",
+          href: "/workflows?execution=sandbox",
+          entry_key: "workflowLibrary"
+        }
+      },
+      callbackWaitingAutomation: {
+        status: "partial",
+        scheduler_required: true,
+        detail: "waiting resume monitor is configured but cleanup is stale",
+        scheduler_health_status: "degraded",
+        scheduler_health_detail: "cleanup has not finished recently",
+        steps: [],
+        affected_run_count: 2,
+        affected_workflow_count: 1,
+        primary_blocker_kind: "scheduler_unhealthy",
+        recommended_action: {
+          kind: "open_run_library",
+          label: "Open run library",
+          href: "/runs?focus=callback-waiting",
+          entry_key: "runLibrary"
+        }
+      },
+      recentEvents: [
+        {
+          id: 31,
+          run_id: "run-sandbox",
+          node_run_id: "node-sandbox",
+          event_type: "tool.execution.blocked",
+          payload_keys: ["reason"],
+          payload_preview: "sandbox blocked",
+          payload_size: 22,
+          created_at: "2026-03-24T13:10:00Z"
+        },
+        {
+          id: 32,
+          run_id: "run-callback",
+          node_run_id: "node-callback",
+          event_type: "run.resume.requeued",
+          payload_keys: ["reason"],
+          payload_preview: "resume requeued",
+          payload_size: 18,
+          created_at: "2026-03-24T13:11:00Z"
+        }
+      ],
+      sensitiveAccessSummary: {
+        ticket_count: 0,
+        pending_ticket_count: 0,
+        approved_ticket_count: 0,
+        rejected_ticket_count: 0,
+        expired_ticket_count: 0,
+        waiting_ticket_count: 0,
+        resumed_ticket_count: 0,
+        failed_ticket_count: 0,
+        pending_notification_count: 0,
+        delivered_notification_count: 0,
+        failed_notification_count: 0,
+        affected_run_count: 0,
+        affected_workflow_count: 0,
+        primary_blocker_kind: null,
+        blockers: []
+      },
+      channels: []
+    });
+
+    expect(digest.focusAreas.find((area) => area.id === "sandbox")).toMatchObject({
+      entryKey: "workflowLibrary",
+      entryOverride: {
+        href: "/workflows?execution=sandbox",
+        label: "Open workflow library"
+      },
+      traceLink: {
+        href: "/runs/run-sandbox?event_type=tool.execution.blocked&node_run_id=node-sandbox#run-diagnostics-execution-timeline",
+        label: "open sampled sandbox trace"
+      }
+    });
+    expect(digest.focusAreas.find((area) => area.id === "callback")).toMatchObject({
+      entryKey: "runLibrary",
+      entryOverride: {
+        href: "/runs?focus=callback-waiting",
+        label: "Open run library"
+      },
+      traceLink: {
+        href: "/runs/run-callback?event_type=run.resume.requeued&node_run_id=node-callback#run-diagnostics-execution-timeline",
+        label: "open sampled callback trace"
+      }
+    });
+  });
 });

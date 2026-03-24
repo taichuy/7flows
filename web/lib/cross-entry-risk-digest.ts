@@ -15,6 +15,7 @@ import {
 import { resolveSensitiveAccessInboxEntryScope } from "@/lib/sensitive-access-inbox-entry-scope";
 import type {
   CallbackWaitingAutomationCheck,
+  RecentRunEventCheck,
   SandboxReadinessCheck,
   SystemOverviewRecommendedAction
 } from "@/lib/get-system-overview";
@@ -49,6 +50,7 @@ export type CrossEntryRiskDigestFocusArea = {
   nextStep: string;
   entryKey: WorkbenchEntryLinkKey;
   entryOverride?: WorkbenchEntryLinkOverride;
+  traceLink?: WorkbenchEntryLinkOverride;
 };
 
 export type CrossEntryRiskDigestFollowUpEntry = {
@@ -71,6 +73,7 @@ export type CrossEntryRiskDigest = {
 type BuildCrossEntryRiskDigestInput = {
   sandboxReadiness: SandboxReadinessCheck;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
+  recentEvents?: RecentRunEventCheck[];
   sensitiveAccessSummary: SensitiveAccessInboxSummary;
   channels: NotificationChannelCapabilityItem[];
   sensitiveAccessEntries?: SensitiveAccessInboxEntry[];
@@ -425,6 +428,7 @@ function buildEntryKeys(primaryEntryKey: WorkbenchEntryLinkKey): WorkbenchEntryL
 export function buildCrossEntryRiskDigest({
   sandboxReadiness,
   callbackWaitingAutomation,
+  recentEvents = [],
   sensitiveAccessSummary,
   channels,
   sensitiveAccessEntries = []
@@ -459,9 +463,14 @@ export function buildCrossEntryRiskDigest({
     })?.summary ??
     callbackWaitingAutomation.scheduler_health_detail ??
     callbackWaitingAutomation.detail;
-  const sandboxFollowUpSurface = buildSandboxReadinessSystemFollowUp(sandboxReadiness);
+  const sandboxFollowUpSurface = buildSandboxReadinessSystemFollowUp(sandboxReadiness, {
+    recentEvents
+  });
   const callbackFollowUpSurface = buildCallbackWaitingAutomationSystemFollowUp(
-    callbackWaitingAutomation
+    callbackWaitingAutomation,
+    {
+      recentEvents
+    }
   );
 
   const pendingApprovalCount = sensitiveAccessSummary.pending_ticket_count;
@@ -518,6 +527,10 @@ export function buildCrossEntryRiskDigest({
       entryOverride: buildEntryOverride({
         href: sandboxFollowUpSurface?.href,
         label: sandboxFollowUpSurface?.hrefLabel
+      }),
+      traceLink: buildEntryOverride({
+        href: sandboxFollowUpSurface?.traceLink?.href,
+        label: sandboxFollowUpSurface?.traceLink?.label
       })
     },
     {
@@ -539,6 +552,10 @@ export function buildCrossEntryRiskDigest({
       entryOverride: buildEntryOverride({
         href: callbackFollowUpSurface?.href,
         label: callbackFollowUpSurface?.hrefLabel
+      }),
+      traceLink: buildEntryOverride({
+        href: callbackFollowUpSurface?.traceLink?.href,
+        label: callbackFollowUpSurface?.traceLink?.label
       })
     },
     {
