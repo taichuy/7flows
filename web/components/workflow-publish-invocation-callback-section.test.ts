@@ -49,7 +49,17 @@ describe("WorkflowPublishInvocationCallbackSection", () => {
           steps: []
         },
         callbackWaitingExplanation: null,
-        executionFocusNode: null
+        executionFocusNode: {
+          node_id: "callback_node",
+          node_name: "Callback node",
+          node_run_id: "node-run-callback-1",
+          node_type: "tool",
+          skill_reference_load_count: 0,
+          skill_reference_loads: [],
+          artifacts: [],
+          artifact_refs: [],
+          tool_calls: []
+        } as never
       })
     );
 
@@ -58,6 +68,10 @@ describe("WorkflowPublishInvocationCallbackSection", () => {
         (props) => props.currentHref === "/workflows/workflow-1?publish_invocation=invocation-1"
       )
     ).toBe(true);
+    expect(callbackSummaryProps[0]?.focusEvidenceDrilldownLink).toMatchObject({
+      label: "jump to focused trace slice",
+      href: "/runs/run-callback-1?node_run_id=node-run-callback-1#run-diagnostics-execution-timeline"
+    });
   });
 
   it("uses shared drilldown surface copy", () => {

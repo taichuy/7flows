@@ -23,6 +23,7 @@ import {
   buildOperatorFollowUpSurfaceCopy,
   buildOperatorRunDetailLinkSurface,
   buildOperatorRecommendedNextStep,
+  buildOperatorTraceSliceLinkSurface,
   buildSharedOrLocalOperatorCandidate,
   buildOperatorRunSnapshotMetaRows,
   type OperatorRecommendedNextStep
@@ -82,6 +83,12 @@ export function InlineOperatorActionFeedback({
     runId,
     runHref: scopedRunDetailHref,
     surfaceCopy
+  });
+  const focusEvidenceDrilldownLink = buildOperatorTraceSliceLinkSurface({
+    runId,
+    runHref: scopedRunDetailHref,
+    currentHref: currentHref ?? callbackWaitingSummaryProps?.currentHref ?? null,
+    nodeRunId: runSnapshot?.executionFocusNodeRunId ?? null
   });
   const hasCanonicalRecommendedAction = Boolean(
     runFollowUp?.recommendedAction?.kind ||
@@ -373,6 +380,7 @@ export function InlineOperatorActionFeedback({
           showSensitiveAccessInlineActions={
             callbackWaitingSummaryProps?.showSensitiveAccessInlineActions ?? false
           }
+          focusEvidenceDrilldownLink={focusEvidenceDrilldownLink}
         />
       ) : (
         <>
@@ -381,6 +389,7 @@ export function InlineOperatorActionFeedback({
             artifactRefCount={model.artifactRefCount}
             artifactSummary={model.focusArtifactSummary}
             artifacts={model.focusArtifacts}
+            drilldownLink={focusEvidenceDrilldownLink}
             toolCallCount={model.toolCallCount}
             toolCallSummaries={model.focusToolCallSummaries}
           />

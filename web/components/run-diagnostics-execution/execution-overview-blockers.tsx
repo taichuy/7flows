@@ -129,6 +129,7 @@ function renderNodeFollowUp({
         focusSkillReferenceNodeId={node.node_id}
         focusSkillReferenceNodeName={node.node_name}
         waitingReason={node.waiting_reason}
+        focusEvidenceDrilldownLink={focusedTraceLink}
       />
     );
   }

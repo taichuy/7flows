@@ -33,6 +33,7 @@ import {
   formatExecutionFocusFollowUp,
   formatExecutionFocusPrimarySignal
 } from "@/lib/run-execution-focus-presenters";
+import { buildOperatorTraceSliceLinkSurface } from "@/lib/operator-follow-up-presenters";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 import { resolveSensitiveAccessTimelineEntryRunId } from "@/lib/sensitive-access";
 import { buildRunDetailHref } from "@/lib/workbench-links";
@@ -109,6 +110,12 @@ export function ExecutionNodeCard({
   skillTrace?: RunExecutionSkillTrace | null;
 }) {
   const currentRunHref = buildRunDetailHref(runId);
+  const focusEvidenceDrilldownLink = buildOperatorTraceSliceLinkSurface({
+    runId,
+    runHref: currentRunHref,
+    currentHref: currentRunHref,
+    nodeRunId: node.node_run_id
+  });
   const latestApprovalEntry = node.sensitive_access_entries.find((entry) => entry.approval_ticket);
   const inboxHref =
     node.sensitive_access_entries.length > 0 || node.callback_tickets.length > 0
@@ -285,6 +292,7 @@ export function ExecutionNodeCard({
         inboxHref={inboxHref}
         runId={runId}
         nodeRunId={node.node_run_id}
+        focusEvidenceDrilldownLink={focusEvidenceDrilldownLink}
         scheduledResumeDelaySeconds={node.scheduled_resume_delay_seconds}
         scheduledResumeSource={node.scheduled_resume_source}
         scheduledWaitingStatus={node.scheduled_waiting_status}

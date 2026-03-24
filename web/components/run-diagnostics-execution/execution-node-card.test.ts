@@ -14,6 +14,7 @@ const sensitiveAccessTimelineProps: Array<Record<string, unknown>> = [];
 vi.mock("@/components/callback-waiting-summary-card", () => ({
   CallbackWaitingSummaryCard: ({
     focusNodeEvidence,
+    focusEvidenceDrilldownLink,
     focusSkillTrace,
     focusSkillReferenceLoads,
     focusSkillReferenceCount,
@@ -24,6 +25,10 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
       artifacts?: unknown[];
       tool_calls?: unknown[];
       artifact_refs?: unknown[];
+    } | null;
+    focusEvidenceDrilldownLink?: {
+      href?: string | null;
+      label?: string | null;
     } | null;
     focusSkillTrace?: {
       scope?: string | null;
@@ -45,6 +50,7 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
       `focus artifacts ${(focusNodeEvidence?.artifacts?.length ?? 0).toString()} ` +
         `focus tools ${(focusNodeEvidence?.tool_calls?.length ?? 0).toString()} ` +
         `focus refs ${(focusNodeEvidence?.artifact_refs?.length ?? 0).toString()} ` +
+        `drilldown ${focusEvidenceDrilldownLink?.label ?? "none"} ${focusEvidenceDrilldownLink?.href ?? "none"} ` +
         `trace scope ${focusSkillTrace?.scope ?? "none"} ` +
         `trace refs ${(focusSkillTrace?.reference_count ?? 0).toString()} ` +
         `trace nodes ${(focusSkillTrace?.nodes?.length ?? 0).toString()} ` +
@@ -392,6 +398,10 @@ describe("ExecutionNodeCard", () => {
     expect(html).toContain("focus artifacts 1");
     expect(html).toContain("focus tools 1");
     expect(html).toContain("focus refs 1");
+    expect(html).toContain("drilldown jump to focused trace slice");
+    expect(html).toContain(
+      "/runs/run-callback-1?node_run_id=node-run-callback#run-diagnostics-execution-timeline"
+    );
     expect(html).toContain("trace scope none");
     expect(html).toContain("skill loads 1");
     expect(html).toContain("skill refs 1");

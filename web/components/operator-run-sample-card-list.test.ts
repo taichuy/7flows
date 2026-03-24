@@ -228,6 +228,13 @@ describe("OperatorRunSampleCardList", () => {
     expect(html).toContain("executor tool:compat-adapter:dify-default");
     expect(html).toContain("backend sandbox-default");
     expect(html).toContain("runner tool");
+    expect(html).toContain(
+      'href="/runs/run-1?node_run_id=node-run-1#run-diagnostics-execution-timeline"'
+    );
+    expect(html).toContain(
+      'href="/runs/run-1?event_type=tool.waiting&amp;node_run_id=node-run-1&amp;payload_key=reason#run-diagnostics-execution-timeline"'
+    );
+    expect(html).toContain("open waiting trace");
   });
 
   it("keeps non-callback execution fact badges in the card header", () => {
@@ -247,6 +254,40 @@ describe("OperatorRunSampleCardList", () => {
     expect(html).not.toContain("Waiting node focus evidence");
     expect(html).toContain("effective sandbox");
     expect(html.indexOf("effective sandbox")).toBeGreaterThan(html.indexOf("Run run-1"));
+  });
+
+  it("preserves scoped run detail href in non-callback compact evidence drilldowns", () => {
+    const html = renderToStaticMarkup(
+      createElement(OperatorRunSampleCardList, {
+        cards: [
+          buildSampleCard({
+            hasCallbackWaitingSummary: false,
+            callbackWaitingExplanation: null,
+            callbackWaitingFocusNodeEvidence: null,
+            focusToolCallSummaries: [
+              {
+                id: "tool-call-1",
+                title: "Callback wait · waiting",
+                detail: "等待回调恢复",
+                badges: [],
+                rawRef: null
+              }
+            ],
+            toolCallCount: 1
+          })
+        ],
+        resolveRunDetailHref: (runId: string) =>
+          `/runs/${runId}?needs_follow_up=true&q=starter&source_governance_kind=missing_source`,
+        skillTraceDescription: "skill trace"
+      })
+    );
+
+    expect(html).toContain(
+      'href="/runs/run-1?needs_follow_up=true&amp;q=starter&amp;source_governance_kind=missing_source&amp;node_run_id=node-run-1#run-diagnostics-execution-timeline"'
+    );
+    expect(html).toContain(
+      'href="/runs/run-1?needs_follow_up=true&amp;q=starter&amp;source_governance_kind=missing_source&amp;event_type=tool.waiting&amp;node_run_id=node-run-1&amp;payload_key=reason#run-diagnostics-execution-timeline"'
+    );
   });
 
   it("reuses sample callback context to build waiting inbox deep links", () => {

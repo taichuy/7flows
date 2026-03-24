@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
+import { buildOperatorTraceSliceLinkSurface } from "@/lib/operator-follow-up-presenters";
 import type {
   PublishedEndpointInvocationItem,
   PublishedEndpointInvocationCallbackTicketItem,
@@ -67,6 +68,11 @@ export function WorkflowPublishInvocationCallbackSection({
     callbackTickets,
     sensitiveAccessEntries
   });
+  const focusEvidenceDrilldownLink = buildOperatorTraceSliceLinkSurface({
+    runId: invocation.run_id ?? null,
+    currentHref,
+    nodeRunId: waitingLifecycle?.node_run_id ?? null
+  });
 
   return (
     <section>
@@ -106,6 +112,7 @@ export function WorkflowPublishInvocationCallbackSection({
         operatorFollowUp={invocation.run_follow_up?.explanation?.follow_up ?? null}
         recommendedAction={invocation.run_follow_up?.recommended_action ?? null}
         preferCanonicalRecommendedNextStep
+        focusEvidenceDrilldownLink={focusEvidenceDrilldownLink}
       />
       {shouldRenderBlockers ? (
         <div className="publish-meta-grid">

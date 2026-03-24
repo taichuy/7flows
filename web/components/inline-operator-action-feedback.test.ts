@@ -13,6 +13,7 @@ import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-prese
 import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 
 const callbackSummaryProps: Array<Record<string, unknown>> = [];
+const focusEvidenceProps: Array<Record<string, unknown>> = [];
 const runSampleListProps: Array<Record<string, unknown>> = [];
 
 vi.mock("next/link", () => ({
@@ -28,7 +29,10 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
 }));
 
 vi.mock("@/components/operator-focus-evidence-card", () => ({
-  OperatorFocusEvidenceCard: () => createElement("div", { "data-testid": "focus-evidence" })
+  OperatorFocusEvidenceCard: (props: Record<string, unknown>) => {
+    focusEvidenceProps.push(props);
+    return createElement("div", { "data-testid": "focus-evidence" });
+  }
 }));
 
 vi.mock("@/components/operator-run-sample-card-list", () => ({
@@ -165,6 +169,7 @@ describe("InlineOperatorActionFeedback", () => {
 
   beforeEach(() => {
     callbackSummaryProps.length = 0;
+    focusEvidenceProps.length = 0;
     runSampleListProps.length = 0;
   });
 
@@ -368,6 +373,10 @@ describe("InlineOperatorActionFeedback", () => {
     expect(callbackSummaryProps[0]?.operatorFollowUp).toBe("Open the approval inbox first.");
     expect(callbackSummaryProps[0]?.preferCanonicalRecommendedNextStep).toBe(true);
     expect(callbackSummaryProps[0]?.showSensitiveAccessInlineActions).toBe(false);
+    expect(callbackSummaryProps[0]?.focusEvidenceDrilldownLink).toMatchObject({
+      label: "jump to focused trace slice",
+      href: "/runs/run-1?node_run_id=node-run-1#run-diagnostics-execution-timeline"
+    });
   });
 
   it("prefers shared callback recovery CTA when only callback automation context remains", () => {
@@ -742,6 +751,11 @@ describe("InlineOperatorActionFeedback", () => {
     expect(html).toContain('/workflows?execution=sandbox');
     expect(html).toContain("当前 live sandbox readiness 仍影响 4 个 run / 1 个 workflow");
     expect(html).toContain("本地 run follow-up：先回看 execution focus。");
+    expect(focusEvidenceProps).toHaveLength(1);
+    expect(focusEvidenceProps[0]?.drilldownLink).toMatchObject({
+      label: "jump to focused trace slice",
+      href: "/runs/run-1?node_run_id=node-run-1#run-diagnostics-execution-timeline"
+    });
   });
 
   it("renders workflow handoff when the action result carries legacy auth governance", () => {

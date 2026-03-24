@@ -197,6 +197,7 @@ export function RunDetailExecutionFocusCard({
             recommendedAction={run.run_follow_up?.recommended_action ?? null}
             preferCanonicalRecommendedNextStep
             runId={run.id}
+            focusEvidenceDrilldownLink={focusedTraceLink}
             scheduledResumeDelaySeconds={focus.scheduledResumeDelaySeconds}
             scheduledResumeDueAt={focus.scheduledResumeDueAt}
             scheduledResumeRequeuedAt={focus.scheduledResumeRequeuedAt}

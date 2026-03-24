@@ -12,6 +12,7 @@ import {
   buildOperatorRecommendedNextStep,
   buildOperatorFollowUpSurfaceCopy,
   buildOperatorRunDetailLinkSurface,
+  buildOperatorTraceSliceLinkSurface,
   buildOperatorRunSnapshotMetaRows
 } from "@/lib/operator-follow-up-presenters";
 import {
@@ -52,6 +53,12 @@ export function OperatorRunSampleCardList({
           runId: sample.runId,
           runHref: scopedRunDetailHref,
           surfaceCopy
+        });
+        const focusEvidenceDrilldownLink = buildOperatorTraceSliceLinkSurface({
+          runId: sample.runId,
+          runHref: scopedRunDetailHref,
+          currentHref: currentHref ?? callbackWaitingSummaryProps?.currentHref ?? null,
+          nodeRunId: sample.focusNodeRunId
         });
         const snapshotMetaRows = buildOperatorRunSnapshotMetaRows({
           runStatus: sample.runStatus,
@@ -181,6 +188,7 @@ export function OperatorRunSampleCardList({
             showInlineActions={false}
             sensitiveAccessEntries={sample.sensitiveAccessEntries}
             waitingReason={sample.waitingReason}
+            focusEvidenceDrilldownLink={focusEvidenceDrilldownLink}
           />
 
           {sample.artifactCount > 0 ||
@@ -220,6 +228,7 @@ export function OperatorRunSampleCardList({
                 artifactRefCount={sample.artifactRefCount}
                 artifactSummary={sample.focusArtifactSummary}
                 artifacts={sample.focusArtifacts}
+                drilldownLink={focusEvidenceDrilldownLink}
                 toolCallCount={sample.toolCallCount}
                 toolCallSummaries={sample.focusToolCallSummaries}
               />

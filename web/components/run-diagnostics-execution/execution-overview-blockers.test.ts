@@ -12,11 +12,16 @@ import type { RunExecutionNodeItem, RunExecutionSkillTrace, RunExecutionView } f
 
 vi.mock("@/components/callback-waiting-summary-card", () => ({
   CallbackWaitingSummaryCard: ({
+    focusEvidenceDrilldownLink,
     focusSkillTrace,
     focusSkillReferenceCount,
     focusSkillReferenceNodeName,
     nodeRunId
   }: {
+    focusEvidenceDrilldownLink?: {
+      href?: string | null;
+      label?: string | null;
+    } | null;
     focusSkillTrace?: {
       scope?: string | null;
       reference_count?: number;
@@ -31,7 +36,8 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
     createElement(
       "div",
       { "data-testid": `callback-waiting-summary-card:${nodeRunId ?? "unknown"}` },
-      `trace scope ${focusSkillTrace?.scope ?? "none"} ` +
+      `drilldown ${focusEvidenceDrilldownLink?.label ?? "none"} ${focusEvidenceDrilldownLink?.href ?? "none"} ` +
+        `trace scope ${focusSkillTrace?.scope ?? "none"} ` +
         `trace refs ${(focusSkillTrace?.reference_count ?? 0).toString()} ` +
         `trace nodes ${(focusSkillTrace?.nodes?.length ?? 0).toString()} ` +
         `trace node ${focusSkillTrace?.nodes?.[0]?.node_run_id ?? "n/a"} ` +
@@ -432,6 +438,9 @@ describe("RunDiagnosticsExecutionOverviewBlockers", () => {
     expect(html).not.toContain("Check callback waiting next.");
     expect(html).not.toContain("当前节点仍在等待 callback。");
     expect(html).not.toContain("优先观察定时恢复是否已重新排队。");
+    expect(html).toContain(
+      "drilldown jump to focused trace slice /runs/run-callback-1?node_run_id=node-run-focus#run-diagnostics-execution-timeline"
+    );
     expect(html).toContain("trace scope run");
     expect(html).toContain("trace refs 1");
     expect(html).toContain("trace node node-run-focus");
