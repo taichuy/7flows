@@ -66,6 +66,17 @@ function buildBlockingPayload(): RawBlockingPayload {
       description: "Sensitive trace export",
       sensitivity_level: "L2",
       source: "workspace_resource",
+      credential_governance: {
+        credential_id: "credential-1",
+        credential_name: "Trace Export Key",
+        credential_type: "api_key",
+        credential_status: "active",
+        sensitivity_level: "L2",
+        sensitive_resource_id: "resource-1",
+        sensitive_resource_label: "Trace Export",
+        credential_ref: "credential://trace-export",
+        summary: "本次命中的凭据是 Trace Export Key（api_key）；当前治理级别 L2，状态 生效中。"
+      },
       metadata: {
         run_id: "run-1"
       }
@@ -222,6 +233,7 @@ describe("parseSensitiveAccessBlockingResponse", () => {
     );
     expect(parsed?.payload.run_follow_up?.sampledRuns[0]?.callbackTickets).toHaveLength(1);
     expect(parsed?.payload.run_follow_up?.sampledRuns[0]?.sensitiveAccessEntries).toHaveLength(1);
+    expect(parsed?.payload.resource.credential_governance?.credential_name).toBe("Trace Export Key");
   });
 
   it("parses denied 403 payloads through the guarded response helper", async () => {

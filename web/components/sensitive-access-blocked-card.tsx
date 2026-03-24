@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
+import { CredentialGovernanceSummaryCard } from "@/components/credential-governance-summary-card";
 import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
 import type {
   CallbackWaitingAutomationCheck,
@@ -225,6 +226,7 @@ export function SensitiveAccessBlockedCard({
       {payload.resource.description ? (
         <p className="section-copy entry-copy">resource: {payload.resource.description}</p>
       ) : null}
+      <CredentialGovernanceSummaryCard resource={payload.resource} />
       {payload.access_request.purpose_text ? (
         <p className="section-copy entry-copy">purpose: {payload.access_request.purpose_text}</p>
       ) : null}

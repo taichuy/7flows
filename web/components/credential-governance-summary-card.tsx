@@ -3,12 +3,12 @@ import React from "react";
 import {
   formatCredentialGovernanceLevelLabel,
   formatCredentialGovernanceStatusLabel,
-  getCredentialGovernanceSummary
+  getCredentialGovernanceSummary,
+  type ResourceWithCredentialGovernance
 } from "@/lib/credential-governance";
-import type { SensitiveResourceItem } from "@/lib/get-sensitive-access";
 
 type CredentialGovernanceSummaryCardProps = {
-  resource?: SensitiveResourceItem | null;
+  resource?: ResourceWithCredentialGovernance | null;
   title?: string;
 };
 

@@ -9,6 +9,7 @@ from app.services.operator_run_follow_up import (
     load_operator_run_snapshot,
     resolve_operator_run_snapshot_from_follow_up,
 )
+from app.services.sensitive_access_presenters import serialize_sensitive_resource
 from app.services.sensitive_access_action_explanations import (
     build_sensitive_access_timeline_outcome_explanation,
 )
@@ -29,14 +30,7 @@ def serialize_sensitive_access_bundle(bundle: SensitiveAccessRequestBundle) -> d
         reason_code=bundle.access_request.reason_code,
     )
     return {
-        "resource": {
-            "id": bundle.resource.id,
-            "label": bundle.resource.label,
-            "description": bundle.resource.description,
-            "sensitivity_level": bundle.resource.sensitivity_level,
-            "source": bundle.resource.source,
-            "metadata": bundle.resource.metadata_payload or {},
-        },
+        "resource": serialize_sensitive_resource(bundle.resource).model_dump(mode="json"),
         "access_request": {
             "id": bundle.access_request.id,
             "run_id": bundle.access_request.run_id,

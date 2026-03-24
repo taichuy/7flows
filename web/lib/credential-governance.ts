@@ -4,8 +4,13 @@ export type CredentialGovernanceSummary = NonNullable<
   SensitiveResourceItem["credential_governance"]
 >;
 
+export type ResourceWithCredentialGovernance = Pick<
+  SensitiveResourceItem,
+  "credential_governance"
+>;
+
 export function getCredentialGovernanceSummary(
-  resource?: SensitiveResourceItem | null
+  resource?: ResourceWithCredentialGovernance | null
 ): CredentialGovernanceSummary | null {
   return resource?.credential_governance ?? null;
 }

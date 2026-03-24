@@ -580,4 +580,67 @@ describe("SensitiveAccessBlockedCard", () => {
     expect(html).toContain("Open workflow library");
     expect(html).not.toContain("approval blocker");
   });
+
+  it("renders credential governance summary when blocked payload carries shared resource contract", () => {
+    const payload: SensitiveAccessBlockingPayload = {
+      detail: "Run trace export requires approval before the payload can be exported.",
+      resource: {
+        id: "resource-credential-governance",
+        label: "Trace Export",
+        description: "Sensitive trace export",
+        sensitivity_level: "L3",
+        source: "credential",
+        metadata: {
+          run_id: "run-credential-governance"
+        },
+        credential_governance: {
+          credential_id: "credential-openai-prod",
+          credential_name: "OpenAI production key",
+          credential_type: "openai_api_key",
+          credential_status: "revoked",
+          sensitivity_level: "L3",
+          sensitive_resource_id: "resource-credential-governance",
+          sensitive_resource_label: "Trace Export",
+          credential_ref: "credential://openai-prod",
+          summary: "本次命中的凭据是 OpenAI production key（openai_api_key）；当前治理级别 L3，状态 已吊销。"
+        }
+      },
+      access_request: {
+        id: "request-credential-governance",
+        run_id: "run-credential-governance",
+        node_run_id: "node-run-credential-governance",
+        requester_type: "human",
+        requester_id: "ops-debugger",
+        resource_id: "resource-credential-governance",
+        action_type: "export",
+        decision: "require_approval"
+      },
+      approval_ticket: {
+        id: "ticket-credential-governance",
+        access_request_id: "request-credential-governance",
+        run_id: "run-credential-governance",
+        node_run_id: "node-run-credential-governance",
+        status: "pending",
+        waiting_status: "waiting",
+        approved_by: null
+      },
+      notifications: [],
+      outcome_explanation: null,
+      run_snapshot: null,
+      run_follow_up: null
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessBlockedCard, {
+        title: "Sensitive access blocked",
+        payload
+      })
+    );
+
+    expect(html).toContain("Credential governance");
+    expect(html).toContain("credential OpenAI production key");
+    expect(html).toContain("type openai_api_key");
+    expect(html).toContain("L3 治理");
+    expect(html).toContain("已吊销");
+  });
 });

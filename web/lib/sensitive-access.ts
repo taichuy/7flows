@@ -8,6 +8,7 @@ import {
 } from "@/app/actions/run-snapshot";
 import type {
   OperatorRunSnapshotSummary,
+  SensitiveResourceItem,
   SensitiveAccessTimelineEntry,
   SignalFollowUpExplanation
 } from "@/lib/get-sensitive-access";
@@ -31,6 +32,7 @@ export type SensitiveAccessBlockingResource = {
   sensitivity_level: string;
   source: string;
   metadata: Record<string, unknown>;
+  credential_governance?: SensitiveResourceItem["credential_governance"];
 };
 
 export type SensitiveAccessBlockingRequest = {
