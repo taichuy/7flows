@@ -17,7 +17,7 @@ import type {
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
 import { buildCallbackTicketInboxHref } from "@/lib/callback-ticket-links";
-import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
+import type { SensitiveAccessTimelineEntry, SensitiveResourceItem } from "@/lib/get-sensitive-access";
 import type { SensitiveAccessBlockingPayload } from "@/lib/sensitive-access";
 import { buildSensitiveAccessTimelineInboxHref } from "@/lib/sensitive-access-links";
 import { hasCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
@@ -72,6 +72,10 @@ import { resolveSensitiveAccessTimelineEntryRunId } from "@/lib/sensitive-access
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 import { resolveSensitiveAccessPrimaryBacklog } from "@/lib/sensitive-access-follow-up-presenters";
 import {
+  formatCredentialGovernanceCompactSummary,
+  getCredentialGovernanceSummary
+} from "@/lib/credential-governance";
+import {
   buildSensitiveAccessBlockedSurfaceCopy,
   buildSensitiveAccessTimelineSurfaceCopy
 } from "@/lib/sensitive-access-presenters";
@@ -108,7 +112,9 @@ type PublishedInvocationSensitiveAccessSummaryCounts = Pick<
   | "pending_notification_count"
   | "delivered_notification_count"
   | "failed_notification_count"
->;
+> & {
+  primary_sensitive_resource?: SensitiveResourceItem | null;
+};
 
 type PublishedInvocationSensitiveAccessSummaryLike =
   | PublishedInvocationSensitiveAccessSummary
@@ -3323,9 +3329,18 @@ export function listPublishedInvocationRunFollowUpSampleSummaries(
 ): string[] {
   return listPublishedInvocationRunFollowUpSampleViews(runFollowUp).map((sample) => {
     const shortRunId = sample.run_id.slice(0, 8);
-    return sample.snapshot_summary
+    const primarySensitiveAccessEntry =
+      findLatestApprovalEntry(sample.sensitive_access_entries) ?? sample.sensitive_access_entries[0] ?? null;
+    const primarySensitiveAccessDetail = formatPublishedInvocationSensitiveAccessPrimaryResourceChineseDetail(
+      primarySensitiveAccessEntry?.resource ?? null
+    );
+    const baseSummary = sample.snapshot_summary
       ? `run ${shortRunId}：${sample.snapshot_summary}`
       : `run ${shortRunId}：暂未读取到最新快照。`;
+
+    return primarySensitiveAccessDetail
+      ? `${baseSummary} ${primarySensitiveAccessDetail}`
+      : baseSummary;
   });
 }
 export function listPublishedInvocationSensitiveAccessChips(
@@ -3492,6 +3507,14 @@ export function buildPublishedInvocationWaitingOverview({
   const syncWaitingRejectedCount = getFacetCount(reasonCounts, "sync_waiting_unsupported");
   const lastRunStatusLabel = formatPublishedInvocationOptionalRunStatus(summary?.last_run_status, null);
   const primarySensitiveAccessBacklog = resolvePublishedInvocationSensitiveAccessPrimaryBacklog(summary);
+  const primarySensitiveAccessResource = resolvePublishedInvocationSensitiveAccessPrimaryResource(summary);
+  const primarySensitiveAccessChip = formatPublishedInvocationSensitiveAccessPrimaryResourceChip(
+    primarySensitiveAccessResource
+  );
+  const primarySensitiveAccessResourceDetail =
+    formatPublishedInvocationSensitiveAccessPrimaryResourceEnglishDetail(
+      primarySensitiveAccessResource
+    );
   const callbackFollowUpSurface = resolvePreferredSystemOverviewFollowUpSurface({
     callbackActive: callbackWaitingCount > 0,
     callbackWaitingAutomation
@@ -3523,6 +3546,9 @@ export function buildPublishedInvocationWaitingOverview({
   if (syncWaitingRejectedCount > 0) {
     chips.push(`${formatCountLabel(syncWaitingRejectedCount, "sync waiting rejection")}`);
   }
+  if (primarySensitiveAccessChip) {
+    chips.push(primarySensitiveAccessChip);
+  }
   if (lastRunStatusLabel) {
     chips.push(`latest ${lastRunStatusLabel}`);
   }
@@ -3538,7 +3564,8 @@ export function buildPublishedInvocationWaitingOverview({
           ? joinFragments(
               [
                 `${formatCountLabel(waitingInputCount, "run")} are paused on approval or operator input`,
-                sensitiveAccessFollowUpDetail
+                sensitiveAccessFollowUpDetail,
+                primarySensitiveAccessResourceDetail
               ].filter((value): value is string => Boolean(value))
             )
           : null,
@@ -3552,6 +3579,7 @@ export function buildPublishedInvocationWaitingOverview({
       syncWaitingRejectedCount > 0
         ? `${formatCountLabel(syncWaitingRejectedCount, "sync invocation")} were rejected because synchronous publish surfaces cannot stay in waiting.`
         : null,
+      primarySensitiveAccessResourceDetail,
       lastRunStatusLabel ? `Latest run status: ${lastRunStatusLabel}.` : null
     ].filter((value): value is string => Boolean(value));
     return {
@@ -3581,7 +3609,8 @@ export function buildPublishedInvocationWaitingOverview({
       detail: joinFragments(
         [
           "These requests reached a workflow that wanted to pause, but the synchronous publish surface could only reject the call. Prefer async routes or open a recent invocation detail to inspect the waiting lifecycle.",
-          sensitiveAccessFollowUpDetail
+          sensitiveAccessFollowUpDetail,
+          primarySensitiveAccessResourceDetail
         ].filter((value): value is string => Boolean(value))
       ) ??
         "These requests reached a workflow that wanted to pause, but the synchronous publish surface could only reject the call. Prefer async routes or open a recent invocation detail to inspect the waiting lifecycle.",
@@ -3723,6 +3752,72 @@ function resolvePublishedInvocationSensitiveAccessPrimaryBacklog(
   });
 }
 
+function resolvePublishedInvocationSensitiveAccessPrimaryResource(
+  summary?: PublishedInvocationSensitiveAccessSummaryLike | null
+) {
+  if (!summary) {
+    return null;
+  }
+
+  return "primary_resource" in summary
+    ? (summary.primary_resource ?? null)
+    : ((summary as PublishedInvocationSensitiveAccessSummaryCounts).primary_sensitive_resource ??
+        null);
+}
+
+function formatPublishedInvocationSensitiveAccessPrimaryResourceSummary(
+  resource?: SensitiveResourceItem | null
+) {
+  if (!resource) {
+    return null;
+  }
+
+  const resourceLabel = resource.label?.trim() || null;
+  const compactGovernanceSummary = formatCredentialGovernanceCompactSummary(
+    getCredentialGovernanceSummary(resource)
+  );
+
+  if (!compactGovernanceSummary) {
+    return resourceLabel;
+  }
+
+  if (
+    resourceLabel &&
+    (compactGovernanceSummary === resourceLabel ||
+      compactGovernanceSummary.startsWith(`${resourceLabel} · `))
+  ) {
+    return compactGovernanceSummary;
+  }
+
+  return [resourceLabel, compactGovernanceSummary].filter((value): value is string => Boolean(value)).join(
+    " · "
+  );
+}
+
+function formatPublishedInvocationSensitiveAccessPrimaryResourceChip(
+  resource?: SensitiveResourceItem | null
+) {
+  return (
+    formatCredentialGovernanceCompactSummary(getCredentialGovernanceSummary(resource)) ??
+    resource?.label?.trim() ??
+    null
+  );
+}
+
+function formatPublishedInvocationSensitiveAccessPrimaryResourceEnglishDetail(
+  resource?: SensitiveResourceItem | null
+) {
+  const summary = formatPublishedInvocationSensitiveAccessPrimaryResourceSummary(resource);
+  return summary ? `Primary governed resource: ${summary}.` : null;
+}
+
+function formatPublishedInvocationSensitiveAccessPrimaryResourceChineseDetail(
+  resource?: SensitiveResourceItem | null
+) {
+  const summary = formatPublishedInvocationSensitiveAccessPrimaryResourceSummary(resource);
+  return summary ? `当前命中的治理资源：${summary}。` : null;
+}
+
 function formatPublishedInvocationWaitingSensitiveAccessBacklogDetail(
   primaryBacklog: PublishedInvocationSensitiveAccessPrimaryBacklog
 ) {
@@ -3759,6 +3854,9 @@ function buildPublishedInvocationSensitiveAccessFollowUpSurface(
     surface: "publish_invocation"
   }).inboxLinkLabel;
   const primaryBacklog = resolvePublishedInvocationSensitiveAccessPrimaryBacklog(summary);
+  const primaryResourceDetail = formatPublishedInvocationSensitiveAccessPrimaryResourceChineseDetail(
+    resolvePublishedInvocationSensitiveAccessPrimaryResource(summary)
+  );
   const buildSurface = ({
     detail,
     href
@@ -3773,7 +3871,7 @@ function buildPublishedInvocationSensitiveAccessFollowUpSurface(
 
     return {
       source: "sensitive_access",
-      detail,
+      detail: primaryResourceDetail ? `${detail} ${primaryResourceDetail}` : detail,
       href: linkSurface.href,
       hrefLabel: linkSurface.label
     };
@@ -3868,7 +3966,9 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
           Math.max(Number(activity?.delivered_notification_count ?? 0), 0),
         failed_notification_count:
           summary.failed_notification_count +
-          Math.max(Number(activity?.failed_notification_count ?? 0), 0)
+          Math.max(Number(activity?.failed_notification_count ?? 0), 0),
+        primary_sensitive_resource:
+          summary.primary_sensitive_resource ?? activity?.primary_sensitive_resource ?? null
       };
     },
     {
@@ -3879,7 +3979,8 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
       expired_approval_count: 0,
       pending_notification_count: 0,
       delivered_notification_count: 0,
-      failed_notification_count: 0
+      failed_notification_count: 0,
+      primary_sensitive_resource: null
     }
   );
   const lifecycleCoverage = bindings.reduce(

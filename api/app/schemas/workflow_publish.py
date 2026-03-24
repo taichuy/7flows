@@ -22,10 +22,10 @@ from app.schemas.workflow_legacy_auth_governance import (
     WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem,
     WorkflowPublishedEndpointLegacyAuthGovernanceBuckets,
     WorkflowPublishedEndpointLegacyAuthGovernanceChecklistItem,
-    WorkflowPublishedEndpointLegacyAuthModeContract,
     WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
     WorkflowPublishedEndpointLegacyAuthGovernanceSummary,
     WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem,
+    WorkflowPublishedEndpointLegacyAuthModeContract,
 )
 from app.schemas.workflow_published_endpoint import (
     WorkflowPublishedEndpointCachePolicy,
@@ -344,6 +344,7 @@ class PublishedEndpointInvocationSummary(BaseModel):
     pending_notification_count: int = 0
     delivered_notification_count: int = 0
     failed_notification_count: int = 0
+    primary_sensitive_resource: SensitiveResourceItem | None = None
 
 
 class PublishedEndpointInvocationWaitingLifecycle(BaseModel):

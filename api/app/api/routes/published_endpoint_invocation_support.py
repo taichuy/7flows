@@ -23,7 +23,7 @@ from app.services.run_view_serializers import (
     serialize_callback_waiting_lifecycle_summary,
     serialize_callback_waiting_scheduled_resume,
 )
-from app.services.sensitive_access_presenters import serialize_sensitive_resource
+from app.services.sensitive_access_bundle_summary import summarize_sensitive_access_bundles
 from app.services.sensitive_access_timeline import SensitiveAccessTimelineSnapshot
 from app.services.sensitive_access_types import SensitiveAccessRequestBundle
 
@@ -192,52 +192,6 @@ def resolve_waiting_node_run(run: Run, node_runs: list[NodeRun]) -> NodeRun | No
     )
 
 
-def _has_pending_waiting_approval(bundle: SensitiveAccessRequestBundle) -> bool:
-    approval_ticket = bundle.approval_ticket
-    return bool(
-        approval_ticket is not None
-        and approval_ticket.status == "pending"
-        and approval_ticket.waiting_status == "waiting"
-    )
-
-
-def _count_failed_notifications(bundle: SensitiveAccessRequestBundle) -> int:
-    return sum(1 for notification in bundle.notifications if notification.status == "failed")
-
-
-def _has_retriable_notification(bundle: SensitiveAccessRequestBundle) -> bool:
-    return any(notification.status != "delivered" for notification in bundle.notifications)
-
-
-def _resolve_bundle_activity_at(bundle: SensitiveAccessRequestBundle) -> datetime:
-    timestamps = [bundle.access_request.created_at]
-    if bundle.approval_ticket is not None:
-        timestamps.append(bundle.approval_ticket.created_at)
-    timestamps.extend(
-        notification.created_at
-        for notification in bundle.notifications
-        if notification.created_at is not None
-    )
-    return max(timestamps) if timestamps else datetime.min.replace(tzinfo=UTC)
-
-
-def _pick_primary_sensitive_access_bundle(
-    bundles: list[SensitiveAccessRequestBundle],
-) -> SensitiveAccessRequestBundle | None:
-    if not bundles:
-        return None
-
-    return max(
-        bundles,
-        key=lambda bundle: (
-            1 if _has_pending_waiting_approval(bundle) else 0,
-            _count_failed_notifications(bundle),
-            1 if _has_retriable_notification(bundle) else 0,
-            _resolve_bundle_activity_at(bundle),
-        ),
-    )
-
-
 def serialize_waiting_lifecycle(
     node_run: NodeRun,
     callback_tickets: list[RunCallbackTicket],
@@ -350,41 +304,21 @@ def build_waiting_lifecycle_lookup(
 def _summarize_sensitive_access_bundles(
     bundles: list[SensitiveAccessRequestBundle],
 ) -> PublishedEndpointInvocationSensitiveAccessSummary | None:
-    if not bundles:
+    summary = summarize_sensitive_access_bundles(bundles)
+    if summary is None:
         return None
 
-    approval_tickets = [
-        bundle.approval_ticket for bundle in bundles if bundle.approval_ticket is not None
-    ]
-    notifications = [
-        notification for bundle in bundles for notification in bundle.notifications
-    ]
-    primary_bundle = _pick_primary_sensitive_access_bundle(bundles)
     return PublishedEndpointInvocationSensitiveAccessSummary(
-        request_count=len(bundles),
-        approval_ticket_count=len(approval_tickets),
-        pending_approval_count=sum(1 for ticket in approval_tickets if ticket.status == "pending"),
-        approved_approval_count=sum(
-            1 for ticket in approval_tickets if ticket.status == "approved"
-        ),
-        rejected_approval_count=sum(
-            1 for ticket in approval_tickets if ticket.status == "rejected"
-        ),
-        expired_approval_count=sum(1 for ticket in approval_tickets if ticket.status == "expired"),
-        pending_notification_count=sum(
-            1 for notification in notifications if notification.status == "pending"
-        ),
-        delivered_notification_count=sum(
-            1 for notification in notifications if notification.status == "delivered"
-        ),
-        failed_notification_count=sum(
-            1 for notification in notifications if notification.status == "failed"
-        ),
-        primary_resource=(
-            serialize_sensitive_resource(primary_bundle.resource)
-            if primary_bundle is not None
-            else None
-        ),
+        request_count=summary.request_count,
+        approval_ticket_count=summary.approval_ticket_count,
+        pending_approval_count=summary.pending_approval_count,
+        approved_approval_count=summary.approved_approval_count,
+        rejected_approval_count=summary.rejected_approval_count,
+        expired_approval_count=summary.expired_approval_count,
+        pending_notification_count=summary.pending_notification_count,
+        delivered_notification_count=summary.delivered_notification_count,
+        failed_notification_count=summary.failed_notification_count,
+        primary_resource=summary.primary_resource,
     )
 
 

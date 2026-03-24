@@ -82,6 +82,7 @@ def _serialize_published_invocation_summary(summary) -> PublishedEndpointInvocat
         pending_notification_count=summary.pending_notification_count,
         delivered_notification_count=summary.delivered_notification_count,
         failed_notification_count=summary.failed_notification_count,
+        primary_sensitive_resource=summary.primary_sensitive_resource,
     )
 def _serialize_facet_item(item) -> PublishedEndpointInvocationFacetItem:
     return PublishedEndpointInvocationFacetItem(

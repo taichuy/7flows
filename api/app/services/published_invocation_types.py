@@ -10,6 +10,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
 
+from app.schemas.sensitive_access import SensitiveResourceItem
+
 # ---------------------------------------------------------------------------
 # Type aliases
 # ---------------------------------------------------------------------------
@@ -116,6 +118,7 @@ class PublishedInvocationSummary:
     pending_notification_count: int = 0
     delivered_notification_count: int = 0
     failed_notification_count: int = 0
+    primary_sensitive_resource: SensitiveResourceItem | None = None
 
 
 @dataclass(frozen=True)

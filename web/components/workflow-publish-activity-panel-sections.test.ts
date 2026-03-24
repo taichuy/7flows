@@ -684,6 +684,27 @@ describe("WorkflowPublishActivityInsights", () => {
     invocationAudit.summary.pending_notification_count = 0;
     invocationAudit.summary.delivered_notification_count = 0;
     invocationAudit.summary.failed_notification_count = 0;
+    invocationAudit.summary.primary_sensitive_resource = {
+      id: "resource-credential-1",
+      label: "OpenAI Prod Key",
+      description: "Primary credential blocker",
+      sensitivity_level: "L3",
+      source: "credential",
+      metadata: {},
+      credential_governance: {
+        credential_id: "credential-1",
+        credential_name: "OpenAI Prod Key",
+        credential_type: "openai_api_key",
+        credential_status: "active",
+        sensitivity_level: "L3",
+        sensitive_resource_id: "resource-credential-1",
+        sensitive_resource_label: "OpenAI Prod Key",
+        credential_ref: "credential://openai/prod",
+        summary: "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+      },
+      created_at: "2026-03-20T10:00:00Z",
+      updated_at: "2026-03-20T10:00:00Z"
+    };
     invocationAudit.facets.run_status_counts = [{ value: "waiting_input", count: 2 }];
 
     const html = renderToStaticMarkup(
@@ -700,6 +721,8 @@ describe("WorkflowPublishActivityInsights", () => {
     );
 
     expect(html).toContain("2 approval tickets are still pending in sensitive access inbox");
+    expect(html).toContain("OpenAI Prod Key · L3 治理 · 生效中");
+    expect(html).toContain("Primary governed resource: OpenAI Prod Key · L3 治理 · 生效中.");
     expect(html).toContain("open approval inbox slice");
     expect(html).toContain('/sensitive-access?status=pending');
   });

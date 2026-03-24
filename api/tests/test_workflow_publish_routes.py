@@ -1850,6 +1850,17 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     assert activity_body["summary"]["pending_notification_count"] == 0
     assert activity_body["summary"]["delivered_notification_count"] == 1
     assert activity_body["summary"]["failed_notification_count"] == 0
+    assert activity_body["summary"]["primary_sensitive_resource"] == {
+        "id": sensitive_resource.id,
+        "label": "Published Search Tool",
+        "description": "Published invocation depends on approved search access.",
+        "sensitivity_level": "L2",
+        "source": "local_capability",
+        "metadata": {"tool_id": "native.search", "workflow_id": workflow_id},
+        "credential_governance": None,
+        "created_at": expected_now,
+        "updated_at": expected_now,
+    }
     assert activity_body["items"][0]["run_follow_up"]["affected_run_count"] == 1
     assert activity_body["items"][0]["run_follow_up"]["sampled_run_count"] == 1
     assert activity_body["items"][0]["run_follow_up"]["waiting_run_count"] == 1
@@ -1884,6 +1895,9 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     assert binding_activity["pending_approval_count"] == 0
     assert binding_activity["approved_approval_count"] == 1
     assert binding_activity["delivered_notification_count"] == 1
+    assert binding_activity["primary_sensitive_resource"] == activity_body["summary"][
+        "primary_sensitive_resource"
+    ]
 
     detail_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/{invocation.id}"

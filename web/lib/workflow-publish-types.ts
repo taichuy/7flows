@@ -52,6 +52,7 @@ export type PublishedEndpointInvocationSummary = {
   pending_notification_count?: number;
   delivered_notification_count?: number;
   failed_notification_count?: number;
+  primary_sensitive_resource?: SensitiveResourceItem | null;
 };
 
 export type PublishedEndpointInvocationItem = {

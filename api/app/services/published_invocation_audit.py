@@ -6,7 +6,7 @@ heavier summary, facet and timeline aggregation lives in smaller helpers.
 
 from __future__ import annotations
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 from dataclasses import replace
 from datetime import datetime
 
@@ -34,6 +34,7 @@ from app.services.published_invocation_types import (
     PublishedInvocationSummary,
     classify_invocation_reason,
 )
+from app.services.sensitive_access_bundle_summary import summarize_sensitive_access_bundles
 from app.services.sensitive_access_timeline import load_sensitive_access_timelines
 
 
@@ -41,7 +42,7 @@ def _build_sensitive_access_summary_counts_for_run_ids(
     db: Session,
     *,
     run_ids: list[str],
-) -> dict[str, int]:
+) -> dict[str, object]:
     if not run_ids:
         return {
             "approval_ticket_count": 0,
@@ -52,26 +53,41 @@ def _build_sensitive_access_summary_counts_for_run_ids(
             "pending_notification_count": 0,
             "delivered_notification_count": 0,
             "failed_notification_count": 0,
+            "primary_sensitive_resource": None,
         }
 
-    approval_status_counts: Counter[str] = Counter()
-    notification_status_counts: Counter[str] = Counter()
-    approval_ticket_count = 0
     timelines = load_sensitive_access_timelines(db, run_ids=run_ids)
-    for timeline in timelines.values():
-        approval_ticket_count += timeline.approval_ticket_count
-        approval_status_counts.update(timeline.approval_status_counts or {})
-        notification_status_counts.update(timeline.notification_status_counts or {})
+    bundle_summary = summarize_sensitive_access_bundles(
+        [
+            bundle
+            for timeline in timelines.values()
+            for bundle in timeline.bundles
+            if bundle.approval_ticket is not None or bundle.notifications
+        ]
+    )
+    if bundle_summary is None:
+        return {
+            "approval_ticket_count": 0,
+            "pending_approval_count": 0,
+            "approved_approval_count": 0,
+            "rejected_approval_count": 0,
+            "expired_approval_count": 0,
+            "pending_notification_count": 0,
+            "delivered_notification_count": 0,
+            "failed_notification_count": 0,
+            "primary_sensitive_resource": None,
+        }
 
     return {
-        "approval_ticket_count": approval_ticket_count,
-        "pending_approval_count": approval_status_counts.get("pending", 0),
-        "approved_approval_count": approval_status_counts.get("approved", 0),
-        "rejected_approval_count": approval_status_counts.get("rejected", 0),
-        "expired_approval_count": approval_status_counts.get("expired", 0),
-        "pending_notification_count": notification_status_counts.get("pending", 0),
-        "delivered_notification_count": notification_status_counts.get("delivered", 0),
-        "failed_notification_count": notification_status_counts.get("failed", 0),
+        "approval_ticket_count": bundle_summary.approval_ticket_count,
+        "pending_approval_count": bundle_summary.pending_approval_count,
+        "approved_approval_count": bundle_summary.approved_approval_count,
+        "rejected_approval_count": bundle_summary.rejected_approval_count,
+        "expired_approval_count": bundle_summary.expired_approval_count,
+        "pending_notification_count": bundle_summary.pending_notification_count,
+        "delivered_notification_count": bundle_summary.delivered_notification_count,
+        "failed_notification_count": bundle_summary.failed_notification_count,
+        "primary_sensitive_resource": bundle_summary.primary_resource,
     }
 
 

@@ -2339,7 +2339,29 @@ describe("published invocation presenters", () => {
           expired_approval_count: 0,
           pending_notification_count: 0,
           delivered_notification_count: 0,
-          failed_notification_count: 0
+          failed_notification_count: 0,
+          primary_sensitive_resource: {
+            id: "resource-credential-1",
+            label: "OpenAI Prod Key",
+            description: "Primary credential blocker",
+            sensitivity_level: "L3",
+            source: "credential",
+            metadata: {},
+            credential_governance: {
+              credential_id: "credential-1",
+              credential_name: "OpenAI Prod Key",
+              credential_type: "openai_api_key",
+              credential_status: "active",
+              sensitivity_level: "L3",
+              sensitive_resource_id: "resource-credential-1",
+              sensitive_resource_label: "OpenAI Prod Key",
+              credential_ref: "credential://openai/prod",
+              summary:
+                "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+            },
+            created_at: "2026-03-20T10:00:00Z",
+            updated_at: "2026-03-20T10:00:00Z"
+          }
         },
         runStatusCounts: [{ value: "waiting_input", count: 2 }],
         reasonCounts: []
@@ -2349,9 +2371,56 @@ describe("published invocation presenters", () => {
       detail: expect.stringContaining(
         "2 approval tickets are still pending in sensitive access inbox"
       ),
+      chips: expect.arrayContaining(["OpenAI Prod Key · L3 治理 · 生效中"]),
       followUpHref: "/sensitive-access?status=pending",
       followUpHrefLabel: "open approval inbox slice"
     });
+    expect(
+      buildPublishedInvocationWaitingOverview({
+        summary: {
+          total_count: 2,
+          succeeded_count: 0,
+          failed_count: 0,
+          rejected_count: 0,
+          cache_hit_count: 0,
+          cache_miss_count: 0,
+          cache_bypass_count: 0,
+          last_run_status: "waiting_input",
+          approval_ticket_count: 2,
+          pending_approval_count: 2,
+          approved_approval_count: 0,
+          rejected_approval_count: 0,
+          expired_approval_count: 0,
+          pending_notification_count: 0,
+          delivered_notification_count: 0,
+          failed_notification_count: 0,
+          primary_sensitive_resource: {
+            id: "resource-credential-1",
+            label: "OpenAI Prod Key",
+            description: "Primary credential blocker",
+            sensitivity_level: "L3",
+            source: "credential",
+            metadata: {},
+            credential_governance: {
+              credential_id: "credential-1",
+              credential_name: "OpenAI Prod Key",
+              credential_type: "openai_api_key",
+              credential_status: "active",
+              sensitivity_level: "L3",
+              sensitive_resource_id: "resource-credential-1",
+              sensitive_resource_label: "OpenAI Prod Key",
+              credential_ref: "credential://openai/prod",
+              summary:
+                "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+            },
+            created_at: "2026-03-20T10:00:00Z",
+            updated_at: "2026-03-20T10:00:00Z"
+          }
+        },
+        runStatusCounts: [{ value: "waiting_input", count: 2 }],
+        reasonCounts: []
+      }).detail
+    ).toContain("Primary governed resource: OpenAI Prod Key · L3 治理 · 生效中.");
   });
 
   it("在 approval/input wait 的 waiting overview 里优先复用 failed notification backlog CTA", () => {
@@ -3178,13 +3247,39 @@ describe("published invocation presenters", () => {
                   response_summary: "回调原始结果已写入 artifact。"
                 }
               ]
-            }
+            },
+            sensitive_access_entries: [
+              {
+                resource: {
+                  id: "resource-credential-1",
+                  label: "OpenAI Prod Key",
+                  description: "Primary credential blocker",
+                  sensitivity_level: "L3",
+                  source: "credential",
+                  metadata: {},
+                  credential_governance: {
+                    credential_id: "credential-1",
+                    credential_name: "OpenAI Prod Key",
+                    credential_type: "openai_api_key",
+                    credential_status: "active",
+                    sensitivity_level: "L3",
+                    sensitive_resource_id: "resource-credential-1",
+                    sensitive_resource_label: "OpenAI Prod Key",
+                    credential_ref: "credential://openai/prod",
+                    summary:
+                      "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+                  },
+                  created_at: "2026-03-20T10:00:00Z",
+                  updated_at: "2026-03-20T10:00:00Z"
+                }
+              } as never
+            ]
           }
         ],
         explanation: null
       })
     ).toEqual([
-      "run run-1234：当前 run 状态：waiting。 当前节点：mock_tool。 重点信号：当前仍有 1 条 callback ticket 等待外部回调。 后续动作：下一步：先等待外部 callback 到达，再观察自动 resume。 Mock callback tool 已关联 1 个 artifact、1 条 artifact ref、1 条 tool call。 其中 1 条 tool call 已落到 raw_ref，可直接回看原始输出。 样本 tool： callback.fetch 状态 waiting。 effective sandbox。 backend backend-wait。 raw_ref artifact://callback-raw。 回调原始结果已写入 artifact。"
+      "run run-1234：当前 run 状态：waiting。 当前节点：mock_tool。 重点信号：当前仍有 1 条 callback ticket 等待外部回调。 后续动作：下一步：先等待外部 callback 到达，再观察自动 resume。 Mock callback tool 已关联 1 个 artifact、1 条 artifact ref、1 条 tool call。 其中 1 条 tool call 已落到 raw_ref，可直接回看原始输出。 样本 tool： callback.fetch 状态 waiting。 effective sandbox。 backend backend-wait。 raw_ref artifact://callback-raw。 回调原始结果已写入 artifact。 当前命中的治理资源：OpenAI Prod Key · L3 治理 · 生效中。"
     ]);
   });
   it("优先读取活动列表顶层共享解释，并兼容 sampled run snapshot 回退", () => {

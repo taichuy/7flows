@@ -56,6 +56,7 @@ def _serialize_published_invocation_summary(
         pending_notification_count=summary.pending_notification_count,
         delivered_notification_count=summary.delivered_notification_count,
         failed_notification_count=summary.failed_notification_count,
+        primary_sensitive_resource=summary.primary_sensitive_resource,
     )
 
 
