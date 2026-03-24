@@ -11,6 +11,7 @@ import { getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflows } from "@/lib/get-workflows";
 import {
+  buildSensitiveAccessResourceFixture,
   buildSensitiveAccessInboxSnapshotFixture,
   buildSystemOverviewFixture
 } from "@/lib/workbench-page-test-fixtures";
@@ -276,6 +277,50 @@ describe("WorkflowsPage", () => {
       "优先回到 Legacy Auth workflow 处理 1 个 publish draft：先把 workflow draft endpoint 切回 api_key/internal 并保存"
     );
     expect(html).toContain('/workflows/workflow-legacy-auth');
+  });
+
+  it("prioritizes shared operator backlog follow-up before local workflow cleanup", async () => {
+    vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot({
+        summary: {
+          ...buildSensitiveAccessInboxSnapshot().summary,
+          ticket_count: 1,
+          pending_ticket_count: 1,
+          affected_run_count: 1,
+          affected_workflow_count: 1,
+          primary_resource: buildSensitiveAccessResourceFixture({
+            label: "Workflow secret",
+            sensitivity_level: "L3",
+            source: "credential"
+          })
+        }
+      })
+    );
+    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshot());
+    vi.mocked(getWorkflows).mockResolvedValue([
+      {
+        id: "workflow-1",
+        name: "Alpha workflow",
+        version: "1.0.0",
+        status: "draft",
+        node_count: 3,
+        definition_issues: [],
+        tool_governance: {
+          referenced_tool_ids: [],
+          missing_tool_ids: [],
+          governed_tool_count: 0,
+          strong_isolation_tool_count: 0
+        }
+      }
+    ]);
+
+    const html = renderToStaticMarkup(await WorkflowsPage());
+
+    expect(html).toContain("pending approval ticket");
+    expect(html).toContain("当前 Workflow secret 仍是 operator inbox 的首要治理资源");
+    expect(html).toContain('/sensitive-access?status=pending');
+    expect(html).not.toContain("publish auth cleanup");
   });
 
   it("projects workflow library digest to a focused trace slice when operator backlog already has focus-node facts", async () => {

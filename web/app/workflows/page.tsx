@@ -14,12 +14,17 @@ import {
   type WorkflowLibraryStarterItem
 } from "@/lib/get-workflow-library";
 import { getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
+import { buildSensitiveAccessInboxRecommendedNextStep } from "@/lib/operator-workbench-next-step";
 import type { OperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import {
   buildAuthorFacingWorkflowDetailLinkSurface,
   buildWorkflowLibrarySurfaceCopy
 } from "@/lib/workbench-entry-surfaces";
-import { getSystemOverview, type SandboxReadinessCheck } from "@/lib/get-system-overview";
+import {
+  getSystemOverview,
+  type CallbackWaitingAutomationCheck,
+  type SandboxReadinessCheck
+} from "@/lib/get-system-overview";
 import { getWorkflows, type WorkflowListItem } from "@/lib/get-workflows";
 import { buildLegacyPublishAuthModeFollowUp } from "@/lib/legacy-publish-auth-contract";
 import { formatCountMap } from "@/lib/runtime-presenters";
@@ -108,8 +113,12 @@ export default async function WorkflowsPage({
   });
   const recommendedNextStep = buildWorkflowLibraryRecommendedNextStep({
     summary,
+    sensitiveAccessEntries: sensitiveAccessInbox.entries,
+    sensitiveAccessSummary: sensitiveAccessInbox.summary,
+    callbackWaitingAutomation: systemOverview.callback_waiting_automation,
     sandboxReadiness: systemOverview.sandbox_readiness,
     starters: workflowLibrary.starters,
+    currentHref: workflowLibraryHref,
     workspaceStarterViewState,
     workflowLibraryViewState
   });
@@ -382,19 +391,39 @@ function buildWorkflowLibrarySummary(workflows: WorkflowListItem[]) {
 
 function buildWorkflowLibraryRecommendedNextStep({
   summary,
+  sensitiveAccessEntries,
+  sensitiveAccessSummary,
+  callbackWaitingAutomation,
   sandboxReadiness,
   starters,
+  currentHref,
   workspaceStarterViewState,
   workflowLibraryViewState
 }: {
   summary: ReturnType<typeof buildWorkflowLibrarySummary>;
+  sensitiveAccessEntries: Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>["entries"];
+  sensitiveAccessSummary: Awaited<ReturnType<typeof getSensitiveAccessInboxSnapshot>>["summary"];
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   starters: WorkflowLibraryStarterItem[];
+  currentHref?: string;
   workspaceStarterViewState: Parameters<
     typeof buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState
   >[0]["viewState"];
   workflowLibraryViewState: WorkflowLibraryViewState;
 }): OperatorRecommendedNextStep | null {
+  const operatorGovernanceNextStep = buildSensitiveAccessInboxRecommendedNextStep({
+    entries: sensitiveAccessEntries,
+    summary: sensitiveAccessSummary,
+    callbackWaitingAutomation,
+    sandboxReadiness,
+    currentHref
+  });
+
+  if (operatorGovernanceNextStep) {
+    return operatorGovernanceNextStep;
+  }
+
   const workflowLegacyPublishAuth = summary.workflowsWithLegacyPublishAuth[0] ?? null;
   if (workflowLegacyPublishAuth) {
     const workflowLink = buildFilteredWorkflowDetailLink({
