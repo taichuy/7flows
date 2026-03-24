@@ -689,10 +689,14 @@ def summarize_execution_signals(artifacts: ExecutionArtifacts) -> RunExecutionSi
                 snapshot.fallback_reason = reason
         elif event.event_type.endswith("blocked"):
             snapshot.blocked_count += 1
+            snapshot.effective_execution_class = None
+            snapshot.executor_ref = None
             if isinstance(reason, str) and reason.strip():
                 snapshot.blocking_reason = reason
         elif event.event_type.endswith("unavailable"):
             snapshot.unavailable_count += 1
+            snapshot.effective_execution_class = None
+            snapshot.executor_ref = None
             if isinstance(reason, str) and reason.strip():
                 snapshot.blocking_reason = reason
 

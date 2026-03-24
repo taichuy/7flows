@@ -1288,3 +1288,120 @@ def test_get_run_evidence_view_returns_evidence_nodes_only(
         "artifact-tool-result",
         "artifact-evidence-pack",
     ]
+
+
+def test_get_run_execution_view_fail_closes_stale_blocked_tool_execution_facts(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow: Workflow,
+) -> None:
+    run = Run(
+        id="run-execution-view-blocked-tool-stale",
+        workflow_id=sample_workflow.id,
+        workflow_version=sample_workflow.version,
+        status="failed",
+        created_at=datetime(2026, 3, 24, 17, 10, tzinfo=UTC),
+    )
+    node_run = NodeRun(
+        id="node-run-blocked-tool-stale",
+        run_id=run.id,
+        node_id="tool_wait",
+        node_name="Tool Wait",
+        node_type="tool",
+        status="failed",
+        phase="execute",
+        waiting_reason=None,
+        checkpoint_payload={},
+        created_at=datetime(2026, 3, 24, 17, 10, tzinfo=UTC),
+        started_at=datetime(2026, 3, 24, 17, 10, tzinfo=UTC),
+        phase_started_at=datetime(2026, 3, 24, 17, 10, tzinfo=UTC),
+    )
+    sqlite_session.add_all(
+        [
+            run,
+            node_run,
+            RunEvent(
+                run_id=run.id,
+                node_run_id=node_run.id,
+                event_type="tool.execution.dispatched",
+                payload={
+                    "node_id": node_run.node_id,
+                    "tool_id": "sandbox.tool",
+                    "tool_name": "Sandbox Tool",
+                    "requested_execution_class": "sandbox",
+                    "execution_source": "runtime_policy",
+                    "effective_execution_class": "inline",
+                    "executor_ref": "tool:compat-adapter:dify-default",
+                    "sandbox_backend_id": "sandbox-stale",
+                    "sandbox_backend_executor_ref": "sandbox-backend:sandbox-stale",
+                },
+                created_at=datetime(2026, 3, 24, 17, 10, 5, tzinfo=UTC),
+            ),
+            RunEvent(
+                run_id=run.id,
+                node_run_id=node_run.id,
+                event_type="tool.execution.blocked",
+                payload={
+                    "node_id": node_run.node_id,
+                    "tool_id": "sandbox.tool",
+                    "tool_name": "Sandbox Tool",
+                    "requested_execution_class": "sandbox",
+                    "execution_source": "runtime_policy",
+                    "sandbox_backend_id": "sandbox-stale",
+                    "sandbox_backend_executor_ref": "sandbox-backend:sandbox-stale",
+                    "reason": "No compatible sandbox backend is available.",
+                },
+                created_at=datetime(2026, 3, 24, 17, 10, 6, tzinfo=UTC),
+            ),
+            ToolCallRecord(
+                id="tool-call-blocked-tool-stale",
+                run_id=run.id,
+                node_run_id=node_run.id,
+                tool_id="sandbox.tool",
+                tool_name="Sandbox Tool",
+                phase="execute",
+                status="failed",
+                request_summary="Search docs",
+                execution_trace={
+                    "requested_execution_class": "sandbox",
+                    "execution_source": "runtime_policy",
+                    "effective_execution_class": "inline",
+                    "executor_ref": "tool:compat-adapter:dify-default",
+                    "sandbox_backend_id": "sandbox-stale",
+                    "sandbox_backend_executor_ref": "sandbox-backend:sandbox-stale",
+                    "sandbox_runner_kind": "container",
+                    "blocked_reason": "No compatible sandbox backend is available.",
+                    "fallback_reason": None,
+                },
+                created_at=datetime(2026, 3, 24, 17, 10, 5, tzinfo=UTC),
+                latency_ms=0,
+                retry_count=0,
+            ),
+        ]
+    )
+    sqlite_session.commit()
+
+    response = client.get(f"/api/runs/{run.id}/execution-view")
+
+    assert response.status_code == 200
+    body = response.json()
+    node = body["nodes"][0]
+    assert body["summary"]["execution_effective_class_counts"] == {}
+    assert body["summary"]["execution_executor_ref_counts"] == {}
+    assert node["execution_blocking_reason"] == "No compatible sandbox backend is available."
+    assert node["effective_execution_class"] is None
+    assert node["execution_executor_ref"] is None
+    assert node["execution_sandbox_backend_id"] == "sandbox-stale"
+    assert (
+        node["execution_sandbox_backend_executor_ref"]
+        == "sandbox-backend:sandbox-stale"
+    )
+
+    assert len(node["tool_calls"]) == 1
+    tool_call = node["tool_calls"][0]
+    assert tool_call["execution_blocking_reason"] == "No compatible sandbox backend is available."
+    assert tool_call["effective_execution_class"] is None
+    assert tool_call["execution_executor_ref"] is None
+    assert tool_call["execution_sandbox_backend_id"] == "sandbox-stale"
+    assert tool_call["execution_trace"]["effective_execution_class"] is None
+    assert tool_call["execution_trace"]["executor_ref"] is None

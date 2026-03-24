@@ -21,6 +21,9 @@ from app.services.callback_waiting_lifecycle import (
     load_callback_waiting_lifecycle,
     load_callback_waiting_scheduled_resume,
 )
+from app.services.tool_execution_fact_honesty import (
+    normalize_blocked_execution_trace_facts,
+)
 
 
 def normalize_datetime(value: datetime | None) -> datetime | None:
@@ -161,7 +164,7 @@ def serialize_run_artifact(artifact: RunArtifact) -> RunArtifactItem:
 
 
 def serialize_tool_call(tool_call: ToolCallRecord) -> ToolCallItem:
-    execution_trace = dict(tool_call.execution_trace or {})
+    execution_trace = normalize_blocked_execution_trace_facts(tool_call.execution_trace)
     requested_backend_extensions = execution_trace.get("requested_backend_extensions")
     adapter_request_execution = execution_trace.get("adapter_request_execution")
     adapter_request_execution_contract = execution_trace.get(

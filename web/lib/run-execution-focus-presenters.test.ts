@@ -448,7 +448,6 @@ describe("run execution focus presenters", () => {
         badges: [
           "phase waiting_callback",
           "requested sandbox",
-          "effective sandbox",
           "profile risk-reviewed",
           "deps builtin",
           "backend docker",
@@ -459,7 +458,7 @@ describe("run execution focus presenters", () => {
         ],
         rawRef: "artifact://tool-call-1/raw",
         traceSummary:
-          "执行链：source tool_policy · timeout 3000ms · network isolated · filesystem ephemeral · deps builtin · builtin research-default · extensions image, mount · executor tool:compat-adapter:dify-default · backend ref sandbox-backend:docker。"
+          "执行链：source tool_policy · timeout 3000ms · network isolated · filesystem ephemeral · deps builtin · builtin research-default · extensions image, mount · backend ref sandbox-backend:docker。"
       }
     ]);
   });

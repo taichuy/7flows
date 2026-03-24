@@ -4,6 +4,10 @@ import type {
   RunExecutionNodeItem,
   ToolCallItem
 } from "@/lib/get-run-views";
+import {
+  getEffectiveExecutionClassFact,
+  getExecutionExecutorRefFact
+} from "@/lib/execution-fact-honesty";
 
 type ExecutionFocusExplainableNode = Pick<
   RunExecutionNodeItem,
@@ -302,7 +306,7 @@ function buildToolExecutionBadges(toolCall: ExecutionFocusToolCallLike) {
   const requestedExecutionDependencyMode = trimOrNull(
     toolCall.requested_execution_dependency_mode
   );
-  const effectiveExecutionClass = trimOrNull(toolCall.effective_execution_class);
+  const effectiveExecutionClass = getEffectiveExecutionClassFact(toolCall);
   const sandboxBackendId = trimOrNull(toolCall.execution_sandbox_backend_id);
   const sandboxRunnerKind = trimOrNull(toolCall.execution_sandbox_runner_kind);
   const responseContentType = trimOrNull(toolCall.response_content_type);
@@ -469,8 +473,8 @@ function buildToolExecutionTraceSummary(toolCall: ExecutionFocusToolCallLike) {
       ? `dependency ref ${trimOrNull(toolCall.requested_execution_dependency_ref)}`
       : null,
     buildBackendExtensionsSummary(toolCall.requested_execution_backend_extensions),
-    trimOrNull(toolCall.execution_executor_ref)
-      ? `executor ${trimOrNull(toolCall.execution_executor_ref)}`
+    getExecutionExecutorRefFact(toolCall)
+      ? `executor ${getExecutionExecutorRefFact(toolCall)}`
       : null,
     trimOrNull(toolCall.execution_sandbox_backend_executor_ref)
       ? `backend ref ${trimOrNull(toolCall.execution_sandbox_backend_executor_ref)}`
@@ -576,16 +580,16 @@ export function listExecutionFocusRuntimeFactBadges(
 
   return [
     summarizeExecutionRuntimeFacts(node.tool_calls, "effective", (toolCall) =>
-      trimOrNull(toolCall.effective_execution_class)
+      getEffectiveExecutionClassFact(toolCall)
     ) ??
-      (trimOrNull(node.effective_execution_class)
-        ? `effective ${trimOrNull(node.effective_execution_class)}`
+      (getEffectiveExecutionClassFact(node)
+        ? `effective ${getEffectiveExecutionClassFact(node)}`
         : null),
     summarizeExecutionRuntimeFacts(node.tool_calls, "executor", (toolCall) =>
-      trimOrNull(toolCall.execution_executor_ref)
+      getExecutionExecutorRefFact(toolCall)
     ) ??
-      (trimOrNull(node.execution_executor_ref)
-        ? `executor ${trimOrNull(node.execution_executor_ref)}`
+      (getExecutionExecutorRefFact(node)
+        ? `executor ${getExecutionExecutorRefFact(node)}`
         : null),
     summarizeExecutionRuntimeFacts(node.tool_calls, "backend", (toolCall) =>
       trimOrNull(toolCall.execution_sandbox_backend_id)

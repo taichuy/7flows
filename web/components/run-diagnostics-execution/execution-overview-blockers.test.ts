@@ -558,7 +558,7 @@ describe("RunDiagnosticsExecutionOverviewBlockers", () => {
     expect(html).toContain(
       `${operatorSurfaceCopy.focusedSkillTraceTitle} count 1 first ref Focus checklist`
     );
-    expect(html).toContain("effective inline");
+    expect(html).not.toContain("effective inline");
     expect(html).toContain("Live sandbox readiness");
     expect(html).toContain("当前 live sandbox readiness 显示 sandbox 仍 blocked。");
   });

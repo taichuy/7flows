@@ -1,3 +1,5 @@
+import { getEffectiveExecutionClassFact } from "@/lib/execution-fact-honesty";
+
 type NotificationDeliveryStatus = "pending" | "delivered" | "failed";
 
 type RunSnapshotInput = {
@@ -159,8 +161,8 @@ function formatRunSnapshotEvidenceSummary({
         "样本 tool：",
         sampleToolCall.tool_name?.trim() || sampleToolCall.tool_id?.trim() || "tool",
         sampleToolCall.status?.trim() ? `状态 ${sampleToolCall.status.trim()}。` : null,
-        sampleToolCall.effective_execution_class?.trim()
-          ? `effective ${sampleToolCall.effective_execution_class.trim()}。`
+        getEffectiveExecutionClassFact(sampleToolCall)
+          ? `effective ${getEffectiveExecutionClassFact(sampleToolCall)}。`
           : null,
         sampleToolCall.execution_sandbox_backend_id?.trim()
           ? `backend ${sampleToolCall.execution_sandbox_backend_id.trim()}。`
