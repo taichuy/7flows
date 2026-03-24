@@ -1240,6 +1240,126 @@ describe("published invocation presenters", () => {
     });
   });
 
+  it("在 workflow 级 publish follow-up 里补共享治理资源摘要", () => {
+    const surface = buildWorkflowPublishPrimaryFollowUpSurface([
+      {
+        lifecycle_status: "published",
+        activity: {
+          total_count: 5,
+          succeeded_count: 2,
+          failed_count: 1,
+          rejected_count: 2,
+          cache_hit_count: 0,
+          cache_miss_count: 0,
+          cache_bypass_count: 0,
+          pending_approval_count: 2,
+          pending_notification_count: 0,
+          failed_notification_count: 0,
+          rejected_approval_count: 0,
+          expired_approval_count: 0,
+          primary_sensitive_resource: {
+            id: "resource-1",
+            label: "OpenAI Prod Key",
+            description: "Production OpenAI credential",
+            sensitivity_level: "L3",
+            source: "credential",
+            metadata: {
+              credential_governance: {
+                credential_id: "cred-openai-prod",
+                credential_name: "OpenAI Prod Key",
+                credential_type: "api_key",
+                sensitivity_level: "L3",
+                credential_status: "active",
+                sensitivity_resource_id: "resource-1",
+                sensitive_resource_label: "OpenAI Prod Key",
+                credential_ref: "credential://openai_api_key",
+                summary:
+                  "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+              }
+            },
+            credential_governance: {
+              credential_id: "cred-openai-prod",
+              credential_name: "OpenAI Prod Key",
+              credential_type: "api_key",
+              sensitivity_level: "L3",
+              credential_status: "active",
+              sensitive_resource_id: "resource-1",
+              sensitive_resource_label: "OpenAI Prod Key",
+              credential_ref: "credential://openai_api_key",
+              summary:
+                "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+            },
+            created_at: "2026-03-20T10:00:00Z",
+            updated_at: "2026-03-20T10:00:00Z"
+          }
+        }
+      }
+    ]);
+
+    expect(surface).toMatchObject({
+      tone: "attention",
+      headline:
+        "Sensitive access approvals remain the primary publish backlog (2 pending approval tickets).",
+      hrefLabel: "open approval inbox slice"
+    });
+    expect(surface.href).toContain("/sensitive-access?status=pending");
+    expect(surface.detail).toContain("Primary governed resource: OpenAI Prod Key · L3 治理 · 生效中.");
+  });
+
+  it("在 workflow 级 publish follow-up 回退到 binding 诊断时仍保留共享治理资源", () => {
+    const surface = buildWorkflowPublishPrimaryFollowUpSurface([
+      {
+        lifecycle_status: "published",
+        activity: {
+          total_count: 4,
+          succeeded_count: 1,
+          failed_count: 2,
+          rejected_count: 1,
+          cache_hit_count: 0,
+          cache_miss_count: 0,
+          cache_bypass_count: 0,
+          pending_approval_count: 0,
+          pending_notification_count: 0,
+          failed_notification_count: 0,
+          rejected_approval_count: 0,
+          expired_approval_count: 0,
+          primary_sensitive_resource: {
+            id: "resource-1",
+            label: "OpenAI Prod Key",
+            description: "Production OpenAI credential",
+            sensitivity_level: "L3",
+            source: "credential",
+            metadata: {},
+            credential_governance: {
+              credential_id: "cred-openai-prod",
+              credential_name: "OpenAI Prod Key",
+              credential_type: "api_key",
+              sensitivity_level: "L3",
+              credential_status: "active",
+              sensitive_resource_id: "resource-1",
+              sensitive_resource_label: "OpenAI Prod Key",
+              credential_ref: "credential://openai_api_key",
+              summary:
+                "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+            },
+            created_at: "2026-03-20T10:00:00Z",
+            updated_at: "2026-03-20T10:00:00Z"
+          }
+        }
+      }
+    ]);
+
+    expect(surface).toMatchObject({
+      tone: "attention",
+      headline: "No shared sensitive-access backlog remains at the publish summary level.",
+      href: null,
+      hrefLabel: null
+    });
+    expect(surface.detail).toContain("2 failed invocations still appear in the current publish slice.");
+    expect(surface.detail).toContain("1 rejected invocation still need binding-level diagnosis.");
+    expect(surface.detail).toContain("Primary governed resource: OpenAI Prod Key · L3 治理 · 生效中.");
+  });
+
   it("在没有 live published endpoint 时把 lifecycle action 提升为 publish summary follow-up", () => {
     expect(
       buildWorkflowPublishPrimaryFollowUpSurface([

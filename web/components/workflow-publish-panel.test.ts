@@ -265,7 +265,28 @@ describe("WorkflowPublishPanel", () => {
       pending_notification_count: 0,
       failed_notification_count: 0,
       rejected_approval_count: 0,
-      expired_approval_count: 0
+      expired_approval_count: 0,
+      primary_sensitive_resource: {
+        id: "resource-1",
+        label: "OpenAI Prod Key",
+        description: "Production OpenAI credential",
+        sensitivity_level: "L3",
+        source: "credential",
+        metadata: {},
+        credential_governance: {
+          credential_id: "cred-openai-prod",
+          credential_name: "OpenAI Prod Key",
+          credential_type: "api_key",
+          sensitivity_level: "L3",
+          credential_status: "active",
+          sensitive_resource_id: "resource-1",
+          sensitive_resource_label: "OpenAI Prod Key",
+          credential_ref: "credential://openai_api_key",
+          summary: "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+        },
+        created_at: "2026-03-20T10:00:00Z",
+        updated_at: "2026-03-20T10:00:00Z"
+      }
     };
 
     const html = renderToStaticMarkup(
@@ -301,6 +322,7 @@ describe("WorkflowPublishPanel", () => {
     expect(html).toContain("Sensitive access approvals remain the primary publish backlog");
     expect(html).toContain("2 pending approval tickets");
     expect(html).toContain("binding-level failures");
+    expect(html).toContain("Primary governed resource: OpenAI Prod Key · L3 治理 · 生效中.");
     expect(html).toContain('/sensitive-access?status=pending');
     expect(html).toContain("approval inbox slice");
   });
@@ -317,7 +339,28 @@ describe("WorkflowPublishPanel", () => {
       pending_notification_count: 0,
       failed_notification_count: 0,
       rejected_approval_count: 0,
-      expired_approval_count: 0
+      expired_approval_count: 0,
+      primary_sensitive_resource: {
+        id: "resource-1",
+        label: "OpenAI Prod Key",
+        description: "Production OpenAI credential",
+        sensitivity_level: "L3",
+        source: "credential",
+        metadata: {},
+        credential_governance: {
+          credential_id: "cred-openai-prod",
+          credential_name: "OpenAI Prod Key",
+          credential_type: "api_key",
+          sensitivity_level: "L3",
+          credential_status: "active",
+          sensitive_resource_id: "resource-1",
+          sensitive_resource_label: "OpenAI Prod Key",
+          credential_ref: "credential://openai_api_key",
+          summary: "本次命中的凭据是 OpenAI Prod Key（openai_api_key）；当前治理级别 L3，状态 生效中。"
+        },
+        created_at: "2026-03-20T10:00:00Z",
+        updated_at: "2026-03-20T10:00:00Z"
+      }
     };
 
     const html = renderToStaticMarkup(
@@ -353,6 +396,7 @@ describe("WorkflowPublishPanel", () => {
     expect(html).toContain("Continue from the binding activity panels below to inspect callback waiting, runtime failures or policy mismatches.");
     expect(html).toContain("2 failed invocations");
     expect(html).toContain("1 rejected invocation");
+    expect(html).toContain("Primary governed resource: OpenAI Prod Key · L3 治理 · 生效中.");
     expect(html).toContain("binding-level diagnosis");
     expect(html).not.toContain("Open inbox slice");
   });

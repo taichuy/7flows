@@ -73,6 +73,7 @@ import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 import { resolveSensitiveAccessPrimaryBacklog } from "@/lib/sensitive-access-follow-up-presenters";
 import {
   formatCredentialGovernanceCompactSummary,
+  formatSensitiveResourceGovernanceSummary,
   getCredentialGovernanceSummary
 } from "@/lib/credential-governance";
 import {
@@ -3768,30 +3769,7 @@ function resolvePublishedInvocationSensitiveAccessPrimaryResource(
 function formatPublishedInvocationSensitiveAccessPrimaryResourceSummary(
   resource?: SensitiveResourceItem | null
 ) {
-  if (!resource) {
-    return null;
-  }
-
-  const resourceLabel = resource.label?.trim() || null;
-  const compactGovernanceSummary = formatCredentialGovernanceCompactSummary(
-    getCredentialGovernanceSummary(resource)
-  );
-
-  if (!compactGovernanceSummary) {
-    return resourceLabel;
-  }
-
-  if (
-    resourceLabel &&
-    (compactGovernanceSummary === resourceLabel ||
-      compactGovernanceSummary.startsWith(`${resourceLabel} · `))
-  ) {
-    return compactGovernanceSummary;
-  }
-
-  return [resourceLabel, compactGovernanceSummary].filter((value): value is string => Boolean(value)).join(
-    " · "
-  );
+  return formatSensitiveResourceGovernanceSummary(resource);
 }
 
 function formatPublishedInvocationSensitiveAccessPrimaryResourceChip(
@@ -4029,6 +4007,9 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
     surface: "publish_invocation"
   }).inboxLinkLabel;
   const primaryBacklog = resolvePublishedInvocationSensitiveAccessPrimaryBacklog(aggregateSummary);
+  const primaryResourceDetail = formatPublishedInvocationSensitiveAccessPrimaryResourceEnglishDetail(
+    aggregateSummary.primary_sensitive_resource
+  );
 
   if (bindings.length === 0) {
     return {
@@ -4063,6 +4044,7 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
               [
                 `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} are still holding publish traffic in sensitive access inbox.`,
                 impactedBindingsLabel,
+                primaryResourceDetail,
                 "Clear the approval queue before treating the remaining binding-level failures as pure endpoint or runtime issues."
               ].filter((fragment): fragment is string => Boolean(fragment))
             ) ??
@@ -4079,6 +4061,7 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
               [
                 `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} still need operator retry in sensitive access inbox.`,
                 impactedBindingsLabel,
+                primaryResourceDetail,
                 "Recover delivery first, then revisit publish bindings that still look blocked."
               ].filter((fragment): fragment is string => Boolean(fragment))
             ) ?? "Recover delivery first, then revisit publish bindings that still look blocked.",
@@ -4094,6 +4077,7 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
               [
                 `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} are still waiting for delivery confirmation in sensitive access inbox.`,
                 impactedBindingsLabel,
+                primaryResourceDetail,
                 "Confirm the notification chain before assuming the binding-level failures need a separate runtime fix."
               ].filter((fragment): fragment is string => Boolean(fragment))
             ) ??
@@ -4110,6 +4094,7 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
               [
                 `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} still need operator review before a publish retry can succeed.`,
                 impactedBindingsLabel,
+                primaryResourceDetail,
                 "Confirm whether the access policy changed before re-opening individual binding diagnostics."
               ].filter((fragment): fragment is string => Boolean(fragment))
             ) ??
@@ -4126,6 +4111,7 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
               [
                 `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} need renewal or a fresh approval before publish retries can continue.`,
                 impactedBindingsLabel,
+                primaryResourceDetail,
                 "Refresh the approval chain first, then decide whether any endpoint still needs separate runtime investigation."
               ].filter((fragment): fragment is string => Boolean(fragment))
             ) ??
@@ -4142,6 +4128,7 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
               [
                 `${formatCountLabel(primaryBacklog.count, primaryBacklog.countLabel)} still need resume follow-up in sensitive access inbox.`,
                 impactedBindingsLabel,
+                primaryResourceDetail,
                 "Clear the resume queue before drilling into binding-level publish diagnostics."
               ].filter((fragment): fragment is string => Boolean(fragment))
             ) ?? "Clear the resume queue before drilling into binding-level publish diagnostics.",
@@ -4212,6 +4199,7 @@ export function buildWorkflowPublishPrimaryFollowUpSurface(
             rejectedInvocationCount > 0
               ? `${formatCountLabel(rejectedInvocationCount, "rejected invocation")} still need binding-level diagnosis.`
               : null,
+            primaryResourceDetail,
             "Continue from the binding activity panels below to inspect callback waiting, runtime failures or policy mismatches."
           ].filter((fragment): fragment is string => Boolean(fragment))
         ) ??

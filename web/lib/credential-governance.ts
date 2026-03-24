@@ -47,3 +47,32 @@ export function formatCredentialGovernanceCompactSummary(
     formatCredentialGovernanceStatusLabel(summary.credential_status)
   ].join(" · ");
 }
+
+export function formatSensitiveResourceGovernanceSummary(
+  resource?: SensitiveResourceItem | null
+) {
+  if (!resource) {
+    return null;
+  }
+
+  const resourceLabel = resource.label?.trim() || null;
+  const compactGovernanceSummary = formatCredentialGovernanceCompactSummary(
+    getCredentialGovernanceSummary(resource)
+  );
+
+  if (!compactGovernanceSummary) {
+    return resourceLabel;
+  }
+
+  if (
+    resourceLabel &&
+    (compactGovernanceSummary === resourceLabel ||
+      compactGovernanceSummary.startsWith(`${resourceLabel} · `))
+  ) {
+    return compactGovernanceSummary;
+  }
+
+  return [resourceLabel, compactGovernanceSummary]
+    .filter((value): value is string => Boolean(value))
+    .join(" · ");
+}
