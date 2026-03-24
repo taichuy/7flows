@@ -1,7 +1,9 @@
 import type {
+  WorkflowPublishedEndpointLegacyAuthModeContract,
   WorkflowPublishedEndpointItem,
   WorkflowPublishedEndpointLegacyAuthCleanupResult
 } from "@/lib/get-workflow-publish";
+import { resolveLegacyPublishAuthModeContract } from "@/lib/legacy-publish-auth-contract";
 
 export type WorkflowPublishLegacyAuthCleanupExportFormat = "json" | "jsonl";
 
@@ -32,6 +34,7 @@ export type WorkflowPublishLegacyAuthCleanupExportPayload = {
     format: WorkflowPublishLegacyAuthCleanupExportFormat;
     binding_count: number;
   };
+  auth_mode_contract: WorkflowPublishedEndpointLegacyAuthModeContract;
   workflow: {
     workflow_id: string;
     workflow_name: string;
@@ -297,6 +300,7 @@ export function buildWorkflowPublishLegacyAuthCleanupExportPayload({
       format: "json",
       binding_count: bindings.length,
     },
+    auth_mode_contract: resolveLegacyPublishAuthModeContract(),
     workflow: {
       workflow_id: workflowId,
       workflow_name: workflowName,
@@ -341,6 +345,7 @@ export function serializeWorkflowPublishLegacyAuthCleanupExportJsonl(
       {
         record_type: "legacy_publish_auth_governance_export",
         export: payload.export,
+        auth_mode_contract: payload.auth_mode_contract,
         workflow: payload.workflow,
         summary: payload.summary,
         checklist: payload.checklist,

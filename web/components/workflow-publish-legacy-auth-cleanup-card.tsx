@@ -7,6 +7,7 @@ import {
   cleanupLegacyPublishedEndpointBindings,
   type CleanupLegacyPublishedEndpointBindingsState,
 } from "@/app/actions/publish";
+import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import type { WorkflowPublishedEndpointItem } from "@/lib/get-workflow-publish";
 import {
   buildWorkflowPublishLegacyAuthCleanupExportActionSurface,
@@ -119,6 +120,8 @@ export function WorkflowPublishLegacyAuthCleanupCard({
     <article className="entry-card compact-card">
       <p className="entry-card-title">{surface.title}</p>
       <p className="section-copy entry-copy">{surface.description}</p>
+
+      <LegacyPublishAuthContractCard />
 
       <div className="summary-strip compact-strip">
         <article className="summary-card">

@@ -91,6 +91,14 @@ describe("workflow publish legacy auth cleanup helpers", () => {
     });
 
     expect(payload.export.exported_at).toBe("2026-03-24T08:30:00Z");
+    expect(payload.auth_mode_contract).toEqual({
+      supported_auth_modes: ["api_key", "internal"],
+      retired_legacy_auth_modes: ["token"],
+      summary:
+        "当前 publish gateway 只支持 durable authMode=api_key/internal；token 仅作为 legacy inventory 出现在治理 handoff 中。",
+      follow_up:
+        "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 replacement binding，最后清理 draft/offline legacy backlog。"
+    });
     expect(payload.summary).toEqual({
       draft_candidate_count: 1,
       published_blocker_count: 1,
@@ -113,6 +121,10 @@ describe("workflow publish legacy auth cleanup helpers", () => {
 
     expect(lines[0]).toMatchObject({
       record_type: "legacy_publish_auth_governance_export",
+      auth_mode_contract: {
+        supported_auth_modes: ["api_key", "internal"],
+        retired_legacy_auth_modes: ["token"]
+      },
       workflow: {
         workflow_id: "workflow-1",
         workflow_name: "Demo workflow",

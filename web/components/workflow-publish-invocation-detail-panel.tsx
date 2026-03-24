@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
+import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { ExecutionNodeCard } from "@/components/run-diagnostics-execution/execution-node-card";
 import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
@@ -580,6 +581,8 @@ export function WorkflowPublishInvocationDetailPanel({
           <p className="section-copy entry-copy">
             {detailSurfaceCopy.legacyAuthGovernanceDescription}
           </p>
+
+          <LegacyPublishAuthContractCard contract={legacyAuthSnapshot.auth_mode_contract} />
 
           <div className="summary-strip compact-strip">
             <article className="summary-card">

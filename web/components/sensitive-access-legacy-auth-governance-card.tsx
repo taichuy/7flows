@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 
+import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
@@ -68,6 +69,8 @@ export function SensitiveAccessLegacyAuthGovernanceCompactCard({
         <span className="event-chip">offline inventory {snapshot.summary.offline_inventory_count}</span>
       </div>
       <p className="section-copy entry-copy">{description}</p>
+
+      <LegacyPublishAuthContractCard contract={snapshot.auth_mode_contract} />
 
       {snapshot.checklist.length > 0 ? (
         <div className="publish-key-list">
@@ -140,6 +143,8 @@ export function SensitiveAccessLegacyAuthGovernanceCard({
           <strong>{snapshot.summary.offline_inventory_count}</strong>
         </article>
       </div>
+
+      <LegacyPublishAuthContractCard contract={snapshot.auth_mode_contract} />
 
       {snapshot.checklist.length > 0 ? (
         <div className="publish-key-list">

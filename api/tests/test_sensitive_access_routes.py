@@ -134,6 +134,18 @@ def _assert_legacy_auth_governance_snapshot(
         "generated_at": snapshot["generated_at"],
         "workflow_count": 1,
         "binding_count": 1,
+        "auth_mode_contract": {
+            "supported_auth_modes": ["api_key", "internal"],
+            "retired_legacy_auth_modes": ["token"],
+            "summary": (
+                "当前 publish gateway 只支持 durable authMode=api_key/internal；"
+                "token 仅作为 legacy inventory 出现在治理 handoff 中。"
+            ),
+            "follow_up": (
+                "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 "
+                "replacement binding，最后清理 draft/offline legacy backlog。"
+            ),
+        },
         "summary": {
             "draft_candidate_count": 0,
             "published_blocker_count": 1,
@@ -1943,6 +1955,18 @@ def test_sensitive_access_inbox_returns_filtered_entries_and_run_snapshots(
         "generated_at": body["entries"][0]["legacy_auth_governance"]["generated_at"],
         "workflow_count": 1,
         "binding_count": 1,
+        "auth_mode_contract": {
+            "supported_auth_modes": ["api_key", "internal"],
+            "retired_legacy_auth_modes": ["token"],
+            "summary": (
+                "当前 publish gateway 只支持 durable authMode=api_key/internal；"
+                "token 仅作为 legacy inventory 出现在治理 handoff 中。"
+            ),
+            "follow_up": (
+                "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 "
+                "replacement binding，最后清理 draft/offline legacy backlog。"
+            ),
+        },
         "summary": {
             "draft_candidate_count": 0,
             "published_blocker_count": 1,

@@ -10,6 +10,7 @@
 - 优先解决工作流执行看不清、工具调用难追踪、waiting / resume 难排障的问题。
 - 为自部署、社区协作和本地 AI 助手场景提供稳定的开源入口。
 - 首版兼容重点仍是 Dify 插件生态接入，而不是复刻完整 Dify 平台。
+- published gateway 当前只承诺 `authMode=api_key` / `authMode=internal`；历史 `token` binding 继续作为 legacy inventory 治理事实保留，但不再作为待实现 publish auth 路线对外暗示支持。
 
 ## 对文档和协作的要求
 
@@ -162,4 +163,3 @@
 ### 3.2 7Flows IR
 
 `7Flows IR` 是平台内部统一协议，负责把画布配置、节点能力、运行时状态和发布形态收敛到同一模型中。它不直接等同于 OpenAI、Anthropic 或 Dify 的任一协议。
-

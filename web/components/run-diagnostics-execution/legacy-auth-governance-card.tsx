@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
 
+import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import type { RunExecutionView } from "@/lib/get-run-views";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
@@ -38,6 +39,8 @@ export function RunDiagnosticsLegacyAuthGovernanceCard({
       <p className="section-copy entry-copy">
         publish activity export 已经附带这份 workflow 级 legacy publish auth artifact；run diagnostics 继续直接复用同一份 checklist，避免 operator 在等待态排障时回退到另一套事实。
       </p>
+
+      <LegacyPublishAuthContractCard contract={snapshot.auth_mode_contract} />
 
       <div className="summary-strip compact-strip">
         <article className="summary-card">

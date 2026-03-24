@@ -820,6 +820,18 @@ def test_export_published_endpoint_invocations_includes_workflow_legacy_auth_han
         "generated_at": export_json_body["legacy_auth_governance"]["generated_at"],
         "workflow_count": 1,
         "binding_count": 1,
+        "auth_mode_contract": {
+            "supported_auth_modes": ["api_key", "internal"],
+            "retired_legacy_auth_modes": ["token"],
+            "summary": (
+                "当前 publish gateway 只支持 durable authMode=api_key/internal；"
+                "token 仅作为 legacy inventory 出现在治理 handoff 中。"
+            ),
+            "follow_up": (
+                "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 "
+                "replacement binding，最后清理 draft/offline legacy backlog。"
+            ),
+        },
         "workflow": {
             "workflow_id": workflow_id,
             "workflow_name": "Published Invocation Export Governance Workflow",
@@ -883,6 +895,18 @@ def test_export_published_endpoint_invocations_includes_workflow_legacy_auth_han
     invocation_record = json.loads(jsonl_lines[3])
     assert meta_record["legacy_auth_governance"] == {
         "binding_count": 1,
+        "auth_mode_contract": {
+            "supported_auth_modes": ["api_key", "internal"],
+            "retired_legacy_auth_modes": ["token"],
+            "summary": (
+                "当前 publish gateway 只支持 durable authMode=api_key/internal；"
+                "token 仅作为 legacy inventory 出现在治理 handoff 中。"
+            ),
+            "follow_up": (
+                "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 "
+                "replacement binding，最后清理 draft/offline legacy backlog。"
+            ),
+        },
         "workflow": {
             "workflow_id": workflow_id,
             "workflow_name": "Published Invocation Export Governance Workflow",
@@ -899,6 +923,18 @@ def test_export_published_endpoint_invocations_includes_workflow_legacy_auth_han
     }
     assert governance_record["record_type"] == "workflow_legacy_auth_governance"
     assert governance_record["binding_count"] == 1
+    assert governance_record["auth_mode_contract"] == {
+        "supported_auth_modes": ["api_key", "internal"],
+        "retired_legacy_auth_modes": ["token"],
+        "summary": (
+            "当前 publish gateway 只支持 durable authMode=api_key/internal；"
+            "token 仅作为 legacy inventory 出现在治理 handoff 中。"
+        ),
+        "follow_up": (
+            "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 "
+            "replacement binding，最后清理 draft/offline legacy backlog。"
+        ),
+    }
     assert governance_record["workflow"]["workflow_id"] == workflow_id
     assert governance_binding_record == {
         "record_type": "workflow_legacy_auth_binding",

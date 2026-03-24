@@ -126,6 +126,9 @@ describe("RunDiagnosticsLegacyAuthGovernanceCard", () => {
     );
 
     expect(html).toContain("Legacy publish auth handoff");
+    expect(html).toContain("Publish auth contract");
+    expect(html).toContain("supported api_key / internal");
+    expect(html).toContain("legacy token");
     expect(html).toContain("shared workflow artifact");
     expect(html).toContain("publish activity export 已经附带这份 workflow 级 legacy publish auth artifact");
     expect(html).toContain("Draft cleanup");

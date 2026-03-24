@@ -581,6 +581,18 @@ def test_list_legacy_auth_governance_snapshot_across_workflows(
     assert body["generated_at"] is not None
     assert body["workflow_count"] == 2
     assert body["binding_count"] == 4
+    assert body["auth_mode_contract"] == {
+        "supported_auth_modes": ["api_key", "internal"],
+        "retired_legacy_auth_modes": ["token"],
+        "summary": (
+            "当前 publish gateway 只支持 durable authMode=api_key/internal；"
+            "token 仅作为 legacy inventory 出现在治理 handoff 中。"
+        ),
+        "follow_up": (
+            "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 "
+            "replacement binding，最后清理 draft/offline legacy backlog。"
+        ),
+    }
     assert body["summary"] == {
         "draft_candidate_count": 1,
         "published_blocker_count": 2,

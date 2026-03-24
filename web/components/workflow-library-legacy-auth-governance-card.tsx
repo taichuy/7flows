@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import { WorkflowLibraryLegacyAuthGovernanceExportActions } from "@/components/workflow-library-legacy-auth-governance-export-actions";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
 import { shouldRenderWorkflowLibraryLegacyAuthGovernance } from "@/lib/workflow-library-legacy-auth-governance";
@@ -49,6 +50,8 @@ export function WorkflowLibraryLegacyAuthGovernanceCard({
           <strong>{snapshot.summary.offline_inventory_count}</strong>
         </article>
       </div>
+
+      <LegacyPublishAuthContractCard contract={snapshot.auth_mode_contract} />
 
       <div className="publish-key-list">
         <div>

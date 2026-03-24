@@ -85,6 +85,9 @@ describe("WorkflowPublishLegacyAuthCleanupCard", () => {
     );
 
     expect(html).toContain("Legacy publish auth cleanup");
+    expect(html).toContain("Publish auth contract");
+    expect(html).toContain("supported api_key / internal");
+    expect(html).toContain("legacy token");
     expect(html).toContain("Draft cleanup candidate");
     expect(html).toContain("Published blocker");
     expect(html).toContain("Public Search (endpoint-1) · workflow 1.0.0 · offline");

@@ -492,10 +492,18 @@ export type WorkflowPublishedEndpointLegacyAuthGovernanceBuckets = {
   offline_inventory: WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem[];
 };
 
+export type WorkflowPublishedEndpointLegacyAuthModeContract = {
+  supported_auth_modes: string[];
+  retired_legacy_auth_modes: string[];
+  summary: string;
+  follow_up: string;
+};
+
 export type WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot = {
   generated_at: string;
   workflow_count: number;
   binding_count: number;
+  auth_mode_contract?: WorkflowPublishedEndpointLegacyAuthModeContract;
   summary: WorkflowPublishedEndpointLegacyAuthGovernanceSummary;
   checklist: WorkflowPublishedEndpointLegacyAuthGovernanceChecklistItem[];
   workflows: WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem[];

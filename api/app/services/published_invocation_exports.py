@@ -90,6 +90,7 @@ def _serialize_legacy_auth_governance(
         "generated_at": payload.get("generated_at"),
         "workflow_count": payload.get("workflow_count"),
         "binding_count": payload.get("binding_count"),
+        "auth_mode_contract": payload.get("auth_mode_contract") or {},
         "workflow": workflows[0] if workflows else None,
         "summary": payload.get("summary") or {},
         "checklist": payload.get("checklist") or [],
@@ -115,6 +116,7 @@ def serialize_published_invocation_export_jsonl(payload: dict[str, Any]) -> str:
                 "legacy_auth_governance": (
                     {
                         "binding_count": governance.get("binding_count"),
+                        "auth_mode_contract": governance.get("auth_mode_contract") or {},
                         "workflow": governance.get("workflow"),
                         "summary": governance.get("summary") or {},
                     }
@@ -134,6 +136,7 @@ def serialize_published_invocation_export_jsonl(payload: dict[str, Any]) -> str:
                     "generated_at": governance.get("generated_at"),
                     "workflow_count": governance.get("workflow_count"),
                     "binding_count": governance.get("binding_count"),
+                    "auth_mode_contract": governance.get("auth_mode_contract") or {},
                     "workflow": governance.get("workflow"),
                     "summary": governance.get("summary") or {},
                     "checklist": governance.get("checklist") or [],

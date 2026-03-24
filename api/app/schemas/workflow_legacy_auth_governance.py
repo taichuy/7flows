@@ -3,6 +3,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.workflow_published_endpoint import (
+    SUPPORTED_PUBLISHED_ENDPOINT_AUTH_MODES,
+)
+
 PublishedEndpointLifecycleStatus = Literal["draft", "published", "offline"]
 WorkflowPublishedEndpointLegacyAuthGovernanceChecklistKey = Literal[
     "draft_cleanup",
@@ -14,6 +18,24 @@ WorkflowPublishedEndpointLegacyAuthGovernanceChecklistTone = Literal[
     "manual",
     "inventory",
 ]
+RETIRED_LEGACY_PUBLISHED_ENDPOINT_AUTH_MODES = ("token",)
+
+
+class WorkflowPublishedEndpointLegacyAuthModeContract(BaseModel):
+    supported_auth_modes: list[str] = Field(
+        default_factory=lambda: list(SUPPORTED_PUBLISHED_ENDPOINT_AUTH_MODES)
+    )
+    retired_legacy_auth_modes: list[str] = Field(
+        default_factory=lambda: list(RETIRED_LEGACY_PUBLISHED_ENDPOINT_AUTH_MODES)
+    )
+    summary: str = (
+        "当前 publish gateway 只支持 durable authMode=api_key/internal；token "
+        "仅作为 legacy inventory 出现在治理 handoff 中。"
+    )
+    follow_up: str = (
+        "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 replacement "
+        "binding，最后清理 draft/offline legacy backlog。"
+    )
 
 
 class WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem(BaseModel):
@@ -67,6 +89,9 @@ class WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot(BaseModel):
     generated_at: datetime
     workflow_count: int = 0
     binding_count: int = 0
+    auth_mode_contract: WorkflowPublishedEndpointLegacyAuthModeContract = Field(
+        default_factory=WorkflowPublishedEndpointLegacyAuthModeContract
+    )
     summary: WorkflowPublishedEndpointLegacyAuthGovernanceSummary = Field(
         default_factory=WorkflowPublishedEndpointLegacyAuthGovernanceSummary
     )
