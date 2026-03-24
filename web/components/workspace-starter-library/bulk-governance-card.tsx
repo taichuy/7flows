@@ -144,6 +144,11 @@ export function WorkspaceStarterBulkGovernanceCard({
               <p className="section-copy starter-summary-copy">
                 {sourceGovernancePrimaryFollowUp.detail}
               </p>
+              {sourceGovernancePrimaryFollowUp.primaryResourceSummary ? (
+                <p className="binding-meta">
+                  {`Primary governed starter: ${sourceGovernancePrimaryFollowUp.primaryResourceSummary}.`}
+                </p>
+              ) : null}
               {sourceGovernancePrimaryFollowUp.entryKey ||
               (sourceGovernancePrimaryFollowUp.focusTemplateId &&
                 sourceGovernancePrimaryFollowUp.focusLabel) ? (
@@ -300,13 +305,18 @@ export function WorkspaceStarterBulkGovernanceCard({
               ) : null}
               {recommendedNextStep ? (
                 <div className="entry-card compact-card">
-                  <div className="payload-card-header">
-                    <span className="status-meta">Recommended next step</span>
-                    <span className="event-chip">{recommendedNextStep.label}</span>
-                  </div>
-                  <p className="section-copy starter-summary-copy">{recommendedNextStep.detail}</p>
+                <div className="payload-card-header">
+                  <span className="status-meta">Recommended next step</span>
+                  <span className="event-chip">{recommendedNextStep.label}</span>
                 </div>
-              ) : null}
+                <p className="section-copy starter-summary-copy">{recommendedNextStep.detail}</p>
+                {recommendedNextStep.primaryResourceSummary ? (
+                  <p className="binding-meta">
+                    {`Primary governed starter: ${recommendedNextStep.primaryResourceSummary}.`}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
               {resultSurface?.shouldRenderStandaloneFollowUpExplanation ? (
                 <p className="binding-meta">{resultSurface.followUpExplanation}</p>
               ) : null}

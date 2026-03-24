@@ -759,6 +759,8 @@ function toWorkspaceStarterSourceGovernanceTemplate(
   const governance = starter.sourceGovernance;
 
   return {
+    id: starter.id,
+    name: starter.name,
     archived: starter.archived,
     created_from_workflow_id: starter.createdFromWorkflowId,
     source_governance: governance

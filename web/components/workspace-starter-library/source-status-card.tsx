@@ -99,6 +99,11 @@ export function WorkspaceStarterSourceCard({
                 <span className="event-chip">{recommendedNextStep.label}</span>
               </div>
               <p className="section-copy starter-summary-copy">{recommendedNextStep.detail}</p>
+              {recommendedNextStep.primaryResourceSummary ? (
+                <p className="binding-meta">
+                  {`Primary governed starter: ${recommendedNextStep.primaryResourceSummary}.`}
+                </p>
+              ) : null}
             </div>
           ) : (
             <p className="section-copy starter-summary-copy">

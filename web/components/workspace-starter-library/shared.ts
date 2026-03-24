@@ -147,6 +147,7 @@ export type WorkspaceStarterGovernanceRecommendedNextStep = {
   action: "refresh" | "rebase" | "create_workflow" | "review_result_receipt";
   label: string;
   detail: string;
+  primaryResourceSummary?: string | null;
   focusTemplateId: string | null;
   focusLabel: string | null;
   entryKey?: WorkbenchEntryLinkKey;
@@ -175,6 +176,7 @@ export type WorkspaceStarterSourceGovernancePrimaryFollowUp = {
   label: string;
   headline: string;
   detail: string;
+  primaryResourceSummary?: string | null;
   focusTemplateId: string | null;
   focusLabel: string | null;
   entryKey?: WorkbenchEntryLinkKey;
@@ -514,7 +516,7 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
 }: {
   template: Pick<
     WorkspaceStarterTemplateItem,
-    "archived" | "created_from_workflow_id" | "source_governance"
+    "id" | "name" | "archived" | "created_from_workflow_id" | "source_governance"
   >;
   sourceGovernance?: WorkspaceStarterSourceGovernance | null;
   actionDecision: WorkspaceStarterSourceActionDecision;
@@ -528,6 +530,23 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
   });
   const outcomeFollowUp = normalizeString(sourceGovernance?.outcome_explanation?.follow_up);
   const governanceSummary = normalizeString(sourceGovernance?.summary);
+  const primaryResourceSummary = buildWorkspaceStarterPrimaryResourceSummary({
+    templateId: template.id,
+    templateName: template.name,
+    sourceWorkflowId:
+      normalizeString(sourceGovernance?.source_workflow_id) ??
+      normalizeString(template.created_from_workflow_id),
+    sourceWorkflowName: normalizeString(sourceGovernance?.source_workflow_name),
+    sourceWorkflowVersion: normalizeString(sourceGovernance?.source_version),
+    statusLabels: [
+      createWorkflowActionLabel
+        ? WORKSPACE_STARTER_SOURCE_GOVERNANCE_KIND_LABELS[governanceKind]
+        : actionDecision.recommendedAction === "none"
+        ? WORKSPACE_STARTER_SOURCE_GOVERNANCE_KIND_LABELS[governanceKind]
+        : actionDecision.statusLabel
+    ],
+    archived: template.archived
+  });
 
   if (createWorkflowActionLabel) {
     const createWorkflowEntry = buildWorkspaceStarterCreateWorkflowEntry({
@@ -543,6 +562,7 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
         (sourceGovernance?.kind === "missing_source"
           ? "优先确认来源 workflow 是否仍可访问；如需继续推进，带此 starter 回到创建页重新建立治理链路。"
           : "带此 starter 回到创建页继续创建 workflow，并保留当前模板上下文。"),
+      primaryResourceSummary,
       focusTemplateId: null,
       focusLabel: null,
       ...(createWorkflowEntry ?? {})
@@ -562,6 +582,7 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
         outcomeFollowUp ||
         governanceSummary ||
         "优先 refresh 同步最新来源事实，再复核 source diff / metadata 是否已经收口。",
+      primaryResourceSummary,
       focusTemplateId: null,
       focusLabel: null
     };
@@ -576,6 +597,7 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
         outcomeFollowUp ||
         governanceSummary ||
         "优先执行 rebase，让 starter 命名和来源 workflow 的 source-derived 字段保持一致。",
+      primaryResourceSummary,
       focusTemplateId: null,
       focusLabel: null
     };
@@ -591,7 +613,7 @@ export function buildWorkspaceStarterSourceGovernanceSurface({
 }: {
   template: Pick<
     WorkspaceStarterTemplateItem,
-    "archived" | "created_from_workflow_id" | "source_governance"
+    "id" | "name" | "archived" | "created_from_workflow_id" | "source_governance"
   >;
   createWorkflowHref?: string | null;
   fallbackActionDecision?: WorkspaceStarterSourceActionDecision | null;
@@ -787,6 +809,17 @@ export function buildWorkspaceStarterSourceGovernancePrimaryFollowUp({
     label: recommendedNextStep?.label ?? presenter.actionStatusLabel ?? presenter.statusLabel,
     headline: `${focusTemplateName} 当前是共享来源治理队列的首个待处理 starter。`,
     detail: detailParts.join(" "),
+    primaryResourceSummary: buildWorkspaceStarterPrimaryResourceSummary({
+      templateId: primaryTemplate.id,
+      templateName: primaryTemplate.name,
+      sourceWorkflowId:
+        normalizeString(primaryTemplate.source_governance?.source_workflow_id) ??
+        normalizeString(primaryTemplate.created_from_workflow_id),
+      sourceWorkflowName: normalizeString(primaryTemplate.source_governance?.source_workflow_name),
+      sourceWorkflowVersion: normalizeString(primaryTemplate.source_governance?.source_version),
+      statusLabels: [presenter.actionStatusLabel ?? presenter.statusLabel],
+      archived: primaryTemplate.archived
+    }),
     focusTemplateId: primaryTemplate.id,
     focusLabel: focusTemplateName ? `优先聚焦 starter：${focusTemplateName}` : null,
     entryKey: recommendedNextStep?.entryKey,
@@ -1042,6 +1075,14 @@ export function buildWorkspaceStarterBulkResultRecommendedNextStep(
       action: "create_workflow",
       label: createWorkflowActionLabel,
       detail: recommendedDetail,
+      primaryResourceSummary: buildWorkspaceStarterPrimaryResourceSummary({
+        templateId: primaryReceiptItem.template_id,
+        templateName: focusTemplateName,
+        sourceWorkflowId: normalizeString(primaryReceiptItem.source_workflow_id),
+        sourceWorkflowVersion: normalizeString(primaryReceiptItem.source_workflow_version),
+        statusLabels: [getWorkspaceStarterBulkResultOutcomeLabel(result.action, primaryReceiptItem)],
+        archived: primaryReceiptItem.archived
+      }),
       focusTemplateId: primaryReceiptItem.template_id,
       focusLabel: focusTemplateName ? `优先聚焦 starter：${focusTemplateName}` : null,
       ...(createWorkflowEntry ?? {})
@@ -1059,6 +1100,17 @@ export function buildWorkspaceStarterBulkResultRecommendedNextStep(
       actionDecision?.statusLabel ??
       resolveWorkspaceStarterBulkResultNextStepLabel(result.action, primaryReceiptItem),
     detail: recommendedDetail,
+    primaryResourceSummary: buildWorkspaceStarterPrimaryResourceSummary({
+      templateId: primaryReceiptItem.template_id,
+      templateName: focusTemplateName,
+      sourceWorkflowId: normalizeString(primaryReceiptItem.source_workflow_id),
+      sourceWorkflowVersion: normalizeString(primaryReceiptItem.source_workflow_version),
+      statusLabels: [
+        getWorkspaceStarterBulkResultOutcomeLabel(result.action, primaryReceiptItem),
+        actionDecision?.statusLabel
+      ],
+      archived: primaryReceiptItem.archived
+    }),
     focusTemplateId: primaryReceiptItem.template_id,
     focusLabel: focusTemplateName ? `优先聚焦 starter：${focusTemplateName}` : null
   };
@@ -1714,6 +1766,45 @@ function countSummaryChanges(summary: WorkspaceStarterSourceDiffSummary | null) 
   }
 
   return summary.added_count + summary.removed_count + summary.changed_count;
+}
+
+function buildWorkspaceStarterPrimaryResourceSummary({
+  templateId,
+  templateName,
+  sourceWorkflowId,
+  sourceWorkflowName,
+  sourceWorkflowVersion,
+  statusLabels,
+  archived = false
+}: {
+  templateId: string;
+  templateName?: string | null;
+  sourceWorkflowId?: string | null;
+  sourceWorkflowName?: string | null;
+  sourceWorkflowVersion?: string | null;
+  statusLabels?: Array<string | null | undefined>;
+  archived?: boolean;
+}) {
+  const normalizedTemplateName = normalizeString(templateName) ?? templateId;
+  const normalizedStatusLabels = Array.from(
+    new Set((statusLabels ?? []).map((label) => normalizeString(label)).filter(Boolean))
+  );
+  const normalizedSourceVersion = normalizeString(sourceWorkflowVersion);
+  const normalizedSourceLabel =
+    normalizeString(sourceWorkflowName) ?? normalizeString(sourceWorkflowId);
+  const sourceSummary = normalizedSourceVersion
+    ? `source ${normalizedSourceVersion}`
+    : normalizedSourceLabel
+    ? `source ${normalizedSourceLabel}`
+    : null;
+  const summaryParts = [
+    normalizedTemplateName,
+    ...normalizedStatusLabels,
+    sourceSummary,
+    archived ? "archived" : null
+  ].filter((value): value is string => Boolean(value));
+
+  return summaryParts.length > 0 ? summaryParts.join(" · ") : null;
 }
 
 function getWorkspaceStarterSourceGovernanceKind(

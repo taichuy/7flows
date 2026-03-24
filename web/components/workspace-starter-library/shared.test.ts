@@ -529,6 +529,7 @@ describe("workspace starter source action decision", () => {
       headline: "Active starter A 当前是共享来源治理队列的首个待处理 starter。",
       detail:
         "后端 follow-up queue 已把 Active starter A 排在当前范围的首位，后面还有 1 个待处理 starter。 当前主要是来源快照漂移。 先看 source diff，再决定 refresh 还是 rebase。 当前 starter 与来源 workflow 版本不一致。",
+      primaryResourceSummary: "Active starter A · 建议 refresh · source 0.2.0",
       focusTemplateId: "starter-active-a",
       focusLabel: "优先聚焦 starter：Active starter A"
     });
@@ -578,6 +579,7 @@ describe("workspace starter source action decision", () => {
       action: "create_workflow",
       label: "确认模板后带此 starter 回到创建页",
       detail: "优先确认来源是否迁移；如需继续推进，回到创建页重建治理链路。",
+      primaryResourceSummary: "Active starter A · 来源缺失 · source Active workflow",
       focusTemplateId: null,
       focusLabel: null,
       entryKey: "createWorkflow",
@@ -612,6 +614,7 @@ describe("workspace starter source action decision", () => {
       action: "create_workflow",
       label: "带此 starter 回到创建页",
       detail: "带此 starter 回到创建页继续创建 workflow，并保留当前模板上下文。",
+      primaryResourceSummary: "Active starter A · 无来源",
       focusTemplateId: null,
       focusLabel: null,
       entryKey: "createWorkflow",
@@ -678,6 +681,7 @@ describe("workspace starter source action decision", () => {
       headline: "Active starter B 当前是共享来源治理队列的首个待处理 starter。",
       detail:
         "后端 follow-up queue 已把 Active starter B 排在当前范围的首位。 来源 workflow 当前不可访问。 当前 starter 绑定的来源 workflow 已缺失。",
+      primaryResourceSummary: "Active starter B · 来源缺失 · source Workflow B",
       focusTemplateId: "starter-active-b",
       focusLabel: "优先聚焦 starter：Active starter B",
       entryKey: "createWorkflow",
@@ -1000,6 +1004,7 @@ describe("workspace starter source action decision", () => {
         action: "review_result_receipt",
         label: "修复来源绑定",
         detail: "当前 starter 缺少可用来源绑定；先补来源 workflow 或确认来源仍可访问，再重新执行批量刷新。",
+        primaryResourceSummary: "Manual starter · 无来源",
         focusTemplateId: "starter-manual",
         focusLabel: "优先聚焦 starter：Manual starter"
       },

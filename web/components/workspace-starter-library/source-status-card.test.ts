@@ -82,6 +82,9 @@ describe("WorkspaceStarterSourceCard", () => {
     expect(html).toContain("Review the follow-up before refreshing.");
     expect(html).toContain("Governance</span><strong>建议 refresh");
     expect(html).toContain("Next step</span><strong>建议 refresh");
+    expect(html).toContain(
+      "Primary governed starter: Governed Workspace Starter · 建议 refresh · source 0.2.0."
+    );
     expect(html).not.toContain("Governance kind");
     expect(html).not.toContain("带此 starter 回到创建页");
     expect(html).toContain("从源 workflow 刷新快照");
@@ -148,6 +151,9 @@ describe("WorkspaceStarterSourceCard", () => {
     expect(html).toContain("当前 starter 记录的来源 workflow 已不可用。");
     expect(html).toContain("确认模板后带此 starter 回到创建页");
     expect(html).toContain("Next step</span><strong>确认模板后带此 starter 回到创建页");
+    expect(html).toContain(
+      "Primary governed starter: Missing source starter · 来源缺失 · source wf-missing."
+    );
     expect(html).toContain('/workflows/new?starter=starter-missing-source');
     expect(html).not.toContain("从源 workflow 刷新快照");
     expect(html).not.toContain("执行 rebase");

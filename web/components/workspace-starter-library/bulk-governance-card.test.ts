@@ -365,6 +365,9 @@ describe("WorkspaceStarterBulkGovernanceCard", () => {
     );
     expect(html).toContain("Primary follow-up");
     expect(html).toContain("Sandbox starter 当前是共享来源治理队列的首个待处理 starter。");
+    expect(html).toContain(
+      "Primary governed starter: Sandbox starter · 建议 refresh · source 0.1.5."
+    );
     expect(html).toContain("优先聚焦 starter：Sandbox starter");
     expect(html).toContain("后端 summary 已把当前范围里的 follow-up queue 编成统一清单");
     expect(html).toContain("刷新 preview:");
@@ -388,6 +391,7 @@ describe("WorkspaceStarterBulkGovernanceCard", () => {
     expect(html).toContain(
       "当前 starter 缺少可用来源绑定；先补来源 workflow 或确认来源仍可访问，再重新执行批量刷新。"
     );
+    expect(html).toContain("Primary governed starter: Manual starter · 无来源.");
     expect(html).toContain("带此 starter 回到创建页");
     expect(html).toContain('/workflows/new?starter=starter-manual');
     expect(html).toContain("先修复来源 workflow 的缺失或无效问题，再重新执行批量刷新。");
