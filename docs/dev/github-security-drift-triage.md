@@ -46,6 +46,7 @@ node scripts/check-dependabot-drift.js
 2. 再运行 `cd web && corepack pnpm audit --registry=https://registry.npmjs.org --json`，确认 npm registry 视角也没有新漏洞。
 3. 如果脚本显示 `dependencyGraphManifests` 为空，或 `graph coverage 缺口` 仍覆盖本地 manifest roots：
    - 到仓库 `Settings -> Security & analysis` 检查 `Dependency graph` 是否开启。
+   - 不要把任何未经 artifact 复验的仓库设置自动化当成“已经开启”——当前共享事实只承认 `dependency-submission.json` / `dependabot-drift.json` 中 `repositoryBlockerEvidence` 已消失、`dependencyGraphVisibility` 开始出现 roots 之后，才算真正解除 `dependency_graph_disabled`。即使某些 `gh api repos/... security_and_analysis` patch 返回 `200`，也不能替代这一步复验。
    - 如仓库策略允许，再检查 `Automatic dependency submission` 是否已配置并正常跑在默认分支。
    - 再检查 `.github/workflows/dependency-graph-submission.yml` 是否已在默认分支成功提交 `web/pnpm-lock.yaml`、`api/uv.lock` 与 `services/compat-dify/uv.lock` 的手工 snapshot；该 workflow 只用 `github.token + contents:write` 和本地锁文件 / 依赖树构建事实，不依赖第三方 action 或远程脚本。
    - `uv` roots 不计入 GitHub 原生 graph coverage 缺口，但现在已由仓库内显式 dependency submission workflow 接手；若这些目录仍缺席，优先检查 workflow run 证据与平台刷新延迟，而不是继续误判成管理员开关问题。
@@ -84,6 +85,7 @@ node scripts/check-dependabot-drift.js
 - submission step 现在还会把 `recommended_actions_count`、`recommended_actions_json`、`primary_recommended_action_*`（含 `href` / `href_label`）、`repository_blocker_kind`、`repository_blocker_roots_json` 与 `dependency_graph_missing_roots_json` 写入 `GITHUB_OUTPUT`，并透传为 job outputs，方便后续 workflow / agent 按优先级直接接棒处理。
 - 当仓库级 `Dependency graph` 尚未开启时，该 workflow 现在会把 run 收口为“保留 summary + artifact 证据并输出 warning”的平台阻塞态，而不是继续把每次 push 打成无法区分真伪的红灯；此时优先处理仓库 `Settings -> Security & analysis`，不要误判成锁文件解析或本地脚本失效。
 - 如果 artifact 中已经出现 `repositoryBlockerEvidence.kind=dependency_graph_disabled` 且 `status=404`，说明阻塞来自 GitHub dependency submission API 的直接返回，而不是本地 inventory / lock 解析错误；管理员侧应优先处理仓库 `Dependency graph` 设置，再决定是否需要重跑 workflow。
+- 目前不要把 `gh api repos/{owner}/{repo}` 之类的仓库设置 patch 当成可靠的 `Dependency graph` 自动化入口：现有实践里它可能返回成功响应，但最新 `dependency-submission.json` 仍继续保留 `dependency_graph_disabled` / `404`。对后续 agent / maintainer 来说，真正的完成信号只有两条：一，`Dependency Graph Submission` artifact 不再带仓库级 blocker；二，`GitHub Security Drift` 里的 `dependencySubmissionEvidence.repositoryBlockerEvidence` 已清空或改为非设置类阻塞。
 - 该脚本直接调用 GitHub dependency submission REST API：
   - `web` 侧通过 `pnpm list --lockfile-only` 提交 resolved tree，并保留 `direct|indirect`、`runtime|development` 关系事实；这足以覆盖当前 `next` / `flatted` 这类 default branch runtime 告警主线。
   - `uv` 侧直接解析 `uv.lock` 中的 editable root、runtime direct deps、optional `dev` group 与 transitive dependency tree，把 `api/uv.lock`、`services/compat-dify/uv.lock` 也纳入 GitHub graph / drift 对照入口。
