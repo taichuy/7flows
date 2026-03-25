@@ -4,6 +4,7 @@ import Link from "next/link";
 import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import type { RunExecutionView } from "@/lib/get-run-views";
 import { buildLegacyPublishAuthGovernanceSurfaceCopy } from "@/lib/legacy-publish-auth-governance-presenters";
+import { appendWorkflowLibraryViewStateForWorkflow } from "@/lib/workflow-library-query";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 export function RunDiagnosticsLegacyAuthGovernanceCard({
@@ -25,6 +26,11 @@ export function RunDiagnosticsLegacyAuthGovernanceCard({
     workflowId: executionView.workflow_id,
     variant: "editor"
   });
+  const workflowDetailHref = workflowSummary
+    ? appendWorkflowLibraryViewStateForWorkflow(workflowDetailLink.href, workflowSummary, {
+        definitionIssue: null
+      })
+    : workflowDetailLink.href;
 
   return (
     <section>
@@ -81,7 +87,7 @@ export function RunDiagnosticsLegacyAuthGovernanceCard({
               : legacyAuthSurfaceCopy.workflowFollowUpFallback}
           </p>
         </div>
-        <Link className="activity-link" href={workflowDetailLink.href}>
+        <Link className="activity-link" href={workflowDetailHref}>
           {workflowDetailLink.label}
         </Link>
       </div>

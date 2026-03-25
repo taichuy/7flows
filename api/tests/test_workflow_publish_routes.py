@@ -13,6 +13,7 @@ from app.models.sensitive_access import (
     SensitiveResourceRecord,
 )
 from app.models.workflow import (
+    Workflow,
     WorkflowPublishedCacheEntry,
     WorkflowPublishedEndpoint,
 )
@@ -522,6 +523,39 @@ def test_list_legacy_auth_governance_snapshot_across_workflows(
     client: TestClient,
     sqlite_session: Session,
 ) -> None:
+    missing_tool_definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "tool",
+                "type": "tool",
+                "name": "Catalog Gap Tool",
+                "config": {
+                    "tool": {
+                        "toolId": "native.catalog-gap",
+                        "ecosystem": "native",
+                    }
+                },
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool"},
+            {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "output"},
+        ],
+        "publish": [
+            {
+                "id": "native-chat",
+                "name": "Native Chat",
+                "protocol": "native",
+                "authMode": "internal",
+                "streaming": False,
+                "inputSchema": {"type": "object"},
+                "workflowVersion": "0.1.2",
+            }
+        ],
+    }
+
     first_create_response = client.post(
         "/api/workflows",
         json={
@@ -586,8 +620,13 @@ def test_list_legacy_auth_governance_snapshot_across_workflows(
     second_binding.published_at = datetime.now(UTC)
     second_binding.unpublished_at = None
 
+    first_workflow = sqlite_session.get(Workflow, first_workflow_id)
+    assert first_workflow is not None
+    first_workflow.definition = missing_tool_definition
+
     sqlite_session.add_all(
         [
+            first_workflow,
             first_draft_binding,
             first_published_binding,
             first_offline_binding,
@@ -622,6 +661,12 @@ def test_list_legacy_auth_governance_snapshot_across_workflows(
             "draft_candidate_count": 1,
             "published_blocker_count": 1,
             "offline_inventory_count": 1,
+            "tool_governance": {
+                "referenced_tool_ids": ["native.catalog-gap"],
+                "missing_tool_ids": ["native.catalog-gap"],
+                "governed_tool_count": 0,
+                "strong_isolation_tool_count": 0,
+            },
         },
         {
             "workflow_id": second_workflow_id,
@@ -630,6 +675,12 @@ def test_list_legacy_auth_governance_snapshot_across_workflows(
             "draft_candidate_count": 0,
             "published_blocker_count": 1,
             "offline_inventory_count": 0,
+            "tool_governance": {
+                "referenced_tool_ids": [],
+                "missing_tool_ids": [],
+                "governed_tool_count": 0,
+                "strong_isolation_tool_count": 0,
+            },
         },
     ]
     assert body["buckets"]["draft_candidates"] == [

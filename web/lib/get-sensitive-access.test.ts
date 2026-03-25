@@ -186,7 +186,13 @@ describe("getSensitiveAccessInboxSnapshot", () => {
                   binding_count: 1,
                   draft_candidate_count: 0,
                   published_blocker_count: 1,
-                  offline_inventory_count: 0
+                  offline_inventory_count: 0,
+                  tool_governance: {
+                    referenced_tool_ids: [],
+                    missing_tool_ids: [],
+                    governed_tool_count: 0,
+                    strong_isolation_tool_count: 0
+                  }
                 }
               ],
               buckets: {

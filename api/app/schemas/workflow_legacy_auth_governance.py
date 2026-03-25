@@ -3,6 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.schemas.workflow import WorkflowToolGovernanceSummary
 from app.schemas.workflow_published_endpoint import (
     SUPPORTED_PUBLISHED_ENDPOINT_AUTH_MODES,
 )
@@ -65,6 +66,9 @@ class WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem(BaseModel):
     draft_candidate_count: int
     published_blocker_count: int
     offline_inventory_count: int
+    tool_governance: WorkflowToolGovernanceSummary = Field(
+        default_factory=WorkflowToolGovernanceSummary
+    )
 
 
 class WorkflowPublishedEndpointLegacyAuthGovernanceSummary(BaseModel):

@@ -290,7 +290,13 @@ describe("SensitiveAccessInboxPage", () => {
                   binding_count: 2,
                   draft_candidate_count: 1,
                   published_blocker_count: 1,
-                  offline_inventory_count: 0
+                  offline_inventory_count: 0,
+                  tool_governance: {
+                    referenced_tool_ids: ["native.catalog-gap"],
+                    missing_tool_ids: ["native.catalog-gap"],
+                    governed_tool_count: 0,
+                    strong_isolation_tool_count: 0
+                  }
                 })
               ]
             })
@@ -311,6 +317,6 @@ describe("SensitiveAccessInboxPage", () => {
     expect(html).toContain("先批量下线 draft legacy bindings");
     expect(html).toContain("再补发支持鉴权的 replacement bindings");
     expect(html).toContain("Demo Workflow");
-    expect(html).toContain('href="/workflows/workflow-1"');
+    expect(html).toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
   });
 });

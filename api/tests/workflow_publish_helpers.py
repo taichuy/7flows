@@ -144,7 +144,8 @@ def legacy_auth_workflow_summary(
     draft_candidate_count: int = 0,
     published_blocker_count: int = 1,
     offline_inventory_count: int = 0,
-) -> dict[str, str | int]:
+    tool_governance: dict[str, object] | None = None,
+) -> dict[str, object]:
     return {
         "workflow_id": workflow_id,
         "workflow_name": workflow_name,
@@ -152,6 +153,13 @@ def legacy_auth_workflow_summary(
         "draft_candidate_count": draft_candidate_count,
         "published_blocker_count": published_blocker_count,
         "offline_inventory_count": offline_inventory_count,
+        "tool_governance": tool_governance
+        or {
+            "referenced_tool_ids": [],
+            "missing_tool_ids": [],
+            "governed_tool_count": 0,
+            "strong_isolation_tool_count": 0,
+        },
     }
 
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import { buildLegacyPublishAuthGovernanceSurfaceCopy } from "@/lib/legacy-publish-auth-governance-presenters";
+import { appendWorkflowLibraryViewStateForWorkflow } from "@/lib/workflow-library-query";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
@@ -25,12 +26,19 @@ function renderWorkflowFollowUpCards(
       workflowId: workflow.workflow_id,
       variant: "editor"
     });
+    const workflowDetailHref = appendWorkflowLibraryViewStateForWorkflow(
+      workflowDetailLink.href,
+      workflow,
+      {
+        definitionIssue: null
+      }
+    );
 
     return (
       <article className="payload-card compact-card" key={workflow.workflow_id}>
         <div className="payload-card-header">
           <span className="status-meta">{workflow.binding_count} legacy bindings</span>
-          <Link className="event-chip inbox-filter-link" href={workflowDetailLink.href}>
+          <Link className="event-chip inbox-filter-link" href={workflowDetailHref}>
             {workflowDetailLink.label}
           </Link>
         </div>

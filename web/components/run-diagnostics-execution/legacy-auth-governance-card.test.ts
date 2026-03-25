@@ -160,6 +160,34 @@ describe("RunDiagnosticsLegacyAuthGovernanceCard", () => {
     expect(html).toContain("当前 workflow 仍有 1 条 draft cleanup、1 条 published blocker、0 条 offline inventory");
   });
 
+  it("keeps the workflow handoff inside missing-tool scope when the workflow still has a catalog gap", () => {
+    const executionView = buildExecutionView();
+    executionView.legacy_auth_governance = buildLegacyAuthGovernanceSnapshotFixture({
+      workflow_count: 1,
+      binding_count: 1,
+      workflows: [
+        buildLegacyAuthGovernanceWorkflowFixture({
+          workflow_id: "workflow-1",
+          workflow_name: "Demo Workflow",
+          tool_governance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0
+          }
+        })
+      ]
+    });
+
+    const html = renderToStaticMarkup(
+      createElement(RunDiagnosticsLegacyAuthGovernanceCard, {
+        executionView
+      })
+    );
+
+    expect(html).toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
+  });
+
   it("returns nothing when the run has no legacy auth governance snapshot", () => {
     const executionView = buildExecutionView();
     executionView.legacy_auth_governance = null;

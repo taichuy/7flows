@@ -7,6 +7,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.models.workflow import Workflow, WorkflowPublishedEndpoint, WorkflowVersion
+from app.schemas.workflow import WorkflowToolGovernanceSummary
 from app.schemas.workflow_publish import (
     PublishedEndpointLifecycleStatus,
     WorkflowPublishedEndpointLegacyAuthCleanupResult,
@@ -23,6 +24,10 @@ from app.schemas.workflow_published_endpoint import (
     normalize_published_endpoint_alias,
     normalize_published_endpoint_path,
 )
+from app.services.workflow_definition_governance import (
+    summarize_workflow_definition_tool_governance,
+)
+from app.services.workflow_definitions import build_workflow_tool_reference_index
 from app.services.compiled_blueprints import CompiledBlueprintService
 from app.services.workflow_publish_auth_mode_validation import (
     build_workflow_publish_auth_mode_contract_summary,
@@ -139,7 +144,9 @@ def _build_legacy_auth_governance_workflow_summaries(
     draft_candidates: list[WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem],
     published_blockers: list[WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem],
     offline_inventory: list[WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem],
+    tool_governance_by_workflow_id: dict[str, WorkflowToolGovernanceSummary] | None = None,
 ) -> list[WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem]:
+    tool_governance_by_workflow_id = tool_governance_by_workflow_id or {}
     summary_by_workflow: dict[str, WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem] = {}
 
     def ensure_workflow(item: WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem):
@@ -152,6 +159,10 @@ def _build_legacy_auth_governance_workflow_summaries(
                 draft_candidate_count=0,
                 published_blocker_count=0,
                 offline_inventory_count=0,
+                tool_governance=tool_governance_by_workflow_id.get(
+                    item.workflow_id,
+                    WorkflowToolGovernanceSummary(),
+                ),
             )
             summary_by_workflow[item.workflow_id] = workflow_summary
         workflow_summary.binding_count += 1
@@ -326,7 +337,7 @@ class WorkflowPublishBindingService:
         workflow_id: str | None = None,
     ) -> WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot:
         statement = (
-            select(WorkflowPublishedEndpoint, Workflow.name)
+            select(WorkflowPublishedEndpoint, Workflow)
             .join(Workflow, Workflow.id == WorkflowPublishedEndpoint.workflow_id)
             .order_by(
                 Workflow.name.asc(),
@@ -338,18 +349,26 @@ class WorkflowPublishBindingService:
             statement = statement.where(WorkflowPublishedEndpoint.workflow_id == workflow_id)
 
         rows = db.execute(statement).all()
+        tool_index = build_workflow_tool_reference_index(db)
+        tool_governance_by_workflow_id = {
+            workflow.id: summarize_workflow_definition_tool_governance(
+                workflow.definition,
+                tool_index=tool_index,
+            )
+            for _, workflow in rows
+        }
 
         draft_candidates: list[WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem] = []
         published_blockers: list[WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem] = []
         offline_inventory: list[WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem] = []
 
-        for record, workflow_name in rows:
+        for record, workflow in rows:
             if not _has_blocking_legacy_auth_binding(record):
                 continue
 
             item = _build_legacy_auth_governance_binding_item(
                 record,
-                workflow_name=workflow_name,
+                workflow_name=workflow.name,
             )
             if item.lifecycle_status == "draft":
                 draft_candidates.append(item)
@@ -363,6 +382,7 @@ class WorkflowPublishBindingService:
             draft_candidates=draft_candidates,
             published_blockers=published_blockers,
             offline_inventory=offline_inventory,
+            tool_governance_by_workflow_id=tool_governance_by_workflow_id,
         )
 
         return WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot(

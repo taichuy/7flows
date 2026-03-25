@@ -8,6 +8,7 @@ import type {
   SensitiveAccessTimelineEntry,
   SensitiveResourceItem
 } from "@/lib/get-sensitive-access";
+import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 
 export type PublishedEndpointInvocationStatus = "succeeded" | "failed" | "rejected";
 export type PublishedEndpointInvocationRequestSource = "workflow" | "alias" | "path";
@@ -484,6 +485,7 @@ export type WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem = {
   draft_candidate_count: number;
   published_blocker_count: number;
   offline_inventory_count: number;
+  tool_governance: WorkflowToolGovernanceSummary;
 };
 
 export type WorkflowPublishedEndpointLegacyAuthGovernanceSummary = {
