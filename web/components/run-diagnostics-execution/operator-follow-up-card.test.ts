@@ -661,4 +661,81 @@ describe("RunDiagnosticsOperatorFollowUpCard", () => {
     expect(html).toContain('href="/runs?focus=callback-waiting"');
     expect(html).toContain("Open run library");
   });
+
+  it("在 live callback recovery contract 下仍保留 primary governed resource", () => {
+    const executionView = buildExecutionView();
+    executionView.execution_focus_node = {
+      node_id: "sandbox_code_1",
+      node_run_id: "node-run-1",
+      node_name: "Sandbox Code",
+      callback_tickets: [],
+      sensitive_access_entries: [
+        {
+          request: {
+            id: "access-request-1",
+            run_id: "run-123",
+            node_run_id: "node-run-1",
+            requester_type: "workflow",
+            requester_id: "workflow-run",
+            resource_id: "resource-1",
+            action_type: "read",
+            created_at: "2026-03-21T10:00:00Z"
+          },
+          resource: {
+            id: "resource-1",
+            label: "OpenAI Prod Key",
+            sensitivity_level: "L3",
+            source: "workflow_context",
+            metadata: {},
+            created_at: "2026-03-21T10:00:00Z",
+            updated_at: "2026-03-21T10:00:00Z",
+            credential_governance: {
+              credential_name: "OpenAI Prod Key",
+              credential_status: "active",
+              sensitivity_level: "L3"
+            }
+          },
+          approval_ticket: {
+            id: "approval-ticket-1",
+            access_request_id: "access-request-1",
+            status: "pending",
+            waiting_status: "waiting",
+            node_run_id: "node-run-1",
+            created_at: "2026-03-21T10:00:00Z"
+          },
+          notifications: []
+        }
+      ]
+    } as never;
+
+    const html = renderToStaticMarkup(
+      createElement(RunDiagnosticsOperatorFollowUpCard, {
+        executionView,
+        callbackWaitingAutomation: {
+          status: "partial",
+          scheduler_required: true,
+          detail: "callback automation degraded",
+          scheduler_health_status: "degraded",
+          scheduler_health_detail: "waiting resume monitor degraded",
+          affected_run_count: 3,
+          affected_workflow_count: 2,
+          primary_blocker_kind: "scheduler_unhealthy",
+          recommended_action: {
+            kind: "open_run_library",
+            label: "Open run library",
+            href: "/runs?focus=callback-waiting",
+            entry_key: "runLibrary"
+          },
+          steps: []
+        },
+        sandboxReadiness: null
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("callback recovery");
+    expect(html).toContain(
+      "Primary governed resource: OpenAI Prod Key · L3 治理 · 生效中."
+    );
+  });
 });

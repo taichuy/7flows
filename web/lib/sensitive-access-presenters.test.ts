@@ -317,6 +317,7 @@ describe("sensitive access presenters", () => {
       buildSensitiveAccessBlockedRecommendedNextStep({
         inboxHref: "/sensitive-access/inbox?status=pending",
         runId: "run-1",
+        primaryResourceSummary: "OpenAI Prod Key · L3 治理 · 生效中",
         outcomeExplanation: {
           primary_signal: "审批票据仍在等待处理。",
           follow_up: "本地 callback follow-up：先处理审批票据，再观察 waiting。"
@@ -328,6 +329,7 @@ describe("sensitive access presenters", () => {
       label: "callback recovery",
       href: "/runs?status=callback_waiting",
       href_label: "Open run library",
+      primaryResourceSummary: "OpenAI Prod Key · L3 治理 · 生效中",
       detail:
         "当前 callback recovery 仍影响 3 个 run / 2 个 workflow；scheduler 仍不健康，优先回到 run library 核对 waiting callback runs 与自动 resume 状态。"
     });

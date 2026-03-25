@@ -372,17 +372,26 @@ export function buildSharedOrLocalOperatorCandidate({
   });
   const sharedSelfHref = Boolean(sharedCandidate?.href && isSelfHref(sharedCandidate.href, currentHref));
   const localSelfHref = Boolean(localCandidate.href && isSelfHref(localCandidate.href, currentHref));
+  const sharedCandidateWithPrimaryResourceSummary =
+    sharedCandidate &&
+    !normalizeFollowUpCopy(sharedCandidate.primaryResourceSummary) &&
+    normalizeFollowUpCopy(localCandidate.primaryResourceSummary)
+      ? {
+          ...sharedCandidate,
+          primaryResourceSummary: localCandidate.primaryResourceSummary
+        }
+      : sharedCandidate;
 
-  if (sharedCandidate && !sharedSelfHref) {
-    return sharedCandidate;
+  if (sharedCandidateWithPrimaryResourceSummary && !sharedSelfHref) {
+    return sharedCandidateWithPrimaryResourceSummary;
   }
 
   if (localSelfHref) {
     return stripCandidateLink(localCandidate);
   }
 
-  if (sharedCandidate && sharedSelfHref && !localCandidate.active) {
-    return stripCandidateLink(sharedCandidate);
+  if (sharedCandidateWithPrimaryResourceSummary && sharedSelfHref && !localCandidate.active) {
+    return stripCandidateLink(sharedCandidateWithPrimaryResourceSummary);
   }
 
   return localCandidate;

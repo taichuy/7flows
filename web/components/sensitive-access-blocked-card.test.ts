@@ -72,10 +72,21 @@ describe("SensitiveAccessBlockedCard", () => {
       detail: "Published invocation detail requires approval before the payload can be viewed.",
       resource: {
         id: "resource-1",
-        label: "Invocation Detail",
+        label: "Credential · Invocation Detail Key",
         description: "Sensitive published invocation detail",
         sensitivity_level: "L3",
-        source: "workspace_resource",
+        source: "credential",
+        credential_governance: {
+          credential_id: "cred-1",
+          credential_name: "Invocation Detail Key",
+          credential_type: "api_key",
+          credential_status: "active",
+          sensitivity_level: "L3",
+          sensitive_resource_id: "resource-1",
+          sensitive_resource_label: "Credential · Invocation Detail Key",
+          credential_ref: "credential://cred-1",
+          summary: "本次命中的凭据是 Invocation Detail Key（api_key）；当前治理级别 L3，状态 生效中。"
+        },
         metadata: {
           run_id: "run-1",
           invocation_id: "invocation-1"
@@ -184,6 +195,9 @@ describe("SensitiveAccessBlockedCard", () => {
     expect(html).toContain("Recommended next step");
     expect(html).toContain("approval blocker");
     expect(html).toContain("open inbox slice");
+    expect(html).toContain(
+      "Primary governed resource: Credential · Invocation Detail Key · L3 治理 · 生效中."
+    );
     expect(html).toContain("审批通过后继续观察 review 节点");
     expect(html).not.toContain("当前阻断来自敏感访问审批票据");
     expect(html).toContain("Run status");

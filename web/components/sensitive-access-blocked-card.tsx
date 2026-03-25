@@ -7,6 +7,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
 import { CredentialGovernanceSummaryCard } from "@/components/credential-governance-summary-card";
 import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
+import { formatSensitiveResourceGovernanceSummary } from "@/lib/credential-governance";
 import type {
   CallbackWaitingAutomationCheck,
   SandboxReadinessCheck
@@ -136,11 +137,15 @@ export function SensitiveAccessBlockedCard({
       payload.approval_ticket?.waiting_status === "waiting" ||
       hasCallbackWaitingSummaryFacts(payload.run_snapshot ?? null)
   );
+  const recommendedNextStepPrimaryResourceSummary = formatSensitiveResourceGovernanceSummary(
+    payload.resource
+  );
   const recommendedNextStep = buildSensitiveAccessBlockedRecommendedNextStep({
     currentHref,
     inboxHref,
     runId,
     runHref: scopedRunDetailHref,
+    primaryResourceSummary: recommendedNextStepPrimaryResourceSummary,
     outcomeExplanation: canonicalOutcomeExplanation,
     runSnapshot: payload.run_snapshot ?? null,
     runFollowUpExplanation: payload.run_follow_up?.explanation ?? null,

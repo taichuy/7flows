@@ -473,6 +473,22 @@ describe("SensitiveAccessTimelineEntryList", () => {
 
   it("renders a standalone shared recommended next step when only operator follow-up remains", () => {
     const entry = buildEntry();
+    entry.resource = {
+      ...entry.resource,
+      label: "Credential · Search Key",
+      source: "credential",
+      credential_governance: {
+        credential_id: "cred-1",
+        credential_name: "Search Key",
+        credential_type: "api_key",
+        credential_status: "active",
+        sensitivity_level: "L3",
+        sensitive_resource_id: "resource-1",
+        sensitive_resource_label: "Credential · Search Key",
+        credential_ref: "credential://cred-1",
+        summary: "本次命中的凭据是 Search Key（api_key）；当前治理级别 L3，状态 生效中。"
+      }
+    };
 
     const html = renderToStaticMarkup(
       createElement(SensitiveAccessTimelineEntryList, {
@@ -512,5 +528,6 @@ describe("SensitiveAccessTimelineEntryList", () => {
     expect(html).toContain("approval blocker");
     expect(html).toContain(operatorSurfaceCopy.openInboxSliceLabel);
     expect(html).toContain("优先打开 run 查看恢复后的 focus 节点与最新执行证据。");
+    expect(html).toContain("Primary governed resource: Credential · Search Key · L3 治理 · 生效中.");
   });
 });

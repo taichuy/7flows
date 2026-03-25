@@ -217,6 +217,33 @@ describe("operator follow-up presenters", () => {
     });
   });
 
+  it("shared contract 缺少治理资源时会复用本地 primary resource summary", () => {
+    expect(
+      buildSharedOrLocalOperatorCandidate({
+        sharedCandidate: {
+          active: true,
+          label: "callback recovery",
+          detail: "优先回到 run library 观察恢复状态。",
+          href: "/runs?focus=callback-waiting",
+          href_label: "Open run library",
+          fallback_detail: "fallback"
+        },
+        runId: "run-123456789",
+        detail: "优先处理审批票据。",
+        fallbackDetail: "fallback",
+        primaryResourceSummary: "OpenAI Prod Key · L3 治理 · 生效中"
+      })
+    ).toEqual({
+      active: true,
+      label: "callback recovery",
+      detail: "优先回到 run library 观察恢复状态。",
+      href: "/runs?focus=callback-waiting",
+      href_label: "Open run library",
+      fallback_detail: "fallback",
+      primaryResourceSummary: "OpenAI Prod Key · L3 治理 · 生效中"
+    });
+  });
+
   it("shared candidate 指回当前页时会回退到更具体的本地锚点", () => {
     expect(
       buildSharedOrLocalOperatorCandidate({

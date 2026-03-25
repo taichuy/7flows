@@ -1,11 +1,13 @@
 import React from "react";
-import Link from "next/link";
 
 import { normalizeOperatorRunFollowUp } from "@/app/actions/run-snapshot";
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
+import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import { buildCallbackTicketInboxHref } from "@/lib/callback-ticket-links";
+import { pickCallbackWaitingInlineSensitiveAccessEntry } from "@/lib/callback-waiting-presenters";
+import { formatSensitiveResourceGovernanceSummary } from "@/lib/credential-governance";
 import type {
   CallbackWaitingAutomationCheck,
   SandboxReadinessCheck
@@ -86,6 +88,16 @@ export function RunDiagnosticsOperatorFollowUpCard({
     snapshot?.execution_focus_explanation?.follow_up ??
     executionView.execution_focus_explanation?.follow_up ??
     null;
+  const sampledFollowUp = resolveOperatorRunFollowUpSample(normalizedRunFollowUp, executionView.run_id);
+  const callbackSummaryFocusNode = resolveCallbackSummaryFocusNode(executionView, snapshot);
+  const callbackSummarySensitiveAccessEntries =
+    (callbackSummaryFocusNode?.sensitive_access_entries.length ?? 0) > 0
+      ? callbackSummaryFocusNode?.sensitive_access_entries ?? []
+      : sampledFollowUp?.sensitiveAccessEntries ?? [];
+  const recommendedNextStepPrimaryResourceSummary = formatSensitiveResourceGovernanceSummary(
+    pickCallbackWaitingInlineSensitiveAccessEntry(callbackSummarySensitiveAccessEntries)?.resource ??
+      null
+  );
   const hasCallbackFacts = hasCallbackWaitingFacts(snapshot);
   const hasExecutionFocusFacts = hasExecutionFacts(snapshot, executionView);
   const sharedCallbackCandidate = hasCallbackFacts
@@ -98,6 +110,7 @@ export function RunDiagnosticsOperatorFollowUpCard({
     action: followUp?.recommended_action ?? null,
     detail: callbackFollowUp ?? followUp?.explanation?.follow_up ?? null,
     fallbackDetail: diagnosticsSurfaceCopy.callbackFallbackDetail,
+    primaryResourceSummary: recommendedNextStepPrimaryResourceSummary,
     scope: "callback",
     surfaceCopy
   });
@@ -120,6 +133,7 @@ export function RunDiagnosticsOperatorFollowUpCard({
     action: sampledCallbackAction,
     detail: callbackFollowUp ?? followUp?.explanation?.follow_up ?? null,
     fallbackDetail: diagnosticsSurfaceCopy.callbackFallbackDetail,
+    primaryResourceSummary: recommendedNextStepPrimaryResourceSummary,
     scope: "callback",
     surfaceCopy
   });
@@ -142,6 +156,7 @@ export function RunDiagnosticsOperatorFollowUpCard({
     action: followUp?.recommended_action ?? null,
     detail: executionFollowUp ?? followUp?.explanation?.follow_up ?? null,
     fallbackDetail: executionSurfaceCopy.recommendedNextStepFallbackDetail,
+    primaryResourceSummary: recommendedNextStepPrimaryResourceSummary,
     scope: "execution",
     surfaceCopy
   });
@@ -156,6 +171,7 @@ export function RunDiagnosticsOperatorFollowUpCard({
       detail: callbackFollowUp ?? followUp?.explanation?.follow_up ?? null,
       hrefLabel: surfaceCopy.executionTimelineLinkLabel,
       fallbackDetail: diagnosticsSurfaceCopy.callbackFallbackDetail,
+      primaryResourceSummary: recommendedNextStepPrimaryResourceSummary,
       surfaceCopy
     }),
     execution: buildSharedOrLocalOperatorCandidate({
@@ -167,6 +183,7 @@ export function RunDiagnosticsOperatorFollowUpCard({
       detail: executionFollowUp ?? followUp?.explanation?.follow_up ?? null,
       hrefLabel: surfaceCopy.executionTimelineLinkLabel,
       fallbackDetail: executionSurfaceCopy.recommendedNextStepFallbackDetail,
+      primaryResourceSummary: recommendedNextStepPrimaryResourceSummary,
       surfaceCopy
     }),
     operatorFollowUp: followUp?.explanation?.follow_up ?? null,
@@ -197,8 +214,6 @@ export function RunDiagnosticsOperatorFollowUpCard({
     ? formatExecutionFocusArtifactSummary(focusNodeEvidence)
     : null;
   const focusSkillTrace = snapshot?.execution_focus_skill_trace ?? null;
-  const sampledFollowUp = resolveOperatorRunFollowUpSample(normalizedRunFollowUp, executionView.run_id);
-  const callbackSummaryFocusNode = resolveCallbackSummaryFocusNode(executionView, snapshot);
   const focusEvidenceDrilldownLink = buildOperatorTraceSliceLinkSurface({
     runId: executionView.run_id,
     runHref: currentRunHref,
@@ -216,10 +231,6 @@ export function RunDiagnosticsOperatorFollowUpCard({
     (callbackSummaryFocusNode?.callback_tickets.length ?? 0) > 0
       ? callbackSummaryFocusNode?.callback_tickets ?? []
       : sampledFollowUp?.callbackTickets ?? [];
-  const callbackSummarySensitiveAccessEntries =
-    (callbackSummaryFocusNode?.sensitive_access_entries.length ?? 0) > 0
-      ? callbackSummaryFocusNode?.sensitive_access_entries ?? []
-      : sampledFollowUp?.sensitiveAccessEntries ?? [];
   const callbackSummaryRecommendedAction =
     canonicalCallbackCandidate == null && sampledCallbackAction
       ? sampledCallbackAction
@@ -270,20 +281,10 @@ export function RunDiagnosticsOperatorFollowUpCard({
           ))}
         </div>
       ) : null}
-      {recommendedNextStep ? (
-        <article className="entry-card compact-card">
-          <div className="payload-card-header">
-            <span className="status-meta">{surfaceCopy.recommendedNextStepTitle}</span>
-            <span className="event-chip">{recommendedNextStep.label}</span>
-            {recommendedNextStep.href && recommendedNextStep.href_label ? (
-              <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
-                {recommendedNextStep.href_label}
-              </Link>
-            ) : null}
-          </div>
-          <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
-        </article>
-      ) : null}
+      <OperatorRecommendedNextStepCard
+        recommendedNextStep={recommendedNextStep}
+        surfaceCopy={surfaceCopy}
+      />
       {snapshot ? (
         <CallbackWaitingSummaryCard
           currentHref={currentRunHref}

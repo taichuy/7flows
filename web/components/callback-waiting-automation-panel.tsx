@@ -1,5 +1,7 @@
+import React from "react";
 import Link from "next/link";
 
+import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import type {
   CallbackWaitingAutomationCheck,
   RecentRunEventCheck
@@ -100,23 +102,19 @@ export function CallbackWaitingAutomationPanel({
       </div>
 
       {recommendedNextStep ? (
-        <article className="entry-card compact-card">
-          <div className="payload-card-header">
-            <span className="status-meta">{operatorSurfaceCopy.recommendedNextStepTitle}</span>
-            <span className="event-chip">{recommendedNextStep.label}</span>
-            {recommendedNextStep.href && recommendedNextStep.href_label ? (
-              <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
-                {recommendedNextStep.href_label}
-              </Link>
-            ) : null}
-            {followUpSurface?.traceLink ? (
+        <div>
+          <OperatorRecommendedNextStepCard
+            recommendedNextStep={recommendedNextStep}
+            surfaceCopy={operatorSurfaceCopy}
+          />
+          {followUpSurface?.traceLink ? (
+            <div className="event-type-strip">
               <Link className="event-chip inbox-filter-link" href={followUpSurface.traceLink.href}>
                 {followUpSurface.traceLink.label}
               </Link>
-            ) : null}
-          </div>
-          <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
-        </article>
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="activity-list">

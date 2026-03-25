@@ -9,6 +9,11 @@ export type ResourceWithCredentialGovernance = Pick<
   "credential_governance"
 >;
 
+export type ResourceWithGovernanceSummary = Pick<
+  SensitiveResourceItem,
+  "label" | "credential_governance"
+>;
+
 export function getCredentialGovernanceSummary(
   resource?: ResourceWithCredentialGovernance | null
 ): CredentialGovernanceSummary | null {
@@ -49,7 +54,7 @@ export function formatCredentialGovernanceCompactSummary(
 }
 
 export function formatSensitiveResourceGovernanceSummary(
-  resource?: SensitiveResourceItem | null
+  resource?: ResourceWithGovernanceSummary | null
 ) {
   if (!resource) {
     return null;
@@ -89,14 +94,14 @@ export function formatSensitiveResourceGovernanceSummary(
 }
 
 export function formatPrimaryGovernedResourceEnglishDetail(
-  resource?: SensitiveResourceItem | null
+  resource?: ResourceWithGovernanceSummary | null
 ) {
   const summary = formatSensitiveResourceGovernanceSummary(resource);
   return summary ? `Primary governed resource: ${summary}.` : null;
 }
 
 export function formatPrimaryGovernedResourceChineseDetail(
-  resource?: SensitiveResourceItem | null,
+  resource?: ResourceWithGovernanceSummary | null,
   prefix = "当前最该追踪的治理资源"
 ) {
   const summary = formatSensitiveResourceGovernanceSummary(resource);

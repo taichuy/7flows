@@ -8,6 +8,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { CredentialGovernanceSummaryCard } from "@/components/credential-governance-summary-card";
 import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
+import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import type { RunCallbackTicketItem } from "@/lib/get-run-views";
 import type {
   CallbackWaitingAutomationCheck,
@@ -23,6 +24,7 @@ import {
   getCallbackWaitingRecommendedAction,
   pickCallbackWaitingInlineSensitiveAccessEntry
 } from "@/lib/callback-waiting-presenters";
+import { formatSensitiveResourceGovernanceSummary } from "@/lib/credential-governance";
 import {
   buildOperatorFollowUpSurfaceCopy,
   buildOperatorRunDetailLinkSurface,
@@ -414,10 +416,14 @@ export function SensitiveAccessTimelineEntryList({
               (runContext.runFollowUp?.sampledRuns.length ?? 0) > 0
           );
           const nodeRunId = entry.approval_ticket?.node_run_id ?? entry.request.node_run_id ?? null;
+          const recommendedNextStepPrimaryResourceSummary = formatSensitiveResourceGovernanceSummary(
+            entry.resource
+          );
           const recommendedNextStep = shouldRenderCallbackWaitingSummary
             ? buildCallbackWaitingRecommendedNextStep({
                 action: callbackWaitingRecommendedAction,
                 inboxHref: inboxSliceHref,
+                primaryResourceSummary: recommendedNextStepPrimaryResourceSummary,
                 operatorFollowUp:
                   runContext.runFollowUp?.explanation?.follow_up ??
                   canonicalOutcomeExplanation?.follow_up ??
@@ -428,6 +434,7 @@ export function SensitiveAccessTimelineEntryList({
                 inboxHref: inboxSliceHref,
                 runId,
                 runHref: runId ? resolveRunDetailHref(runId) : null,
+                primaryResourceSummary: recommendedNextStepPrimaryResourceSummary,
                 outcomeExplanation: canonicalOutcomeExplanation,
                 runSnapshot: runContext.snapshot,
                 runFollowUpExplanation: runContext.runFollowUp?.explanation ?? null,
@@ -527,18 +534,10 @@ export function SensitiveAccessTimelineEntryList({
               <CredentialGovernanceSummaryCard resource={entry.resource} />
 
               {shouldRenderStandaloneRecommendedNextStep ? (
-                <div className="entry-card compact-card">
-                  <div className="payload-card-header">
-                    <span className="status-meta">{operatorSurfaceCopy.recommendedNextStepTitle}</span>
-                    <span className="event-chip">{recommendedNextStep.label}</span>
-                    {recommendedNextStep.href && recommendedNextStep.href_label ? (
-                      <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
-                        {recommendedNextStep.href_label}
-                      </Link>
-                    ) : null}
-                  </div>
-                  <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
-                </div>
+                <OperatorRecommendedNextStepCard
+                  recommendedNextStep={recommendedNextStep}
+                  surfaceCopy={operatorSurfaceCopy}
+                />
               ) : null}
 
               {hasStructuredOperatorFeedback ? (

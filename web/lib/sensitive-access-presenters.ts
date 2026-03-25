@@ -332,6 +332,7 @@ export function buildSensitiveAccessBlockedRecommendedNextStep({
   inboxHref,
   runId,
   runHref,
+  primaryResourceSummary,
   outcomeExplanation,
   runSnapshot,
   runFollowUpExplanation,
@@ -344,6 +345,7 @@ export function buildSensitiveAccessBlockedRecommendedNextStep({
   inboxHref?: string | null;
   runId?: string | null;
   runHref?: string | null;
+  primaryResourceSummary?: string | null;
   outcomeExplanation?: SignalFollowUpExplanation | null;
   runSnapshot?: OperatorRunSnapshotSummary | null;
   runFollowUpExplanation?: SignalFollowUpExplanation | null;
@@ -419,18 +421,19 @@ export function buildSensitiveAccessBlockedRecommendedNextStep({
   );
   const callbackCandidate =
     !sharedSandboxCandidate && !canonicalExecutionCandidate && shouldSurfaceCallbackCandidate
-    ? buildSharedOrLocalOperatorCandidate({
+      ? buildSharedOrLocalOperatorCandidate({
         sharedCandidate: canonicalCallbackCandidate ?? sharedCallbackRecoveryCandidate,
         active: Boolean(inboxHref),
         currentHref,
         label: "approval blocker",
         detail: blockerFollowUp,
         href: inboxHref,
+        primaryResourceSummary,
         fallbackDetail:
           "当前敏感访问仍被 approval blocker 拦住；优先处理审批票据、通知与 waiting 恢复，再继续查看 run detail 或原入口。",
         surfaceCopy: operatorSurfaceCopy
       })
-    : null;
+      : null;
   const executionCandidate = buildSharedOrLocalOperatorCandidate({
     sharedCandidate: sharedSandboxCandidate ?? canonicalExecutionCandidate,
     active: Boolean(runId),
@@ -438,6 +441,7 @@ export function buildSensitiveAccessBlockedRecommendedNextStep({
     runId,
     runHref,
     detail: executionFollowUp,
+    primaryResourceSummary,
     fallbackDetail:
       "当前阻断结果已经回接 canonical run snapshot；如果审批已处理，优先打开 run detail 确认 waiting 与 focus node 是否恢复。",
     surfaceCopy: operatorSurfaceCopy
