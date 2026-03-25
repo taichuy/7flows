@@ -211,7 +211,7 @@ export function SensitiveAccessBulkGovernanceCard({
           {sampledRunCards.length > 0 ? (
             <div className="binding-section">
               <p className="section-copy entry-copy">
-                Sampled run 卡片现在会一起复用 runtime 返回的 compact snapshot，既保留 execution focus evidence，也保留 callback waiting / scheduled resume 的 follow-up 事实，避免批量治理后还要回到 run detail 二次排障。
+                Sampled run 卡片现在会一起复用 runtime 返回的 compact snapshot，既保留 execution focus evidence，也把 callback waiting / scheduled resume 与 workflow governance handoff 放回同一份 follow-up 事实，避免批量治理后还要回到 run detail 二次排障。
               </p>
               <OperatorRunSampleCardList
                 cards={sampledRunCards}

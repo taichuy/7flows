@@ -49,6 +49,7 @@ export function OperatorRunSampleCardList({
       {cards.map((sample) => {
         const showHeaderExecutionFacts =
           sample.executionFactBadges.length > 0 && !sample.hasCallbackWaitingSummary;
+        const shouldRenderCallbackWorkflowGovernance = sample.hasCallbackWaitingSummary;
         const scopedRunDetailHref = resolveRunDetailHref?.(sample.runId) ?? null;
         const runDetailLink = buildOperatorRunDetailLinkSurface({
           runId: sample.runId,
@@ -111,12 +112,14 @@ export function OperatorRunSampleCardList({
             <p className="binding-meta">{sample.summary}</p>
           ) : null}
 
-          <WorkflowGovernanceHandoffCards
-            workflowCatalogGapSummary={sample.workflowCatalogGapSummary}
-            workflowCatalogGapDetail={sample.workflowCatalogGapDetail}
-            workflowGovernanceHref={sample.workflowGovernanceHref}
-            legacyAuthHandoff={sample.legacyAuthHandoff}
-          />
+          {!shouldRenderCallbackWorkflowGovernance ? (
+            <WorkflowGovernanceHandoffCards
+              workflowCatalogGapSummary={sample.workflowCatalogGapSummary}
+              workflowCatalogGapDetail={sample.workflowCatalogGapDetail}
+              workflowGovernanceHref={sample.workflowGovernanceHref}
+              legacyAuthHandoff={sample.legacyAuthHandoff}
+            />
+          ) : null}
 
           {snapshotMetaRows.length ? (
             <dl className="compact-meta-list">
@@ -197,6 +200,18 @@ export function OperatorRunSampleCardList({
             sensitiveAccessEntries={sample.sensitiveAccessEntries}
             waitingReason={sample.waitingReason}
             focusEvidenceDrilldownLink={focusEvidenceDrilldownLink}
+            workflowCatalogGapSummary={
+              shouldRenderCallbackWorkflowGovernance ? sample.workflowCatalogGapSummary : null
+            }
+            workflowCatalogGapDetail={
+              shouldRenderCallbackWorkflowGovernance ? sample.workflowCatalogGapDetail : null
+            }
+            workflowGovernanceHref={
+              shouldRenderCallbackWorkflowGovernance ? sample.workflowGovernanceHref : null
+            }
+            legacyAuthHandoff={
+              shouldRenderCallbackWorkflowGovernance ? sample.legacyAuthHandoff : null
+            }
           />
 
           {sample.artifactCount > 0 ||

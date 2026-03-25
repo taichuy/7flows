@@ -166,6 +166,10 @@ export type OperatorRunSnapshotSummary = {
 export type SensitiveAccessBulkRunSample = {
   runId: string;
   snapshot: OperatorRunSnapshotSummary | null;
+  callbackTickets?: RunCallbackTicketItem[];
+  sensitiveAccessEntries?: SensitiveAccessTimelineEntry[];
+  toolGovernance?: WorkflowToolGovernanceSummary | null;
+  legacyAuthGovernance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
 };
 
 export type NotificationChannelCapabilityItem = {

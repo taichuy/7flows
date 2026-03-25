@@ -482,4 +482,75 @@ describe("SensitiveAccessBulkGovernanceCard", () => {
     expect(html).toContain("再补发支持鉴权的 replacement bindings");
     expect(html).toContain("Demo Workflow");
   });
+
+  it("reuses shared callback summary for sampled run workflow governance handoff", () => {
+    const lastResult: SensitiveAccessBulkActionResult = {
+      action: "retry",
+      status: "success",
+      message: "批量重试已提交。",
+      requestedCount: 1,
+      updatedCount: 1,
+      skippedCount: 0,
+      skippedReasonSummary: [],
+      affectedRunCount: 1,
+      sampledRunCount: 1,
+      waitingRunCount: 1,
+      runningRunCount: 0,
+      succeededRunCount: 0,
+      failedRunCount: 0,
+      unknownRunCount: 0,
+      blockerSampleCount: 0,
+      blockerChangedCount: 0,
+      blockerClearedCount: 0,
+      blockerFullyClearedCount: 0,
+      blockerStillBlockedCount: 0,
+      sampledRuns: [
+        {
+          runId: "run-waiting-1",
+          snapshot: {
+            workflowId: "workflow-sampled",
+            executionFocusNodeId: "callback-node",
+            executionFocusNodeName: "Callback node",
+            executionFocusNodeRunId: "node-run-1",
+            callbackWaitingExplanation: {
+              primary_signal: "当前 waiting 节点仍在等待 callback。",
+              follow_up: "优先观察定时恢复是否已重新排队。"
+            },
+            scheduledResumeDelaySeconds: 45,
+            scheduledResumeSource: "runtime_retry",
+            scheduledWaitingStatus: "waiting_callback"
+          },
+          toolGovernance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0
+          },
+          legacyAuthGovernance: buildLegacyAuthGovernanceSnapshot()
+        }
+      ]
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessBulkGovernanceCard, {
+        inScopeCount: 1,
+        decisionCandidateCount: 0,
+        retryCandidateCount: 1,
+        operatorValue: "ops-reviewer",
+        onOperatorChange: () => {},
+        isMutating: false,
+        lastResult,
+        message: lastResult.message,
+        messageTone: "success",
+        onAction: () => {}
+      })
+    );
+
+    expect(html).toContain("Workflow governance");
+    expect(html).toContain("catalog gap · native.catalog-gap");
+    expect(html).toContain("Legacy publish auth handoff");
+    expect(html).toContain("publish auth blocker");
+    expect(html.match(/Workflow governance/g)?.length ?? 0).toBe(1);
+    expect(html.match(/Legacy publish auth handoff/g)?.length ?? 0).toBe(1);
+  });
 });
