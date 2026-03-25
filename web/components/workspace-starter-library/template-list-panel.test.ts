@@ -304,6 +304,90 @@ describe("WorkspaceStarterTemplateListPanel", () => {
 
     expect(html).toContain("Missing source starter 当前是共享来源治理队列的首个待处理 starter。");
     expect(html).toContain("确认模板后带此 starter 回到创建页");
+    const primaryFollowUpSection =
+      html.split("Primary follow-up")[1]?.split("后端 summary 已把当前范围里的 follow-up queue 编成统一清单")[0] ?? "";
+    expect(primaryFollowUpSection).toContain(
+      '/workflows/new?needs_follow_up=true&amp;q=source&amp;source_governance_kind=missing_source&amp;starter=starter-missing-source&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
+    );
+    expect(primaryFollowUpSection).not.toContain(
+      "starter-selected&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
+    );
+  });
+
+  it("keeps the scoped create CTA on the individual starter card when source governance is missing", () => {
+    const templates: WorkspaceStarterTemplateItem[] = [
+      {
+        id: "starter-missing-source",
+        workspace_id: "default",
+        name: "Missing source starter",
+        description: "Starter with a deleted source workflow.",
+        business_track: "应用新建编排",
+        default_workflow_name: "Missing Source Workflow",
+        workflow_focus: "Keep authoring unblocked.",
+        recommended_next_step: "Confirm the template is still reusable.",
+        tags: ["workspace starter"],
+        definition: {
+          nodes: [],
+          edges: []
+        },
+        created_from_workflow_id: "wf-missing",
+        created_from_workflow_version: "0.4.0",
+        archived: false,
+        archived_at: null,
+        created_at: "2026-03-21T12:00:00Z",
+        updated_at: "2026-03-21T12:30:00Z",
+        source_governance: {
+          kind: "missing_source",
+          status_label: "来源缺失",
+          summary: "记录中的来源 workflow 已不存在或当前不可访问。",
+          source_workflow_id: "wf-missing",
+          source_workflow_name: null,
+          template_version: "0.4.0",
+          source_version: null,
+          action_decision: null,
+          outcome_explanation: {
+            primary_signal: "当前 starter 记录的来源 workflow 已不可用。",
+            follow_up: "先在当前库里确认模板仍可复用，再从创建页继续创建。"
+          }
+        }
+      }
+    ];
+
+    const html = renderToStaticMarkup(
+      createElement(WorkspaceStarterTemplateListPanel, {
+        templates,
+        filteredTemplates: templates,
+        selectedTemplateId: "starter-missing-source",
+        activeTrack: "应用新建编排",
+        archiveFilter: "active",
+        sourceGovernanceKind: "missing_source",
+        needsFollowUp: true,
+        searchQuery: "source",
+        createWorkflowHref:
+          "/workflows/new?needs_follow_up=true&q=source&source_governance_kind=missing_source&starter=starter-selected&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92",
+        activeTemplateCount: 1,
+        archivedTemplateCount: 0,
+        templateToolGovernanceById: new Map(),
+        bulkPreview: null,
+        bulkPreviewNotice: null,
+        isBulkMutating: false,
+        isLoadingBulkPreview: false,
+        isLoadingSourceGovernanceScope: false,
+        lastBulkResult: null,
+        sourceGovernanceScope: null,
+        onTrackChange: () => {},
+        onArchiveFilterChange: () => {},
+        onSourceGovernanceKindChange: () => {},
+        onNeedsFollowUpChange: () => {},
+        onSearchQueryChange: () => {},
+        onSelectTemplate: () => {},
+        onFocusTemplate: () => {},
+        onBulkAction: () => {}
+      })
+    );
+
+    expect(html).toContain("Missing source starter");
+    expect(html).toContain("确认模板后带此 starter 回到创建页");
     expect(html).toContain(
       '/workflows/new?needs_follow_up=true&amp;q=source&amp;source_governance_kind=missing_source&amp;starter=starter-missing-source&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
     );

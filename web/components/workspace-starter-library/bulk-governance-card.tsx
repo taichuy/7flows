@@ -26,6 +26,7 @@ import {
   buildWorkspaceStarterBulkPreviewNarrative,
   buildWorkspaceStarterBulkResultNarrative
 } from "./shared";
+import { WorkspaceStarterFollowUpCard } from "./follow-up-card";
 
 type WorkspaceStarterBulkGovernanceCardProps = {
   inScopeCount: number;
@@ -133,49 +134,41 @@ export function WorkspaceStarterBulkGovernanceCard({
             <strong>Source governance:</strong> {sourceGovernanceScope.summary}
           </p>
           {sourceGovernancePrimaryFollowUp ? (
-            <div className="entry-card compact-card">
-              <div className="payload-card-header">
-                <span className="status-meta">Primary follow-up</span>
-                <span className="event-chip">{sourceGovernancePrimaryFollowUp.label}</span>
-              </div>
-              <p className="section-copy starter-summary-copy">
-                {sourceGovernancePrimaryFollowUp.headline}
-              </p>
-              <p className="section-copy starter-summary-copy">
-                {sourceGovernancePrimaryFollowUp.detail}
-              </p>
-              {sourceGovernancePrimaryFollowUp.primaryResourceSummary ? (
-                <p className="binding-meta">
-                  {`Primary governed starter: ${sourceGovernancePrimaryFollowUp.primaryResourceSummary}.`}
-                </p>
-              ) : null}
-              {sourceGovernancePrimaryFollowUp.entryKey ||
-              (sourceGovernancePrimaryFollowUp.focusTemplateId &&
-                sourceGovernancePrimaryFollowUp.focusLabel) ? (
-                <div className="binding-actions">
-                  {sourceGovernancePrimaryFollowUp.entryKey ? (
-                    <WorkbenchEntryLink
-                      className="inline-link secondary"
-                      linkKey={sourceGovernancePrimaryFollowUp.entryKey}
-                      override={sourceGovernancePrimaryFollowUp.entryOverride}
-                    />
-                  ) : null}
-                  {sourceGovernancePrimaryFollowUp.focusTemplateId &&
-                  sourceGovernancePrimaryFollowUp.focusLabel ? (
-                    <button
-                      className="sync-button secondary"
-                      type="button"
-                      onClick={() =>
-                        onSelectQueuedTemplate(sourceGovernancePrimaryFollowUp.focusTemplateId!)
-                      }
-                      disabled={isMutating}
-                    >
-                      {sourceGovernancePrimaryFollowUp.focusLabel}
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
+            <WorkspaceStarterFollowUpCard
+              title="Primary follow-up"
+              detail={sourceGovernancePrimaryFollowUp.detail}
+              headline={sourceGovernancePrimaryFollowUp.headline}
+              label={sourceGovernancePrimaryFollowUp.label}
+              primaryResourceSummary={sourceGovernancePrimaryFollowUp.primaryResourceSummary}
+              actions={
+                sourceGovernancePrimaryFollowUp.entryKey ||
+                (sourceGovernancePrimaryFollowUp.focusTemplateId &&
+                  sourceGovernancePrimaryFollowUp.focusLabel) ? (
+                  <>
+                    {sourceGovernancePrimaryFollowUp.entryKey ? (
+                      <WorkbenchEntryLink
+                        className="inline-link secondary"
+                        linkKey={sourceGovernancePrimaryFollowUp.entryKey}
+                        override={sourceGovernancePrimaryFollowUp.entryOverride}
+                      />
+                    ) : null}
+                    {sourceGovernancePrimaryFollowUp.focusTemplateId &&
+                    sourceGovernancePrimaryFollowUp.focusLabel ? (
+                      <button
+                        className="sync-button secondary"
+                        type="button"
+                        onClick={() =>
+                          onSelectQueuedTemplate(sourceGovernancePrimaryFollowUp.focusTemplateId!)
+                        }
+                        disabled={isMutating}
+                      >
+                        {sourceGovernancePrimaryFollowUp.focusLabel}
+                      </button>
+                    ) : null}
+                  </>
+                ) : null
+              }
+            />
           ) : null}
           {sourceGovernanceFocusTargets.length > 0 ? (
             <>
@@ -304,53 +297,48 @@ export function WorkspaceStarterBulkGovernanceCard({
                 </p>
               ) : null}
               {recommendedNextStep ? (
-                <div className="entry-card compact-card">
-                <div className="payload-card-header">
-                  <span className="status-meta">Recommended next step</span>
-                  <span className="event-chip">{recommendedNextStep.label}</span>
-                </div>
-                <p className="section-copy starter-summary-copy">{recommendedNextStep.detail}</p>
-                {recommendedNextStep.primaryResourceSummary ? (
-                  <p className="binding-meta">
-                    {`Primary governed starter: ${recommendedNextStep.primaryResourceSummary}.`}
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
+                <WorkspaceStarterFollowUpCard
+                  detail={recommendedNextStep.detail}
+                  label={recommendedNextStep.label}
+                  primaryResourceSummary={recommendedNextStep.primaryResourceSummary}
+                  actions={
+                    recommendedNextStep.entryKey ||
+                    (recommendedNextStep.focusTemplateId && recommendedNextStep.focusLabel) ||
+                    primaryResultFocusTarget ? (
+                      <>
+                        {recommendedNextStep.entryKey ? (
+                          <WorkbenchEntryLink
+                            className="inline-link secondary"
+                            linkKey={recommendedNextStep.entryKey}
+                            override={recommendedNextStep.entryOverride}
+                          />
+                        ) : null}
+                        {recommendedNextStep.focusTemplateId && recommendedNextStep.focusLabel ? (
+                          <button
+                            className="sync-button secondary"
+                            type="button"
+                            onClick={() => onFocusTemplate(recommendedNextStep.focusTemplateId!)}
+                            disabled={isMutating}
+                          >
+                            {recommendedNextStep.focusLabel}
+                          </button>
+                        ) : primaryResultFocusTarget ? (
+                          <button
+                            className="sync-button secondary"
+                            type="button"
+                            onClick={() => onFocusTemplate(primaryResultFocusTarget.templateId)}
+                            disabled={isMutating}
+                          >
+                            {`优先聚焦 starter：${primaryResultFocusTarget.name}`}
+                          </button>
+                        ) : null}
+                      </>
+                    ) : null
+                  }
+                />
+              ) : null}
               {resultSurface?.shouldRenderStandaloneFollowUpExplanation ? (
                 <p className="binding-meta">{resultSurface.followUpExplanation}</p>
-              ) : null}
-              {recommendedNextStep?.entryKey ||
-              (recommendedNextStep?.focusTemplateId && recommendedNextStep.focusLabel) ||
-              primaryResultFocusTarget ? (
-                <div className="binding-actions">
-                  {recommendedNextStep?.entryKey ? (
-                    <WorkbenchEntryLink
-                      className="inline-link secondary"
-                      linkKey={recommendedNextStep.entryKey}
-                      override={recommendedNextStep.entryOverride}
-                    />
-                  ) : null}
-                  {recommendedNextStep?.focusTemplateId && recommendedNextStep.focusLabel ? (
-                    <button
-                      className="sync-button secondary"
-                      type="button"
-                      onClick={() => onFocusTemplate(recommendedNextStep.focusTemplateId!)}
-                      disabled={isMutating}
-                    >
-                      {recommendedNextStep.focusLabel}
-                    </button>
-                  ) : primaryResultFocusTarget ? (
-                    <button
-                      className="sync-button secondary"
-                      type="button"
-                      onClick={() => onFocusTemplate(primaryResultFocusTarget.templateId)}
-                      disabled={isMutating}
-                    >
-                      {`优先聚焦 starter：${primaryResultFocusTarget.name}`}
-                    </button>
-                  ) : null}
-                </div>
               ) : null}
             </div>
           ) : null}

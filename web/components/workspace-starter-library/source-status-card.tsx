@@ -13,6 +13,7 @@ import {
   buildWorkspaceStarterSourceActionDecision,
   buildWorkspaceStarterSourceGovernanceSurface
 } from "./shared";
+import { WorkspaceStarterFollowUpCard } from "./follow-up-card";
 
 type WorkspaceStarterSourceCardProps = {
   template: WorkspaceStarterTemplateItem;
@@ -93,18 +94,11 @@ export function WorkspaceStarterSourceCard({
               : null}
           </div>
           {recommendedNextStep ? (
-            <div className="entry-card compact-card">
-              <div className="payload-card-header">
-                <span className="status-meta">Recommended next step</span>
-                <span className="event-chip">{recommendedNextStep.label}</span>
-              </div>
-              <p className="section-copy starter-summary-copy">{recommendedNextStep.detail}</p>
-              {recommendedNextStep.primaryResourceSummary ? (
-                <p className="binding-meta">
-                  {`Primary governed starter: ${recommendedNextStep.primaryResourceSummary}.`}
-                </p>
-              ) : null}
-            </div>
+            <WorkspaceStarterFollowUpCard
+              detail={recommendedNextStep.detail}
+              label={recommendedNextStep.label}
+              primaryResourceSummary={recommendedNextStep.primaryResourceSummary}
+            />
           ) : (
             <p className="section-copy starter-summary-copy">
               {sourceCardSurface.fallbackDetail}

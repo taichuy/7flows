@@ -1365,14 +1365,33 @@ a {
     box-shadow 160ms ease;
 }
 
+.starter-card-toggle {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.starter-card-toggle:focus-visible {
+  outline: none;
+}
+
 .starter-card:hover,
+.starter-card:focus-within,
 .starter-card.selected {
   transform: translateY(-1px);
   border-color: rgba(208, 99, 45, 0.26);
   box-shadow: 0 18px 42px rgba(208, 99, 45, 0.12);
 }
 
-.starter-card p {
+.starter-card p,
+.starter-card-toggle p {
   margin: 0;
   color: var(--muted);
   line-height: 1.6;

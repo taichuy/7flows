@@ -512,7 +512,8 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
   template,
   sourceGovernance,
   actionDecision,
-  createWorkflowHref
+  createWorkflowHref,
+  workspaceStarterGovernanceQueryScope = null
 }: {
   template: Pick<
     WorkspaceStarterTemplateItem,
@@ -521,11 +522,18 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
   sourceGovernance?: WorkspaceStarterSourceGovernance | null;
   actionDecision: WorkspaceStarterSourceActionDecision;
   createWorkflowHref?: string | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 }): WorkspaceStarterGovernanceRecommendedNextStep | null {
+  const resolvedCreateWorkflowHref = resolveWorkspaceStarterScopedCreateWorkflowHref({
+    workspaceStarterGovernanceQueryScope,
+    templateId: template.id,
+    archived: template.archived,
+    fallbackCreateWorkflowHref: createWorkflowHref
+  });
   const governanceKind = getWorkspaceStarterSourceGovernanceKind(template);
   const createWorkflowActionLabel = resolveWorkspaceStarterCreateWorkflowActionLabel({
     governanceKind,
-    createWorkflowHref,
+    createWorkflowHref: resolvedCreateWorkflowHref,
     archived: template.archived
   });
   const outcomeFollowUp = normalizeString(sourceGovernance?.outcome_explanation?.follow_up);
@@ -550,7 +558,7 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
 
   if (createWorkflowActionLabel) {
     const createWorkflowEntry = buildWorkspaceStarterCreateWorkflowEntry({
-      createWorkflowHref,
+      createWorkflowHref: resolvedCreateWorkflowHref,
       label: createWorkflowActionLabel
     });
 
@@ -609,6 +617,7 @@ export function buildWorkspaceStarterSourceGovernanceRecommendedNextStep({
 export function buildWorkspaceStarterSourceGovernanceSurface({
   template,
   createWorkflowHref,
+  workspaceStarterGovernanceQueryScope = null,
   fallbackActionDecision = null
 }: {
   template: Pick<
@@ -616,6 +625,7 @@ export function buildWorkspaceStarterSourceGovernanceSurface({
     "id" | "name" | "archived" | "created_from_workflow_id" | "source_governance"
   >;
   createWorkflowHref?: string | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
   fallbackActionDecision?: WorkspaceStarterSourceActionDecision | null;
 }): WorkspaceStarterSourceGovernanceSurface {
   const presenter = buildWorkspaceStarterSourceGovernancePresenter(template);
@@ -637,7 +647,8 @@ export function buildWorkspaceStarterSourceGovernanceSurface({
       template,
       sourceGovernance: template.source_governance,
       actionDecision,
-      createWorkflowHref
+      createWorkflowHref,
+      workspaceStarterGovernanceQueryScope
     })
   };
 }
