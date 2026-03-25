@@ -40,7 +40,11 @@ from app.services.sandbox_backends import (
     get_sandbox_backend_registry,
 )
 from app.services.scheduled_task_activity import ScheduledTaskActivityService
-from app.services.workflow_definition_governance import collect_workflow_definition_tool_ids
+from app.services.workflow_definition_governance import (
+    collect_workflow_definition_tool_ids,
+    summarize_workflow_definition_tool_governance,
+)
+from app.services.workflow_views import load_workflow_view_tool_index
 
 router = APIRouter(tags=["system"])
 
@@ -677,9 +681,37 @@ def _serialize_recent_event(event: RunEvent) -> RecentRunEventCheck:
     )
 
 
+def _serialize_recent_run(
+    run: Run,
+    *,
+    workflow: Workflow | None,
+    event_count: int,
+    workflow_tool_index: dict,
+) -> RecentRunCheck:
+    payload: dict[str, object] = {
+        "id": run.id,
+        "workflow_id": run.workflow_id,
+        "workflow_version": run.workflow_version,
+        "status": run.status,
+        "created_at": run.created_at,
+        "finished_at": run.finished_at,
+        "event_count": event_count,
+    }
+
+    if workflow is not None:
+        payload["workflow_name"] = workflow.name
+        payload["tool_governance"] = summarize_workflow_definition_tool_governance(
+            workflow.definition,
+            tool_index=workflow_tool_index,
+        )
+
+    return RecentRunCheck(**payload)
+
+
 def _build_runtime_activity(db: Session) -> RuntimeActivityCheck:
     recent_runs = db.query(Run).order_by(Run.created_at.desc()).limit(_RECENT_RUN_LIMIT).all()
     run_ids = [run.id for run in recent_runs]
+    workflow_ids = sorted({run.workflow_id for run in recent_runs})
 
     event_counts: dict[str, int] = {}
     if run_ids:
@@ -690,6 +722,13 @@ def _build_runtime_activity(db: Session) -> RuntimeActivityCheck:
             .all()
         )
         event_counts = {run_id: count for run_id, count in counts}
+
+    workflow_by_id: dict[str, Workflow] = {}
+    workflow_tool_index = {}
+    if workflow_ids:
+        workflows = db.query(Workflow).filter(Workflow.id.in_(workflow_ids)).all()
+        workflow_by_id = {workflow.id: workflow for workflow in workflows}
+        workflow_tool_index = load_workflow_view_tool_index(db)
 
     recent_events = (
         db.query(RunEvent).order_by(RunEvent.created_at.desc()).limit(_RECENT_EVENT_LIMIT).all()
@@ -705,14 +744,11 @@ def _build_runtime_activity(db: Session) -> RuntimeActivityCheck:
             "event_types": event_types,
         },
         recent_runs=[
-            RecentRunCheck(
-                id=run.id,
-                workflow_id=run.workflow_id,
-                workflow_version=run.workflow_version,
-                status=run.status,
-                created_at=run.created_at,
-                finished_at=run.finished_at,
+            _serialize_recent_run(
+                run,
+                workflow=workflow_by_id.get(run.workflow_id),
                 event_count=event_counts.get(run.id, 0),
+                workflow_tool_index=workflow_tool_index,
             )
             for run in recent_runs
         ],

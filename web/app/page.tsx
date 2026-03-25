@@ -5,6 +5,7 @@ import { CrossEntryRiskDigestPanel } from "@/components/cross-entry-risk-digest-
 import { CredentialStorePanel } from "@/components/credential-store-panel";
 import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import { PluginRegistryPanel } from "@/components/plugin-registry-panel";
+import { RecentRunEntryCard } from "@/components/recent-run-entry-card";
 import { SandboxReadinessPanel } from "@/components/sandbox-readiness-panel";
 import { StatusCard } from "@/components/status-card";
 import {
@@ -33,6 +34,7 @@ import {
   buildAuthorFacingRunDetailLinkSurface,
   buildAuthorFacingWorkflowDetailLinkSurface
 } from "@/lib/workbench-entry-surfaces";
+import { appendWorkflowLibraryViewState } from "@/lib/workflow-library-query";
 
 const highlights = [
   "Dify 风格的本地源码开发路径",
@@ -355,25 +357,29 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 const runDetailLink = buildAuthorFacingRunDetailLinkSurface({
                   runId: run.id
                 });
+                const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
+                  workflowId: run.workflow_id,
+                  variant: "recent"
+                });
+                const workflowDetailHref = appendWorkflowLibraryViewState(
+                  workflowDetailLink.href,
+                  {
+                    definitionIssue:
+                      (run.tool_governance?.missing_tool_ids.length ?? 0) > 0
+                        ? "missing_tool"
+                        : null
+                  }
+                );
 
                 return (
-                  <article className="activity-row" key={run.id}>
-                    <div className="activity-header">
-                      <div>
-                        <h3>{run.workflow_id}</h3>
-                        <p>
-                          run {run.id} · version {run.workflow_version}
-                        </p>
-                      </div>
-                      <span className={`health-pill ${run.status}`}>{run.status}</span>
-                    </div>
-                    <p className="activity-copy">
-                      Created {formatTimestamp(run.created_at)} · events {run.event_count}
-                    </p>
-                    <Link className="activity-link" href={runDetailLink.href}>
-                      {runDetailLink.label}
-                    </Link>
-                  </article>
+                  <RecentRunEntryCard
+                    key={run.id}
+                    run={run}
+                    runHref={runDetailLink.href}
+                    runLinkLabel={runDetailLink.label}
+                    workflowHref={workflowDetailHref}
+                    workflowLinkLabel={workflowDetailLink.label}
+                  />
                 );
               })
             )}

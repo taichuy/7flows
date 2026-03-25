@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.schemas.workflow import WorkflowToolGovernanceSummary
+
 
 class ServiceCheck(BaseModel):
     name: str
@@ -95,11 +97,15 @@ class RuntimeActivitySummary(BaseModel):
 class RecentRunCheck(BaseModel):
     id: str
     workflow_id: str
+    workflow_name: str | None = None
     workflow_version: str
     status: str
     created_at: datetime
     finished_at: datetime | None = None
     event_count: int = 0
+    tool_governance: WorkflowToolGovernanceSummary = Field(
+        default_factory=WorkflowToolGovernanceSummary
+    )
 
 
 class RecentRunEventCheck(BaseModel):

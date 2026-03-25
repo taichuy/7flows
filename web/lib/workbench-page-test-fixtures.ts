@@ -140,11 +140,18 @@ export function buildRecentRunFixture(overrides: RecentRunFixtureOverrides = {})
   return {
     id: "run-1",
     workflow_id: "workflow-1",
+    workflow_name: "Workflow 1",
     workflow_version: "1.0.0",
     status: "waiting_callback",
     created_at: "2026-03-24T08:00:00Z",
     finished_at: null,
     event_count: 1,
+    tool_governance: {
+      referenced_tool_ids: [],
+      missing_tool_ids: [],
+      governed_tool_count: 0,
+      strong_isolation_tool_count: 0
+    },
     ...overrides
   };
 }

@@ -195,6 +195,54 @@ describe("RunsPage", () => {
     expect(html).toContain('/workflows');
   });
 
+  it("surfaces workflow catalog-gap handoff on recent run cards", async () => {
+    vi.mocked(getSystemOverview).mockResolvedValue(
+      buildSystemOverviewFixture({
+        runtime_activity: {
+          summary: {
+            recent_run_count: 1,
+            recent_event_count: 0,
+            run_statuses: {
+              waiting_callback: 1
+            },
+            event_types: {}
+          },
+          recent_runs: [
+            {
+              id: "run-gap-1",
+              workflow_id: "workflow-gap-1",
+              workflow_name: "Catalog Gap Workflow",
+              workflow_version: "1.0.0",
+              status: "waiting_callback",
+              created_at: "2026-03-22T08:00:00Z",
+              finished_at: null,
+              event_count: 2,
+              tool_governance: {
+                referenced_tool_ids: ["native.catalog-gap"],
+                missing_tool_ids: ["native.catalog-gap"],
+                governed_tool_count: 0,
+                strong_isolation_tool_count: 0
+              }
+            }
+          ],
+          recent_events: []
+        }
+      })
+    );
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshotFixture()
+    );
+
+    const html = renderToStaticMarkup(await RunsPage());
+
+    expect(html).toContain("Catalog Gap Workflow");
+    expect(html).toContain("catalog gap · native.catalog-gap");
+    expect(html).toContain(
+      "当前 workflow 仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 run 事实。"
+    );
+    expect(html).toContain('/workflows/workflow-gap-1?definition_issue=missing_tool');
+  });
+
   it("preserves workspace starter scope across run and workflow links", async () => {
     vi.mocked(getSystemOverview).mockResolvedValue(
       buildSystemOverviewFixture({

@@ -207,6 +207,63 @@ describe("HomePage", () => {
     expect(html).toContain('href="/workflows/workflow%20alpha%2Fbeta"');
   });
 
+  it("surfaces workflow catalog-gap handoff on homepage recent runs", async () => {
+    vi.mocked(getSystemOverview).mockResolvedValue(
+      buildHomeSystemOverview({
+        runtime_activity: {
+          summary: {
+            recent_run_count: 1,
+            recent_event_count: 0,
+            run_statuses: {
+              waiting_callback: 1
+            },
+            event_types: {}
+          },
+          recent_runs: [
+            {
+              id: "run-home-gap-1",
+              workflow_id: "workflow-home-gap-1",
+              workflow_name: "Homepage Catalog Gap Workflow",
+              workflow_version: "1.0.0",
+              status: "waiting_callback",
+              created_at: "2026-03-22T08:00:00Z",
+              finished_at: null,
+              event_count: 1,
+              tool_governance: {
+                referenced_tool_ids: ["native.catalog-gap"],
+                missing_tool_ids: ["native.catalog-gap"],
+                governed_tool_count: 0,
+                strong_isolation_tool_count: 0
+              }
+            }
+          ],
+          recent_events: []
+        }
+      })
+    );
+    vi.mocked(getPluginRegistrySnapshot).mockResolvedValue(buildPluginRegistrySnapshot());
+    vi.mocked(getWorkflows).mockResolvedValue([]);
+    vi.mocked(getWorkflowDetail).mockResolvedValue(null);
+    vi.mocked(getCredentials).mockResolvedValue([]);
+    vi.mocked(getCredentialActivity).mockResolvedValue([]);
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshotFixture()
+    );
+
+    const html = renderToStaticMarkup(
+      await HomePage({
+        searchParams: Promise.resolve({})
+      })
+    );
+
+    expect(html).toContain("Homepage Catalog Gap Workflow");
+    expect(html).toContain("catalog gap · native.catalog-gap");
+    expect(html).toContain(
+      "当前 workflow 仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 run 事实。"
+    );
+    expect(html).toContain('/workflows/workflow-home-gap-1?definition_issue=missing_tool');
+  });
+
   it("surfaces a shared cross-entry risk digest before separate operator panels", async () => {
     const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
 

@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 import {
   normalizeWorkbenchEntryLinkKey,
   type WorkbenchEntryLinkKey
@@ -87,11 +88,13 @@ export type PluginToolCheck = {
 export type RecentRunCheck = {
   id: string;
   workflow_id: string;
+  workflow_name?: string | null;
   workflow_version: string;
   status: string;
   created_at: string;
   finished_at?: string | null;
   event_count: number;
+  tool_governance?: WorkflowToolGovernanceSummary;
 };
 
 export type RecentRunEventCheck = {

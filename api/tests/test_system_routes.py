@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from app.api.routes import system as system_routes
 from app.models.run import NodeRun, Run, RunEvent
 from app.models.scheduler import ScheduledTaskRunRecord
+from app.schemas.plugin import PluginToolItem
 from app.services.plugin_runtime import (
     CompatibilityAdapterHealth,
     PluginRegistry,
@@ -913,11 +914,18 @@ def test_runtime_activity_returns_recent_runs_and_events(
             {
                 "id": "run-demo",
                 "workflow_id": sample_workflow.id,
+                "workflow_name": sample_workflow.name,
                 "workflow_version": sample_workflow.version,
                 "status": "succeeded",
                 "created_at": created_at_text,
                 "finished_at": created_at_text,
                 "event_count": 1,
+                "tool_governance": {
+                    "referenced_tool_ids": [],
+                    "missing_tool_ids": [],
+                    "governed_tool_count": 0,
+                    "strong_isolation_tool_count": 0,
+                },
             }
         ],
         "recent_events": [
@@ -932,4 +940,89 @@ def test_runtime_activity_returns_recent_runs_and_events(
                 "created_at": created_at_text,
             }
         ],
+    }
+
+
+def test_runtime_activity_surfaces_recent_run_workflow_tool_governance(
+    client,
+    sqlite_session,
+    sample_workflow,
+    monkeypatch,
+) -> None:
+    created_at = datetime.now(UTC)
+    sample_workflow.name = "Governance Workflow"
+    sample_workflow.definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "tool",
+                "type": "tool",
+                "name": "Risk Search",
+                "config": {
+                    "tool": {
+                        "toolId": "native.risk-search",
+                        "ecosystem": "native",
+                    }
+                },
+            },
+            {
+                "id": "agent",
+                "type": "llm_agent",
+                "name": "Planner",
+                "config": {
+                    "toolPolicy": {
+                        "allowedToolIds": ["native.risk-search", "native.catalog-gap"]
+                    }
+                },
+            },
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool"},
+            {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "agent"},
+        ],
+    }
+    sqlite_session.add(sample_workflow)
+    sqlite_session.add(
+        Run(
+            id="run-governance",
+            workflow_id=sample_workflow.id,
+            workflow_version=sample_workflow.version,
+            status="waiting_callback",
+            input_payload={"topic": "catalog gap"},
+            output_payload=None,
+            created_at=created_at,
+            finished_at=None,
+        )
+    )
+    sqlite_session.commit()
+
+    monkeypatch.setattr(system_routes, "get_plugin_registry", lambda: PluginRegistry())
+    monkeypatch.setattr(
+        system_routes,
+        "load_workflow_view_tool_index",
+        lambda db: {
+            "native.risk-search": PluginToolItem(
+                id="native.risk-search",
+                name="Risk Search",
+                ecosystem="native",
+                description="Governed native tool.",
+                source="native",
+                callable=True,
+                supported_execution_classes=["inline", "sandbox"],
+                default_execution_class="sandbox",
+                sensitivity_level="L2",
+            )
+        },
+    )
+
+    response = client.get("/api/system/runtime-activity")
+
+    assert response.status_code == 200
+    recent_run = response.json()["recent_runs"][0]
+    assert recent_run["workflow_name"] == "Governance Workflow"
+    assert recent_run["tool_governance"] == {
+        "referenced_tool_ids": ["native.risk-search", "native.catalog-gap"],
+        "missing_tool_ids": ["native.catalog-gap"],
+        "governed_tool_count": 1,
+        "strong_isolation_tool_count": 1,
     }
