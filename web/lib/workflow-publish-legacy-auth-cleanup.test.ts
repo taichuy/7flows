@@ -87,6 +87,14 @@ describe("workflow publish legacy auth cleanup helpers", () => {
     const payload = buildWorkflowPublishLegacyAuthCleanupExportPayload({
       workflowId: "workflow-1",
       workflowName: "Demo workflow",
+      workflow: {
+        tool_governance: {
+          referenced_tool_ids: ["native.catalog-gap"],
+          missing_tool_ids: ["native.catalog-gap"],
+          governed_tool_count: 0,
+          strong_isolation_tool_count: 0,
+        },
+      },
       bindings: [
         buildBinding({ id: "binding-draft", lifecycle_status: "draft", workflow_version: "1.2.0" }),
         buildBinding({ id: "binding-live", lifecycle_status: "published", workflow_version: "1.1.0" }),
@@ -107,6 +115,21 @@ describe("workflow publish legacy auth cleanup helpers", () => {
       "published_follow_up",
       "offline_inventory",
     ]);
+    expect(payload.buckets.draft_candidates[0]?.workflow_follow_up).toEqual({
+      workflow_detail_href: "/workflows/workflow-1?definition_issue=missing_tool",
+      workflow_detail_label: "回到 workflow 编辑器",
+      definition_issue: "missing_tool",
+    });
+    expect(payload.buckets.published_blockers[0]?.workflow_follow_up).toEqual({
+      workflow_detail_href: "/workflows/workflow-1?definition_issue=missing_tool",
+      workflow_detail_label: "回到 workflow 编辑器",
+      definition_issue: "missing_tool",
+    });
+    expect(payload.buckets.offline_inventory[0]?.workflow_follow_up).toEqual({
+      workflow_detail_href: "/workflows/workflow-1?definition_issue=missing_tool",
+      workflow_detail_label: "回到 workflow 编辑器",
+      definition_issue: "missing_tool",
+    });
 
     const jsonl = serializeWorkflowPublishLegacyAuthCleanupExportJsonl({
       ...payload,
@@ -129,11 +152,21 @@ describe("workflow publish legacy auth cleanup helpers", () => {
       record_type: "legacy_publish_auth_binding",
       bucket: "draft_candidates",
       bindingId: "binding-draft",
+      workflow_follow_up: {
+        workflow_detail_href: "/workflows/workflow-1?definition_issue=missing_tool",
+        workflow_detail_label: "回到 workflow 编辑器",
+        definition_issue: "missing_tool",
+      },
     });
     expect(lines[3]).toMatchObject({
       record_type: "legacy_publish_auth_binding",
       bucket: "offline_inventory",
       bindingId: "binding-offline",
+      workflow_follow_up: {
+        workflow_detail_href: "/workflows/workflow-1?definition_issue=missing_tool",
+        workflow_detail_label: "回到 workflow 编辑器",
+        definition_issue: "missing_tool",
+      },
     });
   });
 

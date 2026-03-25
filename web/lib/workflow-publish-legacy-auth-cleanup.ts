@@ -3,13 +3,25 @@ import type {
   WorkflowPublishedEndpointItem,
   WorkflowPublishedEndpointLegacyAuthCleanupResult
 } from "@/lib/get-workflow-publish";
+import type { WorkflowDetail } from "@/lib/get-workflows";
 import {
   buildLegacyPublishAuthModeContractSummary,
   buildLegacyPublishAuthModeFollowUp,
   resolveLegacyPublishAuthModeContract
 } from "@/lib/legacy-publish-auth-contract";
+import {
+  appendWorkflowLibraryViewStateForWorkflow,
+  resolveWorkflowLibraryViewStateForWorkflow,
+} from "@/lib/workflow-library-query";
+import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 export type WorkflowPublishLegacyAuthCleanupExportFormat = "json" | "jsonl";
+
+type WorkflowPublishLegacyAuthCleanupWorkflowFollowUp = {
+  workflow_detail_href: string;
+  workflow_detail_label: string;
+  definition_issue: "legacy_publish_auth" | "missing_tool" | null;
+};
 
 type WorkflowPublishLegacyAuthCleanupBindingItem = {
   bindingId: string;
@@ -19,6 +31,7 @@ type WorkflowPublishLegacyAuthCleanupBindingItem = {
   lifecycleStatus: "draft" | "published" | "offline";
   authMode: string;
   detail: string;
+  workflow_follow_up: WorkflowPublishLegacyAuthCleanupWorkflowFollowUp;
 };
 
 type WorkflowPublishLegacyAuthCleanupChecklistTone = "ready" | "manual" | "inventory";
@@ -77,6 +90,51 @@ export type WorkflowPublishLegacyAuthCleanupSurface = {
   idleMessage: string;
 };
 
+function buildWorkflowPublishLegacyAuthCleanupDefaultWorkflowFollowUp(
+  workflowId: string
+): WorkflowPublishLegacyAuthCleanupWorkflowFollowUp {
+  const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
+    workflowId,
+    variant: "editor",
+  });
+
+  return {
+    workflow_detail_href: workflowDetailLink.href,
+    workflow_detail_label: workflowDetailLink.label,
+    definition_issue: null,
+  };
+}
+
+function buildWorkflowPublishLegacyAuthCleanupWorkflowFollowUp({
+  workflowId,
+  workflow,
+}: {
+  workflowId: string;
+  workflow?: Pick<WorkflowDetail, "tool_governance"> | null;
+}): WorkflowPublishLegacyAuthCleanupWorkflowFollowUp {
+  if (!workflow) {
+    return buildWorkflowPublishLegacyAuthCleanupDefaultWorkflowFollowUp(workflowId);
+  }
+
+  const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
+    workflowId,
+    variant: "editor",
+  });
+  const viewState = resolveWorkflowLibraryViewStateForWorkflow(workflow, {
+    definitionIssue: null,
+  });
+
+  return {
+    workflow_detail_href: appendWorkflowLibraryViewStateForWorkflow(
+      workflowDetailLink.href,
+      workflow,
+      { definitionIssue: null }
+    ),
+    workflow_detail_label: workflowDetailLink.label,
+    definition_issue: viewState.definitionIssue,
+  };
+}
+
 function hasLegacyAuthIssue(binding: Pick<WorkflowPublishedEndpointItem, "issues">) {
   return Boolean(
     binding.issues?.some(
@@ -128,6 +186,9 @@ function buildBindingItem(
 ): WorkflowPublishLegacyAuthCleanupBindingItem {
   const endpointLabel = formatEndpointLabel(binding);
   const contract = resolveLegacyAuthBindingContract(binding);
+  const workflowFollowUp = buildWorkflowPublishLegacyAuthCleanupDefaultWorkflowFollowUp(
+    binding.workflow_id
+  );
 
   if (binding.lifecycle_status === "draft") {
     return {
@@ -139,7 +200,8 @@ function buildBindingItem(
       authMode: binding.auth_mode,
       detail:
         `workflow ${binding.workflow_version} 仍是历史 legacy draft，可直接批量切到 offline。` +
-        ` ${buildLegacyPublishAuthModeContractSummary(contract)}`
+        ` ${buildLegacyPublishAuthModeContractSummary(contract)}`,
+      workflow_follow_up: workflowFollowUp,
     };
   }
 
@@ -154,7 +216,8 @@ function buildBindingItem(
       detail:
         "当前 binding 仍在 live publish 链路上。" +
         ` ${buildLegacyPublishAuthModeContractSummary(contract)} ` +
-        buildLegacyPublishAuthModeFollowUp(contract)
+        buildLegacyPublishAuthModeFollowUp(contract),
+      workflow_follow_up: workflowFollowUp,
     };
   }
 
@@ -167,8 +230,19 @@ function buildBindingItem(
     authMode: binding.auth_mode,
     detail:
       `workflow ${binding.workflow_version} 已 offline，仅保留在治理 inventory 里。` +
-      ` ${buildLegacyPublishAuthModeContractSummary(contract)}`
+      ` ${buildLegacyPublishAuthModeContractSummary(contract)}`,
+    workflow_follow_up: workflowFollowUp,
   };
+}
+
+function applyWorkflowFollowUpToBindings(
+  bindings: WorkflowPublishLegacyAuthCleanupBindingItem[],
+  workflowFollowUp: WorkflowPublishLegacyAuthCleanupWorkflowFollowUp
+) {
+  return bindings.map((binding) => ({
+    ...binding,
+    workflow_follow_up: workflowFollowUp,
+  }));
 }
 
 function formatSummary(count: number, singular: string, emptyLabel: string) {
@@ -328,15 +402,21 @@ export function buildWorkflowPublishLegacyAuthCleanupExportFilename(
 export function buildWorkflowPublishLegacyAuthCleanupExportPayload({
   workflowId,
   workflowName,
+  workflow = null,
   bindings,
   exportedAt = new Date().toISOString(),
 }: {
   workflowId: string;
   workflowName: string;
+  workflow?: Pick<WorkflowDetail, "tool_governance"> | null;
   bindings: WorkflowPublishedEndpointItem[];
   exportedAt?: string;
 }): WorkflowPublishLegacyAuthCleanupExportPayload {
   const surface = buildWorkflowPublishLegacyAuthCleanupSurface(bindings);
+  const workflowFollowUp = buildWorkflowPublishLegacyAuthCleanupWorkflowFollowUp({
+    workflowId,
+    workflow,
+  });
 
   return {
     export: {
@@ -356,9 +436,15 @@ export function buildWorkflowPublishLegacyAuthCleanupExportPayload({
     },
     checklist: surface.checklistItems,
     buckets: {
-      draft_candidates: surface.candidateBindings,
-      published_blockers: surface.publishedBindings,
-      offline_inventory: surface.offlineBindings,
+      draft_candidates: applyWorkflowFollowUpToBindings(
+        surface.candidateBindings,
+        workflowFollowUp
+      ),
+      published_blockers: applyWorkflowFollowUpToBindings(
+        surface.publishedBindings,
+        workflowFollowUp
+      ),
+      offline_inventory: applyWorkflowFollowUpToBindings(surface.offlineBindings, workflowFollowUp),
     },
   };
 }

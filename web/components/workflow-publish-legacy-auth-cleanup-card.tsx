@@ -9,6 +9,7 @@ import {
 } from "@/app/actions/publish";
 import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import type { WorkflowPublishedEndpointItem } from "@/lib/get-workflow-publish";
+import type { WorkflowDetail } from "@/lib/get-workflows";
 import {
   buildWorkflowPublishLegacyAuthCleanupExportActionSurface,
   buildWorkflowPublishLegacyAuthCleanupExportErrorMessage,
@@ -23,6 +24,7 @@ import {
 type WorkflowPublishLegacyAuthCleanupCardProps = {
   workflowId: string;
   workflowName?: string;
+  workflow?: Pick<WorkflowDetail, "tool_governance"> | null;
   bindings: WorkflowPublishedEndpointItem[];
   action?: (
     state: CleanupLegacyPublishedEndpointBindingsState,
@@ -51,13 +53,20 @@ const EXPORT_FORMATS: WorkflowPublishLegacyAuthCleanupExportFormat[] = ["json", 
 export function WorkflowPublishLegacyAuthCleanupCard({
   workflowId,
   workflowName = workflowId,
+  workflow = null,
   bindings,
   action = cleanupLegacyPublishedEndpointBindings,
 }: WorkflowPublishLegacyAuthCleanupCardProps) {
   const surface = buildWorkflowPublishLegacyAuthCleanupSurface(bindings);
   const exportPayload = useMemo(
-    () => buildWorkflowPublishLegacyAuthCleanupExportPayload({ workflowId, workflowName, bindings }),
-    [bindings, workflowId, workflowName]
+    () =>
+      buildWorkflowPublishLegacyAuthCleanupExportPayload({
+        workflowId,
+        workflowName,
+        workflow,
+        bindings,
+      }),
+    [bindings, workflow, workflowId, workflowName]
   );
   const initialState: CleanupLegacyPublishedEndpointBindingsState = {
     status: "idle",

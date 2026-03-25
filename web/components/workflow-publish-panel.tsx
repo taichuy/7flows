@@ -137,6 +137,7 @@ export function WorkflowPublishPanel({
           <WorkflowPublishLegacyAuthCleanupCard
             workflowId={workflow.id}
             workflowName={workflow.name}
+            workflow={workflow}
             bindings={bindings}
           />
         ) : null}
