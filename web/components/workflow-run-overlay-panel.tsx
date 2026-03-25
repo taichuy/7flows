@@ -21,8 +21,18 @@ import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-prese
 import { buildOperatorRunSampleInboxHref } from "@/lib/operator-run-sample-cards";
 import { buildExecutionFocusSurfaceDescription } from "@/lib/run-execution-focus-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
-import { buildAuthorFacingRunDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 import {
+  formatCatalogGapToolSummary,
+  formatWorkflowMissingToolSummary,
+  hasWorkflowMissingToolIssues
+} from "@/lib/workflow-definition-governance";
+import { appendWorkflowLibraryViewState } from "@/lib/workflow-library-query";
+import {
+  buildAuthorFacingRunDetailLinkSurface,
+  buildAuthorFacingWorkflowDetailLinkSurface
+} from "@/lib/workbench-entry-surfaces";
+import {
+  buildWorkflowEditorHrefFromWorkspaceStarterViewState,
   buildRunDetailHrefFromWorkspaceStarterViewState,
   type WorkspaceStarterGovernanceQueryScope
 } from "@/lib/workspace-starter-governance-query";
@@ -98,6 +108,27 @@ export function WorkflowRunOverlayPanel({
         runHref: resolveRunDetailHref(run.id)
       })
     : null;
+  const baseWorkflowDetailHref = run
+    ? workspaceStarterGovernanceQueryScope
+      ? buildWorkflowEditorHrefFromWorkspaceStarterViewState(
+          run.workflow_id,
+          workspaceStarterGovernanceQueryScope
+        )
+      : buildAuthorFacingWorkflowDetailLinkSurface({
+          workflowId: run.workflow_id,
+          variant: "editor"
+        }).href
+    : null;
+  const workflowGovernanceHref =
+    run && baseWorkflowDetailHref && hasWorkflowMissingToolIssues(run)
+      ? appendWorkflowLibraryViewState(baseWorkflowDetailHref, {
+          definitionIssue: "missing_tool"
+        })
+      : baseWorkflowDetailHref;
+  const workflowCatalogGapSummary = run ? formatWorkflowMissingToolSummary(run) : null;
+  const workflowCatalogGapToolCopy = formatCatalogGapToolSummary(
+    run?.tool_governance?.missing_tool_ids ?? []
+  );
 
   return (
     <article className="diagnostic-panel editor-panel">
@@ -163,6 +194,25 @@ export function WorkflowRunOverlayPanel({
                 {formatDuration(run.started_at, run.finished_at)} · Workflow version{" "}
                 {run.workflow_version}
               </p>
+
+              {workflowCatalogGapSummary ? (
+                <div className="payload-card compact-card runtime-overlay-governance-card">
+                  <div className="payload-card-header">
+                    <span className="status-meta">Workflow governance</span>
+                    <span className="event-chip">{workflowCatalogGapSummary}</span>
+                  </div>
+                  <p className="section-copy entry-copy">
+                    {workflowCatalogGapToolCopy
+                      ? `当前这条 run 对应的 workflow 版本仍有 catalog gap（${workflowCatalogGapToolCopy}）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照当前 node timeline 与 trace。`
+                      : "当前这条 run 对应的 workflow 版本仍有 catalog gap；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照当前 node timeline 与 trace。"}
+                  </p>
+                  {workflowGovernanceHref ? (
+                    <Link className="inline-link" href={workflowGovernanceHref}>
+                      回到 workflow 编辑器处理 catalog gap
+                    </Link>
+                  ) : null}
+                </div>
+              ) : null}
 
               <div className="hero-actions">
                 {runDrilldownLink ? (

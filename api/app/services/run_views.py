@@ -13,6 +13,7 @@ from app.schemas.run_views import (
     RunEvidenceView,
     RunExecutionView,
 )
+from app.schemas.workflow import WorkflowToolGovernanceSummary
 from app.services.operator_follow_up_snapshots import build_operator_run_snapshot
 from app.services.run_execution_views import build_run_execution_view, list_callback_tickets
 from app.services.run_view_serializers import (
@@ -24,6 +25,7 @@ from app.services.run_view_serializers import (
 from app.services.runtime import RuntimeService
 from app.services.runtime_records import ExecutionArtifacts
 from app.services.sensitive_access_timeline import load_sensitive_access_timeline
+from app.services.workflow_views import load_workflow_run_tool_governance_summary
 from app.services.workflow_publish import WorkflowPublishBindingService
 
 workflow_publish_service = WorkflowPublishBindingService()
@@ -114,6 +116,7 @@ def serialize_run_detail(
     *,
     include_events: bool = True,
     execution_view: RunExecutionView | None = None,
+    tool_governance: WorkflowToolGovernanceSummary | None = None,
 ) -> RunDetail:
     operator_snapshot = (
         build_operator_run_snapshot(artifacts.run, execution_view=execution_view)
@@ -159,6 +162,7 @@ def serialize_run_detail(
             if operator_snapshot is not None
             else None
         ),
+        tool_governance=tool_governance,
         legacy_auth_governance=(
             execution_view.legacy_auth_governance if execution_view is not None else None
         ),
@@ -211,6 +215,17 @@ def build_run_execution_view_for_artifacts(
         artifacts.run.workflow_id,
     )
     return execution_view
+
+
+def load_run_tool_governance_summary(
+    db: Session,
+    artifacts: ExecutionArtifacts,
+) -> WorkflowToolGovernanceSummary | None:
+    return load_workflow_run_tool_governance_summary(
+        db,
+        artifacts.run.workflow_id,
+        artifacts.run.workflow_version,
+    )
 
 
 class RunViewService:

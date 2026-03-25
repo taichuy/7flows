@@ -165,6 +165,48 @@ def load_workflow_view_tool_index(
     }
 
 
+def load_workflow_run_tool_governance_lookup(
+    db: Session,
+    workflow_id: str,
+    *,
+    tool_index: dict[str, PluginToolItem] | None = None,
+) -> dict[str, WorkflowToolGovernanceSummary]:
+    tool_index = tool_index or load_workflow_view_tool_index(db)
+    workflow = db.get(Workflow, workflow_id)
+    versions = db.scalars(
+        select(WorkflowVersion).where(WorkflowVersion.workflow_id == workflow_id)
+    ).all()
+
+    summaries = {
+        version.version: summarize_workflow_definition_tool_governance(
+            version.definition,
+            tool_index=tool_index,
+        )
+        for version in versions
+    }
+    if workflow is not None and workflow.version not in summaries:
+        summaries[workflow.version] = summarize_workflow_definition_tool_governance(
+            workflow.definition,
+            tool_index=tool_index,
+        )
+
+    return summaries
+
+
+def load_workflow_run_tool_governance_summary(
+    db: Session,
+    workflow_id: str,
+    workflow_version: str,
+    *,
+    tool_index: dict[str, PluginToolItem] | None = None,
+) -> WorkflowToolGovernanceSummary | None:
+    return load_workflow_run_tool_governance_lookup(
+        db,
+        workflow_id,
+        tool_index=tool_index,
+    ).get(workflow_version)
+
+
 def build_workflow_detail(db: Session, workflow: Workflow) -> WorkflowDetail:
     versions = db.scalars(
         select(WorkflowVersion).where(WorkflowVersion.workflow_id == workflow.id)
@@ -304,6 +346,12 @@ def list_workflow_run_items(
     *,
     limit: int,
 ) -> list[WorkflowRunListItem]:
+    tool_index = load_workflow_view_tool_index(db)
+    tool_governance_by_version = load_workflow_run_tool_governance_lookup(
+        db,
+        workflow_id,
+        tool_index=tool_index,
+    )
     node_run_stats = (
         select(
             NodeRun.run_id.label("run_id"),
@@ -349,6 +397,7 @@ def list_workflow_run_items(
             node_run_count=node_run_count or 0,
             event_count=event_count or 0,
             last_event_at=last_event_at,
+            tool_governance=tool_governance_by_version.get(run.workflow_version),
         )
         for run, node_run_count, event_count, last_event_at in rows
     ]

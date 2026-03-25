@@ -951,9 +951,99 @@ def test_list_workflow_runs_returns_aggregated_summary(
     assert [item["id"] for item in body] == ["run-2", "run-1"]
     assert body[0]["node_run_count"] == 0
     assert body[0]["event_count"] == 1
+    assert body[0]["tool_governance"] == {
+        "referenced_tool_ids": [],
+        "missing_tool_ids": [],
+        "governed_tool_count": 0,
+        "strong_isolation_tool_count": 0,
+    }
     assert body[1]["node_run_count"] == 2
     assert body[1]["event_count"] == 2
     assert body[1]["last_event_at"] is not None
+
+
+def test_list_workflow_runs_surfaces_version_specific_tool_governance(
+    client: TestClient,
+    sqlite_session,
+    monkeypatch,
+) -> None:
+    now = datetime.now(UTC)
+    current_definition = _bound_tool_definition(
+        tool_id="native.risk-search",
+        ecosystem="native",
+    )
+    missing_definition = _bound_tool_definition(
+        tool_id="native.catalog-gap",
+        ecosystem="native",
+    )
+    workflow = Workflow(
+        id="wf-run-governance",
+        name="Run Governance Workflow",
+        version="0.2.0",
+        status="draft",
+        definition=current_definition,
+        created_at=now - timedelta(days=1),
+        updated_at=now,
+    )
+    sqlite_session.add_all(
+        [
+            workflow,
+            WorkflowVersion(
+                id="wf-run-governance-v1",
+                workflow_id=workflow.id,
+                version="0.1.0",
+                definition=missing_definition,
+                created_at=now - timedelta(days=1),
+            ),
+            WorkflowVersion(
+                id="wf-run-governance-v2",
+                workflow_id=workflow.id,
+                version="0.2.0",
+                definition=current_definition,
+                created_at=now,
+            ),
+            Run(
+                id="run-governance-gap",
+                workflow_id=workflow.id,
+                workflow_version="0.1.0",
+                status="failed",
+                input_payload={},
+                checkpoint_payload={},
+                created_at=now,
+            ),
+        ]
+    )
+    sqlite_session.commit()
+
+    monkeypatch.setattr(
+        workflow_views,
+        "get_workflow_library_service",
+        lambda: _FakeWorkflowLibraryService(
+            [
+                PluginToolItem(
+                    id="native.risk-search",
+                    name="Risk Search",
+                    ecosystem="native",
+                    description="Governed native tool.",
+                    source="native",
+                    callable=True,
+                )
+            ]
+        ),
+    )
+
+    response = client.get(f"/api/workflows/{workflow.id}/runs")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["id"] == "run-governance-gap"
+    assert body[0]["tool_governance"] == {
+        "referenced_tool_ids": ["native.catalog-gap"],
+        "missing_tool_ids": ["native.catalog-gap"],
+        "governed_tool_count": 0,
+        "strong_isolation_tool_count": 0,
+    }
 
 
 def test_create_workflow_accepts_retry_runtime_policy(client: TestClient) -> None:

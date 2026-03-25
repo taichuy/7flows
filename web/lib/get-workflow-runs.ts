@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 
 export type WorkflowRunListItem = {
   id: string;
@@ -12,6 +13,7 @@ export type WorkflowRunListItem = {
   node_run_count: number;
   event_count: number;
   last_event_at?: string | null;
+  tool_governance?: WorkflowToolGovernanceSummary | null;
 };
 
 export async function getWorkflowRuns(

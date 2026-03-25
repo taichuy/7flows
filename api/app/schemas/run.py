@@ -15,6 +15,7 @@ from app.schemas.sensitive_access import (
     CallbackBlockerDeltaSummary,
     SensitiveAccessTimelineEntryItem,
 )
+from app.schemas.workflow import WorkflowToolGovernanceSummary
 from app.schemas.workflow_legacy_auth_governance import (
     WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
 )
@@ -314,6 +315,7 @@ class RunDetail(BaseModel):
     execution_focus_node: RunDetailExecutionFocusNode | None = None
     execution_focus_explanation: SignalFollowUpExplanation | None = None
     execution_focus_skill_trace: OperatorRunFocusSkillTrace | None = None
+    tool_governance: WorkflowToolGovernanceSummary | None = None
     legacy_auth_governance: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | None = None
     run_follow_up: OperatorRunFollowUpSummary | None = None
     node_runs: list[NodeRunItem]
@@ -351,3 +353,4 @@ class WorkflowRunListItem(BaseModel):
     node_run_count: int = 0
     event_count: int = 0
     last_event_at: datetime | None = None
+    tool_governance: WorkflowToolGovernanceSummary | None = None

@@ -39,7 +39,7 @@ vi.mock("@/components/run-diagnostics-panel/trace-results-section", () => ({
     createElement("div", { "data-testid": "trace-results-section" })
 }));
 
-function buildRunDetail(): RunDetail {
+function buildRunDetail(overrides: Partial<RunDetail> = {}): RunDetail {
   return {
     id: "run-1",
     workflow_id: "workflow-1",
@@ -74,7 +74,8 @@ function buildRunDetail(): RunDetail {
         input_payload: {}
       }
     ],
-    events: []
+    events: [],
+    ...overrides
   };
 }
 
@@ -160,5 +161,39 @@ describe("RunDiagnosticsPanel", () => {
         sandboxReadiness
       })
     );
+  });
+
+  it("when the run still has catalog gaps, hero handoff deep-links back to filtered workflow editor", () => {
+    const html = renderToStaticMarkup(
+      createElement(RunDiagnosticsPanel, {
+        run: buildRunDetail({
+          tool_governance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0
+          }
+        }),
+        trace: null,
+        traceError: null,
+        traceQuery: {
+          limit: 200,
+          order: "asc"
+        },
+        executionView: null,
+        evidenceView: null,
+        callbackWaitingAutomation: {
+          status: "healthy",
+          scheduler_required: true,
+          detail: "callback waiting automation healthy",
+          scheduler_health_status: "healthy",
+          scheduler_health_detail: "scheduler loop is healthy",
+          steps: []
+        },
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
   });
 });

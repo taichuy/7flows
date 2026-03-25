@@ -1,3 +1,6 @@
+import React from "react";
+import Link from "next/link";
+
 import { formatDuration, formatTimestamp } from "@/lib/runtime-presenters";
 import type { RunDetail } from "@/lib/get-run-detail";
 import type {
@@ -5,6 +8,10 @@ import type {
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
 import type { RunTraceQuery } from "@/lib/get-run-trace";
+import {
+  formatCatalogGapToolSummary,
+  formatWorkflowMissingToolSummary
+} from "@/lib/workflow-definition-governance";
 
 import { RunDetailExecutionFocusCard } from "@/components/run-detail-execution-focus-card";
 import { PayloadCard, countErroredNodes } from "@/components/run-diagnostics-panel/shared";
@@ -18,6 +25,7 @@ type RunDiagnosticsOverviewSectionsProps = {
   activeTraceQuery: RunTraceQuery;
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  workflowDetailHref?: string | null;
 };
 
 export function RunDiagnosticsOverviewSections({
@@ -26,8 +34,14 @@ export function RunDiagnosticsOverviewSections({
   activeFilters,
   activeTraceQuery,
   callbackWaitingAutomation = null,
-  sandboxReadiness = null
+  sandboxReadiness = null,
+  workflowDetailHref = null
 }: RunDiagnosticsOverviewSectionsProps) {
+  const workflowCatalogGapSummary = formatWorkflowMissingToolSummary(run);
+  const workflowCatalogGapToolCopy = formatCatalogGapToolSummary(
+    run.tool_governance?.missing_tool_ids ?? []
+  );
+
   return (
     <>
       <section className="diagnostics-layout runtime-layout">
@@ -86,6 +100,25 @@ export function RunDiagnosticsOverviewSections({
             sandboxReadiness={sandboxReadiness}
             recommendedNextStepHref={buildRunDiagnosticsExecutionViewHref(run.id)}
           />
+
+          {workflowCatalogGapSummary ? (
+            <div className="payload-card">
+              <div className="payload-card-header">
+                <span className="status-meta">Workflow governance</span>
+                <span className="event-chip">{workflowCatalogGapSummary}</span>
+              </div>
+              <p className="section-copy entry-copy">
+                {workflowCatalogGapToolCopy
+                  ? `当前这条 run 对应的 workflow 版本仍有 catalog gap（${workflowCatalogGapToolCopy}）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照当前 run 的 execution focus、node timeline 与 trace。`
+                  : "当前这条 run 对应的 workflow 版本仍有 catalog gap；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照当前 run 的 execution focus、node timeline 与 trace。"}
+              </p>
+              {workflowDetailHref ? (
+                <Link className="inline-link" href={workflowDetailHref}>
+                  回到 workflow 编辑器处理 catalog gap
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
         </article>
 
         <article className="diagnostic-panel">

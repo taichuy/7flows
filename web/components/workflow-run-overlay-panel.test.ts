@@ -81,7 +81,7 @@ function buildCallbackWaitingAutomation(): CallbackWaitingAutomationCheck {
   };
 }
 
-function buildRunDetail(): RunDetail {
+function buildRunDetail(overrides: Partial<RunDetail> = {}): RunDetail {
   return {
     id: "run-1",
     workflow_id: "workflow-1",
@@ -171,7 +171,8 @@ function buildRunDetail(): RunDetail {
     artifacts: [],
     tool_calls: [],
     ai_calls: [],
-    events: []
+    events: [],
+    ...overrides
   };
 }
 
@@ -361,6 +362,58 @@ describe("WorkflowRunOverlayPanel", () => {
 
     expect(html).toContain("/sensitive-access?run_id=run-1&amp;node_run_id=node-run-1");
     expect(html).toContain("scheduler is currently backlogged.");
+  });
+
+  it("surfaces workflow catalog-gap handoff for the selected run", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowRunOverlayPanel, {
+        runs: [
+          {
+            id: "run-1",
+            workflow_id: "workflow-1",
+            workflow_version: "v1",
+            status: "failed",
+            started_at: "2026-03-20T10:00:00Z",
+            finished_at: null,
+            created_at: "2026-03-20T10:00:00Z",
+            node_run_count: 1,
+            event_count: 0,
+            last_event_at: null,
+            tool_governance: {
+              referenced_tool_ids: ["native.catalog-gap"],
+              missing_tool_ids: ["native.catalog-gap"],
+              governed_tool_count: 0,
+              strong_isolation_tool_count: 0
+            }
+          }
+        ],
+        selectedRunId: "run-1",
+        run: buildRunDetail({
+          tool_governance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0
+          }
+        }),
+        runSnapshot: buildRunSnapshot(),
+        trace: null,
+        traceError: null,
+        selectedNodeId: null,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness(),
+        isLoading: false,
+        isRefreshingRuns: false,
+        onSelectRunId: () => undefined,
+        onRefreshRuns: () => undefined
+      })
+    );
+
+    expect(html).toContain("catalog gap · native.catalog-gap");
+    expect(html).toContain(
+      "当前这条 run 对应的 workflow 版本仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照当前 node timeline 与 trace。"
+    );
+    expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
   });
 
   it("keeps workspace starter scope on run diagnostics drilldown", () => {

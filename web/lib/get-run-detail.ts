@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 import type {
   AICallItem,
   CallbackWaitingLifecycleSummary,
@@ -108,6 +109,7 @@ export type RunDetail = {
     source_counts?: Record<string, number> | null;
     loads?: SkillReferenceLoadItem[] | null;
   } | null;
+  tool_governance?: WorkflowToolGovernanceSummary | null;
   legacy_auth_governance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
   run_follow_up?: OperatorRunFollowUpSummary | null;
   node_runs: NodeRunItem[];

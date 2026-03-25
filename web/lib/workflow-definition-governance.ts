@@ -1,6 +1,8 @@
 import type { WorkflowDefinitionPreflightIssue, WorkflowListItem } from "@/lib/get-workflows";
 
-type WorkflowMissingToolGovernanceLike = Pick<WorkflowListItem, "tool_governance">;
+type WorkflowMissingToolGovernanceLike = {
+  tool_governance?: WorkflowListItem["tool_governance"] | null;
+};
 type WorkflowToolReferenceIssueLike = Pick<WorkflowDefinitionPreflightIssue, "message">;
 
 export function isLegacyPublishAuthModeIssue(

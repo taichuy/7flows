@@ -37,6 +37,7 @@ from app.services.run_trace_views import (
 )
 from app.services.run_views import (
     build_run_execution_view_for_artifacts,
+    load_run_tool_governance_summary,
     serialize_run_detail,
     serialize_run_event,
 )
@@ -91,7 +92,11 @@ def execute_workflow(
         ) from exc
 
     execution_view = build_run_execution_view_for_artifacts(db, artifacts)
-    return serialize_run_detail(artifacts, execution_view=execution_view)
+    return serialize_run_detail(
+        artifacts,
+        execution_view=execution_view,
+        tool_governance=load_run_tool_governance_summary(db, artifacts),
+    )
 
 
 @router.get("/runs/{run_id}", response_model=RunDetail)
@@ -108,6 +113,7 @@ def get_run(
         artifacts,
         include_events=include_events,
         execution_view=execution_view,
+        tool_governance=load_run_tool_governance_summary(db, artifacts),
     )
 
 
@@ -136,7 +142,11 @@ def resume_run(
     run_follow_up = build_operator_run_follow_up_summary(db, [run_id])
     execution_view = build_run_execution_view_for_artifacts(db, artifacts)
     return RunResumeResponse(
-        run=serialize_run_detail(artifacts, execution_view=execution_view),
+        run=serialize_run_detail(
+            artifacts,
+            execution_view=execution_view,
+            tool_governance=load_run_tool_governance_summary(db, artifacts),
+        ),
         outcome_explanation=build_manual_resume_outcome_explanation(run_follow_up),
         callback_blocker_delta=build_callback_blocker_delta_summary(
             before=before_blocker,
@@ -177,7 +187,11 @@ def receive_run_callback(
         ticket=callback.ticket,
         run_id=callback.run_id,
         node_run_id=callback.node_run_id,
-        run=serialize_run_detail(callback.artifacts, execution_view=execution_view),
+        run=serialize_run_detail(
+            callback.artifacts,
+            execution_view=execution_view,
+            tool_governance=load_run_tool_governance_summary(db, callback.artifacts),
+        ),
     )
 
 

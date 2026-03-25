@@ -28,6 +28,8 @@ import {
   formatDuration,
   formatTimestamp
 } from "@/lib/runtime-presenters";
+import { appendWorkflowLibraryViewState } from "@/lib/workflow-library-query";
+import { hasWorkflowMissingToolIssues } from "@/lib/workflow-definition-governance";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 type RunDiagnosticsPanelProps = {
@@ -84,6 +86,12 @@ export function RunDiagnosticsPanel({
     workflowId: run.workflow_id,
     variant: "editor"
   });
+  const baseWorkflowDetailHref = workflowDetailHref ?? workflowDetailLink.href;
+  const resolvedWorkflowDetailHref = hasWorkflowMissingToolIssues(run)
+    ? appendWorkflowLibraryViewState(baseWorkflowDetailHref, {
+        definitionIssue: "missing_tool"
+      })
+    : baseWorkflowDetailHref;
   const heroSurfaceCopy = buildRunDiagnosticsHeroSurfaceCopy();
 
   return (
@@ -104,7 +112,7 @@ export function RunDiagnosticsPanel({
               keys={["workflowLibrary", "runLibrary", "operatorInbox", "home"]}
               overrides={{
                 workflowLibrary: {
-                  href: workflowDetailHref ?? workflowDetailLink.href,
+                  href: resolvedWorkflowDetailHref,
                   label: workflowDetailLink.label
                 },
                 runLibrary: {
@@ -153,6 +161,7 @@ export function RunDiagnosticsPanel({
         activeTraceQuery={activeTraceQuery}
         callbackWaitingAutomation={callbackWaitingAutomation}
         sandboxReadiness={sandboxReadiness}
+        workflowDetailHref={resolvedWorkflowDetailHref}
       />
 
       <RunDiagnosticsTraceFiltersSection

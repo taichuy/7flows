@@ -14,7 +14,9 @@ from app.schemas.operator_follow_up import (
     OperatorRunSnapshot,
     OperatorRunSnapshotSample,
 )
+from app.schemas.plugin import PluginToolItem
 from app.schemas.sensitive_access import CallbackBlockerDeltaSummary
+from app.services import workflow_views
 from app.services.compiled_blueprints import CompiledBlueprintService
 from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
 from app.services.run_resume_scheduler import RunResumeScheduler
@@ -35,6 +37,39 @@ class _StaticSandboxHealthChecker:
 
     def probe_all(self, registry: SandboxBackendRegistry) -> list[SandboxBackendHealth]:
         return list(self._healths)
+
+
+class _FakeWorkflowLibraryService:
+    def __init__(self, tools: list[PluginToolItem]) -> None:
+        self._tools = tools
+
+    def list_tool_items(self, _db, *, workspace_id: str) -> list[PluginToolItem]:
+        assert workspace_id == "default"
+        return self._tools
+
+
+def _bound_tool_definition(*, tool_id: str, ecosystem: str) -> dict:
+    return {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "tool",
+                "type": "tool",
+                "name": "Tool",
+                "config": {
+                    "tool": {
+                        "toolId": tool_id,
+                        "ecosystem": ecosystem,
+                    }
+                },
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool"},
+            {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "output"},
+        ],
+    }
 
 
 def test_execute_workflow_route(
@@ -815,6 +850,92 @@ def test_get_run_supports_summary_mode_without_events(
     assert summary_body["first_event_at"] == body["events"][0]["created_at"]
     assert summary_body["last_event_at"] == body["events"][-1]["created_at"]
     assert summary_body["events"] == []
+
+
+def test_get_run_includes_version_specific_tool_governance(
+    client: TestClient,
+    sqlite_session: Session,
+    monkeypatch,
+) -> None:
+    now = datetime.now(UTC)
+    current_definition = _bound_tool_definition(
+        tool_id="native.risk-search",
+        ecosystem="native",
+    )
+    missing_definition = _bound_tool_definition(
+        tool_id="native.catalog-gap",
+        ecosystem="native",
+    )
+    workflow = Workflow(
+        id="wf-run-governance",
+        name="Run Governance Workflow",
+        version="0.2.0",
+        status="draft",
+        definition=current_definition,
+        created_at=now - timedelta(days=1),
+        updated_at=now,
+    )
+    sqlite_session.add_all(
+        [
+            workflow,
+            WorkflowVersion(
+                id="wf-run-governance-v1",
+                workflow_id=workflow.id,
+                version="0.1.0",
+                definition=missing_definition,
+                created_at=now - timedelta(days=1),
+            ),
+            WorkflowVersion(
+                id="wf-run-governance-v2",
+                workflow_id=workflow.id,
+                version="0.2.0",
+                definition=current_definition,
+                created_at=now,
+            ),
+            Run(
+                id="run-governance-gap",
+                workflow_id=workflow.id,
+                workflow_version="0.1.0",
+                status="failed",
+                input_payload={},
+                checkpoint_payload={},
+                created_at=now,
+            ),
+        ]
+    )
+    sqlite_session.commit()
+
+    monkeypatch.setattr(
+        workflow_views,
+        "get_workflow_library_service",
+        lambda: _FakeWorkflowLibraryService(
+            [
+                PluginToolItem(
+                    id="native.risk-search",
+                    name="Risk Search",
+                    ecosystem="native",
+                    description="Governed native tool.",
+                    source="native",
+                    callable=True,
+                )
+            ]
+        ),
+    )
+
+    response = client.get(
+        "/api/runs/run-governance-gap",
+        params={"include_events": "false"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == "run-governance-gap"
+    assert body["tool_governance"] == {
+        "referenced_tool_ids": ["native.catalog-gap"],
+        "missing_tool_ids": ["native.catalog-gap"],
+        "governed_tool_count": 0,
+        "strong_isolation_tool_count": 0,
+    }
 
 
 def test_resume_run_route_forwards_source_and_reason(

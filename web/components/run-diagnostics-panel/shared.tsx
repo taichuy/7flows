@@ -1,3 +1,5 @@
+import React from "react";
+
 import type { RunDetail } from "@/lib/get-run-detail";
 import {
   buildRunTraceQueryString,
