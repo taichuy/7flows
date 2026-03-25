@@ -771,4 +771,140 @@ describe("WorkflowCreateWizard", () => {
     expect(html).toContain('definition_issue=legacy_publish_auth');
     expect(html).toContain('starter=workspace-starter-1');
   });
+
+  it("blocks create when the selected starter still references missing catalog tools", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowCreateWizard, {
+        catalogToolCount: 0,
+        governanceQueryScope: {
+          activeTrack: "应用新建编排",
+          sourceGovernanceKind: "all",
+          needsFollowUp: false,
+          searchQuery: " missing ",
+          selectedTemplateId: "workspace-starter-missing-tool"
+        },
+        workflows: [],
+        starterSourceLanes: [],
+        nodeCatalog: [
+          {
+            type: "trigger",
+            label: "Trigger",
+            description: "Trigger node",
+            ecosystem: "native",
+            source: {
+              kind: "node",
+              scope: "builtin",
+              status: "available",
+              governance: "repo",
+              ecosystem: "native",
+              label: "Native node catalog",
+              shortLabel: "native nodes",
+              summary: "Native nodes"
+            },
+            capabilityGroup: "entry",
+            businessTrack: "应用新建编排",
+            tags: [],
+            supportStatus: "available",
+            supportSummary: "",
+            bindingRequired: false,
+            bindingSourceLanes: [],
+            palette: { enabled: true, order: 0, defaultPosition: { x: 0, y: 0 } },
+            defaults: { name: "Trigger", config: {} }
+          },
+          {
+            type: "tool",
+            label: "Tool",
+            description: "Tool node",
+            ecosystem: "native",
+            source: {
+              kind: "node",
+              scope: "builtin",
+              status: "available",
+              governance: "repo",
+              ecosystem: "native",
+              label: "Native node catalog",
+              shortLabel: "native nodes",
+              summary: "Native nodes"
+            },
+            capabilityGroup: "integration",
+            businessTrack: "应用新建编排",
+            tags: [],
+            supportStatus: "available",
+            supportSummary: "",
+            bindingRequired: false,
+            bindingSourceLanes: [],
+            palette: { enabled: true, order: 1, defaultPosition: { x: 0, y: 0 } },
+            defaults: { name: "Tool", config: {} }
+          }
+        ],
+        tools: [],
+        starters: [
+          {
+            id: "workspace-starter-missing-tool",
+            origin: "workspace",
+            workspaceId: "default",
+            name: "Missing Tool Starter",
+            description: "Starter blocked by a missing catalog tool.",
+            businessTrack: "应用新建编排",
+            defaultWorkflowName: "Missing Tool Workflow",
+            workflowFocus: "Repair the catalog gap before creating.",
+            recommendedNextStep: "Create after restoring the missing tool binding.",
+            tags: ["workspace starter"],
+            definition: {
+              nodes: [
+                { id: "trigger", type: "trigger", name: "Trigger", config: {} },
+                {
+                  id: "tool-node",
+                  type: "tool",
+                  name: "Catalog gap tool",
+                  config: {
+                    tool: {
+                      toolId: "native.missing",
+                      ecosystem: "native"
+                    }
+                  }
+                }
+              ],
+              edges: [],
+              variables: [],
+              publish: []
+            },
+            source: {
+              kind: "starter",
+              scope: "workspace",
+              status: "available",
+              governance: "workspace",
+              ecosystem: "native",
+              label: "Workspace starters",
+              shortLabel: "workspace ready",
+              summary: "Workspace starter library"
+            },
+            archived: false,
+            createdFromWorkflowId: "wf-missing-tool",
+            sourceGovernance: {
+              kind: "drifted",
+              statusLabel: "建议 refresh",
+              summary: "当前主要是来源快照漂移。",
+              sourceWorkflowId: "wf-missing-tool",
+              sourceWorkflowName: "Source Missing Tool Workflow"
+            }
+          }
+        ]
+      })
+    );
+
+    expect(html).toContain("Catalog gap");
+    expect(html).toContain("当前 starter 仍引用目录里不存在的 tool：native.missing");
+    expect(html).toContain("如果现在创建，API 会直接拒绝该草稿");
+    expect(html).toContain(
+      "Primary governed starter: Missing Tool Starter · missing tool native.missing."
+    );
+    expect(html).toContain("打开源 workflow");
+    expect(html).toContain('/workflows/wf-missing-tool?');
+    expect(html).toContain('definition_issue=missing_tool');
+    expect(html).toContain('starter=workspace-starter-missing-tool');
+    expect(html).toContain("当前 starter 仍缺少 1 个 catalog tool");
+    expect(html).toContain("先补 tool binding");
+    expect(html).toContain('disabled=""');
+  });
 });

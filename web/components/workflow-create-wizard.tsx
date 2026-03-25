@@ -183,8 +183,19 @@ export function WorkflowCreateWizard({
   const surfaceCopy = buildWorkflowCreateWizardSurfaceCopy({
     starterGovernanceHref
   });
+  const selectedStarterMissingToolGovernanceSurface = useMemo(
+    () =>
+      selectedStarter
+        ? buildWorkflowCreateStarterMissingToolGovernanceSurface({
+            starter: selectedStarter,
+            workspaceStarterGovernanceScope
+          })
+        : null,
+    [selectedStarter, workspaceStarterGovernanceScope]
+  );
   const selectedStarterNextStepSurface = selectedStarter
     ? buildWorkflowCreateStarterNextStepSurface({
+        missingToolGovernanceSurface: selectedStarterMissingToolGovernanceSurface,
         starter: selectedStarter,
         sourceGovernanceSurface: selectedStarterSourceGovernanceSurface,
         starterGovernanceHref,
@@ -270,6 +281,12 @@ export function WorkflowCreateWizard({
   const handleCreateWorkflow = () => {
     startCreateTransition(async () => {
       if (!selectedStarter) {
+        return;
+      }
+
+      if (selectedStarterMissingToolGovernanceSurface) {
+        setMessage(selectedStarterMissingToolGovernanceSurface.blockedMessage);
+        setMessageTone("error");
         return;
       }
 
@@ -648,10 +665,35 @@ export function WorkflowCreateWizard({
                   </p>
                 </div>
               ) : null}
-              {selectedStarter.missingToolIds.length > 0 ? (
-                <p className="sync-message error">
-                  当前 starter 引用了目录里不存在的 tool：{selectedStarter.missingToolIds.join(", ")}。
-                </p>
+              {selectedStarterMissingToolGovernanceSurface ? (
+                <div className="binding-form">
+                  <p className="binding-label">Catalog gap</p>
+                  <p className="binding-meta">
+                    当前 starter 里的缺失 tool 会让创建动作在 API 校验阶段 fail-closed；先沿治理入口补齐 binding，
+                    再回到创建页继续推草稿。
+                  </p>
+                  <div className="starter-tag-row">
+                    {selectedStarterMissingToolGovernanceSurface.missingToolIds.map((toolId) => (
+                      <span className="event-chip" key={`${selectedStarter.id}-missing-tool-${toolId}`}>
+                        {toolId}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="section-copy starter-summary-copy">
+                    {selectedStarterMissingToolGovernanceSurface.detail}
+                  </p>
+                  {selectedStarterMissingToolGovernanceSurface.href &&
+                  selectedStarterMissingToolGovernanceSurface.hrefLabel ? (
+                    <div className="binding-actions">
+                      <Link
+                        className="inline-link"
+                        href={selectedStarterMissingToolGovernanceSurface.href}
+                      >
+                        {selectedStarterMissingToolGovernanceSurface.hrefLabel}
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
               ) : null}
               <div className="starter-tag-row">
                 {selectedStarter.nodeLabels.map((nodeLabel) => (
@@ -672,15 +714,20 @@ export function WorkflowCreateWizard({
                 className="sync-button"
                 type="button"
                 onClick={handleCreateWorkflow}
-                disabled={isCreating}
+                disabled={isCreating || selectedStarterMissingToolGovernanceSurface !== null}
               >
-                {isCreating ? "创建中..." : "创建并进入画布"}
+                {isCreating
+                  ? "创建中..."
+                  : selectedStarterMissingToolGovernanceSurface
+                    ? "先补 tool binding"
+                    : "创建并进入画布"}
               </button>
             </div>
 
             <p className={`sync-message ${messageTone}`}>
               {message ??
-                "创建后会直接进入 workflow 编辑器，继续补节点、连线、运行态调试和后续发布链路。"}
+                (selectedStarterMissingToolGovernanceSurface?.blockedMessage ??
+                  "创建后会直接进入 workflow 编辑器，继续补节点、连线、运行态调试和后续发布链路。")}
             </p>
           </div>
         </article>
@@ -740,6 +787,16 @@ type WorkflowCreateStarterNextStepSurface = {
   hrefLabel: string | null;
 };
 
+type WorkflowCreateStarterMissingToolGovernanceSurface = {
+  label: string;
+  detail: string;
+  primaryResourceSummary: string;
+  blockedMessage: string;
+  missingToolIds: string[];
+  href: string | null;
+  hrefLabel: string | null;
+};
+
 type WorkflowCreateStarterLegacyAuthGovernanceSurface = {
   workflowName: string;
   draftCandidateCount: number;
@@ -780,16 +837,28 @@ function toWorkspaceStarterSourceGovernanceTemplate(
 }
 
 function buildWorkflowCreateStarterNextStepSurface({
+  missingToolGovernanceSurface,
   starter,
   sourceGovernanceSurface,
   starterGovernanceHref,
   surfaceCopy
 }: {
+  missingToolGovernanceSurface: WorkflowCreateStarterMissingToolGovernanceSurface | null;
   starter: WorkflowStarterTemplate;
   sourceGovernanceSurface: WorkspaceStarterSourceGovernanceSurface | null;
   starterGovernanceHref: string;
   surfaceCopy: WorkflowCreateWizardSurfaceCopy;
 }): WorkflowCreateStarterNextStepSurface {
+  if (missingToolGovernanceSurface) {
+    return {
+      label: missingToolGovernanceSurface.label,
+      detail: missingToolGovernanceSurface.detail,
+      primaryResourceSummary: missingToolGovernanceSurface.primaryResourceSummary,
+      href: missingToolGovernanceSurface.href,
+      hrefLabel: missingToolGovernanceSurface.hrefLabel
+    };
+  }
+
   const presenter = sourceGovernanceSurface?.presenter ?? null;
   const recommendedNextStep = sourceGovernanceSurface?.recommendedNextStep ?? null;
   const shouldLinkToStarterGovernance =
@@ -832,6 +901,72 @@ function buildWorkflowCreateStarterNextStepSurface({
     hrefLabel: shouldLinkToStarterGovernance
       ? surfaceCopy.sourceGovernanceFollowUpLinkLabel
       : null
+  };
+}
+
+function buildWorkflowCreateStarterMissingToolGovernanceSurface({
+  starter,
+  workspaceStarterGovernanceScope
+}: {
+  starter: WorkflowStarterTemplate;
+  workspaceStarterGovernanceScope: WorkspaceStarterGovernanceQueryScope;
+}): WorkflowCreateStarterMissingToolGovernanceSurface | null {
+  const missingToolIds = Array.from(
+    new Set(starter.missingToolIds.map((toolId) => toolId.trim()).filter(Boolean))
+  );
+
+  if (missingToolIds.length === 0) {
+    return null;
+  }
+
+  const sourceWorkflowId =
+    starter.sourceGovernance?.sourceWorkflowId?.trim() || starter.createdFromWorkflowId?.trim();
+  const renderedToolSummary =
+    missingToolIds.length === 1
+      ? missingToolIds[0]
+      : `${missingToolIds.slice(0, 2).join("、")} 等 ${missingToolIds.length} 个 tool`;
+  const blockedMessage =
+    `当前 starter 仍缺少 ${missingToolIds.length} 个 catalog tool；` +
+    "先沿上面的治理入口补齐 binding，再回来创建草稿。";
+
+  if (!sourceWorkflowId) {
+    return {
+      label: "catalog gap",
+      detail:
+        `当前 starter 仍引用目录里不存在的 tool：${renderedToolSummary}；` +
+        "如果现在创建，API 会直接拒绝该草稿。先同步 workspace plugin catalog，或切换到仍可用的 starter。",
+      primaryResourceSummary:
+        missingToolIds.length === 1
+          ? `${starter.name} · missing tool ${missingToolIds[0]}`
+          : `${starter.name} · ${missingToolIds.length} missing tools`,
+      blockedMessage,
+      missingToolIds,
+      href: null,
+      hrefLabel: null
+    };
+  }
+
+  const sourceWorkflowLink = buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+    workflowId: sourceWorkflowId,
+    viewState: workspaceStarterGovernanceScope,
+    variant: "source"
+  });
+
+  return {
+    label: "catalog gap",
+    detail:
+      `当前 starter 仍引用目录里不存在的 tool：${renderedToolSummary}；` +
+      "如果现在创建，API 会直接拒绝该草稿。先回源 workflow 补齐 tool binding，再回来继续创建。",
+    primaryResourceSummary:
+      missingToolIds.length === 1
+        ? `${starter.name} · missing tool ${missingToolIds[0]}`
+        : `${starter.name} · ${missingToolIds.length} missing tools`,
+    blockedMessage,
+    missingToolIds,
+    href: appendWorkflowLibraryViewState(sourceWorkflowLink.href, {
+      definitionIssue: "missing_tool"
+    }),
+    hrefLabel: sourceWorkflowLink.label
   };
 }
 
