@@ -27,11 +27,13 @@ export function buildSensitiveAccessBulkRecommendedNextStep(
 ): OperatorRecommendedNextStep | null {
   const { currentHref = null } = options;
   const operatorFollowUp = normalizeExplanationText(result.runFollowUpExplanation, "follow_up");
+  const primaryResourceSummary = formatSensitiveResourceGovernanceSummary(result.primaryResource ?? null);
   const candidate = buildOperatorRecommendedActionCandidate({
     action: result.runFollowUp?.recommendedAction ?? null,
     detail: operatorFollowUp,
     fallbackDetail:
-      "本次批量治理已经回接 canonical run follow-up；优先按推荐入口继续查看受影响 run 或 inbox slice。"
+      "本次批量治理已经回接 canonical run follow-up；优先按推荐入口继续查看受影响 run 或 inbox slice。",
+    primaryResourceSummary
   });
 
   if (!candidate) {
@@ -68,6 +70,9 @@ export function buildSensitiveAccessBulkResultNarrative(
 
   if (recommendedNextStep?.detail) {
     deferredTexts.add(recommendedNextStep.detail);
+  }
+  if (recommendedNextStep?.primaryResourceSummary) {
+    deferredTexts.add(recommendedNextStep.primaryResourceSummary);
   }
 
   pushNarrativeItem(items, seenTexts, deferredTexts, "Primary signal", outcomePrimarySignal);

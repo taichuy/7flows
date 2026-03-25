@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import React from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
+import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import { OperatorRunSampleCardList } from "@/components/operator-run-sample-card-list";
 import { SensitiveAccessLegacyAuthGovernanceCompactCard } from "@/components/sensitive-access-legacy-auth-governance-card";
 import type { CallbackWaitingSummaryProps } from "@/lib/callback-waiting-summary-props";
@@ -11,7 +11,6 @@ import type {
   SensitiveAccessBulkAction,
   SensitiveAccessBulkActionResult
 } from "@/lib/get-sensitive-access";
-import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
 import {
   buildSensitiveAccessBulkRecommendedNextStep,
   buildSensitiveAccessBulkResultNarrative,
@@ -72,7 +71,6 @@ export function SensitiveAccessBulkGovernanceCard({
       ),
     [workspaceStarterViewState]
   );
-  const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
   const recommendedNextStep = lastResult
     ? buildSensitiveAccessBulkRecommendedNextStep(lastResult, { currentHref })
     : null;
@@ -195,16 +193,7 @@ export function SensitiveAccessBulkGovernanceCard({
 
           {recommendedNextStep ? (
             <div className="binding-section">
-              <div className="starter-tag-row">
-                <span className="status-meta">{operatorSurfaceCopy.recommendedNextStepTitle}</span>
-                <span className="event-chip">{recommendedNextStep.label}</span>
-                {recommendedNextStep.href && recommendedNextStep.href_label ? (
-                  <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
-                    {recommendedNextStep.href_label}
-                  </Link>
-                ) : null}
-              </div>
-              <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
+              <OperatorRecommendedNextStepCard recommendedNextStep={recommendedNextStep} />
             </div>
           ) : null}
 

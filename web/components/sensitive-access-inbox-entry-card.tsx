@@ -12,9 +12,11 @@ import {
 } from "@/components/sensitive-access-inbox-panel-helpers";
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { CredentialGovernanceSummaryCard } from "@/components/credential-governance-summary-card";
+import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
+import { formatSensitiveResourceGovernanceSummary } from "@/lib/credential-governance";
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type {
@@ -179,17 +181,26 @@ export function SensitiveAccessInboxEntryCard({
     }) && !sharedSandboxCandidate;
   const focusSkillTraceReferenceLoads = executionContext?.skillTrace?.loads ?? [];
   const focusSkillTraceReferenceCount = executionContext?.skillTrace?.reference_count ?? null;
+  const recommendedNextStepPrimaryResourceSummary = formatSensitiveResourceGovernanceSummary(
+    resource
+  );
   const recommendedNextStep = !shouldDeferToSharedCallbackWaitingSummary && executionSurfaceCopy
     ? buildOperatorRecommendedNextStep({
         execution:
-          sharedSandboxCandidate ?? {
-            active: true,
-            label: executionSurfaceCopy.recommendedNextStepLabel,
-            detail: executionFocusFollowUp,
-            href: executionSurfaceCopy.recommendedNextStepHref,
-            href_label: executionSurfaceCopy.recommendedNextStepHrefLabel,
-            fallback_detail: executionSurfaceCopy.recommendedNextStepFallbackDetail
-          },
+          sharedSandboxCandidate
+            ? {
+                ...sharedSandboxCandidate,
+                primaryResourceSummary: recommendedNextStepPrimaryResourceSummary
+              }
+            : {
+                active: true,
+                label: executionSurfaceCopy.recommendedNextStepLabel,
+                detail: executionFocusFollowUp,
+                href: executionSurfaceCopy.recommendedNextStepHref,
+                href_label: executionSurfaceCopy.recommendedNextStepHrefLabel,
+                fallback_detail: executionSurfaceCopy.recommendedNextStepFallbackDetail,
+                primaryResourceSummary: recommendedNextStepPrimaryResourceSummary
+              },
         currentHref
       })
     : null;
@@ -266,20 +277,7 @@ export function SensitiveAccessInboxEntryCard({
           <p className="binding-meta">
             {executionContext.focusNode.node_type} · focus node {executionContext.focusNode.node_id}
           </p>
-          {recommendedNextStep ? (
-            <div className="entry-card compact-card">
-              <div className="payload-card-header">
-                <span className="status-meta">{operatorSurfaceCopy.recommendedNextStepTitle}</span>
-                <span className="event-chip">{recommendedNextStep.label}</span>
-                {recommendedNextStep.href && recommendedNextStep.href_label ? (
-                  <Link className="event-chip inbox-filter-link" href={recommendedNextStep.href}>
-                    {recommendedNextStep.href_label}
-                  </Link>
-                ) : null}
-              </div>
-              <p className="section-copy entry-copy">{recommendedNextStep.detail}</p>
-            </div>
-          ) : null}
+          <OperatorRecommendedNextStepCard recommendedNextStep={recommendedNextStep} />
           {executionFactBadges.length > 0 && !shouldDeferToSharedCallbackWaitingSummary ? (
             <div className="tool-badge-row">
               {executionFactBadges.map((badge) => (

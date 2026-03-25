@@ -226,6 +226,27 @@ describe("SensitiveAccessBulkGovernanceCard", () => {
         primary_signal: "1 个 run 已切回 workflow library 治理。",
         follow_up: followUp
       },
+      primaryResource: {
+        id: "resource-1",
+        label: "OpenAI Production Key",
+        description: "production credential",
+        sensitivity_level: "L3",
+        source: "credential",
+        metadata: {},
+        created_at: "2026-03-20T10:00:00Z",
+        updated_at: "2026-03-20T10:00:00Z",
+        credential_governance: {
+          credential_id: "cred-openai-prod",
+          credential_name: "OpenAI Production Key",
+          credential_type: "api_key",
+          credential_status: "active",
+          sensitivity_level: "L3",
+          sensitive_resource_id: "resource-1",
+          sensitive_resource_label: "OpenAI Production Key",
+          credential_ref: "credential://cred-openai-prod",
+          summary: "本次命中的凭据是 OpenAI Production Key（api_key）；当前治理级别 L3，状态 生效中。"
+        }
+      },
       runFollowUp: {
         affectedRunCount: 1,
         sampledRunCount: 0,
@@ -277,6 +298,8 @@ describe("SensitiveAccessBulkGovernanceCard", () => {
 
     expect(html).toContain("Recommended next step");
     expect(html).toContain("Open workflow library");
+    expect(html).toContain("Primary governed resource: OpenAI Production Key · L3 治理 · 生效中.");
+    expect(html.match(/Primary governed resource/g)?.length ?? 0).toBe(1);
     expect(html).toContain('/workflows?execution=sandbox');
     expect(html.match(new RegExp(followUp, "g"))?.length ?? 0).toBe(1);
     expect(html).not.toContain("<strong>Next step：</strong>");

@@ -218,6 +218,7 @@ describe("SensitiveAccessInboxEntryCard", () => {
     expect(html).toContain(surfaceCopy.focusDescription);
     expect(html).toContain(operatorSurfaceCopy.recommendedNextStepTitle);
     expect(html).toContain("current approval ticket");
+    expect(html).toContain("Primary governed resource: Remote search capability.");
     expect(html).toContain("effective sandbox");
     expect(html).toContain("executor tool:compat-adapter:dify-default");
     expect(html).toContain("backend sandbox-default");
@@ -646,6 +647,7 @@ describe("SensitiveAccessInboxEntryCard", () => {
     expect(html).toContain("sandbox readiness");
     expect(html).toContain("当前 live sandbox readiness 仍影响 4 个 run / 1 个 workflow");
     expect(html).toContain("优先回到 workflow library 处理强隔离 execution class 与隔离需求。");
+    expect(html).toContain("Primary governed resource: Remote search capability.");
     expect(html).toContain("Open workflow library");
     expect(html).toContain("先恢复兼容 backend，再重新调度该节点。");
   });
