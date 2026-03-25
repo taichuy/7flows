@@ -306,6 +306,31 @@ describe("InlineOperatorActionFeedback", () => {
   it("forwards callback waiting summary context to the shared summary card", () => {
     const inboxHref = "/sensitive-access?run_id=run-1&approval_ticket_id=ticket-1";
     const callbackWaitingAutomation = buildCallbackWaitingAutomation();
+    const workflowSummaryProps = {
+      workflowCatalogGapSummary: "catalog gap · native.catalog-gap",
+      workflowCatalogGapDetail:
+        "当前 callback summary 对应的 workflow 版本仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy。",
+      workflowGovernanceHref: "/workflows/workflow-1?definition_issue=missing_tool",
+      legacyAuthHandoff: {
+        bindingChipLabel: "1 legacy bindings",
+        statusChipLabel: "publish auth blocker",
+        detail: "先替换 live published blockers。",
+        workflowSummary: {
+          workflow_id: "workflow-1",
+          workflow_name: "Workflow 1",
+          binding_count: 1,
+          draft_candidate_count: 0,
+          published_blocker_count: 1,
+          offline_inventory_count: 0,
+          tool_governance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0
+          }
+        }
+      }
+    };
     const callbackTickets: RunCallbackTicketItem[] = [
       {
         ticket: "callback-ticket-1",
@@ -348,7 +373,8 @@ describe("InlineOperatorActionFeedback", () => {
           },
           operatorFollowUp: "Open the approval inbox first.",
           preferCanonicalRecommendedNextStep: true,
-          showSensitiveAccessInlineActions: false
+          showSensitiveAccessInlineActions: false,
+          ...workflowSummaryProps
         }
       })
     );
@@ -373,6 +399,15 @@ describe("InlineOperatorActionFeedback", () => {
     expect(callbackSummaryProps[0]?.operatorFollowUp).toBe("Open the approval inbox first.");
     expect(callbackSummaryProps[0]?.preferCanonicalRecommendedNextStep).toBe(true);
     expect(callbackSummaryProps[0]?.showSensitiveAccessInlineActions).toBe(false);
+    expect(callbackSummaryProps[0]?.workflowCatalogGapSummary).toBe(
+      workflowSummaryProps.workflowCatalogGapSummary
+    );
+    expect(callbackSummaryProps[0]?.workflowGovernanceHref).toBe(
+      workflowSummaryProps.workflowGovernanceHref
+    );
+    expect(callbackSummaryProps[0]?.legacyAuthHandoff).toMatchObject({
+      bindingChipLabel: workflowSummaryProps.legacyAuthHandoff.bindingChipLabel
+    });
     expect(callbackSummaryProps[0]?.focusEvidenceDrilldownLink).toMatchObject({
       label: "jump to focused trace slice",
       href: "/runs/run-1?node_run_id=node-run-1#run-diagnostics-execution-timeline"

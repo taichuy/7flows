@@ -2,7 +2,9 @@ import type {
   CallbackWaitingAutomationCheck,
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
+import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 import type { RunExecutionView } from "@/lib/get-run-views";
+import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 
 import { RunDiagnosticsOperatorFollowUpCard } from "@/components/run-diagnostics-execution/operator-follow-up-card";
 import { RunDiagnosticsExecutionOverviewBlockers } from "@/components/run-diagnostics-execution/execution-overview-blockers";
@@ -12,11 +14,17 @@ import { MetricChipRow, SummaryCard } from "@/components/run-diagnostics-executi
 export function RunDiagnosticsExecutionOverview({
   executionView,
   callbackWaitingAutomation,
-  sandboxReadiness = null
+  sandboxReadiness = null,
+  workflowId = null,
+  toolGovernance = null,
+  legacyAuthGovernance = null
 }: {
   executionView: RunExecutionView | null;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  workflowId?: string | null;
+  toolGovernance?: WorkflowToolGovernanceSummary | null;
+  legacyAuthGovernance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
 }) {
   if (!executionView) {
     return <p className="empty-state">Execution view is unavailable for this run.</p>;
@@ -186,6 +194,9 @@ export function RunDiagnosticsExecutionOverview({
         executionView={executionView}
         callbackWaitingAutomation={callbackWaitingAutomation}
         sandboxReadiness={sandboxReadiness}
+        workflowId={workflowId}
+        toolGovernance={toolGovernance}
+        legacyAuthGovernance={legacyAuthGovernance}
       />
 
       {callbackWaiting.node_count > 0 ? (

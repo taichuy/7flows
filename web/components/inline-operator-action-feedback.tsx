@@ -396,6 +396,10 @@ export function InlineOperatorActionFeedback({
           showSensitiveAccessInlineActions={
             callbackWaitingSummaryProps?.showSensitiveAccessInlineActions ?? false
           }
+          workflowCatalogGapSummary={callbackWaitingSummaryProps?.workflowCatalogGapSummary}
+          workflowCatalogGapDetail={callbackWaitingSummaryProps?.workflowCatalogGapDetail}
+          workflowGovernanceHref={callbackWaitingSummaryProps?.workflowGovernanceHref}
+          legacyAuthHandoff={callbackWaitingSummaryProps?.legacyAuthHandoff ?? null}
           focusEvidenceDrilldownLink={focusEvidenceDrilldownLink}
         />
       ) : (

@@ -3,7 +3,9 @@ import type {
   CallbackWaitingAutomationCheck,
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
+import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 import type { RunExecutionNodeItem, RunExecutionSkillTrace } from "@/lib/get-run-views";
+import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 import {
   formatDuration,
   formatDurationMs,
@@ -36,6 +38,10 @@ import {
 import { buildOperatorTraceSliceLinkSurface } from "@/lib/operator-follow-up-presenters";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 import { resolveSensitiveAccessTimelineEntryRunId } from "@/lib/sensitive-access";
+import {
+  buildWorkflowCatalogGapDetail,
+  buildWorkflowGovernanceHandoff
+} from "@/lib/workflow-governance-handoff";
 import { buildRunDetailHref } from "@/lib/workbench-links";
 
 function formatExecutionBackendExtensions(
@@ -101,13 +107,19 @@ export function ExecutionNodeCard({
   runId,
   callbackWaitingAutomation,
   sandboxReadiness = null,
-  skillTrace = null
+  skillTrace = null,
+  workflowId = null,
+  toolGovernance = null,
+  legacyAuthGovernance = null
 }: {
   node: RunExecutionNodeItem;
   runId: string;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
   skillTrace?: RunExecutionSkillTrace | null;
+  workflowId?: string | null;
+  toolGovernance?: WorkflowToolGovernanceSummary | null;
+  legacyAuthGovernance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
 }) {
   const currentRunHref = buildRunDetailHref(runId);
   const focusEvidenceDrilldownLink = buildOperatorTraceSliceLinkSurface({
@@ -146,6 +158,18 @@ export function ExecutionNodeCard({
   const hasCallbackWaitingSummary = hasExecutionNodeCallbackWaitingSummaryFacts(node);
   const rawBlockingCopy = formatExecutionBlockingReasonCopy(node.execution_blocking_reason);
   const nodeSkillTrace = pickCallbackWaitingSkillTraceForNode(skillTrace, node.node_run_id);
+  const callbackSummaryWorkflowCatalogGapDetail = buildWorkflowCatalogGapDetail({
+    toolGovernance,
+    subjectLabel: "execution timeline",
+    returnDetail:
+      "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照当前 node timeline、callback lifecycle 与 artifacts。"
+  });
+  const callbackSummaryWorkflowGovernanceHandoff = buildWorkflowGovernanceHandoff({
+    workflowId,
+    toolGovernance,
+    legacyAuthGovernance,
+    workflowCatalogGapDetail: callbackSummaryWorkflowCatalogGapDetail
+  });
   const surfaceCopy = buildExecutionNodeDiagnosticsSurfaceCopy();
 
   return (
@@ -300,6 +324,26 @@ export function ExecutionNodeCard({
         scheduledResumeDueAt={node.scheduled_resume_due_at}
         scheduledResumeRequeuedAt={node.scheduled_resume_requeued_at}
         scheduledResumeRequeueSource={node.scheduled_resume_requeue_source}
+        workflowCatalogGapSummary={
+          hasCallbackWaitingSummary
+            ? callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapSummary
+            : null
+        }
+        workflowCatalogGapDetail={
+          hasCallbackWaitingSummary
+            ? callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapDetail
+            : null
+        }
+        workflowGovernanceHref={
+          hasCallbackWaitingSummary
+            ? callbackSummaryWorkflowGovernanceHandoff.workflowGovernanceHref
+            : null
+        }
+        legacyAuthHandoff={
+          hasCallbackWaitingSummary
+            ? callbackSummaryWorkflowGovernanceHandoff.legacyAuthHandoff
+            : null
+        }
       />
 
       <MetricChipRow

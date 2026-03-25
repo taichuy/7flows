@@ -5,6 +5,7 @@ import { CallbackWaitingInlineActions } from "@/components/callback-waiting-inli
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import { formatSensitiveResourceGovernanceSummary } from "@/lib/credential-governance";
 import type {
   CallbackWaitingLifecycleSummary,
@@ -16,6 +17,7 @@ import type {
 } from "@/lib/get-run-views";
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
+import type { LegacyPublishAuthWorkflowHandoff } from "@/lib/legacy-publish-auth-governance-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
 import { buildCallbackWaitingFocusSkillTraceModel } from "@/lib/callback-waiting-focus-skill-trace";
 import {
@@ -103,6 +105,10 @@ type CallbackWaitingSummaryCardProps = {
   showSensitiveAccessInlineActions?: boolean;
   showCallbackInlineActions?: boolean;
   suppressSensitiveAccessContextRows?: boolean;
+  workflowCatalogGapSummary?: string | null;
+  workflowCatalogGapDetail?: string | null;
+  workflowGovernanceHref?: string | null;
+  legacyAuthHandoff?: LegacyPublishAuthWorkflowHandoff | null;
   className?: string;
 };
 
@@ -151,6 +157,10 @@ export function CallbackWaitingSummaryCard({
   showSensitiveAccessInlineActions,
   showCallbackInlineActions,
   suppressSensitiveAccessContextRows = false,
+  workflowCatalogGapSummary = null,
+  workflowCatalogGapDetail = null,
+  workflowGovernanceHref = null,
+  legacyAuthHandoff = null,
   className = ""
 }: CallbackWaitingSummaryCardProps) {
   const surfaceCopy = buildCallbackWaitingSummarySurfaceCopy();
@@ -310,6 +320,15 @@ export function CallbackWaitingSummaryCard({
   const combinedChips = [...chips, ...summarySensitiveAccessChips];
   const terminationAt = formatTimestamp(lifecycle?.terminated_at);
   const hasTermination = Boolean(lifecycle?.terminated);
+  const workflowGovernanceSummaryProps =
+    workflowCatalogGapSummary || workflowCatalogGapDetail || workflowGovernanceHref || legacyAuthHandoff
+      ? {
+          workflowCatalogGapSummary,
+          workflowCatalogGapDetail,
+          workflowGovernanceHref,
+          legacyAuthHandoff
+        }
+      : {};
   const preferredInlineAction =
     recommendedAction?.kind === "manual_resume"
       ? "resume"
@@ -327,7 +346,8 @@ export function CallbackWaitingSummaryCard({
     showSensitiveAccessInlineActions: false,
     recommendedAction: canonicalRecommendedAction,
     operatorFollowUp,
-    preferCanonicalRecommendedNextStep
+    preferCanonicalRecommendedNextStep,
+    ...workflowGovernanceSummaryProps
   };
   const callbackInlineActionTitle = buildCallbackWaitingInlineActionTitle({
     actionKind: recommendedAction?.kind ?? null,
@@ -446,6 +466,12 @@ export function CallbackWaitingSummaryCard({
           ) : null}
         </div>
       ) : null}
+      <WorkflowGovernanceHandoffCards
+        workflowCatalogGapSummary={workflowCatalogGapSummary}
+        workflowCatalogGapDetail={workflowCatalogGapDetail}
+        workflowGovernanceHref={workflowGovernanceHref}
+        legacyAuthHandoff={legacyAuthHandoff}
+      />
       {focusExecutionFactBadges.length ? (
         <div className="tool-badge-row">
           {focusExecutionFactBadges.map((badge) => (
@@ -534,7 +560,8 @@ export function CallbackWaitingSummaryCard({
             showSensitiveAccessInlineActions: shouldShowSensitiveAccessInlineActions,
             recommendedAction: canonicalRecommendedAction,
             operatorFollowUp,
-            preferCanonicalRecommendedNextStep
+            preferCanonicalRecommendedNextStep,
+            ...workflowGovernanceSummaryProps
           }}
           compact
           nodeRunId={inlineActionNodeRunId}

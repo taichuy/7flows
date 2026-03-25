@@ -8,6 +8,7 @@ import type {
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
 import type { RunExecutionNodeItem, RunExecutionSkillTrace } from "@/lib/get-run-views";
+import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 
 const sensitiveAccessTimelineProps: Array<Record<string, unknown>> = [];
 
@@ -19,7 +20,10 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
     focusSkillReferenceLoads,
     focusSkillReferenceCount,
     focusSkillReferenceNodeId,
-    focusSkillReferenceNodeName
+    focusSkillReferenceNodeName,
+    workflowCatalogGapSummary,
+    workflowGovernanceHref,
+    legacyAuthHandoff
   }: {
     focusNodeEvidence?: {
       artifacts?: unknown[];
@@ -43,6 +47,11 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
     focusSkillReferenceCount?: number | null;
     focusSkillReferenceNodeId?: string | null;
     focusSkillReferenceNodeName?: string | null;
+    workflowCatalogGapSummary?: string | null;
+    workflowGovernanceHref?: string | null;
+    legacyAuthHandoff?: {
+      bindingChipLabel?: string | null;
+    } | null;
   }) =>
     createElement(
       "div",
@@ -57,7 +66,9 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
         `trace node ${focusSkillTrace?.nodes?.[0]?.node_run_id ?? "n/a"} ` +
         `skill loads ${(focusSkillReferenceLoads?.length ?? 0).toString()} ` +
         `skill refs ${(focusSkillReferenceCount ?? 0).toString()} ` +
-        `skill node ${focusSkillReferenceNodeId ?? "n/a"} ${focusSkillReferenceNodeName ?? "n/a"}`
+        `skill node ${focusSkillReferenceNodeId ?? "n/a"} ${focusSkillReferenceNodeName ?? "n/a"} ` +
+        `workflow ${workflowCatalogGapSummary ?? "none"} ${workflowGovernanceHref ?? "none"} ` +
+        `legacy auth ${legacyAuthHandoff?.bindingChipLabel ?? "none"}`
     )
 }));
 
@@ -426,6 +437,33 @@ describe("ExecutionNodeCard", () => {
     expect(html).toContain("trace refs 1");
     expect(html).toContain("trace nodes 1");
     expect(html).toContain("trace node node-run-callback");
+  });
+
+  it("keeps workflow governance handoff inside timeline callback summaries", () => {
+    const html = renderToStaticMarkup(
+      createElement(ExecutionNodeCard, {
+        node: buildExecutionNode(),
+        runId: "run-callback-1",
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        workflowId: "workflow-1",
+        toolGovernance: {
+          referenced_tool_ids: ["native.catalog-gap"],
+          missing_tool_ids: ["native.catalog-gap"],
+          governed_tool_count: 0,
+          strong_isolation_tool_count: 0
+        },
+        legacyAuthGovernance: buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+          binding: {
+            workflow_id: "workflow-1",
+            workflow_name: "Workflow 1"
+          }
+        })
+      })
+    );
+
+    expect(html).toContain("workflow catalog gap · native.catalog-gap");
+    expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
+    expect(html).toContain("legacy auth 1 legacy bindings");
   });
 
   it("surfaces compact runner facts in the node header strip", () => {

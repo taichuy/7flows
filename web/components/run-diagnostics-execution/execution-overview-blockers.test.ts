@@ -9,6 +9,7 @@ import type {
 } from "@/lib/get-system-overview";
 import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
 import type { RunExecutionNodeItem, RunExecutionSkillTrace, RunExecutionView } from "@/lib/get-run-views";
+import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 
 vi.mock("@/components/callback-waiting-summary-card", () => ({
   CallbackWaitingSummaryCard: ({
@@ -16,7 +17,10 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
     focusSkillTrace,
     focusSkillReferenceCount,
     focusSkillReferenceNodeName,
-    nodeRunId
+    nodeRunId,
+    workflowCatalogGapSummary,
+    workflowGovernanceHref,
+    legacyAuthHandoff
   }: {
     focusEvidenceDrilldownLink?: {
       href?: string | null;
@@ -32,6 +36,11 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
     focusSkillReferenceCount?: number | null;
     focusSkillReferenceNodeName?: string | null;
     nodeRunId?: string | null;
+    workflowCatalogGapSummary?: string | null;
+    workflowGovernanceHref?: string | null;
+    legacyAuthHandoff?: {
+      bindingChipLabel?: string | null;
+    } | null;
   }) =>
     createElement(
       "div",
@@ -42,7 +51,9 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
         `trace nodes ${(focusSkillTrace?.nodes?.length ?? 0).toString()} ` +
         `trace node ${focusSkillTrace?.nodes?.[0]?.node_run_id ?? "n/a"} ` +
         `fallback refs ${(focusSkillReferenceCount ?? 0).toString()} ` +
-        `fallback node ${focusSkillReferenceNodeName ?? "n/a"}`
+        `fallback node ${focusSkillReferenceNodeName ?? "n/a"} ` +
+        `workflow ${workflowCatalogGapSummary ?? "none"} ${workflowGovernanceHref ?? "none"} ` +
+        `legacy auth ${legacyAuthHandoff?.bindingChipLabel ?? "none"}`
     )
 }));
 
@@ -456,6 +467,32 @@ describe("RunDiagnosticsExecutionOverviewBlockers", () => {
     expect(html).toContain("executor tool-runtime");
     expect(html).toContain("backend sandbox-default");
     expect(html).toContain("runner tool");
+  });
+
+  it("keeps workflow governance handoff on callback blocker cards", () => {
+    const html = renderToStaticMarkup(
+      createElement(RunDiagnosticsExecutionOverviewBlockers, {
+        executionView: buildExecutionView(),
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        workflowId: "workflow-1",
+        toolGovernance: {
+          referenced_tool_ids: ["native.catalog-gap"],
+          missing_tool_ids: ["native.catalog-gap"],
+          governed_tool_count: 0,
+          strong_isolation_tool_count: 0
+        },
+        legacyAuthGovernance: buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+          binding: {
+            workflow_id: "workflow-1",
+            workflow_name: "Workflow 1"
+          }
+        })
+      })
+    );
+
+    expect(html).toContain("workflow catalog gap · native.catalog-gap");
+    expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
+    expect(html).toContain("legacy auth 1 legacy bindings");
   });
 
   it("surfaces canonical focus evidence for non-callback execution blockers", () => {

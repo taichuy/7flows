@@ -1,7 +1,9 @@
 import React from "react";
 
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
+import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 import type { RunExecutionNodeItem, RunExecutionView } from "@/lib/get-run-views";
+import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
@@ -35,6 +37,10 @@ import {
   listExecutionFocusToolCallSummaries
 } from "@/lib/run-execution-focus-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import {
+  buildWorkflowCatalogGapDetail,
+  buildWorkflowGovernanceHandoff
+} from "@/lib/workflow-governance-handoff";
 import { buildRunDetailHref } from "@/lib/workbench-links";
 
 function buildNodeInboxHref(node: RunExecutionNodeItem, defaultRunId?: string | null): string | null {
@@ -69,15 +75,21 @@ function pickNodeSkillReferenceLoads(
 function renderNodeFollowUp({
   callbackWaitingAutomation,
   inboxHref,
+  legacyAuthGovernance,
   node,
   runId,
-  skillTrace
+  skillTrace,
+  toolGovernance,
+  workflowId
 }: {
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   inboxHref: string | null;
+  legacyAuthGovernance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
   node: RunExecutionNodeItem;
   runId: string;
   skillTrace: RunExecutionView["skill_trace"];
+  toolGovernance?: WorkflowToolGovernanceSummary | null;
+  workflowId?: string | null;
 }) {
   const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
   const currentRunHref = buildRunDetailHref(runId);
@@ -100,6 +112,18 @@ function renderNodeFollowUp({
     scheduledResumeDueAt: node.scheduled_resume_due_at,
     scheduledResumeRequeuedAt: node.scheduled_resume_requeued_at,
     scheduledResumeRequeueSource: node.scheduled_resume_requeue_source
+  });
+  const callbackSummaryWorkflowCatalogGapDetail = buildWorkflowCatalogGapDetail({
+    toolGovernance,
+    subjectLabel: "priority blocker",
+    returnDetail:
+      "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照当前 blocker、callback summary 与 diagnostics trace。"
+  });
+  const callbackSummaryWorkflowGovernanceHandoff = buildWorkflowGovernanceHandoff({
+    workflowId,
+    toolGovernance,
+    legacyAuthGovernance,
+    workflowCatalogGapDetail: callbackSummaryWorkflowCatalogGapDetail
   });
 
   if (hasCallbackWaitingSummary) {
@@ -128,6 +152,16 @@ function renderNodeFollowUp({
         focusSkillReferenceLoads={node.skill_reference_loads}
         focusSkillReferenceNodeId={node.node_id}
         focusSkillReferenceNodeName={node.node_name}
+        workflowCatalogGapSummary={
+          callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapSummary
+        }
+        workflowCatalogGapDetail={
+          callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapDetail
+        }
+        workflowGovernanceHref={
+          callbackSummaryWorkflowGovernanceHandoff.workflowGovernanceHref
+        }
+        legacyAuthHandoff={callbackSummaryWorkflowGovernanceHandoff.legacyAuthHandoff}
         waitingReason={node.waiting_reason}
         focusEvidenceDrilldownLink={focusedTraceLink}
       />
@@ -157,11 +191,17 @@ function renderNodeFollowUp({
 export function RunDiagnosticsExecutionOverviewBlockers({
   executionView,
   callbackWaitingAutomation,
-  sandboxReadiness = null
+  sandboxReadiness = null,
+  workflowId = null,
+  toolGovernance = null,
+  legacyAuthGovernance = null
 }: {
   executionView: RunExecutionView;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  workflowId?: string | null;
+  toolGovernance?: WorkflowToolGovernanceSummary | null;
+  legacyAuthGovernance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
 }) {
   const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
   const focusNode = executionView.execution_focus_node ?? null;
@@ -223,9 +263,13 @@ export function RunDiagnosticsExecutionOverviewBlockers({
             {renderNodeFollowUp({
               callbackWaitingAutomation,
               inboxHref: buildNodeInboxHref(focusNode, executionView.run_id),
+              legacyAuthGovernance:
+                legacyAuthGovernance ?? executionView.legacy_auth_governance ?? null,
               node: focusNode,
               runId: executionView.run_id,
-              skillTrace
+              skillTrace,
+              toolGovernance,
+              workflowId: workflowId ?? executionView.workflow_id
             })}
           </article>
         </div>
@@ -280,9 +324,13 @@ export function RunDiagnosticsExecutionOverviewBlockers({
               {renderNodeFollowUp({
                 callbackWaitingAutomation,
                 inboxHref,
+                legacyAuthGovernance:
+                  legacyAuthGovernance ?? executionView.legacy_auth_governance ?? null,
                 node,
                 runId: executionView.run_id,
-                skillTrace
+                skillTrace,
+                toolGovernance,
+                workflowId: workflowId ?? executionView.workflow_id
               })}
             </article>
           );

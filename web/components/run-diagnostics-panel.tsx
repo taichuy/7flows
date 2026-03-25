@@ -180,6 +180,9 @@ export function RunDiagnosticsPanel({
         evidenceView={evidenceView}
         callbackWaitingAutomation={callbackWaitingAutomation}
         sandboxReadiness={sandboxReadiness}
+        workflowId={run.workflow_id}
+        toolGovernance={run.tool_governance ?? null}
+        legacyAuthGovernance={run.legacy_auth_governance ?? null}
         runDetailHref={runDetailHref}
       />
 

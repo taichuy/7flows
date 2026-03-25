@@ -2,7 +2,9 @@ import type {
   CallbackWaitingAutomationCheck,
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
+import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 import type { RunEvidenceView, RunExecutionView } from "@/lib/get-run-views";
+import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 
 import { EvidenceNodeCard } from "@/components/run-diagnostics-execution/evidence-node-card";
 import { ExecutionNodeCard } from "@/components/run-diagnostics-execution/execution-node-card";
@@ -18,6 +20,9 @@ type RunDiagnosticsExecutionSectionsProps = {
   evidenceView: RunEvidenceView | null;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  workflowId?: string | null;
+  toolGovernance?: WorkflowToolGovernanceSummary | null;
+  legacyAuthGovernance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
   runDetailHref?: string | null;
 };
 
@@ -26,6 +31,9 @@ export function RunDiagnosticsExecutionSections({
   evidenceView,
   callbackWaitingAutomation,
   sandboxReadiness = null,
+  workflowId = null,
+  toolGovernance = null,
+  legacyAuthGovernance = null,
   runDetailHref = null
 }: RunDiagnosticsExecutionSectionsProps) {
   return (
@@ -47,6 +55,9 @@ export function RunDiagnosticsExecutionSections({
             executionView={executionView}
             callbackWaitingAutomation={callbackWaitingAutomation}
             sandboxReadiness={sandboxReadiness}
+            workflowId={workflowId}
+            toolGovernance={toolGovernance}
+            legacyAuthGovernance={legacyAuthGovernance}
           />
         </article>
 
@@ -93,6 +104,11 @@ export function RunDiagnosticsExecutionSections({
                   callbackWaitingAutomation={callbackWaitingAutomation}
                   sandboxReadiness={sandboxReadiness}
                   skillTrace={executionView.skill_trace ?? null}
+                  workflowId={workflowId ?? executionView.workflow_id}
+                  toolGovernance={toolGovernance}
+                  legacyAuthGovernance={
+                    legacyAuthGovernance ?? executionView.legacy_auth_governance ?? null
+                  }
                 />
               ))}
             </div>
