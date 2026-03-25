@@ -4,9 +4,12 @@ import { WorkbenchEntryLink } from "@/components/workbench-entry-links";
 import { WorkspaceStarterFollowUpCard } from "@/components/workspace-starter-library/follow-up-card";
 import type { WorkspaceStarterSourceDiff } from "@/lib/get-workspace-starters";
 import type { WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
+import type { WorkflowDefinitionToolGovernance } from "@/lib/workflow-definition-tool-governance";
+import type { WorkspaceStarterGovernanceQueryScope } from "@/lib/workspace-starter-governance-query";
 
 import {
   buildWorkspaceStarterEmptyStateFollowUp,
+  buildWorkspaceStarterMissingToolGovernanceSurface,
   buildWorkspaceStarterSourceDiffPanelCopy,
   buildWorkspaceStarterSourceDiffSurface,
   buildWorkspaceStarterTemplateFollowUpSurface,
@@ -20,6 +23,8 @@ type WorkspaceStarterSourceDiffPanelProps = {
   isLoading: boolean;
   isRebasing: boolean;
   createWorkflowHref?: string | null;
+  selectedTemplateToolGovernance?: WorkflowDefinitionToolGovernance | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
   emptyStateFollowUp?: WorkspaceStarterFollowUpSurface | null;
   onRebase: () => void;
 };
@@ -30,11 +35,20 @@ export function WorkspaceStarterSourceDiffPanel({
   isLoading,
   isRebasing,
   createWorkflowHref = null,
+  selectedTemplateToolGovernance = null,
+  workspaceStarterGovernanceQueryScope = null,
   emptyStateFollowUp = null,
   onRebase
 }: WorkspaceStarterSourceDiffPanelProps) {
   const surfaceCopy = buildWorkspaceStarterSourceDiffPanelCopy();
   const surface = buildWorkspaceStarterSourceDiffSurface(sourceDiff);
+  const missingToolGovernanceSurface = selectedTemplate
+    ? buildWorkspaceStarterMissingToolGovernanceSurface({
+        template: selectedTemplate,
+        missingToolIds: selectedTemplateToolGovernance?.missingToolIds ?? [],
+        workspaceStarterGovernanceQueryScope
+      })
+    : null;
   const resolvedEmptyStateFollowUp =
     emptyStateFollowUp ??
     (createWorkflowHref
@@ -52,11 +66,14 @@ export function WorkspaceStarterSourceDiffPanel({
   const selectedTemplateFollowUp = buildWorkspaceStarterTemplateFollowUpSurface({
     template: selectedTemplate,
     createWorkflowHref,
+    workspaceStarterGovernanceQueryScope,
     fallbackHeadline: "当前 starter 还没有 source diff 快照。",
     fallbackDetail:
       "先在上方来源治理卡里确认该 starter 的来源状态，再决定 refresh / rebase / create workflow。"
   });
-  const emptyPanelFollowUp = selectedTemplate ? selectedTemplateFollowUp : resolvedEmptyStateFollowUp;
+  const emptyPanelFollowUp = selectedTemplate
+    ? missingToolGovernanceSurface ?? selectedTemplateFollowUp
+    : resolvedEmptyStateFollowUp;
 
   return (
     <article className="diagnostic-panel">

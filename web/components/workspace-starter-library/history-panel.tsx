@@ -8,12 +8,15 @@ import type {
   WorkspaceStarterHistoryItem,
   WorkspaceStarterTemplateItem
 } from "@/lib/get-workspace-starters";
+import type { WorkflowDefinitionToolGovernance } from "@/lib/workflow-definition-tool-governance";
+import type { WorkspaceStarterGovernanceQueryScope } from "@/lib/workspace-starter-governance-query";
 
 import {
   buildWorkspaceStarterEmptyStateFollowUp,
   buildWorkspaceStarterHistoryPayloadSnapshot,
   buildWorkspaceStarterHistoryMetaChips,
   buildWorkspaceStarterHistoryNarrative,
+  buildWorkspaceStarterMissingToolGovernanceSurface,
   buildWorkspaceStarterTemplateFollowUpSurface,
   type WorkspaceStarterFollowUpSurface,
   formatTimestamp
@@ -24,6 +27,8 @@ type WorkspaceStarterHistoryPanelProps = {
   historyItems: WorkspaceStarterHistoryItem[];
   isLoading: boolean;
   createWorkflowHref?: string | null;
+  selectedTemplateToolGovernance?: WorkflowDefinitionToolGovernance | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
   emptyStateFollowUp?: WorkspaceStarterFollowUpSurface | null;
 };
 
@@ -32,8 +37,17 @@ export function WorkspaceStarterHistoryPanel({
   historyItems,
   isLoading,
   createWorkflowHref = null,
+  selectedTemplateToolGovernance = null,
+  workspaceStarterGovernanceQueryScope = null,
   emptyStateFollowUp = null
 }: WorkspaceStarterHistoryPanelProps) {
+  const missingToolGovernanceSurface = selectedTemplate
+    ? buildWorkspaceStarterMissingToolGovernanceSurface({
+        template: selectedTemplate,
+        missingToolIds: selectedTemplateToolGovernance?.missingToolIds ?? [],
+        workspaceStarterGovernanceQueryScope
+      })
+    : null;
   const resolvedEmptyStateFollowUp =
     emptyStateFollowUp ??
     (createWorkflowHref
@@ -51,11 +65,14 @@ export function WorkspaceStarterHistoryPanel({
   const historyEmptyStateFollowUp = buildWorkspaceStarterTemplateFollowUpSurface({
     template: selectedTemplate,
     createWorkflowHref,
+    workspaceStarterGovernanceQueryScope,
     fallbackHeadline: "当前 starter 还没有治理历史记录。",
     fallbackDetail:
       "先完成一次 refresh / rebase / 元数据调整、归档或恢复动作，这里才会留下可追溯的结构化治理记录。"
   });
-  const emptyPanelFollowUp = selectedTemplate ? historyEmptyStateFollowUp : resolvedEmptyStateFollowUp;
+  const emptyPanelFollowUp = selectedTemplate
+    ? missingToolGovernanceSurface ?? historyEmptyStateFollowUp
+    : resolvedEmptyStateFollowUp;
 
   return (
     <article className="diagnostic-panel">

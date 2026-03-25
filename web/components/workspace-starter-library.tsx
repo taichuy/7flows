@@ -194,6 +194,8 @@ export function WorkspaceStarterLibrary({
             historyItems={historyItems}
             isLoading={isLoadingHistory}
             createWorkflowHref={selectedTemplate?.archived ? null : createWorkflowHref}
+            selectedTemplateToolGovernance={selectedTemplateToolGovernance}
+            workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
             emptyStateFollowUp={emptyStateFollowUp}
           />
           <WorkspaceStarterSourceDiffPanel
@@ -202,6 +204,8 @@ export function WorkspaceStarterLibrary({
             isLoading={isLoadingSourceDiff}
             isRebasing={isRebasing}
             createWorkflowHref={selectedTemplate?.archived ? null : createWorkflowHref}
+            selectedTemplateToolGovernance={selectedTemplateToolGovernance}
+            workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
             emptyStateFollowUp={emptyStateFollowUp}
             onRebase={handleRebaseFromSource}
           />
