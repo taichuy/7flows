@@ -138,7 +138,7 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
               <strong>{selectedTemplateToolGovernance.strongIsolationToolCount}</strong>
             </div>
             <div className="summary-card">
-              <span>Missing catalog tools</span>
+              <span>Catalog gaps</span>
               <strong>{selectedTemplateToolGovernance.missingToolIds.length}</strong>
             </div>
             <div className="summary-card">

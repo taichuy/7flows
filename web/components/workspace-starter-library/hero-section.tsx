@@ -42,7 +42,7 @@ export function WorkspaceStarterHeroSection({
           <span className="pill">{filteredTemplateCount} visible templates</span>
           <span className="pill">{governedTemplateCount} governed tool starters</span>
           <span className="pill">{strongIsolationTemplateCount} strong isolation starters</span>
-          <span className="pill">{missingToolTemplateCount} missing tool starters</span>
+          <span className="pill">{missingToolTemplateCount} catalog gap starters</span>
         </div>
         <div className="hero-actions">
           <WorkbenchEntryLinks {...surfaceCopy.heroLinks} />

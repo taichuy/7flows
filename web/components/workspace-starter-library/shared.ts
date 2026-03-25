@@ -39,6 +39,10 @@ import {
 } from "@/lib/workspace-starter-governance-query";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 import { appendWorkflowLibraryViewState } from "@/lib/workflow-library-query";
+import {
+  formatCatalogGapSummary,
+  formatCatalogGapToolSummary
+} from "@/lib/workflow-definition-governance";
 
 export {
   DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE,
@@ -902,9 +906,7 @@ export function buildWorkspaceStarterMissingToolGovernanceSurface({
     normalizeString(template.source_governance?.source_workflow_id) ??
     normalizeString(template.created_from_workflow_id);
   const renderedToolSummary =
-    normalizedMissingToolIds.length === 1
-      ? normalizedMissingToolIds[0]
-      : `${normalizedMissingToolIds.slice(0, 2).join("、")} 等 ${normalizedMissingToolIds.length} 个 tool`;
+    formatCatalogGapToolSummary(normalizedMissingToolIds) ?? "unknown tool";
   const detail = sourceWorkflowId
     ? `当前 starter 仍引用目录里不存在的 tool：${renderedToolSummary}；先回源 workflow 补齐 tool binding，再回来继续复用或创建。`
     : `当前 starter 仍引用目录里不存在的 tool：${renderedToolSummary}；先同步 workspace plugin catalog，或切换到仍可用的 starter。`;
@@ -934,11 +936,7 @@ export function buildWorkspaceStarterMissingToolGovernanceSurface({
       sourceWorkflowVersion:
         normalizeString(template.source_governance?.source_version) ??
         normalizeString(template.created_from_workflow_version),
-      statusLabels: [
-        normalizedMissingToolIds.length === 1
-          ? `missing tool ${normalizedMissingToolIds[0]}`
-          : `${normalizedMissingToolIds.length} missing tools`
-      ],
+      statusLabels: [formatCatalogGapSummary(normalizedMissingToolIds)],
       archived: template.archived
     }),
     focusTemplateId: null,

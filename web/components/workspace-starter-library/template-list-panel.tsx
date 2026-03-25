@@ -367,7 +367,7 @@ export function WorkspaceStarterTemplateListPanel({
                         <span className="event-chip">strong isolation</span>
                       ) : null}
                       {toolGovernance && toolGovernance.missingToolIds.length > 0 ? (
-                        <span className="event-chip">missing tools</span>
+                        <span className="event-chip">catalog gap</span>
                       ) : null}
                       {template.archived ? <span className="event-chip">archived</span> : null}
                     </div>
@@ -415,7 +415,7 @@ export function WorkspaceStarterTemplateListPanel({
                   </div>
                   {toolGovernance && toolGovernance.missingToolIds.length > 0 ? (
                     <p className="binding-meta">
-                      缺少 catalog tool：{toolGovernance.missingToolIds.slice(0, 2).join("、")}
+                      catalog gap：{toolGovernance.missingToolIds.slice(0, 2).join("、")}
                       {toolGovernance.missingToolIds.length > 2
                         ? ` 等 ${toolGovernance.missingToolIds.length} 个`
                         : ""}

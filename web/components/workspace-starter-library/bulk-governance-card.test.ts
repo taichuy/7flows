@@ -588,7 +588,7 @@ describe("WorkspaceStarterBulkGovernanceCard", () => {
     expect(html).toContain("catalog gap");
     expect(html).toContain("native.catalog-gap");
     expect(html).toContain(
-      "Primary governed starter: Catalog gap starter · missing tool native.catalog-gap · source 0.4.0."
+      "Primary governed starter: Catalog gap starter · catalog gap · native.catalog-gap · source 0.4.0."
     );
     expect(html).toContain("打开源 workflow");
     expect(html).toContain("definition_issue=missing_tool");

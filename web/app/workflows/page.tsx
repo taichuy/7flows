@@ -40,7 +40,11 @@ import {
 import { getWorkflows, type WorkflowListItem } from "@/lib/get-workflows";
 import { buildLegacyPublishAuthModeFollowUp } from "@/lib/legacy-publish-auth-contract";
 import { formatCountMap } from "@/lib/runtime-presenters";
-import { getWorkflowLegacyPublishAuthIssues } from "@/lib/workflow-definition-governance";
+import {
+  formatCatalogGapResourceSummary,
+  formatCatalogGapToolSummary,
+  getWorkflowLegacyPublishAuthIssues
+} from "@/lib/workflow-definition-governance";
 import {
   appendWorkflowLibraryViewState,
   readWorkflowLibraryViewState,
@@ -247,7 +251,7 @@ export default async function WorkflowsPage({
               }`}
               href={missingToolFilterHref}
             >
-              Missing catalog tool
+              Catalog gap
             </Link>
           </div>
 
@@ -258,7 +262,7 @@ export default async function WorkflowsPage({
             </p>
           ) : isMissingToolFilterActive ? (
             <p className="section-copy">
-              当前列表只显示缺失 catalog tool 的 workflow，共 {workflows.length} / {summary.workflowCount} 个
+              当前列表只显示存在 catalog gap 的 workflow，共 {workflows.length} / {summary.workflowCount} 个
               workflow；优先回 editor 补齐缺失 binding，再继续排查其余治理信号。
             </p>
           ) : null}
@@ -270,7 +274,7 @@ export default async function WorkflowsPage({
                 summary.workflowCount > 0
                   ? isLegacyPublishAuthFilterActive
                     ? "当前筛选范围里已经没有 legacy publish auth blocker。可以清除筛选，继续检查其余 workflow 治理信号。"
-                    : "当前筛选范围里已经没有缺失 catalog tool 的 workflow。可以清除筛选，继续检查其余 workflow 治理信号。"
+                    : "当前筛选范围里已经没有存在 catalog gap 的 workflow。可以清除筛选，继续检查其余 workflow 治理信号。"
                   : surfaceCopy.emptyState}
               </p>
               {(isLegacyPublishAuthFilterActive || isMissingToolFilterActive) &&
@@ -405,7 +409,10 @@ export default async function WorkflowsPage({
                   }).href}
                   key={`${workflow.id}-missing-tool`}
                 >
-                  {workflow.name} · missing tools
+                  {formatCatalogGapResourceSummary(
+                    workflow.name,
+                    workflow.tool_governance?.missing_tool_ids ?? []
+                  ) ?? `${workflow.name} · catalog gap`}
                 </Link>
               ))
             )}
@@ -537,13 +544,15 @@ function buildWorkflowLibraryRecommendedNextStep({
       variant: "editor",
       workflowLibraryViewState
     });
-    const missingToolCount = workflowMissingTools.tool_governance?.missing_tool_ids.length ?? 0;
+    const primaryCatalogGapTools =
+      formatCatalogGapToolSummary(workflowMissingTools.tool_governance?.missing_tool_ids ?? []) ??
+      "缺失 binding";
 
     return {
       label: "tool governance",
       detail:
         `当前 ${summary.workflowMissingToolCount} 个 workflow 仍缺少 catalog tool 绑定；` +
-        `优先回到 ${workflowMissingTools.name} 补齐 ${missingToolCount} 个 missing tool，再继续清理其余条目。`,
+        `优先回到 ${workflowMissingTools.name} 补齐 catalog gap（${primaryCatalogGapTools}），再继续清理其余条目。`,
       href: workflowLink.href,
       href_label: workflowLink.label
     };

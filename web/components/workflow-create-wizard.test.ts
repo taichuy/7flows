@@ -897,13 +897,13 @@ describe("WorkflowCreateWizard", () => {
     expect(html).toContain("当前 starter 仍引用目录里不存在的 tool：native.missing");
     expect(html).toContain("如果现在创建，API 会直接拒绝该草稿");
     expect(html).toContain(
-      "Primary governed starter: Missing Tool Starter · missing tool native.missing."
+      "Primary governed starter: Missing Tool Starter · catalog gap · native.missing."
     );
     expect(html).toContain("打开源 workflow");
     expect(html).toContain('/workflows/wf-missing-tool?');
     expect(html).toContain('definition_issue=missing_tool');
     expect(html).toContain('starter=workspace-starter-missing-tool');
-    expect(html).toContain("当前 starter 仍缺少 1 个 catalog tool");
+    expect(html).toContain("当前 starter 仍有 catalog gap（native.missing）");
     expect(html).toContain("先补 tool binding");
     expect(html).toContain('disabled=""');
   });

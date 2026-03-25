@@ -234,7 +234,7 @@ describe("WorkspaceStarterSourceCard", () => {
     expect(html).toContain("catalog gap");
     expect(html).toContain("Next step</span><strong>catalog gap");
     expect(html).toContain(
-      "Primary governed starter: Missing Tool Starter · missing tool native.missing · source 0.4.0."
+      "Primary governed starter: Missing Tool Starter · catalog gap · native.missing · source 0.4.0."
     );
     expect(html).toContain(
       "当前 starter 仍引用目录里不存在的 tool：native.missing；先回源 workflow 补齐 tool binding，再回来继续复用或创建。"

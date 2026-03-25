@@ -26,6 +26,10 @@ import {
   buildWorkflowDefinitionSandboxGovernanceBadges,
   describeWorkflowDefinitionSandboxDependency
 } from "@/lib/workflow-definition-sandbox-governance";
+import {
+  formatCatalogGapResourceSummary,
+  formatCatalogGapToolSummary
+} from "@/lib/workflow-definition-governance";
 import type {
   WorkflowLibrarySourceLane,
   WorkflowLibraryStarterItem,
@@ -921,12 +925,9 @@ function buildWorkflowCreateStarterMissingToolGovernanceSurface({
 
   const sourceWorkflowId =
     starter.sourceGovernance?.sourceWorkflowId?.trim() || starter.createdFromWorkflowId?.trim();
-  const renderedToolSummary =
-    missingToolIds.length === 1
-      ? missingToolIds[0]
-      : `${missingToolIds.slice(0, 2).join("、")} 等 ${missingToolIds.length} 个 tool`;
+  const renderedToolSummary = formatCatalogGapToolSummary(missingToolIds) ?? "unknown tool";
   const blockedMessage =
-    `当前 starter 仍缺少 ${missingToolIds.length} 个 catalog tool；` +
+    `当前 starter 仍有 catalog gap（${renderedToolSummary}）；` +
     "先沿上面的治理入口补齐 binding，再回来创建草稿。";
 
   if (!sourceWorkflowId) {
@@ -936,9 +937,8 @@ function buildWorkflowCreateStarterMissingToolGovernanceSurface({
         `当前 starter 仍引用目录里不存在的 tool：${renderedToolSummary}；` +
         "如果现在创建，API 会直接拒绝该草稿。先同步 workspace plugin catalog，或切换到仍可用的 starter。",
       primaryResourceSummary:
-        missingToolIds.length === 1
-          ? `${starter.name} · missing tool ${missingToolIds[0]}`
-          : `${starter.name} · ${missingToolIds.length} missing tools`,
+        formatCatalogGapResourceSummary(starter.name, missingToolIds) ??
+        `${starter.name} · catalog gap`,
       blockedMessage,
       missingToolIds,
       href: null,
@@ -958,9 +958,8 @@ function buildWorkflowCreateStarterMissingToolGovernanceSurface({
       `当前 starter 仍引用目录里不存在的 tool：${renderedToolSummary}；` +
       "如果现在创建，API 会直接拒绝该草稿。先回源 workflow 补齐 tool binding，再回来继续创建。",
     primaryResourceSummary:
-      missingToolIds.length === 1
-        ? `${starter.name} · missing tool ${missingToolIds[0]}`
-        : `${starter.name} · ${missingToolIds.length} missing tools`,
+      formatCatalogGapResourceSummary(starter.name, missingToolIds) ??
+      `${starter.name} · catalog gap`,
     blockedMessage,
     missingToolIds,
     href: appendWorkflowLibraryViewState(sourceWorkflowLink.href, {

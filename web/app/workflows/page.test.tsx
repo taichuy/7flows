@@ -220,7 +220,7 @@ describe("WorkflowsPage", () => {
     expect(html).toContain('/runs');
     expect(html).toContain('/sensitive-access');
     expect(html).toContain("draft:1 / published:1");
-    expect(html).toContain("Alpha workflow · missing tools");
+    expect(html).toContain("Alpha workflow · catalog gap · tool-missing");
     expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
     expect(html).toContain("跨 workflow catalog gap handoff");
     expect(html).toContain("只看 missing-tool workflow");
@@ -232,7 +232,7 @@ describe("WorkflowsPage", () => {
     expect(html).toContain("强隔离路径会按 execution class fail-closed：sandbox 当前 blocked。");
     expect(html).toContain("Recommended next step");
     expect(html).toContain("tool governance");
-    expect(html).toContain("优先回到 Alpha workflow 补齐 1 个 missing tool");
+    expect(html).toContain("优先回到 Alpha workflow 补齐 catalog gap（tool-missing）");
     expect(html).toContain('/workflows/workflow-1');
     expect(html).toContain("回到 workflow 编辑器");
   });
@@ -629,7 +629,7 @@ describe("WorkflowsPage", () => {
     expect(html).not.toContain('/workflows/workflow-clean?definition_issue=legacy_publish_auth');
   });
 
-  it("filters the workflow chip list down to missing tool blockers", async () => {
+  it("filters the workflow chip list down to catalog gap blockers", async () => {
     vi.mocked(getWorkflows).mockReset();
     vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
@@ -682,7 +682,7 @@ describe("WorkflowsPage", () => {
     expect(getWorkflows).toHaveBeenNthCalledWith(2, {
       definitionIssue: "missing_tool"
     });
-    expect(html).toContain("当前列表只显示缺失 catalog tool 的 workflow，共 1 / 2 个 workflow");
+    expect(html).toContain("当前列表只显示存在 catalog gap 的 workflow，共 1 / 2 个 workflow");
     expect(html).toContain('/workflows/workflow-missing-tool?definition_issue=missing_tool');
     expect(html).toContain('/workflows?definition_issue=missing_tool');
     expect(html).not.toContain('/workflows/workflow-clean?definition_issue=missing_tool');
@@ -771,7 +771,7 @@ describe("WorkflowsPage", () => {
     expect(html).toContain("Governed starter 当前是 workflow library 空态下最先需要处理的 starter。");
     expect(html).toContain("catalog gap");
     expect(html).toContain(
-      "Primary governed starter: Governed starter · missing tool native.catalog-gap · source 0.4.0."
+      "Primary governed starter: Governed starter · catalog gap · native.catalog-gap · source 0.4.0."
     );
     expect(html).toContain(
       "当前 starter 仍引用目录里不存在的 tool：native.catalog-gap；先回源 workflow 补齐 tool binding，再回来继续复用或创建。"

@@ -29,13 +29,7 @@ export function hasOnlyLegacyPublishAuthModeIssues(
 export function getWorkflowMissingToolIds(
   workflow: WorkflowMissingToolGovernanceLike
 ): string[] {
-  return Array.from(
-    new Set(
-      (workflow.tool_governance?.missing_tool_ids ?? [])
-        .map((toolId) => normalizeString(toolId))
-        .filter((toolId): toolId is string => toolId !== null)
-    )
-  );
+  return normalizeCatalogGapToolIds(workflow.tool_governance?.missing_tool_ids ?? []);
 }
 
 export function hasWorkflowMissingToolIssues(
@@ -48,18 +42,55 @@ export function formatWorkflowMissingToolSummary(
   workflow: WorkflowMissingToolGovernanceLike,
   maxVisibleToolIds = 2
 ): string | null {
-  const missingToolIds = getWorkflowMissingToolIds(workflow);
-  if (missingToolIds.length === 0) {
+  return formatCatalogGapSummary(getWorkflowMissingToolIds(workflow), maxVisibleToolIds);
+}
+
+export function formatCatalogGapToolSummary(
+  toolIds: readonly unknown[],
+  maxVisibleToolIds = 2
+): string | null {
+  const normalizedToolIds = normalizeCatalogGapToolIds(toolIds);
+  if (normalizedToolIds.length === 0) {
     return null;
   }
 
-  if (missingToolIds.length <= maxVisibleToolIds) {
-    return `catalog gap · ${missingToolIds.join("、")}`;
+  if (normalizedToolIds.length <= maxVisibleToolIds) {
+    return normalizedToolIds.join("、");
   }
 
-  return `catalog gap · ${missingToolIds
-    .slice(0, maxVisibleToolIds)
-    .join("、")} 等 ${missingToolIds.length} 个 tool`;
+  return `${normalizedToolIds.slice(0, maxVisibleToolIds).join("、")} 等 ${normalizedToolIds.length} 个 tool`;
+}
+
+export function formatCatalogGapSummary(
+  toolIds: readonly unknown[],
+  maxVisibleToolIds = 2
+): string | null {
+  const toolSummary = formatCatalogGapToolSummary(toolIds, maxVisibleToolIds);
+  return toolSummary ? `catalog gap · ${toolSummary}` : null;
+}
+
+export function formatCatalogGapResourceSummary(
+  resourceLabel: string | null | undefined,
+  toolIds: readonly unknown[],
+  maxVisibleToolIds = 2
+): string | null {
+  const normalizedResourceLabel = normalizeString(resourceLabel);
+  const catalogGapSummary = formatCatalogGapSummary(toolIds, maxVisibleToolIds);
+  const summaryParts = [normalizedResourceLabel, catalogGapSummary].filter(
+    (value): value is string => Boolean(value)
+  );
+
+  return summaryParts.length > 0 ? summaryParts.join(" · ") : null;
+}
+
+function normalizeCatalogGapToolIds(toolIds: readonly unknown[]): string[] {
+  return Array.from(
+    new Set(
+      toolIds
+        .map((toolId) => normalizeString(toolId))
+        .filter((toolId): toolId is string => toolId !== null)
+    )
+  );
 }
 
 function normalizeString(value: unknown) {

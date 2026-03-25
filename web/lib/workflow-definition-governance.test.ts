@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatCatalogGapResourceSummary,
+  formatCatalogGapSummary,
+  formatCatalogGapToolSummary,
   formatWorkflowMissingToolSummary,
   getWorkflowLegacyPublishAuthIssues,
   getWorkflowMissingToolIds,
@@ -84,6 +87,15 @@ describe("workflow-definition-governance", () => {
       "native.third-gap"
     ]);
     expect(hasWorkflowMissingToolIssues(workflow)).toBe(true);
+    expect(formatCatalogGapToolSummary(workflow.tool_governance.missing_tool_ids)).toBe(
+      "native.catalog-gap、native.second-gap 等 3 个 tool"
+    );
+    expect(formatCatalogGapSummary(workflow.tool_governance.missing_tool_ids)).toBe(
+      "catalog gap · native.catalog-gap、native.second-gap 等 3 个 tool"
+    );
+    expect(
+      formatCatalogGapResourceSummary("Catalog gap workflow", workflow.tool_governance.missing_tool_ids)
+    ).toBe("Catalog gap workflow · catalog gap · native.catalog-gap、native.second-gap 等 3 个 tool");
     expect(formatWorkflowMissingToolSummary(workflow)).toBe(
       "catalog gap · native.catalog-gap、native.second-gap 等 3 个 tool"
     );

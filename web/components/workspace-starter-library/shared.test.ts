@@ -1231,7 +1231,7 @@ describe("workspace starter source action decision", () => {
         detail:
           "当前 starter 仍引用目录里不存在的 tool：native.catalog-gap；先回源 workflow 补齐 tool binding，再回来继续复用或创建。",
         primaryResourceSummary:
-          "Catalog gap starter · missing tool native.catalog-gap · source 0.4.0",
+          "Catalog gap starter · catalog gap · native.catalog-gap · source 0.4.0",
         focusTemplateId: "starter-catalog-gap",
         focusLabel: "优先聚焦 starter：Catalog gap starter",
         entryKey: "workflowLibrary",
