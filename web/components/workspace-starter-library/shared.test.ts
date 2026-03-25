@@ -8,6 +8,7 @@ import type {
 } from "@/lib/get-workspace-starters";
 
 import {
+  buildWorkspaceStarterEmptyStateFollowUp,
   buildWorkspaceStarterMutationFallbackErrorMessage,
   buildWorkspaceStarterMutationNetworkErrorMessage,
   buildWorkspaceStarterMutationPendingMessage,
@@ -525,6 +526,7 @@ describe("workspace starter source action decision", () => {
     });
 
     expect(primaryFollowUp).toEqual({
+      kind: "prioritized",
       label: "建议 refresh",
       headline: "Active starter A 当前是共享来源治理队列的首个待处理 starter。",
       detail:
@@ -677,6 +679,7 @@ describe("workspace starter source action decision", () => {
     });
 
     expect(primaryFollowUp).toEqual({
+      kind: "prioritized",
       label: "确认模板后带此 starter 回到创建页",
       headline: "Active starter B 当前是共享来源治理队列的首个待处理 starter。",
       detail:
@@ -782,12 +785,42 @@ describe("workspace starter source action decision", () => {
     });
 
     expect(primaryFollowUp).toEqual({
+      kind: "idle",
       label: "无需治理",
       headline: "当前筛选范围没有共享来源治理 backlog。",
       detail:
         "可以继续复用这些 starter；如需进一步治理，再看 bulk preview 或逐个进入右侧 source diff / metadata 详情。",
       focusTemplateId: null,
       focusLabel: null
+    });
+  });
+
+  it("falls back to the shared create-entry card when the primary queue is idle", () => {
+    const emptyStateFollowUp = buildWorkspaceStarterEmptyStateFollowUp({
+      sourceGovernancePrimaryFollowUp: {
+        kind: "idle",
+        label: "无需治理",
+        headline: "当前筛选范围没有共享来源治理 backlog。",
+        detail:
+          "可以继续复用这些 starter；如需进一步治理，再看 bulk preview 或逐个进入右侧 source diff / metadata 详情。",
+        focusTemplateId: null,
+        focusLabel: null
+      },
+      createWorkflowHref: "/workflows/new?needs_follow_up=true"
+    });
+
+    expect(emptyStateFollowUp).toEqual({
+      label: "去创建第一个 starter",
+      headline: "当前筛选条件下还没有可继续治理的 workspace starter。",
+      detail:
+        "当前筛选条件下还没有 workspace starter。可以先回到创建页新建 workflow，再从 editor 保存一个模板进入治理库。",
+      focusTemplateId: null,
+      focusLabel: null,
+      entryKey: "createWorkflow",
+      entryOverride: {
+        href: "/workflows/new?needs_follow_up=true",
+        label: "去创建第一个 starter"
+      }
     });
   });
 

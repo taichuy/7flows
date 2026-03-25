@@ -1,6 +1,6 @@
 import React from "react";
 
-import { WorkbenchEntryLink, WorkbenchEntryLinks } from "@/components/workbench-entry-links";
+import { WorkbenchEntryLink } from "@/components/workbench-entry-links";
 import {
   WorkspaceStarterBulkGovernanceCard,
 } from "@/components/workspace-starter-library/bulk-governance-card";
@@ -19,6 +19,7 @@ import {
 import type { WorkflowDefinitionToolGovernance } from "@/lib/workflow-definition-tool-governance";
 
 import {
+  buildWorkspaceStarterEmptyStateFollowUp,
   buildWorkspaceStarterBulkPreviewFocusTargets,
   buildWorkspaceStarterBulkResultFocusTargets,
   buildWorkspaceStarterSourceGovernancePrimaryFollowUp,
@@ -27,7 +28,9 @@ import {
   formatTimestamp,
   type ArchiveFilter,
   type SourceGovernanceFilter,
-  type TrackFilter
+  type TrackFilter,
+  type WorkspaceStarterFollowUpSurface,
+  type WorkspaceStarterSourceGovernancePrimaryFollowUp
 } from "./shared";
 import { WorkspaceStarterFollowUpCard } from "./follow-up-card";
 
@@ -50,6 +53,8 @@ type WorkspaceStarterTemplateListPanelProps = {
   isLoadingBulkPreview: boolean;
   isLoadingSourceGovernanceScope: boolean;
   lastBulkResult: WorkspaceStarterBulkActionResult | null;
+  emptyStateFollowUp?: WorkspaceStarterFollowUpSurface | null;
+  sourceGovernancePrimaryFollowUp?: WorkspaceStarterSourceGovernancePrimaryFollowUp | null;
   sourceGovernanceScope: WorkspaceStarterSourceGovernanceScopeSummary | null;
   onTrackChange: (track: TrackFilter) => void;
   onArchiveFilterChange: (filter: ArchiveFilter) => void;
@@ -80,6 +85,8 @@ export function WorkspaceStarterTemplateListPanel({
   isLoadingBulkPreview,
   isLoadingSourceGovernanceScope,
   lastBulkResult,
+  emptyStateFollowUp = null,
+  sourceGovernancePrimaryFollowUp = null,
   sourceGovernanceScope,
   onTrackChange,
   onArchiveFilterChange,
@@ -101,18 +108,26 @@ export function WorkspaceStarterTemplateListPanel({
     sourceGovernanceScope,
     templates
   );
-  const sourceGovernancePrimaryFollowUp = buildWorkspaceStarterSourceGovernancePrimaryFollowUp({
-    sourceGovernanceScope,
-    templates,
-    createWorkflowHref,
-    workspaceStarterGovernanceQueryScope: {
-      activeTrack,
-      sourceGovernanceKind,
-      needsFollowUp,
-      searchQuery,
-      selectedTemplateId
-    }
-  });
+  const resolvedSourceGovernancePrimaryFollowUp =
+    sourceGovernancePrimaryFollowUp ??
+    buildWorkspaceStarterSourceGovernancePrimaryFollowUp({
+      sourceGovernanceScope,
+      templates,
+      createWorkflowHref,
+      workspaceStarterGovernanceQueryScope: {
+        activeTrack,
+        sourceGovernanceKind,
+        needsFollowUp,
+        searchQuery,
+        selectedTemplateId
+      }
+    });
+  const resolvedEmptyStateFollowUp =
+    emptyStateFollowUp ??
+    buildWorkspaceStarterEmptyStateFollowUp({
+      sourceGovernancePrimaryFollowUp: resolvedSourceGovernancePrimaryFollowUp,
+      createWorkflowHref
+    });
   const surfaceCopy = buildWorkspaceStarterTemplateListSurfaceCopy({ createWorkflowHref });
 
   return (
@@ -244,7 +259,7 @@ export function WorkspaceStarterTemplateListPanel({
         <WorkspaceStarterBulkGovernanceCard
           inScopeCount={filteredTemplates.length}
           sourceGovernanceScope={sourceGovernanceScope}
-          sourceGovernancePrimaryFollowUp={sourceGovernancePrimaryFollowUp}
+          sourceGovernancePrimaryFollowUp={resolvedSourceGovernancePrimaryFollowUp}
           sourceGovernanceFocusTargets={sourceGovernanceFocusTargets}
           preview={bulkPreview}
           previewNotice={bulkPreviewNotice}
@@ -270,8 +285,21 @@ export function WorkspaceStarterTemplateListPanel({
 
       {filteredTemplates.length === 0 ? (
         <div className="empty-state-block">
-          <p className="empty-state">{surfaceCopy.emptyStateDescription}</p>
-          <WorkbenchEntryLinks {...surfaceCopy.emptyStateLinks} />
+          <WorkspaceStarterFollowUpCard
+            detail={resolvedEmptyStateFollowUp.detail}
+            headline={resolvedEmptyStateFollowUp.headline}
+            label={resolvedEmptyStateFollowUp.label}
+            primaryResourceSummary={resolvedEmptyStateFollowUp.primaryResourceSummary}
+            actions={
+              resolvedEmptyStateFollowUp.entryKey ? (
+                <WorkbenchEntryLink
+                  className="inline-link"
+                  linkKey={resolvedEmptyStateFollowUp.entryKey}
+                  override={resolvedEmptyStateFollowUp.entryOverride}
+                />
+              ) : null
+            }
+          />
         </div>
       ) : (
         <div className="starter-grid">

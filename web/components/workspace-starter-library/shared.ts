@@ -25,6 +25,7 @@ import type {
   WorkbenchEntryLinkKey,
   WorkbenchEntryLinkOverride
 } from "@/lib/workbench-entry-links";
+import { buildWorkspaceStarterTemplateListSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 import {
   DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE,
   buildWorkflowCreateHrefFromWorkspaceStarterViewState,
@@ -172,7 +173,7 @@ export type WorkspaceStarterSourceCardSurface = {
   summaryCards: WorkspaceStarterSourceCardSummaryCard[];
 };
 
-export type WorkspaceStarterSourceGovernancePrimaryFollowUp = {
+export type WorkspaceStarterFollowUpSurface = {
   label: string;
   headline: string;
   detail: string;
@@ -181,6 +182,10 @@ export type WorkspaceStarterSourceGovernancePrimaryFollowUp = {
   focusLabel: string | null;
   entryKey?: WorkbenchEntryLinkKey;
   entryOverride?: WorkbenchEntryLinkOverride;
+};
+
+export type WorkspaceStarterSourceGovernancePrimaryFollowUp = WorkspaceStarterFollowUpSurface & {
+  kind: "prioritized" | "out_of_scope" | "idle";
 };
 
 export type WorkspaceStarterSourceGovernanceScopeSummary = {
@@ -773,6 +778,7 @@ export function buildWorkspaceStarterSourceGovernancePrimaryFollowUp({
   if (!primaryTemplate) {
     if (prioritizedTemplateIds.length > 0 || sourceGovernanceScope.attention_count > 0) {
       return {
+        kind: "out_of_scope",
         label: "待重新定位",
         headline: "当前筛选范围仍有共享来源治理待处理项。",
         detail:
@@ -783,10 +789,11 @@ export function buildWorkspaceStarterSourceGovernancePrimaryFollowUp({
     }
 
     return {
+      kind: "idle",
       label: "无需治理",
       headline: "当前筛选范围没有共享来源治理 backlog。",
       detail:
-        "可以继续复用这些 starter；如需进一步治理，再看 bulk preview 或逐个进入右侧 source diff / metadata 详情。",
+          "可以继续复用这些 starter；如需进一步治理，再看 bulk preview 或逐个进入右侧 source diff / metadata 详情。",
       focusTemplateId: null,
       focusLabel: null
     };
@@ -817,6 +824,7 @@ export function buildWorkspaceStarterSourceGovernancePrimaryFollowUp({
   }
 
   return {
+    kind: "prioritized",
     label: recommendedNextStep?.label ?? presenter.actionStatusLabel ?? presenter.statusLabel,
     headline: `${focusTemplateName} 当前是共享来源治理队列的首个待处理 starter。`,
     detail: detailParts.join(" "),
@@ -835,6 +843,30 @@ export function buildWorkspaceStarterSourceGovernancePrimaryFollowUp({
     focusLabel: focusTemplateName ? `优先聚焦 starter：${focusTemplateName}` : null,
     entryKey: recommendedNextStep?.entryKey,
     entryOverride: recommendedNextStep?.entryOverride
+  };
+}
+
+export function buildWorkspaceStarterEmptyStateFollowUp({
+  sourceGovernancePrimaryFollowUp,
+  createWorkflowHref
+}: {
+  sourceGovernancePrimaryFollowUp: WorkspaceStarterSourceGovernancePrimaryFollowUp | null;
+  createWorkflowHref: string;
+}): WorkspaceStarterFollowUpSurface {
+  if (sourceGovernancePrimaryFollowUp && sourceGovernancePrimaryFollowUp.kind !== "idle") {
+    return sourceGovernancePrimaryFollowUp;
+  }
+
+  const surfaceCopy = buildWorkspaceStarterTemplateListSurfaceCopy({ createWorkflowHref });
+
+  return {
+    label: surfaceCopy.emptyStateLinks.overrides?.createWorkflow?.label ?? "去创建第一个 starter",
+    headline: "当前筛选条件下还没有可继续治理的 workspace starter。",
+    detail: surfaceCopy.emptyStateDescription,
+    focusTemplateId: null,
+    focusLabel: null,
+    entryKey: "createWorkflow",
+    entryOverride: surfaceCopy.emptyStateLinks.overrides?.createWorkflow
   };
 }
 

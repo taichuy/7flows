@@ -14,6 +14,33 @@ vi.mock("next/link", () => ({
 }));
 
 describe("WorkspaceStarterMetadataPanel", () => {
+  it("shows the shared create-entry follow-up in the empty detail state", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkspaceStarterMetadataPanel, {
+        selectedTemplate: null,
+        formState: null,
+        selectedTrackPriority: null,
+        hasPendingChanges: false,
+        isSaving: false,
+        isMutating: false,
+        message: null,
+        messageTone: "idle",
+        createWorkflowHref: "/workflows/new?needs_follow_up=true&source_governance_kind=drifted",
+        setFormState: vi.fn(),
+        onSave: vi.fn(),
+        onTemplateMutation: vi.fn()
+      })
+    );
+
+    expect(html).toContain("选中一个模板后，这里会显示可更新的元数据与来源信息。");
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("当前筛选条件下还没有可继续治理的 workspace starter。");
+    expect(html).toContain("去创建第一个 starter");
+    expect(html).toContain(
+      "/workflows/new?needs_follow_up=true&amp;source_governance_kind=drifted"
+    );
+  });
+
   it("reuses the shared create entry contract in metadata follow-up actions", () => {
     const scopedSourceWorkflowHref =
       '/workflows/workflow%20alpha%2Fbeta?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92';

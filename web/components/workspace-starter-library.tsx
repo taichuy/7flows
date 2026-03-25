@@ -8,6 +8,8 @@ import { WorkspaceStarterSourceDiffPanel } from "@/components/workspace-starter-
 import { WorkspaceStarterTemplateListPanel } from "@/components/workspace-starter-library/template-list-panel";
 import { useWorkspaceStarterLibraryState } from "@/components/workspace-starter-library/use-workspace-starter-library-state";
 import {
+  buildWorkspaceStarterEmptyStateFollowUp,
+  buildWorkspaceStarterSourceGovernancePrimaryFollowUp,
   buildWorkflowCreateHrefFromWorkspaceStarterViewState,
   type WorkspaceStarterLibraryViewState
 } from "@/components/workspace-starter-library/shared";
@@ -94,6 +96,16 @@ export function WorkspaceStarterLibrary({
     searchQuery,
     selectedTemplateId
   });
+  const sourceGovernancePrimaryFollowUp = buildWorkspaceStarterSourceGovernancePrimaryFollowUp({
+    sourceGovernanceScope,
+    templates,
+    createWorkflowHref,
+    workspaceStarterGovernanceQueryScope
+  });
+  const emptyStateFollowUp = buildWorkspaceStarterEmptyStateFollowUp({
+    sourceGovernancePrimaryFollowUp,
+    createWorkflowHref
+  });
 
   return (
     <main className="editor-shell">
@@ -129,6 +141,8 @@ export function WorkspaceStarterLibrary({
           isLoadingBulkPreview={isLoadingBulkPreview}
           isLoadingSourceGovernanceScope={isLoadingSourceGovernanceScope}
           lastBulkResult={lastBulkResult}
+          emptyStateFollowUp={emptyStateFollowUp}
+          sourceGovernancePrimaryFollowUp={sourceGovernancePrimaryFollowUp}
           sourceGovernanceScope={sourceGovernanceScope}
           onTrackChange={setActiveTrack}
           onArchiveFilterChange={setArchiveFilter}
@@ -151,6 +165,7 @@ export function WorkspaceStarterLibrary({
             message={message}
             messageTone={messageTone}
             createWorkflowHref={selectedTemplate?.archived ? null : createWorkflowHref}
+            emptyStateFollowUp={emptyStateFollowUp}
             workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
             setFormState={setFormState}
             onSave={handleSave}

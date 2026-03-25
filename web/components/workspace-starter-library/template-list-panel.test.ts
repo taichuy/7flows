@@ -168,6 +168,7 @@ describe("WorkspaceStarterTemplateListPanel", () => {
       })
     );
 
+    expect(html).toContain("Recommended next step");
     expect(html).toContain(surfaceCopy.emptyStateDescription);
     expect(html).toContain(surfaceCopy.emptyStateLinks.overrides?.createWorkflow?.label ?? "");
     expect(html).toContain(

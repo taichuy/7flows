@@ -19,9 +19,11 @@ import {
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 import {
+  buildWorkspaceStarterEmptyStateFollowUp,
   buildWorkspaceStarterSourceGovernanceSurface,
   buildWorkspaceStarterSourceGovernancePresenter,
-  resolveWorkspaceStarterCreateWorkflowActionLabel
+  resolveWorkspaceStarterCreateWorkflowActionLabel,
+  type WorkspaceStarterFollowUpSurface
 } from "./shared";
 import type { WorkspaceStarterFormState } from "./shared";
 
@@ -35,6 +37,7 @@ type WorkspaceStarterMetadataPanelProps = {
   message: string | null;
   messageTone: WorkspaceStarterMessageTone;
   createWorkflowHref: string | null;
+  emptyStateFollowUp?: WorkspaceStarterFollowUpSurface | null;
   workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
   setFormState: Dispatch<SetStateAction<WorkspaceStarterFormState | null>>;
   onSave: () => void;
@@ -51,6 +54,7 @@ export function WorkspaceStarterMetadataPanel({
   message,
   messageTone,
   createWorkflowHref,
+  emptyStateFollowUp = null,
   workspaceStarterGovernanceQueryScope = null,
   setFormState,
   onSave,
@@ -85,6 +89,20 @@ export function WorkspaceStarterMetadataPanel({
     (metadataRecommendedNextStep?.entryKey === "createWorkflow"
       ? metadataRecommendedNextStep.entryOverride?.label?.trim()
       : null) ?? createWorkflowActionLabel;
+  const resolvedEmptyStateFollowUp =
+    emptyStateFollowUp ??
+    (createWorkflowHref
+      ? buildWorkspaceStarterEmptyStateFollowUp({
+          sourceGovernancePrimaryFollowUp: null,
+          createWorkflowHref
+        })
+      : {
+          label: "先从左侧选择 starter",
+          headline: "当前还没有聚焦中的 workspace starter。",
+          detail: "先从左侧列表选择一个 starter，这里会显示可更新的元数据与来源信息。",
+          focusTemplateId: null,
+          focusLabel: null
+        });
   const sourceWorkflowLink = selectedTemplate?.created_from_workflow_id
     ? workspaceStarterGovernanceQueryScope
       ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
@@ -108,7 +126,24 @@ export function WorkspaceStarterMetadataPanel({
       </div>
 
       {!selectedTemplate || !formState ? (
-        <p className="empty-state">选中一个模板后，这里会显示可更新的元数据与来源信息。</p>
+        <>
+          <p className="empty-state">选中一个模板后，这里会显示可更新的元数据与来源信息。</p>
+          <WorkspaceStarterFollowUpCard
+            detail={resolvedEmptyStateFollowUp.detail}
+            headline={resolvedEmptyStateFollowUp.headline}
+            label={resolvedEmptyStateFollowUp.label}
+            primaryResourceSummary={resolvedEmptyStateFollowUp.primaryResourceSummary}
+            actions={
+              resolvedEmptyStateFollowUp.entryKey ? (
+                <WorkbenchEntryLink
+                  className="inline-link"
+                  linkKey={resolvedEmptyStateFollowUp.entryKey}
+                  override={resolvedEmptyStateFollowUp.entryOverride}
+                />
+              ) : null
+            }
+          />
+        </>
       ) : (
         <>
           <div className="summary-strip compact-strip">
