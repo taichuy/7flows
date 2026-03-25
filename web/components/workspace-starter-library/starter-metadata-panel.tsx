@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 import { WorkbenchEntryLink } from "@/components/workbench-entry-links";
 import { WorkspaceStarterFollowUpCard } from "@/components/workspace-starter-library/follow-up-card";
+import type { WorkflowDefinitionToolGovernance } from "@/lib/workflow-definition-tool-governance";
 import {
   WORKFLOW_BUSINESS_TRACKS,
   type WorkflowBusinessTrack
@@ -20,8 +21,8 @@ import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entr
 
 import {
   buildWorkspaceStarterEmptyStateFollowUp,
+  buildWorkspaceStarterMissingToolGovernanceSurface,
   buildWorkspaceStarterTemplateFollowUpSurface,
-  buildWorkspaceStarterSourceGovernanceSurface,
   buildWorkspaceStarterSourceGovernancePresenter,
   resolveWorkspaceStarterCreateWorkflowActionLabel,
   type WorkspaceStarterFollowUpSurface
@@ -38,6 +39,7 @@ type WorkspaceStarterMetadataPanelProps = {
   message: string | null;
   messageTone: WorkspaceStarterMessageTone;
   createWorkflowHref: string | null;
+  selectedTemplateToolGovernance?: WorkflowDefinitionToolGovernance | null;
   emptyStateFollowUp?: WorkspaceStarterFollowUpSurface | null;
   workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
   setFormState: Dispatch<SetStateAction<WorkspaceStarterFormState | null>>;
@@ -55,6 +57,7 @@ export function WorkspaceStarterMetadataPanel({
   message,
   messageTone,
   createWorkflowHref,
+  selectedTemplateToolGovernance = null,
   emptyStateFollowUp = null,
   workspaceStarterGovernanceQueryScope = null,
   setFormState,
@@ -71,22 +74,22 @@ export function WorkspaceStarterMetadataPanel({
         archived: selectedTemplate.archived
       }) ?? "带此 starter 回到创建页"
     : "带此 starter 回到创建页";
-  const sourceGovernanceSurface = selectedTemplate
-    ? buildWorkspaceStarterSourceGovernanceSurface({
+  const missingToolGovernanceSurface = selectedTemplate
+    ? buildWorkspaceStarterMissingToolGovernanceSurface({
         template: selectedTemplate,
-        createWorkflowHref,
+        missingToolIds: selectedTemplateToolGovernance?.missingToolIds ?? [],
         workspaceStarterGovernanceQueryScope
       })
     : null;
-  const metadataRecommendedNextStep = sourceGovernanceSurface?.recommendedNextStep ?? null;
   const metadataFollowUpSurface = buildWorkspaceStarterTemplateFollowUpSurface({
     template: selectedTemplate,
     createWorkflowHref,
     workspaceStarterGovernanceQueryScope
   });
+  const resolvedMetadataFollowUpSurface = missingToolGovernanceSurface ?? metadataFollowUpSurface;
   const metadataCreateWorkflowLabel =
-    (metadataFollowUpSurface?.entryKey === "createWorkflow"
-      ? metadataFollowUpSurface.entryOverride?.label?.trim()
+    (!missingToolGovernanceSurface && resolvedMetadataFollowUpSurface?.entryKey === "createWorkflow"
+      ? resolvedMetadataFollowUpSurface.entryOverride?.label?.trim()
       : null) ?? createWorkflowActionLabel;
   const resolvedEmptyStateFollowUp =
     emptyStateFollowUp ??
@@ -102,7 +105,8 @@ export function WorkspaceStarterMetadataPanel({
           focusTemplateId: null,
           focusLabel: null
         });
-  const sourceWorkflowLink = selectedTemplate?.created_from_workflow_id
+  const sourceWorkflowLink =
+    !missingToolGovernanceSurface && selectedTemplate?.created_from_workflow_id
     ? workspaceStarterGovernanceQueryScope
       ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
           workflowId: selectedTemplate.created_from_workflow_id,
@@ -164,29 +168,39 @@ export function WorkspaceStarterMetadataPanel({
             </div>
           </div>
 
-          {metadataFollowUpSurface ? (
+          {resolvedMetadataFollowUpSurface ? (
             <WorkspaceStarterFollowUpCard
-              headline={metadataFollowUpSurface.headline}
-              label={metadataFollowUpSurface.label}
-              detail={metadataFollowUpSurface.detail}
-              primaryResourceSummary={metadataFollowUpSurface.primaryResourceSummary}
+              headline={resolvedMetadataFollowUpSurface.headline}
+              label={resolvedMetadataFollowUpSurface.label}
+              detail={resolvedMetadataFollowUpSurface.detail}
+              primaryResourceSummary={resolvedMetadataFollowUpSurface.primaryResourceSummary}
               actions={
-                <>
-                  {createWorkflowHref && metadataCreateWorkflowLabel ? (
+                missingToolGovernanceSurface ? (
+                  resolvedMetadataFollowUpSurface.entryKey ? (
                     <WorkbenchEntryLink
                       className="inline-link secondary"
-                      linkKey="createWorkflow"
-                      override={{ href: createWorkflowHref }}
-                    >
-                      {metadataCreateWorkflowLabel}
-                    </WorkbenchEntryLink>
-                  ) : null}
-                  {sourceWorkflowLink ? (
-                    <Link className="inline-link secondary" href={sourceWorkflowLink.href}>
-                      {sourceWorkflowLink.label}
-                    </Link>
-                  ) : null}
-                </>
+                      linkKey={resolvedMetadataFollowUpSurface.entryKey}
+                      override={resolvedMetadataFollowUpSurface.entryOverride}
+                    />
+                  ) : null
+                ) : (
+                  <>
+                    {createWorkflowHref && metadataCreateWorkflowLabel ? (
+                      <WorkbenchEntryLink
+                        className="inline-link secondary"
+                        linkKey="createWorkflow"
+                        override={{ href: createWorkflowHref }}
+                      >
+                        {metadataCreateWorkflowLabel}
+                      </WorkbenchEntryLink>
+                    ) : null}
+                    {sourceWorkflowLink ? (
+                      <Link className="inline-link secondary" href={sourceWorkflowLink.href}>
+                        {sourceWorkflowLink.label}
+                      </Link>
+                    ) : null}
+                  </>
+                )
               }
             />
           ) : null}

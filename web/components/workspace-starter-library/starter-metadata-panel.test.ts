@@ -172,4 +172,86 @@ describe("WorkspaceStarterMetadataPanel", () => {
     expect(html).toContain("确认模板后带此 starter 回到创建页");
     expect(html).toContain('/workflows/new?starter=starter-missing-source');
   });
+
+  it("prioritizes the shared missing-tool follow-up over the generic create action", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkspaceStarterMetadataPanel, {
+        selectedTemplate: {
+          id: "starter-missing-tool",
+          workspace_id: "default",
+          name: "Missing Tool Starter",
+          description: "Starter description",
+          business_track: "应用新建编排",
+          default_workflow_name: "Governed workflow",
+          workflow_focus: "Keep tool governance visible.",
+          recommended_next_step: "Return to create flow after restoring the missing tool.",
+          tags: ["workspace starter"],
+          definition: {
+            nodes: [{ id: "trigger", type: "trigger", name: "Trigger", config: {} }],
+            edges: [],
+            variables: [],
+            publish: []
+          },
+          created_from_workflow_id: "workflow-source",
+          created_from_workflow_version: "0.2.0",
+          archived: false,
+          created_at: "2026-03-22T00:00:00.000Z",
+          updated_at: "2026-03-22T00:00:00.000Z",
+          source_governance: {
+            kind: "synced",
+            status_label: "已对齐",
+            summary: "当前 starter 与来源 workflow 已对齐。",
+            source_workflow_id: "workflow-source",
+            source_workflow_name: "Source Workflow",
+            template_version: "0.2.0",
+            source_version: "0.2.0",
+            action_decision: null,
+            outcome_explanation: null
+          }
+        },
+        selectedTemplateToolGovernance: {
+          referencedToolIds: ["native.missing"],
+          referencedTools: [],
+          governedToolCount: 0,
+          strongIsolationToolCount: 0,
+          missingToolIds: ["native.missing"]
+        },
+        formState: {
+          name: "Missing Tool Starter",
+          description: "Starter description",
+          businessTrack: "应用新建编排",
+          defaultWorkflowName: "Governed workflow",
+          workflowFocus: "Keep tool governance visible.",
+          recommendedNextStep: "Return to create flow after restoring the missing tool.",
+          tagsText: "workspace starter"
+        },
+        selectedTrackPriority: "P0 应用新建编排",
+        hasPendingChanges: false,
+        isSaving: false,
+        isMutating: false,
+        message: null,
+        messageTone: "idle",
+        createWorkflowHref: "/workflows/new?starter=starter-missing-tool",
+        workspaceStarterGovernanceQueryScope: {
+          activeTrack: "应用新建编排",
+          sourceGovernanceKind: "all",
+          needsFollowUp: true,
+          searchQuery: "missing",
+          selectedTemplateId: "starter-missing-tool"
+        },
+        setFormState: vi.fn(),
+        onSave: vi.fn(),
+        onTemplateMutation: vi.fn()
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain(
+      "Primary governed starter: Missing Tool Starter · missing tool native.missing · source 0.2.0."
+    );
+    expect(html).toContain("当前 starter 仍引用目录里不存在的 tool：native.missing；先回源 workflow 补齐 tool binding，再回来继续复用或创建。");
+    expect(html).toContain("打开源 workflow");
+    expect(html).toContain("definition_issue=missing_tool");
+    expect(html).not.toContain("带此 starter 回到创建页");
+  });
 });

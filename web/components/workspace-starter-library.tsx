@@ -157,6 +157,7 @@ export function WorkspaceStarterLibrary({
         <div className="governance-sidebar">
           <WorkspaceStarterMetadataPanel
             selectedTemplate={selectedTemplate}
+            selectedTemplateToolGovernance={selectedTemplateToolGovernance}
             formState={formState}
             selectedTrackPriority={selectedTrackMeta?.priority ?? null}
             hasPendingChanges={hasPendingChanges}
