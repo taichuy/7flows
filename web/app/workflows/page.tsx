@@ -110,8 +110,12 @@ export default async function WorkflowsPage({
       definitionIssue: "legacy_publish_auth"
     }
   );
+  const missingToolFilterHref = appendWorkflowLibraryViewState(baseWorkflowLibraryHref, {
+    definitionIssue: "missing_tool"
+  });
   const isLegacyPublishAuthFilterActive =
     workflowLibraryViewState.definitionIssue === "legacy_publish_auth";
+  const isMissingToolFilterActive = workflowLibraryViewState.definitionIssue === "missing_tool";
   const summary = buildWorkflowLibrarySummary(workflowInventory);
   const surfaceCopy = buildWorkflowLibrarySurfaceCopy({
     createWorkflowHref: buildWorkflowCreateHrefFromWorkspaceStarterViewState(
@@ -208,7 +212,7 @@ export default async function WorkflowsPage({
           <div className="summary-strip">
             <Link
               className={`event-chip inbox-filter-link${
-                !isLegacyPublishAuthFilterActive ? " active" : ""
+                !isLegacyPublishAuthFilterActive && !isMissingToolFilterActive ? " active" : ""
               }`}
               href={clearWorkflowLibraryFilterHref}
             >
@@ -222,6 +226,14 @@ export default async function WorkflowsPage({
             >
               Legacy publish auth blocker
             </Link>
+            <Link
+              className={`event-chip inbox-filter-link${
+                isMissingToolFilterActive ? " active" : ""
+              }`}
+              href={missingToolFilterHref}
+            >
+              Missing catalog tool
+            </Link>
           </div>
 
           {isLegacyPublishAuthFilterActive ? (
@@ -229,16 +241,25 @@ export default async function WorkflowsPage({
               当前列表只显示 legacy publish auth blocker，共 {workflows.length} / {summary.workflowCount} 个
               workflow；逐个回 editor 保存后，再回 publish 面板补发新版 binding。
             </p>
+          ) : isMissingToolFilterActive ? (
+            <p className="section-copy">
+              当前列表只显示缺失 catalog tool 的 workflow，共 {workflows.length} / {summary.workflowCount} 个
+              workflow；优先回 editor 补齐缺失 binding，再继续排查其余治理信号。
+            </p>
           ) : null}
 
           {workflows.length === 0 ? (
             <div className="empty-state-block">
               <p className="empty-state">
-                {isLegacyPublishAuthFilterActive && summary.workflowCount > 0
-                  ? "当前筛选范围里已经没有 legacy publish auth blocker。可以清除筛选，继续检查其余 workflow 治理信号。"
+                {(isLegacyPublishAuthFilterActive || isMissingToolFilterActive) &&
+                summary.workflowCount > 0
+                  ? isLegacyPublishAuthFilterActive
+                    ? "当前筛选范围里已经没有 legacy publish auth blocker。可以清除筛选，继续检查其余 workflow 治理信号。"
+                    : "当前筛选范围里已经没有缺失 catalog tool 的 workflow。可以清除筛选，继续检查其余 workflow 治理信号。"
                   : surfaceCopy.emptyState}
               </p>
-              {isLegacyPublishAuthFilterActive && summary.workflowCount > 0 ? (
+              {(isLegacyPublishAuthFilterActive || isMissingToolFilterActive) &&
+              summary.workflowCount > 0 ? (
                 <Link className="inline-link" href={clearWorkflowLibraryFilterHref}>
                   清除筛选
                 </Link>
@@ -352,9 +373,19 @@ export default async function WorkflowsPage({
               <p className="empty-state compact">当前 workflow 列表里没有缺失 catalog tool 的条目。</p>
             ) : (
               summary.workflowsWithMissingTools.map((workflow) => (
-                <span className="event-chip" key={workflow.id}>
+                <Link
+                  className="event-chip inbox-filter-link"
+                  href={buildFilteredWorkflowDetailLink({
+                    workflowId: workflow.id,
+                    viewState: workspaceStarterViewState,
+                    workflowLibraryViewState: {
+                      definitionIssue: "missing_tool"
+                    }
+                  }).href}
+                  key={`${workflow.id}-missing-tool`}
+                >
                   {workflow.name} · missing tools
-                </span>
+                </Link>
               ))
             )}
           </div>

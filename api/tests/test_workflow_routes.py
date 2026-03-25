@@ -2496,6 +2496,116 @@ def test_list_workflows_can_filter_legacy_publish_auth_definition_issues(
     )
 
 
+def test_list_workflows_can_filter_missing_tool_definition_issues(
+    client: TestClient,
+    sqlite_session,
+    monkeypatch,
+) -> None:
+    missing_tool_definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "tool",
+                "type": "tool",
+                "name": "Risk Search",
+                "config": {
+                    "tool": {
+                        "toolId": "native.risk-search",
+                        "ecosystem": "native",
+                    }
+                },
+            },
+            {
+                "id": "agent",
+                "type": "llm_agent",
+                "name": "Agent",
+                "config": {
+                    "toolPolicy": {
+                        "allowedToolIds": [
+                            "native.risk-search",
+                            "native.catalog-gap",
+                        ]
+                    }
+                },
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool"},
+            {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "agent"},
+            {"id": "e3", "sourceNodeId": "agent", "targetNodeId": "output"},
+        ],
+    }
+    clean_definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "tool",
+                "type": "tool",
+                "name": "Risk Search",
+                "config": {
+                    "tool": {
+                        "toolId": "native.risk-search",
+                        "ecosystem": "native",
+                    }
+                },
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "tool"},
+            {"id": "e2", "sourceNodeId": "tool", "targetNodeId": "output"},
+        ],
+    }
+    missing_workflow = Workflow(
+        id="wf-missing-tool",
+        name="Missing Tool Workflow",
+        version="0.1.0",
+        status="draft",
+        definition=missing_tool_definition,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+    clean_workflow = Workflow(
+        id="wf-clean-tool",
+        name="Clean Tool Workflow",
+        version="0.1.0",
+        status="draft",
+        definition=clean_definition,
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+    sqlite_session.add_all([missing_workflow, clean_workflow])
+    sqlite_session.commit()
+
+    monkeypatch.setattr(
+        workflow_views,
+        "get_workflow_library_service",
+        lambda: _FakeWorkflowLibraryService(
+            [
+                PluginToolItem(
+                    id="native.risk-search",
+                    name="Risk Search",
+                    ecosystem="native",
+                    description="Governed native tool.",
+                    source="native",
+                    callable=True,
+                    supported_execution_classes=["inline", "sandbox"],
+                    default_execution_class="sandbox",
+                    sensitivity_level="L2",
+                )
+            ]
+        ),
+    )
+
+    response = client.get("/api/workflows?definition_issue=missing_tool")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert [item["id"] for item in body] == [missing_workflow.id]
+    assert body[0]["tool_governance"]["missing_tool_ids"] == ["native.catalog-gap"]
+
+
 def test_validate_workflow_definition_preflight_rejects_invalid_publish_reference(
     client: TestClient,
 ) -> None:

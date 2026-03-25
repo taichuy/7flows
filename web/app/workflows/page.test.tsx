@@ -214,6 +214,7 @@ describe("WorkflowsPage", () => {
     expect(html).toContain('/sensitive-access');
     expect(html).toContain("draft:1 / published:1");
     expect(html).toContain("Alpha workflow · missing tools");
+    expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
     expect(html).toContain("Sandbox execution chain");
     expect(html).toContain("Live sandbox readiness");
     expect(html).toContain("强隔离路径会按 execution class fail-closed：sandbox 当前 blocked。");
@@ -609,6 +610,65 @@ describe("WorkflowsPage", () => {
     );
     expect(html).toContain('/workflows?definition_issue=legacy_publish_auth');
     expect(html).not.toContain('/workflows/workflow-clean?definition_issue=legacy_publish_auth');
+  });
+
+  it("filters the workflow chip list down to missing tool blockers", async () => {
+    vi.mocked(getWorkflows).mockReset();
+    vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot()
+    );
+    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshot());
+    vi.mocked(getWorkflows).mockImplementation(async (options?: { definitionIssue?: string | null }) => {
+      const missingToolWorkflow = {
+        id: "workflow-missing-tool",
+        name: "Missing Tool workflow",
+        version: "1.1.0",
+        status: "draft",
+        node_count: 4,
+        tool_governance: {
+          referenced_tool_ids: ["tool-1", "tool-missing"],
+          missing_tool_ids: ["tool-missing"],
+          governed_tool_count: 1,
+          strong_isolation_tool_count: 0
+        }
+      };
+      const cleanWorkflow = {
+        id: "workflow-clean",
+        name: "Clean workflow",
+        version: "1.0.0",
+        status: "published",
+        node_count: 2,
+        tool_governance: {
+          referenced_tool_ids: ["tool-2"],
+          missing_tool_ids: [],
+          governed_tool_count: 1,
+          strong_isolation_tool_count: 0
+        }
+      };
+
+      return options?.definitionIssue === "missing_tool"
+        ? [missingToolWorkflow]
+        : [missingToolWorkflow, cleanWorkflow];
+    });
+
+    const html = renderToStaticMarkup(
+      await WorkflowsPage({
+        searchParams: Promise.resolve({
+          definition_issue: "missing_tool"
+        })
+      })
+    );
+
+    expect(getWorkflows).toHaveBeenCalledTimes(2);
+    expect(getWorkflows).toHaveBeenNthCalledWith(1);
+    expect(getWorkflows).toHaveBeenNthCalledWith(2, {
+      definitionIssue: "missing_tool"
+    });
+    expect(html).toContain("当前列表只显示缺失 catalog tool 的 workflow，共 1 / 2 个 workflow");
+    expect(html).toContain('/workflows/workflow-missing-tool?definition_issue=missing_tool');
+    expect(html).toContain('/workflows?definition_issue=missing_tool');
+    expect(html).not.toContain('/workflows/workflow-clean?definition_issue=missing_tool');
   });
 
   it("routes the empty state back to starter governance when the first active starter still needs follow-up", async () => {

@@ -1,4 +1,4 @@
-const workflowListDefinitionIssueFilters = ["legacy_publish_auth"] as const;
+const workflowListDefinitionIssueFilters = ["legacy_publish_auth", "missing_tool"] as const;
 
 export type WorkflowListDefinitionIssueFilter =
   (typeof workflowListDefinitionIssueFilters)[number];

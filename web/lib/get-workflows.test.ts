@@ -45,4 +45,20 @@ describe("getWorkflows", () => {
       { cache: "no-store" }
     );
   });
+
+  it("supports the missing tool workflow definition issue filter", async () => {
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => []
+    } as Response);
+
+    await getWorkflows({
+      definitionIssue: "missing_tool"
+    });
+
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
+      "http://api.test/api/workflows?definition_issue=missing_tool",
+      { cache: "no-store" }
+    );
+  });
 });

@@ -17,6 +17,16 @@ describe("workflow-library-query", () => {
     });
   });
 
+  it("accepts the missing tool workflow definition issue filter", () => {
+    expect(
+      readWorkflowLibraryViewState({
+        definition_issue: [" missing_tool ", "ignored"]
+      })
+    ).toEqual({
+      definitionIssue: "missing_tool"
+    });
+  });
+
   it("drops unsupported workflow library definition issue filters", () => {
     expect(
       readWorkflowLibraryViewState(
@@ -31,21 +41,21 @@ describe("workflow-library-query", () => {
 
   it("round-trips the definition issue filter through search params and hrefs", () => {
     const searchParams = buildWorkflowLibrarySearchParams({
-      definitionIssue: "legacy_publish_auth"
+      definitionIssue: "missing_tool"
     });
 
     expect(readWorkflowLibraryViewState(searchParams)).toEqual({
-      definitionIssue: "legacy_publish_auth"
+      definitionIssue: "missing_tool"
     });
     expect(
       appendWorkflowLibraryViewState(
         "/workflows?needs_follow_up=true&starter=starter-openclaw",
         {
-          definitionIssue: "legacy_publish_auth"
+          definitionIssue: "missing_tool"
         }
       )
     ).toBe(
-      "/workflows?needs_follow_up=true&starter=starter-openclaw&definition_issue=legacy_publish_auth"
+      "/workflows?needs_follow_up=true&starter=starter-openclaw&definition_issue=missing_tool"
     );
     expect(
       appendWorkflowLibraryViewState(

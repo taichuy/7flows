@@ -14,6 +14,7 @@ from app.schemas.workflow import (
     WorkflowDefinitionPreflightIssue,
     WorkflowDetail,
     WorkflowListItem,
+    WorkflowToolGovernanceSummary,
     WorkflowVersionItem,
 )
 from app.services.workflow_definitions import (
@@ -32,7 +33,7 @@ from app.services.workflow_definition_governance import (
 )
 from app.services.workflow_library import get_workflow_library_service
 
-WorkflowListDefinitionIssueFilter = Literal["legacy_publish_auth"]
+WorkflowListDefinitionIssueFilter = Literal["legacy_publish_auth", "missing_tool"]
 from app.services.workflow_publish_version_references import (
     build_allowed_publish_workflow_versions,
 )
@@ -134,19 +135,21 @@ def serialize_workflow_list_item(
     workflow: Workflow,
     *,
     tool_index: dict[str, PluginToolItem] | None = None,
+    tool_governance: WorkflowToolGovernanceSummary | None = None,
     definition_issues: list[WorkflowDefinitionPreflightIssue] | None = None,
 ) -> WorkflowListItem:
     tool_index = tool_index or {}
+    tool_governance = tool_governance or summarize_workflow_definition_tool_governance(
+        workflow.definition,
+        tool_index=tool_index,
+    )
     return WorkflowListItem(
         id=workflow.id,
         name=workflow.name,
         version=workflow.version,
         status=workflow.status,
         node_count=count_workflow_nodes(workflow.definition),
-        tool_governance=summarize_workflow_definition_tool_governance(
-            workflow.definition,
-            tool_index=tool_index,
-        ),
+        tool_governance=tool_governance,
         definition_issues=definition_issues or [],
     )
 
@@ -217,6 +220,7 @@ def build_workflow_definition_issues(
 
 def _matches_workflow_definition_issue_filter(
     definition_issues: list[WorkflowDefinitionPreflightIssue],
+    tool_governance: WorkflowToolGovernanceSummary,
     *,
     definition_issue: WorkflowListDefinitionIssueFilter | None,
 ) -> bool:
@@ -225,6 +229,9 @@ def _matches_workflow_definition_issue_filter(
             issue.category == "publish_draft" and issue.field == "authMode"
             for issue in definition_issues
         )
+
+    if definition_issue == "missing_tool":
+        return len(tool_governance.missing_tool_ids) > 0
 
     return True
 
@@ -245,6 +252,10 @@ def list_workflow_items(
 
     items: list[WorkflowListItem] = []
     for workflow in workflows:
+        tool_governance = summarize_workflow_definition_tool_governance(
+            workflow.definition,
+            tool_index=tool_index,
+        )
         definition_issues = build_workflow_definition_issues(
             db,
             workflow,
@@ -256,6 +267,7 @@ def list_workflow_items(
 
         if not _matches_workflow_definition_issue_filter(
             definition_issues,
+            tool_governance,
             definition_issue=definition_issue,
         ):
             continue
@@ -264,6 +276,7 @@ def list_workflow_items(
             serialize_workflow_list_item(
                 workflow,
                 tool_index=tool_index,
+                tool_governance=tool_governance,
                 definition_issues=definition_issues,
             )
         )
