@@ -17,10 +17,12 @@ import type { WorkflowDefinitionToolGovernance } from "@/lib/workflow-definition
 
 import {
   buildWorkspaceStarterEmptyStateFollowUp,
+  buildWorkspaceStarterMissingToolGovernanceSurface,
   buildWorkspaceStarterSourceGovernancePresenter,
   type WorkspaceStarterFollowUpSurface,
   formatTimestamp
 } from "./shared";
+import type { WorkspaceStarterGovernanceQueryScope } from "@/lib/workspace-starter-governance-query";
 
 type WorkspaceStarterDefinitionSnapshotPanelProps = {
   selectedTemplate: WorkspaceStarterTemplateItem | null;
@@ -32,6 +34,7 @@ type WorkspaceStarterDefinitionSnapshotPanelProps = {
   isRefreshing: boolean;
   isRebasing: boolean;
   createWorkflowHref?: string | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
   emptyStateFollowUp?: WorkspaceStarterFollowUpSurface | null;
   onRefresh: () => void;
   onRebase: () => void;
@@ -47,6 +50,7 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
   isRefreshing,
   isRebasing,
   createWorkflowHref = null,
+  workspaceStarterGovernanceQueryScope = null,
   emptyStateFollowUp = null,
   onRefresh,
   onRebase
@@ -60,6 +64,13 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
   const sandboxDependencySummary = describeWorkflowDefinitionSandboxDependency(
     selectedTemplateSandboxGovernance
   );
+  const missingToolGovernanceSurface = selectedTemplate
+    ? buildWorkspaceStarterMissingToolGovernanceSurface({
+        template: selectedTemplate,
+        missingToolIds: selectedTemplateToolGovernance.missingToolIds,
+        workspaceStarterGovernanceQueryScope
+      })
+    : null;
   const resolvedEmptyStateFollowUp =
     emptyStateFollowUp ??
     (createWorkflowHref
@@ -189,26 +200,44 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
           )}
 
           {selectedTemplateToolGovernance.missingToolIds.length > 0 ? (
-            <div className="payload-card compact-card">
-              <div className="payload-card-header">
-                <div>
-                  <span className="status-meta">Catalog gap</span>
-                  <p className="binding-meta">
-                    这些工具仍被模板引用，但当前 workspace plugin catalog 里还看不到对应定义。
-                  </p>
-                </div>
-                <span className="event-chip">
-                  {selectedTemplateToolGovernance.missingToolIds.length} missing
-                </span>
-              </div>
-              <div className="tool-badge-row">
-                {selectedTemplateToolGovernance.missingToolIds.map((toolId) => (
-                  <span className="event-chip" key={`${selectedTemplate.id}-missing-${toolId}`}>
-                    {toolId}
+            <>
+              {missingToolGovernanceSurface ? (
+                <WorkspaceStarterFollowUpCard
+                  detail={missingToolGovernanceSurface.detail}
+                  label={missingToolGovernanceSurface.label}
+                  primaryResourceSummary={missingToolGovernanceSurface.primaryResourceSummary}
+                  actions={
+                    missingToolGovernanceSurface.entryKey ? (
+                      <WorkbenchEntryLink
+                        className="inline-link"
+                        linkKey={missingToolGovernanceSurface.entryKey}
+                        override={missingToolGovernanceSurface.entryOverride}
+                      />
+                    ) : null
+                  }
+                />
+              ) : null}
+              <div className="payload-card compact-card">
+                <div className="payload-card-header">
+                  <div>
+                    <span className="status-meta">Catalog gap</span>
+                    <p className="binding-meta">
+                      这些工具仍被模板引用，但当前 workspace plugin catalog 里还看不到对应定义。
+                    </p>
+                  </div>
+                  <span className="event-chip">
+                    {selectedTemplateToolGovernance.missingToolIds.length} missing
                   </span>
-                ))}
+                </div>
+                <div className="tool-badge-row">
+                  {selectedTemplateToolGovernance.missingToolIds.map((toolId) => (
+                    <span className="event-chip" key={`${selectedTemplate.id}-missing-${toolId}`}>
+                      {toolId}
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
+            </>
           ) : null}
 
           <div className="section-heading">

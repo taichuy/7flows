@@ -28,6 +28,7 @@ import type {
 import { buildWorkspaceStarterTemplateListSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 import {
   DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE,
+  buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   buildWorkflowCreateHrefFromWorkspaceStarterViewState,
   readWorkspaceStarterLibraryViewState,
   type ArchiveFilter,
@@ -36,6 +37,8 @@ import {
   type WorkspaceStarterGovernanceQueryScope,
   type WorkspaceStarterLibraryViewState
 } from "@/lib/workspace-starter-governance-query";
+import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
+import { appendWorkflowLibraryViewState } from "@/lib/workflow-library-query";
 
 export {
   DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE,
@@ -867,6 +870,88 @@ export function buildWorkspaceStarterEmptyStateFollowUp({
     focusLabel: null,
     entryKey: "createWorkflow",
     entryOverride: surfaceCopy.emptyStateLinks.overrides?.createWorkflow
+  };
+}
+
+export function buildWorkspaceStarterMissingToolGovernanceSurface({
+  template,
+  missingToolIds,
+  workspaceStarterGovernanceQueryScope = null
+}: {
+  template: Pick<
+    WorkspaceStarterTemplateItem,
+    | "id"
+    | "name"
+    | "archived"
+    | "created_from_workflow_id"
+    | "created_from_workflow_version"
+    | "source_governance"
+  >;
+  missingToolIds: string[];
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
+}): WorkspaceStarterFollowUpSurface | null {
+  const normalizedMissingToolIds = Array.from(
+    new Set(missingToolIds.map((toolId) => normalizeString(toolId)).filter(Boolean))
+  );
+
+  if (normalizedMissingToolIds.length === 0) {
+    return null;
+  }
+
+  const sourceWorkflowId =
+    normalizeString(template.source_governance?.source_workflow_id) ??
+    normalizeString(template.created_from_workflow_id);
+  const renderedToolSummary =
+    normalizedMissingToolIds.length === 1
+      ? normalizedMissingToolIds[0]
+      : `${normalizedMissingToolIds.slice(0, 2).join("、")} 等 ${normalizedMissingToolIds.length} 个 tool`;
+  const detail = sourceWorkflowId
+    ? `当前 starter 仍引用目录里不存在的 tool：${renderedToolSummary}；先回源 workflow 补齐 tool binding，再回来继续复用或创建。`
+    : `当前 starter 仍引用目录里不存在的 tool：${renderedToolSummary}；先同步 workspace plugin catalog，或切换到仍可用的 starter。`;
+
+  const sourceWorkflowLink = sourceWorkflowId
+    ? workspaceStarterGovernanceQueryScope
+      ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+          workflowId: sourceWorkflowId,
+          viewState: workspaceStarterGovernanceQueryScope,
+          variant: "source"
+        })
+      : buildAuthorFacingWorkflowDetailLinkSurface({
+          workflowId: sourceWorkflowId,
+          variant: "source"
+        })
+    : null;
+
+  return {
+    label: "catalog gap",
+    headline: "",
+    detail,
+    primaryResourceSummary: buildWorkspaceStarterPrimaryResourceSummary({
+      templateId: template.id,
+      templateName: template.name,
+      sourceWorkflowId,
+      sourceWorkflowName: normalizeString(template.source_governance?.source_workflow_name),
+      sourceWorkflowVersion:
+        normalizeString(template.source_governance?.source_version) ??
+        normalizeString(template.created_from_workflow_version),
+      statusLabels: [
+        normalizedMissingToolIds.length === 1
+          ? `missing tool ${normalizedMissingToolIds[0]}`
+          : `${normalizedMissingToolIds.length} missing tools`
+      ],
+      archived: template.archived
+    }),
+    focusTemplateId: null,
+    focusLabel: null,
+    entryKey: sourceWorkflowLink ? "workflowLibrary" : undefined,
+    entryOverride: sourceWorkflowLink
+      ? {
+          href: appendWorkflowLibraryViewState(sourceWorkflowLink.href, {
+            definitionIssue: "missing_tool"
+          }),
+          label: sourceWorkflowLink.label
+        }
+      : undefined
   };
 }
 

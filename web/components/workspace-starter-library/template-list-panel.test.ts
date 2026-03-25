@@ -394,4 +394,106 @@ describe("WorkspaceStarterTemplateListPanel", () => {
     );
     expect(html).not.toContain("starter-selected&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92");
   });
+
+  it("prioritizes catalog gap follow-up on starter cards and deep-links back to the source workflow", () => {
+    const templates: WorkspaceStarterTemplateItem[] = [
+      {
+        id: "starter-catalog-gap",
+        workspace_id: "default",
+        name: "Catalog gap starter",
+        description: "Starter with a missing tool binding.",
+        business_track: "应用新建编排",
+        default_workflow_name: "Catalog gap starter",
+        workflow_focus: "Keep authoring unblocked.",
+        recommended_next_step: "Review the missing tool binding.",
+        tags: ["catalog-gap"],
+        definition: {
+          nodes: [],
+          edges: []
+        },
+        created_from_workflow_id: "wf-gap",
+        created_from_workflow_version: "0.4.0",
+        archived: false,
+        archived_at: null,
+        created_at: "2026-03-21T12:00:00Z",
+        updated_at: "2026-03-21T12:30:00Z",
+        source_governance: {
+          kind: "synced",
+          status_label: "已对齐",
+          summary: "当前 starter 与来源 workflow 已对齐。",
+          source_workflow_id: "wf-gap",
+          source_workflow_name: "Catalog gap workflow",
+          template_version: "0.4.0",
+          source_version: "0.4.0",
+          action_decision: {
+            recommended_action: "none",
+            status_label: "已对齐",
+            summary: "当前无需额外治理。",
+            can_refresh: false,
+            can_rebase: false,
+            fact_chips: []
+          },
+          outcome_explanation: {
+            primary_signal: "当前 starter 与来源 workflow 已对齐。",
+            follow_up: null
+          }
+        }
+      }
+    ];
+
+    const html = renderToStaticMarkup(
+      createElement(WorkspaceStarterTemplateListPanel, {
+        templates,
+        filteredTemplates: templates,
+        selectedTemplateId: "starter-catalog-gap",
+        activeTrack: "应用新建编排",
+        archiveFilter: "active",
+        sourceGovernanceKind: "all",
+        needsFollowUp: false,
+        searchQuery: "gap",
+        createWorkflowHref:
+          "/workflows/new?q=gap&starter=starter-catalog-gap&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92",
+        activeTemplateCount: 1,
+        archivedTemplateCount: 0,
+        templateToolGovernanceById: new Map([
+          [
+            "starter-catalog-gap",
+            {
+              referencedToolIds: ["catalog.tool.missing"],
+              referencedTools: [],
+              missingToolIds: ["catalog.tool.missing"],
+              governedToolCount: 1,
+              strongIsolationToolCount: 0
+            }
+          ]
+        ]),
+        bulkPreview: null,
+        bulkPreviewNotice: null,
+        isBulkMutating: false,
+        isLoadingBulkPreview: false,
+        isLoadingSourceGovernanceScope: false,
+        lastBulkResult: null,
+        sourceGovernanceScope: null,
+        onTrackChange: () => {},
+        onArchiveFilterChange: () => {},
+        onSourceGovernanceKindChange: () => {},
+        onNeedsFollowUpChange: () => {},
+        onSearchQueryChange: () => {},
+        onSelectTemplate: () => {},
+        onFocusTemplate: () => {},
+        onBulkAction: () => {}
+      })
+    );
+
+    expect(html).toContain("Catalog gap starter");
+    expect(html).toContain("catalog gap");
+    expect(html).toContain("当前 starter 仍引用目录里不存在的 tool：catalog.tool.missing");
+    expect(html).toContain(
+      "Primary governed starter: Catalog gap starter · missing tool catalog.tool.missing · source 0.4.0."
+    );
+    expect(html).toContain("打开源 workflow");
+    expect(html).toContain("definition_issue=missing_tool");
+    expect(html).toContain("starter=starter-catalog-gap");
+    expect(html).toContain("wf-gap");
+  });
 });

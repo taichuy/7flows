@@ -22,6 +22,7 @@ import {
   buildWorkspaceStarterEmptyStateFollowUp,
   buildWorkspaceStarterBulkPreviewFocusTargets,
   buildWorkspaceStarterBulkResultFocusTargets,
+  buildWorkspaceStarterMissingToolGovernanceSurface,
   buildWorkspaceStarterSourceGovernancePrimaryFollowUp,
   buildWorkspaceStarterSourceGovernanceSurface,
   buildWorkspaceStarterSourceGovernanceFocusTargets,
@@ -316,11 +317,23 @@ export function WorkspaceStarterTemplateListPanel({
                 selectedTemplateId
               }
             });
+            const missingToolGovernanceSurface = buildWorkspaceStarterMissingToolGovernanceSurface({
+              template,
+              missingToolIds: toolGovernance?.missingToolIds ?? [],
+              workspaceStarterGovernanceQueryScope: {
+                activeTrack,
+                sourceGovernanceKind,
+                needsFollowUp,
+                searchQuery,
+                selectedTemplateId
+              }
+            });
             const sourceGovernance = sourceGovernanceSurface.presenter;
-            const recommendedNextStep = sourceGovernanceSurface.recommendedNextStep;
+            const recommendedNextStep =
+              missingToolGovernanceSurface ?? sourceGovernanceSurface.recommendedNextStep;
             const shouldRenderStandaloneFollowUp =
               Boolean(sourceGovernance.followUp) &&
-              sourceGovernance.followUp !== recommendedNextStep?.detail;
+              sourceGovernance.followUp !== sourceGovernanceSurface.recommendedNextStep?.detail;
             const focusTemplateId = recommendedNextStep?.focusTemplateId;
             const shouldRenderRecommendedNextStepActions =
               Boolean(recommendedNextStep?.entryKey) ||
@@ -372,6 +385,20 @@ export function WorkspaceStarterTemplateListPanel({
                       detail={recommendedNextStep.detail}
                       label={recommendedNextStep.label}
                       primaryResourceSummary={recommendedNextStep.primaryResourceSummary}
+                      actions={
+                        recommendedNextStep.entryKey ? (
+                          <span
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => event.stopPropagation()}
+                          >
+                            <WorkbenchEntryLink
+                              className="inline-link"
+                              linkKey={recommendedNextStep.entryKey}
+                              override={recommendedNextStep.entryOverride}
+                            />
+                          </span>
+                        ) : null
+                      }
                     />
                   ) : sourceGovernance.followUp && sourceGovernance.needsAttention ? (
                     <p className="binding-meta">{sourceGovernance.followUp}</p>
@@ -397,7 +424,7 @@ export function WorkspaceStarterTemplateListPanel({
                 </button>
                 {shouldRenderRecommendedNextStepActions ? (
                   <div className="binding-actions">
-                    {recommendedNextStep?.entryKey ? (
+                    {recommendedNextStep?.entryKey && !missingToolGovernanceSurface ? (
                       <span
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}

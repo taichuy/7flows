@@ -182,6 +182,7 @@ export function WorkspaceStarterLibrary({
             isRefreshing={isRefreshing}
             isRebasing={isRebasing}
             createWorkflowHref={selectedTemplate?.archived ? null : createWorkflowHref}
+            workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
             emptyStateFollowUp={emptyStateFollowUp}
             onRefresh={handleRefreshFromSource}
             onRebase={handleRebaseFromSource}
