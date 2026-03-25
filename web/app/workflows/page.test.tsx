@@ -222,6 +222,11 @@ describe("WorkflowsPage", () => {
     expect(html).toContain("draft:1 / published:1");
     expect(html).toContain("Alpha workflow · missing tools");
     expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
+    expect(html).toContain("跨 workflow catalog gap handoff");
+    expect(html).toContain("只看 missing-tool workflow");
+    expect(html).toContain(
+      "当前 workflow 仍引用目录里不存在的 tool：tool-missing；补齐 binding 后即可清空当前范围里的 missing-tool backlog。"
+    );
     expect(html).toContain("Sandbox execution chain");
     expect(html).toContain("Live sandbox readiness");
     expect(html).toContain("强隔离路径会按 execution class fail-closed：sandbox 当前 blocked。");
@@ -315,9 +320,9 @@ describe("WorkflowsPage", () => {
         node_count: 3,
         definition_issues: [],
         tool_governance: {
-          referenced_tool_ids: [],
-          missing_tool_ids: [],
-          governed_tool_count: 0,
+          referenced_tool_ids: ["tool-missing"],
+          missing_tool_ids: ["tool-missing"],
+          governed_tool_count: 1,
           strong_isolation_tool_count: 0
         }
       }
@@ -329,6 +334,11 @@ describe("WorkflowsPage", () => {
     expect(html).toContain("当前 Workflow secret 仍是 operator inbox 的首要治理资源");
     expect(html).toContain("Primary governed resource: Workflow secret.");
     expect(html).toContain('/sensitive-access?status=pending');
+    expect(html).toContain("跨 workflow catalog gap handoff");
+    expect(html).toContain(
+      "当前 workflow 仍引用目录里不存在的 tool：tool-missing；补齐 binding 后即可清空当前范围里的 missing-tool backlog。"
+    );
+    expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
     expect(html).not.toContain("publish auth cleanup");
   });
 

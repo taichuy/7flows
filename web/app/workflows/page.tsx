@@ -17,6 +17,7 @@ import {
 } from "@/components/workspace-starter-library/shared";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
 import { WorkflowLibraryLegacyAuthGovernanceCard } from "@/components/workflow-library-legacy-auth-governance-card";
+import { WorkflowLibraryMissingToolGovernanceCard } from "@/components/workflow-library-missing-tool-governance-card";
 import { buildCrossEntryRiskDigest } from "@/lib/cross-entry-risk-digest";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import type { WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
@@ -159,6 +160,19 @@ export default async function WorkflowsPage({
         viewState: workspaceStarterViewState,
         workflowLibraryViewState: {
           definitionIssue: "legacy_publish_auth"
+        },
+        variant: "editor"
+      }).href
+    ])
+  );
+  const missingToolWorkflowDetailHrefsById = Object.fromEntries(
+    summary.workflowsWithMissingTools.map((workflow) => [
+      workflow.id,
+      buildFilteredWorkflowDetailLink({
+        workflowId: workflow.id,
+        viewState: workspaceStarterViewState,
+        workflowLibraryViewState: {
+          definitionIssue: "missing_tool"
         },
         variant: "editor"
       }).href
@@ -343,6 +357,12 @@ export default async function WorkflowsPage({
             snapshot={legacyAuthGovernanceSnapshot}
             workflowDetailHrefsById={legacyAuthWorkflowDetailHrefsById}
             workflowLibraryFilterHref={legacyPublishAuthFilterHref}
+          />
+
+          <WorkflowLibraryMissingToolGovernanceCard
+            workflows={summary.workflowsWithMissingTools}
+            workflowDetailHrefsById={missingToolWorkflowDetailHrefsById}
+            workflowLibraryFilterHref={missingToolFilterHref}
           />
 
           <div className="event-type-strip">
