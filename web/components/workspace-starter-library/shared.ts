@@ -870,6 +870,74 @@ export function buildWorkspaceStarterEmptyStateFollowUp({
   };
 }
 
+export function buildWorkspaceStarterTemplateFollowUpSurface({
+  template,
+  createWorkflowHref,
+  workspaceStarterGovernanceQueryScope = null,
+  fallbackHeadline = null,
+  fallbackLabel = null,
+  fallbackDetail = null
+}: {
+  template: WorkspaceStarterTemplateItem | null;
+  createWorkflowHref?: string | null;
+  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
+  fallbackHeadline?: string | null;
+  fallbackLabel?: string | null;
+  fallbackDetail?: string | null;
+}): WorkspaceStarterFollowUpSurface | null {
+  if (!template) {
+    return null;
+  }
+
+  const sourceGovernanceSurface = buildWorkspaceStarterSourceGovernanceSurface({
+    template,
+    createWorkflowHref,
+    workspaceStarterGovernanceQueryScope
+  });
+  const focusTemplateName = normalizeString(template.name) ?? template.id;
+  const primaryStatusLabel =
+    sourceGovernanceSurface.presenter.actionStatusLabel ?? sourceGovernanceSurface.presenter.statusLabel;
+  const followUpDetail =
+    sourceGovernanceSurface.recommendedNextStep?.detail ??
+    sourceGovernanceSurface.presenter.followUp ??
+    sourceGovernanceSurface.presenter.summary ??
+    normalizeString(template.recommended_next_step) ??
+    normalizeString(fallbackDetail);
+
+  if (!followUpDetail) {
+    return null;
+  }
+
+  return {
+    label:
+      sourceGovernanceSurface.recommendedNextStep?.label ??
+      primaryStatusLabel ??
+      normalizeString(fallbackLabel) ??
+      "查看 starter 治理状态",
+    headline: normalizeString(fallbackHeadline) ?? "",
+    detail: followUpDetail,
+    primaryResourceSummary:
+      sourceGovernanceSurface.recommendedNextStep?.primaryResourceSummary ??
+      buildWorkspaceStarterPrimaryResourceSummary({
+        templateId: template.id,
+        templateName: template.name,
+        sourceWorkflowId:
+          normalizeString(template.source_governance?.source_workflow_id) ??
+          normalizeString(template.created_from_workflow_id),
+        sourceWorkflowName: normalizeString(template.source_governance?.source_workflow_name),
+        sourceWorkflowVersion:
+          normalizeString(template.source_governance?.source_version) ??
+          normalizeString(template.created_from_workflow_version),
+        statusLabels: [primaryStatusLabel],
+        archived: template.archived
+      }),
+    focusTemplateId: template.id,
+    focusLabel: focusTemplateName ? `优先聚焦 starter：${focusTemplateName}` : null,
+    entryKey: sourceGovernanceSurface.recommendedNextStep?.entryKey,
+    entryOverride: sourceGovernanceSurface.recommendedNextStep?.entryOverride
+  };
+}
+
 export function buildWorkspaceStarterSourceGovernanceScopeSummary(
   templates: WorkspaceStarterTemplateItem[]
 ): WorkspaceStarterSourceGovernanceScopeSummary | null {

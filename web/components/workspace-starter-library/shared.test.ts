@@ -27,6 +27,7 @@ import {
   buildWorkspaceStarterSourceGovernanceSurface,
   buildWorkspaceStarterSourceGovernanceFocusTargets,
   buildWorkspaceStarterSourceGovernancePrimaryFollowUp,
+  buildWorkspaceStarterTemplateFollowUpSurface,
   buildWorkspaceStarterLibrarySearchParams,
   resolveWorkspaceStarterLibraryViewState
 } from "./shared";
@@ -820,6 +821,45 @@ describe("workspace starter source action decision", () => {
       entryOverride: {
         href: "/workflows/new?needs_follow_up=true",
         label: "去创建第一个 starter"
+      }
+    });
+  });
+
+  it("derives a focused starter follow-up surface from shared governance facts", () => {
+    const followUpSurface = buildWorkspaceStarterTemplateFollowUpSurface({
+      template: {
+        ...templates[0],
+        source_governance: {
+          kind: "missing_source",
+          status_label: "来源缺失",
+          summary: "原始来源 workflow 已不可访问。",
+          source_workflow_id: "wf-a",
+          source_workflow_name: null,
+          template_version: "0.1.0",
+          source_version: null,
+          action_decision: null,
+          outcome_explanation: {
+            primary_signal: "原始来源 workflow 已不可访问。",
+            follow_up: "确认模板后再回到创建页继续创建。"
+          }
+        }
+      },
+      createWorkflowHref: "/workflows/new?starter=starter-active-a",
+      fallbackHeadline: "当前 starter 还没有治理历史记录。",
+      fallbackDetail: "先留下第一条治理动作，再回来看结构化历史。"
+    });
+
+    expect(followUpSurface).toMatchObject({
+      label: "确认模板后带此 starter 回到创建页",
+      headline: "当前 starter 还没有治理历史记录。",
+      detail: "确认模板后再回到创建页继续创建。",
+      primaryResourceSummary: "Active starter A · 来源缺失 · source wf-a",
+      focusTemplateId: "starter-active-a",
+      focusLabel: "优先聚焦 starter：Active starter A",
+      entryKey: "createWorkflow",
+      entryOverride: {
+        href: "/workflows/new?starter=starter-active-a",
+        label: "确认模板后带此 starter 回到创建页"
       }
     });
   });

@@ -182,18 +182,25 @@ export function WorkspaceStarterLibrary({
             isRefreshing={isRefreshing}
             isRebasing={isRebasing}
             createWorkflowHref={selectedTemplate?.archived ? null : createWorkflowHref}
+            emptyStateFollowUp={emptyStateFollowUp}
             onRefresh={handleRefreshFromSource}
             onRebase={handleRebaseFromSource}
           />
 
           <WorkspaceStarterHistoryPanel
+            selectedTemplate={selectedTemplate}
             historyItems={historyItems}
             isLoading={isLoadingHistory}
+            createWorkflowHref={selectedTemplate?.archived ? null : createWorkflowHref}
+            emptyStateFollowUp={emptyStateFollowUp}
           />
           <WorkspaceStarterSourceDiffPanel
+            selectedTemplate={selectedTemplate}
             sourceDiff={sourceDiff}
             isLoading={isLoadingSourceDiff}
             isRebasing={isRebasing}
+            createWorkflowHref={selectedTemplate?.archived ? null : createWorkflowHref}
+            emptyStateFollowUp={emptyStateFollowUp}
             onRebase={handleRebaseFromSource}
           />
         </div>

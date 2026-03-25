@@ -1,28 +1,62 @@
 "use client";
 
+import { WorkbenchEntryLink } from "@/components/workbench-entry-links";
+import { WorkspaceStarterFollowUpCard } from "@/components/workspace-starter-library/follow-up-card";
 import type { WorkspaceStarterSourceDiff } from "@/lib/get-workspace-starters";
+import type { WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
 
 import {
+  buildWorkspaceStarterEmptyStateFollowUp,
   buildWorkspaceStarterSourceDiffPanelCopy,
   buildWorkspaceStarterSourceDiffSurface,
+  buildWorkspaceStarterTemplateFollowUpSurface,
+  type WorkspaceStarterFollowUpSurface,
   type WorkspaceStarterSourceDiffSectionSurface
 } from "./shared";
 
 type WorkspaceStarterSourceDiffPanelProps = {
+  selectedTemplate: WorkspaceStarterTemplateItem | null;
   sourceDiff: WorkspaceStarterSourceDiff | null;
   isLoading: boolean;
   isRebasing: boolean;
+  createWorkflowHref?: string | null;
+  emptyStateFollowUp?: WorkspaceStarterFollowUpSurface | null;
   onRebase: () => void;
 };
 
 export function WorkspaceStarterSourceDiffPanel({
+  selectedTemplate,
   sourceDiff,
   isLoading,
   isRebasing,
+  createWorkflowHref = null,
+  emptyStateFollowUp = null,
   onRebase
 }: WorkspaceStarterSourceDiffPanelProps) {
   const surfaceCopy = buildWorkspaceStarterSourceDiffPanelCopy();
   const surface = buildWorkspaceStarterSourceDiffSurface(sourceDiff);
+  const resolvedEmptyStateFollowUp =
+    emptyStateFollowUp ??
+    (createWorkflowHref
+      ? buildWorkspaceStarterEmptyStateFollowUp({
+          sourceGovernancePrimaryFollowUp: null,
+          createWorkflowHref
+        })
+      : {
+          label: "先从左侧选择 starter",
+          headline: "当前还没有聚焦中的 workspace starter。",
+          detail: "先从左侧列表选择一个 starter，这里会显示 source workflow 与当前快照的差异。",
+          focusTemplateId: null,
+          focusLabel: null
+        });
+  const selectedTemplateFollowUp = buildWorkspaceStarterTemplateFollowUpSurface({
+    template: selectedTemplate,
+    createWorkflowHref,
+    fallbackHeadline: "当前 starter 还没有 source diff 快照。",
+    fallbackDetail:
+      "先在上方来源治理卡里确认该 starter 的来源状态，再决定 refresh / rebase / create workflow。"
+  });
+  const emptyPanelFollowUp = selectedTemplate ? selectedTemplateFollowUp : resolvedEmptyStateFollowUp;
 
   return (
     <article className="diagnostic-panel">
@@ -37,7 +71,30 @@ export function WorkspaceStarterSourceDiffPanel({
       {isLoading ? (
         <p className="empty-state">{surface?.loadingMessage ?? surfaceCopy.loadingMessage}</p>
       ) : !surface ? (
-        <p className="empty-state">{surfaceCopy.emptyMessage}</p>
+        <>
+          <p className="empty-state">
+            {selectedTemplate
+              ? surfaceCopy.emptyMessage
+              : "选中一个模板后，这里会显示 source workflow 与当前快照的差异。"}
+          </p>
+          {emptyPanelFollowUp ? (
+            <WorkspaceStarterFollowUpCard
+              detail={emptyPanelFollowUp.detail}
+              headline={emptyPanelFollowUp.headline}
+              label={emptyPanelFollowUp.label}
+              primaryResourceSummary={emptyPanelFollowUp.primaryResourceSummary}
+              actions={
+                emptyPanelFollowUp.entryKey ? (
+                  <WorkbenchEntryLink
+                    className="inline-link"
+                    linkKey={emptyPanelFollowUp.entryKey}
+                    override={emptyPanelFollowUp.entryOverride}
+                  />
+                ) : null
+              }
+            />
+          ) : null}
+        </>
       ) : (
         <>
           <div className="summary-strip compact-strip">

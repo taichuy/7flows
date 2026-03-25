@@ -1,4 +1,6 @@
+import { WorkbenchEntryLink } from "@/components/workbench-entry-links";
 import { ToolGovernanceSummary } from "@/components/tool-governance-summary";
+import { WorkspaceStarterFollowUpCard } from "@/components/workspace-starter-library/follow-up-card";
 import { WorkspaceStarterSourceCard } from "@/components/workspace-starter-library/source-status-card";
 import type {
   WorkspaceStarterSourceGovernance,
@@ -14,7 +16,9 @@ import {
 import type { WorkflowDefinitionToolGovernance } from "@/lib/workflow-definition-tool-governance";
 
 import {
+  buildWorkspaceStarterEmptyStateFollowUp,
   buildWorkspaceStarterSourceGovernancePresenter,
+  type WorkspaceStarterFollowUpSurface,
   formatTimestamp
 } from "./shared";
 
@@ -28,6 +32,7 @@ type WorkspaceStarterDefinitionSnapshotPanelProps = {
   isRefreshing: boolean;
   isRebasing: boolean;
   createWorkflowHref?: string | null;
+  emptyStateFollowUp?: WorkspaceStarterFollowUpSurface | null;
   onRefresh: () => void;
   onRebase: () => void;
 };
@@ -42,6 +47,7 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
   isRefreshing,
   isRebasing,
   createWorkflowHref = null,
+  emptyStateFollowUp = null,
   onRefresh,
   onRebase
 }: WorkspaceStarterDefinitionSnapshotPanelProps) {
@@ -54,6 +60,20 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
   const sandboxDependencySummary = describeWorkflowDefinitionSandboxDependency(
     selectedTemplateSandboxGovernance
   );
+  const resolvedEmptyStateFollowUp =
+    emptyStateFollowUp ??
+    (createWorkflowHref
+      ? buildWorkspaceStarterEmptyStateFollowUp({
+          sourceGovernancePrimaryFollowUp: null,
+          createWorkflowHref
+        })
+      : {
+          label: "先从左侧选择 starter",
+          headline: "当前还没有聚焦中的 workspace starter。",
+          detail: "先从左侧列表选择一个 starter，这里会显示 definition snapshot、来源状态和治理依赖。",
+          focusTemplateId: null,
+          focusLabel: null
+        });
 
   return (
     <article className="diagnostic-panel">
@@ -65,7 +85,24 @@ export function WorkspaceStarterDefinitionSnapshotPanel({
       </div>
 
       {!selectedTemplate ? (
-        <p className="empty-state">当前没有可预览的模板定义。</p>
+        <>
+          <p className="empty-state">当前没有可预览的模板定义。</p>
+          <WorkspaceStarterFollowUpCard
+            detail={resolvedEmptyStateFollowUp.detail}
+            headline={resolvedEmptyStateFollowUp.headline}
+            label={resolvedEmptyStateFollowUp.label}
+            primaryResourceSummary={resolvedEmptyStateFollowUp.primaryResourceSummary}
+            actions={
+              resolvedEmptyStateFollowUp.entryKey ? (
+                <WorkbenchEntryLink
+                  className="inline-link"
+                  linkKey={resolvedEmptyStateFollowUp.entryKey}
+                  override={resolvedEmptyStateFollowUp.entryOverride}
+                />
+              ) : null
+            }
+          />
+        </>
       ) : (
         <>
           <div className="meta-grid">

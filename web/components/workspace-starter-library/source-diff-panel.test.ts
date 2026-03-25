@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { WorkspaceStarterSourceDiff } from "@/lib/get-workspace-starters";
@@ -8,6 +9,11 @@ import type { WorkspaceStarterSourceDiff } from "@/lib/get-workspace-starters";
 import { WorkspaceStarterSourceDiffPanel } from "./source-diff-panel";
 
 Object.assign(globalThis, { React });
+
+vi.mock("next/link", () => ({
+  default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
+    createElement("a", { href: href ?? "#", ...props }, children)
+}));
 
 describe("WorkspaceStarterSourceDiffPanel", () => {
   it("renders the shared source diff surface for operator review", () => {
@@ -78,6 +84,7 @@ describe("WorkspaceStarterSourceDiffPanel", () => {
 
     const html = renderToStaticMarkup(
       createElement(WorkspaceStarterSourceDiffPanel, {
+        selectedTemplate: null,
         sourceDiff,
         isLoading: false,
         isRebasing: false,
@@ -106,5 +113,61 @@ describe("WorkspaceStarterSourceDiffPanel", () => {
     expect(html).not.toContain("template facts");
     expect(html).not.toContain("source facts");
     expect(html).not.toContain("当前模板没有可用的 source diff");
+  });
+
+  it("keeps a shared follow-up visible when the selected starter has no diff snapshot", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkspaceStarterSourceDiffPanel, {
+        selectedTemplate: {
+          id: "starter-missing-source",
+          workspace_id: "default",
+          name: "Missing Source Starter",
+          description: "Starter description",
+          business_track: "应用新建编排",
+          default_workflow_name: "Governed workflow",
+          workflow_focus: "Keep source governance visible.",
+          recommended_next_step: "Return to create flow after reviewing metadata.",
+          tags: ["workspace starter"],
+          definition: {
+            nodes: [{ id: "trigger", type: "trigger", name: "Trigger", config: {} }],
+            edges: [],
+            variables: [],
+            publish: []
+          },
+          created_from_workflow_id: "workflow-missing",
+          archived: false,
+          created_at: "2026-03-22T00:00:00.000Z",
+          updated_at: "2026-03-22T00:00:00.000Z",
+          source_governance: {
+            kind: "missing_source",
+            status_label: "来源缺失",
+            summary: "原始来源 workflow 已不可访问。",
+            source_workflow_id: "workflow-missing",
+            source_workflow_name: null,
+            template_version: "0.1.0",
+            source_version: null,
+            action_decision: null,
+            outcome_explanation: {
+              primary_signal: "原始来源 workflow 已不可访问。",
+              follow_up: "确认模板后再回到创建页继续创建。"
+            }
+          }
+        },
+        sourceDiff: null,
+        isLoading: false,
+        isRebasing: false,
+        createWorkflowHref: "/workflows/new?starter=starter-missing-source",
+        onRebase: vi.fn()
+      })
+    );
+
+    expect(html).toContain("当前模板没有可用的 source diff。");
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("当前 starter 还没有 source diff 快照。");
+    expect(html).toContain("确认模板后带此 starter 回到创建页");
+    expect(html).toContain(
+      "Primary governed starter: Missing Source Starter · 来源缺失 · source workflow-missing."
+    );
+    expect(html).toContain('/workflows/new?starter=starter-missing-source');
   });
 });

@@ -1,10 +1,19 @@
+import * as React from "react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { WorkspaceStarterHistoryItem } from "@/lib/get-workspace-starters";
 
 import { WorkspaceStarterHistoryPanel } from "./history-panel";
+
+Object.assign(globalThis, { React });
+
+vi.mock("next/link", () => ({
+  default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
+    createElement("a", { href: href ?? "#", ...props }, children)
+}));
 
 describe("WorkspaceStarterHistoryPanel", () => {
   it("renders structured sandbox drift facts with a structured payload snapshot", () => {
@@ -67,6 +76,7 @@ describe("WorkspaceStarterHistoryPanel", () => {
 
     const html = renderToStaticMarkup(
       createElement(WorkspaceStarterHistoryPanel, {
+        selectedTemplate: null,
         historyItems,
         isLoading: false
       })
@@ -92,5 +102,58 @@ describe("WorkspaceStarterHistoryPanel", () => {
     expect(html).not.toContain("查看原始 payload");
     expect(html).not.toContain("action_decision");
     expect(html).not.toContain("can_refresh");
+  });
+
+  it("shows a shared starter follow-up when the selected starter has no history yet", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkspaceStarterHistoryPanel, {
+        selectedTemplate: {
+          id: "starter-missing-source",
+          workspace_id: "default",
+          name: "Missing Source Starter",
+          description: "Starter description",
+          business_track: "应用新建编排",
+          default_workflow_name: "Governed workflow",
+          workflow_focus: "Keep source governance visible.",
+          recommended_next_step: "Return to create flow after reviewing metadata.",
+          tags: ["workspace starter"],
+          definition: {
+            nodes: [{ id: "trigger", type: "trigger", name: "Trigger", config: {} }],
+            edges: [],
+            variables: [],
+            publish: []
+          },
+          created_from_workflow_id: "workflow-missing",
+          archived: false,
+          created_at: "2026-03-22T00:00:00.000Z",
+          updated_at: "2026-03-22T00:00:00.000Z",
+          source_governance: {
+            kind: "missing_source",
+            status_label: "来源缺失",
+            summary: "原始来源 workflow 已不可访问。",
+            source_workflow_id: "workflow-missing",
+            source_workflow_name: null,
+            template_version: "0.1.0",
+            source_version: null,
+            action_decision: null,
+            outcome_explanation: {
+              primary_signal: "原始来源 workflow 已不可访问。",
+              follow_up: "确认模板后再回到创建页继续创建。"
+            }
+          }
+        },
+        historyItems: [],
+        isLoading: false,
+        createWorkflowHref: "/workflows/new?starter=starter-missing-source"
+      })
+    );
+
+    expect(html).toContain("当前模板还没有治理历史记录。");
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("确认模板后带此 starter 回到创建页");
+    expect(html).toContain(
+      "Primary governed starter: Missing Source Starter · 来源缺失 · source workflow-missing."
+    );
+    expect(html).toContain('/workflows/new?starter=starter-missing-source');
   });
 });

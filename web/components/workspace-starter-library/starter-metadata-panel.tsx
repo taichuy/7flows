@@ -20,6 +20,7 @@ import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entr
 
 import {
   buildWorkspaceStarterEmptyStateFollowUp,
+  buildWorkspaceStarterTemplateFollowUpSurface,
   buildWorkspaceStarterSourceGovernanceSurface,
   buildWorkspaceStarterSourceGovernancePresenter,
   resolveWorkspaceStarterCreateWorkflowActionLabel,
@@ -78,16 +79,14 @@ export function WorkspaceStarterMetadataPanel({
       })
     : null;
   const metadataRecommendedNextStep = sourceGovernanceSurface?.recommendedNextStep ?? null;
-  const metadataFollowUpDetail = selectedTemplate
-    ? metadataRecommendedNextStep?.detail ??
-      sourceGovernanceSurface?.presenter.followUp ??
-      sourceGovernanceSurface?.presenter.summary ??
-      selectedTemplate.recommended_next_step ??
-      null
-    : null;
+  const metadataFollowUpSurface = buildWorkspaceStarterTemplateFollowUpSurface({
+    template: selectedTemplate,
+    createWorkflowHref,
+    workspaceStarterGovernanceQueryScope
+  });
   const metadataCreateWorkflowLabel =
-    (metadataRecommendedNextStep?.entryKey === "createWorkflow"
-      ? metadataRecommendedNextStep.entryOverride?.label?.trim()
+    (metadataFollowUpSurface?.entryKey === "createWorkflow"
+      ? metadataFollowUpSurface.entryOverride?.label?.trim()
       : null) ?? createWorkflowActionLabel;
   const resolvedEmptyStateFollowUp =
     emptyStateFollowUp ??
@@ -165,16 +164,12 @@ export function WorkspaceStarterMetadataPanel({
             </div>
           </div>
 
-          {metadataFollowUpDetail ? (
+          {metadataFollowUpSurface ? (
             <WorkspaceStarterFollowUpCard
-              label={
-                metadataRecommendedNextStep?.label ??
-                sourceGovernanceSurface?.presenter.actionStatusLabel ??
-                sourceGovernanceSurface?.presenter.statusLabel ??
-                createWorkflowActionLabel
-              }
-              detail={metadataFollowUpDetail}
-              primaryResourceSummary={metadataRecommendedNextStep?.primaryResourceSummary}
+              headline={metadataFollowUpSurface.headline}
+              label={metadataFollowUpSurface.label}
+              detail={metadataFollowUpSurface.detail}
+              primaryResourceSummary={metadataFollowUpSurface.primaryResourceSummary}
               actions={
                 <>
                   {createWorkflowHref && metadataCreateWorkflowLabel ? (

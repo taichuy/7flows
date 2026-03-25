@@ -2,24 +2,61 @@
 
 import React from "react";
 
-import type { WorkspaceStarterHistoryItem } from "@/lib/get-workspace-starters";
+import { WorkbenchEntryLink } from "@/components/workbench-entry-links";
+import { WorkspaceStarterFollowUpCard } from "@/components/workspace-starter-library/follow-up-card";
+import type {
+  WorkspaceStarterHistoryItem,
+  WorkspaceStarterTemplateItem
+} from "@/lib/get-workspace-starters";
 
 import {
+  buildWorkspaceStarterEmptyStateFollowUp,
   buildWorkspaceStarterHistoryPayloadSnapshot,
   buildWorkspaceStarterHistoryMetaChips,
   buildWorkspaceStarterHistoryNarrative,
+  buildWorkspaceStarterTemplateFollowUpSurface,
+  type WorkspaceStarterFollowUpSurface,
   formatTimestamp
 } from "./shared";
 
 type WorkspaceStarterHistoryPanelProps = {
+  selectedTemplate: WorkspaceStarterTemplateItem | null;
   historyItems: WorkspaceStarterHistoryItem[];
   isLoading: boolean;
+  createWorkflowHref?: string | null;
+  emptyStateFollowUp?: WorkspaceStarterFollowUpSurface | null;
 };
 
 export function WorkspaceStarterHistoryPanel({
+  selectedTemplate,
   historyItems,
-  isLoading
+  isLoading,
+  createWorkflowHref = null,
+  emptyStateFollowUp = null
 }: WorkspaceStarterHistoryPanelProps) {
+  const resolvedEmptyStateFollowUp =
+    emptyStateFollowUp ??
+    (createWorkflowHref
+      ? buildWorkspaceStarterEmptyStateFollowUp({
+          sourceGovernancePrimaryFollowUp: null,
+          createWorkflowHref
+        })
+      : {
+          label: "先从左侧选择 starter",
+          headline: "当前还没有聚焦中的 workspace starter。",
+          detail: "先从左侧列表选择一个 starter，这里会显示治理动作留下的结构化历史记录。",
+          focusTemplateId: null,
+          focusLabel: null
+        });
+  const historyEmptyStateFollowUp = buildWorkspaceStarterTemplateFollowUpSurface({
+    template: selectedTemplate,
+    createWorkflowHref,
+    fallbackHeadline: "当前 starter 还没有治理历史记录。",
+    fallbackDetail:
+      "先完成一次 refresh / rebase / 元数据调整、归档或恢复动作，这里才会留下可追溯的结构化治理记录。"
+  });
+  const emptyPanelFollowUp = selectedTemplate ? historyEmptyStateFollowUp : resolvedEmptyStateFollowUp;
+
   return (
     <article className="diagnostic-panel">
       <div className="section-heading">
@@ -35,7 +72,30 @@ export function WorkspaceStarterHistoryPanel({
       {isLoading ? (
         <p className="empty-state">正在加载模板治理历史...</p>
       ) : historyItems.length === 0 ? (
-        <p className="empty-state">当前模板还没有治理历史记录。</p>
+        <>
+          <p className="empty-state">
+            {selectedTemplate
+              ? "当前模板还没有治理历史记录。"
+              : "选中一个模板后，这里会显示治理动作留下的结构化历史记录。"}
+          </p>
+          {emptyPanelFollowUp ? (
+            <WorkspaceStarterFollowUpCard
+              detail={emptyPanelFollowUp.detail}
+              headline={emptyPanelFollowUp.headline}
+              label={emptyPanelFollowUp.label}
+              primaryResourceSummary={emptyPanelFollowUp.primaryResourceSummary}
+              actions={
+                emptyPanelFollowUp.entryKey ? (
+                  <WorkbenchEntryLink
+                    className="inline-link"
+                    linkKey={emptyPanelFollowUp.entryKey}
+                    override={emptyPanelFollowUp.entryOverride}
+                  />
+                ) : null
+              }
+            />
+          ) : null}
+        </>
       ) : (
         <div className="governance-node-list">
           {historyItems.map((item) => {
