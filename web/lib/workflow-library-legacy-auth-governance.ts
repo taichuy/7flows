@@ -1,12 +1,40 @@
 import type {
-  WorkflowPublishedEndpointLegacyAuthGovernanceBuckets,
+  WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem,
   WorkflowPublishedEndpointLegacyAuthGovernanceChecklistItem,
   WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
   WorkflowPublishedEndpointLegacyAuthGovernanceSummary,
   WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem,
 } from "@/lib/get-workflow-publish";
+import {
+  appendWorkflowLibraryViewStateForWorkflow,
+  resolveWorkflowLibraryViewStateForWorkflow,
+  type WorkflowListDefinitionIssueFilter,
+} from "@/lib/workflow-library-query";
+import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 export type WorkflowLibraryLegacyAuthGovernanceExportFormat = "json" | "jsonl";
+
+export type WorkflowLibraryLegacyAuthGovernanceExportWorkflowFollowUp = {
+  workflow_detail_href: string;
+  workflow_detail_label: string;
+  definition_issue: WorkflowListDefinitionIssueFilter | null;
+};
+
+export type WorkflowLibraryLegacyAuthGovernanceExportWorkflowItem =
+  WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem & {
+    workflow_follow_up: WorkflowLibraryLegacyAuthGovernanceExportWorkflowFollowUp;
+  };
+
+export type WorkflowLibraryLegacyAuthGovernanceExportBindingItem =
+  WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem & {
+    workflow_follow_up: WorkflowLibraryLegacyAuthGovernanceExportWorkflowFollowUp;
+  };
+
+export type WorkflowLibraryLegacyAuthGovernanceExportBuckets = {
+  draft_candidates: WorkflowLibraryLegacyAuthGovernanceExportBindingItem[];
+  published_blockers: WorkflowLibraryLegacyAuthGovernanceExportBindingItem[];
+  offline_inventory: WorkflowLibraryLegacyAuthGovernanceExportBindingItem[];
+};
 
 export type WorkflowLibraryLegacyAuthGovernanceExportPayload = {
   export: {
@@ -17,9 +45,58 @@ export type WorkflowLibraryLegacyAuthGovernanceExportPayload = {
   };
   summary: WorkflowPublishedEndpointLegacyAuthGovernanceSummary;
   checklist: WorkflowPublishedEndpointLegacyAuthGovernanceChecklistItem[];
-  workflows: WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem[];
-  buckets: WorkflowPublishedEndpointLegacyAuthGovernanceBuckets;
+  workflows: WorkflowLibraryLegacyAuthGovernanceExportWorkflowItem[];
+  buckets: WorkflowLibraryLegacyAuthGovernanceExportBuckets;
 };
+
+function buildWorkflowLibraryLegacyAuthGovernanceDefaultWorkflowFollowUp(
+  workflowId: string,
+): WorkflowLibraryLegacyAuthGovernanceExportWorkflowFollowUp {
+  const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
+    workflowId,
+    variant: "editor",
+  });
+
+  return {
+    workflow_detail_href: workflowDetailLink.href,
+    workflow_detail_label: workflowDetailLink.label,
+    definition_issue: null,
+  };
+}
+
+function buildWorkflowLibraryLegacyAuthGovernanceWorkflowFollowUp(
+  workflow: WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem,
+): WorkflowLibraryLegacyAuthGovernanceExportWorkflowFollowUp {
+  const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
+    workflowId: workflow.workflow_id,
+    variant: "editor",
+  });
+  const viewState = resolveWorkflowLibraryViewStateForWorkflow(workflow, {
+    definitionIssue: null,
+  });
+
+  return {
+    workflow_detail_href: appendWorkflowLibraryViewStateForWorkflow(
+      workflowDetailLink.href,
+      workflow,
+      viewState,
+    ),
+    workflow_detail_label: workflowDetailLink.label,
+    definition_issue: viewState.definitionIssue,
+  };
+}
+
+function buildWorkflowLibraryLegacyAuthGovernanceBindingItem(
+  item: WorkflowPublishedEndpointLegacyAuthGovernanceBindingItem,
+  workflowFollowUpsById: Record<string, WorkflowLibraryLegacyAuthGovernanceExportWorkflowFollowUp>,
+): WorkflowLibraryLegacyAuthGovernanceExportBindingItem {
+  return {
+    ...item,
+    workflow_follow_up:
+      workflowFollowUpsById[item.workflow_id] ??
+      buildWorkflowLibraryLegacyAuthGovernanceDefaultWorkflowFollowUp(item.workflow_id),
+  };
+}
 
 function slugify(value: string) {
   const normalized = value
@@ -52,6 +129,14 @@ export function buildWorkflowLibraryLegacyAuthGovernanceExportPayload({
   exportedAt?: string;
   format?: WorkflowLibraryLegacyAuthGovernanceExportFormat;
 }): WorkflowLibraryLegacyAuthGovernanceExportPayload {
+  const workflows = snapshot.workflows.map((workflow) => ({
+    ...workflow,
+    workflow_follow_up: buildWorkflowLibraryLegacyAuthGovernanceWorkflowFollowUp(workflow),
+  }));
+  const workflowFollowUpsById = Object.fromEntries(
+    workflows.map((workflow) => [workflow.workflow_id, workflow.workflow_follow_up]),
+  );
+
   return {
     export: {
       exported_at: exportedAt,
@@ -61,8 +146,18 @@ export function buildWorkflowLibraryLegacyAuthGovernanceExportPayload({
     },
     summary: snapshot.summary,
     checklist: snapshot.checklist,
-    workflows: snapshot.workflows,
-    buckets: snapshot.buckets,
+    workflows,
+    buckets: {
+      draft_candidates: snapshot.buckets.draft_candidates.map((item) =>
+        buildWorkflowLibraryLegacyAuthGovernanceBindingItem(item, workflowFollowUpsById),
+      ),
+      published_blockers: snapshot.buckets.published_blockers.map((item) =>
+        buildWorkflowLibraryLegacyAuthGovernanceBindingItem(item, workflowFollowUpsById),
+      ),
+      offline_inventory: snapshot.buckets.offline_inventory.map((item) =>
+        buildWorkflowLibraryLegacyAuthGovernanceBindingItem(item, workflowFollowUpsById),
+      ),
+    },
   };
 }
 
@@ -96,7 +191,10 @@ export function serializeWorkflowLibraryLegacyAuthGovernanceExportJsonl(
   }
 
   const bucketEntries: Array<
-    [keyof WorkflowPublishedEndpointLegacyAuthGovernanceBuckets, WorkflowPublishedEndpointLegacyAuthGovernanceBuckets[keyof WorkflowPublishedEndpointLegacyAuthGovernanceBuckets]]
+    [
+      keyof WorkflowLibraryLegacyAuthGovernanceExportBuckets,
+      WorkflowLibraryLegacyAuthGovernanceExportBuckets[keyof WorkflowLibraryLegacyAuthGovernanceExportBuckets],
+    ]
   > = [
     ["draft_candidates", payload.buckets.draft_candidates],
     ["published_blockers", payload.buckets.published_blockers],

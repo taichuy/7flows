@@ -780,6 +780,30 @@ describe("InlineOperatorActionFeedback", () => {
     expect(html).toContain("Demo Workflow");
   });
 
+  it("keeps inline workflow handoff inside missing-tool scope when the workflow still has a catalog gap", () => {
+    const legacyAuthGovernance = buildLegacyAuthGovernanceSnapshot();
+    legacyAuthGovernance.workflows[0] = {
+      ...legacyAuthGovernance.workflows[0],
+      tool_governance: {
+        referenced_tool_ids: ["native.catalog-gap"],
+        missing_tool_ids: ["native.catalog-gap"],
+        governed_tool_count: 0,
+        strong_isolation_tool_count: 0,
+      },
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        message: "审批已通过。",
+        title: "审批结果",
+        legacyAuthGovernance,
+      })
+    );
+
+    expect(html).toContain('href="/workflows/wf-demo?definition_issue=missing_tool"');
+  });
+
   it("renders the primary governed resource when the action keeps governance context", () => {
     const html = renderToStaticMarkup(
       createElement(InlineOperatorActionFeedback, {

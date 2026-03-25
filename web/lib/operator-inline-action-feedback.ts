@@ -259,6 +259,7 @@ export function buildOperatorInlineActionFeedbackModel(
   const focusArtifacts = buildExecutionFocusArtifactSamples(input.runSnapshot);
   const focusSkillReferenceLoads = input.runSnapshot?.executionFocusSkillTrace?.loads ?? [];
   const sampledRunCount = input.runFollowUp?.sampledRuns.length ?? 0;
+  const legacyAuthBindingCount = input.legacyAuthGovernance?.binding_count ?? 0;
   const headline =
     outcomePrimarySignal ??
     runFollowUpPrimarySignal ??
@@ -285,6 +286,7 @@ export function buildOperatorInlineActionFeedbackModel(
         rawRefCount > 0 ||
         skillReferenceCount > 0 ||
         sampledRunCount > 0 ||
+        legacyAuthBindingCount > 0 ||
         focusArtifactSummary ||
         focusToolCallSummaries.length > 0 ||
         focusArtifacts.length > 0 ||
