@@ -1727,6 +1727,58 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     vi.resetModules();
 
     const callbackSummaryProps: Array<Record<string, unknown>> = [];
+    const detail = buildDetail();
+    detail.run_follow_up!.sampled_runs[0] = {
+      ...detail.run_follow_up!.sampled_runs[0],
+      snapshot: {
+        ...detail.run_follow_up!.sampled_runs[0].snapshot,
+        workflow_id: "workflow-1"
+      },
+      tool_governance: {
+        referenced_tool_ids: ["native.catalog-gap"],
+        missing_tool_ids: ["native.catalog-gap"],
+        governed_tool_count: 0,
+        strong_isolation_tool_count: 0
+      },
+      legacy_auth_governance: {
+        generated_at: "2026-03-20T12:00:00Z",
+        auth_mode_contract: {
+          supported_auth_modes: ["api_key", "internal"],
+          retired_legacy_auth_modes: ["token"],
+          summary: "supported api_key / internal, legacy token",
+          follow_up: "replace token bindings"
+        },
+        workflow_count: 1,
+        binding_count: 2,
+        summary: {
+          draft_candidate_count: 1,
+          published_blocker_count: 1,
+          offline_inventory_count: 0
+        },
+        checklist: [],
+        workflows: [
+          {
+            workflow_id: "workflow-1",
+            workflow_name: "Workflow 1",
+            binding_count: 2,
+            draft_candidate_count: 1,
+            published_blocker_count: 1,
+            offline_inventory_count: 0,
+            tool_governance: {
+              referenced_tool_ids: ["native.catalog-gap"],
+              missing_tool_ids: ["native.catalog-gap"],
+              governed_tool_count: 0,
+              strong_isolation_tool_count: 0
+            }
+          }
+        ],
+        buckets: {
+          draft_candidates: [],
+          published_blockers: [],
+          offline_inventory: []
+        }
+      }
+    };
 
     vi.doMock("next/link", () => ({
       default: ({
@@ -1773,7 +1825,7 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
       renderToStaticMarkup(
         createElement(IsolatedWorkflowPublishInvocationDetailPanel, {
           currentHref: "/workflows/workflow-1?publish_invocation=invocation-1",
-          detail: buildDetail(),
+          detail,
           clearHref: "/published?clear=1",
           tools: [],
           callbackWaitingAutomation
@@ -1785,7 +1837,14 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
           (props) =>
             props.runId === "run-callback-1" &&
             props.callbackWaitingAutomation === callbackWaitingAutomation &&
-            props.currentHref === "/workflows/workflow-1?publish_invocation=invocation-1"
+            props.currentHref === "/workflows/workflow-1?publish_invocation=invocation-1" &&
+            props.workflowCatalogGapSummary === "catalog gap · native.catalog-gap" &&
+            String(props.workflowCatalogGapDetail ?? "").includes(
+              "当前 sampled run 对应的 workflow 版本仍有 catalog gap"
+            ) &&
+            props.workflowGovernanceHref === "/workflows/workflow-1?definition_issue=missing_tool" &&
+            (props.legacyAuthHandoff as { bindingChipLabel?: string } | undefined)
+              ?.bindingChipLabel === "2 legacy bindings"
         )
       ).toBe(true);
     } finally {

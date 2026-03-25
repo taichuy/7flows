@@ -15,8 +15,11 @@ import {
   buildPublishedInvocationCallbackBlockerSurface,
   buildPublishedInvocationCallbackDrilldownSurfaceCopy,
   buildPublishedInvocationCallbackTicketSurface,
-  buildPublishedInvocationInboxHref
+  buildPublishedInvocationInboxHref,
+  resolvePublishedInvocationRunFollowUpSampleView
 } from "@/lib/published-invocation-presenters";
+import { appendWorkflowLibraryViewState } from "@/lib/workflow-library-query";
+import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 type WorkflowPublishInvocationCallbackSectionProps = {
   currentHref?: string | null;
@@ -68,6 +71,20 @@ export function WorkflowPublishInvocationCallbackSection({
     callbackTickets,
     sensitiveAccessEntries
   });
+  const runFollowUpSample = resolvePublishedInvocationRunFollowUpSampleView(invocation);
+  const runFollowUpSampleWorkflowDetailLink = runFollowUpSample?.workflow_id
+    ? buildAuthorFacingWorkflowDetailLinkSurface({
+        workflowId: runFollowUpSample.workflow_id,
+        variant: "editor"
+      })
+    : null;
+  const runFollowUpSampleWorkflowDetailHref = runFollowUpSampleWorkflowDetailLink
+    ? runFollowUpSample?.workflow_catalog_gap_summary
+      ? appendWorkflowLibraryViewState(runFollowUpSampleWorkflowDetailLink.href, {
+          definitionIssue: "missing_tool"
+        })
+      : runFollowUpSampleWorkflowDetailLink.href
+    : null;
   const focusEvidenceDrilldownLink = buildOperatorTraceSliceLinkSurface({
     runId: invocation.run_id ?? null,
     currentHref,
@@ -112,6 +129,10 @@ export function WorkflowPublishInvocationCallbackSection({
         nodeRunId={waitingLifecycle?.node_run_id ?? null}
         operatorFollowUp={invocation.run_follow_up?.explanation?.follow_up ?? null}
         recommendedAction={invocation.run_follow_up?.recommended_action ?? null}
+        workflowCatalogGapSummary={runFollowUpSample?.workflow_catalog_gap_summary}
+        workflowCatalogGapDetail={runFollowUpSample?.workflow_catalog_gap_detail}
+        workflowGovernanceHref={runFollowUpSampleWorkflowDetailHref}
+        legacyAuthHandoff={runFollowUpSample?.legacy_auth_handoff ?? null}
         preferCanonicalRecommendedNextStep
         focusEvidenceDrilldownLink={focusEvidenceDrilldownLink}
       />

@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WorkflowPublishInvocationCallbackSection } from "@/components/workflow-publish-invocation-callback-section";
 
@@ -16,6 +16,10 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
     );
   }
 }));
+
+beforeEach(() => {
+  callbackSummaryProps.length = 0;
+});
 
 describe("WorkflowPublishInvocationCallbackSection", () => {
   it("forwards current publish detail href into the shared callback summary", () => {
@@ -164,5 +168,117 @@ describe("WorkflowPublishInvocationCallbackSection", () => {
     expect(html).toContain("Callback ticket");
     expect(html).toContain("open ticket inbox slice");
     expect(html).toContain("callback payload preview");
+  });
+
+  it("forwards sampled workflow governance handoff into the shared callback summary", () => {
+    renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationCallbackSection, {
+        currentHref: "/workflows/workflow-1?publish_invocation=invocation-1",
+        invocation: {
+          workflow_id: "workflow-1",
+          run_id: "run-callback-1",
+          run_waiting_reason: "waiting_callback",
+          run_follow_up: {
+            explanation: {
+              primary_signal: "已命中 sampled run。",
+              follow_up: "继续观察 callback waiting。"
+            },
+            recommended_action: null,
+            sampled_runs: [
+              {
+                run_id: "run-callback-1",
+                snapshot: {
+                  workflow_id: "workflow-1",
+                  callback_waiting_explanation: {
+                    primary_signal: "当前 waiting 节点仍在等待 callback。",
+                    follow_up: "优先回到 workflow 编辑器处理缺口。"
+                  }
+                },
+                tool_governance: {
+                  referenced_tool_ids: ["native.catalog-gap"],
+                  missing_tool_ids: ["native.catalog-gap"],
+                  governed_tool_count: 0,
+                  strong_isolation_tool_count: 0
+                },
+                legacy_auth_governance: {
+                  generated_at: "2026-03-20T12:00:00Z",
+                  auth_mode_contract: {
+                    supported_auth_modes: ["api_key", "internal"],
+                    retired_legacy_auth_modes: ["token"],
+                    summary: "supported api_key / internal, legacy token",
+                    follow_up: "replace token bindings"
+                  },
+                  workflow_count: 1,
+                  binding_count: 2,
+                  summary: {
+                    draft_candidate_count: 1,
+                    published_blocker_count: 1,
+                    offline_inventory_count: 0
+                  },
+                  checklist: [],
+                  workflows: [
+                    {
+                      workflow_id: "workflow-1",
+                      workflow_name: "Workflow 1",
+                      binding_count: 2,
+                      draft_candidate_count: 1,
+                      published_blocker_count: 1,
+                      offline_inventory_count: 0,
+                      tool_governance: {
+                        referenced_tool_ids: ["native.catalog-gap"],
+                        missing_tool_ids: ["native.catalog-gap"],
+                        governed_tool_count: 0,
+                        strong_isolation_tool_count: 0
+                      }
+                    }
+                  ],
+                  buckets: {
+                    draft_candidates: [],
+                    published_blockers: [],
+                    offline_inventory: []
+                  }
+                }
+              }
+            ]
+          },
+          run_waiting_lifecycle: {
+            node_run_id: "node-run-callback-1",
+            callback_waiting_lifecycle: null,
+            waiting_reason: "waiting_callback",
+            scheduled_resume_delay_seconds: null,
+            scheduled_resume_source: null,
+            scheduled_waiting_status: null,
+            scheduled_resume_scheduled_at: null,
+            scheduled_resume_due_at: null,
+            scheduled_resume_requeued_at: null,
+            scheduled_resume_requeue_source: null
+          }
+        } as never,
+        callbackTickets: [],
+        sensitiveAccessEntries: [],
+        callbackWaitingAutomation: {
+          status: "disabled",
+          scheduler_required: false,
+          detail: "disabled in test",
+          scheduler_health_status: "idle",
+          scheduler_health_detail: "not configured",
+          steps: []
+        },
+        callbackWaitingExplanation: null,
+        executionFocusNode: null
+      })
+    );
+
+    expect(callbackSummaryProps[0]).toMatchObject({
+      workflowCatalogGapSummary: "catalog gap · native.catalog-gap",
+      workflowGovernanceHref: "/workflows/workflow-1?definition_issue=missing_tool"
+    });
+    expect(String(callbackSummaryProps[0]?.workflowCatalogGapDetail ?? "")).toContain(
+      "当前 sampled run 对应的 workflow 版本仍有 catalog gap"
+    );
+    expect(
+      (callbackSummaryProps[0]?.legacyAuthHandoff as { bindingChipLabel?: string } | undefined)
+        ?.bindingChipLabel
+    ).toBe("2 legacy bindings");
   });
 });

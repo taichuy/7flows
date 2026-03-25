@@ -9,6 +9,7 @@ import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-re
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
 import { SensitiveAccessTimelineEntryList } from "@/components/sensitive-access-timeline-entry-list";
 import { ToolGovernanceSummary } from "@/components/tool-governance-summary";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import { WorkflowPublishInvocationCallbackSection } from "@/components/workflow-publish-invocation-callback-section";
 import type {
   CallbackWaitingAutomationCheck,
@@ -481,45 +482,13 @@ export function WorkflowPublishInvocationDetailPanel({
                     {sample.snapshot_summary && !sample.has_callback_waiting_summary ? (
                       <p className="binding-meta">{sample.snapshot_summary}</p>
                     ) : null}
-                    {sample.workflow_catalog_gap_summary || sample.legacy_auth_handoff ? (
-                      <div className="entry-card compact-card">
-                        <div className="payload-card-header">
-                          <span className="status-meta">Workflow governance</span>
-                          {sampleWorkflowDetailHref && sampleWorkflowDetailLink ? (
-                            <Link
-                              className="event-chip inbox-filter-link"
-                              href={sampleWorkflowDetailHref}
-                            >
-                              {sampleWorkflowDetailLink.label}
-                            </Link>
-                          ) : null}
-                        </div>
-                        {sample.workflow_catalog_gap_summary ? (
-                          <>
-                            <div className="tool-badge-row">
-                              <span className="event-chip">
-                                {sample.workflow_catalog_gap_summary}
-                              </span>
-                            </div>
-                            {sample.workflow_catalog_gap_detail ? (
-                              <p className="binding-meta">{sample.workflow_catalog_gap_detail}</p>
-                            ) : null}
-                          </>
-                        ) : null}
-                        {sample.legacy_auth_handoff ? (
-                          <>
-                            <div className="tool-badge-row">
-                              <span className="event-chip">
-                                {sample.legacy_auth_handoff.bindingChipLabel}
-                              </span>
-                              <span className="event-chip">
-                                {sample.legacy_auth_handoff.statusChipLabel}
-                              </span>
-                            </div>
-                            <p className="binding-meta">{sample.legacy_auth_handoff.detail}</p>
-                          </>
-                        ) : null}
-                      </div>
+                    {!sample.has_callback_waiting_summary ? (
+                      <WorkflowGovernanceHandoffCards
+                        workflowCatalogGapSummary={sample.workflow_catalog_gap_summary}
+                        workflowCatalogGapDetail={sample.workflow_catalog_gap_detail}
+                        workflowGovernanceHref={sampleWorkflowDetailHref}
+                        legacyAuthHandoff={sample.legacy_auth_handoff}
+                      />
                     ) : null}
                     {sampleReadinessNode ? (
                       <SandboxExecutionReadinessCard
@@ -619,6 +588,10 @@ export function WorkflowPublishInvocationDetailPanel({
                         scheduledWaitingStatus={sample.run_snapshot.scheduledWaitingStatus ?? null}
                         inboxHref={sampleInboxHref}
                         sensitiveAccessEntries={sample.sensitive_access_entries}
+                        workflowCatalogGapSummary={sample.workflow_catalog_gap_summary}
+                        workflowCatalogGapDetail={sample.workflow_catalog_gap_detail}
+                        workflowGovernanceHref={sampleWorkflowDetailHref}
+                        legacyAuthHandoff={sample.legacy_auth_handoff}
                         showInlineActions={false}
                         waitingReason={sample.run_snapshot.waitingReason ?? null}
                       />

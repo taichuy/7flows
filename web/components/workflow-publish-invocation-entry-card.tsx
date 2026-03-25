@@ -5,6 +5,7 @@ import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summar
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import type {
   CallbackWaitingAutomationCheck,
   SandboxReadinessCheck
@@ -362,47 +363,13 @@ export function WorkflowPublishInvocationEntryCard({
           {runFollowUpSample?.snapshot_summary && !shouldDeferToSharedCallbackWaitingSummary ? (
             <p className="binding-meta">{runFollowUpSample.snapshot_summary}</p>
           ) : null}
-          {runFollowUpSample?.workflow_catalog_gap_summary || runFollowUpSample?.legacy_auth_handoff ? (
-            <div className="entry-card compact-card">
-              <div className="payload-card-header">
-                <span className="status-meta">Workflow governance</span>
-                {runFollowUpSampleWorkflowDetailHref && runFollowUpSampleWorkflowDetailLink ? (
-                  <Link
-                    className="event-chip inbox-filter-link"
-                    href={runFollowUpSampleWorkflowDetailHref}
-                  >
-                    {runFollowUpSampleWorkflowDetailLink.label}
-                  </Link>
-                ) : null}
-              </div>
-              {runFollowUpSample.workflow_catalog_gap_summary ? (
-                <>
-                  <div className="tool-badge-row">
-                    <span className="event-chip">
-                      {runFollowUpSample.workflow_catalog_gap_summary}
-                    </span>
-                  </div>
-                  {runFollowUpSample.workflow_catalog_gap_detail ? (
-                    <p className="binding-meta">
-                      {runFollowUpSample.workflow_catalog_gap_detail}
-                    </p>
-                  ) : null}
-                </>
-              ) : null}
-              {runFollowUpSample.legacy_auth_handoff ? (
-                <>
-                  <div className="tool-badge-row">
-                    <span className="event-chip">
-                      {runFollowUpSample.legacy_auth_handoff.bindingChipLabel}
-                    </span>
-                    <span className="event-chip">
-                      {runFollowUpSample.legacy_auth_handoff.statusChipLabel}
-                    </span>
-                  </div>
-                  <p className="binding-meta">{runFollowUpSample.legacy_auth_handoff.detail}</p>
-                </>
-              ) : null}
-            </div>
+          {runFollowUpSample && !runFollowUpSampleHasCallbackWaitingSummary ? (
+            <WorkflowGovernanceHandoffCards
+              workflowCatalogGapSummary={runFollowUpSample.workflow_catalog_gap_summary}
+              workflowCatalogGapDetail={runFollowUpSample.workflow_catalog_gap_detail}
+              workflowGovernanceHref={runFollowUpSampleWorkflowDetailHref}
+              legacyAuthHandoff={runFollowUpSample.legacy_auth_handoff}
+            />
           ) : null}
           {readinessNode ? (
             <SandboxExecutionReadinessCard
@@ -475,6 +442,10 @@ export function WorkflowPublishInvocationEntryCard({
                   }
                   inboxHref={runFollowUpSampleInboxHref}
                   sensitiveAccessEntries={runFollowUpSample.sensitive_access_entries}
+                  workflowCatalogGapSummary={runFollowUpSample.workflow_catalog_gap_summary}
+                  workflowCatalogGapDetail={runFollowUpSample.workflow_catalog_gap_detail}
+                  workflowGovernanceHref={runFollowUpSampleWorkflowDetailHref}
+                  legacyAuthHandoff={runFollowUpSample.legacy_auth_handoff}
                   showFocusExecutionFacts={shouldDeferToSharedCallbackWaitingSummary}
                   showInlineActions={false}
                   waitingReason={runFollowUpSample.run_snapshot.waitingReason ?? null}
