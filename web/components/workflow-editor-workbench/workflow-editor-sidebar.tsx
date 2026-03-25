@@ -3,6 +3,7 @@
 import React from "react";
 import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import type { RunSnapshotWithId } from "@/app/actions/run-snapshot";
+import { WorkspaceStarterFollowUpCard } from "@/components/workspace-starter-library/follow-up-card";
 import type {
   WorkflowLibrarySourceLane,
   WorkflowNodeCatalogItem
@@ -359,16 +360,13 @@ export function WorkflowEditorSidebar({
         <p className={`sync-message ${messageTone}`}>{feedbackMessage}</p>
 
         {starterSaveSurfaceCopy ? (
-          <div className="binding-field compact-stack">
-            <span className="binding-label">{starterSaveSurfaceCopy.nextStepTitle}</span>
-            <small className="section-copy">{starterSaveSurfaceCopy.description}</small>
-            {starterSaveSurfaceCopy.primaryResourceSummary ? (
-              <small className="binding-meta">
-                {`Primary governed starter: ${starterSaveSurfaceCopy.primaryResourceSummary}.`}
-              </small>
-            ) : null}
-            <WorkbenchEntryLinks {...starterSaveSurfaceCopy.nextStepLinks} />
-          </div>
+          <WorkspaceStarterFollowUpCard
+            title={starterSaveSurfaceCopy.nextStepTitle}
+            label={savedWorkspaceStarterNextStep?.label ?? "继续推进"}
+            detail={starterSaveSurfaceCopy.description}
+            primaryResourceSummary={starterSaveSurfaceCopy.primaryResourceSummary}
+            actions={<WorkbenchEntryLinks {...starterSaveSurfaceCopy.nextStepLinks} />}
+          />
         ) : null}
 
         <SandboxReadinessOverviewCard

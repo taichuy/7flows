@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { WorkspaceStarterFollowUpCard } from "@/components/workspace-starter-library/follow-up-card";
 import { buildWorkspaceStarterSourceGovernanceSurface } from "@/components/workspace-starter-library/shared";
 import { WorkbenchEntryLink, WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
@@ -488,12 +489,13 @@ export function WorkflowCreateWizard({
               <p className="starter-focus-copy">{selectedStarter.trackSummary}</p>
               <p className="starter-focus-copy">{selectedStarter.source.summary}</p>
               {selectedStarterNextStepSurface ? (
-                <div className="entry-card compact-card">
-                  <div className="payload-card-header">
-                    <span className="status-meta">{surfaceCopy.recommendedNextStepTitle}</span>
-                    <span className="event-chip">{selectedStarterNextStepSurface.label}</span>
-                    {selectedStarterNextStepSurface.href &&
-                    selectedStarterNextStepSurface.hrefLabel ? (
+                <WorkspaceStarterFollowUpCard
+                  title={surfaceCopy.recommendedNextStepTitle}
+                  label={selectedStarterNextStepSurface.label}
+                  detail={selectedStarterNextStepSurface.detail}
+                  primaryResourceSummary={selectedStarterNextStepSurface.primaryResourceSummary}
+                  actions={
+                    selectedStarterNextStepSurface.href && selectedStarterNextStepSurface.hrefLabel ? (
                       <WorkbenchEntryLink
                         className="inline-link secondary"
                         linkKey="workspaceStarterLibrary"
@@ -501,17 +503,9 @@ export function WorkflowCreateWizard({
                       >
                         {selectedStarterNextStepSurface.hrefLabel}
                       </WorkbenchEntryLink>
-                    ) : null}
-                  </div>
-                  <p className="section-copy starter-summary-copy">
-                    {selectedStarterNextStepSurface.detail}
-                  </p>
-                  {selectedStarterNextStepSurface.primaryResourceSummary ? (
-                    <p className="binding-meta">
-                      {`Primary governed starter: ${selectedStarterNextStepSurface.primaryResourceSummary}.`}
-                    </p>
-                  ) : null}
-                </div>
+                    ) : null
+                  }
+                />
               ) : null}
               {shouldRenderSelectedStarterSourceGovernance && selectedStarterSourcePresenter ? (
                 <div className="binding-form">

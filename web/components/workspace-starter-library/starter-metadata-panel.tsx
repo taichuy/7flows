@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Dispatch, SetStateAction } from "react";
 
 import { WorkbenchEntryLink } from "@/components/workbench-entry-links";
+import { WorkspaceStarterFollowUpCard } from "@/components/workspace-starter-library/follow-up-card";
 import {
   WORKFLOW_BUSINESS_TRACKS,
   type WorkflowBusinessTrack
@@ -18,6 +19,7 @@ import {
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 import {
+  buildWorkspaceStarterSourceGovernanceSurface,
   buildWorkspaceStarterSourceGovernancePresenter,
   resolveWorkspaceStarterCreateWorkflowActionLabel
 } from "./shared";
@@ -64,6 +66,25 @@ export function WorkspaceStarterMetadataPanel({
         archived: selectedTemplate.archived
       }) ?? "带此 starter 回到创建页"
     : "带此 starter 回到创建页";
+  const sourceGovernanceSurface = selectedTemplate
+    ? buildWorkspaceStarterSourceGovernanceSurface({
+        template: selectedTemplate,
+        createWorkflowHref,
+        workspaceStarterGovernanceQueryScope
+      })
+    : null;
+  const metadataRecommendedNextStep = sourceGovernanceSurface?.recommendedNextStep ?? null;
+  const metadataFollowUpDetail = selectedTemplate
+    ? metadataRecommendedNextStep?.detail ??
+      sourceGovernanceSurface?.presenter.followUp ??
+      sourceGovernanceSurface?.presenter.summary ??
+      selectedTemplate.recommended_next_step ??
+      null
+    : null;
+  const metadataCreateWorkflowLabel =
+    (metadataRecommendedNextStep?.entryKey === "createWorkflow"
+      ? metadataRecommendedNextStep.entryOverride?.label?.trim()
+      : null) ?? createWorkflowActionLabel;
   const sourceWorkflowLink = selectedTemplate?.created_from_workflow_id
     ? workspaceStarterGovernanceQueryScope
       ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
@@ -108,6 +129,37 @@ export function WorkspaceStarterMetadataPanel({
               <strong>{selectedTemplate.definition.edges?.length ?? 0}</strong>
             </div>
           </div>
+
+          {metadataFollowUpDetail ? (
+            <WorkspaceStarterFollowUpCard
+              label={
+                metadataRecommendedNextStep?.label ??
+                sourceGovernanceSurface?.presenter.actionStatusLabel ??
+                sourceGovernanceSurface?.presenter.statusLabel ??
+                createWorkflowActionLabel
+              }
+              detail={metadataFollowUpDetail}
+              primaryResourceSummary={metadataRecommendedNextStep?.primaryResourceSummary}
+              actions={
+                <>
+                  {createWorkflowHref && metadataCreateWorkflowLabel ? (
+                    <WorkbenchEntryLink
+                      className="inline-link secondary"
+                      linkKey="createWorkflow"
+                      override={{ href: createWorkflowHref }}
+                    >
+                      {metadataCreateWorkflowLabel}
+                    </WorkbenchEntryLink>
+                  ) : null}
+                  {sourceWorkflowLink ? (
+                    <Link className="inline-link secondary" href={sourceWorkflowLink.href}>
+                      {sourceWorkflowLink.label}
+                    </Link>
+                  ) : null}
+                </>
+              }
+            />
+          ) : null}
 
           <div className="binding-form">
             <label className="binding-field">
@@ -238,29 +290,16 @@ export function WorkspaceStarterMetadataPanel({
                     type="button"
                     onClick={() => onTemplateMutation("archive")}
                     disabled={isMutating}
-                  >
-                    {isMutating ? "处理中..." : "归档模板"}
-                  </button>
-                  {createWorkflowHref ? (
-                    <WorkbenchEntryLink
-                      className="inline-link secondary"
-                      linkKey="createWorkflow"
-                      override={{ href: createWorkflowHref }}
-                    >
-                      {createWorkflowActionLabel}
-                    </WorkbenchEntryLink>
-                  ) : (
+                >
+                  {isMutating ? "处理中..." : "归档模板"}
+                </button>
+                  {!createWorkflowHref ? (
                     <span className="binding-meta">
                       当前 starter 已归档；恢复后才会重新出现在创建页。
                     </span>
-                  )}
+                  ) : null}
                 </>
               )}
-              {sourceWorkflowLink ? (
-                <Link className="inline-link secondary" href={sourceWorkflowLink.href}>
-                  {sourceWorkflowLink.label}
-                </Link>
-              ) : null}
               <button
                 className="inline-link secondary"
                 type="button"

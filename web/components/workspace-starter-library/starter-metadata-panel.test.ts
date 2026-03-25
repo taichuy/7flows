@@ -69,6 +69,8 @@ describe("WorkspaceStarterMetadataPanel", () => {
       })
     );
 
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("当前 starter 已绑定来源 workflow，但列表缺少统一来源治理摘要。");
     expect(html).toContain("带此 starter 回到创建页");
     expect(html).toContain('/workflows/new?needs_follow_up=true&amp;starter=starter-1');
     expect(html).toContain("打开源 workflow");
@@ -136,6 +138,10 @@ describe("WorkspaceStarterMetadataPanel", () => {
       })
     );
 
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain(
+      "Primary governed starter: Missing Source Starter · 来源缺失 · source workflow-missing."
+    );
     expect(html).toContain("确认模板后带此 starter 回到创建页");
     expect(html).toContain('/workflows/new?starter=starter-missing-source');
   });
