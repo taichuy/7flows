@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from app.api.routes import system as system_routes
 from app.models.run import NodeRun, Run, RunEvent
 from app.models.scheduler import ScheduledTaskRunRecord
+from app.models.workflow import WorkflowPublishedEndpoint
 from app.schemas.plugin import PluginToolItem
 from app.services.plugin_runtime import (
     CompatibilityAdapterHealth,
@@ -14,6 +15,9 @@ from app.services.sandbox_backends import (
     SandboxBackendCapability,
     SandboxBackendHealth,
     SandboxBackendRegistry,
+)
+from tests.workflow_publish_helpers import (
+    legacy_auth_governance_snapshot_for_single_published_blocker,
 )
 
 
@@ -342,7 +346,11 @@ def test_system_overview_treats_degraded_plugin_adapter_as_operable(
     monkeypatch.setattr(system_routes.redis, "from_url", lambda url: _HealthyRedis())
     monkeypatch.setattr(system_routes.boto3, "client", lambda *args, **kwargs: _HealthyS3Client())
     monkeypatch.setattr(system_routes, "get_plugin_registry", lambda: PluginRegistry())
-    monkeypatch.setattr(system_routes, "get_sandbox_backend_registry", lambda: SandboxBackendRegistry())
+    monkeypatch.setattr(
+        system_routes,
+        "get_sandbox_backend_registry",
+        lambda: SandboxBackendRegistry(),
+    )
     monkeypatch.setattr(
         system_routes,
         "get_compatibility_adapter_health_checker",
@@ -926,6 +934,7 @@ def test_runtime_activity_returns_recent_runs_and_events(
                     "governed_tool_count": 0,
                     "strong_isolation_tool_count": 0,
                 },
+                "legacy_auth_governance": None,
             }
         ],
         "recent_events": [
@@ -994,6 +1003,31 @@ def test_runtime_activity_surfaces_recent_run_workflow_tool_governance(
             finished_at=None,
         )
     )
+    sqlite_session.add(
+        WorkflowPublishedEndpoint(
+            id="binding-run-governance",
+            workflow_id=sample_workflow.id,
+            workflow_version_id="wf-demo-v1",
+            workflow_version=sample_workflow.version,
+            target_workflow_version_id="wf-demo-v1",
+            target_workflow_version=sample_workflow.version,
+            compiled_blueprint_id="compiled-run-governance",
+            endpoint_id="endpoint-run-governance",
+            endpoint_name="Run Governance Endpoint",
+            endpoint_alias="run-governance-endpoint",
+            route_path="/published/run-governance-endpoint",
+            protocol="native",
+            auth_mode="token",
+            streaming=False,
+            lifecycle_status="published",
+            input_schema={},
+            output_schema=None,
+            rate_limit_policy=None,
+            cache_policy=None,
+            created_at=created_at,
+            updated_at=created_at,
+        )
+    )
     sqlite_session.commit()
 
     monkeypatch.setattr(system_routes, "get_plugin_registry", lambda: PluginRegistry())
@@ -1026,3 +1060,19 @@ def test_runtime_activity_surfaces_recent_run_workflow_tool_governance(
         "governed_tool_count": 1,
         "strong_isolation_tool_count": 1,
     }
+    expected_governance = legacy_auth_governance_snapshot_for_single_published_blocker(
+        generated_at=recent_run["legacy_auth_governance"]["generated_at"],
+        workflow_id=sample_workflow.id,
+        workflow_name=sample_workflow.name,
+        workflow_version=sample_workflow.version,
+        binding_id="binding-run-governance",
+        endpoint_id="endpoint-run-governance",
+        endpoint_name="Run Governance Endpoint",
+    )
+    expected_governance["workflows"][0]["tool_governance"] = {
+        "referenced_tool_ids": ["native.risk-search", "native.catalog-gap"],
+        "missing_tool_ids": ["native.catalog-gap"],
+        "governed_tool_count": 1,
+        "strong_isolation_tool_count": 1,
+    }
+    assert recent_run["legacy_auth_governance"] == expected_governance

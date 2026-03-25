@@ -5,6 +5,9 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.schemas.workflow import WorkflowToolGovernanceSummary
+from app.schemas.workflow_legacy_auth_governance import (
+    WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
+)
 
 
 class ServiceCheck(BaseModel):
@@ -106,6 +109,7 @@ class RecentRunCheck(BaseModel):
     tool_governance: WorkflowToolGovernanceSummary = Field(
         default_factory=WorkflowToolGovernanceSummary
     )
+    legacy_auth_governance: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | None = None
 
 
 class RecentRunEventCheck(BaseModel):

@@ -18,6 +18,7 @@ import {
   buildSystemOverviewFixture
 } from "@/lib/workbench-page-test-fixtures";
 import { buildRunLibrarySurfaceCopy } from "@/lib/workbench-entry-surfaces";
+import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 
 Object.assign(globalThis, { React });
 
@@ -241,6 +242,56 @@ describe("RunsPage", () => {
       "当前 workflow 仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 run 事实。"
     );
     expect(html).toContain('/workflows/workflow-gap-1?definition_issue=missing_tool');
+  });
+
+  it("surfaces workflow legacy-auth handoff in recent runs", async () => {
+    vi.mocked(getSystemOverview).mockResolvedValue(
+      buildSystemOverviewFixture({
+        runtime_activity: {
+          summary: {
+            recent_run_count: 1,
+            recent_event_count: 0,
+            run_statuses: {
+              failed: 1
+            },
+            event_types: {}
+          },
+          recent_runs: [
+            {
+              id: "run-legacy-auth-1",
+              workflow_id: "workflow-legacy-auth-1",
+              workflow_name: "Legacy Auth Run Workflow",
+              workflow_version: "1.0.0",
+              status: "failed",
+              created_at: "2026-03-22T08:00:00Z",
+              finished_at: null,
+              event_count: 2,
+              legacy_auth_governance:
+                buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+                  binding: {
+                    workflow_id: "workflow-legacy-auth-1",
+                    workflow_name: "Legacy Auth Run Workflow"
+                  }
+                })
+            }
+          ],
+          recent_events: []
+        }
+      })
+    );
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshotFixture()
+    );
+
+    const html = renderToStaticMarkup(await RunsPage());
+
+    expect(html).toContain("Legacy Auth Run Workflow");
+    expect(html).toContain("1 legacy bindings");
+    expect(html).toContain("publish auth blocker");
+    expect(html).toContain(
+      "当前 workflow 仍有 0 条 draft cleanup、1 条 published blocker、0 条 offline inventory。Publish auth contract：supported api_key / internal；legacy token。"
+    );
+    expect(html).toContain('href="/workflows/workflow-legacy-auth-1"');
   });
 
   it("preserves workspace starter scope across run and workflow links", async () => {

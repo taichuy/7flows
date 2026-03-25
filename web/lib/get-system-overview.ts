@@ -1,5 +1,6 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
+import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 import {
   normalizeWorkbenchEntryLinkKey,
   type WorkbenchEntryLinkKey
@@ -95,6 +96,7 @@ export type RecentRunCheck = {
   finished_at?: string | null;
   event_count: number;
   tool_governance?: WorkflowToolGovernanceSummary;
+  legacy_auth_governance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
 };
 
 export type RecentRunEventCheck = {

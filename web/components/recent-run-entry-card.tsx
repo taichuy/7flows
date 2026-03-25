@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { RecentRunCheck } from "@/lib/get-system-overview";
+import { buildLegacyPublishAuthWorkflowHandoff } from "@/lib/legacy-publish-auth-governance-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
 import {
   formatCatalogGapToolSummary,
@@ -24,6 +25,10 @@ export function RecentRunEntryCard({
   workflowLinkLabel
 }: RecentRunEntryCardProps) {
   const workflowLabel = run.workflow_name?.trim() || run.workflow_id;
+  const legacyAuthHandoff = buildLegacyPublishAuthWorkflowHandoff(
+    run.legacy_auth_governance,
+    run.workflow_id
+  );
   const toolGovernance = run.tool_governance ?? {
     referenced_tool_ids: [],
     missing_tool_ids: [],
@@ -40,6 +45,14 @@ export function RecentRunEntryCard({
   const missingToolDetail = catalogGapToolCopy
     ? `当前 workflow 仍有 catalog gap（${catalogGapToolCopy}）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 run 事实。`
     : "当前 workflow 仍有 catalog gap；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 run 事实。";
+  const missingWorkflowLinkFallback =
+    hasMissingToolIssues && legacyAuthHandoff
+      ? "当前入口还没有可用的 workflow deep link，请回到 workflow library 继续处理 catalog gap / publish auth contract backlog。"
+      : hasMissingToolIssues
+        ? "当前入口还没有可用的 workflow deep link，请回到 workflow library 继续处理 catalog gap。"
+        : legacyAuthHandoff
+          ? "当前入口还没有可用的 workflow deep link，请回到 workflow library 继续处理 publish auth contract backlog。"
+          : null;
 
   return (
     <article className="activity-row">
@@ -63,6 +76,15 @@ export function RecentRunEntryCard({
           <p className="activity-copy">{missingToolDetail}</p>
         </>
       ) : null}
+      {legacyAuthHandoff ? (
+        <>
+          <div className="event-type-strip">
+            <span className="event-chip">{legacyAuthHandoff.bindingChipLabel}</span>
+            <span className="event-chip">{legacyAuthHandoff.statusChipLabel}</span>
+          </div>
+          <p className="activity-copy">{legacyAuthHandoff.detail}</p>
+        </>
+      ) : null}
       <div className="section-actions">
         <Link className="activity-link" href={runHref}>
           {runLinkLabel}
@@ -73,10 +95,8 @@ export function RecentRunEntryCard({
           </Link>
         ) : null}
       </div>
-      {hasMissingToolIssues && !workflowHref ? (
-        <p className="section-copy">
-          当前入口还没有可用的 workflow deep link，请回到 workflow library 继续处理 catalog gap。
-        </p>
+      {!workflowHref && missingWorkflowLinkFallback ? (
+        <p className="section-copy">{missingWorkflowLinkFallback}</p>
       ) : null}
     </article>
   );

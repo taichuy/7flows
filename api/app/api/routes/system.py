@@ -27,8 +27,8 @@ from app.schemas.system import (
     SandboxExecutionClassReadinessCheck,
     SandboxReadinessCheck,
     ServiceCheck,
-    SystemOverviewRecommendedAction,
     SystemOverview,
+    SystemOverviewRecommendedAction,
 )
 from app.services.plugin_runtime import (
     get_compatibility_adapter_health_checker,
@@ -44,6 +44,7 @@ from app.services.workflow_definition_governance import (
     collect_workflow_definition_tool_ids,
     summarize_workflow_definition_tool_governance,
 )
+from app.services.workflow_publish import WorkflowPublishBindingService
 from app.services.workflow_views import load_workflow_view_tool_index
 
 router = APIRouter(tags=["system"])
@@ -55,6 +56,7 @@ _SANDBOX_EXECUTION_CLASSES = ("sandbox", "microvm")
 _OPERABLE_SANDBOX_STATUSES = {"healthy", "degraded"}
 _ACTIVE_RUN_STATUSES = ("queued", "running", "waiting")
 _SCHEDULED_TASK_ACTIVITY = ScheduledTaskActivityService()
+_WORKFLOW_PUBLISH_SERVICE = WorkflowPublishBindingService()
 
 
 def _normalize_datetime(value: datetime | None) -> datetime | None:
@@ -687,6 +689,7 @@ def _serialize_recent_run(
     workflow: Workflow | None,
     event_count: int,
     workflow_tool_index: dict,
+    workflow_legacy_auth_governance,
 ) -> RecentRunCheck:
     payload: dict[str, object] = {
         "id": run.id,
@@ -704,6 +707,9 @@ def _serialize_recent_run(
             workflow.definition,
             tool_index=workflow_tool_index,
         )
+
+    if workflow_legacy_auth_governance is not None:
+        payload["legacy_auth_governance"] = workflow_legacy_auth_governance
 
     return RecentRunCheck(**payload)
 
@@ -725,10 +731,39 @@ def _build_runtime_activity(db: Session) -> RuntimeActivityCheck:
 
     workflow_by_id: dict[str, Workflow] = {}
     workflow_tool_index = {}
+    workflow_legacy_auth_governance_by_id: dict[str, object] = {}
     if workflow_ids:
         workflows = db.query(Workflow).filter(Workflow.id.in_(workflow_ids)).all()
         workflow_by_id = {workflow.id: workflow for workflow in workflows}
         workflow_tool_index = load_workflow_view_tool_index(db)
+        for workflow_id in workflow_ids:
+            governance = _WORKFLOW_PUBLISH_SERVICE.build_legacy_auth_governance_snapshot(
+                db,
+                workflow_id=workflow_id,
+            )
+            if governance.binding_count <= 0:
+                continue
+
+            workflow = workflow_by_id.get(workflow_id)
+            if workflow is not None:
+                aligned_tool_governance = summarize_workflow_definition_tool_governance(
+                    workflow.definition,
+                    tool_index=workflow_tool_index,
+                )
+                governance = governance.model_copy(
+                    update={
+                        "workflows": [
+                            item.model_copy(
+                                update={"tool_governance": aligned_tool_governance}
+                            )
+                            if item.workflow_id == workflow_id
+                            else item
+                            for item in governance.workflows
+                        ]
+                    }
+                )
+
+            workflow_legacy_auth_governance_by_id[workflow_id] = governance
 
     recent_events = (
         db.query(RunEvent).order_by(RunEvent.created_at.desc()).limit(_RECENT_EVENT_LIMIT).all()
@@ -749,6 +784,9 @@ def _build_runtime_activity(db: Session) -> RuntimeActivityCheck:
                 workflow=workflow_by_id.get(run.workflow_id),
                 event_count=event_counts.get(run.id, 0),
                 workflow_tool_index=workflow_tool_index,
+                workflow_legacy_auth_governance=workflow_legacy_auth_governance_by_id.get(
+                    run.workflow_id
+                ),
             )
             for run in recent_runs
         ],

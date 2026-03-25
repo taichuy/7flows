@@ -10,6 +10,7 @@ import type {
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
 import { DEFAULT_RUN_TRACE_LIMIT } from "@/lib/get-run-trace";
+import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 import { buildRunDetailHrefFromWorkspaceStarterViewState } from "@/lib/workspace-starter-governance-query";
 
 const { exportActionSpy } = vi.hoisted(() => ({
@@ -285,6 +286,54 @@ describe("WorkflowRunOverlayPanel", () => {
     );
     const props = exportActionSpy.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(props).not.toHaveProperty("blockedSummary");
+  });
+
+  it("surfaces workflow legacy-auth handoff inside the runtime overlay", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowRunOverlayPanel, {
+        runs: [
+          {
+            id: "run-1",
+            workflow_id: "workflow-1",
+            workflow_version: "v1",
+            status: "failed",
+            started_at: "2026-03-20T10:00:00Z",
+            finished_at: null,
+            created_at: "2026-03-20T10:00:00Z",
+            node_run_count: 1,
+            event_count: 0,
+            last_event_at: null
+          }
+        ],
+        selectedRunId: "run-1",
+        run: buildRunDetail({
+          legacy_auth_governance: buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+            binding: {
+              workflow_id: "workflow-1",
+              workflow_name: "Workflow 1"
+            }
+          })
+        }),
+        runSnapshot: buildRunSnapshot(),
+        trace: null,
+        traceError: null,
+        selectedNodeId: null,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness(),
+        isLoading: false,
+        isRefreshingRuns: false,
+        onSelectRunId: () => undefined,
+        onRefreshRuns: () => undefined
+      })
+    );
+
+    expect(html).toContain("Legacy publish auth handoff");
+    expect(html).toContain("1 legacy bindings");
+    expect(html).toContain("publish auth blocker");
+    expect(html).toContain(
+      "当前 workflow 仍有 0 条 draft cleanup、1 条 published blocker、0 条 offline inventory。Publish auth contract：supported api_key / internal；legacy token。"
+    );
+    expect(html).toContain('href="/workflows/workflow-1"');
   });
 
   it("preserves callback inbox context when overlay hydration carries callback tickets", () => {
