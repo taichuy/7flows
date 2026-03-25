@@ -29,7 +29,8 @@ import {
   buildWorkspaceStarterSourceGovernancePrimaryFollowUp,
   buildWorkspaceStarterTemplateFollowUpSurface,
   buildWorkspaceStarterLibrarySearchParams,
-  resolveWorkspaceStarterLibraryViewState
+  resolveWorkspaceStarterLibraryViewState,
+  summarizeValidationIssues
 } from "./shared";
 
 const templates: WorkspaceStarterTemplateItem[] = [
@@ -229,6 +230,29 @@ describe("workspace starter library URL state", () => {
     ).toBe(
       "/workflows/new?needs_follow_up=true&q=starter&source_governance_kind=drifted&starter=starter-active-a&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
     );
+  });
+});
+
+describe("workspace starter validation summaries", () => {
+  it("summarizes missing tool validation issues as catalog gaps", () => {
+    const summary = summarizeValidationIssues([
+      {
+        category: "tool_reference",
+        message: "Tool node 'search:Search' references missing catalog tool 'native.catalog-gap'.",
+        path: "nodes.0.config.tool.toolId",
+        field: "toolId"
+      },
+      {
+        category: "tool_reference",
+        message:
+          "LLM agent node 'agent:Planner' toolPolicy.allowedToolIds references missing catalog tools: native.catalog-gap, native.second-gap.",
+        path: "nodes.1.config.toolPolicy.allowedToolIds",
+        field: "allowedToolIds"
+      }
+    ]);
+
+    expect(summary).toBe("catalog gap · native.catalog-gap、native.second-gap");
+    expect(summary).not.toContain("工具引用");
   });
 });
 

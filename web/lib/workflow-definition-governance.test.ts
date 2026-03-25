@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatToolReferenceIssueSummary,
   formatCatalogGapResourceSummary,
   formatCatalogGapSummary,
   formatCatalogGapToolSummary,
   formatWorkflowMissingToolSummary,
+  getToolReferenceMissingToolIds,
   getWorkflowLegacyPublishAuthIssues,
   getWorkflowMissingToolIds,
   hasOnlyLegacyPublishAuthModeIssues,
@@ -101,6 +103,49 @@ describe("workflow-definition-governance", () => {
     );
     expect(formatWorkflowMissingToolSummary(workflow, 3)).toBe(
       "catalog gap · native.catalog-gap、native.second-gap、native.third-gap"
+    );
+  });
+
+  it("extracts missing tool ids from tool reference issues before formatting catalog-gap summaries", () => {
+    const issues = [
+      {
+        category: "tool_reference",
+        message: "Tool node 'search:Search' references missing catalog tool 'native.catalog-gap'.",
+        path: "nodes.0.config.tool.toolId",
+        field: "toolId"
+      },
+      {
+        category: "tool_reference",
+        message:
+          "LLM agent node 'agent:Planner' toolPolicy.allowedToolIds references missing catalog tools: native.catalog-gap, native.second-gap.",
+        path: "nodes.1.config.toolPolicy.allowedToolIds",
+        field: "allowedToolIds"
+      }
+    ];
+
+    expect(getToolReferenceMissingToolIds(issues)).toEqual([
+      "native.catalog-gap",
+      "native.second-gap"
+    ]);
+    expect(formatToolReferenceIssueSummary(issues, { maxVisibleToolIds: 3 })).toBe(
+      "catalog gap · native.catalog-gap、native.second-gap"
+    );
+  });
+
+  it("falls back to catalog reference wording for non-missing tool drift issues", () => {
+    const issues = [
+      {
+        category: "tool_reference",
+        message:
+          "Tool node 'search:Search' declares ecosystem 'native' for catalog tool 'compat.drifted', but the current catalog reports 'compat'.",
+        path: "nodes.0.config.tool.ecosystem",
+        field: "ecosystem"
+      }
+    ];
+
+    expect(getToolReferenceMissingToolIds(issues)).toEqual([]);
+    expect(formatToolReferenceIssueSummary(issues)).toBe(
+      "tool catalog reference：Tool node 'search:Search' declares ecosystem 'native' for catalog tool 'compat.drifted', but the current catalog reports 'compat'."
     );
   });
 });

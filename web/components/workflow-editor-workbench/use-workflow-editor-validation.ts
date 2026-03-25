@@ -14,7 +14,10 @@ import type { WorkspaceStarterValidationIssue } from "@/lib/get-workspace-starte
 import {
   buildLegacyPublishAuthModeContractSummary,
 } from "@/lib/legacy-publish-auth-contract";
-import { isLegacyPublishAuthModeIssue } from "@/lib/workflow-definition-governance";
+import {
+  formatToolReferenceIssueSummary,
+  isLegacyPublishAuthModeIssue
+} from "@/lib/workflow-definition-governance";
 import { buildWorkflowDefinitionContractValidationIssues } from "@/lib/workflow-contract-schema-validation";
 import { buildAllowedPublishWorkflowVersions } from "@/lib/workflow-publish-version-validation";
 import {
@@ -42,7 +45,7 @@ const PREFLIGHT_CATEGORY_LABELS: Record<string, string> = {
   schema: "contract/schema",
   node_support: "node support",
   node_execution: "node execution",
-  tool_reference: "tool reference",
+  tool_reference: "tool catalog reference",
   tool_execution: "execution capability",
   publish_draft: "publish draft",
   publish_identity: "publish identity",
@@ -82,6 +85,15 @@ export function summarizeWorkspaceStarterValidationIssues(
 
   return Array.from(grouped.entries())
     .map(([category, categoryIssues]) => {
+      if (category === "tool_reference") {
+        return (
+          formatToolReferenceIssueSummary(categoryIssues, {
+            fallbackLabel: PREFLIGHT_CATEGORY_LABELS[category] ?? category,
+            maxVisibleToolIds: 3
+          }) ?? (PREFLIGHT_CATEGORY_LABELS[category] ?? category)
+        );
+      }
+
       const label = PREFLIGHT_CATEGORY_LABELS[category] ?? category;
       return `${label} ${categoryIssues.length} 项`;
     })
@@ -107,6 +119,15 @@ export function summarizePreflightIssues(
 
   return Array.from(grouped.entries())
     .map(([category, categoryIssues]) => {
+      if (category === "tool_reference") {
+        return (
+          formatToolReferenceIssueSummary(categoryIssues, {
+            fallbackLabel: PREFLIGHT_CATEGORY_LABELS[category] ?? category,
+            maxVisibleToolIds: 3
+          }) ?? (PREFLIGHT_CATEGORY_LABELS[category] ?? category)
+        );
+      }
+
       const label = PREFLIGHT_CATEGORY_LABELS[category] ?? category;
       const descriptions = Array.from(
         new Set(

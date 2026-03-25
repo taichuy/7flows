@@ -1,6 +1,7 @@
 import type { WorkflowDefinitionPreflightIssue, WorkflowListItem } from "@/lib/get-workflows";
 
 type WorkflowMissingToolGovernanceLike = Pick<WorkflowListItem, "tool_governance">;
+type WorkflowToolReferenceIssueLike = Pick<WorkflowDefinitionPreflightIssue, "message">;
 
 export function isLegacyPublishAuthModeIssue(
   issue: WorkflowDefinitionPreflightIssue
@@ -83,6 +84,55 @@ export function formatCatalogGapResourceSummary(
   return summaryParts.length > 0 ? summaryParts.join(" · ") : null;
 }
 
+export function getToolReferenceMissingToolIds(
+  issues: readonly WorkflowToolReferenceIssueLike[]
+): string[] {
+  return normalizeCatalogGapToolIds(
+    issues.flatMap((issue) => extractToolReferenceMissingToolIds(issue.message))
+  );
+}
+
+export function formatToolReferenceIssueSummary(
+  issues: readonly WorkflowToolReferenceIssueLike[],
+  {
+    fallbackLabel = "tool catalog reference",
+    maxVisibleToolIds = 2
+  }: {
+    fallbackLabel?: string;
+    maxVisibleToolIds?: number;
+  } = {}
+): string | null {
+  if (issues.length === 0) {
+    return null;
+  }
+
+  const catalogGapSummary = formatCatalogGapSummary(
+    getToolReferenceMissingToolIds(issues),
+    maxVisibleToolIds
+  );
+  if (catalogGapSummary) {
+    return catalogGapSummary;
+  }
+
+  const descriptions = Array.from(
+    new Set(
+      issues
+        .map((issue) => normalizeString(issue.message))
+        .filter((message): message is string => message !== null)
+    )
+  );
+  if (descriptions.length === 0) {
+    return fallbackLabel;
+  }
+
+  const visibleDescriptions = descriptions.slice(0, 2);
+  const suffix =
+    descriptions.length > visibleDescriptions.length
+      ? `；另有 ${descriptions.length - visibleDescriptions.length} 项同类问题`
+      : "";
+  return `${fallbackLabel}：${visibleDescriptions.join("；")}${suffix}`;
+}
+
 function normalizeCatalogGapToolIds(toolIds: readonly unknown[]): string[] {
   return Array.from(
     new Set(
@@ -95,4 +145,41 @@ function normalizeCatalogGapToolIds(toolIds: readonly unknown[]): string[] {
 
 function normalizeString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function extractToolReferenceMissingToolIds(message: string): string[] {
+  const normalizedMessage = normalizeString(message);
+  if (!normalizedMessage) {
+    return [];
+  }
+
+  const capturedToolIds = Array.from(
+    normalizedMessage.matchAll(/missing catalog tool '([^']+)'/g),
+    (match) => match[1]
+  );
+
+  const multipleToolMatches = Array.from(
+    normalizedMessage.matchAll(/missing catalog tools:\s*(.+?)(?:\.$|$)/g),
+    (match) => match[1]
+  );
+  multipleToolMatches.forEach((renderedToolIds) => {
+    capturedToolIds.push(...splitToolReferenceToolIds(renderedToolIds));
+  });
+
+  const localizedMatches = Array.from(
+    normalizedMessage.matchAll(/不存在的工具[:：]?\s*([^。]+)/g),
+    (match) => match[1]
+  );
+  localizedMatches.forEach((renderedToolIds) => {
+    capturedToolIds.push(...splitToolReferenceToolIds(renderedToolIds));
+  });
+
+  return capturedToolIds;
+}
+
+function splitToolReferenceToolIds(renderedToolIds: string): string[] {
+  return renderedToolIds
+    .split(/[，,、]/)
+    .map((toolId) => normalizeString(toolId.replace(/[.。]$/, "")))
+    .filter((toolId): toolId is string => toolId !== null);
 }

@@ -40,6 +40,7 @@ import {
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 import { appendWorkflowLibraryViewState } from "@/lib/workflow-library-query";
 import {
+  formatToolReferenceIssueSummary,
   formatCatalogGapSummary,
   formatCatalogGapToolSummary
 } from "@/lib/workflow-definition-governance";
@@ -1893,7 +1894,7 @@ export function summarizeValidationIssues(
   const categoryLabels: Record<string, string> = {
     schema: "结构",
     node_support: "节点支持",
-    tool_reference: "工具引用",
+    tool_reference: "工具目录引用",
     tool_execution: "执行能力",
     publish_version: "发布版本"
   };
@@ -1906,6 +1907,16 @@ export function summarizeValidationIssues(
     }, {})
   )
     .map(([category, count]) => {
+      const categoryIssues = issues.filter((issue) => issue.category === category);
+      if (category === "tool_reference") {
+        return (
+          formatToolReferenceIssueSummary(categoryIssues, {
+            fallbackLabel: categoryLabels[category] ?? category,
+            maxVisibleToolIds: 3
+          }) ?? (categoryLabels[category] ?? category)
+        );
+      }
+
       const sample = issues
         .filter((issue) => issue.category === category)
         .slice(0, 2)

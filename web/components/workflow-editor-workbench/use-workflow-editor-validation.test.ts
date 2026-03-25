@@ -5,6 +5,7 @@ import { buildWorkflowValidationNavigatorItems } from "@/lib/workflow-validation
 
 import {
   buildWorkflowEditorPublishDraftIssues,
+  summarizeWorkspaceStarterValidationIssues,
   summarizePreflightIssues
 } from "./use-workflow-editor-validation";
 
@@ -147,5 +148,42 @@ describe("buildWorkflowEditorPublishDraftIssues", () => {
     expect(summary).toContain("Publish auth contract");
     expect(summary).toContain("legacy token");
     expect(summary).not.toContain("publish.1.authMode");
+  });
+
+  it("summarizes missing tool reference preflight issues as catalog gaps", () => {
+    const summary = summarizePreflightIssues([
+      {
+        category: "tool_reference",
+        message: "Tool node 'search:Search' references missing catalog tool 'native.catalog-gap'.",
+        path: "nodes.0.config.tool.toolId",
+        field: "toolId"
+      },
+      {
+        category: "tool_reference",
+        message:
+          "LLM agent node 'agent:Planner' toolPolicy.allowedToolIds references missing catalog tools: native.catalog-gap, native.second-gap.",
+        path: "nodes.1.config.toolPolicy.allowedToolIds",
+        field: "allowedToolIds"
+      }
+    ]);
+
+    expect(summary).toBe("catalog gap · native.catalog-gap、native.second-gap");
+    expect(summary).not.toContain("tool reference");
+    expect(summary).not.toContain("allowedToolIds");
+  });
+
+  it("summarizes workspace starter missing tool issues as catalog gaps", () => {
+    const summary = summarizeWorkspaceStarterValidationIssues([
+      {
+        category: "tool_reference",
+        message:
+          "LLM agent node 'agent:Planner' toolPolicy.allowedToolIds references missing catalog tools: native.catalog-gap, native.second-gap.",
+        path: "nodes.1.config.toolPolicy.allowedToolIds",
+        field: "allowedToolIds"
+      }
+    ]);
+
+    expect(summary).toBe("catalog gap · native.catalog-gap、native.second-gap");
+    expect(summary).not.toContain("tool reference");
   });
 });
