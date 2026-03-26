@@ -2,16 +2,27 @@ import type {
   WorkflowDefinitionPreflightIssue,
   WorkflowListItem
 } from "@/lib/get-workflows";
-import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
+import type {
+  WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
+  WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem
+} from "@/lib/workflow-publish-types";
 
 type WorkflowLegacyAuthGovernanceSummaryLike = NonNullable<
   WorkflowListItem["legacy_auth_governance"]
 >;
 type WorkflowLegacyAuthGovernanceSnapshotLike = WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot;
+type WorkflowLegacyAuthGovernanceWorkflowItemLike = WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem;
 type WorkflowLegacyAuthGovernanceValueLike =
   | WorkflowLegacyAuthGovernanceSummaryLike
-  | WorkflowLegacyAuthGovernanceSnapshotLike;
+  | WorkflowLegacyAuthGovernanceSnapshotLike
+  | WorkflowLegacyAuthGovernanceWorkflowItemLike;
 type WorkflowLegacyAuthGovernanceLike = {
+  id?: string | null;
+  workflow_id?: string | null;
+  binding_count?: number;
+  draft_candidate_count?: number;
+  published_blocker_count?: number;
+  offline_inventory_count?: number;
   definition_issues?: WorkflowDefinitionPreflightIssue[];
   legacy_auth_governance?: WorkflowLegacyAuthGovernanceValueLike | null;
 };
@@ -21,6 +32,11 @@ type WorkflowMissingToolGovernanceLike = {
 export type WorkflowLibraryGovernanceLike = WorkflowLegacyAuthGovernanceLike &
   WorkflowMissingToolGovernanceLike;
 type WorkflowToolReferenceIssueLike = Pick<WorkflowDefinitionPreflightIssue, "message">;
+
+function normalizeText(value?: string | null) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
 
 function readLegacyAuthGovernanceCounts(
   legacyAuthGovernance: WorkflowLegacyAuthGovernanceValueLike | null | undefined
@@ -46,6 +62,42 @@ function readLegacyAuthGovernanceCounts(
   };
 }
 
+function readWorkflowItemLegacyAuthGovernanceCounts(
+  workflow: WorkflowLegacyAuthGovernanceLike
+) {
+  if ((workflow.binding_count ?? 0) <= 0) {
+    return null;
+  }
+
+  return {
+    bindingCount: workflow.binding_count ?? 0,
+    draftCandidateCount: workflow.draft_candidate_count ?? 0,
+    publishedBlockerCount: workflow.published_blocker_count ?? 0,
+    offlineInventoryCount: workflow.offline_inventory_count ?? 0
+  };
+}
+
+function resolveWorkflowLegacyAuthGovernanceCounts(
+  workflow: WorkflowLegacyAuthGovernanceLike
+) {
+  const legacyAuthGovernance = workflow.legacy_auth_governance;
+  if (!legacyAuthGovernance) {
+    return readWorkflowItemLegacyAuthGovernanceCounts(workflow);
+  }
+
+  if ("summary" in legacyAuthGovernance) {
+    const workflowId = normalizeText(workflow.workflow_id) ?? normalizeText(workflow.id);
+    const workflowSummary =
+      (workflowId
+        ? legacyAuthGovernance.workflows.find((item) => item.workflow_id === workflowId)
+        : null) ?? legacyAuthGovernance.workflows[0] ?? null;
+
+    return readLegacyAuthGovernanceCounts(workflowSummary ?? legacyAuthGovernance);
+  }
+
+  return readLegacyAuthGovernanceCounts(legacyAuthGovernance);
+}
+
 export function isLegacyPublishAuthModeIssue(
   issue: WorkflowDefinitionPreflightIssue
 ): boolean {
@@ -53,7 +105,7 @@ export function isLegacyPublishAuthModeIssue(
 }
 
 export function getWorkflowLegacyPublishAuthIssues(
-  workflow: Pick<WorkflowListItem, "definition_issues">
+  workflow: { definition_issues?: WorkflowDefinitionPreflightIssue[] | null }
 ): WorkflowDefinitionPreflightIssue[] {
   return (workflow.definition_issues ?? []).filter(isLegacyPublishAuthModeIssue);
 }
@@ -61,16 +113,16 @@ export function getWorkflowLegacyPublishAuthIssues(
 export function getWorkflowLegacyPublishAuthBacklogCount(
   workflow: WorkflowLegacyAuthGovernanceLike
 ): number {
-  const legacyAuthGovernance = readLegacyAuthGovernanceCounts(
-    workflow.legacy_auth_governance
-  );
+  const currentPublishDraftIssueCount = getWorkflowLegacyPublishAuthIssues(workflow).length;
+  const legacyAuthGovernance = resolveWorkflowLegacyAuthGovernanceCounts(workflow);
 
-  if (legacyAuthGovernance && legacyAuthGovernance.bindingCount > 0) {
-    return legacyAuthGovernance.bindingCount;
-  }
-
-  return getWorkflowLegacyPublishAuthIssues(workflow).length;
+  return legacyAuthGovernance && legacyAuthGovernance.bindingCount > 0
+    ? legacyAuthGovernance.bindingCount
+    : currentPublishDraftIssueCount;
 }
+
+export const getWorkflowLegacyPublishAuthBlockerCount =
+  getWorkflowLegacyPublishAuthBacklogCount;
 
 export function getWorkflowLegacyPublishAuthStatusLabel(
   workflow: WorkflowLegacyAuthGovernanceLike
@@ -79,8 +131,7 @@ export function getWorkflowLegacyPublishAuthStatusLabel(
     return null;
   }
 
-  return (readLegacyAuthGovernanceCounts(workflow.legacy_auth_governance)?.publishedBlockerCount ?? 0) >
-    0
+  return (resolveWorkflowLegacyAuthGovernanceCounts(workflow)?.publishedBlockerCount ?? 0) > 0
     ? "publish auth blocker"
     : "legacy auth cleanup";
 }
@@ -88,22 +139,19 @@ export function getWorkflowLegacyPublishAuthStatusLabel(
 export function formatWorkflowLegacyPublishAuthBacklogSummary(
   workflow: WorkflowLegacyAuthGovernanceLike
 ): string | null {
-  const legacyAuthGovernance = readLegacyAuthGovernanceCounts(
-    workflow.legacy_auth_governance
-  );
-
+  const currentPublishDraftIssueCount = getWorkflowLegacyPublishAuthIssues(workflow).length;
+  const legacyAuthGovernance = resolveWorkflowLegacyAuthGovernanceCounts(workflow);
   if (legacyAuthGovernance && legacyAuthGovernance.bindingCount > 0) {
-    const summaryParts = [
+    return [
       `${legacyAuthGovernance.draftCandidateCount} 条 draft cleanup`,
       `${legacyAuthGovernance.publishedBlockerCount} 条 published blocker`,
       `${legacyAuthGovernance.offlineInventoryCount} 条 offline inventory`
-    ].filter((value): value is string => Boolean(value));
-
-    return summaryParts.join("、");
+    ].join("、");
   }
 
-  const publishDraftIssueCount = getWorkflowLegacyPublishAuthIssues(workflow).length;
-  return publishDraftIssueCount > 0 ? `${publishDraftIssueCount} 个 publish draft` : null;
+  return currentPublishDraftIssueCount > 0
+    ? `${currentPublishDraftIssueCount} 个当前 publish draft`
+    : null;
 }
 
 export function hasWorkflowLegacyPublishAuthIssues(
@@ -162,50 +210,116 @@ export function formatCatalogGapSummary(
 }
 
 export function formatCatalogGapResourceSummary(
-  resourceLabel: string,
+  resourceLabel: string | null | undefined,
   toolIds: readonly unknown[],
   maxVisibleToolIds = 2
 ): string | null {
+  const normalizedResourceLabel = normalizeString(resourceLabel);
   const catalogGapSummary = formatCatalogGapSummary(toolIds, maxVisibleToolIds);
-  return catalogGapSummary ? `${resourceLabel} · ${catalogGapSummary}` : null;
+  const summaryParts = [normalizedResourceLabel, catalogGapSummary].filter(
+    (value): value is string => Boolean(value)
+  );
+
+  return summaryParts.length > 0 ? summaryParts.join(" · ") : null;
 }
 
 export function getToolReferenceMissingToolIds(
   issues: readonly WorkflowToolReferenceIssueLike[]
 ): string[] {
-  const missingToolIds = issues.flatMap((issue) => {
-    const singleToolMatch = issue.message.match(/missing catalog tool '([^']+)'/i);
-    if (singleToolMatch?.[1]) {
-      return [singleToolMatch[1]];
-    }
-
-    const multiToolMatch = issue.message.match(/missing catalog tools:\s+(.+?)\.?$/i);
-    if (!multiToolMatch?.[1]) {
-      return [];
-    }
-
-    return multiToolMatch[1]
-      .split(",")
-      .map((toolId) => toolId.trim().replace(/\.$/, ""))
-      .filter(Boolean);
-  });
-
-  return normalizeCatalogGapToolIds(missingToolIds);
+  return normalizeCatalogGapToolIds(
+    issues.flatMap((issue) => extractToolReferenceMissingToolIds(issue.message))
+  );
 }
 
 export function formatToolReferenceIssueSummary(
   issues: readonly WorkflowToolReferenceIssueLike[],
-  options?: { maxVisibleToolIds?: number }
+  {
+    fallbackLabel = "tool catalog reference",
+    maxVisibleToolIds = 2
+  }: {
+    fallbackLabel?: string;
+    maxVisibleToolIds?: number;
+  } = {}
 ): string | null {
-  const missingToolIds = getToolReferenceMissingToolIds(issues);
-  if (missingToolIds.length > 0) {
-    return formatCatalogGapSummary(missingToolIds, options?.maxVisibleToolIds);
+  if (issues.length === 0) {
+    return null;
   }
 
-  const firstMessage = issues[0]?.message?.trim();
-  return firstMessage ? `tool catalog reference：${firstMessage}` : null;
+  const catalogGapSummary = formatCatalogGapSummary(
+    getToolReferenceMissingToolIds(issues),
+    maxVisibleToolIds
+  );
+  if (catalogGapSummary) {
+    return catalogGapSummary;
+  }
+
+  const descriptions = Array.from(
+    new Set(
+      issues
+        .map((issue) => normalizeString(issue.message))
+        .filter((message): message is string => message !== null)
+    )
+  );
+  if (descriptions.length === 0) {
+    return fallbackLabel;
+  }
+
+  const visibleDescriptions = descriptions.slice(0, 2);
+  const suffix =
+    descriptions.length > visibleDescriptions.length
+      ? `；另有 ${descriptions.length - visibleDescriptions.length} 项同类问题`
+      : "";
+  return `${fallbackLabel}：${visibleDescriptions.join("；")}${suffix}`;
 }
 
 function normalizeCatalogGapToolIds(toolIds: readonly unknown[]): string[] {
-  return [...new Set(toolIds.map((toolId) => String(toolId).trim()).filter(Boolean))];
+  return Array.from(
+    new Set(
+      toolIds
+        .map((toolId) => normalizeString(toolId))
+        .filter((toolId): toolId is string => toolId !== null)
+    )
+  );
+}
+
+function extractToolReferenceMissingToolIds(message: string): string[] {
+  const normalizedMessage = normalizeString(message);
+  if (!normalizedMessage) {
+    return [];
+  }
+
+  const quotedToolIds = Array.from(
+    normalizedMessage.matchAll(/\bmissing catalog tool '([^']+)'/gi),
+    (match) => normalizeString(match[1])
+  ).filter((toolId): toolId is string => toolId !== null);
+  if (quotedToolIds.length > 0) {
+    return quotedToolIds;
+  }
+
+  const missingCatalogMatch = normalizedMessage.match(/\bmissing catalog tools?:\s*(.+)$/i);
+  if (missingCatalogMatch) {
+    return missingCatalogMatch[1]
+      .split(/[，,、]/)
+      .map((toolId) => normalizeString(toolId.replace(/[.。]$/, "")))
+      .filter((toolId): toolId is string => toolId !== null);
+  }
+
+  const localizedMissingCatalogMatch = normalizedMessage.match(/不存在的工具[:：]?\s*(.+)$/);
+  if (localizedMissingCatalogMatch) {
+    return localizedMissingCatalogMatch[1]
+      .split(/[，,、]/)
+      .map((toolId) => normalizeString(toolId.replace(/\.$/, "")))
+      .filter((toolId): toolId is string => toolId !== null);
+  }
+
+  return [];
+}
+
+function normalizeString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  return normalized ? normalized : null;
 }

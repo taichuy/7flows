@@ -7,7 +7,10 @@ import {
   formatCatalogGapToolSummary,
   formatWorkflowMissingToolSummary
 } from "@/lib/workflow-definition-governance";
-import { appendWorkflowLibraryViewStateForWorkflow } from "@/lib/workflow-library-query";
+import {
+  appendWorkflowLibraryViewStateForWorkflow,
+  readWorkflowLibraryViewState
+} from "@/lib/workflow-library-query";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
@@ -72,20 +75,32 @@ export function buildWorkflowGovernanceHandoff({
         variant: "editor"
       }).href
     : null);
+  const workflowCatalogGapSummary = toolGovernance
+    ? formatWorkflowMissingToolSummary({ tool_governance: toolGovernance })
+    : null;
+  const workflowLibraryViewState = resolvedWorkflowDetailHref
+    ? readWorkflowLibraryViewState(
+        new URLSearchParams(resolvedWorkflowDetailHref.split("?")[1] ?? "")
+      )
+    : { definitionIssue: null };
+  const preferredWorkflowLibraryViewState = workflowLibraryViewState.definitionIssue
+    ? workflowLibraryViewState
+    : {
+        definitionIssue: workflowCatalogGapSummary ? "missing_tool" : null
+      };
   const workflowGovernanceHref = resolvedWorkflowDetailHref
     ? toolGovernance || legacyAuthGovernance
       ? appendWorkflowLibraryViewStateForWorkflow(
           resolvedWorkflowDetailHref,
           {
-            tool_governance: toolGovernance,
-            legacy_auth_governance: legacyAuthGovernance
+            workflow_id: resolvedWorkflowId,
+            definition_issues: [],
+            tool_governance: toolGovernance ?? null,
+            legacy_auth_governance: legacyAuthGovernance ?? null
           },
-          { definitionIssue: null }
+          preferredWorkflowLibraryViewState
         )
       : resolvedWorkflowDetailHref
-    : null;
-  const workflowCatalogGapSummary = toolGovernance
-    ? formatWorkflowMissingToolSummary({ tool_governance: toolGovernance })
     : null;
 
   return {

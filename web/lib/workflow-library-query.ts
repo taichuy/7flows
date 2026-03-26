@@ -1,4 +1,5 @@
 import type { WorkflowListItem } from "@/lib/get-workflows";
+import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 import {
   hasWorkflowLegacyPublishAuthIssues,
   hasWorkflowMissingToolIssues
@@ -11,6 +12,21 @@ export type WorkflowListDefinitionIssueFilter =
 
 export type WorkflowLibraryViewState = {
   definitionIssue: WorkflowListDefinitionIssueFilter | null;
+};
+
+type WorkflowLibraryViewStateWorkflowLike = {
+  id?: string | null;
+  workflow_id?: string | null;
+  binding_count?: number;
+  draft_candidate_count?: number;
+  published_blocker_count?: number;
+  offline_inventory_count?: number;
+  definition_issues?: WorkflowListItem["definition_issues"];
+  tool_governance?: WorkflowListItem["tool_governance"] | null;
+  legacy_auth_governance?:
+    | WorkflowListItem["legacy_auth_governance"]
+    | WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot
+    | null;
 };
 
 function readFirstQueryValue(
@@ -80,7 +96,7 @@ export function appendWorkflowLibraryViewState(
 }
 
 export function resolveWorkflowLibraryViewStateForWorkflow(
-  workflow: Pick<WorkflowListItem, "tool_governance" | "definition_issues" | "legacy_auth_governance">,
+  workflow: WorkflowLibraryViewStateWorkflowLike,
   viewState: WorkflowLibraryViewState
 ): WorkflowLibraryViewState {
   if (viewState.definitionIssue) {
@@ -99,7 +115,7 @@ export function resolveWorkflowLibraryViewStateForWorkflow(
 
 export function appendWorkflowLibraryViewStateForWorkflow(
   href: string,
-  workflow: Pick<WorkflowListItem, "tool_governance" | "definition_issues" | "legacy_auth_governance">,
+  workflow: WorkflowLibraryViewStateWorkflowLike,
   viewState: WorkflowLibraryViewState
 ): string {
   return appendWorkflowLibraryViewState(

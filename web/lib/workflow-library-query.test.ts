@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 import {
   appendWorkflowLibraryViewStateForWorkflow,
   appendWorkflowLibraryViewState,
@@ -142,6 +143,26 @@ describe("workflow-library-query", () => {
       )
     ).toBe(
       "/workflows/workflow-auth?starter=starter-openclaw&definition_issue=legacy_publish_auth"
+    );
+  });
+
+  it("treats run-level legacy auth snapshots as legacy-auth workflow scope", () => {
+    expect(
+      appendWorkflowLibraryViewStateForWorkflow(
+        "/workflows/workflow-run?starter=starter-openclaw",
+        {
+          legacy_auth_governance: buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+            binding: {
+              workflow_id: "workflow-run"
+            }
+          })
+        },
+        {
+          definitionIssue: null
+        }
+      )
+    ).toBe(
+      "/workflows/workflow-run?starter=starter-openclaw&definition_issue=legacy_publish_auth"
     );
   });
 

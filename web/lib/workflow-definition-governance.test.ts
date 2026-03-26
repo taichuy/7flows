@@ -8,14 +8,16 @@ import {
   formatWorkflowLegacyPublishAuthBacklogSummary,
   formatWorkflowMissingToolSummary,
   getToolReferenceMissingToolIds,
-  getWorkflowLegacyPublishAuthBlockerCount,
+  getWorkflowLegacyPublishAuthBacklogCount,
   getWorkflowLegacyPublishAuthIssues,
+  getWorkflowLegacyPublishAuthStatusLabel,
   getWorkflowMissingToolIds,
   hasOnlyLegacyPublishAuthModeIssues,
   hasWorkflowLegacyPublishAuthIssues,
   hasWorkflowMissingToolIssues,
   isLegacyPublishAuthModeIssue
 } from "@/lib/workflow-definition-governance";
+import { buildLegacyAuthGovernanceSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 
 describe("workflow-definition-governance", () => {
   it("recognizes publish auth blockers from workflow definition issues", () => {
@@ -80,14 +82,36 @@ describe("workflow-definition-governance", () => {
       }
     };
 
-    expect(getWorkflowLegacyPublishAuthBlockerCount(workflow)).toBe(2);
+    expect(getWorkflowLegacyPublishAuthBacklogCount(workflow)).toBe(3);
     expect(hasWorkflowLegacyPublishAuthIssues(workflow)).toBe(true);
+    expect(getWorkflowLegacyPublishAuthStatusLabel(workflow)).toBe("publish auth blocker");
     expect(formatWorkflowLegacyPublishAuthBacklogSummary(workflow)).toBe(
       "0 条 draft cleanup、1 条 published blocker、1 条 offline inventory"
     );
   });
 
-  it("combines current publish draft issues with persisted legacy auth backlog", () => {
+  it("reuses workflow publish governance snapshots on runtime surfaces", () => {
+    const workflow = {
+      definition_issues: [],
+      legacy_auth_governance: buildLegacyAuthGovernanceSnapshotFixture({
+        binding_count: 3,
+        summary: {
+          draft_candidate_count: 1,
+          published_blocker_count: 1,
+          offline_inventory_count: 1
+        }
+      })
+    };
+
+    expect(getWorkflowLegacyPublishAuthBacklogCount(workflow)).toBe(3);
+    expect(hasWorkflowLegacyPublishAuthIssues(workflow)).toBe(true);
+    expect(getWorkflowLegacyPublishAuthStatusLabel(workflow)).toBe("publish auth blocker");
+    expect(formatWorkflowLegacyPublishAuthBacklogSummary(workflow)).toBe(
+      "1 条 draft cleanup、1 条 published blocker、1 条 offline inventory"
+    );
+  });
+
+  it("prefers persisted legacy auth backlog over duplicate current draft issue counts", () => {
     const workflow = {
       definition_issues: [
         {
@@ -105,10 +129,85 @@ describe("workflow-definition-governance", () => {
       }
     };
 
-    expect(getWorkflowLegacyPublishAuthBlockerCount(workflow)).toBe(3);
+    expect(getWorkflowLegacyPublishAuthBacklogCount(workflow)).toBe(2);
     expect(hasWorkflowLegacyPublishAuthIssues(workflow)).toBe(true);
+    expect(getWorkflowLegacyPublishAuthStatusLabel(workflow)).toBe("publish auth blocker");
     expect(formatWorkflowLegacyPublishAuthBacklogSummary(workflow)).toBe(
       "1 个当前 publish draft、1 条 draft cleanup、1 条 published blocker、0 条 offline inventory"
+    );
+  });
+
+  it("recognizes published workflow-item legacy auth backlog without nested summary", () => {
+    const workflow = {
+      workflow_id: "workflow-legacy-auth",
+      binding_count: 2,
+      draft_candidate_count: 0,
+      published_blocker_count: 1,
+      offline_inventory_count: 1,
+      tool_governance: {
+        referenced_tool_ids: [],
+        missing_tool_ids: [],
+        governed_tool_count: 0,
+        strong_isolation_tool_count: 0
+      }
+    };
+
+    expect(getWorkflowLegacyPublishAuthBacklogCount(workflow)).toBe(2);
+    expect(hasWorkflowLegacyPublishAuthIssues(workflow)).toBe(true);
+    expect(getWorkflowLegacyPublishAuthStatusLabel(workflow)).toBe("publish auth blocker");
+    expect(formatWorkflowLegacyPublishAuthBacklogSummary(workflow)).toBe(
+      "0 条 draft cleanup、1 条 published blocker、1 条 offline inventory"
+    );
+  });
+
+  it("accepts publish governance snapshots as shared legacy auth blockers", () => {
+    const workflow = {
+      workflow_id: "workflow-legacy-auth",
+      legacy_auth_governance: {
+        generated_at: "2026-03-26T16:00:00Z",
+        workflow_count: 1,
+        binding_count: 2,
+        auth_mode_contract: {
+          supported_auth_modes: ["api_key", "internal"],
+          retired_legacy_auth_modes: ["token"],
+          summary: "legacy auth needs cleanup",
+          follow_up: "switch auth mode"
+        },
+        summary: {
+          draft_candidate_count: 1,
+          published_blocker_count: 1,
+          offline_inventory_count: 0
+        },
+        checklist: [],
+        workflows: [
+          {
+            workflow_id: "workflow-legacy-auth",
+            workflow_name: "Legacy Auth workflow",
+            binding_count: 2,
+            draft_candidate_count: 1,
+            published_blocker_count: 1,
+            offline_inventory_count: 0,
+            tool_governance: {
+              referenced_tool_ids: [],
+              missing_tool_ids: [],
+              governed_tool_count: 0,
+              strong_isolation_tool_count: 0
+            }
+          }
+        ],
+        buckets: {
+          draft_candidates: [],
+          published_blockers: [],
+          offline_inventory: []
+        }
+      }
+    };
+
+    expect(getWorkflowLegacyPublishAuthBacklogCount(workflow)).toBe(2);
+    expect(hasWorkflowLegacyPublishAuthIssues(workflow)).toBe(true);
+    expect(getWorkflowLegacyPublishAuthStatusLabel(workflow)).toBe("publish auth blocker");
+    expect(formatWorkflowLegacyPublishAuthBacklogSummary(workflow)).toBe(
+      "1 条 draft cleanup、1 条 published blocker、0 条 offline inventory"
     );
   });
 
@@ -141,7 +240,10 @@ describe("workflow-definition-governance", () => {
       "catalog gap · native.catalog-gap、native.second-gap 等 3 个 tool"
     );
     expect(
-      formatCatalogGapResourceSummary("Catalog gap workflow", workflow.tool_governance.missing_tool_ids)
+      formatCatalogGapResourceSummary(
+        "Catalog gap workflow",
+        workflow.tool_governance.missing_tool_ids
+      )
     ).toBe("Catalog gap workflow · catalog gap · native.catalog-gap、native.second-gap 等 3 个 tool");
     expect(formatWorkflowMissingToolSummary(workflow)).toBe(
       "catalog gap · native.catalog-gap、native.second-gap 等 3 个 tool"
@@ -191,6 +293,26 @@ describe("workflow-definition-governance", () => {
     expect(getToolReferenceMissingToolIds(issues)).toEqual([]);
     expect(formatToolReferenceIssueSummary(issues)).toBe(
       "tool catalog reference：Tool node 'search:Search' declares ecosystem 'native' for catalog tool 'compat.drifted', but the current catalog reports 'compat'."
+    );
+  });
+
+  it("supports caller-provided fallback labels for non-missing tool reference drift", () => {
+    const issues = [
+      {
+        category: "tool_reference",
+        message:
+          "Tool node 'search:Search' declares ecosystem 'native' for catalog tool 'compat.drifted', but the current catalog reports 'compat'.",
+        path: "nodes.0.config.tool.ecosystem",
+        field: "ecosystem"
+      }
+    ];
+
+    expect(
+      formatToolReferenceIssueSummary(issues, {
+        fallbackLabel: "工具目录引用"
+      })
+    ).toBe(
+      "工具目录引用：Tool node 'search:Search' declares ecosystem 'native' for catalog tool 'compat.drifted', but the current catalog reports 'compat'."
     );
   });
 });
