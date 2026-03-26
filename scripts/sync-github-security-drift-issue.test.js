@@ -3,8 +3,13 @@ const assert = require('node:assert/strict');
 
 const {
   DEFAULT_ISSUE_MARKER,
+  buildIssueHistory,
   buildIssueBody,
+  buildIssueSyncStepOutputs,
+  buildIssueStateFingerprint,
   hasExternalBlocker,
+  parseIssueHistoryLines,
+  parseIssueStateMetadata,
   parseArgs,
   syncIssueFromReport,
 } = require('./sync-github-security-drift-issue');
@@ -136,18 +141,99 @@ test('buildIssueBody renders blocker evidence and recommended actions', () => {
   assert.match(body, /GitHub Security Drift 外部阻塞跟踪/);
   assert.match(body, /dependency_graph_disabled/);
   assert.match(body, /打开仓库安全设置/);
-  assert.match(body, /execution: manual-only step \(github_settings_ui\)/);
+  assert.match(body, /仅支持人工操作（`github_settings_ui`）/);
   assert.match(body, /`api`、`services\/compat-dify`、`web`/);
-  assert.match(
-    body,
-    /fields absent from repo API payload: `dependency_graph`、`automatic_dependency_submission`/,
-  );
+  assert.match(body, /repo API 未返回字段：`dependency_graph`、`automatic_dependency_submission`/);
   assert.match(body, /manual verification reason：`missing_dependency_graph_fields`/);
   assert.match(body, /gh api -X PATCH repos\/\{owner\}\/\{repo\}/);
   assert.match(body, /Enabling the dependency graph/);
   assert.match(body, /Configuring automatic dependency submission/);
   assert.match(body, /DEPENDABOT_ALERTS_TOKEN/);
   assert.match(body, new RegExp(escapedMarker));
+  assert.match(body, /## 状态轨迹/);
+  assert.match(body, /外部阻塞持续存在/);
+});
+
+test('issue state helpers keep semantic fingerprint stable across timestamp-only changes', () => {
+  const baseReport = createReport();
+  const timestampOnlyChangedReport = createReport({
+    generatedAt: '2026-03-26T08:40:00.000Z',
+    repositorySecurityAndAnalysis: {
+      ...baseReport.repositorySecurityAndAnalysis,
+      checkedAt: '2026-03-26T08:39:50.000Z',
+    },
+    dependencySubmissionEvidence: {
+      ...baseReport.dependencySubmissionEvidence,
+      dependencyGraphVisibility: {
+        ...baseReport.dependencySubmissionEvidence.dependencyGraphVisibility,
+        checkedAt: '2026-03-26T08:39:45.000Z',
+      },
+    },
+  });
+
+  assert.equal(
+    buildIssueStateFingerprint(baseReport, { resolved: false }),
+    buildIssueStateFingerprint(timestampOnlyChangedReport, { resolved: false }),
+  );
+});
+
+test('buildIssueHistory appends new entry only when semantic blocker state changes', () => {
+  const previousReport = createReport();
+  const previousState = {
+    fingerprint: buildIssueStateFingerprint(previousReport, { resolved: false }),
+    resolved: false,
+  };
+  const previousHistoryLines = buildIssueHistory(previousReport, { resolved: false });
+
+  const unchangedHistory = buildIssueHistory(
+    createReport({ generatedAt: '2026-03-26T08:41:00.000Z' }),
+    {
+      resolved: false,
+      previousState,
+      previousHistoryLines,
+    },
+  );
+  assert.equal(unchangedHistory.length, 1);
+
+  const changedHistory = buildIssueHistory(
+    createReport({
+      conclusion: {
+        kind: 'repository_blocked_and_alerts_unavailable',
+        summary: '仓库设置 blocker 与 token 缺口并存。',
+      },
+      recommendedActions: [
+        {
+          priority: 1,
+          audience: 'repository_admin',
+          code: 'configure_dependabot_alerts_token',
+          summary: '配置 `DEPENDABOT_ALERTS_TOKEN`。',
+          rationale: '恢复 workflow 内的 alert 对照。',
+          roots: [],
+        },
+      ],
+    }),
+    {
+      resolved: false,
+      previousState,
+      previousHistoryLines,
+    },
+  );
+  assert.equal(changedHistory.length, 2);
+  assert.match(changedHistory[0], /primary_action=`configure_dependabot_alerts_token`/);
+});
+
+test('buildIssueBody embeds parseable state metadata and history markers', () => {
+  const report = createReport();
+  const body = buildIssueBody(report, { issueMarker: DEFAULT_ISSUE_MARKER });
+  const parsedState = parseIssueStateMetadata(body);
+  const parsedHistory = parseIssueHistoryLines(body);
+
+  assert.deepEqual(parsedState, {
+    fingerprint: buildIssueStateFingerprint(report, { resolved: false }),
+    resolved: false,
+  });
+  assert.equal(parsedHistory.length, 1);
+  assert.match(parsedHistory[0], /external|外部阻塞/);
 });
 
 test('buildIssueBody treats missing dependency graph fields as manual verification even without explicit flag', () => {
@@ -163,7 +249,7 @@ test('buildIssueBody treats missing dependency graph fields as manual verificati
     }),
   );
 
-  assert.match(body, /fields absent from repo API payload: `dependency_graph`/);
+  assert.match(body, /repo API 未返回字段：`dependency_graph`/);
   assert.match(body, /manual verification reason：`missing_dependency_graph_fields`/);
   assert.match(body, /不应把缺失误判成“已开启”/);
   assert.match(body, /Settings -> Security & analysis/);
@@ -180,6 +266,60 @@ test('syncIssueFromReport skips issue mutation outside the default branch', asyn
     shouldTrack: true,
     currentRefName: 'feature/manual-check',
     defaultBranch: 'taichuy_dev',
+  });
+});
+
+test('syncIssueFromReport supports dry-run without GitHub lookup', async () => {
+  const result = await syncIssueFromReport(createReport(), {
+    dryRun: true,
+  });
+
+  assert.equal(result.action, 'dry_run_track');
+  assert.equal(result.issueNumber, null);
+  assert.equal(result.shouldTrack, true);
+  assert.match(result.body, /GitHub Security Drift 外部阻塞跟踪/);
+  assert.match(result.body, /外部阻塞状态：仍阻塞 shared GitHub security drift 闭环/);
+});
+
+test('buildIssueSyncStepOutputs expose tracking issue metadata for workflow consumers', () => {
+  const outputs = buildIssueSyncStepOutputs(
+    {
+      action: 'created',
+      issueNumber: 42,
+      shouldTrack: true,
+    },
+    createReport(),
+  );
+
+  assert.deepEqual(outputs, {
+    tracking_issue_action: 'created',
+    tracking_issue_number: '42',
+    tracking_issue_url: 'https://github.com/taichuy/7flows/issues/42',
+    tracking_issue_should_track: 'true',
+    tracking_issue_current_ref: '',
+    tracking_issue_default_branch: 'taichuy_dev',
+  });
+});
+
+test('buildIssueSyncStepOutputs keep non-default branch skip facts machine-readable', () => {
+  const outputs = buildIssueSyncStepOutputs(
+    {
+      action: 'skipped_non_default_branch',
+      issueNumber: null,
+      shouldTrack: true,
+      currentRefName: 'feature/manual-check',
+      defaultBranch: 'taichuy_dev',
+    },
+    createReport(),
+  );
+
+  assert.deepEqual(outputs, {
+    tracking_issue_action: 'skipped_non_default_branch',
+    tracking_issue_number: '',
+    tracking_issue_url: '',
+    tracking_issue_should_track: 'true',
+    tracking_issue_current_ref: 'feature/manual-check',
+    tracking_issue_default_branch: 'taichuy_dev',
   });
 });
 
@@ -243,7 +383,7 @@ test('syncIssueFromReport closes tracked issue after blocker resolves', async (t
               number: 7,
               state: 'open',
               title: 'GitHub Security Drift: external blocker',
-              body: `${DEFAULT_ISSUE_MARKER}\nold body`,
+              body: buildIssueBody(createReport(), { issueMarker: DEFAULT_ISSUE_MARKER }),
             },
           ]),
       };
@@ -276,6 +416,67 @@ test('syncIssueFromReport closes tracked issue after blocker resolves', async (t
   assert.equal(patchPayload.state, 'closed');
   assert.equal(patchPayload.state_reason, 'completed');
   assert.match(patchPayload.body, /已由自动化关闭/);
+  const resolvedHistory = parseIssueHistoryLines(patchPayload.body);
+  assert.equal(resolvedHistory.length, 2);
+  assert.match(resolvedHistory[0], /外部阻塞已解除/);
+});
+
+test('syncIssueFromReport keeps a single history entry when only snapshot timestamps change', async (t) => {
+  const baseBody = buildIssueBody(createReport(), { issueMarker: DEFAULT_ISSUE_MARKER });
+  const calls = [];
+  const originalFetch = global.fetch;
+  t.after(() => {
+    global.fetch = originalFetch;
+  });
+
+  global.fetch = async (url, options = {}) => {
+    calls.push({ url, options });
+
+    if (calls.length === 1) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify([
+            {
+              number: 9,
+              state: 'open',
+              title: 'GitHub Security Drift: external blocker',
+              body: baseBody,
+            },
+          ]),
+      };
+    }
+
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ number: 9 }),
+    };
+  };
+
+  const result = await syncIssueFromReport(
+    createReport({
+      generatedAt: '2026-03-26T08:48:00.000Z',
+      repositorySecurityAndAnalysis: {
+        ...createReport().repositorySecurityAndAnalysis,
+        checkedAt: '2026-03-26T08:47:51.000Z',
+      },
+      dependencySubmissionEvidence: {
+        ...createReport().dependencySubmissionEvidence,
+        dependencyGraphVisibility: {
+          ...createReport().dependencySubmissionEvidence.dependencyGraphVisibility,
+          checkedAt: '2026-03-26T08:47:49.000Z',
+        },
+      },
+    }),
+    { token: 'test-token' },
+  );
+
+  assert.equal(result.action, 'updated');
+  const patchPayload = JSON.parse(calls[1].options.body);
+  const historyLines = parseIssueHistoryLines(patchPayload.body);
+  assert.equal(historyLines.length, 1);
 });
 
 test('syncIssueFromReport keeps noop when tracked issue already matches the latest blocker snapshot', async (t) => {
@@ -317,6 +518,54 @@ test('syncIssueFromReport keeps noop when tracked issue already matches the late
   });
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /\/repos\/taichuy\/7flows\/issues\?state=all/);
+});
+
+test('syncIssueFromReport reopens closed tracked issue when blocker returns', async (t) => {
+  const calls = [];
+  const originalFetch = global.fetch;
+  t.after(() => {
+    global.fetch = originalFetch;
+  });
+
+  global.fetch = async (url, options = {}) => {
+    calls.push({ url, options });
+
+    if (calls.length === 1) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify([
+            {
+              number: 11,
+              state: 'closed',
+              title: 'GitHub Security Drift: external blocker',
+              body: `${DEFAULT_ISSUE_MARKER}\nresolved body`,
+            },
+          ]),
+      };
+    }
+
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ number: 11 }),
+    };
+  };
+
+  const result = await syncIssueFromReport(createReport(), { token: 'test-token' });
+
+  assert.deepEqual(result, {
+    action: 'reopened',
+    issueNumber: 11,
+    shouldTrack: true,
+  });
+  assert.equal(calls.length, 2);
+  assert.match(calls[1].url, /\/repos\/taichuy\/7flows\/issues\/11$/);
+  assert.equal(calls[1].options.method, 'PATCH');
+  const patchPayload = JSON.parse(calls[1].options.body);
+  assert.equal(patchPayload.state, 'open');
+  assert.match(patchPayload.body, /GitHub Security Drift 外部阻塞跟踪/);
 });
 
 test('buildIssueBody renders resolved snapshot when blocker is gone', () => {

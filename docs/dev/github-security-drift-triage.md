@@ -15,6 +15,20 @@
 node scripts/check-dependabot-drift.js
 ```
 
+如果本轮目的是本地先生成 `dependabot-drift.json`，再继续 dry-run `scripts/sync-github-security-drift-issue.js` 预览 issue 正文，可改用：
+
+```bash
+node scripts/check-dependabot-drift.js \
+  --report-output /tmp/dependabot-drift.json \
+  --allow-platform-state-exit-zero
+
+node scripts/sync-github-security-drift-issue.js \
+  --report /tmp/dependabot-drift.json \
+  --dry-run
+```
+
+其中 `--allow-platform-state-exit-zero` 只会把 `exit 2`（`platform_drift`）与 `exit 3`（`alerts_unavailable` / `repository_blocked_and_alerts_unavailable`）软化为 `0`，方便继续串接 issue 预览；如果本地仍有真实未修复告警，`exit 1` 仍会保持失败，避免把“继续修依赖”误降级成可忽略信号。
+
 脚本会显式调用 `gh api` 查询当前仓库的：
 
 - 默认分支
@@ -79,6 +93,7 @@ node scripts/check-dependabot-drift.js
   - `taichuy_dev` 上任意受脚本监控的 manifest（`**/package.json`、`**/pnpm-lock.yaml`、`**/pyproject.toml`、`**/uv.lock`）、治理 helper `scripts/dependency-governance-actions.js`、`scripts/check-dependabot-drift.js`、`scripts/submit-dependency-snapshots.js` 或两条相关 workflow 的 push
 - 工作流会上传 `dependabot-drift-report` artifact，并把摘要写入 workflow summary。
 - 当 `dependabot-drift.json` 已生成时，工作流还会调用 `scripts/sync-github-security-drift-issue.js` 自动创建 / 更新单一追踪 issue，把当前 `platform_drift` / `alerts_unavailable` / `repository_blocked_and_alerts_unavailable` 外部阻塞同步到仓库 issue 列表，而不是让证据只停留在 artifact。
+- 追踪 issue 现在还会为默认分支 blocker 计算 state fingerprint，并在 body 里保留最近几次 blocker 快照历史：如果连续两次 workflow 看到的是同一份外部阻塞事实，脚本会保持 `noop` 而不是重复改写 issue；如果 blocker 曾被关闭、随后又回归，脚本会自动 reopen 同一条 issue，而不是新建第二条平行噪音。
 - issue body 现在会同步镜像 `repositorySecurityAndAnalysis.manualVerificationRequired/manualVerificationReason`：如果 repo API 仍缺失 `dependency_graph` / `automatic_dependency_submission` 字段，issue 会重复提醒“不要把 `gh api -X PATCH repos/{owner}/{repo}` 的成功返回当成完成信号”，并附上 GitHub 官方文档入口，避免异步接手的人只看 issue 时又回到错误动作顺序。
 - 除了 summary / artifact，drift step 现在会把脚本生成的整套 machine-readable outputs 一并写入 `GITHUB_OUTPUT` 并透传为 job outputs：除了 `recommended_actions_count`、`recommended_actions_json` 与 `primary_recommended_action_*` 外，还包含 `conclusion_*`、`dependabot alert` 可见性 / 计数、`dependency submission` 证据可用性、仓库 `security_and_analysis` 状态、`repositoryBlocker` 状态 / roots，以及 dependency graph roots 缺口等字段，方便后续 workflow / agent 直接消费同一份 follow-up 契约，而不是再解析文本 summary。
 - 当首要动作是仓库管理员去开 `Dependency graph` 时，`primary_recommended_action_manual_only=true`、`primary_recommended_action_manual_only_reason=github_settings_ui`、`primary_recommended_action_documentation_href` / `_label` 也会同步输出，明确告诉后续 workflow / agent：这一步当前是 GitHub 设置页里的手动动作，应优先跟随官方文档与 UI 复验，而不是继续尝试 repo settings patch。
@@ -88,6 +103,7 @@ node scripts/check-dependabot-drift.js
   - `dependabot-drift.txt`：给人读的命令输出
   - `dependabot-drift.json`：给后续自动化 / agent 复验消费的机器可读报告，包含 manifest coverage、当前仓库 `security_and_analysis` 快照（`repositorySecurityAndAnalysis`）、最新 dependency submission evidence、submission-time `dependencyGraphVisibility`、dependency submission API 返回的原始 blocker evidence（`kind/status/message`）、有序 `recommendedActions`（`priority/audience/code/summary/rationale/roots/href/hrefLabel/manualOnly/manualOnlyReason/documentationHref/documentationHrefLabel`），以及 `actions: read` 权限阻塞标记与最终 exit code / conclusion
 - 自动同步 issue 会直接复用 `dependabot-drift.json` 里的 `recommendedActions`、`repositoryBlockerEvidence`、`dependencyGraphVisibility` 与 Dependabot 漂移摘要；如果 blocker 解除，脚本会自动关闭同一条 issue，避免每次 workflow 都制造重复噪音。
+- issue 正文中的“状态轨迹”只会在 blocker 语义变化时追加新条目，不会因为时间戳、run 链接或例行复验而刷出重复 history；维护者既可以直接看顶部当前快照，也能回看 `primary_action`、blocker 类型与 `missingRoots` 的收口轨迹。
 - 为了让追踪 issue 始终代表默认分支事实，脚本只会在当前 ref 与 `report.defaultBranch` 一致时真正创建 / 更新 / 关闭 issue；对非默认分支的 `workflow_dispatch` 人工复验，脚本会显式输出 `skipped_non_default_branch`，避免把实验性分支结果误同步成仓库级 blocker 结论。
 - 当默认分支仍存在 `graph coverage` 缺口时，summary / artifact 现在会额外串上最新 `Dependency Graph Submission` run 证据；如果 submission workflow 已明确给出 `repository blocker`，优先按仓库设置阻塞处理，而不是继续怀疑本地 inventory 或 snapshot 覆盖面。
 - `repositorySecurityAndAnalysis` 会保留同一时刻从 `GET /repos/{owner}/{repo}` 读到的 `security_and_analysis` 原始字段集合、`dependencyGraphStatus` / `automaticDependencySubmissionStatus` 归一化状态，以及 `missingFields`。如果 GitHub repo API 没返回 `dependency_graph` 或 `automatic_dependency_submission` 字段，不要把“字段缺失”误判成“已开启”；仍以 submission artifact 的 `repositoryBlockerEvidence` 与 `dependencyGraphVisibility` 作为最终验收事实。

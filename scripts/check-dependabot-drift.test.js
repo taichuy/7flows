@@ -17,6 +17,7 @@ const {
   parseDependencySubmissionJsonReport,
   parseDependencySubmissionReport,
   resolveDependencySubmissionEvidenceWaitSeconds,
+  resolveProcessExitCode,
   waitForWorkflowRunCompletion,
 } = require('./check-dependabot-drift.js');
 
@@ -625,9 +626,22 @@ test('buildAlertsUnavailableConclusion keeps repository blocker ahead of token f
 test('parseArgs accepts report output path', () => {
   assert.deepEqual(parseArgs(['--report-output', 'dependabot-drift.json']), {
     reportOutputPath: 'dependabot-drift.json',
+    allowPlatformStateExitZero: false,
+  });
+  assert.deepEqual(parseArgs(['--report-output', 'dependabot-drift.json', '--allow-platform-state-exit-zero']), {
+    reportOutputPath: 'dependabot-drift.json',
+    allowPlatformStateExitZero: true,
   });
   assert.throws(() => parseArgs(['--report-output']), /需要路径参数/);
   assert.throws(() => parseArgs(['--unknown']), /未知参数/);
+});
+
+test('resolveProcessExitCode only softens platform-state outcomes', () => {
+  assert.equal(resolveProcessExitCode(0, {}), 0);
+  assert.equal(resolveProcessExitCode(1, { allowPlatformStateExitZero: true }), 1);
+  assert.equal(resolveProcessExitCode(2, { allowPlatformStateExitZero: false }), 2);
+  assert.equal(resolveProcessExitCode(2, { allowPlatformStateExitZero: true }), 0);
+  assert.equal(resolveProcessExitCode(3, { allowPlatformStateExitZero: true }), 0);
 });
 
 test('resolveDependencySubmissionEvidenceWaitSeconds only waits in GitHub Actions by default', () => {

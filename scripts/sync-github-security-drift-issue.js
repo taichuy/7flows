@@ -1,11 +1,17 @@
 const fs = require('fs');
+const crypto = require('crypto');
 const {
   buildRecommendedActionsMarkdownLines,
   buildRepositorySecurityAndAnalysisMarkdownLines,
+  writeGitHubOutputs,
 } = require('./dependency-governance-actions');
 
 const DEFAULT_ISSUE_TITLE = 'GitHub Security Drift: external blocker';
 const DEFAULT_ISSUE_MARKER = '<!-- 7flows:github-security-drift-tracking -->';
+const DEFAULT_ISSUE_STATE_MARKER = '7flows:github-security-drift-state';
+const DEFAULT_ISSUE_HISTORY_START_MARKER = '<!-- 7flows:github-security-drift-history-start -->';
+const DEFAULT_ISSUE_HISTORY_END_MARKER = '<!-- 7flows:github-security-drift-history-end -->';
+const MAX_HISTORY_ENTRIES = 6;
 const EXTERNAL_BLOCKER_ACTION_CODES = new Set([
   'enable_dependency_graph',
   'configure_dependabot_alerts_token',
@@ -136,6 +142,184 @@ function buildCurrentRunUrl(repository) {
   )}/actions/runs/${encodeURIComponent(runId)}`;
 }
 
+function buildIssueUrl(repository, issueNumber) {
+  const normalizedRepository = normalizeRepositoryCoordinates(repository);
+  if (!normalizedRepository || !Number.isInteger(issueNumber)) {
+    return null;
+  }
+
+  const serverUrl = (process.env.GITHUB_SERVER_URL || 'https://github.com').replace(/\/$/, '');
+  return `${serverUrl}/${encodeURIComponent(normalizedRepository.owner)}/${encodeURIComponent(
+    normalizedRepository.repo,
+  )}/issues/${issueNumber}`;
+}
+
+function buildIssueStateFingerprint(report, options = {}) {
+  const dependencySubmissionEvidence =
+    report?.dependencySubmissionEvidence && typeof report.dependencySubmissionEvidence === 'object'
+      ? report.dependencySubmissionEvidence
+      : null;
+  const repositoryBlockerEvidence =
+    dependencySubmissionEvidence?.repositoryBlockerEvidence &&
+    typeof dependencySubmissionEvidence.repositoryBlockerEvidence === 'object'
+      ? dependencySubmissionEvidence.repositoryBlockerEvidence
+      : null;
+  const dependencyGraphVisibility =
+    dependencySubmissionEvidence?.dependencyGraphVisibility &&
+    typeof dependencySubmissionEvidence.dependencyGraphVisibility === 'object'
+      ? dependencySubmissionEvidence.dependencyGraphVisibility
+      : null;
+  const repositorySecurityAndAnalysis =
+    report?.repositorySecurityAndAnalysis && typeof report.repositorySecurityAndAnalysis === 'object'
+      ? report.repositorySecurityAndAnalysis
+      : null;
+  const dependabotAlerts =
+    report?.dependabotAlerts && typeof report.dependabotAlerts === 'object' ? report.dependabotAlerts : null;
+  const recommendedActions = Array.isArray(report?.recommendedActions) ? report.recommendedActions : [];
+
+  const fingerprintInput = {
+    resolved: options.resolved === true,
+    conclusionKind: normalizeOptionalString(report?.conclusion?.kind),
+    repositoryBlockerKind: normalizeOptionalString(repositoryBlockerEvidence?.kind),
+    repositoryBlockerStatus: Number.isInteger(repositoryBlockerEvidence?.status)
+      ? repositoryBlockerEvidence.status
+      : normalizeOptionalString(repositoryBlockerEvidence?.status),
+    repositoryBlockerRoots: normalizeList(repositoryBlockerEvidence?.rootLabels),
+    dependencyGraphManifestCount: Number.isInteger(dependencyGraphVisibility?.manifestCount)
+      ? dependencyGraphVisibility.manifestCount
+      : null,
+    dependencyGraphVisibleRoots: normalizeList(dependencyGraphVisibility?.visibleRoots),
+    dependencyGraphMissingRoots: normalizeList(dependencyGraphVisibility?.missingRoots),
+    repositorySecurityMissingFields: normalizeList(repositorySecurityAndAnalysis?.missingFields),
+    repositorySecurityManualVerificationReason: normalizeOptionalString(
+      repositorySecurityAndAnalysis?.manualVerificationReason,
+    ),
+    alertsUnavailable: dependabotAlerts?.unavailable === true,
+    openAlertCount: Number.isInteger(dependabotAlerts?.openAlertCount) ? dependabotAlerts.openAlertCount : null,
+    actionableAlertCount: Number.isInteger(dependabotAlerts?.actionableAlertCount)
+      ? dependabotAlerts.actionableAlertCount
+      : null,
+    recommendedActions: recommendedActions.map((action) => ({
+      priority: Number.isInteger(action?.priority) ? action.priority : null,
+      audience: normalizeOptionalString(action?.audience),
+      code: normalizeOptionalString(action?.code),
+      manualOnly: action?.manualOnly === true,
+      manualOnlyReason: normalizeOptionalString(action?.manualOnlyReason),
+      roots: normalizeList(action?.roots),
+    })),
+  };
+
+  return crypto.createHash('sha256').update(JSON.stringify(fingerprintInput)).digest('hex');
+}
+
+function buildIssueStateMarker(metadata) {
+  return `<!-- ${DEFAULT_ISSUE_STATE_MARKER} ${JSON.stringify(metadata)} -->`;
+}
+
+function parseIssueStateMetadata(body) {
+  if (typeof body !== 'string' || !body.trim()) {
+    return null;
+  }
+
+  const pattern = new RegExp(`<!--\\s*${DEFAULT_ISSUE_STATE_MARKER}\\s+(.+?)\\s*-->`);
+  const match = body.match(pattern);
+  if (!match) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(match[1]);
+    if (!parsed || typeof parsed !== 'object') {
+      return null;
+    }
+
+    return {
+      fingerprint: normalizeOptionalString(parsed.fingerprint),
+      resolved: parsed.resolved === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseIssueHistoryLines(body) {
+  if (typeof body !== 'string' || !body.trim()) {
+    return [];
+  }
+
+  const startIndex = body.indexOf(DEFAULT_ISSUE_HISTORY_START_MARKER);
+  const endIndex = body.indexOf(DEFAULT_ISSUE_HISTORY_END_MARKER);
+  if (startIndex === -1 || endIndex === -1 || endIndex <= startIndex) {
+    return [];
+  }
+
+  return body
+    .slice(startIndex + DEFAULT_ISSUE_HISTORY_START_MARKER.length, endIndex)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('- '));
+}
+
+function buildHistoryEntry(report, options = {}) {
+  const generatedAt = normalizeOptionalString(report?.generatedAt) || '未知时间';
+  const conclusionKind = normalizeOptionalString(report?.conclusion?.kind) || 'unknown';
+  const dependencySubmissionEvidence =
+    report?.dependencySubmissionEvidence && typeof report.dependencySubmissionEvidence === 'object'
+      ? report.dependencySubmissionEvidence
+      : null;
+  const repositoryBlockerEvidence =
+    dependencySubmissionEvidence?.repositoryBlockerEvidence &&
+    typeof dependencySubmissionEvidence.repositoryBlockerEvidence === 'object'
+      ? dependencySubmissionEvidence.repositoryBlockerEvidence
+      : null;
+  const dependencyGraphVisibility =
+    dependencySubmissionEvidence?.dependencyGraphVisibility &&
+    typeof dependencySubmissionEvidence.dependencyGraphVisibility === 'object'
+      ? dependencySubmissionEvidence.dependencyGraphVisibility
+      : null;
+  const recommendedActions = Array.isArray(report?.recommendedActions) ? report.recommendedActions : [];
+  const primaryAction = recommendedActions[0] && typeof recommendedActions[0] === 'object' ? recommendedActions[0] : null;
+  const entryParts = [generatedAt, options.resolved === true ? '外部阻塞已解除' : '外部阻塞持续存在'];
+
+  entryParts.push(`conclusion=${formatCode(conclusionKind)}`);
+
+  if (primaryAction?.code) {
+    entryParts.push(`primary_action=${formatCode(primaryAction.code)}`);
+  }
+
+  if (repositoryBlockerEvidence?.kind) {
+    const blockerStatus = Number.isInteger(repositoryBlockerEvidence?.status)
+      ? repositoryBlockerEvidence.status
+      : normalizeOptionalString(repositoryBlockerEvidence?.status);
+    entryParts.push(
+      `blocker=${formatCode(repositoryBlockerEvidence.kind)}${
+        blockerStatus === null || blockerStatus === undefined ? '' : `/${formatCode(blockerStatus)}`
+      }`,
+    );
+  }
+
+  const missingRoots = normalizeList(dependencyGraphVisibility?.missingRoots);
+  if (missingRoots.length > 0) {
+    entryParts.push(`missing_roots=${formatRootList(missingRoots)}`);
+  }
+
+  return `- ${entryParts.join(' · ')}`;
+}
+
+function buildIssueHistory(report, options = {}) {
+  const previousHistoryLines = Array.isArray(options.previousHistoryLines) ? options.previousHistoryLines : [];
+  const previousState = options.previousState && typeof options.previousState === 'object' ? options.previousState : null;
+  const fingerprint = buildIssueStateFingerprint(report, options);
+  const resolved = options.resolved === true;
+  const historyLines = [...previousHistoryLines];
+
+  if (!previousState || previousState.fingerprint !== fingerprint || previousState.resolved !== resolved || historyLines.length === 0) {
+    historyLines.unshift(buildHistoryEntry(report, { resolved }));
+  }
+
+  return historyLines.slice(0, MAX_HISTORY_ENTRIES);
+}
+
 function hasExternalBlocker(report) {
   const conclusionKind = normalizeOptionalString(report?.conclusion?.kind);
   if (conclusionKind && EXTERNAL_BLOCKER_CONCLUSION_KINDS.has(conclusionKind)) {
@@ -150,6 +334,14 @@ function hasExternalBlocker(report) {
 function buildIssueBody(report, options = {}) {
   const issueMarker = options.issueMarker || DEFAULT_ISSUE_MARKER;
   const resolved = options.resolved === true;
+  const stateMetadata =
+    options.stateMetadata && typeof options.stateMetadata === 'object'
+      ? options.stateMetadata
+      : {
+          fingerprint: buildIssueStateFingerprint(report, { resolved }),
+          resolved,
+        };
+  const historyLines = Array.isArray(options.historyLines) ? options.historyLines : [buildHistoryEntry(report, { resolved })];
   const repository = normalizeRepositoryCoordinates(report?.repository);
   const dependencySubmissionEvidence =
     report?.dependencySubmissionEvidence && typeof report.dependencySubmissionEvidence === 'object'
@@ -174,7 +366,7 @@ function buildIssueBody(report, options = {}) {
     report?.dependabotAlerts && typeof report.dependabotAlerts === 'object' ? report.dependabotAlerts : null;
   const currentRunUrl = buildCurrentRunUrl(repository);
 
-  const lines = [issueMarker, '# GitHub Security Drift 外部阻塞跟踪', ''];
+  const lines = [issueMarker, buildIssueStateMarker(stateMetadata), '# GitHub Security Drift 外部阻塞跟踪', ''];
 
   if (resolved) {
     lines.push('> 当前快照不再命中需要人工协作的外部阻塞；此 issue 已由自动化关闭，仅保留为历史证据。');
@@ -261,6 +453,10 @@ function buildIssueBody(report, options = {}) {
   } else {
     lines.push('', ...recommendedActionLines);
   }
+
+  lines.push('', '## 状态轨迹', DEFAULT_ISSUE_HISTORY_START_MARKER);
+  lines.push(...historyLines);
+  lines.push(DEFAULT_ISSUE_HISTORY_END_MARKER);
 
   lines.push('', '## 自动化说明');
   lines.push('- 来源：`scripts/sync-github-security-drift-issue.js` 读取 `dependabot-drift.json` 后自动创建 / 更新。');
@@ -365,8 +561,26 @@ async function syncIssueFromReport(report, options = {}) {
     normalizeOptionalString(options.currentRefName) ||
     normalizeOptionalString(process.env.GITHUB_REF_NAME) ||
     normalizeOptionalString(process.env.GITHUB_HEAD_REF);
-  const resolvedBody = buildIssueBody(report, { issueMarker, resolved: true });
-  const trackingBody = buildIssueBody(report, { issueMarker, resolved: false });
+  const trackingStateMetadata = {
+    fingerprint: buildIssueStateFingerprint(report, { resolved: false }),
+    resolved: false,
+  };
+  const resolvedStateMetadata = {
+    fingerprint: buildIssueStateFingerprint(report, { resolved: true }),
+    resolved: true,
+  };
+  const dryRunTrackingBody = buildIssueBody(report, {
+    issueMarker,
+    resolved: false,
+    stateMetadata: trackingStateMetadata,
+    historyLines: buildIssueHistory(report, { resolved: false }),
+  });
+  const dryRunResolvedBody = buildIssueBody(report, {
+    issueMarker,
+    resolved: true,
+    stateMetadata: resolvedStateMetadata,
+    historyLines: buildIssueHistory(report, { resolved: true }),
+  });
 
   if (!options.dryRun && defaultBranch && currentRefName && currentRefName !== defaultBranch) {
     return {
@@ -382,7 +596,7 @@ async function syncIssueFromReport(report, options = {}) {
     return {
       action: shouldTrack ? 'dry_run_track' : 'dry_run_resolved',
       issueNumber: null,
-      body: shouldTrack ? trackingBody : resolvedBody,
+      body: shouldTrack ? dryRunTrackingBody : dryRunResolvedBody,
       shouldTrack,
     };
   }
@@ -391,6 +605,30 @@ async function syncIssueFromReport(report, options = {}) {
     token: options.token,
     issueTitle,
     issueMarker,
+  });
+  const previousState = parseIssueStateMetadata(existingIssue?.body);
+  const previousHistoryLines = parseIssueHistoryLines(existingIssue?.body);
+  const trackingHistoryLines = buildIssueHistory(report, {
+    resolved: false,
+    previousState,
+    previousHistoryLines,
+  });
+  const resolvedHistoryLines = buildIssueHistory(report, {
+    resolved: true,
+    previousState,
+    previousHistoryLines,
+  });
+  const resolvedBody = buildIssueBody(report, {
+    issueMarker,
+    resolved: true,
+    stateMetadata: resolvedStateMetadata,
+    historyLines: resolvedHistoryLines,
+  });
+  const trackingBody = buildIssueBody(report, {
+    issueMarker,
+    resolved: false,
+    stateMetadata: trackingStateMetadata,
+    historyLines: trackingHistoryLines,
   });
 
   if (!shouldTrack) {
@@ -474,10 +712,28 @@ async function syncIssueFromReport(report, options = {}) {
   };
 }
 
+function buildIssueSyncStepOutputs(result = {}, report = {}) {
+  const repository = normalizeRepositoryCoordinates(report?.repository);
+  const issueNumber = Number.isInteger(result?.issueNumber) ? result.issueNumber : null;
+  const defaultBranch =
+    normalizeOptionalString(result?.defaultBranch) || normalizeOptionalString(report?.defaultBranch) || '';
+
+  return {
+    tracking_issue_action: normalizeOptionalString(result?.action) || '',
+    tracking_issue_number: issueNumber !== null ? String(issueNumber) : '',
+    tracking_issue_url: buildIssueUrl(repository, issueNumber) || '',
+    tracking_issue_should_track: result?.shouldTrack === true ? 'true' : 'false',
+    tracking_issue_current_ref: normalizeOptionalString(result?.currentRefName) || '',
+    tracking_issue_default_branch: defaultBranch,
+  };
+}
+
 async function main() {
   const options = parseArgs();
   const report = readJsonFile(options.reportPath);
   const result = await syncIssueFromReport(report, options);
+
+  writeGitHubOutputs(buildIssueSyncStepOutputs(result, report));
 
   if (result.body) {
     console.log(result.body);
@@ -502,9 +758,14 @@ module.exports = {
   DEFAULT_ISSUE_MARKER,
   DEFAULT_ISSUE_TITLE,
   buildIssueBody,
+  buildIssueHistory,
+  buildIssueSyncStepOutputs,
+  buildIssueStateFingerprint,
   findTrackedIssue,
   hasExternalBlocker,
   normalizeRepositoryCoordinates,
+  parseIssueHistoryLines,
+  parseIssueStateMetadata,
   parseArgs,
   syncIssueFromReport,
 };

@@ -976,6 +976,7 @@ function shouldAllowAlertApiFallback() {
 function parseArgs(argv) {
   const options = {
     reportOutputPath: null,
+    allowPlatformStateExitZero: false,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -990,10 +991,23 @@ function parseArgs(argv) {
       continue;
     }
 
+    if (argument === '--allow-platform-state-exit-zero') {
+      options.allowPlatformStateExitZero = true;
+      continue;
+    }
+
     throw new Error(`未知参数: ${argument}`);
   }
 
   return options;
+}
+
+function resolveProcessExitCode(exitCode, options = {}) {
+  if (options.allowPlatformStateExitZero === true && (exitCode === 2 || exitCode === 3)) {
+    return 0;
+  }
+
+  return exitCode;
 }
 
 function isDependabotAlertPermissionError(error) {
@@ -1567,7 +1581,7 @@ function main() {
     };
     writeDriftReport(options.reportOutputPath, reportParams);
     writeDriftStepOutputs(buildDriftReport(reportParams));
-    process.exit(3);
+    process.exit(resolveProcessExitCode(3, options));
   }
 
   if (openAlerts.length === 0) {
@@ -1583,7 +1597,7 @@ function main() {
     };
     writeDriftReport(options.reportOutputPath, reportParams);
     writeDriftStepOutputs(buildDriftReport(reportParams));
-    process.exit(0);
+    process.exit(resolveProcessExitCode(0, options));
   }
 
   results.forEach((result, index) => {
@@ -1623,7 +1637,7 @@ function main() {
     };
     writeDriftReport(options.reportOutputPath, reportParams);
     writeDriftStepOutputs(buildDriftReport(reportParams));
-    process.exit(2);
+    process.exit(resolveProcessExitCode(2, options));
   }
 
   console.log('仍存在至少一个未被当前锁文件修复或无法解析的告警，需要继续修依赖或补排查。');
@@ -1638,7 +1652,7 @@ function main() {
   };
   writeDriftReport(options.reportOutputPath, reportParams);
   writeDriftStepOutputs(buildDriftReport(reportParams));
-  process.exit(1);
+  process.exit(resolveProcessExitCode(1, options));
 }
 
 module.exports = {
@@ -1665,6 +1679,7 @@ module.exports = {
   parseDependencySubmissionJsonReport,
   parseDependencySubmissionReport,
   parsePythonDependencyName,
+  resolveProcessExitCode,
   resolveAlertEvaluationSource,
   resolveDependencySubmissionEvidenceWaitSeconds,
   buildDriftStepOutputs,

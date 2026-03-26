@@ -7,7 +7,7 @@
 - [team-conventions.md](/E:/code/taichuCode/7flows/docs/dev/team-conventions.md)
   - 团队级共享协作规则、验证基线和提交要求。
 - [github-security-drift-triage.md](/E:/code/taichuCode/7flows/docs/dev/github-security-drift-triage.md)
-  - 当 GitHub Dependabot 告警与默认分支锁文件事实不一致时的共享排查入口，并说明同名 GitHub workflow 的自动复验与 issue handoff 方式。
+  - 当 GitHub Dependabot 告警与默认分支锁文件事实不一致时的共享排查入口，并说明同名 GitHub workflow 的自动复验、单一 tracking issue 与状态轨迹 handoff 方式。
 - [ADR 索引](/E:/code/taichuCode/7flows/docs/adr/README.md)
   - 长期保留“背景 / 决策 / 后果”的事项。
 - [技能索引](/E:/code/taichuCode/7flows/.agents/skills/README.md)
