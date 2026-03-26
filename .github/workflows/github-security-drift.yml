@@ -55,6 +55,12 @@ jobs:
       actionable_alert_count: ${{ steps.drift.outputs.actionable_alert_count }}
       dependency_submission_run_available: ${{ steps.drift.outputs.dependency_submission_run_available }}
       dependency_graph_missing_roots_json: ${{ steps.drift.outputs.dependency_graph_missing_roots_json }}
+      tracking_issue_action: ${{ steps.sync_issue.outputs.tracking_issue_action }}
+      tracking_issue_number: ${{ steps.sync_issue.outputs.tracking_issue_number }}
+      tracking_issue_url: ${{ steps.sync_issue.outputs.tracking_issue_url }}
+      tracking_issue_should_track: ${{ steps.sync_issue.outputs.tracking_issue_should_track }}
+      tracking_issue_current_ref: ${{ steps.sync_issue.outputs.tracking_issue_current_ref }}
+      tracking_issue_default_branch: ${{ steps.sync_issue.outputs.tracking_issue_default_branch }}
     permissions:
       actions: read
       contents: read
@@ -115,6 +121,7 @@ jobs:
             dependabot-drift.json
 
       - name: Sync security drift tracking issue
+        id: sync_issue
         if: always() && hashFiles('dependabot-drift.json') != ''
         env:
           GITHUB_TOKEN: ${{ github.token }}
