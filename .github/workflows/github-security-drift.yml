@@ -24,15 +24,28 @@ jobs:
     outputs:
       status: ${{ steps.drift.outputs.status }}
       conclusion_kind: ${{ steps.drift.outputs.conclusion_kind }}
+      conclusion_exit_code: ${{ steps.drift.outputs.conclusion_exit_code }}
       recommended_actions_count: ${{ steps.drift.outputs.recommended_actions_count }}
+      recommended_actions_json: ${{ steps.drift.outputs.recommended_actions_json }}
+      primary_recommended_action_priority: ${{ steps.drift.outputs.primary_recommended_action_priority }}
       primary_recommended_action_code: ${{ steps.drift.outputs.primary_recommended_action_code }}
       primary_recommended_action_audience: ${{ steps.drift.outputs.primary_recommended_action_audience }}
+      primary_recommended_action_summary: ${{ steps.drift.outputs.primary_recommended_action_summary }}
+      primary_recommended_action_rationale: ${{ steps.drift.outputs.primary_recommended_action_rationale }}
+      primary_recommended_action_roots_json: ${{ steps.drift.outputs.primary_recommended_action_roots_json }}
       primary_recommended_action_href: ${{ steps.drift.outputs.primary_recommended_action_href }}
       primary_recommended_action_href_label: ${{ steps.drift.outputs.primary_recommended_action_href_label }}
       dependency_graph_setting_status: ${{ steps.drift.outputs.dependency_graph_setting_status }}
       automatic_dependency_submission_setting_status: ${{ steps.drift.outputs.automatic_dependency_submission_setting_status }}
+      dependabot_security_updates_status: ${{ steps.drift.outputs.dependabot_security_updates_status }}
       repository_blocker_kind: ${{ steps.drift.outputs.repository_blocker_kind }}
+      repository_blocker_status: ${{ steps.drift.outputs.repository_blocker_status }}
       repository_security_and_analysis_missing_fields_json: ${{ steps.drift.outputs.repository_security_and_analysis_missing_fields_json }}
+      repository_security_and_analysis_check_error: ${{ steps.drift.outputs.repository_security_and_analysis_check_error }}
+      alerts_unavailable: ${{ steps.drift.outputs.alerts_unavailable }}
+      open_alert_count: ${{ steps.drift.outputs.open_alert_count }}
+      actionable_alert_count: ${{ steps.drift.outputs.actionable_alert_count }}
+      dependency_submission_run_available: ${{ steps.drift.outputs.dependency_submission_run_available }}
       dependency_graph_missing_roots_json: ${{ steps.drift.outputs.dependency_graph_missing_roots_json }}
     permissions:
       actions: read

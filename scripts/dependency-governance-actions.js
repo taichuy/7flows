@@ -438,6 +438,17 @@ function buildDriftRecommendedActions({
   const submissionReport = dependencySubmissionEvidence?.report || dependencySubmissionEvidence || null;
   const repositoryBlockerEvidence = submissionReport?.repositoryBlockerEvidence || null;
   const dependencyGraphVisibility = submissionReport?.dependencyGraphVisibility || null;
+  const hasDependencyGraphRepositoryBlocker =
+    repositoryBlockerEvidence?.kind === 'dependency_graph_disabled' || submissionReport?.repositoryBlocker;
+  const repositoryBlockedRoots =
+    Array.isArray(repositoryBlockerEvidence?.rootLabels) && repositoryBlockerEvidence.rootLabels.length > 0
+      ? repositoryBlockerEvidence.rootLabels
+      : [
+          ...new Set([
+            ...missingNativeGraphRoots.map((item) => item.rootLabel),
+            ...dependencySubmissionRoots.map((item) => item.rootLabel),
+          ]),
+        ];
 
   if (actionableAlertCount > 0) {
     actions.push(
@@ -473,6 +484,23 @@ function buildDriftRecommendedActions({
     );
   }
 
+  if (hasDependencyGraphRepositoryBlocker) {
+    actions.push(
+      createRecommendedAction(
+        priority++,
+        'repository_admin',
+        'enable_dependency_graph',
+        '在 `Settings -> Security & analysis` 启用 `Dependency graph`，必要时一并确认 `Automatic dependency submission`。',
+        '最新 submission evidence 已明确把 manifests 缺席归类为仓库设置阻塞，而不是 inventory / lock 解析错误。',
+        repositoryBlockedRoots,
+        {
+          href: buildSecuritySettingsHref(repository),
+          hrefLabel: '打开仓库安全设置',
+        },
+      ),
+    );
+  }
+
   if (alertsUnavailable) {
     actions.push(
       createRecommendedAction(
@@ -480,7 +508,9 @@ function buildDriftRecommendedActions({
         'repository_admin',
         'configure_dependabot_alerts_token',
         '为仓库 secret 配置 `DEPENDABOT_ALERTS_TOKEN`，或使用具备告警读取权限的 `gh` 凭证重跑 `check-dependabot-drift`。',
-        '当前 workflow token 只能读取 dependency graph 事实，无法对比 Dependabot open alerts。',
+        hasDependencyGraphRepositoryBlocker
+          ? 'submission evidence 已先证明仓库设置阻塞；补 token 的目的是在解除 blocker 后恢复 workflow 内的 Dependabot alert 对照。'
+          : '当前 workflow token 只能读取 dependency graph 事实，无法对比 Dependabot open alerts。',
         [],
         {
           href: buildActionsSecretsHref(repository),
@@ -490,33 +520,7 @@ function buildDriftRecommendedActions({
     );
   }
 
-  if (
-    repositoryBlockerEvidence?.kind === 'dependency_graph_disabled' ||
-    submissionReport?.repositoryBlocker
-  ) {
-    const roots = Array.isArray(repositoryBlockerEvidence?.rootLabels) && repositoryBlockerEvidence.rootLabels.length > 0
-      ? repositoryBlockerEvidence.rootLabels
-      : [
-          ...new Set([
-            ...missingNativeGraphRoots.map((item) => item.rootLabel),
-            ...dependencySubmissionRoots.map((item) => item.rootLabel),
-          ]),
-        ];
-
-    actions.push(
-      createRecommendedAction(
-        priority++,
-        'repository_admin',
-        'enable_dependency_graph',
-        '在 `Settings -> Security & analysis` 启用 `Dependency graph`，必要时一并确认 `Automatic dependency submission`。',
-        '最新 submission evidence 已明确把 manifests 缺席归类为仓库设置阻塞，而不是 inventory / lock 解析错误。',
-        roots,
-        {
-          href: buildSecuritySettingsHref(repository),
-          hrefLabel: '打开仓库安全设置',
-        },
-      ),
-    );
+  if (hasDependencyGraphRepositoryBlocker) {
     actions.push(
       createRecommendedAction(
         priority++,
@@ -524,7 +528,7 @@ function buildDriftRecommendedActions({
         'rerun_dependency_graph_submission',
         '仓库设置更新后重跑 `Dependency Graph Submission` workflow，确认 blocker evidence 是否消失并刷新 manifests。',
         '只有新的 submission run 才能证明 roots 是否开始在 GitHub dependency graph 中可见。',
-        roots,
+        repositoryBlockedRoots,
         {
           href: buildWorkflowHref(repository, 'dependency-graph-submission.yml'),
           hrefLabel: '打开 Dependency Graph Submission workflow',

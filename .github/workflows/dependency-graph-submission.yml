@@ -22,16 +22,28 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       status: ${{ steps.submit.outputs.status }}
+      submission_mode: ${{ steps.submit.outputs.submission_mode }}
       recommended_actions_count: ${{ steps.submit.outputs.recommended_actions_count }}
+      recommended_actions_json: ${{ steps.submit.outputs.recommended_actions_json }}
+      primary_recommended_action_priority: ${{ steps.submit.outputs.primary_recommended_action_priority }}
       primary_recommended_action_code: ${{ steps.submit.outputs.primary_recommended_action_code }}
       primary_recommended_action_audience: ${{ steps.submit.outputs.primary_recommended_action_audience }}
+      primary_recommended_action_summary: ${{ steps.submit.outputs.primary_recommended_action_summary }}
+      primary_recommended_action_rationale: ${{ steps.submit.outputs.primary_recommended_action_rationale }}
+      primary_recommended_action_roots_json: ${{ steps.submit.outputs.primary_recommended_action_roots_json }}
       primary_recommended_action_href: ${{ steps.submit.outputs.primary_recommended_action_href }}
       primary_recommended_action_href_label: ${{ steps.submit.outputs.primary_recommended_action_href_label }}
       dependency_graph_setting_status: ${{ steps.submit.outputs.dependency_graph_setting_status }}
       automatic_dependency_submission_setting_status: ${{ steps.submit.outputs.automatic_dependency_submission_setting_status }}
+      dependabot_security_updates_status: ${{ steps.submit.outputs.dependabot_security_updates_status }}
       repository_blocker_kind: ${{ steps.submit.outputs.repository_blocker_kind }}
+      repository_blocker_status: ${{ steps.submit.outputs.repository_blocker_status }}
+      repository_blocker_roots_json: ${{ steps.submit.outputs.repository_blocker_roots_json }}
       repository_security_and_analysis_missing_fields_json: ${{ steps.submit.outputs.repository_security_and_analysis_missing_fields_json }}
+      repository_security_and_analysis_check_error: ${{ steps.submit.outputs.repository_security_and_analysis_check_error }}
+      dependency_graph_visible_roots_json: ${{ steps.submit.outputs.dependency_graph_visible_roots_json }}
       dependency_graph_missing_roots_json: ${{ steps.submit.outputs.dependency_graph_missing_roots_json }}
+      dependency_graph_check_error: ${{ steps.submit.outputs.dependency_graph_check_error }}
     permissions:
       contents: write
 

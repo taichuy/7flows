@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 
 const {
+  buildDriftRecommendedActions,
   buildRepositorySecurityAndAnalysisMarkdownLines,
   buildRecommendedActionsOutputs,
   normalizeRepositorySecurityAndAnalysis,
@@ -131,4 +132,45 @@ test('buildRepositorySecurityAndAnalysisMarkdownLines explains missing dependenc
   assert.match(lines.join('\n'), /automatic dependency submission: `unknown`/);
   assert.match(lines.join('\n'), /fields absent from repo API payload: `dependency_graph`、`automatic_dependency_submission`/);
   assert.match(lines.join('\n'), /最终仍以 dependency submission blocker 与 manifest visibility 证据为准/);
+});
+
+test('buildDriftRecommendedActions prioritizes dependency graph blocker ahead of alerts token setup', () => {
+  const actions = buildDriftRecommendedActions({
+    missingNativeGraphRoots: [{ rootLabel: 'web', ecosystem: 'pnpm' }],
+    dependencySubmissionRoots: [
+      { rootLabel: 'api', ecosystem: 'uv' },
+      { rootLabel: 'services/compat-dify', ecosystem: 'uv' },
+    ],
+    alertsUnavailable: true,
+    repository: { owner: 'taichuy', repo: '7flows' },
+    dependencySubmissionEvidence: {
+      report: {
+        repositoryBlockerEvidence: {
+          kind: 'dependency_graph_disabled',
+          rootLabels: ['api', 'services/compat-dify', 'web'],
+        },
+      },
+    },
+  });
+
+  assert.deepEqual(
+    actions.map((action) => action.code),
+    [
+      'enable_dependency_graph',
+      'configure_dependabot_alerts_token',
+      'rerun_dependency_graph_submission',
+      'rerun_github_security_drift',
+    ],
+  );
+  assert.match(actions[1].rationale, /submission evidence 已先证明仓库设置阻塞/);
+});
+
+test('buildDriftRecommendedActions keeps alerts token first when no repository blocker evidence exists', () => {
+  const actions = buildDriftRecommendedActions({
+    missingNativeGraphRoots: [{ rootLabel: 'web', ecosystem: 'pnpm' }],
+    alertsUnavailable: true,
+    repository: { owner: 'taichuy', repo: '7flows' },
+  });
+
+  assert.equal(actions[0].code, 'configure_dependabot_alerts_token');
 });
