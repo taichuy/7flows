@@ -1244,15 +1244,6 @@ function writeMarkdownSummary(params) {
   fs.writeFileSync(summaryPath, `${buildMarkdownSummary(params)}\n`, 'utf8');
 }
 
-function writeStepSummary(lines) {
-  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
-  if (!summaryPath) {
-    return;
-  }
-
-  fs.appendFileSync(summaryPath, `${lines.join('\n')}\n`, 'utf8');
-}
-
 function buildDependencySubmissionEvidenceReport(
   dependencySubmissionEvidence,
   { recommendedActionFallbacks = [] } = {},
@@ -1589,6 +1580,10 @@ function main() {
       '- dependency graph manifests：`unknown`',
       `- graph visibility check failed: ${manifestGraphCheckError}`,
     ];
+    if (dependencySubmissionEvidenceLines.length > 0) {
+      summaryLines.push('', '### Latest dependency submission evidence', '');
+      summaryLines.push(...dependencySubmissionEvidenceLines);
+    }
     if (repositorySecurityAndAnalysisLines.length > 0) {
       summaryLines.push('', ...repositorySecurityAndAnalysisLines);
     }

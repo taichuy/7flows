@@ -27,7 +27,7 @@ node scripts/sync-github-security-drift-issue.js \
   --dry-run
 ```
 
-其中 `--allow-platform-state-exit-zero` 只会把 `exit 2`（`platform_drift`）与 `exit 3`（`alerts_unavailable` / `repository_blocked_and_alerts_unavailable`）软化为 `0`，方便继续串接 issue 预览；如果本地仍有真实未修复告警，`exit 1` 仍会保持失败，避免把“继续修依赖”误降级成可忽略信号。
+其中 `--allow-platform-state-exit-zero` 只会把 `exit 2`（`platform_drift`）与 `exit 3`（`alerts_unavailable` / `graph_visibility_check_failed` / `repository_blocked_and_alerts_unavailable`）软化为 `0`，方便继续串接 issue 预览；如果本地仍有真实未修复告警，`exit 1` 仍会保持失败，避免把“继续修依赖”误降级成可忽略信号。
 
 脚本会显式调用 `gh api` 查询当前仓库的：
 
@@ -55,6 +55,9 @@ node scripts/sync-github-security-drift-issue.js \
 - `exit 2`
   - GitHub 仍有 open alert，但脚本确认本地锁文件版本已经达到 patched version。
   - 这通常表示 GitHub 的 dependency graph / alert state 与默认分支事实发生了漂移。
+- `exit 3`
+  - 当前无法完整读取 GitHub 平台事实，例如 `Dependabot alerts` 不可见，或 `dependencyGraphManifests` 查询被 `API rate limit` / GraphQL 可见性问题阻断。
+  - 这时先恢复平台侧读取能力，再继续判断是仓库设置阻塞、平台漂移还是仍有真实漏洞。
 
 ## 推荐排查顺序
 
@@ -94,7 +97,7 @@ node scripts/sync-github-security-drift-issue.js \
   - 每日定时 `schedule`
   - `taichuy_dev` 上任意受脚本监控的 manifest（`**/package.json`、`**/pnpm-lock.yaml`、`**/pyproject.toml`、`**/uv.lock`）、治理 helper `scripts/dependency-governance-actions.js`、`scripts/check-dependabot-drift.js`、`scripts/submit-dependency-snapshots.js` 或两条相关 workflow 的 push
 - 工作流会上传 `dependabot-drift-report` artifact，并把摘要写入 workflow summary。
-- 当 `dependabot-drift.json` 已生成时，工作流还会调用 `scripts/sync-github-security-drift-issue.js` 自动创建 / 更新单一追踪 issue，把当前 `platform_drift` / `alerts_unavailable` / `repository_blocked_and_alerts_unavailable` 外部阻塞同步到仓库 issue 列表，而不是让证据只停留在 artifact。
+- 当 `dependabot-drift.json` 已生成时，工作流还会调用 `scripts/sync-github-security-drift-issue.js` 自动创建 / 更新单一追踪 issue，把当前 `platform_drift` / `alerts_unavailable` / `graph_visibility_check_failed` / `repository_blocked_and_alerts_unavailable` 外部阻塞同步到仓库 issue 列表，而不是让证据只停留在 artifact。
 - 追踪 issue 现在还会为默认分支 blocker 计算 state fingerprint，并在 body 里保留最近几次 blocker 快照历史：如果连续两次 workflow 看到的是同一份外部阻塞事实，脚本会保持 `noop` 而不是重复改写 issue；如果 blocker 曾被关闭、随后又回归，脚本会自动 reopen 同一条 issue，而不是新建第二条平行噪音。
 - issue body 现在会同步镜像 `repositorySecurityAndAnalysis.manualVerificationRequired/manualVerificationReason`：如果 repo API 仍缺失 `dependency_graph` / `automatic_dependency_submission` 字段，issue 会重复提醒“不要把 `gh api -X PATCH repos/{owner}/{repo}` 的成功返回当成完成信号”，并附上 GitHub 官方文档入口，避免异步接手的人只看 issue 时又回到错误动作顺序。
 - 除了 summary / artifact，drift step 现在会把脚本生成的整套 machine-readable outputs 一并写入 `GITHUB_OUTPUT` 并透传为 job outputs：除了 `recommended_actions_count`、`recommended_actions_json` 与 `primary_recommended_action_*` 外，还包含 `conclusion_*`、`dependabot alert` 可见性 / 计数、`dependency submission` 证据可用性、`actions: read` 权限阻塞标记、仓库 `security_and_analysis` 状态、`repositoryBlocker` 状态 / roots，以及 `dependency_graph_visible_roots_json` / `dependency_graph_missing_roots_json` / `dependency_graph_check_error` 等 graph 可见性字段，方便后续 workflow / agent 直接消费同一份 follow-up 契约，而不是再解析文本 summary。

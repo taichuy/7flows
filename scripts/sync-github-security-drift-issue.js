@@ -15,6 +15,7 @@ const MAX_HISTORY_ENTRIES = 6;
 const EXTERNAL_BLOCKER_ACTION_CODES = new Set([
   'enable_dependency_graph',
   'configure_dependabot_alerts_token',
+  'run_dependency_graph_submission',
   'rerun_with_authenticated_github_api',
   'investigate_dependency_graph_visibility',
   'rerun_dependency_graph_submission',

@@ -110,12 +110,56 @@ test('hasExternalBlocker returns true for repository-blocked alerts conclusion',
   assert.equal(hasExternalBlocker(report), true);
 });
 
+test('hasExternalBlocker returns true for graph visibility check failures', () => {
+  const report = createReport({
+    conclusion: {
+      kind: 'graph_visibility_check_failed',
+      summary: 'GitHub API rate limit 阻断了 dependencyGraphManifests 查询。',
+    },
+    recommendedActions: [
+      {
+        priority: 1,
+        audience: 'workflow_maintainer',
+        code: 'rerun_with_authenticated_github_api',
+        summary: '使用具备更高 GitHub API 配额的凭证重跑。',
+        roots: [],
+      },
+    ],
+  });
+
+  assert.equal(hasExternalBlocker(report), true);
+});
+
 test('hasExternalBlocker returns true when recommended actions still require external blocker work', () => {
   const report = createReport({
     conclusion: {
       kind: 'actionable_alerts',
       summary: '仍有真实依赖问题。',
     },
+  });
+
+  assert.equal(hasExternalBlocker(report), true);
+});
+
+test('hasExternalBlocker keeps tracking when only dependency submission rerun remains', () => {
+  const report = createReport({
+    conclusion: {
+      kind: 'clean',
+      summary: '当前没有 open alert。',
+    },
+    recommendedActions: [
+      {
+        priority: 1,
+        audience: 'workflow_maintainer',
+        code: 'run_dependency_graph_submission',
+        summary:
+          '手动重跑 `Dependency Graph Submission` workflow，确保依赖显式 submission 的 roots 至少有最新 artifact 可复验。',
+        rationale: '当前仍缺少最新 submission artifact，外部 GitHub 证据链尚未闭环。',
+        roots: ['api', 'services/compat-dify'],
+        href: 'https://github.com/taichuy/7flows/actions/workflows/dependency-graph-submission.yml',
+        hrefLabel: '打开 Dependency Graph Submission workflow',
+      },
+    ],
   });
 
   assert.equal(hasExternalBlocker(report), true);

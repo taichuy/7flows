@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -84,6 +85,91 @@ function createFixtureRepo() {
 
   return repoRoot;
 }
+
+test('main degrades graph visibility rate limits into a report instead of crashing', () => {
+  const repoRoot = createFixtureRepo();
+  const binDir = path.join(repoRoot, 'bin');
+  const gitPath = path.join(binDir, 'git');
+  const ghPath = path.join(binDir, 'gh');
+  const reportPath = path.join(repoRoot, 'dependabot-drift.json');
+  const summaryPath = path.join(repoRoot, 'step-summary.md');
+  const originalPath = process.env.PATH;
+  const scriptPath = path.join(__dirname, 'check-dependabot-drift.js');
+  const trackedFilesOutput = JSON.stringify(
+    ['api/pyproject.toml', 'api/uv.lock', 'web/package.json', 'web/pnpm-lock.yaml'].join('\n'),
+  );
+
+  fs.mkdirSync(binDir, { recursive: true });
+  fs.writeFileSync(
+    gitPath,
+    `#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args[0] === 'ls-files') {
+  process.stdout.write(${trackedFilesOutput});
+  process.exit(0);
+}
+if (args[0] === 'config' && args[1] === '--get' && args[2] === 'remote.origin.url') {
+  process.stdout.write('git@github.com:taichuy/7flows.git');
+  process.exit(0);
+}
+if (args[0] === 'symbolic-ref') {
+  process.stdout.write('origin/taichuy_dev');
+  process.exit(0);
+}
+process.stderr.write('unexpected git args: ' + args.join(' '));
+process.exit(1);
+`,
+    'utf8',
+  );
+  fs.writeFileSync(
+    ghPath,
+    `#!/usr/bin/env node
+const args = process.argv.slice(2);
+if (args[0] === 'api' && args[1] === 'graphql') {
+  process.stderr.write('gh: API rate limit exceeded for 127.0.0.1. (HTTP 403)');
+  process.exit(1);
+}
+if (args[0] === 'api' && args[1] === 'repos/taichuy/7flows') {
+  process.stdout.write(JSON.stringify({ security_and_analysis: {} }));
+  process.exit(0);
+}
+process.stderr.write('unexpected gh args: ' + args.join(' '));
+process.exit(1);
+`,
+    'utf8',
+  );
+  fs.chmodSync(gitPath, 0o755);
+  fs.chmodSync(ghPath, 0o755);
+
+  try {
+    execFileSync(process.execPath, [scriptPath, '--report-output', reportPath, '--allow-platform-state-exit-zero'], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${binDir}${path.delimiter}${originalPath || ''}`,
+        GITHUB_STEP_SUMMARY: summaryPath,
+      },
+      stdio: 'pipe',
+      encoding: 'utf8',
+    });
+
+    const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+    const summary = fs.readFileSync(summaryPath, 'utf8');
+
+    assert.equal(report.conclusion.kind, 'graph_visibility_check_failed');
+    assert.match(report.conclusion.summary, /API rate limit 已耗尽/);
+    assert.match(report.manifestGraph.checkError, /API rate limit exceeded/);
+    assert.deepEqual(
+      report.recommendedActions.map((action) => action.code),
+      ['rerun_with_authenticated_github_api', 'run_dependency_graph_submission'],
+    );
+    assert.match(summary, /graph visibility check failed/);
+    assert.match(summary, /rerun_with_authenticated_github_api/);
+    assert.match(summary, /run_dependency_graph_submission/);
+  } finally {
+    process.env.PATH = originalPath;
+  }
+});
 
 test('buildWorkspaceManifestInventory groups pnpm and uv roots', () => {
   const inventory = buildWorkspaceManifestInventory([
@@ -1109,6 +1195,70 @@ test('buildDriftReport keeps graph visibility rate-limit failures machine-readab
   );
 });
 
+test('buildDriftReport keeps repository blocker primary when graph visibility fails but submission evidence already proves it', () => {
+  const report = buildDriftReport({
+    repository: {
+      owner: 'taichuy',
+      repo: '7flows',
+    },
+    defaultBranch: 'main',
+    manifestNodes: [],
+    workspaceManifestInventory: buildWorkspaceManifestInventory([
+      'api/pyproject.toml',
+      'api/uv.lock',
+      'web/package.json',
+      'web/pnpm-lock.yaml',
+    ]),
+    manifestCoverage: [
+      {
+        rootLabel: 'api',
+        ecosystem: 'uv',
+        dependencyGraphSupport: 'dependency_submission',
+        dependencyGraphSupported: false,
+        graphVisible: null,
+        matchedGraphFilenames: [],
+      },
+      {
+        rootLabel: 'web',
+        ecosystem: 'pnpm',
+        dependencyGraphSupport: 'native',
+        dependencyGraphSupported: true,
+        graphVisible: null,
+        matchedGraphFilenames: [],
+      },
+    ],
+    manifestGraphCheckError:
+      'gh: API rate limit exceeded for 156.59.13.25. (HTTP 403)',
+    openAlerts: [],
+    results: [],
+    actionableAlerts: [],
+    dependencySubmissionEvidence: {
+      report: {
+        repositoryBlockerEvidence: {
+          kind: 'dependency_graph_disabled',
+          rootLabels: ['api', 'web'],
+        },
+      },
+    },
+    conclusion: {
+      exitCode: 3,
+      kind: 'graph_visibility_check_failed',
+      summary:
+        '当前无法读取 GitHub `dependencyGraphManifests`，因为 API rate limit 已耗尽；请使用具备更高配额的 gh 凭证或等待配额恢复后重跑。',
+    },
+  });
+
+  assert.equal(report.recommendedActions[0]?.code, 'enable_dependency_graph');
+  assert.equal(report.recommendedActions[1]?.code, 'rerun_with_authenticated_github_api');
+
+  const outputs = buildDriftStepOutputs(report);
+  assert.equal(outputs.primary_recommended_action_code, 'enable_dependency_graph');
+  assert.equal(
+    outputs.dependency_graph_check_error,
+    'gh: API rate limit exceeded for 156.59.13.25. (HTTP 403)',
+  );
+});
+
 test('parseDependencySubmissionJsonReport keeps dependency graph visibility evidence', () => {
   const parsed = parseDependencySubmissionJsonReport(
     JSON.stringify({
@@ -1357,10 +1507,10 @@ test('buildDriftStepOutputs expose manual verification when repo API omits depen
 
 test('fetchRepositorySecurityAndAnalysis keeps partial gh api payload machine-readable', () => {
   const repoRoot = createFixtureRepo();
-  const originalPath = process.env.PATH;
   const binDir = path.join(repoRoot, 'bin');
   fs.mkdirSync(binDir, { recursive: true });
   const ghPath = path.join(binDir, 'gh');
+  const scriptPath = path.join(__dirname, 'check-dependabot-drift.js');
 
   fs.writeFileSync(
     ghPath,
@@ -1368,16 +1518,29 @@ test('fetchRepositorySecurityAndAnalysis keeps partial gh api payload machine-re
     'utf8',
   );
   fs.chmodSync(ghPath, 0o755);
-  process.env.PATH = `${binDir}${path.delimiter}${originalPath || ''}`;
 
-  const evidence = fetchRepositorySecurityAndAnalysis({ owner: 'taichuy', repo: '7flows' });
+  const evidence = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        '-e',
+        `const { fetchRepositorySecurityAndAnalysis } = require(${JSON.stringify(scriptPath)});\nprocess.stdout.write(JSON.stringify(fetchRepositorySecurityAndAnalysis({ owner: 'taichuy', repo: '7flows' })));`,
+      ],
+      {
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          PATH: `${binDir}${path.delimiter}${process.env.PATH || ''}`,
+        },
+        encoding: 'utf8',
+      },
+    ),
+  );
 
   assert.equal(evidence.dependencyGraphStatus, null);
   assert.equal(evidence.automaticDependencySubmissionStatus, null);
   assert.equal(evidence.dependabotSecurityUpdatesStatus, 'disabled');
   assert.deepEqual(evidence.availableFields, ['dependabot_security_updates']);
-
-  process.env.PATH = originalPath;
 });
 
 test('buildMarkdownSummary surfaces submission-time manifest visibility evidence', () => {
