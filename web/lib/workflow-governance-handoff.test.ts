@@ -44,7 +44,7 @@ describe("workflow-governance-handoff", () => {
     });
 
     expect(handoff.workflowGovernanceHref).toBe(
-      "/workflows/workflow-mixed?starter=starter-openclaw&definition_issue=missing_tool"
+      "/workflows/workflow-mixed?starter=starter-openclaw&definition_issue=legacy_publish_auth"
     );
     expect(handoff.workflowCatalogGapHref).toBe(
       "/workflows/workflow-mixed?starter=starter-openclaw&definition_issue=missing_tool"
@@ -53,7 +53,7 @@ describe("workflow-governance-handoff", () => {
     expect(handoff.legacyAuthHandoff?.statusChipLabel).toBe("publish auth blocker");
   });
 
-  it("preserves an explicit workflow detail scope when callers already pinned it", () => {
+  it("preserves an explicit catalog-gap scope when callers already pinned it", () => {
     const handoff = buildWorkflowGovernanceHandoff({
       workflowId: "workflow-mixed",
       workflowDetailHref:
@@ -80,7 +80,7 @@ describe("workflow-governance-handoff", () => {
     );
   });
 
-  it("keeps an explicit legacy-auth scope for both governance cards", () => {
+  it("keeps an explicit legacy-auth scope while preserving the catalog-gap shortcut", () => {
     const handoff = buildWorkflowGovernanceHandoff({
       workflowId: "workflow-mixed",
       workflowDetailHref:
@@ -100,7 +100,7 @@ describe("workflow-governance-handoff", () => {
     });
 
     expect(handoff.workflowGovernanceHref).toBe(
-      "/workflows/workflow-mixed?starter=starter-openclaw&definition_issue=missing_tool"
+      "/workflows/workflow-mixed?starter=starter-openclaw&definition_issue=legacy_publish_auth"
     );
     expect(handoff.workflowCatalogGapHref).toBe(
       "/workflows/workflow-mixed?starter=starter-openclaw&definition_issue=missing_tool"

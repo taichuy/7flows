@@ -11,7 +11,8 @@ type WorkflowLegacyAuthGovernanceSummaryLike = NonNullable<
   WorkflowListItem["legacy_auth_governance"]
 >;
 type WorkflowLegacyAuthGovernanceSnapshotLike = WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot;
-type WorkflowLegacyAuthGovernanceWorkflowItemLike = WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem;
+type WorkflowLegacyAuthGovernanceWorkflowItemLike =
+  WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem;
 type WorkflowLegacyAuthGovernanceValueLike =
   | WorkflowLegacyAuthGovernanceSummaryLike
   | WorkflowLegacyAuthGovernanceSnapshotLike
@@ -80,7 +81,11 @@ function readWorkflowItemLegacyAuthGovernanceCounts(
 type ResolvedLegacyAuthGovernanceCounts = NonNullable<
   ReturnType<typeof readLegacyAuthGovernanceCounts>
 > & {
-  isSnapshotSummaryFallback: boolean;
+  sourceKind:
+    | "workflow_item"
+    | "legacy_auth_summary"
+    | "snapshot_workflow"
+    | "snapshot_summary";
 };
 
 function resolveWorkflowLegacyAuthGovernanceCounts(
@@ -92,7 +97,7 @@ function resolveWorkflowLegacyAuthGovernanceCounts(
     return workflowItemCounts
       ? {
           ...workflowItemCounts,
-          isSnapshotSummaryFallback: false
+          sourceKind: "workflow_item"
         }
       : null;
   }
@@ -104,12 +109,12 @@ function resolveWorkflowLegacyAuthGovernanceCounts(
       : legacyAuthGovernance.workflows.length === 1
         ? legacyAuthGovernance.workflows[0] ?? null
         : null;
-
     const resolvedCounts = readLegacyAuthGovernanceCounts(workflowSummary ?? legacyAuthGovernance);
+
     return resolvedCounts
       ? {
           ...resolvedCounts,
-          isSnapshotSummaryFallback: workflowSummary === null
+          sourceKind: workflowSummary ? "snapshot_workflow" : "snapshot_summary"
         }
       : null;
   }
@@ -118,27 +123,19 @@ function resolveWorkflowLegacyAuthGovernanceCounts(
   return resolvedCounts
     ? {
         ...resolvedCounts,
-        isSnapshotSummaryFallback: false
+        sourceKind: "legacy_auth_summary"
       }
     : null;
 }
 
-function resolveLegacyAuthGovernanceBacklogCount(
-  legacyAuthGovernance: ReturnType<typeof resolveWorkflowLegacyAuthGovernanceCounts>,
+function getLegacyAuthGovernanceBacklogCount(
+  legacyAuthGovernance: ResolvedLegacyAuthGovernanceCounts,
   draftCleanupCount: number
 ): number {
-  if (!legacyAuthGovernance) {
-    return 0;
-  }
+  const nonPublishedBacklogCount =
+    draftCleanupCount > 0 ? draftCleanupCount : legacyAuthGovernance.offlineInventoryCount;
 
-  const summarizedBacklogCount =
-    draftCleanupCount +
-    legacyAuthGovernance.publishedBlockerCount +
-    legacyAuthGovernance.offlineInventoryCount;
-
-  return legacyAuthGovernance.isSnapshotSummaryFallback
-    ? summarizedBacklogCount
-    : Math.max(legacyAuthGovernance.bindingCount, summarizedBacklogCount);
+  return nonPublishedBacklogCount + legacyAuthGovernance.publishedBlockerCount;
 }
 
 function resolveWorkflowLegacyPublishAuthBacklogCounts(
@@ -151,7 +148,6 @@ function resolveWorkflowLegacyPublishAuthBacklogCounts(
     return {
       backlogCount: currentPublishDraftIssueCount,
       followUpCount: currentPublishDraftIssueCount,
-      currentPublishDraftIssueCount,
       draftCleanupCount: currentPublishDraftIssueCount,
       publishedBlockerCount: 0,
       offlineInventoryCount: 0,
@@ -165,22 +161,14 @@ function resolveWorkflowLegacyPublishAuthBacklogCounts(
   );
   const publishedBlockerCount = legacyAuthGovernance.publishedBlockerCount;
   const offlineInventoryCount = legacyAuthGovernance.offlineInventoryCount;
-  const resolvedBacklogCount = resolveLegacyAuthGovernanceBacklogCount(
+  const backlogCount = getLegacyAuthGovernanceBacklogCount(
     legacyAuthGovernance,
     draftCleanupCount
   );
-  const resolvedFollowUpCount = Math.max(
-    legacyAuthGovernance.isSnapshotSummaryFallback ? 0 : legacyAuthGovernance.bindingCount,
-    currentPublishDraftIssueCount +
-      legacyAuthGovernance.draftCandidateCount +
-      publishedBlockerCount +
-      offlineInventoryCount
-  );
 
   return {
-    backlogCount: resolvedBacklogCount,
-    followUpCount: resolvedFollowUpCount,
-    currentPublishDraftIssueCount,
+    backlogCount,
+    followUpCount: backlogCount,
     draftCleanupCount,
     publishedBlockerCount,
     offlineInventoryCount,
@@ -224,12 +212,7 @@ export function getWorkflowLegacyPublishAuthStatusLabel(
     return null;
   }
 
-  if (!backlogCounts.hasPersistedLegacyBindings) {
-    return "publish auth blocker";
-  }
-
-  return backlogCounts.currentPublishDraftIssueCount > 0 ||
-    backlogCounts.publishedBlockerCount > 0
+  return backlogCounts.draftCleanupCount > 0 || backlogCounts.publishedBlockerCount > 0
     ? "publish auth blocker"
     : "legacy auth cleanup";
 }
@@ -239,15 +222,12 @@ export function formatWorkflowLegacyPublishAuthBacklogSummary(
 ): string | null {
   const backlogCounts = resolveWorkflowLegacyPublishAuthBacklogCounts(workflow);
 
-  if (backlogCounts.backlogCount <= 0) {
+  if (backlogCounts.followUpCount <= 0) {
     return null;
   }
 
   if (backlogCounts.hasPersistedLegacyBindings) {
     return [
-      backlogCounts.currentPublishDraftIssueCount > 0
-        ? `${backlogCounts.currentPublishDraftIssueCount} 个当前 publish draft`
-        : null,
       `${backlogCounts.draftCleanupCount} 条 draft cleanup`,
       `${backlogCounts.publishedBlockerCount} 条 published blocker`,
       `${backlogCounts.offlineInventoryCount} 条 offline inventory`
@@ -256,7 +236,7 @@ export function formatWorkflowLegacyPublishAuthBacklogSummary(
       .join("、");
   }
 
-  return `${backlogCounts.draftCleanupCount} 个当前 publish draft`;
+  return `${backlogCounts.followUpCount} 个 publish draft`;
 }
 
 export function hasWorkflowLegacyPublishAuthIssues(
@@ -365,6 +345,7 @@ export function formatToolReferenceIssueSummary(
         .filter((message): message is string => message !== null)
     )
   );
+
   if (descriptions.length === 0) {
     return fallbackLabel;
   }
@@ -394,7 +375,7 @@ function extractToolReferenceMissingToolIds(message: string): string[] {
   }
 
   const singularMissingCatalogMatch = normalizedMessage.match(
-    /\bmissing catalog tool '?([a-z0-9_.:-]+)'?/i
+    /(?:catalog tool|catalog tools) '?([a-z0-9_.:-]+)'?/i
   );
   if (singularMissingCatalogMatch) {
     const toolId = normalizeString(singularMissingCatalogMatch[1]);

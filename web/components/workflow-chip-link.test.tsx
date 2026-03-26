@@ -45,7 +45,7 @@ describe("WorkflowChipLink", () => {
     expect(html).not.toContain("missing tools");
   });
 
-  it("keeps legacy publish auth blockers visible alongside catalog gap facts", () => {
+  it("keeps legacy auth cleanup visible alongside catalog gap facts", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowChipLink, {
         href: "/workflows/workflow-auth",
@@ -72,12 +72,12 @@ describe("WorkflowChipLink", () => {
       })
     );
 
-    expect(html).toContain("2 publish auth blockers");
+    expect(html).toContain("2 legacy auth cleanup items");
     expect(html).toContain("publish auth blocker");
     expect(html).toContain("catalog gap · native.catalog-gap");
   });
 
-  it("counts current publish draft issues together with persisted legacy bindings", () => {
+  it("shows deduplicated legacy auth cleanup backlog on workflow chips", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowChipLink, {
         href: "/workflows/workflow-auth-mixed",
@@ -111,7 +111,7 @@ describe("WorkflowChipLink", () => {
       })
     );
 
-    expect(html).toContain("3 publish auth blockers");
+    expect(html).toContain("2 legacy auth cleanup items");
     expect(html).toContain("publish auth blocker");
   });
 });

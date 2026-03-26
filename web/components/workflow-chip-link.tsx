@@ -2,7 +2,8 @@ import Link from "next/link";
 
 import type { WorkflowListItem } from "@/lib/get-workflows";
 import {
-  getWorkflowLegacyPublishAuthBlockerCount,
+  getWorkflowLegacyPublishAuthBacklogCount,
+  getWorkflowLegacyPublishAuthStatusLabel,
   formatWorkflowMissingToolSummary,
   hasWorkflowMissingToolIssues
 } from "@/lib/workflow-definition-governance";
@@ -22,7 +23,8 @@ export function WorkflowChipLink({
   const hasMissingToolIssues = hasWorkflowMissingToolIssues(workflow);
   const governedToolCount = workflow.tool_governance?.governed_tool_count ?? 0;
   const strongIsolationToolCount = workflow.tool_governance?.strong_isolation_tool_count ?? 0;
-  const legacyPublishAuthIssueCount = getWorkflowLegacyPublishAuthBlockerCount(workflow);
+  const legacyPublishAuthBacklogCount = getWorkflowLegacyPublishAuthBacklogCount(workflow);
+  const legacyPublishAuthStatusLabel = getWorkflowLegacyPublishAuthStatusLabel(workflow);
 
   return (
     <Link className={`workflow-chip ${selected ? "selected" : ""}`} href={href}>
@@ -33,17 +35,17 @@ export function WorkflowChipLink({
       <small>
         {workflow.node_count} nodes · {governedToolCount} governed tools · {strongIsolationToolCount} strong isolation
       </small>
-      {legacyPublishAuthIssueCount > 0 ? (
+      {legacyPublishAuthBacklogCount > 0 ? (
         <small>
-          {legacyPublishAuthIssueCount} publish auth blocker
-          {legacyPublishAuthIssueCount === 1 ? "" : "s"}
+          {legacyPublishAuthBacklogCount} legacy auth cleanup item
+          {legacyPublishAuthBacklogCount === 1 ? "" : "s"}
         </small>
       ) : null}
       {missingToolSummary ? <small>{missingToolSummary}</small> : null}
-      {strongIsolationToolCount > 0 || hasMissingToolIssues || legacyPublishAuthIssueCount > 0 ? (
+      {strongIsolationToolCount > 0 || hasMissingToolIssues || legacyPublishAuthBacklogCount > 0 ? (
         <div className="workflow-chip-flags">
-          {legacyPublishAuthIssueCount > 0 ? (
-            <span className="event-chip">publish auth blocker</span>
+          {legacyPublishAuthStatusLabel ? (
+            <span className="event-chip">{legacyPublishAuthStatusLabel}</span>
           ) : null}
           {strongIsolationToolCount > 0 ? <span className="event-chip">strong isolation</span> : null}
           {hasMissingToolIssues ? <span className="event-chip">catalog gap</span> : null}

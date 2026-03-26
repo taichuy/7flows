@@ -499,6 +499,37 @@ describe("ExecutionNodeCard", () => {
     expect(html).not.toContain('data-testid="workflow-governance-handoff-cards"');
   });
 
+  it("preserves explicit workflow detail query state inside timeline callback summaries", () => {
+    const html = renderToStaticMarkup(
+      createElement(ExecutionNodeCard, {
+        node: buildExecutionNode(),
+        runId: "run-callback-1",
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        workflowDetailHref: "/workflows/workflow-1?starter=starter-openclaw",
+        workflowId: "workflow-1",
+        toolGovernance: {
+          referenced_tool_ids: ["native.catalog-gap"],
+          missing_tool_ids: ["native.catalog-gap"],
+          governed_tool_count: 0,
+          strong_isolation_tool_count: 0
+        },
+        legacyAuthGovernance: buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+          binding: {
+            workflow_id: "workflow-1",
+            workflow_name: "Workflow 1"
+          }
+        })
+      })
+    );
+
+    expect(html).toContain(
+      "/workflows/workflow-1?starter=starter-openclaw&amp;definition_issue=missing_tool"
+    );
+    expect(html).toContain(
+      "/workflows/workflow-1?starter=starter-openclaw&amp;definition_issue=legacy_publish_auth"
+    );
+  });
+
   it("keeps workflow governance handoff on node fallback surfaces without callback summary facts", () => {
     const html = renderToStaticMarkup(
       createElement(ExecutionNodeCard, {

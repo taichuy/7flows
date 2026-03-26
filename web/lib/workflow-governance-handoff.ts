@@ -5,7 +5,9 @@ import {
 } from "@/lib/legacy-publish-auth-governance-presenters";
 import {
   formatCatalogGapToolSummary,
-  formatWorkflowMissingToolSummary
+  formatWorkflowMissingToolSummary,
+  hasWorkflowLegacyPublishAuthIssues,
+  hasWorkflowMissingToolIssues
 } from "@/lib/workflow-definition-governance";
 import {
   appendWorkflowLibraryViewState,
@@ -95,14 +97,15 @@ export function buildWorkflowGovernanceHandoff({
   const legacyAuthHandoff = resolvedWorkflowId
     ? buildLegacyPublishAuthWorkflowHandoff(legacyAuthGovernance ?? null, resolvedWorkflowId)
     : null;
+  const hasWorkflowGovernanceIssues =
+    hasWorkflowLegacyPublishAuthIssues(workflowLibraryWorkflow) ||
+    hasWorkflowMissingToolIssues(workflowLibraryWorkflow);
   const workflowGovernanceHref = resolvedWorkflowDetailHref
-    ? workflowCatalogGapSummary || legacyAuthHandoff
+    ? hasWorkflowGovernanceIssues
       ? appendWorkflowLibraryViewStateForWorkflow(
           resolvedWorkflowDetailHref,
           workflowLibraryWorkflow,
-          workflowLibraryViewState.definitionIssue === "legacy_publish_auth"
-            ? workflowLibraryViewState
-            : { definitionIssue: null }
+          workflowLibraryViewState
         )
       : resolvedWorkflowDetailHref
     : null;
@@ -110,9 +113,7 @@ export function buildWorkflowGovernanceHandoff({
     resolvedWorkflowDetailHref && workflowCatalogGapSummary
       ? appendWorkflowLibraryViewState(
           resolvedWorkflowDetailHref,
-          workflowLibraryViewState.definitionIssue === "legacy_publish_auth"
-            ? workflowLibraryViewState
-            : { definitionIssue: "missing_tool" }
+          { definitionIssue: "missing_tool" }
         )
       : null;
 
