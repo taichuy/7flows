@@ -73,10 +73,13 @@ export function buildWorkflowGovernanceHandoff({
       }).href
     : null);
   const workflowGovernanceHref = resolvedWorkflowDetailHref
-    ? toolGovernance
+    ? toolGovernance || legacyAuthGovernance
       ? appendWorkflowLibraryViewStateForWorkflow(
           resolvedWorkflowDetailHref,
-          { tool_governance: toolGovernance },
+          {
+            tool_governance: toolGovernance,
+            legacy_auth_governance: legacyAuthGovernance
+          },
           { definitionIssue: null }
         )
       : resolvedWorkflowDetailHref

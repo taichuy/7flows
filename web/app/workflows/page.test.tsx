@@ -291,6 +291,64 @@ describe("WorkflowsPage", () => {
     expect(html).toContain('/workflows/workflow-legacy-auth');
   });
 
+  it("prioritizes the heaviest legacy publish auth backlog instead of the first workflow name", async () => {
+    vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot()
+    );
+    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshot());
+    vi.mocked(getWorkflows).mockResolvedValue([
+      {
+        id: "workflow-alpha",
+        name: "Alpha workflow",
+        version: "1.0.0",
+        status: "draft",
+        node_count: 3,
+        definition_issues: [],
+        legacy_auth_governance: {
+          binding_count: 1,
+          draft_candidate_count: 0,
+          published_blocker_count: 0,
+          offline_inventory_count: 1
+        },
+        tool_governance: {
+          referenced_tool_ids: ["tool-1"],
+          missing_tool_ids: [],
+          governed_tool_count: 1,
+          strong_isolation_tool_count: 0
+        }
+      },
+      {
+        id: "workflow-zeta",
+        name: "Zeta workflow",
+        version: "1.1.0",
+        status: "draft",
+        node_count: 4,
+        definition_issues: [],
+        legacy_auth_governance: {
+          binding_count: 3,
+          draft_candidate_count: 0,
+          published_blocker_count: 2,
+          offline_inventory_count: 1
+        },
+        tool_governance: {
+          referenced_tool_ids: ["tool-2"],
+          missing_tool_ids: [],
+          governed_tool_count: 1,
+          strong_isolation_tool_count: 0
+        }
+      }
+    ]);
+
+    const html = renderToStaticMarkup(await WorkflowsPage());
+
+    expect(html).toContain("publish auth cleanup");
+    expect(html).toContain(
+      "优先回到 Zeta workflow 处理 0 条 draft cleanup、2 条 published blocker、1 条 offline inventory"
+    );
+    expect(html).toContain('/workflows/workflow-zeta');
+  });
+
   it("keeps current publish draft issues in the shared legacy publish auth handoff", async () => {
     vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
