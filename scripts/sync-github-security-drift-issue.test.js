@@ -136,12 +136,10 @@ test('buildIssueBody renders blocker evidence and recommended actions', () => {
   assert.match(body, /GitHub Security Drift 外部阻塞跟踪/);
   assert.match(body, /dependency_graph_disabled/);
   assert.match(body, /打开仓库安全设置/);
-  assert.match(body, /execution: manual-only step \(github_settings_ui\)/);
+  assert.match(body, /仅支持人工操作（`github_settings_ui`）/);
   assert.match(body, /`api`、`services\/compat-dify`、`web`/);
-  assert.match(
-    body,
-    /fields absent from repo API payload: `dependency_graph`、`automatic_dependency_submission`/,
-  );
+  assert.match(body, /repo API 未返回字段：`dependency_graph`/);
+  assert.match(body, /repo API 未返回字段：.*`automatic_dependency_submission`/);
   assert.match(body, /manual verification reason：`missing_dependency_graph_fields`/);
   assert.match(body, /gh api -X PATCH repos\/\{owner\}\/\{repo\}/);
   assert.match(body, /Enabling the dependency graph/);
@@ -163,7 +161,7 @@ test('buildIssueBody treats missing dependency graph fields as manual verificati
     }),
   );
 
-  assert.match(body, /fields absent from repo API payload: `dependency_graph`/);
+  assert.match(body, /repo API 未返回字段：`dependency_graph`/);
   assert.match(body, /manual verification reason：`missing_dependency_graph_fields`/);
   assert.match(body, /不应把缺失误判成“已开启”/);
   assert.match(body, /Settings -> Security & analysis/);
