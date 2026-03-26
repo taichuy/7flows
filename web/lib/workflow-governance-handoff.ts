@@ -65,17 +65,17 @@ export function buildWorkflowGovernanceDetailHrefFromCurrentHref({
     const currentUrl = new URL(normalizedCurrentHref, "https://7flows.local");
     const [, currentWorkflowId] = currentUrl.pathname.split("/").filter(Boolean);
 
-    if (!currentUrl.pathname.startsWith("/workflows/") || currentWorkflowId !== resolvedWorkflowId) {
-      return fallbackHref;
+    if (currentUrl.pathname.startsWith("/workflows/") && currentWorkflowId === resolvedWorkflowId) {
+      return appendWorkflowLibraryViewState(
+        fallbackHref,
+        readWorkflowLibraryViewState(currentUrl.searchParams)
+      );
     }
-
-    return appendWorkflowLibraryViewState(
-      fallbackHref,
-      readWorkflowLibraryViewState(currentUrl.searchParams)
-    );
   } catch {
     return fallbackHref;
   }
+
+  return fallbackHref;
 }
 
 function isLegacyAuthGovernanceSnapshot(
