@@ -877,6 +877,100 @@ describe("WorkflowsPage", () => {
     expect(html).not.toContain("清除筛选");
   });
 
+  it("switches to catalog-gap follow-up when the legacy-auth filter becomes stale but missing-tool backlog remains", async () => {
+    vi.mocked(getWorkflows).mockReset();
+    vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot()
+    );
+    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshot());
+    vi.mocked(getWorkflows).mockImplementation(async (options?: { definitionIssue?: string | null }) => {
+      const missingToolWorkflow = {
+        id: "workflow-missing-tool",
+        name: "Missing Tool workflow",
+        version: "1.0.0",
+        status: "published",
+        node_count: 2,
+        tool_governance: {
+          referenced_tool_ids: ["tool-2"],
+          missing_tool_ids: ["tool-missing"],
+          governed_tool_count: 1,
+          strong_isolation_tool_count: 0
+        }
+      };
+
+      return options?.definitionIssue === "legacy_publish_auth" ? [] : [missingToolWorkflow];
+    });
+
+    const html = renderToStaticMarkup(
+      await WorkflowsPage({
+        searchParams: Promise.resolve({
+          definition_issue: "legacy_publish_auth",
+          starter: "starter-openclaw",
+          track: "应用新建编排"
+        })
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("当前筛选范围里已经没有 legacy auth cleanup。");
+    expect(html).toContain("当前完整 workflow 列表里还有 1 个 workflow 存在 catalog gap；先切到 catalog gap 视图，再继续排查其余治理信号。");
+    expect(html).toContain("查看 catalog gap workflow");
+    expect(html).toContain(
+      '/workflows?starter=starter-openclaw&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool'
+    );
+    expect(html).not.toContain("查看全部 workflow");
+  });
+
+  it("switches to legacy-auth follow-up when the catalog-gap filter becomes stale but auth backlog remains", async () => {
+    vi.mocked(getWorkflows).mockReset();
+    vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
+    vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
+      buildSensitiveAccessInboxSnapshot()
+    );
+    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshot());
+    vi.mocked(getWorkflows).mockImplementation(async (options?: { definitionIssue?: string | null }) => {
+      const legacyAuthWorkflow = {
+        id: "workflow-legacy-auth",
+        name: "Legacy Auth workflow",
+        version: "1.2.0",
+        status: "draft",
+        node_count: 5,
+        definition_issues: [],
+        legacy_auth_governance: {
+          binding_count: 1,
+          draft_candidate_count: 0,
+          published_blocker_count: 1,
+          offline_inventory_count: 0
+        },
+        tool_governance: {
+          referenced_tool_ids: ["tool-1"],
+          missing_tool_ids: [],
+          governed_tool_count: 1,
+          strong_isolation_tool_count: 0
+        }
+      };
+
+      return options?.definitionIssue === "missing_tool" ? [] : [legacyAuthWorkflow];
+    });
+
+    const html = renderToStaticMarkup(
+      await WorkflowsPage({
+        searchParams: Promise.resolve({
+          definition_issue: "missing_tool"
+        })
+      })
+    );
+
+    expect(html).toContain("Recommended next step");
+    expect(html).toContain("当前筛选范围里已经没有存在 catalog gap 的 workflow。");
+    expect(html).toContain("当前完整 workflow 列表里还有 1 个 workflow 仍处于 legacy auth cleanup；先切到 legacy auth 视图，再继续排查其余治理信号。");
+    expect(html).toContain('href="/workflows?definition_issue=legacy_publish_auth"');
+    expect(html).toContain("查看 legacy auth workflow");
+    expect(html).not.toContain("查看全部 workflow");
+  });
+
+
   it("routes the empty state back to starter governance when the first active starter still needs follow-up", async () => {
     vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(

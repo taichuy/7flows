@@ -707,6 +707,41 @@ function buildWorkflowLibraryFilteredEmptyStateFollowUp({
 
   const isLegacyPublishAuthFilter =
     workflowLibraryViewState.definitionIssue === "legacy_publish_auth";
+  const alternativeDefinitionIssue = isLegacyPublishAuthFilter
+    ? summary.workflowMissingToolCount > 0
+      ? "missing_tool"
+      : null
+    : summary.workflowLegacyPublishAuthCount > 0
+      ? "legacy_publish_auth"
+      : null;
+
+  if (alternativeDefinitionIssue === "missing_tool") {
+    return {
+      label: "switch filter",
+      headline: "当前筛选范围里已经没有 legacy auth cleanup。",
+      detail:
+        `当前完整 workflow 列表里还有 ${summary.workflowMissingToolCount} 个 workflow 存在 catalog gap；` +
+        "先切到 catalog gap 视图，再继续排查其余治理信号。",
+      href: appendWorkflowLibraryViewState(clearWorkflowLibraryFilterHref, {
+        definitionIssue: "missing_tool"
+      }),
+      hrefLabel: "查看 catalog gap workflow"
+    };
+  }
+
+  if (alternativeDefinitionIssue === "legacy_publish_auth") {
+    return {
+      label: "switch filter",
+      headline: "当前筛选范围里已经没有存在 catalog gap 的 workflow。",
+      detail:
+        `当前完整 workflow 列表里还有 ${summary.workflowLegacyPublishAuthCount} 个 workflow 仍处于 legacy auth cleanup；` +
+        "先切到 legacy auth 视图，再继续排查其余治理信号。",
+      href: appendWorkflowLibraryViewState(clearWorkflowLibraryFilterHref, {
+        definitionIssue: "legacy_publish_auth"
+      }),
+      hrefLabel: "查看 legacy auth workflow"
+    };
+  }
 
   return {
     label: "clear filter",
