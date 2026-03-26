@@ -29,6 +29,7 @@ type WorkflowPublishInvocationCallbackSectionProps = {
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   callbackWaitingExplanation?: RunExecutionFocusExplanation | null;
   executionFocusNode?: PublishedEndpointInvocationDetailResponse["execution_focus_node"];
+  legacyAuthGovernance?: PublishedEndpointInvocationDetailResponse["legacy_auth_governance"];
 };
 
 export function WorkflowPublishInvocationCallbackSection({
@@ -38,7 +39,8 @@ export function WorkflowPublishInvocationCallbackSection({
   sensitiveAccessEntries,
   callbackWaitingAutomation,
   callbackWaitingExplanation,
-  executionFocusNode
+  executionFocusNode,
+  legacyAuthGovernance = null
 }: WorkflowPublishInvocationCallbackSectionProps) {
   const waitingLifecycle = invocation.run_waiting_lifecycle;
   const callbackLifecycle = waitingLifecycle?.callback_waiting_lifecycle;
@@ -71,7 +73,9 @@ export function WorkflowPublishInvocationCallbackSection({
     callbackTickets,
     sensitiveAccessEntries
   });
-  const runFollowUpSample = resolvePublishedInvocationRunFollowUpSampleView(invocation);
+  const runFollowUpSample = resolvePublishedInvocationRunFollowUpSampleView(invocation, {
+    fallbackLegacyAuthGovernance: legacyAuthGovernance
+  });
   const runFollowUpSampleWorkflowDetailLink = runFollowUpSample?.workflow_id
     ? buildAuthorFacingWorkflowDetailLinkSurface({
         workflowId: runFollowUpSample.workflow_id,

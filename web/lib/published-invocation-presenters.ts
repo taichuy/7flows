@@ -9,6 +9,7 @@ import type {
   PublishedEndpointInvocationSummary,
   PublishedEndpointInvocationTimeBucketItem,
   WorkflowPublishedEndpointItem,
+  WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
   OperatorRunFollowUpSnapshot,
   RunExecutionFocusExplanation
 } from "@/lib/get-workflow-publish";
@@ -203,6 +204,11 @@ export type PublishedInvocationRunFollowUpSampleView = {
   focus_tool_call_summaries: ExecutionFocusToolCallSummary[];
   focus_artifacts: OperatorInlineFocusArtifactPreview[];
   focus_skill_reference_loads: NonNullable<RunSnapshot["executionFocusSkillTrace"]>["loads"];
+};
+
+type PublishedInvocationRunFollowUpSampleViewOptions = {
+  fallbackWorkflowId?: string | null;
+  fallbackLegacyAuthGovernance?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
 };
 
 export type PublishedInvocationCanonicalFollowUpCopy = {
@@ -3237,11 +3243,13 @@ function normalizePublishedInvocationSampleText(value?: string | null) {
 }
 
 function resolvePublishedInvocationRunFollowUpSampleWorkflowId(
-  sample?: PublishedInvocationRunFollowUpSample | null
+  sample?: PublishedInvocationRunFollowUpSample | null,
+  fallbackWorkflowId?: string | null
 ) {
   return (
     normalizePublishedInvocationSampleText(sample?.snapshot?.workflow_id) ??
-    normalizePublishedInvocationSampleText(sample?.legacy_auth_governance?.workflows[0]?.workflow_id)
+    normalizePublishedInvocationSampleText(sample?.legacy_auth_governance?.workflows[0]?.workflow_id) ??
+    normalizePublishedInvocationSampleText(fallbackWorkflowId)
   );
 }
 
@@ -3270,7 +3278,8 @@ function formatPublishedInvocationRunFollowUpSampleCatalogGapDetail(
 }
 
 export function listPublishedInvocationRunFollowUpSampleViews(
-  runFollowUp?: PublishedInvocationRunFollowUpSummary | null
+  runFollowUp?: PublishedInvocationRunFollowUpSummary | null,
+  options: PublishedInvocationRunFollowUpSampleViewOptions = {}
 ): PublishedInvocationRunFollowUpSampleView[] {
   return (runFollowUp?.sampled_runs ?? []).map((sample) => {
     const explanationSource = resolvePublishedInvocationRunFollowUpSampleExplanationSource(sample);
@@ -3278,11 +3287,16 @@ export function listPublishedInvocationRunFollowUpSampleViews(
     const runSnapshot = buildPublishedInvocationRunFollowUpSampleSnapshot(sample, explanationSource);
     const snapshotSummary = formatRunSnapshotSummary(runSnapshot);
     const focusEvidenceModel = buildOperatorInlineActionFeedbackModel({ runSnapshot });
-    const workflowId = resolvePublishedInvocationRunFollowUpSampleWorkflowId(sample);
+    const workflowId = resolvePublishedInvocationRunFollowUpSampleWorkflowId(
+      sample,
+      options.fallbackWorkflowId
+    );
     const { summary: workflowCatalogGapSummary, detail: workflowCatalogGapDetail } =
       formatPublishedInvocationRunFollowUpSampleCatalogGapDetail(sample);
+    const legacyAuthGovernance =
+      sample.legacy_auth_governance ?? options.fallbackLegacyAuthGovernance ?? null;
     const legacyAuthHandoff = workflowId
-      ? buildLegacyPublishAuthWorkflowHandoff(sample.legacy_auth_governance ?? null, workflowId)
+      ? buildLegacyPublishAuthWorkflowHandoff(legacyAuthGovernance, workflowId)
       : null;
 
     return {
@@ -3317,9 +3331,13 @@ export function listPublishedInvocationRunFollowUpSampleViews(
 }
 
 export function resolvePublishedInvocationRunFollowUpSampleView(
-  item: PublishedEndpointInvocationItem
+  item: PublishedEndpointInvocationItem,
+  options: Omit<PublishedInvocationRunFollowUpSampleViewOptions, "fallbackWorkflowId"> = {}
 ): PublishedInvocationRunFollowUpSampleView | null {
-  const sampleViews = listPublishedInvocationRunFollowUpSampleViews(item.run_follow_up);
+  const sampleViews = listPublishedInvocationRunFollowUpSampleViews(item.run_follow_up, {
+    fallbackWorkflowId: item.workflow_id,
+    fallbackLegacyAuthGovernance: options.fallbackLegacyAuthGovernance ?? null
+  });
   const normalizedRunId = item.run_id?.trim() || null;
 
   if (normalizedRunId) {

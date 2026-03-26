@@ -157,7 +157,10 @@ export function WorkflowPublishInvocationDetailPanel({
         unknown: runFollowUp.unknown_run_count
       })
     : null;
-  const runFollowUpSamples = listPublishedInvocationRunFollowUpSampleViews(runFollowUp);
+  const runFollowUpSamples = listPublishedInvocationRunFollowUpSampleViews(runFollowUp, {
+    fallbackWorkflowId: invocation.workflow_id,
+    fallbackLegacyAuthGovernance: legacyAuthSnapshot
+  });
   const recommendedNextStepSample =
     runFollowUpSamples.find((sample) => sample.run_id === runId) ?? runFollowUpSamples[0] ?? null;
   const approvalInboxHref = buildPublishedInvocationInboxHref({
@@ -759,6 +762,7 @@ export function WorkflowPublishInvocationDetailPanel({
         callbackWaitingAutomation={callbackWaitingAutomation}
         callbackWaitingExplanation={callbackWaitingExplanation}
         executionFocusNode={executionFocusNode}
+        legacyAuthGovernance={legacyAuthSnapshot}
       />
 
       {skillTrace && skillTraceSurface ? (

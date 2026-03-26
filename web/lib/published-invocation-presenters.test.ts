@@ -914,6 +914,87 @@ describe("published invocation presenters", () => {
     );
   });
 
+  it("在 sampled run 缺少 workflow id 时回退到 invocation workflow 和 shared legacy auth", () => {
+    const sample = resolvePublishedInvocationRunFollowUpSampleView(
+      {
+        workflow_id: "workflow-fallback",
+        run_id: "run-1",
+        run_follow_up: {
+          affected_run_count: 1,
+          sampled_run_count: 1,
+          waiting_run_count: 1,
+          running_run_count: 0,
+          succeeded_run_count: 0,
+          failed_run_count: 0,
+          unknown_run_count: 0,
+          explanation: null,
+          sampled_runs: [
+            {
+              run_id: "run-1",
+              snapshot: {
+                status: "waiting"
+              },
+              tool_governance: {
+                referenced_tool_ids: ["native.catalog-gap"],
+                missing_tool_ids: ["native.catalog-gap"],
+                governed_tool_count: 0,
+                strong_isolation_tool_count: 0
+              },
+              legacy_auth_governance: null
+            }
+          ]
+        }
+      } as never,
+      {
+        fallbackLegacyAuthGovernance: {
+          generated_at: "2026-03-20T12:00:00Z",
+          auth_mode_contract: {
+            supported_auth_modes: ["api_key", "internal"],
+            retired_legacy_auth_modes: ["token"],
+            summary: "supported api_key / internal, legacy token",
+            follow_up: "replace token bindings"
+          },
+          workflow_count: 1,
+          binding_count: 1,
+          summary: {
+            draft_candidate_count: 0,
+            published_blocker_count: 1,
+            offline_inventory_count: 0
+          },
+          checklist: [],
+          workflows: [
+            {
+              workflow_id: "workflow-fallback",
+              workflow_name: "Workflow Fallback",
+              binding_count: 1,
+              draft_candidate_count: 0,
+              published_blocker_count: 1,
+              offline_inventory_count: 0,
+              tool_governance: {
+                referenced_tool_ids: [],
+                missing_tool_ids: [],
+                governed_tool_count: 0,
+                strong_isolation_tool_count: 0
+              }
+            }
+          ],
+          buckets: {
+            draft_candidates: [],
+            published_blockers: [],
+            offline_inventory: []
+          }
+        }
+      }
+    );
+
+    expect(sample?.workflow_id).toBe("workflow-fallback");
+    expect(sample?.workflow_catalog_gap_summary).toBe("catalog gap · native.catalog-gap");
+    expect(sample?.legacy_auth_handoff).toMatchObject({
+      bindingChipLabel: "1 legacy bindings",
+      statusChipLabel: "publish auth blocker"
+    });
+  });
+
   it("为 publish activity insights 提供统一辅助文案", () => {
     expect(
       buildPublishedInvocationActivityInsightsSurfaceCopy({

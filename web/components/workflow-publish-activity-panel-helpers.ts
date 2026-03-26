@@ -214,7 +214,10 @@ export function resolveWorkflowPublishSelectedInvocationDetailSurface({
   if (selectedInvocationDetail?.kind === "ok") {
     const detail = selectedInvocationDetail.data;
     const entrySurfaceCopy = buildPublishedInvocationEntrySurfaceCopy();
-    const samples = listPublishedInvocationRunFollowUpSampleViews(detail.run_follow_up ?? null);
+    const samples = listPublishedInvocationRunFollowUpSampleViews(detail.run_follow_up ?? null, {
+      fallbackWorkflowId: detail.invocation.workflow_id,
+      fallbackLegacyAuthGovernance: detail.legacy_auth_governance ?? null
+    });
     const runId = detail.run?.id ?? detail.invocation.run_id ?? null;
     const recommendedNextStepSample =
       samples.find((sample) => sample.run_id === runId) ?? samples[0] ?? null;
