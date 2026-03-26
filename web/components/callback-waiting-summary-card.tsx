@@ -323,10 +323,15 @@ export function CallbackWaitingSummaryCard({
   const terminationAt = formatTimestamp(lifecycle?.terminated_at);
   const hasTermination = Boolean(lifecycle?.terminated);
   const workflowGovernanceSummaryProps =
-    workflowCatalogGapSummary || workflowCatalogGapDetail || workflowGovernanceHref || legacyAuthHandoff
+    workflowCatalogGapSummary ||
+    workflowCatalogGapDetail ||
+    workflowCatalogGapHref ||
+    workflowGovernanceHref ||
+    legacyAuthHandoff
       ? {
           workflowCatalogGapSummary,
           workflowCatalogGapDetail,
+          workflowCatalogGapHref,
           workflowGovernanceHref,
           legacyAuthHandoff
         }
