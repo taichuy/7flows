@@ -10,6 +10,7 @@ import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "
 const inlineFeedbackProps: Array<Record<string, unknown>> = [];
 const callbackSummaryProps: Array<Record<string, unknown>> = [];
 const sensitiveAccessInlineActionProps: Array<Record<string, unknown>> = [];
+const workflowGovernanceCardProps: Array<Record<string, unknown>> = [];
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
@@ -46,6 +47,16 @@ vi.mock("@/components/sensitive-access-inline-actions", () => ({
   SensitiveAccessInlineActions: (props: Record<string, unknown>) => {
     sensitiveAccessInlineActionProps.push(props);
     return createElement("div", { "data-testid": "sensitive-access-inline-actions" });
+  }
+}));
+
+vi.mock("@/components/workflow-governance-handoff-cards", () => ({
+  WorkflowGovernanceHandoffCards: (props: Record<string, unknown>) => {
+    workflowGovernanceCardProps.push(props);
+    return createElement("div", {
+      "data-testid": "workflow-governance-handoff",
+      "data-workflow-href": String(props.workflowGovernanceHref ?? "")
+    });
   }
 }));
 
@@ -145,6 +156,7 @@ describe("SensitiveAccessTimelineEntryList", () => {
     inlineFeedbackProps.length = 0;
     callbackSummaryProps.length = 0;
     sensitiveAccessInlineActionProps.length = 0;
+    workflowGovernanceCardProps.length = 0;
   });
 
   it("uses the matching sampled run snapshot instead of the first stale sample", () => {
@@ -611,5 +623,62 @@ describe("SensitiveAccessTimelineEntryList", () => {
     expect(html).toContain(operatorSurfaceCopy.openInboxSliceLabel);
     expect(html).toContain("优先打开 run 查看恢复后的 focus 节点与最新执行证据。");
     expect(html).toContain("Primary governed resource: Credential · Search Key · L3 治理 · 生效中.");
+  });
+
+  it("keeps workflow governance handoff on non-callback timeline fallback", () => {
+    const entry = buildEntry();
+
+    renderToStaticMarkup(
+      createElement(SensitiveAccessTimelineEntryList, {
+        entries: [
+          {
+            ...entry,
+            request: {
+              ...entry.request,
+              decision: "allow",
+              decision_label: "Allow",
+              reason_code: "sensitive_access_allowed",
+              reason_label: "Allowed",
+              policy_summary: "允许当前读取。",
+              decided_at: "2026-03-21T00:05:00Z"
+            },
+            approval_ticket: {
+              ...entry.approval_ticket!,
+              status: "approved",
+              waiting_status: "resumed",
+              approved_by: "operator-1",
+              decided_at: "2026-03-21T00:05:00Z"
+            },
+            notifications: [],
+            outcome_explanation: {
+              primary_signal: "审批已通过，但 workflow 仍残留 publish auth backlog。",
+              follow_up: "处理完当前票据后，继续回到 workflow detail 收口 legacy binding。"
+            },
+            run_snapshot: null,
+            run_follow_up: null,
+            legacy_auth_governance: buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+              binding: {
+                workflow_id: "workflow-timeline",
+                workflow_name: "Workflow Timeline"
+              }
+            })
+          }
+        ],
+        emptyCopy: "no entries"
+      })
+    );
+
+    expect(callbackSummaryProps).toHaveLength(0);
+    expect(inlineFeedbackProps).toHaveLength(0);
+    expect(workflowGovernanceCardProps).toHaveLength(1);
+    expect(workflowGovernanceCardProps[0]).toMatchObject({
+      workflowCatalogGapSummary: null,
+      workflowGovernanceHref: "/workflows/workflow-timeline",
+      legacyAuthHandoff: {
+        bindingChipLabel: "1 legacy bindings",
+        statusChipLabel: "publish auth blocker"
+      },
+      cardClassName: "payload-card compact-card"
+    });
   });
 });

@@ -9,6 +9,7 @@ import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summar
 import { CredentialGovernanceSummaryCard } from "@/components/credential-governance-summary-card";
 import { InlineOperatorActionFeedback } from "@/components/inline-operator-action-feedback";
 import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import type { RunCallbackTicketItem } from "@/lib/get-run-views";
 import type {
   CallbackWaitingAutomationCheck,
@@ -453,6 +454,8 @@ export function SensitiveAccessTimelineEntryList({
               : operatorSurfaceCopy.openInboxSliceLabel;
           const shouldRenderStandaloneRecommendedNextStep =
             !shouldRenderCallbackWaitingSummary && !hasStructuredOperatorFeedback && recommendedNextStep;
+          const shouldRenderStandaloneWorkflowGovernanceHandoff =
+            !shouldRenderCallbackWaitingSummary && !hasStructuredOperatorFeedback;
           const callbackSummaryWorkflowGovernanceSample =
             runContext.runFollowUp?.sampledRuns.find((sample) => sample.runId === runId) ??
             runContext.runFollowUp?.sampledRuns.find(
@@ -614,6 +617,22 @@ export function SensitiveAccessTimelineEntryList({
                   ) : null}
                 </>
               )}
+
+              {shouldRenderStandaloneWorkflowGovernanceHandoff ? (
+                <WorkflowGovernanceHandoffCards
+                  workflowCatalogGapSummary={
+                    callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapSummary
+                  }
+                  workflowCatalogGapDetail={
+                    callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapDetail
+                  }
+                  workflowGovernanceHref={
+                    callbackSummaryWorkflowGovernanceHandoff.workflowGovernanceHref
+                  }
+                  legacyAuthHandoff={callbackSummaryWorkflowGovernanceHandoff.legacyAuthHandoff}
+                  cardClassName="payload-card compact-card"
+                />
+              ) : null}
 
               {shouldRenderCallbackWaitingSummary ? (
                 <CallbackWaitingSummaryCard
