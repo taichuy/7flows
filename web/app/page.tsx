@@ -373,6 +373,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 const workflowDetailHref = appendWorkflowLibraryViewStateForWorkflow(
                   workflowDetailLink.href,
                   {
+                    workflow_id: run.workflow_id,
+                    definition_issues: [],
                     tool_governance: run.tool_governance ?? null,
                     legacy_auth_governance: run.legacy_auth_governance ?? null
                   },

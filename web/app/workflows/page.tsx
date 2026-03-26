@@ -44,7 +44,8 @@ import {
   formatCatalogGapResourceSummary,
   formatCatalogGapToolSummary,
   formatWorkflowLegacyPublishAuthBacklogSummary,
-  getWorkflowLegacyPublishAuthBlockerCount,
+  getWorkflowLegacyPublishAuthBacklogCount,
+  getWorkflowLegacyPublishAuthStatusLabel,
   hasWorkflowLegacyPublishAuthIssues
 } from "@/lib/workflow-definition-governance";
 import {
@@ -246,7 +247,7 @@ export default async function WorkflowsPage({
               }`}
               href={legacyPublishAuthFilterHref}
             >
-              Legacy publish auth blocker
+              Legacy auth cleanup
             </Link>
             <Link
               className={`event-chip inbox-filter-link${
@@ -260,8 +261,7 @@ export default async function WorkflowsPage({
 
           {isLegacyPublishAuthFilterActive ? (
             <p className="section-copy">
-              当前列表只显示 legacy publish auth blocker，共 {workflows.length} / {summary.workflowCount} 个
-              workflow；逐个回 editor 保存后，再回 publish 面板补发新版 binding。
+              当前列表只显示存在 legacy auth cleanup 的 workflow，共 {workflows.length} / {summary.workflowCount} 个 workflow；逐个回 editor 保存后，再回 publish 面板补发新版 binding。
             </p>
           ) : isMissingToolFilterActive ? (
             <p className="section-copy">
@@ -276,7 +276,7 @@ export default async function WorkflowsPage({
                 {(isLegacyPublishAuthFilterActive || isMissingToolFilterActive) &&
                 summary.workflowCount > 0
                   ? isLegacyPublishAuthFilterActive
-                    ? "当前筛选范围里已经没有 legacy publish auth blocker。可以清除筛选，继续检查其余 workflow 治理信号。"
+                    ? "当前筛选范围里已经没有 legacy auth cleanup。可以清除筛选，继续检查其余 workflow 治理信号。"
                     : "当前筛选范围里已经没有存在 catalog gap 的 workflow。可以清除筛选，继续检查其余 workflow 治理信号。"
                   : surfaceCopy.emptyState}
               </p>
@@ -379,7 +379,7 @@ export default async function WorkflowsPage({
           <div className="event-type-strip">
             {summary.workflowsWithLegacyPublishAuth.length === 0 ? (
               <p className="empty-state compact">
-                当前 workflow 列表里没有 legacy publish auth blocker。
+                当前 workflow 列表里没有 legacy auth cleanup。
               </p>
             ) : (
               summary.workflowsWithLegacyPublishAuth.map((workflow) => (
@@ -394,7 +394,7 @@ export default async function WorkflowsPage({
                   }).href}
                   key={`${workflow.id}-publish-auth`}
                 >
-                  {workflow.name} · publish auth blocker
+                  {workflow.name} · {getWorkflowLegacyPublishAuthStatusLabel(workflow) ?? "legacy auth cleanup"}
                 </Link>
               ))
             )}
@@ -460,9 +460,9 @@ function compareWorkflowLegacyAuthPriority(left: WorkflowListItem, right: Workfl
   const leftGovernance = left.legacy_auth_governance;
   const rightGovernance = right.legacy_auth_governance;
   const leftDraftCleanupCount =
-    leftGovernance?.draft_candidate_count ?? getWorkflowLegacyPublishAuthBlockerCount(left);
+    leftGovernance?.draft_candidate_count ?? getWorkflowLegacyPublishAuthBacklogCount(left);
   const rightDraftCleanupCount =
-    rightGovernance?.draft_candidate_count ?? getWorkflowLegacyPublishAuthBlockerCount(right);
+    rightGovernance?.draft_candidate_count ?? getWorkflowLegacyPublishAuthBacklogCount(right);
 
   return (
     compareCountsDescending(
@@ -475,8 +475,8 @@ function compareWorkflowLegacyAuthPriority(left: WorkflowListItem, right: Workfl
     ) ||
     compareCountsDescending(leftDraftCleanupCount, rightDraftCleanupCount) ||
     compareCountsDescending(
-      getWorkflowLegacyPublishAuthBlockerCount(left),
-      getWorkflowLegacyPublishAuthBlockerCount(right)
+      getWorkflowLegacyPublishAuthBacklogCount(left),
+      getWorkflowLegacyPublishAuthBacklogCount(right)
     ) ||
     compareWorkflowNames(left, right)
   );
@@ -590,14 +590,18 @@ function buildWorkflowLibraryRecommendedNextStep({
       variant: "editor",
       workflowLibraryViewState
     });
-    const publishAuthBacklogSummary = formatWorkflowLegacyPublishAuthBacklogSummary(
-      workflowLegacyPublishAuth
-    );
+    const publishAuthBacklogSummary = workflowLegacyPublishAuth.legacy_auth_governance
+      ? [
+          `${workflowLegacyPublishAuth.legacy_auth_governance.draft_candidate_count} 条 draft cleanup`,
+          `${workflowLegacyPublishAuth.legacy_auth_governance.published_blocker_count} 条 published blocker`,
+          `${workflowLegacyPublishAuth.legacy_auth_governance.offline_inventory_count} 条 offline inventory`
+        ].join("、")
+      : formatWorkflowLegacyPublishAuthBacklogSummary(workflowLegacyPublishAuth);
 
     return {
       label: "publish auth cleanup",
       detail:
-        `当前 ${summary.workflowLegacyPublishAuthCount} 个 workflow 仍带着 legacy publish auth blocker；` +
+        `当前 ${summary.workflowLegacyPublishAuthCount} 个 workflow 仍有 legacy auth cleanup backlog；` +
         `优先回到 ${workflowLegacyPublishAuth.name} 处理 ${publishAuthBacklogSummary ?? "publish auth backlog"}：${buildLegacyPublishAuthModeFollowUp()}`,
       href: workflowLink.href,
       href_label: workflowLink.label

@@ -283,7 +283,7 @@ describe("WorkflowsPage", () => {
 
     expect(html).toContain("Publish auth workflows");
     expect(html).toContain("Legacy Auth workflow · publish auth blocker");
-    expect(html).toContain("2 publish auth blockers");
+    expect(html).toContain("当前 1 个 workflow 仍有 legacy auth cleanup backlog");
     expect(html).toContain("publish auth cleanup");
     expect(html).toContain(
       "优先回到 Legacy Auth workflow 处理 0 条 draft cleanup、1 条 published blocker、1 条 offline inventory：先把 workflow draft endpoint 切回 api_key/internal 并保存"
@@ -349,7 +349,7 @@ describe("WorkflowsPage", () => {
     expect(html).toContain('/workflows/workflow-zeta');
   });
 
-  it("keeps current publish draft issues in the shared legacy publish auth handoff", async () => {
+  it("keeps the shared legacy auth handoff focused on persisted cleanup backlog", async () => {
     vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
       buildSensitiveAccessInboxSnapshot()
@@ -387,9 +387,11 @@ describe("WorkflowsPage", () => {
 
     const html = renderToStaticMarkup(await WorkflowsPage());
 
-    expect(html).toContain("3 publish auth blockers");
+    expect(html).toContain("Publish auth workflows");
+    expect(html).toContain("2 legacy auth cleanup items");
+    expect(html).toContain("当前 1 个 workflow 仍有 legacy auth cleanup backlog");
     expect(html).toContain(
-      "优先回到 Mixed Auth workflow 处理 1 个当前 publish draft、1 条 draft cleanup、1 条 published blocker、0 条 offline inventory：先把 workflow draft endpoint 切回 api_key/internal 并保存"
+      "优先回到 Mixed Auth workflow 处理 1 条 draft cleanup、1 条 published blocker、0 条 offline inventory：先把 workflow draft endpoint 切回 api_key/internal 并保存"
     );
     expect(html).toContain('/workflows/workflow-mixed-auth');
   });
@@ -662,7 +664,7 @@ describe("WorkflowsPage", () => {
     expect(html).toContain('/workflows/workflow-legacy-auth?definition_issue=legacy_publish_auth');
   });
 
-  it("filters the workflow chip list down to legacy publish auth blockers", async () => {
+  it("filters the workflow chip list down to legacy auth cleanup", async () => {
     vi.mocked(getWorkflows).mockReset();
     vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverview());
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
@@ -722,7 +724,7 @@ describe("WorkflowsPage", () => {
     expect(getWorkflows).toHaveBeenNthCalledWith(2, {
       definitionIssue: "legacy_publish_auth"
     });
-    expect(html).toContain("当前列表只显示 legacy publish auth blocker，共 1 / 2 个 workflow");
+    expect(html).toContain("当前列表只显示存在 legacy auth cleanup 的 workflow，共 1 / 2 个 workflow");
     expect(html).toContain(
       '/workflows/workflow-legacy-auth?definition_issue=legacy_publish_auth'
     );
