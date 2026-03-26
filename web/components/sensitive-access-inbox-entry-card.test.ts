@@ -655,6 +655,59 @@ describe("SensitiveAccessInboxEntryCard", () => {
     expect(html).not.toContain("Callback waiting follow-up");
   });
 
+  it("keeps workspace starter scope on standalone workflow governance handoffs", () => {
+    const entry = buildEntry();
+    const legacyAuthGovernance = buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+      binding: {
+        workflow_id: "workflow-1",
+        workflow_name: "Inbox workflow"
+      }
+    });
+    entry.legacyAuthGovernance = legacyAuthGovernance;
+    entry.runFollowUp = {
+      affectedRunCount: 1,
+      sampledRunCount: 1,
+      waitingRunCount: 1,
+      runningRunCount: 0,
+      succeededRunCount: 0,
+      failedRunCount: 0,
+      unknownRunCount: 0,
+      recommendedAction: null,
+      sampledRuns: [
+        {
+          runId: "run-1",
+          snapshot: {
+            workflowId: "workflow-1"
+          },
+          callbackTickets: [],
+          sensitiveAccessEntries: [],
+          toolGovernance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0
+          },
+          legacyAuthGovernance
+        }
+      ]
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessInboxEntryCard, {
+        entry,
+        currentHref:
+          "/workflows/workflow-1?source_governance_kind=drifted&starter=starter-openclaw&publish_invocation=invocation-1"
+      })
+    );
+
+    expect(html).toContain(
+      'href="/workflows/workflow-1?source_governance_kind=drifted&amp;starter=starter-openclaw&amp;definition_issue=missing_tool"'
+    );
+    expect(html).toContain(
+      'href="/workflows/workflow-1?source_governance_kind=drifted&amp;starter=starter-openclaw&amp;definition_issue=legacy_publish_auth"'
+    );
+  });
+
   it("surfaces live sandbox readiness for blocked execution focus entries", () => {
     const entry = buildEntry();
     entry.runSnapshot = {

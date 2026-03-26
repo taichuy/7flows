@@ -109,6 +109,7 @@ export function RunDiagnosticsOverviewSections({
             callbackWaitingAutomation={callbackWaitingAutomation}
             sandboxReadiness={sandboxReadiness}
             recommendedNextStepHref={buildRunDiagnosticsExecutionViewHref(run.id)}
+            workflowDetailHref={workflowDetailHref}
           />
 
           <WorkflowGovernanceHandoffCards

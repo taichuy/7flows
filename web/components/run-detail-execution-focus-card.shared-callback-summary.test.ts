@@ -192,15 +192,19 @@ describe("RunDetailExecutionFocusCard shared callback summary handoff", () => {
 
     renderToStaticMarkup(
       createElement(RunDetailExecutionFocusCard, {
-        run: buildRunDetail()
+        run: buildRunDetail(),
+        workflowDetailHref:
+          "/workflows/workflow-1?needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
       })
     );
 
     expect(callbackSummaryProps).toHaveLength(1);
     expect(callbackSummaryProps[0]).toMatchObject({
       workflowCatalogGapSummary: "catalog gap · native.catalog-gap",
-      workflowCatalogGapHref: "/workflows/workflow-1?definition_issue=missing_tool",
-      workflowGovernanceHref: "/workflows/workflow-1?definition_issue=legacy_publish_auth",
+      workflowCatalogGapHref:
+        "/workflows/workflow-1?needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool",
+      workflowGovernanceHref:
+        "/workflows/workflow-1?needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=legacy_publish_auth",
       legacyAuthHandoff: {
         bindingChipLabel: "1 legacy bindings",
         statusChipLabel: "publish auth blocker"

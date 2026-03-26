@@ -8,7 +8,7 @@ import {
 import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 
 describe("workflow-governance-handoff", () => {
-  it("preserves workflow-library definition scope when current href already points at the same workflow", () => {
+  it("preserves workspace starter scope when current href already points at the same workflow", () => {
     expect(
       buildWorkflowGovernanceDetailHrefFromCurrentHref({
         workflowId: "workflow-same",
@@ -16,7 +16,19 @@ describe("workflow-governance-handoff", () => {
           "/workflows/workflow-same?starter=starter-openclaw&definition_issue=missing_tool&q=drift"
       })
     ).toBe(
-      "/workflows/workflow-same?definition_issue=missing_tool"
+      "/workflows/workflow-same?q=drift&starter=starter-openclaw&definition_issue=missing_tool"
+    );
+  });
+
+  it("drops unrelated publish query params when reusing the current workflow href", () => {
+    expect(
+      buildWorkflowGovernanceDetailHrefFromCurrentHref({
+        workflowId: "workflow-same",
+        currentHref:
+          "/workflows/workflow-same?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=starter-openclaw&publish_binding=binding-1&publish_invocation=invocation-1"
+      })
+    ).toBe(
+      "/workflows/workflow-same?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=starter-openclaw"
     );
   });
 

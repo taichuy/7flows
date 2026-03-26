@@ -321,6 +321,106 @@ describe("SensitiveAccessBlockedCard", () => {
     );
   });
 
+  it("keeps workspace-starter query scope on blocked callback summary workflow links", () => {
+    mockSearchParams =
+      "needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92";
+
+    const payload: SensitiveAccessBlockingPayload = {
+      detail: "Published invocation detail requires approval before the payload can be viewed.",
+      resource: {
+        id: "resource-scoped",
+        label: "Credential · Invocation Detail Key",
+        description: "Sensitive published invocation detail",
+        sensitivity_level: "L3",
+        source: "credential",
+        metadata: {
+          run_id: "run-blocked"
+        }
+      },
+      access_request: {
+        id: "request-scoped",
+        run_id: "run-blocked",
+        node_run_id: "node-run-blocked",
+        requester_type: "human",
+        requester_id: "ops-reviewer",
+        resource_id: "resource-scoped",
+        action_type: "read",
+        decision: "require_approval"
+      },
+      approval_ticket: {
+        id: "ticket-scoped",
+        access_request_id: "request-scoped",
+        run_id: "run-blocked",
+        node_run_id: "node-run-blocked",
+        status: "pending",
+        waiting_status: "waiting",
+        approved_by: null
+      },
+      notifications: [],
+      outcome_explanation: {
+        primary_signal: "当前阻断仍需要先处理审批。",
+        follow_up: "处理审批后，还要回到 workflow governance 入口补齐定义问题。"
+      },
+      run_snapshot: null,
+      run_follow_up: {
+        affectedRunCount: 1,
+        sampledRunCount: 1,
+        waitingRunCount: 1,
+        runningRunCount: 0,
+        succeededRunCount: 0,
+        failedRunCount: 0,
+        unknownRunCount: 0,
+        explanation: {
+          primary_signal: "本次影响 1 个 run；sampled run 已暴露 workflow governance blocker。",
+          follow_up: "先处理审批，再回到 workflow detail 补齐 catalog gap 和 publish auth。"
+        },
+        sampledRuns: [
+          {
+            runId: "run-blocked",
+            snapshot: {
+              workflowId: "workflow-blocked",
+              status: "waiting",
+              currentNodeId: "approval_wait",
+              executionFocusNodeId: "approval_wait",
+              executionFocusNodeRunId: "node-run-blocked",
+              executionFocusNodeName: "Approval Wait"
+            },
+            toolGovernance: {
+              referenced_tool_ids: ["native.blocked-gap"],
+              missing_tool_ids: ["native.blocked-gap"],
+              governed_tool_count: 0,
+              strong_isolation_tool_count: 0
+            },
+            legacyAuthGovernance:
+              buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+                binding: {
+                  workflow_id: "workflow-blocked",
+                  workflow_name: "Workflow Blocked"
+                }
+              })
+          }
+        ]
+      }
+    };
+
+    renderToStaticMarkup(
+      createElement(SensitiveAccessBlockedCard, {
+        title: "Sensitive access blocked",
+        payload
+      })
+    );
+
+    const callbackWaitingSummaryProps = (sensitiveAccessInlineActionProps[0]?.callbackWaitingSummaryProps ??
+      null) as Record<string, unknown> | null;
+
+    expect(callbackWaitingSummaryProps).toMatchObject({
+      workflowCatalogGapHref:
+        "/workflows/workflow-blocked?needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool",
+      workflowGovernanceHref:
+        "/workflows/workflow-blocked?needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=legacy_publish_auth"
+    });
+  });
+
   it("falls back to sampled run context when request and ticket run_id are missing", () => {
     const payload: SensitiveAccessBlockingPayload = {
       detail: "Published invocation export requires approval before the payload can be downloaded.",

@@ -6,13 +6,18 @@ import { RunDiagnosticsOverviewSections } from "@/components/run-diagnostics-pan
 import type { RunDetail } from "@/lib/get-run-detail";
 import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 
+const executionFocusCardProps: Array<Record<string, unknown>> = [];
+
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
     createElement("a", { href: href ?? "#", ...props }, children)
 }));
 
 vi.mock("@/components/run-detail-execution-focus-card", () => ({
-  RunDetailExecutionFocusCard: () => createElement("div", { "data-testid": "execution-focus-card" })
+  RunDetailExecutionFocusCard: (props: Record<string, unknown>) => {
+    executionFocusCardProps.push(props);
+    return createElement("div", { "data-testid": "execution-focus-card" });
+  }
 }));
 
 function buildRunDetail(overrides: Partial<RunDetail> = {}): RunDetail {
@@ -41,6 +46,8 @@ function buildRunDetail(overrides: Partial<RunDetail> = {}): RunDetail {
 
 describe("RunDiagnosticsOverviewSections", () => {
   it("surfaces workflow catalog-gap handoff alongside run facts", () => {
+    executionFocusCardProps.length = 0;
+
     const html = renderToStaticMarkup(
       createElement(RunDiagnosticsOverviewSections, {
         run: buildRunDetail({
@@ -70,9 +77,14 @@ describe("RunDiagnosticsOverviewSections", () => {
       "当前这条 run 对应的 workflow 版本仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照当前 run 的 execution focus、node timeline 与 trace。"
     );
     expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
+    expect(executionFocusCardProps[0]?.workflowDetailHref).toBe(
+      "/workflows/workflow-1?definition_issue=missing_tool"
+    );
   });
 
   it("surfaces legacy publish auth handoff on the diagnostics overview", () => {
+    executionFocusCardProps.length = 0;
+
     const html = renderToStaticMarkup(
       createElement(RunDiagnosticsOverviewSections, {
         run: buildRunDetail({
@@ -104,5 +116,8 @@ describe("RunDiagnosticsOverviewSections", () => {
       "当前 workflow 仍有 0 条 draft cleanup、1 条 published blocker、0 条 offline inventory。"
     );
     expect(html).toContain('/workflows/workflow-1?starter=starter-openclaw');
+    expect(executionFocusCardProps[0]?.workflowDetailHref).toBe(
+      "/workflows/workflow-1?starter=starter-openclaw"
+    );
   });
 });

@@ -35,6 +35,7 @@ import {
 } from "@/lib/operator-follow-up-presenters";
 import { buildSensitiveAccessInboxHref } from "@/lib/sensitive-access-links";
 import {
+  buildWorkflowEditorHrefFromWorkspaceStarterViewState,
   buildRunDetailHrefFromWorkspaceStarterViewState,
   readWorkspaceStarterLibraryViewState
 } from "@/lib/workspace-starter-governance-query";
@@ -86,6 +87,14 @@ export function SensitiveAccessBlockedCard({
     (candidateRunId: string) =>
       buildRunDetailHrefFromWorkspaceStarterViewState(
         candidateRunId,
+        workspaceStarterViewState
+      ),
+    [workspaceStarterViewState]
+  );
+  const resolveWorkflowDetailHref = React.useCallback(
+    (workflowId: string) =>
+      buildWorkflowEditorHrefFromWorkspaceStarterViewState(
+        workflowId,
         workspaceStarterViewState
       ),
     [workspaceStarterViewState]
@@ -173,11 +182,15 @@ export function SensitiveAccessBlockedCard({
     returnDetail:
       "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续处理敏感访问审批、callback summary 与 run focus。"
   });
+  const callbackSummaryWorkflowId =
+    payload.run_snapshot?.workflowId ??
+    callbackSummaryWorkflowGovernanceSample?.snapshot?.workflowId ??
+    null;
   const callbackSummaryWorkflowGovernanceHandoff = buildWorkflowGovernanceHandoff({
-    workflowId:
-      payload.run_snapshot?.workflowId ??
-      callbackSummaryWorkflowGovernanceSample?.snapshot?.workflowId ??
-      null,
+    workflowId: callbackSummaryWorkflowId,
+    workflowDetailHref: callbackSummaryWorkflowId
+      ? resolveWorkflowDetailHref(callbackSummaryWorkflowId)
+      : null,
     toolGovernance: callbackSummaryWorkflowGovernanceSample?.toolGovernance ?? null,
     legacyAuthGovernance: callbackSummaryWorkflowGovernanceSample?.legacyAuthGovernance ?? null,
     workflowCatalogGapDetail: callbackSummaryWorkflowCatalogGapDetail

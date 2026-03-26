@@ -160,7 +160,8 @@ function buildCallbackSummaryInboxHref({
 }
 
 export function buildRunDetailExecutionFocusViewModel(
-  run: RunDetail | null
+  run: RunDetail | null,
+  { workflowDetailHref = null }: { workflowDetailHref?: string | null } = {}
 ): RunDetailExecutionFocusViewModel | null {
   const focusNode = run?.execution_focus_node;
   if (!run || !focusNode) {
@@ -220,6 +221,7 @@ export function buildRunDetailExecutionFocusViewModel(
   });
   const workflowGovernanceHandoff = buildWorkflowGovernanceHandoff({
     workflowId,
+    workflowDetailHref,
     toolGovernance,
     legacyAuthGovernance,
     workflowCatalogGapDetail

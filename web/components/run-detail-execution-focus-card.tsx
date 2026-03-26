@@ -47,6 +47,7 @@ type RunDetailExecutionFocusCardProps = {
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   recommendedNextStepHref?: string | null;
   recommendedNextStepHrefLabel?: string | null;
+  workflowDetailHref?: string | null;
 };
 
 export function RunDetailExecutionFocusCard({
@@ -57,7 +58,8 @@ export function RunDetailExecutionFocusCard({
   sandboxReadiness = null,
   callbackWaitingAutomation = null,
   recommendedNextStepHref = null,
-  recommendedNextStepHrefLabel = null
+  recommendedNextStepHrefLabel = null,
+  workflowDetailHref = null
 }: RunDetailExecutionFocusCardProps) {
   const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
   const executionSurfaceCopy = buildRunDetailExecutionFocusSurfaceCopy();
@@ -66,7 +68,7 @@ export function RunDetailExecutionFocusCard({
   const localRecommendedNextStepHref = recommendedNextStepHref ?? buildRunDiagnosticsExecutionViewHref(run.id);
   const localRecommendedNextStepHrefLabel =
     recommendedNextStepHrefLabel ?? executionSurfaceCopy.executionFactsLinkLabel;
-  const focus = buildRunDetailExecutionFocusViewModel(run);
+  const focus = buildRunDetailExecutionFocusViewModel(run, { workflowDetailHref });
   if (!focus) {
     return null;
   }

@@ -7,6 +7,9 @@ import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
 import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 
+let mockPathname = "/runs/run-current";
+let mockSearchParams = "";
+
 const inlineFeedbackProps: Array<Record<string, unknown>> = [];
 const callbackSummaryProps: Array<Record<string, unknown>> = [];
 const sensitiveAccessInlineActionProps: Array<Record<string, unknown>> = [];
@@ -15,6 +18,11 @@ const workflowGovernanceCardProps: Array<Record<string, unknown>> = [];
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
     createElement("a", { href: href ?? "#", ...props }, children)
+}));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => mockPathname,
+  useSearchParams: () => new URLSearchParams(mockSearchParams)
 }));
 
 vi.mock("@/components/inline-operator-action-feedback", () => ({
@@ -153,6 +161,8 @@ describe("SensitiveAccessTimelineEntryList", () => {
   const operatorSurfaceCopy = buildOperatorFollowUpSurfaceCopy();
 
   beforeEach(() => {
+    mockPathname = "/runs/run-current";
+    mockSearchParams = "";
     inlineFeedbackProps.length = 0;
     callbackSummaryProps.length = 0;
     sensitiveAccessInlineActionProps.length = 0;
@@ -299,6 +309,77 @@ describe("SensitiveAccessTimelineEntryList", () => {
         bindingChipLabel: "1 legacy bindings",
         statusChipLabel: "publish auth blocker"
       }
+    });
+  });
+
+  it("keeps workspace-starter query scope on timeline callback summary workflow links", () => {
+    mockSearchParams =
+      "needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92";
+    const entry = buildEntry();
+
+    renderToStaticMarkup(
+      createElement(SensitiveAccessTimelineEntryList, {
+        entries: [
+          {
+            ...entry,
+            run_follow_up: {
+              ...entry.run_follow_up!,
+              explanation: {
+                primary_signal: "本次影响 1 个 run；shared callback summary 还要带回 workflow governance。",
+                follow_up: "先看共享 callback summary，再回到 workflow detail 补齐定义问题。"
+              },
+              sampled_runs: [
+                {
+                  run_id: "run-current",
+                  snapshot: {
+                    workflowId: "workflow-timeline",
+                    status: "waiting",
+                    currentNodeId: "current-node",
+                    executionFocusNodeId: "current-node",
+                    executionFocusNodeRunId: "node-run-current",
+                    executionFocusNodeName: "Current Node"
+                  },
+                  callback_tickets: [],
+                  sensitive_access_entries: [],
+                  tool_governance: {
+                    referenced_tool_ids: ["native.timeline-gap"],
+                    missing_tool_ids: ["native.timeline-gap"],
+                    governed_tool_count: 0,
+                    strong_isolation_tool_count: 0
+                  },
+                  legacy_auth_governance:
+                    buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+                      binding: {
+                        workflow_id: "workflow-timeline",
+                        workflow_name: "Workflow Timeline"
+                      }
+                    })
+                }
+              ]
+            }
+          }
+        ],
+        emptyCopy: "no entries"
+      })
+    );
+
+    expect(callbackSummaryProps[0]).toMatchObject({
+      workflowCatalogGapHref:
+        "/workflows/workflow-timeline?needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool",
+      workflowGovernanceHref:
+        "/workflows/workflow-timeline?needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=legacy_publish_auth"
+    });
+    expect(inlineFeedbackProps[0]?.callbackWaitingSummaryProps).toMatchObject({
+      workflowCatalogGapHref:
+        "/workflows/workflow-timeline?needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool",
+      workflowGovernanceHref:
+        "/workflows/workflow-timeline?needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=legacy_publish_auth"
+    });
+    expect(sensitiveAccessInlineActionProps[0]?.callbackWaitingSummaryProps).toMatchObject({
+      workflowCatalogGapHref:
+        "/workflows/workflow-timeline?needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool",
+      workflowGovernanceHref:
+        "/workflows/workflow-timeline?needs_follow_up=true&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=legacy_publish_auth"
     });
   });
 
