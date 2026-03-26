@@ -706,7 +706,7 @@ function buildDriftRecommendedActions({
     );
   }
 
-  if (dependencyGraphVisibilityCheckError) {
+  if (dependencyGraphVisibilityCheckError && !hasDependencyGraphRepositoryBlocker) {
     actions.push(
       createRecommendedAction(
         priority++,
@@ -748,6 +748,31 @@ function buildDriftRecommendedActions({
           manualOnly: true,
           manualOnlyReason: 'github_settings_ui',
         },
+      ),
+    );
+  }
+
+  if (dependencyGraphVisibilityCheckError && hasDependencyGraphRepositoryBlocker) {
+    actions.push(
+      createRecommendedAction(
+        priority++,
+        'workflow_maintainer',
+        isGitHubApiRateLimitError(dependencyGraphVisibilityCheckError)
+          ? 'rerun_with_authenticated_github_api'
+          : 'investigate_dependency_graph_visibility',
+        isGitHubApiRateLimitError(dependencyGraphVisibilityCheckError)
+          ? '在仓库设置 blocker 已有 artifact 证据的前提下，使用具备更高 GitHub API 配额的 token / `gh` 凭证重跑 `check-dependabot-drift`，补回 `dependencyGraphManifests` 可见性证据。'
+          : '在仓库设置 blocker 已有 artifact 证据的前提下，继续排查 `dependencyGraphManifests` 查询失败原因，补回 graph visibility 证据。',
+        isGitHubApiRateLimitError(dependencyGraphVisibilityCheckError)
+          ? '最新 submission artifact 已能证明仓库设置阻塞，但当前 drift 检查读取 `dependencyGraphManifests` 时仍命中 GitHub API rate limit；这不会改变首要 blocker，只会影响后续复验颗粒度。'
+          : '最新 submission artifact 已能证明仓库设置阻塞，但当前 drift 检查仍缺少 `dependencyGraphManifests` 侧的可见性证据。',
+        [],
+        isGitHubApiRateLimitError(dependencyGraphVisibilityCheckError)
+          ? {
+              href: buildActionsSecretsHref(repository),
+              hrefLabel: '打开 Actions secrets',
+            }
+          : {},
       ),
     );
   }

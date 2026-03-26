@@ -1,10 +1,14 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 const {
   DEFAULT_ISSUE_MARKER,
   buildIssueHistory,
   buildIssueBody,
+  buildIssueSyncSummaryLines,
   buildIssueSyncStepOutputs,
   buildIssueStateFingerprint,
   buildIssueTrackingState,
@@ -14,6 +18,7 @@ const {
   parseIssueStateMetadata,
   parseArgs,
   syncIssueFromReport,
+  writeStepSummary,
 } = require('./sync-github-security-drift-issue');
 
 function createReport(overrides = {}) {
@@ -391,6 +396,61 @@ test('buildIssueSyncStepOutputs keep non-default branch skip facts machine-reada
       'https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/enabling-the-dependency-graph',
     tracking_issue_primary_action_documentation_href_label: '查看官方 Dependency graph 指引',
   });
+});
+
+test('buildIssueSyncSummaryLines surface unchanged blocker state and primary manual handoff', () => {
+  const lines = buildIssueSyncSummaryLines(
+    {
+      action: 'updated',
+      issueNumber: 9,
+      shouldTrack: true,
+      trackingState: buildIssueTrackingState(createReport(), { resolved: false }),
+      trackingStateChanged: false,
+    },
+    createReport(),
+  );
+
+  const summary = lines.join('\n');
+  assert.match(summary, /## Security drift tracking issue/);
+  assert.match(summary, /issue sync action：`updated`/);
+  assert.match(summary, /tracking issue：\[#9\]\(https:\/\/github.com\/taichuy\/7flows\/issues\/9\)/);
+  assert.match(summary, /外部 blocker 语义未变化/);
+  assert.match(summary, /### Primary handoff/);
+  assert.match(summary, /\[repository_admin\] `enable_dependency_graph`/);
+  assert.match(summary, /仅支持人工操作（`github_settings_ui`）/);
+  assert.match(summary, /查看官方 Dependency graph 指引/);
+});
+
+test('buildIssueSyncSummaryLines explain non-default branch skip without mutating issue', () => {
+  const lines = buildIssueSyncSummaryLines(
+    {
+      action: 'skipped_non_default_branch',
+      issueNumber: null,
+      shouldTrack: true,
+      currentRefName: 'feature/manual-check',
+      defaultBranch: 'taichuy_dev',
+      trackingState: buildIssueTrackingState(createReport(), { resolved: false }),
+      trackingStateChanged: false,
+    },
+    createReport(),
+  );
+
+  const summary = lines.join('\n');
+  assert.match(summary, /tracking issue：本轮没有可写回的 issue 变更/);
+  assert.match(summary, /当前 ref：`feature\/manual-check`；默认分支：`taichuy_dev`/);
+  assert.match(summary, /本轮只保留 artifact \/ summary/);
+});
+
+test('writeStepSummary appends summary block to GITHUB_STEP_SUMMARY compatible file', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'security-drift-summary-'));
+  const summaryPath = path.join(tempDir, 'summary.md');
+
+  writeStepSummary(['## Security drift tracking issue', '- issue sync action：`noop`'], summaryPath);
+
+  assert.equal(
+    fs.readFileSync(summaryPath, 'utf8'),
+    '\n## Security drift tracking issue\n- issue sync action：`noop`\n',
+  );
 });
 
 test('syncIssueFromReport creates tracking issue when blocker persists', async (t) => {

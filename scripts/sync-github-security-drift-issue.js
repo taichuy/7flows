@@ -15,12 +15,15 @@ const MAX_HISTORY_ENTRIES = 6;
 const EXTERNAL_BLOCKER_ACTION_CODES = new Set([
   'enable_dependency_graph',
   'configure_dependabot_alerts_token',
+  'rerun_with_authenticated_github_api',
+  'investigate_dependency_graph_visibility',
   'rerun_dependency_graph_submission',
   'rerun_github_security_drift',
 ]);
 const EXTERNAL_BLOCKER_CONCLUSION_KINDS = new Set([
   'platform_drift',
   'alerts_unavailable',
+  'graph_visibility_check_failed',
   'repository_blocked_and_alerts_unavailable',
 ]);
 
@@ -484,7 +487,7 @@ function buildIssueBody(report, options = {}) {
   lines.push('', '## 自动化说明');
   lines.push('- 来源：`scripts/sync-github-security-drift-issue.js` 读取 `dependabot-drift.json` 后自动创建 / 更新。');
   lines.push(
-    '- 收敛条件：当 report 不再命中 `platform_drift` / `alerts_unavailable` / `repository_blocked_and_alerts_unavailable`，或不再要求外部 blocker 动作时，自动关闭本 issue。',
+    '- 收敛条件：当 report 不再命中 `platform_drift` / `alerts_unavailable` / `graph_visibility_check_failed` / `repository_blocked_and_alerts_unavailable`，或不再要求外部 blocker 动作时，自动关闭本 issue。',
   );
 
   return `${lines.join('\n')}\n`;
@@ -789,12 +792,113 @@ function buildIssueSyncStepOutputs(result = {}, report = {}) {
   };
 }
 
+function buildIssueSyncSummaryLines(result = {}, report = {}) {
+  const repository = normalizeRepositoryCoordinates(report?.repository);
+  const issueNumber = Number.isInteger(result?.issueNumber) ? result.issueNumber : null;
+  const issueUrl = buildIssueUrl(repository, issueNumber);
+  const defaultBranch =
+    normalizeOptionalString(result?.defaultBranch) || normalizeOptionalString(report?.defaultBranch) || null;
+  const currentRefName = normalizeOptionalString(result?.currentRefName);
+  const trackingState =
+    result?.trackingState && typeof result?.trackingState === 'object'
+      ? result.trackingState
+      : buildIssueTrackingState(report, { resolved: result?.shouldTrack === true ? false : true });
+  const recommendedActions = Array.isArray(report?.recommendedActions) ? report.recommendedActions : [];
+  const primaryAction = recommendedActions[0] && typeof recommendedActions[0] === 'object' ? recommendedActions[0] : null;
+  const lines = ['## Security drift tracking issue'];
+  const action = normalizeOptionalString(result?.action) || 'unknown';
+
+  lines.push(`- issue sync action：${formatCode(action)}`);
+
+  if (issueNumber !== null && issueUrl) {
+    lines.push(`- tracking issue：[#${issueNumber}](${issueUrl})`);
+  } else if (action === 'dry_run_track' || action === 'dry_run_resolved') {
+    lines.push('- tracking issue：dry-run 预览，本轮未调用 GitHub issue API。');
+  } else {
+    lines.push('- tracking issue：本轮没有可写回的 issue 变更。');
+  }
+
+  if (action === 'skipped_non_default_branch') {
+    lines.push(
+      `- 当前 ref：${formatOptionalCode(currentRefName)}；默认分支：${formatOptionalCode(
+        defaultBranch,
+      )}；为避免把实验性分支结果误同步成仓库级 blocker，本轮只保留 artifact / summary。`,
+    );
+  } else if (trackingState?.resolved === true) {
+    lines.push('- blocker state：已转入 resolved snapshot；若仓库存在打开中的 tracking issue，会在允许关闭时自动收口。');
+  } else if (result?.trackingStateChanged === true) {
+    lines.push('- blocker state：检测到外部 blocker 语义变化；请重新确认首要动作与平台侧事实。');
+  } else {
+    lines.push('- blocker state：仅刷新时间戳 / run 链接 / artifact 等 freshness 字段，外部 blocker 语义未变化。');
+  }
+
+  lines.push(`- state fingerprint：${formatOptionalCode(trackingState?.fingerprint)}`);
+
+  const currentRunUrl = buildCurrentRunUrl(report?.repository);
+  if (currentRunUrl) {
+    lines.push(`- current workflow run：${currentRunUrl}`);
+  }
+
+  if (primaryAction) {
+    const priorityLabel = Number.isInteger(primaryAction.priority) ? `P${primaryAction.priority}` : 'P?';
+    lines.push('');
+    lines.push('### Primary handoff');
+    lines.push(
+      `- ${priorityLabel} [${primaryAction.audience || 'unknown'}] ${formatOptionalCode(
+        primaryAction.code,
+      )}：${primaryAction.summary || '未提供 summary。'}`,
+    );
+
+    if (primaryAction.rationale) {
+      lines.push(`- rationale：${primaryAction.rationale}`);
+    }
+
+    const actionRoots = normalizeList(primaryAction.roots);
+    if (actionRoots.length > 0) {
+      lines.push(`- affected roots：${formatRootList(actionRoots)}`);
+    }
+
+    if (primaryAction.manualOnly === true) {
+      lines.push(
+        `- execution boundary：仅支持人工操作${
+          primaryAction.manualOnlyReason
+            ? `（${formatCode(primaryAction.manualOnlyReason)}）`
+            : ''
+        }，不要继续尝试把这一步误降级成 repo API patch。`,
+      );
+    }
+
+    if (primaryAction.href) {
+      lines.push(`- action link：[${primaryAction.hrefLabel || primaryAction.href}](${primaryAction.href})`);
+    }
+
+    if (primaryAction.documentationHref) {
+      lines.push(
+        `- documentation：[${
+          primaryAction.documentationHrefLabel || primaryAction.documentationHref
+        }](${primaryAction.documentationHref})`,
+      );
+    }
+  }
+
+  return lines;
+}
+
+function writeStepSummary(lines, summaryPath = process.env.GITHUB_STEP_SUMMARY) {
+  if (!summaryPath || !Array.isArray(lines) || lines.length === 0) {
+    return;
+  }
+
+  fs.appendFileSync(summaryPath, `\n${lines.join('\n')}\n`, 'utf8');
+}
+
 async function main() {
   const options = parseArgs();
   const report = readJsonFile(options.reportPath);
   const result = await syncIssueFromReport(report, options);
 
   writeGitHubOutputs(buildIssueSyncStepOutputs(result, report));
+  writeStepSummary(buildIssueSyncSummaryLines(result, report));
 
   if (result.body) {
     console.log(result.body);
@@ -820,6 +924,7 @@ module.exports = {
   DEFAULT_ISSUE_TITLE,
   buildIssueBody,
   buildIssueHistory,
+  buildIssueSyncSummaryLines,
   buildIssueSyncStepOutputs,
   buildIssueStateFingerprint,
   buildIssueTrackingState,
@@ -831,6 +936,7 @@ module.exports = {
   parseIssueStateMetadata,
   parseArgs,
   syncIssueFromReport,
+  writeStepSummary,
 };
 
 if (require.main === module) {

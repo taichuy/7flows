@@ -8,6 +8,7 @@ const {
   buildDriftRecommendedActions,
   buildRepositorySecurityAndAnalysisMarkdownLines,
   buildRecommendedActionsOutputs,
+  buildSubmissionRecommendedActions,
   normalizeRepositorySecurityAndAnalysis,
   writeGitHubOutputs,
 } = require('./dependency-governance-actions');
@@ -276,6 +277,77 @@ test('buildDriftRecommendedActions surfaces rate-limit follow-up when graph visi
         '使用具备更高 GitHub API 配额的 token / `gh` 凭证后重跑 `check-dependabot-drift`，避免 `dependencyGraphManifests` 因 rate limit 中断。',
       rationale:
         '当前 drift 检查在读取 `dependencyGraphManifests` 时直接命中 GitHub API rate limit，尚未形成可验证的 graph visibility 证据。',
+      roots: [],
+      href: 'https://github.com/taichuy/7flows/settings/secrets/actions',
+      hrefLabel: '打开 Actions secrets',
+    },
+  ]);
+});
+
+test('buildDriftRecommendedActions keeps repository blocker ahead of graph visibility reauth when submission artifact already proves it', () => {
+  const actions = buildDriftRecommendedActions({
+    dependencyGraphVisibilityCheckError:
+      'gh: API rate limit exceeded for 156.59.13.25. (HTTP 403)',
+    repository: { owner: 'taichuy', repo: '7flows' },
+    dependencySubmissionEvidence: {
+      report: {
+        repositoryBlockerEvidence: {
+          kind: 'dependency_graph_disabled',
+          rootLabels: ['api', 'web'],
+        },
+      },
+    },
+  });
+
+  assert.deepEqual(
+    actions.map((action) => action.code),
+    [
+      'enable_dependency_graph',
+      'rerun_with_authenticated_github_api',
+      'rerun_dependency_graph_submission',
+      'rerun_github_security_drift',
+    ],
+  );
+  assert.match(actions[1].rationale, /不会改变首要 blocker/);
+});
+
+test('buildDriftRecommendedActions keeps generic investigation for non-rate-limit graph visibility errors', () => {
+  const actions = buildDriftRecommendedActions({
+    dependencyGraphVisibilityCheckError: 'gh: GraphQL request failed with status 502',
+    repository: { owner: 'taichuy', repo: '7flows' },
+  });
+
+  assert.deepEqual(actions, [
+    {
+      priority: 1,
+      audience: 'workflow_maintainer',
+      code: 'investigate_dependency_graph_visibility',
+      summary: '排查 `dependencyGraphManifests` 查询失败原因，优先确认当前 token / GraphQL 可见性与 workflow 权限。',
+      rationale:
+        '当前 drift 检查无法稳定读取 `dependencyGraphManifests`，后续判断会缺少关键 graph visibility 证据。',
+      roots: [],
+    },
+  ]);
+});
+
+test('buildSubmissionRecommendedActions surfaces rate-limit follow-up when graph visibility check fails', () => {
+  const actions = buildSubmissionRecommendedActions({
+    items: [],
+    dependencyGraphVisibility: {
+      checkError: 'gh: secondary rate limit triggered while reading dependencyGraphManifests',
+    },
+    repository: { owner: 'taichuy', repo: '7flows' },
+  });
+
+  assert.deepEqual(actions, [
+    {
+      priority: 1,
+      audience: 'workflow_maintainer',
+      code: 'rerun_with_authenticated_github_api',
+      summary:
+        '使用具备更高 GitHub API 配额的 token / `gh` 凭证后重跑 graph visibility 检查，避免 `dependencyGraphManifests` 因 rate limit 中断。',
+      rationale:
+        '当前 workflow 已成功提交或运行，但 GitHub API 直接返回 rate limit，继续判断 graph visibility 会缺少关键证据。',
       roots: [],
       href: 'https://github.com/taichuy/7flows/settings/secrets/actions',
       hrefLabel: '打开 Actions secrets',

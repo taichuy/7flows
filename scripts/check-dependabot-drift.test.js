@@ -1088,6 +1088,18 @@ test('buildDriftReport keeps graph visibility rate-limit failures machine-readab
       href: 'https://github.com/taichuy/7flows/settings/secrets/actions',
       hrefLabel: '打开 Actions secrets',
     },
+    {
+      priority: 2,
+      audience: 'workflow_maintainer',
+      code: 'run_dependency_graph_submission',
+      summary:
+        '手动重跑 `Dependency Graph Submission` workflow，确保依赖显式 submission 的 roots 至少有最新 artifact 可复验。',
+      rationale:
+        'drift 已确认部分 roots 依赖额外 submission，但默认分支当前还没有可引用的最新 submission run。',
+      roots: ['api'],
+      href: 'https://github.com/taichuy/7flows/actions/workflows/dependency-graph-submission.yml',
+      hrefLabel: '打开 Dependency Graph Submission workflow',
+    },
   ]);
 
   const outputs = buildDriftStepOutputs(report);

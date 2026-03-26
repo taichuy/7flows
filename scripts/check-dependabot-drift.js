@@ -982,6 +982,15 @@ function printSection(title) {
   console.log(`\n=== ${title} ===`);
 }
 
+function writeStepSummary(lines) {
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  if (!summaryPath) {
+    return;
+  }
+
+  fs.appendFileSync(summaryPath, `${lines.join('\n')}\n`, 'utf8');
+}
+
 function shouldAllowAlertApiFallback() {
   return process.env.CHECK_DEPENDABOT_DRIFT_ALERTS_OPTIONAL === '1';
 }
@@ -1235,6 +1244,15 @@ function writeMarkdownSummary(params) {
   fs.writeFileSync(summaryPath, `${buildMarkdownSummary(params)}\n`, 'utf8');
 }
 
+function writeStepSummary(lines) {
+  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+  if (!summaryPath) {
+    return;
+  }
+
+  fs.appendFileSync(summaryPath, `${lines.join('\n')}\n`, 'utf8');
+}
+
 function buildDependencySubmissionEvidenceReport(
   dependencySubmissionEvidence,
   { recommendedActionFallbacks = [] } = {},
@@ -1483,7 +1501,16 @@ function main() {
     manifestGraphCheckError = error.message;
   }
 
-  const defaultBranch = repositoryData?.data?.repository?.defaultBranchRef?.name || null;
+  const defaultBranch =
+    repositoryData?.data?.repository?.defaultBranchRef?.name ||
+    (() => {
+      try {
+        const remoteHeadRef = run('git', ['symbolic-ref', '--quiet', '--short', 'refs/remotes/origin/HEAD']);
+        return remoteHeadRef.startsWith('origin/') ? remoteHeadRef.slice('origin/'.length) : remoteHeadRef;
+      } catch {
+        return null;
+      }
+    })();
   let repositorySecurityAndAnalysis = null;
 
   try {
@@ -1497,6 +1524,10 @@ function main() {
   }
 
   if (manifestGraphCheckError) {
+    const dependencySubmissionEvidence = fetchLatestDependencySubmissionEvidence(
+      repository,
+      defaultBranch,
+    );
     printSection('仓库事实');
     console.log(`repo: ${repository.owner}/${repository.repo}`);
     console.log(`default branch: ${defaultBranch || 'unknown'}`);
@@ -1514,9 +1545,16 @@ function main() {
       repositorySecurityAndAnalysis,
       { heading: null },
     );
+    const dependencySubmissionEvidenceLines = buildDependencySubmissionEvidenceLines(
+      dependencySubmissionEvidence,
+    );
     if (repositorySecurityAndAnalysisLines.length > 0) {
       printSection('Repository security & analysis');
       repositorySecurityAndAnalysisLines.forEach((line) => console.log(line));
+    }
+    if (dependencySubmissionEvidenceLines.length > 0) {
+      printSection('Dependency submission evidence');
+      dependencySubmissionEvidenceLines.forEach((line) => console.log(line));
     }
 
     const conclusion = {
@@ -1537,7 +1575,7 @@ function main() {
       results: [],
       actionableAlerts: [],
       alertsUnavailable: false,
-      dependencySubmissionEvidence: null,
+      dependencySubmissionEvidence,
       repositorySecurityAndAnalysis,
       conclusion,
     };
@@ -1793,6 +1831,7 @@ module.exports = {
   resolveAlertEvaluationSource,
   resolveDependencySubmissionEvidenceWaitSeconds,
   buildDriftStepOutputs,
+  buildUnknownManifestCoverage,
   isActionsReadPermissionError,
   waitForWorkflowRunCompletion,
 };
