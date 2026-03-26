@@ -458,6 +458,58 @@ export function WorkflowPublishInvocationDetailPanel({
                   nodeRunId: sample.run_snapshot.executionFocusNodeRunId,
                   currentHref
                 });
+                const sampleCallbackSummaryProps = {
+                  currentHref,
+                  callbackWaitingExplanation:
+                    sample.run_snapshot.callbackWaitingExplanation ?? null,
+                  callbackTickets: sample.callback_tickets,
+                  callbackWaitingAutomation,
+                  lifecycle: sample.run_snapshot.callbackWaitingLifecycle ?? null,
+                  sensitiveAccessSummary:
+                    sample.run_id === runId
+                      ? invocation.run_waiting_lifecycle?.sensitive_access_summary ?? null
+                      : null,
+                  focusNodeEvidence: sampleFocusNodeEvidence,
+                  focusSkillReferenceCount:
+                    sample.run_snapshot.executionFocusSkillTrace?.reference_count ?? 0,
+                  focusSkillReferenceLoads:
+                    sample.run_snapshot.executionFocusSkillTrace?.loads ?? [],
+                  focusSkillReferenceNodeId:
+                    sample.run_snapshot.executionFocusNodeId ?? null,
+                  focusSkillReferenceNodeName:
+                    sample.run_snapshot.executionFocusNodeName ?? null,
+                  nodeRunId: sample.run_snapshot.executionFocusNodeRunId ?? null,
+                  operatorFollowUp: runFollowUp?.explanation?.follow_up ?? null,
+                  recommendedAction: runFollowUp?.recommended_action ?? null,
+                  focusEvidenceDrilldownLink: sampleExecutionTimelineLink,
+                  preferCanonicalRecommendedNextStep: true,
+                  runId: sample.run_id,
+                  showFocusExecutionFacts: true,
+                  scheduledResumeDelaySeconds:
+                    sample.run_snapshot.scheduledResumeDelaySeconds ?? null,
+                  scheduledResumeDueAt: sample.run_snapshot.scheduledResumeDueAt ?? null,
+                  scheduledResumeRequeuedAt:
+                    sample.run_snapshot.scheduledResumeRequeuedAt ?? null,
+                  scheduledResumeRequeueSource:
+                    sample.run_snapshot.scheduledResumeRequeueSource ?? null,
+                  scheduledResumeScheduledAt:
+                    sample.run_snapshot.scheduledResumeScheduledAt ?? null,
+                  scheduledResumeSource:
+                    sample.run_snapshot.scheduledResumeSource ?? null,
+                  scheduledWaitingStatus:
+                    sample.run_snapshot.scheduledWaitingStatus ?? null,
+                  inboxHref: sampleInboxHref,
+                  sensitiveAccessEntries: sample.sensitive_access_entries,
+                  workflowCatalogGapSummary: sample.workflow_catalog_gap_summary,
+                  workflowCatalogGapDetail: sample.workflow_catalog_gap_detail,
+                  workflowCatalogGapHref:
+                    sampleWorkflowGovernanceHandoff.workflowCatalogGapHref,
+                  workflowGovernanceHref:
+                    sampleWorkflowGovernanceHandoff.workflowGovernanceHref,
+                  legacyAuthHandoff: sampleWorkflowGovernanceHandoff.legacyAuthHandoff,
+                  showInlineActions: false,
+                  waitingReason: sample.run_snapshot.waitingReason ?? null
+                };
 
                 return (
                   <div className="payload-card compact-card" key={sample.run_id}>
@@ -549,62 +601,7 @@ export function WorkflowPublishInvocationDetailPanel({
                       </div>
                     ) : null}
                     {sample.has_callback_waiting_summary ? (
-                      <CallbackWaitingSummaryCard
-                        currentHref={currentHref}
-                        callbackWaitingExplanation={
-                          sample.run_snapshot.callbackWaitingExplanation ?? null
-                        }
-                        callbackTickets={sample.callback_tickets}
-                        callbackWaitingAutomation={callbackWaitingAutomation}
-                        lifecycle={sample.run_snapshot.callbackWaitingLifecycle ?? null}
-                        sensitiveAccessSummary={
-                          sample.run_id === runId
-                            ? invocation.run_waiting_lifecycle?.sensitive_access_summary ?? null
-                            : null
-                        }
-                        focusNodeEvidence={sampleFocusNodeEvidence}
-                        focusSkillReferenceCount={
-                          sample.run_snapshot.executionFocusSkillTrace?.reference_count ?? 0
-                        }
-                        focusSkillReferenceLoads={
-                          sample.run_snapshot.executionFocusSkillTrace?.loads ?? []
-                        }
-                        focusSkillReferenceNodeId={sample.run_snapshot.executionFocusNodeId ?? null}
-                        focusSkillReferenceNodeName={
-                          sample.run_snapshot.executionFocusNodeName ?? null
-                        }
-                        nodeRunId={sample.run_snapshot.executionFocusNodeRunId ?? null}
-                        operatorFollowUp={runFollowUp?.explanation?.follow_up ?? null}
-                        recommendedAction={runFollowUp?.recommended_action ?? null}
-                        focusEvidenceDrilldownLink={sampleExecutionTimelineLink}
-                        preferCanonicalRecommendedNextStep
-                        runId={sample.run_id}
-                        showFocusExecutionFacts
-                        scheduledResumeDelaySeconds={
-                          sample.run_snapshot.scheduledResumeDelaySeconds ?? null
-                        }
-                        scheduledResumeDueAt={sample.run_snapshot.scheduledResumeDueAt ?? null}
-                        scheduledResumeRequeuedAt={
-                          sample.run_snapshot.scheduledResumeRequeuedAt ?? null
-                        }
-                        scheduledResumeRequeueSource={
-                          sample.run_snapshot.scheduledResumeRequeueSource ?? null
-                        }
-                        scheduledResumeScheduledAt={
-                          sample.run_snapshot.scheduledResumeScheduledAt ?? null
-                        }
-                        scheduledResumeSource={sample.run_snapshot.scheduledResumeSource ?? null}
-                        scheduledWaitingStatus={sample.run_snapshot.scheduledWaitingStatus ?? null}
-                        inboxHref={sampleInboxHref}
-                        sensitiveAccessEntries={sample.sensitive_access_entries}
-                        workflowCatalogGapSummary={sample.workflow_catalog_gap_summary}
-                        workflowCatalogGapDetail={sample.workflow_catalog_gap_detail}
-                        workflowCatalogGapHref={sampleWorkflowGovernanceHandoff.workflowCatalogGapHref}
-                        workflowGovernanceHref={sampleWorkflowGovernanceHandoff.workflowGovernanceHref}
-                        legacyAuthHandoff={sampleWorkflowGovernanceHandoff.legacyAuthHandoff}
-                        showInlineActions={false}
-                        waitingReason={sample.run_snapshot.waitingReason ?? null}
-                      />
+                      <CallbackWaitingSummaryCard {...sampleCallbackSummaryProps} />
                     ) : null}
                     {!sample.has_callback_waiting_summary &&
                     (sample.focus_artifact_summary ||

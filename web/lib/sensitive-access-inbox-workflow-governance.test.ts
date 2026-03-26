@@ -74,4 +74,154 @@ describe("sensitive access inbox workflow governance handoff", () => {
     expect(handoff.workflowCatalogGapDetail).toContain("operator backlog");
     expect(handoff.legacyAuthHandoff?.statusChipLabel).toBe("publish auth blocker");
   });
+
+  it("prefers the canonical sampled run before deriving workflow governance links", () => {
+    const handoff = buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff({
+      entry: buildSensitiveAccessInboxEntryFixture({
+        ticket: buildSensitiveAccessTicketFixture({
+          run_id: null,
+          node_run_id: "node-run-1"
+        }),
+        request: buildSensitiveAccessRequestFixture({
+          run_id: null,
+          node_run_id: "node-run-1"
+        }),
+        runFollowUp: {
+          affectedRunCount: 2,
+          sampledRunCount: 2,
+          waitingRunCount: 1,
+          runningRunCount: 0,
+          succeededRunCount: 0,
+          failedRunCount: 1,
+          unknownRunCount: 0,
+          recommendedAction: null,
+          sampledRuns: [
+            {
+              runId: "run-stale",
+              snapshot: {
+                workflowId: "workflow-stale"
+              },
+              callbackTickets: [],
+              sensitiveAccessEntries: [],
+              toolGovernance: {
+                referenced_tool_ids: ["native.stale-gap"],
+                missing_tool_ids: ["native.stale-gap"],
+                governed_tool_count: 0,
+                strong_isolation_tool_count: 0
+              },
+              legacyAuthGovernance:
+                buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+                  binding: {
+                    workflow_id: "workflow-stale",
+                    workflow_name: "Workflow stale"
+                  }
+                })
+            },
+            {
+              runId: "run-current",
+              snapshot: {
+                workflowId: "workflow-current"
+              },
+              callbackTickets: [],
+              sensitiveAccessEntries: [],
+              toolGovernance: {
+                referenced_tool_ids: ["native.current-gap"],
+                missing_tool_ids: ["native.current-gap"],
+                governed_tool_count: 0,
+                strong_isolation_tool_count: 0
+              },
+              legacyAuthGovernance:
+                buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+                  binding: {
+                    workflow_id: "workflow-current",
+                    workflow_name: "Workflow current"
+                  }
+                })
+            }
+          ]
+        }
+      }),
+      canonicalRunId: "run-current",
+      subjectLabel: "callback summary",
+      returnDetail: "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy。"
+    });
+
+    expect(handoff).toMatchObject({
+      workflowId: "workflow-current",
+      workflowCatalogGapSummary: "catalog gap · native.current-gap",
+      workflowCatalogGapHref: "/workflows/workflow-current?definition_issue=missing_tool",
+      workflowGovernanceHref:
+        "/workflows/workflow-current?definition_issue=legacy_publish_auth"
+    });
+    expect(handoff.workflowCatalogGapDetail).toContain("callback summary");
+    expect(handoff.workflowCatalogGapDetail).toContain(
+      "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy。"
+    );
+  });
+
+  it("falls back to entry legacy-auth governance when sampled runs omit tool governance", () => {
+    const baseLegacyAuth = buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+      binding: {
+        workflow_id: "workflow-entry",
+        workflow_name: "Workflow entry"
+      }
+    });
+
+    const handoff = buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff({
+      entry: buildSensitiveAccessInboxEntryFixture({
+        legacyAuthGovernance: {
+          ...baseLegacyAuth,
+          workflows: [
+            {
+              ...baseLegacyAuth.workflows[0],
+              tool_governance: {
+                referenced_tool_ids: ["native.entry-gap"],
+                missing_tool_ids: ["native.entry-gap"],
+                governed_tool_count: 0,
+                strong_isolation_tool_count: 0
+              }
+            }
+          ]
+        },
+        runFollowUp: {
+          affectedRunCount: 1,
+          sampledRunCount: 1,
+          waitingRunCount: 1,
+          runningRunCount: 0,
+          succeededRunCount: 0,
+          failedRunCount: 0,
+          unknownRunCount: 0,
+          recommendedAction: null,
+          sampledRuns: [
+            {
+              runId: "run-1",
+              snapshot: {
+                workflowId: "workflow-entry"
+              },
+              callbackTickets: [],
+              sensitiveAccessEntries: []
+            }
+          ]
+        }
+      }),
+      runSnapshot: {
+        workflowId: "workflow-entry"
+      },
+      subjectLabel: "operator backlog",
+      returnDetail: "先回到 workflow 编辑器收口 publish auth contract。"
+    });
+
+    expect(handoff).toMatchObject({
+      workflowId: "workflow-entry",
+      workflowCatalogGapSummary: "catalog gap · native.entry-gap",
+      workflowCatalogGapHref: "/workflows/workflow-entry?definition_issue=missing_tool",
+      workflowGovernanceHref:
+        "/workflows/workflow-entry?definition_issue=legacy_publish_auth"
+    });
+    expect(handoff.workflowCatalogGapDetail).toContain("operator backlog");
+    expect(handoff.workflowCatalogGapDetail).toContain(
+      "先回到 workflow 编辑器收口 publish auth contract。"
+    );
+    expect(handoff.legacyAuthHandoff?.statusChipLabel).toBe("publish auth blocker");
+  });
 });

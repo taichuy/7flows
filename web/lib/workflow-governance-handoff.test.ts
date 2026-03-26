@@ -162,6 +162,25 @@ describe("workflow-governance-handoff", () => {
     );
   });
 
+  it("falls back to legacy auth when an explicit missing-tool scope becomes stale", () => {
+    const handoff = buildWorkflowGovernanceHandoff({
+      workflowId: "workflow-legacy-only",
+      workflowDetailHref:
+        "/workflows/workflow-legacy-only?starter=starter-openclaw&definition_issue=missing_tool",
+      legacyAuthGovernance: buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+        binding: {
+          workflow_id: "workflow-legacy-only",
+          workflow_name: "Legacy-only workflow"
+        }
+      })
+    });
+
+    expect(handoff.workflowGovernanceHref).toBe(
+      "/workflows/workflow-legacy-only?starter=starter-openclaw&definition_issue=legacy_publish_auth"
+    );
+    expect(handoff.workflowCatalogGapHref).toBeNull();
+  });
+
   it("accepts workflow-library legacy auth summaries when source handoff lacks a publish snapshot", () => {
     const handoff = buildWorkflowGovernanceHandoff({
       workflowId: "workflow-summary",
@@ -213,6 +232,27 @@ describe("workflow-governance-handoff", () => {
     );
     expect(handoff.workflowCatalogGapHref).toBe(
       "/workflows/workflow-mixed?starter=starter-openclaw&definition_issue=missing_tool"
+    );
+  });
+
+  it("falls back to missing-tool scope when an explicit legacy-auth scope becomes stale", () => {
+    const handoff = buildWorkflowGovernanceHandoff({
+      workflowId: "workflow-catalog-gap",
+      workflowDetailHref:
+        "/workflows/workflow-catalog-gap?starter=starter-openclaw&definition_issue=legacy_publish_auth",
+      toolGovernance: {
+        referenced_tool_ids: ["native.catalog-gap"],
+        missing_tool_ids: ["native.catalog-gap"],
+        governed_tool_count: 0,
+        strong_isolation_tool_count: 0
+      }
+    });
+
+    expect(handoff.workflowGovernanceHref).toBe(
+      "/workflows/workflow-catalog-gap?starter=starter-openclaw&definition_issue=missing_tool"
+    );
+    expect(handoff.workflowCatalogGapHref).toBe(
+      "/workflows/workflow-catalog-gap?starter=starter-openclaw&definition_issue=missing_tool"
     );
   });
 });

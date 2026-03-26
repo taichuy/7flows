@@ -152,6 +152,14 @@ export default async function WorkflowsPage({
           workspaceStarterViewState
         })
       : null;
+  const emptyStateFilterFollowUp =
+    workflows.length === 0
+      ? buildWorkflowLibraryFilteredEmptyStateFollowUp({
+          summary,
+          workflowLibraryViewState,
+          clearWorkflowLibraryFilterHref
+        })
+      : null;
   const crossEntryRiskDigest = buildCrossEntryRiskDigest({
     sandboxReadiness: systemOverview.sandbox_readiness,
     callbackWaitingAutomation: systemOverview.callback_waiting_automation,
@@ -279,42 +287,45 @@ export default async function WorkflowsPage({
 
           {workflows.length === 0 ? (
             <div className="empty-state-block">
-              <p className="empty-state">
-                {(isLegacyPublishAuthFilterActive || isMissingToolFilterActive) &&
-                summary.workflowCount > 0
-                  ? isLegacyPublishAuthFilterActive
-                    ? "当前筛选范围里已经没有 legacy auth cleanup。可以清除筛选，继续检查其余 workflow 治理信号。"
-                    : "当前筛选范围里已经没有存在 catalog gap 的 workflow。可以清除筛选，继续检查其余 workflow 治理信号。"
-                  : surfaceCopy.emptyState}
-              </p>
-              {(isLegacyPublishAuthFilterActive || isMissingToolFilterActive) &&
-              summary.workflowCount > 0 ? (
-                <Link className="inline-link" href={clearWorkflowLibraryFilterHref}>
-                  清除筛选
-                </Link>
-              ) : emptyStateStarterFollowUp ? (
+              {emptyStateFilterFollowUp ? (
                 <WorkspaceStarterFollowUpCard
-                  detail={emptyStateStarterFollowUp.detail}
-                  headline={emptyStateStarterFollowUp.headline}
-                  label={emptyStateStarterFollowUp.label}
-                  primaryResourceSummary={emptyStateStarterFollowUp.primaryResourceSummary}
+                  detail={emptyStateFilterFollowUp.detail}
+                  headline={emptyStateFilterFollowUp.headline}
+                  label={emptyStateFilterFollowUp.label}
                   actions={
-                    emptyStateStarterFollowUp.entryKey ? (
-                      <WorkbenchEntryLink
-                        className="inline-link"
-                        currentHref={workflowLibraryHref}
-                        linkKey={emptyStateStarterFollowUp.entryKey}
-                        override={emptyStateStarterFollowUp.entryOverride}
-                      />
-                    ) : null
+                    <Link className="inline-link" href={emptyStateFilterFollowUp.href}>
+                      {emptyStateFilterFollowUp.hrefLabel}
+                    </Link>
                   }
                 />
-              ) : recommendedNextStep ? (
-                <OperatorRecommendedNextStepCard recommendedNextStep={recommendedNextStep} />
               ) : (
-                <WorkbenchEntryLink className="inline-link" linkKey="createWorkflow">
-                  进入新建向导
-                </WorkbenchEntryLink>
+                <>
+                  <p className="empty-state">{surfaceCopy.emptyState}</p>
+                  {emptyStateStarterFollowUp ? (
+                    <WorkspaceStarterFollowUpCard
+                      detail={emptyStateStarterFollowUp.detail}
+                      headline={emptyStateStarterFollowUp.headline}
+                      label={emptyStateStarterFollowUp.label}
+                      primaryResourceSummary={emptyStateStarterFollowUp.primaryResourceSummary}
+                      actions={
+                        emptyStateStarterFollowUp.entryKey ? (
+                          <WorkbenchEntryLink
+                            className="inline-link"
+                            currentHref={workflowLibraryHref}
+                            linkKey={emptyStateStarterFollowUp.entryKey}
+                            override={emptyStateStarterFollowUp.entryOverride}
+                          />
+                        ) : null
+                      }
+                    />
+                  ) : recommendedNextStep ? (
+                    <OperatorRecommendedNextStepCard recommendedNextStep={recommendedNextStep} />
+                  ) : (
+                    <WorkbenchEntryLink className="inline-link" linkKey="createWorkflow">
+                      进入新建向导
+                    </WorkbenchEntryLink>
+                  )}
+                </>
               )}
             </div>
           ) : (
@@ -669,9 +680,46 @@ type WorkflowLibraryEmptyStateStarterFollowUp = {
   entryOverride?: WorkbenchEntryLinkOverride;
 };
 
+type WorkflowLibraryFilteredEmptyStateFollowUp = {
+  label: string;
+  headline: string;
+  detail: string;
+  href: string;
+  hrefLabel: string;
+};
+
 type WorkspaceStarterFollowUpViewState = Parameters<
   typeof buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState
 >[0];
+
+function buildWorkflowLibraryFilteredEmptyStateFollowUp({
+  summary,
+  workflowLibraryViewState,
+  clearWorkflowLibraryFilterHref
+}: {
+  summary: ReturnType<typeof buildWorkflowLibrarySummary>;
+  workflowLibraryViewState: WorkflowLibraryViewState;
+  clearWorkflowLibraryFilterHref: string;
+}): WorkflowLibraryFilteredEmptyStateFollowUp | null {
+  if (!workflowLibraryViewState.definitionIssue || summary.workflowCount <= 0) {
+    return null;
+  }
+
+  const isLegacyPublishAuthFilter =
+    workflowLibraryViewState.definitionIssue === "legacy_publish_auth";
+
+  return {
+    label: "clear filter",
+    headline: isLegacyPublishAuthFilter
+      ? "当前筛选范围里已经没有 legacy auth cleanup。"
+      : "当前筛选范围里已经没有存在 catalog gap 的 workflow。",
+    detail:
+      `当前完整 workflow 列表仍有 ${summary.workflowCount} 个 workflow 可继续检查；` +
+      "先回到全部 workflow，再继续排查其余治理信号。",
+    href: clearWorkflowLibraryFilterHref,
+    hrefLabel: "查看全部 workflow"
+  };
+}
 
 function buildWorkflowLibraryEmptyStateStarterFollowUp({
   starters,

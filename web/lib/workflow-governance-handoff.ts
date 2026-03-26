@@ -44,6 +44,36 @@ function isLegacyAuthGovernanceSnapshot(
   return Boolean(legacyAuthGovernance && "workflows" in legacyAuthGovernance);
 }
 
+function resolveWorkflowGovernanceDefinitionIssue({
+  requestedDefinitionIssue,
+  hasLegacyAuthIssues,
+  hasMissingToolIssues
+}: {
+  requestedDefinitionIssue: WorkflowLibraryViewState["definitionIssue"];
+  hasLegacyAuthIssues: boolean;
+  hasMissingToolIssues: boolean;
+}): WorkflowLibraryViewState["definitionIssue"] {
+  const availableDefinitionIssues: NonNullable<WorkflowLibraryViewState["definitionIssue"]>[] = [];
+
+  if (hasLegacyAuthIssues) {
+    availableDefinitionIssues.push("legacy_publish_auth");
+  }
+
+  if (hasMissingToolIssues) {
+    availableDefinitionIssues.push("missing_tool");
+  }
+
+  if (
+    requestedDefinitionIssue &&
+    availableDefinitionIssues.includes(requestedDefinitionIssue) &&
+    !(requestedDefinitionIssue === "missing_tool" && hasLegacyAuthIssues)
+  ) {
+    return requestedDefinitionIssue;
+  }
+
+  return availableDefinitionIssues[0] ?? null;
+}
+
 export function buildWorkflowCatalogGapDetail({
   toolGovernance,
   subjectLabel,
@@ -116,19 +146,11 @@ export function buildWorkflowGovernanceHandoff({
     : { definitionIssue: null };
   const hasLegacyAuthIssues = hasWorkflowLegacyPublishAuthIssues(workflowLibraryWorkflow);
   const hasMissingToolIssues = hasWorkflowMissingToolIssues(workflowLibraryWorkflow);
-  const workflowGovernanceDefinitionIssue =
-    workflowLibraryViewState.definitionIssue === "legacy_publish_auth"
-      ? "legacy_publish_auth"
-      : workflowLibraryViewState.definitionIssue === "missing_tool" &&
-          hasLegacyAuthIssues &&
-          hasMissingToolIssues
-        ? "legacy_publish_auth"
-        : workflowLibraryViewState.definitionIssue ??
-          (hasLegacyAuthIssues
-            ? "legacy_publish_auth"
-            : hasMissingToolIssues
-              ? "missing_tool"
-              : null);
+  const workflowGovernanceDefinitionIssue = resolveWorkflowGovernanceDefinitionIssue({
+    requestedDefinitionIssue: workflowLibraryViewState.definitionIssue,
+    hasLegacyAuthIssues,
+    hasMissingToolIssues
+  });
   const workflowGovernanceViewState: WorkflowLibraryViewState = {
     ...workflowLibraryViewState,
     definitionIssue: workflowGovernanceDefinitionIssue
