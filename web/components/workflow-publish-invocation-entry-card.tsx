@@ -20,7 +20,6 @@ import {
   buildPublishedInvocationEntryInboxLinkSurface,
   buildPublishedInvocationInboxHref,
   buildPublishedInvocationRecommendedNextStep,
-  buildPublishedInvocationRunFollowUpSampleWorkflowGovernanceHandoff,
   resolvePublishedInvocationRecommendedNextStepInboxHrefs,
   buildPublishedInvocationRunFollowUpSampleApprovalInboxHref,
   buildPublishedInvocationRunFollowUpSampleInboxHref,
@@ -225,11 +224,8 @@ export function WorkflowPublishInvocationEntryCard({
   const runFollowUpEvidenceChips = runFollowUpSample
     ? listPublishedInvocationRunFollowUpEvidenceChips(runFollowUpSample)
     : [];
-  const runFollowUpSampleWorkflowGovernanceHandoff = runFollowUpSample
-    ? buildPublishedInvocationRunFollowUpSampleWorkflowGovernanceHandoff(runFollowUpSample, {
-        workflowDetailHref: runFollowUpSampleWorkflowDetailLink?.href ?? null
-      })
-    : null;
+  const runFollowUpSampleWorkflowGovernanceHandoff =
+    runFollowUpSample?.workflow_governance_handoff ?? null;
   const recommendedNextStep = buildPublishedInvocationRecommendedNextStep({
     runId: item.run_id ?? null,
     canonicalFollowUp,
