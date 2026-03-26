@@ -415,4 +415,85 @@ describe("WorkflowEditorSidebar", () => {
       'href="/workflows/new?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1"'
     );
   });
+
+  it("prioritizes missing-tool governance handoff after saving a starter from a governed workflow", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorSidebar, {
+        workflowId: "workflow-1",
+        workflowName: "Demo workflow",
+        workflows: [
+          {
+            id: "workflow-1",
+            name: "Governed workflow",
+            status: "draft",
+            version: "0.1.0",
+            node_count: 1,
+            tool_governance: {
+              referenced_tool_ids: ["native.catalog-gap"],
+              missing_tool_ids: ["native.catalog-gap"],
+              governed_tool_count: 0,
+              strong_isolation_tool_count: 0
+            },
+            legacy_auth_governance: {
+              binding_count: 2,
+              draft_candidate_count: 1,
+              published_blocker_count: 1,
+              offline_inventory_count: 0
+            }
+          }
+        ],
+        nodeSourceLanes: [],
+        toolSourceLanes: [],
+        editorNodeLibrary: [],
+        plannedNodeLibrary: [],
+        unsupportedNodes: [],
+        message: "已保存 workspace starter：Starter A。",
+        messageTone: "success",
+        messageKind: "workspace_starter_saved",
+        savedWorkspaceStarter: buildSavedWorkspaceStarter(),
+        persistBlockerSummary: null,
+        persistBlockers: [],
+        executionPreflightMessage: null,
+        toolExecutionValidationIssueCount: 0,
+        validationNavigatorItems: [],
+        runs: [],
+        selectedRunId: null,
+        run: null,
+        runSnapshot: null,
+        trace: null,
+        traceError: null,
+        selectedNodeId: null,
+        sandboxReadiness: buildSandboxReadiness(),
+        createWorkflowHref:
+          "/workflows/new?needs_follow_up=true&q=drift&source_governance_kind=drifted",
+        workspaceStarterLibraryHref:
+          "/workspace-starters?needs_follow_up=true&q=drift&source_governance_kind=drifted",
+        hasScopedWorkspaceStarterFilters: true,
+        workspaceStarterGovernanceQueryScope: {
+          activeTrack: "应用新建编排",
+          sourceGovernanceKind: "drifted",
+          needsFollowUp: true,
+          searchQuery: " drift ",
+          selectedTemplateId: "workspace-starter-1"
+        },
+        isLoadingRunOverlay: false,
+        isRefreshingRuns: false,
+        onWorkflowNameChange: () => undefined,
+        onAddNode: () => undefined,
+        onNavigateValidationIssue: () => undefined,
+        onSelectRunId: () => undefined,
+        onRefreshRuns: () => undefined
+      })
+    );
+
+    expect(html).toContain("catalog gap");
+    expect(html).toContain("native.catalog-gap");
+    expect(html).toContain("Primary governed starter: Starter A · catalog gap · native.catalog-gap · publish auth blocker · source 0.1.0.");
+    expect(html).toContain("回到 workflow 编辑器处理 catalog gap");
+    expect(html).toContain("Legacy publish auth handoff");
+    expect(html).toContain("回到 workflow 编辑器处理 publish auth contract");
+    expect(html).toContain(
+      'href="/workflows/workflow-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool"'
+    );
+  });
 });

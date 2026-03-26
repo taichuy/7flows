@@ -36,7 +36,10 @@ import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-bloc
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { WorkflowRunOverlayPanel } from "@/components/workflow-run-overlay-panel";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
-import { buildWorkspaceStarterSourceGovernanceSurface } from "@/components/workspace-starter-library/shared";
+import {
+  buildWorkspaceStarterMissingToolGovernanceSurface,
+  buildWorkspaceStarterTemplateFollowUpSurface
+} from "@/components/workspace-starter-library/shared";
 
 import {
   buildWorkflowPersistBlockerRecommendedNextStep,
@@ -164,14 +167,32 @@ export function WorkflowEditorSidebar({
         })
       : mergeWorkspaceStarterSelectionIntoHref(createWorkflowHref, savedWorkspaceStarter.id)
     : createWorkflowHref;
-  const savedWorkspaceStarterGovernanceSurface = savedWorkspaceStarter
-    ? buildWorkspaceStarterSourceGovernanceSurface({
+  const savedWorkspaceStarterSourceWorkflowId = savedWorkspaceStarter
+    ? savedWorkspaceStarter.source_governance?.source_workflow_id ??
+      savedWorkspaceStarter.created_from_workflow_id ??
+      null
+    : null;
+  const savedWorkspaceStarterSourceWorkflowSummary = savedWorkspaceStarterSourceWorkflowId
+    ? workflows.find((item) => item.id === savedWorkspaceStarterSourceWorkflowId) ?? null
+    : null;
+  const savedWorkspaceStarterFollowUpSurface = savedWorkspaceStarter
+    ? buildWorkspaceStarterMissingToolGovernanceSurface({
         template: savedWorkspaceStarter,
-        createWorkflowHref: savedWorkspaceStarterCreateWorkflowHref
+        missingToolIds:
+          savedWorkspaceStarterSourceWorkflowSummary?.tool_governance?.missing_tool_ids ?? [],
+        sourceWorkflowSummariesById: savedWorkspaceStarterSourceWorkflowSummary
+          ? {
+              [savedWorkspaceStarterSourceWorkflowSummary.id]: savedWorkspaceStarterSourceWorkflowSummary
+            }
+          : null,
+        workspaceStarterGovernanceQueryScope
+      }) ??
+      buildWorkspaceStarterTemplateFollowUpSurface({
+        template: savedWorkspaceStarter,
+        createWorkflowHref: savedWorkspaceStarterCreateWorkflowHref,
+        workspaceStarterGovernanceQueryScope
       })
     : null;
-  const savedWorkspaceStarterNextStep =
-    savedWorkspaceStarterGovernanceSurface?.recommendedNextStep ?? null;
   const starterSaveSurfaceCopy =
     messageKind === "workspace_starter_saved"
       ? buildWorkflowEditorStarterSaveSurfaceCopy({
@@ -179,14 +200,15 @@ export function WorkflowEditorSidebar({
           workspaceStarterLibraryHref: savedWorkspaceStarterLibraryHref,
           hasScopedWorkspaceStarterFilters,
           savedStarterName: savedWorkspaceStarter?.name ?? null,
-          recommendedNextStepDetail: savedWorkspaceStarterNextStep?.detail ?? null,
-          primaryResourceSummary: savedWorkspaceStarterNextStep?.primaryResourceSummary ?? null,
+          recommendedNextStepDetail: savedWorkspaceStarterFollowUpSurface?.detail ?? null,
+          primaryResourceSummary: savedWorkspaceStarterFollowUpSurface?.primaryResourceSummary ?? null,
           workspaceStarterLibraryLabel: savedWorkspaceStarter
             ? `打开刚保存的 starter：${savedWorkspaceStarter.name}`
             : null,
           createWorkflowLabel:
-            savedWorkspaceStarterNextStep?.entryKey === "createWorkflow"
-              ? savedWorkspaceStarterNextStep.entryOverride?.label ?? savedWorkspaceStarterNextStep.label
+            savedWorkspaceStarterFollowUpSurface?.entryKey === "createWorkflow"
+              ? savedWorkspaceStarterFollowUpSurface.entryOverride?.label ??
+                savedWorkspaceStarterFollowUpSurface.label
               : null
         })
       : null;
@@ -370,9 +392,10 @@ export function WorkflowEditorSidebar({
         {starterSaveSurfaceCopy ? (
           <WorkspaceStarterFollowUpCard
             title={starterSaveSurfaceCopy.nextStepTitle}
-            label={savedWorkspaceStarterNextStep?.label ?? "继续推进"}
+            label={savedWorkspaceStarterFollowUpSurface?.label ?? "继续推进"}
             detail={starterSaveSurfaceCopy.description}
             primaryResourceSummary={starterSaveSurfaceCopy.primaryResourceSummary}
+            workflowGovernanceHandoff={savedWorkspaceStarterFollowUpSurface?.workflowGovernanceHandoff}
             actions={<WorkbenchEntryLinks {...starterSaveSurfaceCopy.nextStepLinks} />}
           />
         ) : null}
