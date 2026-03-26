@@ -604,6 +604,54 @@ describe("SensitiveAccessInboxEntryCard", () => {
     expect(html).toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
   });
 
+  it("renders workflow governance handoff when callback summary context is unavailable", () => {
+    const entry = buildEntry();
+    const legacyAuthGovernance = buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+      binding: {
+        workflow_id: "workflow-1",
+        workflow_name: "Inbox workflow"
+      }
+    });
+    entry.legacyAuthGovernance = legacyAuthGovernance;
+    entry.runFollowUp = {
+      affectedRunCount: 1,
+      sampledRunCount: 1,
+      waitingRunCount: 1,
+      runningRunCount: 0,
+      succeededRunCount: 0,
+      failedRunCount: 0,
+      unknownRunCount: 0,
+      recommendedAction: null,
+      sampledRuns: [
+        {
+          runId: "run-1",
+          snapshot: {
+            workflowId: "workflow-1"
+          },
+          callbackTickets: [],
+          sensitiveAccessEntries: [],
+          toolGovernance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0
+          },
+          legacyAuthGovernance
+        }
+      ]
+    };
+
+    const html = renderToStaticMarkup(createElement(SensitiveAccessInboxEntryCard, { entry }));
+
+    expect(html).toContain("Workflow governance");
+    expect(html).toContain("catalog gap · native.catalog-gap");
+    expect(html).toContain("Legacy publish auth handoff");
+    expect(html).toContain("publish auth blocker");
+    expect(html).toContain("当前 sensitive access inbox entry 对应的 workflow 版本仍有 catalog gap");
+    expect(html).toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
+    expect(html).not.toContain("Callback waiting follow-up");
+  });
+
   it("surfaces live sandbox readiness for blocked execution focus entries", () => {
     const entry = buildEntry();
     entry.runSnapshot = {

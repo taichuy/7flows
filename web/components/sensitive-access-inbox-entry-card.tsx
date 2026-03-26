@@ -16,6 +16,7 @@ import { OperatorRecommendedNextStepCard } from "@/components/operator-recommend
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SensitiveAccessInlineActions } from "@/components/sensitive-access-inline-actions";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import { formatSensitiveResourceGovernanceSummary } from "@/lib/credential-governance";
 import type { CallbackWaitingAutomationCheck } from "@/lib/get-system-overview";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
@@ -44,6 +45,7 @@ import {
 } from "@/lib/run-execution-focus-presenters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
+import { buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff } from "@/lib/sensitive-access-inbox-workflow-governance";
 import {
   buildSandboxReadinessFollowUpCandidate,
   shouldPreferSharedSandboxReadinessFollowUp
@@ -184,6 +186,16 @@ export function SensitiveAccessInboxEntryCard({
   const recommendedNextStepPrimaryResourceSummary = formatSensitiveResourceGovernanceSummary(
     resource
   );
+  const standaloneWorkflowGovernanceHandoff = !callbackWaitingContext
+    ? buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff({
+        entry,
+        runSnapshot: entry.runSnapshot ?? null,
+        canonicalRunId: executionContext?.runId ?? null,
+        subjectLabel: "sensitive access inbox entry",
+        returnDetail:
+          "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对当前审批票据、execution focus 与 inbox slice。"
+      })
+    : null;
   const recommendedNextStep = !shouldDeferToSharedCallbackWaitingSummary && executionSurfaceCopy
     ? buildOperatorRecommendedNextStep({
         execution:
@@ -362,6 +374,15 @@ export function SensitiveAccessInboxEntryCard({
             legacyAuthHandoff={callbackWaitingContext.legacyAuthHandoff}
           />
         </div>
+      ) : null}
+
+      {!callbackWaitingContext ? (
+        <WorkflowGovernanceHandoffCards
+          workflowCatalogGapSummary={standaloneWorkflowGovernanceHandoff?.workflowCatalogGapSummary}
+          workflowCatalogGapDetail={standaloneWorkflowGovernanceHandoff?.workflowCatalogGapDetail}
+          workflowGovernanceHref={standaloneWorkflowGovernanceHandoff?.workflowGovernanceHref}
+          legacyAuthHandoff={standaloneWorkflowGovernanceHandoff?.legacyAuthHandoff}
+        />
       ) : null}
 
       {entry.notifications.length > 0 ? (

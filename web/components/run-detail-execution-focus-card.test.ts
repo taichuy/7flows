@@ -9,6 +9,7 @@ import type {
   CallbackWaitingAutomationCheck,
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
+import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 import { buildRunDetailExecutionFocusSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 
 function buildSandboxReadiness(): SandboxReadinessCheck {
@@ -378,6 +379,46 @@ describe("RunDetailExecutionFocusCard", () => {
     expect(html).toContain("Open run library");
     expect(html).toContain('/runs?status=waiting');
     expect(html).toContain("当前 callback recovery 仍影响 2 个 run / 1 个 workflow");
+  });
+
+  it("renders workflow governance handoff when the execution focus has no callback summary", () => {
+    const run = buildRunDetail();
+    run.tool_governance = {
+      referenced_tool_ids: ["native.catalog-gap"],
+      missing_tool_ids: ["native.catalog-gap"],
+      governed_tool_count: 0,
+      strong_isolation_tool_count: 0
+    };
+    run.legacy_auth_governance = buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+      binding: {
+        workflow_id: "workflow-1",
+        workflow_name: "Run detail workflow"
+      }
+    });
+    run.execution_focus_node = {
+      ...run.execution_focus_node!,
+      callback_waiting_explanation: null,
+      callback_waiting_lifecycle: null
+    };
+    run.node_runs = [
+      {
+        ...run.node_runs[0]!,
+        waiting_reason: null
+      }
+    ];
+
+    const html = renderToStaticMarkup(
+      createElement(RunDetailExecutionFocusCard, {
+        run,
+        title: "Execution focus"
+      })
+    );
+
+    expect(html).toContain("Workflow governance");
+    expect(html).toContain("catalog gap · native.catalog-gap");
+    expect(html).toContain("Legacy publish auth handoff");
+    expect(html).toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
+    expect(html).toContain("Focused execution evidence");
   });
 
   it("restores approval inbox CTA from local callback blocker context when canonical action is missing", () => {

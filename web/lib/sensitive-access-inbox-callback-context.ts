@@ -1,10 +1,6 @@
 import type { RunSnapshot } from "@/app/actions/run-snapshot";
 import type { LegacyPublishAuthWorkflowHandoff } from "@/lib/legacy-publish-auth-governance-presenters";
-import { resolveOperatorRunFollowUpSample } from "@/lib/operator-run-follow-up-samples";
-import {
-  buildWorkflowCatalogGapDetail,
-  buildWorkflowGovernanceHandoff
-} from "@/lib/workflow-governance-handoff";
+import { buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff } from "@/lib/sensitive-access-inbox-workflow-governance";
 import type {
   SensitiveAccessInboxEntry,
   SensitiveAccessTimelineEntry
@@ -79,28 +75,19 @@ export function buildSensitiveAccessInboxEntryCallbackContext(
     trimOrNull(runSnapshot?.executionFocusNodeRunId) ??
     actionNodeRunId;
   const inlineSensitiveAccessEntries = buildInlineSensitiveAccessEntries(entry);
-  const workflowGovernanceSample = resolveOperatorRunFollowUpSample(entry.runFollowUp, runId);
   if (!runId || !displayNodeRunId || !hasCallbackSignals(runSnapshot)) {
     return null;
   }
 
-  const workflowId =
-    trimOrNull(runSnapshot?.workflowId) ??
-    trimOrNull(workflowGovernanceSample?.snapshot?.workflowId) ??
-    null;
-  const workflowCatalogGapDetail = buildWorkflowCatalogGapDetail({
-    toolGovernance: workflowGovernanceSample?.toolGovernance ?? null,
-    subjectLabel: "callback summary",
-    returnDetail:
-      "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续处理当前 sensitive access inbox slice 与 callback waiting。"
-  });
-  const workflowGovernanceHandoff = buildWorkflowGovernanceHandoff({
-    workflowId,
-    toolGovernance: workflowGovernanceSample?.toolGovernance ?? null,
-    legacyAuthGovernance:
-      workflowGovernanceSample?.legacyAuthGovernance ?? entry.legacyAuthGovernance ?? null,
-    workflowCatalogGapDetail
-  });
+  const workflowGovernanceHandoff =
+    buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff({
+      entry,
+      runSnapshot,
+      canonicalRunId,
+      subjectLabel: "callback summary",
+      returnDetail:
+        "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续处理当前 sensitive access inbox slice 与 callback waiting。"
+    });
 
   return {
     runId,
