@@ -18,6 +18,36 @@ export type LegacyPublishAuthWorkflowHandoff = {
   workflowSummary: WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem;
 };
 
+
+function buildLegacyPublishAuthWorkflowHandoffFromWorkflowSummaryInternal(
+  workflowSummary: WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem,
+  detailSuffix?: string | null
+): LegacyPublishAuthWorkflowHandoff {
+  return {
+    bindingChipLabel: `${workflowSummary.binding_count} legacy bindings`,
+    statusChipLabel:
+      workflowSummary.published_blocker_count > 0
+        ? "publish auth blocker"
+        : "legacy auth cleanup",
+    detail:
+      `当前 workflow 仍有 ${workflowSummary.draft_candidate_count} 条 draft cleanup、` +
+      `${workflowSummary.published_blocker_count} 条 published blocker、` +
+      `${workflowSummary.offline_inventory_count} 条 offline inventory。` +
+      (detailSuffix ?? ""),
+    workflowSummary
+  };
+}
+
+export function buildLegacyPublishAuthWorkflowHandoffFromWorkflowSummary(
+  workflowSummary: WorkflowPublishedEndpointLegacyAuthGovernanceWorkflowItem | null | undefined
+): LegacyPublishAuthWorkflowHandoff | null {
+  if (!workflowSummary || workflowSummary.binding_count <= 0) {
+    return null;
+  }
+
+  return buildLegacyPublishAuthWorkflowHandoffFromWorkflowSummaryInternal(workflowSummary);
+}
+
 export function buildLegacyPublishAuthGovernanceSurfaceCopy(): LegacyPublishAuthGovernanceSurfaceCopy {
   return {
     title: "Legacy publish auth handoff",
@@ -45,17 +75,8 @@ export function buildLegacyPublishAuthWorkflowHandoff(
     return null;
   }
 
-  return {
-    bindingChipLabel: `${workflowSummary.binding_count} legacy bindings`,
-    statusChipLabel:
-      workflowSummary.published_blocker_count > 0
-        ? "publish auth blocker"
-        : "legacy auth cleanup",
-    detail:
-      `当前 workflow 仍有 ${workflowSummary.draft_candidate_count} 条 draft cleanup、` +
-      `${workflowSummary.published_blocker_count} 条 published blocker、` +
-      `${workflowSummary.offline_inventory_count} 条 offline inventory。` +
-      buildLegacyPublishAuthModeContractSummary(snapshot.auth_mode_contract),
-    workflowSummary
-  };
+  return buildLegacyPublishAuthWorkflowHandoffFromWorkflowSummaryInternal(
+    workflowSummary,
+    buildLegacyPublishAuthModeContractSummary(snapshot.auth_mode_contract)
+  );
 }

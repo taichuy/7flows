@@ -48,6 +48,7 @@ function buildWorkflowListItem(
       governed_tool_count: 1,
       strong_isolation_tool_count: 0
     },
+    legacy_auth_governance: null,
     ...overrides
   };
 }
@@ -134,5 +135,27 @@ describe("WorkflowToolBindingPanel", () => {
     expect(html).toContain(
       "当前 workflow 仍有 catalog gap（native.policy-gap）；当前列表里暂时看不到直接失配的 tool 节点，先回 editor 排查 LLM Agent tool policy 或其它 tool 引用。"
     );
+  });
+
+
+  it("surfaces shared legacy publish auth handoff alongside catalog gap follow-up", () => {
+    const workflow = buildWorkflowDetail({
+      legacy_auth_governance: {
+        binding_count: 2,
+        draft_candidate_count: 1,
+        published_blocker_count: 1,
+        offline_inventory_count: 0
+      }
+    });
+    const html = renderToStaticMarkup(
+      <WorkflowToolBindingPanel workflows={[workflow]} selectedWorkflow={workflow} tools={[]} />
+    );
+
+    expect(html).toContain("publish auth blocker");
+    expect(html).toContain("2 legacy bindings");
+    expect(html).toContain("1 条 published blocker");
+    expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
+    expect(html).toContain('/workflows/workflow-1?definition_issue=legacy_publish_auth');
+    expect(html).toContain("回到 workflow 编辑器处理 publish auth contract");
   });
 });

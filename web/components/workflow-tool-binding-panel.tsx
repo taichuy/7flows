@@ -1,18 +1,20 @@
-import Link from "next/link";
-
 import { updateWorkflowToolBinding } from "@/app/actions/workflow";
 import { ToolGovernanceSummary } from "@/components/tool-governance-summary";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
 import { WorkflowToolBindingForm } from "@/components/workflow-tool-binding-form";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { WorkflowDetail, WorkflowListItem } from "@/lib/get-workflows";
 import {
-  formatCatalogGapSummary,
   formatCatalogGapToolSummary,
   getWorkflowMissingToolIds
 } from "@/lib/workflow-definition-governance";
 import { getToolGovernanceSummary } from "@/lib/tool-governance";
-import { appendWorkflowLibraryViewState } from "@/lib/workflow-library-query";
+import {
+  buildWorkflowCatalogGapDetail,
+  buildWorkflowGovernanceHandoff
+} from "@/lib/workflow-governance-handoff";
+import { buildLegacyPublishAuthWorkflowHandoffFromWorkflowSummary } from "@/lib/legacy-publish-auth-governance-presenters";
 import { buildWorkflowDetailHref } from "@/lib/workbench-links";
 
 type WorkflowToolBindingPanelProps = {
@@ -57,14 +59,40 @@ export function WorkflowToolBindingPanel({
         .filter(Boolean)
     )
   );
-  const workflowCatalogGapSummary = formatCatalogGapSummary(workflowMissingToolIds, 3);
   const workflowCatalogGapToolSummary = formatCatalogGapToolSummary(workflowMissingToolIds, 3);
   const bindingCatalogGapToolSummary = formatCatalogGapToolSummary(bindingMissingToolIds, 3);
-  const workflowCatalogGapHref = selectedWorkflow
-    ? appendWorkflowLibraryViewState(buildWorkflowDetailHref(selectedWorkflow.id), {
-        definitionIssue: "missing_tool"
+  const workflowGovernanceHandoff = selectedWorkflow
+    ? buildWorkflowGovernanceHandoff({
+        workflowId: selectedWorkflow.id,
+        workflowDetailHref: buildWorkflowDetailHref(selectedWorkflow.id),
+        toolGovernance: selectedWorkflow.tool_governance,
+        legacyAuthGovernance: selectedWorkflow.legacy_auth_governance ?? null,
+        workflowCatalogGapDetail: buildWorkflowCatalogGapDetail({
+          toolGovernance: selectedWorkflow.tool_governance,
+          subjectLabel: "workflow",
+          returnDetail: buildWorkflowBindingCatalogGapFollowUpDetail({
+            bindingCatalogGapToolSummary,
+            missingCatalogBindings,
+            workflowMissingToolCount: workflowMissingToolIds.length,
+            workflowCatalogGapToolSummary
+          })
+        })
       })
     : null;
+  const legacyAuthHandoff = selectedWorkflow?.legacy_auth_governance
+    ? buildLegacyPublishAuthWorkflowHandoffFromWorkflowSummary({
+        workflow_id: selectedWorkflow.id,
+        workflow_name: selectedWorkflow.name,
+        binding_count: selectedWorkflow.legacy_auth_governance.binding_count,
+        draft_candidate_count: selectedWorkflow.legacy_auth_governance.draft_candidate_count,
+        published_blocker_count: selectedWorkflow.legacy_auth_governance.published_blocker_count,
+        offline_inventory_count: selectedWorkflow.legacy_auth_governance.offline_inventory_count,
+        tool_governance: selectedWorkflow.tool_governance
+      })
+    : null;
+  const hasWorkflowGovernanceHandoff = Boolean(
+    workflowGovernanceHandoff?.workflowCatalogGapSummary || legacyAuthHandoff
+  );
 
   return (
     <article className="diagnostic-panel panel-span" id="workflow-binding">
@@ -74,8 +102,8 @@ export function WorkflowToolBindingPanel({
           <h2>Tool node binding</h2>
         </div>
         <p className="section-copy">
-          这里继续接住 workflow 级 `catalog gap` 与 tool node binding 状态，避免作者和 AI
-          只在首页看到局部节点绑定数量，却错过其它 tool 引用已经脱离当前 catalog 的事实。
+          这里继续接住 workflow 级 `catalog gap`、`publish auth contract` 与 tool node binding 状态，
+          避免作者和 AI 只在首页看到局部节点绑定数量，却错过当前 workflow 还卡在哪条治理 backlog。
         </p>
       </div>
 
@@ -137,35 +165,27 @@ export function WorkflowToolBindingPanel({
                     `sandbox / microvm`，或 workflow 里其它 tool 引用已经脱离当前 catalog。
                   </p>
 
-                  {workflowMissingToolIds.length > 0 ? (
-                    <article className="payload-card compact-card">
-                      <div className="payload-card-header">
-                        <span className="status-meta">
-                          {workflowCatalogGapSummary ?? "catalog gap"}
-                        </span>
-                        {workflowCatalogGapHref ? (
-                          <Link className="event-chip inbox-filter-link" href={workflowCatalogGapHref}>
-                            回到 workflow 编辑器
-                          </Link>
-                        ) : null}
-                      </div>
+                  {hasWorkflowGovernanceHandoff ? (
+                    <>
                       <p className="binding-meta">{selectedWorkflow.name}</p>
-                      <p className="section-copy entry-copy">
-                        {buildWorkflowCatalogGapDetail({
-                          bindingCatalogGapToolSummary,
-                          missingCatalogBindings,
-                          workflowMissingToolCount: workflowMissingToolIds.length,
-                          workflowCatalogGapToolSummary
-                        })}
-                      </p>
-                      <div className="event-type-strip">
-                        {workflowMissingToolIds.slice(0, 4).map((toolId) => (
-                          <span className="event-chip" key={`${selectedWorkflow.id}-catalog-gap-${toolId}`}>
-                            {toolId}
-                          </span>
-                        ))}
-                      </div>
-                    </article>
+                      <WorkflowGovernanceHandoffCards
+                        workflowCatalogGapSummary={workflowGovernanceHandoff?.workflowCatalogGapSummary}
+                        workflowCatalogGapDetail={workflowGovernanceHandoff?.workflowCatalogGapDetail}
+                        workflowCatalogGapHref={workflowGovernanceHandoff?.workflowCatalogGapHref}
+                        workflowGovernanceHref={workflowGovernanceHandoff?.workflowGovernanceHref}
+                        legacyAuthHandoff={legacyAuthHandoff}
+                        cardClassName="payload-card compact-card"
+                      />
+                      {workflowMissingToolIds.length > 0 ? (
+                        <div className="event-type-strip">
+                          {workflowMissingToolIds.slice(0, 4).map((toolId) => (
+                            <span className="event-chip" key={`${selectedWorkflow.id}-catalog-gap-${toolId}`}>
+                              {toolId}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </>
                   ) : null}
                 </div>
               </div>
@@ -234,7 +254,7 @@ export function WorkflowToolBindingPanel({
   );
 }
 
-function buildWorkflowCatalogGapDetail({
+function buildWorkflowBindingCatalogGapFollowUpDetail({
   bindingCatalogGapToolSummary,
   missingCatalogBindings,
   workflowMissingToolCount,
