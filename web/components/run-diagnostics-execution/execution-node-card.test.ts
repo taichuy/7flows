@@ -72,6 +72,33 @@ vi.mock("@/components/callback-waiting-summary-card", () => ({
     )
 }));
 
+vi.mock("@/components/workflow-governance-handoff-cards", () => ({
+  WorkflowGovernanceHandoffCards: ({
+    workflowCatalogGapSummary,
+    workflowCatalogGapDetail,
+    workflowGovernanceHref,
+    legacyAuthHandoff
+  }: {
+    workflowCatalogGapSummary?: string | null;
+    workflowCatalogGapDetail?: string | null;
+    workflowGovernanceHref?: string | null;
+    legacyAuthHandoff?: {
+      bindingChipLabel?: string | null;
+    } | null;
+  }) => {
+    if (!workflowCatalogGapSummary && !legacyAuthHandoff) {
+      return null;
+    }
+
+    return createElement(
+      "div",
+      { "data-testid": "workflow-governance-handoff-cards" },
+      `workflow ${workflowCatalogGapSummary ?? "none"} ${workflowCatalogGapDetail ?? "none"} ${workflowGovernanceHref ?? "none"} ` +
+        `legacy auth ${legacyAuthHandoff?.bindingChipLabel ?? "none"}`
+    );
+  }
+}));
+
 vi.mock("@/components/run-diagnostics-execution/shared", () => ({
   MetricChipRow: () => createElement("div", { "data-testid": "metric-chip-row" })
 }));
@@ -464,6 +491,8 @@ describe("ExecutionNodeCard", () => {
     expect(html).toContain("workflow catalog gap · native.catalog-gap");
     expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
     expect(html).toContain("legacy auth 1 legacy bindings");
+    expect(html).toContain('data-testid="callback-waiting-summary-card"');
+    expect(html).not.toContain('data-testid="workflow-governance-handoff-cards"');
   });
 
   it("keeps workflow governance handoff on node fallback surfaces without callback summary facts", () => {
@@ -504,8 +533,11 @@ describe("ExecutionNodeCard", () => {
     expect(html).toContain("当前节点仍在等待 callback。");
     expect(html).toContain("优先观察定时恢复是否已重新排队。");
     expect(html).toContain("workflow catalog gap · native.catalog-gap");
+    expect(html).toContain("execution timeline 对应的 workflow 版本仍有 catalog gap");
     expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
     expect(html).toContain("legacy auth 1 legacy bindings");
+    expect(html).not.toContain('data-testid="callback-waiting-summary-card"');
+    expect(html).toContain('data-testid="workflow-governance-handoff-cards"');
   });
 
   it("surfaces compact runner facts in the node header strip", () => {

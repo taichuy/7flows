@@ -26,6 +26,7 @@ import {
 import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summary-card";
 import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SensitiveAccessTimelineEntryList } from "@/components/sensitive-access-timeline-entry-list";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import { pickCallbackWaitingSkillTraceForNode } from "@/lib/callback-waiting-focus-skill-trace";
 import { hasExecutionNodeCallbackWaitingSummaryFacts } from "@/lib/callback-waiting-facts";
 import {
@@ -299,42 +300,51 @@ export function ExecutionNodeCard({
         {node.last_event_type ? <span className="event-chip">last {node.last_event_type}</span> : null}
       </div>
 
-      <CallbackWaitingSummaryCard
-        currentHref={currentRunHref}
-        lifecycle={node.callback_waiting_lifecycle}
-        callbackWaitingExplanation={node.callback_waiting_explanation}
-        callbackTickets={node.callback_tickets}
-        callbackWaitingAutomation={callbackWaitingAutomation}
-        focusNodeEvidence={node}
-        focusSkillTrace={nodeSkillTrace}
-        focusSkillReferenceCount={node.skill_reference_load_count}
-        focusSkillReferenceLoads={node.skill_reference_loads}
-        focusSkillReferenceNodeId={node.node_id}
-        focusSkillReferenceNodeName={node.node_name}
-        sensitiveAccessEntries={node.sensitive_access_entries}
-        waitingReason={node.waiting_reason}
-        inboxHref={inboxHref}
-        runId={runId}
-        nodeRunId={node.node_run_id}
-        focusEvidenceDrilldownLink={focusEvidenceDrilldownLink}
-        scheduledResumeDelaySeconds={node.scheduled_resume_delay_seconds}
-        scheduledResumeSource={node.scheduled_resume_source}
-        scheduledWaitingStatus={node.scheduled_waiting_status}
-        scheduledResumeScheduledAt={node.scheduled_resume_scheduled_at}
-        scheduledResumeDueAt={node.scheduled_resume_due_at}
-        scheduledResumeRequeuedAt={node.scheduled_resume_requeued_at}
-        scheduledResumeRequeueSource={node.scheduled_resume_requeue_source}
-        workflowCatalogGapSummary={
-          callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapSummary
-        }
-        workflowCatalogGapDetail={
-          callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapDetail
-        }
-        workflowGovernanceHref={
-          callbackSummaryWorkflowGovernanceHandoff.workflowGovernanceHref
-        }
-        legacyAuthHandoff={callbackSummaryWorkflowGovernanceHandoff.legacyAuthHandoff}
-      />
+      {hasCallbackWaitingSummary ? (
+        <CallbackWaitingSummaryCard
+          currentHref={currentRunHref}
+          lifecycle={node.callback_waiting_lifecycle}
+          callbackWaitingExplanation={node.callback_waiting_explanation}
+          callbackTickets={node.callback_tickets}
+          callbackWaitingAutomation={callbackWaitingAutomation}
+          focusNodeEvidence={node}
+          focusSkillTrace={nodeSkillTrace}
+          focusSkillReferenceCount={node.skill_reference_load_count}
+          focusSkillReferenceLoads={node.skill_reference_loads}
+          focusSkillReferenceNodeId={node.node_id}
+          focusSkillReferenceNodeName={node.node_name}
+          sensitiveAccessEntries={node.sensitive_access_entries}
+          waitingReason={node.waiting_reason}
+          inboxHref={inboxHref}
+          runId={runId}
+          nodeRunId={node.node_run_id}
+          focusEvidenceDrilldownLink={focusEvidenceDrilldownLink}
+          scheduledResumeDelaySeconds={node.scheduled_resume_delay_seconds}
+          scheduledResumeSource={node.scheduled_resume_source}
+          scheduledWaitingStatus={node.scheduled_waiting_status}
+          scheduledResumeScheduledAt={node.scheduled_resume_scheduled_at}
+          scheduledResumeDueAt={node.scheduled_resume_due_at}
+          scheduledResumeRequeuedAt={node.scheduled_resume_requeued_at}
+          scheduledResumeRequeueSource={node.scheduled_resume_requeue_source}
+          workflowCatalogGapSummary={
+            callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapSummary
+          }
+          workflowCatalogGapDetail={
+            callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapDetail
+          }
+          workflowGovernanceHref={
+            callbackSummaryWorkflowGovernanceHandoff.workflowGovernanceHref
+          }
+          legacyAuthHandoff={callbackSummaryWorkflowGovernanceHandoff.legacyAuthHandoff}
+        />
+      ) : (
+        <WorkflowGovernanceHandoffCards
+          workflowCatalogGapSummary={callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapSummary}
+          workflowCatalogGapDetail={callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapDetail}
+          workflowGovernanceHref={callbackSummaryWorkflowGovernanceHandoff.workflowGovernanceHref}
+          legacyAuthHandoff={callbackSummaryWorkflowGovernanceHandoff.legacyAuthHandoff}
+        />
+      )}
 
       <MetricChipRow
         title="Event types"
