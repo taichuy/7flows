@@ -32,6 +32,15 @@ export type SensitiveAccessBulkWorkflowGovernanceSummary = {
   legacyAuthHandoff: LegacyPublishAuthWorkflowHandoff | null;
 };
 
+type BuildSensitiveAccessBulkRunSampleCardsOptions = {
+  resolveWorkflowDetailHref?: ((workflowId: string) => string | null) | null;
+};
+
+type BuildSensitiveAccessBulkWorkflowGovernanceSummaryOptions =
+  BuildSensitiveAccessBulkRunSampleCardsOptions & {
+    sampledRunCards?: SensitiveAccessBulkRunSampleCard[];
+  };
+
 export function buildSensitiveAccessBulkRecommendedNextStep(
   result: SensitiveAccessBulkActionResult,
   options: { currentHref?: string | null } = {}
@@ -119,16 +128,21 @@ export function buildSensitiveAccessBulkResultNarrative(
 }
 
 export function buildSensitiveAccessBulkRunSampleCards(
-  result: SensitiveAccessBulkActionResult
+  result: SensitiveAccessBulkActionResult,
+  { resolveWorkflowDetailHref = null }: BuildSensitiveAccessBulkRunSampleCardsOptions = {}
 ): SensitiveAccessBulkRunSampleCard[] {
-  return buildOperatorRunSampleCards(result.sampledRuns ?? []);
+  return buildOperatorRunSampleCards(result.sampledRuns ?? [], {
+    resolveWorkflowDetailHref
+  });
 }
 
 export function buildSensitiveAccessBulkWorkflowGovernanceSummary(
   result: SensitiveAccessBulkActionResult,
-  options: { sampledRunCards?: SensitiveAccessBulkRunSampleCard[] } = {}
+  options: BuildSensitiveAccessBulkWorkflowGovernanceSummaryOptions = {}
 ): SensitiveAccessBulkWorkflowGovernanceSummary | null {
-  const sampledRunCards = options.sampledRunCards ?? buildSensitiveAccessBulkRunSampleCards(result);
+  const { resolveWorkflowDetailHref = null } = options;
+  const sampledRunCards =
+    options.sampledRunCards ?? buildSensitiveAccessBulkRunSampleCards(result, options);
   const sampledRunCount = sampledRunCards.length;
   const catalogGapCount = sampledRunCards.filter((card) => card.workflowCatalogGapSummary).length;
   const legacyAuthCount = sampledRunCards.filter((card) => card.legacyAuthHandoff).length;
@@ -147,8 +161,15 @@ export function buildSensitiveAccessBulkWorkflowGovernanceSummary(
         ].join("::")
       : null
   );
+  const bulkLegacyWorkflowId = normalizeText(result.legacyAuthGovernance?.workflows[0]?.workflow_id);
   const bulkLegacyGovernance = result.legacyAuthGovernance
-    ? buildWorkflowGovernanceHandoff({ legacyAuthGovernance: result.legacyAuthGovernance })
+    ? buildWorkflowGovernanceHandoff({
+        workflowId: bulkLegacyWorkflowId,
+        workflowDetailHref: bulkLegacyWorkflowId
+          ? resolveWorkflowDetailHref?.(bulkLegacyWorkflowId) ?? null
+          : null,
+        legacyAuthGovernance: result.legacyAuthGovernance
+      })
     : null;
   const sharedWorkflowCatalogGapSummary =
     sampledRunCount > 1 && sharedCatalogGap?.appliesToAll
@@ -219,6 +240,11 @@ function normalizeExplanationText(
 ) {
   const value = explanation?.[key];
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeText(value?: string | null) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
 }
 
 function pushNarrativeItem(

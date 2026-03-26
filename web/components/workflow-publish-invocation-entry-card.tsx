@@ -20,6 +20,7 @@ import {
   buildPublishedInvocationEntryInboxLinkSurface,
   buildPublishedInvocationInboxHref,
   buildPublishedInvocationRecommendedNextStep,
+  buildPublishedInvocationRunFollowUpSampleWorkflowGovernanceHandoff,
   resolvePublishedInvocationRecommendedNextStepInboxHrefs,
   buildPublishedInvocationRunFollowUpSampleApprovalInboxHref,
   buildPublishedInvocationRunFollowUpSampleInboxHref,

@@ -368,6 +368,79 @@ describe("SensitiveAccessBulkGovernanceCard", () => {
     mockSearchParams = "";
   });
 
+  it("keeps workspace starter scope on sampled bulk workflow governance links", () => {
+    mockSearchParams =
+      "track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&needs_follow_up=true";
+
+    const lastResult: SensitiveAccessBulkActionResult = {
+      action: "retry",
+      status: "success",
+      message: "批量重试已提交。",
+      requestedCount: 1,
+      updatedCount: 1,
+      skippedCount: 0,
+      skippedReasonSummary: [],
+      affectedRunCount: 1,
+      sampledRunCount: 1,
+      waitingRunCount: 1,
+      runningRunCount: 0,
+      succeededRunCount: 0,
+      failedRunCount: 0,
+      unknownRunCount: 0,
+      blockerSampleCount: 0,
+      blockerChangedCount: 0,
+      blockerClearedCount: 0,
+      blockerFullyClearedCount: 0,
+      blockerStillBlockedCount: 0,
+      sampledRuns: [
+        {
+          runId: "run-scoped-1",
+          snapshot: {
+            workflowId: "workflow-scoped",
+            callbackWaitingExplanation: {
+              primary_signal: "当前 waiting 节点仍在等待 callback。",
+              follow_up: "优先观察定时恢复是否已重新排队。"
+            },
+            scheduledResumeDelaySeconds: 45,
+            scheduledResumeSource: "runtime_retry",
+            scheduledWaitingStatus: "waiting_callback"
+          },
+          toolGovernance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0
+          },
+          legacyAuthGovernance: buildLegacyAuthGovernanceSnapshot()
+        }
+      ]
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessBulkGovernanceCard, {
+        inScopeCount: 1,
+        decisionCandidateCount: 0,
+        retryCandidateCount: 1,
+        operatorValue: "ops-reviewer",
+        onOperatorChange: () => {},
+        isMutating: false,
+        lastResult,
+        message: null,
+        messageTone: "success",
+        onAction: () => {}
+      })
+    );
+
+    expect(html).toContain(
+      "/workflows/workflow-scoped?needs_follow_up=true&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool"
+    );
+    expect(html).toContain(
+      "/workflows/workflow-scoped?needs_follow_up=true&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=legacy_publish_auth"
+    );
+
+    mockSearchParams = "";
+  });
+
   it("defers duplicated bulk follow-up copy to the shared callback waiting summary", () => {
     const followUp = "优先观察定时恢复是否已重新排队。";
     const message = `批量重试已提交；${followUp}`;

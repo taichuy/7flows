@@ -19,6 +19,15 @@ type CallbackSummaryMockProps = {
   inboxHref?: string | null;
   recommendedAction?: { kind?: string | null; href?: string | null; label?: string | null } | null;
   preferCanonicalRecommendedNextStep?: boolean;
+  workflowCatalogGapSummary?: string | null;
+  workflowCatalogGapDetail?: string | null;
+  workflowCatalogGapHref?: string | null;
+  workflowGovernanceHref?: string | null;
+  legacyAuthHandoff?: {
+    bindingChipLabel?: string | null;
+    statusChipLabel?: string | null;
+    detail?: string | null;
+  } | null;
 };
 
 const callbackSummaryMock = vi.fn(
@@ -535,42 +544,50 @@ describe("RunDiagnosticsOperatorFollowUpCard", () => {
     expect(html).toContain("Recommended next step");
     expect(html).toContain("approval blocker");
     expect(html).toContain("open approval inbox slice");
-    expect(html).toContain("Workflow governance");
-    expect(html).toContain("catalog gap · native.catalog-gap");
-    expect(html).toContain("Legacy publish auth handoff");
-    expect(html).toContain("publish auth blocker");
-    expect(html).toContain(
-      "当前 callback summary 对应的 workflow 版本仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照 callback summary、execution focus 与 timeline。"
-    );
-    expect(html).toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
-    expect(html).toContain('href="/workflows/workflow-1?definition_issue=legacy_publish_auth"');
+    expect(html).not.toContain("Workflow governance");
+    expect(html).not.toContain("Legacy publish auth handoff");
     expect(html).toContain(
       'href="/sensitive-access?status=pending&amp;waiting_status=waiting&amp;run_id=run-123&amp;node_run_id=node-run-1&amp;access_request_id=access-request-1&amp;approval_ticket_id=approval-ticket-1"'
     );
     expect(callbackSummaryMock).toHaveBeenCalled();
-    expect(callbackSummaryMock.mock.calls[0]?.[0]).toMatchObject({
-      callbackTickets: [
-        expect.objectContaining({
-          ticket: "callback-ticket-1"
-        })
-      ],
-      sensitiveAccessEntries: [
-        expect.objectContaining({
-          request: expect.objectContaining({
-            id: "access-request-1"
-          })
-        })
-      ],
-      inboxHref:
-        "/sensitive-access?status=pending&waiting_status=waiting&run_id=run-123&node_run_id=node-run-1&access_request_id=access-request-1&approval_ticket_id=approval-ticket-1",
-      recommendedAction: expect.objectContaining({
-        kind: "approval blocker",
-        href:
-          "/sensitive-access?status=pending&waiting_status=waiting&run_id=run-123&node_run_id=node-run-1&access_request_id=access-request-1&approval_ticket_id=approval-ticket-1",
-        label: "open approval inbox slice"
-      }),
-      preferCanonicalRecommendedNextStep: true
-    });
+    expect(
+      callbackSummaryMock.mock.calls.some(([props]) => {
+        expect(props).toMatchObject({
+          callbackTickets: [
+            expect.objectContaining({
+              ticket: "callback-ticket-1"
+            })
+          ],
+          sensitiveAccessEntries: [
+            expect.objectContaining({
+              request: expect.objectContaining({
+                id: "access-request-1"
+              })
+            })
+          ],
+          inboxHref:
+            "/sensitive-access?status=pending&waiting_status=waiting&run_id=run-123&node_run_id=node-run-1&access_request_id=access-request-1&approval_ticket_id=approval-ticket-1",
+          recommendedAction: expect.objectContaining({
+            kind: "approval blocker",
+            href:
+              "/sensitive-access?status=pending&waiting_status=waiting&run_id=run-123&node_run_id=node-run-1&access_request_id=access-request-1&approval_ticket_id=approval-ticket-1",
+            label: "open approval inbox slice"
+          }),
+          workflowCatalogGapSummary: "catalog gap · native.catalog-gap",
+          workflowCatalogGapDetail:
+            "当前 callback summary 对应的 workflow 版本仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照 callback summary、execution focus 与 timeline。",
+          workflowCatalogGapHref: "/workflows/workflow-1?definition_issue=missing_tool",
+          workflowGovernanceHref: "/workflows/workflow-1?definition_issue=legacy_publish_auth",
+          legacyAuthHandoff: expect.objectContaining({
+            statusChipLabel: "publish auth blocker",
+            detail: expect.stringContaining("1 条 published blocker")
+          }),
+          preferCanonicalRecommendedNextStep: true
+        });
+
+        return true;
+      })
+    ).toBe(true);
   });
 
   it("returns nothing when neither snapshot nor follow-up facts exist", () => {

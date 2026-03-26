@@ -19,6 +19,7 @@ import {
   buildSensitiveAccessBulkWorkflowGovernanceSummary
 } from "@/lib/sensitive-access-bulk-result-presenters";
 import {
+  buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   buildRunDetailHrefFromWorkspaceStarterViewState,
   readWorkspaceStarterLibraryViewState
 } from "@/lib/workspace-starter-governance-query";
@@ -73,12 +74,26 @@ export function SensitiveAccessBulkGovernanceCard({
       ),
     [workspaceStarterViewState]
   );
+  const resolveWorkflowDetailHref = React.useCallback(
+    (workflowId: string) =>
+      buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+        workflowId,
+        viewState: workspaceStarterViewState,
+        variant: "editor"
+      }).href,
+    [workspaceStarterViewState]
+  );
   const recommendedNextStep = lastResult
     ? buildSensitiveAccessBulkRecommendedNextStep(lastResult, { currentHref })
     : null;
-  const sampledRunCards = lastResult ? buildSensitiveAccessBulkRunSampleCards(lastResult) : [];
+  const sampledRunCards = lastResult
+    ? buildSensitiveAccessBulkRunSampleCards(lastResult, { resolveWorkflowDetailHref })
+    : [];
   const workflowGovernanceSummary = lastResult
-    ? buildSensitiveAccessBulkWorkflowGovernanceSummary(lastResult, { sampledRunCards })
+    ? buildSensitiveAccessBulkWorkflowGovernanceSummary(lastResult, {
+        sampledRunCards,
+        resolveWorkflowDetailHref
+      })
     : null;
   const narrativeItems = lastResult ? buildSensitiveAccessBulkResultNarrative(lastResult) : [];
   const callbackWaitingSummaryProps: CallbackWaitingSummaryProps = React.useMemo(

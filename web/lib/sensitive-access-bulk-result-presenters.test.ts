@@ -526,6 +526,64 @@ describe("buildSensitiveAccessBulkResultNarrative", () => {
     });
   });
 
+  it("透传 workspace-scoped workflow href 给 sampled run governance handoff", () => {
+    const cards = buildSensitiveAccessBulkRunSampleCards(
+      {
+        action: "retry",
+        status: "success",
+        message: "fallback",
+        requestedCount: 1,
+        updatedCount: 1,
+        skippedCount: 0,
+        skippedReasonSummary: [],
+        affectedRunCount: 1,
+        sampledRunCount: 1,
+        waitingRunCount: 1,
+        runningRunCount: 0,
+        succeededRunCount: 0,
+        failedRunCount: 0,
+        unknownRunCount: 0,
+        blockerSampleCount: 0,
+        blockerChangedCount: 0,
+        blockerClearedCount: 0,
+        blockerFullyClearedCount: 0,
+        blockerStillBlockedCount: 0,
+        sampledRuns: [
+          {
+            runId: "run-scoped-1",
+            snapshot: {
+              workflowId: "workflow-scoped",
+              callbackWaitingExplanation: {
+                primary_signal: "当前 waiting 节点仍在等待 callback。",
+                follow_up: "优先观察定时恢复是否已重新排队。"
+              },
+              scheduledResumeDelaySeconds: 45,
+              scheduledResumeSource: "runtime_retry",
+              scheduledWaitingStatus: "waiting_callback"
+            },
+            toolGovernance: {
+              referenced_tool_ids: ["native.catalog-gap"],
+              missing_tool_ids: ["native.catalog-gap"],
+              governed_tool_count: 0,
+              strong_isolation_tool_count: 0
+            }
+          }
+        ]
+      },
+      {
+        resolveWorkflowDetailHref: (workflowId) =>
+          `/workflows/${workflowId}?needs_follow_up=true&track=应用新建编排`
+      }
+    );
+
+    expect(cards[0]).toMatchObject({
+      workflowCatalogGapHref:
+        "/workflows/workflow-scoped?needs_follow_up=true&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool",
+      workflowGovernanceHref:
+        "/workflows/workflow-scoped?needs_follow_up=true&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool"
+    });
+  });
+
   it("忽略没有任何结构化 focus evidence 的 sampled run", () => {
     const cards = buildSensitiveAccessBulkRunSampleCards({
       action: "retry",
@@ -643,6 +701,83 @@ describe("buildSensitiveAccessBulkWorkflowGovernanceSummary", () => {
     });
     expect(summary?.legacyAuthHandoff).toMatchObject({
       bindingChipLabel: "1 legacy bindings",
+      statusChipLabel: "publish auth blocker"
+    });
+  });
+
+  it("keeps workspace-scoped workflow href on shared legacy-auth handoff", () => {
+    const summary = buildSensitiveAccessBulkWorkflowGovernanceSummary(
+      {
+        action: "retry",
+        status: "success",
+        message: "fallback",
+        requestedCount: 2,
+        updatedCount: 2,
+        skippedCount: 0,
+        skippedReasonSummary: [],
+        affectedRunCount: 2,
+        sampledRunCount: 2,
+        waitingRunCount: 2,
+        runningRunCount: 0,
+        succeededRunCount: 0,
+        failedRunCount: 0,
+        unknownRunCount: 0,
+        blockerSampleCount: 0,
+        blockerChangedCount: 0,
+        blockerClearedCount: 0,
+        blockerFullyClearedCount: 0,
+        blockerStillBlockedCount: 0,
+        legacyAuthGovernance:
+          buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+            binding: {
+              workflow_id: "workflow-shared",
+              workflow_name: "Shared Workflow",
+              binding_id: "binding-demo",
+              endpoint_id: "endpoint-demo",
+              endpoint_name: "Demo Endpoint",
+              workflow_version: "v1"
+            }
+          }),
+        sampledRuns: [
+          {
+            runId: "run-shared-1",
+            snapshot: {
+              workflowId: "workflow-shared",
+              callbackWaitingExplanation: {
+                primary_signal: "waiting 仍在排队。",
+                follow_up: "继续观察定时恢复。"
+              },
+              scheduledResumeDelaySeconds: 30,
+              scheduledResumeSource: "runtime_retry",
+              scheduledWaitingStatus: "waiting_callback"
+            }
+          },
+          {
+            runId: "run-shared-2",
+            snapshot: {
+              workflowId: "workflow-shared",
+              callbackWaitingExplanation: {
+                primary_signal: "第二个 waiting 仍在排队。",
+                follow_up: "继续观察定时恢复。"
+              },
+              scheduledResumeDelaySeconds: 45,
+              scheduledResumeSource: "runtime_retry",
+              scheduledWaitingStatus: "waiting_callback"
+            }
+          }
+        ]
+      },
+      {
+        resolveWorkflowDetailHref: (workflowId) =>
+          `/workflows/${workflowId}?needs_follow_up=true&track=应用新建编排`
+      }
+    );
+
+    expect(summary).toMatchObject({
+      workflowGovernanceHref:
+        "/workflows/workflow-shared?needs_follow_up=true&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=legacy_publish_auth"
+    });
+    expect(summary?.legacyAuthHandoff).toMatchObject({
       statusChipLabel: "publish auth blocker"
     });
   });

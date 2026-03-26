@@ -5,7 +5,6 @@ import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summar
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
-import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import { buildCallbackTicketInboxHref } from "@/lib/callback-ticket-links";
 import { pickCallbackWaitingInlineSensitiveAccessEntry } from "@/lib/callback-waiting-presenters";
 import { formatSensitiveResourceGovernanceSummary } from "@/lib/credential-governance";
@@ -335,10 +334,6 @@ export function RunDiagnosticsOperatorFollowUpCard({
           sensitiveAccessEntries={callbackSummarySensitiveAccessEntries}
           showFocusExecutionFacts
           showInlineActions={false}
-        />
-      ) : null}
-      {snapshot ? (
-        <WorkflowGovernanceHandoffCards
           workflowCatalogGapSummary={
             callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapSummary
           }

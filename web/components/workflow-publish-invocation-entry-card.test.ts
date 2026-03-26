@@ -1001,6 +1001,8 @@ describe("WorkflowPublishInvocationEntryCard", () => {
         })
       );
 
+      console.log("ENTRY_PROPS", JSON.stringify(callbackSummaryProps, null, 2));
+
       expect(
         callbackSummaryProps.some(
           (props) =>
@@ -1049,7 +1051,10 @@ describe("WorkflowPublishInvocationEntryCard", () => {
     );
   });
 
-  it("keeps workspace starter scope on sampled workflow governance handoff links", () => {
+  it("keeps workspace starter scope on sampled workflow governance handoff links", async () => {
+    vi.resetModules();
+
+    const callbackSummaryProps: Array<Record<string, unknown>> = [];
     const item = buildInvocationItem();
     item.run_follow_up!.sampled_runs[0] = {
       ...item.run_follow_up!.sampled_runs[0],
@@ -1103,25 +1108,56 @@ describe("WorkflowPublishInvocationEntryCard", () => {
       }
     };
 
-    const html = renderToStaticMarkup(
-      createElement(WorkflowPublishInvocationEntryCard, {
-        item,
-        detailHref: "/workflows/workflow-1?publish_invocation=invocation-1",
-        detailActive: false,
-        workspaceStarterGovernanceQueryScope: {
-          activeTrack: "应用新建编排",
-          sourceGovernanceKind: "drifted",
-          needsFollowUp: true,
-          searchQuery: "drift",
-          selectedTemplateId: "starter-1"
-        }
-      })
-    );
+    vi.doMock("next/link", () => ({
+      default: ({
+        children,
+        href,
+        ...props
+      }: {
+        children: ReactNode;
+        href?: string;
+      } & Record<string, unknown>) => createElement("a", { href: href ?? "#", ...props }, children)
+    }));
+    vi.doMock("@/components/callback-waiting-summary-card", () => ({
+      CallbackWaitingSummaryCard: (props: Record<string, unknown>) => {
+        callbackSummaryProps.push(props);
+        return createElement("div", { "data-testid": "callback-waiting-summary-card" });
+      }
+    }));
 
-    expect(html).toContain(
-      '/workflows/workflow-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
-    );
-    expect(html).toContain('definition_issue=missing_tool');
-    expect(html).toContain('definition_issue=legacy_publish_auth');
+    try {
+      const { WorkflowPublishInvocationEntryCard: IsolatedWorkflowPublishInvocationEntryCard } =
+        await import("@/components/workflow-publish-invocation-entry-card");
+
+      renderToStaticMarkup(
+        createElement(IsolatedWorkflowPublishInvocationEntryCard, {
+          item,
+          detailHref: "/workflows/workflow-1?publish_invocation=invocation-1",
+          detailActive: false,
+          workspaceStarterGovernanceQueryScope: {
+            activeTrack: "应用新建编排",
+            sourceGovernanceKind: "drifted",
+            needsFollowUp: true,
+            searchQuery: "drift",
+            selectedTemplateId: "starter-1"
+          }
+        })
+      );
+
+      expect(
+        callbackSummaryProps.some(
+          (props) =>
+            props.runId === "run-callback-1" &&
+            props.workflowCatalogGapHref ===
+              "/workflows/workflow-1?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool" &&
+            props.workflowGovernanceHref ===
+              "/workflows/workflow-1?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=legacy_publish_auth"
+        )
+      ).toBe(true);
+    } finally {
+      vi.doUnmock("@/components/callback-waiting-summary-card");
+      vi.doUnmock("next/link");
+      vi.resetModules();
+    }
   });
 });
