@@ -606,6 +606,77 @@ describe("SensitiveAccessInboxEntryCard", () => {
     expect(html).toContain('href="/workflows/workflow-1?definition_issue=legacy_publish_auth"');
   });
 
+  it("derives callback summary workflow governance handoffs from the canonical sampled run", () => {
+    const entry = buildEntry();
+    const legacyAuthGovernance = buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+      binding: {
+        workflow_id: "workflow-1",
+        workflow_name: "Inbox workflow"
+      }
+    });
+    entry.callbackWaitingContext = {
+      runId: "run-1",
+      displayNodeRunId: "node-run-1",
+      actionNodeRunId: "node-run-1",
+      callbackTickets: [],
+      callbackWaitingExplanation: {
+        primary_signal: "当前 callback waiting 仍卡在审批恢复阶段。",
+        follow_up: "先处理 workflow definition issue，再回来看 inbox slice。"
+      },
+      lifecycle: null,
+      sensitiveAccessEntries: [],
+      waitingReason: "approval pending"
+    };
+    entry.runFollowUp = {
+      affectedRunCount: 1,
+      sampledRunCount: 1,
+      waitingRunCount: 1,
+      runningRunCount: 0,
+      succeededRunCount: 0,
+      failedRunCount: 0,
+      unknownRunCount: 0,
+      recommendedAction: null,
+      sampledRuns: [
+        {
+          runId: "run-1",
+          snapshot: {
+            workflowId: "workflow-1"
+          },
+          callbackTickets: [],
+          sensitiveAccessEntries: [],
+          toolGovernance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0
+          },
+          legacyAuthGovernance
+        }
+      ]
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(SensitiveAccessInboxEntryCard, {
+        entry,
+        currentHref:
+          "/workflows/workflow-1?source_governance_kind=drifted&starter=starter-openclaw&publish_invocation=invocation-1"
+      })
+    );
+
+    expect(html).toContain("Workflow governance");
+    expect(html).toContain("catalog gap · native.catalog-gap");
+    expect(html).toContain("Legacy publish auth handoff");
+    expect(html).toContain("当前 callback summary 对应的 workflow 版本仍有 catalog gap");
+    expect(html).toContain(
+      'href="/workflows/workflow-1?source_governance_kind=drifted&amp;starter=starter-openclaw&amp;definition_issue=missing_tool"'
+    );
+    expect(html).toContain(
+      'href="/workflows/workflow-1?source_governance_kind=drifted&amp;starter=starter-openclaw&amp;definition_issue=legacy_publish_auth"'
+    );
+    expect(html).not.toContain("publish_invocation=invocation-1");
+    expect(html.match(/Workflow governance/g)?.length ?? 0).toBe(1);
+  });
+
   it("renders workflow governance handoff when callback summary context is unavailable", () => {
     const entry = buildEntry();
     const legacyAuthGovernance = buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({

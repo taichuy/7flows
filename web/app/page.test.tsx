@@ -2,7 +2,7 @@ import * as React from "react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import HomePage from "@/app/page";
 import { getCredentialActivity, getCredentials } from "@/lib/get-credentials";
@@ -80,6 +80,10 @@ vi.mock("@/lib/get-workflows", () => ({
   getWorkflowDetail: vi.fn(),
   getWorkflows: vi.fn()
 }));
+
+beforeEach(() => {
+  vi.resetAllMocks();
+});
 
 function buildPluginRegistrySnapshot(
   overrides: Partial<Awaited<ReturnType<typeof getPluginRegistrySnapshot>>> = {}

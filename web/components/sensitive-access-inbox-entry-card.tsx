@@ -57,6 +57,7 @@ import {
   formatSensitiveAccessReasonLabel,
   getSensitiveAccessPolicySummary
 } from "@/lib/sensitive-access-presenters";
+import { buildWorkflowGovernanceDetailHrefFromCurrentHref } from "@/lib/workflow-governance-handoff";
 import { buildSensitiveAccessInboxEntryExecutionSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 
 type SensitiveAccessInboxEntryCardProps = {
@@ -195,6 +196,21 @@ export function SensitiveAccessInboxEntryCard({
         subjectLabel: "sensitive access inbox entry",
         returnDetail:
           "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对当前审批票据、execution focus 与 inbox slice。"
+      })
+    : null;
+  const callbackSummaryWorkflowGovernanceHandoff = callbackWaitingContext
+    ? buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff({
+        entry,
+        runSnapshot: entry.runSnapshot ?? null,
+        canonicalRunId: executionContext?.runId ?? null,
+        resolveWorkflowDetailHref: (workflowId) =>
+          buildWorkflowGovernanceDetailHrefFromCurrentHref({
+            workflowId,
+            currentHref
+          }),
+        subjectLabel: "callback summary",
+        returnDetail:
+          "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续处理当前 sensitive access inbox slice 与 callback waiting。"
       })
     : null;
   const recommendedNextStep = !shouldDeferToSharedCallbackWaitingSummary && executionSurfaceCopy
@@ -369,11 +385,26 @@ export function SensitiveAccessInboxEntryCard({
             waitingReason={callbackWaitingContext.waitingReason}
             focusSkillReferenceNodeId={executionContext?.focusNode.node_id ?? null}
             focusSkillReferenceNodeName={executionContext?.focusNode.node_name ?? null}
-            workflowCatalogGapSummary={callbackWaitingContext.workflowCatalogGapSummary}
-            workflowCatalogGapDetail={callbackWaitingContext.workflowCatalogGapDetail}
-            workflowCatalogGapHref={callbackWaitingContext.workflowCatalogGapHref}
-            workflowGovernanceHref={callbackWaitingContext.workflowGovernanceHref}
-            legacyAuthHandoff={callbackWaitingContext.legacyAuthHandoff}
+            workflowCatalogGapSummary={
+              callbackSummaryWorkflowGovernanceHandoff?.workflowCatalogGapSummary ??
+              callbackWaitingContext.workflowCatalogGapSummary
+            }
+            workflowCatalogGapDetail={
+              callbackSummaryWorkflowGovernanceHandoff?.workflowCatalogGapDetail ??
+              callbackWaitingContext.workflowCatalogGapDetail
+            }
+            workflowCatalogGapHref={
+              callbackSummaryWorkflowGovernanceHandoff?.workflowCatalogGapHref ??
+              callbackWaitingContext.workflowCatalogGapHref
+            }
+            workflowGovernanceHref={
+              callbackSummaryWorkflowGovernanceHandoff?.workflowGovernanceHref ??
+              callbackWaitingContext.workflowGovernanceHref
+            }
+            legacyAuthHandoff={
+              callbackSummaryWorkflowGovernanceHandoff?.legacyAuthHandoff ??
+              callbackWaitingContext.legacyAuthHandoff
+            }
           />
         </div>
       ) : null}

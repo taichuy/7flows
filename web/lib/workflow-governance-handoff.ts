@@ -19,7 +19,6 @@ import {
 } from "@/lib/workflow-library-query";
 import {
   DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE,
-  buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   readWorkspaceStarterLibraryViewState
 } from "@/lib/workspace-starter-governance-query";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
