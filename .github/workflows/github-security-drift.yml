@@ -54,13 +54,32 @@ jobs:
       open_alert_count: ${{ steps.drift.outputs.open_alert_count }}
       actionable_alert_count: ${{ steps.drift.outputs.actionable_alert_count }}
       dependency_submission_run_available: ${{ steps.drift.outputs.dependency_submission_run_available }}
+      dependency_submission_fetch_blocked_by_actions_read_permission: ${{ steps.drift.outputs.dependency_submission_fetch_blocked_by_actions_read_permission }}
+      dependency_submission_report_download_blocked_by_actions_read_permission: ${{ steps.drift.outputs.dependency_submission_report_download_blocked_by_actions_read_permission }}
+      dependency_graph_visible_roots_json: ${{ steps.drift.outputs.dependency_graph_visible_roots_json }}
       dependency_graph_missing_roots_json: ${{ steps.drift.outputs.dependency_graph_missing_roots_json }}
+      dependency_graph_check_error: ${{ steps.drift.outputs.dependency_graph_check_error }}
       tracking_issue_action: ${{ steps.sync_issue.outputs.tracking_issue_action }}
       tracking_issue_number: ${{ steps.sync_issue.outputs.tracking_issue_number }}
       tracking_issue_url: ${{ steps.sync_issue.outputs.tracking_issue_url }}
       tracking_issue_should_track: ${{ steps.sync_issue.outputs.tracking_issue_should_track }}
       tracking_issue_current_ref: ${{ steps.sync_issue.outputs.tracking_issue_current_ref }}
       tracking_issue_default_branch: ${{ steps.sync_issue.outputs.tracking_issue_default_branch }}
+      tracking_issue_state_fingerprint: ${{ steps.sync_issue.outputs.tracking_issue_state_fingerprint }}
+      tracking_issue_resolved: ${{ steps.sync_issue.outputs.tracking_issue_resolved }}
+      tracking_issue_state_changed: ${{ steps.sync_issue.outputs.tracking_issue_state_changed }}
+      tracking_issue_primary_action_priority: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_priority }}
+      tracking_issue_primary_action_code: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_code }}
+      tracking_issue_primary_action_audience: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_audience }}
+      tracking_issue_primary_action_summary: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_summary }}
+      tracking_issue_primary_action_rationale: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_rationale }}
+      tracking_issue_primary_action_roots_json: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_roots_json }}
+      tracking_issue_primary_action_href: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_href }}
+      tracking_issue_primary_action_href_label: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_href_label }}
+      tracking_issue_primary_action_manual_only: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_manual_only }}
+      tracking_issue_primary_action_manual_only_reason: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_manual_only_reason }}
+      tracking_issue_primary_action_documentation_href: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_documentation_href }}
+      tracking_issue_primary_action_documentation_href_label: ${{ steps.sync_issue.outputs.tracking_issue_primary_action_documentation_href_label }}
     permissions:
       actions: read
       contents: read

@@ -107,12 +107,16 @@ function resolveDependencyGraphSupport(ecosystem) {
 function buildGraphCoverageBuckets(manifestCoverage) {
   return {
     missingNativeGraphRoots: manifestCoverage.filter(
-      (item) => item.dependencyGraphSupported && !item.graphVisible,
+      (item) => item.dependencyGraphSupported && item.graphVisible === false,
     ),
     dependencySubmissionRoots: manifestCoverage.filter(
       (item) => item.dependencyGraphSupport === 'dependency_submission',
     ),
   };
+}
+
+function isGitHubApiRateLimitError(message) {
+  return typeof message === 'string' && /rate limit exceeded|secondary rate limit|rate limit/i.test(message);
 }
 
 function hasDependencyGraphRepositoryBlocker(dependencySubmissionEvidence) {
@@ -713,6 +717,15 @@ function buildWorkspaceManifestCoverage(workspaceManifestInventory, manifestNode
       matchedGraphFilenames,
     };
   });
+}
+
+function buildUnknownManifestCoverage(workspaceManifestInventory) {
+  return workspaceManifestInventory.map((item) => ({
+    ...item,
+    dependencyGraphSupported: item.dependencyGraphSupport === 'native',
+    graphVisible: null,
+    matchedGraphFilenames: [],
+  }));
 }
 
 function collectPackageVersions(lockfileText, packageName) {
@@ -1411,15 +1424,23 @@ function buildDriftStepOutputs(report) {
         ? String(report.dependabotAlerts.actionableAlertCount)
         : '',
     dependency_submission_run_available: dependencySubmissionEvidence?.runAvailable ? 'true' : 'false',
+    dependency_submission_fetch_blocked_by_actions_read_permission:
+      dependencySubmissionEvidence?.fetchBlockedByActionsReadPermission ? 'true' : 'false',
+    dependency_submission_report_download_blocked_by_actions_read_permission:
+      dependencySubmissionEvidence?.reportDownloadBlockedByActionsReadPermission ? 'true' : 'false',
     repository_blocker_kind: repositoryBlockerEvidence?.kind || '',
     repository_blocker_status:
       Number.isInteger(repositoryBlockerEvidence?.status)
         ? String(repositoryBlockerEvidence.status)
         : '',
     repository_blocker_roots_json: JSON.stringify(repositoryBlockerEvidence?.rootLabels || []),
+    dependency_graph_visible_roots_json: JSON.stringify(
+      dependencyGraphVisibility?.visibleRoots || [],
+    ),
     dependency_graph_missing_roots_json: JSON.stringify(
       dependencyGraphVisibility?.missingRoots || [],
     ),
+    dependency_graph_check_error: dependencyGraphVisibility?.checkError || '',
   };
 }
 

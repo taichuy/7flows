@@ -216,6 +216,25 @@ function buildIssueStateMarker(metadata) {
   return `<!-- ${DEFAULT_ISSUE_STATE_MARKER} ${JSON.stringify(metadata)} -->`;
 }
 
+function buildIssueTrackingState(report, { resolved = false } = {}) {
+  return {
+    fingerprint: buildIssueStateFingerprint(report, { resolved }),
+    resolved,
+  };
+}
+
+function hasIssueTrackingStateChanged(previousState, nextState) {
+  if (!nextState || typeof nextState !== 'object') {
+    return false;
+  }
+
+  if (!previousState || typeof previousState !== 'object') {
+    return true;
+  }
+
+  return previousState.fingerprint !== nextState.fingerprint || previousState.resolved !== nextState.resolved;
+}
+
 function parseIssueStateMetadata(body) {
   if (typeof body !== 'string' || !body.trim()) {
     return null;
@@ -337,10 +356,7 @@ function buildIssueBody(report, options = {}) {
   const stateMetadata =
     options.stateMetadata && typeof options.stateMetadata === 'object'
       ? options.stateMetadata
-      : {
-          fingerprint: buildIssueStateFingerprint(report, { resolved }),
-          resolved,
-        };
+      : buildIssueTrackingState(report, { resolved });
   const historyLines = Array.isArray(options.historyLines) ? options.historyLines : [buildHistoryEntry(report, { resolved })];
   const repository = normalizeRepositoryCoordinates(report?.repository);
   const dependencySubmissionEvidence =
@@ -561,14 +577,8 @@ async function syncIssueFromReport(report, options = {}) {
     normalizeOptionalString(options.currentRefName) ||
     normalizeOptionalString(process.env.GITHUB_REF_NAME) ||
     normalizeOptionalString(process.env.GITHUB_HEAD_REF);
-  const trackingStateMetadata = {
-    fingerprint: buildIssueStateFingerprint(report, { resolved: false }),
-    resolved: false,
-  };
-  const resolvedStateMetadata = {
-    fingerprint: buildIssueStateFingerprint(report, { resolved: true }),
-    resolved: true,
-  };
+  const trackingStateMetadata = buildIssueTrackingState(report, { resolved: false });
+  const resolvedStateMetadata = buildIssueTrackingState(report, { resolved: true });
   const dryRunTrackingBody = buildIssueBody(report, {
     issueMarker,
     resolved: false,
@@ -589,15 +599,21 @@ async function syncIssueFromReport(report, options = {}) {
       shouldTrack,
       currentRefName,
       defaultBranch,
+      trackingState: shouldTrack ? trackingStateMetadata : resolvedStateMetadata,
+      trackingStateChanged: false,
     };
   }
 
   if (options.dryRun) {
+    const trackingState = shouldTrack ? trackingStateMetadata : resolvedStateMetadata;
+
     return {
       action: shouldTrack ? 'dry_run_track' : 'dry_run_resolved',
       issueNumber: null,
       body: shouldTrack ? dryRunTrackingBody : dryRunResolvedBody,
       shouldTrack,
+      trackingState,
+      trackingStateChanged: true,
     };
   }
 
@@ -630,6 +646,8 @@ async function syncIssueFromReport(report, options = {}) {
     stateMetadata: trackingStateMetadata,
     historyLines: trackingHistoryLines,
   });
+  const trackingStateChanged = hasIssueTrackingStateChanged(previousState, trackingStateMetadata);
+  const resolvedStateChanged = hasIssueTrackingStateChanged(previousState, resolvedStateMetadata);
 
   if (!shouldTrack) {
     if (!existingIssue || existingIssue.state !== 'open' || options.closeResolved === false) {
@@ -637,6 +655,8 @@ async function syncIssueFromReport(report, options = {}) {
         action: 'noop',
         issueNumber: existingIssue?.number || null,
         shouldTrack,
+        trackingState: resolvedStateMetadata,
+        trackingStateChanged: resolvedStateChanged,
       };
     }
 
@@ -658,6 +678,8 @@ async function syncIssueFromReport(report, options = {}) {
       action: 'closed',
       issueNumber: closedIssue.number,
       shouldTrack,
+      trackingState: resolvedStateMetadata,
+      trackingStateChanged: resolvedStateChanged,
     };
   }
 
@@ -678,6 +700,8 @@ async function syncIssueFromReport(report, options = {}) {
       action: 'created',
       issueNumber: createdIssue.number,
       shouldTrack,
+      trackingState: trackingStateMetadata,
+      trackingStateChanged: true,
     };
   }
 
@@ -689,6 +713,8 @@ async function syncIssueFromReport(report, options = {}) {
       action: 'noop',
       issueNumber: existingIssue.number,
       shouldTrack,
+      trackingState: trackingStateMetadata,
+      trackingStateChanged,
     };
   }
 
@@ -709,6 +735,8 @@ async function syncIssueFromReport(report, options = {}) {
     action: existingIssue.state === 'closed' ? 'reopened' : 'updated',
     issueNumber: updatedIssue.number,
     shouldTrack,
+    trackingState: trackingStateMetadata,
+    trackingStateChanged,
   };
 }
 
@@ -717,6 +745,12 @@ function buildIssueSyncStepOutputs(result = {}, report = {}) {
   const issueNumber = Number.isInteger(result?.issueNumber) ? result.issueNumber : null;
   const defaultBranch =
     normalizeOptionalString(result?.defaultBranch) || normalizeOptionalString(report?.defaultBranch) || '';
+  const trackingState =
+    result?.trackingState && typeof result.trackingState === 'object'
+      ? result.trackingState
+      : buildIssueTrackingState(report, { resolved: result?.shouldTrack === true ? false : true });
+  const recommendedActions = Array.isArray(report?.recommendedActions) ? report.recommendedActions : [];
+  const primaryAction = recommendedActions[0] && typeof recommendedActions[0] === 'object' ? recommendedActions[0] : null;
 
   return {
     tracking_issue_action: normalizeOptionalString(result?.action) || '',
@@ -725,6 +759,26 @@ function buildIssueSyncStepOutputs(result = {}, report = {}) {
     tracking_issue_should_track: result?.shouldTrack === true ? 'true' : 'false',
     tracking_issue_current_ref: normalizeOptionalString(result?.currentRefName) || '',
     tracking_issue_default_branch: defaultBranch,
+    tracking_issue_state_fingerprint: normalizeOptionalString(trackingState?.fingerprint) || '',
+    tracking_issue_resolved: trackingState?.resolved === true ? 'true' : 'false',
+    tracking_issue_state_changed: result?.trackingStateChanged === true ? 'true' : 'false',
+    tracking_issue_primary_action_priority: Number.isInteger(primaryAction?.priority)
+      ? String(primaryAction.priority)
+      : '',
+    tracking_issue_primary_action_code: normalizeOptionalString(primaryAction?.code) || '',
+    tracking_issue_primary_action_audience: normalizeOptionalString(primaryAction?.audience) || '',
+    tracking_issue_primary_action_summary: normalizeOptionalString(primaryAction?.summary) || '',
+    tracking_issue_primary_action_rationale: normalizeOptionalString(primaryAction?.rationale) || '',
+    tracking_issue_primary_action_roots_json: JSON.stringify(normalizeList(primaryAction?.roots)),
+    tracking_issue_primary_action_href: normalizeOptionalString(primaryAction?.href) || '',
+    tracking_issue_primary_action_href_label: normalizeOptionalString(primaryAction?.hrefLabel) || '',
+    tracking_issue_primary_action_manual_only: primaryAction?.manualOnly === true ? 'true' : 'false',
+    tracking_issue_primary_action_manual_only_reason:
+      normalizeOptionalString(primaryAction?.manualOnlyReason) || '',
+    tracking_issue_primary_action_documentation_href:
+      normalizeOptionalString(primaryAction?.documentationHref) || '',
+    tracking_issue_primary_action_documentation_href_label:
+      normalizeOptionalString(primaryAction?.documentationHrefLabel) || '',
   };
 }
 
@@ -761,7 +815,9 @@ module.exports = {
   buildIssueHistory,
   buildIssueSyncStepOutputs,
   buildIssueStateFingerprint,
+  buildIssueTrackingState,
   findTrackedIssue,
+  hasIssueTrackingStateChanged,
   hasExternalBlocker,
   normalizeRepositoryCoordinates,
   parseIssueHistoryLines,

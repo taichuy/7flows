@@ -7,6 +7,8 @@ const {
   buildIssueBody,
   buildIssueSyncStepOutputs,
   buildIssueStateFingerprint,
+  buildIssueTrackingState,
+  hasIssueTrackingStateChanged,
   hasExternalBlocker,
   parseIssueHistoryLines,
   parseIssueStateMetadata,
@@ -236,6 +238,34 @@ test('buildIssueBody embeds parseable state metadata and history markers', () =>
   assert.match(parsedHistory[0], /external|外部阻塞/);
 });
 
+test('hasIssueTrackingStateChanged only flips when blocker semantics change', () => {
+  const report = createReport();
+  const sameState = buildIssueTrackingState(report, { resolved: false });
+
+  assert.equal(hasIssueTrackingStateChanged(sameState, sameState), false);
+  assert.equal(
+    hasIssueTrackingStateChanged(
+      sameState,
+      buildIssueTrackingState(
+        createReport({
+          recommendedActions: [
+            {
+              priority: 1,
+              audience: 'repository_admin',
+              code: 'configure_dependabot_alerts_token',
+              summary: '配置 `DEPENDABOT_ALERTS_TOKEN`。',
+              roots: [],
+            },
+          ],
+        }),
+        { resolved: false },
+      ),
+    ),
+    true,
+  );
+  assert.equal(hasIssueTrackingStateChanged(null, sameState), true);
+});
+
 test('buildIssueBody treats missing dependency graph fields as manual verification even without explicit flag', () => {
   const body = buildIssueBody(
     createReport({
@@ -266,6 +296,8 @@ test('syncIssueFromReport skips issue mutation outside the default branch', asyn
     shouldTrack: true,
     currentRefName: 'feature/manual-check',
     defaultBranch: 'taichuy_dev',
+    trackingState: buildIssueTrackingState(createReport(), { resolved: false }),
+    trackingStateChanged: false,
   });
 });
 
@@ -277,6 +309,8 @@ test('syncIssueFromReport supports dry-run without GitHub lookup', async () => {
   assert.equal(result.action, 'dry_run_track');
   assert.equal(result.issueNumber, null);
   assert.equal(result.shouldTrack, true);
+  assert.deepEqual(result.trackingState, buildIssueTrackingState(createReport(), { resolved: false }));
+  assert.equal(result.trackingStateChanged, true);
   assert.match(result.body, /GitHub Security Drift 外部阻塞跟踪/);
   assert.match(result.body, /外部阻塞状态：仍阻塞 shared GitHub security drift 闭环/);
 });
@@ -287,6 +321,8 @@ test('buildIssueSyncStepOutputs expose tracking issue metadata for workflow cons
       action: 'created',
       issueNumber: 42,
       shouldTrack: true,
+      trackingState: buildIssueTrackingState(createReport(), { resolved: false }),
+      trackingStateChanged: true,
     },
     createReport(),
   );
@@ -298,6 +334,22 @@ test('buildIssueSyncStepOutputs expose tracking issue metadata for workflow cons
     tracking_issue_should_track: 'true',
     tracking_issue_current_ref: '',
     tracking_issue_default_branch: 'taichuy_dev',
+    tracking_issue_state_fingerprint: buildIssueStateFingerprint(createReport(), { resolved: false }),
+    tracking_issue_resolved: 'false',
+    tracking_issue_state_changed: 'true',
+    tracking_issue_primary_action_priority: '1',
+    tracking_issue_primary_action_code: 'enable_dependency_graph',
+    tracking_issue_primary_action_audience: 'repository_admin',
+    tracking_issue_primary_action_summary: '在 `Settings -> Security & analysis` 启用 `Dependency graph`。',
+    tracking_issue_primary_action_rationale: 'submission API 已返回 404 blocker。',
+    tracking_issue_primary_action_roots_json: '["api","services/compat-dify","web"]',
+    tracking_issue_primary_action_href: 'https://github.com/taichuy/7flows/settings/security_analysis',
+    tracking_issue_primary_action_href_label: '打开仓库安全设置',
+    tracking_issue_primary_action_manual_only: 'true',
+    tracking_issue_primary_action_manual_only_reason: 'github_settings_ui',
+    tracking_issue_primary_action_documentation_href:
+      'https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/enabling-the-dependency-graph',
+    tracking_issue_primary_action_documentation_href_label: '查看官方 Dependency graph 指引',
   });
 });
 
@@ -309,6 +361,8 @@ test('buildIssueSyncStepOutputs keep non-default branch skip facts machine-reada
       shouldTrack: true,
       currentRefName: 'feature/manual-check',
       defaultBranch: 'taichuy_dev',
+      trackingState: buildIssueTrackingState(createReport(), { resolved: false }),
+      trackingStateChanged: false,
     },
     createReport(),
   );
@@ -320,6 +374,22 @@ test('buildIssueSyncStepOutputs keep non-default branch skip facts machine-reada
     tracking_issue_should_track: 'true',
     tracking_issue_current_ref: 'feature/manual-check',
     tracking_issue_default_branch: 'taichuy_dev',
+    tracking_issue_state_fingerprint: buildIssueStateFingerprint(createReport(), { resolved: false }),
+    tracking_issue_resolved: 'false',
+    tracking_issue_state_changed: 'false',
+    tracking_issue_primary_action_priority: '1',
+    tracking_issue_primary_action_code: 'enable_dependency_graph',
+    tracking_issue_primary_action_audience: 'repository_admin',
+    tracking_issue_primary_action_summary: '在 `Settings -> Security & analysis` 启用 `Dependency graph`。',
+    tracking_issue_primary_action_rationale: 'submission API 已返回 404 blocker。',
+    tracking_issue_primary_action_roots_json: '["api","services/compat-dify","web"]',
+    tracking_issue_primary_action_href: 'https://github.com/taichuy/7flows/settings/security_analysis',
+    tracking_issue_primary_action_href_label: '打开仓库安全设置',
+    tracking_issue_primary_action_manual_only: 'true',
+    tracking_issue_primary_action_manual_only_reason: 'github_settings_ui',
+    tracking_issue_primary_action_documentation_href:
+      'https://docs.github.com/en/code-security/how-tos/secure-your-supply-chain/secure-your-dependencies/enabling-the-dependency-graph',
+    tracking_issue_primary_action_documentation_href_label: '查看官方 Dependency graph 指引',
   });
 });
 
@@ -353,6 +423,7 @@ test('syncIssueFromReport creates tracking issue when blocker persists', async (
   assert.equal(result.action, 'created');
   assert.equal(result.issueNumber, 42);
   assert.equal(result.shouldTrack, true);
+  assert.equal(result.trackingStateChanged, true);
   assert.equal(calls.length, 2);
   assert.match(calls[0].url, /\/repos\/taichuy\/7flows\/issues\?state=all/);
   assert.equal(calls[0].options.method || 'GET', 'GET');
@@ -409,6 +480,7 @@ test('syncIssueFromReport closes tracked issue after blocker resolves', async (t
   assert.equal(result.action, 'closed');
   assert.equal(result.issueNumber, 7);
   assert.equal(result.shouldTrack, false);
+  assert.equal(result.trackingStateChanged, true);
   assert.equal(calls.length, 2);
   assert.match(calls[1].url, /\/repos\/taichuy\/7flows\/issues\/7$/);
   assert.equal(calls[1].options.method, 'PATCH');
@@ -515,9 +587,67 @@ test('syncIssueFromReport keeps noop when tracked issue already matches the late
     action: 'noop',
     issueNumber: 9,
     shouldTrack: true,
+    trackingState: buildIssueTrackingState(createReport(), { resolved: false }),
+    trackingStateChanged: false,
   });
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /\/repos\/taichuy\/7flows\/issues\?state=all/);
+});
+
+test('syncIssueFromReport marks state_changed false when only freshness fields change', async (t) => {
+  const baseBody = buildIssueBody(createReport(), { issueMarker: DEFAULT_ISSUE_MARKER });
+  const calls = [];
+  const originalFetch = global.fetch;
+  t.after(() => {
+    global.fetch = originalFetch;
+  });
+
+  global.fetch = async (url, options = {}) => {
+    calls.push({ url, options });
+
+    if (calls.length === 1) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify([
+            {
+              number: 9,
+              state: 'open',
+              title: 'GitHub Security Drift: external blocker',
+              body: baseBody,
+            },
+          ]),
+      };
+    }
+
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ number: 9 }),
+    };
+  };
+
+  const result = await syncIssueFromReport(
+    createReport({
+      generatedAt: '2026-03-26T08:48:00.000Z',
+      repositorySecurityAndAnalysis: {
+        ...createReport().repositorySecurityAndAnalysis,
+        checkedAt: '2026-03-26T08:47:51.000Z',
+      },
+      dependencySubmissionEvidence: {
+        ...createReport().dependencySubmissionEvidence,
+        dependencyGraphVisibility: {
+          ...createReport().dependencySubmissionEvidence.dependencyGraphVisibility,
+          checkedAt: '2026-03-26T08:47:49.000Z',
+        },
+      },
+    }),
+    { token: 'test-token' },
+  );
+
+  assert.equal(result.action, 'updated');
+  assert.equal(result.trackingStateChanged, false);
 });
 
 test('syncIssueFromReport reopens closed tracked issue when blocker returns', async (t) => {
@@ -559,6 +689,8 @@ test('syncIssueFromReport reopens closed tracked issue when blocker returns', as
     action: 'reopened',
     issueNumber: 11,
     shouldTrack: true,
+    trackingState: buildIssueTrackingState(createReport(), { resolved: false }),
+    trackingStateChanged: true,
   });
   assert.equal(calls.length, 2);
   assert.match(calls[1].url, /\/repos\/taichuy\/7flows\/issues\/11$/);

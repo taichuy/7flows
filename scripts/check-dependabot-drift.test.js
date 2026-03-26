@@ -1151,6 +1151,9 @@ test('buildDriftStepOutputs expose top follow-up and blocker facts', () => {
     },
   });
 
+  report.dependencySubmissionEvidence.fetchBlockedByActionsReadPermission = true;
+  report.dependencySubmissionEvidence.reportDownloadBlockedByActionsReadPermission = false;
+
   const outputs = buildDriftStepOutputs(report);
 
   assert.equal(outputs.conclusion_kind, 'platform_drift');
@@ -1192,7 +1195,14 @@ test('buildDriftStepOutputs expose top follow-up and blocker facts', () => {
   assert.equal(outputs.repository_blocker_status, '404');
   assert.equal(outputs.repository_blocker_roots_json, JSON.stringify(['api', 'web']));
   assert.equal(outputs.dependency_submission_run_available, 'true');
+  assert.equal(outputs.dependency_submission_fetch_blocked_by_actions_read_permission, 'true');
+  assert.equal(
+    outputs.dependency_submission_report_download_blocked_by_actions_read_permission,
+    'false',
+  );
+  assert.equal(outputs.dependency_graph_visible_roots_json, JSON.stringify(['web']));
   assert.equal(outputs.dependency_graph_missing_roots_json, JSON.stringify(['api']));
+  assert.equal(outputs.dependency_graph_check_error, '');
 });
 
 test('buildDriftStepOutputs expose manual verification when repo API omits dependency graph fields', () => {
@@ -1247,6 +1257,14 @@ test('buildDriftStepOutputs expose manual verification when repo API omits depen
     outputs.repository_security_and_analysis_manual_verification_reason,
     'missing_dependency_graph_fields',
   );
+  assert.equal(outputs.dependency_submission_fetch_blocked_by_actions_read_permission, 'false');
+  assert.equal(
+    outputs.dependency_submission_report_download_blocked_by_actions_read_permission,
+    'false',
+  );
+  assert.equal(outputs.dependency_graph_visible_roots_json, JSON.stringify([]));
+  assert.equal(outputs.dependency_graph_missing_roots_json, JSON.stringify([]));
+  assert.equal(outputs.dependency_graph_check_error, '');
 });
 
 test('fetchRepositorySecurityAndAnalysis keeps partial gh api payload machine-readable', () => {
