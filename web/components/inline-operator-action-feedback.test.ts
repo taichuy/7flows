@@ -414,6 +414,58 @@ describe("InlineOperatorActionFeedback", () => {
     });
   });
 
+  it("renders workflow governance handoff when shared callback props exist but no callback summary facts are available", () => {
+    const html = renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        message: "",
+        title: "Operator follow-up",
+        runId: "run-1",
+        runSnapshot: {
+          status: "running",
+          currentNodeId: "tool_call",
+          executionFocusNodeId: "tool_call",
+          executionFocusNodeRunId: "node-run-1",
+          executionFocusNodeName: "Tool Call"
+        },
+        callbackWaitingSummaryProps: {
+          workflowCatalogGapSummary: "catalog gap · native.catalog-gap",
+          workflowCatalogGapDetail:
+            "当前 action result 对应的 workflow 版本仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy。",
+          workflowGovernanceHref: "/workflows/workflow-1?definition_issue=missing_tool",
+          legacyAuthHandoff: {
+            bindingChipLabel: "1 legacy bindings",
+            statusChipLabel: "publish auth blocker",
+            detail: "先替换 live published blockers。",
+            workflowSummary: {
+              workflow_id: "workflow-1",
+              workflow_name: "Workflow 1",
+              binding_count: 1,
+              draft_candidate_count: 0,
+              published_blocker_count: 1,
+              offline_inventory_count: 0,
+              tool_governance: {
+                referenced_tool_ids: ["native.catalog-gap"],
+                missing_tool_ids: ["native.catalog-gap"],
+                governed_tool_count: 0,
+                strong_isolation_tool_count: 0
+              }
+            }
+          }
+        }
+      })
+    );
+
+    expect(callbackSummaryProps).toHaveLength(0);
+    expect(html).toContain("Workflow governance");
+    expect(html).toContain("catalog gap · native.catalog-gap");
+    expect(html).toContain(
+      "当前 action result 对应的 workflow 版本仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy。"
+    );
+    expect(html).toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
+    expect(html).toContain("回到 workflow 编辑器处理 publish auth contract");
+  });
+
   it("prefers shared callback recovery CTA when only callback automation context remains", () => {
     const html = renderToStaticMarkup(
       createElement(InlineOperatorActionFeedback, {
@@ -846,6 +898,48 @@ describe("InlineOperatorActionFeedback", () => {
     expect(html).toContain("published blockers 1");
     expect(html).toContain("再补发支持鉴权的 replacement bindings");
     expect(html).toContain("Demo Workflow");
+  });
+
+  it("does not duplicate legacy auth handoff when a detailed governance snapshot is already present", () => {
+    const html = renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        message: "审批已通过。",
+        title: "审批结果",
+        runSnapshot: {
+          status: "running",
+          currentNodeId: "approval_gate",
+          executionFocusNodeName: "Approval Gate"
+        },
+        callbackWaitingSummaryProps: {
+          workflowGovernanceHref: "/workflows/wf-demo",
+          legacyAuthHandoff: {
+            bindingChipLabel: "1 legacy bindings",
+            statusChipLabel: "publish auth blocker",
+            detail: "先替换 live published blockers。",
+            workflowSummary: {
+              workflow_id: "wf-demo",
+              workflow_name: "Demo Workflow",
+              binding_count: 1,
+              draft_candidate_count: 0,
+              published_blocker_count: 1,
+              offline_inventory_count: 0,
+              tool_governance: {
+                referenced_tool_ids: [],
+                missing_tool_ids: [],
+                governed_tool_count: 0,
+                strong_isolation_tool_count: 0
+              }
+            }
+          }
+        },
+        legacyAuthGovernance: buildLegacyAuthGovernanceSnapshot()
+      })
+    );
+
+    expect(html).toContain("Workflow handoff");
+    expect(html).toContain("published blockers 1");
+    expect(html).not.toContain("回到 workflow 编辑器处理 publish auth contract");
   });
 
   it("keeps inline workflow handoff inside missing-tool scope when the workflow still has a catalog gap", () => {

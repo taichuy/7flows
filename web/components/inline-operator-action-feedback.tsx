@@ -8,6 +8,7 @@ import { OperatorRunSampleCardList } from "@/components/operator-run-sample-card
 import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SensitiveAccessLegacyAuthGovernanceCompactCard } from "@/components/sensitive-access-legacy-auth-governance-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { pickCallbackWaitingInlineSensitiveAccessEntry } from "@/lib/callback-waiting-presenters";
 import type { CallbackWaitingSummaryProps } from "@/lib/callback-waiting-summary-props";
@@ -242,6 +243,9 @@ export function InlineOperatorActionFeedback({
       (sample) => sample.snapshot && (!runId || sample.runId !== runId || !runSnapshot)
     )
   );
+  const standaloneWorkflowGovernanceLegacyAuthHandoff = structuredResult.legacyAuthGovernance
+    ? null
+    : callbackWaitingSummaryProps?.legacyAuthHandoff ?? null;
 
   if (!message && !model.hasStructuredContent) {
     return null;
@@ -404,6 +408,13 @@ export function InlineOperatorActionFeedback({
         />
       ) : (
         <>
+          <WorkflowGovernanceHandoffCards
+            workflowCatalogGapSummary={callbackWaitingSummaryProps?.workflowCatalogGapSummary}
+            workflowCatalogGapDetail={callbackWaitingSummaryProps?.workflowCatalogGapDetail}
+            workflowGovernanceHref={callbackWaitingSummaryProps?.workflowGovernanceHref}
+            legacyAuthHandoff={standaloneWorkflowGovernanceLegacyAuthHandoff}
+          />
+
           <OperatorFocusEvidenceCard
             artifactCount={model.artifactCount}
             artifactRefCount={model.artifactRefCount}
