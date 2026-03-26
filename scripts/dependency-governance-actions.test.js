@@ -153,8 +153,8 @@ test('buildRepositorySecurityAndAnalysisMarkdownLines explains missing dependenc
   assert.match(lines.join('\n'), /dependency graph: `unknown`/);
   assert.match(lines.join('\n'), /automatic dependency submission: `unknown`/);
   assert.match(lines.join('\n'), /dependabot security updates: `disabled`/);
-  assert.match(lines.join('\n'), /fields absent from repo API payload: `dependency_graph`、`automatic_dependency_submission`/);
-  assert.match(lines.join('\n'), /manual verification reason: `missing_dependency_graph_fields`/);
+  assert.match(lines.join('\n'), /repo API 未返回字段：`dependency_graph`、`automatic_dependency_submission`/);
+  assert.match(lines.join('\n'), /manual verification reason：`missing_dependency_graph_fields`/);
   assert.match(lines.join('\n'), /最终仍以 dependency submission blocker 与 manifest visibility 证据为准/);
   assert.match(lines.join('\n'), /gh api -X PATCH repos\/\{owner\}\/\{repo\}/);
   assert.match(lines.join('\n'), /仍需到 `Settings -> Security & analysis` 人工确认/);
@@ -177,7 +177,7 @@ test('buildRepositorySecurityAndAnalysisMarkdownLines accepts normalized report 
   assert.match(lines.join('\n'), /dependency graph: `unknown`/);
   assert.match(lines.join('\n'), /automatic dependency submission: `unknown`/);
   assert.match(lines.join('\n'), /dependabot security updates: `unknown`/);
-  assert.match(lines.join('\n'), /manual verification reason: `missing_dependency_graph_fields`/);
+  assert.match(lines.join('\n'), /manual verification reason：`missing_dependency_graph_fields`/);
   assert.match(lines.join('\n'), /repo API 缺失这些字段时/);
 });
 

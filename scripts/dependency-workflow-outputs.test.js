@@ -34,10 +34,11 @@ test('Dependency Graph Submission exposes every script step output at the job le
   assert.deepEqual(outputKeys, expectedKeys);
 });
 
-test('GitHub Security Drift grants issue sync permission and runs the sync step', () => {
+test('GitHub Security Drift keeps issue sync running after drift failures', () => {
   const workflowSource = readWorkflow('.github/workflows/github-security-drift.yml');
 
   assert.match(workflowSource, /issues:\s+write/);
   assert.match(workflowSource, /- name: Sync security drift tracking issue/);
+  assert.match(workflowSource, /if: always\(\) && hashFiles\('dependabot-drift\.json'\) != ''/);
   assert.match(workflowSource, /node scripts\/sync-github-security-drift-issue\.js --report dependabot-drift\.json/);
 });

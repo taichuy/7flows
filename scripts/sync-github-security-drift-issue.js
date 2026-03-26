@@ -12,6 +12,11 @@ const EXTERNAL_BLOCKER_ACTION_CODES = new Set([
   'rerun_dependency_graph_submission',
   'rerun_github_security_drift',
 ]);
+const EXTERNAL_BLOCKER_CONCLUSION_KINDS = new Set([
+  'platform_drift',
+  'alerts_unavailable',
+  'repository_blocked_and_alerts_unavailable',
+]);
 
 function parseArgs(argv = process.argv.slice(2)) {
   const options = {
@@ -88,6 +93,10 @@ function normalizeList(values) {
   return [...new Set(values.map((value) => (typeof value === 'string' ? value.trim() : '')).filter(Boolean))];
 }
 
+function normalizeOptionalString(value) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
 function formatCode(value) {
   return `\`${String(value)}\``;
 }
@@ -128,8 +137,8 @@ function buildCurrentRunUrl(repository) {
 }
 
 function hasExternalBlocker(report) {
-  const conclusionKind = typeof report?.conclusion?.kind === 'string' ? report.conclusion.kind.trim() : '';
-  if (conclusionKind === 'platform_drift' || conclusionKind === 'alerts_unavailable') {
+  const conclusionKind = normalizeOptionalString(report?.conclusion?.kind);
+  if (conclusionKind && EXTERNAL_BLOCKER_CONCLUSION_KINDS.has(conclusionKind)) {
     return true;
   }
 
@@ -255,7 +264,9 @@ function buildIssueBody(report, options = {}) {
 
   lines.push('', '## 自动化说明');
   lines.push('- 来源：`scripts/sync-github-security-drift-issue.js` 读取 `dependabot-drift.json` 后自动创建 / 更新。');
-  lines.push('- 收敛条件：当 report 不再命中 `platform_drift` / `alerts_unavailable` 或不再要求外部 blocker 动作时，自动关闭本 issue。');
+  lines.push(
+    '- 收敛条件：当 report 不再命中 `platform_drift` / `alerts_unavailable` / `repository_blocked_and_alerts_unavailable`，或不再要求外部 blocker 动作时，自动关闭本 issue。',
+  );
 
   return `${lines.join('\n')}\n`;
 }
@@ -349,8 +360,23 @@ async function syncIssueFromReport(report, options = {}) {
   const issueTitle = options.issueTitle || DEFAULT_ISSUE_TITLE;
   const issueMarker = options.issueMarker || DEFAULT_ISSUE_MARKER;
   const shouldTrack = hasExternalBlocker(report);
+  const defaultBranch = normalizeOptionalString(report?.defaultBranch);
+  const currentRefName =
+    normalizeOptionalString(options.currentRefName) ||
+    normalizeOptionalString(process.env.GITHUB_REF_NAME) ||
+    normalizeOptionalString(process.env.GITHUB_HEAD_REF);
   const resolvedBody = buildIssueBody(report, { issueMarker, resolved: true });
   const trackingBody = buildIssueBody(report, { issueMarker, resolved: false });
+
+  if (!options.dryRun && defaultBranch && currentRefName && currentRefName !== defaultBranch) {
+    return {
+      action: 'skipped_non_default_branch',
+      issueNumber: null,
+      shouldTrack,
+      currentRefName,
+      defaultBranch,
+    };
+  }
 
   if (options.dryRun) {
     return {
@@ -459,6 +485,13 @@ async function main() {
 
   if (result.issueNumber) {
     console.log(`GitHub security drift issue sync: action=${result.action}, issue=#${result.issueNumber}`);
+    return;
+  }
+
+  if (result.action === 'skipped_non_default_branch') {
+    console.log(
+      `GitHub security drift issue sync: action=${result.action}, current_ref=${result.currentRefName}, default_branch=${result.defaultBranch}`,
+    );
     return;
   }
 

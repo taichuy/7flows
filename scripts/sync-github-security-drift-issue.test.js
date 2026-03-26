@@ -86,6 +86,18 @@ test('hasExternalBlocker returns true for alerts_unavailable conclusion', () => 
   assert.equal(hasExternalBlocker(createReport()), true);
 });
 
+test('hasExternalBlocker returns true for repository-blocked alerts conclusion', () => {
+  const report = createReport({
+    conclusion: {
+      kind: 'repository_blocked_and_alerts_unavailable',
+      summary: '仓库设置 blocker 与 alerts token 缺口同时存在。',
+    },
+    recommendedActions: [],
+  });
+
+  assert.equal(hasExternalBlocker(report), true);
+});
+
 test('hasExternalBlocker returns true when recommended actions still require external blocker work', () => {
   const report = createReport({
     conclusion: {
@@ -124,10 +136,13 @@ test('buildIssueBody renders blocker evidence and recommended actions', () => {
   assert.match(body, /GitHub Security Drift 外部阻塞跟踪/);
   assert.match(body, /dependency_graph_disabled/);
   assert.match(body, /打开仓库安全设置/);
-  assert.match(body, /manual-only step \(github_settings_ui\)/);
+  assert.match(body, /execution: manual-only step \(github_settings_ui\)/);
   assert.match(body, /`api`、`services\/compat-dify`、`web`/);
-  assert.match(body, /fields absent from repo API payload: `automatic_dependency_submission`、`dependency_graph`/);
-  assert.match(body, /manual verification reason: `missing_dependency_graph_fields`/);
+  assert.match(
+    body,
+    /fields absent from repo API payload: `dependency_graph`、`automatic_dependency_submission`/,
+  );
+  assert.match(body, /manual verification reason：`missing_dependency_graph_fields`/);
   assert.match(body, /gh api -X PATCH repos\/\{owner\}\/\{repo\}/);
   assert.match(body, /Enabling the dependency graph/);
   assert.match(body, /Configuring automatic dependency submission/);
@@ -149,9 +164,23 @@ test('buildIssueBody treats missing dependency graph fields as manual verificati
   );
 
   assert.match(body, /fields absent from repo API payload: `dependency_graph`/);
-  assert.match(body, /manual verification reason: `missing_dependency_graph_fields`/);
+  assert.match(body, /manual verification reason：`missing_dependency_graph_fields`/);
   assert.match(body, /不应把缺失误判成“已开启”/);
   assert.match(body, /Settings -> Security & analysis/);
+});
+
+test('syncIssueFromReport skips issue mutation outside the default branch', async () => {
+  const result = await syncIssueFromReport(createReport(), {
+    currentRefName: 'feature/manual-check',
+  });
+
+  assert.deepEqual(result, {
+    action: 'skipped_non_default_branch',
+    issueNumber: null,
+    shouldTrack: true,
+    currentRefName: 'feature/manual-check',
+    defaultBranch: 'taichuy_dev',
+  });
 });
 
 test('syncIssueFromReport creates tracking issue when blocker persists', async (t) => {
@@ -247,6 +276,47 @@ test('syncIssueFromReport closes tracked issue after blocker resolves', async (t
   assert.equal(patchPayload.state, 'closed');
   assert.equal(patchPayload.state_reason, 'completed');
   assert.match(patchPayload.body, /已由自动化关闭/);
+});
+
+test('syncIssueFromReport keeps noop when tracked issue already matches the latest blocker snapshot', async (t) => {
+  const calls = [];
+  const originalFetch = global.fetch;
+  t.after(() => {
+    global.fetch = originalFetch;
+  });
+
+  const trackedBody = buildIssueBody(createReport(), {
+    issueMarker: DEFAULT_ISSUE_MARKER,
+    resolved: false,
+  });
+
+  global.fetch = async (url, options = {}) => {
+    calls.push({ url, options });
+
+    return {
+      ok: true,
+      status: 200,
+      text: async () =>
+        JSON.stringify([
+          {
+            number: 9,
+            state: 'open',
+            title: 'GitHub Security Drift: external blocker',
+            body: trackedBody,
+          },
+        ]),
+    };
+  };
+
+  const result = await syncIssueFromReport(createReport(), { token: 'test-token' });
+
+  assert.deepEqual(result, {
+    action: 'noop',
+    issueNumber: 9,
+    shouldTrack: true,
+  });
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /\/repos\/taichuy\/7flows\/issues\?state=all/);
 });
 
 test('buildIssueBody renders resolved snapshot when blocker is gone', () => {
