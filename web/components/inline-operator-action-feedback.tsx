@@ -54,6 +54,40 @@ type InlineOperatorActionFeedbackProps = {
   callbackWaitingSummaryProps?: CallbackWaitingSummaryProps;
 } & OperatorInlineActionResultState;
 
+function normalizeText(value?: string | null) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function stripWorkflowDefinitionIssue(href?: string | null) {
+  const normalizedHref = normalizeText(href);
+  if (!normalizedHref) {
+    return null;
+  }
+
+  const [pathname, query = ""] = normalizedHref.split("?");
+  const searchParams = new URLSearchParams(query);
+  searchParams.delete("definition_issue");
+  const normalizedQuery = searchParams.toString();
+
+  return normalizedQuery ? `${pathname}?${normalizedQuery}` : pathname;
+}
+
+function readWorkflowIdFromHref(href?: string | null) {
+  const normalizedHref = normalizeText(href);
+  if (!normalizedHref) {
+    return null;
+  }
+
+  const [pathname] = normalizedHref.split("?");
+  const segments = pathname.split("/").filter(Boolean);
+  if (segments.length < 2 || segments[0] !== "workflows") {
+    return null;
+  }
+
+  return normalizeText(decodeURIComponent(segments[1] ?? ""));
+}
+
 export function InlineOperatorActionFeedback({
   status,
   message,
@@ -238,10 +272,20 @@ export function InlineOperatorActionFeedback({
     waitingReason: model.waitingReason,
     surfaceCopy
   });
+  const callbackSummaryWorkflowDetailHref = stripWorkflowDefinitionIssue(
+    callbackWaitingSummaryProps?.workflowGovernanceHref
+  );
+  const callbackSummaryWorkflowId = readWorkflowIdFromHref(callbackSummaryWorkflowDetailHref);
   const sampledRunCards = buildOperatorRunSampleCards(
     (runFollowUp?.sampledRuns ?? []).filter(
       (sample) => sample.snapshot && (!runId || sample.runId !== runId || !runSnapshot)
-    )
+    ),
+    {
+      resolveWorkflowDetailHref: (workflowId) =>
+        callbackSummaryWorkflowId && workflowId === callbackSummaryWorkflowId
+          ? callbackSummaryWorkflowDetailHref
+          : null
+    }
   );
   const standaloneWorkflowGovernanceLegacyAuthHandoff = structuredResult.legacyAuthGovernance
     ? null

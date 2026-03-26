@@ -5,9 +5,9 @@ import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance
 import type { RecentRunCheck } from "@/lib/get-system-overview";
 import { formatTimestamp } from "@/lib/runtime-presenters";
 import {
-  formatCatalogGapToolSummary
-} from "@/lib/workflow-definition-governance";
-import { buildWorkflowGovernanceHandoff } from "@/lib/workflow-governance-handoff";
+  buildWorkflowCatalogGapDetail,
+  buildWorkflowGovernanceHandoff
+} from "@/lib/workflow-governance-handoff";
 
 type RecentRunEntryCardProps = {
   run: RecentRunCheck;
@@ -31,15 +31,17 @@ export function RecentRunEntryCard({
     governed_tool_count: 0,
     strong_isolation_tool_count: 0
   };
-  const catalogGapToolCopy = formatCatalogGapToolSummary(toolGovernance.missing_tool_ids);
   const workflowGovernanceHandoff = buildWorkflowGovernanceHandoff({
     workflowId: run.workflow_id,
     workflowDetailHref: workflowHref,
     toolGovernance,
     legacyAuthGovernance: run.legacy_auth_governance ?? null,
-    workflowCatalogGapDetail: catalogGapToolCopy
-      ? `当前 workflow 仍有 catalog gap（${catalogGapToolCopy}）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 run 事实。`
-      : "当前 workflow 仍有 catalog gap；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 run 事实。"
+    workflowCatalogGapDetail: buildWorkflowCatalogGapDetail({
+      toolGovernance,
+      subjectLabel: "run",
+      returnDetail:
+        "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 run 事实。"
+    })
   });
   const scopedWorkflowHref = workflowGovernanceHandoff.workflowGovernanceHref;
   const missingWorkflowLinkFallback =

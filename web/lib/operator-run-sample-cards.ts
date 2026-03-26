@@ -63,6 +63,10 @@ export type OperatorRunSampleCard = {
   sandboxReadinessNode: ReturnType<typeof buildSandboxReadinessNodeFromRunSnapshot>;
 };
 
+type BuildOperatorRunSampleCardsOptions = {
+  resolveWorkflowDetailHref?: ((workflowId: string) => string | null) | null;
+};
+
 function normalizeText(value?: string | null) {
   const normalized = value?.trim();
   return normalized ? normalized : null;
@@ -88,11 +92,13 @@ export function buildOperatorRunSampleInboxHref(sample: RunSnapshotWithId) {
 }
 
 export function buildOperatorRunSampleCards(
-  sampledRuns: RunSnapshotWithId[]
+  sampledRuns: RunSnapshotWithId[],
+  { resolveWorkflowDetailHref = null }: BuildOperatorRunSampleCardsOptions = {}
 ): OperatorRunSampleCard[] {
   return sampledRuns
     .map((sample) => {
       const snapshot = sample.snapshot ?? null;
+      const workflowId = normalizeText(snapshot?.workflowId);
       const callbackTickets = sample.callbackTickets ?? [];
       const sensitiveAccessEntries = sample.sensitiveAccessEntries ?? [];
       const workflowCatalogGapDetail = buildWorkflowCatalogGapDetail({
@@ -102,7 +108,8 @@ export function buildOperatorRunSampleCards(
           "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照 compact snapshot 与 callback 事实。"
       });
       const workflowGovernanceHandoff = buildWorkflowGovernanceHandoff({
-        workflowId: normalizeText(snapshot?.workflowId),
+        workflowId,
+        workflowDetailHref: workflowId ? resolveWorkflowDetailHref?.(workflowId) ?? null : null,
         toolGovernance: sample.toolGovernance,
         legacyAuthGovernance: sample.legacyAuthGovernance,
         workflowCatalogGapDetail

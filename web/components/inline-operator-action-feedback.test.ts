@@ -666,6 +666,75 @@ describe("InlineOperatorActionFeedback", () => {
     });
   });
 
+  it("keeps sampled run workflow governance links scoped to the current workflow context", () => {
+    renderToStaticMarkup(
+      createElement(InlineOperatorActionFeedback, {
+        status: "success",
+        message: "",
+        title: "Operator follow-up",
+        runId: "run-1",
+        runSnapshot: {
+          workflowId: "workflow-1",
+          status: "waiting",
+          currentNodeId: "approval_gate",
+          executionFocusNodeId: "approval_gate",
+          executionFocusNodeRunId: "node-run-1",
+          executionFocusNodeName: "Approval Gate"
+        },
+        runFollowUp: {
+          affectedRunCount: 1,
+          sampledRunCount: 1,
+          waitingRunCount: 1,
+          runningRunCount: 0,
+          succeededRunCount: 0,
+          failedRunCount: 0,
+          unknownRunCount: 0,
+          sampledRuns: [
+            {
+              runId: "run-2",
+              snapshot: {
+                workflowId: "workflow-1",
+                status: "waiting",
+                currentNodeId: "approval_gate",
+                executionFocusNodeId: "approval_gate",
+                executionFocusNodeRunId: "node-run-2",
+                executionFocusNodeName: "Approval Gate"
+              },
+              callbackTickets: [],
+              sensitiveAccessEntries: [],
+              toolGovernance: {
+                referenced_tool_ids: ["native.catalog-gap"],
+                missing_tool_ids: ["native.catalog-gap"],
+                governed_tool_count: 0,
+                strong_isolation_tool_count: 0
+              },
+              legacyAuthGovernance: buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+                binding: {
+                  workflow_id: "workflow-1",
+                  workflow_name: "Workflow 1"
+                }
+              })
+            }
+          ]
+        },
+        callbackWaitingSummaryProps: {
+          workflowGovernanceHref:
+            "/workflows/workflow-1?starter=starter-openclaw&definition_issue=legacy_publish_auth"
+        }
+      })
+    );
+
+    expect(runSampleListProps).toHaveLength(1);
+    expect(runSampleListProps[0]?.cards).toMatchObject([
+      {
+        workflowCatalogGapHref:
+          "/workflows/workflow-1?starter=starter-openclaw&definition_issue=missing_tool",
+        workflowGovernanceHref:
+          "/workflows/workflow-1?starter=starter-openclaw&definition_issue=legacy_publish_auth"
+      }
+    ]);
+  });
+
   it("recovers a sampled approval blocker CTA when the top-level run follow-up omitted it", () => {
     const html = renderToStaticMarkup(
       createElement(InlineOperatorActionFeedback, {

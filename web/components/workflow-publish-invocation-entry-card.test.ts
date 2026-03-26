@@ -1049,51 +1049,78 @@ describe("WorkflowPublishInvocationEntryCard", () => {
     );
   });
 
-  it("keeps workspace starter scope on sampled workflow governance handoff links", async () => {
-    const callbackSummaryProps: Record<string, unknown>[] = [];
-    vi.doMock("next/link", () => ({
-      __esModule: true,
-      default: ({ href, children, ...props }: {
-        href?: string;
-        children?: React.ReactNode;
-      } & Record<string, unknown>) => createElement("a", { href: href ?? "#", ...props }, children)
-    }));
-    vi.doMock("@/components/callback-waiting-summary-card", () => ({
-      CallbackWaitingSummaryCard: (props: Record<string, unknown>) => {
-        callbackSummaryProps.push(props);
-        return createElement("div", { "data-testid": "callback-waiting-summary-card" });
-      }
-    }));
-
-    try {
-      const { WorkflowPublishInvocationEntryCard: IsolatedWorkflowPublishInvocationEntryCard } =
-        await import("@/components/workflow-publish-invocation-entry-card");
-
-      renderToStaticMarkup(
-        createElement(IsolatedWorkflowPublishInvocationEntryCard, {
-          item,
-          detailHref: "/workflows/workflow-1?publish_invocation=invocation-1",
-          detailActive: false,
-          workspaceStarterGovernanceQueryScope: {
-            activeTrack: "应用新建编排",
-            sourceGovernanceKind: "drifted",
-            needsFollowUp: true,
-            searchQuery: "drift",
-            selectedTemplateId: "starter-1"
+  it("keeps workspace starter scope on sampled workflow governance handoff links", () => {
+    const item = buildInvocationItem();
+    item.run_follow_up!.sampled_runs[0] = {
+      ...item.run_follow_up!.sampled_runs[0],
+      snapshot: {
+        ...item.run_follow_up!.sampled_runs[0].snapshot,
+        workflow_id: "workflow-1"
+      },
+      tool_governance: {
+        referenced_tool_ids: ["native.catalog-gap"],
+        missing_tool_ids: ["native.catalog-gap"],
+        governed_tool_count: 0,
+        strong_isolation_tool_count: 0
+      },
+      legacy_auth_governance: {
+        generated_at: "2026-03-20T12:00:00Z",
+        auth_mode_contract: {
+          supported_auth_modes: ["api_key", "internal"],
+          retired_legacy_auth_modes: ["token"],
+          summary: "supported api_key / internal, legacy token",
+          follow_up: "replace token bindings"
+        },
+        workflow_count: 1,
+        binding_count: 2,
+        summary: {
+          draft_candidate_count: 1,
+          published_blocker_count: 1,
+          offline_inventory_count: 0
+        },
+        checklist: [],
+        workflows: [
+          {
+            workflow_id: "workflow-1",
+            workflow_name: "Workflow 1",
+            binding_count: 2,
+            draft_candidate_count: 1,
+            published_blocker_count: 1,
+            offline_inventory_count: 0,
+            tool_governance: {
+              referenced_tool_ids: ["native.catalog-gap"],
+              missing_tool_ids: ["native.catalog-gap"],
+              governed_tool_count: 0,
+              strong_isolation_tool_count: 0
+            }
           }
-        })
-      );
+        ],
+        buckets: {
+          draft_candidates: [],
+          published_blockers: [],
+          offline_inventory: []
+        }
+      }
+    };
 
-      expect(callbackSummaryProps[0]).toMatchObject({
-        workflowCatalogGapHref:
-          "/workflows/workflow-1?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool",
-        workflowGovernanceHref:
-          "/workflows/workflow-1?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=legacy_publish_auth"
-      });
-    } finally {
-      vi.doUnmock("@/components/callback-waiting-summary-card");
-      vi.doUnmock("next/link");
-      vi.resetModules();
-    }
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationEntryCard, {
+        item,
+        detailHref: "/workflows/workflow-1?publish_invocation=invocation-1",
+        detailActive: false,
+        workspaceStarterGovernanceQueryScope: {
+          activeTrack: "应用新建编排",
+          sourceGovernanceKind: "drifted",
+          needsFollowUp: true,
+          searchQuery: "drift",
+          selectedTemplateId: "starter-1"
+        }
+      })
+    );
+
+    expect(html).toContain(
+      '/workflows/workflow-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
+    );
+    expect(html).not.toContain('definition_issue=missing_tool');
   });
 });

@@ -51,10 +51,10 @@ import { formatRunSnapshotSummary } from "@/lib/operator-action-result-presenter
 import { formatKeyList, formatTimestamp } from "@/lib/runtime-presenters";
 import {
   formatCatalogGapSummary,
-  formatCatalogGapToolSummary,
   formatWorkflowMissingToolSummary
 } from "@/lib/workflow-definition-governance";
 import {
+  buildWorkflowCatalogGapDetail,
   buildWorkflowGovernanceHandoff,
   type WorkflowGovernanceHandoff
 } from "@/lib/workflow-governance-handoff";
@@ -3268,6 +3268,12 @@ function formatPublishedInvocationRunFollowUpSampleCatalogGapDetail(
   const summary = toolGovernance
     ? formatWorkflowMissingToolSummary({ tool_governance: toolGovernance })
     : null;
+  const detail = buildWorkflowCatalogGapDetail({
+    toolGovernance,
+    subjectLabel: "sampled run",
+    returnDetail:
+      "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 publish sampled snapshot。"
+  });
 
   if (!summary) {
     return {
@@ -3276,12 +3282,9 @@ function formatPublishedInvocationRunFollowUpSampleCatalogGapDetail(
     };
   }
 
-  const toolSummary = formatCatalogGapToolSummary(toolGovernance?.missing_tool_ids ?? []);
   return {
     summary,
-    detail: toolSummary
-      ? `当前 sampled run 对应的 workflow 版本仍有 catalog gap（${toolSummary}）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 publish sampled snapshot。`
-      : "当前 sampled run 对应的 workflow 版本仍有 catalog gap；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 publish sampled snapshot。"
+    detail
   };
 }
 

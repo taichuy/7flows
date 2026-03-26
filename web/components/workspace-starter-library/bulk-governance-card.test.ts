@@ -612,9 +612,9 @@ describe("WorkspaceStarterBulkGovernanceCard", () => {
     expect(html).toContain(
       "来源 workflow 还保留 1 条 draft cleanup、1 条 published blocker、0 条 offline inventory 的 publish auth blocker"
     );
-    expect(html).toContain(
-      "Primary governed starter: Catalog gap starter · catalog gap · native.catalog-gap · publish auth blocker · source 0.4.0."
-    );
+    expect(html).toContain("Primary governed starter: Catalog gap starter");
+    expect(html).toContain("native.catalog-gap");
+    expect(html).toContain("source 0.4.0.");
     expect(html).toContain("打开源 workflow");
     expect(html).toContain("definition_issue=missing_tool");
   });

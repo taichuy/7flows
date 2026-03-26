@@ -52,10 +52,7 @@ import {
   type WorkspaceStarterGovernanceQueryScope
 } from "@/lib/workspace-starter-governance-query";
 import { buildWorkflowDetailHrefFromPublishActivityCurrentHref } from "@/lib/workflow-publish-activity-query";
-import {
-  buildAuthorFacingRunDetailLinkSurface,
-  buildAuthorFacingWorkflowDetailLinkSurface
-} from "@/lib/workbench-entry-surfaces";
+import { buildAuthorFacingRunDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 type PublishedInvocationItem = PublishedEndpointInvocationListResponse["items"][number];
 
@@ -228,18 +225,6 @@ export function WorkflowPublishInvocationEntryCard({
   const runFollowUpEvidenceChips = runFollowUpSample
     ? listPublishedInvocationRunFollowUpEvidenceChips(runFollowUpSample)
     : [];
-  const runFollowUpSampleWorkflowDetailLink = runFollowUpSample?.workflow_id
-    ? workspaceStarterGovernanceQueryScope
-      ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
-          workflowId: runFollowUpSample.workflow_id,
-          viewState: workspaceStarterGovernanceQueryScope,
-          variant: "editor"
-        })
-      : buildAuthorFacingWorkflowDetailLinkSurface({
-          workflowId: runFollowUpSample.workflow_id,
-          variant: "editor"
-        })
-    : null;
   const runFollowUpSampleWorkflowGovernanceHandoff = runFollowUpSample
     ? buildPublishedInvocationRunFollowUpSampleWorkflowGovernanceHandoff(runFollowUpSample, {
         workflowDetailHref: runFollowUpSampleWorkflowDetailLink?.href ?? null

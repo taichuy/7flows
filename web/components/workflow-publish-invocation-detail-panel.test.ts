@@ -366,6 +366,62 @@ function buildDetail(): PublishedEndpointInvocationDetailResponse {
   };
 }
 
+function applyGovernedSampleWorkflowFacts(detail: PublishedEndpointInvocationDetailResponse) {
+  detail.run_follow_up!.sampled_runs[0] = {
+    ...detail.run_follow_up!.sampled_runs[0],
+    snapshot: {
+      ...detail.run_follow_up!.sampled_runs[0].snapshot,
+      workflow_id: "workflow-1"
+    },
+    tool_governance: {
+      referenced_tool_ids: ["native.catalog-gap"],
+      missing_tool_ids: ["native.catalog-gap"],
+      governed_tool_count: 0,
+      strong_isolation_tool_count: 0
+    },
+    legacy_auth_governance: {
+      generated_at: "2026-03-20T12:00:00Z",
+      auth_mode_contract: {
+        supported_auth_modes: ["api_key", "internal"],
+        retired_legacy_auth_modes: ["token"],
+        summary: "supported api_key / internal, legacy token",
+        follow_up: "replace token bindings"
+      },
+      workflow_count: 1,
+      binding_count: 2,
+      summary: {
+        draft_candidate_count: 1,
+        published_blocker_count: 1,
+        offline_inventory_count: 0
+      },
+      checklist: [],
+      workflows: [
+        {
+          workflow_id: "workflow-1",
+          workflow_name: "Workflow 1",
+          binding_count: 2,
+          draft_candidate_count: 1,
+          published_blocker_count: 1,
+          offline_inventory_count: 0,
+          tool_governance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0
+          }
+        }
+      ],
+      buckets: {
+        draft_candidates: [],
+        published_blockers: [],
+        offline_inventory: []
+      }
+    }
+  };
+
+  return detail;
+}
+
 function buildSandboxReadiness(): SandboxReadinessCheck {
   return {
     enabled_backend_count: 1,
@@ -1731,58 +1787,7 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     vi.resetModules();
 
     const callbackSummaryProps: Array<Record<string, unknown>> = [];
-    const detail = buildDetail();
-    detail.run_follow_up!.sampled_runs[0] = {
-      ...detail.run_follow_up!.sampled_runs[0],
-      snapshot: {
-        ...detail.run_follow_up!.sampled_runs[0].snapshot,
-        workflow_id: "workflow-1"
-      },
-      tool_governance: {
-        referenced_tool_ids: ["native.catalog-gap"],
-        missing_tool_ids: ["native.catalog-gap"],
-        governed_tool_count: 0,
-        strong_isolation_tool_count: 0
-      },
-      legacy_auth_governance: {
-        generated_at: "2026-03-20T12:00:00Z",
-        auth_mode_contract: {
-          supported_auth_modes: ["api_key", "internal"],
-          retired_legacy_auth_modes: ["token"],
-          summary: "supported api_key / internal, legacy token",
-          follow_up: "replace token bindings"
-        },
-        workflow_count: 1,
-        binding_count: 2,
-        summary: {
-          draft_candidate_count: 1,
-          published_blocker_count: 1,
-          offline_inventory_count: 0
-        },
-        checklist: [],
-        workflows: [
-          {
-            workflow_id: "workflow-1",
-            workflow_name: "Workflow 1",
-            binding_count: 2,
-            draft_candidate_count: 1,
-            published_blocker_count: 1,
-            offline_inventory_count: 0,
-            tool_governance: {
-              referenced_tool_ids: ["native.catalog-gap"],
-              missing_tool_ids: ["native.catalog-gap"],
-              governed_tool_count: 0,
-              strong_isolation_tool_count: 0
-            }
-          }
-        ],
-        buckets: {
-          draft_candidates: [],
-          published_blockers: [],
-          offline_inventory: []
-        }
-      }
-    };
+    const detail = applyGovernedSampleWorkflowFacts(buildDetail());
 
     vi.doMock("next/link", () => ({
       default: ({
@@ -1892,54 +1897,30 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     );
   });
 
-  it("keeps workspace starter scope on publish detail sampled workflow governance handoff links", async () => {
-    const callbackSummaryProps: Record<string, unknown>[] = [];
-    vi.doMock("next/link", () => ({
-      __esModule: true,
-      default: ({ href, children, ...props }: {
-        href?: string;
-        children?: React.ReactNode;
-      } & Record<string, unknown>) => createElement("a", { href: href ?? "#", ...props }, children)
-    }));
-    vi.doMock("@/components/callback-waiting-summary-card", () => ({
-      CallbackWaitingSummaryCard: (props: Record<string, unknown>) => {
-        callbackSummaryProps.push(props);
-        return createElement("div", { "data-testid": "callback-waiting-summary-card" });
-      }
-    }));
+  it("keeps workspace starter scope on publish detail sampled workflow governance handoff links", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishInvocationDetailPanel, {
+        currentHref: "/workflows/workflow-1?publish_invocation=invocation-1",
+        detail: applyGovernedSampleWorkflowFacts(buildDetail()),
+        clearHref: "/published?clear=1",
+        tools: [],
+        callbackWaitingAutomation,
+        workspaceStarterGovernanceQueryScope: {
+          activeTrack: "应用新建编排",
+          sourceGovernanceKind: "drifted",
+          needsFollowUp: true,
+          searchQuery: "drift",
+          selectedTemplateId: "starter-1"
+        }
+      })
+    );
 
-    try {
-      const { WorkflowPublishInvocationDetailPanel: IsolatedWorkflowPublishInvocationDetailPanel } =
-        await import("@/components/workflow-publish-invocation-detail-panel");
-
-      renderToStaticMarkup(
-        createElement(IsolatedWorkflowPublishInvocationDetailPanel, {
-          currentHref: "/workflows/workflow-1?publish_invocation=invocation-1",
-          detail: buildDetail(),
-          clearHref: "/published?clear=1",
-          tools: [],
-          callbackWaitingAutomation,
-          workspaceStarterGovernanceQueryScope: {
-            activeTrack: "应用新建编排",
-            sourceGovernanceKind: "drifted",
-            needsFollowUp: true,
-            searchQuery: "drift",
-            selectedTemplateId: "starter-1"
-          }
-        })
-      );
-
-      expect(callbackSummaryProps[0]).toMatchObject({
-        workflowCatalogGapHref:
-          "/workflows/workflow-1?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool",
-        workflowGovernanceHref:
-          "/workflows/workflow-1?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=legacy_publish_auth"
-      });
-    } finally {
-      vi.doUnmock("@/components/callback-waiting-summary-card");
-      vi.doUnmock("next/link");
-      vi.resetModules();
-    }
+    expect(html).toContain(
+      '/workflows/workflow-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool'
+    );
+    expect(html).toContain(
+      '/workflows/workflow-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=legacy_publish_auth'
+    );
   });
 
   it("passes workspace starter scope into callback section", () => {

@@ -188,7 +188,7 @@ describe("WorkspaceStarterDefinitionSnapshotPanel", () => {
       "当前 starter 仍有 catalog gap（catalog.tool.missing）；来源 workflow 还保留 1 条 draft cleanup、1 条 published blocker、0 条 offline inventory 的 publish auth blocker，先回源 workflow 统一收口 catalog gap / publish auth contract，再回来继续复用或创建。"
     );
     expect(html).toContain(
-      "Primary governed starter: Catalog gap starter · catalog gap · catalog.tool.missing · source 0.4.0."
+      "Primary governed starter: Catalog gap starter · catalog gap · catalog.tool.missing · publish auth blocker · source 0.4.0."
     );
     expect(html).toContain("打开源 workflow");
     expect(html).toContain("definition_issue=missing_tool");

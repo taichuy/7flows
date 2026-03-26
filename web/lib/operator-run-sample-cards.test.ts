@@ -143,4 +143,50 @@ describe("buildOperatorRunSampleCards", () => {
     expect(cards[0].workflowCatalogGapDetail).toContain("catalog gap（native.catalog-gap）");
     expect(cards[0].legacyAuthHandoff?.detail).toContain("published blocker");
   });
+
+  it("preserves scoped workflow detail href when a resolver is provided", () => {
+    const cards = buildOperatorRunSampleCards(
+      [
+        {
+          runId: "run-1",
+          snapshot: {
+            workflowId: "workflow-sampled",
+            status: "waiting",
+            currentNodeId: "approval_gate",
+            executionFocusArtifactRefs: [],
+            executionFocusArtifacts: [],
+            executionFocusToolCalls: [],
+            executionFocusSkillTrace: null
+          },
+          callbackTickets: [],
+          sensitiveAccessEntries: [],
+          toolGovernance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0
+          },
+          legacyAuthGovernance: buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+            binding: {
+              workflow_id: "workflow-sampled",
+              workflow_name: "Sampled Workflow"
+            }
+          })
+        }
+      ],
+      {
+        resolveWorkflowDetailHref: (workflowId) =>
+          workflowId === "workflow-sampled"
+            ? "/workflows/workflow-sampled?starter=starter-openclaw"
+            : null
+      }
+    );
+
+    expect(cards[0]).toMatchObject({
+      workflowCatalogGapHref:
+        "/workflows/workflow-sampled?starter=starter-openclaw&definition_issue=missing_tool",
+      workflowGovernanceHref:
+        "/workflows/workflow-sampled?starter=starter-openclaw&definition_issue=legacy_publish_auth"
+    });
+  });
 });
