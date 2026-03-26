@@ -36,6 +36,10 @@ import {
   buildAuthorFacingWorkflowDetailLinkSurface
 } from "@/lib/workbench-entry-surfaces";
 import {
+  hasWorkflowLegacyPublishAuthIssues,
+  hasWorkflowMissingToolIssues
+} from "@/lib/workflow-definition-governance";
+import {
   appendWorkflowLibraryViewStateForWorkflow
 } from "@/lib/workflow-library-query";
 
@@ -313,8 +317,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
                   workflowId: workflow.id
                 });
+                const workflowNeedsFollowUp =
+                  hasWorkflowLegacyPublishAuthIssues(workflow) ||
+                  hasWorkflowMissingToolIssues(workflow);
                 const workflowDetailHref = appendWorkflowLibraryViewStateForWorkflow(
-                  workflowDetailLink.href,
+                  workflowNeedsFollowUp
+                    ? buildAuthorFacingWorkflowFollowUpDetailHref(workflow.id)
+                    : workflowDetailLink.href,
                   workflow,
                   {
                     definitionIssue: null
@@ -374,7 +383,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   variant: "recent"
                 });
                 const workflowDetailHref = appendWorkflowLibraryViewStateForWorkflow(
-                  workflowDetailLink.href,
+                  buildAuthorFacingWorkflowFollowUpDetailHref(run.workflow_id),
                   {
                     workflow_id: run.workflow_id,
                     definition_issues: [],

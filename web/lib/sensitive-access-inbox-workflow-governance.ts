@@ -2,6 +2,7 @@ import type { RunSnapshot } from "@/app/actions/run-snapshot";
 import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
 import { resolveOperatorRunFollowUpSample } from "@/lib/operator-run-follow-up-samples";
 import {
+  buildWorkflowGovernanceDetailHrefFromCurrentHref,
   buildWorkflowCatalogGapDetail,
   buildWorkflowGovernanceHandoff,
   type WorkflowGovernanceHandoff
@@ -29,6 +30,7 @@ export function buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff({
   runSnapshot = null,
   canonicalRunId = null,
   resolveWorkflowDetailHref = null,
+  currentHref = null,
   subjectLabel,
   returnDetail
 }: {
@@ -36,6 +38,7 @@ export function buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff({
   runSnapshot?: RunSnapshot | null;
   canonicalRunId?: string | null;
   resolveWorkflowDetailHref?: ((workflowId: string) => string | null) | null;
+  currentHref?: string | null;
   subjectLabel: string;
   returnDetail: string;
 }): WorkflowGovernanceHandoff {
@@ -58,7 +61,13 @@ export function buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff({
 
   return buildWorkflowGovernanceHandoff({
     workflowId,
-    workflowDetailHref: workflowId ? resolveWorkflowDetailHref?.(workflowId) ?? null : null,
+    workflowDetailHref: workflowId
+      ? resolveWorkflowDetailHref?.(workflowId) ??
+        buildWorkflowGovernanceDetailHrefFromCurrentHref({
+          workflowId,
+          currentHref
+        })
+      : null,
     toolGovernance,
     legacyAuthGovernance,
     workflowCatalogGapDetail: buildWorkflowCatalogGapDetail({
