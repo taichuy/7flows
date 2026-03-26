@@ -90,6 +90,31 @@ vi.mock("@/components/operator-focus-evidence-card", () => ({
     )
 }));
 
+vi.mock("@/components/workflow-governance-handoff-cards", () => ({
+  WorkflowGovernanceHandoffCards: ({
+    workflowCatalogGapSummary,
+    workflowGovernanceHref,
+    legacyAuthHandoff
+  }: {
+    workflowCatalogGapSummary?: string | null;
+    workflowGovernanceHref?: string | null;
+    legacyAuthHandoff?: {
+      bindingChipLabel?: string | null;
+    } | null;
+  }) => {
+    if (!workflowCatalogGapSummary && !legacyAuthHandoff) {
+      return null;
+    }
+
+    return createElement(
+      "div",
+      { "data-testid": "workflow-governance-handoff-cards" },
+      `workflow ${workflowCatalogGapSummary ?? "none"} ${workflowGovernanceHref ?? "none"} ` +
+        `legacy auth ${legacyAuthHandoff?.bindingChipLabel ?? "none"}`
+    );
+  }
+}));
+
 vi.mock("@/components/skill-reference-load-list", () => ({
   SkillReferenceLoadList: ({
     title,
@@ -495,7 +520,7 @@ describe("RunDiagnosticsExecutionOverviewBlockers", () => {
     expect(html).toContain("legacy auth 1 legacy bindings");
   });
 
-  it("surfaces canonical focus evidence for non-callback execution blockers", () => {
+  it("surfaces canonical focus evidence and workflow governance for non-callback execution blockers", () => {
     const focusNode = buildNode({
       node_run_id: "node-run-focus",
       node_id: "focus_node",
@@ -580,11 +605,28 @@ describe("RunDiagnosticsExecutionOverviewBlockers", () => {
           }
         },
         callbackWaitingAutomation: buildCallbackWaitingAutomation(),
-        sandboxReadiness: buildSandboxReadiness()
+        sandboxReadiness: buildSandboxReadiness(),
+        workflowId: "workflow-1",
+        toolGovernance: {
+          referenced_tool_ids: ["native.catalog-gap"],
+          missing_tool_ids: ["native.catalog-gap"],
+          governed_tool_count: 0,
+          strong_isolation_tool_count: 0
+        },
+        legacyAuthGovernance: buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+          binding: {
+            workflow_id: "workflow-1",
+            workflow_name: "Workflow 1"
+          }
+        })
       })
     );
 
     expect(html).not.toContain("callback-waiting-summary-card:node-run-focus");
+    expect(html).toContain("workflow-governance-handoff-cards");
+    expect(html).toContain("workflow catalog gap · native.catalog-gap");
+    expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
+    expect(html).toContain("legacy auth 1 legacy bindings");
     expect(html).toContain("operator-focus-evidence-card");
     expect(html).toContain("artifacts 1 artifact refs 1 tool calls 1");
     expect(html).toContain(

@@ -9,6 +9,7 @@ import { CallbackWaitingSummaryCard } from "@/components/callback-waiting-summar
 import { OperatorFocusEvidenceCard } from "@/components/operator-focus-evidence-card";
 import { SandboxExecutionReadinessCard } from "@/components/sandbox-execution-readiness-card";
 import { SkillReferenceLoadList } from "@/components/skill-reference-load-list";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { pickCallbackWaitingSkillTraceForNode } from "@/lib/callback-waiting-focus-skill-trace";
 import {
@@ -170,6 +171,12 @@ function renderNodeFollowUp({
 
   return (
     <>
+      <WorkflowGovernanceHandoffCards
+        workflowCatalogGapSummary={callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapSummary}
+        workflowCatalogGapDetail={callbackSummaryWorkflowGovernanceHandoff.workflowCatalogGapDetail}
+        workflowGovernanceHref={callbackSummaryWorkflowGovernanceHandoff.workflowGovernanceHref}
+        legacyAuthHandoff={callbackSummaryWorkflowGovernanceHandoff.legacyAuthHandoff}
+      />
       <OperatorFocusEvidenceCard
         artifactCount={node.artifacts.length}
         artifactRefCount={node.artifact_refs.length}
