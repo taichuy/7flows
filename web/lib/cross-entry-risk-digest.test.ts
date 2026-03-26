@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { buildCrossEntryRiskDigest } from "@/lib/cross-entry-risk-digest";
 import type { SensitiveAccessInboxEntry } from "@/lib/get-sensitive-access";
 import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
+import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 import {
   buildCallbackWaitingAutomationFixture,
   buildCallbackWaitingAutomationStepFixture,
@@ -375,6 +376,89 @@ describe("buildCrossEntryRiskDigest", () => {
       href: "/workflows?execution=sandbox",
       label: "Open workflow library"
     });
+  });
+
+  it("surfaces workflow governance handoff for the primary operator backlog entry", () => {
+    const digest = buildCrossEntryRiskDigest({
+      sandboxReadiness: buildSandboxReadinessFixture(),
+      callbackWaitingAutomation: buildCallbackWaitingAutomationFixture(),
+      sensitiveAccessSummary: buildSensitiveAccessSummaryFixture({
+        ticket_count: 1,
+        pending_ticket_count: 1,
+        waiting_ticket_count: 0,
+        failed_notification_count: 0,
+        pending_notification_count: 0,
+        affected_run_count: 1,
+        affected_workflow_count: 1
+      }),
+      channels: [],
+      sensitiveAccessEntries: [
+        buildSensitiveAccessInboxEntryFixture({
+          ticket: buildSensitiveAccessTicketFixture({
+            run_id: "run-governed",
+            node_run_id: "node-governed",
+            status: "pending",
+            waiting_status: "waiting",
+            created_at: "2026-03-25T10:00:00Z"
+          }),
+          request: buildSensitiveAccessRequestFixture({
+            run_id: "run-governed",
+            node_run_id: "node-governed",
+            created_at: "2026-03-25T09:59:00Z"
+          }),
+          runSnapshot: {
+            workflowId: "workflow-governed"
+          },
+          runFollowUp: {
+            affectedRunCount: 1,
+            sampledRunCount: 1,
+            waitingRunCount: 1,
+            runningRunCount: 0,
+            succeededRunCount: 0,
+            failedRunCount: 0,
+            unknownRunCount: 0,
+            recommendedAction: null,
+            sampledRuns: [
+              {
+                runId: "run-governed",
+                snapshot: {
+                  workflowId: "workflow-governed"
+                },
+                callbackTickets: [],
+                sensitiveAccessEntries: [],
+                toolGovernance: {
+                  referenced_tool_ids: ["native.catalog-gap"],
+                  missing_tool_ids: ["native.catalog-gap"],
+                  governed_tool_count: 0,
+                  strong_isolation_tool_count: 0
+                },
+                legacyAuthGovernance:
+                  buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture({
+                    binding: {
+                      workflow_id: "workflow-governed",
+                      workflow_name: "Governed workflow"
+                    }
+                  })
+              }
+            ]
+          }
+        })
+      ]
+    });
+
+    expect(digest.operatorWorkflowGovernanceHandoff).toMatchObject({
+      workflowId: "workflow-governed",
+      workflowCatalogGapSummary: "catalog gap · native.catalog-gap",
+      workflowCatalogGapHref: "/workflows/workflow-governed?definition_issue=missing_tool",
+      workflowGovernanceHref:
+        "/workflows/workflow-governed?definition_issue=legacy_publish_auth"
+    });
+    expect(digest.operatorWorkflowGovernanceHandoff?.workflowCatalogGapDetail).toContain(
+      "operator backlog"
+    );
+    expect(digest.operatorWorkflowGovernanceHandoff?.legacyAuthHandoff?.statusChipLabel).toBe(
+      "publish auth blocker"
+    );
   });
 
   it("keeps the shared CTA while exposing sampled sandbox and callback traces as secondary links", () => {

@@ -1,6 +1,8 @@
+import React from "react";
 import Link from "next/link";
 
 import { WorkbenchEntryLink, WorkbenchEntryLinks } from "@/components/workbench-entry-links";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import type {
   CrossEntryRiskDigest,
   CrossEntryRiskDigestTone
@@ -92,6 +94,23 @@ export function CrossEntryRiskDigestPanel({
           />
         </div>
       </article>
+
+      <WorkflowGovernanceHandoffCards
+        workflowCatalogGapSummary={
+          digest.operatorWorkflowGovernanceHandoff?.workflowCatalogGapSummary ?? null
+        }
+        workflowCatalogGapDetail={
+          digest.operatorWorkflowGovernanceHandoff?.workflowCatalogGapDetail ?? null
+        }
+        workflowCatalogGapHref={
+          digest.operatorWorkflowGovernanceHandoff?.workflowCatalogGapHref ?? null
+        }
+        workflowGovernanceHref={
+          digest.operatorWorkflowGovernanceHandoff?.workflowGovernanceHref ?? null
+        }
+        legacyAuthHandoff={digest.operatorWorkflowGovernanceHandoff?.legacyAuthHandoff ?? null}
+        cardClassName="payload-card compact-card"
+      />
 
       <div className="activity-list">
         {digest.focusAreas.map((area) => (

@@ -14,7 +14,7 @@ vi.mock("next/link", () => ({
 }));
 
 function buildDigest(): CrossEntryRiskDigest {
-  return {
+  const digest: CrossEntryRiskDigest = {
     tone: "blocked",
     headline: "当前最需要优先收口的是 Approval & notification backlog。",
     detail: "审批 backlog 仍在拖住 waiting resume 与发布排障。",
@@ -58,6 +58,7 @@ function buildDigest(): CrossEntryRiskDigest {
         entryKey: "runLibrary"
       }
     ],
+    operatorWorkflowGovernanceHandoff: null,
     primaryFollowUpEntry: {
       entryKey: "operatorInbox",
       entryOverride: {
@@ -78,6 +79,8 @@ function buildDigest(): CrossEntryRiskDigest {
       }
     }
   };
+
+  return digest;
 }
 
 describe("CrossEntryRiskDigestPanel", () => {

@@ -39,16 +39,25 @@ export function buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff({
 }): WorkflowGovernanceHandoff {
   const runId = resolveSensitiveAccessInboxEntryRunId(entry, canonicalRunId);
   const workflowGovernanceSample = resolveOperatorRunFollowUpSample(entry.runFollowUp, runId);
-  const toolGovernance = workflowGovernanceSample?.toolGovernance ?? null;
+  const legacyAuthGovernance =
+    workflowGovernanceSample?.legacyAuthGovernance ?? entry.legacyAuthGovernance ?? null;
+  const workflowId =
+    trimOrNull(runSnapshot?.workflowId) ??
+    trimOrNull(workflowGovernanceSample?.snapshot?.workflowId) ??
+    null;
+  const toolGovernance =
+    workflowGovernanceSample?.toolGovernance ??
+    (workflowId
+      ? legacyAuthGovernance?.workflows.find((workflow) => workflow.workflow_id === workflowId)
+          ?.tool_governance ?? null
+      : null) ??
+    legacyAuthGovernance?.workflows[0]?.tool_governance ??
+    null;
 
   return buildWorkflowGovernanceHandoff({
-    workflowId:
-      trimOrNull(runSnapshot?.workflowId) ??
-      trimOrNull(workflowGovernanceSample?.snapshot?.workflowId) ??
-      null,
+    workflowId,
     toolGovernance,
-    legacyAuthGovernance:
-      workflowGovernanceSample?.legacyAuthGovernance ?? entry.legacyAuthGovernance ?? null,
+    legacyAuthGovernance,
     workflowCatalogGapDetail: buildWorkflowCatalogGapDetail({
       toolGovernance,
       subjectLabel,

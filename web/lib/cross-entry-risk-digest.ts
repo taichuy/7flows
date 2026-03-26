@@ -17,6 +17,7 @@ import {
   findSensitiveAccessPrimaryBacklogEntry,
   resolveSensitiveAccessPrimaryBacklog
 } from "@/lib/sensitive-access-follow-up-presenters";
+import { buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff } from "@/lib/sensitive-access-inbox-workflow-governance";
 import { resolveSensitiveAccessInboxEntryScope } from "@/lib/sensitive-access-inbox-entry-scope";
 import type {
   CallbackWaitingAutomationCheck,
@@ -39,6 +40,7 @@ import type {
   WorkbenchEntryLinkOverride,
   WorkbenchEntryLinkOverrides
 } from "@/lib/workbench-entry-links";
+import type { WorkflowGovernanceHandoff } from "@/lib/workflow-governance-handoff";
 
 export type CrossEntryRiskDigestTone = "healthy" | "degraded" | "blocked";
 
@@ -69,6 +71,7 @@ export type CrossEntryRiskDigest = {
   detail: string;
   metrics: CrossEntryRiskDigestMetric[];
   focusAreas: CrossEntryRiskDigestFocusArea[];
+  operatorWorkflowGovernanceHandoff: WorkflowGovernanceHandoff | null;
   primaryFollowUpEntry: CrossEntryRiskDigestFollowUpEntry;
   primaryEntryKey: WorkbenchEntryLinkKey;
   entryKeys: WorkbenchEntryLinkKey[];
@@ -528,6 +531,15 @@ export function buildCrossEntryRiskDigest({
     operatorPrimaryBacklog,
     sensitiveAccessEntries
   );
+  const operatorWorkflowGovernanceHandoff = primaryOperatorEntry
+    ? buildSensitiveAccessInboxEntryWorkflowGovernanceHandoff({
+        entry: primaryOperatorEntry,
+        runSnapshot: primaryOperatorEntry.runSnapshot ?? null,
+        subjectLabel: "operator backlog",
+        returnDetail:
+          "先对齐当前审批、恢复与通知 backlog，再回到 workflow 编辑器补齐 binding / publish auth contract，避免同类请求继续落回同一条 backlog。"
+      })
+    : null;
   const operatorInboxLinkSurface = buildOperatorInboxSliceLinkSurface({
     href: operatorPrimaryBacklog?.href ?? null
   });
@@ -674,6 +686,7 @@ export function buildCrossEntryRiskDigest({
       }
     ],
     focusAreas,
+    operatorWorkflowGovernanceHandoff,
     primaryFollowUpEntry: {
       entryKey: primaryEntryKey,
       entryOverride: primaryFocusArea?.entryOverride

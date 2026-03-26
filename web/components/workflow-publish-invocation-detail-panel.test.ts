@@ -1841,7 +1841,6 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
         })
       );
 
-      console.log("DETAIL_PROPS", JSON.stringify(callbackSummaryProps, null, 2));
 
       expect(
         callbackSummaryProps.some(
