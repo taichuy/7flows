@@ -193,6 +193,14 @@ function normalizeSecurityAndAnalysisStatus(value) {
   return status || null;
 }
 
+function isGitHubApiRateLimitError(message) {
+  if (typeof message !== 'string') {
+    return false;
+  }
+
+  return /rate limit exceeded|secondary rate limit|rate limit/i.test(message);
+}
+
 function isNormalizedRepositorySecurityAndAnalysis(securityAndAnalysis) {
   if (!securityAndAnalysis || typeof securityAndAnalysis !== 'object' || Array.isArray(securityAndAnalysis)) {
     return false;
@@ -566,9 +574,22 @@ function buildSubmissionRecommendedActions({
       createRecommendedAction(
         priority++,
         'workflow_maintainer',
-        'investigate_dependency_graph_visibility',
-        '排查 `dependencyGraphManifests` 查询失败原因，优先确认当前 token / GraphQL 可见性与 workflow 权限。',
-        '当前 workflow 已成功提交或运行，但无法稳定读取提交后的 graph visibility，后续判断会缺少关键证据。',
+        isGitHubApiRateLimitError(dependencyGraphVisibility.checkError)
+          ? 'rerun_with_authenticated_github_api'
+          : 'investigate_dependency_graph_visibility',
+        isGitHubApiRateLimitError(dependencyGraphVisibility.checkError)
+          ? '使用具备更高 GitHub API 配额的 token / `gh` 凭证后重跑 graph visibility 检查，避免 `dependencyGraphManifests` 因 rate limit 中断。'
+          : '排查 `dependencyGraphManifests` 查询失败原因，优先确认当前 token / GraphQL 可见性与 workflow 权限。',
+        isGitHubApiRateLimitError(dependencyGraphVisibility.checkError)
+          ? '当前 workflow 已成功提交或运行，但 GitHub API 直接返回 rate limit，继续判断 graph visibility 会缺少关键证据。'
+          : '当前 workflow 已成功提交或运行，但无法稳定读取提交后的 graph visibility，后续判断会缺少关键证据。',
+        [],
+        isGitHubApiRateLimitError(dependencyGraphVisibility.checkError)
+          ? {
+              href: buildActionsSecretsHref(repository),
+              hrefLabel: '打开 Actions secrets',
+            }
+          : {},
       ),
     );
   } else if (Array.isArray(dependencyGraphVisibility?.missingRoots) && dependencyGraphVisibility.missingRoots.length > 0) {
@@ -587,10 +608,46 @@ function buildSubmissionRecommendedActions({
   return dedupeRecommendedActions(actions);
 }
 
+function hasUsableDependencySubmissionEvidence(submissionReport) {
+  if (!submissionReport || typeof submissionReport !== 'object') {
+    return false;
+  }
+
+  const repositoryBlockerEvidence = submissionReport.repositoryBlockerEvidence;
+  const dependencyGraphVisibility = submissionReport.dependencyGraphVisibility;
+
+  return Boolean(
+    submissionReport.repositoryBlocker ||
+      (repositoryBlockerEvidence &&
+        typeof repositoryBlockerEvidence === 'object' &&
+        !Array.isArray(repositoryBlockerEvidence) &&
+        (repositoryBlockerEvidence.kind ||
+          repositoryBlockerEvidence.message ||
+          (Array.isArray(repositoryBlockerEvidence.rootLabels) &&
+            repositoryBlockerEvidence.rootLabels.length > 0))) ||
+      (dependencyGraphVisibility &&
+        typeof dependencyGraphVisibility === 'object' &&
+        !Array.isArray(dependencyGraphVisibility) &&
+        (dependencyGraphVisibility.checkError ||
+          dependencyGraphVisibility.defaultBranch ||
+          Number.isInteger(dependencyGraphVisibility.manifestCount) ||
+          (Array.isArray(dependencyGraphVisibility.visibleRoots) &&
+            dependencyGraphVisibility.visibleRoots.length > 0) ||
+          (Array.isArray(dependencyGraphVisibility.missingRoots) &&
+            dependencyGraphVisibility.missingRoots.length > 0))) ||
+      (Array.isArray(submissionReport.recommendedActions) &&
+        submissionReport.recommendedActions.length > 0) ||
+      (Array.isArray(submissionReport.roots) && submissionReport.roots.length > 0) ||
+      (Array.isArray(submissionReport.blockedRoots) && submissionReport.blockedRoots.length > 0) ||
+      (Array.isArray(submissionReport.submittedRoots) && submissionReport.submittedRoots.length > 0)
+  );
+}
+
 function buildDriftRecommendedActions({
   missingNativeGraphRoots = [],
   dependencySubmissionRoots = [],
   dependencySubmissionEvidence = null,
+  dependencyGraphVisibilityCheckError = null,
   alertsUnavailable = false,
   openAlertCount = 0,
   actionableAlertCount = 0,
@@ -600,6 +657,7 @@ function buildDriftRecommendedActions({
   const actions = [];
   let priority = 1;
   const submissionReport = dependencySubmissionEvidence?.report || dependencySubmissionEvidence || null;
+  const hasUsableSubmissionEvidence = hasUsableDependencySubmissionEvidence(submissionReport);
   const repositoryBlockerEvidence = submissionReport?.repositoryBlockerEvidence || null;
   const dependencyGraphVisibility = submissionReport?.dependencyGraphVisibility || null;
   const hasDependencyGraphRepositoryBlocker =
@@ -631,7 +689,7 @@ function buildDriftRecommendedActions({
     );
   }
 
-  if (actionsReadPermissionMissing) {
+  if (actionsReadPermissionMissing && !hasUsableSubmissionEvidence) {
     actions.push(
       createRecommendedAction(
         priority++,
@@ -644,6 +702,31 @@ function buildDriftRecommendedActions({
           href: buildWorkflowHref(repository, 'github-security-drift.yml'),
           hrefLabel: '打开 GitHub Security Drift workflow',
         },
+      ),
+    );
+  }
+
+  if (dependencyGraphVisibilityCheckError) {
+    actions.push(
+      createRecommendedAction(
+        priority++,
+        'workflow_maintainer',
+        isGitHubApiRateLimitError(dependencyGraphVisibilityCheckError)
+          ? 'rerun_with_authenticated_github_api'
+          : 'investigate_dependency_graph_visibility',
+        isGitHubApiRateLimitError(dependencyGraphVisibilityCheckError)
+          ? '使用具备更高 GitHub API 配额的 token / `gh` 凭证后重跑 `check-dependabot-drift`，避免 `dependencyGraphManifests` 因 rate limit 中断。'
+          : '排查 `dependencyGraphManifests` 查询失败原因，优先确认当前 token / GraphQL 可见性与 workflow 权限。',
+        isGitHubApiRateLimitError(dependencyGraphVisibilityCheckError)
+          ? '当前 drift 检查在读取 `dependencyGraphManifests` 时直接命中 GitHub API rate limit，尚未形成可验证的 graph visibility 证据。'
+          : '当前 drift 检查无法稳定读取 `dependencyGraphManifests`，后续判断会缺少关键 graph visibility 证据。',
+        [],
+        isGitHubApiRateLimitError(dependencyGraphVisibilityCheckError)
+          ? {
+              href: buildActionsSecretsHref(repository),
+              hrefLabel: '打开 Actions secrets',
+            }
+          : {},
       ),
     );
   }

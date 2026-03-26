@@ -227,3 +227,35 @@ test('buildDriftRecommendedActions keeps alerts token first when no repository b
 
   assert.equal(actions[0].code, 'configure_dependabot_alerts_token');
 });
+
+test('buildDriftRecommendedActions ignores actions-read noise once submission evidence is already available', () => {
+  const actions = buildDriftRecommendedActions({
+    actionsReadPermissionMissing: true,
+    openAlertCount: 1,
+    repository: { owner: 'taichuy', repo: '7flows' },
+    dependencySubmissionEvidence: {
+      report: {
+        repositoryBlockerEvidence: {
+          kind: 'dependency_graph_disabled',
+          rootLabels: ['api', 'web'],
+        },
+        dependencyGraphVisibility: {
+          defaultBranch: 'taichuy_dev',
+          manifestCount: 1,
+          visibleRoots: ['web'],
+          missingRoots: ['api'],
+        },
+      },
+    },
+  });
+
+  assert.deepEqual(
+    actions.map((action) => action.code),
+    [
+      'enable_dependency_graph',
+      'rerun_dependency_graph_submission',
+      'rerun_github_security_drift',
+      'preserve_platform_drift_evidence',
+    ],
+  );
+});

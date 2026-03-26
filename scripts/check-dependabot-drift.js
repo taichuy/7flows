@@ -1298,6 +1298,7 @@ function buildDriftReport({
   manifestNodes,
   workspaceManifestInventory,
   manifestCoverage,
+  manifestGraphCheckError = null,
   openAlerts,
   results,
   actionableAlerts,
@@ -1313,6 +1314,7 @@ function buildDriftReport({
     missingNativeGraphRoots,
     dependencySubmissionRoots,
     dependencySubmissionEvidence,
+    dependencyGraphVisibilityCheckError: manifestGraphCheckError,
     alertsUnavailable,
     openAlertCount: openAlerts.length,
     actionableAlertCount: actionableAlerts.length,
@@ -1329,7 +1331,8 @@ function buildDriftReport({
     defaultBranch: defaultBranch || null,
     manifestGraph: {
       localRootCount: workspaceManifestInventory.length,
-      manifestCount: manifestNodes.length,
+      manifestCount: manifestGraphCheckError ? null : manifestNodes.length,
+      checkError: manifestGraphCheckError,
       roots: workspaceManifestInventory.map((item) => ({
         rootLabel: item.rootLabel,
         ecosystem: item.ecosystem,
@@ -1348,7 +1351,7 @@ function buildDriftReport({
         ecosystem: item.ecosystem,
         dependencyGraphSupport: item.dependencyGraphSupport,
         dependencyGraphSupported: item.dependencyGraphSupported,
-        graphVisible: item.graphVisible,
+        graphVisible: typeof item.graphVisible === 'boolean' ? item.graphVisible : null,
         matchedGraphFilenames: item.matchedGraphFilenames,
       })),
       missingNativeGraphRoots: missingNativeGraphRoots.map((item) => item.rootLabel),
@@ -1392,6 +1395,7 @@ function writeDriftReport(reportOutputPath, params) {
 function buildDriftStepOutputs(report) {
   const dependencySubmissionEvidence = report?.dependencySubmissionEvidence || null;
   const dependencyGraphVisibility = dependencySubmissionEvidence?.dependencyGraphVisibility || null;
+  const manifestGraph = report?.manifestGraph || null;
   const repositoryBlockerEvidence = dependencySubmissionEvidence?.repositoryBlockerEvidence || null;
   const repositorySecurityAndAnalysis = report?.repositorySecurityAndAnalysis || null;
 
@@ -1440,7 +1444,8 @@ function buildDriftStepOutputs(report) {
     dependency_graph_missing_roots_json: JSON.stringify(
       dependencyGraphVisibility?.missingRoots || [],
     ),
-    dependency_graph_check_error: dependencyGraphVisibility?.checkError || '',
+    dependency_graph_check_error:
+      dependencyGraphVisibility?.checkError || manifestGraph?.checkError || '',
   };
 }
 
@@ -1454,18 +1459,114 @@ function main() {
   const workspaceManifestInventory = buildWorkspaceManifestInventory(trackedFiles);
   const remoteUrl = run('git', ['config', '--get', 'remote.origin.url']);
   const repository = parseRemoteRepository(remoteUrl);
-  const repositoryData = JSON.parse(
-    run('gh', [
-      'api',
-      'graphql',
-      '-F',
-      `owner=${repository.owner}`,
-      '-F',
-      `name=${repository.repo}`,
-      '-f',
-      'query=query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { defaultBranchRef { name } dependencyGraphManifests(first: 100) { nodes { filename dependenciesCount parseable exceedsMaxSize } } } }',
-    ]),
-  );
+  let repositoryData = null;
+  let manifestGraphCheckError = null;
+  let manifestNodes = [];
+  let manifestCoverage = buildUnknownManifestCoverage(workspaceManifestInventory);
+
+  try {
+    repositoryData = JSON.parse(
+      run('gh', [
+        'api',
+        'graphql',
+        '-F',
+        `owner=${repository.owner}`,
+        '-F',
+        `name=${repository.repo}`,
+        '-f',
+        'query=query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { defaultBranchRef { name } dependencyGraphManifests(first: 100) { nodes { filename dependenciesCount parseable exceedsMaxSize } } } }',
+      ]),
+    );
+    manifestNodes = repositoryData.data.repository.dependencyGraphManifests.nodes;
+    manifestCoverage = buildWorkspaceManifestCoverage(workspaceManifestInventory, manifestNodes);
+  } catch (error) {
+    manifestGraphCheckError = error.message;
+  }
+
+  const defaultBranch = repositoryData?.data?.repository?.defaultBranchRef?.name || null;
+  let repositorySecurityAndAnalysis = null;
+
+  try {
+    repositorySecurityAndAnalysis = fetchRepositorySecurityAndAnalysis(repository);
+  } catch (error) {
+    repositorySecurityAndAnalysis = normalizeRepositorySecurityAndAnalysis({
+      checkedAt: new Date().toISOString(),
+      checkError: error.message,
+      raw: {},
+    });
+  }
+
+  if (manifestGraphCheckError) {
+    printSection('仓库事实');
+    console.log(`repo: ${repository.owner}/${repository.repo}`);
+    console.log(`default branch: ${defaultBranch || 'unknown'}`);
+    console.log(`Local manifest roots: ${workspaceManifestInventory.length}`);
+    workspaceManifestInventory.forEach((item) => {
+      console.log(
+        `- ${item.rootLabel} | ecosystem=${item.ecosystem} | manifest=${item.manifestPath || 'none'} | lock=${item.lockfilePath || 'none'} | graphSupport=${item.dependencyGraphSupport} | graphVisible=unknown`,
+      );
+    });
+
+    printSection('Dependency graph visibility');
+    console.log(`无法读取 dependencyGraphManifests：${manifestGraphCheckError}`);
+
+    const repositorySecurityAndAnalysisLines = buildRepositorySecurityAndAnalysisMarkdownLines(
+      repositorySecurityAndAnalysis,
+      { heading: null },
+    );
+    if (repositorySecurityAndAnalysisLines.length > 0) {
+      printSection('Repository security & analysis');
+      repositorySecurityAndAnalysisLines.forEach((line) => console.log(line));
+    }
+
+    const conclusion = {
+      exitCode: 3,
+      kind: 'graph_visibility_check_failed',
+      summary: isGitHubApiRateLimitError(manifestGraphCheckError)
+        ? '当前无法读取 GitHub `dependencyGraphManifests`，因为 API rate limit 已耗尽；请使用具备更高配额的 gh 凭证或等待配额恢复后重跑。'
+        : '当前无法读取 GitHub `dependencyGraphManifests`；请先恢复 GraphQL 可见性，再继续判断 Dependency graph / Dependabot drift。',
+    };
+    const reportParams = {
+      repository,
+      defaultBranch,
+      manifestNodes,
+      workspaceManifestInventory,
+      manifestCoverage,
+      manifestGraphCheckError,
+      openAlerts: [],
+      results: [],
+      actionableAlerts: [],
+      alertsUnavailable: false,
+      dependencySubmissionEvidence: null,
+      repositorySecurityAndAnalysis,
+      conclusion,
+    };
+    const report = buildDriftReport(reportParams);
+    const summaryLines = [
+      '## GitHub 安全告警漂移检查',
+      '',
+      `- 仓库：\`${repository.owner}/${repository.repo}\``,
+      `- 默认分支：\`${defaultBranch || 'unknown'}\``,
+      `- 本地 manifest roots：\`${workspaceManifestInventory.length}\``,
+      '- dependency graph manifests：`unknown`',
+      `- graph visibility check failed: ${manifestGraphCheckError}`,
+    ];
+    if (repositorySecurityAndAnalysisLines.length > 0) {
+      summaryLines.push('', ...repositorySecurityAndAnalysisLines);
+    }
+    summaryLines.push('', '### 结论', '', `- ${conclusion.summary}`);
+    const recommendedActionLines = buildRecommendedActionsMarkdownLines(report.recommendedActions);
+    if (recommendedActionLines.length > 0) {
+      summaryLines.push('', ...recommendedActionLines);
+    }
+    writeStepSummary(summaryLines);
+    printSection('结论');
+    console.log(conclusion.summary);
+    writeDriftReport(options.reportOutputPath, reportParams);
+    writeDriftStepOutputs(report);
+    process.exit(resolveProcessExitCode(3, options));
+  }
+
   let alerts = [];
   let alertsUnavailable = false;
 
@@ -1482,8 +1583,6 @@ function main() {
   }
 
   const openAlerts = alertsUnavailable ? [] : alerts.filter((alert) => alert.state === 'open');
-  const manifestNodes = repositoryData.data.repository.dependencyGraphManifests.nodes;
-  const manifestCoverage = buildWorkspaceManifestCoverage(workspaceManifestInventory, manifestNodes);
   const results = alertsUnavailable
     ? []
     : openAlerts.map((alert) =>
@@ -1496,17 +1595,6 @@ function main() {
   const { missingNativeGraphRoots, dependencySubmissionRoots } = buildGraphCoverageBuckets(
     manifestCoverage,
   );
-  let repositorySecurityAndAnalysis = null;
-
-  try {
-    repositorySecurityAndAnalysis = fetchRepositorySecurityAndAnalysis(repository);
-  } catch (error) {
-    repositorySecurityAndAnalysis = normalizeRepositorySecurityAndAnalysis({
-      checkedAt: new Date().toISOString(),
-      checkError: error.message,
-      raw: {},
-    });
-  }
 
   const shouldFetchDependencySubmissionEvidence =
     missingNativeGraphRoots.length > 0 ||
@@ -1514,13 +1602,13 @@ function main() {
   const dependencySubmissionEvidence = shouldFetchDependencySubmissionEvidence
     ? fetchLatestDependencySubmissionEvidence(
         repository,
-        repositoryData.data.repository.defaultBranchRef?.name,
+        defaultBranch,
       )
     : null;
 
   printSection('仓库事实');
   console.log(`repo: ${repository.owner}/${repository.repo}`);
-  console.log(`default branch: ${repositoryData.data.repository.defaultBranchRef?.name || 'unknown'}`);
+  console.log(`default branch: ${defaultBranch || 'unknown'}`);
   console.log(`Local manifest roots: ${workspaceManifestInventory.length}`);
   manifestCoverage.forEach((item) => {
     console.log(
@@ -1547,10 +1635,11 @@ function main() {
   );
   const sharedReportParams = {
     repository,
-    defaultBranch: repositoryData.data.repository.defaultBranchRef?.name,
+    defaultBranch,
     manifestNodes,
     workspaceManifestInventory,
     manifestCoverage,
+    manifestGraphCheckError,
     openAlerts,
     results,
     actionableAlerts,

@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '23 2 * * *'
+  workflow_run:
+    workflows:
+      - Dependency Graph Submission
+    types:
+      - completed
   push:
     branches:
       - taichuy_dev
@@ -22,6 +27,7 @@ on:
 jobs:
   drift:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event != 'push') }}
     outputs:
       status: ${{ steps.drift.outputs.status }}
       conclusion_kind: ${{ steps.drift.outputs.conclusion_kind }}
@@ -89,6 +95,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -144,4 +152,7 @@ jobs:
         if: always() && hashFiles('dependabot-drift.json') != ''
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node scripts/sync-github-security-drift-issue.js --report dependabot-drift.json
+        run: >-
+          node scripts/sync-github-security-drift-issue.js
+          --report dependabot-drift.json
+          --current-ref-name "${{ github.event.workflow_run.head_branch || github.ref_name }}"

@@ -31,6 +31,7 @@ function parseArgs(argv = process.argv.slice(2)) {
     issueMarker: DEFAULT_ISSUE_MARKER,
     closeResolved: true,
     dryRun: false,
+    currentRefName: null,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -60,6 +61,12 @@ function parseArgs(argv = process.argv.slice(2)) {
 
     if (argument === '--dry-run') {
       options.dryRun = true;
+      continue;
+    }
+
+    if (argument === '--current-ref-name') {
+      options.currentRefName = argv[index + 1] || null;
+      index += 1;
       continue;
     }
 

@@ -716,16 +716,19 @@ test('buildIssueBody renders resolved snapshot when blocker is gone', () => {
   assert.match(body, /外部阻塞状态：已解除或已转入本地依赖修复/);
 });
 
-test('parseArgs supports dry-run and custom title', () => {
+test('parseArgs supports dry-run, custom title, and current ref override', () => {
   const options = parseArgs([
     '--report',
     'dependabot-drift.json',
     '--issue-title',
     'Custom Title',
+    '--current-ref-name',
+    'feature/manual-check',
     '--dry-run',
   ]);
 
   assert.equal(options.reportPath, 'dependabot-drift.json');
   assert.equal(options.issueTitle, 'Custom Title');
+  assert.equal(options.currentRefName, 'feature/manual-check');
   assert.equal(options.dryRun, true);
 });

@@ -100,6 +100,7 @@ node scripts/sync-github-security-drift-issue.js \
 - 当首要动作是仓库管理员去开 `Dependency graph` 时，`primary_recommended_action_manual_only=true`、`primary_recommended_action_manual_only_reason=github_settings_ui`、`primary_recommended_action_documentation_href` / `_label` 也会同步输出，明确告诉后续 workflow / agent：这一步当前是 GitHub 设置页里的手动动作，应优先跟随官方文档与 UI 复验，而不是继续尝试 repo settings patch。
 - 如果 repo API 仍缺失 `dependency_graph` / `automatic_dependency_submission` 字段，step outputs 还会额外给出 `repository_security_and_analysis_manual_verification_required=true` 与 `repository_security_and_analysis_manual_verification_reason=missing_dependency_graph_fields`，提醒后续 workflow / agent 即使看见某次 `gh api -X PATCH repos/{owner}/{repo}` 返回 200，也不能把它当成完成信号。
 - 由于该 workflow 需要查询 `Dependency Graph Submission` 的最新 run 并下载其 artifact，同时还要同步追踪 issue，`.github/workflows/github-security-drift.yml` 现在显式声明 `actions: read`、`contents: read`、`security-events: read` 与 `issues: write`；若后续复制或裁剪该 workflow，请不要丢掉 `actions: read` 与 `issues: write`。
+- 当维护者手动或定时跑完 `Dependency Graph Submission` 后，`GitHub Security Drift` 现在会通过 `workflow_run` 自动接力复验同一提交的 drift 结果，不需要再额外手点第二次 drift；但为避免 lockfile push 同时触发两条 workflow 时重复跑一遍，来自 `push` 的 submission run 不会再触发这条自动接力。
 - artifact 现在会同时保留：
   - `dependabot-drift.txt`：给人读的命令输出
   - `dependabot-drift.json`：给后续自动化 / agent 复验消费的机器可读报告，包含 manifest coverage、当前仓库 `security_and_analysis` 快照（`repositorySecurityAndAnalysis`）、最新 dependency submission evidence、submission-time `dependencyGraphVisibility`、dependency submission API 返回的原始 blocker evidence（`kind/status/message`）、有序 `recommendedActions`（`priority/audience/code/summary/rationale/roots/href/hrefLabel/manualOnly/manualOnlyReason/documentationHref/documentationHrefLabel`），以及 `actions: read` 权限阻塞标记与最终 exit code / conclusion
@@ -117,7 +118,7 @@ node scripts/sync-github-security-drift-issue.js \
   - `1`：仍有真实未修或无法解析的告警，工作流失败
   - `2`：已确认是平台状态漂移，工作流保留 warning 与证据，但不把本轮代码视为失败
 - `3`：workflow token 无法读取 Dependabot alerts；若同轮 artifact 已确认 `dependency_graph_disabled`，summary / conclusion 会先把仓库设置 blocker 作为首要动作，再把 `DEPENDABOT_ALERTS_TOKEN` 作为 blocker 解除后的后续恢复动作。
-- 当管理员完成 `Security & analysis` 检查后，优先手动重跑该 workflow，再判断告警是否自动收口。
+- 当管理员完成 `Security & analysis` 检查后，优先手动重跑 `Dependency Graph Submission`；若 blocker 已解除，`GitHub Security Drift` 会自动接力复验同一提交的 alert / graph 状态。只有在单独补了 `DEPENDABOT_ALERTS_TOKEN`、但没有新 submission 证据时，才需要单独手动重跑 `GitHub Security Drift`。
 
 ## 显式 dependency submission
 
