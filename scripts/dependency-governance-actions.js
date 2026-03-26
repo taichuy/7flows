@@ -22,7 +22,13 @@ const automaticDependencySubmissionDocsHref =
   'https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/configuring-automatic-dependency-submission-for-your-repository';
 
 function normalizeStringList(values) {
-  return [...new Set((Array.isArray(values) ? values : []).filter((value) => typeof value === 'string' && value.trim()).map((value) => value.trim()))].sort();
+  return [
+    ...new Set(
+      (Array.isArray(values) ? values : [])
+        .filter((value) => typeof value === 'string' && value.trim())
+        .map((value) => value.trim()),
+    ),
+  ];
 }
 
 function normalizeRecommendedActions(actions) {
@@ -337,7 +343,7 @@ function buildRepositorySecurityAndAnalysisMarkdownLines(
 
   if (normalized.availableFields.length > 0) {
     lines.push(
-      `- fields returned by repo API: ${normalized.availableFields
+      `- repo API 返回字段：${normalized.availableFields
         .map((field) => `\`${field}\``)
         .join('、')}`,
     );
@@ -345,13 +351,13 @@ function buildRepositorySecurityAndAnalysisMarkdownLines(
 
   if (normalized.missingFields.length > 0) {
     lines.push(
-      `- fields absent from repo API payload: ${normalized.missingFields
+      `- repo API 未返回字段：${normalized.missingFields
         .map((field) => `\`${field}\``)
         .join('、')}`,
     );
 
     if (normalized.manualVerificationReason) {
-      lines.push(`- manual verification reason: \`${normalized.manualVerificationReason}\``);
+      lines.push(`- manual verification reason：\`${normalized.manualVerificationReason}\``);
     }
 
     if (
@@ -396,8 +402,8 @@ function buildRecommendedActionsMarkdownLines(
     }
     if (action.manualOnly) {
       lines.push(
-        `  - execution: manual-only step${
-          action.manualOnlyReason ? ` (${action.manualOnlyReason})` : ''
+        `  - 仅支持人工操作${
+          action.manualOnlyReason ? `（\`${action.manualOnlyReason}\`）` : ''
         }`,
       );
     }
