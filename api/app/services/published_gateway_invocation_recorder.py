@@ -6,8 +6,8 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.models.workflow import WorkflowPublishedApiKey, WorkflowPublishedEndpoint
-from app.services.published_invocations import PublishedInvocationService
 from app.services.published_invocation_types import PublishedInvocationRequestSource
+from app.services.published_invocations import PublishedInvocationService
 
 
 @dataclass
@@ -47,6 +47,8 @@ class PublishedGatewayInvocationRecorder:
         context: PublishedGatewayInvocationContext,
         error_message: str,
         status_code: int,
+        run_id: str | None = None,
+        run_status: str | None = None,
     ) -> None:
         self._invocation_service.record_invocation(
             db,
@@ -58,7 +60,11 @@ class PublishedGatewayInvocationRecorder:
             cache_key=context.cache_key,
             cache_entry_id=context.cache_entry_id,
             request_surface_override=context.request_surface_override,
-            api_key_id=context.authenticated_key.id if context.authenticated_key is not None else None,
+            api_key_id=(
+                context.authenticated_key.id if context.authenticated_key is not None else None
+            ),
+            run_id=run_id,
+            run_status=run_status,
             error_message=error_message,
             started_at=context.started_at,
             finished_at=context.finished_at,
@@ -81,7 +87,9 @@ class PublishedGatewayInvocationRecorder:
             cache_key=context.cache_key,
             cache_entry_id=context.cache_entry_id,
             request_surface_override=context.request_surface_override,
-            api_key_id=context.authenticated_key.id if context.authenticated_key is not None else None,
+            api_key_id=(
+                context.authenticated_key.id if context.authenticated_key is not None else None
+            ),
             run_id=result.run_id,
             run_status=result.run_status,
             response_payload=result.response_preview_payload,

@@ -1236,7 +1236,33 @@ def test_published_sync_routes_reject_waiting_runs(
         } == {"sync_waiting_unsupported": 1}
         assert activity["items"][0]["status"] == "rejected"
         assert activity["items"][0]["reason_code"] == "sync_waiting_unsupported"
-        assert activity["items"][0]["run_id"] is None
+        run_id = activity["items"][0]["run_id"]
+        assert isinstance(run_id, str)
+        assert activity["items"][0]["run_status"] == "waiting"
+        assert activity["items"][0]["run_waiting_reason"] == "callback pending"
+        assert activity["items"][0]["run_snapshot"] is not None
+        assert activity["items"][0]["run_snapshot"]["status"] == "waiting"
+        assert activity["items"][0]["run_follow_up"]["affected_run_count"] == 1
+        assert activity["items"][0]["run_follow_up"]["sampled_run_count"] == 1
+        assert activity["items"][0]["run_follow_up"]["waiting_run_count"] == 1
+        assert activity["items"][0]["run_follow_up"]["sampled_runs"][0]["run_id"] == run_id
+
+        invocation_id = activity["items"][0]["id"]
+        detail_response = client.get(
+            f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/{invocation_id}"
+        )
+        assert detail_response.status_code == 200
+        detail = detail_response.json()
+        assert detail["invocation"]["status"] == "rejected"
+        assert detail["invocation"]["reason_code"] == "sync_waiting_unsupported"
+        assert detail["invocation"]["run_id"] == run_id
+        assert detail["invocation"]["run_status"] == "waiting"
+        assert detail["run_snapshot"] is not None
+        assert detail["run_snapshot"]["status"] == "waiting"
+        assert detail["run_follow_up"]["affected_run_count"] == 1
+        assert detail["run_follow_up"]["sampled_run_count"] == 1
+        assert detail["run_follow_up"]["waiting_run_count"] == 1
+        assert detail["run_follow_up"]["sampled_runs"][0]["run_id"] == run_id
     finally:
         reset_plugin_registry()
 

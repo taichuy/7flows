@@ -118,6 +118,9 @@ class PublishedGatewayBindingInvoker:
         cache_entry_id: str | None = None
         response_preview_payload = None
         stream_run_payload: dict | None = None
+        executed_run_id: str | None = None
+        executed_run_status: str | None = None
+        executed_run_error: str | None = None
 
         try:
             resolved_binding = self._binding_resolver.resolve(
@@ -142,10 +145,6 @@ class PublishedGatewayBindingInvoker:
             cache_enabled = cache_lookup.cache_enabled
             cache_status = cache_lookup.cache_status
 
-            executed_run_id: str | None = None
-            executed_run_status: str | None = None
-            executed_run_error: str | None = None
-
             if cache_lookup.hit:
                 response_payload = cache_lookup.response_payload
                 cache_key = cache_lookup.cache_key
@@ -159,11 +158,11 @@ class PublishedGatewayBindingInvoker:
                     blueprint_record=blueprint_record,
                     input_payload=workflow_input_payload,
                 )
-                if require_terminal_success:
-                    self._ensure_sync_publish_run_succeeded(artifacts.run.status)
                 executed_run_id = artifacts.run.id
                 executed_run_status = artifacts.run.status
                 executed_run_error = artifacts.run.error_message
+                if require_terminal_success:
+                    self._ensure_sync_publish_run_succeeded(artifacts.run.status)
                 stream_run_payload = serialize_run_detail(artifacts).model_dump(mode="json")
                 response_payload = response_builder(
                     binding=binding,
@@ -216,6 +215,8 @@ class PublishedGatewayBindingInvoker:
                 context=invocation_context,
                 error_message=str(invocation_error),
                 status_code=invocation_error.status_code,
+                run_id=executed_run_id,
+                run_status=executed_run_status,
             )
             raise invocation_error
 
