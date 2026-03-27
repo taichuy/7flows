@@ -97,6 +97,94 @@ def test_published_openai_chat_completion_async_route_uses_async_cache_surface(
 
 
 @pytest.mark.parametrize(
+    ("route", "alias", "definition_protocol", "payload", "request_surface", "message"),
+    [
+        (
+            "/v1/chat/completions-async",
+            "openai.chat.async.streaming.workflow",
+            "openai",
+            {
+                "model": "openai.chat.async.streaming.workflow",
+                "messages": [{"role": "user", "content": "hello"}],
+                "stream": True,
+            },
+            "openai.chat.completions.async",
+            "Streaming chat completions are not supported yet.",
+        ),
+        (
+            "/v1/responses-async",
+            "openai.responses.async.streaming.workflow",
+            "openai",
+            {
+                "model": "openai.responses.async.streaming.workflow",
+                "input": "hello",
+                "stream": True,
+            },
+            "openai.responses.async",
+            "Streaming responses are not supported yet.",
+        ),
+        (
+            "/v1/messages-async",
+            "anthropic.messages.async.streaming.workflow",
+            "anthropic",
+            {
+                "model": "anthropic.messages.async.streaming.workflow",
+                "messages": [{"role": "user", "content": "hello"}],
+                "max_tokens": 128,
+                "stream": True,
+            },
+            "anthropic.messages.async",
+            "Streaming Anthropic messages are not supported yet.",
+        ),
+    ],
+)
+def test_published_protocol_async_routes_return_reason_code_for_streaming_rejections(
+    client: TestClient,
+    route: str,
+    alias: str,
+    definition_protocol: str,
+    payload: dict,
+    request_surface: str,
+    message: str,
+) -> None:
+    workflow_id, binding = _publish_binding(
+        client,
+        publishable_definition(
+            answer="streaming-unsupported",
+            endpoint_id=alias,
+            endpoint_name=f"{alias} endpoint",
+            alias=alias,
+            path=f"/{alias.replace('.', '/')}",
+            protocol=definition_protocol,
+        ),
+        name=f"{alias} workflow",
+    )
+
+    response = client.post(route, json=payload)
+    assert response.status_code == 422
+    assert response.headers["X-7Flows-Reason-Code"] == "streaming_unsupported"
+    assert response.json()["detail"] == {
+        "message": message,
+        "reason_code": "streaming_unsupported",
+        "run_id": None,
+        "run_status": None,
+        "run": None,
+        "run_snapshot": None,
+        "run_follow_up": None,
+    }
+
+    activity_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
+    )
+    assert activity_response.status_code == 200
+    activity = activity_response.json()
+    assert activity["summary"]["rejected_count"] == 1
+    assert activity["summary"]["last_reason_code"] == "streaming_unsupported"
+    assert activity["items"][0]["request_surface"] == request_surface
+    assert activity["items"][0]["reason_code"] == "streaming_unsupported"
+
+
+@pytest.mark.parametrize(
     ("route", "protocol", "alias", "path", "payload", "request_surface"),
     [
         (

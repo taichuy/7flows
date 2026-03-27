@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
 from app.api.routes.published_gateway_shared import (
@@ -8,6 +8,7 @@ from app.api.routes.published_gateway_shared import (
     extract_presented_api_key,
     published_gateway_service,
     raise_gateway_http_exception,
+    raise_publish_protocol_rejection,
 )
 from app.core.database import get_db
 from app.schemas.workflow_publish import (
@@ -74,18 +75,19 @@ def invoke_published_anthropic_message_async(
     db: Session = Depends(get_db),
 ) -> PublishedProtocolAsyncRunResponse:
     if payload.stream:
+        message = "Streaming Anthropic messages are not supported yet."
         published_gateway_service.record_protocol_rejection_by_alias(
             db,
             model=payload.model,
             expected_protocol="anthropic",
             request_payload=payload.model_dump(mode="json", exclude_none=True),
-            error_detail="Streaming Anthropic messages are not supported yet.",
+            error_detail=message,
             presented_api_key=extract_presented_api_key(request),
             request_surface_override="anthropic.messages.async",
         )
-        raise HTTPException(
-            status_code=422,
-            detail="Streaming Anthropic messages are not supported yet.",
+        raise_publish_protocol_rejection(
+            message=message,
+            reason_code="streaming_unsupported",
         )
 
     try:

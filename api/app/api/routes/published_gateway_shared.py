@@ -7,6 +7,7 @@ from app.schemas.workflow_publish import (
     AnthropicMessageRequest,
     OpenAIChatCompletionRequest,
     OpenAIResponseRequest,
+    PublishedEndpointGatewayErrorDetail,
 )
 from app.services.published_gateway import (
     PublishedEndpointGatewayError,
@@ -99,3 +100,22 @@ def raise_gateway_http_exception(exc: PublishedEndpointGatewayError) -> None:
         detail=exc.detail_payload if exc.detail_payload is not None else str(exc),
         headers=exc.headers,
     ) from exc
+
+
+def raise_publish_protocol_rejection(
+    *,
+    message: str,
+    reason_code: str,
+    status_code: int = 422,
+) -> None:
+    raise_gateway_http_exception(
+        PublishedEndpointGatewayError(
+            message,
+            status_code=status_code,
+            detail_payload=PublishedEndpointGatewayErrorDetail(
+                message=message,
+                reason_code=reason_code,
+            ).model_dump(mode="json"),
+            headers={"X-7Flows-Reason-Code": reason_code},
+        )
+    )
