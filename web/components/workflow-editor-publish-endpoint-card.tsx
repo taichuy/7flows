@@ -1,7 +1,11 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { buildWorkflowPublishDraftEndpointId } from "@/lib/workflow-publish-definition-links";
-import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
+import { pickWorkflowValidationRemediationItem } from "@/lib/workflow-validation-remediation";
+import {
+  buildWorkflowValidationNavigatorItems,
+  type WorkflowValidationNavigatorItem
+} from "@/lib/workflow-validation-navigation";
 import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import type { WorkflowEditorPublishValidationIssue } from "./workflow-editor-publish-form-validation";
@@ -67,9 +71,38 @@ export function WorkflowEditorPublishEndpointCard({
     validationIssues.find(
       (issue) => issue.category === "publish_draft" && issue.field === "authMode"
     ) ?? null;
-  const genericValidationMessages = validationIssues
-    .filter((issue) => issue !== legacyAuthValidationIssue)
-    .map((issue) => issue.message);
+  const genericValidationIssues = useMemo(
+    () => validationIssues.filter((issue) => issue !== legacyAuthValidationIssue),
+    [legacyAuthValidationIssue, validationIssues]
+  );
+  const genericValidationNavigatorItems = useMemo(
+    () =>
+      buildWorkflowValidationNavigatorItems(
+        { publish: buildEndpointValidationPublishDraft(endpoint, endpointIndex) },
+        genericValidationIssues.map((issue) => ({
+          category: issue.category,
+          message: issue.message,
+          path: issue.path,
+          field: issue.field
+        }))
+      ),
+    [endpoint, endpointIndex, genericValidationIssues]
+  );
+  const genericValidationRemediationItem = useMemo(
+    () => pickWorkflowValidationRemediationItem(genericValidationNavigatorItems),
+    [genericValidationNavigatorItems]
+  );
+  const activeValidationRemediationItem =
+    focusedValidationItem && normalizedHighlightedField
+      ? focusedValidationItem
+      : genericValidationRemediationItem;
+  const remainingGenericValidationIssues = useMemo(
+    () =>
+      genericValidationIssues.filter(
+        (issue) => !matchesPublishValidationIssue(issue, activeValidationRemediationItem)
+      ),
+    [activeValidationRemediationItem, genericValidationIssues]
+  );
   const legacyAuthValidationItem = legacyAuthValidationIssue
     ? {
         key: legacyAuthValidationIssue.key,
@@ -133,19 +166,19 @@ export function WorkflowEditorPublishEndpointCard({
         <span className="event-chip">{versionChip}</span>
       </div>
 
-      {focusedValidationItem && normalizedHighlightedField ? (
+      {activeValidationRemediationItem ? (
         <WorkflowValidationRemediationCard
           currentHref={currentHref}
-          item={focusedValidationItem}
+          item={activeValidationRemediationItem}
           sandboxReadiness={sandboxReadiness}
         />
       ) : null}
 
-      {genericValidationMessages.length > 0 ? (
+      {remainingGenericValidationIssues.length > 0 ? (
         <div className="sync-message error">
           <ul className="roadmap-list compact-list">
-            {genericValidationMessages.map((message) => (
-              <li key={`${endpoint.id}-${message}`}>{message}</li>
+            {remainingGenericValidationIssues.map((issue) => (
+              <li key={issue.key}>{issue.message}</li>
             ))}
           </ul>
         </div>
@@ -356,6 +389,31 @@ export function WorkflowEditorPublishEndpointCard({
       </button>
     </section>
   );
+}
+
+function buildEndpointValidationPublishDraft(
+  endpoint: WorkflowPublishedEndpointDraft,
+  endpointIndex: number
+) {
+  return Array.from({ length: endpointIndex + 1 }, (_, index) =>
+    index === endpointIndex ? (endpoint as unknown as Record<string, unknown>) : {}
+  );
+}
+
+function matchesPublishValidationIssue(
+  issue: WorkflowEditorPublishValidationIssue,
+  item: WorkflowValidationNavigatorItem | null
+) {
+  if (!item || item.target.scope !== "publish" || issue.category !== item.category) {
+    return false;
+  }
+
+  const fieldPath = item.target.fieldPath?.trim();
+  if (fieldPath) {
+    return issue.path === `publish.${item.target.endpointIndex}.${fieldPath}`;
+  }
+
+  return issue.message === item.message;
 }
 
 function normalizePublishFieldKey(fieldPath: string | null | undefined) {

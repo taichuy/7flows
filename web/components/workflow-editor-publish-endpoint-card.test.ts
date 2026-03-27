@@ -137,4 +137,52 @@ describe("WorkflowEditorPublishEndpointCard", () => {
     expect(html).toContain("Publish auth contract");
     expect(html).not.toContain("<li>Public Search 当前不能使用 authMode = token。</li>");
   });
+
+  it("promotes the first generic endpoint issue into shared remediation and keeps the rest listed", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorPublishEndpointCard, {
+        endpoint: {
+          id: "public search",
+          name: "Public Search",
+          alias: "public-search",
+          path: "public-search",
+          protocol: "openai",
+          authMode: "api_key",
+          streaming: true,
+          workflowVersion: undefined,
+          inputSchema: {}
+        },
+        endpointIndex: 0,
+        workflowVersion: "1.0.0",
+        validationIssues: [
+          {
+            key: "public-search-id-format",
+            endpointKey: "0",
+            endpointId: "public-search",
+            category: "publish_draft",
+            message: "Public Search 的 endpoint id 只能包含小写字母、数字、- 和 _。",
+            path: "publish.0.id",
+            field: "id"
+          },
+          {
+            key: "public-search-path-format",
+            endpointKey: "0",
+            endpointId: "public-search",
+            category: "publish_draft",
+            message: "Public Search 的 path 必须以 / 开头。",
+            path: "publish.0.path",
+            field: "path"
+          }
+        ],
+        onUpdateEndpoint: () => undefined,
+        onDeleteEndpoint: () => undefined,
+        onApplySchemaField: () => undefined
+      })
+    );
+
+    expect(html).toContain("Publish · Public Search · Endpoint id");
+    expect(html).toContain("把名称和标识收敛成当前 workflow 内唯一且可读的一组入口");
+    expect(html).not.toContain("<li>Public Search 的 endpoint id 只能包含小写字母、数字、- 和 _。</li>");
+    expect(html).toContain("<li>Public Search 的 path 必须以 / 开头。</li>");
+  });
 });
