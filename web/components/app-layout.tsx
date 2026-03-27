@@ -4,6 +4,7 @@ import React from "react";
 import { Layout, Menu, ConfigProvider } from "antd";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { shouldBypassGlobalAppLayout } from "@/lib/app-layout";
 import { 
   AppstoreOutlined, 
   RocketOutlined, 
@@ -16,6 +17,10 @@ const { Header, Content } = Layout;
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+
+  if (shouldBypassGlobalAppLayout(pathname)) {
+    return <>{children}</>;
+  }
 
   const menuItems = [
     {

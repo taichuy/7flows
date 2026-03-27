@@ -59,6 +59,10 @@ export function formatWorkspaceRole(role: WorkspaceMemberRole) {
   }
 }
 
+export function canManageWorkspaceMembers(role: WorkspaceMemberRole) {
+  return role === "owner" || role === "admin";
+}
+
 export function describeWorkspaceMemberActivity(member: WorkspaceMemberItem) {
   if (!member.user.last_login_at) {
     return "尚未登录";

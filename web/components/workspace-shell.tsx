@@ -4,7 +4,11 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { formatWorkspaceRole, type WorkspaceMemberRole } from "@/lib/workspace-access";
+import {
+  canManageWorkspaceMembers,
+  formatWorkspaceRole,
+  type WorkspaceMemberRole
+} from "@/lib/workspace-access";
 import { getWorkspaceBadgeLabel } from "@/lib/workspace-ui";
 
 type WorkspaceShellProps = {
@@ -38,6 +42,7 @@ export function WorkspaceShell({
   const router = useRouter();
   const workspaceBadgeLabel = getWorkspaceBadgeLabel(workspaceName);
   const userBadgeLabel = getWorkspaceBadgeLabel(userName, "A");
+  const canManageMembers = canManageWorkspaceMembers(userRole);
 
   const handleLogout = async () => {
     await fetch("/api/session/logout", {
@@ -70,7 +75,9 @@ export function WorkspaceShell({
             </div>
           </div>
           <nav className="workspace-nav" aria-label="Workspace">
-            {navigationItems.map((item) => (
+            {navigationItems
+              .filter((item) => (item.key === "team" ? canManageMembers : true))
+              .map((item) => (
               <Link
                 className={`workspace-nav-link ${item.key === activeNav ? "active" : ""}`}
                 href={item.href}

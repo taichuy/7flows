@@ -83,6 +83,39 @@ function buildWorkspaceContext() {
   } as Awaited<ReturnType<typeof getServerWorkspaceContext>>;
 }
 
+function buildEditorWorkspaceContext() {
+  return {
+    workspace: {
+      id: "default",
+      name: "7Flows Workspace",
+      slug: "sevenflows"
+    },
+    current_user: {
+      id: "user-editor",
+      email: "editor@taichuy.com",
+      display_name: "7Flows Editor",
+      status: "active",
+      last_login_at: "2026-03-28T09:00:00Z"
+    },
+    current_member: {
+      id: "member-editor",
+      role: "editor",
+      user: {
+        id: "user-editor",
+        email: "editor@taichuy.com",
+        display_name: "7Flows Editor",
+        status: "active",
+        last_login_at: "2026-03-28T09:00:00Z"
+      },
+      invited_by_user_id: null,
+      created_at: "2026-03-27T12:00:00Z",
+      updated_at: "2026-03-27T12:00:00Z"
+    },
+    available_roles: ["owner", "admin", "editor", "viewer"],
+    can_manage_members: false
+  } as Awaited<ReturnType<typeof getServerWorkspaceContext>>;
+}
+
 function buildWorkflowDetailFixture(overrides: Partial<NonNullable<Awaited<ReturnType<typeof getWorkflowDetail>>>> = {}) {
   return {
     id: "workflow-chatflow",
@@ -444,5 +477,87 @@ describe("WorkspacePage", () => {
     expect(html).not.toContain("ChatFlow Alpha");
     expect(html).toContain('href="/workspace?mode=agent"');
     expect(html).toContain("新建 Agent 草稿");
+  });
+
+  it("shows starter showcase cards when the workspace has no apps yet", async () => {
+    vi.mocked(getServerWorkspaceContext).mockResolvedValue(buildWorkspaceContext());
+    vi.mocked(getWorkflows).mockResolvedValue([]);
+    vi.mocked(getWorkflowDetail).mockResolvedValue(null);
+    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshotFixture({
+      starters: [
+        {
+          id: "starter-chatflow",
+          origin: "workspace",
+          workspaceId: "default",
+          name: "Blank Flow",
+          description: "保留最小 trigger -> output 骨架，适合作为第一个应用入口。",
+          businessTrack: "应用新建编排",
+          defaultWorkflowName: "Blank Workflow",
+          workflowFocus: "Workspace author entry",
+          recommendedNextStep: "Create from starter",
+          tags: ["starter"],
+          definition: {
+            nodes: [],
+            edges: []
+          },
+          source: {
+            kind: "starter",
+            scope: "workspace",
+            status: "available",
+            governance: "workspace",
+            ecosystem: "7flows",
+            label: "Workspace starter",
+            shortLabel: "workspace",
+            summary: "Workspace maintained starter"
+          },
+          archived: false,
+          createdAt: "2026-03-27T09:00:00Z",
+          updatedAt: "2026-03-28T09:00:00Z"
+        }
+      ]
+    }));
+    vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverviewFixture());
+
+    const html = renderToStaticMarkup(
+      await WorkspacePage({
+        searchParams: Promise.resolve({})
+      })
+    );
+
+    expect(html).toContain("当前筛选范围内还没有应用");
+    expect(html).toContain("Blank Flow");
+    expect(html).toContain("从 Starter 创建");
+    expect(html).toContain("推荐作为空工作台的首个应用入口");
+  });
+
+  it("hides member-admin entrypoints for editors without member permissions", async () => {
+    vi.mocked(getServerWorkspaceContext).mockResolvedValue(buildEditorWorkspaceContext());
+    vi.mocked(getWorkflows).mockResolvedValue([]);
+    vi.mocked(getWorkflowDetail).mockResolvedValue(null);
+    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshotFixture());
+    vi.mocked(getSystemOverview).mockResolvedValue(
+      buildSystemOverviewFixture({
+        runtime_activity: {
+          summary: {
+            recent_run_count: 3,
+            recent_event_count: 5,
+            run_statuses: {},
+            event_types: {}
+          },
+          recent_runs: [],
+          recent_events: []
+        }
+      })
+    );
+
+    const html = renderToStaticMarkup(
+      await WorkspacePage({
+        searchParams: Promise.resolve({})
+      })
+    );
+
+    expect(html).not.toContain('href="/admin/members"');
+    expect(html).toContain("查看运行诊断");
+    expect(html).toContain('href="/runs"');
   });
 });

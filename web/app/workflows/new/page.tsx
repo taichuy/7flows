@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
+import { WorkspaceShell } from "@/components/workspace-shell";
 import { WorkflowCreateWizard } from "@/components/workflow-create-wizard";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import { getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
+import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import {
   hasScopedWorkspaceStarterGovernanceFilters,
   pickWorkspaceStarterGovernanceQueryScope,
@@ -19,6 +22,11 @@ type NewWorkflowPageProps = {
 };
 
 export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageProps) {
+  const workspaceContext = await getServerWorkspaceContext();
+  if (!workspaceContext) {
+    redirect("/login?next=/workflows/new");
+  }
+
   const resolvedSearchParams = (await searchParams) ?? {};
   const workspaceStarterViewState = readWorkspaceStarterLibraryViewState(resolvedSearchParams);
   const shouldScopeWorkspaceStarters = hasScopedWorkspaceStarterGovernanceFilters(
@@ -43,15 +51,24 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
   ]);
 
   return (
-    <WorkflowCreateWizard
-      catalogToolCount={workflowLibrary.tools.length}
-      governanceQueryScope={pickWorkspaceStarterGovernanceQueryScope(workspaceStarterViewState)}
-      legacyAuthGovernanceSnapshot={legacyAuthGovernanceSnapshot}
-      starters={workflowLibrary.starters}
-      starterSourceLanes={workflowLibrary.starterSourceLanes}
-      nodeCatalog={workflowLibrary.nodes}
-      tools={workflowLibrary.tools}
-      workflows={workflows}
-    />
+    <WorkspaceShell
+      activeNav="workflows"
+      userName={workspaceContext.current_user.display_name}
+      userRole={workspaceContext.current_member.role}
+      workspaceName={workspaceContext.workspace.name}
+    >
+      <main className="workspace-main workspace-workflow-create-main">
+        <WorkflowCreateWizard
+          catalogToolCount={workflowLibrary.tools.length}
+          governanceQueryScope={pickWorkspaceStarterGovernanceQueryScope(workspaceStarterViewState)}
+          legacyAuthGovernanceSnapshot={legacyAuthGovernanceSnapshot}
+          starters={workflowLibrary.starters}
+          starterSourceLanes={workflowLibrary.starterSourceLanes}
+          nodeCatalog={workflowLibrary.nodes}
+          tools={workflowLibrary.tools}
+          workflows={workflows}
+        />
+      </main>
+    </WorkspaceShell>
   );
 }
