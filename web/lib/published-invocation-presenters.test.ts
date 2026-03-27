@@ -1516,7 +1516,8 @@ describe("published invocation presenters", () => {
       detail:
         "Rate limit pressure is the main aggregate to watch in this publish slice. 当前最近 24 小时切片里已用掉 90% 配额，只剩 1 次；继续放量前先观察是否开始转成 rate_limit_exceeded。 Aggregate slice only; use the cards below for route-level or invocation-level diagnosis.",
       href: null,
-      hrefLabel: null
+      hrefLabel: null,
+      workflowGovernanceHandoff: null
     });
   });
 
@@ -2201,6 +2202,138 @@ describe("published invocation presenters", () => {
     });
     expect(surface.summaryCards.at(-1)?.detail).toContain("selected invocation next step");
     expect(surface.summaryCards.at(-1)?.detail).not.toContain("Aggregate slice only");
+  });
+
+  it("keeps shared workflow governance handoff on summary focus when waiting follow-up reuses the selected invocation", () => {
+    const selectedNextStepSurface = buildPublishedInvocationSelectedNextStepSurface({
+      invocationId: "invocation-1",
+      nextStep: {
+        label: "approval blocker",
+        detail: "优先处理 blocker inbox，再观察 waiting 节点是否恢复。",
+        href: "/sensitive-access?run_id=run-selected-1&waiting_status=waiting",
+        href_label: "open blocker inbox slice"
+      },
+      workflowGovernanceHandoff: {
+        workflowId: "workflow-1",
+        workflowCatalogGapSummary: "catalog gap · native.catalog-gap",
+        workflowCatalogGapDetail:
+          "当前 sampled run 对应的 workflow 版本仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 publish sampled snapshot。",
+        workflowCatalogGapHref: "/workflows/workflow-1?definition_issue=missing_tool",
+        workflowGovernanceHref: "/workflows/workflow-1?definition_issue=legacy_publish_auth",
+        legacyAuthHandoff: {
+          bindingChipLabel: "1 legacy bindings",
+          statusChipLabel: "publish auth blocker",
+          detail:
+            "当前 Workflow 1 仍有 1 条 legacy publish auth binding；先回到 workflow 编辑器保存新版 binding，再回来继续处理 publish activity。",
+          workflowSummary: {
+            workflow_id: "workflow-1",
+            workflow_name: "Workflow 1",
+            binding_count: 1,
+            draft_candidate_count: 0,
+            published_blocker_count: 1,
+            offline_inventory_count: 0,
+            tool_governance: {
+              referenced_tool_ids: ["native.catalog-gap"],
+              missing_tool_ids: ["native.catalog-gap"],
+              governed_tool_count: 0,
+              strong_isolation_tool_count: 0
+            }
+          }
+        }
+      }
+    });
+
+    const surface = buildPublishedInvocationActivityInsightsSurface({
+      invocationAudit: {
+        filters: {},
+        summary: {
+          total_count: 2,
+          succeeded_count: 0,
+          failed_count: 1,
+          rejected_count: 1,
+          cache_hit_count: 0,
+          cache_miss_count: 0,
+          cache_bypass_count: 0,
+          last_invoked_at: "2026-03-21T00:15:00Z",
+          last_status: "failed",
+          last_cache_status: "miss",
+          last_run_id: "run-selected-1",
+          last_run_status: "waiting_callback",
+          last_reason_code: null
+        },
+        facets: {
+          status_counts: [],
+          request_source_counts: [],
+          request_surface_counts: [],
+          cache_status_counts: [],
+          run_status_counts: [{ value: "waiting_callback", count: 2 }],
+          reason_counts: [],
+          api_key_usage: [],
+          recent_failure_reasons: [],
+          timeline_granularity: "hour",
+          timeline: []
+        },
+        items: []
+      },
+      rateLimitWindowAudit: null,
+      rateLimitPolicy: null,
+      callbackWaitingAutomation: null,
+      selectedInvocation: {
+        id: "invocation-1",
+        workflow_id: "workflow-1",
+        binding_id: "binding-1",
+        endpoint_id: "endpoint-1",
+        endpoint_alias: "alias-1",
+        route_path: "/published/test",
+        protocol: "openai",
+        auth_mode: "api_key",
+        request_source: "workflow",
+        request_surface: "native.workflow",
+        status: "failed",
+        cache_status: "miss",
+        run_id: "run-selected-1",
+        run_status: "waiting",
+        run_current_node_id: "tool_wait",
+        run_waiting_reason: "callback pending",
+        run_waiting_lifecycle: null,
+        run_follow_up: {
+          affected_run_count: 1,
+          sampled_run_count: 1,
+          waiting_run_count: 1,
+          running_run_count: 0,
+          succeeded_run_count: 0,
+          failed_run_count: 0,
+          unknown_run_count: 0,
+          explanation: null,
+          sampled_runs: []
+        },
+        callback_waiting_explanation: {
+          primary_signal: "当前 waiting 节点仍在等待 callback。",
+          follow_up: "优先处理 blocker inbox，再观察 waiting 节点是否恢复。"
+        },
+        reason_code: "runtime_failed",
+        error_message: "sandbox backend offline during invocation",
+        request_preview: { key_count: 1, keys: ["query"] },
+        response_preview: { ok: false },
+        created_at: "2026-03-21T00:10:00Z",
+        finished_at: "2026-03-21T00:10:01Z",
+        duration_ms: 1000
+      },
+      selectedInvocationNextStepSurface: selectedNextStepSurface
+    });
+
+    expect(surface.summaryCards.at(-1)).toMatchObject({
+      key: "summary-focus",
+      workflowGovernanceHandoff: {
+        workflowCatalogGapSummary: "catalog gap · native.catalog-gap",
+        workflowCatalogGapHref: "/workflows/workflow-1?definition_issue=missing_tool",
+        workflowGovernanceHref: "/workflows/workflow-1?definition_issue=legacy_publish_auth",
+        legacyAuthHandoff: {
+          bindingChipLabel: "1 legacy bindings",
+          statusChipLabel: "publish auth blocker"
+        }
+      }
+    });
   });
 
   it("does not duplicate the waiting CTA when the selected invocation resolves to the same shared callback recovery action", () => {

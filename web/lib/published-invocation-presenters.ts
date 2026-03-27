@@ -164,11 +164,13 @@ export type WorkflowPublishSummaryCardSurface = {
   detail: string | null;
   href: string | null;
   hrefLabel: string | null;
+  workflowGovernanceHandoff?: WorkflowGovernanceHandoff | null;
 };
 
 export type PublishedInvocationActivityPrimaryFollowUpSurface =
   WorkflowPublishPrimaryFollowUpSurface & {
     scope: "aggregate" | "selected";
+    selectedNextStepSurface?: PublishedInvocationSelectedNextStepSurface | null;
   };
 
 export type PublishedInvocationActivitySummaryCardSurface = WorkflowPublishSummaryCardSurface;
@@ -1163,7 +1165,8 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
             selectedWaitingNextStepSurface.detail
           ]) ?? selectedWaitingNextStepSurface.detail,
         href: selectedWaitingNextStepSurface.href ?? null,
-        hrefLabel: selectedWaitingNextStepSurface.hrefLabel ?? null
+        hrefLabel: selectedWaitingNextStepSurface.hrefLabel ?? null,
+        selectedNextStepSurface: selectedWaitingNextStepSurface
       };
     }
 
@@ -1191,7 +1194,8 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
         )
       ]) ?? selectedNextStepSurface.detail,
       href: selectedNextStepSurface.href ?? null,
-      hrefLabel: selectedNextStepSurface.hrefLabel ?? null
+      hrefLabel: selectedNextStepSurface.hrefLabel ?? null,
+      selectedNextStepSurface
     };
   }
 
@@ -1211,7 +1215,8 @@ export function buildPublishedInvocationActivityPrimaryFollowUpSurface({
           selectedRateLimitNextStepSurface.detail
         ]) ?? selectedRateLimitNextStepSurface.detail,
       href: selectedRateLimitNextStepSurface.href ?? null,
-      hrefLabel: selectedRateLimitNextStepSurface.hrefLabel ?? null
+      hrefLabel: selectedRateLimitNextStepSurface.hrefLabel ?? null,
+      selectedNextStepSurface: selectedRateLimitNextStepSurface
     };
   }
 
@@ -1354,7 +1359,9 @@ export function buildPublishedInvocationActivitySummaryCardSurfaces({
       value: primaryFollowUp.tone === "healthy" ? "clear" : "attention",
       detail: formatPublishedInvocationActivitySummaryFocusDetail(primaryFollowUp, surfaceCopy),
       href: primaryFollowUp.href,
-      hrefLabel: primaryFollowUp.hrefLabel
+      hrefLabel: primaryFollowUp.hrefLabel,
+      workflowGovernanceHandoff:
+        primaryFollowUp.selectedNextStepSurface?.workflowGovernanceHandoff ?? null
     }
   ];
 }

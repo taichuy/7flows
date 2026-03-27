@@ -6,6 +6,7 @@ import type {
   SandboxReadinessCheck
 } from "@/lib/get-system-overview";
 import { SensitiveAccessBlockedCard } from "@/components/sensitive-access-blocked-card";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import { WorkflowPublishSelectedNextStepCard } from "@/components/workflow-publish-selected-next-step-card";
 import { WorkflowPublishTrafficTimeline } from "@/components/workflow-publish-traffic-timeline";
 import { WorkflowPublishInvocationDetailPanel } from "@/components/workflow-publish-invocation-detail-panel";
@@ -83,6 +84,9 @@ export function WorkflowPublishActivityInsights({
     selectedInvocationNextStepSurface:
       selectedInvocationSurface.kind === "ok" ? selectedInvocationSurface.nextStepSurface : null
   });
+  const summaryFocusWorkflowGovernanceHandoff =
+    insightsSurface.summaryCards.find((card) => card.key === "summary-focus")?.workflowGovernanceHandoff ??
+    null;
 
   return (
     <>
@@ -100,6 +104,15 @@ export function WorkflowPublishActivityInsights({
           </article>
         ))}
       </div>
+      {summaryFocusWorkflowGovernanceHandoff ? (
+        <WorkflowGovernanceHandoffCards
+          workflowCatalogGapSummary={summaryFocusWorkflowGovernanceHandoff.workflowCatalogGapSummary}
+          workflowCatalogGapDetail={summaryFocusWorkflowGovernanceHandoff.workflowCatalogGapDetail}
+          workflowCatalogGapHref={summaryFocusWorkflowGovernanceHandoff.workflowCatalogGapHref}
+          workflowGovernanceHref={summaryFocusWorkflowGovernanceHandoff.workflowGovernanceHref}
+          legacyAuthHandoff={summaryFocusWorkflowGovernanceHandoff.legacyAuthHandoff}
+        />
+      ) : null}
 
       <div className="publish-meta-grid">
         <div className="payload-card compact-card">

@@ -15,6 +15,7 @@ import type { PublishedEndpointInvocationDetailResponse } from "@/lib/get-workfl
 import type { PublishedEndpointInvocationListResponse } from "@/lib/get-workflow-publish";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import type { SensitiveAccessBlockingPayload } from "@/lib/sensitive-access";
+import { buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture } from "@/lib/workflow-publish-legacy-auth-test-fixtures";
 
 vi.mock("next/link", () => ({
   default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
@@ -380,6 +381,40 @@ function buildSelectedInvocationDetail(): PublishedEndpointInvocationDetailRespo
   };
 }
 
+function buildSelectedInvocationDetailWithWorkflowGovernance(): PublishedEndpointInvocationDetailResponse {
+  const detail = buildSelectedInvocationDetail();
+  const legacyAuthGovernance = buildLegacyAuthGovernanceSinglePublishedBlockerSnapshotFixture();
+  legacyAuthGovernance.workflows[0] = {
+    ...legacyAuthGovernance.workflows[0],
+    workflow_id: "workflow-1",
+    workflow_name: "Workflow 1",
+    tool_governance: {
+      referenced_tool_ids: ["native.catalog-gap"],
+      missing_tool_ids: ["native.catalog-gap"],
+      governed_tool_count: 0,
+      strong_isolation_tool_count: 0
+    }
+  };
+  detail.legacy_auth_governance = legacyAuthGovernance as never;
+
+  const sampledRun = {
+    ...detail.run_follow_up!.sampled_runs[0],
+    workflow_id: "workflow-1",
+    tool_governance: {
+      referenced_tool_ids: ["native.catalog-gap"],
+      missing_tool_ids: ["native.catalog-gap"],
+      governed_tool_count: 0,
+      strong_isolation_tool_count: 0
+    },
+    legacy_auth_governance: legacyAuthGovernance
+  };
+
+  detail.run_follow_up!.sampled_runs[0] = sampledRun as never;
+  detail.invocation.run_follow_up!.sampled_runs[0] = sampledRun as never;
+
+  return detail;
+}
+
 function buildSampleApprovalEntry(): SensitiveAccessTimelineEntry {
   return {
     request: {
@@ -621,6 +656,34 @@ describe("WorkflowPublishActivityInsights", () => {
     expect(html).toContain("Selected invocation next step");
     expect(html).toContain("approval blocker");
     expect(html).toContain("open blocker inbox slice");
+  });
+
+  it("keeps shared workflow governance handoff in summary focus when issue signals reuse the selected invocation", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishActivityInsights, {
+        binding: {
+          rate_limit_policy: {
+            requests: 3,
+            windowSeconds: 60
+          }
+        } as WorkflowPublishActivityPanelProps["binding"],
+        invocationAudit: buildInvocationAudit(),
+        rateLimitWindowAudit: buildRateLimitWindowAudit(),
+        selectedInvocationId: "invocation-1",
+        selectedInvocationDetail: {
+          kind: "ok",
+          data: buildSelectedInvocationDetailWithWorkflowGovernance()
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness(),
+        activeTimeWindow: "24h"
+      })
+    );
+
+    expect(html).toContain("Summary focus");
+    expect(html.match(/回到 workflow 编辑器处理 catalog gap/g)?.length ?? 0).toBe(3);
+    expect(html.match(/回到 workflow 编辑器处理 publish auth contract/g)?.length ?? 0).toBe(3);
+    expect(html.match(/catalog gap · native\.catalog-gap/g)?.length ?? 0).toBe(3);
   });
 
   it("bridges sampled approval ticket ids into issue-signal CTA when top-level blocker scope is generic", () => {
