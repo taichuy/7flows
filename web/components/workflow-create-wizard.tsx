@@ -21,7 +21,10 @@ import {
   getWorkflowBusinessTrack,
   WORKFLOW_BUSINESS_TRACKS
 } from "@/lib/workflow-business-tracks";
-import { appendWorkflowLibraryViewStateForWorkflow } from "@/lib/workflow-library-query";
+import {
+  appendWorkflowLibraryViewState,
+  appendWorkflowLibraryViewStateForWorkflow
+} from "@/lib/workflow-library-query";
 import {
   buildWorkflowDefinitionSandboxGovernanceBadges,
   describeWorkflowDefinitionSandboxDependency
@@ -50,6 +53,7 @@ import {
   buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   buildWorkflowEditorHrefFromWorkspaceStarterViewState,
   buildWorkflowLibraryHrefFromWorkspaceStarterViewState,
+  buildWorkspaceHrefFromWorkspaceStarterViewState,
   buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState,
   hasScopedWorkspaceStarterGovernanceFilters,
   pickWorkspaceStarterGovernanceQueryScope,
@@ -154,6 +158,10 @@ export function WorkflowCreateWizard({
   const selectedStarterSourcePresenter =
     selectedStarterSourceGovernanceSurface?.presenter ?? null;
   const selectedStarterSourceChips = selectedStarterSourcePresenter?.factChips ?? [];
+  const selectedStarterSourcePrimarySignal =
+    selectedStarter?.sourceGovernance?.outcomeExplanation?.primarySignal ??
+    selectedStarter?.sourceGovernance?.outcomeExplanation?.primary_signal ??
+    null;
   const shouldRenderSelectedStarterSourceGovernance = Boolean(
     selectedStarter &&
       (selectedStarter.origin === "workspace" ||
@@ -393,7 +401,7 @@ export function WorkflowCreateWizard({
     <div style={{ minHeight: '100vh', background: '#F3F4F6', display: 'flex', flexDirection: 'column' }}>
       {/* Top Navigation Bar mimicking Dify modal header */}
       <div style={{ height: 56, background: '#ffffff', borderBottom: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', padding: '0 24px' }}>
-        <Link href={buildWorkflowLibraryHrefFromWorkspaceStarterViewState(workspaceStarterGovernanceScope)}>
+        <Link href={buildWorkspaceHrefFromWorkspaceStarterViewState(workspaceStarterGovernanceScope)}>
           <Button type="text" icon={<ArrowLeftOutlined />} style={{ color: '#374151', display: 'flex', alignItems: 'center', padding: '4px 8px' }}>
             返回工作台
           </Button>
@@ -405,13 +413,36 @@ export function WorkflowCreateWizard({
 
       <div style={{ flex: 1, padding: '32px 24px', display: 'flex', justifyContent: 'center' }}>
         <div style={{ width: '100%', maxWidth: 1100, display: 'flex', gap: 24, alignItems: 'flex-start' }}>
-          
-          {/* Left Column: Template Selection */}
           <div style={{ flex: '1 1 60%', background: '#ffffff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 24, boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
             <div style={{ marginBottom: 24 }}>
               <Title level={4} style={{ margin: 0, color: '#111827' }}>选择应用模板</Title>
               <Text type="secondary">先按主业务线选入口，再用最小骨架进入编排。</Text>
             </div>
+            <div style={{ marginBottom: 16 }}>
+              <WorkbenchEntryLinks
+                {...surfaceCopy.heroLinks}
+                currentHref={currentWorkflowCreateHref}
+                variant="inline"
+              />
+            </div>
+            {recentWorkflowLink ? (
+              <div style={{ marginBottom: 16, fontSize: 13 }}>
+                <Link href={recentWorkflowLink.href} style={{ color: '#1D4ED8', textDecoration: 'none', fontWeight: 500 }}>
+                  {recentWorkflowLink.label}
+                </Link>
+              </div>
+            ) : null}
+            {hasScopedWorkspaceStarterFilters ? (
+              <div style={{ marginBottom: 16, padding: 12, borderRadius: 10, background: '#F8FAFC', border: '1px solid #E5E7EB', color: '#475467', fontSize: 13, lineHeight: 1.6 }}>
+                <strong style={{ display: 'block', marginBottom: 6, color: '#111827' }}>Scoped governance</strong>
+                <span>{surfaceCopy.scopedGovernanceDescription}</span>
+                <div style={{ marginTop: 8 }}>
+                  <Link href={starterGovernanceHref} style={{ color: '#1D4ED8', textDecoration: 'none', fontWeight: 500 }}>
+                    {surfaceCopy.scopedGovernanceBackLinkLabel}
+                  </Link>
+                </div>
+              </div>
+            ) : null}
             <WorkflowStarterBrowser
               activeTrack={activeTrack}
               selectedStarterId={selectedStarter.id}
@@ -421,9 +452,54 @@ export function WorkflowCreateWizard({
               onSelectTrack={handleTrackSelect}
               onSelectStarter={applyStarterSelection}
             />
+            {workflows.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginTop: 16 }}>
+                {workflows.slice(0, 3).map((workflow) => {
+                  const workflowHref = appendWorkflowLibraryViewState(
+                    buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+                      workflowId: workflow.id,
+                      viewState: workspaceStarterGovernanceScope,
+                      variant: "recent"
+                    }).href,
+                    workflow.tool_governance?.missing_tool_ids?.length
+                      ? { definitionIssue: "missing_tool" }
+                      : {}
+                  );
+
+                  return (
+                    <WorkflowChipLink
+                      currentHref={currentWorkflowCreateHref}
+                      href={workflowHref}
+                      key={workflow.id}
+                      workflow={workflow}
+                    />
+                  );
+                })}
+              </div>
+            ) : null}
+            {selectedStarterNextStepSurface ? (
+              <div style={{ marginTop: 16 }}>
+                <WorkspaceStarterFollowUpCard
+                  title={surfaceCopy.recommendedNextStepTitle}
+                  label={selectedStarterNextStepSurface.label}
+                  detail={selectedStarterNextStepSurface.detail}
+                  primaryResourceSummary={selectedStarterNextStepSurface.primaryResourceSummary}
+                  workflowGovernanceHandoff={selectedStarterNextStepSurface.workflowGovernanceHandoff}
+                  actions={
+                    selectedStarterNextStepSurface.href && selectedStarterNextStepSurface.hrefLabel ? (
+                      <Link
+                        href={selectedStarterNextStepSurface.href}
+                        style={{ color: '#1D4ED8', textDecoration: 'none', fontWeight: 500 }}
+                      >
+                        {selectedStarterNextStepSurface.hrefLabel}
+                      </Link>
+                    ) : null
+                  }
+                />
+              </div>
+            ) : null}
           </div>
 
-          {/* Right Column: Draft Setup */}
           <div style={{ flex: '0 0 380px', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 24, boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
               <Title level={4} style={{ margin: '0 0 24px', color: '#111827' }}>配置草稿</Title>
@@ -465,12 +541,27 @@ export function WorkflowCreateWizard({
                     <div style={{ fontWeight: 500, color: '#374151' }}>{selectedStarter.governedToolCount}</div>
                   </Col>
                 </Row>
+                {selectedStarterSandboxBadges.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                    {selectedStarterSandboxBadges.map((badge) => (
+                      <Tag key={`${selectedStarter.id}-${badge.label}`} color={badge.tone === 'warning' ? 'gold' : badge.tone === 'danger' ? 'red' : 'blue'} style={{ margin: 0 }}>
+                        {badge.label}
+                      </Tag>
+                    ))}
+                  </div>
+                ) : null}
+                {selectedStarterSandboxDependencySummary ? (
+                  <div style={{ marginTop: 12, fontSize: 12, color: '#6B7280', lineHeight: 1.6 }}>
+                    {selectedStarterSandboxDependencySummary}
+                  </div>
+                ) : null}
               </div>
 
               <Button 
                 type="primary" 
                 size="large" 
                 block 
+                disabled={Boolean(selectedStarterMissingToolBlockingSurface)}
                 onClick={handleCreateWorkflow}
                 loading={isCreating}
                 style={{ height: 44, borderRadius: 8, background: '#1C64F2' }}
@@ -491,6 +582,58 @@ export function WorkflowCreateWizard({
                 </div>
               )}
             </div>
+
+            {selectedStarterMissingToolBlockingSurface ? (
+              <div style={{ background: '#FEF2F2', borderRadius: 12, border: '1px solid #FECACA', padding: 16, color: '#B42318', fontSize: 13, lineHeight: 1.7 }}>
+                <strong style={{ display: 'block', marginBottom: 8 }}>catalog gap</strong>
+                {selectedStarterMissingToolBlockingSurface.blockedMessage}
+              </div>
+            ) : null}
+
+            {shouldRenderSelectedStarterSourceGovernance ? (
+              <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 20, boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#667085' }}>
+                    Source governance
+                  </div>
+                  <p style={{ margin: '8px 0 0', fontSize: 13, color: '#475467', lineHeight: 1.7 }}>
+                    {surfaceCopy.sourceGovernanceDescription}
+                  </p>
+                </div>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {selectedStarterSourcePresenter ? (
+                    <>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        <Tag color="blue" style={{ margin: 0 }}>
+                          {selectedStarterSourcePresenter.actionStatusLabel ?? selectedStarterSourcePresenter.statusLabel}
+                        </Tag>
+                        {selectedStarterSourceChips.map((chip) => (
+                          <Tag key={`${selectedStarter.id}-${chip}`} style={{ margin: 0 }}>
+                            {chip}
+                          </Tag>
+                        ))}
+                      </div>
+                      {selectedStarterSourcePrimarySignal ? (
+                        <div style={{ fontSize: 13, color: '#111827', lineHeight: 1.7 }}>
+                          {selectedStarterSourcePrimarySignal}
+                        </div>
+                      ) : null}
+                      <div style={{ fontSize: 13, color: '#475467', lineHeight: 1.7 }}>
+                        {selectedStarterSourcePresenter.followUp ?? selectedStarterSourcePresenter.summary}
+                      </div>
+                    </>
+                  ) : null}
+                  {selectedStarterNextStepSurface?.href && selectedStarterNextStepSurface.hrefLabel ? (
+                    <div style={{ fontSize: 13, color: '#475467', lineHeight: 1.7 }}>
+                      {surfaceCopy.sourceGovernanceFollowUpPrefix}
+                      <Link href={selectedStarterNextStepSurface.href} style={{ marginLeft: 4, color: '#1D4ED8', textDecoration: 'none', fontWeight: 500 }}>
+                        {selectedStarterNextStepSurface.hrefLabel}
+                      </Link>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -640,7 +783,7 @@ function buildWorkflowCreateStarterMissingToolBlockingSurface({
   const renderedToolSummary = formatCatalogGapToolSummary(missingToolIds) ?? "unknown tool";
   const blockedMessage =
     `当前 starter 仍有 catalog gap（${renderedToolSummary}）；` +
-    "如果现在创建，API 会直接拒绝该草稿。先沿上面的治理入口补齐 binding，再回来创建草稿。";
+    "如果现在创建，API 会直接拒绝该草稿。先补 tool binding，再沿上面的治理入口完成治理，最后回来创建草稿。";
 
   return {
     blockedMessage

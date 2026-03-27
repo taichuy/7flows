@@ -80,12 +80,16 @@ export function WorkspaceLoginForm() {
           value={password}
         />
       </div>
+      <div className="login-credential-card">
+        <span className="login-credential-label">默认管理员</span>
+        <div className="login-credential-copy">
+          <strong>admin@taichuy.com</strong>
+          <span>admin123</span>
+        </div>
+      </div>
       <button className="workspace-primary-button" disabled={isSubmitting} type="submit">
-        {isSubmitting ? "登录中..." : "登录 7Flows Workspace"}
+        {isSubmitting ? "登录中..." : "登录并进入工作台"}
       </button>
-      <p className="login-hint">
-        默认管理员：<strong>admin@taichuy.com</strong> / <strong>admin123</strong>
-      </p>
       <p className="workspace-muted login-helper-copy">
         登录后先进入应用工作台；新建应用会直接衔接到 7Flows 的 xyflow 编辑器。
       </p>

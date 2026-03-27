@@ -3164,3 +3164,412 @@ a {
     display: grid;
   }
 }
+
+.login-stage-dify {
+  max-width: 1360px;
+}
+
+.login-stage-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.login-stage-chip.subtle {
+  background: #ffffff;
+  color: #667085;
+}
+
+.login-stage-body-compact {
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 420px);
+  align-items: center;
+}
+
+.login-stage-copy-compact {
+  display: grid;
+  gap: 18px;
+  max-width: 640px;
+}
+
+.login-stage-copy-compact h1 {
+  max-width: 14ch;
+}
+
+.login-stage-notes {
+  display: grid;
+  gap: 14px;
+  margin-top: 4px;
+}
+
+.login-stage-note {
+  padding: 18px 20px;
+  border-radius: 20px;
+  border: 1px solid #e6ebf5;
+  background: linear-gradient(180deg, #f9fbff 0%, #ffffff 100%);
+}
+
+.login-stage-note strong {
+  display: block;
+  color: #101828;
+  font-size: 1rem;
+}
+
+.login-stage-note p {
+  margin: 8px 0 0;
+}
+
+.login-card-dify {
+  padding: 36px 32px;
+}
+
+.login-credential-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #dbe7ff;
+  background: #f8fbff;
+}
+
+.login-credential-label {
+  color: #5c6780;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.login-credential-copy {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.login-credential-copy strong {
+  color: #101828;
+  font-size: 0.95rem;
+}
+
+.login-credential-copy span {
+  color: #5f6b7c;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.85rem;
+}
+
+.workspace-home-main-flat,
+.workspace-dashboard-panel,
+.workspace-app-board-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.workspace-dashboard-header,
+.workspace-dashboard-toolbar-row,
+.workspace-starter-ribbon-header,
+.workspace-settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.workspace-dashboard-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.workspace-dashboard-title-row h1 {
+  margin: 0;
+  color: #101828;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+}
+
+.workspace-dashboard-actions {
+  justify-content: flex-end;
+}
+
+.workspace-summary-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.workspace-summary-stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid #e6ebf5;
+  background: #f9fbff;
+}
+
+.workspace-summary-stat span {
+  color: #677388;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.workspace-summary-stat strong {
+  color: #101828;
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+}
+
+.workspace-dashboard-toolbar {
+  display: grid;
+  gap: 14px;
+}
+
+.workspace-starter-ribbon {
+  display: grid;
+  gap: 16px;
+  padding: 20px 22px;
+  border-radius: 24px;
+  border: 1px solid #e6ebf5;
+  background: #f9fbff;
+}
+
+.workspace-starter-ribbon-header h3 {
+  margin: 6px 0 0;
+  color: #101828;
+  font-size: 1.1rem;
+}
+
+.workspace-starter-ribbon-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.workspace-starter-ribbon-link,
+.workspace-create-board-starter {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #e6ebf5;
+  background: #ffffff;
+  text-decoration: none;
+}
+
+.workspace-starter-ribbon-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workspace-starter-ribbon-link strong,
+.workspace-create-board-starter strong {
+  color: #101828;
+  font-size: 0.95rem;
+}
+
+.workspace-starter-ribbon-link p,
+.workspace-create-board-starter span {
+  margin: 0;
+  color: #677388;
+  line-height: 1.55;
+}
+
+.workspace-app-grid-board {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: stretch;
+}
+
+.workspace-create-board-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: linear-gradient(180deg, #f9fbff 0%, #ffffff 100%);
+}
+
+.workspace-create-board-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.workspace-create-board-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.workspace-create-board-copy h3 {
+  margin: 0;
+  color: #101828;
+  font-size: 1.3rem;
+  line-height: 1.2;
+}
+
+.workspace-create-board-library-link {
+  flex-shrink: 0;
+}
+
+.workspace-create-board-actions,
+.workspace-create-board-starters {
+  display: grid;
+  gap: 10px;
+}
+
+.workspace-create-link-inline {
+  min-height: 74px;
+  background: #ffffff;
+}
+
+.workspace-create-board-footer {
+  display: grid;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.workspace-create-board-footnotes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.workspace-app-card-product-flat {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.workspace-app-card-header-flat {
+  margin-bottom: 0;
+}
+
+.workspace-app-inline-metrics-wrap {
+  margin-top: -4px;
+}
+
+.workspace-app-next-step-panel {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid #e6ebf5;
+  background: #f8fbff;
+}
+
+.workspace-app-next-step-panel .workspace-app-next-step,
+.workspace-app-meta {
+  margin: 0;
+}
+
+.workspace-app-meta {
+  color: #344054;
+  line-height: 1.6;
+}
+
+.workspace-app-focus {
+  font-size: 0.95rem;
+}
+
+.workspace-app-empty-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+}
+
+.workspace-settings-header-card {
+  padding: 26px 28px;
+}
+
+.workspace-settings-header-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.workspace-settings-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.workspace-settings-summary-stat {
+  display: grid;
+  gap: 6px;
+  min-width: 104px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #e6ebf5;
+  background: #f8fbff;
+}
+
+.workspace-settings-summary-stat span {
+  color: #677388;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-settings-summary-stat strong {
+  color: #101828;
+  font-size: 1.35rem;
+  letter-spacing: -0.03em;
+}
+
+@media (max-width: 1080px) {
+  .login-stage-body-compact,
+  .workspace-app-grid-board {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-create-board-head,
+  .workspace-dashboard-header,
+  .workspace-dashboard-toolbar-row,
+  .workspace-starter-ribbon-header,
+  .workspace-settings-header {
+    flex-direction: column;
+  }
+
+  .workspace-dashboard-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .login-stage {
+    padding: 20px;
+  }
+
+  .login-stage-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .login-card-dify,
+  .workspace-settings-header-card {
+    padding: 22px;
+  }
+
+  .workspace-app-grid-board,
+  .workspace-starter-ribbon-list {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-settings-header-copy,
+  .login-credential-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .login-credential-copy {
+    text-align: left;
+  }
+}

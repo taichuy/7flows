@@ -172,6 +172,28 @@ export function buildWorkflowLibraryHrefFromWorkspaceStarterViewState(
   return query ? `/workflows?${query}` : "/workflows";
 }
 
+export function buildWorkspaceHrefFromWorkspaceStarterViewState(
+  viewState: Pick<
+    WorkspaceStarterLibraryViewState,
+    "activeTrack" | "sourceGovernanceKind" | "needsFollowUp" | "searchQuery" | "selectedTemplateId"
+  >
+) {
+  const searchParams = new URLSearchParams();
+
+  if (viewState.activeTrack !== DEFAULT_WORKSPACE_STARTER_LIBRARY_VIEW_STATE.activeTrack) {
+    searchParams.set("track", viewState.activeTrack);
+  }
+
+  const normalizedSearchQuery = viewState.searchQuery.trim();
+  if (normalizedSearchQuery) {
+    searchParams.set("keyword", normalizedSearchQuery);
+  }
+
+  searchParams.sort();
+  const query = searchParams.toString();
+  return query ? `/workspace?${query}` : "/workspace";
+}
+
 export function buildRunLibraryHrefFromWorkspaceStarterViewState(
   viewState: Pick<
     WorkspaceStarterLibraryViewState,

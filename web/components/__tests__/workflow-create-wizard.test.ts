@@ -21,6 +21,88 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("WorkflowCreateWizard", () => {
+  it("routes the back action to the workspace app dashboard", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowCreateWizard, {
+        catalogToolCount: 1,
+        governanceQueryScope: {
+          activeTrack: "应用新建编排",
+          sourceGovernanceKind: "drifted",
+          needsFollowUp: true,
+          searchQuery: " drift ",
+          selectedTemplateId: "workspace-starter-1"
+        },
+        workflows: [],
+        starterSourceLanes: [],
+        nodeCatalog: [
+          {
+            type: "trigger",
+            label: "Trigger",
+            description: "Trigger node",
+            ecosystem: "native",
+            source: {
+              kind: "node",
+              scope: "builtin",
+              status: "available",
+              governance: "repo",
+              ecosystem: "native",
+              label: "Native node catalog",
+              shortLabel: "native nodes",
+              summary: "Native nodes"
+            },
+            capabilityGroup: "entry",
+            businessTrack: "应用新建编排",
+            tags: [],
+            supportStatus: "available",
+            supportSummary: "",
+            bindingRequired: false,
+            bindingSourceLanes: [],
+            palette: { enabled: true, order: 0, defaultPosition: { x: 0, y: 0 } },
+            defaults: { name: "Trigger", config: {} }
+          }
+        ],
+        tools: [],
+        starters: [
+          {
+            id: "workspace-starter-1",
+            origin: "workspace",
+            workspaceId: "default",
+            name: "Workspace starter",
+            description: "Starter description",
+            businessTrack: "应用新建编排",
+            defaultWorkflowName: "Blank Workflow",
+            workflowFocus: "Create from starter",
+            recommendedNextStep: "Create workflow",
+            tags: [],
+            definition: {
+              nodes: [{ id: "trigger", type: "trigger", name: "Trigger", config: {} }],
+              edges: [],
+              variables: [],
+              publish: []
+            },
+            source: {
+              kind: "starter",
+              scope: "workspace",
+              status: "available",
+              governance: "workspace",
+              ecosystem: "native",
+              label: "Workspace starters",
+              shortLabel: "workspace ready",
+              summary: "Workspace starter library"
+            },
+            archived: false,
+            sourceGovernance: null
+          }
+        ]
+      })
+    );
+
+    expect(html).toContain(
+      'href="/workspace?keyword=drift&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"'
+    );
+    expect(html).toContain("返回工作台");
+  });
+
   it("adds missing-tool scope to existing workflow chips when the draft already has a catalog gap", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowCreateWizard, {

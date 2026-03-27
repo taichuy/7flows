@@ -359,7 +359,6 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
       <WorkspaceAppsWorkbench
         activeModeDescription={activeModeDescription}
         activeModeLabel={activeModeMeta?.label ?? null}
-        canManageMembers={workspaceContext.can_manage_members}
         currentRoleLabel={currentRoleLabel}
         currentUserDisplayName={workspaceContext.current_user.display_name}
         filteredApps={filteredApps}

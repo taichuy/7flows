@@ -148,33 +148,36 @@ export function WorkspaceMemberAdminPanel({
       </aside>
 
       <div className="settings-main-panel">
-        <section className="workspace-panel workspace-settings-banner">
-          <div className="workspace-settings-banner-copy">
-            <div aria-hidden="true" className="workspace-settings-avatar">
-              {workspaceBadgeLabel}
+        <section className="workspace-panel workspace-settings-header-card">
+          <div className="workspace-settings-header">
+            <div className="workspace-settings-header-copy">
+              <div aria-hidden="true" className="workspace-settings-avatar">
+                {workspaceBadgeLabel}
+              </div>
+              <div>
+                <p className="workspace-eyebrow">成员</p>
+                <h2>{workspaceName}</h2>
+                <p className="workspace-muted workspace-copy-wide">
+                  这里收口工作空间成员、角色与协作边界；真正的编排与运行事实仍然回到 xyflow / runs 主链。
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="workspace-eyebrow">成员</p>
-              <h2>{workspaceName}</h2>
-              <p className="workspace-muted workspace-copy-wide">
-                管理员现在可以直接在工作空间里开通账号、配置角色和收口协作边界；真正的编排与运行事实仍然回到 xyflow / runs 主链。
-              </p>
+
+            <div className="workspace-settings-summary-row">
+              <article className="workspace-settings-summary-stat">
+                <span>成员</span>
+                <strong>{totalMembers}</strong>
+              </article>
+              <article className="workspace-settings-summary-stat">
+                <span>管理员</span>
+                <strong>{adminCount}</strong>
+              </article>
+              {canManageMembers ? (
+                <a className="workspace-primary-button compact" href="#workspace-member-create">
+                  添加成员
+                </a>
+              ) : null}
             </div>
-          </div>
-          <div className="workspace-settings-banner-stats">
-            <article className="workspace-mini-stat">
-              <span>成员</span>
-              <strong>{totalMembers}</strong>
-            </article>
-            <article className="workspace-mini-stat">
-              <span>管理员</span>
-              <strong>{adminCount}</strong>
-            </article>
-            {canManageMembers ? (
-              <a className="workspace-primary-button compact" href="#workspace-member-create">
-                添加成员
-              </a>
-            ) : null}
           </div>
         </section>
 

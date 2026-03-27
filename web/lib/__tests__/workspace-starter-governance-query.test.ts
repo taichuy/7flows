@@ -5,6 +5,7 @@ import {
   buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   buildWorkflowEditorHrefFromWorkspaceStarterViewState,
   buildWorkflowLibraryHrefFromWorkspaceStarterViewState,
+  buildWorkspaceHrefFromWorkspaceStarterViewState,
   buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState,
   hasScopedWorkspaceStarterGovernanceFilters,
   pickWorkspaceStarterGovernanceQueryScope,
@@ -55,6 +56,9 @@ describe("workspace-starter-governance-query", () => {
     expect(buildWorkflowLibraryHrefFromWorkspaceStarterViewState(viewState)).toBe(
       "/workflows?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=workspace-starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
     );
+    expect(buildWorkspaceHrefFromWorkspaceStarterViewState(viewState)).toBe(
+      "/workspace?keyword=drift&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
+    );
   });
 
   it("builds scoped workflow detail link surfaces from the shared contract", () => {
@@ -95,6 +99,9 @@ describe("workspace-starter-governance-query", () => {
     );
     expect(buildWorkflowCreateHrefFromWorkspaceStarterViewState(viewState)).toBe(
       "/workflows/new?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=workspace-starter-1"
+    );
+    expect(buildWorkspaceHrefFromWorkspaceStarterViewState(viewState)).toBe(
+      "/workspace?keyword=drift"
     );
   });
 
