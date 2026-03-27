@@ -16,6 +16,7 @@ import {
   buildWorkspaceStarterSourceGovernanceSurface
 } from "@/components/workspace-starter-library/shared";
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
+import { WorkflowGovernanceQuickFilterLink } from "@/components/workflow-governance-quick-filter-link";
 import { WorkflowLibraryLegacyAuthGovernanceCard } from "@/components/workflow-library-legacy-auth-governance-card";
 import { WorkflowLibraryMissingToolGovernanceCard } from "@/components/workflow-library-missing-tool-governance-card";
 import { buildCrossEntryRiskDigest } from "@/lib/cross-entry-risk-digest";
@@ -41,11 +42,9 @@ import { getWorkflows, type WorkflowListItem } from "@/lib/get-workflows";
 import { buildLegacyPublishAuthModeFollowUp } from "@/lib/legacy-publish-auth-contract";
 import { formatCountMap } from "@/lib/runtime-presenters";
 import {
-  formatCatalogGapResourceSummary,
   formatCatalogGapToolSummary,
   formatWorkflowLegacyPublishAuthBacklogSummary,
   getWorkflowLegacyPublishAuthBacklogCount,
-  getWorkflowLegacyPublishAuthStatusLabel,
   hasWorkflowLegacyPublishAuthIssues
 } from "@/lib/workflow-definition-governance";
 import {
@@ -401,8 +400,8 @@ export default async function WorkflowsPage({
               </p>
             ) : (
               summary.workflowsWithLegacyPublishAuth.map((workflow) => (
-                <Link
-                  className="event-chip inbox-filter-link"
+                <WorkflowGovernanceQuickFilterLink
+                  key={`${workflow.id}-publish-auth`}
                   href={buildFilteredWorkflowDetailLink({
                     workflowId: workflow.id,
                     viewState: workspaceStarterViewState,
@@ -410,10 +409,9 @@ export default async function WorkflowsPage({
                       definitionIssue: "legacy_publish_auth"
                     }
                   }).href}
-                  key={`${workflow.id}-publish-auth`}
-                >
-                  {workflow.name} · {getWorkflowLegacyPublishAuthStatusLabel(workflow) ?? "legacy auth cleanup"}
-                </Link>
+                  primaryIssue="legacy_publish_auth"
+                  workflow={workflow}
+                />
               ))
             )}
           </div>
@@ -423,8 +421,8 @@ export default async function WorkflowsPage({
               <p className="empty-state compact">当前 workflow 列表里没有存在 catalog gap 的条目。</p>
             ) : (
               summary.workflowsWithMissingTools.map((workflow) => (
-                <Link
-                  className="event-chip inbox-filter-link"
+                <WorkflowGovernanceQuickFilterLink
+                  key={`${workflow.id}-missing-tool`}
                   href={buildFilteredWorkflowDetailLink({
                     workflowId: workflow.id,
                     viewState: workspaceStarterViewState,
@@ -432,13 +430,9 @@ export default async function WorkflowsPage({
                       definitionIssue: "missing_tool"
                     }
                   }).href}
-                  key={`${workflow.id}-missing-tool`}
-                >
-                  {formatCatalogGapResourceSummary(
-                    workflow.name,
-                    workflow.tool_governance?.missing_tool_ids ?? []
-                  ) ?? `${workflow.name} · catalog gap`}
-                </Link>
+                  primaryIssue="missing_tool"
+                  workflow={workflow}
+                />
               ))
             )}
           </div>

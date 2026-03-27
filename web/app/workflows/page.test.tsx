@@ -227,6 +227,12 @@ describe("WorkflowsPage", () => {
     expect(html).toContain(
       "当前 workflow 仍有 catalog gap（tool-missing）；补齐 binding 后即可清空当前范围里的 missing-tool backlog。"
     );
+    expect(html).toContain(
+      "当前 Alpha workflow 对应的 workflow 版本仍有 catalog gap（tool-missing）；打开当前 quick filter 后先补齐 binding / LLM Agent tool policy，再继续沿同一份 workflow governance handoff 收口。"
+    );
+    expect(html).toContain(
+      "打开当前 quick filter 后即可继续补齐 binding / LLM Agent tool policy，并顺手核对同一 workflow 的 publish auth contract。"
+    );
     expect(html).toContain("Sandbox execution chain");
     expect(html).toContain("Live sandbox readiness");
     expect(html).toContain("强隔离路径会按 execution class fail-closed：sandbox 当前 blocked。");
@@ -287,6 +293,9 @@ describe("WorkflowsPage", () => {
     expect(html).toContain("publish auth cleanup");
     expect(html).toContain(
       "优先回到 Legacy Auth workflow 处理 0 条 draft cleanup、1 条 published blocker、1 条 offline inventory：先把 workflow draft endpoint 切回 api_key/internal 并保存"
+    );
+    expect(html).toContain(
+      "打开当前 quick filter 后即可继续处理 publish auth contract，并顺手核对同一 workflow 的 catalog gap。"
     );
     expect(html).toContain('/workflows/workflow-legacy-auth');
   });
