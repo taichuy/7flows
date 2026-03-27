@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { formatWorkspaceRole, type WorkspaceMemberRole } from "@/lib/workspace-access";
+import { getWorkspaceBadgeLabel } from "@/lib/workspace-ui";
 
 type WorkspaceShellProps = {
   activeNav: "workspace" | "workflows" | "runs" | "starters" | "ops" | "team";
@@ -35,6 +36,8 @@ export function WorkspaceShell({
   workspaceName
 }: WorkspaceShellProps) {
   const router = useRouter();
+  const workspaceBadgeLabel = getWorkspaceBadgeLabel(workspaceName);
+  const userBadgeLabel = getWorkspaceBadgeLabel(userName, "A");
 
   const handleLogout = async () => {
     await fetch("/api/session/logout", {
@@ -53,7 +56,18 @@ export function WorkspaceShell({
               <span className="workspace-brand-mark">7</span>
               <span>Flows</span>
             </Link>
-            <div className="workspace-name-chip">{workspaceName}</div>
+            <span aria-hidden="true" className="workspace-shell-divider">
+              /
+            </span>
+            <div className="workspace-name-chip">
+              <span aria-hidden="true" className="workspace-name-badge">
+                {workspaceBadgeLabel}
+              </span>
+              <div>
+                <strong>{workspaceName}</strong>
+                <span>Workspace</span>
+              </div>
+            </div>
           </div>
           <nav className="workspace-nav" aria-label="Workspace">
             {navigationItems.map((item) => (
@@ -67,10 +81,13 @@ export function WorkspaceShell({
             ))}
           </nav>
           <div className="workspace-user-actions">
-            <Link className="workspace-primary-button compact" href="/workflows/new">
-              新建应用
+            <Link className="workspace-primary-button compact workspace-topbar-create" href="/workflows/new">
+              + 新建应用
             </Link>
             <div className="workspace-user-chip">
+              <span aria-hidden="true" className="workspace-avatar-badge">
+                {userBadgeLabel}
+              </span>
               <div>
                 <strong>{userName}</strong>
                 <span>{formatWorkspaceRole(userRole)}</span>

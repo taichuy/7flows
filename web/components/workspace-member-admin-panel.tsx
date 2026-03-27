@@ -9,6 +9,7 @@ import {
   type WorkspaceMemberRole
 } from "@/lib/workspace-access";
 import { submitWorkspaceMemberCreate } from "@/lib/workspace-member-admin";
+import { getWorkspaceBadgeLabel } from "@/lib/workspace-ui";
 
 type WorkspaceMemberAdminPanelProps = {
   availableRoles: WorkspaceMemberRole[];
@@ -39,10 +40,15 @@ export function WorkspaceMemberAdminPanel({
   );
 
   const totalMembers = useMemo(() => members.length, [members]);
+  const adminCount = useMemo(
+    () => members.filter((member) => member.role === "owner" || member.role === "admin").length,
+    [members]
+  );
   const manageableRoles = useMemo(
     () => availableRoles.filter((role) => role !== "owner"),
     [availableRoles]
   );
+  const workspaceBadgeLabel = getWorkspaceBadgeLabel(workspaceName);
 
   const handleCreateMember = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -124,7 +130,11 @@ export function WorkspaceMemberAdminPanel({
     <section className="settings-layout">
       <aside className="settings-sidebar-panel">
         <p className="workspace-eyebrow">设置</p>
-        <h1>Workspace</h1>
+        <h1>团队设置</h1>
+        <p className="workspace-muted workspace-copy-wide">
+          参考 Dify 的 settings / members 入口，把成员、角色和工作空间边界收口在一处；
+          这里只管协作与权限，不复制应用运行事实。
+        </p>
         <nav className="settings-nav" aria-label="Settings">
           <span className="settings-nav-group">工作空间</span>
           <span className="settings-nav-item">工作空间</span>
@@ -138,19 +148,28 @@ export function WorkspaceMemberAdminPanel({
       </aside>
 
       <div className="settings-main-panel">
-        <section className="workspace-panel member-settings-header">
-          <div>
-            <p className="workspace-eyebrow">成员</p>
-            <h2>{workspaceName}</h2>
-            <p className="workspace-muted workspace-copy-wide">
-              现在管理员可以直接在工作空间里开通账号、配置角色和收口协作边界；这一层只处理成员入口，不复制应用运行事实。
-            </p>
+        <section className="workspace-panel workspace-settings-banner">
+          <div className="workspace-settings-banner-copy">
+            <div aria-hidden="true" className="workspace-settings-avatar">
+              {workspaceBadgeLabel}
+            </div>
+            <div>
+              <p className="workspace-eyebrow">成员</p>
+              <h2>{workspaceName}</h2>
+              <p className="workspace-muted workspace-copy-wide">
+                管理员现在可以直接在工作空间里开通账号、配置角色和收口协作边界；真正的编排与运行事实仍然回到 xyflow / runs 主链。
+              </p>
+            </div>
           </div>
-          <div className="workspace-action-row member-settings-actions">
-            <div className="workspace-stat-card member-stat-card">
+          <div className="workspace-settings-banner-stats">
+            <article className="workspace-mini-stat">
               <span>成员</span>
               <strong>{totalMembers}</strong>
-            </div>
+            </article>
+            <article className="workspace-mini-stat">
+              <span>管理员</span>
+              <strong>{adminCount}</strong>
+            </article>
             {canManageMembers ? (
               <a className="workspace-primary-button compact" href="#workspace-member-create">
                 添加成员
@@ -180,64 +199,66 @@ export function WorkspaceMemberAdminPanel({
             </div>
           </div>
 
-          <div className="member-table-grid member-table-grid-head">
-            <span>成员</span>
-            <span>邮箱</span>
-            <span>最近活动</span>
-            <span>角色</span>
-            <span>操作</span>
+          <div className="member-table-list">
+            <div className="member-table-grid member-table-grid-head">
+              <span>成员</span>
+              <span>邮箱</span>
+              <span>最近活动</span>
+              <span>角色</span>
+              <span>操作</span>
+            </div>
+
+            {members.map((member) => {
+              const isRoleDirty = (draftRoles[member.id] ?? member.role) !== member.role;
+
+              return (
+                <div className="member-table-grid" key={member.id}>
+                  <span className="workspace-member-identity">
+                    <strong>{member.user.display_name}</strong>
+                    <span>{member.user.status === "active" ? "已启用" : member.user.status}</span>
+                  </span>
+                  <span className="workspace-muted">{member.user.email}</span>
+                  <span className="workspace-muted">{describeWorkspaceMemberActivity(member)}</span>
+                  <span>
+                    {canManageMembers ? (
+                      <select
+                        className="workspace-select"
+                        onChange={(event) =>
+                          setDraftRoles((current) => ({
+                            ...current,
+                            [member.id]: event.target.value as WorkspaceMemberRole
+                          }))
+                        }
+                        value={draftRoles[member.id] ?? member.role}
+                      >
+                        {availableRoles.map((role) => (
+                          <option key={role} value={role}>
+                            {formatWorkspaceRole(role)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      formatWorkspaceRole(member.role)
+                    )}
+                  </span>
+                  <span>
+                    {canManageMembers ? (
+                      <button
+                        className="workspace-ghost-button compact"
+                        disabled={!isRoleDirty}
+                        onClick={() => handleUpdateRole(member.id)}
+                        type="button"
+                      >
+                        {isRoleDirty ? "保存角色" : "已保存"}
+                      </button>
+                    ) : (
+                      <span className="workspace-muted">仅查看</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-
-          {members.map((member) => {
-            const isRoleDirty = (draftRoles[member.id] ?? member.role) !== member.role;
-
-            return (
-              <div className="member-table-grid" key={member.id}>
-                <span className="workspace-member-identity">
-                  <strong>{member.user.display_name}</strong>
-                  <span>{member.user.status === "active" ? "已启用" : member.user.status}</span>
-                </span>
-                <span className="workspace-muted">{member.user.email}</span>
-                <span className="workspace-muted">{describeWorkspaceMemberActivity(member)}</span>
-                <span>
-                  {canManageMembers ? (
-                    <select
-                      className="workspace-select"
-                      onChange={(event) =>
-                        setDraftRoles((current) => ({
-                          ...current,
-                          [member.id]: event.target.value as WorkspaceMemberRole
-                        }))
-                      }
-                      value={draftRoles[member.id] ?? member.role}
-                    >
-                      {availableRoles.map((role) => (
-                        <option key={role} value={role}>
-                          {formatWorkspaceRole(role)}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    formatWorkspaceRole(member.role)
-                  )}
-                </span>
-                <span>
-                  {canManageMembers ? (
-                    <button
-                      className="workspace-ghost-button compact"
-                      disabled={!isRoleDirty}
-                      onClick={() => handleUpdateRole(member.id)}
-                      type="button"
-                    >
-                      {isRoleDirty ? "保存角色" : "已保存"}
-                    </button>
-                  ) : (
-                    <span className="workspace-muted">仅查看</span>
-                  )}
-                </span>
-              </div>
-            );
-          })}
         </div>
 
         <div className="workspace-panel member-form-panel" id="workspace-member-create">
@@ -251,7 +272,7 @@ export function WorkspaceMemberAdminPanel({
           </div>
 
           {canManageMembers ? (
-            <>
+            <div className="member-form-layout">
               <form className="member-create-form" onSubmit={handleCreateMember}>
                 <div className="member-create-grid">
                   <input className="workspace-input" name="display_name" placeholder="姓名" required />
@@ -285,7 +306,7 @@ export function WorkspaceMemberAdminPanel({
                   </article>
                 ))}
               </div>
-            </>
+            </div>
           ) : (
             <p className="workspace-muted">当前账号只有查看权限，无法新增成员。</p>
           )}

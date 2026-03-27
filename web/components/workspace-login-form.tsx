@@ -86,6 +86,9 @@ export function WorkspaceLoginForm() {
       <p className="login-hint">
         默认管理员：<strong>admin@taichuy.com</strong> / <strong>admin123</strong>
       </p>
+      <p className="workspace-muted login-helper-copy">
+        登录后先进入应用工作台；新建应用会直接衔接到 7Flows 的 xyflow 编辑器。
+      </p>
       {message ? (
         <p className={`workspace-inline-message ${messageTone === "error" ? "error" : "idle"}`}>
           {message}

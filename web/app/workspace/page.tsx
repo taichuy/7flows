@@ -8,13 +8,30 @@ import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import { getWorkflowBusinessTrack, WORKFLOW_BUSINESS_TRACKS } from "@/lib/workflow-business-tracks";
 import { inferWorkflowBusinessTrack } from "@/lib/workflow-starters";
 import { formatTimestamp } from "@/lib/runtime-presenters";
+import { formatWorkspaceRole } from "@/lib/workspace-access";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
+import { getWorkspaceBadgeLabel } from "@/lib/workspace-ui";
 
 type WorkspacePageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 type WorkspaceFilterKey = "all" | "draft" | "published" | "follow_up";
+
+type WorkspaceAppCard = {
+  id: string;
+  name: string;
+  href: string;
+  status: string;
+  healthLabel: string;
+  recommendedNextStep: string;
+  track: ReturnType<typeof getWorkflowBusinessTrack>;
+  nodeCount: number;
+  publishCount: number;
+  updatedAt: string;
+  missingToolCount: number;
+  followUpCount: number;
+};
 
 function readSearchParam(
   searchParams: Record<string, string | string[] | undefined>,
@@ -51,6 +68,10 @@ function buildWorkspaceHref(options: {
   return query ? `/workspace?${query}` : "/workspace";
 }
 
+function buildWorkflowStarterCreateHref(starterId: string) {
+  return `/workflows/new?starter=${encodeURIComponent(starterId)}`;
+}
+
 export default async function WorkspacePage({ searchParams }: WorkspacePageProps) {
   const workspaceContext = await getServerWorkspaceContext();
   if (!workspaceContext) {
@@ -82,7 +103,7 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
     await Promise.all(workflowSummaries.map((workflow) => getWorkflowDetail(workflow.id)))
   ).filter((workflow): workflow is NonNullable<typeof workflow> => Boolean(workflow));
 
-  const appCards = workflowDetails.map((workflow) => {
+  const appCards: WorkspaceAppCard[] = workflowDetails.map((workflow) => {
     const track = getWorkflowBusinessTrack(inferWorkflowBusinessTrack(workflow.definition));
     const publishCount = Array.isArray(workflow.definition.publish)
       ? workflow.definition.publish.length
@@ -156,11 +177,11 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
     { key: "all", label: "全部类型", count: appCards.length },
     ...WORKFLOW_BUSINESS_TRACKS.map((track) => ({
       key: track.id,
-      label: track.id,
+      label: `${track.priority} ${track.id}`,
       count: appCards.filter((card) => card.track.id === track.id).length
     }))
   ];
-  const workspaceStats = [
+  const workspaceSignals = [
     { label: "应用", value: String(appCards.length) },
     {
       label: "草稿",
@@ -179,6 +200,18 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
       value: systemOverview.sandbox_readiness.primary_blocker_kind ? "需处理" : "正常"
     }
   ];
+  const starterHighlights = workflowLibrary.starters.slice(0, 3).map((starter) => ({
+    id: starter.id,
+    name: starter.name,
+    description: starter.description,
+    href: buildWorkflowStarterCreateHref(starter.id),
+    track: starter.businessTrack,
+    priority: getWorkflowBusinessTrack(starter.businessTrack).priority
+  }));
+  const visibleAppSummary =
+    filteredApps.length === appCards.length
+      ? `全部 ${filteredApps.length} 个应用`
+      : `筛选结果 ${filteredApps.length} / ${appCards.length}`;
 
   return (
     <WorkspaceShell
@@ -187,53 +220,41 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
       userRole={workspaceContext.current_member.role}
       workspaceName={workspaceContext.workspace.name}
     >
-      <main className="workspace-main">
-        <section className="workspace-panel workspace-surface-header">
-          <div className="workspace-surface-copy">
+      <main className="workspace-main workspace-home-main">
+        <section className="workspace-home-header workspace-panel">
+          <div className="workspace-home-copy">
             <p className="workspace-eyebrow">Workspace / Apps</p>
             <h1>{workspaceContext.workspace.name} 应用工作台</h1>
             <p className="workspace-muted workspace-copy-wide">
-              交互上借鉴 Dify 的 workspace / app 入口，但 7Flows 仍坚持自己的产品边界：
-              工作台负责应用列表、成员协作和 starter 入口，真正的 ChatFlow 编排继续进入 xyflow 编辑器。
+              借鉴 Dify 的应用工作台交互，把应用入口、Starter 模板和团队协作压到同一层；
+              真正的 ChatFlow 编排仍然进入 7Flows 的 xyflow 编辑器与 workflow detail 主链。
             </p>
+            <div className="workspace-home-pills">
+              <span className="workspace-tag accent">
+                当前身份：{formatWorkspaceRole(workspaceContext.current_member.role)}
+              </span>
+              <span className="workspace-tag">默认管理员已可用</span>
+              <span className="workspace-tag">新建应用直达 xyflow</span>
+            </div>
           </div>
-          <div className="workspace-action-row workspace-surface-actions">
-            <Link className="workspace-primary-button compact" href="/workflows/new">
-              新建 ChatFlow 应用
-            </Link>
-            <Link className="workspace-ghost-button compact" href="/workspace-starters">
-              从 Starter 创建
-            </Link>
-            <Link className="workspace-ghost-button compact" href="/admin/members">
-              管理成员与权限
-            </Link>
-          </div>
-        </section>
-
-        <section className="workspace-overview-strip" aria-label="Workspace overview">
-          {workspaceStats.map((stat) => (
-            <article className="workspace-stat-card" key={stat.label}>
-              <span>{stat.label}</span>
-              <strong>{stat.value}</strong>
+          <div className="workspace-home-signal-grid" aria-label="Workspace overview">
+            {workspaceSignals.map((signal) => (
+              <article className="workspace-home-signal" key={signal.label}>
+                <span>{signal.label}</span>
+                <strong>{signal.value}</strong>
+              </article>
+            ))}
+            <article className="workspace-home-signal workspace-home-signal-wide">
+              <span>编排基座</span>
+              <strong>xyflow 仍是画布事实源</strong>
+              <p className="workspace-muted workspace-stat-copy">
+                工作台负责创建、筛选和协作；节点工具、上下文授权、调试与发布继续沿既有 workflow 主链推进。
+              </p>
             </article>
-          ))}
-          <article className="workspace-stat-card workspace-stat-card-wide">
-            <span>编排基座</span>
-            <strong>xyflow 仍是画布事实源</strong>
-            <p className="workspace-muted workspace-stat-copy">
-              节点工具、上下文授权、调试与发布都继续沿既有 workflow detail 主链推进，不在 workspace 壳层伪造第二套事实。
-            </p>
-          </article>
-          <article className="workspace-stat-card workspace-stat-card-wide">
-            <span>Starter 模板</span>
-            <strong>{workflowLibrary.starters.length} 个可复用入口</strong>
-            <p className="workspace-muted workspace-stat-copy">
-              当前优先把空白创建和 workspace starter 做顺，再继续扩展节点能力与兼容层应用类型。
-            </p>
-          </article>
+          </div>
         </section>
 
-        <section className="workspace-category-row" aria-label="App categories">
+        <section className="workspace-category-row workspace-category-row-compact" aria-label="App categories">
           {trackItems.map((trackItem) => (
             <Link
               className={`workspace-category-tab ${trackItem.key === activeTrack ? "active" : ""}`}
@@ -250,9 +271,9 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
           ))}
         </section>
 
-        <section className="workspace-toolbar" aria-label="App filters">
+        <section className="workspace-toolbar workspace-toolbar-compact" aria-label="App filters">
           <div className="workspace-filter-row">
-            <span className="workspace-toolbar-meta">状态</span>
+            <span className="workspace-toolbar-meta">应用筛选</span>
             {filterItems.map((filterItem) => (
               <Link
                 className={`workspace-filter-chip ${filterItem.key === activeFilter ? "active" : ""}`}
@@ -292,88 +313,131 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
           </form>
         </section>
 
-        <section className="workspace-app-grid">
-          <article className="workspace-create-card workspace-create-card-emphasis">
+        <section className="workspace-app-section">
+          <div className="workspace-app-section-header">
             <div>
-              <p className="workspace-eyebrow">创建应用</p>
-              <h2>从空白 ChatFlow 或 Starter 进入</h2>
+              <p className="workspace-eyebrow">Applications</p>
+              <h2>{visibleAppSummary}</h2>
               <p className="workspace-muted workspace-copy-wide">
-                这里对齐 Dify 的应用入口心智，但只保留当前已经真实落地的动作：空白创建、Starter 创建和成员协作。
+                先在工作台完成创建、筛选和成员协作，再进入 xyflow 继续节点编排、运行调试与发布治理。
               </p>
             </div>
-            <div className="workspace-create-actions">
-              <Link className="workspace-secondary-link" href="/workflows/new">
-                新建空白 ChatFlow
+            <div className="workspace-action-row">
+              <Link className="workspace-ghost-button compact" href="/workspace-starters">
+                查看 Starter
               </Link>
-              <Link className="workspace-secondary-link" href="/workspace-starters">
-                从应用模板创建
-              </Link>
-              <Link className="workspace-secondary-link" href="/admin/members">
-                管理成员与权限
+              <Link className="workspace-ghost-button compact" href="/admin/members">
+                团队设置
               </Link>
             </div>
-          </article>
+          </div>
 
-          {filteredApps.length === 0 ? (
-            <article className="workspace-app-card workspace-empty-state-card">
-              <p className="workspace-eyebrow">应用列表</p>
-              <h2>当前筛选范围内还没有应用</h2>
-              <p className="workspace-muted workspace-copy-wide">
-                现在可以直接从空白 ChatFlow 或 Starter 创建新应用；创建后继续进入 xyflow 编辑器补节点、调试和发布语义。
-              </p>
-              <div className="workspace-action-row">
-                <Link className="workspace-primary-button compact" href="/workflows/new">
-                  立即创建
+          <div className="workspace-app-grid">
+            <article className="workspace-app-card workspace-create-tile">
+              <div>
+                <p className="workspace-eyebrow">创建应用</p>
+                <h3>从空白 ChatFlow、Starter 或团队协作开始</h3>
+                <p className="workspace-muted workspace-copy-wide">
+                  保留 Dify 式应用入口心智，但只展示当前已经真实落地的动作，不在 workspace 壳层伪造第二套执行事实。
+                </p>
+              </div>
+
+              <div className="workspace-create-list">
+                <Link className="workspace-create-link" href="/workflows/new">
+                  <span>新建空白 ChatFlow</span>
+                  <small>直接生成最小 workflow 草稿，创建后继续进入 xyflow。</small>
                 </Link>
-                <Link className="workspace-ghost-button compact" href="/workspace-starters">
-                  查看 Starter
+                <Link className="workspace-create-link" href="/workspace-starters">
+                  <span>从应用模板创建</span>
+                  <small>先按 starter 业务轨道挑入口，再把草稿送进画布。</small>
+                </Link>
+                <Link className="workspace-create-link" href="/admin/members">
+                  <span>管理成员与权限</span>
+                  <small>管理员可直接开通成员账号，并在工作空间里完成角色配置。</small>
                 </Link>
               </div>
-            </article>
-          ) : null}
 
-          {filteredApps.map((card) => (
-            <article className="workspace-app-card" key={card.id}>
-              <div className="workspace-app-card-header">
-                <div className="workspace-app-card-identity">
-                  <div className="workspace-app-icon" aria-hidden="true">
-                    {card.name.slice(0, 1).toUpperCase()}
+              {starterHighlights.length > 0 ? (
+                <div className="workspace-starter-highlight-list">
+                  {starterHighlights.map((starter) => (
+                    <Link className="workspace-starter-highlight" href={starter.href} key={starter.id}>
+                      <strong>{starter.name}</strong>
+                      <span>
+                        {starter.priority} · {starter.track}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : null}
+
+              <p className="workspace-create-footnote">
+                编排事实源：xyflow · Starter 模板：{workflowLibrary.starters.length} 个。
+              </p>
+            </article>
+
+            {filteredApps.length === 0 ? (
+              <article className="workspace-app-card workspace-app-card-empty">
+                <p className="workspace-eyebrow">应用列表</p>
+                <h3>当前筛选范围内还没有应用</h3>
+                <p className="workspace-muted workspace-copy-wide">
+                  现在可以直接从空白 ChatFlow 或 Starter 创建新应用；创建后继续进入 xyflow 编辑器补节点、调试和发布语义。
+                </p>
+                <div className="workspace-action-row">
+                  <Link className="workspace-primary-button compact" href="/workflows/new">
+                    立即创建
+                  </Link>
+                  <Link className="workspace-ghost-button compact" href="/workspace-starters">
+                    查看 Starter
+                  </Link>
+                </div>
+              </article>
+            ) : null}
+
+            {filteredApps.map((card) => (
+              <article className="workspace-app-card workspace-app-card-product" key={card.id}>
+                <div className="workspace-app-card-header">
+                  <div className="workspace-app-card-identity">
+                    <div className="workspace-app-icon" aria-hidden="true">
+                      {getWorkspaceBadgeLabel(card.name, "A")}
+                    </div>
+                    <div>
+                      <h3>{card.name}</h3>
+                      <p className="workspace-app-subtitle">
+                        {workspaceContext.current_user.display_name} · 最近更新 {formatTimestamp(card.updatedAt)}
+                      </p>
+                    </div>
                   </div>
+                  <span className={`workspace-status-pill ${card.status === "published" ? "healthy" : "draft"}`}>
+                    {card.status === "published" ? "已发布" : "草稿"}
+                  </span>
+                </div>
+                <p className="workspace-app-type">{card.track.id}</p>
+                <p className="workspace-app-focus">{card.track.focus}</p>
+                <p className="workspace-muted workspace-app-summary">{card.track.summary}</p>
+                <div className="workspace-tag-row app-card-tags">
+                  <span className="workspace-tag">{card.nodeCount} 个节点</span>
+                  <span className="workspace-tag">{card.publishCount} 个发布端点</span>
+                  {card.missingToolCount > 0 ? (
+                    <span className="workspace-tag warning">{card.missingToolCount} 个工具缺口</span>
+                  ) : null}
+                </div>
+                <div className="workspace-app-footer">
                   <div>
-                    <h3>{card.name}</h3>
-                    <p className="workspace-app-subtitle">
-                      {workspaceContext.current_user.display_name} · 最近更新 {formatTimestamp(card.updatedAt)}
-                    </p>
+                    <p className="workspace-app-meta">{card.healthLabel}</p>
+                    <p className="workspace-app-meta">推荐下一步：{card.recommendedNextStep}</p>
+                  </div>
+                  <div className="workspace-action-row">
+                    <Link className="workspace-primary-button compact" href={card.href}>
+                      继续进入 xyflow
+                    </Link>
+                    <Link className="workspace-ghost-button compact" href="/runs">
+                      查看运行
+                    </Link>
                   </div>
                 </div>
-                <span className={`workspace-status-pill ${card.status === "published" ? "healthy" : "draft"}`}>
-                  {card.status === "published" ? "已发布" : "草稿"}
-                </span>
-              </div>
-              <p className="workspace-app-type">{card.track.id}</p>
-              <p className="workspace-muted">
-                {card.track.summary}
-              </p>
-              <p className="workspace-app-focus">{card.track.focus}</p>
-              <div className="workspace-tag-row app-card-tags">
-                <span className="workspace-tag">{card.nodeCount} 个节点</span>
-                <span className="workspace-tag">{card.publishCount} 个发布端点</span>
-                {card.missingToolCount > 0 ? (
-                  <span className="workspace-tag warning">{card.missingToolCount} 个工具缺口</span>
-                ) : null}
-              </div>
-              <p className="workspace-app-meta">{card.healthLabel}</p>
-              <p className="workspace-app-meta">推荐下一步：{card.recommendedNextStep}</p>
-              <div className="workspace-action-row">
-                <Link className="workspace-primary-button compact" href={card.href}>
-                  继续进入 xyflow
-                </Link>
-                <Link className="workspace-ghost-button compact" href="/runs">
-                  查看运行
-                </Link>
-              </div>
-            </article>
-          ))}
+              </article>
+            ))}
+          </div>
         </section>
       </main>
     </WorkspaceShell>
