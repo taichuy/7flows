@@ -23,6 +23,7 @@ import { buildOperatorRunSampleInboxHref } from "@/lib/operator-run-sample-cards
 import { buildExecutionFocusSurfaceDescription } from "@/lib/run-execution-focus-presenters";
 import { buildSandboxReadinessNodeFromRunSnapshot } from "@/lib/sandbox-readiness-presenters";
 import {
+  buildWorkflowGovernanceDetailHrefFromCurrentHref,
   buildWorkflowCatalogGapDetail,
   buildWorkflowGovernanceHandoff
 } from "@/lib/workflow-governance-handoff";
@@ -42,6 +43,7 @@ import {
 } from "@/lib/runtime-presenters";
 
 type WorkflowRunOverlayPanelProps = {
+  currentHref?: string | null;
   runs: WorkflowRunListItem[];
   selectedRunId: string | null;
   run: RunDetail | null;
@@ -59,6 +61,7 @@ type WorkflowRunOverlayPanelProps = {
 };
 
 export function WorkflowRunOverlayPanel({
+  currentHref = null,
   runs,
   selectedRunId,
   run,
@@ -92,7 +95,7 @@ export function WorkflowRunOverlayPanel({
         : null,
     [workspaceStarterGovernanceQueryScope]
   );
-  const baseWorkflowDetailHref = run
+  const scopedWorkflowDetailHref = run
     ? workspaceStarterGovernanceQueryScope
       ? buildWorkflowEditorHrefFromWorkspaceStarterViewState(
           run.workflow_id,
@@ -102,6 +105,12 @@ export function WorkflowRunOverlayPanel({
           workflowId: run.workflow_id,
           variant: "editor"
         }).href
+    : null;
+  const baseWorkflowDetailHref = run
+    ? buildWorkflowGovernanceDetailHrefFromCurrentHref({
+        workflowId: run.workflow_id,
+        currentHref: currentHref ?? scopedWorkflowDetailHref
+      })
     : null;
   const callbackSummaryWorkflowCatalogGapDetail = buildWorkflowCatalogGapDetail({
     toolGovernance: runSnapshot?.toolGovernance ?? run?.tool_governance ?? null,
@@ -118,6 +127,7 @@ export function WorkflowRunOverlayPanel({
   });
   const callbackWaitingSummaryProps = runSnapshot
     ? {
+        currentHref,
         inboxHref: buildOperatorRunSampleInboxHref(runSnapshot),
         callbackTickets: runSnapshot.callbackTickets ?? [],
         callbackWaitingAutomation,
@@ -227,6 +237,7 @@ export function WorkflowRunOverlayPanel({
                 workflowGovernanceHref={workflowGovernanceHandoff.workflowGovernanceHref}
                 legacyAuthHandoff={workflowGovernanceHandoff.legacyAuthHandoff}
                 cardClassName="payload-card compact-card runtime-overlay-governance-card"
+                currentHref={currentHref}
               />
 
               <div className="hero-actions">
@@ -278,6 +289,7 @@ export function WorkflowRunOverlayPanel({
                   <InlineOperatorActionFeedback
                     status="success"
                     message=""
+                    currentHref={currentHref}
                     resolveRunDetailHref={resolveRunDetailHref}
                     runId={run.id}
                     runSnapshot={runSnapshotModel}

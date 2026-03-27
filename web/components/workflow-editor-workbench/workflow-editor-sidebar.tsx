@@ -503,6 +503,7 @@ export function WorkflowEditorSidebar({
       </article>
 
       <WorkflowRunOverlayPanel
+        currentHref={currentHref}
         runs={runs}
         selectedRunId={selectedRunId}
         run={run}
