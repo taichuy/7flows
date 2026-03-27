@@ -27,7 +27,8 @@ import {
 import { buildWorkflowToolReferenceValidationIssues } from "@/lib/workflow-tool-reference-validation";
 import {
   buildWorkflowValidationNavigatorItems,
-  type WorkflowValidationNavigatorItem
+  type WorkflowValidationNavigatorItem,
+  type WorkflowValidationNavigatorIssue
 } from "@/lib/workflow-validation-navigation";
 import { buildWorkflowVariableValidationIssues } from "@/lib/workflow-variable-validation";
 import {
@@ -297,7 +298,7 @@ export function useWorkflowEditorValidation({
     [serverValidationIssues]
   );
   const validationNavigatorItems = useMemo<WorkflowValidationNavigatorItem[]>(() => {
-    const localIssues: WorkflowDefinitionPreflightIssue[] = [
+    const localIssues: WorkflowValidationNavigatorIssue[] = [
       ...contractValidationIssues.map((issue) => ({
         category: "schema",
         message: issue.message,
@@ -308,7 +309,8 @@ export function useWorkflowEditorValidation({
         category: "tool_reference",
         message: issue.message,
         path: issue.path,
-        field: issue.field
+        field: issue.field,
+        catalogGapToolIds: issue.toolIds
       })),
       ...nodeExecutionValidationIssues.map((issue) => ({
         category: "node_execution",
@@ -326,7 +328,8 @@ export function useWorkflowEditorValidation({
         category: issue.category,
         message: issue.message,
         path: issue.path,
-        field: issue.field
+        field: issue.field,
+        hasLegacyPublishAuthModeIssues: isLegacyPublishAuthModeIssue(issue)
       })),
       ...variableValidationIssues,
       ...serverValidationIssues

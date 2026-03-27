@@ -55,6 +55,39 @@ function buildSandboxReadiness(): SandboxReadinessCheck {
 }
 
 describe("WorkflowValidationRemediationCard", () => {
+  it("reuses the shared catalog-gap handoff for focused remediation", () => {
+    const item: WorkflowValidationNavigatorItem = {
+      key: "tool-reference",
+      category: "tool_reference",
+      message: "Tool 节点 Search（search）引用了当前目录中不存在的工具 native.catalog-gap。",
+      catalogGapToolIds: ["native.catalog-gap"],
+      target: {
+        scope: "node",
+        nodeId: "search",
+        section: "config",
+        fieldPath: "config.tool.toolId",
+        label: "Node · Search"
+      }
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowValidationRemediationCard, {
+        item,
+        currentHref: "/workflows/workflow-1?pane=editor"
+      })
+    );
+
+    expect(html).toContain("Node · Search · Tool id");
+    expect(html).toContain("catalog gap · native.catalog-gap");
+    expect(html).toContain(
+      "当前这条字段级问题 对应的 workflow 版本仍有 catalog gap（native.catalog-gap）；先回到当前 workflow 编辑器补齐 binding / LLM Agent tool policy，再继续处理这条校验。"
+    );
+    expect(html).toContain(
+      'href="/workflows/workflow-1?pane=editor&amp;definition_issue=missing_tool"'
+    );
+    expect(html).toContain("回到 workflow 编辑器处理 catalog gap");
+  });
+
   it("drops shared sandbox links when the current page already matches the follow-up", () => {
     const item: WorkflowValidationNavigatorItem = {
       key: "tool-execution-class",

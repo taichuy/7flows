@@ -32,11 +32,18 @@ export type WorkflowValidationNavigatorItem = {
   category: string;
   message: string;
   target: WorkflowValidationFocusTarget;
+  catalogGapToolIds?: string[];
+  hasLegacyPublishAuthModeIssues?: boolean;
+};
+
+export type WorkflowValidationNavigatorIssue = WorkflowDefinitionPreflightIssue & {
+  catalogGapToolIds?: string[];
+  hasLegacyPublishAuthModeIssues?: boolean;
 };
 
 export function buildWorkflowValidationNavigatorItems(
   definition: WorkflowDefinitionLike,
-  issues: WorkflowDefinitionPreflightIssue[]
+  issues: WorkflowValidationNavigatorIssue[]
 ): WorkflowValidationNavigatorItem[] {
   const items: WorkflowValidationNavigatorItem[] = [];
   const seen = new Set<string>();
@@ -52,11 +59,18 @@ export function buildWorkflowValidationNavigatorItems(
       return;
     }
     seen.add(key);
+    const catalogGapToolIds = normalizeCatalogGapToolIds(issue.catalogGapToolIds);
+    const hasLegacyPublishAuthModeIssues =
+      issue.hasLegacyPublishAuthModeIssues ??
+      (issue.category === "publish_draft" && issue.field === "authMode");
+
     items.push({
       key,
       category: issue.category,
       message: issue.message,
-      target
+      target,
+      catalogGapToolIds: catalogGapToolIds.length > 0 ? catalogGapToolIds : undefined,
+      hasLegacyPublishAuthModeIssues: hasLegacyPublishAuthModeIssues || undefined
     });
   });
 
@@ -139,4 +153,14 @@ function readIndexedRecord(value: unknown, index: number): Record<string, unknow
 
 function normalizeString(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeCatalogGapToolIds(toolIds: readonly unknown[] | undefined) {
+  return Array.from(
+    new Set(
+      (toolIds ?? [])
+        .map((toolId) => normalizeString(toolId))
+        .filter((toolId): toolId is string => toolId !== null)
+    )
+  );
 }

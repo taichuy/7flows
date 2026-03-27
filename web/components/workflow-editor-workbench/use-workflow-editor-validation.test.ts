@@ -134,6 +134,45 @@ describe("buildWorkflowEditorPublishDraftIssues", () => {
     );
   });
 
+  it("keeps catalog-gap metadata on shared validation navigator items", () => {
+    const navigatorItems = buildWorkflowValidationNavigatorItems(
+      {
+        nodes: [
+          {
+            id: "search",
+            name: "Search"
+          }
+        ],
+        publish: [],
+        variables: []
+      },
+      [
+        {
+          category: "tool_reference",
+          message: "Tool 节点 Search (search) 引用了当前目录中不存在的工具 native.catalog-gap。",
+          path: "nodes.0.config.tool.toolId",
+          field: "toolId",
+          catalogGapToolIds: ["native.catalog-gap", "native.catalog-gap"]
+        }
+      ]
+    );
+
+    expect(navigatorItems).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "tool_reference",
+          catalogGapToolIds: ["native.catalog-gap"],
+          target: expect.objectContaining({
+            scope: "node",
+            nodeId: "search",
+            fieldPath: "config.tool.toolId",
+            label: "Node · Search"
+          })
+        })
+      ])
+    );
+  });
+
   it("summarizes legacy publish auth preflight issues with the shared auth contract", () => {
     const summary = summarizePreflightIssues([
       {
