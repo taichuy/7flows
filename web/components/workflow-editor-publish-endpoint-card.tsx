@@ -4,6 +4,7 @@ import { buildWorkflowPublishDraftEndpointId } from "@/lib/workflow-publish-defi
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
+import type { WorkflowEditorPublishValidationIssue } from "./workflow-editor-publish-form-validation";
 
 import {
   AUTH_MODES,
@@ -24,7 +25,7 @@ type WorkflowEditorPublishEndpointCardProps = {
   endpoint: WorkflowPublishedEndpointDraft;
   endpointIndex: number;
   workflowVersion: string;
-  validationMessages: string[];
+  validationIssues: WorkflowEditorPublishValidationIssue[];
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
   currentHref?: string | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
@@ -46,7 +47,7 @@ export function WorkflowEditorPublishEndpointCard({
   endpoint,
   endpointIndex,
   workflowVersion,
-  validationMessages,
+  validationIssues,
   focusedValidationItem = null,
   currentHref = null,
   sandboxReadiness = null,
@@ -62,6 +63,37 @@ export function WorkflowEditorPublishEndpointCard({
     ? `pinned ${endpoint.workflowVersion}`
     : `tracks current ${workflowVersion}`;
   const hasLegacyUnsupportedAuthMode = !isSupportedPublishedEndpointAuthMode(endpoint.authMode);
+  const legacyAuthValidationIssue =
+    validationIssues.find(
+      (issue) => issue.category === "publish_draft" && issue.field === "authMode"
+    ) ?? null;
+  const genericValidationMessages = validationIssues
+    .filter((issue) => issue !== legacyAuthValidationIssue)
+    .map((issue) => issue.message);
+  const legacyAuthValidationItem = legacyAuthValidationIssue
+    ? {
+        key: legacyAuthValidationIssue.key,
+        category: legacyAuthValidationIssue.category,
+        message: legacyAuthValidationIssue.message,
+        target: {
+          scope: "publish" as const,
+          endpointIndex,
+          fieldPath: legacyAuthValidationIssue.field,
+          label:
+            endpoint.name && endpoint.name !== endpoint.id
+              ? `Publish · ${endpoint.name}`
+              : `Publish · ${endpoint.id}`
+        },
+        hasLegacyPublishAuthModeIssues: true
+      }
+    : null;
+  const focusedAuthModeRemediation =
+    focusedValidationItem?.target.scope === "publish" &&
+    focusedValidationItem.target.fieldPath === "authMode";
+  const shouldRenderLegacyAuthRemediation =
+    legacyAuthValidationItem !== null && !focusedAuthModeRemediation;
+  const shouldRenderStandaloneLegacyAuthContract =
+    hasLegacyUnsupportedAuthMode && !shouldRenderLegacyAuthRemediation && !focusedAuthModeRemediation;
 
   useEffect(() => {
     if (!highlighted) {
@@ -109,14 +141,22 @@ export function WorkflowEditorPublishEndpointCard({
         />
       ) : null}
 
-      {validationMessages.length > 0 ? (
+      {genericValidationMessages.length > 0 ? (
         <div className="sync-message error">
           <ul className="roadmap-list compact-list">
-            {validationMessages.map((message) => (
+            {genericValidationMessages.map((message) => (
               <li key={`${endpoint.id}-${message}`}>{message}</li>
             ))}
           </ul>
         </div>
+      ) : null}
+
+      {shouldRenderLegacyAuthRemediation ? (
+        <WorkflowValidationRemediationCard
+          currentHref={currentHref}
+          item={legacyAuthValidationItem}
+          sandboxReadiness={sandboxReadiness}
+        />
       ) : null}
 
       <label className="binding-field" data-validation-field="name">
@@ -242,7 +282,7 @@ export function WorkflowEditorPublishEndpointCard({
         `workflowVersion` 留空时会跟随当前保存出来的 workflow version；只有填写语义版本时才会把 endpoint 固定到指定版本。
       </p>
 
-      {hasLegacyUnsupportedAuthMode ? <LegacyPublishAuthContractCard /> : null}
+      {shouldRenderStandaloneLegacyAuthContract ? <LegacyPublishAuthContractCard /> : null}
 
       {endpoint.workflowVersion ? (
         <div className="binding-actions">

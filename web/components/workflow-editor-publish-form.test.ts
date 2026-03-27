@@ -9,11 +9,13 @@ import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-
 vi.mock("@/components/workflow-editor-publish-endpoint-card", () => ({
   WorkflowEditorPublishEndpointCard: ({
     endpointIndex,
+    validationIssues,
     focusedValidationItem,
     highlighted,
     highlightedFieldPath
   }: {
     endpointIndex: number;
+    validationIssues?: Array<{ field: string }>;
     focusedValidationItem?: WorkflowValidationNavigatorItem | null;
     highlighted?: boolean;
     highlightedFieldPath?: string | null;
@@ -21,7 +23,7 @@ vi.mock("@/components/workflow-editor-publish-endpoint-card", () => ({
     createElement(
       "div",
       null,
-      `endpoint-card:${endpointIndex}:${focusedValidationItem?.target.fieldPath ?? "none"}:${highlighted ? "focused" : "idle"}:${highlightedFieldPath ?? "none"}`
+      `endpoint-card:${endpointIndex}:${validationIssues?.map((issue) => issue.field).join("|") || "none"}:${focusedValidationItem?.target.fieldPath ?? "none"}:${highlighted ? "focused" : "idle"}:${highlightedFieldPath ?? "none"}`
     )
 }));
 
@@ -149,8 +151,30 @@ describe("WorkflowEditorPublishForm", () => {
       })
     );
 
-    expect(html).toContain("endpoint-card:0:workflowVersion:focused:workflowVersion");
+    expect(html).toContain("endpoint-card:0:none:workflowVersion:focused:workflowVersion");
     expect(html).not.toContain("当前高亮的 publish 问题还没有对应的 endpoint card");
+  });
+
+  it("keeps structured endpoint validation issues when routing publish cards", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorPublishForm, {
+        workflowVersion: "1.0.0",
+        availableWorkflowVersions: ["1.0.0"],
+        publishEndpoints: [
+          {
+            id: "public-search",
+            name: "Public Search",
+            protocol: "openai",
+            authMode: "token",
+            streaming: true,
+            inputSchema: {}
+          }
+        ],
+        onChange: () => undefined
+      })
+    );
+
+    expect(html).toContain("endpoint-card:0:authMode:none:idle:none");
   });
 
   it("shows the shared save gate summary for publish blockers", () => {

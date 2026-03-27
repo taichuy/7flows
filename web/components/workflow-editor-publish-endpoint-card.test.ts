@@ -40,7 +40,17 @@ describe("WorkflowEditorPublishEndpointCard", () => {
         },
         endpointIndex: 0,
         workflowVersion: "1.0.0",
-        validationMessages: ["Public Search 的 cache.varyBy 不能包含重复字段。"],
+        validationIssues: [
+          {
+            key: "publish-cache-vary-by",
+            endpointKey: "0",
+            endpointId: "public-search",
+            category: "publish_draft",
+            message: "Public Search 的 cache.varyBy 不能包含重复字段。",
+            path: "publish.0.cache.varyBy",
+            field: "cache.varyBy"
+          }
+        ],
         focusedValidationItem,
         highlighted: true,
         highlightedFieldPath: "cache.varyBy",
@@ -73,7 +83,7 @@ describe("WorkflowEditorPublishEndpointCard", () => {
         },
         endpointIndex: 0,
         workflowVersion: "1.0.0",
-        validationMessages: [],
+        validationIssues: [],
         onUpdateEndpoint: () => undefined,
         onDeleteEndpoint: () => undefined,
         onApplySchemaField: () => undefined
@@ -88,5 +98,43 @@ describe("WorkflowEditorPublishEndpointCard", () => {
     expect(html).toContain("supported api_key / internal");
     expect(html).toContain("legacy token");
     expect(html).toContain("先把 workflow draft endpoint 切回 api_key/internal 并保存");
+  });
+
+  it("promotes legacy auth endpoint issues into shared remediation instead of raw lists", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorPublishEndpointCard, {
+        endpoint: {
+          id: "public-search",
+          name: "Public Search",
+          alias: "public-search",
+          path: "/public-search",
+          protocol: "openai",
+          authMode: "token",
+          streaming: true,
+          workflowVersion: undefined,
+          inputSchema: {}
+        },
+        endpointIndex: 0,
+        workflowVersion: "1.0.0",
+        validationIssues: [
+          {
+            key: "public-search-auth-mode-token",
+            endpointKey: "0",
+            endpointId: "public-search",
+            category: "publish_draft",
+            message: "Public Search 当前不能使用 authMode = token。",
+            path: "publish.0.authMode",
+            field: "authMode"
+          }
+        ],
+        onUpdateEndpoint: () => undefined,
+        onDeleteEndpoint: () => undefined,
+        onApplySchemaField: () => undefined
+      })
+    );
+
+    expect(html).toContain("Publish · Public Search · Auth mode");
+    expect(html).toContain("Publish auth contract");
+    expect(html).not.toContain("<li>Public Search 当前不能使用 authMode = token。</li>");
   });
 });

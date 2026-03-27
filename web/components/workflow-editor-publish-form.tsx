@@ -19,7 +19,10 @@ import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-bloc
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { buildWorkflowPublishDraftSectionId } from "@/lib/workflow-publish-definition-links";
 import { WorkflowEditorPublishEndpointCard } from "./workflow-editor-publish-endpoint-card";
-import { buildPublishedEndpointValidationIssues } from "./workflow-editor-publish-form-validation";
+import {
+  buildPublishedEndpointValidationIssues,
+  type WorkflowEditorPublishValidationIssue
+} from "./workflow-editor-publish-form-validation";
 import {
   cloneRecord,
   createPublishedEndpointDraft,
@@ -285,7 +288,7 @@ export function WorkflowEditorPublishForm({
                 endpoint={endpoint}
                 endpointIndex={endpointIndex}
                 workflowVersion={workflowVersion}
-                validationMessages={validationIssuesByEndpoint.get(String(endpointIndex)) ?? []}
+                validationIssues={validationIssuesByEndpoint.get(String(endpointIndex)) ?? []}
                 focusedValidationItem={endpointFocusedValidationItem}
                 currentHref={currentHref}
                 sandboxReadiness={sandboxReadiness}
@@ -318,11 +321,11 @@ export function WorkflowEditorPublishForm({
 function groupValidationIssuesByEndpoint(
   issues: ReturnType<typeof buildPublishedEndpointValidationIssues>
 ) {
-  const issuesByEndpoint = new Map<string, string[]>();
+  const issuesByEndpoint = new Map<string, WorkflowEditorPublishValidationIssue[]>();
   for (const issue of issues) {
-    const nextMessages = issuesByEndpoint.get(issue.endpointKey) ?? [];
-    nextMessages.push(issue.message);
-    issuesByEndpoint.set(issue.endpointKey, nextMessages);
+    const nextIssues = issuesByEndpoint.get(issue.endpointKey) ?? [];
+    nextIssues.push(issue);
+    issuesByEndpoint.set(issue.endpointKey, nextIssues);
   }
   return issuesByEndpoint;
 }
