@@ -128,11 +128,15 @@ export function parseWorkflowValidationError(
   );
 }
 
+function getWorkflowMutationApiBaseUrl() {
+  return typeof window === "undefined" ? getApiBaseUrl() : "";
+}
+
 export async function createWorkflow(payload: {
   name: string;
   definition: WorkflowDetail["definition"];
 }): Promise<WorkflowDetail> {
-  const response = await fetch(`${getApiBaseUrl()}/api/workflows`, {
+  const response = await fetch(`${getWorkflowMutationApiBaseUrl()}/api/workflows`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -159,7 +163,7 @@ export async function updateWorkflow(
   }
 ): Promise<WorkflowDetail> {
   const response = await fetch(
-    `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(workflowId)}`,
+    `${getWorkflowMutationApiBaseUrl()}/api/workflows/${encodeURIComponent(workflowId)}`,
     {
       method: "PUT",
       headers: {
@@ -235,7 +239,7 @@ export async function validateWorkflowDefinition(
   type WorkflowDefinitionPreflightSuccessBody = Partial<WorkflowDefinitionPreflightResult>;
 
   const response = await fetch(
-    `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(workflowId)}/validate-definition`,
+    `${getWorkflowMutationApiBaseUrl()}/api/workflows/${encodeURIComponent(workflowId)}/validate-definition`,
     {
       method: "POST",
       headers: {

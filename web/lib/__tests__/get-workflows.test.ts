@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getWorkflows } from "@/lib/get-workflows";
+import {
+  createWorkflow,
+  getWorkflows,
+  updateWorkflow,
+  validateWorkflowDefinition
+} from "@/lib/get-workflows";
 
 vi.mock("@/lib/api-base-url", () => ({
   getApiBaseUrl: () => "http://api.test"
@@ -59,6 +64,77 @@ describe("getWorkflows", () => {
     expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
       "http://api.test/api/workflows?definition_issue=missing_tool",
       { cache: "no-store" }
+    );
+  });
+
+  it("uses the same-origin workflow proxy when creating in the browser", async () => {
+    vi.stubGlobal("window", {});
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "wf-1" })
+    } as Response);
+
+    await createWorkflow({
+      name: "Blank Workflow",
+      definition: { nodes: [], edges: [] }
+    });
+
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith("/api/workflows", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: "Blank Workflow",
+        definition: { nodes: [], edges: [] }
+      })
+    });
+  });
+
+  it("uses the same-origin workflow proxy when saving in the browser", async () => {
+    vi.stubGlobal("window", {});
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "wf-1" })
+    } as Response);
+
+    await updateWorkflow("wf-1", {
+      name: "Blank Workflow",
+      definition: { nodes: [], edges: [] }
+    });
+
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith("/api/workflows/wf-1", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        name: "Blank Workflow",
+        definition: { nodes: [], edges: [] }
+      })
+    });
+  });
+
+  it("uses the same-origin workflow proxy when validating in the browser", async () => {
+    vi.stubGlobal("window", {});
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ definition: { nodes: [], edges: [] }, next_version: "v2", issues: [] })
+    } as Response);
+
+    await validateWorkflowDefinition("wf-1", { nodes: [], edges: [] });
+
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
+      "/api/workflows/wf-1/validate-definition",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          definition: { nodes: [], edges: [] }
+        })
+      }
     );
   });
 });
