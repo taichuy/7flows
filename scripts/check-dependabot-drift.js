@@ -252,6 +252,97 @@ function compareVersions(left, right) {
   return 0;
 }
 
+function normalizeVulnerableVersionRange(versionRange) {
+  const normalizedRange = String(versionRange || '').trim().replace(/\s+/g, ' ');
+  return normalizedRange || null;
+}
+
+function parseVersionComparator(rawComparator) {
+  const match = String(rawComparator || '').trim().match(/^(<=|>=|<|>|=)?\s*v?(\d+\.\d+\.\d+)$/i);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    operator: match[1] || '=',
+    version: normalizeVersion(match[2]),
+  };
+}
+
+function matchesVersionComparator(version, comparator) {
+  if (!comparator?.version) {
+    return null;
+  }
+
+  const compared = compareVersions(version, comparator.version);
+  if (compared === null) {
+    return null;
+  }
+
+  switch (comparator.operator) {
+    case '<':
+      return compared < 0;
+    case '<=':
+      return compared <= 0;
+    case '>':
+      return compared > 0;
+    case '>=':
+      return compared >= 0;
+    case '=':
+      return compared === 0;
+    default:
+      return null;
+  }
+}
+
+function matchesVulnerableVersionRange(version, vulnerableVersionRange) {
+  const normalizedRange = normalizeVulnerableVersionRange(vulnerableVersionRange);
+  if (!normalizedRange) {
+    return null;
+  }
+
+  const branches = normalizedRange
+    .split(/\s*\|\|\s*/)
+    .map((branch) => branch.trim())
+    .filter(Boolean);
+
+  let parsedComparator = false;
+
+  for (const branch of branches) {
+    const comparators = branch
+      .split(',')
+      .map((comparator) => comparator.trim())
+      .filter(Boolean);
+
+    if (comparators.length === 0) {
+      continue;
+    }
+
+    let branchMatched = true;
+
+    for (const rawComparator of comparators) {
+      const comparator = parseVersionComparator(rawComparator);
+      if (!comparator) {
+        branchMatched = false;
+        break;
+      }
+
+      parsedComparator = true;
+
+      if (!matchesVersionComparator(version, comparator)) {
+        branchMatched = false;
+        break;
+      }
+    }
+
+    if (branchMatched) {
+      return true;
+    }
+  }
+
+  return parsedComparator ? false : null;
+}
+
 function escapeForRegex(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -792,10 +883,30 @@ function buildUnknownManifestCoverage(workspaceManifestInventory) {
 }
 
 function collectPackageVersions(lockfileText, packageName) {
-  const exactMatcher = new RegExp(`^\\s{2}${escapeForRegex(packageName)}@([^:\\s(]+)`, 'gm');
   const versions = new Set();
+  const normalizedLockfileText = lockfileText.replace(/\r\n/g, '\n');
+  const exactMatcher = new RegExp(`^\\s{2}${escapeForRegex(packageName)}@([^:\\s(]+)`, 'm');
+  let currentSection = null;
 
-  for (const match of lockfileText.matchAll(exactMatcher)) {
+  for (const line of normalizedLockfileText.split('\n')) {
+    if (!line.trim()) {
+      continue;
+    }
+
+    if (!line.startsWith(' ')) {
+      currentSection = line === 'packages:' || line === 'snapshots:' ? line.slice(0, -1) : null;
+      continue;
+    }
+
+    if (!currentSection) {
+      continue;
+    }
+
+    const match = line.match(exactMatcher);
+    if (!match) {
+      continue;
+    }
+
     const version = normalizeVersion(match[1]);
     if (version) {
       versions.add(version);
@@ -806,20 +917,29 @@ function collectPackageVersions(lockfileText, packageName) {
 }
 
 function collectPackageSpecifiers(packageJson, packageName) {
-  const sources = [
-    packageJson.dependencies || {},
-    packageJson.devDependencies || {},
-    (packageJson.pnpm && packageJson.pnpm.overrides) || {},
-  ];
   const specifiers = [];
 
-  for (const source of sources) {
+  const dependencySources = [packageJson.dependencies || {}, packageJson.devDependencies || {}];
+
+  for (const source of dependencySources) {
     if (source[packageName]) {
       specifiers.push(source[packageName]);
     }
   }
 
-  return specifiers;
+  const overrideSource = (packageJson.pnpm && packageJson.pnpm.overrides) || {};
+  for (const [overrideKey, overrideValue] of Object.entries(overrideSource)) {
+    if (overrideKey === packageName) {
+      specifiers.push(overrideValue);
+      continue;
+    }
+
+    if (overrideKey.startsWith(`${packageName}@`)) {
+      specifiers.push(`${overrideKey} -> ${overrideValue}`);
+    }
+  }
+
+  return [...new Set(specifiers.map(String))].sort();
 }
 
 function collectUvPackageVersions(lockfileText, packageName) {
@@ -967,6 +1087,9 @@ function evaluateAlert(
   const manifestPath = alert.dependency.manifest_path;
   const packageName = alert.dependency.package.name;
   const patchedVersion = normalizeVersion(alert.security_vulnerability.first_patched_version?.identifier);
+  const vulnerableVersionRange = normalizeVulnerableVersionRange(
+    alert.security_vulnerability.vulnerable_version_range,
+  );
   const source = resolveAlertEvaluationSource(manifestPath, workspaceManifestInventory, baseRepoRoot);
 
   if (!source.supported) {
@@ -974,6 +1097,7 @@ function evaluateAlert(
       manifestPath,
       packageName,
       patchedVersion,
+      vulnerableVersionRange,
       localVersions: [],
       specifiers: [],
       specifierSourcePath: null,
@@ -996,16 +1120,17 @@ function evaluateAlert(
       ? collectPackageVersions(lockfileText, packageName)
       : collectUvPackageVersions(lockfileText, packageName);
 
-  if (!patchedVersion) {
+  if (!patchedVersion && !vulnerableVersionRange) {
     return {
       manifestPath,
       packageName,
       patchedVersion,
+      vulnerableVersionRange,
       localVersions,
       specifiers,
       specifierSourcePath: source.manifestSourcePath,
       state: 'unresolved',
-      reason: 'Dependabot alert 没有提供可比对的 patched version。',
+      reason: 'Dependabot alert 没有提供可比对的 patched version 或 vulnerable version range。',
     };
   }
 
@@ -1014,6 +1139,7 @@ function evaluateAlert(
       manifestPath,
       packageName,
       patchedVersion,
+      vulnerableVersionRange,
       localVersions,
       specifiers,
       specifierSourcePath: source.manifestSourcePath,
@@ -1022,22 +1148,36 @@ function evaluateAlert(
     };
   }
 
-  const hasVulnerableVersion = localVersions.some((version) => {
-    const compared = compareVersions(version, patchedVersion);
-    return compared !== null && compared < 0;
-  });
+  const rangeComparisons = vulnerableVersionRange
+    ? localVersions
+        .map((version) => matchesVulnerableVersionRange(version, vulnerableVersionRange))
+        .filter((matched) => matched !== null)
+    : [];
+  const canUseVulnerableRange = rangeComparisons.length > 0;
+  const hasVulnerableVersion = canUseVulnerableRange
+    ? rangeComparisons.some(Boolean)
+    : localVersions.some((version) => {
+        const compared = compareVersions(version, patchedVersion);
+        return compared !== null && compared < 0;
+      });
+  const reason = canUseVulnerableRange
+    ? hasVulnerableVersion
+      ? `本地锁文件里仍有命中 vulnerable version range (${vulnerableVersionRange}) 的解析结果。`
+      : `本地锁文件中的解析版本均已脱离 vulnerable version range (${vulnerableVersionRange})。`
+    : hasVulnerableVersion
+      ? '本地锁文件里仍有低于 patched version 的解析结果。'
+      : '本地锁文件中的解析版本已达到或超过 patched version。';
 
   return {
     manifestPath,
     packageName,
     patchedVersion,
+    vulnerableVersionRange,
     localVersions,
     specifiers,
     specifierSourcePath: source.manifestSourcePath,
     state: hasVulnerableVersion ? 'still-vulnerable' : 'patched-locally',
-    reason: hasVulnerableVersion
-      ? '本地锁文件里仍有低于 patched version 的解析结果。'
-      : '本地锁文件中的解析版本已达到或超过 patched version。',
+    reason,
   };
 }
 
@@ -1241,12 +1381,12 @@ function buildMarkdownSummary({
     lines.push('- 当前没有 open alert。');
   } else {
     lines.push('');
-    lines.push('| Alert | Package | Manifest | Patched | Local | Specifier Source | Verdict |');
-    lines.push('| --- | --- | --- | --- | --- | --- | --- |');
+    lines.push('| Alert | Package | Manifest | Vulnerable Range | Patched | Local | Specifier Source | Verdict |');
+    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
     results.forEach((result, index) => {
       const alert = openAlerts[index];
       lines.push(
-        `| #${alert.number} | \`${result.packageName}\` | \`${result.manifestPath}\` | \`${result.patchedVersion || 'unknown'}\` | \`${result.localVersions.join(', ') || 'none'}\` | \`${result.specifierSourcePath || 'none'}\` | \`${result.state}\` |`,
+        `| #${alert.number} | \`${result.packageName}\` | \`${result.manifestPath}\` | \`${result.vulnerableVersionRange || 'unknown'}\` | \`${result.patchedVersion || 'unknown'}\` | \`${result.localVersions.join(', ') || 'none'}\` | \`${result.specifierSourcePath || 'none'}\` | \`${result.state}\` |`,
       );
     });
   }
@@ -1478,6 +1618,7 @@ function buildDriftReport({
         number: openAlerts[index]?.number || null,
         packageName: result.packageName,
         manifestPath: result.manifestPath,
+        vulnerableVersionRange: result.vulnerableVersionRange || null,
         patchedVersion: result.patchedVersion || null,
         localVersions: result.localVersions,
         specifiers: result.specifiers,
@@ -1846,6 +1987,9 @@ function main() {
   results.forEach((result, index) => {
     const alert = openAlerts[index];
     console.log(`- #${alert.number} ${result.packageName} @ ${result.manifestPath}`);
+    if (result.vulnerableVersionRange) {
+      console.log(`  vulnerable range: ${result.vulnerableVersionRange}`);
+    }
     console.log(`  patched >= ${result.patchedVersion || 'unknown'}`);
     console.log(`  local versions: ${result.localVersions.join(', ') || 'none'}`);
     console.log(`  declared specifiers (${result.specifierSourcePath || 'none'}): ${result.specifiers.join(', ') || 'none'}`);

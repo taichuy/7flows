@@ -522,6 +522,58 @@ test('evaluateAlert also resolves alerts reported on lockfile paths', () => {
   assert.equal(nodeResult.specifierSourcePath, 'web/package.json');
 });
 
+test('evaluateAlert respects vulnerable version ranges across parallel major lines', () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dependabot-drift-picomatch-'));
+  fs.mkdirSync(path.join(repoRoot, 'web'), { recursive: true });
+  fs.writeFileSync(
+    path.join(repoRoot, 'web', 'package.json'),
+    JSON.stringify(
+      {
+        pnpm: {
+          overrides: {
+            'picomatch@^4.0.3': '4.0.4',
+          },
+        },
+      },
+      null,
+      2,
+    ),
+    'utf8',
+  );
+  fs.writeFileSync(
+    path.join(repoRoot, 'web', 'pnpm-lock.yaml'),
+    ['overrides:', '  picomatch@^4.0.3: 4.0.4', '', 'packages:', '  picomatch@2.3.1:', '  picomatch@4.0.4:'].join('\n'),
+    'utf8',
+  );
+
+  const inventory = buildWorkspaceManifestInventory(['web/package.json', 'web/pnpm-lock.yaml']);
+  const alert = {
+    dependency: {
+      manifest_path: 'web/pnpm-lock.yaml',
+      package: {
+        name: 'picomatch',
+      },
+    },
+    security_vulnerability: {
+      vulnerable_version_range: '>= 4.0.0, < 4.0.4',
+      first_patched_version: {
+        identifier: '4.0.4',
+      },
+    },
+  };
+
+  const result = evaluateAlert(alert, {
+    baseRepoRoot: repoRoot,
+    workspaceManifestInventory: inventory,
+  });
+
+  assert.equal(result.state, 'patched-locally');
+  assert.equal(result.vulnerableVersionRange, '>= 4.0.0, < 4.0.4');
+  assert.deepEqual(result.localVersions, ['2.3.1', '4.0.4']);
+  assert.deepEqual(result.specifiers, ['picomatch@^4.0.3 -> 4.0.4']);
+  assert.match(result.reason, /脱离 vulnerable version range/);
+});
+
 test('buildMarkdownSummary highlights local roots missing from dependency graph', () => {
   const inventory = buildWorkspaceManifestInventory([
     'api/pyproject.toml',
@@ -1164,6 +1216,7 @@ test('buildDriftReport emits machine-readable drift evidence', () => {
       number: 3,
       packageName: 'next',
       manifestPath: 'web/pnpm-lock.yaml',
+      vulnerableVersionRange: null,
       patchedVersion: '15.5.14',
       localVersions: ['15.5.14'],
       specifiers: ['^15.5.14'],

@@ -37,6 +37,8 @@ node scripts/sync-github-security-drift-issue.js \
 - 本地 manifest inventory（当前原生 dependency graph coverage 根是 `web` 的 `package.json + pnpm-lock.yaml`；本地 drift 解析仍额外覆盖 `api/`、`services/compat-dify/` 的 `pyproject.toml + uv.lock`）
 - 与本地 `pnpm-lock.yaml` / `uv.lock` 和对应 `package.json` / `pyproject.toml` 的版本对比
 
+如果 GitHub alert 同时给出了 `vulnerable_version_range` 与 `first_patched_version`，脚本会优先按漏洞区间判断本地锁文件是否仍命中风险，而不是简单把“所有低于 first patched 的版本”都视为未修复；这样可避免并行主版本线（如 `2.x` 与 `4.x`）被误判成同一条漏洞线。
+
 如果在 GitHub Actions 中运行，脚本还会把结论写入 `GITHUB_STEP_SUMMARY`，方便在 workflow 页面直接查看证据。
 
 如果仓库内已存在 `.github/workflows/dependency-graph-submission.yml`，脚本还会顺带查询默认分支最新一条 `Dependency Graph Submission` run，并优先读取其中的 `dependency-submission-report` artifact（`dependency-submission.json`，必要时回退到 `dependency-submission.txt`）把摘要串进当前结论里，避免 `GitHub Security Drift` 只停留在“manifests 还是 0”而说不清到底是平台设置阻塞、部分 root 已提交，还是平台刷新延迟。若在 GitHub Actions 中消费这条证据链，`GitHub Security Drift` job 还必须显式具备 `actions: read`，否则会在读取 workflow run / artifact 时得到 `Resource not accessible by integration` 的 403。
