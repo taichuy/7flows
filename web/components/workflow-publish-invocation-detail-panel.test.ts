@@ -694,11 +694,13 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
     expect(html).toContain("shared workflow artifact");
     expect(html).toContain("Draft cleanup");
     expect(html).toContain("Published blockers");
+    expect(html).toContain("publish auth blocker");
+    expect(html).toContain("回到 workflow 编辑器处理 publish auth contract");
     expect(html).toContain("当前 workflow 仍有 1 条 draft cleanup、1 条 published blocker、0 条 offline inventory");
-    expect(html).toContain("/workflows/workflow-1");
+    expect(html).toContain("/workflows/workflow-1?definition_issue=legacy_publish_auth");
   });
 
-  it("scopes the shared workflow legacy auth handoff back to missing-tool workflow detail", () => {
+  it("scopes the shared workflow governance handoff back to missing-tool and legacy-auth workflow detail", () => {
     const detail = buildDetail();
     detail.legacy_auth_governance = {
       generated_at: "2026-03-20T12:00:00Z",
@@ -756,7 +758,11 @@ describe("WorkflowPublishInvocationDetailPanel", () => {
       })
     );
 
+    expect(html).toContain("Workflow governance");
+    expect(html).toContain("catalog gap · native.catalog-gap");
+    expect(html).toContain("当前 publish audit detail 对应的 workflow 版本仍有 catalog gap");
     expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
+    expect(html).toContain('/workflows/workflow-1?definition_issue=legacy_publish_auth');
   });
 
   it("prefers shared callback recovery CTA when publish detail only carries local callback prose", () => {

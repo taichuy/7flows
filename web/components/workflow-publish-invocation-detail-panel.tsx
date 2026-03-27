@@ -67,6 +67,10 @@ import {
   shouldPreferSharedSandboxReadinessFollowUp
 } from "@/lib/system-overview-follow-up-presenters";
 import {
+  buildWorkflowCatalogGapDetail,
+  buildWorkflowGovernanceHandoff
+} from "@/lib/workflow-governance-handoff";
+import {
   buildRunDetailHrefFromWorkspaceStarterViewState,
   buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   type WorkspaceStarterGovernanceQueryScope
@@ -221,6 +225,8 @@ export function WorkflowPublishInvocationDetailPanel({
     legacyAuthSnapshot?.workflows.find((item) => item.workflow_id === invocation.workflow_id) ??
     legacyAuthSnapshot?.workflows[0] ??
     null;
+  const legacyAuthWorkflowToolGovernance =
+    workflow?.tool_governance ?? legacyAuthWorkflowSummary?.tool_governance ?? null;
   const workflowDetailLink = workspaceStarterGovernanceQueryScope
     ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
         workflowId: invocation.workflow_id,
@@ -236,6 +242,21 @@ export function WorkflowPublishInvocationDetailPanel({
         definitionIssue: null
       })
     : workflowDetailLink.href;
+  const legacyAuthWorkflowGovernanceHandoff = legacyAuthSnapshot
+    ? buildWorkflowGovernanceHandoff({
+        workflowId: invocation.workflow_id,
+        workflowName: legacyAuthWorkflowSummary?.workflow_name ?? invocation.workflow_id,
+        workflowDetailHref,
+        toolGovernance: legacyAuthWorkflowToolGovernance,
+        legacyAuthGovernance: legacyAuthSnapshot,
+        workflowCatalogGapDetail: buildWorkflowCatalogGapDetail({
+          toolGovernance: legacyAuthWorkflowToolGovernance,
+          subjectLabel: "publish audit detail",
+          returnDetail:
+            "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续对照当前 publish audit detail、sampled runs 与 callback follow-up。"
+        })
+      })
+    : null;
   const recommendedNextStep = buildPublishedInvocationRecommendedNextStep({
     runId,
     canonicalFollowUp,
@@ -688,6 +709,19 @@ export function WorkflowPublishInvocationDetailPanel({
             </div>
           ) : null}
 
+          <WorkflowGovernanceHandoffCards
+            workflowCatalogGapSummary={
+              legacyAuthWorkflowGovernanceHandoff?.workflowCatalogGapSummary
+            }
+            workflowCatalogGapDetail={
+              legacyAuthWorkflowGovernanceHandoff?.workflowCatalogGapDetail
+            }
+            workflowCatalogGapHref={legacyAuthWorkflowGovernanceHandoff?.workflowCatalogGapHref}
+            workflowGovernanceHref={legacyAuthWorkflowGovernanceHandoff?.workflowGovernanceHref}
+            legacyAuthHandoff={legacyAuthWorkflowGovernanceHandoff?.legacyAuthHandoff}
+            cardClassName="payload-card compact-card"
+          />
+
           <div className="binding-actions">
             <div>
               <p className="entry-card-title">
@@ -699,7 +733,10 @@ export function WorkflowPublishInvocationDetailPanel({
                   : detailSurfaceCopy.legacyAuthGovernanceWorkflowFollowUpFallback}
               </p>
             </div>
-            <Link className="activity-link" href={workflowDetailHref}>
+            <Link
+              className="activity-link"
+              href={legacyAuthWorkflowGovernanceHandoff?.workflowGovernanceHref ?? workflowDetailHref}
+            >
               {workflowDetailLink.label}
             </Link>
           </div>
