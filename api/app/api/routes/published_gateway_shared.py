@@ -89,4 +89,8 @@ def build_publish_streaming_response(
 
 
 def raise_gateway_http_exception(exc: PublishedEndpointGatewayError) -> None:
-    raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    raise HTTPException(
+        status_code=exc.status_code,
+        detail=exc.detail_payload if exc.detail_payload is not None else str(exc),
+        headers=exc.headers,
+    ) from exc

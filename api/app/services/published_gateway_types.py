@@ -4,9 +4,18 @@ from dataclasses import dataclass
 
 
 class PublishedEndpointGatewayError(ValueError):
-    def __init__(self, detail: str, *, status_code: int = 422) -> None:
+    def __init__(
+        self,
+        detail: str,
+        *,
+        status_code: int = 422,
+        detail_payload: dict[str, object] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(detail)
         self.status_code = status_code
+        self.detail_payload = detail_payload
+        self.headers = headers or {}
 
 
 @dataclass

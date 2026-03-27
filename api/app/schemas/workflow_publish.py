@@ -188,6 +188,16 @@ class PublishedProtocolAsyncRunResponse(BaseModel):
     response_payload: dict[str, Any] | None = None
 
 
+class PublishedEndpointGatewayErrorDetail(BaseModel):
+    message: str
+    reason_code: PublishedEndpointInvocationReasonCode | None = None
+    run_id: str | None = None
+    run_status: str | None = None
+    run: RunDetail | None = None
+    run_snapshot: OperatorRunSnapshot | None = None
+    run_follow_up: OperatorRunFollowUpSummary | None = None
+
+
 class OpenAIChatCompletionRequest(BaseModel):
     model: str = Field(min_length=1, max_length=128)
     messages: list[dict[str, Any]] = Field(default_factory=list)

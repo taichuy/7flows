@@ -6,6 +6,12 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.models.workflow import WorkflowPublishedEndpoint
+from app.schemas.run import RunDetail
+from app.schemas.workflow_publish import PublishedEndpointGatewayErrorDetail
+from app.services.operator_run_follow_up import (
+    build_operator_run_follow_up_summary,
+    load_operator_run_snapshot,
+)
 from app.services.published_gateway_binding_resolver import (
     PublishedGatewayBindingResolver,
     PublishedGatewayBindingResolverError,
@@ -118,6 +124,7 @@ class PublishedGatewayBindingInvoker:
         cache_entry_id: str | None = None
         response_preview_payload = None
         stream_run_payload: dict | None = None
+        serialized_run_detail: RunDetail | None = None
         executed_run_id: str | None = None
         executed_run_status: str | None = None
         executed_run_error: str | None = None
@@ -161,9 +168,13 @@ class PublishedGatewayBindingInvoker:
                 executed_run_id = artifacts.run.id
                 executed_run_status = artifacts.run.status
                 executed_run_error = artifacts.run.error_message
+                serialized_run_detail = serialize_run_detail(artifacts)
                 if require_terminal_success:
-                    self._ensure_sync_publish_run_succeeded(artifacts.run.status)
-                stream_run_payload = serialize_run_detail(artifacts).model_dump(mode="json")
+                    self._ensure_sync_publish_run_succeeded(
+                        db,
+                        run_detail=serialized_run_detail,
+                    )
+                stream_run_payload = serialized_run_detail.model_dump(mode="json")
                 response_payload = response_builder(
                     binding=binding,
                     workflow=workflow,
@@ -271,19 +282,90 @@ class PublishedGatewayBindingInvoker:
             return True
         return run_payload.get("status") == "succeeded"
 
-    def _ensure_sync_publish_run_succeeded(self, run_status: str) -> None:
+    def _ensure_sync_publish_run_succeeded(
+        self,
+        db: Session,
+        *,
+        run_detail: RunDetail,
+    ) -> None:
+        run_status = str(run_detail.status or "").strip()
         if run_status == "succeeded":
             return
         if run_status == "waiting":
-            raise PublishedEndpointGatewayError(
+            message = (
                 "Published sync invocation entered waiting state. "
-                "Waiting runs are not supported for sync published endpoints yet.",
-                status_code=409,
+                "Waiting runs are not supported for sync published endpoints yet."
             )
+            reason_code = "sync_waiting_unsupported"
+            status_code = 409
+        elif run_status == "failed":
+            message = (
+                "Published sync invocation failed before producing a terminal success "
+                "response."
+            )
+            reason_code = "runtime_failed"
+            status_code = 500
+        else:
+            message = (
+                f"Published sync invocation ended with unsupported run status '{run_status}'."
+            )
+            reason_code = "run_status_unsupported"
+            status_code = 500
+
         raise PublishedEndpointGatewayError(
-            f"Published sync invocation ended with unsupported run status '{run_status}'.",
-            status_code=500,
+            message,
+            status_code=status_code,
+            detail_payload=self._build_sync_publish_error_detail_payload(
+                db,
+                reason_code=reason_code,
+                message=message,
+                run_detail=run_detail,
+            ),
+            headers=self._build_sync_publish_error_headers(
+                run_detail=run_detail,
+                reason_code=reason_code,
+            ),
         )
+
+    def _build_sync_publish_error_detail_payload(
+        self,
+        db: Session,
+        *,
+        reason_code: str,
+        message: str,
+        run_detail: RunDetail,
+    ) -> dict[str, object]:
+        run_follow_up = run_detail.run_follow_up or build_operator_run_follow_up_summary(
+            db,
+            [run_detail.id],
+            sample_limit=1,
+        )
+        run_snapshot = load_operator_run_snapshot(db, run_detail.id)
+        hydrated_run_detail = run_detail.model_copy(update={"run_follow_up": run_follow_up})
+        return PublishedEndpointGatewayErrorDetail(
+            message=message,
+            reason_code=reason_code,
+            run_id=hydrated_run_detail.id,
+            run_status=hydrated_run_detail.status,
+            run=hydrated_run_detail,
+            run_snapshot=run_snapshot,
+            run_follow_up=run_follow_up,
+        ).model_dump(mode="json")
+
+    def _build_sync_publish_error_headers(
+        self,
+        *,
+        run_detail: RunDetail,
+        reason_code: str,
+    ) -> dict[str, str]:
+        headers = {
+            "X-7Flows-Run-Id": run_detail.id,
+            "X-7Flows-Reason-Code": reason_code,
+        }
+        run_status = str(run_detail.status or "").strip()
+        if run_status:
+            headers["X-7Flows-Run-Status"] = run_status.upper()
+        return headers
 
     def _enforce_rate_limit(
         self,

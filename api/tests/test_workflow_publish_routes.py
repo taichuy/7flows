@@ -1218,10 +1218,24 @@ def test_published_sync_routes_reject_waiting_runs(
             },
         )
         assert invoke_response.status_code == 409
-        assert invoke_response.json()["detail"] == (
+        assert invoke_response.headers["x-7flows-run-status"] == "WAITING"
+        assert invoke_response.headers["x-7flows-reason-code"] == "sync_waiting_unsupported"
+        detail_payload = invoke_response.json()["detail"]
+        assert detail_payload["message"] == (
             "Published sync invocation entered waiting state. "
             "Waiting runs are not supported for sync published endpoints yet."
         )
+        assert detail_payload["reason_code"] == "sync_waiting_unsupported"
+        assert detail_payload["run_id"] == invoke_response.headers["x-7flows-run-id"]
+        assert detail_payload["run_status"] == "waiting"
+        assert detail_payload["run"]["id"] == detail_payload["run_id"]
+        assert detail_payload["run"]["status"] == "waiting"
+        assert detail_payload["run"]["run_follow_up"]["affected_run_count"] == 1
+        assert detail_payload["run_snapshot"] is not None
+        assert detail_payload["run_snapshot"]["status"] == "waiting"
+        assert detail_payload["run_follow_up"]["affected_run_count"] == 1
+        assert detail_payload["run_follow_up"]["sampled_run_count"] == 1
+        assert detail_payload["run_follow_up"]["waiting_run_count"] == 1
 
         activity_response = client.get(
             f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
