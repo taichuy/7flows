@@ -1,15 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.schemas.workflow_publish import (
-    AnthropicMessageRequest,
-    AnthropicMessageResponse,
-    PublishedProtocolAsyncRunResponse,
-)
-from app.services.published_gateway import PublishedEndpointGatewayError
-from app.services.published_protocol_streaming import build_anthropic_message_stream
-
 from app.api.routes.published_gateway_shared import (
     apply_publish_response_headers,
     build_anthropic_message_input_payload,
@@ -18,6 +9,14 @@ from app.api.routes.published_gateway_shared import (
     published_gateway_service,
     raise_gateway_http_exception,
 )
+from app.core.database import get_db
+from app.schemas.workflow_publish import (
+    AnthropicMessageRequest,
+    AnthropicMessageResponse,
+    PublishedProtocolAsyncRunResponse,
+)
+from app.services.published_gateway import PublishedEndpointGatewayError
+from app.services.published_protocol_streaming import build_anthropic_message_stream
 
 router = APIRouter()
 
@@ -52,12 +51,14 @@ def invoke_published_anthropic_message(
             ),
             cache_status=result.cache_status,
             run_status=result.run_status,
+            run_id=result.run_id,
         )
 
     apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=result.run_status,
+        run_id=result.run_id,
     )
     return AnthropicMessageResponse.model_validate(result.response_payload)
 
@@ -105,5 +106,6 @@ def invoke_published_anthropic_message_async(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
+        run_id=result.run_id,
     )
     return PublishedProtocolAsyncRunResponse.model_validate(result.response_payload)

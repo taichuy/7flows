@@ -455,9 +455,7 @@ def test_bulk_cleanup_offlines_only_draft_legacy_auth_bindings(
     assert body["updated_count"] == 1
     assert body["skipped_count"] == 3
     assert body["updated_binding_ids"] == [draft_binding.id]
-    skipped_items_by_id = {
-        item["binding_id"]: item for item in body["skipped_items"]
-    }
+    skipped_items_by_id = {item["binding_id"]: item for item in body["skipped_items"]}
     assert {binding_id: item["reason"] for binding_id, item in skipped_items_by_id.items()} == {
         published_binding.id: "binding_not_draft",
         offline_binding.id: "binding_already_offline",
@@ -484,9 +482,7 @@ def test_bulk_cleanup_offlines_only_draft_legacy_auth_bindings(
 
     sqlite_session.expire_all()
     stored_draft_binding = sqlite_session.get(WorkflowPublishedEndpoint, draft_binding.id)
-    stored_published_binding = sqlite_session.get(
-        WorkflowPublishedEndpoint, published_binding.id
-    )
+    stored_published_binding = sqlite_session.get(WorkflowPublishedEndpoint, published_binding.id)
     stored_offline_binding = sqlite_session.get(WorkflowPublishedEndpoint, offline_binding.id)
 
     assert stored_draft_binding is not None
@@ -592,9 +588,7 @@ def test_list_legacy_auth_governance_snapshot_across_workflows(
             WorkflowPublishedEndpoint.workflow_id == first_workflow_id
         )
     ).all()
-    first_bindings_by_version = {
-        binding.workflow_version: binding for binding in first_bindings
-    }
+    first_bindings_by_version = {binding.workflow_version: binding for binding in first_bindings}
 
     first_draft_binding = first_bindings_by_version["0.1.2"]
     first_published_binding = first_bindings_by_version["0.1.1"]
@@ -697,9 +691,7 @@ def test_list_legacy_auth_governance_snapshot_across_workflows(
             "auth_mode": "token",
         }
     ]
-    assert {
-        item["workflow_name"] for item in body["buckets"]["published_blockers"]
-    } == {
+    assert {item["workflow_name"] for item in body["buckets"]["published_blockers"]} == {
         "Legacy Auth Cleanup Workflow",
         "Replacement Ready Workflow",
     }
@@ -757,6 +749,7 @@ def test_invoke_published_native_endpoint_uses_active_binding_blueprint(
     )
     assert invoke_response.status_code == 200
     body = invoke_response.json()
+    assert invoke_response.headers["X-7Flows-Run-Id"] == body["run"]["id"]
     assert body["binding_id"] == initial_binding["id"]
     assert body["workflow_version"] == "0.1.0"
     assert body["compiled_blueprint_id"] == initial_binding["compiled_blueprint_id"]
@@ -878,6 +871,7 @@ def test_invoke_published_native_endpoint_stream_returns_event_stream(
         assert response.headers["content-type"].startswith("text/event-stream")
         assert response.headers["X-7Flows-Cache"] == "BYPASS"
         assert response.headers["X-7Flows-Run-Status"] == "SUCCEEDED"
+        stream_run_id = response.headers["X-7Flows-Run-Id"]
         lines = [line for line in response.iter_lines() if line]
 
     event_names = [line.removeprefix("event: ") for line in lines if line.startswith("event: ")]
@@ -905,6 +899,7 @@ def test_invoke_published_native_endpoint_stream_returns_event_stream(
     assert activity["summary"]["total_count"] == 1
     assert activity["items"][0]["run_status"] == "succeeded"
     assert activity["items"][0]["run_id"] is not None
+    assert activity["items"][0]["run_id"] == stream_run_id
 
 
 def test_invoke_published_native_endpoint_rejects_streaming_when_binding_disabled(
@@ -1018,6 +1013,8 @@ def test_invoke_published_openai_chat_completion_uses_model_alias(
     activity = activity_response.json()
     assert activity["summary"]["total_count"] == 1
     assert activity["summary"]["succeeded_count"] == 1
+    activity_run_id = activity["items"][0]["run_id"]
+    assert invoke_response.headers["X-7Flows-Run-Id"] == activity_run_id
     assert activity["items"][0]["request_surface"] == "openai.chat.completions"
     assert activity["facets"]["request_source_counts"] == [
         {
@@ -1245,9 +1242,9 @@ def test_published_sync_routes_reject_waiting_runs(
         assert activity["summary"]["total_count"] == 1
         assert activity["summary"]["rejected_count"] == 1
         assert activity["summary"]["last_reason_code"] == "sync_waiting_unsupported"
-        assert {
-            item["value"]: item["count"] for item in activity["facets"]["reason_counts"]
-        } == {"sync_waiting_unsupported": 1}
+        assert {item["value"]: item["count"] for item in activity["facets"]["reason_counts"]} == {
+            "sync_waiting_unsupported": 1
+        }
         assert activity["items"][0]["status"] == "rejected"
         assert activity["items"][0]["reason_code"] == "sync_waiting_unsupported"
         run_id = activity["items"][0]["run_id"]
@@ -1377,9 +1374,7 @@ def test_published_openai_chat_stream_returns_sse_and_tracks_run(
     streamed_chunks = [json.loads(line) for line in data_lines[:-1]]
     assert streamed_chunks[0]["object"] == "chat.completion.chunk"
     assert streamed_chunks[-1]["choices"][0]["finish_reason"] == "stop"
-    assert any(
-        "content" in chunk["choices"][0].get("delta", {}) for chunk in streamed_chunks
-    )
+    assert any("content" in chunk["choices"][0].get("delta", {}) for chunk in streamed_chunks)
 
     activity_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"
@@ -1539,8 +1534,7 @@ def test_invoke_published_native_endpoint_uses_response_cache(
     assert invocation_body["summary"]["cache_bypass_count"] == 0
     assert invocation_body["summary"]["last_cache_status"] in {"hit", "miss"}
     assert {
-        item["value"]: item["count"]
-        for item in invocation_body["facets"]["cache_status_counts"]
+        item["value"]: item["count"] for item in invocation_body["facets"]["cache_status_counts"]
     } == {
         "hit": 1,
         "miss": 2,
@@ -1766,7 +1760,7 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
                 "waiting_status": "waiting_callback",
                 "scheduled_at": now.isoformat().replace("+00:00", "Z"),
                 "due_at": (now + timedelta(seconds=30)).isoformat().replace("+00:00", "Z"),
-            }
+            },
         },
         working_context={},
         evidence_context=None,
@@ -1964,9 +1958,10 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     assert activity_body["items"][0]["run_follow_up"]["explanation"]["primary_signal"] == (
         "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。"
     )
-    assert "run run-publish-detail：当前 run 状态：waiting。" in activity_body["items"][0][
-        "run_follow_up"
-    ]["explanation"]["follow_up"]
+    assert (
+        "run run-publish-detail：当前 run 状态：waiting。"
+        in activity_body["items"][0]["run_follow_up"]["explanation"]["follow_up"]
+    )
     assert activity_body["items"][0]["execution_focus_explanation"] == {
         "primary_signal": "等待原因：callback pending",
         "follow_up": (
@@ -1991,9 +1986,10 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     assert binding_activity["pending_approval_count"] == 0
     assert binding_activity["approved_approval_count"] == 1
     assert binding_activity["delivered_notification_count"] == 1
-    assert binding_activity["primary_sensitive_resource"] == activity_body["summary"][
-        "primary_sensitive_resource"
-    ]
+    assert (
+        binding_activity["primary_sensitive_resource"]
+        == activity_body["summary"]["primary_sensitive_resource"]
+    )
 
     detail_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/{invocation.id}"
@@ -2124,12 +2120,14 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     assert detail_body["run_follow_up"]["waiting_run_count"] == 1
     assert detail_body["run_follow_up"]["sampled_runs"][0]["run_id"] == run.id
     assert detail_body["run_follow_up"]["sampled_runs"][0]["legacy_auth_governance"] is None
-    assert activity_body["items"][0]["run_follow_up"]["sampled_runs"][0][
-        "legacy_auth_governance"
-    ] is None
-    assert detail_body["run_follow_up"]["sampled_runs"][0]["tool_governance"] == activity_body[
-        "items"
-    ][0]["run_follow_up"]["sampled_runs"][0]["tool_governance"]
+    assert (
+        activity_body["items"][0]["run_follow_up"]["sampled_runs"][0]["legacy_auth_governance"]
+        is None
+    )
+    assert (
+        detail_body["run_follow_up"]["sampled_runs"][0]["tool_governance"]
+        == activity_body["items"][0]["run_follow_up"]["sampled_runs"][0]["tool_governance"]
+    )
     assert detail_body["run_follow_up"]["sampled_runs"][0]["tool_governance"] == {
         "referenced_tool_ids": [],
         "missing_tool_ids": [],
@@ -2187,9 +2185,7 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
         "scheduled_resume_source": "callback_ticket_monitor",
         "scheduled_waiting_status": "waiting_callback",
         "scheduled_resume_scheduled_at": now.isoformat().replace("+00:00", "Z"),
-        "scheduled_resume_due_at": (now + timedelta(seconds=30)).isoformat().replace(
-            "+00:00", "Z"
-        ),
+        "scheduled_resume_due_at": (now + timedelta(seconds=30)).isoformat().replace("+00:00", "Z"),
         "scheduled_resume_requeued_at": None,
         "scheduled_resume_requeue_source": None,
         "execution_focus_artifact_count": 0,
@@ -2204,9 +2200,10 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     assert detail_body["run_follow_up"]["explanation"]["primary_signal"] == (
         "本次影响 1 个 run；整体状态分布：waiting 1。已回读 1 个样本。"
     )
-    assert "run run-publish-detail：当前 run 状态：waiting。" in detail_body["run_follow_up"][
-        "explanation"
-    ]["follow_up"]
+    assert (
+        "run run-publish-detail：当前 run 状态：waiting。"
+        in detail_body["run_follow_up"]["explanation"]["follow_up"]
+    )
     assert detail_body["execution_focus_node"]["node_id"] == "tool_wait"
     assert detail_body["execution_focus_node"]["node_name"] == "Tool Wait"
     assert detail_body["execution_focus_node"]["status"] == "waiting"
@@ -2214,19 +2211,19 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
     assert detail_body["execution_focus_node"]["execution_class"] == "inline"
     assert detail_body["execution_focus_node"]["waiting_reason"] == "callback pending"
     assert (
-        detail_body["execution_focus_node"]["callback_tickets"][0]["ticket"]
-        == callback_ticket.id
+        detail_body["execution_focus_node"]["callback_tickets"][0]["ticket"] == callback_ticket.id
     )
-    assert detail_body["run_follow_up"]["sampled_runs"][0]["callback_tickets"] == detail_body[
-        "execution_focus_node"
-    ]["callback_tickets"]
-    assert activity_body["items"][0]["run_follow_up"]["sampled_runs"][0][
-        "callback_tickets"
-    ] == detail_body["run_follow_up"]["sampled_runs"][0]["callback_tickets"]
+    assert (
+        detail_body["run_follow_up"]["sampled_runs"][0]["callback_tickets"]
+        == detail_body["execution_focus_node"]["callback_tickets"]
+    )
+    assert (
+        activity_body["items"][0]["run_follow_up"]["sampled_runs"][0]["callback_tickets"]
+        == detail_body["run_follow_up"]["sampled_runs"][0]["callback_tickets"]
+    )
     assert len(detail_body["blocking_sensitive_access_entries"]) == 1
     assert (
-        detail_body["blocking_sensitive_access_entries"][0]["request"]["id"]
-        == sensitive_request.id
+        detail_body["blocking_sensitive_access_entries"][0]["request"]["id"] == sensitive_request.id
     )
     assert detail_body["blocking_sensitive_access_entries"][0]["outcome_explanation"] == {
         "primary_signal": "审批已通过，对应 waiting 链路已交回 runtime 恢复。",
@@ -2235,20 +2232,22 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
             "如果 run 仍停在 waiting，请继续检查 callback 到达情况或定时恢复链路。"
         ),
     }
-    assert detail_body["blocking_sensitive_access_entries"][0]["run_snapshot"] == detail_body[
-        "run_follow_up"
-    ]["sampled_runs"][0]["snapshot"]
-    assert detail_body["blocking_sensitive_access_entries"][0]["run_follow_up"] == detail_body[
-        "run_follow_up"
-    ]
+    assert (
+        detail_body["blocking_sensitive_access_entries"][0]["run_snapshot"]
+        == detail_body["run_follow_up"]["sampled_runs"][0]["snapshot"]
+    )
+    assert (
+        detail_body["blocking_sensitive_access_entries"][0]["run_follow_up"]
+        == detail_body["run_follow_up"]
+    )
     expected_sample_sensitive_entry = {
         key: value
         for key, value in detail_body["blocking_sensitive_access_entries"][0].items()
         if key not in {"run_snapshot", "run_follow_up"}
     }
-    assert detail_body["run_follow_up"]["sampled_runs"][0][
-        "sensitive_access_entries"
-    ] == [expected_sample_sensitive_entry]
+    assert detail_body["run_follow_up"]["sampled_runs"][0]["sensitive_access_entries"] == [
+        expected_sample_sensitive_entry
+    ]
     assert activity_body["items"][0]["run_follow_up"]["sampled_runs"][0][
         "sensitive_access_entries"
     ] == [expected_sample_sensitive_entry]
@@ -2274,12 +2273,13 @@ def test_get_published_invocation_detail_drills_into_run_callback_and_cache(
             "如果 run 仍停在 waiting，请继续检查 callback 到达情况或定时恢复链路。"
         ),
     }
-    assert detail_body["sensitive_access_entries"][0]["run_snapshot"] == detail_body[
-        "run_follow_up"
-    ]["sampled_runs"][0]["snapshot"]
-    assert detail_body["sensitive_access_entries"][0]["run_follow_up"] == detail_body[
-        "run_follow_up"
-    ]
+    assert (
+        detail_body["sensitive_access_entries"][0]["run_snapshot"]
+        == detail_body["run_follow_up"]["sampled_runs"][0]["snapshot"]
+    )
+    assert (
+        detail_body["sensitive_access_entries"][0]["run_follow_up"] == detail_body["run_follow_up"]
+    )
     assert detail_body["sensitive_access_entries"][0]["approval_ticket"] == {
         "id": approval_ticket.id,
         "access_request_id": sensitive_request.id,
@@ -2367,8 +2367,7 @@ def test_invoke_published_native_endpoint_enforces_rate_limit(
     client: TestClient,
 ) -> None:
     detail = (
-        "Published endpoint rate limit exceeded: "
-        "2 successful/failed invocations per 3600 seconds."
+        "Published endpoint rate limit exceeded: 2 successful/failed invocations per 3600 seconds."
     )
     create_response = client.post(
         "/api/workflows",
@@ -2425,9 +2424,9 @@ def test_invoke_published_native_endpoint_enforces_rate_limit(
     assert activity["summary"]["rejected_count"] == 1
     assert activity["summary"]["last_reason_code"] == "rate_limit_exceeded"
     assert any(item["status"] == "rejected" for item in activity["items"])
-    assert {
-        item["value"]: item["count"] for item in activity["facets"]["reason_counts"]
-    } == {"rate_limit_exceeded": 1}
+    assert {item["value"]: item["count"] for item in activity["facets"]["reason_counts"]} == {
+        "rate_limit_exceeded": 1
+    }
     assert activity["facets"]["recent_failure_reasons"][0]["message"] == detail
 
 
@@ -2435,8 +2434,7 @@ def test_rejected_published_invocation_does_not_consume_rate_limit_quota(
     client: TestClient,
 ) -> None:
     detail = (
-        "Published endpoint rate limit exceeded: "
-        "1 successful/failed invocations per 3600 seconds."
+        "Published endpoint rate limit exceeded: 1 successful/failed invocations per 3600 seconds."
     )
     create_response = client.post(
         "/api/workflows",
@@ -2503,9 +2501,10 @@ def test_rejected_published_invocation_does_not_consume_rate_limit_quota(
     assert activity["summary"]["succeeded_count"] == 1
     assert activity["summary"]["rejected_count"] == 2
     assert activity["summary"]["last_reason_code"] == "rate_limit_exceeded"
-    assert {
-        item["value"]: item["count"] for item in activity["facets"]["reason_counts"]
-    } == {"rate_limit_exceeded": 1, "api_key_invalid": 1}
+    assert {item["value"]: item["count"] for item in activity["facets"]["reason_counts"]} == {
+        "rate_limit_exceeded": 1,
+        "api_key_invalid": 1,
+    }
     assert activity["facets"]["recent_failure_reasons"][0]["message"] == detail
     reason_filtered_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations",
@@ -2529,6 +2528,4 @@ def test_rejected_published_invocation_does_not_consume_rate_limit_quota(
     assert reason_filtered["summary"]["total_count"] == 1
     assert reason_filtered["summary"]["rejected_count"] == 1
     assert reason_filtered["summary"]["last_reason_code"] == "api_key_invalid"
-    assert [item["reason_code"] for item in reason_filtered["items"]] == [
-        "api_key_invalid"
-    ]
+    assert [item["reason_code"] for item in reason_filtered["items"]] == ["api_key_invalid"]

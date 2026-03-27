@@ -62,6 +62,7 @@ def test_published_native_async_route_accepts_waiting_run(client: TestClient) ->
         assert workflow_response.headers["X-7Flows-Cache"] == "BYPASS"
         assert workflow_response.headers["X-7Flows-Run-Status"] == "WAITING"
         workflow_body = workflow_response.json()
+        assert workflow_response.headers["X-7Flows-Run-Id"] == workflow_body["run"]["id"]
         assert workflow_body["run"]["status"] == "waiting"
         assert workflow_body["run"]["output_payload"] is None
         assert workflow_body["run"]["current_node_id"] == "agent"
@@ -74,8 +75,10 @@ def test_published_native_async_route_accepts_waiting_run(client: TestClient) ->
         assert alias_response.status_code == 202
         assert alias_response.headers["X-7Flows-Cache"] == "BYPASS"
         assert alias_response.headers["X-7Flows-Run-Status"] == "WAITING"
-        assert alias_response.json()["endpoint_alias"] == "native.async.workflow"
-        assert alias_response.json()["run"]["status"] == "waiting"
+        alias_body = alias_response.json()
+        assert alias_response.headers["X-7Flows-Run-Id"] == alias_body["run"]["id"]
+        assert alias_body["endpoint_alias"] == "native.async.workflow"
+        assert alias_body["run"]["status"] == "waiting"
 
         path_response = client.post(
             "/v1/published-paths-async/native/async",
@@ -84,8 +87,10 @@ def test_published_native_async_route_accepts_waiting_run(client: TestClient) ->
         assert path_response.status_code == 202
         assert path_response.headers["X-7Flows-Cache"] == "BYPASS"
         assert path_response.headers["X-7Flows-Run-Status"] == "WAITING"
-        assert path_response.json()["route_path"] == "/native/async"
-        assert path_response.json()["run"]["status"] == "waiting"
+        path_body = path_response.json()
+        assert path_response.headers["X-7Flows-Run-Id"] == path_body["run"]["id"]
+        assert path_body["route_path"] == "/native/async"
+        assert path_body["run"]["status"] == "waiting"
 
         repeated_workflow_response = client.post(
             f"/v1/workflows/{workflow_id}/published-endpoints/native-async/run-async",
@@ -94,6 +99,10 @@ def test_published_native_async_route_accepts_waiting_run(client: TestClient) ->
         assert repeated_workflow_response.status_code == 202
         assert repeated_workflow_response.headers["X-7Flows-Cache"] == "BYPASS"
         repeated_workflow_body = repeated_workflow_response.json()
+        assert (
+            repeated_workflow_response.headers["X-7Flows-Run-Id"]
+            == repeated_workflow_body["run"]["id"]
+        )
         assert repeated_workflow_body["run"]["status"] == "waiting"
         assert repeated_workflow_body["run"]["id"] != first_run_id
 
@@ -128,16 +137,11 @@ def test_published_native_async_route_accepts_waiting_run(client: TestClient) ->
             for item in activity["items"]
         )
         assert all(
-            item["run_waiting_lifecycle"]["callback_waiting_lifecycle"][
-                "issued_ticket_count"
-            ]
-            == 1
+            item["run_waiting_lifecycle"]["callback_waiting_lifecycle"]["issued_ticket_count"] == 1
             for item in activity["items"]
         )
         assert all(
-            item["run_waiting_lifecycle"]["callback_waiting_lifecycle"][
-                "last_ticket_status"
-            ]
+            item["run_waiting_lifecycle"]["callback_waiting_lifecycle"]["last_ticket_status"]
             == "pending"
             for item in activity["items"]
         )
@@ -152,24 +156,21 @@ def test_published_native_async_route_accepts_waiting_run(client: TestClient) ->
             "native.workflow.async",
         ]
         assert {
-            item["value"]: item["count"]
-            for item in activity["facets"]["request_surface_counts"]
+            item["value"]: item["count"] for item in activity["facets"]["request_surface_counts"]
         } == {
             "native.workflow.async": 2,
             "native.alias.async": 1,
             "native.path.async": 1,
         }
         assert {
-            item["value"]: item["count"]
-            for item in activity["facets"]["cache_status_counts"]
+            item["value"]: item["count"] for item in activity["facets"]["cache_status_counts"]
         } == {
             "hit": 0,
             "miss": 0,
             "bypass": 4,
         }
         assert {
-            item["value"]: item["count"]
-            for item in activity["facets"]["run_status_counts"]
+            item["value"]: item["count"] for item in activity["facets"]["run_status_counts"]
         } == {
             "waiting": 4,
         }

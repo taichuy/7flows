@@ -1,11 +1,6 @@
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.database import get_db
-from app.schemas.workflow_publish import PublishedNativeRunRequest, PublishedNativeRunResponse
-from app.services.published_gateway import PublishedEndpointGatewayError
-from app.services.published_protocol_streaming import build_native_run_stream
-
 from app.api.routes.published_gateway_shared import (
     apply_publish_response_headers,
     build_publish_streaming_response,
@@ -13,6 +8,10 @@ from app.api.routes.published_gateway_shared import (
     published_gateway_service,
     raise_gateway_http_exception,
 )
+from app.core.database import get_db
+from app.schemas.workflow_publish import PublishedNativeRunRequest, PublishedNativeRunResponse
+from app.services.published_gateway import PublishedEndpointGatewayError
+from app.services.published_protocol_streaming import build_native_run_stream
 
 router = APIRouter()
 
@@ -47,12 +46,14 @@ def invoke_published_native_endpoint(
             stream_events=build_native_run_stream(result.response_payload),
             cache_status=result.cache_status,
             run_status=run_status,
+            run_id=result.run_id,
         )
 
     apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
+        run_id=result.run_id,
     )
     return PublishedNativeRunResponse.model_validate(result.response_payload)
 
@@ -85,12 +86,14 @@ def invoke_published_native_endpoint_by_alias(
             stream_events=build_native_run_stream(result.response_payload),
             cache_status=result.cache_status,
             run_status=run_status,
+            run_id=result.run_id,
         )
 
     apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
+        run_id=result.run_id,
     )
     return PublishedNativeRunResponse.model_validate(result.response_payload)
 
@@ -125,6 +128,7 @@ def invoke_published_native_endpoint_async(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
+        run_id=result.run_id,
     )
     return PublishedNativeRunResponse.model_validate(result.response_payload)
 
@@ -157,6 +161,7 @@ def invoke_published_native_endpoint_by_alias_async(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
+        run_id=result.run_id,
     )
     return PublishedNativeRunResponse.model_validate(result.response_payload)
 
@@ -189,12 +194,14 @@ def invoke_published_native_endpoint_by_path(
             stream_events=build_native_run_stream(result.response_payload),
             cache_status=result.cache_status,
             run_status=run_status,
+            run_id=result.run_id,
         )
 
     apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
+        run_id=result.run_id,
     )
     return PublishedNativeRunResponse.model_validate(result.response_payload)
 
@@ -227,5 +234,6 @@ def invoke_published_native_endpoint_by_path_async(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
+        run_id=result.run_id,
     )
     return PublishedNativeRunResponse.model_validate(result.response_payload)

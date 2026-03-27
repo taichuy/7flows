@@ -1,6 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
+from app.api.routes.published_gateway_shared import (
+    apply_publish_response_headers,
+    build_openai_chat_input_payload,
+    build_openai_response_input_payload,
+    build_publish_streaming_response,
+    extract_presented_api_key,
+    published_gateway_service,
+    raise_gateway_http_exception,
+)
 from app.core.database import get_db
 from app.schemas.workflow_publish import (
     OpenAIChatCompletionRequest,
@@ -13,16 +22,6 @@ from app.services.published_gateway import PublishedEndpointGatewayError
 from app.services.published_protocol_streaming import (
     build_openai_chat_completion_stream,
     build_openai_response_stream,
-)
-
-from app.api.routes.published_gateway_shared import (
-    apply_publish_response_headers,
-    build_openai_chat_input_payload,
-    build_openai_response_input_payload,
-    build_publish_streaming_response,
-    extract_presented_api_key,
-    published_gateway_service,
-    raise_gateway_http_exception,
 )
 
 router = APIRouter()
@@ -58,12 +57,14 @@ def invoke_published_openai_chat_completion(
             ),
             cache_status=result.cache_status,
             run_status=result.run_status,
+            run_id=result.run_id,
         )
 
     apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=result.run_status,
+        run_id=result.run_id,
     )
     return OpenAIChatCompletionResponse.model_validate(result.response_payload)
 
@@ -111,6 +112,7 @@ def invoke_published_openai_chat_completion_async(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
+        run_id=result.run_id,
     )
     return PublishedProtocolAsyncRunResponse.model_validate(result.response_payload)
 
@@ -145,12 +147,14 @@ def invoke_published_openai_response(
             ),
             cache_status=result.cache_status,
             run_status=result.run_status,
+            run_id=result.run_id,
         )
 
     apply_publish_response_headers(
         response,
         cache_status=result.cache_status,
         run_status=result.run_status,
+        run_id=result.run_id,
     )
     return OpenAIResponseResponse.model_validate(result.response_payload)
 
@@ -198,5 +202,6 @@ def invoke_published_openai_response_async(
         response,
         cache_status=result.cache_status,
         run_status=run_status,
+        run_id=result.run_id,
     )
     return PublishedProtocolAsyncRunResponse.model_validate(result.response_payload)

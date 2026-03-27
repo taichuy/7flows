@@ -1156,6 +1156,8 @@ type EndpointCacheConfig = {
 
 **缓存命中时**：返回响应 Header 中添加 `X-7Flows-Cache: HIT`，未命中则为 `X-7Flows-Cache: MISS`。
 
+**运行事实 handoff**：只要 published 调用已经生成 `run`，无论是同步成功、异步 waiting / succeeded，还是流式响应，Header 都应继续暴露 `X-7Flows-Run-Id` 与 `X-7Flows-Run-Status`，让 direct caller 不必先反序列化整份协议 body 或等待流结束，仍能立即回跳到统一的 run trace / follow-up 主链；若本次调用被同步拒绝，还应额外返回 `X-7Flows-Reason-Code`。
+
 **约束**：流式响应（`streaming: true`）默认不缓存，因为流式传输与缓存语义冲突。
 
 ### 19.5 缓存失效策略

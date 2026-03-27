@@ -61,6 +61,7 @@ def test_published_openai_chat_completion_async_route_uses_async_cache_surface(
     assert first_response.headers["X-7Flows-Cache"] == "MISS"
     assert first_response.headers["X-7Flows-Run-Status"] == "SUCCEEDED"
     first_body = first_response.json()
+    assert first_response.headers["X-7Flows-Run-Id"] == first_body["run"]["id"]
     assert first_body["protocol"] == "openai"
     assert first_body["request_surface"] == "openai.chat.completions.async"
     assert first_body["run"]["status"] == "succeeded"
@@ -75,6 +76,7 @@ def test_published_openai_chat_completion_async_route_uses_async_cache_surface(
     assert second_response.headers["X-7Flows-Cache"] == "HIT"
     assert second_response.headers["X-7Flows-Run-Status"] == "SUCCEEDED"
     second_body = second_response.json()
+    assert second_response.headers["X-7Flows-Run-Id"] == second_body["run"]["id"]
     assert second_body["run"]["id"] == first_body["run"]["id"]
     assert second_body["response_payload"] == first_body["response_payload"]
 
@@ -166,6 +168,7 @@ def test_published_protocol_async_routes_accept_waiting_runs_without_caching(
         assert first_response.headers["X-7Flows-Cache"] == "BYPASS"
         assert first_response.headers["X-7Flows-Run-Status"] == "WAITING"
         first_body = first_response.json()
+        assert first_response.headers["X-7Flows-Run-Id"] == first_body["run"]["id"]
         assert first_body["protocol"] == protocol
         assert first_body["request_surface"] == request_surface
         assert first_body["run"]["status"] == "waiting"
@@ -177,6 +180,7 @@ def test_published_protocol_async_routes_accept_waiting_runs_without_caching(
         assert second_response.headers["X-7Flows-Cache"] == "BYPASS"
         assert second_response.headers["X-7Flows-Run-Status"] == "WAITING"
         second_body = second_response.json()
+        assert second_response.headers["X-7Flows-Run-Id"] == second_body["run"]["id"]
         assert second_body["run"]["status"] == "waiting"
         assert second_body["run"]["id"] != first_run_id
 
@@ -213,16 +217,11 @@ def test_published_protocol_async_routes_accept_waiting_runs_without_caching(
             for item in activity["items"]
         )
         assert all(
-            item["run_waiting_lifecycle"]["callback_waiting_lifecycle"][
-                "issued_ticket_count"
-            ]
-            == 1
+            item["run_waiting_lifecycle"]["callback_waiting_lifecycle"]["issued_ticket_count"] == 1
             for item in activity["items"]
         )
         assert all(
-            item["run_waiting_lifecycle"]["callback_waiting_lifecycle"][
-                "last_ticket_status"
-            ]
+            item["run_waiting_lifecycle"]["callback_waiting_lifecycle"]["last_ticket_status"]
             == "pending"
             for item in activity["items"]
         )

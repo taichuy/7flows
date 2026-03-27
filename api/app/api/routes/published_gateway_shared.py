@@ -62,8 +62,11 @@ def apply_publish_response_headers(
     *,
     cache_status: str,
     run_status: str | None,
+    run_id: str | None = None,
 ) -> None:
     response.headers["X-7Flows-Cache"] = cache_status.upper()
+    if run_id:
+        response.headers["X-7Flows-Run-Id"] = run_id
     if run_status:
         response.headers["X-7Flows-Run-Status"] = run_status.upper()
 
@@ -73,6 +76,7 @@ def build_publish_streaming_response(
     stream_events: Iterable[str],
     cache_status: str,
     run_status: str | None,
+    run_id: str | None = None,
 ) -> StreamingResponse:
     response = StreamingResponse(
         (chunk.encode("utf-8") for chunk in stream_events),
@@ -82,6 +86,7 @@ def build_publish_streaming_response(
         response,
         cache_status=cache_status,
         run_status=run_status,
+        run_id=run_id,
     )
     response.headers["Cache-Control"] = "no-cache"
     response.headers["X-Accel-Buffering"] = "no"
