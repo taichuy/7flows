@@ -15,11 +15,22 @@ vi.mock("@/components/workflow-publish-activity-panel", () => ({
 }));
 
 vi.mock("@/components/workflow-publish-lifecycle-form", () => ({
-  WorkflowPublishLifecycleForm: ({ sandboxReadiness }: { sandboxReadiness?: SandboxReadinessCheck | null }) =>
+  WorkflowPublishLifecycleForm: ({
+    sandboxReadiness,
+    workflowGovernanceHandoff
+  }: {
+    sandboxReadiness?: SandboxReadinessCheck | null;
+    workflowGovernanceHandoff?: {
+      workflowCatalogGapSummary?: string | null;
+      legacyAuthHandoff?: { statusChipLabel: string } | null;
+    } | null;
+  }) =>
     createElement(
       "div",
       null,
-      `lifecycle-form:${sandboxReadiness?.execution_classes?.[0]?.execution_class ?? "none"}`
+      `lifecycle-form:${sandboxReadiness?.execution_classes?.[0]?.execution_class ?? "none"}:` +
+        `catalog:${workflowGovernanceHandoff?.workflowCatalogGapSummary ?? "none"}:` +
+        `legacy:${workflowGovernanceHandoff?.legacyAuthHandoff?.statusChipLabel ?? "none"}`
     )
 }));
 
@@ -348,6 +359,54 @@ describe("WorkflowPublishBindingCard", () => {
     expect(html).toContain("publish auth blocker");
     expect(html).toContain("回到 workflow 编辑器处理 catalog gap");
     expect(html).toContain("回到 workflow 编辑器处理 publish auth contract");
+    expect(html).toContain(
+      "lifecycle-form:sandbox:catalog:catalog gap · native.catalog-gap:legacy:publish auth blocker"
+    );
+  });
+
+  it("shares workflow governance handoff inside auth governance empty states", () => {
+    const workflow = buildWorkflow();
+    workflow.tool_governance = {
+      referenced_tool_ids: ["native.catalog-gap"],
+      missing_tool_ids: ["native.catalog-gap"],
+      governed_tool_count: 1,
+      strong_isolation_tool_count: 0
+    };
+    workflow.legacy_auth_governance = {
+      binding_count: 1,
+      draft_candidate_count: 1,
+      published_blocker_count: 1,
+      offline_inventory_count: 0
+    };
+
+    const binding = buildBinding();
+    binding.auth_mode = "session";
+    binding.issues = [buildLegacyPublishUnsupportedAuthIssueFixture()];
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishBindingCard, {
+        workflow,
+        tools: [],
+        binding,
+        cacheInventory: null as never,
+        apiKeys: [],
+        invocationAudit: null,
+        selectedInvocationId: null,
+        selectedInvocationDetail: null as never,
+        rateLimitWindowAudit: null,
+        activeInvocationFilter: null,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain(
+      "当前 auth governance 空状态也直接复用 shared workflow governance handoff"
+    );
+    expect(html).toContain("当前 publish auth governance 对应的 workflow 版本仍有 catalog gap");
+    expect(html).toContain(
+      "先回到 workflow 编辑器补齐 catalog gap 与 publish auth contract，再回来决定当前 binding 是否仍需要 published API key。"
+    );
   });
 
   it("keeps workspace starter governance scope on shared blocker handoff links", () => {

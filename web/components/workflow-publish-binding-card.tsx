@@ -80,19 +80,44 @@ export function WorkflowPublishBindingCard({
         variant: "editor"
       }).href
     : null;
-  const issueWorkflowGovernanceHandoff = bindingSurface.issueSurface
-    ? buildWorkflowGovernanceHandoff({
-        workflowId: workflow.id,
-        workflowName: workflow.name,
-        workflowDetailHref,
+  const buildBindingWorkflowGovernanceHandoff = ({
+    subjectLabel,
+    returnDetail
+  }: {
+    subjectLabel: string;
+    returnDetail: string;
+  }) =>
+    buildWorkflowGovernanceHandoff({
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      workflowDetailHref,
+      toolGovernance: workflow.tool_governance,
+      legacyAuthGovernance: workflow.legacy_auth_governance ?? null,
+      workflowCatalogGapDetail: buildWorkflowCatalogGapDetail({
         toolGovernance: workflow.tool_governance,
-        legacyAuthGovernance: workflow.legacy_auth_governance ?? null,
-        workflowCatalogGapDetail: buildWorkflowCatalogGapDetail({
-          toolGovernance: workflow.tool_governance,
-          subjectLabel: "publish binding",
-          returnDetail:
-            "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续处理当前 binding lifecycle blocker 与 publish activity。"
-        })
+        subjectLabel,
+        returnDetail
+      })
+    });
+  const issueWorkflowGovernanceHandoff = bindingSurface.issueSurface
+    ? buildBindingWorkflowGovernanceHandoff({
+        subjectLabel: "publish binding",
+        returnDetail:
+          "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续处理当前 binding lifecycle blocker 与 publish activity。"
+      })
+    : null;
+  const lifecycleWorkflowGovernanceHandoff = bindingSurface.issueSurface
+    ? buildBindingWorkflowGovernanceHandoff({
+        subjectLabel: "publish lifecycle action",
+        returnDetail:
+          "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续执行当前 lifecycle preflight。"
+      })
+    : null;
+  const authGovernanceWorkflowHandoff = bindingSurface.issueSurface
+    ? buildBindingWorkflowGovernanceHandoff({
+        subjectLabel: "publish auth governance",
+        returnDetail:
+          "先回到 workflow 编辑器补齐 catalog gap 与 publish auth contract，再回来决定当前 binding 是否仍需要 published API key。"
       })
     : null;
   const cacheSummary = binding.cache_inventory;
@@ -300,6 +325,7 @@ export function WorkflowPublishBindingCard({
         currentStatus={binding.lifecycle_status}
         sandboxReadiness={sandboxReadiness}
         issues={binding.issues}
+        workflowGovernanceHandoff={lifecycleWorkflowGovernanceHandoff}
         action={updatePublishedEndpointLifecycle}
       />
 
@@ -313,6 +339,30 @@ export function WorkflowPublishBindingCard({
         <div className="entry-card compact-card">
           <p className="entry-card-title">{bindingSurface.apiKeyGovernanceTitle}</p>
           <p className="empty-state compact">{bindingSurface.apiKeyGovernanceEmptyState}</p>
+          {authGovernanceWorkflowHandoff?.workflowCatalogGapSummary ||
+          authGovernanceWorkflowHandoff?.legacyAuthHandoff ? (
+            <div className="publish-key-list">
+              <div>
+                <p className="entry-card-title">Workflow handoff</p>
+                <p className="section-copy entry-copy">
+                  当前 auth governance 空状态也直接复用 shared workflow governance handoff，
+                  避免作者在确认当前 binding 不走 published API key 后，还要回到 workflow
+                  detail 补 catalog gap / publish auth contract 上下文。
+                </p>
+              </div>
+
+              <WorkflowGovernanceHandoffCards
+                workflowCatalogGapSummary={
+                  authGovernanceWorkflowHandoff.workflowCatalogGapSummary
+                }
+                workflowCatalogGapDetail={authGovernanceWorkflowHandoff.workflowCatalogGapDetail}
+                workflowCatalogGapHref={authGovernanceWorkflowHandoff.workflowCatalogGapHref}
+                workflowGovernanceHref={authGovernanceWorkflowHandoff.workflowGovernanceHref}
+                legacyAuthHandoff={authGovernanceWorkflowHandoff.legacyAuthHandoff}
+                cardClassName="payload-card compact-card"
+              />
+            </div>
+          ) : null}
         </div>
       )}
     </article>
