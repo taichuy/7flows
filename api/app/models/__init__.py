@@ -16,6 +16,12 @@ from app.models.workflow import (
     WorkflowPublishedEndpoint,
     WorkflowVersion,
 )
+from app.models.workspace_access import (
+    AuthSessionRecord,
+    UserAccountRecord,
+    WorkspaceMemberRecord,
+    WorkspaceRecord,
+)
 from app.models.workspace_starter import (
     WorkspaceStarterHistoryRecord,
     WorkspaceStarterTemplateRecord,
@@ -27,6 +33,10 @@ __all__ = [
     "WorkflowVersion",
     "WorkflowCompiledBlueprint",
     "WorkflowPublishedEndpoint",
+    "WorkspaceRecord",
+    "UserAccountRecord",
+    "WorkspaceMemberRecord",
+    "AuthSessionRecord",
     "Run",
     "NodeRun",
     "RunEvent",

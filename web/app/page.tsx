@@ -119,7 +119,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               </span>
             ))}
           </div>
+          <p className="hero-text workspace-entry-note">
+            现在也可以先走新的 workspace 入口：管理员登录、成员权限与应用列表已经有最小闭环。
+          </p>
           <WorkbenchEntryLinks keys={["workflowLibrary", "runLibrary", "operatorInbox"]} />
+          <div className="hero-actions">
+            <Link className="ghost-button" href="/login">
+              登录 Workspace
+            </Link>
+            <Link className="ghost-button secondary" href="/workspace">
+              打开应用工作台
+            </Link>
+          </div>
         </div>
         <div className="hero-panel">
           <div className="panel-label">Environment</div>
