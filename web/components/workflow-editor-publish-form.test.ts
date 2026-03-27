@@ -176,6 +176,34 @@ describe("WorkflowEditorPublishForm", () => {
     expect(html).toContain("请先在 publish draft 表单里修正发布标识、schema、缓存或版本设置");
   });
 
+  it("reuses the publish auth remediation in the draft validation summary", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorPublishForm, {
+        workflowVersion: "1.0.0",
+        availableWorkflowVersions: ["1.0.0"],
+        publishEndpoints: [
+          {
+            id: "public-search",
+            name: "Public Search",
+            protocol: "openai",
+            authMode: "token",
+            streaming: true,
+            inputSchema: {}
+          }
+        ],
+        onChange: () => undefined
+      })
+    );
+
+    expect(html).toContain("当前 publish draft 里还有这些字段级问题：");
+    expect(html).toContain("Public Search 当前不能使用 authMode = token。");
+    expect(html).toContain("Publish · Public Search · Auth mode");
+    expect(html).toContain("Publish auth contract");
+    expect(html).toContain("supported api_key / internal");
+    expect(html).toContain("legacy token");
+    expect(html).toContain("先把 workflow draft endpoint 切回 api_key/internal 并保存");
+  });
+
   it("reuses the shared publish auth contract in publish save gates", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowEditorPublishForm, {

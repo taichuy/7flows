@@ -8,7 +8,10 @@ import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { buildOperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
 import { buildSandboxReadinessFollowUpCandidate } from "@/lib/system-overview-follow-up-presenters";
-import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
+import {
+  buildWorkflowValidationNavigatorItems,
+  type WorkflowValidationNavigatorItem
+} from "@/lib/workflow-validation-navigation";
 import { validateContractSchema } from "@/lib/workflow-contract-schema-validation";
 import type { WorkflowPersistBlocker } from "@/components/workflow-editor-workbench/persist-blockers";
 import { summarizeWorkflowPersistBlockers } from "@/components/workflow-editor-workbench/persist-blockers";
@@ -80,6 +83,22 @@ export function WorkflowEditorPublishForm({
   const validationIssuesByEndpoint = useMemo(
     () => groupValidationIssuesByEndpoint(validationIssues),
     [validationIssues]
+  );
+  const publishLegacyAuthValidationItem = useMemo(
+    () =>
+      buildWorkflowValidationNavigatorItems(
+        { publish: normalizedEndpoints },
+        validationIssues
+          .filter((issue) => issue.category === "publish_draft" && issue.field === "authMode")
+          .map((issue) => ({
+            category: issue.category,
+            message: issue.message,
+            path: issue.path,
+            field: issue.field,
+            hasLegacyPublishAuthModeIssues: true
+          }))
+      )[0] ?? null,
+    [normalizedEndpoints, validationIssues]
   );
   const publishPersistBlockers = useMemo(
     () => persistBlockers.filter((blocker) => blocker.id === "publish_draft"),
@@ -233,14 +252,23 @@ export function WorkflowEditorPublishForm({
       </div>
 
       {validationIssues.length > 0 ? (
-        <div className="sync-message error">
-          <p>当前 publish draft 里还有这些字段级问题：</p>
-          <ul className="roadmap-list compact-list">
-            {validationIssues.map((issue) => (
-              <li key={issue.key}>{issue.message}</li>
-            ))}
-          </ul>
-        </div>
+        <>
+          <div className="sync-message error">
+            <p>当前 publish draft 里还有这些字段级问题：</p>
+            <ul className="roadmap-list compact-list">
+              {validationIssues.map((issue) => (
+                <li key={issue.key}>{issue.message}</li>
+              ))}
+            </ul>
+          </div>
+          {publishLegacyAuthValidationItem ? (
+            <WorkflowValidationRemediationCard
+              currentHref={currentHref}
+              item={publishLegacyAuthValidationItem}
+              sandboxReadiness={sandboxReadiness}
+            />
+          ) : null}
+        </>
       ) : null}
 
       {normalizedEndpoints.length > 0 ? (
