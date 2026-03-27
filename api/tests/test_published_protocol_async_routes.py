@@ -65,6 +65,10 @@ def test_published_openai_chat_completion_async_route_uses_async_cache_surface(
     assert first_body["protocol"] == "openai"
     assert first_body["request_surface"] == "openai.chat.completions.async"
     assert first_body["run"]["status"] == "succeeded"
+    assert first_body["run_snapshot"]["workflow_id"] == workflow_id
+    assert first_body["run_snapshot"]["status"] == "succeeded"
+    assert first_body["run_follow_up"]["affected_run_count"] == 1
+    assert first_body["run"]["run_follow_up"] == first_body["run_follow_up"]
     assert first_body["response_payload"]["object"] == "chat.completion"
     assert first_body["response_payload"]["model"] == "openai.chat.async.workflow"
     assert first_body["response_payload"]["choices"][0]["message"]["content"] == (
@@ -260,6 +264,11 @@ def test_published_protocol_async_routes_accept_waiting_runs_without_caching(
         assert first_body["protocol"] == protocol
         assert first_body["request_surface"] == request_surface
         assert first_body["run"]["status"] == "waiting"
+        assert first_body["run_snapshot"]["workflow_id"] == workflow_id
+        assert first_body["run_snapshot"]["status"] == "waiting"
+        assert first_body["run_snapshot"]["waiting_reason"] == "callback pending"
+        assert first_body["run_follow_up"]["affected_run_count"] == 1
+        assert first_body["run"]["run_follow_up"] == first_body["run_follow_up"]
         assert first_body.get("response_payload") is None
         first_run_id = first_body["run"]["id"]
 

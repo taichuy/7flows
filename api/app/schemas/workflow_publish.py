@@ -170,6 +170,8 @@ class PublishedNativeRunResponse(BaseModel):
     workflow_version: str
     compiled_blueprint_id: str
     run: RunDetail
+    run_snapshot: OperatorRunSnapshot | None = None
+    run_follow_up: OperatorRunFollowUpSummary | None = None
 
 
 class PublishedProtocolAsyncRunResponse(BaseModel):
@@ -185,6 +187,8 @@ class PublishedProtocolAsyncRunResponse(BaseModel):
     workflow_version: str
     compiled_blueprint_id: str
     run: RunDetail
+    run_snapshot: OperatorRunSnapshot | None = None
+    run_follow_up: OperatorRunFollowUpSummary | None = None
     response_payload: dict[str, Any] | None = None
 
 
@@ -229,9 +233,7 @@ class OpenAIChatCompletionResponse(BaseModel):
     created: int
     model: str
     choices: list[OpenAIChatCompletionChoice]
-    usage: OpenAIChatCompletionUsage = Field(
-        default_factory=OpenAIChatCompletionUsage
-    )
+    usage: OpenAIChatCompletionUsage = Field(default_factory=OpenAIChatCompletionUsage)
 
 
 class OpenAIResponseRequest(BaseModel):
@@ -306,9 +308,7 @@ class AnthropicMessageResponse(BaseModel):
     content: list[AnthropicMessageResponseContentBlock]
     stop_reason: Literal["end_turn"] = "end_turn"
     stop_sequence: str | None = None
-    usage: AnthropicMessageResponseUsage = Field(
-        default_factory=AnthropicMessageResponseUsage
-    )
+    usage: AnthropicMessageResponseUsage = Field(default_factory=AnthropicMessageResponseUsage)
 
 
 class PublishedEndpointApiKeyCreateRequest(BaseModel):
@@ -494,23 +494,15 @@ class PublishedEndpointInvocationTimeBucketItem(BaseModel):
     request_surface_counts: list[PublishedEndpointInvocationBucketFacetItem] = Field(
         default_factory=list
     )
-    reason_counts: list[PublishedEndpointInvocationBucketFacetItem] = Field(
-        default_factory=list
-    )
+    reason_counts: list[PublishedEndpointInvocationBucketFacetItem] = Field(default_factory=list)
 
 
 class PublishedEndpointInvocationFacets(BaseModel):
     status_counts: list[PublishedEndpointInvocationFacetItem] = Field(default_factory=list)
     request_source_counts: list[PublishedEndpointInvocationFacetItem] = Field(default_factory=list)
-    request_surface_counts: list[PublishedEndpointInvocationFacetItem] = Field(
-        default_factory=list
-    )
-    cache_status_counts: list[PublishedEndpointInvocationFacetItem] = Field(
-        default_factory=list
-    )
-    run_status_counts: list[PublishedEndpointInvocationFacetItem] = Field(
-        default_factory=list
-    )
+    request_surface_counts: list[PublishedEndpointInvocationFacetItem] = Field(default_factory=list)
+    cache_status_counts: list[PublishedEndpointInvocationFacetItem] = Field(default_factory=list)
+    run_status_counts: list[PublishedEndpointInvocationFacetItem] = Field(default_factory=list)
     reason_counts: list[PublishedEndpointInvocationFacetItem] = Field(default_factory=list)
     api_key_usage: list[PublishedEndpointInvocationApiKeyUsageItem] = Field(default_factory=list)
     recent_failure_reasons: list[PublishedEndpointInvocationFailureReasonItem] = Field(
@@ -613,9 +605,7 @@ class PublishedEndpointInvocationDetailResponse(BaseModel):
     blocking_sensitive_access_entries: list[SensitiveAccessTimelineEntryItem] = Field(
         default_factory=list
     )
-    sensitive_access_entries: list[SensitiveAccessTimelineEntryItem] = Field(
-        default_factory=list
-    )
+    sensitive_access_entries: list[SensitiveAccessTimelineEntryItem] = Field(default_factory=list)
     cache: PublishedEndpointInvocationCacheReference = Field(
         default_factory=PublishedEndpointInvocationCacheReference
     )

@@ -6,11 +6,12 @@ from app.models.workflow import (
     WorkflowPublishedEndpoint,
     WorkflowVersion,
 )
+from app.schemas.operator_follow_up import OperatorRunSnapshot
+from app.schemas.run import RunDetail
 from app.schemas.workflow_publish import (
     PublishedNativeRunResponse,
     PublishedProtocolAsyncRunResponse,
 )
-from app.services.run_views import serialize_run_detail
 
 
 class PublishedGatewayResponseBuilder:
@@ -22,6 +23,8 @@ class PublishedGatewayResponseBuilder:
         workflow_version: WorkflowVersion,
         blueprint_record: WorkflowCompiledBlueprint,
         artifacts,
+        run_detail: RunDetail,
+        run_snapshot: OperatorRunSnapshot | None = None,
     ) -> dict:
         response = PublishedNativeRunResponse(
             binding_id=binding.id,
@@ -32,7 +35,9 @@ class PublishedGatewayResponseBuilder:
             workflow_id=workflow.id,
             workflow_version=workflow_version.version,
             compiled_blueprint_id=blueprint_record.id,
-            run=serialize_run_detail(artifacts),
+            run=run_detail,
+            run_snapshot=run_snapshot,
+            run_follow_up=run_detail.run_follow_up,
         )
         return response.model_dump(mode="json")
 
@@ -54,11 +59,12 @@ class PublishedGatewayResponseBuilder:
         workflow_version: WorkflowVersion,
         blueprint_record: WorkflowCompiledBlueprint,
         artifacts,
+        run_detail: RunDetail,
+        run_snapshot: OperatorRunSnapshot | None = None,
         model: str,
         request_surface: str,
         protocol_response_builder,
     ) -> dict:
-        run_detail = serialize_run_detail(artifacts)
         response_payload = None
         if artifacts.run.status == "succeeded":
             response_payload = protocol_response_builder(
@@ -79,6 +85,8 @@ class PublishedGatewayResponseBuilder:
             workflow_version=workflow_version.version,
             compiled_blueprint_id=blueprint_record.id,
             run=run_detail,
+            run_snapshot=run_snapshot,
+            run_follow_up=run_detail.run_follow_up,
             response_payload=response_payload,
         )
         return response.model_dump(mode="json", exclude_none=True)

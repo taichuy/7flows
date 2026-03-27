@@ -1156,7 +1156,7 @@ type EndpointCacheConfig = {
 
 **缓存命中时**：返回响应 Header 中添加 `X-7Flows-Cache: HIT`，未命中则为 `X-7Flows-Cache: MISS`。
 
-**运行事实 handoff**：只要 published 调用已经生成 `run`，无论是同步成功、异步 waiting / succeeded，还是流式响应，Header 都应继续暴露 `X-7Flows-Run-Id` 与 `X-7Flows-Run-Status`，让 direct caller 不必先反序列化整份协议 body 或等待流结束，仍能立即回跳到统一的 run trace / follow-up 主链；若本次调用在发布层被直接拒绝（包括 sync / async 协议限制），还应额外返回 `X-7Flows-Reason-Code`，并在错误 body 中提供带 `reason_code` 的结构化 detail；若拒绝发生在 `run` 创建前，则不返回 `X-7Flows-Run-Id` / `X-7Flows-Run-Status`。
+**运行事实 handoff**：只要 published 调用已经生成 `run`，无论是同步成功、异步 waiting / succeeded，还是流式响应，Header 都应继续暴露 `X-7Flows-Run-Id` 与 `X-7Flows-Run-Status`，让 direct caller 不必先反序列化整份协议 body 或等待流结束，仍能立即回跳到统一的 run trace / follow-up 主链；若本次调用在发布层被直接拒绝（包括 sync / async 协议限制），还应额外返回 `X-7Flows-Reason-Code`，并在错误 body 中提供带 `reason_code` 的结构化 detail；若拒绝发生在 `run` 创建前，则不返回 `X-7Flows-Run-Id` / `X-7Flows-Run-Status`。对于 7Flows 自有响应体（例如 native `/run`、native `/run-async` 与各协议 `*-async`），body 也应直接回传顶层 `run_snapshot` 与 `run_follow_up`，让 direct caller 无需再抓全量 run detail 或额外回调详情接口，就能消费同一份 compact 运行 handoff。
 
 **约束**：流式响应（`streaming: true`）默认不缓存，因为流式传输与缓存语义冲突。
 

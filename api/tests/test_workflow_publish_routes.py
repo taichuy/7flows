@@ -753,8 +753,12 @@ def test_invoke_published_native_endpoint_uses_active_binding_blueprint(
     assert body["binding_id"] == initial_binding["id"]
     assert body["workflow_version"] == "0.1.0"
     assert body["compiled_blueprint_id"] == initial_binding["compiled_blueprint_id"]
+    assert body["run_snapshot"]["workflow_id"] == workflow_id
+    assert body["run_snapshot"]["status"] == "succeeded"
+    assert body["run_follow_up"]["affected_run_count"] == 1
     assert body["run"]["workflow_version"] == "0.1.0"
     assert body["run"]["compiled_blueprint_id"] == initial_binding["compiled_blueprint_id"]
+    assert body["run"]["run_follow_up"] == body["run_follow_up"]
     assert body["run"]["input_payload"] == {"question": "hello"}
     assert body["run"]["output_payload"] == {"tool": {"answer": "v1"}}
     assert body["endpoint_alias"] == "native-chat"

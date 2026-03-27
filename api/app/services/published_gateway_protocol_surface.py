@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
+from app.services.published_gateway_types import PublishedGatewayInvokeResult
 from app.services.published_protocol_mapper import (
     build_anthropic_message_response,
     build_cache_identity_payload,
@@ -63,15 +64,19 @@ class PublishedGatewayProtocolSurfaceMixin:
             presented_api_key=presented_api_key,
             require_terminal_success=False,
             request_surface_override="openai.chat.completions.async",
-            response_builder=lambda **kwargs: self._response_builder.build_protocol_async_response_payload(
-                binding=kwargs["binding"],
-                workflow=kwargs["workflow"],
-                workflow_version=kwargs["workflow_version"],
-                blueprint_record=kwargs["blueprint_record"],
-                artifacts=kwargs["artifacts"],
-                model=model,
-                request_surface="openai.chat.completions.async",
-                protocol_response_builder=build_openai_chat_completion_response,
+            response_builder=(
+                lambda **kwargs: self._response_builder.build_protocol_async_response_payload(
+                    binding=kwargs["binding"],
+                    workflow=kwargs["workflow"],
+                    workflow_version=kwargs["workflow_version"],
+                    blueprint_record=kwargs["blueprint_record"],
+                    artifacts=kwargs["artifacts"],
+                    run_detail=kwargs["run_detail"],
+                    run_snapshot=kwargs.get("run_snapshot"),
+                    model=model,
+                    request_surface="openai.chat.completions.async",
+                    protocol_response_builder=build_openai_chat_completion_response,
+                )
             ),
         )
 
@@ -127,15 +132,19 @@ class PublishedGatewayProtocolSurfaceMixin:
             presented_api_key=presented_api_key,
             require_terminal_success=False,
             request_surface_override="openai.responses.async",
-            response_builder=lambda **kwargs: self._response_builder.build_protocol_async_response_payload(
-                binding=kwargs["binding"],
-                workflow=kwargs["workflow"],
-                workflow_version=kwargs["workflow_version"],
-                blueprint_record=kwargs["blueprint_record"],
-                artifacts=kwargs["artifacts"],
-                model=model,
-                request_surface="openai.responses.async",
-                protocol_response_builder=build_openai_response_api_response,
+            response_builder=(
+                lambda **kwargs: self._response_builder.build_protocol_async_response_payload(
+                    binding=kwargs["binding"],
+                    workflow=kwargs["workflow"],
+                    workflow_version=kwargs["workflow_version"],
+                    blueprint_record=kwargs["blueprint_record"],
+                    artifacts=kwargs["artifacts"],
+                    run_detail=kwargs["run_detail"],
+                    run_snapshot=kwargs.get("run_snapshot"),
+                    model=model,
+                    request_surface="openai.responses.async",
+                    protocol_response_builder=build_openai_response_api_response,
+                )
             ),
         )
 
@@ -191,14 +200,18 @@ class PublishedGatewayProtocolSurfaceMixin:
             presented_api_key=presented_api_key,
             require_terminal_success=False,
             request_surface_override="anthropic.messages.async",
-            response_builder=lambda **kwargs: self._response_builder.build_protocol_async_response_payload(
-                binding=kwargs["binding"],
-                workflow=kwargs["workflow"],
-                workflow_version=kwargs["workflow_version"],
-                blueprint_record=kwargs["blueprint_record"],
-                artifacts=kwargs["artifacts"],
-                model=model,
-                request_surface="anthropic.messages.async",
-                protocol_response_builder=build_anthropic_message_response,
+            response_builder=(
+                lambda **kwargs: self._response_builder.build_protocol_async_response_payload(
+                    binding=kwargs["binding"],
+                    workflow=kwargs["workflow"],
+                    workflow_version=kwargs["workflow_version"],
+                    blueprint_record=kwargs["blueprint_record"],
+                    artifacts=kwargs["artifacts"],
+                    run_detail=kwargs["run_detail"],
+                    run_snapshot=kwargs.get("run_snapshot"),
+                    model=model,
+                    request_surface="anthropic.messages.async",
+                    protocol_response_builder=build_anthropic_message_response,
+                )
             ),
         )

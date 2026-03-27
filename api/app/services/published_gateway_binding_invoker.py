@@ -31,7 +31,11 @@ from app.services.published_gateway_types import (
     PublishedEndpointGatewayError,
     PublishedGatewayInvokeResult,
 )
-from app.services.run_views import serialize_run_detail
+from app.services.run_views import (
+    build_run_execution_view_for_artifacts,
+    load_run_tool_governance_summary,
+    serialize_run_detail,
+)
 from app.services.runtime import RuntimeService
 from app.services.workflow_publish import WorkflowPublishBindingService
 
@@ -125,6 +129,7 @@ class PublishedGatewayBindingInvoker:
         response_preview_payload = None
         stream_run_payload: dict | None = None
         serialized_run_detail: RunDetail | None = None
+        run_snapshot_payload = None
         executed_run_id: str | None = None
         executed_run_status: str | None = None
         executed_run_error: str | None = None
@@ -168,7 +173,13 @@ class PublishedGatewayBindingInvoker:
                 executed_run_id = artifacts.run.id
                 executed_run_status = artifacts.run.status
                 executed_run_error = artifacts.run.error_message
-                serialized_run_detail = serialize_run_detail(artifacts)
+                execution_view = build_run_execution_view_for_artifacts(db, artifacts)
+                serialized_run_detail = serialize_run_detail(
+                    artifacts,
+                    execution_view=execution_view,
+                    tool_governance=load_run_tool_governance_summary(db, artifacts),
+                )
+                run_snapshot_payload = execution_view.run_snapshot
                 if require_terminal_success:
                     self._ensure_sync_publish_run_succeeded(
                         db,
@@ -181,6 +192,8 @@ class PublishedGatewayBindingInvoker:
                     workflow_version=workflow_version,
                     blueprint_record=blueprint_record,
                     artifacts=artifacts,
+                    run_detail=serialized_run_detail,
+                    run_snapshot=run_snapshot_payload,
                 )
                 response_preview_payload = response_preview_builder(response_payload)
                 if cache_enabled and self._should_store_cached_response(
@@ -300,15 +313,12 @@ class PublishedGatewayBindingInvoker:
             status_code = 409
         elif run_status == "failed":
             message = (
-                "Published sync invocation failed before producing a terminal success "
-                "response."
+                "Published sync invocation failed before producing a terminal success response."
             )
             reason_code = "runtime_failed"
             status_code = 500
         else:
-            message = (
-                f"Published sync invocation ended with unsupported run status '{run_status}'."
-            )
+            message = f"Published sync invocation ended with unsupported run status '{run_status}'."
             reason_code = "run_status_unsupported"
             status_code = 500
 
