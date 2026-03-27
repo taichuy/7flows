@@ -508,6 +508,7 @@ export function InlineOperatorActionFeedback({
           description="当前 action result 也会把 workflow 级 legacy publish auth handoff 一起带回，避免 operator 在处理完审批或通知动作后，还要回 inbox 顶部或 publish activity 补上下文。"
           checklistDescription="先处理 draft cleanup，再推进 published replacement，最后把只剩 offline inventory 的历史条目留给交接与审计；当前结果区与 inbox 顶部 summary 继续共享同一份 workflow handoff。"
           workflowDescription="如果本次动作已经解除了 waiting blocker，但 workflow 仍残留 legacy binding，可直接沿这里的 workflow follow-up 回到 detail 做 replacement / inventory 收口。"
+          showSharedWorkflowGovernanceCards={!callbackWaitingSummaryProps?.legacyAuthHandoff}
         />
       ) : null}
     </div>

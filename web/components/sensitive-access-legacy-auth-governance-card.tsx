@@ -2,9 +2,14 @@ import React from "react";
 import Link from "next/link";
 
 import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
+import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import { buildLegacyPublishAuthGovernanceSurfaceCopy } from "@/lib/legacy-publish-auth-governance-presenters";
 import { appendWorkflowLibraryViewStateForWorkflow } from "@/lib/workflow-library-query";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
+import {
+  buildWorkflowCatalogGapDetail,
+  buildWorkflowGovernanceHandoff
+} from "@/lib/workflow-governance-handoff";
 import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 
 type SensitiveAccessLegacyAuthGovernanceCardProps = {
@@ -16,10 +21,19 @@ type SensitiveAccessLegacyAuthGovernanceCompactCardProps =
     description?: string;
     checklistDescription?: string;
     workflowDescription?: string;
+    showSharedWorkflowGovernanceCards?: boolean;
   };
 
+const SENSITIVE_ACCESS_WORKFLOW_GOVERNANCE_RETURN_DETAIL =
+  "先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再继续沿当前 sensitive-access workflow handoff 收口。";
+
 function renderWorkflowFollowUpCards(
-  snapshot: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot
+  snapshot: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
+  {
+    showSharedWorkflowGovernanceCards = true
+  }: {
+    showSharedWorkflowGovernanceCards?: boolean;
+  } = {}
 ) {
   return snapshot.workflows.map((workflow) => {
     const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
@@ -37,22 +51,47 @@ function renderWorkflowFollowUpCards(
         definitionIssue: null
       }
     );
+    const workflowGovernanceHandoff = buildWorkflowGovernanceHandoff({
+      workflowId: workflow.workflow_id,
+      workflowName: workflow.workflow_name,
+      workflowDetailHref,
+      toolGovernance: workflow.tool_governance ?? null,
+      legacyAuthGovernance: snapshot,
+      workflowCatalogGapDetail: buildWorkflowCatalogGapDetail({
+        toolGovernance: workflow.tool_governance ?? null,
+        subjectLabel: workflow.workflow_name,
+        returnDetail: SENSITIVE_ACCESS_WORKFLOW_GOVERNANCE_RETURN_DETAIL
+      })
+    });
 
     return (
-      <article className="payload-card compact-card" key={workflow.workflow_id}>
-        <div className="payload-card-header">
-          <span className="status-meta">{workflow.binding_count} legacy bindings</span>
-          <Link className="event-chip inbox-filter-link" href={workflowDetailHref}>
-            {workflowDetailLink.label}
-          </Link>
-        </div>
-        <p className="binding-meta">{workflow.workflow_name}</p>
-        <p className="section-copy entry-copy">
-          draft cleanup {workflow.draft_candidate_count} 条，published blocker{" "}
-          {workflow.published_blocker_count} 条，offline inventory{" "}
-          {workflow.offline_inventory_count} 条。
-        </p>
-      </article>
+      <div key={workflow.workflow_id}>
+        <article className="payload-card compact-card">
+          <div className="payload-card-header">
+            <span className="status-meta">{workflow.binding_count} legacy bindings</span>
+            <Link className="event-chip inbox-filter-link" href={workflowDetailHref}>
+              {workflowDetailLink.label}
+            </Link>
+          </div>
+          <p className="binding-meta">{workflow.workflow_name}</p>
+          <p className="section-copy entry-copy">
+            draft cleanup {workflow.draft_candidate_count} 条，published blocker{" "}
+            {workflow.published_blocker_count} 条，offline inventory{" "}
+            {workflow.offline_inventory_count} 条。
+          </p>
+        </article>
+
+        {showSharedWorkflowGovernanceCards ? (
+          <WorkflowGovernanceHandoffCards
+            workflowCatalogGapSummary={workflowGovernanceHandoff.workflowCatalogGapSummary}
+            workflowCatalogGapDetail={workflowGovernanceHandoff.workflowCatalogGapDetail}
+            workflowCatalogGapHref={workflowGovernanceHandoff.workflowCatalogGapHref}
+            workflowGovernanceHref={workflowGovernanceHandoff.workflowGovernanceHref}
+            legacyAuthHandoff={workflowGovernanceHandoff.legacyAuthHandoff}
+            cardClassName="payload-card compact-card"
+          />
+        ) : null}
+      </div>
     );
   });
 }
@@ -64,7 +103,8 @@ export function SensitiveAccessLegacyAuthGovernanceCompactCard({
   checklistDescription =
     "先处理 draft cleanup，再推进 published replacement，最后把只剩 offline inventory 的历史条目留给交接与审计；当前结果卡片与 inbox 顶部 summary 继续共享同一份 workflow handoff。",
   workflowDescription =
-    "本次动作影响到的 workflow 会保留各自 legacy binding backlog 计数；如需继续收口，可直接回到 workflow detail 处理 replacement 或 offline inventory。"
+    "本次动作影响到的 workflow 会保留各自 legacy binding backlog 计数；如需继续收口，可直接回到 workflow detail 处理 replacement 或 offline inventory。",
+  showSharedWorkflowGovernanceCards = true
 }: SensitiveAccessLegacyAuthGovernanceCompactCardProps) {
   if (!snapshot || snapshot.binding_count <= 0) {
     return null;
@@ -113,7 +153,9 @@ export function SensitiveAccessLegacyAuthGovernanceCompactCard({
           <p className="section-copy entry-copy">{workflowDescription}</p>
         </div>
 
-        {renderWorkflowFollowUpCards(snapshot)}
+        {renderWorkflowFollowUpCards(snapshot, {
+          showSharedWorkflowGovernanceCards
+        })}
       </div>
     </div>
   );
