@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -27,6 +27,11 @@ vi.mock("react-dom", async () => {
     useFormStatus: () => ({ pending: false }),
   };
 });
+
+vi.mock("next/link", () => ({
+  default: ({ children, href, ...props }: { children: ReactNode; href?: string } & Record<string, unknown>) =>
+    createElement("a", { href: href ?? "#", ...props }, children)
+}));
 
 function buildBinding(
   overrides: Partial<WorkflowPublishedEndpointItem> = {}
@@ -156,5 +161,30 @@ describe("WorkflowPublishLegacyAuthCleanupCard", () => {
 
     expect(html).toContain("已批量下线 1 条 legacy auth draft binding。");
     expect(html).toContain('class="sync-message success"');
+  });
+
+  it("marks the current legacy publish auth handoff as the active workflow issue", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishLegacyAuthCleanupCard, {
+        workflowId: "workflow-1",
+        workflowName: "Demo workflow",
+        workflowDetailHref: "/workflows/workflow-1?definition_issue=legacy_publish_auth",
+        currentHref: "/workflows/workflow-1?definition_issue=legacy_publish_auth",
+        workflow: buildWorkflow({
+          tool_governance: {
+            referenced_tool_ids: ["native.catalog-gap"],
+            missing_tool_ids: ["native.catalog-gap"],
+            governed_tool_count: 0,
+            strong_isolation_tool_count: 0,
+          },
+        }),
+        bindings: [buildBinding()],
+        action: async (state: CleanupLegacyPublishedEndpointBindingsState) => state,
+      })
+    );
+
+    expect(html).toContain('aria-current="page"');
+    expect(html).not.toContain('href="/workflows/workflow-1?definition_issue=legacy_publish_auth"');
+    expect(html).toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
   });
 });

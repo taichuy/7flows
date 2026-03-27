@@ -17,20 +17,25 @@ vi.mock("@/components/workflow-publish-activity-panel", () => ({
 vi.mock("@/components/workflow-publish-lifecycle-form", () => ({
   WorkflowPublishLifecycleForm: ({
     sandboxReadiness,
-    workflowGovernanceHandoff
+    workflowGovernanceHandoff,
+    currentHref
   }: {
     sandboxReadiness?: SandboxReadinessCheck | null;
     workflowGovernanceHandoff?: {
+      workflowCatalogGapHref?: string | null;
       workflowCatalogGapSummary?: string | null;
       legacyAuthHandoff?: { statusChipLabel: string } | null;
     } | null;
+    currentHref?: string | null;
   }) =>
     createElement(
       "div",
       null,
       `lifecycle-form:${sandboxReadiness?.execution_classes?.[0]?.execution_class ?? "none"}:` +
         `catalog:${workflowGovernanceHandoff?.workflowCatalogGapSummary ?? "none"}:` +
-        `legacy:${workflowGovernanceHandoff?.legacyAuthHandoff?.statusChipLabel ?? "none"}`
+        `legacy:${workflowGovernanceHandoff?.legacyAuthHandoff?.statusChipLabel ?? "none"}:` +
+        `href:${workflowGovernanceHandoff?.workflowCatalogGapHref ?? "none"}:` +
+        `current:${currentHref ?? "none"}`
     )
 }));
 
@@ -517,5 +522,48 @@ describe("WorkflowPublishBindingCard", () => {
 
     expect(html).toContain("当前 binding 使用 auth_mode=session，不需要单独管理 published API key。");
     expect(html).not.toContain("api-key-manager");
+  });
+
+  it("keeps binding-level workflow governance on the current issue scope", () => {
+    const workflow = buildWorkflow();
+    workflow.tool_governance = {
+      referenced_tool_ids: ["native.catalog-gap"],
+      missing_tool_ids: ["native.catalog-gap"],
+      governed_tool_count: 0,
+      strong_isolation_tool_count: 0
+    };
+    workflow.legacy_auth_governance = {
+      binding_count: 1,
+      draft_candidate_count: 0,
+      published_blocker_count: 1,
+      offline_inventory_count: 0
+    };
+    const binding = buildBinding();
+    binding.auth_mode = "token";
+    binding.issues = [buildLegacyPublishUnsupportedAuthIssueFixture()];
+    const currentHref = "/workflows/workflow-1?definition_issue=legacy_publish_auth";
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishBindingCard, {
+        workflow,
+        tools: [],
+        binding,
+        cacheInventory: null as never,
+        apiKeys: [],
+        invocationAudit: null,
+        selectedInvocationId: null,
+        selectedInvocationDetail: null as never,
+        rateLimitWindowAudit: null,
+        activeInvocationFilter: null,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness(),
+        currentHref
+      })
+    );
+
+    expect(html).toContain('aria-current="page"');
+    expect(html).not.toContain('href="/workflows/workflow-1?definition_issue=legacy_publish_auth"');
+    expect(html).toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
+    expect(html).toContain(`current:${currentHref}`);
   });
 });

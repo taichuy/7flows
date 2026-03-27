@@ -17,6 +17,7 @@ type WorkflowPublishLifecycleFormProps = {
   sandboxReadiness?: SandboxReadinessCheck | null;
   issues?: WorkflowPublishedEndpointIssue[];
   workflowGovernanceHandoff?: WorkflowGovernanceHandoff | null;
+  currentHref?: string | null;
   action: (
     state: UpdatePublishedEndpointLifecycleState,
     formData: FormData
@@ -48,6 +49,7 @@ export function WorkflowPublishLifecycleForm({
   sandboxReadiness,
   issues,
   workflowGovernanceHandoff = null,
+  currentHref = null,
   action
 }: WorkflowPublishLifecycleFormProps) {
   const surface = buildWorkflowPublishLifecycleActionSurface({
@@ -94,6 +96,7 @@ export function WorkflowPublishLifecycleForm({
             workflowGovernanceHref={workflowGovernanceHandoff?.workflowGovernanceHref}
             legacyAuthHandoff={workflowGovernanceHandoff?.legacyAuthHandoff}
             cardClassName="payload-card compact-card"
+            currentHref={currentHref}
           />
         </div>
       ) : null}

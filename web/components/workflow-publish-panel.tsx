@@ -11,6 +11,7 @@ import {
   buildWorkflowPublishLegacyAuthExportHint,
 } from "@/lib/workflow-publish-legacy-auth-cleanup";
 import {
+  buildWorkflowGovernanceDetailHrefFromCurrentHref,
   buildWorkflowCatalogGapDetail,
   buildWorkflowGovernanceHandoff
 } from "@/lib/workflow-governance-handoff";
@@ -60,6 +61,7 @@ type WorkflowPublishPanelProps = {
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
   workflowLibraryHref?: string;
+  currentHref?: string | null;
   workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 
@@ -77,6 +79,7 @@ export function WorkflowPublishPanel({
   callbackWaitingAutomation,
   sandboxReadiness,
   workflowLibraryHref,
+  currentHref = null,
   workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishPanelProps) {
   const surfaceCopy = buildWorkflowPublishPanelSurfaceCopy({ workflowLibraryHref });
@@ -86,13 +89,19 @@ export function WorkflowPublishPanel({
   );
   const legacyAuthCleanupSurface = buildWorkflowPublishLegacyAuthCleanupSurface(bindings);
   const legacyAuthExportHint = buildWorkflowPublishLegacyAuthExportHint(legacyAuthCleanupSurface);
-  const workflowDetailHref = workspaceStarterGovernanceQueryScope
-    ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
-        workflowId: workflow.id,
-        viewState: workspaceStarterGovernanceQueryScope,
-        variant: "editor",
-      }).href
-    : null;
+  const scopedCurrentWorkflowHref =
+    currentHref ??
+    (workspaceStarterGovernanceQueryScope
+      ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+          workflowId: workflow.id,
+          viewState: workspaceStarterGovernanceQueryScope,
+          variant: "editor",
+        }).href
+      : null);
+  const workflowDetailHref = buildWorkflowGovernanceDetailHrefFromCurrentHref({
+    workflowId: workflow.id,
+    currentHref: scopedCurrentWorkflowHref
+  });
   const summaryCards = buildWorkflowPublishSummaryCardSurfaces({
     bindings,
     primaryFollowUp
@@ -162,6 +171,7 @@ export function WorkflowPublishPanel({
           workflowGovernanceHref={workflowGovernanceHandoff.workflowGovernanceHref}
           legacyAuthHandoff={workflowGovernanceHandoff.legacyAuthHandoff}
           cardClassName="payload-card compact-card"
+          currentHref={currentHref ?? workflowDetailHref}
         />
 
         <SandboxReadinessOverviewCard
@@ -176,6 +186,7 @@ export function WorkflowPublishPanel({
             workflowName={workflow.name}
             workflow={workflow}
             workflowDetailHref={workflowDetailHref}
+            currentHref={currentHref ?? workflowDetailHref}
             bindings={bindings}
           />
         ) : null}
@@ -204,6 +215,7 @@ export function WorkflowPublishPanel({
                 rateLimitWindowAudit={rateLimitWindowAuditsByBinding[binding.id] ?? null}
                 callbackWaitingAutomation={callbackWaitingAutomation}
                 sandboxReadiness={sandboxReadiness}
+                currentHref={currentHref ?? workflowDetailHref}
                 activeInvocationFilter={
                   activeInvocationFilter.bindingId === binding.id
                     ? activeInvocationFilter

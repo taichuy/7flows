@@ -28,6 +28,7 @@ type WorkflowPublishLegacyAuthCleanupCardProps = {
   workflowName?: string;
   workflow?: WorkflowPublishLegacyAuthCleanupWorkflowLike | null;
   workflowDetailHref?: string | null;
+  currentHref?: string | null;
   bindings: WorkflowPublishedEndpointItem[];
   action?: (
     state: CleanupLegacyPublishedEndpointBindingsState,
@@ -58,6 +59,7 @@ export function WorkflowPublishLegacyAuthCleanupCard({
   workflowName = workflowId,
   workflow = null,
   workflowDetailHref = null,
+  currentHref = null,
   bindings,
   action = cleanupLegacyPublishedEndpointBindings,
 }: WorkflowPublishLegacyAuthCleanupCardProps) {
@@ -242,6 +244,7 @@ export function WorkflowPublishLegacyAuthCleanupCard({
             workflowGovernanceHref={workflowGovernanceHandoff.workflowGovernanceHref}
             legacyAuthHandoff={workflowGovernanceHandoff.legacyAuthHandoff}
             cardClassName="payload-card compact-card"
+            currentHref={currentHref}
           />
         </div>
       ) : null}

@@ -148,6 +148,7 @@ export default async function WorkflowEditorPage({
         sandboxReadiness={systemOverview.sandbox_readiness}
         activeInvocationFilter={publishActivityFilters.panelActiveFilter}
         workflowLibraryHref={workflowLibraryHref}
+        currentHref={currentEditorHref}
         workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
       />
     </>

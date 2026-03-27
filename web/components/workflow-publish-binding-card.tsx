@@ -32,6 +32,7 @@ import { buildPublishedCacheInventorySurfaceCopy } from "@/lib/published-invocat
 import { formatTimestamp } from "@/lib/runtime-presenters";
 import { buildSensitiveAccessBlockedSurfaceCopy } from "@/lib/sensitive-access-presenters";
 import {
+  buildWorkflowGovernanceDetailHrefFromCurrentHref,
   buildWorkflowCatalogGapDetail,
   buildWorkflowGovernanceHandoff
 } from "@/lib/workflow-governance-handoff";
@@ -50,6 +51,7 @@ type WorkflowPublishBindingCardProps = {
   activeInvocationFilter: WorkflowPublishInvocationActiveFilter | null;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  currentHref?: string | null;
   workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 
@@ -67,19 +69,26 @@ export function WorkflowPublishBindingCard({
   activeInvocationFilter,
   callbackWaitingAutomation,
   sandboxReadiness,
+  currentHref = null,
   workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishBindingCardProps) {
   const bindingSurface = buildWorkflowPublishBindingCardSurface(binding, {
     currentWorkflowVersion: workflow.version,
     currentDraftPublishEndpoints: workflow.definition.publish ?? []
   });
-  const workflowDetailHref = workspaceStarterGovernanceQueryScope
-    ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
-        workflowId: workflow.id,
-        viewState: workspaceStarterGovernanceQueryScope,
-        variant: "editor"
-      }).href
-    : null;
+  const scopedCurrentWorkflowHref =
+    currentHref ??
+    (workspaceStarterGovernanceQueryScope
+      ? buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+          workflowId: workflow.id,
+          viewState: workspaceStarterGovernanceQueryScope,
+          variant: "editor"
+        }).href
+      : null);
+  const workflowDetailHref = buildWorkflowGovernanceDetailHrefFromCurrentHref({
+    workflowId: workflow.id,
+    currentHref: scopedCurrentWorkflowHref
+  });
   const buildBindingWorkflowGovernanceHandoff = ({
     subjectLabel,
     returnDetail
@@ -197,6 +206,7 @@ export function WorkflowPublishBindingCard({
                 workflowGovernanceHref={issueWorkflowGovernanceHandoff.workflowGovernanceHref}
                 legacyAuthHandoff={issueWorkflowGovernanceHandoff.legacyAuthHandoff}
                 cardClassName="payload-card compact-card"
+                currentHref={currentHref ?? workflowDetailHref}
               />
             </div>
           ) : null}
@@ -326,6 +336,7 @@ export function WorkflowPublishBindingCard({
         sandboxReadiness={sandboxReadiness}
         issues={binding.issues}
         workflowGovernanceHandoff={lifecycleWorkflowGovernanceHandoff}
+        currentHref={currentHref ?? workflowDetailHref}
         action={updatePublishedEndpointLifecycle}
       />
 
@@ -360,6 +371,7 @@ export function WorkflowPublishBindingCard({
                 workflowGovernanceHref={authGovernanceWorkflowHandoff.workflowGovernanceHref}
                 legacyAuthHandoff={authGovernanceWorkflowHandoff.legacyAuthHandoff}
                 cardClassName="payload-card compact-card"
+                currentHref={currentHref ?? workflowDetailHref}
               />
             </div>
           ) : null}

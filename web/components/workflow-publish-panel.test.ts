@@ -15,11 +15,18 @@ vi.mock("next/link", () => ({
 vi.mock("@/components/workflow-publish-binding-card", () => ({
   WorkflowPublishBindingCard: ({
     binding,
-    legacyAuthExportHint
+    legacyAuthExportHint,
+    currentHref
   }: {
     binding: { id: string };
     legacyAuthExportHint?: string | null;
-  }) => createElement("div", null, `binding:${binding.id}:${legacyAuthExportHint ?? "none"}`)
+    currentHref?: string | null;
+  }) =>
+    createElement(
+      "div",
+      null,
+      `binding:${binding.id}:${legacyAuthExportHint ?? "none"}:${currentHref ?? "none"}`
+    )
 }));
 
 vi.mock("@/components/workflow-publish-legacy-auth-cleanup-card", () => ({
@@ -558,5 +565,56 @@ describe("WorkflowPublishPanel", () => {
     );
     expect(html).toContain("回到 workflow 编辑器处理 catalog gap");
     expect(html).toContain("回到 workflow 编辑器处理 publish auth contract");
+    expect(html).toContain("binding:binding-1:none:/workflows/workflow-1");
+  });
+
+  it("reuses the current workflow detail scope across publish summary governance handoff", () => {
+    const workflow = buildWorkflow();
+    workflow.tool_governance = {
+      referenced_tool_ids: ["tool-search"],
+      missing_tool_ids: ["native.catalog-gap"],
+      governed_tool_count: 1,
+      strong_isolation_tool_count: 0
+    };
+    workflow.legacy_auth_governance = {
+      binding_count: 1,
+      draft_candidate_count: 0,
+      published_blocker_count: 1,
+      offline_inventory_count: 0
+    };
+
+    const currentHref = "/workflows/workflow-1?definition_issue=missing_tool";
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishPanel, {
+        workflow,
+        tools: [],
+        bindings: [buildBinding()],
+        cacheInventories: {},
+        apiKeysByBinding: {},
+        invocationAuditsByBinding: {},
+        invocationDetailsByBinding: {},
+        selectedInvocationId: null,
+        rateLimitWindowAuditsByBinding: {},
+        activeInvocationFilter: {
+          bindingId: null,
+          status: null,
+          requestSource: null,
+          requestSurface: null,
+          cacheStatus: null,
+          runStatus: null,
+          apiKeyId: null,
+          reasonCode: null,
+          timeWindow: "all"
+        },
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness(),
+        currentHref
+      })
+    );
+
+    expect(html).toContain('aria-current="page"');
+    expect(html).not.toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
+    expect(html).toContain('href="/workflows/workflow-1?definition_issue=legacy_publish_auth"');
+    expect(html).toContain(`binding:binding-1:none:${currentHref}`);
   });
 });
