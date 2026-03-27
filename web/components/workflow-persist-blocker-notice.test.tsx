@@ -58,4 +58,29 @@ describe("WorkflowPersistBlockerNotice", () => {
     expect(html).not.toContain("Workflow governance");
     expect(html).not.toContain("回到 workflow 编辑器处理 catalog gap");
   });
+
+  it("renders shared publish auth contract for legacy auth save gates", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPersistBlockerNotice, {
+        title: "Publish save gate",
+        blockers: [
+          {
+            id: "publish_draft",
+            label: "Publish draft",
+            detail:
+              "当前 workflow definition 还有 publish draft 待修正问题：Public Search 当前不能使用 authMode = token。",
+            nextStep:
+              "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 replacement binding，最后清理 draft/offline legacy backlog。",
+            hasLegacyPublishAuthModeIssues: true
+          }
+        ]
+      })
+    );
+
+    expect(html).toContain("Save-gate publish auth contract");
+    expect(html).toContain("supported api_key / internal");
+    expect(html).toContain("legacy token");
+    expect(html).toContain("先把 workflow draft endpoint 切回 api_key/internal 并保存");
+    expect(html).not.toContain("Workflow governance");
+  });
 });

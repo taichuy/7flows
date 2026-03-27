@@ -175,4 +175,30 @@ describe("WorkflowEditorPublishForm", () => {
     expect(html).toContain("当前保存会被 1 类问题阻断：Publish draft。");
     expect(html).toContain("请先在 publish draft 表单里修正发布标识、schema、缓存或版本设置");
   });
+
+  it("reuses the shared publish auth contract in publish save gates", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorPublishForm, {
+        workflowVersion: "1.0.0",
+        availableWorkflowVersions: ["1.0.0"],
+        publishEndpoints: [],
+        persistBlockers: [
+          {
+            id: "publish_draft",
+            label: "Publish draft",
+            detail:
+              "当前 workflow definition 还有 publish draft 待修正问题：Public Search 当前不能使用 authMode = token。",
+            nextStep:
+              "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 replacement binding，最后清理 draft/offline legacy backlog。",
+            hasLegacyPublishAuthModeIssues: true
+          }
+        ],
+        onChange: () => undefined
+      })
+    );
+
+    expect(html).toContain("Save-gate publish auth contract");
+    expect(html).toContain("supported api_key / internal");
+    expect(html).toContain("legacy token");
+  });
 });

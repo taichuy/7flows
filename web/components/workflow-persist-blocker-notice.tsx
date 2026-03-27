@@ -1,5 +1,6 @@
 import React from "react";
 
+import { LegacyPublishAuthContractCard } from "@/components/legacy-publish-auth-contract-card";
 import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
@@ -76,6 +77,9 @@ export function WorkflowPersistBlockerNotice({
     blockers,
     currentHref
   );
+  const hasLegacyPublishAuthModeIssues = blockers.some(
+    (blocker) => blocker.id === "publish_draft" && blocker.hasLegacyPublishAuthModeIssues
+  );
 
   return (
     <div className="sync-message error">
@@ -93,6 +97,9 @@ export function WorkflowPersistBlockerNotice({
         cardClassName="entry-card compact-card"
         currentHref={currentHref}
       />
+      {hasLegacyPublishAuthModeIssues ? (
+        <LegacyPublishAuthContractCard title="Save-gate publish auth contract" />
+      ) : null}
       <ul className="event-list compact-list">
         {blockers.slice(0, limit).map((blocker) => (
           <li key={blocker.id}>

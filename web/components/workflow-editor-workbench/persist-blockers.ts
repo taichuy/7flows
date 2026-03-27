@@ -28,6 +28,7 @@ export type WorkflowPersistBlocker = {
   detail: string;
   nextStep: string;
   catalogGapToolIds?: string[];
+  hasLegacyPublishAuthModeIssues?: boolean;
 };
 
 type BuildWorkflowPersistBlockersOptions = {
@@ -175,6 +176,7 @@ export function buildWorkflowPersistBlockers({
       detail: joinDetail(
         `当前 workflow definition 还有 publish draft 待修正问题：${publishDraftValidationSummary}`
       ),
+      hasLegacyPublishAuthModeIssues,
       nextStep: buildPublishDraftNextStep({
         hasPublishVersionValidationIssues,
         hasLegacyPublishAuthModeIssues

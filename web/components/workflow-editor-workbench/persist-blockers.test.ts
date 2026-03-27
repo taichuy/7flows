@@ -43,6 +43,7 @@ describe("workflow persist blockers", () => {
     expect(blockers).toEqual([
       expect.objectContaining({
         id: "publish_draft",
+        hasLegacyPublishAuthModeIssues: true,
         nextStep:
           "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 replacement binding，最后清理 draft/offline legacy backlog。"
       })
