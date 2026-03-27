@@ -288,6 +288,8 @@ describe("WorkspacePage", () => {
     expect(html).toContain("搜索应用、Agent、工具链或治理焦点");
     expect(html).toContain("新建空白 ChatFlow");
     expect(html).toContain("从应用模板创建");
+    expect(html).toContain("推荐 Starter");
+    expect(html).toContain("应用目录 · 全部 2 个应用");
     expect(html).toContain("继续进入 xyflow");
     expect(html).toContain("推荐下一步：先补齐 1 个工具缺口，再进入 xyflow 继续编排。");
     expect(html).toContain('href="/workflows/new"');
@@ -526,8 +528,8 @@ describe("WorkspacePage", () => {
 
     expect(html).toContain("当前筛选范围内还没有应用");
     expect(html).toContain("Blank Flow");
-    expect(html).toContain("从 Starter 创建");
-    expect(html).toContain("推荐作为空工作台的首个应用入口");
+    expect(html).toContain("推荐 Starter");
+    expect(html).toContain("打开 Starter 模板库");
   });
 
   it("hides member-admin entrypoints for editors without member permissions", async () => {

@@ -97,15 +97,7 @@ type WorkspaceAppsWorkbenchProps = {
   };
 };
 
-function WorkspaceSignalRail({
-  workspaceSignals,
-  focusLabel,
-  activeModeDescription
-}: {
-  workspaceSignals: WorkspaceSignal[];
-  focusLabel: string;
-  activeModeDescription: string;
-}) {
+function WorkspaceSignalRail({ workspaceSignals }: { workspaceSignals: WorkspaceSignal[] }) {
   return (
     <div className="workspace-signal-rail" aria-label="Workspace overview">
       {workspaceSignals.map((signal) => (
@@ -114,16 +106,11 @@ function WorkspaceSignalRail({
           <strong>{signal.value}</strong>
         </article>
       ))}
-      <article className="workspace-signal-chip workspace-signal-chip-focus">
-        <span>当前入口焦点</span>
-        <strong>{focusLabel}</strong>
-        <p className="workspace-muted workspace-card-copy">{activeModeDescription}</p>
-      </article>
     </div>
   );
 }
 
-function WorkspaceCreateTile({
+function WorkspaceCreateRail({
   activeModeLabel,
   activeModeDescription,
   quickCreateEntries,
@@ -135,8 +122,8 @@ function WorkspaceCreateTile({
   starterCount: number;
 }) {
   return (
-    <article className="workspace-app-card workspace-create-tile workspace-create-tile-dify workspace-app-card-dify">
-      <div>
+    <article className="workspace-app-card workspace-rail-card workspace-create-tile workspace-create-tile-dify workspace-app-card-dify">
+      <div className="workspace-rail-heading">
         <p className="workspace-app-card-caption">创建应用</p>
         <h3>{activeModeLabel ? `优先创建 ${activeModeLabel} 应用` : "从空白 ChatFlow、Starter 或团队协作开始"}</h3>
         <p className="workspace-muted workspace-card-copy">
@@ -166,13 +153,108 @@ function WorkspaceCreateTile({
   );
 }
 
+function WorkspaceStarterLink({ starter }: { starter: WorkspaceStarterHighlight }) {
+  return (
+    <Link className="workspace-starter-inline-link" href={starter.href}>
+      <div className="workspace-starter-inline-head">
+        <strong>{starter.name}</strong>
+        <span className="workspace-starter-mode-pill">{starter.modeShortLabel}</span>
+      </div>
+      <span>{starter.description}</span>
+      <div className="workspace-app-inline-metrics" aria-label={`${starter.name} starter summary`}>
+        <span className="workspace-app-inline-metric accent">{starter.priority}</span>
+        <span className="workspace-app-inline-metric">{starter.track}</span>
+      </div>
+    </Link>
+  );
+}
+
+function WorkspaceStarterRail({
+  starterCount,
+  starterHighlights
+}: {
+  starterCount: number;
+  starterHighlights: WorkspaceStarterHighlight[];
+}) {
+  return (
+    <article className="workspace-app-card workspace-rail-card workspace-starter-rail-card workspace-app-card-dify">
+      <div className="workspace-rail-heading">
+        <p className="workspace-app-card-caption">Starter 模板</p>
+        <h3>推荐 Starter</h3>
+        <p className="workspace-muted workspace-card-copy">
+          当前工作空间共维护 {starterCount} 个 Starter，优先把常用应用骨架沉淀在这里，再进入 xyflow 继续编排。
+        </p>
+      </div>
+
+      {starterHighlights.length > 0 ? (
+        <div className="workspace-starter-inline-list">
+          {starterHighlights.map((starter) => (
+            <WorkspaceStarterLink key={starter.id} starter={starter} />
+          ))}
+        </div>
+      ) : (
+        <p className="workspace-muted workspace-card-copy">
+          当前模式下还没有推荐 Starter，可先从空白 ChatFlow 起草应用入口。
+        </p>
+      )}
+
+      <div className="workspace-action-row workspace-app-card-actions">
+        <Link className="workspace-ghost-button compact" href="/workspace-starters">
+          打开 Starter 模板库
+        </Link>
+      </div>
+    </article>
+  );
+}
+
+function WorkspaceLaunchRail({
+  activeModeDescription,
+  activeModeLabel,
+  focusLabel,
+  quickCreateEntries,
+  starterCount,
+  starterHighlights,
+  workspaceSignals
+}: {
+  activeModeDescription: string;
+  activeModeLabel: string | null;
+  focusLabel: string;
+  quickCreateEntries: WorkspaceQuickCreateEntry[];
+  starterCount: number;
+  starterHighlights: WorkspaceStarterHighlight[];
+  workspaceSignals: WorkspaceSignal[];
+}) {
+  return (
+    <aside className="workspace-launch-rail" aria-label="Workspace launch rail">
+      <WorkspaceCreateRail
+        activeModeDescription={activeModeDescription}
+        activeModeLabel={activeModeLabel}
+        quickCreateEntries={quickCreateEntries}
+        starterCount={starterCount}
+      />
+
+      <WorkspaceStarterRail starterCount={starterCount} starterHighlights={starterHighlights} />
+
+      <article className="workspace-app-card workspace-rail-card workspace-overview-rail-card workspace-app-card-dify">
+        <div className="workspace-rail-heading">
+          <p className="workspace-app-card-caption">Workspace overview</p>
+          <h3>{focusLabel}</h3>
+          <p className="workspace-muted workspace-card-copy">{activeModeDescription}</p>
+        </div>
+
+        <WorkspaceSignalRail workspaceSignals={workspaceSignals} />
+      </article>
+    </aside>
+  );
+}
+
 function WorkspaceEmptyTile({ activeModeLabel }: { activeModeLabel: string | null }) {
   return (
     <article className="workspace-app-card workspace-app-card-empty workspace-app-card-empty-dify workspace-app-card-dify">
       <p className="workspace-app-card-caption">应用列表</p>
       <h3>当前筛选范围内还没有{activeModeLabel ? ` ${activeModeLabel} 应用` : "应用"}</h3>
       <p className="workspace-muted workspace-card-copy">
-        现在可以直接从空白 ChatFlow 创建，也可以先从下方推荐 Starter 进入；创建后继续进入 xyflow 编辑器补节点、调试和发布语义。
+        现在可以直接从左侧创建入口发起，也可以先从推荐 Starter 进入；创建后继续进入 xyflow 编辑器补节点、调试和发布语义。
       </p>
       <div className="workspace-action-row workspace-app-card-actions">
         <Link className="workspace-primary-button compact" href="/workflows/new">
@@ -186,53 +268,6 @@ function WorkspaceEmptyTile({ activeModeLabel }: { activeModeLabel: string | nul
   );
 }
 
-function WorkspaceStarterTile({ starter }: { starter: WorkspaceStarterHighlight }) {
-  return (
-    <article className="workspace-app-card workspace-app-card-starter workspace-app-card-dify" key={starter.id}>
-      <div className="workspace-app-card-header">
-        <div className="workspace-app-card-identity">
-          <div className="workspace-app-icon workspace-app-icon-starter" aria-hidden="true">
-            {getWorkspaceBadgeLabel(starter.name, "S")}
-          </div>
-          <div>
-            <p className="workspace-app-card-caption">Starter 模板</p>
-            <div className="workspace-app-card-title-row">
-              <h3>{starter.name}</h3>
-              <span className="workspace-mode-pill">{starter.modeShortLabel}</span>
-            </div>
-            <p className="workspace-app-subtitle">
-              {starter.track} · {starter.priority}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <p className="workspace-app-focus">{starter.description}</p>
-      <p className="workspace-muted workspace-card-copy">
-        先用这个 Starter 起草入口，再进入 xyflow 继续补节点、工具绑定与发布语义。
-      </p>
-
-      <div className="workspace-app-inline-metrics">
-        <span className="workspace-app-inline-metric accent">{starter.priority}</span>
-        <span className="workspace-app-inline-metric">{starter.track}</span>
-        <span className="workspace-app-inline-metric">{starter.modeShortLabel}</span>
-      </div>
-
-      <div className="workspace-app-footer workspace-app-footer-inline">
-        <p className="workspace-app-meta">推荐作为空工作台的首个应用入口。</p>
-        <div className="workspace-action-row workspace-app-card-actions">
-          <Link className="workspace-primary-button compact" href={starter.href}>
-            从 Starter 创建
-          </Link>
-          <Link className="workspace-ghost-button compact" href="/workspace-starters">
-            查看模板库
-          </Link>
-        </div>
-      </div>
-    </article>
-  );
-}
-
 function WorkspaceAppTile({
   card,
   currentUserDisplayName
@@ -241,7 +276,7 @@ function WorkspaceAppTile({
   currentUserDisplayName: string;
 }) {
   return (
-    <article className="workspace-app-card workspace-app-card-product workspace-app-card-dify" key={card.id}>
+    <article className="workspace-app-card workspace-app-card-product workspace-app-card-dense workspace-app-card-dify" key={card.id}>
       <div className="workspace-app-card-header">
         <div className="workspace-app-card-identity">
           <div className="workspace-app-icon" aria-hidden="true">
@@ -269,7 +304,8 @@ function WorkspaceAppTile({
       </div>
 
       <p className="workspace-app-focus">{card.track.focus}</p>
-      <p className="workspace-muted workspace-card-copy">推荐下一步：{card.recommendedNextStep}</p>
+      <p className="workspace-muted workspace-card-copy">{card.track.summary}</p>
+      <p className="workspace-app-next-step">推荐下一步：{card.recommendedNextStep}</p>
 
       <div className="workspace-app-inline-metrics" aria-label={`${card.name} metrics`}>
         <span className="workspace-app-inline-metric accent">{card.track.priority}</span>
@@ -285,7 +321,14 @@ function WorkspaceAppTile({
       </div>
 
       <div className="workspace-app-footer workspace-app-footer-inline">
-        <p className="workspace-app-meta">{card.healthLabel}</p>
+        <div>
+          <p className="workspace-app-meta">{card.healthLabel}</p>
+          <p className="workspace-muted workspace-app-meta-detail">
+            {card.status === "published"
+              ? "继续维护已发布版本，必要时从 runs 回看线上调用。"
+              : "草稿仍回到 xyflow 继续编排，不在 workspace 壳层分叉执行语义。"}
+          </p>
+        </div>
         <div className="workspace-action-row workspace-app-card-actions">
           <Link className="workspace-primary-button compact" href={card.href}>
             继续进入 xyflow
@@ -319,7 +362,6 @@ export function WorkspaceAppsWorkbench({
   searchState
 }: WorkspaceAppsWorkbenchProps) {
   const focusLabel = activeModeLabel ? `${activeModeLabel} 入口` : "全部应用入口";
-  const shouldRenderStarterShowcase = filteredApps.length === 0 && starterHighlights.length > 0;
 
   return (
     <main className="workspace-main workspace-home-main">
@@ -418,53 +460,51 @@ export function WorkspaceAppsWorkbench({
           </div>
         </div>
 
-        <WorkspaceSignalRail
+      </section>
+
+      <div className="workspace-workbench-main-grid">
+        <WorkspaceLaunchRail
           activeModeDescription={activeModeDescription}
+          activeModeLabel={activeModeLabel}
           focusLabel={focusLabel}
+          quickCreateEntries={quickCreateEntries}
+          starterCount={starterCount}
+          starterHighlights={starterHighlights}
           workspaceSignals={workspaceSignals}
         />
-      </section>
 
-      <section className="workspace-app-section workspace-app-section-dify">
-        <div className="workspace-app-section-header workspace-app-section-header-dify">
-          <div>
-            <p className="workspace-eyebrow">Applications</p>
-            <h2>{visibleAppSummary}</h2>
-            <p className="workspace-muted workspace-copy-wide">
-              {activeModeLabel
-                ? `当前聚焦 ${activeModeLabel} 应用：${activeModeDescription}`
-                : "保留 Dify 式应用工作台心智，但不在 workspace 壳层伪造第二套执行事实。"}
-            </p>
-          </div>
-          <div className="workspace-action-row">
-            <Link className="workspace-ghost-button compact" href="/workspace-starters">
-              查看 Starter
-            </Link>
-            {canManageMembers ? (
-              <Link className="workspace-ghost-button compact" href="/admin/members">
-                团队设置
+        <section className="workspace-panel workspace-app-section workspace-app-section-dify workspace-catalog-panel">
+          <div className="workspace-app-section-header workspace-app-section-header-dify">
+            <div>
+              <p className="workspace-eyebrow">Applications</p>
+              <h2>应用目录 · {visibleAppSummary}</h2>
+              <p className="workspace-muted workspace-copy-wide">
+                {activeModeLabel
+                  ? `当前聚焦 ${activeModeLabel} 应用：${activeModeDescription}`
+                  : "保留 Dify 式应用工作台心智，但不在 workspace 壳层伪造第二套执行事实。"}
+              </p>
+            </div>
+            <div className="workspace-action-row">
+              <Link className="workspace-ghost-button compact" href="/workspace-starters">
+                查看 Starter
               </Link>
-            ) : null}
+              {canManageMembers ? (
+                <Link className="workspace-ghost-button compact" href="/admin/members">
+                  团队设置
+                </Link>
+              ) : null}
+            </div>
           </div>
-        </div>
 
-        <div className="workspace-app-board workspace-app-grid-dify">
-          <WorkspaceCreateTile
-            activeModeDescription={activeModeDescription}
-            activeModeLabel={activeModeLabel}
-            quickCreateEntries={quickCreateEntries}
-            starterCount={starterCount}
-          />
+          <div className="workspace-app-board workspace-app-board-dense">
+            {filteredApps.length === 0 ? <WorkspaceEmptyTile activeModeLabel={activeModeLabel} /> : null}
 
-          {filteredApps.length === 0 ? <WorkspaceEmptyTile activeModeLabel={activeModeLabel} /> : null}
-
-          {shouldRenderStarterShowcase ? starterHighlights.map((starter) => <WorkspaceStarterTile key={starter.id} starter={starter} />) : null}
-
-          {filteredApps.map((card) => (
-            <WorkspaceAppTile card={card} currentUserDisplayName={currentUserDisplayName} key={card.id} />
-          ))}
-        </div>
-      </section>
+            {filteredApps.map((card) => (
+              <WorkspaceAppTile card={card} currentUserDisplayName={currentUserDisplayName} key={card.id} />
+            ))}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
