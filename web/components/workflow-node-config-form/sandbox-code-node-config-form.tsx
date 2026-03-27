@@ -15,6 +15,7 @@ import {
 
 type SandboxCodeNodeConfigFormProps = {
   node: Node<WorkflowCanvasNodeData>;
+  currentHref?: string | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   highlightedFieldPath?: string | null;
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
@@ -25,6 +26,7 @@ const DEFAULT_CODE = "result = {'ok': True}";
 
 export function SandboxCodeNodeConfigForm({
   node,
+  currentHref = null,
   sandboxReadiness = null,
   highlightedFieldPath = null,
   focusedValidationItem = null,
@@ -105,6 +107,7 @@ export function SandboxCodeNodeConfigForm({
       focusedValidationItem.target.scope === "node" &&
       focusedValidationItem.target.section === "config" ? (
         <WorkflowValidationRemediationCard
+          currentHref={currentHref}
           item={focusedValidationItem}
           sandboxReadiness={sandboxReadiness}
         />

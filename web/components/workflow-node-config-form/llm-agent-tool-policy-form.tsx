@@ -36,6 +36,7 @@ import {
 type LlmAgentToolPolicyFormProps = {
   config: Record<string, unknown>;
   tools: PluginToolRegistryItem[];
+  currentHref?: string | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   highlightedFieldPath?: string | null;
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
@@ -45,6 +46,7 @@ type LlmAgentToolPolicyFormProps = {
 export function LlmAgentToolPolicyForm({
   config,
   tools,
+  currentHref = null,
   sandboxReadiness,
   highlightedFieldPath = null,
   focusedValidationItem = null,
@@ -117,7 +119,8 @@ export function LlmAgentToolPolicyForm({
   const sandboxRecommendedNextStep =
     callableTools.length > 0 && (toolExecutionInsight || sandboxPreflightHint)
       ? buildOperatorRecommendedNextStep({
-          execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness")
+          execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness"),
+          currentHref
         })
       : null;
 
@@ -260,6 +263,7 @@ export function LlmAgentToolPolicyForm({
       <span className="binding-label">Tool policy</span>
       {focusedValidationItem && normalizedHighlightedField ? (
         <WorkflowValidationRemediationCard
+          currentHref={currentHref}
           item={focusedValidationItem}
           sandboxReadiness={sandboxReadiness}
         />

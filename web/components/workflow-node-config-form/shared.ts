@@ -15,6 +15,7 @@ export type WorkflowNodeConfigFormProps = {
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   tools: PluginToolRegistryItem[];
   adapters: PluginAdapterRegistryItem[];
+  currentHref?: string | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   highlightedFieldPath?: string | null;
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;

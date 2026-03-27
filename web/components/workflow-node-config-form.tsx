@@ -13,6 +13,7 @@ export function WorkflowNodeConfigForm({
   nodes,
   tools,
   adapters,
+  currentHref,
   sandboxReadiness,
   highlightedFieldPath,
   focusedValidationItem,
@@ -25,6 +26,7 @@ export function WorkflowNodeConfigForm({
           node={node}
           nodes={nodes}
           tools={tools}
+          currentHref={currentHref}
           sandboxReadiness={sandboxReadiness}
           highlightedFieldPath={highlightedFieldPath}
           focusedValidationItem={focusedValidationItem}
@@ -37,6 +39,7 @@ export function WorkflowNodeConfigForm({
           node={node}
           tools={tools}
           adapters={adapters}
+          currentHref={currentHref}
           sandboxReadiness={sandboxReadiness}
           highlightedFieldPath={highlightedFieldPath}
           focusedValidationItem={focusedValidationItem}
@@ -49,6 +52,7 @@ export function WorkflowNodeConfigForm({
       return (
         <SandboxCodeNodeConfigForm
           node={node}
+          currentHref={currentHref}
           sandboxReadiness={sandboxReadiness}
           highlightedFieldPath={highlightedFieldPath}
           focusedValidationItem={focusedValidationItem}

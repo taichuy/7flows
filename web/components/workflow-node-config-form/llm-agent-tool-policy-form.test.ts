@@ -148,6 +148,39 @@ describe("LlmAgentToolPolicyForm", () => {
     expect(html).toContain("Recommended next step");
   });
 
+  it("keeps catalog-gap remediation href scoped to the current editor context", () => {
+    const focusedValidationItem: WorkflowValidationNavigatorItem = {
+      key: "tool-policy-catalog-gap",
+      category: "tool_reference",
+      message: "allow list 中包含当前 catalog 不存在的工具 native.catalog-gap。",
+      catalogGapToolIds: ["native.catalog-gap"],
+      target: {
+        scope: "node",
+        nodeId: "node-1",
+        section: "config",
+        fieldPath: "config.toolPolicy.allowedToolIds",
+        label: "Node · Agent"
+      }
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(LlmAgentToolPolicyForm, {
+        config: {},
+        tools: [buildTool()],
+        currentHref: "/workflows/workflow-1?pane=editor&starter=starter-1",
+        highlightedFieldPath: "config.toolPolicy.allowedToolIds",
+        focusedValidationItem,
+        onChange: () => undefined
+      })
+    );
+
+    expect(html).toContain("Node · Agent · Allowed tools");
+    expect(html).toContain("回到 workflow 编辑器处理 catalog gap");
+    expect(html).toContain("pane=editor");
+    expect(html).toContain("starter=starter-1");
+    expect(html).toContain("definition_issue=missing_tool");
+  });
+
   it("shows strong-isolation dependency fields and backend extension mismatch insight", () => {
     const html = renderToStaticMarkup(
       createElement(LlmAgentToolPolicyForm, {

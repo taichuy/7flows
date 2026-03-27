@@ -176,4 +176,90 @@ describe("WorkflowEditorInspector", () => {
     expect(html.match(/Recommended next step/g)).toHaveLength(1);
     expect(html.match(/Open workflow library/g)).toHaveLength(1);
   });
+
+  it("keeps node remediation handoff scoped to the current editor href", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorInspector, {
+        currentHref: "/workflows/workflow-1?pane=editor&starter=starter-1",
+        selectedNode: {
+          id: "search",
+          position: { x: 0, y: 0 },
+          data: {
+            label: "Search",
+            nodeType: "tool",
+            config: {
+              tool: {
+                toolId: "missing-tool",
+                ecosystem: "native"
+              }
+            },
+            inputSchema: {},
+            outputSchema: {}
+          }
+        },
+        selectedEdge: null,
+        nodes: [
+          {
+            id: "search",
+            position: { x: 0, y: 0 },
+            data: {
+              label: "Search",
+              nodeType: "tool",
+              config: {
+                tool: {
+                  toolId: "missing-tool",
+                  ecosystem: "native"
+                }
+              },
+              inputSchema: {},
+              outputSchema: {}
+            }
+          }
+        ],
+        edges: [],
+        tools: [],
+        adapters: [],
+        nodeConfigText: "{}",
+        onNodeConfigTextChange: () => undefined,
+        onApplyNodeConfigJson: () => undefined,
+        onNodeNameChange: () => undefined,
+        onNodeConfigChange: () => undefined,
+        onNodeInputSchemaChange: () => undefined,
+        onNodeOutputSchemaChange: () => undefined,
+        onNodeRuntimePolicyUpdate: () => undefined,
+        onNodeRuntimePolicyChange: () => undefined,
+        workflowVersion: "1.0.0",
+        availableWorkflowVersions: ["1.0.0"],
+        workflowVariables: [],
+        workflowPublish: [],
+        onWorkflowVariablesChange: () => undefined,
+        onWorkflowPublishChange: () => undefined,
+        onDeleteSelectedNode: () => undefined,
+        onUpdateSelectedEdge: () => undefined,
+        onDeleteSelectedEdge: () => undefined,
+        highlightedNodeSection: "config",
+        highlightedNodeFieldPath: "config.tool.toolId",
+        focusedValidationItem: {
+          key: "tool-reference",
+          category: "tool_reference",
+          message: "Tool 节点 Search 引用了当前目录中不存在的工具 native.catalog-gap。",
+          catalogGapToolIds: ["native.catalog-gap"],
+          target: {
+            scope: "node",
+            nodeId: "search",
+            section: "config",
+            fieldPath: "config.tool.toolId",
+            label: "Node · Search"
+          }
+        },
+        persistBlockers: []
+      })
+    );
+
+    expect(html).toContain("Node · Search · Tool id");
+    expect(html).toContain("回到 workflow 编辑器处理 catalog gap");
+    expect(html).toContain("pane=editor");
+    expect(html).toContain("starter=starter-1");
+    expect(html).toContain("definition_issue=missing_tool");
+  });
 });

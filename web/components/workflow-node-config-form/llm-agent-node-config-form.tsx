@@ -27,6 +27,7 @@ type LlmAgentNodeConfigFormProps = {
   node: Node<WorkflowCanvasNodeData>;
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   tools: PluginToolRegistryItem[];
+  currentHref?: string | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   highlightedFieldPath?: string | null;
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
@@ -37,6 +38,7 @@ export function LlmAgentNodeConfigForm({
   node,
   nodes,
   tools,
+  currentHref = null,
   sandboxReadiness,
   highlightedFieldPath,
   focusedValidationItem,
@@ -319,6 +321,7 @@ export function LlmAgentNodeConfigForm({
       </label>
 
       <LlmAgentSkillSection
+        currentHref={currentHref}
         skillIds={skillIds}
         highlightedFieldKey={skillIdsHighlightedField}
         focusedValidationItem={skillIdsValidationItem}
@@ -327,6 +330,7 @@ export function LlmAgentNodeConfigForm({
 
       {skillBindingValidationItem ? (
         <WorkflowValidationRemediationCard
+          currentHref={currentHref}
           item={skillBindingValidationItem}
           sandboxReadiness={sandboxReadiness}
         />
@@ -376,6 +380,7 @@ export function LlmAgentNodeConfigForm({
       <LlmAgentToolPolicyForm
         config={config}
         tools={tools}
+        currentHref={currentHref}
         sandboxReadiness={sandboxReadiness}
         highlightedFieldPath={highlightedFieldPath}
         focusedValidationItem={focusedValidationItem}
@@ -415,6 +420,7 @@ export function LlmAgentNodeConfigForm({
 
       {contextAccessValidationItem ? (
         <WorkflowValidationRemediationCard
+          currentHref={currentHref}
           item={contextAccessValidationItem}
           sandboxReadiness={sandboxReadiness}
         />

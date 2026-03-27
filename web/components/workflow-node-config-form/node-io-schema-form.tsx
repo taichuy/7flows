@@ -12,6 +12,7 @@ import { toRecord } from "@/components/workflow-node-config-form/shared";
 
 type WorkflowNodeIoSchemaFormProps = {
   node: Node<WorkflowCanvasNodeData>;
+  currentHref?: string | null;
   onInputSchemaChange: (nextSchema: Record<string, unknown> | undefined) => void;
   onOutputSchemaChange: (nextSchema: Record<string, unknown> | undefined) => void;
   highlighted?: boolean;
@@ -32,6 +33,7 @@ const EMPTY_OBJECT_SCHEMA = JSON.stringify(
 
 export function WorkflowNodeIoSchemaForm({
   node,
+  currentHref = null,
   onInputSchemaChange,
   onOutputSchemaChange,
   highlighted = false,
@@ -89,6 +91,7 @@ export function WorkflowNodeIoSchemaForm({
 
       {focusedValidationItem && normalizedHighlightedField ? (
         <WorkflowValidationRemediationCard
+          currentHref={currentHref}
           item={focusedValidationItem}
           sandboxReadiness={sandboxReadiness}
         />

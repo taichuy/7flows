@@ -16,6 +16,7 @@ type LlmAgentSkillSectionProps = {
   skillIds: string[];
   onChange: (nextSkillIds: string[]) => void;
   workspaceId?: string;
+  currentHref?: string | null;
   highlightedFieldKey?: string | null;
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
 };
@@ -24,6 +25,7 @@ export function LlmAgentSkillSection({
   skillIds,
   onChange,
   workspaceId = "default",
+  currentHref = null,
   highlightedFieldKey = null,
   focusedValidationItem = null
 }: LlmAgentSkillSectionProps) {
@@ -203,7 +205,7 @@ export function LlmAgentSkillSection({
       </small>
 
       {focusedValidationItem && highlightSkillIds ? (
-        <WorkflowValidationRemediationCard item={focusedValidationItem} />
+        <WorkflowValidationRemediationCard currentHref={currentHref} item={focusedValidationItem} />
       ) : null}
 
       <label className="binding-field">

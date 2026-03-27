@@ -32,6 +32,7 @@ type ToolNodeConfigFormProps = {
   node: Node<WorkflowCanvasNodeData>;
   tools: PluginToolRegistryItem[];
   adapters: PluginAdapterRegistryItem[];
+  currentHref?: string | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   highlightedFieldPath?: string | null;
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
@@ -42,6 +43,7 @@ export function ToolNodeConfigForm({
   node,
   tools,
   adapters,
+  currentHref = null,
   sandboxReadiness = null,
   highlightedFieldPath = null,
   focusedValidationItem = null,
@@ -195,6 +197,7 @@ export function ToolNodeConfigForm({
     <div className="binding-form" ref={sectionRef}>
       {focusedValidationItem && normalizedHighlightedField ? (
         <WorkflowValidationRemediationCard
+          currentHref={currentHref}
           item={focusedValidationItem}
           sandboxReadiness={sandboxReadiness}
         />

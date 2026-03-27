@@ -143,6 +143,7 @@ export function WorkflowEditorInspector({
               nodes={nodes}
               tools={tools}
               adapters={adapters}
+              currentHref={currentHref}
               sandboxReadiness={sandboxReadiness}
               highlightedFieldPath={highlightedNodeSection === "config" ? highlightedNodeFieldPath : null}
               focusedValidationItem={
@@ -153,6 +154,7 @@ export function WorkflowEditorInspector({
 
             <WorkflowNodeIoSchemaForm
               node={selectedNode}
+              currentHref={currentHref}
               onInputSchemaChange={onNodeInputSchemaChange}
               onOutputSchemaChange={onNodeOutputSchemaChange}
               highlighted={highlightedNodeSection === "contract"}
@@ -182,6 +184,7 @@ export function WorkflowEditorInspector({
               node={selectedNode}
               nodes={nodes}
               edges={edges}
+              currentHref={currentHref}
               onChange={onNodeRuntimePolicyUpdate}
               highlighted={highlightedNodeSection === "runtime"}
               highlightedFieldPath={

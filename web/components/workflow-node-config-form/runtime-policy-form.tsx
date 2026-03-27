@@ -27,6 +27,7 @@ type WorkflowNodeRuntimePolicyFormProps = {
   node: Node<WorkflowCanvasNodeData>;
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   edges: Array<Edge<WorkflowCanvasEdgeData>>;
+  currentHref?: string | null;
   onChange: (nextRuntimePolicy: Record<string, unknown> | undefined) => void;
   highlighted?: boolean;
   highlightedFieldPath?: string | null;
@@ -42,6 +43,7 @@ export function WorkflowNodeRuntimePolicyForm({
   node,
   nodes,
   edges,
+  currentHref = null,
   onChange,
   highlighted = false,
   highlightedFieldPath = null,
@@ -166,6 +168,7 @@ export function WorkflowNodeRuntimePolicyForm({
 
       {showRuntimePolicyRemediation && focusedValidationItem ? (
         <WorkflowValidationRemediationCard
+          currentHref={currentHref}
           item={focusedValidationItem}
           sandboxReadiness={sandboxReadiness}
         />
@@ -175,6 +178,7 @@ export function WorkflowNodeRuntimePolicyForm({
         nodeId={node.id}
         nodeType={node.data.nodeType}
         runtimePolicy={runtimePolicy}
+        currentHref={currentHref}
         onChange={onChange}
         highlightedFieldPath={highlightedFieldPath}
         focusedValidationItem={focusedValidationItem}

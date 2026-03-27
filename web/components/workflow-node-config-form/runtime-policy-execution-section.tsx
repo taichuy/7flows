@@ -33,6 +33,7 @@ type WorkflowNodeRuntimePolicyExecutionSectionProps = {
   nodeId: string;
   nodeType: string;
   runtimePolicy: Record<string, unknown>;
+  currentHref?: string | null;
   onChange: (nextRuntimePolicy: Record<string, unknown> | undefined) => void;
   highlightedFieldPath?: string | null;
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
@@ -43,6 +44,7 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
   nodeId,
   nodeType,
   runtimePolicy,
+  currentHref = null,
   onChange,
   highlightedFieldPath = null,
   focusedValidationItem = null,
@@ -66,7 +68,8 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
       : null;
   const sandboxRecommendedNextStep = sandboxExecutionInsight
     ? buildOperatorRecommendedNextStep({
-        execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness")
+        execution: buildSandboxReadinessFollowUpCandidate(sandboxReadiness, "sandbox readiness"),
+        currentHref
       })
     : null;
   const normalizedHighlightedField = normalizeRuntimeExecutionFieldKey(highlightedFieldPath);
@@ -181,6 +184,7 @@ export function WorkflowNodeRuntimePolicyExecutionSection({
 
       {focusedValidationItem && normalizedHighlightedField ? (
         <WorkflowValidationRemediationCard
+          currentHref={currentHref}
           item={focusedValidationItem}
           sandboxReadiness={sandboxReadiness}
         />
