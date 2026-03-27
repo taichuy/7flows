@@ -71,7 +71,8 @@ describe("WorkflowPersistBlockerNotice", () => {
               "当前 workflow definition 还有 publish draft 待修正问题：Public Search 当前不能使用 authMode = token。",
             nextStep:
               "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 replacement binding，最后清理 draft/offline legacy backlog。",
-            hasLegacyPublishAuthModeIssues: true
+            hasLegacyPublishAuthModeIssues: true,
+            hasGenericPublishDraftIssues: false
           }
         ]
       })
@@ -81,6 +82,32 @@ describe("WorkflowPersistBlockerNotice", () => {
     expect(html).toContain("supported api_key / internal");
     expect(html).toContain("legacy token");
     expect(html).toContain("先把 workflow draft endpoint 切回 api_key/internal 并保存");
+    expect(html).not.toContain("当前 workflow definition 还有 publish draft 待修正问题：Public Search 当前不能使用 authMode = token。");
+    expect(html).not.toContain("<strong>Publish draft</strong>");
     expect(html).not.toContain("Workflow governance");
+  });
+
+  it("keeps generic publish draft issues visible when legacy auth save gates also carry non-auth blockers", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPersistBlockerNotice, {
+        title: "Publish save gate",
+        blockers: [
+          {
+            id: "publish_draft",
+            label: "Publish draft",
+            detail:
+              "当前 workflow definition 还有 publish draft 待修正问题：Public Search 的 workflowVersion 必须使用 major.minor.patch 语义版本格式。",
+            nextStep: "如果 endpoint 要跟随本次保存版本，请把 workflowVersion 留空。",
+            hasLegacyPublishAuthModeIssues: true,
+            hasGenericPublishDraftIssues: true
+          }
+        ]
+      })
+    );
+
+    expect(html).toContain("Save-gate publish auth contract");
+    expect(html).toContain("workflowVersion 必须使用 major.minor.patch 语义版本格式");
+    expect(html).toContain("如果 endpoint 要跟随本次保存版本，请把 workflowVersion 留空");
+    expect(html).toContain("<strong>Publish draft</strong>");
   });
 });

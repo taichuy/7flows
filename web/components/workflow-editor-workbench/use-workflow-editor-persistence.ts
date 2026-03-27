@@ -47,6 +47,7 @@ type UseWorkflowEditorPersistenceOptions = {
   currentDefinition: WorkflowDetail["definition"];
   currentDefinitionSignature: string;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  persistBlockerSummary?: string | null;
   persistBlockedMessage: string;
   validationNavigatorItems: WorkflowValidationNavigatorItem[];
   setPersistedWorkflowName: (name: string) => void;
@@ -70,6 +71,7 @@ export function useWorkflowEditorPersistence({
   currentDefinition,
   currentDefinitionSignature,
   sandboxReadiness,
+  persistBlockerSummary = null,
   persistBlockedMessage,
   validationNavigatorItems,
   setPersistedWorkflowName,
@@ -86,6 +88,9 @@ export function useWorkflowEditorPersistence({
 }: UseWorkflowEditorPersistenceOptions) {
   const [isSaving, startSavingTransition] = useTransition();
   const [isSavingStarter, startSaveStarterTransition] = useTransition();
+  const blockedFeedbackMessage = persistBlockerSummary
+    ? `${persistBlockerSummary} 已定位到首个阻断点。`
+    : persistBlockedMessage;
 
   const applyValidationFocus = (item?: WorkflowValidationNavigatorItem | null) => {
     if (!item) {
@@ -103,7 +108,7 @@ export function useWorkflowEditorPersistence({
       setMessageKind("default");
       setSavedWorkspaceStarter(null);
       applyValidationFocus(pickWorkflowValidationRemediationItem(validationNavigatorItems));
-      setMessage(persistBlockedMessage);
+      setMessage(blockedFeedbackMessage);
       setMessageTone("error");
       return;
     }
@@ -185,7 +190,7 @@ export function useWorkflowEditorPersistence({
       setMessageKind("default");
       setSavedWorkspaceStarter(null);
       applyValidationFocus(pickWorkflowValidationRemediationItem(validationNavigatorItems));
-      setMessage(persistBlockedMessage);
+      setMessage(blockedFeedbackMessage);
       setMessageTone("error");
       return;
     }

@@ -1,3 +1,4 @@
+import type { WorkflowDefinitionPreflightIssue } from "@/lib/get-workflows";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { buildLegacyPublishAuthModeFollowUp } from "@/lib/legacy-publish-auth-contract";
 import {
@@ -10,7 +11,8 @@ import {
 } from "@/lib/system-overview-follow-up-presenters";
 import {
   formatCatalogGapSummary,
-  formatCatalogGapToolSummary
+  formatCatalogGapToolSummary,
+  isLegacyPublishAuthModeIssue
 } from "@/lib/workflow-definition-governance";
 import type { WorkflowToolReferenceValidationIssue } from "@/lib/workflow-tool-reference-validation";
 
@@ -29,6 +31,7 @@ export type WorkflowPersistBlocker = {
   nextStep: string;
   catalogGapToolIds?: string[];
   hasLegacyPublishAuthModeIssues?: boolean;
+  hasGenericPublishDraftIssues?: boolean;
 };
 
 type BuildWorkflowPersistBlockersOptions = {
@@ -39,6 +42,7 @@ type BuildWorkflowPersistBlockersOptions = {
   toolReferenceValidationSummary?: string | null;
   nodeExecutionValidationSummary?: string | null;
   toolExecutionValidationSummary?: string | null;
+  publishDraftValidationIssues?: WorkflowDefinitionPreflightIssue[];
   publishDraftValidationSummary?: string | null;
   hasPublishVersionValidationIssues?: boolean;
   hasLegacyPublishAuthModeIssues?: boolean;
@@ -65,23 +69,82 @@ function joinDetail(...parts: Array<string | null | undefined>) {
     .join(" ");
 }
 
+function summarizeIssueMessages(issues: { message: string }[]) {
+  if (issues.length === 0) {
+    return null;
+  }
+
+  const head = issues
+    .slice(0, 3)
+    .map((issue) => issue.message)
+    .join("；");
+  return issues.length > 3 ? `${head}；另有 ${issues.length - 3} 项待修正。` : head;
+}
+
+function buildPublishDraftBlockerDetail({
+  publishDraftValidationIssues,
+  publishDraftValidationSummary,
+  hasLegacyPublishAuthModeIssues
+}: {
+  publishDraftValidationIssues: WorkflowDefinitionPreflightIssue[];
+  publishDraftValidationSummary?: string | null;
+  hasLegacyPublishAuthModeIssues: boolean;
+}) {
+  const genericPublishDraftIssues = publishDraftValidationIssues.filter(
+    (issue) => !isLegacyPublishAuthModeIssue(issue)
+  );
+  const genericPublishDraftSummary = summarizeIssueMessages(genericPublishDraftIssues);
+
+  if (genericPublishDraftSummary) {
+    return {
+      detail: joinDetail(
+        `当前 workflow definition 还有 publish draft 待修正问题：${genericPublishDraftSummary}`
+      ),
+      hasGenericPublishDraftIssues: true
+    };
+  }
+
+  if (hasLegacyPublishAuthModeIssues) {
+    return {
+      detail: "当前 workflow definition 还有 legacy publish auth 待修正问题。",
+      hasGenericPublishDraftIssues: false
+    };
+  }
+
+  if (!publishDraftValidationSummary) {
+    return null;
+  }
+
+  return {
+    detail: joinDetail(
+      `当前 workflow definition 还有 publish draft 待修正问题：${publishDraftValidationSummary}`
+    ),
+    hasGenericPublishDraftIssues: true
+  };
+}
+
 function buildPublishDraftNextStep({
+  hasGenericPublishDraftIssues,
   hasPublishVersionValidationIssues,
   hasLegacyPublishAuthModeIssues
 }: {
+  hasGenericPublishDraftIssues: boolean;
   hasPublishVersionValidationIssues: boolean;
   hasLegacyPublishAuthModeIssues: boolean;
 }) {
-  if (!hasPublishVersionValidationIssues && !hasLegacyPublishAuthModeIssues) {
+  if (!hasGenericPublishDraftIssues && hasLegacyPublishAuthModeIssues) {
+    return buildLegacyPublishAuthModeFollowUp();
+  }
+
+  if (!hasGenericPublishDraftIssues) {
     return "请先在 publish draft 表单里修正发布标识、schema、缓存或版本设置，再继续保存。";
   }
 
-  return joinDetail(
-    hasPublishVersionValidationIssues
-      ? "如果 endpoint 要跟随本次保存版本，请把 workflowVersion 留空。"
-      : null,
-    hasLegacyPublishAuthModeIssues ? buildLegacyPublishAuthModeFollowUp() : null
-  );
+  if (hasPublishVersionValidationIssues) {
+    return "如果 endpoint 要跟随本次保存版本，请把 workflowVersion 留空。";
+  }
+
+  return "请先在 publish draft 表单里修正发布标识、schema、缓存或版本设置，再继续保存。";
 }
 
 export function buildWorkflowPersistBlockers({
@@ -92,6 +155,7 @@ export function buildWorkflowPersistBlockers({
   toolReferenceValidationSummary,
   nodeExecutionValidationSummary,
   toolExecutionValidationSummary,
+  publishDraftValidationIssues = [],
   publishDraftValidationSummary,
   hasPublishVersionValidationIssues = false,
   hasLegacyPublishAuthModeIssues = false,
@@ -169,15 +233,21 @@ export function buildWorkflowPersistBlockers({
     });
   }
 
-  if (publishDraftValidationSummary) {
+  const publishDraftBlockerDetail = buildPublishDraftBlockerDetail({
+    publishDraftValidationIssues,
+    publishDraftValidationSummary,
+    hasLegacyPublishAuthModeIssues
+  });
+
+  if (publishDraftBlockerDetail) {
     blockers.push({
       id: "publish_draft",
       label: "Publish draft",
-      detail: joinDetail(
-        `当前 workflow definition 还有 publish draft 待修正问题：${publishDraftValidationSummary}`
-      ),
+      detail: publishDraftBlockerDetail.detail,
       hasLegacyPublishAuthModeIssues,
+      hasGenericPublishDraftIssues: publishDraftBlockerDetail.hasGenericPublishDraftIssues,
       nextStep: buildPublishDraftNextStep({
+        hasGenericPublishDraftIssues: publishDraftBlockerDetail.hasGenericPublishDraftIssues,
         hasPublishVersionValidationIssues,
         hasLegacyPublishAuthModeIssues
       })

@@ -80,6 +80,12 @@ export function WorkflowPersistBlockerNotice({
   const hasLegacyPublishAuthModeIssues = blockers.some(
     (blocker) => blocker.id === "publish_draft" && blocker.hasLegacyPublishAuthModeIssues
   );
+  const visibleBlockers = blockers.filter(
+    (blocker) =>
+      blocker.id !== "publish_draft" ||
+      !blocker.hasLegacyPublishAuthModeIssues ||
+      blocker.hasGenericPublishDraftIssues
+  );
 
   return (
     <div className="sync-message error">
@@ -100,13 +106,15 @@ export function WorkflowPersistBlockerNotice({
       {hasLegacyPublishAuthModeIssues ? (
         <LegacyPublishAuthContractCard title="Save-gate publish auth contract" />
       ) : null}
-      <ul className="event-list compact-list">
-        {blockers.slice(0, limit).map((blocker) => (
-          <li key={blocker.id}>
-            <strong>{blocker.label}</strong>：{blocker.detail} {blocker.nextStep}
-          </li>
-        ))}
-      </ul>
+      {visibleBlockers.length > 0 ? (
+        <ul className="event-list compact-list">
+          {visibleBlockers.slice(0, limit).map((blocker) => (
+            <li key={blocker.id}>
+              <strong>{blocker.label}</strong>：{blocker.detail} {blocker.nextStep}
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

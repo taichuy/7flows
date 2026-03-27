@@ -35,20 +35,65 @@ describe("workflow persist blockers", () => {
   it("reuses shared legacy publish auth follow-up in publish draft save gates", () => {
     const blockers = buildWorkflowPersistBlockers({
       unsupportedNodeCount: 0,
-      publishDraftValidationSummary:
-        "Public Search 当前不能使用 authMode = token。Publish auth contract：supported api_key / internal；legacy token。",
+      publishDraftValidationIssues: [
+        {
+          category: "publish_draft",
+          message:
+            "Public Search 当前不能使用 authMode = token。Publish auth contract：supported api_key / internal；legacy token。",
+          path: "publish.0.authMode",
+          field: "authMode"
+        }
+      ],
       hasLegacyPublishAuthModeIssues: true
     });
 
     expect(blockers).toEqual([
       expect.objectContaining({
         id: "publish_draft",
+        detail: "当前 workflow definition 还有 legacy publish auth 待修正问题。",
         hasLegacyPublishAuthModeIssues: true,
+        hasGenericPublishDraftIssues: false,
         nextStep:
           "先把 workflow draft endpoint 切回 api_key/internal 并保存，再补发 replacement binding，最后清理 draft/offline legacy backlog。"
       })
     ]);
-    expect(formatWorkflowPersistBlockedMessage(blockers)).toContain("Publish auth contract");
+    expect(formatWorkflowPersistBlockedMessage(blockers)).not.toContain("authMode = token");
+  });
+
+  it("keeps generic publish draft issues in save gates while lifting legacy auth out of raw prose", () => {
+    const blockers = buildWorkflowPersistBlockers({
+      unsupportedNodeCount: 0,
+      publishDraftValidationIssues: [
+        {
+          category: "publish_draft",
+          message:
+            "Public Search 当前不能使用 authMode = token。Publish auth contract：supported api_key / internal；legacy token。",
+          path: "publish.0.authMode",
+          field: "authMode"
+        },
+        {
+          category: "publish_version",
+          message: "Public Search 的 workflowVersion 必须使用 major.minor.patch 语义版本格式。",
+          path: "publish.0.workflowVersion",
+          field: "workflowVersion"
+        }
+      ],
+      hasLegacyPublishAuthModeIssues: true,
+      hasPublishVersionValidationIssues: true
+    });
+
+    expect(blockers).toEqual([
+      expect.objectContaining({
+        id: "publish_draft",
+        detail:
+          "当前 workflow definition 还有 publish draft 待修正问题：Public Search 的 workflowVersion 必须使用 major.minor.patch 语义版本格式。",
+        hasLegacyPublishAuthModeIssues: true,
+        hasGenericPublishDraftIssues: true,
+        nextStep: "如果 endpoint 要跟随本次保存版本，请把 workflowVersion 留空。"
+      })
+    ]);
+    expect(formatWorkflowPersistBlockedMessage(blockers)).not.toContain("authMode = token");
+    expect(formatWorkflowPersistBlockedMessage(blockers)).toContain("workflowVersion");
   });
 
   it("surfaces concrete catalog gaps in save gates instead of generic tool-reference wording", () => {

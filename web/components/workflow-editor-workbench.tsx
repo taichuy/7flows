@@ -169,6 +169,7 @@ export function WorkflowEditorWorkbench({
     workflowName: graph.workflowName,
     workflowVersion: graph.workflowVersion,
     currentDefinition: graph.currentDefinition,
+    persistBlockerSummary,
     persistBlockedMessage: validation.persistBlockedMessage,
     validationNavigatorItems: validation.validationNavigatorItems,
     sandboxReadiness,
