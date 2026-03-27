@@ -44,6 +44,7 @@ app/models/workflow.py
 app/models/workspace_starter.py
 app/schemas/__init__.py
 app/schemas/credential.py
+app/schemas/credential_governance.py
 app/schemas/explanations.py
 app/schemas/health.py
 app/schemas/operator_follow_up.py
@@ -56,6 +57,7 @@ app/schemas/system.py
 app/schemas/workflow.py
 app/schemas/workflow_contract_validation.py
 app/schemas/workflow_graph_validation.py
+app/schemas/workflow_legacy_auth_governance.py
 app/schemas/workflow_library.py
 app/schemas/workflow_node_validation.py
 app/schemas/workflow_publish.py
@@ -75,6 +77,7 @@ app/services/callback_waiting_lifecycle.py
 app/services/compiled_blueprints.py
 app/services/context_service.py
 app/services/credential_encryption.py
+app/services/credential_governance.py
 app/services/credential_store.py
 app/services/flow_compiler.py
 app/services/llm_provider.py
@@ -151,6 +154,7 @@ app/services/runtime_types.py
 app/services/sandbox_backends.py
 app/services/scheduled_task_activity.py
 app/services/sensitive_access_action_explanations.py
+app/services/sensitive_access_bundle_summary.py
 app/services/sensitive_access_control.py
 app/services/sensitive_access_policy.py
 app/services/sensitive_access_presenters.py
@@ -161,6 +165,7 @@ app/services/sensitive_access_timeline.py
 app/services/sensitive_access_types.py
 app/services/skill_catalog.py
 app/services/tool_execution_events.py
+app/services/tool_execution_fact_honesty.py
 app/services/tool_execution_governance.py
 app/services/tool_execution_isolation.py
 app/services/tool_gateway.py
@@ -171,6 +176,7 @@ app/services/workflow_library.py
 app/services/workflow_library_catalog.py
 app/services/workflow_mutations.py
 app/services/workflow_publish.py
+app/services/workflow_publish_auth_mode_validation.py
 app/services/workflow_publish_identity_validation.py
 app/services/workflow_publish_version_references.py
 app/services/workflow_skill_references.py
@@ -196,6 +202,7 @@ sevenflows_api.egg-info/requires.txt
 sevenflows_api.egg-info/top_level.txt
 tests/test_agent_runtime_llm_integration.py
 tests/test_agent_runtime_llm_streaming.py
+tests/test_callback_blocker_deltas.py
 tests/test_callback_waiting_explanations.py
 tests/test_celery_app.py
 tests/test_credential_store.py
