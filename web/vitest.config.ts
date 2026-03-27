@@ -10,11 +10,12 @@ export default defineConfig({
   test: {
     environment: "node",
     include: [
-      "app/**/*.test.ts",
-      "app/**/*.test.tsx",
-      "lib/**/*.test.ts",
-      "components/**/*.test.ts",
-      "components/**/*.test.tsx"
+      "app/**/__tests__/**/*.test.ts",
+      "app/**/__tests__/**/*.test.tsx",
+      "lib/**/__tests__/**/*.test.ts",
+      "lib/**/__tests__/**/*.test.tsx",
+      "components/**/__tests__/**/*.test.ts",
+      "components/**/__tests__/**/*.test.tsx"
     ]
   }
 });

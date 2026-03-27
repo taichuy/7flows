@@ -39,7 +39,7 @@ type RunsPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function RunsPage({ searchParams }: RunsPageProps = {}) {
+export default async function RunsPage({ searchParams }: RunsPageProps) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const workspaceStarterViewState = readWorkspaceStarterLibraryViewState(
     resolvedSearchParams

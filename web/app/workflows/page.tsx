@@ -74,7 +74,7 @@ type WorkflowsPageProps = {
 
 export default async function WorkflowsPage({
   searchParams
-}: WorkflowsPageProps = {}) {
+}: WorkflowsPageProps) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const workspaceStarterViewState = pickWorkspaceStarterGovernanceQueryScope(
     readWorkspaceStarterLibraryViewState(resolvedSearchParams)
