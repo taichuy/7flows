@@ -57,7 +57,7 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
       userRole={workspaceContext.current_member.role}
       workspaceName={workspaceContext.workspace.name}
     >
-      <main className="workspace-main workspace-workflow-create-main">
+      <div className="workspace-main workspace-workflow-create-main">
         <WorkflowCreateWizard
           catalogToolCount={workflowLibrary.tools.length}
           governanceQueryScope={pickWorkspaceStarterGovernanceQueryScope(workspaceStarterViewState)}
@@ -68,7 +68,7 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
           tools={workflowLibrary.tools}
           workflows={workflows}
         />
-      </main>
+      </div>
     </WorkspaceShell>
   );
 }

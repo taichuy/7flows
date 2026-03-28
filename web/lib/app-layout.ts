@@ -1,5 +1,5 @@
-const DEDICATED_APP_SHELL_PREFIXES = ["/workspace", "/admin"] as const;
-const DEDICATED_APP_SHELL_ROUTES = new Set(["/login", "/workflows/new"]);
+const DEDICATED_APP_SHELL_PREFIXES = ["/workspace", "/admin", "/workflows", "/workspace-starters"] as const;
+const DEDICATED_APP_SHELL_ROUTES = new Set(["/login"]);
 
 export function shouldBypassGlobalAppLayout(pathname: string | null | undefined) {
   if (!pathname) {

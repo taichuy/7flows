@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Layout, Button, Typography, Space, Row, Col, Divider } from "antd";
+import { redirect } from "next/navigation";
+import { Button, Space } from "antd";
 import { PlusOutlined, AppstoreAddOutlined } from "@ant-design/icons";
 
-import { CrossEntryRiskDigestPanel } from "@/components/cross-entry-risk-digest-panel";
 import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
+import { WorkspaceShell } from "@/components/workspace-shell";
 import {
   WorkbenchEntryLink,
   WorkbenchEntryLinks,
@@ -21,7 +22,6 @@ import { WorkflowChipLink } from "@/components/workflow-chip-link";
 import { WorkflowGovernanceQuickFilterLink } from "@/components/workflow-governance-quick-filter-link";
 import { WorkflowLibraryLegacyAuthGovernanceCard } from "@/components/workflow-library-legacy-auth-governance-card";
 import { WorkflowLibraryMissingToolGovernanceCard } from "@/components/workflow-library-missing-tool-governance-card";
-import { buildCrossEntryRiskDigest } from "@/lib/cross-entry-risk-digest";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import type { WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
 import {
@@ -40,6 +40,7 @@ import {
   type CallbackWaitingAutomationCheck,
   type SandboxReadinessCheck
 } from "@/lib/get-system-overview";
+import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import { getWorkflows, type WorkflowListItem } from "@/lib/get-workflows";
 import { buildLegacyPublishAuthModeFollowUp } from "@/lib/legacy-publish-auth-contract";
 import { formatCountMap } from "@/lib/runtime-presenters";
@@ -66,9 +67,6 @@ import {
   readWorkspaceStarterLibraryViewState
 } from "@/lib/workspace-starter-governance-query";
 
-const { Title, Text } = Typography;
-const { Content } = Layout;
-
 export const metadata: Metadata = {
   title: "Workflows | 7Flows Studio"
 };
@@ -80,6 +78,11 @@ type WorkflowsPageProps = {
 export default async function WorkflowsPage({
   searchParams
 }: WorkflowsPageProps) {
+  const workspaceContext = await getServerWorkspaceContext();
+  if (!workspaceContext) {
+    redirect("/login?next=/workflows");
+  }
+
   const resolvedSearchParams = (await searchParams) ?? {};
   const workspaceStarterViewState = pickWorkspaceStarterGovernanceQueryScope(
     readWorkspaceStarterLibraryViewState(resolvedSearchParams)
@@ -88,8 +91,6 @@ export default async function WorkflowsPage({
   const [
     workflowInventory,
     filteredWorkflows,
-    systemOverview,
-    sensitiveAccessInbox,
     workflowLibrary,
     legacyAuthGovernanceSnapshot
   ] = await Promise.all([
@@ -99,8 +100,6 @@ export default async function WorkflowsPage({
           definitionIssue: workflowLibraryViewState.definitionIssue
         })
       : Promise.resolve<WorkflowListItem[] | null>(null),
-    getSystemOverview(),
-    getSensitiveAccessInboxSnapshot(),
     getWorkflowLibrarySnapshot(),
     getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot()
   ]);
@@ -139,16 +138,6 @@ export default async function WorkflowsPage({
       workspaceStarterViewState
     )
   });
-  const recommendedNextStep = buildWorkflowLibraryRecommendedNextStep({
-    summary,
-    sensitiveAccessEntries: sensitiveAccessInbox.entries,
-    sensitiveAccessSummary: sensitiveAccessInbox.summary,
-    callbackWaitingAutomation: systemOverview.callback_waiting_automation,
-    sandboxReadiness: systemOverview.sandbox_readiness,
-    currentHref: workflowLibraryHref,
-    workspaceStarterViewState,
-    workflowLibraryViewState
-  });
   const emptyStateStarterFollowUp =
     workflows.length === 0
       ? buildWorkflowLibraryEmptyStateStarterFollowUp({
@@ -164,21 +153,6 @@ export default async function WorkflowsPage({
           clearWorkflowLibraryFilterHref
         })
       : null;
-  const crossEntryRiskDigest = buildCrossEntryRiskDigest({
-    sandboxReadiness: systemOverview.sandbox_readiness,
-    callbackWaitingAutomation: systemOverview.callback_waiting_automation,
-    recentEvents: systemOverview.runtime_activity.recent_events,
-    sensitiveAccessSummary: sensitiveAccessInbox.summary,
-    channels: sensitiveAccessInbox.channels,
-    sensitiveAccessEntries: sensitiveAccessInbox.entries,
-    resolveWorkflowDetailHref: (workflowId) =>
-      buildFilteredWorkflowDetailLink({
-        workflowId,
-        viewState: workspaceStarterViewState,
-        workflowLibraryViewState: { definitionIssue: null },
-        variant: "editor"
-      }).href
-  });
   const legacyAuthWorkflowDetailHrefsById = Object.fromEntries(
     (legacyAuthGovernanceSnapshot?.workflows ?? []).map((workflow) => [
       workflow.workflow_id,
@@ -207,85 +181,118 @@ export default async function WorkflowsPage({
   );
 
   return (
-    <Content style={{ padding: '24px 48px', maxWidth: 1280, margin: '0 auto', width: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div>
-          <Title level={2} style={{ margin: 0 }}>应用工作台</Title>
-          <Text type="secondary">{surfaceCopy.editorListDescription}</Text>
+    <WorkspaceShell
+      activeNav="workflows"
+      userName={workspaceContext.current_user.display_name}
+      userRole={workspaceContext.current_member.role}
+      workspaceName={workspaceContext.workspace.name}
+    >
+      <main className="workspace-main">
+        <div style={{ display: "grid", gap: 24 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 16,
+              flexWrap: "wrap"
+            }}
+          >
+            <div>
+              <h1 style={{ margin: 0, fontSize: "1.875rem", lineHeight: 1.2 }}>
+                应用工作台
+              </h1>
+              <p style={{ margin: "8px 0 0", color: "#667085" }}>
+                {surfaceCopy.editorListDescription}
+              </p>
+            </div>
+            <Space wrap>
+              <Link href={buildWorkflowCreateHrefFromWorkspaceStarterViewState(workspaceStarterViewState)}>
+                <Button type="primary" icon={<PlusOutlined />} size="large">
+                  创建空白应用
+                </Button>
+              </Link>
+              <Link href={buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState(workspaceStarterViewState)}>
+                <Button icon={<AppstoreAddOutlined />} size="large">
+                  从模板创建
+                </Button>
+              </Link>
+            </Space>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link href={clearWorkflowLibraryFilterHref}>
+              <Button
+                type={!isLegacyPublishAuthFilterActive && !isMissingToolFilterActive ? "primary" : "default"}
+                shape="round"
+              >
+                全部应用 ({summary.workflowCount})
+              </Button>
+            </Link>
+            <Link href={legacyPublishAuthFilterHref}>
+              <Button type={isLegacyPublishAuthFilterActive ? "primary" : "default"} shape="round">
+                Legacy auth ({summary.workflowLegacyPublishAuthCount})
+              </Button>
+            </Link>
+            <Link href={missingToolFilterHref}>
+              <Button type={isMissingToolFilterActive ? "primary" : "default"} shape="round">
+                Catalog gap ({summary.workflowMissingToolCount})
+              </Button>
+            </Link>
+          </div>
+
+          {workflows.length === 0 ? (
+            <div
+              style={{
+                textAlign: "center",
+                padding: "64px 0",
+                background: "white",
+                borderRadius: 12,
+                border: "1px solid #e5e7eb"
+              }}
+            >
+              <p style={{ display: "block", margin: "0 0 16px", color: "#667085" }}>
+                {surfaceCopy.emptyState}
+              </p>
+              <Link href={buildWorkflowCreateHrefFromWorkspaceStarterViewState(workspaceStarterViewState)}>
+                <Button type="primary" icon={<PlusOutlined />}>
+                  创建应用
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                gap: 20
+              }}
+            >
+              {workflows.map((workflow) => {
+                const workflowDetailLink = buildFilteredWorkflowDetailLink({
+                  workflowId: workflow.id,
+                  viewState: workspaceStarterViewState,
+                  workflowLibraryViewState
+                });
+                const workflowDetailHref = appendWorkflowLibraryViewStateForWorkflow(
+                  workflowDetailLink.href,
+                  workflow,
+                  workflowLibraryViewState
+                );
+
+                return (
+                  <WorkflowChipLink
+                    key={`workflow-library-${workflow.id}`}
+                    workflow={workflow}
+                    href={workflowDetailHref}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
-        <Space>
-          <Link href={buildWorkflowCreateHrefFromWorkspaceStarterViewState(workspaceStarterViewState)}>
-            <Button type="primary" icon={<PlusOutlined />} size="large">
-              创建空白应用
-            </Button>
-          </Link>
-          <Link href={buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState(workspaceStarterViewState)}>
-            <Button icon={<AppstoreAddOutlined />} size="large">
-              从模板创建
-            </Button>
-          </Link>
-        </Space>
-      </div>
-
-      <CrossEntryRiskDigestPanel
-        currentHref={workflowLibraryHref}
-        digest={crossEntryRiskDigest}
-        eyebrow="Workflow overview"
-        intro="作者进入 workflow library 后先看到跨入口 blocker：当前强隔离是否可用、callback waiting 是否仍需 operator 跟进，以及 inbox backlog 是否会继续拖住发布与调试。"
-      />
-
-      <Divider />
-
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-        <Link href={clearWorkflowLibraryFilterHref}>
-          <Button type={(!isLegacyPublishAuthFilterActive && !isMissingToolFilterActive) ? 'primary' : 'default'} shape="round">
-            全部应用 ({summary.workflowCount})
-          </Button>
-        </Link>
-        <Link href={legacyPublishAuthFilterHref}>
-          <Button type={isLegacyPublishAuthFilterActive ? 'primary' : 'default'} shape="round">
-            Legacy auth ({summary.workflowLegacyPublishAuthCount})
-          </Button>
-        </Link>
-        <Link href={missingToolFilterHref}>
-          <Button type={isMissingToolFilterActive ? 'primary' : 'default'} shape="round">
-            Catalog gap ({summary.workflowMissingToolCount})
-          </Button>
-        </Link>
-      </div>
-
-      {workflows.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '64px 0', background: 'white', borderRadius: 12, border: '1px solid #e5e7eb' }}>
-          <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>{surfaceCopy.emptyState}</Text>
-          <Link href={buildWorkflowCreateHrefFromWorkspaceStarterViewState(workspaceStarterViewState)}>
-            <Button type="primary" icon={<PlusOutlined />}>创建应用</Button>
-          </Link>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-          {workflows.map((workflow) => {
-            const workflowDetailLink = buildFilteredWorkflowDetailLink({
-              workflowId: workflow.id,
-              viewState: workspaceStarterViewState,
-              workflowLibraryViewState
-            });
-            const workflowDetailHref = appendWorkflowLibraryViewStateForWorkflow(
-              workflowDetailLink.href,
-              workflow,
-              workflowLibraryViewState
-            );
-
-            return (
-              <WorkflowChipLink
-                key={`workflow-library-${workflow.id}`}
-                workflow={workflow}
-                href={workflowDetailHref}
-              />
-            );
-          })}
-        </div>
-      )}
-    </Content>
+      </main>
+    </WorkspaceShell>
   );
 }
 

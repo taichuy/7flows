@@ -8,13 +8,15 @@ describe("shouldBypassGlobalAppLayout", () => {
     expect(shouldBypassGlobalAppLayout("/workspace")).toBe(true);
     expect(shouldBypassGlobalAppLayout("/workspace/apps")).toBe(true);
     expect(shouldBypassGlobalAppLayout("/admin/members")).toBe(true);
+    expect(shouldBypassGlobalAppLayout("/workflows")).toBe(true);
     expect(shouldBypassGlobalAppLayout("/workflows/new")).toBe(true);
+    expect(shouldBypassGlobalAppLayout("/workflows/workflow-1")).toBe(true);
+    expect(shouldBypassGlobalAppLayout("/workspace-starters")).toBe(true);
   });
 
   it("keeps the global shell for the rest of the studio routes", () => {
     expect(shouldBypassGlobalAppLayout(null)).toBe(false);
     expect(shouldBypassGlobalAppLayout("/")).toBe(false);
-    expect(shouldBypassGlobalAppLayout("/workflows")).toBe(false);
     expect(shouldBypassGlobalAppLayout("/runs")).toBe(false);
   });
 });

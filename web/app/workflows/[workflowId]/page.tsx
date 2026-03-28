@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
+import { WorkspaceShell } from "@/components/workspace-shell";
 import { WorkflowEditorWorkbench } from "@/components/workflow-editor-workbench";
 import { WorkflowPublishPanel } from "@/components/workflow-publish-panel";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
+import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import { getWorkflowPublishedEndpoints } from "@/lib/get-workflow-publish";
@@ -49,17 +51,23 @@ export default async function WorkflowEditorPage({
 }: WorkflowEditorPageProps) {
   const { workflowId } = await params;
   const resolvedSearchParams = await searchParams;
-  const [workflow, workflows, workflowLibrary, pluginRegistry, systemOverview, recentRuns, publishedEndpoints] = await Promise.all([
-    getWorkflowDetail(workflowId),
-    getWorkflows(),
-    getWorkflowLibrarySnapshot(),
-    getPluginRegistrySnapshot(),
-    getSystemOverview(),
-    getWorkflowRuns(workflowId),
-    getWorkflowPublishedEndpoints(workflowId, {
-      includeAllVersions: true
-    })
-  ]);
+  const [workspaceContext, workflow, workflows, workflowLibrary, pluginRegistry, systemOverview, recentRuns, publishedEndpoints] =
+    await Promise.all([
+      getServerWorkspaceContext(),
+      getWorkflowDetail(workflowId),
+      getWorkflows(),
+      getWorkflowLibrarySnapshot(),
+      getPluginRegistrySnapshot(),
+      getSystemOverview(),
+      getWorkflowRuns(workflowId),
+      getWorkflowPublishedEndpoints(workflowId, {
+        includeAllVersions: true
+      })
+    ]);
+
+  if (!workspaceContext) {
+    redirect(`/login?next=/workflows/${encodeURIComponent(workflowId)}`);
+  }
 
   if (!workflow) {
     notFound();
@@ -114,43 +122,50 @@ export default async function WorkflowEditorPage({
   });
 
   return (
-    <>
-      <WorkflowEditorWorkbench
-        workflow={workflow}
-        workflows={workflows}
-        nodeCatalog={workflowLibrary.nodes}
-        nodeSourceLanes={workflowLibrary.nodeSourceLanes}
-        toolSourceLanes={workflowLibrary.toolSourceLanes}
-        tools={workflowLibrary.tools}
-        adapters={pluginRegistry.adapters}
-        callbackWaitingAutomation={systemOverview.callback_waiting_automation}
-        sandboxReadiness={systemOverview.sandbox_readiness}
-        sandboxBackends={systemOverview.sandbox_backends}
-        recentRuns={recentRuns}
-        currentEditorHref={currentEditorHref}
-        workflowLibraryHref={workflowLibraryHref}
-        createWorkflowHref={createWorkflowHref}
-        workspaceStarterLibraryHref={workspaceStarterLibraryHref}
-        hasScopedWorkspaceStarterFilters={hasScopedWorkspaceStarterFilters}
-        workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
-      />
-      <WorkflowPublishPanel
-        workflow={workflow}
-        tools={pluginRegistry.tools}
-        bindings={publishedEndpoints}
-        cacheInventories={cacheInventories}
-        apiKeysByBinding={apiKeysByBinding}
-        invocationAuditsByBinding={invocationAuditsByBinding}
-        invocationDetailsByBinding={invocationDetailsByBinding}
-        selectedInvocationId={publishActivityFilters.selectedInvocationId}
-        rateLimitWindowAuditsByBinding={rateLimitWindowAuditsByBinding}
-        callbackWaitingAutomation={systemOverview.callback_waiting_automation}
-        sandboxReadiness={systemOverview.sandbox_readiness}
-        activeInvocationFilter={publishActivityFilters.panelActiveFilter}
-        workflowLibraryHref={workflowLibraryHref}
-        currentHref={currentEditorHref}
-        workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
-      />
-    </>
+    <WorkspaceShell
+      activeNav="workflows"
+      userName={workspaceContext.current_user.display_name}
+      userRole={workspaceContext.current_member.role}
+      workspaceName={workspaceContext.workspace.name}
+    >
+      <div className="workspace-main">
+        <WorkflowEditorWorkbench
+          workflow={workflow}
+          workflows={workflows}
+          nodeCatalog={workflowLibrary.nodes}
+          nodeSourceLanes={workflowLibrary.nodeSourceLanes}
+          toolSourceLanes={workflowLibrary.toolSourceLanes}
+          tools={workflowLibrary.tools}
+          adapters={pluginRegistry.adapters}
+          callbackWaitingAutomation={systemOverview.callback_waiting_automation}
+          sandboxReadiness={systemOverview.sandbox_readiness}
+          sandboxBackends={systemOverview.sandbox_backends}
+          recentRuns={recentRuns}
+          currentEditorHref={currentEditorHref}
+          workflowLibraryHref={workflowLibraryHref}
+          createWorkflowHref={createWorkflowHref}
+          workspaceStarterLibraryHref={workspaceStarterLibraryHref}
+          hasScopedWorkspaceStarterFilters={hasScopedWorkspaceStarterFilters}
+          workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
+        />
+        <WorkflowPublishPanel
+          workflow={workflow}
+          tools={pluginRegistry.tools}
+          bindings={publishedEndpoints}
+          cacheInventories={cacheInventories}
+          apiKeysByBinding={apiKeysByBinding}
+          invocationAuditsByBinding={invocationAuditsByBinding}
+          invocationDetailsByBinding={invocationDetailsByBinding}
+          selectedInvocationId={publishActivityFilters.selectedInvocationId}
+          rateLimitWindowAuditsByBinding={rateLimitWindowAuditsByBinding}
+          callbackWaitingAutomation={systemOverview.callback_waiting_automation}
+          sandboxReadiness={systemOverview.sandbox_readiness}
+          activeInvocationFilter={publishActivityFilters.panelActiveFilter}
+          workflowLibraryHref={workflowLibraryHref}
+          currentHref={currentEditorHref}
+          workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
+        />
+      </div>
+    </WorkspaceShell>
   );
 }
