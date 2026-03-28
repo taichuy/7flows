@@ -3393,6 +3393,107 @@ a {
   font-size: 0.78rem;
 }
 
+.workflow-editor-assistant-hero {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid #e5edf8;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.workflow-editor-assistant-hero-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.workflow-editor-assistant-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.workflow-editor-assistant-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #edf4ff;
+  color: #1f5ed5;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.workflow-editor-assistant-summary {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #edf1f7;
+  background: #fbfcfe;
+}
+
+.workflow-editor-assistant-summary p {
+  margin: 0;
+  color: #475467;
+  line-height: 1.6;
+}
+
+.workflow-editor-assistant-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.workflow-editor-assistant-thread {
+  display: grid;
+  gap: 10px;
+}
+
+.workflow-editor-assistant-message {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.workflow-editor-assistant-message p {
+  margin: 0;
+  white-space: pre-wrap;
+  color: #111827;
+  line-height: 1.6;
+}
+
+.workflow-editor-assistant-message-assistant {
+  border: 1px solid #d8e4ff;
+  background: #f7faff;
+}
+
+.workflow-editor-assistant-message-user {
+  border: 1px solid #ebeff5;
+  background: #fff;
+}
+
+.workflow-editor-assistant-message-role {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #1f5ed5;
+}
+
+.workflow-editor-assistant-composer {
+  display: grid;
+  gap: 12px;
+}
+
+.workflow-editor-assistant-composer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
 .editor-panel {
   padding: 16px;
 }

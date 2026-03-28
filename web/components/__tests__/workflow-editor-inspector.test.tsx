@@ -105,6 +105,7 @@ describe("WorkflowEditorInspector", () => {
     expect(html).toContain("配置");
     expect(html).toContain("I/O");
     expect(html).toContain("运行");
+    expect(html).toContain("AI");
     expect(html).toContain("JSON");
     expect(html).toContain('data-component="node-config-form"');
   });
@@ -117,6 +118,6 @@ describe("WorkflowEditorInspector", () => {
     expect(html).toContain("当前焦点");
     expect(html).toContain("变量");
     expect(html).toContain("发布");
-    expect(html).toContain("目标：不新增第四栏");
+    expect(html).toContain("右侧只保留一个焦点面板");
   });
 });

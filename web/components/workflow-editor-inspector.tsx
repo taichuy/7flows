@@ -15,6 +15,12 @@ import type {
   WorkflowCanvasEdgeData,
   WorkflowCanvasNodeData
 } from "@/lib/workflow-editor";
+import {
+  buildWorkflowEditorAssistantContext,
+  buildWorkflowEditorAssistantReply,
+  createWorkflowEditorAssistantGreeting,
+  type WorkflowEditorAssistantContext
+} from "@/lib/workflow-editor-assistant";
 import type { WorkflowPersistBlocker } from "@/components/workflow-editor-workbench/persist-blockers";
 import { WorkflowNodeConfigForm } from "@/components/workflow-node-config-form";
 import { WorkflowNodeIoSchemaForm } from "@/components/workflow-node-config-form/node-io-schema-form";
@@ -30,11 +36,17 @@ type WorkflowEditorInspectorTabKey =
   | "node-config"
   | "node-schema"
   | "node-runtime"
+  | "node-assistant"
   | "node-json"
   | "edge-config"
   | "workflow-overview"
   | "workflow-variables"
   | "workflow-publish";
+
+type WorkflowEditorAssistantMessage = {
+  role: "assistant" | "user";
+  content: string;
+};
 
 type WorkflowEditorInspectorProps = {
   currentHref?: string | null;
@@ -151,18 +163,57 @@ export function WorkflowEditorInspector({
     return "workflow-overview";
   }, [focusedValidationItem, highlightedNodeSection, selectedEdge, selectedNode]);
   const [activeTabKey, setActiveTabKey] = useState<WorkflowEditorInspectorTabKey>(preferredTabKey);
+  const assistantContext = useMemo<WorkflowEditorAssistantContext | null>(() => {
+    if (!selectedNode) {
+      return null;
+    }
+
+    return buildWorkflowEditorAssistantContext({
+      selectedNode,
+      nodes,
+      edges,
+      sandboxReadiness
+    });
+  }, [edges, nodes, sandboxReadiness, selectedNode]);
+  const [assistantDraft, setAssistantDraft] = useState("");
+  const [assistantMessages, setAssistantMessages] = useState<WorkflowEditorAssistantMessage[]>([]);
+  const [assistantCopyState, setAssistantCopyState] = useState<"idle" | "done">("idle");
 
   useEffect(() => {
     setActiveTabKey(preferredTabKey);
   }, [preferredTabKey]);
+
+  useEffect(() => {
+    if (!assistantContext) {
+      setAssistantDraft("");
+      setAssistantMessages([]);
+      setAssistantCopyState("idle");
+      return;
+    }
+
+    setAssistantDraft(assistantContext.promptSuggestions[0] ?? "");
+    setAssistantMessages([
+      {
+        role: "assistant",
+        content: createWorkflowEditorAssistantGreeting(assistantContext)
+      }
+    ]);
+    setAssistantCopyState("idle");
+  }, [assistantContext]);
 
   const inspectorHeader = useMemo(() => {
     if (selectedNode) {
       return {
         eyebrow: "NODE CONFIG",
         title: selectedNode.data.label,
-        description: "当前右侧只聚焦已选节点，避免把应用级设置和节点配置堆在同一层。",
-        chips: [selectedNode.data.nodeType, selectedNode.id]
+        description: "当前右侧只聚焦已选节点，把配置与 AI 辅助收在同一面板里。",
+        chips: assistantContext
+          ? [
+              selectedNode.data.nodeType,
+              `${assistantContext.upstreamLabels.length} 个上游`,
+              `${assistantContext.downstreamLabels.length} 个下游`
+            ]
+          : [selectedNode.data.nodeType, selectedNode.id]
       };
     }
 
@@ -185,12 +236,107 @@ export function WorkflowEditorInspector({
         `${workflowPublish.length} 个发布端点`
       ]
     };
-  }, [selectedEdge, selectedNode, workflowPublish.length, workflowVariables.length, workflowVersion]);
+  }, [assistantContext, selectedEdge, selectedNode, workflowPublish.length, workflowVariables.length, workflowVersion]);
   const inspectorHeaderModeKey = selectedNode
     ? `node:${selectedNode.id}`
     : selectedEdge
       ? `edge:${selectedEdge.id}`
       : "workflow";
+
+  const assistantPanel = assistantContext ? (
+    <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+      <div className="workflow-editor-assistant-hero">
+        <div className="workflow-editor-assistant-hero-copy">
+          <div className="workflow-editor-inspector-section-title">节点上下文</div>
+          <Text type="secondary">
+            当前先用已选节点、相邻连线和执行事实生成本地建议；后续再挂正式 assistant 接口。
+          </Text>
+        </div>
+        <div className="workflow-editor-assistant-chip-list">
+          <span className="workflow-editor-assistant-chip">{assistantContext.nodeType}</span>
+          <span className="workflow-editor-assistant-chip">{assistantContext.executionClass}</span>
+          <span className="workflow-editor-assistant-chip">
+            schema {assistantContext.hasInputSchema || assistantContext.hasOutputSchema ? "ready" : "todo"}
+          </span>
+        </div>
+      </div>
+
+      <div className="workflow-editor-assistant-summary">
+        <p>{assistantContext.summary}</p>
+        <p>{assistantContext.topologyHint}</p>
+        <p>{assistantContext.runtimeHint}</p>
+      </div>
+
+      <div className="workflow-editor-assistant-actions">
+        {assistantContext.promptSuggestions.map((prompt) => (
+          <Button key={prompt} size="small" onClick={() => setAssistantDraft(prompt)}>
+            {prompt}
+          </Button>
+        ))}
+        <Button
+          size="small"
+          type={assistantCopyState === "done" ? "primary" : "default"}
+          onClick={async () => {
+            if (typeof navigator === "undefined" || !navigator.clipboard) {
+              return;
+            }
+
+            await navigator.clipboard.writeText(assistantContext.contextPack);
+            setAssistantCopyState("done");
+          }}
+        >
+          {assistantCopyState === "done" ? "已复制上下文" : "复制节点上下文"}
+        </Button>
+      </div>
+
+      <div className="workflow-editor-assistant-thread">
+        {assistantMessages.map((message, index) => (
+          <div
+            key={`${message.role}-${index}`}
+            className={`workflow-editor-assistant-message workflow-editor-assistant-message-${message.role}`}
+          >
+            <span className="workflow-editor-assistant-message-role">
+              {message.role === "assistant" ? "AI" : "你"}
+            </span>
+            <p>{message.content}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="workflow-editor-assistant-composer">
+        <TextArea
+          rows={4}
+          value={assistantDraft}
+          onChange={(event) => setAssistantDraft(event.target.value)}
+          placeholder="例如：帮我检查这个节点怎么配，或者下一步接什么节点。"
+        />
+        <div className="workflow-editor-assistant-composer-actions">
+          <Button
+            type="primary"
+            onClick={() => {
+              const trimmedDraft = assistantDraft.trim();
+              if (!trimmedDraft) {
+                return;
+              }
+
+              setAssistantMessages((currentMessages) => [
+                ...currentMessages,
+                { role: "user", content: trimmedDraft },
+                {
+                  role: "assistant",
+                  content: buildWorkflowEditorAssistantReply(assistantContext, trimmedDraft)
+                }
+              ]);
+              setAssistantDraft("");
+            }}
+          >
+            发送建议请求
+          </Button>
+          <Text type="secondary">同面板完成节点配置判断，不新增新的 AI 侧栏。</Text>
+        </div>
+      </div>
+    </Space>
+  ) : null;
 
   const workflowPublishPanel = (
     <Space orientation="vertical" size="large" style={{ width: "100%" }}>
@@ -307,6 +453,11 @@ export function WorkflowEditorInspector({
           )
         },
         {
+          key: "node-assistant",
+          label: "AI",
+          children: assistantPanel
+        },
+        {
           key: "node-json",
           label: "JSON",
           children: (
@@ -377,17 +528,32 @@ export function WorkflowEditorInspector({
             key: "workflow-overview",
             label: "当前焦点",
             children: (
-              <div className="workflow-editor-inspector-empty-state">
-                <Empty
-                  description="选中节点后再编辑节点配置；未选中时，右侧回到应用级设置。"
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                />
-                <div className="workflow-editor-inspector-empty-hints">
-                  <span className="workflow-editor-inspector-empty-pill">节点：配置 / I/O / 运行</span>
-                  <span className="workflow-editor-inspector-empty-pill">应用：变量 / 发布</span>
-                  <span className="workflow-editor-inspector-empty-pill">目标：不新增第四栏</span>
+              <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+                {persistBlockedMessage ? (
+                  <div className="workflow-editor-inspector-section">
+                    <div className="workflow-editor-inspector-section-title">Inspector remediation</div>
+                    <WorkflowPersistBlockerNotice
+                      title="Save gate"
+                      summary={persistBlockerSummary ?? persistBlockedMessage}
+                      blockers={persistBlockers}
+                      sandboxReadiness={sandboxReadiness}
+                      currentHref={currentHref}
+                      hideRecommendedNextStep={false}
+                    />
+                  </div>
+                ) : null}
+                <div className="workflow-editor-inspector-empty-state">
+                  <Empty
+                    description="选中节点后再编辑节点配置；未选中时，右侧回到应用级设置。"
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  />
+                  <div className="workflow-editor-inspector-empty-hints">
+                    <span className="workflow-editor-inspector-empty-pill">节点：配置 / I/O / 运行 / AI</span>
+                    <span className="workflow-editor-inspector-empty-pill">应用：变量 / 发布</span>
+                    <span className="workflow-editor-inspector-empty-pill">右侧只保留一个焦点面板</span>
+                  </div>
                 </div>
-              </div>
+              </Space>
             )
           },
           {
