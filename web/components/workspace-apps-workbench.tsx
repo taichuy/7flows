@@ -157,6 +157,7 @@ function WorkspaceScopePills({ scopePills }: { scopePills: WorkspaceScopePill[] 
 function WorkspaceCreateRail({
   activeModeDescription,
   activeModeLabel,
+  compact = false,
   quickCreateEntries,
   starterHighlights,
   requestedKeyword,
@@ -165,6 +166,7 @@ function WorkspaceCreateRail({
 }: {
   activeModeDescription: string;
   activeModeLabel: string | null;
+  compact?: boolean;
   quickCreateEntries: WorkspaceQuickCreateEntry[];
   starterHighlights: WorkspaceStarterHighlight[];
   requestedKeyword: string;
@@ -180,10 +182,13 @@ function WorkspaceCreateRail({
   });
 
   return (
-    <div className="workspace-create-rail" aria-label="Workspace create actions">
+    <div
+      className={`workspace-create-rail workspace-catalog-card${compact ? " workspace-create-rail-compact" : ""}`}
+      aria-label="Workspace create actions"
+    >
       <div className="workspace-create-rail-copy">
         <p className="workspace-app-card-caption">Create</p>
-        <h3>{activeModeLabel ? `${activeModeLabel} 创建入口` : "像 Dify 一样从应用入口开始"}</h3>
+        <h3>{activeModeLabel ? `${activeModeLabel} 创建入口` : compact ? "新建应用" : "像 Dify 一样从应用入口开始"}</h3>
         <p className="workspace-muted workspace-card-copy workspace-create-rail-summary">
           {requestedKeyword ? `${currentScopeSummary}，命中后直接继续进入 xyflow。` : activeModeDescription}
         </p>
@@ -229,7 +234,7 @@ function WorkspaceCreateRail({
 
         {primaryStarter ? (
           <Link className="workspace-create-rail-starter" href={primaryStarter.href}>
-            <span>推荐 Starter</span>
+            <span>{compact ? "推荐起点" : "推荐 Starter"}</span>
             <strong>{primaryStarter.name}</strong>
             <small>
               {primaryStarter.priority} · {primaryStarter.modeShortLabel} · {primaryStarter.description}
@@ -278,8 +283,8 @@ function WorkspaceAppTile({
     card.status === "published"
       ? "已发布，可继续核对版本、运行与调用状态。"
       : card.followUpCount > 0
-        ? `优先处理 ${card.followUpCount} 个治理待办，再继续进入画布。`
-        : "草稿已就绪，可直接回到 xyflow 继续编排。";
+        ? `优先处理 ${card.followUpCount} 个治理待办。`
+        : "草稿已就绪，可继续进入画布。";
 
   return (
     <article className="workspace-app-row workspace-catalog-card" key={card.id}>
@@ -307,8 +312,8 @@ function WorkspaceAppTile({
 
         <p className="workspace-app-description workspace-app-row-description">{appDigest}</p>
 
-        <div className="workspace-app-next-step" aria-label={`${card.name} next step`}>
-          <span>下一步</span>
+        <div className="workspace-app-guidance" aria-label={`${card.name} next step`}>
+          <span>{card.followUpCount > 0 ? "治理优先" : "下一步"}</span>
           <p>{card.recommendedNextStep}</p>
         </div>
 
@@ -369,7 +374,7 @@ export function WorkspaceAppsWorkbench({
     ? `当前按“${requestedKeyword}”筛选应用；命中后直接进入 xyflow 继续编排。`
     : activeModeLabel
       ? `当前聚焦 ${activeModeLabel}：${activeModeDescription}`
-      : "参考 Dify 的工作室：工作台先承担创建、筛选和继续进入 Studio 这三件事。";
+      : "参考 Dify 的工作台：先筛选应用，再进入 Studio。";
 
   return (
     <main className="workspace-main workspace-home-main workspace-home-main-flat workspace-board-page">
@@ -440,32 +445,46 @@ export function WorkspaceAppsWorkbench({
         </section>
 
         <section className="workspace-app-section workspace-app-section-dify workspace-catalog-section workspace-catalog-section-studio">
-          <div className="workspace-app-section-header workspace-app-section-header-dify workspace-app-section-header-board">
+          <div className="workspace-app-section-header workspace-app-section-header-dify workspace-app-section-header-board workspace-app-section-header-board-compact">
             <div className="workspace-app-section-heading">
               <p className="workspace-eyebrow">Applications</p>
               <h2>应用目录 · {visibleAppSummary}</h2>
               <p className="workspace-muted workspace-copy-wide">
-                保留创建、筛选和继续进入 Studio 三条主链，不在这里堆编辑器说明。
+                保留创建、筛选和进入 Studio 三条主链，不在列表里堆编辑器说明。
               </p>
             </div>
-
-            <WorkspaceCreateRail
-              activeModeDescription={activeModeDescription}
-              activeModeLabel={activeModeLabel}
-              quickCreateEntries={quickCreateEntries}
-              requestedKeyword={requestedKeyword}
-              starterCount={starterCount}
-              starterHighlights={starterHighlights}
-              workspaceUtilityEntry={workspaceUtilityEntry}
-            />
           </div>
 
-          <div className="workspace-app-list-shell">
-            {filteredApps.length === 0 ? <WorkspaceEmptyTile activeModeLabel={activeModeLabel} /> : null}
+          <div className="workspace-catalog-layout">
+            <aside className="workspace-catalog-rail">
+              <WorkspaceCreateRail
+                activeModeDescription={activeModeDescription}
+                activeModeLabel={activeModeLabel}
+                compact
+                quickCreateEntries={quickCreateEntries}
+                requestedKeyword={requestedKeyword}
+                starterCount={starterCount}
+                starterHighlights={starterHighlights}
+                workspaceUtilityEntry={workspaceUtilityEntry}
+              />
+            </aside>
 
-            {filteredApps.map((card) => (
-              <WorkspaceAppTile card={card} currentUserDisplayName={currentUserDisplayName} key={card.id} />
-            ))}
+            <div className="workspace-app-list-stage">
+              <div className="workspace-app-list-stage-header">
+                <p className="workspace-app-list-stage-summary">{visibleAppSummary}</p>
+                <p className="workspace-muted workspace-app-list-stage-copy">
+                  选中应用后直接回到 xyflow；列表只保留状态、治理与下一步。
+                </p>
+              </div>
+
+              <div className="workspace-app-list-shell">
+                {filteredApps.length === 0 ? <WorkspaceEmptyTile activeModeLabel={activeModeLabel} /> : null}
+
+                {filteredApps.map((card) => (
+                  <WorkspaceAppTile card={card} currentUserDisplayName={currentUserDisplayName} key={card.id} />
+                ))}
+              </div>
+            </div>
           </div>
         </section>
       </section>

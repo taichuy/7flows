@@ -10,7 +10,10 @@ export type WorkflowListItem = {
   name: string;
   version: string;
   status: string;
+  updated_at?: string;
   node_count: number;
+  node_types?: string[];
+  publish_count?: number;
   definition_issues?: WorkflowDefinitionPreflightIssue[];
   tool_governance: WorkflowToolGovernanceSummary;
   legacy_auth_governance?: WorkflowLegacyAuthGovernanceSummary | null;

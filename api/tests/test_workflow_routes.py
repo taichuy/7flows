@@ -3101,7 +3101,10 @@ def test_workflow_routes_expose_tool_governance_summary(
     list_body = list_response.json()
     assert len(list_body) == 1
     assert list_body[0]["id"] == workflow.id
+    assert list_body[0]["updated_at"] == workflow.updated_at.isoformat().replace("+00:00", "Z")
     assert list_body[0]["node_count"] == 4
+    assert list_body[0]["node_types"] == ["trigger", "tool", "llm_agent", "output"]
+    assert list_body[0]["publish_count"] == 0
     assert list_body[0]["tool_governance"] == {
         "referenced_tool_ids": ["native.risk-search", "native.catalog-gap"],
         "missing_tool_ids": ["native.catalog-gap"],
@@ -3113,6 +3116,9 @@ def test_workflow_routes_expose_tool_governance_summary(
 
     assert detail_response.status_code == 200
     detail_body = detail_response.json()
+    assert detail_body["updated_at"] == list_body[0]["updated_at"]
     assert detail_body["node_count"] == 4
+    assert detail_body["node_types"] == list_body[0]["node_types"]
+    assert detail_body["publish_count"] == list_body[0]["publish_count"]
     assert detail_body["tool_governance"] == list_body[0]["tool_governance"]
     assert len(detail_body["versions"]) == 1

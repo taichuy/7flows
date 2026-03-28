@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import WorkspacePage from "@/app/workspace/page";
 import { getSystemOverview } from "@/lib/get-system-overview";
-import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
+import { getWorkflows } from "@/lib/get-workflows";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import { buildSystemOverviewFixture } from "@/lib/workbench-page-test-fixtures";
@@ -34,7 +34,6 @@ vi.mock("@/lib/server-workspace-access", () => ({
 }));
 
 vi.mock("@/lib/get-workflows", () => ({
-  getWorkflowDetail: vi.fn(),
   getWorkflows: vi.fn()
 }));
 
@@ -116,32 +115,6 @@ function buildEditorWorkspaceContext() {
   } as Awaited<ReturnType<typeof getServerWorkspaceContext>>;
 }
 
-function buildWorkflowDetailFixture(overrides: Partial<NonNullable<Awaited<ReturnType<typeof getWorkflowDetail>>>> = {}) {
-  return {
-    id: "workflow-chatflow",
-    name: "ChatFlow Alpha",
-    version: "0.1.0",
-    status: "draft",
-    node_count: 4,
-    tool_governance: {
-      referenced_tool_ids: ["tool.alpha"],
-      missing_tool_ids: ["tool.alpha"],
-      governed_tool_count: 1,
-      strong_isolation_tool_count: 0
-    },
-    definition_issues: [],
-    definition: {
-      nodes: [],
-      edges: [],
-      publish: []
-    },
-    created_at: "2026-03-27T09:00:00Z",
-    updated_at: "2026-03-28T09:30:00Z",
-    versions: [],
-    ...overrides
-  } as NonNullable<Awaited<ReturnType<typeof getWorkflowDetail>>>;
-}
-
 function buildWorkflowLibrarySnapshotFixture(
   overrides: Partial<Awaited<ReturnType<typeof getWorkflowLibrarySnapshot>>> = {}
 ) {
@@ -165,7 +138,10 @@ describe("WorkspacePage", () => {
         name: "ChatFlow Alpha",
         version: "0.1.0",
         status: "draft",
+        updated_at: "2026-03-28T09:30:00Z",
         node_count: 4,
+        node_types: ["trigger", "output"],
+        publish_count: 0,
         tool_governance: {
           referenced_tool_ids: ["tool.alpha"],
           missing_tool_ids: ["tool.alpha"],
@@ -179,7 +155,10 @@ describe("WorkspacePage", () => {
         name: "API Publish Beta",
         version: "0.2.0",
         status: "published",
+        updated_at: "2026-03-28T10:30:00Z",
         node_count: 3,
+        node_types: ["trigger", "output"],
+        publish_count: 1,
         tool_governance: {
           referenced_tool_ids: [],
           missing_tool_ids: [],
@@ -189,26 +168,6 @@ describe("WorkspacePage", () => {
         definition_issues: []
       }
     ]);
-    vi.mocked(getWorkflowDetail)
-      .mockResolvedValueOnce(buildWorkflowDetailFixture())
-      .mockResolvedValueOnce(
-        buildWorkflowDetailFixture({
-          id: "workflow-api",
-          name: "API Publish Beta",
-          status: "published",
-          tool_governance: {
-            referenced_tool_ids: [],
-            missing_tool_ids: [],
-            governed_tool_count: 1,
-            strong_isolation_tool_count: 0
-          },
-          definition: {
-            nodes: [],
-            edges: [],
-            publish: [{ id: "publish-1" }]
-          }
-        })
-      );
     vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshotFixture({
       starters: [
         {
@@ -288,13 +247,13 @@ describe("WorkspacePage", () => {
     expect(html).toContain("搜索应用、Agent、工具链或治理焦点");
     expect(html).toContain("创建空白应用");
     expect(html).toContain("从 Starter 模板创建");
-    expect(html).toContain("推荐 Starter");
+    expect(html).toContain("推荐起点");
     expect(html).toContain("Starter ChatFlow");
-    expect(html).toContain("参考 Dify 的工作室：工作台先承担创建、筛选和继续进入 Studio 这三件事。");
+    expect(html).toContain("参考 Dify 的工作台：先筛选应用，再进入 Studio。");
     expect(html).toContain("管理成员与权限");
     expect(html).toContain("应用目录 · 全部 2 个应用");
     expect(html).toContain("继续进入 xyflow");
-    expect(html).toContain("优先处理 1 个治理待办，再继续进入画布。");
+    expect(html).toContain("优先处理 1 个治理待办。");
     expect(html).toContain('href="/workflows/new"');
     expect(html).toContain('href="/workspace-starters"');
     expect(html).toContain('href="/admin/members"');
@@ -309,7 +268,10 @@ describe("WorkspacePage", () => {
         name: "ChatFlow Alpha",
         version: "0.1.0",
         status: "draft",
+        updated_at: "2026-03-28T09:30:00Z",
         node_count: 4,
+        node_types: ["trigger", "output"],
+        publish_count: 0,
         tool_governance: {
           referenced_tool_ids: ["tool.alpha"],
           missing_tool_ids: [],
@@ -323,7 +285,10 @@ describe("WorkspacePage", () => {
         name: "Plugin Bridge",
         version: "0.1.0",
         status: "draft",
+        updated_at: "2026-03-28T10:00:00Z",
         node_count: 4,
+        node_types: ["trigger", "tool", "output"],
+        publish_count: 0,
         tool_governance: {
           referenced_tool_ids: [],
           missing_tool_ids: [],
@@ -333,30 +298,6 @@ describe("WorkspacePage", () => {
         definition_issues: []
       }
     ]);
-    vi.mocked(getWorkflowDetail)
-      .mockResolvedValueOnce(
-        buildWorkflowDetailFixture({
-          id: "workflow-chatflow",
-          name: "ChatFlow Alpha"
-        })
-      )
-      .mockResolvedValueOnce(
-        buildWorkflowDetailFixture({
-          id: "workflow-plugin",
-          name: "Plugin Bridge",
-          definition: {
-            nodes: [
-              {
-                id: "node-plugin",
-                type: "tool",
-                name: "Plugin tool"
-              }
-            ],
-            edges: [],
-            publish: []
-          }
-        })
-      );
     vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshotFixture());
     vi.mocked(getSystemOverview).mockResolvedValue(
       buildSystemOverviewFixture({
@@ -402,7 +343,10 @@ describe("WorkspacePage", () => {
         name: "ChatFlow Alpha",
         version: "0.1.0",
         status: "draft",
+        updated_at: "2026-03-28T09:30:00Z",
         node_count: 3,
+        node_types: ["trigger", "output"],
+        publish_count: 0,
         tool_governance: {
           referenced_tool_ids: [],
           missing_tool_ids: [],
@@ -416,7 +360,10 @@ describe("WorkspacePage", () => {
         name: "Agent Ops",
         version: "0.2.0",
         status: "draft",
+        updated_at: "2026-03-28T10:30:00Z",
         node_count: 4,
+        node_types: ["llm_agent", "output"],
+        publish_count: 0,
         tool_governance: {
           referenced_tool_ids: [],
           missing_tool_ids: [],
@@ -426,46 +373,6 @@ describe("WorkspacePage", () => {
         definition_issues: []
       }
     ]);
-    vi.mocked(getWorkflowDetail)
-      .mockResolvedValueOnce(
-        buildWorkflowDetailFixture({
-          id: "workflow-chatflow",
-          name: "ChatFlow Alpha",
-          definition: {
-            nodes: [
-              {
-                id: "trigger",
-                type: "trigger",
-                name: "Trigger"
-              },
-              {
-                id: "output",
-                type: "output",
-                name: "Output"
-              }
-            ],
-            edges: [],
-            publish: []
-          }
-        })
-      )
-      .mockResolvedValueOnce(
-        buildWorkflowDetailFixture({
-          id: "workflow-agent",
-          name: "Agent Ops",
-          definition: {
-            nodes: [
-              {
-                id: "agent",
-                type: "llm_agent",
-                name: "Agent"
-              }
-            ],
-            edges: [],
-            publish: []
-          }
-        })
-      );
     vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshotFixture());
     vi.mocked(getSystemOverview).mockResolvedValue(buildSystemOverviewFixture());
 
@@ -487,7 +394,6 @@ describe("WorkspacePage", () => {
   it("shows starter showcase cards when the workspace has no apps yet", async () => {
     vi.mocked(getServerWorkspaceContext).mockResolvedValue(buildWorkspaceContext());
     vi.mocked(getWorkflows).mockResolvedValue([]);
-    vi.mocked(getWorkflowDetail).mockResolvedValue(null);
     vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshotFixture({
       starters: [
         {
@@ -531,14 +437,13 @@ describe("WorkspacePage", () => {
 
     expect(html).toContain("当前筛选范围内还没有应用");
     expect(html).toContain("Blank Flow");
-    expect(html).toContain("推荐 Starter");
+    expect(html).toContain("推荐起点");
     expect(html).toContain("Starter 模板");
   });
 
   it("hides member-admin entrypoints for editors without member permissions", async () => {
     vi.mocked(getServerWorkspaceContext).mockResolvedValue(buildEditorWorkspaceContext());
     vi.mocked(getWorkflows).mockResolvedValue([]);
-    vi.mocked(getWorkflowDetail).mockResolvedValue(null);
     vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue(buildWorkflowLibrarySnapshotFixture());
     vi.mocked(getSystemOverview).mockResolvedValue(
       buildSystemOverviewFixture({

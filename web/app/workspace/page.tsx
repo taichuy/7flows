@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { WorkspaceAppsWorkbench } from "@/components/workspace-apps-workbench";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { getSystemOverview } from "@/lib/get-system-overview";
-import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
+import { getWorkflows } from "@/lib/get-workflows";
 import {
   getWorkspaceAppModeMeta,
   inferWorkspaceAppMode,
@@ -117,16 +117,18 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
     getWorkflowLibrarySnapshot(),
     getSystemOverview()
   ]);
-  const workflowDetails = (
-    await Promise.all(workflowSummaries.map((workflow) => getWorkflowDetail(workflow.id)))
-  ).filter((workflow): workflow is NonNullable<typeof workflow> => Boolean(workflow));
-
-  const appCards: WorkspaceAppCard[] = workflowDetails.map((workflow) => {
-    const mode = getWorkspaceAppModeMeta(inferWorkspaceAppMode(workflow.definition));
-    const track = getWorkflowBusinessTrack(inferWorkflowBusinessTrack(workflow.definition));
-    const publishCount = Array.isArray(workflow.definition.publish)
-      ? workflow.definition.publish.length
-      : 0;
+  const appCards: WorkspaceAppCard[] = workflowSummaries.map((workflow) => {
+    const mode = getWorkspaceAppModeMeta(
+      inferWorkspaceAppMode({
+        nodeTypes: workflow.node_types ?? []
+      })
+    );
+    const track = getWorkflowBusinessTrack(
+      inferWorkflowBusinessTrack({
+        nodeTypes: workflow.node_types ?? [],
+        publishCount: workflow.publish_count ?? 0
+      })
+    );
     const missingToolCount = workflow.tool_governance.missing_tool_ids.length;
     const followUpCount = missingToolCount + (workflow.definition_issues?.length ?? 0);
     const healthLabel =
@@ -151,8 +153,8 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
             : "继续在 xyflow 完成节点配置、上下文授权和发布准备。",
       track,
       nodeCount: workflow.node_count,
-      publishCount,
-      updatedAt: workflow.updated_at,
+      publishCount: workflow.publish_count ?? 0,
+      updatedAt: workflow.updated_at ?? new Date(0).toISOString(),
       missingToolCount,
       followUpCount
     };
@@ -363,7 +365,7 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
   const currentRoleLabel = formatWorkspaceRole(workspaceContext.current_member.role);
   const activeModeDescription =
     activeMode === "all"
-      ? "像 Dify 一样先按应用类型收敛入口，再进入 7Flows 的 xyflow 编排。"
+      ? "像 Dify 一样先筛选、再创建、再回到 7Flows 的 xyflow。"
       : activeModeMeta?.description ?? "当前应用入口会继续回到 xyflow 事实源。";
 
   return (

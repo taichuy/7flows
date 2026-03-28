@@ -35,6 +35,11 @@ describe("workspace-app-modes", () => {
         nodes: [{ id: "sandbox", type: "sandbox_code" }]
       })
     ).toBe("sandbox");
+    expect(
+      inferWorkspaceAppMode({
+        nodeTypes: ["trigger", "tool", "output"]
+      })
+    ).toBe("tool_agent");
   });
 
   it("exposes stable workspace mode metadata", () => {

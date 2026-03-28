@@ -199,7 +199,10 @@ class WorkflowListItem(BaseModel):
     name: str
     version: str
     status: str
+    updated_at: datetime
     node_count: int = Field(default=0, ge=0)
+    node_types: list[str] = Field(default_factory=list)
+    publish_count: int = Field(default=0, ge=0)
     tool_governance: WorkflowToolGovernanceSummary = Field(
         default_factory=WorkflowToolGovernanceSummary
     )
@@ -220,5 +223,4 @@ class WorkflowVersionItem(BaseModel):
 class WorkflowDetail(WorkflowListItem):
     definition: dict
     created_at: datetime
-    updated_at: datetime
     versions: list[WorkflowVersionItem] = Field(default_factory=list)

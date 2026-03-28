@@ -54,6 +54,11 @@ export type WorkflowStarterTrackItem = {
   recommendedStarterId: WorkflowStarterTemplateId | null;
 };
 
+type WorkflowBusinessTrackDefinitionLike = Partial<WorkflowDefinition> & {
+  nodeTypes?: string[];
+  publishCount?: number;
+};
+
 export function buildWorkflowStarterTemplates(
   starters: WorkflowLibraryStarterItem[],
   nodeCatalog: WorkflowNodeCatalogItem[],
@@ -84,14 +89,23 @@ export function buildWorkflowStarterTracks(
 }
 
 export function inferWorkflowBusinessTrack(
-  definition: WorkflowDefinition
+  definition: WorkflowBusinessTrackDefinitionLike
 ): WorkflowBusinessTrack {
   const nodeTypes = new Set(
-    (definition.nodes ?? [])
-      .map((node) => (typeof node.type === "string" ? node.type : ""))
-      .filter(Boolean)
+    Array.isArray(definition.nodeTypes) && definition.nodeTypes.length > 0
+      ? definition.nodeTypes.filter(
+          (nodeType): nodeType is string => typeof nodeType === "string" && nodeType.length > 0
+        )
+      : (definition.nodes ?? [])
+          .map((node) => (typeof node.type === "string" ? node.type : ""))
+          .filter(Boolean)
   );
-  const publishCount = Array.isArray(definition.publish) ? definition.publish.length : 0;
+  const publishCount =
+    typeof definition.publishCount === "number"
+      ? definition.publishCount
+      : Array.isArray(definition.publish)
+        ? definition.publish.length
+        : 0;
   const outputNodes = (definition.nodes ?? []).filter((node) => node.type === "output");
 
   if (

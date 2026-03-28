@@ -39,6 +39,15 @@ describe("inferWorkflowBusinessTrack", () => {
     ).toBe("编排节点能力");
   });
 
+  it("can classify lightweight workflow summaries without full definitions", () => {
+    expect(
+      inferWorkflowBusinessTrack({
+        nodeTypes: ["trigger", "output"],
+        publishCount: 1
+      })
+    ).toBe("API 调用开放");
+  });
+
   it("keeps workspace source-governance binding facts on starter templates", () => {
     const templates = buildWorkflowStarterTemplates(
       [

@@ -70,6 +70,25 @@ def sort_workflow_versions(versions: list[WorkflowVersion]) -> list[WorkflowVers
     )
 
 
+def summarize_workflow_definition_node_types(definition: dict[str, Any]) -> list[str]:
+    seen: set[str] = set()
+    node_types: list[str] = []
+    for node in definition.get("nodes", []):
+        if not isinstance(node, dict):
+            continue
+        node_type = node.get("type")
+        if not isinstance(node_type, str) or not node_type or node_type in seen:
+            continue
+        seen.add(node_type)
+        node_types.append(node_type)
+    return node_types
+
+
+def count_workflow_publish_endpoints(definition: dict[str, Any]) -> int:
+    publish_entries = definition.get("publish")
+    return len(publish_entries) if isinstance(publish_entries, list) else 0
+
+
 def load_compiled_blueprint_lookup(
     db: Session,
     workflow_id: str,
@@ -111,12 +130,17 @@ def serialize_workflow_detail(
 ) -> WorkflowDetail:
     compiled_blueprints = compiled_blueprints or {}
     tool_index = tool_index or {}
+    node_types = summarize_workflow_definition_node_types(workflow.definition)
+    publish_count = count_workflow_publish_endpoints(workflow.definition)
     return WorkflowDetail(
         id=workflow.id,
         name=workflow.name,
         version=workflow.version,
         status=workflow.status,
+        updated_at=workflow.updated_at,
         node_count=count_workflow_nodes(workflow.definition),
+        node_types=node_types,
+        publish_count=publish_count,
         tool_governance=summarize_workflow_definition_tool_governance(
             workflow.definition,
             tool_index=tool_index,
@@ -125,7 +149,6 @@ def serialize_workflow_detail(
         definition=workflow.definition,
         definition_issues=definition_issues or [],
         created_at=workflow.created_at,
-        updated_at=workflow.updated_at,
         versions=[
             serialize_workflow_version_item(
                 version,
@@ -149,12 +172,17 @@ def serialize_workflow_list_item(
         workflow.definition,
         tool_index=tool_index,
     )
+    node_types = summarize_workflow_definition_node_types(workflow.definition)
+    publish_count = count_workflow_publish_endpoints(workflow.definition)
     return WorkflowListItem(
         id=workflow.id,
         name=workflow.name,
         version=workflow.version,
         status=workflow.status,
+        updated_at=workflow.updated_at,
         node_count=count_workflow_nodes(workflow.definition),
+        node_types=node_types,
+        publish_count=publish_count,
         tool_governance=tool_governance,
         legacy_auth_governance=legacy_auth_governance,
         definition_issues=definition_issues or [],

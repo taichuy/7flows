@@ -1,11 +1,22 @@
 export type WorkspaceAppModeId = "all" | "chatflow" | "agent" | "tool_agent" | "sandbox";
 
 export type WorkspaceDefinitionLike = {
+  nodeTypes?: string[];
   nodes?: Array<{
     type?: string | null;
     [key: string]: unknown;
   }>;
 };
+
+function collectNodeTypes(definition: WorkspaceDefinitionLike) {
+  if (Array.isArray(definition.nodeTypes) && definition.nodeTypes.length > 0) {
+    return definition.nodeTypes.filter((nodeType): nodeType is string => typeof nodeType === "string" && nodeType.length > 0);
+  }
+
+  return (definition.nodes ?? [])
+    .map((node) => (typeof node.type === "string" ? node.type : ""))
+    .filter(Boolean);
+}
 
 export type WorkspaceAppModeMeta = {
   id: Exclude<WorkspaceAppModeId, "all">;
@@ -61,11 +72,7 @@ export function isWorkspaceAppModeId(value: string): value is WorkspaceAppModeId
 }
 
 export function inferWorkspaceAppMode(definition: WorkspaceDefinitionLike): WorkspaceAppModeMeta["id"] {
-  const nodeTypes = new Set(
-    (definition.nodes ?? [])
-      .map((node) => (typeof node.type === "string" ? node.type : ""))
-      .filter(Boolean)
-  );
+  const nodeTypes = new Set(collectNodeTypes(definition));
 
   if (nodeTypes.has("sandbox_code")) {
     return "sandbox";

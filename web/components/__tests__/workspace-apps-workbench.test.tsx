@@ -97,6 +97,7 @@ describe("WorkspaceAppsWorkbench", () => {
     );
 
     expect(html).toContain("workspace-create-rail");
+    expect(html).toContain("workspace-catalog-layout");
     expect(html).toContain("创建空白应用");
     expect(html).toContain("workspace-app-row");
     expect(html).toContain("管理成员与权限");
