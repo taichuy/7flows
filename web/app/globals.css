@@ -3273,6 +3273,7 @@ a {
 .editor-canvas-panel {
   min-width: 0;
   position: relative;
+  width: 100%;
   background:
     radial-gradient(circle at top, rgba(191, 212, 255, 0.26), transparent 30%),
     linear-gradient(180deg, #f5f7fb 0%, #eef3fb 100%);
@@ -3289,6 +3290,7 @@ a {
 }
 
 .editor-canvas {
+  width: 100%;
   height: 100%;
 }
 
@@ -3304,13 +3306,57 @@ a {
   box-shadow: 0 10px 32px rgba(15, 23, 42, 0.08);
 }
 
-.workflow-canvas-node {
-  min-width: 170px;
-  padding: 16px 18px;
-  border-radius: 20px;
+.editor-canvas .react-flow__controls {
+  bottom: 18px;
+  left: 18px;
+}
+
+.editor-canvas .react-flow__minimap {
+  right: 18px;
+  bottom: 18px;
+}
+
+.editor-canvas .react-flow__edge-path,
+.editor-canvas .react-flow__connection-path {
+  stroke: #c6d4ea;
+  stroke-width: 2;
+}
+
+.editor-canvas .react-flow__edge.selected .react-flow__edge-path {
+  stroke: #1f5ed5;
+}
+
+.workflow-canvas-helper-panel {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 320px;
+  margin: 18px;
+  padding: 12px 14px;
   border: 1px solid rgba(31, 94, 213, 0.12);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  color: #526079;
+  font-size: 0.78rem;
+}
+
+.workflow-canvas-helper-panel strong {
+  color: #101828;
+  font-size: 0.84rem;
+}
+
+.workflow-canvas-node {
+  position: relative;
+  min-width: 260px;
+  padding: 14px;
+  border-radius: 24px;
+  border: 1px solid rgba(31, 94, 213, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 255, 0.96)),
+    rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+  overflow: visible;
 }
 
 .workflow-canvas-node.selected {
@@ -3340,24 +3386,263 @@ a {
   border-color: rgba(28, 25, 21, 0.18);
 }
 
+.workflow-canvas-node-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.workflow-canvas-node-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workflow-canvas-node-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #526079;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+}
+
+.workflow-canvas-node-action-button.open,
+.workflow-canvas-node-action-button:hover {
+  border-color: rgba(31, 94, 213, 0.2);
+  color: #1f5ed5;
+}
+
+.workflow-canvas-node-action-button.danger:hover {
+  border-color: rgba(191, 36, 36, 0.2);
+  color: #b42318;
+}
+
+.workflow-canvas-node-action-menu {
+  position: absolute;
+  top: 50px;
+  right: 12px;
+  z-index: 4;
+  display: grid;
+  gap: 6px;
+  min-width: 164px;
+  padding: 8px;
+  border: 1px solid rgba(31, 94, 213, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.14);
+}
+
+.workflow-canvas-node-action-menu-item {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #101828;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-canvas-node-action-menu-item:hover {
+  background: #f5f9ff;
+}
+
+.workflow-canvas-node-action-menu-item.danger {
+  color: #b42318;
+}
+
+.workflow-canvas-node-action-menu-item.danger:hover {
+  background: rgba(180, 35, 24, 0.08);
+}
+
+.workflow-canvas-node-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--node-accent) 16%, white);
+  color: var(--node-accent);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.workflow-canvas-node-head-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.workflow-canvas-node-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .workflow-canvas-node-label {
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
+.workflow-canvas-node-kind {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(31, 94, 213, 0.08);
+  color: #1f5ed5;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .workflow-canvas-node-type {
-  margin-top: 8px;
   color: var(--muted);
-  font-size: 0.82rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+.workflow-canvas-node-description {
+  margin-top: 12px;
+  color: #526079;
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.workflow-canvas-node-quick-add {
+  position: absolute;
+  top: 50%;
+  right: -76px;
+  transform: translateY(-50%);
+}
+
+.workflow-canvas-node-quick-add-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid rgba(31, 94, 213, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  color: #1f5ed5;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.workflow-canvas-node-quick-add-trigger.open {
+  background: #1f5ed5;
+  color: #ffffff;
+}
+
+.workflow-canvas-node-quick-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 320px;
+  padding: 12px;
+  border: 1px solid rgba(31, 94, 213, 0.12);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 22px 52px rgba(15, 23, 42, 0.16);
+}
+
+.workflow-canvas-node-quick-menu-header {
+  display: grid;
+  gap: 4px;
+  color: #526079;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.workflow-canvas-node-quick-menu-header strong {
+  color: #101828;
+  font-size: 0.84rem;
+}
+
+.workflow-canvas-node-quick-menu-header span {
+  color: #667085;
+}
+
+.workflow-canvas-node-quick-menu-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.workflow-canvas-node-quick-section {
+  display: grid;
+  gap: 8px;
+}
+
+.workflow-canvas-node-quick-section-label {
+  color: #526079;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.workflow-canvas-node-quick-section-list {
+  display: grid;
+  gap: 8px;
+}
+
+.workflow-canvas-node-quick-option {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #e4ebf5;
+  border-radius: 16px;
+  background: #fbfdff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-canvas-node-quick-option:hover {
+  border-color: rgba(31, 94, 213, 0.2);
+  background: #f5f9ff;
+}
+
+.workflow-canvas-node-quick-option-label {
+  color: #101828;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.workflow-canvas-node-quick-option-meta,
+.workflow-canvas-node-quick-option-copy {
+  color: #667085;
+  font-size: 0.74rem;
+  line-height: 1.45;
 }
 
 .workflow-canvas-node-runtime {
   display: grid;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(228, 235, 245, 0.9);
 }
 
 .workflow-canvas-node-runtime-meta {
@@ -3384,10 +3669,11 @@ a {
 }
 
 .workflow-canvas-node .react-flow__handle {
-  width: 10px;
-  height: 10px;
-  border: 2px solid #fff8ef;
+  width: 12px;
+  height: 12px;
+  border: 2px solid #ffffff;
   background: var(--node-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--node-accent) 12%, transparent);
 }
 
 .runtime-overlay-select {
@@ -3669,6 +3955,68 @@ a {
 .starter-card-footer-action {
   color: #2563eb;
   font-weight: 600;
+}
+
+.starter-browser-list-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.starter-list {
+  display: grid;
+  gap: 12px;
+}
+
+.starter-list-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
+  gap: 16px;
+  width: 100%;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid #e4e9f3;
+  background: rgba(255, 255, 255, 0.96);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.starter-list-row:hover,
+.starter-list-row:focus-within,
+.starter-list-row.selected {
+  transform: translateY(-1px);
+  border-color: #cfe0ff;
+  box-shadow: 0 18px 42px rgba(37, 99, 235, 0.12);
+}
+
+.starter-list-row-main,
+.starter-list-row-side {
+  display: grid;
+  gap: 12px;
+}
+
+.starter-list-row-header {
+  align-items: flex-start;
+}
+
+.starter-list-row-description {
+  -webkit-line-clamp: 3;
+}
+
+.starter-list-row-labels {
+  margin-top: 0;
+}
+
+.starter-list-row-meta {
+  justify-content: flex-end;
+}
+
+.starter-list-row-footer {
+  margin-top: auto;
 }
 
 .starter-summary-card {
@@ -3998,6 +4346,15 @@ a {
   align-content: start;
 }
 
+.workflow-create-side-section {
+  display: grid;
+  gap: 14px;
+}
+
+.workflow-create-side-section-header {
+  gap: 0;
+}
+
 .workflow-create-recent-header h3 {
   margin: 4px 0 6px;
   color: #111827;
@@ -4014,9 +4371,50 @@ a {
   gap: 12px;
 }
 
+.workflow-create-recent-list {
+  display: grid;
+  gap: 10px;
+}
+
+.workflow-create-recent-link {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #e7ecf4;
+  background: #fbfcff;
+  color: inherit;
+  text-decoration: none;
+}
+
+.workflow-create-recent-link:hover {
+  border-color: #c9d8ff;
+  box-shadow: 0 10px 24px rgba(49, 92, 236, 0.08);
+}
+
+.workflow-create-recent-link strong {
+  color: #111827;
+}
+
+.workflow-create-recent-link p {
+  margin: 4px 0 0;
+  color: #667085;
+}
+
+.workflow-create-recent-link > span {
+  color: #315cec;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .workflow-create-side {
   position: sticky;
   top: 92px;
+  display: grid;
+  gap: 14px;
 }
 
 .workflow-create-form-field {
@@ -5008,6 +5406,174 @@ a {
   gap: 6px;
 }
 
+.workspace-catalog-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.workspace-catalog-rail {
+  position: sticky;
+  top: 92px;
+}
+
+.workspace-app-list-shell {
+  display: grid;
+  gap: 12px;
+}
+
+.workspace-create-rail {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.workspace-create-rail-header,
+.workspace-create-rail-header-side,
+.workspace-create-rail-copy,
+.workspace-create-rail-footer {
+  display: grid;
+  gap: 10px;
+}
+
+.workspace-create-rail-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.workspace-create-rail-header-side {
+  justify-items: end;
+}
+
+.workspace-create-primary-row,
+.workspace-create-secondary-row,
+.workspace-create-recommend-row {
+  color: inherit;
+  text-decoration: none;
+}
+
+.workspace-create-primary-row,
+.workspace-create-secondary-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid #e7ecf4;
+  background: #fbfcff;
+}
+
+.workspace-create-primary-row {
+  border-color: #dbe5ff;
+  background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+}
+
+.workspace-create-primary-row:hover,
+.workspace-create-secondary-row:hover,
+.workspace-create-recommend-row:hover,
+.workspace-create-recent-link:hover {
+  border-color: #c9d8ff;
+  box-shadow: 0 10px 24px rgba(49, 92, 236, 0.08);
+}
+
+.workspace-create-primary-row strong,
+.workspace-create-secondary-row strong,
+.workspace-create-recommend-row strong {
+  color: #101828;
+}
+
+.workspace-create-primary-row p,
+.workspace-create-secondary-row p,
+.workspace-create-recommend-row span {
+  margin: 4px 0 0;
+  color: #667085;
+  line-height: 1.5;
+}
+
+.workspace-create-row-arrow,
+.workspace-create-secondary-row > span {
+  color: #315cec;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.workspace-create-secondary-list {
+  display: grid;
+  gap: 10px;
+}
+
+.workspace-create-recommend-row {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid #e7ecf4;
+  background: #fbfcff;
+}
+
+.workspace-create-recommend-label {
+  color: #315cec;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.workspace-app-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 18px 20px;
+}
+
+.workspace-app-row-main,
+.workspace-app-row-side,
+.workspace-app-row-header {
+  display: grid;
+  gap: 12px;
+}
+
+.workspace-app-row-header {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.workspace-app-row-title-row {
+  gap: 10px;
+}
+
+.workspace-app-row-description {
+  -webkit-line-clamp: 2;
+}
+
+.workspace-app-row-meta {
+  margin-top: -2px;
+}
+
+.workspace-app-row-side {
+  min-width: 220px;
+  justify-items: end;
+  align-content: center;
+}
+
+.workspace-app-row-metrics,
+.workspace-app-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.workspace-app-row-actions {
+  gap: 10px;
+}
+
+.workspace-app-row-identity {
+  min-width: 0;
+}
+
 .workspace-create-board-head-side {
   display: grid;
   justify-items: end;
@@ -5135,6 +5701,41 @@ a {
   border: 1px solid #e7ecf4;
   background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.04);
+}
+
+@media (max-width: 1200px) {
+  .starter-list-row,
+  .workspace-catalog-layout,
+  .workspace-app-row {
+    grid-template-columns: 1fr;
+  }
+
+  .starter-list-row-meta,
+  .starter-card-footer,
+  .workspace-app-row-side,
+  .workspace-app-row-metrics,
+  .workspace-app-row-actions {
+    justify-content: flex-start;
+    justify-items: start;
+  }
+
+  .workspace-catalog-rail,
+  .workflow-create-side {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace-create-rail-header,
+  .workspace-app-row-header {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-create-recent-link,
+  .workspace-create-primary-row,
+  .workspace-create-secondary-row {
+    flex-direction: column;
+  }
 }
 
 .settings-main-panel-dify {

@@ -178,17 +178,17 @@ function WorkspaceCreateBoardCard({
 
   return (
     <article
-      className="workspace-app-card workspace-create-board-card workspace-create-board-card-studio workspace-catalog-card"
+      className="workspace-create-rail workspace-catalog-card"
       key="workspace-create-card"
     >
-      <div className="workspace-create-board-head workspace-create-board-head-studio">
-        <div className="workspace-create-board-copy">
+      <div className="workspace-create-rail-header">
+        <div className="workspace-create-rail-copy">
           <p className="workspace-app-card-caption">创建应用</p>
           <h3>{activeModeLabel ? `创建 ${activeModeLabel} 应用` : "创建应用"}</h3>
           <p className="workspace-muted workspace-card-copy workspace-create-board-summary">{currentScopeSummary}</p>
         </div>
 
-        <div className="workspace-create-board-head-side">
+        <div className="workspace-create-rail-header-side">
           <span className="workspace-create-board-chip">xyflow Studio</span>
           <Link className="workspace-ghost-button compact workspace-create-board-library-link" href="/workspace-starters">
             Starter 模板
@@ -197,17 +197,22 @@ function WorkspaceCreateBoardCard({
       </div>
 
       {primaryEntry ? (
-        <Link className="workspace-create-board-primary" href={primaryEntry.href}>
-          <span className="workspace-create-board-primary-badge">{primaryEntry.badge}</span>
-          <strong>{primaryEntry.title}</strong>
-          <p>{primaryEntry.detail}</p>
+        <Link className="workspace-create-primary-row" href={primaryEntry.href}>
+          <div>
+            <span className="workspace-create-board-primary-badge">{primaryEntry.badge}</span>
+            <strong>{primaryEntry.title}</strong>
+            <p>{primaryEntry.detail}</p>
+          </div>
+          <span className="workspace-create-row-arrow" aria-hidden="true">
+            ↗
+          </span>
         </Link>
       ) : null}
 
       {secondaryEntries.length > 0 ? (
-        <div className="workspace-create-board-secondary-list">
+        <div className="workspace-create-secondary-list">
           {secondaryEntries.map((entry) => (
-            <Link className="workspace-create-board-secondary-entry" href={entry.href} key={entry.title}>
+            <Link className="workspace-create-secondary-row" href={entry.href} key={entry.title}>
               <div>
                 <strong>{entry.title}</strong>
                 <p>{entry.detail}</p>
@@ -218,15 +223,16 @@ function WorkspaceCreateBoardCard({
         </div>
       ) : null}
 
-      <div className="workspace-create-board-footer workspace-create-board-footer-studio workspace-create-board-footer-compact">
+      <div className="workspace-create-rail-footer">
         <div className="workspace-create-board-footnotes">
           <span className="workspace-app-footnote">创建后直达 xyflow Studio</span>
           <span className="workspace-app-footnote">Starter 模板：{starterCount} 个</span>
         </div>
 
         {primaryStarter ? (
-          <Link className="workspace-create-board-starter workspace-create-board-starter-primary" href={primaryStarter.href}>
-            <strong>推荐模板：{primaryStarter.name}</strong>
+          <Link className="workspace-create-recommend-row" href={primaryStarter.href}>
+            <span className="workspace-create-recommend-label">推荐模板</span>
+            <strong>{primaryStarter.name}</strong>
             <span>
               {primaryStarter.priority} · {primaryStarter.modeShortLabel} · {primaryStarter.description}
             </span>
@@ -278,49 +284,48 @@ function WorkspaceAppTile({
         : "草稿已就绪，可直接回到 xyflow 继续补节点和发布配置。";
 
   return (
-    <article
-      className="workspace-app-card workspace-app-card-product workspace-app-card-studio workspace-catalog-card"
-      key={card.id}
-    >
-      <div className="workspace-app-card-header workspace-app-card-header-flat workspace-app-card-header-compact">
-        <div className="workspace-app-card-identity">
-          <div className="workspace-app-icon" aria-hidden="true">
-            {getWorkspaceBadgeLabel(card.name, "A")}
-          </div>
-          <div>
-            <div className="workspace-app-card-title-row">
-              <h3>{card.name}</h3>
-              <span className="workspace-mode-pill">{card.mode.shortLabel}</span>
+    <article className="workspace-app-row workspace-catalog-card" key={card.id}>
+      <div className="workspace-app-row-main">
+        <div className="workspace-app-row-header">
+          <div className="workspace-app-card-identity workspace-app-row-identity">
+            <div className="workspace-app-icon" aria-hidden="true">
+              {getWorkspaceBadgeLabel(card.name, "A")}
             </div>
-            <p className="workspace-app-subtitle workspace-app-subtitle-dify workspace-app-subtitle-compact">
-              {card.track.priority} · {currentUserDisplayName} · 最近更新 {formatTimestamp(card.updatedAt)}
-            </p>
+            <div>
+              <div className="workspace-app-card-title-row workspace-app-row-title-row">
+                <h3>{card.name}</h3>
+                <span className="workspace-mode-pill">{card.mode.shortLabel}</span>
+              </div>
+              <p className="workspace-app-subtitle workspace-app-subtitle-dify workspace-app-subtitle-compact">
+                {card.track.priority} · {currentUserDisplayName} · 最近更新 {formatTimestamp(card.updatedAt)}
+              </p>
+            </div>
           </div>
+
+          <span className={`workspace-status-pill ${card.status === "published" ? "healthy" : "draft"}`}>
+            {card.status === "published" ? "已发布" : "草稿"}
+          </span>
         </div>
 
-        <span className={`workspace-status-pill ${card.status === "published" ? "healthy" : "draft"}`}>
-          {card.status === "published" ? "已发布" : "草稿"}
-        </span>
+        <p className="workspace-app-description workspace-app-row-description">{appDigest}</p>
+
+        <div className="workspace-app-meta-row workspace-app-row-meta" aria-label={`${card.name} workspace hints`}>
+          <span className="workspace-app-meta-pill">{card.mode.label}</span>
+          <span className="workspace-app-meta-pill">{card.track.focus}</span>
+          {card.missingToolCount > 0 ? <span className="workspace-app-meta-pill warning">工具缺口：{card.missingToolCount}</span> : null}
+        </div>
       </div>
 
-      <p className="workspace-app-description">{appDigest}</p>
+      <div className="workspace-app-row-side">
+        <div className="workspace-app-row-metrics" aria-label={`${card.name} metrics`}>
+          <span className="workspace-app-inline-metric">{card.nodeCount} 个节点</span>
+          <span className="workspace-app-inline-metric">{card.publishCount} 个发布端点</span>
+          <span className={`workspace-app-inline-metric ${card.followUpCount > 0 ? "warning" : ""}`}>
+            {signalLabel}
+          </span>
+        </div>
 
-      <div className="workspace-app-meta-row" aria-label={`${card.name} workspace hints`}>
-        <span className="workspace-app-meta-pill">{card.mode.label}</span>
-        <span className="workspace-app-meta-pill">{card.track.focus}</span>
-        {card.missingToolCount > 0 ? <span className="workspace-app-meta-pill warning">工具缺口：{card.missingToolCount}</span> : null}
-      </div>
-
-      <div className="workspace-app-inline-metrics workspace-app-inline-metrics-wrap" aria-label={`${card.name} metrics`}>
-        <span className="workspace-app-inline-metric">{card.nodeCount} 个节点</span>
-        <span className="workspace-app-inline-metric">{card.publishCount} 个发布端点</span>
-        <span className={`workspace-app-inline-metric ${card.followUpCount > 0 ? "warning" : ""}`}>
-          {signalLabel}
-        </span>
-      </div>
-
-      <div className="workspace-app-footer workspace-app-footer-inline workspace-app-footer-dify">
-        <div className="workspace-action-row workspace-app-card-actions">
+        <div className="workspace-app-row-actions">
           <Link className="workspace-primary-button compact" href={card.href}>
             继续进入 xyflow
           </Link>
@@ -441,20 +446,25 @@ export function WorkspaceAppsWorkbench({
             </div>
           </div>
 
-          <div className="workspace-app-grid workspace-app-grid-board workspace-app-grid-studio">
-            <WorkspaceCreateBoardCard
-              activeModeDescription={activeModeDescription}
-              activeModeLabel={activeModeLabel}
-              quickCreateEntries={quickCreateEntries}
-              requestedKeyword={requestedKeyword}
-              starterCount={starterCount}
-              starterHighlights={starterHighlights}
-            />
-            {filteredApps.length === 0 ? <WorkspaceEmptyTile activeModeLabel={activeModeLabel} /> : null}
+          <div className="workspace-catalog-layout">
+            <div className="workspace-catalog-rail">
+              <WorkspaceCreateBoardCard
+                activeModeDescription={activeModeDescription}
+                activeModeLabel={activeModeLabel}
+                quickCreateEntries={quickCreateEntries}
+                requestedKeyword={requestedKeyword}
+                starterCount={starterCount}
+                starterHighlights={starterHighlights}
+              />
+            </div>
 
-            {filteredApps.map((card) => (
-              <WorkspaceAppTile card={card} currentUserDisplayName={currentUserDisplayName} key={card.id} />
-            ))}
+            <div className="workspace-app-list-shell">
+              {filteredApps.length === 0 ? <WorkspaceEmptyTile activeModeLabel={activeModeLabel} /> : null}
+
+              {filteredApps.map((card) => (
+                <WorkspaceAppTile card={card} currentUserDisplayName={currentUserDisplayName} key={card.id} />
+              ))}
+            </div>
           </div>
         </section>
       </section>
