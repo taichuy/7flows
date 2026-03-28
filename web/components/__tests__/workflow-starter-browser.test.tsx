@@ -14,7 +14,6 @@ describe("WorkflowStarterBrowser", () => {
       selectedStarterId: "starter-1",
       onSelectTrack: vi.fn(),
       onSelectStarter: vi.fn(),
-      sourceLanes: [{ kind: "builtin", label: "Builtin starter library", count: 5, status: "ready" }],
       tracks: [
         {
           id: "应用新建编排",
@@ -63,6 +62,7 @@ describe("WorkflowStarterBrowser", () => {
     );
 
     expect(html).toContain("starter-browser-list-shell");
+    expect(html).toContain("选择模板");
     expect(html).toContain("starter-list-row selected");
     expect(html).toContain("当前模板");
     expect(html).toContain("选中后在右侧创建");

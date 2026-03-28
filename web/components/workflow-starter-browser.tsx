@@ -1,7 +1,6 @@
 "use client";
 
 import type { WorkflowBusinessTrack } from "@/lib/workflow-business-tracks";
-import type { WorkflowLibrarySourceLane } from "@/lib/workflow-source-model";
 import type {
   WorkflowStarterTemplateId,
   WorkflowStarterTemplate,
@@ -13,7 +12,6 @@ type WorkflowStarterBrowserProps = {
   selectedStarterId: WorkflowStarterTemplateId;
   starters: WorkflowStarterTemplate[];
   tracks: WorkflowStarterTrackItem[];
-  sourceLanes: WorkflowLibrarySourceLane[];
   onSelectTrack: (track: WorkflowBusinessTrack) => void;
   onSelectStarter: (starterId: WorkflowStarterTemplateId) => void;
 };
@@ -23,7 +21,6 @@ export function WorkflowStarterBrowser({
   selectedStarterId,
   starters,
   tracks,
-  sourceLanes,
   onSelectTrack,
   onSelectStarter
 }: WorkflowStarterBrowserProps) {
@@ -48,29 +45,21 @@ export function WorkflowStarterBrowser({
 
       <div className="starter-browser-toolbar starter-browser-toolbar-dify">
         <div className="starter-browser-toolbar-copy">
-          <p className="eyebrow">Current track</p>
-          <h3>{activeTrackMeta.id}</h3>
-          <p className="section-copy starter-track-copy">{activeTrackMeta.summary}</p>
+          <p className="eyebrow">Step 1</p>
+          <h3>选择模板</h3>
+          <p className="section-copy starter-track-copy">
+            先按业务线筛选 starter，再在右侧完成命名与创建；主区只保留模板选择，不再堆来源说明。
+          </p>
         </div>
         <div className="starter-browser-toolbar-pills">
           <span className="starter-browser-toolbar-pill">{activeTrackMeta.priority}</span>
+          <span className="starter-browser-toolbar-pill">{activeTrackMeta.id}</span>
           <span className="starter-browser-toolbar-pill">{starters.length} 个模板</span>
           <span className="starter-browser-toolbar-pill starter-browser-toolbar-pill-focus">
             {activeTrackMeta.focus}
           </span>
         </div>
       </div>
-
-      {sourceLanes.length > 0 ? (
-        <div className="starter-source-pill-row">
-          {sourceLanes.map((lane) => (
-            <span className="starter-source-pill" key={`${lane.kind}-${lane.label}`}>
-              <strong>{lane.label}</strong>
-              <span>{lane.count > 0 ? `${lane.count} ready` : lane.status}</span>
-            </span>
-          ))}
-        </div>
-      ) : null}
 
       <div className="starter-list" role="list" aria-label="Workflow starter templates">
         {starters.map((starter) => (

@@ -267,6 +267,7 @@ export function WorkflowCreateWizard({
     { label: "模板", value: `${visibleStarters.length} 个` },
     { label: "工具目录", value: `${catalogToolCount} 个` }
   ];
+  const starterSourceSummaryItems = starterSourceLanes.slice(0, 3);
 
   const applyStarterSelection = (
     nextStarterId: WorkflowStarterTemplateId,
@@ -433,11 +434,17 @@ export function WorkflowCreateWizard({
             <div className="workflow-create-shell-copy">
               <p className="workspace-eyebrow">Applications / Create</p>
               <Title level={3} style={{ margin: 0, color: '#111827' }}>
-                选择应用模板
+                先选 Starter，再进入 xyflow
               </Title>
               <Text type="secondary">
-                参考 Dify 的应用创建页，这里只保留模板筛选、模板列表和创建动作，避免把说明卡堆进首屏。
+                参考 Dify 的创建心智，主区只负责模板筛选与模板选择；来源说明、最近草稿和治理 follow-up 收到右侧辅助栏。
               </Text>
+
+              <div className="workflow-create-step-row" aria-label="应用创建步骤">
+                <span className="workflow-create-step-pill active">1 选择模板</span>
+                <span className="workflow-create-step-pill">2 命名应用</span>
+                <span className="workflow-create-step-pill">3 进入 xyflow</span>
+              </div>
 
               <div className="workflow-create-signal-row">
                 {createSignalItems.map((item) => (
@@ -468,25 +475,6 @@ export function WorkflowCreateWizard({
                 </div>
               ) : null}
             </div>
-
-            <div className="workflow-create-shell-side">
-              <article className="workflow-create-handoff-card">
-                <span>Studio handoff</span>
-                <strong>{selectedStarter.defaultWorkflowName}</strong>
-                <p>创建后直达 xyflow Studio，优先补命名、首个业务节点和基础输出。</p>
-              </article>
-
-              {starterSourceLanes.length > 0 ? (
-                <div className="workflow-create-source-row">
-                  {starterSourceLanes.slice(0, 3).map((lane) => (
-                    <span className="workflow-create-source-pill" key={`${lane.kind}-${lane.label}`}>
-                      <strong>{lane.label}</strong>
-                      <span>{lane.count > 0 ? `${lane.count} ready` : lane.status}</span>
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-            </div>
           </div>
 
           <div className="workflow-create-browser-card">
@@ -495,7 +483,6 @@ export function WorkflowCreateWizard({
               selectedStarterId={selectedStarter.id}
               starters={visibleStarters}
               tracks={starterTracks}
-              sourceLanes={starterSourceLanes}
               onSelectTrack={handleTrackSelect}
               onSelectStarter={applyStarterSelection}
             />
@@ -505,9 +492,15 @@ export function WorkflowCreateWizard({
 
         <aside className="workflow-create-side">
           <div className="workflow-create-config-card">
-            <Title level={4} style={{ margin: '0 0 20px', color: '#111827' }}>
-              配置草稿
-            </Title>
+            <div className="workflow-create-config-header">
+              <p className="workspace-eyebrow">Step 2</p>
+              <Title level={4} style={{ margin: '0 0 6px', color: '#111827' }}>
+                命名并创建
+              </Title>
+              <Text type="secondary">
+                选中模板后只做一个动作：命名应用并立即进入 xyflow Studio。
+              </Text>
+            </div>
 
             <div className="workflow-create-side-summary">
               <div>
@@ -515,8 +508,8 @@ export function WorkflowCreateWizard({
                 <strong>{selectedStarter.name}</strong>
               </div>
               <div>
-                <span>进入方式</span>
-                <strong>创建后直达 xyflow</strong>
+                <span>创建路径</span>
+                <strong>选模板 → 命名 → xyflow</strong>
               </div>
             </div>
 
@@ -593,6 +586,26 @@ export function WorkflowCreateWizard({
               </div>
             ) : null}
           </div>
+
+          {starterSourceSummaryItems.length > 0 ? (
+            <div className="workflow-create-support-card workflow-create-side-section">
+              <div className="workflow-create-side-section-header">
+                <div>
+                  <p className="workspace-eyebrow">Starter sources</p>
+                  <h3>模板来源</h3>
+                  <p>来源信息收进侧栏，避免占据模板选择主区。</p>
+                </div>
+              </div>
+              <div className="workflow-create-source-stack">
+                {starterSourceSummaryItems.map((lane) => (
+                  <span className="workflow-create-source-pill" key={`${lane.kind}-${lane.label}`}>
+                    <strong>{lane.label}</strong>
+                    <span>{lane.count > 0 ? `${lane.count} ready` : lane.status}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {selectedStarterMissingToolBlockingSurface ? (
             <div className="workflow-create-warning-card">
