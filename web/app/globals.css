@@ -4356,7 +4356,7 @@ a {
 
 .workflow-create-page {
   display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(300px, 360px);
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 430px);
   gap: 20px;
   align-items: start;
 }
@@ -4569,6 +4569,88 @@ a {
   padding-top: 4px;
 }
 
+.workflow-create-preview-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid #dbe7ff;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.workflow-create-preview-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workflow-create-preview-header h3 {
+  margin: 4px 0 6px;
+  color: #111827;
+  font-size: 1.02rem;
+}
+
+.workflow-create-preview-header p:last-child,
+.workflow-create-recent-more {
+  margin: 0;
+  color: #667085;
+  line-height: 1.6;
+}
+
+.workflow-create-preview-stage {
+  display: grid;
+  gap: 14px;
+}
+
+.workflow-create-preview-lane {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 96px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid #dce6f6;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.workflow-create-preview-node {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid #d8e2f2;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 0.84rem;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+}
+
+.workflow-create-preview-node.more {
+  background: #eff4ff;
+  color: #315cec;
+}
+
+.workflow-create-preview-arrow {
+  color: #98a2b3;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.workflow-create-preview-note {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #eef4ff;
+  color: #315cec;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
 .workflow-create-support-card {
   padding: 20px;
   align-content: start;
@@ -4655,11 +4737,26 @@ a {
 
 .workflow-create-selected-card {
   display: grid;
-  gap: 16px;
+  gap: 14px;
   padding: 18px;
   border-radius: 20px;
   border: 1px solid #e4e9f3;
   background: #f8fbff;
+}
+
+.workflow-create-selected-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.workflow-create-metric-item {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid #e4e9f3;
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .workflow-create-selected-head {
@@ -4682,6 +4779,10 @@ a {
 
 .workflow-create-selected-copy {
   margin-top: 6px;
+}
+
+.workflow-create-topbar-actions {
+  justify-content: flex-end;
 }
 
 .workflow-create-metric-label {
@@ -4730,6 +4831,16 @@ a {
 
   .workflow-create-side {
     position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .workflow-create-selected-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-create-preview-lane {
+    min-height: auto;
   }
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -16,12 +16,11 @@ import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
 import type { WorkspaceStarterSourceGovernanceKind } from "@/lib/get-workspace-starters";
 import {
-  getWorkflowBusinessTrack,
+  getWorkflowBusinessTrackCreateSurface,
   WORKFLOW_BUSINESS_TRACKS
 } from "@/lib/workflow-business-tracks";
 import {
   appendWorkflowLibraryViewState,
-  appendWorkflowLibraryViewStateForWorkflow
 } from "@/lib/workflow-library-query";
 import {
   buildWorkflowDefinitionSandboxGovernanceBadges,
@@ -75,18 +74,16 @@ type WorkflowCreateWizardProps = {
   tools: PluginToolRegistryItem[];
 };
 
-import { Input, Button, Typography, Tag, Row, Col } from "antd";
+import { Input, Button, Typography, Tag } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 
 const { Title, Text } = Typography;
 
 export function WorkflowCreateWizard({
-  catalogToolCount,
   governanceQueryScope,
   legacyAuthGovernanceSnapshot = null,
   workflows,
   starters,
-  starterSourceLanes,
   nodeCatalog,
   tools
 }: WorkflowCreateWizardProps) {
@@ -132,8 +129,8 @@ export function WorkflowCreateWizard({
         : null) ?? defaultStarter,
     [defaultStarter, selectedStarterId, starterTemplates]
   );
-  const activeTrackMeta = useMemo(
-    () => getWorkflowBusinessTrack(activeTrack),
+  const activeTrackPresentation = useMemo(
+    () => getWorkflowBusinessTrackCreateSurface(activeTrack),
     [activeTrack]
   );
   const selectedStarterSandboxBadges = useMemo(
@@ -248,12 +245,33 @@ export function WorkflowCreateWizard({
         surfaceCopy
       })
     : null;
+  const shouldRenderSelectedStarterNextStep = Boolean(
+    selectedStarterNextStepSurface?.workflowGovernanceHandoff ||
+      selectedStarterNextStepSurface?.primaryResourceSummary ||
+      selectedStarterNextStepSurface?.href
+  );
   const selectedStarterSandboxDependencySummary = useMemo(
     () =>
       selectedStarter
         ? describeWorkflowDefinitionSandboxDependency(selectedStarter.sandboxGovernance)
         : null,
     [selectedStarter]
+  );
+  const selectedStarterTrackPresentation = useMemo(
+    () => getWorkflowBusinessTrackCreateSurface(selectedStarter?.businessTrack ?? activeTrack),
+    [activeTrack, selectedStarter?.businessTrack]
+  );
+  const selectedStarterPreviewNodes = useMemo(
+    () =>
+      (selectedStarter?.definition.nodes ?? []).slice(0, 4).map((node) => {
+        const catalogLabel = nodeCatalog.find((item) => item.type === node.type)?.label;
+        return node.name?.trim() || catalogLabel || node.type;
+      }),
+    [nodeCatalog, selectedStarter?.definition.nodes]
+  );
+  const selectedStarterPreviewOverflow = Math.max(
+    0,
+    (selectedStarter?.definition.nodes?.length ?? 0) - selectedStarterPreviewNodes.length
   );
   const visibleStarters = useMemo(
     () =>
@@ -263,11 +281,10 @@ export function WorkflowCreateWizard({
     [activeTrack, starterTemplates]
   );
   const createSignalItems = [
-    { label: "当前业务线", value: activeTrackMeta.priority },
+    { label: "应用类型", value: activeTrackPresentation.label },
     { label: "模板", value: `${visibleStarters.length} 个` },
-    { label: "工具目录", value: `${catalogToolCount} 个` }
+    { label: "最近草稿", value: `${workflows.length} 个` }
   ];
-  const starterSourceSummaryItems = starterSourceLanes.slice(0, 3);
 
   const applyStarterSelection = (
     nextStarterId: WorkflowStarterTemplateId,
@@ -380,10 +397,10 @@ export function WorkflowCreateWizard({
           </div>
 
           <div className="hero-panel">
-            <div className="panel-label">Current track</div>
-            <div className="panel-value">{activeTrackMeta.priority}</div>
+            <div className="panel-label">当前应用类型</div>
+            <div className="panel-value">{activeTrackPresentation.label}</div>
             <p className="panel-text">
-              当前业务线：<strong>{activeTrackMeta.id}</strong>
+              {activeTrackPresentation.summary}
             </p>
             <p className="panel-text">
               搜索：<strong>{searchQuery.trim() || "未设置"}</strong>
@@ -392,7 +409,7 @@ export function WorkflowCreateWizard({
               来源治理：<strong>{sourceGovernanceKind ?? "全部"}</strong>
             </p>
             <p className="panel-text">
-              follow-up queue：<strong>{needsFollowUp ? "仅关注热点" : "未启用"}</strong>
+              follow-up：<strong>{needsFollowUp ? "仅关注热点" : "未启用"}</strong>
             </p>
           </div>
         </section>
@@ -420,11 +437,17 @@ export function WorkflowCreateWizard({
         </div>
 
         <div className="workflow-create-topbar-actions">
-          <WorkbenchEntryLinks
-            {...surfaceCopy.heroLinks}
-            currentHref={currentWorkflowCreateHref}
-            variant="inline"
-          />
+          <Link href="/" className="workflow-create-inline-link workflow-create-inline-chip muted">
+            返回系统首页
+          </Link>
+          {recentWorkflowLink ? (
+            <Link href={recentWorkflowLink.href} className="workflow-create-inline-link workflow-create-inline-chip">
+              继续最近草稿
+            </Link>
+          ) : null}
+          <Link href={starterGovernanceHref} className="workflow-create-inline-link workflow-create-inline-chip muted">
+            管理 workspace starters
+          </Link>
         </div>
       </section>
 
@@ -434,16 +457,15 @@ export function WorkflowCreateWizard({
             <div className="workflow-create-shell-copy">
               <p className="workspace-eyebrow">Applications / Create</p>
               <Title level={3} style={{ margin: 0, color: '#111827' }}>
-                先选 Starter，再进入 xyflow
+                创建一个应用
               </Title>
               <Text type="secondary">
-                参考 Dify 的创建心智，主区只负责模板筛选与模板选择；来源说明、最近草稿和治理 follow-up 收到右侧辅助栏。
+                先选一个模板，再命名并直接进入画布；这一页只保留创建动作，不再堆解释卡片。
               </Text>
 
               <div className="workflow-create-step-row" aria-label="应用创建步骤">
-                <span className="workflow-create-step-pill active">1 选择模板</span>
-                <span className="workflow-create-step-pill">2 命名应用</span>
-                <span className="workflow-create-step-pill">3 进入 xyflow</span>
+                <span className="workflow-create-step-pill active">1 选模板</span>
+                <span className="workflow-create-step-pill">2 命名并进入画布</span>
               </div>
 
               <div className="workflow-create-signal-row">
@@ -461,7 +483,7 @@ export function WorkflowCreateWizard({
                 ) : null}
 
                 <Link href={starterGovernanceHref} className="workflow-create-inline-link workflow-create-inline-chip muted">
-                  查看 Starter 模板
+                  浏览团队模板
                 </Link>
               </div>
 
@@ -495,21 +517,45 @@ export function WorkflowCreateWizard({
             <div className="workflow-create-config-header">
               <p className="workspace-eyebrow">Step 2</p>
               <Title level={4} style={{ margin: '0 0 6px', color: '#111827' }}>
-                命名并创建
+                命名后进入画布
               </Title>
               <Text type="secondary">
-                选中模板后只做一个动作：命名应用并立即进入 xyflow Studio。
+                选中模板后只做一个动作：命名应用并立刻开始编排。
               </Text>
             </div>
 
-            <div className="workflow-create-side-summary">
-              <div>
-                <span>当前模板</span>
-                <strong>{selectedStarter.name}</strong>
+            <div className="workflow-create-preview-card">
+              <div className="workflow-create-preview-header">
+                <div>
+                  <p className="workspace-eyebrow">Studio preview</p>
+                  <h3>进入 xyflow 后的第一屏</h3>
+                  <p>创建后先落到节点骨架，再继续配置属性、上下文授权与发布准备。</p>
+                </div>
+                <Tag color="blue" style={{ margin: 0 }}>
+                  {selectedStarterTrackPresentation.label}
+                </Tag>
               </div>
-              <div>
-                <span>创建路径</span>
-                <strong>选模板 → 命名 → xyflow</strong>
+
+              <div className="workflow-create-preview-stage">
+                <div className="workflow-create-preview-lane" aria-label="Starter preview lane">
+                  {selectedStarterPreviewNodes.map((nodeLabel, index) => (
+                    <Fragment key={`${selectedStarter.id}-${nodeLabel}-${index}`}>
+                      <span className="workflow-create-preview-node">{nodeLabel}</span>
+                      {index < selectedStarterPreviewNodes.length - 1 ? (
+                        <span className="workflow-create-preview-arrow" aria-hidden="true">
+                          →
+                        </span>
+                      ) : null}
+                    </Fragment>
+                  ))}
+                  {selectedStarterPreviewOverflow > 0 ? (
+                    <span className="workflow-create-preview-node more">+{selectedStarterPreviewOverflow}</span>
+                  ) : null}
+                </div>
+
+                <div className="workflow-create-preview-note">
+                  创建后直接打开画布继续编排。{selectedStarter.recommendedNextStep}
+                </div>
               </div>
             </div>
 
@@ -530,28 +576,30 @@ export function WorkflowCreateWizard({
                   <div className="workflow-create-selected-copy">{selectedStarter.description}</div>
                 </div>
                 <Tag color="blue" style={{ margin: 0 }}>
-                  {selectedStarter.priority}
+                  {selectedStarterTrackPresentation.label}
                 </Tag>
               </div>
 
-              <Row gutter={[8, 8]} className="workflow-create-selected-metrics">
-                <Col span={12}>
-                  <div className="workflow-create-metric-label">Track</div>
-                  <div className="workflow-create-metric-value">{selectedStarter.businessTrack}</div>
-                </Col>
-                <Col span={12}>
-                  <div className="workflow-create-metric-label">Source</div>
-                  <div className="workflow-create-metric-value">{selectedStarter.source.shortLabel}</div>
-                </Col>
-                <Col span={12}>
-                  <div className="workflow-create-metric-label">Nodes</div>
+              <div className="workflow-create-selected-metrics">
+                <div className="workflow-create-metric-item">
+                  <div className="workflow-create-metric-label">应用类型</div>
+                  <div className="workflow-create-metric-value">{selectedStarterTrackPresentation.label}</div>
+                </div>
+                <div className="workflow-create-metric-item">
+                  <div className="workflow-create-metric-label">模板来源</div>
+                  <div className="workflow-create-metric-value">{getWorkflowCreateSourceLabel(selectedStarter.origin)}</div>
+                </div>
+                <div className="workflow-create-metric-item">
+                  <div className="workflow-create-metric-label">节点数量</div>
                   <div className="workflow-create-metric-value">{selectedStarter.nodeCount}</div>
-                </Col>
-                <Col span={12}>
-                  <div className="workflow-create-metric-label">Governed tools</div>
-                  <div className="workflow-create-metric-value">{selectedStarter.governedToolCount}</div>
-                </Col>
-              </Row>
+                </div>
+                <div className="workflow-create-metric-item">
+                  <div className="workflow-create-metric-label">工具依赖</div>
+                  <div className="workflow-create-metric-value">
+                    {selectedStarter.governedToolCount > 0 ? `${selectedStarter.governedToolCount} 个` : "无"}
+                  </div>
+                </div>
+              </div>
 
               {selectedStarterSandboxBadges.length > 0 ? (
                 <div className="workflow-create-selected-badges">
@@ -577,7 +625,7 @@ export function WorkflowCreateWizard({
               loading={isCreating}
               className="workflow-create-primary-button"
             >
-              创建并进入 xyflow
+              创建并进入画布
             </Button>
 
             {message ? (
@@ -586,26 +634,6 @@ export function WorkflowCreateWizard({
               </div>
             ) : null}
           </div>
-
-          {starterSourceSummaryItems.length > 0 ? (
-            <div className="workflow-create-support-card workflow-create-side-section">
-              <div className="workflow-create-side-section-header">
-                <div>
-                  <p className="workspace-eyebrow">Starter sources</p>
-                  <h3>模板来源</h3>
-                  <p>来源信息收进侧栏，避免占据模板选择主区。</p>
-                </div>
-              </div>
-              <div className="workflow-create-source-stack">
-                {starterSourceSummaryItems.map((lane) => (
-                  <span className="workflow-create-source-pill" key={`${lane.kind}-${lane.label}`}>
-                    <strong>{lane.label}</strong>
-                    <span>{lane.count > 0 ? `${lane.count} ready` : lane.status}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
 
           {selectedStarterMissingToolBlockingSurface ? (
             <div className="workflow-create-warning-card">
@@ -624,7 +652,7 @@ export function WorkflowCreateWizard({
                 </div>
               </div>
               <div className="workflow-create-recent-list">
-                {workflows.slice(0, 3).map((workflow) => {
+                {workflows.slice(0, 2).map((workflow) => {
                   const workflowHref = appendWorkflowLibraryViewState(
                     buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
                       workflowId: workflow.id,
@@ -655,10 +683,13 @@ export function WorkflowCreateWizard({
                   );
                 })}
               </div>
+              {workflows.length > 2 ? (
+                <div className="workflow-create-recent-more">还有 {workflows.length - 2} 个草稿，优先回工作台按筛选继续。</div>
+              ) : null}
             </div>
           ) : null}
 
-          {selectedStarterNextStepSurface ? (
+          {selectedStarterNextStepSurface && shouldRenderSelectedStarterNextStep ? (
             <div className="workflow-create-followup-card workflow-create-support-card workflow-create-side-section">
               <WorkspaceStarterFollowUpCard
                 title={surfaceCopy.recommendedNextStepTitle}
@@ -903,4 +934,12 @@ function buildWorkflowCreateStarterLegacyAuthWorkflowGovernanceHandoff({
     toolGovernance: workflow.tool_governance,
     legacyAuthGovernance: legacyAuthGovernanceSnapshot
   });
+}
+
+function getWorkflowCreateSourceLabel(origin: WorkflowStarterTemplate["origin"]) {
+  if (origin === "workspace") {
+    return "团队模板";
+  }
+
+  return "官方模板";
 }
