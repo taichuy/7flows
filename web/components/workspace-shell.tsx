@@ -14,6 +14,7 @@ import { getWorkspaceBadgeLabel } from "@/lib/workspace-ui";
 type WorkspaceShellProps = {
   activeNav: "workspace" | "workflows" | "runs" | "starters" | "ops" | "team";
   children: ReactNode;
+  layout?: "default" | "editor";
   userName: string;
   userRole: WorkspaceMemberRole;
   workspaceName: string;
@@ -35,11 +36,13 @@ const navigationItems: Array<{
 export function WorkspaceShell({
   activeNav,
   children,
+  layout = "default",
   userName,
   userRole,
   workspaceName
 }: WorkspaceShellProps) {
   const router = useRouter();
+  const isEditorLayout = layout === "editor";
   const workspaceBadgeLabel = getWorkspaceBadgeLabel(workspaceName);
   const userBadgeLabel = getWorkspaceBadgeLabel(userName, "A");
   const canManageMembers = canManageWorkspaceMembers(userRole);
@@ -53,9 +56,11 @@ export function WorkspaceShell({
   };
 
   return (
-    <div className="workspace-shell">
-      <header className="workspace-topbar">
-        <div className="workspace-topbar-inner">
+    <div className={`workspace-shell ${isEditorLayout ? "workspace-shell-editor" : ""}`.trim()}>
+      <header className={`workspace-topbar ${isEditorLayout ? "workspace-topbar-editor" : ""}`.trim()}>
+        <div
+          className={`workspace-topbar-inner ${isEditorLayout ? "workspace-topbar-inner-editor" : ""}`.trim()}
+        >
           <div className="workspace-brand-row">
             <Link className="workspace-brand" href="/workspace">
               <span className="workspace-brand-mark">7</span>
@@ -74,7 +79,10 @@ export function WorkspaceShell({
               </div>
             </div>
           </div>
-          <nav className="workspace-nav" aria-label="Workspace">
+          <nav
+            className={`workspace-nav ${isEditorLayout ? "workspace-nav-editor" : ""}`.trim()}
+            aria-label="Workspace"
+          >
             {navigationItems
               .filter((item) => (item.key === "team" ? canManageMembers : true))
               .map((item) => (
@@ -106,7 +114,9 @@ export function WorkspaceShell({
           </div>
         </div>
       </header>
-      <div className="workspace-content">{children}</div>
+      <div className={`workspace-content ${isEditorLayout ? "workspace-content-editor" : ""}`.trim()}>
+        {children}
+      </div>
     </div>
   );
 }

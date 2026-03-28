@@ -11,8 +11,8 @@ export default async function LoginPage() {
   }
 
   return (
-    <main className="login-shell">
-      <section className="login-stage login-stage-dify">
+    <main className="login-shell login-shell-dify">
+      <section className="login-stage login-stage-dify login-stage-workspace">
         <header className="login-stage-header">
           <Link className="login-brand" href="/">
             <span className="workspace-brand-mark">7</span>
@@ -24,24 +24,23 @@ export default async function LoginPage() {
           </div>
         </header>
 
-        <div className="login-stage-body login-stage-body-compact">
+        <div className="login-stage-body login-stage-body-compact login-stage-body-dify">
           <div className="login-stage-copy login-stage-copy-compact">
             <p className="workspace-eyebrow">Workspace access</p>
             <h1>先进入 7Flows Workspace，再回到 xyflow 继续编排</h1>
             <p className="workspace-muted workspace-copy-wide">
-              借鉴 Dify 的 workspace 登录与应用工作台心智，但真正的编排、运行诊断、发布治理与追溯仍然回到
-              7Flows 自己的 xyflow 主链，不复制 Dify 的内部执行模型。
+              借鉴 Dify 的 workspace 登录心智，把登录入口、默认管理员与应用工作台衔接起来；真正的编排、运行诊断与发布治理仍然回到 7Flows 自己的 xyflow 主链。
             </p>
-            <div className="login-stage-notes" aria-label="Workspace 登录能力">
-              <article className="login-stage-note">
+            <div className="login-stage-fact-list" aria-label="Workspace 登录能力">
+              <article className="login-stage-fact-card">
                 <strong>默认管理员已落库</strong>
-                <p className="workspace-muted">首次进入即可完成成员开通、角色配置与工作台初始化。</p>
+                <p className="workspace-muted">可直接使用 `admin@taichuy.com` / `admin123` 登录并初始化工作空间。</p>
               </article>
-              <article className="login-stage-note">
+              <article className="login-stage-fact-card">
                 <strong>应用工作台优先</strong>
-                <p className="workspace-muted">先像 Dify 一样在工作台管理应用入口，再进入 7Flows 的编排主链。</p>
+                <p className="workspace-muted">先进入应用目录管理入口，再继续进入 7Flows 的 xyflow 编排主链。</p>
               </article>
-              <article className="login-stage-note">
+              <article className="login-stage-fact-card">
                 <strong>xyflow 是事实源</strong>
                 <p className="workspace-muted">工作台只负责入口与协作，不分叉执行语义、运行事实与发布口径。</p>
               </article>

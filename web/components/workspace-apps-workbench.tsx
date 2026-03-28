@@ -98,9 +98,9 @@ type WorkspaceAppsWorkbenchProps = {
 
 function WorkspaceSummaryBar({ workspaceSignals }: { workspaceSignals: WorkspaceSignal[] }) {
   return (
-    <div className="workspace-summary-bar" aria-label="Workspace overview">
+    <div className="workspace-summary-bar workspace-summary-bar-inline" aria-label="Workspace overview">
       {workspaceSignals.map((signal) => (
-        <article className="workspace-summary-stat" key={signal.label}>
+        <article className="workspace-summary-stat workspace-summary-stat-inline" key={signal.label}>
           <span>{signal.label}</span>
           <strong>{signal.value}</strong>
         </article>
@@ -125,19 +125,17 @@ function WorkspaceCreateBoardCard({
   const visibleStarterHighlights = starterHighlights.slice(0, 2);
 
   return (
-    <article className="workspace-app-card workspace-create-board-card" key="workspace-create-card">
-      <div className="workspace-create-board-head">
+    <article className="workspace-app-card workspace-create-board-card workspace-catalog-card" key="workspace-create-card">
+      <div className="workspace-create-board-head workspace-create-board-head-compact">
         <div className="workspace-create-board-copy">
           <p className="workspace-app-card-caption">创建应用</p>
           <h3>
-            {activeModeLabel
-              ? `优先创建 ${activeModeLabel} 应用`
-              : "从空白应用、模板或团队 Starter 开始"}
+            {activeModeLabel ? `优先创建 ${activeModeLabel} 应用` : "从空白应用、模板或团队 Starter 开始"}
           </h3>
           <p className="workspace-muted workspace-card-copy">
             {activeModeLabel
               ? `${activeModeDescription} 创建完成后直接进入 xyflow，不在工作台复制第二套执行心智。`
-              : "保留 Dify 的创建心智，但所有真实编排仍回到 7Flows 的 xyflow 主链。"}
+              : "像 Dify 一样先创建应用入口，再回到 7Flows 的 xyflow 画布继续编排。"}
           </p>
         </div>
 
@@ -146,9 +144,9 @@ function WorkspaceCreateBoardCard({
         </Link>
       </div>
 
-      <div className="workspace-create-board-actions">
+      <div className="workspace-create-board-actions workspace-create-board-actions-dify">
         {quickCreateEntries.map((entry) => (
-          <Link className="workspace-create-board-entry" href={entry.href} key={entry.title}>
+          <Link className="workspace-create-board-entry workspace-create-board-entry-dify" href={entry.href} key={entry.title}>
             <strong className="workspace-create-board-entry-badge">{entry.badge}</strong>
             <div className="workspace-create-link-copy workspace-create-board-entry-copy">
               <span>{entry.title}</span>
@@ -158,10 +156,10 @@ function WorkspaceCreateBoardCard({
         ))}
       </div>
 
-      <div className="workspace-create-board-footer">
+      <div className="workspace-create-board-footer workspace-create-board-footer-compact">
         <div className="workspace-create-board-footnotes">
-          <span className="workspace-create-footnote">编排事实源：xyflow</span>
-          <span className="workspace-create-footnote">Starter 模板：{starterCount} 个</span>
+          <span className="workspace-app-footnote">编排事实源：xyflow</span>
+          <span className="workspace-app-footnote">Starter 模板：{starterCount} 个</span>
         </div>
 
         {visibleStarterHighlights.length > 0 ? (
@@ -186,11 +184,11 @@ function WorkspaceCreateBoardCard({
 
 function WorkspaceEmptyTile({ activeModeLabel }: { activeModeLabel: string | null }) {
   return (
-    <article className="workspace-app-card workspace-app-empty-tile workspace-app-card-empty-dify">
+    <article className="workspace-app-card workspace-app-empty-tile workspace-app-card-empty-dify workspace-catalog-card">
       <p className="workspace-app-card-caption">应用列表</p>
       <h3>当前筛选范围内还没有{activeModeLabel ? ` ${activeModeLabel}` : ""}应用</h3>
       <p className="workspace-muted workspace-card-copy">
-        先从左侧创建入口发起，或者直接挑一个 Starter 作为起点；创建后继续进入 xyflow 编辑器补齐节点、调试和发布语义。
+        先从创建入口发起，或者直接挑一个 Starter 作为起点；创建后继续进入 xyflow 编辑器补齐节点、调试和发布语义。
       </p>
       <div className="workspace-action-row workspace-app-card-actions">
         <Link className="workspace-primary-button compact" href="/workflows/new">
@@ -211,9 +209,16 @@ function WorkspaceAppTile({
   card: WorkspaceAppCard;
   currentUserDisplayName: string;
 }) {
+  const signalLabel =
+    card.followUpCount > 0
+      ? `${card.followUpCount} 个治理待办`
+      : card.missingToolCount > 0
+        ? `${card.missingToolCount} 个工具缺口`
+        : card.healthLabel;
+
   return (
-    <article className="workspace-app-card workspace-app-card-product workspace-app-card-product-flat" key={card.id}>
-      <div className="workspace-app-card-header workspace-app-card-header-flat">
+    <article className="workspace-app-card workspace-app-card-product workspace-app-card-product-flat workspace-catalog-card" key={card.id}>
+      <div className="workspace-app-card-header workspace-app-card-header-flat workspace-app-card-header-compact">
         <div className="workspace-app-card-identity">
           <div className="workspace-app-icon" aria-hidden="true">
             {getWorkspaceBadgeLabel(card.name, "A")}
@@ -223,54 +228,35 @@ function WorkspaceAppTile({
               <h3>{card.name}</h3>
               <span className="workspace-mode-pill">{card.mode.shortLabel}</span>
             </div>
-            <p className="workspace-app-subtitle">
+            <p className="workspace-app-subtitle workspace-app-subtitle-dify">
               {currentUserDisplayName} · 最近更新 {formatTimestamp(card.updatedAt)}
             </p>
           </div>
         </div>
-        <div className="workspace-app-state-column">
-          <span className={`workspace-status-pill ${card.status === "published" ? "healthy" : "draft"}`}>
-            {card.status === "published" ? "已发布" : "草稿"}
-          </span>
-          {card.followUpCount > 0 ? (
-            <span className="workspace-status-pill warning">{card.followUpCount} 个待办</span>
-          ) : null}
-        </div>
+
+        <span className={`workspace-status-pill ${card.status === "published" ? "healthy" : "draft"}`}>
+          {card.status === "published" ? "已发布" : "草稿"}
+        </span>
       </div>
 
-      <p className="workspace-app-focus">{card.track.focus}</p>
+      <p className="workspace-app-description">推荐下一步：{card.recommendedNextStep}</p>
 
       <div className="workspace-app-inline-metrics workspace-app-inline-metrics-wrap" aria-label={`${card.name} metrics`}>
         <span className="workspace-app-inline-metric accent">{card.track.priority}</span>
         <span className="workspace-app-inline-metric">{card.track.id}</span>
         <span className="workspace-app-inline-metric">{card.nodeCount} 个节点</span>
         <span className="workspace-app-inline-metric">{card.publishCount} 个发布端点</span>
-        <span className="workspace-app-inline-metric">{card.healthLabel}</span>
-        {card.missingToolCount > 0 ? (
-          <span className="workspace-app-inline-metric warning">{card.missingToolCount} 个工具缺口</span>
-        ) : null}
-      </div>
-
-      <div className="workspace-app-command-copy">
-        <span className="workspace-app-card-caption">Current focus</span>
-        <p className="workspace-app-focus">{card.track.focus}</p>
-      </div>
-
-      <div className="workspace-app-next-step-inline">
-        <span className="workspace-app-card-caption">Recommended next step</span>
-        <p className="workspace-app-next-step">推荐下一步：{card.recommendedNextStep}</p>
-      </div>
-
-      <div className="workspace-app-footnote-row" aria-label={`${card.name} workspace hints`}>
-        <span className="workspace-app-footnote">{card.track.summary}</span>
-        <span className="workspace-app-footnote">
-          {card.status === "published"
-            ? "继续维护已发布版本，必要时从 runs 回看线上调用。"
-            : "草稿仍回到 xyflow 继续编排，不在 workspace 壳层分叉执行语义。"}
+        <span className={`workspace-app-inline-metric ${card.followUpCount > 0 ? "warning" : ""}`}>
+          {signalLabel}
         </span>
       </div>
 
-      <div className="workspace-app-footer workspace-app-footer-inline">
+      <div className="workspace-app-footnote-row workspace-app-footnote-row-dify" aria-label={`${card.name} workspace hints`}>
+        <span className="workspace-app-footnote">{card.track.focus}</span>
+        <span className="workspace-app-footnote">{card.track.summary}</span>
+      </div>
+
+      <div className="workspace-app-footer workspace-app-footer-inline workspace-app-footer-dify">
         <div className="workspace-action-row workspace-app-card-actions">
           <Link className="workspace-primary-button compact" href={card.href}>
             继续进入 xyflow
@@ -302,119 +288,116 @@ export function WorkspaceAppsWorkbench({
   filteredApps,
   searchState
 }: WorkspaceAppsWorkbenchProps) {
+  const catalogDescription = requestedKeyword
+    ? `当前按“${requestedKeyword}”检索应用目录；命中后直接回到 xyflow 画布继续编排。`
+    : activeModeLabel
+      ? `当前聚焦 ${activeModeLabel} 应用：${activeModeDescription}`
+      : "先像 Dify 一样在工作台管理应用入口，再进入 7Flows 自己的 xyflow 编排主链。";
+
   return (
-    <main className="workspace-main workspace-home-main workspace-home-main-flat">
-      <section className="workspace-panel workspace-dashboard-panel">
-        <div className="workspace-dashboard-header workspace-dashboard-header-desk">
-          <div className="workspace-dashboard-intro">
-            <p className="workspace-eyebrow">Workspace / Apps</p>
-            <div className="workspace-dashboard-title-row">
-              <h1>{workspaceName} 应用工作台</h1>
-              <span className="workspace-tag accent">当前身份：{currentRoleLabel}</span>
-              <span className="workspace-tag">默认管理员已可用</span>
-              <span className="workspace-tag">xyflow 编排事实源</span>
-            </div>
-            <p className="workspace-muted workspace-copy-wide">
-              像 Dify 一样先在工作台搜索、筛选和创建应用，再进入 7Flows 自己的 xyflow 编排、运行诊断和发布治理主链。
-            </p>
+    <main className="workspace-main workspace-home-main workspace-home-main-flat workspace-board-page">
+      <section className="workspace-board-hero">
+        <div className="workspace-board-hero-copy">
+          <p className="workspace-eyebrow">Workspace / Apps</p>
+          <div className="workspace-board-title-row">
+            <h1>{workspaceName} 应用工作台</h1>
+            <span className="workspace-tag accent">当前身份：{currentRoleLabel}</span>
           </div>
-
-          <div className="workspace-dashboard-side">
-            <div className="workspace-action-row workspace-dashboard-actions">
-              <Link className="workspace-primary-button compact" href="/workflows/new">
-                + 新建应用
-              </Link>
-              <Link className="workspace-ghost-button compact" href="/workspace-starters">
-                查看 Starter
-              </Link>
-            </div>
-
-            <WorkspaceSummaryBar workspaceSignals={workspaceSignals} />
-          </div>
+          <p className="workspace-muted workspace-copy-wide workspace-board-hero-copy-text">
+            参考 Dify 的工作台心智，把登录、应用入口与成员协作收口到一处；真正的编排、运行诊断与发布治理仍然回到 xyflow / runs 主链。
+          </p>
         </div>
 
-        <div className="workspace-dashboard-toolbar">
-          <div className="workspace-dashboard-toolbar-row workspace-dashboard-toolbar-row-primary">
-            <div className="workspace-mode-tabs" aria-label="App modes">
-              {modeTabs.map((modeTab) => (
-                <Link
-                  className={`workspace-mode-tab ${modeTab.active ? "active" : ""}`}
-                  href={modeTab.href}
-                  key={modeTab.key}
-                >
-                  <span>{modeTab.label}</span>
-                  <strong>{modeTab.count}</strong>
-                </Link>
-              ))}
-            </div>
-
-            <form action="/workspace" className="workspace-search-form workspace-search-form-desk">
-              {searchState.filter ? <input name="filter" type="hidden" value={searchState.filter} /> : null}
-              {searchState.mode ? <input name="mode" type="hidden" value={searchState.mode} /> : null}
-              {searchState.track ? <input name="track" type="hidden" value={searchState.track} /> : null}
-              <input
-                className="workspace-search-input"
-                defaultValue={requestedKeyword}
-                name="keyword"
-                placeholder="搜索应用、Agent、工具链或治理焦点"
-                type="search"
-              />
-              <button className="workspace-primary-button compact" type="submit">
-                搜索
-              </button>
-              {searchState.clearHref ? (
-                <Link className="workspace-ghost-button compact" href={searchState.clearHref}>
-                  清除
-                </Link>
-              ) : null}
-            </form>
-          </div>
-
-          <div className="workspace-dashboard-toolbar-row workspace-dashboard-toolbar-row-secondary">
-            <div className="workspace-filter-row">
-              <span className="workspace-toolbar-meta">应用筛选</span>
-              {statusFilters.map((statusFilter) => (
-                <Link
-                  className={`workspace-filter-chip ${statusFilter.active ? "active" : ""}`}
-                  href={statusFilter.href}
-                  key={statusFilter.key}
-                >
-                  {statusFilter.label}
-                </Link>
-              ))}
-            </div>
-
-            <div className="workspace-filter-row workspace-track-filter-row workspace-track-filter-row-compact" aria-label="Business tracks">
-              <span className="workspace-toolbar-meta">业务轨道</span>
-              {trackTabs.map((trackTab) => (
-                <Link
-                  className={`workspace-filter-chip workspace-track-filter-chip ${trackTab.active ? "active" : ""}`}
-                  href={trackTab.href}
-                  key={trackTab.key}
-                >
-                  <span>{trackTab.label}</span>
-                  <strong>{trackTab.count}</strong>
-                </Link>
-              ))}
-            </div>
+        <div className="workspace-board-hero-side">
+          <WorkspaceSummaryBar workspaceSignals={workspaceSignals} />
+          <div className="workspace-board-meta-pills" aria-label="Workspace facts">
+            <span className="workspace-app-footnote">默认管理员已可用</span>
+            <span className="workspace-app-footnote">应用与成员入口已贯通</span>
+            <span className="workspace-app-footnote">xyflow 编排事实源</span>
           </div>
         </div>
       </section>
 
-      <section className="workspace-panel workspace-app-board-panel">
-        <div className="workspace-app-section-header workspace-app-section-header-compact">
+      <section className="workspace-board-toolbar-shell">
+        <div className="workspace-mode-tabs workspace-mode-tabs-board" aria-label="App modes">
+          {modeTabs.map((modeTab) => (
+            <Link className={`workspace-mode-tab ${modeTab.active ? "active" : ""}`} href={modeTab.href} key={modeTab.key}>
+              <span>{modeTab.label}</span>
+              <strong>{modeTab.count}</strong>
+            </Link>
+          ))}
+        </div>
+
+        <div className="workspace-board-toolbar-row">
+          <div className="workspace-filter-row workspace-filter-row-board">
+            {statusFilters.map((statusFilter) => (
+              <Link
+                className={`workspace-filter-chip ${statusFilter.active ? "active" : ""}`}
+                href={statusFilter.href}
+                key={statusFilter.key}
+              >
+                {statusFilter.label}
+              </Link>
+            ))}
+          </div>
+
+          <form action="/workspace" className="workspace-search-form workspace-search-form-board">
+            {searchState.filter ? <input name="filter" type="hidden" value={searchState.filter} /> : null}
+            {searchState.mode ? <input name="mode" type="hidden" value={searchState.mode} /> : null}
+            {searchState.track ? <input name="track" type="hidden" value={searchState.track} /> : null}
+            <input
+              className="workspace-search-input workspace-search-input-board"
+              defaultValue={requestedKeyword}
+              name="keyword"
+              placeholder="搜索应用、Agent、工具链或治理焦点"
+              type="search"
+            />
+            <button className="workspace-primary-button compact" type="submit">
+              搜索
+            </button>
+            {searchState.clearHref ? (
+              <Link className="workspace-ghost-button compact" href={searchState.clearHref}>
+                清除
+              </Link>
+            ) : null}
+          </form>
+        </div>
+
+        <div className="workspace-track-rail" aria-label="Business tracks">
+          <span className="workspace-toolbar-meta">全部标签</span>
+          <div className="workspace-track-rail-scroll">
+            {trackTabs.map((trackTab) => (
+              <Link
+                className={`workspace-filter-chip workspace-track-filter-chip ${trackTab.active ? "active" : ""}`}
+                href={trackTab.href}
+                key={trackTab.key}
+              >
+                <span>{trackTab.label}</span>
+                <strong>{trackTab.count}</strong>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="workspace-app-section workspace-app-section-dify workspace-catalog-section">
+        <div className="workspace-app-section-header workspace-app-section-header-dify workspace-app-section-header-board">
           <div>
             <p className="workspace-eyebrow">Applications</p>
             <h2>应用目录 · {visibleAppSummary}</h2>
-            <p className="workspace-muted workspace-copy-wide">
-              {activeModeLabel
-                ? `当前聚焦 ${activeModeLabel} 应用：${activeModeDescription}`
-                : "保留 Dify 式应用工作台心智，但不在 workspace 壳层伪造第二套执行事实。"}
-            </p>
+            <p className="workspace-muted workspace-copy-wide">{catalogDescription}</p>
+          </div>
+          <div className="workspace-app-section-actions">
+            <Link className="workspace-primary-button compact" href="/workflows/new">
+              + 新建应用
+            </Link>
+            <Link className="workspace-ghost-button compact" href="/workspace-starters">
+              Starter 模板
+            </Link>
           </div>
         </div>
 
-        <div className="workspace-app-grid workspace-app-grid-board">
+        <div className="workspace-app-grid workspace-app-grid-board workspace-app-grid-dify-board">
           <WorkspaceCreateBoardCard
             activeModeDescription={activeModeDescription}
             activeModeLabel={activeModeLabel}

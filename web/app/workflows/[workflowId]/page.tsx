@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
@@ -34,6 +35,8 @@ type WorkflowEditorPageProps = {
   params: Promise<{ workflowId: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+type WorkflowStudioSurface = "editor" | "publish";
 
 export async function generateMetadata({
   params
@@ -76,6 +79,9 @@ export default async function WorkflowEditorPage({
   const workspaceStarterViewState = readWorkspaceStarterLibraryViewState(
     resolvedSearchParams
   );
+  const activeStudioSurface = readWorkflowStudioSurface(
+    resolvedSearchParams.surface
+  );
   const workflowLibraryViewState = readWorkflowLibraryViewState(resolvedSearchParams);
   const workflowLibraryHref = appendWorkflowLibraryViewState(
     buildWorkflowLibraryHrefFromWorkspaceStarterViewState(
@@ -93,6 +99,8 @@ export default async function WorkflowEditorPage({
     ),
     workflowLibraryViewState
   );
+  const editorSurfaceHref = appendWorkflowStudioSurface(currentEditorHref, "editor");
+  const publishSurfaceHref = appendWorkflowStudioSurface(currentEditorHref, "publish");
   const workspaceStarterLibraryHref =
     buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState(
       workspaceStarterViewState
@@ -120,52 +128,147 @@ export default async function WorkflowEditorPage({
   } = await getWorkflowPublishGovernanceSnapshot(workflow.id, publishedEndpoints, {
     activeInvocationFilter: publishActivityFilters.governanceFetchFilter
   });
+  const nodeCount = Array.isArray(workflow.definition?.nodes)
+    ? workflow.definition.nodes.length
+    : 0;
+  const edgeCount = Array.isArray(workflow.definition?.edges)
+    ? workflow.definition.edges.length
+    : 0;
+  const workflowSignals = [
+    { label: "节点", value: String(nodeCount) },
+    { label: "连线", value: String(edgeCount) },
+    { label: "最近运行", value: String(recentRuns.length) },
+    { label: "发布端点", value: String(publishedEndpoints.length) }
+  ];
 
   return (
     <WorkspaceShell
       activeNav="workflows"
+      layout="editor"
       userName={workspaceContext.current_user.display_name}
       userRole={workspaceContext.current_member.role}
       workspaceName={workspaceContext.workspace.name}
     >
-      <div className="workspace-main">
-        <WorkflowEditorWorkbench
-          workflow={workflow}
-          workflows={workflows}
-          nodeCatalog={workflowLibrary.nodes}
-          nodeSourceLanes={workflowLibrary.nodeSourceLanes}
-          toolSourceLanes={workflowLibrary.toolSourceLanes}
-          tools={workflowLibrary.tools}
-          adapters={pluginRegistry.adapters}
-          callbackWaitingAutomation={systemOverview.callback_waiting_automation}
-          sandboxReadiness={systemOverview.sandbox_readiness}
-          sandboxBackends={systemOverview.sandbox_backends}
-          recentRuns={recentRuns}
-          currentEditorHref={currentEditorHref}
-          workflowLibraryHref={workflowLibraryHref}
-          createWorkflowHref={createWorkflowHref}
-          workspaceStarterLibraryHref={workspaceStarterLibraryHref}
-          hasScopedWorkspaceStarterFilters={hasScopedWorkspaceStarterFilters}
-          workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
-        />
-        <WorkflowPublishPanel
-          workflow={workflow}
-          tools={pluginRegistry.tools}
-          bindings={publishedEndpoints}
-          cacheInventories={cacheInventories}
-          apiKeysByBinding={apiKeysByBinding}
-          invocationAuditsByBinding={invocationAuditsByBinding}
-          invocationDetailsByBinding={invocationDetailsByBinding}
-          selectedInvocationId={publishActivityFilters.selectedInvocationId}
-          rateLimitWindowAuditsByBinding={rateLimitWindowAuditsByBinding}
-          callbackWaitingAutomation={systemOverview.callback_waiting_automation}
-          sandboxReadiness={systemOverview.sandbox_readiness}
-          activeInvocationFilter={publishActivityFilters.panelActiveFilter}
-          workflowLibraryHref={workflowLibraryHref}
-          currentHref={currentEditorHref}
-          workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
-        />
+      <div className="workspace-main workflow-studio-main">
+        <section className="workflow-studio-header-card">
+          <div className="workflow-studio-header-copy">
+            <p className="workspace-eyebrow">xyflow / studio</p>
+            <h1>{workflow.name}</h1>
+            <p className="workspace-muted workflow-studio-description">
+              参考 Dify 的应用 Studio 结构，把“新建应用后继续编排”的主视角收口成统一
+              Studio 壳层；中间始终是 7Flows 的 xyflow 画布，发布治理切到独立
+              surface，不再压成编辑器下方长页面。
+            </p>
+            <div className="workflow-studio-pill-row">
+              <span className="workspace-mode-pill">v{workflow.version}</span>
+              <span className="workspace-mode-pill">xyflow canvas</span>
+              <span className="workspace-mode-pill">
+                {publishedEndpoints.length > 0 ? "publish ready" : "draft only"}
+              </span>
+            </div>
+          </div>
+          <div className="workflow-studio-summary-grid" aria-label="Workflow studio summary">
+            {workflowSignals.map((signal) => (
+              <article className="workflow-studio-summary-card" key={signal.label}>
+                <span>{signal.label}</span>
+                <strong>{signal.value}</strong>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <nav className="workflow-studio-surface-nav" aria-label="Workflow studio surfaces">
+          <Link
+            className={`workflow-studio-surface-link ${
+              activeStudioSurface === "editor" ? "active" : ""
+            }`.trim()}
+            href={editorSurfaceHref}
+          >
+            画布编排
+          </Link>
+          <Link
+            className={`workflow-studio-surface-link ${
+              activeStudioSurface === "publish" ? "active" : ""
+            }`.trim()}
+            href={publishSurfaceHref}
+          >
+            发布治理
+          </Link>
+          <Link className="workflow-studio-secondary-link" href={workflowLibraryHref}>
+            返回编排中心
+          </Link>
+          <Link className="workflow-studio-secondary-link" href="/runs">
+            运行诊断
+          </Link>
+        </nav>
+
+        <section
+          className="workflow-studio-surface"
+          data-surface="editor"
+          hidden={activeStudioSurface !== "editor"}
+        >
+          <WorkflowEditorWorkbench
+            workflow={workflow}
+            workflows={workflows}
+            nodeCatalog={workflowLibrary.nodes}
+            nodeSourceLanes={workflowLibrary.nodeSourceLanes}
+            toolSourceLanes={workflowLibrary.toolSourceLanes}
+            tools={workflowLibrary.tools}
+            adapters={pluginRegistry.adapters}
+            callbackWaitingAutomation={systemOverview.callback_waiting_automation}
+            sandboxReadiness={systemOverview.sandbox_readiness}
+            sandboxBackends={systemOverview.sandbox_backends}
+            recentRuns={recentRuns}
+            currentEditorHref={editorSurfaceHref}
+            workflowLibraryHref={workflowLibraryHref}
+            createWorkflowHref={createWorkflowHref}
+            workspaceStarterLibraryHref={workspaceStarterLibraryHref}
+            hasScopedWorkspaceStarterFilters={hasScopedWorkspaceStarterFilters}
+            workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
+          />
+        </section>
+
+        <section
+          className="workflow-studio-surface workflow-studio-surface-governance"
+          data-surface="publish"
+          hidden={activeStudioSurface !== "publish"}
+        >
+          <WorkflowPublishPanel
+            workflow={workflow}
+            tools={pluginRegistry.tools}
+            bindings={publishedEndpoints}
+            cacheInventories={cacheInventories}
+            apiKeysByBinding={apiKeysByBinding}
+            invocationAuditsByBinding={invocationAuditsByBinding}
+            invocationDetailsByBinding={invocationDetailsByBinding}
+            selectedInvocationId={publishActivityFilters.selectedInvocationId}
+            rateLimitWindowAuditsByBinding={rateLimitWindowAuditsByBinding}
+            callbackWaitingAutomation={systemOverview.callback_waiting_automation}
+            sandboxReadiness={systemOverview.sandbox_readiness}
+            activeInvocationFilter={publishActivityFilters.panelActiveFilter}
+            workflowLibraryHref={workflowLibraryHref}
+            currentHref={publishSurfaceHref}
+            workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
+          />
+        </section>
       </div>
     </WorkspaceShell>
   );
+}
+
+function readWorkflowStudioSurface(
+  value: string | string[] | undefined
+): WorkflowStudioSurface {
+  const resolvedValue = Array.isArray(value) ? value[0] : value;
+  return resolvedValue === "publish" ? "publish" : "editor";
+}
+
+function appendWorkflowStudioSurface(
+  href: string,
+  surface: WorkflowStudioSurface
+) {
+  const [path, hash = ""] = href.split("#", 2);
+  const url = new URL(path, "http://sevenflows.local");
+  url.searchParams.set("surface", surface);
+  return `${url.pathname}${url.search}${hash ? `#${hash}` : ""}`;
 }

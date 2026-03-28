@@ -127,13 +127,12 @@ export function WorkspaceMemberAdminPanel({
   };
 
   return (
-    <section className="settings-layout">
-      <aside className="settings-sidebar-panel">
+    <section className="settings-layout settings-layout-dify">
+      <aside className="settings-sidebar-panel settings-sidebar-panel-dify">
         <p className="workspace-eyebrow">设置</p>
         <h1>团队设置</h1>
         <p className="workspace-muted workspace-copy-wide">
-          参考 Dify 的 settings / members 入口，把成员、角色和工作空间边界收口在一处；
-          这里只管协作与权限，不复制应用运行事实。
+          参考 Dify 的 settings / members 入口，把成员、角色和工作空间边界收口在一处；这里只管协作与权限，不复制应用运行事实。
         </p>
         <nav className="settings-nav" aria-label="Settings">
           <span className="settings-nav-group">工作空间</span>
@@ -147,8 +146,8 @@ export function WorkspaceMemberAdminPanel({
         </nav>
       </aside>
 
-      <div className="settings-main-panel">
-        <section className="workspace-panel workspace-settings-header-card">
+      <div className="settings-main-panel settings-main-panel-dify">
+        <section className="workspace-panel workspace-settings-header-card workspace-settings-header-card-dify">
           <div className="workspace-settings-header">
             <div className="workspace-settings-header-copy">
               <div aria-hidden="true" className="workspace-settings-avatar">
@@ -158,7 +157,7 @@ export function WorkspaceMemberAdminPanel({
                 <p className="workspace-eyebrow">成员</p>
                 <h2>{workspaceName}</h2>
                 <p className="workspace-muted workspace-copy-wide">
-                  这里收口工作空间成员、角色与协作边界；真正的编排与运行事实仍然回到 xyflow / runs 主链。
+                  管成员、配角色、开账号都在这里完成；真正的编排和运行事实仍然回到 xyflow / runs 主链。
                 </p>
               </div>
             </div>
@@ -185,134 +184,137 @@ export function WorkspaceMemberAdminPanel({
           <p className={`workspace-inline-message ${messageTone}`}>{message}</p>
         ) : null}
 
-        <div className="workspace-panel member-table-panel">
-          <div className="member-table-head member-table-heading">
-            <div>
-              <strong>成员列表</strong>
-              <p className="workspace-muted member-section-copy">
-                owner / admin 可维护角色；editor / viewer 默认只读查看工作空间入口与运行信息。
-              </p>
-            </div>
-            <div className="member-role-badges">
-              {availableRoles.map((role) => (
-                <span className="workspace-tag" key={role} title={ROLE_SUMMARIES[role]}>
-                  {formatWorkspaceRole(role)}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="member-table-list">
-            <div className="member-table-grid member-table-grid-head">
-              <span>成员</span>
-              <span>邮箱</span>
-              <span>最近活动</span>
-              <span>角色</span>
-              <span>操作</span>
-            </div>
-
-            {members.map((member) => {
-              const isRoleDirty = (draftRoles[member.id] ?? member.role) !== member.role;
-
-              return (
-                <div className="member-table-grid" key={member.id}>
-                  <span className="workspace-member-identity">
-                    <strong>{member.user.display_name}</strong>
-                    <span>{member.user.status === "active" ? "已启用" : member.user.status}</span>
+        <div className="workspace-settings-content-grid">
+          <div className="workspace-panel member-table-panel workspace-member-list-card">
+            <div className="member-table-head member-table-heading">
+              <div>
+                <strong>成员列表</strong>
+                <p className="workspace-muted member-section-copy">
+                  owner / admin 可维护角色；editor / viewer 默认只读查看工作空间入口与运行信息。
+                </p>
+              </div>
+              <div className="member-role-badges">
+                {availableRoles.map((role) => (
+                  <span className="workspace-tag" key={role} title={ROLE_SUMMARIES[role]}>
+                    {formatWorkspaceRole(role)}
                   </span>
-                  <span className="workspace-muted">{member.user.email}</span>
-                  <span className="workspace-muted">{describeWorkspaceMemberActivity(member)}</span>
-                  <span>
-                    {canManageMembers ? (
-                      <select
-                        className="workspace-select"
-                        onChange={(event) =>
-                          setDraftRoles((current) => ({
-                            ...current,
-                            [member.id]: event.target.value as WorkspaceMemberRole
-                          }))
-                        }
-                        value={draftRoles[member.id] ?? member.role}
-                      >
-                        {availableRoles.map((role) => (
-                          <option key={role} value={role}>
-                            {formatWorkspaceRole(role)}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      formatWorkspaceRole(member.role)
-                    )}
-                  </span>
-                  <span>
-                    {canManageMembers ? (
-                      <button
-                        className="workspace-ghost-button compact"
-                        disabled={!isRoleDirty}
-                        onClick={() => handleUpdateRole(member.id)}
-                        type="button"
-                      >
-                        {isRoleDirty ? "保存角色" : "已保存"}
-                      </button>
-                    ) : (
-                      <span className="workspace-muted">仅查看</span>
-                    )}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="workspace-panel member-form-panel" id="workspace-member-create">
-          <div className="member-table-head member-table-heading">
-            <div>
-              <strong>新增成员</strong>
-              <p className="workspace-muted member-section-copy">
-                默认通过邮箱 + 初始密码完成本地开通，后续再继续扩展邀请与更细粒度权限配置。
-              </p>
-            </div>
-          </div>
-
-          {canManageMembers ? (
-            <div className="member-form-layout">
-              <form className="member-create-form" onSubmit={handleCreateMember}>
-                <div className="member-create-grid">
-                  <input className="workspace-input" name="display_name" placeholder="姓名" required />
-                  <input className="workspace-input" name="email" placeholder="邮箱" required />
-                  <input
-                    className="workspace-input"
-                    name="password"
-                    placeholder="初始密码"
-                    required
-                    type="password"
-                  />
-                  <select className="workspace-select" defaultValue="viewer" name="role">
-                    {manageableRoles.map((role) => (
-                      <option key={role} value={role}>
-                        {formatWorkspaceRole(role)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="workspace-action-row">
-                  <button className="workspace-primary-button compact" disabled={isSubmitting} type="submit">
-                    {isSubmitting ? "提交中..." : "添加成员"}
-                  </button>
-                </div>
-              </form>
-              <div className="member-create-note">
-                {manageableRoles.map((role) => (
-                  <article className="member-role-note" key={role}>
-                    <strong>{formatWorkspaceRole(role)}</strong>
-                    <p className="workspace-muted">{ROLE_SUMMARIES[role]}</p>
-                  </article>
                 ))}
               </div>
             </div>
-          ) : (
-            <p className="workspace-muted">当前账号只有查看权限，无法新增成员。</p>
-          )}
+
+            <div className="member-table-list">
+              <div className="member-table-grid member-table-grid-head">
+                <span>成员</span>
+                <span>邮箱</span>
+                <span>最近活动</span>
+                <span>角色</span>
+                <span>操作</span>
+              </div>
+
+              {members.map((member) => {
+                const isRoleDirty = (draftRoles[member.id] ?? member.role) !== member.role;
+
+                return (
+                  <div className="member-table-grid" key={member.id}>
+                    <span className="workspace-member-identity">
+                      <strong>{member.user.display_name}</strong>
+                      <span>{member.user.status === "active" ? "已启用" : member.user.status}</span>
+                    </span>
+                    <span className="workspace-muted">{member.user.email}</span>
+                    <span className="workspace-muted">{describeWorkspaceMemberActivity(member)}</span>
+                    <span>
+                      {canManageMembers ? (
+                        <select
+                          className="workspace-select"
+                          onChange={(event) =>
+                            setDraftRoles((current) => ({
+                              ...current,
+                              [member.id]: event.target.value as WorkspaceMemberRole
+                            }))
+                          }
+                          value={draftRoles[member.id] ?? member.role}
+                        >
+                          {availableRoles.map((role) => (
+                            <option key={role} value={role}>
+                              {formatWorkspaceRole(role)}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        formatWorkspaceRole(member.role)
+                      )}
+                    </span>
+                    <span>
+                      {canManageMembers ? (
+                        <button
+                          className="workspace-ghost-button compact"
+                          disabled={!isRoleDirty}
+                          onClick={() => handleUpdateRole(member.id)}
+                          type="button"
+                        >
+                          {isRoleDirty ? "保存角色" : "已保存"}
+                        </button>
+                      ) : (
+                        <span className="workspace-muted">仅查看</span>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="workspace-panel member-form-panel workspace-member-create-card" id="workspace-member-create">
+            <div className="member-table-head member-table-heading">
+              <div>
+                <strong>新增成员</strong>
+                <p className="workspace-muted member-section-copy">
+                  默认通过邮箱 + 初始密码完成本地开通，后续再继续扩展邀请与更细粒度权限配置。
+                </p>
+              </div>
+            </div>
+
+            {canManageMembers ? (
+              <div className="member-form-layout member-form-layout-stacked">
+                <form className="member-create-form" onSubmit={handleCreateMember}>
+                  <div className="member-create-grid member-create-grid-stacked">
+                    <input className="workspace-input" name="display_name" placeholder="姓名" required />
+                    <input className="workspace-input" name="email" placeholder="邮箱" required />
+                    <input
+                      className="workspace-input"
+                      name="password"
+                      placeholder="初始密码"
+                      required
+                      type="password"
+                    />
+                    <select className="workspace-select" defaultValue="viewer" name="role">
+                      {manageableRoles.map((role) => (
+                        <option key={role} value={role}>
+                          {formatWorkspaceRole(role)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="workspace-action-row">
+                    <button className="workspace-primary-button compact" disabled={isSubmitting} type="submit">
+                      {isSubmitting ? "提交中..." : "添加成员"}
+                    </button>
+                  </div>
+                </form>
+
+                <div className="member-create-note member-create-note-compact">
+                  {manageableRoles.map((role) => (
+                    <article className="member-role-note" key={role}>
+                      <strong>{formatWorkspaceRole(role)}</strong>
+                      <p className="workspace-muted">{ROLE_SUMMARIES[role]}</p>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="workspace-muted">当前账号只有查看权限，无法新增成员。</p>
+            )}
+          </div>
         </div>
       </div>
     </section>
