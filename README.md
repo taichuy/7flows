@@ -39,6 +39,21 @@
 
 ## 本地开发
 
+### 0. 一键启动（Linux / macOS / Git Bash）
+
+```shell
+bash scripts/dev-up.sh
+```
+
+默认会复制缺失的本地环境文件、启动 `docker-compose.middleware.yaml`、执行 API migration，并在后台拉起 API / Worker / Scheduler / Web；日志写入 `tmp/logs/`。
+
+常用命令：
+
+```shell
+bash scripts/dev-up.sh status
+bash scripts/dev-up.sh stop
+```
+
 ### 1. 启动中间件
 
 ```shell
