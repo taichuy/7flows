@@ -13,7 +13,7 @@ vi.mock("next/link", () => ({
 }));
 
 describe("WorkspaceAppsWorkbench", () => {
-  it("renders a create rail beside a compact app list", () => {
+  it("renders a dify-style create strip above a compact app list", () => {
     const html = renderToStaticMarkup(
       createElement(WorkspaceAppsWorkbench, {
         workspaceName: "7Flows Workspace",
@@ -35,18 +35,24 @@ describe("WorkspaceAppsWorkbench", () => {
         ],
         quickCreateEntries: [
           {
-            title: "Blank Flow",
-            detail: "新建空白 ChatFlow，创建后继续进入 xyflow。",
+            title: "创建空白应用",
+            detail: "直接生成最小 workflow 草稿，创建后继续进入 Studio。",
             href: "/workflows/new",
             badge: "Blank"
           },
           {
-            title: "从模板创建",
-            detail: "先挑 starter，再进入画布。",
+            title: "从 Starter 模板创建",
+            detail: "先挑 starter，再进入 Studio。",
             href: "/workspace-starters",
             badge: "Starter"
           }
         ],
+        workspaceUtilityEntry: {
+          title: "管理成员与权限",
+          detail: "管理员可直接开通成员账号，并在工作空间里完成角色配置。",
+          href: "/admin/members",
+          badge: "4 种角色"
+        },
         starterHighlights: [
           {
             id: "starter-blank",
@@ -90,10 +96,11 @@ describe("WorkspaceAppsWorkbench", () => {
       })
     );
 
-    expect(html).toContain("workspace-catalog-layout");
     expect(html).toContain("workspace-create-rail");
+    expect(html).toContain("创建空白应用");
     expect(html).toContain("workspace-app-row");
-    expect(html).toContain("Blank Flow");
+    expect(html).toContain("管理成员与权限");
+    expect(html).toContain("下一步");
     expect(html).toContain("继续进入 xyflow");
   });
 });

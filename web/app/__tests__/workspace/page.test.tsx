@@ -286,15 +286,15 @@ describe("WorkspacePage", () => {
     expect(html).toContain("Tool Agent");
     expect(html).toContain("全部 2");
     expect(html).toContain("搜索应用、Agent、工具链或治理焦点");
-    expect(html).toContain("创建应用");
-    expect(html).toContain("新建空白 ChatFlow");
-    expect(html).toContain("从应用模板创建");
-    expect(html).toContain("推荐模板：Starter ChatFlow");
-    expect(html).toContain("参考 Dify 的应用工作台：先筛选、再创建、最后继续进入 xyflow 编排。");
+    expect(html).toContain("创建空白应用");
+    expect(html).toContain("从 Starter 模板创建");
+    expect(html).toContain("推荐 Starter");
+    expect(html).toContain("Starter ChatFlow");
+    expect(html).toContain("参考 Dify 的工作室：工作台先承担创建、筛选和继续进入 Studio 这三件事。");
     expect(html).toContain("管理成员与权限");
     expect(html).toContain("应用目录 · 全部 2 个应用");
     expect(html).toContain("继续进入 xyflow");
-    expect(html).toContain("优先处理 1 个治理待办后，再继续进入 xyflow。");
+    expect(html).toContain("优先处理 1 个治理待办，再继续进入画布。");
     expect(html).toContain('href="/workflows/new"');
     expect(html).toContain('href="/workspace-starters"');
     expect(html).toContain('href="/admin/members"');
@@ -481,7 +481,7 @@ describe("WorkspacePage", () => {
     expect(html).toContain("Agent Ops");
     expect(html).not.toContain("ChatFlow Alpha");
     expect(html).toContain('href="/workspace?mode=agent"');
-    expect(html).toContain("新建 Agent 草稿");
+    expect(html).toContain("创建 Agent 应用");
   });
 
   it("shows starter showcase cards when the workspace has no apps yet", async () => {
@@ -531,7 +531,7 @@ describe("WorkspacePage", () => {
 
     expect(html).toContain("当前筛选范围内还没有应用");
     expect(html).toContain("Blank Flow");
-    expect(html).toContain("推荐模板：Blank Flow");
+    expect(html).toContain("推荐 Starter");
     expect(html).toContain("Starter 模板");
   });
 
