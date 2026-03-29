@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 export function WorkspaceLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [email, setEmail] = useState("admin@taichuy.com");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<"idle" | "error">("idle");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,19 +80,9 @@ export function WorkspaceLoginForm() {
           value={password}
         />
       </div>
-      <div className="login-credential-card">
-        <span className="login-credential-label">本地默认管理员</span>
-        <div className="login-credential-copy">
-          <strong>admin@taichuy.com</strong>
-          <span>admin123</span>
-        </div>
-      </div>
       <button className="workspace-primary-button" disabled={isSubmitting} type="submit">
         {isSubmitting ? "进入中..." : "进入工作台"}
       </button>
-      <p className="workspace-muted login-helper-copy">
-        默认管理员仅用于本地验证；登录后可继续创建应用和管理成员。
-      </p>
       {message ? (
         <p className={`workspace-inline-message ${messageTone === "error" ? "error" : "idle"}`}>
           {message}

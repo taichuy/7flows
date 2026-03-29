@@ -16,6 +16,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
     "/workspace/:path*",
     "/admin/:path*",
     "/workflows/:path*",
