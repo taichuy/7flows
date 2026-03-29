@@ -13,7 +13,7 @@ vi.mock("next/link", () => ({
 }));
 
 describe("WorkspaceAppsWorkbench", () => {
-  it("renders a dify-style directory toolbar with compact studio rows", () => {
+  it("renders a directory-first workspace shell with a compact create launcher", () => {
     const html = renderToStaticMarkup(
       createElement(WorkspaceAppsWorkbench, {
         workspaceName: "7Flows Workspace",
@@ -98,7 +98,9 @@ describe("WorkspaceAppsWorkbench", () => {
 
     expect(html).toContain("workspace-apps-dify-shell");
     expect(html).toContain("workspace-filter-rail-inline");
+    expect(html).toContain("workspace-catalog-stage");
     expect(html).toContain("workspace-create-strip");
+    expect(html).toContain("快速新建");
     expect(html).toContain("创建空白应用");
     expect(html).toContain("workspace-app-row");
     expect(html).toContain("workspace-app-list-columns");
@@ -106,6 +108,7 @@ describe("WorkspaceAppsWorkbench", () => {
     expect(html).toContain("应用目录");
     expect(html).toContain("重点");
     expect(html).toContain("进入 Studio");
-    expect(html).toContain("查看下一步");
+    expect(html).toContain("草稿已就绪，继续进入 xyflow。");
+    expect(html).not.toContain("查看下一步");
   });
 });

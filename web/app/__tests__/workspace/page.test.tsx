@@ -253,6 +253,7 @@ describe("WorkspacePage", () => {
     expect(html).toContain("搜索、筛选后直接进入 Studio。");
     expect(html).toContain("管理成员与权限");
     expect(html).toContain("全部 2 个应用");
+    expect(html).toContain("应用目录优先，治理细节按需展开。");
     expect(html).toContain("重点");
     expect(html).toContain("进入 Studio");
     expect(html).toContain("治理优先");

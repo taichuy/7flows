@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { formatTimestamp } from "@/lib/runtime-presenters";
-import { getWorkspaceBadgeLabel } from "@/lib/workspace-ui";
+import { getWorkspaceAppSurface, getWorkspaceBadgeLabel } from "@/lib/workspace-ui";
 
 type WorkspaceModeTab = {
   key: string;
@@ -238,19 +238,19 @@ function WorkspaceCreateStrip({
   workspaceUtilityEntry: WorkspaceQuickCreateEntry | null;
 }) {
   const [primaryEntry, ...secondaryEntries] = quickCreateEntries;
-  const visibleSecondaryEntries = secondaryEntries.slice(0, 2);
+  const visibleSecondaryEntries = secondaryEntries.slice(0, 1);
   const primaryStarter = starterHighlights[0] ?? null;
 
   return (
-    <section className="workspace-create-strip workspace-catalog-card" aria-label="Workspace create strip">
+    <aside className="workspace-create-strip workspace-catalog-card" aria-label="Workspace create strip">
       <div className="workspace-create-strip-copy">
-        <p className="workspace-app-card-caption">Quick create</p>
-        <h3>新建应用</h3>
+        <p className="workspace-app-card-caption">Create</p>
+        <h3>快速新建</h3>
         <p className="workspace-muted workspace-card-copy workspace-create-strip-summary">
-          主入口直达 Studio。
+          主入口直达 Studio，其它治理和团队入口退到次级。
         </p>
         <div className="workspace-create-strip-footnotes">
-          <span className="workspace-app-footnote">团队模板 {starterCount} 个</span>
+          <span className="workspace-app-footnote">Starter {starterCount} 个</span>
           <span className="workspace-app-footnote">
             {requestedKeyword ? `当前搜索：${requestedKeyword}` : "创建页沿用当前筛选"}
           </span>
@@ -268,25 +268,27 @@ function WorkspaceCreateStrip({
           </Link>
         ) : null}
 
-        {visibleSecondaryEntries.map((entry) => (
-          <Link className="workspace-create-strip-action" href={entry.href} key={entry.title}>
-            <div>
-              <span>{entry.title}</span>
-              <small>{entry.detail}</small>
-            </div>
-            <strong>{entry.badge}</strong>
-          </Link>
-        ))}
+        <div className="workspace-create-strip-secondary-list">
+          {visibleSecondaryEntries.map((entry) => (
+            <Link className="workspace-create-strip-action" href={entry.href} key={entry.title}>
+              <div>
+                <span>{entry.title}</span>
+                <small>{entry.detail}</small>
+              </div>
+              <strong>{entry.badge}</strong>
+            </Link>
+          ))}
 
-        {workspaceUtilityEntry ? (
-          <Link className="workspace-create-strip-action" href={workspaceUtilityEntry.href}>
-            <div>
-              <span>{workspaceUtilityEntry.title}</span>
-              <small>{workspaceUtilityEntry.detail}</small>
-            </div>
-            <strong>{workspaceUtilityEntry.badge}</strong>
-          </Link>
-        ) : null}
+          {workspaceUtilityEntry ? (
+            <Link className="workspace-create-strip-action" href={workspaceUtilityEntry.href}>
+              <div>
+                <span>{workspaceUtilityEntry.title}</span>
+                <small>{workspaceUtilityEntry.detail}</small>
+              </div>
+              <strong>{workspaceUtilityEntry.badge}</strong>
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <div className="workspace-create-strip-footer">
@@ -304,7 +306,7 @@ function WorkspaceCreateStrip({
           </div>
         )}
       </div>
-    </section>
+    </aside>
   );
 }
 
@@ -347,28 +349,13 @@ function WorkspaceAppTile({
   card: WorkspaceAppCard;
   currentUserDisplayName: string;
 }) {
-  const signalLabel =
-    card.followUpCount > 0
-      ? `${card.followUpCount} 个治理待办`
-      : card.missingToolCount > 0
-        ? `${card.missingToolCount} 个工具缺口`
-        : card.healthLabel;
-  const showSignalLabel = card.followUpCount > 0 || card.status === "published";
-  const appDigest =
-    card.status === "published"
-      ? "已发布，可继续从 Studio 维护版本。"
-      : card.followUpCount > 0
-        ? `治理优先：${card.followUpCount} 项待处理。`
-        : "草稿已就绪，继续进入 xyflow。";
-  const publishLabel = card.publishCount > 0 ? `${card.publishCount} 个发布端点` : "未发布";
-  const governanceLabel =
-    card.followUpCount > 0
-      ? `${card.followUpCount} 项待治理`
-      : card.missingToolCount > 0
-        ? `${card.missingToolCount} 个工具缺口`
-        : signalLabel;
-  const detailToggleLabel =
-    card.followUpCount > 0 || card.missingToolCount > 0 ? "查看治理细节" : "查看下一步";
+  const appSurface = getWorkspaceAppSurface({
+    followUpCount: card.followUpCount,
+    healthLabel: card.healthLabel,
+    missingToolCount: card.missingToolCount,
+    publishCount: card.publishCount,
+    status: card.status
+  });
   const trackLabel = `${card.track.priority} · ${card.track.id}`;
 
   return (
@@ -393,34 +380,44 @@ function WorkspaceAppTile({
       <div className="workspace-app-row-cell workspace-app-row-cell-mode">
         <span className="workspace-mode-pill">{card.mode.shortLabel}</span>
         <span className="workspace-app-row-track">{trackLabel}</span>
-        <span className="workspace-app-footnote">{publishLabel}</span>
+        <span className="workspace-app-footnote">{appSurface.publishLabel}</span>
       </div>
 
       <div className="workspace-app-row-cell workspace-app-row-cell-status">
-        <span className={`workspace-status-pill ${card.status === "published" ? "healthy" : "draft"}`}>
-          {card.status === "published" ? "已发布" : "草稿"}
+        <span className={`workspace-status-pill ${appSurface.statusTone}`}>
+          {appSurface.statusLabel}
         </span>
         <span className={`workspace-app-inline-metric workspace-app-row-signal ${card.followUpCount > 0 ? "warning" : ""}`}>
-          {showSignalLabel ? signalLabel : governanceLabel}
+          {appSurface.signalLabel}
         </span>
       </div>
 
       <div className="workspace-app-row-cell workspace-app-row-cell-summary">
         <div className="workspace-app-meta-row workspace-app-row-meta" aria-label={`${card.name} workspace hints`}>
           <span className="workspace-app-meta-pill">{card.track.focus}</span>
-          {card.missingToolCount > 0 ? <span className="workspace-app-meta-pill warning">工具缺口：{card.missingToolCount}</span> : null}
-          {card.publishCount > 0 ? <span className="workspace-app-meta-pill">{publishLabel}</span> : null}
+          {card.followUpCount > 0 ? (
+            <span className="workspace-app-meta-pill warning">待治理：{card.followUpCount}</span>
+          ) : null}
+          {card.publishCount > 0 ? (
+            <span className="workspace-app-meta-pill">{appSurface.publishLabel}</span>
+          ) : null}
         </div>
-        <details className="workspace-app-row-details">
-          <summary>{detailToggleLabel}</summary>
-          <div className="workspace-app-row-details-panel">
-            <p className="workspace-muted workspace-app-row-helper">{appDigest}</p>
-            <div className="workspace-app-row-details-meta">
-              <span className="workspace-app-footnote">{publishLabel}</span>
-              <span className="workspace-app-footnote">最近更新 {formatTimestamp(card.updatedAt)}</span>
+        {appSurface.showDetailPanel && appSurface.detailToggleLabel ? (
+          <details className="workspace-app-row-details">
+            <summary>{appSurface.detailToggleLabel}</summary>
+            <div className="workspace-app-row-details-panel">
+              <p className="workspace-muted workspace-app-row-helper">{appSurface.digest}</p>
+              <div className="workspace-app-row-details-meta">
+                <span className="workspace-app-footnote">{appSurface.publishLabel}</span>
+                <span className="workspace-app-footnote">最近更新 {formatTimestamp(card.updatedAt)}</span>
+              </div>
             </div>
-          </div>
-        </details>
+          </details>
+        ) : (
+          <p className="workspace-muted workspace-app-row-helper workspace-app-row-helper-inline">
+            {appSurface.digest}
+          </p>
+        )}
       </div>
 
       <div className="workspace-app-row-cell workspace-app-row-cell-actions">
@@ -510,31 +507,34 @@ export function WorkspaceAppsWorkbench({
             workspaceSignals={workspaceSignals}
           />
 
-          <WorkspaceCreateStrip
-            quickCreateEntries={quickCreateEntries}
-            requestedKeyword={requestedKeyword}
-            starterCount={starterCount}
-            starterHighlights={starterHighlights}
-            workspaceUtilityEntry={workspaceUtilityEntry}
-          />
-
-          <section className="workspace-app-section workspace-app-section-dify workspace-catalog-section workspace-catalog-section-studio">
-            <div className="workspace-app-list-stage-header">
-              <div>
-                <p className="workspace-app-list-stage-summary">{visibleAppSummary}</p>
-                <p className="workspace-muted workspace-app-list-stage-copy">优先进入 Studio。</p>
+          <section className="workspace-catalog-stage">
+            <section className="workspace-app-list-stage workspace-catalog-card">
+              <div className="workspace-app-list-stage-header">
+                <div>
+                  <p className="workspace-app-list-stage-summary">{visibleAppSummary}</p>
+                  <p className="workspace-muted workspace-app-list-stage-copy">
+                    应用目录优先，治理细节按需展开。
+                  </p>
+                </div>
               </div>
-            </div>
 
-            {filteredApps.length > 0 ? <WorkspaceAppListColumns /> : null}
+              <div className="workspace-app-list-shell">
+                {filteredApps.length > 0 ? <WorkspaceAppListColumns /> : null}
+                {filteredApps.length === 0 ? <WorkspaceEmptyTile activeModeLabel={activeModeLabel} /> : null}
 
-            <div className="workspace-app-list-shell">
-              {filteredApps.length === 0 ? <WorkspaceEmptyTile activeModeLabel={activeModeLabel} /> : null}
+                {filteredApps.map((card) => (
+                  <WorkspaceAppTile card={card} currentUserDisplayName={currentUserDisplayName} key={card.id} />
+                ))}
+              </div>
+            </section>
 
-              {filteredApps.map((card) => (
-                <WorkspaceAppTile card={card} currentUserDisplayName={currentUserDisplayName} key={card.id} />
-              ))}
-            </div>
+            <WorkspaceCreateStrip
+              quickCreateEntries={quickCreateEntries}
+              requestedKeyword={requestedKeyword}
+              starterCount={starterCount}
+              starterHighlights={starterHighlights}
+              workspaceUtilityEntry={workspaceUtilityEntry}
+            />
           </section>
         </section>
       </section>
