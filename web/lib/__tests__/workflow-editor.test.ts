@@ -181,8 +181,19 @@ describe("workflow-editor quick add helpers", () => {
   it("inserts inline when the source node already has a single downstream control edge", () => {
     const result = insertNodeIntoCanvasGraph({
       nodeCatalog,
-      nodes: baseNodes,
-      edges: [baseEdge],
+      nodes: [
+        {
+          ...baseNodes[0],
+          selected: true
+        },
+        baseNodes[1]
+      ],
+      edges: [
+        {
+          ...baseEdge,
+          selected: true
+        }
+      ],
       type: "llm_agent",
       sourceNodeId: "trigger"
     });
@@ -201,6 +212,10 @@ describe("workflow-editor quick add helpers", () => {
       x: 680,
       y: 120
     });
+    expect(result.nextNode.selected).toBe(true);
+    expect(result.nodes.find((node) => node.id === "trigger")?.selected).toBe(false);
+    expect(result.nodes.find((node) => node.id === "output")?.selected).not.toBe(true);
+    expect(result.edges.some((edge) => edge.selected)).toBe(false);
   });
 
   it("keeps branch insertion when the source node already fans out", () => {

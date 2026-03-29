@@ -206,7 +206,7 @@ export function WorkflowEditorInspector({
       return {
         eyebrow: "NODE CONFIG",
         title: selectedNode.data.label,
-        description: "当前右侧只聚焦已选节点，把配置与 AI 辅助收在同一面板里。",
+        description: "右侧只跟随当前节点，把配置和 AI 收在同一面板。",
         chips: assistantContext
           ? [
               selectedNode.data.nodeType,
@@ -229,7 +229,7 @@ export function WorkflowEditorInspector({
     return {
       eyebrow: "WORKFLOW CONFIG",
       title: "应用配置",
-      description: "未选中节点时，右侧回到应用级配置：先看当前焦点，再补变量与发布。",
+      description: "未选中节点时，右侧只保留应用级配置。",
       chips: [
         `v${workflowVersion}`,
         `${workflowVariables.length} 个变量`,
@@ -249,7 +249,7 @@ export function WorkflowEditorInspector({
         <div className="workflow-editor-assistant-hero-copy">
           <div className="workflow-editor-inspector-section-title">节点上下文</div>
           <Text type="secondary">
-            当前先用已选节点、相邻连线和执行事实生成本地建议；后续再挂正式 assistant 接口。
+            先用当前节点、相邻连线和执行事实生成本地建议；后续再挂正式 assistant 接口。
           </Text>
         </div>
         <div className="workflow-editor-assistant-chip-list">
@@ -330,9 +330,9 @@ export function WorkflowEditorInspector({
               setAssistantDraft("");
             }}
           >
-            发送建议请求
+            生成建议
           </Button>
-          <Text type="secondary">同面板完成节点配置判断，不新增新的 AI 侧栏。</Text>
+          <Text type="secondary">仍留在当前面板，不新增 AI 侧栏。</Text>
         </div>
       </div>
     </Space>

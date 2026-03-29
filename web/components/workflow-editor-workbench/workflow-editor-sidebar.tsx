@@ -391,7 +391,7 @@ function WorkflowEditorSidebarComponent({
               <div className="workflow-editor-rail-header">
                 <div className="workflow-editor-rail-header-copy">
                   <h2>节点目录</h2>
-                  <p>先插入节点；相关草稿切到次级 rail，不打断当前画布。</p>
+                  <p>先插节点，相关草稿按需再看。</p>
                 </div>
                 <div className="workflow-editor-rail-summary" aria-label="节点栏摘要">
                   {railSummaryPills.map((pill) => (
@@ -475,7 +475,7 @@ function WorkflowEditorSidebarComponent({
                       ))}
                     </div>
                     <small className="section-copy">
-                      这些类型仅作规划占位，当前不进入节点目录或 runtime 主链。
+                      这些类型仅作规划占位，暂不进入当前画布主链。
                     </small>
                   </div>
                 ) : null}

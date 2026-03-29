@@ -61,7 +61,7 @@ export function WorkflowEditorCanvas({
         >
           <Panel className="workflow-canvas-helper-panel" position="top-left">
             <strong>xyflow Studio</strong>
-            <span>选中节点后可 + 插入下一节点，或用 ··· 打开配置。</span>
+            <span>选中节点后可插入下一节点，或用 ··· 打开配置。</span>
           </Panel>
           <Background gap={24} size={1} />
           <MiniMap

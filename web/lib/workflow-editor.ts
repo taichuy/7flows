@@ -346,6 +346,22 @@ export function insertNodeIntoCanvasGraph({
     : null;
   const shouldInsertInline = Boolean(sourceNode && inlineEdge && inlineTargetNode);
   const outgoingEdgeCount = shouldInsertInline ? 0 : outgoingEdges.length;
+  const clearedNodes = nodes.map((node) =>
+    node.selected
+      ? {
+          ...node,
+          selected: false
+        }
+      : node
+  );
+  const clearedEdges = edges.map((edge) =>
+    edge.selected
+      ? {
+          ...edge,
+          selected: false
+        }
+      : edge
+  );
   const draft = createWorkflowNodeDraft(nodeCatalog, type, nodes.length + 1, {
     anchorPosition: sourceNode
       ? buildWorkflowInsertedNodePosition(sourceNode.position, outgoingEdgeCount)
@@ -370,7 +386,7 @@ export function insertNodeIntoCanvasGraph({
 
   if (shouldInsertInline && sourceNode && inlineEdge && inlineTargetNode) {
     const downstreamNodeIds = collectWorkflowDownstreamNodeIds(inlineTargetNode.id, edges);
-    const shiftedNodes = nodes.map((node) =>
+    const shiftedNodes = clearedNodes.map((node) =>
       downstreamNodeIds.has(node.id)
         ? {
             ...node,
@@ -389,7 +405,7 @@ export function insertNodeIntoCanvasGraph({
       insertionMode: "inline" as const,
       nodes: [...shiftedNodes, nextNode],
       edges: [
-        ...edges.map((edge) =>
+        ...clearedEdges.map((edge) =>
           edge.id === inlineEdge.id
             ? {
                 ...edge,
@@ -409,8 +425,10 @@ export function insertNodeIntoCanvasGraph({
     sourceNode,
     displacedTargetNode: null,
     insertionMode: sourceNode ? ("branch" as const) : ("append" as const),
-    nodes: [...nodes, nextNode],
-    edges: sourceNode ? [...edges, buildEditorEdge(sourceNode.id, nextNode.id)] : edges
+    nodes: [...clearedNodes, nextNode],
+    edges: sourceNode
+      ? [...clearedEdges, buildEditorEdge(sourceNode.id, nextNode.id)]
+      : clearedEdges
   };
 }
 
