@@ -130,7 +130,7 @@ function buildWorkflowLibrarySnapshotFixture(
 }
 
 describe("WorkspacePage", () => {
-  it("renders a Dify-like workspace shell with real create and search entrypoints", async () => {
+  it("renders a compact author workspace shell with real create and search entrypoints", async () => {
     vi.mocked(getServerWorkspaceContext).mockResolvedValue(buildWorkspaceContext());
     vi.mocked(getWorkflows).mockResolvedValue([
       {
@@ -238,22 +238,22 @@ describe("WorkspacePage", () => {
       })
     );
 
-    expect(html).toContain("7Flows Workspace 应用工作台");
-    expect(html).toContain("Workspace / Apps");
+    expect(html).toContain("应用工作台");
+    expect(html).toContain("Workspace");
     expect(html).toContain("ChatFlow");
     expect(html).toContain("Agent");
     expect(html).toContain("Tool Agent");
     expect(html).toContain("全部 2");
-    expect(html).toContain("搜索应用、Agent、工具链或治理焦点");
+    expect(html).toContain("搜索应用或治理焦点");
     expect(html).toContain("应用目录");
     expect(html).toContain("创建空白应用");
     expect(html).toContain("从 Starter 模板创建");
-    expect(html).toContain("推荐起点");
+    expect(html).toContain("Starter 起点");
     expect(html).toContain("Starter ChatFlow");
-    expect(html).toContain("先筛应用，再继续编排或创建新应用。");
+    expect(html).toContain("搜索、筛选后直接进入 Studio。");
     expect(html).toContain("管理成员与权限");
     expect(html).toContain("全部 2 个应用");
-    expect(html).toContain("治理 / 下一步");
+    expect(html).toContain("重点");
     expect(html).toContain("进入 Studio");
     expect(html).toContain("治理优先");
     expect(html).toContain("查看治理细节");
@@ -490,7 +490,7 @@ describe("WorkspacePage", () => {
 
     expect(html).toContain("当前筛选范围内还没有应用");
     expect(html).toContain("Blank Flow");
-    expect(html).toContain("推荐起点");
+    expect(html).toContain("Starter 起点");
     expect(html).toContain("Starter 模板");
   });
 

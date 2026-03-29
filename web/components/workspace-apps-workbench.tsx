@@ -109,7 +109,7 @@ function getWorkspaceScopeSummary({
     ? `已按“${requestedKeyword}”聚焦应用`
     : activeModeLabel
       ? `当前筛选：${activeModeLabel}`
-      : "当前展示全部应用";
+      : "全部应用";
 }
 
 function WorkspaceScopePills({ scopePills }: { scopePills: WorkspaceScopePill[] }) {
@@ -247,12 +247,12 @@ function WorkspaceCreateStrip({
         <p className="workspace-app-card-caption">Quick create</p>
         <h3>新建应用</h3>
         <p className="workspace-muted workspace-card-copy workspace-create-strip-summary">
-          主 CTA 只负责命名并进入 Studio；其余入口收成次级跳转。
+          主入口直达 Studio。
         </p>
         <div className="workspace-create-strip-footnotes">
           <span className="workspace-app-footnote">团队模板 {starterCount} 个</span>
           <span className="workspace-app-footnote">
-            {requestedKeyword ? `当前搜索：${requestedKeyword}` : "工作台与创建页共用同一套命名"}
+            {requestedKeyword ? `当前搜索：${requestedKeyword}` : "创建页沿用当前筛选"}
           </span>
         </div>
       </div>
@@ -292,17 +292,15 @@ function WorkspaceCreateStrip({
       <div className="workspace-create-strip-footer">
         {primaryStarter ? (
           <Link className="workspace-create-strip-starter" href={primaryStarter.href}>
-            <span>推荐起点</span>
+            <span>Starter 起点</span>
             <strong>{primaryStarter.name}</strong>
-            <small>
-              {primaryStarter.priority} · {primaryStarter.modeShortLabel} · 创建后直接带着最小骨架进入 xyflow。
-            </small>
+            <small>{primaryStarter.priority} · {primaryStarter.modeShortLabel}</small>
           </Link>
         ) : (
           <div className="workspace-create-strip-starter">
-            <span>推荐起点</span>
+            <span>Starter 起点</span>
             <strong>Blank Flow</strong>
-            <small>保留最小 trigger → output 入口，创建后直接进入 xyflow。</small>
+            <small>保留最小 trigger → output 骨架。</small>
           </div>
         )}
       </div>
@@ -316,7 +314,7 @@ function WorkspaceAppListColumns() {
       <span>应用</span>
       <span>模式</span>
       <span>状态</span>
-      <span>治理 / 下一步</span>
+      <span>重点</span>
       <span>操作</span>
     </div>
   );
@@ -328,7 +326,7 @@ function WorkspaceEmptyTile({ activeModeLabel }: { activeModeLabel: string | nul
       <p className="workspace-app-card-caption">应用列表</p>
       <h3>当前筛选范围内还没有{activeModeLabel ? ` ${activeModeLabel}` : ""}应用</h3>
       <p className="workspace-muted workspace-card-copy">
-        先从创建入口发起，或者直接挑一个 Starter 作为起点；创建后继续进入 xyflow 编辑器补齐节点、调试和发布语义。
+        先从创建入口或 Starter 开始，然后进入 xyflow 补齐节点。
       </p>
       <div className="workspace-action-row workspace-app-card-actions">
         <Link className="workspace-primary-button compact" href="/workflows/new">
@@ -358,10 +356,10 @@ function WorkspaceAppTile({
   const showSignalLabel = card.followUpCount > 0 || card.status === "published";
   const appDigest =
     card.status === "published"
-      ? "已发布，可继续从 Studio 维护版本并回到运行入口核对状态。"
+      ? "已发布，可继续从 Studio 维护版本。"
       : card.followUpCount > 0
-        ? `治理优先：${card.recommendedNextStep}`
-        : "草稿已就绪，继续进入 xyflow 补首个业务节点与应用配置。";
+        ? `治理优先：${card.followUpCount} 项待处理。`
+        : "草稿已就绪，继续进入 xyflow。";
   const publishLabel = card.publishCount > 0 ? `${card.publishCount} 个发布端点` : "未发布";
   const governanceLabel =
     card.followUpCount > 0
@@ -371,6 +369,7 @@ function WorkspaceAppTile({
         : signalLabel;
   const detailToggleLabel =
     card.followUpCount > 0 || card.missingToolCount > 0 ? "查看治理细节" : "查看下一步";
+  const trackLabel = `${card.track.priority} · ${card.track.id}`;
 
   return (
     <article className="workspace-app-row workspace-catalog-card" key={card.id}>
@@ -393,7 +392,7 @@ function WorkspaceAppTile({
 
       <div className="workspace-app-row-cell workspace-app-row-cell-mode">
         <span className="workspace-mode-pill">{card.mode.shortLabel}</span>
-        <span className="workspace-app-row-track">{card.track.focus}</span>
+        <span className="workspace-app-row-track">{trackLabel}</span>
         <span className="workspace-app-footnote">{publishLabel}</span>
       </div>
 
@@ -416,7 +415,6 @@ function WorkspaceAppTile({
           <summary>{detailToggleLabel}</summary>
           <div className="workspace-app-row-details-panel">
             <p className="workspace-muted workspace-app-row-helper">{appDigest}</p>
-            <p className="workspace-muted workspace-app-row-helper">当前焦点：{card.track.summary}</p>
             <div className="workspace-app-row-details-meta">
               <span className="workspace-app-footnote">{publishLabel}</span>
               <span className="workspace-app-footnote">最近更新 {formatTimestamp(card.updatedAt)}</span>
@@ -462,10 +460,10 @@ export function WorkspaceAppsWorkbench({
     requestedKeyword
   });
   const catalogDescription = requestedKeyword
-    ? `当前按“${requestedKeyword}”筛选应用；命中后直接进入 Studio。`
+    ? `当前按“${requestedKeyword}”筛选，命中后直接进入 Studio。`
     : activeModeLabel
-      ? `当前聚焦 ${activeModeLabel}，继续创建或进入 Studio。`
-      : "先筛应用，再继续编排或创建新应用。";
+      ? `当前聚焦 ${activeModeLabel}。`
+      : "搜索、筛选后直接进入 Studio。";
 
   return (
     <main className="workspace-main workspace-home-main workspace-home-main-flat workspace-board-page">
@@ -473,9 +471,9 @@ export function WorkspaceAppsWorkbench({
         <section className="workspace-apps-dify-stage">
           <section className="workspace-apps-stage-header workspace-catalog-card">
             <div className="workspace-apps-stage-copy">
-              <p className="workspace-eyebrow">Workspace / Apps</p>
+              <p className="workspace-eyebrow">Workspace</p>
               <div className="workspace-apps-stage-title-row">
-                <h1>{workspaceName} 应用工作台</h1>
+                <h1>应用工作台</h1>
                 <span className="workspace-tag accent">当前身份：{currentRoleLabel}</span>
               </div>
               <p className="workspace-muted workspace-apps-stage-copy-text">{catalogDescription}</p>
@@ -489,7 +487,7 @@ export function WorkspaceAppsWorkbench({
                 className="workspace-search-input workspace-search-input-board"
                 defaultValue={requestedKeyword}
                 name="keyword"
-                placeholder="搜索应用、Agent、工具链或治理焦点"
+                placeholder="搜索应用或治理焦点"
                 type="search"
               />
               <button className="workspace-primary-button compact" type="submit">
@@ -524,9 +522,7 @@ export function WorkspaceAppsWorkbench({
             <div className="workspace-app-list-stage-header">
               <div>
                 <p className="workspace-app-list-stage-summary">{visibleAppSummary}</p>
-                <p className="workspace-muted workspace-app-list-stage-copy">
-                  只保留状态、下一步和进入 Studio。
-                </p>
+                <p className="workspace-muted workspace-app-list-stage-copy">优先进入 Studio。</p>
               </div>
             </div>
 

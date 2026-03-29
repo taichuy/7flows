@@ -535,9 +535,9 @@ a {
 .workspace-topbar-inner {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 12px;
+  gap: 10px;
   align-items: center;
-  min-height: 76px;
+  min-height: 72px;
 }
 
 .workspace-shell-editor .workspace-topbar {
@@ -621,6 +621,7 @@ a {
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
+  gap: 8px;
 }
 
 .workspace-nav::-webkit-scrollbar {
@@ -630,6 +631,7 @@ a {
 .workspace-user-actions {
   flex-wrap: nowrap;
   justify-content: flex-end;
+  gap: 8px;
 }
 
 .workspace-name-chip,
@@ -1996,8 +1998,8 @@ a {
 
 .settings-nav {
   display: grid;
-  gap: 10px;
-  margin-top: 24px;
+  gap: 8px;
+  margin-top: 18px;
 }
 
 .settings-nav-group {
@@ -2104,19 +2106,27 @@ a {
   gap: 12px;
 }
 
-.member-role-note {
-  padding: 16px;
-  border-radius: 18px;
+.member-role-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.member-role-summary-item {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: 16px;
   border: 1px solid #e4e9f3;
   background: #f8fbff;
 }
 
-.member-role-note strong {
+.member-role-summary-item strong {
   display: block;
 }
 
-.member-role-note p {
-  margin: 8px 0 0;
+.member-role-summary-item span {
+  line-height: 1.5;
 }
 
 .login-feature-grid {
@@ -5209,8 +5219,8 @@ a {
 
 .login-stage-copy-compact {
   display: grid;
-  gap: 18px;
-  max-width: 640px;
+  gap: 14px;
+  max-width: 560px;
 }
 
 .login-stage-copy-compact h1 {
@@ -5220,7 +5230,7 @@ a {
 .login-stage-inline-points {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .login-stage-inline-point {
@@ -5935,7 +5945,7 @@ a {
 }
 
 .workspace-create-strip-summary {
-  max-width: 28ch;
+  max-width: 20ch;
 }
 
 .workspace-create-strip-actions {

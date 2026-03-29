@@ -25,12 +25,11 @@ const navigationItems: Array<{
   href: string;
   label: string;
 }> = [
-  { key: "workspace", href: "/workspace", label: "工作空间" },
-  { key: "workflows", href: "/workflows", label: "编排中心" },
-  { key: "starters", href: "/workspace-starters", label: "Starter 模板" },
-  { key: "runs", href: "/runs", label: "运行诊断" },
-  { key: "ops", href: "/", label: "运维总览" },
-  { key: "team", href: "/admin/members", label: "团队设置" }
+  { key: "workspace", href: "/workspace", label: "工作台" },
+  { key: "workflows", href: "/workflows", label: "编排" },
+  { key: "starters", href: "/workspace-starters", label: "模板" },
+  { key: "runs", href: "/runs", label: "运行" },
+  { key: "team", href: "/admin/members", label: "团队" }
 ];
 
 export function WorkspaceShell({
@@ -86,7 +85,7 @@ export function WorkspaceShell({
               </span>
               <div>
                 <strong>{workspaceName}</strong>
-                <span>Workspace</span>
+                <span>{isEditorLayout ? "xyflow Studio" : "作者工作台"}</span>
               </div>
             </div>
           </div>
@@ -106,7 +105,7 @@ export function WorkspaceShell({
           </nav>
           <div className="workspace-user-actions">
             <Link className="workspace-primary-button compact workspace-topbar-create" href="/workflows/new">
-              + 新建应用
+              新建应用
             </Link>
             <div className="workspace-user-chip">
               <span aria-hidden="true" className="workspace-avatar-badge">

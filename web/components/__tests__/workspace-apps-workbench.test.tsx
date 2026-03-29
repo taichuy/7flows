@@ -36,13 +36,13 @@ describe("WorkspaceAppsWorkbench", () => {
         quickCreateEntries: [
           {
             title: "创建空白应用",
-            detail: "直接生成最小 workflow 草稿，创建后继续进入 Studio。",
+            detail: "直接生成最小 workflow 草稿，创建后进入 Studio。",
             href: "/workflows/new",
             badge: "Blank"
           },
           {
             title: "从 Starter 模板创建",
-            detail: "先挑 starter，再进入 Studio。",
+            detail: "先选团队模板，再把草稿送进 Studio。",
             href: "/workspace-starters",
             badge: "Starter"
           }
@@ -104,7 +104,7 @@ describe("WorkspaceAppsWorkbench", () => {
     expect(html).toContain("workspace-app-list-columns");
     expect(html).toContain("管理成员与权限");
     expect(html).toContain("应用目录");
-    expect(html).toContain("治理 / 下一步");
+    expect(html).toContain("重点");
     expect(html).toContain("进入 Studio");
     expect(html).toContain("查看下一步");
   });

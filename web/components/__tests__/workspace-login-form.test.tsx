@@ -21,9 +21,9 @@ describe("WorkspaceLoginForm", () => {
   it("renders the default admin credential card and login CTA", () => {
     const html = renderToStaticMarkup(createElement(WorkspaceLoginForm));
 
-    expect(html).toContain("默认管理员");
+    expect(html).toContain("本地默认管理员");
     expect(html).toContain("admin@taichuy.com");
     expect(html).toContain("admin123");
-    expect(html).toContain("登录并进入工作台");
+    expect(html).toContain("进入工作台");
   });
 });

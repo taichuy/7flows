@@ -20,7 +20,7 @@ export function WorkspaceLoginForm() {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
-    setMessage("正在登录工作空间...");
+    setMessage("正在进入工作台...");
     setMessageTone("idle");
 
     try {
@@ -81,17 +81,17 @@ export function WorkspaceLoginForm() {
         />
       </div>
       <div className="login-credential-card">
-        <span className="login-credential-label">默认管理员</span>
+        <span className="login-credential-label">本地默认管理员</span>
         <div className="login-credential-copy">
           <strong>admin@taichuy.com</strong>
           <span>admin123</span>
         </div>
       </div>
       <button className="workspace-primary-button" disabled={isSubmitting} type="submit">
-        {isSubmitting ? "登录中..." : "登录并进入工作台"}
+        {isSubmitting ? "进入中..." : "进入工作台"}
       </button>
       <p className="workspace-muted login-helper-copy">
-        登录后先进入应用工作台；管理员可继续添加成员，新建应用会直接衔接到 xyflow 编辑器。
+        默认管理员仅用于本地验证；登录后可继续创建应用和管理成员。
       </p>
       {message ? (
         <p className={`workspace-inline-message ${messageTone === "error" ? "error" : "idle"}`}>

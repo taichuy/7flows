@@ -200,37 +200,37 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
       : `筛选结果 ${filteredApps.length} / ${appCards.length}`;
   const primaryCreateEntry =
     activeMode === "agent"
-      ? {
-          title: "创建 Agent 应用",
-          detail: `${activeModeMeta?.description ?? "继续补 Agent 节点配置。"} 创建后直接进入 Studio。`,
-          href: "/workflows/new?starter=agent",
-          badge: activeModeMeta?.shortLabel ?? "Agent"
-        }
-      : activeMode === "tool_agent"
         ? {
-            title: "创建 Tool Agent",
-            detail: `${activeModeMeta?.description ?? "继续补工具调用链。"} 创建后直接进入 Studio。`,
-            href: "/workflows/new?starter=tool-enabled-agent",
-            badge: activeModeMeta?.shortLabel ?? "工具 Agent"
+            title: "创建 Agent 应用",
+            detail: `${activeModeMeta?.description ?? "继续补 Agent 节点配置。"} 创建后进入 Studio。`,
+            href: "/workflows/new?starter=agent",
+            badge: activeModeMeta?.shortLabel ?? "Agent"
           }
-        : activeMode === "sandbox"
+        : activeMode === "tool_agent"
           ? {
-              title: "创建 Sandbox Flow",
-              detail: `${activeModeMeta?.description ?? "继续补沙盒执行链路。"} 创建后直接进入 Studio。`,
-              href: "/workflows/new?starter=sandbox-code",
-              badge: activeModeMeta?.shortLabel ?? "Sandbox"
+              title: "创建 Tool Agent",
+              detail: `${activeModeMeta?.description ?? "继续补工具调用链。"} 创建后进入 Studio。`,
+              href: "/workflows/new?starter=tool-enabled-agent",
+              badge: activeModeMeta?.shortLabel ?? "工具 Agent"
             }
-          : {
-              title: "创建空白应用",
-              detail: "直接生成最小 workflow 草稿，创建后继续进入 Studio。",
-              href: "/workflows/new",
-              badge: "Blank Flow"
-            };
+          : activeMode === "sandbox"
+            ? {
+                title: "创建 Sandbox Flow",
+                detail: `${activeModeMeta?.description ?? "继续补沙盒执行链路。"} 创建后进入 Studio。`,
+                href: "/workflows/new?starter=sandbox-code",
+                badge: activeModeMeta?.shortLabel ?? "Sandbox"
+              }
+            : {
+                title: "创建空白应用",
+                detail: "直接生成最小 workflow 草稿，创建后进入 Studio。",
+                href: "/workflows/new",
+                badge: "Blank Flow"
+              };
   const quickCreateEntries = [
     primaryCreateEntry,
     {
       title: "从 Starter 模板创建",
-      detail: "先按 starter 业务轨道挑入口，再把草稿送进 Studio。",
+      detail: "先选团队模板，再把草稿送进 Studio。",
       href: "/workspace-starters",
       badge: `${workflowLibrary.starters.length} 个 Starter`
     }
@@ -238,13 +238,13 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
   const workspaceUtilityEntry = workspaceContext.can_manage_members
     ? {
         title: "管理成员与权限",
-        detail: "管理员可直接开通成员账号，并在工作空间里完成角色配置。",
+        detail: "管理员可直接开通成员账号并调整角色。",
         href: "/admin/members",
         badge: `${workspaceContext.available_roles.length} 种角色`
       }
     : {
         title: "查看运行诊断",
-        detail: "没有成员管理权限时，优先从 runs 追踪运行状态与治理阻塞。",
+        detail: "没有成员管理权限时，先从 runs 追踪运行状态。",
         href: "/runs",
         badge: `${systemOverview.runtime_activity.summary.recent_run_count} 条运行`
       };

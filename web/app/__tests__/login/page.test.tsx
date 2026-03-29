@@ -38,8 +38,8 @@ describe("LoginPage", () => {
 
     const html = renderToStaticMarkup(await LoginPage());
 
-    expect(html).toContain("登录后直接进入 7Flows Workspace");
-    expect(html).toContain("登录 7Flows Workspace");
+    expect(html).toContain("进入 7Flows Workspace");
+    expect(html).toContain("登录工作台");
     expect(html).toContain('data-component="workspace-login-form"');
   });
 

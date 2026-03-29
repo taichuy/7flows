@@ -20,9 +20,9 @@ type WorkspaceMemberAdminPanelProps = {
 
 const ROLE_SUMMARIES: Record<WorkspaceMemberRole, string> = {
   owner: "负责工作空间边界与最高权限。",
-  admin: "可管理成员、Starter 与工作空间入口。",
-  editor: "可维护应用与编排，但不处理成员权限。",
-  viewer: "只读查看工作空间现状与运行信号。"
+  admin: "管理成员、模板和工作台入口。",
+  editor: "维护应用与编排。",
+  viewer: "只读查看工作台与运行状态。"
 };
 
 export function WorkspaceMemberAdminPanel({
@@ -129,19 +129,19 @@ export function WorkspaceMemberAdminPanel({
   return (
     <section className="settings-layout settings-layout-dify">
       <aside className="settings-sidebar-panel settings-sidebar-panel-dify">
-        <p className="workspace-eyebrow">设置</p>
-        <h1>团队设置</h1>
+        <p className="workspace-eyebrow">Team</p>
+        <h1>成员与角色</h1>
         <p className="workspace-muted workspace-copy-wide">
-          这一页只做成员、角色与本地账号开通，不把其它设置能力硬堆进来。
+          只处理成员开通、角色调整和返回工作台前的最后一步。
         </p>
         <nav className="settings-nav" aria-label="Settings">
-          <span className="settings-nav-group">工作空间</span>
-          <span className="settings-nav-item active">成员</span>
+          <span className="settings-nav-group">工作台设置</span>
+          <span className="settings-nav-item active">成员管理</span>
         </nav>
         <div className="settings-sidebar-focus-list" aria-label="成员管理重点">
-          <span className="settings-sidebar-focus-item">本地账号开通</span>
-          <span className="settings-sidebar-focus-item">角色调整</span>
-          <span className="settings-sidebar-focus-item">权限回写</span>
+          <span className="settings-sidebar-focus-item">开通账号</span>
+          <span className="settings-sidebar-focus-item">调整角色</span>
+          <span className="settings-sidebar-focus-item">回到工作台</span>
         </div>
       </aside>
 
@@ -156,14 +156,14 @@ export function WorkspaceMemberAdminPanel({
                 <p className="workspace-eyebrow">成员</p>
                 <h2>{workspaceName}</h2>
                 <p className="workspace-muted workspace-copy-wide">
-                  管成员、配角色、开账号都在这里完成；真正的编排与运行事实继续回到 xyflow / runs 主链。
+                  在这里新增成员、调整角色，然后回工作台继续创建和编排应用。
                 </p>
               </div>
             </div>
 
             <div className="workspace-settings-summary-row">
               <article className="workspace-settings-summary-stat">
-                <span>成员</span>
+                <span>成员数</span>
                 <strong>{totalMembers}</strong>
               </article>
               <article className="workspace-settings-summary-stat">
@@ -189,7 +189,7 @@ export function WorkspaceMemberAdminPanel({
               <div>
                 <strong>成员列表</strong>
                 <p className="workspace-muted member-section-copy">
-                  先看成员与当前角色，再决定是否调整权限。
+                  先看成员，再决定是否调整角色。
                 </p>
               </div>
               <div className="member-role-badges">
@@ -268,7 +268,7 @@ export function WorkspaceMemberAdminPanel({
               <div>
                 <strong>新增成员</strong>
                 <p className="workspace-muted member-section-copy">
-                  通过邮箱、初始密码和角色即可完成本地开通。
+                  邮箱、初始密码和角色三项即可完成本地开通。
                 </p>
               </div>
             </div>
@@ -301,11 +301,11 @@ export function WorkspaceMemberAdminPanel({
                   </div>
                 </form>
 
-                <div className="member-create-note member-create-note-compact">
+                <div className="member-role-summary member-create-note-compact">
                   {manageableRoles.map((role) => (
-                    <article className="member-role-note" key={role}>
+                    <article className="member-role-summary-item" key={role}>
                       <strong>{formatWorkspaceRole(role)}</strong>
-                      <p className="workspace-muted">{ROLE_SUMMARIES[role]}</p>
+                      <span className="workspace-muted">{ROLE_SUMMARIES[role]}</span>
                     </article>
                   ))}
                 </div>

@@ -36,7 +36,7 @@ describe("WorkspaceMemberAdminPanel", () => {
       })
     );
 
-    expect(html).toContain("团队设置");
+    expect(html).toContain("成员与角色");
     expect(html).toContain("7Flows Workspace");
     expect(html).toContain("成员列表");
     expect(html).toContain("新增成员");
