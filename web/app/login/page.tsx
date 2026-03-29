@@ -26,15 +26,24 @@ export default async function LoginPage() {
 
         <div className="login-stage-body login-stage-body-compact login-stage-body-dify">
           <div className="login-stage-copy login-stage-copy-compact">
-            <p className="workspace-eyebrow">Author access</p>
+            <p className="workspace-eyebrow">Local access</p>
             <h1>进入 7Flows Workspace</h1>
             <p className="workspace-muted workspace-copy-wide">
-              登录后先到应用工作台；管理员可继续管理成员，并把新建应用送进 xyflow Studio。
+              先登录，再进入应用工作台；管理员随后可继续管理成员，并把新建应用送进 xyflow Studio。
             </p>
-            <div className="login-stage-inline-points" aria-label="Workspace 登录能力">
-              <span className="login-stage-inline-point">本地账号</span>
-              <span className="login-stage-inline-point">成员权限</span>
-              <span className="login-stage-inline-point">Studio 编排</span>
+            <div className="login-stage-fact-list" aria-label="Workspace 登录能力">
+              <article className="login-stage-fact-card">
+                <strong>本地账号入口</strong>
+                <p className="workspace-muted">直接使用管理员或现有成员账号进入工作台，不需要再翻文档找入口。</p>
+              </article>
+              <article className="login-stage-fact-card">
+                <strong>登录后先看工作台</strong>
+                <p className="workspace-muted">应用目录、新建应用和最近入口保持在同一条作者主链里。</p>
+              </article>
+              <article className="login-stage-fact-card">
+                <strong>管理员继续收口团队</strong>
+                <p className="workspace-muted">进入后可去成员管理页新增成员，并按角色控制访问边界。</p>
+              </article>
             </div>
           </div>
 

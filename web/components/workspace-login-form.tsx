@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+const DEFAULT_ADMIN_EMAIL = "admin@taichuy.com";
+const DEFAULT_ADMIN_PASSWORD = "admin123";
+
 export function WorkspaceLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -16,6 +19,7 @@ export function WorkspaceLoginForm() {
     const candidate = searchParams?.get("next") ?? "/workspace";
     return candidate.startsWith("/") ? candidate : "/workspace";
   }, [searchParams]);
+  const nextLabel = useMemo(() => getLoginNextLabel(nextHref), [nextHref]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -57,6 +61,19 @@ export function WorkspaceLoginForm() {
 
   return (
     <form className="login-form" onSubmit={handleSubmit}>
+      <section className="login-credential-card" data-component="login-default-admin-card">
+        <div>
+          <p className="login-credential-label">本地默认管理员</p>
+          <p className="login-hint">仅用于当前 local-first 开发环境，方便直接进入工作台。</p>
+        </div>
+        <div className="login-credential-copy">
+          <strong>{DEFAULT_ADMIN_EMAIL}</strong>
+          <span>{DEFAULT_ADMIN_PASSWORD}</span>
+        </div>
+      </section>
+      <p className="login-helper-copy">
+        登录后将前往 {nextLabel}；管理员可继续管理成员、创建应用并进入 xyflow Studio。
+      </p>
       <div className="login-form-field">
         <label htmlFor="workspace-email">邮箱</label>
         <input
@@ -90,4 +107,20 @@ export function WorkspaceLoginForm() {
       ) : null}
     </form>
   );
+}
+
+function getLoginNextLabel(nextHref: string) {
+  if (nextHref === "/admin/members") {
+    return "成员管理";
+  }
+
+  if (nextHref.startsWith("/workflows")) {
+    return "应用编排";
+  }
+
+  if (nextHref.startsWith("/runs")) {
+    return "运行追踪";
+  }
+
+  return "应用工作台";
 }

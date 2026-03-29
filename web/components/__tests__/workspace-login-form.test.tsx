@@ -24,6 +24,7 @@ describe("WorkspaceLoginForm", () => {
     expect(html).toContain("本地默认管理员");
     expect(html).toContain("admin@taichuy.com");
     expect(html).toContain("admin123");
+    expect(html).toContain("登录后将前往 应用工作台");
     expect(html).toContain("进入工作台");
   });
 });
