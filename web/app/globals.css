@@ -708,6 +708,14 @@ a {
   gap: 8px;
 }
 
+.workflow-studio-shell-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+}
+
 .workflow-studio-breadcrumb-row,
 .workflow-studio-inline-metrics {
   display: flex;
@@ -784,10 +792,22 @@ a {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+  flex: 1 1 360px;
+}
+
+.workflow-studio-shell-bar-compact .workflow-studio-surface-nav {
+  justify-content: flex-end;
 }
 
 .workflow-studio-surface-nav-spacer {
   flex: 1 1 auto;
+}
+
+.workflow-studio-utility-links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .workflow-studio-surface-link,
@@ -815,6 +835,12 @@ a {
 
 .workflow-studio-secondary-link {
   color: #526079;
+}
+
+.workflow-studio-shell-bar-compact .workflow-studio-surface-link,
+.workflow-studio-shell-bar-compact .workflow-studio-secondary-link {
+  min-height: 32px;
+  padding: 0 12px;
 }
 
 .workflow-studio-surface {
@@ -2203,6 +2229,11 @@ a {
     justify-content: flex-start;
   }
 
+  .workflow-studio-shell-row,
+  .workflow-studio-shell-bar-compact .workflow-studio-surface-nav {
+    justify-content: flex-start;
+  }
+
   .workflow-studio-surface-nav-spacer {
     display: none;
   }
@@ -3226,6 +3257,12 @@ a {
   background: #edf4ff;
   border-color: #cfe0ff;
   color: #1f5ed5;
+}
+
+.workflow-editor-meta-pill.surface {
+  background: #ecfdf3;
+  border-color: #b7ebd2;
+  color: #0f8a4a;
 }
 
 .workflow-editor-warning-inline {
@@ -7239,8 +7276,26 @@ a {
   gap: 16px;
 }
 
+.workspace-settings-summary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.workspace-inline-message-card {
+  margin-top: 16px;
+}
+
+.workspace-settings-side-stack {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
 .workspace-member-list-card,
-.workspace-member-create-card {
+.workspace-member-create-card,
+.workspace-member-role-guide-card {
   align-content: start;
   border: 1px solid #e7ecf4;
   box-shadow: 0 16px 40px rgba(15, 23, 42, 0.05);
@@ -7257,6 +7312,25 @@ a {
 
 .member-create-note-compact {
   grid-template-columns: 1fr;
+}
+
+.workspace-member-role-guide-list {
+  display: grid;
+  gap: 12px;
+}
+
+.workspace-member-role-guide-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid #e7ecf4;
+  background: #f8fbff;
+}
+
+.workspace-member-role-guide-item strong {
+  font-size: 0.95rem;
+  color: #101828;
 }
 
 @media (max-width: 1080px) {
@@ -7296,6 +7370,10 @@ a {
   }
 
   .workspace-dashboard-actions {
+    justify-content: flex-start;
+  }
+
+  .workspace-settings-summary-actions {
     justify-content: flex-start;
   }
 }
@@ -7358,5 +7436,170 @@ a {
 
   .login-credential-copy {
     text-align: left;
+  }
+}
+
+.workspace-topbar-inner {
+  width: min(1440px, calc(100% - 32px));
+  min-height: 60px;
+  gap: 12px;
+  padding: 10px 0;
+  align-items: center;
+}
+
+.workspace-content {
+  width: min(1440px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+.workspace-brand-row {
+  gap: 10px;
+  min-width: 0;
+}
+
+.workspace-brand {
+  gap: 6px;
+  font-size: 1.2rem;
+}
+
+.workspace-shell-context {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 14px;
+  border: 1px solid #e7ecf4;
+  background: #f8fafe;
+}
+
+.workspace-shell-context-copy {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+
+.workspace-shell-context-copy strong {
+  font-size: 0.82rem;
+  line-height: 1.1;
+  color: #101828;
+  white-space: nowrap;
+}
+
+.workspace-shell-context-copy span {
+  font-size: 0.72rem;
+  line-height: 1.1;
+  color: #667085;
+  white-space: nowrap;
+}
+
+.workspace-nav {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.workspace-nav-link {
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: 12px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.workspace-user-actions {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.workspace-user-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.workspace-user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 14px;
+  background: #f8fafe;
+  border: 1px solid #e7ecf4;
+  color: #344054;
+}
+
+.workspace-user-chip strong {
+  display: inline;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.workspace-user-role-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid #dbe4f0;
+  background: #ffffff;
+  color: #526079;
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.workspace-name-badge,
+.workspace-avatar-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 10px;
+  font-size: 0.78rem;
+}
+
+.workspace-shell-focused .workspace-topbar-inner,
+.workspace-shell-editor .workspace-topbar-inner {
+  min-height: 56px;
+}
+
+.workspace-shell-focused .workspace-nav,
+.workspace-shell-editor .workspace-nav {
+  gap: 6px;
+}
+
+.workspace-shell-focused .workspace-shell-context-copy strong,
+.workspace-shell-editor .workspace-shell-context-copy strong {
+  font-size: 0.78rem;
+}
+
+.workspace-shell-focused .workspace-shell-context-copy span,
+.workspace-shell-editor .workspace-shell-context-copy span {
+  font-size: 0.7rem;
+}
+
+@media (max-width: 1180px) {
+  .workspace-topbar-inner {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 12px 0;
+  }
+
+  .workspace-brand-row,
+  .workspace-user-actions,
+  .workspace-user-summary {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace-shell-context,
+  .workspace-user-chip {
+    width: 100%;
+  }
+
+  .workspace-user-actions {
+    flex-wrap: wrap;
   }
 }

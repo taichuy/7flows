@@ -14,11 +14,13 @@ import { getWorkspaceBadgeLabel } from "@/lib/workspace-ui";
 type WorkspaceShellProps = {
   activeNav: "workspace" | "workflows" | "runs" | "starters" | "ops" | "team";
   children: ReactNode;
-  layout?: "default" | "editor";
+  layout?: "default" | "focused" | "editor";
   userName: string;
   userRole: WorkspaceMemberRole;
   workspaceName: string;
 };
+
+type WorkspaceShellLayout = NonNullable<WorkspaceShellProps["layout"]>;
 
 const navigationItems: Array<{
   key: WorkspaceShellProps["activeNav"];
@@ -42,20 +44,33 @@ export function WorkspaceShell({
 }: WorkspaceShellProps) {
   const router = useRouter();
   const isEditorLayout = layout === "editor";
+  const isFocusedLayout = layout === "focused";
   const workspaceBadgeLabel = getWorkspaceBadgeLabel(workspaceName);
   const userBadgeLabel = getWorkspaceBadgeLabel(userName, "A");
   const canManageMembers = canManageWorkspaceMembers(userRole);
+  const shellSurfaceLabel = getWorkspaceShellSurfaceLabel(activeNav, layout);
   const visibleNavigationItems = navigationItems.filter((item) => {
     if (item.key === "team" && !canManageMembers) {
       return false;
     }
 
-    if (!isEditorLayout) {
-      return true;
+    if (isEditorLayout) {
+      return item.key === "workspace" || item.key === "workflows" || item.key === "runs" || item.key === "team";
     }
 
-    return item.key === "workspace" || item.key === "workflows" || item.key === "runs" || item.key === "team";
+    if (isFocusedLayout) {
+      return item.key === "workspace" || item.key === "workflows" || item.key === "team";
+    }
+
+    return true;
   });
+  const primaryAction =
+    layout === "default"
+      ? {
+          href: "/workflows/new",
+          label: "新建应用"
+        }
+      : null;
 
   const handleLogout = async () => {
     await fetch("/api/session/logout", {
@@ -66,35 +81,32 @@ export function WorkspaceShell({
   };
 
   return (
-    <div className={`workspace-shell ${isEditorLayout ? "workspace-shell-editor" : ""}`.trim()}>
-      <header className={`workspace-topbar ${isEditorLayout ? "workspace-topbar-editor" : ""}`.trim()}>
-        <div
-          className={`workspace-topbar-inner ${isEditorLayout ? "workspace-topbar-inner-editor" : ""}`.trim()}
-        >
+    <div className={`workspace-shell workspace-shell-${layout}`.trim()} data-component="workspace-shell" data-layout={layout}>
+      <header className="workspace-topbar">
+        <div className={`workspace-topbar-inner ${isEditorLayout ? "workspace-topbar-inner-editor" : ""}`.trim()}>
           <div className="workspace-brand-row">
             <Link className="workspace-brand" href="/workspace">
               <span className="workspace-brand-mark">7</span>
               <span>Flows</span>
             </Link>
-            <span aria-hidden="true" className="workspace-shell-divider">
-              /
-            </span>
-            <div className="workspace-name-chip">
+            <div className="workspace-shell-context" data-component="workspace-shell-context">
               <span aria-hidden="true" className="workspace-name-badge">
                 {workspaceBadgeLabel}
               </span>
-              <div>
+              <div className="workspace-shell-context-copy">
                 <strong>{workspaceName}</strong>
-                <span>{isEditorLayout ? "xyflow Studio" : "作者工作台"}</span>
+                <span>{shellSurfaceLabel}</span>
               </div>
             </div>
           </div>
           <nav
             className={`workspace-nav ${isEditorLayout ? "workspace-nav-editor" : ""}`.trim()}
             aria-label="Workspace"
+            data-component="workspace-shell-nav"
           >
             {visibleNavigationItems.map((item) => (
               <Link
+                aria-current={item.key === activeNav ? "page" : undefined}
                 className={`workspace-nav-link ${item.key === activeNav ? "active" : ""}`}
                 href={item.href}
                 key={item.key}
@@ -103,18 +115,20 @@ export function WorkspaceShell({
               </Link>
             ))}
           </nav>
-          <div className="workspace-user-actions">
-            <Link className="workspace-primary-button compact workspace-topbar-create" href="/workflows/new">
-              新建应用
-            </Link>
-            <div className="workspace-user-chip">
-              <span aria-hidden="true" className="workspace-avatar-badge">
-                {userBadgeLabel}
-              </span>
-              <div>
+          <div className="workspace-user-actions" data-component="workspace-shell-actions">
+            {primaryAction ? (
+              <Link className="workspace-primary-button compact workspace-topbar-create" href={primaryAction.href}>
+                {primaryAction.label}
+              </Link>
+            ) : null}
+            <div className="workspace-user-summary">
+              <div className="workspace-user-chip">
+                <span aria-hidden="true" className="workspace-avatar-badge">
+                  {userBadgeLabel}
+                </span>
                 <strong>{userName}</strong>
-                <span>{formatWorkspaceRole(userRole)}</span>
               </div>
+              <span className="workspace-user-role-pill">{formatWorkspaceRole(userRole)}</span>
             </div>
             <button className="workspace-ghost-button compact" onClick={handleLogout} type="button">
               退出登录
@@ -127,4 +141,43 @@ export function WorkspaceShell({
       </div>
     </div>
   );
+}
+
+function getWorkspaceShellSurfaceLabel(
+  activeNav: WorkspaceShellProps["activeNav"],
+  layout: WorkspaceShellLayout
+) {
+  if (layout === "editor") {
+    return "xyflow Studio";
+  }
+
+  if (layout === "focused") {
+    if (activeNav === "team") {
+      return "工作台设置";
+    }
+
+    if (activeNav === "workflows") {
+      return "创建应用";
+    }
+
+    return "聚焦入口";
+  }
+
+  if (activeNav === "team") {
+    return "成员与权限";
+  }
+
+  if (activeNav === "starters") {
+    return "Starter 模板";
+  }
+
+  if (activeNav === "runs") {
+    return "运行追踪";
+  }
+
+  if (activeNav === "workflows") {
+    return "应用中心";
+  }
+
+  return "作者工作台";
 }

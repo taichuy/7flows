@@ -181,10 +181,28 @@ describe("WorkflowEditorPage", () => {
     expect(html).toContain('data-component="workflow-editor-workbench"');
     expect(html).toContain('data-component="workflow-publish-panel"');
     expect(html).toContain('data-workflow-id="workflow-1"');
-    expect(html).toContain("workflow-studio-shell-bar");
+    expect(html).toContain("workflow-studio-shell-bar workflow-studio-shell-bar-compact");
+    expect(html).toContain("Workflow 1");
+    expect(html).toContain("draft only");
+    expect(html).toContain("xyflow studio");
     expect(html).toContain("运行诊断");
     expect(html).toContain("Starter 模板");
     expect(html).toContain("编排中心");
+  });
+
+  it("keeps the workflow identity and surface mode when entering publish governance", async () => {
+    const html = renderToStaticMarkup(
+      await WorkflowEditorPage({
+        params: Promise.resolve({ workflowId: "workflow-1" }),
+        searchParams: Promise.resolve({ surface: "publish" })
+      })
+    );
+
+    expect(html).toContain('data-component="workflow-publish-panel"');
+    expect(html).toContain('hidden=""');
+    expect(html).toContain("publish governance");
+    expect(html).toContain("Workflow 1");
+    expect(html).toContain("draft only");
   });
 
   it("redirects unauthenticated users back to login", async () => {

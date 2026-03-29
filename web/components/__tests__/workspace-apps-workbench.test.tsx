@@ -97,6 +97,10 @@ describe("WorkspaceAppsWorkbench", () => {
     );
 
     expect(html).toContain("workspace-apps-dify-shell");
+    expect(html).toContain('data-component="workspace-catalog-header"');
+    expect(html).toContain('data-component="workspace-browse-rail"');
+    expect(html).toContain('data-component="workspace-create-strip"');
+    expect(html).toContain('data-component="workspace-app-list-stage"');
     expect(html).toContain("workspace-filter-rail-inline");
     expect(html).toContain("workspace-catalog-stage");
     expect(html).toContain("workspace-create-strip");

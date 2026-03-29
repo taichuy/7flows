@@ -9,15 +9,10 @@ import {
   EditOutlined,
   RobotOutlined
 } from "@ant-design/icons";
-import type { OperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
-import type { UnsupportedWorkflowNodeSummary } from "@/lib/workflow-node-catalog";
-import type { WorkflowPersistBlocker } from "./persist-blockers";
 
 const { Text } = Typography;
 
 type WorkflowEditorHeroProps = {
-  currentHref?: string | null;
-  workflowId: string;
   workflowName: string;
   onWorkflowNameChange: (name: string) => void;
   workflowVersion: string;
@@ -28,25 +23,15 @@ type WorkflowEditorHeroProps = {
   isDirty: boolean;
   selectedNodeLabel: string | null;
   selectedEdgeId: string | null;
-  workflowsCount: number;
   selectedRunAttached: boolean;
-  plannedNodeLabels: string[];
-  unsupportedNodes: UnsupportedWorkflowNodeSummary[];
   contractValidationIssuesCount: number;
   toolReferenceValidationIssuesCount: number;
   nodeExecutionValidationIssuesCount: number;
   toolExecutionValidationIssuesCount: number;
   publishDraftValidationIssuesCount: number;
-  persistBlockedMessage: string | null;
   persistBlockerSummary: string | null;
-  persistBlockers: WorkflowPersistBlocker[];
-  persistBlockerRecommendedNextStep?: OperatorRecommendedNextStep | null;
   isSaving: boolean;
   isSavingStarter: boolean;
-  workflowLibraryHref?: string;
-  createWorkflowHref?: string;
-  workspaceStarterLibraryHref?: string;
-  hasScopedWorkspaceStarterFilters?: boolean;
   isSidebarCollapsed?: boolean;
   isInspectorCollapsed?: boolean;
   hasNodeAssistant?: boolean;
@@ -70,8 +55,6 @@ function WorkflowEditorHeroComponent({
   selectedNodeLabel,
   selectedEdgeId,
   selectedRunAttached,
-  plannedNodeLabels,
-  unsupportedNodes,
   contractValidationIssuesCount,
   toolReferenceValidationIssuesCount,
   nodeExecutionValidationIssuesCount,
@@ -99,6 +82,13 @@ function WorkflowEditorHeroComponent({
     nodeExecutionValidationIssuesCount +
     toolExecutionValidationIssuesCount +
     publishDraftValidationIssuesCount;
+  const surfaceSummary = isCanvasFocused
+    ? "画布优先"
+    : isSidebarCollapsed
+      ? "仅属性栏展开"
+      : isInspectorCollapsed
+        ? "仅节点栏展开"
+        : null;
   const focusSummary = selectedNodeLabel
     ? `已选中：${selectedNodeLabel}`
     : selectedEdgeId
@@ -160,6 +150,9 @@ function WorkflowEditorHeroComponent({
         </div>
 
         <div className="workflow-editor-meta-row" aria-label="Workflow editor summary">
+          {surfaceSummary ? (
+            <span className="workflow-editor-meta-pill surface">{surfaceSummary}</span>
+          ) : null}
           {visibleWorkflowSignals.map((signal) => (
             <span className="workflow-editor-meta-pill" key={signal}>
               {signal}

@@ -131,6 +131,7 @@ export default async function WorkflowEditorPage({
   const workflowStageLabel =
     publishedEndpoints.length > 0 ? "publish ready" : "draft only";
   const isEditorSurface = activeStudioSurface === "editor";
+  const studioModeLabel = isEditorSurface ? "xyflow studio" : "publish governance";
 
   return (
     <WorkspaceShell
@@ -149,48 +150,45 @@ export default async function WorkflowEditorPage({
             .filter(Boolean)
             .join(" ")}
         >
-          <div className="workflow-studio-breadcrumb-row">
-            <Link className="workflow-studio-breadcrumb-link" href={workflowLibraryHref}>
-              编排中心
-            </Link>
-            {isEditorSurface ? null : (
-              <>
-                <span aria-hidden="true" className="workflow-studio-breadcrumb-separator">
-                  /
-                </span>
-                <span className="workflow-studio-breadcrumb-current">{workflow.name}</span>
-                <span className="workflow-studio-inline-tag">v{workflow.version}</span>
-                <span className="workflow-studio-inline-tag">{workflowStageLabel}</span>
-                <span className="workflow-studio-shell-mode">xyflow studio</span>
-              </>
-            )}
-          </div>
+          <div className="workflow-studio-shell-row">
+            <div className="workflow-studio-breadcrumb-row">
+              <Link className="workflow-studio-breadcrumb-link" href={workflowLibraryHref}>
+                编排中心
+              </Link>
+              <span className="workflow-studio-breadcrumb-current">{workflow.name}</span>
+              <span className="workflow-studio-inline-tag">v{workflow.version}</span>
+              <span className="workflow-studio-inline-tag">{workflowStageLabel}</span>
+              <span className="workflow-studio-shell-mode">{studioModeLabel}</span>
+            </div>
 
-          <nav className="workflow-studio-surface-nav" aria-label="Workflow studio surfaces">
-            <Link
-              className={`workflow-studio-surface-link ${
-                activeStudioSurface === "editor" ? "active" : ""
-              }`.trim()}
-              href={editorSurfaceHref}
-            >
-              画布编排
-            </Link>
-            <Link
-              className={`workflow-studio-surface-link ${
-                activeStudioSurface === "publish" ? "active" : ""
-              }`.trim()}
-              href={publishSurfaceHref}
-            >
-              发布治理
-            </Link>
-            <span className="workflow-studio-surface-nav-spacer" aria-hidden="true" />
-            <Link className="workflow-studio-secondary-link" href="/runs">
-              运行诊断
-            </Link>
-            <Link className="workflow-studio-secondary-link" href={workspaceStarterLibraryHref}>
-              Starter 模板
-            </Link>
-          </nav>
+            <nav className="workflow-studio-surface-nav" aria-label="Workflow studio surfaces">
+              <Link
+                className={`workflow-studio-surface-link ${
+                  activeStudioSurface === "editor" ? "active" : ""
+                }`.trim()}
+                href={editorSurfaceHref}
+              >
+                画布编排
+              </Link>
+              <Link
+                className={`workflow-studio-surface-link ${
+                  activeStudioSurface === "publish" ? "active" : ""
+                }`.trim()}
+                href={publishSurfaceHref}
+              >
+                发布治理
+              </Link>
+              <span className="workflow-studio-surface-nav-spacer" aria-hidden="true" />
+              <div className="workflow-studio-utility-links">
+                <Link className="workflow-studio-secondary-link" href="/runs">
+                  运行诊断
+                </Link>
+                <Link className="workflow-studio-secondary-link" href={workspaceStarterLibraryHref}>
+                  Starter 模板
+                </Link>
+              </div>
+            </nav>
+          </div>
         </section>
 
         <section

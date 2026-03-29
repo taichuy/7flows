@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveWorkflowEditorInspectorFocusState } from "@/components/workflow-editor-workbench/use-workflow-editor-shell-state";
+import {
+  resolveWorkflowEditorInspectorFocusState,
+  resolveWorkflowEditorPanelCollapsedPreference
+} from "@/components/workflow-editor-workbench/use-workflow-editor-shell-state";
+
+describe("resolveWorkflowEditorPanelCollapsedPreference", () => {
+  it("defaults editor rails to collapsed until a preference explicitly opens them", () => {
+    expect(resolveWorkflowEditorPanelCollapsedPreference(null)).toBe(true);
+    expect(resolveWorkflowEditorPanelCollapsedPreference("true")).toBe(true);
+    expect(resolveWorkflowEditorPanelCollapsedPreference("false")).toBe(false);
+  });
+});
 
 describe("resolveWorkflowEditorInspectorFocusState", () => {
   it("only keeps node highlights when the focused issue matches the selected node", () => {

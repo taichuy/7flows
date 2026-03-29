@@ -11,7 +11,6 @@ describe("WorkflowEditorHero", () => {
   it("renders the compact studio header with save actions and focus summary", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowEditorHero, {
-        workflowId: "workflow-1",
         workflowName: "Demo Workflow",
         onWorkflowNameChange: () => undefined,
         workflowVersion: "1.0.0",
@@ -22,20 +21,16 @@ describe("WorkflowEditorHero", () => {
         isDirty: true,
         selectedNodeLabel: "LLM Agent",
         selectedEdgeId: null,
-        workflowsCount: 6,
         selectedRunAttached: false,
-        plannedNodeLabels: [],
-        unsupportedNodes: [],
         contractValidationIssuesCount: 1,
         toolReferenceValidationIssuesCount: 0,
         nodeExecutionValidationIssuesCount: 0,
         toolExecutionValidationIssuesCount: 1,
         publishDraftValidationIssuesCount: 1,
-        persistBlockedMessage: "blocked",
         persistBlockerSummary: "当前保存仍被 Publish draft 阻断。",
-        persistBlockers: [],
         isSaving: false,
         isSavingStarter: false,
+        isSidebarCollapsed: true,
         hasNodeAssistant: true,
         onSave: () => undefined,
         onSaveAsWorkspaceStarter: () => undefined,
@@ -46,6 +41,7 @@ describe("WorkflowEditorHero", () => {
     expect(html).toContain("Demo Workflow");
     expect(html).toContain("未保存修改");
     expect(html).toContain("3 个问题");
+    expect(html).toContain("仅属性栏展开");
     expect(html).toContain("4 节点");
     expect(html).toContain("3 连线");
     expect(html).toContain("2 工具");
@@ -62,7 +58,6 @@ describe("WorkflowEditorHero", () => {
   it("shows the steady-state summary when a run overlay is attached", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowEditorHero, {
-        workflowId: "workflow-2",
         workflowName: "Replay Workflow",
         onWorkflowNameChange: () => undefined,
         workflowVersion: "2.1.0",
@@ -73,18 +68,13 @@ describe("WorkflowEditorHero", () => {
         isDirty: false,
         selectedNodeLabel: null,
         selectedEdgeId: null,
-        workflowsCount: 8,
         selectedRunAttached: true,
-        plannedNodeLabels: [],
-        unsupportedNodes: [],
         contractValidationIssuesCount: 0,
         toolReferenceValidationIssuesCount: 0,
         nodeExecutionValidationIssuesCount: 0,
         toolExecutionValidationIssuesCount: 0,
         publishDraftValidationIssuesCount: 0,
-        persistBlockedMessage: null,
         persistBlockerSummary: null,
-        persistBlockers: [],
         isSaving: false,
         isSavingStarter: false,
         onSave: () => undefined,
@@ -102,7 +92,6 @@ describe("WorkflowEditorHero", () => {
   it("switches to canvas-focused compact mode when both side rails are collapsed", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowEditorHero, {
-        workflowId: "workflow-3",
         workflowName: "Canvas Focus Workflow",
         onWorkflowNameChange: () => undefined,
         workflowVersion: "0.3.0",
@@ -113,18 +102,13 @@ describe("WorkflowEditorHero", () => {
         isDirty: false,
         selectedNodeLabel: null,
         selectedEdgeId: null,
-        workflowsCount: 5,
         selectedRunAttached: false,
-        plannedNodeLabels: [],
-        unsupportedNodes: [],
         contractValidationIssuesCount: 0,
         toolReferenceValidationIssuesCount: 0,
         nodeExecutionValidationIssuesCount: 0,
         toolExecutionValidationIssuesCount: 0,
         publishDraftValidationIssuesCount: 0,
-        persistBlockedMessage: null,
         persistBlockerSummary: null,
-        persistBlockers: [],
         isSaving: false,
         isSavingStarter: false,
         isSidebarCollapsed: true,
@@ -137,6 +121,7 @@ describe("WorkflowEditorHero", () => {
     );
 
     expect(html).toContain("workflow-editor-topbar canvas-focused");
+    expect(html).toContain("画布优先");
     expect(html).toContain("节点栏");
     expect(html).toContain("属性栏");
     expect(html).toContain("3 节点");

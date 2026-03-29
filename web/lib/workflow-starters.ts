@@ -139,7 +139,13 @@ function buildWorkflowStarterTemplate(
 ): WorkflowStarterTemplate {
   const track = getWorkflowBusinessTrack(starter.businessTrack);
   const definition = normalizeWorkflowDefinition(starter.definition);
-  const nodeTypes = (definition.nodes ?? []).map((node) => node.type);
+  const definitionNodes = definition.nodes ?? [];
+  const nodeTypes =
+    definitionNodes.length > 0
+      ? definitionNodes.map((node) => node.type)
+      : Array.isArray(starter.nodeTypes)
+        ? starter.nodeTypes
+        : [];
   const toolGovernance = summarizeWorkflowDefinitionToolGovernance(definition, tools);
   const sandboxGovernance = summarizeWorkflowDefinitionSandboxGovernance(definition);
 
@@ -157,7 +163,7 @@ function buildWorkflowStarterTemplate(
     createdFromWorkflowId: starter.createdFromWorkflowId ?? null,
     workflowFocus: starter.workflowFocus,
     recommendedNextStep: starter.recommendedNextStep,
-    nodeCount: definition.nodes?.length ?? 0,
+    nodeCount: definitionNodes.length > 0 ? definitionNodes.length : starter.nodeCount ?? 0,
     nodeLabels: nodeTypes.map(
       (nodeType) =>
         nodeCatalog.find((item) => item.type === nodeType)?.label ?? nodeType
@@ -174,21 +180,23 @@ function buildWorkflowStarterTemplate(
   };
 }
 
-function normalizeWorkflowDefinition(definition: WorkflowDefinition): WorkflowDefinition {
+function normalizeWorkflowDefinition(
+  definition: WorkflowDefinition | null | undefined
+): WorkflowDefinition {
   return {
-    nodes: Array.isArray(definition.nodes)
+    nodes: Array.isArray(definition?.nodes)
       ? definition.nodes.map((node) => ({
           ...node,
           config: isRecord(node.config) ? { ...node.config } : {}
         }))
       : [],
-    edges: Array.isArray(definition.edges)
+    edges: Array.isArray(definition?.edges)
       ? definition.edges.map((edge) => ({ ...edge }))
       : [],
-    variables: Array.isArray(definition.variables)
+    variables: Array.isArray(definition?.variables)
       ? definition.variables.map((variable) => ({ ...variable }))
       : [],
-    publish: Array.isArray(definition.publish)
+    publish: Array.isArray(definition?.publish)
       ? definition.publish.map((endpoint) => ({ ...endpoint }))
       : []
   };

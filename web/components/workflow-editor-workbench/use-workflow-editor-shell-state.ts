@@ -11,6 +11,12 @@ import type { WorkflowEditorMessageKind, WorkflowEditorMessageTone } from "./sha
 const SIDEBAR_PREFERENCE_STORAGE_KEY = "sevenflows.editor.sidebarCollapsed";
 const INSPECTOR_PREFERENCE_STORAGE_KEY = "sevenflows.editor.inspectorCollapsed";
 
+export function resolveWorkflowEditorPanelCollapsedPreference(
+  storedValue: string | null
+) {
+  return storedValue !== "false";
+}
+
 export type WorkflowEditorInspectorFocusState = {
   highlightedNodeSection: "config" | "contract" | "runtime" | null;
   highlightedNodeFieldPath: string | null;
@@ -86,8 +92,8 @@ export function useWorkflowEditorShellState({
     useState<string>(persistedDefinitionSignature);
   const [validationFocusItem, setValidationFocusItem] =
     useState<WorkflowValidationNavigatorItem | null>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true);
   const [assistantRequestSerial, setAssistantRequestSerial] = useState(0);
   const [hasLoadedPanelPreferences, setHasLoadedPanelPreferences] = useState(false);
 
@@ -100,9 +106,13 @@ export function useWorkflowEditorShellState({
     const inspectorPreference = window.localStorage.getItem(INSPECTOR_PREFERENCE_STORAGE_KEY);
 
     // Default to collapsed if no preference is set, to reduce default noise
-    setIsSidebarCollapsed(sidebarPreference !== "false");
-    setIsInspectorCollapsed(inspectorPreference !== "false");
-    
+    setIsSidebarCollapsed(
+      resolveWorkflowEditorPanelCollapsedPreference(sidebarPreference)
+    );
+    setIsInspectorCollapsed(
+      resolveWorkflowEditorPanelCollapsedPreference(inspectorPreference)
+    );
+
     setHasLoadedPanelPreferences(true);
   }, []);
 

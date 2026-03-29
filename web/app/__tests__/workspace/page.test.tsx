@@ -245,6 +245,10 @@ describe("WorkspacePage", () => {
     expect(html).toContain("Tool Agent");
     expect(html).toContain("全部 2");
     expect(html).toContain("搜索应用或治理焦点");
+    expect(html).toContain('data-component="workspace-catalog-header"');
+    expect(html).toContain('data-component="workspace-browse-rail"');
+    expect(html).toContain('data-component="workspace-create-strip"');
+    expect(html).toContain('data-component="workspace-app-list-stage"');
     expect(html).toContain("应用目录");
     expect(html).toContain("创建空白应用");
     expect(html).toContain("从 Starter 模板创建");
@@ -339,6 +343,12 @@ describe("WorkspacePage", () => {
     expect(html).toContain("ChatFlow Alpha");
     expect(html).not.toContain("Plugin Bridge");
     expect(html).toContain('href="/workspace?filter=draft&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"');
+    expect(html).toContain(
+      'href="/workflows/new?q=Alpha&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"'
+    );
+    expect(html).toContain(
+      'href="/workspace-starters?q=Alpha&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"'
+    );
   });
 
   it("filters workspace apps by application mode before rendering cards", async () => {
@@ -395,6 +405,7 @@ describe("WorkspacePage", () => {
     expect(html).not.toContain("ChatFlow Alpha");
     expect(html).toContain('href="/workspace?mode=agent"');
     expect(html).toContain("创建 Agent 应用");
+    expect(html).toContain('href="/workflows/new?starter=agent"');
   });
 
   it("orders workspace apps by latest update before rendering the directory rows", async () => {

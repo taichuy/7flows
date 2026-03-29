@@ -12,6 +12,10 @@ import {
 } from "@/lib/workspace-app-modes";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import {
+  buildWorkflowCreateHrefFromWorkspaceStarterViewState,
+  buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState
+} from "@/lib/workspace-starter-governance-query";
+import {
   getWorkflowBusinessTrack,
   type WorkflowBusinessTrack
 } from "@/lib/workflow-business-tracks";
@@ -45,8 +49,38 @@ type WorkspaceAppCard = {
   followUpCount: number;
 };
 
-function buildWorkflowStarterCreateHref(starterId: string) {
-  return `/workflows/new?starter=${encodeURIComponent(starterId)}`;
+function buildWorkflowStarterCreateHref({
+  requestedKeyword,
+  starterId,
+  track
+}: {
+  requestedKeyword: string;
+  starterId?: string;
+  track: WorkflowBusinessTrack | "all";
+}) {
+  return buildWorkflowCreateHrefFromWorkspaceStarterViewState({
+    activeTrack: track,
+    needsFollowUp: false,
+    searchQuery: requestedKeyword,
+    selectedTemplateId: starterId ?? null,
+    sourceGovernanceKind: "all"
+  });
+}
+
+function buildWorkspaceStarterHref({
+  requestedKeyword,
+  track
+}: {
+  requestedKeyword: string;
+  track: WorkflowBusinessTrack | "all";
+}) {
+  return buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState({
+    activeTrack: track,
+    needsFollowUp: false,
+    searchQuery: requestedKeyword,
+    selectedTemplateId: null,
+    sourceGovernanceKind: "all"
+  });
 }
 
 export default async function WorkspacePage({ searchParams }: WorkspacePageProps) {
@@ -151,7 +185,7 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
       key: "all" as WorkspaceAppModeId,
       label: "全部",
       count: appCards.length,
-      description: "像 Dify 一样先按应用类型收敛入口，再进入 7Flows 的 xyflow 编排。"
+      description: "先按应用类型收敛入口，再进入 Studio。"
     },
     ...listWorkspaceAppModes().map((mode) => ({
       key: mode.id,
@@ -191,7 +225,11 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
       id: starter.id,
       name: starter.name,
       description: starter.description,
-      href: buildWorkflowStarterCreateHref(starter.id),
+      href: buildWorkflowStarterCreateHref({
+        requestedKeyword,
+        starterId: starter.id,
+        track: activeTrack
+      }),
       track: starter.businessTrack,
       priority: getWorkflowBusinessTrack(starter.businessTrack).priority,
       mode: getWorkspaceAppModeMeta(inferWorkspaceAppMode({ nodeTypes: starter.nodeTypes }))
@@ -207,27 +245,42 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
         ? {
             title: "创建 Agent 应用",
             detail: `${activeModeMeta?.description ?? "继续补 Agent 节点配置。"} 创建后进入 Studio。`,
-            href: "/workflows/new?starter=agent",
+            href: buildWorkflowStarterCreateHref({
+              requestedKeyword,
+              starterId: "agent",
+              track: activeTrack
+            }),
             badge: activeModeMeta?.shortLabel ?? "Agent"
           }
         : activeMode === "tool_agent"
           ? {
               title: "创建 Tool Agent",
               detail: `${activeModeMeta?.description ?? "继续补工具调用链。"} 创建后进入 Studio。`,
-              href: "/workflows/new?starter=tool-enabled-agent",
+              href: buildWorkflowStarterCreateHref({
+                requestedKeyword,
+                starterId: "tool-enabled-agent",
+                track: activeTrack
+              }),
               badge: activeModeMeta?.shortLabel ?? "工具 Agent"
             }
           : activeMode === "sandbox"
             ? {
                 title: "创建 Sandbox Flow",
                 detail: `${activeModeMeta?.description ?? "继续补沙盒执行链路。"} 创建后进入 Studio。`,
-                href: "/workflows/new?starter=sandbox-code",
+                href: buildWorkflowStarterCreateHref({
+                  requestedKeyword,
+                  starterId: "sandbox-code",
+                  track: activeTrack
+                }),
                 badge: activeModeMeta?.shortLabel ?? "Sandbox"
               }
             : {
                 title: "创建空白应用",
                 detail: "直接生成最小 workflow 草稿，创建后进入 Studio。",
-                href: "/workflows/new",
+                href: buildWorkflowStarterCreateHref({
+                  requestedKeyword,
+                  track: activeTrack
+                }),
                 badge: "Blank Flow"
               };
   const quickCreateEntries = [
@@ -235,7 +288,10 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
     {
       title: "从 Starter 模板创建",
       detail: "先选团队模板，再把草稿送进 Studio。",
-      href: "/workspace-starters",
+      href: buildWorkspaceStarterHref({
+        requestedKeyword,
+        track: activeTrack
+      }),
       badge: `${workflowLibrary.starters.length} 个 Starter`
     }
   ];
@@ -317,7 +373,7 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
   const currentRoleLabel = formatWorkspaceRole(workspaceContext.current_member.role);
   const activeModeDescription =
     activeMode === "all"
-      ? "像 Dify 一样先筛选、再创建、再回到 7Flows 的 xyflow。"
+      ? "先筛选应用，再进入 Studio。"
       : activeModeMeta?.description ?? "当前应用入口会继续回到 xyflow 事实源。";
 
   return (
