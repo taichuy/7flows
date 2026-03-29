@@ -44,7 +44,8 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
           ? undefined
           : workspaceStarterViewState.sourceGovernanceKind,
       needsFollowUp: workspaceStarterViewState.needsFollowUp,
-      includeBuiltinStarters: !shouldScopeWorkspaceStarters
+      includeBuiltinStarters: !shouldScopeWorkspaceStarters,
+      includeStarterDefinitions: true
     }),
     getWorkflows(),
     getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot()

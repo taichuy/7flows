@@ -102,6 +102,8 @@ describe("WorkflowCreateWizard", () => {
     );
     expect(html).toContain("返回工作台");
     expect(html).toContain("创建一个应用");
+    expect(html).toContain('data-component="workflow-create-launcher-panel"');
+    expect(html).toContain('data-component="workflow-create-preview-panel"');
     expect(html).toContain("命名后进入画布");
     expect(html).toContain("创建并进入画布");
     expect(html).toContain("创建后直接打开画布");

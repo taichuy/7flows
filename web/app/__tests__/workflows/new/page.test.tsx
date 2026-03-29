@@ -120,6 +120,10 @@ describe("NewWorkflowPage", () => {
       })
     );
 
+    expect(vi.mocked(getWorkflowLibrarySnapshot)).toHaveBeenCalledWith(
+      expect.objectContaining({ includeStarterDefinitions: true })
+    );
+
     expect(html).toContain('data-component="workspace-shell"');
     expect(html).toContain('data-component="workflow-create-wizard"');
     expect(html).toContain('data-starter-count="1"');
