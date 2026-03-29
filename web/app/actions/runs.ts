@@ -156,3 +156,51 @@ export async function resumeRun(
     };
   }
 }
+
+export async function triggerWorkflowRun(
+  workflowId: string,
+  inputPayload: Record<string, unknown>
+): Promise<{ status: "success" | "error"; message: string; runId?: string }> {
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/api/workflows/${workflowId}/runs`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        input_payload: inputPayload,
+        source: "operator_manual_trigger"
+      }),
+      cache: "no-store"
+    });
+
+    const body = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return {
+        status: "error",
+        message: body?.detail ?? "触发工作流运行失败。"
+      };
+    }
+
+    const runId = body?.id || body?.run?.id;
+    
+    if (runId) {
+      revalidateOperatorFollowUpPaths({
+        workflowIds: [workflowId],
+        runIds: [runId]
+      });
+    }
+
+    return {
+      status: "success",
+      message: "工作流触发成功",
+      runId
+    };
+  } catch (err) {
+    return {
+      status: "error",
+      message: "服务请求失败。"
+    };
+  }
+}

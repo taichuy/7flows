@@ -1,8 +1,9 @@
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState, useTransition } from "react";
 import type { ComponentProps } from "react";
 import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
 import { pickWorkflowValidationRemediationItem } from "@/lib/workflow-validation-remediation";
 import { buildWorkflowPersistBlockerRecommendedNextStep, summarizeWorkflowPersistBlockers } from "@/components/workflow-editor-workbench/persist-blockers";
+import { triggerWorkflowRun } from "@/app/actions/runs";
 
 import type { WorkflowEditorHero } from "@/components/workflow-editor-workbench/workflow-editor-hero";
 import type { WorkflowEditorSidebar } from "@/components/workflow-editor-workbench/workflow-editor-sidebar";
@@ -77,6 +78,8 @@ export function useWorkflowEditorPanels({
   
   const inspectorFocusState = shell.getInspectorFocusState(graph.selectedNodeId);
 
+  const [isRunLauncherOpen, setIsRunLauncherOpen] = useState(false);
+
   const heroProps: ComponentProps<typeof WorkflowEditorHero> = {
     currentHref: currentEditorHref,
     workflowId: workflow.id,
@@ -114,7 +117,8 @@ export function useWorkflowEditorPanels({
     onToggleSidebar: shell.toggleSidebar,
     onToggleInspector: shell.toggleInspector,
     onSave: persistence.handleSave,
-    onSaveAsWorkspaceStarter: persistence.handleSaveAsWorkspaceStarter
+    onSaveAsWorkspaceStarter: persistence.handleSaveAsWorkspaceStarter,
+    onOpenRunLauncher: () => setIsRunLauncherOpen(true)
   };
 
   const sidebarProps: ComponentProps<typeof WorkflowEditorSidebar> = {
@@ -200,9 +204,39 @@ export function useWorkflowEditorPanels({
     sandboxReadiness
   };
 
+  const [isPending, startTransition] = useTransition();
+
+  const runLauncherProps = {
+    open: isRunLauncherOpen,
+    isSubmitting: isPending,
+    onClose: () => setIsRunLauncherOpen(false),
+    workflowVariables: graph.workflowVariables,
+    onRun: (payload: Record<string, any>) => {
+      startTransition(async () => {
+        const result = await triggerWorkflowRun(workflow.id, payload);
+        if (result.status === "success") {
+          setIsRunLauncherOpen(false);
+          shell.setMessage("工作流已触发运行");
+          shell.setMessageTone("success");
+          
+          if (shell.isSidebarCollapsed) {
+            shell.toggleSidebar();
+          }
+          if (result.runId) {
+            runOverlay.setSelectedRunId(result.runId);
+          }
+        } else {
+          shell.setMessage(result.message);
+          shell.setMessageTone("error");
+        }
+      });
+    }
+  };
+
   return {
     heroProps,
     sidebarProps,
-    inspectorProps
+    inspectorProps,
+    runLauncherProps
   };
 }

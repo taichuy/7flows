@@ -279,6 +279,10 @@ function WorkflowEditorSidebarComponent({
     };
   });
   const preferredTabKey = useMemo(() => {
+    if (selectedRunId) {
+      return "3";
+    }
+
     const shouldFocusDiagnostics =
       persistBlockers.length > 0 ||
       Boolean(starterSaveSurfaceCopy) ||
@@ -294,7 +298,8 @@ function WorkflowEditorSidebarComponent({
     remediationItem,
     starterSaveSurfaceCopy,
     traceError,
-    validationNavigatorItems.length
+    validationNavigatorItems.length,
+    selectedRunId
   ]);
   const [activeTabKey, setActiveTabKey] = useState(preferredTabKey);
   const [nodeSearch, setNodeSearch] = useState("");

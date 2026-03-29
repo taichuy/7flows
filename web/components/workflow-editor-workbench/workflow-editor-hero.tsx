@@ -47,6 +47,7 @@ type WorkflowEditorHeroProps = {
   onToggleInspector?: () => void;
   onSave: () => void;
   onSaveAsWorkspaceStarter: () => void;
+  onOpenRunLauncher?: () => void;
 };
 
 function WorkflowEditorHeroComponent({
@@ -76,7 +77,8 @@ function WorkflowEditorHeroComponent({
   onToggleSidebar,
   onToggleInspector,
   onSave,
-  onSaveAsWorkspaceStarter
+  onSaveAsWorkspaceStarter,
+  onOpenRunLauncher
 }: WorkflowEditorHeroProps) {
   const [isEditingName, setIsEditingName] = useState(false);
   const isCanvasFocused = isSidebarCollapsed && isInspectorCollapsed;
@@ -199,6 +201,7 @@ function WorkflowEditorHeroComponent({
           type="primary"
           className="workflow-editor-run-button"
           icon={<PlayCircleOutlined />}
+          onClick={onOpenRunLauncher}
         >
           运行
         </Button>

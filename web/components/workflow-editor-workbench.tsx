@@ -42,6 +42,7 @@ import { useWorkflowEditorPersistence } from "@/components/workflow-editor-workb
 import { useWorkflowEditorValidation } from "@/components/workflow-editor-workbench/use-workflow-editor-validation";
 import { useWorkflowRunOverlay } from "@/components/workflow-editor-workbench/use-workflow-run-overlay";
 import { WorkflowEditorInspector } from "@/components/workflow-editor-inspector";
+import { WorkflowRunLauncher } from "@/components/workflow-run-launcher";
 
 type WorkflowEditorWorkbenchProps = {
   workflow: WorkflowDetail;
@@ -260,6 +261,8 @@ export function WorkflowEditorWorkbench({
             </aside>
           )}
         </section>
+
+        <WorkflowRunLauncher {...panels.runLauncherProps} />
       </main>
     </ReactFlowProvider>
   );
