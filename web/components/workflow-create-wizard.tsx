@@ -233,6 +233,23 @@ export function WorkflowCreateWizard({
     0,
     (selectedStarter?.definition.nodes?.length ?? 0) - selectedStarterPreviewNodes.length
   );
+  const selectedStarterFactPills = useMemo(
+    () =>
+      selectedStarter
+        ? [
+            getWorkflowCreateSourceLabel(selectedStarter.origin),
+            `${selectedStarter.nodeCount} 个节点`,
+            selectedStarter.governedToolCount > 0
+              ? `${selectedStarter.governedToolCount} 个工具`
+              : "无工具依赖"
+          ]
+        : [],
+    [selectedStarter]
+  );
+  const governanceDisclosureStatus =
+    selectedStarterSourcePresenter?.actionStatusLabel ??
+    selectedStarterSourcePresenter?.statusLabel ??
+    (selectedStarterNextStepSurface ? "按需展开" : null);
   const handleCreateWorkflow = () => {
     runCreateTransition(async () => {
       if (!selectedStarter) {
@@ -330,22 +347,15 @@ export function WorkflowCreateWizard({
           </Link>
           <div className="workflow-create-topbar-copy">
             <span>New app</span>
-            <strong>创建应用</strong>
+            <strong>选起点后直接进入 Studio</strong>
           </div>
         </div>
-
-        <div className="workflow-create-topbar-actions">
-          <Link href="/" className="workflow-create-inline-link workflow-create-inline-chip muted">
-            返回系统首页
-          </Link>
-          {recentWorkflowLink ? (
-            <Link href={recentWorkflowLink.href} className="workflow-create-inline-link workflow-create-inline-chip">
-              继续最近草稿
-            </Link>
+        <div className="workflow-create-topbar-summary" aria-label="创建页摘要">
+          <span className="workflow-create-inline-chip">{activeTrackPresentation.label}</span>
+          <span className="workflow-create-inline-chip muted">{visibleStarters.length} 个 starter</span>
+          {workflows.length > 0 ? (
+            <span className="workflow-create-inline-chip muted">{workflows.length} 个草稿</span>
           ) : null}
-          <Link href={starterGovernanceHref} className="workflow-create-inline-link workflow-create-inline-chip muted">
-            管理 workspace starters
-          </Link>
         </div>
       </section>
 
@@ -358,7 +368,7 @@ export function WorkflowCreateWizard({
                 创建一个应用
               </Title>
               <Text type="secondary">
-                选模板、命名，然后直接进入 Studio。
+                先选起点，再命名进入 Studio。
               </Text>
 
               <div className="workflow-create-step-row" aria-label="应用创建步骤">
@@ -401,130 +411,114 @@ export function WorkflowCreateWizard({
         </div>
 
         <aside className="workflow-create-side">
-          <div className="workflow-create-config-card">
-            <div className="workflow-create-config-header">
-              <p className="workspace-eyebrow">Step 2</p>
-              <Title level={4} style={{ margin: '0 0 6px', color: '#111827' }}>
-                命名后进入画布
-              </Title>
-              <Text type="secondary">
-                选中模板后只做一个动作：命名并立刻开始编排。
-              </Text>
-            </div>
-
-            <div className="workflow-create-preview-card">
-              <div className="workflow-create-preview-header">
-                <div>
-                  <p className="workspace-eyebrow">Studio preview</p>
-                  <h3>进入 xyflow 后的第一屏</h3>
-                  <p>创建后先落到 starter 骨架，剩余配置回到编辑器处理。</p>
-                </div>
-                <Tag color="blue" style={{ margin: 0 }}>
-                  {selectedStarterTrackPresentation.label}
-                </Tag>
+            <div className="workflow-create-config-card">
+              <div className="workflow-create-config-header">
+                <p className="workspace-eyebrow">Step 2</p>
+                <Title level={4} style={{ margin: '0 0 6px', color: '#111827' }}>
+                  命名后进入画布
+                </Title>
+                <Text type="secondary">
+                  右侧只保留创建动作，治理和草稿入口退到二级信息。
+                </Text>
               </div>
 
-              <div className="workflow-create-preview-stage">
-                <div className="workflow-create-preview-lane" aria-label="Starter preview lane">
-                  {selectedStarterPreviewNodes.map((nodeLabel, index) => (
-                    <Fragment key={`${selectedStarter.id}-${nodeLabel}-${index}`}>
-                      <span className="workflow-create-preview-node">{nodeLabel}</span>
-                      {index < selectedStarterPreviewNodes.length - 1 ? (
-                        <span className="workflow-create-preview-arrow" aria-hidden="true">
-                          →
-                        </span>
-                      ) : null}
-                    </Fragment>
+              <div className="workflow-create-selected-card">
+                <div className="workflow-create-selected-head">
+                  <div>
+                    <div className="workflow-create-selected-title">{selectedStarter.name}</div>
+                    <div className="workflow-create-selected-copy">{selectedStarter.description}</div>
+                  </div>
+                  <Tag color="blue" style={{ margin: 0 }}>
+                    {selectedStarterTrackPresentation.label}
+                  </Tag>
+                </div>
+
+                <div className="workflow-create-selected-facts" aria-label="当前 starter 摘要">
+                  {selectedStarterFactPills.map((item) => (
+                    <span className="workflow-create-fact-pill" key={`${selectedStarter.id}-${item}`}>
+                      {item}
+                    </span>
                   ))}
-                  {selectedStarterPreviewOverflow > 0 ? (
-                    <span className="workflow-create-preview-node more">+{selectedStarterPreviewOverflow}</span>
-                  ) : null}
                 </div>
 
-                <div className="workflow-create-preview-note">
-                  创建后直接打开画布。{selectedStarter.recommendedNextStep}
-                </div>
-              </div>
-            </div>
+                {selectedStarterSandboxBadges.length > 0 ? (
+                  <div className="workflow-create-selected-badges">
+                    {selectedStarterSandboxBadges.map((badge) => (
+                      <Tag key={`${selectedStarter.id}-${badge}`} style={{ margin: 0 }}>
+                        {badge}
+                      </Tag>
+                    ))}
+                  </div>
+                ) : null}
 
-            <div className="workflow-create-form-field">
-              <div className="workflow-create-form-label">应用名称</div>
-              <Input
-                size="large"
-                value={workflowName}
-                onChange={(event) => {
-                  clearFeedback();
-                  setWorkflowName(event.target.value);
-                }}
-                placeholder={selectedStarter.defaultWorkflowName}
-              />
-            </div>
-
-            <div className="workflow-create-selected-card">
-              <div className="workflow-create-selected-head">
-                <div>
-                  <div className="workflow-create-selected-title">{selectedStarter.name}</div>
-                  <div className="workflow-create-selected-copy">{selectedStarter.description}</div>
-                </div>
-                <Tag color="blue" style={{ margin: 0 }}>
-                  {selectedStarterTrackPresentation.label}
-                </Tag>
+                {selectedStarterSandboxDependencySummary ? (
+                  <div className="workflow-create-selected-hint">{selectedStarterSandboxDependencySummary}</div>
+                ) : null}
               </div>
 
-              <div className="workflow-create-selected-metrics">
-                <div className="workflow-create-metric-item">
-                  <div className="workflow-create-metric-label">应用类型</div>
-                  <div className="workflow-create-metric-value">{selectedStarterTrackPresentation.label}</div>
+              <div className="workflow-create-form-field">
+                <div className="workflow-create-form-label">应用名称</div>
+                <Input
+                  size="large"
+                  value={workflowName}
+                  onChange={(event) => {
+                    clearFeedback();
+                    setWorkflowName(event.target.value);
+                  }}
+                  placeholder={selectedStarter.defaultWorkflowName}
+                />
+              </div>
+
+              <div className="workflow-create-preview-card">
+                <div className="workflow-create-preview-header">
+                  <div>
+                    <p className="workspace-eyebrow">Studio preview</p>
+                    <h3>创建后直接打开画布</h3>
+                    <p>先落到 starter 骨架，细节配置回到 editor 继续处理。</p>
+                  </div>
                 </div>
-                <div className="workflow-create-metric-item">
-                  <div className="workflow-create-metric-label">模板来源</div>
-                  <div className="workflow-create-metric-value">{getWorkflowCreateSourceLabel(selectedStarter.origin)}</div>
-                </div>
-                <div className="workflow-create-metric-item">
-                  <div className="workflow-create-metric-label">节点数量</div>
-                  <div className="workflow-create-metric-value">{selectedStarter.nodeCount}</div>
-                </div>
-                <div className="workflow-create-metric-item">
-                  <div className="workflow-create-metric-label">工具依赖</div>
-                  <div className="workflow-create-metric-value">
-                    {selectedStarter.governedToolCount > 0 ? `${selectedStarter.governedToolCount} 个` : "无"}
+
+                <div className="workflow-create-preview-stage">
+                  <div className="workflow-create-preview-lane" aria-label="Starter preview lane">
+                    {selectedStarterPreviewNodes.map((nodeLabel, index) => (
+                      <Fragment key={`${selectedStarter.id}-${nodeLabel}-${index}`}>
+                        <span className="workflow-create-preview-node">{nodeLabel}</span>
+                        {index < selectedStarterPreviewNodes.length - 1 ? (
+                          <span className="workflow-create-preview-arrow" aria-hidden="true">
+                            →
+                          </span>
+                        ) : null}
+                      </Fragment>
+                    ))}
+                    {selectedStarterPreviewOverflow > 0 ? (
+                      <span className="workflow-create-preview-node more">+{selectedStarterPreviewOverflow}</span>
+                    ) : null}
+                  </div>
+
+                  <div className="workflow-create-preview-note">
+                    {selectedStarter.recommendedNextStep}
                   </div>
                 </div>
               </div>
 
-              {selectedStarterSandboxBadges.length > 0 ? (
-                <div className="workflow-create-selected-badges">
-                  {selectedStarterSandboxBadges.map((badge) => (
-                    <Tag key={`${selectedStarter.id}-${badge}`} style={{ margin: 0 }}>
-                      {badge}
-                    </Tag>
-                  ))}
+              <Button
+                type="primary"
+                size="large"
+                block
+                disabled={Boolean(selectedStarterMissingToolBlockingSurface)}
+                onClick={handleCreateWorkflow}
+                loading={isCreating}
+                className="workflow-create-primary-button"
+              >
+                创建并进入画布
+              </Button>
+
+              {message ? (
+                <div className={`workflow-create-feedback ${messageTone === 'error' ? 'error' : 'success'}`}>
+                  {message}
                 </div>
               ) : null}
-
-              {selectedStarterSandboxDependencySummary ? (
-                <div className="workflow-create-selected-hint">{selectedStarterSandboxDependencySummary}</div>
-              ) : null}
             </div>
-
-            <Button
-              type="primary"
-              size="large"
-              block
-              disabled={Boolean(selectedStarterMissingToolBlockingSurface)}
-              onClick={handleCreateWorkflow}
-              loading={isCreating}
-              className="workflow-create-primary-button"
-            >
-              创建并进入画布
-            </Button>
-
-            {message ? (
-              <div className={`workflow-create-feedback ${messageTone === 'error' ? 'error' : 'success'}`}>
-                {message}
-              </div>
-            ) : null}
-          </div>
 
           {selectedStarterMissingToolBlockingSurface ? (
             <div className="workflow-create-warning-card">
@@ -533,106 +527,152 @@ export function WorkflowCreateWizard({
             </div>
           ) : null}
 
-          {workflows.length > 0 ? (
-            <div className="workflow-create-support-card workflow-create-side-section">
-              <div className="workflow-create-recent-header workflow-create-side-section-header">
-                <div>
-                  <p className="workspace-eyebrow">Recent drafts</p>
-                  <h3>继续最近草稿</h3>
-                  <p>已有接近的应用时，优先续写而不是重复创建。</p>
-                </div>
+          <div className="workflow-create-support-card workflow-create-side-section">
+            <div className="workflow-create-side-section-header">
+              <div>
+                <p className="workspace-eyebrow">Utility links</p>
+                <h3>更多入口</h3>
+                <p>不压住创建动作时，再回到首页、模板治理或最近草稿。</p>
               </div>
-              <div className="workflow-create-recent-list">
-                {workflows.slice(0, 2).map((workflow) => {
-                  const workflowHref = appendWorkflowLibraryViewState(
-                    buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
-                      workflowId: workflow.id,
-                      viewState: workspaceStarterGovernanceScope,
-                      variant: "recent"
-                    }).href,
-                    {
-                      definitionIssue: workflow.tool_governance?.missing_tool_ids?.length
-                        ? "missing_tool"
-                        : null
-                    }
-                  );
-
-                  return (
-                    <Link className="workflow-create-recent-link" href={workflowHref} key={workflow.id}>
-                      <div>
-                        <strong>{workflow.name}</strong>
-                        <p>
-                          v{workflow.version} · {workflow.status === "published" ? "已发布" : "草稿"} · {workflow.node_count} 个节点
-                        </p>
-                      </div>
-                      <span>
-                        {workflow.tool_governance?.missing_tool_ids?.length
-                          ? `${workflow.tool_governance.missing_tool_ids.length} 个工具缺口`
-                          : "继续编排"}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-              {workflows.length > 2 ? (
-                <div className="workflow-create-recent-more">还有 {workflows.length - 2} 个草稿，优先回工作台按筛选继续。</div>
+            </div>
+            <div className="workflow-create-inline-actions">
+              <Link href="/" className="workflow-create-inline-link workflow-create-inline-chip muted">
+                返回系统首页
+              </Link>
+              {recentWorkflowLink ? (
+                <Link
+                  href={recentWorkflowLink.href}
+                  className="workflow-create-inline-link workflow-create-inline-chip"
+                >
+                  继续最近草稿
+                </Link>
               ) : null}
+              <Link
+                href={starterGovernanceHref}
+                className="workflow-create-inline-link workflow-create-inline-chip muted"
+              >
+                管理 workspace starters
+              </Link>
             </div>
-          ) : null}
+          </div>
 
-          {selectedStarterNextStepSurface && shouldRenderSelectedStarterNextStep ? (
-            <div className="workflow-create-followup-card workflow-create-support-card workflow-create-side-section">
-              <WorkspaceStarterFollowUpCard
-                title={surfaceCopy.recommendedNextStepTitle}
-                label={selectedStarterNextStepSurface.label}
-                detail={selectedStarterNextStepSurface.detail}
-                primaryResourceSummary={selectedStarterNextStepSurface.primaryResourceSummary}
-                workflowGovernanceHandoff={selectedStarterNextStepSurface.workflowGovernanceHandoff}
-                actions={
-                  selectedStarterNextStepSurface.href && selectedStarterNextStepSurface.hrefLabel ? (
-                    <Link href={selectedStarterNextStepSurface.href} className="workflow-create-inline-link">
-                      {selectedStarterNextStepSurface.hrefLabel}
-                    </Link>
-                  ) : null
-                }
-              />
-            </div>
-          ) : null}
-
-          {shouldRenderSelectedStarterSourceGovernance ? (
-            <div className="workflow-create-governance-card">
-              <div className="workflow-create-governance-header">
-                <div className="workflow-create-governance-eyebrow">Source governance</div>
-                <p>{surfaceCopy.sourceGovernanceDescription}</p>
-              </div>
-              <div className="workflow-create-governance-body">
-                {selectedStarterSourcePresenter ? (
-                  <>
-                    <div className="workflow-create-selected-badges">
-                      <Tag color="blue" style={{ margin: 0 }}>
-                        {selectedStarterSourcePresenter.actionStatusLabel ?? selectedStarterSourcePresenter.statusLabel}
-                      </Tag>
-                      {selectedStarterSourceChips.map((chip) => (
-                        <Tag key={`${selectedStarter.id}-${chip}`} style={{ margin: 0 }}>
-                          {chip}
-                        </Tag>
-                      ))}
-                    </div>
-                    {selectedStarterSourcePrimarySignal ? <div>{selectedStarterSourcePrimarySignal}</div> : null}
-                    <div>{selectedStarterSourcePresenter.followUp ?? selectedStarterSourcePresenter.summary}</div>
-                  </>
-                ) : null}
-
-                {selectedStarterNextStepSurface?.href && selectedStarterNextStepSurface.hrefLabel ? (
+          {workflows.length > 0 ? (
+            <details className="workflow-create-disclosure workflow-create-support-card workflow-create-side-section">
+              <summary className="workflow-create-disclosure-summary">
+                <div className="workflow-create-recent-header workflow-create-side-section-header">
                   <div>
-                    {surfaceCopy.sourceGovernanceFollowUpPrefix}
-                    <Link href={selectedStarterNextStepSurface.href} className="workflow-create-inline-link with-offset">
-                      {selectedStarterNextStepSurface.hrefLabel}
-                    </Link>
+                    <p className="workspace-eyebrow">Recent drafts</p>
+                    <h3>继续最近草稿</h3>
+                    <p>已有接近的应用时，再展开续写而不是重复创建。</p>
+                  </div>
+                </div>
+                <span className="workflow-create-disclosure-status">{workflows.length} 个草稿</span>
+              </summary>
+              <div className="workflow-create-disclosure-body">
+                <div className="workflow-create-recent-list">
+                  {workflows.slice(0, 2).map((workflow) => {
+                    const workflowHref = appendWorkflowLibraryViewState(
+                      buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState({
+                        workflowId: workflow.id,
+                        viewState: workspaceStarterGovernanceScope,
+                        variant: "recent"
+                      }).href,
+                      {
+                        definitionIssue: workflow.tool_governance?.missing_tool_ids?.length
+                          ? "missing_tool"
+                          : null
+                      }
+                    );
+
+                    return (
+                      <Link className="workflow-create-recent-link" href={workflowHref} key={workflow.id}>
+                        <div>
+                          <strong>{workflow.name}</strong>
+                          <p>
+                            v{workflow.version} · {workflow.status === "published" ? "已发布" : "草稿"} · {workflow.node_count} 个节点
+                          </p>
+                        </div>
+                        <span>
+                          {workflow.tool_governance?.missing_tool_ids?.length
+                            ? `${workflow.tool_governance.missing_tool_ids.length} 个工具缺口`
+                            : "继续编排"}
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+                {workflows.length > 2 ? (
+                  <div className="workflow-create-recent-more">
+                    还有 {workflows.length - 2} 个草稿，优先回工作台按筛选继续。
                   </div>
                 ) : null}
               </div>
-            </div>
+            </details>
+          ) : null}
+
+          {(selectedStarterNextStepSurface && shouldRenderSelectedStarterNextStep) ||
+          shouldRenderSelectedStarterSourceGovernance ? (
+            <details className="workflow-create-disclosure workflow-create-governance-card">
+              <summary className="workflow-create-disclosure-summary">
+                <div className="workflow-create-governance-header">
+                  <div className="workflow-create-governance-eyebrow">Source governance</div>
+                  <p>{surfaceCopy.sourceGovernanceDescription}</p>
+                </div>
+                {governanceDisclosureStatus ? (
+                  <span className="workflow-create-disclosure-status">{governanceDisclosureStatus}</span>
+                ) : null}
+              </summary>
+              <div className="workflow-create-disclosure-body workflow-create-governance-body">
+                {selectedStarterNextStepSurface && shouldRenderSelectedStarterNextStep ? (
+                  <div className="workflow-create-followup-card workflow-create-side-section">
+                    <WorkspaceStarterFollowUpCard
+                      title={surfaceCopy.recommendedNextStepTitle}
+                      label={selectedStarterNextStepSurface.label}
+                      detail={selectedStarterNextStepSurface.detail}
+                      primaryResourceSummary={selectedStarterNextStepSurface.primaryResourceSummary}
+                      workflowGovernanceHandoff={selectedStarterNextStepSurface.workflowGovernanceHandoff}
+                      actions={
+                        selectedStarterNextStepSurface.href && selectedStarterNextStepSurface.hrefLabel ? (
+                          <Link href={selectedStarterNextStepSurface.href} className="workflow-create-inline-link">
+                            {selectedStarterNextStepSurface.hrefLabel}
+                          </Link>
+                        ) : null
+                      }
+                    />
+                  </div>
+                ) : null}
+
+                {shouldRenderSelectedStarterSourceGovernance ? (
+                  <>
+                    {selectedStarterSourcePresenter ? (
+                      <>
+                        <div className="workflow-create-selected-badges">
+                          <Tag color="blue" style={{ margin: 0 }}>
+                            {selectedStarterSourcePresenter.actionStatusLabel ?? selectedStarterSourcePresenter.statusLabel}
+                          </Tag>
+                          {selectedStarterSourceChips.map((chip) => (
+                            <Tag key={`${selectedStarter.id}-${chip}`} style={{ margin: 0 }}>
+                              {chip}
+                            </Tag>
+                          ))}
+                        </div>
+                        {selectedStarterSourcePrimarySignal ? <div>{selectedStarterSourcePrimarySignal}</div> : null}
+                        <div>{selectedStarterSourcePresenter.followUp ?? selectedStarterSourcePresenter.summary}</div>
+                      </>
+                    ) : null}
+
+                    {selectedStarterNextStepSurface?.href && selectedStarterNextStepSurface.hrefLabel ? (
+                      <div>
+                        {surfaceCopy.sourceGovernanceFollowUpPrefix}
+                        <Link href={selectedStarterNextStepSurface.href} className="workflow-create-inline-link with-offset">
+                          {selectedStarterNextStepSurface.hrefLabel}
+                        </Link>
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            </details>
           ) : null}
         </aside>
       </section>

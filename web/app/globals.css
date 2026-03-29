@@ -4609,10 +4609,12 @@ a {
 
 .workflow-create-topbar,
 .workflow-create-topbar-left,
+.workflow-create-topbar-summary,
 .workflow-create-topbar-actions,
 .workflow-create-inline-actions,
 .workflow-create-selected-head,
-.workflow-create-selected-badges {
+.workflow-create-selected-badges,
+.workflow-create-selected-facts {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -4625,6 +4627,10 @@ a {
 
 .workflow-create-topbar-left {
   align-items: center;
+}
+
+.workflow-create-topbar-summary {
+  justify-content: flex-end;
 }
 
 .workflow-create-topbar-copy {
@@ -4718,6 +4724,10 @@ a {
 .workflow-create-inline-link {
   color: #2563eb;
   font-weight: 600;
+}
+
+.workflow-create-inline-actions {
+  gap: 10px;
 }
 
 .workflow-create-inline-chip {
@@ -5039,35 +5049,18 @@ a {
   background: #f8fbff;
 }
 
-.workflow-create-selected-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.workflow-create-metric-item {
-  display: grid;
-  gap: 6px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid #e4e9f3;
-  background: rgba(255, 255, 255, 0.92);
-}
-
 .workflow-create-selected-head {
   align-items: flex-start;
   justify-content: space-between;
 }
 
-.workflow-create-selected-title,
-.workflow-create-metric-value {
+.workflow-create-selected-title {
   color: #111827;
   font-weight: 700;
 }
 
 .workflow-create-selected-copy,
 .workflow-create-selected-hint,
-.workflow-create-metric-label,
 .workflow-create-governance-body {
   color: #667085;
 }
@@ -5076,12 +5069,22 @@ a {
   margin-top: 6px;
 }
 
-.workflow-create-topbar-actions {
-  justify-content: flex-end;
+.workflow-create-selected-facts {
+  gap: 10px;
 }
 
-.workflow-create-metric-label {
-  font-size: 0.78rem;
+.workflow-create-fact-pill,
+.workflow-create-disclosure-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #d7e2f4;
+  background: rgba(255, 255, 255, 0.92);
+  color: #344054;
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 
 .workflow-create-primary-button {
@@ -5113,6 +5116,37 @@ a {
   padding: 16px;
 }
 
+.workflow-create-disclosure {
+  display: grid;
+  gap: 14px;
+}
+
+.workflow-create-disclosure[open] {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.workflow-create-disclosure-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.workflow-create-disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+
+.workflow-create-disclosure-summary > div {
+  min-width: 0;
+}
+
+.workflow-create-disclosure-body {
+  display: grid;
+  gap: 14px;
+}
+
 @media (max-width: 1200px) {
   .workflow-create-page,
   .workflow-create-shell-bar,
@@ -5127,13 +5161,13 @@ a {
   .workflow-create-side {
     position: static;
   }
+
+  .workflow-create-disclosure-summary {
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 640px) {
-  .workflow-create-selected-metrics {
-    grid-template-columns: 1fr;
-  }
-
   .workflow-create-preview-lane {
     min-height: auto;
   }
