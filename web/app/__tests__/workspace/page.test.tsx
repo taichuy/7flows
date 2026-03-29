@@ -248,16 +248,18 @@ describe("WorkspacePage", () => {
     expect(html).toContain("应用目录");
     expect(html).toContain("创建空白应用");
     expect(html).toContain("从 Starter 模板创建");
-    expect(html).toContain("Starter 起点");
+    expect(html).toContain("推荐 Starter");
     expect(html).toContain("Starter ChatFlow");
-    expect(html).toContain("搜索、筛选后直接进入 Studio。");
+    expect(html).toContain("创建、筛选后直接进入 Studio。");
     expect(html).toContain("管理成员与权限");
     expect(html).toContain("全部 2 个应用");
-    expect(html).toContain("应用目录优先，治理细节按需展开。");
-    expect(html).toContain("重点");
+    expect(html).toContain("主入口先创建应用，治理细节按需展开。");
+    expect(html).toContain("摘要");
     expect(html).toContain("进入 Studio");
     expect(html).toContain("治理优先");
     expect(html).toContain("查看治理细节");
+    expect(html).not.toContain("查看运行");
+    expect(html.indexOf("快速新建")).toBeLessThan(html.indexOf("ChatFlow Alpha"));
     expect(html).toContain('href="/workflows/new"');
     expect(html).toContain('href="/workspace-starters"');
     expect(html).toContain('href="/admin/members"');
@@ -491,7 +493,7 @@ describe("WorkspacePage", () => {
 
     expect(html).toContain("当前筛选范围内还没有应用");
     expect(html).toContain("Blank Flow");
-    expect(html).toContain("Starter 起点");
+    expect(html).toContain("推荐 Starter");
     expect(html).toContain("Starter 模板");
   });
 

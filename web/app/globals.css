@@ -6030,7 +6030,7 @@ a {
   display: grid;
   gap: 14px;
   align-items: start;
-  padding: 18px;
+  padding: 16px 18px;
 }
 
 .workspace-create-strip-copy,
@@ -6047,11 +6047,12 @@ a {
 }
 
 .workspace-create-strip-summary {
-  max-width: 28ch;
+  max-width: 32ch;
 }
 
 .workspace-create-strip-actions {
   display: grid;
+  grid-template-columns: minmax(240px, 1.05fr) minmax(0, 1fr);
   gap: 12px;
   align-content: start;
 }
@@ -6100,6 +6101,7 @@ a {
 
 .workspace-create-strip-secondary-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -6119,6 +6121,8 @@ a {
 
 .workspace-create-strip-footer {
   min-width: 0;
+  padding-top: 4px;
+  border-top: 1px solid #eef1f6;
 }
 
 .workspace-create-strip-footnotes {
@@ -6145,8 +6149,7 @@ a {
 
 .workspace-catalog-stage {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
-  gap: 16px;
+  gap: 14px;
   align-items: start;
 }
 
@@ -6638,11 +6641,6 @@ a {
   padding: 18px;
 }
 
-.workspace-catalog-stage > .workspace-create-strip {
-  position: sticky;
-  top: 92px;
-}
-
 .workspace-app-list-stage-header {
   display: flex;
   flex-wrap: wrap;
@@ -6889,6 +6887,7 @@ a {
 .workspace-app-row-helper-inline {
   margin: 0;
   max-width: 34ch;
+  min-height: 0;
 }
 
 .workspace-app-row-details {
@@ -7149,8 +7148,7 @@ a {
 
   .workspace-catalog-rail,
   .workflow-create-side,
-  .workspace-apps-dify-rail,
-  .workspace-catalog-stage > .workspace-create-strip {
+  .workspace-apps-dify-rail {
     position: static;
   }
 
@@ -7179,6 +7177,7 @@ a {
   }
 
   .workspace-create-strip-actions,
+  .workspace-create-strip-secondary-list,
   .workspace-create-rail-header,
   .workspace-app-row-header,
   .workspace-apps-stage-header {

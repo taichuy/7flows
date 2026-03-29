@@ -242,12 +242,12 @@ function WorkspaceCreateStrip({
   const primaryStarter = starterHighlights[0] ?? null;
 
   return (
-    <aside className="workspace-create-strip workspace-catalog-card" aria-label="Workspace create strip">
+    <section className="workspace-create-strip workspace-catalog-card" aria-label="Workspace create strip">
       <div className="workspace-create-strip-copy">
         <p className="workspace-app-card-caption">Create</p>
         <h3>快速新建</h3>
         <p className="workspace-muted workspace-card-copy workspace-create-strip-summary">
-          主入口直达 Studio，其它治理和团队入口退到次级。
+          把创建入口收回主区，先选路径，再进入 Studio。
         </p>
         <div className="workspace-create-strip-footnotes">
           <span className="workspace-app-footnote">Starter {starterCount} 个</span>
@@ -294,19 +294,19 @@ function WorkspaceCreateStrip({
       <div className="workspace-create-strip-footer">
         {primaryStarter ? (
           <Link className="workspace-create-strip-starter" href={primaryStarter.href}>
-            <span>Starter 起点</span>
+            <span>推荐 Starter</span>
             <strong>{primaryStarter.name}</strong>
             <small>{primaryStarter.priority} · {primaryStarter.modeShortLabel}</small>
           </Link>
         ) : (
           <div className="workspace-create-strip-starter">
-            <span>Starter 起点</span>
+            <span>推荐 Starter</span>
             <strong>Blank Flow</strong>
             <small>保留最小 trigger → output 骨架。</small>
           </div>
         )}
       </div>
-    </aside>
+    </section>
   );
 }
 
@@ -316,7 +316,7 @@ function WorkspaceAppListColumns() {
       <span>应用</span>
       <span>模式</span>
       <span>状态</span>
-      <span>重点</span>
+      <span>摘要</span>
       <span>操作</span>
     </div>
   );
@@ -394,7 +394,8 @@ function WorkspaceAppTile({
 
       <div className="workspace-app-row-cell workspace-app-row-cell-summary">
         <div className="workspace-app-meta-row workspace-app-row-meta" aria-label={`${card.name} workspace hints`}>
-          <span className="workspace-app-meta-pill">{card.track.focus}</span>
+          <span className="workspace-app-meta-pill">{trackLabel}</span>
+          <span className="workspace-app-meta-pill">{card.nodeCount} 个节点</span>
           {card.followUpCount > 0 ? (
             <span className="workspace-app-meta-pill warning">待治理：{card.followUpCount}</span>
           ) : null}
@@ -402,30 +403,24 @@ function WorkspaceAppTile({
             <span className="workspace-app-meta-pill">{appSurface.publishLabel}</span>
           ) : null}
         </div>
+        <p className="workspace-muted workspace-app-row-helper workspace-app-row-helper-inline">{appSurface.digest}</p>
         {appSurface.showDetailPanel && appSurface.detailToggleLabel ? (
           <details className="workspace-app-row-details">
             <summary>{appSurface.detailToggleLabel}</summary>
             <div className="workspace-app-row-details-panel">
-              <p className="workspace-muted workspace-app-row-helper">{appSurface.digest}</p>
+              <p className="workspace-muted workspace-app-row-helper">{card.recommendedNextStep}</p>
               <div className="workspace-app-row-details-meta">
                 <span className="workspace-app-footnote">{appSurface.publishLabel}</span>
                 <span className="workspace-app-footnote">最近更新 {formatTimestamp(card.updatedAt)}</span>
               </div>
             </div>
           </details>
-        ) : (
-          <p className="workspace-muted workspace-app-row-helper workspace-app-row-helper-inline">
-            {appSurface.digest}
-          </p>
-        )}
+        ) : null}
       </div>
 
       <div className="workspace-app-row-cell workspace-app-row-cell-actions">
         <Link className="workspace-primary-button compact" href={card.href}>
           进入 Studio
-        </Link>
-        <Link className="workspace-ghost-button compact" href="/runs">
-          查看运行
         </Link>
       </div>
     </article>
@@ -460,7 +455,7 @@ export function WorkspaceAppsWorkbench({
     ? `当前按“${requestedKeyword}”筛选，命中后直接进入 Studio。`
     : activeModeLabel
       ? `当前聚焦 ${activeModeLabel}。`
-      : "搜索、筛选后直接进入 Studio。";
+      : "创建、筛选后直接进入 Studio。";
 
   return (
     <main className="workspace-main workspace-home-main workspace-home-main-flat workspace-board-page">
@@ -508,12 +503,20 @@ export function WorkspaceAppsWorkbench({
           />
 
           <section className="workspace-catalog-stage">
+            <WorkspaceCreateStrip
+              quickCreateEntries={quickCreateEntries}
+              requestedKeyword={requestedKeyword}
+              starterCount={starterCount}
+              starterHighlights={starterHighlights}
+              workspaceUtilityEntry={workspaceUtilityEntry}
+            />
+
             <section className="workspace-app-list-stage workspace-catalog-card">
               <div className="workspace-app-list-stage-header">
                 <div>
                   <p className="workspace-app-list-stage-summary">{visibleAppSummary}</p>
                   <p className="workspace-muted workspace-app-list-stage-copy">
-                    应用目录优先，治理细节按需展开。
+                    主入口先创建应用，治理细节按需展开。
                   </p>
                 </div>
               </div>
@@ -527,14 +530,6 @@ export function WorkspaceAppsWorkbench({
                 ))}
               </div>
             </section>
-
-            <WorkspaceCreateStrip
-              quickCreateEntries={quickCreateEntries}
-              requestedKeyword={requestedKeyword}
-              starterCount={starterCount}
-              starterHighlights={starterHighlights}
-              workspaceUtilityEntry={workspaceUtilityEntry}
-            />
           </section>
         </section>
       </section>

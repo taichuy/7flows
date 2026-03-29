@@ -106,9 +106,12 @@ describe("WorkspaceAppsWorkbench", () => {
     expect(html).toContain("workspace-app-list-columns");
     expect(html).toContain("管理成员与权限");
     expect(html).toContain("应用目录");
-    expect(html).toContain("重点");
+    expect(html).toContain("摘要");
     expect(html).toContain("进入 Studio");
     expect(html).toContain("草稿已就绪，继续进入 xyflow。");
+    expect(html).toContain("推荐 Starter");
     expect(html).not.toContain("查看下一步");
+    expect(html.indexOf("快速新建")).toBeLessThan(html.indexOf("ChatFlow Alpha"));
+    expect(html).not.toContain("最小起步");
   });
 });

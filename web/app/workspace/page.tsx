@@ -181,7 +181,11 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
     }
   ];
   const starterHighlights = workflowLibrary.starters
-    .filter((starter) => activeMode === "all" || inferWorkspaceAppMode(starter.definition) === activeMode)
+    .filter(
+      (starter) =>
+        activeMode === "all" ||
+        inferWorkspaceAppMode({ nodeTypes: starter.nodeTypes }) === activeMode
+    )
     .slice(0, 3)
     .map((starter) => ({
       id: starter.id,
@@ -190,7 +194,7 @@ export default async function WorkspacePage({ searchParams }: WorkspacePageProps
       href: buildWorkflowStarterCreateHref(starter.id),
       track: starter.businessTrack,
       priority: getWorkflowBusinessTrack(starter.businessTrack).priority,
-      mode: getWorkspaceAppModeMeta(inferWorkspaceAppMode(starter.definition))
+      mode: getWorkspaceAppModeMeta(inferWorkspaceAppMode({ nodeTypes: starter.nodeTypes }))
     }));
   const visibleAppSummary =
     activeMode !== "all"
