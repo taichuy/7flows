@@ -5,7 +5,7 @@ from collections import Counter, defaultdict
 from sqlalchemy.orm import Session
 
 from app.models.run import NodeRun, RunArtifact
-from app.schemas.run import RunDetail, RunDetailExecutionFocusNode
+from app.schemas.run import RunDetail, RunDetailExecutionFocusNode, RunOverview
 from app.schemas.run_views import (
     EvidenceEntryItem,
     RunEvidenceNodeItem,
@@ -40,6 +40,13 @@ def _load_run_legacy_auth_governance(
         workflow_id=workflow_id,
     )
     return snapshot if snapshot.binding_count > 0 else None
+
+
+def load_run_legacy_auth_governance_summary(
+    db: Session,
+    workflow_id: str,
+):
+    return _load_run_legacy_auth_governance(db, workflow_id)
 
 
 def _hydrate_sampled_run_follow_up(
@@ -232,6 +239,61 @@ def _serialize_run_detail_execution_focus_node(
     )
 
 
+def serialize_run_overview(
+    *,
+    run,
+    event_count: int,
+    event_type_counts: dict[str, int],
+    first_event_at,
+    last_event_at,
+    tool_governance: WorkflowToolGovernanceSummary | None = None,
+    legacy_auth_governance=None,
+) -> RunOverview:
+    return RunOverview(
+        id=run.id,
+        workflow_id=run.workflow_id,
+        workflow_version=run.workflow_version,
+        compiled_blueprint_id=run.compiled_blueprint_id,
+        status=run.status,
+        input_payload=run.input_payload,
+        output_payload=run.output_payload,
+        checkpoint_payload=run.checkpoint_payload or {},
+        error_message=run.error_message,
+        current_node_id=run.current_node_id,
+        started_at=run.started_at,
+        finished_at=run.finished_at,
+        created_at=run.created_at,
+        event_count=event_count,
+        event_type_counts=dict(sorted(event_type_counts.items())),
+        first_event_at=first_event_at,
+        last_event_at=last_event_at,
+        tool_governance=tool_governance,
+        legacy_auth_governance=legacy_auth_governance,
+    )
+
+
+def serialize_run_overview_from_artifacts(
+    artifacts: ExecutionArtifacts,
+    *,
+    tool_governance: WorkflowToolGovernanceSummary | None = None,
+    legacy_auth_governance=None,
+) -> RunOverview:
+    event_type_counts = dict(
+        sorted(Counter(event.event_type for event in artifacts.events).items())
+    )
+    first_event_at = artifacts.events[0].created_at if artifacts.events else None
+    last_event_at = artifacts.events[-1].created_at if artifacts.events else None
+    return serialize_run_overview(
+        run=artifacts.run,
+        event_count=len(artifacts.events),
+        event_type_counts=event_type_counts,
+        first_event_at=first_event_at,
+        last_event_at=last_event_at,
+        tool_governance=tool_governance,
+        legacy_auth_governance=legacy_auth_governance,
+    )
+
+
 def serialize_run_detail(
     artifacts: ExecutionArtifacts,
     *,
@@ -357,6 +419,19 @@ def load_run_tool_governance_summary(
         db,
         artifacts.run.workflow_id,
         artifacts.run.workflow_version,
+    )
+
+
+def load_run_tool_governance_summary_for_run(
+    db: Session,
+    *,
+    workflow_id: str,
+    workflow_version: str,
+) -> WorkflowToolGovernanceSummary | None:
+    return load_workflow_run_tool_governance_summary(
+        db,
+        workflow_id,
+        workflow_version,
     )
 
 

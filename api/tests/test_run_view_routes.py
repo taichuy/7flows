@@ -660,7 +660,8 @@ def test_get_run_execution_view_returns_grouped_runtime_facts(
     assert node["scheduled_resume_due_at"] == "2026-03-11T10:05:00Z"
 
     run_detail_response = client.get(
-        f"/api/runs/{run.id}", params={"include_events": "false"}
+        f"/api/runs/{run.id}/detail",
+        params={"include_events": "false"},
     )
 
     assert run_detail_response.status_code == 200
@@ -799,7 +800,7 @@ def test_run_detail_and_execution_view_surface_credential_governance_summary(
     }
 
     run_detail_response = client.get(
-        f"/api/runs/{run.id}",
+        f"/api/runs/{run.id}/detail",
         params={"include_events": "false"},
     )
 
@@ -894,7 +895,7 @@ def test_get_run_detail_includes_execution_focus_skill_trace(
     )
     sqlite_session.commit()
 
-    response = client.get(f"/api/runs/{run.id}", params={"include_events": "false"})
+    response = client.get(f"/api/runs/{run.id}/detail", params={"include_events": "false"})
 
     assert response.status_code == 200
     body = response.json()

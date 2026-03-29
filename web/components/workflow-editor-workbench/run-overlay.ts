@@ -7,7 +7,7 @@ import type { RunTrace } from "@/lib/get-run-trace";
 export async function fetchRunDetail(runId: string) {
   try {
     const response = await fetch(
-      `${getApiBaseUrl()}/api/runs/${encodeURIComponent(runId)}?include_events=false`,
+      `${getApiBaseUrl()}/api/runs/${encodeURIComponent(runId)}/detail?include_events=false`,
       {
         cache: "no-store"
       }

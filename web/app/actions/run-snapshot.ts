@@ -1005,9 +1005,12 @@ async function fetchRunExecutionView(
 
 async function fetchRunDetailResponse(runId: string): Promise<RunDetailResponseBody | null> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/runs/${encodeURIComponent(runId)}`, {
-      cache: "no-store"
-    });
+    const response = await fetch(
+      `${getApiBaseUrl()}/api/runs/${encodeURIComponent(runId)}/detail?include_events=false`,
+      {
+        cache: "no-store"
+      }
+    );
     if (!response.ok) {
       return null;
     }

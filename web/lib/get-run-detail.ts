@@ -124,7 +124,7 @@ export async function getRunDetail(runId: string): Promise<RunDetail | null> {
     const response = await fetch(
       `${getApiBaseUrl()}/api/runs/${encodeURIComponent(
         runId
-      )}?include_events=false`,
+      )}/detail?include_events=false`,
       {
         cache: "no-store"
       }

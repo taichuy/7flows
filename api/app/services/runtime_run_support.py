@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models.run import NodeRun, Run, RunEvent, ToolCallRecord
@@ -457,19 +457,61 @@ class RuntimeRunSupportMixin:
             return None
         return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
-    def load_run(self, db: Session, run_id: str) -> ExecutionArtifacts | None:
+    def load_run_event_summary(self, db: Session, run_id: str) -> dict[str, object]:
+        count_stmt = select(
+            func.count(RunEvent.id),
+            func.min(RunEvent.created_at),
+            func.max(RunEvent.created_at),
+        ).where(RunEvent.run_id == run_id)
+        event_count, first_event_at, last_event_at = db.execute(count_stmt).one()
+        event_type_rows = db.execute(
+            select(RunEvent.event_type, func.count(RunEvent.id))
+            .where(RunEvent.run_id == run_id)
+            .group_by(RunEvent.event_type)
+        ).all()
+        return {
+            "event_count": int(event_count or 0),
+            "event_type_counts": {
+                event_type: int(count)
+                for event_type, count in event_type_rows
+            },
+            "first_event_at": first_event_at,
+            "last_event_at": last_event_at,
+        }
+
+    def load_run(
+        self,
+        db: Session,
+        run_id: str,
+        *,
+        include_node_runs: bool = True,
+        include_events: bool = True,
+        include_artifacts: bool = True,
+        include_tool_calls: bool = True,
+        include_ai_calls: bool = True,
+    ) -> ExecutionArtifacts | None:
         run = db.get(Run, run_id)
         if run is None:
             return None
-        node_runs = db.scalars(
-            select(NodeRun).where(NodeRun.run_id == run_id).order_by(NodeRun.created_at.asc())
-        ).all()
-        events = db.scalars(
-            select(RunEvent).where(RunEvent.run_id == run_id).order_by(RunEvent.id.asc())
-        ).all()
-        artifacts = self._artifact_store.load_run_artifacts(db, run_id)
-        tool_calls = self._tool_gateway.list_tool_calls(db, run_id)
-        ai_calls = self._agent_runtime.list_ai_calls(db, run_id)
+        node_runs = (
+            db.scalars(
+                select(NodeRun)
+                .where(NodeRun.run_id == run_id)
+                .order_by(NodeRun.created_at.asc())
+            ).all()
+            if include_node_runs
+            else []
+        )
+        events = (
+            db.scalars(
+                select(RunEvent).where(RunEvent.run_id == run_id).order_by(RunEvent.id.asc())
+            ).all()
+            if include_events
+            else []
+        )
+        artifacts = self._artifact_store.load_run_artifacts(db, run_id) if include_artifacts else []
+        tool_calls = self._tool_gateway.list_tool_calls(db, run_id) if include_tool_calls else []
+        ai_calls = self._agent_runtime.list_ai_calls(db, run_id) if include_ai_calls else []
         return ExecutionArtifacts(
             run=run,
             node_runs=node_runs,

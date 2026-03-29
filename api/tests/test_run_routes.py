@@ -72,6 +72,20 @@ def _bound_tool_definition(*, tool_id: str, ecosystem: str) -> dict:
     }
 
 
+def _get_run_detail_json(
+    client: TestClient,
+    run_id: str,
+    *,
+    include_events: bool = False,
+) -> dict:
+    response = client.get(
+        f"/api/runs/{run_id}/detail",
+        params={"include_events": str(include_events).lower()},
+    )
+    assert response.status_code == 200
+    return response.json()
+
+
 def test_execute_workflow_route(
     client: TestClient,
     sqlite_session: Session,
@@ -88,18 +102,26 @@ def test_execute_workflow_route(
     assert body["workflow_version"] == "0.1.0"
     assert body["compiled_blueprint_id"] is not None
     assert body["status"] == "succeeded"
-    assert len(body["node_runs"]) == 3
-    assert body["events"][-1]["event_type"] == "run.completed"
+    assert body["event_count"] >= 2
+    assert body["event_type_counts"]["run.completed"] == 1
+    assert "node_runs" not in body
+    assert "events" not in body
 
     run_id = body["id"]
     stored_response = client.get(f"/api/runs/{run_id}")
     assert stored_response.status_code == 200
     stored_body = stored_response.json()
     assert stored_body["id"] == run_id
-    assert stored_body["event_count"] == len(body["events"])
+    assert stored_body["event_count"] == body["event_count"]
     assert stored_body["event_type_counts"]["run.completed"] == 1
-    assert stored_body["first_event_at"] == body["events"][0]["created_at"]
-    assert stored_body["last_event_at"] == body["events"][-1]["created_at"]
+    assert stored_body["first_event_at"] == body["first_event_at"]
+    assert stored_body["last_event_at"] == body["last_event_at"]
+
+    detail_response = client.get(f"/api/runs/{run_id}/detail", params={"include_events": "false"})
+    assert detail_response.status_code == 200
+    detail_body = detail_response.json()
+    assert len(detail_body["node_runs"]) == 3
+    assert detail_body["events"] == []
 
 
 def test_get_run_execution_view_includes_execution_policy(
@@ -253,13 +275,7 @@ def test_run_routes_include_workflow_legacy_auth_governance_handoff(
         == governance
     )
 
-    run_detail_response = client.get(
-        f"/api/runs/{run_id}",
-        params={"include_events": "false"},
-    )
-
-    assert run_detail_response.status_code == 200
-    run_detail = run_detail_response.json()
+    run_detail = _get_run_detail_json(client, run_id)
     assert run_detail["legacy_auth_governance"]["binding_count"] == 1
     assert run_detail["legacy_auth_governance"]["summary"]["published_blocker_count"] == 1
     assert run_detail["legacy_auth_governance"]["workflows"][0]["workflow_id"] == sample_workflow.id
@@ -320,7 +336,10 @@ def test_get_run_execution_view_includes_sandbox_backend_binding_summary(
     assert response.status_code == 201
     run_body = response.json()
     run_id = run_body["id"]
-    tool_node_run = next(node for node in run_body["node_runs"] if node["node_id"] == "mock_tool")
+    run_detail = _get_run_detail_json(client, run_id)
+    tool_node_run = next(
+        node for node in run_detail["node_runs"] if node["node_id"] == "mock_tool"
+    )
 
     sqlite_session.add(
         RunEvent(
@@ -384,12 +403,7 @@ def test_get_run_execution_view_includes_sandbox_backend_binding_summary(
         == "sandbox-backend:sandbox-default"
     )
 
-    run_detail_response = client.get(
-        f"/api/runs/{run_id}", params={"include_events": "false"}
-    )
-
-    assert run_detail_response.status_code == 200
-    run_detail_body = run_detail_response.json()
+    run_detail_body = _get_run_detail_json(client, run_id)
     assert run_detail_body["execution_focus_reason"] == "current_node"
     focus_node = run_detail_body["execution_focus_node"]
     assert focus_node["node_run_id"] == tool_node_run["id"]
@@ -507,12 +521,7 @@ def test_get_run_execution_view_blocks_unsupported_subprocess_for_generic_nodes(
         node["execution_blocking_reason"] or ""
     )
 
-    run_detail_response = client.get(
-        f"/api/runs/{run_id}", params={"include_events": "false"}
-    )
-
-    assert run_detail_response.status_code == 200
-    run_detail_body = run_detail_response.json()
+    run_detail_body = _get_run_detail_json(client, run_id)
     assert run_detail_body["blocking_node_run_id"] is None
     assert run_detail_body["execution_focus_reason"] == "blocked_execution"
     assert run_detail_body["execution_focus_node"]["node_id"] == "trigger"
@@ -928,18 +937,19 @@ def test_get_run_supports_summary_mode_without_events(
     body = response.json()
     run_id = body["id"]
 
-    summary_response = client.get(f"/api/runs/{run_id}", params={"include_events": "false"})
+    summary_response = client.get(f"/api/runs/{run_id}")
 
     assert summary_response.status_code == 200
     summary_body = summary_response.json()
     assert summary_body["id"] == run_id
     assert summary_body["compiled_blueprint_id"] == body["compiled_blueprint_id"]
-    assert summary_body["event_count"] == len(body["events"])
+    assert summary_body["event_count"] == body["event_count"]
     assert summary_body["event_type_counts"]["run.started"] == 1
     assert summary_body["event_type_counts"]["run.completed"] == 1
-    assert summary_body["first_event_at"] == body["events"][0]["created_at"]
-    assert summary_body["last_event_at"] == body["events"][-1]["created_at"]
-    assert summary_body["events"] == []
+    assert summary_body["first_event_at"] == body["first_event_at"]
+    assert summary_body["last_event_at"] == body["last_event_at"]
+    assert "events" not in summary_body
+    assert "node_runs" not in summary_body
 
 
 def test_get_run_includes_version_specific_tool_governance(
@@ -1012,10 +1022,7 @@ def test_get_run_includes_version_specific_tool_governance(
         ),
     )
 
-    response = client.get(
-        "/api/runs/run-governance-gap",
-        params={"include_events": "false"},
-    )
+    response = client.get("/api/runs/run-governance-gap")
 
     assert response.status_code == 200
     body = response.json()
@@ -1276,7 +1283,8 @@ def test_get_run_trace_supports_machine_filters(
     assert response.status_code == 201
     body = response.json()
     run_id = body["id"]
-    first_node_run_id = body["node_runs"][0]["id"]
+    detail_body = _get_run_detail_json(client, run_id, include_events=True)
+    first_node_run_id = detail_body["node_runs"][0]["id"]
 
     trace_response = client.get(f"/api/runs/{run_id}/trace", params={"limit": 2})
 
@@ -1295,33 +1303,33 @@ def test_get_run_trace_supports_machine_filters(
         "limit": 2,
         "order": "asc",
     }
-    assert trace_body["summary"]["total_event_count"] == len(body["events"])
-    assert trace_body["summary"]["matched_event_count"] == len(body["events"])
+    assert trace_body["summary"]["total_event_count"] == len(detail_body["events"])
+    assert trace_body["summary"]["matched_event_count"] == len(detail_body["events"])
     assert trace_body["summary"]["returned_event_count"] == 2
     assert trace_body["summary"]["has_more"] is True
     assert _parse_trace_datetime(trace_body["summary"]["trace_started_at"]).replace(
         tzinfo=None
-    ) == _parse_trace_datetime(body["events"][0]["created_at"]).replace(tzinfo=None)
+    ) == _parse_trace_datetime(detail_body["events"][0]["created_at"]).replace(tzinfo=None)
     assert _parse_trace_datetime(trace_body["summary"]["trace_finished_at"]).replace(
         tzinfo=None
-    ) == _parse_trace_datetime(body["events"][-1]["created_at"]).replace(tzinfo=None)
+    ) == _parse_trace_datetime(detail_body["events"][-1]["created_at"]).replace(tzinfo=None)
     assert _parse_trace_datetime(trace_body["summary"]["matched_started_at"]).replace(
         tzinfo=None
-    ) == _parse_trace_datetime(body["events"][0]["created_at"]).replace(tzinfo=None)
+    ) == _parse_trace_datetime(detail_body["events"][0]["created_at"]).replace(tzinfo=None)
     assert _parse_trace_datetime(trace_body["summary"]["matched_finished_at"]).replace(
         tzinfo=None
-    ) == _parse_trace_datetime(body["events"][-1]["created_at"]).replace(tzinfo=None)
+    ) == _parse_trace_datetime(detail_body["events"][-1]["created_at"]).replace(tzinfo=None)
     assert _parse_trace_datetime(trace_body["summary"]["returned_started_at"]).replace(
         tzinfo=None
-    ) == _parse_trace_datetime(body["events"][0]["created_at"]).replace(tzinfo=None)
+    ) == _parse_trace_datetime(detail_body["events"][0]["created_at"]).replace(tzinfo=None)
     assert _parse_trace_datetime(trace_body["summary"]["returned_finished_at"]).replace(
         tzinfo=None
-    ) == _parse_trace_datetime(body["events"][1]["created_at"]).replace(tzinfo=None)
+    ) == _parse_trace_datetime(detail_body["events"][1]["created_at"]).replace(tzinfo=None)
     assert trace_body["summary"]["returned_duration_ms"] >= 0
     assert "input" in trace_body["summary"]["available_payload_keys"]
     assert "type" in trace_body["summary"]["available_payload_keys"]
-    assert trace_body["summary"]["first_event_id"] == body["events"][0]["id"]
-    assert trace_body["summary"]["last_event_id"] == body["events"][1]["id"]
+    assert trace_body["summary"]["first_event_id"] == detail_body["events"][0]["id"]
+    assert trace_body["summary"]["last_event_id"] == detail_body["events"][1]["id"]
     assert trace_body["summary"]["prev_cursor"] is None
     assert isinstance(trace_body["summary"]["next_cursor"], str)
     assert len(trace_body["events"]) == 2
@@ -1338,9 +1346,9 @@ def test_get_run_trace_supports_machine_filters(
     assert next_page_response.status_code == 200
     next_page_body = next_page_response.json()
     assert next_page_body["filters"]["cursor"] == trace_body["summary"]["next_cursor"]
-    assert next_page_body["filters"]["after_event_id"] == body["events"][1]["id"]
+    assert next_page_body["filters"]["after_event_id"] == detail_body["events"][1]["id"]
     assert next_page_body["filters"]["order"] == "asc"
-    assert next_page_body["events"][0]["id"] == body["events"][2]["id"]
+    assert next_page_body["events"][0]["id"] == detail_body["events"][2]["id"]
 
     filtered_response = client.get(
         f"/api/runs/{run_id}/trace",
@@ -1356,11 +1364,11 @@ def test_get_run_trace_supports_machine_filters(
     assert filtered_body["summary"]["prev_cursor"] is None
     assert filtered_body["events"] == [
         {
-            "id": body["events"][1]["id"],
+            "id": detail_body["events"][1]["id"],
             "run_id": run_id,
             "node_run_id": first_node_run_id,
             "event_type": "node.started",
-            "payload": body["events"][1]["payload"],
+            "payload": detail_body["events"][1]["payload"],
             "created_at": filtered_body["events"][0]["created_at"],
             "sequence": 2,
             "replay_offset_ms": filtered_body["events"][0]["replay_offset_ms"],
@@ -1368,7 +1376,7 @@ def test_get_run_trace_supports_machine_filters(
     ]
     assert _parse_trace_datetime(filtered_body["events"][0]["created_at"]).replace(
         tzinfo=None
-    ) == _parse_trace_datetime(body["events"][1]["created_at"]).replace(tzinfo=None)
+    ) == _parse_trace_datetime(detail_body["events"][1]["created_at"]).replace(tzinfo=None)
     assert filtered_body["events"][0]["replay_offset_ms"] >= 0
 
 
@@ -1385,7 +1393,8 @@ def test_get_run_trace_supports_cursor_and_desc_order(
     assert response.status_code == 201
     body = response.json()
     run_id = body["id"]
-    anchor_event_id = body["events"][-1]["id"]
+    detail_body = _get_run_detail_json(client, run_id, include_events=True)
+    anchor_event_id = detail_body["events"][-1]["id"]
 
     trace_response = client.get(
         f"/api/runs/{run_id}/trace",
@@ -1394,14 +1403,14 @@ def test_get_run_trace_supports_cursor_and_desc_order(
 
     assert trace_response.status_code == 200
     trace_body = trace_response.json()
-    expected_events = list(reversed(body["events"][:-1]))[:3]
+    expected_events = list(reversed(detail_body["events"][:-1]))[:3]
     assert [event["id"] for event in trace_body["events"]] == [
         event["id"] for event in expected_events
     ]
     assert [event["sequence"] for event in trace_body["events"]] == [
-        len(body["events"]) - 1,
-        len(body["events"]) - 2,
-        len(body["events"]) - 3,
+        len(detail_body["events"]) - 1,
+        len(detail_body["events"]) - 2,
+        len(detail_body["events"]) - 3,
     ]
     assert trace_body["summary"]["returned_started_at"] == trace_body["events"][-1]["created_at"]
     assert trace_body["summary"]["returned_finished_at"] == trace_body["events"][0]["created_at"]
@@ -1421,7 +1430,7 @@ def test_get_run_trace_supports_cursor_and_desc_order(
     assert prev_page_body["filters"]["cursor"] == trace_body["summary"]["prev_cursor"]
     assert prev_page_body["filters"]["after_event_id"] == expected_events[0]["id"]
     assert prev_page_body["filters"]["order"] == "asc"
-    assert prev_page_body["events"][0]["id"] == body["events"][-1]["id"]
+    assert prev_page_body["events"][0]["id"] == detail_body["events"][-1]["id"]
 
 
 def test_get_run_trace_supports_time_range_and_payload_key_search(
@@ -1603,6 +1612,7 @@ def test_export_run_trace_supports_json_and_jsonl(
     assert response.status_code == 201
     body = response.json()
     run_id = body["id"]
+    detail_body = _get_run_detail_json(client, run_id)
 
     export_json_response = client.get(
         f"/api/runs/{run_id}/trace/export",
@@ -1623,7 +1633,7 @@ def test_export_run_trace_supports_json_and_jsonl(
     export_jsonl_response = client.get(
         f"/api/runs/{run_id}/trace/export",
         params={
-            "node_run_id": body["node_runs"][0]["id"],
+            "node_run_id": detail_body["node_runs"][0]["id"],
             "event_type": "node.started",
             "format": "jsonl",
         },
@@ -1641,12 +1651,12 @@ def test_export_run_trace_supports_json_and_jsonl(
         if line.strip()
     ]
     assert export_lines[0]["record_type"] == "trace"
-    assert export_lines[0]["filters"]["node_run_id"] == body["node_runs"][0]["id"]
+    assert export_lines[0]["filters"]["node_run_id"] == detail_body["node_runs"][0]["id"]
     assert export_lines[0]["filters"]["event_type"] == "node.started"
     assert export_lines[0]["summary"]["matched_event_count"] == 1
     assert len(export_lines) == 2
     assert export_lines[1]["record_type"] == "event"
-    assert export_lines[1]["node_run_id"] == body["node_runs"][0]["id"]
+    assert export_lines[1]["node_run_id"] == detail_body["node_runs"][0]["id"]
     assert export_lines[1]["event_type"] == "node.started"
 
 
@@ -1698,9 +1708,12 @@ def test_execute_workflow_route_returns_handled_failure_branch(
 
     assert response.status_code == 201
     body = response.json()
+    detail_body = _get_run_detail_json(client, body["id"], include_events=True)
     assert body["status"] == "succeeded"
     assert body["output_payload"] == {"fallback": {"answer": "route recovered"}}
-    assert {node_run["node_id"]: node_run["status"] for node_run in body["node_runs"]} == {
+    assert {
+        node_run["node_id"]: node_run["status"] for node_run in detail_body["node_runs"]
+    } == {
         "trigger": "succeeded",
         "explode": "failed",
         "fallback": "succeeded",
@@ -1753,9 +1766,10 @@ def test_execute_workflow_route_exposes_retry_events(
 
     assert response.status_code == 201
     body = response.json()
+    detail_body = _get_run_detail_json(client, body["id"], include_events=True)
     assert body["status"] == "succeeded"
     assert body["output_payload"] == {"flaky_tool": {"answer": "route recovered"}}
-    assert [event["event_type"] for event in body["events"]].count("node.retrying") == 1
+    assert [event["event_type"] for event in detail_body["events"]].count("node.retrying") == 1
 
 
 def test_execute_workflow_route_supports_selector_driven_branching(
@@ -1825,9 +1839,12 @@ def test_execute_workflow_route_supports_selector_driven_branching(
 
     assert response.status_code == 201
     body = response.json()
+    detail_body = _get_run_detail_json(client, body["id"], include_events=True)
     assert body["status"] == "succeeded"
     assert body["output_payload"] == {"search_path": {"answer": "search mode"}}
-    assert {node_run["node_id"]: node_run["status"] for node_run in body["node_runs"]} == {
+    assert {
+        node_run["node_id"]: node_run["status"] for node_run in detail_body["node_runs"]
+    } == {
         "trigger": "succeeded",
         "branch": "succeeded",
         "search_path": "succeeded",
@@ -1894,9 +1911,12 @@ def test_execute_workflow_route_supports_expression_driven_branching(
 
     assert response.status_code == 201
     body = response.json()
+    detail_body = _get_run_detail_json(client, body["id"], include_events=True)
     assert body["status"] == "succeeded"
     assert body["output_payload"] == {"search_path": {"answer": "search mode"}}
-    branch_run = next(node_run for node_run in body["node_runs"] if node_run["node_id"] == "branch")
+    branch_run = next(
+        node_run for node_run in detail_body["node_runs"] if node_run["node_id"] == "branch"
+    )
     assert branch_run["output_payload"]["selected"] == "search"
     assert branch_run["output_payload"]["expression"]["defaultUsed"] is False
 
@@ -1962,9 +1982,12 @@ def test_execute_workflow_route_supports_edge_condition_expression(
 
     assert response.status_code == 201
     body = response.json()
+    detail_body = _get_run_detail_json(client, body["id"], include_events=True)
     assert body["status"] == "succeeded"
     assert body["output_payload"] == {"approve": {"answer": "approved route"}}
-    assert {node_run["node_id"]: node_run["status"] for node_run in body["node_runs"]} == {
+    assert {
+        node_run["node_id"]: node_run["status"] for node_run in detail_body["node_runs"]
+    } == {
         "trigger": "succeeded",
         "scorer": "succeeded",
         "approve": "succeeded",
@@ -2025,11 +2048,14 @@ def test_execute_workflow_route_supports_join_all_policy(
 
     assert response.status_code == 201
     body = response.json()
+    detail_body = _get_run_detail_json(client, body["id"], include_events=True)
     assert body["status"] == "succeeded"
-    joiner_run = next(node_run for node_run in body["node_runs"] if node_run["node_id"] == "joiner")
+    joiner_run = next(
+        node_run for node_run in detail_body["node_runs"] if node_run["node_id"] == "joiner"
+    )
     assert joiner_run["input_payload"]["join"]["expectedSourceIds"] == ["planner", "researcher"]
     assert joiner_run["input_payload"]["join"]["mergeStrategy"] == "error"
-    assert [event["event_type"] for event in body["events"]].count("node.join.ready") == 1
+    assert [event["event_type"] for event in detail_body["events"]].count("node.join.ready") == 1
 
 
 def test_execute_workflow_route_supports_edge_mapping_append_merge_strategy(
@@ -2096,8 +2122,11 @@ def test_execute_workflow_route_supports_edge_mapping_append_merge_strategy(
 
     assert response.status_code == 201
     body = response.json()
+    detail_body = _get_run_detail_json(client, body["id"], include_events=True)
     assert body["status"] == "succeeded"
-    joiner_run = next(node_run for node_run in body["node_runs"] if node_run["node_id"] == "joiner")
+    joiner_run = next(
+        node_run for node_run in detail_body["node_runs"] if node_run["node_id"] == "joiner"
+    )
     assert joiner_run["input_payload"]["inputs"]["topics"] == ["plan", "facts"]
 
 
@@ -2151,6 +2180,7 @@ def test_execute_workflow_route_exposes_authorized_context_reads(
 
     assert response.status_code == 201
     body = response.json()
+    detail_body = _get_run_detail_json(client, body["id"], include_events=True)
     assert body["status"] == "succeeded"
     assert body["output_payload"] == {
         "reader": {
@@ -2164,7 +2194,7 @@ def test_execute_workflow_route_exposes_authorized_context_reads(
             ],
         }
     }
-    assert [event["event_type"] for event in body["events"]].count("node.context.read") == 1
+    assert [event["event_type"] for event in detail_body["events"]].count("node.context.read") == 1
 
 
 def test_receive_run_callback_route_resumes_waiting_callback_run(

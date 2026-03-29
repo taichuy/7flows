@@ -9,6 +9,7 @@ from app.api.routes.sensitive_access_http import (
     build_sensitive_access_blocking_response,
 )
 from app.core.database import get_db
+from app.models.run import Run
 from app.models.workflow import Workflow
 from app.schemas.run import (
     RunCallbackRequest,
@@ -16,6 +17,7 @@ from app.schemas.run import (
     RunCreate,
     RunDetail,
     RunEventItem,
+    RunOverview,
     RunResumeRequest,
     RunResumeResponse,
     RunTrace,
@@ -37,9 +39,13 @@ from app.services.run_trace_views import (
 )
 from app.services.run_views import (
     build_run_execution_view_for_artifacts,
+    load_run_legacy_auth_governance_summary,
     load_run_tool_governance_summary,
+    load_run_tool_governance_summary_for_run,
     serialize_run_detail,
     serialize_run_event,
+    serialize_run_overview,
+    serialize_run_overview_from_artifacts,
 )
 from app.services.runtime import RuntimeService, WorkflowExecutionError
 
@@ -71,14 +77,14 @@ def _enforce_trace_export_sensitive_access(
 
 @router.post(
     "/workflows/{workflow_id}/runs",
-    response_model=RunDetail,
+    response_model=RunOverview,
     status_code=status.HTTP_201_CREATED,
 )
 def execute_workflow(
     workflow_id: str,
     payload: RunCreate,
     db: Session = Depends(get_db),
-) -> RunDetail:
+) -> RunOverview:
     workflow = db.get(Workflow, workflow_id)
     if workflow is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
@@ -91,16 +97,42 @@ def execute_workflow(
             detail=str(exc),
         ) from exc
 
-    execution_view = build_run_execution_view_for_artifacts(db, artifacts)
-    return serialize_run_detail(
+    return serialize_run_overview_from_artifacts(
         artifacts,
-        execution_view=execution_view,
         tool_governance=load_run_tool_governance_summary(db, artifacts),
     )
 
 
-@router.get("/runs/{run_id}", response_model=RunDetail)
+@router.get("/runs/{run_id}", response_model=RunOverview)
 def get_run(
+    run_id: str,
+    db: Session = Depends(get_db),
+) -> RunOverview:
+    run = db.get(Run, run_id)
+    if run is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found.")
+
+    event_summary = runtime_service.load_run_event_summary(db, run_id)
+    return serialize_run_overview(
+        run=run,
+        event_count=int(event_summary["event_count"]),
+        event_type_counts=dict(event_summary["event_type_counts"]),
+        first_event_at=event_summary["first_event_at"],
+        last_event_at=event_summary["last_event_at"],
+        tool_governance=load_run_tool_governance_summary_for_run(
+            db,
+            workflow_id=run.workflow_id,
+            workflow_version=run.workflow_version,
+        ),
+        legacy_auth_governance=load_run_legacy_auth_governance_summary(
+            db,
+            run.workflow_id,
+        ),
+    )
+
+
+@router.get("/runs/{run_id}/detail", response_model=RunDetail)
+def get_run_detail(
     run_id: str,
     include_events: bool = Query(default=True),
     db: Session = Depends(get_db),

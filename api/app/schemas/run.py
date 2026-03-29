@@ -294,6 +294,28 @@ class RunDetailExecutionFocusNode(BaseModel):
     )
 
 
+class RunOverview(BaseModel):
+    id: str
+    workflow_id: str
+    workflow_version: str
+    compiled_blueprint_id: str | None = None
+    status: str
+    input_payload: dict
+    output_payload: dict | None = None
+    checkpoint_payload: dict = Field(default_factory=dict)
+    error_message: str | None = None
+    current_node_id: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    created_at: datetime
+    event_count: int = 0
+    event_type_counts: dict[str, int] = Field(default_factory=dict)
+    first_event_at: datetime | None = None
+    last_event_at: datetime | None = None
+    tool_governance: WorkflowToolGovernanceSummary | None = None
+    legacy_auth_governance: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | None = None
+
+
 class RunDetail(BaseModel):
     id: str
     workflow_id: str

@@ -238,7 +238,7 @@ describe("fetchRunSnapshot", () => {
   it("run detail 已带 execution focus 时不再额外请求 execution view", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.endsWith("/api/runs/run-123")) {
+      if (url.endsWith("/api/runs/run-123/detail?include_events=false")) {
         return createJsonResponse({
           status: "waiting",
           workflow_id: "workflow-1",
@@ -443,7 +443,7 @@ describe("fetchRunSnapshot", () => {
   it("旧版 run detail 缺少 callback waiting explanation 时回退读取 execution view", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.endsWith("/api/runs/run-legacy")) {
+      if (url.endsWith("/api/runs/run-legacy/detail?include_events=false")) {
         return createJsonResponse({
           status: "waiting",
           workflow_id: "workflow-1",
@@ -566,7 +566,7 @@ describe("fetchRunSnapshot", () => {
   it("run detail 尚未带 execution focus 时回退读取 execution view", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.endsWith("/api/runs/run-234")) {
+      if (url.endsWith("/api/runs/run-234/detail?include_events=false")) {
         return createJsonResponse({
           status: "waiting",
           workflow_id: "workflow-1",
@@ -699,7 +699,7 @@ describe("fetchRunSnapshot", () => {
   it("execution view 提供 canonical snapshot 时不再混拼旧版 body 的 focus 字段", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.endsWith("/api/runs/run-conflict")) {
+      if (url.endsWith("/api/runs/run-conflict/detail?include_events=false")) {
         return createJsonResponse({
           status: "waiting",
           workflow_id: "workflow-1",
@@ -784,7 +784,7 @@ describe("fetchRunSnapshot", () => {
   it("fetchRunSnapshotWithContext 会在 canonical run detail 下继续保留 sampled run 的 callback 与审批上下文", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.endsWith("/api/runs/run-context")) {
+      if (url.endsWith("/api/runs/run-context/detail?include_events=false")) {
         return createJsonResponse({
           status: "waiting",
           workflow_id: "workflow-ctx",
@@ -901,7 +901,7 @@ describe("fetchRunSnapshot", () => {
   it("fetchRunSnapshots 不再把 sampled run 的 callback 与审批上下文清空", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.endsWith("/api/runs/run-batch")) {
+      if (url.endsWith("/api/runs/run-batch/detail?include_events=false")) {
         return createJsonResponse({
           status: "waiting",
           workflow_id: "workflow-batch",
@@ -1006,7 +1006,7 @@ describe("fetchRunSnapshot", () => {
   it("execution view 不可用时仍返回基础 run snapshot", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.endsWith("/api/runs/run-456")) {
+      if (url.endsWith("/api/runs/run-456/detail?include_events=false")) {
         return createJsonResponse({
           status: "running",
           workflow_id: "workflow-2",
@@ -1056,7 +1056,7 @@ describe("fetchRunSnapshot", () => {
   it("run detail 不可用时返回 null", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.endsWith("/api/runs/missing-run")) {
+      if (url.endsWith("/api/runs/missing-run/detail?include_events=false")) {
         return createJsonResponse({ detail: "Run not found." }, false);
       }
 
