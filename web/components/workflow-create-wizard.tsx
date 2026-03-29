@@ -281,9 +281,9 @@ export function WorkflowCreateWizard({
     [activeTrack, starterTemplates]
   );
   const createSignalItems = [
-    { label: "应用类型", value: activeTrackPresentation.label },
+    { label: "模式", value: activeTrackPresentation.label },
     { label: "模板", value: `${visibleStarters.length} 个` },
-    { label: "最近草稿", value: `${workflows.length} 个` }
+    { label: "草稿", value: `${workflows.length} 个` }
   ];
 
   const applyStarterSelection = (
@@ -460,7 +460,7 @@ export function WorkflowCreateWizard({
                 创建一个应用
               </Title>
               <Text type="secondary">
-                先选一个模板，再命名并直接进入画布；这一页只保留创建动作，不再堆解释卡片。
+                选模板、命名，然后直接进入 Studio。
               </Text>
 
               <div className="workflow-create-step-row" aria-label="应用创建步骤">
@@ -475,16 +475,6 @@ export function WorkflowCreateWizard({
                     <span>{item.label}</span>
                   </span>
                 ))}
-
-                {recentWorkflowLink ? (
-                  <Link href={recentWorkflowLink.href} className="workflow-create-inline-link workflow-create-inline-chip">
-                    继续最近草稿
-                  </Link>
-                ) : null}
-
-                <Link href={starterGovernanceHref} className="workflow-create-inline-link workflow-create-inline-chip muted">
-                  浏览团队模板
-                </Link>
               </div>
 
               {hasScopedWorkspaceStarterFilters ? (
@@ -520,7 +510,7 @@ export function WorkflowCreateWizard({
                 命名后进入画布
               </Title>
               <Text type="secondary">
-                选中模板后只做一个动作：命名应用并立刻开始编排。
+                选中模板后只做一个动作：命名并立刻开始编排。
               </Text>
             </div>
 
@@ -529,7 +519,7 @@ export function WorkflowCreateWizard({
                 <div>
                   <p className="workspace-eyebrow">Studio preview</p>
                   <h3>进入 xyflow 后的第一屏</h3>
-                  <p>创建后先落到节点骨架，再继续配置属性、上下文授权与发布准备。</p>
+                  <p>创建后先落到 starter 骨架，剩余配置回到编辑器处理。</p>
                 </div>
                 <Tag color="blue" style={{ margin: 0 }}>
                   {selectedStarterTrackPresentation.label}
@@ -554,7 +544,7 @@ export function WorkflowCreateWizard({
                 </div>
 
                 <div className="workflow-create-preview-note">
-                  创建后直接打开画布继续编排。{selectedStarter.recommendedNextStep}
+                  创建后直接打开画布。{selectedStarter.recommendedNextStep}
                 </div>
               </div>
             </div>
@@ -648,7 +638,7 @@ export function WorkflowCreateWizard({
                 <div>
                   <p className="workspace-eyebrow">Recent drafts</p>
                   <h3>继续最近草稿</h3>
-                  <p>已经有接近的应用时，先继续而不是重复创建。</p>
+                  <p>已有接近的应用时，优先续写而不是重复创建。</p>
                 </div>
               </div>
               <div className="workflow-create-recent-list">

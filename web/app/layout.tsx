@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import { AntdRegistry } from '@ant-design/nextjs-registry';
 import "@xyflow/react/dist/style.css";
 import "./globals.css";
 import { AppLayout } from "@/components/app-layout";
@@ -18,9 +17,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <AntdRegistry>
-          <AppLayout>{children}</AppLayout>
-        </AntdRegistry>
+        <AppLayout>{children}</AppLayout>
       </body>
     </html>
   );

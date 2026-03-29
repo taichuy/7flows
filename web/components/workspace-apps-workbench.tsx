@@ -244,15 +244,15 @@ function WorkspaceCreateStrip({
   return (
     <section className="workspace-create-strip workspace-catalog-card" aria-label="Workspace create strip">
       <div className="workspace-create-strip-copy">
-        <p className="workspace-app-card-caption">Create</p>
+        <p className="workspace-app-card-caption">Quick create</p>
         <h3>新建应用</h3>
         <p className="workspace-muted workspace-card-copy workspace-create-strip-summary">
-          默认把创建入口压成一条带：先发起，再进入 xyflow；模板、成员与治理信息按需再看。
+          主 CTA 只负责命名并进入 Studio；其余入口收成次级跳转。
         </p>
         <div className="workspace-create-strip-footnotes">
-          <span className="workspace-app-footnote">Starter 模板：{starterCount} 个</span>
+          <span className="workspace-app-footnote">团队模板 {starterCount} 个</span>
           <span className="workspace-app-footnote">
-            {requestedKeyword ? `当前搜索：${requestedKeyword}` : "创建后直达 Studio"}
+            {requestedKeyword ? `当前搜索：${requestedKeyword}` : "工作台与创建页共用同一套命名"}
           </span>
         </div>
       </div>
@@ -295,7 +295,7 @@ function WorkspaceCreateStrip({
             <span>推荐起点</span>
             <strong>{primaryStarter.name}</strong>
             <small>
-              {primaryStarter.priority} · {primaryStarter.modeShortLabel} · {primaryStarter.description}
+              {primaryStarter.priority} · {primaryStarter.modeShortLabel} · 创建后直接带着最小骨架进入 xyflow。
             </small>
           </Link>
         ) : (
@@ -462,10 +462,10 @@ export function WorkspaceAppsWorkbench({
     requestedKeyword
   });
   const catalogDescription = requestedKeyword
-    ? `当前按“${requestedKeyword}”筛选应用；命中后直接进入 xyflow 继续编排。`
+    ? `当前按“${requestedKeyword}”筛选应用；命中后直接进入 Studio。`
     : activeModeLabel
       ? `当前聚焦 ${activeModeLabel}，继续创建或进入 Studio。`
-      : "先扫目录，再创建应用或继续进入 Studio。";
+      : "先筛应用，再继续编排或创建新应用。";
 
   return (
     <main className="workspace-main workspace-home-main workspace-home-main-flat workspace-board-page">
@@ -525,7 +525,7 @@ export function WorkspaceAppsWorkbench({
               <div>
                 <p className="workspace-app-list-stage-summary">{visibleAppSummary}</p>
                 <p className="workspace-muted workspace-app-list-stage-copy">
-                  默认只展示状态与下一步，二级治理信息按需展开。
+                  只保留状态、下一步和进入 Studio。
                 </p>
               </div>
             </div>

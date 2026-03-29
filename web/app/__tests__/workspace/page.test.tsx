@@ -250,7 +250,7 @@ describe("WorkspacePage", () => {
     expect(html).toContain("从 Starter 模板创建");
     expect(html).toContain("推荐起点");
     expect(html).toContain("Starter ChatFlow");
-    expect(html).toContain("先扫目录，再创建应用或继续进入 Studio。");
+    expect(html).toContain("先筛应用，再继续编排或创建新应用。");
     expect(html).toContain("管理成员与权限");
     expect(html).toContain("全部 2 个应用");
     expect(html).toContain("治理 / 下一步");

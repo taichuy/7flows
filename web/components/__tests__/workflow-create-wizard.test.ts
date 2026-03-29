@@ -104,7 +104,7 @@ describe("WorkflowCreateWizard", () => {
     expect(html).toContain("创建一个应用");
     expect(html).toContain("命名后进入画布");
     expect(html).toContain("创建并进入画布");
-    expect(html).toContain("直接打开画布继续编排");
+    expect(html).toContain("创建后直接打开画布");
     expect(html).not.toContain("当前业务线");
   });
 

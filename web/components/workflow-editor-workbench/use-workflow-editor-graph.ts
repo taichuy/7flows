@@ -165,6 +165,8 @@ export function useWorkflowEditorGraph({
     onEdgesChange,
     selectedNodeId,
     selectedEdgeId,
+    selectedNode: nodeActions.selectedNode,
+    selectedEdge,
     nodeConfigText: nodeActions.nodeConfigText,
     setNodeConfigText: nodeActions.setNodeConfigText,
     currentDefinition,

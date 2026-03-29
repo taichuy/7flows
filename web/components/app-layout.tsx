@@ -16,7 +16,7 @@ import {
 const { Header, Content } = Layout;
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname = usePathname() ?? "/";
 
   if (shouldBypassGlobalAppLayout(pathname)) {
     return <>{children}</>;

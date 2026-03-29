@@ -13,7 +13,7 @@ export function WorkspaceLoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const nextHref = useMemo(() => {
-    const candidate = searchParams.get("next") ?? "/workspace";
+    const candidate = searchParams?.get("next") ?? "/workspace";
     return candidate.startsWith("/") ? candidate : "/workspace";
   }, [searchParams]);
 
