@@ -12,6 +12,7 @@ import {
 import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkflowCreateLauncherPanel } from "@/components/workflow-create-wizard/workflow-create-launcher-panel";
 import { WorkflowCreatePreviewPanel } from "@/components/workflow-create-wizard/workflow-create-preview-panel";
+import type { WorkflowCreateWizardProps } from "@/components/workflow-create-wizard/types";
 import { useWorkflowCreateShellState } from "@/components/workflow-create-wizard/use-workflow-create-shell-state";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
@@ -59,17 +60,6 @@ import {
 
 import { Button } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
-
-type WorkflowCreateWizardProps = {
-  catalogToolCount: number;
-  governanceQueryScope: WorkspaceStarterGovernanceQueryScope;
-  legacyAuthGovernanceSnapshot?: WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null;
-  workflows: WorkflowListItem[];
-  starters: WorkflowLibraryStarterItem[];
-  starterSourceLanes: WorkflowLibrarySourceLane[];
-  nodeCatalog: WorkflowNodeCatalogItem[];
-  tools: PluginToolRegistryItem[];
-};
 
 type WorkflowCreateFeaturedNode = {
   type: WorkflowNodeCatalogItem["type"];

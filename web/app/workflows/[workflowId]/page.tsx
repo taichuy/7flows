@@ -3,13 +3,12 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { WorkflowEditorWorkbenchEntry } from "@/components/workflow-editor-workbench-entry";
 import { WorkspaceShell } from "@/components/workspace-shell";
-import { getCredentials } from "@/lib/get-credentials";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
-import { getWorkflowRuns } from "@/lib/get-workflow-runs";
 import {
   appendWorkflowLibraryViewState,
   readWorkflowLibraryViewState
@@ -23,10 +22,6 @@ import {
   pickWorkspaceStarterGovernanceQueryScope,
   readWorkspaceStarterLibraryViewState
 } from "@/lib/workspace-starter-governance-query";
-import {
-  readWorkflowPublishActivityQueryScope,
-  resolveWorkflowPublishActivityFilters
-} from "@/lib/workflow-publish-activity-query";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
 import type { WorkspaceMemberRole } from "@/lib/workspace-access";
 
@@ -108,17 +103,11 @@ export default async function WorkflowEditorPage({
       : "draft only";
 
   if (isEditorSurface) {
-    const { WorkflowEditorWorkbench } = await import(
-      "@/components/workflow-editor-workbench"
-    );
-    const [workflows, workflowLibrary, pluginRegistry, systemOverview, recentRuns, credentials] =
-      await Promise.all([
+    const [workflows, workflowLibrary, pluginRegistry, systemOverview] = await Promise.all([
         getWorkflows(),
         getWorkflowLibrarySnapshot(),
         getPluginRegistrySnapshot(),
-        getSystemOverview(),
-        getWorkflowRuns(workflowId),
-        getCredentials(true)
+        getSystemOverview()
       ]);
 
     return (
@@ -136,7 +125,7 @@ export default async function WorkflowEditorPage({
         workspaceStarterLibraryHref={workspaceStarterLibraryHref}
       >
         <section className="workflow-studio-surface" data-surface="editor">
-          <WorkflowEditorWorkbench
+          <WorkflowEditorWorkbenchEntry
             workflow={workflow}
             workflows={workflows}
             nodeCatalog={workflowLibrary.nodes}
@@ -144,11 +133,9 @@ export default async function WorkflowEditorPage({
             toolSourceLanes={workflowLibrary.toolSourceLanes}
             tools={workflowLibrary.tools}
             adapters={pluginRegistry.adapters}
-            credentials={credentials}
             callbackWaitingAutomation={systemOverview.callback_waiting_automation}
             sandboxReadiness={systemOverview.sandbox_readiness}
             sandboxBackends={systemOverview.sandbox_backends}
-            recentRuns={recentRuns}
             currentEditorHref={editorSurfaceHref}
             workflowLibraryHref={workflowLibraryHref}
             createWorkflowHref={createWorkflowHref}
@@ -164,11 +151,13 @@ export default async function WorkflowEditorPage({
   const [
     { WorkflowPublishPanel },
     workflowPublishModule,
-    workflowPublishGovernanceModule
+    workflowPublishGovernanceModule,
+    workflowPublishActivityQueryModule
   ] = await Promise.all([
     import("@/components/workflow-publish-panel"),
     import("@/lib/get-workflow-publish"),
-    import("@/lib/get-workflow-publish-governance")
+    import("@/lib/get-workflow-publish-governance"),
+    import("@/lib/workflow-publish-activity-query")
   ]);
   const [pluginRegistry, systemOverview, publishedEndpoints] = await Promise.all([
     getPluginRegistrySnapshot(),
@@ -182,13 +171,15 @@ export default async function WorkflowEditorPage({
     workflowStageLabel = "publish ready";
   }
 
-  const publishActivityQueryScope = readWorkflowPublishActivityQueryScope(
+  const publishActivityQueryScope =
+    workflowPublishActivityQueryModule.readWorkflowPublishActivityQueryScope(
     resolvedSearchParams
-  );
-  const publishActivityFilters = resolveWorkflowPublishActivityFilters(
+    );
+  const publishActivityFilters =
+    workflowPublishActivityQueryModule.resolveWorkflowPublishActivityFilters(
     publishActivityQueryScope,
     publishedEndpoints
-  );
+    );
   const {
     cacheInventories,
     apiKeysByBinding,

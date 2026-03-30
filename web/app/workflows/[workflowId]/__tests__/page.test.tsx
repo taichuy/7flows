@@ -5,14 +5,12 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import WorkflowEditorPage from "@/app/workflows/[workflowId]/page";
-import { getCredentials } from "@/lib/get-credentials";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import { getWorkflowPublishedEndpoints } from "@/lib/get-workflow-publish";
 import { getWorkflowPublishGovernanceSnapshot } from "@/lib/get-workflow-publish-governance";
-import { getWorkflowRuns } from "@/lib/get-workflow-runs";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
 import type { WorkspaceContextResponse } from "@/lib/workspace-access";
 
@@ -32,8 +30,8 @@ vi.mock("@/components/workspace-shell", () => ({
     createElement("div", { "data-component": "workspace-shell" }, children)
 }));
 
-vi.mock("@/components/workflow-editor-workbench", () => ({
-  WorkflowEditorWorkbench: ({ workflow }: { workflow: { id: string } }) =>
+vi.mock("@/components/workflow-editor-workbench-entry", () => ({
+  WorkflowEditorWorkbenchEntry: ({ workflow }: { workflow: { id: string } }) =>
     createElement(
       "div",
       {
@@ -77,20 +75,12 @@ vi.mock("@/lib/get-system-overview", () => ({
   getSystemOverview: vi.fn()
 }));
 
-vi.mock("@/lib/get-workflow-runs", () => ({
-  getWorkflowRuns: vi.fn()
-}));
-
 vi.mock("@/lib/get-workflow-publish", () => ({
   getWorkflowPublishedEndpoints: vi.fn()
 }));
 
 vi.mock("@/lib/get-workflow-publish-governance", () => ({
   getWorkflowPublishGovernanceSnapshot: vi.fn()
-}));
-
-vi.mock("@/lib/get-credentials", () => ({
-  getCredentials: vi.fn()
 }));
 
 function buildWorkspaceContext(): WorkspaceContextResponse {
@@ -145,7 +135,6 @@ beforeEach(() => {
     adapters: [],
     tools: []
   } as Awaited<ReturnType<typeof getPluginRegistrySnapshot>>);
-  vi.mocked(getCredentials).mockResolvedValue([] as Awaited<ReturnType<typeof getCredentials>>);
   vi.mocked(getSystemOverview).mockResolvedValue({
     callback_waiting_automation: null,
     sandbox_readiness: null,
@@ -161,7 +150,6 @@ beforeEach(() => {
       }
     }
   } as unknown as Awaited<ReturnType<typeof getSystemOverview>>);
-  vi.mocked(getWorkflowRuns).mockResolvedValue([] as Awaited<ReturnType<typeof getWorkflowRuns>>);
   vi.mocked(getWorkflowPublishedEndpoints).mockResolvedValue(
     [] as Awaited<ReturnType<typeof getWorkflowPublishedEndpoints>>
   );
@@ -198,8 +186,6 @@ describe("WorkflowEditorPage", () => {
     expect(html).toContain("?surface=publish");
     expect(vi.mocked(getWorkflows)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(getWorkflowLibrarySnapshot)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(getWorkflowRuns)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(getCredentials)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(getWorkflowPublishedEndpoints)).not.toHaveBeenCalled();
     expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).not.toHaveBeenCalled();
   });
@@ -221,10 +207,8 @@ describe("WorkflowEditorPage", () => {
       includeAllVersions: true
     });
     expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(getCredentials)).not.toHaveBeenCalled();
     expect(vi.mocked(getWorkflows)).not.toHaveBeenCalled();
     expect(vi.mocked(getWorkflowLibrarySnapshot)).not.toHaveBeenCalled();
-    expect(vi.mocked(getWorkflowRuns)).not.toHaveBeenCalled();
   });
 
   it("redirects unauthenticated users back to login", async () => {

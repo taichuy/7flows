@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { WorkflowCreateWizardEntry } from "@/components/workflow-create-wizard-entry";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
-import { getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import {
   hasScopedWorkspaceStarterGovernanceFilters,
@@ -33,9 +33,12 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
   );
   const shouldLoadLegacyAuthGovernanceSnapshot =
     shouldScopeWorkspaceStarters || workspaceStarterViewState.selectedTemplateId !== null;
-  const [{ WorkflowCreateWizard }, workflowLibrary, workflows, legacyAuthGovernanceSnapshot] =
-    await Promise.all([
-      import("@/components/workflow-create-wizard"),
+  const legacyAuthGovernanceSnapshotPromise = shouldLoadLegacyAuthGovernanceSnapshot
+    ? import("@/lib/get-workflow-publish").then((module) =>
+        module.getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot()
+      )
+    : Promise.resolve(null);
+  const [workflowLibrary, workflows, legacyAuthGovernanceSnapshot] = await Promise.all([
     getWorkflowLibrarySnapshot({
       businessTrack:
         workspaceStarterViewState.activeTrack === "all"
@@ -51,10 +54,8 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
       includeStarterDefinitions: true
     }),
     getWorkflows(),
-      shouldLoadLegacyAuthGovernanceSnapshot
-        ? getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot()
-        : Promise.resolve(null)
-    ]);
+    legacyAuthGovernanceSnapshotPromise
+  ]);
 
   return (
     <WorkspaceShell
@@ -65,7 +66,7 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
       workspaceName={workspaceContext.workspace.name}
     >
       <div className="workspace-main workspace-workflow-create-main">
-        <WorkflowCreateWizard
+        <WorkflowCreateWizardEntry
           catalogToolCount={workflowLibrary.tools.length}
           governanceQueryScope={pickWorkspaceStarterGovernanceQueryScope(workspaceStarterViewState)}
           legacyAuthGovernanceSnapshot={legacyAuthGovernanceSnapshot}

@@ -23,8 +23,8 @@ vi.mock("@/components/workspace-shell", () => ({
     createElement("div", { "data-component": "workspace-shell" }, children)
 }));
 
-vi.mock("@/components/workflow-create-wizard", () => ({
-  WorkflowCreateWizard: ({ starters, workflows }: { starters: Array<{ id: string }>; workflows: Array<{ id: string }> }) =>
+vi.mock("@/components/workflow-create-wizard-entry", () => ({
+  WorkflowCreateWizardEntry: ({ starters, workflows }: { starters: Array<{ id: string }>; workflows: Array<{ id: string }> }) =>
     createElement(
       "div",
       {

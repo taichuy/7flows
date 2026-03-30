@@ -44,27 +44,8 @@ import { useWorkflowEditorValidation } from "@/components/workflow-editor-workbe
 import { useWorkflowRunOverlay } from "@/components/workflow-editor-workbench/use-workflow-run-overlay";
 import { WorkflowEditorInspector } from "@/components/workflow-editor-inspector";
 import { WorkflowRunLauncher } from "@/components/workflow-run-launcher";
-
-type WorkflowEditorWorkbenchProps = {
-  workflow: WorkflowDetail;
-  workflows: WorkflowListItem[];
-  nodeCatalog: WorkflowNodeCatalogItem[];
-  nodeSourceLanes: WorkflowLibrarySourceLane[];
-  toolSourceLanes: WorkflowLibrarySourceLane[];
-  tools: PluginToolRegistryItem[];
-  adapters: PluginAdapterRegistryItem[];
-  credentials: CredentialItem[];
-  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
-  sandboxReadiness?: SandboxReadinessCheck | null;
-  sandboxBackends?: SandboxBackendCheck[] | null;
-  recentRuns: WorkflowRunListItem[];
-  currentEditorHref?: string;
-  workflowLibraryHref?: string;
-  createWorkflowHref?: string;
-  workspaceStarterLibraryHref?: string;
-  hasScopedWorkspaceStarterFilters?: boolean;
-  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
-};
+import { useWorkflowEditorRuntimeData } from "@/components/workflow-editor-workbench/use-workflow-editor-runtime-data";
+import type { WorkflowEditorWorkbenchProps } from "@/components/workflow-editor-workbench/types";
 
 export function WorkflowEditorWorkbench({
   workflow,
@@ -74,11 +55,11 @@ export function WorkflowEditorWorkbench({
   toolSourceLanes,
   tools,
   adapters,
-  credentials,
   callbackWaitingAutomation,
   sandboxReadiness,
   sandboxBackends,
-  recentRuns,
+  initialCredentials = [],
+  initialRecentRuns = [],
   currentEditorHref,
   workflowLibraryHref,
   createWorkflowHref,
@@ -88,6 +69,11 @@ export function WorkflowEditorWorkbench({
 }: WorkflowEditorWorkbenchProps) {
   const editorNodeLibrary = getPaletteNodeCatalog(nodeCatalog);
   const plannedNodeLibrary = getPlannedNodeCatalog(nodeCatalog);
+  const { credentials, recentRuns } = useWorkflowEditorRuntimeData({
+    workflowId: workflow.id,
+    initialCredentials,
+    initialRecentRuns
+  });
   const persistedDefinitionSignature = useMemo(
     () => JSON.stringify(workflow.definition),
     [workflow.definition]
