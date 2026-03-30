@@ -208,7 +208,7 @@ describe("WorkflowCreateWizard", () => {
     );
 
     expect(html).toContain(
-      '/workflows/workflow-gap?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool'
+      '/workflows/workflow-gap/editor?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool'
     );
   });
 
@@ -651,7 +651,7 @@ describe("WorkflowCreateWizard", () => {
 
   it("reuses the shared workbench entry contract in hero actions", () => {
     const scopedWorkflowHref =
-      '/workflows/workflow%20latest%2F1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"';
+      '/workflows/workflow%20latest%2F1/editor?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"';
     const html = renderToStaticMarkup(
       createElement(WorkflowCreateWizard, {
         catalogToolCount: 0,
@@ -990,7 +990,7 @@ describe("WorkflowCreateWizard", () => {
     expect(html).toContain("管理这个 workspace starter");
     expect(html).toContain("回到 workflow 编辑器处理 publish auth contract");
     expect(html).toContain(
-      '/workflows/wf-source?needs_follow_up=true&amp;q=publish&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=legacy_publish_auth'
+      '/workflows/wf-source/editor?needs_follow_up=true&amp;q=publish&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=legacy_publish_auth'
     );
   });
 
@@ -1116,7 +1116,7 @@ describe("WorkflowCreateWizard", () => {
     expect(html).toContain("1 条 offline inventory");
     expect(html).toContain("回到 workflow 编辑器处理 publish auth contract");
     expect(html).toContain(
-      '/workflows/wf-offline?needs_follow_up=true&amp;q=inventory&amp;source_governance_kind=drifted&amp;starter=workspace-starter-offline&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=legacy_publish_auth'
+      '/workflows/wf-offline/editor?needs_follow_up=true&amp;q=inventory&amp;source_governance_kind=drifted&amp;starter=workspace-starter-offline&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=legacy_publish_auth'
     );
   });
 
@@ -1248,7 +1248,7 @@ describe("WorkflowCreateWizard", () => {
       "Primary governed starter: Missing Tool Starter · catalog gap · native.missing · source Source Missing Tool Workflow."
     );
     expect(html).toContain("打开源 workflow");
-    expect(html).toContain('/workflows/wf-missing-tool?');
+    expect(html).toContain('/workflows/wf-missing-tool/editor?');
     expect(html).toContain('definition_issue=missing_tool');
     expect(html).toContain('starter=workspace-starter-missing-tool');
     expect(html).toContain("当前 starter 仍有 catalog gap（native.missing）");

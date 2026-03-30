@@ -5,9 +5,6 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import NewWorkflowPage from "@/app/workflows/new/page";
-import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
-import { getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
-import { getWorkflows } from "@/lib/get-workflows";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 
 Object.assign(globalThis, { React });
@@ -24,32 +21,39 @@ vi.mock("@/components/workspace-shell", () => ({
 }));
 
 vi.mock("@/components/workflow-create-wizard-entry", () => ({
-  WorkflowCreateWizardEntry: ({ starters, workflows }: { starters: Array<{ id: string }>; workflows: Array<{ id: string }> }) =>
+  WorkflowCreateWizardEntry: ({
+    bootstrapRequest
+  }: {
+    bootstrapRequest: {
+      governanceQueryScope: { kind?: string };
+      includeLegacyAuthGovernanceSnapshot: boolean;
+      libraryQuery: {
+        includeStarterDefinitions: boolean;
+        includeBuiltinStarters: boolean;
+      };
+    };
+  }) =>
     createElement(
       "div",
       {
-        "data-component": "workflow-create-wizard",
-        "data-starter-count": starters.length,
-        "data-workflow-count": workflows.length
+        "data-component": "workflow-create-wizard-entry",
+        "data-governance-kind": bootstrapRequest.governanceQueryScope.kind ?? "unknown",
+        "data-loads-legacy-auth": String(
+          bootstrapRequest.includeLegacyAuthGovernanceSnapshot
+        ),
+        "data-include-starter-definitions": String(
+          bootstrapRequest.libraryQuery.includeStarterDefinitions
+        ),
+        "data-include-builtin-starters": String(
+          bootstrapRequest.libraryQuery.includeBuiltinStarters
+        )
       },
-      "wizard"
+      "wizard-entry"
     )
 }));
 
 vi.mock("@/lib/server-workspace-access", () => ({
   getServerWorkspaceContext: vi.fn()
-}));
-
-vi.mock("@/lib/get-workflow-library", () => ({
-  getWorkflowLibrarySnapshot: vi.fn()
-}));
-
-vi.mock("@/lib/get-workflows", () => ({
-  getWorkflows: vi.fn()
-}));
-
-vi.mock("@/lib/get-workflow-publish", () => ({
-  getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot: vi.fn()
 }));
 
 vi.mock("@/lib/workspace-starter-governance-query", () => ({
@@ -70,7 +74,7 @@ beforeEach(() => {
 });
 
 describe("NewWorkflowPage", () => {
-  it("renders the create wizard inside the workspace shell", async () => {
+  it("renders the create bootstrap entry inside the workspace shell", async () => {
     vi.mocked(getServerWorkspaceContext).mockResolvedValue({
       workspace: {
         id: "default",
@@ -100,21 +104,6 @@ describe("NewWorkflowPage", () => {
       available_roles: ["owner", "admin", "editor", "viewer"],
       can_manage_members: true
     });
-    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue({
-      nodes: [],
-      starters: [{ id: "starter-blank" }],
-      starterSourceLanes: [],
-      nodeSourceLanes: [],
-      toolSourceLanes: [],
-      tools: []
-    } as unknown as Awaited<ReturnType<typeof getWorkflowLibrarySnapshot>>);
-    vi.mocked(getWorkflows).mockResolvedValue([{ id: "workflow-1" }] as Awaited<ReturnType<typeof getWorkflows>>);
-    vi.mocked(getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot).mockResolvedValue({
-      bindings: [],
-      follow_up_count: 0,
-      legacy_token_binding_count: 0,
-      summary: []
-    } as unknown as Awaited<ReturnType<typeof getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot>>);
 
     const html = renderToStaticMarkup(
       await NewWorkflowPage({
@@ -122,20 +111,14 @@ describe("NewWorkflowPage", () => {
       })
     );
 
-    expect(vi.mocked(getWorkflowLibrarySnapshot)).toHaveBeenCalledWith(
-      expect.objectContaining({ includeStarterDefinitions: true })
-    );
-    expect(
-      vi.mocked(getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot)
-    ).not.toHaveBeenCalled();
-
     expect(html).toContain('data-component="workspace-shell"');
-    expect(html).toContain('data-component="workflow-create-wizard"');
-    expect(html).toContain('data-starter-count="1"');
-    expect(html).toContain('data-workflow-count="1"');
+    expect(html).toContain('data-component="workflow-create-wizard-entry"');
+    expect(html).toContain('data-loads-legacy-auth="false"');
+    expect(html).toContain('data-include-starter-definitions="true"');
+    expect(html).toContain('data-include-builtin-starters="true"');
   });
 
-  it("loads legacy auth governance only when a scoped starter is requested", async () => {
+  it("marks legacy auth bootstrap only when a scoped starter is requested", async () => {
     vi.mocked(getServerWorkspaceContext).mockResolvedValue({
       workspace: {
         id: "default",
@@ -177,29 +160,15 @@ describe("NewWorkflowPage", () => {
       needsFollowUp: false,
       selectedTemplateId: "starter-workspace-1"
     });
-    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue({
-      nodes: [],
-      starters: [{ id: "starter-blank" }],
-      starterSourceLanes: [],
-      nodeSourceLanes: [],
-      toolSourceLanes: [],
-      tools: []
-    } as unknown as Awaited<ReturnType<typeof getWorkflowLibrarySnapshot>>);
-    vi.mocked(getWorkflows).mockResolvedValue([] as Awaited<ReturnType<typeof getWorkflows>>);
-    vi.mocked(getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot).mockResolvedValue({
-      bindings: [],
-      follow_up_count: 0,
-      legacy_token_binding_count: 0,
-      summary: []
-    } as unknown as Awaited<ReturnType<typeof getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot>>);
 
-    await NewWorkflowPage({
+    const html = renderToStaticMarkup(
+      await NewWorkflowPage({
       searchParams: Promise.resolve({ starter: "starter-workspace-1" })
-    });
+      })
+    );
 
-    expect(
-      vi.mocked(getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot)
-    ).toHaveBeenCalledTimes(1);
+    expect(html).toContain('data-loads-legacy-auth="true"');
+    expect(html).toContain('data-include-builtin-starters="true"');
   });
 
   it("redirects unauthenticated users back to login", async () => {

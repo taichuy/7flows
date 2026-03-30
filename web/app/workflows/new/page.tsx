@@ -3,14 +3,12 @@ import { redirect } from "next/navigation";
 
 import { WorkflowCreateWizardEntry } from "@/components/workflow-create-wizard-entry";
 import { WorkspaceShell } from "@/components/workspace-shell";
-import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import {
   hasScopedWorkspaceStarterGovernanceFilters,
   pickWorkspaceStarterGovernanceQueryScope,
   readWorkspaceStarterLibraryViewState
 } from "@/lib/workspace-starter-governance-query";
-import { getWorkflows } from "@/lib/get-workflows";
 
 export const metadata: Metadata = {
   title: "New Workflow | 7Flows Studio"
@@ -31,31 +29,11 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
   const shouldScopeWorkspaceStarters = hasScopedWorkspaceStarterGovernanceFilters(
     workspaceStarterViewState
   );
+  const governanceQueryScope = pickWorkspaceStarterGovernanceQueryScope(
+    workspaceStarterViewState
+  );
   const shouldLoadLegacyAuthGovernanceSnapshot =
     shouldScopeWorkspaceStarters || workspaceStarterViewState.selectedTemplateId !== null;
-  const legacyAuthGovernanceSnapshotPromise = shouldLoadLegacyAuthGovernanceSnapshot
-    ? import("@/lib/get-workflow-publish").then((module) =>
-        module.getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot()
-      )
-    : Promise.resolve(null);
-  const [workflowLibrary, workflows, legacyAuthGovernanceSnapshot] = await Promise.all([
-    getWorkflowLibrarySnapshot({
-      businessTrack:
-        workspaceStarterViewState.activeTrack === "all"
-          ? undefined
-          : workspaceStarterViewState.activeTrack,
-      search: workspaceStarterViewState.searchQuery,
-      sourceGovernanceKind:
-        workspaceStarterViewState.sourceGovernanceKind === "all"
-          ? undefined
-          : workspaceStarterViewState.sourceGovernanceKind,
-      needsFollowUp: workspaceStarterViewState.needsFollowUp,
-      includeBuiltinStarters: !shouldScopeWorkspaceStarters,
-      includeStarterDefinitions: true
-    }),
-    getWorkflows(),
-    legacyAuthGovernanceSnapshotPromise
-  ]);
 
   return (
     <WorkspaceShell
@@ -67,14 +45,24 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
     >
       <div className="workspace-main workspace-workflow-create-main">
         <WorkflowCreateWizardEntry
-          catalogToolCount={workflowLibrary.tools.length}
-          governanceQueryScope={pickWorkspaceStarterGovernanceQueryScope(workspaceStarterViewState)}
-          legacyAuthGovernanceSnapshot={legacyAuthGovernanceSnapshot}
-          starters={workflowLibrary.starters}
-          starterSourceLanes={workflowLibrary.starterSourceLanes}
-          nodeCatalog={workflowLibrary.nodes}
-          tools={workflowLibrary.tools}
-          workflows={workflows}
+          bootstrapRequest={{
+            governanceQueryScope,
+            includeLegacyAuthGovernanceSnapshot: shouldLoadLegacyAuthGovernanceSnapshot,
+            libraryQuery: {
+              businessTrack:
+                workspaceStarterViewState.activeTrack === "all"
+                  ? undefined
+                  : workspaceStarterViewState.activeTrack,
+              search: workspaceStarterViewState.searchQuery,
+              sourceGovernanceKind:
+                workspaceStarterViewState.sourceGovernanceKind === "all"
+                  ? undefined
+                  : workspaceStarterViewState.sourceGovernanceKind,
+              needsFollowUp: workspaceStarterViewState.needsFollowUp,
+              includeBuiltinStarters: !shouldScopeWorkspaceStarters,
+              includeStarterDefinitions: true
+            }
+          }}
         />
       </div>
     </WorkspaceShell>

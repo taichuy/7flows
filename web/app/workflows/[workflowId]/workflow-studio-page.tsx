@@ -8,7 +8,6 @@ import { WorkspaceShell } from "@/components/workspace-shell";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
-import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import {
   appendWorkflowLibraryViewState,
   readWorkflowLibraryViewState
@@ -24,7 +23,7 @@ import {
   pickWorkspaceStarterGovernanceQueryScope,
   readWorkspaceStarterLibraryViewState
 } from "@/lib/workspace-starter-governance-query";
-import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
+import { getWorkflowDetail } from "@/lib/get-workflows";
 import type { WorkspaceMemberRole } from "@/lib/workspace-access";
 
 export type WorkflowStudioPageProps = {
@@ -211,13 +210,6 @@ async function resolveWorkflowStudioSharedContext({
 }
 
 async function renderWorkflowEditorSurface(sharedContext: WorkflowStudioSharedContext) {
-  const [workflows, workflowLibrary, pluginRegistry, systemOverview] = await Promise.all([
-    getWorkflows(),
-    getWorkflowLibrarySnapshot(),
-    getPluginRegistrySnapshot(),
-    getSystemOverview()
-  ]);
-
   return (
     <WorkflowStudioShell
       workspaceName={sharedContext.workspaceName}
@@ -234,16 +226,11 @@ async function renderWorkflowEditorSurface(sharedContext: WorkflowStudioSharedCo
     >
       <section className="workflow-studio-surface" data-surface="editor">
         <WorkflowEditorWorkbenchEntry
+          bootstrapRequest={{
+            workflowId: sharedContext.workflow.id,
+            surface: "editor"
+          }}
           workflow={sharedContext.workflow}
-          workflows={workflows}
-          nodeCatalog={workflowLibrary.nodes}
-          nodeSourceLanes={workflowLibrary.nodeSourceLanes}
-          toolSourceLanes={workflowLibrary.toolSourceLanes}
-          tools={workflowLibrary.tools}
-          adapters={pluginRegistry.adapters}
-          callbackWaitingAutomation={systemOverview.callback_waiting_automation}
-          sandboxReadiness={systemOverview.sandbox_readiness}
-          sandboxBackends={systemOverview.sandbox_backends}
           currentEditorHref={sharedContext.currentEditorHref}
           workflowLibraryHref={sharedContext.workflowLibraryHref}
           createWorkflowHref={sharedContext.createWorkflowHref}

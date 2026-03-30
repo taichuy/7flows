@@ -7,12 +7,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import WorkflowDetailCompatPage from "@/app/workflows/[workflowId]/page";
 import WorkflowEditorPage from "@/app/workflows/[workflowId]/editor/page";
 import WorkflowPublishPage from "@/app/workflows/[workflowId]/publish/page";
-import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
-import { getSystemOverview } from "@/lib/get-system-overview";
-import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import { getWorkflowPublishedEndpoints } from "@/lib/get-workflow-publish";
 import { getWorkflowPublishGovernanceSnapshot } from "@/lib/get-workflow-publish-governance";
+import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
+import { getSystemOverview } from "@/lib/get-system-overview";
+import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
 import type { WorkspaceContextResponse } from "@/lib/workspace-access";
 
@@ -33,12 +33,20 @@ vi.mock("@/components/workspace-shell", () => ({
 }));
 
 vi.mock("@/components/workflow-editor-workbench-entry", () => ({
-  WorkflowEditorWorkbenchEntry: ({ workflow }: { workflow: { id: string } }) =>
+  WorkflowEditorWorkbenchEntry: ({
+    workflow,
+    bootstrapRequest
+  }: {
+    workflow: { id: string };
+    bootstrapRequest: { workflowId: string; surface: string };
+  }) =>
     createElement(
       "div",
       {
-        "data-component": "workflow-editor-workbench",
-        "data-workflow-id": workflow.id
+        "data-component": "workflow-editor-workbench-entry",
+        "data-workflow-id": workflow.id,
+        "data-bootstrap-workflow-id": bootstrapRequest.workflowId,
+        "data-bootstrap-surface": bootstrapRequest.surface
       },
       workflow.id
     )
@@ -198,9 +206,11 @@ describe("Workflow studio routes", () => {
     );
 
     expect(html).toContain('data-component="workspace-shell"');
-    expect(html).toContain('data-component="workflow-editor-workbench"');
+    expect(html).toContain('data-component="workflow-editor-workbench-entry"');
     expect(html).not.toContain('data-component="workflow-publish-panel"');
     expect(html).toContain('data-workflow-id="workflow-1"');
+    expect(html).toContain('data-bootstrap-workflow-id="workflow-1"');
+    expect(html).toContain('data-bootstrap-surface="editor"');
     expect(html).toContain("workflow-studio-shell-bar workflow-studio-shell-bar-compact");
     expect(html).toContain("Workflow 1");
     expect(html).toContain("draft only");
@@ -211,8 +221,10 @@ describe("Workflow studio routes", () => {
     expect(html).toContain("/workflows/workflow-1/editor");
     expect(html).toContain("/workflows/workflow-1/publish");
     expect(html).not.toContain("?surface=");
-    expect(vi.mocked(getWorkflows)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(getWorkflowLibrarySnapshot)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getWorkflows)).not.toHaveBeenCalled();
+    expect(vi.mocked(getWorkflowLibrarySnapshot)).not.toHaveBeenCalled();
+    expect(vi.mocked(getPluginRegistrySnapshot)).not.toHaveBeenCalled();
+    expect(vi.mocked(getSystemOverview)).not.toHaveBeenCalled();
     expect(vi.mocked(getWorkflowPublishedEndpoints)).not.toHaveBeenCalled();
     expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).not.toHaveBeenCalled();
   });

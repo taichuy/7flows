@@ -177,6 +177,31 @@ export type WorkflowEditorWorkbenchProps = {
   workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
 };
 
+export type WorkflowEditorWorkbenchBootstrapRequest = {
+  workflowId: string;
+  surface: "editor";
+};
+
+export type WorkflowEditorWorkbenchBootstrapData = Pick<
+  WorkflowEditorWorkbenchProps,
+  | "workflows"
+  | "nodeCatalog"
+  | "nodeSourceLanes"
+  | "toolSourceLanes"
+  | "tools"
+  | "adapters"
+  | "callbackWaitingAutomation"
+  | "sandboxReadiness"
+  | "sandboxBackends"
+>;
+
+export type WorkflowEditorWorkbenchEntryProps = Omit<
+  WorkflowEditorWorkbenchProps,
+  keyof WorkflowEditorWorkbenchBootstrapData
+> & {
+  bootstrapRequest: WorkflowEditorWorkbenchBootstrapRequest;
+};
+
 export type UseWorkflowEditorPanelsArgs = {
   workflow: WorkflowDetail;
   workflows: WorkflowListItem[];
