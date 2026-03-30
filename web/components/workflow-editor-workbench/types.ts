@@ -237,7 +237,14 @@ export type UseWorkflowEditorPanelsResult = {
   >;
   sidebarProps: WorkflowEditorSidebarProps;
   inspectorProps: WorkflowEditorInspectorProps;
-  runLauncherProps: ComponentProps<
-    typeof import("@/components/workflow-run-launcher")["WorkflowRunLauncher"]
-  >;
+  runLauncherSurfaceProps: WorkflowEditorRunLauncherSurfaceProps;
+};
+
+export type WorkflowEditorRunLauncherSurfaceProps = {
+  workflowId: string;
+  open: boolean;
+  workflowVariables: Array<Record<string, unknown>>;
+  onClose: () => void;
+  onRunSuccess: (result: { runId?: string | null }) => void;
+  onRunError: (message: string) => void;
 };

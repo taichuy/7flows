@@ -22,8 +22,8 @@ import { useWorkflowEditorGraph } from "@/components/workflow-editor-workbench/u
 import { useWorkflowEditorPersistence } from "@/components/workflow-editor-workbench/use-workflow-editor-persistence";
 import { useWorkflowEditorValidation } from "@/components/workflow-editor-workbench/use-workflow-editor-validation";
 import { useWorkflowRunOverlay } from "@/components/workflow-editor-workbench/use-workflow-run-overlay";
+import { WorkflowEditorRunLauncherSurface } from "@/components/workflow-editor-workbench/workflow-editor-run-launcher-surface";
 import { WorkflowEditorInspector } from "@/components/workflow-editor-inspector";
-import { WorkflowRunLauncher } from "@/components/workflow-run-launcher";
 import { useWorkflowEditorRuntimeData } from "@/components/workflow-editor-workbench/use-workflow-editor-runtime-data";
 import type { WorkflowEditorWorkbenchProps } from "@/components/workflow-editor-workbench/types";
 
@@ -238,7 +238,7 @@ export function WorkflowEditorWorkbench({
           )}
         </section>
 
-        <WorkflowRunLauncher {...panels.runLauncherProps} />
+        <WorkflowEditorRunLauncherSurface {...panels.runLauncherSurfaceProps} />
       </main>
     </ReactFlowProvider>
   );

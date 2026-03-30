@@ -1,9 +1,7 @@
-import { useMemo, useEffect, useState, useTransition } from "react";
-import type { ComponentProps } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
 import { pickWorkflowValidationRemediationItem } from "@/lib/workflow-validation-remediation";
 import { buildWorkflowPersistBlockerRecommendedNextStep, summarizeWorkflowPersistBlockers } from "@/components/workflow-editor-workbench/persist-blockers";
-import { triggerWorkflowRun } from "@/app/actions/runs";
 
 import type {
   UseWorkflowEditorPanelsArgs,
@@ -204,32 +202,26 @@ export function useWorkflowEditorPanels({
     sandboxReadiness
   };
 
-  const [isPending, startTransition] = useTransition();
-
-  const runLauncherProps = {
+  const runLauncherSurfaceProps = {
+    workflowId: workflow.id,
     open: isRunLauncherOpen,
-    isSubmitting: isPending,
     onClose: () => setIsRunLauncherOpen(false),
     workflowVariables: graph.workflowVariables,
-    onRun: (payload: Record<string, any>) => {
-      startTransition(async () => {
-        const result = await triggerWorkflowRun(workflow.id, payload);
-        if (result.status === "success") {
-          setIsRunLauncherOpen(false);
-          shell.setMessage("工作流已触发运行");
-          shell.setMessageTone("success");
-          
-          if (shell.isSidebarCollapsed) {
-            shell.toggleSidebar();
-          }
-          if (result.runId) {
-            runOverlay.setSelectedRunId(result.runId);
-          }
-        } else {
-          shell.setMessage(result.message);
-          shell.setMessageTone("error");
-        }
-      });
+    onRunSuccess: ({ runId }: { runId?: string | null }) => {
+      setIsRunLauncherOpen(false);
+      shell.setMessage("工作流已触发运行");
+      shell.setMessageTone("success");
+
+      if (shell.isSidebarCollapsed) {
+        shell.toggleSidebar();
+      }
+      if (runId) {
+        runOverlay.setSelectedRunId(runId);
+      }
+    },
+    onRunError: (message: string) => {
+      shell.setMessage(message);
+      shell.setMessageTone("error");
     }
   };
 
@@ -237,6 +229,6 @@ export function useWorkflowEditorPanels({
     heroProps,
     sidebarProps,
     inspectorProps,
-    runLauncherProps
+    runLauncherSurfaceProps
   };
 }
