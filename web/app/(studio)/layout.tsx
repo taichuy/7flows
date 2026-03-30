@@ -1,7 +1,23 @@
+import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { AppLayout } from "@/components/app-layout";
+import { StudioShell } from "@/components/studio-shell";
+import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 
-export default function StudioLayout({ children }: { children: ReactNode }) {
-  return <AppLayout>{children}</AppLayout>;
+export default async function StudioLayout({ children }: { children: ReactNode }) {
+  const workspaceContext = await getServerWorkspaceContext();
+
+  if (!workspaceContext) {
+    redirect("/login?next=/");
+  }
+
+  return (
+    <StudioShell
+      userName={workspaceContext.current_user.display_name}
+      userRole={workspaceContext.current_member.role}
+      workspaceName={workspaceContext.workspace.name}
+    >
+      {children}
+    </StudioShell>
+  );
 }

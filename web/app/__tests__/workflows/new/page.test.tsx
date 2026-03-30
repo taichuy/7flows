@@ -57,9 +57,11 @@ vi.mock("@/lib/workspace-starter-governance-query", () => ({
   pickWorkspaceStarterGovernanceQueryScope: vi.fn(() => ({ kind: "all" })),
   readWorkspaceStarterLibraryViewState: vi.fn(() => ({
     activeTrack: "all",
+    archiveFilter: "active",
     searchQuery: "",
     sourceGovernanceKind: "all",
-    needsFollowUp: false
+    needsFollowUp: false,
+    selectedTemplateId: null
   }))
 }));
 
@@ -123,11 +125,81 @@ describe("NewWorkflowPage", () => {
     expect(vi.mocked(getWorkflowLibrarySnapshot)).toHaveBeenCalledWith(
       expect.objectContaining({ includeStarterDefinitions: true })
     );
+    expect(
+      vi.mocked(getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot)
+    ).not.toHaveBeenCalled();
 
     expect(html).toContain('data-component="workspace-shell"');
     expect(html).toContain('data-component="workflow-create-wizard"');
     expect(html).toContain('data-starter-count="1"');
     expect(html).toContain('data-workflow-count="1"');
+  });
+
+  it("loads legacy auth governance only when a scoped starter is requested", async () => {
+    vi.mocked(getServerWorkspaceContext).mockResolvedValue({
+      workspace: {
+        id: "default",
+        name: "7Flows Workspace",
+        slug: "sevenflows"
+      },
+      current_user: {
+        id: "user-admin",
+        email: "admin@taichuy.com",
+        display_name: "7Flows Admin",
+        status: "active",
+        last_login_at: "2026-03-28T09:00:00Z"
+      },
+      current_member: {
+        id: "member-owner",
+        role: "owner",
+        user: {
+          id: "user-admin",
+          email: "admin@taichuy.com",
+          display_name: "7Flows Admin",
+          status: "active",
+          last_login_at: "2026-03-28T09:00:00Z"
+        },
+        created_at: "2026-03-27T12:00:00Z",
+        updated_at: "2026-03-27T12:00:00Z"
+      },
+      available_roles: ["owner", "admin", "editor", "viewer"],
+      can_manage_members: true
+    });
+    const { readWorkspaceStarterLibraryViewState } = await import(
+      "@/lib/workspace-starter-governance-query"
+    );
+
+    vi.mocked(readWorkspaceStarterLibraryViewState).mockReturnValue({
+      activeTrack: "all",
+      archiveFilter: "active",
+      searchQuery: "",
+      sourceGovernanceKind: "all",
+      needsFollowUp: false,
+      selectedTemplateId: "starter-workspace-1"
+    });
+    vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue({
+      nodes: [],
+      starters: [{ id: "starter-blank" }],
+      starterSourceLanes: [],
+      nodeSourceLanes: [],
+      toolSourceLanes: [],
+      tools: []
+    } as unknown as Awaited<ReturnType<typeof getWorkflowLibrarySnapshot>>);
+    vi.mocked(getWorkflows).mockResolvedValue([] as Awaited<ReturnType<typeof getWorkflows>>);
+    vi.mocked(getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot).mockResolvedValue({
+      bindings: [],
+      follow_up_count: 0,
+      legacy_token_binding_count: 0,
+      summary: []
+    } as unknown as Awaited<ReturnType<typeof getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot>>);
+
+    await NewWorkflowPage({
+      searchParams: Promise.resolve({ starter: "starter-workspace-1" })
+    });
+
+    expect(
+      vi.mocked(getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot)
+    ).toHaveBeenCalledTimes(1);
   });
 
   it("redirects unauthenticated users back to login", async () => {

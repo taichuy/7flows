@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { WorkspaceShell } from "@/components/workspace-shell";
-import { WorkflowCreateWizard } from "@/components/workflow-create-wizard";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import { getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/get-workflow-publish";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
@@ -32,7 +31,11 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
   const shouldScopeWorkspaceStarters = hasScopedWorkspaceStarterGovernanceFilters(
     workspaceStarterViewState
   );
-  const [workflowLibrary, workflows, legacyAuthGovernanceSnapshot] = await Promise.all([
+  const shouldLoadLegacyAuthGovernanceSnapshot =
+    shouldScopeWorkspaceStarters || workspaceStarterViewState.selectedTemplateId !== null;
+  const [{ WorkflowCreateWizard }, workflowLibrary, workflows, legacyAuthGovernanceSnapshot] =
+    await Promise.all([
+      import("@/components/workflow-create-wizard"),
     getWorkflowLibrarySnapshot({
       businessTrack:
         workspaceStarterViewState.activeTrack === "all"
@@ -48,8 +51,10 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
       includeStarterDefinitions: true
     }),
     getWorkflows(),
-    getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot()
-  ]);
+      shouldLoadLegacyAuthGovernanceSnapshot
+        ? getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot()
+        : Promise.resolve(null)
+    ]);
 
   return (
     <WorkspaceShell

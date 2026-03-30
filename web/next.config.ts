@@ -18,6 +18,9 @@ export default function createNextConfig(phase: string): NextConfigWithDevOrigin
       ? { outputFileTracingRoot: path.resolve(__dirname, "..") }
       : {}),
     allowedDevOrigins: NEXT_DEV_ALLOWED_ORIGINS,
+    turbopack: {
+      root: path.resolve(__dirname, "..")
+    },
     images: {
       maximumDiskCacheSize: 0
     },

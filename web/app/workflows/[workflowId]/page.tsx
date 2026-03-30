@@ -4,15 +4,11 @@ import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { WorkspaceShell } from "@/components/workspace-shell";
-import { WorkflowEditorWorkbench } from "@/components/workflow-editor-workbench";
-import { WorkflowPublishPanel } from "@/components/workflow-publish-panel";
 import { getCredentials } from "@/lib/get-credentials";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
-import { getWorkflowPublishedEndpoints } from "@/lib/get-workflow-publish";
-import { getWorkflowPublishGovernanceSnapshot } from "@/lib/get-workflow-publish-governance";
 import { getWorkflowRuns } from "@/lib/get-workflow-runs";
 import {
   appendWorkflowLibraryViewState,
@@ -112,6 +108,9 @@ export default async function WorkflowEditorPage({
       : "draft only";
 
   if (isEditorSurface) {
+    const { WorkflowEditorWorkbench } = await import(
+      "@/components/workflow-editor-workbench"
+    );
     const [workflows, workflowLibrary, pluginRegistry, systemOverview, recentRuns, credentials] =
       await Promise.all([
         getWorkflows(),
@@ -162,10 +161,19 @@ export default async function WorkflowEditorPage({
     );
   }
 
+  const [
+    { WorkflowPublishPanel },
+    workflowPublishModule,
+    workflowPublishGovernanceModule
+  ] = await Promise.all([
+    import("@/components/workflow-publish-panel"),
+    import("@/lib/get-workflow-publish"),
+    import("@/lib/get-workflow-publish-governance")
+  ]);
   const [pluginRegistry, systemOverview, publishedEndpoints] = await Promise.all([
     getPluginRegistrySnapshot(),
     getSystemOverview(),
-    getWorkflowPublishedEndpoints(workflowId, {
+    workflowPublishModule.getWorkflowPublishedEndpoints(workflowId, {
       includeAllVersions: true
     })
   ]);
@@ -187,9 +195,13 @@ export default async function WorkflowEditorPage({
     invocationAuditsByBinding,
     invocationDetailsByBinding,
     rateLimitWindowAuditsByBinding
-  } = await getWorkflowPublishGovernanceSnapshot(workflow.id, publishedEndpoints, {
+  } = await workflowPublishGovernanceModule.getWorkflowPublishGovernanceSnapshot(
+    workflow.id,
+    publishedEndpoints,
+    {
     activeInvocationFilter: publishActivityFilters.governanceFetchFilter
-  });
+    }
+  );
 
   return (
     <WorkflowStudioShell
