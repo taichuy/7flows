@@ -1,11 +1,10 @@
-"use client";
-
 import type { ReactNode } from "react";
-import { usePathname } from "next/navigation";
 import { WorkspaceShell } from "@/components/workspace-shell";
+import type { WorkspaceShellActiveNav } from "@/components/workspace-shell";
 import type { WorkspaceMemberRole } from "@/lib/workspace-access";
 
 type StudioShellProps = {
+  activeNav: WorkspaceShellActiveNav;
   children: ReactNode;
   userName: string;
   userRole: WorkspaceMemberRole;
@@ -13,25 +12,12 @@ type StudioShellProps = {
 };
 
 export function StudioShell({
+  activeNav,
   children,
   userName,
   userRole,
   workspaceName
 }: StudioShellProps) {
-  const pathname = usePathname() ?? "/";
-
-  let activeNav: "workspace" | "workflows" | "runs" | "starters" | "ops" | "team" = "workspace";
-  
-  if (pathname.startsWith("/runs")) {
-    activeNav = "runs";
-  } else if (pathname.startsWith("/sensitive-access")) {
-    activeNav = "ops";
-  } else if (pathname.startsWith("/workflows")) {
-    activeNav = "workflows";
-  } else if (pathname.startsWith("/workspace-starters")) {
-    activeNav = "starters";
-  }
-
   return (
     <WorkspaceShell
       activeNav={activeNav}

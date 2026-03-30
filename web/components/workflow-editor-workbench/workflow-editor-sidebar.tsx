@@ -90,6 +90,7 @@ type WorkflowEditorSidebarProps = {
   hasScopedWorkspaceStarterFilters?: boolean;
   isLoadingRunOverlay: boolean;
   isRefreshingRuns: boolean;
+  onActiveTabChange?: (tabKey: WorkflowEditorSidebarTabKey) => void;
   onAddNode: (type: string) => void;
   onNavigateValidationIssue: (item: WorkflowValidationNavigatorItem) => void;
   onSelectRunId: (runId: string | null) => void;
@@ -97,6 +98,7 @@ type WorkflowEditorSidebarProps = {
 };
 
 type WorkflowEditorNodeRailView = "catalog" | "drafts";
+type WorkflowEditorSidebarTabKey = "1" | "2" | "3";
 
 function buildValidationIssueGovernancePreview(item: WorkflowValidationNavigatorItem) {
   const chips: string[] = [];
@@ -176,6 +178,7 @@ function WorkflowEditorSidebarComponent({
   hasScopedWorkspaceStarterFilters = false,
   isLoadingRunOverlay,
   isRefreshingRuns,
+  onActiveTabChange,
   onAddNode,
   onNavigateValidationIssue,
   onSelectRunId,
@@ -278,7 +281,7 @@ function WorkflowEditorSidebarComponent({
       })
     };
   });
-  const preferredTabKey = useMemo(() => {
+  const preferredTabKey = useMemo<WorkflowEditorSidebarTabKey>(() => {
     if (selectedRunId) {
       return "3";
     }
@@ -301,7 +304,10 @@ function WorkflowEditorSidebarComponent({
     validationNavigatorItems.length,
     selectedRunId
   ]);
-  const [activeTabKey, setActiveTabKey] = useState(preferredTabKey);
+  const [activeTabKey, setActiveTabKey] = useState<WorkflowEditorSidebarTabKey>(preferredTabKey);
+  const [activatedTabKeys, setActivatedTabKeys] = useState<WorkflowEditorSidebarTabKey[]>([
+    preferredTabKey
+  ]);
   const [nodeSearch, setNodeSearch] = useState("");
   const [nodeRailView, setNodeRailView] = useState<WorkflowEditorNodeRailView>("catalog");
   const filteredEditorNodeLibrary = useMemo(() => {
@@ -377,15 +383,30 @@ function WorkflowEditorSidebarComponent({
   }, [preferredTabKey, workflowId]);
 
   useEffect(() => {
+    setActivatedTabKeys((currentKeys) =>
+      currentKeys.includes(activeTabKey)
+        ? currentKeys
+        : [...currentKeys, activeTabKey]
+    );
+  }, [activeTabKey]);
+
+  useEffect(() => {
+    onActiveTabChange?.(activeTabKey);
+  }, [activeTabKey, onActiveTabChange]);
+
+  useEffect(() => {
     setNodeRailView("catalog");
   }, [workflowId]);
+
+  const hasActivatedDiagnosticsPanel = activatedTabKeys.includes("2");
+  const hasActivatedRunPanel = activatedTabKeys.includes("3");
 
   return (
     <aside className="editor-sidebar">
       <Tabs
         activeKey={activeTabKey}
         className="workflow-editor-sidebar-tabs"
-        onChange={setActiveTabKey}
+        onChange={(tabKey) => setActiveTabKey(tabKey as WorkflowEditorSidebarTabKey)}
         centered
         items={[
         {
@@ -540,7 +561,8 @@ function WorkflowEditorSidebarComponent({
           key: '2',
           label: '诊断',
           children: (
-            <article className="diagnostic-panel editor-panel">
+            hasActivatedDiagnosticsPanel ? (
+            <article className="diagnostic-panel editor-panel" data-component="workflow-editor-diagnostics-panel">
               <div className="section-heading">
                 <div>
                   <p className="eyebrow">编辑器反馈</p>
@@ -640,12 +662,20 @@ function WorkflowEditorSidebarComponent({
                 </div>
               ) : null}
             </article>
+            ) : (
+            <article className="diagnostic-panel editor-panel" data-component="workflow-editor-diagnostics-panel-deferred">
+              <h2>诊断面板</h2>
+              <p className="section-copy">只有切到诊断时，才挂载保存阻断、治理摘要与 remediation 明细。</p>
+            </article>
+            )
           )
         },
         {
           key: '3',
           label: '运行',
           children: (
+            hasActivatedRunPanel ? (
+            <div data-component="workflow-editor-run-overlay-panel">
             <WorkflowRunOverlayPanel
               currentHref={currentHref}
               runs={runs}
@@ -663,6 +693,13 @@ function WorkflowEditorSidebarComponent({
               onSelectRunId={onSelectRunId}
               onRefreshRuns={onRefreshRuns}
             />
+            </div>
+            ) : (
+            <article className="diagnostic-panel editor-panel" data-component="workflow-editor-run-overlay-deferred">
+              <h2>运行面板</h2>
+              <p className="section-copy">切到运行后再加载最近 runs、snapshot 与 trace，默认画布首屏不提前挂载。</p>
+            </article>
+            )
           )
         }
       ]}

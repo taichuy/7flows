@@ -4,7 +4,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import WorkflowEditorPage from "@/app/workflows/[workflowId]/page";
+import WorkflowDetailCompatPage from "@/app/workflows/[workflowId]/page";
+import WorkflowEditorPage from "@/app/workflows/[workflowId]/editor/page";
+import WorkflowPublishPage from "@/app/workflows/[workflowId]/publish/page";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
@@ -162,8 +164,32 @@ beforeEach(() => {
   } as Awaited<ReturnType<typeof getWorkflowPublishGovernanceSnapshot>>);
 });
 
-describe("WorkflowEditorPage", () => {
-  it("renders only the editor surface by default", async () => {
+describe("Workflow studio routes", () => {
+  it("redirects the legacy detail route to the canonical editor surface", async () => {
+    await expect(
+      WorkflowDetailCompatPage({
+        params: Promise.resolve({ workflowId: "workflow-1" }),
+        searchParams: Promise.resolve({})
+      })
+    ).rejects.toThrowError("redirect:/workflows/workflow-1/editor");
+  });
+
+  it("preserves non-surface search params when redirecting to publish", async () => {
+    await expect(
+      WorkflowDetailCompatPage({
+        params: Promise.resolve({ workflowId: "workflow-1" }),
+        searchParams: Promise.resolve({
+          surface: "publish",
+          track: "应用新建编排",
+          publish_binding: "binding-1"
+        })
+      })
+    ).rejects.toThrowError(
+      "redirect:/workflows/workflow-1/publish?publish_binding=binding-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
+    );
+  });
+
+  it("renders only the editor surface on the canonical editor route", async () => {
     const html = renderToStaticMarkup(
       await WorkflowEditorPage({
         params: Promise.resolve({ workflowId: "workflow-1" }),
@@ -182,19 +208,20 @@ describe("WorkflowEditorPage", () => {
     expect(html).toContain("运行诊断");
     expect(html).toContain("Starter 模板");
     expect(html).toContain("编排中心");
-    expect(html).toContain("?surface=editor");
-    expect(html).toContain("?surface=publish");
+    expect(html).toContain("/workflows/workflow-1/editor");
+    expect(html).toContain("/workflows/workflow-1/publish");
+    expect(html).not.toContain("?surface=");
     expect(vi.mocked(getWorkflows)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(getWorkflowLibrarySnapshot)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(getWorkflowPublishedEndpoints)).not.toHaveBeenCalled();
     expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).not.toHaveBeenCalled();
   });
 
-  it("loads only publish data when entering publish governance", async () => {
+  it("loads only publish data on the canonical publish route", async () => {
     const html = renderToStaticMarkup(
-      await WorkflowEditorPage({
+      await WorkflowPublishPage({
         params: Promise.resolve({ workflowId: "workflow-1" }),
-        searchParams: Promise.resolve({ surface: "publish" })
+        searchParams: Promise.resolve({ publish_binding: "binding-1" })
       })
     );
 
@@ -203,6 +230,8 @@ describe("WorkflowEditorPage", () => {
     expect(html).toContain("publish governance");
     expect(html).toContain("Workflow 1");
     expect(html).toContain("draft only");
+    expect(html).toContain("/workflows/workflow-1/editor");
+    expect(html).toContain("/workflows/workflow-1/publish");
     expect(vi.mocked(getWorkflowPublishedEndpoints)).toHaveBeenCalledWith("workflow-1", {
       includeAllVersions: true
     });
@@ -211,7 +240,7 @@ describe("WorkflowEditorPage", () => {
     expect(vi.mocked(getWorkflowLibrarySnapshot)).not.toHaveBeenCalled();
   });
 
-  it("redirects unauthenticated users back to login", async () => {
+  it("redirects unauthenticated editor access back to login with the canonical route", async () => {
     vi.mocked(getServerWorkspaceContext).mockResolvedValue(null);
 
     await expect(
@@ -219,6 +248,6 @@ describe("WorkflowEditorPage", () => {
         params: Promise.resolve({ workflowId: "workflow-1" }),
         searchParams: Promise.resolve({})
       })
-    ).rejects.toThrowError("redirect:/login?next=/workflows/workflow-1");
+    ).rejects.toThrowError("redirect:/login?next=%2Fworkflows%2Fworkflow-1%2Feditor");
   });
 });

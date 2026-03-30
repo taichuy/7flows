@@ -109,6 +109,9 @@ describe("WorkflowEditorInspector", () => {
     expect(html).toContain("AI");
     expect(html).toContain("JSON");
     expect(html).toContain('data-component="node-config-form"');
+    expect(html).not.toContain('data-component="node-io-schema-form"');
+    expect(html).not.toContain('data-component="node-runtime-policy-form"');
+    expect(html).not.toContain('data-component="workflow-editor-assistant-panel"');
   });
 
   it("falls back to workflow-level tabs when nothing is selected", () => {
@@ -121,5 +124,28 @@ describe("WorkflowEditorInspector", () => {
     expect(html).toContain("发布");
     expect(html).toContain("选中节点后，右侧面板只跟随当前节点。");
     expect(html).toContain("从顶栏打开 AI 辅助后，仍在这里展开。");
+    expect(html).not.toContain('data-component="workflow-editor-variable-form"');
+    expect(html).not.toContain('data-component="workflow-editor-publish-form"');
+  });
+
+  it("mounts the publish form only when publish becomes the active focus", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorInspector, {
+        ...buildProps(),
+        focusedValidationItem: {
+          key: "publish:endpoint:0:slug",
+          message: "publish slug missing",
+          target: {
+            scope: "publish",
+            label: "Publish endpoint",
+            endpointIndex: 0,
+            fieldPath: "slug"
+          }
+        } as never
+      })
+    );
+
+    expect(html).toContain('data-component="workflow-editor-publish-panel"');
+    expect(html).toContain('data-component="workflow-editor-publish-form"');
   });
 });

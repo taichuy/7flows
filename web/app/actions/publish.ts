@@ -20,7 +20,17 @@ import {
   buildWorkflowPublishLegacyAuthCleanupSuccessMessage,
   buildWorkflowPublishLegacyAuthCleanupValidationMessage,
 } from "@/lib/workflow-publish-legacy-auth-cleanup";
-import { buildWorkflowDetailHref } from "@/lib/workbench-links";
+import {
+  buildWorkflowDetailHref,
+  buildWorkflowStudioSurfaceHref
+} from "@/lib/workbench-links";
+
+
+function revalidateWorkflowStudioPaths(workflowId: string) {
+  revalidatePath(buildWorkflowDetailHref(workflowId));
+  revalidatePath(buildWorkflowStudioSurfaceHref(workflowId, "editor"));
+  revalidatePath(buildWorkflowStudioSurfaceHref(workflowId, "publish"));
+}
 
 export type UpdatePublishedEndpointLifecycleState = {
   status: "idle" | "success" | "error";
@@ -108,7 +118,7 @@ export async function updatePublishedEndpointLifecycle(
       };
     }
 
-    revalidatePath(buildWorkflowDetailHref(workflowId));
+    revalidateWorkflowStudioPaths(workflowId);
     return {
       status: "success",
       message: buildWorkflowPublishLifecycleMutationSuccessMessage({
@@ -183,7 +193,7 @@ export async function createPublishedEndpointApiKey(
       };
     }
 
-    revalidatePath(buildWorkflowDetailHref(workflowId));
+    revalidateWorkflowStudioPaths(workflowId);
     return {
       status: "success",
       message: buildWorkflowPublishApiKeyMutationSuccessMessage({
@@ -256,7 +266,7 @@ export async function cleanupLegacyPublishedEndpointBindings(
       };
     }
 
-    revalidatePath(buildWorkflowDetailHref(workflowId));
+    revalidateWorkflowStudioPaths(workflowId);
     return {
       status: "success",
       message: buildWorkflowPublishLegacyAuthCleanupSuccessMessage({
@@ -325,7 +335,7 @@ export async function revokePublishedEndpointApiKey(
       };
     }
 
-    revalidatePath(buildWorkflowDetailHref(workflowId));
+    revalidateWorkflowStudioPaths(workflowId);
     return {
       status: "success",
       message: buildWorkflowPublishApiKeyMutationSuccessMessage({

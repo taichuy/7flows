@@ -4,6 +4,7 @@ import {
   buildWorkflowCreateHrefFromWorkspaceStarterViewState,
   buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   buildWorkflowEditorHrefFromWorkspaceStarterViewState,
+  buildWorkflowPublishHrefFromWorkspaceStarterViewState,
   buildWorkflowLibraryHrefFromWorkspaceStarterViewState,
   buildWorkspaceHrefFromWorkspaceStarterViewState,
   buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState,
@@ -48,7 +49,10 @@ describe("workspace-starter-governance-query", () => {
     expect(
       buildWorkflowEditorHrefFromWorkspaceStarterViewState("  workflow alpha/beta  ", viewState)
     ).toBe(
-      "/workflows/workflow%20alpha%2Fbeta?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=workspace-starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
+      "/workflows/workflow%20alpha%2Fbeta/editor?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=workspace-starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
+    );
+    expect(buildWorkflowPublishHrefFromWorkspaceStarterViewState("  workflow alpha/beta  ", viewState)).toBe(
+      "/workflows/workflow%20alpha%2Fbeta/publish?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=workspace-starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
     );
     expect(buildWorkflowCreateHrefFromWorkspaceStarterViewState(viewState)).toBe(
       "/workflows/new?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=workspace-starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
@@ -77,7 +81,7 @@ describe("workspace-starter-governance-query", () => {
         variant: "recent"
       })
     ).toEqual({
-      href: "/workflows/workflow%20alpha%2Fbeta?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=workspace-starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92",
+      href: "/workflows/workflow%20alpha%2Fbeta/editor?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=workspace-starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92",
       label: "打开最近 workflow"
     });
   });

@@ -168,6 +168,9 @@ export function WorkflowEditorInspector({
     return "workflow-overview";
   }, [focusedValidationItem, highlightedNodeSection, selectedEdge, selectedNode]);
   const [activeTabKey, setActiveTabKey] = useState<WorkflowEditorInspectorTabKey>(preferredTabKey);
+  const [activatedTabKeys, setActivatedTabKeys] = useState<WorkflowEditorInspectorTabKey[]>([
+    preferredTabKey
+  ]);
   const assistantContext = useMemo<WorkflowEditorAssistantContext | null>(() => {
     if (!selectedNode) {
       return null;
@@ -187,6 +190,14 @@ export function WorkflowEditorInspector({
   useEffect(() => {
     setActiveTabKey(preferredTabKey);
   }, [preferredTabKey]);
+
+  useEffect(() => {
+    setActivatedTabKeys((currentKeys) =>
+      currentKeys.includes(activeTabKey)
+        ? currentKeys
+        : [...currentKeys, activeTabKey]
+    );
+  }, [activeTabKey]);
 
   useEffect(() => {
     if (!assistantContext || assistantRequestSerial === 0) {
@@ -255,9 +266,26 @@ export function WorkflowEditorInspector({
     : selectedEdge
       ? `edge:${selectedEdge.id}`
       : "workflow";
+  const hasActivatedTab = (tabKey: WorkflowEditorInspectorTabKey) =>
+    activatedTabKeys.includes(tabKey);
+  const renderDeferredTabPanel = (
+    dataComponent: string,
+    title: string,
+    description: string
+  ) => (
+    <div className="workflow-editor-inspector-section" data-component={dataComponent}>
+      <div className="workflow-editor-inspector-section-title">{title}</div>
+      <Text type="secondary">{description}</Text>
+    </div>
+  );
 
-  const assistantPanel = assistantContext ? (
-    <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+  const assistantPanel = hasActivatedTab("node-assistant") && assistantContext ? (
+    <Space
+      orientation="vertical"
+      size="large"
+      style={{ width: "100%" }}
+      data-component="workflow-editor-assistant-panel"
+    >
       <div className="workflow-editor-assistant-hero">
         <div className="workflow-editor-assistant-hero-copy">
           <div className="workflow-editor-inspector-section-title">节点上下文</div>
@@ -349,10 +377,21 @@ export function WorkflowEditorInspector({
         </div>
       </div>
     </Space>
+  ) : assistantContext ? (
+    renderDeferredTabPanel(
+      "workflow-editor-assistant-panel-deferred",
+      "AI 辅助",
+      "只有从顶栏或 AI 标签进入时，才挂载节点上下文建议与本地对话线程。"
+    )
   ) : null;
 
-  const workflowPublishPanel = (
-    <Space orientation="vertical" size="large" style={{ width: "100%" }}>
+  const workflowPublishPanel = hasActivatedTab("workflow-publish") ? (
+    <Space
+      orientation="vertical"
+      size="large"
+      style={{ width: "100%" }}
+      data-component="workflow-editor-publish-panel"
+    >
       {persistBlockedMessage ? (
         <WorkflowPersistBlockerNotice
           title="Publish gate"
@@ -379,18 +418,32 @@ export function WorkflowEditorInspector({
         highlightedEndpointFieldPath={highlightedPublishEndpointFieldPath}
       />
     </Space>
+  ) : (
+    renderDeferredTabPanel(
+      "workflow-editor-publish-panel-deferred",
+      "发布配置",
+      "只有切到发布标签或命中 publish 校验项时，才挂载发布表单。"
+    )
   );
 
-  const workflowVariablesPanel = (
-    <WorkflowEditorVariableForm
-      currentHref={currentHref}
-      variables={workflowVariables}
-      onChange={onWorkflowVariablesChange}
-      highlightedVariableIndex={highlightedVariableIndex}
-      highlightedVariableFieldPath={highlightedVariableFieldPath}
-      focusedValidationItem={focusedValidationItem}
-      sandboxReadiness={sandboxReadiness}
-    />
+  const workflowVariablesPanel = hasActivatedTab("workflow-variables") ? (
+    <div data-component="workflow-editor-variable-panel">
+      <WorkflowEditorVariableForm
+        currentHref={currentHref}
+        variables={workflowVariables}
+        onChange={onWorkflowVariablesChange}
+        highlightedVariableIndex={highlightedVariableIndex}
+        highlightedVariableFieldPath={highlightedVariableFieldPath}
+        focusedValidationItem={focusedValidationItem}
+        sandboxReadiness={sandboxReadiness}
+      />
+    </div>
+  ) : (
+    renderDeferredTabPanel(
+      "workflow-editor-variable-panel-deferred",
+      "变量配置",
+      "只有切到变量标签时，才挂载变量编辑表单。"
+    )
   );
 
   const tabItems = selectedNode
@@ -398,7 +451,7 @@ export function WorkflowEditorInspector({
         {
           key: "node-config",
           label: "配置",
-          children: (
+          children: hasActivatedTab("node-config") ? (
             <Space orientation="vertical" size="large" style={{ width: "100%" }}>
               <div className="workflow-editor-inspector-section">
                 <div className="workflow-editor-inspector-section-title">节点名称</div>
@@ -423,12 +476,18 @@ export function WorkflowEditorInspector({
                 onChange={onNodeConfigChange}
               />
             </Space>
+          ) : (
+            renderDeferredTabPanel(
+              "workflow-editor-node-config-panel-deferred",
+              "节点配置",
+              "只有切到配置标签时，才挂载节点配置表单。"
+            )
           )
         },
         {
           key: "node-schema",
           label: "I/O",
-          children: (
+          children: hasActivatedTab("node-schema") ? (
             <WorkflowNodeIoSchemaForm
               node={selectedNode}
               currentHref={currentHref}
@@ -443,12 +502,18 @@ export function WorkflowEditorInspector({
               }
               sandboxReadiness={sandboxReadiness}
             />
+          ) : (
+            renderDeferredTabPanel(
+              "workflow-editor-node-schema-panel-deferred",
+              "I/O contract",
+              "只有切到 I/O 标签或命中 contract 校验项时，才挂载 schema 表单。"
+            )
           )
         },
         {
           key: "node-runtime",
           label: "运行",
-          children: (
+          children: hasActivatedTab("node-runtime") ? (
             <WorkflowNodeRuntimePolicyForm
               node={selectedNode}
               nodes={nodes}
@@ -464,6 +529,12 @@ export function WorkflowEditorInspector({
               }
               sandboxReadiness={sandboxReadiness}
             />
+          ) : (
+            renderDeferredTabPanel(
+              "workflow-editor-node-runtime-panel-deferred",
+              "运行策略",
+              "只有切到运行标签或命中 runtime 校验项时，才挂载 runtime policy 表单。"
+            )
           )
         },
         {
@@ -474,7 +545,7 @@ export function WorkflowEditorInspector({
         {
           key: "node-json",
           label: "JSON",
-          children: (
+          children: hasActivatedTab("node-json") ? (
             <Space orientation="vertical" size="large" style={{ width: "100%" }}>
               <div className="workflow-editor-inspector-section">
                 <div className="workflow-editor-inspector-section-title">高级 config JSON</div>
@@ -496,6 +567,12 @@ export function WorkflowEditorInspector({
                 </Button>
               </div>
             </Space>
+          ) : (
+            renderDeferredTabPanel(
+              "workflow-editor-node-json-panel-deferred",
+              "高级 JSON",
+              "只有切到 JSON 标签时，才挂载原始 config 编辑器。"
+            )
           )
         }
       ]

@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 
 import {
   buildRunDetailHref,
-  buildWorkflowDetailHref
+  buildWorkflowDetailHref,
+  buildWorkflowStudioSurfaceHref
 } from "@/lib/workbench-links";
 
 import { fetchRunSnapshots, type RunSnapshotWithId } from "./run-snapshot";
@@ -22,6 +23,12 @@ function extractWorkflowIds(samples: RunSnapshotWithId[]) {
   return normalizeIds(samples.map((item) => item.snapshot?.workflowId));
 }
 
+function revalidateWorkflowStudioPaths(workflowId: string) {
+  revalidatePath(buildWorkflowDetailHref(workflowId));
+  revalidatePath(buildWorkflowStudioSurfaceHref(workflowId, "editor"));
+  revalidatePath(buildWorkflowStudioSurfaceHref(workflowId, "publish"));
+}
+
 export async function revalidateOperatorFollowUpPaths({
   runIds = [],
   workflowIds = []
@@ -34,7 +41,7 @@ export async function revalidateOperatorFollowUpPaths({
   }
 
   for (const workflowId of normalizeIds(workflowIds)) {
-    revalidatePath(buildWorkflowDetailHref(workflowId));
+    revalidateWorkflowStudioPaths(workflowId);
   }
 }
 

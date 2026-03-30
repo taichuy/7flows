@@ -200,7 +200,7 @@ describe("workflow publish activity query", () => {
         }
       })
     ).toBe(
-      "/workflows/workflow-1?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&publish_binding=binding-1&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_window=24h&publish_invocation=invocation-1"
+      "/workflows/workflow-1/publish?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&publish_binding=binding-1&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_window=24h&publish_invocation=invocation-1"
     );
   });
 
@@ -231,7 +231,7 @@ describe("workflow publish activity query", () => {
         invocationId: "invocation-1"
       })
     ).toBe(
-      "/workflows/workflow-1?definition_issue=missing_tool&publish_binding=binding-1&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_window=24h&publish_invocation=invocation-1"
+      "/workflows/workflow-1/publish?definition_issue=missing_tool&publish_binding=binding-1&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_window=24h&publish_invocation=invocation-1"
     );
   });
 
@@ -268,7 +268,7 @@ describe("workflow publish activity query", () => {
         invocationId: "invocation-1",
       })
     ).toBe(
-      "/workflows/workflow-1?definition_issue=legacy_publish_auth&publish_binding=binding-1&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_window=24h&publish_invocation=invocation-1"
+      "/workflows/workflow-1/publish?definition_issue=legacy_publish_auth&publish_binding=binding-1&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_window=24h&publish_invocation=invocation-1"
     );
   });
 });

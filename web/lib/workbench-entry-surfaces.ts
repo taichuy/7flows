@@ -4,7 +4,7 @@ import {
   type OperatorFollowUpLinkSurface
 } from "@/lib/operator-follow-up-presenters";
 import type { WorkbenchEntryLinksConfig } from "@/lib/workbench-entry-links";
-import { buildWorkflowDetailHref } from "@/lib/workbench-links";
+import { buildWorkflowDetailHref, buildWorkflowStudioSurfaceHref } from "@/lib/workbench-links";
 
 export type AuthorFacingRunDetailLinkVariant = "activity" | "latest";
 export type AuthorFacingWorkflowDetailLinkVariant = "chip" | "editor" | "recent" | "source";
@@ -255,7 +255,10 @@ export function buildAuthorFacingWorkflowDetailLinkSurface({
   variant?: AuthorFacingWorkflowDetailLinkVariant;
 }): OperatorFollowUpLinkSurface {
   return {
-    href: buildWorkflowDetailHref(workflowId),
+    href:
+      variant === "editor"
+        ? buildWorkflowStudioSurfaceHref(workflowId, "editor")
+        : buildWorkflowDetailHref(workflowId),
     label: authorFacingWorkflowDetailLinkLabels[variant]
   };
 }

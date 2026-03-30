@@ -9,8 +9,16 @@ import {
 import { getWorkspaceBadgeLabel } from "@/lib/workspace-ui";
 import { WorkspaceLogoutButton } from "@/components/workspace-logout-button";
 
+export type WorkspaceShellActiveNav =
+  | "workspace"
+  | "workflows"
+  | "runs"
+  | "starters"
+  | "ops"
+  | "team";
+
 type WorkspaceShellProps = {
-  activeNav: "workspace" | "workflows" | "runs" | "starters" | "ops" | "team";
+  activeNav: WorkspaceShellActiveNav;
   children: ReactNode;
   layout?: "default" | "focused" | "editor";
   userName: string;

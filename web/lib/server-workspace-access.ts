@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 
 import { getApiBaseUrl } from "@/lib/api-base-url";
@@ -31,26 +32,26 @@ async function fetchWorkspaceAccessJson<T>(path: string, token: string): Promise
   }
 }
 
-export async function getServerSessionToken() {
+export const getServerSessionToken = cache(async () => {
   const cookieStore = await cookies();
   return cookieStore.get(SESSION_COOKIE_NAME)?.value ?? null;
-}
+});
 
-export async function getServerAuthSession(): Promise<AuthSessionResponse | null> {
+export const getServerAuthSession = cache(async (): Promise<AuthSessionResponse | null> => {
   const token = await getServerSessionToken();
   if (!token) {
     return null;
   }
   return fetchWorkspaceAccessJson<AuthSessionResponse>("/api/auth/session", token);
-}
+});
 
-export async function getServerWorkspaceContext(): Promise<WorkspaceContextResponse | null> {
+export const getServerWorkspaceContext = cache(async (): Promise<WorkspaceContextResponse | null> => {
   const token = await getServerSessionToken();
   if (!token) {
     return null;
   }
   return fetchWorkspaceAccessJson<WorkspaceContextResponse>("/api/workspace/context", token);
-}
+});
 
 export async function getServerWorkspaceMembers(): Promise<WorkspaceMemberItem[]> {
   const token = await getServerSessionToken();

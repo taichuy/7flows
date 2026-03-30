@@ -7,6 +7,7 @@ import {
   type AuthorFacingWorkflowDetailLinkVariant,
   buildAuthorFacingWorkflowDetailLinkSurface
 } from "@/lib/workbench-entry-surfaces";
+import { buildWorkflowStudioSurfaceHref } from "@/lib/workbench-links";
 import { buildRunDetailHref } from "@/lib/workbench-links";
 
 export type TrackFilter = "all" | WorkflowBusinessTrack;
@@ -214,10 +215,20 @@ export function buildWorkflowEditorHrefFromWorkspaceStarterViewState(
 ) {
   const searchParams = buildWorkspaceStarterGovernanceSearchParams(viewState);
   const query = searchParams.toString();
-  const workflowHref = buildAuthorFacingWorkflowDetailLinkSurface({
-    workflowId,
-    variant: "editor"
-  }).href;
+  const workflowHref = buildWorkflowStudioSurfaceHref(workflowId, "editor");
+  return query ? `${workflowHref}?${query}` : workflowHref;
+}
+
+export function buildWorkflowPublishHrefFromWorkspaceStarterViewState(
+  workflowId: string,
+  viewState: Pick<
+    WorkspaceStarterLibraryViewState,
+    "activeTrack" | "sourceGovernanceKind" | "needsFollowUp" | "searchQuery" | "selectedTemplateId"
+  >
+) {
+  const searchParams = buildWorkspaceStarterGovernanceSearchParams(viewState);
+  const query = searchParams.toString();
+  const workflowHref = buildWorkflowStudioSurfaceHref(workflowId, "publish");
   return query ? `${workflowHref}?${query}` : workflowHref;
 }
 

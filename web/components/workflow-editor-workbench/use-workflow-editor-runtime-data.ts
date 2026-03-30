@@ -9,6 +9,8 @@ type UseWorkflowEditorRuntimeDataOptions = {
   workflowId: string;
   initialCredentials?: CredentialItem[];
   initialRecentRuns?: WorkflowRunListItem[];
+  loadCredentials?: boolean;
+  loadRecentRuns?: boolean;
 };
 
 type RuntimeDataState = {
@@ -46,31 +48,56 @@ function cancelRuntimeDataLoad(handle: IdleCallbackHandle) {
 export function useWorkflowEditorRuntimeData({
   workflowId,
   initialCredentials = [],
-  initialRecentRuns = []
+  initialRecentRuns = [],
+  loadCredentials = true,
+  loadRecentRuns = true
 }: UseWorkflowEditorRuntimeDataOptions): RuntimeDataState {
   const [credentials, setCredentials] = useState(initialCredentials);
   const [recentRuns, setRecentRuns] = useState(initialRecentRuns);
 
   useEffect(() => {
+    if (!loadCredentials) {
+      return;
+    }
+
     let active = true;
     const handle = scheduleRuntimeDataLoad(() => {
-      void Promise.all([getCredentials(true), getWorkflowRuns(workflowId)]).then(
-        ([nextCredentials, nextRecentRuns]) => {
-          if (!active) {
-            return;
-          }
-
-          setCredentials(nextCredentials);
-          setRecentRuns(nextRecentRuns);
+      void getCredentials(true).then((nextCredentials) => {
+        if (!active) {
+          return;
         }
-      );
+
+        setCredentials(nextCredentials);
+      });
     });
 
     return () => {
       active = false;
       cancelRuntimeDataLoad(handle);
     };
-  }, [workflowId]);
+  }, [loadCredentials]);
+
+  useEffect(() => {
+    if (!loadRecentRuns) {
+      return;
+    }
+
+    let active = true;
+    const handle = scheduleRuntimeDataLoad(() => {
+      void getWorkflowRuns(workflowId).then((nextRecentRuns) => {
+        if (!active) {
+          return;
+        }
+
+        setRecentRuns(nextRecentRuns);
+      });
+    });
+
+    return () => {
+      active = false;
+      cancelRuntimeDataLoad(handle);
+    };
+  }, [loadRecentRuns, workflowId]);
 
   return {
     credentials,

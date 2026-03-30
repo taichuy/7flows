@@ -34,7 +34,8 @@ export function useWorkflowEditorPanels({
   graph,
   validation,
   runOverlay,
-  persistence
+  persistence,
+  onActivateRunOverlay
 }: any) {
   useEffect(() => {
     if (graph.selectedNodeId || graph.selectedEdgeId) {
@@ -149,6 +150,11 @@ export function useWorkflowEditorPanels({
     hasScopedWorkspaceStarterFilters,
     isLoadingRunOverlay: runOverlay.isLoadingRunOverlay,
     isRefreshingRuns: runOverlay.isRefreshingRuns,
+    onActiveTabChange: (tabKey) => {
+      if (tabKey === "3") {
+        onActivateRunOverlay();
+      }
+    },
     onAddNode: graph.handleAddNode,
     onNavigateValidationIssue: persistence.handleNavigateValidationIssue,
     onSelectRunId: runOverlay.setSelectedRunId,

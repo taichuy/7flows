@@ -13,11 +13,13 @@ import { fetchRunDetail, fetchRunTrace } from "./run-overlay";
 type UseWorkflowRunOverlayOptions = {
   workflowId: string;
   recentRuns: WorkflowRunListItem[];
+  enabled?: boolean;
 };
 
 export function useWorkflowRunOverlay({
   workflowId,
-  recentRuns
+  recentRuns,
+  enabled = true
 }: UseWorkflowRunOverlayOptions) {
   const [availableRuns, setAvailableRuns] = useState(recentRuns);
   const [selectedRunId, setSelectedRunId] = useState<string | null>(recentRuns[0]?.id ?? null);
@@ -41,8 +43,9 @@ export function useWorkflowRunOverlay({
 
   useEffect(() => {
     let isCancelled = false;
+    const shouldLoadSelectedRun = enabled || Boolean(selectedRunId);
 
-    if (!selectedRunId) {
+    if (!selectedRunId || !shouldLoadSelectedRun) {
       setSelectedRunDetail(null);
       setSelectedRunSnapshot(null);
       setSelectedRunTrace(null);
@@ -74,9 +77,13 @@ export function useWorkflowRunOverlay({
     return () => {
       isCancelled = true;
     };
-  }, [selectedRunId]);
+  }, [enabled, selectedRunId]);
 
   const refreshRecentRuns = async () => {
+    if (!enabled) {
+      return;
+    }
+
     setIsRefreshingRuns(true);
     const refreshedRuns = await getWorkflowRuns(workflowId);
     setAvailableRuns(refreshedRuns);

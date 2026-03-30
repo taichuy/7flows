@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import { StudioShell } from "@/components/studio-shell";
 import { WorkspaceShell } from "@/components/workspace-shell";
 
 Object.assign(globalThis, { React });
@@ -87,5 +88,23 @@ describe("WorkspaceShell", () => {
     expect(html).not.toContain(">模板<");
     expect(html).not.toContain(">团队<");
     expect(html).not.toContain("新建应用");
+  });
+
+  it("keeps the studio wrapper server-driven once active nav is passed by the route tree", () => {
+    const html = renderToStaticMarkup(
+      <StudioShell
+        activeNav="runs"
+        userName="7Flows Admin"
+        userRole="owner"
+        workspaceName="7Flows Workspace"
+      >
+        <div>runs body</div>
+      </StudioShell>
+    );
+
+    expect(html).toContain('data-component="workspace-shell"');
+    expect(html).toContain("运行追踪");
+    expect(html).toContain('href="/runs"');
+    expect(html).toContain('aria-current="page"');
   });
 });

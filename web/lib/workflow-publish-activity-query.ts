@@ -13,11 +13,11 @@ import {
   PUBLISHED_INVOCATION_REQUEST_SURFACES
 } from "@/lib/published-invocation-presenters";
 import { appendWorkflowLibraryViewStateForWorkflow } from "@/lib/workflow-library-query";
-import { buildAuthorFacingWorkflowDetailLinkSurface } from "@/lib/workbench-entry-surfaces";
 import {
-  buildWorkflowEditorHrefFromWorkspaceStarterViewState,
+  buildWorkflowPublishHrefFromWorkspaceStarterViewState,
   type WorkspaceStarterGovernanceQueryScope
 } from "@/lib/workspace-starter-governance-query";
+import { buildWorkflowStudioSurfaceHref } from "@/lib/workbench-links";
 import {
   type WorkflowPublishInvocationActiveFilter,
   resolvePublishWindowRange,
@@ -184,14 +184,11 @@ export function buildWorkflowPublishActivityHref({
   workspaceStarterGovernanceQueryScope = null
 }: WorkflowPublishActivityHrefOptions) {
   const baseWorkflowHref = workspaceStarterGovernanceQueryScope
-    ? buildWorkflowEditorHrefFromWorkspaceStarterViewState(
+    ? buildWorkflowPublishHrefFromWorkspaceStarterViewState(
         workflowId,
         workspaceStarterGovernanceQueryScope
       )
-    : buildAuthorFacingWorkflowDetailLinkSurface({
-        workflowId,
-        variant: "editor"
-      }).href;
+    : buildWorkflowStudioSurfaceHref(workflowId, "publish");
   const workflowHref = workflow
     ? appendWorkflowLibraryViewStateForWorkflow(baseWorkflowHref, workflow, {
         definitionIssue: null
@@ -223,10 +220,7 @@ export function buildWorkflowDetailHrefFromPublishActivityCurrentHref(
     return null;
   }
 
-  const fallbackHref = buildAuthorFacingWorkflowDetailLinkSurface({
-    workflowId: normalizedWorkflowId,
-    variant: "editor"
-  }).href;
+  const fallbackHref = buildWorkflowStudioSurfaceHref(normalizedWorkflowId, "editor");
   const normalizedCurrentHref = normalizeOptionalQueryValue(currentHref);
 
   if (!normalizedCurrentHref) {

@@ -15,6 +15,15 @@ vi.mock("next/link", () => ({
     createElement("a", { href: href ?? "#", ...props }, children)
 }));
 
+vi.mock("@/components/workflow-run-overlay-panel", () => ({
+  WorkflowRunOverlayPanel: () =>
+    createElement(
+      "div",
+      { "data-component": "workflow-run-overlay-panel" },
+      "workflow-run-overlay-panel"
+    )
+}));
+
 function buildSandboxReadiness(): SandboxReadinessCheck {
   return {
     enabled_backend_count: 0,
@@ -148,6 +157,94 @@ function buildNodeCatalogItem(
 }
 
 describe("WorkflowEditorSidebar", () => {
+  it("does not mount run overlay content before the run tab is opened", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorSidebar, {
+        workflowId: "workflow-1",
+        workflowName: "Demo workflow",
+        workflows: [],
+        nodeSourceLanes: [],
+        toolSourceLanes: [],
+        editorNodeLibrary: [],
+        plannedNodeLibrary: [],
+        unsupportedNodes: [],
+        message: null,
+        messageTone: "idle",
+        persistBlockerSummary: null,
+        persistBlockers: [],
+        executionPreflightMessage: null,
+        toolExecutionValidationIssueCount: 0,
+        validationNavigatorItems: [],
+        runs: [],
+        selectedRunId: null,
+        run: null,
+        runSnapshot: null,
+        trace: null,
+        traceError: null,
+        selectedNodeId: null,
+        sandboxReadiness: buildSandboxReadiness(),
+        isLoadingRunOverlay: false,
+        isRefreshingRuns: false,
+        onAddNode: () => undefined,
+        onNavigateValidationIssue: () => undefined,
+        onSelectRunId: () => undefined,
+        onRefreshRuns: () => undefined
+      })
+    );
+
+    expect(html).not.toContain('data-component="workflow-run-overlay-panel"');
+  });
+
+  it("mounts run overlay content when the run tab becomes the active entry", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorSidebar, {
+        workflowId: "workflow-1",
+        workflowName: "Demo workflow",
+        workflows: [],
+        nodeSourceLanes: [],
+        toolSourceLanes: [],
+        editorNodeLibrary: [],
+        plannedNodeLibrary: [],
+        unsupportedNodes: [],
+        message: null,
+        messageTone: "idle",
+        persistBlockerSummary: null,
+        persistBlockers: [],
+        executionPreflightMessage: null,
+        toolExecutionValidationIssueCount: 0,
+        validationNavigatorItems: [],
+        runs: [{
+          id: "run-1",
+          workflow_id: "workflow-1",
+          workflow_version: "0.1.0",
+          status: "completed",
+          created_at: "2026-03-31T03:00:00Z",
+          started_at: "2026-03-31T03:00:01Z",
+          finished_at: "2026-03-31T03:00:02Z",
+          node_run_count: 1,
+          event_count: 3,
+          last_event_at: "2026-03-31T03:00:02Z"
+        }],
+        selectedRunId: "run-1",
+        run: null,
+        runSnapshot: null,
+        trace: null,
+        traceError: null,
+        selectedNodeId: null,
+        sandboxReadiness: buildSandboxReadiness(),
+        isLoadingRunOverlay: false,
+        isRefreshingRuns: false,
+        onAddNode: () => undefined,
+        onNavigateValidationIssue: () => undefined,
+        onSelectRunId: () => undefined,
+        onRefreshRuns: () => undefined
+      })
+    );
+
+    expect(html).toContain('data-component="workflow-editor-run-overlay-panel"');
+    expect(html).toContain('data-component="workflow-run-overlay-panel"');
+  });
+
   it("reuses shared workflow detail hrefs in canvas overview chips", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowEditorSidebar, {
@@ -205,7 +302,7 @@ describe("WorkflowEditorSidebar", () => {
     );
 
     expect(html).toContain(
-      'href="/workflows/workflow%20alpha%2Fbeta?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool"'
+      'href="/workflows/workflow%20alpha%2Fbeta/editor?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool"'
     );
     expect(html).toContain("同域草稿 1");
     expect(html).toContain("切草稿只放这里，不和节点插入混在一起。");
@@ -274,13 +371,13 @@ describe("WorkflowEditorSidebar", () => {
     );
 
     expect(html).toContain(
-      'href="/workflows/workflow%20alpha%2Fbeta?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=legacy_publish_auth"'
+      'href="/workflows/workflow%20alpha%2Fbeta/editor?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=legacy_publish_auth"'
     );
   });
 
   it("marks the current workflow chip as current when the scoped editor href already matches", () => {
     const currentHref =
-      "/workflows/workflow-1?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=workspace-starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool";
+      "/workflows/workflow-1/editor?needs_follow_up=true&q=drift&source_governance_kind=drifted&starter=workspace-starter-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&definition_issue=missing_tool";
     const html = renderToStaticMarkup(
       createElement(WorkflowEditorSidebar, {
         currentHref,
@@ -339,7 +436,7 @@ describe("WorkflowEditorSidebar", () => {
 
     expect(html).toContain('aria-current="page"');
     expect(html).not.toContain(
-      'href="/workflows/workflow-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool"'
+      'href="/workflows/workflow-1/editor?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool"'
     );
   });
 
@@ -668,7 +765,7 @@ describe("WorkflowEditorSidebar", () => {
     expect(html).toContain("Legacy publish auth handoff");
     expect(html).toContain("回到 workflow 编辑器处理 publish auth contract");
     expect(html).toContain(
-      'href="/workflows/workflow-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool"'
+      'href="/workflows/workflow-1/editor?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool"'
     );
   });
 

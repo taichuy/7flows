@@ -2,11 +2,13 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import RunsLayout from "@/app/(studio)/runs/layout";
 import RunsPage from "@/app/(studio)/runs/page";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
+import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import {
   buildSensitiveAccessExecutionContextFixture,
   buildSensitiveAccessExecutionFocusNodeFixture,
@@ -27,6 +29,16 @@ vi.mock("next/link", () => ({
     createElement("a", { href: href ?? "#", ...props }, children)
 }));
 
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn((href: string) => {
+    throw new Error(`redirect:${href}`);
+  }),
+  useRouter: () => ({
+    replace: vi.fn(),
+    refresh: vi.fn()
+  })
+}));
+
 vi.mock("@/lib/get-system-overview", () => ({
   getSystemOverview: vi.fn()
 }));
@@ -35,7 +47,74 @@ vi.mock("@/lib/get-sensitive-access", () => ({
   getSensitiveAccessInboxSnapshot: vi.fn()
 }));
 
+vi.mock("@/lib/server-workspace-access", () => ({
+  getServerWorkspaceContext: vi.fn()
+}));
+
+beforeEach(() => {
+  vi.resetAllMocks();
+});
+
+function buildWorkspaceContext() {
+  return {
+    workspace: {
+      id: "default",
+      name: "7Flows Workspace",
+      slug: "sevenflows"
+    },
+    current_user: {
+      id: "user-admin",
+      email: "admin@taichuy.com",
+      display_name: "7Flows Admin",
+      status: "active",
+      last_login_at: "2026-03-31T02:30:00Z"
+    },
+    current_member: {
+      id: "member-admin",
+      role: "owner",
+      user: {
+        id: "user-admin",
+        email: "admin@taichuy.com",
+        display_name: "7Flows Admin",
+        status: "active",
+        last_login_at: "2026-03-31T02:30:00Z"
+      },
+      invited_by_user_id: null,
+      created_at: "2026-03-31T02:00:00Z",
+      updated_at: "2026-03-31T02:00:00Z"
+    },
+    available_roles: ["owner", "admin", "editor", "viewer"],
+    can_manage_members: true
+  } as Awaited<ReturnType<typeof getServerWorkspaceContext>>;
+}
+
 describe("RunsPage", () => {
+  it("wraps run surfaces in a server-first shell with the runs nav active", async () => {
+    vi.mocked(getServerWorkspaceContext).mockResolvedValue(buildWorkspaceContext());
+
+    const html = renderToStaticMarkup(
+      await RunsLayout({
+        children: <div>runs body</div>
+      })
+    );
+
+    expect(html).toContain('data-component="workspace-shell"');
+    expect(html).toContain("运行追踪");
+    expect(html).toContain('href="/runs"');
+    expect(html).toContain('aria-current="page"');
+    expect(html).toContain("runs body");
+  });
+
+  it("redirects unauthenticated run surfaces to login before rendering the shell", async () => {
+    vi.mocked(getServerWorkspaceContext).mockResolvedValue(null);
+
+    await expect(
+      RunsLayout({
+        children: <div>runs body</div>
+      })
+    ).rejects.toThrow("redirect:/login?next=/runs");
+  });
+
   it("renders recent run links and operator follow-up entry", async () => {
     const surfaceCopy = buildRunLibrarySurfaceCopy();
 
@@ -241,7 +320,7 @@ describe("RunsPage", () => {
     expect(html).toContain(
       "当前 run 对应的 workflow 版本仍有 catalog gap（native.catalog-gap）；先回到 workflow 编辑器补齐 binding / LLM Agent tool policy，再回来继续核对 run 事实。"
     );
-    expect(html).toContain('/workflows/workflow-gap-1?definition_issue=missing_tool');
+    expect(html).toContain('/workflows/workflow-gap-1/editor?definition_issue=missing_tool');
   });
 
   it("surfaces workflow legacy-auth handoff in recent runs", async () => {
@@ -292,7 +371,7 @@ describe("RunsPage", () => {
       "当前 workflow 仍有 0 条 draft cleanup、1 条 published blocker、0 条 offline inventory。Publish auth contract：supported api_key / internal；legacy token。"
     );
     expect(html).toContain(
-      'href="/workflows/workflow-legacy-auth-1?definition_issue=legacy_publish_auth"'
+      'href="/workflows/workflow-legacy-auth-1/editor?definition_issue=legacy_publish_auth"'
     );
   });
 
@@ -429,7 +508,7 @@ describe("RunsPage", () => {
       '/runs/run-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
     );
     expect(html).toContain(
-      '/workflows/workflow-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
+      '/workflows/workflow-1/editor?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
     );
     expect(html).toContain(
       '/workflows?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92'
@@ -438,10 +517,10 @@ describe("RunsPage", () => {
       '/runs/run-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;event_type=callback_waiting&amp;node_run_id=node-run-1#run-diagnostics-execution-timeline'
     );
     expect(html).toContain(
-      '/workflows/workflow-governed?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=legacy_publish_auth'
+      '/workflows/workflow-governed/editor?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=legacy_publish_auth'
     );
     expect(html).toContain(
-      '/workflows/workflow-governed?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool'
+      '/workflows/workflow-governed/editor?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool'
     );
     expect(html).toContain("callback pending");
   });

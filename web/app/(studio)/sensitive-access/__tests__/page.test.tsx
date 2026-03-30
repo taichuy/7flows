@@ -2,11 +2,13 @@ import * as React from "react";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import SensitiveAccessLayout from "@/app/(studio)/sensitive-access/layout";
 import SensitiveAccessInboxPage from "@/app/(studio)/sensitive-access/page";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
+import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import {
   buildLegacyAuthGovernanceDraftCleanupChecklistFixture,
   buildLegacyAuthGovernancePublishedFollowUpChecklistFixture,
@@ -33,6 +35,9 @@ vi.mock("next/link", () => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/sensitive-access",
+  redirect: vi.fn((href: string) => {
+    throw new Error(`redirect:${href}`);
+  }),
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),
@@ -49,6 +54,47 @@ vi.mock("@/lib/get-sensitive-access", () => ({
 vi.mock("@/lib/get-system-overview", () => ({
   getSystemOverview: vi.fn()
 }));
+
+vi.mock("@/lib/server-workspace-access", () => ({
+  getServerWorkspaceContext: vi.fn()
+}));
+
+beforeEach(() => {
+  vi.resetAllMocks();
+});
+
+function buildWorkspaceContext() {
+  return {
+    workspace: {
+      id: "default",
+      name: "7Flows Workspace",
+      slug: "sevenflows"
+    },
+    current_user: {
+      id: "user-admin",
+      email: "admin@taichuy.com",
+      display_name: "7Flows Admin",
+      status: "active",
+      last_login_at: "2026-03-31T02:30:00Z"
+    },
+    current_member: {
+      id: "member-admin",
+      role: "owner",
+      user: {
+        id: "user-admin",
+        email: "admin@taichuy.com",
+        display_name: "7Flows Admin",
+        status: "active",
+        last_login_at: "2026-03-31T02:30:00Z"
+      },
+      invited_by_user_id: null,
+      created_at: "2026-03-31T02:00:00Z",
+      updated_at: "2026-03-31T02:00:00Z"
+    },
+    available_roles: ["owner", "admin", "editor", "viewer"],
+    can_manage_members: true
+  } as Awaited<ReturnType<typeof getServerWorkspaceContext>>;
+}
 
 function buildSystemOverview() {
   return buildSystemOverviewFixture({
@@ -86,6 +132,32 @@ function buildSystemOverview() {
 }
 
 describe("SensitiveAccessInboxPage", () => {
+  it("wraps the operator inbox in a server-first shell without a pathname client wrapper", async () => {
+    vi.mocked(getServerWorkspaceContext).mockResolvedValue(buildWorkspaceContext());
+
+    const html = renderToStaticMarkup(
+      await SensitiveAccessLayout({
+        children: <div>operator inbox body</div>
+      })
+    );
+
+    expect(html).toContain('data-component="workspace-shell"');
+    expect(html).toContain("7Flows Workspace");
+    expect(html).toContain('href="/runs"');
+    expect(html).not.toContain('aria-current="page"');
+    expect(html).toContain("operator inbox body");
+  });
+
+  it("redirects unauthenticated operator inbox requests before rendering the shell", async () => {
+    vi.mocked(getServerWorkspaceContext).mockResolvedValue(null);
+
+    await expect(
+      SensitiveAccessLayout({
+        children: <div>operator inbox body</div>
+      })
+    ).rejects.toThrow("redirect:/login?next=/sensitive-access");
+  });
+
   it("surfaces live sandbox readiness before the inbox list", async () => {
     vi.mocked(getSensitiveAccessInboxSnapshot).mockResolvedValue(
       buildSensitiveAccessInboxSnapshotFixture()
@@ -320,7 +392,7 @@ describe("SensitiveAccessInboxPage", () => {
     expect(html).toContain("Publish auth contract");
     expect(html).toContain("supported api_key / internal");
     expect(html).toContain(
-      'href="/workflows/workflow-1?needs_follow_up=true&amp;definition_issue=missing_tool"'
+      'href="/workflows/workflow-1/editor?needs_follow_up=true&amp;definition_issue=missing_tool"'
     );
   });
 });

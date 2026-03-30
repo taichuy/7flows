@@ -233,7 +233,7 @@ describe("workflow publish activity panel helpers", () => {
         invocationId: " invocation alpha/beta "
       })
     ).toBe(
-      "/workflows/workflow%20alpha%2Fbeta?publish_binding=binding+alpha%2Fbeta&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_api_key_id=api+key%2F1&publish_reason_code=rate_limit_exceeded&publish_window=24h&publish_invocation=invocation+alpha%2Fbeta"
+      "/workflows/workflow%20alpha%2Fbeta/publish?publish_binding=binding+alpha%2Fbeta&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_api_key_id=api+key%2F1&publish_reason_code=rate_limit_exceeded&publish_window=24h&publish_invocation=invocation+alpha%2Fbeta"
     );
   });
 
@@ -255,7 +255,7 @@ describe("workflow publish activity panel helpers", () => {
         },
         invocationId: "   "
       })
-    ).toBe("/workflows/workflow-1");
+    ).toBe("/workflows/workflow-1/publish");
   });
 
   it("projects clear and detail links from the same publish activity contract", () => {
@@ -278,10 +278,10 @@ describe("workflow publish activity panel helpers", () => {
     });
 
     expect(detailLinks.clearInvocationDetailHref).toBe(
-      "/workflows/workflow%20alpha%2Fbeta?publish_binding=binding+alpha%2Fbeta&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_api_key_id=api+key%2F1&publish_reason_code=rate_limit_exceeded&publish_window=24h"
+      "/workflows/workflow%20alpha%2Fbeta/publish?publish_binding=binding+alpha%2Fbeta&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_api_key_id=api+key%2F1&publish_reason_code=rate_limit_exceeded&publish_window=24h"
     );
     expect(detailLinks.buildInvocationDetailHref(" invocation alpha/beta ")).toBe(
-      "/workflows/workflow%20alpha%2Fbeta?publish_binding=binding+alpha%2Fbeta&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_api_key_id=api+key%2F1&publish_reason_code=rate_limit_exceeded&publish_window=24h&publish_invocation=invocation+alpha%2Fbeta"
+      "/workflows/workflow%20alpha%2Fbeta/publish?publish_binding=binding+alpha%2Fbeta&publish_status=failed&publish_request_source=path&publish_request_surface=openai.responses&publish_cache_status=hit&publish_run_status=waiting_callback&publish_api_key_id=api+key%2F1&publish_reason_code=rate_limit_exceeded&publish_window=24h&publish_invocation=invocation+alpha%2Fbeta"
     );
   });
 

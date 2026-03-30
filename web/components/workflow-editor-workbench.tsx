@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, type ComponentProps } from "react";
+import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 
 import type { PluginAdapterRegistryItem, PluginToolRegistryItem } from "@/lib/get-plugin-registry";
@@ -69,11 +69,6 @@ export function WorkflowEditorWorkbench({
 }: WorkflowEditorWorkbenchProps) {
   const editorNodeLibrary = getPaletteNodeCatalog(nodeCatalog);
   const plannedNodeLibrary = getPlannedNodeCatalog(nodeCatalog);
-  const { credentials, recentRuns } = useWorkflowEditorRuntimeData({
-    workflowId: workflow.id,
-    initialCredentials,
-    initialRecentRuns
-  });
   const persistedDefinitionSignature = useMemo(
     () => JSON.stringify(workflow.definition),
     [workflow.definition]
@@ -89,13 +84,24 @@ export function WorkflowEditorWorkbench({
     setMessage: shell.setMessage,
     setMessageTone: shell.setMessageTone
   });
+  const [hasRequestedRunOverlay, setHasRequestedRunOverlay] = useState(
+    initialRecentRuns.length > 0
+  );
+  const { credentials, recentRuns } = useWorkflowEditorRuntimeData({
+    workflowId: workflow.id,
+    initialCredentials,
+    initialRecentRuns,
+    loadCredentials: Boolean(graph.selectedNodeId),
+    loadRecentRuns: hasRequestedRunOverlay
+  });
   const currentDefinitionSignature = useMemo(
     () => JSON.stringify(graph.currentDefinition),
     [graph.currentDefinition]
   );
   const runOverlay = useWorkflowRunOverlay({
     workflowId: workflow.id,
-    recentRuns
+    recentRuns,
+    enabled: hasRequestedRunOverlay
   });
   const validation = useWorkflowEditorValidation({
     currentDefinition: graph.currentDefinition,
@@ -160,7 +166,8 @@ export function WorkflowEditorWorkbench({
     graph,
     validation,
     runOverlay,
-    persistence
+    persistence,
+    onActivateRunOverlay: () => setHasRequestedRunOverlay(true)
   });
 
   useEffect(() => {
