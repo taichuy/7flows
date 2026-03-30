@@ -1,5 +1,10 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 
+import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import type {
+  WorkflowLibraryStarterItem,
+  WorkflowNodeCatalogItem
+} from "@/lib/get-workflow-library";
 import {
   getWorkflowBusinessTrackCreateSurface,
   WORKFLOW_BUSINESS_TRACKS,
@@ -9,8 +14,11 @@ import {
   pickWorkspaceStarterGovernanceQueryScope,
   type WorkspaceStarterGovernanceQueryScope
 } from "@/lib/workspace-starter-governance-query";
-import type {
-  WorkflowStarterTemplate,
+import {
+  buildWorkflowStarterTemplates,
+  buildWorkflowStarterTracks,
+  type WorkflowStarterTemplate,
+  type WorkflowStarterTrackItem,
   WorkflowStarterTemplateId
 } from "@/lib/workflow-starters";
 
@@ -18,7 +26,9 @@ export type WorkflowCreateMessageTone = "idle" | "success" | "error";
 
 type UseWorkflowCreateShellStateOptions = {
   governanceQueryScope: WorkspaceStarterGovernanceQueryScope;
-  starterTemplates: WorkflowStarterTemplate[];
+  nodeCatalog: WorkflowNodeCatalogItem[];
+  starters: WorkflowLibraryStarterItem[];
+  tools: PluginToolRegistryItem[];
   workflowsCount: number;
 };
 
@@ -65,9 +75,19 @@ export function resolveWorkflowCreateNameAfterStarterChange({
 
 export function useWorkflowCreateShellState({
   governanceQueryScope,
-  starterTemplates,
+  nodeCatalog,
+  starters,
+  tools,
   workflowsCount
 }: UseWorkflowCreateShellStateOptions) {
+  const starterTemplates = useMemo(
+    () => buildWorkflowStarterTemplates(starters, nodeCatalog, tools),
+    [nodeCatalog, starters, tools]
+  );
+  const starterTracks = useMemo<WorkflowStarterTrackItem[]>(
+    () => buildWorkflowStarterTracks(starterTemplates),
+    [starterTemplates]
+  );
   const preferredStarterId = governanceQueryScope.selectedTemplateId ?? undefined;
   const defaultStarter = useMemo(
     () =>
@@ -238,6 +258,7 @@ export function useWorkflowCreateShellState({
     messageTone,
     runCreateTransition,
     selectedStarter,
+    starterTracks,
     selectedStarterTrackPresentation,
     setFeedback,
     setWorkflowName,
