@@ -52,6 +52,8 @@ node scripts/dev-up.js
 
 ```shell
 node scripts/dev-up.js --local-only
+
+node scripts/dev-up.js stop --local-only
 ```
 
 这个模式会继续同步依赖、执行 migration、拉起 API / Worker / Scheduler / Web，但不会启动 Docker，也不会在 `stop` / `pause` 时关闭现有 Docker 中间件；查看状态时可用 `node scripts/dev-up.js status --local-only`。
