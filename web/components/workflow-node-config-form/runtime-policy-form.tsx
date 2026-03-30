@@ -23,7 +23,7 @@ import {
 } from "@/components/workflow-node-config-form/runtime-policy-helpers";
 import { WorkflowNodeRuntimePolicyExecutionSection } from "@/components/workflow-node-config-form/runtime-policy-execution-section";
 
-type WorkflowNodeRuntimePolicyFormProps = {
+export type WorkflowNodeRuntimePolicyFormProps = {
   node: Node<WorkflowCanvasNodeData>;
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   edges: Array<Edge<WorkflowCanvasEdgeData>>;

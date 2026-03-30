@@ -5,9 +5,10 @@ import { pickWorkflowValidationRemediationItem } from "@/lib/workflow-validation
 import { buildWorkflowPersistBlockerRecommendedNextStep, summarizeWorkflowPersistBlockers } from "@/components/workflow-editor-workbench/persist-blockers";
 import { triggerWorkflowRun } from "@/app/actions/runs";
 
-import type { WorkflowEditorHero } from "@/components/workflow-editor-workbench/workflow-editor-hero";
-import type { WorkflowEditorSidebar } from "@/components/workflow-editor-workbench/workflow-editor-sidebar";
-import type { WorkflowEditorInspector } from "@/components/workflow-editor-inspector";
+import type {
+  UseWorkflowEditorPanelsArgs,
+  UseWorkflowEditorPanelsResult
+} from "@/components/workflow-editor-workbench/types";
 
 export function useWorkflowEditorPanels({
   workflow,
@@ -36,7 +37,7 @@ export function useWorkflowEditorPanels({
   runOverlay,
   persistence,
   onActivateRunOverlay
-}: any) {
+}: UseWorkflowEditorPanelsArgs): UseWorkflowEditorPanelsResult {
   useEffect(() => {
     if (graph.selectedNodeId || graph.selectedEdgeId) {
       shell.setIsInspectorCollapsed(false);
@@ -82,7 +83,7 @@ export function useWorkflowEditorPanels({
 
   const [isRunLauncherOpen, setIsRunLauncherOpen] = useState(false);
 
-  const heroProps: ComponentProps<typeof WorkflowEditorHero> = {
+  const heroProps: UseWorkflowEditorPanelsResult["heroProps"] = {
     workflowName: graph.workflowName,
     onWorkflowNameChange: graph.setWorkflowName,
     workflowVersion: graph.workflowVersion,
@@ -113,7 +114,7 @@ export function useWorkflowEditorPanels({
     onOpenRunLauncher: () => setIsRunLauncherOpen(true)
   };
 
-  const sidebarProps: ComponentProps<typeof WorkflowEditorSidebar> = {
+  const sidebarProps: UseWorkflowEditorPanelsResult["sidebarProps"] = {
     currentHref: currentEditorHref,
     workflowId: workflow.id,
     workflowName: graph.workflowName,
@@ -161,7 +162,7 @@ export function useWorkflowEditorPanels({
     onRefreshRuns: runOverlay.refreshRecentRuns
   };
 
-  const inspectorProps: ComponentProps<typeof WorkflowEditorInspector> = {
+  const inspectorProps: UseWorkflowEditorPanelsResult["inspectorProps"] = {
     currentHref: currentEditorHref,
     selectedNode: graph.selectedNode,
     selectedEdge: graph.selectedEdge,

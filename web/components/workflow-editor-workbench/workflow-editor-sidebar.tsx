@@ -29,6 +29,10 @@ import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-
 import { WorkflowChipLink } from "@/components/workflow-chip-link";
 import type { WorkflowEditorDiagnosticsPanelProps } from "@/components/workflow-editor-workbench/sidebar-panels/workflow-editor-diagnostics-panel";
 import type { WorkflowEditorRunPanelProps } from "@/components/workflow-editor-workbench/sidebar-panels/workflow-editor-run-panel";
+import type {
+  WorkflowEditorSidebarProps,
+  WorkflowEditorSidebarTabKey
+} from "@/components/workflow-editor-workbench/types";
 
 import { type WorkflowPersistBlocker } from "./persist-blockers";
 import type { WorkflowEditorMessageKind, WorkflowEditorMessageTone } from "./shared";
@@ -71,52 +75,7 @@ const LazyWorkflowEditorRunPanel = dynamic<WorkflowEditorRunPanelProps>(
   }
 );
 
-type WorkflowEditorSidebarProps = {
-  currentHref?: string;
-  workflowId: string;
-  workflowName: string;
-  workflows: WorkflowListItem[];
-  nodeSourceLanes: WorkflowLibrarySourceLane[];
-  toolSourceLanes: WorkflowLibrarySourceLane[];
-  editorNodeLibrary: WorkflowNodeCatalogItem[];
-  plannedNodeLibrary: WorkflowNodeCatalogItem[];
-  unsupportedNodes: UnsupportedWorkflowNodeSummary[];
-  message: string | null;
-  messageTone: WorkflowEditorMessageTone;
-  messageKind?: WorkflowEditorMessageKind;
-  savedWorkspaceStarter?: WorkspaceStarterTemplateItem | null;
-  persistBlockerSummary: string | null;
-  persistBlockers: WorkflowPersistBlocker[];
-  persistBlockerRecommendedNextStep?: OperatorRecommendedNextStep | null;
-  executionPreflightMessage: string | null;
-  toolExecutionValidationIssueCount: number;
-  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
-  preflightValidationItem?: WorkflowValidationNavigatorItem | null;
-  validationNavigatorItems: WorkflowValidationNavigatorItem[];
-  runs: WorkflowRunListItem[];
-  selectedRunId: string | null;
-  run: RunDetail | null;
-  runSnapshot: RunSnapshotWithId | null;
-  trace: RunTrace | null;
-  traceError: string | null;
-  selectedNodeId: string | null;
-  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
-  sandboxReadiness?: SandboxReadinessCheck | null;
-  workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
-  createWorkflowHref?: string;
-  workspaceStarterLibraryHref?: string;
-  hasScopedWorkspaceStarterFilters?: boolean;
-  isLoadingRunOverlay: boolean;
-  isRefreshingRuns: boolean;
-  onActiveTabChange?: (tabKey: WorkflowEditorSidebarTabKey) => void;
-  onAddNode: (type: string) => void;
-  onNavigateValidationIssue: (item: WorkflowValidationNavigatorItem) => void;
-  onSelectRunId: (runId: string | null) => void;
-  onRefreshRuns: () => void;
-};
-
 type WorkflowEditorNodeRailView = "catalog" | "drafts";
-type WorkflowEditorSidebarTabKey = "1" | "2" | "3";
 
 function WorkflowEditorSidebarComponent({
   currentHref,

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import React, { useEffect, useMemo, useState, type ComponentProps } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import type { Edge, Node } from "@xyflow/react";
 import { Typography, Tabs, Input, Button, Space, Tag } from "antd";
 
@@ -22,29 +22,20 @@ import {
   type WorkflowEditorAssistantContext
 } from "@/lib/workflow-editor-assistant";
 import type { WorkflowPersistBlocker } from "@/components/workflow-editor-workbench/persist-blockers";
+import type { WorkflowNodeConfigFormProps } from "@/components/workflow-node-config-form/shared";
+import type { WorkflowNodeIoSchemaFormProps } from "@/components/workflow-node-config-form/node-io-schema-form";
+import type { WorkflowNodeRuntimePolicyFormProps } from "@/components/workflow-node-config-form/runtime-policy-form";
+import type { WorkflowEditorAssistantPanelProps } from "@/components/workflow-editor-inspector-panels/workflow-editor-assistant-panel";
+import type { WorkflowEditorJsonPanelProps } from "@/components/workflow-editor-inspector-panels/workflow-editor-json-panel";
+import type { WorkflowEditorPublishPanelProps } from "@/components/workflow-editor-inspector-panels/workflow-editor-publish-panel";
+import type {
+  WorkflowEditorInspectorProps,
+  WorkflowEditorInspectorTabKey
+} from "@/components/workflow-editor-workbench/types";
 import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-blocker-notice";
 import { WorkflowEditorVariableForm } from "@/components/workflow-editor-variable-form";
 
 const { Title, Text } = Typography;
-
-type WorkflowNodeConfigFormProps = ComponentProps<
-  typeof import("@/components/workflow-node-config-form")["WorkflowNodeConfigForm"]
->;
-type WorkflowNodeIoSchemaFormProps = ComponentProps<
-  typeof import("@/components/workflow-node-config-form/node-io-schema-form")["WorkflowNodeIoSchemaForm"]
->;
-type WorkflowNodeRuntimePolicyFormProps = ComponentProps<
-  typeof import("@/components/workflow-node-config-form/runtime-policy-form")["WorkflowNodeRuntimePolicyForm"]
->;
-type WorkflowEditorAssistantPanelProps = ComponentProps<
-  typeof import("@/components/workflow-editor-inspector-panels/workflow-editor-assistant-panel")["WorkflowEditorAssistantPanel"]
->;
-type WorkflowEditorJsonPanelProps = ComponentProps<
-  typeof import("@/components/workflow-editor-inspector-panels/workflow-editor-json-panel")["WorkflowEditorJsonPanel"]
->;
-type WorkflowEditorPublishPanelProps = ComponentProps<
-  typeof import("@/components/workflow-editor-inspector-panels/workflow-editor-publish-panel")["WorkflowEditorPublishPanel"]
->;
 
 const LazyWorkflowNodeConfigForm = dynamic<WorkflowNodeConfigFormProps>(
   () =>
@@ -141,67 +132,6 @@ const LazyWorkflowEditorPublishPanel = dynamic<WorkflowEditorPublishPanelProps>(
       )
   }
 );
-
-type WorkflowEditorInspectorTabKey =
-  | "node-config"
-  | "node-schema"
-  | "node-runtime"
-  | "node-assistant"
-  | "node-json"
-  | "edge-config"
-  | "workflow-overview"
-  | "workflow-variables"
-  | "workflow-publish";
-
-type WorkflowEditorInspectorProps = {
-  currentHref?: string | null;
-  selectedNode: Node<WorkflowCanvasNodeData> | null;
-  selectedEdge: Edge<WorkflowCanvasEdgeData> | null;
-  nodes: Array<Node<WorkflowCanvasNodeData>>;
-  edges: Array<Edge<WorkflowCanvasEdgeData>>;
-  tools: PluginToolRegistryItem[];
-  adapters: PluginAdapterRegistryItem[];
-  credentials: CredentialItem[];
-  nodeConfigText: string;
-  onNodeConfigTextChange: (value: string) => void;
-  onApplyNodeConfigJson: () => void;
-  onNodeNameChange: (value: string) => void;
-  onNodeConfigChange: (nextConfig: Record<string, unknown>) => void;
-  onNodeInputSchemaChange: (nextSchema: Record<string, unknown> | undefined) => void;
-  onNodeOutputSchemaChange: (nextSchema: Record<string, unknown> | undefined) => void;
-  onNodeRuntimePolicyUpdate: (nextRuntimePolicy: Record<string, unknown> | undefined) => void;
-  onNodeRuntimePolicyChange: (value: string) => void;
-  workflowVersion: string;
-  availableWorkflowVersions: string[];
-  workflowVariables: Array<Record<string, unknown>>;
-  workflowPublish: Array<Record<string, unknown>>;
-  onWorkflowVariablesChange: (
-    nextVariables: Array<Record<string, unknown>>,
-    options?: { successMessage?: string }
-  ) => void;
-  onWorkflowPublishChange: (
-    nextPublish: Array<Record<string, unknown>>,
-    options?: { successMessage?: string }
-  ) => void;
-  onDeleteSelectedNode: () => void;
-  onUpdateSelectedEdge: (
-    patch: Partial<WorkflowCanvasEdgeData> & { label?: string | undefined }
-  ) => void;
-  onDeleteSelectedEdge: () => void;
-  highlightedNodeSection?: "config" | "contract" | "runtime" | null;
-  highlightedNodeFieldPath?: string | null;
-  highlightedPublishEndpointIndex?: number | null;
-  highlightedPublishEndpointFieldPath?: string | null;
-  highlightedVariableIndex?: number | null;
-  highlightedVariableFieldPath?: string | null;
-  focusedValidationItem?: WorkflowValidationNavigatorItem | null;
-  persistBlockedMessage?: string | null;
-  persistBlockerSummary?: string | null;
-  persistBlockers: WorkflowPersistBlocker[];
-  persistBlockerRecommendedNextStep?: OperatorRecommendedNextStep | null;
-  assistantRequestSerial?: number;
-  sandboxReadiness?: SandboxReadinessCheck | null;
-};
 
 function renderLoadingTabPanel(dataComponent: string, title: string, description: string) {
   return (

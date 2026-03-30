@@ -10,7 +10,7 @@ import { validateContractSchema } from "@/lib/workflow-contract-schema-validatio
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { toRecord } from "@/components/workflow-node-config-form/shared";
 
-type WorkflowNodeIoSchemaFormProps = {
+export type WorkflowNodeIoSchemaFormProps = {
   node: Node<WorkflowCanvasNodeData>;
   currentHref?: string | null;
   onInputSchemaChange: (nextSchema: Record<string, unknown> | undefined) => void;

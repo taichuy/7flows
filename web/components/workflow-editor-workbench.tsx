@@ -3,25 +3,6 @@
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 
-import type { PluginAdapterRegistryItem, PluginToolRegistryItem } from "@/lib/get-plugin-registry";
-import type { CredentialItem } from "@/lib/get-credentials";
-import type {
-  CallbackWaitingAutomationCheck,
-  SandboxBackendCheck,
-  SandboxReadinessCheck
-} from "@/lib/get-system-overview";
-import type {
-  WorkflowLibrarySourceLane,
-  WorkflowNodeCatalogItem
-} from "@/lib/get-workflow-library";
-import type { WorkflowRunListItem } from "@/lib/get-workflow-runs";
-import type {
-  WorkflowDetail,
-  WorkflowListItem
-} from "@/lib/get-workflows";
-import type { WorkspaceStarterGovernanceQueryScope } from "@/lib/workspace-starter-governance-query";
-import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
-import { pickWorkflowValidationRemediationItem } from "@/lib/workflow-validation-remediation";
 import { getPaletteNodeCatalog, getPlannedNodeCatalog } from "@/lib/workflow-node-catalog";
 
 import { WorkflowEditorCanvas } from "@/components/workflow-editor-workbench/workflow-editor-canvas";
@@ -30,7 +11,6 @@ import { useWorkflowEditorShellState } from "@/components/workflow-editor-workbe
 import { useWorkflowEditorPanels } from "@/components/workflow-editor-workbench/use-workflow-editor-panels";
 import { WorkflowEditorSidebar } from "@/components/workflow-editor-workbench/workflow-editor-sidebar";
 import {
-  buildWorkflowPersistBlockerRecommendedNextStep,
   summarizeWorkflowPersistBlockers
 } from "@/components/workflow-editor-workbench/persist-blockers";
 import {
@@ -223,7 +203,6 @@ export function WorkflowEditorWorkbench({
     }),
     [canvasQuickAddOptions, handleCanvasDeleteNode, handleCanvasOpenConfig, handleCanvasQuickAdd]
   );
-  const inspectorFocusState = shell.getInspectorFocusState(graph.selectedNodeId);
   const editorWorkspaceClassName = [
     "editor-workspace",
     shell.isSidebarCollapsed ? "sidebar-collapsed" : null,
