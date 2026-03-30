@@ -32,6 +32,7 @@ let action = 'start';
 let startWorker = true;
 let startBeat = true;
 let skipInstall = false;
+let manageDockerMiddleware = true;
 let composeCommand = null;
 
 function usage() {
@@ -43,12 +44,16 @@ function usage() {
   --skip-install  跳过 \`uv sync\` 与 \`pnpm install\`
   --no-worker     不启动 Celery worker
   --no-beat       不启动 Celery beat
+  --local-only    仅管理本地 API / Worker / Scheduler / Web，不启动或关闭 Docker
   -h, --help      查看帮助
 
 示例：
   node scripts/dev-up.js
   node scripts/dev-up.js --skip-install
+  node scripts/dev-up.js --local-only
   node scripts/dev-up.js start --skip-install
+  node scripts/dev-up.js start --local-only --skip-install
+  node scripts/dev-up.js status --local-only
   node scripts/dev-up.js status
   node scripts/dev-up.js pause
   node scripts/dev-up.js stop
@@ -640,14 +645,20 @@ function runMigrations() {
 }
 
 async function startAll() {
-  requireCommand('docker');
   requireCommand('uv');
   requireCommand('corepack');
-  resolveComposeCommand();
+  if (manageDockerMiddleware) {
+    requireCommand('docker');
+    resolveComposeCommand();
+  }
 
   prepareEnvFiles();
   ensureDependencies();
-  startMiddleware();
+  if (manageDockerMiddleware) {
+    startMiddleware();
+  } else {
+    log('按本地模式跳过 Docker 中间件启动');
+  }
   runMigrations();
 
   startBackgroundProcess('api', API_DIR, 'uv', [
@@ -686,6 +697,16 @@ async function startAll() {
   }
   await startWebProcess();
 
+  const statusCommand = manageDockerMiddleware
+    ? 'node scripts/dev-up.js status'
+    : 'node scripts/dev-up.js status --local-only';
+  const pauseCommand = manageDockerMiddleware
+    ? 'node scripts/dev-pause.js'
+    : 'node scripts/dev-pause.js --local-only';
+  const stopCommand = manageDockerMiddleware
+    ? 'node scripts/dev-up.js stop'
+    : 'node scripts/dev-up.js stop --local-only';
+
   process.stdout.write(`
 启动完成：
 - API:  http://localhost:8000
@@ -693,28 +714,36 @@ async function startAll() {
 - 日志: tmp/logs/
 
 常用命令：
-- 查看状态：node scripts/dev-up.js status
-- 暂停全部：node scripts/dev-pause.js
-- 停止全部：node scripts/dev-up.js stop
+- 查看状态：${statusCommand}
+- 暂停全部：${pauseCommand}
+- 停止全部：${stopCommand}
 `);
 }
 
 function stopAll() {
-  requireCommand('docker');
-  resolveComposeCommand();
+  if (manageDockerMiddleware) {
+    requireCommand('docker');
+    resolveComposeCommand();
+  }
 
   stopWebProcess();
   stopBackgroundProcess('beat');
   stopBackgroundProcess('worker');
   stopBackgroundProcess('api');
 
-  log('停止 docker 中间件');
-  runMiddlewareCompose(['down']);
+  if (manageDockerMiddleware) {
+    log('停止 docker 中间件');
+    runMiddlewareCompose(['down']);
+  } else {
+    log('按本地模式保留 Docker 中间件状态不变');
+  }
 }
 
 async function statusAll() {
-  requireCommand('docker');
-  resolveComposeCommand();
+  if (manageDockerMiddleware) {
+    requireCommand('docker');
+    resolveComposeCommand();
+  }
   const trackedWebPidFile = pidFileFor('web');
   const trackedWebPid = readPid(trackedWebPidFile);
   const orphanedWebPids = findListeningPidsByPort(WEB_PORT).filter((pid) => pid !== trackedWebPid);
@@ -740,6 +769,11 @@ async function statusAll() {
     process.stdout.write(`web orphan   port ${WEB_PORT} occupied by PID=${orphanedWebPids.join(',')}\n`);
   }
   process.stdout.write('\nDocker middleware:\n');
+
+  if (!manageDockerMiddleware) {
+    process.stdout.write('skipped (--local-only)\n');
+    return;
+  }
 
   const result = runMiddlewareCompose(['ps'], { allowFailure: true });
   if (result.stdout) {
@@ -770,6 +804,9 @@ function parseArgs(args) {
         break;
       case '--no-beat':
         startBeat = false;
+        break;
+      case '--local-only':
+        manageDockerMiddleware = false;
         break;
       case '-h':
       case '--help':
