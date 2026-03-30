@@ -2,11 +2,25 @@
 
 本文件只保留常用命令和失败排查，不重复 `SKILL.md` 里的触发条件。
 
+## 0. 当前仓库默认策略
+
+- 在 7Flows 当前本地开发里，默认优先 `Playwright CLI + 系统 Chrome`，不要先走 `chrome-devtools` MCP 一类长驻 DevTools 进程。
+- 开始前先检查是否有自己上一轮留下的自动化浏览器残留；结束后也要顺手清理，避免多实例 Chrome 挤占资源。
+- 如果 `127.0.0.1` 访问可能受代理变量影响，先补精确 `NO_PROXY/no_proxy`，不要把代理层 `502` 误判成 Web 问题。
+
+示例：
+
+```bash
+pgrep -af 'playwright|chrome-devtools-mcp|--remote-debugging-pipe'
+NO_PROXY=localhost,127.0.0.1,127.0.0.0/8,::1 no_proxy=localhost,127.0.0.1,127.0.0.0/8,::1 curl -I http://127.0.0.1:3100/login
+```
+
+只在确认是自己本轮自动化留下的进程时，才按 PID 精确关闭；不要直接批量杀掉用户正常浏览器。
+
 ## 1. 安装与确认版本
 
 ```bash
 playwright --version || npx playwright --version
-playwright install chromium
 ```
 
 如果默认无头浏览器不完整，但系统已装 Chrome，可先用：
@@ -105,6 +119,11 @@ playwright screenshot --channel chrome http://127.0.0.1:3100/login /tmp/7flows-l
 
 - 现象：CLI 只够截图或录制，不方便稳定表达业务流程
 - 处理：退到最小 Node 脚本，不要强行把所有步骤塞进 CLI 参数
+
+### CLI 可用但 `require('playwright')` 失败
+
+- 现象：`playwright --version` 正常，但 Node 脚本里直接 `require('playwright')` 报模块不存在
+- 处理：先执行 `node -p "require.resolve('playwright')"` 确认工作区是否真的能解析 JS API；如果不能，优先退回 CLI，只有在确实需要 JS API 时再检查全局模块路径（如 `npm root -g`）或改到已安装依赖的工作区执行
 
 ### 证据管理混乱
 

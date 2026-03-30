@@ -52,7 +52,7 @@
 ## 工具技能
 
 - `browser-automation`
-  - 面向浏览器自动化、页面真实行为复核、截图 / PDF 留证和最小 smoke。
+  - 面向浏览器自动化、页面真实行为复核、截图 / PDF 留证和最小 smoke；在 7Flows 当前仓库里默认优先 `Playwright CLI / 系统 Chrome`，避免重型 `chrome-devtools` 长驻会话。
 
 使用案例：
 

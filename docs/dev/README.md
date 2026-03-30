@@ -11,7 +11,7 @@
 - [ADR 索引](/E:/code/taichuCode/7flows/docs/adr/README.md)
   - 长期保留“背景 / 决策 / 后果”的事项。
 - [技能索引](/E:/code/taichuCode/7flows/.agents/skills/README.md)
-  - AI 协作技能、服务分组和使用案例；其中 `browser-automation` 用于本地页面复核、浏览器操作与截图留证。
+  - AI 协作技能、服务分组和使用案例；其中 `browser-automation` 用于本地页面复核、浏览器操作与截图留证，当前默认优先 `Playwright CLI / 系统 Chrome`。
 
 ## 维护约定
 
