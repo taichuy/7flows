@@ -24,6 +24,7 @@ export default async function AdminMembersPage() {
   return (
     <WorkspaceShell
       activeNav="team"
+      layout="focused"
       userName={workspaceContext.current_user.display_name}
       userRole={workspaceContext.current_member.role}
       workspaceName={workspaceContext.workspace.name}

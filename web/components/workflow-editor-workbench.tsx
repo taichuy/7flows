@@ -4,6 +4,7 @@ import { useEffect, useMemo, type ComponentProps } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 
 import type { PluginAdapterRegistryItem, PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import type { CredentialItem } from "@/lib/get-credentials";
 import type {
   CallbackWaitingAutomationCheck,
   SandboxBackendCheck,
@@ -52,6 +53,7 @@ type WorkflowEditorWorkbenchProps = {
   toolSourceLanes: WorkflowLibrarySourceLane[];
   tools: PluginToolRegistryItem[];
   adapters: PluginAdapterRegistryItem[];
+  credentials: CredentialItem[];
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   sandboxBackends?: SandboxBackendCheck[] | null;
@@ -72,6 +74,7 @@ export function WorkflowEditorWorkbench({
   toolSourceLanes,
   tools,
   adapters,
+  credentials,
   callbackWaitingAutomation,
   sandboxReadiness,
   sandboxBackends,
@@ -154,6 +157,7 @@ export function WorkflowEditorWorkbench({
     toolSourceLanes,
     tools,
     adapters,
+    credentials,
     callbackWaitingAutomation,
     sandboxReadiness,
     sandboxBackends,

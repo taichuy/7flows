@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-type CredentialOption = {
+import { getApiBaseUrl } from "@/lib/api-base-url";
+
+export type CredentialOption = {
   id: string;
   name: string;
   credential_type: string;
+  status?: "active" | "revoked";
 };
 
 type CredentialPickerProps = {
@@ -19,18 +22,28 @@ type CredentialPickerProps = {
   hint?: string;
   /** Optional filter — only show credentials of this type. */
   credentialType?: string;
+  /** Optional filter — allow multiple credential types. */
+  credentialTypes?: string[];
   /** Placeholder when nothing is selected. */
   placeholder?: string;
+  /** Server-provided credential snapshot to avoid client-side refetch on every inspector mount. */
+  credentials?: CredentialOption[];
+  /** Optional empty-state copy when no credential matches the provider filter. */
+  emptyStateCopy?: string;
 };
 
 const CREDENTIAL_PREFIX = "credential://";
 
-function parseCredentialRef(value: string): string | null {
+export function parseCredentialRef(value: string): string | null {
   if (typeof value === "string" && value.startsWith(CREDENTIAL_PREFIX)) {
     const id = value.slice(CREDENTIAL_PREFIX.length).trim();
     return id || null;
   }
   return null;
+}
+
+export function formatCredentialRef(credentialId: string): string {
+  return `${CREDENTIAL_PREFIX}${credentialId}`;
 }
 
 export function CredentialPicker({
@@ -39,34 +52,39 @@ export function CredentialPicker({
   label,
   hint,
   credentialType,
-  placeholder = "选择凭证"
+  credentialTypes,
+  placeholder = "选择凭证",
+  credentials,
+  emptyStateCopy = "暂无可用凭证，请先创建对应厂商凭证。"
 }: CredentialPickerProps) {
-  const [credentials, setCredentials] = useState<CredentialOption[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loadedCredentials, setLoadedCredentials] = useState<CredentialOption[]>(credentials ?? []);
+  const [loading, setLoading] = useState(credentials === undefined);
 
   useEffect(() => {
+    if (credentials) {
+      setLoadedCredentials(credentials);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
     async function load() {
       try {
-        const apiBase =
-          typeof window !== "undefined"
-            ? (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000")
-            : "http://localhost:8000";
-        const res = await fetch(`${apiBase}/api/credentials`, {
+        const res = await fetch(`${getApiBaseUrl()}/api/credentials`, {
           cache: "no-store"
         });
         if (!res.ok) {
-          setCredentials([]);
+          setLoadedCredentials([]);
           return;
         }
         const items = (await res.json()) as CredentialOption[];
         if (!cancelled) {
-          setCredentials(items);
+          setLoadedCredentials(items);
         }
       } catch {
         if (!cancelled) {
-          setCredentials([]);
+          setLoadedCredentials([]);
         }
       } finally {
         if (!cancelled) {
@@ -79,11 +97,21 @@ export function CredentialPicker({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [credentials]);
 
-  const filteredCredentials = credentialType
-    ? credentials.filter((c) => c.credential_type === credentialType)
-    : credentials;
+  const allowedCredentialTypes = useMemo(() => {
+    if (credentialTypes && credentialTypes.length > 0) {
+      return new Set(credentialTypes);
+    }
+    if (credentialType) {
+      return new Set([credentialType]);
+    }
+    return null;
+  }, [credentialType, credentialTypes]);
+
+  const filteredCredentials = allowedCredentialTypes
+    ? loadedCredentials.filter((credential) => allowedCredentialTypes.has(credential.credential_type))
+    : loadedCredentials;
 
   const currentCredId = parseCredentialRef(value);
   const currentCredName = currentCredId
@@ -108,9 +136,7 @@ export function CredentialPicker({
       {loading ? (
         <span className="section-copy">加载凭证列表...</span>
       ) : filteredCredentials.length === 0 ? (
-        <span className="section-copy">
-          暂无可用凭证，请先在首页凭证管理面板中创建。
-        </span>
+        <span className="section-copy">{emptyStateCopy}</span>
       ) : (
         <select
           className="binding-select"

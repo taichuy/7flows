@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { getSystemOverviewFetchOptions } from "@/lib/authoring-snapshot-cache";
 import { getSystemOverview } from "../get-system-overview";
 
 const fetchMock = vi.fn();
@@ -38,6 +39,10 @@ describe("getSystemOverview", () => {
 
     const overview = await getSystemOverview();
 
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/system/overview"),
+      getSystemOverviewFetchOptions()
+    );
     expect(overview.sandbox_readiness.recommended_action).toEqual({
       kind: "open_run_library",
       entry_key: "runLibrary",
@@ -77,6 +82,10 @@ describe("getSystemOverview", () => {
 
     const overview = await getSystemOverview();
 
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/system/overview"),
+      getSystemOverviewFetchOptions()
+    );
     expect(overview.sandbox_readiness.recommended_action).toBeNull();
     expect(overview.callback_waiting_automation.recommended_action).toBeNull();
   });

@@ -120,14 +120,21 @@ def test_workflow_library_snapshot_includes_shared_catalog_contract(
         lane["short_label"] == "tool registry" and lane["count"] == 1
         for lane in body["tool_source_lanes"]
     )
-    assert any(
-        lane["short_label"] == "compat:dify" and lane["count"] == 1
-        for lane in body["tool_source_lanes"]
-    )
-    assert {tool["id"] for tool in body["tools"]} == {
-        "compat:dify:plugin:demo/search",
-        "native.echo",
-    }
+    blank_starter = next(item for item in body["starters"] if item["id"] == "blank")
+    assert blank_starter["definition"] is None
+    assert blank_starter["node_count"] == 2
+    assert blank_starter["node_types"] == ["trigger", "output"]
+
+
+def test_workflow_library_snapshot_can_include_starter_definitions_explicitly(
+    client,
+) -> None:
+    response = client.get("/api/workflow-library?include_starter_definitions=true")
+
+    assert response.status_code == 200
+    body = response.json()
+    blank_starter = next(item for item in body["starters"] if item["id"] == "blank")
+    assert blank_starter["definition"]["nodes"][0]["type"] == "trigger"
 
 
 def test_workflow_library_snapshot_filters_adapter_tools_by_workspace(

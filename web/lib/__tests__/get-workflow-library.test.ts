@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getWorkflowLibraryFetchOptions } from "@/lib/authoring-snapshot-cache";
 import { getWorkflowLibrarySnapshot } from "../get-workflow-library";
 
 vi.mock("@/lib/api-base-url", () => ({
@@ -129,7 +130,28 @@ describe("getWorkflowLibrarySnapshot", () => {
 
     expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
       "http://api.test/api/workflow-library?workspace_id=default&business_track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&search=governed+starter&source_governance_kind=drifted&needs_follow_up=true&include_builtin_starters=false",
-      { cache: "no-store" }
+      getWorkflowLibraryFetchOptions()
+    );
+  });
+
+  it("requests starter definitions only when explicitly needed", async () => {
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        nodes: [],
+        starter_source_lanes: [],
+        node_source_lanes: [],
+        tool_source_lanes: [],
+        tools: [],
+        starters: []
+      })
+    } as Response);
+
+    await getWorkflowLibrarySnapshot({ includeStarterDefinitions: true });
+
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
+      "http://api.test/api/workflow-library?workspace_id=default&include_starter_definitions=true",
+      getWorkflowLibraryFetchOptions()
     );
   });
 });

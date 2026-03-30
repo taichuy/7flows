@@ -240,6 +240,133 @@ function buildBlockedPayload(): SensitiveAccessBlockingPayload {
 }
 
 describe("WorkflowPublishBindingCard", () => {
+  it("shows Codex and OpenClaw handoff presets for openai bindings", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishBindingCard, {
+        workflow: buildWorkflow(),
+        tools: [],
+        binding: buildBinding(),
+        cacheInventory: null as never,
+        apiKeys: [
+          {
+            id: "key-1",
+            workflow_id: "workflow-1",
+            endpoint_id: "endpoint-1",
+            name: "Published key",
+            key_prefix: "pk-openai-live",
+            status: "active",
+            created_at: "2026-03-20T10:00:00Z",
+            updated_at: "2026-03-20T10:00:00Z",
+            last_used_at: null,
+            revoked_at: null
+          }
+        ],
+        invocationAudit: null,
+        selectedInvocationId: null,
+        selectedInvocationDetail: null as never,
+        rateLimitWindowAudit: null,
+        activeInvocationFilter: null,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("Local agent handoff");
+    expect(html).toContain("Codex");
+    expect(html).toContain("OpenClaw");
+    expect(html).toContain("http://localhost:8000/v1");
+    expect(html).toContain("/chat/completions");
+    expect(html).toContain("model");
+    expect(html).toContain("search.public");
+    expect(html).toContain("pk-openai-live");
+  });
+
+  it("shows Claude Code handoff preset for anthropic bindings", () => {
+    const binding = buildBinding();
+    binding.protocol = "anthropic";
+    binding.endpoint_alias = "claude.workflow";
+    const workflow = buildWorkflow();
+    workflow.definition.publish = [
+      {
+        id: "endpoint-1",
+        name: "Claude workflow",
+        alias: "claude.workflow",
+        path: "/claude/workflow",
+        protocol: "anthropic",
+        authMode: "api_key",
+        streaming: true,
+        inputSchema: { type: "object" }
+      }
+    ];
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishBindingCard, {
+        workflow,
+        tools: [],
+        binding,
+        cacheInventory: null as never,
+        apiKeys: [],
+        invocationAudit: null,
+        selectedInvocationId: null,
+        selectedInvocationDetail: null as never,
+        rateLimitWindowAudit: null,
+        activeInvocationFilter: null,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("Claude Code");
+    expect(html).toContain("/messages");
+    expect(html).toContain("anthropic-version: 2023-06-01");
+    expect(html).toContain("claude.workflow");
+  });
+
+  it("shows native OpenClaw handoff preset for native bindings", () => {
+    const binding = buildBinding();
+    binding.protocol = "native";
+    binding.endpoint_alias = "native.workflow";
+    binding.endpoint_id = "native-chat";
+    binding.route_path = "/native/workflow";
+
+    const workflow = buildWorkflow();
+    workflow.definition.publish = [
+      {
+        id: "native-chat",
+        name: "Native workflow",
+        alias: "native.workflow",
+        path: "/native/workflow",
+        protocol: "native",
+        authMode: "api_key",
+        streaming: false,
+        inputSchema: { type: "object" }
+      }
+    ];
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishBindingCard, {
+        workflow,
+        tools: [],
+        binding,
+        cacheInventory: null as never,
+        apiKeys: [],
+        invocationAudit: null,
+        selectedInvocationId: null,
+        selectedInvocationDetail: null as never,
+        rateLimitWindowAudit: null,
+        activeInvocationFilter: null,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("OpenClaw");
+    expect(html).toContain("7Flows native published run");
+    expect(html).toContain("/v1/published-aliases/native.workflow/run");
+    expect(html).toContain("endpoint alias");
+    expect(html).toContain("native.workflow");
+  });
+
   it("shows strong-isolation preflight at the binding layer", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowPublishBindingCard, {

@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import HomePage from "@/app/page";
+import HomePage from "@/app/(studio)/page";
 import { getCredentialActivity, getCredentials } from "@/lib/get-credentials";
 import { buildOperatorFollowUpSurfaceCopy } from "@/lib/operator-follow-up-presenters";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";

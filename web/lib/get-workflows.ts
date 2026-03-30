@@ -1,5 +1,9 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import {
+  getWorkflowDetailFetchOptions,
+  getWorkflowInventoryFetchOptions
+} from "@/lib/authoring-snapshot-cache";
+import {
   buildWorkflowLibrarySearchParams,
   type WorkflowListDefinitionIssueFilter
 } from "@/lib/workflow-library-query";
@@ -56,13 +60,6 @@ export type WorkflowEdgeItem = {
 };
 
 export type WorkflowDetail = WorkflowListItem & {
-  definition: {
-    nodes?: WorkflowNodeItem[];
-    edges?: WorkflowEdgeItem[];
-    variables?: Array<Record<string, unknown>>;
-    publish?: Array<Record<string, unknown>>;
-  };
-  definition_issues?: WorkflowDefinitionPreflightIssue[];
   created_at: string;
   updated_at: string;
   versions: Array<{
@@ -71,6 +68,13 @@ export type WorkflowDetail = WorkflowListItem & {
     version: string;
     created_at: string;
   }>;
+  definition: {
+    nodes?: WorkflowNodeItem[];
+    edges?: WorkflowEdgeItem[];
+    variables?: Array<Record<string, unknown>>;
+    publish?: Array<Record<string, unknown>>;
+  };
+  definition_issues?: WorkflowDefinitionPreflightIssue[];
 };
 
 export type WorkflowDefinitionPreflightResult = {
@@ -195,9 +199,10 @@ export async function getWorkflows(options?: {
       definitionIssue: options?.definitionIssue ?? null
     });
     const query = searchParams.toString();
-    const response = await fetch(`${getApiBaseUrl()}/api/workflows${query ? `?${query}` : ""}`, {
-      cache: "no-store"
-    });
+    const response = await fetch(
+      `${getApiBaseUrl()}/api/workflows${query ? `?${query}` : ""}`,
+      getWorkflowInventoryFetchOptions()
+    );
 
     if (!response.ok) {
       return [];
@@ -219,10 +224,8 @@ export async function getWorkflowDetail(
 
   try {
     const response = await fetch(
-      `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(normalizedWorkflowId)}`,
-      {
-        cache: "no-store"
-      }
+      `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(normalizedWorkflowId)}/detail`,
+      getWorkflowDetailFetchOptions(normalizedWorkflowId)
     );
 
     if (!response.ok) {

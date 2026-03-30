@@ -19,9 +19,16 @@ type WorkflowCreateSignalItem = {
   value: string;
 };
 
+type WorkflowCreateFeaturedNode = {
+  type: string;
+  label: string;
+  supportStatus: "available" | "planned";
+};
+
 type WorkflowCreateLauncherPanelProps = {
   activeTrack: WorkflowBusinessTrack;
   createSignalItems: WorkflowCreateSignalItem[];
+  featuredNodes: WorkflowCreateFeaturedNode[];
   hasScopedWorkspaceStarterFilters: boolean;
   scopedGovernanceBackLinkLabel: string;
   scopedGovernanceDescription: string;
@@ -36,6 +43,7 @@ type WorkflowCreateLauncherPanelProps = {
 function WorkflowCreateLauncherPanelComponent({
   activeTrack,
   createSignalItems,
+  featuredNodes,
   hasScopedWorkspaceStarterFilters,
   scopedGovernanceBackLinkLabel,
   scopedGovernanceDescription,
@@ -69,6 +77,24 @@ function WorkflowCreateLauncherPanelComponent({
               </span>
             ))}
           </div>
+
+          {featuredNodes.length > 0 ? (
+            <div aria-label="常用节点入口">
+              <div style={{ marginBottom: 8 }}>
+                <Text strong>常用原生节点</Text>
+                <br />
+                <Text type="secondary">创建后直接继续插入这条作者主链，不必再从长说明里找节点。</Text>
+              </div>
+              <div className="workflow-create-signal-row">
+                {featuredNodes.map((node) => (
+                  <span className="workflow-create-fact-pill" key={node.type}>
+                    {node.label}
+                    {node.supportStatus === "available" ? "" : "（规划中）"}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {hasScopedWorkspaceStarterFilters ? (
             <div className="workflow-create-scoped-banner">

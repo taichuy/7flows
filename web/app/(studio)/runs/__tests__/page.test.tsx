@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import RunsPage from "@/app/runs/page";
+import RunsPage from "@/app/(studio)/runs/page";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import {
@@ -446,4 +446,3 @@ describe("RunsPage", () => {
     expect(html).toContain("callback pending");
   });
 });
-

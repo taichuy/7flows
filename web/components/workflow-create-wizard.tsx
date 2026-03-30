@@ -71,6 +71,22 @@ type WorkflowCreateWizardProps = {
   tools: PluginToolRegistryItem[];
 };
 
+type WorkflowCreateFeaturedNode = {
+  type: WorkflowNodeCatalogItem["type"];
+  label: string;
+  supportStatus: WorkflowNodeCatalogItem["supportStatus"];
+};
+
+const WORKFLOW_CREATE_FEATURED_NODE_TYPES = [
+  "llm_agent",
+  "tool",
+  "condition",
+  "loop",
+  "mcp_query",
+  "sandbox_code",
+  "output"
+] as const;
+
 export function WorkflowCreateWizard({
   governanceQueryScope,
   legacyAuthGovernanceSnapshot = null,
@@ -376,6 +392,17 @@ export function WorkflowCreateWizard({
       selectedStarterSourcePrimarySignal
     ]
   );
+  const featuredNodes = useMemo<WorkflowCreateFeaturedNode[]>(
+    () =>
+      WORKFLOW_CREATE_FEATURED_NODE_TYPES.map((type) => nodeCatalog.find((item) => item.type === type))
+        .filter((item): item is WorkflowNodeCatalogItem => Boolean(item))
+        .map((item) => ({
+          type: item.type,
+          label: item.label,
+          supportStatus: item.supportStatus
+        })),
+    [nodeCatalog]
+  );
 
   if (!selectedStarter) {
     return (
@@ -447,6 +474,7 @@ export function WorkflowCreateWizard({
         <WorkflowCreateLauncherPanel
           activeTrack={activeTrack}
           createSignalItems={createSignalItems}
+          featuredNodes={featuredNodes}
           hasScopedWorkspaceStarterFilters={hasScopedWorkspaceStarterFilters}
           scopedGovernanceBackLinkLabel={surfaceCopy.scopedGovernanceBackLinkLabel}
           scopedGovernanceDescription={surfaceCopy.scopedGovernanceDescription}

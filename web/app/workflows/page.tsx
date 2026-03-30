@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Button, Space } from "antd";
-import { PlusOutlined, AppstoreAddOutlined } from "@ant-design/icons";
 
 import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
@@ -206,38 +204,44 @@ export default async function WorkflowsPage({
                 {surfaceCopy.editorListDescription}
               </p>
             </div>
-            <Space wrap>
-              <Link href={buildWorkflowCreateHrefFromWorkspaceStarterViewState(workspaceStarterViewState)}>
-                <Button type="primary" icon={<PlusOutlined />} size="large">
-                  创建空白应用
-                </Button>
+            <div className="workspace-action-row">
+              <Link
+                className="workspace-primary-button compact"
+                href={buildWorkflowCreateHrefFromWorkspaceStarterViewState(workspaceStarterViewState)}
+              >
+                创建空白应用
               </Link>
-              <Link href={buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState(workspaceStarterViewState)}>
-                <Button icon={<AppstoreAddOutlined />} size="large">
-                  从模板创建
-                </Button>
+              <Link
+                className="workspace-ghost-button compact"
+                href={buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState(
+                  workspaceStarterViewState
+                )}
+              >
+                从模板创建
               </Link>
-            </Space>
+            </div>
           </div>
 
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Link href={clearWorkflowLibraryFilterHref}>
-              <Button
-                type={!isLegacyPublishAuthFilterActive && !isMissingToolFilterActive ? "primary" : "default"}
-                shape="round"
-              >
-                全部应用 ({summary.workflowCount})
-              </Button>
+          <div className="workspace-filter-row">
+            <Link
+              className={`workspace-filter-chip ${
+                !isLegacyPublishAuthFilterActive && !isMissingToolFilterActive ? "active" : ""
+              }`.trim()}
+              href={clearWorkflowLibraryFilterHref}
+            >
+              全部应用 ({summary.workflowCount})
             </Link>
-            <Link href={legacyPublishAuthFilterHref}>
-              <Button type={isLegacyPublishAuthFilterActive ? "primary" : "default"} shape="round">
-                Legacy auth ({summary.workflowLegacyPublishAuthCount})
-              </Button>
+            <Link
+              className={`workspace-filter-chip ${isLegacyPublishAuthFilterActive ? "active" : ""}`.trim()}
+              href={legacyPublishAuthFilterHref}
+            >
+              Legacy auth ({summary.workflowLegacyPublishAuthCount})
             </Link>
-            <Link href={missingToolFilterHref}>
-              <Button type={isMissingToolFilterActive ? "primary" : "default"} shape="round">
-                Catalog gap ({summary.workflowMissingToolCount})
-              </Button>
+            <Link
+              className={`workspace-filter-chip ${isMissingToolFilterActive ? "active" : ""}`.trim()}
+              href={missingToolFilterHref}
+            >
+              Catalog gap ({summary.workflowMissingToolCount})
             </Link>
           </div>
 
@@ -254,10 +258,11 @@ export default async function WorkflowsPage({
               <p style={{ display: "block", margin: "0 0 16px", color: "#667085" }}>
                 {surfaceCopy.emptyState}
               </p>
-              <Link href={buildWorkflowCreateHrefFromWorkspaceStarterViewState(workspaceStarterViewState)}>
-                <Button type="primary" icon={<PlusOutlined />}>
-                  创建应用
-                </Button>
+              <Link
+                className="workspace-primary-button compact"
+                href={buildWorkflowCreateHrefFromWorkspaceStarterViewState(workspaceStarterViewState)}
+              >
+                创建应用
               </Link>
             </div>
           ) : (
@@ -733,7 +738,12 @@ function toWorkspaceStarterTemplateItem(
     workflow_focus: starter.workflowFocus,
     recommended_next_step: starter.recommendedNextStep,
     tags: starter.tags,
-    definition: starter.definition,
+    definition: starter.definition ?? {
+      nodes: [],
+      edges: [],
+      variables: [],
+      publish: []
+    },
     created_from_workflow_id:
       starter.createdFromWorkflowId ?? starter.sourceGovernance?.sourceWorkflowId ?? null,
     created_from_workflow_version:

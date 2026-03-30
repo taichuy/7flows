@@ -8,6 +8,7 @@ import type {
   PluginAdapterRegistryItem,
   PluginToolRegistryItem
 } from "@/lib/get-plugin-registry";
+import type { CredentialItem } from "@/lib/get-credentials";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import type { OperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
@@ -56,6 +57,7 @@ type WorkflowEditorInspectorProps = {
   edges: Array<Edge<WorkflowCanvasEdgeData>>;
   tools: PluginToolRegistryItem[];
   adapters: PluginAdapterRegistryItem[];
+  credentials: CredentialItem[];
   nodeConfigText: string;
   onNodeConfigTextChange: (value: string) => void;
   onApplyNodeConfigJson: () => void;
@@ -105,6 +107,7 @@ export function WorkflowEditorInspector({
   edges,
   tools,
   adapters,
+  credentials,
   nodeConfigText,
   onNodeConfigTextChange,
   onApplyNodeConfigJson,
@@ -405,13 +408,14 @@ export function WorkflowEditorInspector({
                 />
               </div>
 
-              <WorkflowNodeConfigForm
-                node={selectedNode}
-                nodes={nodes}
-                tools={tools}
-                adapters={adapters}
-                currentHref={currentHref}
-                sandboxReadiness={sandboxReadiness}
+                    <WorkflowNodeConfigForm
+                      node={selectedNode}
+                      nodes={nodes}
+                      tools={tools}
+                      adapters={adapters}
+                      credentials={credentials}
+                      currentHref={currentHref}
+                      sandboxReadiness={sandboxReadiness}
                 highlightedFieldPath={highlightedNodeSection === "config" ? highlightedNodeFieldPath : null}
                 focusedValidationItem={
                   highlightedNodeSection === "config" ? focusedValidationItem : null

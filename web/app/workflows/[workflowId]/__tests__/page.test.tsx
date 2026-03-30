@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import WorkflowEditorPage from "@/app/workflows/[workflowId]/page";
+import { getCredentials } from "@/lib/get-credentials";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
@@ -88,6 +89,10 @@ vi.mock("@/lib/get-workflow-publish-governance", () => ({
   getWorkflowPublishGovernanceSnapshot: vi.fn()
 }));
 
+vi.mock("@/lib/get-credentials", () => ({
+  getCredentials: vi.fn()
+}));
+
 function buildWorkspaceContext(): WorkspaceContextResponse {
   return {
     workspace: {
@@ -140,6 +145,7 @@ beforeEach(() => {
     adapters: [],
     tools: []
   } as Awaited<ReturnType<typeof getPluginRegistrySnapshot>>);
+  vi.mocked(getCredentials).mockResolvedValue([] as Awaited<ReturnType<typeof getCredentials>>);
   vi.mocked(getSystemOverview).mockResolvedValue({
     callback_waiting_automation: null,
     sandbox_readiness: null,
@@ -169,7 +175,7 @@ beforeEach(() => {
 });
 
 describe("WorkflowEditorPage", () => {
-  it("renders the editor and publish surfaces inside the workspace shell", async () => {
+  it("renders only the editor surface by default", async () => {
     const html = renderToStaticMarkup(
       await WorkflowEditorPage({
         params: Promise.resolve({ workflowId: "workflow-1" }),
@@ -179,7 +185,7 @@ describe("WorkflowEditorPage", () => {
 
     expect(html).toContain('data-component="workspace-shell"');
     expect(html).toContain('data-component="workflow-editor-workbench"');
-    expect(html).toContain('data-component="workflow-publish-panel"');
+    expect(html).not.toContain('data-component="workflow-publish-panel"');
     expect(html).toContain('data-workflow-id="workflow-1"');
     expect(html).toContain("workflow-studio-shell-bar workflow-studio-shell-bar-compact");
     expect(html).toContain("Workflow 1");
@@ -188,9 +194,17 @@ describe("WorkflowEditorPage", () => {
     expect(html).toContain("运行诊断");
     expect(html).toContain("Starter 模板");
     expect(html).toContain("编排中心");
+    expect(html).toContain("?surface=editor");
+    expect(html).toContain("?surface=publish");
+    expect(vi.mocked(getWorkflows)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getWorkflowLibrarySnapshot)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getWorkflowRuns)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getCredentials)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getWorkflowPublishedEndpoints)).not.toHaveBeenCalled();
+    expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).not.toHaveBeenCalled();
   });
 
-  it("keeps the workflow identity and surface mode when entering publish governance", async () => {
+  it("loads only publish data when entering publish governance", async () => {
     const html = renderToStaticMarkup(
       await WorkflowEditorPage({
         params: Promise.resolve({ workflowId: "workflow-1" }),
@@ -199,10 +213,18 @@ describe("WorkflowEditorPage", () => {
     );
 
     expect(html).toContain('data-component="workflow-publish-panel"');
-    expect(html).toContain('hidden=""');
+    expect(html).not.toContain('data-component="workflow-editor-workbench"');
     expect(html).toContain("publish governance");
     expect(html).toContain("Workflow 1");
     expect(html).toContain("draft only");
+    expect(vi.mocked(getWorkflowPublishedEndpoints)).toHaveBeenCalledWith("workflow-1", {
+      includeAllVersions: true
+    });
+    expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getCredentials)).not.toHaveBeenCalled();
+    expect(vi.mocked(getWorkflows)).not.toHaveBeenCalled();
+    expect(vi.mocked(getWorkflowLibrarySnapshot)).not.toHaveBeenCalled();
+    expect(vi.mocked(getWorkflowRuns)).not.toHaveBeenCalled();
   });
 
   it("redirects unauthenticated users back to login", async () => {

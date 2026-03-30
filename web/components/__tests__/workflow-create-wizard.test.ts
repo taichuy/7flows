@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { WorkflowCreateWizard } from "@/components/workflow-create-wizard";
+import type { WorkflowNodeCatalogItem } from "@/lib/get-workflow-library";
 import { buildWorkflowCreateWizardSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 
 Object.assign(globalThis, { React });
@@ -1254,4 +1255,110 @@ describe("WorkflowCreateWizard", () => {
     expect(html).toContain("先补 tool binding");
     expect(html).toContain('disabled=""');
   });
+});
+
+function buildFeaturedNodeCatalogItem(
+  type: string,
+  label: string,
+  supportStatus: "available" | "planned" = "available"
+): WorkflowNodeCatalogItem {
+  return {
+    type,
+    label,
+    description: `${label} description`,
+    ecosystem: "native",
+    source: {
+      kind: "node",
+      scope: "builtin",
+      status: supportStatus,
+      governance: "repo",
+      ecosystem: "native",
+      label: "Native node catalog",
+      shortLabel: "native nodes",
+      summary: "Native nodes"
+    },
+    capabilityGroup:
+      type === "output"
+        ? "output"
+        : type === "condition" || type === "loop"
+          ? "logic"
+          : "integration",
+    businessTrack: "编排节点能力",
+    tags: [],
+    supportStatus,
+    supportSummary: supportStatus === "available" ? "" : "planned",
+    bindingRequired: false,
+    bindingSourceLanes: [],
+    palette: { enabled: supportStatus === "available", order: 0, defaultPosition: { x: 0, y: 0 } },
+    defaults: { name: label, config: {} }
+  };
+}
+
+it("surfaces the common authoring nodes in create flow order", () => {
+  const html = renderToStaticMarkup(
+    createElement(WorkflowCreateWizard, {
+      catalogToolCount: 0,
+      governanceQueryScope: {
+        activeTrack: "all",
+        sourceGovernanceKind: "all",
+        needsFollowUp: false,
+        searchQuery: "",
+        selectedTemplateId: null
+      },
+      workflows: [],
+      starterSourceLanes: [],
+      nodeCatalog: [
+        buildFeaturedNodeCatalogItem("trigger", "Trigger"),
+        buildFeaturedNodeCatalogItem("llm_agent", "LLM Agent"),
+        buildFeaturedNodeCatalogItem("tool", "Tool"),
+        buildFeaturedNodeCatalogItem("condition", "Condition"),
+        buildFeaturedNodeCatalogItem("loop", "Loop", "planned"),
+        buildFeaturedNodeCatalogItem("mcp_query", "MCP Query"),
+        buildFeaturedNodeCatalogItem("sandbox_code", "Sandbox Code"),
+        buildFeaturedNodeCatalogItem("output", "Output")
+      ],
+      tools: [],
+      starters: [
+        {
+          id: "workspace-starter-1",
+          origin: "workspace",
+          workspaceId: "default",
+          name: "Workspace starter",
+          description: "Starter description",
+          businessTrack: "应用新建编排",
+          defaultWorkflowName: "Blank Workflow",
+          workflowFocus: "Create from starter",
+          recommendedNextStep: "Create workflow",
+          tags: [],
+          definition: {
+            nodes: [{ id: "trigger", type: "trigger", name: "Trigger", config: {} }],
+            edges: [],
+            variables: [],
+            publish: []
+          },
+          source: {
+            kind: "starter",
+            scope: "workspace",
+            status: "available",
+            governance: "workspace",
+            ecosystem: "native",
+            label: "Workspace starters",
+            shortLabel: "workspace ready",
+            summary: "Workspace starter library"
+          },
+          archived: false,
+          sourceGovernance: null
+        }
+      ]
+    })
+  );
+
+  expect(html).toContain("常用原生节点");
+  expect(html).toContain("LLM Agent");
+  expect(html).toContain("Tool");
+  expect(html).toContain("Condition");
+  expect(html).toContain("Loop（规划中）");
+  expect(html).toContain("MCP Query");
+  expect(html).toContain("Sandbox Code");
+  expect(html).toContain("Output");
 });

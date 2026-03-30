@@ -13,6 +13,7 @@ export function WorkflowNodeConfigForm({
   nodes,
   tools,
   adapters,
+  credentials,
   currentHref,
   sandboxReadiness,
   highlightedFieldPath,
@@ -26,6 +27,7 @@ export function WorkflowNodeConfigForm({
           node={node}
           nodes={nodes}
           tools={tools}
+          credentials={credentials}
           currentHref={currentHref}
           sandboxReadiness={sandboxReadiness}
           highlightedFieldPath={highlightedFieldPath}

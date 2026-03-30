@@ -22,6 +22,7 @@ def get_workflow_library_snapshot(
     ),
     needs_follow_up: bool = Query(default=False),
     include_builtin_starters: bool = Query(default=True),
+    include_starter_definitions: bool = Query(default=False),
     db: Session = Depends(get_db),
 ) -> WorkflowLibrarySnapshot:
     return get_workflow_library_service().build_snapshot(
@@ -32,4 +33,5 @@ def get_workflow_library_snapshot(
         source_governance_kind=source_governance_kind,
         needs_follow_up=needs_follow_up,
         include_builtin_starters=include_builtin_starters,
+        include_starter_definitions=include_starter_definitions,
     )

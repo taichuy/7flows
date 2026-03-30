@@ -15,6 +15,7 @@ from app.schemas.workflow import (
     WorkflowDetail,
     WorkflowLegacyAuthGovernanceSummary,
     WorkflowListItem,
+    WorkflowOverview,
     WorkflowToolGovernanceSummary,
     WorkflowVersionItem,
 )
@@ -128,11 +129,33 @@ def serialize_workflow_detail(
     definition_issues: list[WorkflowDefinitionPreflightIssue] | None = None,
     legacy_auth_governance: WorkflowLegacyAuthGovernanceSummary | None = None,
 ) -> WorkflowDetail:
+    overview = serialize_workflow_overview(
+        workflow=workflow,
+        versions=versions,
+        compiled_blueprints=compiled_blueprints,
+        tool_index=tool_index,
+        definition_issues=definition_issues,
+        legacy_auth_governance=legacy_auth_governance,
+    )
+    return WorkflowDetail(
+        **overview.model_dump(),
+        definition=workflow.definition,
+    )
+
+
+def serialize_workflow_overview(
+    workflow: Workflow,
+    versions: list[WorkflowVersion],
+    compiled_blueprints: dict[str, WorkflowCompiledBlueprint] | None = None,
+    tool_index: dict[str, PluginToolItem] | None = None,
+    definition_issues: list[WorkflowDefinitionPreflightIssue] | None = None,
+    legacy_auth_governance: WorkflowLegacyAuthGovernanceSummary | None = None,
+) -> WorkflowOverview:
     compiled_blueprints = compiled_blueprints or {}
     tool_index = tool_index or {}
     node_types = summarize_workflow_definition_node_types(workflow.definition)
     publish_count = count_workflow_publish_endpoints(workflow.definition)
-    return WorkflowDetail(
+    return WorkflowOverview(
         id=workflow.id,
         name=workflow.name,
         version=workflow.version,
@@ -146,7 +169,6 @@ def serialize_workflow_detail(
             tool_index=tool_index,
         ),
         legacy_auth_governance=legacy_auth_governance,
-        definition=workflow.definition,
         definition_issues=definition_issues or [],
         created_at=workflow.created_at,
         versions=[
@@ -287,6 +309,24 @@ def build_workflow_detail(db: Session, workflow: Workflow) -> WorkflowDetail:
         workflow_id=workflow.id,
     ).get(workflow.id)
     return serialize_workflow_detail(
+        workflow,
+        sort_workflow_versions(versions),
+        load_compiled_blueprint_lookup(db, workflow.id),
+        load_workflow_view_tool_index(db),
+        build_workflow_definition_issues(db, workflow),
+        legacy_auth_governance=legacy_auth_governance,
+    )
+
+
+def build_workflow_overview(db: Session, workflow: Workflow) -> WorkflowOverview:
+    versions = db.scalars(
+        select(WorkflowVersion).where(WorkflowVersion.workflow_id == workflow.id)
+    ).all()
+    legacy_auth_governance = load_workflow_legacy_auth_governance_lookup(
+        db,
+        workflow_id=workflow.id,
+    ).get(workflow.id)
+    return serialize_workflow_overview(
         workflow,
         sort_workflow_versions(versions),
         load_compiled_blueprint_lookup(db, workflow.id),

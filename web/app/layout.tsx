@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
-import "@xyflow/react/dist/style.css";
 import "./globals.css";
-import { AppLayout } from "@/components/app-layout";
 
 export const metadata: Metadata = {
   title: "7Flows Studio",
@@ -16,9 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body>
-        <AppLayout>{children}</AppLayout>
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

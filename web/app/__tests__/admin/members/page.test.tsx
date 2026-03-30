@@ -24,11 +24,23 @@ vi.mock("@/components/workspace-shell", () => ({
 }));
 
 vi.mock("@/components/workspace-member-admin-panel", () => ({
-  WorkspaceMemberAdminPanel: ({ workspaceName, initialMembers }: { workspaceName: string; initialMembers: Array<{ id: string }> }) =>
+  WorkspaceMemberAdminPanel: ({
+    availableRoles,
+    canManageMembers,
+    workspaceName,
+    initialMembers
+  }: {
+    availableRoles: string[];
+    canManageMembers: boolean;
+    workspaceName: string;
+    initialMembers: Array<{ id: string }>;
+  }) =>
     createElement(
       "div",
       {
         "data-component": "workspace-member-admin-panel",
+        "data-can-manage": String(canManageMembers),
+        "data-roles": availableRoles.length,
         "data-workspace": workspaceName,
         "data-count": initialMembers.length
       },
@@ -95,8 +107,45 @@ describe("AdminMembersPage", () => {
     const html = renderToStaticMarkup(await AdminMembersPage());
 
     expect(html).toContain('data-component="workspace-member-admin-panel"');
+    expect(html).toContain('data-can-manage="true"');
+    expect(html).toContain('data-roles="4"');
     expect(html).toContain('data-workspace="7Flows Workspace"');
     expect(html).toContain('data-count="1"');
+  });
+
+  it("redirects back to workspace when current member cannot manage members", async () => {
+    vi.mocked(getServerWorkspaceContext).mockResolvedValue({
+      workspace: {
+        id: "default",
+        name: "7Flows Workspace",
+        slug: "sevenflows"
+      },
+      current_user: {
+        id: "user-viewer",
+        email: "viewer@taichuy.com",
+        display_name: "Viewer",
+        status: "active",
+        last_login_at: null
+      },
+      current_member: {
+        id: "member-viewer",
+        role: "viewer",
+        user: {
+          id: "user-viewer",
+          email: "viewer@taichuy.com",
+          display_name: "Viewer",
+          status: "active",
+          last_login_at: null
+        },
+        created_at: "2026-03-27T12:00:00Z",
+        updated_at: "2026-03-27T12:00:00Z"
+      },
+      available_roles: ["owner", "admin", "editor", "viewer"],
+      can_manage_members: false
+    });
+    vi.mocked(getServerWorkspaceMembers).mockResolvedValue([]);
+
+    await expect(AdminMembersPage()).rejects.toThrowError("redirect:/workspace");
   });
 
   it("redirects to login when session is missing", async () => {

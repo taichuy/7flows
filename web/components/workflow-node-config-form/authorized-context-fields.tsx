@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef } from "react";
 import type { Node } from "@xyflow/react";
 
 import type { WorkflowCanvasNodeData } from "@/lib/workflow-editor";

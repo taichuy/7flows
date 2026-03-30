@@ -210,6 +210,11 @@ class WorkflowListItem(BaseModel):
     definition_issues: list[WorkflowDefinitionPreflightIssue] = Field(default_factory=list)
 
 
+class WorkflowOverview(WorkflowListItem):
+    created_at: datetime
+    versions: list[WorkflowVersionItem] = Field(default_factory=list)
+
+
 class WorkflowVersionItem(BaseModel):
     id: str
     workflow_id: str
@@ -220,7 +225,5 @@ class WorkflowVersionItem(BaseModel):
     compiled_blueprint_updated_at: datetime | None = None
 
 
-class WorkflowDetail(WorkflowListItem):
+class WorkflowDetail(WorkflowOverview):
     definition: dict
-    created_at: datetime
-    versions: list[WorkflowVersionItem] = Field(default_factory=list)

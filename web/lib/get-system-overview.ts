@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import { getSystemOverviewFetchOptions } from "@/lib/authoring-snapshot-cache";
 import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 import {
@@ -236,9 +237,10 @@ const fallback: SystemOverview = {
 
 export async function getSystemOverview(): Promise<SystemOverview> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/system/overview`, {
-      cache: "no-store"
-    });
+    const response = await fetch(
+      `${getApiBaseUrl()}/api/system/overview`,
+      getSystemOverviewFetchOptions()
+    );
 
     if (!response.ok) {
       return fallback;

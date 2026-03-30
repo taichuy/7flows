@@ -63,6 +63,7 @@ function buildProps() {
     edges: [] as Array<Edge>,
     tools: [],
     adapters: [],
+    credentials: [],
     nodeConfigText: "{}",
     onNodeConfigTextChange: () => undefined,
     onApplyNodeConfigJson: () => undefined,

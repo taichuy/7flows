@@ -1,8 +1,5 @@
-"use client";
-
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import {
   canManageWorkspaceMembers,
@@ -10,6 +7,7 @@ import {
   type WorkspaceMemberRole
 } from "@/lib/workspace-access";
 import { getWorkspaceBadgeLabel } from "@/lib/workspace-ui";
+import { WorkspaceLogoutButton } from "@/components/workspace-logout-button";
 
 type WorkspaceShellProps = {
   activeNav: "workspace" | "workflows" | "runs" | "starters" | "ops" | "team";
@@ -42,7 +40,6 @@ export function WorkspaceShell({
   userRole,
   workspaceName
 }: WorkspaceShellProps) {
-  const router = useRouter();
   const isEditorLayout = layout === "editor";
   const isFocusedLayout = layout === "focused";
   const workspaceBadgeLabel = getWorkspaceBadgeLabel(workspaceName);
@@ -71,14 +68,6 @@ export function WorkspaceShell({
           label: "新建应用"
         }
       : null;
-
-  const handleLogout = async () => {
-    await fetch("/api/session/logout", {
-      method: "POST"
-    }).catch(() => null);
-    router.replace("/login");
-    router.refresh();
-  };
 
   return (
     <div className={`workspace-shell workspace-shell-${layout}`.trim()} data-component="workspace-shell" data-layout={layout}>
@@ -130,9 +119,7 @@ export function WorkspaceShell({
               </div>
               <span className="workspace-user-role-pill">{formatWorkspaceRole(userRole)}</span>
             </div>
-            <button className="workspace-ghost-button compact" onClick={handleLogout} type="button">
-              退出登录
-            </button>
+            <WorkspaceLogoutButton className="workspace-ghost-button compact" />
           </div>
         </div>
       </header>

@@ -96,7 +96,10 @@ class WorkflowLibraryStarterItem(BaseModel):
     workflow_focus: str = ""
     recommended_next_step: str = ""
     tags: list[str] = Field(default_factory=list)
-    definition: dict[str, Any] = Field(default_factory=dict)
+    node_count: int = Field(default=0, ge=0)
+    node_types: list[str] = Field(default_factory=list)
+    publish_count: int = Field(default=0, ge=0)
+    definition: dict[str, Any] | None = None
     source: WorkflowLibrarySourceDescriptor
     created_from_workflow_id: str | None = None
     created_from_workflow_version: str | None = None

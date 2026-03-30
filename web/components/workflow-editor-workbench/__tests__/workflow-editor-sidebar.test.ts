@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { WorkflowEditorSidebar } from "@/components/workflow-editor-workbench/workflow-editor-sidebar";
+import type { WorkflowNodeCatalogItem } from "@/lib/get-workflow-library";
 import type { WorkspaceStarterTemplateItem } from "@/lib/get-workspace-starters";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 
@@ -98,6 +99,50 @@ function buildSavedWorkspaceStarter(): WorkspaceStarterTemplateItem {
       outcome_explanation: {
         follow_up: "带此 starter 回到创建页继续创建 workflow，并保留当前模板上下文。"
       }
+    }
+  };
+}
+
+function buildNodeCatalogItem(
+  type: string,
+  label: string,
+  supportStatus: "available" | "planned" = "available"
+): WorkflowNodeCatalogItem {
+  return {
+    type,
+    label,
+    description: `${label} description`,
+    ecosystem: "native",
+    source: {
+      kind: "node",
+      scope: "builtin",
+      status: supportStatus,
+      governance: "repo",
+      ecosystem: "7flows",
+      label: "Native nodes",
+      shortLabel: "native nodes",
+      summary: "Built-in nodes"
+    },
+    capabilityGroup:
+      type === "output"
+        ? "output"
+        : type === "condition" || type === "loop"
+          ? "logic"
+          : "integration",
+    businessTrack: "编排节点能力",
+    tags: [type],
+    supportStatus,
+    supportSummary: supportStatus === "available" ? "available" : "planned",
+    bindingRequired: false,
+    bindingSourceLanes: [],
+    palette: {
+      enabled: supportStatus === "available",
+      order: 10,
+      defaultPosition: { x: 100, y: 100 }
+    },
+    defaults: {
+      name: label,
+      config: {}
     }
   };
 }
@@ -625,5 +670,54 @@ describe("WorkflowEditorSidebar", () => {
     expect(html).toContain(
       'href="/workflows/workflow-1?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool"'
     );
+  });
+
+  it("surfaces planned loop nodes directly in the node rail summary", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorSidebar, {
+        workflowId: "workflow-1",
+        workflowName: "Demo workflow",
+        workflows: [],
+        nodeSourceLanes: [],
+        toolSourceLanes: [],
+        editorNodeLibrary: [
+          buildNodeCatalogItem("llm_agent", "LLM Agent"),
+          buildNodeCatalogItem("tool", "Tool"),
+          buildNodeCatalogItem("condition", "Condition"),
+          buildNodeCatalogItem("mcp_query", "MCP Query"),
+          buildNodeCatalogItem("sandbox_code", "Sandbox Code"),
+          buildNodeCatalogItem("output", "Output")
+        ],
+        plannedNodeLibrary: [buildNodeCatalogItem("loop", "Loop", "planned")],
+        unsupportedNodes: [],
+        message: null,
+        messageTone: "idle",
+        persistBlockerSummary: null,
+        persistBlockers: [],
+        executionPreflightMessage: null,
+        toolExecutionValidationIssueCount: 0,
+        validationNavigatorItems: [],
+        runs: [],
+        selectedRunId: null,
+        run: null,
+        runSnapshot: null,
+        trace: null,
+        traceError: null,
+        selectedNodeId: null,
+        sandboxReadiness: buildSandboxReadiness(),
+        isLoadingRunOverlay: false,
+        isRefreshingRuns: false,
+        onAddNode: () => undefined,
+        onNavigateValidationIssue: () => undefined,
+        onSelectRunId: () => undefined,
+        onRefreshRuns: () => undefined
+      })
+    );
+
+    expect(html).toContain("LLM Agent");
+    expect(html).toContain("Condition");
+    expect(html).toContain("MCP Query");
+    expect(html).toContain("Sandbox Code");
+    expect(html).toContain("规划中的节点 (1) · Loop");
   });
 });

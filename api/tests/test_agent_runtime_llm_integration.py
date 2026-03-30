@@ -3,15 +3,32 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import patch
 
 import httpx
+from cryptography.fernet import Fernet
 from sqlalchemy.orm import Session
 
 from app.models.skill import SkillRecord, SkillReferenceRecord
 from app.models.workflow import Workflow
+from app.services.credential_store import CredentialStore
 from app.services.llm_provider import LLMProviderService
 from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginToolDefinition
 from app.services.runtime import RuntimeService
+
+
+_TEST_CREDENTIAL_KEY = Fernet.generate_key().decode("utf-8")
+
+
+class _FakeCredentialSettings:
+    credential_encryption_key = _TEST_CREDENTIAL_KEY
+
+
+def _patch_credential_settings():
+    return patch(
+        "app.services.credential_encryption.get_settings",
+        return_value=_FakeCredentialSettings(),
+    )
 
 
 def _openai_response(content: str, model: str = "gpt-4o") -> dict:
@@ -27,6 +44,18 @@ def _openai_response(content: str, model: str = "gpt-4o") -> dict:
             }
         ],
         "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+    }
+
+
+def _anthropic_response(content: str, model: str = "claude-3-7-sonnet-latest") -> dict:
+    return {
+        "id": "msg-test",
+        "type": "message",
+        "role": "assistant",
+        "model": model,
+        "content": [{"type": "text", "text": content}],
+        "stop_reason": "end_turn",
+        "usage": {"input_tokens": 12, "output_tokens": 8},
     }
 
 
@@ -1342,3 +1371,123 @@ def test_llm_finalize_error_degrades_gracefully(sqlite_session: Session) -> None
     assert artifacts.run.status == "succeeded"
     agent_run = next(nr for nr in artifacts.node_runs if nr.node_id == "agent")
     assert agent_run.output_payload["decision_basis"] == "working_context"
+
+
+def test_openai_compatible_runtime_resolves_credential_ref_and_custom_base_url(
+    sqlite_session: Session,
+) -> None:
+    with _patch_credential_settings():
+        runtime = _create_runtime_with_llm([
+            _openai_response("Proxy-backed answer.", model="kimi-k2")
+        ])
+        credential = CredentialStore().create(
+            sqlite_session,
+            name="Proxy OpenAI Key",
+            credential_type="openai_compatible_api_key",
+            data={"api_key": "sk-proxy-key"},
+        )
+        sqlite_session.commit()
+
+        workflow = Workflow(
+            id="wf-openai-compatible-base-url",
+            name="OpenAI-compatible Base URL",
+            version="0.1.0",
+            status="draft",
+            definition={
+                "nodes": [
+                    {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                    {
+                        "id": "agent",
+                        "type": "llm_agent",
+                        "name": "Agent",
+                        "config": {
+                            "prompt": "Answer via proxy",
+                            "model": {
+                                "provider": "openai-compatible",
+                                "modelId": "kimi-k2",
+                                "apiKey": f"credential://{credential.id}",
+                                "baseUrl": "https://proxy.example/v1",
+                            },
+                            "assistant": {"enabled": False},
+                        },
+                    },
+                    {"id": "output", "type": "output", "name": "Output", "config": {}},
+                ],
+                "edges": [
+                    {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                    {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+                ],
+            },
+        )
+        sqlite_session.add(workflow)
+        sqlite_session.commit()
+
+        artifacts = runtime.execute_workflow(sqlite_session, workflow, {})
+
+        assert artifacts.run.status == "succeeded"
+        captured_requests = runtime._llm_provider._captured_requests  # type: ignore[attr-defined]
+        assert captured_requests[0]["url"] == "https://proxy.example/v1/chat/completions"
+        assert captured_requests[0]["body"]["model"] == "kimi-k2"
+
+        resolved_credential = CredentialStore().get(sqlite_session, credential_id=credential.id)
+        assert resolved_credential.last_used_at is not None
+
+
+def test_anthropic_runtime_uses_messages_endpoint_with_credential_ref_and_base_url(
+    sqlite_session: Session,
+) -> None:
+    with _patch_credential_settings():
+        runtime = _create_runtime_with_llm([
+            _anthropic_response("Anthropic proxy answer.")
+        ])
+        credential = CredentialStore().create(
+            sqlite_session,
+            name="Anthropic Key",
+            credential_type="anthropic_api_key",
+            data={"api_key": "sk-ant-test"},
+        )
+        sqlite_session.commit()
+
+        workflow = Workflow(
+            id="wf-anthropic-base-url",
+            name="Anthropic Base URL",
+            version="0.1.0",
+            status="draft",
+            definition={
+                "nodes": [
+                    {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                    {
+                        "id": "agent",
+                        "type": "llm_agent",
+                        "name": "Agent",
+                        "config": {
+                            "prompt": "Answer via anthropic proxy",
+                            "model": {
+                                "provider": "anthropic",
+                                "modelId": "claude-3-7-sonnet-latest",
+                                "apiKey": f"credential://{credential.id}",
+                                "baseUrl": "https://anthropic-proxy.example",
+                            },
+                            "assistant": {"enabled": False},
+                        },
+                    },
+                    {"id": "output", "type": "output", "name": "Output", "config": {}},
+                ],
+                "edges": [
+                    {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                    {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+                ],
+            },
+        )
+        sqlite_session.add(workflow)
+        sqlite_session.commit()
+
+        artifacts = runtime.execute_workflow(sqlite_session, workflow, {})
+
+        assert artifacts.run.status == "succeeded"
+        captured_requests = runtime._llm_provider._captured_requests  # type: ignore[attr-defined]
+        assert captured_requests[0]["url"] == "https://anthropic-proxy.example/v1/messages"
+        assert captured_requests[0]["body"]["model"] == "claude-3-7-sonnet-latest"
+
+        resolved_credential = CredentialStore().get(sqlite_session, credential_id=credential.id)
+        assert resolved_credential.last_used_at is not None

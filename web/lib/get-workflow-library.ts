@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import { getWorkflowLibraryFetchOptions } from "@/lib/authoring-snapshot-cache";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type {
   SignalFollowUpExplanation,
@@ -61,7 +62,10 @@ export type WorkflowLibraryStarterItem = {
   workflowFocus: string;
   recommendedNextStep: string;
   tags: string[];
-  definition: WorkflowDefinition;
+  nodeCount?: number;
+  nodeTypes?: string[];
+  publishCount?: number;
+  definition?: WorkflowDefinition | null;
   source: WorkflowLibrarySourceDescriptor;
   createdFromWorkflowId?: string | null;
   createdFromWorkflowVersion?: string | null;
@@ -118,7 +122,8 @@ export async function getWorkflowLibrarySnapshot({
   search,
   sourceGovernanceKind,
   needsFollowUp = false,
-  includeBuiltinStarters = true
+  includeBuiltinStarters = true,
+  includeStarterDefinitions = false
 }: {
   workspaceId?: string;
   businessTrack?: WorkflowBusinessTrack;
@@ -126,6 +131,7 @@ export async function getWorkflowLibrarySnapshot({
   sourceGovernanceKind?: WorkspaceStarterSourceGovernanceKind;
   needsFollowUp?: boolean;
   includeBuiltinStarters?: boolean;
+  includeStarterDefinitions?: boolean;
 } = {}): Promise<WorkflowLibrarySnapshot> {
   const params = buildWorkspaceStarterTemplateQueryParams({
     workspaceId,
@@ -137,13 +143,14 @@ export async function getWorkflowLibrarySnapshot({
   if (!includeBuiltinStarters) {
     params.set("include_builtin_starters", "false");
   }
+  if (includeStarterDefinitions) {
+    params.set("include_starter_definitions", "true");
+  }
 
   try {
     const response = await fetch(
       `${getApiBaseUrl()}/api/workflow-library?${params.toString()}`,
-      {
-        cache: "no-store"
-      }
+      getWorkflowLibraryFetchOptions()
     );
 
     if (!response.ok) {
@@ -278,7 +285,10 @@ function normalizeStarterItem(
     workflowFocus: asString(input.workflow_focus),
     recommendedNextStep: asString(input.recommended_next_step),
     tags: asStringArray(input.tags),
-    definition: normalizeWorkflowDefinition(input.definition),
+    nodeCount: typeof input.node_count === "number" ? input.node_count : 0,
+    nodeTypes: asStringArray(input.node_types),
+    publishCount: typeof input.publish_count === "number" ? input.publish_count : 0,
+    definition: isRecord(input.definition) ? normalizeWorkflowDefinition(input.definition) : null,
     source: normalizeSourceDescriptor(isRecord(input.source) ? input.source : {}),
     createdFromWorkflowId: asOptionalString(input.created_from_workflow_id),
     createdFromWorkflowVersion: asOptionalString(input.created_from_workflow_version),

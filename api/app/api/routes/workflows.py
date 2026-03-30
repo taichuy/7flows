@@ -10,6 +10,7 @@ from app.schemas.workflow import (
     WorkflowDefinitionPreflightResult,
     WorkflowDetail,
     WorkflowListItem,
+    WorkflowOverview,
     WorkflowUpdate,
     WorkflowVersionItem,
 )
@@ -34,6 +35,7 @@ from app.services.workflow_publish_version_references import (
 from app.services.workflow_views import (
     WorkflowListDefinitionIssueFilter,
     build_workflow_detail,
+    build_workflow_overview,
     list_workflow_items,
     list_workflow_run_items,
     list_workflow_version_items,
@@ -127,8 +129,19 @@ def create_workflow(payload: WorkflowCreate, db: Session = Depends(get_db)) -> W
     return build_workflow_detail(db, workflow)
 
 
-@router.get("/{workflow_id}", response_model=WorkflowDetail)
-def get_workflow(workflow_id: str, db: Session = Depends(get_db)) -> WorkflowDetail:
+@router.get("/{workflow_id}", response_model=WorkflowOverview)
+def get_workflow(workflow_id: str, db: Session = Depends(get_db)) -> WorkflowOverview:
+    workflow = db.get(Workflow, workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
+    return build_workflow_overview(db, workflow)
+
+
+@router.get("/{workflow_id}/detail", response_model=WorkflowDetail)
+def get_workflow_detail(
+    workflow_id: str,
+    db: Session = Depends(get_db),
+) -> WorkflowDetail:
     workflow = db.get(Workflow, workflow_id)
     if workflow is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")

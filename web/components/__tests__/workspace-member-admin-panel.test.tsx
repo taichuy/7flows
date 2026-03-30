@@ -12,7 +12,7 @@ vi.mock("@/lib/workspace-member-admin", () => ({
 }));
 
 describe("WorkspaceMemberAdminPanel", () => {
-  it("renders the compact workspace member settings shell", () => {
+  it("renders the split member admin surfaces", () => {
     const html = renderToStaticMarkup(
       createElement(WorkspaceMemberAdminPanel, {
         availableRoles: ["owner", "admin", "editor", "viewer"],
@@ -36,10 +36,41 @@ describe("WorkspaceMemberAdminPanel", () => {
       })
     );
 
-    expect(html).toContain("成员与角色");
-    expect(html).toContain("7Flows Workspace");
-    expect(html).toContain("成员列表");
-    expect(html).toContain("新增成员");
-    expect(html).toContain("添加成员");
+    expect(html).toContain('data-component="workspace-member-admin-panel"');
+    expect(html).toContain('data-component="workspace-member-admin-sidebar"');
+    expect(html).toContain('data-component="workspace-member-admin-overview"');
+    expect(html).toContain('data-component="workspace-member-roster"');
+    expect(html).toContain('data-component="workspace-member-create-section"');
+    expect(html).toContain('data-component="workspace-member-role-guide"');
+    expect(html).toContain("返回工作台");
+    expect(html).toContain("角色说明");
+  });
+
+  it("shows viewer-only create guidance when member management is disabled", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkspaceMemberAdminPanel, {
+        availableRoles: ["owner", "admin", "editor", "viewer"],
+        canManageMembers: false,
+        initialMembers: [
+          {
+            id: "member-viewer",
+            role: "viewer",
+            user: {
+              id: "user-viewer",
+              email: "viewer@taichuy.com",
+              display_name: "Viewer",
+              status: "active",
+              last_login_at: null
+            },
+            created_at: "2026-03-27T12:00:00Z",
+            updated_at: "2026-03-27T12:00:00Z"
+          }
+        ],
+        workspaceName: "7Flows Workspace"
+      })
+    );
+
+    expect(html).toContain("当前账号只有查看权限，无法新增成员。");
+    expect(html).toContain("仅查看");
   });
 });

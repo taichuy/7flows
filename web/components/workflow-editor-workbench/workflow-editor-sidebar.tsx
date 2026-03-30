@@ -460,7 +460,9 @@ function WorkflowEditorSidebarComponent({
 
                 {plannedNodeLibrary.length > 0 ? (
                   <details className="binding-field compact-stack">
-                    <summary className="binding-label" style={{ cursor: "pointer", userSelect: "none" }}>规划中的节点 ({plannedNodeLibrary.length})</summary>
+                    <summary className="binding-label" style={{ cursor: "pointer", userSelect: "none" }}>
+                      规划中的节点 ({plannedNodeLibrary.length}) · {plannedNodeLibrary.map((item) => item.label).join(" / ")}
+                    </summary>
                     <div className="tool-badge-row" style={{ marginTop: "8px" }}>
                       {plannedNodeLibrary.map((item) => (
                         <span className="event-chip" key={`planned-${item.type}`}>

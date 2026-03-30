@@ -2636,6 +2636,28 @@ def test_get_workflow_detail_surfaces_legacy_auth_governance_for_binding_backlog
         "offline_inventory_count": 0,
     }
     assert body["definition_issues"] == []
+    assert "definition" not in body
+
+
+def test_get_workflow_detail_endpoint_keeps_definition_for_editor_requests(
+    client: TestClient,
+) -> None:
+    created = client.post(
+        "/api/workflows",
+        json={
+            "name": "Editor Workflow",
+            "definition": _valid_definition(),
+        },
+    )
+    assert created.status_code == 201
+    workflow_id = created.json()["id"]
+
+    response = client.get(f"/api/workflows/{workflow_id}/detail")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["definition"]["nodes"][0]["type"] == "trigger"
+    assert len(body["versions"]) == 1
 
 
 def test_list_workflows_can_filter_legacy_publish_auth_by_definition_or_binding_backlog(

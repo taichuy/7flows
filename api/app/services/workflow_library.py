@@ -51,6 +51,7 @@ class WorkflowLibraryService:
         source_governance_kind: WorkspaceStarterSourceGovernanceKind | None = None,
         needs_follow_up: bool = False,
         include_builtin_starters: bool = True,
+        include_starter_definitions: bool = False,
     ) -> WorkflowLibrarySnapshot:
         tools = self.list_tool_items(db, workspace_id=workspace_id)
         tool_source_lanes = self.build_tool_source_lanes(tools)
@@ -66,6 +67,7 @@ class WorkflowLibraryService:
             source_governance_kind=source_governance_kind,
             needs_follow_up=needs_follow_up,
             include_builtin_starters=include_builtin_starters,
+            include_starter_definitions=include_starter_definitions,
         )
         return WorkflowLibrarySnapshot(
             nodes=nodes,
@@ -128,6 +130,7 @@ class WorkflowLibraryService:
         source_governance_kind: WorkspaceStarterSourceGovernanceKind | None = None,
         needs_follow_up: bool = False,
         include_builtin_starters: bool = True,
+        include_starter_definitions: bool = False,
     ) -> list[WorkflowLibraryStarterItem]:
         catalog = node_catalog or self.list_node_catalog_items()
         resolved_tool_index = tool_index or {}
@@ -139,7 +142,7 @@ class WorkflowLibraryService:
             if include_builtin_starters
             else []
         )
-        return [
+        starters = [
             *builtin_starters,
             *self._build_workspace_starters(
                 db,
@@ -150,6 +153,13 @@ class WorkflowLibraryService:
                 source_governance_kind=source_governance_kind,
                 needs_follow_up=needs_follow_up,
             ),
+        ]
+        return [
+            self._serialize_starter_item(
+                starter,
+                include_definition=include_starter_definitions,
+            )
+            for starter in starters
         ]
 
     def build_starter_source_lanes(
@@ -248,6 +258,41 @@ class WorkflowLibraryService:
             )
             for starter in starters
         ]
+
+    def _serialize_starter_item(
+        self,
+        starter: WorkflowLibraryStarterItem,
+        *,
+        include_definition: bool,
+    ) -> WorkflowLibraryStarterItem:
+        definition = deepcopy(starter.definition or {})
+        return starter.model_copy(
+            update={
+                "node_count": self._count_nodes(definition),
+                "node_types": self._collect_node_types(definition),
+                "publish_count": self._count_publish_entries(definition),
+                "definition": definition if include_definition else None,
+            }
+        )
+
+    @staticmethod
+    def _count_nodes(definition: dict) -> int:
+        nodes = definition.get("nodes")
+        return len(nodes) if isinstance(nodes, list) else 0
+
+    @staticmethod
+    def _collect_node_types(definition: dict) -> list[str]:
+        node_types: list[str] = []
+        for node in definition.get("nodes", []):
+            node_type = node.get("type") if isinstance(node, dict) else None
+            if isinstance(node_type, str) and node_type and node_type not in node_types:
+                node_types.append(node_type)
+        return node_types
+
+    @staticmethod
+    def _count_publish_entries(definition: dict) -> int:
+        publish_entries = definition.get("publish")
+        return len(publish_entries) if isinstance(publish_entries, list) else 0
 
     def _load_source_workflows(
         self,

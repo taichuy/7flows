@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import SensitiveAccessInboxPage from "@/app/sensitive-access/page";
+import SensitiveAccessInboxPage from "@/app/(studio)/sensitive-access/page";
 import { getSensitiveAccessInboxSnapshot } from "@/lib/get-sensitive-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import {

@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  AUTHORING_SNAPSHOT_TAGS,
+  getWorkflowDetailFetchOptions,
+  getWorkflowInventoryFetchOptions
+} from "@/lib/authoring-snapshot-cache";
+import {
   createWorkflow,
+  getWorkflowDetail,
   getWorkflows,
   updateWorkflow,
   validateWorkflowDefinition
@@ -31,7 +37,7 @@ describe("getWorkflows", () => {
 
     expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
       "http://api.test/api/workflows",
-      { cache: "no-store" }
+      getWorkflowInventoryFetchOptions()
     );
   });
 
@@ -47,7 +53,7 @@ describe("getWorkflows", () => {
 
     expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
       "http://api.test/api/workflows?definition_issue=legacy_publish_auth",
-      { cache: "no-store" }
+      getWorkflowInventoryFetchOptions()
     );
   });
 
@@ -63,8 +69,34 @@ describe("getWorkflows", () => {
 
     expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
       "http://api.test/api/workflows?definition_issue=missing_tool",
-      { cache: "no-store" }
+      getWorkflowInventoryFetchOptions()
     );
+  });
+
+  it("loads workflow detail from the explicit detail endpoint", async () => {
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: "wf-1", definition: { nodes: [], edges: [] } })
+    } as Response);
+
+    await getWorkflowDetail("wf-1");
+
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
+      "http://api.test/api/workflows/wf-1/detail",
+      getWorkflowDetailFetchOptions("wf-1")
+    );
+  });
+
+  it("adds a per-workflow detail tag for repeat editor/publish navigation", () => {
+    expect(getWorkflowDetailFetchOptions("wf-1")).toEqual({
+      next: {
+        revalidate: 5,
+        tags: [
+          AUTHORING_SNAPSHOT_TAGS.workflowInventory,
+          `${AUTHORING_SNAPSHOT_TAGS.workflowDetail}:wf-1`
+        ]
+      }
+    });
   });
 
   it("uses the same-origin workflow proxy when creating in the browser", async () => {

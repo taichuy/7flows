@@ -1,10 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { WorkflowEditorWorkbench } from "@/components/workflow-editor-workbench";
 import { WorkflowPublishPanel } from "@/components/workflow-publish-panel";
+import { getCredentials } from "@/lib/get-credentials";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
 import { getSystemOverview } from "@/lib/get-system-overview";
@@ -30,6 +32,7 @@ import {
   resolveWorkflowPublishActivityFilters
 } from "@/lib/workflow-publish-activity-query";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
+import type { WorkspaceMemberRole } from "@/lib/workspace-access";
 
 type WorkflowEditorPageProps = {
   params: Promise<{ workflowId: string }>;
@@ -54,19 +57,10 @@ export default async function WorkflowEditorPage({
 }: WorkflowEditorPageProps) {
   const { workflowId } = await params;
   const resolvedSearchParams = await searchParams;
-  const [workspaceContext, workflow, workflows, workflowLibrary, pluginRegistry, systemOverview, recentRuns, publishedEndpoints] =
-    await Promise.all([
-      getServerWorkspaceContext(),
-      getWorkflowDetail(workflowId),
-      getWorkflows(),
-      getWorkflowLibrarySnapshot(),
-      getPluginRegistrySnapshot(),
-      getSystemOverview(),
-      getWorkflowRuns(workflowId),
-      getWorkflowPublishedEndpoints(workflowId, {
-        includeAllVersions: true
-      })
-    ]);
+  const [workspaceContext, workflow] = await Promise.all([
+    getServerWorkspaceContext(),
+    getWorkflowDetail(workflowId)
+  ]);
 
   if (!workspaceContext) {
     redirect(`/login?next=/workflows/${encodeURIComponent(workflowId)}`);
@@ -111,6 +105,75 @@ export default async function WorkflowEditorPage({
   const hasScopedWorkspaceStarterFilters = hasScopedWorkspaceStarterGovernanceFilters(
     workspaceStarterViewState
   );
+  const isEditorSurface = activeStudioSurface === "editor";
+  let workflowStageLabel =
+    typeof workflow.publish_count === "number" && workflow.publish_count > 0
+      ? "publish ready"
+      : "draft only";
+
+  if (isEditorSurface) {
+    const [workflows, workflowLibrary, pluginRegistry, systemOverview, recentRuns, credentials] =
+      await Promise.all([
+        getWorkflows(),
+        getWorkflowLibrarySnapshot(),
+        getPluginRegistrySnapshot(),
+        getSystemOverview(),
+        getWorkflowRuns(workflowId),
+        getCredentials(true)
+      ]);
+
+    return (
+      <WorkflowStudioShell
+        workspaceName={workspaceContext.workspace.name}
+        userName={workspaceContext.current_user.display_name}
+        userRole={workspaceContext.current_member.role}
+        workflowName={workflow.name}
+        workflowVersion={workflow.version}
+        workflowStageLabel={workflowStageLabel}
+        workflowLibraryHref={workflowLibraryHref}
+        activeStudioSurface={activeStudioSurface}
+        editorSurfaceHref={editorSurfaceHref}
+        publishSurfaceHref={publishSurfaceHref}
+        workspaceStarterLibraryHref={workspaceStarterLibraryHref}
+      >
+        <section className="workflow-studio-surface" data-surface="editor">
+          <WorkflowEditorWorkbench
+            workflow={workflow}
+            workflows={workflows}
+            nodeCatalog={workflowLibrary.nodes}
+            nodeSourceLanes={workflowLibrary.nodeSourceLanes}
+            toolSourceLanes={workflowLibrary.toolSourceLanes}
+            tools={workflowLibrary.tools}
+            adapters={pluginRegistry.adapters}
+            credentials={credentials}
+            callbackWaitingAutomation={systemOverview.callback_waiting_automation}
+            sandboxReadiness={systemOverview.sandbox_readiness}
+            sandboxBackends={systemOverview.sandbox_backends}
+            recentRuns={recentRuns}
+            currentEditorHref={editorSurfaceHref}
+            workflowLibraryHref={workflowLibraryHref}
+            createWorkflowHref={createWorkflowHref}
+            workspaceStarterLibraryHref={workspaceStarterLibraryHref}
+            hasScopedWorkspaceStarterFilters={hasScopedWorkspaceStarterFilters}
+            workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
+          />
+        </section>
+      </WorkflowStudioShell>
+    );
+  }
+
+  const [pluginRegistry, systemOverview, publishedEndpoints] = await Promise.all([
+    getPluginRegistrySnapshot(),
+    getSystemOverview(),
+    getWorkflowPublishedEndpoints(workflowId, {
+      includeAllVersions: true
+    })
+  ]);
+
+  if (publishedEndpoints.length > 0) {
+    workflowStageLabel = "publish ready";
+  }
+
   const publishActivityQueryScope = readWorkflowPublishActivityQueryScope(
     resolvedSearchParams
   );
@@ -118,7 +181,6 @@ export default async function WorkflowEditorPage({
     publishActivityQueryScope,
     publishedEndpoints
   );
-
   const {
     cacheInventories,
     apiKeysByBinding,
@@ -128,8 +190,76 @@ export default async function WorkflowEditorPage({
   } = await getWorkflowPublishGovernanceSnapshot(workflow.id, publishedEndpoints, {
     activeInvocationFilter: publishActivityFilters.governanceFetchFilter
   });
-  const workflowStageLabel =
-    publishedEndpoints.length > 0 ? "publish ready" : "draft only";
+
+  return (
+    <WorkflowStudioShell
+      workspaceName={workspaceContext.workspace.name}
+      userName={workspaceContext.current_user.display_name}
+      userRole={workspaceContext.current_member.role}
+      workflowName={workflow.name}
+      workflowVersion={workflow.version}
+      workflowStageLabel={workflowStageLabel}
+      workflowLibraryHref={workflowLibraryHref}
+      activeStudioSurface={activeStudioSurface}
+      editorSurfaceHref={editorSurfaceHref}
+      publishSurfaceHref={publishSurfaceHref}
+      workspaceStarterLibraryHref={workspaceStarterLibraryHref}
+    >
+      <section
+        className="workflow-studio-surface workflow-studio-surface-governance"
+        data-surface="publish"
+      >
+        <WorkflowPublishPanel
+          workflow={workflow}
+          tools={pluginRegistry.tools}
+          bindings={publishedEndpoints}
+          cacheInventories={cacheInventories}
+          apiKeysByBinding={apiKeysByBinding}
+          invocationAuditsByBinding={invocationAuditsByBinding}
+          invocationDetailsByBinding={invocationDetailsByBinding}
+          selectedInvocationId={publishActivityFilters.selectedInvocationId}
+          rateLimitWindowAuditsByBinding={rateLimitWindowAuditsByBinding}
+          callbackWaitingAutomation={systemOverview.callback_waiting_automation}
+          sandboxReadiness={systemOverview.sandbox_readiness}
+          activeInvocationFilter={publishActivityFilters.panelActiveFilter}
+          workflowLibraryHref={workflowLibraryHref}
+          currentHref={publishSurfaceHref}
+          workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
+        />
+      </section>
+    </WorkflowStudioShell>
+  );
+}
+
+type WorkflowStudioShellProps = {
+  workspaceName: string;
+  userName: string;
+  userRole: WorkspaceMemberRole;
+  workflowName: string;
+  workflowVersion: string;
+  workflowStageLabel: string;
+  workflowLibraryHref: string;
+  activeStudioSurface: WorkflowStudioSurface;
+  editorSurfaceHref: string;
+  publishSurfaceHref: string;
+  workspaceStarterLibraryHref: string;
+  children: ReactNode;
+};
+
+function WorkflowStudioShell({
+  workspaceName,
+  userName,
+  userRole,
+  workflowName,
+  workflowVersion,
+  workflowStageLabel,
+  workflowLibraryHref,
+  activeStudioSurface,
+  editorSurfaceHref,
+  publishSurfaceHref,
+  workspaceStarterLibraryHref,
+  children
+}: WorkflowStudioShellProps) {
   const isEditorSurface = activeStudioSurface === "editor";
   const studioModeLabel = isEditorSurface ? "xyflow studio" : "publish governance";
 
@@ -137,9 +267,9 @@ export default async function WorkflowEditorPage({
     <WorkspaceShell
       activeNav="workflows"
       layout="editor"
-      userName={workspaceContext.current_user.display_name}
-      userRole={workspaceContext.current_member.role}
-      workspaceName={workspaceContext.workspace.name}
+      userName={userName}
+      userRole={userRole}
+      workspaceName={workspaceName}
     >
       <div className="workspace-main workflow-studio-main">
         <section
@@ -155,8 +285,8 @@ export default async function WorkflowEditorPage({
               <Link className="workflow-studio-breadcrumb-link" href={workflowLibraryHref}>
                 编排中心
               </Link>
-              <span className="workflow-studio-breadcrumb-current">{workflow.name}</span>
-              <span className="workflow-studio-inline-tag">v{workflow.version}</span>
+              <span className="workflow-studio-breadcrumb-current">{workflowName}</span>
+              <span className="workflow-studio-inline-tag">v{workflowVersion}</span>
               <span className="workflow-studio-inline-tag">{workflowStageLabel}</span>
               <span className="workflow-studio-shell-mode">{studioModeLabel}</span>
             </div>
@@ -191,55 +321,7 @@ export default async function WorkflowEditorPage({
           </div>
         </section>
 
-        <section
-          className="workflow-studio-surface"
-          data-surface="editor"
-          hidden={activeStudioSurface !== "editor"}
-        >
-          <WorkflowEditorWorkbench
-            workflow={workflow}
-            workflows={workflows}
-            nodeCatalog={workflowLibrary.nodes}
-            nodeSourceLanes={workflowLibrary.nodeSourceLanes}
-            toolSourceLanes={workflowLibrary.toolSourceLanes}
-            tools={workflowLibrary.tools}
-            adapters={pluginRegistry.adapters}
-            callbackWaitingAutomation={systemOverview.callback_waiting_automation}
-            sandboxReadiness={systemOverview.sandbox_readiness}
-            sandboxBackends={systemOverview.sandbox_backends}
-            recentRuns={recentRuns}
-            currentEditorHref={editorSurfaceHref}
-            workflowLibraryHref={workflowLibraryHref}
-            createWorkflowHref={createWorkflowHref}
-            workspaceStarterLibraryHref={workspaceStarterLibraryHref}
-            hasScopedWorkspaceStarterFilters={hasScopedWorkspaceStarterFilters}
-            workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
-          />
-        </section>
-
-        <section
-          className="workflow-studio-surface workflow-studio-surface-governance"
-          data-surface="publish"
-          hidden={activeStudioSurface !== "publish"}
-        >
-          <WorkflowPublishPanel
-            workflow={workflow}
-            tools={pluginRegistry.tools}
-            bindings={publishedEndpoints}
-            cacheInventories={cacheInventories}
-            apiKeysByBinding={apiKeysByBinding}
-            invocationAuditsByBinding={invocationAuditsByBinding}
-            invocationDetailsByBinding={invocationDetailsByBinding}
-            selectedInvocationId={publishActivityFilters.selectedInvocationId}
-            rateLimitWindowAuditsByBinding={rateLimitWindowAuditsByBinding}
-            callbackWaitingAutomation={systemOverview.callback_waiting_automation}
-            sandboxReadiness={systemOverview.sandbox_readiness}
-            activeInvocationFilter={publishActivityFilters.panelActiveFilter}
-            workflowLibraryHref={workflowLibraryHref}
-            currentHref={publishSurfaceHref}
-            workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
-          />
-        </section>
+        {children}
       </div>
     </WorkspaceShell>
   );

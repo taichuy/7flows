@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from "@/lib/api-base-url";
+import { getPluginRegistryFetchOptions } from "@/lib/authoring-snapshot-cache";
 
 export type PluginAdapterRegistryItem = {
   id: string;
@@ -41,9 +42,7 @@ const fallback: PluginRegistrySnapshot = {
 
 async function fetchJson<T>(path: string, fallbackValue: T): Promise<T> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}${path}`, {
-      cache: "no-store"
-    });
+    const response = await fetch(`${getApiBaseUrl()}${path}`, getPluginRegistryFetchOptions());
     if (!response.ok) {
       return fallbackValue;
     }

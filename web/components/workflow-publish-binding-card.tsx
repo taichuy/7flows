@@ -7,6 +7,7 @@ import { SensitiveAccessBlockedCard } from "@/components/sensitive-access-blocke
 import { WorkflowGovernanceHandoffCards } from "@/components/workflow-governance-handoff-cards";
 import { WorkflowPublishActivityPanel } from "@/components/workflow-publish-activity-panel";
 import { WorkflowPublishApiKeyManager } from "@/components/workflow-publish-api-key-manager";
+import { WorkflowPublishLocalAgentHandoff } from "@/components/workflow-publish-local-agent-handoff";
 import { WorkflowPublishLifecycleForm } from "@/components/workflow-publish-lifecycle-form";
 import type {
   CallbackWaitingAutomationCheck,
@@ -377,6 +378,12 @@ export function WorkflowPublishBindingCard({
           ) : null}
         </div>
       )}
+
+      <WorkflowPublishLocalAgentHandoff
+        workflowId={workflow.id}
+        binding={binding}
+        apiKeys={apiKeys}
+      />
     </article>
   );
 }

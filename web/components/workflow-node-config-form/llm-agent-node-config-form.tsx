@@ -3,9 +3,15 @@
 import React from "react";
 import type { Node } from "@xyflow/react";
 
+import type { CredentialItem } from "@/lib/get-credentials";
+import {
+  getNativeLlmProviderPreset,
+  NATIVE_LLM_PROVIDER_PRESETS
+} from "@/lib/llm-provider-presets";
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { AuthorizedContextFields } from "@/components/workflow-node-config-form/authorized-context-fields";
 import { CredentialPicker } from "@/components/workflow-node-config-form/credential-picker";
+import { LlmProviderCredentialManager } from "@/components/workflow-node-config-form/llm-provider-credential-manager";
 import { LlmAgentSkillBindingSection } from "@/components/workflow-node-config-form/llm-agent-skill-binding-section";
 import { LlmAgentSkillSection } from "@/components/workflow-node-config-form/llm-agent-skill-section";
 import { LlmAgentToolPolicyForm } from "@/components/workflow-node-config-form/llm-agent-tool-policy-form";
@@ -27,6 +33,7 @@ type LlmAgentNodeConfigFormProps = {
   node: Node<WorkflowCanvasNodeData>;
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   tools: PluginToolRegistryItem[];
+  credentials: CredentialItem[];
   currentHref?: string | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   highlightedFieldPath?: string | null;
@@ -38,6 +45,7 @@ export function LlmAgentNodeConfigForm({
   node,
   nodes,
   tools,
+  credentials,
   currentHref = null,
   sandboxReadiness,
   highlightedFieldPath,
@@ -70,8 +78,17 @@ export function LlmAgentNodeConfigForm({
       ...readableArtifacts.map((artifact) => artifact.nodeId)
     ])
   );
+  const currentProviderValue = typeof model.provider === "string" ? model.provider : "";
+  const providerPreset = getNativeLlmProviderPreset(currentProviderValue);
+  const selectedCredential =
+    typeof model.apiKey === "string"
+      ? credentials.find((credential) => `credential://${credential.id}` === model.apiKey) ?? null
+      : null;
 
-  const updateModel = (field: "provider" | "modelId" | "temperature", value: unknown) => {
+  const updateModel = (
+    field: "provider" | "modelId" | "temperature" | "baseUrl",
+    value: unknown
+  ) => {
     const nextConfig = cloneRecord(config);
     const nextModel = cloneRecord(model);
 
@@ -261,12 +278,25 @@ export function LlmAgentNodeConfigForm({
 
       <label className="binding-field">
         <span className="binding-label">Provider</span>
-        <input
-          className="trace-text-input"
-          value={typeof model.provider === "string" ? model.provider : ""}
+        <select
+          className="binding-select"
+          value={providerPreset?.providerValue ?? (currentProviderValue || "openai")}
           onChange={(event) => updateModel("provider", event.target.value.trim() || undefined)}
-          placeholder="例如 openai / anthropic / native"
-        />
+        >
+          {providerPreset === null && currentProviderValue ? (
+            <option value={currentProviderValue}>{`保留现有 provider：${currentProviderValue}`}</option>
+          ) : null}
+          {NATIVE_LLM_PROVIDER_PRESETS.map((preset) => (
+            <option key={preset.id} value={preset.providerValue}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
+        <small className="section-copy">
+          {providerPreset
+            ? `${providerPreset.description} 当前协议面：${providerPreset.protocolLabel}。`
+            : "当前 provider 不是内置厂商预设；保留原值，避免覆盖已有 runtime 契约。"}
+        </small>
       </label>
 
       <label className="binding-field">
@@ -275,8 +305,21 @@ export function LlmAgentNodeConfigForm({
           className="trace-text-input"
           value={typeof model.modelId === "string" ? model.modelId : ""}
           onChange={(event) => updateModel("modelId", event.target.value.trim() || undefined)}
-          placeholder="例如 gpt-4.1 / claude-sonnet"
+          placeholder={providerPreset?.modelPlaceholder ?? "例如 gpt-4.1 / claude-sonnet"}
         />
+      </label>
+
+      <label className="binding-field">
+        <span className="binding-label">Base URL</span>
+        <input
+          className="trace-text-input"
+          value={typeof model.baseUrl === "string" ? model.baseUrl : ""}
+          onChange={(event) => updateModel("baseUrl", event.target.value.trim() || undefined)}
+          placeholder={providerPreset?.baseUrlPlaceholder ?? "例如 https://proxy.example/v1"}
+        />
+        <small className="section-copy">
+          留空时沿用 {providerPreset?.label ?? "provider"} 默认 endpoint；填写后会继续落到 runtime 的 <code>model.baseUrl</code>。
+        </small>
       </label>
 
       <label className="binding-field">
@@ -296,9 +339,37 @@ export function LlmAgentNodeConfigForm({
         label="API Key credential"
         value={typeof model.apiKey === "string" ? model.apiKey : ""}
         onChange={updateModelApiKey}
+        credentials={credentials}
+        credentialTypes={providerPreset?.compatibleCredentialTypes}
         hint="选择后会自动写入 credential://{id}，运行时自动解密注入。"
         placeholder="选择模型 API Key 凭证"
+        emptyStateCopy={
+          providerPreset
+            ? `当前还没有可用于 ${providerPreset.label} 的凭证，可直接在下方新建。`
+            : "当前 provider 没有命中内置厂商预设，请先选择 OpenAI / Anthropic / OpenAI-compatible。"
+        }
       />
+
+      {selectedCredential ? (
+        <div className="binding-help">
+          <strong>当前节点正在使用</strong>
+          <span>
+            {selectedCredential.name} · <code>{selectedCredential.credential_type}</code>
+          </span>
+          <span>
+            workflow definition 会继续保存为 <code>{typeof model.apiKey === "string" ? model.apiKey : ""}</code>，运行时再统一解密。
+          </span>
+        </div>
+      ) : null}
+
+      {providerPreset ? (
+        <LlmProviderCredentialManager
+          providerPreset={providerPreset}
+          credentials={credentials}
+          selectedCredentialValue={typeof model.apiKey === "string" ? model.apiKey : ""}
+          onSelectCredential={updateModelApiKey}
+        />
+      ) : null}
 
       <label className="binding-field">
         <span className="binding-label">System prompt</span>
