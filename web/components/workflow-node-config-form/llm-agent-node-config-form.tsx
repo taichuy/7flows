@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import React from "react";
 import type { Node } from "@xyflow/react";
 
@@ -11,7 +12,6 @@ import {
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { AuthorizedContextFields } from "@/components/workflow-node-config-form/authorized-context-fields";
 import { CredentialPicker } from "@/components/workflow-node-config-form/credential-picker";
-import { LlmProviderCredentialManager } from "@/components/workflow-node-config-form/llm-provider-credential-manager";
 import { LlmAgentSkillBindingSection } from "@/components/workflow-node-config-form/llm-agent-skill-binding-section";
 import { LlmAgentSkillSection } from "@/components/workflow-node-config-form/llm-agent-skill-section";
 import { LlmAgentToolPolicyForm } from "@/components/workflow-node-config-form/llm-agent-tool-policy-form";
@@ -40,6 +40,34 @@ type LlmAgentNodeConfigFormProps = {
   focusedValidationItem?: WorkflowValidationNavigatorItem | null;
   onChange: (nextConfig: Record<string, unknown>) => void;
 };
+
+const LazyLlmProviderCredentialManager = dynamic(
+  () =>
+    import("@/components/workflow-node-config-form/llm-provider-credential-manager").then(
+      (module) => module.LlmProviderCredentialManager
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <section
+        className="payload-card compact-card"
+        data-component="llm-provider-credential-manager"
+      >
+        <div className="payload-card-header">
+          <div>
+            <span className="status-meta">Provider credential</span>
+            <strong>Provider 凭证快捷管理</strong>
+          </div>
+          <span className="event-chip">按需挂载</span>
+        </div>
+        <p className="section-copy">
+          当前 provider 的凭证 CRUD 面板会在节点配置区挂载后继续补齐，避免默认 editor
+          首屏把凭证管理逻辑提前塞进热路径。
+        </p>
+      </section>
+    )
+  }
+);
 
 export function LlmAgentNodeConfigForm({
   node,
@@ -363,7 +391,7 @@ export function LlmAgentNodeConfigForm({
       ) : null}
 
       {providerPreset ? (
-        <LlmProviderCredentialManager
+        <LazyLlmProviderCredentialManager
           providerPreset={providerPreset}
           credentials={credentials}
           selectedCredentialValue={typeof model.apiKey === "string" ? model.apiKey : ""}

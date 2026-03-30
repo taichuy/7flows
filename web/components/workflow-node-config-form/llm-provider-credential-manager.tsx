@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 
-import { getApiBaseUrl } from "@/lib/api-base-url";
 import type { CredentialItem } from "@/lib/get-credentials";
 import {
   formatCredentialTypeLabel,
@@ -21,6 +20,8 @@ type CredentialDraft = {
   description: string;
   apiKey: string;
 };
+
+const CREDENTIALS_API_PATH = "/api/credentials";
 
 type LlmProviderCredentialManagerProps = {
   providerPreset: NativeLlmProviderPreset;
@@ -109,7 +110,7 @@ export function LlmProviderCredentialManager({
     setMessage(null);
 
     try {
-      const response = await fetch(`${getApiBaseUrl()}/api/credentials`, {
+      const response = await fetch(CREDENTIALS_API_PATH, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -175,7 +176,7 @@ export function LlmProviderCredentialManager({
 
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/credentials/${encodeURIComponent(selectedCredential.id)}`,
+        `${CREDENTIALS_API_PATH}/${encodeURIComponent(selectedCredential.id)}`,
         {
           method: "PUT",
           headers: {
@@ -215,7 +216,7 @@ export function LlmProviderCredentialManager({
 
     try {
       const response = await fetch(
-        `${getApiBaseUrl()}/api/credentials/${encodeURIComponent(selectedCredential.id)}`,
+        `${CREDENTIALS_API_PATH}/${encodeURIComponent(selectedCredential.id)}`,
         {
           method: "DELETE"
         }

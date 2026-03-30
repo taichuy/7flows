@@ -185,7 +185,10 @@ export function WorkflowPublishLocalAgentHandoff({
 }: WorkflowPublishLocalAgentHandoffProps) {
   if (binding.auth_mode !== "api_key") {
     return (
-      <div className="entry-card compact-card">
+      <div
+        className="entry-card compact-card"
+        data-component="workflow-publish-local-agent-handoff"
+      >
         <p className="entry-card-title">Local agent handoff</p>
         <p className="empty-state compact">
           当前 binding 使用 <code>{binding.auth_mode}</code>，不会接受外部 published API key。
@@ -199,7 +202,10 @@ export function WorkflowPublishLocalAgentHandoff({
   const surfaces = buildLocalAgentHandoffSurfaces(workflowId, binding, apiKeys);
 
   return (
-    <div className="entry-card compact-card">
+    <div
+      className="entry-card compact-card"
+      data-component="workflow-publish-local-agent-handoff"
+    >
       <p className="entry-card-title">Local agent handoff</p>
       <p className="section-copy entry-copy">
         当前 publish binding 继续复用既有 published gateway，不新开本地 agent 协议；把下列

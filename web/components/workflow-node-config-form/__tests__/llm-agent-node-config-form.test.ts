@@ -23,7 +23,7 @@ function buildCredential(overrides: Partial<CredentialItem> = {}): CredentialIte
 }
 
 describe("LlmAgentNodeConfigForm", () => {
-  it("renders native provider presets, baseUrl input and inline credential manager", () => {
+  it("renders native provider presets, baseUrl input and lazy credential manager boundary", () => {
     const html = renderToStaticMarkup(
       createElement(LlmAgentNodeConfigForm, {
         node: {
@@ -59,7 +59,8 @@ describe("LlmAgentNodeConfigForm", () => {
     expect(html).toContain("OpenAI-compatible");
     expect(html).toContain("Base URL");
     expect(html).toContain("Provider credential");
-    expect(html).toContain("OpenAI 凭证快捷管理");
+    expect(html).toContain("Provider 凭证快捷管理");
+    expect(html).toContain("按需挂载");
     expect(html).toContain("workflow definition 会继续保存为");
     expect(html).toContain("credential://cred-openai-1");
   });

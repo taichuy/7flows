@@ -2,8 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import { getApiBaseUrl } from "@/lib/api-base-url";
-
 export type CredentialOption = {
   id: string;
   name: string;
@@ -33,6 +31,7 @@ type CredentialPickerProps = {
 };
 
 const CREDENTIAL_PREFIX = "credential://";
+const CREDENTIALS_API_PATH = "/api/credentials";
 
 export function parseCredentialRef(value: string): string | null {
   if (typeof value === "string" && value.startsWith(CREDENTIAL_PREFIX)) {
@@ -71,7 +70,7 @@ export function CredentialPicker({
 
     async function load() {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/credentials`, {
+        const res = await fetch(CREDENTIALS_API_PATH, {
           cache: "no-store"
         });
         if (!res.ok) {

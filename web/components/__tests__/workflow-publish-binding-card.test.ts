@@ -271,6 +271,7 @@ describe("WorkflowPublishBindingCard", () => {
       })
     );
 
+    expect(html).toContain('data-component="workflow-publish-local-agent-handoff"');
     expect(html).toContain("Local agent handoff");
     expect(html).toContain("Codex");
     expect(html).toContain("OpenClaw");
@@ -316,6 +317,7 @@ describe("WorkflowPublishBindingCard", () => {
       })
     );
 
+    expect(html).toContain('data-component="workflow-publish-local-agent-handoff"');
     expect(html).toContain("Claude Code");
     expect(html).toContain("/messages");
     expect(html).toContain("anthropic-version: 2023-06-01");
@@ -360,6 +362,7 @@ describe("WorkflowPublishBindingCard", () => {
       })
     );
 
+    expect(html).toContain('data-component="workflow-publish-local-agent-handoff"');
     expect(html).toContain("OpenClaw");
     expect(html).toContain("7Flows native published run");
     expect(html).toContain("/v1/published-aliases/native.workflow/run");
