@@ -235,10 +235,14 @@ const fallback: SystemOverview = {
   }
 };
 
+function getSystemOverviewReadBaseUrl() {
+  return typeof window === "undefined" ? getApiBaseUrl() : "";
+}
+
 export async function getSystemOverview(): Promise<SystemOverview> {
   try {
     const response = await fetch(
-      `${getApiBaseUrl()}/api/system/overview`,
+      `${getSystemOverviewReadBaseUrl()}/api/system/overview`,
       getSystemOverviewFetchOptions()
     );
 

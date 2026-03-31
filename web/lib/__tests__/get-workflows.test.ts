@@ -57,6 +57,23 @@ describe("getWorkflows", () => {
     );
   });
 
+  it("uses the same-origin workflow proxy when loading inventory in the browser", async () => {
+    vi.stubGlobal("window", {});
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => []
+    } as Response);
+
+    await getWorkflows({
+      definitionIssue: "legacy_publish_auth"
+    });
+
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
+      "/api/workflows?definition_issue=legacy_publish_auth",
+      getWorkflowInventoryFetchOptions()
+    );
+  });
+
   it("supports the missing tool workflow definition issue filter", async () => {
     vi.mocked(global.fetch).mockResolvedValue({
       ok: true,

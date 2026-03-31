@@ -13,6 +13,21 @@ function buildAuthHeaders(token: string) {
   return headers;
 }
 
+export async function GET(request: NextRequest) {
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
+  const headers = new Headers();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(`${getApiBaseUrl()}/api/workflows${request.nextUrl.search}`, {
+    cache: "no-store",
+    headers
+  });
+  const body = await response.json().catch(() => null);
+  return NextResponse.json(body, { status: response.status });
+}
+
 export async function POST(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value ?? "";
   const payload = await request.json().catch(() => null);

@@ -89,4 +89,22 @@ describe("getSystemOverview", () => {
     expect(overview.sandbox_readiness.recommended_action).toBeNull();
     expect(overview.callback_waiting_automation.recommended_action).toBeNull();
   });
+
+  it("uses the same-origin system overview proxy in the browser", async () => {
+    vi.stubGlobal("window", {});
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        status: "healthy",
+        environment: "local"
+      })
+    });
+
+    await getSystemOverview();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/system/overview",
+      getSystemOverviewFetchOptions()
+    );
+  });
 });

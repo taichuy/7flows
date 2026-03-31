@@ -14,10 +14,14 @@ import type {
   WorkflowPublishedEndpointItem
 } from "@/lib/workflow-publish-types";
 
+function getWorkflowPublishLegacyAuthBaseUrl() {
+  return typeof window === "undefined" ? getApiBaseUrl() : "";
+}
+
 export async function getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot(): Promise<WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null> {
   try {
     const response = await fetch(
-      `${getApiBaseUrl()}/api/workflows/published-endpoints/legacy-auth-governance`,
+      `${getWorkflowPublishLegacyAuthBaseUrl()}/api/workflows/published-endpoints/legacy-auth-governance`,
       {
         cache: "no-store"
       }

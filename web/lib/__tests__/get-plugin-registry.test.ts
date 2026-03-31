@@ -35,4 +35,24 @@ describe("getPluginRegistrySnapshot", () => {
       getPluginRegistryFetchOptions()
     );
   });
+
+  it("uses the same-origin plugin registry proxies in the browser", async () => {
+    vi.stubGlobal("window", {});
+    vi.mocked(global.fetch)
+      .mockResolvedValueOnce({ ok: true, json: async () => [] } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => [] } as Response);
+
+    await getPluginRegistrySnapshot();
+
+    expect(vi.mocked(global.fetch)).toHaveBeenNthCalledWith(
+      1,
+      "/api/plugins/adapters",
+      getPluginRegistryFetchOptions()
+    );
+    expect(vi.mocked(global.fetch)).toHaveBeenNthCalledWith(
+      2,
+      "/api/plugins/tools",
+      getPluginRegistryFetchOptions()
+    );
+  });
 });

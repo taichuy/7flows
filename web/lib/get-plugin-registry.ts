@@ -40,9 +40,16 @@ const fallback: PluginRegistrySnapshot = {
   tools: []
 };
 
+function getPluginRegistryReadBaseUrl() {
+  return typeof window === "undefined" ? getApiBaseUrl() : "";
+}
+
 async function fetchJson<T>(path: string, fallbackValue: T): Promise<T> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}${path}`, getPluginRegistryFetchOptions());
+    const response = await fetch(
+      `${getPluginRegistryReadBaseUrl()}${path}`,
+      getPluginRegistryFetchOptions()
+    );
     if (!response.ok) {
       return fallbackValue;
     }

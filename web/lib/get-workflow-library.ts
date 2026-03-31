@@ -116,6 +116,10 @@ const fallbackSnapshot: WorkflowLibrarySnapshot = {
   tools: []
 };
 
+function getWorkflowLibraryReadBaseUrl() {
+  return typeof window === "undefined" ? getApiBaseUrl() : "";
+}
+
 export async function getWorkflowLibrarySnapshot({
   workspaceId = "default",
   businessTrack,
@@ -149,7 +153,7 @@ export async function getWorkflowLibrarySnapshot({
 
   try {
     const response = await fetch(
-      `${getApiBaseUrl()}/api/workflow-library?${params.toString()}`,
+      `${getWorkflowLibraryReadBaseUrl()}/api/workflow-library?${params.toString()}`,
       getWorkflowLibraryFetchOptions()
     );
 

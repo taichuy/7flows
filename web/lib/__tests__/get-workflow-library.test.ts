@@ -154,4 +154,26 @@ describe("getWorkflowLibrarySnapshot", () => {
       getWorkflowLibraryFetchOptions()
     );
   });
+
+  it("uses the same-origin workflow-library proxy in the browser", async () => {
+    vi.stubGlobal("window", {});
+    vi.mocked(global.fetch).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        nodes: [],
+        starter_source_lanes: [],
+        node_source_lanes: [],
+        tool_source_lanes: [],
+        tools: [],
+        starters: []
+      })
+    } as Response);
+
+    await getWorkflowLibrarySnapshot({ includeStarterDefinitions: true });
+
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
+      "/api/workflow-library?workspace_id=default&include_starter_definitions=true",
+      getWorkflowLibraryFetchOptions()
+    );
+  });
 });

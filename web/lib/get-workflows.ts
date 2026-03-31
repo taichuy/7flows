@@ -139,6 +139,10 @@ function getWorkflowMutationApiBaseUrl() {
   return typeof window === "undefined" ? getApiBaseUrl() : "";
 }
 
+function getWorkflowReadApiBaseUrl() {
+  return typeof window === "undefined" ? getApiBaseUrl() : "";
+}
+
 export async function createWorkflow(payload: {
   name: string;
   definition: WorkflowDetail["definition"];
@@ -200,7 +204,7 @@ export async function getWorkflows(options?: {
     });
     const query = searchParams.toString();
     const response = await fetch(
-      `${getApiBaseUrl()}/api/workflows${query ? `?${query}` : ""}`,
+      `${getWorkflowReadApiBaseUrl()}/api/workflows${query ? `?${query}` : ""}`,
       getWorkflowInventoryFetchOptions()
     );
 
