@@ -28,6 +28,7 @@ class NativeModelProviderCredentialField:
     type: str
     required: bool
     placeholder: str = ""
+    help: str | None = None
     default: str | None = None
     options: list[NativeModelProviderCredentialFieldOption] = field(default_factory=list)
 
@@ -90,6 +91,10 @@ _OPENAI_PROVIDER = NativeModelProviderDefinition(
             label="API Protocol",
             type="select",
             required=False,
+            help=(
+                "选择 OpenAI Provider 使用的 API 协议。"
+                "大多数模型使用 Chat Completions，Responses API 适用于 o3 / gpt-5 等新协议模型。"
+            ),
             default="chat_completions",
             options=[
                 NativeModelProviderCredentialFieldOption(
@@ -240,9 +245,12 @@ class ModelProviderRegistryService:
             label=label.strip(),
             description=description.strip(),
             credential_id=credential.id,
-            base_url=(base_url or provider.default_base_url).strip(),
-            default_model=(default_model or provider.default_models[0]).strip(),
-            protocol=(protocol or provider.default_protocol).strip(),
+            base_url=self._resolve_base_url(provider=provider, base_url=base_url),
+            default_model=self._resolve_default_model(
+                provider=provider,
+                default_model=default_model,
+            ),
+            protocol=self._resolve_protocol(provider=provider, protocol=protocol),
             status=normalized_status,
             supported_model_types=list(provider.supported_model_types),
             disabled_at=_utcnow() if normalized_status == "inactive" else None,
@@ -288,11 +296,14 @@ class ModelProviderRegistryService:
         if provider_id is not None:
             record.provider_id = provider.id
         if base_url is not None:
-            record.base_url = base_url.strip() or provider.default_base_url
+            record.base_url = self._resolve_base_url(provider=provider, base_url=base_url)
         if default_model is not None:
-            record.default_model = default_model.strip() or provider.default_models[0]
+            record.default_model = self._resolve_default_model(
+                provider=provider,
+                default_model=default_model,
+            )
         if protocol is not None:
-            record.protocol = protocol.strip() or provider.default_protocol
+            record.protocol = self._resolve_protocol(provider=provider, protocol=protocol)
         if status is not None:
             record.status = self._normalize_status(status)
             record.disabled_at = _utcnow() if record.status == "inactive" else None
@@ -357,3 +368,53 @@ class ModelProviderRegistryService:
         if normalized not in {"active", "inactive"}:
             raise ModelProviderRegistryError("模型供应商状态只支持 active / inactive。")
         return normalized
+
+    def _resolve_base_url(
+        self,
+        *,
+        provider: NativeModelProviderDefinition,
+        base_url: str | None,
+    ) -> str:
+        return (base_url or provider.default_base_url).strip() or provider.default_base_url
+
+    def _resolve_default_model(
+        self,
+        *,
+        provider: NativeModelProviderDefinition,
+        default_model: str | None,
+    ) -> str:
+        normalized = (default_model or "").strip()
+        if normalized:
+            return normalized
+        if provider.default_models:
+            return provider.default_models[0]
+        raise ModelProviderRegistryError(f"{provider.label} 缺少默认模型定义，无法创建团队配置。")
+
+    def _resolve_protocol(
+        self,
+        *,
+        provider: NativeModelProviderDefinition,
+        protocol: str | None,
+    ) -> str:
+        normalized = (protocol or provider.default_protocol).strip() or provider.default_protocol
+        supported_protocols = self._list_supported_protocols(provider)
+        if supported_protocols and normalized not in supported_protocols:
+            raise ModelProviderRegistryError(
+                f"{provider.label} 仅支持 {', '.join(supported_protocols)} 协议。"
+            )
+        return normalized
+
+    def _list_supported_protocols(
+        self,
+        provider: NativeModelProviderDefinition,
+    ) -> list[str]:
+        for field in provider.credential_fields:
+            if field.variable != "api_protocol":
+                continue
+            if field.options:
+                return [option.value for option in field.options]
+            if field.default:
+                return [field.default]
+        if provider.default_protocol:
+            return [provider.default_protocol]
+        return []

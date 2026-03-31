@@ -29,7 +29,7 @@ describe("WorkspaceModelProviderSettings", () => {
             id: "openai",
             label: "OpenAI",
             description: "OpenAI",
-            help_url: null,
+            help_url: "https://platform.openai.com/account/api-keys",
             supported_model_types: ["llm"],
             configuration_methods: ["predefined-model", "customizable-model"],
             credential_type: "openai_api_key",
@@ -37,7 +37,27 @@ describe("WorkspaceModelProviderSettings", () => {
             default_base_url: "https://api.openai.com/v1",
             default_protocol: "chat_completions",
             default_models: ["gpt-4.1"],
-            credential_fields: []
+            credential_fields: [
+              {
+                variable: "api_protocol",
+                label: "API Protocol",
+                type: "select",
+                required: false,
+                placeholder: "",
+                help: "Use Chat Completions for most OpenAI models.",
+                default: "chat_completions",
+                options: [
+                  {
+                    value: "chat_completions",
+                    label: "Chat Completions"
+                  },
+                  {
+                    value: "responses",
+                    label: "Responses API"
+                  }
+                ]
+              }
+            ]
           }
         ],
         initialCredentials: [
@@ -83,8 +103,13 @@ describe("WorkspaceModelProviderSettings", () => {
     expect(html).toContain('data-component="workspace-model-provider-settings"');
     expect(html).toContain('data-component="workspace-model-provider-registry-list"');
     expect(html).toContain('data-component="workspace-model-provider-form"');
+    expect(html).toContain('data-component="workspace-model-provider-catalog-card"');
+    expect(html).toContain('data-component="workspace-model-provider-preflight"');
     expect(html).toContain("OpenAI Production");
     expect(html).toContain("credential://cred-openai-1");
+    expect(html).toContain("查看 OpenAI 帮助文档");
+    expect(html).toContain("Chat Completions");
+    expect(html).toContain("当前配置已满足本地 preflight");
     expect(html).toContain("创建供应商");
   });
 });

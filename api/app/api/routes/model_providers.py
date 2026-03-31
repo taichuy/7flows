@@ -55,6 +55,7 @@ def _serialize_catalog_item(item: NativeModelProviderDefinition) -> NativeModelP
                 type=field.type,
                 required=field.required,
                 placeholder=field.placeholder,
+                help=field.help,
                 default=field.default,
                 options=[
                     NativeModelProviderCredentialFieldOption(value=option.value, label=option.label)

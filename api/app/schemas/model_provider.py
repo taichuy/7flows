@@ -21,6 +21,7 @@ class NativeModelProviderCredentialField(BaseModel):
     type: Literal["secret-input", "text-input", "select"]
     required: bool
     placeholder: str = ""
+    help: str | None = None
     default: str | None = None
     options: list[NativeModelProviderCredentialFieldOption] = Field(default_factory=list)
 

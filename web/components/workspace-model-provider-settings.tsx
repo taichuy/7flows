@@ -9,8 +9,13 @@ import {
   createWorkspaceModelProviderConfig,
   deactivateWorkspaceModelProviderConfig,
   getCompatibleCredentials,
+  getModelProviderDraftPreflight,
   getModelProviderCatalogItem,
+  getModelProviderCredentialField,
+  getModelProviderProtocolLabel,
+  getModelProviderProtocolOptions,
   type NativeModelProviderCatalogItem,
+  resolveNativeModelProviderCatalog,
   type WorkspaceModelProviderConfigDraft,
   type WorkspaceModelProviderConfigItem,
   updateWorkspaceModelProviderConfig
@@ -25,29 +30,54 @@ type WorkspaceModelProviderSettingsProps = {
 
 type MessageTone = "idle" | "success" | "error";
 
+function formatProviderConfigurationMethod(method: string) {
+  switch (method) {
+    case "predefined-model":
+      return "内置推荐模型";
+    case "customizable-model":
+      return "支持自定义模型";
+    default:
+      return method;
+  }
+}
+
 export function WorkspaceModelProviderSettings({
   initialCatalog,
   initialCredentials,
   initialProviderConfigs,
   workspaceName
 }: WorkspaceModelProviderSettingsProps) {
+  const catalog = useMemo(() => resolveNativeModelProviderCatalog(initialCatalog), [initialCatalog]);
   const [providerConfigs, setProviderConfigs] = useState(initialProviderConfigs);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<WorkspaceModelProviderConfigDraft>(() =>
-    createDefaultModelProviderDraft(initialCatalog, initialCredentials)
+    createDefaultModelProviderDraft(catalog, initialCredentials)
   );
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<MessageTone>("idle");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const activeProvider = useMemo(
-    () => getModelProviderCatalogItem(initialCatalog, draft.provider_id),
-    [draft.provider_id, initialCatalog]
+    () => getModelProviderCatalogItem(catalog, draft.provider_id),
+    [catalog, draft.provider_id]
   );
   const compatibleCredentials = useMemo(
     () => getCompatibleCredentials(activeProvider, initialCredentials),
     [activeProvider, initialCredentials]
   );
+  const protocolField = useMemo(
+    () => getModelProviderCredentialField(activeProvider, "api_protocol"),
+    [activeProvider]
+  );
+  const protocolOptions = useMemo(
+    () => getModelProviderProtocolOptions(activeProvider),
+    [activeProvider]
+  );
+  const draftPreflight = useMemo(
+    () => getModelProviderDraftPreflight(activeProvider, initialCredentials, draft),
+    [activeProvider, draft, initialCredentials]
+  );
+  const hasBlockingPreflight = draftPreflight.some((issue) => issue.tone === "error");
 
   const handleDraftChange = (
     key: keyof WorkspaceModelProviderConfigDraft,
@@ -60,7 +90,7 @@ export function WorkspaceModelProviderSettings({
   };
 
   const handleProviderChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    const nextProvider = getModelProviderCatalogItem(initialCatalog, event.target.value);
+    const nextProvider = getModelProviderCatalogItem(catalog, event.target.value);
     const nextCompatibleCredential = getCompatibleCredentials(nextProvider, initialCredentials)[0] ?? null;
     setDraft((current) => ({
       ...current,
@@ -86,7 +116,7 @@ export function WorkspaceModelProviderSettings({
 
   const resetDraft = () => {
     setEditingId(null);
-    setDraft(createDefaultModelProviderDraft(initialCatalog, initialCredentials));
+    setDraft(createDefaultModelProviderDraft(catalog, initialCredentials));
   };
 
   const handleEdit = (item: WorkspaceModelProviderConfigItem) => {
@@ -176,6 +206,49 @@ export function WorkspaceModelProviderSettings({
             返回成员设置
           </a>
         </div>
+        <div data-component="workspace-model-provider-catalog">
+          {catalog.map((item) => {
+            const providerCredentials = getCompatibleCredentials(item, initialCredentials);
+            const activeConfigCount = providerConfigs.filter(
+              (providerConfig) =>
+                providerConfig.provider_id === item.id && providerConfig.status === "active"
+            ).length;
+
+            return (
+              <article
+                data-component="workspace-model-provider-catalog-card"
+                data-provider-id={item.id}
+                key={item.id}
+              >
+                <p>
+                  <strong>{item.label}</strong>
+                  {activeConfigCount ? ` · 已生效 ${activeConfigCount} 条` : " · 还没有团队配置"}
+                </p>
+                <p className="workspace-muted">{item.description}</p>
+                <p className="workspace-muted">
+                  推荐默认模型：{item.default_models.join(" / ") || "未提供"}
+                </p>
+                <p className="workspace-muted">
+                  协议：
+                  {getModelProviderProtocolOptions(item)
+                    .map((option) => option.label)
+                    .join(" / ") || item.default_protocol}
+                </p>
+                <p className="workspace-muted">
+                  凭据类型：{item.credential_type}；兼容 {item.compatible_credential_types.join(" / ")}；当前可用 {providerCredentials.length} 条
+                </p>
+                <p className="workspace-muted">
+                  配置方式：{item.configuration_methods.map(formatProviderConfigurationMethod).join(" / ")}
+                </p>
+                {item.help_url ? (
+                  <a href={item.help_url} rel="noreferrer" target="_blank">
+                    查看 {item.label} 帮助文档
+                  </a>
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
       </section>
 
       <div className="workspace-member-admin-grid" data-component="workspace-model-provider-grid">
@@ -245,13 +318,34 @@ export function WorkspaceModelProviderSettings({
           <label className="workspace-form-field">
             <span>Provider</span>
             <select name="provider_id" onChange={handleProviderChange} value={draft.provider_id}>
-              {initialCatalog.map((item) => (
+              {catalog.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.label}
                 </option>
               ))}
             </select>
           </label>
+          <section data-component="workspace-model-provider-active-metadata">
+            <p>
+              <strong>{activeProvider?.label ?? "Native Provider"}</strong>
+            </p>
+            <p className="workspace-muted">{activeProvider?.description ?? "当前 provider metadata 暂不可用。"}</p>
+            <p className="workspace-muted">
+              推荐默认模型：{activeProvider?.default_models.join(" / ") || "未提供"}
+            </p>
+            <p className="workspace-muted">
+              协议选项：
+              {protocolOptions.map((option) => option.label).join(" / ") || activeProvider?.default_protocol || "未提供"}
+            </p>
+            <p className="workspace-muted">
+              兼容凭据：{activeProvider?.compatible_credential_types.join(" / ") || "未提供"}
+            </p>
+            {activeProvider?.help_url ? (
+              <a href={activeProvider.help_url} rel="noreferrer" target="_blank">
+                获取 {activeProvider.label} API Key
+              </a>
+            ) : null}
+          </section>
           <label className="workspace-form-field">
             <span>显示名称</span>
             <input
@@ -273,11 +367,22 @@ export function WorkspaceModelProviderSettings({
           <label className="workspace-form-field">
             <span>默认模型</span>
             <input
+              list={`workspace-model-provider-default-models-${activeProvider?.id ?? "default"}`}
               name="default_model"
               onChange={(event) => handleDraftChange("default_model", event.target.value)}
               placeholder={activeProvider?.default_models[0] ?? "gpt-4.1"}
               value={draft.default_model}
             />
+            <datalist id={`workspace-model-provider-default-models-${activeProvider?.id ?? "default"}`}>
+              {activeProvider?.default_models.map((model) => (
+                <option key={model} value={model} />
+              ))}
+            </datalist>
+            <p className="workspace-muted">
+              {activeProvider?.configuration_methods.includes("customizable-model")
+                ? "可直接选择推荐模型，也可以继续输入自定义模型 ID。"
+                : "当前 provider 仅支持 catalog 中的预置模型。"}
+            </p>
           </label>
           <label className="workspace-form-field">
             <span>协议</span>
@@ -286,14 +391,13 @@ export function WorkspaceModelProviderSettings({
               onChange={(event) => handleDraftChange("protocol", event.target.value)}
               value={draft.protocol}
             >
-              {activeProvider?.credential_fields
-                .find((field) => field.variable === "api_protocol")
-                ?.options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                )) ?? <option value={activeProvider?.default_protocol ?? draft.protocol}>{activeProvider?.default_protocol ?? draft.protocol}</option>}
+              {protocolOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
+            {protocolField?.help ? <p className="workspace-muted">{protocolField.help}</p> : null}
           </label>
           <label className="workspace-form-field">
             <span>凭据引用</span>
@@ -309,6 +413,9 @@ export function WorkspaceModelProviderSettings({
                 </option>
               ))}
             </select>
+            <p className="workspace-muted">
+              保存后会把当前 provider 绑定到 {getModelProviderProtocolLabel(activeProvider, draft.protocol)} 协议，默认走 {draft.default_model || activeProvider?.default_models[0] || "当前填写值"}。
+            </p>
           </label>
           <label className="workspace-form-field">
             <span>状态</span>
@@ -330,6 +437,26 @@ export function WorkspaceModelProviderSettings({
             当前 provider 支持 {activeProvider?.supported_model_types.join(" / ") ?? "llm"}；兼容凭据类型：
             {activeProvider?.compatible_credential_types.join("、") ?? "api_key"}。
           </p>
+          <section data-component="workspace-model-provider-preflight">
+            <span className="workspace-panel-eyebrow">Preflight</span>
+            <h3>保存前检查</h3>
+            {draftPreflight.length ? (
+              <ul className="workspace-list-reset">
+                {draftPreflight.map((issue) => (
+                  <li
+                    className={issue.tone === "error" ? "workspace-empty-notice" : "workspace-muted"}
+                    key={issue.code}
+                  >
+                    {issue.message}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="workspace-muted">
+                当前配置已满足本地 preflight：默认模型、协议与凭据兼容关系一致，可提交到 workspace registry。
+              </p>
+            )}
+          </section>
           {compatibleCredentials.length ? null : (
             <p className="workspace-empty-notice">
               当前没有可兼容的凭据，请先创建 {activeProvider?.label ?? "模型供应商"} 对应的 credential 记录。
@@ -341,7 +468,7 @@ export function WorkspaceModelProviderSettings({
           <div className="workspace-section-actions">
             <button
               className="workspace-primary-button compact"
-              disabled={isSubmitting || !draft.credential_ref || !draft.label.trim()}
+              disabled={isSubmitting || !draft.credential_ref || !draft.label.trim() || hasBlockingPreflight}
               type="submit"
             >
               {editingId ? "保存变更" : "创建供应商"}
