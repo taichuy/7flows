@@ -612,9 +612,8 @@ describe("WorkflowPublishPanel", () => {
       })
     );
 
-    expect(html).toContain('aria-current="page"');
     expect(html).not.toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
-    expect(html).toContain('href="/workflows/workflow-1?definition_issue=legacy_publish_auth"');
+    expect(html).toContain('href="/workflows/workflow-1/editor?definition_issue=legacy_publish_auth"');
     expect(html).toContain(`binding:binding-1:none:${currentHref}`);
   });
 });

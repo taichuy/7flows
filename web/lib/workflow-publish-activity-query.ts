@@ -248,6 +248,64 @@ export function buildWorkflowDetailHrefFromPublishActivityCurrentHref(
   }
 }
 
+export function buildWorkflowPublishSurfaceHrefFromCurrentHref(
+  workflowId: string,
+  currentHref?: string | null
+) {
+  const normalizedWorkflowId = normalizeOptionalQueryValue(workflowId);
+
+  if (!normalizedWorkflowId) {
+    return null;
+  }
+
+  const fallbackHref = buildWorkflowStudioSurfaceHref(normalizedWorkflowId, "publish");
+  const normalizedCurrentHref = normalizeOptionalQueryValue(currentHref);
+
+  if (!normalizedCurrentHref) {
+    return fallbackHref;
+  }
+
+  try {
+    const currentUrl = new URL(normalizedCurrentHref, "https://7flows.local");
+
+    if (!currentUrl.pathname.startsWith("/workflows/")) {
+      return fallbackHref;
+    }
+
+    const workflowSearchParams = new URLSearchParams(currentUrl.search);
+
+    for (const key of Array.from(workflowSearchParams.keys())) {
+      if (key.startsWith("publish_")) {
+        workflowSearchParams.delete(key);
+      }
+    }
+
+    return appendSearchParamsToHref(fallbackHref, workflowSearchParams);
+  } catch {
+    return fallbackHref;
+  }
+}
+
+export function buildWorkflowPublishActivityHrefFromCurrentHref(
+  workflowId: string,
+  queryScope: Partial<WorkflowPublishActivityQueryScope> | null | undefined,
+  currentHref?: string | null
+) {
+  const publishSurfaceHref = buildWorkflowPublishSurfaceHrefFromCurrentHref(
+    workflowId,
+    currentHref
+  );
+
+  if (!publishSurfaceHref) {
+    return null;
+  }
+
+  return appendSearchParamsToHref(
+    publishSurfaceHref,
+    buildWorkflowPublishActivitySearchParams(queryScope)
+  );
+}
+
 export function resolveWorkflowPublishActivityFilters(
   queryScope: WorkflowPublishActivityQueryScope,
   bindings: ReadonlyArray<Pick<WorkflowPublishedEndpointItem, "id">>

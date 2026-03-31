@@ -53,12 +53,19 @@ vi.mock("@/components/workflow-editor-workbench-entry", () => ({
 }));
 
 vi.mock("@/components/workflow-publish-panel", () => ({
-  WorkflowPublishPanel: ({ workflow }: { workflow: { id: string } }) =>
+  WorkflowPublishPanel: ({
+    workflow,
+    expandedBindingId
+  }: {
+    workflow: { id: string };
+    expandedBindingId?: string | null;
+  }) =>
     createElement(
       "div",
       {
         "data-component": "workflow-publish-panel",
-        "data-workflow-id": workflow.id
+        "data-workflow-id": workflow.id,
+        "data-expanded-binding-id": expandedBindingId ?? "none"
       },
       workflow.id
     )
@@ -229,15 +236,16 @@ describe("Workflow studio routes", () => {
     expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).not.toHaveBeenCalled();
   });
 
-  it("loads only publish data on the canonical publish route", async () => {
+  it("keeps the canonical publish route on the summary bootstrap seam by default", async () => {
     const html = renderToStaticMarkup(
       await WorkflowPublishPage({
         params: Promise.resolve({ workflowId: "workflow-1" }),
-        searchParams: Promise.resolve({ publish_binding: "binding-1" })
+        searchParams: Promise.resolve({})
       })
     );
 
     expect(html).toContain('data-component="workflow-publish-panel"');
+    expect(html).toContain('data-expanded-binding-id="none"');
     expect(html).not.toContain('data-component="workflow-editor-workbench"');
     expect(html).toContain("publish governance");
     expect(html).toContain("Workflow 1");
@@ -247,9 +255,46 @@ describe("Workflow studio routes", () => {
     expect(vi.mocked(getWorkflowPublishedEndpoints)).toHaveBeenCalledWith("workflow-1", {
       includeAllVersions: true
     });
-    expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getPluginRegistrySnapshot)).not.toHaveBeenCalled();
+    expect(vi.mocked(getSystemOverview)).not.toHaveBeenCalled();
+    expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).not.toHaveBeenCalled();
     expect(vi.mocked(getWorkflows)).not.toHaveBeenCalled();
     expect(vi.mocked(getWorkflowLibrarySnapshot)).not.toHaveBeenCalled();
+  });
+
+  it("loads publish governance detail only when a binding is explicitly selected", async () => {
+    vi.mocked(getWorkflowPublishedEndpoints).mockResolvedValue([
+      { id: "binding-1" }
+    ] as Awaited<ReturnType<typeof getWorkflowPublishedEndpoints>>);
+
+    const html = renderToStaticMarkup(
+      await WorkflowPublishPage({
+        params: Promise.resolve({ workflowId: "workflow-1" }),
+        searchParams: Promise.resolve({ publish_binding: "binding-1" })
+      })
+    );
+
+    expect(html).toContain('data-component="workflow-publish-panel"');
+    expect(html).toContain('data-expanded-binding-id="binding-1"');
+    expect(vi.mocked(getPluginRegistrySnapshot)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getSystemOverview)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).toHaveBeenCalledWith(
+      "workflow-1",
+      [{ id: "binding-1" }],
+      {
+        activeInvocationFilter: {
+          bindingId: "binding-1",
+          invocationId: undefined,
+          status: undefined,
+          requestSource: undefined,
+          requestSurface: undefined,
+          cacheStatus: undefined,
+          runStatus: undefined,
+          apiKeyId: undefined,
+          reasonCode: undefined
+        }
+      }
+    );
   });
 
   it("redirects unauthenticated editor access back to login with the canonical route", async () => {

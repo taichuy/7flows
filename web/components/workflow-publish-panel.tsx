@@ -40,6 +40,10 @@ import {
   buildWorkflowDetailLinkSurfaceFromWorkspaceStarterViewState,
   type WorkspaceStarterGovernanceQueryScope,
 } from "@/lib/workspace-starter-governance-query";
+import {
+  buildWorkflowPublishActivityHrefFromCurrentHref,
+  buildWorkflowPublishSurfaceHrefFromCurrentHref
+} from "@/lib/workflow-publish-activity-query";
 
 type WorkflowPublishPanelProps = {
   workflow: WorkflowDetail;
@@ -58,8 +62,9 @@ type WorkflowPublishPanelProps = {
     PublishedEndpointInvocationListResponse | null
   >;
   activeInvocationFilter: WorkflowPublishInvocationActiveFilter;
-  callbackWaitingAutomation: CallbackWaitingAutomationCheck;
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  expandedBindingId?: string | null;
   workflowLibraryHref?: string;
   currentHref?: string | null;
   workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
@@ -76,8 +81,9 @@ export function WorkflowPublishPanel({
   selectedInvocationId,
   rateLimitWindowAuditsByBinding,
   activeInvocationFilter,
-  callbackWaitingAutomation,
+  callbackWaitingAutomation = null,
   sandboxReadiness,
+  expandedBindingId = null,
   workflowLibraryHref,
   currentHref = null,
   workspaceStarterGovernanceQueryScope = null
@@ -102,6 +108,10 @@ export function WorkflowPublishPanel({
     workflowId: workflow.id,
     currentHref: scopedCurrentWorkflowHref
   });
+  const publishSurfaceHref = buildWorkflowPublishSurfaceHrefFromCurrentHref(
+    workflow.id,
+    currentHref
+  );
   const summaryCards = buildWorkflowPublishSummaryCardSurfaces({
     bindings,
     primaryFollowUp
@@ -204,6 +214,20 @@ export function WorkflowPublishPanel({
                 workflow={workflow}
                 tools={tools}
                 binding={binding}
+                showGovernanceDetails={expandedBindingId === binding.id}
+                governanceDetailHref={
+                  expandedBindingId === binding.id
+                    ? currentHref
+                    : buildWorkflowPublishActivityHrefFromCurrentHref(
+                        workflow.id,
+                        {
+                          bindingId: binding.id,
+                          timeWindow: activeInvocationFilter.timeWindow
+                        },
+                        currentHref
+                      )
+                }
+                collapseGovernanceHref={publishSurfaceHref}
                 legacyAuthExportHint={legacyAuthExportHint}
                 cacheInventory={cacheInventories[binding.id] ?? null}
                 apiKeys={apiKeysByBinding[binding.id] ?? []}

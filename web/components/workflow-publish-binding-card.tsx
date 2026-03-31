@@ -42,6 +42,9 @@ type WorkflowPublishBindingCardProps = {
   workflow: WorkflowDetail;
   tools: PluginToolRegistryItem[];
   binding: WorkflowPublishedEndpointItem;
+  showGovernanceDetails?: boolean;
+  governanceDetailHref?: string | null;
+  collapseGovernanceHref?: string | null;
   legacyAuthExportHint?: string | null;
   cacheInventory: SensitiveAccessGuardedResult<PublishedEndpointCacheInventoryResponse>;
   apiKeys: PublishedEndpointApiKeyItem[];
@@ -50,7 +53,7 @@ type WorkflowPublishBindingCardProps = {
   selectedInvocationDetail: SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>;
   rateLimitWindowAudit: PublishedEndpointInvocationListResponse | null;
   activeInvocationFilter: WorkflowPublishInvocationActiveFilter | null;
-  callbackWaitingAutomation: CallbackWaitingAutomationCheck;
+  callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   currentHref?: string | null;
   workspaceStarterGovernanceQueryScope?: WorkspaceStarterGovernanceQueryScope | null;
@@ -60,6 +63,9 @@ export function WorkflowPublishBindingCard({
   workflow,
   tools,
   binding,
+  showGovernanceDetails = true,
+  governanceDetailHref = null,
+  collapseGovernanceHref = null,
   legacyAuthExportHint = null,
   cacheInventory,
   apiKeys,
@@ -68,7 +74,7 @@ export function WorkflowPublishBindingCard({
   selectedInvocationDetail,
   rateLimitWindowAudit,
   activeInvocationFilter,
-  callbackWaitingAutomation,
+  callbackWaitingAutomation = null,
   sandboxReadiness,
   currentHref = null,
   workspaceStarterGovernanceQueryScope = null
@@ -244,146 +250,184 @@ export function WorkflowPublishBindingCard({
         </div>
       </div>
 
-      <SandboxReadinessOverviewCard
-        readiness={sandboxReadiness}
-        title={bindingSurface.sandboxReadinessTitle}
-        intro={bindingSurface.sandboxReadinessDescription}
-        hideWhenHealthy={(activity?.total_count ?? 0) === 0}
-      />
+      {showGovernanceDetails ? (
+        <>
+          <div className="entry-card compact-card">
+            <div className="payload-card-header">
+              <span className="status-meta">Governance detail</span>
+              <span className="event-chip">selected binding</span>
+              {collapseGovernanceHref ? (
+                <Link className="event-chip inbox-filter-link" href={collapseGovernanceHref}>
+                  返回 summary
+                </Link>
+              ) : null}
+            </div>
+            <p className="section-copy entry-copy">
+              当前只为所选 binding 拉取 invocation、cache、sandbox、lifecycle 与 API key
+              治理明细，默认热路径不再把这些 no-store 数据全部绑在首屏。
+            </p>
+          </div>
 
-      <WorkflowPublishActivityPanel
-        workflowId={workflow.id}
-        workflow={workflow}
-        tools={tools}
-        binding={binding}
-        apiKeys={apiKeys}
-        invocationAudit={invocationAudit}
-        selectedInvocationId={selectedInvocationId}
-        selectedInvocationDetail={selectedInvocationDetail}
-        rateLimitWindowAudit={rateLimitWindowAudit}
-        callbackWaitingAutomation={callbackWaitingAutomation}
-        sandboxReadiness={sandboxReadiness}
-        activeInvocationFilter={activeInvocationFilter}
-        legacyAuthExportHint={legacyAuthExportHint}
-        workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
-      />
+          <SandboxReadinessOverviewCard
+            readiness={sandboxReadiness}
+            title={bindingSurface.sandboxReadinessTitle}
+            intro={bindingSurface.sandboxReadinessDescription}
+            hideWhenHealthy={(activity?.total_count ?? 0) === 0}
+          />
 
-      <div className="entry-card compact-card">
-        <p className="entry-card-title">{bindingSurface.cacheInventoryTitle}</p>
-        <p className="section-copy entry-copy">{cacheInventorySurfaceCopy.description}</p>
-        <div className="summary-strip compact-strip">
-          {bindingSurface.cacheInventorySummaryCards.map((card) => (
-            <article className="summary-card" key={card.key}>
-              <span>{card.label}</span>
-              <strong>{card.value}</strong>
-            </article>
-          ))}
-        </div>
+          {callbackWaitingAutomation ? (
+            <WorkflowPublishActivityPanel
+              workflowId={workflow.id}
+              workflow={workflow}
+              tools={tools}
+              binding={binding}
+              apiKeys={apiKeys}
+              invocationAudit={invocationAudit}
+              selectedInvocationId={selectedInvocationId}
+              selectedInvocationDetail={selectedInvocationDetail}
+              rateLimitWindowAudit={rateLimitWindowAudit}
+              callbackWaitingAutomation={callbackWaitingAutomation}
+              sandboxReadiness={sandboxReadiness}
+              activeInvocationFilter={activeInvocationFilter}
+              legacyAuthExportHint={legacyAuthExportHint}
+              workspaceStarterGovernanceQueryScope={workspaceStarterGovernanceQueryScope}
+            />
+          ) : null}
 
-        {cacheSummary?.enabled ? (
-          <>
-            <div className="tool-badge-row">
-              {bindingSurface.cacheInventoryVaryLabels.map((label) => (
-                <span className="event-chip" key={`${binding.id}-${label}`}>
-                  {label}
-                </span>
+          <div className="entry-card compact-card">
+            <p className="entry-card-title">{bindingSurface.cacheInventoryTitle}</p>
+            <p className="section-copy entry-copy">{cacheInventorySurfaceCopy.description}</p>
+            <div className="summary-strip compact-strip">
+              {bindingSurface.cacheInventorySummaryCards.map((card) => (
+                <article className="summary-card" key={card.key}>
+                  <span>{card.label}</span>
+                  <strong>{card.value}</strong>
+                </article>
               ))}
             </div>
 
-            {cacheInventory?.kind === "blocked" ? (
-              <SensitiveAccessBlockedCard
-                callbackWaitingAutomation={callbackWaitingAutomation}
-                payload={cacheInventory.payload}
-                sandboxReadiness={sandboxReadiness}
-                summary={cacheInventoryBlockedCopy?.summary}
-                title={
-                  cacheInventoryBlockedCopy?.title ??
-                  bindingSurface.cacheInventoryBlockedFallbackTitle
-                }
-              />
-            ) : resolvedCacheInventory?.items?.length ? (
-              <div className="publish-cache-list">
-                {resolvedCacheInventory.items.map((item) => (
-                  <article className="payload-card compact-card" key={item.id}>
-                    <div className="payload-card-header">
-                      <span className="status-meta">{bindingSurface.cacheEntryTitle}</span>
-                      <span className="event-chip">hits {item.hit_count}</span>
-                    </div>
-                    <p className="binding-meta">
-                      {item.cache_key.slice(0, 16)}... · expires {formatTimestamp(item.expires_at)}
-                    </p>
-                    <p className="section-copy entry-copy">
-                      keys:{" "}
-                      {item.response_preview.keys?.length
-                        ? item.response_preview.keys.join(", ")
-                        : "none"}
-                    </p>
-                  </article>
-                ))}
-              </div>
+            {cacheSummary?.enabled ? (
+              <>
+                <div className="tool-badge-row">
+                  {bindingSurface.cacheInventoryVaryLabels.map((label) => (
+                    <span className="event-chip" key={`${binding.id}-${label}`}>
+                      {label}
+                    </span>
+                  ))}
+                </div>
+
+                {cacheInventory?.kind === "blocked" ? (
+                  <SensitiveAccessBlockedCard
+                    callbackWaitingAutomation={callbackWaitingAutomation}
+                    payload={cacheInventory.payload}
+                    sandboxReadiness={sandboxReadiness}
+                    summary={cacheInventoryBlockedCopy?.summary}
+                    title={
+                      cacheInventoryBlockedCopy?.title ??
+                      bindingSurface.cacheInventoryBlockedFallbackTitle
+                    }
+                  />
+                ) : resolvedCacheInventory?.items?.length ? (
+                  <div className="publish-cache-list">
+                    {resolvedCacheInventory.items.map((item) => (
+                      <article className="payload-card compact-card" key={item.id}>
+                        <div className="payload-card-header">
+                          <span className="status-meta">{bindingSurface.cacheEntryTitle}</span>
+                          <span className="event-chip">hits {item.hit_count}</span>
+                        </div>
+                        <p className="binding-meta">
+                          {item.cache_key.slice(0, 16)}... · expires {formatTimestamp(item.expires_at)}
+                        </p>
+                        <p className="section-copy entry-copy">
+                          keys:{" "}
+                          {item.response_preview.keys?.length
+                            ? item.response_preview.keys.join(", ")
+                            : "none"}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="empty-state compact">{cacheInventorySurfaceCopy.emptyState}</p>
+                )}
+              </>
             ) : (
               <p className="empty-state compact">{cacheInventorySurfaceCopy.emptyState}</p>
             )}
-          </>
-        ) : (
-          <p className="empty-state compact">{cacheInventorySurfaceCopy.emptyState}</p>
-        )}
-      </div>
+          </div>
 
-      <WorkflowPublishLifecycleForm
-        workflowId={workflow.id}
-        bindingId={binding.id}
-        currentStatus={binding.lifecycle_status}
-        sandboxReadiness={sandboxReadiness}
-        issues={binding.issues}
-        workflowGovernanceHandoff={lifecycleWorkflowGovernanceHandoff}
-        currentHref={currentHref ?? workflowDetailHref}
-        action={updatePublishedEndpointLifecycle}
-      />
+          <WorkflowPublishLifecycleForm
+            workflowId={workflow.id}
+            bindingId={binding.id}
+            currentStatus={binding.lifecycle_status}
+            sandboxReadiness={sandboxReadiness}
+            issues={binding.issues}
+            workflowGovernanceHandoff={lifecycleWorkflowGovernanceHandoff}
+            currentHref={currentHref ?? workflowDetailHref}
+            action={updatePublishedEndpointLifecycle}
+          />
 
-      {binding.auth_mode === "api_key" ? (
-        <WorkflowPublishApiKeyManager
-          workflowId={workflow.id}
-          bindingId={binding.id}
-          apiKeys={apiKeys}
-        />
+          {binding.auth_mode === "api_key" ? (
+            <WorkflowPublishApiKeyManager
+              workflowId={workflow.id}
+              bindingId={binding.id}
+              apiKeys={apiKeys}
+            />
+          ) : (
+            <div className="entry-card compact-card">
+              <p className="entry-card-title">{bindingSurface.apiKeyGovernanceTitle}</p>
+              <p className="empty-state compact">{bindingSurface.apiKeyGovernanceEmptyState}</p>
+              {authGovernanceWorkflowHandoff?.workflowCatalogGapSummary ||
+              authGovernanceWorkflowHandoff?.legacyAuthHandoff ? (
+                <div className="publish-key-list">
+                  <div>
+                    <p className="entry-card-title">Workflow handoff</p>
+                    <p className="section-copy entry-copy">
+                      当前 auth governance 空状态也直接复用 shared workflow governance handoff，
+                      避免作者在确认当前 binding 不走 published API key 后，还要回到 workflow
+                      detail 补 catalog gap / publish auth contract 上下文。
+                    </p>
+                  </div>
+
+                  <WorkflowGovernanceHandoffCards
+                    workflowCatalogGapSummary={
+                      authGovernanceWorkflowHandoff.workflowCatalogGapSummary
+                    }
+                    workflowCatalogGapDetail={authGovernanceWorkflowHandoff.workflowCatalogGapDetail}
+                    workflowCatalogGapHref={authGovernanceWorkflowHandoff.workflowCatalogGapHref}
+                    workflowGovernanceHref={authGovernanceWorkflowHandoff.workflowGovernanceHref}
+                    legacyAuthHandoff={authGovernanceWorkflowHandoff.legacyAuthHandoff}
+                    cardClassName="payload-card compact-card"
+                    currentHref={currentHref ?? workflowDetailHref}
+                  />
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          <WorkflowPublishLocalAgentHandoff
+            workflowId={workflow.id}
+            binding={binding}
+            apiKeys={apiKeys}
+          />
+        </>
       ) : (
         <div className="entry-card compact-card">
-          <p className="entry-card-title">{bindingSurface.apiKeyGovernanceTitle}</p>
-          <p className="empty-state compact">{bindingSurface.apiKeyGovernanceEmptyState}</p>
-          {authGovernanceWorkflowHandoff?.workflowCatalogGapSummary ||
-          authGovernanceWorkflowHandoff?.legacyAuthHandoff ? (
-            <div className="publish-key-list">
-              <div>
-                <p className="entry-card-title">Workflow handoff</p>
-                <p className="section-copy entry-copy">
-                  当前 auth governance 空状态也直接复用 shared workflow governance handoff，
-                  避免作者在确认当前 binding 不走 published API key 后，还要回到 workflow
-                  detail 补 catalog gap / publish auth contract 上下文。
-                </p>
-              </div>
-
-              <WorkflowGovernanceHandoffCards
-                workflowCatalogGapSummary={
-                  authGovernanceWorkflowHandoff.workflowCatalogGapSummary
-                }
-                workflowCatalogGapDetail={authGovernanceWorkflowHandoff.workflowCatalogGapDetail}
-                workflowCatalogGapHref={authGovernanceWorkflowHandoff.workflowCatalogGapHref}
-                workflowGovernanceHref={authGovernanceWorkflowHandoff.workflowGovernanceHref}
-                legacyAuthHandoff={authGovernanceWorkflowHandoff.legacyAuthHandoff}
-                cardClassName="payload-card compact-card"
-                currentHref={currentHref ?? workflowDetailHref}
-              />
-            </div>
-          ) : null}
+          <div className="payload-card-header">
+            <span className="status-meta">Governance detail</span>
+            <span className="event-chip">summary first</span>
+            {governanceDetailHref ? (
+              <Link className="event-chip inbox-filter-link" href={governanceDetailHref}>
+                打开治理明细
+              </Link>
+            ) : null}
+          </div>
+          <p className="section-copy entry-copy">
+            默认热路径先交付 binding summary；需要时再展开 invocation、cache、sandbox、lifecycle 与
+            API key 治理明细。
+          </p>
         </div>
       )}
-
-      <WorkflowPublishLocalAgentHandoff
-        workflowId={workflow.id}
-        binding={binding}
-        apiKeys={apiKeys}
-      />
     </article>
   );
 }

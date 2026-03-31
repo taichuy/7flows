@@ -240,6 +240,35 @@ function buildBlockedPayload(): SensitiveAccessBlockingPayload {
 }
 
 describe("WorkflowPublishBindingCard", () => {
+  it("keeps the default binding card on the summary-first seam", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowPublishBindingCard, {
+        workflow: buildWorkflow(),
+        tools: [],
+        binding: buildBinding(),
+        showGovernanceDetails: false,
+        governanceDetailHref: "/workflows/workflow-1/publish?publish_binding=binding-1",
+        collapseGovernanceHref: "/workflows/workflow-1/publish",
+        cacheInventory: null as never,
+        apiKeys: [],
+        invocationAudit: null,
+        selectedInvocationId: null,
+        selectedInvocationDetail: null as never,
+        rateLimitWindowAudit: null,
+        activeInvocationFilter: null,
+        callbackWaitingAutomation: buildCallbackWaitingAutomation(),
+        sandboxReadiness: buildSandboxReadiness()
+      })
+    );
+
+    expect(html).toContain("summary first");
+    expect(html).toContain("打开治理明细");
+    expect(html).not.toContain("activity-panel:");
+    expect(html).not.toContain("lifecycle-form:");
+    expect(html).not.toContain("api-key-manager");
+    expect(html).not.toContain('data-component="workflow-publish-local-agent-handoff"');
+  });
+
   it("shows Codex and OpenClaw handoff presets for openai bindings", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowPublishBindingCard, {
@@ -691,9 +720,8 @@ describe("WorkflowPublishBindingCard", () => {
       })
     );
 
-    expect(html).toContain('aria-current="page"');
     expect(html).not.toContain('href="/workflows/workflow-1?definition_issue=legacy_publish_auth"');
-    expect(html).toContain('href="/workflows/workflow-1?definition_issue=missing_tool"');
+    expect(html).toContain('href="/workflows/workflow-1/editor?definition_issue=missing_tool"');
     expect(html).toContain(`current:${currentHref}`);
   });
 });

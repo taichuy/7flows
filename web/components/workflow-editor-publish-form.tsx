@@ -1,36 +1,20 @@
 "use client";
 
 import React from "react";
-import { useMemo, useState } from "react";
 
 import { OperatorRecommendedNextStepCard } from "@/components/operator-recommended-next-step-card";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { buildOperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
 import { formatSandboxReadinessPreflightHint } from "@/lib/sandbox-readiness-presenters";
 import { buildSandboxReadinessFollowUpCandidate } from "@/lib/system-overview-follow-up-presenters";
-import {
-  buildWorkflowValidationNavigatorItems,
-  type WorkflowValidationNavigatorItem
-} from "@/lib/workflow-validation-navigation";
-import { validateContractSchema } from "@/lib/workflow-contract-schema-validation";
-import { pickWorkflowValidationRemediationItem } from "@/lib/workflow-validation-remediation";
+import { type WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import type { WorkflowPersistBlocker } from "@/components/workflow-editor-workbench/persist-blockers";
-import { summarizeWorkflowPersistBlockers } from "@/components/workflow-editor-workbench/persist-blockers";
 import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-blocker-notice";
 import { WorkflowValidationRemediationCard } from "@/components/workflow-validation-remediation-card";
 import { buildWorkflowPublishDraftSectionId } from "@/lib/workflow-publish-definition-links";
 import { WorkflowEditorPublishEndpointCard } from "./workflow-editor-publish-endpoint-card";
-import {
-  buildPublishedEndpointValidationIssues,
-  type WorkflowEditorPublishValidationIssue
-} from "./workflow-editor-publish-form-validation";
-import {
-  cloneRecord,
-  createPublishedEndpointDraft,
-  createUniqueEndpointId,
-  isRecord,
-  normalizePublishedEndpoint
-} from "./workflow-editor-publish-form-shared";
+import { WorkflowEditorPublishFormValidationSummary } from "./workflow-editor-publish-form-validation-summary";
+import { useWorkflowEditorPublishDraftState } from "./workflow-editor-publish-form-state";
 
 type WorkflowEditorPublishFormProps = {
   currentHref?: string | null;
@@ -48,10 +32,6 @@ type WorkflowEditorPublishFormProps = {
   highlightedEndpointFieldPath?: string | null;
 };
 
-type FocusedPublishValidationItem = WorkflowValidationNavigatorItem & {
-  target: Extract<WorkflowValidationNavigatorItem["target"], { scope: "publish" }>;
-};
-
 export function WorkflowEditorPublishForm({
   currentHref = null,
   workflowVersion,
@@ -64,7 +44,6 @@ export function WorkflowEditorPublishForm({
   highlightedEndpointIndex = null,
   highlightedEndpointFieldPath = null
 }: WorkflowEditorPublishFormProps) {
-  const [feedback, setFeedback] = useState<string | null>(null);
   const sandboxPreflightHint = formatSandboxReadinessPreflightHint(sandboxReadiness);
   const sandboxRecommendedNextStep = sandboxPreflightHint
     ? buildOperatorRecommendedNextStep({
@@ -72,157 +51,29 @@ export function WorkflowEditorPublishForm({
         currentHref
       })
     : null;
-
-  const normalizedEndpoints = useMemo(
-    () => publishEndpoints.map((endpoint, index) => normalizePublishedEndpoint(endpoint, index)),
-    [publishEndpoints]
-  );
-  const validationIssues = useMemo(
-    () =>
-      buildPublishedEndpointValidationIssues(normalizedEndpoints, {
-        allowedWorkflowVersions: availableWorkflowVersions
-      }),
-    [availableWorkflowVersions, normalizedEndpoints]
-  );
-  const publishLegacyAuthValidationIssues = useMemo(
-    () =>
-      validationIssues.filter(
-        (issue) => issue.category === "publish_draft" && issue.field === "authMode"
-      ),
-    [validationIssues]
-  );
-  const genericValidationIssues = useMemo(
-    () => validationIssues.filter((issue) => !publishLegacyAuthValidationIssues.includes(issue)),
-    [publishLegacyAuthValidationIssues, validationIssues]
-  );
-  const genericValidationNavigatorItems = useMemo(
-    () => buildWorkflowValidationNavigatorItems({ publish: normalizedEndpoints }, genericValidationIssues),
-    [genericValidationIssues, normalizedEndpoints]
-  );
-  const genericValidationRemediationItem = useMemo(
-    () => pickWorkflowValidationRemediationItem(genericValidationNavigatorItems),
-    [genericValidationNavigatorItems]
-  );
-  const remainingGenericValidationIssues = useMemo(
-    () =>
-      genericValidationIssues.filter(
-        (issue) => !matchesPublishValidationIssue(issue, genericValidationRemediationItem)
-      ),
-    [genericValidationIssues, genericValidationRemediationItem]
-  );
-  const validationIssuesByEndpoint = useMemo(
-    () => groupValidationIssuesByEndpoint(validationIssues),
-    [validationIssues]
-  );
-  const publishLegacyAuthValidationItem = useMemo(
-    () =>
-      buildWorkflowValidationNavigatorItems(
-        { publish: normalizedEndpoints },
-        publishLegacyAuthValidationIssues
-          .map((issue) => ({
-            category: issue.category,
-            message: issue.message,
-            path: issue.path,
-            field: issue.field,
-            hasLegacyPublishAuthModeIssues: true
-          }))
-      )[0] ?? null,
-    [normalizedEndpoints, publishLegacyAuthValidationIssues]
-  );
-  const publishPersistBlockers = useMemo(
-    () => persistBlockers.filter((blocker) => blocker.id === "publish_draft"),
-    [persistBlockers]
-  );
-  const publishPersistBlockerSummary = useMemo(
-    () => summarizeWorkflowPersistBlockers(publishPersistBlockers),
-    [publishPersistBlockers]
-  );
-  const focusedPublishValidationItem =
-    focusedValidationItem?.target.scope === "publish"
-      ? (focusedValidationItem as FocusedPublishValidationItem)
-      : null;
-  const focusedPublishEndpointExists =
-    focusedPublishValidationItem !== null &&
-    focusedPublishValidationItem.target.endpointIndex >= 0 &&
-    focusedPublishValidationItem.target.endpointIndex < normalizedEndpoints.length;
-
-  const commit = (
-    nextPublish: Array<Record<string, unknown>>,
-    options?: { successMessage?: string }
-  ) => {
-    setFeedback(null);
-    onChange(nextPublish, options);
-  };
-
-  const updateEndpoint = (
-    index: number,
-    updater: (current: Record<string, unknown>) => Record<string, unknown>
-  ) => {
-    commit(
-      publishEndpoints.map((endpoint, endpointIndex) =>
-        endpointIndex === index ? updater(cloneRecord(endpoint)) : cloneRecord(endpoint)
-      )
-    );
-  };
-
-  const handleAddEndpoint = () => {
-    const nextId = createUniqueEndpointId(normalizedEndpoints.map((endpoint) => endpoint.id));
-    const nextEndpoint = createPublishedEndpointDraft(nextId, normalizedEndpoints.length);
-
-    commit([...publishEndpoints.map(cloneRecord), nextEndpoint], {
-      successMessage: `已新增 publish endpoint ${nextId}。`
-    });
-  };
-
-  const handleDeleteEndpoint = (index: number) => {
-    const endpoint = normalizedEndpoints[index];
-    commit(
-      publishEndpoints
-        .filter((_, endpointIndex) => endpointIndex !== index)
-        .map(cloneRecord),
-      {
-        successMessage: `已移除 publish endpoint ${endpoint?.id ?? index + 1}。`
-      }
-    );
-  };
-
-  const applySchemaField = (
-    endpointIndex: number,
-    field: "inputSchema" | "outputSchema",
-    value: string
-  ) => {
-    const normalized = value.trim();
-
-    if (!normalized) {
-      updateEndpoint(endpointIndex, (endpoint) => {
-        if (field === "inputSchema") {
-          endpoint.inputSchema = {};
-        } else {
-          delete endpoint.outputSchema;
-        }
-        return endpoint;
-      });
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(normalized) as unknown;
-      if (!isRecord(parsed)) {
-        throw new Error(`${field} 必须是 JSON 对象。`);
-      }
-      const endpoint = normalizedEndpoints[endpointIndex];
-      const endpointId = endpoint?.id ?? `endpoint_${endpointIndex + 1}`;
-      validateContractSchema(parsed, {
-        errorPrefix: `Published endpoint '${endpointId}' ${field}`
-      });
-      updateEndpoint(endpointIndex, (endpoint) => {
-        endpoint[field] = parsed;
-        return endpoint;
-      });
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : `${field} 不是合法 JSON。`);
-    }
-  };
+  const {
+    feedback,
+    normalizedEndpoints,
+    genericValidationIssues,
+    genericValidationRemediationItem,
+    remainingGenericValidationIssues,
+    validationIssuesByEndpoint,
+    publishLegacyAuthValidationItem,
+    publishPersistBlockers,
+    publishPersistBlockerSummary,
+    focusedPublishValidationItem,
+    focusedPublishEndpointExists,
+    updateEndpoint,
+    handleAddEndpoint,
+    handleDeleteEndpoint,
+    applySchemaField
+  } = useWorkflowEditorPublishDraftState({
+    availableWorkflowVersions,
+    publishEndpoints,
+    onChange,
+    focusedValidationItem,
+    persistBlockers
+  });
 
   return (
     <article
@@ -280,34 +131,14 @@ export function WorkflowEditorPublishForm({
         </button>
       </div>
 
-      {genericValidationIssues.length > 0 || publishLegacyAuthValidationItem ? (
-        <>
-          {genericValidationRemediationItem ? (
-            <WorkflowValidationRemediationCard
-              currentHref={currentHref}
-              item={genericValidationRemediationItem}
-              sandboxReadiness={sandboxReadiness}
-            />
-          ) : null}
-          {remainingGenericValidationIssues.length > 0 ? (
-            <div className="sync-message error">
-              <p>当前 publish draft 里还有这些字段级问题：</p>
-              <ul className="roadmap-list compact-list">
-                {remainingGenericValidationIssues.map((issue) => (
-                  <li key={issue.key}>{issue.message}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {publishLegacyAuthValidationItem ? (
-            <WorkflowValidationRemediationCard
-              currentHref={currentHref}
-              item={publishLegacyAuthValidationItem}
-              sandboxReadiness={sandboxReadiness}
-            />
-          ) : null}
-        </>
-      ) : null}
+      <WorkflowEditorPublishFormValidationSummary
+        currentHref={currentHref}
+        sandboxReadiness={sandboxReadiness}
+        genericValidationIssues={genericValidationIssues}
+        genericValidationRemediationItem={genericValidationRemediationItem}
+        remainingGenericValidationIssues={remainingGenericValidationIssues}
+        publishLegacyAuthValidationItem={publishLegacyAuthValidationItem}
+      />
 
       {normalizedEndpoints.length > 0 ? (
         <div className="binding-form compact-stack">
@@ -351,32 +182,4 @@ export function WorkflowEditorPublishForm({
       {feedback ? <p className="sync-message error">{feedback}</p> : null}
     </article>
   );
-}
-
-function groupValidationIssuesByEndpoint(
-  issues: ReturnType<typeof buildPublishedEndpointValidationIssues>
-) {
-  const issuesByEndpoint = new Map<string, WorkflowEditorPublishValidationIssue[]>();
-  for (const issue of issues) {
-    const nextIssues = issuesByEndpoint.get(issue.endpointKey) ?? [];
-    nextIssues.push(issue);
-    issuesByEndpoint.set(issue.endpointKey, nextIssues);
-  }
-  return issuesByEndpoint;
-}
-
-function matchesPublishValidationIssue(
-  issue: WorkflowEditorPublishValidationIssue,
-  item: WorkflowValidationNavigatorItem | null
-) {
-  if (!item || item.target.scope !== "publish" || issue.category !== item.category) {
-    return false;
-  }
-
-  const fieldPath = item.target.fieldPath?.trim();
-  if (fieldPath) {
-    return issue.path === `publish.${item.target.endpointIndex}.${fieldPath}`;
-  }
-
-  return issue.message === item.message;
 }

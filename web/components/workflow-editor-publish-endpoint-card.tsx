@@ -24,6 +24,7 @@ import {
   WorkflowEditorPublishEndpointCacheSection,
   WorkflowEditorPublishEndpointRateLimitSection
 } from "./workflow-editor-publish-endpoint-card-sections";
+import { matchesWorkflowEditorPublishValidationIssue } from "./workflow-editor-publish-validation-shared";
 
 type WorkflowEditorPublishEndpointCardProps = {
   endpoint: WorkflowPublishedEndpointDraft;
@@ -99,7 +100,8 @@ export function WorkflowEditorPublishEndpointCard({
   const remainingGenericValidationIssues = useMemo(
     () =>
       genericValidationIssues.filter(
-        (issue) => !matchesPublishValidationIssue(issue, activeValidationRemediationItem)
+        (issue) =>
+          !matchesWorkflowEditorPublishValidationIssue(issue, activeValidationRemediationItem)
       ),
     [activeValidationRemediationItem, genericValidationIssues]
   );
@@ -398,22 +400,6 @@ function buildEndpointValidationPublishDraft(
   return Array.from({ length: endpointIndex + 1 }, (_, index) =>
     index === endpointIndex ? (endpoint as unknown as Record<string, unknown>) : {}
   );
-}
-
-function matchesPublishValidationIssue(
-  issue: WorkflowEditorPublishValidationIssue,
-  item: WorkflowValidationNavigatorItem | null
-) {
-  if (!item || item.target.scope !== "publish" || issue.category !== item.category) {
-    return false;
-  }
-
-  const fieldPath = item.target.fieldPath?.trim();
-  if (fieldPath) {
-    return issue.path === `publish.${item.target.endpointIndex}.${fieldPath}`;
-  }
-
-  return issue.message === item.message;
 }
 
 function normalizePublishFieldKey(fieldPath: string | null | undefined) {

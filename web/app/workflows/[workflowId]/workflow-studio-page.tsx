@@ -5,9 +5,8 @@ import type { ReactNode } from "react";
 
 import { WorkflowEditorWorkbenchEntry } from "@/components/workflow-editor-workbench-entry";
 import { WorkspaceShell } from "@/components/workspace-shell";
-import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
+import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
-import { getSystemOverview } from "@/lib/get-system-overview";
 import {
   appendWorkflowLibraryViewState,
   readWorkflowLibraryViewState
@@ -250,16 +249,12 @@ async function renderWorkflowPublishSurface(sharedContext: WorkflowStudioSharedC
     { WorkflowPublishPanel },
     workflowPublishModule,
     workflowPublishGovernanceModule,
-    workflowPublishActivityQueryModule,
-    pluginRegistry,
-    systemOverview
+    workflowPublishActivityQueryModule
   ] = await Promise.all([
     import("@/components/workflow-publish-panel"),
     import("@/lib/get-workflow-publish"),
     import("@/lib/get-workflow-publish-governance"),
-    import("@/lib/workflow-publish-activity-query"),
-    getPluginRegistrySnapshot(),
-    getSystemOverview()
+    import("@/lib/workflow-publish-activity-query")
   ]);
   const publishedEndpoints = await workflowPublishModule.getWorkflowPublishedEndpoints(
     sharedContext.workflow.id,
@@ -278,19 +273,54 @@ async function renderWorkflowPublishSurface(sharedContext: WorkflowStudioSharedC
       publishActivityQueryScope,
       publishedEndpoints
     );
+  const expandedBindingId = publishActivityFilters.governanceFetchFilter?.bindingId ?? null;
+  const expandedBindings = expandedBindingId
+    ? publishedEndpoints.filter((binding) => binding.id === expandedBindingId)
+    : [];
+
+  let tools: PluginToolRegistryItem[] = [];
+  let callbackWaitingAutomation = null;
+  let sandboxReadiness = null;
+  let governanceSnapshot = {
+    cacheInventories: {},
+    apiKeysByBinding: {},
+    invocationAuditsByBinding: {},
+    invocationDetailsByBinding: {},
+    rateLimitWindowAuditsByBinding: {}
+  };
+
+  if (expandedBindings.length > 0) {
+    const [pluginRegistryModule, systemOverviewModule, nextGovernanceSnapshot] =
+      await Promise.all([
+        import("@/lib/get-plugin-registry"),
+        import("@/lib/get-system-overview"),
+        workflowPublishGovernanceModule.getWorkflowPublishGovernanceSnapshot(
+          sharedContext.workflow.id,
+          expandedBindings,
+          {
+            activeInvocationFilter: publishActivityFilters.governanceFetchFilter
+          }
+        )
+      ]);
+
+    const [pluginRegistry, systemOverview] = await Promise.all([
+      pluginRegistryModule.getPluginRegistrySnapshot(),
+      systemOverviewModule.getSystemOverview()
+    ]);
+
+    tools = pluginRegistry.tools;
+    callbackWaitingAutomation = systemOverview.callback_waiting_automation;
+    sandboxReadiness = systemOverview.sandbox_readiness;
+    governanceSnapshot = nextGovernanceSnapshot;
+  }
+
   const {
     cacheInventories,
     apiKeysByBinding,
     invocationAuditsByBinding,
     invocationDetailsByBinding,
     rateLimitWindowAuditsByBinding
-  } = await workflowPublishGovernanceModule.getWorkflowPublishGovernanceSnapshot(
-    sharedContext.workflow.id,
-    publishedEndpoints,
-    {
-      activeInvocationFilter: publishActivityFilters.governanceFetchFilter
-    }
-  );
+  } = governanceSnapshot;
 
   return (
     <WorkflowStudioShell
@@ -312,7 +342,7 @@ async function renderWorkflowPublishSurface(sharedContext: WorkflowStudioSharedC
       >
         <WorkflowPublishPanel
           workflow={sharedContext.workflow}
-          tools={pluginRegistry.tools}
+          tools={tools}
           bindings={publishedEndpoints}
           cacheInventories={cacheInventories}
           apiKeysByBinding={apiKeysByBinding}
@@ -320,9 +350,10 @@ async function renderWorkflowPublishSurface(sharedContext: WorkflowStudioSharedC
           invocationDetailsByBinding={invocationDetailsByBinding}
           selectedInvocationId={publishActivityFilters.selectedInvocationId}
           rateLimitWindowAuditsByBinding={rateLimitWindowAuditsByBinding}
-          callbackWaitingAutomation={systemOverview.callback_waiting_automation}
-          sandboxReadiness={systemOverview.sandbox_readiness}
+          callbackWaitingAutomation={callbackWaitingAutomation}
+          sandboxReadiness={sandboxReadiness}
           activeInvocationFilter={publishActivityFilters.panelActiveFilter}
+          expandedBindingId={expandedBindingId}
           workflowLibraryHref={sharedContext.workflowLibraryHref}
           currentHref={sharedContext.currentPublishHref}
           workspaceStarterGovernanceQueryScope={
