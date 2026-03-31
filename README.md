@@ -76,6 +76,13 @@ node scripts/dev-pause.js
 node scripts/dev-up.js stop
 ```
 
+如果本地 `chrome-devtools-mcp` 会话积累过多、遗留了旧的 Chrome 子进程，可以先 dry-run 看命中范围，再决定是否清理：
+
+```shell
+node scripts/kill-stale-chrome-devtools-mcp.js
+node scripts/kill-stale-chrome-devtools-mcp.js --kill
+```
+
 如需继续使用 Shell 入口，也可以执行：
 
 ```shell
