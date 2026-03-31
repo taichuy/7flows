@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { WorkflowApiSurface } from "@/components/workflow-api-surface";
@@ -15,7 +15,7 @@ import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import { getWorkflowPublishedEndpoints } from "@/lib/get-workflow-publish";
 import { getWorkflowPublishGovernanceSnapshot } from "@/lib/get-workflow-publish-governance";
 import { getWorkflowRuns } from "@/lib/get-workflow-runs";
-import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
+import { requireServerWorkflowStudioSurfaceAccess } from "@/lib/server-workspace-access";
 import {
   readWorkflowLogsRequestedRunId,
   selectWorkflowLogsRun
@@ -152,14 +152,11 @@ async function resolveWorkflowStudioSharedContext({
     buildWorkflowStudioSurfaceHref(workflowId, surface),
     buildWorkflowStudioSearchParams(resolvedSearchParams, { omitKeys: ["surface"] })
   );
-  const [workspaceContext, workflow] = await Promise.all([
-    getServerWorkspaceContext(),
-    getWorkflowDetail(workflowId)
-  ]);
-
-  if (!workspaceContext) {
-    redirect(`/login?next=${encodeURIComponent(requestedSurfaceHref)}`);
-  }
+  const workspaceContext = await requireServerWorkflowStudioSurfaceAccess({
+    surface,
+    requestedHref: requestedSurfaceHref
+  });
+  const workflow = await getWorkflowDetail(workflowId);
 
   if (!workflow) {
     notFound();

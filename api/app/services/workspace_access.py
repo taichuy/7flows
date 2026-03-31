@@ -42,6 +42,7 @@ REFRESH_TOKEN_COOKIE_BASE_NAME = "sevenflows_refresh_token"
 CSRF_TOKEN_COOKIE_BASE_NAME = "sevenflows_csrf_token"
 CSRF_HEADER_NAME = "X-CSRF-Token"
 COOKIE_SAME_SITE = "lax"
+CONSOLE_ACCESS_LEVEL_RANK = {"guest": 0, "authenticated": 1, "manager": 2}
 
 
 class WorkspaceAccessError(Exception):
@@ -178,85 +179,215 @@ def get_workspace_auth_cookie_contract() -> ConsoleAuthCookieContract:
     )
 
 
+def _build_route_permission_item(
+    *,
+    route: str,
+    access_level: str,
+    methods: list[str],
+    description: str,
+    csrf_protected_methods: list[str] | None = None,
+) -> ConsoleRoutePermissionItem:
+    return ConsoleRoutePermissionItem(
+        route=route,
+        access_level=access_level,
+        methods=methods,
+        csrf_protected_methods=csrf_protected_methods or [],
+        description=description,
+    )
+
+
+def build_workflow_surface_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
+    return [
+        _build_route_permission_item(
+            route="/api/workflows/{workflow_id}/detail",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow studio shared detail snapshot，对已登录 workspace 成员开放。",
+        ),
+        _build_route_permission_item(
+            route="/api/workflows/{workflow_id}/runs",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow logs surface 的 recent runs 摘要，对已登录 workspace 成员开放。",
+        ),
+        _build_route_permission_item(
+            route="/api/workflows/{workflow_id}/published-endpoints",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow publish / api / monitor surface 共用的 published bindings 快照。",
+        ),
+        _build_route_permission_item(
+            route="/api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow publish / monitor surface 的 invocation activity 列表。",
+        ),
+        _build_route_permission_item(
+            route="/api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations/export",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow publish activity 的导出入口，对已登录 workspace 成员开放。",
+        ),
+        _build_route_permission_item(
+            route="/api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations/{invocation_id}",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow publish activity detail 入口，后续仍可叠加 sensitive access gating。",
+        ),
+        _build_route_permission_item(
+            route="/api/runs/{run_id}",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow logs / diagnostics surface 的 run overview。",
+        ),
+        _build_route_permission_item(
+            route="/api/runs/{run_id}/detail",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow logs surface 的 run detail。",
+        ),
+        _build_route_permission_item(
+            route="/api/runs/{run_id}/events",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow logs surface 的 run events。",
+        ),
+        _build_route_permission_item(
+            route="/api/runs/{run_id}/trace",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow logs surface 的 run trace。",
+        ),
+        _build_route_permission_item(
+            route="/api/runs/{run_id}/trace/export",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow logs surface 的 trace export。",
+        ),
+        _build_route_permission_item(
+            route="/api/runs/{run_id}/execution-view",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow logs surface 的 execution view。",
+        ),
+        _build_route_permission_item(
+            route="/api/runs/{run_id}/evidence-view",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow logs surface 的 evidence view。",
+        ),
+    ]
+
+
+def _get_console_access_level_for_role(role: str | None) -> str:
+    if role in MANAGE_MEMBER_ROLES:
+        return "manager"
+    if role:
+        return "authenticated"
+    return "guest"
+
+
+def _has_required_console_access_level(current_level: str, required_level: str) -> bool:
+    return CONSOLE_ACCESS_LEVEL_RANK[current_level] >= CONSOLE_ACCESS_LEVEL_RANK[required_level]
+
+
+def resolve_console_route_permission(route: str, *, method: str) -> ConsoleRoutePermissionItem | None:
+    normalized_method = method.strip().upper()
+    for item in build_console_route_permission_matrix():
+        if item.route == route and normalized_method in item.methods:
+            return item
+    return None
+
+
+def ensure_console_route_access(
+    access_context: WorkspaceAccessContext,
+    *,
+    route: str,
+    method: str,
+) -> ConsoleRoutePermissionItem:
+    permission = resolve_console_route_permission(route, method=method)
+    if permission is None:
+        raise AuthorizationError(f"工作台路由契约缺失：{method.upper()} {route}")
+
+    current_level = _get_console_access_level_for_role(access_context.member.role)
+    if not _has_required_console_access_level(current_level, permission.access_level):
+        raise AuthorizationError("当前账号没有访问该工作台路由的权限。")
+
+    return permission
+
+
 def build_console_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
     return [
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/auth/login",
             access_level="guest",
             methods=["POST"],
-            csrf_protected_methods=[],
             description="访客登录入口，签发 access/refresh/csrf 三类令牌。",
         ),
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/auth/session",
             access_level="authenticated",
             methods=["GET"],
-            csrf_protected_methods=[],
             description="已登录会话快照，用于服务端路由守卫与当前用户恢复。",
         ),
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/auth/refresh",
             access_level="authenticated",
             methods=["POST"],
             csrf_protected_methods=["POST"],
             description="已登录会话刷新入口，要求 refresh token 与 CSRF double-submit 同时成立。",
         ),
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/auth/logout",
             access_level="authenticated",
             methods=["POST"],
-            csrf_protected_methods=[],
             description="已登录会话撤销入口，允许使用 access 或 refresh token 主动失效当前会话。",
         ),
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/workspace/context",
             access_level="authenticated",
             methods=["GET"],
-            csrf_protected_methods=[],
             description="console 主链工作空间上下文，供页面与服务端守卫复用。",
         ),
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/workspace/members",
             access_level="authenticated",
             methods=["GET"],
-            csrf_protected_methods=[],
             description="成员列表对所有已登录成员可见，供团队页与路由守卫恢复 workspace roster。",
         ),
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/workspace/members",
             access_level="manager",
             methods=["POST"],
             csrf_protected_methods=["POST"],
             description="新增成员仅 owner/admin 可调用，并要求 CSRF double-submit。",
         ),
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/workspace/members/{member_id}",
             access_level="manager",
             methods=["PATCH"],
             csrf_protected_methods=["PATCH"],
             description="成员角色更新仅 owner/admin 可调用，并要求 CSRF double-submit。",
         ),
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/workspace/model-providers",
             access_level="authenticated",
             methods=["GET"],
-            csrf_protected_methods=[],
             description=(
                 "workspace 原生模型供应商 registry 快照，对已登录成员开放只读，"
                 "供 team settings 与后续节点表单消费。"
             ),
         ),
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/workspace/model-providers/settings",
             access_level="manager",
             methods=["GET"],
-            csrf_protected_methods=[],
             description=(
                 "团队模型供应商 settings 聚合读取面，仅 owner/admin 可见，"
                 "供 provider settings SSR 在权限成立后再读取敏感 credential 列表。"
             ),
         ),
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/workspace/model-providers",
             access_level="manager",
             methods=["POST"],
@@ -266,7 +397,7 @@ def build_console_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
                 "并要求 CSRF double-submit。"
             ),
         ),
-        ConsoleRoutePermissionItem(
+        _build_route_permission_item(
             route="/api/workspace/model-providers/{provider_config_id}",
             access_level="manager",
             methods=["PUT", "DELETE"],
@@ -276,6 +407,7 @@ def build_console_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
                 "并要求 CSRF double-submit。"
             ),
         ),
+        *build_workflow_surface_route_permission_matrix(),
     ]
 
 

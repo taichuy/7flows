@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import type { CredentialItem } from "@/lib/get-credentials";
@@ -18,6 +19,11 @@ import {
   type WorkspaceContextResponse,
   type WorkspaceMemberItem
 } from "@/lib/workspace-access";
+import {
+  canAccessWorkflowStudioSurface,
+  getWorkspaceConsolePageHref
+} from "@/lib/workspace-console";
+import type { WorkflowStudioSurface } from "@/lib/workbench-links";
 
 type CookieEntry = {
   name: string;
@@ -221,6 +227,26 @@ export const getServerWorkspaceContext = cache(async (): Promise<WorkspaceContex
   }
   return fetchWorkspaceAccessJson<WorkspaceContextResponse>("/api/workspace/context", session);
 });
+
+export async function requireServerWorkflowStudioSurfaceAccess({
+  surface,
+  requestedHref
+}: {
+  surface: WorkflowStudioSurface;
+  requestedHref: string;
+}) {
+  const workspaceContext = await getServerWorkspaceContext();
+
+  if (!workspaceContext) {
+    redirect(`/login?next=${encodeURIComponent(requestedHref)}`);
+  }
+
+  if (!canAccessWorkflowStudioSurface(surface, workspaceContext)) {
+    redirect(getWorkspaceConsolePageHref("workspace"));
+  }
+
+  return workspaceContext;
+}
 
 export async function getServerWorkspaceMembers(): Promise<WorkspaceMemberItem[]> {
   const cookieStore = await cookies();

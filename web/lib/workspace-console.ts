@@ -5,6 +5,11 @@ import {
   type WorkspaceContextResponse,
   type WorkspaceMemberRole
 } from "@/lib/workspace-access";
+import {
+  getWorkflowStudioSurfaceDefinitions,
+  type WorkflowStudioSurface,
+  type WorkflowStudioSurfaceDefinition
+} from "@/lib/workbench-links";
 
 export const WORKSPACE_TEAM_SETTINGS_HREF = "/workspace/settings/team";
 export const WORKSPACE_MODEL_PROVIDER_SETTINGS_HREF = "/workspace/settings/providers";
@@ -14,9 +19,14 @@ export type WorkspaceConsoleNavKey = "workspace" | "workflows" | "runs" | "start
 export type WorkspaceConsolePageKey = "login" | WorkspaceConsoleNavKey | "providers";
 export type WorkspaceShellNavigationMode = "all" | "core" | "studio";
 
-type WorkspaceConsoleRouteContract = {
+export type WorkspaceConsoleRouteContract = {
   route: string;
   methods: string[];
+};
+
+export type WorkflowStudioSurfacePermission = WorkflowStudioSurfaceDefinition & {
+  accessLevel: ConsoleAccessLevel;
+  routeContracts: WorkspaceConsoleRouteContract[];
 };
 
 export type WorkspaceConsolePagePermission = {
@@ -98,6 +108,85 @@ const workspaceShellNavigationByMode = {
   studio: ["workspace", "workflows", "runs", "team"]
 } satisfies Record<WorkspaceShellNavigationMode, WorkspaceConsoleNavKey[]>;
 
+const workflowStudioSurfaceRouteContracts = {
+  editor: [
+    {
+      route: "/api/workflows/{workflow_id}/detail",
+      methods: ["GET"]
+    }
+  ],
+  publish: [
+    {
+      route: "/api/workflows/{workflow_id}/detail",
+      methods: ["GET"]
+    },
+    {
+      route: "/api/workflows/{workflow_id}/published-endpoints",
+      methods: ["GET"]
+    },
+    {
+      route: "/api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations",
+      methods: ["GET"]
+    },
+    {
+      route: "/api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations/{invocation_id}",
+      methods: ["GET"]
+    }
+  ],
+  api: [
+    {
+      route: "/api/workflows/{workflow_id}/detail",
+      methods: ["GET"]
+    },
+    {
+      route: "/api/workflows/{workflow_id}/published-endpoints",
+      methods: ["GET"]
+    }
+  ],
+  logs: [
+    {
+      route: "/api/workflows/{workflow_id}/detail",
+      methods: ["GET"]
+    },
+    {
+      route: "/api/workflows/{workflow_id}/runs",
+      methods: ["GET"]
+    },
+    {
+      route: "/api/runs/{run_id}/detail",
+      methods: ["GET"]
+    },
+    {
+      route: "/api/runs/{run_id}/execution-view",
+      methods: ["GET"]
+    },
+    {
+      route: "/api/runs/{run_id}/evidence-view",
+      methods: ["GET"]
+    }
+  ],
+  monitor: [
+    {
+      route: "/api/workflows/{workflow_id}/detail",
+      methods: ["GET"]
+    },
+    {
+      route: "/api/workflows/{workflow_id}/published-endpoints",
+      methods: ["GET"]
+    },
+    {
+      route: "/api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations",
+      methods: ["GET"]
+    }
+  ]
+} satisfies Record<WorkflowStudioSurface, WorkspaceConsoleRouteContract[]>;
+
+const workflowStudioSurfacePermissions = getWorkflowStudioSurfaceDefinitions().map((item) => ({
+  ...item,
+  accessLevel: "authenticated" satisfies ConsoleAccessLevel,
+  routeContracts: workflowStudioSurfaceRouteContracts[item.key]
+})) satisfies WorkflowStudioSurfacePermission[];
+
 export function getConsoleAccessLevelForRole(
   userRole: WorkspaceMemberRole | null | undefined
 ): ConsoleAccessLevel {
@@ -143,6 +232,33 @@ function canSatisfyRouteContract(
   });
 }
 
+function canAccessRouteContracts(
+  requiredAccessLevel: ConsoleAccessLevel,
+  routeContracts: WorkspaceConsoleRouteContract[] | undefined,
+  workspaceContext:
+    | {
+        current_member: Pick<WorkspaceContextResponse["current_member"], "role">;
+        route_permissions?: WorkspaceContextResponse["route_permissions"];
+      }
+    | null
+) {
+  const currentAccessLevel = getConsoleAccessLevelForRole(
+    workspaceContext?.current_member.role
+  );
+
+  if (!hasRequiredAccessLevel(currentAccessLevel, requiredAccessLevel)) {
+    return false;
+  }
+
+  return (routeContracts ?? []).every((routeContract) =>
+    canSatisfyRouteContract(
+      workspaceContext?.route_permissions,
+      currentAccessLevel,
+      routeContract
+    )
+  );
+}
+
 export function getWorkspaceConsolePagePermission(page: WorkspaceConsolePageKey) {
   return workspaceConsolePagePermissions.find((item) => item.key === page) ?? null;
 }
@@ -157,6 +273,10 @@ export function getWorkspaceConsoleNavigationItems() {
   ) as Array<WorkspaceConsolePagePermission & { key: WorkspaceConsoleNavKey }>;
 }
 
+export function getWorkflowStudioSurfacePermission(surface: WorkflowStudioSurface) {
+  return workflowStudioSurfacePermissions.find((item) => item.key === surface) ?? null;
+}
+
 export function canAccessConsolePage(
   page: WorkspaceConsolePageKey,
   workspaceContext:
@@ -167,21 +287,27 @@ export function canAccessConsolePage(
     | null
 ) {
   const pagePermission = getWorkspaceConsolePagePermission(page);
-  const requiredAccessLevel = pagePermission?.accessLevel ?? "authenticated";
-  const currentAccessLevel = getConsoleAccessLevelForRole(
-    workspaceContext?.current_member.role
+  return canAccessRouteContracts(
+    pagePermission?.accessLevel ?? "authenticated",
+    pagePermission?.routeContracts,
+    workspaceContext
   );
+}
 
-  if (!hasRequiredAccessLevel(currentAccessLevel, requiredAccessLevel)) {
-    return false;
-  }
-
-  return (pagePermission?.routeContracts ?? []).every((routeContract) =>
-    canSatisfyRouteContract(
-      workspaceContext?.route_permissions,
-      currentAccessLevel,
-      routeContract
-    )
+export function canAccessWorkflowStudioSurface(
+  surface: WorkflowStudioSurface,
+  workspaceContext:
+    | {
+        current_member: Pick<WorkspaceContextResponse["current_member"], "role">;
+        route_permissions?: WorkspaceContextResponse["route_permissions"];
+      }
+    | null
+) {
+  const surfacePermission = getWorkflowStudioSurfacePermission(surface);
+  return canAccessRouteContracts(
+    surfacePermission?.accessLevel ?? "authenticated",
+    surfacePermission?.routeContracts,
+    workspaceContext
   );
 }
 

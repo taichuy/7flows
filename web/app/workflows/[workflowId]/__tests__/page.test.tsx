@@ -13,13 +13,20 @@ import WorkflowPublishPage from "@/app/workflows/[workflowId]/publish/page";
 import { getRunDetail } from "@/lib/get-run-detail";
 import { getWorkflowRuns } from "@/lib/get-workflow-runs";
 import { getRunEvidenceView, getRunExecutionView } from "@/lib/get-run-views";
-import { getServerWorkspaceContext } from "@/lib/server-workspace-access";
+import {
+  getServerWorkspaceContext,
+  requireServerWorkflowStudioSurfaceAccess
+} from "@/lib/server-workspace-access";
 import { getWorkflowPublishedEndpoints } from "@/lib/get-workflow-publish";
 import { getWorkflowPublishGovernanceSnapshot } from "@/lib/get-workflow-publish-governance";
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
 import { getWorkflowDetail, getWorkflows } from "@/lib/get-workflows";
+import {
+  canAccessWorkflowStudioSurface,
+  getWorkspaceConsolePageHref
+} from "@/lib/workspace-console";
 import type { WorkspaceContextResponse } from "@/lib/workspace-access";
 
 Object.assign(globalThis, { React });
@@ -103,7 +110,8 @@ vi.mock("@/components/workflow-publish-panel", () => ({
 }));
 
 vi.mock("@/lib/server-workspace-access", () => ({
-  getServerWorkspaceContext: vi.fn()
+  getServerWorkspaceContext: vi.fn(),
+  requireServerWorkflowStudioSurfaceAccess: vi.fn()
 }));
 
 vi.mock("@/lib/get-workflows", () => ({
@@ -399,6 +407,27 @@ function buildEvidenceView(runId: string, overrides: Record<string, unknown> = {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getServerWorkspaceContext).mockResolvedValue(buildWorkspaceContext());
+  vi.mocked(requireServerWorkflowStudioSurfaceAccess).mockImplementation(
+    async ({
+      surface,
+      requestedHref
+    }: {
+      surface: Parameters<typeof canAccessWorkflowStudioSurface>[0];
+      requestedHref: string;
+    }) => {
+      const workspaceContext = await getServerWorkspaceContext();
+
+      if (!workspaceContext) {
+        throw new Error(`redirect:/login?next=${encodeURIComponent(requestedHref)}`);
+      }
+
+      if (!canAccessWorkflowStudioSurface(surface, workspaceContext)) {
+        throw new Error(`redirect:${getWorkspaceConsolePageHref("workspace")}`);
+      }
+
+      return workspaceContext;
+    }
+  );
   vi.mocked(getWorkflowDetail).mockResolvedValue({
     id: "workflow-1",
     name: "Workflow 1"
@@ -911,5 +940,71 @@ describe("Workflow studio routes", () => {
         searchParams: Promise.resolve({})
       })
     ).rejects.toThrowError("redirect:/login?next=%2Fworkflows%2Fworkflow-1%2Feditor");
+
+    expect(vi.mocked(getWorkflowDetail)).not.toHaveBeenCalled();
+  });
+
+  it("redirects unauthorized publish access before loading workflow detail or bindings", async () => {
+    const workspaceContext = buildWorkspaceContext();
+    vi.mocked(getServerWorkspaceContext).mockResolvedValue({
+      ...workspaceContext,
+      current_member: {
+        ...workspaceContext.current_member,
+        role: "viewer"
+      },
+      route_permissions: [
+        {
+          route: "/api/workspace/members",
+          methods: ["GET"],
+          csrf_protected_methods: [],
+          access_level: "manager",
+          description: "team settings"
+        }
+      ]
+    });
+
+    await expect(
+      WorkflowPublishPage({
+        params: Promise.resolve({ workflowId: "workflow-1" }),
+        searchParams: Promise.resolve({})
+      })
+    ).rejects.toThrowError("redirect:/workspace");
+
+    expect(vi.mocked(getWorkflowDetail)).not.toHaveBeenCalled();
+    expect(vi.mocked(getWorkflowPublishedEndpoints)).not.toHaveBeenCalled();
+    expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).not.toHaveBeenCalled();
+  });
+
+  it("redirects unauthorized logs access before loading workflow detail or run facts", async () => {
+    const workspaceContext = buildWorkspaceContext();
+    vi.mocked(getServerWorkspaceContext).mockResolvedValue({
+      ...workspaceContext,
+      current_member: {
+        ...workspaceContext.current_member,
+        role: "viewer"
+      },
+      route_permissions: [
+        {
+          route: "/api/workspace/members",
+          methods: ["GET"],
+          csrf_protected_methods: [],
+          access_level: "manager",
+          description: "team settings"
+        }
+      ]
+    });
+
+    await expect(
+      WorkflowLogsPage({
+        params: Promise.resolve({ workflowId: "workflow-1" }),
+        searchParams: Promise.resolve({})
+      })
+    ).rejects.toThrowError("redirect:/workspace");
+
+    expect(vi.mocked(getWorkflowDetail)).not.toHaveBeenCalled();
+    expect(vi.mocked(getWorkflowRuns)).not.toHaveBeenCalled();
+    expect(vi.mocked(getRunDetail)).not.toHaveBeenCalled();
+    expect(vi.mocked(getRunExecutionView)).not.toHaveBeenCalled();
+    expect(vi.mocked(getRunEvidenceView)).not.toHaveBeenCalled();
   });
 });
