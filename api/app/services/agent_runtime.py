@@ -1386,6 +1386,7 @@ class AgentRuntime(AgentRuntimeLLMSupportMixin):
         next_model_config["providerConfigRef"] = provider_config_ref.strip()
         next_model_config["provider"] = provider_config.provider_id
         next_model_config["baseUrl"] = provider_config.base_url
+        next_model_config["protocol"] = provider_config.protocol
         next_model_config["modelId"] = (
             str(model_config.get("modelId") or model_config.get("model_id") or "").strip()
             or provider_config.default_model

@@ -63,8 +63,51 @@ def _anthropic_response(content: str, model: str = "claude-3-7-sonnet-latest") -
     }
 
 
+def _openai_responses_response(content: str, model: str = "gpt-4.1") -> dict:
+    return {
+        "id": "resp-test",
+        "object": "response",
+        "model": model,
+        "status": "completed",
+        "output": [
+            {
+                "id": "msg-test",
+                "content": [{"type": "output_text", "text": content}],
+            }
+        ],
+        "output_text": content,
+        "usage": {"input_tokens": 12, "output_tokens": 8, "total_tokens": 20},
+    }
+
+
 def _response_to_sse(resp_json: dict) -> str:
     """Convert a sync OpenAI response to SSE format for streaming mock."""
+    if resp_json.get("object") == "response":
+        content = str(resp_json.get("output_text") or "")
+        model = resp_json.get("model") or "gpt-4o"
+        usage = resp_json.get("usage") if isinstance(resp_json.get("usage"), dict) else {}
+        response_id = resp_json.get("id") or "resp-stream"
+        created_event = {
+            "type": "response.created",
+            "response": {"id": response_id, "model": model},
+        }
+        lines: list[str] = [
+            f"data: {json.dumps(created_event)}"
+        ]
+        if content:
+            lines.append(
+                f'data: {json.dumps({"type": "response.output_text.delta", "delta": content})}'
+            )
+        completed_event = {
+            "type": "response.completed",
+            "response": {"id": response_id, "model": model, "usage": usage},
+        }
+        lines.append(
+            f"data: {json.dumps(completed_event)}"
+        )
+        lines.append("data: [DONE]")
+        return "\n".join(lines) + "\n"
+
     choice = (resp_json.get("choices") or [{}])[0]
     message = choice.get("message") or {}
     content = message.get("content") or ""
@@ -461,6 +504,80 @@ def test_llm_agent_resolves_workspace_provider_config_ref(sqlite_session: Sessio
     assert captured_requests[0]["url"] == "https://proxy.openai.local/v1/chat/completions"
     assert captured_requests[0]["headers"]["authorization"] == "Bearer sk-provider-config-key"
     assert captured_requests[0]["body"]["model"] == "gpt-4.1-mini"
+
+
+def test_llm_agent_resolves_workspace_provider_config_protocol_for_openai_responses(
+    sqlite_session: Session,
+) -> None:
+    runtime = _create_runtime_with_llm(
+        [
+            _openai_responses_response("Plan with provider config."),
+            _openai_responses_response("Final answer with provider config."),
+        ]
+    )
+
+    with _patch_credential_settings():
+        credential = CredentialStore().create(
+            sqlite_session,
+            name="OpenAI Team Credential",
+            credential_type="openai_api_key",
+            data={"apiKey": "sk-provider-config-key"},
+        )
+        sqlite_session.add(
+            WorkspaceModelProviderConfigRecord(
+                id="provider-openai-responses-team",
+                workspace_id="default",
+                provider_id="openai",
+                label="OpenAI Responses Team",
+                description="",
+                credential_id=credential.id,
+                base_url="https://proxy.openai.local/v1",
+                default_model="gpt-4.1",
+                protocol="responses",
+                status="active",
+                supported_model_types=["llm"],
+            )
+        )
+        workflow = Workflow(
+            id="wf-agent-provider-config-responses",
+            name="Agent Provider Config Responses",
+            version="0.1.0",
+            status="draft",
+            definition={
+                "nodes": [
+                    {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+                    {
+                        "id": "agent",
+                        "type": "llm_agent",
+                        "name": "Agent",
+                        "config": {
+                            "prompt": "Say hello.",
+                            "model": {
+                                "providerConfigRef": "provider-openai-responses-team",
+                                "modelId": "gpt-4.1-mini",
+                            },
+                        },
+                    },
+                    {"id": "output", "type": "output", "name": "Output", "config": {}},
+                ],
+                "edges": [
+                    {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+                    {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+                ],
+            },
+        )
+        sqlite_session.add(workflow)
+        sqlite_session.commit()
+
+        artifacts = runtime.execute_workflow(sqlite_session, workflow, {"topic": "provider ref"})
+
+    assert artifacts.run.status == "succeeded"
+    captured_requests = runtime._llm_provider._captured_requests  # type: ignore[attr-defined]
+    assert captured_requests
+    assert captured_requests[0]["url"] == "https://proxy.openai.local/v1/responses"
+    assert captured_requests[0]["headers"]["authorization"] == "Bearer sk-provider-config-key"
+    assert captured_requests[0]["body"]["model"] == "gpt-4.1-mini"
+    assert captured_requests[0]["body"]["input"][0]["content"][0]["type"] == "input_text"
 
 
 def test_reference_node_reads_authorized_upstream_json(sqlite_session: Session) -> None:

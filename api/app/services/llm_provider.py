@@ -55,6 +55,11 @@ _NATIVE_RUNTIME_ADAPTERS = {
         request_path="/chat/completions",
         default_protocol="chat_completions",
     ),
+    "responses": NativeLlmRuntimeAdapter(
+        key="openai_responses",
+        request_path="/responses",
+        default_protocol="responses",
+    ),
     "messages": NativeLlmRuntimeAdapter(
         key="anthropic_messages",
         request_path="/v1/messages",
@@ -63,16 +68,31 @@ _NATIVE_RUNTIME_ADAPTERS = {
     ),
 }
 
+_NATIVE_PROVIDER_PROTOCOLS = {
+    "openai": {"chat_completions", "responses"},
+    "anthropic": {"messages"},
+}
 
-def resolve_native_llm_provider_contract(provider: str) -> NativeLlmProviderContract:
+
+def resolve_native_llm_provider_contract(
+    provider: str,
+    protocol: str | None = None,
+) -> NativeLlmProviderContract:
     normalized_provider = provider.strip().lower()
     try:
         definition = _PROVIDER_REGISTRY.get_catalog_item(normalized_provider)
     except ModelProviderRegistryError:
         definition = _PROVIDER_REGISTRY.get_catalog_item(_DEFAULT_NATIVE_PROVIDER_ID)
 
+    requested_protocol = (protocol or definition.default_protocol).strip().lower()
+    supported_protocols = _NATIVE_PROVIDER_PROTOCOLS.get(definition.id, set())
+    if requested_protocol not in supported_protocols:
+        raise LLMProviderError(
+            f"LLM provider '{definition.id}' does not support protocol '{requested_protocol}'."
+        )
+
     runtime_adapter = _NATIVE_RUNTIME_ADAPTERS.get(
-        definition.default_protocol,
+        requested_protocol,
         _NATIVE_RUNTIME_ADAPTERS["chat_completions"],
     )
     return NativeLlmProviderContract(definition=definition, runtime_adapter=runtime_adapter)
@@ -90,6 +110,7 @@ class LLMCallConfig:
     temperature: float | None = None
     max_tokens: int | None = None
     base_url: str | None = None
+    protocol: str | None = None
     extra_params: dict[str, Any] = field(default_factory=dict)
 
 
@@ -141,16 +162,21 @@ class LLMProviderService:
 
     def chat(self, config: LLMCallConfig) -> LLMResponse:
         """Synchronous LLM call. Returns complete response."""
-        contract = resolve_native_llm_provider_contract(config.provider)
+        contract = resolve_native_llm_provider_contract(config.provider, config.protocol)
         if contract.runtime_adapter.key == "anthropic_messages":
             return self._anthropic_chat(config, contract)
+        if contract.runtime_adapter.key == "openai_responses":
+            return self._openai_responses(config, contract)
         return self._openai_chat(config, contract)
 
     def chat_stream(self, config: LLMCallConfig) -> Generator[LLMStreamChunk, None, None]:
         """Streaming LLM call. Yields chunks as they arrive."""
-        contract = resolve_native_llm_provider_contract(config.provider)
+        contract = resolve_native_llm_provider_contract(config.provider, config.protocol)
         if contract.runtime_adapter.key == "anthropic_messages":
             yield from self._anthropic_chat_stream(config, contract)
+            return
+        if contract.runtime_adapter.key == "openai_responses":
+            yield from self._openai_responses_stream(config, contract)
             return
         yield from self._openai_chat_stream(config, contract)
 
@@ -197,6 +223,45 @@ class LLMProviderService:
                     if chunk is not None:
                         yield chunk
 
+    def _openai_responses(
+        self,
+        config: LLMCallConfig,
+        contract: NativeLlmProviderContract,
+    ) -> LLMResponse:
+        url = self._openai_url(config, contract)
+        headers = self._openai_headers(config)
+        body = self._openai_responses_body(config, stream=False)
+
+        with self._make_client() as client:
+            resp = client.post(url, headers=headers, json=body)
+            self._check_response(resp, config.provider)
+            data = resp.json()
+
+        return LLMResponse(
+            text=self._extract_openai_response_text(data),
+            model=data.get("model") or config.model_id,
+            finish_reason=str(data.get("status") or ""),
+            usage=data.get("usage") or {},
+            raw=data,
+        )
+
+    def _openai_responses_stream(
+        self,
+        config: LLMCallConfig,
+        contract: NativeLlmProviderContract,
+    ) -> Generator[LLMStreamChunk, None, None]:
+        url = self._openai_url(config, contract)
+        headers = self._openai_headers(config)
+        body = self._openai_responses_body(config, stream=True)
+
+        with self._make_client() as client:
+            with client.stream("POST", url, headers=headers, json=body) as resp:
+                self._check_response(resp, config.provider)
+                for line in resp.iter_lines():
+                    chunk = self._parse_openai_responses_sse_line(line, config.model_id)
+                    if chunk is not None:
+                        yield chunk
+
     def _openai_url(self, config: LLMCallConfig, contract: NativeLlmProviderContract) -> str:
         base = (config.base_url or contract.definition.default_base_url).rstrip("/")
         return f"{base}{contract.runtime_adapter.request_path}"
@@ -228,6 +293,35 @@ class LLMProviderService:
             body.setdefault(key, value)
         return body
 
+    def _openai_responses_body(self, config: LLMCallConfig, *, stream: bool) -> dict[str, Any]:
+        input_items: list[dict[str, Any]] = []
+        for message in config.messages:
+            role = str(message.get("role") or "user")
+            content = str(message.get("content") or "").strip()
+            if not content:
+                continue
+            input_items.append(
+                {
+                    "role": role,
+                    "content": [{"type": "input_text", "text": content}],
+                }
+            )
+
+        body: dict[str, Any] = {
+            "model": config.model_id,
+            "input": input_items,
+            "stream": stream,
+        }
+        if config.system_prompt:
+            body["instructions"] = config.system_prompt
+        if config.temperature is not None:
+            body["temperature"] = config.temperature
+        if config.max_tokens is not None:
+            body["max_output_tokens"] = config.max_tokens
+        for key, value in config.extra_params.items():
+            body.setdefault(key, value)
+        return body
+
     def _parse_openai_sse_line(
         self, line: str, model_id: str
     ) -> LLMStreamChunk | None:
@@ -254,6 +348,59 @@ class LLMProviderService:
             model=data.get("model") or model_id,
             usage=usage,
         )
+
+    def _parse_openai_responses_sse_line(
+        self,
+        line: str,
+        model_id: str,
+    ) -> LLMStreamChunk | None:
+        if line.startswith("event: ") or not line.startswith("data: "):
+            return None
+        payload = line[6:].strip()
+        if payload == "[DONE]":
+            return None
+        try:
+            data = json.loads(payload)
+        except json.JSONDecodeError:
+            return None
+
+        event_type = str(data.get("type") or "")
+        if event_type == "response.output_text.delta":
+            delta = str(data.get("delta") or "")
+            if not delta:
+                return None
+            return LLMStreamChunk(delta=delta, model=model_id)
+
+        if event_type == "response.completed":
+            response = data.get("response") if isinstance(data.get("response"), dict) else {}
+            usage = response.get("usage") if isinstance(response.get("usage"), dict) else {}
+            return LLMStreamChunk(
+                delta="",
+                finish_reason="completed",
+                model=str(response.get("model") or model_id),
+                usage=usage,
+            )
+
+        return None
+
+    def _extract_openai_response_text(self, data: dict[str, Any]) -> str:
+        output_text = data.get("output_text")
+        if isinstance(output_text, str) and output_text.strip():
+            return output_text
+
+        collected: list[str] = []
+        for item in data.get("output") or []:
+            if not isinstance(item, dict):
+                continue
+            for content in item.get("content") or []:
+                if not isinstance(content, dict):
+                    continue
+                if content.get("type") not in {"output_text", "text"}:
+                    continue
+                text = content.get("text")
+                if isinstance(text, str) and text:
+                    collected.append(text)
+        return "".join(collected)
 
     # --- Anthropic ---
 
@@ -409,6 +556,7 @@ def build_llm_call_config(
     max_tokens_raw = model_config.get("maxTokens") or model_config.get("max_tokens")
     max_tokens = int(max_tokens_raw) if max_tokens_raw is not None else None
     base_url = model_config.get("baseUrl") or model_config.get("base_url") or None
+    protocol = model_config.get("protocol") or None
 
     if not model_id:
         raise LLMProviderError("model.modelId is required for LLM calls but was empty.")
@@ -454,4 +602,5 @@ def build_llm_call_config(
         temperature=temperature,
         max_tokens=max_tokens,
         base_url=str(base_url) if base_url else None,
+        protocol=str(protocol) if protocol else None,
     )

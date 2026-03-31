@@ -15,6 +15,11 @@ from app.schemas.workflow import (
     WorkflowVersionItem,
 )
 from app.services.compiled_blueprints import CompiledBlueprintService
+from app.services.model_provider_registry import (
+    ModelProviderRegistryError,
+    ModelProviderRegistryService,
+    resolve_provider_config_id,
+)
 from app.services.workflow_definitions import (
     WorkflowDefinitionValidationError,
     WorkflowDefinitionValidationIssue,
@@ -43,6 +48,7 @@ from app.services.workflow_views import (
 
 router = APIRouter(prefix="/workflows", tags=["workflows"])
 workflow_mutation_service = WorkflowMutationService(CompiledBlueprintService())
+model_provider_registry_service = ModelProviderRegistryService()
 
 
 def _render_validation_issues(
@@ -92,7 +98,72 @@ def _validate_workflow_definition_for_persistence(
             current_version=current_version,
         ),
     )
+    _normalize_llm_provider_config_references(db, validated_definition)
     return validated_definition, current_version
+
+
+def _normalize_llm_provider_config_references(
+    db: Session,
+    definition: dict,
+) -> None:
+    nodes = definition.get("nodes")
+    if not isinstance(nodes, list):
+        return
+
+    for index, node in enumerate(nodes):
+        if not isinstance(node, dict) or node.get("type") != "llm_agent":
+            continue
+        config = node.get("config")
+        if not isinstance(config, dict):
+            continue
+        model = config.get("model")
+        if not isinstance(model, dict):
+            continue
+
+        raw_provider_config_ref = model.get("providerConfigRef") or model.get("provider_config_ref")
+        if not isinstance(raw_provider_config_ref, str) or not raw_provider_config_ref.strip():
+            continue
+
+        provider_config_id = resolve_provider_config_id(raw_provider_config_ref)
+        try:
+            provider_config = model_provider_registry_service.get_provider_config(
+                db,
+                workspace_id="default",
+                provider_config_id=provider_config_id,
+            )
+        except ModelProviderRegistryError as exc:
+            raise WorkflowDefinitionValidationError(
+                str(exc),
+                issues=[
+                    WorkflowDefinitionValidationIssue(
+                        category="model_provider",
+                        message=str(exc),
+                        path=f"nodes[{index}].config.model",
+                        field="config.model.providerConfigRef",
+                    )
+                ],
+            ) from exc
+
+        if provider_config.status != "active":
+            raise WorkflowDefinitionValidationError(
+                f"Model provider config '{provider_config.label}' is inactive.",
+                issues=[
+                    WorkflowDefinitionValidationIssue(
+                        category="model_provider",
+                        message=f"Model provider config '{provider_config.label}' is inactive.",
+                        path=f"nodes[{index}].config.model",
+                        field="config.model.providerConfigRef",
+                    )
+                ],
+            )
+
+        model["providerConfigRef"] = provider_config_id
+        model.pop("provider_config_ref", None)
+        if not str(model.get("modelId") or "").strip():
+            model["modelId"] = provider_config.default_model
+
+        for legacy_key in ("provider", "apiKey", "api_key", "baseUrl", "base_url", "protocol"):
+            model.pop(legacy_key, None)
 
 
 @router.get("", response_model=list[WorkflowListItem])

@@ -7,6 +7,7 @@ import type { Node } from "@xyflow/react";
 
 import type { CredentialItem } from "@/lib/get-credentials";
 import {
+  formatProtocolLabel,
   getNativeLlmProviderPreset,
   listNativeLlmProviderPresets,
   NATIVE_LLM_PROVIDER_PRESETS
@@ -156,6 +157,9 @@ export function LlmAgentNodeConfigForm({
     [modelProviderCatalog]
   );
   const providerPreset = getNativeLlmProviderPreset(effectiveProviderValue, modelProviderCatalog);
+  const selectedProviderProtocolLabel = selectedProviderConfig
+    ? formatProtocolLabel(selectedProviderConfig.protocol)
+    : null;
   const selectedCredential =
     typeof model.apiKey === "string"
       ? credentials.find((credential) => `credential://${credential.id}` === model.apiKey) ?? null
@@ -451,6 +455,7 @@ export function LlmAgentNodeConfigForm({
           </span>
           <span>
             runtime 会优先从该 provider config 解析 provider/baseUrl/credential，并以 <code>{selectedProviderConfig.default_model}</code> 作为默认模型。
+            {selectedProviderProtocolLabel ? ` 当前协议面：${selectedProviderProtocolLabel}。` : ""}
           </span>
         </div>
       ) : null}

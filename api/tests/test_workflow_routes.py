@@ -2,6 +2,8 @@
 
 from fastapi.testclient import TestClient
 
+from app.models.credential import Credential
+from app.models.model_provider import WorkspaceModelProviderConfigRecord
 from app.models.run import NodeRun, Run, RunEvent
 from app.models.workflow import Workflow, WorkflowPublishedEndpoint, WorkflowVersion
 from app.schemas.plugin import PluginToolItem
@@ -2332,9 +2334,35 @@ def test_validate_workflow_definition_preflight_returns_normalized_definition(
     assert body["issues"] == []
 
 
-def test_validate_workflow_definition_preflight_accepts_provider_config_ref_without_inline_llm_fields(
+def test_preflight_accepts_provider_config_ref_without_inline_llm_fields(
     client: TestClient,
+    sqlite_session,
 ) -> None:
+    sqlite_session.add(
+        Credential(
+            id="cred-openai-team-inline-free",
+            name="OpenAI Team Credential",
+            credential_type="openai_api_key",
+            encrypted_data="unused",
+        )
+    )
+    sqlite_session.add(
+        WorkspaceModelProviderConfigRecord(
+            id="provider-openai-team",
+            workspace_id="default",
+            provider_id="openai",
+            label="OpenAI Team",
+            description="",
+            credential_id="cred-openai-team-inline-free",
+            base_url="https://proxy.openai.local/v1",
+            default_model="gpt-4.1",
+            protocol="chat_completions",
+            status="active",
+            supported_model_types=["llm"],
+        )
+    )
+    sqlite_session.commit()
+
     definition = {
         "nodes": [
             {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
@@ -2377,6 +2405,82 @@ def test_validate_workflow_definition_preflight_accepts_provider_config_ref_with
         "provider-openai-team"
     )
     assert body["definition"]["nodes"][1]["config"]["model"]["modelId"] == "gpt-4.1-mini"
+
+
+def test_validate_workflow_definition_preflight_normalizes_provider_config_ref_to_canonical_fields(
+    client: TestClient,
+    sqlite_session,
+) -> None:
+    sqlite_session.add(
+        Credential(
+            id="cred-openai-team",
+            name="OpenAI Team Credential",
+            credential_type="openai_api_key",
+            encrypted_data="unused",
+        )
+    )
+    sqlite_session.add(
+        WorkspaceModelProviderConfigRecord(
+            id="provider-openai-team",
+            workspace_id="default",
+            provider_id="openai",
+            label="OpenAI Team",
+            description="",
+            credential_id="cred-openai-team",
+            base_url="https://proxy.openai.local/v1",
+            default_model="gpt-4.1",
+            protocol="responses",
+            status="active",
+            supported_model_types=["llm"],
+        )
+    )
+    sqlite_session.commit()
+
+    definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "agent",
+                "type": "llm_agent",
+                "name": "Agent",
+                "config": {
+                    "prompt": "Use provider registry.",
+                    "model": {
+                        "providerConfigRef": "provider_config://provider-openai-team",
+                        "provider": "anthropic",
+                        "apiKey": "credential://legacy-inline",
+                        "baseUrl": "https://legacy-inline.example",
+                    },
+                },
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+            {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+        ],
+    }
+
+    created = client.post(
+        "/api/workflows",
+        json={"name": "Provider Config Canonical Workflow", "definition": definition},
+    )
+    assert created.status_code == 201
+    workflow_id = created.json()["id"]
+
+    response = client.post(
+        f"/api/workflows/{workflow_id}/validate-definition",
+        json={"definition": definition},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    model = body["definition"]["nodes"][1]["config"]["model"]
+    assert model["providerConfigRef"] == "provider-openai-team"
+    assert model["modelId"] == "gpt-4.1"
+    assert "provider" not in model
+    assert "apiKey" not in model
+    assert "baseUrl" not in model
 
 
 def test_validate_workflow_definition_preflight_rejects_unsupported_condition_execution_class(

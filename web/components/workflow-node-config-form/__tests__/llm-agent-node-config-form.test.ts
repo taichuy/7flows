@@ -157,6 +157,7 @@ describe("LlmAgentNodeConfigForm", () => {
     expect(html).toContain("providerConfigRef + modelId");
     expect(html).toContain("OpenAI Team · OpenAI");
     expect(html).toContain("runtime 会优先从该 provider config 解析 provider/baseUrl/credential");
+    expect(html).toContain("当前协议面：OpenAI Chat Completions");
   });
 
   it("defaults fresh nodes to the first active team provider instead of inline credentials", () => {

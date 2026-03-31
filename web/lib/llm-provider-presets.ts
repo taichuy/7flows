@@ -41,7 +41,7 @@ function buildModelPlaceholder(defaultModels: string[]): string {
   return defaultModels.slice(0, 2).join(" / ");
 }
 
-function formatProtocolLabel(protocol: string): string {
+export function formatProtocolLabel(protocol: string): string {
   switch (protocol) {
     case "chat_completions":
       return "OpenAI Chat Completions";

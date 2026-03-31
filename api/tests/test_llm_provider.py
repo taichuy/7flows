@@ -47,6 +47,23 @@ def _anthropic_response(text: str = "Hello!", model: str = "claude-sonnet-4-2025
     }
 
 
+def _openai_responses_response(content: str = "Hello!", model: str = "gpt-4o") -> dict:
+    return {
+        "id": "resp_test",
+        "object": "response",
+        "model": model,
+        "status": "completed",
+        "output": [
+            {
+                "id": "msg_test",
+                "content": [{"type": "output_text", "text": content}],
+            }
+        ],
+        "output_text": content,
+        "usage": {"input_tokens": 11, "output_tokens": 7, "total_tokens": 18},
+    }
+
+
 def _make_service(handler) -> LLMProviderService:
     return LLMProviderService(
         client_factory=lambda: httpx.Client(
@@ -89,6 +106,13 @@ def test_unknown_provider_falls_back_to_openai_contract():
 
     assert contract.definition.id == "openai"
     assert contract.runtime_adapter.key == "openai_chat_completions"
+
+
+def test_invalid_protocol_for_native_provider_raises_error():
+    with pytest.raises(LLMProviderError) as exc_info:
+        resolve_native_llm_provider_contract("anthropic", "responses")
+
+    assert "does not support protocol 'responses'" in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +180,24 @@ def test_openai_chat_error_raises():
 
     assert exc_info.value.status_code == 429
     assert "Rate limited" in exc_info.value.body
+
+
+def test_openai_responses_protocol_uses_responses_endpoint_and_response_body():
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, json=_openai_responses_response("via responses"))
+
+    svc = _make_service(handler)
+    resp = svc.chat(_config(protocol="responses", system_prompt="Be brief"))
+
+    assert resp.text == "via responses"
+    assert resp.usage["total_tokens"] == 18
+    assert captured["url"].endswith("/responses")
+    assert captured["body"]["instructions"] == "Be brief"
+    assert captured["body"]["input"][0]["content"][0] == {"type": "input_text", "text": "Hi"}
 
 
 # ---------------------------------------------------------------------------
@@ -257,6 +299,35 @@ def test_openai_chat_stream_requests_usage_and_parses_usage_chunk():
         "total_tokens": 16,
     }
     assert chunks[2].finish_reason == "stop"
+
+
+def test_openai_responses_stream_yields_text_deltas_and_completion_usage():
+    captured = {}
+    sse_lines = (
+        'event: response.created\n'
+        'data: {"type":"response.created","response":{"id":"resp_test","model":"gpt-4o"}}\n'
+        'event: response.output_text.delta\n'
+        'data: {"type":"response.output_text.delta","delta":"Hel"}\n'
+        'event: response.output_text.delta\n'
+        'data: {"type":"response.output_text.delta","delta":"lo"}\n'
+        'event: response.completed\n'
+        "data: {\"type\":\"response.completed\","
+        '\"response\":{\"id\":\"resp_test\",\"model\":\"gpt-4o\",'
+        '\"usage\":{\"total_tokens\":16}}}\n'
+        'data: [DONE]\n'
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = json.loads(request.content)
+        return httpx.Response(200, text=sse_lines, headers={"content-type": "text/event-stream"})
+
+    svc = _make_service(handler)
+    chunks = list(svc.chat_stream(_config(protocol="responses")))
+
+    assert captured["body"]["stream"] is True
+    assert [chunk.delta for chunk in chunks] == ["Hel", "lo", ""]
+    assert chunks[-1].finish_reason == "completed"
+    assert chunks[-1].usage == {"total_tokens": 16}
 
 
 # ---------------------------------------------------------------------------
