@@ -59,6 +59,8 @@ export type WorkspaceModelProviderRegistryResponse = {
   items: WorkspaceModelProviderConfigItem[];
 };
 
+export type WorkspaceModelProviderRegistryStatus = "idle" | "loading" | "ready" | "error";
+
 export async function getWorkspaceModelProviderRegistry(): Promise<WorkspaceModelProviderRegistryResponse | null> {
   try {
     const response = await fetchConsoleApi("/api/workspace/model-providers", {

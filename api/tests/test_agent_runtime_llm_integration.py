@@ -435,7 +435,10 @@ def test_llm_agent_resolves_workspace_provider_config_ref(sqlite_session: Sessio
                             "prompt": "Say hello.",
                             "model": {
                                 "providerConfigRef": "provider-openai-team",
+                                "provider": "anthropic",
                                 "modelId": "gpt-4.1-mini",
+                                "apiKey": "sk-inline-should-not-win",
+                                "baseUrl": "https://inline-should-not-win.example",
                             },
                         },
                     },

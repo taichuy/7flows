@@ -3,7 +3,10 @@ import type { Edge, Node } from "@xyflow/react";
 
 import type { PluginAdapterRegistryItem, PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import type { CredentialItem } from "@/lib/get-credentials";
-import type { WorkspaceModelProviderConfigItem } from "@/lib/model-provider-registry";
+import type {
+  WorkspaceModelProviderConfigItem,
+  WorkspaceModelProviderRegistryStatus
+} from "@/lib/model-provider-registry";
 import type { RunSnapshotWithId } from "@/app/actions/run-snapshot";
 import type {
   CallbackWaitingAutomationCheck,
@@ -117,6 +120,7 @@ export type WorkflowEditorInspectorProps = {
   adapters: PluginAdapterRegistryItem[];
   credentials: CredentialItem[];
   modelProviderConfigs?: WorkspaceModelProviderConfigItem[];
+  modelProviderRegistryStatus?: WorkspaceModelProviderRegistryStatus;
   nodeConfigText: string;
   onNodeConfigTextChange: (value: string) => void;
   onApplyNodeConfigJson: () => void;
@@ -214,6 +218,7 @@ export type UseWorkflowEditorPanelsArgs = {
   adapters: PluginAdapterRegistryItem[];
   credentials: CredentialItem[];
   modelProviderConfigs: WorkspaceModelProviderConfigItem[];
+  modelProviderRegistryStatus: WorkspaceModelProviderRegistryStatus;
   callbackWaitingAutomation?: CallbackWaitingAutomationCheck | null;
   sandboxReadiness?: SandboxReadinessCheck | null;
   sandboxBackends?: SandboxBackendCheck[] | null;

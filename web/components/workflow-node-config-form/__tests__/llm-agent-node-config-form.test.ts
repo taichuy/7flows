@@ -148,6 +148,7 @@ describe("LlmAgentNodeConfigForm", () => {
         tools: [],
         credentials: [buildCredential()],
         modelProviderConfigs,
+        modelProviderRegistryStatus: "ready",
         onChange: () => undefined
       })
     );
@@ -156,5 +157,68 @@ describe("LlmAgentNodeConfigForm", () => {
     expect(html).toContain("providerConfigRef + modelId");
     expect(html).toContain("OpenAI Team · OpenAI");
     expect(html).toContain("runtime 会优先从该 provider config 解析 provider/baseUrl/credential");
+  });
+
+  it("defaults fresh nodes to the first active team provider instead of inline credentials", () => {
+    const html = renderToStaticMarkup(
+      createElement(LlmAgentNodeConfigForm, {
+        node: {
+          id: "node-llm-fresh",
+          type: "workflowNode",
+          position: { x: 0, y: 0 },
+          data: {
+            label: "Agent",
+            nodeType: "llm_agent",
+            config: {
+              assistant: {
+                enabled: false
+              }
+            }
+          }
+        } as never,
+        nodes: [],
+        tools: [],
+        credentials: [buildCredential()],
+        modelProviderConfigs,
+        modelProviderRegistryStatus: "ready",
+        onChange: () => undefined
+      })
+    );
+
+    expect(html).toContain("团队 provider 已成为当前节点的主入口");
+    expect(html).toContain("OpenAI Team · OpenAI");
+    expect(html).not.toContain("API Key credential");
+  });
+
+  it("shows team provider setup guidance when registry is unavailable for fresh nodes", () => {
+    const html = renderToStaticMarkup(
+      createElement(LlmAgentNodeConfigForm, {
+        node: {
+          id: "node-llm-no-registry",
+          type: "workflowNode",
+          position: { x: 0, y: 0 },
+          data: {
+            label: "Agent",
+            nodeType: "llm_agent",
+            config: {
+              assistant: {
+                enabled: false
+              }
+            }
+          }
+        } as never,
+        nodes: [],
+        tools: [],
+        credentials: [],
+        modelProviderConfigs: [],
+        modelProviderRegistryStatus: "error",
+        onChange: () => undefined
+      })
+    );
+
+    expect(html).toContain("暂时无法读取团队 provider registry");
+    expect(html).toContain("前往团队模型供应商设置");
+    expect(html).toContain("/workspace/settings/providers");
+    expect(html).not.toContain("API Key credential");
   });
 });

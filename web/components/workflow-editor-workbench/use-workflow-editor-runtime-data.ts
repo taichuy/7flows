@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { getCredentials, type CredentialItem } from "@/lib/get-credentials";
 import {
   getWorkspaceModelProviderRegistry,
-  type WorkspaceModelProviderConfigItem
+  type WorkspaceModelProviderConfigItem,
+  type WorkspaceModelProviderRegistryStatus
 } from "@/lib/model-provider-registry";
 import { getWorkflowRuns, type WorkflowRunListItem } from "@/lib/get-workflow-runs";
 
@@ -20,6 +21,7 @@ type UseWorkflowEditorRuntimeDataOptions = {
 type RuntimeDataState = {
   credentials: CredentialItem[];
   modelProviderConfigs: WorkspaceModelProviderConfigItem[];
+  modelProviderRegistryStatus: WorkspaceModelProviderRegistryStatus;
   recentRuns: WorkflowRunListItem[];
 };
 
@@ -61,6 +63,8 @@ export function useWorkflowEditorRuntimeData({
   const [modelProviderConfigs, setModelProviderConfigs] = useState<
     WorkspaceModelProviderConfigItem[]
   >([]);
+  const [modelProviderRegistryStatus, setModelProviderRegistryStatus] =
+    useState<WorkspaceModelProviderRegistryStatus>(loadCredentials ? "loading" : "idle");
   const [recentRuns, setRecentRuns] = useState(initialRecentRuns);
 
   useEffect(() => {
@@ -69,6 +73,9 @@ export function useWorkflowEditorRuntimeData({
     }
 
     let active = true;
+    setModelProviderRegistryStatus((currentStatus) =>
+      currentStatus === "ready" ? currentStatus : "loading"
+    );
     const handle = scheduleRuntimeDataLoad(() => {
       void getCredentials(true).then((nextCredentials) => {
         if (!active) {
@@ -83,7 +90,14 @@ export function useWorkflowEditorRuntimeData({
           return;
         }
 
-        setModelProviderConfigs(registry?.items ?? []);
+        if (!registry) {
+          setModelProviderConfigs([]);
+          setModelProviderRegistryStatus("error");
+          return;
+        }
+
+        setModelProviderConfigs(registry.items ?? []);
+        setModelProviderRegistryStatus("ready");
       });
     });
 
@@ -118,6 +132,7 @@ export function useWorkflowEditorRuntimeData({
   return {
     credentials,
     modelProviderConfigs,
+    modelProviderRegistryStatus,
     recentRuns
   };
 }

@@ -152,6 +152,7 @@ export function WorkflowEditorInspector({
   adapters,
   credentials,
   modelProviderConfigs = [],
+  modelProviderRegistryStatus = "idle",
   nodeConfigText,
   onNodeConfigTextChange,
   onApplyNodeConfigJson,
@@ -386,6 +387,7 @@ export function WorkflowEditorInspector({
                 adapters={adapters}
                 credentials={credentials}
                 modelProviderConfigs={modelProviderConfigs}
+                modelProviderRegistryStatus={modelProviderRegistryStatus}
                 currentHref={currentHref}
                 sandboxReadiness={sandboxReadiness}
                 highlightedFieldPath={highlightedNodeSection === "config" ? highlightedNodeFieldPath : null}

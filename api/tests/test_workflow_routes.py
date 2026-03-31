@@ -2332,6 +2332,53 @@ def test_validate_workflow_definition_preflight_returns_normalized_definition(
     assert body["issues"] == []
 
 
+def test_validate_workflow_definition_preflight_accepts_provider_config_ref_without_inline_llm_fields(
+    client: TestClient,
+) -> None:
+    definition = {
+        "nodes": [
+            {"id": "trigger", "type": "trigger", "name": "Trigger", "config": {}},
+            {
+                "id": "agent",
+                "type": "llm_agent",
+                "name": "Agent",
+                "config": {
+                    "prompt": "Use provider registry.",
+                    "model": {
+                        "providerConfigRef": "provider-openai-team",
+                        "modelId": "gpt-4.1-mini",
+                    },
+                },
+            },
+            {"id": "output", "type": "output", "name": "Output", "config": {}},
+        ],
+        "edges": [
+            {"id": "e1", "sourceNodeId": "trigger", "targetNodeId": "agent"},
+            {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "output"},
+        ],
+    }
+
+    created = client.post(
+        "/api/workflows",
+        json={"name": "Provider Config Ref Workflow", "definition": definition},
+    )
+    assert created.status_code == 201
+    workflow_id = created.json()["id"]
+
+    response = client.post(
+        f"/api/workflows/{workflow_id}/validate-definition",
+        json={"definition": definition},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["issues"] == []
+    assert body["definition"]["nodes"][1]["config"]["model"]["providerConfigRef"] == (
+        "provider-openai-team"
+    )
+    assert body["definition"]["nodes"][1]["config"]["model"]["modelId"] == "gpt-4.1-mini"
+
+
 def test_validate_workflow_definition_preflight_rejects_unsupported_condition_execution_class(
     client: TestClient,
 ) -> None:

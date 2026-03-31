@@ -67,13 +67,14 @@ export function WorkflowEditorWorkbench({
   const [hasRequestedRunOverlay, setHasRequestedRunOverlay] = useState(
     initialRecentRuns.length > 0
   );
-  const { credentials, modelProviderConfigs, recentRuns } = useWorkflowEditorRuntimeData({
+  const { credentials, modelProviderConfigs, modelProviderRegistryStatus, recentRuns } =
+    useWorkflowEditorRuntimeData({
     workflowId: workflow.id,
     initialCredentials,
     initialRecentRuns,
     loadCredentials: Boolean(graph.selectedNodeId),
     loadRecentRuns: hasRequestedRunOverlay
-  });
+    });
   const currentDefinitionSignature = useMemo(
     () => JSON.stringify(graph.currentDefinition),
     [graph.currentDefinition]
@@ -131,6 +132,7 @@ export function WorkflowEditorWorkbench({
     adapters,
     credentials,
     modelProviderConfigs,
+    modelProviderRegistryStatus,
     callbackWaitingAutomation,
     sandboxReadiness,
     sandboxBackends,
