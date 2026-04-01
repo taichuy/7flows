@@ -83,6 +83,13 @@ node scripts/kill-stale-chrome-devtools-mcp.js
 node scripts/kill-stale-chrome-devtools-mcp.js --kill
 ```
 
+如果本地重复积累了 `bun dist-server/acp.js` 或 `codex-acp` 这类开发辅助进程，也可以先 dry-run 看重复组，再决定是否清理运行超过 60 分钟的旧实例：
+
+```shell
+node scripts/kill-stale-duplicate-processes.js
+node scripts/kill-stale-duplicate-processes.js --kill
+```
+
 如需继续使用 Shell 入口，也可以执行：
 
 ```shell
