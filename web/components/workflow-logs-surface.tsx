@@ -1,17 +1,25 @@
+import React from "react";
 import Link from "next/link";
 
 import { RunDiagnosticsExecutionSections } from "@/components/run-diagnostics-execution-sections";
+import {
+  WorkflowStudioUtilityEmptyState,
+  WorkflowStudioUtilityFrame,
+  type WorkflowStudioUtilityAction,
+  type WorkflowStudioUtilityMetric,
+  type WorkflowStudioUtilityTag,
+} from "@/components/workflow-studio-utility-frame";
 import { resolveWorkflowPublishSelectedInvocationDetailSurface } from "@/components/workflow-publish-activity-panel-helpers";
 import { WorkflowPublishInvocationDetailPanel } from "@/components/workflow-publish-invocation-detail-panel";
 import { WorkflowPublishInvocationEntryCard } from "@/components/workflow-publish-invocation-entry-card";
 import type {
   PublishedEndpointInvocationDetailResponse,
-  PublishedEndpointInvocationListResponse
+  PublishedEndpointInvocationListResponse,
 } from "@/lib/get-workflow-publish";
 import type { RunDetail } from "@/lib/get-run-detail";
 import type {
   CallbackWaitingAutomationCheck,
-  SandboxReadinessCheck
+  SandboxReadinessCheck,
 } from "@/lib/get-system-overview";
 import type { RunEvidenceView, RunExecutionView } from "@/lib/get-run-views";
 import { formatTimestamp } from "@/lib/runtime-presenters";
@@ -74,7 +82,7 @@ function renderRunTraceHandoff({
   activeRunSummary,
   activeRunDetail,
   executionView,
-  evidenceView
+  evidenceView,
 }: {
   workflowId: string;
   workflowEditorHref: string;
@@ -161,95 +169,35 @@ function renderRunTraceHandoff({
   );
 }
 
-function renderRunFallbackSurface({
+function renderRunFallbackContent({
   workflowId,
   recentRuns,
   selectionNotice,
   activeRunSummary,
   activeRunDetail,
-  selectionSource,
-  publishHref,
-  runLibraryHref,
-  workflowEditorHref,
   callbackWaitingAutomation,
   sandboxReadiness,
+  workflowEditorHref,
   executionView,
-  evidenceView
+  evidenceView,
 }: {
   workflowId: string;
   recentRuns: WorkflowLogsSurfaceRunItem[];
   selectionNotice: string | null;
   activeRunSummary: WorkflowLogsSurfaceRunItem | null;
   activeRunDetail: RunDetail | null;
-  selectionSource: WorkflowLogsSelectionSource;
-  publishHref: string;
-  runLibraryHref: string;
-  workflowEditorHref: string;
   callbackWaitingAutomation: CallbackWaitingAutomationCheck;
   sandboxReadiness: SandboxReadinessCheck | null;
+  workflowEditorHref: string;
   executionView: RunExecutionView | null;
   evidenceView: RunEvidenceView | null;
 }) {
-  const activeRunStatus = activeRunDetail?.status ?? activeRunSummary?.status ?? "unknown";
-  const activeRunId = activeRunDetail?.id ?? activeRunSummary?.id ?? "none";
-  const activeFocusLabel =
-    activeRunDetail?.execution_focus_node?.node_name?.trim() ||
-    activeRunDetail?.current_node_id?.trim() ||
-    "当前还没有 execution focus";
   const activeErrorMessage =
     activeRunDetail?.error_message?.trim() || activeRunSummary?.errorMessage?.trim() || null;
-  const activeLastEventAt = activeRunDetail?.last_event_at ?? activeRunSummary?.lastEventAt ?? null;
 
   return (
     <>
-      <section
-        className="workspace-panel workflow-api-surface-header-panel"
-        data-component="workflow-logs-run-fallback"
-      >
-        <div className="workspace-surface-header">
-          <div className="workspace-surface-copy workspace-copy-wide">
-            <p className="workflow-studio-placeholder-eyebrow">Run trace fallback</p>
-            <h2>日志与标注</h2>
-            <p>
-              当前 workflow 还没有可读的 published invocation 列表，因此页面诚实回退到 workflow recent
-              runs、run detail 与 execution / evidence view，先保住排障主链。
-            </p>
-          </div>
-          <div className="workspace-surface-actions workflow-api-surface-actions">
-            <Link className="workflow-studio-secondary-link" href={publishHref}>
-              查看发布治理
-            </Link>
-            <Link className="workflow-studio-secondary-link" href={runLibraryHref}>
-              打开全局 run 列表
-            </Link>
-          </div>
-        </div>
-
-        <div className="workspace-overview-strip">
-          <article className="workspace-stat-card">
-            <span>Recent runs</span>
-            <strong>{recentRuns.length}</strong>
-          </article>
-          <article className="workspace-stat-card">
-            <span>Active run</span>
-            <strong>{activeRunId}</strong>
-            <p className="workspace-stat-copy">status: {activeRunStatus}</p>
-          </article>
-          <article className="workspace-stat-card">
-            <span>Last event</span>
-            <strong>{formatTimestamp(activeLastEventAt)}</strong>
-          </article>
-          <article className="workspace-stat-card workspace-stat-card-wide">
-            <span>Execution focus</span>
-            <strong>{activeFocusLabel}</strong>
-            <p className="workspace-stat-copy">
-              selection: {selectionSource === "latest" ? "latest run" : selectionSource}
-            </p>
-          </article>
-        </div>
-      </section>
-
-      <section className="diagnostics-layout">
+      <section className="diagnostics-layout" data-component="workflow-logs-run-fallback">
         <article className="diagnostic-panel" data-component="workflow-logs-run-list">
           <div className="section-heading">
             <div>
@@ -291,7 +239,9 @@ function renderRunFallbackSurface({
                   {run.errorMessage ? (
                     <p className="run-error-message">{run.errorMessage}</p>
                   ) : (
-                    <p className="section-copy">当前 run 没有记录 run 级错误，继续下钻 execution / evidence。</p>
+                    <p className="section-copy">
+                      当前 run 没有记录 run 级错误，继续下钻 execution / evidence。
+                    </p>
                   )}
                   <div className="section-actions">
                     <Link className="activity-link" href={run.logsHref}>
@@ -376,7 +326,7 @@ function renderRunFallbackSurface({
         activeRunSummary,
         activeRunDetail,
         executionView,
-        evidenceView
+        evidenceView,
       })}
     </>
   );
@@ -402,11 +352,13 @@ export function WorkflowLogsSurface({
   runLibraryHref,
   workflowEditorHref,
   callbackWaitingAutomation,
-  sandboxReadiness = null
+  sandboxReadiness = null,
 }: WorkflowLogsSurfaceProps) {
   const invocationItems = invocationAudit?.items ?? [];
   const activeInvocationItem =
-    invocationItems.find((item) => item.id === selectedInvocationId) ?? invocationItems[0] ?? null;
+    invocationItems.find((item) => item.id === selectedInvocationId) ??
+    invocationItems[0] ??
+    null;
   const activeInvocationHref =
     selectedInvocationId && buildInvocationHref ? buildInvocationHref(selectedInvocationId) : null;
   const selectedInvocationSurface = resolveWorkflowPublishSelectedInvocationDetailSurface({
@@ -414,54 +366,108 @@ export function WorkflowLogsSurface({
     selectedInvocationDetail,
     currentHref: activeInvocationHref,
     callbackWaitingAutomation,
-    sandboxReadiness
+    sandboxReadiness,
   });
+  const sharedActions: WorkflowStudioUtilityAction[] = [
+    {
+      key: "publish",
+      href: publishHref,
+      label: "查看发布治理",
+      variant: "primary",
+    },
+    {
+      key: "runs",
+      href: runLibraryHref,
+      label: "打开全局 run 列表",
+    },
+  ];
 
   if (invocationItems.length === 0 && recentRuns.length === 0) {
     return (
-      <div
-        className="workspace-panel workflow-logs-empty-state"
-        data-component="workflow-logs-empty-state"
-      >
-        <p className="workflow-studio-placeholder-eyebrow">Invocation and run facts</p>
-        <h2>日志与标注</h2>
-        <p>
-          当前 workflow 还没有 recent published invocations 或 recent runs；请先从编辑器调试或发布入口触发一次运行，再回来查看 invocation / execution / evidence 追溯。
-        </p>
-        <div className="workflow-studio-placeholder-actions">
-          <Link className="workflow-studio-secondary-link" href={publishHref}>
-            查看发布治理
-          </Link>
-          <Link className="workflow-studio-secondary-link" href={runLibraryHref}>
-            打开全局 run 列表
-          </Link>
-        </div>
-      </div>
+      <WorkflowStudioUtilityEmptyState
+        actions={sharedActions}
+        dataComponent="workflow-logs-empty-state"
+        description="logs surface 先看 published invocations，再在必要时诚实回退到 workflow recent runs。"
+        emptyDescription="当前 workflow 还没有 recent published invocations 或 recent runs；请先从编辑器调试或发布入口触发一次运行，再回来查看 invocation / execution / evidence 追溯。"
+        eyebrow="Invocation and run facts"
+        surface="logs"
+        title="日志与标注"
+      />
     );
   }
 
   if (invocationItems.length === 0) {
+    const fallbackMetrics: WorkflowStudioUtilityMetric[] = [
+      {
+        key: "recent-runs",
+        label: "Recent runs",
+        value: String(recentRuns.length),
+      },
+      {
+        key: "active-run",
+        label: "Active run",
+        value: activeRunDetail?.id ?? activeRunSummary?.id ?? "none",
+        detail: `status: ${activeRunDetail?.status ?? activeRunSummary?.status ?? "unknown"}`,
+      },
+      {
+        key: "last-event",
+        label: "Last event",
+        value: formatTimestamp(
+          activeRunDetail?.last_event_at ?? activeRunSummary?.lastEventAt ?? null
+        ),
+      },
+      {
+        key: "execution-focus",
+        label: "Execution focus",
+        value:
+          activeRunDetail?.execution_focus_node?.node_name?.trim() ||
+          activeRunDetail?.current_node_id?.trim() ||
+          "当前还没有 execution focus",
+        detail: `selection: ${selectionSource === "latest" ? "latest run" : selectionSource}`,
+        wide: true,
+      },
+    ];
+    const fallbackTags: WorkflowStudioUtilityTag[] = [
+      {
+        key: "mode",
+        label: "run fallback",
+        color: "processing",
+      },
+      {
+        key: "selection-source",
+        label: `selection · ${selectionSource === "latest" ? "latest run" : selectionSource}`,
+        color: "default",
+      },
+    ];
+
     return (
       <div
         className="workflow-logs-surface"
         data-component="workflow-logs-surface"
         data-selection-source={selectionSource}
       >
-        {renderRunFallbackSurface({
-          workflowId,
-          recentRuns,
-          selectionNotice,
-          activeRunSummary,
-          activeRunDetail,
-          selectionSource,
-          publishHref,
-          runLibraryHref,
-          workflowEditorHref,
-          callbackWaitingAutomation,
-          sandboxReadiness,
-          executionView,
-          evidenceView
-        })}
+        <WorkflowStudioUtilityFrame
+          actions={sharedActions}
+          description="当前 workflow 还没有可读的 published invocation 列表，因此页面诚实回退到 workflow recent runs、run detail 与 execution / evidence view。"
+          eyebrow="Run trace fallback"
+          metrics={fallbackMetrics}
+          surface="logs"
+          tags={fallbackTags}
+          title="日志与标注"
+        >
+          {renderRunFallbackContent({
+            workflowId,
+            recentRuns,
+            selectionNotice,
+            activeRunSummary,
+            activeRunDetail,
+            callbackWaitingAutomation,
+            sandboxReadiness,
+            workflowEditorHref,
+            executionView,
+            evidenceView,
+          })}
+        </WorkflowStudioUtilityFrame>
       </div>
     );
   }
@@ -476,6 +482,57 @@ export function WorkflowLogsSurface({
     activeInvocationItem?.run_id ??
     activeRunSummary?.id ??
     null;
+  const overviewMetrics: WorkflowStudioUtilityMetric[] = [
+    {
+      key: "binding",
+      label: "Binding",
+      value: activeBinding?.endpointAlias ?? activeBinding?.routePath ?? "N/A",
+      detail: activeBinding
+        ? `${activeBinding.protocol} · ${activeBinding.authMode}`
+        : "当前没有 active binding",
+      wide: true,
+    },
+    {
+      key: "recent-invocations",
+      label: "Recent invocations",
+      value: String(invocationAudit?.summary.total_count ?? invocationItems.length),
+    },
+    {
+      key: "current-focus",
+      label: "Current focus",
+      value: selectedInvocationId ?? activeInvocationItem?.id ?? "N/A",
+      detail: `status: ${selectedInvocationStatus}`,
+    },
+    {
+      key: "last-invoked",
+      label: "Last invoked",
+      value: formatTimestamp(
+        invocationAudit?.summary.last_invoked_at ?? activeInvocationItem?.created_at ?? null
+      ),
+    },
+    {
+      key: "run-trace",
+      label: "Run trace",
+      value: selectedInvocationRunId ?? "当前 invocation 暂无 run",
+      detail: `selection: ${selectionSource === "latest" ? "latest invocation" : selectionSource}`,
+      wide: true,
+    },
+  ];
+  const overviewTags: WorkflowStudioUtilityTag[] = [
+    {
+      key: "selection-source",
+      label: `selection · ${selectionSource === "latest" ? "latest invocation" : selectionSource}`,
+      color: "processing",
+    },
+  ];
+
+  if (activeBinding) {
+    overviewTags.push({
+      key: "binding-protocol",
+      label: `${activeBinding.protocol} · ${activeBinding.authMode}`,
+      color: "blue",
+    });
+  }
 
   return (
     <div
@@ -483,144 +540,110 @@ export function WorkflowLogsSurface({
       data-component="workflow-logs-surface"
       data-selection-source={selectionSource}
     >
-      <section className="workspace-panel workflow-api-surface-header-panel">
-        <div className="workspace-surface-header">
-          <div className="workspace-surface-copy workspace-copy-wide">
-            <p className="workflow-studio-placeholder-eyebrow">Published invocation facts</p>
-            <h2>日志与标注</h2>
-            <p>
-              当前页面优先围绕 workflow-scoped published invocations 组织排障：先在左侧选择请求，再在右侧查看 invocation detail，并顺着 run trace 继续下钻。
-            </p>
-          </div>
-          <div className="workspace-surface-actions workflow-api-surface-actions">
-            <Link className="workflow-studio-secondary-link" href={publishHref}>
-              查看发布治理
-            </Link>
-            <Link className="workflow-studio-secondary-link" href={runLibraryHref}>
-              打开全局 run 列表
-            </Link>
-          </div>
-        </div>
-
-        <div className="workspace-overview-strip">
-          <article className="workspace-stat-card workspace-stat-card-wide">
-            <span>Binding</span>
-            <strong>{activeBinding?.endpointAlias ?? activeBinding?.routePath ?? "N/A"}</strong>
-            <p className="workspace-stat-copy">
-              {activeBinding ? `${activeBinding.protocol} · ${activeBinding.authMode}` : "当前没有 active binding"}
-            </p>
-          </article>
-          <article className="workspace-stat-card">
-            <span>Recent invocations</span>
-            <strong>{invocationAudit?.summary.total_count ?? invocationItems.length}</strong>
-          </article>
-          <article className="workspace-stat-card">
-            <span>Current focus</span>
-            <strong>{selectedInvocationId ?? activeInvocationItem?.id ?? "N/A"}</strong>
-            <p className="workspace-stat-copy">status: {selectedInvocationStatus}</p>
-          </article>
-          <article className="workspace-stat-card">
-            <span>Last invoked</span>
-            <strong>
-              {formatTimestamp(
-                invocationAudit?.summary.last_invoked_at ?? activeInvocationItem?.created_at ?? null
-              )}
-            </strong>
-          </article>
-          <article className="workspace-stat-card workspace-stat-card-wide">
-            <span>Run trace</span>
-            <strong>{selectedInvocationRunId ?? "当前 invocation 暂无 run"}</strong>
-            <p className="workspace-stat-copy">
-              selection: {selectionSource === "latest" ? "latest invocation" : selectionSource}
-            </p>
-          </article>
-        </div>
-      </section>
-
-      <section className="diagnostics-layout">
-        <article className="diagnostic-panel" data-component="workflow-logs-invocation-list">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Published invocations</p>
-              <h2>Workflow scoped request list</h2>
+      <WorkflowStudioUtilityFrame
+        actions={sharedActions}
+        description="当前页面优先围绕 workflow-scoped published invocations 组织排障：先在左侧选择请求，再在右侧查看 invocation detail，并顺着 run trace 继续下钻。"
+        eyebrow="Published invocation facts"
+        metrics={overviewMetrics}
+        surface="logs"
+        tags={overviewTags}
+        title="日志与标注"
+      >
+        <section className="diagnostics-layout">
+          <article className="diagnostic-panel" data-component="workflow-logs-invocation-list">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Published invocations</p>
+                <h2>Workflow scoped request list</h2>
+              </div>
+              <p className="section-copy">
+                只展示当前 workflow binding 最近的 published invocations，避免作者在日志页误读跨 workflow 或跨 surface 的请求事实。
+              </p>
             </div>
-            <p className="section-copy">
-              只展示当前 workflow binding 最近的 published invocations，避免作者在日志页误读跨 workflow 或跨 surface 的请求事实。
-            </p>
-          </div>
 
-          {selectionNotice ? <p className="section-copy">{selectionNotice}</p> : null}
+            {selectionNotice ? <p className="section-copy">{selectionNotice}</p> : null}
 
-          <div className="activity-list">
-            {invocationItems.map((item) => (
-              <WorkflowPublishInvocationEntryCard
-                key={item.id}
-                item={item}
-                detailHref={buildInvocationHref ? buildInvocationHref(item.id) : activeInvocationHref ?? "#"}
-                detailActive={item.id === (selectedInvocationId ?? activeInvocationItem?.id ?? null)}
-                hideRecommendedNextStep
+            <div className="activity-list">
+              {invocationItems.map((item) => (
+                <WorkflowPublishInvocationEntryCard
+                  key={item.id}
+                  item={item}
+                  detailHref={
+                    buildInvocationHref ? buildInvocationHref(item.id) : activeInvocationHref ?? "#"
+                  }
+                  detailActive={
+                    item.id === (selectedInvocationId ?? activeInvocationItem?.id ?? null)
+                  }
+                  hideRecommendedNextStep
+                  callbackWaitingAutomation={callbackWaitingAutomation}
+                  sandboxReadiness={sandboxReadiness}
+                />
+              ))}
+            </div>
+          </article>
+
+          <article className="diagnostic-panel" data-component="workflow-logs-invocation-detail">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Current invocation</p>
+                <h2>Invocation detail and operator handoff</h2>
+              </div>
+              <p className="section-copy">
+                当前焦点详情继续复用 publish activity detail payload；如果已关联 run，就在同页保留 execution / evidence 的继续下钻入口。
+              </p>
+            </div>
+
+            {selectedInvocationSurface.kind === "ok" && clearInvocationHref ? (
+              <WorkflowPublishInvocationDetailPanel
+                detail={selectedInvocationSurface.detail}
+                workflow={workflow}
+                clearHref={clearInvocationHref}
+                currentHref={activeInvocationHref}
+                tools={[]}
                 callbackWaitingAutomation={callbackWaitingAutomation}
                 sandboxReadiness={sandboxReadiness}
+                selectedNextStepSurface={selectedInvocationSurface.nextStepSurface}
               />
-            ))}
-          </div>
-        </article>
-
-        <article className="diagnostic-panel" data-component="workflow-logs-invocation-detail">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Current invocation</p>
-              <h2>Invocation detail and operator handoff</h2>
-            </div>
-            <p className="section-copy">
-              当前焦点详情继续复用 publish activity detail payload；如果已关联 run，就在同页保留 execution / evidence 的继续下钻入口。
-            </p>
-          </div>
-
-          {selectedInvocationSurface.kind === "ok" && clearInvocationHref ? (
-            <WorkflowPublishInvocationDetailPanel
-              detail={selectedInvocationSurface.detail}
-              workflow={workflow}
-              clearHref={clearInvocationHref}
-              currentHref={activeInvocationHref}
-              tools={[]}
-              callbackWaitingAutomation={callbackWaitingAutomation}
-              sandboxReadiness={sandboxReadiness}
-              selectedNextStepSurface={selectedInvocationSurface.nextStepSurface}
-            />
-          ) : selectedInvocationSurface.kind === "blocked" ? (
-            <div className="payload-card">
-              <div className="payload-card-header">
-                <span className="status-meta">{selectedInvocationSurface.blockedSurfaceCopy.title}</span>
+            ) : selectedInvocationSurface.kind === "blocked" ? (
+              <div className="payload-card">
+                <div className="payload-card-header">
+                  <span className="status-meta">
+                    {selectedInvocationSurface.blockedSurfaceCopy.title}
+                  </span>
+                </div>
+                <p>{selectedInvocationSurface.blockedSurfaceCopy.summary}</p>
               </div>
-              <p>{selectedInvocationSurface.blockedSurfaceCopy.summary}</p>
-            </div>
-          ) : selectedInvocationSurface.kind === "unavailable" ? (
-            <div className="payload-card">
-              <div className="payload-card-header">
-                <span className="status-meta">{selectedInvocationSurface.unavailableSurfaceCopy.title}</span>
+            ) : selectedInvocationSurface.kind === "unavailable" ? (
+              <div className="payload-card">
+                <div className="payload-card-header">
+                  <span className="status-meta">
+                    {selectedInvocationSurface.unavailableSurfaceCopy.title}
+                  </span>
+                </div>
+                <p>{selectedInvocationSurface.unavailableSurfaceCopy.summary}</p>
+                <p className="section-copy">
+                  {selectedInvocationSurface.unavailableSurfaceCopy.detail}
+                </p>
               </div>
-              <p>{selectedInvocationSurface.unavailableSurfaceCopy.summary}</p>
-              <p className="section-copy">{selectedInvocationSurface.unavailableSurfaceCopy.detail}</p>
-            </div>
-          ) : (
-            <p className="empty-state">
-              当前还没有选中的 invocation detail；请先从左侧列表选择一条 published invocation。
-            </p>
-          )}
-        </article>
-      </section>
+            ) : (
+              <p className="empty-state">
+                当前还没有选中的 invocation detail；请先从左侧列表选择一条 published invocation。
+              </p>
+            )}
+          </article>
+        </section>
 
-      {renderRunTraceHandoff({
-        workflowId,
-        workflowEditorHref,
-        callbackWaitingAutomation,
-        sandboxReadiness,
-        activeRunSummary,
-        activeRunDetail,
-        executionView,
-        evidenceView
-      })}
+        {renderRunTraceHandoff({
+          workflowId,
+          workflowEditorHref,
+          callbackWaitingAutomation,
+          sandboxReadiness,
+          activeRunSummary,
+          activeRunDetail,
+          executionView,
+          evidenceView,
+        })}
+      </WorkflowStudioUtilityFrame>
     </div>
   );
 }

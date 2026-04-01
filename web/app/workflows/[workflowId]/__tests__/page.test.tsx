@@ -1268,7 +1268,8 @@ describe("Workflow studio routes", () => {
     );
 
     expect(monitorHtml).toContain('data-component="workflow-monitor-surface"');
-    expect(monitorHtml).toContain('data-component="workflow-monitor-summary-strip"');
+    expect(monitorHtml).toContain('data-component="workflow-studio-utility-frame"');
+    expect(monitorHtml).toContain('data-surface="monitor"');
     expect(monitorHtml).toContain('data-component="workflow-monitor-primary-follow-up"');
     expect(monitorHtml).toContain('data-component="workflow-monitor-trend-deck"');
     expect(monitorHtml).toContain('data-component="workflow-monitor-insight-grid"');

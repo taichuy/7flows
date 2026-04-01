@@ -254,7 +254,10 @@ describe("WorkflowMonitorSurface", () => {
     );
 
     expect(html).toContain('data-component="workflow-monitor-surface"');
-    expect(html).toContain('data-component="workflow-monitor-summary-strip"');
+    expect(html).toContain('data-component="workflow-studio-utility-frame"');
+    expect(html).toContain('data-surface="monitor"');
+    expect(html).toContain('data-component="workflow-studio-utility-frame"');
+    expect(html).toContain('data-surface="monitor"');
     expect(html).toContain('data-component="workflow-monitor-no-traffic-state"');
     expect(html).toContain("当前 workflow 已有 published binding");
     expect(html).not.toContain('data-component="workflow-studio-placeholder"');

@@ -194,6 +194,8 @@ describe("WorkflowPublishPanel", () => {
       })
     );
 
+    expect(html).toContain('data-component="workflow-studio-utility-frame"');
+    expect(html).toContain('data-surface="publish"');
     expect(html).toContain("Primary follow-up");
     expect(html).toContain("Summary focus");
     expect(html).toContain('<span class="health-pill pending">attention</span>');
