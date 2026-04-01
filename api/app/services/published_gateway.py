@@ -111,6 +111,7 @@ class PublishedEndpointGatewayService(PublishedGatewayProtocolSurfaceMixin):
             api_key_id=authenticated_key.id if authenticated_key is not None else None,
             error_message=error_detail,
         )
+        db.commit()
 
     def invoke_native_endpoint(
         self,
@@ -303,20 +304,27 @@ class PublishedEndpointGatewayService(PublishedGatewayProtocolSurfaceMixin):
         require_terminal_success: bool = True,
         request_surface_override: str | None = None,
     ) -> PublishedGatewayInvokeResult:
-        return self._binding_invoker.invoke_protocol_binding_by_alias(
-            db,
-            model=model,
-            missing_detail=missing_detail,
-            expected_protocol=expected_protocol,
-            workflow_input_payload=workflow_input_payload,
-            cache_input_payload=cache_input_payload,
-            request_preview_payload=request_preview_payload,
-            presented_api_key=presented_api_key,
-            response_builder=response_builder,
-            require_streaming_enabled=require_streaming_enabled,
-            require_terminal_success=require_terminal_success,
-            request_surface_override=request_surface_override,
-        )
+        try:
+            result = self._binding_invoker.invoke_protocol_binding_by_alias(
+                db,
+                model=model,
+                missing_detail=missing_detail,
+                expected_protocol=expected_protocol,
+                workflow_input_payload=workflow_input_payload,
+                cache_input_payload=cache_input_payload,
+                request_preview_payload=request_preview_payload,
+                presented_api_key=presented_api_key,
+                response_builder=response_builder,
+                require_streaming_enabled=require_streaming_enabled,
+                require_terminal_success=require_terminal_success,
+                request_surface_override=request_surface_override,
+            )
+        except PublishedEndpointGatewayError:
+            db.commit()
+            raise
+
+        db.commit()
+        return result
 
     def _invoke_binding(
         self,
@@ -336,19 +344,26 @@ class PublishedEndpointGatewayService(PublishedGatewayProtocolSurfaceMixin):
         require_terminal_success: bool = True,
         request_surface_override: str | None = None,
     ) -> PublishedGatewayInvokeResult:
-        return self._binding_invoker.invoke_binding(
-            db,
-            binding=binding,
-            missing_detail=missing_detail,
-            expected_protocol=expected_protocol,
-            workflow_input_payload=workflow_input_payload,
-            cache_input_payload=cache_input_payload,
-            request_preview_payload=request_preview_payload,
-            presented_api_key=presented_api_key,
-            request_source=request_source,
-            response_builder=response_builder,
-            response_preview_builder=response_preview_builder,
-            require_streaming_enabled=require_streaming_enabled,
-            require_terminal_success=require_terminal_success,
-            request_surface_override=request_surface_override,
-        )
+        try:
+            result = self._binding_invoker.invoke_binding(
+                db,
+                binding=binding,
+                missing_detail=missing_detail,
+                expected_protocol=expected_protocol,
+                workflow_input_payload=workflow_input_payload,
+                cache_input_payload=cache_input_payload,
+                request_preview_payload=request_preview_payload,
+                presented_api_key=presented_api_key,
+                request_source=request_source,
+                response_builder=response_builder,
+                response_preview_builder=response_preview_builder,
+                require_streaming_enabled=require_streaming_enabled,
+                require_terminal_success=require_terminal_success,
+                request_surface_override=request_surface_override,
+            )
+        except PublishedEndpointGatewayError:
+            db.commit()
+            raise
+
+        db.commit()
+        return result

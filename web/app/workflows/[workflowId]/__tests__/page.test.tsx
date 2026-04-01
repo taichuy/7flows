@@ -10,13 +10,14 @@ import WorkflowEditorPage from "@/app/workflows/[workflowId]/editor/page";
 import WorkflowLogsPage from "@/app/workflows/[workflowId]/logs/page";
 import WorkflowMonitorPage from "@/app/workflows/[workflowId]/monitor/page";
 import WorkflowPublishPage from "@/app/workflows/[workflowId]/publish/page";
-import { getRunDetail } from "@/lib/get-run-detail";
-import { getPublishedEndpointInvocationDetail } from "@/lib/get-workflow-publish";
-import { getWorkflowRuns } from "@/lib/get-workflow-runs";
-import { getRunEvidenceView, getRunExecutionView } from "@/lib/get-run-views";
 import {
+  getServerPublishedEndpointInvocationDetail as getPublishedEndpointInvocationDetail,
+  getServerRunDetail as getRunDetail,
+  getServerRunEvidenceView as getRunEvidenceView,
+  getServerRunExecutionView as getRunExecutionView,
   getServerWorkflowDetail,
   getServerWorkflowPublishedEndpoints,
+  getServerWorkflowRuns as getWorkflowRuns,
   getServerWorkspaceContext,
   requireServerWorkflowStudioSurfaceAccess
 } from "@/lib/server-workspace-access";
@@ -168,8 +169,13 @@ vi.mock("@/components/workflow-publish-invocation-detail-panel", () => ({
 }));
 
 vi.mock("@/lib/server-workspace-access", () => ({
+  getServerPublishedEndpointInvocationDetail: vi.fn(),
+  getServerRunDetail: vi.fn(),
+  getServerRunEvidenceView: vi.fn(),
+  getServerRunExecutionView: vi.fn(),
   getServerWorkflowDetail: vi.fn(),
   getServerWorkflowPublishedEndpoints: vi.fn(),
+  getServerWorkflowRuns: vi.fn(),
   getServerWorkspaceContext: vi.fn(),
   requireServerWorkflowStudioSurfaceAccess: vi.fn()
 }));
@@ -184,23 +190,6 @@ vi.mock("@/lib/get-plugin-registry", () => ({
 
 vi.mock("@/lib/get-system-overview", () => ({
   getSystemOverview: vi.fn()
-}));
-
-vi.mock("@/lib/get-workflow-runs", () => ({
-  getWorkflowRuns: vi.fn()
-}));
-
-vi.mock("@/lib/get-run-detail", () => ({
-  getRunDetail: vi.fn()
-}));
-
-vi.mock("@/lib/get-run-views", () => ({
-  getRunExecutionView: vi.fn(),
-  getRunEvidenceView: vi.fn()
-}));
-
-vi.mock("@/lib/get-workflow-publish", () => ({
-  getPublishedEndpointInvocationDetail: vi.fn()
 }));
 
 vi.mock("@/lib/get-workflow-publish-governance", () => ({

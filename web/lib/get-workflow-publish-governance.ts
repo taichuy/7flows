@@ -1,13 +1,15 @@
-import {
-  getPublishedEndpointApiKeys,
-  getPublishedEndpointCacheInventory,
-  getPublishedEndpointInvocationDetail,
-  getPublishedEndpointInvocations,
-  type PublishedEndpointApiKeyItem,
-  type PublishedEndpointInvocationRequestSurface,
-  type PublishedEndpointInvocationListResponse,
-  type WorkflowPublishedEndpointItem
+import type {
+  PublishedEndpointApiKeyItem,
+  PublishedEndpointInvocationRequestSurface,
+  PublishedEndpointInvocationListResponse,
+  WorkflowPublishedEndpointItem,
 } from "@/lib/get-workflow-publish";
+import {
+  getServerPublishedEndpointApiKeys,
+  getServerPublishedEndpointCacheInventory,
+  getServerPublishedEndpointInvocationDetail,
+  getServerPublishedEndpointInvocations,
+} from "@/lib/server-workspace-access";
 import type { SensitiveAccessGuardedResult } from "@/lib/sensitive-access";
 import type {
   PublishedEndpointCacheInventoryResponse,
@@ -68,7 +70,7 @@ export async function getWorkflowPublishGovernanceSnapshot(
         .filter((binding) => binding.cache_inventory?.enabled)
         .map(async (binding) => [
           binding.id,
-          await getPublishedEndpointCacheInventory(workflowId, binding.id)
+          await getServerPublishedEndpointCacheInventory(workflowId, binding.id)
         ] as const)
     ),
     Promise.all(
@@ -76,13 +78,13 @@ export async function getWorkflowPublishGovernanceSnapshot(
         .filter((binding) => binding.auth_mode === "api_key")
         .map(async (binding) => [
           binding.id,
-          await getPublishedEndpointApiKeys(workflowId, binding.id)
+          await getServerPublishedEndpointApiKeys(workflowId, binding.id)
         ] as const)
     ),
     Promise.all(
       bindings.map(async (binding) => [
         binding.id,
-        await getPublishedEndpointInvocations(
+        await getServerPublishedEndpointInvocations(
           workflowId,
           binding.id,
           options?.activeInvocationFilter?.bindingId === binding.id
@@ -109,7 +111,7 @@ export async function getWorkflowPublishGovernanceSnapshot(
         binding.id,
         options?.activeInvocationFilter?.bindingId === binding.id &&
         options.activeInvocationFilter.invocationId
-          ? await getPublishedEndpointInvocationDetail(
+          ? await getServerPublishedEndpointInvocationDetail(
               workflowId,
               binding.id,
               options.activeInvocationFilter.invocationId
@@ -122,7 +124,7 @@ export async function getWorkflowPublishGovernanceSnapshot(
         .filter((binding) => binding.rate_limit_policy)
         .map(async (binding) => [
           binding.id,
-          await getPublishedEndpointInvocations(workflowId, binding.id, {
+          await getServerPublishedEndpointInvocations(workflowId, binding.id, {
             limit: 5,
             createdFrom: new Date(
               Date.now() - (binding.rate_limit_policy?.windowSeconds ?? 0) * 1000

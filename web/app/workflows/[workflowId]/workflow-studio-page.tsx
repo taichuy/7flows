@@ -8,16 +8,17 @@ import { WorkflowLogsSurface } from "@/components/workflow-logs-surface";
 import { WorkflowMonitorSurface } from "@/components/workflow-monitor-surface";
 import { WorkflowEditorWorkbenchEntry } from "@/components/workflow-editor-workbench-entry";
 import { WorkspaceShell } from "@/components/workspace-shell";
-import { getRunDetail } from "@/lib/get-run-detail";
 import { getSystemOverview } from "@/lib/get-system-overview";
-import { getRunEvidenceView, getRunExecutionView } from "@/lib/get-run-views";
-import { getPublishedEndpointInvocationDetail } from "@/lib/get-workflow-publish";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import { getWorkflowPublishGovernanceSnapshot } from "@/lib/get-workflow-publish-governance";
-import { getWorkflowRuns } from "@/lib/get-workflow-runs";
 import {
+  getServerPublishedEndpointInvocationDetail,
+  getServerRunDetail,
+  getServerRunEvidenceView,
+  getServerRunExecutionView,
   getServerWorkflowDetail,
   getServerWorkflowPublishedEndpoints,
+  getServerWorkflowRuns,
   requireServerWorkflowStudioSurfaceAccess
 } from "@/lib/server-workspace-access";
 import {
@@ -463,7 +464,7 @@ async function renderWorkflowUtilitySurface(
       getServerWorkflowPublishedEndpoints(sharedContext.workflow.id, {
         includeAllVersions: true
       }),
-      getWorkflowRuns(sharedContext.workflow.id)
+      getServerWorkflowRuns(sharedContext.workflow.id)
     ]);
     const publishedBindings = bindings.filter((binding) => binding.lifecycle_status === "published");
     const governanceSnapshot = publishedBindings.length
@@ -530,7 +531,7 @@ async function renderWorkflowUtilitySurface(
 
     const activeInvocationDetail =
       activeBinding && invocationSelection.selectedInvocationId
-        ? await getPublishedEndpointInvocationDetail(
+        ? await getServerPublishedEndpointInvocationDetail(
             sharedContext.workflow.id,
             activeBinding.id,
             invocationSelection.selectedInvocationId
@@ -554,9 +555,9 @@ async function renderWorkflowUtilitySurface(
 
     if (activeRunSummary || (activeInvocationAudit?.items.length ?? 0) > 0) {
       [activeRunDetail, executionView, evidenceView, systemOverview] = await Promise.all([
-        activeRunSummary ? getRunDetail(activeRunSummary.id) : Promise.resolve(null),
-        activeRunSummary ? getRunExecutionView(activeRunSummary.id) : Promise.resolve(null),
-        activeRunSummary ? getRunEvidenceView(activeRunSummary.id) : Promise.resolve(null),
+        activeRunSummary ? getServerRunDetail(activeRunSummary.id) : Promise.resolve(null),
+        activeRunSummary ? getServerRunExecutionView(activeRunSummary.id) : Promise.resolve(null),
+        activeRunSummary ? getServerRunEvidenceView(activeRunSummary.id) : Promise.resolve(null),
         getSystemOverview()
       ]);
     }
@@ -685,7 +686,7 @@ async function renderWorkflowUtilitySurface(
         monitorActivityQueryScope.invocationId &&
         monitorActivityQueryScope.timeWindow === "all"
       ) {
-        const focusedInvocationDetail = await getPublishedEndpointInvocationDetail(
+        const focusedInvocationDetail = await getServerPublishedEndpointInvocationDetail(
           sharedContext.workflow.id,
           activeInvocationFilter.bindingId,
           monitorActivityQueryScope.invocationId

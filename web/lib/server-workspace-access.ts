@@ -4,12 +4,29 @@ import { redirect } from "next/navigation";
 
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import type { CredentialItem } from "@/lib/get-credentials";
-import type { WorkflowPublishedEndpointItem } from "@/lib/get-workflow-publish";
+import type {
+  PublishedEndpointApiKeyItem,
+  PublishedEndpointCacheInventoryResponse,
+  PublishedEndpointInvocationDetailResponse,
+  PublishedEndpointInvocationListOptions,
+  PublishedEndpointInvocationListResponse,
+  WorkflowPublishedEndpointItem,
+} from "@/lib/get-workflow-publish";
+import type { RunDetail } from "@/lib/get-run-detail";
+import type {
+  RunEvidenceView,
+  RunExecutionView,
+} from "@/lib/get-run-views";
+import type { WorkflowRunListItem } from "@/lib/get-workflow-runs";
 import type { WorkflowDetail } from "@/lib/get-workflows";
 import type {
   WorkspaceModelProviderRegistryResponse,
   WorkspaceModelProviderSettingsResponse
 } from "@/lib/model-provider-registry";
+import {
+  parseSensitiveAccessGuardedResponse,
+  type SensitiveAccessGuardedResult,
+} from "@/lib/sensitive-access";
 import {
   ACCESS_TOKEN_COOKIE_NAME,
   buildCookieHeader,
@@ -207,6 +224,164 @@ async function fetchWorkspaceAccessJson<T>(path: string, session: ServerSessionC
   return result.data;
 }
 
+async function fetchWorkspaceAccessResponse(
+  path: string,
+  session: ServerSessionCookies,
+  init?: RequestInit
+): Promise<Response | null> {
+  const execute = async ({
+    accessToken,
+    cookieEntries,
+    csrfToken,
+  }: {
+    accessToken: string;
+    cookieEntries: CookieEntry[];
+    csrfToken: string;
+  }) => {
+    const headers = buildServerRequestHeaders({ accessToken, cookieEntries, csrfToken });
+    const extraHeaders = new Headers(init?.headers ?? {});
+
+    extraHeaders.forEach((value, key) => {
+      headers.set(key, value);
+    });
+
+    return fetch(`${getApiBaseUrl()}${path}`, {
+      ...init,
+      cache: init?.cache ?? "no-store",
+      headers,
+    });
+  };
+
+  try {
+    let response = await execute({
+      accessToken: session.accessToken,
+      cookieEntries: session.cookieEntries,
+      csrfToken: session.csrfToken,
+    });
+
+    if (response.status === 401 && session.refreshToken && session.csrfToken) {
+      const refreshResponse = await fetch(`${getApiBaseUrl()}/api/auth/refresh`, {
+        method: "POST",
+        headers: buildServerRequestHeaders({
+          cookieEntries: session.cookieEntries,
+          csrfToken: session.csrfToken,
+        }),
+        body: "{}",
+      });
+
+      const refreshBody = (await refreshResponse.json().catch(() => null)) as
+        | AuthSessionResponse
+        | { detail?: string }
+        | null;
+
+      if (
+        refreshResponse.ok &&
+        refreshBody &&
+        "access_token" in refreshBody &&
+        typeof refreshBody.access_token === "string"
+      ) {
+        const authBody = refreshBody as AuthSessionResponse;
+        const cookieEntries = buildCookieEntries(session.cookieEntries, {
+          [authBody.cookie_contract?.access_token_cookie_name ?? ACCESS_TOKEN_COOKIE_NAME]:
+            authBody.access_token ?? null,
+          [authBody.cookie_contract?.refresh_token_cookie_name ?? REFRESH_TOKEN_COOKIE_NAME]:
+            authBody.refresh_token ?? session.refreshToken,
+          [authBody.cookie_contract?.csrf_token_cookie_name ?? CSRF_TOKEN_COOKIE_NAME]:
+            authBody.csrf_token ?? session.csrfToken,
+        });
+
+        response = await execute({
+          accessToken: authBody.access_token ?? "",
+          cookieEntries,
+          csrfToken: authBody.csrf_token ?? session.csrfToken,
+        });
+      }
+    }
+
+    return response;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchServerWorkspaceAccessJson<T>(
+  path: string,
+  init?: RequestInit
+): Promise<T | null> {
+  const cookieStore = await cookies();
+  const session = buildServerSessionCookies(cookieStore);
+  if (!session.accessToken && !session.refreshToken) {
+    return null;
+  }
+
+  const response = await fetchWorkspaceAccessResponse(path, session, init);
+  if (!response?.ok) {
+    return null;
+  }
+
+  return (await response.json()) as T;
+}
+
+async function fetchServerWorkspaceAccessGuarded<T>(
+  path: string,
+  init?: RequestInit
+): Promise<SensitiveAccessGuardedResult<T>> {
+  const cookieStore = await cookies();
+  const session = buildServerSessionCookies(cookieStore);
+  if (!session.accessToken && !session.refreshToken) {
+    return null;
+  }
+
+  const response = await fetchWorkspaceAccessResponse(path, session, init);
+  if (!response) {
+    return null;
+  }
+
+  return parseSensitiveAccessGuardedResponse<T>(response);
+}
+
+function buildPublishedInvocationSearchParams(
+  options: PublishedEndpointInvocationListOptions | undefined,
+  limits: {
+    defaultLimit: number;
+    maxLimit: number;
+  }
+) {
+  const searchParams = new URLSearchParams();
+  searchParams.set(
+    "limit",
+    String(Math.min(Math.max(options?.limit ?? limits.defaultLimit, 1), limits.maxLimit))
+  );
+  if (options?.status) {
+    searchParams.set("status", options.status);
+  }
+  if (options?.requestSource) {
+    searchParams.set("request_source", options.requestSource);
+  }
+  if (options?.requestSurface) {
+    searchParams.set("request_surface", options.requestSurface);
+  }
+  if (options?.cacheStatus) {
+    searchParams.set("cache_status", options.cacheStatus);
+  }
+  if (options?.runStatus) {
+    searchParams.set("run_status", options.runStatus);
+  }
+  if (options?.apiKeyId) {
+    searchParams.set("api_key_id", options.apiKeyId);
+  }
+  if (options?.reasonCode) {
+    searchParams.set("reason_code", options.reasonCode);
+  }
+  if (options?.createdFrom) {
+    searchParams.set("created_from", options.createdFrom);
+  }
+  if (options?.createdTo) {
+    searchParams.set("created_to", options.createdTo);
+  }
+  return searchParams;
+}
+
 export const getServerSessionToken = cache(async () => {
   const cookieStore = await cookies();
   return cookieStore.get(SESSION_COOKIE_NAME)?.value ?? null;
@@ -277,6 +452,100 @@ export async function getServerWorkflowPublishedEndpoints(
       `/api/workflows/${encodeURIComponent(normalizedWorkflowId)}/published-endpoints?${searchParams.toString()}`,
       session
     )) ?? []
+  );
+}
+
+export async function getServerWorkflowRuns(
+  workflowId: string | null | undefined,
+  limit = 8
+): Promise<WorkflowRunListItem[]> {
+  const normalizedWorkflowId = workflowId?.trim();
+  if (!normalizedWorkflowId) {
+    return [];
+  }
+
+  const normalizedLimit = Math.min(Math.max(limit, 1), 20);
+  return (
+    (await fetchServerWorkspaceAccessJson<WorkflowRunListItem[]>(
+      `/api/workflows/${encodeURIComponent(normalizedWorkflowId)}/runs?limit=${normalizedLimit}`
+    )) ?? []
+  );
+}
+
+export async function getServerRunDetail(runId: string): Promise<RunDetail | null> {
+  return fetchServerWorkspaceAccessJson<RunDetail>(
+    `/api/runs/${encodeURIComponent(runId)}/detail?include_events=false`
+  );
+}
+
+export async function getServerRunExecutionView(
+  runId: string
+): Promise<RunExecutionView | null> {
+  return fetchServerWorkspaceAccessJson<RunExecutionView>(
+    `/api/runs/${encodeURIComponent(runId)}/execution-view`
+  );
+}
+
+export async function getServerRunEvidenceView(runId: string): Promise<RunEvidenceView | null> {
+  return fetchServerWorkspaceAccessJson<RunEvidenceView>(
+    `/api/runs/${encodeURIComponent(runId)}/evidence-view`
+  );
+}
+
+export async function getServerPublishedEndpointApiKeys(
+  workflowId: string,
+  bindingId: string
+): Promise<PublishedEndpointApiKeyItem[]> {
+  return (
+    (await fetchServerWorkspaceAccessJson<PublishedEndpointApiKeyItem[]>(
+      `/api/workflows/${encodeURIComponent(
+        workflowId
+      )}/published-endpoints/${encodeURIComponent(bindingId)}/api-keys`
+    )) ?? []
+  );
+}
+
+export async function getServerPublishedEndpointCacheInventory(
+  workflowId: string,
+  bindingId: string,
+  limit = 5
+): Promise<SensitiveAccessGuardedResult<PublishedEndpointCacheInventoryResponse>> {
+  return fetchServerWorkspaceAccessGuarded<PublishedEndpointCacheInventoryResponse>(
+    `/api/workflows/${encodeURIComponent(
+      workflowId
+    )}/published-endpoints/${encodeURIComponent(bindingId)}/cache-entries?limit=${Math.min(
+      Math.max(limit, 1),
+      20
+    )}`
+  );
+}
+
+export async function getServerPublishedEndpointInvocations(
+  workflowId: string,
+  bindingId: string,
+  options?: PublishedEndpointInvocationListOptions
+): Promise<PublishedEndpointInvocationListResponse | null> {
+  const searchParams = buildPublishedInvocationSearchParams(options, {
+    defaultLimit: 5,
+    maxLimit: 20,
+  });
+
+  return fetchServerWorkspaceAccessJson<PublishedEndpointInvocationListResponse>(
+    `/api/workflows/${encodeURIComponent(
+      workflowId
+    )}/published-endpoints/${encodeURIComponent(bindingId)}/invocations?${searchParams.toString()}`
+  );
+}
+
+export async function getServerPublishedEndpointInvocationDetail(
+  workflowId: string,
+  bindingId: string,
+  invocationId: string
+): Promise<SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>> {
+  return fetchServerWorkspaceAccessGuarded<PublishedEndpointInvocationDetailResponse>(
+    `/api/workflows/${encodeURIComponent(
+      workflowId
+    )}/published-endpoints/${encodeURIComponent(bindingId)}/invocations/${encodeURIComponent(invocationId)}`
   );
 }
 
