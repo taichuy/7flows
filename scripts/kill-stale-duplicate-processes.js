@@ -2,7 +2,7 @@
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 
-const DEFAULT_MINUTES = 60;
+const DEFAULT_MINUTES = 120;
 const DEFAULT_KEEP = 1;
 const DEFAULT_SIGNAL = 'SIGTERM';
 const DEFAULT_USER = process.env.USER || os.userInfo().username;

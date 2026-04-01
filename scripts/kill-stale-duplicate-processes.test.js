@@ -11,7 +11,7 @@ const {
 
 test('parseArgs keeps dry-run defaults and parses families', () => {
   assert.deepEqual(parseArgs([]), {
-    minutes: 60,
+    minutes: 120,
     keep: 1,
     signal: 'SIGTERM',
     user: process.env.USER || require('node:os').userInfo().username,
@@ -37,13 +37,20 @@ test('collectDuplicateTargets keeps newest instance per parent and only targets 
   100  10 taichu 7200 /home/taichu/.nvm/versions/node/v22.12.0/lib/node_modules/bun/bin/bun.exe /home/taichu/git/AionUi/dist-server/acp.js
   101  10 taichu 1800 /home/taichu/.nvm/versions/node/v22.12.0/lib/node_modules/bun/bin/bun.exe /home/taichu/git/AionUi/dist-server/acp.js
   102  10 taichu 900 /home/taichu/.nvm/versions/node/v22.12.0/lib/node_modules/bun/bin/bun.exe /home/taichu/git/AionUi/dist-server/acp.js
-  110  11 taichu 7500 /home/taichu/.npm-cache/_npx/2571/node_modules/@zed-industries/codex-acp-linux-x64/bin/codex-acp
+  110  11 taichu 7100 /home/taichu/.npm-cache/_npx/2571/node_modules/@zed-industries/codex-acp-linux-x64/bin/codex-acp
   111  11 taichu 1200 /home/taichu/.npm-cache/_npx/2571/node_modules/@zed-industries/codex-acp-linux-x64/bin/codex-acp
   120  12 other 7200 /home/taichu/.npm-cache/_npx/2571/node_modules/@zed-industries/codex-acp-linux-x64/bin/codex-acp
   `);
 
   const groups = collectDuplicateTargets(processes, {
     minutes: 60,
+    keep: 1,
+    user: 'taichu',
+    families: ['bun-dist-server-acp', 'codex-acp'],
+  });
+
+  const stricterGroups = collectDuplicateTargets(processes, {
+    minutes: 120,
     keep: 1,
     user: 'taichu',
     families: ['bun-dist-server-acp', 'codex-acp'],
@@ -59,6 +66,13 @@ test('collectDuplicateTargets keeps newest instance per parent and only targets 
   const codexGroup = groups.find((group) => group.family.name === 'codex-acp');
   assert.deepEqual(codexGroup.kept.map((item) => item.pid), [111]);
   assert.deepEqual(codexGroup.staleDuplicates.map((item) => item.pid), [110]);
+
+  const stricterBunGroup = stricterGroups.find((group) => group.family.name === 'bun-dist-server-acp');
+  assert.deepEqual(stricterBunGroup.staleDuplicates.map((item) => item.pid), [100]);
+  assert.deepEqual(stricterBunGroup.youngDuplicates.map((item) => item.pid), [101]);
+
+  const stricterCodexGroup = stricterGroups.find((group) => group.family.name === 'codex-acp');
+  assert.equal(stricterCodexGroup, undefined);
 });
 
 test('buildKillPlan orders oldest processes first', () => {
