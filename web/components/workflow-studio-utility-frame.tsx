@@ -57,6 +57,27 @@ type WorkflowStudioUtilityEmptyStateProps = {
   dataComponent?: string;
 };
 
+function buildUtilityActionClassName(variant?: "primary" | "default") {
+  return [
+    "workflow-studio-utility-action",
+    variant === "primary"
+      ? "workflow-studio-utility-action-primary"
+      : "workflow-studio-utility-action-default",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function buildUtilityTagClassName(color?: string) {
+  return [
+    "event-chip",
+    "workflow-studio-utility-tag",
+    `workflow-studio-utility-tag-${color ?? "default"}`,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export function WorkflowStudioUtilityFrame({
   surface,
   eyebrow,
@@ -81,9 +102,7 @@ export function WorkflowStudioUtilityFrame({
           <div className="workflow-studio-utility-overview-copy">
             <Text className="workflow-studio-utility-eyebrow">{eyebrow}</Text>
             <Title level={2}>{title}</Title>
-            <Paragraph className="workflow-studio-utility-inline-copy">
-              {description}
-            </Paragraph>
+            <Paragraph className="workflow-studio-utility-inline-copy">{description}</Paragraph>
           </div>
 
           {actions.length ? (
@@ -93,6 +112,7 @@ export function WorkflowStudioUtilityFrame({
             >
               {actions.map((action) => (
                 <Button
+                  className={buildUtilityActionClassName(action.variant)}
                   href={action.href}
                   key={action.key}
                   type={action.variant === "primary" ? "primary" : "default"}
@@ -105,12 +125,13 @@ export function WorkflowStudioUtilityFrame({
         </div>
 
         {tags.length ? (
-          <div
-            className="workflow-studio-utility-tag-row"
-            data-component="workflow-studio-utility-tags"
-          >
+          <div className="workflow-studio-utility-tag-row" data-component="workflow-studio-utility-tags">
             {tags.map((tag) => (
-              <Tag color={tag.color} key={tag.key}>
+              <Tag
+                className={buildUtilityTagClassName(tag.color)}
+                color={tag.color && tag.color !== "default" ? tag.color : undefined}
+                key={tag.key}
+              >
                 {tag.label}
               </Tag>
             ))}
@@ -120,10 +141,7 @@ export function WorkflowStudioUtilityFrame({
         {notice ? <div className="workflow-studio-utility-notice">{notice}</div> : null}
 
         {metrics.length ? (
-          <div
-            className="workflow-studio-utility-stat-grid"
-            data-component="workflow-studio-utility-metrics"
-          >
+          <div className="workflow-studio-utility-stat-grid" data-component="workflow-studio-utility-metrics">
             {metrics.map((metric) => (
               <Card
                 className={[
@@ -140,9 +158,7 @@ export function WorkflowStudioUtilityFrame({
                   {metric.value}
                 </Title>
                 {metric.detail ? (
-                  <Paragraph className="workflow-studio-utility-metric-copy">
-                    {metric.detail}
-                  </Paragraph>
+                  <Paragraph className="workflow-studio-utility-metric-copy">{metric.detail}</Paragraph>
                 ) : null}
               </Card>
             ))}

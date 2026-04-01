@@ -7961,13 +7961,17 @@ a {
 
 .workflow-studio-utility-overview-card,
 .workflow-studio-utility-empty-card {
-  display: grid;
-  gap: 16px;
-  padding: 20px 24px;
   border-radius: 24px;
   border: 1px solid rgba(28, 25, 21, 0.08);
   background: linear-gradient(180deg, rgba(255, 252, 246, 0.96) 0%, rgba(255, 249, 239, 0.88) 100%);
   box-shadow: 0 20px 48px rgba(15, 23, 42, 0.06);
+}
+
+.workflow-studio-utility-overview-card :where(.ant-card-body),
+.workflow-studio-utility-empty-card :where(.ant-card-body) {
+  display: grid;
+  gap: 16px;
+  padding: 20px 24px;
 }
 
 .workflow-studio-utility-overview-header {
@@ -8080,13 +8084,17 @@ a {
 }
 
 .workflow-studio-utility-stat-card {
+  min-width: 0;
+  border-radius: 18px;
+  border: 1px solid rgba(28, 25, 21, 0.08);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.workflow-studio-utility-stat-card :where(.ant-card-body) {
   display: grid;
   gap: 6px;
   min-width: 0;
   padding: 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(28, 25, 21, 0.08);
-  background: rgba(255, 255, 255, 0.68);
 }
 
 .workflow-studio-utility-stat-card-wide {
