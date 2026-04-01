@@ -7897,3 +7897,69 @@ a {
     flex-wrap: wrap;
   }
 }
+.workspace-tools-hub {
+  display: grid;
+  gap: 24px;
+}
+
+.workspace-tools-section {
+  display: grid;
+  gap: 16px;
+}
+
+.workspace-tools-overview-card :where(.ant-card-body) {
+  display: grid;
+  gap: 16px;
+}
+
+.workspace-tools-section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.workspace-tools-action-row,
+.workspace-tools-tag-row,
+.workspace-tools-select-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.workspace-tools-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.workspace-tools-inline-copy,
+.workspace-tools-card-copy,
+.workspace-tools-card-note {
+  margin: 0;
+}
+
+.workspace-tools-inline-copy,
+.workspace-tools-card-note {
+  color: #667085;
+}
+
+.workspace-tools-source-select {
+  min-width: 176px;
+}
+
+.workspace-tools-empty {
+  padding-block: 8px;
+}
+
+@media (max-width: 768px) {
+  .workspace-tools-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-tools-source-select {
+    width: 100%;
+  }
+}

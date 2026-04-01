@@ -20,6 +20,7 @@ type WorkspaceShellProps = {
   children: ReactNode;
   layout?: "default" | "focused" | "editor";
   navigationMode?: WorkspaceShellNavigationMode;
+  navigationHrefOverrides?: Partial<Record<WorkspaceConsoleNavKey, string>>;
   userName: string;
   userRole: WorkspaceMemberRole;
   workspaceName: string;
@@ -32,6 +33,7 @@ export function WorkspaceShell({
   children,
   layout = "default",
   navigationMode,
+  navigationHrefOverrides,
   userName,
   userRole,
   workspaceName
@@ -91,7 +93,7 @@ export function WorkspaceShell({
               <Link
                 aria-current={item.key === activeNav ? "page" : undefined}
                 className={`workspace-nav-link ${item.key === activeNav ? "active" : ""}`}
-                href={item.href}
+                href={navigationHrefOverrides?.[item.key] ?? item.href}
                 key={item.key}
               >
                 {item.label}
@@ -133,6 +135,10 @@ function getWorkspaceShellSurfaceLabel(
   }
 
   if (layout === "focused") {
+    if (activeNav === "tools") {
+      return "工具中心";
+    }
+
     if (activeNav === "team") {
       return "工作台设置";
     }
@@ -142,6 +148,10 @@ function getWorkspaceShellSurfaceLabel(
     }
 
     return "聚焦入口";
+  }
+
+  if (activeNav === "tools") {
+    return "工具中心";
   }
 
   if (activeNav === "team") {

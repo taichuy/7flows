@@ -9,8 +9,10 @@ import {
   getWorkspaceConsoleNavigationItems,
   getWorkspaceConsolePageHref,
   WORKSPACE_MODEL_PROVIDER_SETTINGS_HREF,
+  WORKSPACE_TOOLS_HREF,
   WORKSPACE_TEAM_SETTINGS_HREF
 } from "@/lib/workspace-console";
+import { buildWorkspaceToolsHref } from "@/lib/workbench-links";
 
 function buildRoutePermission(route: string, accessLevel: "authenticated" | "manager") {
   return {
@@ -32,11 +34,27 @@ describe("workspace-console route matrix", () => {
 
   it("keeps team settings on a canonical workspace route", () => {
     expect(getWorkspaceConsolePageHref("team")).toBe(WORKSPACE_TEAM_SETTINGS_HREF);
+    expect(getWorkspaceConsolePageHref("tools")).toBe(WORKSPACE_TOOLS_HREF);
     expect(getWorkspaceConsolePageHref("providers")).toBe(WORKSPACE_MODEL_PROVIDER_SETTINGS_HREF);
     expect(WORKSPACE_MODEL_PROVIDER_SETTINGS_HREF).toBe("/workspace/settings/providers");
     expect(
       getWorkspaceConsoleNavigationItems().find((item) => item.key === "team")?.href
     ).toBe(WORKSPACE_TEAM_SETTINGS_HREF);
+    expect(
+      getWorkspaceConsoleNavigationItems().find((item) => item.key === "tools")?.href
+    ).toBe(WORKSPACE_TOOLS_HREF);
+  });
+
+  it("builds a canonical tools hub href for workflow studio handoff", () => {
+    expect(
+      buildWorkspaceToolsHref({
+        returnHref: "/workflows/workflow-1/publish?track=beta&publish_binding=binding-1",
+        workflowId: "workflow-1",
+        workflowSurface: "publish"
+      })
+    ).toBe(
+      "/workspace/tools?return_href=%2Fworkflows%2Fworkflow-1%2Fpublish%3Fpublish_binding%3Dbinding-1%26track%3Dbeta&workflow_id=workflow-1&workflow_surface=publish"
+    );
   });
 
   it("allows only managers to access or see the team surface", () => {

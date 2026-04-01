@@ -56,8 +56,27 @@ vi.mock("@/app/actions/publish", () => ({
 }));
 
 vi.mock("@/components/workspace-shell", () => ({
-  WorkspaceShell: ({ children }: { children: ReactNode }) =>
-    createElement("div", { "data-component": "workspace-shell" }, children)
+  WorkspaceShell: ({
+    children,
+    activeNav,
+    layout,
+    navigationHrefOverrides
+  }: {
+    children: ReactNode;
+    activeNav?: string;
+    layout?: string;
+    navigationHrefOverrides?: { tools?: string };
+  }) =>
+    createElement(
+      "div",
+      {
+        "data-component": "workspace-shell",
+        "data-active-nav": activeNav ?? "none",
+        "data-layout": layout ?? "default",
+        "data-tools-href": navigationHrefOverrides?.tools ?? "none"
+      },
+      children
+    )
 }));
 
 vi.mock("@/components/workflow-editor-workbench-entry", () => ({
@@ -648,6 +667,8 @@ describe("Workflow studio routes", () => {
     );
 
     expect(html).toContain('data-component="workspace-shell"');
+    expect(html).toContain('data-active-nav="workflows"');
+    expect(html).toContain('data-layout="editor"');
     expect(html).toContain('data-component="workflow-editor-workbench-entry"');
     expect(html).not.toContain('data-component="workflow-publish-panel"');
     expect(html).toContain('data-workflow-id="workflow-1"');
@@ -660,6 +681,9 @@ describe("Workflow studio routes", () => {
     expect(html).toContain("运行诊断");
     expect(html).toContain("Starter 模板");
     expect(html).toContain("编排中心");
+    expect(html).toContain(
+      'data-tools-href="/workspace/tools?return_href=%2Fworkflows%2Fworkflow-1%2Feditor&amp;workflow_id=workflow-1&amp;workflow_surface=editor"'
+    );
     expect(html).toContain("/workflows/workflow-1/editor");
     expect(html).toContain("/workflows/workflow-1/publish");
     expect(html).not.toContain("?surface=");
@@ -682,6 +706,9 @@ describe("Workflow studio routes", () => {
     expect(html).toContain('data-component="workflow-publish-panel"');
     expect(html).toContain('data-expanded-binding-id="none"');
     expect(html).not.toContain('data-component="workflow-editor-workbench"');
+    expect(html).toContain(
+      'data-tools-href="/workspace/tools?return_href=%2Fworkflows%2Fworkflow-1%2Fpublish&amp;workflow_id=workflow-1&amp;workflow_surface=publish"'
+    );
     expect(html).toContain("publish governance");
     expect(html).toContain("Workflow 1");
     expect(html).toContain("draft only");

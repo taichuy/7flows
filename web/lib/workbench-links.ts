@@ -1,3 +1,5 @@
+import { normalizeWorkbenchRelativeHref } from "@/lib/workbench-entry-links";
+
 function normalizeWorkbenchEntityId(entityId: string, entityLabel: string) {
   const normalized = entityId.trim();
 
@@ -7,6 +9,8 @@ function normalizeWorkbenchEntityId(entityId: string, entityLabel: string) {
 
   return normalized;
 }
+
+export const WORKSPACE_TOOLS_HREF = "/workspace/tools";
 
 export const WORKFLOW_STUDIO_SURFACES = [
   "editor",
@@ -82,4 +86,82 @@ export function buildWorkflowStudioSurfaceHref(
 
 export function buildWorkflowDetailHref(workflowId: string) {
   return `/workflows/${encodeURIComponent(normalizeWorkbenchEntityId(workflowId, "workflow"))}`;
+}
+
+type WorkspaceToolsHubContext = {
+  returnHref?: string | null;
+  workflowId?: string | null;
+  workflowSurface?: WorkflowStudioSurface | null;
+};
+
+function readRelativeQueryParam(value: string | string[] | undefined) {
+  return normalizeWorkbenchRelativeHref(Array.isArray(value) ? value[0] : value);
+}
+
+function readStringQueryParam(value: string | string[] | undefined) {
+  const normalized = (Array.isArray(value) ? value[0] : value)?.trim();
+  return normalized ? normalized : null;
+}
+
+export function readWorkspaceToolsHubContext(
+  searchParams: Record<string, string | string[] | undefined>
+): Required<WorkspaceToolsHubContext> {
+  const workflowSurface = readStringQueryParam(searchParams.workflow_surface);
+
+  return {
+    returnHref: readRelativeQueryParam(searchParams.return_href),
+    workflowId: readStringQueryParam(searchParams.workflow_id),
+    workflowSurface: WORKFLOW_STUDIO_SURFACES.includes(
+      workflowSurface as WorkflowStudioSurface
+    )
+      ? (workflowSurface as WorkflowStudioSurface)
+      : null
+  };
+}
+
+export function buildWorkspaceToolsHref(context: WorkspaceToolsHubContext = {}) {
+  const searchParams = new URLSearchParams();
+  const returnHref = normalizeWorkbenchRelativeHref(context.returnHref);
+  const workflowId = context.workflowId?.trim();
+  const workflowSurface =
+    context.workflowSurface && WORKFLOW_STUDIO_SURFACES.includes(context.workflowSurface)
+      ? context.workflowSurface
+      : null;
+
+  if (returnHref) {
+    searchParams.set("return_href", returnHref);
+  }
+
+  if (workflowId) {
+    searchParams.set("workflow_id", workflowId);
+  }
+
+  if (workflowSurface) {
+    searchParams.set("workflow_surface", workflowSurface);
+  }
+
+  const query = searchParams.toString();
+
+  return query ? `${WORKSPACE_TOOLS_HREF}?${query}` : WORKSPACE_TOOLS_HREF;
+}
+
+export function resolveWorkspaceToolsReturnHref(context: WorkspaceToolsHubContext) {
+  const returnHref = normalizeWorkbenchRelativeHref(context.returnHref);
+
+  if (returnHref) {
+    return returnHref;
+  }
+
+  const workflowId = context.workflowId?.trim();
+
+  if (!workflowId) {
+    return null;
+  }
+
+  return buildWorkflowStudioSurfaceHref(
+    workflowId,
+    context.workflowSurface && WORKFLOW_STUDIO_SURFACES.includes(context.workflowSurface)
+      ? context.workflowSurface
+      : "editor"
+  );
 }

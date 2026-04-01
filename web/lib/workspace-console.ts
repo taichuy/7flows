@@ -6,6 +6,7 @@ import {
   type WorkspaceMemberRole
 } from "@/lib/workspace-access";
 import {
+  WORKSPACE_TOOLS_HREF,
   getWorkflowStudioSurfaceDefinitions,
   type WorkflowStudioSurface,
   type WorkflowStudioSurfaceDefinition
@@ -14,8 +15,15 @@ import {
 export const WORKSPACE_TEAM_SETTINGS_HREF = "/workspace/settings/team";
 export const WORKSPACE_MODEL_PROVIDER_SETTINGS_HREF = "/workspace/settings/providers";
 export const LEGACY_WORKSPACE_TEAM_SETTINGS_HREF = "/admin/members";
+export { WORKSPACE_TOOLS_HREF };
 
-export type WorkspaceConsoleNavKey = "workspace" | "workflows" | "runs" | "starters" | "team";
+export type WorkspaceConsoleNavKey =
+  | "workspace"
+  | "workflows"
+  | "tools"
+  | "runs"
+  | "starters"
+  | "team";
 export type WorkspaceConsolePageKey = "login" | WorkspaceConsoleNavKey | "providers";
 export type WorkspaceShellNavigationMode = "all" | "core" | "studio";
 
@@ -61,6 +69,13 @@ const workspaceConsolePagePermissions: WorkspaceConsolePagePermission[] = [
     description: "workflow library、create 与 studio surface 的作者入口。"
   },
   {
+    key: "tools",
+    href: WORKSPACE_TOOLS_HREF,
+    label: "工具",
+    accessLevel: "authenticated",
+    description: "内置节点目录、Provider Registry 与 compat tool registry 的统一入口。"
+  },
+  {
     key: "starters",
     href: "/workspace-starters",
     label: "模板",
@@ -103,9 +118,9 @@ const workspaceConsolePagePermissions: WorkspaceConsolePagePermission[] = [
 ];
 
 const workspaceShellNavigationByMode = {
-  all: ["workspace", "workflows", "starters", "runs", "team"],
-  core: ["workspace", "workflows", "team"],
-  studio: ["workspace", "workflows", "runs", "team"]
+  all: ["workspace", "workflows", "tools", "starters", "runs", "team"],
+  core: ["workspace", "workflows", "tools", "team"],
+  studio: ["workspace", "workflows", "tools", "runs", "team"]
 } satisfies Record<WorkspaceShellNavigationMode, WorkspaceConsoleNavKey[]>;
 
 const workflowStudioSurfaceRouteContracts = {

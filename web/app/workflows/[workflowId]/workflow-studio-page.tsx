@@ -39,6 +39,7 @@ import {
   resolveWorkflowPublishActivityFilters
 } from "@/lib/workflow-publish-activity-query";
 import {
+  buildWorkspaceToolsHref,
   buildRunDetailHref,
   buildWorkflowStudioSurfaceHref,
   getWorkflowStudioSurfaceDefinition,
@@ -72,6 +73,7 @@ type WorkflowStudioSharedContext = {
   workflowLibraryHref: string;
   createWorkflowHref: string;
   surfaceHrefs: Record<WorkflowStudioSurface, string>;
+  toolsHref: string;
   currentEditorHref: string;
   currentPublishHref: string;
   workspaceStarterLibraryHref: string;
@@ -91,6 +93,7 @@ type WorkflowStudioShellProps = {
   workflowLibraryHref: string;
   activeStudioSurface: WorkflowStudioSurface;
   surfaceHrefs: Record<WorkflowStudioSurface, string>;
+  toolsHref: string;
   workspaceStarterLibraryHref: string;
   children: ReactNode;
 };
@@ -216,10 +219,19 @@ async function resolveWorkflowStudioSharedContext({
     buildWorkflowStudioSurfaceHref(workflow.id, "editor"),
     surfaceSearchParams
   );
+  const currentSurfaceHref = appendSearchParamsToHref(
+    buildWorkflowStudioSurfaceHref(workflow.id, surface),
+    surfaceSearchParams
+  );
   const currentPublishHref = appendSearchParamsToHref(
     buildWorkflowStudioSurfaceHref(workflow.id, "publish"),
     surfaceSearchParams
   );
+  const toolsHref = buildWorkspaceToolsHref({
+    returnHref: currentSurfaceHref,
+    workflowId: workflow.id,
+    workflowSurface: surface
+  });
   const workspaceStarterLibraryHref =
     buildWorkspaceStarterLibraryHrefFromWorkspaceStarterViewState(
       workspaceStarterViewState
@@ -248,6 +260,7 @@ async function resolveWorkflowStudioSharedContext({
       editor: editorSurfaceHref,
       publish: publishSurfaceHref
     },
+    toolsHref,
     currentEditorHref,
     currentPublishHref,
     workspaceStarterLibraryHref,
@@ -268,6 +281,7 @@ async function renderWorkflowEditorSurface(sharedContext: WorkflowStudioSharedCo
       workflowLibraryHref={sharedContext.workflowLibraryHref}
       activeStudioSurface="editor"
       surfaceHrefs={sharedContext.surfaceHrefs}
+      toolsHref={sharedContext.toolsHref}
       workspaceStarterLibraryHref={sharedContext.workspaceStarterLibraryHref}
     >
       <section className="workflow-studio-surface" data-surface="editor">
@@ -378,6 +392,7 @@ async function renderWorkflowPublishSurface(sharedContext: WorkflowStudioSharedC
       workflowLibraryHref={sharedContext.workflowLibraryHref}
       activeStudioSurface="publish"
       surfaceHrefs={sharedContext.surfaceHrefs}
+      toolsHref={sharedContext.toolsHref}
       workspaceStarterLibraryHref={sharedContext.workspaceStarterLibraryHref}
     >
       <section
@@ -439,6 +454,7 @@ async function renderWorkflowUtilitySurface(
         workflowLibraryHref={sharedContext.workflowLibraryHref}
         activeStudioSurface={surface}
         surfaceHrefs={sharedContext.surfaceHrefs}
+        toolsHref={sharedContext.toolsHref}
         workspaceStarterLibraryHref={sharedContext.workspaceStarterLibraryHref}
       >
         <section
@@ -583,6 +599,7 @@ async function renderWorkflowUtilitySurface(
         workflowLibraryHref={sharedContext.workflowLibraryHref}
         activeStudioSurface={surface}
         surfaceHrefs={sharedContext.surfaceHrefs}
+        toolsHref={sharedContext.toolsHref}
         workspaceStarterLibraryHref={sharedContext.workspaceStarterLibraryHref}
       >
         <section
@@ -725,6 +742,7 @@ async function renderWorkflowUtilitySurface(
         workflowLibraryHref={sharedContext.workflowLibraryHref}
         activeStudioSurface={surface}
         surfaceHrefs={sharedContext.surfaceHrefs}
+        toolsHref={sharedContext.toolsHref}
         workspaceStarterLibraryHref={sharedContext.workspaceStarterLibraryHref}
       >
         <section
@@ -761,6 +779,7 @@ async function renderWorkflowUtilitySurface(
       workflowLibraryHref={sharedContext.workflowLibraryHref}
       activeStudioSurface={surface}
       surfaceHrefs={sharedContext.surfaceHrefs}
+      toolsHref={sharedContext.toolsHref}
       workspaceStarterLibraryHref={sharedContext.workspaceStarterLibraryHref}
     >
       <section className="workflow-studio-surface workflow-studio-surface-utility" data-surface={surface}>
@@ -796,6 +815,7 @@ function WorkflowStudioShell({
   workflowLibraryHref,
   activeStudioSurface,
   surfaceHrefs,
+  toolsHref,
   workspaceStarterLibraryHref,
   children
 }: WorkflowStudioShellProps) {
@@ -807,6 +827,7 @@ function WorkflowStudioShell({
     <WorkspaceShell
       activeNav="workflows"
       layout="editor"
+      navigationHrefOverrides={{ tools: toolsHref }}
       userName={userName}
       userRole={userRole}
       workspaceName={workspaceName}

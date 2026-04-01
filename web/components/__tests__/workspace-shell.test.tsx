@@ -6,7 +6,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { StudioShell } from "@/components/studio-shell";
 import { WorkspaceShell } from "@/components/workspace-shell";
-import { WORKSPACE_TEAM_SETTINGS_HREF } from "@/lib/workspace-console";
+import {
+  WORKSPACE_TEAM_SETTINGS_HREF,
+  WORKSPACE_TOOLS_HREF
+} from "@/lib/workspace-console";
 
 Object.assign(globalThis, { React });
 
@@ -40,6 +43,8 @@ describe("WorkspaceShell", () => {
     expect(html).toContain('data-navigation-mode="all"');
     expect(html).toContain("作者工作台");
     expect(html).toContain("新建应用");
+    expect(html).toContain(">工具<");
+    expect(html).toContain(`href="${WORKSPACE_TOOLS_HREF}"`);
     expect(html).toContain("团队");
     expect(html).toContain(`href="${WORKSPACE_TEAM_SETTINGS_HREF}"`);
     expect(html).toContain("7Flows Admin");
@@ -65,6 +70,7 @@ describe("WorkspaceShell", () => {
     expect(html).toContain("创建应用");
     expect(html).toContain("工作台");
     expect(html).toContain("编排");
+    expect(html).toContain("工具");
     expect(html).toContain("团队");
     expect(html).not.toContain(">模板<");
     expect(html).not.toContain(">运行<");
@@ -110,6 +116,7 @@ describe("WorkspaceShell", () => {
     expect(html).toContain("xyflow Studio");
     expect(html).toContain("工作台");
     expect(html).toContain("编排");
+    expect(html).toContain("工具");
     expect(html).toContain("运行");
     expect(html).not.toContain(">模板<");
     expect(html).not.toContain(">团队<");
@@ -132,6 +139,28 @@ describe("WorkspaceShell", () => {
     expect(html).toContain('&lt;img src=x onerror=alert(1) /&gt;');
     expect(html).not.toContain('<script>alert');
     expect(html).not.toContain('<img src=x onerror');
+  });
+
+  it("allows the studio shell to override the tools href for return handoff", () => {
+    const html = renderToStaticMarkup(
+      <WorkspaceShell
+        activeNav="workflows"
+        layout="editor"
+        navigationHrefOverrides={{
+          tools:
+            "/workspace/tools?return_href=%2Fworkflows%2Fworkflow-1%2Feditor&workflow_id=workflow-1&workflow_surface=editor"
+        }}
+        userName="7Flows Editor"
+        userRole="editor"
+        workspaceName="7Flows Workspace"
+      >
+        <div>editor body</div>
+      </WorkspaceShell>
+    );
+
+    expect(html).toContain(
+      'href="/workspace/tools?return_href=%2Fworkflows%2Fworkflow-1%2Feditor&amp;workflow_id=workflow-1&amp;workflow_surface=editor"'
+    );
   });
 
   it("keeps the studio wrapper server-driven once active nav is passed by the route tree", () => {
