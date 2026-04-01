@@ -85,6 +85,23 @@ export type WorkflowEditorHeroSurfaceCopy = {
   scopedGovernanceCreateWorkflowLabel: string;
 };
 
+export type WorkflowEditorEntryShellSurfaceCopy = {
+  eyebrow: string;
+  title: string;
+  description: string;
+  readyStateDetail: string;
+  heroLinks: WorkbenchEntryLinksConfig;
+  topologyLabel: string;
+  versionLabel: string;
+  configLabel: string;
+  governanceLabel: string;
+  toolsLinkLabel: string;
+  publishLinkLabel: string;
+  logsLinkLabel: string;
+  monitorLinkLabel: string;
+  canvasPendingLabel: string;
+};
+
 export type WorkflowEditorStarterSaveSurfaceCopy = {
   description: string;
   nextStepTitle: string;
@@ -167,12 +184,57 @@ export function buildWorkflowCreateBootstrapLoadingSurfaceCopy(): AuthoringBoots
   };
 }
 
+export function buildWorkflowEditorEntryShellSurfaceCopy({
+  workflowLibraryHref = "/workflows",
+  createWorkflowHref,
+  workspaceStarterLibraryHref
+}: {
+  workflowLibraryHref?: string;
+  createWorkflowHref: string;
+  workspaceStarterLibraryHref: string;
+}): WorkflowEditorEntryShellSurfaceCopy {
+  return {
+    eyebrow: "Editor",
+    title: "xyflow Studio 首屏壳层",
+    description:
+      "服务端先输出 workflow 身份、阶段、拓扑摘要与跨 surface handoff，再让交互画布、catalog 和 inspector 按需挂载。",
+    readyStateDetail:
+      "先把 workflow 身份、版本、summary 和下一步入口固定下来，避免作者在 hydration 前只看到一层 bootstrap 文案。",
+    heroLinks: {
+      keys: ["workflowLibrary", "createWorkflow", "workspaceStarterLibrary", "home"],
+      overrides: {
+        workflowLibrary: {
+          href: workflowLibraryHref,
+          label: "回到 workflow 列表"
+        },
+        createWorkflow: {
+          href: createWorkflowHref
+        },
+        workspaceStarterLibrary: {
+          href: workspaceStarterLibraryHref
+        }
+      },
+      primaryKey: "workflowLibrary",
+      variant: "inline"
+    },
+    topologyLabel: "编排拓扑",
+    versionLabel: "版本轨道",
+    configLabel: "配置基线",
+    governanceLabel: "治理热点",
+    toolsLinkLabel: "管理工具目录",
+    publishLinkLabel: "查看发布治理",
+    logsLinkLabel: "查看运行日志",
+    monitorLinkLabel: "查看实时监控",
+    canvasPendingLabel: "交互画布稍后挂载"
+  };
+}
+
 export function buildWorkflowEditorBootstrapLoadingSurfaceCopy(): AuthoringBootstrapLoadingSurfaceCopy {
   return {
-    title: "正在准备 xyflow Studio",
-    summary: "编辑器岛会在基础 workflow 壳层渲染后按需挂载。",
+    title: "正在接入交互画布",
+    summary: "workflow 壳层与 handoff 已先输出；xyflow canvas 正在按需挂载。",
     detail:
-      "workflow inventory、catalog、plugin registry 与 system overview 会在最小 workflow 壳层之后按需补齐。"
+      "workflow inventory、catalog、plugin registry 与 system overview 会在 editor 首屏壳层之后按需补齐。"
   };
 }
 

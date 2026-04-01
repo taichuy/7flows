@@ -221,6 +221,7 @@ export type WorkflowEditorWorkbenchEntryProps = Omit<
   keyof WorkflowEditorWorkbenchBootstrapData
 > & {
   bootstrapRequest: WorkflowEditorWorkbenchBootstrapRequest;
+  initialBootstrapData?: WorkflowEditorWorkbenchBootstrapData | null;
 };
 
 export type UseWorkflowEditorPanelsArgs = {

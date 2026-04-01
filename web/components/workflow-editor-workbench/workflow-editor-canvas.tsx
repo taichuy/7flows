@@ -6,6 +6,7 @@ import {
   MiniMap,
   Panel,
   ReactFlow,
+  ReactFlowProvider,
   type Edge,
   type Node,
   type NodeTypes,
@@ -21,7 +22,7 @@ import type {
 } from "@/lib/workflow-editor";
 import { nodeColorByType } from "@/components/workflow-editor-workbench/workflow-canvas-node";
 
-type WorkflowEditorCanvasProps = {
+export type WorkflowEditorCanvasProps = {
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   edges: Array<Edge<WorkflowCanvasEdgeData>>;
   nodeTypes: NodeTypes;
@@ -41,37 +42,39 @@ export function WorkflowEditorCanvas({
   onSelectionChange
 }: WorkflowEditorCanvasProps) {
   return (
-    <section className="editor-canvas-panel">
-      <div className="editor-canvas-card">
-        <ReactFlow
-          fitView
-          fitViewOptions={{ padding: 0.16, duration: 240 }}
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onSelectionChange={onSelectionChange}
-          deleteKeyCode={["Delete", "Backspace"]}
-          onlyRenderVisibleElements
-          minZoom={0.4}
-          maxZoom={1.5}
-          className="editor-canvas"
-        >
-          <Panel className="workflow-canvas-helper-panel" position="top-left">
-            <strong>xyflow Studio</strong>
-            <span>选中节点后可插入下一节点，或用 ··· 打开配置。</span>
-          </Panel>
-          <Background gap={24} size={1} />
-          <MiniMap
-            pannable
-            zoomable
-            nodeColor={(node) => nodeColorByType((node.data as WorkflowCanvasNodeData).nodeType)}
-          />
-          <Controls />
-        </ReactFlow>
-      </div>
-    </section>
+    <ReactFlowProvider>
+      <section className="editor-canvas-panel" data-component="workflow-editor-canvas">
+        <div className="editor-canvas-card">
+          <ReactFlow
+            fitView
+            fitViewOptions={{ padding: 0.16, duration: 240 }}
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onSelectionChange={onSelectionChange}
+            deleteKeyCode={["Delete", "Backspace"]}
+            onlyRenderVisibleElements
+            minZoom={0.4}
+            maxZoom={1.5}
+            className="editor-canvas"
+          >
+            <Panel className="workflow-canvas-helper-panel" position="top-left">
+              <strong>xyflow Studio</strong>
+              <span>选中节点后可插入下一节点，或用 ··· 打开配置。</span>
+            </Panel>
+            <Background gap={24} size={1} />
+            <MiniMap
+              pannable
+              zoomable
+              nodeColor={(node) => nodeColorByType((node.data as WorkflowCanvasNodeData).nodeType)}
+            />
+            <Controls />
+          </ReactFlow>
+        </div>
+      </section>
+    </ReactFlowProvider>
   );
 }

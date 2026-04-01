@@ -6,6 +6,7 @@ type AuthoringBootstrapEntryProps<BootstrapRequest, BootstrapData> = {
   bootstrapRequest: BootstrapRequest;
   loadBootstrap: (request: BootstrapRequest) => Promise<BootstrapData>;
   preloadModule?: () => Promise<unknown>;
+  initialBootstrapData?: BootstrapData | null;
   loadingState: ReactNode;
   children: (bootstrapData: BootstrapData) => ReactNode;
 };
@@ -14,15 +15,18 @@ export function AuthoringBootstrapEntry<BootstrapRequest, BootstrapData>({
   bootstrapRequest,
   loadBootstrap,
   preloadModule,
+  initialBootstrapData,
   loadingState,
   children
 }: AuthoringBootstrapEntryProps<BootstrapRequest, BootstrapData>) {
-  const [bootstrapData, setBootstrapData] = useState<BootstrapData | null>(null);
+  const [bootstrapData, setBootstrapData] = useState<BootstrapData | null>(
+    initialBootstrapData ?? null
+  );
 
   useEffect(() => {
     let active = true;
 
-    setBootstrapData(null);
+    setBootstrapData(initialBootstrapData ?? null);
     if (preloadModule) {
       void preloadModule();
     }
@@ -37,7 +41,7 @@ export function AuthoringBootstrapEntry<BootstrapRequest, BootstrapData>({
     return () => {
       active = false;
     };
-  }, [bootstrapRequest, loadBootstrap, preloadModule]);
+  }, [bootstrapRequest, initialBootstrapData, loadBootstrap, preloadModule]);
 
   if (!bootstrapData) {
     return <>{loadingState}</>;

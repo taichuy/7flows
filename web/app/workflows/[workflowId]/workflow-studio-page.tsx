@@ -6,7 +6,9 @@ import type { ReactNode } from "react";
 import { WorkflowApiSurface } from "@/components/workflow-api-surface";
 import { WorkflowLogsSurface } from "@/components/workflow-logs-surface";
 import { WorkflowMonitorSurface } from "@/components/workflow-monitor-surface";
+import { loadWorkflowEditorWorkbenchBootstrap } from "@/components/workflow-editor-workbench/bootstrap";
 import { WorkflowEditorWorkbenchEntry } from "@/components/workflow-editor-workbench-entry";
+import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
@@ -46,6 +48,7 @@ import {
   getWorkflowStudioSurfaceDefinitions,
   type WorkflowStudioSurface
 } from "@/lib/workbench-links";
+import { buildWorkflowEditorEntryShellSurfaceCopy } from "@/lib/workbench-entry-surfaces";
 import {
   buildWorkflowCreateHrefFromWorkspaceStarterViewState,
   buildWorkflowEditorHrefFromWorkspaceStarterViewState,
@@ -96,6 +99,16 @@ type WorkflowStudioShellProps = {
   toolsHref: string;
   workspaceStarterLibraryHref: string;
   children: ReactNode;
+};
+
+type WorkflowEditorFirstScreenShellProps = {
+  workflow: WorkflowStudioSharedContext["workflow"];
+  workflowStageLabel: string;
+  workflowLibraryHref: string;
+  createWorkflowHref: string;
+  surfaceHrefs: Record<WorkflowStudioSurface, string>;
+  toolsHref: string;
+  workspaceStarterLibraryHref: string;
 };
 
 export async function generateWorkflowStudioMetadata({
@@ -270,6 +283,12 @@ async function resolveWorkflowStudioSharedContext({
 }
 
 async function renderWorkflowEditorSurface(sharedContext: WorkflowStudioSharedContext) {
+  const bootstrapRequest = {
+    workflowId: sharedContext.workflow.id,
+    surface: "editor" as const
+  };
+  const initialBootstrapData = await loadWorkflowEditorWorkbenchBootstrap(bootstrapRequest);
+
   return (
     <WorkflowStudioShell
       workspaceName={sharedContext.workspaceName}
@@ -285,11 +304,18 @@ async function renderWorkflowEditorSurface(sharedContext: WorkflowStudioSharedCo
       workspaceStarterLibraryHref={sharedContext.workspaceStarterLibraryHref}
     >
       <section className="workflow-studio-surface" data-surface="editor">
+        <WorkflowEditorFirstScreenShell
+          workflow={sharedContext.workflow}
+          workflowStageLabel={sharedContext.workflowStageLabel}
+          workflowLibraryHref={sharedContext.workflowLibraryHref}
+          createWorkflowHref={sharedContext.createWorkflowHref}
+          surfaceHrefs={sharedContext.surfaceHrefs}
+          toolsHref={sharedContext.toolsHref}
+          workspaceStarterLibraryHref={sharedContext.workspaceStarterLibraryHref}
+        />
         <WorkflowEditorWorkbenchEntry
-          bootstrapRequest={{
-            workflowId: sharedContext.workflow.id,
-            surface: "editor"
-          }}
+          bootstrapRequest={bootstrapRequest}
+          initialBootstrapData={initialBootstrapData}
           workflow={sharedContext.workflow}
           currentEditorHref={sharedContext.currentEditorHref}
           workflowLibraryHref={sharedContext.workflowLibraryHref}
@@ -302,6 +328,123 @@ async function renderWorkflowEditorSurface(sharedContext: WorkflowStudioSharedCo
         />
       </section>
     </WorkflowStudioShell>
+  );
+}
+
+function WorkflowEditorFirstScreenShell({
+  workflow,
+  workflowStageLabel,
+  workflowLibraryHref,
+  createWorkflowHref,
+  surfaceHrefs,
+  toolsHref,
+  workspaceStarterLibraryHref
+}: WorkflowEditorFirstScreenShellProps) {
+  const surfaceCopy = buildWorkflowEditorEntryShellSurfaceCopy({
+    workflowLibraryHref,
+    createWorkflowHref,
+    workspaceStarterLibraryHref
+  });
+  const nodesCount = workflow.definition?.nodes?.length ?? workflow.node_count ?? 0;
+  const edgesCount = workflow.definition?.edges?.length ?? 0;
+  const variablesCount = workflow.definition?.variables?.length ?? 0;
+  const publishDraftCount = workflow.definition?.publish?.length ?? workflow.publish_count ?? 0;
+  const versionCount = workflow.versions?.length ?? 0;
+  const definitionIssueCount = workflow.definition_issues?.length ?? 0;
+  const missingToolCount = workflow.tool_governance?.missing_tool_ids?.length ?? 0;
+  const governedToolCount = workflow.tool_governance?.governed_tool_count ?? 0;
+  const workflowVersionLabel = workflow.version?.trim()
+    ? `v${workflow.version.trim()}`
+    : "未标记版本";
+  const topologySummary =
+    nodesCount > 0 || edgesCount > 0
+      ? `${nodesCount} 节点 · ${edgesCount} 连线`
+      : "当前 definition 还没有节点或连线";
+  const versionSummary =
+    versionCount > 0
+      ? `${workflowVersionLabel} · ${workflowStageLabel} · ${versionCount} 个历史版本`
+      : `${workflowVersionLabel} · ${workflowStageLabel} · 尚未沉淀历史版本`;
+  const configSummary =
+    variablesCount > 0 || publishDraftCount > 0
+      ? `${variablesCount} 变量 · ${publishDraftCount} 个 publish 草案`
+      : "当前 definition 还没有变量或 publish 草案";
+  const governanceSummary =
+    missingToolCount > 0
+      ? `${missingToolCount} 个缺失工具引用 · ${definitionIssueCount} 个 definition 提示`
+      : `${governedToolCount} 个已治理工具 · ${definitionIssueCount} 个 definition 提示`;
+  const pendingCanvasDetail =
+    missingToolCount > 0
+      ? `当前还有 ${missingToolCount} 个工具引用待治理，优先去工具目录校对来源过滤，再回到画布处理节点配置。`
+      : definitionIssueCount > 0
+        ? `definition 预检已暴露 ${definitionIssueCount} 个提示；hydration 完成后优先在画布和属性栏里定位这些问题。`
+        : publishDraftCount > 0
+          ? `当前 definition 已带 ${publishDraftCount} 个 publish 草案；画布挂载后可继续编排，或直接跳去发布治理查看 endpoint 事实。`
+          : "当前先锁定 workflow 身份与跨 surface handoff；xyflow 画布、catalog 与 inspector 会在壳层之后按需挂载。";
+
+  return (
+    <section
+      className="panel-card panel-stack-gap"
+      data-component="workflow-editor-entry-shell"
+      data-workflow-id={workflow.id}
+      data-node-count={nodesCount}
+      data-edge-count={edgesCount}
+      data-variable-count={variablesCount}
+      data-publish-draft-count={publishDraftCount}
+      data-definition-issue-count={definitionIssueCount}
+      data-missing-tool-count={missingToolCount}
+    >
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">{surfaceCopy.eyebrow}</p>
+          <h2>{surfaceCopy.title}</h2>
+          <p>{surfaceCopy.description}</p>
+        </div>
+        <WorkbenchEntryLinks {...surfaceCopy.heroLinks} />
+      </div>
+
+      <div className="panel-muted">
+        <p>{surfaceCopy.readyStateDetail}</p>
+      </div>
+
+      <div className="section-actions">
+        <Link className="inline-link" href={toolsHref}>
+          {surfaceCopy.toolsLinkLabel}
+        </Link>
+        <Link className="inline-link secondary" href={surfaceHrefs.publish}>
+          {surfaceCopy.publishLinkLabel}
+        </Link>
+        <Link className="inline-link secondary" href={surfaceHrefs.logs}>
+          {surfaceCopy.logsLinkLabel}
+        </Link>
+        <Link className="inline-link secondary" href={surfaceHrefs.monitor}>
+          {surfaceCopy.monitorLinkLabel}
+        </Link>
+      </div>
+
+      <div className="dashboard-card-grid">
+        <article className="diagnostic-card">
+          <strong>{surfaceCopy.topologyLabel}</strong>
+          <p>{topologySummary}</p>
+        </article>
+        <article className="diagnostic-card">
+          <strong>{surfaceCopy.versionLabel}</strong>
+          <p>{versionSummary}</p>
+        </article>
+        <article className="diagnostic-card">
+          <strong>{surfaceCopy.configLabel}</strong>
+          <p>{configSummary}</p>
+        </article>
+        <article className="diagnostic-card">
+          <strong>{surfaceCopy.governanceLabel}</strong>
+          <p>{governanceSummary}</p>
+        </article>
+      </div>
+
+      <div className="panel-muted">
+        <strong>{surfaceCopy.canvasPendingLabel}</strong>
+        <p>{pendingCanvasDetail}</p>
+      </div>
+    </section>
   );
 }
 

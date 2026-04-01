@@ -1,7 +1,7 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState, type ComponentProps } from "react";
-import { ReactFlowProvider } from "@xyflow/react";
 
 import {
   getPaletteNodeCatalog,
@@ -9,7 +9,6 @@ import {
   sortWorkflowNodeCatalogForAuthoring
 } from "@/lib/workflow-node-catalog";
 
-import { WorkflowEditorCanvas } from "@/components/workflow-editor-workbench/workflow-editor-canvas";
 import { WorkflowEditorHero } from "@/components/workflow-editor-workbench/workflow-editor-hero";
 import { useWorkflowEditorShellState } from "@/components/workflow-editor-workbench/use-workflow-editor-shell-state";
 import { useWorkflowEditorPanels } from "@/components/workflow-editor-workbench/use-workflow-editor-panels";
@@ -29,7 +28,37 @@ import { useWorkflowRunOverlay } from "@/components/workflow-editor-workbench/us
 import { WorkflowEditorRunLauncherSurface } from "@/components/workflow-editor-workbench/workflow-editor-run-launcher-surface";
 import { WorkflowEditorInspector } from "@/components/workflow-editor-inspector";
 import { useWorkflowEditorRuntimeData } from "@/components/workflow-editor-workbench/use-workflow-editor-runtime-data";
+import type { WorkflowEditorCanvasProps } from "@/components/workflow-editor-workbench/workflow-editor-canvas";
 import type { WorkflowEditorWorkbenchProps } from "@/components/workflow-editor-workbench/types";
+
+const LazyWorkflowEditorCanvas = dynamic<WorkflowEditorCanvasProps>(
+  () =>
+    import("@/components/workflow-editor-workbench/workflow-editor-canvas").then(
+      (module) => module.WorkflowEditorCanvas
+    ),
+  {
+    ssr: false,
+    loading: () => <WorkflowEditorCanvasLoadingState />
+  }
+);
+
+function WorkflowEditorCanvasLoadingState() {
+  return (
+    <section className="editor-canvas-panel" data-component="workflow-editor-canvas-loading">
+      <div className="editor-canvas-card panel-stack-gap">
+        <div className="section-heading">
+          <div>
+            <h2>交互画布稍后挂载</h2>
+            <p>先稳定输出 editor chrome、节点目录摘要和 inspector 壳层，再接入 xyflow 画布。</p>
+          </div>
+        </div>
+        <div className="panel-muted">
+          <p>Hydration 完成后会继续挂载连线编辑、节点 quick-add、mini-map 与运行回放联动。</p>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export function WorkflowEditorWorkbench({
   workflow,
@@ -236,34 +265,30 @@ export function WorkflowEditorWorkbench({
     .join(" ");
 
   return (
-    <ReactFlowProvider>
-      <main className="editor-shell">
-        <WorkflowEditorHero {...panels.heroProps} />
+    <main className="editor-shell" data-component="workflow-editor-workbench">
+      <WorkflowEditorHero {...panels.heroProps} />
 
-        <section className={editorWorkspaceClassName}>
-          {shell.isSidebarCollapsed ? null : (
-            <WorkflowEditorSidebar {...panels.sidebarProps} />
-          )}
+      <section className={editorWorkspaceClassName}>
+        {shell.isSidebarCollapsed ? null : <WorkflowEditorSidebar {...panels.sidebarProps} />}
 
-          <WorkflowEditorCanvas
-            nodes={displayedNodes}
-            edges={graph.edges}
-            nodeTypes={canvasNodeTypes}
-            onNodesChange={graph.onNodesChange}
-            onEdgesChange={graph.onEdgesChange}
-            onConnect={graph.onConnect}
-            onSelectionChange={graph.handleSelectionChange}
-          />
+        <LazyWorkflowEditorCanvas
+          nodes={displayedNodes}
+          edges={graph.edges}
+          nodeTypes={canvasNodeTypes}
+          onNodesChange={graph.onNodesChange}
+          onEdgesChange={graph.onEdgesChange}
+          onConnect={graph.onConnect}
+          onSelectionChange={graph.handleSelectionChange}
+        />
 
-          {shell.isInspectorCollapsed ? null : (
-            <aside className="editor-inspector">
-              <WorkflowEditorInspector {...panels.inspectorProps} />
-            </aside>
-          )}
-        </section>
+        {shell.isInspectorCollapsed ? null : (
+          <aside className="editor-inspector">
+            <WorkflowEditorInspector {...panels.inspectorProps} />
+          </aside>
+        )}
+      </section>
 
-        <WorkflowEditorRunLauncherSurface {...panels.runLauncherSurfaceProps} />
-      </main>
-    </ReactFlowProvider>
+      <WorkflowEditorRunLauncherSurface {...panels.runLauncherSurfaceProps} />
+    </main>
   );
 }

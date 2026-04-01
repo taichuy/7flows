@@ -25,6 +25,8 @@ import { getWorkflowPublishGovernanceSnapshot } from "@/lib/get-workflow-publish
 import { getPluginRegistrySnapshot } from "@/lib/get-plugin-registry";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
+import { getWorkspaceModelProviderRegistry } from "@/lib/model-provider-registry";
+import { getWorkflows } from "@/lib/get-workflows";
 import {
   canAccessWorkflowStudioSurface,
   getWorkspaceConsolePageHref
@@ -82,10 +84,16 @@ vi.mock("@/components/workspace-shell", () => ({
 vi.mock("@/components/workflow-editor-workbench-entry", () => ({
   WorkflowEditorWorkbenchEntry: ({
     workflow,
-    bootstrapRequest
+    bootstrapRequest,
+    initialBootstrapData
   }: {
     workflow: { id: string };
     bootstrapRequest: { workflowId: string; surface: string };
+    initialBootstrapData?: {
+      workflows?: unknown[];
+      tools?: unknown[];
+      initialModelProviderConfigs?: unknown[];
+    } | null;
   }) =>
     createElement(
       "div",
@@ -93,7 +101,12 @@ vi.mock("@/components/workflow-editor-workbench-entry", () => ({
         "data-component": "workflow-editor-workbench-entry",
         "data-workflow-id": workflow.id,
         "data-bootstrap-workflow-id": bootstrapRequest.workflowId,
-        "data-bootstrap-surface": bootstrapRequest.surface
+        "data-bootstrap-surface": bootstrapRequest.surface,
+        "data-has-initial-bootstrap": initialBootstrapData ? "true" : "false",
+        "data-bootstrap-workflows-count": initialBootstrapData?.workflows?.length ?? 0,
+        "data-bootstrap-tools-count": initialBootstrapData?.tools?.length ?? 0,
+        "data-bootstrap-provider-config-count":
+          initialBootstrapData?.initialModelProviderConfigs?.length ?? 0
       },
       workflow.id
     )
@@ -203,12 +216,20 @@ vi.mock("@/lib/get-workflow-library", () => ({
   getWorkflowLibrarySnapshot: vi.fn()
 }));
 
+vi.mock("@/lib/get-workflows", () => ({
+  getWorkflows: vi.fn()
+}));
+
 vi.mock("@/lib/get-plugin-registry", () => ({
   getPluginRegistrySnapshot: vi.fn()
 }));
 
 vi.mock("@/lib/get-system-overview", () => ({
   getSystemOverview: vi.fn()
+}));
+
+vi.mock("@/lib/model-provider-registry", () => ({
+  getWorkspaceModelProviderRegistry: vi.fn()
 }));
 
 vi.mock("@/lib/get-workflow-publish-governance", () => ({
@@ -573,8 +594,67 @@ beforeEach(() => {
   );
   vi.mocked(getServerWorkflowDetail).mockResolvedValue({
     id: "workflow-1",
-    name: "Workflow 1"
+    name: "Workflow 1",
+    version: "0.1.0",
+    status: "draft",
+    created_at: "2026-04-01T08:00:00Z",
+    updated_at: "2026-04-01T09:00:00Z",
+    node_count: 2,
+    publish_count: 0,
+    tool_governance: {
+      referenced_tool_ids: ["tool-openai"],
+      missing_tool_ids: ["tool-missing-1"],
+      governed_tool_count: 1,
+      strong_isolation_tool_count: 0
+    },
+    versions: [
+      {
+        id: "workflow-1-v1",
+        workflow_id: "workflow-1",
+        version: "0.1.0",
+        created_at: "2026-04-01T08:00:00Z"
+      },
+      {
+        id: "workflow-1-v0",
+        workflow_id: "workflow-1",
+        version: "0.0.1",
+        created_at: "2026-03-31T08:00:00Z"
+      }
+    ],
+    definition: {
+      nodes: [
+        {
+          id: "node-1",
+          type: "trigger",
+          name: "Start"
+        },
+        {
+          id: "node-2",
+          type: "llm_agent",
+          name: "LLM Agent"
+        }
+      ],
+      edges: [
+        {
+          id: "edge-1",
+          sourceNodeId: "node-1",
+          targetNodeId: "node-2"
+        }
+      ],
+      variables: [{ key: "input" }],
+      publish: [{ endpoint: "/chat" }]
+    },
+    definition_issues: [
+      {
+        category: "tool_reference",
+        message: "Missing tool reference"
+      }
+    ]
   } as Awaited<ReturnType<typeof getServerWorkflowDetail>>);
+  vi.mocked(getWorkflows).mockResolvedValue([
+    { id: "workflow-1", name: "Workflow 1" },
+    { id: "workflow-2", name: "Workflow 2" }
+  ] as Awaited<ReturnType<typeof getWorkflows>>);
   vi.mocked(getWorkflowLibrarySnapshot).mockResolvedValue({
     nodes: [],
     starters: [],
@@ -602,6 +682,10 @@ beforeEach(() => {
       }
     }
   } as unknown as Awaited<ReturnType<typeof getSystemOverview>>);
+  vi.mocked(getWorkspaceModelProviderRegistry).mockResolvedValue({
+    catalog: [],
+    items: []
+  } as Awaited<ReturnType<typeof getWorkspaceModelProviderRegistry>>);
   vi.mocked(getServerWorkflowPublishedEndpoints).mockResolvedValue(
     [] as Awaited<ReturnType<typeof getServerWorkflowPublishedEndpoints>>
   );
@@ -669,14 +753,30 @@ describe("Workflow studio routes", () => {
     expect(html).toContain('data-component="workspace-shell"');
     expect(html).toContain('data-active-nav="workflows"');
     expect(html).toContain('data-layout="editor"');
+    expect(html).toContain('data-component="workflow-editor-entry-shell"');
     expect(html).toContain('data-component="workflow-editor-workbench-entry"');
+    expect(html).toContain('data-has-initial-bootstrap="true"');
+    expect(html).toContain('data-bootstrap-workflows-count="2"');
+    expect(html).toContain('data-bootstrap-provider-config-count="0"');
     expect(html).not.toContain('data-component="workflow-publish-panel"');
     expect(html).toContain('data-workflow-id="workflow-1"');
     expect(html).toContain('data-bootstrap-workflow-id="workflow-1"');
     expect(html).toContain('data-bootstrap-surface="editor"');
+    expect(html).toContain('data-node-count="2"');
+    expect(html).toContain('data-missing-tool-count="1"');
     expect(html).toContain("workflow-studio-shell-bar workflow-studio-shell-bar-compact");
     expect(html).toContain("Workflow 1");
     expect(html).toContain("draft only");
+    expect(html).toContain("xyflow Studio 首屏壳层");
+    expect(html).toContain("管理工具目录");
+    expect(html).toContain("查看发布治理");
+    expect(html).toContain("查看运行日志");
+    expect(html).toContain("查看实时监控");
+    expect(html).toContain("2 节点 · 1 连线");
+    expect(html).toContain("v0.1.0 · draft only · 2 个历史版本");
+    expect(html).toContain("1 变量 · 1 个 publish 草案");
+    expect(html).toContain("1 个缺失工具引用 · 1 个 definition 提示");
+    expect(html).toContain("当前还有 1 个工具引用待治理");
     expect(html).toContain("xyflow studio");
     expect(html).toContain("运行诊断");
     expect(html).toContain("Starter 模板");
@@ -687,10 +787,12 @@ describe("Workflow studio routes", () => {
     expect(html).toContain("/workflows/workflow-1/editor");
     expect(html).toContain("/workflows/workflow-1/publish");
     expect(html).not.toContain("?surface=");
+    expect(vi.mocked(getWorkflows)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getWorkflowLibrarySnapshot)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getPluginRegistrySnapshot)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getSystemOverview)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(getWorkspaceModelProviderRegistry)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(getServerWorkflowPublishedEndpoints)).not.toHaveBeenCalled();
-    expect(vi.mocked(getWorkflowLibrarySnapshot)).not.toHaveBeenCalled();
-    expect(vi.mocked(getPluginRegistrySnapshot)).not.toHaveBeenCalled();
-    expect(vi.mocked(getSystemOverview)).not.toHaveBeenCalled();
     expect(vi.mocked(getServerWorkflowPublishedEndpoints)).not.toHaveBeenCalled();
     expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).not.toHaveBeenCalled();
   });

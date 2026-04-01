@@ -5,6 +5,7 @@ import {
   buildAuthorFacingFollowUpSurfaceCopy,
   buildAuthorFacingRunDetailLinkSurface,
   buildAuthorFacingWorkflowDetailLinkSurface,
+  buildWorkflowEditorEntryShellSurfaceCopy,
   buildWorkflowEditorBootstrapLoadingSurfaceCopy,
   buildRunDetailExecutionFocusSurfaceCopy,
   buildRunDiagnosticsOperatorFollowUpSurfaceCopy,
@@ -32,11 +33,36 @@ describe("workbench entry surface copy", () => {
 
   it("centralizes editor bootstrap loading copy", () => {
     expect(buildWorkflowEditorBootstrapLoadingSurfaceCopy()).toEqual({
-      title: "正在准备 xyflow Studio",
-      summary: "编辑器岛会在基础 workflow 壳层渲染后按需挂载。",
+      title: "正在接入交互画布",
+      summary: "workflow 壳层与 handoff 已先输出；xyflow canvas 正在按需挂载。",
       detail:
-        "workflow inventory、catalog、plugin registry 与 system overview 会在最小 workflow 壳层之后按需补齐。"
+        "workflow inventory、catalog、plugin registry 与 system overview 会在 editor 首屏壳层之后按需补齐。"
     });
+  });
+
+  it("keeps workflow editor first-screen shell copy on the shared surface contract", () => {
+    const surfaceCopy = buildWorkflowEditorEntryShellSurfaceCopy({
+      workflowLibraryHref: "/workflows?track=%E5%BA%94%E7%94%A8",
+      createWorkflowHref: "/workflows/new?from=editor",
+      workspaceStarterLibraryHref: "/workspace-starters?needs_follow_up=true"
+    });
+
+    expect(surfaceCopy.heroLinks).toMatchObject({
+      keys: ["workflowLibrary", "createWorkflow", "workspaceStarterLibrary", "home"],
+      primaryKey: "workflowLibrary",
+      variant: "inline"
+    });
+    expect(surfaceCopy.heroLinks.overrides?.workflowLibrary?.href).toContain(
+      "track=%E5%BA%94%E7%94%A8"
+    );
+    expect(surfaceCopy.heroLinks.overrides?.workspaceStarterLibrary?.href).toContain(
+      "needs_follow_up=true"
+    );
+    expect(surfaceCopy.toolsLinkLabel).toBe("管理工具目录");
+    expect(surfaceCopy.publishLinkLabel).toBe("查看发布治理");
+    expect(surfaceCopy.logsLinkLabel).toBe("查看运行日志");
+    expect(surfaceCopy.monitorLinkLabel).toBe("查看实时监控");
+    expect(surfaceCopy.canvasPendingLabel).toBe("交互画布稍后挂载");
   });
 
   it("centralizes author-facing follow-up card titles", () => {
