@@ -51,14 +51,11 @@ export function WorkflowStarterBrowser({
         <div className="starter-browser-toolbar-copy">
           <p className="eyebrow">应用类型</p>
           <h3>选择一个起点</h3>
-          <p className="section-copy starter-track-copy">
-            {activeTrackPresentation.summary}
-          </p>
+          <p className="section-copy starter-track-copy">先定模式，再选 starter；右侧只做命名和进入 Studio。</p>
         </div>
         <div className="starter-browser-toolbar-pills">
           <span className="starter-browser-toolbar-pill">{activeTrackPresentation.label}</span>
           <span className="starter-browser-toolbar-pill">{starters.length} 个模板</span>
-          <span className="starter-browser-toolbar-pill starter-browser-toolbar-pill-focus">创建后直接进入画布</span>
         </div>
       </div>
 
@@ -119,9 +116,11 @@ export function WorkflowStarterBrowser({
                 </div>
 
                 <div className="starter-card-footer starter-list-row-footer">
-                  <span>{starterTrackPresentation.summary}</span>
+                  {starter.id === selectedStarterId ? <span>{starter.trackSummary}</span> : null}
                   <span className="starter-card-footer-action">
-                    {starter.id === selectedStarterId ? "已选中，可直接创建" : "选中后在右侧命名"}
+                    {starter.id === selectedStarterId
+                      ? "下一步：右侧命名并进入 Studio"
+                      : "选中后在右侧命名"}
                   </span>
                 </div>
               </div>

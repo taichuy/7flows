@@ -42,6 +42,12 @@ type WorkflowCreateSourceGovernancePresenter = {
   tagLabel: string;
 };
 
+type WorkflowCreatePrimarySummaryItem = {
+  detail: string;
+  label: string;
+  value: string;
+};
+
 type WorkflowCreatePreviewPanelProps = {
   governanceDisclosureStatus: string | null;
   isCreating: boolean;
@@ -97,22 +103,37 @@ function WorkflowCreatePreviewPanelComponent({
   onCreateWorkflow,
   onWorkflowNameChange
 }: WorkflowCreatePreviewPanelProps) {
+  const primarySummaryItems = buildWorkflowCreatePrimarySummaryItems({
+    selectedStarter,
+    selectedStarterTrackLabel,
+    workflowName
+  });
+
   return (
     <aside className="workflow-create-side" data-component="workflow-create-preview-panel">
       <div className="workflow-create-config-card">
         <div className="workflow-create-config-header">
           <p className="workspace-eyebrow">Step 2</p>
           <Title level={4} style={{ margin: "0 0 6px", color: "#111827" }}>
-            命名后进入画布
+            命名后进入 Studio
           </Title>
-          <Text type="secondary">右侧只保留创建动作，治理和草稿入口退到二级信息。</Text>
+          <Text type="secondary">先确认模式、starter、名称和去向；治理与草稿入口按需展开。</Text>
+        </div>
+
+        <div className="workflow-create-side-summary" aria-label="创建主链摘要">
+          {primarySummaryItems.map((item) => (
+            <div key={item.label}>
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+              <p>{item.detail}</p>
+            </div>
+          ))}
         </div>
 
         <div className="workflow-create-selected-card">
           <div className="workflow-create-selected-head">
             <div>
-              <div className="workflow-create-selected-title">{selectedStarter.name}</div>
-              <div className="workflow-create-selected-copy">{selectedStarter.description}</div>
+              <div className="workflow-create-selected-title">骨架与依赖</div>
             </div>
             <Tag color="blue" style={{ margin: 0 }}>
               {selectedStarterTrackLabel}
@@ -156,8 +177,8 @@ function WorkflowCreatePreviewPanelComponent({
           <div className="workflow-create-preview-header">
             <div>
               <p className="workspace-eyebrow">Studio preview</p>
-              <h3>创建后直接打开画布</h3>
-              <p>先落到 starter 骨架，细节配置回到 editor 继续处理。</p>
+              <h3>进入后先看到什么</h3>
+              <p>先落到 starter 骨架，再回 Studio 继续细化节点和配置。</p>
             </div>
           </div>
 
@@ -193,7 +214,7 @@ function WorkflowCreatePreviewPanelComponent({
           loading={isCreating}
           className="workflow-create-primary-button"
         >
-          创建并进入画布
+          创建草稿并进入 Studio
         </Button>
 
         {message ? (
@@ -215,8 +236,8 @@ function WorkflowCreatePreviewPanelComponent({
           <div className="workflow-create-side-section-header">
             <div>
               <p className="workspace-eyebrow">Utility links</p>
-              <h3>更多入口</h3>
-              <p>不压住创建动作时，再回到首页、模板治理或最近草稿。</p>
+              <h3>备用入口</h3>
+              <p>主链卡住时，再回首页、模板治理或最近草稿。</p>
             </div>
           </div>
           <span className="workflow-create-disclosure-status">
@@ -252,8 +273,8 @@ function WorkflowCreatePreviewPanelComponent({
             <div className="workflow-create-recent-header workflow-create-side-section-header">
               <div>
                 <p className="workspace-eyebrow">Recent drafts</p>
-                <h3>继续最近草稿</h3>
-                <p>已有接近的应用时，再展开续写而不是重复创建。</p>
+                <h3>已有草稿</h3>
+                <p>有接近的应用时，优先续写而不是重建。</p>
               </div>
             </div>
             <span className="workflow-create-disclosure-status">{totalWorkflows} 个草稿</span>
@@ -286,8 +307,8 @@ function WorkflowCreatePreviewPanelComponent({
         <details className="workflow-create-disclosure workflow-create-governance-card">
           <summary className="workflow-create-disclosure-summary">
             <div className="workflow-create-governance-header">
-              <div className="workflow-create-governance-eyebrow">Source governance</div>
-              <p>{surfaceCopy.sourceGovernanceDescription}</p>
+              <div className="workflow-create-governance-eyebrow">治理与来源</div>
+              <p>需要 refresh / rebase 或排查来源缺失时，再展开。</p>
             </div>
             {governanceDisclosureStatus ? (
               <span className="workflow-create-disclosure-status">{governanceDisclosureStatus}</span>
@@ -330,7 +351,10 @@ function WorkflowCreatePreviewPanelComponent({
                     {selectedStarterSourceGovernancePresenter.primarySignal ? (
                       <div>{selectedStarterSourceGovernancePresenter.primarySignal}</div>
                     ) : null}
-                    <div>{selectedStarterSourceGovernancePresenter.summary}</div>
+                    {selectedStarterSourceGovernancePresenter.summary !==
+                    selectedStarterNextStepSurface?.detail ? (
+                      <div>{selectedStarterSourceGovernancePresenter.summary}</div>
+                    ) : null}
                   </>
                 ) : null}
 
@@ -355,3 +379,38 @@ function WorkflowCreatePreviewPanelComponent({
 }
 
 export const WorkflowCreatePreviewPanel = memo(WorkflowCreatePreviewPanelComponent);
+
+function buildWorkflowCreatePrimarySummaryItems({
+  selectedStarter,
+  selectedStarterTrackLabel,
+  workflowName
+}: {
+  selectedStarter: WorkflowStarterTemplate;
+  selectedStarterTrackLabel: string;
+  workflowName: string;
+}): WorkflowCreatePrimarySummaryItem[] {
+  const trimmedWorkflowName = workflowName.trim();
+
+  return [
+    {
+      label: "应用模式",
+      value: selectedStarterTrackLabel,
+      detail: "决定当前从哪条作者主链开始创建。"
+    },
+    {
+      label: "当前 starter",
+      value: selectedStarter.name,
+      detail: selectedStarter.description
+    },
+    {
+      label: "应用名称",
+      value: trimmedWorkflowName || selectedStarter.defaultWorkflowName,
+      detail: trimmedWorkflowName ? "创建时会按这个名称生成草稿。" : "未填写时回退到默认名称。"
+    },
+    {
+      label: "创建后去向",
+      value: "Studio 编辑器",
+      detail: selectedStarter.recommendedNextStep
+    }
+  ];
+}

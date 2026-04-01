@@ -126,7 +126,7 @@ export function WorkflowCreateWizard({
           definition: structuredClone(selectedStarter.definition)
         });
 
-        setFeedback(`已创建 ${normalizedName}，正在进入 xyflow Studio...`, "success");
+        setFeedback(`已创建 ${normalizedName}，正在进入 Studio...`, "success");
         router.push(
           buildWorkflowEditorHrefFromWorkspaceStarterViewState(
             body.id,

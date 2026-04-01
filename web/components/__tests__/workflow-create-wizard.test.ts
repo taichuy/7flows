@@ -105,9 +105,13 @@ describe("WorkflowCreateWizard", () => {
     expect(html).toContain("创建一个应用");
     expect(html).toContain('data-component="workflow-create-launcher-panel"');
     expect(html).toContain('data-component="workflow-create-preview-panel"');
-    expect(html).toContain("命名后进入画布");
-    expect(html).toContain("创建并进入画布");
-    expect(html).toContain("创建后直接打开画布");
+    expect(html).toContain("命名后进入 Studio");
+    expect(html).toContain("创建草稿并进入 Studio");
+    expect(html).toContain("进入后先看到什么");
+    expect(html).toContain("应用模式");
+    expect(html).toContain("当前 starter");
+    expect(html).toContain("应用名称");
+    expect(html).toContain("创建后去向");
     expect(html).not.toContain("当前业务线");
   });
 
@@ -352,7 +356,7 @@ describe("WorkflowCreateWizard", () => {
       })
     );
 
-    expect(html).toContain("Source governance");
+    expect(html).toContain("治理与来源");
     expect(html).toContain("Recommended next step");
     expect(html).toContain("建议 refresh");
     expect(html).toContain("来源 workflow 0.2.0 相比模板快照 0.1.0 已有漂移。");
@@ -360,7 +364,6 @@ describe("WorkflowCreateWizard", () => {
       "Primary governed starter: Governed Workspace Starter · 建议 refresh · source 0.2.0."
     );
     expect(html).toContain("管理这个 workspace starter");
-    expect(html).not.toContain("下一步：");
     expect(html.match(/Recommended next step/g)?.length).toBe(1);
     expect(html).toContain(
       "/workspace-starters?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
@@ -470,7 +473,6 @@ describe("WorkflowCreateWizard", () => {
       "Primary governed starter: Fallback Workspace Starter · 建议 refresh · source 0.4.0."
     );
     expect(html).toContain("管理这个 workspace starter");
-    expect(html).not.toContain("下一步：");
   });
 
   it("shows the no-source clear state for workspace starters in the create flow", () => {
@@ -549,7 +551,7 @@ describe("WorkflowCreateWizard", () => {
       })
     );
 
-    expect(html).toContain("Source governance");
+    expect(html).toContain("治理与来源");
     expect(html).toContain("Recommended next step");
     expect(html).toContain("创建 workflow");
     expect(html).toContain("这个 starter 没有绑定来源 workflow，当前只保留模板快照。");
@@ -642,7 +644,7 @@ describe("WorkflowCreateWizard", () => {
     );
 
     expect(html).toContain(surfaceCopy.scopedGovernanceDescription);
-    expect(html).toContain(surfaceCopy.sourceGovernanceDescription);
+    expect(html).toContain("需要 refresh / rebase 或排查来源缺失时，再展开。");
     expect(html).toContain(surfaceCopy.scopedGovernanceBackLinkLabel);
     expect(html).toContain(
       "/workspace-starters?needs_follow_up=true&amp;q=drift&amp;source_governance_kind=drifted&amp;starter=workspace-starter-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"

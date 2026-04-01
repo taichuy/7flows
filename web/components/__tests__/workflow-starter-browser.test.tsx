@@ -66,6 +66,7 @@ describe("WorkflowStarterBrowser", () => {
     expect(html).toContain("ChatFlow 基础");
     expect(html).toContain("starter-list-row selected");
     expect(html).toContain("当前模板");
+    expect(html).toContain("下一步：右侧命名并进入 Studio");
     expect(html).toContain("选中后在右侧命名");
     expect(html).not.toContain("P0");
   });

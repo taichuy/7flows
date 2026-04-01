@@ -66,7 +66,7 @@ function WorkflowCreateLauncherPanelComponent({
 
           <div className="workflow-create-step-row" aria-label="应用创建步骤">
             <span className="workflow-create-step-pill active">1 选模板</span>
-            <span className="workflow-create-step-pill">2 命名并进入画布</span>
+            <span className="workflow-create-step-pill">2 命名并进入 Studio</span>
           </div>
 
           <div className="workflow-create-signal-row">
