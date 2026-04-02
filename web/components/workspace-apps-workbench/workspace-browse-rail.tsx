@@ -34,7 +34,8 @@ export function WorkspaceBrowseRail({
   requestedKeyword,
   searchState,
   focusedCreateHref,
-  workspaceUtilityEntry
+  workspaceUtilityEntry,
+  onOpenCreate
 }: {
   currentScopeSummary: string;
   modeTabs: WorkspaceModeTab[];
@@ -44,6 +45,7 @@ export function WorkspaceBrowseRail({
   searchState: WorkspaceAppSearchFormState;
   focusedCreateHref: string;
   workspaceUtilityEntry: WorkspaceQuickCreateEntry | null;
+  onOpenCreate: () => void;
 }) {
   return (
     <section
@@ -66,7 +68,8 @@ export function WorkspaceBrowseRail({
               {workspaceUtilityEntry ? (
                 <Button href={workspaceUtilityEntry.href}>{workspaceUtilityEntry.title}</Button>
               ) : null}
-              <Button href={focusedCreateHref} type="primary">
+              <Button href={focusedCreateHref}>全屏创建页</Button>
+              <Button onClick={onOpenCreate} type="primary">
                 创建应用
               </Button>
             </Space>
