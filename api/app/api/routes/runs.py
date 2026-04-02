@@ -84,6 +84,9 @@ def _enforce_trace_export_sensitive_access(
 def execute_workflow(
     workflow_id: str,
     payload: RunCreate,
+    _access_context=Depends(
+        require_console_route_access("/api/workflows/{workflow_id}/runs", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> RunOverview:
     workflow = db.get(Workflow, workflow_id)
@@ -156,6 +159,9 @@ def get_run_detail(
 def resume_run(
     run_id: str,
     payload: RunResumeRequest | None = None,
+    _access_context=Depends(
+        require_console_route_access("/api/runs/{run_id}/resume", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> RunResumeResponse:
     before_blocker = capture_callback_blocker_snapshot(db, run_id=run_id)

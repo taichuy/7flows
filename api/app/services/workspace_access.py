@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -43,6 +43,56 @@ CSRF_TOKEN_COOKIE_BASE_NAME = "sevenflows_csrf_token"
 CSRF_HEADER_NAME = "X-CSRF-Token"
 COOKIE_SAME_SITE = "lax"
 CONSOLE_ACCESS_LEVEL_RANK = {"guest": 0, "authenticated": 1, "manager": 2}
+WorkspaceAccessResource = Literal[
+    "workspace",
+    "workflow",
+    "run",
+    "published_endpoint",
+    "invocation",
+    "sensitive_resource",
+    "approval_ticket",
+]
+WorkspaceAccessAction = Literal["read", "write", "publish", "debug", "approve", "manage"]
+_ROLE_RESOURCE_ACTIONS: dict[
+    str, dict[WorkspaceAccessResource, frozenset[WorkspaceAccessAction]]
+] = {
+    "owner": {
+        "workspace": frozenset({"read", "manage"}),
+        "workflow": frozenset({"read", "write", "publish", "debug"}),
+        "run": frozenset({"read", "write", "debug"}),
+        "published_endpoint": frozenset({"read", "publish", "manage"}),
+        "invocation": frozenset({"read", "debug"}),
+        "sensitive_resource": frozenset({"read", "manage", "approve"}),
+        "approval_ticket": frozenset({"read", "approve", "manage"}),
+    },
+    "admin": {
+        "workspace": frozenset({"read", "manage"}),
+        "workflow": frozenset({"read", "write", "publish", "debug"}),
+        "run": frozenset({"read", "write", "debug"}),
+        "published_endpoint": frozenset({"read", "publish", "manage"}),
+        "invocation": frozenset({"read", "debug"}),
+        "sensitive_resource": frozenset({"read", "manage", "approve"}),
+        "approval_ticket": frozenset({"read", "approve", "manage"}),
+    },
+    "editor": {
+        "workspace": frozenset({"read"}),
+        "workflow": frozenset({"read", "write", "debug"}),
+        "run": frozenset({"read", "write", "debug"}),
+        "published_endpoint": frozenset({"read"}),
+        "invocation": frozenset({"read", "debug"}),
+        "sensitive_resource": frozenset({"read"}),
+        "approval_ticket": frozenset({"read"}),
+    },
+    "viewer": {
+        "workspace": frozenset({"read"}),
+        "workflow": frozenset({"read"}),
+        "run": frozenset({"read", "debug"}),
+        "published_endpoint": frozenset({"read"}),
+        "invocation": frozenset({"read"}),
+        "sensitive_resource": frozenset(),
+        "approval_ticket": frozenset(),
+    },
+}
 
 
 class WorkspaceAccessError(Exception):
@@ -90,6 +140,19 @@ class WorkspaceIssuedAuthTokens:
     csrf_token: str
     access_expires_at: datetime
     expires_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class ConsoleRouteAccessPolicy:
+    route: str
+    access_level: str
+    methods: tuple[str, ...]
+    description: str
+    csrf_protected_methods: tuple[str, ...] = ()
+    resource: WorkspaceAccessResource | None = None
+    action: WorkspaceAccessAction | None = None
+    denied_message: str | None = None
+    expose_in_contract: bool = True
 
 
 def _utc_now() -> datetime:
@@ -179,103 +242,222 @@ def get_workspace_auth_cookie_contract() -> ConsoleAuthCookieContract:
     )
 
 
-def _build_route_permission_item(
+def _build_route_access_policy(
     *,
     route: str,
     access_level: str,
     methods: list[str],
     description: str,
     csrf_protected_methods: list[str] | None = None,
-) -> ConsoleRoutePermissionItem:
-    return ConsoleRoutePermissionItem(
+    resource: WorkspaceAccessResource | None = None,
+    action: WorkspaceAccessAction | None = None,
+    denied_message: str | None = None,
+    expose_in_contract: bool = True,
+) -> ConsoleRouteAccessPolicy:
+    return ConsoleRouteAccessPolicy(
         route=route,
         access_level=access_level,
-        methods=methods,
-        csrf_protected_methods=csrf_protected_methods or [],
+        methods=tuple(methods),
+        csrf_protected_methods=tuple(csrf_protected_methods or []),
         description=description,
+        resource=resource,
+        action=action,
+        denied_message=denied_message,
+        expose_in_contract=expose_in_contract,
     )
 
 
-def build_workflow_surface_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
+def _serialize_route_access_policy(policy: ConsoleRouteAccessPolicy) -> ConsoleRoutePermissionItem:
+    return ConsoleRoutePermissionItem(
+        route=policy.route,
+        access_level=policy.access_level,
+        methods=list(policy.methods),
+        csrf_protected_methods=list(policy.csrf_protected_methods),
+        description=policy.description,
+    )
+
+
+def build_workflow_surface_route_access_policy_matrix() -> list[ConsoleRouteAccessPolicy]:
     return [
-        _build_route_permission_item(
+        _build_route_access_policy(
+            route="/api/workflows",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow library 列表，对已登录 workspace 成员开放。",
+            resource="workflow",
+            action="read",
+            expose_in_contract=False,
+        ),
+        _build_route_access_policy(
+            route="/api/workflows",
+            access_level="authenticated",
+            methods=["POST"],
+            description="创建 workflow 仅限可写成员。",
+            resource="workflow",
+            action="write",
+            expose_in_contract=False,
+        ),
+        _build_route_access_policy(
+            route="/api/workflows/{workflow_id}",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow overview，对已登录 workspace 成员开放。",
+            resource="workflow",
+            action="read",
+            expose_in_contract=False,
+        ),
+        _build_route_access_policy(
+            route="/api/workflows/{workflow_id}",
+            access_level="authenticated",
+            methods=["PUT"],
+            description="更新 workflow 仅限可写成员。",
+            resource="workflow",
+            action="write",
+            expose_in_contract=False,
+        ),
+        _build_route_access_policy(
+            route="/api/workflows/{workflow_id}/validate-definition",
+            access_level="authenticated",
+            methods=["POST"],
+            description="workflow definition 预检仅限可写成员。",
+            resource="workflow",
+            action="write",
+            expose_in_contract=False,
+        ),
+        _build_route_access_policy(
+            route="/api/workflows/{workflow_id}/versions",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow version 列表，对已登录 workspace 成员开放。",
+            resource="workflow",
+            action="read",
+            expose_in_contract=False,
+        ),
+        _build_route_access_policy(
             route="/api/workflows/{workflow_id}/detail",
             access_level="authenticated",
             methods=["GET"],
             description="workflow studio shared detail snapshot，对已登录 workspace 成员开放。",
+            resource="workflow",
+            action="read",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workflows/{workflow_id}/runs",
             access_level="authenticated",
             methods=["GET"],
             description="workflow logs surface 的 recent runs 摘要，对已登录 workspace 成员开放。",
+            resource="run",
+            action="read",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
+            route="/api/workflows/{workflow_id}/runs",
+            access_level="authenticated",
+            methods=["POST"],
+            description="执行 workflow 仅限可发起 run 的成员。",
+            resource="run",
+            action="write",
+            expose_in_contract=False,
+        ),
+        _build_route_access_policy(
             route="/api/workflows/{workflow_id}/published-endpoints",
             access_level="authenticated",
             methods=["GET"],
             description="workflow publish / api / monitor surface 共用的 published bindings 快照。",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations",
             access_level="authenticated",
             methods=["GET"],
             description="workflow publish / monitor surface 的 invocation activity 列表。",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations/export",
             access_level="authenticated",
             methods=["GET"],
             description="workflow publish activity 的导出入口，对已登录 workspace 成员开放。",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations/{invocation_id}",
             access_level="authenticated",
             methods=["GET"],
-            description="workflow publish activity detail 入口，后续仍可叠加 sensitive access gating。",
+            description=(
+                "workflow publish activity detail 入口，"
+                "后续仍可叠加 sensitive access gating。"
+            ),
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/runs/{run_id}",
             access_level="authenticated",
             methods=["GET"],
             description="workflow logs / diagnostics surface 的 run overview。",
+            resource="run",
+            action="read",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/runs/{run_id}/detail",
             access_level="authenticated",
             methods=["GET"],
             description="workflow logs surface 的 run detail。",
+            resource="run",
+            action="read",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
+            route="/api/runs/{run_id}/resume",
+            access_level="authenticated",
+            methods=["POST"],
+            description="恢复 waiting run 仅限可修改 run 的成员。",
+            resource="run",
+            action="write",
+            expose_in_contract=False,
+        ),
+        _build_route_access_policy(
             route="/api/runs/{run_id}/events",
             access_level="authenticated",
             methods=["GET"],
             description="workflow logs surface 的 run events。",
+            resource="run",
+            action="debug",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/runs/{run_id}/trace",
             access_level="authenticated",
             methods=["GET"],
             description="workflow logs surface 的 run trace。",
+            resource="run",
+            action="debug",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/runs/{run_id}/trace/export",
             access_level="authenticated",
             methods=["GET"],
             description="workflow logs surface 的 trace export。",
+            resource="run",
+            action="debug",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/runs/{run_id}/execution-view",
             access_level="authenticated",
             methods=["GET"],
             description="workflow logs surface 的 execution view。",
+            resource="run",
+            action="debug",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/runs/{run_id}/evidence-view",
             access_level="authenticated",
             methods=["GET"],
             description="workflow logs surface 的 evidence view。",
+            resource="run",
+            action="debug",
         ),
+    ]
+
+
+def build_workflow_surface_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
+    return [
+        _serialize_route_access_policy(policy)
+        for policy in build_workflow_surface_route_access_policy_matrix()
+        if policy.expose_in_contract
     ]
 
 
@@ -291,85 +473,91 @@ def _has_required_console_access_level(current_level: str, required_level: str) 
     return CONSOLE_ACCESS_LEVEL_RANK[current_level] >= CONSOLE_ACCESS_LEVEL_RANK[required_level]
 
 
-def resolve_console_route_permission(route: str, *, method: str) -> ConsoleRoutePermissionItem | None:
-    normalized_method = method.strip().upper()
-    for item in build_console_route_permission_matrix():
-        if item.route == route and normalized_method in item.methods:
-            return item
-    return None
-
-
-def ensure_console_route_access(
+def can_access(
     access_context: WorkspaceAccessContext,
     *,
-    route: str,
-    method: str,
-) -> ConsoleRoutePermissionItem:
-    permission = resolve_console_route_permission(route, method=method)
-    if permission is None:
-        raise AuthorizationError(f"工作台路由契约缺失：{method.upper()} {route}")
-
-    current_level = _get_console_access_level_for_role(access_context.member.role)
-    if not _has_required_console_access_level(current_level, permission.access_level):
-        raise AuthorizationError("当前账号没有访问该工作台路由的权限。")
-
-    return permission
+    action: WorkspaceAccessAction,
+    resource: WorkspaceAccessResource,
+) -> bool:
+    role = access_context.member.role.strip().lower()
+    return action in _ROLE_RESOURCE_ACTIONS.get(role, {}).get(resource, frozenset())
 
 
-def build_console_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
+def ensure_can_access(
+    access_context: WorkspaceAccessContext,
+    *,
+    action: WorkspaceAccessAction,
+    resource: WorkspaceAccessResource,
+    error_message: str,
+) -> None:
+    if not can_access(access_context, action=action, resource=resource):
+        raise AuthorizationError(error_message)
+
+
+def build_console_route_access_policy_matrix() -> list[ConsoleRouteAccessPolicy]:
     return [
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/auth/login",
             access_level="guest",
             methods=["POST"],
             description="访客登录入口，签发 access/refresh/csrf 三类令牌。",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/auth/session",
             access_level="authenticated",
             methods=["GET"],
             description="已登录会话快照，用于服务端路由守卫与当前用户恢复。",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/auth/refresh",
             access_level="authenticated",
             methods=["POST"],
             csrf_protected_methods=["POST"],
             description="已登录会话刷新入口，要求 refresh token 与 CSRF double-submit 同时成立。",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/auth/logout",
             access_level="authenticated",
             methods=["POST"],
             description="已登录会话撤销入口，允许使用 access 或 refresh token 主动失效当前会话。",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workspace/context",
             access_level="authenticated",
             methods=["GET"],
             description="console 主链工作空间上下文，供页面与服务端守卫复用。",
+            resource="workspace",
+            action="read",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workspace/members",
             access_level="authenticated",
             methods=["GET"],
             description="成员列表对所有已登录成员可见，供团队页与路由守卫恢复 workspace roster。",
+            resource="workspace",
+            action="read",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workspace/members",
             access_level="manager",
             methods=["POST"],
             csrf_protected_methods=["POST"],
             description="新增成员仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有成员管理权限。",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workspace/members/{member_id}",
             access_level="manager",
             methods=["PATCH"],
             csrf_protected_methods=["PATCH"],
             description="成员角色更新仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有成员管理权限。",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workspace/model-providers",
             access_level="authenticated",
             methods=["GET"],
@@ -377,8 +565,10 @@ def build_console_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
                 "workspace 原生模型供应商 registry 快照，对已登录成员开放只读，"
                 "供 team settings 与后续节点表单消费。"
             ),
+            resource="workspace",
+            action="read",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workspace/model-providers/settings",
             access_level="manager",
             methods=["GET"],
@@ -386,8 +576,11 @@ def build_console_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
                 "团队模型供应商 settings 聚合读取面，仅 owner/admin 可见，"
                 "供 provider settings SSR 在权限成立后再读取敏感 credential 列表。"
             ),
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有团队模型供应商管理权限。",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workspace/model-providers",
             access_level="manager",
             methods=["POST"],
@@ -396,8 +589,11 @@ def build_console_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
                 "新增 workspace 模型供应商配置仅 owner/admin 可调用，"
                 "并要求 CSRF double-submit。"
             ),
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有团队模型供应商管理权限。",
         ),
-        _build_route_permission_item(
+        _build_route_access_policy(
             route="/api/workspace/model-providers/{provider_config_id}",
             access_level="manager",
             methods=["PUT", "DELETE"],
@@ -406,8 +602,67 @@ def build_console_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
                 "更新或停用 workspace 模型供应商配置仅 owner/admin 可调用，"
                 "并要求 CSRF double-submit。"
             ),
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有团队模型供应商管理权限。",
         ),
-        *build_workflow_surface_route_permission_matrix(),
+        *build_workflow_surface_route_access_policy_matrix(),
+    ]
+
+
+def resolve_console_route_access_policy(
+    route: str,
+    *,
+    method: str,
+) -> ConsoleRouteAccessPolicy | None:
+    normalized_method = method.strip().upper()
+    for item in build_console_route_access_policy_matrix():
+        if item.route == route and normalized_method in item.methods:
+            return item
+    return None
+
+
+def resolve_console_route_permission(
+    route: str,
+    *,
+    method: str,
+) -> ConsoleRoutePermissionItem | None:
+    policy = resolve_console_route_access_policy(route, method=method)
+    if policy is None or not policy.expose_in_contract:
+        return None
+    return _serialize_route_access_policy(policy)
+
+
+def ensure_console_route_access(
+    access_context: WorkspaceAccessContext,
+    *,
+    route: str,
+    method: str,
+) -> ConsoleRoutePermissionItem:
+    policy = resolve_console_route_access_policy(route, method=method)
+    if policy is None:
+        raise AuthorizationError(f"工作台路由契约缺失：{method.upper()} {route}")
+
+    if policy.resource is not None and policy.action is not None:
+        ensure_can_access(
+            access_context,
+            action=policy.action,
+            resource=policy.resource,
+            error_message=policy.denied_message or "当前账号没有访问该工作台路由的权限。",
+        )
+    else:
+        current_level = _get_console_access_level_for_role(access_context.member.role)
+        if not _has_required_console_access_level(current_level, policy.access_level):
+            raise AuthorizationError("当前账号没有访问该工作台路由的权限。")
+
+    return _serialize_route_access_policy(policy)
+
+
+def build_console_route_permission_matrix() -> list[ConsoleRoutePermissionItem]:
+    return [
+        _serialize_route_access_policy(policy)
+        for policy in build_console_route_access_policy_matrix()
+        if policy.expose_in_contract
     ]
 
 
@@ -744,13 +999,21 @@ def validate_workspace_csrf_token(
 
 
 def ensure_can_manage_members(access_context: WorkspaceAccessContext) -> None:
-    if access_context.member.role not in MANAGE_MEMBER_ROLES:
-        raise AuthorizationError("当前账号没有成员管理权限。")
+    ensure_can_access(
+        access_context,
+        action="manage",
+        resource="workspace",
+        error_message="当前账号没有成员管理权限。",
+    )
 
 
 def ensure_can_manage_model_providers(access_context: WorkspaceAccessContext) -> None:
-    if access_context.member.role not in MANAGE_MEMBER_ROLES:
-        raise AuthorizationError("当前账号没有团队模型供应商管理权限。")
+    ensure_can_access(
+        access_context,
+        action="manage",
+        resource="workspace",
+        error_message="当前账号没有团队模型供应商管理权限。",
+    )
 
 
 def list_workspace_members(db: Session, *, workspace_id: str) -> list[WorkspaceMemberRecord]:

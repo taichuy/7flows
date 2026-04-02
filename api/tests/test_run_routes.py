@@ -75,6 +75,29 @@ def _bound_tool_definition(*, tool_id: str, ecosystem: str) -> dict:
     }
 
 
+def _login(client: TestClient, *, email: str, password: str) -> dict[str, object]:
+    response = client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+    )
+    assert response.status_code == 200
+    return response.json()
+
+
+def _auth_headers(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _csrf_headers(login_body: dict[str, object]) -> dict[str, str]:
+    cookie_contract = login_body["cookie_contract"]
+    assert isinstance(cookie_contract, dict)
+    csrf_header_name = cookie_contract["csrf_header_name"]
+    assert isinstance(csrf_header_name, str)
+    csrf_token = login_body["csrf_token"]
+    assert isinstance(csrf_token, str)
+    return {csrf_header_name: csrf_token}
+
+
 def _get_run_detail_json(
     client: TestClient,
     run_id: str,
@@ -2648,3 +2671,47 @@ def test_run_utility_routes_require_workspace_console_access(
     for path in protected_paths:
         response = client.get(path, headers=auth_headers)
         assert response.status_code == 200, path
+
+
+def test_execute_workflow_route_requires_run_write_access(
+    client: TestClient,
+    sample_workflow: Workflow,
+) -> None:
+    owner_login = _login(client, email="admin@taichuy.com", password="admin123")
+    for payload in (
+        {
+            "email": "editor-runs@taichuy.com",
+            "display_name": "Editor Runs",
+            "password": "editor123",
+            "role": "editor",
+        },
+        {
+            "email": "viewer-runs@taichuy.com",
+            "display_name": "Viewer Runs",
+            "password": "viewer123",
+            "role": "viewer",
+        },
+    ):
+        response = client.post(
+            "/api/workspace/members",
+            headers=_csrf_headers(owner_login),
+            json=payload,
+        )
+        assert response.status_code == 201
+
+    viewer_login = _login(client, email="viewer-runs@taichuy.com", password="viewer123")
+    viewer_response = client.post(
+        f"/api/workflows/{sample_workflow.id}/runs",
+        headers=_auth_headers(str(viewer_login["access_token"])),
+        json={"input_payload": {"message": "viewer should fail"}},
+    )
+    assert viewer_response.status_code == 403
+    assert viewer_response.json()["detail"] == "当前账号没有访问该工作台路由的权限。"
+
+    editor_login = _login(client, email="editor-runs@taichuy.com", password="editor123")
+    editor_response = client.post(
+        f"/api/workflows/{sample_workflow.id}/runs",
+        headers=_auth_headers(str(editor_login["access_token"])),
+        json={"input_payload": {"message": "editor can execute"}},
+    )
+    assert editor_response.status_code == 201

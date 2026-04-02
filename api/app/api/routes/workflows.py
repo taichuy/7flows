@@ -170,13 +170,18 @@ def _normalize_llm_provider_config_references(
 @router.get("", response_model=list[WorkflowListItem])
 def list_workflows(
     definition_issue: WorkflowListDefinitionIssueFilter | None = Query(default=None),
+    _access_context=Depends(require_console_route_access("/api/workflows")),
     db: Session = Depends(get_db),
 ) -> list[WorkflowListItem]:
     return list_workflow_items(db, definition_issue=definition_issue)
 
 
 @router.post("", response_model=WorkflowDetail, status_code=status.HTTP_201_CREATED)
-def create_workflow(payload: WorkflowCreate, db: Session = Depends(get_db)) -> WorkflowDetail:
+def create_workflow(
+    payload: WorkflowCreate,
+    _access_context=Depends(require_console_route_access("/api/workflows", method="POST")),
+    db: Session = Depends(get_db),
+) -> WorkflowDetail:
     try:
         definition, _ = _validate_workflow_definition_for_persistence(
             db,
@@ -202,7 +207,11 @@ def create_workflow(payload: WorkflowCreate, db: Session = Depends(get_db)) -> W
 
 
 @router.get("/{workflow_id}", response_model=WorkflowOverview)
-def get_workflow(workflow_id: str, db: Session = Depends(get_db)) -> WorkflowOverview:
+def get_workflow(
+    workflow_id: str,
+    _access_context=Depends(require_console_route_access("/api/workflows/{workflow_id}")),
+    db: Session = Depends(get_db),
+) -> WorkflowOverview:
     workflow = db.get(Workflow, workflow_id)
     if workflow is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
@@ -227,6 +236,9 @@ def get_workflow_detail(
 def update_workflow(
     workflow_id: str,
     payload: WorkflowUpdate,
+    _access_context=Depends(
+        require_console_route_access("/api/workflows/{workflow_id}", method="PUT")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkflowDetail:
     workflow = db.get(Workflow, workflow_id)
@@ -269,6 +281,12 @@ def update_workflow(
 def validate_workflow_definition_preflight(
     workflow_id: str,
     payload: WorkflowDefinitionPreflightRequest,
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/workflows/{workflow_id}/validate-definition",
+            method="POST",
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> WorkflowDefinitionPreflightResult:
     workflow = db.get(Workflow, workflow_id)
@@ -294,6 +312,7 @@ def validate_workflow_definition_preflight(
 @router.get("/{workflow_id}/versions", response_model=list[WorkflowVersionItem])
 def list_workflow_versions(
     workflow_id: str,
+    _access_context=Depends(require_console_route_access("/api/workflows/{workflow_id}/versions")),
     db: Session = Depends(get_db),
 ) -> list[WorkflowVersionItem]:
     workflow = db.get(Workflow, workflow_id)

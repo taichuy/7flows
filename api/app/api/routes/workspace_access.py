@@ -2,8 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.routes.auth import (
-    get_authenticated_access_context,
-    get_authenticated_write_access_context,
+    require_console_route_access,
 )
 from app.core.database import get_db
 from app.schemas.workspace_access import (
@@ -15,10 +14,10 @@ from app.schemas.workspace_access import (
     WorkspaceMemberRoleUpdateRequest,
 )
 from app.services.workspace_access import (
-    AuthorizationError,
     ConflictError,
     WorkspaceAccessContext,
     build_console_route_permission_matrix,
+    can_access,
     create_workspace_member,
     get_workspace_auth_cookie_contract,
     get_workspace_user_index,
@@ -62,7 +61,7 @@ def _serialize_workspace_context(
         current_user=_serialize_user(access_context.user),
         current_member=_serialize_member(access_context.member, user=access_context.user),
         available_roles=["owner", "admin", "editor", "viewer"],
-        can_manage_members=access_context.member.role in {"owner", "admin"},
+        can_manage_members=can_access(access_context, action="manage", resource="workspace"),
         cookie_contract=get_workspace_auth_cookie_contract(),
         route_permissions=build_console_route_permission_matrix(),
     )
@@ -70,14 +69,18 @@ def _serialize_workspace_context(
 
 @router.get("/context", response_model=WorkspaceContextResponse)
 def get_workspace_context(
-    access_context: WorkspaceAccessContext = Depends(get_authenticated_access_context),
+    access_context: WorkspaceAccessContext = Depends(
+        require_console_route_access("/api/workspace/context")
+    ),
 ) -> WorkspaceContextResponse:
     return _serialize_workspace_context(access_context)
 
 
 @router.get("/members", response_model=list[WorkspaceMemberItem])
 def get_workspace_members(
-    access_context: WorkspaceAccessContext = Depends(get_authenticated_access_context),
+    access_context: WorkspaceAccessContext = Depends(
+        require_console_route_access("/api/workspace/members")
+    ),
     db: Session = Depends(get_db),
 ) -> list[WorkspaceMemberItem]:
     members = list_workspace_members(db, workspace_id=access_context.workspace.id)
@@ -92,7 +95,9 @@ def get_workspace_members(
 @router.post("/members", response_model=WorkspaceMemberItem, status_code=status.HTTP_201_CREATED)
 def create_member(
     payload: WorkspaceMemberCreateRequest,
-    access_context: WorkspaceAccessContext = Depends(get_authenticated_write_access_context),
+    access_context: WorkspaceAccessContext = Depends(
+        require_console_route_access("/api/workspace/members", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceMemberItem:
     try:
@@ -104,8 +109,6 @@ def create_member(
             password=payload.password,
             role=payload.role,
         )
-    except AuthorizationError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except ConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 
@@ -119,7 +122,9 @@ def create_member(
 def update_member_role(
     member_id: str,
     payload: WorkspaceMemberRoleUpdateRequest,
-    access_context: WorkspaceAccessContext = Depends(get_authenticated_write_access_context),
+    access_context: WorkspaceAccessContext = Depends(
+        require_console_route_access("/api/workspace/members/{member_id}", method="PATCH")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceMemberItem:
     try:
@@ -129,8 +134,6 @@ def update_member_role(
             member_id=member_id,
             role=payload.role,
         )
-    except AuthorizationError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except ConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
 

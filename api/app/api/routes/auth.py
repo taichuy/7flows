@@ -30,6 +30,7 @@ from app.services.workspace_access import (
     get_workspace_refresh_cookie_name,
     issue_workspace_auth_tokens,
     refresh_workspace_session,
+    resolve_console_route_access_policy,
     revoke_workspace_session,
     validate_workspace_csrf_token,
 )
@@ -196,8 +197,13 @@ def get_authenticated_access_context(
 
 
 def require_console_route_access(route: str, *, method: str = "GET"):
+    policy = resolve_console_route_access_policy(route, method=method)
+    access_context_dependency = get_authenticated_access_context
+    if policy is not None and method.strip().upper() in policy.csrf_protected_methods:
+        access_context_dependency = get_authenticated_write_access_context
+
     def dependency(
-        access_context: WorkspaceAccessContext = Depends(get_authenticated_access_context),
+        access_context: WorkspaceAccessContext = Depends(access_context_dependency),
     ) -> WorkspaceAccessContext:
         try:
             ensure_console_route_access(

@@ -1,10 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.api.routes.auth import (
-    get_authenticated_access_context,
-    get_authenticated_write_access_context,
-)
+from app.api.routes.auth import require_console_route_access
 from app.core.database import get_db
 from app.schemas.credential import CredentialItem
 from app.schemas.model_provider import (
@@ -25,9 +22,7 @@ from app.services.model_provider_registry import (
     build_credential_ref,
 )
 from app.services.workspace_access import (
-    AuthorizationError,
     WorkspaceAccessContext,
-    ensure_can_manage_model_providers,
 )
 
 router = APIRouter(prefix="/workspace/model-providers", tags=["workspace-model-providers"])
@@ -143,12 +138,10 @@ def _serialize_registry_response(
     )
 
 
-def _raise_registry_error(exc: ModelProviderRegistryError | AuthorizationError) -> None:
+def _raise_registry_error(exc: ModelProviderRegistryError) -> None:
     detail = str(exc)
     status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
-    if isinstance(exc, AuthorizationError):
-        status_code = status.HTTP_403_FORBIDDEN
-    elif "不存在" in detail or "not found" in detail.lower():
+    if "不存在" in detail or "not found" in detail.lower():
         status_code = status.HTTP_404_NOT_FOUND
     raise HTTPException(status_code=status_code, detail=detail) from exc
 
@@ -156,7 +149,9 @@ def _raise_registry_error(exc: ModelProviderRegistryError | AuthorizationError) 
 @router.get("", response_model=WorkspaceModelProviderRegistryResponse)
 def get_workspace_model_provider_registry(
     include_inactive: bool = Query(default=True),
-    access_context: WorkspaceAccessContext = Depends(get_authenticated_access_context),
+    access_context: WorkspaceAccessContext = Depends(
+        require_console_route_access("/api/workspace/model-providers")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceModelProviderRegistryResponse:
     return _serialize_registry_response(
@@ -169,14 +164,11 @@ def get_workspace_model_provider_registry(
 @router.get("/settings", response_model=WorkspaceModelProviderSettingsResponse)
 def get_workspace_model_provider_settings(
     include_inactive: bool = Query(default=True),
-    access_context: WorkspaceAccessContext = Depends(get_authenticated_access_context),
+    access_context: WorkspaceAccessContext = Depends(
+        require_console_route_access("/api/workspace/model-providers/settings")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceModelProviderSettingsResponse:
-    try:
-        ensure_can_manage_model_providers(access_context)
-    except AuthorizationError as exc:
-        _raise_registry_error(exc)
-
     credentials = credential_store.list_credentials(db, include_revoked=False)
     sensitive_resource_map = credential_store.list_sensitive_resources(
         db,
@@ -205,11 +197,12 @@ def get_workspace_model_provider_settings(
 )
 def create_workspace_model_provider_config(
     payload: WorkspaceModelProviderConfigCreateRequest,
-    access_context: WorkspaceAccessContext = Depends(get_authenticated_write_access_context),
+    access_context: WorkspaceAccessContext = Depends(
+        require_console_route_access("/api/workspace/model-providers", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceModelProviderConfigItem:
     try:
-        ensure_can_manage_model_providers(access_context)
         record = registry_service.create_provider_config(
             db,
             workspace_id=access_context.workspace.id,
@@ -222,7 +215,7 @@ def create_workspace_model_provider_config(
             protocol=payload.protocol,
             status=payload.status,
         )
-    except (ModelProviderRegistryError, AuthorizationError) as exc:
+    except ModelProviderRegistryError as exc:
         _raise_registry_error(exc)
     db.commit()
     db.refresh(record)
@@ -241,11 +234,15 @@ def create_workspace_model_provider_config(
 def update_workspace_model_provider_config(
     provider_config_id: str,
     payload: WorkspaceModelProviderConfigUpdateRequest,
-    access_context: WorkspaceAccessContext = Depends(get_authenticated_write_access_context),
+    access_context: WorkspaceAccessContext = Depends(
+        require_console_route_access(
+            "/api/workspace/model-providers/{provider_config_id}",
+            method="PUT",
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceModelProviderConfigItem:
     try:
-        ensure_can_manage_model_providers(access_context)
         record = registry_service.update_provider_config(
             db,
             workspace_id=access_context.workspace.id,
@@ -259,7 +256,7 @@ def update_workspace_model_provider_config(
             protocol=payload.protocol,
             status=payload.status,
         )
-    except (ModelProviderRegistryError, AuthorizationError) as exc:
+    except ModelProviderRegistryError as exc:
         _raise_registry_error(exc)
     db.commit()
     db.refresh(record)
@@ -277,17 +274,21 @@ def update_workspace_model_provider_config(
 @router.delete("/{provider_config_id}", response_model=WorkspaceModelProviderConfigItem)
 def deactivate_workspace_model_provider_config(
     provider_config_id: str,
-    access_context: WorkspaceAccessContext = Depends(get_authenticated_write_access_context),
+    access_context: WorkspaceAccessContext = Depends(
+        require_console_route_access(
+            "/api/workspace/model-providers/{provider_config_id}",
+            method="DELETE",
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceModelProviderConfigItem:
     try:
-        ensure_can_manage_model_providers(access_context)
         record = registry_service.deactivate_provider_config(
             db,
             workspace_id=access_context.workspace.id,
             provider_config_id=provider_config_id,
         )
-    except (ModelProviderRegistryError, AuthorizationError) as exc:
+    except ModelProviderRegistryError as exc:
         _raise_registry_error(exc)
     db.commit()
     db.refresh(record)

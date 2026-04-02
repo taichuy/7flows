@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from app.services.workspace_access import (
     AuthorizationError,
+    can_access,
     ensure_console_route_access,
     get_workspace_access_context,
 )
@@ -215,6 +216,7 @@ def test_console_route_access_resolver_covers_workflow_surface_contracts(
         method="GET",
     )
     assert workflow_permission.access_level == "authenticated"
+    assert can_access(owner_context, action="manage", resource="workspace") is True
 
     provider_settings_permission = ensure_console_route_access(
         owner_context,
@@ -222,6 +224,18 @@ def test_console_route_access_resolver_covers_workflow_surface_contracts(
         method="GET",
     )
     assert provider_settings_permission.access_level == "manager"
+
+    create_response = client.post(
+        "/api/workspace/members",
+        headers=_csrf_headers(owner_login),
+        json={
+            "email": "editor-route@taichuy.com",
+            "display_name": "Editor Route",
+            "password": "editor123",
+            "role": "editor",
+        },
+    )
+    assert create_response.status_code == 201
 
     create_response = client.post(
         "/api/workspace/members",
@@ -235,10 +249,39 @@ def test_console_route_access_resolver_covers_workflow_surface_contracts(
     )
     assert create_response.status_code == 201
 
+    editor_login = _login(client, email="editor-route@taichuy.com", password="editor123")
+    editor_context = get_workspace_access_context(
+        sqlite_session,
+        token=editor_login["access_token"],
+    )
     viewer_login = _login(client, email="viewer-route@taichuy.com", password="viewer123")
     viewer_context = get_workspace_access_context(
         sqlite_session,
         token=viewer_login["access_token"],
+    )
+
+    assert can_access(editor_context, action="write", resource="workflow") is True
+    assert can_access(editor_context, action="write", resource="run") is True
+    assert can_access(editor_context, action="manage", resource="workspace") is False
+    assert can_access(viewer_context, action="read", resource="workflow") is True
+    assert can_access(viewer_context, action="debug", resource="run") is True
+    assert can_access(viewer_context, action="write", resource="workflow") is False
+    assert can_access(viewer_context, action="write", resource="run") is False
+
+    ensure_console_route_access(
+        editor_context,
+        route="/api/workflows",
+        method="POST",
+    )
+    ensure_console_route_access(
+        editor_context,
+        route="/api/workflows/{workflow_id}/validate-definition",
+        method="POST",
+    )
+    ensure_console_route_access(
+        editor_context,
+        route="/api/workflows/{workflow_id}/runs",
+        method="POST",
     )
 
     ensure_console_route_access(
@@ -247,11 +290,25 @@ def test_console_route_access_resolver_covers_workflow_surface_contracts(
         method="GET",
     )
 
-    with pytest.raises(AuthorizationError, match="当前账号没有访问该工作台路由的权限。"):
+    with pytest.raises(AuthorizationError, match="当前账号没有团队模型供应商管理权限。"):
         ensure_console_route_access(
             viewer_context,
             route="/api/workspace/model-providers/settings",
             method="GET",
+        )
+
+    with pytest.raises(AuthorizationError, match="当前账号没有访问该工作台路由的权限。"):
+        ensure_console_route_access(
+            viewer_context,
+            route="/api/workflows",
+            method="POST",
+        )
+
+    with pytest.raises(AuthorizationError, match="当前账号没有访问该工作台路由的权限。"):
+        ensure_console_route_access(
+            viewer_context,
+            route="/api/workflows/{workflow_id}/runs",
+            method="POST",
         )
 
 
