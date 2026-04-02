@@ -17,6 +17,7 @@ from app.core.config import get_settings
 from app.models.workflow import Workflow
 from app.models.workspace_access import (
     AuthSessionRecord,
+    ExternalIdentityBindingRecord,
     UserAccountRecord,
     WorkspaceMemberRecord,
     WorkspaceRecord,
@@ -142,6 +143,14 @@ class WorkspaceIssuedAuthTokens:
     expires_at: datetime
 
 
+@dataclass(slots=True)
+class ResolvedExternalIdentity:
+    binding: ExternalIdentityBindingRecord
+    workspace: WorkspaceRecord
+    user: UserAccountRecord
+    member: WorkspaceMemberRecord
+
+
 @dataclass(frozen=True, slots=True)
 class ConsoleRouteAccessPolicy:
     route: str
@@ -195,6 +204,20 @@ def _verify_password(password: str, password_hash: str) -> bool:
 def _build_display_name_from_email(email: str) -> str:
     local_part = email.split("@", 1)[0].strip()
     return local_part or email
+
+
+def _normalize_external_identity_provider(provider: str) -> str:
+    normalized = provider.strip().lower()
+    if not normalized:
+        raise AuthenticationError("外部身份 provider 缺失。")
+    return normalized
+
+
+def _normalize_external_identity_subject(subject: str) -> str:
+    normalized = subject.strip()
+    if not normalized:
+        raise AuthenticationError("外部身份 subject 缺失。")
+    return normalized
 
 
 def _auth_cookie_secure() -> bool:
@@ -837,6 +860,80 @@ def ensure_default_workspace_access_seed(db: Session) -> None:
             )
         )
         db.flush()
+
+
+def resolve_external_identity_binding(
+    db: Session,
+    *,
+    provider: str,
+    subject: str,
+    email: str | None = None,
+    email_verified: bool = False,
+) -> ResolvedExternalIdentity:
+    ensure_default_workspace_access_seed(db)
+    normalized_provider = _normalize_external_identity_provider(provider)
+    normalized_subject = _normalize_external_identity_subject(subject)
+    workspace = db.get(WorkspaceRecord, DEFAULT_WORKSPACE_ID)
+    if workspace is None:
+        raise AuthenticationError("默认工作空间不存在。")
+
+    binding = db.scalar(
+        select(ExternalIdentityBindingRecord).where(
+            ExternalIdentityBindingRecord.provider == normalized_provider,
+            ExternalIdentityBindingRecord.subject == normalized_subject,
+        )
+    )
+
+    if binding is None:
+        normalized_email = (email or "").strip().lower()
+        if not normalized_email or not email_verified:
+            raise AuthenticationError("当前外部身份尚未完成可信邮箱绑定。")
+
+        user = db.scalar(
+            select(UserAccountRecord).where(UserAccountRecord.email == normalized_email)
+        )
+        if user is None:
+            raise AuthenticationError("当前外部身份还没有绑定到 7Flows 账号。")
+
+        existing_provider_binding = db.scalar(
+            select(ExternalIdentityBindingRecord).where(
+                ExternalIdentityBindingRecord.provider == normalized_provider,
+                ExternalIdentityBindingRecord.user_id == user.id,
+            )
+        )
+        if existing_provider_binding is not None:
+            raise AuthenticationError("当前账号已经绑定了另一个外部身份。")
+
+        binding = ExternalIdentityBindingRecord(
+            id=_generate_identifier(),
+            provider=normalized_provider,
+            subject=normalized_subject,
+            user_id=user.id,
+        )
+        db.add(binding)
+        db.flush()
+    else:
+        user = db.get(UserAccountRecord, binding.user_id)
+        if user is None:
+            raise AuthenticationError("当前外部身份绑定已失效。")
+        binding.updated_at = _utc_now()
+        db.flush()
+
+    member = db.scalar(
+        select(WorkspaceMemberRecord).where(
+            WorkspaceMemberRecord.workspace_id == workspace.id,
+            WorkspaceMemberRecord.user_id == user.id,
+        )
+    )
+    if member is None:
+        raise AuthenticationError("当前账号尚未加入默认工作空间。")
+
+    return ResolvedExternalIdentity(
+        binding=binding,
+        workspace=workspace,
+        user=user,
+        member=member,
+    )
 
 
 def authenticate_workspace_user(

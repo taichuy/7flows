@@ -24,6 +24,13 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://postgres:sevenflows@localhost:35432/sevenflows"
     )
     redis_url: str = Field(default="redis://:sevenflows@localhost:36379/0")
+    oidc_enabled: bool = False
+    oidc_provider: str = "zitadel"
+    oidc_issuer: str = ""
+    oidc_client_id: str = ""
+    oidc_client_secret: str = ""
+    oidc_redirect_uri: str = ""
+    oidc_scopes: str = "openid profile email"
 
     s3_endpoint: str = "http://localhost:39000"
     s3_access_key: str = "rustfsadmin"

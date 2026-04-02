@@ -1,11 +1,18 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 
+from app.models.workspace_access import AuthSessionRecord, ExternalIdentityBindingRecord
 from app.services.workspace_access import (
+    AuthenticationError,
     AuthorizationError,
+    WorkspaceAccessContext,
     can_access,
     ensure_console_route_access,
     get_workspace_access_context,
+    resolve_external_identity_binding,
 )
 
 
@@ -24,6 +31,22 @@ def _auth_headers(token: str) -> dict[str, str]:
 
 def _csrf_headers(login_body: dict) -> dict[str, str]:
     return {login_body["cookie_contract"]["csrf_header_name"]: login_body["csrf_token"]}
+
+
+def _external_identity_context(resolved_identity) -> WorkspaceAccessContext:
+    now = datetime.now(UTC)
+    return WorkspaceAccessContext(
+        session=AuthSessionRecord(
+            token="oidc-binding-test-session",
+            user_id=resolved_identity.user.id,
+            workspace_id=resolved_identity.workspace.id,
+            created_at=now,
+            expires_at=now + timedelta(minutes=30),
+        ),
+        workspace=resolved_identity.workspace,
+        user=resolved_identity.user,
+        member=resolved_identity.member,
+    )
 
 
 def test_default_admin_login_and_session_contract(client: TestClient) -> None:
@@ -125,6 +148,64 @@ def test_refresh_issues_new_access_and_csrf_tokens(client: TestClient) -> None:
     assert refresh_body["access_token"] != login_body["access_token"]
     assert refresh_body["csrf_token"] != login_body["csrf_token"]
     assert refresh_body["expires_at"] == login_body["expires_at"]
+
+
+def test_external_identity_binding_can_bind_existing_workspace_member(sqlite_session) -> None:
+    resolved_identity = resolve_external_identity_binding(
+        sqlite_session,
+        provider="zitadel",
+        subject="oidc-admin-subject",
+        email="admin@taichuy.com",
+        email_verified=True,
+    )
+
+    persisted_bindings = sqlite_session.scalars(select(ExternalIdentityBindingRecord)).all()
+    assert len(persisted_bindings) == 1
+    binding = persisted_bindings[0]
+    assert binding.provider == "zitadel"
+    assert binding.subject == "oidc-admin-subject"
+    assert binding.user_id == resolved_identity.user.id
+    assert resolved_identity.member.role == "owner"
+    assert (
+        can_access(
+            _external_identity_context(resolved_identity),
+            action="manage",
+            resource="workspace",
+        )
+        is True
+    )
+
+
+def test_external_identity_binding_reuses_existing_subject_mapping(sqlite_session) -> None:
+    first_resolution = resolve_external_identity_binding(
+        sqlite_session,
+        provider="zitadel",
+        subject="oidc-admin-existing-subject",
+        email="admin@taichuy.com",
+        email_verified=True,
+    )
+
+    second_resolution = resolve_external_identity_binding(
+        sqlite_session,
+        provider="zitadel",
+        subject="oidc-admin-existing-subject",
+    )
+
+    persisted_bindings = sqlite_session.scalars(select(ExternalIdentityBindingRecord)).all()
+    assert len(persisted_bindings) == 1
+    assert second_resolution.binding.id == first_resolution.binding.id
+    assert second_resolution.user.id == first_resolution.user.id
+
+
+def test_external_identity_binding_requires_verified_email_for_first_link(sqlite_session) -> None:
+    with pytest.raises(AuthenticationError, match="可信邮箱绑定"):
+        resolve_external_identity_binding(
+            sqlite_session,
+            provider="zitadel",
+            subject="oidc-admin-unverified",
+            email="admin@taichuy.com",
+            email_verified=False,
+        )
 
 
 def test_workspace_member_writes_require_csrf_double_submit(client: TestClient) -> None:
