@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   addEdge,
+  type Edge,
+  type EdgeChange,
+  type Node,
+  type NodeChange,
   type OnConnect,
   type OnSelectionChangeParams,
   useEdgesState,
@@ -15,6 +19,7 @@ import {
   buildEditorEdge,
   reactFlowToWorkflowDefinition,
   workflowDefinitionToReactFlow,
+  type WorkflowDefinition,
   type WorkflowCanvasEdgeData
 } from "@/lib/workflow-editor";
 
@@ -29,17 +34,114 @@ type UseWorkflowEditorGraphOptions = {
   setMessageTone: Dispatch<SetStateAction<WorkflowEditorMessageTone>>;
 };
 
+type WorkflowEditorDocumentHistory = {
+  past: WorkflowDefinition[];
+  present: WorkflowDefinition;
+  future: WorkflowDefinition[];
+};
+
+type WorkflowEditorCanvasNode = Node<import("@/lib/workflow-editor").WorkflowCanvasNodeData>;
+type WorkflowEditorCanvasEdge = Edge<WorkflowCanvasEdgeData>;
+
+export function createWorkflowEditorDocumentHistory(
+  definition: WorkflowDefinition
+): WorkflowEditorDocumentHistory {
+  const present = cloneWorkflowDefinition(definition);
+
+  return {
+    past: [],
+    present,
+    future: []
+  };
+}
+
+export function recordWorkflowEditorDocumentHistory(
+  history: WorkflowEditorDocumentHistory,
+  nextDefinition: WorkflowDefinition
+) {
+  if (
+    serializeWorkflowEditorDefinition(history.present) ===
+    serializeWorkflowEditorDefinition(nextDefinition)
+  ) {
+    return history;
+  }
+
+  return {
+    past: [...history.past, cloneWorkflowDefinition(history.present)],
+    present: cloneWorkflowDefinition(nextDefinition),
+    future: []
+  } satisfies WorkflowEditorDocumentHistory;
+}
+
+export function undoWorkflowEditorDocumentHistory(history: WorkflowEditorDocumentHistory) {
+  const previousDefinition = history.past.at(-1);
+  if (!previousDefinition) {
+    return history;
+  }
+
+  return {
+    past: history.past.slice(0, -1),
+    present: cloneWorkflowDefinition(previousDefinition),
+    future: [cloneWorkflowDefinition(history.present), ...history.future]
+  } satisfies WorkflowEditorDocumentHistory;
+}
+
+export function redoWorkflowEditorDocumentHistory(history: WorkflowEditorDocumentHistory) {
+  const nextDefinition = history.future[0];
+  if (!nextDefinition) {
+    return history;
+  }
+
+  return {
+    past: [...history.past, cloneWorkflowDefinition(history.present)],
+    present: cloneWorkflowDefinition(nextDefinition),
+    future: history.future.slice(1).map(cloneWorkflowDefinition)
+  } satisfies WorkflowEditorDocumentHistory;
+}
+
+export function isWorkflowEditorGraphDirty(options: {
+  workflowName: string;
+  persistedWorkflowName: string;
+  currentDefinition: WorkflowDefinition;
+  persistedDefinition: WorkflowDefinition;
+}) {
+  return (
+    options.workflowName.trim() !== options.persistedWorkflowName ||
+    serializeWorkflowEditorDefinition(options.currentDefinition) !==
+      serializeWorkflowEditorDefinition(options.persistedDefinition)
+  );
+}
+
 export function useWorkflowEditorGraph({
   workflow,
   nodeCatalog,
   setMessage,
   setMessageTone
 }: UseWorkflowEditorGraphOptions) {
-  const initialGraph = workflowDefinitionToReactFlow(nodeCatalog, workflow.definition);
+  const initialGraph = useMemo(
+    () => workflowDefinitionToReactFlow(nodeCatalog, workflow.definition),
+    [nodeCatalog, workflow.definition]
+  );
+  const initialDocumentDefinition = useMemo(
+    () =>
+      buildWorkflowEditorDefinition({
+        nodes: initialGraph.nodes,
+        edges: initialGraph.edges,
+        workflowVariables: Array.isArray(workflow.definition.variables)
+          ? workflow.definition.variables
+          : [],
+        workflowPublish: Array.isArray(workflow.definition.publish) ? workflow.definition.publish : []
+      }),
+    [initialGraph.edges, initialGraph.nodes, workflow.definition.publish, workflow.definition.variables]
+  );
   const [workflowName, setWorkflowName] = useState(workflow.name);
   const [persistedWorkflowName, setPersistedWorkflowName] = useState(workflow.name);
   const [workflowVersion, setWorkflowVersion] = useState(workflow.version);
   const [persistedDefinition, setPersistedDefinition] = useState(workflow.definition);
+  const [documentHistory, setDocumentHistory] = useState(() =>
+    createWorkflowEditorDocumentHistory(initialDocumentDefinition)
+  );
+  const skipNextHistorySyncRef = useRef(false);
   const workflowState = useWorkflowEditorWorkflowState({
     initialDefinition: workflow.definition,
     setMessage,
@@ -50,6 +152,22 @@ export function useWorkflowEditorGraph({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const currentDefinition = useMemo(
+    () =>
+      buildWorkflowEditorDefinition({
+        nodes,
+        edges,
+        workflowVariables: workflowState.workflowVariables,
+        workflowPublish: workflowState.workflowPublish
+      }),
+    [edges, nodes, workflowState.workflowPublish, workflowState.workflowVariables]
+  );
+  const currentDefinitionRef = useRef(currentDefinition);
+  currentDefinitionRef.current = currentDefinition;
+  const currentDefinitionSignature = useMemo(
+    () => serializeWorkflowEditorDefinition(currentDefinition),
+    [currentDefinition]
+  );
   const nodeActions = useWorkflowEditorNodeActions({
     nodeCatalog,
     nodes,
@@ -62,22 +180,29 @@ export function useWorkflowEditorGraph({
     setMessage,
     setMessageTone
   });
-
-  const currentDefinition = reactFlowToWorkflowDefinition(nodes, edges, {
-    ...persistedDefinition,
-    variables: workflowState.workflowVariables,
-    publish: workflowState.workflowPublish
+  const isDirty = isWorkflowEditorGraphDirty({
+    workflowName,
+    persistedWorkflowName,
+    currentDefinition,
+    persistedDefinition
   });
-  const isDirty =
-    workflowName.trim() !== persistedWorkflowName ||
-    JSON.stringify(currentDefinition) !== JSON.stringify(persistedDefinition);
 
   useEffect(() => {
     const nextGraph = workflowDefinitionToReactFlow(nodeCatalog, workflow.definition);
+    const nextInitialDefinition = buildWorkflowEditorDefinition({
+      nodes: nextGraph.nodes,
+      edges: nextGraph.edges,
+      workflowVariables: Array.isArray(workflow.definition.variables)
+        ? workflow.definition.variables
+        : [],
+      workflowPublish: Array.isArray(workflow.definition.publish) ? workflow.definition.publish : []
+    });
+    skipNextHistorySyncRef.current = true;
     setWorkflowName(workflow.name);
     setPersistedWorkflowName(workflow.name);
     setWorkflowVersion(workflow.version);
     setPersistedDefinition(workflow.definition);
+    setDocumentHistory(createWorkflowEditorDocumentHistory(nextInitialDefinition));
     resetWorkflowState(workflow.definition);
     setNodes(nextGraph.nodes);
     setEdges(nextGraph.edges);
@@ -85,7 +210,68 @@ export function useWorkflowEditorGraph({
     setSelectedEdgeId(null);
   }, [nodeCatalog, workflow, resetWorkflowState, setEdges, setNodes]);
 
+  useEffect(() => {
+    if (skipNextHistorySyncRef.current) {
+      skipNextHistorySyncRef.current = false;
+      return;
+    }
+
+    setDocumentHistory((currentHistory) =>
+      recordWorkflowEditorDocumentHistory(currentHistory, currentDefinitionRef.current)
+    );
+  }, [currentDefinitionSignature]);
+
   const selectedEdge = edges.find((edge) => edge.id === selectedEdgeId) ?? null;
+
+  const applyDocumentDefinition = (definition: WorkflowDefinition) => {
+    const nextGraph = workflowDefinitionToReactFlow(nodeCatalog, definition);
+
+    skipNextHistorySyncRef.current = true;
+    resetWorkflowState(definition);
+    setNodes(nextGraph.nodes);
+    setEdges(nextGraph.edges);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+  };
+
+  const canUndo = documentHistory.past.length > 0;
+  const canRedo = documentHistory.future.length > 0;
+
+  const undo = () => {
+    const nextHistory = undoWorkflowEditorDocumentHistory(documentHistory);
+    if (nextHistory === documentHistory) {
+      return;
+    }
+
+    setDocumentHistory(nextHistory);
+    applyDocumentDefinition(nextHistory.present);
+  };
+
+  const redo = () => {
+    const nextHistory = redoWorkflowEditorDocumentHistory(documentHistory);
+    if (nextHistory === documentHistory) {
+      return;
+    }
+
+    setDocumentHistory(nextHistory);
+    applyDocumentDefinition(nextHistory.present);
+  };
+
+  const handleNodesChange = (changes: NodeChange<WorkflowEditorCanvasNode>[]) => {
+    onNodesChange(changes);
+
+    if (changes.some((change) => change.type !== "select")) {
+      setSelectedEdgeId(null);
+    }
+  };
+
+  const handleEdgesChange = (changes: EdgeChange<WorkflowEditorCanvasEdge>[]) => {
+    onEdgesChange(changes);
+
+    if (changes.some((change) => change.type !== "select")) {
+      setSelectedNodeId(null);
+    }
+  };
 
   const onConnect: OnConnect = (connection) => {
     if (!connection.source || !connection.target) {
@@ -159,10 +345,10 @@ export function useWorkflowEditorGraph({
     setPersistedDefinition,
     nodes,
     setNodes,
-    onNodesChange,
+    onNodesChange: handleNodesChange,
     edges,
     setEdges,
-    onEdgesChange,
+    onEdgesChange: handleEdgesChange,
     selectedNodeId,
     selectedEdgeId,
     selectedNode: nodeActions.selectedNode,
@@ -172,6 +358,10 @@ export function useWorkflowEditorGraph({
     currentDefinition,
     workflowVariables: workflowState.workflowVariables,
     workflowPublish: workflowState.workflowPublish,
+    canUndo,
+    canRedo,
+    undo,
+    redo,
     isDirty,
     onConnect,
     handleSelectionChange,
@@ -191,4 +381,26 @@ export function useWorkflowEditorGraph({
     updateWorkflowVariables: workflowState.updateWorkflowVariables,
     updateWorkflowPublish: workflowState.updateWorkflowPublish
   };
+}
+
+function buildWorkflowEditorDefinition(options: {
+  nodes: WorkflowEditorCanvasNode[];
+  edges: WorkflowEditorCanvasEdge[];
+  workflowVariables: Array<Record<string, unknown>>;
+  workflowPublish: Array<Record<string, unknown>>;
+}) {
+  return reactFlowToWorkflowDefinition(options.nodes, options.edges, {
+    nodes: [],
+    edges: [],
+    variables: options.workflowVariables,
+    publish: options.workflowPublish
+  });
+}
+
+function cloneWorkflowDefinition(definition: WorkflowDefinition) {
+  return structuredClone(definition);
+}
+
+function serializeWorkflowEditorDefinition(definition: WorkflowDefinition) {
+  return JSON.stringify(definition);
 }
