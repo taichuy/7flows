@@ -283,6 +283,8 @@ describe("WorkflowMonitorSurface", () => {
     expect(html).toContain('data-component="workflow-monitor-report-grid"');
     expect(html).toContain('data-component="workflow-monitor-trend-shell"');
     expect(html).toContain('data-component="workflow-monitor-trend-deck"');
+    expect(html).toContain('data-component="workflow-monitor-contract-notice"');
+    expect(html).toContain("Token 输出速度、全部会话数、全部消息数，以及 month / year 筛选当前没有后端契约");
     expect(html).toContain('data-trend-key="invocations"');
     expect(html).toContain('data-trend-key="success-rate"');
     expect(html).toContain('data-component="workflow-monitor-insights-shell"');

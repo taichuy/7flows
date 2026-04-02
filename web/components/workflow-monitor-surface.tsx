@@ -287,6 +287,12 @@ export function WorkflowMonitorSurface({
     });
   }
 
+  const contractNotice = (
+    <p className="workflow-studio-utility-inline-copy" data-component="workflow-monitor-contract-notice">
+      当前 monitor 仅展示 published invocation 聚合指标与 hour / day timeline；Token 输出速度、全部会话数、全部消息数，以及 month / year 筛选当前没有后端契约，因此保持 fail-closed，不伪造图表或筛选项。
+    </p>
+  );
+
   return (
     <div className="workflow-monitor-surface" data-component="workflow-monitor-surface">
       <WorkflowStudioUtilityFrame
@@ -294,6 +300,7 @@ export function WorkflowMonitorSurface({
         description="当前页面直接把 published invocation、traffic timeline 和 sampled run follow-up 接回 workflow 壳层，方便作者在同一路由里判断真实流量、待跟进事项和最近的运行信号。"
         eyebrow="Workflow monitor"
         metrics={overviewMetrics}
+        notice={contractNotice}
         surface="monitor"
         tags={overviewTags}
         title="监测报表"

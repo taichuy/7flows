@@ -105,6 +105,8 @@ describe("WorkflowApiSurface", () => {
       })
     );
 
+    expect(html).toContain('data-component="workflow-studio-utility-frame"');
+    expect(html).toContain('data-surface="api"');
     expect(html).toContain('data-component="workflow-api-directory"');
     expect(html).toContain('data-component="workflow-api-directory-group"');
     expect(html).toContain('href="#workflow-api-binding-1-base-url"');
@@ -141,6 +143,7 @@ describe("WorkflowApiSurface", () => {
     );
 
     expect(html).toContain('data-component="workflow-api-empty-state"');
+    expect(html).toContain('data-surface="api"');
     expect(html).toContain("draft / offline publish definition");
     expect(html).toContain("前往发布治理");
     expect(html).not.toContain('data-component="workflow-api-directory"');
