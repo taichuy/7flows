@@ -304,7 +304,7 @@ function getWebCommand() {
 
   return {
     command: process.execPath,
-    args: [WEB_NEXT_CLI, 'dev', '--turbo', '-p', String(WEB_PORT)],
+    args: [WEB_NEXT_CLI, 'dev', '-p', String(WEB_PORT)],
     env: {
       WATCHPACK_POLLING: 'true',
     },
