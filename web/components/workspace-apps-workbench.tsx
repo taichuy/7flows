@@ -1,13 +1,13 @@
 import { WorkspaceAppListStage } from "@/components/workspace-apps-workbench/workspace-app-list-stage";
 import { WorkspaceBrowseRail } from "@/components/workspace-apps-workbench/workspace-browse-rail";
 import { WorkspaceCatalogHeader } from "@/components/workspace-apps-workbench/workspace-catalog-header";
-import { WorkspaceCreateStrip } from "@/components/workspace-apps-workbench/workspace-create-strip";
 import {
   getWorkspaceScopeSummary,
   type WorkspaceAppsWorkbenchProps
 } from "@/components/workspace-apps-workbench/shared";
 
 export function WorkspaceAppsWorkbench({
+  workspaceName,
   currentRoleLabel,
   currentUserDisplayName,
   requestedKeyword,
@@ -40,11 +40,12 @@ export function WorkspaceAppsWorkbench({
     <main className="workspace-main workspace-home-main workspace-home-main-flat workspace-board-page">
       <section className="workspace-apps-dify-shell">
         <section className="workspace-apps-dify-stage">
+          <section className="workspace-board-overview" data-component="workspace-board-overview">
           <WorkspaceCatalogHeader
+            workspaceName={workspaceName}
             currentRoleLabel={currentRoleLabel}
             catalogDescription={catalogDescription}
-            requestedKeyword={requestedKeyword}
-            searchState={searchState}
+            workspaceSignals={workspaceSignals}
           />
 
           <WorkspaceBrowseRail
@@ -52,19 +53,14 @@ export function WorkspaceAppsWorkbench({
             modeTabs={modeTabs}
             scopePills={scopePills}
             statusFilters={statusFilters}
-            variant="inline"
-            workspaceSignals={workspaceSignals}
+            requestedKeyword={requestedKeyword}
+            searchState={searchState}
+            focusedCreateHref={focusedCreateHref}
+            workspaceUtilityEntry={workspaceUtilityEntry}
           />
+          </section>
 
           <section className="workspace-catalog-stage">
-            <WorkspaceCreateStrip
-              focusedCreateHref={focusedCreateHref}
-              requestedKeyword={requestedKeyword}
-              starterCount={starterCount}
-              workflowCreateWizardProps={workflowCreateWizardProps}
-              workspaceUtilityEntry={workspaceUtilityEntry}
-            />
-
             <WorkspaceAppListStage
               activeModeLabel={activeModeLabel}
               currentUserDisplayName={currentUserDisplayName}

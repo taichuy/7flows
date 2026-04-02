@@ -21,7 +21,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("WorkspaceAppsWorkbench", () => {
-  it("renders a directory-first workspace shell with a compact create launcher", () => {
+  it("renders a two-level workspace shell with a compact board toolbar", () => {
     const html = renderToStaticMarkup(
       createElement(WorkspaceAppsWorkbench, {
         workspaceName: "7Flows Workspace",
@@ -154,26 +154,24 @@ describe("WorkspaceAppsWorkbench", () => {
 
     expect(html).toContain("workspace-apps-dify-shell");
     expect(html).toContain('data-component="workspace-catalog-header"');
+    expect(html).toContain('data-component="workspace-board-overview"');
     expect(html).toContain('data-component="workspace-browse-rail"');
-    expect(html).toContain('data-component="workspace-create-strip"');
-    expect(html).toContain('data-component="workflow-create-launcher-panel"');
-    expect(html).toContain('data-component="workflow-create-preview-panel"');
     expect(html).toContain('data-component="workspace-app-list-stage"');
     expect(html).toContain("workspace-filter-rail-inline");
     expect(html).toContain("workspace-catalog-stage");
-    expect(html).toContain("workspace-create-strip");
-    expect(html).toContain("工作台直接新建");
-    expect(html).toContain("创建一个应用");
-    expect(html).toContain("打开全屏创建页");
+    expect(html).not.toContain('data-component="workspace-create-strip"');
+    expect(html).not.toContain('data-component="workflow-create-launcher-panel"');
+    expect(html).not.toContain('data-component="workflow-create-preview-panel"');
+    expect(html).toContain("创建应用");
+    expect(html).toContain("搜索、筛选与主操作已收口到同一工具栏");
     expect(html).toContain("workspace-app-row");
     expect(html).toContain("workspace-app-list-columns");
     expect(html).toContain("管理成员与权限");
     expect(html).toContain("应用目录");
-    expect(html).toContain("摘要");
     expect(html).toContain("进入 Studio");
-    expect(html).toContain("Workspace starter");
+    expect(html).toContain("7Flows Workspace");
     expect(html).not.toContain("查看下一步");
-    expect(html.indexOf("工作台直接新建")).toBeLessThan(html.indexOf("ChatFlow Alpha"));
+    expect(html.indexOf("创建应用")).toBeLessThan(html.indexOf("ChatFlow Alpha"));
     expect(html).not.toContain("最小起步");
   });
 });

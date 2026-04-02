@@ -1,55 +1,51 @@
-import Link from "next/link";
+import { Card, Space, Statistic, Tag, Typography } from "antd";
 
-import type { WorkspaceAppSearchFormState } from "@/lib/workspace-app-query-state";
+import type { WorkspaceSignal } from "@/components/workspace-apps-workbench/shared";
+
+const { Paragraph, Text, Title } = Typography;
 
 export function WorkspaceCatalogHeader({
+  workspaceName,
   currentRoleLabel,
   catalogDescription,
-  requestedKeyword,
-  searchState
+  workspaceSignals
 }: {
+  workspaceName: string;
   currentRoleLabel: string;
   catalogDescription: string;
-  requestedKeyword: string;
-  searchState: WorkspaceAppSearchFormState;
+  workspaceSignals: WorkspaceSignal[];
 }) {
   return (
     <section
-      className="workspace-apps-stage-header workspace-catalog-card"
+      className="workspace-apps-stage-header"
       data-component="workspace-catalog-header"
     >
-      <div className="workspace-apps-stage-copy">
-        <p className="workspace-eyebrow">Workspace</p>
-        <div className="workspace-apps-stage-title-row">
-          <h1>应用工作台</h1>
-          <span className="workspace-tag accent">当前身份：{currentRoleLabel}</span>
-        </div>
-        <p className="workspace-muted workspace-apps-stage-copy-text">{catalogDescription}</p>
-      </div>
+      <Card className="workspace-catalog-card" variant="borderless">
+        <Space className="workspace-apps-stage-copy" orientation="vertical" size={16} style={{ width: "100%" }}>
+          <Space size={8} wrap>
+            <Text type="secondary">Workspace</Text>
+            <Tag color="blue">{workspaceName}</Tag>
+            <Tag color="gold">当前身份：{currentRoleLabel}</Tag>
+          </Space>
 
-      <form
-        action="/workspace"
-        className="workspace-search-form workspace-search-form-board workspace-search-form-studio workspace-apps-stage-search"
-      >
-        {searchState.filter ? <input name="filter" type="hidden" value={searchState.filter} /> : null}
-        {searchState.mode ? <input name="mode" type="hidden" value={searchState.mode} /> : null}
-        {searchState.track ? <input name="track" type="hidden" value={searchState.track} /> : null}
-        <input
-          className="workspace-search-input workspace-search-input-board"
-          defaultValue={requestedKeyword}
-          name="keyword"
-          placeholder="搜索应用或治理焦点"
-          type="search"
-        />
-        <button className="workspace-primary-button compact" type="submit">
-          搜索
-        </button>
-        {searchState.clearHref ? (
-          <Link className="workspace-ghost-button compact" href={searchState.clearHref}>
-            清除
-          </Link>
-        ) : null}
-      </form>
+          <div className="workspace-apps-stage-title-row">
+            <div>
+              <Title level={2}>应用工作台</Title>
+              <Paragraph className="workspace-muted workspace-apps-stage-copy-text">
+                {catalogDescription}
+              </Paragraph>
+            </div>
+          </div>
+
+          <Space size={12} wrap>
+            {workspaceSignals.map((signal) => (
+              <Card key={signal.label} size="small">
+                <Statistic title={signal.label} value={signal.value} />
+              </Card>
+            ))}
+          </Space>
+        </Space>
+      </Card>
     </section>
   );
 }

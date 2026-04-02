@@ -257,27 +257,20 @@ describe("WorkspacePage", () => {
     expect(html).toContain("搜索应用或治理焦点");
     expect(html).toContain('data-component="workspace-catalog-header"');
     expect(html).toContain('data-component="workspace-browse-rail"');
-    expect(html).toContain('data-component="workspace-create-strip"');
-    expect(html).toContain('data-component="workflow-create-launcher-panel"');
-    expect(html).toContain('data-component="workflow-create-preview-panel"');
+    expect(html).toContain('data-component="workspace-board-overview"');
     expect(html).toContain('data-component="workspace-app-list-stage"');
     expect(html).toContain("应用目录");
-    expect(html).toContain("工作台直接新建");
-    expect(html).toContain("创建一个应用");
-    expect(html).toContain("打开全屏创建页");
-    expect(html).toContain("Starter ChatFlow");
+    expect(html).toContain("创建应用");
     expect(html).toContain("创建、筛选后直接进入 Studio。");
     expect(html).toContain("管理成员与权限");
     expect(html).toContain("全部 2 个应用");
     expect(html).toContain("主入口先创建应用，治理细节按需展开。");
-    expect(html).toContain("摘要");
     expect(html).toContain("进入 Studio");
     expect(html).toContain("治理优先");
     expect(html).toContain("查看治理细节");
     expect(html).not.toContain("查看运行");
-    expect(html.indexOf("工作台直接新建")).toBeLessThan(html.indexOf("ChatFlow Alpha"));
+    expect(html.indexOf("创建应用")).toBeLessThan(html.indexOf("ChatFlow Alpha"));
     expect(html).toContain('href="/workflows/new"');
-    expect(html).toContain('href="/workspace-starters?starter=starter-chatflow"');
     expect(html).toContain('href="/workspace/settings/team"');
     expect(html).toContain('href="/workflows/workflow-chatflow"');
   });
@@ -358,9 +351,6 @@ describe("WorkspacePage", () => {
     expect(html).toContain(
       'href="/workflows/new?q=Alpha&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"'
     );
-    expect(html).toContain(
-      'href="/workspace-starters?q=Alpha&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"'
-    );
   });
 
   it("filters workspace apps by application mode before rendering cards", async () => {
@@ -416,7 +406,7 @@ describe("WorkspacePage", () => {
     expect(html).toContain("Agent Ops");
     expect(html).not.toContain("ChatFlow Alpha");
     expect(html).toContain('href="/workspace?mode=agent"');
-    expect(html).toContain("当前筛选范围里没有可复用的 active workspace starter");
+    expect(html).toContain("当前筛选：Agent");
     expect(html).toContain('href="/workflows/new?starter=agent"');
   });
 
@@ -515,9 +505,10 @@ describe("WorkspacePage", () => {
     );
 
     expect(html).toContain("当前筛选范围内还没有应用");
-    expect(html).toContain("Blank Flow");
-    expect(html).toContain("打开全屏创建页");
-    expect(html).toContain("创建一个应用");
+    expect(html).toContain("立即创建");
+    expect(html).toContain("查看 Starter");
+    expect(html).toContain('href="/workflows/new"');
+    expect(html).toContain('href="/workspace-starters"');
   });
 
   it("hides member-admin entrypoints for editors without member permissions", async () => {
