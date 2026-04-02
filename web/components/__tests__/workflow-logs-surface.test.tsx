@@ -215,7 +215,7 @@ describe("WorkflowLogsSurface", () => {
 
     expect(html).toContain('data-component="workflow-logs-empty-state"');
     expect(html).toContain('data-surface="logs"');
-    expect(html).toContain("Invocation and run facts");
+    expect(html).toContain("Request directory");
     expect(html).toContain("日志与标注");
   });
 
@@ -242,6 +242,7 @@ describe("WorkflowLogsSurface", () => {
     expect(html).toContain('data-surface="logs"');
     expect(html).toContain('data-component="workflow-logs-run-fallback"');
     expect(html).toContain('data-component="workflow-logs-detail-rail"');
+    expect(html).toContain("Request fallback");
     expect(html).toContain("run fallback");
     expect(html).toContain("run run-1");
   });
@@ -284,7 +285,10 @@ describe("WorkflowLogsSurface", () => {
     expect(html).toContain('data-component="workflow-logs-invocation-detail"');
     expect(html).toContain('data-component="workflow-logs-detail-rail"');
     expect(html).toContain('data-component="workflow-logs-directory-entry"');
-    expect(html).toContain("Binding");
+    expect(html).toContain('data-component="workflow-logs-focus-guide"');
+    expect(html).toContain("最近请求目录");
+    expect(html).toContain("请求详情与 trace 接力");
+    expect(html).toContain("当前焦点怎么读");
     expect(html).toContain("当前 selection 已对齐最新 invocation。");
   });
 });

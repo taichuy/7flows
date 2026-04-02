@@ -891,12 +891,17 @@ describe("Workflow studio routes", () => {
     expect(html).toContain('data-component="workspace-shell"');
     expect(html).toContain('data-component="workflow-api-surface"');
     expect(html).toContain('data-component="workflow-api-binding-doc"');
+    expect(html).toContain('data-component="workflow-api-onboarding"');
+    expect(html).toContain('data-component="workflow-api-handoff-guide"');
     expect(html).toContain("访问 API");
+    expect(html).toContain("调用方接入步骤");
+    expect(html).toContain("调用方文档目录");
     expect(html).toContain("Chat endpoint");
     expect(html).toContain("http://localhost:8000/v1/chat/completions");
     expect(html).toContain("Authorization: Bearer &lt;published-api-key&gt;");
     expect(html).toContain('data-component="workflow-api-sample-form"');
-    expect(html).toContain("运行本地 sample invocation");
+    expect(html).toContain("样例请求与排障接力");
+    expect(html).toContain("运行本地样例请求");
     expect(html).not.toContain('data-component="workflow-studio-placeholder"');
     expect(html).toContain("/workflows/workflow-1/api");
     expect(html).toContain("/workflows/workflow-1/logs");
@@ -1062,6 +1067,7 @@ describe("Workflow studio routes", () => {
     expect(logsHtml).toContain('data-component="workflow-logs-workbench"');
     expect(logsHtml).toContain('data-component="workflow-logs-invocation-list"');
     expect(logsHtml).toContain('data-component="workflow-logs-directory-entry"');
+    expect(logsHtml).toContain('data-component="workflow-logs-focus-guide"');
     expect(logsHtml).toContain('data-invocation-id="invocation-2"');
     expect(logsHtml).toContain(
       'href="/workflows/workflow-1/logs?publish_binding=binding-1&amp;publish_invocation=invocation-2"'
@@ -1070,6 +1076,9 @@ describe("Workflow studio routes", () => {
     expect(logsHtml).toContain('data-component="workflow-logs-invocation-summary"');
     expect(logsHtml).toContain('data-component="workflow-logs-run-handoff"');
     expect(logsHtml).toContain('data-component="workflow-logs-run-summary"');
+    expect(logsHtml).toContain("最近请求目录");
+    expect(logsHtml).toContain("请求详情与 trace 接力");
+    expect(logsHtml).toContain("当前焦点怎么读");
     expect(vi.mocked(getPublishedEndpointInvocationDetail)).toHaveBeenCalledWith(
       "workflow-1",
       "binding-1",
@@ -1230,7 +1239,8 @@ describe("Workflow studio routes", () => {
     );
 
     expect(logsHtml).toContain('data-component="workflow-logs-empty-state"');
-    expect(logsHtml).toContain("recent published invocations 或 recent runs");
+    expect(logsHtml).toContain("Request directory");
+    expect(logsHtml).toContain("recent published requests 或 recent runs");
     expect(logsHtml).not.toContain('data-component="workflow-studio-placeholder"');
     expect(vi.mocked(getPublishedEndpointInvocationDetail)).not.toHaveBeenCalled();
     expect(vi.mocked(getRunDetail)).not.toHaveBeenCalled();

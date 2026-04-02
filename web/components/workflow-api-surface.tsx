@@ -43,6 +43,17 @@ function formatSampleSurfaceLabel(requestSurface: WorkflowApiSampleInvocationQue
   }
 }
 
+function formatAuthModeLabel(authMode: string) {
+  switch (authMode) {
+    case "api_key":
+      return "API Key";
+    case "internal":
+      return "Internal auth";
+    default:
+      return authMode;
+  }
+}
+
 function renderWorkflowApiSampleResult({
   bindingId,
   apiHref,
@@ -161,13 +172,13 @@ export function WorkflowApiSurface({
     {
       key: "publish",
       href: publishHref,
-      label: "前往发布治理",
+      label: "查看发布治理",
       variant: "primary"
     },
     {
       key: "logs",
       href: logsHref,
-      label: "打开 workflow 日志"
+      label: "查看请求日志"
     },
     {
       key: "monitor",
@@ -232,24 +243,29 @@ export function WorkflowApiSurface({
   const overviewTags: WorkflowStudioUtilityTag[] = [
     {
       key: "sample-seam",
-      label: "local-first sample seam",
+      label: "本地样例请求",
       color: "processing"
     },
     {
       key: "docs-mode",
-      label: "binding-scoped docs directory",
+      label: "调用方文档目录",
       color: "blue"
     }
+  ];
+  const accessChecklist = [
+    `先从 ${publishedBindings.length} 个已发布 binding 中选一个协议入口，锁定 endpoint alias 与 request path。`,
+    "复制 Base URL、鉴权 header 和最小请求示例；published API key 只建议保存在服务端或受控代理。",
+    "在当前页运行一次本地样例请求，把 fresh invocation / run 继续 handoff 到日志、监测报表和 run 详情。"
   ];
 
   return (
     <div className="workflow-api-surface" data-component="workflow-api-surface">
       <WorkflowStudioUtilityFrame
         actions={sharedActions}
-        description="当前页面直接消费 workflow 已发布 binding 的真实 contract：围绕 base URL、鉴权、endpoint 入口、最小请求示例与协议差异组织成文档页，并在同一处提供 local-first sample invocation seam。"
+        description="这里把 workflow 已发布 binding 收口成调用方文档工作台：先确认鉴权与 Base URL，再复制最小请求示例，最后用样例请求把结果接到日志、监测报表和 run 详情。"
         eyebrow="Published contract"
         metrics={overviewMetrics}
-        notice="目录只覆盖 active published bindings；draft / offline definition 继续回发布治理处理，sample invocation 仍走本地 published gateway。"
+        notice="目录只覆盖 active published bindings；draft / offline definition 继续回发布治理处理，样例请求仍走本地 published gateway。"
         surface="api"
         tags={overviewTags}
         title="访问 API"
@@ -270,7 +286,7 @@ export function WorkflowApiSurface({
                 >
                   <div className="workflow-api-doc-header">
                     <div>
-                      <p className="workflow-studio-placeholder-eyebrow">Endpoint</p>
+                      <p className="workflow-studio-placeholder-eyebrow">调用入口</p>
                       <h3>{doc.title}</h3>
                       <p>{doc.endpointSummary}</p>
                     </div>
@@ -285,12 +301,12 @@ export function WorkflowApiSurface({
 
                   <div className="workspace-overview-strip workflow-api-meta-strip">
                     <article className="workspace-stat-card">
-                      <span>Protocol</span>
+                      <span>协议</span>
                       <strong>{doc.protocolLabel}</strong>
                     </article>
                     <article className="workspace-stat-card">
-                      <span>Auth mode</span>
-                      <strong>{doc.authModeLabel}</strong>
+                      <span>鉴权</span>
+                      <strong>{formatAuthModeLabel(doc.authModeLabel)}</strong>
                     </article>
                     <article className="workspace-stat-card workspace-stat-card-wide">
                       <span>Base URL</span>
@@ -300,10 +316,10 @@ export function WorkflowApiSurface({
                   </div>
 
                   <div className="entry-card compact-card" data-component="workflow-api-sample-card">
-                    <p className="entry-card-title">Local smoke</p>
+                    <p className="entry-card-title">样例请求与排障接力</p>
                     <p className="section-copy entry-copy">
-                      这里会创建一把临时 published API key，在本机 published gateway 上打一次真实样本，随后自动吊销，
-                      让后续 `/logs`、`/monitor` 能继续沿 invocation / run trace 主链排查。
+                      先用当前 binding 的真实 contract 发一次最小样例请求。执行完成后，结果会直接回写到当前页，
+                      并生成跳到 `/logs`、`/monitor` 与 run 详情的直达 handoff。
                     </p>
 
                     {blockedMessage ? (
@@ -311,7 +327,7 @@ export function WorkflowApiSurface({
                         <p className="sync-message error">{blockedMessage}</p>
                         <div className="binding-actions">
                           <Link className="workflow-studio-secondary-link" href={publishHref}>
-                            去发布治理切换 auth
+                            去发布治理调整鉴权
                           </Link>
                         </div>
                       </div>
@@ -325,7 +341,7 @@ export function WorkflowApiSurface({
                         <input type="hidden" name="bindingId" value={doc.bindingId} />
                         <input type="hidden" name="apiHref" value={`${apiHref}#${doc.anchorId}`} />
                         <button className="sync-button" type="submit">
-                          运行本地 sample invocation
+                          运行本地样例请求
                         </button>
                         <Link className="workflow-studio-secondary-link" href={publishHref}>
                           查看发布治理
@@ -393,11 +409,38 @@ export function WorkflowApiSurface({
           </div>
 
           <aside className="workspace-panel workflow-api-directory" data-component="workflow-api-directory">
-            <div className="workflow-api-directory-header">
-              <p className="workflow-studio-placeholder-eyebrow">目录</p>
-              <h3>Published API docs</h3>
+            <section className="workflow-api-directory-group" data-component="workflow-api-onboarding">
+              <p className="workflow-studio-placeholder-eyebrow">Quick start</p>
+              <h3>调用方接入步骤</h3>
+              <ol className="workflow-api-bullet-list">
+                {accessChecklist.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ol>
+            </section>
+
+            <section className="workflow-api-directory-group" data-component="workflow-api-handoff-guide">
+              <p className="workflow-studio-placeholder-eyebrow">Trace handoff</p>
+              <h3>调用后怎么继续排查</h3>
               <p>
-                先按 binding 锁定协议，再跳到基础 URL、鉴权、endpoint、请求示例和协议差异章节。
+                如果还没打样例请求，可以先看 workflow 级别的日志与监测报表；一旦当前页拿到 fresh
+                invocation / run，就会把链接升级成指向这次调用的直达 handoff。
+              </p>
+              <div className="binding-actions">
+                <Link className="workflow-studio-secondary-link" href={logsHref}>
+                  打开 workflow 日志
+                </Link>
+                <Link className="workflow-studio-secondary-link" href={monitorHref}>
+                  打开监测报表
+                </Link>
+              </div>
+            </section>
+
+            <div className="workflow-api-directory-header">
+              <p className="workflow-studio-placeholder-eyebrow">Directory</p>
+              <h3>调用方文档目录</h3>
+              <p>
+                先选一个 binding，再依次查看鉴权、Base URL、请求入口、最小请求示例和协议差异。
               </p>
             </div>
 
@@ -410,7 +453,9 @@ export function WorkflowApiSurface({
                 >
                   <a className="workflow-api-directory-binding" href={`#${doc.anchorId}`}>
                     <span>{doc.title}</span>
-                    <small>{doc.directorySummary}</small>
+                    <small>
+                      {doc.protocolLabel} · {formatAuthModeLabel(doc.authModeLabel)} · {doc.requestPath}
+                    </small>
                   </a>
 
                   <div className="workflow-api-directory-links">

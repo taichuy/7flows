@@ -107,8 +107,13 @@ describe("WorkflowApiSurface", () => {
 
     expect(html).toContain('data-component="workflow-studio-utility-frame"');
     expect(html).toContain('data-surface="api"');
+    expect(html).toContain('data-component="workflow-api-onboarding"');
+    expect(html).toContain('data-component="workflow-api-handoff-guide"');
     expect(html).toContain('data-component="workflow-api-directory"');
     expect(html).toContain('data-component="workflow-api-directory-group"');
+    expect(html).toContain("调用方接入步骤");
+    expect(html).toContain("调用后怎么继续排查");
+    expect(html).toContain("调用方文档目录");
     expect(html).toContain('href="#workflow-api-binding-1-base-url"');
     expect(html).toContain('href="#workflow-api-binding-2-protocol-diff"');
     expect(html).toContain("基础 URL");
@@ -121,7 +126,8 @@ describe("WorkflowApiSurface", () => {
     expect(html).toContain("model 字段继续使用已发布 alias chat.public");
     expect(html).toContain("/messages");
     expect(html).toContain('data-component="workflow-api-sample-form"');
-    expect(html).toContain("运行本地 sample invocation");
+    expect(html).toContain("样例请求与排障接力");
+    expect(html).toContain("运行本地样例请求");
   });
 
   it("keeps an honest empty state when only draft bindings exist", () => {
