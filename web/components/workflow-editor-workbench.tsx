@@ -278,9 +278,13 @@ export function WorkflowEditorWorkbench({
           isInspectorOpen={isInspectorOpen}
           hasSelection={hasCanvasSelection}
           hasNodeAssistant={Boolean(graph.selectedNodeId)}
+          canUndo={graph.canUndo}
+          canRedo={graph.canRedo}
           onToggleSidebar={shell.toggleSidebar}
           onToggleInspector={shell.toggleInspector}
           onOpenAssistant={shell.openNodeAssistant}
+          onUndo={graph.undo}
+          onRedo={graph.redo}
         />
       </section>
 

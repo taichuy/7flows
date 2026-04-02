@@ -225,6 +225,10 @@ function buildGraphState(overrides: Record<string, unknown> = {}) {
     selectedEdge: null,
     workflowName: "Demo workflow",
     workflowVersion: "0.1.0",
+    canUndo: false,
+    canRedo: false,
+    undo: () => undefined,
+    redo: () => undefined,
     isDirty: false,
     setWorkflowName: () => undefined,
     setPersistedWorkflowName: () => undefined,
@@ -346,20 +350,27 @@ describe("WorkflowEditorWorkbench", () => {
     mocks.useWorkflowEditorGraph.mockReturnValue(
       buildGraphState({
         selectedNodeId: "node-1",
+        canUndo: true,
+        canRedo: true,
       }),
     );
 
     const html = renderWorkbench();
 
     expect(html).toContain('data-component="workflow-editor-action-strip"');
+    expect(html).toContain('data-action="undo"');
+    expect(html).toContain('data-action="redo"');
     expect(html).toContain('data-action="node-library"');
     expect(html).toContain('data-action="inspector"');
     expect(html).toContain('data-action="assistant"');
     expect(html).toContain('data-action="fit-view"');
     expect(html).toContain('data-action="minimap"');
+    expect(html).toContain("撤销");
+    expect(html).toContain("重做");
     expect(html).toContain("节点目录");
     expect(html).toContain("属性抽屉");
     expect(html).toContain("AI 辅助");
+    expect((html.match(/data-command-enabled="true"/g) ?? []).length).toBe(2);
     expect(html).toContain('data-component="workflow-editor-sidebar-drawer-shell"');
     expect(html).toContain('data-component="workflow-editor-inspector-drawer-shell"');
     expect(html).toContain('data-open="true"');
@@ -372,6 +383,9 @@ describe("WorkflowEditorWorkbench", () => {
     const html = renderWorkbench();
 
     expect(html).toContain('data-component="workflow-editor-action-strip"');
+    expect(html).toContain('data-action="undo"');
+    expect(html).toContain('data-action="redo"');
+    expect((html.match(/data-command-enabled="false"/g) ?? []).length).toBe(2);
     expect(html).toContain("应用配置");
     expect(html).not.toContain("AI 辅助");
     expect(html).toContain('data-component="workflow-editor-sidebar-drawer-shell"');

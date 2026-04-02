@@ -45,9 +45,13 @@ export type WorkflowEditorCanvasProps = {
   isInspectorOpen: boolean;
   hasSelection: boolean;
   hasNodeAssistant: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
   onToggleSidebar: () => void;
   onToggleInspector: () => void;
   onOpenAssistant: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
 };
 
 const FIT_VIEW_OPTIONS = { padding: 0.16, duration: 240 };
@@ -64,9 +68,13 @@ export function WorkflowEditorCanvas({
   isInspectorOpen,
   hasSelection,
   hasNodeAssistant,
+  canUndo,
+  canRedo,
   onToggleSidebar,
   onToggleInspector,
-  onOpenAssistant
+  onOpenAssistant,
+  onUndo,
+  onRedo
 }: WorkflowEditorCanvasProps) {
   const [isMiniMapVisible, setIsMiniMapVisible] = useState(true);
   const [reactFlowInstance, setReactFlowInstance] =
@@ -103,6 +111,28 @@ export function WorkflowEditorCanvas({
                 className="workflow-editor-action-strip"
                 data-component="workflow-editor-action-strip"
               >
+                <Tooltip title={canUndo ? "回退最近一次 workflow 编辑" : "当前没有可撤销的编辑"}>
+                  <Button
+                    disabled={!canUndo}
+                    className="workflow-editor-action-strip-button"
+                    data-action="undo"
+                    data-command-enabled={canUndo ? "true" : "false"}
+                    onClick={onUndo}
+                  >
+                    撤销
+                  </Button>
+                </Tooltip>
+                <Tooltip title={canRedo ? "恢复最近一次被撤销的 workflow 编辑" : "当前没有可重做的编辑"}>
+                  <Button
+                    disabled={!canRedo}
+                    className="workflow-editor-action-strip-button"
+                    data-action="redo"
+                    data-command-enabled={canRedo ? "true" : "false"}
+                    onClick={onRedo}
+                  >
+                    重做
+                  </Button>
+                </Tooltip>
                 <Button
                   type={isSidebarOpen ? "primary" : "default"}
                   icon={<AppstoreOutlined />}
@@ -156,7 +186,7 @@ export function WorkflowEditorCanvas({
             </Panel>
             <Panel className="workflow-canvas-helper-panel" position="top-left">
               <strong>xyflow Studio</strong>
-              <span>选中节点后可插入下一节点，或用 ··· 打开配置。</span>
+              <span>选中节点后可插入下一节点；撤销 / 重做会回放整份 workflow 草稿。</span>
             </Panel>
             <Background gap={24} size={1} />
             {isMiniMapVisible ? (
