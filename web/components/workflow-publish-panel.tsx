@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Button, Card, Tag, Typography } from "antd";
+import { Button, Card, Tag } from "antd";
 
 import { SandboxReadinessOverviewCard } from "@/components/sandbox-readiness-overview-card";
 import {
@@ -54,7 +54,6 @@ import {
   buildWorkflowPublishSurfaceHrefFromCurrentHref,
 } from "@/lib/workflow-publish-activity-query";
 
-const { Paragraph, Text, Title } = Typography;
 
 function resolvePublishLifecycleTagColor(status: string) {
   if (status === "published") {
@@ -308,11 +307,11 @@ export function WorkflowPublishPanel({
                 data-component="workflow-publish-binding-directory"
               >
                 <div className="workflow-publish-directory-copy">
-                  <Text className="workflow-studio-utility-eyebrow">Endpoint directory</Text>
-                  <Title level={4}>Scan bindings before opening detail</Title>
-                  <Paragraph className="workflow-studio-utility-inline-copy">
+                  <span className="workflow-studio-utility-eyebrow">Endpoint directory</span>
+                  <h2>Scan bindings before opening detail</h2>
+                  <p className="workflow-studio-utility-inline-copy">
                     先看 lifecycle、协议与当前 blocker，再只把一个 binding 的 publish activity、cache、sandbox 与 API key 治理拉到右侧 detail。
-                  </Paragraph>
+                  </p>
                 </div>
 
                 <div className="workflow-publish-directory-list">
@@ -332,17 +331,17 @@ export function WorkflowPublishPanel({
                       >
                         <div className="workflow-publish-directory-item-header">
                           <div>
-                            <Text className="workflow-studio-utility-eyebrow">
+                            <span className="workflow-studio-utility-eyebrow">
                               {entry.surface.headerEyebrow}
-                            </Text>
-                            <Title level={5}>{entry.binding.endpoint_name}</Title>
+                            </span>
+                            <h3>{entry.binding.endpoint_name}</h3>
                           </div>
                           <Tag color={resolvePublishLifecycleTagColor(entry.binding.lifecycle_status)}>
                             {entry.surface.lifecycleLabel}
                           </Tag>
                         </div>
 
-                        <Paragraph className="binding-meta">{entry.surface.endpointSummary}</Paragraph>
+                        <p className="binding-meta">{entry.surface.endpointSummary}</p>
 
                         <div className="workflow-publish-directory-tag-row">
                           {entry.surface.protocolChips.map((chip) => (
@@ -368,10 +367,10 @@ export function WorkflowPublishPanel({
                           </div>
                         </dl>
 
-                        <Paragraph className="workflow-studio-utility-inline-copy workflow-publish-directory-note">
+                        <p className="workflow-studio-utility-inline-copy workflow-publish-directory-note">
                           {entry.surface.issueSurface?.message ??
                             "Open detail when you need the selected binding's lifecycle action, invocation diagnosis, cache inventory or API key governance."}
-                        </Paragraph>
+                        </p>
 
                         <div className="workflow-publish-directory-actions">
                           {isSelected ? <Tag color="processing">selected</Tag> : null}
@@ -392,8 +391,8 @@ export function WorkflowPublishPanel({
                   <Card className="workflow-publish-selected-binding-card">
                     <div className="workflow-publish-directory-item-header">
                       <div>
-                        <Text className="workflow-studio-utility-eyebrow">Selected endpoint</Text>
-                        <Title level={4}>{selectedBindingEntry.binding.endpoint_name}</Title>
+                        <span className="workflow-studio-utility-eyebrow">Selected endpoint</span>
+                        <h2>{selectedBindingEntry.binding.endpoint_name}</h2>
                       </div>
                       <Tag
                         color={resolvePublishLifecycleTagColor(
@@ -404,14 +403,14 @@ export function WorkflowPublishPanel({
                       </Tag>
                     </div>
 
-                    <Paragraph className="binding-meta">
+                    <p className="binding-meta">
                       {selectedBindingEntry.surface.endpointSummary}
-                    </Paragraph>
-                    <Paragraph className="workflow-studio-utility-inline-copy">
+                    </p>
+                    <p className="workflow-studio-utility-inline-copy">
                       {selectedBindingHasDetail
                         ? "当前 detail rail 已锁定这个 binding；lifecycle、activity、cache、sandbox 与 API key 治理都会沿同一条 endpoint 事实链展开。"
                         : "默认先保持 summary-first，只为当前选中的 binding 打开 detail；这样 publish 首屏仍能快速扫描 endpoint 列表，而不会把每个 no-store 细节都绑上来。"}
-                    </Paragraph>
+                    </p>
 
                     <div className="workflow-publish-directory-tag-row">
                       {selectedBindingEntry.surface.protocolChips.map((chip) => (

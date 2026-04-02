@@ -12,6 +12,87 @@ vi.mock("next/link", () => ({
     createElement("a", { href: href ?? "#", ...props }, children)
 }));
 
+vi.mock("@/components/workflow-studio-utility-frame", () => ({
+  WorkflowStudioUtilityFrame: ({
+    actions = [],
+    description,
+    eyebrow,
+    metrics = [],
+    tags = [],
+    title,
+    children,
+    surface,
+    className,
+    dataComponent,
+  }: {
+    actions?: Array<{ key: string; label: ReactNode; href: string }>;
+    description: ReactNode;
+    eyebrow: ReactNode;
+    metrics?: Array<{ key: string; label: ReactNode; value: ReactNode; detail?: ReactNode }>;
+    tags?: Array<{ key: string; label: ReactNode }>;
+    title: ReactNode;
+    children?: ReactNode;
+    surface: string;
+    className?: string;
+    dataComponent?: string;
+  }) =>
+    createElement(
+      "div",
+      {
+        className,
+        "data-component": dataComponent ?? "workflow-studio-utility-frame",
+        "data-surface": surface,
+      },
+      createElement("div", { "data-component": "workflow-studio-utility-copy" }, eyebrow, title, description),
+      actions.length
+        ? createElement(
+            "div",
+            { "data-component": "workflow-studio-utility-actions" },
+            actions.map((action) =>
+              createElement("a", { key: action.key, href: action.href }, action.label),
+            ),
+          )
+        : null,
+      tags.length
+        ? createElement(
+            "div",
+            { "data-component": "workflow-studio-utility-tags" },
+            tags.map((tag) => createElement("span", { key: tag.key }, tag.label)),
+          )
+        : null,
+      metrics.length
+        ? createElement(
+            "div",
+            { "data-component": "workflow-studio-utility-metrics" },
+            metrics.map((metric) =>
+              createElement(
+                "article",
+                { key: metric.key },
+                metric.label,
+                metric.value,
+                metric.detail ?? null,
+              ),
+            ),
+          )
+        : null,
+      children,
+    ),
+  WorkflowStudioUtilityEmptyCard: ({
+    description,
+    dataComponent,
+  }: {
+    description: ReactNode;
+    dataComponent?: string;
+  }) =>
+    createElement(
+      "div",
+      {
+        "data-component": dataComponent ?? "workflow-studio-utility-empty-card",
+      },
+      description,
+    ),
+}));
+
 const workflowPublishBindingCardProps: Array<Record<string, unknown>> = [];
 
 vi.mock("@/components/workflow-publish-binding-card", () => ({

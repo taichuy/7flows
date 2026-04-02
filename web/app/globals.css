@@ -690,7 +690,16 @@ a {
 
 .workflow-studio-main {
   width: min(100%, calc(100% - 28px));
-  gap: 10px;
+  gap: 12px;
+  min-height: 0;
+}
+
+.workflow-studio-shell {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(248px, 280px) minmax(0, 1fr);
+  align-items: start;
+  min-height: 0;
 }
 
 .workflow-studio-shell-bar {
@@ -703,9 +712,27 @@ a {
   box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
 }
 
+.workflow-studio-rail {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  gap: 12px;
+}
+
+.workflow-studio-stage {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
 .workflow-studio-shell-bar-compact {
   padding: 10px 14px;
   gap: 8px;
+}
+
+.workflow-studio-rail-header {
+  display: grid;
+  gap: 12px;
 }
 
 .workflow-studio-shell-row {
@@ -795,6 +822,11 @@ a {
   flex: 1 1 360px;
 }
 
+.workflow-studio-surface-rail {
+  display: grid;
+  gap: 8px;
+}
+
 .workflow-studio-shell-bar-compact .workflow-studio-surface-nav {
   justify-content: flex-end;
 }
@@ -826,6 +858,29 @@ a {
   font-size: 0.84rem;
 }
 
+.workflow-studio-rail-link {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid #dfe7f2;
+  background: rgba(255, 255, 255, 0.9);
+  color: #344054;
+  text-decoration: none;
+}
+
+.workflow-studio-rail-link strong {
+  color: #101828;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.workflow-studio-rail-link span {
+  color: #667085;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 .workflow-studio-surface-link.active {
   border-color: #bfd4ff;
   background: #edf4ff;
@@ -833,8 +888,32 @@ a {
   box-shadow: inset 0 0 0 1px rgba(31, 94, 213, 0.08);
 }
 
+.workflow-studio-rail-link.active,
+.workflow-studio-rail-secondary-link.active {
+  border-color: #bfd4ff;
+  background: #edf4ff;
+  color: #1f5ed5;
+  box-shadow: inset 0 0 0 1px rgba(31, 94, 213, 0.08);
+}
+
+.workflow-studio-rail-link.active strong,
+.workflow-studio-rail-link.active span {
+  color: inherit;
+}
+
 .workflow-studio-secondary-link {
   color: #526079;
+}
+
+.workflow-studio-rail-secondary {
+  display: grid;
+  gap: 8px;
+}
+
+.workflow-studio-rail-secondary-link {
+  justify-content: flex-start;
+  min-height: 40px;
+  border-radius: 14px;
 }
 
 .workflow-studio-shell-bar-compact .workflow-studio-surface-link,
@@ -2215,6 +2294,7 @@ a {
   .settings-layout,
   .workspace-home-header,
   .workspace-workbench-main-grid,
+  .workflow-studio-shell,
   .workflow-studio-shell-bar {
     grid-template-columns: 1fr;
   }
@@ -2232,6 +2312,10 @@ a {
   .workflow-studio-shell-row,
   .workflow-studio-shell-bar-compact .workflow-studio-surface-nav {
     justify-content: flex-start;
+  }
+
+  .workflow-studio-rail {
+    position: static;
   }
 
   .workflow-studio-surface-nav-spacer {

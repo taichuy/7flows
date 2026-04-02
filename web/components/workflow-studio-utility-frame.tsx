@@ -1,8 +1,6 @@
 import React from "react";
 import type { ReactNode } from "react";
-import { Button, Card, Empty, Tag, Typography } from "antd";
-
-const { Paragraph, Text, Title } = Typography;
+import { Button, Card, Empty, Tag } from "antd";
 
 export type WorkflowStudioUtilityMetric = {
   key: string;
@@ -100,9 +98,9 @@ export function WorkflowStudioUtilityFrame({
       <Card className="workflow-studio-utility-overview-card">
         <div className="workflow-studio-utility-overview-header">
           <div className="workflow-studio-utility-overview-copy">
-            <Text className="workflow-studio-utility-eyebrow">{eyebrow}</Text>
-            <Title level={2}>{title}</Title>
-            <Paragraph className="workflow-studio-utility-inline-copy">{description}</Paragraph>
+            <span className="workflow-studio-utility-eyebrow">{eyebrow}</span>
+            <h2>{title}</h2>
+            <p className="workflow-studio-utility-inline-copy">{description}</p>
           </div>
 
           {actions.length ? (
@@ -153,12 +151,10 @@ export function WorkflowStudioUtilityFrame({
                 key={metric.key}
                 size="small"
               >
-                <Text className="workflow-studio-utility-metric-label">{metric.label}</Text>
-                <Title className="workflow-studio-utility-metric-value" level={4}>
-                  {metric.value}
-                </Title>
+                <span className="workflow-studio-utility-metric-label">{metric.label}</span>
+                <p className="workflow-studio-utility-metric-value">{metric.value}</p>
                 {metric.detail ? (
-                  <Paragraph className="workflow-studio-utility-metric-copy">{metric.detail}</Paragraph>
+                  <p className="workflow-studio-utility-metric-copy">{metric.detail}</p>
                 ) : null}
               </Card>
             ))}

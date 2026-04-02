@@ -42,7 +42,7 @@ export type CredentialAuditItem = {
 
 async function fetchJson<T>(path: string, fallback: T): Promise<T> {
   try {
-    const res = await fetch(`${getApiBaseUrl()}${path}`, {
+    const res = await fetch(`${getCredentialsApiBaseUrl()}${path}`, {
       cache: "no-store",
     });
     if (!res.ok) return fallback;
@@ -50,6 +50,10 @@ async function fetchJson<T>(path: string, fallback: T): Promise<T> {
   } catch {
     return fallback;
   }
+}
+
+function getCredentialsApiBaseUrl() {
+  return typeof window === "undefined" ? getApiBaseUrl() : "";
 }
 
 export async function getCredentials(

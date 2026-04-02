@@ -6,12 +6,16 @@ import type { ReactNode } from "react";
 import { WorkflowApiSurface } from "@/components/workflow-api-surface";
 import { WorkflowLogsSurface } from "@/components/workflow-logs-surface";
 import { WorkflowMonitorSurface } from "@/components/workflow-monitor-surface";
+import { WorkflowPublishPanel } from "@/components/workflow-publish-panel";
 import { loadWorkflowEditorWorkbenchBootstrap } from "@/components/workflow-editor-workbench/bootstrap";
 import { WorkflowEditorWorkbenchEntry } from "@/components/workflow-editor-workbench-entry";
 import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
 import { WorkspaceShell } from "@/components/workspace-shell";
 import { getSystemOverview } from "@/lib/get-system-overview";
-import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
+import {
+  getPluginRegistrySnapshot,
+  type PluginToolRegistryItem
+} from "@/lib/get-plugin-registry";
 import { getWorkflowPublishGovernanceSnapshot } from "@/lib/get-workflow-publish-governance";
 import {
   getServerPublishedEndpointInvocationDetail,
@@ -304,15 +308,6 @@ async function renderWorkflowEditorSurface(sharedContext: WorkflowStudioSharedCo
       workspaceStarterLibraryHref={sharedContext.workspaceStarterLibraryHref}
     >
       <section className="workflow-studio-surface" data-surface="editor">
-        <WorkflowEditorFirstScreenShell
-          workflow={sharedContext.workflow}
-          workflowStageLabel={sharedContext.workflowStageLabel}
-          workflowLibraryHref={sharedContext.workflowLibraryHref}
-          createWorkflowHref={sharedContext.createWorkflowHref}
-          surfaceHrefs={sharedContext.surfaceHrefs}
-          toolsHref={sharedContext.toolsHref}
-          workspaceStarterLibraryHref={sharedContext.workspaceStarterLibraryHref}
-        />
         <WorkflowEditorWorkbenchEntry
           bootstrapRequest={bootstrapRequest}
           initialBootstrapData={initialBootstrapData}
@@ -325,6 +320,15 @@ async function renderWorkflowEditorSurface(sharedContext: WorkflowStudioSharedCo
           workspaceStarterGovernanceQueryScope={
             sharedContext.workspaceStarterGovernanceQueryScope
           }
+        />
+        <WorkflowEditorFirstScreenShell
+          workflow={sharedContext.workflow}
+          workflowStageLabel={sharedContext.workflowStageLabel}
+          workflowLibraryHref={sharedContext.workflowLibraryHref}
+          createWorkflowHref={sharedContext.createWorkflowHref}
+          surfaceHrefs={sharedContext.surfaceHrefs}
+          toolsHref={sharedContext.toolsHref}
+          workspaceStarterLibraryHref={sharedContext.workspaceStarterLibraryHref}
         />
       </section>
     </WorkflowStudioShell>
@@ -449,15 +453,6 @@ function WorkflowEditorFirstScreenShell({
 }
 
 async function renderWorkflowPublishSurface(sharedContext: WorkflowStudioSharedContext) {
-  const [
-    { WorkflowPublishPanel },
-    workflowPublishGovernanceModule,
-    workflowPublishActivityQueryModule
-  ] = await Promise.all([
-    import("@/components/workflow-publish-panel"),
-    import("@/lib/get-workflow-publish-governance"),
-    import("@/lib/workflow-publish-activity-query")
-  ]);
   const publishedEndpoints = await getServerWorkflowPublishedEndpoints(
     sharedContext.workflow.id,
     {
@@ -466,15 +461,13 @@ async function renderWorkflowPublishSurface(sharedContext: WorkflowStudioSharedC
   );
   const workflowStageLabel =
     publishedEndpoints.length > 0 ? "publish ready" : sharedContext.workflowStageLabel;
-  const publishActivityQueryScope =
-    workflowPublishActivityQueryModule.readWorkflowPublishActivityQueryScope(
-      sharedContext.resolvedSearchParams
-    );
-  const publishActivityFilters =
-    workflowPublishActivityQueryModule.resolveWorkflowPublishActivityFilters(
-      publishActivityQueryScope,
-      publishedEndpoints
-    );
+  const publishActivityQueryScope = readWorkflowPublishActivityQueryScope(
+    sharedContext.resolvedSearchParams
+  );
+  const publishActivityFilters = resolveWorkflowPublishActivityFilters(
+    publishActivityQueryScope,
+    publishedEndpoints
+  );
   const expandedBindingId = publishActivityFilters.governanceFetchFilter?.bindingId ?? null;
   const expandedBindings = expandedBindingId
     ? publishedEndpoints.filter((binding) => binding.id === expandedBindingId)
@@ -492,22 +485,12 @@ async function renderWorkflowPublishSurface(sharedContext: WorkflowStudioSharedC
   };
 
   if (expandedBindings.length > 0) {
-    const [pluginRegistryModule, systemOverviewModule, nextGovernanceSnapshot] =
-      await Promise.all([
-        import("@/lib/get-plugin-registry"),
-        import("@/lib/get-system-overview"),
-        workflowPublishGovernanceModule.getWorkflowPublishGovernanceSnapshot(
-          sharedContext.workflow.id,
-          expandedBindings,
-          {
-            activeInvocationFilter: publishActivityFilters.governanceFetchFilter
-          }
-        )
-      ]);
-
-    const [pluginRegistry, systemOverview] = await Promise.all([
-      pluginRegistryModule.getPluginRegistrySnapshot(),
-      systemOverviewModule.getSystemOverview()
+    const [pluginRegistry, systemOverview, nextGovernanceSnapshot] = await Promise.all([
+      getPluginRegistrySnapshot(),
+      getSystemOverview(),
+      getWorkflowPublishGovernanceSnapshot(sharedContext.workflow.id, expandedBindings, {
+        activeInvocationFilter: publishActivityFilters.governanceFetchFilter
+      })
     ]);
 
     tools = pluginRegistry.tools;
@@ -962,9 +945,9 @@ function WorkflowStudioShell({
   workspaceStarterLibraryHref,
   children
 }: WorkflowStudioShellProps) {
-  const isEditorSurface = activeStudioSurface === "editor";
   const studioModeLabel = getWorkflowStudioSurfaceDefinition(activeStudioSurface).modeLabel;
   const surfaceItems = getWorkflowStudioSurfaceDefinitions();
+  const primarySurfaceItems = surfaceItems.filter((item) => item.key !== "publish");
 
   return (
     <WorkspaceShell
@@ -976,51 +959,61 @@ function WorkflowStudioShell({
       workspaceName={workspaceName}
     >
       <div className="workspace-main workflow-studio-main">
-        <section
-          className={[
-            "workflow-studio-shell-bar",
-            isEditorSurface ? "workflow-studio-shell-bar-compact" : null
-          ]
-            .filter(Boolean)
-            .join(" ")}
-        >
-          <div className="workflow-studio-shell-row">
-            <div className="workflow-studio-breadcrumb-row">
-              <Link className="workflow-studio-breadcrumb-link" href={workflowLibraryHref}>
-                编排中心
-              </Link>
-              <span className="workflow-studio-breadcrumb-current">{workflowName}</span>
-              <span className="workflow-studio-inline-tag">v{workflowVersion}</span>
-              <span className="workflow-studio-inline-tag">{workflowStageLabel}</span>
-              <span className="workflow-studio-shell-mode">{studioModeLabel}</span>
+        <section className="workflow-studio-shell" data-component="workflow-studio-shell">
+          <aside className="workflow-studio-shell-bar workflow-studio-rail" data-component="workflow-studio-rail">
+            <div className="workflow-studio-rail-header">
+              <div className="workflow-studio-breadcrumb-row">
+                <Link className="workflow-studio-breadcrumb-link" href={workflowLibraryHref}>
+                  编排中心
+                </Link>
+                <span className="workflow-studio-breadcrumb-current">{workflowName}</span>
+              </div>
+
+              <div className="workflow-studio-inline-metrics">
+                <span className="workflow-studio-inline-tag">v{workflowVersion}</span>
+                <span className="workflow-studio-inline-tag">{workflowStageLabel}</span>
+                <span className="workflow-studio-shell-mode">{studioModeLabel}</span>
+              </div>
             </div>
 
-            <nav className="workflow-studio-surface-nav" aria-label="Workflow studio surfaces">
-              {surfaceItems.map((item) => (
+            <nav className="workflow-studio-surface-rail" aria-label="Workflow studio surfaces">
+              {primarySurfaceItems.map((item) => (
                 <Link
-                  className={`workflow-studio-surface-link ${
+                  className={`workflow-studio-rail-link ${
                     activeStudioSurface === item.key ? "active" : ""
                   }`.trim()}
                   href={surfaceHrefs[item.key]}
                   key={item.key}
                 >
-                  {item.label}
+                  <strong>{item.label}</strong>
+                  <span>{item.description}</span>
                 </Link>
               ))}
-              <span className="workflow-studio-surface-nav-spacer" aria-hidden="true" />
-              <div className="workflow-studio-utility-links">
-                <Link className="workflow-studio-secondary-link" href="/runs">
-                  运行诊断
-                </Link>
-                <Link className="workflow-studio-secondary-link" href={workspaceStarterLibraryHref}>
-                  Starter 模板
-                </Link>
-              </div>
             </nav>
-          </div>
-        </section>
 
-        {children}
+            <div className="workflow-studio-rail-secondary">
+              <Link
+                className={`workflow-studio-secondary-link workflow-studio-rail-secondary-link ${
+                  activeStudioSurface === "publish" ? "active" : ""
+                }`.trim()}
+                href={surfaceHrefs.publish}
+              >
+                发布治理
+              </Link>
+              <Link className="workflow-studio-secondary-link workflow-studio-rail-secondary-link" href="/runs">
+                运行诊断
+              </Link>
+              <Link
+                className="workflow-studio-secondary-link workflow-studio-rail-secondary-link"
+                href={workspaceStarterLibraryHref}
+              >
+                Starter 模板
+              </Link>
+            </div>
+          </aside>
+
+          <div className="workflow-studio-stage">{children}</div>
+        </section>
       </div>
     </WorkspaceShell>
   );
