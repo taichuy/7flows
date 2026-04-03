@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.routes.auth import require_console_route_access
 from app.core.database import get_db
 from app.schemas.workflow_publish import (
     PublishedEndpointApiKeyCreateRequest,
@@ -53,6 +54,11 @@ def list_published_endpoint_api_keys(
     workflow_id: str,
     binding_id: str,
     include_revoked: bool = Query(default=False),
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/workflows/{workflow_id}/published-endpoints/{binding_id}/api-keys", method="GET"
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> list[PublishedEndpointApiKeyItem]:
     try:
@@ -81,6 +87,11 @@ def create_published_endpoint_api_key(
     workflow_id: str,
     binding_id: str,
     payload: PublishedEndpointApiKeyCreateRequest,
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/workflows/{workflow_id}/published-endpoints/{binding_id}/api-keys", method="POST"
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> PublishedEndpointApiKeyCreateResponse:
     try:
@@ -114,6 +125,12 @@ def revoke_published_endpoint_api_key(
     workflow_id: str,
     binding_id: str,
     key_id: str,
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/workflows/{workflow_id}/published-endpoints/{binding_id}/api-keys/{key_id}",
+            method="DELETE",
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> PublishedEndpointApiKeyItem:
     try:

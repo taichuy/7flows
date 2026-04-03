@@ -3,6 +3,7 @@ from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.routes.auth import require_console_route_access
 from app.core.database import get_db
 from app.models.sensitive_access import ApprovalTicketRecord, NotificationDispatchRecord
 from app.schemas.sensitive_access import (
@@ -89,6 +90,7 @@ LEGACY_AUTH_CHECKLIST_ORDER = (
     "offline_inventory",
 )
 
+
 def _resolve_single_run_follow_up(
     db: Session,
     *,
@@ -122,9 +124,7 @@ def _serialize_access_bundle(
     run_id = resolve_sensitive_access_run_id(
         run_id=bundle.access_request.run_id,
         node_run_id=bundle.access_request.node_run_id,
-        run_ids_by_node_run_id=load_run_ids_by_node_run_id(
-            db, [bundle.access_request.node_run_id]
-        ),
+        run_ids_by_node_run_id=load_run_ids_by_node_run_id(db, [bundle.access_request.node_run_id]),
     )
     if run_id:
         run_follow_up, run_snapshot = _resolve_single_run_follow_up(
@@ -163,9 +163,7 @@ def _serialize_approval_bundle(
     return ApprovalTicketDecisionResponse(
         request=serialize_sensitive_access_request(bundle.access_request),
         approval_ticket=serialize_approval_ticket(bundle.approval_ticket),
-        notifications=[
-            serialize_notification_dispatch(item) for item in bundle.notifications
-        ],
+        notifications=[serialize_notification_dispatch(item) for item in bundle.notifications],
         outcome_explanation=build_approval_decision_outcome_explanation(bundle),
         callback_blocker_delta=callback_blocker_delta,
         run_snapshot=run_snapshot,
@@ -269,6 +267,9 @@ def _summarize_notification_dispatch_bulk_skips(
 )
 def create_sensitive_resource(
     payload: SensitiveResourceCreateRequest,
+    _access_context=Depends(
+        require_console_route_access("/api/sensitive-access/resources", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> SensitiveResourceItem:
     record = service.create_resource(
@@ -287,6 +288,9 @@ def create_sensitive_resource(
 def list_sensitive_resources(
     sensitivity_level: str | None = Query(default=None),
     source: str | None = Query(default=None),
+    _access_context=Depends(
+        require_console_route_access("/api/sensitive-access/resources", method="GET")
+    ),
     db: Session = Depends(get_db),
 ) -> list[SensitiveResourceItem]:
     records = service.list_resources(
@@ -304,6 +308,9 @@ def list_sensitive_resources(
 )
 def create_sensitive_access_request(
     payload: SensitiveAccessRequestCreateRequest,
+    _access_context=Depends(
+        require_console_route_access("/api/sensitive-access/requests", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> SensitiveAccessRequestResponse:
     try:
@@ -449,17 +456,13 @@ def _build_sensitive_access_inbox_summary(
             "failed_notification",
             "blocked",
             lambda entry: any(item.status == "failed" for item in entry.notifications),
-            lambda entry: sum(
-                1 for item in entry.notifications if item.status == "failed"
-            ),
+            lambda entry: sum(1 for item in entry.notifications if item.status == "failed"),
         ),
         (
             "pending_notification",
             "degraded",
             lambda entry: any(item.status == "pending" for item in entry.notifications),
-            lambda entry: sum(
-                1 for item in entry.notifications if item.status == "pending"
-            ),
+            lambda entry: sum(1 for item in entry.notifications if item.status == "pending"),
         ),
     )
     blockers: list[SensitiveAccessInboxBlockerSummary] = []
@@ -491,9 +494,7 @@ def _build_sensitive_access_inbox_summary(
         resumed_ticket_count=sum(
             1 for entry in entries if entry.ticket.waiting_status == "resumed"
         ),
-        failed_ticket_count=sum(
-            1 for entry in entries if entry.ticket.waiting_status == "failed"
-        ),
+        failed_ticket_count=sum(1 for entry in entries if entry.ticket.waiting_status == "failed"),
         pending_notification_count=sum(1 for item in notifications if item.status == "pending"),
         delivered_notification_count=sum(1 for item in notifications if item.status == "delivered"),
         failed_notification_count=sum(1 for item in notifications if item.status == "failed"),
@@ -528,8 +529,7 @@ def _resolve_inbox_run_ids(
         scopes=[
             (
                 entry.ticket.run_id or (entry.request.run_id if entry.request else None),
-                entry.ticket.node_run_id
-                or (entry.request.node_run_id if entry.request else None),
+                entry.ticket.node_run_id or (entry.request.node_run_id if entry.request else None),
             )
             for entry in entries
         ],
@@ -567,9 +567,7 @@ def _resolve_legacy_auth_workflow_ids_for_run_ids(
         if not normalized_run_id:
             continue
         run_snapshot = load_operator_run_snapshot(db, normalized_run_id)
-        workflow_id = str(
-            run_snapshot.workflow_id if run_snapshot is not None else ""
-        ).strip()
+        workflow_id = str(run_snapshot.workflow_id if run_snapshot is not None else "").strip()
         if workflow_id and workflow_id not in seen_workflow_ids:
             seen_workflow_ids.add(workflow_id)
             resolved_workflow_ids.append(workflow_id)
@@ -622,12 +620,9 @@ def _build_sensitive_access_legacy_auth_governance_snapshot(
         draft_candidate_count += snapshot.summary.draft_candidate_count
         published_blocker_count += snapshot.summary.published_blocker_count
         offline_inventory_count += snapshot.summary.offline_inventory_count
-        workflows.extend(
-            workflow.model_copy(deep=True) for workflow in snapshot.workflows
-        )
+        workflows.extend(workflow.model_copy(deep=True) for workflow in snapshot.workflows)
         draft_candidates.extend(
-            item.model_copy(deep=True)
-            for item in snapshot.buckets.draft_candidates
+            item.model_copy(deep=True) for item in snapshot.buckets.draft_candidates
         )
         published_blockers.extend(
             item.model_copy(deep=True) for item in snapshot.buckets.published_blockers
@@ -658,9 +653,7 @@ def _build_sensitive_access_legacy_auth_governance_snapshot(
             "offline_inventory_count": offline_inventory_count,
         },
         checklist=[
-            checklist_by_key[key]
-            for key in LEGACY_AUTH_CHECKLIST_ORDER
-            if key in checklist_by_key
+            checklist_by_key[key] for key in LEGACY_AUTH_CHECKLIST_ORDER if key in checklist_by_key
         ],
         workflows=workflows,
         buckets={
@@ -683,11 +676,12 @@ def get_sensitive_access_inbox(
     node_run_id: str | None = Query(default=None),
     access_request_id: str | None = Query(default=None),
     approval_ticket_id: str | None = Query(default=None),
+    _access_context=Depends(
+        require_console_route_access("/api/sensitive-access/inbox", method="GET")
+    ),
     db: Session = Depends(get_db),
 ) -> SensitiveAccessInboxResponse:
-    resources = [
-        serialize_sensitive_resource(record) for record in service.list_resources(db)
-    ]
+    resources = [serialize_sensitive_resource(record) for record in service.list_resources(db)]
     requests = [
         serialize_sensitive_access_request(record)
         for record in service.list_access_requests(
@@ -745,11 +739,7 @@ def get_sensitive_access_inbox(
         entry = SensitiveAccessInboxEntryItem(
             ticket=ticket,
             request=request,
-            resource=(
-                resources_by_id.get(request.resource_id)
-                if request is not None
-                else None
-            ),
+            resource=(resources_by_id.get(request.resource_id) if request is not None else None),
             notifications=ticket_notifications,
         )
         entries.append(entry)
@@ -768,9 +758,7 @@ def get_sensitive_access_inbox(
     legacy_auth_snapshot_by_workflow_id: dict[str, object | None] = {}
     for entry in entries:
         resolved_run_id = entry_run_ids.get(entry.ticket.id)
-        run_follow_up = (
-            run_follow_up_by_run_id.get(resolved_run_id) if resolved_run_id else None
-        )
+        run_follow_up = run_follow_up_by_run_id.get(resolved_run_id) if resolved_run_id else None
         run_snapshot = resolve_operator_run_snapshot_from_follow_up(
             run_follow_up,
             run_id=resolved_run_id,
@@ -811,6 +799,9 @@ def list_sensitive_access_requests(
     run_id: str | None = Query(default=None),
     node_run_id: str | None = Query(default=None),
     access_request_id: str | None = Query(default=None),
+    _access_context=Depends(
+        require_console_route_access("/api/sensitive-access/requests", method="GET")
+    ),
     db: Session = Depends(get_db),
 ) -> list[SensitiveAccessRequestItem]:
     records = service.list_access_requests(
@@ -832,6 +823,9 @@ def list_approval_tickets(
     node_run_id: str | None = Query(default=None),
     access_request_id: str | None = Query(default=None),
     approval_ticket_id: str | None = Query(default=None),
+    _access_context=Depends(
+        require_console_route_access("/api/sensitive-access/approval-tickets", method="GET")
+    ),
     db: Session = Depends(get_db),
 ) -> list[ApprovalTicketItem]:
     records = service.list_approval_tickets(
@@ -851,6 +845,9 @@ def list_approval_tickets(
     response_model=list[NotificationChannelCapabilityItem],
 )
 def list_notification_channels(
+    _access_context=Depends(
+        require_console_route_access("/api/sensitive-access/notification-channels", method="GET")
+    ),
     db: Session = Depends(get_db),
 ) -> list[NotificationChannelCapabilityItem]:
     return _serialize_notification_channels(db)
@@ -863,6 +860,11 @@ def list_notification_channels(
 def decide_approval_ticket(
     ticket_id: str,
     payload: ApprovalTicketDecisionRequest,
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/sensitive-access/approval-tickets/{ticket_id}/decision", method="POST"
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> ApprovalTicketDecisionResponse:
     approval_ticket = db.get(ApprovalTicketRecord, ticket_id)
@@ -919,6 +921,11 @@ def decide_approval_ticket(
 )
 def bulk_decide_approval_tickets(
     payload: ApprovalTicketBulkDecisionRequest,
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/sensitive-access/approval-tickets/bulk-decision", method="POST"
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> ApprovalTicketBulkDecisionResult:
     decided_items: list[ApprovalTicketItem] = []
@@ -1004,8 +1011,7 @@ def bulk_decide_approval_tickets(
                 run_ids_by_node_run_id=run_ids_by_node_run_id,
             )
         ]
-        if resolved_run_id
-        and (resolved_run_id, item.node_run_id) in before_blockers_by_scope
+        if resolved_run_id and (resolved_run_id, item.node_run_id) in before_blockers_by_scope
     ]
     affected_run_ids = collect_sensitive_access_run_ids(
         db,
@@ -1047,6 +1053,9 @@ def list_notification_dispatches(
     access_request_id: str | None = Query(default=None),
     status: str | None = Query(default=None),
     channel: str | None = Query(default=None),
+    _access_context=Depends(
+        require_console_route_access("/api/sensitive-access/notification-dispatches", method="GET")
+    ),
     db: Session = Depends(get_db),
 ) -> list[NotificationDispatchItem]:
     records = service.list_notification_dispatches(
@@ -1068,6 +1077,11 @@ def list_notification_dispatches(
 def retry_notification_dispatch(
     dispatch_id: str,
     payload: NotificationDispatchRetryRequest | None = None,
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/sensitive-access/notification-dispatches/{dispatch_id}/retry", method="POST"
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> NotificationDispatchRetryResponse:
     notification = db.get(NotificationDispatchRecord, dispatch_id)
@@ -1125,6 +1139,11 @@ def retry_notification_dispatch(
 )
 def bulk_retry_notification_dispatches(
     payload: NotificationDispatchBulkRetryRequest,
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/sensitive-access/notification-dispatches/bulk-retry", method="POST"
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> NotificationDispatchBulkRetryResult:
     retried_items: list[NotificationDispatchBulkRetriedItem] = []
@@ -1211,9 +1230,7 @@ def bulk_retry_notification_dispatches(
             )
         )
     before_blockers = [
-        before_blockers_by_scope[
-            (resolved_run_id, item.approval_ticket.node_run_id)
-        ]
+        before_blockers_by_scope[(resolved_run_id, item.approval_ticket.node_run_id)]
         for item in retried_items
         for resolved_run_id in [
             resolve_sensitive_access_run_id(
@@ -1238,9 +1255,7 @@ def bulk_retry_notification_dispatches(
         skipped_count=len(skipped_items),
         retried_items=retried_items,
         skipped_items=skipped_items,
-        skipped_reason_summary=_summarize_notification_dispatch_bulk_skips(
-            skipped_items
-        ),
+        skipped_reason_summary=_summarize_notification_dispatch_bulk_skips(skipped_items),
         outcome_explanation=build_bulk_notification_retry_outcome_explanation(
             retried_items=retried_items,
             skipped_items=skipped_items,

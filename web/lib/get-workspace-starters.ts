@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import { fetchConsoleApiPath } from "@/lib/console-session-client";
 import type {
   WorkflowDefinitionPreflightIssue,
   WorkflowDetail,
@@ -307,7 +307,7 @@ function parseWorkspaceStarterValidationError(
 }
 
 export async function createWorkspaceStarterTemplate(payload: Record<string, unknown>) {
-  const response = await fetch(`${getApiBaseUrl()}/api/workspace-starters`, {
+  const response = await fetchConsoleApiPath("/api/workspace-starters", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -333,8 +333,8 @@ export async function updateWorkspaceStarterTemplate(
   templateId: string,
   payload: Record<string, unknown>
 ) {
-  const response = await fetch(
-    `${getApiBaseUrl()}/api/workspace-starters/${encodeURIComponent(templateId)}`,
+  const response = await fetchConsoleApiPath(
+    `/api/workspace-starters/${encodeURIComponent(templateId)}`,
     {
       method: "PUT",
       headers: {
@@ -392,8 +392,8 @@ export async function getWorkspaceStarterTemplatesWithFilters({
   });
 
   try {
-    const response = await fetch(
-      `${getApiBaseUrl()}/api/workspace-starters?${params.toString()}`,
+    const response = await fetchConsoleApiPath(
+      `/api/workspace-starters?${params.toString()}`,
       {
         cache: "no-store"
       }
@@ -437,8 +437,8 @@ export async function getWorkspaceStarterSourceGovernanceScopeSummary({
   });
 
   try {
-    const response = await fetch(
-      `${getApiBaseUrl()}/api/workspace-starters/governance-summary?${params.toString()}`,
+    const response = await fetchConsoleApiPath(
+      `/api/workspace-starters/governance-summary?${params.toString()}`,
       {
         cache: "no-store"
       }
@@ -474,10 +474,8 @@ export async function getWorkspaceStarterHistory(
   params.set("limit", String(limit));
 
   try {
-    const response = await fetch(
-      `${getApiBaseUrl()}/api/workspace-starters/${encodeURIComponent(
-        normalizedTemplateId
-      )}/history?${params.toString()}`,
+    const response = await fetchConsoleApiPath(
+      `/api/workspace-starters/${encodeURIComponent(normalizedTemplateId)}/history?${params.toString()}`,
       {
         cache: "no-store"
       }
@@ -550,10 +548,8 @@ export async function getWorkspaceStarterSourceDiff(
   params.set("workspace_id", workspaceId);
 
   try {
-    const response = await fetch(
-      `${getApiBaseUrl()}/api/workspace-starters/${encodeURIComponent(
-        normalizedTemplateId
-      )}/source-diff?${params.toString()}`,
+    const response = await fetchConsoleApiPath(
+      `/api/workspace-starters/${encodeURIComponent(normalizedTemplateId)}/source-diff?${params.toString()}`,
       {
         cache: "no-store"
       }
@@ -600,7 +596,7 @@ export async function bulkUpdateWorkspaceStarters({
     };
   }
 
-  const response = await fetch(`${getApiBaseUrl()}/api/workspace-starters/bulk`, {
+  const response = await fetchConsoleApiPath("/api/workspace-starters/bulk", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -637,7 +633,7 @@ export async function previewWorkspaceStarterBulkActions({
     return createEmptyWorkspaceStarterBulkPreview(workspaceId);
   }
 
-  const response = await fetch(`${getApiBaseUrl()}/api/workspace-starters/bulk/preview`, {
+  const response = await fetchConsoleApiPath("/api/workspace-starters/bulk/preview", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"

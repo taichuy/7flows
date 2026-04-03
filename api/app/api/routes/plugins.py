@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.routes.auth import require_console_route_access
 from app.core.database import get_db
 from app.schemas.plugin import (
     PluginAdapterRegistrationCreate,
@@ -88,6 +89,7 @@ def _serialize_tool(
 
 @router.get("/adapters", response_model=list[PluginAdapterRegistrationItem])
 def list_plugin_adapters(
+    _access_context=Depends(require_console_route_access("/api/plugins/adapters", method="GET")),
     db: Session = Depends(get_db),
 ) -> list[PluginAdapterRegistrationItem]:
     registry = get_plugin_registry()
@@ -102,6 +104,7 @@ def list_plugin_adapters(
 )
 def register_plugin_adapter(
     payload: PluginAdapterRegistrationCreate,
+    _access_context=Depends(require_console_route_access("/api/plugins/adapters", method="POST")),
     db: Session = Depends(get_db),
 ) -> PluginAdapterRegistrationItem:
     registry = get_plugin_registry()
@@ -128,6 +131,9 @@ def register_plugin_adapter(
 )
 def sync_plugin_adapter_tools(
     adapter_id: str,
+    _access_context=Depends(
+        require_console_route_access("/api/plugins/adapters/{adapter_id}/sync-tools", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> PluginToolSyncResult:
     registry = get_plugin_registry()
@@ -174,6 +180,7 @@ def sync_plugin_adapter_tools(
 
 @router.get("/tools", response_model=list[PluginToolItem])
 def list_plugin_tools(
+    _access_context=Depends(require_console_route_access("/api/plugins/tools", method="GET")),
     db: Session = Depends(get_db),
 ) -> list[PluginToolItem]:
     registry = get_plugin_registry()
@@ -192,6 +199,7 @@ def list_plugin_tools(
 )
 def register_plugin_tool(
     payload: PluginToolRegistrationCreate,
+    _access_context=Depends(require_console_route_access("/api/plugins/tools", method="POST")),
     db: Session = Depends(get_db),
 ) -> PluginToolItem:
     registry = get_plugin_registry()

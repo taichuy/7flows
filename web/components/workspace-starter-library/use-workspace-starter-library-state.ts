@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import { fetchConsoleApiPath } from "@/lib/console-session-client";
 import type { PluginToolRegistryItem } from "@/lib/get-plugin-registry";
 import {
   bulkUpdateWorkspaceStarters,
@@ -413,8 +413,8 @@ export function useWorkspaceStarterLibraryState(
       setMessageTone("idle");
 
       try {
-        const response = await fetch(
-          `${getApiBaseUrl()}/api/workspace-starters/${encodeURIComponent(selectedTemplate.id)}${
+        const response = await fetchConsoleApiPath(
+          `/api/workspace-starters/${encodeURIComponent(selectedTemplate.id)}${
             action === "delete" ? "" : `/${action}`
           }`,
           {

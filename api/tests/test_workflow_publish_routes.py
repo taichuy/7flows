@@ -30,22 +30,29 @@ from tests.workflow_publish_helpers import (
     waiting_agent_publishable_definition as _waiting_agent_publishable_definition,
 )
 
-pytestmark = pytest.mark.usefixtures("workspace_console_auth")
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
+)
 
 
-def test_create_workflow_persists_publish_bindings(client: TestClient) -> None:
+def test_create_workflow_persists_publish_bindings(
+    client: TestClient,
+    auth_headers: dict,
+    write_headers: dict,
+) -> None:
     create_response = client.post(
         "/api/workflows",
         json={
             "name": "Publishable Workflow",
             "definition": _publishable_definition(),
         },
+        headers=write_headers,
     )
 
     assert create_response.status_code == 201
     workflow_id = create_response.json()["id"]
 
-    response = client.get(f"/api/workflows/{workflow_id}/published-endpoints")
+    response = client.get(f"/api/workflows/{workflow_id}/published-endpoints", headers=auth_headers)
 
     assert response.status_code == 200
     body = response.json()
@@ -64,7 +71,11 @@ def test_create_workflow_persists_publish_bindings(client: TestClient) -> None:
     assert body[0]["issues"] == []
 
 
-def test_create_workflow_persists_publish_cache_policy(client: TestClient) -> None:
+def test_create_workflow_persists_publish_cache_policy(
+    client: TestClient,
+    auth_headers: dict,
+    write_headers: dict,
+) -> None:
     create_response = client.post(
         "/api/workflows",
         json={
@@ -77,12 +88,13 @@ def test_create_workflow_persists_publish_cache_policy(client: TestClient) -> No
                 }
             ),
         },
+        headers=write_headers,
     )
 
     assert create_response.status_code == 201
     workflow_id = create_response.json()["id"]
 
-    response = client.get(f"/api/workflows/{workflow_id}/published-endpoints")
+    response = client.get(f"/api/workflows/{workflow_id}/published-endpoints", headers=auth_headers)
 
     assert response.status_code == 200
     body = response.json()
@@ -97,6 +109,8 @@ def test_create_workflow_persists_publish_cache_policy(client: TestClient) -> No
 
 def test_list_published_endpoints_supports_current_and_all_versions(
     client: TestClient,
+    auth_headers: dict,
+    write_headers: dict,
 ) -> None:
     create_response = client.post(
         "/api/workflows",
@@ -104,6 +118,7 @@ def test_list_published_endpoints_supports_current_and_all_versions(
             "name": "Versioned Publish Workflow",
             "definition": _publishable_definition(),
         },
+        headers=write_headers,
     )
     assert create_response.status_code == 201
     workflow_id = create_response.json()["id"]
@@ -136,10 +151,13 @@ def test_list_published_endpoints_supports_current_and_all_versions(
                 ],
             }
         },
+        headers=write_headers,
     )
     assert update_response.status_code == 200
 
-    current_response = client.get(f"/api/workflows/{workflow_id}/published-endpoints")
+    current_response = client.get(
+        f"/api/workflows/{workflow_id}/published-endpoints", headers=auth_headers
+    )
     assert current_response.status_code == 200
     current_body = current_response.json()
     assert [item["endpoint_id"] for item in current_body] == ["native-chat", "openai-chat"]
@@ -154,6 +172,7 @@ def test_list_published_endpoints_supports_current_and_all_versions(
     all_versions_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints",
         params={"include_all_versions": "true"},
+        headers=auth_headers,
     )
     assert all_versions_response.status_code == 200
     all_versions_body = all_versions_response.json()
@@ -166,6 +185,7 @@ def test_list_published_endpoints_supports_current_and_all_versions(
 
 def test_create_workflow_rejects_publish_binding_to_unknown_version(
     client: TestClient,
+    write_headers: dict,
 ) -> None:
     response = client.post(
         "/api/workflows",
@@ -173,6 +193,7 @@ def test_create_workflow_rejects_publish_binding_to_unknown_version(
             "name": "Broken Publish Binding",
             "definition": _publishable_definition(workflow_version="9.9.9"),
         },
+        headers=write_headers,
     )
 
     assert response.status_code == 422
@@ -184,6 +205,8 @@ def test_create_workflow_rejects_publish_binding_to_unknown_version(
 
 def test_publish_binding_promotes_selected_version_and_offlines_previous_one(
     client: TestClient,
+    auth_headers: dict,
+    write_headers: dict,
 ) -> None:
     create_response = client.post(
         "/api/workflows",
@@ -191,6 +214,7 @@ def test_publish_binding_promotes_selected_version_and_offlines_previous_one(
             "name": "Publish Lifecycle Workflow",
             "definition": _publishable_definition(),
         },
+        headers=write_headers,
     )
     assert create_response.status_code == 201
     workflow_id = create_response.json()["id"]
@@ -198,6 +222,7 @@ def test_publish_binding_promotes_selected_version_and_offlines_previous_one(
     initial_bindings_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints",
         params={"include_all_versions": "true"},
+        headers=auth_headers,
     )
     assert initial_bindings_response.status_code == 200
     initial_binding_id = initial_bindings_response.json()[0]["id"]
@@ -205,6 +230,7 @@ def test_publish_binding_promotes_selected_version_and_offlines_previous_one(
     publish_initial_response = client.patch(
         f"/api/workflows/{workflow_id}/published-endpoints/{initial_binding_id}/lifecycle",
         json={"status": "published"},
+        headers=write_headers,
     )
     assert publish_initial_response.status_code == 200
     published_initial = publish_initial_response.json()
@@ -230,12 +256,14 @@ def test_publish_binding_promotes_selected_version_and_offlines_previous_one(
                 ],
             }
         },
+        headers=write_headers,
     )
     assert update_response.status_code == 200
 
     all_bindings_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints",
         params={"include_all_versions": "true"},
+        headers=auth_headers,
     )
     assert all_bindings_response.status_code == 200
     all_bindings = all_bindings_response.json()
@@ -247,6 +275,7 @@ def test_publish_binding_promotes_selected_version_and_offlines_previous_one(
     publish_latest_response = client.patch(
         f"/api/workflows/{workflow_id}/published-endpoints/{latest_binding['id']}/lifecycle",
         json={"status": "published"},
+        headers=write_headers,
     )
     assert publish_latest_response.status_code == 200
     published_latest = publish_latest_response.json()
@@ -257,6 +286,7 @@ def test_publish_binding_promotes_selected_version_and_offlines_previous_one(
     published_only_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints",
         params={"include_all_versions": "true", "lifecycle_status": "published"},
+        headers=auth_headers,
     )
     assert published_only_response.status_code == 200
     published_only = published_only_response.json()
@@ -267,6 +297,7 @@ def test_publish_binding_promotes_selected_version_and_offlines_previous_one(
     all_bindings_after_publish_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints",
         params={"include_all_versions": "true"},
+        headers=auth_headers,
     )
     assert all_bindings_after_publish_response.status_code == 200
     all_bindings_after_publish = all_bindings_after_publish_response.json()
@@ -279,6 +310,8 @@ def test_publish_binding_promotes_selected_version_and_offlines_previous_one(
 
 def test_publish_binding_rejects_conflicting_alias_or_path_across_workflows(
     client: TestClient,
+    auth_headers: dict,
+    write_headers: dict,
 ) -> None:
     first_workflow = client.post(
         "/api/workflows",
@@ -286,6 +319,7 @@ def test_publish_binding_rejects_conflicting_alias_or_path_across_workflows(
             "name": "First Published Workflow",
             "definition": _publishable_definition(alias="shared-alias", path="/shared/path"),
         },
+        headers=write_headers,
     )
     assert first_workflow.status_code == 201
     first_workflow_id = first_workflow.json()["id"]
@@ -293,6 +327,7 @@ def test_publish_binding_rejects_conflicting_alias_or_path_across_workflows(
     first_binding_response = client.get(
         f"/api/workflows/{first_workflow_id}/published-endpoints",
         params={"include_all_versions": "true"},
+        headers=auth_headers,
     )
     assert first_binding_response.status_code == 200
     first_binding_id = first_binding_response.json()[0]["id"]
@@ -300,6 +335,7 @@ def test_publish_binding_rejects_conflicting_alias_or_path_across_workflows(
     publish_first_response = client.patch(
         f"/api/workflows/{first_workflow_id}/published-endpoints/{first_binding_id}/lifecycle",
         json={"status": "published"},
+        headers=write_headers,
     )
     assert publish_first_response.status_code == 200
 
@@ -309,6 +345,7 @@ def test_publish_binding_rejects_conflicting_alias_or_path_across_workflows(
             "name": "Second Published Workflow",
             "definition": _publishable_definition(answer="other", alias="shared-alias"),
         },
+        headers=write_headers,
     )
     assert second_workflow.status_code == 201
     second_workflow_id = second_workflow.json()["id"]
@@ -316,6 +353,7 @@ def test_publish_binding_rejects_conflicting_alias_or_path_across_workflows(
     second_binding_response = client.get(
         f"/api/workflows/{second_workflow_id}/published-endpoints",
         params={"include_all_versions": "true"},
+        headers=auth_headers,
     )
     assert second_binding_response.status_code == 200
     second_binding_id = second_binding_response.json()[0]["id"]
@@ -323,6 +361,7 @@ def test_publish_binding_rejects_conflicting_alias_or_path_across_workflows(
     publish_second_response = client.patch(
         f"/api/workflows/{second_workflow_id}/published-endpoints/{second_binding_id}/lifecycle",
         json={"status": "published"},
+        headers=write_headers,
     )
     assert publish_second_response.status_code == 422
     assert "alias 'shared-alias' is already used" in publish_second_response.json()["detail"]
@@ -337,6 +376,7 @@ def test_publish_binding_rejects_conflicting_alias_or_path_across_workflows(
                 path="/shared/path",
             ),
         },
+        headers=write_headers,
     )
     assert third_workflow.status_code == 201
     third_workflow_id = third_workflow.json()["id"]
@@ -344,6 +384,7 @@ def test_publish_binding_rejects_conflicting_alias_or_path_across_workflows(
     third_binding_response = client.get(
         f"/api/workflows/{third_workflow_id}/published-endpoints",
         params={"include_all_versions": "true"},
+        headers=auth_headers,
     )
     assert third_binding_response.status_code == 200
     third_binding_id = third_binding_response.json()[0]["id"]
@@ -351,18 +392,24 @@ def test_publish_binding_rejects_conflicting_alias_or_path_across_workflows(
     publish_third_response = client.patch(
         f"/api/workflows/{third_workflow_id}/published-endpoints/{third_binding_id}/lifecycle",
         json={"status": "published"},
+        headers=write_headers,
     )
     assert publish_third_response.status_code == 422
     assert "path '/shared/path' is already used" in publish_third_response.json()["detail"]
 
 
-def test_unpublish_binding_marks_binding_offline(client: TestClient) -> None:
+def test_unpublish_binding_marks_binding_offline(
+    client: TestClient,
+    auth_headers: dict,
+    write_headers: dict,
+) -> None:
     create_response = client.post(
         "/api/workflows",
         json={
             "name": "Offline Publish Workflow",
             "definition": _publishable_definition(),
         },
+        headers=write_headers,
     )
     assert create_response.status_code == 201
     workflow_id = create_response.json()["id"]
@@ -370,6 +417,7 @@ def test_unpublish_binding_marks_binding_offline(client: TestClient) -> None:
     bindings_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints",
         params={"include_all_versions": "true"},
+        headers=auth_headers,
     )
     assert bindings_response.status_code == 200
     binding_id = bindings_response.json()[0]["id"]
@@ -377,12 +425,14 @@ def test_unpublish_binding_marks_binding_offline(client: TestClient) -> None:
     publish_response = client.patch(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding_id}/lifecycle",
         json={"status": "published"},
+        headers=write_headers,
     )
     assert publish_response.status_code == 200
 
     offline_response = client.patch(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding_id}/lifecycle",
         json={"status": "offline"},
+        headers=write_headers,
     )
     assert offline_response.status_code == 200
     body = offline_response.json()
@@ -394,6 +444,8 @@ def test_unpublish_binding_marks_binding_offline(client: TestClient) -> None:
 def test_bulk_cleanup_offlines_only_draft_legacy_auth_bindings(
     client: TestClient,
     sqlite_session: Session,
+    auth_headers: dict,
+    write_headers: dict,
 ) -> None:
     create_response = client.post(
         "/api/workflows",
@@ -401,6 +453,7 @@ def test_bulk_cleanup_offlines_only_draft_legacy_auth_bindings(
             "name": "Legacy Auth Cleanup Workflow",
             "definition": _publishable_definition(),
         },
+        headers=write_headers,
     )
     assert create_response.status_code == 201
     workflow_id = create_response.json()["id"]
@@ -411,6 +464,7 @@ def test_bulk_cleanup_offlines_only_draft_legacy_auth_bindings(
             json={
                 "definition": _publishable_definition(answer=answer, workflow_version=None),
             },
+            headers=write_headers,
         )
         assert update_response.status_code == 200
 
@@ -450,6 +504,7 @@ def test_bulk_cleanup_offlines_only_draft_legacy_auth_bindings(
                 "missing-binding",
             ]
         },
+        headers=write_headers,
     )
 
     assert cleanup_response.status_code == 200
@@ -501,6 +556,7 @@ def test_bulk_cleanup_offlines_only_draft_legacy_auth_bindings(
 
 def test_bulk_cleanup_legacy_auth_bindings_requires_binding_ids(
     client: TestClient,
+    write_headers: dict,
 ) -> None:
     create_response = client.post(
         "/api/workflows",
@@ -508,6 +564,7 @@ def test_bulk_cleanup_legacy_auth_bindings_requires_binding_ids(
             "name": "Legacy Auth Cleanup Validation Workflow",
             "definition": _publishable_definition(),
         },
+        headers=write_headers,
     )
     assert create_response.status_code == 201
     workflow_id = create_response.json()["id"]
@@ -515,6 +572,7 @@ def test_bulk_cleanup_legacy_auth_bindings_requires_binding_ids(
     cleanup_response = client.post(
         f"/api/workflows/{workflow_id}/published-endpoints/legacy-auth-cleanup",
         json={"binding_ids": []},
+        headers=write_headers,
     )
 
     assert cleanup_response.status_code == 422
@@ -523,6 +581,8 @@ def test_bulk_cleanup_legacy_auth_bindings_requires_binding_ids(
 def test_list_legacy_auth_governance_snapshot_across_workflows(
     client: TestClient,
     sqlite_session: Session,
+    auth_headers: dict,
+    write_headers: dict,
 ) -> None:
     missing_tool_definition = {
         "nodes": [
@@ -563,6 +623,7 @@ def test_list_legacy_auth_governance_snapshot_across_workflows(
             "name": "Legacy Auth Cleanup Workflow",
             "definition": _publishable_definition(),
         },
+        headers=write_headers,
     )
     assert first_create_response.status_code == 201
     first_workflow_id = first_create_response.json()["id"]
@@ -573,6 +634,7 @@ def test_list_legacy_auth_governance_snapshot_across_workflows(
             json={
                 "definition": _publishable_definition(answer=answer, workflow_version=None),
             },
+            headers=write_headers,
         )
         assert update_response.status_code == 200
 
@@ -582,6 +644,7 @@ def test_list_legacy_auth_governance_snapshot_across_workflows(
             "name": "Replacement Ready Workflow",
             "definition": _publishable_definition(answer="other"),
         },
+        headers=write_headers,
     )
     assert second_create_response.status_code == 201
     second_workflow_id = second_create_response.json()["id"]
@@ -2568,7 +2631,7 @@ def test_publish_utility_routes_require_workspace_console_access(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding_id}/invocations/export",
     ]
     for path in protected_paths:
-        response = client.get(path)
+        response = client.get(path, headers={})
         assert response.status_code == 401, path
 
     for path in protected_paths:

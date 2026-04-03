@@ -1,4 +1,7 @@
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import {
+  fetchConsoleApiPath,
+  resolveConsoleApiUrl
+} from "@/lib/console-session-client";
 import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
 
@@ -125,9 +128,9 @@ export function buildRunTraceExportUrl(
   const searchParams = new URLSearchParams(buildRunTraceQueryString(query));
   searchParams.set("format", format);
 
-  return `${getApiBaseUrl()}/api/runs/${encodeURIComponent(
-    runId
-  )}/trace/export?${searchParams.toString()}`;
+  return resolveConsoleApiUrl(
+    `/api/runs/${encodeURIComponent(runId)}/trace/export?${searchParams.toString()}`
+  );
 }
 
 export async function getRunTrace(
@@ -136,10 +139,8 @@ export async function getRunTrace(
 ): Promise<RunTraceLoadResult> {
   try {
     const queryString = buildRunTraceQueryString(query);
-    const response = await fetch(
-      `${getApiBaseUrl()}/api/runs/${encodeURIComponent(runId)}/trace${
-        queryString ? `?${queryString}` : ""
-      }`,
+    const response = await fetchConsoleApiPath(
+      `/api/runs/${encodeURIComponent(runId)}/trace${queryString ? `?${queryString}` : ""}`,
       {
         cache: "no-store"
       }

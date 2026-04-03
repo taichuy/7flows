@@ -260,9 +260,7 @@ class TestCredentialStore:
 
     def test_decrypt_data(self, sqlite_session: Session) -> None:
         store = CredentialStore()
-        record = store.create(
-            sqlite_session, name="C", credential_type="t", data={"key": "secret"}
-        )
+        record = store.create(sqlite_session, name="C", credential_type="t", data={"key": "secret"})
         sqlite_session.commit()
 
         result = store.decrypt_data(sqlite_session, credential_id=record.id)
@@ -467,9 +465,7 @@ class TestCredentialStore:
     def test_resolve_empty_ref_raises(self, sqlite_session: Session) -> None:
         store = CredentialStore()
         with pytest.raises(CredentialStoreError, match="empty ID"):
-            store.resolve_credential_refs(
-                sqlite_session, credentials={"ref": "credential://"}
-            )
+            store.resolve_credential_refs(sqlite_session, credentials={"ref": "credential://"})
 
 
 # ---------------------------------------------------------------------------
@@ -486,6 +482,11 @@ class TestCredentialRoutes:
         ):
             yield
 
+    @pytest.fixture(autouse=True)
+    def _setup_headers(self, auth_headers: dict, write_headers: dict) -> None:
+        self._auth = auth_headers
+        self._write = write_headers
+
     def test_create_credential(self, client: TestClient, sqlite_session: Session) -> None:
         resp = client.post(
             "/api/credentials",
@@ -495,6 +496,7 @@ class TestCredentialRoutes:
                 "data": {"api_key": "sk-test"},
                 "description": "A test credential",
             },
+            headers=self._write,
         )
         assert resp.status_code == 201
         body = resp.json()
@@ -525,6 +527,7 @@ class TestCredentialRoutes:
                 "data": {"api_key": "sk-privileged"},
                 "sensitivity_level": "L3",
             },
+            headers=self._write,
         )
 
         assert resp.status_code == 201
@@ -534,13 +537,15 @@ class TestCredentialRoutes:
         client.post(
             "/api/credentials",
             json={"name": "C1", "credential_type": "t", "data": {"k": "v"}},
+            headers=self._write,
         )
         client.post(
             "/api/credentials",
             json={"name": "C2", "credential_type": "t", "data": {"k": "v"}},
+            headers=self._write,
         )
 
-        resp = client.get("/api/credentials")
+        resp = client.get("/api/credentials", headers=self._auth)
         assert resp.status_code == 200
         assert len(resp.json()) == 2
 
@@ -548,28 +553,31 @@ class TestCredentialRoutes:
         create_resp = client.post(
             "/api/credentials",
             json={"name": "C", "credential_type": "t", "data": {"k": "v"}},
+            headers=self._write,
         )
         cid = create_resp.json()["id"]
 
-        resp = client.get(f"/api/credentials/{cid}")
+        resp = client.get(f"/api/credentials/{cid}", headers=self._auth)
         assert resp.status_code == 200
         assert resp.json()["id"] == cid
         assert resp.json()["data_keys"] == ["k"]
 
     def test_get_credential_not_found(self, client: TestClient) -> None:
-        resp = client.get("/api/credentials/nonexistent")
+        resp = client.get("/api/credentials/nonexistent", headers=self._auth)
         assert resp.status_code == 404
 
     def test_update_credential(self, client: TestClient) -> None:
         create_resp = client.post(
             "/api/credentials",
             json={"name": "Old", "credential_type": "t", "data": {"k": "v"}},
+            headers=self._write,
         )
         cid = create_resp.json()["id"]
 
         resp = client.put(
             f"/api/credentials/{cid}",
             json={"name": "New", "data": {"new_key": "new_val"}},
+            headers=self._write,
         )
         assert resp.status_code == 200
         assert resp.json()["name"] == "New"
@@ -582,12 +590,14 @@ class TestCredentialRoutes:
         create_resp = client.post(
             "/api/credentials",
             json={"name": "Ops", "credential_type": "t", "data": {"k": "v"}},
+            headers=self._write,
         )
         cid = create_resp.json()["id"]
 
         resp = client.put(
             f"/api/credentials/{cid}",
             json={"sensitivity_level": "L3"},
+            headers=self._write,
         )
 
         assert resp.status_code == 200
@@ -597,10 +607,11 @@ class TestCredentialRoutes:
         create_resp = client.post(
             "/api/credentials",
             json={"name": "C", "credential_type": "t", "data": {"k": "v"}},
+            headers=self._write,
         )
         cid = create_resp.json()["id"]
 
-        resp = client.delete(f"/api/credentials/{cid}")
+        resp = client.delete(f"/api/credentials/{cid}", headers=self._write)
         assert resp.status_code == 200
         assert resp.json()["status"] == "revoked"
 
@@ -608,14 +619,15 @@ class TestCredentialRoutes:
         create_resp = client.post(
             "/api/credentials",
             json={"name": "C", "credential_type": "t", "data": {"k": "v"}},
+            headers=self._write,
         )
         cid = create_resp.json()["id"]
-        client.delete(f"/api/credentials/{cid}")
+        client.delete(f"/api/credentials/{cid}", headers=self._write)
 
-        resp = client.get("/api/credentials")
+        resp = client.get("/api/credentials", headers=self._auth)
         assert len(resp.json()) == 0
 
-        resp = client.get("/api/credentials?include_revoked=true")
+        resp = client.get("/api/credentials?include_revoked=true", headers=self._auth)
         assert len(resp.json()) == 1
 
     def test_list_credential_activity_returns_recent_audit_entries(
@@ -630,6 +642,7 @@ class TestCredentialRoutes:
                 "data": {"api_key": "sk-audit"},
                 "description": "first version",
             },
+            headers=self._write,
         )
         credential_id = create_resp.json()["id"]
 
@@ -639,14 +652,16 @@ class TestCredentialRoutes:
                 "description": "second version",
                 "data": {"api_key": "sk-audit-2", "region": "us-east-1"},
             },
+            headers=self._write,
         )
         assert update_resp.status_code == 200
 
-        revoke_resp = client.delete(f"/api/credentials/{credential_id}")
+        revoke_resp = client.delete(f"/api/credentials/{credential_id}", headers=self._write)
         assert revoke_resp.status_code == 200
 
         resp = client.get(
-            f"/api/credentials/activity?credential_id={credential_id}&limit=2"
+            f"/api/credentials/activity?credential_id={credential_id}&limit=2",
+            headers=self._auth,
         )
 
         assert resp.status_code == 200
@@ -676,6 +691,7 @@ class TestCredentialRoutes:
                 "data": {"api_key": "sk-privileged"},
                 "sensitivity_level": "L3",
             },
+            headers=self._write,
         )
 
         assert create_resp.status_code == 201
@@ -684,13 +700,12 @@ class TestCredentialRoutes:
         resources_resp = client.get(
             "/api/sensitive-access/resources",
             params={"sensitivity_level": "L3"},
+            headers=self._auth,
         )
 
         assert resources_resp.status_code == 200
         resources = resources_resp.json()
-        resource = next(
-            item for item in resources if item["id"] == body["sensitive_resource_id"]
-        )
+        resource = next(item for item in resources if item["id"] == body["sensitive_resource_id"])
         assert resource["credential_governance"] == {
             "credential_id": body["id"],
             "credential_name": "Privileged Key",
@@ -712,6 +727,7 @@ class TestCredentialRoutes:
                 "data": {"k": "v"},
                 "unexpected_field": "bad",
             },
+            headers=self._write,
         )
         assert resp.status_code == 422
 
@@ -719,6 +735,7 @@ class TestCredentialRoutes:
         resp = client.post(
             "/api/credentials",
             json={"name": "", "credential_type": "t", "data": {"k": "v"}},
+            headers=self._write,
         )
         assert resp.status_code == 422
 
@@ -726,5 +743,6 @@ class TestCredentialRoutes:
         resp = client.post(
             "/api/credentials",
             json={"name": "C", "credential_type": "t", "data": {}},
+            headers=self._write,
         )
         assert resp.status_code == 422

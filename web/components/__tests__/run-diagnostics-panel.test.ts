@@ -200,7 +200,7 @@ describe("RunDiagnosticsPanel", () => {
       })
     );
 
-    expect(html).toContain('/workflows/workflow-1?definition_issue=missing_tool');
+    expect(html).toContain('/workflows/workflow-1/editor?definition_issue=missing_tool');
   });
 
   it("when the run still has legacy auth backlog, hero handoff deep-links back to legacy-auth workflow editor", () => {
@@ -266,7 +266,7 @@ describe("RunDiagnosticsPanel", () => {
       })
     );
 
-    expect(html).toContain('/workflows/workflow-1?definition_issue=legacy_publish_auth');
+    expect(html).toContain('/workflows/workflow-1/editor?definition_issue=legacy_publish_auth');
   });
 
   it("passes the resolved workflow governance href into execution sections", () => {

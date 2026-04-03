@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import { fetchConsoleApiPath } from "@/lib/console-session-client";
 import type { SensitiveAccessTimelineEntry } from "@/lib/get-sensitive-access";
 import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 import type { WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot } from "@/lib/workflow-publish-types";
@@ -447,7 +447,7 @@ export type RunEvidenceView = {
 
 async function fetchRunView<T>(path: string): Promise<T | null> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    const response = await fetchConsoleApiPath(path, {
       cache: "no-store"
     });
 

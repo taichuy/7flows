@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.api.routes.auth import require_console_route_access
 from app.core.config import get_settings
 from app.core.database import check_database, get_db
 from app.models.run import NodeRun, Run, RunEvent
@@ -79,9 +80,7 @@ def _normalize_execution_class(value: str | None) -> str | None:
 def _build_tool_default_execution_class_lookup(registry) -> dict[str, str]:
     lookup: dict[str, str] = {}
     for tool in registry.list_tools():
-        normalized = _normalize_execution_class(
-            getattr(tool, "default_execution_class", None)
-        )
+        normalized = _normalize_execution_class(getattr(tool, "default_execution_class", None))
         if normalized is None:
             continue
         lookup[str(tool.id)] = normalized
@@ -157,9 +156,7 @@ def _apply_sandbox_follow_up_contract(
     affected_workflow_ids: set[str] = set()
     affected_run_ids: set[str] = set()
     if blocked_execution_classes:
-        tool_default_execution_class_lookup = _build_tool_default_execution_class_lookup(
-            registry
-        )
+        tool_default_execution_class_lookup = _build_tool_default_execution_class_lookup(registry)
         workflows = db.query(Workflow).all()
         for workflow in workflows:
             required_execution_classes = _collect_workflow_required_execution_classes(
@@ -210,9 +207,7 @@ def _build_callback_recommended_action(
         return None
 
     label = (
-        "查看 waiting callback runs"
-        if affected_run_count > 0
-        else "查看 callback recovery 状态"
+        "查看 waiting callback runs" if affected_run_count > 0 else "查看 callback recovery 状态"
     )
     return SystemOverviewRecommendedAction(
         kind=primary_blocker_kind,
@@ -285,8 +280,7 @@ def _build_callback_step_scheduler_health(
         return CallbackWaitingAutomationStepSchedulerHealthCheck(
             health_status="stale",
             detail=(
-                "调度已配置，但还没有记录到最近执行事实；"
-                "无法确认 scheduler / worker 是否真的跑过。"
+                "调度已配置，但还没有记录到最近执行事实；无法确认 scheduler / worker 是否真的跑过。"
             ),
         )
 
@@ -319,8 +313,7 @@ def _build_callback_step_scheduler_health(
         else:
             base.health_status = "stale"
             base.detail = (
-                "最近一次 scheduler 执行长时间停留在 running，"
-                "可能存在 worker 卡住或结果未回写。"
+                "最近一次 scheduler 执行长时间停留在 running，可能存在 worker 卡住或结果未回写。"
             )
         return base
 
@@ -494,23 +487,19 @@ def _build_sandbox_execution_class_readiness(
             }
         ),
         supports_tool_execution=any(
-            backend.capability.supports_tool_execution
-            for backend in class_operable_backends
+            backend.capability.supports_tool_execution for backend in class_operable_backends
         ),
         supports_builtin_package_sets=any(
-            backend.capability.supports_builtin_package_sets
-            for backend in class_operable_backends
+            backend.capability.supports_builtin_package_sets for backend in class_operable_backends
         ),
         supports_backend_extensions=any(
-            backend.capability.supports_backend_extensions
-            for backend in class_operable_backends
+            backend.capability.supports_backend_extensions for backend in class_operable_backends
         ),
         supports_network_policy=any(
             backend.capability.supports_network_policy for backend in class_operable_backends
         ),
         supports_filesystem_policy=any(
-            backend.capability.supports_filesystem_policy
-            for backend in class_operable_backends
+            backend.capability.supports_filesystem_policy for backend in class_operable_backends
         ),
         reason=(
             None
@@ -580,9 +569,7 @@ def _build_callback_waiting_automation(
             source="scheduler_cleanup",
             enabled=cleanup_enabled,
             interval_seconds=(
-                settings.callback_ticket_cleanup_interval_seconds
-                if cleanup_enabled
-                else None
+                settings.callback_ticket_cleanup_interval_seconds if cleanup_enabled else None
             ),
             detail=(
                 "周期清理 stale callback ticket，并在条件满足时沿同一事实链补发即时 resume。"
@@ -598,9 +585,7 @@ def _build_callback_waiting_automation(
             source="scheduler_waiting_resume_monitor",
             enabled=monitor_enabled,
             interval_seconds=(
-                settings.waiting_resume_monitor_interval_seconds
-                if monitor_enabled
-                else None
+                settings.waiting_resume_monitor_interval_seconds if monitor_enabled else None
             ),
             detail=(
                 "周期扫描到期的 `WAITING_CALLBACK` node，并补发后台 requeue / resume。"
@@ -623,14 +608,10 @@ def _build_callback_waiting_automation(
 
     if cleanup_enabled and monitor_enabled:
         status = "configured"
-        detail = (
-            "`WAITING_CALLBACK` 后台补偿链路已完成配置，但仍依赖独立 scheduler 进程实际运行。"
-        )
+        detail = "`WAITING_CALLBACK` 后台补偿链路已完成配置，但仍依赖独立 scheduler 进程实际运行。"
     elif cleanup_enabled or monitor_enabled:
         status = "partial"
-        detail = (
-            "`WAITING_CALLBACK` 只完成了部分后台补偿配置；仍存在需要人工介入的恢复缺口。"
-        )
+        detail = "`WAITING_CALLBACK` 只完成了部分后台补偿配置；仍存在需要人工介入的恢复缺口。"
     else:
         status = "disabled"
         detail = (
@@ -638,8 +619,8 @@ def _build_callback_waiting_automation(
             "当前仍依赖直接 callback、手动 cleanup 或手动 resume。"
         )
 
-    scheduler_health_status, scheduler_health_detail = (
-        _summarize_callback_waiting_scheduler_health(steps)
+    scheduler_health_status, scheduler_health_detail = _summarize_callback_waiting_scheduler_health(
+        steps
     )
 
     return CallbackWaitingAutomationCheck(
@@ -753,9 +734,7 @@ def _build_runtime_activity(db: Session) -> RuntimeActivityCheck:
                 governance = governance.model_copy(
                     update={
                         "workflows": [
-                            item.model_copy(
-                                update={"tool_governance": aligned_tool_governance}
-                            )
+                            item.model_copy(update={"tool_governance": aligned_tool_governance})
                             if item.workflow_id == workflow_id
                             else item
                             for item in governance.workflows
@@ -790,15 +769,15 @@ def _build_runtime_activity(db: Session) -> RuntimeActivityCheck:
             )
             for run in recent_runs
         ],
-        recent_events=[
-            _serialize_recent_event(event)
-            for event in recent_events
-        ],
+        recent_events=[_serialize_recent_event(event) for event in recent_events],
     )
 
 
 @router.get("/system/overview", response_model=SystemOverview)
-def system_overview(db: Session = Depends(get_db)) -> SystemOverview:
+def system_overview(
+    _access_context=Depends(require_console_route_access("/api/system/overview", method="GET")),
+    db: Session = Depends(get_db),
+) -> SystemOverview:
     settings = get_settings()
 
     def verify_database() -> None:
@@ -912,7 +891,11 @@ def system_overview(db: Session = Depends(get_db)) -> SystemOverview:
 
 
 @router.get("/system/plugin-adapters", response_model=list[CompatibilityAdapterCheck])
-def list_plugin_adapters() -> list[CompatibilityAdapterCheck]:
+def list_plugin_adapters(
+    _access_context=Depends(
+        require_console_route_access("/api/system/plugin-adapters", method="GET")
+    ),
+) -> list[CompatibilityAdapterCheck]:
     adapter_healths = get_compatibility_adapter_health_checker().probe_all(get_plugin_registry())
     return [
         CompatibilityAdapterCheck(
@@ -928,13 +911,20 @@ def list_plugin_adapters() -> list[CompatibilityAdapterCheck]:
 
 
 @router.get("/system/sandbox-backends", response_model=list[SandboxBackendCheck])
-def list_sandbox_backends() -> list[SandboxBackendCheck]:
-    backend_healths = get_sandbox_backend_health_checker().probe_all(
-        get_sandbox_backend_registry()
-    )
+def list_sandbox_backends(
+    _access_context=Depends(
+        require_console_route_access("/api/system/sandbox-backends", method="GET")
+    ),
+) -> list[SandboxBackendCheck]:
+    backend_healths = get_sandbox_backend_health_checker().probe_all(get_sandbox_backend_registry())
     return [_serialize_sandbox_backend(backend) for backend in backend_healths]
 
 
 @router.get("/system/runtime-activity", response_model=RuntimeActivityCheck)
-def get_runtime_activity(db: Session = Depends(get_db)) -> RuntimeActivityCheck:
+def get_runtime_activity(
+    _access_context=Depends(
+        require_console_route_access("/api/system/runtime-activity", method="GET")
+    ),
+    db: Session = Depends(get_db),
+) -> RuntimeActivityCheck:
     return _build_runtime_activity(db)

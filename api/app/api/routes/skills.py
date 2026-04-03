@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.routes.auth import require_console_route_access
 from app.core.database import get_db
 from app.schemas.skill import (
     SkillDocCreate,
@@ -20,13 +21,18 @@ skill_catalog_service = SkillCatalogService()
 @router.get("", response_model=list[SkillDocListItem])
 def list_skills(
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(require_console_route_access("/api/skills", method="GET")),
     db: Session = Depends(get_db),
 ) -> list[SkillDocListItem]:
     return skill_catalog_service.list_skills(db, workspace_id=workspace_id)
 
 
 @router.post("", response_model=SkillDocDetail, status_code=status.HTTP_201_CREATED)
-def create_skill(payload: SkillDocCreate, db: Session = Depends(get_db)) -> SkillDocDetail:
+def create_skill(
+    payload: SkillDocCreate,
+    _access_context=Depends(require_console_route_access("/api/skills", method="POST")),
+    db: Session = Depends(get_db),
+) -> SkillDocDetail:
     try:
         record = skill_catalog_service.create_skill(db, payload)
     except SkillCatalogError as exc:
@@ -42,6 +48,7 @@ def create_skill(payload: SkillDocCreate, db: Session = Depends(get_db)) -> Skil
 @router.post("/mcp/call", response_model=SkillMcpResponse)
 def call_skill_catalog_mcp(
     payload: SkillMcpCall,
+    _access_context=Depends(require_console_route_access("/api/skills/mcp/call", method="POST")),
     db: Session = Depends(get_db),
 ) -> SkillMcpResponse:
     try:
@@ -61,6 +68,7 @@ def call_skill_catalog_mcp(
 def get_skill(
     skill_id: str,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(require_console_route_access("/api/skills/{skill_id}", method="GET")),
     db: Session = Depends(get_db),
 ) -> SkillDocDetail:
     record = skill_catalog_service.get_skill(db, skill_id=skill_id, workspace_id=workspace_id)
@@ -74,6 +82,7 @@ def update_skill(
     skill_id: str,
     payload: SkillDocUpdate,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(require_console_route_access("/api/skills/{skill_id}", method="PUT")),
     db: Session = Depends(get_db),
 ) -> SkillDocDetail:
     record = skill_catalog_service.get_skill(db, skill_id=skill_id, workspace_id=workspace_id)
@@ -95,6 +104,9 @@ def update_skill(
 def delete_skill(
     skill_id: str,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(
+        require_console_route_access("/api/skills/{skill_id}", method="DELETE")
+    ),
     db: Session = Depends(get_db),
 ) -> None:
     record = skill_catalog_service.get_skill(db, skill_id=skill_id, workspace_id=workspace_id)
@@ -112,6 +124,11 @@ def get_skill_reference(
     skill_id: str,
     reference_id: str,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/skills/{skill_id}/references/{reference_id}", method="GET"
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> SkillReferenceDocDetail:
     reference = skill_catalog_service.get_reference(

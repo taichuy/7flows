@@ -1,8 +1,14 @@
 from datetime import UTC, datetime
 
+import pytest
+
 from app.models.plugin import PluginAdapterRecord, PluginToolRecord
 from app.models.workspace_starter import WorkspaceStarterTemplateRecord
 from app.services.plugin_runtime import PluginRegistry, PluginToolDefinition
+
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
+)
 
 
 def _create_workspace_starter(client, *, name: str, business_track: str) -> dict:
@@ -80,7 +86,7 @@ def test_workflow_library_snapshot_includes_shared_catalog_contract(
 
     assert response.status_code == 200
     body = response.json()
-    assert len(body["nodes"]) == 9
+    assert len(body["nodes"]) == 10
     tool_node = next(item for item in body["nodes"] if item["type"] == "tool")
     loop_node = next(item for item in body["nodes"] if item["type"] == "loop")
     assert {item["id"] for item in body["starters"]} >= {
@@ -105,7 +111,7 @@ def test_workflow_library_snapshot_includes_shared_catalog_contract(
             "label": "Native node catalog",
             "short_label": "native nodes",
             "summary": "当前 palette 中的原生节点目录，由 7Flows 内部事实模型直接维护。",
-            "count": 7,
+            "count": 8,
         }
     ]
     assert tool_node["binding_required"] is True

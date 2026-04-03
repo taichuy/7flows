@@ -37,7 +37,9 @@ class _StaticCatalogClient:
         return self._tools
 
 
-def test_register_and_list_plugin_adapter(client, monkeypatch) -> None:
+def test_register_and_list_plugin_adapter(
+    client, monkeypatch, auth_headers: dict, write_headers: dict
+) -> None:
     registry = PluginRegistry()
     monkeypatch.setattr(plugin_routes, "get_plugin_registry", lambda: registry)
     monkeypatch.setattr(
@@ -58,6 +60,7 @@ def test_register_and_list_plugin_adapter(client, monkeypatch) -> None:
             "plugin_kinds": ["node", "provider"],
             "supported_execution_classes": ["subprocess", "microvm"],
         },
+        headers=write_headers,
     )
 
     assert create_response.status_code == 201
@@ -75,13 +78,15 @@ def test_register_and_list_plugin_adapter(client, monkeypatch) -> None:
         "mode": "translate",
     }
 
-    list_response = client.get("/api/plugins/adapters")
+    list_response = client.get("/api/plugins/adapters", headers=auth_headers)
 
     assert list_response.status_code == 200
     assert list_response.json() == [create_response.json()]
 
 
-def test_register_and_list_plugin_tool(client, monkeypatch) -> None:
+def test_register_and_list_plugin_tool(
+    client, monkeypatch, auth_headers: dict, write_headers: dict
+) -> None:
     registry = PluginRegistry()
     registry.register_tool(
         PluginToolDefinition(
@@ -109,6 +114,7 @@ def test_register_and_list_plugin_tool(client, monkeypatch) -> None:
             "source": "plugin",
             "plugin_meta": {"origin": "dify"},
         },
+        headers=write_headers,
     )
 
     assert create_response.status_code == 201
@@ -127,7 +133,7 @@ def test_register_and_list_plugin_tool(client, monkeypatch) -> None:
         "sensitivity_level": None,
     }
 
-    list_response = client.get("/api/plugins/tools")
+    list_response = client.get("/api/plugins/tools", headers=auth_headers)
 
     assert list_response.status_code == 200
     assert list_response.json() == [
@@ -149,7 +155,9 @@ def test_register_and_list_plugin_tool(client, monkeypatch) -> None:
     ]
 
 
-def test_register_plugin_tool_rejects_native_http_registration(client, monkeypatch) -> None:
+def test_register_plugin_tool_rejects_native_http_registration(
+    client, monkeypatch, auth_headers: dict, write_headers: dict
+) -> None:
     monkeypatch.setattr(plugin_routes, "get_plugin_registry", lambda: PluginRegistry())
     monkeypatch.setattr(
         plugin_routes,
@@ -165,6 +173,7 @@ def test_register_plugin_tool_rejects_native_http_registration(client, monkeypat
             "ecosystem": "native",
             "description": "Should fail",
         },
+        headers=write_headers,
     )
 
     assert response.status_code == 422
@@ -173,7 +182,9 @@ def test_register_plugin_tool_rejects_native_http_registration(client, monkeypat
     assert "HTTP registration currently supports only compat/plugin tools" in detail[0]["msg"]
 
 
-def test_sync_plugin_tools_from_adapter(client, monkeypatch) -> None:
+def test_sync_plugin_tools_from_adapter(
+    client, monkeypatch, auth_headers: dict, write_headers: dict
+) -> None:
     registry = PluginRegistry()
     registry.register_adapter(
         plugin_routes.CompatibilityAdapterRegistration(
@@ -209,7 +220,7 @@ def test_sync_plugin_tools_from_adapter(client, monkeypatch) -> None:
         lambda: _StaticHealthChecker(status="up"),
     )
 
-    response = client.post("/api/plugins/adapters/dify-default/sync-tools")
+    response = client.post("/api/plugins/adapters/dify-default/sync-tools", headers=write_headers)
 
     assert response.status_code == 200
     assert response.json() == {
@@ -239,6 +250,8 @@ def test_sync_plugin_tools_from_adapter(client, monkeypatch) -> None:
 def test_list_plugin_tools_exposes_sensitivity_driven_default_execution(
     client,
     monkeypatch,
+    auth_headers: dict,
+    write_headers: dict,
 ) -> None:
     registry = PluginRegistry()
     registry.register_tool(
@@ -264,10 +277,11 @@ def test_list_plugin_tools_exposes_sensitivity_driven_default_execution(
             "source": "local_capability",
             "metadata": {"tool_id": "native.risk-search", "ecosystem": "native"},
         },
+        headers=write_headers,
     )
     assert resource_response.status_code == 201
 
-    response = client.get("/api/plugins/tools")
+    response = client.get("/api/plugins/tools", headers=auth_headers)
 
     assert response.status_code == 200
     assert response.json() == [

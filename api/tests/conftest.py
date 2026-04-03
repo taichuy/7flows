@@ -54,6 +54,46 @@ def workspace_console_auth(client: TestClient) -> dict[str, object]:
 
 
 @pytest.fixture
+def auth_headers(workspace_console_auth: dict) -> dict[str, str]:
+    """Bearer token headers for console routes protected by require_console_route_access."""
+    return {"Authorization": f"Bearer {workspace_console_auth['access_token']}"}
+
+
+@pytest.fixture
+def write_headers(workspace_console_auth: dict) -> dict[str, str]:
+    """Headers for CSRF-protected write routes (POST/PUT/PATCH/DELETE)."""
+    return {
+        "Authorization": f"Bearer {workspace_console_auth['access_token']}",
+        "X-CSRF-Token": workspace_console_auth["csrf_token"],
+    }
+
+
+@pytest.fixture
+def default_console_route_headers(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    write_headers: dict[str, str],
+) -> None:
+    """Inject auth/CSRF headers for console `/api/*` routes unless a test overrides headers."""
+
+    def _wrap_client_method(method_name: str, default_headers: dict[str, str]) -> None:
+        original = getattr(client, method_name)
+
+        def wrapped(url: str, *args, **kwargs):
+            if url.startswith("/api/") and "headers" not in kwargs:
+                kwargs["headers"] = default_headers
+            return original(url, *args, **kwargs)
+
+        setattr(client, method_name, wrapped)
+
+    _wrap_client_method("get", auth_headers)
+    _wrap_client_method("post", write_headers)
+    _wrap_client_method("put", write_headers)
+    _wrap_client_method("patch", write_headers)
+    _wrap_client_method("delete", write_headers)
+
+
+@pytest.fixture
 def sample_workflow(sqlite_session: Session) -> Workflow:
     blueprint_service = CompiledBlueprintService()
     workflow = Workflow(

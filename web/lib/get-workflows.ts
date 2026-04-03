@@ -1,8 +1,8 @@
-import { getApiBaseUrl } from "@/lib/api-base-url";
 import {
   getWorkflowDetailFetchOptions,
   getWorkflowInventoryFetchOptions
 } from "@/lib/authoring-snapshot-cache";
+import { fetchConsoleApiPath } from "@/lib/console-session-client";
 import {
   buildWorkflowLibrarySearchParams,
   type WorkflowListDefinitionIssueFilter
@@ -139,7 +139,7 @@ export async function createWorkflow(payload: {
   name: string;
   definition: WorkflowDetail["definition"];
 }): Promise<WorkflowDetail> {
-  const response = await fetch(`${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows`, {
+  const response = await fetchConsoleApiPath("/api/workflows", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -165,8 +165,8 @@ export async function updateWorkflow(
     definition?: WorkflowDetail["definition"];
   }
 ): Promise<WorkflowDetail> {
-  const response = await fetch(
-    `${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows/${encodeURIComponent(workflowId)}`,
+  const response = await fetchConsoleApiPath(
+    `/api/workflows/${encodeURIComponent(workflowId)}`,
     {
       method: "PUT",
       headers: {
@@ -195,8 +195,8 @@ export async function getWorkflows(options?: {
       definitionIssue: options?.definitionIssue ?? null
     });
     const query = searchParams.toString();
-    const response = await fetch(
-      `${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows${query ? `?${query}` : ""}`,
+    const response = await fetchConsoleApiPath(
+      `/api/workflows${query ? `?${query}` : ""}`,
       getWorkflowInventoryFetchOptions()
     );
 
@@ -219,8 +219,8 @@ export async function getWorkflowDetail(
   }
 
   try {
-    const response = await fetch(
-      `${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows/${encodeURIComponent(normalizedWorkflowId)}/detail`,
+    const response = await fetchConsoleApiPath(
+      `/api/workflows/${encodeURIComponent(normalizedWorkflowId)}/detail`,
       getWorkflowDetailFetchOptions(normalizedWorkflowId)
     );
 
@@ -240,8 +240,8 @@ export async function validateWorkflowDefinition(
 ): Promise<WorkflowDefinitionPreflightResult> {
   type WorkflowDefinitionPreflightSuccessBody = Partial<WorkflowDefinitionPreflightResult>;
 
-  const response = await fetch(
-    `${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows/${encodeURIComponent(workflowId)}/validate-definition`,
+  const response = await fetchConsoleApiPath(
+    `/api/workflows/${encodeURIComponent(workflowId)}/validate-definition`,
     {
       method: "POST",
       headers: {

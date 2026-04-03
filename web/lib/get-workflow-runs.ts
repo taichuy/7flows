@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import { fetchConsoleApiPath } from "@/lib/console-session-client";
 import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 
 export type WorkflowRunListItem = {
@@ -28,10 +28,8 @@ export async function getWorkflowRuns(
   const normalizedLimit = Math.min(Math.max(limit, 1), 20);
 
   try {
-    const response = await fetch(
-      `${getApiBaseUrl()}/api/workflows/${encodeURIComponent(
-        normalizedWorkflowId
-      )}/runs?limit=${normalizedLimit}`,
+    const response = await fetchConsoleApiPath(
+      `/api/workflows/${encodeURIComponent(normalizedWorkflowId)}/runs?limit=${normalizedLimit}`,
       {
         cache: "no-store"
       }

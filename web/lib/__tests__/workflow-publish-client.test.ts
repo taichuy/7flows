@@ -34,9 +34,11 @@ describe("workflow publish client", () => {
 
     expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
       "/api/workflows/published-endpoints/legacy-auth-governance",
-      {
-        cache: "no-store"
-      }
+      expect.objectContaining({
+        cache: "no-store",
+        credentials: "include",
+        headers: expect.any(Headers)
+      })
     );
   });
 
@@ -67,9 +69,11 @@ describe("workflow publish client", () => {
 
     expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
       "/api/workflows/wf-1/published-endpoints?include_all_versions=true",
-      {
-        cache: "no-store"
-      }
+      expect.objectContaining({
+        cache: "no-store",
+        credentials: "include",
+        headers: expect.any(Headers)
+      })
     );
   });
 

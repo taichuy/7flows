@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.api.routes.auth import require_console_route_access
 from app.core.database import get_db
 from app.schemas.workflow_library import WorkflowLibrarySnapshot
 from app.schemas.workspace_starter import (
@@ -17,12 +18,11 @@ def get_workflow_library_snapshot(
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
     business_track: WorkflowBusinessTrack | None = Query(default=None),
     search: str | None = Query(default=None, min_length=1, max_length=128),
-    source_governance_kind: WorkspaceStarterSourceGovernanceKind | None = Query(
-        default=None
-    ),
+    source_governance_kind: WorkspaceStarterSourceGovernanceKind | None = Query(default=None),
     needs_follow_up: bool = Query(default=False),
     include_builtin_starters: bool = Query(default=True),
     include_starter_definitions: bool = Query(default=False),
+    _access_context=Depends(require_console_route_access("/api/workflow-library", method="GET")),
     db: Session = Depends(get_db),
 ) -> WorkflowLibrarySnapshot:
     return get_workflow_library_service().build_snapshot(

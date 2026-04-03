@@ -125,6 +125,11 @@ def _serialize_workflow_published_endpoint_item(
     response_model=WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot,
 )
 def get_workflow_published_endpoint_legacy_auth_governance(
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/workflows/published-endpoints/legacy-auth-governance", method="GET"
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot:
     return workflow_publish_service.build_legacy_auth_governance_snapshot(db)
@@ -181,6 +186,11 @@ def list_workflow_published_endpoints(
 def cleanup_workflow_published_endpoint_legacy_auth_bindings(
     workflow_id: str,
     payload: WorkflowPublishedEndpointLegacyAuthCleanupRequest,
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/workflows/{workflow_id}/published-endpoints/legacy-auth-cleanup", method="POST"
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> WorkflowPublishedEndpointLegacyAuthCleanupResult:
     workflow = db.get(Workflow, workflow_id)
@@ -211,6 +221,12 @@ def update_workflow_published_endpoint_lifecycle(
     workflow_id: str,
     binding_id: str,
     payload: WorkflowPublishedEndpointLifecycleUpdate,
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/workflows/{workflow_id}/published-endpoints/{binding_id}/lifecycle",
+            method="PATCH",
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> WorkflowPublishedEndpointItem:
     workflow = db.get(Workflow, workflow_id)

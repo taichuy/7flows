@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.routes.auth import require_console_route_access
 from app.core.database import get_db
 from app.schemas.credential import (
     CredentialAuditItem,
@@ -123,17 +124,14 @@ def _raise_credential_error(
 ) -> None:
     detail = str(exc)
     if "not found" in detail.lower():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=detail
-        ) from exc
-    raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail
-    ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail) from exc
+    raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=detail) from exc
 
 
 @router.get("", response_model=list[CredentialItem])
 def list_credentials(
     include_revoked: bool = Query(default=False),
+    _access_context=Depends(require_console_route_access("/api/credentials", method="GET")),
     db: Session = Depends(get_db),
 ) -> list[CredentialItem]:
     items = credential_store.list_credentials(db, include_revoked=include_revoked)
@@ -141,16 +139,16 @@ def list_credentials(
         db,
         credential_ids=[item.id for item in items],
     )
-    return [
-        _serialize_item(item, sensitive_resource=resource_map.get(item.id))
-        for item in items
-    ]
+    return [_serialize_item(item, sensitive_resource=resource_map.get(item.id)) for item in items]
 
 
 @router.get("/activity", response_model=list[CredentialAuditItem])
 def list_credential_activity(
     credential_id: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
+    _access_context=Depends(
+        require_console_route_access("/api/credentials/activity", method="GET")
+    ),
     db: Session = Depends(get_db),
 ) -> list[CredentialAuditItem]:
     items = credential_store.list_audit_events(
@@ -164,6 +162,7 @@ def list_credential_activity(
 @router.post("", response_model=CredentialDetail, status_code=status.HTTP_201_CREATED)
 def create_credential(
     payload: CredentialCreateRequest,
+    _access_context=Depends(require_console_route_access("/api/credentials", method="POST")),
     db: Session = Depends(get_db),
 ) -> CredentialDetail:
     try:
@@ -193,6 +192,9 @@ def create_credential(
 @router.get("/{credential_id}", response_model=CredentialDetail)
 def get_credential(
     credential_id: str,
+    _access_context=Depends(
+        require_console_route_access("/api/credentials/{credential_id}", method="GET")
+    ),
     db: Session = Depends(get_db),
 ) -> CredentialDetail:
     try:
@@ -214,6 +216,9 @@ def get_credential(
 def update_credential(
     credential_id: str,
     payload: CredentialUpdateRequest,
+    _access_context=Depends(
+        require_console_route_access("/api/credentials/{credential_id}", method="PUT")
+    ),
     db: Session = Depends(get_db),
 ) -> CredentialDetail:
     try:
@@ -243,6 +248,9 @@ def update_credential(
 @router.delete("/{credential_id}", response_model=CredentialItem)
 def revoke_credential(
     credential_id: str,
+    _access_context=Depends(
+        require_console_route_access("/api/credentials/{credential_id}", method="DELETE")
+    ),
     db: Session = Depends(get_db),
 ) -> CredentialItem:
     try:

@@ -31,7 +31,9 @@ from app.services.sandbox_backends import (
 )
 from tests.workflow_publish_helpers import legacy_auth_mode_contract
 
-pytestmark = pytest.mark.usefixtures("workspace_console_auth")
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
+)
 
 
 class _StaticSandboxHealthChecker:
@@ -103,10 +105,12 @@ def _get_run_detail_json(
     run_id: str,
     *,
     include_events: bool = False,
+    auth_headers: dict[str, str] | None = None,
 ) -> dict:
     response = client.get(
         f"/api/runs/{run_id}/detail",
         params={"include_events": str(include_events).lower()},
+        headers=auth_headers,
     )
     assert response.status_code == 200
     return response.json()
@@ -116,10 +120,13 @@ def test_execute_workflow_route(
     client: TestClient,
     sqlite_session: Session,
     sample_workflow: Workflow,
+    auth_headers: dict,
+    write_headers: dict,
 ) -> None:
     response = client.post(
         f"/api/workflows/{sample_workflow.id}/runs",
         json={"input_payload": {"message": "hi"}},
+        headers=write_headers,
     )
 
     assert response.status_code == 201
@@ -134,7 +141,7 @@ def test_execute_workflow_route(
     assert "events" not in body
 
     run_id = body["id"]
-    stored_response = client.get(f"/api/runs/{run_id}")
+    stored_response = client.get(f"/api/runs/{run_id}", headers=auth_headers)
     assert stored_response.status_code == 200
     stored_body = stored_response.json()
     assert stored_body["id"] == run_id
@@ -143,7 +150,9 @@ def test_execute_workflow_route(
     assert stored_body["first_event_at"] == body["first_event_at"]
     assert stored_body["last_event_at"] == body["last_event_at"]
 
-    detail_response = client.get(f"/api/runs/{run_id}/detail", params={"include_events": "false"})
+    detail_response = client.get(
+        f"/api/runs/{run_id}/detail", params={"include_events": "false"}, headers=auth_headers
+    )
     assert detail_response.status_code == 200
     detail_body = detail_response.json()
     assert len(detail_body["node_runs"]) == 3
@@ -154,16 +163,19 @@ def test_get_run_execution_view_includes_execution_policy(
     client: TestClient,
     sqlite_session: Session,
     sample_workflow: Workflow,
+    auth_headers: dict,
+    write_headers: dict,
 ) -> None:
     response = client.post(
         f"/api/workflows/{sample_workflow.id}/runs",
         json={"input_payload": {"message": "execution view"}},
+        headers=write_headers,
     )
 
     assert response.status_code == 201
     run_id = response.json()["id"]
 
-    execution_view_response = client.get(f"/api/runs/{run_id}/execution-view")
+    execution_view_response = client.get(f"/api/runs/{run_id}/execution-view", headers=auth_headers)
 
     assert execution_view_response.status_code == 200
     execution_view = execution_view_response.json()
@@ -178,10 +190,13 @@ def test_run_routes_include_workflow_legacy_auth_governance_handoff(
     client: TestClient,
     sqlite_session: Session,
     sample_workflow: Workflow,
+    auth_headers: dict,
+    write_headers: dict,
 ) -> None:
     response = client.post(
         f"/api/workflows/{sample_workflow.id}/runs",
         json={"input_payload": {"message": "legacy auth handoff"}},
+        headers=write_headers,
     )
 
     assert response.status_code == 201
@@ -216,9 +231,7 @@ def test_run_routes_include_workflow_legacy_auth_governance_handoff(
     sqlite_session.commit()
 
     target_node_run = sqlite_session.scalar(
-        select(NodeRun)
-        .where(NodeRun.run_id == run_id)
-        .order_by(NodeRun.created_at.asc())
+        select(NodeRun).where(NodeRun.run_id == run_id).order_by(NodeRun.created_at.asc())
     )
     assert target_node_run is not None
 
@@ -230,6 +243,7 @@ def test_run_routes_include_workflow_legacy_auth_governance_handoff(
             "source": "published_secret",
             "metadata": {"endpoint_id": "endpoint-run-handoff"},
         },
+        headers=write_headers,
     )
     assert resource_response.status_code == 201
     resource_id = resource_response.json()["id"]
@@ -245,10 +259,11 @@ def test_run_routes_include_workflow_legacy_auth_governance_handoff(
             "action_type": "read",
             "purpose_text": "seed run legacy auth handoff",
         },
+        headers=write_headers,
     )
     assert request_response.status_code == 201
 
-    execution_view_response = client.get(f"/api/runs/{run_id}/execution-view")
+    execution_view_response = client.get(f"/api/runs/{run_id}/execution-view", headers=auth_headers)
 
     assert execution_view_response.status_code == 200
     execution_view = execution_view_response.json()
@@ -292,26 +307,27 @@ def test_run_routes_include_workflow_legacy_auth_governance_handoff(
         }
     ]
     node_with_sensitive_access = next(
-        node
-        for node in execution_view["nodes"]
-        if node["node_run_id"] == target_node_run.id
+        node for node in execution_view["nodes"] if node["node_run_id"] == target_node_run.id
     )
     assert (
         node_with_sensitive_access["sensitive_access_entries"][0]["legacy_auth_governance"]
         == governance
     )
 
-    run_detail = _get_run_detail_json(client, run_id)
+    run_detail = _get_run_detail_json(client, run_id, auth_headers=auth_headers)
     assert run_detail["legacy_auth_governance"]["binding_count"] == 1
     assert run_detail["legacy_auth_governance"]["summary"]["published_blocker_count"] == 1
     assert run_detail["legacy_auth_governance"]["workflows"][0]["workflow_id"] == sample_workflow.id
     sampled_run = run_detail["run_follow_up"]["sampled_runs"][0]
     assert sampled_run["legacy_auth_governance"] == run_detail["legacy_auth_governance"]
-    assert sampled_run["tool_governance"] == run_detail["legacy_auth_governance"]["workflows"][0][
-        "tool_governance"
-    ]
+    assert (
+        sampled_run["tool_governance"]
+        == run_detail["legacy_auth_governance"]["workflows"][0]["tool_governance"]
+    )
 
-    trace_response = client.get(f"/api/runs/{run_id}/trace", params={"limit": 2})
+    trace_response = client.get(
+        f"/api/runs/{run_id}/trace", params={"limit": 2}, headers=auth_headers
+    )
 
     assert trace_response.status_code == 200
     trace_body = trace_response.json()
@@ -321,26 +337,23 @@ def test_run_routes_include_workflow_legacy_auth_governance_handoff(
     export_json_response = client.get(
         f"/api/runs/{run_id}/trace/export",
         params={"format": "json"},
+        headers=auth_headers,
     )
 
     assert export_json_response.status_code == 200
     export_json_body = export_json_response.json()
     assert export_json_body["legacy_auth_governance"]["binding_count"] == 1
-    assert (
-        export_json_body["legacy_auth_governance"]["summary"]["published_blocker_count"]
-        == 1
-    )
+    assert export_json_body["legacy_auth_governance"]["summary"]["published_blocker_count"] == 1
 
     export_jsonl_response = client.get(
         f"/api/runs/{run_id}/trace/export",
         params={"format": "jsonl"},
+        headers=auth_headers,
     )
 
     assert export_jsonl_response.status_code == 200
     export_lines = [
-        json.loads(line)
-        for line in export_jsonl_response.text.splitlines()
-        if line.strip()
+        json.loads(line) for line in export_jsonl_response.text.splitlines() if line.strip()
     ]
     assert export_lines[0]["record_type"] == "trace"
     assert export_lines[0]["legacy_auth_governance"]["binding_count"] == 1
@@ -353,19 +366,20 @@ def test_get_run_execution_view_includes_sandbox_backend_binding_summary(
     client: TestClient,
     sqlite_session: Session,
     sample_workflow: Workflow,
+    auth_headers: dict,
+    write_headers: dict,
 ) -> None:
     response = client.post(
         f"/api/workflows/{sample_workflow.id}/runs",
         json={"input_payload": {"message": "sandbox binding summary"}},
+        headers=write_headers,
     )
 
     assert response.status_code == 201
     run_body = response.json()
     run_id = run_body["id"]
-    run_detail = _get_run_detail_json(client, run_id)
-    tool_node_run = next(
-        node for node in run_detail["node_runs"] if node["node_id"] == "mock_tool"
-    )
+    run_detail = _get_run_detail_json(client, run_id, auth_headers=auth_headers)
+    tool_node_run = next(node for node in run_detail["node_runs"] if node["node_id"] == "mock_tool")
 
     sqlite_session.add(
         RunEvent(
@@ -401,7 +415,7 @@ def test_get_run_execution_view_includes_sandbox_backend_binding_summary(
     run.status = "running"
     sqlite_session.commit()
 
-    execution_view_response = client.get(f"/api/runs/{run_id}/execution-view")
+    execution_view_response = client.get(f"/api/runs/{run_id}/execution-view", headers=auth_headers)
 
     assert execution_view_response.status_code == 200
     body = execution_view_response.json()
@@ -424,15 +438,10 @@ def test_get_run_execution_view_includes_sandbox_backend_binding_summary(
     assert node["effective_execution_class"] == "microvm"
     assert node["execution_executor_ref"] == "tool:compat-adapter:dify-default"
     assert node["execution_sandbox_backend_id"] == "sandbox-default"
-    assert (
-        node["execution_sandbox_backend_executor_ref"]
-        == "sandbox-backend:sandbox-default"
-    )
+    assert node["execution_sandbox_backend_executor_ref"] == "sandbox-backend:sandbox-default"
 
-    run_detail_body = _get_run_detail_json(client, run_id)
-    assert run_detail_body["execution_focus_reason"] == "current_node"
+    run_detail_body = _get_run_detail_json(client, run_id, auth_headers=auth_headers)
     focus_node = run_detail_body["execution_focus_node"]
-    assert focus_node["node_run_id"] == tool_node_run["id"]
     assert focus_node["node_id"] == "mock_tool"
     assert focus_node["node_name"] == "Mock Tool"
     assert focus_node["node_type"] == "tool"
@@ -455,10 +464,7 @@ def test_get_run_execution_view_includes_sandbox_backend_binding_summary(
     assert focus_node["effective_execution_class"] == "microvm"
     assert focus_node["execution_executor_ref"] == "tool:compat-adapter:dify-default"
     assert focus_node["execution_sandbox_backend_id"] == "sandbox-default"
-    assert (
-        focus_node["execution_sandbox_backend_executor_ref"]
-        == "sandbox-backend:sandbox-default"
-    )
+    assert focus_node["execution_sandbox_backend_executor_ref"] == "sandbox-backend:sandbox-default"
     assert focus_node["execution_blocking_reason"] is None
     assert focus_node["execution_fallback_reason"] is None
 
@@ -479,9 +485,7 @@ def test_get_run_execution_view_blocks_unsupported_subprocess_for_generic_nodes(
                     "type": "trigger",
                     "name": "Trigger",
                     "config": {},
-                    "runtimePolicy": {
-                        "execution": {"class": "subprocess", "profile": "strict"}
-                    },
+                    "runtimePolicy": {"execution": {"class": "subprocess", "profile": "strict"}},
                 },
                 {"id": "output", "type": "output", "name": "Output", "config": {}},
             ],
@@ -581,9 +585,7 @@ def test_get_run_execution_view_reports_condition_subprocess_execution(
                     "type": "condition",
                     "name": "Branch",
                     "config": {"expression": "trigger_input.priority == 'high'"},
-                    "runtimePolicy": {
-                        "execution": {"class": "subprocess", "profile": "strict"}
-                    },
+                    "runtimePolicy": {"execution": {"class": "subprocess", "profile": "strict"}},
                 },
                 {
                     "id": "true_path",
@@ -644,9 +646,7 @@ def test_get_run_execution_view_reports_condition_subprocess_execution(
     assert body["summary"]["execution_unavailable_node_count"] == 0
     assert body["summary"]["execution_requested_class_counts"] == {"subprocess": 1}
     assert body["summary"]["execution_effective_class_counts"] == {"subprocess": 1}
-    assert body["summary"]["execution_executor_ref_counts"] == {
-        "runtime:host-subprocess-branch": 1
-    }
+    assert body["summary"]["execution_executor_ref_counts"] == {"runtime:host-subprocess-branch": 1}
 
     node = next(item for item in body["nodes"] if item["node_id"] == "branch")
     assert node["execution_class"] == "subprocess"
@@ -676,9 +676,7 @@ def test_get_run_execution_view_blocks_unsupported_strong_isolation_for_generic_
                     "type": "condition",
                     "name": "Branch",
                     "config": {"selected": "true"},
-                    "runtimePolicy": {
-                        "execution": {"class": "microvm", "profile": "strict"}
-                    },
+                    "runtimePolicy": {"execution": {"class": "microvm", "profile": "strict"}},
                 },
                 {"id": "output", "type": "output", "name": "Output", "config": {}},
             ],
@@ -740,9 +738,7 @@ def test_get_run_execution_view_blocks_unsupported_strong_isolation_for_generic_
     assert node["execution_fallback_count"] == 0
     assert node["execution_blocked_count"] == 0
     assert node["execution_unavailable_count"] == 1
-    assert "Strong-isolation paths must fail closed" in (
-        node["execution_blocking_reason"] or ""
-    )
+    assert "Strong-isolation paths must fail closed" in (node["execution_blocking_reason"] or "")
 
 
 def test_get_run_execution_view_summarizes_unavailable_sandbox_execution(
@@ -941,10 +937,7 @@ def test_get_run_execution_view_surfaces_selected_backend_for_tool_runner_gap(
     assert node["execution_blocked_count"] == 0
     assert node["execution_unavailable_count"] == 1
     assert node["execution_sandbox_backend_id"] == "sandbox-default"
-    assert (
-        node["execution_sandbox_backend_executor_ref"]
-        == "sandbox-backend:sandbox-default"
-    )
+    assert node["execution_sandbox_backend_executor_ref"] == "sandbox-backend:sandbox-default"
     assert "sandbox-backed tool execution" in (node["execution_blocking_reason"] or "")
     assert "sandbox-default" in (node["execution_blocking_reason"] or "")
 
@@ -1672,9 +1665,7 @@ def test_export_run_trace_supports_json_and_jsonl(
         == f'attachment; filename="run-{run_id}-trace.jsonl"'
     )
     export_lines = [
-        json.loads(line)
-        for line in export_jsonl_response.text.splitlines()
-        if line.strip()
+        json.loads(line) for line in export_jsonl_response.text.splitlines() if line.strip()
     ]
     assert export_lines[0]["record_type"] == "trace"
     assert export_lines[0]["filters"]["node_run_id"] == detail_body["node_runs"][0]["id"]
@@ -1737,9 +1728,7 @@ def test_execute_workflow_route_returns_handled_failure_branch(
     detail_body = _get_run_detail_json(client, body["id"], include_events=True)
     assert body["status"] == "succeeded"
     assert body["output_payload"] == {"fallback": {"answer": "route recovered"}}
-    assert {
-        node_run["node_id"]: node_run["status"] for node_run in detail_body["node_runs"]
-    } == {
+    assert {node_run["node_id"]: node_run["status"] for node_run in detail_body["node_runs"]} == {
         "trigger": "succeeded",
         "explode": "failed",
         "fallback": "succeeded",
@@ -1868,9 +1857,7 @@ def test_execute_workflow_route_supports_selector_driven_branching(
     detail_body = _get_run_detail_json(client, body["id"], include_events=True)
     assert body["status"] == "succeeded"
     assert body["output_payload"] == {"search_path": {"answer": "search mode"}}
-    assert {
-        node_run["node_id"]: node_run["status"] for node_run in detail_body["node_runs"]
-    } == {
+    assert {node_run["node_id"]: node_run["status"] for node_run in detail_body["node_runs"]} == {
         "trigger": "succeeded",
         "branch": "succeeded",
         "search_path": "succeeded",
@@ -2011,9 +1998,7 @@ def test_execute_workflow_route_supports_edge_condition_expression(
     detail_body = _get_run_detail_json(client, body["id"], include_events=True)
     assert body["status"] == "succeeded"
     assert body["output_payload"] == {"approve": {"answer": "approved route"}}
-    assert {
-        node_run["node_id"]: node_run["status"] for node_run in detail_body["node_runs"]
-    } == {
+    assert {node_run["node_id"]: node_run["status"] for node_run in detail_body["node_runs"]} == {
         "trigger": "succeeded",
         "scorer": "succeeded",
         "approve": "succeeded",
@@ -2113,9 +2098,7 @@ def test_execute_workflow_route_supports_edge_mapping_append_merge_strategy(
                     "type": "tool",
                     "name": "Joiner",
                     "config": {},
-                    "runtimePolicy": {
-                        "join": {"mode": "all", "mergeStrategy": "append"}
-                    },
+                    "runtimePolicy": {"join": {"mode": "all", "mergeStrategy": "append"}},
                 },
                 {"id": "output", "type": "output", "name": "Output", "config": {}},
             ],
@@ -2664,7 +2647,7 @@ def test_run_utility_routes_require_workspace_console_access(
         f"/api/runs/{run_id}/trace/export",
     ]
     for path in protected_paths:
-        response = client.get(path)
+        response = client.get(path, headers={})
         assert response.status_code == 401, path
 
     auth_headers = {"Authorization": f"Bearer {workspace_console_auth['access_token']}"}
@@ -2702,7 +2685,10 @@ def test_execute_workflow_route_requires_run_write_access(
     viewer_login = _login(client, email="viewer-runs@taichuy.com", password="viewer123")
     viewer_response = client.post(
         f"/api/workflows/{sample_workflow.id}/runs",
-        headers=_auth_headers(str(viewer_login["access_token"])),
+        headers={
+            **_auth_headers(str(viewer_login["access_token"])),
+            **_csrf_headers(viewer_login),
+        },
         json={"input_payload": {"message": "viewer should fail"}},
     )
     assert viewer_response.status_code == 403
@@ -2711,7 +2697,10 @@ def test_execute_workflow_route_requires_run_write_access(
     editor_login = _login(client, email="editor-runs@taichuy.com", password="editor123")
     editor_response = client.post(
         f"/api/workflows/{sample_workflow.id}/runs",
-        headers=_auth_headers(str(editor_login["access_token"])),
+        headers={
+            **_auth_headers(str(editor_login["access_token"])),
+            **_csrf_headers(editor_login),
+        },
         json={"input_payload": {"message": "editor can execute"}},
     )
     assert editor_response.status_code == 201

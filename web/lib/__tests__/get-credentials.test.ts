@@ -29,9 +29,14 @@ describe("getCredentials", () => {
 
     await getCredentials(true);
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/credentials?include_revoked=true", {
-      cache: "no-store"
-    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/credentials?include_revoked=true",
+      expect.objectContaining({
+        cache: "no-store",
+        credentials: "include",
+        headers: expect.any(Headers)
+      })
+    );
   });
 
   it("keeps the configured backend origin on the server", async () => {

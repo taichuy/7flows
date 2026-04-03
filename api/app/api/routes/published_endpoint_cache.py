@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.routes.auth import require_console_route_access
 from app.api.routes.sensitive_access_http import build_sensitive_access_blocking_response
 from app.core.database import get_db
 from app.models.workflow import Workflow, WorkflowPublishedEndpoint
@@ -57,6 +58,12 @@ def list_published_endpoint_cache_entries(
     limit: int = Query(default=10, ge=1, le=50),
     requester_id: str = Query(default="publish-cache-inventory", min_length=1, max_length=128),
     purpose_text: str | None = Query(default=None, min_length=1, max_length=512),
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/workflows/{workflow_id}/published-endpoints/{binding_id}/cache-entries",
+            method="GET",
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> PublishedEndpointCacheInventoryResponse:
     workflow = db.get(Workflow, workflow_id)

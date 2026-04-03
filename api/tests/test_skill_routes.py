@@ -1,8 +1,10 @@
 from fastapi.testclient import TestClient
 
 
-def test_skill_catalog_crud_and_reference_retrieval(client: TestClient) -> None:
-    list_response = client.get("/api/skills")
+def test_skill_catalog_crud_and_reference_retrieval(
+    client: TestClient, auth_headers: dict, write_headers: dict
+) -> None:
+    list_response = client.get("/api/skills", headers=auth_headers)
     assert list_response.status_code == 200
     assert list_response.json() == []
 
@@ -23,13 +25,14 @@ def test_skill_catalog_crud_and_reference_retrieval(client: TestClient) -> None:
                 }
             ],
         },
+        headers=write_headers,
     )
     assert create_response.status_code == 201
     created = create_response.json()
     assert created["id"] == "skill-research-brief"
     assert created["references"][0]["id"] == "ref-structure"
 
-    detail_response = client.get("/api/skills/skill-research-brief")
+    detail_response = client.get("/api/skills/skill-research-brief", headers=auth_headers)
     assert detail_response.status_code == 200
     detail = detail_response.json()
     assert detail["name"] == "Research Brief"
@@ -43,7 +46,8 @@ def test_skill_catalog_crud_and_reference_retrieval(client: TestClient) -> None:
     ]
 
     reference_response = client.get(
-        "/api/skills/skill-research-brief/references/ref-structure"
+        "/api/skills/skill-research-brief/references/ref-structure",
+        headers=auth_headers,
     )
     assert reference_response.status_code == 200
     assert reference_response.json()["body"].startswith("Use sections")
@@ -54,6 +58,7 @@ def test_skill_catalog_crud_and_reference_retrieval(client: TestClient) -> None:
             "method": "skills.list",
             "params": {"workspace_id": "default"},
         },
+        headers=auth_headers,
     )
     assert mcp_list_response.status_code == 200
     assert mcp_list_response.json()["result"][0]["id"] == "skill-research-brief"
@@ -64,6 +69,7 @@ def test_skill_catalog_crud_and_reference_retrieval(client: TestClient) -> None:
             "method": "skills.get",
             "params": {"skill_id": "skill-research-brief"},
         },
+        headers=auth_headers,
     )
     assert mcp_detail_response.status_code == 200
     assert mcp_detail_response.json()["result"]["references"] == [
@@ -83,6 +89,7 @@ def test_skill_catalog_crud_and_reference_retrieval(client: TestClient) -> None:
                 "reference_id": "ref-structure",
             },
         },
+        headers=auth_headers,
     )
     assert mcp_reference_response.status_code == 200
     assert mcp_reference_response.json()["result"] == {
@@ -105,6 +112,7 @@ def test_skill_catalog_crud_and_reference_retrieval(client: TestClient) -> None:
                 }
             ],
         },
+        headers=write_headers,
     )
     assert update_response.status_code == 200
     updated = update_response.json()
@@ -117,10 +125,10 @@ def test_skill_catalog_crud_and_reference_retrieval(client: TestClient) -> None:
         }
     ]
 
-    final_list_response = client.get("/api/skills")
+    final_list_response = client.get("/api/skills", headers=auth_headers)
     assert final_list_response.status_code == 200
     assert final_list_response.json()[0]["reference_count"] == 1
 
-    delete_response = client.delete("/api/skills/skill-research-brief")
+    delete_response = client.delete("/api/skills/skill-research-brief", headers=write_headers)
     assert delete_response.status_code == 204
-    assert client.get("/api/skills").json() == []
+    assert client.get("/api/skills", headers=auth_headers).json() == []

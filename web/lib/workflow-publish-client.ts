@@ -1,4 +1,7 @@
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import {
+  fetchConsoleApiPath,
+  resolveConsoleApiUrl
+} from "@/lib/console-session-client";
 import {
   parseSensitiveAccessGuardedResponse,
   type SensitiveAccessGuardedResult
@@ -16,8 +19,8 @@ import type {
 
 export async function getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot(): Promise<WorkflowPublishedEndpointLegacyAuthGovernanceSnapshot | null> {
   try {
-    const response = await fetch(
-      `${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows/published-endpoints/legacy-auth-governance`,
+    const response = await fetchConsoleApiPath(
+      "/api/workflows/published-endpoints/legacy-auth-governance",
       {
         cache: "no-store"
       }
@@ -50,8 +53,8 @@ export async function getWorkflowPublishedEndpoints(
   }
 
   try {
-    const response = await fetch(
-      `${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows/${encodeURIComponent(normalizedWorkflowId)}/published-endpoints?${searchParams.toString()}`,
+    const response = await fetchConsoleApiPath(
+      `/api/workflows/${encodeURIComponent(normalizedWorkflowId)}/published-endpoints?${searchParams.toString()}`,
       {
         cache: "no-store"
       }
@@ -73,8 +76,8 @@ export async function getPublishedEndpointCacheInventory(
   limit = 5
 ): Promise<SensitiveAccessGuardedResult<PublishedEndpointCacheInventoryResponse>> {
   try {
-    const response = await fetch(
-      `${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows/${encodeURIComponent(
+    const response = await fetchConsoleApiPath(
+      `/api/workflows/${encodeURIComponent(
         workflowId
       )}/published-endpoints/${encodeURIComponent(bindingId)}/cache-entries?limit=${Math.min(
         Math.max(limit, 1),
@@ -98,8 +101,8 @@ export async function getPublishedEndpointApiKeys(
   bindingId: string
 ): Promise<PublishedEndpointApiKeyItem[]> {
   try {
-    const response = await fetch(
-      `${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows/${encodeURIComponent(
+    const response = await fetchConsoleApiPath(
+      `/api/workflows/${encodeURIComponent(
         workflowId
       )}/published-endpoints/${encodeURIComponent(bindingId)}/api-keys`,
       {
@@ -128,8 +131,8 @@ export async function getPublishedEndpointInvocations(
       maxLimit: 20
     });
 
-    const response = await fetch(
-      `${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows/${encodeURIComponent(
+    const response = await fetchConsoleApiPath(
+      `/api/workflows/${encodeURIComponent(
         workflowId
       )}/published-endpoints/${encodeURIComponent(bindingId)}/invocations?${searchParams.toString()}`,
       {
@@ -159,9 +162,11 @@ export function buildPublishedEndpointInvocationExportUrl(
   });
   searchParams.set("format", format);
 
-  return `${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows/${encodeURIComponent(
-    workflowId
-  )}/published-endpoints/${encodeURIComponent(bindingId)}/invocations/export?${searchParams.toString()}`;
+  return resolveConsoleApiUrl(
+    `/api/workflows/${encodeURIComponent(workflowId)}/published-endpoints/${encodeURIComponent(
+      bindingId
+    )}/invocations/export?${searchParams.toString()}`
+  );
 }
 
 export async function getPublishedEndpointInvocationDetail(
@@ -170,8 +175,8 @@ export async function getPublishedEndpointInvocationDetail(
   invocationId: string
 ): Promise<SensitiveAccessGuardedResult<PublishedEndpointInvocationDetailResponse>> {
   try {
-    const response = await fetch(
-      `${getApiBaseUrl({ browserMode: "same-origin" })}/api/workflows/${encodeURIComponent(
+    const response = await fetchConsoleApiPath(
+      `/api/workflows/${encodeURIComponent(
         workflowId
       )}/published-endpoints/${encodeURIComponent(bindingId)}/invocations/${encodeURIComponent(invocationId)}`,
       {

@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import { fetchConsoleApiPath } from "@/lib/console-session-client";
 
 export type SkillCatalogListItem = {
   id: string;
@@ -32,7 +32,7 @@ export async function getSkillCatalog(
   const params = new URLSearchParams();
   params.set("workspace_id", workspaceId);
 
-  const response = await fetch(`${getApiBaseUrl()}/api/skills?${params.toString()}`, {
+  const response = await fetchConsoleApiPath(`/api/skills?${params.toString()}`, {
     cache: "no-store"
   });
 
@@ -60,8 +60,8 @@ export async function getSkillDetail(
   const params = new URLSearchParams();
   params.set("workspace_id", workspaceId);
 
-  const response = await fetch(
-    `${getApiBaseUrl()}/api/skills/${encodeURIComponent(normalizedSkillId)}?${params.toString()}`,
+  const response = await fetchConsoleApiPath(
+    `/api/skills/${encodeURIComponent(normalizedSkillId)}?${params.toString()}`,
     {
       cache: "no-store"
     }

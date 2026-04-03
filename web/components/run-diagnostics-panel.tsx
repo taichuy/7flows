@@ -11,7 +11,6 @@ import {
 import { RunDiagnosticsTraceFiltersSection } from "@/components/run-diagnostics-panel/trace-filters-section";
 import { RunDiagnosticsTraceResultsSection } from "@/components/run-diagnostics-panel/trace-results-section";
 import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
-import { getApiBaseUrl } from "@/lib/api-base-url";
 import type { RunDetail } from "@/lib/get-run-detail";
 import type {
   CallbackWaitingAutomationCheck,
@@ -80,7 +79,7 @@ export function RunDiagnosticsPanel({
   ).sort();
   const activeFilters = summarizeActiveFilters(activeTraceQuery);
   const traceHref = buildPageTraceHref(run.id, activeTraceQuery, runDetailHref);
-  const eventsApiHref = `${getApiBaseUrl()}/api/runs/${encodeURIComponent(run.id)}/events`;
+  const eventsApiHref = `/api/runs/${encodeURIComponent(run.id)}/events`;
   const workflowDetailLink = buildAuthorFacingWorkflowDetailLinkSurface({
     workflowId: run.workflow_id,
     variant: "editor"

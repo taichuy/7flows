@@ -1,4 +1,4 @@
-﻿from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,7 +20,9 @@ from app.services.sandbox_backends import (
     SandboxBackendRegistry,
 )
 
-pytestmark = pytest.mark.usefixtures("workspace_console_auth")
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
+)
 
 
 def _sandbox_backend_client(
@@ -223,13 +225,16 @@ def _skill_bound_agent_definition(
     }
 
 
-def test_create_workflow_rejects_missing_skill_reference(client: TestClient) -> None:
+def test_create_workflow_rejects_missing_skill_reference(
+    client: TestClient, write_headers: dict
+) -> None:
     response = client.post(
         "/api/workflows",
         json={
             "name": "Skill Guard Workflow",
             "definition": _skill_bound_agent_definition("skill-missing"),
         },
+        headers=write_headers,
     )
 
     assert response.status_code == 422
@@ -239,7 +244,9 @@ def test_create_workflow_rejects_missing_skill_reference(client: TestClient) -> 
     assert any(issue.get("field") == "skillIds" for issue in issues)
 
 
-def test_create_workflow_rejects_missing_skill_binding_reference(client: TestClient) -> None:
+def test_create_workflow_rejects_missing_skill_binding_reference(
+    client: TestClient, write_headers: dict
+) -> None:
     skill_response = client.post(
         "/api/skills",
         json={
@@ -257,6 +264,7 @@ def test_create_workflow_rejects_missing_skill_binding_reference(client: TestCli
                 }
             ],
         },
+        headers=write_headers,
     )
     assert skill_response.status_code == 201
 
@@ -278,6 +286,7 @@ def test_create_workflow_rejects_missing_skill_binding_reference(client: TestCli
                 },
             ),
         },
+        headers=write_headers,
     )
 
     assert response.status_code == 422
@@ -289,6 +298,7 @@ def test_create_workflow_rejects_missing_skill_binding_reference(client: TestCli
 
 def test_create_workflow_accepts_skill_binding_with_case_preserved_ids(
     client: TestClient,
+    write_headers: dict,
 ) -> None:
     skill_response = client.post(
         "/api/skills",
@@ -307,6 +317,7 @@ def test_create_workflow_accepts_skill_binding_with_case_preserved_ids(
                 }
             ],
         },
+        headers=write_headers,
     )
     assert skill_response.status_code == 201
 
@@ -328,6 +339,7 @@ def test_create_workflow_accepts_skill_binding_with_case_preserved_ids(
                 },
             ),
         },
+        headers=write_headers,
     )
 
     assert response.status_code == 201
@@ -684,10 +696,11 @@ def _mark_workflow_binding_as_legacy_auth(
     return binding
 
 
-def test_create_workflow_persists_initial_version(client: TestClient) -> None:
+def test_create_workflow_persists_initial_version(client: TestClient, write_headers: dict) -> None:
     response = client.post(
         "/api/workflows",
         json={"name": "Validated Workflow", "definition": _valid_definition()},
+        headers=write_headers,
     )
 
     assert response.status_code == 201
@@ -700,13 +713,14 @@ def test_create_workflow_persists_initial_version(client: TestClient) -> None:
     assert body["versions"][0]["compiled_blueprint_compiler_version"] == "flow-compiler.v1"
 
 
-def test_create_workflow_rejects_invalid_variables(client: TestClient) -> None:
+def test_create_workflow_rejects_invalid_variables(client: TestClient, write_headers: dict) -> None:
     response = client.post(
         "/api/workflows",
         json={
             "name": "Invalid Variable Workflow",
             "definition": _invalid_variable_definition(),
         },
+        headers=write_headers,
     )
 
     assert response.status_code == 422
@@ -718,13 +732,16 @@ def test_create_workflow_rejects_invalid_variables(client: TestClient) -> None:
     assert any(issue.get("path") == "variables.2.name" for issue in issues)
 
 
-def test_create_workflow_rejects_duplicate_publish_identities(client: TestClient) -> None:
+def test_create_workflow_rejects_duplicate_publish_identities(
+    client: TestClient, write_headers: dict
+) -> None:
     response = client.post(
         "/api/workflows",
         json={
             "name": "Invalid Publish Identity Workflow",
             "definition": _invalid_publish_identity_definition(),
         },
+        headers=write_headers,
     )
 
     assert response.status_code == 422
@@ -739,6 +756,7 @@ def test_create_workflow_rejects_duplicate_publish_identities(client: TestClient
 
 def test_create_workflow_rejects_unsupported_publish_auth_mode(
     client: TestClient,
+    write_headers: dict,
 ) -> None:
     response = client.post(
         "/api/workflows",
@@ -746,6 +764,7 @@ def test_create_workflow_rejects_unsupported_publish_auth_mode(
             "name": "Invalid Publish Auth Workflow",
             "definition": _unsupported_publish_auth_mode_definition(),
         },
+        headers=write_headers,
     )
 
     assert response.status_code == 422
@@ -762,7 +781,9 @@ def test_workflow_published_endpoint_schema_only_advertises_supported_auth_modes
     assert schema["properties"]["authMode"]["enum"] == ["api_key", "internal"]
 
 
-def test_create_workflow_rejects_invalid_definition(client: TestClient) -> None:
+def test_create_workflow_rejects_invalid_definition(
+    client: TestClient, write_headers: dict
+) -> None:
     response = client.post(
         "/api/workflows",
         json={
@@ -772,19 +793,23 @@ def test_create_workflow_rejects_invalid_definition(client: TestClient) -> None:
                 "edges": [],
             },
         },
+        headers=write_headers,
     )
 
     assert response.status_code == 422
     assert "trigger node" in _workflow_detail_message(response)
 
 
-def test_create_workflow_rejects_unavailable_persisted_nodes(client: TestClient) -> None:
+def test_create_workflow_rejects_unavailable_persisted_nodes(
+    client: TestClient, write_headers: dict
+) -> None:
     response = client.post(
         "/api/workflows",
         json={
             "name": "Loop Workflow",
             "definition": _planned_loop_definition(),
         },
+        headers=write_headers,
     )
 
     assert response.status_code == 422
@@ -796,6 +821,7 @@ def test_create_workflow_rejects_unavailable_persisted_nodes(client: TestClient)
 
 def test_create_workflow_rejects_cycles_during_blueprint_compilation(
     client: TestClient,
+    write_headers: dict,
 ) -> None:
     response = client.post(
         "/api/workflows",
@@ -814,6 +840,7 @@ def test_create_workflow_rejects_cycles_during_blueprint_compilation(
                 ],
             },
         },
+        headers=write_headers,
     )
 
     assert response.status_code == 422
@@ -823,10 +850,13 @@ def test_create_workflow_rejects_cycles_during_blueprint_compilation(
 def test_update_workflow_bumps_version_and_keeps_history(
     client: TestClient,
     sample_workflow,
+    auth_headers: dict,
+    write_headers: dict,
 ) -> None:
     response = client.put(
         f"/api/workflows/{sample_workflow.id}",
         json={"definition": _valid_definition(answer="updated")},
+        headers=write_headers,
     )
 
     assert response.status_code == 200
@@ -836,7 +866,10 @@ def test_update_workflow_bumps_version_and_keeps_history(
     assert [version["version"] for version in body["versions"]] == ["0.1.1", "0.1.0"]
     assert all(version["compiled_blueprint_id"] for version in body["versions"])
 
-    versions_response = client.get(f"/api/workflows/{sample_workflow.id}/versions")
+    versions_response = client.get(
+        f"/api/workflows/{sample_workflow.id}/versions",
+        headers=auth_headers,
+    )
     assert versions_response.status_code == 200
     assert [version["version"] for version in versions_response.json()] == ["0.1.1", "0.1.0"]
     assert all(version["compiled_blueprint_id"] for version in versions_response.json())
@@ -845,10 +878,12 @@ def test_update_workflow_bumps_version_and_keeps_history(
 def test_update_workflow_rejects_unavailable_persisted_nodes(
     client: TestClient,
     sample_workflow,
+    write_headers: dict,
 ) -> None:
     response = client.put(
         f"/api/workflows/{sample_workflow.id}",
         json={"definition": _planned_loop_definition()},
+        headers=write_headers,
     )
 
     assert response.status_code == 422
@@ -861,6 +896,7 @@ def test_update_workflow_rejects_unavailable_persisted_nodes(
 def test_update_workflow_allows_publish_binding_to_next_persisted_version(
     client: TestClient,
     sample_workflow,
+    write_headers: dict,
 ) -> None:
     definition = _valid_publish_definition()
     definition["publish"][0]["workflowVersion"] = "0.1.1"
@@ -868,6 +904,7 @@ def test_update_workflow_allows_publish_binding_to_next_persisted_version(
     response = client.put(
         f"/api/workflows/{sample_workflow.id}",
         json={"definition": definition},
+        headers=write_headers,
     )
 
     assert response.status_code == 200
@@ -878,6 +915,7 @@ def test_update_workflow_allows_publish_binding_to_next_persisted_version(
 def test_update_workflow_rejects_publish_binding_beyond_next_persisted_version(
     client: TestClient,
     sample_workflow,
+    write_headers: dict,
 ) -> None:
     definition = _valid_publish_definition()
     definition["publish"][0]["workflowVersion"] = "0.1.2"
@@ -885,6 +923,7 @@ def test_update_workflow_rejects_publish_binding_beyond_next_persisted_version(
     response = client.put(
         f"/api/workflows/{sample_workflow.id}",
         json={"definition": definition},
+        headers=write_headers,
     )
 
     assert response.status_code == 422
@@ -1142,7 +1181,6 @@ def test_create_workflow_accepts_execution_runtime_policy(client: TestClient) ->
     }
 
 
-
 def test_create_workflow_rejects_invalid_execution_runtime_policy(client: TestClient) -> None:
     response = client.post(
         "/api/workflows",
@@ -1252,9 +1290,7 @@ def test_create_workflow_accepts_subprocess_sandbox_code_without_ready_backend(
 
     assert response.status_code == 201
     body = response.json()
-    assert body["definition"]["nodes"][1]["runtimePolicy"]["execution"] == {
-        "class": "subprocess"
-    }
+    assert body["definition"]["nodes"][1]["runtimePolicy"]["execution"] == {"class": "subprocess"}
 
 
 def test_create_workflow_rejects_sandbox_code_dependency_contract_without_backend_support(
@@ -2499,9 +2535,7 @@ def test_validate_workflow_definition_preflight_rejects_unsupported_condition_ex
     response = client.post(
         f"/api/workflows/{workflow_id}/validate-definition",
         json={
-            "definition": _condition_definition(
-                runtime_policy={"execution": {"class": "microvm"}}
-            )
+            "definition": _condition_definition(runtime_policy={"execution": {"class": "microvm"}})
         },
     )
 
@@ -2539,9 +2573,7 @@ def test_validate_workflow_definition_preflight_accepts_condition_subprocess_exe
     assert response.status_code == 200
     body = response.json()
     assert body["issues"] == []
-    assert (
-        body["definition"]["nodes"][1]["runtimePolicy"]["execution"]["class"] == "subprocess"
-    )
+    assert body["definition"]["nodes"][1]["runtimePolicy"]["execution"]["class"] == "subprocess"
 
 
 def test_validate_workflow_definition_preflight_accepts_reference_node_with_explicit_context(
@@ -3095,9 +3127,7 @@ def test_validate_workflow_definition_preflight_rejects_unsupported_publish_auth
     assert response.status_code == 422
     detail = response.json()["detail"]
     assert "publish auth modes" in detail["message"]
-    assert "Publish auth contract: supported api_key / internal; legacy token." in detail[
-        "message"
-    ]
+    assert "Publish auth contract: supported api_key / internal; legacy token." in detail["message"]
     assert "先把 workflow draft endpoint 切回 api_key/internal 并保存" in detail["message"]
     assert any(
         issue["category"] == "publish_draft"
@@ -3106,8 +3136,7 @@ def test_validate_workflow_definition_preflight_rejects_unsupported_publish_auth
         for issue in detail["issues"]
     )
     assert any(
-        "Publish auth contract: supported api_key / internal; legacy token."
-        in issue["message"]
+        "Publish auth contract: supported api_key / internal; legacy token." in issue["message"]
         for issue in detail["issues"]
     )
 
@@ -3214,9 +3243,7 @@ def test_create_workflow_rejects_invalid_branch_edge_conditions(client: TestClie
 
 def test_create_workflow_rejects_branch_duplicate_fallback_edges(client: TestClient) -> None:
     definition = _valid_selector_definition()
-    definition["edges"].append(
-        {"id": "e6", "sourceNodeId": "branch", "targetNodeId": "output"}
-    )
+    definition["edges"].append({"id": "e6", "sourceNodeId": "branch", "targetNodeId": "output"})
 
     response = client.post(
         "/api/workflows",
@@ -3356,18 +3383,24 @@ def test_workflow_utility_routes_require_workspace_console_access(
 ) -> None:
     client.cookies.clear()
 
-    detail_response = client.get(f"/api/workflows/{sample_workflow.id}/detail")
-    runs_response = client.get(f"/api/workflows/{sample_workflow.id}/runs")
+    detail_response = client.get(f"/api/workflows/{sample_workflow.id}/detail", headers={})
+    runs_response = client.get(f"/api/workflows/{sample_workflow.id}/runs", headers={})
 
     assert detail_response.status_code == 401
     assert runs_response.status_code == 401
 
     auth_headers = {"Authorization": f"Bearer {workspace_console_auth['access_token']}"}
-    assert client.get(
-        f"/api/workflows/{sample_workflow.id}/detail",
-        headers=auth_headers,
-    ).status_code == 200
-    assert client.get(
-        f"/api/workflows/{sample_workflow.id}/runs",
-        headers=auth_headers,
-    ).status_code == 200
+    assert (
+        client.get(
+            f"/api/workflows/{sample_workflow.id}/detail",
+            headers=auth_headers,
+        ).status_code
+        == 200
+    )
+    assert (
+        client.get(
+            f"/api/workflows/{sample_workflow.id}/runs",
+            headers=auth_headers,
+        ).status_code
+        == 200
+    )

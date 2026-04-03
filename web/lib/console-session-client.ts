@@ -1,3 +1,4 @@
+import { getApiBaseUrl } from "@/lib/api-base-url";
 import { buildConsoleCsrfHeaders } from "@/lib/workspace-access";
 
 type ConsoleFetchOptions = {
@@ -26,6 +27,11 @@ function buildLoginHref(nextHref?: string) {
   return `/login?next=${encodeURIComponent(normalizedNext)}`;
 }
 
+function normalizeConsoleApiPath(path: string) {
+  const normalizedPath = path.trim();
+  return normalizedPath.startsWith("/") ? normalizedPath : `/${normalizedPath}`;
+}
+
 export function redirectToConsoleLogin(nextHref?: string) {
   if (typeof window === "undefined") {
     return;
@@ -33,6 +39,11 @@ export function redirectToConsoleLogin(nextHref?: string) {
 
   const fallbackNext = `${window.location.pathname}${window.location.search}` || "/workspace";
   window.location.assign(buildLoginHref(nextHref ?? fallbackNext));
+}
+
+export function resolveConsoleApiUrl(path: string) {
+  const normalizedPath = normalizeConsoleApiPath(path);
+  return typeof window === "undefined" ? `${getApiBaseUrl()}${normalizedPath}` : normalizedPath;
 }
 
 async function refreshConsoleSession({
@@ -112,4 +123,21 @@ export async function fetchConsoleApi(
   }
 
   return response;
+}
+
+export async function fetchConsoleApiPath(
+  path: string,
+  init: RequestInit = {},
+  options: ConsoleFetchOptions = {}
+) {
+  const normalizedPath = normalizeConsoleApiPath(path);
+  const fetchImpl = options.fetchImpl ?? fetch;
+  if (typeof window === "undefined") {
+    return fetchImpl(resolveConsoleApiUrl(normalizedPath), init);
+  }
+
+  return fetchConsoleApi(normalizedPath, init, {
+    ...options,
+    fetchImpl
+  });
 }

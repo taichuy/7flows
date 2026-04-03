@@ -73,7 +73,11 @@ describe("getWorkflows", () => {
 
     expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
       "/api/workflows?definition_issue=legacy_publish_auth",
-      getWorkflowInventoryFetchOptions()
+      expect.objectContaining({
+        ...getWorkflowInventoryFetchOptions(),
+        credentials: "include",
+        headers: expect.any(Headers)
+      })
     );
   });
 
@@ -118,7 +122,11 @@ describe("getWorkflows", () => {
 
     expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
       "/api/workflows/wf-1/detail",
-      getWorkflowDetailFetchOptions("wf-1")
+      expect.objectContaining({
+        ...getWorkflowDetailFetchOptions("wf-1"),
+        credentials: "include",
+        headers: expect.any(Headers)
+      })
     );
   });
 
@@ -146,16 +154,21 @@ describe("getWorkflows", () => {
       definition: { nodes: [], edges: [] }
     });
 
-    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith("/api/workflows", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        name: "Blank Workflow",
-        definition: { nodes: [], edges: [] }
+    const requestInit = vi.mocked(global.fetch).mock.calls[0]?.[1] as RequestInit;
+
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
+      "/api/workflows",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          name: "Blank Workflow",
+          definition: { nodes: [], edges: [] }
+        }),
+        credentials: "include",
+        headers: expect.any(Headers)
       })
-    });
+    );
+    expect((requestInit.headers as Headers).get("Content-Type")).toBe("application/json");
   });
 
   it("uses the same-origin workflow proxy when saving in the browser", async () => {
@@ -170,16 +183,21 @@ describe("getWorkflows", () => {
       definition: { nodes: [], edges: [] }
     });
 
-    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith("/api/workflows/wf-1", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        name: "Blank Workflow",
-        definition: { nodes: [], edges: [] }
+    const requestInit = vi.mocked(global.fetch).mock.calls[0]?.[1] as RequestInit;
+
+    expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
+      "/api/workflows/wf-1",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({
+          name: "Blank Workflow",
+          definition: { nodes: [], edges: [] }
+        }),
+        credentials: "include",
+        headers: expect.any(Headers)
       })
-    });
+    );
+    expect((requestInit.headers as Headers).get("Content-Type")).toBe("application/json");
   });
 
   it("uses the same-origin workflow proxy when validating in the browser", async () => {
@@ -191,17 +209,19 @@ describe("getWorkflows", () => {
 
     await validateWorkflowDefinition("wf-1", { nodes: [], edges: [] });
 
+    const requestInit = vi.mocked(global.fetch).mock.calls[0]?.[1] as RequestInit;
+
     expect(vi.mocked(global.fetch)).toHaveBeenCalledWith(
       "/api/workflows/wf-1/validate-definition",
-      {
+      expect.objectContaining({
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
         body: JSON.stringify({
           definition: { nodes: [], edges: [] }
-        })
-      }
+        }),
+        credentials: "include",
+        headers: expect.any(Headers)
+      })
     );
+    expect((requestInit.headers as Headers).get("Content-Type")).toBe("application/json");
   });
 });

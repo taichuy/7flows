@@ -1,6 +1,7 @@
-﻿from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.routes.auth import require_console_route_access
 from app.core.database import get_db
 from app.models.workflow import Workflow
 from app.schemas.workspace_starter import (
@@ -63,6 +64,9 @@ def _raise_definition_validation_error(exc: WorkflowDefinitionValidationError) -
 @router.post("/bulk", response_model=WorkspaceStarterBulkActionResult)
 def bulk_update_workspace_starters(
     payload: WorkspaceStarterBulkActionRequest,
+    _access_context=Depends(
+        require_console_route_access("/api/workspace-starters/bulk", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterBulkActionResult:
     return execute_workspace_starter_bulk_action(db, payload)
@@ -71,6 +75,9 @@ def bulk_update_workspace_starters(
 @router.post("/bulk/preview", response_model=WorkspaceStarterBulkPreview)
 def preview_bulk_workspace_starters(
     payload: WorkspaceStarterBulkPreviewRequest,
+    _access_context=Depends(
+        require_console_route_access("/api/workspace-starters/bulk/preview", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterBulkPreview:
     return preview_workspace_starter_bulk_actions(db, payload)
@@ -83,10 +90,9 @@ def list_workspace_starters(
     search: str | None = Query(default=None, min_length=1, max_length=128),
     include_archived: bool = Query(default=False),
     archived_only: bool = Query(default=False),
-    source_governance_kind: WorkspaceStarterSourceGovernanceKind | None = Query(
-        default=None
-    ),
+    source_governance_kind: WorkspaceStarterSourceGovernanceKind | None = Query(default=None),
     needs_follow_up: bool = Query(default=False),
+    _access_context=Depends(require_console_route_access("/api/workspace-starters", method="GET")),
     db: Session = Depends(get_db),
 ) -> list[WorkspaceStarterTemplateItem]:
     service = get_workspace_starter_template_service()
@@ -126,10 +132,11 @@ def get_workspace_starter_governance_summary(
     search: str | None = Query(default=None, min_length=1, max_length=128),
     include_archived: bool = Query(default=False),
     archived_only: bool = Query(default=False),
-    source_governance_kind: WorkspaceStarterSourceGovernanceKind | None = Query(
-        default=None
-    ),
+    source_governance_kind: WorkspaceStarterSourceGovernanceKind | None = Query(default=None),
     needs_follow_up: bool = Query(default=False),
+    _access_context=Depends(
+        require_console_route_access("/api/workspace-starters/governance-summary", method="GET")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterSourceGovernanceScopeSummary:
     service = get_workspace_starter_template_service()
@@ -163,6 +170,9 @@ def get_workspace_starter_governance_summary(
 def get_workspace_starter(
     template_id: str,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(
+        require_console_route_access("/api/workspace-starters/{template_id}", method="GET")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterTemplateItem:
     service = get_workspace_starter_template_service()
@@ -184,6 +194,9 @@ def list_workspace_starter_history(
     template_id: str,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
     limit: int = Query(default=20, ge=1, le=100),
+    _access_context=Depends(
+        require_console_route_access("/api/workspace-starters/{template_id}/history", method="GET")
+    ),
     db: Session = Depends(get_db),
 ) -> list[WorkspaceStarterHistoryItem]:
     service = get_workspace_starter_template_service()
@@ -212,6 +225,7 @@ def list_workspace_starter_history(
 )
 def create_workspace_starter(
     payload: WorkspaceStarterTemplateCreate,
+    _access_context=Depends(require_console_route_access("/api/workspace-starters", method="POST")),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterTemplateItem:
     service = get_workspace_starter_template_service()
@@ -242,6 +256,9 @@ def update_workspace_starter(
     template_id: str,
     payload: WorkspaceStarterTemplateUpdate,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(
+        require_console_route_access("/api/workspace-starters/{template_id}", method="PUT")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterTemplateItem:
     service = get_workspace_starter_template_service()
@@ -279,6 +296,11 @@ def update_workspace_starter(
 def get_workspace_starter_source_diff(
     template_id: str,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/workspace-starters/{template_id}/source-diff", method="GET"
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterSourceDiff:
     service = get_workspace_starter_template_service()
@@ -308,6 +330,9 @@ def get_workspace_starter_source_diff(
 def archive_workspace_starter(
     template_id: str,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(
+        require_console_route_access("/api/workspace-starters/{template_id}/archive", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterTemplateItem:
     service = get_workspace_starter_template_service()
@@ -336,6 +361,9 @@ def archive_workspace_starter(
 def restore_workspace_starter(
     template_id: str,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(
+        require_console_route_access("/api/workspace-starters/{template_id}/restore", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterTemplateItem:
     service = get_workspace_starter_template_service()
@@ -364,6 +392,9 @@ def restore_workspace_starter(
 def rebase_workspace_starter(
     template_id: str,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(
+        require_console_route_access("/api/workspace-starters/{template_id}/rebase", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterTemplateItem:
     service = get_workspace_starter_template_service()
@@ -400,9 +431,7 @@ def rebase_workspace_starter(
         "edge_changes": diff.edge_summary.model_dump(),
     }
     if diff.sandbox_dependency_entries:
-        payload["sandbox_dependency_changes"] = (
-            diff.sandbox_dependency_summary.model_dump()
-        )
+        payload["sandbox_dependency_changes"] = diff.sandbox_dependency_summary.model_dump()
         payload["sandbox_dependency_nodes"] = [
             entry.id for entry in diff.sandbox_dependency_entries
         ]
@@ -428,6 +457,9 @@ def rebase_workspace_starter(
 def refresh_workspace_starter(
     template_id: str,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(
+        require_console_route_access("/api/workspace-starters/{template_id}/refresh", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> WorkspaceStarterTemplateItem:
     service = get_workspace_starter_template_service()
@@ -464,9 +496,7 @@ def refresh_workspace_starter(
         "action_decision": diff.action_decision.model_dump(),
     }
     if diff.sandbox_dependency_entries:
-        payload["sandbox_dependency_changes"] = (
-            diff.sandbox_dependency_summary.model_dump()
-        )
+        payload["sandbox_dependency_changes"] = diff.sandbox_dependency_summary.model_dump()
         payload["sandbox_dependency_nodes"] = [
             entry.id for entry in diff.sandbox_dependency_entries
         ]
@@ -492,6 +522,9 @@ def refresh_workspace_starter(
 def delete_workspace_starter(
     template_id: str,
     workspace_id: str = Query(default="default", min_length=1, max_length=64),
+    _access_context=Depends(
+        require_console_route_access("/api/workspace-starters/{template_id}", method="DELETE")
+    ),
     db: Session = Depends(get_db),
 ) -> None:
     service = get_workspace_starter_template_service()

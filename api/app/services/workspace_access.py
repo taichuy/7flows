@@ -326,7 +326,8 @@ def build_workflow_surface_route_access_policy_matrix() -> list[ConsoleRouteAcce
             route="/api/workflows",
             access_level="authenticated",
             methods=["POST"],
-            description="创建 workflow 仅限可写成员。",
+            csrf_protected_methods=["POST"],
+            description="创建 workflow 仅限可写成员，并要求 CSRF double-submit。",
             resource="workflow",
             action="write",
             expose_in_contract=False,
@@ -344,7 +345,8 @@ def build_workflow_surface_route_access_policy_matrix() -> list[ConsoleRouteAcce
             route="/api/workflows/{workflow_id}",
             access_level="authenticated",
             methods=["PUT"],
-            description="更新 workflow 仅限可写成员。",
+            csrf_protected_methods=["PUT"],
+            description="更新 workflow 仅限可写成员，并要求 CSRF double-submit。",
             resource="workflow",
             action="write",
             expose_in_contract=False,
@@ -353,7 +355,8 @@ def build_workflow_surface_route_access_policy_matrix() -> list[ConsoleRouteAcce
             route="/api/workflows/{workflow_id}/validate-definition",
             access_level="authenticated",
             methods=["POST"],
-            description="workflow definition 预检仅限可写成员。",
+            csrf_protected_methods=["POST"],
+            description="workflow definition 预检仅限可写成员，并要求 CSRF double-submit。",
             resource="workflow",
             action="write",
             expose_in_contract=False,
@@ -387,7 +390,8 @@ def build_workflow_surface_route_access_policy_matrix() -> list[ConsoleRouteAcce
             route="/api/workflows/{workflow_id}/runs",
             access_level="authenticated",
             methods=["POST"],
-            description="执行 workflow 仅限可发起 run 的成员。",
+            csrf_protected_methods=["POST"],
+            description="执行 workflow 仅限可发起 run 的成员，并要求 CSRF double-submit。",
             resource="run",
             action="write",
             expose_in_contract=False,
@@ -415,8 +419,7 @@ def build_workflow_surface_route_access_policy_matrix() -> list[ConsoleRouteAcce
             access_level="authenticated",
             methods=["GET"],
             description=(
-                "workflow publish activity detail 入口，"
-                "后续仍可叠加 sensitive access gating。"
+                "workflow publish activity detail 入口，后续仍可叠加 sensitive access gating。"
             ),
         ),
         _build_route_access_policy(
@@ -439,7 +442,8 @@ def build_workflow_surface_route_access_policy_matrix() -> list[ConsoleRouteAcce
             route="/api/runs/{run_id}/resume",
             access_level="authenticated",
             methods=["POST"],
-            description="恢复 waiting run 仅限可修改 run 的成员。",
+            csrf_protected_methods=["POST"],
+            description="恢复 waiting run 仅限可修改 run 的成员，并要求 CSRF double-submit。",
             resource="run",
             action="write",
             expose_in_contract=False,
@@ -634,8 +638,7 @@ def build_console_route_access_policy_matrix() -> list[ConsoleRouteAccessPolicy]
             methods=["POST"],
             csrf_protected_methods=["POST"],
             description=(
-                "新增 workspace 模型供应商配置仅 owner/admin 可调用，"
-                "并要求 CSRF double-submit。"
+                "新增 workspace 模型供应商配置仅 owner/admin 可调用，并要求 CSRF double-submit。"
             ),
             resource="workspace",
             action="manage",
@@ -655,6 +658,573 @@ def build_console_route_access_policy_matrix() -> list[ConsoleRouteAccessPolicy]
             denied_message="当前账号没有团队模型供应商管理权限。",
         ),
         *build_workflow_surface_route_access_policy_matrix(),
+        # ---------- credentials ----------
+        _build_route_access_policy(
+            route="/api/credentials",
+            access_level="manager",
+            methods=["GET"],
+            description="凭证列表仅 owner/admin 可见，防止 editor/viewer 枚举所有凭证元信息。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有凭证管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/credentials/activity",
+            access_level="manager",
+            methods=["GET"],
+            description="凭证审计日志仅 owner/admin 可见。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有凭证管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/credentials",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="创建凭证仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有凭证管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/credentials/{credential_id}",
+            access_level="manager",
+            methods=["GET"],
+            description="获取凭证详情仅 owner/admin 可见。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有凭证管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/credentials/{credential_id}",
+            access_level="manager",
+            methods=["PUT"],
+            csrf_protected_methods=["PUT"],
+            description="更新凭证仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有凭证管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/credentials/{credential_id}",
+            access_level="manager",
+            methods=["DELETE"],
+            csrf_protected_methods=["DELETE"],
+            description="吊销凭证仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有凭证管理权限。",
+        ),
+        # ---------- skills ----------
+        _build_route_access_policy(
+            route="/api/skills",
+            access_level="authenticated",
+            methods=["GET"],
+            description="skill 目录列表对所有已登录成员开放。",
+            resource="workspace",
+            action="read",
+        ),
+        _build_route_access_policy(
+            route="/api/skills",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="创建 skill 仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有 skill 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/skills/mcp/call",
+            access_level="authenticated",
+            methods=["POST"],
+            description=(
+                "skill MCP call 对所有已登录成员开放（读/调用），"
+                "具体权限由 skill 策略决定。"
+            ),
+            resource="workspace",
+            action="read",
+        ),
+        _build_route_access_policy(
+            route="/api/skills/{skill_id}",
+            access_level="authenticated",
+            methods=["GET"],
+            description="获取单个 skill 对所有已登录成员开放。",
+            resource="workspace",
+            action="read",
+        ),
+        _build_route_access_policy(
+            route="/api/skills/{skill_id}",
+            access_level="manager",
+            methods=["PUT"],
+            csrf_protected_methods=["PUT"],
+            description="更新 skill 仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有 skill 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/skills/{skill_id}",
+            access_level="manager",
+            methods=["DELETE"],
+            csrf_protected_methods=["DELETE"],
+            description="删除 skill 仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有 skill 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/skills/{skill_id}/references/{reference_id}",
+            access_level="authenticated",
+            methods=["GET"],
+            description="获取 skill reference 文档对所有已登录成员开放。",
+            resource="workspace",
+            action="read",
+        ),
+        # ---------- plugins ----------
+        _build_route_access_policy(
+            route="/api/plugins/adapters",
+            access_level="manager",
+            methods=["GET"],
+            description="plugin adapter 列表仅 owner/admin 可见。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有 plugin 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/plugins/adapters",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="注册 plugin adapter 仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有 plugin 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/plugins/adapters/{adapter_id}/sync-tools",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description=(
+                "同步 plugin adapter tools 仅 owner/admin 可调用，"
+                "并要求 CSRF double-submit。"
+            ),
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有 plugin 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/plugins/tools",
+            access_level="authenticated",
+            methods=["GET"],
+            description="plugin tool 列表对所有已登录成员开放（只读，用于节点编辑表单）。",
+            resource="workspace",
+            action="read",
+        ),
+        _build_route_access_policy(
+            route="/api/plugins/tools",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="手动注册 plugin tool 仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有 plugin 管理权限。",
+        ),
+        # ---------- system ----------
+        _build_route_access_policy(
+            route="/api/system/overview",
+            access_level="manager",
+            methods=["GET"],
+            description="系统总览仅 owner/admin 可见，包含敏感运行时与 sandbox 诊断信息。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有系统诊断权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/system/plugin-adapters",
+            access_level="manager",
+            methods=["GET"],
+            description="plugin adapter 健康检查仅 owner/admin 可见。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有系统诊断权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/system/sandbox-backends",
+            access_level="manager",
+            methods=["GET"],
+            description="sandbox backend 健康检查仅 owner/admin 可见。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有系统诊断权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/system/runtime-activity",
+            access_level="manager",
+            methods=["GET"],
+            description="runtime 活动快照仅 owner/admin 可见。",
+            resource="workspace",
+            action="manage",
+            denied_message="当前账号没有系统诊断权限。",
+        ),
+        # ---------- workspace starters ----------
+        _build_route_access_policy(
+            route="/api/workspace-starters",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workspace starter 列表对所有已登录成员开放。",
+            resource="workflow",
+            action="read",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="创建 workspace starter 仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workflow",
+            action="publish",
+            denied_message="当前账号没有 workspace starter 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/bulk",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description=(
+                "批量更新 workspace starter 仅 owner/admin 可调用，"
+                "并要求 CSRF double-submit。"
+            ),
+            resource="workflow",
+            action="publish",
+            denied_message="当前账号没有 workspace starter 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/bulk/preview",
+            access_level="manager",
+            methods=["POST"],
+            description="批量更新预览仅 owner/admin 可调用。",
+            resource="workflow",
+            action="publish",
+            denied_message="当前账号没有 workspace starter 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/governance-summary",
+            access_level="manager",
+            methods=["GET"],
+            description="workspace starter 治理摘要仅 owner/admin 可见。",
+            resource="workflow",
+            action="publish",
+            denied_message="当前账号没有 workspace starter 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/{template_id}",
+            access_level="authenticated",
+            methods=["GET"],
+            description="获取单个 workspace starter 对所有已登录成员开放。",
+            resource="workflow",
+            action="read",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/{template_id}",
+            access_level="manager",
+            methods=["PUT"],
+            csrf_protected_methods=["PUT"],
+            description="更新 workspace starter 仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workflow",
+            action="publish",
+            denied_message="当前账号没有 workspace starter 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/{template_id}",
+            access_level="manager",
+            methods=["DELETE"],
+            csrf_protected_methods=["DELETE"],
+            description="删除 workspace starter 仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workflow",
+            action="publish",
+            denied_message="当前账号没有 workspace starter 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/{template_id}/history",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workspace starter 变更历史对所有已登录成员开放。",
+            resource="workflow",
+            action="read",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/{template_id}/source-diff",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workspace starter source diff 对所有已登录成员开放。",
+            resource="workflow",
+            action="read",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/{template_id}/archive",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="归档 workspace starter 仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workflow",
+            action="publish",
+            denied_message="当前账号没有 workspace starter 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/{template_id}/restore",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="恢复 workspace starter 仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workflow",
+            action="publish",
+            denied_message="当前账号没有 workspace starter 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/{template_id}/rebase",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description=(
+                "rebase workspace starter 仅 owner/admin 可调用，"
+                "并要求 CSRF double-submit。"
+            ),
+            resource="workflow",
+            action="publish",
+            denied_message="当前账号没有 workspace starter 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workspace-starters/{template_id}/refresh",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="刷新 workspace starter 仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="workflow",
+            action="publish",
+            denied_message="当前账号没有 workspace starter 管理权限。",
+        ),
+        # ---------- published endpoint api keys ----------
+        _build_route_access_policy(
+            route="/api/workflows/{workflow_id}/published-endpoints/{binding_id}/api-keys",
+            access_level="manager",
+            methods=["GET"],
+            description="published endpoint API key 列表仅 owner/admin 可见。",
+            resource="published_endpoint",
+            action="publish",
+            denied_message="当前账号没有发布端点 API key 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workflows/{workflow_id}/published-endpoints/{binding_id}/api-keys",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description=(
+                "创建 published endpoint API key 仅 owner/admin 可调用，"
+                "并要求 CSRF double-submit。"
+            ),
+            resource="published_endpoint",
+            action="publish",
+            denied_message="当前账号没有发布端点 API key 管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workflows/{workflow_id}/published-endpoints/{binding_id}/api-keys/{key_id}",
+            access_level="manager",
+            methods=["DELETE"],
+            csrf_protected_methods=["DELETE"],
+            description=(
+                "吊销 published endpoint API key 仅 owner/admin 可调用，"
+                "并要求 CSRF double-submit。"
+            ),
+            resource="published_endpoint",
+            action="publish",
+            denied_message="当前账号没有发布端点 API key 管理权限。",
+        ),
+        # ---------- published endpoint cache entries ----------
+        _build_route_access_policy(
+            route="/api/workflows/{workflow_id}/published-endpoints/{binding_id}/cache-entries",
+            access_level="authenticated",
+            methods=["GET"],
+            description="published endpoint cache entries 对已登录 workspace 成员开放。",
+            resource="published_endpoint",
+            action="read",
+        ),
+        # ---------- sensitive access ----------
+        _build_route_access_policy(
+            route="/api/sensitive-access/resources",
+            access_level="manager",
+            methods=["GET"],
+            description="敏感资源列表仅 owner/admin 可见。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有敏感资源管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/sensitive-access/resources",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="创建敏感资源仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有敏感资源管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/sensitive-access/requests",
+            access_level="authenticated",
+            methods=["GET"],
+            description="敏感访问请求列表对已登录成员开放（runtime 触发，可被所有成员查看）。",
+            resource="approval_ticket",
+            action="read",
+        ),
+        _build_route_access_policy(
+            route="/api/sensitive-access/requests",
+            access_level="authenticated",
+            methods=["POST"],
+            description="创建敏感访问请求由 runtime 或 operator 发起，已登录成员可触发。",
+            resource="approval_ticket",
+            action="read",
+        ),
+        _build_route_access_policy(
+            route="/api/sensitive-access/approval-tickets",
+            access_level="authenticated",
+            methods=["GET"],
+            description="审批 ticket 列表对已登录成员开放，operator 查看待处理工单。",
+            resource="approval_ticket",
+            action="read",
+        ),
+        _build_route_access_policy(
+            route="/api/sensitive-access/inbox",
+            access_level="manager",
+            methods=["GET"],
+            description="敏感访问 inbox（含通知通道诊断）仅 owner/admin 可见。",
+            resource="approval_ticket",
+            action="approve",
+            denied_message="当前账号没有敏感访问审批权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/sensitive-access/notification-channels",
+            access_level="manager",
+            methods=["GET"],
+            description="通知通道配置诊断仅 owner/admin 可见。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有敏感访问管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/sensitive-access/notification-dispatches",
+            access_level="manager",
+            methods=["GET"],
+            description="通知派发记录仅 owner/admin 可见。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有敏感访问管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/sensitive-access/approval-tickets/{ticket_id}/decision",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="审批 ticket 决策仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="approval_ticket",
+            action="approve",
+            denied_message="当前账号没有审批权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/sensitive-access/approval-tickets/bulk-decision",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="批量审批仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="approval_ticket",
+            action="approve",
+            denied_message="当前账号没有审批权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/sensitive-access/notification-dispatches/{dispatch_id}/retry",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="通知派发重试仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有敏感访问管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/sensitive-access/notification-dispatches/bulk-retry",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="通知派发批量重试仅 owner/admin 可调用，并要求 CSRF double-submit。",
+            resource="sensitive_resource",
+            action="manage",
+            denied_message="当前账号没有敏感访问管理权限。",
+        ),
+        # ---------- workflow library ----------
+        _build_route_access_policy(
+            route="/api/workflow-library",
+            access_level="authenticated",
+            methods=["GET"],
+            description="workflow library 快照对所有已登录成员开放。",
+            resource="workflow",
+            action="read",
+        ),
+        # ---------- run callback tickets ----------
+        _build_route_access_policy(
+            route="/api/runs/callback-tickets/cleanup",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description=(
+                "callback ticket cleanup 属于运维操作，仅 owner/admin 可调用，"
+                "并要求 CSRF double-submit。"
+            ),
+            resource="run",
+            action="manage",
+            denied_message="当前账号没有 run callback ticket 管理权限。",
+        ),
+        # ---------- published endpoint lifecycle / legacy-auth ----------
+        _build_route_access_policy(
+            route="/api/workflows/published-endpoints/legacy-auth-governance",
+            access_level="manager",
+            methods=["GET"],
+            description=(
+                "published endpoint legacy-auth 治理快照仅 owner/admin 可见，"
+                "包含敏感发布配置信息。"
+            ),
+            resource="published_endpoint",
+            action="manage",
+            denied_message="当前账号没有发布端点治理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workflows/{workflow_id}/published-endpoints/legacy-auth-cleanup",
+            access_level="manager",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description=(
+                "批量下线 legacy-auth draft 绑定仅 owner/admin 可调用，"
+                "并要求 CSRF double-submit。"
+            ),
+            resource="published_endpoint",
+            action="publish",
+            denied_message="当前账号没有发布端点管理权限。",
+        ),
+        _build_route_access_policy(
+            route="/api/workflows/{workflow_id}/published-endpoints/{binding_id}/lifecycle",
+            access_level="manager",
+            methods=["PATCH"],
+            csrf_protected_methods=["PATCH"],
+            description=(
+                "更新发布端点生命周期状态（上线/下线）仅 owner/admin 可调用，"
+                "并要求 CSRF double-submit。"
+            ),
+            resource="published_endpoint",
+            action="publish",
+            denied_message="当前账号没有发布端点管理权限。",
+        ),
     ]
 
 
@@ -771,8 +1341,7 @@ def _decode_workspace_token(
     workspace_id = payload.get("workspace_id")
     exp = payload.get("exp")
     if not all(
-        isinstance(item, str) and item
-        for item in (purpose, session_id, user_id, workspace_id)
+        isinstance(item, str) and item for item in (purpose, session_id, user_id, workspace_id)
     ) or not isinstance(exp, int):
         raise AuthenticationError(error_message)
 
@@ -1408,11 +1977,7 @@ def validate_workspace_csrf_token(
 ) -> None:
     header_token = (csrf_header_token or "").strip()
     cookie_token = (csrf_cookie_token or "").strip()
-    if (
-        not header_token
-        or not cookie_token
-        or not hmac.compare_digest(header_token, cookie_token)
-    ):
+    if not header_token or not cookie_token or not hmac.compare_digest(header_token, cookie_token):
         raise CsrfValidationError("CSRF token 缺失或不匹配。")
 
     claims = _decode_workspace_token(

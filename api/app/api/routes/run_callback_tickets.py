@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.routes.auth import require_console_route_access
 from app.core.database import get_db
 from app.schemas.run import (
     CallbackTicketCleanupItem,
@@ -86,6 +87,9 @@ def _resolve_primary_run_id(
 @router.post("/cleanup", response_model=CallbackTicketCleanupResponse)
 def cleanup_stale_run_callback_tickets(
     payload: CallbackTicketCleanupRequest,
+    _access_context=Depends(
+        require_console_route_access("/api/runs/callback-tickets/cleanup", method="POST")
+    ),
     db: Session = Depends(get_db),
 ) -> CallbackTicketCleanupResponse:
     scoped_run_id = (payload.run_id or "").strip() or None

@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -11,6 +12,10 @@ from app.services.sandbox_backends import (
     SandboxBackendHealthChecker,
     SandboxBackendRegistration,
     SandboxBackendRegistry,
+)
+
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
 )
 
 

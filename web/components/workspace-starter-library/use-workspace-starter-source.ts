@@ -1,7 +1,7 @@
 import { useEffect, useState, useTransition } from "react";
 import type { Dispatch, SetStateAction } from "react";
 
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import { fetchConsoleApiPath } from "@/lib/console-session-client";
 import {
   getWorkspaceStarterHistory,
   getWorkspaceStarterSourceDiff,
@@ -155,8 +155,8 @@ export function useWorkspaceStarterSource({
       setMessageTone("idle");
 
       try {
-        const response = await fetch(
-          `${getApiBaseUrl()}/api/workspace-starters/${encodeURIComponent(selectedTemplate.id)}/refresh`,
+        const response = await fetchConsoleApiPath(
+          `/api/workspace-starters/${encodeURIComponent(selectedTemplate.id)}/refresh`,
           {
             method: "POST"
           }
@@ -207,8 +207,8 @@ export function useWorkspaceStarterSource({
       setMessageTone("idle");
 
       try {
-        const response = await fetch(
-          `${getApiBaseUrl()}/api/workspace-starters/${encodeURIComponent(selectedTemplate.id)}/rebase`,
+        const response = await fetchConsoleApiPath(
+          `/api/workspace-starters/${encodeURIComponent(selectedTemplate.id)}/rebase`,
           {
             method: "POST"
           }

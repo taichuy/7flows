@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import { fetchConsoleApiPath } from "@/lib/console-session-client";
 import type { WorkflowToolGovernanceSummary } from "@/lib/get-workflows";
 import type {
   AICallItem,
@@ -121,10 +121,8 @@ export type RunDetail = {
 
 export async function getRunDetail(runId: string): Promise<RunDetail | null> {
   try {
-    const response = await fetch(
-      `${getApiBaseUrl()}/api/runs/${encodeURIComponent(
-        runId
-      )}/detail?include_events=false`,
+    const response = await fetchConsoleApiPath(
+      `/api/runs/${encodeURIComponent(runId)}/detail?include_events=false`,
       {
         cache: "no-store"
       }

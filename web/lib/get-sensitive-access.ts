@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import { fetchConsoleApiPath } from "@/lib/console-session-client";
 import {
   normalizeOperatorRunFollowUp,
   normalizeOperatorRunSnapshot,
@@ -406,7 +406,7 @@ export async function getSensitiveAccessInboxSnapshot({
 
   let body: SensitiveAccessInboxResponseBody | null = null;
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/sensitive-access/inbox${query}`, {
+    const response = await fetchConsoleApiPath(`/api/sensitive-access/inbox${query}`, {
       cache: "no-store"
     });
     if (response.ok) {
@@ -614,7 +614,7 @@ async function getNotificationChannels(): Promise<NotificationChannelCapabilityI
 
 async function fetchSensitiveAccessList<T>(path: string): Promise<T[]> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    const response = await fetchConsoleApiPath(path, {
       cache: "no-store"
     });
 
