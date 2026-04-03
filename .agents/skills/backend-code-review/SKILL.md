@@ -46,32 +46,20 @@ description: 基于 7Flows 当前仓库结构与产品架构，对 `api/` 下的
 - 内部核心模型应围绕 workflow / node / edge / run / node run / published endpoint，而不是被 OpenAI / Anthropic / Dify 插件协议牵着走。
 - 如果代码引入第二套内部 DSL、第二套执行状态机或协议专属核心模型，应优先指出。
 
-### 2. 是否破坏当前 runtime MVP 边界
 
-- 当前 `api/app/services/runtime.py` 是最小执行闭环，不应被持续膨胀为“万能 God object”。
-- 插件代理、发布网关、MCP、沙盒、凭证、安全等应逐步拆到独立层次。
-- sandbox backend registration / execution protocol 与 compat adapter registration / invoke 不应混成同一种对象；前者解决隔离执行，后者解决外部生态桥接。
-- 对 `sandbox_code`、高风险 `tool/plugin` 或显式要求强隔离的路径，如果实现仍会在 backend 缺失时静默退回宿主轻执行，应优先指出这是边界错误而不只是实现细节。
-- 镜像、挂载、私有 registry、wheelhouse、bundle 安装等企业依赖细节，不应直接污染 workflow 核心 IR；若代码把这些细节硬塞进主模型，应视为设计漂移。
-
-### 3. 是否绕过显式授权和显式 loop
+### 2. 是否绕过显式授权和显式 loop
 
 - 节点默认不能读取所有前序节点结果。
 - 循环必须通过 `loop` 节点显式建模，不能靠回边或隐藏调度偷偷实现。
 
-### 4. 是否复用统一事件流
+### 3. 是否复用统一事件流
 
 - 运行态、调试、流式输出应尽量围绕 `run_events` 演进，而不是各协议、各页面各造一套事件数据。
 
-### 5. 是否符合当前仓库结构
+### 4. 是否符合当前仓库结构
 
 - 路由保持薄，service 负责编排，repository 承担复杂持久化，model 保持数据定义。
-- 优先在现有目录和层次内演进，而不是照搬 Dify 里的模块命名和路径。
-
-### 6. 是否破坏“对外切口 vs 内部内核”的边界
-
-- 可以围绕 OpenClaw / 本地 AI 助手场景优化接入和调试体验，但不能把 runtime、发布链或核心领域模型写成 OpenClaw 专属实现。
-- 不能为了后续 Team / Enterprise 商业化想象，就把 adoption-critical 的 kernel 能力错误抽离成“只有治理层才能用”。
+- 优先在现有目录和层次内演进，而不是照搬 Dify 里的模块命名和路径。。
 
 ## 输出要求
 
