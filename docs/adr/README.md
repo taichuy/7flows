@@ -28,3 +28,13 @@
 3. 决策
 4. 后果
 5. 后续动作
+
+## 当前 ADR 列表
+
+| 编号 | 标题 | 状态 |
+|---|---|---|
+| [ADR-0001](0001-shared-language-local-notes-and-review-guardrails.md) | 共享语言、本地笔记与审查边界 | Accepted |
+| [ADR-0002](0002-layered-agents-chain-guidance-and-local-memory.md) | 分层 Agent 链路指导与本地记忆 | Accepted |
+| [ADR-0003](0003-runtime-fact-layer-and-consumer-projections.md) | 运行时事实层与消费者投影 | Accepted |
+| [ADR-0004](0004-retire-token-publish-auth-and-keep-governance-handoff.md) | 退役 token publish auth，保留 workflow 级治理 handoff | Accepted |
+| [ADR-0005](0005-same-origin-api-and-unified-backend-authz-boundary.md) | 同源 API 入口与 backend 统一授权边界 | Accepted |
