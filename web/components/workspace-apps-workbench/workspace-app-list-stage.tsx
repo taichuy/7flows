@@ -19,12 +19,11 @@ function WorkspaceEmptyTile({
       data-component="workspace-app-directory-empty"
       variant="borderless"
     >
-      <Space orientation="vertical" size={12} style={{ width: "100%" }}>
-        <Text type="secondary">应用列表</Text>
+      <Space orientation="vertical" size={12} style={{ width: "100%", alignItems: "center", textAlign: "center", padding: "48px 0" }}>
         <Title level={4} style={{ margin: 0 }}>
-          当前筛选范围内还没有{activeModeLabel ? ` ${activeModeLabel}` : ""}应用
+          当前没有{activeModeLabel ? ` ${activeModeLabel}` : ""}应用
         </Title>
-        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
+        <Paragraph type="secondary" style={{ marginBottom: 16 }}>
           先从工作台创建入口或 Starter 开始，再进入 xyflow 补齐节点与治理细节。
         </Paragraph>
         <Space wrap>
@@ -138,14 +137,13 @@ export function WorkspaceAppListStage({
     >
       <Card variant="borderless">
         <Space orientation="vertical" size={16} style={{ width: "100%" }}>
-          <div className="workspace-app-list-stage-header">
+          <div className="workspace-app-list-stage-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div>
-              <p className="workspace-app-list-stage-summary">{visibleAppSummary}</p>
-              <p className="workspace-muted workspace-app-list-stage-copy">
-                卡片目录支持分页；创建与基础编辑都收口进工作台 modal。
-              </p>
+              <Title level={4} style={{ margin: 0 }} className="workspace-app-list-stage-summary">{visibleAppSummary}</Title>
+              <Text type="secondary" className="workspace-muted workspace-app-list-stage-copy">
+                支持分页浏览，进入 Studio 继续编排。
+              </Text>
             </div>
-            <Text type="secondary">当前仅提供进入 Studio 与编辑基础信息；删除与复制待后端契约。</Text>
           </div>
 
           {filteredApps.length === 0 ? (
@@ -171,9 +169,9 @@ export function WorkspaceAppListStage({
                 ))}
               </div>
 
-              <div className="workspace-app-pagination-footer">
+              <div className="workspace-app-pagination-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
                 <Text data-component="workspace-app-pagination-summary" type="secondary">
-                  第 {currentPage} / {totalPages} 页 · 当前显示 {paginatedApps.length} / {filteredApps.length} 个应用
+                  第 {currentPage} / {totalPages} 页 · 共 {filteredApps.length} 个应用
                 </Text>
                 {filteredApps.length > pageSize ? (
                   <Pagination
