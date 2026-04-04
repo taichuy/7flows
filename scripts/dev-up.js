@@ -696,6 +696,12 @@ function clearLogs() {
 }
 
 async function startAll() {
+  log('正在准备启动环境...');
+  stopWebProcess();
+  stopBackgroundProcess('beat');
+  stopBackgroundProcess('worker');
+  stopBackgroundProcess('api');
+
   clearLogs();
 
   requireCommand('uv');
