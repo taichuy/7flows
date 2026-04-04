@@ -58,9 +58,12 @@ describe("LoginPage", () => {
     vi.mocked(getServerAuthSession).mockResolvedValue(null);
 
     const html = renderToStaticMarkup(await LoginPage());
+    const textContent = html.replace(/<[^>]+>/g, " ");
+    const normalizedTextContent = textContent.replace(/\s+/g, " ").trim();
+    const compactTextContent = normalizedTextContent.replace(/\s/g, "");
 
-    expect(html).toContain("7Flows");
-    expect(html).toContain("Workspace Sign In");
+    expect(compactTextContent).toContain("7Flows");
+    expect(normalizedTextContent).toContain("Workspace Sign In");
     expect(html).toContain('data-component="workspace-login-form"');
     expect(html).toContain('data-recommended-method="password"');
   });
