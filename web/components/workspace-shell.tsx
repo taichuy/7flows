@@ -153,7 +153,7 @@ function getWorkspaceShellSurfaceLabel(
       return "工作台设置";
     }
 
-    if (activeNav === "workflows") {
+    if (activeNav === "workspace") {
       return "创建应用";
     }
 
@@ -176,7 +176,7 @@ function getWorkspaceShellSurfaceLabel(
     return "运行追踪";
   }
 
-  if (activeNav === "workflows") {
+  if (activeNav === "workspace") {
     return "应用中心";
   }
 

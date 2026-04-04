@@ -36,7 +36,7 @@ export default async function NewWorkflowPage({ searchParams }: NewWorkflowPageP
 
   return (
     <WorkspaceShell
-      activeNav="workflows"
+      activeNav="workspace"
       layout="focused"
       userName={workspaceContext.current_user.display_name}
       userRole={workspaceContext.current_member.role}

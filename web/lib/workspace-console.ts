@@ -19,7 +19,6 @@ export { WORKSPACE_TOOLS_HREF };
 
 export type WorkspaceConsoleNavKey =
   | "workspace"
-  | "workflows"
   | "tools"
   | "runs"
   | "starters"
@@ -60,13 +59,6 @@ const workspaceConsolePagePermissions: WorkspaceConsolePagePermission[] = [
     label: "工作台",
     accessLevel: "authenticated",
     description: "应用目录、快速新建与团队 workspace 扫描入口。"
-  },
-  {
-    key: "workflows",
-    href: "/workflows",
-    label: "编排",
-    accessLevel: "authenticated",
-    description: "workflow library、create 与 studio surface 的作者入口。"
   },
   {
     key: "tools",
@@ -118,9 +110,9 @@ const workspaceConsolePagePermissions: WorkspaceConsolePagePermission[] = [
 ];
 
 const workspaceShellNavigationByMode = {
-  all: ["workspace", "workflows", "tools", "starters", "runs", "team"],
-  core: ["workspace", "workflows", "tools", "team"],
-  studio: ["workspace", "workflows", "tools", "runs", "team"]
+  all: ["workspace", "tools", "starters", "runs", "team"],
+  core: ["workspace", "tools", "team"],
+  studio: ["workspace", "tools", "runs", "team"]
 } satisfies Record<WorkspaceShellNavigationMode, WorkspaceConsoleNavKey[]>;
 
 const workflowStudioSurfaceRouteContracts = {

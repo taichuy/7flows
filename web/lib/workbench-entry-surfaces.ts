@@ -233,7 +233,7 @@ export function buildWorkflowCreateFirstScreenShellSurfaceCopy({
 }
 
 export function buildWorkflowEditorEntryShellSurfaceCopy({
-  workflowLibraryHref = "/workflows",
+  workflowLibraryHref = "/workspace",
   createWorkflowHref,
   workspaceStarterLibraryHref
 }: {
@@ -323,7 +323,7 @@ export function buildAuthorFacingFollowUpSurfaceCopy(): AuthorFacingFollowUpSurf
 }
 
 export function buildRunLibrarySurfaceCopy({
-  workflowLibraryHref = "/workflows"
+  workflowLibraryHref = "/workspace"
 }: {
   workflowLibraryHref?: string;
 } = {}): RunLibrarySurfaceCopy {
@@ -651,7 +651,7 @@ export function buildWorkflowEditorStarterSaveSurfaceCopy({
 }
 
 export function buildWorkflowPublishPanelSurfaceCopy({
-  workflowLibraryHref = "/workflows"
+  workflowLibraryHref = "/workspace"
 }: {
   workflowLibraryHref?: string;
 } = {}): WorkflowPublishPanelSurfaceCopy {

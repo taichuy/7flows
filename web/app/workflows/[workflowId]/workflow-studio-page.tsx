@@ -813,7 +813,7 @@ function WorkflowStudioShell({
 
   return (
     <WorkspaceShell
-      activeNav="workflows"
+      activeNav="workspace"
       layout="editor"
       navigationHrefOverrides={{ tools: toolsHref }}
       userName={userName}

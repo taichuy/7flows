@@ -4,7 +4,7 @@ export const WORKBENCH_ENTRY_LINK_REGISTRY = {
     label: "返回系统首页"
   },
   workflowLibrary: {
-    href: "/workflows",
+    href: "/workspace",
     label: "打开 workflow 列表"
   },
   runLibrary: {

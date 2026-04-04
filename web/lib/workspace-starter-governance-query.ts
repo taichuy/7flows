@@ -170,7 +170,7 @@ export function buildWorkflowLibraryHrefFromWorkspaceStarterViewState(
 ) {
   const searchParams = buildWorkspaceStarterGovernanceSearchParams(viewState);
   const query = searchParams.toString();
-  return query ? `/workflows?${query}` : "/workflows";
+  return query ? `/workspace?${query}` : "/workspace";
 }
 
 export function buildWorkspaceHrefFromWorkspaceStarterViewState(
