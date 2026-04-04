@@ -214,6 +214,50 @@ function copyIfMissing(examplePath, targetPath) {
   }
 }
 
+function parseEnvKeys(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return new Set();
+  }
+
+  const keys = new Set();
+  const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/u);
+  for (const line of lines) {
+    const normalizedLine = line.trim();
+    if (!normalizedLine || normalizedLine.startsWith('#')) {
+      continue;
+    }
+
+    const separatorIndex = normalizedLine.indexOf('=');
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = normalizedLine.slice(0, separatorIndex).trim();
+    if (key) {
+      keys.add(key);
+    }
+  }
+
+  return keys;
+}
+
+function warnIfEnvExampleKeysAreMissing(examplePath, targetPath) {
+  if (!fs.existsSync(examplePath) || !fs.existsSync(targetPath)) {
+    return;
+  }
+
+  const exampleKeys = parseEnvKeys(examplePath);
+  const targetKeys = parseEnvKeys(targetPath);
+  const missingKeys = [...exampleKeys].filter((key) => !targetKeys.has(key));
+  if (missingKeys.length === 0) {
+    return;
+  }
+
+  log(
+    `${displayPath(targetPath)} 缺少 ${missingKeys.length} 个配置项：${missingKeys.join(', ')}。请从 ${displayPath(examplePath)} 补齐或重建该文件。`
+  );
+}
+
 function pidFileFor(serviceName) {
   return path.join(PID_DIR, `${serviceName}.pid`);
 }
@@ -623,6 +667,8 @@ function prepareEnvFiles() {
   copyIfMissing(path.join(MIDDLEWARE_DIR, 'middleware.env.example'), path.join(MIDDLEWARE_DIR, 'middleware.env'));
   copyIfMissing(path.join(API_DIR, '.env.example'), path.join(API_DIR, '.env'));
   copyIfMissing(path.join(WEB_DIR, '.env.example'), path.join(WEB_DIR, '.env.local'));
+  warnIfEnvExampleKeysAreMissing(path.join(API_DIR, '.env.example'), path.join(API_DIR, '.env'));
+  warnIfEnvExampleKeysAreMissing(path.join(WEB_DIR, '.env.example'), path.join(WEB_DIR, '.env.local'));
 }
 
 function buildWebArtifacts() {
