@@ -676,7 +676,28 @@ function runMigrations() {
   });
 }
 
+function clearLogs() {
+  if (!fs.existsSync(LOG_DIR)) {
+    return;
+  }
+
+  const files = fs.readdirSync(LOG_DIR);
+  let clearedCount = 0;
+  for (const file of files) {
+    if (file.endsWith('.log')) {
+      fs.rmSync(path.join(LOG_DIR, file), { force: true });
+      clearedCount += 1;
+    }
+  }
+
+  if (clearedCount > 0) {
+    log(`已清空 ${clearedCount} 个临时日志文件`);
+  }
+}
+
 async function startAll() {
+  clearLogs();
+
   requireCommand('uv');
   requireCommand('corepack');
   if (manageDockerMiddleware) {
