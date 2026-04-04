@@ -1,7 +1,9 @@
+from collections.abc import Sequence
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -21,11 +23,11 @@ from app.services.workspace_access import (
     CsrfValidationError,
     WorkspaceAccessContext,
     WorkspaceIssuedAuthTokens,
-    authenticate_workspace_zitadel_password_login,
     authenticate_workspace_oidc_callback,
+    authenticate_workspace_zitadel_password_login,
     build_console_route_permission_matrix,
-    build_workspace_public_auth_options,
     build_workspace_oidc_authorization_redirect,
+    build_workspace_public_auth_options,
     ensure_console_route_access,
     get_workspace_access_context,
     get_workspace_access_cookie_name,
@@ -43,6 +45,62 @@ from app.services.workspace_access import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 OIDC_STATE_COOKIE_MAX_AGE_SECONDS = 600
+
+
+def build_auth_error_response(*, status_code: int, code: str, detail: str) -> JSONResponse:
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "code": code,
+            "detail": detail,
+            "message": detail,
+        },
+    )
+
+
+def build_auth_validation_error_response(errors: Sequence[dict[str, Any]]) -> JSONResponse:
+    normalized_errors: list[dict[str, Any]] = []
+    for error in errors:
+        location = [str(part) for part in error.get("loc", ()) if str(part) != "body"]
+        normalized_errors.append(
+            {
+                "loc": [str(part) for part in error.get("loc", ())],
+                "field": ".".join(location) if location else None,
+                "message": str(error.get("msg") or "Invalid value"),
+                "type": str(error.get("type") or "invalid"),
+            }
+        )
+
+    detail = "认证请求参数无效，请检查请求内容。"
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={
+            "code": "auth_invalid_request",
+            "detail": detail,
+            "message": detail,
+            "errors": normalized_errors,
+        },
+    )
+
+
+def map_authentication_error(detail: str) -> tuple[int, str]:
+    if any(
+        marker in detail
+        for marker in (
+            "缺少 issuer",
+            "缺少 service user token",
+            "OIDC 配置缺失",
+            "当前 OIDC provider 不支持",
+            "服务暂时不可用",
+            "用户信息获取失败",
+            "代理配置",
+            "初始化失败",
+            "OIDC discovery",
+            "OIDC issuer 与配置不一致",
+        )
+    ):
+        return status.HTTP_503_SERVICE_UNAVAILABLE, "auth_provider_unavailable"
+    return status.HTTP_401_UNAUTHORIZED, "auth_invalid_credentials"
 
 
 def _extract_bearer_token(authorization: str | None) -> str | None:
@@ -282,7 +340,7 @@ def login_with_zitadel_password(
     payload: ZitadelPasswordLoginRequest,
     response: Response,
     db: Session = Depends(get_db),
-) -> AuthSessionResponse:
+) -> Response:
     try:
         access_context = authenticate_workspace_zitadel_password_login(
             db,
@@ -290,24 +348,14 @@ def login_with_zitadel_password(
             password=payload.password,
         )
         tokens = issue_workspace_auth_tokens(access_context)
-    except AuthenticationError as exc:
-        detail = str(exc)
-        status_code_value = status.HTTP_401_UNAUTHORIZED
-        if any(
-            marker in detail
-            for marker in (
-                "缺少 issuer",
-                "缺少 service user token",
-                "当前 OIDC provider 不支持",
-                "服务暂时不可用",
-                "用户信息获取失败",
-            )
-        ):
-            status_code_value = status.HTTP_503_SERVICE_UNAVAILABLE
-        raise HTTPException(
-            status_code=status_code_value,
-            detail=detail,
-        ) from exc
+    except AuthenticationError:
+        raise
+    except Exception:
+        return build_auth_error_response(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            code="auth_provider_unavailable",
+            detail="认证服务暂时不可用，请稍后重试。",
+        )
 
     db.commit()
     _apply_auth_cookies(response, tokens)
@@ -319,19 +367,22 @@ def get_public_auth_options() -> PublicAuthOptionsResponse:
     return build_workspace_public_auth_options()
 
 
-@router.get("/oidc/start")
+@router.get("/oidc/start", response_model=None)
 def start_oidc_login(
     next_path: str | None = Query(default=None, alias="next"),
-) -> RedirectResponse:
+) -> Response:
     try:
         authorization_url, state_token = build_workspace_oidc_authorization_redirect(
             next_path=next_path,
         )
-    except AuthenticationError as exc:
-        raise HTTPException(
+    except AuthenticationError:
+        raise
+    except Exception:
+        return build_auth_error_response(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
-        ) from exc
+            code="auth_provider_unavailable",
+            detail="认证服务暂时不可用，请稍后重试。",
+        )
 
     response = RedirectResponse(
         url=authorization_url,

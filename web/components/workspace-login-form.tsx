@@ -74,10 +74,12 @@ export function WorkspaceLoginForm({ authOptions }: WorkspaceLoginFormProps) {
           password
         })
       });
-      const body = (await response.json().catch(() => null)) as { detail?: string } | null;
+      const body = (await response.json().catch(() => null)) as
+        | { detail?: string; message?: string; code?: string }
+        | null;
 
       if (!response.ok) {
-        setMessage(body?.detail ?? "登录失败。");
+        setMessage(body?.detail ?? body?.message ?? "登录失败。");
         setMessageTone("error");
         return;
       }

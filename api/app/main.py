@@ -1,9 +1,18 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 
+from app.api.routes.auth import (
+    build_auth_error_response,
+    build_auth_validation_error_response,
+    map_authentication_error,
+)
+from app.api.routes.auth import (
+    router as auth_router,
+)
 from app.api.routes.credentials import router as credential_router
-from app.api.routes.auth import router as auth_router
 from app.api.routes.health import router as health_router
 from app.api.routes.model_providers import router as model_provider_router
 from app.api.routes.plugins import router as plugin_router
@@ -17,8 +26,8 @@ from app.api.routes.published_gateway import router as published_gateway_router
 from app.api.routes.run_callback_tickets import router as run_callback_ticket_router
 from app.api.routes.run_views import router as run_view_router
 from app.api.routes.runs import router as run_router
-from app.api.routes.skills import router as skill_router
 from app.api.routes.sensitive_access import router as sensitive_access_router
+from app.api.routes.skills import router as skill_router
 from app.api.routes.system import router as system_router
 from app.api.routes.workflow_library import router as workflow_library_router
 from app.api.routes.workflow_publish import router as workflow_publish_router
@@ -27,6 +36,7 @@ from app.api.routes.workspace_access import router as workspace_access_router
 from app.api.routes.workspace_starters import router as workspace_starter_router
 from app.core.config import get_settings
 from app.core.database import initialize_database
+from app.services.workspace_access import AuthenticationError
 
 
 @asynccontextmanager
@@ -43,6 +53,26 @@ def create_app() -> FastAPI:
         version="0.1.0",
         lifespan=lifespan,
     )
+
+    def _is_auth_api_request(path: str) -> bool:
+        return path == "/api/auth" or path.startswith("/api/auth/")
+
+    @application.exception_handler(RequestValidationError)
+    async def handle_request_validation_error(request: Request, exc: RequestValidationError):
+        if _is_auth_api_request(request.url.path):
+            return build_auth_validation_error_response(exc.errors())
+        return await request_validation_exception_handler(request, exc)
+
+    @application.exception_handler(AuthenticationError)
+    async def handle_authentication_error(_: Request, exc: AuthenticationError):
+        detail = str(exc)
+        status_code, code = map_authentication_error(detail)
+        return build_auth_error_response(
+            status_code=status_code,
+            code=code,
+            detail=detail,
+        )
+
     application.include_router(health_router)
     application.include_router(published_gateway_router)
     application.include_router(auth_router, prefix="/api")

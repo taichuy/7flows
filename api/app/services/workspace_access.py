@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hmac
 import json
+import os
 import secrets
 import uuid
 from collections.abc import Callable
@@ -1668,10 +1669,28 @@ def _fetch_zitadel_user_profile(
 
 
 def default_workspace_oidc_http_client_factory() -> httpx.Client:
-    return httpx.Client(
-        timeout=httpx.Timeout(OIDC_HTTP_TIMEOUT_SECONDS, connect=OIDC_HTTP_TIMEOUT_SECONDS),
-        follow_redirects=True,
-    )
+    client_kwargs: dict[str, Any] = {
+        "timeout": httpx.Timeout(OIDC_HTTP_TIMEOUT_SECONDS, connect=OIDC_HTTP_TIMEOUT_SECONDS),
+        "follow_redirects": True,
+        # Avoid inheriting unsupported ALL_PROXY=socks://... values from the host shell.
+        # Workspace auth only honors explicit HTTP(S) proxies here.
+        "trust_env": False,
+    }
+    proxy = _resolve_workspace_outbound_proxy()
+    if proxy:
+        client_kwargs["proxy"] = proxy
+    try:
+        return httpx.Client(**client_kwargs)
+    except ValueError as exc:
+        raise AuthenticationError("认证服务初始化失败，请检查代理配置。") from exc
+
+
+def _resolve_workspace_outbound_proxy() -> str | None:
+    for env_name in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
+        candidate = str(os.environ.get(env_name) or "").strip()
+        if candidate:
+            return candidate
+    return None
 
 
 def _fetch_workspace_oidc_discovery_document(

@@ -375,6 +375,7 @@ def test_zitadel_password_login_requires_service_token(
     )
 
     assert response.status_code == 503
+    assert response.json()["code"] == "auth_provider_unavailable"
     assert response.json()["detail"] == "ZITADEL 账号密码登录缺少 service user token 配置。"
 
 
@@ -392,7 +393,48 @@ def test_zitadel_password_login_requires_issuer(
     )
 
     assert response.status_code == 503
+    assert response.json()["code"] == "auth_provider_unavailable"
     assert response.json()["detail"] == "ZITADEL 账号密码登录缺少 issuer 配置。"
+
+
+def test_zitadel_password_login_reports_provider_init_failures_as_restful_json(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _build_oidc_settings()
+    monkeypatch.setattr("app.services.workspace_access.get_settings", lambda: settings)
+    monkeypatch.setattr(
+        "app.services.workspace_access.httpx.Client",
+        lambda **_: (_ for _ in ()).throw(ValueError("Unknown scheme for proxy URL")),
+    )
+
+    response = client.post(
+        "/api/auth/zitadel/login",
+        json={"login_name": "admin@taichuy.com", "password": "zitadel-admin-pass"},
+    )
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["code"] == "auth_provider_unavailable"
+    assert body["detail"] == "认证服务初始化失败，请检查代理配置。"
+    assert body["message"] == body["detail"]
+
+
+def test_zitadel_password_login_reports_validation_failures_as_restful_json(
+    client: TestClient,
+) -> None:
+    response = client.post(
+        "/api/auth/zitadel/login",
+        json={"email": "admin@taichuy.com", "password": "admin123"},
+    )
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["code"] == "auth_invalid_request"
+    assert body["detail"] == "认证请求参数无效，请检查请求内容。"
+    assert body["message"] == body["detail"]
+    assert body["errors"][0]["field"] == "login_name"
+    assert body["errors"][0]["type"] == "missing"
 
 
 def test_public_auth_options_report_unavailable_when_remote_auth_is_incomplete(
@@ -466,7 +508,9 @@ def test_refresh_issues_new_access_and_csrf_tokens(client: TestClient) -> None:
     assert refresh_body["csrf_token"]
     assert refresh_body["access_token"] != login_body["access_token"]
     assert refresh_body["csrf_token"] != login_body["csrf_token"]
-    assert refresh_body["expires_at"].removesuffix("Z") == login_body["expires_at"].removesuffix("Z")
+    assert refresh_body["expires_at"].removesuffix("Z") == login_body["expires_at"].removesuffix(
+        "Z"
+    )
 
 
 def test_external_identity_binding_can_bind_existing_workspace_member(sqlite_session) -> None:
@@ -551,6 +595,52 @@ def test_oidc_start_redirects_to_provider_and_sets_state_cookie(
     assert query["nonce"]
     runtime["nonce"] = query["nonce"][0]
     assert client.cookies.get(get_workspace_oidc_state_cookie_name()) == query["state"][0]
+
+
+def test_oidc_start_reports_provider_init_failures_as_restful_json(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _build_oidc_settings()
+    monkeypatch.setattr("app.services.workspace_access.get_settings", lambda: settings)
+    monkeypatch.setattr(
+        "app.services.workspace_access.httpx.Client",
+        lambda **_: (_ for _ in ()).throw(ValueError("Unknown scheme for proxy URL")),
+    )
+
+    response = client.get(
+        "/api/auth/oidc/start",
+        params={"next": "/workspace"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["code"] == "auth_provider_unavailable"
+    assert body["detail"] == "认证服务初始化失败，请检查代理配置。"
+    assert body["message"] == body["detail"]
+
+
+def test_oidc_start_reports_missing_config_as_provider_unavailable(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = _build_oidc_settings()
+    settings.oidc_client_id = ""
+    settings.oidc_client_secret = ""
+    monkeypatch.setattr("app.services.workspace_access.get_settings", lambda: settings)
+
+    response = client.get(
+        "/api/auth/oidc/start",
+        params={"next": "/workspace"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["code"] == "auth_provider_unavailable"
+    assert body["detail"] == "OIDC 配置缺失：client_id, client_secret。"
+    assert body["message"] == body["detail"]
 
 
 def test_oidc_callback_issues_existing_workspace_session_contract(
