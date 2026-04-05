@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import WorkspacePage from "@/app/workspace/page";
+import { loadWorkflowCreateWizardBootstrap } from "@/components/workflow-create-wizard/bootstrap";
 import { getSystemOverview } from "@/lib/get-system-overview";
 import { getWorkflows } from "@/lib/get-workflows";
 import { getWorkflowLibrarySnapshot } from "@/lib/get-workflow-library";
@@ -54,9 +55,38 @@ vi.mock("@/lib/workflow-publish-client", () => ({
   getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot: vi.fn()
 }));
 
+vi.mock("@/components/workflow-create-wizard/bootstrap", async () => {
+  const actual = await vi.importActual<typeof import("@/components/workflow-create-wizard/bootstrap")>(
+    "@/components/workflow-create-wizard/bootstrap"
+  );
+
+  return {
+    ...actual,
+    loadWorkflowCreateWizardBootstrap: vi.fn()
+  };
+});
+
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot).mockResolvedValue(null);
+  vi.mocked(loadWorkflowCreateWizardBootstrap).mockImplementation(async (request) => {
+    const workflowLibrary = await getWorkflowLibrarySnapshot(request.libraryQuery);
+    const workflows = await getWorkflows();
+    const legacyAuthGovernanceSnapshot = request.includeLegacyAuthGovernanceSnapshot
+      ? await getWorkflowPublishedEndpointLegacyAuthGovernanceSnapshot()
+      : null;
+
+    return {
+      catalogToolCount: workflowLibrary.tools.length,
+      governanceQueryScope: request.governanceQueryScope,
+      legacyAuthGovernanceSnapshot,
+      workflows,
+      starters: workflowLibrary.starters,
+      starterSourceLanes: workflowLibrary.starterSourceLanes,
+      nodeCatalog: workflowLibrary.nodes,
+      tools: workflowLibrary.tools
+    } as Awaited<ReturnType<typeof loadWorkflowCreateWizardBootstrap>>;
+  });
 });
 
 function buildWorkspaceContext() {

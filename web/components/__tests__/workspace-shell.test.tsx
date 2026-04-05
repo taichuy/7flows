@@ -43,7 +43,7 @@ describe("WorkspaceShell", () => {
     expect(html).toContain('data-navigation-mode="all"');
     expect(html).toContain('class="workspace-nav-link active"');
     expect(html).not.toContain('class="workspace-nav-link "');
-    expect(html).toContain("作者工作台");
+    expect(html).toContain("应用中心");
     expect(html).toContain("新建应用");
     expect(html).toContain(">工具<");
     expect(html).toContain(`href="${WORKSPACE_TOOLS_HREF}"`);
@@ -57,7 +57,7 @@ describe("WorkspaceShell", () => {
   it("uses focused layout to slim navigation on create surfaces by default", () => {
     const html = renderToStaticMarkup(
       <WorkspaceShell
-        activeNav="workflows"
+        activeNav="workspace"
         layout="focused"
         userName="7Flows Admin"
         userRole="owner"
@@ -71,7 +71,6 @@ describe("WorkspaceShell", () => {
     expect(html).toContain('data-navigation-mode="core"');
     expect(html).toContain("创建应用");
     expect(html).toContain("工作台");
-    expect(html).toContain("编排");
     expect(html).toContain("工具");
     expect(html).toContain("团队");
     expect(html).not.toContain(">模板<");
@@ -103,7 +102,7 @@ describe("WorkspaceShell", () => {
   it("keeps editor shell compact and hides manager-only navigation for editors", () => {
     const html = renderToStaticMarkup(
       <WorkspaceShell
-        activeNav="workflows"
+        activeNav="workspace"
         layout="editor"
         userName="7Flows Editor"
         userRole="editor"
@@ -117,7 +116,6 @@ describe("WorkspaceShell", () => {
     expect(html).toContain('data-navigation-mode="studio"');
     expect(html).toContain("xyflow Studio");
     expect(html).toContain("工作台");
-    expect(html).toContain("编排");
     expect(html).toContain("工具");
     expect(html).toContain("运行");
     expect(html).not.toContain(">模板<");
@@ -146,7 +144,7 @@ describe("WorkspaceShell", () => {
   it("allows the studio shell to override the tools href for return handoff", () => {
     const html = renderToStaticMarkup(
       <WorkspaceShell
-        activeNav="workflows"
+        activeNav="workspace"
         layout="editor"
         navigationHrefOverrides={{
           tools:
