@@ -4783,21 +4783,36 @@ a {
 
 .workflow-canvas-node-quick-add-trigger,
 .workflow-canvas-edge-quick-add-trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 30px;
   height: 30px;
   padding: 0;
-  border: 1px solid rgba(31, 94, 213, 0.18);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   color: #1f5ed5;
-  font-size: 0.88rem;
+  font-size: 0.44rem;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
+}
+
+.workflow-canvas-node-quick-add-trigger::before,
+.workflow-canvas-edge-quick-add-trigger::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 15px;
+  height: 15px;
+  border: 1px solid rgba(31, 94, 213, 0.18);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 5px 11px rgba(15, 23, 42, 0.08);
+  transform: translate(-50%, -50%);
 }
 
 .workflow-canvas-node-quick-add-trigger.open,
@@ -4805,8 +4820,16 @@ a {
 .workflow-canvas-node-quick-add-trigger:hover,
 .workflow-canvas-edge-quick-add-trigger:hover,
 .workflow-canvas-edge-quick-add-shell.visible .workflow-canvas-edge-quick-add-trigger {
-  background: #1f5ed5;
   color: #ffffff;
+}
+
+.workflow-canvas-node-quick-add-trigger.open::before,
+.workflow-canvas-edge-quick-add-trigger.open::before,
+.workflow-canvas-node-quick-add-trigger:hover::before,
+.workflow-canvas-edge-quick-add-trigger:hover::before,
+.workflow-canvas-edge-quick-add-shell.visible .workflow-canvas-edge-quick-add-trigger::before {
+  border-color: #1f5ed5;
+  background: #1f5ed5;
 }
 
 .workflow-canvas-edge-hover-target {
