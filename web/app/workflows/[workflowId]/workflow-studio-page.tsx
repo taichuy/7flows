@@ -2,9 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { Layout } from "antd";
 
 import { WorkflowApiSurface } from "@/components/workflow-api-surface";
+import { WorkflowStudioLayoutShell } from "@/components/workflow-studio-layout-shell";
 import { WorkflowLogsSurface } from "@/components/workflow-logs-surface";
 import { WorkflowMonitorSurface } from "@/components/workflow-monitor-surface";
 import { WorkflowPublishPanel } from "@/components/workflow-publish-panel";
@@ -64,8 +64,6 @@ import {
   readWorkspaceStarterLibraryViewState
 } from "@/lib/workspace-starter-governance-query";
 import type { WorkspaceMemberRole } from "@/lib/workspace-access";
-
-const { Content, Sider } = Layout;
 
 export type WorkflowStudioPageProps = {
   params: Promise<{ workflowId: string }>;
@@ -844,17 +842,11 @@ function WorkflowStudioShell({
       workspaceName={workspaceName}
     >
       <div className="workspace-main workflow-studio-main">
-        <Layout
+        <WorkflowStudioLayoutShell
           className={shellClassName}
-          data-component="workflow-studio-shell"
-          hasSider
-          data-surface-layout={isCanvasEditorSurface ? "canvas-overlay" : "rail"}
-        >
-          <Sider
-            className="workflow-studio-shell-sider"
-            theme="light"
-            width={280}
-          >
+          contentClassName={stageClassName}
+          dataSurfaceLayout={isCanvasEditorSurface ? "canvas-overlay" : "rail"}
+          sidebar={
             <WorkflowStudioSidebar
               activeStudioSurface={activeStudioSurface}
               className="workflow-studio-shell-bar workflow-studio-rail"
@@ -867,10 +859,10 @@ function WorkflowStudioShell({
               workflowVersion={workflowVersion}
               workspaceStarterLibraryHref={workspaceStarterLibraryHref}
             />
-          </Sider>
-
-          <Content className={stageClassName}>{children}</Content>
-        </Layout>
+          }
+        >
+          {children}
+        </WorkflowStudioLayoutShell>
       </div>
     </WorkspaceShell>
   );
