@@ -72,10 +72,6 @@ vi.mock("@/components/workflow-editor-workbench/workflow-editor-hero", () => ({
   WorkflowEditorHero: () => createElement("div", { "data-component": "workflow-editor-hero" }, "hero"),
 }));
 
-vi.mock("@/components/workflow-editor-workbench/workflow-editor-sidebar", () => ({
-  WorkflowEditorSidebar: () => createElement("div", { "data-component": "workflow-editor-sidebar" }, "sidebar"),
-}));
-
 vi.mock("@/components/workflow-editor-inspector", () => ({
   WorkflowEditorInspector: () => createElement("div", { "data-component": "workflow-editor-inspector" }, "inspector"),
 }));
@@ -258,7 +254,6 @@ function buildPanels() {
       isSidebarCollapsed: true,
       isInspectorCollapsed: true,
       hasNodeAssistant: false,
-      onToggleSidebar: () => undefined,
       onToggleInspector: () => undefined,
       onOpenAssistant: () => undefined,
       onSave: () => undefined,
@@ -335,10 +330,9 @@ beforeEach(() => {
 });
 
 describe("WorkflowEditorWorkbench", () => {
-  it("renders canvas-first overlay rails above the workbench", () => {
+  it("renders a canvas-first workbench without the legacy editor sidebar rail", () => {
     mocks.useWorkflowEditorShellState.mockReturnValue(
       buildShellState({
-        isSidebarCollapsed: false,
         isInspectorCollapsed: false,
       }),
     );
@@ -362,33 +356,27 @@ describe("WorkflowEditorWorkbench", () => {
     expect(html).toContain('data-component="workflow-editor-action-strip"');
     expect(html).toContain('data-action="undo"');
     expect(html).toContain('data-action="redo"');
-    expect(html).toContain('data-action="node-library"');
     expect(html).toContain('data-action="inspector"');
     expect(html).toContain('data-action="assistant"');
     expect(html).toContain('data-action="fit-view"');
     expect(html).toContain('data-action="minimap"');
     expect(html).toContain("撤 销");
     expect(html).toContain("重 做");
-    expect(html).toContain("节点目录");
     expect(html).toContain("节点配置");
     expect(html).toContain("AI 辅助");
     expect((html.match(/data-command-enabled="true"/g) ?? []).length).toBe(2);
-    expect(html).toContain('data-component="workflow-editor-sidebar-rail"');
     expect(html).toContain('data-layout="canvas-overlay"');
-    expect(html).toContain('data-open="true"');
     expect(html).toContain('data-component="workflow-editor-canvas-stage"');
-    expect(html).toContain('data-component="workflow-editor-sidebar"');
     expect(html).toContain('data-component="workflow-editor-floating-panel"');
     expect(html).toContain('data-panel-kind="node-config"');
     expect(html).toContain('data-component="workflow-editor-floating-panel-header"');
     expect(html).not.toContain("NODE WORKBENCH");
-    expect(html.indexOf('data-component="workflow-editor-canvas-stage"')).toBeLessThan(
-      html.indexOf('data-component="workflow-editor-sidebar-rail"')
-    );
+    expect(html).not.toContain('data-component="workflow-editor-sidebar-rail"');
+    expect(html).not.toContain('data-action="node-library"');
     expect(html).not.toContain("drawer-shell");
   });
 
-  it("removes the default workflow-level inspector rail when nothing is selected", () => {
+  it("keeps only the canvas and floating inspector flow when nothing is selected", () => {
     const html = renderWorkbench();
 
     expect(html).toContain('data-component="workflow-editor-action-strip"');
@@ -398,13 +386,12 @@ describe("WorkflowEditorWorkbench", () => {
     expect(html).not.toContain('data-action="inspector"');
     expect(html).not.toContain("应用配置");
     expect(html).not.toContain("AI 辅助");
-    expect(html).toContain('data-component="workflow-editor-sidebar-rail"');
     expect(html).not.toContain('data-component="workflow-editor-inspector-rail"');
-    expect((html.match(/data-open="true"/g) ?? []).length).toBe(1);
+    expect(html).not.toContain('data-component="workflow-editor-sidebar-rail"');
     expect(html).not.toContain('data-component="workflow-editor-floating-panel"');
   });
 
-  it("collapses rails without removing the central canvas stage", () => {
+  it("keeps the central canvas stage even when the legacy sidebar state is collapsed", () => {
     mocks.useWorkflowEditorShellState.mockReturnValue(
       buildShellState({
         isSidebarCollapsed: true,
@@ -414,12 +401,10 @@ describe("WorkflowEditorWorkbench", () => {
 
     const html = renderWorkbench();
 
-    expect(html).toContain('data-component="workflow-editor-sidebar-rail"');
     expect(html).not.toContain('data-component="workflow-editor-inspector-rail"');
-    expect((html.match(/data-open="false"/g) ?? []).length).toBe(1);
     expect(html).toContain('data-component="workflow-editor-canvas-stage"');
-    expect(html).toContain('data-component="workflow-editor-sidebar-collapsed-shell"');
-    expect(html).toContain('data-action="expand-sidebar"');
+    expect(html).not.toContain('data-component="workflow-editor-sidebar-rail"');
+    expect(html).not.toContain('data-component="workflow-editor-sidebar-collapsed-shell"');
   });
 
   it("opens a closable node config modal when a node is already selected", () => {

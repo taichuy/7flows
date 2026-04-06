@@ -41,7 +41,6 @@ describe("WorkflowEditorHero", () => {
     expect(html).toContain("Demo Workflow");
     expect(html).toContain("未保存修改");
     expect(html).toContain("3 个问题");
-    expect(html).toContain("仅属性栏展开");
     expect(html).toContain("4 节点");
     expect(html).toContain("3 连线");
     expect(html).toContain("2 工具");

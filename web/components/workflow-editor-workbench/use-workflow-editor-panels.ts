@@ -107,7 +107,6 @@ export function useWorkflowEditorPanels({
     isSidebarCollapsed: shell.isSidebarCollapsed,
     isInspectorCollapsed: shell.isInspectorCollapsed,
     hasNodeAssistant: Boolean(graph.selectedNodeId),
-    onToggleSidebar: shell.toggleSidebar,
     onToggleInspector: shell.toggleInspector,
     onOpenAssistant: shell.openNodeAssistant,
     onSave: persistence.handleSave,

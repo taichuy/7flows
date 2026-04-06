@@ -43,7 +43,6 @@ export type WorkflowEditorCanvasProps = {
   onEdgesChange: OnEdgesChange<Edge<WorkflowCanvasEdgeData>>;
   onConnect: OnConnect;
   onSelectionChange: (params: OnSelectionChangeParams) => void;
-  isSidebarOpen: boolean;
   isInspectorOpen: boolean;
   hasNodeAssistant: boolean;
   canOpenInspector: boolean;
@@ -51,7 +50,8 @@ export type WorkflowEditorCanvasProps = {
   canRedo: boolean;
   inspectorActionLabel?: string;
   onNodeClick: (nodeId: string) => void;
-  onToggleSidebar: () => void;
+  isSidebarOpen?: boolean;
+  onToggleSidebar?: () => void;
   onToggleInspector: () => void;
   onOpenAssistant: () => void;
   onUndo: () => void;
@@ -69,7 +69,6 @@ export function WorkflowEditorCanvas({
   onEdgesChange,
   onConnect,
   onSelectionChange,
-  isSidebarOpen,
   isInspectorOpen,
   hasNodeAssistant,
   canOpenInspector,
@@ -77,6 +76,7 @@ export function WorkflowEditorCanvas({
   canRedo,
   inspectorActionLabel = "配置面板",
   onNodeClick,
+  isSidebarOpen = false,
   onToggleSidebar,
   onToggleInspector,
   onOpenAssistant,
@@ -140,15 +140,17 @@ export function WorkflowEditorCanvas({
                     重做
                   </Button>
                 </Tooltip>
-                <Button
-                  type={isSidebarOpen ? "primary" : "default"}
-                  icon={<AppstoreOutlined />}
-                  className="workflow-editor-action-strip-button"
-                  data-action="node-library"
-                  onClick={onToggleSidebar}
-                >
-                  节点目录
-                </Button>
+                {onToggleSidebar ? (
+                  <Button
+                    type={isSidebarOpen ? "primary" : "default"}
+                    icon={<AppstoreOutlined />}
+                    className="workflow-editor-action-strip-button"
+                    data-action="node-library"
+                    onClick={onToggleSidebar}
+                  >
+                    节点目录
+                  </Button>
+                ) : null}
                 {canOpenInspector ? (
                   <Button
                     type={isInspectorOpen ? "primary" : "default"}

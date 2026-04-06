@@ -76,7 +76,10 @@ function WorkflowEditorHeroComponent({
   onOpenRunLauncher
 }: WorkflowEditorHeroProps) {
   const [isEditingName, setIsEditingName] = useState(false);
-  const isCanvasFocused = isSidebarCollapsed && isInspectorCollapsed;
+  const hasSidebarRail = Boolean(onToggleSidebar);
+  const isCanvasFocused = hasSidebarRail
+    ? isSidebarCollapsed && isInspectorCollapsed
+    : isInspectorCollapsed;
 
   const totalIssues =
     contractValidationIssuesCount +
@@ -86,9 +89,9 @@ function WorkflowEditorHeroComponent({
     publishDraftValidationIssuesCount;
   const surfaceSummary = isCanvasFocused
     ? "画布优先"
-    : isSidebarCollapsed
+    : hasSidebarRail && isSidebarCollapsed
       ? "仅属性栏展开"
-      : isInspectorCollapsed
+      : hasSidebarRail && isInspectorCollapsed
         ? "仅节点栏展开"
         : null;
   const focusSummary = selectedNodeLabel
@@ -172,13 +175,15 @@ function WorkflowEditorHeroComponent({
       </div>
 
       <Space size="small" wrap className="workflow-editor-action-row">
-        <Button
-          className="workflow-editor-toggle-button"
-          type={isSidebarCollapsed ? "default" : "text"}
-          onClick={onToggleSidebar}
-        >
-          节点栏
-        </Button>
+        {onToggleSidebar ? (
+          <Button
+            className="workflow-editor-toggle-button"
+            type={isSidebarCollapsed ? "default" : "text"}
+            onClick={onToggleSidebar}
+          >
+            节点栏
+          </Button>
+        ) : null}
         <Button
           className="workflow-editor-toggle-button"
           type={isInspectorCollapsed ? "default" : "text"}

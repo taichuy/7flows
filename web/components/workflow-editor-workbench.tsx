@@ -1,8 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { MenuUnfoldOutlined } from "@ant-design/icons";
-import { Button } from "antd";
 import {
   useCallback,
   useEffect,
@@ -23,7 +21,6 @@ import {
 import { WorkflowEditorHero } from "@/components/workflow-editor-workbench/workflow-editor-hero";
 import { useWorkflowEditorShellState } from "@/components/workflow-editor-workbench/use-workflow-editor-shell-state";
 import { useWorkflowEditorPanels } from "@/components/workflow-editor-workbench/use-workflow-editor-panels";
-import { WorkflowEditorSidebar } from "@/components/workflow-editor-workbench/workflow-editor-sidebar";
 import {
   summarizeWorkflowPersistBlockers
 } from "@/components/workflow-editor-workbench/persist-blockers";
@@ -386,7 +383,6 @@ export function WorkflowEditorWorkbench({
     }),
     [canvasQuickAddOptions, handleCanvasQuickAdd]
   );
-  const isSidebarOpen = !shell.isSidebarCollapsed;
   const hasInspectorTarget = Boolean(graph.selectedNode || graph.selectedEdge);
   const isFloatingInspectorVisible = Boolean(
     hasInspectorTarget && isFloatingInspectorOpen
@@ -563,7 +559,6 @@ export function WorkflowEditorWorkbench({
       <section
         className="editor-workspace"
         data-layout="canvas-overlay"
-        data-sidebar-open={isSidebarOpen ? "true" : "false"}
         data-inspector-open={isFloatingInspectorVisible ? "true" : "false"}
         style={workspaceStyle}
       >
@@ -581,14 +576,12 @@ export function WorkflowEditorWorkbench({
             onEdgesChange={graph.onEdgesChange}
             onConnect={graph.onConnect}
             onSelectionChange={graph.handleSelectionChange}
-            isSidebarOpen={isSidebarOpen}
             isInspectorOpen={isFloatingInspectorVisible}
             hasNodeAssistant={Boolean(graph.selectedNodeId)}
             canOpenInspector={hasInspectorTarget}
             canUndo={graph.canUndo}
             canRedo={graph.canRedo}
             inspectorActionLabel={inspectorActionLabel}
-            onToggleSidebar={shell.toggleSidebar}
             onToggleInspector={handleToggleInspectorSurface}
             onNodeClick={handleCanvasOpenConfig}
             onOpenAssistant={shell.openNodeAssistant}
@@ -624,32 +617,6 @@ export function WorkflowEditorWorkbench({
             </WorkflowEditorFloatingPanel>
           ) : null}
         </section>
-
-        <div
-          className="editor-rail-shell editor-sidebar-rail-shell"
-          data-component="workflow-editor-sidebar-rail"
-          data-open={isSidebarOpen ? "true" : "false"}
-          aria-hidden={undefined}
-        >
-          {isSidebarOpen ? (
-            <WorkflowEditorSidebar {...panels.sidebarProps} />
-          ) : (
-            <div
-              className="editor-sidebar-collapsed-shell"
-              data-component="workflow-editor-sidebar-collapsed-shell"
-            >
-              <Button
-                aria-label="展开左侧栏"
-                className="editor-sidebar-expand-button"
-                data-action="expand-sidebar"
-                icon={<MenuUnfoldOutlined />}
-                onClick={shell.toggleSidebar}
-                type="text"
-              />
-              <span className="editor-sidebar-collapsed-label">节点</span>
-            </div>
-          )}
-        </div>
 
       </section>
 
