@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type HTMLAttributes,
   type ReactNode,
   type SyntheticEvent
 } from "react";
@@ -46,6 +47,15 @@ const NODE_SECTION_ORDER = [
   { key: "other", label: "其它节点" }
 ] as const;
 const CANVAS_INTERACTION_GUARD_CLASS_NAME = "nodrag nopan nowheel";
+export const workflowCanvasQuickAddMenuInteractionGuardProps = {
+  onPointerDown: stopCanvasInteraction,
+  onClick: stopCanvasInteraction,
+  onDoubleClick: stopCanvasInteraction,
+  onWheel: stopCanvasInteraction
+} satisfies Pick<
+  HTMLAttributes<HTMLDivElement>,
+  "onPointerDown" | "onClick" | "onDoubleClick" | "onWheel"
+>;
 
 export function WorkflowCanvasQuickAddTrigger({
   quickAddOptions = [],
@@ -203,10 +213,7 @@ export function WorkflowCanvasQuickAddTrigger({
             menuClassName
           )}
           role="menu"
-          onPointerDownCapture={stopCanvasInteraction}
-          onClickCapture={stopCanvasInteraction}
-          onDoubleClickCapture={stopCanvasInteraction}
-          onWheelCapture={stopCanvasInteraction}
+          {...workflowCanvasQuickAddMenuInteractionGuardProps}
         >
           <div className="workflow-canvas-quick-add-menu-header">
             <strong>{menuTitle}</strong>
