@@ -4008,6 +4008,8 @@ a {
 
 .workflow-editor-inspector-body {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   overflow: hidden;
   padding: 20px;
@@ -4016,9 +4018,9 @@ a {
 .workflow-editor-floating-panel {
   position: absolute;
   z-index: 3;
-  width: min(440px, calc(100% - 48px));
-  height: min(78vh, calc(100% - 32px));
-  min-height: 420px;
+  width: min(calc(var(--workflow-editor-inspector-width) + 16px), calc(100% - 48px));
+  height: min(86vh, calc(100% - 24px));
+  min-height: 360px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -4080,9 +4082,21 @@ a {
 .workflow-editor-floating-panel-body {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.workflow-editor-floating-panel-body .workflow-editor-inspector-shell {
+.workflow-editor-node-config-workbench-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.workflow-editor-node-config-workbench-body .workflow-editor-inspector-shell {
+  flex: 1;
+  min-height: 0;
   height: 100%;
 }
 
@@ -4098,12 +4112,31 @@ a {
   height: 100%;
 }
 
+.workflow-editor-inspector-tabs {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.workflow-editor-inspector-tabs .ant-tabs-nav {
+  flex: 0 0 auto;
+}
+
 .workflow-editor-inspector-tabs .ant-tabs-content-holder {
+  flex: 1 1 auto;
   overflow-y: auto;
   padding-right: 2px;
 }
 
+.workflow-editor-inspector-tabs .ant-tabs-content,
 .workflow-editor-inspector-tabs .ant-tabs-tabpane {
+  display: flex;
+  flex-direction: column;
+}
+
+.workflow-editor-inspector-tabs .ant-tabs-tabpane {
+  flex: 1;
   padding-bottom: 20px;
 }
 

@@ -611,7 +611,10 @@ export function WorkflowEditorWorkbench({
               onClose={handleCloseFloatingInspector}
               onHeaderPointerDown={handleFloatingWorkbenchPointerDown}
             >
-              <div data-component="workflow-editor-node-config-workbench-body">
+              <div
+                className="workflow-editor-node-config-workbench-body"
+                data-component="workflow-editor-node-config-workbench-body"
+              >
                 <WorkflowEditorInspector {...panels.inspectorProps} />
               </div>
             </WorkflowEditorFloatingPanel>
