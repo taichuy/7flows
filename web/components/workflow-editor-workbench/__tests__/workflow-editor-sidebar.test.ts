@@ -220,6 +220,48 @@ describe("WorkflowEditorSidebar", () => {
     expect(html).not.toContain('data-component="workflow-editor-diagnostics-panel"');
   });
 
+  it("shows a collapse action on the shared studio rail section", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorSidebar, {
+        workflowId: "workflow-1",
+        workflowName: "Demo workflow",
+        workflows: [],
+        nodeSourceLanes: [],
+        toolSourceLanes: [],
+        editorNodeLibrary: [],
+        plannedNodeLibrary: [],
+        unsupportedNodes: [],
+        message: null,
+        messageTone: "idle",
+        persistBlockerSummary: null,
+        persistBlockers: [],
+        executionPreflightMessage: null,
+        toolExecutionValidationIssueCount: 0,
+        validationNavigatorItems: [],
+        runs: [],
+        selectedRunId: null,
+        run: null,
+        runSnapshot: null,
+        trace: null,
+        traceError: null,
+        selectedNodeId: null,
+        sandboxReadiness: buildSandboxReadiness(),
+        isLoadingRunOverlay: false,
+        isRefreshingRuns: false,
+        onCollapse: () => undefined,
+        onAddNode: () => undefined,
+        onNavigateValidationIssue: () => undefined,
+        onSelectRunId: () => undefined,
+        onRefreshRuns: () => undefined
+      })
+    );
+
+    expect(html).toContain('data-component="workflow-editor-sidebar-studio-rail"');
+    expect(html).toContain('data-action="collapse-sidebar"');
+    expect(html).toContain("编排中心");
+    expect(html).toContain("画布编排");
+  });
+
   it("mounts diagnostics content when the diagnostics tab becomes the active entry", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowEditorSidebar, {

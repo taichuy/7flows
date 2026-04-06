@@ -3,15 +3,16 @@ import Link from "next/link";
 
 import { formatWorkspaceRole, type WorkspaceMemberRole } from "@/lib/workspace-access";
 import {
-  canViewConsoleNavItem,
   getDefaultWorkspaceNavigationMode,
-  getWorkspaceConsoleNavigationItems,
-  getWorkspaceShellNavigationKeys,
   type WorkspaceConsoleNavKey,
   type WorkspaceShellNavigationMode
 } from "@/lib/workspace-console";
 import { getWorkspaceBadgeLabel } from "@/lib/workspace-ui";
 import { WorkspaceLogoutButton } from "@/components/workspace-logout-button";
+import {
+  buildWorkspaceShellNavigationLinks,
+  WorkspaceShellNavigation
+} from "@/components/workspace-shell-navigation";
 
 export type WorkspaceShellActiveNav = WorkspaceConsoleNavKey;
 
@@ -40,17 +41,14 @@ export function WorkspaceShell({
 }: WorkspaceShellProps) {
   const isEditorLayout = layout === "editor";
   const resolvedNavigationMode = navigationMode ?? getDefaultWorkspaceNavigationMode(layout);
-  const allowedNavigationKeys = new Set(getWorkspaceShellNavigationKeys(resolvedNavigationMode));
-  const navigationItems = getWorkspaceConsoleNavigationItems();
   const workspaceBadgeLabel = getWorkspaceBadgeLabel(workspaceName);
   const userBadgeLabel = getWorkspaceBadgeLabel(userName, "A");
   const shellSurfaceLabel = getWorkspaceShellSurfaceLabel(activeNav, layout);
-  const visibleNavigationItems = navigationItems.filter((item) => {
-    if (!allowedNavigationKeys.has(item.key)) {
-      return false;
-    }
-
-    return canViewConsoleNavItem(item.key, userRole);
+  const navigationLinks = buildWorkspaceShellNavigationLinks({
+    activeNav,
+    navigationMode: resolvedNavigationMode,
+    navigationHrefOverrides,
+    userRole
   });
   const primaryAction =
     layout === "default"
@@ -68,7 +66,14 @@ export function WorkspaceShell({
       data-navigation-mode={resolvedNavigationMode}
     >
       <header className="workspace-topbar">
-        <div className={`workspace-topbar-inner ${isEditorLayout ? "workspace-topbar-inner-editor" : ""}`.trim()}>
+        <div
+          className={[
+            "workspace-topbar-inner",
+            isEditorLayout ? "workspace-topbar-inner-editor" : null
+          ]
+            .filter(Boolean)
+            .join(" ")}
+        >
           <div className="workspace-brand-row">
             <Link className="workspace-brand" href="/workspace" suppressHydrationWarning>
               <span className="workspace-brand-mark">7</span>
@@ -80,32 +85,11 @@ export function WorkspaceShell({
               </span>
               <div className="workspace-shell-context-copy">
                 <strong>{workspaceName}</strong>
-                <span>{shellSurfaceLabel}</span>
+                {shellSurfaceLabel ? <span>{shellSurfaceLabel}</span> : null}
               </div>
             </div>
           </div>
-          <nav
-            className={`workspace-nav ${isEditorLayout ? "workspace-nav-editor" : ""}`.trim()}
-            aria-label="Workspace"
-            data-component="workspace-shell-nav"
-          >
-            {visibleNavigationItems.map((item) => {
-              const isActive = item.key === activeNav;
-              const href = navigationHrefOverrides?.[item.key] ?? item.href;
-
-              return (
-                <Link
-                  aria-current={isActive ? "page" : undefined}
-                  className={isActive ? "workspace-nav-link active" : "workspace-nav-link"}
-                  href={href}
-                  key={item.key}
-                  suppressHydrationWarning
-                >
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <WorkspaceShellNavigation items={navigationLinks} />
           <div className="workspace-user-actions" data-component="workspace-shell-actions">
             {primaryAction ? (
               <Link
@@ -141,7 +125,7 @@ function getWorkspaceShellSurfaceLabel(
   layout: WorkspaceShellLayout
 ) {
   if (layout === "editor") {
-    return "xyflow Studio";
+    return null;
   }
 
   if (layout === "focused") {

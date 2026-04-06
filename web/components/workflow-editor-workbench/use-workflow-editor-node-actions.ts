@@ -62,14 +62,15 @@ export function useWorkflowEditorNodeActions({
 
   const handleAddNode = (
     type: string,
-    options?: { sourceNodeId?: string | null }
+    options?: { sourceNodeId?: string | null; sourceEdgeId?: string | null }
   ) => {
     const insertion = insertNodeIntoCanvasGraph({
       nodeCatalog,
       nodes,
       edges,
       type,
-      sourceNodeId: options?.sourceNodeId ?? null
+      sourceNodeId: options?.sourceNodeId ?? null,
+      sourceEdgeId: options?.sourceEdgeId ?? null
     });
 
     setNodes(insertion.nodes);

@@ -35,6 +35,7 @@ type WorkflowEditorHeroProps = {
   isSidebarCollapsed?: boolean;
   isInspectorCollapsed?: boolean;
   hasNodeAssistant?: boolean;
+  canToggleInspector?: boolean;
   onToggleSidebar?: () => void;
   onToggleInspector?: () => void;
   onOpenAssistant?: () => void;
@@ -66,6 +67,7 @@ function WorkflowEditorHeroComponent({
   isSidebarCollapsed = false,
   isInspectorCollapsed = false,
   hasNodeAssistant = false,
+  canToggleInspector = true,
   onToggleSidebar,
   onToggleInspector,
   onOpenAssistant,
@@ -180,6 +182,7 @@ function WorkflowEditorHeroComponent({
         <Button
           className="workflow-editor-toggle-button"
           type={isInspectorCollapsed ? "default" : "text"}
+          disabled={!canToggleInspector}
           onClick={onToggleInspector}
         >
           属性栏

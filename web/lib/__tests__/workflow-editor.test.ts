@@ -181,15 +181,15 @@ const baseEdge = {
 describe("workflow-editor quick add helpers", () => {
   it("builds a stable next-node insert position", () => {
     expect(buildWorkflowInsertedNodePosition({ x: 120, y: 120 }, 0)).toEqual({
-      x: 400,
+      x: 480,
       y: 120
     });
     expect(buildWorkflowInsertedNodePosition({ x: 120, y: 120 }, 1)).toEqual({
-      x: 400,
+      x: 480,
       y: 276
     });
     expect(buildWorkflowInsertedNodePosition({ x: 120, y: 120 }, 2)).toEqual({
-      x: 400,
+      x: 480,
       y: -36
     });
   });
@@ -208,7 +208,7 @@ describe("workflow-editor quick add helpers", () => {
     expect(result.edges).toHaveLength(1);
     expect(result.edges[0]?.source).toBe("trigger");
     expect(result.edges[0]?.target).toBe(result.nextNode.id);
-    expect(result.nextNode.position).toEqual({ x: 400, y: 120 });
+    expect(result.nextNode.position).toEqual({ x: 480, y: 120 });
     expect(result.nextNode.data.typeLabel).toBe("LLM Agent");
     expect(result.nextNode.data.typeDescription).toBe("让 agent 继续推理。");
     expect(result.insertionMode).toBe("branch");
@@ -246,7 +246,7 @@ describe("workflow-editor quick add helpers", () => {
     expect(result.edges[1]?.target).toBe("output");
     expect(result.nextNode.position).toEqual({ x: 400, y: 120 });
     expect(result.nodes.find((node) => node.id === "output")?.position).toEqual({
-      x: 680,
+      x: 760,
       y: 120
     });
     expect(result.nextNode.selected).toBe(true);
@@ -292,6 +292,59 @@ describe("workflow-editor quick add helpers", () => {
     expect(result.edges).toHaveLength(3);
     expect(result.edges[2]?.source).toBe("trigger");
     expect(result.edges[2]?.target).toBe(result.nextNode.id);
+  });
+
+  it("can insert inline into a selected control edge even when the source node fans out", () => {
+    const result = insertNodeIntoCanvasGraph({
+      nodeCatalog,
+      nodes: [
+        ...baseNodes,
+        {
+          id: "output-secondary",
+          type: "workflowNode",
+          position: { x: 400, y: 300 },
+          data: {
+            label: "Output Secondary",
+            nodeType: "output",
+            config: {}
+          } satisfies WorkflowCanvasNodeData
+        }
+      ],
+      edges: [
+        baseEdge,
+        {
+          id: "edge-trigger-output-secondary",
+          source: "trigger",
+          target: "output-secondary",
+          type: "smoothstep",
+          animated: false,
+          data: {
+            channel: "control" as const
+          }
+        }
+      ],
+      type: "llm_agent",
+      sourceNodeId: "trigger",
+      sourceEdgeId: "edge-trigger-output-secondary"
+    });
+
+    expect(result.insertionMode).toBe("inline");
+    expect(result.sourceNode?.id).toBe("trigger");
+    expect(result.displacedTargetNode?.id).toBe("output-secondary");
+    expect(result.nextNode.position).toEqual({ x: 400, y: 300 });
+    expect(result.nodes.find((node) => node.id === "output")?.position).toEqual({
+      x: 400,
+      y: 120
+    });
+    expect(result.nodes.find((node) => node.id === "output-secondary")?.position).toEqual({
+      x: 760,
+      y: 300
+    });
+    expect(
+      result.edges.find((edge) => edge.id === "edge-trigger-output-secondary")?.target
+    ).toBe(result.nextNode.id);
+    expect(result.edges.at(-1)?.source).toBe(result.nextNode.id);
+    expect(result.edges.at(-1)?.target).toBe("output-secondary");
   });
 
   it("auto-targets the current source when quick-adding a reference node", () => {
@@ -393,7 +446,7 @@ describe("workflow-editor quick add helpers", () => {
     expect(result.downstreamNode?.id).toBe("output");
     expect(result.nodes).toHaveLength(2);
     expect(result.nodes.find((node) => node.id === "output")?.position).toEqual({
-      x: 400,
+      x: 320,
       y: 120
     });
     expect(result.edges).toHaveLength(1);

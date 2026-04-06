@@ -10,6 +10,7 @@ import WorkflowEditorPage from "@/app/workflows/[workflowId]/editor/page";
 import WorkflowLogsPage from "@/app/workflows/[workflowId]/logs/page";
 import WorkflowMonitorPage from "@/app/workflows/[workflowId]/monitor/page";
 import WorkflowPublishPage from "@/app/workflows/[workflowId]/publish/page";
+import { loadWorkflowEditorWorkbenchBootstrap } from "@/components/workflow-editor-workbench/bootstrap";
 import {
   getServerPublishedEndpointInvocationDetail as getPublishedEndpointInvocationDetail,
   getServerRunDetail as getRunDetail,
@@ -110,6 +111,10 @@ vi.mock("@/components/workflow-editor-workbench-entry", () => ({
       },
       workflow.id
     )
+}));
+
+vi.mock("@/components/workflow-editor-workbench/bootstrap", () => ({
+  loadWorkflowEditorWorkbenchBootstrap: vi.fn()
 }));
 
 vi.mock("@/components/run-diagnostics-execution-sections", () => ({
@@ -570,6 +575,47 @@ function buildEvidenceView(runId: string, overrides: Record<string, unknown> = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(loadWorkflowEditorWorkbenchBootstrap).mockResolvedValue({
+    workflows: [
+      {
+        id: "workflow-1",
+        name: "Workflow 1",
+        version: "0.1.0",
+        status: "draft",
+        node_count: 2,
+        tool_governance: {
+          referenced_tool_ids: [],
+          missing_tool_ids: [],
+          governed_tool_count: 0,
+          strong_isolation_tool_count: 0
+        }
+      },
+      {
+        id: "workflow-2",
+        name: "Workflow 2",
+        version: "0.2.0",
+        status: "draft",
+        node_count: 3,
+        tool_governance: {
+          referenced_tool_ids: [],
+          missing_tool_ids: [],
+          governed_tool_count: 0,
+          strong_isolation_tool_count: 0
+        }
+      }
+    ],
+    nodeCatalog: [],
+    nodeSourceLanes: [],
+    toolSourceLanes: [],
+    tools: [],
+    adapters: [],
+    callbackWaitingAutomation: null,
+    sandboxReadiness: null,
+    sandboxBackends: [],
+    initialModelProviderCatalog: [],
+    initialModelProviderConfigs: [],
+    initialModelProviderRegistryStatus: "ready"
+  });
   vi.mocked(getServerWorkspaceContext).mockResolvedValue(buildWorkspaceContext());
   vi.mocked(requireServerWorkflowStudioSurfaceAccess).mockImplementation(
     async ({
@@ -751,10 +797,10 @@ describe("Workflow studio routes", () => {
     );
 
     expect(html).toContain('data-component="workspace-shell"');
-    expect(html).toContain('data-active-nav="workflows"');
+    expect(html).toContain('data-active-nav="workspace"');
     expect(html).toContain('data-layout="editor"');
     expect(html).toContain('data-component="workflow-studio-shell"');
-    expect(html).toContain('data-component="workflow-studio-rail"');
+    expect(html).toContain('data-surface-layout="canvas-overlay"');
     expect(html).toContain('data-component="workflow-editor-workbench-entry"');
     expect(html).toContain('data-has-initial-bootstrap="true"');
     expect(html).toContain('data-bootstrap-workflows-count="2"');
@@ -764,29 +810,21 @@ describe("Workflow studio routes", () => {
     expect(html).toContain('data-workflow-id="workflow-1"');
     expect(html).toContain('data-bootstrap-workflow-id="workflow-1"');
     expect(html).toContain('data-bootstrap-surface="editor"');
-    expect(html).toContain("workflow-studio-shell-bar workflow-studio-rail");
-    expect(html).toContain("画布编排");
-    expect(html).toContain("访问 API");
-    expect(html).toContain("日志与标注");
-    expect(html).toContain("监测报表");
-    expect(html).toContain("发布治理");
-    expect(html).toContain("Workflow 1");
-    expect(html).toContain("draft only");
-    expect(html).toContain("xyflow studio");
-    expect(html).toContain("运行诊断");
-    expect(html).toContain("Starter 模板");
-    expect(html).toContain("编排中心");
+    expect(html).not.toContain('data-component="workflow-studio-rail"');
+    expect(html).not.toContain('data-component="workflow-studio-editor-toolbar"');
     expect(html).toContain(
       'data-tools-href="/workspace/tools?return_href=%2Fworkflows%2Fworkflow-1%2Feditor&amp;workflow_id=workflow-1&amp;workflow_surface=editor"'
     );
-    expect(html).toContain("/workflows/workflow-1/editor");
-    expect(html).toContain("/workflows/workflow-1/publish");
     expect(html).not.toContain("?surface=");
-    expect(vi.mocked(getWorkflows)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(getWorkflowLibrarySnapshot)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(getPluginRegistrySnapshot)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(getSystemOverview)).toHaveBeenCalledTimes(1);
-    expect(vi.mocked(getWorkspaceModelProviderRegistry)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(loadWorkflowEditorWorkbenchBootstrap)).toHaveBeenCalledWith({
+      workflowId: "workflow-1",
+      surface: "editor"
+    });
+    expect(vi.mocked(getWorkflows)).not.toHaveBeenCalled();
+    expect(vi.mocked(getWorkflowLibrarySnapshot)).not.toHaveBeenCalled();
+    expect(vi.mocked(getPluginRegistrySnapshot)).not.toHaveBeenCalled();
+    expect(vi.mocked(getSystemOverview)).not.toHaveBeenCalled();
+    expect(vi.mocked(getWorkspaceModelProviderRegistry)).not.toHaveBeenCalled();
     expect(vi.mocked(getServerWorkflowPublishedEndpoints)).not.toHaveBeenCalled();
     expect(vi.mocked(getServerWorkflowPublishedEndpoints)).not.toHaveBeenCalled();
     expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).not.toHaveBeenCalled();

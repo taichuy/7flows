@@ -62,11 +62,15 @@ node scripts/dev-up.js --web-mode build
 
 ```shell
 node scripts/dev-up.js --local-only
+node scripts/dev-up.js ensure --local-only --skip-install
+node scripts/dev-restart-web.js
 
 node scripts/dev-up.js stop --local-only
 ```
 
-这个模式会继续同步依赖、执行 migration、拉起 API / Worker / Scheduler / Web，但不会启动 Docker，也不会在 `stop` / `pause` 时关闭现有 Docker 中间件；查看状态时可用 `node scripts/dev-up.js status --local-only`。
+这个模式会继续同步依赖、执行 migration、拉起 API / Worker / Scheduler / Web，但不会启动 Docker，也不会在 `stop` / `pause` 时关闭现有 Docker 中间件；查看状态时可用 `node scripts/dev-up.js status --local-only`。如果只想在不影响其它存活服务的前提下补启动缺失进程，可改用 `node scripts/dev-up.js ensure --local-only --skip-install`。
+
+如果只想单独重启前端而不动 API / Worker / Scheduler，可以直接执行 `node scripts/dev-restart-web.js`。该脚本固定走 local-only，只重启 `tmp/dev-up/pids/web.pid` 追踪的 Web 进程，默认跳过 `pnpm install`；如果当前 Web 原本是 build 模式，也可以显式传 `node scripts/dev-restart-web.js --web-mode build`。
 
 `node scripts/dev-up.js` 默认会在启动 Web 前清理 `web/.next`，并以 watchpack 轮询模式拉起 `next dev`；如果传入 `--web-mode build`，则会先执行 `pnpm build`，再用 `next start` 拉起本地编译产物。两种模式都会对 `/login`、`/workspace`、`/workflows`、`/workflows/new` 做一次本地作者路由 smoke；`node scripts/dev-up.js status` 也会额外打印这条作者主链的路由健康度、`localhost/127.0.0.1` 的 loopback 结果，并在 shell 代理可能劫持 `127.0.0.1` 时给出显式提示，避免把代理 `502` 误判成前端路由故障。
 
@@ -74,6 +78,8 @@ node scripts/dev-up.js stop --local-only
 
 ```shell
 node scripts/dev-up.js status
+node scripts/dev-up.js ensure --local-only --skip-install
+node scripts/dev-restart-web.js
 node scripts/dev-pause.js
 node scripts/dev-up.js stop
 ```

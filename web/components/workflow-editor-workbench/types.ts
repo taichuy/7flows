@@ -64,6 +64,9 @@ export type WorkflowEditorSidebarProps = {
   currentHref?: string;
   workflowId: string;
   workflowName: string;
+  workflowVersion?: string;
+  workflowStageLabel?: string;
+  workflowLibraryHref?: string;
   workflows: WorkflowListItem[];
   nodeSourceLanes: WorkflowLibrarySourceLane[];
   toolSourceLanes: WorkflowLibrarySourceLane[];
@@ -100,6 +103,7 @@ export type WorkflowEditorSidebarProps = {
   hasScopedWorkspaceStarterFilters?: boolean;
   isLoadingRunOverlay: boolean;
   isRefreshingRuns: boolean;
+  onCollapse?: () => void;
   onActiveTabChange?: (tabKey: WorkflowEditorSidebarTabKey) => void;
   onAddNode: (type: string, options?: { sourceNodeId?: string | null }) => void;
   onNavigateValidationIssue: (item: WorkflowValidationNavigatorItem) => void;

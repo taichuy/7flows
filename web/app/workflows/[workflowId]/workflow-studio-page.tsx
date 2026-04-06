@@ -807,9 +807,59 @@ function WorkflowStudioShell({
   workspaceStarterLibraryHref,
   children
 }: WorkflowStudioShellProps) {
+  const isCanvasEditorSurface = activeStudioSurface === "editor";
   const studioModeLabel = getWorkflowStudioSurfaceDefinition(activeStudioSurface).modeLabel;
   const surfaceItems = getWorkflowStudioSurfaceDefinitions();
   const primarySurfaceItems = surfaceItems.filter((item) => item.key !== "publish");
+
+  const shellClassName = [
+    "workflow-studio-shell",
+    isCanvasEditorSurface ? "workflow-studio-shell-editor" : null
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const stageClassName = [
+    "workflow-studio-stage",
+    isCanvasEditorSurface ? "workflow-studio-stage-editor" : null
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const railHeader = (
+    <div className="workflow-studio-rail-header">
+      <div className="workflow-studio-breadcrumb-row">
+        <Link className="workflow-studio-breadcrumb-link" href={workflowLibraryHref}>
+          编排中心
+        </Link>
+        <span className="workflow-studio-breadcrumb-current">{workflowName}</span>
+      </div>
+
+      <div className="workflow-studio-inline-metrics">
+        <span className="workflow-studio-inline-tag">v{workflowVersion}</span>
+        <span className="workflow-studio-inline-tag">{workflowStageLabel}</span>
+        <span className="workflow-studio-shell-mode">{studioModeLabel}</span>
+      </div>
+    </div>
+  );
+
+  const secondaryLinks = (
+    <div className="workflow-studio-utility-links">
+      <Link
+        className={`workflow-studio-secondary-link ${
+          activeStudioSurface === "publish" ? "active" : ""
+        }`.trim()}
+        href={surfaceHrefs.publish}
+      >
+        发布治理
+      </Link>
+      <Link className="workflow-studio-secondary-link" href="/runs">
+        运行诊断
+      </Link>
+      <Link className="workflow-studio-secondary-link" href={workspaceStarterLibraryHref}>
+        Starter 模板
+      </Link>
+    </div>
+  );
 
   return (
     <WorkspaceShell
@@ -821,60 +871,35 @@ function WorkflowStudioShell({
       workspaceName={workspaceName}
     >
       <div className="workspace-main workflow-studio-main">
-        <section className="workflow-studio-shell" data-component="workflow-studio-shell">
-          <aside className="workflow-studio-shell-bar workflow-studio-rail" data-component="workflow-studio-rail">
-            <div className="workflow-studio-rail-header">
-              <div className="workflow-studio-breadcrumb-row">
-                <Link className="workflow-studio-breadcrumb-link" href={workflowLibraryHref}>
-                  编排中心
-                </Link>
-                <span className="workflow-studio-breadcrumb-current">{workflowName}</span>
-              </div>
+        <section
+          className={shellClassName}
+          data-component="workflow-studio-shell"
+          data-surface-layout={isCanvasEditorSurface ? "canvas-overlay" : "rail"}
+        >
+          {isCanvasEditorSurface ? null : (
+            <aside className="workflow-studio-shell-bar workflow-studio-rail" data-component="workflow-studio-rail">
+              {railHeader}
 
-              <div className="workflow-studio-inline-metrics">
-                <span className="workflow-studio-inline-tag">v{workflowVersion}</span>
-                <span className="workflow-studio-inline-tag">{workflowStageLabel}</span>
-                <span className="workflow-studio-shell-mode">{studioModeLabel}</span>
-              </div>
-            </div>
+              <nav className="workflow-studio-surface-rail" aria-label="Workflow studio surfaces">
+                {primarySurfaceItems.map((item) => (
+                  <Link
+                    className={`workflow-studio-rail-link ${
+                      activeStudioSurface === item.key ? "active" : ""
+                    }`.trim()}
+                    href={surfaceHrefs[item.key]}
+                    key={item.key}
+                  >
+                    <strong>{item.label}</strong>
+                    <span>{item.description}</span>
+                  </Link>
+                ))}
+              </nav>
 
-            <nav className="workflow-studio-surface-rail" aria-label="Workflow studio surfaces">
-              {primarySurfaceItems.map((item) => (
-                <Link
-                  className={`workflow-studio-rail-link ${
-                    activeStudioSurface === item.key ? "active" : ""
-                  }`.trim()}
-                  href={surfaceHrefs[item.key]}
-                  key={item.key}
-                >
-                  <strong>{item.label}</strong>
-                  <span>{item.description}</span>
-                </Link>
-              ))}
-            </nav>
+              <div className="workflow-studio-rail-secondary">{secondaryLinks}</div>
+            </aside>
+          )}
 
-            <div className="workflow-studio-rail-secondary">
-              <Link
-                className={`workflow-studio-secondary-link workflow-studio-rail-secondary-link ${
-                  activeStudioSurface === "publish" ? "active" : ""
-                }`.trim()}
-                href={surfaceHrefs.publish}
-              >
-                发布治理
-              </Link>
-              <Link className="workflow-studio-secondary-link workflow-studio-rail-secondary-link" href="/runs">
-                运行诊断
-              </Link>
-              <Link
-                className="workflow-studio-secondary-link workflow-studio-rail-secondary-link"
-                href={workspaceStarterLibraryHref}
-              >
-                Starter 模板
-              </Link>
-            </div>
-          </aside>
-
-          <div className="workflow-studio-stage">{children}</div>
+          <div className={stageClassName}>{children}</div>
         </section>
       </div>
     </WorkspaceShell>

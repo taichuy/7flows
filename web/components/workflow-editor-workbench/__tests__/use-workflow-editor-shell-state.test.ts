@@ -1,21 +1,22 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  areWorkflowDefinitionPreflightIssuesEqual,
   resolveWorkflowEditorInspectorFocusState,
   resolveWorkflowEditorPanelCollapsedPreference
 } from "@/components/workflow-editor-workbench/use-workflow-editor-shell-state";
 
 describe("resolveWorkflowEditorPanelCollapsedPreference", () => {
-  it("defaults editor rails to collapsed until a preference explicitly opens them", () => {
-    expect(resolveWorkflowEditorPanelCollapsedPreference(null)).toBe(true);
+  it("defaults editor rails to expanded until a preference explicitly closes them", () => {
+    expect(resolveWorkflowEditorPanelCollapsedPreference(null)).toBe(false);
     expect(resolveWorkflowEditorPanelCollapsedPreference("true")).toBe(true);
     expect(resolveWorkflowEditorPanelCollapsedPreference("false")).toBe(false);
   });
 
-  it("resets legacy panel preferences back to the canvas-first default", () => {
-    expect(resolveWorkflowEditorPanelCollapsedPreference("false", null)).toBe(true);
-    expect(resolveWorkflowEditorPanelCollapsedPreference("false", "legacy-editor-layout")).toBe(
-      true
+  it("resets legacy panel preferences back to the fixed-rails default", () => {
+    expect(resolveWorkflowEditorPanelCollapsedPreference("true", null)).toBe(false);
+    expect(resolveWorkflowEditorPanelCollapsedPreference("true", "legacy-editor-layout")).toBe(
+      false
     );
   });
 });
@@ -63,5 +64,52 @@ describe("resolveWorkflowEditorInspectorFocusState", () => {
     expect(focused.highlightedPublishEndpointFieldPath).toBe("workflowVersion");
     expect(focused.highlightedNodeSection).toBeNull();
     expect(focused.highlightedVariableIndex).toBeNull();
+  });
+});
+
+describe("areWorkflowDefinitionPreflightIssuesEqual", () => {
+  it("treats missing and empty issue collections as equivalent", () => {
+    expect(areWorkflowDefinitionPreflightIssuesEqual(undefined, [])).toBe(true);
+    expect(areWorkflowDefinitionPreflightIssuesEqual(null, [])).toBe(true);
+  });
+
+  it("matches issue arrays by value instead of array identity", () => {
+    expect(
+      areWorkflowDefinitionPreflightIssuesEqual(
+        [
+          {
+            category: "schema",
+            message: "缺少节点配置",
+            path: "nodes[0].config",
+            field: "config"
+          }
+        ],
+        [
+          {
+            category: "schema",
+            message: "缺少节点配置",
+            path: "nodes[0].config",
+            field: "config"
+          }
+        ]
+      )
+    ).toBe(true);
+
+    expect(
+      areWorkflowDefinitionPreflightIssuesEqual(
+        [
+          {
+            category: "schema",
+            message: "缺少节点配置"
+          }
+        ],
+        [
+          {
+            category: "schema",
+            message: "节点配置无效"
+          }
+        ]
+      )
+    ).toBe(false);
   });
 });

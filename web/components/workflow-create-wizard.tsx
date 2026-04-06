@@ -1,13 +1,11 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import Link from "next/link";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { WorkbenchEntryLinks } from "@/components/workbench-entry-links";
-import { buildWorkflowCreateWizardPresentation } from "@/components/workflow-create-wizard/presentation";
-import { WorkflowCreateLauncherPanel } from "@/components/workflow-create-wizard/workflow-create-launcher-panel";
-import { WorkflowCreatePreviewPanel } from "@/components/workflow-create-wizard/workflow-create-preview-panel";
+import { Button, Card, Form, Input, Alert, Space, Typography } from "antd";
+import { ArrowLeftOutlined } from "@ant-design/icons";
+
 import type { WorkflowCreateWizardProps } from "@/components/workflow-create-wizard/types";
 import { useWorkflowCreateShellState } from "@/components/workflow-create-wizard/use-workflow-create-shell-state";
 import {
@@ -16,12 +14,10 @@ import {
 } from "@/lib/get-workflows";
 import { buildWorkflowEditorHrefFromWorkspaceStarterViewState } from "@/lib/workspace-starter-governance-query";
 
-import { Button } from "antd";
-import { ArrowLeftOutlined } from "@ant-design/icons";
+const { Text, Title } = Typography;
 
 export function WorkflowCreateWizard({
   governanceQueryScope,
-  legacyAuthGovernanceSnapshot = null,
   workflows,
   starters,
   nodeCatalog,
@@ -31,30 +27,14 @@ export function WorkflowCreateWizard({
   const isWorkspaceSurface = surface === "workspace";
   const ShellTag = isWorkspaceSurface ? "div" : "main";
   const router = useRouter();
-  const searchQuery = governanceQueryScope.searchQuery;
-  const sourceGovernanceKind =
-    governanceQueryScope.sourceGovernanceKind === "all"
-      ? undefined
-      : governanceQueryScope.sourceGovernanceKind;
-  const needsFollowUp = governanceQueryScope.needsFollowUp;
+
   const {
-    activeTrack,
-    activeTrackPresentation,
-    applyStarterSelection,
-    clearFeedback,
-    createSignalItems,
-    handleTrackSelect,
     isCreating,
     message,
     messageTone,
     runCreateTransition,
     selectedStarter,
-    starterTracks,
-    selectedStarterTrackPresentation,
     setFeedback,
-    setWorkflowName,
-    visibleStarters,
-    workflowName,
     workspaceStarterGovernanceScope
   } = useWorkflowCreateShellState({
     governanceQueryScope,
@@ -63,218 +43,156 @@ export function WorkflowCreateWizard({
     tools,
     workflowsCount: workflows.length
   });
-  const {
-    currentWorkflowCreateHref,
-    featuredNodes,
-    governanceDisclosureStatus,
-    hasScopedWorkspaceStarterFilters,
-    recentDrafts,
-    recentWorkflowHref,
-    selectedStarterFactPills,
-    selectedStarterMissingToolBlockingSurface,
-    selectedStarterNextStepSurface,
-    selectedStarterPreviewNodes,
-    selectedStarterPreviewOverflow,
-    selectedStarterSandboxBadges,
-    selectedStarterSandboxDependencySummary,
-    selectedStarterSourceGovernancePresenter,
-    shouldRenderSelectedStarterNextStep,
-    shouldRenderSelectedStarterSourceGovernance,
-    starterGovernanceHref,
-    surfaceCopy,
-    workspaceHref
-  } = useMemo(
-    () =>
-      buildWorkflowCreateWizardPresentation({
-        legacyAuthGovernanceSnapshot,
-        nodeCatalog,
-        selectedStarter,
-        workflows,
-        workspaceStarterGovernanceScope
-      }),
+
+  const [form] = Form.useForm();
+  const [description, setDescription] = useState("");
+
+  const handleCreateWorkflow = useCallback(
+    async (values: { name: string; description?: string }) => {
+      runCreateTransition(async () => {
+        if (!selectedStarter) {
+          setFeedback("未找到可用的 Starter。", "error");
+          return;
+        }
+
+        const normalizedName = values.name.trim() || selectedStarter.defaultWorkflowName;
+        setFeedback("正在创建应用草稿...", "idle");
+
+        try {
+          if (!selectedStarter.definition) {
+            setFeedback("当前 starter definition 尚未加载完成，请刷新重试。", "error");
+            return;
+          }
+
+          const definition = structuredClone(selectedStarter.definition);
+          // If definition has a description field, we can attach it here, but typically it's at root or not supported yet
+          // definition.description = values.description || "";
+
+          const body = await createWorkflow({
+            name: normalizedName,
+            definition
+          });
+
+          setFeedback(`已创建 ${normalizedName}，正在进入 Studio...`, "success");
+          router.push(
+            buildWorkflowEditorHrefFromWorkspaceStarterViewState(
+              body.id,
+              workspaceStarterGovernanceScope
+            )
+          );
+          router.refresh();
+        } catch (error) {
+          setFeedback(
+            error instanceof WorkflowDefinitionValidationError
+              ? error.message
+              : "无法连接后端创建 workflow，请确认 API 已启动。",
+            "error"
+          );
+        }
+      });
+    },
     [
-      legacyAuthGovernanceSnapshot,
-      nodeCatalog,
+      router,
+      runCreateTransition,
       selectedStarter,
-      workflows,
+      setFeedback,
       workspaceStarterGovernanceScope
     ]
   );
 
-  const handleCreateWorkflow = useCallback(() => {
-    runCreateTransition(async () => {
-      if (!selectedStarter) {
-        return;
-      }
-
-      if (selectedStarterMissingToolBlockingSurface) {
-        setFeedback(selectedStarterMissingToolBlockingSurface.blockedMessage, "error");
-        return;
-      }
-
-      const normalizedName = workflowName.trim() || selectedStarter.defaultWorkflowName;
-      setFeedback("正在创建应用草稿...", "idle");
-
-      try {
-        if (!selectedStarter.definition) {
-          setFeedback("当前 starter definition 尚未加载完成，请刷新创建页后重试。", "error");
-          return;
-        }
-
-        const body = await createWorkflow({
-          name: normalizedName,
-          definition: structuredClone(selectedStarter.definition)
-        });
-
-        setFeedback(`已创建 ${normalizedName}，正在进入 Studio...`, "success");
-        router.push(
-          buildWorkflowEditorHrefFromWorkspaceStarterViewState(
-            body.id,
-            workspaceStarterGovernanceScope
-          )
-        );
-        router.refresh();
-      } catch (error) {
-        setFeedback(
-          error instanceof WorkflowDefinitionValidationError
-            ? error.message
-            : "无法连接后端创建 workflow，请确认 API 已启动。",
-          "error"
-        );
-      }
-    });
-  }, [
-    router,
-    runCreateTransition,
-    selectedStarter,
-    selectedStarterMissingToolBlockingSurface,
-    setFeedback,
-    workflowName,
-    workspaceStarterGovernanceScope
-  ]);
-
-  const handleWorkflowNameChange = useCallback(
-    (nextWorkflowName: string) => {
-      clearFeedback();
-      setWorkflowName(nextWorkflowName);
-    },
-    [clearFeedback, setWorkflowName]
-  );
-
-  if (!selectedStarter) {
-    return (
-      <ShellTag
-        className={
-          isWorkspaceSurface ? "workflow-create-shell workflow-create-shell-embedded" : "editor-shell"
-        }
-      >
-        <section className="hero creation-hero">
-          <div className="hero-copy">
-            <p className="eyebrow">Starter scope</p>
-            <h1>当前筛选范围里没有可复用的 active workspace starter</h1>
-            <p className="hero-text">{surfaceCopy.emptyStateDescription}</p>
-            <div className="hero-actions">
-              <WorkbenchEntryLinks
-                {...surfaceCopy.emptyStateLinks}
-                currentHref={currentWorkflowCreateHref}
-              />
-            </div>
-          </div>
-
-          <div className="hero-panel">
-            <div className="panel-label">当前应用类型</div>
-            <div className="panel-value">{activeTrackPresentation.label}</div>
-            <p className="panel-text">{activeTrackPresentation.summary}</p>
-            <p className="panel-text">
-              搜索：<strong>{searchQuery.trim() || "未设置"}</strong>
-            </p>
-            <p className="panel-text">
-              来源治理：<strong>{sourceGovernanceKind ?? "全部"}</strong>
-            </p>
-            <p className="panel-text">
-              follow-up：<strong>{needsFollowUp ? "仅关注热点" : "未启用"}</strong>
-            </p>
-          </div>
-        </section>
-      </ShellTag>
-    );
-  }
+  const onCancel = useCallback(() => {
+    router.back();
+  }, [router]);
 
   return (
     <ShellTag
-      className={`workflow-create-shell${isWorkspaceSurface ? " workflow-create-shell-embedded" : ""}`}
+      className={
+        isWorkspaceSurface
+          ? "workflow-create-shell-embedded"
+          : "workflow-create-shell workflow-create-page-centered"
+      }
+      style={
+        isWorkspaceSurface
+          ? {}
+          : {
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: "calc(100vh - 64px)",
+              padding: "24px"
+            }
+      }
     >
-      {isWorkspaceSurface ? null : (
-        <section className="workflow-create-topbar">
-          <div className="workflow-create-topbar-left">
-            <Link href={workspaceHref}>
-              <Button
-                type="text"
-                icon={<ArrowLeftOutlined />}
-                className="workflow-create-back-button"
-              >
-                返回工作台
+      <Card
+        style={{
+          width: "100%",
+          maxWidth: isWorkspaceSurface ? "none" : 520,
+          boxShadow: isWorkspaceSurface ? "none" : "0 4px 12px rgba(0,0,0,0.08)"
+        }}
+        styles={{ body: { padding: isWorkspaceSurface ? 0 : 24 } }}
+        bordered={!isWorkspaceSurface}
+      >
+        {!isWorkspaceSurface && (
+          <div style={{ marginBottom: 24, textAlign: "center" }}>
+            <Title level={4} style={{ margin: 0 }}>
+              创建新应用
+            </Title>
+            <Text type="secondary">基于预设模板快速开始构建您的工作流</Text>
+          </div>
+        )}
+
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleCreateWorkflow}
+          initialValues={{ name: selectedStarter?.defaultWorkflowName || "" }}
+        >
+          <Form.Item
+            label="应用名称"
+            name="name"
+            rules={[{ required: true, message: "请输入应用名称。" }]}
+          >
+            <Input
+              size="large"
+              placeholder="例如：My Awesome Workflow"
+              disabled={isCreating}
+            />
+          </Form.Item>
+
+          <Form.Item label="应用描述 (可选)" name="description">
+            <Input.TextArea
+              rows={3}
+              placeholder="简要描述这个应用的功能和用途..."
+              disabled={isCreating}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </Form.Item>
+
+          {message && (
+            <Form.Item>
+              <Alert
+                message={message}
+                type={messageTone === "error" ? "error" : "info"}
+                showIcon
+              />
+            </Form.Item>
+          )}
+
+          <Form.Item style={{ marginBottom: 0, marginTop: 24 }}>
+            <Space style={{ display: "flex", justifyContent: "flex-end" }}>
+              {!isWorkspaceSurface && (
+                <Button onClick={onCancel} disabled={isCreating}>
+                  返回
+                </Button>
+              )}
+              <Button type="primary" htmlType="submit" loading={isCreating}>
+                确认创建
               </Button>
-            </Link>
-            <div className="workflow-create-topbar-copy">
-              <span>New app</span>
-              <strong>选起点后直接进入 Studio</strong>
-            </div>
-          </div>
-          <div className="workflow-create-topbar-summary" aria-label="创建页摘要">
-            <span className="workflow-create-inline-chip">{activeTrackPresentation.label}</span>
-            <span className="workflow-create-inline-chip muted">{visibleStarters.length} 个 starter</span>
-            {workflows.length > 0 ? (
-              <span className="workflow-create-inline-chip muted">{workflows.length} 个草稿</span>
-            ) : null}
-          </div>
-        </section>
-      )}
-
-      <section className="workflow-create-page">
-        <WorkflowCreateLauncherPanel
-          activeTrack={activeTrack}
-          createSignalItems={createSignalItems}
-          featuredNodes={featuredNodes}
-          hasScopedWorkspaceStarterFilters={hasScopedWorkspaceStarterFilters}
-          scopedGovernanceBackLinkLabel={surfaceCopy.scopedGovernanceBackLinkLabel}
-          scopedGovernanceDescription={surfaceCopy.scopedGovernanceDescription}
-          selectedStarterId={selectedStarter.id}
-          starterGovernanceHref={starterGovernanceHref}
-          starterTracks={starterTracks}
-          visibleStarters={visibleStarters}
-          onSelectStarter={applyStarterSelection}
-          onSelectTrack={handleTrackSelect}
-        />
-
-        <WorkflowCreatePreviewPanel
-          governanceDisclosureStatus={governanceDisclosureStatus}
-          isCreating={isCreating}
-          message={message}
-          messageTone={messageTone}
-          recentDrafts={recentDrafts}
-          recentWorkflowHref={recentWorkflowHref}
-          selectedStarter={selectedStarter}
-          selectedStarterFactPills={selectedStarterFactPills}
-          selectedStarterMissingToolBlockingSurface={selectedStarterMissingToolBlockingSurface}
-          selectedStarterNextStepSurface={selectedStarterNextStepSurface}
-          selectedStarterPreviewNodes={selectedStarterPreviewNodes}
-          selectedStarterPreviewOverflow={selectedStarterPreviewOverflow}
-          selectedStarterSandboxBadges={selectedStarterSandboxBadges}
-          selectedStarterSandboxDependencySummary={selectedStarterSandboxDependencySummary}
-          selectedStarterSourceGovernancePresenter={selectedStarterSourceGovernancePresenter}
-          selectedStarterTrackLabel={selectedStarterTrackPresentation.label}
-          shouldDisableCreate={Boolean(selectedStarterMissingToolBlockingSurface)}
-          shouldRenderSelectedStarterNextStep={shouldRenderSelectedStarterNextStep}
-          shouldRenderSelectedStarterSourceGovernance={shouldRenderSelectedStarterSourceGovernance}
-          starterGovernanceHref={starterGovernanceHref}
-          surfaceCopy={surfaceCopy}
-          totalWorkflows={workflows.length}
-          workflowName={workflowName}
-          onCreateWorkflow={handleCreateWorkflow}
-          onWorkflowNameChange={handleWorkflowNameChange}
-        />
-      </section>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Card>
     </ShellTag>
   );
 }

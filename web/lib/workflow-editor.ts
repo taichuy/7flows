@@ -39,6 +39,7 @@ export type WorkflowCanvasEdgeData = {
 const DEFAULT_EDGE_OPTIONS: WorkflowCanvasEdgeData = {
   channel: "control"
 };
+const WORKFLOW_NODE_HORIZONTAL_SPACING = 360;
 
 export function createStarterWorkflowDefinition(
   nodeCatalog: WorkflowNodeCatalogItem[]
@@ -304,7 +305,7 @@ export function buildWorkflowInsertedNodePosition(
 ) {
   if (branchIndex <= 0) {
     return {
-      x: Math.round(sourcePosition.x + 280),
+      x: Math.round(sourcePosition.x + WORKFLOW_NODE_HORIZONTAL_SPACING),
       y: Math.round(sourcePosition.y)
     };
   }
@@ -313,7 +314,7 @@ export function buildWorkflowInsertedNodePosition(
   const direction = branchIndex % 2 === 1 ? 1 : -1;
 
   return {
-    x: Math.round(sourcePosition.x + 280),
+    x: Math.round(sourcePosition.x + WORKFLOW_NODE_HORIZONTAL_SPACING),
     y: Math.round(sourcePosition.y + verticalLane * direction)
   };
 }
@@ -323,13 +324,15 @@ export function insertNodeIntoCanvasGraph({
   nodes,
   edges,
   type,
-  sourceNodeId
+  sourceNodeId,
+  sourceEdgeId
 }: {
   nodeCatalog: WorkflowNodeCatalogItem[];
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   edges: Array<Edge<WorkflowCanvasEdgeData>>;
   type: string;
   sourceNodeId?: string | null;
+  sourceEdgeId?: string | null;
 }) {
   const sourceNode = sourceNodeId
     ? nodes.find((item) => item.id === sourceNodeId) ?? null
@@ -337,10 +340,17 @@ export function insertNodeIntoCanvasGraph({
   const outgoingEdges = sourceNode
     ? edges.filter((edge) => edge.source === sourceNode.id)
     : [];
-  const inlineEdge =
-    sourceNode && outgoingEdges.length === 1 && isWorkflowControlEdge(outgoingEdges[0])
-      ? outgoingEdges[0]
+  const targetedInlineEdge =
+    sourceNode && sourceEdgeId
+      ? outgoingEdges.find(
+          (edge) => edge.id === sourceEdgeId && isWorkflowControlEdge(edge)
+        ) ?? null
       : null;
+  const inlineEdge =
+    targetedInlineEdge ??
+    (sourceNode && outgoingEdges.length === 1 && isWorkflowControlEdge(outgoingEdges[0])
+      ? outgoingEdges[0]
+      : null);
   const inlineTargetNode = inlineEdge
     ? nodes.find((item) => item.id === inlineEdge.target) ?? null
     : null;
@@ -363,9 +373,11 @@ export function insertNodeIntoCanvasGraph({
       : edge
   );
   const draft = createWorkflowNodeDraft(nodeCatalog, type, nodes.length + 1, {
-    anchorPosition: sourceNode
-      ? buildWorkflowInsertedNodePosition(sourceNode.position, outgoingEdgeCount)
-      : undefined
+    anchorPosition: inlineTargetNode
+      ? inlineTargetNode.position
+      : sourceNode
+        ? buildWorkflowInsertedNodePosition(sourceNode.position, outgoingEdgeCount)
+        : undefined
   });
   const hydratedDraftConfig = applyInsertedNodeConfigDefaults(draft.type, draft.config, sourceNode);
   const nextNode: Node<WorkflowCanvasNodeData> = {
@@ -392,7 +404,7 @@ export function insertNodeIntoCanvasGraph({
         ? {
             ...node,
             position: {
-              x: Math.round(node.position.x + 280),
+              x: Math.round(node.position.x + WORKFLOW_NODE_HORIZONTAL_SPACING),
               y: node.position.y
             }
           }
@@ -515,7 +527,7 @@ export function removeNodeFromCanvasGraph({
         ? {
             ...node,
             position: {
-              x: Math.round(node.position.x - 280),
+              x: Math.round(node.position.x - WORKFLOW_NODE_HORIZONTAL_SPACING),
               y: node.position.y
             }
           }

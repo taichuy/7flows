@@ -11,17 +11,23 @@ import type { WorkflowEditorMessageKind, WorkflowEditorMessageTone } from "./sha
 const SIDEBAR_PREFERENCE_STORAGE_KEY = "sevenflows.editor.sidebarCollapsed";
 const INSPECTOR_PREFERENCE_STORAGE_KEY = "sevenflows.editor.inspectorCollapsed";
 const PANEL_PREFERENCE_VERSION_STORAGE_KEY = "sevenflows.editor.panelPreferenceVersion";
-const PANEL_PREFERENCE_VERSION = "phase42-canvas-default";
+const PANEL_PREFERENCE_VERSION = "phase49-fixed-rails-default";
+const DEFAULT_PANEL_COLLAPSED = false;
+const EMPTY_SERVER_VALIDATION_ISSUES: WorkflowDefinitionPreflightIssue[] = [];
 
 export function resolveWorkflowEditorPanelCollapsedPreference(
   storedValue: string | null,
   storedVersion: string | null = PANEL_PREFERENCE_VERSION
 ) {
   if (storedVersion !== PANEL_PREFERENCE_VERSION) {
-    return true;
+    return DEFAULT_PANEL_COLLAPSED;
   }
 
-  return storedValue !== "false";
+  if (storedValue === null) {
+    return DEFAULT_PANEL_COLLAPSED;
+  }
+
+  return storedValue === "true";
 }
 
 export type WorkflowEditorInspectorFocusState = {
@@ -83,10 +89,39 @@ export function resolveWorkflowEditorInspectorFocusState(
   };
 }
 
+export function areWorkflowDefinitionPreflightIssuesEqual(
+  left: WorkflowDefinitionPreflightIssue[] | null | undefined,
+  right: WorkflowDefinitionPreflightIssue[] | null | undefined
+) {
+  if (left === right) {
+    return true;
+  }
+
+  if (!left?.length && !right?.length) {
+    return true;
+  }
+
+  if (!left || !right || left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((issue, index) => {
+    const other = right[index];
+    return (
+      issue.category === other?.category &&
+      issue.message === other?.message &&
+      issue.path === other?.path &&
+      issue.field === other?.field
+    );
+  });
+}
+
 export function useWorkflowEditorShellState({
   persistedDefinitionSignature,
-  initialServerValidationIssues = []
+  initialServerValidationIssues = EMPTY_SERVER_VALIDATION_ISSUES
 }: UseWorkflowEditorShellStateOptions) {
+  const normalizedInitialServerValidationIssues =
+    initialServerValidationIssues ?? EMPTY_SERVER_VALIDATION_ISSUES;
   const [message, setMessage] = useState<string | null>(null);
   const [messageTone, setMessageTone] = useState<WorkflowEditorMessageTone>("idle");
   const [messageKind, setMessageKind] = useState<WorkflowEditorMessageKind>("default");
@@ -94,13 +129,13 @@ export function useWorkflowEditorShellState({
     useState<WorkspaceStarterTemplateItem | null>(null);
   const [serverValidationIssues, setServerValidationIssues] = useState<
     WorkflowDefinitionPreflightIssue[]
-  >(initialServerValidationIssues ?? []);
+  >(normalizedInitialServerValidationIssues);
   const [serverValidationIssueSourceSignature, setServerValidationIssueSourceSignature] =
     useState<string>(persistedDefinitionSignature);
   const [validationFocusItem, setValidationFocusItem] =
     useState<WorkflowValidationNavigatorItem | null>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
-  const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(DEFAULT_PANEL_COLLAPSED);
+  const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(DEFAULT_PANEL_COLLAPSED);
   const [assistantRequestSerial, setAssistantRequestSerial] = useState(0);
   const [hasLoadedPanelPreferences, setHasLoadedPanelPreferences] = useState(false);
 
@@ -158,9 +193,18 @@ export function useWorkflowEditorShellState({
   }, [message, messageKind, messageTone]);
 
   useEffect(() => {
-    setServerValidationIssues(initialServerValidationIssues ?? []);
-    setServerValidationIssueSourceSignature(persistedDefinitionSignature);
-  }, [initialServerValidationIssues, persistedDefinitionSignature]);
+    setServerValidationIssues((current) =>
+      areWorkflowDefinitionPreflightIssuesEqual(
+        current,
+        normalizedInitialServerValidationIssues
+      )
+        ? current
+        : normalizedInitialServerValidationIssues
+    );
+    setServerValidationIssueSourceSignature((current) =>
+      current === persistedDefinitionSignature ? current : persistedDefinitionSignature
+    );
+  }, [normalizedInitialServerValidationIssues, persistedDefinitionSignature]);
 
   const toggleSidebar = useCallback(() => {
     setIsSidebarCollapsed((current) => !current);

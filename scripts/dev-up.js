@@ -40,7 +40,7 @@ let composeCommand = null;
 let webMode = 'dev';
 
 function usage() {
-  process.stdout.write(`用法：node scripts/dev-up.js [选项] [start|stop|pause|status]
+  process.stdout.write(`用法：node scripts/dev-up.js [选项] [start|ensure|stop|pause|status]
 
 默认动作：start
 
@@ -60,6 +60,7 @@ function usage() {
   node scripts/dev-up.js start --skip-install
   node scripts/dev-up.js start --web-mode=build --skip-install
   node scripts/dev-up.js start --local-only --skip-install
+  node scripts/dev-up.js ensure --local-only --skip-install
   node scripts/dev-up.js status --local-only
   node scripts/dev-up.js status
   node scripts/dev-up.js pause
@@ -540,6 +541,34 @@ function cleanupStalePid(pidFile) {
   }
 }
 
+function isServiceRunning(serviceName) {
+  const pidFile = pidFileFor(serviceName);
+  cleanupStalePid(pidFile);
+  return isPidRunning(pidFile);
+}
+
+function collectMissingManagedServices() {
+  const missingServices = [];
+
+  if (!isServiceRunning('api')) {
+    missingServices.push('api');
+  }
+
+  if (startWorker && !isServiceRunning('worker')) {
+    missingServices.push('worker');
+  }
+
+  if (startBeat && !isServiceRunning('beat')) {
+    missingServices.push('beat');
+  }
+
+  if (!isServiceRunning('web')) {
+    missingServices.push('web');
+  }
+
+  return missingServices;
+}
+
 function sleepSync(milliseconds) {
   if (!Number.isFinite(milliseconds) || milliseconds <= 0) {
     return;
@@ -985,15 +1014,7 @@ function archiveLogs() {
   }
 }
 
-async function startAll() {
-  log('正在准备启动环境...');
-  stopWebProcess();
-  stopBackgroundProcess('beat');
-  stopBackgroundProcess('worker');
-  stopBackgroundProcess('api');
-
-  archiveLogs();
-
+async function prepareStartEnvironment() {
   requireCommand('uv');
   requireCommand('corepack');
   if (manageDockerMiddleware) {
@@ -1003,12 +1024,26 @@ async function startAll() {
 
   prepareEnvFiles();
   ensureDependencies();
+  getWebCommand();
   if (manageDockerMiddleware) {
     startMiddleware();
   } else {
     log('按本地模式跳过 Docker 中间件启动');
   }
   await ensureCoreDependenciesReachable();
+}
+
+async function startAll() {
+  log('正在准备启动环境...');
+  await prepareStartEnvironment();
+
+  stopWebProcess();
+  stopBackgroundProcess('beat');
+  stopBackgroundProcess('worker');
+  stopBackgroundProcess('api');
+
+  archiveLogs();
+
   runMigrations();
 
   startBackgroundProcess('api', API_DIR, 'uv', [
@@ -1050,6 +1085,7 @@ async function startAll() {
   const sharedArgs = [manageDockerMiddleware ? null : '--local-only', webMode === 'build' ? '--web-mode=build' : null]
     .filter(Boolean)
     .join(' ');
+  const ensureCommand = `node scripts/dev-up.js ensure${sharedArgs ? ` ${sharedArgs}` : ''}`;
   const statusCommand = `node scripts/dev-up.js status${sharedArgs ? ` ${sharedArgs}` : ''}`;
   const pauseCommand = `node scripts/dev-pause.js${sharedArgs ? ` ${sharedArgs}` : ''}`;
   const stopCommand = `node scripts/dev-up.js stop${sharedArgs ? ` ${sharedArgs}` : ''}`;
@@ -1061,10 +1097,65 @@ async function startAll() {
 - 日志: tmp/logs/
 
 常用命令：
+- 修复缺失：${ensureCommand}
 - 查看状态：${statusCommand}
 - 暂停全部：${pauseCommand}
 - 停止全部：${stopCommand}
 `);
+}
+
+async function ensureAll() {
+  const missingServices = collectMissingManagedServices();
+  if (missingServices.length === 0) {
+    log('全部受管服务均在运行，无需补启动');
+    return;
+  }
+
+  log(`发现缺失服务：${missingServices.join(', ')}`);
+  await prepareStartEnvironment();
+  runMigrations();
+
+  if (missingServices.includes('api')) {
+    startBackgroundProcess('api', API_DIR, 'uv', [
+      'run',
+      'uvicorn',
+      'app.main:app',
+      '--reload',
+      '--host',
+      '0.0.0.0',
+      '--port',
+      '8000',
+    ]);
+  }
+  if (startWorker && missingServices.includes('worker')) {
+    startBackgroundProcess('worker', API_DIR, 'uv', [
+      'run',
+      'celery',
+      '-A',
+      'app.core.celery_app.celery_app',
+      'worker',
+      '--loglevel',
+      'INFO',
+      '--pool',
+      'solo',
+    ]);
+  }
+  if (startBeat && missingServices.includes('beat')) {
+    startBackgroundProcess('beat', API_DIR, 'uv', [
+      'run',
+      'celery',
+      '-A',
+      'app.core.celery_app.celery_app',
+      'beat',
+      '--loglevel',
+      'INFO',
+    ]);
+  }
+  if (missingServices.includes('web')) {
+    await startWebProcess();
+  }
+
+  log(`已补启动服务：${missingServices.join(', ')}`);
 }
 
 function stopAll() {
@@ -1137,6 +1228,7 @@ function parseArgs(args) {
 
     switch (currentArg) {
       case 'start':
+      case 'ensure':
       case 'stop':
       case 'pause':
       case 'status':
@@ -1190,6 +1282,9 @@ async function main() {
     switch (action) {
       case 'start':
         await startAll();
+        break;
+      case 'ensure':
+        await ensureAll();
         break;
       case 'stop':
       case 'pause':

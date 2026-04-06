@@ -10,6 +10,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   type Edge,
+  type EdgeTypes,
   type Node,
   type ReactFlowInstance,
   type NodeTypes,
@@ -37,16 +38,19 @@ export type WorkflowEditorCanvasProps = {
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   edges: Array<Edge<WorkflowCanvasEdgeData>>;
   nodeTypes: NodeTypes;
+  edgeTypes?: EdgeTypes;
   onNodesChange: OnNodesChange<Node<WorkflowCanvasNodeData>>;
   onEdgesChange: OnEdgesChange<Edge<WorkflowCanvasEdgeData>>;
   onConnect: OnConnect;
   onSelectionChange: (params: OnSelectionChangeParams) => void;
   isSidebarOpen: boolean;
   isInspectorOpen: boolean;
-  hasSelection: boolean;
   hasNodeAssistant: boolean;
+  canOpenInspector: boolean;
   canUndo: boolean;
   canRedo: boolean;
+  inspectorActionLabel?: string;
+  onNodeClick: (nodeId: string) => void;
   onToggleSidebar: () => void;
   onToggleInspector: () => void;
   onOpenAssistant: () => void;
@@ -54,22 +58,25 @@ export type WorkflowEditorCanvasProps = {
   onRedo: () => void;
 };
 
-const FIT_VIEW_OPTIONS = { padding: 0.16, duration: 240 };
+const FIT_VIEW_OPTIONS = { padding: 0.2, duration: 240 };
 
 export function WorkflowEditorCanvas({
   nodes,
   edges,
   nodeTypes,
+  edgeTypes,
   onNodesChange,
   onEdgesChange,
   onConnect,
   onSelectionChange,
   isSidebarOpen,
   isInspectorOpen,
-  hasSelection,
   hasNodeAssistant,
+  canOpenInspector,
   canUndo,
   canRedo,
+  inspectorActionLabel = "配置面板",
+  onNodeClick,
   onToggleSidebar,
   onToggleInspector,
   onOpenAssistant,
@@ -81,8 +88,6 @@ export function WorkflowEditorCanvas({
     useState<
       ReactFlowInstance<Node<WorkflowCanvasNodeData>, Edge<WorkflowCanvasEdgeData>> | null
     >(null);
-  const inspectorActionLabel = hasSelection ? "属性抽屉" : "应用配置";
-
   return (
     <ReactFlowProvider>
       <section className="editor-canvas-panel" data-component="workflow-editor-canvas">
@@ -93,10 +98,12 @@ export function WorkflowEditorCanvas({
             nodes={nodes}
             edges={edges}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onSelectionChange={onSelectionChange}
+            onNodeClick={(_event, node) => onNodeClick(node.id)}
             onInit={(instance) => setReactFlowInstance(instance)}
             deleteKeyCode={["Delete", "Backspace"]}
             onlyRenderVisibleElements
@@ -142,15 +149,17 @@ export function WorkflowEditorCanvas({
                 >
                   节点目录
                 </Button>
-                <Button
-                  type={isInspectorOpen ? "primary" : "default"}
-                  icon={<EditOutlined />}
-                  className="workflow-editor-action-strip-button"
-                  data-action="inspector"
-                  onClick={onToggleInspector}
-                >
-                  {inspectorActionLabel}
-                </Button>
+                {canOpenInspector ? (
+                  <Button
+                    type={isInspectorOpen ? "primary" : "default"}
+                    icon={<EditOutlined />}
+                    className="workflow-editor-action-strip-button"
+                    data-action="inspector"
+                    onClick={onToggleInspector}
+                  >
+                    {inspectorActionLabel}
+                  </Button>
+                ) : null}
                 {hasNodeAssistant ? (
                   <Button
                     icon={<RobotOutlined />}
@@ -183,10 +192,6 @@ export function WorkflowEditorCanvas({
                   {isMiniMapVisible ? "隐藏地图" : "显示地图"}
                 </Button>
               </Space>
-            </Panel>
-            <Panel className="workflow-canvas-helper-panel" position="top-left">
-              <strong>xyflow Studio</strong>
-              <span>选中节点后可插入下一节点；撤销 / 重做会回放整份 workflow 草稿。</span>
             </Panel>
             <Background gap={24} size={1} />
             {isMiniMapVisible ? (

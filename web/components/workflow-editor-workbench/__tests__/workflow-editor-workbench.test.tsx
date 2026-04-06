@@ -17,6 +17,15 @@ const mocks = vi.hoisted(() => ({
   useWorkflowEditorPanels: vi.fn(),
 }));
 
+vi.mock("next/link", () => ({
+  default: ({
+    children,
+    href,
+    ...props
+  }: { children: React.ReactNode; href?: string } & Record<string, unknown>) =>
+    createElement("a", { href: href ?? "#", ...props }, children),
+}));
+
 vi.mock("next/dynamic", async () => {
   const canvasModule = await vi.importActual<
     typeof import("@/components/workflow-editor-workbench/workflow-editor-canvas")
@@ -30,25 +39,6 @@ vi.mock("next/dynamic", async () => {
       }
       return () => null;
     },
-  };
-});
-
-vi.mock("antd", async () => {
-  const actual = await vi.importActual<typeof import("antd")>("antd");
-  return {
-    ...actual,
-    Drawer: ({ open, placement, children, className }: Record<string, unknown>) =>
-      createElement(
-        "div",
-        {
-          className,
-          "data-component": placement === "left"
-            ? "workflow-editor-sidebar-drawer-shell"
-            : "workflow-editor-inspector-drawer-shell",
-          "data-open": open ? "true" : "false",
-        },
-        children as React.ReactNode,
-      ),
   };
 });
 
@@ -97,6 +87,11 @@ vi.mock("@/components/workflow-editor-workbench/persist-blockers", () => ({
 vi.mock("@/components/workflow-editor-workbench/workflow-canvas-node", () => ({
   WorkflowCanvasNode: () => createElement("div", { "data-component": "workflow-canvas-node" }, "node"),
   applyRunOverlayToNodes: <T,>(nodes: T[]) => nodes,
+  nodeColorByType: () => "#1f5ed5"
+}));
+
+vi.mock("@/components/workflow-editor-workbench/workflow-canvas-edge", () => ({
+  WorkflowCanvasEdge: () => createElement("div", { "data-component": "workflow-canvas-edge" }, "edge")
 }));
 
 vi.mock("@/components/workflow-editor-workbench/use-workflow-editor-shell-state", () => ({
@@ -174,9 +169,9 @@ function buildShellState(overrides: Record<string, unknown> = {}) {
     setServerValidationIssueSourceSignature: () => undefined,
     validationFocusItem: null,
     setValidationFocusItem: () => undefined,
-    isSidebarCollapsed: true,
+    isSidebarCollapsed: false,
     setIsSidebarCollapsed: () => undefined,
-    isInspectorCollapsed: true,
+    isInspectorCollapsed: false,
     setIsInspectorCollapsed: () => undefined,
     assistantRequestSerial: 0,
     toggleSidebar: () => undefined,
@@ -306,7 +301,7 @@ function renderWorkbench() {
       createWorkflowHref: "/workflows/new",
       workspaceStarterLibraryHref: "/workspace-starters",
       hasScopedWorkspaceStarterFilters: false,
-      workspaceStarterGovernanceQueryScope: null,
+      workspaceStarterGovernanceQueryScope: null
     }),
   );
 }
@@ -340,7 +335,7 @@ beforeEach(() => {
 });
 
 describe("WorkflowEditorWorkbench", () => {
-  it("renders canvas action strip and overlay drawers instead of permanent side rails", () => {
+  it("renders canvas-first overlay rails above the workbench", () => {
     mocks.useWorkflowEditorShellState.mockReturnValue(
       buildShellState({
         isSidebarCollapsed: false,
@@ -350,6 +345,13 @@ describe("WorkflowEditorWorkbench", () => {
     mocks.useWorkflowEditorGraph.mockReturnValue(
       buildGraphState({
         selectedNodeId: "node-1",
+        selectedNode: {
+          id: "node-1",
+          data: {
+            label: "LLM Agent",
+            nodeType: "llm_agent"
+          }
+        },
         canUndo: true,
         canRedo: true,
       }),
@@ -365,31 +367,82 @@ describe("WorkflowEditorWorkbench", () => {
     expect(html).toContain('data-action="assistant"');
     expect(html).toContain('data-action="fit-view"');
     expect(html).toContain('data-action="minimap"');
-    expect(html).toContain("撤销");
-    expect(html).toContain("重做");
+    expect(html).toContain("撤 销");
+    expect(html).toContain("重 做");
     expect(html).toContain("节点目录");
-    expect(html).toContain("属性抽屉");
+    expect(html).toContain("节点配置");
     expect(html).toContain("AI 辅助");
     expect((html.match(/data-command-enabled="true"/g) ?? []).length).toBe(2);
-    expect(html).toContain('data-component="workflow-editor-sidebar-drawer-shell"');
-    expect(html).toContain('data-component="workflow-editor-inspector-drawer-shell"');
+    expect(html).toContain('data-component="workflow-editor-sidebar-rail"');
+    expect(html).toContain('data-layout="canvas-overlay"');
     expect(html).toContain('data-open="true"');
-    expect(html).toContain('data-component="workflow-editor-sidebar-drawer"');
-    expect(html).toContain('data-component="workflow-editor-inspector-drawer"');
-    expect(html).not.toContain("<aside class=\"editor-inspector\"");
+    expect(html).toContain('data-component="workflow-editor-canvas-stage"');
+    expect(html).toContain('data-component="workflow-editor-sidebar"');
+    expect(html).toContain('data-component="workflow-editor-floating-panel"');
+    expect(html).toContain('data-panel-kind="node-config"');
+    expect(html).toContain('data-component="workflow-editor-floating-panel-header"');
+    expect(html).not.toContain("NODE WORKBENCH");
+    expect(html.indexOf('data-component="workflow-editor-canvas-stage"')).toBeLessThan(
+      html.indexOf('data-component="workflow-editor-sidebar-rail"')
+    );
+    expect(html).not.toContain("drawer-shell");
   });
 
-  it("falls back to workflow-level inspector entry when nothing is selected", () => {
+  it("removes the default workflow-level inspector rail when nothing is selected", () => {
     const html = renderWorkbench();
 
     expect(html).toContain('data-component="workflow-editor-action-strip"');
     expect(html).toContain('data-action="undo"');
     expect(html).toContain('data-action="redo"');
     expect((html.match(/data-command-enabled="false"/g) ?? []).length).toBe(2);
-    expect(html).toContain("应用配置");
+    expect(html).not.toContain('data-action="inspector"');
+    expect(html).not.toContain("应用配置");
     expect(html).not.toContain("AI 辅助");
-    expect(html).toContain('data-component="workflow-editor-sidebar-drawer-shell"');
-    expect(html).toContain('data-component="workflow-editor-inspector-drawer-shell"');
-    expect(html).toContain('data-open="false"');
+    expect(html).toContain('data-component="workflow-editor-sidebar-rail"');
+    expect(html).not.toContain('data-component="workflow-editor-inspector-rail"');
+    expect((html.match(/data-open="true"/g) ?? []).length).toBe(1);
+    expect(html).not.toContain('data-component="workflow-editor-floating-panel"');
+  });
+
+  it("collapses rails without removing the central canvas stage", () => {
+    mocks.useWorkflowEditorShellState.mockReturnValue(
+      buildShellState({
+        isSidebarCollapsed: true,
+        isInspectorCollapsed: true,
+      }),
+    );
+
+    const html = renderWorkbench();
+
+    expect(html).toContain('data-component="workflow-editor-sidebar-rail"');
+    expect(html).not.toContain('data-component="workflow-editor-inspector-rail"');
+    expect((html.match(/data-open="false"/g) ?? []).length).toBe(1);
+    expect(html).toContain('data-component="workflow-editor-canvas-stage"');
+    expect(html).toContain('data-component="workflow-editor-sidebar-collapsed-shell"');
+    expect(html).toContain('data-action="expand-sidebar"');
+  });
+
+  it("opens a closable node config modal when a node is already selected", () => {
+    mocks.useWorkflowEditorGraph.mockReturnValue(
+      buildGraphState({
+        selectedNodeId: "node-1",
+        selectedNode: {
+          id: "node-1",
+          data: {
+            label: "LLM Agent",
+            nodeType: "llm_agent"
+          }
+        }
+      })
+    );
+
+    const html = renderWorkbench();
+
+    expect(html).toContain('data-component="workflow-editor-floating-panel"');
+    expect(html).toContain('data-panel-kind="node-config"');
+    expect(html).toContain('data-component="workflow-editor-node-config-workbench-body"');
+    expect(html).toContain('data-action="close-floating-inspector"');
+    expect(html).toContain('data-component="workflow-editor-inspector"');
+    expect(html).not.toContain('data-component="workflow-editor-inspector-rail"');
   });
 });

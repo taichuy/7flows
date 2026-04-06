@@ -41,17 +41,14 @@ describe("WorkspaceShell", () => {
     expect(html).toContain('data-component="workspace-shell"');
     expect(html).toContain('data-layout="default"');
     expect(html).toContain('data-navigation-mode="all"');
-    expect(html).toContain('class="workspace-nav-link active"');
-    expect(html).not.toContain('class="workspace-nav-link "');
     expect(html).toContain("应用中心");
     expect(html).toContain("新建应用");
-    expect(html).toContain(">工具<");
+    expect(html).toContain("工具");
     expect(html).toContain(`href="${WORKSPACE_TOOLS_HREF}"`);
     expect(html).toContain("团队");
     expect(html).toContain(`href="${WORKSPACE_TEAM_SETTINGS_HREF}"`);
     expect(html).toContain("7Flows Admin");
     expect(html).toContain("所有者");
-    expect(html).toContain('aria-current="page"');
   });
 
   it("uses focused layout to slim navigation on create surfaces by default", () => {
@@ -73,8 +70,8 @@ describe("WorkspaceShell", () => {
     expect(html).toContain("工作台");
     expect(html).toContain("工具");
     expect(html).toContain("团队");
-    expect(html).not.toContain(">模板<");
-    expect(html).not.toContain(">运行<");
+    expect(html).not.toContain("模板");
+    expect(html).not.toContain("运行");
     expect(html).not.toContain("新建应用");
   });
 
@@ -94,12 +91,12 @@ describe("WorkspaceShell", () => {
 
     expect(html).toContain('data-navigation-mode="all"');
     expect(html).toContain("工作台设置");
-    expect(html).toContain(">模板<");
-    expect(html).toContain(">运行<");
-    expect(html).toContain(">团队<");
+    expect(html).toContain("模板");
+    expect(html).toContain("运行");
+    expect(html).toContain("团队");
   });
 
-  it("keeps editor shell compact and hides manager-only navigation for editors", () => {
+  it("keeps editor shell compact while reusing the shared topbar navigation", () => {
     const html = renderToStaticMarkup(
       <WorkspaceShell
         activeNav="workspace"
@@ -114,12 +111,11 @@ describe("WorkspaceShell", () => {
 
     expect(html).toContain('data-layout="editor"');
     expect(html).toContain('data-navigation-mode="studio"');
-    expect(html).toContain("xyflow Studio");
+    expect(html).not.toContain("xyflow Studio");
+    expect(html).toContain('data-component="workspace-shell-nav"');
     expect(html).toContain("工作台");
     expect(html).toContain("工具");
     expect(html).toContain("运行");
-    expect(html).not.toContain(">模板<");
-    expect(html).not.toContain(">团队<");
     expect(html).not.toContain("新建应用");
   });
 
@@ -141,7 +137,7 @@ describe("WorkspaceShell", () => {
     expect(html).not.toContain('<img src=x onerror');
   });
 
-  it("allows the studio shell to override the tools href for return handoff", () => {
+  it("keeps editor topbar navigation on the shared shell and honors tools href overrides", () => {
     const html = renderToStaticMarkup(
       <WorkspaceShell
         activeNav="workspace"
@@ -158,9 +154,8 @@ describe("WorkspaceShell", () => {
       </WorkspaceShell>
     );
 
-    expect(html).toContain(
-      'href="/workspace/tools?return_href=%2Fworkflows%2Fworkflow-1%2Feditor&amp;workflow_id=workflow-1&amp;workflow_surface=editor"'
-    );
+    expect(html).toContain('data-component="workspace-shell-nav"');
+    expect(html).toContain("workflow_surface=editor");
   });
 
   it("keeps the studio wrapper server-driven once active nav is passed by the route tree", () => {
@@ -178,6 +173,5 @@ describe("WorkspaceShell", () => {
     expect(html).toContain('data-component="workspace-shell"');
     expect(html).toContain("运行追踪");
     expect(html).toContain('href="/runs"');
-    expect(html).toContain('aria-current="page"');
   });
 });

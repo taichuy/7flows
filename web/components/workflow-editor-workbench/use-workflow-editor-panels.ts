@@ -119,6 +119,12 @@ export function useWorkflowEditorPanels({
     currentHref: currentEditorHref,
     workflowId: workflow.id,
     workflowName: graph.workflowName,
+    workflowVersion: graph.workflowVersion,
+    workflowStageLabel:
+      typeof workflow.publish_count === "number" && workflow.publish_count > 0
+        ? "publish ready"
+        : "draft only",
+    workflowLibraryHref,
     workflows,
     nodeSourceLanes,
     toolSourceLanes,
@@ -165,6 +171,7 @@ export function useWorkflowEditorPanels({
     hasScopedWorkspaceStarterFilters,
     isLoadingRunOverlay: runOverlay.isLoadingRunOverlay,
     isRefreshingRuns: runOverlay.isRefreshingRuns,
+    onCollapse: shell.toggleSidebar,
     onActiveTabChange: (tabKey) => {
       if (tabKey === "3") {
         onActivateRunOverlay();
