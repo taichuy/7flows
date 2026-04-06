@@ -436,9 +436,8 @@ export const getServerPublicAuthOptions = cache(async (): Promise<PublicAuthOpti
   return fetchPublicAuthOptions();
 });
 
-export async function getServerWorkflowDetail(
-  workflowId: string | null | undefined
-): Promise<WorkflowDetail | null> {
+export const getServerWorkflowDetail = cache(
+  async (workflowId: string | null | undefined): Promise<WorkflowDetail | null> => {
   const normalizedWorkflowId = workflowId?.trim();
   if (!normalizedWorkflowId) {
     return null;
@@ -455,6 +454,7 @@ export async function getServerWorkflowDetail(
     session
   );
 }
+);
 
 export async function getServerWorkflowPublishedEndpoints(
   workflowId: string | null | undefined,

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import WorkflowApiPage from "@/app/workflows/[workflowId]/api/page";
 import WorkflowDetailCompatPage from "@/app/workflows/[workflowId]/page";
 import WorkflowEditorPage from "@/app/workflows/[workflowId]/editor/page";
+import WorkflowDetailLayout from "@/app/workflows/[workflowId]/layout";
 import WorkflowLogsPage from "@/app/workflows/[workflowId]/logs/page";
 import WorkflowMonitorPage from "@/app/workflows/[workflowId]/monitor/page";
 import WorkflowPublishPage from "@/app/workflows/[workflowId]/publish/page";
@@ -36,10 +37,15 @@ import type { WorkspaceContextResponse } from "@/lib/workspace-access";
 
 Object.assign(globalThis, { React });
 
+let selectedLayoutSegment: string | null = "editor";
+let activeSearchParams = new URLSearchParams();
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     refresh: vi.fn()
   }),
+  useSearchParams: () => activeSearchParams,
+  useSelectedLayoutSegment: () => selectedLayoutSegment,
   redirect: (href: string) => {
     throw new Error(`redirect:${href}`);
   },
@@ -578,6 +584,8 @@ function buildEvidenceView(runId: string, overrides: Record<string, unknown> = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  selectedLayoutSegment = "editor";
+  activeSearchParams = new URLSearchParams();
   vi.mocked(loadWorkflowEditorWorkbenchBootstrap).mockResolvedValue({
     workflows: [
       {
@@ -799,11 +807,6 @@ describe("Workflow studio routes", () => {
       })
     );
 
-    expect(html).toContain('data-component="workspace-shell"');
-    expect(html).toContain('data-active-nav="workspace"');
-    expect(html).toContain('data-layout="editor"');
-    expect(html).toContain('data-component="workflow-studio-shell"');
-    expect(html).toContain('data-surface-layout="canvas-overlay"');
     expect(html).toContain('data-component="workflow-editor-workbench-entry"');
     expect(html).toContain('data-has-initial-bootstrap="true"');
     expect(html).toContain('data-bootstrap-workflows-count="2"');
@@ -813,12 +816,6 @@ describe("Workflow studio routes", () => {
     expect(html).toContain('data-workflow-id="workflow-1"');
     expect(html).toContain('data-bootstrap-workflow-id="workflow-1"');
     expect(html).toContain('data-bootstrap-surface="editor"');
-    expect(html).toContain('data-component="workflow-studio-rail"');
-    expect(html).toContain("画布编排");
-    expect(html).not.toContain('data-component="workflow-studio-editor-toolbar"');
-    expect(html).toContain(
-      'data-tools-href="/workspace/tools?return_href=%2Fworkflows%2Fworkflow-1%2Feditor&amp;workflow_id=workflow-1&amp;workflow_surface=editor"'
-    );
     expect(html).not.toContain("?surface=");
     expect(vi.mocked(loadWorkflowEditorWorkbenchBootstrap)).toHaveBeenCalledWith({
       workflowId: "workflow-1",
@@ -845,13 +842,6 @@ describe("Workflow studio routes", () => {
     expect(html).toContain('data-component="workflow-publish-panel"');
     expect(html).toContain('data-expanded-binding-id="none"');
     expect(html).not.toContain('data-component="workflow-editor-workbench"');
-    expect(html).toContain(
-      'data-tools-href="/workspace/tools?return_href=%2Fworkflows%2Fworkflow-1%2Fpublish&amp;workflow_id=workflow-1&amp;workflow_surface=publish"'
-    );
-    expect(html).toContain("Workflow 1");
-    expect(html).toContain("当前应用的编排、发布与运行入口。");
-    expect(html).toContain("/workflows/workflow-1/editor");
-    expect(html).toContain("/workflows/workflow-1/publish");
     expect(vi.mocked(getServerWorkflowPublishedEndpoints)).toHaveBeenCalledWith("workflow-1", {
       includeAllVersions: true
     });
@@ -929,7 +919,6 @@ describe("Workflow studio routes", () => {
       })
     );
 
-    expect(html).toContain('data-component="workspace-shell"');
     expect(html).toContain('data-component="workflow-api-surface"');
     expect(html).toContain('data-component="workflow-api-binding-doc"');
     expect(html).toContain('data-component="workflow-api-onboarding"');
@@ -951,6 +940,46 @@ describe("Workflow studio routes", () => {
       includeAllVersions: true
     });
     expect(vi.mocked(getWorkflowPublishGovernanceSnapshot)).not.toHaveBeenCalled();
+  });
+
+  it("renders the shared workflow studio shell in layout and scopes menu hrefs to the current segment", async () => {
+    selectedLayoutSegment = "publish";
+    activeSearchParams = new URLSearchParams(
+      "definition_issue=missing_tool&publish_binding=binding-1&track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"
+    );
+
+    const html = renderToStaticMarkup(
+      await WorkflowDetailLayout({
+        children: createElement("div", { "data-component": "layout-child" }, "child"),
+        params: Promise.resolve({ workflowId: "workflow-1" })
+      })
+    );
+
+    expect(html).toContain('data-component="workspace-shell"');
+    expect(html).toContain('data-active-nav="workspace"');
+    expect(html).toContain('data-layout="editor"');
+    expect(html).toContain('data-component="workflow-studio-shell"');
+    expect(html).toContain('data-surface-layout="rail"');
+    expect(html).toContain('data-component="workflow-studio-rail"');
+    expect(html).toContain("当前应用的编排、发布与运行入口。");
+    expect(html).toContain("画布编排");
+    expect(html).toContain("访问 API");
+    expect(html).toContain("日志与标注");
+    expect(html).toContain("监测报表");
+    expect(html).toContain("发布治理");
+    expect(html).toContain('data-component="layout-child"');
+    expect(html).toContain(
+      'data-tools-href="/workspace/tools?return_href=%2Fworkflows%2Fworkflow-1%2Fpublish%3Fdefinition_issue%3Dmissing_tool%26publish_binding%3Dbinding-1%26track%3D%25E5%25BA%2594%25E7%2594%25A8%25E6%2596%25B0%25E5%25BB%25BA%25E7%25BC%2596%25E6%258E%2592&amp;workflow_id=workflow-1&amp;workflow_surface=publish"'
+    );
+    expect(html).toContain(
+      'href="/workflows/workflow-1/editor?track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool"'
+    );
+    expect(html).toContain(
+      'href="/workflows/workflow-1/publish?track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92&amp;definition_issue=missing_tool"'
+    );
+    expect(html).toContain(
+      'href="/workflows/workflow-1/api?definition_issue=missing_tool&amp;publish_binding=binding-1&amp;track=%E5%BA%94%E7%94%A8%E6%96%B0%E5%BB%BA%E7%BC%96%E6%8E%92"'
+    );
   });
 
   it("renders the fresh sample receipt from api query-state without leaking it into the clear link", async () => {
