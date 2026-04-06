@@ -60,6 +60,7 @@ describe("WorkflowEditorInspector", () => {
   it("shows the shared save gate remediation summary inside inspector", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowEditorInspector, {
+        workflowId: "workflow-demo",
         selectedNode: null,
         selectedEdge: null,
         nodes: [],
@@ -119,6 +120,7 @@ describe("WorkflowEditorInspector", () => {
   it("hides duplicate save gate CTA inside inspector when hero already renders it", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowEditorInspector, {
+        workflowId: "workflow-demo",
         selectedNode: null,
         selectedEdge: null,
         nodes: [],
@@ -182,6 +184,7 @@ describe("WorkflowEditorInspector", () => {
   it("keeps node remediation handoff scoped to the current editor href", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowEditorInspector, {
+        workflowId: "workflow-demo",
         currentHref: "/workflows/workflow-1?pane=editor&starter=starter-1",
         selectedNode: {
           id: "search",

@@ -183,6 +183,7 @@ export function useWorkflowEditorPanels({
   };
 
   const inspectorProps: UseWorkflowEditorPanelsResult["inspectorProps"] = {
+    workflowId: workflow.id,
     currentHref: currentEditorHref,
     selectedNode: graph.selectedNode,
     selectedEdge: graph.selectedEdge,
@@ -224,7 +225,26 @@ export function useWorkflowEditorPanels({
     persistBlockers: validation.persistBlockers,
     persistBlockerRecommendedNextStep,
     assistantRequestSerial: shell.assistantRequestSerial,
-    sandboxReadiness
+    sandboxReadiness,
+    onRuntimeRunSuccess: (runId) => {
+      shell.setMessage("工作流已触发运行");
+      shell.setMessageTone("success");
+
+      if (shell.isSidebarCollapsed) {
+        shell.toggleSidebar();
+      }
+
+      if (runId) {
+        runOverlay.setSelectedRunId(runId);
+      }
+
+      onActivateRunOverlay();
+    },
+    onRuntimeRunError: (message) => {
+      shell.setMessage(message);
+      shell.setMessageTone("error");
+    },
+    onOpenRunOverlay: onActivateRunOverlay
   };
 
   const runLauncherSurfaceProps = {

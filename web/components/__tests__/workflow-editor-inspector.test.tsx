@@ -107,8 +107,33 @@ function buildSelectedNode(): Node<WorkflowCanvasNodeData> {
   } as Node<WorkflowCanvasNodeData>;
 }
 
+function buildTriggerNode(): Node<WorkflowCanvasNodeData> {
+  return {
+    id: "trigger",
+    position: { x: 0, y: 0 },
+    data: {
+      label: "Trigger",
+      nodeType: "trigger",
+      config: {},
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            title: "Query"
+          }
+        },
+        required: ["query"]
+      },
+      outputSchema: {}
+    },
+    type: "workflow"
+  } as Node<WorkflowCanvasNodeData>;
+}
+
 function buildProps() {
   return {
+    workflowId: "workflow-demo",
     currentHref: "/workflows/demo",
     selectedNode: null,
     selectedEdge: null,
@@ -156,15 +181,33 @@ describe("WorkflowEditorInspector", () => {
     expect(html).toContain("NODE CONFIG");
     expect(html).toContain("LLM Agent");
     expect(html).toContain("llm_agent");
-    expect(html).toContain("配置");
-    expect(html).toContain("I/O");
-    expect(html).toContain("运行");
+    expect(html).toContain("设置");
+    expect(html).toContain("运行时");
     expect(html).toContain("AI");
-    expect(html).toContain("JSON");
     expect(html).toContain('data-component="node-config-form"');
-    expect(html).not.toContain('data-component="node-io-schema-form"');
-    expect(html).not.toContain('data-component="node-runtime-policy-form"');
+    expect(html).toContain('data-component="node-io-schema-form"');
+    expect(html).toContain('data-component="node-runtime-policy-form"');
+    expect(html).toContain('data-component="workflow-editor-node-json-panel"');
     expect(html).not.toContain('data-component="workflow-editor-assistant-panel"');
+    expect(html).not.toContain('data-component="workflow-editor-node-runtime-panel"');
+  });
+
+  it("uses a dify-like settings/runtime structure for trigger nodes", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorInspector, {
+        ...buildProps(),
+        selectedNode: buildTriggerNode(),
+        nodes: [buildTriggerNode()]
+      })
+    );
+
+    expect(html).toContain("Trigger");
+    expect(html).toContain("设置");
+    expect(html).toContain("运行时");
+    expect(html).toContain("输入字段");
+    expect(html).toContain("应用输入字段");
+    expect(html).toContain("下一步");
+    expect(html).not.toContain("workflow-editor-assistant-panel");
   });
 
   it("falls back to workflow-level tabs when nothing is selected", () => {
@@ -221,8 +264,8 @@ describe("WorkflowEditorInspector", () => {
     );
 
     expect(schemaHtml).toContain('data-component="node-io-schema-form"');
-    expect(schemaHtml).not.toContain('data-component="node-runtime-policy-form"');
+    expect(schemaHtml).toContain('data-component="node-runtime-policy-form"');
     expect(runtimeHtml).toContain('data-component="node-runtime-policy-form"');
-    expect(runtimeHtml).not.toContain('data-component="node-io-schema-form"');
+    expect(runtimeHtml).toContain('data-component="node-io-schema-form"');
   });
 });

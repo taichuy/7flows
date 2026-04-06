@@ -113,16 +113,15 @@ export type WorkflowEditorSidebarProps = {
 
 export type WorkflowEditorInspectorTabKey =
   | "node-config"
-  | "node-schema"
   | "node-runtime"
   | "node-assistant"
-  | "node-json"
   | "edge-config"
   | "workflow-overview"
   | "workflow-variables"
   | "workflow-publish";
 
 export type WorkflowEditorInspectorProps = {
+  workflowId: string;
   currentHref?: string | null;
   selectedNode: Node<WorkflowCanvasNodeData> | null;
   selectedEdge: Edge<WorkflowCanvasEdgeData> | null;
@@ -173,6 +172,9 @@ export type WorkflowEditorInspectorProps = {
   persistBlockerRecommendedNextStep?: OperatorRecommendedNextStep | null;
   assistantRequestSerial?: number;
   sandboxReadiness?: SandboxReadinessCheck | null;
+  onRuntimeRunSuccess?: (runId?: string | null) => void;
+  onRuntimeRunError?: (message: string) => void;
+  onOpenRunOverlay?: () => void;
 };
 
 export type WorkflowEditorWorkbenchProps = {

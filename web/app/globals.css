@@ -4107,6 +4107,152 @@ a {
   gap: 10px;
 }
 
+.workflow-editor-node-settings-panel {
+  gap: 0;
+}
+
+.workflow-editor-trigger-fields-section,
+.workflow-editor-runtime-form-card,
+.workflow-editor-runtime-summary-card {
+  display: grid;
+  gap: 16px;
+}
+
+.workflow-editor-trigger-fields-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.workflow-editor-trigger-fields-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #1f5ed5;
+}
+
+.workflow-editor-trigger-fields-list {
+  display: grid;
+  gap: 12px;
+}
+
+.workflow-editor-trigger-field-card,
+.workflow-editor-runtime-summary-card {
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #fafbfd;
+}
+
+.workflow-editor-trigger-field-main-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1.4fr) 140px 112px auto;
+  align-items: center;
+}
+
+.workflow-editor-trigger-field-detail-row {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workflow-editor-trigger-field-required {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #dbe2ea;
+  border-radius: 10px;
+  background: #fff;
+  color: #475467;
+  font-size: 0.84rem;
+}
+
+.workflow-editor-trigger-fields-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.workflow-editor-trigger-empty {
+  padding: 16px;
+  border: 1px dashed #d0d7e2;
+  border-radius: 14px;
+  background: #fafbfd;
+}
+
+.workflow-editor-trigger-next-step {
+  display: grid;
+  gap: 10px;
+}
+
+.workflow-editor-trigger-next-step-list {
+  display: grid;
+  gap: 8px;
+}
+
+.workflow-editor-trigger-next-step-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.workflow-editor-trigger-next-step-node {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #eff4ff;
+  color: #1f5ed5;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.workflow-editor-trigger-next-step-arrow {
+  color: #98a2b3;
+}
+
+.workflow-editor-runtime-summary-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workflow-editor-runtime-summary-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.workflow-editor-runtime-summary-item span {
+  font-size: 0.78rem;
+  color: #667085;
+}
+
+.workflow-editor-runtime-summary-item strong {
+  font-size: 0.94rem;
+  color: #111827;
+}
+
+.workflow-editor-runtime-form .ant-form-item {
+  margin-bottom: 16px;
+}
+
 .workflow-editor-inspector-empty-state {
   display: grid;
   gap: 16px;
@@ -4129,6 +4275,15 @@ a {
   background: #f8faff;
   color: #526079;
   font-size: 0.78rem;
+}
+
+@media (max-width: 680px) {
+  .workflow-editor-trigger-fields-header,
+  .workflow-editor-trigger-field-main-row,
+  .workflow-editor-trigger-field-detail-row,
+  .workflow-editor-runtime-summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .workflow-editor-assistant-hero {

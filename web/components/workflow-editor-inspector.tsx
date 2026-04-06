@@ -1,33 +1,17 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import React, { useEffect, useMemo, useState } from "react";
-import type { Edge, Node } from "@xyflow/react";
+import { useEffect, useMemo, useState } from "react";
 import { Typography, Tabs, Input, Button, Space, Tag } from "antd";
 
-import type {
-  PluginAdapterRegistryItem,
-  PluginToolRegistryItem
-} from "@/lib/get-plugin-registry";
-import type { CredentialItem } from "@/lib/get-credentials";
-import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
-import type { OperatorRecommendedNextStep } from "@/lib/operator-follow-up-presenters";
-import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
-import type {
-  WorkflowCanvasEdgeData,
-  WorkflowCanvasNodeData
-} from "@/lib/workflow-editor";
 import {
   buildWorkflowEditorAssistantContext,
   type WorkflowEditorAssistantContext
 } from "@/lib/workflow-editor-assistant";
-import type { WorkflowPersistBlocker } from "@/components/workflow-editor-workbench/persist-blockers";
-import type { WorkflowNodeConfigFormProps } from "@/components/workflow-node-config-form/shared";
-import type { WorkflowNodeIoSchemaFormProps } from "@/components/workflow-node-config-form/node-io-schema-form";
-import type { WorkflowNodeRuntimePolicyFormProps } from "@/components/workflow-node-config-form/runtime-policy-form";
 import type { WorkflowEditorAssistantPanelProps } from "@/components/workflow-editor-inspector-panels/workflow-editor-assistant-panel";
-import type { WorkflowEditorJsonPanelProps } from "@/components/workflow-editor-inspector-panels/workflow-editor-json-panel";
 import type { WorkflowEditorPublishPanelProps } from "@/components/workflow-editor-inspector-panels/workflow-editor-publish-panel";
+import { WorkflowEditorNodeRuntimePanel } from "@/components/workflow-editor-inspector-panels/workflow-editor-node-runtime-panel";
+import { WorkflowEditorNodeSettingsPanel } from "@/components/workflow-editor-inspector-panels/workflow-editor-node-settings-panel";
 import type {
   WorkflowEditorInspectorProps,
   WorkflowEditorInspectorTabKey
@@ -36,54 +20,6 @@ import { WorkflowPersistBlockerNotice } from "@/components/workflow-persist-bloc
 import { WorkflowEditorVariableForm } from "@/components/workflow-editor-variable-form";
 
 const { Title, Text } = Typography;
-
-const LazyWorkflowNodeConfigForm = dynamic<WorkflowNodeConfigFormProps>(
-  () =>
-    import("@/components/workflow-node-config-form").then(
-      (module) => module.WorkflowNodeConfigForm
-    ),
-  {
-    ssr: false,
-    loading: () =>
-      renderLoadingTabPanel(
-        "workflow-editor-node-config-panel-loading",
-        "节点配置",
-        "正在按需加载节点结构化配置面板。"
-      )
-  }
-);
-
-const LazyWorkflowNodeIoSchemaForm = dynamic<WorkflowNodeIoSchemaFormProps>(
-  () =>
-    import("@/components/workflow-node-config-form/node-io-schema-form").then(
-      (module) => module.WorkflowNodeIoSchemaForm
-    ),
-  {
-    ssr: false,
-    loading: () =>
-      renderLoadingTabPanel(
-        "workflow-editor-node-schema-panel-loading",
-        "I/O contract",
-        "正在按需加载节点 input / output schema 配置。"
-      )
-  }
-);
-
-const LazyWorkflowNodeRuntimePolicyForm = dynamic<WorkflowNodeRuntimePolicyFormProps>(
-  () =>
-    import("@/components/workflow-node-config-form/runtime-policy-form").then(
-      (module) => module.WorkflowNodeRuntimePolicyForm
-    ),
-  {
-    ssr: false,
-    loading: () =>
-      renderLoadingTabPanel(
-        "workflow-editor-node-runtime-panel-loading",
-        "运行策略",
-        "正在按需加载节点 runtime / retry / join 配置。"
-      )
-  }
-);
 
 const LazyWorkflowEditorAssistantPanel = dynamic<WorkflowEditorAssistantPanelProps>(
   () =>
@@ -97,22 +33,6 @@ const LazyWorkflowEditorAssistantPanel = dynamic<WorkflowEditorAssistantPanelPro
         "workflow-editor-assistant-panel-loading",
         "AI 辅助",
         "正在按需加载节点上下文建议与本地对话线程。"
-      )
-  }
-);
-
-const LazyWorkflowEditorJsonPanel = dynamic<WorkflowEditorJsonPanelProps>(
-  () =>
-    import("@/components/workflow-editor-inspector-panels/workflow-editor-json-panel").then(
-      (module) => module.WorkflowEditorJsonPanel
-    ),
-  {
-    ssr: false,
-    loading: () =>
-      renderLoadingTabPanel(
-        "workflow-editor-node-json-panel-loading",
-        "高级 JSON",
-        "正在按需加载原始 config JSON 编辑器。"
       )
   }
 );
@@ -143,6 +63,7 @@ function renderLoadingTabPanel(dataComponent: string, title: string, description
 }
 
 export function WorkflowEditorInspector({
+  workflowId,
   currentHref = null,
   selectedNode,
   selectedEdge,
@@ -162,7 +83,6 @@ export function WorkflowEditorInspector({
   onNodeInputSchemaChange,
   onNodeOutputSchemaChange,
   onNodeRuntimePolicyUpdate,
-  onNodeRuntimePolicyChange,
   workflowVersion,
   availableWorkflowVersions,
   workflowVariables,
@@ -184,18 +104,30 @@ export function WorkflowEditorInspector({
   persistBlockers,
   persistBlockerRecommendedNextStep = null,
   assistantRequestSerial = 0,
-  sandboxReadiness
+  sandboxReadiness = null,
+  onRuntimeRunSuccess,
+  onRuntimeRunError,
+  onOpenRunOverlay
 }: WorkflowEditorInspectorProps) {
+  const assistantContext = useMemo<WorkflowEditorAssistantContext | null>(() => {
+    if (!selectedNode) {
+      return null;
+    }
+
+    return buildWorkflowEditorAssistantContext({
+      selectedNode,
+      nodes,
+      edges,
+      sandboxReadiness
+    });
+  }, [edges, nodes, sandboxReadiness, selectedNode]);
+
+  const supportsAssistantTab = Boolean(
+    selectedNode && selectedNode.data.nodeType !== "trigger" && assistantContext
+  );
+
   const preferredTabKey = useMemo<WorkflowEditorInspectorTabKey>(() => {
     if (selectedNode) {
-      if (highlightedNodeSection === "contract") {
-        return "node-schema";
-      }
-
-      if (highlightedNodeSection === "runtime") {
-        return "node-runtime";
-      }
-
       return "node-config";
     }
 
@@ -212,23 +144,12 @@ export function WorkflowEditorInspector({
     }
 
     return "workflow-overview";
-  }, [focusedValidationItem, highlightedNodeSection, selectedEdge, selectedNode]);
+  }, [focusedValidationItem, selectedEdge, selectedNode]);
+
   const [activeTabKey, setActiveTabKey] = useState<WorkflowEditorInspectorTabKey>(preferredTabKey);
   const [activatedTabKeys, setActivatedTabKeys] = useState<WorkflowEditorInspectorTabKey[]>([
     preferredTabKey
   ]);
-  const assistantContext = useMemo<WorkflowEditorAssistantContext | null>(() => {
-    if (!selectedNode) {
-      return null;
-    }
-
-    return buildWorkflowEditorAssistantContext({
-      selectedNode,
-      nodes,
-      edges,
-      sandboxReadiness
-    });
-  }, [edges, nodes, sandboxReadiness, selectedNode]);
 
   useEffect(() => {
     setActiveTabKey(preferredTabKey);
@@ -243,25 +164,19 @@ export function WorkflowEditorInspector({
   }, [activeTabKey]);
 
   useEffect(() => {
-    if (!assistantContext || assistantRequestSerial === 0) {
+    if (!supportsAssistantTab || assistantRequestSerial === 0) {
       return;
     }
 
     setActiveTabKey("node-assistant");
-  }, [assistantContext, assistantRequestSerial]);
-
-  useEffect(() => {
-    if (!assistantContext) {
-      return;
-    }
-  }, [assistantContext]);
+  }, [assistantRequestSerial, supportsAssistantTab]);
 
   const inspectorHeader = useMemo(() => {
     if (selectedNode) {
       return {
         eyebrow: "NODE CONFIG",
         title: selectedNode.data.label,
-        description: "右侧只跟随当前节点，把配置和 AI 收在同一面板。",
+        description: "右侧只跟随当前节点，把设置和运行时收在同一面板。",
         chips: assistantContext
           ? [
               selectedNode.data.nodeType,
@@ -292,13 +207,16 @@ export function WorkflowEditorInspector({
       ]
     };
   }, [assistantContext, selectedEdge, selectedNode, workflowPublish.length, workflowVariables.length, workflowVersion]);
+
   const inspectorHeaderModeKey = selectedNode
     ? `node:${selectedNode.id}`
     : selectedEdge
       ? `edge:${selectedEdge.id}`
       : "workflow";
+
   const hasActivatedTab = (tabKey: WorkflowEditorInspectorTabKey) =>
     activatedTabKeys.includes(tabKey);
+
   const renderDeferredTabPanel = (
     dataComponent: string,
     title: string,
@@ -322,22 +240,22 @@ export function WorkflowEditorInspector({
 
   const workflowPublishPanel = hasActivatedTab("workflow-publish") ? (
     <LazyWorkflowEditorPublishPanel
-        currentHref={currentHref}
-        workflowVersion={workflowVersion}
-        availableWorkflowVersions={availableWorkflowVersions}
-        publishEndpoints={workflowPublish}
-        sandboxReadiness={sandboxReadiness}
-        onChange={onWorkflowPublishChange}
-        focusedValidationItem={
-          focusedValidationItem?.target.scope === "publish" ? focusedValidationItem : null
-        }
-        persistBlockedMessage={persistBlockedMessage}
-        persistBlockerSummary={persistBlockerSummary}
-        persistBlockers={persistBlockers}
-        persistBlockerRecommendedNextStep={persistBlockerRecommendedNextStep}
-        highlightedEndpointIndex={highlightedPublishEndpointIndex}
-        highlightedEndpointFieldPath={highlightedPublishEndpointFieldPath}
-      />
+      currentHref={currentHref}
+      workflowVersion={workflowVersion}
+      availableWorkflowVersions={availableWorkflowVersions}
+      publishEndpoints={workflowPublish}
+      sandboxReadiness={sandboxReadiness}
+      onChange={onWorkflowPublishChange}
+      focusedValidationItem={
+        focusedValidationItem?.target.scope === "publish" ? focusedValidationItem : null
+      }
+      persistBlockedMessage={persistBlockedMessage}
+      persistBlockerSummary={persistBlockerSummary}
+      persistBlockers={persistBlockers}
+      persistBlockerRecommendedNextStep={persistBlockerRecommendedNextStep}
+      highlightedEndpointIndex={highlightedPublishEndpointIndex}
+      highlightedEndpointFieldPath={highlightedPublishEndpointFieldPath}
+    />
   ) : (
     renderDeferredTabPanel(
       "workflow-editor-publish-panel-deferred",
@@ -370,119 +288,69 @@ export function WorkflowEditorInspector({
     ? [
         {
           key: "node-config",
-          label: "配置",
+          label: "设置",
           children: hasActivatedTab("node-config") ? (
-            <Space orientation="vertical" size="large" style={{ width: "100%" }}>
-              <div className="workflow-editor-inspector-section">
-                <div className="workflow-editor-inspector-section-title">节点名称</div>
-                <Input
-                  value={selectedNode.data.label}
-                  onChange={(event) => onNodeNameChange(event.target.value)}
-                />
-              </div>
-
-              <LazyWorkflowNodeConfigForm
-                node={selectedNode}
-                nodes={nodes}
-                tools={tools}
-                adapters={adapters}
-                credentials={credentials}
-                modelProviderCatalog={modelProviderCatalog}
-                modelProviderConfigs={modelProviderConfigs}
-                modelProviderRegistryStatus={modelProviderRegistryStatus}
-                currentHref={currentHref}
-                sandboxReadiness={sandboxReadiness}
-                highlightedFieldPath={highlightedNodeSection === "config" ? highlightedNodeFieldPath : null}
-                focusedValidationItem={
-                  highlightedNodeSection === "config" ? focusedValidationItem : null
-                }
-                onChange={onNodeConfigChange}
-              />
-            </Space>
-          ) : (
-            renderDeferredTabPanel(
-              "workflow-editor-node-config-panel-deferred",
-              "节点配置",
-              "只有切到配置标签时，才挂载节点配置表单。"
-            )
-          )
-        },
-        {
-          key: "node-schema",
-          label: "I/O",
-          children: hasActivatedTab("node-schema") ? (
-            <LazyWorkflowNodeIoSchemaForm
+            <WorkflowEditorNodeSettingsPanel
               node={selectedNode}
+              nodes={nodes}
+              edges={edges}
+              tools={tools}
+              adapters={adapters}
+              credentials={credentials}
+              modelProviderCatalog={modelProviderCatalog}
+              modelProviderConfigs={modelProviderConfigs}
+              modelProviderRegistryStatus={modelProviderRegistryStatus}
               currentHref={currentHref}
-              onInputSchemaChange={onNodeInputSchemaChange}
-              onOutputSchemaChange={onNodeOutputSchemaChange}
-              highlighted={highlightedNodeSection === "contract"}
-              highlightedFieldPath={
-                highlightedNodeSection === "contract" ? highlightedNodeFieldPath : null
-              }
-              focusedValidationItem={
-                highlightedNodeSection === "contract" ? focusedValidationItem : null
-              }
               sandboxReadiness={sandboxReadiness}
+              highlightedNodeSection={highlightedNodeSection}
+              highlightedNodeFieldPath={highlightedNodeFieldPath}
+              focusedValidationItem={focusedValidationItem}
+              nodeConfigText={nodeConfigText}
+              onNodeConfigTextChange={onNodeConfigTextChange}
+              onApplyNodeConfigJson={onApplyNodeConfigJson}
+              onNodeNameChange={onNodeNameChange}
+              onNodeConfigChange={onNodeConfigChange}
+              onNodeInputSchemaChange={onNodeInputSchemaChange}
+              onNodeOutputSchemaChange={onNodeOutputSchemaChange}
+              onNodeRuntimePolicyUpdate={onNodeRuntimePolicyUpdate}
+              onDeleteSelectedNode={onDeleteSelectedNode}
             />
           ) : (
             renderDeferredTabPanel(
-              "workflow-editor-node-schema-panel-deferred",
-              "I/O contract",
-              "只有切到 I/O 标签或命中 contract 校验项时，才挂载 schema 表单。"
+              "workflow-editor-node-settings-panel-deferred",
+              "设置",
+              "只有切到设置标签时，才挂载节点配置、I/O、运行策略与高级 JSON。"
             )
           )
         },
         {
           key: "node-runtime",
-          label: "运行",
+          label: "运行时",
           children: hasActivatedTab("node-runtime") ? (
-            <LazyWorkflowNodeRuntimePolicyForm
+            <WorkflowEditorNodeRuntimePanel
+              workflowId={workflowId}
               node={selectedNode}
-              nodes={nodes}
-              edges={edges}
-              currentHref={currentHref}
-              onChange={onNodeRuntimePolicyUpdate}
-              highlighted={highlightedNodeSection === "runtime"}
-              highlightedFieldPath={
-                highlightedNodeSection === "runtime" ? highlightedNodeFieldPath : null
-              }
-              focusedValidationItem={
-                highlightedNodeSection === "runtime" ? focusedValidationItem : null
-              }
-              sandboxReadiness={sandboxReadiness}
+              onRunSuccess={onRuntimeRunSuccess}
+              onRunError={onRuntimeRunError}
+              onOpenRunOverlay={onOpenRunOverlay}
             />
           ) : (
             renderDeferredTabPanel(
               "workflow-editor-node-runtime-panel-deferred",
-              "运行策略",
-              "只有切到运行标签或命中 runtime 校验项时，才挂载 runtime policy 表单。"
+              "运行时",
+              "只有切到运行时标签时，才挂载节点当前的 runtime 摘要与 trigger 输入表单。"
             )
           )
         },
-        {
-          key: "node-assistant",
-          label: "AI",
-          children: assistantPanel
-        },
-        {
-          key: "node-json",
-          label: "JSON",
-          children: hasActivatedTab("node-json") ? (
-            <LazyWorkflowEditorJsonPanel
-              nodeConfigText={nodeConfigText}
-              onNodeConfigTextChange={onNodeConfigTextChange}
-              onApplyNodeConfigJson={onApplyNodeConfigJson}
-              onDeleteSelectedNode={onDeleteSelectedNode}
-            />
-          ) : (
-            renderDeferredTabPanel(
-              "workflow-editor-node-json-panel-deferred",
-              "高级 JSON",
-              "只有切到 JSON 标签时，才挂载原始 config 编辑器。"
-            )
-          )
-        }
+        ...(supportsAssistantTab
+          ? [
+              {
+                key: "node-assistant",
+                label: "AI",
+                children: assistantPanel
+              }
+            ]
+          : [])
       ]
     : selectedEdge
       ? [
