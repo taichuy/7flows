@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import { Layout } from "antd";
 
 import { WorkflowApiSurface } from "@/components/workflow-api-surface";
 import { WorkflowLogsSurface } from "@/components/workflow-logs-surface";
@@ -63,6 +64,8 @@ import {
   readWorkspaceStarterLibraryViewState
 } from "@/lib/workspace-starter-governance-query";
 import type { WorkspaceMemberRole } from "@/lib/workspace-access";
+
+const { Content, Sider } = Layout;
 
 export type WorkflowStudioPageProps = {
   params: Promise<{ workflowId: string }>;
@@ -841,26 +844,33 @@ function WorkflowStudioShell({
       workspaceName={workspaceName}
     >
       <div className="workspace-main workflow-studio-main">
-        <section
+        <Layout
           className={shellClassName}
           data-component="workflow-studio-shell"
+          hasSider
           data-surface-layout={isCanvasEditorSurface ? "canvas-overlay" : "rail"}
         >
-          <WorkflowStudioSidebar
-            activeStudioSurface={activeStudioSurface}
-            className="workflow-studio-shell-bar workflow-studio-rail"
-            dataComponent="workflow-studio-rail"
-            surfaceHrefs={surfaceHrefs}
-            workflowId={workflowId}
-            workflowLibraryHref={workflowLibraryHref}
-            workflowName={workflowName}
-            workflowStageLabel={workflowStageLabel}
-            workflowVersion={workflowVersion}
-            workspaceStarterLibraryHref={workspaceStarterLibraryHref}
-          />
+          <Sider
+            className="workflow-studio-shell-sider"
+            theme="light"
+            width={280}
+          >
+            <WorkflowStudioSidebar
+              activeStudioSurface={activeStudioSurface}
+              className="workflow-studio-shell-bar workflow-studio-rail"
+              dataComponent="workflow-studio-rail"
+              surfaceHrefs={surfaceHrefs}
+              workflowId={workflowId}
+              workflowLibraryHref={workflowLibraryHref}
+              workflowName={workflowName}
+              workflowStageLabel={workflowStageLabel}
+              workflowVersion={workflowVersion}
+              workspaceStarterLibraryHref={workspaceStarterLibraryHref}
+            />
+          </Sider>
 
-          <div className={stageClassName}>{children}</div>
-        </section>
+          <Content className={stageClassName}>{children}</Content>
+        </Layout>
       </div>
     </WorkspaceShell>
   );

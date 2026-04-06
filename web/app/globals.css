@@ -710,15 +710,28 @@ a {
 
 .workflow-studio-shell {
   flex: 1;
-  display: grid;
+  display: flex;
   gap: 12px;
-  grid-template-columns: minmax(248px, 280px) minmax(0, 1fr);
   align-items: stretch;
   min-height: 0;
+  background: transparent;
 }
 
 .workflow-studio-shell-editor {
-  grid-template-columns: minmax(248px, 280px) minmax(0, 1fr);
+  background: transparent;
+}
+
+.workflow-studio-shell-sider {
+  flex: 0 0 280px !important;
+  max-width: 280px !important;
+  min-width: 248px !important;
+  width: 280px !important;
+  background: transparent !important;
+}
+
+.workflow-studio-shell-sider .ant-layout-sider-children {
+  height: 100%;
+  background: transparent;
 }
 
 .workflow-studio-shell-bar {
@@ -2339,9 +2352,19 @@ a {
   .settings-layout,
   .workspace-home-header,
   .workspace-workbench-main-grid,
-  .workflow-studio-shell,
   .workflow-studio-shell-bar {
     grid-template-columns: 1fr;
+  }
+
+  .workflow-studio-shell {
+    flex-direction: column;
+  }
+
+  .workflow-studio-shell-sider {
+    flex: none !important;
+    width: 100% !important;
+    max-width: none !important;
+    min-width: 0 !important;
   }
 
   .workflow-studio-shell-heading,
