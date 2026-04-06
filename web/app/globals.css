@@ -899,7 +899,7 @@ a {
 }
 
 .workflow-studio-sidebar-menu.ant-menu .ant-menu-item-selected {
-  background: #eef4ff;
+  background: transparent;
 }
 
 .workflow-studio-sidebar-menu.ant-menu .ant-menu-item-active,
@@ -915,11 +915,14 @@ a {
 }
 
 .workflow-studio-sidebar-link-trigger {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  width: 100%;
+  justify-content: flex-start;
+  width: fit-content;
+  max-width: 100%;
   min-height: 36px;
-  padding: 8px 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
   color: #344054;
   text-decoration: none;
   font-weight: 600;
@@ -927,7 +930,13 @@ a {
   line-height: 1.4;
 }
 
+.workflow-studio-sidebar-link-trigger:hover,
+.workflow-studio-sidebar-link-trigger:focus-visible {
+  background: #f5f7fb;
+}
+
 .workflow-studio-sidebar-link-trigger[data-active="true"] {
+  background: #eef4ff;
   color: #1f5ed5;
 }
 
