@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Layout } from "antd";
-import { MenuUnfoldOutlined } from "@ant-design/icons";
+import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { Button } from "antd";
 
 const { Content, Sider } = Layout;
@@ -36,7 +36,7 @@ export function WorkflowStudioLayoutShell({
       <Sider
         className="workflow-studio-shell-sider"
         collapsed={collapsed}
-        collapsedWidth={64}
+        collapsedWidth={24}
         theme="light"
         trigger={null}
         width={280}
@@ -45,29 +45,21 @@ export function WorkflowStudioLayoutShell({
           <div
             className="workflow-studio-shell-sider-collapsed"
             data-component="workflow-studio-shell-sider-collapsed"
-          >
-            <Button
-              aria-label="展开左侧栏"
-              className="workflow-studio-shell-sider-trigger"
-              data-action="expand-studio-sidebar"
-              icon={<MenuUnfoldOutlined />}
-              onClick={() => setCollapsed(false)}
-              type="text"
-            />
-          </div>
+          />
         ) : (
           <div className="workflow-studio-shell-sider-body">
             {sidebar}
-            <Button
-              aria-label="收起左侧栏"
-              className="workflow-studio-shell-sider-trigger"
-              data-action="collapse-studio-sidebar"
-              icon={<MenuUnfoldOutlined rotate={180} />}
-              onClick={() => setCollapsed(true)}
-              type="text"
-            />
           </div>
         )}
+
+        <Button
+          aria-label={collapsed ? "展开左侧栏" : "收起左侧栏"}
+          className="workflow-studio-shell-sider-trigger"
+          data-action={collapsed ? "expand-studio-sidebar" : "collapse-studio-sidebar"}
+          icon={collapsed ? <RightOutlined /> : <LeftOutlined />}
+          onClick={() => setCollapsed((current) => !current)}
+          type="text"
+        />
       </Sider>
 
       <Content className={contentClassName}>{children}</Content>

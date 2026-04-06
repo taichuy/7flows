@@ -722,17 +722,17 @@ a {
 }
 
 .workflow-studio-shell-sider {
-  flex: 0 0 280px !important;
-  max-width: 280px !important;
   min-width: 0 !important;
-  width: 280px !important;
   background: #ffffff !important;
   border-right: 1px solid #e7ecf4;
+  overflow: visible;
 }
 
 .workflow-studio-shell-sider .ant-layout-sider-children {
+  position: relative;
   height: 100%;
   background: #ffffff;
+  overflow: visible;
 }
 
 .workflow-studio-shell-sider-body {
@@ -743,15 +743,21 @@ a {
 }
 
 .workflow-studio-shell-sider-collapsed {
-  display: flex;
-  justify-content: center;
-  padding-top: 12px;
+  height: 100%;
 }
 
 .workflow-studio-shell-sider-trigger {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+  position: absolute;
+  top: 20px;
+  right: 0;
+  z-index: 2;
+  width: 28px;
+  height: 48px;
+  border: 1px solid #e7ecf4;
+  border-left: none;
+  border-radius: 0 10px 10px 0;
+  background: #ffffff !important;
+  transform: translateX(50%);
 }
 
 .workflow-studio-shell-sider-trigger:hover {
@@ -759,7 +765,8 @@ a {
 }
 
 .workflow-studio-shell-bar {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   flex: 1;
   min-height: 0;
@@ -2375,6 +2382,14 @@ a {
     min-width: 0 !important;
     border-right: none;
     border-bottom: 1px solid #e7ecf4;
+  }
+
+  .workflow-studio-shell-sider-trigger {
+    top: 12px;
+    right: 12px;
+    transform: none;
+    border: 1px solid #e7ecf4;
+    border-radius: 10px;
   }
 
   .workflow-studio-shell-heading,
