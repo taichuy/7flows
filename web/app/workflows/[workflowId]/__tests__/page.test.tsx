@@ -848,9 +848,8 @@ describe("Workflow studio routes", () => {
     expect(html).toContain(
       'data-tools-href="/workspace/tools?return_href=%2Fworkflows%2Fworkflow-1%2Fpublish&amp;workflow_id=workflow-1&amp;workflow_surface=publish"'
     );
-    expect(html).toContain("publish governance");
     expect(html).toContain("Workflow 1");
-    expect(html).toContain("draft only");
+    expect(html).toContain("当前应用的编排、发布与运行入口。");
     expect(html).toContain("/workflows/workflow-1/editor");
     expect(html).toContain("/workflows/workflow-1/publish");
     expect(vi.mocked(getServerWorkflowPublishedEndpoints)).toHaveBeenCalledWith("workflow-1", {

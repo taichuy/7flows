@@ -96,9 +96,6 @@ type WorkflowStudioShellProps = {
   userName: string;
   userRole: WorkspaceMemberRole;
   workflowName: string;
-  workflowVersion: string;
-  workflowStageLabel: string;
-  workflowLibraryHref: string;
   activeStudioSurface: WorkflowStudioSurface;
   surfaceHrefs: Record<WorkflowStudioSurface, string>;
   toolsHref: string;
@@ -291,9 +288,6 @@ async function renderWorkflowEditorSurface(sharedContext: WorkflowStudioSharedCo
       userName={sharedContext.userName}
       userRole={sharedContext.userRole}
       workflowName={sharedContext.workflow.name}
-      workflowVersion={sharedContext.workflow.version}
-      workflowStageLabel={sharedContext.workflowStageLabel}
-      workflowLibraryHref={sharedContext.workflowLibraryHref}
       activeStudioSurface="editor"
       surfaceHrefs={sharedContext.surfaceHrefs}
       toolsHref={sharedContext.toolsHref}
@@ -380,9 +374,6 @@ async function renderWorkflowPublishSurface(sharedContext: WorkflowStudioSharedC
       userName={sharedContext.userName}
       userRole={sharedContext.userRole}
       workflowName={sharedContext.workflow.name}
-      workflowVersion={sharedContext.workflow.version}
-      workflowStageLabel={workflowStageLabel}
-      workflowLibraryHref={sharedContext.workflowLibraryHref}
       activeStudioSurface="publish"
       surfaceHrefs={sharedContext.surfaceHrefs}
       toolsHref={sharedContext.toolsHref}
@@ -443,9 +434,6 @@ async function renderWorkflowUtilitySurface(
         userName={sharedContext.userName}
         userRole={sharedContext.userRole}
         workflowName={sharedContext.workflow.name}
-        workflowVersion={sharedContext.workflow.version}
-        workflowStageLabel={sharedContext.workflowStageLabel}
-        workflowLibraryHref={sharedContext.workflowLibraryHref}
         activeStudioSurface={surface}
         surfaceHrefs={sharedContext.surfaceHrefs}
         toolsHref={sharedContext.toolsHref}
@@ -589,9 +577,6 @@ async function renderWorkflowUtilitySurface(
         userName={sharedContext.userName}
         userRole={sharedContext.userRole}
         workflowName={sharedContext.workflow.name}
-        workflowVersion={sharedContext.workflow.version}
-        workflowStageLabel={sharedContext.workflowStageLabel}
-        workflowLibraryHref={sharedContext.workflowLibraryHref}
         activeStudioSurface={surface}
         surfaceHrefs={sharedContext.surfaceHrefs}
         toolsHref={sharedContext.toolsHref}
@@ -733,9 +718,6 @@ async function renderWorkflowUtilitySurface(
         userName={sharedContext.userName}
         userRole={sharedContext.userRole}
         workflowName={sharedContext.workflow.name}
-        workflowVersion={sharedContext.workflow.version}
-        workflowStageLabel={sharedContext.workflowStageLabel}
-        workflowLibraryHref={sharedContext.workflowLibraryHref}
         activeStudioSurface={surface}
         surfaceHrefs={sharedContext.surfaceHrefs}
         toolsHref={sharedContext.toolsHref}
@@ -771,9 +753,6 @@ async function renderWorkflowUtilitySurface(
       userName={sharedContext.userName}
       userRole={sharedContext.userRole}
       workflowName={sharedContext.workflow.name}
-      workflowVersion={sharedContext.workflow.version}
-      workflowStageLabel={sharedContext.workflowStageLabel}
-      workflowLibraryHref={sharedContext.workflowLibraryHref}
       activeStudioSurface={surface}
       surfaceHrefs={sharedContext.surfaceHrefs}
       toolsHref={sharedContext.toolsHref}
@@ -808,9 +787,6 @@ function WorkflowStudioShell({
   userName,
   userRole,
   workflowName,
-  workflowVersion,
-  workflowStageLabel,
-  workflowLibraryHref,
   activeStudioSurface,
   surfaceHrefs,
   toolsHref,
@@ -853,10 +829,7 @@ function WorkflowStudioShell({
               dataComponent="workflow-studio-rail"
               surfaceHrefs={surfaceHrefs}
               workflowId={workflowId}
-              workflowLibraryHref={workflowLibraryHref}
               workflowName={workflowName}
-              workflowStageLabel={workflowStageLabel}
-              workflowVersion={workflowVersion}
               workspaceStarterLibraryHref={workspaceStarterLibraryHref}
             />
           }

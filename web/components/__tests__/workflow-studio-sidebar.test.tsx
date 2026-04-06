@@ -29,10 +29,7 @@ describe("WorkflowStudioSidebar", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowStudioSidebar, {
         workflowId: "workflow-1",
-        workflowLibraryHref: "/workflows",
         workflowName: "Blank Workflow",
-        workflowVersion: "0.1.0",
-        workflowStageLabel: "draft only",
         activeStudioSurface: "publish",
         workspaceStarterLibraryHref: "/workspace-starters?workflow=workflow-1",
         surfaceHrefs: {
@@ -46,8 +43,8 @@ describe("WorkflowStudioSidebar", () => {
     );
 
     expect(html).toContain('data-component="workflow-studio-sidebar"');
-    expect(html).toContain("编排中心");
     expect(html).toContain("Blank Workflow");
+    expect(html).toContain("当前应用的编排、发布与运行入口。");
     expect(html).toContain('href="/workflows/workflow-1/editor?handoff=1"');
     expect(html).toContain('href="/workflows/workflow-1/api?handoff=1"');
     expect(html).toContain('href="/workflows/workflow-1/logs?handoff=1"');
@@ -55,16 +52,16 @@ describe("WorkflowStudioSidebar", () => {
     expect(html).toContain('href="/workflows/workflow-1/publish?handoff=1"');
     expect(html).toContain("workflow-studio-sidebar-menu");
     expect(html).toContain("workflow-studio-sidebar-link-trigger");
+    expect(html).not.toContain("draft only");
+    expect(html).not.toContain("0.1.0");
   });
 
-  it("renders the shared sidebar header and menu without embedding a nested card shell", () => {
+  it("renders only the app title and description in the shared sidebar header", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowStudioSidebar, {
         workflowId: "workflow-1",
-        workflowLibraryHref: "/workflows",
         workflowName: "Blank Workflow",
-        workflowVersion: "0.1.0",
-        workflowStageLabel: "draft only",
+        workflowSummary: "这是一个用于画布编排与发布治理的应用。",
         activeStudioSurface: "editor",
         workspaceStarterLibraryHref: "/workspace-starters",
         dataComponent: "workflow-editor-sidebar-studio-rail"
@@ -72,7 +69,8 @@ describe("WorkflowStudioSidebar", () => {
     );
 
     expect(html).toContain('data-component="workflow-editor-sidebar-studio-rail"');
-    expect(html).toContain("编排中心");
+    expect(html).toContain("Blank Workflow");
+    expect(html).toContain("这是一个用于画布编排与发布治理的应用。");
     expect(html).toContain("workflow-studio-sidebar-menu");
   });
 });

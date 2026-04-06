@@ -816,8 +816,8 @@ a {
 
 .workflow-studio-rail-header {
   display: grid;
-  gap: 10px;
-  padding-bottom: 8px;
+  gap: 6px;
+  padding: 4px 0 12px;
   border-bottom: 1px solid #eef2f7;
 }
 
@@ -829,59 +829,19 @@ a {
   gap: 10px 14px;
 }
 
-.workflow-studio-breadcrumb-row,
-.workflow-studio-inline-metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
-
-.workflow-studio-breadcrumb-link,
-.workflow-studio-breadcrumb-current,
-.workflow-studio-shell-mode,
-.workflow-studio-inline-tag,
-.workflow-studio-inline-signal {
-  display: inline-flex;
-  align-items: center;
-  min-height: 30px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid #dfe7f2;
-  background: #f8faff;
-  color: #344054;
-  text-decoration: none;
-  font-size: 0.82rem;
-}
-
-.workflow-studio-breadcrumb-link {
-  font-weight: 600;
-}
-
-.workflow-studio-breadcrumb-current {
+.workflow-studio-sidebar-title {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.35;
   font-weight: 700;
   color: #101828;
-  background: #eff4ff;
-  border-color: #cfe0ff;
 }
 
-.workflow-studio-breadcrumb-separator {
-  color: #98a2b3;
-  font-weight: 700;
-}
-
-.workflow-studio-shell-mode {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.72rem;
-  color: #526079;
-}
-
-.workflow-studio-inline-tag {
-  font-weight: 600;
-  color: #1f5ed5;
-  background: #edf4ff;
-  border-color: #cfe0ff;
+.workflow-studio-sidebar-description {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.5;
+  color: #667085;
 }
 
 .workflow-studio-inline-signal {

@@ -7,7 +7,6 @@ import type { ItemType } from "antd/es/menu/interface";
 
 import {
   buildWorkflowStudioSurfaceHref,
-  getWorkflowStudioSurfaceDefinition,
   getWorkflowStudioSurfaceDefinitions,
   type WorkflowStudioSurface
 } from "@/lib/workbench-links";
@@ -19,9 +18,7 @@ const PRIMARY_WORKFLOW_STUDIO_SURFACES = getWorkflowStudioSurfaceDefinitions().f
 type WorkflowStudioSidebarProps = {
   workflowId: string;
   workflowName: string;
-  workflowVersion: string;
-  workflowStageLabel: string;
-  workflowLibraryHref: string;
+  workflowSummary?: string;
   activeStudioSurface: WorkflowStudioSurface;
   workspaceStarterLibraryHref: string;
   surfaceHrefs?: Partial<Record<WorkflowStudioSurface, string>>;
@@ -75,9 +72,7 @@ function WorkflowStudioSidebarMenuLink({
 export function WorkflowStudioSidebar({
   workflowId,
   workflowName,
-  workflowVersion,
-  workflowStageLabel,
-  workflowLibraryHref,
+  workflowSummary = "当前应用的编排、发布与运行入口。",
   activeStudioSurface,
   workspaceStarterLibraryHref,
   surfaceHrefs,
@@ -85,7 +80,6 @@ export function WorkflowStudioSidebar({
   className,
   dataComponent = "workflow-studio-sidebar"
 }: WorkflowStudioSidebarProps) {
-  const studioModeLabel = getWorkflowStudioSurfaceDefinition(activeStudioSurface).modeLabel;
   const contentClassName = className?.trim() ? className : undefined;
   const primaryMenuItems: ItemType[] = PRIMARY_WORKFLOW_STUDIO_SURFACES.map((item) => {
     const href = resolveWorkflowStudioSidebarHref(workflowId, item.key, surfaceHrefs);
@@ -132,18 +126,8 @@ export function WorkflowStudioSidebar({
   return (
     <div className={contentClassName} data-component={dataComponent}>
       <div className="workflow-studio-rail-header">
-        <div className="workflow-studio-breadcrumb-row">
-          <Link className="workflow-studio-breadcrumb-link" href={workflowLibraryHref}>
-            编排中心
-          </Link>
-          <span className="workflow-studio-breadcrumb-current">{workflowName}</span>
-        </div>
-
-        <div className="workflow-studio-inline-metrics">
-          <span className="workflow-studio-inline-tag">v{workflowVersion}</span>
-          <span className="workflow-studio-inline-tag">{workflowStageLabel}</span>
-          <span className="workflow-studio-shell-mode">{studioModeLabel}</span>
-        </div>
+        <h2 className="workflow-studio-sidebar-title">{workflowName}</h2>
+        <p className="workflow-studio-sidebar-description">{workflowSummary}</p>
       </div>
 
       <Menu
