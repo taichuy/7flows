@@ -4066,8 +4066,8 @@ a {
   position: absolute;
   z-index: 3;
   width: min(calc(var(--workflow-editor-inspector-width) + 16px), calc(100% - 48px));
-  height: min(86vh, calc(100% - 24px));
-  min-height: 360px;
+  height: calc(100% - var(--workflow-editor-floating-workbench-top, 76px));
+  min-height: min(320px, calc(100% - var(--workflow-editor-floating-workbench-top, 76px)));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -4145,6 +4145,27 @@ a {
 .workflow-editor-floating-panel-close:hover {
   border-color: #cbd5e1;
   background: #ffffff;
+}
+
+.workflow-editor-floating-panel-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workflow-editor-floating-panel-trial-run {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1f5ed5;
+}
+
+.workflow-editor-floating-panel-trial-run:hover {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .workflow-editor-floating-panel-body {
@@ -4230,6 +4251,40 @@ a {
 
 .workflow-editor-node-settings-panel {
   gap: 0;
+}
+
+.workflow-editor-node-settings-primary {
+  display: grid;
+  gap: 16px;
+}
+
+.workflow-editor-node-settings-advanced {
+  background: transparent;
+}
+
+.workflow-editor-node-settings-advanced .ant-collapse-item {
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #fafbfd;
+}
+
+.workflow-editor-node-settings-advanced .ant-collapse-item + .ant-collapse-item {
+  margin-top: 12px;
+}
+
+.workflow-editor-node-settings-advanced .ant-collapse-header {
+  align-items: center !important;
+}
+
+.workflow-editor-node-settings-advanced .ant-collapse-content-box {
+  display: grid;
+  gap: 16px;
+}
+
+.workflow-editor-node-settings-advanced-content {
+  display: grid;
+  gap: 20px;
 }
 
 .workflow-editor-trigger-fields-section,
@@ -4809,6 +4864,10 @@ a {
   bottom: 18px;
 }
 
+.editor-canvas-panel[data-inspector-open="true"] .react-flow__minimap {
+  right: min(calc(var(--workflow-editor-inspector-width) + 44px), calc(100% - 180px));
+}
+
 .editor-canvas .react-flow__edge-path,
 .editor-canvas .react-flow__connection-path {
   stroke: #c6d4ea;
@@ -4921,6 +4980,10 @@ a {
 .workflow-canvas-node-action-button:hover {
   border-color: rgba(31, 94, 213, 0.2);
   color: #1f5ed5;
+}
+
+.workflow-canvas-node-action-button .anticon {
+  font-size: 0.75rem;
 }
 
 .workflow-canvas-node-action-button.danger:hover {

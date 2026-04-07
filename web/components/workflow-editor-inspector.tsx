@@ -9,6 +9,7 @@ import {
   type WorkflowEditorAssistantContext
 } from "@/lib/workflow-editor-assistant";
 import { getWorkflowNodeTypeDisplayLabel } from "@/lib/workflow-node-display";
+import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import type { WorkflowEditorAssistantPanelProps } from "@/components/workflow-editor-inspector-panels/workflow-editor-assistant-panel";
 import type { WorkflowEditorPublishPanelProps } from "@/components/workflow-editor-inspector-panels/workflow-editor-publish-panel";
 import { WorkflowEditorNodeRuntimePanel } from "@/components/workflow-editor-inspector-panels/workflow-editor-node-runtime-panel";
@@ -107,6 +108,7 @@ export function WorkflowEditorInspector({
   persistBlockers,
   persistBlockerRecommendedNextStep = null,
   assistantRequestSerial = 0,
+  runtimeRequestSerial = 0,
   sandboxReadiness = null,
   onRuntimeRunSuccess,
   onRuntimeRunError,
@@ -137,26 +139,28 @@ export function WorkflowEditorInspector({
   const supportsAssistantTab = Boolean(
     selectedNode && selectedNode.data.nodeType !== "startNode" && assistantContext
   );
+  const selectedNodeId = selectedNode?.id ?? null;
+  const selectedEdgeId = selectedEdge?.id ?? null;
+  const focusedScope = focusedValidationItem?.target.scope ?? null;
 
-  const preferredTabKey = useMemo<WorkflowEditorInspectorTabKey>(() => {
-    if (selectedNode) {
-      return "node-config";
-    }
-
-    if (selectedEdge) {
-      return "edge-config";
-    }
-
-    if (focusedValidationItem?.target.scope === "variables") {
-      return "workflow-variables";
-    }
-
-    if (focusedValidationItem?.target.scope === "publish") {
-      return "workflow-publish";
-    }
-
-    return "workflow-overview";
-  }, [focusedValidationItem, selectedEdge, selectedNode]);
+  const preferredTabKey = useMemo<WorkflowEditorInspectorTabKey>(
+    () =>
+      resolveWorkflowEditorInspectorPreferredTabKey({
+        selectedNodeId,
+        selectedEdgeId,
+        focusedScope
+      }),
+    [focusedScope, selectedEdgeId, selectedNodeId]
+  );
+  const tabResetKey = useMemo(
+    () =>
+      resolveWorkflowEditorInspectorTabResetKey({
+        selectedNodeId,
+        selectedEdgeId,
+        focusedScope
+      }),
+    [focusedScope, selectedEdgeId, selectedNodeId]
+  );
 
   const [activeTabKey, setActiveTabKey] = useState<WorkflowEditorInspectorTabKey>(preferredTabKey);
   const [activatedTabKeys, setActivatedTabKeys] = useState<WorkflowEditorInspectorTabKey[]>([
@@ -165,7 +169,8 @@ export function WorkflowEditorInspector({
 
   useEffect(() => {
     setActiveTabKey(preferredTabKey);
-  }, [preferredTabKey]);
+    setActivatedTabKeys([preferredTabKey]);
+  }, [preferredTabKey, tabResetKey]);
 
   useEffect(() => {
     setActivatedTabKeys((currentKeys) =>
@@ -182,6 +187,20 @@ export function WorkflowEditorInspector({
 
     setActiveTabKey("node-assistant");
   }, [assistantRequestSerial, supportsAssistantTab]);
+
+  useEffect(() => {
+    if (activeTabKey === "node-assistant" && !supportsAssistantTab) {
+      setActiveTabKey("node-config");
+    }
+  }, [activeTabKey, supportsAssistantTab]);
+
+  useEffect(() => {
+    if (!selectedNodeId || runtimeRequestSerial === 0) {
+      return;
+    }
+
+    setActiveTabKey("node-runtime");
+  }, [runtimeRequestSerial, selectedNodeId]);
 
   const inspectorHeader = useMemo(() => {
     if (selectedNode) {
@@ -332,7 +351,7 @@ export function WorkflowEditorInspector({
             renderDeferredTabPanel(
               "workflow-editor-node-settings-panel-deferred",
               "设置",
-              "只有切到设置标签时，才挂载节点配置、I/O、运行策略与高级 JSON。"
+              "只有切到设置标签时，才挂载节点模板和精简后的高级设置。"
             )
           )
         },
@@ -498,6 +517,58 @@ export function WorkflowEditorInspector({
       </div>
     </div>
   );
+}
+
+export function resolveWorkflowEditorInspectorPreferredTabKey({
+  selectedNodeId,
+  selectedEdgeId,
+  focusedScope
+}: {
+  selectedNodeId: string | null;
+  selectedEdgeId: string | null;
+  focusedScope: WorkflowValidationNavigatorItem["target"]["scope"] | null;
+}): WorkflowEditorInspectorTabKey {
+  if (selectedNodeId) {
+    return "node-config";
+  }
+
+  if (selectedEdgeId) {
+    return "edge-config";
+  }
+
+  if (focusedScope === "variables") {
+    return "workflow-variables";
+  }
+
+  if (focusedScope === "publish") {
+    return "workflow-publish";
+  }
+
+  return "workflow-overview";
+}
+
+export function resolveWorkflowEditorInspectorTabResetKey({
+  selectedNodeId,
+  selectedEdgeId,
+  focusedScope
+}: {
+  selectedNodeId: string | null;
+  selectedEdgeId: string | null;
+  focusedScope: WorkflowValidationNavigatorItem["target"]["scope"] | null;
+}) {
+  if (selectedNodeId) {
+    return `node:${selectedNodeId}`;
+  }
+
+  if (selectedEdgeId) {
+    return `edge:${selectedEdgeId}`;
+  }
+
+  if (focusedScope) {
+    return `workflow:${focusedScope}`;
+  }
+
+  return "workflow:overview";
 }
 
 function buildSelectedNodeHeaderChips(

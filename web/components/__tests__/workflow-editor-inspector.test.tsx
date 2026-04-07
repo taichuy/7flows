@@ -3,7 +3,10 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import { WorkflowEditorInspector } from "@/components/workflow-editor-inspector";
+import {
+  WorkflowEditorInspector,
+  resolveWorkflowEditorInspectorTabResetKey
+} from "@/components/workflow-editor-inspector";
 import type { WorkflowCanvasNodeData } from "@/lib/workflow-editor";
 import type { Edge, Node } from "@xyflow/react";
 
@@ -187,9 +190,8 @@ describe("WorkflowEditorInspector", () => {
     expect(html).toContain("运行时");
     expect(html).toContain("AI");
     expect(html).toContain('data-component="node-config-form"');
-    expect(html).toContain('data-component="node-io-schema-form"');
-    expect(html).toContain('data-component="node-runtime-policy-form"');
-    expect(html).toContain('data-component="workflow-editor-node-json-panel"');
+    expect(html).toContain('高级设置');
+    expect(html).toContain('原始 JSON');
     expect(html).not.toContain('workflow-editor-inspector-section-title">节点名称');
     expect(html).not.toContain('data-component="workflow-editor-assistant-panel"');
     expect(html).not.toContain('data-component="workflow-editor-node-runtime-panel"');
@@ -210,6 +212,8 @@ describe("WorkflowEditorInspector", () => {
     expect(html).toContain("输入字段");
     expect(html).toContain("应用输入字段");
     expect(html).toContain("下一步");
+    expect(html).toContain("高级设置");
+    expect(html).toContain("原始 JSON");
     expect(html).not.toContain("个上游");
     expect(html).not.toContain("Trigger settings");
     expect(html).not.toContain("这些字段会作为 workflow run");
@@ -263,6 +267,22 @@ describe("WorkflowEditorInspector", () => {
 
     expect(html).toContain('data-component="workflow-editor-publish-panel"');
     expect(html).toContain('data-component="workflow-editor-publish-form"');
+  });
+
+  it("keeps the same tab reset key for the same selected node id", () => {
+    expect(
+      resolveWorkflowEditorInspectorTabResetKey({
+        selectedNodeId: "node-agent-1",
+        selectedEdgeId: null,
+        focusedScope: null
+      })
+    ).toBe(
+      resolveWorkflowEditorInspectorTabResetKey({
+        selectedNodeId: "node-agent-1",
+        selectedEdgeId: null,
+        focusedScope: null
+      })
+    );
   });
 
   it("mounts schema and runtime panels when validation focus switches the preferred tab", () => {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Edge, Node } from "@xyflow/react";
-import { Alert, Button, Divider, Input, Select, Space, Switch, Typography } from "antd";
+import { Alert, Button, Collapse, Input, Select, Space, Switch, Typography } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 
 import type {
@@ -113,10 +113,20 @@ export function WorkflowEditorNodeSettingsPanel({
     [edges, node.id, nodes]
   );
 
+  const highlightedAdvancedKeys = useMemo(
+    () => resolveAdvancedSectionKeys({ highlightedNodeSection, isTriggerNode }),
+    [highlightedNodeSection, isTriggerNode]
+  );
+  const [expandedSectionKeys, setExpandedSectionKeys] = useState<string[]>(highlightedAdvancedKeys);
+
+  useEffect(() => {
+    setExpandedSectionKeys(highlightedAdvancedKeys);
+  }, [highlightedAdvancedKeys, node.id]);
+
   return (
     <Space
       orientation="vertical"
-      size={24}
+      size={20}
       style={{ width: "100%" }}
       className="workflow-editor-node-settings-panel"
       data-component="workflow-editor-node-settings-panel"
@@ -127,73 +137,116 @@ export function WorkflowEditorNodeSettingsPanel({
           downstreamNodes={downstreamNodes}
           onNodeInputSchemaChange={onNodeInputSchemaChange}
         />
-      ) : null}
+      ) : (
+        <div
+          className="workflow-editor-node-settings-primary"
+          data-component="workflow-editor-node-settings-primary"
+        >
+          <WorkflowNodeConfigForm
+            node={node}
+            nodes={nodes}
+            tools={tools}
+            adapters={adapters}
+            credentials={credentials}
+            modelProviderCatalog={modelProviderCatalog}
+            modelProviderConfigs={modelProviderConfigs}
+            modelProviderRegistryStatus={modelProviderRegistryStatus}
+            currentHref={currentHref}
+            sandboxReadiness={sandboxReadiness}
+            highlightedFieldPath={highlightedNodeSection === "config" ? highlightedNodeFieldPath : null}
+            focusedValidationItem={
+              highlightedNodeSection === "config" ? focusedValidationItem : null
+            }
+            onChange={onNodeConfigChange}
+          />
+        </div>
+      )}
 
-      {!isTriggerNode ? (
-        <WorkflowNodeConfigForm
-          node={node}
-          nodes={nodes}
-          tools={tools}
-          adapters={adapters}
-          credentials={credentials}
-          modelProviderCatalog={modelProviderCatalog}
-          modelProviderConfigs={modelProviderConfigs}
-          modelProviderRegistryStatus={modelProviderRegistryStatus}
-          currentHref={currentHref}
-          sandboxReadiness={sandboxReadiness}
-          highlightedFieldPath={highlightedNodeSection === "config" ? highlightedNodeFieldPath : null}
-          focusedValidationItem={
-            highlightedNodeSection === "config" ? focusedValidationItem : null
+      <Collapse
+        activeKey={expandedSectionKeys}
+        onChange={(keys) =>
+          setExpandedSectionKeys(Array.isArray(keys) ? keys.map(String) : [String(keys)])
+        }
+        className="workflow-editor-node-settings-advanced"
+        items={[
+          {
+            key: "advanced",
+            label: "高级设置",
+            children: (
+              <Space
+                orientation="vertical"
+                size={20}
+                style={{ width: "100%" }}
+                className="workflow-editor-node-settings-advanced-content"
+              >
+                <WorkflowNodeIoSchemaForm
+                  node={node}
+                  currentHref={currentHref}
+                  onInputSchemaChange={onNodeInputSchemaChange}
+                  onOutputSchemaChange={onNodeOutputSchemaChange}
+                  highlighted={highlightedNodeSection === "contract"}
+                  highlightedFieldPath={
+                    highlightedNodeSection === "contract" ? highlightedNodeFieldPath : null
+                  }
+                  focusedValidationItem={
+                    highlightedNodeSection === "contract" ? focusedValidationItem : null
+                  }
+                  sandboxReadiness={sandboxReadiness}
+                />
+                {!isTriggerNode ? (
+                  <WorkflowNodeRuntimePolicyForm
+                    node={node}
+                    nodes={nodes}
+                    edges={edges}
+                    currentHref={currentHref}
+                    onChange={onNodeRuntimePolicyUpdate}
+                    highlighted={highlightedNodeSection === "runtime"}
+                    highlightedFieldPath={
+                      highlightedNodeSection === "runtime" ? highlightedNodeFieldPath : null
+                    }
+                    focusedValidationItem={
+                      highlightedNodeSection === "runtime" ? focusedValidationItem : null
+                    }
+                    sandboxReadiness={sandboxReadiness}
+                  />
+                ) : null}
+              </Space>
+            )
+          },
+          {
+            key: "json",
+            label: "原始 JSON",
+            children: (
+              <WorkflowEditorJsonPanel
+                nodeConfigText={nodeConfigText}
+                onNodeConfigTextChange={onNodeConfigTextChange}
+                onApplyNodeConfigJson={onApplyNodeConfigJson}
+                onDeleteSelectedNode={onDeleteSelectedNode}
+              />
+            )
           }
-          onChange={onNodeConfigChange}
-        />
-      ) : null}
-
-      <Divider style={{ marginBlock: 0 }} />
-
-      <WorkflowNodeIoSchemaForm
-        node={node}
-        currentHref={currentHref}
-        onInputSchemaChange={onNodeInputSchemaChange}
-        onOutputSchemaChange={onNodeOutputSchemaChange}
-        highlighted={highlightedNodeSection === "contract"}
-        highlightedFieldPath={
-          highlightedNodeSection === "contract" ? highlightedNodeFieldPath : null
-        }
-        focusedValidationItem={
-          highlightedNodeSection === "contract" ? focusedValidationItem : null
-        }
-        sandboxReadiness={sandboxReadiness}
-      />
-
-      <Divider style={{ marginBlock: 0 }} />
-
-      <WorkflowNodeRuntimePolicyForm
-        node={node}
-        nodes={nodes}
-        edges={edges}
-        currentHref={currentHref}
-        onChange={onNodeRuntimePolicyUpdate}
-        highlighted={highlightedNodeSection === "runtime"}
-        highlightedFieldPath={
-          highlightedNodeSection === "runtime" ? highlightedNodeFieldPath : null
-        }
-        focusedValidationItem={
-          highlightedNodeSection === "runtime" ? focusedValidationItem : null
-        }
-        sandboxReadiness={sandboxReadiness}
-      />
-
-      <Divider style={{ marginBlock: 0 }} />
-
-      <WorkflowEditorJsonPanel
-        nodeConfigText={nodeConfigText}
-        onNodeConfigTextChange={onNodeConfigTextChange}
-        onApplyNodeConfigJson={onApplyNodeConfigJson}
-        onDeleteSelectedNode={onDeleteSelectedNode}
+        ]}
       />
     </Space>
   );
+}
+
+function resolveAdvancedSectionKeys({
+  highlightedNodeSection,
+  isTriggerNode
+}: {
+  highlightedNodeSection: "config" | "contract" | "runtime" | null;
+  isTriggerNode: boolean;
+}) {
+  if (highlightedNodeSection === "contract") {
+    return ["advanced"];
+  }
+
+  if (highlightedNodeSection === "runtime" && !isTriggerNode) {
+    return ["advanced"];
+  }
+
+  return [];
 }
 
 function WorkflowEditorTriggerInputFieldsSection({
