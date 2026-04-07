@@ -29,8 +29,8 @@ from app.services.sandbox_backends import (
     SandboxBackendRegistration,
     SandboxBackendRegistry,
 )
-from tests.workspace_auth_helpers import issue_workspace_console_auth
 from tests.workflow_publish_helpers import legacy_auth_mode_contract
+from tests.workspace_auth_helpers import issue_workspace_console_auth
 
 pytestmark = pytest.mark.usefixtures(
     "workspace_console_auth", "default_console_route_headers"
@@ -153,6 +153,67 @@ def test_execute_workflow_route(
     detail_body = detail_response.json()
     assert len(detail_body["node_runs"]) == 3
     assert detail_body["events"] == []
+
+
+def test_execute_node_trial_run_route(
+    client: TestClient,
+    sqlite_session: Session,
+    sample_workflow: Workflow,
+    auth_headers: dict,
+    write_headers: dict,
+) -> None:
+    response = client.post(
+        f"/api/workflows/{sample_workflow.id}/nodes/mock_tool/trial-runs",
+        json={"input_payload": {"message": "trial"}},
+        headers=write_headers,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body["workflow_id"] == sample_workflow.id
+    assert body["workflow_version"] == sample_workflow.version
+    assert body["status"] == "succeeded"
+    assert body["compiled_blueprint_id"] is None
+
+    run_id = body["id"]
+    detail_body = _get_run_detail_json(client, run_id, auth_headers=auth_headers)
+    assert len(detail_body["node_runs"]) == 3
+    target_node_run = next(
+        item for item in detail_body["node_runs"] if item["node_id"] == "mock_tool"
+    )
+    assert target_node_run["output_payload"] == {"answer": "done"}
+
+    started_event = sqlite_session.scalar(
+        select(RunEvent).where(
+            RunEvent.run_id == run_id,
+            RunEvent.event_type == "run.started",
+        )
+    )
+    assert started_event is not None
+    assert started_event.payload["trial"]["mode"] == "single_node"
+    assert started_event.payload["trial"]["node_id"] == "mock_tool"
+
+    run = sqlite_session.get(Run, run_id)
+    assert run is not None
+    assert run.compiled_blueprint_id is None
+
+    resolved_blueprint = RuntimeService()._resolve_run_blueprint_record(sqlite_session, run)
+    assert resolved_blueprint.blueprint_payload["trigger_node_id"] == "__trial_start_node__"
+
+
+def test_execute_node_trial_run_route_rejects_unknown_node(
+    client: TestClient,
+    sample_workflow: Workflow,
+    write_headers: dict,
+) -> None:
+    response = client.post(
+        f"/api/workflows/{sample_workflow.id}/nodes/missing-node/trial-runs",
+        json={"input_payload": {}},
+        headers=write_headers,
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Workflow node not found."
 
 
 def test_get_run_execution_view_includes_execution_policy(

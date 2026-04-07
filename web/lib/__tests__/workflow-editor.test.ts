@@ -181,15 +181,23 @@ const baseEdge = {
 
 describe("workflow-editor quick add helpers", () => {
   it("localizes built-in start and end node display names", () => {
-    expect(
-      buildWorkflowCanvasNodeData(nodeCatalog, {
-        label: "startNode",
-        nodeType: "startNode",
-        config: {}
-      })
-    ).toMatchObject({
+    const startNode = buildWorkflowCanvasNodeData(nodeCatalog, {
+      label: "startNode",
+      nodeType: "startNode",
+      config: {}
+    });
+
+    expect(startNode).toMatchObject({
       label: "开始",
       typeLabel: "开始"
+    });
+    expect(startNode.inputSchema).toMatchObject({
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        files: { type: "array" }
+      },
+      required: ["query"]
     });
 
     expect(

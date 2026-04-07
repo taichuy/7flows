@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -29,7 +30,6 @@ from app.services.run_resume_scheduler import (
     RunResumeScheduler,
     get_run_resume_scheduler,
 )
-from app.services.sandbox_backends import SandboxBackendClient
 from app.services.runtime_execution_adapters import RuntimeExecutionAdapterRegistry
 from app.services.runtime_execution_progress_support import (
     RuntimeExecutionProgressSupportMixin,
@@ -48,8 +48,9 @@ from app.services.runtime_types import (
     FlowCheckpointState,
     WorkflowExecutionError,
 )
-from app.services.skill_catalog import SkillCatalogService
+from app.services.sandbox_backends import SandboxBackendClient
 from app.services.sensitive_access_control import SensitiveAccessControlService
+from app.services.skill_catalog import SkillCatalogService
 from app.services.tool_gateway import ToolGateway
 
 
@@ -147,6 +148,42 @@ class RuntimeService(
             input_payload=input_payload,
         )
 
+    def execute_node_trial_run(
+        self,
+        db: Session,
+        workflow: Workflow,
+        *,
+        node_id: str,
+        input_payload: dict,
+    ) -> ExecutionArtifacts:
+        self._refresh_runtime_dependencies(db)
+        try:
+            workflow_version = self._ensure_workflow_version_for_execution(db, workflow)
+            definition, target_node = self._build_node_trial_definition(
+                workflow.definition or {},
+                node_id=node_id,
+            )
+            blueprint = self._flow_compiler.compile_definition(
+                workflow_id=workflow.id,
+                workflow_version=workflow.version,
+                definition=definition,
+            )
+        except (CompiledBlueprintError, WorkflowExecutionError, ValueError) as exc:
+            raise WorkflowExecutionError(str(exc)) from exc
+
+        return self._execute_blueprint(
+            db,
+            workflow=workflow,
+            workflow_version=workflow_version,
+            blueprint=blueprint,
+            input_payload=input_payload,
+            compiled_blueprint_id=None,
+            run_started_metadata=self._trial_run_started_payload(
+                node=target_node,
+                blueprint_payload=self._flow_compiler.dump_blueprint(blueprint),
+            ),
+        )
+
     def execute_compiled_workflow(
         self,
         db: Session,
@@ -185,6 +222,26 @@ class RuntimeService(
             )
 
         blueprint = self._compiled_blueprints.load_blueprint(blueprint_record)
+        return self._execute_blueprint(
+            db,
+            workflow=workflow,
+            workflow_version=workflow_version,
+            blueprint=blueprint,
+            input_payload=input_payload,
+            compiled_blueprint_id=blueprint_record.id,
+        )
+
+    def _execute_blueprint(
+        self,
+        db: Session,
+        *,
+        workflow: Workflow,
+        workflow_version: WorkflowVersion,
+        blueprint: CompiledWorkflowBlueprint,
+        input_payload: dict,
+        compiled_blueprint_id: str | None,
+        run_started_metadata: dict[str, Any] | None = None,
+    ) -> ExecutionArtifacts:
         if any(node.type == "loopNode" for node in blueprint.ordered_nodes):
             raise WorkflowExecutionError("Loop nodes are not supported by the MVP executor yet.")
 
@@ -192,7 +249,7 @@ class RuntimeService(
             id=str(uuid4()),
             workflow_id=workflow.id,
             workflow_version=workflow_version.version,
-            compiled_blueprint_id=blueprint_record.id,
+            compiled_blueprint_id=compiled_blueprint_id,
             status="running",
             input_payload=input_payload,
             checkpoint_payload={},
@@ -201,7 +258,11 @@ class RuntimeService(
         db.add(run)
         db.flush()
 
-        events = [self._build_event(run.id, None, "run.started", {"input": input_payload})]
+        run_started_payload: dict[str, Any] = {"input": input_payload}
+        if run_started_metadata:
+            run_started_payload.update(run_started_metadata)
+
+        events = [self._build_event(run.id, None, "run.started", run_started_payload)]
         try:
             self._continue_execution(
                 db,
@@ -232,6 +293,114 @@ class RuntimeService(
                 artifacts.run.error_message or "Workflow execution failed."
             )
         return artifacts
+
+    def _build_node_trial_definition(
+        self,
+        definition: dict[str, Any],
+        *,
+        node_id: str,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        nodes = definition.get("nodes") or []
+        target_node = next(
+            (node for node in nodes if str(node.get("id")) == node_id),
+            None,
+        )
+        if target_node is None:
+            raise WorkflowExecutionError("Workflow node not found.")
+
+        trial_start_id = "__trial_start_node__"
+        trial_end_id = "__trial_end_node__"
+        trial_target_node = deepcopy(target_node)
+        trial_nodes: list[dict[str, Any]] = []
+        trial_edges: list[dict[str, Any]] = []
+
+        if str(trial_target_node.get("type") or "") == "startNode":
+            trial_nodes = [
+                trial_target_node,
+                {
+                    "id": trial_end_id,
+                    "type": "endNode",
+                    "name": "Trial End",
+                    "config": {},
+                },
+            ]
+            trial_edges = [
+                {
+                    "id": "trial-edge-start-end",
+                    "sourceNodeId": str(trial_target_node["id"]),
+                    "targetNodeId": trial_end_id,
+                }
+            ]
+        elif str(trial_target_node.get("type") or "") == "endNode":
+            trial_nodes = [
+                {
+                    "id": trial_start_id,
+                    "type": "startNode",
+                    "name": "Trial Start",
+                    "config": {},
+                },
+                trial_target_node,
+            ]
+            trial_edges = [
+                {
+                    "id": "trial-edge-start-end",
+                    "sourceNodeId": trial_start_id,
+                    "targetNodeId": str(trial_target_node["id"]),
+                }
+            ]
+        else:
+            trial_nodes = [
+                {
+                    "id": trial_start_id,
+                    "type": "startNode",
+                    "name": "Trial Start",
+                    "config": {},
+                },
+                trial_target_node,
+                {
+                    "id": trial_end_id,
+                    "type": "endNode",
+                    "name": "Trial End",
+                    "config": {},
+                },
+            ]
+            trial_edges = [
+                {
+                    "id": "trial-edge-start-target",
+                    "sourceNodeId": trial_start_id,
+                    "targetNodeId": str(trial_target_node["id"]),
+                },
+                {
+                    "id": "trial-edge-target-end",
+                    "sourceNodeId": str(trial_target_node["id"]),
+                    "targetNodeId": trial_end_id,
+                },
+            ]
+
+        trial_definition = {
+            "nodes": trial_nodes,
+            "edges": trial_edges,
+        }
+        if isinstance(definition.get("variables"), list):
+            trial_definition["variables"] = deepcopy(definition.get("variables") or [])
+
+        return trial_definition, trial_target_node
+
+    def _trial_run_started_payload(
+        self,
+        *,
+        node: dict[str, Any],
+        blueprint_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "trial": {
+                "mode": "single_node",
+                "node_id": str(node.get("id") or ""),
+                "node_name": str(node.get("name") or node.get("id") or ""),
+                "node_type": str(node.get("type") or "unknown"),
+                "blueprint_payload": deepcopy(blueprint_payload),
+            }
+        }
 
     def _ensure_workflow_version_for_execution(
         self,

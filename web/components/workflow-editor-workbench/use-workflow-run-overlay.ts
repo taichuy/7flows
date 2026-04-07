@@ -80,10 +80,6 @@ export function useWorkflowRunOverlay({
   }, [enabled, selectedRunId]);
 
   const refreshRecentRuns = async () => {
-    if (!enabled) {
-      return;
-    }
-
     setIsRefreshingRuns(true);
     const refreshedRuns = await getWorkflowRuns(workflowId);
     setAvailableRuns(refreshedRuns);

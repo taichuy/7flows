@@ -419,6 +419,16 @@ def build_workflow_surface_route_access_policy_matrix() -> list[ConsoleRouteAcce
             expose_in_contract=False,
         ),
         _build_route_access_policy(
+            route="/api/workflows/{workflow_id}/nodes/{node_id}/trial-runs",
+            access_level="authenticated",
+            methods=["POST"],
+            csrf_protected_methods=["POST"],
+            description="节点试运行仅限可发起 run 的成员，并要求 CSRF double-submit。",
+            resource="run",
+            action="write",
+            expose_in_contract=False,
+        ),
+        _build_route_access_policy(
             route="/api/workflows/{workflow_id}/published-endpoints",
             access_level="authenticated",
             methods=["GET"],

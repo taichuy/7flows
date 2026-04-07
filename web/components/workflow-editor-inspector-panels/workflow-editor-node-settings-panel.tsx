@@ -2,8 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { Edge, Node } from "@xyflow/react";
-import { Alert, Button, Collapse, Input, Select, Space, Switch, Typography } from "antd";
-import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+  Alert,
+  Button,
+  Collapse,
+  Form,
+  Input,
+  Modal,
+  Select,
+  Space,
+  Switch,
+  Typography
+} from "antd";
+import { DeleteOutlined, EditOutlined, PlusOutlined } from "@ant-design/icons";
 
 import type {
   PluginAdapterRegistryItem,
@@ -20,6 +31,10 @@ import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-
 import type {
   WorkflowCanvasEdgeData,
   WorkflowCanvasNodeData
+} from "@/lib/workflow-editor";
+import {
+  buildDefaultStartNodeInputSchema,
+  resolveWorkflowNodeInputSchema
 } from "@/lib/workflow-editor";
 import { WorkflowEditorJsonPanel } from "@/components/workflow-editor-inspector-panels/workflow-editor-json-panel";
 import { WorkflowNodeConfigForm } from "@/components/workflow-node-config-form";
@@ -64,7 +79,7 @@ type TriggerInputFieldDraft = {
   name: string;
   label: string;
   description: string;
-  type: "text" | "number" | "boolean" | "select";
+  type: "text" | "number" | "boolean" | "select" | "array";
   required: boolean;
   optionsText: string;
   defaultValue: string;
@@ -74,8 +89,11 @@ const FIELD_TYPE_OPTIONS = [
   { label: "String", value: "text" },
   { label: "Number", value: "number" },
   { label: "Boolean", value: "boolean" },
-  { label: "Select", value: "select" }
+  { label: "Select", value: "select" },
+  { label: "Array", value: "array" }
 ] as const;
+
+const LOCKED_START_FIELD_NAMES = new Set(["query", "files"]);
 
 export function WorkflowEditorNodeSettingsPanel({
   node,
@@ -162,38 +180,38 @@ export function WorkflowEditorNodeSettingsPanel({
         </div>
       )}
 
-      <Collapse
-        activeKey={expandedSectionKeys}
-        onChange={(keys) =>
-          setExpandedSectionKeys(Array.isArray(keys) ? keys.map(String) : [String(keys)])
-        }
-        className="workflow-editor-node-settings-advanced"
-        items={[
-          {
-            key: "advanced",
-            label: "高级设置",
-            children: (
-              <Space
-                orientation="vertical"
-                size={20}
-                style={{ width: "100%" }}
-                className="workflow-editor-node-settings-advanced-content"
-              >
-                <WorkflowNodeIoSchemaForm
-                  node={node}
-                  currentHref={currentHref}
-                  onInputSchemaChange={onNodeInputSchemaChange}
-                  onOutputSchemaChange={onNodeOutputSchemaChange}
-                  highlighted={highlightedNodeSection === "contract"}
-                  highlightedFieldPath={
-                    highlightedNodeSection === "contract" ? highlightedNodeFieldPath : null
-                  }
-                  focusedValidationItem={
-                    highlightedNodeSection === "contract" ? focusedValidationItem : null
-                  }
-                  sandboxReadiness={sandboxReadiness}
-                />
-                {!isTriggerNode ? (
+      {!isTriggerNode ? (
+        <Collapse
+          activeKey={expandedSectionKeys}
+          onChange={(keys) =>
+            setExpandedSectionKeys(Array.isArray(keys) ? keys.map(String) : [String(keys)])
+          }
+          className="workflow-editor-node-settings-advanced"
+          items={[
+            {
+              key: "advanced",
+              label: "高级设置",
+              children: (
+                <Space
+                  orientation="vertical"
+                  size={20}
+                  style={{ width: "100%" }}
+                  className="workflow-editor-node-settings-advanced-content"
+                >
+                  <WorkflowNodeIoSchemaForm
+                    node={node}
+                    currentHref={currentHref}
+                    onInputSchemaChange={onNodeInputSchemaChange}
+                    onOutputSchemaChange={onNodeOutputSchemaChange}
+                    highlighted={highlightedNodeSection === "contract"}
+                    highlightedFieldPath={
+                      highlightedNodeSection === "contract" ? highlightedNodeFieldPath : null
+                    }
+                    focusedValidationItem={
+                      highlightedNodeSection === "contract" ? focusedValidationItem : null
+                    }
+                    sandboxReadiness={sandboxReadiness}
+                  />
                   <WorkflowNodeRuntimePolicyForm
                     node={node}
                     nodes={nodes}
@@ -209,24 +227,24 @@ export function WorkflowEditorNodeSettingsPanel({
                     }
                     sandboxReadiness={sandboxReadiness}
                   />
-                ) : null}
-              </Space>
-            )
-          },
-          {
-            key: "json",
-            label: "原始 JSON",
-            children: (
-              <WorkflowEditorJsonPanel
-                nodeConfigText={nodeConfigText}
-                onNodeConfigTextChange={onNodeConfigTextChange}
-                onApplyNodeConfigJson={onApplyNodeConfigJson}
-                onDeleteSelectedNode={onDeleteSelectedNode}
-              />
-            )
-          }
-        ]}
-      />
+                </Space>
+              )
+            },
+            {
+              key: "json",
+              label: "原始 JSON",
+              children: (
+                <WorkflowEditorJsonPanel
+                  nodeConfigText={nodeConfigText}
+                  onNodeConfigTextChange={onNodeConfigTextChange}
+                  onApplyNodeConfigJson={onApplyNodeConfigJson}
+                  onDeleteSelectedNode={onDeleteSelectedNode}
+                />
+              )
+            }
+          ]}
+        />
+      ) : null}
     </Space>
   );
 }
@@ -258,13 +276,20 @@ function WorkflowEditorTriggerInputFieldsSection({
   downstreamNodes: string[];
   onNodeInputSchemaChange: (nextSchema: Record<string, unknown> | undefined) => void;
 }) {
+  const [createFieldForm] = Form.useForm<TriggerInputFieldDraft>();
+  const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+  const [isFieldModalOpen, setIsFieldModalOpen] = useState(false);
+  const resolvedInputSchema = useMemo(
+    () => resolveWorkflowNodeInputSchema(node.data.nodeType, node.data.inputSchema),
+    [node.data.inputSchema, node.data.nodeType]
+  );
   const [fields, setFields] = useState<TriggerInputFieldDraft[]>(() =>
-    buildTriggerInputFieldDrafts(node.data.inputSchema)
+    buildTriggerInputFieldDrafts(resolvedInputSchema)
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const inputSchemaRecord = useMemo(
-    () => toRecord(node.data.inputSchema) ?? {},
-    [node.data.inputSchema]
+    () => toRecord(resolvedInputSchema) ?? {},
+    [resolvedInputSchema]
   );
   const supportedFieldNames = useMemo(
     () => getSupportedToolSchemaFields(inputSchemaRecord).map((field) => field.name),
@@ -277,36 +302,93 @@ function WorkflowEditorTriggerInputFieldsSection({
   );
 
   useEffect(() => {
-    setFields(buildTriggerInputFieldDrafts(node.data.inputSchema));
+    setFields(buildTriggerInputFieldDrafts(resolvedInputSchema));
     setErrorMessage(null);
-  }, [node.id, node.data.inputSchema]);
+    setEditingFieldId(null);
+    setIsFieldModalOpen(false);
+    createFieldForm.resetFields();
+  }, [createFieldForm, node.id, resolvedInputSchema]);
 
-  const updateField = (
-    fieldId: string,
-    patch: Partial<TriggerInputFieldDraft>
-  ) => {
-    setFields((current) =>
-      current.map((field) => (field.id === fieldId ? { ...field, ...patch } : field))
-    );
-  };
-
-  const handleApply = () => {
-    const validationError = validateTriggerFieldDrafts(fields);
+  const persistFields = (nextFields: TriggerInputFieldDraft[]) => {
+    const validationError = validateTriggerFieldDrafts(nextFields);
     if (validationError) {
       setErrorMessage(validationError);
-      return;
+      return false;
     }
 
     setErrorMessage(null);
+    setFields(nextFields);
     onNodeInputSchemaChange(
       buildTriggerInputSchema({
-        previousSchema: node.data.inputSchema,
-        fields,
+        previousSchema: resolvedInputSchema,
+        fields: nextFields,
         supportedFieldNames,
         unsupportedFieldNames
       })
     );
+    return true;
   };
+
+  const handleOpenCreateFieldModal = () => {
+    setEditingFieldId(null);
+    createFieldForm.setFieldsValue({
+      name: "",
+      label: "",
+      description: "",
+      type: "text",
+      required: false,
+      optionsText: "",
+      defaultValue: ""
+    });
+    setIsFieldModalOpen(true);
+  };
+
+  const handleOpenEditFieldModal = (fieldId: string) => {
+    const field = fields.find((item) => item.id === fieldId);
+    if (!field) {
+      return;
+    }
+
+    setEditingFieldId(fieldId);
+    createFieldForm.setFieldsValue(field);
+    setIsFieldModalOpen(true);
+  };
+
+  const handleSubmitField = async () => {
+    let values: TriggerInputFieldDraft;
+
+    try {
+      values = await createFieldForm.validateFields();
+    } catch {
+      return;
+    }
+
+    const nextField: TriggerInputFieldDraft = {
+      id:
+        editingFieldId ?? createTriggerFieldId(values.name || `field_${fields.length + 1}`),
+      name: values.name ?? "",
+      label: values.label ?? "",
+      description: values.description ?? "",
+      type: values.type ?? "text",
+      required: Boolean(values.required),
+      optionsText: values.optionsText ?? "",
+      defaultValue: values.defaultValue ?? ""
+    };
+
+    const nextFields = editingFieldId
+      ? fields.map((field) => (field.id === editingFieldId ? nextField : field))
+      : [...fields, nextField];
+
+    if (!persistFields(nextFields)) {
+      return;
+    }
+
+    setEditingFieldId(null);
+    setIsFieldModalOpen(false);
+    createFieldForm.resetFields();
+  };
+
+  const createFieldType = Form.useWatch("type", createFieldForm);
 
   return (
     <div
@@ -320,16 +402,12 @@ function WorkflowEditorTriggerInputFieldsSection({
           </Title>
         </div>
         <Button
-          type="default"
+          type="text"
+          size="small"
           icon={<PlusOutlined />}
-          onClick={() =>
-            setFields((current) => [
-              ...current,
-              createEmptyTriggerInputFieldDraft(current.length + 1)
-            ])
-          }
+          onClick={handleOpenCreateFieldModal}
         >
-          新增字段
+          新增参数
         </Button>
       </div>
 
@@ -338,7 +416,7 @@ function WorkflowEditorTriggerInputFieldsSection({
           type="warning"
           showIcon
           title="当前 trigger inputSchema 含复杂字段"
-          description={`结构化编辑会保留 ${unsupportedFieldNames.join("、")}，但复杂对象 / 数组仍建议直接在下方 I/O schema JSON 里维护。`}
+          description={`结构化编辑会保留 ${unsupportedFieldNames.join("、")}，但复杂对象仍建议直接在下方 I/O schema JSON 里维护。`}
         />
       ) : null}
 
@@ -355,87 +433,52 @@ function WorkflowEditorTriggerInputFieldsSection({
               className="workflow-editor-trigger-field-card"
               data-component="workflow-editor-trigger-field-card"
             >
-              <div className="workflow-editor-trigger-field-main-row">
-                <Input
-                  value={field.name}
-                  placeholder={`字段 key ${index + 1}`}
-                  onChange={(event) => updateField(field.id, { name: event.target.value })}
-                />
-                <Select
-                  value={field.type}
-                  options={FIELD_TYPE_OPTIONS.map((item) => ({
-                    label: item.label,
-                    value: item.value
-                  }))}
-                  onChange={(value) =>
-                    updateField(field.id, { type: value as TriggerInputFieldDraft["type"] })
-                  }
-                />
-                <div className="workflow-editor-trigger-field-required">
-                  <span>必填</span>
-                  <Switch
-                    checked={field.required}
-                    onChange={(checked) => updateField(field.id, { required: checked })}
-                  />
-                </div>
-                <Button
-                  danger
-                  type="text"
-                  icon={<DeleteOutlined />}
-                  onClick={() =>
-                    setFields((current) =>
-                      current.filter((candidate) => candidate.id !== field.id)
-                    )
-                  }
-                />
+              <div className="workflow-editor-trigger-field-compact-main">
+                <span className="workflow-editor-trigger-field-compact-name">
+                  {field.name || `field_${index + 1}`}
+                </span>
+                <span className="workflow-editor-trigger-field-compact-type">
+                  {formatTriggerFieldTypeLabel(field.type)}
+                </span>
               </div>
-
-              <div className="workflow-editor-trigger-field-detail-row">
-                <Input
-                  value={field.label}
-                  placeholder="展示名称"
-                  onChange={(event) => updateField(field.id, { label: event.target.value })}
-                />
-                <Input
-                  value={field.defaultValue}
-                  placeholder="默认值（可选）"
-                  onChange={(event) =>
-                    updateField(field.id, { defaultValue: event.target.value })
-                  }
-                />
+              <div className="workflow-editor-trigger-field-compact-actions">
+                {isLockedStartField(field.name) ? null : (
+                  <>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<EditOutlined />}
+                      aria-label={`编辑参数 ${field.name}`}
+                      onClick={() => handleOpenEditFieldModal(field.id)}
+                    />
+                    <Button
+                      danger
+                      type="text"
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      aria-label={`删除参数 ${field.name}`}
+                      onClick={() =>
+                        persistFields(fields.filter((candidate) => candidate.id !== field.id))
+                      }
+                    />
+                  </>
+                )}
               </div>
-
-              <Input.TextArea
-                rows={2}
-                value={field.description}
-                placeholder="字段描述（可选）"
-                onChange={(event) => updateField(field.id, { description: event.target.value })}
-              />
-
-              {field.type === "select" ? (
-                <Input.TextArea
-                  rows={3}
-                  value={field.optionsText}
-                  placeholder="每行一个可选值"
-                  onChange={(event) => updateField(field.id, { optionsText: event.target.value })}
-                />
-              ) : null}
             </div>
           ))}
       </div>
 
       <div className="workflow-editor-trigger-fields-actions">
-        <Button type="primary" onClick={handleApply}>
-          应用输入字段
-        </Button>
         <Button
+          size="small"
           onClick={() => {
-            setFields([]);
+            const defaultSchema = buildDefaultStartNodeInputSchema();
+            setFields(buildTriggerInputFieldDrafts(defaultSchema));
             setErrorMessage(null);
-            onNodeInputSchemaChange(undefined);
+            onNodeInputSchemaChange(defaultSchema);
           }}
         >
-          清空字段
+          恢复默认参数
         </Button>
       </div>
 
@@ -455,6 +498,59 @@ function WorkflowEditorTriggerInputFieldsSection({
           <Text type="secondary">当前入口节点还没有连接到后续节点。</Text>
         )}
       </div>
+
+      <Modal
+        title={editingFieldId ? "编辑开始节点参数" : "新增开始节点参数"}
+        open={isFieldModalOpen}
+        width={420}
+        onOk={() => void handleSubmitField()}
+        onCancel={() => {
+          setEditingFieldId(null);
+          setIsFieldModalOpen(false);
+        }}
+        okText={editingFieldId ? "保存参数" : "添加参数"}
+        cancelText="取消"
+        destroyOnHidden
+      >
+        <Form form={createFieldForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="参数 key"
+            rules={[{ required: true, message: "请输入参数 key" }]}
+          >
+            <Input placeholder="例如：query / files" />
+          </Form.Item>
+          <Form.Item name="label" label="展示名称">
+            <Input placeholder="例如：Query / Files" />
+          </Form.Item>
+          <Form.Item name="type" label="参数类型" initialValue="text">
+            <Select
+              options={FIELD_TYPE_OPTIONS.map((item) => ({
+                label: item.label,
+                value: item.value
+              }))}
+            />
+          </Form.Item>
+          <Form.Item name="required" label="必填" valuePropName="checked" initialValue={false}>
+            <Switch />
+          </Form.Item>
+          <Form.Item name="defaultValue" label="默认值">
+            <Input placeholder={createFieldType === "array" ? "可写 JSON 数组或每行一个值" : "可选"} />
+          </Form.Item>
+          <Form.Item name="description" label="字段描述">
+            <Input.TextArea rows={3} placeholder="可选" />
+          </Form.Item>
+          {createFieldType === "select" ? (
+            <Form.Item
+              name="optionsText"
+              label="可选值"
+              rules={[{ required: true, message: "请输入至少一个可选值" }]}
+            >
+              <Input.TextArea rows={3} placeholder="每行一个可选值" />
+            </Form.Item>
+          ) : null}
+        </Form>
+      </Modal>
     </div>
   );
 }
@@ -560,7 +656,9 @@ function buildTriggerFieldSchema(field: TriggerInputFieldDraft) {
           ? "number"
           : field.type === "boolean"
             ? "boolean"
-            : "string"
+            : field.type === "array"
+              ? "array"
+              : "string"
   };
 
   if (field.label.trim()) {
@@ -581,6 +679,10 @@ function buildTriggerFieldSchema(field: TriggerInputFieldDraft) {
     }
   }
 
+  if (field.type === "array") {
+    baseField.items = { type: "string" };
+  }
+
   const normalizedDefaultValue = field.defaultValue.trim();
   if (normalizedDefaultValue) {
     if (field.type === "number") {
@@ -591,6 +693,11 @@ function buildTriggerFieldSchema(field: TriggerInputFieldDraft) {
     } else if (field.type === "boolean") {
       if (normalizedDefaultValue === "true" || normalizedDefaultValue === "false") {
         baseField.default = normalizedDefaultValue === "true";
+      }
+    } else if (field.type === "array") {
+      const parsed = parseArrayDefaultValue(normalizedDefaultValue);
+      if (parsed.length > 0) {
+        baseField.default = parsed;
       }
     } else {
       baseField.default = normalizedDefaultValue;
@@ -626,6 +733,52 @@ function validateTriggerFieldDrafts(fields: TriggerInputFieldDraft[]) {
   return null;
 }
 
+function formatTriggerFieldTypeLabel(type: TriggerInputFieldDraft["type"]) {
+  switch (type) {
+    case "number":
+      return "Number";
+    case "boolean":
+      return "Boolean";
+    case "select":
+      return "Select";
+    case "array":
+      return "Array";
+    case "text":
+    default:
+      return "String";
+  }
+}
+
+function isLockedStartField(fieldName: string) {
+  return LOCKED_START_FIELD_NAMES.has(fieldName.trim());
+}
+
+function parseArrayDefaultValue(value: string) {
+  const normalized = value.trim();
+
+  if (!normalized) {
+    return [] as string[];
+  }
+
+  if (normalized.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(normalized) as unknown;
+      if (Array.isArray(parsed)) {
+        return parsed.filter(
+          (item): item is string => typeof item === "string" && item.trim().length > 0
+        );
+      }
+    } catch {
+      return [] as string[];
+    }
+  }
+
+  return normalized
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
 function readRequiredFieldNames(schema: Record<string, unknown>) {
   return Array.isArray(schema.required)
     ? schema.required.filter((item): item is string => typeof item === "string")
@@ -639,17 +792,4 @@ function createTriggerFieldId(seed: string) {
   }
 
   return `${normalizedSeed}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-function createEmptyTriggerInputFieldDraft(index: number): TriggerInputFieldDraft {
-  return {
-    id: createTriggerFieldId(`field_${index}`),
-    name: `field_${index}`,
-    label: "",
-    description: "",
-    type: "text",
-    required: false,
-    optionsText: "",
-    defaultValue: ""
-  };
 }

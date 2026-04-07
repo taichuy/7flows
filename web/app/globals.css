@@ -4224,6 +4224,10 @@ a {
   flex-direction: column;
 }
 
+.workflow-editor-inspector-tabs .ant-tabs-tabpane.ant-tabs-tabpane-hidden {
+  display: none;
+}
+
 .workflow-editor-inspector-tabs .ant-tabs-tabpane {
   flex: 1;
   padding-bottom: 20px;
@@ -4328,10 +4332,74 @@ a {
   align-items: center;
 }
 
+.workflow-editor-trigger-field-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.workflow-editor-trigger-field-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.workflow-editor-trigger-field-compact-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.workflow-editor-trigger-field-compact-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.workflow-editor-trigger-field-compact-type {
+  flex: 0 0 auto;
+  font-size: 0.84rem;
+  color: #667085;
+}
+
+.workflow-editor-trigger-field-compact-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
 .workflow-editor-trigger-field-detail-row {
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workflow-editor-trigger-field-readonly-item {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.workflow-editor-trigger-field-readonly-item span {
+  font-size: 0.78rem;
+  color: #667085;
+}
+
+.workflow-editor-trigger-field-readonly-item strong {
+  font-size: 0.94rem;
+  color: #111827;
 }
 
 .workflow-editor-trigger-field-required {

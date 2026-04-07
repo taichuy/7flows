@@ -187,6 +187,7 @@ export function useWorkflowEditorPanels({
     currentHref: currentEditorHref,
     nodeTitlePlacement: "floating-panel",
     selectedNode: graph.selectedNode,
+    run: runOverlay.selectedRunDetail,
     selectedEdge: graph.selectedEdge,
     nodes: graph.nodes,
     edges: graph.edges,
@@ -227,9 +228,10 @@ export function useWorkflowEditorPanels({
     persistBlockers: validation.persistBlockers,
     persistBlockerRecommendedNextStep,
     assistantRequestSerial: shell.assistantRequestSerial,
+    runtimeRequestSerial: shell.runtimeRequestSerial,
     sandboxReadiness,
     onRuntimeRunSuccess: (runId) => {
-      shell.setMessage("工作流已触发运行");
+      shell.setMessage("节点试运行已写入运行缓存");
       shell.setMessageTone("success");
 
       if (shell.isSidebarCollapsed) {
@@ -238,6 +240,7 @@ export function useWorkflowEditorPanels({
 
       if (runId) {
         runOverlay.setSelectedRunId(runId);
+        void runOverlay.refreshRecentRuns();
       }
 
       onActivateRunOverlay();
@@ -264,6 +267,7 @@ export function useWorkflowEditorPanels({
       }
       if (runId) {
         runOverlay.setSelectedRunId(runId);
+        void runOverlay.refreshRecentRuns();
       }
     },
     onRunError: (message: string) => {

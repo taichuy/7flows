@@ -925,6 +925,11 @@ def test_console_route_access_resolver_covers_workflow_surface_contracts(
         route="/api/workflows/{workflow_id}/runs",
         method="POST",
     )
+    ensure_console_route_access(
+        editor_context,
+        route="/api/workflows/{workflow_id}/nodes/{node_id}/trial-runs",
+        method="POST",
+    )
 
     ensure_console_route_access(
         viewer_context,
@@ -950,6 +955,13 @@ def test_console_route_access_resolver_covers_workflow_surface_contracts(
         ensure_console_route_access(
             viewer_context,
             route="/api/workflows/{workflow_id}/runs",
+            method="POST",
+        )
+
+    with pytest.raises(AuthorizationError, match="当前账号没有访问该工作台路由的权限。"):
+        ensure_console_route_access(
+            viewer_context,
+            route="/api/workflows/{workflow_id}/nodes/{node_id}/trial-runs",
             method="POST",
         )
 

@@ -2,6 +2,7 @@
 
 import { useMemo, type CSSProperties } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { PlayCircleOutlined } from "@ant-design/icons";
 
 import type { RunDetail } from "@/lib/get-run-detail";
 import type { RunTrace } from "@/lib/get-run-trace";
@@ -80,6 +81,7 @@ export function applyRunOverlayToNodes(
 type WorkflowCanvasNodeComponentProps = NodeProps<Node<WorkflowCanvasNodeData>> & {
   onQuickAdd?: (sourceNodeId: string, type: string) => void;
   onDeleteNode?: (nodeId: string) => void;
+  onOpenRuntime?: (nodeId: string) => void;
   quickAddOptions?: WorkflowCanvasQuickAddOption[];
 };
 
@@ -89,6 +91,7 @@ export function WorkflowCanvasNode({
   selected,
   onQuickAdd,
   onDeleteNode,
+  onOpenRuntime,
   quickAddOptions = []
 }: WorkflowCanvasNodeComponentProps) {
   const canQuickAdd = Boolean(selected && onQuickAdd && data.nodeType !== "endNode");
@@ -113,8 +116,23 @@ export function WorkflowCanvasNode({
       }
     >
       {hasIncomingHandle ? <Handle type="target" position={Position.Left} /> : null}
-      {selected && canDelete ? (
+      {selected && (onOpenRuntime || canDelete) ? (
         <div className="workflow-canvas-node-actions">
+          {onOpenRuntime ? (
+            <button
+              className="workflow-canvas-node-action-button"
+              type="button"
+              aria-label={`试运行 ${data.label}`}
+              data-action="open-node-runtime-from-node"
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onOpenRuntime(id);
+              }}
+            >
+              <PlayCircleOutlined />
+            </button>
+          ) : null}
           <button
             className="workflow-canvas-node-action-button danger"
             type="button"

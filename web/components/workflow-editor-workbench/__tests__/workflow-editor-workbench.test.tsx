@@ -166,9 +166,11 @@ function buildShellState(overrides: Record<string, unknown> = {}) {
     isInspectorCollapsed: false,
     setIsInspectorCollapsed: () => undefined,
     assistantRequestSerial: 0,
+    runtimeRequestSerial: 0,
     toggleSidebar: () => undefined,
     toggleInspector: () => undefined,
     openNodeAssistant: () => undefined,
+    openNodeRuntime: () => undefined,
     getInspectorFocusState: () => ({
       highlightedNodeSection: null,
       highlightedNodeFieldPath: null,
@@ -373,6 +375,7 @@ describe("WorkflowEditorWorkbench", () => {
     expect(html).toContain('data-component="workflow-editor-floating-panel"');
     expect(html).toContain('data-panel-kind="node-config"');
     expect(html).toContain('data-component="workflow-editor-floating-panel-header"');
+    expect(html).toContain('data-action="open-node-runtime-from-panel"');
     expect(html).not.toContain("NODE WORKBENCH");
     expect(html).not.toContain('data-component="workflow-editor-hero"');
     expect(html).not.toContain('data-component="workflow-editor-sidebar-rail"');
@@ -392,6 +395,7 @@ describe("WorkflowEditorWorkbench", () => {
     expect(html).toContain('data-action="run-workflow"');
     expect((html.match(/data-command-enabled="false"/g) ?? []).length).toBe(2);
     expect(html).toContain("属性栏");
+    expect(html).not.toContain('data-action="open-node-runtime-from-panel"');
     expect(html).not.toContain("AI 辅助");
     expect(html).not.toContain('data-component="workflow-editor-inspector-rail"');
     expect(html).not.toContain('data-component="workflow-editor-sidebar-rail"');

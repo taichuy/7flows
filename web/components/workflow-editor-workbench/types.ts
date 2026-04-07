@@ -125,6 +125,7 @@ export type WorkflowEditorInspectorProps = {
   currentHref?: string | null;
   nodeTitlePlacement?: "inspector" | "floating-panel";
   selectedNode: Node<WorkflowCanvasNodeData> | null;
+  run?: RunDetail | null;
   selectedEdge: Edge<WorkflowCanvasEdgeData> | null;
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   edges: Array<Edge<WorkflowCanvasEdgeData>>;
@@ -173,6 +174,7 @@ export type WorkflowEditorInspectorProps = {
   persistBlockers: WorkflowPersistBlocker[];
   persistBlockerRecommendedNextStep?: OperatorRecommendedNextStep | null;
   assistantRequestSerial?: number;
+  runtimeRequestSerial?: number;
   sandboxReadiness?: SandboxReadinessCheck | null;
   onRuntimeRunSuccess?: (runId?: string | null) => void;
   onRuntimeRunError?: (message: string) => void;

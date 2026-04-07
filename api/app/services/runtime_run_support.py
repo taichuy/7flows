@@ -96,11 +96,14 @@ class RuntimeRunSupportMixin:
         db: Session,
         run: Run,
     ) -> WorkflowCompiledBlueprint:
-        record = self._compiled_blueprints.get_for_run(db, run)
-        if record is not None:
-            if run.compiled_blueprint_id != record.id:
-                run.compiled_blueprint_id = record.id
-            return record
+        if run.compiled_blueprint_id:
+            record = db.get(WorkflowCompiledBlueprint, run.compiled_blueprint_id)
+            if record is not None:
+                return record
+
+        trial_record = self._load_trial_blueprint_record(db, run)
+        if trial_record is not None:
+            return trial_record
 
         workflow_version = self._load_workflow_version(
             db,
@@ -110,6 +113,40 @@ class RuntimeRunSupportMixin:
         record = self._compiled_blueprints.ensure_for_workflow_version(db, workflow_version)
         run.compiled_blueprint_id = record.id
         return record
+
+    def _load_trial_blueprint_record(
+        self,
+        db: Session,
+        run: Run,
+    ) -> WorkflowCompiledBlueprint | None:
+        started_event = db.scalar(
+            select(RunEvent)
+            .where(
+                RunEvent.run_id == run.id,
+                RunEvent.event_type == "run.started",
+            )
+            .order_by(RunEvent.id.asc())
+        )
+        if started_event is None:
+            return None
+
+        payload = started_event.payload if isinstance(started_event.payload, dict) else {}
+        trial_payload = payload.get("trial") if isinstance(payload, dict) else None
+        if not isinstance(trial_payload, dict):
+            return None
+
+        blueprint_payload = trial_payload.get("blueprint_payload")
+        if not isinstance(blueprint_payload, dict):
+            return None
+
+        return WorkflowCompiledBlueprint(
+            id=f"trial-blueprint:{run.id}",
+            workflow_id=run.workflow_id,
+            workflow_version_id=f"trial-blueprint:{run.id}",
+            workflow_version=run.workflow_version,
+            compiler_version=self._compiled_blueprints.compiler_version,
+            blueprint_payload=deepcopy(blueprint_payload),
+        )
 
     def receive_callback(
         self,

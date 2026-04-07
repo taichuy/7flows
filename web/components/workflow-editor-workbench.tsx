@@ -44,7 +44,7 @@ import type { WorkflowDefinitionPreflightIssue } from "@/lib/get-workflows";
 
 const FLOATING_NODE_WORKBENCH_WIDTH = 440;
 const FLOATING_NODE_WORKBENCH_MARGIN = 16;
-const FLOATING_NODE_WORKBENCH_TOP = 16;
+const FLOATING_NODE_WORKBENCH_TOP = 76;
 const EMPTY_SERVER_VALIDATION_ISSUES: WorkflowDefinitionPreflightIssue[] = [];
 
 type FloatingWorkbenchPosition = {
@@ -100,13 +100,13 @@ function clampFloatingWorkbenchPosition(
     bounds.stageWidth - bounds.panelWidth - FLOATING_NODE_WORKBENCH_MARGIN
   );
   const maxY = Math.max(
-    FLOATING_NODE_WORKBENCH_MARGIN,
+    FLOATING_NODE_WORKBENCH_TOP,
     bounds.stageHeight - bounds.panelHeight - FLOATING_NODE_WORKBENCH_MARGIN
   );
 
   return {
     x: Math.min(maxX, Math.max(FLOATING_NODE_WORKBENCH_MARGIN, Math.round(position.x))),
-    y: Math.min(maxY, Math.max(FLOATING_NODE_WORKBENCH_MARGIN, Math.round(position.y)))
+    y: Math.min(maxY, Math.max(FLOATING_NODE_WORKBENCH_TOP, Math.round(position.y)))
   } satisfies FloatingWorkbenchPosition;
 }
 
@@ -354,12 +354,21 @@ export function WorkflowEditorWorkbench({
     },
     [focusNode]
   );
+  const handleOpenNodeRuntime = useCallback(() => {
+    if (!graph.selectedNodeId) {
+      return;
+    }
+
+    setIsFloatingInspectorOpen(true);
+    shell.openNodeRuntime();
+  }, [graph.selectedNodeId, shell]);
   const canvasNodeTypes = useMemo(
     () => ({
       workflowNode: (props: ComponentProps<typeof WorkflowCanvasNode>) => (
         <WorkflowCanvasNode
           {...props}
           quickAddOptions={canvasQuickAddOptions}
+          onOpenRuntime={() => handleOpenNodeRuntime()}
           onDeleteNode={(nodeId) => handleCanvasDeleteNode(nodeId)}
           onQuickAdd={(sourceNodeId, type) =>
             handleCanvasQuickAdd(type, { sourceNodeId })
@@ -367,7 +376,7 @@ export function WorkflowEditorWorkbench({
         />
       )
     }),
-    [canvasQuickAddOptions, handleCanvasDeleteNode, handleCanvasQuickAdd]
+    [canvasQuickAddOptions, handleCanvasDeleteNode, handleCanvasQuickAdd, handleOpenNodeRuntime]
   );
   const canvasEdgeTypes = useMemo(
     () => ({
@@ -411,7 +420,8 @@ export function WorkflowEditorWorkbench({
     () =>
       ({
         "--workflow-editor-sidebar-width": "320px",
-        "--workflow-editor-inspector-width": "420px"
+        "--workflow-editor-inspector-width": "420px",
+        "--workflow-editor-floating-workbench-top": `${FLOATING_NODE_WORKBENCH_TOP}px`
       }) as CSSProperties,
     []
   );
@@ -605,6 +615,7 @@ export function WorkflowEditorWorkbench({
               title={inspectorSurfaceTitleNode}
               closeLabel="关闭配置面板"
               closeAction="close-floating-inspector"
+              onTrialRun={selectedNodeId ? handleOpenNodeRuntime : undefined}
               dragging={isFloatingWorkbenchDragging}
               style={
                 floatingWorkbenchPosition

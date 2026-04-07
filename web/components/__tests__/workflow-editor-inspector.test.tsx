@@ -210,15 +210,42 @@ describe("WorkflowEditorInspector", () => {
     expect(html).toContain("设置");
     expect(html).toContain("运行时");
     expect(html).toContain("输入字段");
-    expect(html).toContain("应用输入字段");
+    expect(html).toContain("新增参数");
+    expect(html).toContain("query");
+    expect(html).toContain("files");
+    expect(html).toContain("String");
+    expect(html).toContain("Array");
+    expect(html).not.toContain("编辑参数 query");
+    expect(html).not.toContain("删除参数 query");
+    expect(html).not.toContain("编辑参数 files");
+    expect(html).not.toContain("删除参数 files");
     expect(html).toContain("下一步");
-    expect(html).toContain("高级设置");
-    expect(html).toContain("原始 JSON");
+    expect(html).not.toContain("高级设置");
+    expect(html).not.toContain("原始 JSON");
     expect(html).not.toContain("个上游");
     expect(html).not.toContain("Trigger settings");
     expect(html).not.toContain("这些字段会作为 workflow run");
     expect(html).not.toContain("当前入口节点还没有显式输入字段");
     expect(html).not.toContain("workflow-editor-assistant-panel");
+  });
+
+  it("switches start-node contract focus to the runtime tab", () => {
+    const triggerNode = buildTriggerNode();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorInspector, {
+        ...buildProps(),
+        selectedNode: triggerNode,
+        nodes: [triggerNode],
+        highlightedNodeSection: "contract",
+        highlightedNodeFieldPath: "inputSchema"
+      })
+    );
+
+    expect(html).toContain('data-component="workflow-editor-node-runtime-panel"');
+    expect(html).toContain('data-component="workflow-editor-node-runtime-contract"');
+    expect(html).toContain("高级系统设置");
+    expect(html).toContain('data-component="node-io-schema-form"');
+    expect(html).not.toContain("原始 JSON");
   });
 
   it("hides the duplicate node title input when the floating panel owns the title", () => {

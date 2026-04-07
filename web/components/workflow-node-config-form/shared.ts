@@ -36,7 +36,7 @@ export type ToolSchemaField = {
   name: string;
   label: string;
   description: string;
-  type: "text" | "number" | "boolean" | "select";
+  type: "text" | "number" | "boolean" | "select" | "array";
   required: boolean;
   options: string[];
   inputType?: "text" | "password" | "url";
@@ -150,6 +150,22 @@ export function getSupportedToolSchemaFields(inputSchema: Record<string, unknown
         required: required.has(name),
         options: [],
         defaultValue: field.default
+      });
+      return;
+    }
+
+    if (
+      fieldType === "array" &&
+      (!toRecord(field.items) || toRecord(field.items)?.type === "string")
+    ) {
+      fields.push({
+        name,
+        label,
+        description,
+        type: "array",
+        required: required.has(name),
+        options: [],
+        defaultValue: Array.isArray(field.default) ? field.default : undefined
       });
       return;
     }

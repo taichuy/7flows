@@ -78,7 +78,6 @@ describe("WorkflowEditorCanvas", () => {
         canOpenInspector: false,
         canUndo: false,
         canRedo: false,
-        inspectorActionLabel: "配置面板",
         onNodeClick: () => undefined,
         onToggleSidebar: () => undefined,
         onToggleInspector: () => undefined,
@@ -92,8 +91,9 @@ describe("WorkflowEditorCanvas", () => {
     expect(html).toContain('data-fit-view-padding="0.2"');
     expect(html).toContain('data-fit-view-duration="240"');
     expect(html).toContain('data-has-node-click="true"');
+    expect(html).toContain('data-inspector-open="true"');
+    expect(html).toContain('data-action="inspector"');
     expect(html).not.toContain("workflow-editor-nav-strip");
     expect(html).not.toContain("xyflow Studio");
-    expect(html).not.toContain('data-action="inspector"');
   });
 });

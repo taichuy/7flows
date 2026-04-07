@@ -204,3 +204,56 @@ export async function triggerWorkflowRun(
     };
   }
 }
+
+
+export async function triggerWorkflowNodeTrialRun(
+  workflowId: string,
+  nodeId: string,
+  inputPayload: Record<string, unknown>
+): Promise<{ status: "success" | "error"; message: string; runId?: string }> {
+  try {
+    const response = await fetch(
+      `${getApiBaseUrl()}/api/workflows/${workflowId}/nodes/${nodeId}/trial-runs`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          input_payload: inputPayload,
+          source: "operator_node_trial_run"
+        }),
+        cache: "no-store"
+      }
+    );
+
+    const body = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      return {
+        status: "error",
+        message: body?.detail ?? "触发节点试运行失败。"
+      };
+    }
+
+    const runId = body?.id || body?.run?.id;
+
+    if (runId) {
+      revalidateOperatorFollowUpPaths({
+        workflowIds: [workflowId],
+        runIds: [runId]
+      });
+    }
+
+    return {
+      status: "success",
+      message: "节点试运行触发成功",
+      runId
+    };
+  } catch {
+    return {
+      status: "error",
+      message: "服务请求失败。"
+    };
+  }
+}

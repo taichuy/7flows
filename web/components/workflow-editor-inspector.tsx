@@ -69,6 +69,7 @@ export function WorkflowEditorInspector({
   currentHref = null,
   nodeTitlePlacement = "inspector",
   selectedNode,
+  run = null,
   selectedEdge,
   nodes,
   edges,
@@ -143,15 +144,17 @@ export function WorkflowEditorInspector({
   const selectedEdgeId = selectedEdge?.id ?? null;
   const focusedScope = focusedValidationItem?.target.scope ?? null;
 
-  const preferredTabKey = useMemo<WorkflowEditorInspectorTabKey>(
-    () =>
-      resolveWorkflowEditorInspectorPreferredTabKey({
-        selectedNodeId,
-        selectedEdgeId,
-        focusedScope
-      }),
-    [focusedScope, selectedEdgeId, selectedNodeId]
-  );
+  const preferredTabKey = useMemo<WorkflowEditorInspectorTabKey>(() => {
+    if (selectedNode?.data.nodeType === "startNode" && highlightedNodeSection === "contract") {
+      return "node-runtime";
+    }
+
+    return resolveWorkflowEditorInspectorPreferredTabKey({
+      selectedNodeId,
+      selectedEdgeId,
+      focusedScope
+    });
+  }, [focusedScope, highlightedNodeSection, selectedEdgeId, selectedNode, selectedNodeId]);
   const tabResetKey = useMemo(
     () =>
       resolveWorkflowEditorInspectorTabResetKey({
@@ -362,6 +365,14 @@ export function WorkflowEditorInspector({
             <WorkflowEditorNodeRuntimePanel
               workflowId={workflowId}
               node={selectedNode}
+              run={run}
+              currentHref={currentHref}
+              onNodeInputSchemaChange={onNodeInputSchemaChange}
+              onNodeOutputSchemaChange={onNodeOutputSchemaChange}
+              highlightedNodeSection={highlightedNodeSection}
+              highlightedNodeFieldPath={highlightedNodeFieldPath}
+              focusedValidationItem={focusedValidationItem}
+              sandboxReadiness={sandboxReadiness}
               onRunSuccess={onRuntimeRunSuccess}
               onRunError={onRuntimeRunError}
               onOpenRunOverlay={onOpenRunOverlay}
@@ -510,6 +521,7 @@ export function WorkflowEditorInspector({
       <div className="workflow-editor-inspector-body">
         <Tabs
           activeKey={activeTabKey}
+          animated={{ inkBar: true, tabPane: false }}
           onChange={(key) => setActiveTabKey(key as WorkflowEditorInspectorTabKey)}
           className="workflow-editor-inspector-tabs"
           items={tabItems}

@@ -13,6 +13,7 @@ from app.core.database import get_db
 from app.models.run import Run
 from app.models.workflow import Workflow
 from app.schemas.run import (
+    NodeTrialRunCreate,
     RunCallbackRequest,
     RunCallbackResponse,
     RunCreate,
@@ -95,6 +96,55 @@ def execute_workflow(
 
     try:
         artifacts = runtime_service.execute_workflow(db, workflow, payload.input_payload)
+    except WorkflowExecutionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
+
+    return serialize_run_overview_from_artifacts(
+        artifacts,
+        tool_governance=load_run_tool_governance_summary(db, artifacts),
+    )
+
+
+@router.post(
+    "/workflows/{workflow_id}/nodes/{node_id}/trial-runs",
+    response_model=RunOverview,
+    status_code=status.HTTP_201_CREATED,
+)
+def execute_workflow_node_trial_run(
+    workflow_id: str,
+    node_id: str,
+    payload: NodeTrialRunCreate,
+    _access_context=Depends(
+        require_console_route_access(
+            "/api/workflows/{workflow_id}/nodes/{node_id}/trial-runs",
+            method="POST",
+        )
+    ),
+    db: Session = Depends(get_db),
+) -> RunOverview:
+    workflow = db.get(Workflow, workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found.")
+
+    workflow_nodes = (
+        workflow.definition.get("nodes") if isinstance(workflow.definition, dict) else []
+    )
+    if not any(str(node.get("id")) == node_id for node in (workflow_nodes or [])):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Workflow node not found.",
+        )
+
+    try:
+        artifacts = runtime_service.execute_node_trial_run(
+            db,
+            workflow,
+            node_id=node_id,
+            input_payload=payload.input_payload,
+        )
     except WorkflowExecutionError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,

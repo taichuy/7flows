@@ -102,7 +102,11 @@ export function WorkflowEditorCanvas({
     >(null);
   return (
     <ReactFlowProvider>
-      <section className="editor-canvas-panel" data-component="workflow-editor-canvas">
+      <section
+        className="editor-canvas-panel"
+        data-component="workflow-editor-canvas"
+        data-inspector-open={isInspectorOpen ? "true" : "false"}
+      >
         <div className="editor-canvas-card">
           <ReactFlow
             fitView

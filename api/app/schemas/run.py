@@ -25,6 +25,10 @@ class RunCreate(BaseModel):
     input_payload: dict = Field(default_factory=dict)
 
 
+class NodeTrialRunCreate(BaseModel):
+    input_payload: dict = Field(default_factory=dict)
+
+
 class RunCallbackToolResult(BaseModel):
     status: Literal["success", "failed", "partial"] = "success"
     content_type: str = "json"

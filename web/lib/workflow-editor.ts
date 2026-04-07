@@ -40,6 +40,26 @@ export type WorkflowCanvasEdgeData = {
   mapping?: Array<Record<string, unknown>>;
 };
 
+const DEFAULT_START_NODE_INPUT_SCHEMA = {
+  type: "object",
+  properties: {
+    query: {
+      type: "string",
+      title: "Query",
+      description: "开始节点默认承接用户输入。"
+    },
+    files: {
+      type: "array",
+      title: "Files",
+      description: "可选的文件引用列表。",
+      items: {
+        type: "string"
+      }
+    }
+  },
+  required: ["query"]
+} as const;
+
 const DEFAULT_EDGE_OPTIONS: WorkflowCanvasEdgeData = {
   channel: "control"
 };
@@ -295,9 +315,11 @@ export function buildWorkflowCanvasNodeData(
 ): WorkflowCanvasNodeData {
   const catalogItem = getWorkflowNodeCatalogItem(nodeCatalog, input.nodeType);
   const typeLabel = getWorkflowNodeTypeDisplayLabel(input.nodeType, catalogItem?.label);
+  const inputSchema = resolveWorkflowNodeInputSchema(input.nodeType, input.inputSchema);
 
   return {
     ...input,
+    inputSchema,
     label: getWorkflowNodeDisplayLabel({
       nodeType: input.nodeType,
       label: input.label,
@@ -306,6 +328,43 @@ export function buildWorkflowCanvasNodeData(
     typeLabel,
     typeDescription: catalogItem?.description ?? catalogItem?.supportSummary,
     capabilityGroup: catalogItem?.capabilityGroup
+  };
+}
+
+export function buildDefaultStartNodeInputSchema(): Record<string, unknown> {
+  return structuredClone(DEFAULT_START_NODE_INPUT_SCHEMA);
+}
+
+export function resolveWorkflowNodeInputSchema(
+  nodeType: string,
+  inputSchema: Record<string, unknown> | null | undefined
+) {
+  const normalized = toOptionalRecord(inputSchema);
+
+  if (nodeType !== "startNode") {
+    return normalized;
+  }
+
+  const baseSchema = buildDefaultStartNodeInputSchema();
+  const baseProperties = toOptionalRecord(baseSchema.properties) ?? {};
+  const existingProperties = toOptionalRecord(normalized?.properties) ?? {};
+  const nextProperties = {
+    ...existingProperties,
+    query: structuredClone(baseProperties.query),
+    files: structuredClone(baseProperties.files)
+  };
+  const nextRequired = new Set<string>([
+    ...((Array.isArray(normalized?.required)
+      ? normalized.required.filter((item): item is string => typeof item === "string")
+      : []) as string[]),
+    "query"
+  ]);
+
+  return {
+    ...(normalized ?? {}),
+    type: "object",
+    properties: nextProperties,
+    required: [...nextRequired]
   };
 }
 
