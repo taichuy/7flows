@@ -602,7 +602,7 @@ def test_reference_node_reads_authorized_upstream_json(sqlite_session: Session) 
                     "name": "referenceNode",
                     "config": {
                         "contextAccess": {"readableNodeIds": ["source"]},
-                        "referenceNode": {"sourceNodeId": "source", "artifactType": "json"},
+                        "reference": {"sourceNodeId": "source", "artifactType": "json"},
                     },
                 },
                 {"id": "endNode", "type": "endNode", "name": "endNode", "config": {}},
@@ -621,7 +621,7 @@ def test_reference_node_reads_authorized_upstream_json(sqlite_session: Session) 
 
     assert artifacts.run.status == "succeeded"
     assert artifacts.run.output_payload == {
-        "reference": {
+        "referenceNode": {
             "reference": {
                 "sourceNodeId": "source",
                 "artifactType": "json",

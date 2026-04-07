@@ -1,3 +1,5 @@
+import pytest
+
 from datetime import UTC, datetime, timedelta
 
 from fastapi.testclient import TestClient
@@ -12,6 +14,10 @@ from app.services.plugin_runtime import PluginCallProxy, PluginRegistry, PluginT
 from app.services.run_callback_ticket_cleanup import RunCallbackTicketCleanupService
 from app.services.run_resume_scheduler import RunResumeScheduler
 from app.services.runtime import RuntimeService
+
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
+)
 
 
 def _create_waiting_callback_run(

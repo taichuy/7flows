@@ -2006,7 +2006,7 @@ def test_runtime_service_executes_registered_native_tool(
         PluginToolDefinition(id="native.search", name="Search"),
         invoker=lambda request: {
             "received": request.inputs,
-            "summary": f"search:{request.inputs['trigger']['topic']}",
+            "summary": f"search:{request.inputs['startNode']['topic']}",
         },
     )
     runtime = RuntimeService(plugin_call_proxy=PluginCallProxy(registry))
@@ -2016,7 +2016,7 @@ def test_runtime_service_executes_registered_native_tool(
     assert artifacts.run.status == "succeeded"
     assert artifacts.run.output_payload == {
         "search": {
-            "received": {"topic": {"topic": "plugin"}},
+            "received": {"startNode": {"topic": "plugin"}},
             "summary": "search:plugin",
         }
     }

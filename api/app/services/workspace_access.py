@@ -1216,7 +1216,7 @@ def build_console_route_access_policy_matrix() -> list[ConsoleRouteAccessPolicy]
                 "并要求 CSRF double-submit。"
             ),
             resource="run",
-            action="manage",
+            action="write",
             denied_message="当前账号没有 run callback ticket 管理权限。",
         ),
         # ---------- published endpoint lifecycle / legacy-auth ----------

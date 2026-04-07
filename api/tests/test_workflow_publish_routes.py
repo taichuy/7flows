@@ -826,7 +826,7 @@ def test_invoke_published_native_endpoint_uses_active_binding_blueprint(
     assert body["run"]["compiled_blueprint_id"] == initial_binding["compiled_blueprint_id"]
     assert body["run"]["run_follow_up"] == body["run_follow_up"]
     assert body["run"]["input_payload"] == {"question": "hello"}
-    assert body["run"]["output_payload"] == {"tool": {"answer": "v1"}}
+    assert body["run"]["output_payload"] == {"toolNode": {"answer": "v1"}}
     assert body["endpoint_alias"] == "native-chat"
     assert body["route_path"] == "/native-chat"
 
@@ -866,7 +866,9 @@ def test_invoke_published_native_endpoint_supports_alias_and_path_routes(
         json={"input_payload": {"source": "alias"}},
     )
     assert alias_response.status_code == 200
-    assert alias_response.json()["run"]["output_payload"] == {"tool": {"answer": "alias-path"}}
+    assert alias_response.json()["run"]["output_payload"] == {
+        "toolNode": {"answer": "alias-path"}
+    }
 
     path_response = client.post(
         "/v1/published-paths/team/native-chat",
@@ -959,7 +961,9 @@ def test_invoke_published_native_endpoint_stream_returns_event_stream(
     completed_payload = streamed_payloads[-1]
     assert completed_payload["type"] == "run.completed"
     assert completed_payload["status"] == "succeeded"
-    assert completed_payload["output_payload"] == {"tool": {"answer": "native streamed hello"}}
+    assert completed_payload["output_payload"] == {
+        "toolNode": {"answer": "native streamed hello"}
+    }
 
     activity_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations"

@@ -173,7 +173,7 @@ def test_build_operator_run_follow_up_summary_counts_all_affected_runs(
             "下一步：优先沿 waiting / callback 事实链排查，"
             "不要只盯单次 invocation 返回。 "
             "run run-follow-up-running：当前 run 状态：running。 当前节点：mock_tool。 "
-            "run run-follow-up-succeeded：当前 run 状态：succeeded。 当前节点：output。 "
+                "run run-follow-up-succeeded：当前 run 状态：succeeded。 当前节点：endNode。 "
             "其余 1 个 run 可继续到对应 run detail / inbox slice 查看后续推进。"
         ),
     }

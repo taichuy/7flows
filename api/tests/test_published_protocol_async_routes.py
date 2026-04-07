@@ -7,7 +7,9 @@ from tests.workflow_publish_helpers import (
     waiting_agent_publishable_definition,
 )
 
-pytestmark = pytest.mark.usefixtures("workspace_console_auth")
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
+)
 
 
 def _publish_binding(client: TestClient, definition: dict, *, name: str) -> tuple[str, dict]:

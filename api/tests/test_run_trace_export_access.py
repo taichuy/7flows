@@ -15,7 +15,9 @@ from app.models.sensitive_access import (
 from app.models.workflow import Workflow
 from app.services.run_resume_scheduler import RunResumeScheduler
 
-pytestmark = pytest.mark.usefixtures("workspace_console_auth")
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
+)
 
 
 def _seed_run_sensitive_access(
@@ -81,7 +83,9 @@ def test_export_run_trace_requires_approval_for_moderate_sensitive_runs(
     assert run_response.status_code == 201
     run_body = run_response.json()
     run_id = run_body["id"]
-    node_run_id = run_body["node_runs"][1]["id"]
+    run_detail_response = client.get(f"/api/runs/{run_id}/detail")
+    assert run_detail_response.status_code == 200
+    node_run_id = run_detail_response.json()["node_runs"][1]["id"]
     _seed_run_sensitive_access(
         sqlite_session,
         run_id=run_id,
@@ -175,7 +179,9 @@ def test_export_run_trace_allows_low_risk_sensitive_runs_without_ticket(
     assert run_response.status_code == 201
     run_body = run_response.json()
     run_id = run_body["id"]
-    node_run_id = run_body["node_runs"][1]["id"]
+    run_detail_response = client.get(f"/api/runs/{run_id}/detail")
+    assert run_detail_response.status_code == 200
+    node_run_id = run_detail_response.json()["node_runs"][1]["id"]
     _seed_run_sensitive_access(
         sqlite_session,
         run_id=run_id,

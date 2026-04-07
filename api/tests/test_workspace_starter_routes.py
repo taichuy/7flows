@@ -987,7 +987,7 @@ def test_workspace_starter_detail_returns_single_template(client: TestClient) ->
     body = response.json()
     assert body["id"] == created["id"]
     assert body["name"] == "Detail Starter"
-    assert body["definition"]["nodes"][0]["id"] == "trigger"
+    assert body["definition"]["nodes"][0]["id"] == "startNode"
 
 
 def test_workspace_starter_routes_surface_source_governance(
@@ -1653,9 +1653,9 @@ def test_workspace_starter_refresh_updates_snapshot_and_records_history(
     refreshed = refresh_response.json()
     assert refreshed["created_from_workflow_version"] == "0.1.1"
     assert [node["id"] for node in refreshed["definition"]["nodes"]] == [
-        "trigger",
+        "startNode",
         "agent",
-        "output",
+        "endNode",
     ]
 
     history_response = client.get(f"/api/workspace-starters/{created['id']}/history")
@@ -1962,9 +1962,9 @@ def test_workspace_starter_rebase_syncs_source_derived_fields_and_records_histor
     assert body["created_from_workflow_version"] == "0.1.2"
     assert body["default_workflow_name"] == "Rebased Demo Workflow"
     assert [node["id"] for node in body["definition"]["nodes"]] == [
-        "trigger",
+        "startNode",
         "planner",
-        "output",
+        "endNode",
     ]
 
     diff_response = client.get(f"/api/workspace-starters/{created['id']}/source-diff")

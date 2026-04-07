@@ -1,3 +1,5 @@
+import pytest
+
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -18,6 +20,10 @@ from app.services.sandbox_backends import (
 )
 from tests.workflow_publish_helpers import (
     legacy_auth_governance_snapshot_for_single_published_blocker,
+)
+
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
 )
 
 

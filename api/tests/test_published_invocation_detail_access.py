@@ -25,7 +25,9 @@ from tests.workflow_publish_helpers import (
     publishable_definition,
 )
 
-pytestmark = pytest.mark.usefixtures("workspace_console_auth")
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
+)
 
 
 def _seed_run_sensitive_access(
@@ -1065,7 +1067,8 @@ def test_published_invocation_detail_requires_workspace_console_access(
     client.cookies.clear()
 
     detail_response = client.get(
-        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/{invocation.id}"
+        f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/invocations/{invocation.id}",
+        headers={},
     )
     assert detail_response.status_code == 401
 

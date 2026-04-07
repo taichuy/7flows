@@ -1,7 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
-pytestmark = pytest.mark.usefixtures("workspace_console_auth")
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
+)
 
 
 def _publishable_definition(
@@ -120,7 +122,7 @@ def test_invoke_published_native_endpoint_accepts_valid_api_key(client: TestClie
     assert invoke_response.status_code == 200
     body = invoke_response.json()
     assert body["binding_id"] == binding["id"]
-    assert body["run"]["output_payload"] == {"tool": {"answer": "done"}}
+    assert body["run"]["output_payload"] == {"toolNode": {"answer": "done"}}
 
     list_keys_response = client.get(
         f"/api/workflows/{workflow_id}/published-endpoints/{binding['id']}/api-keys"

@@ -21,7 +21,9 @@ from tests.workflow_publish_helpers import (
     publishable_definition,
 )
 
-pytestmark = pytest.mark.usefixtures("workspace_console_auth")
+pytestmark = pytest.mark.usefixtures(
+    "workspace_console_auth", "default_console_route_headers"
+)
 
 
 def test_protocol_streaming_rejections_are_recorded_in_publish_audit(

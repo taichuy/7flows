@@ -67,7 +67,7 @@ def test_build_run_execution_focus_explanation_maps_unsupported_strong_isolation
 
     assert explanation is not None
     assert explanation.primary_signal == (
-        "执行阻断：当前 condition 节点尚未实现请求的强隔离 execution class。"
+        "执行阻断：当前 conditionNode 节点尚未实现请求的强隔离 execution class。"
     )
     assert explanation.follow_up == (
         "下一步：先把 execution class 调回当前实现支持范围，"
@@ -83,7 +83,7 @@ def test_build_run_execution_focus_explanation_maps_unsupported_subprocess_block
             node_type="startNode",
             execution_class="subprocess",
             execution_blocking_reason=(
-                "Node type 'trigger' does not implement requested execution class "
+                "Node type 'startNode' does not implement requested execution class "
                 "'subprocess'. Explicit execution-class requests must stay blocked until "
                 "a compatible execution adapter is available."
             ),
@@ -93,7 +93,7 @@ def test_build_run_execution_focus_explanation_maps_unsupported_subprocess_block
 
     assert explanation is not None
     assert explanation.primary_signal == (
-        "执行阻断：当前 trigger 节点尚未实现请求的 subprocess execution class。"
+        "执行阻断：当前 startNode 节点尚未实现请求的 subprocess execution class。"
     )
     assert explanation.follow_up == (
         "下一步：先把 execution class 调回 inline，"

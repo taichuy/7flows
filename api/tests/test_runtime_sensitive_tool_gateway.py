@@ -144,7 +144,7 @@ def test_tool_gateway_sensitive_tool_node_waits_for_approval_and_resumes(
     assert approval_tickets[0].status == "pending"
     assert len(access_requests) == 1
     assert access_requests[0].action_type == "invoke"
-    assert access_requests[0].requester_type == "toolNode"
+    assert access_requests[0].requester_type == "tool"
     assert access_requests[0].requester_id == "test-tool"
     assert captured_calls == []
     assert first_pass.tool_calls == []
