@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type HTMLAttributes,
   type ReactNode,
   type SyntheticEvent
@@ -75,13 +76,16 @@ export function WorkflowCanvasQuickAddTrigger({
   const [activeTab, setActiveTab] = useState<WorkflowCanvasQuickAddTabKey>("nodes");
   const [searchValue, setSearchValue] = useState("");
   const [previewType, setPreviewType] = useState<string | null>(null);
+  const [previewAnchorTop, setPreviewAnchorTop] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   const closeMenu = useCallback(() => {
     setIsOpen(false);
     setSearchValue("");
     setPreviewType(null);
+    setPreviewAnchorTop(null);
     onOpenChange?.(false);
   }, [onOpenChange]);
 
@@ -190,6 +194,7 @@ export function WorkflowCanvasQuickAddTrigger({
     }
 
     setPreviewType(null);
+    setPreviewAnchorTop(null);
   }, [flattenedActiveItems, previewType]);
 
   const previewItem = useMemo(
@@ -198,6 +203,15 @@ export function WorkflowCanvasQuickAddTrigger({
       ?? null,
     [flattenedActiveItems, previewType]
   );
+
+  const openPreviewFor = useCallback((target: HTMLButtonElement, type: string) => {
+    const menuRect = menuRef.current?.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const nextTop = menuRect ? Math.max(0, Math.round(targetRect.top - menuRect.top)) : 0;
+
+    setPreviewType(type);
+    setPreviewAnchorTop(nextTop);
+  }, []);
 
   return (
     <div
@@ -223,6 +237,7 @@ export function WorkflowCanvasQuickAddTrigger({
             if (!nextOpen) {
               setSearchValue("");
               setPreviewType(null);
+              setPreviewAnchorTop(null);
             }
             onOpenChange?.(nextOpen);
             return nextOpen;
@@ -236,6 +251,7 @@ export function WorkflowCanvasQuickAddTrigger({
 
       {isOpen ? (
         <div
+          ref={menuRef}
           className={joinClassNames(
             "workflow-canvas-quick-add-menu",
             CANVAS_INTERACTION_GUARD_CLASS_NAME,
@@ -328,8 +344,8 @@ export function WorkflowCanvasQuickAddTrigger({
                           role="menuitem"
                           aria-label={`插入 ${item.label}`}
                           onPointerDown={stopCanvasInteraction}
-                          onPointerEnter={() => setPreviewType(item.type)}
-                          onFocus={() => setPreviewType(item.type)}
+                          onPointerEnter={(event) => openPreviewFor(event.currentTarget, item.type)}
+                          onFocus={(event) => openPreviewFor(event.currentTarget, item.type)}
                           onClick={(event) => {
                             event.preventDefault();
                             event.stopPropagation();
@@ -340,26 +356,6 @@ export function WorkflowCanvasQuickAddTrigger({
                           <span className="workflow-canvas-quick-add-option-label">
                             {item.label}
                           </span>
-                          {isPreviewing ? (
-                            <span
-                              className="workflow-canvas-quick-add-preview"
-                              aria-live="polite"
-                            >
-                              <span className="workflow-canvas-quick-add-preview-label">
-                                {item.label}
-                              </span>
-                              <span className="workflow-canvas-quick-add-preview-meta">
-                                {formatWorkflowNodeMeta(
-                                  item.capabilityGroup,
-                                  item.type,
-                                  item.label
-                                )}
-                              </span>
-                              <span className="workflow-canvas-quick-add-preview-copy">
-                                {item.description || "当前节点还没有补充描述。"}
-                              </span>
-                            </span>
-                          ) : null}
                         </button>
                       );
                     })}
@@ -372,6 +368,31 @@ export function WorkflowCanvasQuickAddTrigger({
               没有匹配的可插入节点。
             </div>
           )}
+          {previewItem && previewAnchorTop !== null ? (
+            <aside
+              className="workflow-canvas-quick-add-preview"
+              aria-live="polite"
+              style={
+                {
+                  "--workflow-canvas-quick-add-preview-top": `${previewAnchorTop}px`
+                } as CSSProperties
+              }
+            >
+              <div className="workflow-canvas-quick-add-preview-label">
+                {previewItem.label}
+              </div>
+              <div className="workflow-canvas-quick-add-preview-meta">
+                {formatWorkflowNodeMeta(
+                  previewItem.capabilityGroup,
+                  previewItem.type,
+                  previewItem.label
+                )}
+              </div>
+              <p className="workflow-canvas-quick-add-preview-copy">
+                {previewItem.description || "当前节点还没有补充描述。"}
+              </p>
+            </aside>
+          ) : null}
         </div>
       ) : null}
     </div>

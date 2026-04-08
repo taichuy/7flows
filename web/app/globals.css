@@ -5474,7 +5474,6 @@ a {
 }
 
 .workflow-canvas-quick-add-option {
-  position: relative;
   display: flex;
   align-items: center;
   min-height: 42px;
@@ -5507,7 +5506,7 @@ a {
 
 .workflow-canvas-quick-add-preview {
   position: absolute;
-  top: 0;
+  top: var(--workflow-canvas-quick-add-preview-top, 0px);
   left: calc(100% + 12px);
   z-index: 2;
   display: grid;
@@ -5558,7 +5557,6 @@ a {
   }
 
   .workflow-canvas-quick-add-preview {
-    position: absolute;
     top: calc(100% + 8px);
     left: 0;
     width: auto;
