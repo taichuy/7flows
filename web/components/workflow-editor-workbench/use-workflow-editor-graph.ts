@@ -99,6 +99,44 @@ export function redoWorkflowEditorDocumentHistory(history: WorkflowEditorDocumen
   } satisfies WorkflowEditorDocumentHistory;
 }
 
+export function shouldRetainNodeSelectionAfterTransientCanvasReset(options: {
+  retainedNodeId: string | null;
+  nextNodeId: string | null;
+  nextEdgeId: string | null;
+  selectedNodeId: string | null;
+  nodes: WorkflowEditorCanvasNode[];
+}) {
+  if (!options.retainedNodeId) {
+    return false;
+  }
+
+  if (options.nextNodeId || options.nextEdgeId) {
+    return false;
+  }
+
+  if (options.selectedNodeId !== options.retainedNodeId) {
+    return false;
+  }
+
+  return options.nodes.some((node) => node.id === options.retainedNodeId);
+}
+
+export function buildWorkflowEditorGraphResetSignature(options: {
+  workflowId: string;
+  workflowName: string;
+  workflowVersion: string;
+  workflowDefinition: WorkflowDefinition;
+  nodeCatalog: WorkflowNodeCatalogItem[];
+}) {
+  return JSON.stringify({
+    workflowId: options.workflowId,
+    workflowName: options.workflowName,
+    workflowVersion: options.workflowVersion,
+    workflowDefinition: options.workflowDefinition,
+    nodeCatalog: options.nodeCatalog
+  });
+}
+
 export function isWorkflowEditorGraphDirty(options: {
   workflowName: string;
   persistedWorkflowName: string;
@@ -118,12 +156,34 @@ export function useWorkflowEditorGraph({
   setMessage,
   setMessageTone
 }: UseWorkflowEditorGraphOptions) {
-  const initialDocumentState = useMemo(
-    () => createWorkflowEditorCanonicalState(nodeCatalog, workflow.definition),
-    [nodeCatalog, workflow.definition]
+  const workflowResetSignature = useMemo(
+    () => buildWorkflowEditorGraphResetSignature({
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      workflowVersion: workflow.version,
+      workflowDefinition: workflow.definition,
+      nodeCatalog
+    }),
+    [nodeCatalog, workflow.definition, workflow.id, workflow.name, workflow.version]
   );
-  const initialGraph = initialDocumentState.graph;
-  const initialDocumentDefinition = initialDocumentState.definition;
+  const workflowResetPayloadRef = useRef({
+    workflowName: workflow.name,
+    workflowVersion: workflow.version,
+    workflowDefinition: workflow.definition,
+    nodeCatalog
+  });
+  workflowResetPayloadRef.current = {
+    workflowName: workflow.name,
+    workflowVersion: workflow.version,
+    workflowDefinition: workflow.definition,
+    nodeCatalog
+  };
+  const initialDocumentStateRef = useRef<ReturnType<typeof createWorkflowEditorCanonicalState> | null>(null);
+  if (!initialDocumentStateRef.current) {
+    initialDocumentStateRef.current = createWorkflowEditorCanonicalState(nodeCatalog, workflow.definition);
+  }
+  const initialGraph = initialDocumentStateRef.current.graph;
+  const initialDocumentDefinition = initialDocumentStateRef.current.definition;
   const [workflowName, setWorkflowName] = useState(workflow.name);
   const [persistedWorkflowName, setPersistedWorkflowName] = useState(workflow.name);
   const [workflowVersion, setWorkflowVersion] = useState(workflow.version);
@@ -142,6 +202,7 @@ export function useWorkflowEditorGraph({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph.edges);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
+  const retainedNodeSelectionIdRef = useRef<string | null>(null);
   const currentDefinition = useMemo(
     () =>
       buildWorkflowEditorDefinition({
@@ -182,21 +243,25 @@ export function useWorkflowEditorGraph({
   };
 
   useEffect(() => {
-    const nextInitialState = createWorkflowEditorCanonicalState(nodeCatalog, workflow.definition);
+    const nextInitialState = createWorkflowEditorCanonicalState(
+      workflowResetPayloadRef.current.nodeCatalog,
+      workflowResetPayloadRef.current.workflowDefinition
+    );
     const nextGraph = nextInitialState.graph;
     const nextInitialDefinition = nextInitialState.definition;
     skipNextHistorySyncRef.current = true;
-    setWorkflowName(workflow.name);
-    setPersistedWorkflowName(workflow.name);
-    setWorkflowVersion(workflow.version);
+    setWorkflowName(workflowResetPayloadRef.current.workflowName);
+    setPersistedWorkflowName(workflowResetPayloadRef.current.workflowName);
+    setWorkflowVersion(workflowResetPayloadRef.current.workflowVersion);
     setPersistedDefinitionState(nextInitialDefinition);
     setDocumentHistory(createWorkflowEditorDocumentHistory(nextInitialDefinition));
-    resetWorkflowState(workflow.definition);
+    resetWorkflowState(workflowResetPayloadRef.current.workflowDefinition);
     setNodes(nextGraph.nodes);
     setEdges(nextGraph.edges);
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
-  }, [nodeCatalog, workflow, resetWorkflowState, setEdges, setNodes]);
+    retainedNodeSelectionIdRef.current = null;
+  }, [workflowResetSignature, resetWorkflowState, setEdges, setNodes]);
 
   useEffect(() => {
     if (skipNextHistorySyncRef.current) {
@@ -220,6 +285,7 @@ export function useWorkflowEditorGraph({
     setEdges(nextGraph.edges);
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
+    retainedNodeSelectionIdRef.current = null;
   };
 
   const canUndo = documentHistory.past.length > 0;
@@ -292,14 +358,33 @@ export function useWorkflowEditorGraph({
   };
 
   const handleSelectionChange = (selection: OnSelectionChangeParams) => {
-    const nextNode = selection.nodes[0];
-    const nextEdge = selection.edges[0];
-    console.info("[workflow-selection-change]", {
-      nextNodeId: nextNode?.id ?? null,
-      nextEdgeId: nextEdge?.id ?? null
-    });
-    setSelectedNodeId(nextNode?.id ?? null);
-    setSelectedEdgeId(nextEdge?.id ?? null);
+    const nextNodeId = selection.nodes[0]?.id ?? null;
+    const nextEdgeId = selection.edges[0]?.id ?? null;
+    const retainedNodeId = retainedNodeSelectionIdRef.current;
+
+    if (
+      shouldRetainNodeSelectionAfterTransientCanvasReset({
+        retainedNodeId,
+        nextNodeId,
+        nextEdgeId,
+        selectedNodeId,
+        nodes
+      })
+    ) {
+      retainedNodeSelectionIdRef.current = null;
+      nodeActions.focusNode(retainedNodeId);
+      return;
+    }
+
+    if (
+      retainedNodeSelectionIdRef.current &&
+      ((nextNodeId && nextNodeId !== retainedNodeSelectionIdRef.current) || nextEdgeId)
+    ) {
+      retainedNodeSelectionIdRef.current = null;
+    }
+
+    setSelectedNodeId(nextNodeId);
+    setSelectedEdgeId(nextEdgeId);
   };
 
   const handleDeleteSelectedEdge = () => {
@@ -374,6 +459,9 @@ export function useWorkflowEditorGraph({
     isDirty,
     onConnect,
     handleSelectionChange,
+    retainNodeSelectionOnce: (nodeId: string | null) => {
+      retainedNodeSelectionIdRef.current = nodeId;
+    },
     focusNode: nodeActions.focusNode,
     handleAddNode: nodeActions.handleAddNode,
     handleNodeNameChange: nodeActions.handleNodeNameChange,

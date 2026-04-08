@@ -335,7 +335,7 @@ export function WorkflowEditorNodeRuntimePanel({
       return;
     }
 
-    submitTrialRun(payload, { revealRunOverlay: true });
+    submitTrialRun(payload, { revealRunOverlay: false });
   }, [handleStartNodeTrialRun, isStartNode, submitTrialRun, supportedFields]);
 
   useEffect(() => {

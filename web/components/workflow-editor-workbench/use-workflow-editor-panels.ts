@@ -234,6 +234,9 @@ export function useWorkflowEditorPanels({
       const runId = payload?.runId ?? null;
       const revealRunOverlay = payload?.revealRunOverlay ?? true;
 
+      if (runId && graph.selectedNodeId) {
+        graph.retainNodeSelectionOnce(graph.selectedNodeId);
+      }
       shell.setMessage("节点试运行已写入运行缓存");
       shell.setMessageTone("success");
 

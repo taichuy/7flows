@@ -126,6 +126,49 @@ function buildRunDetail(): RunDetail {
 }
 
 describe("WorkflowEditorNodeRuntimePanel client render", () => {
+  it("keeps single-node trial runs from auto-opening the run overlay for non-start nodes", async () => {
+    const handleRunSuccess = vi.fn();
+
+    triggerWorkflowNodeTrialRunMock.mockResolvedValueOnce({
+      status: "success",
+      message: "ok",
+      runId: "run-node-1"
+    });
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root?.render(
+        createElement(WorkflowEditorNodeRuntimePanel, {
+          workflowId: "workflow-demo",
+          node: buildNode({
+            label: "LLM Agent",
+            nodeType: "llmAgentNode",
+            inputSchema: {}
+          }),
+          onRunSuccess: handleRunSuccess
+        })
+      );
+    });
+
+    const submitButton = Array.from(document.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("试运行当前节点")
+    ) as HTMLButtonElement | undefined;
+    expect(submitButton).toBeTruthy();
+
+    await act(async () => {
+      submitButton?.click();
+    });
+
+    expect(triggerWorkflowNodeTrialRunMock).toHaveBeenCalledWith("workflow-demo", "node-1", {});
+    expect(handleRunSuccess).toHaveBeenCalledWith({
+      runId: "run-node-1",
+      revealRunOverlay: false
+    });
+  });
+
   it("runs immediately when cached required fields are complete for the requested node", async () => {
     window.localStorage.setItem(
       "sevenflows.editor.start-node-trial-run:workflow-demo:node-1",

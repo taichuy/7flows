@@ -342,6 +342,7 @@ export function WorkflowEditorWorkbench({
         })),
     [orderedEditorNodeLibrary]
   );
+  const canvasQuickAddOptionsRef = useRef(canvasQuickAddOptions);
   const focusNode = graph.focusNode;
   const selectedNodeId = graph.selectedNodeId;
   const displayedSelectedNode = useMemo(
@@ -350,6 +351,8 @@ export function WorkflowEditorWorkbench({
   );
   const handleCanvasQuickAdd = graph.handleAddNode;
   const handleCanvasDeleteNode = graph.handleDeleteNode;
+  const handleCanvasQuickAddRef = useRef(handleCanvasQuickAdd);
+  const handleCanvasDeleteNodeRef = useRef(handleCanvasDeleteNode);
   const handleCanvasOpenConfig = useCallback(
     (nodeId: string) => {
       focusNode(nodeId);
@@ -366,35 +369,42 @@ export function WorkflowEditorWorkbench({
     setIsFloatingInspectorOpen(true);
     shell.openNodeRuntime(nodeId);
   }, [shell]);
+  const handleOpenNodeRuntimeRef = useRef(handleOpenNodeRuntime);
+
+  canvasQuickAddOptionsRef.current = canvasQuickAddOptions;
+  handleCanvasQuickAddRef.current = handleCanvasQuickAdd;
+  handleCanvasDeleteNodeRef.current = handleCanvasDeleteNode;
+  handleOpenNodeRuntimeRef.current = handleOpenNodeRuntime;
+
   const canvasNodeTypes = useMemo(
     () => ({
       workflowNode: (props: ComponentProps<typeof WorkflowCanvasNode>) => (
         <WorkflowCanvasNode
           {...props}
-          quickAddOptions={canvasQuickAddOptions}
-          onOpenRuntime={handleOpenNodeRuntime}
-          onDeleteNode={(nodeId) => handleCanvasDeleteNode(nodeId)}
+          quickAddOptions={canvasQuickAddOptionsRef.current}
+          onOpenRuntime={handleOpenNodeRuntimeRef.current}
+          onDeleteNode={(nodeId) => handleCanvasDeleteNodeRef.current(nodeId)}
           onQuickAdd={(sourceNodeId, type) =>
-            handleCanvasQuickAdd(type, { sourceNodeId })
+            handleCanvasQuickAddRef.current(type, { sourceNodeId })
           }
         />
       )
     }),
-    [canvasQuickAddOptions, handleCanvasDeleteNode, handleCanvasQuickAdd, handleOpenNodeRuntime]
+    []
   );
   const canvasEdgeTypes = useMemo(
     () => ({
       smoothstep: (props: ComponentProps<typeof WorkflowCanvasEdge>) => (
         <WorkflowCanvasEdge
           {...props}
-          quickAddOptions={canvasQuickAddOptions}
+          quickAddOptions={canvasQuickAddOptionsRef.current}
           onQuickAdd={(sourceNodeId, sourceEdgeId, type) =>
-            handleCanvasQuickAdd(type, { sourceNodeId, sourceEdgeId })
+            handleCanvasQuickAddRef.current(type, { sourceNodeId, sourceEdgeId })
           }
         />
       )
     }),
-    [canvasQuickAddOptions, handleCanvasQuickAdd]
+    []
   );
   const hasInspectorTarget = Boolean(graph.selectedNode || graph.selectedEdge);
   const isFloatingInspectorVisible = Boolean(
@@ -429,14 +439,6 @@ export function WorkflowEditorWorkbench({
       }) as CSSProperties,
     []
   );
-
-  useEffect(() => {
-    console.info("[workflow-inspector-key]", {
-      selectedInspectorKey,
-      selectedNodeId: graph.selectedNodeId,
-      selectedEdgeId: graph.selectedEdgeId
-    });
-  }, [graph.selectedEdgeId, graph.selectedNodeId, selectedInspectorKey]);
 
   useEffect(() => {
     if (!selectedInspectorKey) {
