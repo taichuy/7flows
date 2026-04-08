@@ -66,6 +66,13 @@
 - 发布层统一从 `7Flows IR` 和事件总线映射到外部协议，不能为 OpenAI / Anthropic / Dify 分叉内部执行链。
 - 本地开发与测试必须保持 local-first、loopback-first；不要把远程脚本、CDN、外部 webhook、隐藏下载或 `curl | bash` 写进共享主链。
 - `AGENTS.md`、`.agents/skills/`、`docs/dev/team-conventions.md`、`docs/adr/`、`scripts/`、`docker/`、CI/workflow、shell/PowerShell/Python/batch 脚本、prompt/automation instruction 都属于 `P0` 审查范围。
+### 4.3 代码实现要求边界:
+- 不做不必要的错误处理
+- 不设计面向未来的抽象
+- 不加用户没要求的功能
+- 不过度抽象(3行重复>不成熟抽象)
+- 不给没改的代码加注释
+
 
 ## 5. 目录协作
 
