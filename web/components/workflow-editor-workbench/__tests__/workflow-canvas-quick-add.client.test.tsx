@@ -84,7 +84,11 @@ function setSearchValue(value: string) {
 
   act(() => {
     const input = searchInput as HTMLInputElement;
-    input.value = value;
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value"
+    )?.set;
+    valueSetter?.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
@@ -103,7 +107,7 @@ describe("WorkflowCanvasQuickAddTrigger client interactions", () => {
 
     const PointerEventCtor = window.PointerEvent ?? MouseEvent;
     act(() => {
-      conditionButton?.dispatchEvent(new PointerEventCtor("pointerenter", { bubbles: true }));
+      conditionButton?.dispatchEvent(new PointerEventCtor("pointerover", { bubbles: true }));
     });
 
     expect(getPreview()?.textContent).toContain("Condition");
