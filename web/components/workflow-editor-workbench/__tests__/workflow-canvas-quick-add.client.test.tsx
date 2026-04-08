@@ -75,7 +75,11 @@ function openQuickAdd(onQuickAdd = vi.fn()) {
 }
 
 function getPreview() {
-  return container?.querySelector(".workflow-canvas-quick-add-preview");
+  return document.querySelector(".workflow-canvas-quick-add-preview");
+}
+
+function getMenu() {
+  return document.querySelector('[role="menu"]');
 }
 
 function mockElementRect(
@@ -108,7 +112,7 @@ function mockElementRect(
 }
 
 function setSearchValue(value: string) {
-  const searchInput = container?.querySelector('input[type="search"]');
+  const searchInput = document.querySelector('input[type="search"]');
   expect(searchInput).toBeInstanceOf(HTMLInputElement);
 
   act(() => {
@@ -123,13 +127,21 @@ function setSearchValue(value: string) {
 }
 
 describe("WorkflowCanvasQuickAddTrigger client interactions", () => {
+  it("renders the menu outside the trigger container so it does not inherit canvas zoom", () => {
+    openQuickAdd();
+
+    const menu = getMenu();
+    expect(menu).not.toBeNull();
+    expect(container?.contains(menu as Node)).toBe(false);
+  });
+
   it("keeps the menu as a simple list and anchors the preview card to the hovered option", () => {
     openQuickAdd();
 
     expect(getPreview()).toBeNull();
 
-    const menu = container?.querySelector('[role="menu"]');
-    const conditionButton = container?.querySelector('button[aria-label="插入 Condition"]');
+    const menu = getMenu();
+    const conditionButton = document.querySelector('button[aria-label="插入 Condition"]');
     mockElementRect(menu, { top: 40, width: 320, height: 400 });
     mockElementRect(conditionButton, { top: 188, width: 240, height: 42 });
     expect(conditionButton).toBeInstanceOf(HTMLButtonElement);
@@ -151,7 +163,7 @@ describe("WorkflowCanvasQuickAddTrigger client interactions", () => {
 
   it("anchors the preview card to the focused option, filters the simple list, and closes after insert", () => {
     const { onQuickAdd } = openQuickAdd();
-    const tabs = container?.querySelectorAll('button[role="tab"]');
+    const tabs = document.querySelectorAll('button[role="tab"]');
     expect(tabs).toHaveLength(2);
 
     act(() => {
@@ -162,8 +174,8 @@ describe("WorkflowCanvasQuickAddTrigger client interactions", () => {
 
     setSearchValue("cond");
 
-    const menu = container?.querySelector('[role="menu"]');
-    const conditionButton = container?.querySelector('button[aria-label="插入 Condition"]');
+    const menu = getMenu();
+    const conditionButton = document.querySelector('button[aria-label="插入 Condition"]');
     mockElementRect(menu, { top: 24, width: 320, height: 400 });
     mockElementRect(conditionButton, { top: 176, width: 240, height: 42 });
     expect(conditionButton).toBeInstanceOf(HTMLButtonElement);
@@ -187,6 +199,6 @@ describe("WorkflowCanvasQuickAddTrigger client interactions", () => {
     });
 
     expect(onQuickAdd).toHaveBeenCalledWith("conditionNode");
-    expect(container?.querySelector('[role="menu"]')).toBeNull();
+    expect(getMenu()).toBeNull();
   });
 });

@@ -11,6 +11,7 @@ import {
   type ReactNode,
   type SyntheticEvent
 } from "react";
+import { createPortal } from "react-dom";
 
 import { formatWorkflowNodeMeta } from "@/lib/workflow-node-display";
 
@@ -76,16 +77,21 @@ export function WorkflowCanvasQuickAddTrigger({
   const [activeTab, setActiveTab] = useState<WorkflowCanvasQuickAddTabKey>("nodes");
   const [searchValue, setSearchValue] = useState("");
   const [previewType, setPreviewType] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [previewAnchorTop, setPreviewAnchorTop] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const lastMenuPositionRef = useRef<{ top: number; left: number } | null>(null);
 
   const closeMenu = useCallback(() => {
     setIsOpen(false);
     setSearchValue("");
     setPreviewType(null);
     setPreviewAnchorTop(null);
+    setMenuPosition(null);
+    lastMenuPositionRef.current = null;
     onOpenChange?.(false);
   }, [onOpenChange]);
 
@@ -96,8 +102,37 @@ export function WorkflowCanvasQuickAddTrigger({
 
     searchInputRef.current?.focus();
 
+    const updateMenuPosition = () => {
+      const triggerRect = triggerRef.current?.getBoundingClientRect();
+      if (!triggerRect) {
+        return;
+      }
+
+      const nextPosition = {
+        top: Math.round(triggerRect.top + triggerRect.height / 2),
+        left: Math.round(triggerRect.right + 12)
+      };
+      const lastPosition = lastMenuPositionRef.current;
+      if (lastPosition && lastPosition.top === nextPosition.top && lastPosition.left === nextPosition.left) {
+        return;
+      }
+
+      lastMenuPositionRef.current = nextPosition;
+      setMenuPosition(nextPosition);
+    };
+
+    updateMenuPosition();
+
+    let frameId = window.requestAnimationFrame(function syncMenuPosition() {
+      updateMenuPosition();
+      frameId = window.requestAnimationFrame(syncMenuPosition);
+    });
+
     const handlePointerDown = (event: PointerEvent) => {
-      if (rootRef.current?.contains(event.target as Node)) {
+      if (
+        rootRef.current?.contains(event.target as Node)
+        || menuRef.current?.contains(event.target as Node)
+      ) {
         return;
       }
 
@@ -114,6 +149,7 @@ export function WorkflowCanvasQuickAddTrigger({
     window.addEventListener("keydown", handleEscape);
 
     return () => {
+      window.cancelAnimationFrame(frameId);
       window.removeEventListener("pointerdown", handlePointerDown);
       window.removeEventListener("keydown", handleEscape);
     };
@@ -224,6 +260,7 @@ export function WorkflowCanvasQuickAddTrigger({
           CANVAS_INTERACTION_GUARD_CLASS_NAME,
           isOpen ? "open" : null
         )}
+        ref={triggerRef}
         type="button"
         aria-label={triggerAriaLabel}
         aria-expanded={isOpen}
@@ -238,6 +275,8 @@ export function WorkflowCanvasQuickAddTrigger({
               setSearchValue("");
               setPreviewType(null);
               setPreviewAnchorTop(null);
+              setMenuPosition(null);
+              lastMenuPositionRef.current = null;
             }
             onOpenChange?.(nextOpen);
             return nextOpen;
@@ -249,152 +288,161 @@ export function WorkflowCanvasQuickAddTrigger({
         </span>
       </button>
 
-      {isOpen ? (
-        <div
-          ref={menuRef}
-          className={joinClassNames(
-            "workflow-canvas-quick-add-menu",
-            CANVAS_INTERACTION_GUARD_CLASS_NAME,
-            menuClassName
-          )}
-          role="menu"
-          {...workflowCanvasQuickAddMenuInteractionGuardProps}
-        >
-          <div className="workflow-canvas-quick-add-menu-header">
-            <strong>{menuTitle}</strong>
-            <span>{menuDescription}</span>
-          </div>
-
-          <div className="workflow-canvas-quick-add-tabs" role="tablist" aria-label="添加节点分类">
-            <button
-              className={[
-                "workflow-canvas-quick-add-tab",
-                activeTab === "nodes" ? "active" : null
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onPointerDown={stopCanvasInteraction}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "nodes"}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                setActiveTab("nodes");
-              }}
-            >
-              节点
-            </button>
-            <button
-              className={[
-                "workflow-canvas-quick-add-tab",
-                activeTab === "tools" ? "active" : null
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onPointerDown={stopCanvasInteraction}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === "tools"}
-              disabled={quickAddOptions.every((item) => item.capabilityGroup !== "integration")}
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                setActiveTab("tools");
-              }}
-            >
-              工具
-            </button>
-          </div>
-
-          <div className="workflow-canvas-quick-add-search-shell">
-            <input
-              ref={searchInputRef}
+      {isOpen && menuPosition && typeof document !== "undefined"
+        ? createPortal(
+            <div
+              ref={menuRef}
               className={joinClassNames(
-                "workflow-canvas-quick-add-search-input",
-                CANVAS_INTERACTION_GUARD_CLASS_NAME
+                "workflow-canvas-quick-add-menu",
+                CANVAS_INTERACTION_GUARD_CLASS_NAME,
+                menuClassName
               )}
-              type="search"
-              placeholder={activeTab === "tools" ? "搜索工具" : "搜索节点"}
-              value={searchValue}
-              onPointerDown={stopCanvasInteraction}
-              onWheel={stopCanvasInteraction}
-              onChange={(event) => setSearchValue(event.target.value)}
-            />
-          </div>
-
-          {activeSections.length > 0 ? (
-            <div className="workflow-canvas-quick-add-menu-list">
-              {activeSections.map((section) => (
-                <section className="workflow-canvas-quick-add-section" key={section.key}>
-                  <div className="workflow-canvas-quick-add-section-label">{section.label}</div>
-                  <div className="workflow-canvas-quick-add-section-list">
-                    {section.items.map((item) => {
-                      const isPreviewing = item.type === previewItem?.type;
-
-                      return (
-                        <button
-                          className={joinClassNames(
-                            "workflow-canvas-quick-add-option",
-                            isPreviewing ? "previewing" : null,
-                            CANVAS_INTERACTION_GUARD_CLASS_NAME
-                          )}
-                          key={item.type}
-                          type="button"
-                          role="menuitem"
-                          aria-label={`插入 ${item.label}`}
-                          onPointerDown={stopCanvasInteraction}
-                          onPointerEnter={(event) => openPreviewFor(event.currentTarget, item.type)}
-                          onFocus={(event) => openPreviewFor(event.currentTarget, item.type)}
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            onQuickAdd(item.type);
-                            closeMenu();
-                          }}
-                        >
-                          <span className="workflow-canvas-quick-add-option-label">
-                            {item.label}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </section>
-              ))}
-            </div>
-          ) : (
-            <div className="workflow-canvas-quick-add-empty">
-              没有匹配的可插入节点。
-            </div>
-          )}
-          {previewItem && previewAnchorTop !== null ? (
-            <aside
-              className="workflow-canvas-quick-add-preview"
-              aria-live="polite"
-              style={
-                {
-                  "--workflow-canvas-quick-add-preview-top": `${previewAnchorTop}px`
-                } as CSSProperties
-              }
+              role="menu"
+              style={{
+                position: "fixed",
+                top: menuPosition.top,
+                left: menuPosition.left,
+                transform: "translateY(-50%)"
+              }}
+              {...workflowCanvasQuickAddMenuInteractionGuardProps}
             >
-              <div className="workflow-canvas-quick-add-preview-label">
-                {previewItem.label}
+              <div className="workflow-canvas-quick-add-menu-header">
+                <strong>{menuTitle}</strong>
+                <span>{menuDescription}</span>
               </div>
-              <div className="workflow-canvas-quick-add-preview-meta">
-                {formatWorkflowNodeMeta(
-                  previewItem.capabilityGroup,
-                  previewItem.type,
-                  previewItem.label
-                )}
+
+              <div className="workflow-canvas-quick-add-tabs" role="tablist" aria-label="添加节点分类">
+                <button
+                  className={[
+                    "workflow-canvas-quick-add-tab",
+                    activeTab === "nodes" ? "active" : null
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onPointerDown={stopCanvasInteraction}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === "nodes"}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setActiveTab("nodes");
+                  }}
+                >
+                  节点
+                </button>
+                <button
+                  className={[
+                    "workflow-canvas-quick-add-tab",
+                    activeTab === "tools" ? "active" : null
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onPointerDown={stopCanvasInteraction}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === "tools"}
+                  disabled={quickAddOptions.every((item) => item.capabilityGroup !== "integration")}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setActiveTab("tools");
+                  }}
+                >
+                  工具
+                </button>
               </div>
-              <p className="workflow-canvas-quick-add-preview-copy">
-                {previewItem.description || "当前节点还没有补充描述。"}
-              </p>
-            </aside>
-          ) : null}
-        </div>
-      ) : null}
+
+              <div className="workflow-canvas-quick-add-search-shell">
+                <input
+                  ref={searchInputRef}
+                  className={joinClassNames(
+                    "workflow-canvas-quick-add-search-input",
+                    CANVAS_INTERACTION_GUARD_CLASS_NAME
+                  )}
+                  type="search"
+                  placeholder={activeTab === "tools" ? "搜索工具" : "搜索节点"}
+                  value={searchValue}
+                  onPointerDown={stopCanvasInteraction}
+                  onWheel={stopCanvasInteraction}
+                  onChange={(event) => setSearchValue(event.target.value)}
+                />
+              </div>
+
+              {activeSections.length > 0 ? (
+                <div className="workflow-canvas-quick-add-menu-list">
+                  {activeSections.map((section) => (
+                    <section className="workflow-canvas-quick-add-section" key={section.key}>
+                      <div className="workflow-canvas-quick-add-section-label">{section.label}</div>
+                      <div className="workflow-canvas-quick-add-section-list">
+                        {section.items.map((item) => {
+                          const isPreviewing = item.type === previewItem?.type;
+
+                          return (
+                            <button
+                              className={joinClassNames(
+                                "workflow-canvas-quick-add-option",
+                                isPreviewing ? "previewing" : null,
+                                CANVAS_INTERACTION_GUARD_CLASS_NAME
+                              )}
+                              key={item.type}
+                              type="button"
+                              role="menuitem"
+                              aria-label={`插入 ${item.label}`}
+                              onPointerDown={stopCanvasInteraction}
+                              onPointerEnter={(event) => openPreviewFor(event.currentTarget, item.type)}
+                              onFocus={(event) => openPreviewFor(event.currentTarget, item.type)}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                onQuickAdd(item.type);
+                                closeMenu();
+                              }}
+                            >
+                              <span className="workflow-canvas-quick-add-option-label">
+                                {item.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              ) : (
+                <div className="workflow-canvas-quick-add-empty">
+                  没有匹配的可插入节点。
+                </div>
+              )}
+              {previewItem && previewAnchorTop !== null ? (
+                <aside
+                  className="workflow-canvas-quick-add-preview"
+                  aria-live="polite"
+                  style={
+                    {
+                      "--workflow-canvas-quick-add-preview-top": `${previewAnchorTop}px`
+                    } as CSSProperties
+                  }
+                >
+                  <div className="workflow-canvas-quick-add-preview-label">
+                    {previewItem.label}
+                  </div>
+                  <div className="workflow-canvas-quick-add-preview-meta">
+                    {formatWorkflowNodeMeta(
+                      previewItem.capabilityGroup,
+                      previewItem.type,
+                      previewItem.label
+                    )}
+                  </div>
+                  <p className="workflow-canvas-quick-add-preview-copy">
+                    {previewItem.description || "当前节点还没有补充描述。"}
+                  </p>
+                </aside>
+              ) : null}
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
