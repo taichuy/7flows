@@ -49,7 +49,7 @@ import {
 
 const { Text, Title } = Typography;
 
-type WorkflowEditorNodeSettingsPanelProps = {
+export type WorkflowEditorNodeSettingsPanelProps = {
   node: Node<WorkflowCanvasNodeData>;
   nodes: Array<Node<WorkflowCanvasNodeData>>;
   edges: Array<Edge<WorkflowCanvasEdgeData>>;

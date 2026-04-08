@@ -11,9 +11,8 @@ import {
 import { getWorkflowNodeTypeDisplayLabel } from "@/lib/workflow-node-display";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import type { WorkflowEditorAssistantPanelProps } from "@/components/workflow-editor-inspector-panels/workflow-editor-assistant-panel";
+import { WorkflowEditorNodePanel } from "@/components/workflow-editor-inspector-panels/workflow-editor-node-panel";
 import type { WorkflowEditorPublishPanelProps } from "@/components/workflow-editor-inspector-panels/workflow-editor-publish-panel";
-import { WorkflowEditorNodeRuntimePanel } from "@/components/workflow-editor-inspector-panels/workflow-editor-node-runtime-panel";
-import { WorkflowEditorNodeSettingsPanel } from "@/components/workflow-editor-inspector-panels/workflow-editor-node-settings-panel";
 import { doesWorkflowEditorRuntimeRequestTargetNode } from "@/components/workflow-editor-workbench/runtime-request";
 import type {
   WorkflowEditorInspectorProps,
@@ -323,82 +322,7 @@ export function WorkflowEditorInspector({
   );
 
   const tabItems = selectedNode
-    ? [
-        {
-          key: "node-config",
-          label: "设置",
-          children: hasActivatedTab("node-config") ? (
-            <WorkflowEditorNodeSettingsPanel
-              node={selectedNode}
-              nodes={nodes}
-              edges={edges}
-              tools={tools}
-              adapters={adapters}
-              credentials={credentials}
-              modelProviderCatalog={modelProviderCatalog}
-              modelProviderConfigs={modelProviderConfigs}
-              modelProviderRegistryStatus={modelProviderRegistryStatus}
-              currentHref={currentHref}
-              sandboxReadiness={sandboxReadiness}
-              highlightedNodeSection={highlightedNodeSection}
-              highlightedNodeFieldPath={highlightedNodeFieldPath}
-              focusedValidationItem={focusedValidationItem}
-              nodeConfigText={nodeConfigText}
-              onNodeConfigTextChange={onNodeConfigTextChange}
-              onApplyNodeConfigJson={onApplyNodeConfigJson}
-              onNodeConfigChange={onNodeConfigChange}
-              onNodeInputSchemaChange={onNodeInputSchemaChange}
-              onNodeOutputSchemaChange={onNodeOutputSchemaChange}
-              onNodeRuntimePolicyUpdate={onNodeRuntimePolicyUpdate}
-              onDeleteSelectedNode={onDeleteSelectedNode}
-            />
-          ) : (
-            renderDeferredTabPanel(
-              "workflow-editor-node-settings-panel-deferred",
-              "设置",
-              "只有切到设置标签时，才挂载节点模板和精简后的高级设置。"
-            )
-          )
-        },
-        {
-          key: "node-runtime",
-          label: "运行时",
-          children: hasActivatedTab("node-runtime") ? (
-            <WorkflowEditorNodeRuntimePanel
-              workflowId={workflowId}
-              node={selectedNode}
-              run={run}
-              currentHref={currentHref}
-              onNodeInputSchemaChange={onNodeInputSchemaChange}
-              onNodeOutputSchemaChange={onNodeOutputSchemaChange}
-              highlightedNodeSection={highlightedNodeSection}
-              highlightedNodeFieldPath={highlightedNodeFieldPath}
-              focusedValidationItem={focusedValidationItem}
-              sandboxReadiness={sandboxReadiness}
-              runtimeRequest={runtimeRequest}
-              onRunSuccess={onRuntimeRunSuccess}
-              onRunError={onRuntimeRunError}
-              onRuntimeRequestHandled={onRuntimeRequestHandled}
-              onOpenRunOverlay={onOpenRunOverlay}
-            />
-          ) : (
-            renderDeferredTabPanel(
-              "workflow-editor-node-runtime-panel-deferred",
-              "运行时",
-              "只有切到运行时标签时，才挂载节点当前的 runtime 摘要与 trigger 输入表单。"
-            )
-          )
-        },
-        ...(supportsAssistantTab
-          ? [
-              {
-                key: "node-assistant",
-                label: "AI",
-                children: assistantPanel
-              }
-            ]
-          : [])
-      ]
+    ? []
     : selectedEdge
       ? [
           {
@@ -523,13 +447,67 @@ export function WorkflowEditorInspector({
       </div>
 
       <div className="workflow-editor-inspector-body">
-        <Tabs
-          activeKey={activeTabKey}
-          animated={{ inkBar: true, tabPane: false }}
-          onChange={(key) => setActiveTabKey(key as WorkflowEditorInspectorTabKey)}
-          className="workflow-editor-inspector-tabs"
-          items={tabItems}
-        />
+        {selectedNode ? (
+          <WorkflowEditorNodePanel
+            activeTabKey={activeTabKey as "node-config" | "node-runtime" | "node-assistant"}
+            activatedTabKeys={activatedTabKeys.filter(
+              (key): key is "node-config" | "node-runtime" | "node-assistant" =>
+                key === "node-config" || key === "node-runtime" || key === "node-assistant"
+            )}
+            settingsProps={{
+              node: selectedNode,
+              nodes,
+              edges,
+              tools,
+              adapters,
+              credentials,
+              modelProviderCatalog,
+              modelProviderConfigs,
+              modelProviderRegistryStatus,
+              currentHref,
+              sandboxReadiness,
+              highlightedNodeSection,
+              highlightedNodeFieldPath,
+              focusedValidationItem,
+              nodeConfigText,
+              onNodeConfigTextChange,
+              onApplyNodeConfigJson,
+              onNodeConfigChange,
+              onNodeInputSchemaChange,
+              onNodeOutputSchemaChange,
+              onNodeRuntimePolicyUpdate,
+              onDeleteSelectedNode
+            }}
+            runtimeProps={{
+              workflowId,
+              node: selectedNode,
+              run,
+              currentHref,
+              onNodeInputSchemaChange,
+              onNodeOutputSchemaChange,
+              highlightedNodeSection,
+              highlightedNodeFieldPath,
+              focusedValidationItem,
+              sandboxReadiness,
+              runtimeRequest,
+              onRunSuccess: onRuntimeRunSuccess,
+              onRunError: onRuntimeRunError,
+              onRuntimeRequestHandled,
+              onOpenRunOverlay
+            }}
+            assistantPanel={assistantPanel}
+            supportsAssistantTab={supportsAssistantTab}
+            onActiveTabChange={(key) => setActiveTabKey(key)}
+          />
+        ) : (
+          <Tabs
+            activeKey={activeTabKey}
+            animated={{ inkBar: true, tabPane: false }}
+            onChange={(key) => setActiveTabKey(key as WorkflowEditorInspectorTabKey)}
+            className="workflow-editor-inspector-tabs"
+            items={tabItems}
+          />
+        )}
       </div>
     </div>
   );

@@ -175,6 +175,34 @@ function buildProps() {
 }
 
 describe("WorkflowEditorInspector", () => {
+  it("routes selected nodes through the shared node panel entry", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorInspector, {
+        ...buildProps(),
+        selectedNode: buildSelectedNode()
+      })
+    );
+
+    expect(html).toContain('data-component="workflow-editor-node-panel"');
+    expect(html).toContain("设置");
+    expect(html).toContain("运行时");
+  });
+
+  it("keeps start nodes on the same shared node panel entry", () => {
+    const triggerNode = buildTriggerNode();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowEditorInspector, {
+        ...buildProps(),
+        selectedNode: triggerNode,
+        nodes: [triggerNode]
+      })
+    );
+
+    expect(html).toContain('data-component="workflow-editor-node-panel"');
+    expect(html).toContain("设置");
+    expect(html).toContain("运行时");
+  });
+
   it("renders node-focused tabs when a node is selected", () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowEditorInspector, {
