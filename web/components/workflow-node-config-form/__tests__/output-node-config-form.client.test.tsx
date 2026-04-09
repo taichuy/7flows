@@ -13,16 +13,14 @@ let container: HTMLDivElement | null = null;
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 
 afterEach(() => {
-  act(() => {
-    root?.unmount();
-  });
+  act(() => root?.unmount());
   container?.remove();
   root = null;
   container = null;
 });
 
 describe("OutputNodeConfigForm client render", () => {
-  it("writes replyDocument, replyReferences, and replyTemplate together", () => {
+  it("writes replyDocument, replyReferences, and replyTemplate after inserting from the toolbar button", () => {
     const handleChange = vi.fn();
 
     container = document.createElement("div");
@@ -39,7 +37,7 @@ describe("OutputNodeConfigForm client render", () => {
             data: {
               label: "直接回复",
               nodeType: "endNode",
-              config: { replyTemplate: "/" },
+              config: { replyTemplate: "hello world" },
             },
           } as never,
           nodes: [
@@ -51,6 +49,12 @@ describe("OutputNodeConfigForm client render", () => {
                 label: "LLM",
                 nodeType: "llmAgentNode",
                 config: {},
+                outputSchema: {
+                  type: "object",
+                  properties: {
+                    text: { type: "string" },
+                  },
+                },
               },
             },
           ] as never,
@@ -58,6 +62,24 @@ describe("OutputNodeConfigForm client render", () => {
         }),
       );
     });
+
+    const textarea = document.querySelector("textarea") as HTMLTextAreaElement;
+    act(() => {
+      textarea.focus();
+      textarea.setSelectionRange(6, 6);
+    });
+
+    const toolbarButton = document.querySelector(
+      '[data-action="open-variable-picker"]',
+    ) as HTMLButtonElement;
+
+    act(() => {
+      toolbarButton.click();
+    });
+
+    expect(document.body.textContent).toContain("上游节点");
+    expect(document.body.textContent).toContain("String");
+    expect(document.body.textContent).toContain("用户输入");
 
     const insertButton = Array.from(document.querySelectorAll("button")).find((button) =>
       button.textContent?.includes("LLM.text"),
@@ -70,7 +92,11 @@ describe("OutputNodeConfigForm client render", () => {
     expect(handleChange).toHaveBeenLastCalledWith({
       replyDocument: {
         version: 1,
-        segments: [{ type: "variable", refId: "ref_1" }],
+        segments: [
+          { type: "text", text: "hello " },
+          { type: "variable", refId: "ref_1" },
+          { type: "text", text: "world" },
+        ],
       },
       replyReferences: [
         {
@@ -80,7 +106,7 @@ describe("OutputNodeConfigForm client render", () => {
           selector: ["accumulated", "agent", "text"],
         },
       ],
-      replyTemplate: "{{#endNode_ab12cd34.text#}}",
+      replyTemplate: "hello {{#endNode_ab12cd34.text#}}world",
     });
   });
 });

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import { OutputNodeConfigForm } from "@/components/workflow-node-config-form/output-node-config-form";
 
 describe("OutputNodeConfigForm", () => {
-  it("renders the structured variable editor entry", () => {
+  it("renders the inline variable editor toolbar instead of the large variable panel", () => {
     const html = renderToStaticMarkup(
       createElement(OutputNodeConfigForm, {
         node: {
@@ -31,8 +31,6 @@ describe("OutputNodeConfigForm", () => {
                   selector: ["accumulated", "agent", "answer"],
                 },
               ],
-              replyTemplate: "你好，{{#endNode_ab12cd34.answer#}}",
-              responseKey: "answer",
             },
           },
         } as never,
@@ -41,9 +39,9 @@ describe("OutputNodeConfigForm", () => {
       }),
     );
 
-    expect(html).toContain("workflow-variable-text-editor");
+    expect(html).toContain("workflow-variable-text-editor-toolbar");
     expect(html).toContain("[直接回复] answer");
-    expect(html).toContain("回复字段名");
-    expect(html).toContain("answer");
+    expect(html).not.toContain("复制机器别名");
+    expect(html).not.toContain("复制出去的机器别名");
   });
 });

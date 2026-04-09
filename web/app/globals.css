@@ -6131,98 +6131,156 @@ a {
   gap: 10px;
 }
 
-.workflow-variable-text-editor-surface {
-  min-height: auto;
+.workflow-variable-text-editor-shell {
   display: grid;
-  gap: 12px;
-  font: inherit;
-}
-
-.workflow-variable-text-editor-row {
-  display: flex;
-  flex-wrap: wrap;
   gap: 10px;
-  align-items: flex-start;
 }
 
-.workflow-variable-text-slot {
-  flex: 1 1 220px;
-  min-height: 64px;
-  resize: vertical;
-  border: 1px dashed rgba(28, 25, 21, 0.16);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.78);
-  padding: 10px 12px;
+.workflow-variable-text-editor-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.workflow-variable-text-editor-composer {
+  position: relative;
+  min-height: 84px;
+  border: 1px solid rgba(28, 25, 21, 0.14);
+  border-radius: 18px;
+  background: #fff;
+  padding: 14px 16px;
+}
+
+.workflow-variable-text-editor-overlay {
+  position: absolute;
+  inset: 14px 16px;
+  overflow: hidden;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-break: break-word;
   color: var(--ink);
   font: inherit;
   line-height: 1.6;
 }
 
-.workflow-variable-token-chip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.workflow-variable-text-editor-placeholder {
+  color: var(--muted);
+}
+
+.workflow-variable-text-editor-input {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 56px;
+  resize: none;
+  border: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--ink);
+  font: inherit;
+  line-height: 1.6;
+}
+
+.workflow-variable-text-editor-input:focus {
+  outline: none;
+}
+
+.workflow-variable-inline-token {
+  display: inline-flex;
   align-items: center;
-  padding: 8px 10px;
-  border: 1px solid rgba(52, 105, 255, 0.18);
-  border-radius: 14px;
-  background: rgba(236, 243, 255, 0.9);
+  min-height: 24px;
+  padding: 0 8px;
+  margin: 0 2px;
+  border: 1px solid rgba(52, 105, 255, 0.2);
+  border-radius: 999px;
+  background: rgba(236, 243, 255, 0.92);
+  color: #1f5ed5;
+  vertical-align: baseline;
 }
 
-.workflow-variable-reference-picker {
-  border: 1px solid rgba(28, 25, 21, 0.08);
-  border-radius: 16px;
-  background: rgba(255, 252, 246, 0.86);
+.workflow-variable-reference-popover-anchor {
+  position: absolute;
+  left: 16px;
+  z-index: 3;
+}
+
+.workflow-variable-reference-popover {
+  width: min(360px, calc(100vw - 64px));
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid rgba(28, 25, 21, 0.12);
+  border-radius: 18px;
+  background: #fff;
   padding: 12px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
 }
 
-.workflow-variable-reference-group,
-.workflow-variable-reference-tree-node {
-  border: 1px solid rgba(28, 25, 21, 0.06);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.72);
-  padding: 10px 12px;
-}
-
-.workflow-variable-reference-group summary,
-.workflow-variable-reference-tree-node summary {
-  cursor: pointer;
+.workflow-variable-reference-popover-search {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
   color: var(--ink);
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
-.workflow-variable-reference-group-items,
-.workflow-variable-reference-tree-children {
+.workflow-variable-reference-popover-body {
   display: grid;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 14px;
 }
 
-.workflow-variable-reference-tree-children {
-  padding-left: 10px;
-}
-
-.workflow-variable-reference-item {
+.workflow-variable-reference-popover-group {
   display: grid;
   gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid rgba(28, 25, 21, 0.08);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.88);
 }
 
-.workflow-variable-reference-item-main {
+.workflow-variable-reference-popover-group strong {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.workflow-variable-reference-popover-items {
   display: grid;
   gap: 6px;
 }
 
-.workflow-variable-reference-item code {
+.workflow-variable-reference-popover-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(28, 25, 21, 0.08);
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+}
+
+.workflow-variable-reference-popover-item:hover {
+  border-color: rgba(52, 105, 255, 0.18);
+  background: rgba(239, 246, 255, 0.6);
+}
+
+.workflow-variable-reference-popover-item-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.workflow-variable-reference-popover-item-main small {
   color: var(--muted);
   font:
-    0.78rem/1.5 "Cascadia Code",
+    0.78rem/1.4 "Cascadia Code",
     "Consolas",
     monospace;
   word-break: break-all;
+}
+
+.workflow-variable-reference-popover-item-type {
+  color: var(--muted);
+  font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .compact-list {

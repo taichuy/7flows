@@ -62,16 +62,57 @@ function readSchemaFieldNames(schema: unknown) {
   return properties ? Object.keys(properties) : [];
 }
 
+function readSchemaProperty(schema: unknown, fieldName: string) {
+  const schemaRecord = toRecord(schema);
+  const properties = toRecord(schemaRecord?.properties);
+  return toRecord(properties?.[fieldName]);
+}
+
+function formatSchemaTypeLabel(schema: unknown) {
+  const schemaRecord = toRecord(schema);
+  const type = typeof schemaRecord?.type === "string" ? schemaRecord.type : "string";
+
+  if (type === "string") {
+    return "String";
+  }
+  if (type === "number" || type === "integer") {
+    return "Number";
+  }
+  if (type === "boolean") {
+    return "Boolean";
+  }
+  if (type === "array") {
+    const itemType = toRecord(schemaRecord?.items)?.type;
+    if (itemType === "string" && String(schemaRecord?.items).toLowerCase().includes("file")) {
+      return "Array[File]";
+    }
+    if (typeof itemType === "string") {
+      return `Array[${itemType[0]?.toUpperCase() ?? "V"}${itemType.slice(1)}]`;
+    }
+    return "Array[Value]";
+  }
+  return "Object";
+}
+
+function inferFallbackTypeLabel(fieldName: string) {
+  if (fieldName === "files") {
+    return "Array[File]";
+  }
+  return "String";
+}
+
 function buildLeafItem({
   key,
   label,
   selector,
   ownerNodeId,
+  valueTypeLabel,
 }: {
   key: string;
   label: string;
   selector: string[];
   ownerNodeId: string;
+  valueTypeLabel: string;
 }): WorkflowVariableReferenceItem {
   const aliasBase = selector.at(-1) || "value";
   const machineName = `${ownerNodeId}.${aliasBase}`;
@@ -83,6 +124,7 @@ function buildLeafItem({
     previewPath: selector.join("."),
     machineName,
     token: `{{#${machineName}#}}`,
+    valueTypeLabel,
   };
 }
 
@@ -97,25 +139,31 @@ function buildReplyVariableGroups({
 }) {
   const currentFieldNames = readSchemaFieldNames(node.data.inputSchema);
   const currentNodeItems = (currentFieldNames.length > 0 ? currentFieldNames : ["text"]).map(
-    (fieldName) =>
-      buildLeafItem({
+    (fieldName) => {
+      const schema = readSchemaProperty(node.data.inputSchema, fieldName);
+      return buildLeafItem({
         key: `mapped-${fieldName}`,
         label: fieldName,
         selector: [fieldName],
         ownerNodeId,
-      }),
+        valueTypeLabel: schema ? formatSchemaTypeLabel(schema) : inferFallbackTypeLabel(fieldName),
+      });
+    },
   );
 
   const startNode = nodes.find((candidate) => candidate.data.nodeType === "startNode");
   const triggerFieldNames = readSchemaFieldNames(startNode?.data.inputSchema);
   const triggerItems = (triggerFieldNames.length > 0 ? triggerFieldNames : ["query", "files"]).map(
-    (fieldName) =>
-      buildLeafItem({
+    (fieldName) => {
+      const schema = readSchemaProperty(startNode?.data.inputSchema, fieldName);
+      return buildLeafItem({
         key: `trigger-${fieldName}`,
         label: `trigger_input.${fieldName}`,
         selector: ["trigger_input", fieldName],
         ownerNodeId,
-      }),
+        valueTypeLabel: schema ? formatSchemaTypeLabel(schema) : inferFallbackTypeLabel(fieldName),
+      });
+    },
   );
 
   const upstreamItems = nodes
@@ -131,32 +179,34 @@ function buildReplyVariableGroups({
         previewPath: `accumulated.${candidate.id}`,
         machineName: `${ownerNodeId}.${candidate.id}`,
         token: `{{#${ownerNodeId}.${candidate.id}#}}`,
-        children: fieldNames.map((fieldName) =>
-          buildLeafItem({
+        children: fieldNames.map((fieldName) => {
+          const schema = readSchemaProperty(candidate.data.outputSchema, fieldName);
+          return buildLeafItem({
             key: `upstream-${candidate.id}-${fieldName}`,
             label: `${candidate.data.label}.${fieldName}`,
             selector: ["accumulated", candidate.id, fieldName],
             ownerNodeId,
-          }),
-        ),
+            valueTypeLabel: schema ? formatSchemaTypeLabel(schema) : inferFallbackTypeLabel(fieldName),
+          });
+        }),
       } satisfies WorkflowVariableReferenceItem;
     });
 
   return [
     {
-      key: "current-node",
-      label: "当前节点变量",
-      items: currentNodeItems,
-    },
-    {
-      key: "trigger-input",
-      label: "Trigger input",
-      items: triggerItems,
-    },
-    {
       key: "upstream-nodes",
       label: "上游节点",
       items: upstreamItems,
+    },
+    {
+      key: "trigger-input",
+      label: "用户输入",
+      items: triggerItems,
+    },
+    {
+      key: "current-node",
+      label: "当前节点变量",
+      items: currentNodeItems,
     },
   ] satisfies WorkflowVariableReferenceGroup[];
 }
@@ -258,8 +308,7 @@ export function OutputNodeConfigForm({
           }}
         />
         <small className="section-copy">
-          直接回复现在以结构化变量文档作为主事实源。输入 `/` 可以搜索上游节点、当前节点字段与
-          `trigger_input`，复制出去的机器别名统一是 `当前节点 id.alias`。
+          输入 `/` 或点击右上角“变量”，都会在当前光标位置打开同一个变量浮窗并插入内联 token。
         </small>
       </label>
 
