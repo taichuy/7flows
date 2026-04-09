@@ -242,6 +242,119 @@ def test_end_node_keeps_legacy_direct_reply_template_syntax_compatible(
     assert artifacts.run.output_payload == {"answer": "旧语法：legacy-compatible"}
 
 
+def test_end_node_renders_structured_reply_document_from_references(
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-end-node-structured-reply",
+        name="End Node Structured Reply Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "startNode", "type": "startNode", "name": "startNode", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llmAgentNode",
+                    "name": "Agent",
+                    "config": {
+                        "assistant": {"enabled": False},
+                        "mock_output": {"answer": "structured-compatible"},
+                    },
+                },
+                {
+                    "id": "endNode",
+                    "type": "endNode",
+                    "name": "endNode",
+                    "config": {
+                        "replyDocument": {
+                            "version": 1,
+                            "segments": [
+                                {"type": "text", "text": "最终回复："},
+                                {"type": "variable", "refId": "ref_1"},
+                            ],
+                        },
+                        "replyReferences": [
+                            {
+                                "refId": "ref_1",
+                                "alias": "answer",
+                                "ownerNodeId": "endNode",
+                                "selector": ["accumulated", "agent", "answer"],
+                            }
+                        ],
+                        "replyTemplate": "最终回复：{{#endNode.answer#}}",
+                    },
+                },
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "startNode", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "endNode"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    artifacts = RuntimeService().execute_workflow(sqlite_session, workflow, {"topic": "agent"})
+
+    end_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "endNode")
+    assert end_run.output_payload == {"answer": "最终回复：structured-compatible"}
+    assert artifacts.run.output_payload == {"answer": "最终回复：structured-compatible"}
+
+
+def test_end_node_keeps_alias_reply_template_compatible_when_references_exist(
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-end-node-alias-template",
+        name="End Node Alias Template Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "startNode", "type": "startNode", "name": "startNode", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llmAgentNode",
+                    "name": "Agent",
+                    "config": {
+                        "assistant": {"enabled": False},
+                        "mock_output": {"answer": "alias-compatible"},
+                    },
+                },
+                {
+                    "id": "endNode",
+                    "type": "endNode",
+                    "name": "endNode",
+                    "config": {
+                        "replyReferences": [
+                            {
+                                "refId": "ref_1",
+                                "alias": "answer",
+                                "ownerNodeId": "endNode",
+                                "selector": ["accumulated", "agent", "answer"],
+                            }
+                        ],
+                        "replyTemplate": "最终回复：{{#endNode.answer#}}",
+                    },
+                },
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "startNode", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "endNode"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    artifacts = RuntimeService().execute_workflow(sqlite_session, workflow, {"topic": "agent"})
+
+    end_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "endNode")
+    assert end_run.output_payload == {"answer": "最终回复：alias-compatible"}
+    assert artifacts.run.output_payload == {"answer": "最终回复：alias-compatible"}
+
+
 def test_llm_agent_with_assistant_distills_tool_results_into_evidence(
     sqlite_session: Session,
 ) -> None:

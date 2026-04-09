@@ -177,9 +177,8 @@ class RuntimeNodeDispatchSupportMixin:
     def _build_end_node_output(self, *, node: dict, node_input: dict) -> dict:
         config = node.get("config") if isinstance(node.get("config"), dict) else {}
         reply_template = config.get("replyTemplate")
-
-        if not isinstance(reply_template, str) or not reply_template.strip():
-            return node_input.get("accumulated", {})
+        reply_document = config.get("replyDocument")
+        reply_references = config.get("replyReferences")
 
         response_key = config.get("responseKey")
         normalized_response_key = (
@@ -188,27 +187,144 @@ class RuntimeNodeDispatchSupportMixin:
             else "answer"
         )
 
+        if self._is_end_node_reply_document(reply_document):
+            return {
+                normalized_response_key: self._render_end_node_document(
+                    reply_document,
+                    reply_references if self._is_end_node_reply_references(reply_references) else [],
+                    node_input,
+                )
+            }
+
+        if not isinstance(reply_template, str) or not reply_template.strip():
+            return node_input.get("accumulated", {})
+
         return {
-            normalized_response_key: self._render_end_node_template(reply_template, node_input)
+            normalized_response_key: self._render_end_node_template(
+                reply_template,
+                node_input,
+                reply_references=(
+                    reply_references if self._is_end_node_reply_references(reply_references) else []
+                ),
+            )
         }
 
-    def _render_end_node_template(self, template: str, node_input: dict) -> str:
+    def _render_end_node_document(
+        self,
+        document: dict,
+        reply_references: list[dict],
+        node_input: dict,
+    ) -> str:
+        reference_map = {
+            str(reference["refId"]): reference
+            for reference in reply_references
+            if isinstance(reference, dict) and isinstance(reference.get("refId"), str)
+        }
+        parts: list[str] = []
+
+        for segment in document.get("segments", []):
+            if not isinstance(segment, dict):
+                continue
+            if segment.get("type") == "text":
+                parts.append(str(segment.get("text") or ""))
+                continue
+            if segment.get("type") != "variable":
+                continue
+            ref_id = segment.get("refId")
+            if not isinstance(ref_id, str):
+                continue
+            resolved = self._resolve_end_node_reference_value(reference_map.get(ref_id), node_input)
+            parts.append(self._stringify_end_node_template_value(resolved))
+
+        return "".join(parts).strip()
+
+    def _render_end_node_template(
+        self,
+        template: str,
+        node_input: dict,
+        *,
+        reply_references: list[dict] | None = None,
+    ) -> str:
+        reference_machine_names = {
+            f"{reference['ownerNodeId']}.{reference['alias']}": reference
+            for reference in reply_references or []
+            if isinstance(reference, dict)
+            and isinstance(reference.get("ownerNodeId"), str)
+            and isinstance(reference.get("alias"), str)
+        }
+
         def replace_token(match: re.Match[str]) -> str:
             path = (match.group(1) or match.group(2) or "").strip()
             if not path:
                 return ""
 
-            resolved = self._resolve_selector_path(node_input, path)
-            if resolved is MISSING or resolved is None:
-                return ""
-
-            if isinstance(resolved, (dict, list)):
-                return json.dumps(resolved, ensure_ascii=False)
-            if isinstance(resolved, bool):
-                return "true" if resolved else "false"
-            return str(resolved)
+            reference = reference_machine_names.get(path)
+            if reference is not None:
+                resolved = self._resolve_end_node_reference_value(reference, node_input)
+            else:
+                resolved = self._resolve_selector_path(node_input, path)
+            return self._stringify_end_node_template_value(resolved)
 
         return _END_NODE_TEMPLATE_PATTERN.sub(replace_token, template).strip()
+
+    def _resolve_end_node_reference_value(self, reference: dict | None, node_input: dict) -> object:
+        if not isinstance(reference, dict):
+            return MISSING
+
+        selector = reference.get("selector")
+        if not isinstance(selector, list):
+            return MISSING
+
+        normalized_selector = [str(segment).strip() for segment in selector if str(segment).strip()]
+        if not normalized_selector:
+            return MISSING
+
+        return self._resolve_selector_path(node_input, ".".join(normalized_selector))
+
+    def _stringify_end_node_template_value(self, resolved: object) -> str:
+        if resolved is MISSING or resolved is None:
+            return ""
+        if isinstance(resolved, (dict, list)):
+            return json.dumps(resolved, ensure_ascii=False)
+        if isinstance(resolved, bool):
+            return "true" if resolved else "false"
+        return str(resolved)
+
+    def _is_end_node_reply_document(self, value: object) -> bool:
+        if not isinstance(value, dict):
+            return False
+        if value.get("version") != 1:
+            return False
+        segments = value.get("segments")
+        if not isinstance(segments, list) or not segments:
+            return False
+        return all(
+            isinstance(segment, dict)
+            and (
+                (
+                    segment.get("type") == "text"
+                    and isinstance(segment.get("text"), str)
+                )
+                or (
+                    segment.get("type") == "variable"
+                    and isinstance(segment.get("refId"), str)
+                )
+            )
+            for segment in segments
+        )
+
+    def _is_end_node_reply_references(self, value: object) -> bool:
+        if not isinstance(value, list):
+            return False
+        return all(
+            isinstance(reference, dict)
+            and isinstance(reference.get("refId"), str)
+            and isinstance(reference.get("alias"), str)
+            and isinstance(reference.get("ownerNodeId"), str)
+            and isinstance(reference.get("selector"), list)
+            and all(isinstance(segment, str) for segment in reference.get("selector", []))
+            for reference in value
+        )
 
     def _execute_tool_node(
         self,

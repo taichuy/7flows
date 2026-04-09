@@ -1181,6 +1181,67 @@ def test_create_workflow_accepts_execution_runtime_policy(client: TestClient) ->
     }
 
 
+def test_create_workflow_accepts_end_node_structured_reply_document(
+    client: TestClient,
+) -> None:
+    definition = _valid_definition()
+    definition["nodes"][2]["config"] = {
+        "replyDocument": {
+            "version": 1,
+            "segments": [
+                {"type": "text", "text": "最终回复："},
+                {"type": "variable", "refId": "ref_1"},
+            ],
+        },
+        "replyReferences": [
+            {
+                "refId": "ref_1",
+                "alias": "answer",
+                "ownerNodeId": "endNode",
+                "selector": ["accumulated", "toolNode", "answer"],
+            }
+        ],
+        "replyTemplate": "最终回复：{{#endNode.answer#}}",
+    }
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Structured Reply Workflow",
+            "definition": definition,
+        },
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    end_config = body["definition"]["nodes"][2]["config"]
+    assert end_config["replyDocument"]["segments"][1]["refId"] == "ref_1"
+    assert end_config["replyReferences"][0]["selector"] == ["accumulated", "toolNode", "answer"]
+
+
+def test_create_workflow_rejects_structured_reply_document_on_non_end_node(
+    client: TestClient,
+) -> None:
+    definition = _valid_definition()
+    definition["nodes"][1]["config"]["replyDocument"] = {
+        "version": 1,
+        "segments": [{"type": "text", "text": "not allowed"}],
+    }
+
+    response = client.post(
+        "/api/workflows",
+        json={
+            "name": "Broken Structured Reply Workflow",
+            "definition": definition,
+        },
+    )
+
+    assert response.status_code == 422
+    assert "Only endNode nodes may define config.replyDocument." in _workflow_detail_message(
+        response
+    )
+
+
 def test_create_workflow_rejects_invalid_execution_runtime_policy(client: TestClient) -> None:
     response = client.post(
         "/api/workflows",

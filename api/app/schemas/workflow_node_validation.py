@@ -236,6 +236,48 @@ class WorkflowNodeSandboxConfig(BaseModel):
         return self
 
 
+class WorkflowNodeReplyTextSegment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["text"]
+    text: str
+
+
+class WorkflowNodeReplyVariableSegment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    type: Literal["variable"]
+    refId: str = Field(min_length=1, max_length=64)
+
+
+class WorkflowNodeReplyDocument(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    version: Literal[1] = 1
+    segments: list[WorkflowNodeReplyTextSegment | WorkflowNodeReplyVariableSegment] = Field(
+        min_length=1
+    )
+
+
+class WorkflowNodeReplyReference(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    refId: str = Field(min_length=1, max_length=64)
+    alias: str = Field(min_length=1, max_length=128)
+    ownerNodeId: str = Field(min_length=1, max_length=64)
+    selector: list[str] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def normalize_reference(self) -> WorkflowNodeReplyReference:
+        self.refId = self.refId.strip()
+        self.alias = self.alias.strip()
+        self.ownerNodeId = self.ownerNodeId.strip()
+        self.selector = [segment.strip() for segment in self.selector if segment.strip()]
+        if not self.selector:
+            raise ValueError("config.replyReferences[].selector must contain at least one path segment.")
+        return self
+
+
 BranchSelectorOperator = Literal[
     "exists",
     "not_exists",
@@ -376,6 +418,43 @@ def validate_workflow_node_embedded_config(*, node_type: str, config: dict[str, 
             raise ValueError("Only endNode nodes may define config.replyTemplate.")
         if not isinstance(reply_template, str) or not reply_template.strip():
             raise ValueError("config.replyTemplate must be a non-empty string.")
+
+    reply_document = config.get("replyDocument")
+    if reply_document is not None:
+        if node_type != "endNode":
+            raise ValueError("Only endNode nodes may define config.replyDocument.")
+        validated_reply_document = WorkflowNodeReplyDocument.model_validate(reply_document)
+    else:
+        validated_reply_document = None
+
+    reply_references = config.get("replyReferences")
+    if reply_references is not None:
+        if node_type != "endNode":
+            raise ValueError("Only endNode nodes may define config.replyReferences.")
+        if not isinstance(reply_references, list):
+            raise ValueError("config.replyReferences must be a list.")
+        validated_reply_references = [
+            WorkflowNodeReplyReference.model_validate(reference)
+            for reference in reply_references
+        ]
+        reference_ids = [reference.refId for reference in validated_reply_references]
+        if len(set(reference_ids)) != len(reference_ids):
+            raise ValueError("config.replyReferences refId values must be unique.")
+    else:
+        validated_reply_references = None
+
+    if validated_reply_document is not None:
+        available_ref_ids = {
+            reference.refId for reference in validated_reply_references or []
+        }
+        missing_ref_ids = [
+            segment.refId
+            for segment in validated_reply_document.segments
+            if isinstance(segment, WorkflowNodeReplyVariableSegment)
+            and segment.refId not in available_ref_ids
+        ]
+        if missing_ref_ids:
+            raise ValueError("config.replyDocument references unknown config.replyReferences refId.")
 
     response_key = config.get("responseKey")
     if response_key is not None:

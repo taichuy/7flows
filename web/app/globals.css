@@ -6123,6 +6123,100 @@ a {
   gap: 10px;
 }
 
+.workflow-variable-text-editor-surface {
+  min-height: auto;
+  display: grid;
+  gap: 12px;
+  font: inherit;
+}
+
+.workflow-variable-text-editor-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.workflow-variable-text-slot {
+  flex: 1 1 220px;
+  min-height: 64px;
+  resize: vertical;
+  border: 1px dashed rgba(28, 25, 21, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+  padding: 10px 12px;
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.6;
+}
+
+.workflow-variable-token-chip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(52, 105, 255, 0.18);
+  border-radius: 14px;
+  background: rgba(236, 243, 255, 0.9);
+}
+
+.workflow-variable-reference-picker {
+  border: 1px solid rgba(28, 25, 21, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 252, 246, 0.86);
+  padding: 12px;
+}
+
+.workflow-variable-reference-group,
+.workflow-variable-reference-tree-node {
+  border: 1px solid rgba(28, 25, 21, 0.06);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 10px 12px;
+}
+
+.workflow-variable-reference-group summary,
+.workflow-variable-reference-tree-node summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.workflow-variable-reference-group-items,
+.workflow-variable-reference-tree-children {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.workflow-variable-reference-tree-children {
+  padding-left: 10px;
+}
+
+.workflow-variable-reference-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(28, 25, 21, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.workflow-variable-reference-item-main {
+  display: grid;
+  gap: 6px;
+}
+
+.workflow-variable-reference-item code {
+  color: var(--muted);
+  font:
+    0.78rem/1.5 "Cascadia Code",
+    "Consolas",
+    monospace;
+  word-break: break-all;
+}
+
 .compact-list {
   padding-left: 18px;
 }
