@@ -94,7 +94,7 @@ export function WorkflowCanvasNode({
   const canDelete = data.nodeType !== "startNode";
   const hasIncomingHandle = data.nodeType !== "startNode";
   const hasOutgoingHandle = data.nodeType !== "endNode";
-  const nodeDescription = resolveNodeDescription(data.config);
+  const nodeDescription = resolveNodeDescription(data.nodeType, data.config);
   const resolvedQuickAddOptions = useMemo(
     () => quickAddOptions.filter((item) => item.type !== "startNode"),
     [quickAddOptions]
@@ -124,10 +124,31 @@ export function WorkflowCanvasNode({
   );
 }
 
-function resolveNodeDescription(config: WorkflowCanvasNodeData["config"]) {
+function resolveNodeDescription(
+  nodeType: string,
+  config: WorkflowCanvasNodeData["config"]
+) {
   const ui = isRecord(config.ui) ? config.ui : null;
   const description = typeof ui?.description === "string" ? ui.description.trim() : "";
-  return description || null;
+  if (description) {
+    return description;
+  }
+
+  if (nodeType !== "endNode") {
+    return null;
+  }
+
+  const replyTemplate = typeof config.replyTemplate === "string" ? config.replyTemplate.trim() : "";
+  if (!replyTemplate) {
+    return null;
+  }
+
+  const compactReply = replyTemplate.replace(/\s+/g, " ").trim();
+  if (!compactReply) {
+    return null;
+  }
+
+  return compactReply.length <= 80 ? compactReply : `${compactReply.slice(0, 77)}...`;
 }
 
 function calculateDurationMs(

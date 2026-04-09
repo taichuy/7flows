@@ -95,6 +95,108 @@ def test_llm_agent_without_assistant_keeps_legacy_like_output(sqlite_session: Se
     assert [record.role for record in artifacts.ai_calls] == ["main_plan", "main_finalize"]
 
 
+def test_end_node_renders_direct_reply_template_from_accumulated_output(
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-end-node-direct-reply",
+        name="End Node Direct Reply Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "startNode", "type": "startNode", "name": "startNode", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llmAgentNode",
+                    "name": "Agent",
+                    "config": {
+                        "assistant": {"enabled": False},
+                        "mock_output": {"answer": "legacy-compatible"},
+                    },
+                },
+                {
+                    "id": "endNode",
+                    "type": "endNode",
+                    "name": "endNode",
+                    "config": {
+                        "replyTemplate": "最终回复：{{ accumulated.agent.answer }}",
+                    },
+                },
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "startNode", "targetNodeId": "agent"},
+                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "endNode"},
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    artifacts = RuntimeService().execute_workflow(sqlite_session, workflow, {"topic": "agent"})
+
+    end_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "endNode")
+    assert end_run.output_payload == {"answer": "最终回复：legacy-compatible"}
+    assert artifacts.run.output_payload == {"answer": "最终回复：legacy-compatible"}
+
+
+def test_end_node_renders_direct_reply_template_from_mapped_field(
+    sqlite_session: Session,
+) -> None:
+    workflow = Workflow(
+        id="wf-end-node-direct-reply-mapped",
+        name="End Node Direct Reply Mapped Workflow",
+        version="0.1.0",
+        status="draft",
+        definition={
+            "nodes": [
+                {"id": "startNode", "type": "startNode", "name": "startNode", "config": {}},
+                {
+                    "id": "agent",
+                    "type": "llmAgentNode",
+                    "name": "Agent",
+                    "config": {
+                        "assistant": {"enabled": False},
+                        "mock_output": {"answer": "mapped-compatible"},
+                    },
+                },
+                {
+                    "id": "endNode",
+                    "type": "endNode",
+                    "name": "endNode",
+                    "config": {
+                        "replyTemplate": "最终回复：{{ text }}",
+                        "responseKey": "reply",
+                    },
+                },
+            ],
+            "edges": [
+                {"id": "e1", "sourceNodeId": "startNode", "targetNodeId": "agent"},
+                {
+                    "id": "e2",
+                    "sourceNodeId": "agent",
+                    "targetNodeId": "endNode",
+                    "mapping": [
+                        {
+                            "sourceField": "output.answer",
+                            "targetField": "text",
+                        }
+                    ],
+                },
+            ],
+        },
+    )
+    sqlite_session.add(workflow)
+    sqlite_session.commit()
+
+    artifacts = RuntimeService().execute_workflow(sqlite_session, workflow, {"topic": "agent"})
+
+    end_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "endNode")
+    assert end_run.input_payload["text"] == "mapped-compatible"
+    assert end_run.output_payload == {"reply": "最终回复：mapped-compatible"}
+    assert artifacts.run.output_payload == {"reply": "最终回复：mapped-compatible"}
+
+
 def test_llm_agent_with_assistant_distills_tool_results_into_evidence(
     sqlite_session: Session,
 ) -> None:

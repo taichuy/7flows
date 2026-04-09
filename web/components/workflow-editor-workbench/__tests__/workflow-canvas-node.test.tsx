@@ -88,4 +88,34 @@ describe("WorkflowCanvasNode", () => {
     expect(html).not.toContain("boom");
   });
 
+  it("shows direct-reply preview text for end nodes", () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowCanvasNode, {
+        id: "node-2",
+        selected: false,
+        data: {
+          label: "结束",
+          nodeType: "endNode",
+          typeLabel: "结束",
+          capabilityGroup: "output",
+          config: {
+            replyTemplate: "你好，{{ accumulated.agent.answer }}"
+          }
+        },
+        dragging: false,
+        zIndex: 1,
+        selectable: true,
+        deletable: true,
+        draggable: true,
+        isConnectable: true,
+        sourcePosition: "right",
+        targetPosition: "left",
+        xPos: 0,
+        yPos: 0
+      } as never)
+    );
+
+    expect(html).toContain("你好，{{ accumulated.agent.answer }}");
+  });
+
 });

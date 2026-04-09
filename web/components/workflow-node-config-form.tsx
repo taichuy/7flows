@@ -102,7 +102,7 @@ export function WorkflowNodeConfigForm({
     case "routerNode":
       return <BranchNodeConfigForm node={node} onChange={onChange} />;
     case "endNode":
-      return <OutputNodeConfigForm node={node} onChange={onChange} />;
+      return <OutputNodeConfigForm node={node} nodes={nodes} onChange={onChange} />;
     default:
       return null;
   }

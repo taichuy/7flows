@@ -370,5 +370,19 @@ def validate_workflow_node_embedded_config(*, node_type: str, config: dict[str, 
             raise ValueError("Only llmAgentNode nodes may define config.mockPlan.")
         WorkflowNodeAgentMockPlan.model_validate(mock_plan)
 
+    reply_template = config.get("replyTemplate")
+    if reply_template is not None:
+        if node_type != "endNode":
+            raise ValueError("Only endNode nodes may define config.replyTemplate.")
+        if not isinstance(reply_template, str) or not reply_template.strip():
+            raise ValueError("config.replyTemplate must be a non-empty string.")
+
+    response_key = config.get("responseKey")
+    if response_key is not None:
+        if node_type != "endNode":
+            raise ValueError("Only endNode nodes may define config.responseKey.")
+        if not isinstance(response_key, str) or not response_key.strip():
+            raise ValueError("config.responseKey must be a non-empty string.")
+
     if node_type == "sandboxCodeNode":
         WorkflowNodeSandboxConfig.model_validate(config)

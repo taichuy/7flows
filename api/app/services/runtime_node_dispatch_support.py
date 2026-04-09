@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
 import logging
+import re
 from copy import deepcopy
 
 from sqlalchemy.orm import Session
 
+from app.core.safe_expressions import MISSING
 from app.core.config import get_settings
 from app.models.run import NodeRun
 from app.services.credential_store import CredentialAccessPendingError
@@ -26,6 +29,7 @@ from app.services.tool_execution_events import build_tool_execution_events
 
 _log = logging.getLogger(__name__)
 _model_provider_registry = ModelProviderRegistryService()
+_END_NODE_TEMPLATE_PATTERN = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
 
 
 class RuntimeNodeDispatchSupportMixin:
@@ -126,7 +130,9 @@ class RuntimeNodeDispatchSupportMixin:
         if node_type == "startNode":
             return NodeExecutionResult(output=node_input.get("trigger_input", {}))
         if node_type == "endNode":
-            return NodeExecutionResult(output=node_input.get("accumulated", {}))
+            return NodeExecutionResult(
+                output=self._build_end_node_output(node=node, node_input=node_input)
+            )
         if node_type == "toolNode":
             if self._node_has_tool_binding(node):
                 return self._execute_tool_node(
@@ -165,6 +171,42 @@ class RuntimeNodeDispatchSupportMixin:
                 "received": node_input,
             }
         )
+
+    def _build_end_node_output(self, *, node: dict, node_input: dict) -> dict:
+        config = node.get("config") if isinstance(node.get("config"), dict) else {}
+        reply_template = config.get("replyTemplate")
+
+        if not isinstance(reply_template, str) or not reply_template.strip():
+            return node_input.get("accumulated", {})
+
+        response_key = config.get("responseKey")
+        normalized_response_key = (
+            response_key.strip()
+            if isinstance(response_key, str) and response_key.strip()
+            else "answer"
+        )
+
+        return {
+            normalized_response_key: self._render_end_node_template(reply_template, node_input)
+        }
+
+    def _render_end_node_template(self, template: str, node_input: dict) -> str:
+        def replace_token(match: re.Match[str]) -> str:
+            path = match.group(1).strip()
+            if not path:
+                return ""
+
+            resolved = self._resolve_selector_path(node_input, path)
+            if resolved is MISSING or resolved is None:
+                return ""
+
+            if isinstance(resolved, (dict, list)):
+                return json.dumps(resolved, ensure_ascii=False)
+            if isinstance(resolved, bool):
+                return "true" if resolved else "false"
+            return str(resolved)
+
+        return _END_NODE_TEMPLATE_PATTERN.sub(replace_token, template).strip()
 
     def _execute_tool_node(
         self,
