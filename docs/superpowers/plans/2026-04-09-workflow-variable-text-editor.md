@@ -1,299 +1,405 @@
-# Workflow Variable Text Editor Implementation Plan
+# Workflow Variable Text Editor Interaction Refresh Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox syntax (`- [ ]` / `- [x]`) for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 为 `endNode` 的直接回复配置落地第一版结构化变量文本编辑器：支持 `/` 触发变量选择器、节点内 alias、结构化 `replyDocument + replyReferences`、以及与旧 `replyTemplate` 的兼容。
+**Goal:** 把通用 `WorkflowVariableTextEditor` 重做成接近 Dify 的交互：单一可增高文本域、变量内联 token、`/` 小型浮窗、右上角“变量”按钮，并继续基于现有 `replyDocument + replyReferences + replyTemplate` 工作。
 
-**Architecture:** 先把 `endNode` 的变量文本模型从纯字符串拆成“document + references + template 派生”三层，再实现一个仅服务文本变量场景的 `WorkflowVariableTextEditor`，最后把 `OutputNodeConfigForm` 接到这套新模型，并在后端增加结构化渲染与 schema 校验。前端编排显示走 `[当前节点标题] alias`，复制与兼容 token 走 `ownerNodeId.alias`，runtime 仍通过 `selector` 取值。
+**Architecture:** 保留现有结构化变量 document/references 数据模型，不再改后端；前端新增一层“projection” 帮助把结构化 segment 映射成 textarea 可编辑字符串与内联 token 投影。`WorkflowVariableTextEditor` 负责 slash/button 入口、小型变量浮窗、当前光标插入和 token 原子删除，`OutputNodeConfigForm` 只做变量分组和结构化配置写回。
 
-**Tech Stack:** React 19、Next.js App Router、TypeScript、Vitest、Python 3.12、Pydantic、Pytest
-
-**Status (2026-04-09 14:33):** 计划对应实现已经落在当前分支并同步到 `origin/taichuy_dev`，主要功能提交为 `bba5f797`、`8a7d7442`、`5074b1f0`。本轮复核重新跑通了定向前端 `vitest`、后端 `pytest`、`web lint` 与 `git diff --check`。附加 `web tsc --noEmit --incremental false` 仍保留两条仓库既有失败：`components/__tests__/workflow-create-wizard.test.ts(44,5)` 的 `WorkflowBusinessTrack` 类型不匹配，以及 `components/__tests__/workflow-studio-layout-shell.test.tsx(57,9)` 缺少 `children`；本计划相关的 `workflow-variable-text-editor.tsx` 类型错误已在复核时修补并消失。
+**Tech Stack:** React 19、Next.js App Router、TypeScript、Vitest、全局 CSS
 
 ---
 
 ## File Structure
 
-- Create: `web/components/workflow-node-config-form/workflow-variable-text-document.ts`
-  - 承载 `WorkflowVariableTextDocument` / `WorkflowVariableReference` 类型，以及 parse / serialize / alias 生成 helper。
-- Create: `web/components/workflow-node-config-form/__tests__/workflow-variable-text-document.test.ts`
-  - 锁住 document/reference 与 `replyTemplate` 的往返转换和 alias 生成规则。
-- Create: `web/components/workflow-node-config-form/workflow-variable-reference-picker.tsx`
-  - 承载接近 Dify 的变量选择器弹层：搜索、分组、展开、路径预览、复制机器别名。
-- Create: `web/components/workflow-node-config-form/workflow-variable-text-editor.tsx`
-  - 通用文本变量编辑器，负责 `/` 触发、渲染 text/variable segment、节点内 alias 编辑与联动。
-- Create: `web/components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx`
-  - 锁住 editor 的 `/` 触发、插入变量、alias 改名联动与复制行为。
+- Create: `web/components/workflow-node-config-form/workflow-variable-text-projection.ts`
+  - 管理 `replyDocument <-> textarea projection` 映射、sentinel 插入/删除和 token 元数据。
+- Create: `web/components/workflow-node-config-form/__tests__/workflow-variable-text-projection.test.ts`
+  - 锁住 projection、slash 清除后插入、token 整体删除这些基础行为。
+- Modify: `web/components/workflow-node-config-form/workflow-variable-reference-picker.tsx`
+  - 从大块展开式树状面板改成紧凑列表内容，只保留搜索、分组、类型提示和点击插入。
+- Modify: `web/components/workflow-node-config-form/workflow-variable-text-editor.tsx`
+  - 重写成单一 textarea + overlay token + slash/button popup 的编辑器。
+- Modify: `web/components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx`
+  - 锁住 slash popup、右上角按钮、当前光标插入和 token 整体删除。
 - Modify: `web/components/workflow-node-config-form/output-node-config-form.tsx`
-  - 从 `textarea + token button` 改成 `WorkflowVariableTextEditor + document/reference/template` 适配层。
+  - 调整变量分组数据、类型标签和 editor 文案，继续写回 `replyDocument + replyReferences + replyTemplate`。
 - Modify: `web/components/workflow-node-config-form/__tests__/output-node-config-form.test.tsx`
-  - 锁住静态渲染改为 editor 入口与结构化配置存在时的初始值。
+  - 锁住静态渲染包含 toolbar 按钮和内联 token，而不是下方大面板。
 - Modify: `web/components/workflow-node-config-form/__tests__/output-node-config-form.client.test.tsx`
-  - 锁住 `OutputNodeConfigForm` 保存 `replyDocument + replyReferences + replyTemplate`。
-- Modify: `api/app/schemas/workflow_node_validation.py`
-  - 为 `endNode` 增加 `replyDocument` / `replyReferences` 校验模型。
-- Modify: `api/app/services/runtime_node_dispatch_support.py`
-  - 新增结构化 `replyDocument + replyReferences` 渲染分支，并保持旧 `replyTemplate` 兼容。
-- Modify: `api/tests/test_runtime_service_agent_runtime.py`
-  - 锁住结构化模型渲染、alias token 兼容和旧模板兼容。
-- Modify: `api/tests/test_workflow_routes.py`
-  - 锁住 `replyDocument` / `replyReferences` 通过 workflow definition 校验。
+  - 锁住通过右上角“变量”按钮插入后仍然正确写回结构化配置。
+- Modify: `web/app/globals.css`
+  - 收口 editor overlay、inline token 和 popup 样式，去掉当前大卡片式变量展示。
 
-### Task 1: Add the Structured Reply Document Model
+### Task 1: Add the Textarea Projection Helper
 
 **Files:**
-- Create: `web/components/workflow-node-config-form/workflow-variable-text-document.ts`
-- Create: `web/components/workflow-node-config-form/__tests__/workflow-variable-text-document.test.ts`
+- Create: `web/components/workflow-node-config-form/workflow-variable-text-projection.ts`
+- Create: `web/components/workflow-node-config-form/__tests__/workflow-variable-text-projection.test.ts`
 
-- [x] **Step 1: Write the failing document-model test**
+- [ ] **Step 1: Write the failing projection helper test**
 
 ```ts
 import { describe, expect, it } from "vitest";
 
 import {
-  buildReplyVariableReference,
-  formatWorkflowVariableMachineName,
-  formatWorkflowVariableToken,
-  parseReplyTemplateToDocument,
-  serializeReplyDocumentToTemplate,
-} from "@/components/workflow-node-config-form/workflow-variable-text-document";
+  WORKFLOW_VARIABLE_SENTINEL,
+  buildReplyDocumentFromProjection,
+  buildWorkflowVariableProjection,
+  insertSentinelIntoProjection,
+  removeTokenBeforeCursor,
+} from "@/components/workflow-node-config-form/workflow-variable-text-projection";
 
-describe("workflow-variable-text-document", () => {
-  it("parses selector tokens into document and references, then serializes machine-name tokens", () => {
-    const parsed = parseReplyTemplateToDocument({
-      ownerNodeId: "endNode_ab12cd34",
+describe("workflow-variable-text-projection", () => {
+  it("builds a textarea projection and inline token metadata from the reply document", () => {
+    const projection = buildWorkflowVariableProjection({
       ownerLabel: "直接回复",
-      replyTemplate: "你好，{{#accumulated.agent.answer#}}",
-    });
-
-    expect(parsed.document).toEqual({
-      version: 1,
-      segments: [
-        { type: "text", text: "你好，" },
-        { type: "variable", refId: "ref_1" },
+      document: {
+        version: 1,
+        segments: [
+          { type: "text", text: "你好，" },
+          { type: "variable", refId: "ref_1" },
+          { type: "text", text: " world" },
+        ],
+      },
+      references: [
+        {
+          refId: "ref_1",
+          alias: "text",
+          ownerNodeId: "endNode_ab12cd34",
+          selector: ["accumulated", "llm", "text"],
+        },
       ],
     });
-    expect(parsed.references).toEqual([
+
+    expect(projection.text).toBe(`你好，${WORKFLOW_VARIABLE_SENTINEL} world`);
+    expect(projection.tokens).toEqual([
       {
         refId: "ref_1",
-        alias: "answer",
-        ownerNodeId: "endNode_ab12cd34",
-        selector: ["accumulated", "agent", "answer"],
+        start: 3,
+        end: 4,
+        label: "[直接回复] text",
+        machineName: "endNode_ab12cd34.text",
       },
     ]);
-    expect(
-      serializeReplyDocumentToTemplate({
-        document: parsed.document,
-        references: parsed.references,
-      })
-    ).toBe("你好，{{#endNode_ab12cd34.answer#}}");
   });
 
-  it("keeps alias generation inside the node scope", () => {
-    const first = buildReplyVariableReference({
-      ownerNodeId: "endNode_ab12cd34",
-      aliasBase: "text",
-      selector: ["trigger_input", "query"],
-      existingAliases: [],
-    });
-    const second = buildReplyVariableReference({
-      ownerNodeId: "endNode_ab12cd34",
-      aliasBase: "text",
-      selector: ["accumulated", "agent", "text"],
-      existingAliases: [first.alias],
+  it("rebuilds the reply document after slash replacement insert and token delete", () => {
+    const inserted = insertSentinelIntoProjection({
+      text: "hello /world",
+      cursor: 7,
+      orderedRefIds: [],
+      refId: "ref_1",
+      removeLeadingSlash: true,
     });
 
-    expect(formatWorkflowVariableMachineName(first)).toBe("endNode_ab12cd34.text");
-    expect(formatWorkflowVariableToken(first)).toBe("{{#endNode_ab12cd34.text#}}");
-    expect(second.alias).toBe("text_2");
+    expect(inserted.text).toBe(`hello ${WORKFLOW_VARIABLE_SENTINEL}world`);
+    expect(inserted.orderedRefIds).toEqual(["ref_1"]);
+    expect(
+      buildReplyDocumentFromProjection({
+        text: inserted.text,
+        orderedRefIds: inserted.orderedRefIds,
+      }),
+    ).toEqual({
+      version: 1,
+      segments: [
+        { type: "text", text: "hello " },
+        { type: "variable", refId: "ref_1" },
+        { type: "text", text: "world" },
+      ],
+    });
+
+    const removed = removeTokenBeforeCursor({
+      text: inserted.text,
+      cursor: 7,
+      orderedRefIds: inserted.orderedRefIds,
+    });
+
+    expect(removed).toEqual({
+      text: "hello world",
+      orderedRefIds: [],
+      cursor: 6,
+    });
   });
 });
 ```
 
-- [x] **Step 2: Run the test to verify it fails**
+- [ ] **Step 2: Run the helper test to verify it fails**
 
 Run:
 
 ```bash
-cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/workflow-variable-text-document.test.ts --cache=false
+cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/workflow-variable-text-projection.test.ts --cache=false
 ```
 
-Expected: FAIL with `Cannot find module "@/components/workflow-node-config-form/workflow-variable-text-document"` or missing export errors.
+Expected: FAIL with `Cannot find module "@/components/workflow-node-config-form/workflow-variable-text-projection"` or missing export errors.
 
-- [x] **Step 3: Implement the document/reference helper**
+- [ ] **Step 3: Implement the projection helper**
 
 ```ts
-// web/components/workflow-node-config-form/workflow-variable-text-document.ts
-export type WorkflowVariableTextDocument = {
-  version: 1;
-  segments: Array<
-    | { type: "text"; text: string }
-    | { type: "variable"; refId: string }
-  >;
-};
+import {
+  formatWorkflowVariableMachineName,
+  type WorkflowVariableReference,
+  type WorkflowVariableTextDocument,
+} from "@/components/workflow-node-config-form/workflow-variable-text-document";
 
-export type WorkflowVariableReference = {
+export const WORKFLOW_VARIABLE_SENTINEL = "\x1f";
+
+export type WorkflowVariableProjectionToken = {
   refId: string;
-  alias: string;
-  ownerNodeId: string;
-  selector: string[];
-};
-
-export type WorkflowVariableReferenceItem = {
-  key: string;
+  start: number;
+  end: number;
   label: string;
-  selector: string[];
-  token: string;
-  previewPath: string;
   machineName: string;
 };
 
-export type WorkflowVariableReferenceGroup = {
-  key: string;
-  label: string;
-  items: WorkflowVariableReferenceItem[];
+export type WorkflowVariableProjection = {
+  text: string;
+  tokens: WorkflowVariableProjectionToken[];
+  orderedRefIds: string[];
 };
 
-const REPLY_TOKEN_PATTERN = /\{\{\s*(?:#\s*([^{}#]+?)\s*#|([^{}]+?))\s*\}\}/g;
-
-export function buildReplyVariableReference({
-  ownerNodeId,
-  aliasBase,
-  selector,
-  existingAliases,
-  refId,
-}: {
-  ownerNodeId: string;
-  aliasBase: string;
-  selector: string[];
-  existingAliases: string[];
-  refId?: string;
-}): WorkflowVariableReference {
-  const normalizedBase = aliasBase.trim().replace(/[^\w]+/g, "_") || "value";
-  let alias = normalizedBase;
-  let suffix = 2;
-  while (existingAliases.includes(alias)) {
-    alias = `${normalizedBase}_${suffix}`;
-    suffix += 1;
-  }
-  return {
-    refId: refId ?? `ref_${existingAliases.length + 1}`,
-    alias,
-    ownerNodeId,
-    selector,
-  };
-}
-
-export function formatWorkflowVariableMachineName(reference: WorkflowVariableReference) {
-  return `${reference.ownerNodeId}.${reference.alias}`;
-}
-
-export function formatWorkflowVariableToken(reference: WorkflowVariableReference) {
-  return `{{#${formatWorkflowVariableMachineName(reference)}#}}`;
-}
-
-export function parseReplyTemplateToDocument({
-  ownerNodeId,
-  ownerLabel: _ownerLabel,
-  replyTemplate,
-}: {
-  ownerNodeId: string;
-  ownerLabel: string;
-  replyTemplate: string;
-}) {
-  const segments: WorkflowVariableTextDocument["segments"] = [];
-  const references: WorkflowVariableReference[] = [];
-  let cursor = 0;
-  let match: RegExpExecArray | null;
-
-  REPLY_TOKEN_PATTERN.lastIndex = 0;
-  while ((match = REPLY_TOKEN_PATTERN.exec(replyTemplate)) !== null) {
-    const matchText = match[0];
-    const rawPath = (match[1] || match[2] || "").trim();
-    if (match.index > cursor) {
-      segments.push({ type: "text", text: replyTemplate.slice(cursor, match.index) });
-    }
-    const selector = rawPath.split(".").filter(Boolean);
-    const aliasBase = selector.at(-1) || "value";
-    const reference = buildReplyVariableReference({
-      ownerNodeId,
-      aliasBase,
-      selector,
-      existingAliases: references.map((item) => item.alias),
-      refId: `ref_${references.length + 1}`,
-    });
-    references.push(reference);
-    segments.push({ type: "variable", refId: reference.refId });
-    cursor = match.index + matchText.length;
+function pushTextSegment(
+  segments: WorkflowVariableTextDocument["segments"],
+  text: string,
+) {
+  if (!text) {
+    return;
   }
 
-  if (cursor < replyTemplate.length) {
-    segments.push({ type: "text", text: replyTemplate.slice(cursor) });
+  const lastSegment = segments.at(-1);
+  if (lastSegment?.type === "text") {
+    lastSegment.text += text;
+    return;
   }
 
-  return {
-    document: {
-      version: 1,
-      segments: segments.length > 0 ? segments : [{ type: "text", text: "" }],
-    } satisfies WorkflowVariableTextDocument,
-    references,
-  };
+  segments.push({ type: "text", text });
 }
 
-export function serializeReplyDocumentToTemplate({
+export function buildWorkflowVariableProjection({
+  ownerLabel,
   document,
   references,
 }: {
+  ownerLabel: string;
   document: WorkflowVariableTextDocument;
   references: WorkflowVariableReference[];
+}): WorkflowVariableProjection {
+  const referenceMap = new Map(references.map((reference) => [reference.refId, reference]));
+  const tokens: WorkflowVariableProjectionToken[] = [];
+  const orderedRefIds: string[] = [];
+  let cursor = 0;
+  let text = "";
+
+  document.segments.forEach((segment) => {
+    if (segment.type === "text") {
+      text += segment.text;
+      cursor += segment.text.length;
+      return;
+    }
+
+    const reference = referenceMap.get(segment.refId);
+    if (!reference) {
+      return;
+    }
+
+    text += WORKFLOW_VARIABLE_SENTINEL;
+    tokens.push({
+      refId: reference.refId,
+      start: cursor,
+      end: cursor + 1,
+      label: `[${ownerLabel}] ${reference.alias}`,
+      machineName: formatWorkflowVariableMachineName(reference),
+    });
+    orderedRefIds.push(reference.refId);
+    cursor += 1;
+  });
+
+  return {
+    text,
+    tokens,
+    orderedRefIds,
+  };
+}
+
+export function buildReplyDocumentFromProjection({
+  text,
+  orderedRefIds,
+}: {
+  text: string;
+  orderedRefIds: string[];
+}): WorkflowVariableTextDocument {
+  const segments: WorkflowVariableTextDocument["segments"] = [];
+  let textBuffer = "";
+  let refIndex = 0;
+
+  for (const character of text) {
+    if (character !== WORKFLOW_VARIABLE_SENTINEL) {
+      textBuffer += character;
+      continue;
+    }
+
+    pushTextSegment(segments, textBuffer);
+    textBuffer = "";
+
+    const refId = orderedRefIds[refIndex];
+    if (refId) {
+      segments.push({ type: "variable", refId });
+    }
+
+    refIndex += 1;
+  }
+
+  pushTextSegment(segments, textBuffer);
+
+  return {
+    version: 1,
+    segments: segments.length > 0 ? segments : [{ type: "text", text: "" }],
+  };
+}
+
+function countSentinelsBeforeIndex(text: string, index: number) {
+  let count = 0;
+  const clampedIndex = Math.max(0, Math.min(index, text.length));
+
+  for (let cursor = 0; cursor < clampedIndex; cursor += 1) {
+    if (text[cursor] === WORKFLOW_VARIABLE_SENTINEL) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
+export function insertSentinelIntoProjection({
+  text,
+  cursor,
+  orderedRefIds,
+  refId,
+  removeLeadingSlash,
+}: {
+  text: string;
+  cursor: number;
+  orderedRefIds: string[];
+  refId: string;
+  removeLeadingSlash: boolean;
 }) {
-  const referenceMap = new Map(references.map((item) => [item.refId, item]));
-  return document.segments
-    .map((segment) => {
-      if (segment.type === "text") {
-        return segment.text;
-      }
-      const reference = referenceMap.get(segment.refId);
-      return reference ? formatWorkflowVariableToken(reference) : "";
-    })
-    .join("");
+  let nextText = text;
+  let nextCursor = cursor;
+
+  if (removeLeadingSlash && nextCursor > 0 && nextText[nextCursor - 1] === "/") {
+    nextText = `${nextText.slice(0, nextCursor - 1)}${nextText.slice(nextCursor)}`;
+    nextCursor -= 1;
+  }
+
+  const tokenInsertIndex = countSentinelsBeforeIndex(nextText, nextCursor);
+
+  return {
+    text: `${nextText.slice(0, nextCursor)}${WORKFLOW_VARIABLE_SENTINEL}${nextText.slice(nextCursor)}`,
+    orderedRefIds: [
+      ...orderedRefIds.slice(0, tokenInsertIndex),
+      refId,
+      ...orderedRefIds.slice(tokenInsertIndex),
+    ],
+    cursor: nextCursor + 1,
+  };
+}
+
+export function removeTokenBeforeCursor({
+  text,
+  cursor,
+  orderedRefIds,
+}: {
+  text: string;
+  cursor: number;
+  orderedRefIds: string[];
+}) {
+  if (cursor <= 0 || text[cursor - 1] !== WORKFLOW_VARIABLE_SENTINEL) {
+    return {
+      text,
+      orderedRefIds,
+      cursor,
+    };
+  }
+
+  const tokenIndex = countSentinelsBeforeIndex(text, cursor) - 1;
+
+  return {
+    text: `${text.slice(0, cursor - 1)}${text.slice(cursor)}`,
+    orderedRefIds: [
+      ...orderedRefIds.slice(0, tokenIndex),
+      ...orderedRefIds.slice(tokenIndex + 1),
+    ],
+    cursor: cursor - 1,
+  };
+}
+
+export function removeTokenAfterCursor({
+  text,
+  cursor,
+  orderedRefIds,
+}: {
+  text: string;
+  cursor: number;
+  orderedRefIds: string[];
+}) {
+  if (text[cursor] !== WORKFLOW_VARIABLE_SENTINEL) {
+    return {
+      text,
+      orderedRefIds,
+      cursor,
+    };
+  }
+
+  const tokenIndex = countSentinelsBeforeIndex(text, cursor);
+
+  return {
+    text: `${text.slice(0, cursor)}${text.slice(cursor + 1)}`,
+    orderedRefIds: [
+      ...orderedRefIds.slice(0, tokenIndex),
+      ...orderedRefIds.slice(tokenIndex + 1),
+    ],
+    cursor,
+  };
 }
 ```
 
-- [x] **Step 4: Run the test to verify it passes**
+- [ ] **Step 4: Run the helper test to verify it passes**
 
 Run:
 
 ```bash
-cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/workflow-variable-text-document.test.ts --cache=false
+cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/workflow-variable-text-projection.test.ts --cache=false
 ```
 
 Expected: PASS with `2 passed`.
 
-- [x] **Step 5: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 cd /home/taichu/git/7flows
-git add web/components/workflow-node-config-form/workflow-variable-text-document.ts web/components/workflow-node-config-form/__tests__/workflow-variable-text-document.test.ts
-git commit -m "feat(workflow): add reply document model"
+git add web/components/workflow-node-config-form/workflow-variable-text-projection.ts web/components/workflow-node-config-form/__tests__/workflow-variable-text-projection.test.ts
+git commit -m "feat(workflow): add variable text projection helper"
 ```
 
-### Task 2: Build the Variable Picker and Text Editor
+### Task 2: Rebuild the Inline Editor and Compact Picker
 
 **Files:**
-- Create: `web/components/workflow-node-config-form/workflow-variable-reference-picker.tsx`
-- Create: `web/components/workflow-node-config-form/workflow-variable-text-editor.tsx`
-- Create: `web/components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx`
+- Modify: `web/components/workflow-node-config-form/workflow-variable-reference-picker.tsx`
+- Modify: `web/components/workflow-node-config-form/workflow-variable-text-editor.tsx`
+- Modify: `web/components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx`
 
-- [x] **Step 1: Write the failing editor interaction test**
+- [ ] **Step 1: Rewrite the editor test around slash popup, toolbar button, and token delete**
 
 ```tsx
 // @vitest-environment jsdom
+
 import * as React from "react";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { WORKFLOW_VARIABLE_SENTINEL } from "@/components/workflow-node-config-form/workflow-variable-text-projection";
 import { WorkflowVariableTextEditor } from "@/components/workflow-node-config-form/workflow-variable-text-editor";
 
 let root: Root | null = null;
@@ -309,8 +415,9 @@ afterEach(() => {
 });
 
 describe("WorkflowVariableTextEditor", () => {
-  it("opens picker on slash, inserts a variable ref, and renames aliases in-place", () => {
+  it("opens a compact popup on slash and inserts the variable in place", () => {
     const handleChange = vi.fn();
+
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -327,51 +434,139 @@ describe("WorkflowVariableTextEditor", () => {
           references: [],
           variables: [
             {
-              key: "accumulated",
+              key: "upstream",
               label: "上游节点",
               items: [
                 {
                   key: "llm-text",
-                  label: "LLM.text",
+                  label: "text",
                   selector: ["accumulated", "llm", "text"],
                   token: "{{#endNode_ab12cd34.text#}}",
-                  previewPath: "accumulated.llm.text",
+                  previewPath: "LLM.text",
+                  valueTypeLabel: "String",
                 },
               ],
             },
           ],
           onChange: handleChange,
-        })
+        }),
       );
     });
 
-    expect(document.body.textContent).toContain("上游节点");
-    expect(document.body.textContent).toContain("accumulated.llm.text");
+    expect(document.querySelector('[data-component="workflow-variable-reference-popover"]')).toBeTruthy();
+    expect(document.body.textContent).toContain("搜索变量");
+    expect(document.body.textContent).not.toContain("复制机器别名");
 
     const insertButton = Array.from(document.querySelectorAll("button")).find((button) =>
-      button.textContent?.includes("LLM.text")
+      button.textContent?.includes("text"),
     ) as HTMLButtonElement;
 
     act(() => {
       insertButton.click();
     });
 
-    expect(handleChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        document: {
-          version: 1,
-          segments: [{ type: "variable", refId: "ref_1" }],
+    expect(handleChange).toHaveBeenLastCalledWith({
+      document: {
+        version: 1,
+        segments: [{ type: "variable", refId: "ref_1" }],
+      },
+      references: [
+        {
+          refId: "ref_1",
+          alias: "text",
+          ownerNodeId: "endNode_ab12cd34",
+          selector: ["accumulated", "llm", "text"],
         },
-        references: [
-          expect.objectContaining({
-            refId: "ref_1",
-            alias: "text",
-            ownerNodeId: "endNode_ab12cd34",
-            selector: ["accumulated", "llm", "text"],
-          }),
+      ],
+    });
+  });
+
+  it("opens the same popup from the toolbar button and inserts at the current caret", () => {
+    const handleChange = vi.fn();
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        createElement(WorkflowVariableTextEditor, {
+          ownerNodeId: "endNode_ab12cd34",
+          ownerLabel: "直接回复",
+          value: {
+            version: 1,
+            segments: [{ type: "text", text: "hello world" }],
+          },
+          references: [],
+          variables: [
+            {
+              key: "upstream",
+              label: "上游节点",
+              items: [
+                {
+                  key: "llm-text",
+                  label: "text",
+                  selector: ["accumulated", "llm", "text"],
+                  token: "{{#endNode_ab12cd34.text#}}",
+                  previewPath: "LLM.text",
+                  valueTypeLabel: "String",
+                },
+              ],
+            },
+          ],
+          onChange: handleChange,
+        }),
+      );
+    });
+
+    const textarea = document.querySelector("textarea") as HTMLTextAreaElement;
+    act(() => {
+      textarea.focus();
+      textarea.setSelectionRange(6, 6);
+    });
+
+    const toolbarButton = document.querySelector(
+      '[data-action="open-variable-picker"]',
+    ) as HTMLButtonElement;
+
+    act(() => {
+      toolbarButton.click();
+    });
+
+    const insertButton = Array.from(document.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("text"),
+    ) as HTMLButtonElement;
+
+    act(() => {
+      insertButton.click();
+    });
+
+    expect(handleChange).toHaveBeenLastCalledWith({
+      document: {
+        version: 1,
+        segments: [
+          { type: "text", text: "hello " },
+          { type: "variable", refId: "ref_1" },
+          { type: "text", text: "world" },
         ],
-      })
-    );
+      },
+      references: [
+        {
+          refId: "ref_1",
+          alias: "text",
+          ownerNodeId: "endNode_ab12cd34",
+          selector: ["accumulated", "llm", "text"],
+        },
+      ],
+    });
+  });
+
+  it("renders inline tokens and removes them atomically on backspace", () => {
+    const handleChange = vi.fn();
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
 
     act(() => {
       root?.render(
@@ -381,9 +576,9 @@ describe("WorkflowVariableTextEditor", () => {
           value: {
             version: 1,
             segments: [
+              { type: "text", text: "hello " },
               { type: "variable", refId: "ref_1" },
-              { type: "text", text: " + " },
-              { type: "variable", refId: "ref_1" },
+              { type: "text", text: "world" },
             ],
           },
           references: [
@@ -396,32 +591,34 @@ describe("WorkflowVariableTextEditor", () => {
           ],
           variables: [],
           onChange: handleChange,
-        })
+        }),
       );
     });
 
-    const aliasInput = document.querySelector('input[value="text"]') as HTMLInputElement;
+    expect(document.body.textContent).toContain("[直接回复] text");
+    expect(document.querySelector('[data-component="workflow-variable-reference-picker"]')).toBeFalsy();
+
+    const textarea = document.querySelector("textarea") as HTMLTextAreaElement;
+    expect(textarea.value).toContain(WORKFLOW_VARIABLE_SENTINEL);
+
     act(() => {
-      aliasInput.value = "reply";
-      aliasInput.dispatchEvent(new Event("input", { bubbles: true }));
+      textarea.focus();
+      textarea.setSelectionRange(7, 7);
+      textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true }));
     });
 
-    expect(handleChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        references: [
-          expect.objectContaining({
-            refId: "ref_1",
-            alias: "reply",
-            ownerNodeId: "endNode_ab12cd34",
-          }),
-        ],
-      })
-    );
+    expect(handleChange).toHaveBeenLastCalledWith({
+      document: {
+        version: 1,
+        segments: [{ type: "text", text: "hello world" }],
+      },
+      references: [],
+    });
   });
 });
 ```
 
-- [x] **Step 2: Run the test to verify it fails**
+- [ ] **Step 2: Run the editor test to verify it fails**
 
 Run:
 
@@ -429,73 +626,84 @@ Run:
 cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx --cache=false
 ```
 
-Expected: FAIL with missing component/module errors.
+Expected: FAIL because the current editor still renders slot textareas, alias inputs, and the large inline picker.
 
-- [x] **Step 3: Implement the picker and editor**
+- [ ] **Step 3: Rebuild the picker and editor**
 
 ```tsx
 // web/components/workflow-node-config-form/workflow-variable-reference-picker.tsx
 "use client";
 
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
-import type { WorkflowVariableReferenceGroup } from "@/components/workflow-node-config-form/workflow-variable-text-document";
+import type {
+  WorkflowVariableReferenceGroup,
+  WorkflowVariableReferenceItem,
+} from "@/components/workflow-node-config-form/workflow-variable-text-document";
 
 export function WorkflowVariableReferencePicker({
   groups,
   onInsert,
-  onCopyMachineName,
 }: {
   groups: WorkflowVariableReferenceGroup[];
   onInsert: (selector: string[]) => void;
-  onCopyMachineName: (machineName: string) => void;
 }) {
   const [query, setQuery] = useState("");
+
   const visibleGroups = useMemo(() => {
-    if (!query.trim()) {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    if (!normalizedQuery) {
       return groups;
     }
-    const normalized = query.trim().toLowerCase();
+
     return groups
       .map((group) => ({
         ...group,
-        items: group.items.filter(
-          (item) =>
-            item.label.toLowerCase().includes(normalized) ||
-            item.previewPath.toLowerCase().includes(normalized)
-        ),
+        items: group.items.filter((item) => {
+          const haystack = `${item.label} ${item.previewPath}`.toLowerCase();
+          return haystack.includes(normalizedQuery);
+        }),
       }))
       .filter((group) => group.items.length > 0);
   }, [groups, query]);
 
   return (
-    <div className="binding-help" data-component="workflow-variable-reference-picker">
+    <div
+      className="workflow-variable-reference-popover"
+      data-component="workflow-variable-reference-popover"
+    >
       <input
         className="trace-text-input"
         value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        placeholder="搜索变量或路径"
+        onInput={(event) => setQuery((event.target as HTMLInputElement).value)}
+        placeholder="搜索变量"
       />
-      {visibleGroups.map((group) => (
-        <section key={group.key}>
-          <strong>{group.label}</strong>
-          {group.items.map((item) => (
-            <div key={item.key} data-component="workflow-variable-picker-item">
-              <button type="button" className="sync-button" onClick={() => onInsert(item.selector)}>
-                {item.label}
-              </button>
-              <span>{item.previewPath}</span>
-              <button
-                type="button"
-                className="sync-button"
-                onClick={() => onCopyMachineName(item.machineName)}
-              >
-                复制机器别名
-              </button>
+      <div className="workflow-variable-reference-popover-body">
+        {visibleGroups.map((group) => (
+          <section key={group.key} className="workflow-variable-reference-popover-group">
+            <strong>{group.label}</strong>
+            <div className="workflow-variable-reference-popover-items">
+              {group.items.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className="workflow-variable-reference-popover-item"
+                  onClick={() => onInsert(item.selector)}
+                >
+                  <span className="workflow-variable-reference-popover-item-main">
+                    <span>{item.label}</span>
+                    <small>{item.previewPath}</small>
+                  </span>
+                  <span className="workflow-variable-reference-popover-item-type">
+                    {item.valueTypeLabel ?? "Value"}
+                  </span>
+                </button>
+              ))}
             </div>
-          ))}
-        </section>
-      ))}
+          </section>
+        ))}
+      </div>
     </div>
   );
 }
@@ -505,16 +713,33 @@ export function WorkflowVariableReferencePicker({
 // web/components/workflow-node-config-form/workflow-variable-text-editor.tsx
 "use client";
 
-import { useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   buildReplyVariableReference,
-  formatWorkflowVariableMachineName,
-  type WorkflowVariableReferenceGroup,
   type WorkflowVariableReference,
+  type WorkflowVariableReferenceGroup,
   type WorkflowVariableTextDocument,
 } from "@/components/workflow-node-config-form/workflow-variable-text-document";
+import {
+  buildReplyDocumentFromProjection,
+  buildWorkflowVariableProjection,
+  insertSentinelIntoProjection,
+  removeTokenAfterCursor,
+  removeTokenBeforeCursor,
+} from "@/components/workflow-node-config-form/workflow-variable-text-projection";
 import { WorkflowVariableReferencePicker } from "@/components/workflow-node-config-form/workflow-variable-reference-picker";
+
+function selectorsMatch(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function findReferenceBySelector(
+  references: WorkflowVariableReference[],
+  selector: string[],
+) {
+  return references.find((reference) => selectorsMatch(reference.selector, selector));
+}
 
 export function WorkflowVariableTextEditor({
   ownerNodeId,
@@ -522,6 +747,7 @@ export function WorkflowVariableTextEditor({
   value,
   references,
   variables,
+  placeholder = "输入正文，输入 / 插入变量",
   onChange,
 }: {
   ownerNodeId: string;
@@ -535,100 +761,245 @@ export function WorkflowVariableTextEditor({
     references: WorkflowVariableReference[];
   }) => void;
 }) {
-  const shouldShowPicker = useMemo(() => {
-    const lastSegment = value.segments.at(-1);
-    return lastSegment?.type === "text" && lastSegment.text.endsWith("/");
-  }, [value]);
-
-  const referenceMap = useMemo(
-    () => new Map(references.map((reference) => [reference.refId, reference])),
-    [references]
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerTop, setPickerTop] = useState(56);
+  const projection = useMemo(
+    () => buildWorkflowVariableProjection({ ownerLabel, document: value, references }),
+    [ownerLabel, references, value],
   );
 
+  useEffect(() => {
+    if (!isPickerOpen) {
+      return;
+    }
+
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    const nextTop = Math.min(textarea.scrollHeight + 14, 280);
+    setPickerTop(nextTop);
+  }, [isPickerOpen, projection.text]);
+
+  const commitProjection = (nextText: string, nextRefIds: string[], nextReferences = references) => {
+    const usedRefIds = new Set(nextRefIds);
+    onChange({
+      document: buildReplyDocumentFromProjection({
+        text: nextText,
+        orderedRefIds: nextRefIds,
+      }),
+      references: nextReferences.filter((reference) => usedRefIds.has(reference.refId)),
+    });
+  };
+
+  const insertVariableAtSelection = (selector: string[], removeLeadingSlash: boolean) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      return;
+    }
+
+    const existingReference = findReferenceBySelector(references, selector);
+    const nextReference =
+      existingReference ??
+      buildReplyVariableReference({
+        ownerNodeId,
+        aliasBase: selector.at(-1) || "value",
+        selector,
+        existingAliases: references.map((reference) => reference.alias),
+      });
+
+    const inserted = insertSentinelIntoProjection({
+      text: projection.text,
+      cursor: textarea.selectionStart ?? projection.text.length,
+      orderedRefIds: projection.orderedRefIds,
+      refId: nextReference.refId,
+      removeLeadingSlash,
+    });
+
+    commitProjection(
+      inserted.text,
+      inserted.orderedRefIds,
+      existingReference ? references : [...references, nextReference],
+    );
+    setIsPickerOpen(false);
+  };
+
   return (
-    <div data-component="workflow-variable-text-editor">
-      <div className="editor-json-area">
-        {value.segments.map((segment) => {
-          if (segment.type === "text") {
-            return <span key={`text-${segment.text}`}>{segment.text}</span>;
-          }
-          const reference = referenceMap.get(segment.refId);
-          return (
-            <span key={segment.refId}>
-              <button type="button" className="sync-button">
-                [{ownerLabel}] {reference?.alias}
-              </button>
-              <input
-                className="trace-text-input"
-                value={reference?.alias ?? ""}
-                onChange={(event) => {
-                  const nextAlias = event.target.value.trim() || "value";
-                  onChange({
-                    document: value,
-                    references: references.map((item) =>
-                      item.refId === segment.refId ? { ...item, alias: nextAlias } : item
-                    ),
-                  });
-                }}
-              />
-            </span>
-          );
-        })}
+    <div
+      className="workflow-variable-text-editor-shell"
+      data-component="workflow-variable-text-editor"
+    >
+      <div className="workflow-variable-text-editor-toolbar" data-component="workflow-variable-text-editor-toolbar">
+        <button
+          type="button"
+          className="sync-button secondary-button"
+          data-action="open-variable-picker"
+          onClick={() => setIsPickerOpen(true)}
+        >
+          变量
+        </button>
       </div>
-      {shouldShowPicker ? (
-        <WorkflowVariableReferencePicker
-          groups={variables}
-          onInsert={(selector) => {
-            const nextReference = buildReplyVariableReference({
-              ownerNodeId,
-              aliasBase: selector.at(-1) || "value",
-              selector,
-              existingAliases: references.map((item) => item.alias),
-            });
-            onChange({
-              document: {
-                version: 1,
-                segments: [{ type: "variable", refId: nextReference.refId }],
-              },
-              references: [...references, nextReference],
-            });
+
+      <div className="workflow-variable-text-editor-composer">
+        <div className="workflow-variable-text-editor-overlay" aria-hidden="true">
+          {projection.tokens.length === 0 && projection.text.length === 0 ? (
+            <span className="workflow-variable-text-editor-placeholder">{placeholder}</span>
+          ) : (
+            value.segments.map((segment, index) =>
+              segment.type === "text" ? (
+                <span key={`text-${index}`}>{segment.text}</span>
+              ) : (
+                <span
+                  key={segment.refId}
+                  className="workflow-variable-inline-token"
+                  data-component="workflow-variable-inline-token"
+                >
+                  {projection.tokens.find((token) => token.refId === segment.refId)?.label ?? segment.refId}
+                </span>
+              ),
+            )
+          )}
+        </div>
+
+        <textarea
+          ref={textareaRef}
+          className="workflow-variable-text-editor-input"
+          value={projection.text}
+          onInput={(event) => {
+            const nextText = (event.target as HTMLTextAreaElement).value;
+            commitProjection(nextText, projection.orderedRefIds);
+            setIsPickerOpen(nextText[(event.target as HTMLTextAreaElement).selectionStart - 1] === "/");
           }}
-          onCopyMachineName={(machineName) => {
-            void navigator.clipboard?.writeText(machineName);
+          onKeyDown={(event) => {
+            const textarea = event.currentTarget;
+
+            if (event.key === "Backspace") {
+              const removed = removeTokenBeforeCursor({
+                text: projection.text,
+                cursor: textarea.selectionStart,
+                orderedRefIds: projection.orderedRefIds,
+              });
+
+              if (removed.text !== projection.text) {
+                event.preventDefault();
+                commitProjection(removed.text, removed.orderedRefIds);
+              }
+            }
+
+            if (event.key === "Delete") {
+              const removed = removeTokenAfterCursor({
+                text: projection.text,
+                cursor: textarea.selectionStart,
+                orderedRefIds: projection.orderedRefIds,
+              });
+
+              if (removed.text !== projection.text) {
+                event.preventDefault();
+                commitProjection(removed.text, removed.orderedRefIds);
+              }
+            }
+
+            if (event.key === "Escape") {
+              setIsPickerOpen(false);
+            }
           }}
+          placeholder={placeholder}
+          rows={1}
         />
-      ) : null}
+
+        {isPickerOpen ? (
+          <div className="workflow-variable-reference-popover-anchor" style={{ top: `${pickerTop}px` }}>
+            <WorkflowVariableReferencePicker
+              groups={variables}
+              onInsert={(selector) => insertVariableAtSelection(selector, projection.text[(textareaRef.current?.selectionStart ?? 0) - 1] === "/")}
+            />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
 ```
 
-- [x] **Step 4: Run the editor test to verify it passes**
+- [ ] **Step 4: Run the editor test to verify it passes**
 
 Run:
 
 ```bash
-cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx components/workflow-node-config-form/__tests__/workflow-variable-text-document.test.ts --cache=false
+cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/workflow-variable-text-projection.test.ts components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx --cache=false
 ```
 
-Expected: PASS with both test files green.
+Expected: PASS with all tests green.
 
-- [x] **Step 5: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 cd /home/taichu/git/7flows
-git add web/components/workflow-node-config-form/workflow-variable-reference-picker.tsx web/components/workflow-node-config-form/workflow-variable-text-editor.tsx web/components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx web/components/workflow-node-config-form/workflow-variable-text-document.ts web/components/workflow-node-config-form/__tests__/workflow-variable-text-document.test.ts
-git commit -m "feat(workflow): add variable text editor"
+git add web/components/workflow-node-config-form/workflow-variable-reference-picker.tsx web/components/workflow-node-config-form/workflow-variable-text-editor.tsx web/components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx web/components/workflow-node-config-form/workflow-variable-text-projection.ts web/components/workflow-node-config-form/__tests__/workflow-variable-text-projection.test.ts
+git commit -m "feat(workflow): rebuild inline variable text editor"
 ```
 
-### Task 3: Integrate the Editor into `OutputNodeConfigForm`
+### Task 3: Reconnect OutputNodeConfigForm and Styles
 
 **Files:**
 - Modify: `web/components/workflow-node-config-form/output-node-config-form.tsx`
 - Modify: `web/components/workflow-node-config-form/__tests__/output-node-config-form.test.tsx`
 - Modify: `web/components/workflow-node-config-form/__tests__/output-node-config-form.client.test.tsx`
+- Modify: `web/app/globals.css`
 
-- [x] **Step 1: Rewrite the output-form tests to expect structured config writes**
+- [ ] **Step 1: Rewrite the output-form tests to match the toolbar + inline token model**
+
+```tsx
+// web/components/workflow-node-config-form/__tests__/output-node-config-form.test.tsx
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+
+import { OutputNodeConfigForm } from "@/components/workflow-node-config-form/output-node-config-form";
+
+describe("OutputNodeConfigForm", () => {
+  it("renders the inline variable editor toolbar instead of the large variable panel", () => {
+    const html = renderToStaticMarkup(
+      createElement(OutputNodeConfigForm, {
+        node: {
+          id: "endNode_ab12cd34",
+          type: "workflowNode",
+          position: { x: 0, y: 0 },
+          data: {
+            label: "直接回复",
+            nodeType: "endNode",
+            config: {
+              replyDocument: {
+                version: 1,
+                segments: [
+                  { type: "text", text: "你好，" },
+                  { type: "variable", refId: "ref_1" },
+                ],
+              },
+              replyReferences: [
+                {
+                  refId: "ref_1",
+                  alias: "answer",
+                  ownerNodeId: "endNode_ab12cd34",
+                  selector: ["accumulated", "agent", "answer"],
+                },
+              ],
+            },
+          },
+        } as never,
+        nodes: [] as never,
+        onChange: () => undefined,
+      }),
+    );
+
+    expect(html).toContain("workflow-variable-text-editor-toolbar");
+    expect(html).toContain("[直接回复] answer");
+    expect(html).not.toContain("复制机器别名");
+  });
+});
+```
 
 ```tsx
 // web/components/workflow-node-config-form/__tests__/output-node-config-form.client.test.tsx
@@ -653,8 +1024,9 @@ afterEach(() => {
 });
 
 describe("OutputNodeConfigForm client render", () => {
-  it("writes replyDocument, replyReferences, and replyTemplate together", () => {
+  it("writes replyDocument, replyReferences, and replyTemplate after inserting from the toolbar button", () => {
     const handleChange = vi.fn();
+
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -669,7 +1041,7 @@ describe("OutputNodeConfigForm client render", () => {
             data: {
               label: "直接回复",
               nodeType: "endNode",
-              config: { replyTemplate: "/" },
+              config: { replyTemplate: "hello world" },
             },
           } as never,
           nodes: [
@@ -681,16 +1053,36 @@ describe("OutputNodeConfigForm client render", () => {
                 label: "LLM",
                 nodeType: "llmAgentNode",
                 config: {},
+                outputSchema: {
+                  type: "object",
+                  properties: {
+                    text: { type: "string" },
+                  },
+                },
               },
             },
           ] as never,
           onChange: handleChange,
-        })
+        }),
       );
     });
 
+    const textarea = document.querySelector("textarea") as HTMLTextAreaElement;
+    act(() => {
+      textarea.focus();
+      textarea.setSelectionRange(6, 6);
+    });
+
+    const toolbarButton = document.querySelector(
+      '[data-action="open-variable-picker"]',
+    ) as HTMLButtonElement;
+
+    act(() => {
+      toolbarButton.click();
+    });
+
     const insertButton = Array.from(document.querySelectorAll("button")).find((button) =>
-      button.textContent?.includes("LLM.text")
+      button.textContent?.includes("text"),
     ) as HTMLButtonElement;
 
     act(() => {
@@ -700,7 +1092,11 @@ describe("OutputNodeConfigForm client render", () => {
     expect(handleChange).toHaveBeenLastCalledWith({
       replyDocument: {
         version: 1,
-        segments: [{ type: "variable", refId: "ref_1" }],
+        segments: [
+          { type: "text", text: "hello " },
+          { type: "variable", refId: "ref_1" },
+          { type: "text", text: "world" },
+        ],
       },
       replyReferences: [
         {
@@ -710,61 +1106,13 @@ describe("OutputNodeConfigForm client render", () => {
           selector: ["accumulated", "agent", "text"],
         },
       ],
-      replyTemplate: "{{#endNode_ab12cd34.text#}}",
+      replyTemplate: "hello {{#endNode_ab12cd34.text#}}world",
     });
   });
 });
 ```
 
-```tsx
-// web/components/workflow-node-config-form/__tests__/output-node-config-form.test.tsx
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
-
-import { OutputNodeConfigForm } from "@/components/workflow-node-config-form/output-node-config-form";
-
-describe("OutputNodeConfigForm", () => {
-  it("renders the structured variable editor entry", () => {
-    const html = renderToStaticMarkup(
-      createElement(OutputNodeConfigForm, {
-        node: {
-          id: "endNode_ab12cd34",
-          type: "workflowNode",
-          position: { x: 0, y: 0 },
-          data: {
-            label: "直接回复",
-            nodeType: "endNode",
-            config: {
-              replyDocument: {
-                version: 1,
-                segments: [{ type: "text", text: "你好，" }, { type: "variable", refId: "ref_1" }],
-              },
-              replyReferences: [
-                {
-                  refId: "ref_1",
-                  alias: "text",
-                  ownerNodeId: "endNode_ab12cd34",
-                  selector: ["accumulated", "agent", "text"],
-                },
-              ],
-              replyTemplate: "你好，{{#endNode_ab12cd34.text#}}",
-            },
-          },
-        } as never,
-        nodes: [] as never,
-        onChange: () => undefined,
-      })
-    );
-
-    expect(html).toContain("workflow-variable-text-editor");
-    expect(html).toContain("[直接回复] text");
-    expect(html).toContain("回复字段名");
-  });
-});
-```
-
-- [x] **Step 2: Run the output-form tests to verify they fail**
+- [ ] **Step 2: Run the output-form tests to verify they fail**
 
 Run:
 
@@ -772,405 +1120,169 @@ Run:
 cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/output-node-config-form.test.tsx components/workflow-node-config-form/__tests__/output-node-config-form.client.test.tsx --cache=false
 ```
 
-Expected: FAIL because `OutputNodeConfigForm` still writes only `replyTemplate`.
+Expected: FAIL because `OutputNodeConfigForm` still exposes old helper copy and the editor does not yet behave like a toolbar-driven inline composer.
 
-- [x] **Step 3: Integrate `WorkflowVariableTextEditor` into the output form**
+- [ ] **Step 3: Update the output form wiring and styles**
 
-```tsx
+```ts
 // web/components/workflow-node-config-form/output-node-config-form.tsx
-"use client";
+function formatSchemaTypeLabel(schema: unknown) {
+  const record = toRecord(schema);
+  const type = typeof record?.type === "string" ? record.type : "string";
 
-import type { Node } from "@xyflow/react";
+  if (type === "string") {
+    return "String";
+  }
+  if (type === "number" || type === "integer") {
+    return "Number";
+  }
+  if (type === "boolean") {
+    return "Boolean";
+  }
+  if (type === "array") {
+    const itemType = typeof toRecord(record?.items)?.type === "string" ? String(toRecord(record?.items)?.type) : "Value";
+    return `Array[${itemType[0]?.toUpperCase() ?? "V"}${itemType.slice(1)}]`;
+  }
+  return "Object";
+}
 
-import type { WorkflowCanvasNodeData } from "@/lib/workflow-editor";
-import { cloneRecord } from "@/components/workflow-node-config-form/shared";
-import {
-  parseReplyTemplateToDocument,
-  serializeReplyDocumentToTemplate,
-  type WorkflowVariableReference,
-  type WorkflowVariableTextDocument,
-} from "@/components/workflow-node-config-form/workflow-variable-text-document";
-import {
-  WorkflowVariableTextEditor,
-  type WorkflowVariableReferenceGroup,
-} from "@/components/workflow-node-config-form/workflow-variable-text-editor";
-
-export function OutputNodeConfigForm({
-  node,
-  nodes,
-  onChange,
+function buildLeafItem({
+  key,
+  label,
+  selector,
+  ownerNodeId,
+  valueTypeLabel,
 }: {
-  node: Node<WorkflowCanvasNodeData>;
-  nodes: Array<Node<WorkflowCanvasNodeData>>;
-  onChange: (nextConfig: Record<string, unknown>) => void;
-}) {
-  const config = cloneRecord(node.data.config);
-  const normalized = (() => {
-    const replyDocument = config.replyDocument;
-    const replyReferences = config.replyReferences;
-    if (
-      replyDocument &&
-      typeof replyDocument === "object" &&
-      Array.isArray((replyDocument as any).segments) &&
-      Array.isArray(replyReferences)
-    ) {
-      return {
-        document: replyDocument as WorkflowVariableTextDocument,
-        references: replyReferences as WorkflowVariableReference[],
-      };
-    }
-    return parseReplyTemplateToDocument({
-      ownerNodeId: node.id,
-      ownerLabel: node.data.label,
-      replyTemplate: typeof config.replyTemplate === "string" ? config.replyTemplate : "",
-    });
-  })();
+  key: string;
+  label: string;
+  selector: string[];
+  ownerNodeId: string;
+  valueTypeLabel: string;
+}): WorkflowVariableReferenceItem {
+  const aliasBase = selector.at(-1) || "value";
+  const machineName = `${ownerNodeId}.${aliasBase}`;
 
-  const variableGroups: WorkflowVariableReferenceGroup[] = [
-    {
-      key: "mapped",
-      label: "当前节点映射字段",
-      items: [
-        {
-          key: "mapped-text",
-          label: "text",
-          selector: ["text"],
-          token: `{{#${node.id}.text#}}`,
-          previewPath: "text",
-          machineName: `${node.id}.text`,
-        },
-      ],
-    },
-    {
-      key: "upstream",
-      label: "上游节点",
-      items: nodes
-        .filter((item) => item.id !== node.id)
-        .map((item) => ({
-          key: `${item.id}-answer`,
-          label: `${item.data.label}.text`,
-          selector: ["accumulated", item.id, "text"],
-          token: `{{#${node.id}.text#}}`,
-          previewPath: `accumulated.${item.id}.text`,
-          machineName: `${node.id}.text`,
-        })),
-    },
-  ];
-
-  return (
-    <div className="binding-form">
-      <WorkflowVariableTextEditor
-        ownerNodeId={node.id}
-        ownerLabel={node.data.label}
-        value={normalized.document}
-        references={normalized.references}
-        variables={variableGroups}
-        onChange={({ document, references }) => {
-          onChange({
-            ...config,
-            replyDocument: document,
-            replyReferences: references,
-            replyTemplate: serializeReplyDocumentToTemplate({ document, references }),
-          });
-        }}
-      />
-      <label className="binding-field">
-        <span className="binding-label">回复字段名</span>
-        <input
-          className="trace-text-input"
-          value={typeof config.responseKey === "string" ? config.responseKey : ""}
-          onChange={(event) =>
-            onChange({
-              ...config,
-              responseKey: event.target.value.trim() || undefined,
-              replyDocument: normalized.document,
-              replyReferences: normalized.references,
-              replyTemplate: serializeReplyDocumentToTemplate(normalized),
-            })
-          }
-        />
-      </label>
-    </div>
-  );
+  return {
+    key,
+    label,
+    selector,
+    previewPath: selector.join("."),
+    machineName,
+    token: `{{#${machineName}#}}`,
+    valueTypeLabel,
+  };
 }
 ```
 
-- [x] **Step 4: Run the output-form tests to verify they pass**
+```css
+/* web/app/globals.css */
+.workflow-variable-text-editor-shell {
+  display: grid;
+  gap: 10px;
+}
+
+.workflow-variable-text-editor-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.workflow-variable-text-editor-composer {
+  position: relative;
+  min-height: 84px;
+  border: 1px solid rgba(28, 25, 21, 0.14);
+  border-radius: 18px;
+  background: #fff;
+  padding: 14px 16px;
+}
+
+.workflow-variable-text-editor-overlay {
+  position: absolute;
+  inset: 14px 16px;
+  pointer-events: none;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+.workflow-variable-text-editor-input {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 56px;
+  resize: none;
+  border: none;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--ink);
+  font: inherit;
+  line-height: 1.6;
+}
+
+.workflow-variable-inline-token {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid rgba(52, 105, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(236, 243, 255, 0.92);
+  color: #1f5ed5;
+}
+
+.workflow-variable-reference-popover-anchor {
+  position: absolute;
+  left: 16px;
+  z-index: 3;
+}
+
+.workflow-variable-reference-popover {
+  width: min(360px, calc(100vw - 64px));
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid rgba(28, 25, 21, 0.12);
+  border-radius: 18px;
+  background: #fff;
+  padding: 12px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+}
+```
+
+- [ ] **Step 4: Run the output-form tests to verify they pass**
 
 Run:
 
 ```bash
-cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/workflow-variable-text-document.test.ts components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx components/workflow-node-config-form/__tests__/output-node-config-form.test.tsx components/workflow-node-config-form/__tests__/output-node-config-form.client.test.tsx --cache=false
+cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/workflow-variable-text-projection.test.ts components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx components/workflow-node-config-form/__tests__/output-node-config-form.test.tsx components/workflow-node-config-form/__tests__/output-node-config-form.client.test.tsx --cache=false
 ```
 
 Expected: PASS with all four test files green.
 
-- [x] **Step 5: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 cd /home/taichu/git/7flows
-git add web/components/workflow-node-config-form/output-node-config-form.tsx web/components/workflow-node-config-form/__tests__/output-node-config-form.test.tsx web/components/workflow-node-config-form/__tests__/output-node-config-form.client.test.tsx
-git commit -m "feat(workflow): integrate variable text editor"
+git add web/components/workflow-node-config-form/output-node-config-form.tsx web/components/workflow-node-config-form/__tests__/output-node-config-form.test.tsx web/components/workflow-node-config-form/__tests__/output-node-config-form.client.test.tsx web/app/globals.css
+git commit -m "feat(workflow): align variable text editor with dify interaction"
 ```
 
-### Task 4: Add Backend Validation and Structured Rendering
+### Task 4: Full Frontend Verification and Branch Hygiene
 
 **Files:**
-- Modify: `api/app/schemas/workflow_node_validation.py`
-- Modify: `api/app/services/runtime_node_dispatch_support.py`
-- Modify: `api/tests/test_runtime_service_agent_runtime.py`
-- Modify: `api/tests/test_workflow_routes.py`
+- Verify: `web/components/workflow-node-config-form/workflow-variable-text-projection.ts`
+- Verify: `web/components/workflow-node-config-form/workflow-variable-text-editor.tsx`
+- Verify: `web/components/workflow-node-config-form/output-node-config-form.tsx`
+- Verify: `web/app/globals.css`
 
-- [x] **Step 1: Add the failing backend tests**
-
-```py
-# api/tests/test_runtime_service_agent_runtime.py
-def test_end_node_renders_structured_reply_document(sqlite_session: Session) -> None:
-    workflow = Workflow(
-        id="wf-end-node-structured-reply",
-        name="End Node Structured Reply Workflow",
-        version="0.1.0",
-        status="draft",
-        definition={
-            "nodes": [
-                {"id": "startNode", "type": "startNode", "name": "startNode", "config": {}},
-                {
-                    "id": "agent",
-                    "type": "llmAgentNode",
-                    "name": "Agent",
-                    "config": {"assistant": {"enabled": False}, "mock_output": {"answer": "legacy-compatible"}},
-                },
-                {
-                    "id": "endNode_ab12cd34",
-                    "type": "endNode",
-                    "name": "endNode",
-                    "config": {
-                        "replyDocument": {
-                            "version": 1,
-                            "segments": [
-                                {"type": "text", "text": "最终回复："},
-                                {"type": "variable", "refId": "ref_1"},
-                            ],
-                        },
-                        "replyReferences": [
-                            {
-                                "refId": "ref_1",
-                                "alias": "text",
-                                "ownerNodeId": "endNode_ab12cd34",
-                                "selector": ["accumulated", "agent", "answer"],
-                            }
-                        ],
-                    },
-                },
-            ],
-            "edges": [
-                {"id": "e1", "sourceNodeId": "startNode", "targetNodeId": "agent"},
-                {"id": "e2", "sourceNodeId": "agent", "targetNodeId": "endNode_ab12cd34"},
-            ],
-        },
-    )
-    sqlite_session.add(workflow)
-    sqlite_session.commit()
-
-    artifacts = RuntimeService().execute_workflow(sqlite_session, workflow, {"topic": "agent"})
-
-    end_run = next(node_run for node_run in artifacts.node_runs if node_run.node_id == "endNode_ab12cd34")
-    assert end_run.output_payload == {"answer": "最终回复：legacy-compatible"}
-```
-
-```py
-# api/tests/test_workflow_routes.py
-def test_create_workflow_accepts_end_node_reply_document(client: TestClient) -> None:
-    definition = _valid_definition()
-    definition["nodes"][2]["id"] = "endNode_ab12cd34"
-    definition["nodes"][2]["config"] = {
-        "replyDocument": {
-            "version": 1,
-            "segments": [
-                {"type": "text", "text": "最终回复："},
-                {"type": "variable", "refId": "ref_1"},
-            ],
-        },
-        "replyReferences": [
-            {
-                "refId": "ref_1",
-                "alias": "text",
-                "ownerNodeId": "endNode_ab12cd34",
-                "selector": ["accumulated", "toolNode", "answer"],
-            }
-        ],
-        "replyTemplate": "{{#endNode_ab12cd34.text#}}",
-    }
-
-    response = client.post("/api/workflows", json={"name": "Structured Reply Workflow", "definition": definition})
-
-    assert response.status_code == 201
-    body = response.json()
-    assert body["definition"]["nodes"][2]["config"]["replyReferences"][0]["ownerNodeId"] == "endNode_ab12cd34"
-```
-
-- [x] **Step 2: Run the backend tests to verify they fail**
+- [ ] **Step 1: Run the full targeted frontend verification**
 
 Run:
 
 ```bash
-cd /home/taichu/git/7flows && api/.venv/bin/pytest api/tests/test_runtime_service_agent_runtime.py -q -k "structured_reply_document" && api/.venv/bin/pytest api/tests/test_workflow_routes.py -q -k "reply_document"
+cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/workflow-variable-text-projection.test.ts components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx components/workflow-node-config-form/__tests__/output-node-config-form.test.tsx components/workflow-node-config-form/__tests__/output-node-config-form.client.test.tsx --cache=false
 ```
 
-Expected: FAIL because `replyDocument` / `replyReferences` are not validated or rendered.
+Expected: PASS with all target tests green.
 
-- [x] **Step 3: Implement backend validation and rendering**
-
-```py
-# api/app/schemas/workflow_node_validation.py
-from pydantic import BaseModel, ConfigDict, Field
-
-class WorkflowNodeReplyDocumentSegmentText(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["text"]
-    text: str
-
-class WorkflowNodeReplyDocumentSegmentVariable(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    type: Literal["variable"]
-    refId: str = Field(min_length=1, max_length=64)
-
-class WorkflowNodeReplyReference(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    refId: str = Field(min_length=1, max_length=64)
-    alias: str = Field(min_length=1, max_length=64)
-    ownerNodeId: str = Field(min_length=1, max_length=64)
-    selector: list[str] = Field(min_length=1)
-
-class WorkflowNodeReplyDocument(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    version: Literal[1]
-    segments: list[WorkflowNodeReplyDocumentSegmentText | WorkflowNodeReplyDocumentSegmentVariable] = Field(min_length=1)
-```
-
-```py
-# inside validate_workflow_node_embedded_config
-    reply_document = config.get("replyDocument")
-    reply_references = config.get("replyReferences")
-    if reply_document is not None or reply_references is not None:
-        if node_type != "endNode":
-            raise ValueError("Only endNode nodes may define config.replyDocument or config.replyReferences.")
-        WorkflowNodeReplyDocument.model_validate(reply_document or {"version": 1, "segments": []})
-        if not isinstance(reply_references, list) or len(reply_references) == 0:
-            raise ValueError("config.replyReferences must be a non-empty list when config.replyDocument is present.")
-        [WorkflowNodeReplyReference.model_validate(item) for item in reply_references]
-```
-
-```py
-# api/app/services/runtime_node_dispatch_support.py
-    def _build_end_node_output(self, *, node: dict, node_input: dict) -> dict:
-        config = node.get("config") if isinstance(node.get("config"), dict) else {}
-        reply_document = config.get("replyDocument")
-        reply_references = config.get("replyReferences")
-        response_key = config.get("responseKey")
-        normalized_response_key = (
-            response_key.strip()
-            if isinstance(response_key, str) and response_key.strip()
-            else "answer"
-        )
-
-        if isinstance(reply_document, dict) and isinstance(reply_references, list):
-            return {
-                normalized_response_key: self._render_end_node_document(
-                    reply_document=reply_document,
-                    reply_references=reply_references,
-                    node_input=node_input,
-                )
-            }
-
-        reply_template = config.get("replyTemplate")
-        if not isinstance(reply_template, str) or not reply_template.strip():
-            return node_input.get("accumulated", {})
-        return {
-            normalized_response_key: self._render_end_node_template(reply_template, node_input)
-        }
-
-    def _render_end_node_document(
-        self,
-        *,
-        reply_document: dict,
-        reply_references: list[dict],
-        node_input: dict,
-    ) -> str:
-        reference_map = {
-            str(item.get("refId")): item
-            for item in reply_references
-            if isinstance(item, dict) and item.get("refId")
-        }
-        parts: list[str] = []
-        for segment in reply_document.get("segments") or []:
-            if not isinstance(segment, dict):
-                continue
-            if segment.get("type") == "text":
-                parts.append(str(segment.get("text") or ""))
-                continue
-            if segment.get("type") == "variable":
-                reference = reference_map.get(str(segment.get("refId") or ""))
-                selector = reference.get("selector") if isinstance(reference, dict) else None
-                resolved = self._resolve_selector_path(node_input, ".".join(selector or []))
-                if resolved is MISSING or resolved is None:
-                    continue
-                if isinstance(resolved, (dict, list)):
-                    parts.append(json.dumps(resolved, ensure_ascii=False))
-                elif isinstance(resolved, bool):
-                    parts.append("true" if resolved else "false")
-                else:
-                    parts.append(str(resolved))
-        return "".join(parts).strip()
-```
-
-- [x] **Step 4: Run the backend tests to verify they pass**
-
-Run:
-
-```bash
-cd /home/taichu/git/7flows && api/.venv/bin/pytest api/tests/test_runtime_service_agent_runtime.py -q && api/.venv/bin/pytest api/tests/test_workflow_routes.py -q -k "reply_document"
-```
-
-Expected: PASS with the new structured reply tests green.
-
-- [x] **Step 5: Commit**
-
-```bash
-cd /home/taichu/git/7flows
-git add api/app/schemas/workflow_node_validation.py api/app/services/runtime_node_dispatch_support.py api/tests/test_runtime_service_agent_runtime.py api/tests/test_workflow_routes.py
-git commit -m "feat(workflow): support structured reply documents"
-```
-
-### Task 5: Full Verification and Branch Hygiene
-
-**Files:**
-- Modify: none
-- Verify: `web/components/workflow-node-config-form/**`
-- Verify: `api/app/services/runtime_node_dispatch_support.py`
-- Verify: `api/app/schemas/workflow_node_validation.py`
-
-- [x] **Step 1: Run the full targeted frontend verification**
-
-Run:
-
-```bash
-cd /home/taichu/git/7flows && corepack pnpm --dir web exec vitest run components/workflow-node-config-form/__tests__/workflow-variable-text-document.test.ts components/workflow-node-config-form/__tests__/workflow-variable-text-editor.client.test.tsx components/workflow-node-config-form/__tests__/output-node-config-form.test.tsx components/workflow-node-config-form/__tests__/output-node-config-form.client.test.tsx --cache=false
-```
-
-Expected: PASS with all four test files green.
-
-- [x] **Step 2: Run the targeted backend verification**
-
-Run:
-
-```bash
-cd /home/taichu/git/7flows && api/.venv/bin/pytest api/tests/test_runtime_service_agent_runtime.py api/tests/test_workflow_routes.py -q -k "reply_document or direct_reply_template or legacy_direct_reply_template"
-```
-
-Expected: PASS with structured reply and compatibility tests green.
-
-- [x] **Step 3: Run lint and diff checks**
+- [ ] **Step 2: Run lint and diff checks**
 
 Run:
 
@@ -1180,7 +1292,7 @@ cd /home/taichu/git/7flows && corepack pnpm --dir web lint && git diff --check
 
 Expected: `✔ No ESLint warnings or errors` and no `git diff --check` output.
 
-- [x] **Step 4: Run type-check and record existing unrelated failures if they persist**
+- [ ] **Step 3: Run type-check and record existing unrelated failures if they persist**
 
 Run:
 
@@ -1188,14 +1300,16 @@ Run:
 cd /home/taichu/git/7flows && corepack pnpm --dir web exec tsc --noEmit --incremental false
 ```
 
-Expected: Either PASS, or the pre-existing failures remain limited to:
+Expected: if the repository-wide pre-existing failures still persist, they should remain limited to:
 
 ```text
 components/__tests__/workflow-create-wizard.test.ts(44,5)
 components/__tests__/workflow-studio-layout-shell.test.tsx(57,9)
 ```
 
-- [x] **Step 5: Push the branch**
+Any new `workflow-variable-*` or `output-node-config-form` type failure means this task is not done.
+
+- [ ] **Step 4: Push the branch**
 
 ```bash
 cd /home/taichu/git/7flows
