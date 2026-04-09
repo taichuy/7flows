@@ -6175,7 +6175,7 @@ a {
   border: none;
   background: transparent;
   color: transparent;
-  caret-color: var(--ink);
+  caret-color: #111827;
   font: inherit;
   line-height: 1.6;
 }
