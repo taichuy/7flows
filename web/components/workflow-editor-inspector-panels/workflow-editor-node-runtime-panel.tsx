@@ -18,7 +18,6 @@ import {
 import { triggerWorkflowNodeTrialRun } from "@/app/actions/runs";
 import type { SandboxReadinessCheck } from "@/lib/get-system-overview";
 import { getRunDetail, type RunDetail } from "@/lib/get-run-detail";
-import { formatDurationMs } from "@/lib/runtime-presenters";
 import type { WorkflowValidationNavigatorItem } from "@/lib/workflow-validation-navigation";
 import {
   resolveWorkflowNodeInputSchema,
@@ -934,7 +933,7 @@ function formatStartNodeRuntimeStatus(status?: string | null) {
 }
 
 function formatCompactRuntimeDuration(durationMs?: number | null) {
-  const durationLabel = formatDurationMs(durationMs);
+  const durationLabel = formatRuntimeDurationMs(durationMs);
   return durationLabel === "N/A" ? "—" : durationLabel;
 }
 
@@ -948,4 +947,23 @@ function formatCompactRunId(runId?: string | null) {
 
 function formatCompactRuntimeEventCount(eventCount?: number | null) {
   return typeof eventCount === "number" ? String(eventCount) : "—";
+}
+
+function formatRuntimeDurationMs(durationMs?: number | null) {
+  if (durationMs == null || Number.isNaN(durationMs)) {
+    return "N/A";
+  }
+
+  if (durationMs < 1000) {
+    return `${durationMs} ms`;
+  }
+
+  if (durationMs < 60_000) {
+    const seconds = durationMs / 1000;
+    return `${seconds.toFixed(seconds < 10 ? 1 : 0)} s`;
+  }
+
+  const minutes = Math.floor(durationMs / 60_000);
+  const seconds = Math.round((durationMs % 60_000) / 1000);
+  return `${minutes}m ${seconds}s`;
 }
