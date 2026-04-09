@@ -40,7 +40,7 @@ describe("OutputNodeConfigForm", () => {
     );
 
     expect(html).toContain("workflow-variable-text-editor-toolbar");
-    expect(html).toContain("[直接回复] answer");
+    expect(html).toContain('data-component="workflow-variable-text-editor-input"');
     expect(html).not.toContain("复制机器别名");
     expect(html).not.toContain("复制出去的机器别名");
   });

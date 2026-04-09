@@ -285,7 +285,7 @@ export function OutputNodeConfigForm({
         </div>
       </div>
 
-      <label className="binding-field compact-stack">
+      <div className="binding-field compact-stack">
         <span className="binding-label">回复内容</span>
         <WorkflowVariableTextEditor
           ownerNodeId={node.id}
@@ -294,6 +294,7 @@ export function OutputNodeConfigForm({
           references={normalizedReplyState.references}
           variables={variableGroups}
           placeholder="输入正文，输入 / 插入变量"
+          ariaLabel="回复内容"
           onChange={({ document, references }) => {
             const nextConfig = cloneRecord(config);
             const replyTemplate = serializeReplyDocumentToTemplate({
@@ -316,7 +317,7 @@ export function OutputNodeConfigForm({
         <small className="section-copy">
           输入 `/` 或点击右上角“变量”，都会在当前光标位置打开同一个变量浮窗并插入内联 token。
         </small>
-      </label>
+      </div>
 
       <label className="binding-field">
         <span className="binding-label">回复字段名</span>

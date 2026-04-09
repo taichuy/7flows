@@ -123,6 +123,10 @@ export function WorkflowVariableReferencePicker({
                     key={item.key}
                     type="button"
                     className="workflow-variable-reference-popover-item"
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
                     onClick={() => onInsert(item.selector)}
                   >
                     <span className="workflow-variable-reference-popover-item-main">

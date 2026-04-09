@@ -6150,45 +6150,29 @@ a {
   padding: 14px 16px;
 }
 
-.workflow-variable-text-editor-overlay {
+.workflow-variable-text-editor-placeholder {
   position: absolute;
   inset: 14px 16px;
-  overflow: hidden;
   pointer-events: none;
+  color: var(--muted);
   white-space: pre-wrap;
   word-break: break-word;
-  color: var(--ink);
-  font: inherit;
   line-height: 1.6;
 }
 
-.workflow-variable-text-editor-placeholder {
-  color: var(--muted);
-}
-
-.workflow-variable-text-editor-input-host {
-  position: relative;
-  z-index: 1;
-}
-
-.workflow-variable-text-editor-input.ant-input {
+.workflow-variable-text-editor-input {
   width: 100%;
   min-height: 56px;
-  resize: none;
-  background: transparent;
-  color: transparent;
-  caret-color: #111827;
-  padding: 0;
-  border: none;
-  box-shadow: none;
   font: inherit;
   line-height: 1.6;
+  color: var(--ink);
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.workflow-variable-text-editor-input.ant-input:focus,
-.workflow-variable-text-editor-input.ant-input:focus-within {
-  outline: none;
-  box-shadow: none;
+.workflow-variable-text-editor-input > p {
+  margin: 0;
 }
 
 .workflow-variable-inline-token {
@@ -6201,6 +6185,12 @@ a {
   border-radius: 999px;
   background: rgba(236, 243, 255, 0.92);
   color: #1f5ed5;
+  vertical-align: baseline;
+}
+
+.workflow-variable-inline-token-host {
+  display: inline-flex;
+  align-items: center;
   vertical-align: baseline;
 }
 
