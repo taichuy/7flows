@@ -15,6 +15,7 @@ import {
   buildReplyDocumentFromProjection,
   buildWorkflowVariableProjection,
   deserializeProjectionClipboardText,
+  formatWorkflowVariableProjectionTokenText,
   insertTokenIntoProjection,
   replaceProjectionTextRange,
   removeTokenAfterCursor,
@@ -97,26 +98,43 @@ export function WorkflowVariableTextEditor({
 }) {
   const inputHostRef = useRef<HTMLDivElement | null>(null);
   const pendingSelectionRef = useRef<number | null>(null);
+  const leafItems = useMemo(
+    () => variables.flatMap((group) => flattenVariableItems(group.items)),
+    [variables],
+  );
+  const selectorLabelMap = useMemo(() => {
+    return new Map(
+      leafItems.map((item) => [item.selector.join("\x1f"), item.inlineLabel ?? item.label]),
+    );
+  }, [leafItems]);
+  const getProjectionTokenLabel = useMemo(
+    () => (reference: WorkflowVariableReference) =>
+      selectorLabelMap.get(reference.selector.join("\x1f")) ?? `[${ownerLabel}] ${reference.alias}`,
+    [ownerLabel, selectorLabelMap],
+  );
   const projection = useMemo(
-    () => buildWorkflowVariableProjection({ ownerLabel, document: value, references }),
-    [ownerLabel, references, value],
+    () =>
+      buildWorkflowVariableProjection({
+        ownerLabel,
+        document: value,
+        references,
+        getTokenText: getProjectionTokenLabel,
+      }),
+    [getProjectionTokenLabel, ownerLabel, references, value],
   );
   const [pickerMode, setPickerMode] = useState<PickerMode>(null);
   const [pickerTop, setPickerTop] = useState(56);
   const [cursor, setCursor] = useState(projection.text.length);
   const [toolbarQuery, setToolbarQuery] = useState("");
   const [draftText, setDraftText] = useState(projection.text);
-  const leafItems = useMemo(
-    () => variables.flatMap((group) => flattenVariableItems(group.items)),
-    [variables],
-  );
+  const [draftOrderedRefIds, setDraftOrderedRefIds] = useState(projection.orderedRefIds);
   const draftDocument = useMemo(
     () =>
       buildReplyDocumentFromProjection({
         text: draftText,
-        references,
+        orderedRefIds: draftOrderedRefIds,
       }),
-    [draftText, references],
+    [draftOrderedRefIds, draftText],
   );
   const draftProjection = useMemo(
     () =>
@@ -124,24 +142,13 @@ export function WorkflowVariableTextEditor({
         ownerLabel,
         document: draftDocument,
         references,
+        getTokenText: getProjectionTokenLabel,
       }),
-    [draftDocument, ownerLabel, references],
+    [draftDocument, getProjectionTokenLabel, ownerLabel, references],
   );
-  const selectorLabelMap = useMemo(() => {
-    return new Map(
-      leafItems.map((item) => [item.selector.join("\x1f"), item.inlineLabel ?? item.label]),
-    );
-  }, [leafItems]);
   const tokenLabelMap = useMemo(
-    () =>
-      new Map(
-        draftProjection.tokens.map((token) => {
-          const reference = references.find((item) => item.refId === token.refId);
-          const selectorKey = reference ? reference.selector.join("\x1f") : null;
-          return [token.refId, (selectorKey && selectorLabelMap.get(selectorKey)) ?? token.label];
-        }),
-      ),
-    [draftProjection.tokens, references, selectorLabelMap],
+    () => new Map(draftProjection.tokens.map((token) => [token.refId, token.label])),
+    [draftProjection.tokens],
   );
   const slashContext = useMemo(
     () => (pickerMode === "slash" ? readSlashQueryContext(draftText, cursor) : null),
@@ -155,7 +162,8 @@ export function WorkflowVariableTextEditor({
 
   useEffect(() => {
     setDraftText(projection.text);
-  }, [projection.text]);
+    setDraftOrderedRefIds(projection.orderedRefIds);
+  }, [projection.orderedRefIds, projection.text]);
 
   useEffect(() => {
     setCursor((currentCursor) => Math.min(currentCursor, draftText.length));
@@ -210,34 +218,37 @@ export function WorkflowVariableTextEditor({
     setPickerTop(Math.min(nextHeight + 14, 280));
   }, [draftText]);
 
-  const commitProjection = (nextText: string, nextReferences = references) => {
-    const document = buildReplyDocumentFromProjection({
-      text: nextText,
-      references: nextReferences,
-    });
-    const usedRefIds = new Set(
-      document.segments.flatMap((segment) => (segment.type === "variable" ? [segment.refId] : [])),
-    );
-
+  const commitProjection = (
+    nextText: string,
+    nextOrderedRefIds: string[],
+    nextReferences = references,
+  ) => {
+    const usedRefIds = new Set(nextOrderedRefIds);
     onChange({
-      document,
+      document: buildReplyDocumentFromProjection({
+        text: nextText,
+        orderedRefIds: nextOrderedRefIds,
+      }),
       references: nextReferences.filter((reference) => usedRefIds.has(reference.refId)),
     });
   };
 
   const applyProjectionChange = ({
     nextText,
+    nextOrderedRefIds,
     nextCursor,
     nextReferences = references,
   }: {
     nextText: string;
+    nextOrderedRefIds: string[];
     nextCursor: number;
     nextReferences?: WorkflowVariableReference[];
   }) => {
     setDraftText(nextText);
+    setDraftOrderedRefIds(nextOrderedRefIds);
     setCursor(nextCursor);
     pendingSelectionRef.current = nextCursor;
-    commitProjection(nextText, nextReferences);
+    commitProjection(nextText, nextOrderedRefIds, nextReferences);
   };
 
   const resolveCurrentCursor = () => {
@@ -270,12 +281,15 @@ export function WorkflowVariableTextEditor({
     const inserted = insertTokenIntoProjection({
       text: nextTextForInsert,
       cursor: nextCursorForInsert,
-      reference: nextReference,
+      orderedRefIds: draftOrderedRefIds,
+      refId: nextReference.refId,
+      tokenText: formatWorkflowVariableProjectionTokenText(getProjectionTokenLabel(nextReference)),
       removeLeadingSlash: Boolean(currentSlashContext),
     });
 
     applyProjectionChange({
       nextText: inserted.text,
+      nextOrderedRefIds: inserted.orderedRefIds,
       nextCursor: inserted.cursor,
       nextReferences: existingReference ? references : [...references, nextReference],
     });
@@ -294,7 +308,7 @@ export function WorkflowVariableTextEditor({
     } else if (pickerMode === "slash") {
       setPickerMode(null);
     }
-    commitProjection(nextText);
+    commitProjection(nextText, draftOrderedRefIds);
   };
 
   return (
@@ -374,12 +388,14 @@ export function WorkflowVariableTextEditor({
                 const removed = removeTokenBeforeCursor({
                   text: draftText,
                   cursor: nextCursor,
+                  orderedRefIds: draftOrderedRefIds,
                 });
 
                 if (removed.text !== draftText) {
                   event.preventDefault();
                   applyProjectionChange({
                     nextText: removed.text,
+                    nextOrderedRefIds: removed.orderedRefIds,
                     nextCursor: removed.cursor,
                   });
                   setPickerMode(null);
@@ -390,12 +406,14 @@ export function WorkflowVariableTextEditor({
                 const removed = removeTokenAfterCursor({
                   text: draftText,
                   cursor: nextCursor,
+                  orderedRefIds: draftOrderedRefIds,
                 });
 
                 if (removed.text !== draftText) {
                   event.preventDefault();
                   applyProjectionChange({
                     nextText: removed.text,
+                    nextOrderedRefIds: removed.orderedRefIds,
                     nextCursor: removed.cursor,
                   });
                   setPickerMode(null);
@@ -409,11 +427,11 @@ export function WorkflowVariableTextEditor({
             onCopy={(event) => {
               const selectionStart = event.currentTarget.selectionStart ?? 0;
               const selectionEnd = event.currentTarget.selectionEnd ?? selectionStart;
+              const hasSelectedToken = draftProjection.tokens.some(
+                (token) => token.end > selectionStart && token.start < selectionEnd,
+              );
 
-              if (
-                selectionStart === selectionEnd ||
-                !draftText.slice(selectionStart, selectionEnd).includes("{{#")
-              ) {
+              if (selectionStart === selectionEnd || !hasSelectedToken) {
                 return;
               }
 
@@ -424,17 +442,19 @@ export function WorkflowVariableTextEditor({
                   text: draftText,
                   selectionStart,
                   selectionEnd,
+                  orderedRefIds: draftOrderedRefIds,
+                  references,
                 }),
               );
             }}
             onCut={(event) => {
               const selectionStart = event.currentTarget.selectionStart ?? 0;
               const selectionEnd = event.currentTarget.selectionEnd ?? selectionStart;
+              const hasSelectedToken = draftProjection.tokens.some(
+                (token) => token.end > selectionStart && token.start < selectionEnd,
+              );
 
-              if (
-                selectionStart === selectionEnd ||
-                !draftText.slice(selectionStart, selectionEnd).includes("{{#")
-              ) {
+              if (selectionStart === selectionEnd || !hasSelectedToken) {
                 return;
               }
 
@@ -445,6 +465,8 @@ export function WorkflowVariableTextEditor({
                   text: draftText,
                   selectionStart,
                   selectionEnd,
+                  orderedRefIds: draftOrderedRefIds,
+                  references,
                 }),
               );
 
@@ -452,11 +474,14 @@ export function WorkflowVariableTextEditor({
                 text: draftText,
                 selectionStart,
                 selectionEnd,
+                orderedRefIds: draftOrderedRefIds,
                 insertText: "",
+                insertRefIds: [],
               });
 
               applyProjectionChange({
                 nextText: replaced.text,
+                nextOrderedRefIds: replaced.orderedRefIds,
                 nextCursor: replaced.cursor,
               });
               setPickerMode(null);
@@ -470,9 +495,11 @@ export function WorkflowVariableTextEditor({
 
               const inserted = deserializeProjectionClipboardText({
                 clipboardText,
+                references,
+                getTokenText: getProjectionTokenLabel,
               });
 
-              if (!inserted.text.includes("{{#")) {
+              if (inserted.orderedRefIds.length === 0) {
                 return;
               }
 
@@ -483,11 +510,14 @@ export function WorkflowVariableTextEditor({
                 text: draftText,
                 selectionStart,
                 selectionEnd,
+                orderedRefIds: draftOrderedRefIds,
                 insertText: inserted.text,
+                insertRefIds: inserted.orderedRefIds,
               });
 
               applyProjectionChange({
                 nextText: replaced.text,
+                nextOrderedRefIds: replaced.orderedRefIds,
                 nextCursor: replaced.cursor,
               });
               setPickerMode(readSlashQueryContext(replaced.text, replaced.cursor) ? "slash" : null);

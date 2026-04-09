@@ -570,7 +570,7 @@ describe("WorkflowVariableTextEditor", () => {
     expect(document.body.textContent).not.toContain("[用户输入] query");
   });
 
-  it("uses the real template token text inside the textarea and removes tokens atomically on backspace", () => {
+  it("uses a width-friendly projection text inside the textarea and removes tokens atomically on backspace", () => {
     const handleChange = vi.fn();
 
     container = document.createElement("div");
@@ -627,7 +627,8 @@ describe("WorkflowVariableTextEditor", () => {
     ).toBeFalsy();
 
     const textarea = getEditorTextarea();
-    expect(textarea.value).toContain("{{#accumulated.llm.text#}}");
+    expect(textarea.value).toContain("[LLM] text");
+    expect(textarea.value).not.toContain("{{#accumulated.llm.text#}}");
 
     act(() => {
       textarea.focus();
