@@ -28,20 +28,31 @@ export function WorkflowVariableReferencePicker({
   groups,
   onInsert,
   onDismiss,
+  query,
+  showSearch = true,
+  onQueryChange,
+  onConfirmFirst,
 }: {
   groups: WorkflowVariableReferenceGroup[];
   onInsert: (selector: string[]) => void;
   onDismiss?: () => void;
+  query?: string;
+  showSearch?: boolean;
+  onQueryChange?: (query: string) => void;
+  onConfirmFirst?: () => void;
 }) {
-  const [query, setQuery] = useState("");
+  const [internalQuery, setInternalQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const resolvedQuery = query ?? internalQuery;
 
   useEffect(() => {
-    searchInputRef.current?.focus();
-  }, []);
+    if (showSearch) {
+      searchInputRef.current?.focus();
+    }
+  }, [showSearch]);
 
   const visibleGroups = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = resolvedQuery.trim().toLowerCase();
 
     return groups
       .map((group) => ({
@@ -56,31 +67,49 @@ export function WorkflowVariableReferencePicker({
         }),
       }))
       .filter((group) => group.items.length > 0);
-  }, [groups, query]);
+  }, [groups, resolvedQuery]);
+
+  const updateQuery = (nextQuery: string) => {
+    if (query === undefined) {
+      setInternalQuery(nextQuery);
+    }
+    onQueryChange?.(nextQuery);
+  };
 
   return (
     <div
-      className="workflow-variable-reference-popover"
+      className={`workflow-variable-reference-popover${showSearch ? "" : " compact"}`}
       data-component="workflow-variable-reference-popover"
     >
-      <label className="workflow-variable-reference-popover-search">
-        <span>搜索变量</span>
-        <input
-          ref={searchInputRef}
-          data-element="workflow-variable-picker-search"
-          className="trace-text-input"
-          value={query}
-          onInput={(event) => setQuery((event.target as HTMLInputElement).value)}
-          onKeyDown={(event) => {
-            event.stopPropagation();
-            if (event.key === "Escape") {
-              event.preventDefault();
-              onDismiss?.();
-            }
-          }}
-          placeholder="搜索变量"
-        />
-      </label>
+      {showSearch ? (
+        <label className="workflow-variable-reference-popover-search">
+          <span>搜索变量</span>
+          <input
+            ref={searchInputRef}
+            data-element="workflow-variable-picker-search"
+            className="trace-text-input workflow-variable-reference-popover-search-input"
+            value={resolvedQuery}
+            onInput={(event) => updateQuery((event.target as HTMLInputElement).value)}
+            onKeyDown={(event) => {
+              event.stopPropagation();
+              if (event.key === "Enter") {
+                event.preventDefault();
+                onConfirmFirst?.();
+                return;
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                onDismiss?.();
+              }
+            }}
+            placeholder="搜索变量"
+          />
+        </label>
+      ) : (
+        <small className="workflow-variable-reference-popover-hint">
+          继续输入筛选，回车插入第一项
+        </small>
+      )}
       <div className="workflow-variable-reference-popover-body">
         {visibleGroups.length > 0 ? (
           visibleGroups.map((group) => (

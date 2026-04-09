@@ -48,7 +48,7 @@ describe("WorkflowVariableTextEditor", () => {
     expect((document.querySelector("textarea") as HTMLTextAreaElement).getAttribute("placeholder")).toBeNull();
   });
 
-  it("opens a compact popup on slash and inserts the variable in place", () => {
+  it("keeps focus in the textarea for slash filtering and inserts the first match on enter", () => {
     const handleChange = vi.fn();
 
     container = document.createElement("div");
@@ -62,7 +62,7 @@ describe("WorkflowVariableTextEditor", () => {
           ownerLabel: "直接回复",
           value: {
             version: 1,
-            segments: [{ type: "text", text: "/" }],
+            segments: [{ type: "text", text: "/te" }],
           },
           references: [],
           variables: [
@@ -72,11 +72,21 @@ describe("WorkflowVariableTextEditor", () => {
               items: [
                 {
                   key: "llm-text",
-                  label: "text",
+                  label: "test",
                   selector: ["accumulated", "llm", "text"],
                   token: "{{#endNode_ab12cd34.text#}}",
-                  previewPath: "LLM.text",
+                  previewPath: "LLM.test",
                   machineName: "endNode_ab12cd34.text",
+                  valueTypeLabel: "String",
+                  inlineLabel: "[LLM] test",
+                },
+                {
+                  key: "llm-answer",
+                  label: "answer",
+                  selector: ["accumulated", "llm", "answer"],
+                  token: "{{#endNode_ab12cd34.answer#}}",
+                  previewPath: "LLM.answer",
+                  machineName: "endNode_ab12cd34.answer",
                   valueTypeLabel: "String",
                 },
               ],
@@ -90,18 +100,16 @@ describe("WorkflowVariableTextEditor", () => {
     expect(
       document.querySelector('[data-component="workflow-variable-reference-popover"]'),
     ).toBeTruthy();
-    expect(document.body.textContent).toContain("搜索变量");
+    expect(document.body.textContent).toContain("test");
+    expect(document.body.textContent).not.toContain("answer");
     expect(document.body.textContent).not.toContain("复制机器别名");
-    expect(document.activeElement).toBe(
-      document.querySelector('[data-element="workflow-variable-picker-search"]'),
-    );
+    expect(document.querySelector('[data-element="workflow-variable-picker-search"]')).toBeNull();
 
-    const insertButton = Array.from(document.querySelectorAll("button")).find((button) =>
-      button.textContent?.includes("text"),
-    ) as HTMLButtonElement;
-
+    const textarea = document.querySelector("textarea") as HTMLTextAreaElement;
     act(() => {
-      insertButton.click();
+      textarea.focus();
+      textarea.setSelectionRange(3, 3);
+      textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     });
 
     expect(handleChange).toHaveBeenLastCalledWith({

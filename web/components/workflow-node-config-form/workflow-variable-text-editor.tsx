@@ -41,6 +41,34 @@ function flattenVariableItems(items: WorkflowVariableReferenceItem[]): WorkflowV
   });
 }
 
+function readSlashQueryContext(text: string, cursor: number) {
+  const clampedCursor = Math.max(0, Math.min(cursor, text.length));
+  const slashStart = text.lastIndexOf("/", Math.max(0, clampedCursor - 1));
+
+  if (slashStart < 0) {
+    return null;
+  }
+
+  const query = text.slice(slashStart + 1, clampedCursor);
+  if (/\s/.test(query) || query.includes("\x1f")) {
+    return null;
+  }
+
+  return {
+    start: slashStart,
+    query,
+  };
+}
+
+function matchesVariableQuery(item: WorkflowVariableReferenceItem, query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return `${item.label} ${item.previewPath}`.toLowerCase().includes(normalizedQuery);
+}
+
 export function WorkflowVariableTextEditor({
   ownerNodeId,
   ownerLabel,
@@ -64,16 +92,21 @@ export function WorkflowVariableTextEditor({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [pickerMode, setPickerMode] = useState<PickerMode>(null);
   const [pickerTop, setPickerTop] = useState(56);
+  const [cursor, setCursor] = useState(value.segments.length > 0 ? projectionLength(value) : 0);
+  const [toolbarQuery, setToolbarQuery] = useState("");
   const projection = useMemo(
     () => buildWorkflowVariableProjection({ ownerLabel, document: value, references }),
     [ownerLabel, references, value],
   );
+  const leafItems = useMemo(
+    () => variables.flatMap((group) => flattenVariableItems(group.items)),
+    [variables],
+  );
   const selectorLabelMap = useMemo(() => {
-    const leafItems = variables.flatMap((group) => flattenVariableItems(group.items));
     return new Map(
       leafItems.map((item) => [item.selector.join("\x1f"), item.inlineLabel ?? item.label]),
     );
-  }, [variables]);
+  }, [leafItems]);
   const tokenLabelMap = useMemo(
     () =>
       new Map(
@@ -85,6 +118,19 @@ export function WorkflowVariableTextEditor({
       ),
     [projection.tokens, references, selectorLabelMap],
   );
+  const slashContext = useMemo(
+    () => (pickerMode === "slash" ? readSlashQueryContext(projection.text, cursor) : null),
+    [pickerMode, projection.text, cursor],
+  );
+  const pickerQuery = pickerMode === "slash" ? (slashContext?.query ?? "") : toolbarQuery;
+  const firstVisibleItem = useMemo(
+    () => leafItems.find((item) => matchesVariableQuery(item, pickerQuery)) ?? null,
+    [leafItems, pickerQuery],
+  );
+
+  useEffect(() => {
+    setCursor((currentCursor) => Math.min(currentCursor, projection.text.length));
+  }, [projection.text.length]);
 
   const syncTextareaHeight = () => {
     const textarea = textareaRef.current;
@@ -102,10 +148,12 @@ export function WorkflowVariableTextEditor({
   }, [projection.text]);
 
   useEffect(() => {
-    if (pickerMode === null && projection.text.endsWith("/")) {
-      setPickerMode("slash");
+    if (pickerMode === "toolbar") {
+      return;
     }
-  }, [pickerMode, projection.text]);
+
+    setPickerMode(readSlashQueryContext(projection.text, cursor) ? "slash" : null);
+  }, [pickerMode, projection.text, cursor]);
 
   const commitProjection = (nextText: string, nextOrderedRefIds: string[], nextReferences = references) => {
     const usedRefIds = new Set(nextOrderedRefIds);
@@ -121,17 +169,13 @@ export function WorkflowVariableTextEditor({
   const resolveCurrentCursor = () => {
     const textarea = textareaRef.current;
     if (!textarea) {
-      return projection.text.length;
+      return cursor;
     }
 
-    if (pickerMode === "slash" && projection.text.endsWith("/")) {
-      return projection.text.length;
-    }
-
-    return textarea.selectionStart ?? projection.text.length;
+    return textarea.selectionStart ?? cursor;
   };
 
-  const handleInsert = (selector: string[]) => {
+  const handleInsert = (selector: string[], insertionCursor = resolveCurrentCursor()) => {
     const existingReference = findReferenceBySelector(references, selector);
     const nextReference =
       existingReference ??
@@ -141,12 +185,20 @@ export function WorkflowVariableTextEditor({
         selector,
         existingAliases: references.map((reference) => reference.alias),
       });
+    const currentSlashContext =
+      pickerMode === "slash" ? readSlashQueryContext(projection.text, insertionCursor) : null;
+    const nextTextForInsert = currentSlashContext
+      ? `${projection.text.slice(0, currentSlashContext.start + 1)}${projection.text.slice(insertionCursor)}`
+      : projection.text;
+    const nextCursorForInsert = currentSlashContext
+      ? currentSlashContext.start + 1
+      : insertionCursor;
     const inserted = insertSentinelIntoProjection({
-      text: projection.text,
-      cursor: resolveCurrentCursor(),
+      text: nextTextForInsert,
+      cursor: nextCursorForInsert,
       orderedRefIds: projection.orderedRefIds,
       refId: nextReference.refId,
-      removeLeadingSlash: pickerMode === "slash",
+      removeLeadingSlash: Boolean(currentSlashContext),
     });
 
     commitProjection(
@@ -155,6 +207,7 @@ export function WorkflowVariableTextEditor({
       existingReference ? references : [...references, nextReference],
     );
     setPickerMode(null);
+    setToolbarQuery("");
   };
 
   return (
@@ -170,7 +223,10 @@ export function WorkflowVariableTextEditor({
           type="button"
           className="sync-button secondary-button"
           data-action="open-variable-picker"
-          onClick={() => setPickerMode("toolbar")}
+          onClick={() => {
+            setToolbarQuery("");
+            setPickerMode("toolbar");
+          }}
         >
           变量
         </button>
@@ -204,25 +260,37 @@ export function WorkflowVariableTextEditor({
           onInput={(event) => {
             const textarea = event.currentTarget;
             const nextText = textarea.value;
+            const nextCursor = textarea.selectionStart ?? nextText.length;
+            setCursor(nextCursor);
             commitProjection(nextText, projection.orderedRefIds);
-
-            const cursor = textarea.selectionStart ?? nextText.length;
-            if (cursor > 0 && nextText[cursor - 1] === "/") {
-              setPickerMode("slash");
-            } else if (pickerMode === "slash") {
-              setPickerMode(null);
-            }
           }}
-          onClick={syncTextareaHeight}
-          onKeyUp={syncTextareaHeight}
-          onSelect={syncTextareaHeight}
+          onClick={(event) => {
+            syncTextareaHeight();
+            setCursor(event.currentTarget.selectionStart ?? 0);
+          }}
+          onKeyUp={(event) => {
+            syncTextareaHeight();
+            setCursor(event.currentTarget.selectionStart ?? 0);
+          }}
+          onSelect={(event) => {
+            syncTextareaHeight();
+            setCursor(event.currentTarget.selectionStart ?? 0);
+          }}
           onKeyDown={(event) => {
             const textarea = event.currentTarget;
+            const nextCursor = textarea.selectionStart ?? 0;
+            setCursor(nextCursor);
+
+            if (event.key === "Enter" && pickerMode === "slash" && firstVisibleItem) {
+              event.preventDefault();
+              handleInsert(firstVisibleItem.selector, nextCursor);
+              return;
+            }
 
             if (event.key === "Backspace") {
               const removed = removeTokenBeforeCursor({
                 text: projection.text,
-                cursor: textarea.selectionStart ?? 0,
+                cursor: nextCursor,
                 orderedRefIds: projection.orderedRefIds,
               });
 
@@ -236,7 +304,7 @@ export function WorkflowVariableTextEditor({
             if (event.key === "Delete") {
               const removed = removeTokenAfterCursor({
                 text: projection.text,
-                cursor: textarea.selectionStart ?? 0,
+                cursor: nextCursor,
                 orderedRefIds: projection.orderedRefIds,
               });
 
@@ -260,10 +328,28 @@ export function WorkflowVariableTextEditor({
               groups={variables}
               onInsert={handleInsert}
               onDismiss={() => setPickerMode(null)}
+              query={pickerMode === "toolbar" ? toolbarQuery : pickerQuery}
+              showSearch={pickerMode === "toolbar"}
+              onQueryChange={pickerMode === "toolbar" ? setToolbarQuery : undefined}
+              onConfirmFirst={
+                pickerMode === "toolbar" && firstVisibleItem
+                  ? () => handleInsert(firstVisibleItem.selector)
+                  : undefined
+              }
             />
           </div>
         ) : null}
       </div>
     </div>
   );
+}
+
+function projectionLength(document: WorkflowVariableTextDocument) {
+  return document.segments.reduce((length, segment) => {
+    if (segment.type === "text") {
+      return length + segment.text.length;
+    }
+
+    return length + 1;
+  }, 0);
 }

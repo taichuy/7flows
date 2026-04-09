@@ -6204,55 +6204,75 @@ a {
 }
 
 .workflow-variable-reference-popover {
-  width: min(360px, calc(100vw - 64px));
-  max-height: 320px;
+  width: min(280px, calc(100vw - 88px));
+  max-height: 256px;
   overflow: auto;
   border: 1px solid rgba(28, 25, 21, 0.12);
-  border-radius: 18px;
+  border-radius: 14px;
   background: #fff;
-  padding: 12px;
-  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+  padding: 10px;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+}
+
+.workflow-variable-reference-popover.compact {
+  width: min(240px, calc(100vw - 104px));
+  max-height: 220px;
+}
+
+.workflow-variable-reference-popover-hint {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .workflow-variable-reference-popover-search {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   margin-bottom: 12px;
   color: var(--ink);
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   font-weight: 600;
+}
+
+.workflow-variable-reference-popover-search-input {
+  width: 50%;
+  min-width: 120px;
 }
 
 .workflow-variable-reference-popover-body {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .workflow-variable-reference-popover-group {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .workflow-variable-reference-popover-group strong {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
 .workflow-variable-reference-popover-items {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .workflow-variable-reference-popover-item {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border: 1px solid rgba(28, 25, 21, 0.08);
-  border-radius: 12px;
+  border-radius: 10px;
   background: #fff;
   text-align: left;
 }
@@ -6264,14 +6284,14 @@ a {
 
 .workflow-variable-reference-popover-item-main {
   display: grid;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 
 .workflow-variable-reference-popover-item-main small {
   color: var(--muted);
   font:
-    0.78rem/1.4 "Cascadia Code",
+    0.72rem/1.35 "Cascadia Code",
     "Consolas",
     monospace;
   word-break: break-all;
@@ -6279,7 +6299,7 @@ a {
 
 .workflow-variable-reference-popover-item-type {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   white-space: nowrap;
 }
 
