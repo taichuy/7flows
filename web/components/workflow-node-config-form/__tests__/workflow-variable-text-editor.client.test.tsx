@@ -26,6 +26,33 @@ function getEditorTextarea() {
   ) as HTMLTextAreaElement;
 }
 
+function createClipboardData(initialText = "") {
+  const store = new Map<string, string>();
+  if (initialText) {
+    store.set("text/plain", initialText);
+  }
+
+  return {
+    getData: vi.fn((type: string) => store.get(type) ?? ""),
+    setData: vi.fn((type: string, value: string) => {
+      store.set(type, value);
+    }),
+  };
+}
+
+function dispatchClipboardEvent(
+  target: HTMLTextAreaElement,
+  type: "copy" | "cut" | "paste",
+  clipboardData: ReturnType<typeof createClipboardData>,
+) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "clipboardData", {
+    value: clipboardData,
+  });
+  target.dispatchEvent(event);
+  return event;
+}
+
 afterEach(() => {
   act(() => root?.unmount());
   container?.remove();
@@ -475,6 +502,120 @@ describe("WorkflowVariableTextEditor", () => {
         segments: [{ type: "text", text: "hello world" }],
       },
       references: [],
+    });
+  });
+
+  it("copies token selections as template text instead of leaking sentinel characters", () => {
+    const handleChange = vi.fn();
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        createElement(WorkflowVariableTextEditor, {
+          ownerNodeId: "endNode_ab12cd34",
+          ownerLabel: "直接回复",
+          value: {
+            version: 1,
+            segments: [
+              { type: "text", text: "hello " },
+              { type: "variable", refId: "ref_1" },
+              { type: "text", text: "world" },
+            ],
+          },
+          references: [
+            {
+              refId: "ref_1",
+              alias: "text",
+              ownerNodeId: "endNode_ab12cd34",
+              selector: ["accumulated", "llm", "text"],
+            },
+          ],
+          variables: [],
+          onChange: handleChange,
+        }),
+      );
+    });
+
+    const textarea = getEditorTextarea();
+    const clipboardData = createClipboardData();
+    textarea.setSelectionRange(0, textarea.value.length);
+
+    let event: Event;
+    act(() => {
+      event = dispatchClipboardEvent(textarea, "copy", clipboardData);
+    });
+
+    expect(event!.defaultPrevented).toBe(true);
+    expect(clipboardData.setData).toHaveBeenCalledWith(
+      "text/plain",
+      "hello {{#endNode_ab12cd34.text#}}world",
+    );
+    expect(handleChange).not.toHaveBeenCalled();
+  });
+
+  it("rehydrates copied template tokens back into inline variable chips on paste", async () => {
+    const handleChange = vi.fn();
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        createElement(WorkflowVariableTextEditor, {
+          ownerNodeId: "endNode_ab12cd34",
+          ownerLabel: "直接回复",
+          value: {
+            version: 1,
+            segments: [{ type: "text", text: "hello world" }],
+          },
+          references: [
+            {
+              refId: "ref_1",
+              alias: "text",
+              ownerNodeId: "endNode_ab12cd34",
+              selector: ["accumulated", "llm", "text"],
+            },
+          ],
+          variables: [],
+          onChange: handleChange,
+        }),
+      );
+    });
+
+    const textarea = getEditorTextarea();
+    const clipboardData = createClipboardData("copy {{#endNode_ab12cd34.text#}} now");
+
+    textarea.focus();
+    textarea.setSelectionRange(6, 11);
+
+    let event: Event;
+    await act(async () => {
+      event = dispatchClipboardEvent(textarea, "paste", clipboardData);
+      await Promise.resolve();
+    });
+
+    expect(event!.defaultPrevented).toBe(true);
+    expect(handleChange).toHaveBeenLastCalledWith({
+      document: {
+        version: 1,
+        segments: [
+          { type: "text", text: "hello copy " },
+          { type: "variable", refId: "ref_1" },
+          { type: "text", text: " now" },
+        ],
+      },
+      references: [
+        {
+          refId: "ref_1",
+          alias: "text",
+          ownerNodeId: "endNode_ab12cd34",
+          selector: ["accumulated", "llm", "text"],
+        },
+      ],
     });
   });
 });

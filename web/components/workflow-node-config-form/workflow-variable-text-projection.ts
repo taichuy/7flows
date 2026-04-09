@@ -1,10 +1,12 @@
 import {
   formatWorkflowVariableMachineName,
+  formatWorkflowVariableToken,
   type WorkflowVariableReference,
   type WorkflowVariableTextDocument,
 } from "@/components/workflow-node-config-form/workflow-variable-text-document";
 
 export const WORKFLOW_VARIABLE_SENTINEL = "\x1f";
+const WORKFLOW_VARIABLE_CLIPBOARD_TOKEN_PATTERN = /\{\{\s*#\s*([^{}#]+?)\s*#\s*\}\}/g;
 
 export type WorkflowVariableProjectionToken = {
   refId: string;
@@ -131,6 +133,10 @@ function countSentinelsBeforeIndex(text: string, index: number) {
   return count;
 }
 
+function clampSelection(text: string, index: number) {
+  return Math.max(0, Math.min(index, text.length));
+}
+
 export function insertSentinelIntoProjection({
   text,
   cursor,
@@ -220,5 +226,114 @@ export function removeTokenAfterCursor({
       ...orderedRefIds.slice(tokenIndex + 1),
     ],
     cursor,
+  };
+}
+
+export function serializeProjectionSelectionToTemplate({
+  text,
+  selectionStart,
+  selectionEnd,
+  orderedRefIds,
+  references,
+}: {
+  text: string;
+  selectionStart: number;
+  selectionEnd: number;
+  orderedRefIds: string[];
+  references: WorkflowVariableReference[];
+}) {
+  const start = clampSelection(text, Math.min(selectionStart, selectionEnd));
+  const end = clampSelection(text, Math.max(selectionStart, selectionEnd));
+  const referenceMap = new Map(references.map((reference) => [reference.refId, reference]));
+  let tokenIndex = countSentinelsBeforeIndex(text, start);
+  let serialized = "";
+
+  for (const character of text.slice(start, end)) {
+    if (character !== WORKFLOW_VARIABLE_SENTINEL) {
+      serialized += character;
+      continue;
+    }
+
+    const reference = referenceMap.get(orderedRefIds[tokenIndex] ?? "");
+    serialized += reference ? formatWorkflowVariableToken(reference) : "";
+    tokenIndex += 1;
+  }
+
+  return serialized;
+}
+
+export function deserializeProjectionClipboardText({
+  clipboardText,
+  references,
+}: {
+  clipboardText: string;
+  references: WorkflowVariableReference[];
+}) {
+  const referenceIdByMachineName = new Map(
+    references.map((reference) => [formatWorkflowVariableMachineName(reference), reference.refId]),
+  );
+  const orderedRefIds: string[] = [];
+  let text = "";
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+
+  WORKFLOW_VARIABLE_CLIPBOARD_TOKEN_PATTERN.lastIndex = 0;
+
+  while ((match = WORKFLOW_VARIABLE_CLIPBOARD_TOKEN_PATTERN.exec(clipboardText)) !== null) {
+    const machineName = match[1]?.trim();
+    const refId = machineName ? referenceIdByMachineName.get(machineName) : null;
+
+    if (match.index > cursor) {
+      text += clipboardText.slice(cursor, match.index);
+    }
+
+    if (refId) {
+      text += WORKFLOW_VARIABLE_SENTINEL;
+      orderedRefIds.push(refId);
+    } else {
+      text += match[0];
+    }
+
+    cursor = match.index + match[0].length;
+  }
+
+  if (cursor < clipboardText.length) {
+    text += clipboardText.slice(cursor);
+  }
+
+  return {
+    text,
+    orderedRefIds,
+  };
+}
+
+export function replaceProjectionTextRange({
+  text,
+  selectionStart,
+  selectionEnd,
+  orderedRefIds,
+  insertText,
+  insertRefIds,
+}: {
+  text: string;
+  selectionStart: number;
+  selectionEnd: number;
+  orderedRefIds: string[];
+  insertText: string;
+  insertRefIds: string[];
+}) {
+  const start = clampSelection(text, Math.min(selectionStart, selectionEnd));
+  const end = clampSelection(text, Math.max(selectionStart, selectionEnd));
+  const startTokenIndex = countSentinelsBeforeIndex(text, start);
+  const endTokenIndex = countSentinelsBeforeIndex(text, end);
+
+  return {
+    text: `${text.slice(0, start)}${insertText}${text.slice(end)}`,
+    orderedRefIds: [
+      ...orderedRefIds.slice(0, startTokenIndex),
+      ...insertRefIds,
+      ...orderedRefIds.slice(endTokenIndex),
+    ],
+    cursor: start + insertText.length,
   };
 }

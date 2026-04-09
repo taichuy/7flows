@@ -12,11 +12,15 @@ import {
 } from "@/components/workflow-node-config-form/workflow-variable-text-document";
 import { WorkflowVariableReferencePicker } from "@/components/workflow-node-config-form/workflow-variable-reference-picker";
 import {
+  WORKFLOW_VARIABLE_SENTINEL,
   buildReplyDocumentFromProjection,
   buildWorkflowVariableProjection,
+  deserializeProjectionClipboardText,
   insertSentinelIntoProjection,
+  replaceProjectionTextRange,
   removeTokenAfterCursor,
   removeTokenBeforeCursor,
+  serializeProjectionSelectionToTemplate,
 } from "@/components/workflow-node-config-form/workflow-variable-text-projection";
 
 type PickerMode = "slash" | "toolbar" | null;
@@ -93,6 +97,7 @@ export function WorkflowVariableTextEditor({
   }) => void;
 }) {
   const inputHostRef = useRef<HTMLDivElement | null>(null);
+  const pendingSelectionRef = useRef<number | null>(null);
   const [pickerMode, setPickerMode] = useState<PickerMode>(null);
   const [pickerTop, setPickerTop] = useState(56);
   const [cursor, setCursor] = useState(value.segments.length > 0 ? projectionLength(value) : 0);
@@ -159,6 +164,24 @@ export function WorkflowVariableTextEditor({
     setCursor((currentCursor) => Math.min(currentCursor, draftText.length));
   }, [draftText.length]);
 
+  useEffect(() => {
+    const nextCursor = pendingSelectionRef.current;
+    if (nextCursor === null) {
+      return;
+    }
+
+    const textarea = getTextareaElement();
+    pendingSelectionRef.current = null;
+    if (!textarea) {
+      return;
+    }
+
+    if (document.activeElement !== textarea) {
+      textarea.focus();
+    }
+    textarea.setSelectionRange(nextCursor, nextCursor);
+  }, [cursor, draftText]);
+
   const getTextareaElement = () =>
     inputHostRef.current?.querySelector<HTMLTextAreaElement>(
       "textarea.workflow-variable-text-editor-input",
@@ -201,6 +224,24 @@ export function WorkflowVariableTextEditor({
     });
   };
 
+  const applyProjectionChange = ({
+    nextText,
+    nextOrderedRefIds,
+    nextCursor,
+    nextReferences = references,
+  }: {
+    nextText: string;
+    nextOrderedRefIds: string[];
+    nextCursor: number;
+    nextReferences?: WorkflowVariableReference[];
+  }) => {
+    setDraftText(nextText);
+    setDraftOrderedRefIds(nextOrderedRefIds);
+    setCursor(nextCursor);
+    pendingSelectionRef.current = nextCursor;
+    commitProjection(nextText, nextOrderedRefIds, nextReferences);
+  };
+
   const resolveCurrentCursor = () => {
     const textarea = getTextareaElement();
     if (!textarea) {
@@ -236,13 +277,12 @@ export function WorkflowVariableTextEditor({
       removeLeadingSlash: Boolean(currentSlashContext),
     });
 
-    setDraftText(inserted.text);
-    setDraftOrderedRefIds(inserted.orderedRefIds);
-    commitProjection(
-      inserted.text,
-      inserted.orderedRefIds,
-      existingReference ? references : [...references, nextReference],
-    );
+    applyProjectionChange({
+      nextText: inserted.text,
+      nextOrderedRefIds: inserted.orderedRefIds,
+      nextCursor: inserted.cursor,
+      nextReferences: existingReference ? references : [...references, nextReference],
+    });
     setPickerMode(null);
     setToolbarQuery("");
   };
@@ -340,9 +380,11 @@ export function WorkflowVariableTextEditor({
 
                 if (removed.text !== draftText) {
                   event.preventDefault();
-                  setDraftText(removed.text);
-                  setDraftOrderedRefIds(removed.orderedRefIds);
-                  commitProjection(removed.text, removed.orderedRefIds);
+                  applyProjectionChange({
+                    nextText: removed.text,
+                    nextOrderedRefIds: removed.orderedRefIds,
+                    nextCursor: removed.cursor,
+                  });
                   setPickerMode(null);
                 }
               }
@@ -356,9 +398,11 @@ export function WorkflowVariableTextEditor({
 
                 if (removed.text !== draftText) {
                   event.preventDefault();
-                  setDraftText(removed.text);
-                  setDraftOrderedRefIds(removed.orderedRefIds);
-                  commitProjection(removed.text, removed.orderedRefIds);
+                  applyProjectionChange({
+                    nextText: removed.text,
+                    nextOrderedRefIds: removed.orderedRefIds,
+                    nextCursor: removed.cursor,
+                  });
                   setPickerMode(null);
                 }
               }
@@ -366,6 +410,107 @@ export function WorkflowVariableTextEditor({
               if (event.key === "Escape") {
                 setPickerMode(null);
               }
+            }}
+            onCopy={(event) => {
+              const selectionStart = event.currentTarget.selectionStart ?? 0;
+              const selectionEnd = event.currentTarget.selectionEnd ?? selectionStart;
+
+              if (
+                selectionStart === selectionEnd ||
+                !draftText
+                  .slice(selectionStart, selectionEnd)
+                  .includes(WORKFLOW_VARIABLE_SENTINEL)
+              ) {
+                return;
+              }
+
+              event.preventDefault();
+              event.clipboardData?.setData(
+                "text/plain",
+                serializeProjectionSelectionToTemplate({
+                  text: draftText,
+                  selectionStart,
+                  selectionEnd,
+                  orderedRefIds: draftOrderedRefIds,
+                  references,
+                }),
+              );
+            }}
+            onCut={(event) => {
+              const selectionStart = event.currentTarget.selectionStart ?? 0;
+              const selectionEnd = event.currentTarget.selectionEnd ?? selectionStart;
+
+              if (
+                selectionStart === selectionEnd ||
+                !draftText
+                  .slice(selectionStart, selectionEnd)
+                  .includes(WORKFLOW_VARIABLE_SENTINEL)
+              ) {
+                return;
+              }
+
+              event.preventDefault();
+              event.clipboardData?.setData(
+                "text/plain",
+                serializeProjectionSelectionToTemplate({
+                  text: draftText,
+                  selectionStart,
+                  selectionEnd,
+                  orderedRefIds: draftOrderedRefIds,
+                  references,
+                }),
+              );
+
+              const replaced = replaceProjectionTextRange({
+                text: draftText,
+                selectionStart,
+                selectionEnd,
+                orderedRefIds: draftOrderedRefIds,
+                insertText: "",
+                insertRefIds: [],
+              });
+
+              applyProjectionChange({
+                nextText: replaced.text,
+                nextOrderedRefIds: replaced.orderedRefIds,
+                nextCursor: replaced.cursor,
+              });
+              setPickerMode(null);
+            }}
+            onPaste={(event) => {
+              const clipboardText = event.clipboardData?.getData("text/plain") ?? "";
+
+              if (!clipboardText.includes("{{")) {
+                return;
+              }
+
+              const inserted = deserializeProjectionClipboardText({
+                clipboardText,
+                references,
+              });
+
+              if (inserted.orderedRefIds.length === 0) {
+                return;
+              }
+
+              event.preventDefault();
+              const selectionStart = event.currentTarget.selectionStart ?? 0;
+              const selectionEnd = event.currentTarget.selectionEnd ?? selectionStart;
+              const replaced = replaceProjectionTextRange({
+                text: draftText,
+                selectionStart,
+                selectionEnd,
+                orderedRefIds: draftOrderedRefIds,
+                insertText: inserted.text,
+                insertRefIds: inserted.orderedRefIds,
+              });
+
+              applyProjectionChange({
+                nextText: replaced.text,
+                nextOrderedRefIds: replaced.orderedRefIds,
+                nextCursor: replaced.cursor,
+              });
+              setPickerMode(readSlashQueryContext(replaced.text, replaced.cursor) ? "slash" : null);
             }}
           />
         </div>
