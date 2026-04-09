@@ -99,9 +99,28 @@ export function WorkflowVariableTextEditor({
     () => buildWorkflowVariableProjection({ ownerLabel, document: value, references }),
     [ownerLabel, references, value],
   );
+  const [draftText, setDraftText] = useState(projection.text);
+  const [draftOrderedRefIds, setDraftOrderedRefIds] = useState(projection.orderedRefIds);
   const leafItems = useMemo(
     () => variables.flatMap((group) => flattenVariableItems(group.items)),
     [variables],
+  );
+  const draftDocument = useMemo(
+    () =>
+      buildReplyDocumentFromProjection({
+        text: draftText,
+        orderedRefIds: draftOrderedRefIds,
+      }),
+    [draftOrderedRefIds, draftText],
+  );
+  const draftProjection = useMemo(
+    () =>
+      buildWorkflowVariableProjection({
+        ownerLabel,
+        document: draftDocument,
+        references,
+      }),
+    [draftDocument, ownerLabel, references],
   );
   const selectorLabelMap = useMemo(() => {
     return new Map(
@@ -111,17 +130,17 @@ export function WorkflowVariableTextEditor({
   const tokenLabelMap = useMemo(
     () =>
       new Map(
-        projection.tokens.map((token) => {
+        draftProjection.tokens.map((token) => {
           const reference = references.find((item) => item.refId === token.refId);
           const selectorKey = reference ? reference.selector.join("\x1f") : null;
           return [token.refId, (selectorKey && selectorLabelMap.get(selectorKey)) ?? token.label];
         }),
       ),
-    [projection.tokens, references, selectorLabelMap],
+    [draftProjection.tokens, references, selectorLabelMap],
   );
   const slashContext = useMemo(
-    () => (pickerMode === "slash" ? readSlashQueryContext(projection.text, cursor) : null),
-    [pickerMode, projection.text, cursor],
+    () => (pickerMode === "slash" ? readSlashQueryContext(draftText, cursor) : null),
+    [draftText, pickerMode, cursor],
   );
   const pickerQuery = pickerMode === "slash" ? (slashContext?.query ?? "") : toolbarQuery;
   const firstVisibleItem = useMemo(
@@ -130,8 +149,13 @@ export function WorkflowVariableTextEditor({
   );
 
   useEffect(() => {
-    setCursor((currentCursor) => Math.min(currentCursor, projection.text.length));
-  }, [projection.text.length]);
+    setDraftText(projection.text);
+    setDraftOrderedRefIds(projection.orderedRefIds);
+  }, [projection.orderedRefIds, projection.text]);
+
+  useEffect(() => {
+    setCursor((currentCursor) => Math.min(currentCursor, draftText.length));
+  }, [draftText.length]);
 
   const getTextareaElement = () =>
     inputHostRef.current?.querySelector<HTMLTextAreaElement>(
@@ -162,15 +186,7 @@ export function WorkflowVariableTextEditor({
     const nextHeight = Math.max(textarea.scrollHeight || 0, 56);
     textarea.style.height = `${nextHeight}px`;
     setPickerTop(Math.min(nextHeight + 14, 280));
-  }, [projection.text]);
-
-  useEffect(() => {
-    if (pickerMode === "toolbar") {
-      return;
-    }
-
-    setPickerMode(readSlashQueryContext(projection.text, cursor) ? "slash" : null);
-  }, [pickerMode, projection.text, cursor]);
+  }, [draftText]);
 
   const commitProjection = (nextText: string, nextOrderedRefIds: string[], nextReferences = references) => {
     const usedRefIds = new Set(nextOrderedRefIds);
@@ -203,21 +219,23 @@ export function WorkflowVariableTextEditor({
         existingAliases: references.map((reference) => reference.alias),
       });
     const currentSlashContext =
-      pickerMode === "slash" ? readSlashQueryContext(projection.text, insertionCursor) : null;
+      pickerMode === "slash" ? readSlashQueryContext(draftText, insertionCursor) : null;
     const nextTextForInsert = currentSlashContext
-      ? `${projection.text.slice(0, currentSlashContext.start + 1)}${projection.text.slice(insertionCursor)}`
-      : projection.text;
+      ? `${draftText.slice(0, currentSlashContext.start + 1)}${draftText.slice(insertionCursor)}`
+      : draftText;
     const nextCursorForInsert = currentSlashContext
       ? currentSlashContext.start + 1
       : insertionCursor;
     const inserted = insertSentinelIntoProjection({
       text: nextTextForInsert,
       cursor: nextCursorForInsert,
-      orderedRefIds: projection.orderedRefIds,
+      orderedRefIds: draftOrderedRefIds,
       refId: nextReference.refId,
       removeLeadingSlash: Boolean(currentSlashContext),
     });
 
+    setDraftText(inserted.text);
+    setDraftOrderedRefIds(inserted.orderedRefIds);
     commitProjection(
       inserted.text,
       inserted.orderedRefIds,
@@ -225,6 +243,17 @@ export function WorkflowVariableTextEditor({
     );
     setPickerMode(null);
     setToolbarQuery("");
+  };
+
+  const handleTextInput = (textarea: HTMLTextAreaElement) => {
+    const nextText = textarea.value;
+    const nextCursor = textarea.selectionStart ?? nextText.length;
+    setDraftText(nextText);
+    setCursor(nextCursor);
+    if (pickerMode !== "toolbar") {
+      setPickerMode(readSlashQueryContext(nextText, nextCursor) ? "slash" : null);
+    }
+    commitProjection(nextText, draftOrderedRefIds);
   };
 
   return (
@@ -251,10 +280,10 @@ export function WorkflowVariableTextEditor({
 
       <div className="workflow-variable-text-editor-composer">
         <div className="workflow-variable-text-editor-overlay" aria-hidden="true">
-          {projection.text.length === 0 && projection.tokens.length === 0 ? (
+          {draftText.length === 0 && draftProjection.tokens.length === 0 ? (
             <span className="workflow-variable-text-editor-placeholder">{placeholder}</span>
           ) : (
-            value.segments.map((segment, index) =>
+            draftDocument.segments.map((segment, index) =>
               segment.type === "text" ? (
                 <span key={`text-${index}`}>{segment.text}</span>
               ) : (
@@ -274,15 +303,9 @@ export function WorkflowVariableTextEditor({
           <Input.TextArea
             className="workflow-variable-text-editor-input"
             rows={1}
-            value={projection.text}
+            value={draftText}
             variant="borderless"
-            onChange={(event) => {
-              const textarea = event.currentTarget;
-              const nextText = textarea.value;
-              const nextCursor = textarea.selectionStart ?? nextText.length;
-              setCursor(nextCursor);
-              commitProjection(nextText, projection.orderedRefIds);
-            }}
+            onInput={(event) => handleTextInput(event.currentTarget)}
             onClick={(event) => {
               syncTextareaHeight();
               setCursor(event.currentTarget.selectionStart ?? 0);
@@ -308,13 +331,15 @@ export function WorkflowVariableTextEditor({
 
               if (event.key === "Backspace") {
                 const removed = removeTokenBeforeCursor({
-                  text: projection.text,
+                  text: draftText,
                   cursor: nextCursor,
-                  orderedRefIds: projection.orderedRefIds,
+                  orderedRefIds: draftOrderedRefIds,
                 });
 
-                if (removed.text !== projection.text) {
+                if (removed.text !== draftText) {
                   event.preventDefault();
+                  setDraftText(removed.text);
+                  setDraftOrderedRefIds(removed.orderedRefIds);
                   commitProjection(removed.text, removed.orderedRefIds);
                   setPickerMode(null);
                 }
@@ -322,13 +347,15 @@ export function WorkflowVariableTextEditor({
 
               if (event.key === "Delete") {
                 const removed = removeTokenAfterCursor({
-                  text: projection.text,
+                  text: draftText,
                   cursor: nextCursor,
-                  orderedRefIds: projection.orderedRefIds,
+                  orderedRefIds: draftOrderedRefIds,
                 });
 
-                if (removed.text !== projection.text) {
+                if (removed.text !== draftText) {
                   event.preventDefault();
+                  setDraftText(removed.text);
+                  setDraftOrderedRefIds(removed.orderedRefIds);
                   commitProjection(removed.text, removed.orderedRefIds);
                   setPickerMode(null);
                 }

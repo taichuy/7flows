@@ -77,7 +77,7 @@ describe("WorkflowVariableTextEditor", () => {
           ownerLabel: "直接回复",
           value: {
             version: 1,
-            segments: [{ type: "text", text: "/te" }],
+            segments: [{ type: "text", text: "" }],
           },
           references: [],
           variables: [
@@ -112,6 +112,14 @@ describe("WorkflowVariableTextEditor", () => {
       );
     });
 
+    const textarea = getEditorTextarea();
+    act(() => {
+      textarea.focus();
+      textarea.value = "/te";
+      textarea.setSelectionRange(3, 3);
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
     expect(
       document.querySelector('[data-component="workflow-variable-reference-popover"]'),
     ).toBeTruthy();
@@ -119,11 +127,9 @@ describe("WorkflowVariableTextEditor", () => {
     expect(document.body.textContent).not.toContain("answer");
     expect(document.body.textContent).not.toContain("复制机器别名");
     expect(document.querySelector('[data-element="workflow-variable-picker-search"]')).toBeNull();
+    expect(document.activeElement).toBe(textarea);
 
-    const textarea = getEditorTextarea();
     act(() => {
-      textarea.focus();
-      textarea.setSelectionRange(3, 3);
       textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
     });
 
@@ -141,6 +147,177 @@ describe("WorkflowVariableTextEditor", () => {
         },
       ],
     });
+  });
+
+  it("opens the slash picker only after typing slash in the editor", () => {
+    const handleChange = vi.fn();
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        createElement(WorkflowVariableTextEditor, {
+          ownerNodeId: "endNode_ab12cd34",
+          ownerLabel: "直接回复",
+          value: {
+            version: 1,
+            segments: [{ type: "text", text: "" }],
+          },
+          references: [],
+          variables: [
+            {
+              key: "upstream",
+              label: "上游节点",
+              items: [
+                {
+                  key: "llm-text",
+                  label: "text",
+                  selector: ["accumulated", "llm", "text"],
+                  token: "{{#endNode_ab12cd34.text#}}",
+                  previewPath: "LLM.text",
+                  machineName: "endNode_ab12cd34.text",
+                  valueTypeLabel: "String",
+                },
+              ],
+            },
+          ],
+          onChange: handleChange,
+        }),
+      );
+    });
+
+    expect(
+      document.querySelector('[data-component="workflow-variable-reference-popover"]'),
+    ).toBeNull();
+
+    const textarea = getEditorTextarea();
+    act(() => {
+      textarea.focus();
+      textarea.value = "hello";
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(
+      document.querySelector('[data-component="workflow-variable-reference-popover"]'),
+    ).toBeNull();
+
+    act(() => {
+      textarea.value = "hello /";
+      textarea.setSelectionRange(7, 7);
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(
+      document.querySelector('[data-component="workflow-variable-reference-popover"]'),
+    ).toBeTruthy();
+  });
+
+  it("does not reopen the variable picker for plain text after insertion", () => {
+    const handleChange = vi.fn();
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        createElement(WorkflowVariableTextEditor, {
+          ownerNodeId: "endNode_ab12cd34",
+          ownerLabel: "直接回复",
+          value: {
+            version: 1,
+            segments: [{ type: "text", text: "hello world" }],
+          },
+          references: [],
+          variables: [
+            {
+              key: "upstream",
+              label: "上游节点",
+              items: [
+                {
+                  key: "llm-text",
+                  label: "text",
+                  selector: ["accumulated", "llm", "text"],
+                  token: "{{#endNode_ab12cd34.text#}}",
+                  previewPath: "LLM.text",
+                  machineName: "endNode_ab12cd34.text",
+                  valueTypeLabel: "String",
+                },
+              ],
+            },
+          ],
+          onChange: handleChange,
+        }),
+      );
+    });
+
+    const toolbarButton = document.querySelector(
+      '[data-action="open-variable-picker"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      toolbarButton.click();
+    });
+
+    const insertButton = Array.from(document.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("text"),
+    ) as HTMLButtonElement;
+
+    act(() => {
+      insertButton.click();
+    });
+
+    expect(
+      document.querySelector('[data-component="workflow-variable-reference-popover"]'),
+    ).toBeNull();
+
+    act(() => {
+      root?.render(
+        createElement(WorkflowVariableTextEditor, {
+          ownerNodeId: "endNode_ab12cd34",
+          ownerLabel: "直接回复",
+          value: {
+            version: 1,
+            segments: [
+              { type: "text", text: "hello " },
+              { type: "variable", refId: "ref_1" },
+              { type: "text", text: "world!" },
+            ],
+          },
+          references: [
+            {
+              refId: "ref_1",
+              alias: "text",
+              ownerNodeId: "endNode_ab12cd34",
+              selector: ["accumulated", "llm", "text"],
+            },
+          ],
+          variables: [
+            {
+              key: "upstream",
+              label: "上游节点",
+              items: [
+                {
+                  key: "llm-text",
+                  label: "text",
+                  selector: ["accumulated", "llm", "text"],
+                  token: "{{#endNode_ab12cd34.text#}}",
+                  previewPath: "LLM.text",
+                  machineName: "endNode_ab12cd34.text",
+                  valueTypeLabel: "String",
+                },
+              ],
+            },
+          ],
+          onChange: handleChange,
+        }),
+      );
+    });
+
+    expect(
+      document.querySelector('[data-component="workflow-variable-reference-popover"]'),
+    ).toBeNull();
   });
 
   it("opens the same popup from the toolbar button and inserts at the current caret", () => {
