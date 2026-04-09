@@ -9,7 +9,7 @@ import {
 } from "@/components/workflow-node-config-form/workflow-variable-text-document";
 
 describe("workflow-variable-text-document", () => {
-  it("parses selector tokens into document and references, then serializes machine-name tokens", () => {
+  it("parses selector tokens into document and references, then serializes selector tokens", () => {
     const parsed = parseReplyTemplateToDocument({
       ownerNodeId: "endNode_ab12cd34",
       ownerLabel: "直接回复",
@@ -36,7 +36,7 @@ describe("workflow-variable-text-document", () => {
         document: parsed.document,
         references: parsed.references,
       }),
-    ).toBe("你好，{{#endNode_ab12cd34.answer#}}");
+    ).toBe("你好，{{#accumulated.agent.answer#}}");
   });
 
   it("keeps alias generation inside the node scope", () => {
@@ -54,7 +54,7 @@ describe("workflow-variable-text-document", () => {
     });
 
     expect(formatWorkflowVariableMachineName(first)).toBe("endNode_ab12cd34.text");
-    expect(formatWorkflowVariableToken(first)).toBe("{{#endNode_ab12cd34.text#}}");
+    expect(formatWorkflowVariableToken(first)).toBe("{{#trigger_input.query#}}");
     expect(second.alias).toBe("text_2");
   });
 });

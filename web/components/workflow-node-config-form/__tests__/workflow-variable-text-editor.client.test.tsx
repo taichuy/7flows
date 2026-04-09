@@ -5,7 +5,6 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { WORKFLOW_VARIABLE_SENTINEL } from "@/components/workflow-node-config-form/workflow-variable-text-projection";
 import { WorkflowVariableTextEditor } from "@/components/workflow-node-config-form/workflow-variable-text-editor";
 
 let root: Root | null = null;
@@ -571,7 +570,7 @@ describe("WorkflowVariableTextEditor", () => {
     expect(document.body.textContent).not.toContain("[用户输入] query");
   });
 
-  it("renders inline tokens and removes them atomically on backspace", () => {
+  it("uses the real template token text inside the textarea and removes tokens atomically on backspace", () => {
     const handleChange = vi.fn();
 
     container = document.createElement("div");
@@ -628,7 +627,7 @@ describe("WorkflowVariableTextEditor", () => {
     ).toBeFalsy();
 
     const textarea = getEditorTextarea();
-    expect(textarea.value).toContain(WORKFLOW_VARIABLE_SENTINEL);
+    expect(textarea.value).toContain("{{#accumulated.llm.text#}}");
 
     act(() => {
       textarea.focus();
@@ -693,7 +692,7 @@ describe("WorkflowVariableTextEditor", () => {
     expect(event!.defaultPrevented).toBe(true);
     expect(clipboardData.setData).toHaveBeenCalledWith(
       "text/plain",
-      "hello {{#endNode_ab12cd34.text#}}world",
+      "hello {{#accumulated.llm.text#}}world",
     );
     expect(handleChange).not.toHaveBeenCalled();
   });
@@ -729,7 +728,7 @@ describe("WorkflowVariableTextEditor", () => {
     });
 
     const textarea = getEditorTextarea();
-    const clipboardData = createClipboardData("copy {{#endNode_ab12cd34.text#}} now");
+    const clipboardData = createClipboardData("copy {{#accumulated.llm.text#}} now");
 
     textarea.focus();
     textarea.setSelectionRange(6, 11);

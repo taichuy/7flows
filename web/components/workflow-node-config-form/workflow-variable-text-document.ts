@@ -87,7 +87,7 @@ export function formatWorkflowVariableMachineName(reference: WorkflowVariableRef
 }
 
 export function formatWorkflowVariableToken(reference: WorkflowVariableReference) {
-  return `{{#${formatWorkflowVariableMachineName(reference)}#}}`;
+  return `{{#${reference.selector.join(".")}#}}`;
 }
 
 export function parseReplyTemplateToDocument({

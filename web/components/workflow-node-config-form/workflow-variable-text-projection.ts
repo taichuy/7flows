@@ -6,7 +6,7 @@ import {
 } from "@/components/workflow-node-config-form/workflow-variable-text-document";
 
 export const WORKFLOW_VARIABLE_SENTINEL = "\x1f";
-const WORKFLOW_VARIABLE_CLIPBOARD_TOKEN_PATTERN = /\{\{\s*#\s*([^{}#]+?)\s*#\s*\}\}/g;
+const WORKFLOW_VARIABLE_TOKEN_PATTERN = /\{\{\s*#\s*([^{}#]+?)\s*#\s*\}\}/g;
 
 export type WorkflowVariableProjectionToken = {
   refId: string;
@@ -39,6 +39,49 @@ function pushTextSegment(
   segments.push({ type: "text", text });
 }
 
+function clampSelection(text: string, index: number) {
+  return Math.max(0, Math.min(index, text.length));
+}
+
+function buildReferencePathMap(references: WorkflowVariableReference[]) {
+  return new Map(references.map((reference) => [reference.selector.join("."), reference]));
+}
+
+function findProjectionTokenRanges(text: string) {
+  const ranges: Array<{ start: number; end: number; path: string }> = [];
+  let match: RegExpExecArray | null;
+
+  WORKFLOW_VARIABLE_TOKEN_PATTERN.lastIndex = 0;
+
+  while ((match = WORKFLOW_VARIABLE_TOKEN_PATTERN.exec(text)) !== null) {
+    ranges.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      path: match[1]?.trim() ?? "",
+    });
+  }
+
+  return ranges;
+}
+
+function findTokenBeforeCursor(text: string, cursor: number) {
+  const ranges = findProjectionTokenRanges(text);
+  for (let index = ranges.length - 1; index >= 0; index -= 1) {
+    const range = ranges[index];
+    if (cursor > range.start && cursor <= range.end) {
+      return range;
+    }
+  }
+
+  return null;
+}
+
+function findTokenAfterCursor(text: string, cursor: number) {
+  return findProjectionTokenRanges(text).find(
+    (range) => cursor >= range.start && cursor < range.end,
+  ) ?? null;
+}
+
 export function buildWorkflowVariableProjection({
   ownerLabel,
   document,
@@ -66,16 +109,17 @@ export function buildWorkflowVariableProjection({
       return;
     }
 
-    text += WORKFLOW_VARIABLE_SENTINEL;
+    const tokenText = formatWorkflowVariableToken(reference);
+    text += tokenText;
     tokens.push({
       refId: reference.refId,
       start: cursor,
-      end: cursor + 1,
+      end: cursor + tokenText.length,
       label: `[${ownerLabel}] ${reference.alias}`,
       machineName: formatWorkflowVariableMachineName(reference),
     });
     orderedRefIds.push(reference.refId);
-    cursor += 1;
+    cursor += tokenText.length;
   });
 
   return {
@@ -87,32 +131,36 @@ export function buildWorkflowVariableProjection({
 
 export function buildReplyDocumentFromProjection({
   text,
-  orderedRefIds,
+  references,
 }: {
   text: string;
-  orderedRefIds: string[];
+  references: WorkflowVariableReference[];
 }): WorkflowVariableTextDocument {
   const segments: WorkflowVariableTextDocument["segments"] = [];
-  let buffer = "";
-  let refIndex = 0;
+  const referencePathMap = buildReferencePathMap(references);
+  let cursor = 0;
+  let match: RegExpExecArray | null;
 
-  for (const character of text) {
-    if (character !== WORKFLOW_VARIABLE_SENTINEL) {
-      buffer += character;
-      continue;
+  WORKFLOW_VARIABLE_TOKEN_PATTERN.lastIndex = 0;
+
+  while ((match = WORKFLOW_VARIABLE_TOKEN_PATTERN.exec(text)) !== null) {
+    if (match.index > cursor) {
+      pushTextSegment(segments, text.slice(cursor, match.index));
     }
 
-    pushTextSegment(segments, buffer);
-    buffer = "";
-
-    const refId = orderedRefIds[refIndex];
-    if (refId) {
-      segments.push({ type: "variable", refId });
+    const reference = referencePathMap.get(match[1]?.trim() ?? "");
+    if (reference) {
+      segments.push({ type: "variable", refId: reference.refId });
+    } else {
+      pushTextSegment(segments, match[0]);
     }
-    refIndex += 1;
+
+    cursor = match.index + match[0].length;
   }
 
-  pushTextSegment(segments, buffer);
+  if (cursor < text.length) {
+    pushTextSegment(segments, text.slice(cursor));
+  }
 
   return {
     version: 1,
@@ -120,112 +168,76 @@ export function buildReplyDocumentFromProjection({
   };
 }
 
-function countSentinelsBeforeIndex(text: string, index: number) {
-  const clampedIndex = Math.max(0, Math.min(index, text.length));
-  let count = 0;
-
-  for (let cursor = 0; cursor < clampedIndex; cursor += 1) {
-    if (text[cursor] === WORKFLOW_VARIABLE_SENTINEL) {
-      count += 1;
-    }
-  }
-
-  return count;
-}
-
-function clampSelection(text: string, index: number) {
-  return Math.max(0, Math.min(index, text.length));
-}
-
-export function insertSentinelIntoProjection({
+export function insertTokenIntoProjection({
   text,
   cursor,
-  orderedRefIds,
-  refId,
+  reference,
   removeLeadingSlash,
 }: {
   text: string;
   cursor: number;
-  orderedRefIds: string[];
-  refId: string;
+  reference: WorkflowVariableReference;
   removeLeadingSlash: boolean;
 }) {
   let nextText = text;
-  let nextCursor = cursor;
+  let nextCursor = clampSelection(text, cursor);
 
   if (removeLeadingSlash && nextCursor > 0 && nextText[nextCursor - 1] === "/") {
     nextText = `${nextText.slice(0, nextCursor - 1)}${nextText.slice(nextCursor)}`;
     nextCursor -= 1;
   }
 
-  const tokenIndex = countSentinelsBeforeIndex(nextText, nextCursor);
+  const tokenText = formatWorkflowVariableToken(reference);
 
   return {
-    text: `${nextText.slice(0, nextCursor)}${WORKFLOW_VARIABLE_SENTINEL}${nextText.slice(nextCursor)}`,
-    orderedRefIds: [
-      ...orderedRefIds.slice(0, tokenIndex),
-      refId,
-      ...orderedRefIds.slice(tokenIndex),
-    ],
-    cursor: nextCursor + 1,
+    text: `${nextText.slice(0, nextCursor)}${tokenText}${nextText.slice(nextCursor)}`,
+    cursor: nextCursor + tokenText.length,
   };
 }
 
 export function removeTokenBeforeCursor({
   text,
   cursor,
-  orderedRefIds,
 }: {
   text: string;
   cursor: number;
-  orderedRefIds: string[];
 }) {
-  if (cursor <= 0 || text[cursor - 1] !== WORKFLOW_VARIABLE_SENTINEL) {
+  const nextCursor = clampSelection(text, cursor);
+  const token = findTokenBeforeCursor(text, nextCursor);
+
+  if (!token) {
     return {
       text,
-      orderedRefIds,
-      cursor,
+      cursor: nextCursor,
     };
   }
 
-  const tokenIndex = countSentinelsBeforeIndex(text, cursor) - 1;
-
   return {
-    text: `${text.slice(0, cursor - 1)}${text.slice(cursor)}`,
-    orderedRefIds: [
-      ...orderedRefIds.slice(0, tokenIndex),
-      ...orderedRefIds.slice(tokenIndex + 1),
-    ],
-    cursor: cursor - 1,
+    text: `${text.slice(0, token.start)}${text.slice(token.end)}`,
+    cursor: token.start,
   };
 }
 
 export function removeTokenAfterCursor({
   text,
   cursor,
-  orderedRefIds,
 }: {
   text: string;
   cursor: number;
-  orderedRefIds: string[];
 }) {
-  if (text[cursor] !== WORKFLOW_VARIABLE_SENTINEL) {
+  const nextCursor = clampSelection(text, cursor);
+  const token = findTokenAfterCursor(text, nextCursor);
+
+  if (!token) {
     return {
       text,
-      orderedRefIds,
-      cursor,
+      cursor: nextCursor,
     };
   }
 
-  const tokenIndex = countSentinelsBeforeIndex(text, cursor);
-
   return {
-    text: `${text.slice(0, cursor)}${text.slice(cursor + 1)}`,
-    orderedRefIds: [
-      ...orderedRefIds.slice(0, tokenIndex),
-      ...orderedRefIds.slice(tokenIndex + 1),
-    ],
-    cursor,
+    text: `${text.slice(0, token.start)}${text.slice(token.end)}`,
+    cursor: token.start,
   };
 }
 
@@ -233,77 +245,23 @@ export function serializeProjectionSelectionToTemplate({
   text,
   selectionStart,
   selectionEnd,
-  orderedRefIds,
-  references,
 }: {
   text: string;
   selectionStart: number;
   selectionEnd: number;
-  orderedRefIds: string[];
-  references: WorkflowVariableReference[];
 }) {
   const start = clampSelection(text, Math.min(selectionStart, selectionEnd));
   const end = clampSelection(text, Math.max(selectionStart, selectionEnd));
-  const referenceMap = new Map(references.map((reference) => [reference.refId, reference]));
-  let tokenIndex = countSentinelsBeforeIndex(text, start);
-  let serialized = "";
-
-  for (const character of text.slice(start, end)) {
-    if (character !== WORKFLOW_VARIABLE_SENTINEL) {
-      serialized += character;
-      continue;
-    }
-
-    const reference = referenceMap.get(orderedRefIds[tokenIndex] ?? "");
-    serialized += reference ? formatWorkflowVariableToken(reference) : "";
-    tokenIndex += 1;
-  }
-
-  return serialized;
+  return text.slice(start, end);
 }
 
 export function deserializeProjectionClipboardText({
   clipboardText,
-  references,
 }: {
   clipboardText: string;
-  references: WorkflowVariableReference[];
 }) {
-  const referenceIdByMachineName = new Map(
-    references.map((reference) => [formatWorkflowVariableMachineName(reference), reference.refId]),
-  );
-  const orderedRefIds: string[] = [];
-  let text = "";
-  let cursor = 0;
-  let match: RegExpExecArray | null;
-
-  WORKFLOW_VARIABLE_CLIPBOARD_TOKEN_PATTERN.lastIndex = 0;
-
-  while ((match = WORKFLOW_VARIABLE_CLIPBOARD_TOKEN_PATTERN.exec(clipboardText)) !== null) {
-    const machineName = match[1]?.trim();
-    const refId = machineName ? referenceIdByMachineName.get(machineName) : null;
-
-    if (match.index > cursor) {
-      text += clipboardText.slice(cursor, match.index);
-    }
-
-    if (refId) {
-      text += WORKFLOW_VARIABLE_SENTINEL;
-      orderedRefIds.push(refId);
-    } else {
-      text += match[0];
-    }
-
-    cursor = match.index + match[0].length;
-  }
-
-  if (cursor < clipboardText.length) {
-    text += clipboardText.slice(cursor);
-  }
-
   return {
-    text,
-    orderedRefIds,
+    text: clipboardText,
   };
 }
 
@@ -311,29 +269,18 @@ export function replaceProjectionTextRange({
   text,
   selectionStart,
   selectionEnd,
-  orderedRefIds,
   insertText,
-  insertRefIds,
 }: {
   text: string;
   selectionStart: number;
   selectionEnd: number;
-  orderedRefIds: string[];
   insertText: string;
-  insertRefIds: string[];
 }) {
   const start = clampSelection(text, Math.min(selectionStart, selectionEnd));
   const end = clampSelection(text, Math.max(selectionStart, selectionEnd));
-  const startTokenIndex = countSentinelsBeforeIndex(text, start);
-  const endTokenIndex = countSentinelsBeforeIndex(text, end);
 
   return {
     text: `${text.slice(0, start)}${insertText}${text.slice(end)}`,
-    orderedRefIds: [
-      ...orderedRefIds.slice(0, startTokenIndex),
-      ...insertRefIds,
-      ...orderedRefIds.slice(endTokenIndex),
-    ],
     cursor: start + insertText.length,
   };
 }

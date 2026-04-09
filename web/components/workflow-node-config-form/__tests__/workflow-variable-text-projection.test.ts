@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  WORKFLOW_VARIABLE_SENTINEL,
   buildReplyDocumentFromProjection,
   buildWorkflowVariableProjection,
   deserializeProjectionClipboardText,
-  insertSentinelIntoProjection,
+  insertTokenIntoProjection,
   replaceProjectionTextRange,
   removeTokenBeforeCursor,
   serializeProjectionSelectionToTemplate,
@@ -33,12 +32,12 @@ describe("workflow-variable-text-projection", () => {
       ],
     });
 
-    expect(projection.text).toBe(`你好，${WORKFLOW_VARIABLE_SENTINEL} world`);
+    expect(projection.text).toBe("你好，{{#accumulated.llm.text#}} world");
     expect(projection.tokens).toEqual([
       {
         refId: "ref_1",
         start: 3,
-        end: 4,
+        end: 29,
         label: "[直接回复] text",
         machineName: "endNode_ab12cd34.text",
       },
@@ -46,20 +45,30 @@ describe("workflow-variable-text-projection", () => {
   });
 
   it("rebuilds the reply document after slash replacement insert and token delete", () => {
-    const inserted = insertSentinelIntoProjection({
+    const inserted = insertTokenIntoProjection({
       text: "hello /world",
       cursor: 7,
-      orderedRefIds: [],
-      refId: "ref_1",
+      reference: {
+        refId: "ref_1",
+        alias: "text",
+        ownerNodeId: "endNode_ab12cd34",
+        selector: ["accumulated", "llm", "text"],
+      },
       removeLeadingSlash: true,
     });
 
-    expect(inserted.text).toBe(`hello ${WORKFLOW_VARIABLE_SENTINEL}world`);
-    expect(inserted.orderedRefIds).toEqual(["ref_1"]);
+    expect(inserted.text).toBe("hello {{#accumulated.llm.text#}}world");
     expect(
       buildReplyDocumentFromProjection({
         text: inserted.text,
-        orderedRefIds: inserted.orderedRefIds,
+        references: [
+          {
+            refId: "ref_1",
+            alias: "text",
+            ownerNodeId: "endNode_ab12cd34",
+            selector: ["accumulated", "llm", "text"],
+          },
+        ],
       }),
     ).toEqual({
       version: 1,
@@ -72,13 +81,11 @@ describe("workflow-variable-text-projection", () => {
 
     const removed = removeTokenBeforeCursor({
       text: inserted.text,
-      cursor: 7,
-      orderedRefIds: inserted.orderedRefIds,
+      cursor: inserted.cursor,
     });
 
     expect(removed).toEqual({
       text: "hello world",
-      orderedRefIds: [],
       cursor: 6,
     });
   });
@@ -86,36 +93,18 @@ describe("workflow-variable-text-projection", () => {
   it("serializes token selections to template text and restores them on paste", () => {
     expect(
       serializeProjectionSelectionToTemplate({
-        text: `hello ${WORKFLOW_VARIABLE_SENTINEL}world`,
+        text: "hello {{#accumulated.llm.text#}}world",
         selectionStart: 0,
-        selectionEnd: 12,
-        orderedRefIds: ["ref_1"],
-        references: [
-          {
-            refId: "ref_1",
-            alias: "text",
-            ownerNodeId: "endNode_ab12cd34",
-            selector: ["accumulated", "llm", "text"],
-          },
-        ],
+        selectionEnd: 37,
       }),
-    ).toBe("hello {{#endNode_ab12cd34.text#}}world");
+    ).toBe("hello {{#accumulated.llm.text#}}world");
 
     const inserted = deserializeProjectionClipboardText({
-      clipboardText: "copy {{#endNode_ab12cd34.text#}} now",
-      references: [
-        {
-          refId: "ref_1",
-          alias: "text",
-          ownerNodeId: "endNode_ab12cd34",
-          selector: ["accumulated", "llm", "text"],
-        },
-      ],
+      clipboardText: "copy {{#accumulated.llm.text#}} now",
     });
 
     expect(inserted).toEqual({
-      text: `copy ${WORKFLOW_VARIABLE_SENTINEL} now`,
-      orderedRefIds: ["ref_1"],
+      text: "copy {{#accumulated.llm.text#}} now",
     });
 
     expect(
@@ -123,14 +112,11 @@ describe("workflow-variable-text-projection", () => {
         text: "hello world",
         selectionStart: 6,
         selectionEnd: 11,
-        orderedRefIds: [],
         insertText: inserted.text,
-        insertRefIds: inserted.orderedRefIds,
       }),
     ).toEqual({
-      text: `hello copy ${WORKFLOW_VARIABLE_SENTINEL} now`,
-      orderedRefIds: ["ref_1"],
-      cursor: 16,
+      text: "hello copy {{#accumulated.llm.text#}} now",
+      cursor: 41,
     });
   });
 });

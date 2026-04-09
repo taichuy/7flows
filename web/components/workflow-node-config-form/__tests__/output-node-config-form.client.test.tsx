@@ -120,7 +120,99 @@ describe("OutputNodeConfigForm client render", () => {
           selector: ["accumulated", "agent", "text"],
         },
       ],
-      replyTemplate: "hello {{#endNode_ab12cd34.text#}}world",
+      replyTemplate: "hello {{#accumulated.agent.text#}}world",
+    });
+  });
+
+  it("serializes trigger input variables to selector-based template tokens", () => {
+    const handleChange = vi.fn();
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        createElement(OutputNodeConfigForm, {
+          node: {
+            id: "endNode_ab12cd34",
+            type: "workflowNode",
+            position: { x: 0, y: 0 },
+            data: {
+              label: "直接回复",
+              nodeType: "endNode",
+              config: { replyTemplate: "hello world" },
+              inputSchema: {
+                type: "object",
+                properties: {
+                  text: { type: "string" },
+                },
+              },
+            },
+          } as never,
+          nodes: [
+            {
+              id: "start",
+              type: "workflowNode",
+              position: { x: 0, y: 0 },
+              data: {
+                label: "开始",
+                nodeType: "startNode",
+                config: {},
+                inputSchema: {
+                  type: "object",
+                  properties: {
+                    query: { type: "string" },
+                  },
+                },
+              },
+            },
+          ] as never,
+          onChange: handleChange,
+        }),
+      );
+    });
+
+    const textarea = getEditorTextarea();
+    act(() => {
+      textarea.focus();
+      textarea.setSelectionRange(6, 6);
+    });
+
+    const toolbarButton = document.querySelector(
+      '[data-action="open-variable-picker"]',
+    ) as HTMLButtonElement;
+
+    act(() => {
+      toolbarButton.click();
+    });
+
+    const insertButton = Array.from(document.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("[用户输入] query"),
+    ) as HTMLButtonElement;
+
+    act(() => {
+      insertButton.click();
+    });
+
+    expect(handleChange).toHaveBeenLastCalledWith({
+      replyDocument: {
+        version: 1,
+        segments: [
+          { type: "text", text: "hello " },
+          { type: "variable", refId: "ref_1" },
+          { type: "text", text: "world" },
+        ],
+      },
+      replyReferences: [
+        {
+          refId: "ref_1",
+          alias: "query",
+          ownerNodeId: "endNode_ab12cd34",
+          selector: ["trigger_input", "query"],
+        },
+      ],
+      replyTemplate: "hello {{#trigger_input.query#}}world",
     });
   });
 });
