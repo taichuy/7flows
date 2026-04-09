@@ -17,6 +17,7 @@ import {
   deserializeProjectionClipboardText,
   formatWorkflowVariableProjectionTokenText,
   insertTokenIntoProjection,
+  normalizeProjectionCursorToTokenBoundary,
   replaceProjectionTextRange,
   removeTokenAfterCursor,
   removeTokenBeforeCursor,
@@ -260,6 +261,33 @@ export function WorkflowVariableTextEditor({
     return textarea.selectionStart ?? cursor;
   };
 
+  const syncCursorToTokenBoundary = (
+    textarea: HTMLTextAreaElement,
+    bias: "nearest" | "start" | "end" = "nearest",
+  ) => {
+    const selectionStart = textarea.selectionStart ?? 0;
+    const selectionEnd = textarea.selectionEnd ?? selectionStart;
+
+    if (selectionStart !== selectionEnd) {
+      setCursor(selectionStart);
+      return selectionStart;
+    }
+
+    const normalizedCursor =
+      normalizeProjectionCursorToTokenBoundary({
+        text: draftText,
+        cursor: selectionStart,
+        bias,
+      }) ?? selectionStart;
+
+    if (normalizedCursor !== selectionStart) {
+      textarea.setSelectionRange(normalizedCursor, normalizedCursor);
+    }
+
+    setCursor(normalizedCursor);
+    return normalizedCursor;
+  };
+
   const handleInsert = (selector: string[], insertionCursor = resolveCurrentCursor()) => {
     const existingReference = findReferenceBySelector(references, selector);
     const nextReference =
@@ -360,23 +388,62 @@ export function WorkflowVariableTextEditor({
             rows={1}
             value={draftText}
             variant="borderless"
+            onBeforeInput={(event) => {
+              const textarea = event.currentTarget;
+              const selectionStart = textarea.selectionStart ?? 0;
+              const selectionEnd = textarea.selectionEnd ?? selectionStart;
+              if (selectionStart !== selectionEnd) {
+                return;
+              }
+
+              const normalizedCursor = normalizeProjectionCursorToTokenBoundary({
+                text: draftText,
+                cursor: selectionStart,
+                bias: "nearest",
+              });
+              const insertText = (event.nativeEvent as InputEvent).data ?? "";
+              if (normalizedCursor === null || insertText.length === 0) {
+                return;
+              }
+
+              event.preventDefault();
+              const replaced = replaceProjectionTextRange({
+                text: draftText,
+                selectionStart: normalizedCursor,
+                selectionEnd: normalizedCursor,
+                orderedRefIds: draftOrderedRefIds,
+                insertText,
+                insertRefIds: [],
+              });
+
+              applyProjectionChange({
+                nextText: replaced.text,
+                nextOrderedRefIds: replaced.orderedRefIds,
+                nextCursor: replaced.cursor,
+              });
+              setPickerMode(readSlashQueryContext(replaced.text, replaced.cursor) ? "slash" : null);
+            }}
             onInput={(event) => handleTextInput(event.currentTarget)}
             onClick={(event) => {
               syncTextareaHeight();
-              setCursor(event.currentTarget.selectionStart ?? 0);
+              syncCursorToTokenBoundary(event.currentTarget);
             }}
             onKeyUp={(event) => {
               syncTextareaHeight();
-              setCursor(event.currentTarget.selectionStart ?? 0);
+              syncCursorToTokenBoundary(event.currentTarget);
             }}
             onSelect={(event) => {
               syncTextareaHeight();
-              setCursor(event.currentTarget.selectionStart ?? 0);
+              syncCursorToTokenBoundary(event.currentTarget);
             }}
             onKeyDown={(event) => {
               const textarea = event.currentTarget;
-              const nextCursor = textarea.selectionStart ?? 0;
-              setCursor(nextCursor);
+              const nextCursor =
+                event.key === "Backspace"
+                  ? syncCursorToTokenBoundary(textarea, "end")
+                  : event.key === "Delete"
+                    ? syncCursorToTokenBoundary(textarea, "start")
+                    : syncCursorToTokenBoundary(textarea);
 
               if (event.key === "Enter" && pickerMode === "slash" && firstVisibleItem) {
                 event.preventDefault();

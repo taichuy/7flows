@@ -647,6 +647,96 @@ describe("WorkflowVariableTextEditor", () => {
     });
   });
 
+  it("snaps the caret to the token tail so new text lands after the variable", () => {
+    const handleChange = vi.fn();
+
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    act(() => {
+      root?.render(
+        createElement(WorkflowVariableTextEditor, {
+          ownerNodeId: "endNode_ab12cd34",
+          ownerLabel: "直接回复",
+          value: {
+            version: 1,
+            segments: [
+              { type: "text", text: "hello " },
+              { type: "variable", refId: "ref_1" },
+            ],
+          },
+          references: [
+            {
+              refId: "ref_1",
+              alias: "text",
+              ownerNodeId: "endNode_ab12cd34",
+              selector: ["accumulated", "llm", "text"],
+            },
+          ],
+          variables: [
+            {
+              key: "upstream",
+              label: "上游节点",
+              items: [
+                {
+                  key: "llm-text",
+                  label: "LLM.text",
+                  selector: ["accumulated", "llm", "text"],
+                  token: "{{#endNode_ab12cd34.text#}}",
+                  previewPath: "LLM.text",
+                  machineName: "endNode_ab12cd34.text",
+                  valueTypeLabel: "String",
+                  inlineLabel: "[LLM] text",
+                } as never,
+              ],
+            },
+          ],
+          onChange: handleChange,
+        }),
+      );
+    });
+
+    const textarea = getEditorTextarea();
+    const originalValueLength = textarea.value.length;
+    const tokenTailInsideCursor = textarea.value.length - 1;
+
+    act(() => {
+      textarea.focus();
+      textarea.setSelectionRange(tokenTailInsideCursor, tokenTailInsideCursor);
+      textarea.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const nextCursor = textarea.selectionStart ?? 0;
+    expect(nextCursor).toBe(originalValueLength);
+    const nextValue = `${textarea.value.slice(0, nextCursor)}!${textarea.value.slice(nextCursor)}`;
+
+    act(() => {
+      textarea.value = nextValue;
+      textarea.setSelectionRange(nextCursor + 1, nextCursor + 1);
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(handleChange).toHaveBeenLastCalledWith({
+      document: {
+        version: 1,
+        segments: [
+          { type: "text", text: "hello " },
+          { type: "variable", refId: "ref_1" },
+          { type: "text", text: "!" },
+        ],
+      },
+      references: [
+        {
+          refId: "ref_1",
+          alias: "text",
+          ownerNodeId: "endNode_ab12cd34",
+          selector: ["accumulated", "llm", "text"],
+        },
+      ],
+    });
+  });
+
   it("copies token selections as template text instead of leaking sentinel characters", () => {
     const handleChange = vi.fn();
 

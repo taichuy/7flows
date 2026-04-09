@@ -63,6 +63,36 @@ function findProjectionTokenRanges(text: string) {
   return ranges;
 }
 
+export function normalizeProjectionCursorToTokenBoundary({
+  text,
+  cursor,
+  bias = "nearest",
+}: {
+  text: string;
+  cursor: number;
+  bias?: "nearest" | "start" | "end";
+}) {
+  const nextCursor = clampSelection(text, cursor);
+  const token = findProjectionTokenRanges(text).find(
+    (range) => nextCursor > range.start && nextCursor < range.end,
+  );
+
+  if (!token) {
+    return null;
+  }
+
+  if (bias === "start") {
+    return token.start;
+  }
+
+  if (bias === "end") {
+    return token.end;
+  }
+
+  const tokenMidpoint = token.start + Math.floor((token.end - token.start) / 2);
+  return nextCursor <= tokenMidpoint ? token.start : token.end;
+}
+
 function countTokensBeforeIndex(text: string, index: number) {
   const clampedIndex = clampSelection(text, index);
   return findProjectionTokenRanges(text).filter((range) => range.end <= clampedIndex).length;
