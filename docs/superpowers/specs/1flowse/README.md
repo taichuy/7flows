@@ -10,6 +10,8 @@
   - P1 需求文档，覆盖功能需求、非功能需求、验收边界
 - [2026-04-10-p1-architecture.md](./2026-04-10-p1-architecture.md)
   - P1 架构文档，覆盖系统模块、存储分层、运行时模型、扩展策略
+- [2026-04-11-p1-tech-stack-communication-baseline.md](./2026-04-11-p1-tech-stack-communication-baseline.md)
+  - P1 统一技术栈、通信边界与对内对外口径摘要
 - [modules/README.md](./modules/README.md)
   - 模块化讨论目录，按功能模块逐项沉淀讨论进度与完成情况
 

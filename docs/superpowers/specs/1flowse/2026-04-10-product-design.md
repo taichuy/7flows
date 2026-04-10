@@ -289,6 +289,7 @@ P1 在该层的正式边界是：
 - `plugin-runner` 是后端体系内部的独立 Rust 执行进程，不对公网暴露
 - `api-server -> plugin-runner` 通过统一的内部 `RPC` 契约交互
 - P1 初版允许把该 `RPC` 契约承载在内网 HTTP 上，但 HTTP 只是传输层，不改变其内部 RPC 本质
+- 若内部 `RPC` 承载在内网 HTTP 上，则 `api-server` 与 `plugin-runner` 之间增加固定服务密钥校验，例如 `X-Api-Key`
 - `runtime-worker` 在 P1 不独立拆分；Flow 运行时继续留在 `api-server` 内部
 
 ### 7.6 Access Control

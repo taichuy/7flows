@@ -39,4 +39,4 @@
 | 05 运行时编排与调试 | `completed` | 已确认 checkpoint、调度主模型、单服务队列组织、流式双层模型、LLM 节点重试边界与统一执行引擎 | [README](./05-runtime-orchestration/README.md) |
 | 06 发布网关与 API 文档 | `completed` | 已确认三类发布协议、应用级 API Key/Token、Dify 文档参考、控制面薄代理与 Draft 回滚规则 | [README](./06-publish-gateway/README.md) |
 | 07 状态与记忆模型 | `completed` | 已确认最小字段类型集、显式 StateRead/StateWrite、启动快照注入、最小 CRUD 后台与外部数据源严格分层 | [README](./07-state-and-memory/README.md) |
-| 08 插件体系 | `completed` | 已完成双轨主线、四类插件、统一包结构、来源与启用策略、`manifest/schema`、共享 runner、本机 RPC 与生命周期策略定稿 | [README](./08-plugin-framework/README.md) |
+| 08 插件体系 | `completed` | 已完成双轨主线、四类插件、统一包结构、来源与启用策略、`manifest/schema`、共享 runner、内部 RPC 与生命周期策略定稿 | [README](./08-plugin-framework/README.md) |

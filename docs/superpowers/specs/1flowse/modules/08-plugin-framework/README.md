@@ -6,7 +6,7 @@
 ## 讨论进度
 
 - 状态：`completed`
-- 完成情况：已完成 P1 插件主线、插件类型、包结构、来源与启用规则、`manifest/schema`、本机 RPC 契约、升级卸载与依赖策略定稿，并获用户确认。
+- 完成情况：已完成 P1 插件主线、插件类型、包结构、来源与启用规则、`manifest/schema`、内部 RPC 契约、升级卸载与依赖策略定稿，并获用户确认。
 - 最后更新：2026-04-10 20:03 CST
 
 ## 已整理来源文档
@@ -38,7 +38,7 @@
 - `community` / `unknown` 来源的代码插件启用前必须由 `root` 或 `admin` 二次确认，不得静默启用。
 - P1 官方仓允许 `Rust` 代码插件；代码插件标准交付物为 `Wasm`；运行拓扑采用一个共享 `plugin-runner` 进程统一加载多个插件。
 - 开发态插件采用远程调试注册；安装态采用下载包、安装任务和 runner 激活。
-- `plugin-runner` 采用一个共享进程，并与主系统通过本机 RPC 契约交互。
+- `plugin-runner` 采用一个共享进程，并与主系统通过统一内部 `RPC` 契约交互；P1 初版可承载在内网 HTTP 上。
 - 管理边界定为：插件源策略系统级、插件安装团队级、插件使用范围默认团队级。
 - `root` 可将团队已安装插件分配给指定应用空间，或设为应用级全局接受。
 - `manifest` 必填字段先固定为：`api_version`、`kind`、`plugin_id`、`version`、`display_name`、`source_level`、`runtime_mode`、`entry`、`capabilities`、`compatibility`、`permissions`。
@@ -46,7 +46,8 @@
 - `runtime_mode` 仅允许 `hosted` 与 `runner_wasm` 两种。
 - 兼容性校验在 P1 先只检查 `host_api_version` 与最小 `runner` 版本。
 - 插件自身版本采用 `semver`；`manifest.api_version` 仅在包协议出现破坏性变更时升级；同一 `api_version` 内仅允许向后兼容扩展字段。
-- `plugin-runner` 与主系统的本机 RPC 方法集先固定为：`load`、`unload`、`invoke`、`health`、`list_loaded`、`reload`。
+- `plugin-runner` 与主系统的内部 `RPC` 方法集先固定为：`load`、`unload`、`invoke`、`health`、`list_loaded`、`reload`。
+- 若该内部 `RPC` 采用内网 HTTP 承载，则服务间增加固定密钥校验，例如 `X-Api-Key`。
 - RPC 请求统一带：`request_id`、`trace_id`、`team_id`、`app_id`、`plugin_id`、`plugin_version`、`timeout_ms`、`caller_context`。
 - RPC 错误码先固定为：`INVALID_MANIFEST`、`INCOMPATIBLE_HOST`、`LOAD_FAILED`、`INVOKE_TIMEOUT`、`PERMISSION_DENIED`、`UNHEALTHY`、`INTERNAL_PANIC`。
 - 超时基线先固定为：`load=10s`、`invoke=30s`、`health=3s`；超时后由主系统负责熔断与降级。
@@ -56,7 +57,7 @@
 - 插件升级采用“新版本安装与预检 -> 激活新版本 -> 别名切换 -> 保留旧版本回滚窗口”的非原地覆盖流程。
 - 插件若仍被应用、节点或数据源配置引用，则禁止卸载，只允许禁用。
 - P1 不支持插件之间的运行时硬依赖；仅允许声明对宿主 API 版本与系统能力集的依赖。
-- 若与早期架构稿中“进程内插件”表述冲突，应以后续 history 决策覆盖。
+- 若与更早版本文档中的旧插件运行表述冲突，应以后续 history 决策覆盖。
 - 第三方登录后续若要引入，优先按插件扩展方向评估，不进入当前 P1 主线。
 
 ## 待讨论
@@ -67,9 +68,9 @@
 
 - P1 插件体系采用“声明式能力插件 + 官方白名单受控代码插件”的双轨模型，以统一包结构与统一生命周期承接四类核心扩展。
 - 声明式插件与代码插件共享一套安装、配置、审计、升级与使用范围治理模型，避免管理后台和控制面裂成两套体系。
-- 代码插件统一收敛为 `Rust + Wasm + shared plugin-runner + local RPC`，把主系统聚焦在来源治理、配置校验、权限裁剪、安装任务和调用分发。
+- 代码插件统一收敛为 `Rust + Wasm + shared plugin-runner + internal RPC`，P1 初版可承载在内网 HTTP，并叠加固定服务密钥保护；主系统聚焦在来源治理、配置校验、权限裁剪、安装任务和调用分发。
 - 生命周期采用强约束策略：可信来源可直接启用，风险来源代码插件需 `root/admin` 二次确认；升级用并行激活切换，卸载受引用保护，不支持插件间硬依赖。
 
 ## 审阅入口
 
-- 当前模块已通过。若后续继续推进实现，可直接围绕插件注册表、安装任务、`manifest/schema` 校验器、`plugin-runner` 本机 RPC 与应用分配模型展开。
+- 当前模块已通过。若后续继续推进实现，可直接围绕插件注册表、安装任务、`manifest/schema` 校验器、`plugin-runner` 内部 RPC 与应用分配模型展开。
