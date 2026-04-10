@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "baseUrl": ".",
+    "paths": {
+      "@1flowse/shared-types": ["packages/shared-types/src/index.ts"],
+      "@1flowse/api-client": ["packages/api-client/src/index.ts"],
+      "@1flowse/ui": ["packages/ui/src/index.tsx"],
+      "@1flowse/flow-schema": ["packages/flow-schema/src/index.ts"],
+      "@1flowse/page-protocol": ["packages/page-protocol/src/index.ts"],
+      "@1flowse/page-runtime": ["packages/page-runtime/src/index.ts"],
+      "@1flowse/embed-sdk": ["packages/embed-sdk/src/index.ts"]
+    }
+  }
+}

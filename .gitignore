@@ -1,3 +1,9 @@
+node_modules/
+dist/
+coverage/
+target/
+.turbo/
+pnpm-debug.log*
 docs/userDocs/history/
 docs/superpowers
 uploads
