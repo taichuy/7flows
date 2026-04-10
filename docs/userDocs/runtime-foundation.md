@@ -1,10 +1,12 @@
-- 2026-04-10 11:56:01 Asia/Shanghai：P1 以既有规格为准，主轴是工作流优先、发布优先，不是聊天优先。
-- 2026-04-10 11:56:01 Asia/Shanghai：当前阶段顺序：先定技术架构与开发约束；再拆模块知识库；之后每模块建任务文档和优先级；最后再写任务需求。
-- 2026-04-10 11:56:01 Asia/Shanghai：P1 空间模型沿用既有设计，只保留 Team Workspace；Tenant 和个人空间延后。
-- 2026-04-10 11:56:01 Asia/Shanghai：P1 优先交付 ChatFlow 编排、运行时调度、标准发布；前端插件系统不作为首要目标。
-- 2026-04-10 11:56:01 Asia/Shanghai：部署先采用前后端分离；前端 React+pnpm，后端单 Rust 服务；中间件为 PostgreSQL、Redis、RustFS。
-- 2026-04-10 11:56:01 Asia/Shanghai：插件采用清单注册与渐进式开放路线：P1 先做声明式/能力型插件，支持按需安装后生效，后续再演进到更强的可执行载体；参考 Dify 与 NocoBase 的分类注册、安装任务、运行时激活思路。
-- 2026-04-10 12:16:57 Asia/Shanghai：继续细化后端插件设计，当前收敛到三路：编译期内置、声明式能力插件、外部进程插件；P1 倾向声明式能力插件，由宿主内核执行并支持热安装激活。
-- 2026-04-10 12:21:30 Asia/Shanghai：确认 P1 采用声明式插件，同时预留可信外部执行插件；官方开源仓白名单视为可信来源，可直接下载安装，非白名单来源允许继续但需明确风险提示。
-- 2026-04-10 12:33:42 Asia/Shanghai：确认外部执行插件对 `community/unknown` 来源采用 A 策略：允许安装，启用前必须二次确认，不做静默激活。
-- 2026-04-10 12:36:10 Asia/Shanghai：确认 `community/unknown` 来源的外部执行插件，启用前二次确认权限只开放给 `Team Owner/Admin`。
+- 2026-04-10 11:56:01 Asia/Shanghai：P1 主轴是工作流优先、发布优先，不是聊天优先。
+- 2026-04-10 11:56:01 Asia/Shanghai：当前顺序是先架构约束，再模块知识库，再任务文档与优先级，最后写需求。
+- 2026-04-10 11:56:01 Asia/Shanghai：P1 仅保留 Team Workspace，Tenant 与个人空间后置。
+- 2026-04-10 11:56:01 Asia/Shanghai：P1 先交付 ChatFlow、运行时调度、标准发布，前端插件后置。
+- 2026-04-10 11:56:01 Asia/Shanghai：部署先前后端分离；前端 React+pnpm，后端单 Rust；中间件 PostgreSQL、Redis、RustFS。
+- 2026-04-10 11:56:01 Asia/Shanghai：插件走清单注册与渐进开放，支持安装后热生效。
+- 2026-04-10 12:16:57 Asia/Shanghai：P1 主路线采用声明式插件，由宿主内核执行。
+- 2026-04-10 12:21:30 Asia/Shanghai：插件来源分 official_whitelist、community、unknown；可信源可直接下载安装。
+- 2026-04-10 12:36:10 Asia/Shanghai：community/unknown 的外部执行插件允许安装，但启用前须由 Team Owner/Admin 二次确认，且不得静默启用。
+- 2026-04-10 12:49:40 Asia/Shanghai：参考 Dify，开发态走远程调试注册，安装态走正式激活。
+- 2026-04-10 13:01:34 Asia/Shanghai：P1 官方仓允许 Rust 代码插件；标准发布物为 Wasm；安装后统一由独立 plugin-runner 执行，不进入主 API 进程。
+- 2026-04-10 13:01:34 Asia/Shanghai：运行拓扑采用一个共享 plugin-runner 进程，在同一 runner 内统一加载多个插件。
