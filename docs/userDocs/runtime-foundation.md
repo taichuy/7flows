@@ -6,8 +6,9 @@
 - 2026-04-10 23:31-23:55 CST：后端正式收敛为 `Rust 模块化单体 api-server + 独立 plugin-runner`；P1 不拆 `runtime-worker`；控制台鉴权正式采用 `服务端 Session + HttpOnly Cookie + CSRF`；`api-server -> plugin-runner` 定义为内部 `RPC` 契约，P1 初版可承载在内网 HTTP；代码插件官方支持语言先锁 `Rust`。
 - 2026-04-11 00:01-00:14 CST：已把上述统一口径回写到 `product-design` 与 `p1-architecture`，并清理“进程内插件”等旧表述。
 - 2026-04-11 00:27-00:30 CST：复核 `docs/superpowers` 后确认无新的结构性冲突；补充插件宿主通信安全口径为“内部 `RPC` + 可承载内网 HTTP + 固定服务密钥保护（如 `X-Api-Key`）”；新增统一摘要文档 `docs/superpowers/specs/1flowse/2026-04-11-p1-tech-stack-communication-baseline.md`。
+- 2026-04-11 06:33-06:36 CST：用户确认“前后端最小可跑骨架 + 项目专用 skill”按正式架构占位方案执行：前端采用 `pnpm workspace + Turbo + apps/web + 全部 packages/*`，后端采用 `api-server + plugin-runner + 全部 crates/*`，版本锁定为 `Node 22 / pnpm 10 / Rust stable`，质量基线为前端 `Vitest/RTL + ESLint + Prettier`、后端 `fmt + clippy + test`，并要求 `api-server` 初始化即提供 OpenAPI 文档链接供人工校验。
 
 # 下一步计划
 
 - 以后讨论技术栈、部署、插件边界时，优先引用新的“P1 技术栈与通信口径基线”文档。
-- 若继续推进实现，先基于这份口径把前端 `Editor UI`、后端 workspace、OpenAPI client 生成和 `plugin-runner` 内部 RPC 接口拆成实施计划。
+- 先请用户审阅本次 `fullstack-bootstrap` 设计稿；确认后再写实现计划并进入初始化实现与 skill 落地。
