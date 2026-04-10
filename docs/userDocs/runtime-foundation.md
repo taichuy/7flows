@@ -1,0 +1,1 @@
+- 2026-04-10 11:25:51 Asia/Shanghai：已回顾现有 1Flowse 规格。当前共识：产品定位为“发布优先的 AI 工作流平台”；P1 闭环是应用创建、Flow 编排、运行调试、标准 Agent API 发布、状态延续、日志监控与权限治理；技术方向为前端工作台 + Rust 模块化单体后端 + runtime worker + PostgreSQL/Redis/RustFS；编排层已确认 selector 变量协议、模板字符串持久化、Lexical 仅作编辑层。当前缺口：这些内容尚未沉淀成一份面向当前阶段的统一总览与开发任务拆解。
