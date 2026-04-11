@@ -6,9 +6,11 @@
 - 2026-04-11 08:26 CST：复核 `docs/dev_READEME.md` 与 `docs/superpowers/specs/1flowse`，结论为无实质冲突，specs 已吸收其核心口径。
 - 2026-04-11 08:26 CST：讨论 `Embedded App` 方向，当前收敛为“路由 + 登录态复用 + 上传静态 build zip”；`/home/taichu/git/otherCode/MyBricksCode.zip` 判定为源码片段包，不能直接挂载。
 - 2026-04-11 08:26 CST：`Embedded App` 目录规划已确认，并写入独立设计稿；P1 主线固定为静态产物上传、平台挂载路由、复用登录态。
+- 2026-04-11 08:26 CST：`docs/dev_READEME.md` 与 `2026-04-10-p1-architecture.md` 已同步对齐到 `Embedded App` 静态产物上传方案。
+- 2026-04-11 09:28 CST：`web` 前端已完成最小增量骨架初始化，新增 Embedded App 占位页、占位路由、`embed-sdk` 最小壳与 `embedded-contracts` 包。
 
 # 下一步计划
 
-- 在 `web/app` 接入真实控制台与编辑器壳。
+- 在 `web/app` 继续把 `Embedded App` 从占位路由推进到真实上传与宿主页。
 - 在 `api/crates/*` 逐步填充鉴权、运行时与发布链路实现。
-- 若推进 `Embedded App`，先定挂载路由、登录态传递协议与静态产物目录约束。
+- 视需要再补 `Embedded App` 导航入口、上传流程与静态资源回退规则。

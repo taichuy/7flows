@@ -177,6 +177,10 @@ P1 Docker Compose 先这样：
     - 控制台壳层
     - 应用工作区
     - 编排画布入口
+    - `src/embedded`
+      - Embedded App 宿主页、挂载页、错误页、加载态
+    - `src/features/embedded-apps`
+      - 控制台中的 Embedded App 管理界面
   - `packages/ui`
     - 通用 UI 组件
   - `packages/flow-schema`
@@ -189,6 +193,8 @@ P1 Docker Compose 先这样：
     - 基于后端 OpenAPI 生成的 TS client
   - `packages/embed-sdk`
     - 嵌入式前端接入 SDK
+  - `packages/embedded-contracts`
+    - Embedded App manifest / 元数据契约
   - `packages/shared-types`
     - 前后端共享轻类型
 
@@ -218,3 +224,11 @@ P1 Docker Compose 先这样：
   - `crates/storage-redis`
   - `crates/storage-object`
   - `crates/observability`
+  - `apps/api-server/src/routes/embedded`
+    - Embedded App 上传、发布、路由解析
+  - `apps/api-server/src/routes/assets`
+    - 静态资源分发与回退入口
+  - `crates/embedded-runtime`
+    - 上传包入口识别、挂载解析、回退规则
+
+`Embedded App` 的 P1 主线固定为：用户独立开发前端子系统，产出静态 build zip 上传到平台；平台负责挂载路由、复用登录态、分发静态资源，不支持前端源码插件，也不支持 SSR / Node runtime 托管。
