@@ -1,8 +1,2 @@
-export interface EmbedContext {
-  applicationId: string;
-  teamId: string;
-}
-
-export function createEmbedContext(input: EmbedContext): EmbedContext {
-  return input;
-}
+export type { EmbedContext } from './types';
+export { createEmbedContext } from './client';

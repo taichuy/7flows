@@ -5,6 +5,8 @@
   "type": "module",
   "dependencies": {
     "@1flowse/api-client": "workspace:*",
+    "@1flowse/embed-sdk": "workspace:*",
+    "@1flowse/embedded-contracts": "workspace:*",
     "@1flowse/shared-types": "workspace:*",
     "@1flowse/ui": "workspace:*",
     "@tanstack/react-query": "^5.73.3",

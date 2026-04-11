@@ -11,6 +11,9 @@ import { Space } from 'antd';
 import { AppShell } from '@1flowse/ui';
 
 import { AgentFlowPage } from '../features/agent-flow/AgentFlowPage';
+import { EmbeddedAppDetailPage } from '../features/embedded-apps/EmbeddedAppDetailPage';
+import { EmbeddedAppsPage } from '../features/embedded-apps/EmbeddedAppsPage';
+import { EmbeddedMountPage } from '../features/embedded-runtime/EmbeddedMountPage';
 import { HomePage } from '../features/home/HomePage';
 
 function RootLayout() {
@@ -45,10 +48,34 @@ const agentFlowRoute = createRoute({
   component: AgentFlowPage
 });
 
-const routeTree = rootRoute.addChildren([homeRoute, agentFlowRoute]);
+const embeddedAppsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/embedded-apps',
+  component: EmbeddedAppsPage
+});
+
+const embeddedAppDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/embedded-apps/$embeddedAppId',
+  component: EmbeddedAppDetailPage
+});
+
+const embeddedMountRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/embedded/$embeddedAppId',
+  component: EmbeddedMountPage
+});
+
+const routeTree = rootRoute.addChildren([
+  homeRoute,
+  agentFlowRoute,
+  embeddedAppsRoute,
+  embeddedAppDetailRoute,
+  embeddedMountRoute
+]);
 
 const router = createRouter({
-    routeTree
+  routeTree
 });
 
 declare module '@tanstack/react-router' {
