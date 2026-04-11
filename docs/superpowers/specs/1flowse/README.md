@@ -16,6 +16,8 @@
   - 前后端最小可跑骨架与仓库内项目专用 skill 的初始化设计稿
 - [2026-04-11-embedded-app-static-upload-design.md](./2026-04-11-embedded-app-static-upload-design.md)
   - Embedded App 以静态产物 zip 上传、路由挂载与登录态复用接入平台的设计稿
+- [2026-04-11-development-skills-design.md](./2026-04-11-development-skills-design.md)
+  - 前后端通用开发 Skill 的设计稿，聚焦防止代码腐化的原则、检查清单与少量示例
 - [modules/README.md](./modules/README.md)
   - 模块化讨论目录，按功能模块逐项沉淀讨论进度与完成情况
 
