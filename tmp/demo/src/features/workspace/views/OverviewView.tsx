@@ -13,6 +13,7 @@ import {
 } from '../../../data/workspace-data';
 import { useWorkspaceStore } from '../../../state/workspace-store';
 import { StatusBadge } from '../components/StatusBadge';
+import { WorkspacePulse } from '../components/WorkspacePulse';
 
 export function OverviewView() {
   const navigate = useNavigate();
@@ -62,8 +63,8 @@ export function OverviewView() {
               <span className="hero-kicker">Workspace demo</span>
             </div>
             <p className="hero-copy">
-              当前最需要看清楚的不是更多数字，而是三条焦点线: published surface 是否稳定、
-              approval backlog 卡在哪里、embedded host gap 什么时候能接上 live runtime。
+              首屏先确认 flow 卡在哪里、published exposure 是否稳定，以及 embedded host gap
+              还有多远。
             </p>
             <div className="action-row overview-actions">
               <Button
@@ -75,22 +76,15 @@ export function OverviewView() {
                 进入编排
               </Button>
             </div>
+            <WorkspacePulse />
           </div>
 
           <div className="hero-side hero-focus-card">
-            <div className="hero-status-row">
-              <StatusBadge
-                status="published"
-                label={`Published ${workspaceMeta.publishedVersion}`}
-              />
-              <StatusBadge status="healthy" label="Runtime healthy" />
-            </div>
-
             <div className="hero-focus-list">
               <div className="hero-focus-header">
                 <p className="section-label">当前焦点</p>
                 <p className="hero-focus-caption">
-                  二级路径放回真正的问题域里，不再混成 hero 里的平铺按钮。
+                  右侧只回答为什么值得去看，以及应该去哪处理。
                 </p>
               </div>
               {overviewFocusItems.map((item) => (

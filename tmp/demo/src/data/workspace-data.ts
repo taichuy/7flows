@@ -137,6 +137,24 @@ export interface OverviewFocusItem {
   contractMode?: ContractMode;
 }
 
+export interface OverviewPulseStage {
+  nodeId: string;
+  title: string;
+  note: string;
+  status: BadgeStatus;
+  statusLabel: string;
+  isCurrent?: boolean;
+}
+
+export interface OverviewPulseSignal {
+  id: string;
+  title: string;
+  note: string;
+  meta: string;
+  status: BadgeStatus;
+  statusLabel: string;
+}
+
 export const workspaceMeta = {
   code: 'revenue-copilot',
   name: 'Revenue Copilot',
@@ -472,7 +490,7 @@ export const overviewFocusItems: OverviewFocusItem[] = [
   {
     id: 'published-surface',
     title: 'Published surface',
-    note: 'OpenAI compatible 仍是唯一 live 入口，先保证对外契约稳定，再扩更多 exposure mode。',
+    note: 'OpenAI compatible 仍是唯一 live 入口，先稳住对外契约。',
     status: 'published',
     statusLabel: 'Live traffic',
     actionLabel: '查看发布面',
@@ -482,7 +500,7 @@ export const overviewFocusItems: OverviewFocusItem[] = [
   {
     id: 'approval-backlog',
     title: 'Approval backlog',
-    note: 'run_2048 停在 Approval gate；checkpoint 已落盘，当前最需要的是明确恢复而不是继续下游执行。',
+    note: 'run_2048 停在 Approval gate；先明确恢复，不继续下游执行。',
     status: 'waiting',
     statusLabel: 'Waiting',
     actionLabel: '打开 backlog',
@@ -492,11 +510,77 @@ export const overviewFocusItems: OverviewFocusItem[] = [
   {
     id: 'host-runtime-gap',
     title: 'Host runtime gap',
-    note: 'embedded route、manifest 和 host context 都在，但真正的 mount handshake 还没进入 live runtime。',
+    note: 'route、manifest 和 host context 都在，mount handshake 还没进 live runtime。',
     status: 'draft',
     statusLabel: 'Shell only',
     actionLabel: '检查 host gap',
     actionView: 'monitoring'
+  }
+];
+
+export const overviewPulseStages: OverviewPulseStage[] = [
+  {
+    nodeId: 'intake',
+    title: 'Email intake',
+    note: '入口先做归一化。',
+    status: 'success',
+    statusLabel: 'Ready'
+  },
+  {
+    nodeId: 'classifier',
+    title: 'Risk classifier',
+    note: '仍在校验 parity。',
+    status: 'running',
+    statusLabel: 'Draft check'
+  },
+  {
+    nodeId: 'approval',
+    title: 'Approval gate',
+    note: '当前 waiting run 停在这里。',
+    status: 'waiting',
+    statusLabel: 'Current hold',
+    isCurrent: true
+  },
+  {
+    nodeId: 'crm',
+    title: 'CRM lookup',
+    note: '保留 failure sample。',
+    status: 'failed',
+    statusLabel: 'Needs fix'
+  },
+  {
+    nodeId: 'reply',
+    title: 'Reply composer',
+    note: 'Published output 稳定。',
+    status: 'success',
+    statusLabel: 'Published'
+  }
+];
+
+export const overviewPulseSignals: OverviewPulseSignal[] = [
+  {
+    id: 'waiting-run',
+    title: 'Finance approval backlog',
+    note: 'run_2048 先显式写 checkpoint，再等待 Finance Ops 恢复。',
+    meta: 'run_2048',
+    status: 'waiting',
+    statusLabel: 'Active run'
+  },
+  {
+    id: 'published-contract',
+    title: 'Published contract',
+    note: 'v0.8.14 仍是唯一 live exposure，外部调用继续走 OpenAI compatible。',
+    meta: 'OpenAI compatible',
+    status: 'published',
+    statusLabel: 'Live traffic'
+  },
+  {
+    id: 'embedded-host',
+    title: 'Embedded host',
+    note: '已有 2 个 staged manifests，但真正的 mount handshake 还没进 live runtime。',
+    meta: 'team_growth_ops',
+    status: 'draft',
+    statusLabel: 'Host gap'
   }
 ];
 

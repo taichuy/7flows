@@ -24,6 +24,11 @@ describe('workspace demo', () => {
     expect(
       screen.getByRole('button', { name: '进入编排' })
     ).toBeInTheDocument();
+    expect(screen.getByText('Workspace pulse')).toBeInTheDocument();
+    expect(screen.getAllByText('Approval gate').length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole('button', { name: '定位审批断点' })
+    ).toBeInTheDocument();
     expect(screen.getByText('当前焦点')).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: '查看发布面' })
@@ -40,6 +45,15 @@ describe('workspace demo', () => {
     expect(
       screen.queryByRole('button', { name: '继续处理等待态' })
     ).not.toBeInTheDocument();
+  });
+
+  it('opens the orchestration page from workspace pulse and focuses the approval node', async () => {
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: '定位审批断点' }));
+
+    expect(await screen.findByText('客户问询主流程')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Approval gate' })).toBeInTheDocument();
   });
 
   it('opens the waiting run drawer from overview focus lanes', async () => {

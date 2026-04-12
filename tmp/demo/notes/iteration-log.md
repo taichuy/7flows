@@ -1,5 +1,53 @@
 # Demo Iteration Log
 
+## 2026-04-13 06:13
+
+### 本轮批判
+
+- `overview` 上一版虽然有了 `当前焦点`，但 hero 左侧仍然主要靠标题、说明和一个 CTA 撑住，桌面端存在明显“无证据空场”。
+- `当前焦点` 卡片承担了全部问题域说明，移动端进入首屏后很快就会撞上连续的 badge、说明和动作，信息密度偏挤。
+- 这说明问题不在视觉装饰，而在 L0 概览层缺少“flow 现在到底卡在哪里”的直接证据。
+
+### 本轮执行
+
+- 新增诊断记录：
+  - `tmp/demo/notes/2026-04-13-0602-evidence-first-overview.md`
+- 按测试先行把 `overview` 的新结构锁定为：
+  - 仍然只有一个主 CTA `进入编排`
+  - 必须出现 `Workspace pulse`
+  - `Workspace pulse` 必须能直接把用户带到编排页的 `Approval gate`
+- 在 `overview` hero 左侧新增 `workspace pulse`：
+  - flow 阶段序列
+  - `waiting run / published contract / embedded host` 三张证据卡
+  - 次级动作 `定位审批断点`
+- 收短 hero 主说明与 `当前焦点` 文案，右侧只保留“为什么值得去看 + 去哪处理”。
+- 将移动端 pulse 调整为更窄的横向阶段卡，避免新证据区再次把首屏撑得过重。
+
+### 测试与验证
+
+- `npm test`：通过，`5` 个测试全部通过。
+- `npm run build`：通过，产物为：
+  - `dist/assets/index-D2g972mE.css` `15.53 kB`
+  - `dist/assets/react-Bxqk-rQc.js` `106.54 kB`
+  - `dist/assets/index-nU4AJR6o.js` `442.90 kB`
+  - `dist/assets/antd-FPCx2csc.js` `466.01 kB`
+- `npm run preview -- --host 127.0.0.1`：提权后成功继续监听 `http://127.0.0.1:3200/`。
+- Playwright：
+  - 移动端截图成功：`tmp/demo/mobile-2026-04-13-0613.png`
+  - 并行申请桌面与移动端截图时，有一条桌面截图提权申请被拒绝；因此本轮没有新的桌面截图。
+
+### 本轮结论
+
+- `overview` 首屏现在不再只是“文案 + CTA + 右侧问题卡”，而是开始用真实 flow 证据解释当前 workspace 状态。
+- 移动端首屏在 CTA 之后先看到 `workspace pulse`，比上一版更接近“先看证据，再选处理路径”的节奏。
+- 这一轮把问题从样式层纠回到了信息深度层，方向是对的；但只有 `overview` 达到了这个密度，其他任务域还没统一。
+
+### 工具复盘
+
+1. 并行发起两个需要提权的 Playwright 截图请求不稳定
+   - 这次同时申请桌面和移动端截图时，移动端命令成功执行，但桌面端提权申请被拒绝，导致只拿到单侧截图。
+   - 后续如需高价值截图验证，优先串行申请提权与截图，避免在同一轮里并行发起多个需要审批的截图命令。
+
 ## 2026-04-13 05:13
 
 ### 本轮批判
