@@ -30,8 +30,7 @@ description: Use when building or changing 1Flowse frontend pages, workspace flo
 
 ## Quick Reference
 
-- 单一事实源：`docs/userDocs/draft/DESIGN.md`
-- 灵感库如 `awesome-design-md` 只能局部借鉴，不得覆盖项目规则
+- 单一事实源：`./DESIGN.md`
 - Shell Layer 优先复用 `Ant Design`；Editor UI 只做薄封装，不另起一套视觉语言
 - 先判任务域边界，再判 L1 模型，再判状态语义，最后才是 token 和样式
 - 信息架构、层级、入口、导航问题：**REQUIRED COMPANION SKILL:** Use `frontend-logic-design`
@@ -41,7 +40,7 @@ description: Use when building or changing 1Flowse frontend pages, workspace flo
 
 ## Implementation
 
-- Single source of truth: `docs/userDocs/draft/DESIGN.md`
+- Single source of truth: `DESIGN.md`
 - Visual baseline and layer rules: `references/visual-baseline.md`
 - Workspace recipes and interaction rules: `references/workspace-rules.md`
 - Ask-first gate: `references/communication-gate.md`
