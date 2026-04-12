@@ -6,566 +6,112 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0"
     />
-    <title>1Flowse Application Workspace Demo</title>
+    <title>1Flowse Workspace Demo</title>
     <link rel="stylesheet" href="./styles.css" />
+    <script defer src="./demo-data.js"></script>
     <script defer src="./script.js"></script>
   </head>
   <body>
-    <div class="page-glow" aria-hidden="true"></div>
+    <div class="page-orb orb-left" aria-hidden="true"></div>
+    <div class="page-orb orb-right" aria-hidden="true"></div>
+    <div class="page-grid" aria-hidden="true"></div>
 
     <div class="app-shell">
       <aside class="sidebar">
-        <button
+        <a
           class="app-home"
-          type="button"
+          href="#overview"
           data-view-trigger="overview"
-          aria-controls="view-overview"
         >
           <span class="brand-mark" aria-hidden="true">1F</span>
           <span class="app-home-copy">
-            <span class="eyebrow">Application</span>
+            <span class="eyebrow">1Flowse Application</span>
             <strong>Revenue Copilot</strong>
             <span class="app-home-note">
-              企业销售问询分流、编排与发布工作区
+              agentFlow、应用 API、调用日志与监控报表的一体化 demo
             </span>
           </span>
-        </button>
+        </a>
 
         <section class="sidebar-card">
           <p class="eyebrow">当前状态</p>
           <div class="sidebar-statuses">
             <span class="status-badge is-published">Published v0.8.14</span>
-            <span class="status-badge is-draft">Draft changes pending</span>
+            <span class="status-badge is-healthy">Runtime healthy</span>
+            <span class="status-badge is-draft">Draft 4 changes</span>
           </div>
           <p class="sidebar-copy">
-            Owner: Iris Chen · 最近发布于 2026-04-12 10:06
+            Owner: Iris Chen · 最近发布于 2026-04-12 10:06 · 本轮 demo 迭代于
+            2026-04-13 00:05
           </p>
         </section>
 
-        <nav class="nav-list" aria-label="应用任务域">
-          <button
-            class="nav-item"
-            type="button"
-            data-view-trigger="orchestration"
-            aria-controls="view-orchestration"
-            aria-pressed="false"
-          >
-            编排
-          </button>
-          <button
-            class="nav-item"
-            type="button"
-            data-view-trigger="api"
-            aria-controls="view-api"
-            aria-pressed="false"
-          >
-            应用 API
-          </button>
-          <button
-            class="nav-item"
-            type="button"
-            data-view-trigger="logs"
-            aria-controls="view-logs"
-            aria-pressed="false"
-          >
-            调用日志
-          </button>
-          <button
-            class="nav-item"
-            type="button"
-            data-view-trigger="monitoring"
-            aria-controls="view-monitoring"
-            aria-pressed="false"
-          >
-            监控报表
-          </button>
-        </nav>
+        <nav
+          id="navList"
+          class="nav-list"
+          aria-label="应用任务域"
+        ></nav>
+
+        <section class="sidebar-card">
+          <div class="section-head section-head-tight">
+            <div>
+              <p class="eyebrow">当前代码现状</p>
+              <h2>Repo scope</h2>
+            </div>
+          </div>
+          <div
+            id="repoScopeList"
+            class="stack-list compact-stack"
+          ></div>
+        </section>
+
+        <section class="sidebar-card">
+          <div class="section-head section-head-tight">
+            <div>
+              <p class="eyebrow">本轮修正</p>
+              <h2>Iteration focus</h2>
+            </div>
+          </div>
+          <ul id="focusList" class="focus-list"></ul>
+        </section>
       </aside>
 
       <main class="workspace">
-        <section
-          id="view-overview"
-          class="view-panel"
-          data-view-panel="overview"
-          aria-labelledby="overviewHeading"
-        >
-          <header class="view-hero surface-card">
-            <div class="view-hero-copy">
-              <p class="eyebrow">应用概览</p>
-              <h1 id="overviewHeading">Revenue Copilot</h1>
-              <p>
-                面向销售入口的 agentFlow 应用。概览页只回答当前状态、发布情况和下一步要去哪里。
-              </p>
-            </div>
-
-            <div class="view-hero-meta">
-              <span class="status-badge is-published">Published v0.8.14</span>
-              <span class="status-badge is-healthy">Runtime healthy</span>
-            </div>
-          </header>
-
-          <div class="overview-grid">
-            <article class="surface-card primary-entry-card">
-              <p class="eyebrow">主入口</p>
-              <h2>进入编排</h2>
-              <p>
-                编辑节点、查看检查面板、准备下一次发布。概览页不再承载完整画布或 API 管理。
-              </p>
-              <button
-                class="primary-button"
-                type="button"
-                data-view-trigger="orchestration"
-                aria-controls="view-orchestration"
-              >
-                进入编排
-              </button>
-            </article>
-
-            <article class="surface-card">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">基本信息</p>
-                  <h2>应用信息</h2>
-                </div>
-              </div>
-
-              <dl class="detail-grid">
-                <div>
-                  <dt>应用名称</dt>
-                  <dd>Revenue Copilot</dd>
-                </div>
-                <div>
-                  <dt>简介</dt>
-                  <dd>统一处理销售问询、CRM 查找与回复编排。</dd>
-                </div>
-                <div>
-                  <dt>Owner</dt>
-                  <dd>Iris Chen</dd>
-                </div>
-                <div>
-                  <dt>最近更新</dt>
-                  <dd>2026-04-12 10:18</dd>
-                </div>
-              </dl>
-            </article>
-
-            <article class="surface-card">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">发布状态</p>
-                  <h2>版本与契约</h2>
-                </div>
-              </div>
-
-              <div class="stack-list">
-                <div class="stack-row">
-                  <div>
-                    <strong>Published contract</strong>
-                    <p>OpenAI compatible · callback 已启用</p>
-                  </div>
-                  <span class="status-badge is-published">Published</span>
-                </div>
-
-                <div class="stack-row">
-                  <div>
-                    <strong>当前草稿</strong>
-                    <p>回复模板与等待态恢复文案有待发布</p>
-                  </div>
-                  <span class="status-badge is-draft">Draft</span>
-                </div>
-              </div>
-            </article>
-
-            <article class="surface-card">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">运行摘要</p>
-                  <h2>核心健康</h2>
-                </div>
-              </div>
-
-              <div class="metric-list">
-                <div class="metric-row">
-                  <div>
-                    <strong>Runtime health</strong>
-                    <p>最近 24 小时稳定恢复 callback，未出现数据漂移。</p>
-                  </div>
-                  <span class="status-badge is-healthy">Healthy</span>
-                </div>
-
-                <div class="metric-row">
-                  <div>
-                    <strong>待回调运行</strong>
-                    <p>1 条正在等待人工审批，checkpoint 已落盘。</p>
-                  </div>
-                  <span class="status-badge is-waiting">Waiting</span>
-                </div>
-
-                <div class="metric-row">
-                  <div>
-                    <strong>最新失败</strong>
-                    <p>最近一次失败来自 CRM 超时，已留在调用日志中待排查。</p>
-                  </div>
-                  <span class="status-badge is-failed">Failed</span>
-                </div>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section
-          id="view-orchestration"
-          class="view-panel"
-          data-view-panel="orchestration"
-          aria-labelledby="orchestrationHeading"
-          hidden
-        >
-          <header class="view-header surface-card">
-            <div>
-              <p class="eyebrow">编排</p>
-              <h1 id="orchestrationHeading">客户问询主流程</h1>
-              <p>
-                节点聚焦统一在页内检查面板完成；逐条运行详情只在调用日志视图里打开抽屉。
-              </p>
-            </div>
-
-            <div class="view-header-meta">
-              <span class="status-badge is-draft">Draft changes pending</span>
-              <span class="status-badge is-published">Published v0.8.14</span>
-            </div>
-          </header>
-
-          <div class="orchestration-grid">
-            <article class="surface-card studio-card">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">Flow workspace</p>
-                  <h2>节点与连接</h2>
-                </div>
-                <p class="section-copy">
-                  选择节点后，在右侧检查输入、输出和当前状态。列表型数据不在此页走抽屉。
-                </p>
-              </div>
-
-              <div class="desktop-stage" aria-hidden="false">
-                <div class="canvas-stage">
-                  <svg
-                    id="connectorLayer"
-                    class="connector-layer"
-                    viewBox="0 0 920 420"
-                    preserveAspectRatio="none"
-                    aria-hidden="true"
-                  ></svg>
-                  <div id="canvasNodes" class="canvas-node-layer"></div>
-                </div>
-              </div>
-
-              <div class="mobile-stage">
-                <div class="mobile-stage-note">
-                  <p class="eyebrow">小屏模式</p>
-                  <p>
-                    手机端先看流程摘要与节点检查。完整画布编排请在桌面端进入。
-                  </p>
-                </div>
-                <div id="mobileNodeList" class="mobile-node-list"></div>
-              </div>
-            </article>
-
-            <aside class="surface-card inspector-panel">
-              <p class="eyebrow">节点检查</p>
-              <h2 id="inspectorTitle">Email intake</h2>
-              <p id="inspectorSummary" class="inspector-summary"></p>
-
-              <div class="inspector-meta">
-                <span id="inspectorKind" class="kind-badge">Trigger</span>
-                <span
-                  id="inspectorStatus"
-                  class="status-badge is-healthy"
-                >Healthy</span>
-              </div>
-
-              <dl class="detail-grid">
-                <div>
-                  <dt>输入</dt>
-                  <dd id="inspectorInput">Flat request object</dd>
-                </div>
-                <div>
-                  <dt>输出</dt>
-                  <dd id="inspectorOutput">Intent + account selectors</dd>
-                </div>
-                <div>
-                  <dt>节点职责</dt>
-                  <dd id="inspectorRole">接收请求并完成首轮归一化。</dd>
-                </div>
-                <div>
-                  <dt>最近变化</dt>
-                  <dd id="inspectorChange">已补齐 callback snapshot 字段。</dd>
-                </div>
-              </dl>
-            </aside>
-          </div>
-        </section>
-
-        <section
-          id="view-api"
-          class="view-panel"
-          data-view-panel="api"
-          aria-labelledby="apiHeading"
-          hidden
-        >
-          <header class="view-header surface-card">
-            <div>
-              <p class="eyebrow">应用 API</p>
-              <h1 id="apiHeading">Published contract</h1>
-              <p>
-                这里展示给调用方的稳定协议摘要和请求样例，不把发布管理或编排操作混进来。
-              </p>
-            </div>
-            <div class="view-header-meta">
-              <span class="status-badge is-published">Published</span>
-            </div>
-          </header>
-
-          <div class="content-grid content-grid-two">
-            <article class="surface-card">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">协议摘要</p>
-                  <h2>请求与鉴权</h2>
-                </div>
-              </div>
-
-              <dl class="detail-grid">
-                <div>
-                  <dt>Endpoint</dt>
-                  <dd>/v1/apps/revenue-copilot/responses</dd>
-                </div>
-                <div>
-                  <dt>Exposure mode</dt>
-                  <dd>OpenAI compatible</dd>
-                </div>
-                <div>
-                  <dt>鉴权</dt>
-                  <dd>Bearer token + 应用级 rate limit</dd>
-                </div>
-                <div>
-                  <dt>Callback 策略</dt>
-                  <dd>等待态必须先落 checkpoint，再接受外部批准恢复。</dd>
-                </div>
-              </dl>
-            </article>
-
-            <article class="surface-card">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">请求样例</p>
-                  <h2>最小输入</h2>
-                </div>
-              </div>
-
-              <pre class="code-block"><code>{
-  "input": "Summarize account risk",
-  "conversationId": "conv_9f4",
-  "userId": "u_205",
-  "stateScope": "application"
-}</code></pre>
-            </article>
-
-            <article class="surface-card">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">返回约定</p>
-                  <h2>稳定输出</h2>
-                </div>
-              </div>
-
-              <div class="stack-list">
-                <div class="stack-row compact-row">
-                  <strong>text</strong>
-                  <p>给最终调用方的回复正文</p>
-                </div>
-                <div class="stack-row compact-row">
-                  <strong>outputs.riskScore</strong>
-                  <p>供下游决策或监控使用的风险评分</p>
-                </div>
-                <div class="stack-row compact-row">
-                  <strong>callback.required</strong>
-                  <p>外部审批前是否必须停在等待态</p>
-                </div>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <section
-          id="view-logs"
-          class="view-panel"
-          data-view-panel="logs"
-          aria-labelledby="logsHeading"
-          hidden
-        >
-          <header class="view-header surface-card">
-            <div>
-              <p class="eyebrow">调用日志</p>
-              <h1 id="logsHeading">近期运行</h1>
-              <p>
-                列表只保留摘要。逐条详情统一在右侧抽屉查看，方便保留当前日志上下文。
-              </p>
-            </div>
-          </header>
-
-          <div class="content-grid">
-            <article class="surface-card summary-strip">
-              <div class="summary-item">
-                <span class="summary-value">18</span>
-                <span class="summary-label">今日调用</span>
-              </div>
-              <div class="summary-item">
-                <span class="summary-value">1</span>
-                <span class="summary-label">Waiting callback</span>
-              </div>
-              <div class="summary-item">
-                <span class="summary-value">1</span>
-                <span class="summary-label">Failed</span>
-              </div>
-            </article>
-
-            <article class="surface-card">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">日志列表</p>
-                  <h2>最近三次运行</h2>
-                </div>
-                <p class="section-copy">
-                  点击任意条目查看 runtime、契约版本和恢复路径。
-                </p>
-              </div>
-
-              <div id="runList" class="run-list" role="list"></div>
-            </article>
-          </div>
-        </section>
-
-        <section
-          id="view-monitoring"
-          class="view-panel"
-          data-view-panel="monitoring"
-          aria-labelledby="monitoringHeading"
-          hidden
-        >
-          <header class="view-header surface-card">
-            <div>
-              <p class="eyebrow">监控报表</p>
-              <h1 id="monitoringHeading">运行观测摘要</h1>
-              <p>
-                监控页只汇总 runtime、state 和 plugin 观测，不承担逐条日志详情或流程编辑。
-              </p>
-            </div>
-          </header>
-
-          <div class="content-grid content-grid-two">
-            <article class="surface-card">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">Runtime</p>
-                  <h2>服务健康</h2>
-                </div>
-              </div>
-
-              <div class="metric-list">
-                <div class="metric-row">
-                  <div>
-                    <strong>Callback recovery</strong>
-                    <p>最近 24 小时恢复成功率 98.4%</p>
-                  </div>
-                  <span class="status-badge is-healthy">Healthy</span>
-                </div>
-                <div class="metric-row">
-                  <div>
-                    <strong>队列等待</strong>
-                    <p>当前最长等待 18 秒，仍在阈值内</p>
-                  </div>
-                  <span class="status-badge is-running">Running</span>
-                </div>
-              </div>
-            </article>
-
-            <article class="surface-card">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">State</p>
-                  <h2>读写摘要</h2>
-                </div>
-              </div>
-
-              <div class="stack-list">
-                <div class="stack-row compact-row">
-                  <strong>显式写入</strong>
-                  <p>所有状态写入仍通过 state action 落盘</p>
-                </div>
-                <div class="stack-row compact-row">
-                  <strong>Checkpoint</strong>
-                  <p>等待态运行统一保留 snapshot 与恢复来源</p>
-                </div>
-                <div class="stack-row compact-row">
-                  <strong>恢复一致性</strong>
-                  <p>恢复动作不改写已发布版本，只生成新的 draft</p>
-                </div>
-              </div>
-            </article>
-
-            <article class="surface-card">
-              <div class="section-head">
-                <div>
-                  <p class="eyebrow">Plugin</p>
-                  <h2>边界观测</h2>
-                </div>
-              </div>
-
-              <dl class="detail-grid">
-                <div>
-                  <dt>Runner</dt>
-                  <dd>Wasm sandbox</dd>
-                </div>
-                <div>
-                  <dt>Host render</dt>
-                  <dd>UI 仍由宿主层负责渲染</dd>
-                </div>
-                <div>
-                  <dt>最近告警</dt>
-                  <dd>无新的 boundary drift 告警</dd>
-                </div>
-                <div>
-                  <dt>依赖状态</dt>
-                  <dd>CRM adapter 观察中，已在失败日志保留样本</dd>
-                </div>
-              </dl>
-            </article>
-          </div>
-        </section>
+        <div id="viewRoot" class="view-root"></div>
       </main>
     </div>
 
-    <div class="drawer-backdrop" data-drawer-close hidden></div>
+    <div
+      id="drawerBackdrop"
+      class="drawer-backdrop"
+      hidden
+      data-drawer-close
+    ></div>
+
     <aside
       id="runDetailDrawer"
       class="detail-drawer"
+      hidden
       role="dialog"
       aria-modal="true"
       aria-hidden="true"
       aria-labelledby="drawerTitle"
-      aria-describedby="drawerReason"
-      tabindex="-1"
-      hidden
     >
       <div class="drawer-head">
         <div>
-          <p class="eyebrow">运行详情</p>
+          <div class="drawer-meta">
+            <span
+              id="drawerStatus"
+              class="status-badge is-healthy"
+            >Healthy</span>
+            <span id="drawerReference" class="drawer-reference">#run_2046</span>
+          </div>
           <h2 id="drawerTitle">Revenue intake pipeline</h2>
         </div>
+
         <button
           id="drawerClose"
-          class="drawer-close"
+          class="ghost-button drawer-close"
           type="button"
           data-drawer-close
         >
@@ -574,12 +120,7 @@
       </div>
 
       <div class="drawer-body">
-        <div class="drawer-meta">
-          <span id="drawerStatus" class="status-badge is-healthy">Healthy</span>
-          <span id="drawerReference" class="drawer-reference">#run_2041</span>
-        </div>
-
-        <dl class="detail-grid">
+        <dl class="detail-grid detail-grid-single">
           <div>
             <dt>Runtime</dt>
             <dd id="drawerRuntime">02m 14s</dd>
@@ -599,17 +140,33 @@
         </dl>
 
         <section class="drawer-section">
-          <p class="eyebrow">当前判断</p>
-          <p id="drawerReason">
-            Published contract 正常返回，风险评分和 callback 决策都已写入 outputs。
-          </p>
+          <div class="section-head section-head-tight">
+            <div>
+              <p class="eyebrow">恢复说明</p>
+              <h2>为什么停在这里</h2>
+            </div>
+          </div>
+          <p id="drawerReason"></p>
         </section>
 
         <section class="drawer-section">
-          <p class="eyebrow">恢复路径</p>
-          <p id="drawerRecovery">
-            无需恢复。若要复盘，可在日志页继续查看 event trail。
-          </p>
+          <div class="section-head section-head-tight">
+            <div>
+              <p class="eyebrow">恢复策略</p>
+              <h2>Next step</h2>
+            </div>
+          </div>
+          <p id="drawerRecovery"></p>
+        </section>
+
+        <section class="drawer-section">
+          <div class="section-head section-head-tight">
+            <div>
+              <p class="eyebrow">事件轨迹</p>
+              <h2>Latest trail</h2>
+            </div>
+          </div>
+          <div id="drawerEvents" class="event-list"></div>
         </section>
       </div>
     </aside>
