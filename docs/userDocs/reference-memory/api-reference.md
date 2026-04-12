@@ -1,3 +1,26 @@
+---
+memory_type: reference
+topic: API 查看相关引用
+summary: 记录本项目 OpenAPI JSON、文档页和控制面健康检查入口，供调试和查看接口时快速定位。
+keywords:
+  - api
+  - openapi
+  - docs
+  - health
+match_when:
+  - 需要查看 OpenAPI 文档
+  - 需要访问控制面健康检查入口
+created_at: 2026-04-12 19
+updated_at: 2026-04-12 19
+last_verified_at: 无
+decision_policy: index_only
+scope:
+  - api-server
+  - openapi.json
+  - /docs
+  - /api/console/health
+---
+
 # API 查看相关引用
 
 ## 本项目接口查看

@@ -1,3 +1,27 @@
+---
+memory_type: project
+topic: 统一开发启动入口与默认端口
+summary: 本地开发统一通过 node scripts/node/dev-up.js 启动，并固定前端 3100、后端 7800、plugin-runner 7801。
+keywords:
+  - dev-up
+  - port
+  - frontend
+  - backend
+  - plugin-runner
+match_when:
+  - 需要启动本地开发环境
+  - 需要确认默认端口或监听地址
+created_at: 2026-04-12 17
+updated_at: 2026-04-12 17
+last_verified_at: 2026-04-12 17
+decision_policy: verify_before_decision
+scope:
+  - scripts/node/dev-up.js
+  - README.md
+  - api
+  - web
+---
+
 # 统一开发启动入口与默认端口
 
 ## 时间

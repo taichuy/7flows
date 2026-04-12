@@ -1,3 +1,25 @@
+---
+memory_type: project
+topic: DESIGN 规范重写方向
+summary: 当前 DESIGN.md 需要参考草稿结构重写为深色控制台加轻翡翠绿强调色，并保留工作区边界与 Editor UI 子规范。
+keywords:
+  - design-system
+  - DESIGN.md
+  - editor-ui
+  - web
+match_when:
+  - 需要重写或评估 DESIGN.md
+  - 需要判断前端设计规范方向
+created_at: 2026-04-12 17
+updated_at: 2026-04-12 17
+last_verified_at: 2026-04-12 17
+decision_policy: verify_before_decision
+scope:
+  - DESIGN.md
+  - docs/userDocs/draft/DESIGN.md
+  - web
+---
+
 # DESIGN 规范重写方向
 
 ## 时间

@@ -1,3 +1,25 @@
+---
+memory_type: reference
+topic: 源码参考
+summary: 记录可作为平台、画布和前端边界参考的外部源码目录与项目内架构文档入口。
+keywords:
+  - source
+  - dify
+  - xyflow
+  - architecture
+match_when:
+  - 需要找外部源码参考
+  - 需要确认前端技术边界参考文档
+created_at: 2026-04-12 19
+updated_at: 2026-04-12 19
+last_verified_at: 无
+decision_policy: index_only
+scope:
+  - ../dify
+  - ../xyflow
+  - docs/superpowers/specs/1flowse/2026-04-10-p1-architecture.md
+---
+
 # 源码参考
 
 ## 外部或相邻源码参考

@@ -1,3 +1,25 @@
+---
+memory_type: feedback
+topic: 脚本必须放在对应分类目录
+summary: 新增或调整脚本入口时，必须放到对应分类目录，不要把具体脚本散落在根 scripts 目录。
+keywords:
+  - scripts
+  - classification
+  - node
+  - shell
+match_when:
+  - 需要新增脚本入口
+  - 需要调整 scripts 目录结构
+created_at: 2026-04-12 16
+updated_at: 2026-04-12 16
+last_verified_at: 2026-04-12 16
+decision_policy: direct_reference
+scope:
+  - scripts
+  - scripts/node
+  - scripts/shell
+---
+
 # 脚本必须放在对应分类目录
 
 ## 时间

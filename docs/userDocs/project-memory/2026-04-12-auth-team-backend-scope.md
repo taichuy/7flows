@@ -1,3 +1,26 @@
+---
+memory_type: project
+topic: 用户认证与团队接入后端落地边界
+summary: 当前后端范围扩展为模块 01 全闭环加模块 02 的角色 CRUD 与权限绑定接口，并固定认证、会话、root 与审计边界。
+keywords:
+  - auth
+  - team
+  - access-control
+  - role
+  - permission
+match_when:
+  - 需要实现或评估认证与团队权限后端
+  - 需要确认 root、会话或权限边界
+created_at: 2026-04-12 17
+updated_at: 2026-04-12 17
+last_verified_at: 2026-04-12 17
+decision_policy: verify_before_decision
+scope:
+  - api
+  - docs/superpowers/specs/1flowse/modules/01-user-auth-and-team/README.md
+  - docs/superpowers/specs/1flowse/modules/02-access-control/README.md
+---
+
 # 用户认证与团队接入后端落地边界
 
 ## 时间

@@ -1,3 +1,26 @@
+---
+memory_type: project
+topic: 无限画布 Editor 规范补充方向
+summary: 需要补强无限画布的组件级规范，重点覆盖 Surface、Controls、Node Anatomy、选中态与运行态语义分离。
+keywords:
+  - canvas
+  - editor
+  - node
+  - selected
+  - controls
+match_when:
+  - 需要设计或实现无限画布编排界面
+  - 需要确认节点状态与交互层次
+created_at: 2026-04-12 18
+updated_at: 2026-04-12 18
+last_verified_at: 2026-04-12 18
+decision_policy: verify_before_decision
+scope:
+  - DESIGN.md
+  - web
+  - ../dify
+---
+
 # 无限画布 Editor 规范补充方向
 
 ## 时间

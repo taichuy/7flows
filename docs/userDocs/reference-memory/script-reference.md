@@ -1,3 +1,27 @@
+---
+memory_type: reference
+topic: 脚本相关引用
+summary: 记录统一开发启动脚本、前后端启动命令和中间件命令入口，供需要执行脚本时快速定位。
+keywords:
+  - scripts
+  - dev-up
+  - pnpm
+  - cargo
+  - docker
+match_when:
+  - 需要查找本地开发命令入口
+  - 需要确认前后端或中间件启动方式
+created_at: 2026-04-12 19
+updated_at: 2026-04-12 19
+last_verified_at: 无
+decision_policy: index_only
+scope:
+  - scripts/node/dev-up.js
+  - web
+  - api
+  - docker
+---
+
 # 脚本相关引用
 
 ## 常见脚本与命令入口
