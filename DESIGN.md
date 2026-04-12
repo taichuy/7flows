@@ -2,7 +2,7 @@
 
 ## 1. 视觉主题与氛围
 
-1Flowse 采用深色工程控制台风格：近黑画布、碳黑表面、暖灰边框、亮翡翠绿作为最高信号强调色。整体目标不是做品牌落地页，而是做一个对 AI 与工程实现都稳定、清晰、可执行的产品 UI 规范。
+1Flowse 采用深色工程控制台风格：近黑画布、碳黑表面、暖灰边框、亮翡翠绿作为最高信号强调色。整体目标是做一个对 AI 与工程实现都稳定、清晰、可执行的产品 UI 规范。
 
 **默认规则：**
 
@@ -49,7 +49,7 @@
 --status-failed:    #fb565b;  /* 失败 / 阻塞 / 需要排查 */
 --status-success:   #19b36b;  /* 成功 / 健康 / 已完成 */
 --status-draft:     #6b7280;  /* 未发布 / 草稿 */
---status-selected:  #3b82f6;  /* 用户选中态，仅用于选中反馈 */
+--status-selected:  #2bb9b1;  /* 用户选中态，仅用于选中反馈 */
 ```
 
 **硬规则：**
@@ -66,7 +66,7 @@
 --bg-surface:        #101010;
 --bg-elevated:       #151515;
 --bg-hover:          rgba(255,255,255,0.04);
---bg-selected:       rgba(59,130,246,0.12);
+--bg-selected:       rgba(43,185,177,0.12);
 --bg-code:           #0d0d10;
 
 --text-primary:      #f2f2f2;
@@ -77,7 +77,7 @@
 --border-default:    #3d3a39;
 --border-strong:     #4b4745;
 --border-focus:      #00d992;
---border-selected:   #3b82f6;
+--border-selected:   #2bb9b1;
 ```
 
 补充规则：
@@ -527,56 +527,239 @@ Field Row：
 | 装饰强度 | 低 | 更低，只留结构线与状态线 |
 | 状态表达 | 标准 | 更强，必须一眼可辨 |
 
-### 9.4 NodeCard 规格
+### 9.4 Canvas Surface
 
 ```text
-最小尺寸：  160x56px
+Canvas Stage：
+  背景：        #050507
+  工作区：      #0b0b0d
+  与 Shell 分界：顶部或左侧保留 1px solid var(--border-default)
+  桌面最小内边距：24px
+  窄屏最小内边距：16px
+
+Grid：
+  默认形式：    点阵网格
+  点颜色：      rgba(255,255,255,0.06)
+  小步长：      12px
+  大步长：      24px
+  规则：        只做定位提示，不做装饰背景
+
+只读态：
+  隐藏新增入口、拖拽入口和插入按钮
+  保留缩放、定位、查看详情和运行态高亮
+  不通过整体降到低对比度来伪装“禁用画布”
+
+空画布：
+  居中放置 280px - 320px 引导卡片
+  卡片只保留 1 个主动作和 1 个次动作
+  不允许把新手引导写成大面积说明文案墙
+```
+
+补充规则：
+
+- 画布是工作区，不是品牌背景；禁止大面积彩色雾化、玻璃态或营销渐变。
+- 背景、网格、辅助线都必须服从深色 token，不允许残留 `xyflow` 或浏览器默认浅色主题。
+- Inspector、Block Picker、工具条都悬浮在 Stage 之上，不给画布再套第二层厚重容器。
+
+### 9.5 Canvas Controls
+
+```text
+主操作条：
+  位置：        左下角
+  排布：        纵向浮动栈
+  容器背景：    #101010
+  边框：        1px solid var(--border-default)
+  圆角：        8px
+  按钮尺寸：    32x32px
+  按钮圆角：    6px
+  按钮间距：    4px
+  默认动作：    添加节点 / 添加注释 / 模式切换 / 自动布局 / 画布最大化 / 更多操作
+
+缩放条：
+  位置：        与主操作条同层，默认靠近左下
+  容器高度：    36px
+  推荐宽度：    96px - 108px
+  结构：        减号 / 当前百分比 / 加号
+  百分比点击：  打开菜单，提供 fit view、25/50/75/100/200
+
+图标按钮状态：
+  default：     transparent + var(--text-tertiary)
+  hover：       var(--bg-hover) + var(--text-secondary)
+  active-mode： var(--bg-selected) + var(--status-selected)
+  disabled：    opacity 0.4
+```
+
+补充规则：
+
+- 画布直接可见动作最多 6 个，超出的放入 `More Actions`。
+- 模式切换是互斥关系，不能同时存在两个激活态。
+- 仅图标按钮必须带 tooltip；存在快捷键时必须同时显示快捷键。
+- 导出图片、导出 DSL、版本历史等低频动作默认进入二级菜单，不占主操作条。
+- 工具条不允许覆盖节点核心编辑区；出现冲突时优先移动工具条，不压缩节点。
+
+### 9.6 Node Anatomy
+
+```text
+节点骨架：
+  Header：       32px - 36px 高
+  Body：         1 - 2 个信息区块
+  Footer：       仅在分支、输出、重试等结构节点中出现
+
+Header 结构：
+  左侧：         16px 图标 + 标题
+  中部：         标题优先，单行截断
+  右侧：         单个状态图标或紧凑 badge + hover 操作入口
+
+Body 结构：
+  第一信息层：   当前节点最关键的配置摘要，例如 model、目标、变量数
+  第二信息层：   说明、输出摘要或 branch 提示
+  字段密度：     以 12px - 13px 文本为主，区块间距 6px - 8px
+
+标题：
+  字号：         12px - 13px
+  字重：         600
+  颜色：         var(--text-primary)
+  规则：         单行、可截断、不做营销式加粗
+
+说明文本：
+  字号：         12px
+  颜色：         var(--text-tertiary)
+  规则：         默认最多 2 行
+```
+
+补充规则：
+
+- 节点主体优先展示“运行和理解这个节点最需要的信息”，不在卡片里展开完整表单。
+- 左上类型标签、内联 chip、变量标签默认使用中性样式；类型不用状态色区分。
+- hover 操作只在 hover 或 selected 时出现，避免整张卡片长期挂满按钮。
+- 入口节点、循环容器节点、分支节点可以扩展结构，但仍然必须保留同一套 Header 语法。
+
+### 9.7 NodeCard 规格
+
+```text
+默认宽度：  220px - 240px
+最小尺寸：  220x64px
 背景：      #101010
 边框：      1px solid #3d3a39（默认）
 hover：     边框提升到 #4b4745
 圆角：      6px
 内边距：    8px 12px
 
-running：
-  2px solid var(--status-running)
-  box-shadow: 0 0 0 1px rgba(0,217,146,0.22), 0 0 16px rgba(0,217,146,0.18)
-
-failed：
-  2px solid var(--status-failed)
-
 selected：
   outline: 2px solid var(--status-selected)
-  box-shadow: 0 0 0 3px rgba(59,130,246,0.22)
+  box-shadow: 0 0 0 3px rgba(43,185,177,0.22)
+
+running：
+  border: 2px solid var(--status-running)
+  box-shadow: 0 0 0 1px rgba(0,217,146,0.22), 0 0 16px rgba(0,217,146,0.18)
+
+waiting：
+  border: 1px solid var(--status-waiting)
+  右上状态图标或 badge 使用 waiting 语义
+
+failed：
+  border: 2px solid var(--status-failed)
+
+success：
+  border: 1px solid var(--status-success)
+  不加大面积 glow，只做稳定完成反馈
+
+dimmed：
+  opacity: 0.45 - 0.6
+  仅用于聚焦其他节点、局部过滤或只读陪衬
 ```
 
 补充规则：
 
-- 左上角类型 badge 只用中性样式。
-- 右上角状态 badge 严格引用状态变量。
+- `selected` 是用户交互反馈，`running` 是系统运行反馈；允许叠加，但主次必须清楚。
+- 优先用边框、状态图标和局部 glow 表达节点状态，不用整块彩色底。
 - 节点内部字段优先紧凑排布，不出现 Shell 级大表单布局。
 
-### 9.5 NodePort 与连线
+### 9.8 NodePort 与连线
 
 ```text
 NodePort：
-  尺寸：      10x10px
-  背景：      #050507
-  边框：      2px solid #4b4745
-  hover：     边框切到 var(--status-running)
-  connectable：可加轻微翡翠 glow
-  invalid：   使用 var(--status-failed)
+  可视核心：     10x10px
+  点击热区：     至少 20x20px
+  背景：         #050507
+  边框：         2px solid #4b4745
+  hover：        边框切到 var(--border-focus)
+  connectable：  可加轻微 primary glow
+  invalid：      使用 var(--status-failed)
 
 Edge：
-  默认描边：  #4b4745
-  选中描边：  var(--status-selected)
-  运行态：    允许使用 var(--status-running) + 轻微动画
+  默认描边：     #4b4745
+  编辑预览：     var(--border-focus)
+  选中描边：     var(--status-selected)
+  运行态：       var(--status-running)
+  默认粗细：     2px
+  临时插入态：   允许使用虚线或中心插入按钮
 ```
 
-### 9.6 Editor 共享规则
+补充规则：
+
+- 编辑态反馈与运行态反馈必须分离：连接预览、hover、focus 使用 `primary / focus`，不要冒用 `running` 语义。
+- 连线中点插入按钮只在 edge hover 或 selected 时显示，不常驻画布。
+- 分支句柄、失败分支、循环出口等特殊端口仍然服从同一套尺寸和命中区规则，只调整位置和语义色。
+
+### 9.9 Selection 与对齐反馈
+
+```text
+框选框：
+  边框：        1px solid var(--status-selected)
+  背景：        rgba(43,185,177,0.10)
+  圆角：        4px
+
+对齐辅助线：
+  颜色：        rgba(43,185,177,0.68)
+  粗细：        1px
+
+连接预览：
+  颜色：        var(--border-focus)
+  规则：        可用轻微 glow 或虚线，不与运行态混淆
+```
+
+补充规则：
+
+- 多选节点共享同一选中语法，不为“主选中节点”再引入第二种颜色。
+- 非选中节点在多选场景下可以轻微降透明，但文字仍要可读。
+- 选中态是编辑反馈，不参与业务状态计算，也不能用于发布、运行、失败语义。
+
+### 9.10 浮层菜单与引导入口
+
+```text
+Block Picker：
+  推荐宽度：    280px - 320px
+  容器背景：    #101010
+  边框：        1px solid var(--border-default)
+  圆角：        8px
+  结构：        搜索框 + 分类 tab + 节点列表
+
+More Actions Menu：
+  最小宽度：    180px
+  行高：        32px
+  规则：        一级分组标题 + 动作列表
+
+节点局部菜单：
+  触发：        hover / selected / 右键
+  规则：        就近浮出，不跳出画布语境
+```
+
+补充规则：
+
+- 画布新增节点的入口统一进入同一套 `Block Picker`，不要同时长出多个风格不同的节点选择器。
+- 节点右键菜单、edge 插入菜单、更多操作菜单都使用同一浮层容器语法。
+- 新手引导、首节点创建和空画布入口优先复用 `Block Picker`，不为首次体验单独发明另一套选择 UI。
+
+### 9.11 Editor 共享规则
 
 - Shell 列表状态点、NodeCard 状态 badge、Inspector 状态字段必须引用同一 CSS 变量。
 - `selected` 只用 outline 和外圈 glow，不用整块彩色底。
 - 画布背景网格、辅助线、连接高亮都要服从同一深色 token 体系，不允许出现浅色默认主题残留。
+- 画布编辑反馈分三层：
+  - `selected`：用户当前选中，使用冷青色
+  - `focus / connectable`：用户正在编辑，使用 primary / focus 绿色
+  - `running / waiting / failed / success`：系统运行结果，严格引用状态色
 
 ---
 
@@ -769,7 +952,7 @@ Edge：
 | 等待中 | `#ffba00` |
 | 失败 | `#fb565b` |
 | 成功 | `#19b36b` |
-| 选中 | `#3b82f6` |
+| 选中 | `#2bb9b1` |
 | 默认边框 | `#3d3a39` |
 | 主文本 | `#f2f2f2` |
 
