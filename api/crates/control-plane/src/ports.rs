@@ -16,6 +16,10 @@ pub trait SessionStore: Send + Sync {
 #[async_trait]
 pub trait BootstrapRepository: Send + Sync {
     async fn upsert_authenticator(&self, authenticator: &AuthenticatorRecord) -> anyhow::Result<()>;
+    async fn upsert_permission_catalog(
+        &self,
+        permissions: &[PermissionDefinition],
+    ) -> anyhow::Result<()>;
     async fn upsert_team(&self, team_name: &str) -> anyhow::Result<TeamRecord>;
     async fn upsert_builtin_roles(&self, team_id: Uuid) -> anyhow::Result<()>;
     async fn upsert_root_user(

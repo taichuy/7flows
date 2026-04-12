@@ -1844,6 +1844,18 @@ version = "0.1.0"
 [[package]]
 name = "storage-pg"
 version = "0.1.0"
+dependencies = [
+ "access-control",
+ "anyhow",
+ "async-trait",
+ "control-plane",
+ "domain",
+ "serde_json",
+ "sqlx",
+ "time",
+ "tokio",
+ "uuid",
+]
 
 [[package]]
 name = "storage-redis"
