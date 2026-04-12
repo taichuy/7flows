@@ -28,6 +28,7 @@
 - 本次根因有两部分：
   - 绑定目录 `docker/volumes/rustfs/{data,logs}` 权限过紧，RustFS 非 root 进程无法写入。
   - `rustfs` 镜像实际使用 `/logs`，因此 compose 日志挂载路径改为 `/logs`。
+- 用户在 `2026-04-12 16` 明确要求本地 `docker/` 整体应由普通用户可操作，本机当前已修正为 `taichu` 拥有。
 - 统一开发脚本会在启动 Docker 中间件前自动修正 RustFS 绑定目录权限。
 - 运行产物目录 `docker/volumes/` 应忽略版本控制。
 

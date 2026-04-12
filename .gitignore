@@ -8,3 +8,5 @@ docs/userDocs/history/
 docs/superpowers
 uploads
 docker/volumes/
+tmp/dev-up/
+tmp/logs/
