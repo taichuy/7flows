@@ -4,7 +4,7 @@ coverage/
 target/
 .turbo/
 pnpm-debug.log*
-docs/superpowers
+#docs/superpowers
 uploads
 
 # Docker local runtime state
