@@ -16,6 +16,16 @@
 | 局部交互错位、映射不一致、回归缺口明显 | `Medium` |
 | 文案、边角一致性、小范围低风险瑕疵 | `Low` |
 
+## Backend Severity Hints
+
+| 后端场景 | 建议严重度 |
+| --- | --- |
+| 绕过 service 直接改关键状态、插件可注册系统接口、`public / control / runtime` 混层 | `Blocking` |
+| 公共 API 契约变化未回归、`runtime extension / capability plugin` 边界被打破、repository 混业务规则、`resource kernel` 托管边界失效 | `High` |
+| `storage-pg` 的 repository / mapper 拆分被打回混层实现、mapper 藏业务规则、dynamic modeling 与 runtime data 被混成同一层 | `High` |
+| `ApiSuccess` / `204` / 错误结构不一致、后端验证命令或验证脚本缺失、测试目录或命名不对齐 | `Medium` |
+| 文档、命名、低风险一致性瑕疵，但未直接影响行为 | `Low` |
+
 ## Reporting Rules
 
 - `Medium` 及以上问题默认都应进入修复范围
