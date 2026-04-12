@@ -1,7 +1,13 @@
 extern crate self as storage_pg;
 
+pub mod auth_repository;
 mod connection;
-mod repositories;
+pub mod mappers;
+pub mod member_repository;
+pub mod model_definition_repository;
+pub mod repositories;
+pub mod role_repository;
+pub mod team_repository;
 
 pub use connection::connect;
 pub use repositories::PgControlPlaneStore;
