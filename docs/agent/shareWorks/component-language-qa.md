@@ -13,7 +13,7 @@
 
 **是。**
 
-`docs/userDocs/draft/DESIGN.md:402-412` 已补入 5 个页面的最小组合 recipe，明确了：
+`docs/draft/DESIGN.md:402-412` 已补入 5 个页面的最小组合 recipe，明确了：
 - 每个页面的主块是什么
 - 哪些辅助块可以存在
 - 主块负责回答页面核心问题，辅助块不得反客为主
@@ -24,7 +24,7 @@
 
 **是。**
 
-`docs/userDocs/draft/DESIGN.md:486-508` 已新增明确禁令，已经覆盖：
+`docs/draft/DESIGN.md:486-508` 已新增明确禁令，已经覆盖：
 - prompt-like
 - command-like
 - internal-instruction-like

@@ -47,7 +47,7 @@ scope:
 ## 决策背后动机
 
 - 不重写 QA skill 的 mode 和报告模板，只增强后端专项检查清单、严重级别提示和回归步骤。
-- 命中后端评估时，必须先对齐 `docs/userDocs/project-memory` 中最近的后端规范、计划和插件边界记忆。
+- 命中后端评估时，必须先对齐 `.memory/project-memory` 中最近的后端规范、计划和插件边界记忆。
 - 后端专项 QA 至少覆盖：
   - `public / control / runtime` 三平面
   - `host-extension / runtime extension / capability plugin` 边界

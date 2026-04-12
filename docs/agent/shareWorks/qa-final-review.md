@@ -9,7 +9,7 @@
 - `docs/agent/shareWorks/planner-design-decisions.md`
 - `docs/agent/shareWorks/approved-change-list.md`
 - `docs/agent/shareWorks/worker-change-summary.md`
-- `docs/userDocs/draft/DESIGN.md`
+- `docs/draft/DESIGN.md`
 - `tmp/demo/index.html`
 - `tmp/demo/styles.css`
 - `tmp/demo/script.js`
@@ -22,7 +22,7 @@
 - demo 不再是单页拼盘，而是拆成 `overview / orchestration / api / logs / monitoring` 五个明确视图，页面边界基本回正。见 `tmp/demo/index.html:85-545`
 - 根概览页已经收敛到基本信息、发布状态、健康摘要和单一主入口，没有再把完整画布、API 正文、发布表单塞进来。见 `tmp/demo/index.html:86-214`
 - L1 规则已经分流为两套固定模型：日志详情走 drawer，节点详情走 inspector。见 `tmp/demo/index.html:238-305`, `549-615`, `tmp/demo/script.js:168-200`, `264-286`, `308-376`
-- `DESIGN.md` 已经从“视觉灵感稿”变成“工作区执行规则”，优先顺序也明确改成：边界 -> L1 -> 状态 -> token。见 `docs/userDocs/draft/DESIGN.md:33-180`
+- `DESIGN.md` 已经从“视觉灵感稿”变成“工作区执行规则”，优先顺序也明确改成：边界 -> L1 -> 状态 -> token。见 `docs/draft/DESIGN.md:33-180`
 
 结论：这次改动不是单纯换皮，核心确实转回了信息架构、交互边界和状态语义。
 
@@ -38,7 +38,7 @@
 - 这意味着首屏仍有较大概率先看到侧栏内容，而不是当前页面标题和主动作。
 
 为什么算阻塞：
-- `DESIGN.md` 明确要求 390px 首屏优先展示“应用状态 + 当前页面标题 + 主入口/最小动作”，并明确禁止首屏先被无关导航占满。见 `docs/userDocs/draft/DESIGN.md:156-166`
+- `DESIGN.md` 明确要求 390px 首屏优先展示“应用状态 + 当前页面标题 + 主入口/最小动作”，并明确禁止首屏先被无关导航占满。见 `docs/draft/DESIGN.md:156-166`
 - 拍板稿也明确要求小屏下主区域优先，左侧导航折叠或隐藏。见 `docs/agent/shareWorks/planner-design-decisions.md:121-130`
 
 建议：
@@ -50,12 +50,12 @@
 **基本足够，已经达到“可复用规则稿”的水平。**
 
 理由：
-- `DESIGN.md` 现在不是抽象口号，而是有明确约束的执行规则：任务域边界、L1 模型、状态字典、no-op 按钮禁令、移动端优先级，都能直接指导实现。见 `docs/userDocs/draft/DESIGN.md:33-180`
+- `DESIGN.md` 现在不是抽象口号，而是有明确约束的执行规则：任务域边界、L1 模型、状态字典、no-op 按钮禁令、移动端优先级，都能直接指导实现。见 `docs/draft/DESIGN.md:33-180`
 - 当前 demo 也已经把这些规则大部分落到了真实结构上，不再需要 Codex 每次从零发明页面语法。见 `tmp/demo/index.html:85-615`
 
 残留不足：
 - 拍板稿曾要求导航项从 `<button>` 改成 `<a>`，当前实现仍使用带真实结果的按钮。见 `docs/agent/shareWorks/planner-design-decisions.md:67-81`, `tmp/demo/index.html:45-81`
-- 这不是当前阻塞项，因为按钮现在确实产生可验证结果，也符合 `DESIGN.md` 对“真实按钮”的定义。见 `docs/userDocs/draft/DESIGN.md:128-154`
+- 这不是当前阻塞项，因为按钮现在确实产生可验证结果，也符合 `DESIGN.md` 对“真实按钮”的定义。见 `docs/draft/DESIGN.md:128-154`
 - 但它说明“导航语义到底优先链接还是优先视图切换按钮”这件事，文档和实现还没有完全统一。
 
 ## 4. demo 是否达到令人满意的标准

@@ -14,9 +14,9 @@
 
 ## Files read
 
-- `docs/userDocs/AGENTS.md`
+- `.memory/AGENTS.md`
 - `AGENTS.md`
-- `docs/userDocs/draft/DESIGN.md`
+- `docs/draft/DESIGN.md`
 - `docs/superpowers/specs/1flowse/README.md`
 - `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
 - `docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md`

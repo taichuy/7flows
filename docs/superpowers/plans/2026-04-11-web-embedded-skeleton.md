@@ -29,4 +29,4 @@
 
 ### Task 4: Verify changed web workspace pieces
 - [ ] Run targeted lint/build/test commands for changed app and packages
-- [ ] Update `docs/userDocs` with the initialization result
+- [ ] Update `.memory` with the initialization result

@@ -3,7 +3,7 @@
 日期：2026-04-12
 状态：已完成初稿，待用户审阅
 关联输入：
-- [docs/userDocs/draft/DESIGN.md](../../../userDocs/draft/DESIGN.md)
+- [docs/draft/DESIGN.md](../../../draft/DESIGN.md)
 - [2026-04-11-development-skills-design.md](./2026-04-11-development-skills-design.md)
 - [2026-04-11-p1-tech-stack-communication-baseline.md](./2026-04-11-p1-tech-stack-communication-baseline.md)
 
@@ -21,7 +21,7 @@
 
 ### 2.1 视觉来源
 
-- 当前默认视觉来源先直接采用 [docs/userDocs/draft/DESIGN.md](../../../userDocs/draft/DESIGN.md)。
+- 当前默认视觉来源先直接采用 [docs/draft/DESIGN.md](../../../draft/DESIGN.md)。
 - 本轮不先抽象、不先改写母文档，先通过 demo 看真实效果，再决定保留与收敛内容。
 - 该来源当前更像视觉母本，而不是已正式生效的项目规范。
 
@@ -201,7 +201,7 @@
 
 ## 7. 当前结论摘要
 
-- 当前先把 [docs/userDocs/draft/DESIGN.md](../../../userDocs/draft/DESIGN.md) 当作视觉母本，通过 demo 验证，而不是立刻抽象成最终规范。
+- 当前先把 [docs/draft/DESIGN.md](../../../draft/DESIGN.md) 当作视觉母本，通过 demo 验证，而不是立刻抽象成最终规范。
 - 前端视觉采用“默认基线”而不是“绝对硬约束”。
 - 壳层与 `Editor UI` 属于同一产品系统，前者偏稳，后者偏紧，但不允许各自发展成完全不同的视觉语言。
 - `frontend-development` 后续应补入半具体层视觉规则，并新增壳层与 `Editor UI` 两份 reference。

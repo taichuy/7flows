@@ -18,9 +18,9 @@ updated_at: 2026-04-12 21
 last_verified_at: 2026-04-12 21
 decision_policy: direct_reference
 scope:
-  - docs/userDocs/AGENTS.md
-  - docs/userDocs/feedback-memory
-  - docs/userDocs/feedback-memory/template.md
+  - .memory/AGENTS.md
+  - .memory/feedback-memory
+  - .memory/feedback-memory/template.md
 ---
 # 反馈记忆应按 interaction 和 repository 分类
 

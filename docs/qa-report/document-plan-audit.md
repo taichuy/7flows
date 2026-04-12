@@ -7,16 +7,16 @@
 ## Scope
 
 - 当前评估模式：`project evaluation mode`
-- 评估范围：`docs/superpowers`、`docs/userDocs`、`api/`、`web/`
+- 评估范围：`docs/superpowers`、`.memory`、`api/`、`web/`
 - 输入来源：
-  - `docs/userDocs/AGENTS.md`
-  - `docs/userDocs/user-memory.md`
-  - `docs/userDocs/project-memory/2026-04-12-qa-skill-backend-alignment.md`
-  - `docs/userDocs/project-memory/2026-04-12-backend-kernel-quality-plan-stage.md`
-  - `docs/userDocs/project-memory/2026-04-12-plugin-interface-boundary.md`
-  - `docs/userDocs/project-memory/2026-04-12-design-system-direction.md`
-  - `docs/userDocs/project-memory/2026-04-12-auth-team-backend-plan-stage.md`
-  - `docs/userDocs/project-memory/2026-04-12-auth-team-backend-implemented.md`
+  - `.memory/AGENTS.md`
+  - `.memory/user-memory.md`
+  - `.memory/project-memory/2026-04-12-qa-skill-backend-alignment.md`
+  - `.memory/project-memory/2026-04-12-backend-kernel-quality-plan-stage.md`
+  - `.memory/project-memory/2026-04-12-plugin-interface-boundary.md`
+  - `.memory/project-memory/2026-04-12-design-system-direction.md`
+  - `.memory/project-memory/2026-04-12-auth-team-backend-plan-stage.md`
+  - `.memory/project-memory/2026-04-12-auth-team-backend-implemented.md`
   - `docs/superpowers/specs/1flowse/README.md`
   - `docs/superpowers/specs/1flowse/modules/README.md`
   - `docs/superpowers/specs/1flowse/2026-04-12-backend-interface-kernel-design.md`
@@ -99,18 +99,18 @@
   - `modules/README.md` 至少拆成 `spec_status / implementation_status / verification_status`
   - 已执行计划统一维护 `execution_state` 或同步勾选，避免“代码已落地但计划全未勾选”的并存状态
 
-### [High] `docs/userDocs/project-memory` 已出现并行 current-state
+### [High] `.memory/project-memory` 已出现并行 current-state
 
 - 位置：
-  - `docs/userDocs/project-memory/2026-04-12-design-system-direction.md:4,50-56`
+  - `.memory/project-memory/2026-04-12-design-system-direction.md:4,50-56`
   - `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:62-99`
-  - `docs/userDocs/project-memory/2026-04-12-auth-team-backend-plan-stage.md:4,31-32`
-  - `docs/userDocs/project-memory/2026-04-12-auth-team-backend-implemented.md:4,32-33`
+  - `.memory/project-memory/2026-04-12-auth-team-backend-plan-stage.md:4,31-32`
+  - `.memory/project-memory/2026-04-12-auth-team-backend-implemented.md:4,32-33`
 - 证据：
   - `project-memory` 仍写“深色控制台 + 轻翡翠绿强调色”，但最新前端视觉基线已改为“白底或浅底高对比工作区”
   - 同一 auth/team/access-control scope 同时存在“进入计划阶段”和“首轮落地完成”两条 current-state 叙述
 - 为什么是问题：
-  - `docs/userDocs` 是固定优先读取入口，过期 current-state 会先污染判断
+  - `.memory` 是固定优先读取入口，过期 current-state 会先污染判断
   - 问题不在于保留历史，而在于没有 `superseded / retired / current` 的治理方式
 - 建议修正方向：
   - 当新 spec 或新验证结果覆盖旧事实时，旧记忆需要显式标废弃或注明被哪条新事实替代
@@ -220,11 +220,11 @@
   - modules 总览仍是单轨状态
   - 计划执行状态维护不一致
   - 规格目录已到 `15` 文件边界
-- `docs/userDocs` 的目录结构目前是稳定的：
+- `.memory` 的目录结构目前是稳定的：
   - `AGENTS.md + user-memory.md + feedback / project / reference / tool / todolist`
   - 四类记忆都已统一 `YAML front matter`
   - 工具记忆仍能真实帮助当前验证，例如 `cargo test` 的提权判断
-- `docs/userDocs` 当前主要问题是 freshness，而不是结构：
+- `.memory` 当前主要问题是 freshness，而不是结构：
   - 旧 current-state 没有退役机制
   - `project-memory` 已出现并行当前态
 
@@ -266,7 +266,7 @@
 | 方向 | 预期结果 |
 | --- | --- |
 | 统一 `docs/superpowers` 真相层 | README、modules、plans 对外表达同一状态，离线阅读可直接判断当前进度 |
-| 统一 `docs/userDocs/project-memory` 当前态治理 | 进入记忆入口时不再先读到过期 current-state |
+| 统一 `.memory/project-memory` 当前态治理 | 进入记忆入口时不再先读到过期 current-state |
 | 修复当前验证门禁 | 前端 `test` 与后端 `clippy` 重新代表真实质量状态 |
 | 先补 backend foundation 前两块 | 后续 runtime / plugin 不再继续压在旧骨架上扩写 |
 | 前端只落一条最小真实主路径 | QA 从“壳层可跑”升级到“产品路径可验收” |

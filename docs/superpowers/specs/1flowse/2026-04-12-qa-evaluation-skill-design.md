@@ -5,8 +5,8 @@
 关联输入：
 - [docs/superpowers/specs/1flowse/2026-04-11-development-skills-design.md](./2026-04-11-development-skills-design.md)
 - [docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md](./2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md)
-- [docs/userDocs/AGENTS.md](../../../userDocs/AGENTS.md)
-- [docs/userDocs/user-memory.md](../../../userDocs/user-memory.md)
+- [.memory/AGENTS.md](../../../.memory/AGENTS.md)
+- [.memory/user-memory.md](../../../.memory/user-memory.md)
 
 ## 1. 文档目标
 
@@ -149,10 +149,10 @@
 
 无论哪种模式，评估前都应优先读取：
 
-- `docs/userDocs/AGENTS.md`
-- `docs/userDocs/user-memory.md`
-- `docs/userDocs/project-memory/` 中与当前项目相关的记忆
-- `docs/userDocs/feedback-memory/` 中已沉淀的可复用反馈规则
+- `.memory/AGENTS.md`
+- `.memory/user-memory.md`
+- `.memory/project-memory/` 中与当前项目相关的记忆
+- `.memory/feedback-memory/` 中已沉淀的可复用反馈规则
 
 如果存在相关 spec、模块 README、近期设计稿或任务说明，也应读取与当前评估范围直接相关的部分。
 

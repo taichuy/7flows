@@ -3,15 +3,15 @@
 日期：2026-04-12
 状态：已确认，执行中
 关联输入：
-- [docs/userDocs/AGENTS.md](../../../userDocs/AGENTS.md)
-- [docs/userDocs/user-memory.md](../../../userDocs/user-memory.md)
-- [docs/userDocs/feedback-memory](../../../userDocs/feedback-memory)
-- [docs/userDocs/project-memory](../../../userDocs/project-memory)
-- [docs/userDocs/reference-memory](../../../userDocs/reference-memory)
+- [.memory/AGENTS.md](../../../.memory/AGENTS.md)
+- [.memory/user-memory.md](../../../.memory/user-memory.md)
+- [.memory/feedback-memory](../../../.memory/feedback-memory)
+- [.memory/project-memory](../../../.memory/project-memory)
+- [.memory/reference-memory](../../../.memory/reference-memory)
 
 ## 1. 目标
 
-本文档用于收敛 `docs/userDocs` 记忆目录的后续检索方式、目录边界和摘要元数据约束。
+本文档用于收敛 `.memory` 记忆目录的后续检索方式、目录边界和摘要元数据约束。
 
 本轮要解决的问题不是“如何存更多记忆”，而是：
 
@@ -21,7 +21,7 @@
 
 ## 2. 现状问题
 
-当前 `docs/userDocs` 中的记忆文件以正文为主，缺少统一的检索层。
+当前 `.memory` 中的记忆文件以正文为主，缺少统一的检索层。
 
 这会带来三个直接问题：
 
@@ -31,22 +31,22 @@
 
 ## 3. 目录边界
 
-`docs/userDocs` 后续只保留记忆相关文件，不再把其他杂项文档作为记忆检索输入。
+`.memory` 后续只保留记忆相关文件，不再把其他杂项文档作为记忆检索输入。
 
 固定参与检索的范围如下：
 
-- `docs/userDocs/AGENTS.md`
-- `docs/userDocs/user-memory.md`
-- `docs/userDocs/feedback-memory/`
-- `docs/userDocs/project-memory/`
-- `docs/userDocs/reference-memory/`
-- `docs/userDocs/tool-memory/`
+- `.memory/AGENTS.md`
+- `.memory/user-memory.md`
+- `.memory/feedback-memory/`
+- `.memory/project-memory/`
+- `.memory/reference-memory/`
+- `.memory/tool-memory/`
 
 固定排除的范围如下：
 
-- `docs/userDocs/draft/`
-- `docs/userDocs/todolist/`
-- `docs/userDocs/` 根目录下不属于上述范围的其他历史或杂项文件
+- `docs/draft/`
+- `.memory/todolist/`
+- `.memory/` 根目录下不属于上述范围的其他历史或杂项文件
 
 如果旧文件仍然保留在仓库中，也不再把它们当作记忆检索入口。
 
@@ -78,7 +78,7 @@
 
 ### 4.5 `tool-memory/`
 
-新增 `docs/userDocs/tool-memory/`，专门用于保存项目环境中已经真实发生过的工具失败案例与已验证解法。
+新增 `.memory/tool-memory/`，专门用于保存项目环境中已经真实发生过的工具失败案例与已验证解法。
 
 边界如下：
 
@@ -90,13 +90,13 @@
 
 目录结构固定为：
 
-- `docs/userDocs/tool-memory/<tool>/`
+- `.memory/tool-memory/<tool>/`
 - 文件名：`yyyy-mm-dd-<tool>-<problem-key>.md`
 
 示例：
 
-- `docs/userDocs/tool-memory/docker/2026-04-12-docker-permission-denied.md`
-- `docs/userDocs/tool-memory/pnpm/2026-04-12-pnpm-workspace-lock-conflict.md`
+- `.memory/tool-memory/docker/2026-04-12-docker-permission-denied.md`
+- `.memory/tool-memory/pnpm/2026-04-12-pnpm-workspace-lock-conflict.md`
 
 如果是同一工具、同一问题、同一处理办法复现，则追加到原文件；若根因或解法变化，则新建文件。
 
@@ -183,8 +183,8 @@ scope:
 
 AI 每轮处理任务时，记忆检索流程固定如下：
 
-1. 固定先读 `docs/userDocs/AGENTS.md`
-2. 固定再读 `docs/userDocs/user-memory.md`
+1. 固定先读 `.memory/AGENTS.md`
+2. 固定再读 `.memory/user-memory.md`
 3. 在 `feedback-memory`、`project-memory`、`reference-memory`、`tool-memory` 中，只读取每个文件前 30 行
 4. 单轮最多扫描 200 个记忆文件
 5. 第一轮只选与当前任务最相关的最多 5 条有效记忆
@@ -248,8 +248,8 @@ AI 每轮处理任务时，记忆检索流程固定如下：
 
 若用户确认本设计，可按以下顺序落地：
 
-1. 更新 `docs/userDocs/AGENTS.md`，明确检索范围与新目录结构
-2. 新增 `docs/userDocs/tool-memory/` 及模板文件
+1. 更新 `.memory/AGENTS.md`，明确检索范围与新目录结构
+2. 新增 `.memory/tool-memory/` 及模板文件
 3. 将现有 `feedback-memory`、`project-memory`、`reference-memory` 文件补齐 `YAML front matter`
 4. 明确旧根目录杂项文件不再参与记忆检索
 5. 后续增加轻量校验脚本，仅检查字段完整性、枚举值和目录归属

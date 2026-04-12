@@ -8,7 +8,7 @@
 - `docs/agent/qa/4b529cd9-baseline-notes.md`
 - `docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md`
 - `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
-- `docs/userDocs/draft/DESIGN.md`
+- `docs/draft/DESIGN.md`
 
 ---
 

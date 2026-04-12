@@ -14,15 +14,15 @@
     - 已执行计划统一补 `execution_state`，或把已完成步骤同步勾选
   - 原因：现在 `README / modules / plan / code` 没有指向同一套当前事实
 
-- [ ] `P0` 清理 `docs/userDocs/project-memory` 的并行 current-state
+- [ ] `P0` 清理 `.memory/project-memory` 的并行 current-state
   - 建议：做
   - 当前优先处理：
-    - `docs/userDocs/project-memory/2026-04-12-design-system-direction.md`
-    - `docs/userDocs/project-memory/2026-04-12-auth-team-backend-plan-stage.md`
-    - `docs/userDocs/project-memory/2026-04-12-auth-team-backend-implemented.md`
+    - `.memory/project-memory/2026-04-12-design-system-direction.md`
+    - `.memory/project-memory/2026-04-12-auth-team-backend-plan-stage.md`
+    - `.memory/project-memory/2026-04-12-auth-team-backend-implemented.md`
   - 处理原则：
     - 旧 current-state 直接标废弃、覆盖，或显式写明已被哪条新事实替代
-  - 原因：`docs/userDocs` 是固定优先入口，过期 current-state 会先污染判断
+  - 原因：`.memory` 是固定优先入口，过期 current-state 会先污染判断
 
 - [ ] `P0` 修复当前验证门禁
   - 建议：做
@@ -70,14 +70,14 @@
   - 建议：做
   - 规则：
     - 继续更新 `docs/qa-report/document-plan-audit.md`
-    - 继续更新 `docs/userDocs/todolist/document-plan-audit.md`
+    - 继续更新 `.memory/todolist/document-plan-audit.md`
     - 旧判断失效时直接覆盖，不新增兄弟文件
   - 原因：入口已经建立，下一步重点是保持唯一来源
 
 ## 我当前的明确建议
 
 1. 下一轮先不要继续扩新域功能，也不要再新增平行文档。
-2. 先把 `docs/superpowers` 和 `docs/userDocs` 的当前真相统一掉。
+2. 先把 `docs/superpowers` 和 `.memory` 的当前真相统一掉。
 3. 同步修掉前端测试 mock 和后端 `clippy` 门禁。
 4. 然后拆超大计划文档，并补轻量文档一致性守卫。
 5. 最后只推进 backend foundation 前两块和前端一条最小真实主路径。

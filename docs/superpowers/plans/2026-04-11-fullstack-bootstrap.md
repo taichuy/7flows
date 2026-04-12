@@ -88,11 +88,11 @@
 - `crates/observability/src/lib.rs`
 - `.agent/skills/1flowse-fullstack-bootstrap/SKILL.md`
 - `.agent/skills/1flowse-fullstack-bootstrap/references/commands.md`
-- `docs/userDocs/history/2026-04-11-fullstack-bootstrap-implementation.md`
+- `.memory/history/2026-04-11-fullstack-bootstrap-implementation.md`
 
 **Modify**
 - `README.md`
-- `docs/userDocs/runtime-foundation.md`
+- `.memory/runtime-foundation.md`
 
 **Notes**
 - `packages/page-runtime`、`packages/page-protocol`、`packages/flow-schema` 在本计划中只做类型/函数占位，不做运行时编排实现。
@@ -1688,8 +1688,8 @@ git commit -m "feat: add plugin runner health service"
 - Modify: `README.md`
 - Create: `.agent/skills/1flowse-fullstack-bootstrap/SKILL.md`
 - Create: `.agent/skills/1flowse-fullstack-bootstrap/references/commands.md`
-- Modify: `docs/userDocs/runtime-foundation.md`
-- Create: `docs/userDocs/history/2026-04-11-fullstack-bootstrap-implementation.md`
+- Modify: `.memory/runtime-foundation.md`
+- Create: `.memory/history/2026-04-11-fullstack-bootstrap-implementation.md`
 
 - [ ] **Step 1: Run the missing-skill check**
 
@@ -1885,7 +1885,7 @@ Run: `date '+%Y-%m-%d %H:%M:%S %Z'`
 
 Expected: output like `2026-04-11 09:41:52 CST`.
 
-Create `docs/userDocs/history/2026-04-11-fullstack-bootstrap-implementation.md` using the literal timestamp output from the previous command on the `时间：` line:
+Create `.memory/history/2026-04-11-fullstack-bootstrap-implementation.md` using the literal timestamp output from the previous command on the `时间：` line:
 
 ```md
 # 2026-04-11 全栈骨架初始化结果
@@ -1901,11 +1901,11 @@ Create `docs/userDocs/history/2026-04-11-fullstack-bootstrap-implementation.md` 
   - API Docs：`http://127.0.0.1:3000/docs`
 ```
 
-Modify `docs/userDocs/runtime-foundation.md` by appending one concise bullet with the actual completion time, verification command outcome, and the OpenAPI docs URL. Keep the file under 2000 characters.
+Modify `.memory/runtime-foundation.md` by appending one concise bullet with the actual completion time, verification command outcome, and the OpenAPI docs URL. Keep the file under 2000 characters.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add README.md .agent/skills/1flowse-fullstack-bootstrap docs/userDocs/history/2026-04-11-fullstack-bootstrap-implementation.md docs/userDocs/runtime-foundation.md
+git add README.md .agent/skills/1flowse-fullstack-bootstrap .memory/history/2026-04-11-fullstack-bootstrap-implementation.md .memory/runtime-foundation.md
 git commit -m "docs: record bootstrap workflow and project skill"
 ```

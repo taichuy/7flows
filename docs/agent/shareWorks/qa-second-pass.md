@@ -9,7 +9,7 @@
 
 依据：
 
-- `docs/userDocs/draft/DESIGN.md:478-485` 明确要求 390px 首屏先看到应用状态、当前页标题、主入口 / 最小动作，并通过移动端 `sidebar order: 2`、主内容 `order: 1` 实现。
+- `docs/draft/DESIGN.md:478-485` 明确要求 390px 首屏先看到应用状态、当前页标题、主入口 / 最小动作，并通过移动端 `sidebar order: 2`、主内容 `order: 1` 实现。
 - `docs/agent/shareWorks/planner-source-of-truth.md:77-84` 将该问题收敛为唯一待关闭 blocker：移动端首屏排序。
 - `docs/agent/shareWorks/worker-fix-summary.md:8-26` 说明本轮只修复小屏顺序，并在 `@media (max-width: 720px)` 下将 `.workspace` 设为 `order: 1`、`.sidebar` 设为 `order: 2`。
 - `tmp/demo/styles.css:767-782` 已落实上述顺序调整。

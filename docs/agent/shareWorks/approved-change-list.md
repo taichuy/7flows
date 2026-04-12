@@ -297,7 +297,7 @@ drawer.addEventListener('keydown', function (e) {
 
 ## Part B：DESIGN.md 变更（任务 a711d18d）
 
-在 `docs/userDocs/draft/DESIGN.md` 末尾追加以下章节（**临时增补，待二轮 demo 验证后再决定是否固化**）：
+在 `docs/draft/DESIGN.md` 末尾追加以下章节（**临时增补，待二轮 demo 验证后再决定是否固化**）：
 
 ```markdown
 ## 10. 产品应用层补充规则（临时，2026-04-12）

@@ -47,7 +47,7 @@
 文档与协作范围：
 
 - 在仓库内 `.agent/skills/` 新建项目专用 skill
-- 把本轮决策同步到 `docs/userDocs/history` 与 `runtime-foundation.md`
+- 把本轮决策同步到 `.memory/history` 与 `runtime-foundation.md`
 
 ### 2.2 本轮非目标
 

@@ -10,7 +10,7 @@
 从现在起，**唯一权威规则文档**是：
 
 ```
-docs/userDocs/draft/DESIGN.md
+docs/draft/DESIGN.md
 ```
 
 含义：
@@ -63,7 +63,7 @@ docs/userDocs/draft/DESIGN.md
 
 ## 4. Worker 第二轮修复的准入输入（仅此三类，优先级固定）
 
-1. `docs/userDocs/draft/DESIGN.md` — 唯一规则来源，定义目标状态
+1. `docs/draft/DESIGN.md` — 唯一规则来源，定义目标状态
 2. `docs/agent/shareWorks/qa-final-review.md` — 当前待修问题与验收口径来源
 3. `tmp/demo/*` — 当前实现基线，在其上直接修补
 

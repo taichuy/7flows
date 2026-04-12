@@ -120,8 +120,8 @@ Remove wording that implies a long-running external front-end service is the pri
 ### Task 3: Update memory docs and self-check
 
 **Files:**
-- Modify: `docs/userDocs/history/2026-04-11-embedded-app-static-upload-exploration.md`
-- Modify: `docs/userDocs/runtime-foundation.md`
+- Modify: `.memory/history/2026-04-11-embedded-app-static-upload-exploration.md`
+- Modify: `.memory/runtime-foundation.md`
 
 - [ ] **Step 1: Record the doc alignment result in history**
 
@@ -129,7 +129,7 @@ Append a bullet noting that `docs/dev_READEME.md` and `2026-04-10-p1-architectur
 
 - [ ] **Step 2: Add one short runtime summary bullet**
 
-Keep `docs/userDocs/runtime-foundation.md` under the size constraint while noting the alignment.
+Keep `.memory/runtime-foundation.md` under the size constraint while noting the alignment.
 
 - [ ] **Step 3: Run a quick doc self-check**
 

@@ -67,7 +67,7 @@ description: Use when evaluating 1Flowse task outcomes or current project qualit
 ## Quick Reference
 - Default to `task mode`
 - Only enter `project evaluation mode` when the user explicitly requests a full-project assessment
-- Read `docs/userDocs/AGENTS.md`, user memory, project memory, and feedback memory before judging
+- Read `.memory/AGENTS.md`, user memory, project memory, and feedback memory before judging
 - Frontend structure problems must escalate to `frontend-logic-design`
 - Backend contract and state problems must be checked against `backend-development`
 - If evidence is missing, say `未验证，不下确定结论`

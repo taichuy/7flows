@@ -17,7 +17,7 @@
 
 ## 390px 首屏现在为何符合规则
 
-- 依据唯一规则源 `docs/userDocs/draft/DESIGN.md` 与 `docs/agent/shareWorks/planner-source-of-truth.md`，移动端要求主内容优先、`sidebar order: 2`、主内容 `order: 1`。
+- 依据唯一规则源 `docs/draft/DESIGN.md` 与 `docs/agent/shareWorks/planner-source-of-truth.md`，移动端要求主内容优先、`sidebar order: 2`、主内容 `order: 1`。
 - 现在在 390px 下，DOM 不变，但视觉顺序已变为：
   1. 当前视图主内容
   2. 当前页标题
@@ -37,7 +37,7 @@
 - `sed -n '736,825p' tmp/demo/styles.css`
   - 结果：确认顺序重排只落在小屏断点，没有扩散到桌面结构
 - 对照规则源：
-  - `docs/userDocs/draft/DESIGN.md`
+  - `docs/draft/DESIGN.md`
   - `docs/agent/shareWorks/planner-source-of-truth.md`
   - `docs/agent/shareWorks/qa-final-review.md`
   - 结果：本次修复只处理 390px 首屏顺序 blocker，没有回头拼接旧 planner 文档

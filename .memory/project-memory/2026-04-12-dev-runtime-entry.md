@@ -60,5 +60,5 @@ scope:
 ## 关联文档
 
 - `README.md`
-- `docs/userDocs/reference-memory/script-reference.md`
+- `.memory/reference-memory/script-reference.md`
 - `scripts/node/dev-up.js`

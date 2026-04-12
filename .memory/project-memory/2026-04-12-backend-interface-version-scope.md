@@ -19,7 +19,7 @@ scope:
   - docs/draft/apiFlie.md
   - api
   - docs/superpowers/specs/1flowse/2026-04-12-auth-team-access-control-backend-design.md
-  - docs/userDocs/project-memory/2026-04-12-plugin-interface-boundary.md
+  - .memory/project-memory/2026-04-12-plugin-interface-boundary.md
 ---
 
 # 后端接口版文档整理范围已收敛到已讨论域

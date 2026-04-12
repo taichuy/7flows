@@ -1,7 +1,7 @@
 # QA Top 5 Baseline Issues
 
 日期：2026-04-12  
-范围：`tmp/demo/*`、`docs/userDocs/draft/DESIGN.md`、`docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`  
+范围：`tmp/demo/*`、`docs/draft/DESIGN.md`、`docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
 评审标准：`frontend-development` + `frontend-logic-design`
 
 ## 1. 基线页边界塌陷，演示页变成“所有东西的拼盘”

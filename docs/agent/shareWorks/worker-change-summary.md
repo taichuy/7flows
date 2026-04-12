@@ -39,14 +39,14 @@
    - `draft` = 中性灰
    - `published` = 主蓝
    - 类型标签改为中性 badge，不再和状态共享高饱和语法
-9. 重写 `docs/userDocs/draft/DESIGN.md`，补入本轮工作区边界、L1 详情规则、状态映射、移动端策略和 no-op 按钮禁令。
+9. 重写 `docs/draft/DESIGN.md`，补入本轮工作区边界、L1 详情规则、状态映射、移动端策略和 no-op 按钮禁令。
 
 ## 涉及文件
 
 - `tmp/demo/index.html`
 - `tmp/demo/styles.css`
 - `tmp/demo/script.js`
-- `docs/userDocs/draft/DESIGN.md`
+- `docs/draft/DESIGN.md`
 
 ## 基本验证
 
@@ -54,7 +54,7 @@
   - 结果：通过
 - `rg -n "<button|data-view-trigger|data-run-trigger|data-node|data-drawer-close" tmp/demo/index.html`
   - 结果：静态 HTML 中只保留视图切换、进入编排、抽屉关闭等真实入口；节点与日志按钮由脚本生成
-- `rg -n "Default Visual Baseline|Three rules|Tone chips|Sub-spec note|Compare tokens|Open API page|Upload static bundle|State Data|Compact mode" tmp/demo/index.html docs/userDocs/draft/DESIGN.md`
+- `rg -n "Default Visual Baseline|Three rules|Tone chips|Sub-spec note|Compare tokens|Open API page|Upload static bundle|State Data|Compact mode" tmp/demo/index.html docs/draft/DESIGN.md`
   - 结果：无匹配，旧的评审型文案和伪入口已清除
 - `rg -n "aria-modal|aria-hidden|inert|Escape|Tab|drawer" tmp/demo/script.js tmp/demo/index.html`
   - 结果：抽屉具备 `aria-modal`、`hidden`、`Escape`、`Tab` 焦点约束和 `inert` 处理

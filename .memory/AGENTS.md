@@ -1,6 +1,6 @@
 # 背景
 
-`docs/userDocs` 是开发者私有记忆目录，用来记录 AI 与开发者之间的约定、协作边界和可复用决策。
+`.memory` 是开发者私有记忆目录，用来记录 AI 与开发者之间的约定、协作边界和可复用决策。
 
 进入用户交互后，优先阅读本文件；如果记忆仍为空，与用户沟通初始化。
 
@@ -8,8 +8,8 @@
 
 ## 检索规则
 
-1. 固定先读 `docs/userDocs/AGENTS.md`。
-2. 固定再读 `docs/userDocs/user-memory.md`。
+1. 固定先读 `.memory/AGENTS.md`。
+2. 固定再读 `.memory/user-memory.md`。
 3. 对 `feedback-memory`、`project-memory`、`reference-memory`、`tool-memory`，第一轮只读取每个文件前 30 行的 `YAML front matter`。
 4. 单轮最多扫描 200 个记忆文件。
 5. 单轮只展开与当前任务最相关的最多 5 条有效记忆全文。
@@ -86,24 +86,24 @@
 
 ## 目录索引
 
-- `docs/userDocs/user-memory.md`
+- `.memory/user-memory.md`
   - 用户记忆主文件，固定入口。
-- `docs/userDocs/feedback-memory/`
+- `.memory/feedback-memory/`
   - 反馈记忆根目录，存放模板与分类子目录。
-- `docs/userDocs/feedback-memory/interaction/`
+- `.memory/feedback-memory/interaction/`
   - 用户沟通、执行流程、记忆检索等交互类纠正。
-- `docs/userDocs/feedback-memory/repository/`
+- `.memory/feedback-memory/repository/`
   - 仓库结构、目录管理、脚本放置、版本控制等工程类纠正。
-- `docs/userDocs/project-memory/`
+- `.memory/project-memory/`
   - 项目记忆目录，存放阶段事实、短期共识和模板。
-- `docs/userDocs/reference-memory/`
+- `.memory/reference-memory/`
   - 引用记忆目录，存放入口索引和分类说明。
-- `docs/userDocs/tool-memory/`
+- `.memory/tool-memory/`
   - 工具记忆目录，按工具分目录、按问题建文件，记录真实失败案例与解法。
-- `docs/userDocs/todolist/`
+- `.memory/todolist/`
   - AI 自主开发且用户离线时的待确认目录，处理后直接删除，不做沉淀。
 
 ## 目录外排除项
 
-以下内容即使仍然保留在仓库中，也不再作为 `docs/userDocs` 记忆检索输入：
-1. `docs/userDocs/` 根目录下不属于 `AGENTS.md`、`user-memory.md` 和四类记忆目录的其他文件
+以下内容即使仍然保留在仓库中，也不再作为 `.memory` 记忆检索输入：
+1. `.memory/` 根目录下不属于 `AGENTS.md`、`user-memory.md` 和四类记忆目录的其他文件

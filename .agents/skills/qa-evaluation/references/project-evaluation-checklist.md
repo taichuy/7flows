@@ -2,8 +2,8 @@
 
 ## Context First
 
-- 阅读 `docs/userDocs/AGENTS.md`
-- 阅读 `docs/userDocs/user-memory.md`
+- 阅读 `.memory/AGENTS.md`
+- 阅读 `.memory/user-memory.md`
 - 阅读项目记忆和反馈记忆中与当前项目相关的内容
 - 阅读与评估范围直接相关的 spec、模块 README、设计稿和近期 QA 记录
 - 如果评估范围命中后端，优先对齐最近的后端项目记忆，例如接口内核、插件边界、质量规范和实施计划阶段记忆
@@ -32,7 +32,7 @@
 - Findings 按严重度从高到低排序
 - 不要把“代码看起来合理”当成通过证据
 - 不能验证的项要单独列入 `未覆盖项 / 风险`
-- 命中后端评估时，如果没有核对最新 `docs/userDocs/project-memory`，应在报告中明确说明结论可能存在旧口径偏差
+- 命中后端评估时，如果没有核对最新 `.memory/project-memory`，应在报告中明确说明结论可能存在旧口径偏差
 
 ## Escalation
 

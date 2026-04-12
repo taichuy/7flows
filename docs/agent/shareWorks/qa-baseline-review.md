@@ -11,7 +11,7 @@
 - `tmp/demo/script.js`
 - `tmp/demo/desktop.png`
 - `tmp/demo/mobile.png`
-- `docs/userDocs/draft/DESIGN.md`
+- `docs/draft/DESIGN.md`
 - `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
 
 ## 结论
@@ -76,7 +76,7 @@
 
 1. `Shell Layer + Editor UI Layer` 仍应被视为同一产品系统的两个表达层，而不是两套视觉语言。证据：`docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:34-39`
 2. `Editor UI` 比壳层更紧、更准、更高密度，这个方向应保留，但必须共享同一状态映射。证据：`docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:88-99`
-3. `DESIGN.md` 提供的是视觉母本，不应整页照搬到产品界面；只吸收适合工具型控制台的部分。证据：`docs/userDocs/draft/DESIGN.md:5-15` `81-83` 与 `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:64-82`
+3. `DESIGN.md` 提供的是视觉母本，不应整页照搬到产品界面；只吸收适合工具型控制台的部分。证据：`docs/draft/DESIGN.md:5-15` `81-83` 与 `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:64-82`
 4. run list 走 L1 详情这个方向可以保留，但必须先把 drawer 契约修正确。证据：`tmp/demo/index.html:141-185` `412-458`
 
 ## 基线验收门槛
