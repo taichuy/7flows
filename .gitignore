@@ -4,9 +4,13 @@ coverage/
 target/
 .turbo/
 pnpm-debug.log*
-docs/userDocs/history/
 docs/superpowers
 uploads
+
+# Docker local runtime state
 docker/volumes/
-tmp/dev-up/
-tmp/logs/
+docker/.env
+docker/.env.local
+
+# Local runtime outputs
+tmp/*
