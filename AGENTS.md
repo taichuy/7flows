@@ -1,5 +1,6 @@
 # ai与人沟通前必读
 docs/userDocs/AGENTS.md
+每次与用户沟通完决策性沟通时候应该自动更新记忆内容
 # 本项目相关skill在
 .agents/skills
 如果没有注册，请自行更新到对应约定目录
