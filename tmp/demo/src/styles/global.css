@@ -365,12 +365,13 @@ code {
 }
 
 .hero-layout {
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .hero-main {
   display: grid;
   gap: 14px;
+  max-width: 620px;
 }
 
 .hero-title-row {
@@ -397,7 +398,7 @@ code {
   display: grid;
   gap: 10px;
   min-width: 0;
-  max-width: 320px;
+  max-width: 360px;
 }
 
 .hero-status-row,
@@ -410,6 +411,58 @@ code {
 .hero-side-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.hero-focus-card {
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hero-focus-list {
+  display: grid;
+  gap: 10px;
+}
+
+.hero-focus-header {
+  display: grid;
+  gap: 6px;
+}
+
+.hero-focus-caption {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.hero-focus-row {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.hero-focus-copy {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.hero-focus-copy strong {
+  font-size: 14px;
+}
+
+.hero-focus-copy p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.focus-action-button {
+  flex-shrink: 0;
 }
 
 .signal-card {
@@ -727,6 +780,15 @@ code {
 
   .mobile-node-list {
     display: grid;
+  }
+
+  .hero-focus-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .focus-action-button {
+    width: 100%;
   }
 
   .overview-actions > * {

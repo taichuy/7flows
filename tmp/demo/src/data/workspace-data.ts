@@ -125,6 +125,18 @@ export interface OverviewRunSummary {
   actionLabel: string;
 }
 
+export interface OverviewFocusItem {
+  id: string;
+  title: string;
+  note: string;
+  status: BadgeStatus;
+  statusLabel: string;
+  actionLabel: string;
+  actionView: 'api' | 'logs' | 'monitoring';
+  runId?: string;
+  contractMode?: ContractMode;
+}
+
 export const workspaceMeta = {
   code: 'revenue-copilot',
   name: 'Revenue Copilot',
@@ -210,29 +222,6 @@ export const nextIterationFocus = [
   '如果 Inspector 和日志抽屉交互稳定，下轮应开始拆出可复用的 workspace primitives。',
   '一旦 embedded runtime 真正接通，需要把当前 mock 的 route manifest 换成真实 artifact 元数据。',
   'frontend skill 的视觉基线和仓库 DESIGN 仍冲突，后续应该回修文档源，而不是继续依赖人工记忆。'
-];
-
-export const summaryStats: SummaryStat[] = [
-  {
-    label: 'Published contract',
-    value: '1',
-    note: 'live traffic 仍只开放 OpenAI 兼容入口。'
-  },
-  {
-    label: 'Draft node changes',
-    value: '3',
-    note: '3 个节点变更待下次发布。'
-  },
-  {
-    label: 'Runs needing attention',
-    value: '2',
-    note: '等待态与失败样本仍需处理。'
-  },
-  {
-    label: 'Embedded artifacts',
-    value: '2',
-    note: 'manifests 已 staged，runtime 仍未接入。'
-  }
 ];
 
 export const nodes: FlowNode[] = [
@@ -476,6 +465,38 @@ export const overviewRunSummaries: OverviewRunSummary[] = [
     runId: 'run_2045',
     note: '兼容模式还在运行中校验，说明 draft parity 还没有收敛成正式暴露面。',
     actionLabel: '查看运行中 run_2045'
+  }
+];
+
+export const overviewFocusItems: OverviewFocusItem[] = [
+  {
+    id: 'published-surface',
+    title: 'Published surface',
+    note: 'OpenAI compatible 仍是唯一 live 入口，先保证对外契约稳定，再扩更多 exposure mode。',
+    status: 'published',
+    statusLabel: 'Live traffic',
+    actionLabel: '查看发布面',
+    actionView: 'api',
+    contractMode: 'openai'
+  },
+  {
+    id: 'approval-backlog',
+    title: 'Approval backlog',
+    note: 'run_2048 停在 Approval gate；checkpoint 已落盘，当前最需要的是明确恢复而不是继续下游执行。',
+    status: 'waiting',
+    statusLabel: 'Waiting',
+    actionLabel: '打开 backlog',
+    actionView: 'logs',
+    runId: 'run_2048'
+  },
+  {
+    id: 'host-runtime-gap',
+    title: 'Host runtime gap',
+    note: 'embedded route、manifest 和 host context 都在，但真正的 mount handshake 还没进入 live runtime。',
+    status: 'draft',
+    statusLabel: 'Shell only',
+    actionLabel: '检查 host gap',
+    actionView: 'monitoring'
   }
 ];
 

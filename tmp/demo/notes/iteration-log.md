@@ -1,5 +1,56 @@
 # Demo Iteration Log
 
+## 2026-04-13 05:13
+
+### 本轮批判
+
+- 桌面端 hero 上一版虽然已经补了 signal cards，但这些卡片本质上还是静态摘要，不是真正的问题域入口；hero 左侧因此继续显得偏空。
+- `overview` 把 `进入编排 / 查看 API 契约 / 继续处理等待态` 平铺成同一层按钮，会把主动作和二级处理路径混在一起。
+- hero 下方那排数字摘要卡仍然太像通用 dashboard，和当前 demo 要表达的“workspace 现状与问题路径”不完全一致。
+
+### 本轮执行
+
+- 新增诊断记录：
+  - `tmp/demo/notes/2026-04-13-0513-overview-focus-lanes.md`
+- 先写测试，把 `overview` 的目标改成：
+  - hero 只保留一个主 CTA `进入编排`
+  - hero 右侧必须出现 `当前焦点`
+  - 从当前焦点可直接跳到 `API / Logs / Monitoring`
+- 将 hero 右侧从静态 `signal cards` 重构为 `当前焦点` 面板，收纳三条二级路径：
+  - `查看发布面`
+  - `打开 backlog`
+  - `检查 host gap`
+- 删除 `overview` 原来的数字摘要行，避免继续堆抽象 stat cards。
+- 保留 `最近运行摘要 / Published 与 Draft 明确分层 / 真实路由成熟度 / Embedded runtime snapshot` 作为概览页主内容。
+
+### 测试与验证
+
+- `npm test`：通过，`4` 个测试全部通过。
+- `npm run build`：通过，产物为：
+  - `dist/assets/index-CXUcp2M5.css` `13.69 kB`
+  - `dist/assets/react-Bxqk-rQc.js` `106.54 kB`
+  - `dist/assets/index-13k-oK7R.js` `437.48 kB`
+  - `dist/assets/antd-FPCx2csc.js` `466.01 kB`
+- `npm run preview`：提权后成功监听 `http://127.0.0.1:3200/`。
+- Playwright 截图成功：
+  - `tmp/demo/desktop-2026-04-13-0510.png`
+  - `tmp/demo/mobile-2026-04-13-0510.png`
+
+### 本轮结论
+
+- `overview` 现在更像真正的 workspace 入口，二级路径已经从“平铺按钮”收束成“问题域焦点”。
+- 移动端首屏仍然保持一个主 CTA，但已经能同时看到三个明确的后续处理入口。
+- 桌面端 hero 空白问题被削弱了，但还没有完全消失；下一轮重点不该是继续加块，而是进一步压缩焦点文案或引入更具体的可视化内容。
+
+### 工具复盘
+
+1. `vitest` 不支持 `--runInBand`
+   - 这次把 `jest` 风格参数误带到了 `npm test`，CLI 直接报 `Unknown option --runInBand`。
+   - 后续在 `tmp/demo` 里跑测试应直接使用 `npm test`，不要附加该参数。
+2. `tmp/demo` 内不存在 `../../web/node_modules/.bin/playwright`
+   - 这次先假设 Playwright 跟 `vite/vitest` 一样复用 `web/node_modules`，结果命令报 `没有那个文件或目录`。
+   - 当前机器上可用的 Playwright CLI 仍是 `/home/taichu/git/AionUi/node_modules/.bin/playwright`；后续截图应直接用这个路径。
+
 ## 2026-04-13 03:13
 
 ### 本轮批判
