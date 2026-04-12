@@ -6,7 +6,7 @@ use storage_redis::{InMemorySessionStore, RedisSessionStore};
 
 #[derive(Clone)]
 pub enum SessionStoreHandle {
-    Redis(RedisSessionStore),
+    Redis(Box<RedisSessionStore>),
     InMemory(InMemorySessionStore),
 }
 

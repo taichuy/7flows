@@ -141,6 +141,7 @@ pub fn app_with_state(state: Arc<ApiState>) -> Router {
         .nest("/api/console", routes::roles::router())
         .nest("/api/console", routes::permissions::router())
         .nest("/api/console", routes::session::router())
+        .nest("/api/runtime", routes::runtime_models::router())
         .nest("/api/public/auth", routes::auth::router())
         .with_state(state);
 
@@ -177,7 +178,7 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
 
     Ok(app_with_state(Arc::new(ApiState {
         store,
-        session_store: SessionStoreHandle::Redis(session_store),
+        session_store: SessionStoreHandle::Redis(Box::new(session_store)),
         cookie_name: config.cookie_name.clone(),
         session_ttl_days: config.session_ttl_days,
         bootstrap_team_name: config.bootstrap_team_name.clone(),

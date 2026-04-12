@@ -1578,8 +1578,11 @@ name = "runtime-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "domain",
  "serde",
+ "serde_json",
+ "tokio",
  "uuid",
 ]
 

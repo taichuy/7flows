@@ -83,6 +83,12 @@ impl AuthenticatorRegistry {
     }
 }
 
+impl Default for AuthenticatorRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct SessionIssuer<S> {
     store: S,
     ttl_days: i64,
