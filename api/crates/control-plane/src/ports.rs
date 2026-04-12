@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use domain::{
-    ActorContext, AuditLogRecord, AuthenticatorRecord, PermissionDefinition, RoleTemplate,
-    SessionRecord, TeamRecord, UserRecord,
+    ActorContext, AuditLogRecord, AuthenticatorRecord, ModelDefinitionRecord, PermissionDefinition,
+    RoleTemplate, SessionRecord, TeamRecord, UserRecord,
 };
 use uuid::Uuid;
 
@@ -86,6 +86,13 @@ pub struct CreateMemberInput {
     pub phone_login_enabled: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct CreateModelDefinitionInput {
+    pub actor_user_id: Uuid,
+    pub code: String,
+    pub name: String,
+}
+
 #[async_trait]
 pub trait MemberRepository: Send + Sync {
     async fn load_actor_context_for_user(
@@ -143,5 +150,24 @@ pub trait RoleRepository: Send + Sync {
         permission_codes: &[String],
     ) -> anyhow::Result<()>;
     async fn list_role_permissions(&self, role_code: &str) -> anyhow::Result<Vec<String>>;
+    async fn append_audit_log(&self, event: &AuditLogRecord) -> anyhow::Result<()>;
+}
+
+#[async_trait]
+pub trait ModelDefinitionRepository: Send + Sync {
+    async fn load_actor_context_for_user(
+        &self,
+        actor_user_id: Uuid,
+    ) -> anyhow::Result<ActorContext>;
+    async fn list_model_definitions(&self) -> anyhow::Result<Vec<ModelDefinitionRecord>>;
+    async fn create_model_definition(
+        &self,
+        input: &CreateModelDefinitionInput,
+    ) -> anyhow::Result<ModelDefinitionRecord>;
+    async fn publish_model_definition(
+        &self,
+        actor_user_id: Uuid,
+        model_id: Uuid,
+    ) -> anyhow::Result<ModelDefinitionRecord>;
     async fn append_audit_log(&self, event: &AuditLogRecord) -> anyhow::Result<()>;
 }

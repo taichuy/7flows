@@ -15,6 +15,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 time.workspace = true
 uuid.workspace = true
+runtime-core = { path = "../runtime-core" }
 
 [dev-dependencies]
 tokio.workspace = true

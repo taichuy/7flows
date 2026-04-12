@@ -62,7 +62,9 @@ async fn member_routes_create_disable_and_reset_password() {
         .unwrap();
 
     assert_eq!(list_response.status(), StatusCode::OK);
-    let list_body = to_bytes(list_response.into_body(), usize::MAX).await.unwrap();
+    let list_body = to_bytes(list_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
     let list_payload: serde_json::Value = serde_json::from_slice(&list_body).unwrap();
     assert!(list_payload["data"].is_array());
     assert!(list_payload["meta"].is_null());

@@ -4,8 +4,7 @@ use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
     routing::{get, patch},
-    Json,
-    Router,
+    Json, Router,
 };
 use control_plane::role::{
     CreateRoleCommand, DeleteRoleCommand, ReplaceRolePermissionsCommand, RoleService,

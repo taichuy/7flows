@@ -8,8 +8,7 @@ use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},
     routing::{get, post, put},
-    Json,
-    Router,
+    Json, Router,
 };
 use control_plane::member::{
     CreateMemberCommand, DisableMemberCommand, MemberService, ReplaceMemberRolesCommand,

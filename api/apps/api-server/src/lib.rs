@@ -14,10 +14,7 @@ use argon2::{
     password_hash::{PasswordHasher, SaltString},
     Argon2,
 };
-use axum::{
-    routing::get,
-    Json, Router,
-};
+use axum::{routing::get, Json, Router};
 use control_plane::bootstrap::{BootstrapConfig, BootstrapService};
 use rand_core::OsRng;
 use serde::Serialize;
@@ -76,6 +73,9 @@ async fn console_health() -> Json<HealthResponse> {
         routes::members::disable_member,
         routes::members::reset_member,
         routes::members::replace_member_roles,
+        routes::model_definitions::create_model,
+        routes::model_definitions::list_models,
+        routes::model_definitions::publish_model,
         routes::roles::list_roles,
         routes::roles::create_role,
         routes::roles::update_role,
@@ -92,6 +92,10 @@ async fn console_health() -> Json<HealthResponse> {
         routes::me::MeResponse,
         routes::members::CreateMemberBody,
         routes::members::MemberResponse,
+        routes::model_definitions::CreateModelDefinitionBody,
+        routes::model_definitions::ModelDefinitionResponse,
+        routes::model_definitions::PublishModelResponse,
+        routes::model_definitions::ResourceDescriptorResponse,
         routes::members::ReplaceMemberRolesBody,
         routes::members::ResetMemberPasswordBody,
         routes::permissions::PermissionResponse,
@@ -133,6 +137,7 @@ pub fn app_with_state(state: Arc<ApiState>) -> Router {
         .nest("/api/console", routes::me::router())
         .nest("/api/console", routes::team::router())
         .nest("/api/console", routes::members::router())
+        .nest("/api/console", routes::model_definitions::router())
         .nest("/api/console", routes::roles::router())
         .nest("/api/console", routes::permissions::router())
         .nest("/api/console", routes::session::router())

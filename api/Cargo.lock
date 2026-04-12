@@ -344,6 +344,7 @@ dependencies = [
  "argon2",
  "async-trait",
  "domain",
+ "runtime-core",
  "serde",
  "serde_json",
  "thiserror",
@@ -1353,6 +1354,11 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 [[package]]
 name = "plugin-framework"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "uuid",
+]
 
 [[package]]
 name = "plugin-runner"
@@ -1570,6 +1576,12 @@ dependencies = [
 [[package]]
 name = "runtime-core"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "domain",
+ "serde",
+ "uuid",
+]
 
 [[package]]
 name = "rust-embed"
