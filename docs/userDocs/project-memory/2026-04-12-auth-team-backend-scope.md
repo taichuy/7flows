@@ -30,6 +30,7 @@
 - 用户/成员模型除业务字段外默认继承基类字段：`id`、`introduction`、`created_by`、`created_at`、`updated_by`、`updated_at`。
 - 用户相关字段明确包含：`account`、`email`、`phone`、`avatar_url`、`password`、`default_display_role`、`name`、`nickname`。
 - 登录标识以 `account` 为主；默认允许 `email` 直接作为登录标识；`phone` 为非必填且默认不启用登录；后端需支持按用户配置决定 `email/phone` 是否可作为登录账号。
+- 认证内核需要抽成 `AuthKernel + AuthenticatorRegistry + SessionIssuer` 中间层；P1 仅内置 `password-local`，后续第三方登录优先以宿主内核中的 `hosted provider` 扩展，不直接进入当前 `runner_wasm` 插件主线。
 - 团队 Logo 本轮先存 `logo_url` 字符串，不提前引入对象存储绑定。
 - `api-server` 启动时自动执行幂等 bootstrap：按 `.env` 创建缺失的团队、`root` 和内置角色；已存在数据不覆盖；后续 `.env` 改密码不自动同步，仅支持脚本重置。
 - `root` 账号出现在成员列表中，但不能被禁用、删除、解绑 `root` 或改成其他角色；`root` 可自行修改昵称与头像；密码只允许本人修改或走兜底脚本。
