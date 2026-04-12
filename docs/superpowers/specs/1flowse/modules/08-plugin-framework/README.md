@@ -28,6 +28,8 @@
 - 声明式能力插件由宿主内核执行；代码插件标准发布物为 `Wasm`，安装后统一由独立 `plugin-runner` 执行。
 - 插件优先承接：模型供应商、节点类型、数据源、发布适配扩展。
 - P1 插件类型先锁定为 `Provider`、`Node`、`DataSource`、`PublishAdapter` 四类，后续再按需求扩展。
+- 平台运行时语义上再区分两种消费方式：`runtime extension`（原 `tenant-runtime`）与 `capability plugin`（原 `runner/plugin`）。
+- 二者区别不在是否是插件包，而在宿主如何消费：前者绑定模型或应用的 runtime 槽位，后者在节点、数据源、发布或 provider 配置中被显式选择。
 - P1 前端插件系统不是首要目标，主方向仍是 `Headless Plugin`。
 - 插件体系采用清单注册型，安装后不能要求主服务重启，应支持热生效。
 - P1 至少需要安装任务、插件清单、已安装注册表、运行时激活机制。
@@ -41,6 +43,8 @@
 - `plugin-runner` 采用一个共享进程，并与主系统通过统一内部 `RPC` 契约交互；P1 初版可承载在内网 HTTP 上。
 - 管理边界定为：插件源策略系统级、插件安装团队级、插件使用范围默认团队级。
 - `root` 可将团队已安装插件分配给指定应用空间，或设为应用级全局接受。
+- `runtime extension` 默认不会因团队安装而自动生效，必须继续绑定到具体模型或应用的 runtime 配置。
+- `capability plugin` 默认不会因团队安装而自动被所有应用使用，必须继续被分配并在具体配置中选中。
 - `manifest` 必填字段先固定为：`api_version`、`kind`、`plugin_id`、`version`、`display_name`、`source_level`、`runtime_mode`、`entry`、`capabilities`、`compatibility`、`permissions`。
 - `schema` 拆分为 `config_schema`、`secret_schema`、`io_schema` 三部分，分别承载普通配置、敏感配置与输入输出契约。
 - `runtime_mode` 仅允许 `hosted` 与 `runner_wasm` 两种。

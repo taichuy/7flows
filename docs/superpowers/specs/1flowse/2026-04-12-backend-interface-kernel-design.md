@@ -14,7 +14,7 @@
 
 - 宿主后端的接口内核应该如何组织
 - 认证、团队、成员、角色、权限、动态建模、runtime 数据如何进入同一套规则
-- 插件扩展、租户运行时扩展、节点/数据源/发布类业务插件分别能做什么、不能做什么
+- 插件扩展、工作区级 runtime extension、执行类 capability plugin 分别能做什么、不能做什么
 - 哪些能力可以扩展，哪些能力必须永远由宿主托管
 
 本文档只覆盖当前已讨论域：
@@ -44,7 +44,7 @@
 - 外部 API 继续保持 RESTful 路径，不采用 `resource:action` 风格 URL。
 - 内部统一用 `resource / action / provider / registry` 描述系统能力。
 - `core` 与 `host-extension` 才拥有系统接口扩展权。
-- `tenant-runtime` 与 `runner/plugin` 不拥有接口注册权，也不拥有接口扩展权。
+- `runtime extension` 与 `capability plugin` 都不拥有接口注册权，也不拥有接口扩展权。
 
 ### 2.2 三个业务面
 
@@ -63,16 +63,23 @@
 
 - `host-extension`
   - 可以在宿主审批和白名单约束下扩展系统接口
-- `tenant-runtime`
+- `runtime extension`（原 `tenant-runtime`）
   - 不能注册 HTTP 接口
   - 不能扩展 HTTP 接口
   - 只能实现宿主预定义的运行时能力槽位
-- `runner/plugin`
+- `capability plugin`（原 `runner/plugin`）
   - 不能注册 HTTP 接口
   - 不能扩展 HTTP 接口
   - 只能实现宿主预定义的业务执行接口
 
-也就是说，`tenant-runtime` 和 `runner/plugin` 都不是“接口扩展系统”，而是“宿主内部能力实现者”。
+二者都可能以插件包形态交付，差别不在“是不是插件”，而在宿主如何消费：
+
+- `runtime extension`
+  - 绑定在模型或应用的 runtime 行为链上
+- `capability plugin`
+  - 绑定在节点、数据源、发布或 provider 这类执行与集成链上
+
+也就是说，`runtime extension` 和 `capability plugin` 都不是“接口扩展系统”，而是“宿主内部能力实现者”。
 
 ## 3. 接口所有权模型
 
@@ -177,7 +184,7 @@ action 统一分三类：
   - 原则上只允许 `core`
   - `host-extension` 仅在审批和白名单通过后允许注册
 
-`tenant-runtime` 与 `runner/plugin` 不进入这三类注册中心。
+`runtime extension` 与 `capability plugin` 不进入这三类注册中心。
 
 ### 5.3 默认拒绝
 
@@ -318,17 +325,17 @@ action 统一分三类：
 
 raw route 不作为主扩展路径，只作为受控兜底。
 
-## 7. Runtime 与业务插件白名单
+## 7. Runtime Extension 与 Capability Plugin 白名单
 
 ### 7.1 为什么要白名单
 
-如果 `tenant-runtime` 或 `runner/plugin` 还能自由发明新的扩展点，本质上仍然是在变相扩接口。
+如果 `runtime extension` 或 `capability plugin` 还能自由发明新的扩展点，本质上仍然是在变相扩接口。
 
 因此这里不采用“插件自由声明扩展点”，而是采用“宿主固定槽位白名单”。
 
-### 7.2 tenant-runtime 允许的能力槽位
+### 7.2 Runtime Extension 允许的能力槽位
 
-`tenant-runtime` 只允许实现以下宿主预定义槽位：
+`runtime extension` 只允许实现以下宿主预定义槽位：
 
 - `runtime.query.scope_resolver`
   - 为运行时记录查询补充范围条件
@@ -339,11 +346,11 @@ raw route 不作为主扩展路径，只作为受控兜底。
 - `runtime.field.computed_value`
   - 为字段计算派生值、展示值或只读值
 
-这些槽位都必须由宿主在既有调用链里触发，`tenant-runtime` 不拥有对外 URL。
+这些槽位都必须由宿主在既有调用链里触发，`runtime extension` 不拥有对外 URL。
 
-### 7.3 runner/plugin 允许的能力槽位
+### 7.3 Capability Plugin 允许的能力槽位
 
-`runner/plugin` 只允许实现以下宿主预定义槽位：
+`capability plugin` 只允许实现以下宿主预定义槽位：
 
 - `runner.node.execute`
   - 节点执行器
@@ -358,7 +365,20 @@ raw route 不作为主扩展路径，只作为受控兜底。
 
 这些能力由宿主调度执行，不直接暴露成 HTTP 接口。
 
-### 7.4 三个术语的正式含义
+### 7.4 两类扩展的功能例子
+
+- `runtime extension`
+  - 订单模型查询时自动附加“只看自己部门”的过滤范围
+  - 创建 `ticket` 记录时自动补 `creator_id` 和默认状态
+  - 更新合同记录前校验审批人、金额区间和状态流转是否合法
+  - 计算 `risk_level`、`display_name` 这类派生字段
+- `capability plugin`
+  - 新增一个飞书通知节点执行器
+  - 新增一个 MySQL 数据源读取器与 schema 读取器
+  - 新增一个 webhook 发布投递器
+  - 新增一个模型供应商 provider 供编排节点调用
+
+### 7.5 三个术语的正式含义
 
 - `hook`
   - 宿主已有流程上的固定插槽，不是新接口
@@ -369,9 +389,41 @@ raw route 不作为主扩展路径，只作为受控兜底。
 
 这三类都属于内部能力，不属于公开接口。
 
-### 7.5 明确不开放的能力
+### 7.6 安装、启用、分配、绑定、使用
 
-以下能力一律不开放给 `tenant-runtime` 和 `runner/plugin`：
+P1 当前只有一个一等空间对象：
+
+- `Team Workspace`
+
+`Tenant` 仍然只是预留字段，不进入当前插件治理边界。
+
+因此，当前版本的治理链固定为：
+
+1. `install`
+   - `root/admin` 在当前 `Team Workspace` 安装插件
+2. `enable`
+   - 宿主校验来源、`manifest/schema`、兼容性后启用
+   - 风险来源代码插件仍需 `root/admin` 二次确认
+3. `assign`
+   - `root` 可把团队已安装插件分配给指定应用，或设为团队可用
+4. `bind`
+   - `runtime extension` 需要绑定到具体模型或应用的 runtime 配置后才生效
+   - `capability plugin` 需要在节点、数据源、发布配置或 provider 配置中被显式选择后才生效
+5. `use`
+   - 最终是否能配置或触发，仍受应用、模型、发布等业务权限控制
+
+其中：
+
+- `host-extension`
+  - 属于宿主级能力，不进入普通团队的安装分配链
+- `runtime extension`
+  - 不是“团队装上就全员自动可用”，而是“绑定到具体模型或应用后才生效”
+- `capability plugin`
+  - 不是“团队装上就所有应用自动启用”，而是“被某个应用显式选择后才参与执行”
+
+### 7.7 明确不开放的能力
+
+以下能力一律不开放给 `runtime extension` 和 `capability plugin`：
 
 - `http.route.register`
 - `resource.register`
@@ -382,13 +434,14 @@ raw route 不作为主扩展路径，只作为受控兜底。
 - `session.cookie.control`
 - `db.pool.direct_access`
 
-### 7.6 最终边界
+### 7.8 最终边界
 
-- `tenant-runtime`
+- `runtime extension`
   - 不是接口扩展系统
-- `runner/plugin`
+- `capability plugin`
   - 不是接口扩展系统
 - 二者都只是宿主预定义能力的实现者
+- 二者的差别在于宿主消费方式，不在于是否采用插件包交付
 
 ## 8. 权限、响应与审计
 
@@ -469,7 +522,7 @@ raw route 不作为主扩展路径，只作为受控兜底。
 - 固定 `public/control/runtime` 三个平面
 - 固定统一响应包装和错误结构
 - 固定认证入口和 session 路径
-- 固定 `tenant-runtime / runner/plugin` 的禁止接口扩展边界
+- 固定 `runtime extension / capability plugin` 的禁止接口扩展边界
 
 第二阶段：
 
@@ -480,7 +533,7 @@ raw route 不作为主扩展路径，只作为受控兜底。
 第三阶段：
 
 - 落宿主定义的 runtime 能力白名单
-- 落宿主调度 `tenant-runtime / runner/plugin` 的 capability port
+- 落宿主调度 `runtime extension / capability plugin` 的 capability port
 - 按需开放少量审核通过的 `host-extension`
 
 ## 10. 明确结论
@@ -491,6 +544,6 @@ raw route 不作为主扩展路径，只作为受控兜底。
 - 动态模型发布后生成 runtime resource
 - 认证扩展只走 hosted provider
 - 系统接口扩展只开放给 `core / host-extension`
-- `tenant-runtime / runner/plugin` 只允许实现宿主白名单能力，不拥有任何 HTTP 契约
+- `runtime extension / capability plugin` 只允许实现宿主白名单能力，不拥有任何 HTTP 契约
 
 这条边界在当前版本中视为硬约束，不作为可选建议。

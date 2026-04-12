@@ -20,6 +20,8 @@
   - 前后端通用开发 Skill 的设计稿，聚焦防止代码腐化的原则、检查清单与少量示例
 - [2026-04-12-backend-interface-kernel-design.md](./2026-04-12-backend-interface-kernel-design.md)
   - 后端接口内核、扩展边界、runtime 与业务插件白名单的统一设计稿
+- [2026-04-12-backend-engineering-quality-design.md](./2026-04-12-backend-engineering-quality-design.md)
+  - 后端工程分层、实现模板、命名、一致性、测试与质量门禁的统一规范
 - [modules/README.md](./modules/README.md)
   - 模块化讨论目录，按功能模块逐项沉淀讨论进度与完成情况
 
