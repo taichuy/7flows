@@ -5,3 +5,5 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+domain = { path = "../domain" }
+serde.workspace = true

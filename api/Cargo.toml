@@ -21,10 +21,19 @@ license = "MIT"
 version = "0.1.0"
 
 [workspace.dependencies]
+anyhow = "1"
+argon2 = "0.5"
+async-trait = "0.1"
 axum = { version = "0.7", features = ["macros"] }
+axum-extra = { version = "0.9", features = ["cookie"] }
+http = "1"
+rand_core = { version = "0.6", features = ["std"] }
+redis = { version = "0.27", features = ["aio", "tokio-comp", "connection-manager"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sqlx = { version = "0.8", default-features = false, features = ["postgres", "runtime-tokio-rustls", "uuid", "macros"] }
+sqlx = { version = "0.8", default-features = false, features = ["postgres", "runtime-tokio-rustls", "uuid", "macros", "time", "json", "migrate"] }
+thiserror = "2"
+time = { version = "0.3", features = ["serde", "formatting", "parsing", "macros"] }
 tokio = { version = "1", features = ["full"] }
 tower = { version = "0.5", features = ["util"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
