@@ -6,6 +6,7 @@ target/
 pnpm-debug.log*
 #docs/superpowers
 uploads
+docs/draft
 
 # Docker local runtime state
 docker/volumes/
