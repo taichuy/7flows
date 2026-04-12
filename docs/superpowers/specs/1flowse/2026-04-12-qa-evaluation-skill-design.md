@@ -1,0 +1,372 @@
+# 1Flowse `qa-evaluation` Skill 设计稿
+
+日期：2026-04-12
+状态：已完成初稿，待用户审阅
+关联输入：
+- [docs/superpowers/specs/1flowse/2026-04-11-development-skills-design.md](./2026-04-11-development-skills-design.md)
+- [docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md](./2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md)
+- [docs/userDocs/AGENTS.md](../../../userDocs/AGENTS.md)
+- [docs/userDocs/user-memory.md](../../../userDocs/user-memory.md)
+
+## 1. 文档目标
+
+本文档用于明确 1Flowse 后续独立 QA 评估 Skill 的设计方向。
+
+本轮目标不是立刻实现完整 Skill，而是先把以下内容定清楚：
+
+1. `qa-evaluation` 的定位与边界是什么。
+2. 它与现有 `test-driven-development`、`verification-before-completion`、`requesting-code-review` 如何分工。
+3. 它应如何同时支持局部任务回归评估与全量项目质量评估。
+4. 它的输出格式、严重度规则、证据规则与反模式应是什么。
+
+## 2. 核心结论
+
+后续应新增一个独立 Skill：`qa-evaluation`。
+
+该 Skill 的定位不是“另一个开发 Skill”，也不是“顺手看一下代码”，而是：
+
+- 面向 1Flowse 的质量评估器
+- 默认只评估和报告，不直接修改代码
+- 优先以独立会话运行，降低实现路径带来的宽容偏置
+- 固定支持两种模式：
+  - `task mode`
+  - `project evaluation mode`
+
+一句话定义：
+
+> `qa-evaluation` 是一个 1Flowse 专用、证据驱动、双模式运行的质量评估 Skill；局部模式用于当前任务回归与变化传播检查，全量模式只在用户明确要求时评估项目现状质量，并默认只产出报告。
+
+## 3. 为什么要单独做这个 Skill
+
+当前已有 Skill 各自解决的是不同问题：
+
+- `test-driven-development`
+  - 解决“实现前是否先写失败测试”的问题
+- `verification-before-completion`
+  - 解决“没有新鲜证据时不能声称完成”的问题
+- `requesting-code-review`
+  - 解决“实现完成后是否需要独立代码审查”的问题
+
+但 1Flowse 还需要一个专门回答以下问题的评估器：
+
+- 这个任务是否真的满足了预期验收场景
+- 这次局部改动是否把其他复用方一起带坏
+- 交互流、页面语法、响应式降级、API 契约、状态一致性和架构边界是否被破坏
+- 当前项目现状是否存在成体系的问题清单，而不是零散主观意见
+
+如果没有独立 QA 评估 Skill，AI 很容易出现两类偏差：
+
+1. 在当前实现上下文里对自己的产物过分宽容。
+2. 把“测试通过”“代码看起来合理”“局部 review 过了”误当成“项目质量已过关”。
+
+## 4. Skill 定位与非目标
+
+### 4.1 定位
+
+`qa-evaluation` 用于对 1Flowse 的当前产物做质量评估，并输出结构化报告。
+
+它负责回答：
+
+- 当前任务相关改动是否完成且没有明显回归
+- 组件复用引起的局部改动，是否把其他使用方一起污染
+- 当前相关页面、模块、API、状态映射和边界是否仍然成立
+- 当前项目整体是否存在阻塞推进的系统性质量问题
+
+### 4.2 非目标
+
+它不负责：
+
+- 替代 `test-driven-development`
+- 替代 `verification-before-completion`
+- 替代 `requesting-code-review`
+- 在未被明确要求时直接进入修复实现
+- 把全量项目审计滥用到每个小任务
+
+## 5. 与现有 Skill 的职责边界
+
+建议后续明确写入 Skill 的边界如下：
+
+- `test-driven-development`
+  - 负责先写失败测试，再实现功能
+- `verification-before-completion`
+  - 负责在声称完成前拿到新鲜验证证据
+- `requesting-code-review`
+  - 负责审查实现质量、代码风险、缺失测试和潜在回归
+- `qa-evaluation`
+  - 负责从 1Flowse 项目语义出发，评估产物是否真的过关
+
+边界重点：
+
+- `qa-evaluation` 不负责“先写测试”
+- `qa-evaluation` 不等于“代码 review”
+- `qa-evaluation` 不等于“开发者自测”
+- `qa-evaluation` 更关注项目质量，而不是单纯代码风格或局部实现优雅度
+
+## 6. 运行模式
+
+## 6.1 `task mode`
+
+默认模式为 `task mode`。
+
+进入条件：
+
+- 用户没有明确要求“全量评估项目”
+- 当前目标是验证某个具体开发任务、局部改动或某个版块
+
+输入前提至少包括：
+
+- 当前任务目标
+- 当前改动范围
+- 预期验收场景
+- 相关页面 / 模块 / API 边界
+
+典型使用方式：
+
+1. 开发前由其他流程先写测试和验收场景。
+2. AI 完成某个功能后，调用 `qa-evaluation` 对当前任务做质量回归。
+3. Skill 针对本次任务相关产物输出问题报告与修正方向。
+
+### 6.2 `project evaluation mode`
+
+只有用户明确要求以下意图时，才进入 `project evaluation mode`：
+
+- “全量评估项目”
+- “评估当前项目现状代码”
+- “做一次完整 QA 审计”
+- 同等含义的明确项目级质量评估请求
+
+该模式特点：
+
+- 面向整个项目当前现状
+- 默认只出评估与报告
+- 不自动进入修复
+- 需要用户接受更高的评估成本与更大的检查范围
+
+### 6.3 新会话建议
+
+建议默认在新会话中运行 `qa-evaluation`，以降低当前实现上下文带来的偏置。
+
+但这不是绝对硬规则：
+
+- `task mode` 可以在当前会话中运行
+- 若在当前会话运行，Skill 应明确提示存在上下文偏置风险
+- `project evaluation mode` 应继续保持为用户明确授权后才启动的高成本模式
+
+## 7. 评估前的上下文要求
+
+无论哪种模式，评估前都应优先读取：
+
+- `docs/userDocs/AGENTS.md`
+- `docs/userDocs/user-memory.md`
+- `docs/userDocs/project-memory/` 中与当前项目相关的记忆
+- `docs/userDocs/feedback-memory/` 中已沉淀的可复用反馈规则
+
+如果存在相关 spec、模块 README、近期设计稿或任务说明，也应读取与当前评估范围直接相关的部分。
+
+原因是：
+
+- 1Flowse 的质量评估不是只看代码是否能跑
+- 还要看是否违反了项目既有共识、用户偏好和已确认的规则
+
+如果项目记忆或反馈记忆为空，Skill 可以继续工作，但应明确说明：
+
+- 评估缺少部分项目沉淀上下文
+- 结论仅基于当前可见代码、文档和验证证据
+
+## 8. `task mode` 的检查范围
+
+`task mode` 不应退化成“只看当前功能是否能点通”。
+
+它至少应固定检查以下维度：
+
+1. 功能是否完成
+2. 当前改动有没有破坏对应交互流
+3. 当前改动是否引入了不合理的耦合传播
+4. 相关状态 / API / 数据映射是否一致
+5. 是否缺少关键回归测试
+6. 当前验证证据是否真实、充分、可复述
+
+### 8.1 变化传播检查
+
+这是 `task mode` 中必须强化的一条。
+
+当本次任务为了复用组件、共享逻辑或公共协议而改动已有实现时，Skill 不能只看当前入口，还应检查：
+
+- 其他调用方是否一起受影响
+- 这种变化是否仍合理
+- 是否把本来局部的问题扩散成公共行为变化
+- 是否为了单个需求污染了稳定组件或稳定契约
+
+如果发现“为了局部功能修改公共组件，导致其他引用方行为改变”，应至少报为 `High`，严重时可报为 `Blocking`。
+
+## 9. `project evaluation mode` 的检查范围
+
+全量模式建议固定覆盖以下维度：
+
+1. UI 一致性
+2. 页面与流程逻辑
+3. 响应式与降级策略
+4. API 契约
+5. 状态与数据一致性
+6. 架构边界
+7. 测试缺口
+
+### 9.1 前端相关检查
+
+涉及前端时，Skill 应默认联动：
+
+- `frontend-development`
+
+如发现问题本质是：
+
+- 信息层级混乱
+- 入口设计错误
+- L0 / L1 / L2 / L3 深度关系不成立
+- 页面边界和交互语义不一致
+
+则应继续联动：
+
+- `frontend-logic-design`
+
+### 9.2 后端相关检查
+
+涉及后端时，Skill 应默认联动：
+
+- `backend-development`
+
+重点检查：
+
+- API 契约是否稳定、短、平、单动作
+- 状态集合、流转规则、动作约束是否清楚
+- 是否存在多入口写同一关键状态
+- 是否存在核心边界被适配层污染
+
+## 10. 证据规则
+
+`qa-evaluation` 必须是证据驱动的，不允许只凭阅读代码或主观印象下结论。
+
+后续应写入 Skill 的铁律：
+
+- 能运行就运行
+- 能截图就截图
+- 能走真实用户路径就走真实用户路径
+- 能做回归就做回归
+
+如果因为环境、依赖、权限或上下文限制导致无法验证，必须明确写：
+
+> 未验证，不下确定结论。
+
+以下行为都应视为反模式：
+
+- 只看代码，不跑验证
+- 只看截图，不走流程
+- 只凭“感觉合理”给通过结论
+- 用模糊措辞掩盖未验证事实
+
+## 11. 输出模板
+
+建议 `qa-evaluation` 固定输出模板，而不是每次自由发挥。
+
+推荐结构如下：
+
+1. 范围（现状）
+2. 结论（结果）
+3. Findings 列表
+4. 严重度
+5. 证据
+6. 为什么是问题
+7. 建议修正方向
+8. 未覆盖项 / 风险
+
+其中 `Findings` 应优先呈现，并按严重度从高到低排序。
+
+## 12. 严重度规则
+
+建议使用四级严重度：
+
+- `Blocking`
+- `High`
+- `Medium`
+- `Low`
+
+建议含义如下：
+
+- `Blocking`
+  - 当前问题会阻塞继续推进、交付或合并
+- `High`
+  - 当前问题风险高，必须修复
+- `Medium`
+  - 当前问题默认也应修复，不应轻易跳过
+- `Low`
+  - 默认也应修复；若修复成本明显过高，可暂缓，但必须说明原因
+
+补充规则：
+
+- `Medium` 及以上问题默认都应进入修复范围
+- `Low` 不是“可以不管”，只是优先级最低
+- `task mode` 中对回归脚本、命令结果和验证证据必须如实汇报，不允许用模糊措辞包装结果
+
+## 13. 建议输出风格
+
+后续 Skill 应鼓励输出“结论明确、证据充分、问题导向”的报告，而不是泛泛赞美或含糊建议。
+
+建议风格：
+
+- 先给结论
+- 再列问题
+- 每条问题都回答“证据是什么、为什么是问题、建议如何修”
+- 若未发现阻塞问题，也必须补充残余风险和未验证项
+
+不建议的风格：
+
+- 大段泛泛总结
+- 没有证据的“看起来没问题”
+- 用 code review 口吻替代 QA 报告
+
+## 14. 目录结构建议
+
+后续 Skill 建议采用：
+
+```text
+.agents/skills/qa-evaluation/
+  SKILL.md
+  references/
+    modes.md
+    report-template.md
+    severity-rules.md
+    task-mode-checklist.md
+    project-evaluation-checklist.md
+    frontend-audit.md
+    backend-audit.md
+    anti-patterns.md
+```
+
+组织原则：
+
+- `SKILL.md` 只保留触发条件、铁律、流程、模式选择和 references 导航
+- `references/` 承载重内容
+- 具体检查项按模式和领域拆开，避免主 Skill 过重
+
+## 15. 必须防止的反模式
+
+后续 Skill 至少应明确防止以下反模式：
+
+1. 把 QA 做成另一个开发 Skill
+2. 没有证据就下结论
+3. 把 code review 和 QA 报告写成一回事
+4. 把全量评估滥用到每个小任务
+5. 只挑样式毛病，不看契约和状态
+6. 只看代码，不走真实用户路径
+
+## 16. 当前结论摘要
+
+- 1Flowse 后续应新增一个独立 Skill：`qa-evaluation`
+- 它是质量评估器，不是另一个开发 Skill
+- 默认只评估和报告，不直接改代码
+- 默认模式为 `task mode`
+- 只有用户明确要求“全量评估项目现状代码”时，才进入 `project evaluation mode`
+- `task mode` 重点检查当前任务回归、交互流、状态/API 映射和变化传播
+- `project evaluation mode` 覆盖 UI、流程、响应式、API、状态一致性、架构边界和测试缺口
+- 评估必须证据驱动；无法验证时必须明确说明“未验证，不下确定结论”
+- Skill 需要联动项目记忆、反馈记忆，以及 `frontend-development`、`frontend-logic-design`、`backend-development`
+- 输出建议采用固定报告模板和四级严重度体系
