@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: 正式 web 已回流 tmp/mock-ui 的浅色翡翠壳层主题与导航
-summary: 用户确认 `tmp/mock-ui` 的主题和导航审美方向后，正式 `web` 已回流浅色翡翠主题 token、顶部水平导航和右侧纯文本账户入口；当前顶栏文案固定为“工作台 / 团队 / 前台”，账户入口与右边缘保持 `5%` 间距，账户下拉改为左对齐锚点，且没有把 `theme-preview` 这类沙盒展示页一起带回主应用。
+summary: 用户确认 `tmp/mock-ui` 的主题和导航审美方向后，正式 `web` 已回流浅色翡翠主题 token、顶部水平导航和右侧纯文本账户入口；当前顶栏文案固定为“工作台 / 团队 / 前台”，账户入口与右边缘保持 `5%` 间距，账户区最终采用 horizontal `SubMenu`，用户名在固定宽度区块中居中显示，且没有把 `theme-preview` 这类沙盒展示页一起带回主应用。
 keywords:
   - web
   - tmp/mock-ui
@@ -13,8 +13,8 @@ match_when:
   - 需要判断 `tmp/mock-ui` 中哪些 UI 改动已经正式回流
   - 需要确认是否应把 `theme-preview` 一类演示页带入正式 web
 created_at: 2026-04-13 10
-updated_at: 2026-04-13 10
-last_verified_at: 2026-04-13 10
+updated_at: 2026-04-13 11
+last_verified_at: 2026-04-13 11
 decision_policy: verify_before_decision
 scope:
   - web
@@ -32,7 +32,7 @@ scope:
 
 ## 谁在做什么
 
-用户明确要求把 `tmp/mock-ui` 里更符合审美的主题和导航栏迁移到正式 `web`，并进一步把导航文案收敛为“工作台 / 团队 / 前台”，同时把右侧账户入口从贴边状态后退到距右边缘 `5%` 的位置，账户下拉相对触发项改为左对齐。AI 已将这些壳层规则落实到正式前端。
+用户明确要求把 `tmp/mock-ui` 里更符合审美的主题和导航栏迁移到正式 `web`，并进一步把导航文案收敛为“工作台 / 团队 / 前台”，同时把右侧账户入口从贴边状态后退到距右边缘 `5%` 的位置。账户区最终不采用独立 `Dropdown`，而是改为 horizontal `SubMenu`，用户名在更宽的固定区块中居中显示。AI 已将这些壳层规则落实到正式前端，并通过本地浏览器截图验证。
 
 ## 为什么这样做
 

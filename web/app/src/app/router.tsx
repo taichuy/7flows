@@ -7,7 +7,7 @@ import {
   createRouter,
   useRouterState
 } from '@tanstack/react-router';
-import { Dropdown, Menu } from 'antd';
+import { Menu } from 'antd';
 import type { MenuProps } from 'antd';
 
 import { AppShell } from '@1flowse/ui';
@@ -72,38 +72,30 @@ function AppNavigation() {
 function AppHeaderActions() {
   const items: MenuProps['items'] = [
     {
-      key: 'profile',
-      label: 'Profile'
-    },
-    {
-      key: 'settings',
-      label: 'Settings'
-    },
-    {
-      type: 'divider'
-    },
-    {
-      key: 'sign-out',
-      label: 'Sign out'
+      key: 'account',
+      label: (
+        <span className="app-shell-account-block">
+          <span className="app-shell-account-label">Taichu</span>
+        </span>
+      ),
+      popupClassName: 'app-shell-account-popup',
+      children: [
+        { key: 'profile', label: 'Profile' },
+        { key: 'settings', label: 'Settings' },
+        { type: 'divider' },
+        { key: 'sign-out', label: 'Sign out' }
+      ]
     }
   ];
 
   return (
-    <Dropdown
-      menu={{ items, selectable: false }}
-      placement="bottomLeft"
-      trigger={['click']}
-      overlayClassName="app-shell-account-dropdown"
-      openClassName="is-open"
-    >
-      <button
-        type="button"
-        className="app-shell-account-trigger"
-        data-account-dropdown-placement="bottomLeft"
-      >
-        <span className="app-shell-account-label">Taichu</span>
-      </button>
-    </Dropdown>
+    <Menu
+      className="app-shell-account-menu"
+      mode="horizontal"
+      selectable={false}
+      items={items}
+      disabledOverflow
+    />
   );
 }
 
