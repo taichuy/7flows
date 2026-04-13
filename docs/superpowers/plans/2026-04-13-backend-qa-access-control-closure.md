@@ -161,7 +161,7 @@ Execution note (`2026-04-13 16`):
 - Modify: `api/apps/api-server/src/routes/runtime_models.rs`
 - Modify: `api/apps/api-server/src/_tests/runtime_model_routes.rs`
 
-- [ ] **Step 1: Add failing ACL tests in runtime-core and storage-pg**
+- [x] **Step 1: Add failing ACL tests in runtime-core and storage-pg**
 
 Create `api/crates/runtime-core/src/_tests/runtime_acl_tests.rs` with targeted coverage for:
 
@@ -183,7 +183,7 @@ Extend `api/crates/storage-pg/src/_tests/runtime_record_repository_tests.rs` wit
 
 Add one route-level regression in `api/apps/api-server/src/_tests/runtime_model_routes.rs` for a manager/admin/root matrix on the same model code.
 
-- [ ] **Step 2: Run the focused failures**
+- [x] **Step 2: Run the focused failures**
 
 Run: `cargo test -p runtime-core state_data_view_own_filters_list_by_created_by -- --exact`
 
@@ -193,7 +193,7 @@ Run: `cargo test -p storage-pg runtime_record_repository_enforces_owner_scope --
 
 Expected: FAIL because the repository only filters by runtime scope, never by `created_by`.
 
-- [ ] **Step 3: Implement runtime ACL evaluation and owner-aware repository calls**
+- [x] **Step 3: Implement runtime ACL evaluation and owner-aware repository calls**
 
 Create `api/crates/runtime-core/src/runtime_acl.rs` with explicit first-phase rules:
 
@@ -248,7 +248,7 @@ whenever the request is running in own-scope mode.
 
 Update `api/apps/api-server/src/routes/runtime_models.rs` so every runtime call passes `context.actor.clone()` into the engine instead of only `context.user.id` and `context.actor.team_id`.
 
-- [ ] **Step 4: Re-run the runtime ACL regressions**
+- [x] **Step 4: Re-run the runtime ACL regressions**
 
 Run: `cargo test -p runtime-core runtime_acl -- --nocapture`
 
@@ -262,12 +262,24 @@ Run: `cargo test -p api-server runtime_model_routes_enforce_state_data_acl -- --
 
 Expected: PASS
 
-- [ ] **Step 5: Commit the runtime ACL slice**
+- [x] **Step 5: Commit the runtime ACL slice**
 
 ```bash
 git add api/crates/runtime-core/src/lib.rs api/crates/runtime-core/src/runtime_acl.rs api/crates/runtime-core/src/runtime_engine.rs api/crates/runtime-core/src/runtime_record_repository.rs api/crates/runtime-core/src/_tests/mod.rs api/crates/runtime-core/src/_tests/runtime_acl_tests.rs api/crates/runtime-core/src/_tests/runtime_engine_tests.rs api/crates/storage-pg/src/runtime_record_repository.rs api/crates/storage-pg/src/_tests/runtime_record_repository_tests.rs api/apps/api-server/src/routes/runtime_models.rs api/apps/api-server/src/_tests/runtime_model_routes.rs
 git commit -m "fix: enforce state data own all authorization"
 ```
+
+Execution note (`2026-04-13 16`):
+- Red phase confirmed the intended interface gap: `runtime-core` tests failed because `Runtime*Input` still only accepted `actor_user_id/team_id`, and `storage-pg` tests failed because `RuntimeListQuery` and repository methods still lacked `owner_user_id`.
+- The route regression failed on the expected behavior gap: `cargo test -p api-server --lib _tests::runtime_model_routes::runtime_model_routes_enforce_state_data_acl -- --exact` initially returned `total = 3` for the manager list instead of `1`.
+- Green verification used:
+  - `cargo test -p runtime-core runtime_acl -- --nocapture`
+  - `cargo test -p storage-pg --lib _tests::runtime_record_repository_tests::runtime_record_repository_enforces_owner_scope -- --exact`
+  - `cargo test -p storage-pg --lib _tests::runtime_record_repository_tests::runtime_record_repository_supports_crud_filter_sort_and_relation_expansion -- --exact`
+  - `cargo test -p api-server --lib _tests::runtime_model_routes::runtime_model_routes_enforce_state_data_acl -- --exact`
+- During implementation, two non-design issues were corrected before green runs:
+  - `RuntimeEngine::for_tests()` only registers metadata for `team_id = nil`, so the new runtime-core ACL tests were aligned to that scope.
+  - The in-memory repository needed to serialize `created_by` as a string `Uuid`, not attempt `serde_json::Value::from(Uuid)`.
 
 ### Task 3: Run The Topic-A Verification Sweep
 

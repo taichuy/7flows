@@ -14,6 +14,29 @@ fn database_url() -> String {
         .unwrap_or_else(|_| "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows".into())
 }
 
+async fn insert_user(store: &PgControlPlaneStore, user_id: Uuid, account: &str) {
+    sqlx::query(
+        r#"
+        insert into users (
+            id, account, email, phone, password_hash, name, nickname, avatar_url, introduction,
+            default_display_role, email_login_enabled, phone_login_enabled, status, session_version,
+            created_by, updated_by
+        )
+        values (
+            $1, $2, $3, null, 'hash', $4, $5, null, '', 'manager', true, false, 'active', 1, null, null
+        )
+        "#,
+    )
+    .bind(user_id)
+    .bind(account)
+    .bind(format!("{account}@example.com"))
+    .bind(account)
+    .bind(account)
+    .execute(store.pool())
+    .await
+    .unwrap();
+}
+
 #[tokio::test]
 async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expansion() {
     let pool = connect(&database_url()).await.unwrap();
@@ -211,6 +234,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &order_metadata,
         RuntimeListQuery {
             scope_id: team_id,
+            owner_user_id: None,
             filters: vec![RuntimeFilterInput {
                 field_code: "status".into(),
                 operator: "eq".into(),
@@ -231,10 +255,11 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
     assert_eq!(listed.items[0]["title"], json!("A-002"));
     assert_eq!(listed.items[0]["customer"]["name"], json!("Bob"));
 
-    let fetched = RuntimeRecordRepository::get_record(&store, &order_metadata, team_id, &first_id)
-        .await
-        .unwrap()
-        .unwrap();
+    let fetched =
+        RuntimeRecordRepository::get_record(&store, &order_metadata, team_id, None, &first_id)
+            .await
+            .unwrap()
+            .unwrap();
     assert_eq!(fetched["title"], json!("A-001"));
 
     let updated = RuntimeRecordRepository::update_record(
@@ -242,6 +267,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &order_metadata,
         Uuid::nil(),
         team_id,
+        None,
         &order_id,
         json!({ "title": "A-002X", "status": "paid", "customer": bob_id }),
     )
@@ -254,6 +280,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &customer_metadata,
         RuntimeListQuery {
             scope_id: team_id,
+            owner_user_id: None,
             filters: vec![],
             sorts: vec![],
             expand_relations: vec!["orders".into()],
@@ -271,8 +298,206 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
     assert_eq!(alice_row["orders"].as_array().unwrap().len(), 1);
 
     let deleted =
-        RuntimeRecordRepository::delete_record(&store, &order_metadata, team_id, &order_id)
+        RuntimeRecordRepository::delete_record(&store, &order_metadata, team_id, None, &order_id)
             .await
             .unwrap();
     assert!(deleted);
+}
+
+#[tokio::test]
+async fn runtime_record_repository_enforces_owner_scope() {
+    let pool = connect(&database_url()).await.unwrap();
+    run_migrations(&pool).await.unwrap();
+    let store = PgControlPlaneStore::new(pool);
+    let team_id = Uuid::now_v7();
+    let owner_user_id = Uuid::now_v7();
+    let other_user_id = Uuid::now_v7();
+
+    sqlx::query(
+        "insert into teams (id, name, created_by, updated_by) values ($1, 'Core Team', null, null)",
+    )
+    .bind(team_id)
+    .execute(store.pool())
+    .await
+    .unwrap();
+    insert_user(&store, owner_user_id, "owner-user").await;
+    insert_user(&store, other_user_id, "other-user").await;
+
+    let order_model = ModelDefinitionRepository::create_model_definition(
+        &store,
+        &CreateModelDefinitionInput {
+            actor_user_id: Uuid::nil(),
+            scope_kind: DataModelScopeKind::Team,
+            scope_id: team_id,
+            code: "orders_acl".into(),
+            title: "Orders ACL".into(),
+        },
+    )
+    .await
+    .unwrap();
+    ModelDefinitionRepository::add_model_field(
+        &store,
+        &AddModelFieldInput {
+            actor_user_id: Uuid::nil(),
+            model_id: order_model.id,
+            code: "title".into(),
+            title: "Title".into(),
+            field_kind: ModelFieldKind::String,
+            is_required: true,
+            is_unique: false,
+            default_value: None,
+            display_interface: Some("input".into()),
+            display_options: json!({}),
+            relation_target_model_id: None,
+            relation_options: json!({}),
+        },
+    )
+    .await
+    .unwrap();
+
+    let metadata = store
+        .list_runtime_model_metadata()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|model| model.model_code == "orders_acl" && model.scope_id == team_id)
+        .unwrap();
+
+    let owner_record = RuntimeRecordRepository::create_record(
+        &store,
+        &metadata,
+        owner_user_id,
+        team_id,
+        json!({ "title": "owner-record" }),
+    )
+    .await
+    .unwrap();
+    let other_record = RuntimeRecordRepository::create_record(
+        &store,
+        &metadata,
+        other_user_id,
+        team_id,
+        json!({ "title": "other-record" }),
+    )
+    .await
+    .unwrap();
+    let owner_record_id = owner_record["id"].as_str().unwrap().to_string();
+    let other_record_id = other_record["id"].as_str().unwrap().to_string();
+
+    let own_list = RuntimeRecordRepository::list_records(
+        &store,
+        &metadata,
+        RuntimeListQuery {
+            scope_id: team_id,
+            owner_user_id: Some(owner_user_id),
+            filters: vec![],
+            sorts: vec![],
+            expand_relations: vec![],
+            page: 1,
+            page_size: 20,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(own_list.total, 1);
+    assert_eq!(own_list.items[0]["title"], json!("owner-record"));
+
+    let own_get = RuntimeRecordRepository::get_record(
+        &store,
+        &metadata,
+        team_id,
+        Some(owner_user_id),
+        &owner_record_id,
+    )
+    .await
+    .unwrap();
+    assert!(own_get.is_some());
+    let blocked_get = RuntimeRecordRepository::get_record(
+        &store,
+        &metadata,
+        team_id,
+        Some(owner_user_id),
+        &other_record_id,
+    )
+    .await
+    .unwrap();
+    assert!(blocked_get.is_none());
+
+    let updated = RuntimeRecordRepository::update_record(
+        &store,
+        &metadata,
+        owner_user_id,
+        team_id,
+        Some(owner_user_id),
+        &owner_record_id,
+        json!({ "title": "owner-record-updated" }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(updated["title"], json!("owner-record-updated"));
+
+    let blocked_update = RuntimeRecordRepository::update_record(
+        &store,
+        &metadata,
+        owner_user_id,
+        team_id,
+        Some(owner_user_id),
+        &other_record_id,
+        json!({ "title": "blocked-update" }),
+    )
+    .await;
+    assert!(blocked_update.is_err());
+
+    let blocked_delete = RuntimeRecordRepository::delete_record(
+        &store,
+        &metadata,
+        team_id,
+        Some(owner_user_id),
+        &other_record_id,
+    )
+    .await
+    .unwrap();
+    assert!(!blocked_delete);
+
+    let all_list = RuntimeRecordRepository::list_records(
+        &store,
+        &metadata,
+        RuntimeListQuery {
+            scope_id: team_id,
+            owner_user_id: None,
+            filters: vec![],
+            sorts: vec![],
+            expand_relations: vec![],
+            page: 1,
+            page_size: 20,
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(all_list.total, 2);
+
+    let all_get =
+        RuntimeRecordRepository::get_record(&store, &metadata, team_id, None, &other_record_id)
+            .await
+            .unwrap();
+    assert!(all_get.is_some());
+
+    let all_updated = RuntimeRecordRepository::update_record(
+        &store,
+        &metadata,
+        owner_user_id,
+        team_id,
+        None,
+        &other_record_id,
+        json!({ "title": "other-record-updated" }),
+    )
+    .await
+    .unwrap();
+    assert_eq!(all_updated["title"], json!("other-record-updated"));
+
+    let all_deleted =
+        RuntimeRecordRepository::delete_record(&store, &metadata, team_id, None, &other_record_id)
+            .await
+            .unwrap();
+    assert!(all_deleted);
 }

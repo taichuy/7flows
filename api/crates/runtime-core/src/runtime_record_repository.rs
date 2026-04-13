@@ -27,6 +27,7 @@ pub struct RuntimeListResult {
 #[derive(Debug, Clone, PartialEq)]
 pub struct RuntimeListQuery {
     pub scope_id: Uuid,
+    pub owner_user_id: Option<Uuid>,
     pub filters: Vec<RuntimeFilterInput>,
     pub sorts: Vec<RuntimeSortInput>,
     pub expand_relations: Vec<String>,
@@ -45,6 +46,7 @@ pub trait RuntimeRecordRepository: Send + Sync {
         &self,
         metadata: &ModelMetadata,
         scope_id: uuid::Uuid,
+        owner_user_id: Option<uuid::Uuid>,
         record_id: &str,
     ) -> Result<Option<Value>>;
     async fn create_record(
@@ -59,6 +61,7 @@ pub trait RuntimeRecordRepository: Send + Sync {
         metadata: &ModelMetadata,
         actor_user_id: uuid::Uuid,
         scope_id: uuid::Uuid,
+        owner_user_id: Option<uuid::Uuid>,
         record_id: &str,
         payload: Value,
     ) -> Result<Value>;
@@ -66,6 +69,7 @@ pub trait RuntimeRecordRepository: Send + Sync {
         &self,
         metadata: &ModelMetadata,
         scope_id: uuid::Uuid,
+        owner_user_id: Option<uuid::Uuid>,
         record_id: &str,
     ) -> Result<bool>;
 }

@@ -43,6 +43,7 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
             "select count(*)::bigint from {table_name} where {scope_column_name} = "
         ));
         count_builder.push_bind(query.scope_id);
+        append_owner_scope_clause(&mut count_builder, query.owner_user_id);
         append_filter_clause(&mut count_builder, metadata, &query.filters)?;
         let total = count_builder
             .build_query_scalar::<i64>()
@@ -53,6 +54,7 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
             "select row_to_json(t) from (select * from {table_name} where {scope_column_name} = "
         ));
         list_builder.push_bind(query.scope_id);
+        append_owner_scope_clause(&mut list_builder, query.owner_user_id);
         append_filter_clause(&mut list_builder, metadata, &query.filters)?;
         append_sort_clause(&mut list_builder, metadata, &query.sorts)?;
         list_builder.push(" limit ");
@@ -72,6 +74,7 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
                 self.expand_relations(
                     metadata,
                     query.scope_id,
+                    query.owner_user_id,
                     normalized,
                     &query.expand_relations,
                 )
@@ -86,6 +89,7 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         &self,
         metadata: &ModelMetadata,
         scope_id: Uuid,
+        owner_user_id: Option<Uuid>,
         record_id: &str,
     ) -> Result<Option<Value>> {
         let table_name = quote_identifier(&metadata.physical_table_name)?;
@@ -95,6 +99,7 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
             "select row_to_json(t) from (select * from {table_name} where {scope_column_name} = "
         ));
         builder.push_bind(scope_id);
+        append_owner_scope_clause(&mut builder, owner_user_id);
         builder.push(" and id = ");
         builder.push_bind(record_id);
         builder.push(" limit 1) t");
@@ -149,7 +154,7 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         builder.push(")");
         builder.build().execute(self.pool()).await?;
 
-        self.get_record(metadata, scope_id, &record_id.to_string())
+        self.get_record(metadata, scope_id, None, &record_id.to_string())
             .await?
             .ok_or_else(|| anyhow!("runtime record not found after create"))
     }
@@ -159,13 +164,14 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         metadata: &ModelMetadata,
         actor_user_id: Uuid,
         scope_id: Uuid,
+        owner_user_id: Option<Uuid>,
         record_id: &str,
         payload: Value,
     ) -> Result<Value> {
         let payload = payload_object(payload)?;
         if payload.is_empty() {
             return self
-                .get_record(metadata, scope_id, record_id)
+                .get_record(metadata, scope_id, owner_user_id, record_id)
                 .await?
                 .ok_or_else(|| anyhow!("runtime record not found"));
         }
@@ -196,11 +202,12 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         builder.push(scope_column_name);
         builder.push(" = ");
         builder.push_bind(scope_id);
+        append_owner_scope_clause(&mut builder, owner_user_id);
         builder.push(" and id = ");
         builder.push_bind(record_id);
         builder.build().execute(self.pool()).await?;
 
-        self.get_record(metadata, scope_id, &record_id.to_string())
+        self.get_record(metadata, scope_id, owner_user_id, &record_id.to_string())
             .await?
             .ok_or_else(|| anyhow!("runtime record not found after update"))
     }
@@ -209,6 +216,7 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         &self,
         metadata: &ModelMetadata,
         scope_id: Uuid,
+        owner_user_id: Option<Uuid>,
         record_id: &str,
     ) -> Result<bool> {
         let table_name = quote_identifier(&metadata.physical_table_name)?;
@@ -218,6 +226,7 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
             "delete from {table_name} where {scope_column_name} = "
         ));
         builder.push_bind(scope_id);
+        append_owner_scope_clause(&mut builder, owner_user_id);
         builder.push(" and id = ");
         builder.push_bind(record_id);
 
@@ -231,6 +240,7 @@ impl PgControlPlaneStore {
         &self,
         metadata: &ModelMetadata,
         scope_id: Uuid,
+        owner_user_id: Option<Uuid>,
         record: Value,
         expand_relations: &[String],
     ) -> Result<Value> {
@@ -265,6 +275,7 @@ impl PgControlPlaneStore {
                         self,
                         &target_metadata,
                         scope_id,
+                        owner_user_id,
                         target_record_id,
                     )
                     .await?
@@ -295,6 +306,7 @@ impl PgControlPlaneStore {
                         &target_metadata,
                         RuntimeListQuery {
                             scope_id,
+                            owner_user_id,
                             filters: vec![RuntimeFilterInput {
                                 field_code: mapped_by.to_string(),
                                 operator: "eq".into(),
@@ -314,6 +326,16 @@ impl PgControlPlaneStore {
         }
 
         Ok(Value::Object(object))
+    }
+}
+
+fn append_owner_scope_clause(
+    builder: &mut QueryBuilder<'_, Postgres>,
+    owner_user_id: Option<Uuid>,
+) {
+    if let Some(owner_user_id) = owner_user_id {
+        builder.push(" and created_by = ");
+        builder.push_bind(owner_user_id);
     }
 }
 

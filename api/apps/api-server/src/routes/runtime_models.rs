@@ -16,6 +16,20 @@ use crate::{
     response::ApiSuccess,
 };
 
+fn map_runtime_error(error: anyhow::Error) -> ApiError {
+    if let Some(runtime_core::runtime_acl::RuntimeAclError::PermissionDenied(reason)) =
+        error.downcast_ref::<runtime_core::runtime_acl::RuntimeAclError>()
+    {
+        return control_plane::errors::ControlPlaneError::PermissionDenied(*reason).into();
+    }
+
+    if error.to_string().contains("runtime record not found") {
+        return control_plane::errors::ControlPlaneError::NotFound("runtime_record").into();
+    }
+
+    error.into()
+}
+
 #[derive(Debug, Deserialize, Default)]
 pub struct RuntimeListQueryParams {
     pub filter: Option<String>,
@@ -119,8 +133,7 @@ pub async fn list_records(
     let result = state
         .runtime_engine
         .list_records(runtime_core::runtime_engine::RuntimeListInput {
-            actor_user_id: context.user.id,
-            team_id: context.actor.team_id,
+            actor: context.actor.clone(),
             app_id: None,
             model_code,
             filters: parse_filters(query.filter.as_deref())?,
@@ -129,7 +142,8 @@ pub async fn list_records(
             page: query.page.unwrap_or(1),
             page_size: query.page_size.unwrap_or(20),
         })
-        .await?;
+        .await
+        .map_err(map_runtime_error)?;
 
     Ok(Json(ApiSuccess::new(RuntimeListResponse {
         items: result.items,
@@ -146,13 +160,13 @@ pub async fn get_record(
     let record = state
         .runtime_engine
         .get_record(runtime_core::runtime_engine::RuntimeGetInput {
-            actor_user_id: context.user.id,
-            team_id: context.actor.team_id,
+            actor: context.actor.clone(),
             app_id: None,
             model_code,
             record_id,
         })
-        .await?
+        .await
+        .map_err(map_runtime_error)?
         .ok_or(control_plane::errors::ControlPlaneError::NotFound(
             "runtime_record",
         ))?;
@@ -172,13 +186,13 @@ pub async fn create_record(
     let record = state
         .runtime_engine
         .create_record(runtime_core::runtime_engine::RuntimeCreateInput {
-            actor_user_id: context.user.id,
-            team_id: context.actor.team_id,
+            actor: context.actor.clone(),
             app_id: None,
             model_code,
             payload,
         })
-        .await?;
+        .await
+        .map_err(map_runtime_error)?;
 
     Ok((StatusCode::CREATED, Json(ApiSuccess::new(record))))
 }
@@ -195,14 +209,14 @@ pub async fn update_record(
     let record = state
         .runtime_engine
         .update_record(runtime_core::runtime_engine::RuntimeUpdateInput {
-            actor_user_id: context.user.id,
-            team_id: context.actor.team_id,
+            actor: context.actor.clone(),
             app_id: None,
             model_code,
             record_id,
             payload,
         })
-        .await?;
+        .await
+        .map_err(map_runtime_error)?;
 
     Ok(Json(ApiSuccess::new(record)))
 }
@@ -218,13 +232,13 @@ pub async fn delete_record(
     let result = state
         .runtime_engine
         .delete_record(runtime_core::runtime_engine::RuntimeDeleteInput {
-            actor_user_id: context.user.id,
-            team_id: context.actor.team_id,
+            actor: context.actor.clone(),
             app_id: None,
             model_code,
             record_id,
         })
-        .await?;
+        .await
+        .map_err(map_runtime_error)?;
 
     Ok(Json(ApiSuccess::new(result)))
 }

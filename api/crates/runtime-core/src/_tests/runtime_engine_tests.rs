@@ -1,3 +1,4 @@
+use domain::ActorContext;
 use runtime_core::runtime_engine::{
     RuntimeCreateInput, RuntimeDeleteInput, RuntimeEngine, RuntimeFilterInput, RuntimeGetInput,
     RuntimeListInput, RuntimeSortInput, RuntimeUpdateInput,
@@ -8,10 +9,10 @@ use uuid::Uuid;
 #[tokio::test]
 async fn runtime_engine_runs_full_crud_against_repository_and_scope_context() {
     let engine = RuntimeEngine::for_tests();
+    let root = ActorContext::root(Uuid::nil(), Uuid::nil(), "root");
     let first = engine
         .create_record(RuntimeCreateInput {
-            actor_user_id: Uuid::nil(),
-            team_id: Uuid::nil(),
+            actor: root.clone(),
             app_id: None,
             model_code: "orders".into(),
             payload: json!({ "title": "A-001", "status": "draft" }),
@@ -21,8 +22,7 @@ async fn runtime_engine_runs_full_crud_against_repository_and_scope_context() {
 
     let created = engine
         .create_record(RuntimeCreateInput {
-            actor_user_id: Uuid::nil(),
-            team_id: Uuid::nil(),
+            actor: root.clone(),
             app_id: None,
             model_code: "orders".into(),
             payload: json!({ "title": "A-002", "status": "paid" }),
@@ -35,8 +35,7 @@ async fn runtime_engine_runs_full_crud_against_repository_and_scope_context() {
 
     let listed = engine
         .list_records(RuntimeListInput {
-            actor_user_id: Uuid::nil(),
-            team_id: Uuid::nil(),
+            actor: root.clone(),
             app_id: None,
             model_code: "orders".into(),
             filters: vec![RuntimeFilterInput {
@@ -59,8 +58,7 @@ async fn runtime_engine_runs_full_crud_against_repository_and_scope_context() {
 
     let fetched = engine
         .get_record(RuntimeGetInput {
-            actor_user_id: Uuid::nil(),
-            team_id: Uuid::nil(),
+            actor: root.clone(),
             app_id: None,
             model_code: "orders".into(),
             record_id: first_record_id,
@@ -72,8 +70,7 @@ async fn runtime_engine_runs_full_crud_against_repository_and_scope_context() {
 
     let updated = engine
         .update_record(RuntimeUpdateInput {
-            actor_user_id: Uuid::nil(),
-            team_id: Uuid::nil(),
+            actor: root.clone(),
             app_id: None,
             model_code: "orders".into(),
             record_id: record_id.clone(),
@@ -85,8 +82,7 @@ async fn runtime_engine_runs_full_crud_against_repository_and_scope_context() {
 
     let deleted = engine
         .delete_record(RuntimeDeleteInput {
-            actor_user_id: Uuid::nil(),
-            team_id: Uuid::nil(),
+            actor: root,
             app_id: None,
             model_code: "orders".into(),
             record_id,

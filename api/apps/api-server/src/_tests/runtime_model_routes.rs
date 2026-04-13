@@ -6,6 +6,79 @@ use axum::{
 use serde_json::json;
 use tower::ServiceExt;
 
+async fn create_member(
+    app: &axum::Router,
+    cookie: &str,
+    csrf: &str,
+    account: &str,
+    password: &str,
+) -> String {
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/members")
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "account": account,
+                        "email": format!("{account}@example.com"),
+                        "phone": null,
+                        "password": password,
+                        "name": account,
+                        "nickname": account,
+                        "introduction": "",
+                        "email_login_enabled": true,
+                        "phone_login_enabled": false
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let body = to_bytes(create_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let created_member: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    created_member["data"]["id"].as_str().unwrap().to_string()
+}
+
+async fn replace_member_roles(
+    app: &axum::Router,
+    cookie: &str,
+    csrf: &str,
+    member_id: &str,
+    role_codes: &[&str],
+) {
+    let replace_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/console/members/{member_id}/roles"))
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "role_codes": role_codes
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(replace_response.status(), StatusCode::NO_CONTENT);
+}
+
 #[tokio::test]
 async fn runtime_model_routes_create_fetch_update_delete_and_filter_records() {
     let app = test_app().await;
@@ -100,6 +173,194 @@ async fn runtime_model_routes_create_fetch_update_delete_and_filter_records() {
         .await
         .unwrap();
     assert_eq!(delete_response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn runtime_model_routes_enforce_state_data_acl() {
+    let app = test_app().await;
+    let (root_cookie, root_csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let model_id = create_orders_model(&app, &root_cookie, &root_csrf).await;
+    create_text_field(&app, &root_cookie, &root_csrf, &model_id, "title").await;
+    create_enum_field(&app, &root_cookie, &root_csrf, &model_id, "status").await;
+
+    let _manager_member_id =
+        create_member(&app, &root_cookie, &root_csrf, "manager-acl", "temp-pass").await;
+    let admin_member_id =
+        create_member(&app, &root_cookie, &root_csrf, "admin-acl", "temp-pass").await;
+    replace_member_roles(&app, &root_cookie, &root_csrf, &admin_member_id, &["admin"]).await;
+
+    let (manager_cookie, manager_csrf) =
+        login_and_capture_cookie(&app, "manager-acl", "temp-pass").await;
+    let (admin_cookie, admin_csrf) = login_and_capture_cookie(&app, "admin-acl", "temp-pass").await;
+
+    let manager_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/runtime/models/orders/records")
+                .header("cookie", &manager_cookie)
+                .header("x-csrf-token", &manager_csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({ "title": "manager-order", "status": "draft" }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(manager_create.status(), StatusCode::CREATED);
+    let manager_record_body = to_bytes(manager_create.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let manager_record: serde_json::Value = serde_json::from_slice(&manager_record_body).unwrap();
+    let manager_record_id = manager_record["data"]["id"].as_str().unwrap().to_string();
+
+    let admin_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/runtime/models/orders/records")
+                .header("cookie", &admin_cookie)
+                .header("x-csrf-token", &admin_csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({ "title": "admin-order", "status": "paid" }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(admin_create.status(), StatusCode::CREATED);
+    let admin_record_body = to_bytes(admin_create.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let admin_record: serde_json::Value = serde_json::from_slice(&admin_record_body).unwrap();
+    let admin_record_id = admin_record["data"]["id"].as_str().unwrap().to_string();
+
+    let root_create = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/runtime/models/orders/records")
+                .header("cookie", &root_cookie)
+                .header("x-csrf-token", &root_csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({ "title": "root-order", "status": "draft" }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(root_create.status(), StatusCode::CREATED);
+
+    let manager_list = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/runtime/models/orders/records")
+                .header("cookie", &manager_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(manager_list.status(), StatusCode::OK);
+    let manager_list_body = to_bytes(manager_list.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let manager_list_payload: serde_json::Value =
+        serde_json::from_slice(&manager_list_body).unwrap();
+    assert_eq!(manager_list_payload["data"]["total"], json!(1));
+    assert_eq!(
+        manager_list_payload["data"]["items"][0]["title"],
+        json!("manager-order")
+    );
+
+    let admin_list = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/runtime/models/orders/records")
+                .header("cookie", &admin_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(admin_list.status(), StatusCode::OK);
+    let admin_list_body = to_bytes(admin_list.into_body(), usize::MAX).await.unwrap();
+    let admin_list_payload: serde_json::Value = serde_json::from_slice(&admin_list_body).unwrap();
+    assert_eq!(admin_list_payload["data"]["total"], json!(3));
+
+    let root_list = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/runtime/models/orders/records")
+                .header("cookie", &root_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(root_list.status(), StatusCode::OK);
+    let root_list_body = to_bytes(root_list.into_body(), usize::MAX).await.unwrap();
+    let root_list_payload: serde_json::Value = serde_json::from_slice(&root_list_body).unwrap();
+    assert_eq!(root_list_payload["data"]["total"], json!(3));
+
+    let blocked_get = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!(
+                    "/api/runtime/models/orders/records/{admin_record_id}"
+                ))
+                .header("cookie", &manager_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(blocked_get.status(), StatusCode::NOT_FOUND);
+
+    let admin_get = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!(
+                    "/api/runtime/models/orders/records/{manager_record_id}"
+                ))
+                .header("cookie", &admin_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(admin_get.status(), StatusCode::OK);
+
+    let root_get = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!(
+                    "/api/runtime/models/orders/records/{admin_record_id}"
+                ))
+                .header("cookie", &root_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(root_get.status(), StatusCode::OK);
 }
 
 async fn create_orders_model(app: &axum::Router, cookie: &str, csrf: &str) -> String {
