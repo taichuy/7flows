@@ -228,6 +228,7 @@ a {
   justify-content: flex-end;
   flex: none;
   min-width: max-content;
+  margin-right: clamp(24px, 10vw, 200px);
 }
 
 .app-shell-account-menu.ant-menu-horizontal {
@@ -670,6 +671,7 @@ a {
 
   .app-shell-actions {
     justify-content: flex-start;
+    margin-right: 0;
   }
 
   .app-shell-content.ant-layout-content {
