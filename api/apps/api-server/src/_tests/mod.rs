@@ -1,5 +1,6 @@
 mod auth_routes;
 mod config_tests;
+mod me_routes;
 mod member_routes;
 mod model_definition_routes;
 mod role_routes;

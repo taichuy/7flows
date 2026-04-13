@@ -41,7 +41,7 @@ pub struct CreateMemberBody {
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct ResetMemberPasswordBody {
-    pub password: String,
+    pub new_password: String,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -120,6 +120,8 @@ fn to_member_response(user: domain::UserRecord) -> MemberResponse {
 pub fn router() -> Router<Arc<ApiState>> {
     Router::new()
         .route("/members", get(list_members).post(create_member))
+        .route("/members/:id/actions/disable", post(disable_member))
+        .route("/members/:id/actions/reset-password", post(reset_member))
         .route("/members/:id/disable", post(disable_member))
         .route("/members/:id/reset-password", post(reset_member))
         .route("/members/:id/roles", put(replace_member_roles))
@@ -184,7 +186,7 @@ pub async fn create_member(
 
 #[utoipa::path(
     post,
-    path = "/api/console/members/{id}/disable",
+    path = "/api/console/members/{id}/actions/disable",
     params(("id" = String, Path, description = "Member user id")),
     responses((status = 204), (status = 403, body = crate::error_response::ErrorBody))
 )]
@@ -208,7 +210,7 @@ pub async fn disable_member(
 
 #[utoipa::path(
     post,
-    path = "/api/console/members/{id}/reset-password",
+    path = "/api/console/members/{id}/actions/reset-password",
     request_body = ResetMemberPasswordBody,
     params(("id" = String, Path, description = "Member user id")),
     responses((status = 204), (status = 403, body = crate::error_response::ErrorBody))
@@ -226,7 +228,7 @@ pub async fn reset_member(
         .reset_member_password(ResetMemberPasswordCommand {
             actor_user_id: context.user.id,
             target_user_id: parse_member_id(&member_id)?,
-            password_hash: hash_password(&body.password)?,
+            password_hash: hash_password(&body.new_password)?,
         })
         .await?;
 
