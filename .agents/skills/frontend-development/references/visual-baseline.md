@@ -2,9 +2,10 @@
 
 ## Authority
 
-- 唯一权威规则源：`docs/draft/DESIGN.md`
+- 唯一权威规则源：`DESIGN.md`
 - 外部视觉样本库只能作为灵感，不得与项目 `DESIGN.md` 并列
 - `awesome-design-md` 可局部借鉴技法，不可整份迁移或覆盖当前基线
+- 风格和 UI 质量是正式验收项，不是实现完成后的附属润色
 
 ## Product Direction
 

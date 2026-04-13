@@ -73,7 +73,7 @@
 结论：
 
 - 外部样本只能借鉴局部技法
-- 当前项目仍以 `docs/draft/DESIGN.md` 为准
+- 当前项目仍以 `DESIGN.md` 为准
 - 若要改变产品级视觉基线，先问人
 
 ## Scenario 7: Mobile Canvas Compression

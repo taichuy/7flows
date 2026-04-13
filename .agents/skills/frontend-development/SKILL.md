@@ -33,6 +33,9 @@ description: Use when building or changing 1Flowse frontend pages, workspace flo
 - 单一事实源：`./DESIGN.md`
 - Shell Layer 优先复用 `Ant Design`；Editor UI 只做薄封装，不另起一套视觉语言
 - 先判任务域边界，再判 L1 模型，再判状态语义，最后才是 token 和样式
+- 样式改动固定按四层判断：`theme token -> first-party wrapper -> explicit slot -> stop`
+- 风格和 UI 质量本身就是验收项，不接受“功能先通、样式以后再说”
+- 第三方组件允许主题化，不允许无边界递归覆盖内部样式链
 - 信息架构、层级、入口、导航问题：**REQUIRED COMPANION SKILL:** Use `frontend-logic-design`
 - 新页面、新流程、交互流、视觉方案、页面内 AI 协作层：先问人
 - 单点使用且变化原因单一：先别抽象
@@ -54,6 +57,9 @@ description: Use when building or changing 1Flowse frontend pages, workspace flo
 - 把外部灵感稿直接当成当前项目规范
 - 页面根组件堆满状态、请求、弹窗和协议转换逻辑
 - 把协议拼装、数据转换、渲染混写
+- 把第三方组件内部 DOM 当成自家 DOM 递归覆盖
+- 为了修单点视觉问题，裸写 `.ant-*` 或跨多个内部 slot 写后代选择器
+- 只改导航文案，不同步 `route id / path / selected state` 真值层
 - 在 Shell / Canvas 间混用 `Drawer` 和 `Inspector`
 - 把状态色拿去表达类型、装饰或品牌
 - 把真正的信息架构问题误当成样式问题
