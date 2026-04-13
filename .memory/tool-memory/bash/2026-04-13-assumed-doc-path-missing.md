@@ -13,8 +13,8 @@ match_when:
   - 使用 `sed` 打开猜测路径时报“没有那个文件或目录”
   - 使用 `sed` 读取路径时报“是一个目录”
 created_at: 2026-04-13 08
-updated_at: 2026-04-13 14
-last_verified_at: 2026-04-13 14
+updated_at: 2026-04-13 21
+last_verified_at: 2026-04-13 21
 decision_policy: reference_on_failure
 scope:
   - bash
@@ -23,6 +23,7 @@ scope:
   - ls
   - docs/superpowers
   - api/apps/api-server/src
+  - scripts/node/verify-backend
 ---
 
 # 先确认路径存在且是文件，再用 sed 读取内容
@@ -64,3 +65,5 @@ scope:
 - `2026-04-13 08`：在 `scripts/node/mock-ui-sync` 目录假定存在 `plan.md` 失败，改为先列目录后已成功读取实际文件。
 - `2026-04-13 14`：读取 `docs/superpowers/specs/1flowse/modules/01-user-auth-and-team*` 时命中目录本身，`sed` 返回“是一个目录”；改为先用 `find` 列出目录中的真实文件，再读取 `README.md` 成功。
 - `2026-04-13 14`：主观假定 `api/apps/api-server/src/openapi.rs` 存在，`sed` 返回“没有那个文件或目录”；改为检索 `#[openapi(` 后确认 OpenAPI 聚合定义实际在 `api/apps/api-server/src/lib.rs`。
+- `2026-04-13 21`：在后端 QA 时主观假定 `scripts/node/verify-backend/index.js` 存在，`sed` 返回“没有那个文件或目录”；改为先读取 `scripts/node/verify-backend.js` 并用 `ls scripts/node` 确认脚本入口后完成验证。
+- `2026-04-13 21`：拼接 `rg` 搜索范围时误写成不存在的复合路径 `api/crates/storage-pg/src/api/apps/api-server/src`，命令直接报路径不存在；后续应先分目录确认真实搜索根，再执行检索。
