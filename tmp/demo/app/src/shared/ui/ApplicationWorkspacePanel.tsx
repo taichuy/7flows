@@ -74,13 +74,8 @@ export function ApplicationWorkspacePanel({
               activeKeys.includes(item.key) ? 'is-active' : ''
             }`}
           >
-            <div className="application-workspace-link-head">
-              <Typography.Text strong>{item.label}</Typography.Text>
-              <StatusPill status={item.status}>{statusBadge[item.status]}</StatusPill>
-            </div>
-            <Typography.Text className="application-workspace-link-note">
-              {item.note}
-            </Typography.Text>
+            <Typography.Text strong>{item.label}</Typography.Text>
+            <StatusPill status={item.status}>{statusBadge[item.status]}</StatusPill>
           </Link>
         ))}
       </nav>

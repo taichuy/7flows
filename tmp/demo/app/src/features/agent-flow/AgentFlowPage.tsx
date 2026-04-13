@@ -46,33 +46,20 @@ export function AgentFlowPage() {
       <DemoPageHero
         kicker="工作流主线"
         title="流程编排"
-        description="编排页直接展示 1Flowse 的核心闭环：Flow 不是摆完节点就结束，而是要经过发布检查、运行时恢复点和状态记忆绑定，最后形成稳定对外入口。"
-        aside={
-          <Card size="small" title="当前交付物" className="shell-summary-card">
-            <Descriptions
-              column={1}
-              colon={false}
-              items={studioReleaseItems.slice(0, 3).map((item) => ({
-                key: item.key,
-                label: item.label,
-                children: item.value
-              }))}
-            />
-          </Card>
-        }
+        description="先看执行链路，再确认发布检查、恢复点和状态记忆是否闭环。这里展示的是当前应用的真实交付主线。"
       />
 
       <ApplicationWorkspacePanel activeKeys={['studio']} />
 
-      <div className="metric-grid">
+      <section className="studio-overview-strip" aria-label="当前编排摘要">
         {studioOverview.map((item) => (
-          <Card key={item.label} className="metric-card">
+          <div key={item.label} className="studio-overview-item">
             <StatusPill status={item.status}>{item.label}</StatusPill>
-            <Typography.Title level={2}>{item.value}</Typography.Title>
+            <strong className="studio-overview-value">{item.value}</strong>
             <Typography.Paragraph>{item.note}</Typography.Paragraph>
-          </Card>
+          </div>
         ))}
-      </div>
+      </section>
 
       <Row gutter={[18, 18]} align="top">
         <Col xs={24} xl={15}>

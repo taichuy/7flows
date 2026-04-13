@@ -27,12 +27,12 @@ test('renders the control-plane shell and current primary navigation', async () 
   );
 
   expect(within(primaryNavigation).getByRole('link', { name: '工作台' })).toBeInTheDocument();
-  expect(within(primaryNavigation).getByRole('link', { name: '流程编排' })).toBeInTheDocument();
-  expect(within(primaryNavigation).getByRole('link', { name: '子系统' })).toBeInTheDocument();
+  expect(within(primaryNavigation).getByRole('link', { name: '当前应用' })).toBeInTheDocument();
   expect(within(primaryNavigation).getByRole('link', { name: '工具' })).toBeInTheDocument();
   expect(within(primaryNavigation).getByRole('link', { name: '设置' })).toBeInTheDocument();
+  expect(within(primaryNavigation).queryByRole('link', { name: '流程编排' })).not.toBeInTheDocument();
 
-  expect(screen.getByRole('link', { name: '进入流程编排' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '进入当前应用' })).toBeInTheDocument();
   expect(screen.queryByText('CURRENT PRODUCT DEMO')).not.toBeInTheDocument();
   expect(screen.queryByText('1Flowse Bootstrap')).not.toBeInTheDocument();
 });
@@ -73,6 +73,17 @@ test('renders the studio route with publish, runtime and state sections and upda
   ).toBeInTheDocument();
   expect(screen.getAllByText('/agentflows/publish-check/runs').length).toBeGreaterThan(0);
   expect(screen.getByText('长期记忆：团队发布偏好')).toBeInTheDocument();
+});
+
+test('renders the application overview route as the stable app landing page before studio', async () => {
+  window.history.pushState({}, '', '/application');
+
+  render(<App />);
+
+  expect(await screen.findByRole('heading', { name: '应用概览' }, { timeout: 5000 })).toBeInTheDocument();
+  expect(screen.getByRole('region', { name: '当前应用工作区' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: '进入编排' })).toBeInTheDocument();
+  expect(screen.queryByText('当前交付物')).not.toBeInTheDocument();
 });
 
 test('renders the tools route and opens an incident drawer from the event queue', async () => {

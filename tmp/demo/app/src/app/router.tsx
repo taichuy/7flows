@@ -20,19 +20,13 @@ const primaryRoutes = [
     key: 'home',
     label: '工作台',
     to: '/',
-    description: '查看行动队列与最近运行'
+    description: '查看团队工作台与应用列表'
   },
   {
-    key: 'studio',
-    label: '流程编排',
-    to: '/studio',
-    description: '继续推进 Flow、发布与恢复点'
-  },
-  {
-    key: 'subsystems',
-    label: '子系统',
-    to: '/subsystems',
-    description: '管理挂载入口与宿主边界'
+    key: 'application',
+    label: '当前应用',
+    to: '/application',
+    description: '进入当前应用工作区与应用概览'
   },
   {
     key: 'tools',
@@ -51,6 +45,11 @@ const primaryRoutes = [
 const HomePage = lazy(async () => {
   const module = await import('../features/home/HomePage');
   return { default: module.HomePage };
+});
+
+const ApplicationOverviewPage = lazy(async () => {
+  const module = await import('../features/application/ApplicationOverviewPage');
+  return { default: module.ApplicationOverviewPage };
 });
 
 const AgentFlowPage = lazy(async () => {
@@ -74,12 +73,12 @@ const SettingsPage = lazy(async () => {
 });
 
 function getSelectedKey(pathname: string) {
-  if (pathname.startsWith('/studio')) {
-    return 'studio';
-  }
-
-  if (pathname.startsWith('/subsystems')) {
-    return 'subsystems';
+  if (
+    pathname.startsWith('/application') ||
+    pathname.startsWith('/studio') ||
+    pathname.startsWith('/subsystems')
+  ) {
+    return 'application';
   }
 
   if (pathname.startsWith('/tools')) {
@@ -235,6 +234,12 @@ const homeRoute = createRoute({
   component: () => <RouteView Page={HomePage} />
 });
 
+const applicationRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/application',
+  component: () => <RouteView Page={ApplicationOverviewPage} />
+});
+
 const studioRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/studio',
@@ -261,6 +266,7 @@ const settingsRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   homeRoute,
+  applicationRoute,
   studioRoute,
   subsystemRoute,
   toolsRoute,

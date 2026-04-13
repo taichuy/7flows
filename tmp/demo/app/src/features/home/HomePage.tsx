@@ -14,7 +14,6 @@ import {
   workspaceApplications,
   workspaceSnapshot
 } from '../demo-data';
-import { ApplicationWorkspacePanel } from '../../shared/ui/ApplicationWorkspacePanel';
 import { DemoPageHero } from '../../shared/ui/DemoPageHero';
 import { StatusPill } from '../../shared/ui/StatusPill';
 
@@ -34,6 +33,9 @@ type HomeDrawerState =
   | null;
 
 export function HomePage() {
+  const studioGovernanceHref: string =
+    '/studio?focus=release-gateway&track=callback&incident=incident-webhook';
+  const toolIncidentHref: string = '/tools?incident=incident-webhook';
   const [activePanel, setActivePanel] = useState<HomeDrawerState>(null);
 
   const activeApplication = useMemo(
@@ -116,8 +118,8 @@ export function HomePage() {
         description="在这里先看平台健康、行动队列和最近运行，再继续进入流程编排、子系统接入与工具台。"
         actions={
           <>
-            <Link to="/studio" className="demo-cta-link demo-cta-link-primary">
-              进入流程编排
+            <Link to="/application" className="demo-cta-link demo-cta-link-primary">
+              进入当前应用
             </Link>
             <Link to="/subsystems" className="demo-cta-link">
               查看子系统接入
@@ -152,7 +154,55 @@ export function HomePage() {
         ))}
       </div>
 
-      <ApplicationWorkspacePanel activeKeys={['overview']} />
+      <Card title="当前交付应用" className="demo-card current-application-card">
+        <div className="application-workspace-header">
+          <div className="demo-list-block">
+            <Typography.Text strong>{currentApplicationWorkspace.name}</Typography.Text>
+            <Typography.Paragraph className="card-paragraph">
+              {currentApplicationWorkspace.description}
+            </Typography.Paragraph>
+            <Typography.Text className="entry-link-note application-workspace-context">
+              <span>{currentApplicationWorkspace.team}</span>
+              <span aria-hidden="true">·</span>
+              <span>{currentApplicationWorkspace.owner}</span>
+            </Typography.Text>
+          </div>
+          <StatusPill status={currentApplicationWorkspace.status}>
+            {currentApplicationWorkspace.statusLabel}
+          </StatusPill>
+        </div>
+
+        <div className="application-workspace-summary">
+          <div className="application-workspace-metric">
+            <span className="application-workspace-metric-label">当前 Flow</span>
+            <strong>{currentApplicationWorkspace.currentFlow}</strong>
+          </div>
+          <div className="application-workspace-metric">
+            <span className="application-workspace-metric-label">发布入口</span>
+            <strong>{currentApplicationWorkspace.endpoint}</strong>
+          </div>
+          <div className="application-workspace-metric">
+            <span className="application-workspace-metric-label">状态模型</span>
+            <strong>{currentApplicationWorkspace.stateModel}</strong>
+          </div>
+          <div className="application-workspace-metric">
+            <span className="application-workspace-metric-label">最近 revision</span>
+            <strong>{currentApplicationWorkspace.lastRevision}</strong>
+          </div>
+        </div>
+
+        <div className="current-application-actions">
+          <Link to="/application" className="demo-cta-link demo-cta-link-primary">
+            进入应用概览
+          </Link>
+          <Link to={studioGovernanceHref} className="demo-cta-link">
+            继续发布闭环
+          </Link>
+          <Link to={toolIncidentHref} className="demo-cta-link">
+            查看阻塞事件
+          </Link>
+        </div>
+      </Card>
 
       <Card title="应用列表" className="demo-card">
         <div className="workspace-app-table-shell">

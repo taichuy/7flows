@@ -20,9 +20,11 @@ describe('demo ux regression coverage', () => {
     expect(screen.getByText('行动队列')).toBeInTheDocument();
     expect(screen.getByText('最近运行')).toBeInTheDocument();
 
-    expect(screen.getByRole('link', { name: '进入流程编排' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '进入当前应用' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '查看子系统接入' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '查看工具台' })).toBeInTheDocument();
+    expect(screen.getByText('当前交付应用')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: '当前应用工作区' })).not.toBeInTheDocument();
 
     expect(screen.queryByText('Growth Systems')).not.toBeInTheDocument();
     expect(screen.queryByText('Platform Ops')).not.toBeInTheDocument();
@@ -50,7 +52,7 @@ describe('demo ux regression coverage', () => {
     const dialog = await screen.findByRole('dialog', { name: '发布检查助手' }, { timeout: 5000 });
     expect(within(dialog).getByText('/agentflows/publish-check/runs')).toBeInTheDocument();
     expect(within(dialog).getByText('最近 revision')).toBeInTheDocument();
-    expect(within(dialog).getByRole('link', { name: '进入应用编排' })).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: '进入应用概览' })).toBeInTheDocument();
   });
 
   test('home queue actions carry the user into the focused studio governance flow', async () => {
@@ -70,13 +72,13 @@ describe('demo ux regression coverage', () => {
     expect(screen.getByRole('link', { name: '前往工具台处理事件' })).toBeInTheDocument();
   });
 
-  test('studio keeps the current application workspace rail visible across app pages', async () => {
-    window.history.pushState({}, '', '/studio');
+  test('application overview becomes the stable app landing page and keeps the workspace rail visible', async () => {
+    window.history.pushState({}, '', '/application');
 
     render(<App />);
 
     expect(
-      await screen.findByRole('heading', { name: '流程编排' }, { timeout: 5000 })
+      await screen.findByRole('heading', { name: '应用概览' }, { timeout: 5000 })
     ).toBeInTheDocument();
 
     const region = screen.getByRole('region', { name: '当前应用工作区' });
@@ -86,6 +88,7 @@ describe('demo ux regression coverage', () => {
     expect(within(region).getByRole('link', { name: '流程编排' })).toBeInTheDocument();
     expect(within(region).getByRole('link', { name: '发布接口' })).toBeInTheDocument();
     expect(within(region).getByRole('link', { name: '监控报表' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '进入编排' })).toBeInTheDocument();
   });
 
   test('subsystems page uses product-facing names and provides a direct follow-up action', async () => {

@@ -357,8 +357,8 @@ export const applicationWorkspaceLinks: ApplicationWorkspaceLink[] = [
   {
     key: 'overview',
     label: '应用概览',
-    href: '/',
-    note: '从工作台查看当前交付容器和治理队列。',
+    href: '/application',
+    note: '先确认应用边界、负责人和当前发布状态。',
     status: 'healthy'
   },
   {
@@ -420,8 +420,8 @@ export const workspaceApplications: WorkspaceApplication[] = [
     endpoint: '/agentflows/publish-check/runs',
     stateModel: 'release_gate_state',
     tags: ['发布优先', 'Agent API'],
-    nextActionLabel: '进入应用编排',
-    nextActionHref: '/studio?focus=release-gateway&track=callback&incident=incident-webhook'
+    nextActionLabel: '进入应用概览',
+    nextActionHref: '/application'
   },
   {
     id: 'growth-portal-console',
