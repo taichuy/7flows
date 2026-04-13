@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons';
 import { Menu } from 'antd';
 import type { MenuProps } from 'antd';
+import type { PropsWithChildren } from 'react';
 
 import { AppShell } from '@1flowse/ui';
 
@@ -118,15 +119,23 @@ function AppHeaderActions() {
   );
 }
 
-function RootLayout() {
+export function AppShellFrame({ children }: PropsWithChildren) {
   return (
     <AppShell
       title="1Flowse Bootstrap"
       navigation={<AppNavigation />}
       actions={<AppHeaderActions />}
     >
-      <Outlet />
+      {children}
     </AppShell>
+  );
+}
+
+function RootLayout() {
+  return (
+    <AppShellFrame>
+      <Outlet />
+    </AppShellFrame>
   );
 }
 

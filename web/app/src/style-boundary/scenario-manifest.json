@@ -1,0 +1,23 @@
+[
+  {
+    "id": "component.account-popup",
+    "kind": "component",
+    "title": "Account Popup",
+    "files": [
+      "web/app/src/styles/global.css",
+      "web/app/src/app/router.tsx"
+    ],
+    "nodes": [
+      {
+        "id": "popup-item",
+        "selector": ".app-shell-account-popup .ant-menu-item",
+        "assertions": [
+          {
+            "property": "display",
+            "expected": "block"
+          }
+        ]
+      }
+    ]
+  }
+]
