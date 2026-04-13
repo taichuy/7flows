@@ -8,6 +8,7 @@ pub mod model_definition_repository;
 pub mod physical_schema_repository;
 pub mod repositories;
 pub mod role_repository;
+pub mod runtime_record_repository;
 pub mod team_repository;
 
 pub use connection::connect;
