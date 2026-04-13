@@ -33,9 +33,11 @@ test('renders the bootstrap shell and health state', async () => {
     within(primaryNavigation).getByRole('link', { name: 'Agent Flow' })
   ).toBeInTheDocument();
   expect(
-    screen.getByRole('button', { name: 'Workspace settings' })
+    screen.getByText('Taichu')
   ).toBeInTheDocument();
-  expect(screen.queryByText('Taichu')).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole('button', { name: 'Workspace settings' })
+  ).not.toBeInTheDocument();
   expect(screen.queryByText('TF')).not.toBeInTheDocument();
   expect(
     screen.queryByText('Light shell mock with emerald signal accents')

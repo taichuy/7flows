@@ -229,35 +229,48 @@ a {
   flex: none;
 }
 
-.app-shell-user-trigger.ant-btn {
+.app-shell-account-menu.ant-menu-horizontal {
+  border-bottom: none !important;
+  background: transparent !important;
+  line-height: 1;
+}
+
+.app-shell-account-menu.ant-menu-horizontal::after {
+  display: none;
+}
+
+.app-shell-account-menu.ant-menu-horizontal > .ant-menu-submenu {
+  top: 0;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  margin: 0 !important;
+  padding-inline: 0 !important;
+  border: none;
+  color: var(--text-primary) !important;
+}
+
+.app-shell-account-menu.ant-menu-horizontal > .ant-menu-submenu::after {
+  inset-inline: 0 !important;
+  border-bottom-width: 2px !important;
+}
+
+.app-shell-account-menu.ant-menu-horizontal > .ant-menu-submenu .ant-menu-submenu-title {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  min-width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  background: transparent !important;
-  color: var(--text-primary) !important;
-  box-shadow: none;
-}
-
-.app-shell-user-trigger.ant-btn:hover,
-.app-shell-user-trigger.ant-btn:focus {
-  background: rgba(255, 255, 255, 0.88) !important;
-  color: var(--text-primary) !important;
-}
-
-.app-shell-user-icon {
-  font-size: 16px;
+  height: 100%;
+  padding-inline: 4px !important;
   color: var(--text-secondary);
 }
 
-.app-shell-user-trigger.ant-btn:hover .app-shell-user-icon,
-.app-shell-user-trigger.ant-btn:focus .app-shell-user-icon {
+.app-shell-account-menu.ant-menu-horizontal > .ant-menu-submenu:hover .ant-menu-submenu-title,
+.app-shell-account-menu.ant-menu-horizontal > .ant-menu-submenu-open .ant-menu-submenu-title {
   color: var(--text-primary);
+}
+
+.app-shell-account-label {
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .app-shell-content.ant-layout-content {

@@ -1,4 +1,3 @@
-import { UserOutlined } from '@ant-design/icons';
 import {
   Link,
   Outlet,
@@ -8,7 +7,7 @@ import {
   createRouter,
   useRouterState
 } from '@tanstack/react-router';
-import { Avatar, Button, Dropdown, Menu, Typography } from 'antd';
+import { Menu, Typography } from 'antd';
 import type { MenuProps } from 'antd';
 
 import { AppShell } from '@1flowse/ui';
@@ -61,19 +60,19 @@ function AppNavigation() {
 
 function AppHeaderActions() {
   const items: MenuProps['items'] = [
-    { key: 'profile', label: 'Profile' },
-    { key: 'settings', label: 'Settings' },
-    { type: 'divider' },
-    { key: 'sign-out', label: 'Sign out' }
+    {
+      key: 'account',
+      label: <span className="app-shell-account-label">Taichu</span>,
+      children: [
+        { key: 'profile', label: 'Profile' },
+        { key: 'settings', label: 'Settings' },
+        { type: 'divider' },
+        { key: 'sign-out', label: 'Sign out' }
+      ]
+    }
   ];
 
-  return (
-    <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
-      <Button className="app-shell-user-trigger" aria-label="Workspace settings" type="text">
-        <UserOutlined className="app-shell-user-icon" />
-      </Button>
-    </Dropdown>
-  );
+  return <Menu className="app-shell-account-menu" mode="horizontal" selectable={false} items={items} />;
 }
 
 function RootLayout() {
