@@ -14,6 +14,13 @@ fn database_url() -> String {
         .unwrap_or_else(|_| "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows".into())
 }
 
+async fn root_tenant_id(store: &PgControlPlaneStore) -> Uuid {
+    sqlx::query_scalar("select id from tenants where code = 'root-tenant'")
+        .fetch_one(store.pool())
+        .await
+        .unwrap()
+}
+
 async fn insert_user(store: &PgControlPlaneStore, user_id: Uuid, account: &str) {
     let unique_account = format!("{account}-{}", user_id.simple());
     sqlx::query(
@@ -44,10 +51,14 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
     let team_id = Uuid::now_v7();
+    let tenant_id = root_tenant_id(&store).await;
+    let team_name = format!("Core Team {}", team_id.simple());
     sqlx::query(
-        "insert into teams (id, name, created_by, updated_by) values ($1, 'Core Team', null, null)",
+        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
     .bind(team_id)
+    .bind(tenant_id)
+    .bind(&team_name)
     .execute(store.pool())
     .await
     .unwrap();
@@ -313,11 +324,15 @@ async fn runtime_record_repository_enforces_owner_scope() {
     let team_id = Uuid::now_v7();
     let owner_user_id = Uuid::now_v7();
     let other_user_id = Uuid::now_v7();
+    let tenant_id = root_tenant_id(&store).await;
+    let team_name = format!("Core Team {}", team_id.simple());
 
     sqlx::query(
-        "insert into teams (id, name, created_by, updated_by) values ($1, 'Core Team', null, null)",
+        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
     .bind(team_id)
+    .bind(tenant_id)
+    .bind(&team_name)
     .execute(store.pool())
     .await
     .unwrap();

@@ -128,6 +128,7 @@ fn sample_model(model_id: Uuid) -> ModelDefinitionRecord {
         acl_namespace: "state_model.orders".to_string(),
         audit_namespace: "audit.state_model.orders".to_string(),
         fields: vec![],
+        availability_status: domain::MetadataAvailabilityStatus::Available,
     }
 }
 

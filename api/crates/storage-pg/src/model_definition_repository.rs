@@ -63,10 +63,11 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 title,
                 physical_table_name,
                 acl_namespace,
-                audit_namespace
+                audit_namespace,
+                availability_status
             from model_definitions
             where $1 = '00000000-0000-0000-0000-000000000000'::uuid
-               or scope_kind <> 'team'
+               or scope_kind <> 'workspace'
                or scope_id = $1
             order by created_at asc
             "#,
@@ -88,6 +89,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                     physical_table_name: row.get("physical_table_name"),
                     acl_namespace: row.get("acl_namespace"),
                     audit_namespace: row.get("audit_namespace"),
+                    availability_status: row.get("availability_status"),
                     fields: fields_by_model_id
                         .get(&model_id)
                         .cloned()
@@ -105,7 +107,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
         let model = load_model_definition(self.pool(), model_id).await?;
         Ok(model.filter(|definition| {
             workspace_id.is_nil()
-                || !matches!(definition.scope_kind, domain::DataModelScopeKind::Team)
+                || !matches!(definition.scope_kind, domain::DataModelScopeKind::Workspace)
                 || definition.scope_id == workspace_id
         }))
     }
@@ -124,6 +126,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
             acl_namespace: format!("state_model.{}", input.code),
             audit_namespace: format!("audit.state_model.{}", input.code),
             fields: vec![],
+            availability_status: domain::MetadataAvailabilityStatus::Available,
         };
         let before_snapshot = serde_json::json!({});
         let after_snapshot = serde_json::to_value(&model)?;
@@ -131,7 +134,13 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
         let mut tx = self.pool().begin().await?;
 
         let transactional_result = async {
-            insert_model_definition(&mut tx, &model, actor_user_id).await?;
+            insert_model_definition(
+                &mut tx,
+                &model,
+                actor_user_id,
+                domain::MetadataAvailabilityStatus::Available,
+            )
+            .await?;
             create_runtime_model_table(&mut tx, &model).await?;
             append_change_log_tx(
                 &mut tx,
@@ -158,6 +167,13 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
             }
             Err(error) => {
                 tx.rollback().await?;
+                insert_model_definition_after_failure(
+                    self.pool(),
+                    &model,
+                    actor_user_id,
+                    domain::MetadataAvailabilityStatus::Broken,
+                )
+                .await?;
                 append_change_log(
                     self.pool(),
                     &ChangeLogEntry {
@@ -197,7 +213,8 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 title,
                 physical_table_name,
                 acl_namespace,
-                audit_namespace
+                audit_namespace,
+                availability_status
             "#,
         )
         .bind(input.model_id)
@@ -218,6 +235,7 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 physical_table_name: row.get("physical_table_name"),
                 acl_namespace: row.get("acl_namespace"),
                 audit_namespace: row.get("audit_namespace"),
+                availability_status: row.get("availability_status"),
                 fields: fields_by_model_id
                     .get(&input.model_id)
                     .cloned()
@@ -257,13 +275,20 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
             relation_target_model_id: input.relation_target_model_id,
             relation_options: input.relation_options.clone(),
             sort_order: model.fields.len() as i32,
+            availability_status: domain::MetadataAvailabilityStatus::Available,
         };
         let before_snapshot = serde_json::json!({});
         let after_snapshot = serde_json::to_value(&field)?;
         let actor_user_id = nullable_actor_user_id(input.actor_user_id);
 
         let transactional_result = async {
-            insert_model_field(&mut tx, &field, actor_user_id).await?;
+            insert_model_field(
+                &mut tx,
+                &field,
+                actor_user_id,
+                domain::MetadataAvailabilityStatus::Available,
+            )
+            .await?;
             match field.field_kind {
                 domain::ModelFieldKind::ManyToOne => {
                     let target = relation_target
@@ -307,6 +332,13 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
             }
             Err(error) => {
                 tx.rollback().await?;
+                insert_model_field_after_failure(
+                    self.pool(),
+                    &field,
+                    actor_user_id,
+                    domain::MetadataAvailabilityStatus::Broken,
+                )
+                .await?;
                 append_change_log(
                     self.pool(),
                     &ChangeLogEntry {
@@ -615,7 +647,8 @@ async fn load_model_definition(
             title,
             physical_table_name,
             acl_namespace,
-            audit_namespace
+            audit_namespace,
+            availability_status
         from model_definitions
         where id = $1
         "#,
@@ -634,6 +667,7 @@ async fn load_model_definition(
             physical_table_name: row.get("physical_table_name"),
             acl_namespace: row.get("acl_namespace"),
             audit_namespace: row.get("audit_namespace"),
+            availability_status: row.get("availability_status"),
             fields: fields_by_model_id
                 .get(&model_id)
                 .cloned()
@@ -665,7 +699,8 @@ async fn load_model_definition_with_lock(
             title,
             physical_table_name,
             acl_namespace,
-            audit_namespace
+            audit_namespace,
+            availability_status
         from model_definitions
         where id = $1
         "#,
@@ -689,6 +724,7 @@ async fn load_model_definition_with_lock(
             physical_table_name: row.get("physical_table_name"),
             acl_namespace: row.get("acl_namespace"),
             audit_namespace: row.get("audit_namespace"),
+            availability_status: row.get("availability_status"),
             fields,
         })
     }))
@@ -698,6 +734,7 @@ async fn insert_model_definition(
     tx: &mut Transaction<'_, Postgres>,
     model: &domain::ModelDefinitionRecord,
     actor_user_id: Option<Uuid>,
+    availability_status: domain::MetadataAvailabilityStatus,
 ) -> Result<()> {
     sqlx::query(
         r#"
@@ -710,10 +747,11 @@ async fn insert_model_definition(
             physical_table_name,
             acl_namespace,
             audit_namespace,
+            availability_status,
             created_by,
             updated_by
         )
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
         "#,
     )
     .bind(model.id)
@@ -724,6 +762,7 @@ async fn insert_model_definition(
     .bind(&model.physical_table_name)
     .bind(&model.acl_namespace)
     .bind(&model.audit_namespace)
+    .bind(availability_status.as_str())
     .bind(actor_user_id)
     .execute(&mut **tx)
     .await?;
@@ -734,6 +773,7 @@ async fn insert_model_field(
     tx: &mut Transaction<'_, Postgres>,
     field: &domain::ModelFieldRecord,
     actor_user_id: Option<Uuid>,
+    availability_status: domain::MetadataAvailabilityStatus,
 ) -> Result<()> {
     sqlx::query(
         r#"
@@ -752,10 +792,11 @@ async fn insert_model_field(
             relation_target_model_id,
             relation_options,
             sort_order,
+            availability_status,
             created_by,
             updated_by
         )
-        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15)
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
         "#,
     )
     .bind(field.id)
@@ -772,6 +813,7 @@ async fn insert_model_field(
     .bind(field.relation_target_model_id)
     .bind(&field.relation_options)
     .bind(field.sort_order)
+    .bind(availability_status.as_str())
     .bind(actor_user_id)
     .execute(&mut **tx)
     .await?;
@@ -797,7 +839,8 @@ async fn load_fields_by_model_id(
             display_options,
             relation_target_model_id,
             relation_options,
-            sort_order
+            sort_order,
+            availability_status
         from model_fields
         order by data_model_id asc, sort_order asc, created_at asc
         "#,
@@ -828,7 +871,8 @@ async fn load_fields_for_model(
             display_options,
             relation_target_model_id,
             relation_options,
-            sort_order
+            sort_order,
+            availability_status
         from model_fields
         where data_model_id = $1
         order by sort_order asc, created_at asc
@@ -862,7 +906,8 @@ async fn load_model_field_for_update(
             display_options,
             relation_target_model_id,
             relation_options,
-            sort_order
+            sort_order,
+            availability_status
         from model_fields
         where data_model_id = $1
           and id = $2
@@ -981,6 +1026,104 @@ async fn append_change_log(pool: &sqlx::PgPool, entry: &ChangeLogEntry<'_>) -> R
     Ok(())
 }
 
+async fn insert_model_definition_after_failure(
+    pool: &sqlx::PgPool,
+    model: &domain::ModelDefinitionRecord,
+    actor_user_id: Option<Uuid>,
+    availability_status: domain::MetadataAvailabilityStatus,
+) -> Result<()> {
+    sqlx::query(
+        r#"
+        insert into model_definitions (
+            id,
+            scope_kind,
+            scope_id,
+            code,
+            title,
+            physical_table_name,
+            acl_namespace,
+            audit_namespace,
+            availability_status,
+            created_by,
+            updated_by
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+        on conflict (id) do update
+        set availability_status = excluded.availability_status,
+            updated_by = excluded.updated_by,
+            updated_at = now()
+        "#,
+    )
+    .bind(model.id)
+    .bind(model.scope_kind.as_str())
+    .bind(model.scope_id)
+    .bind(&model.code)
+    .bind(&model.title)
+    .bind(&model.physical_table_name)
+    .bind(&model.acl_namespace)
+    .bind(&model.audit_namespace)
+    .bind(availability_status.as_str())
+    .bind(actor_user_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+async fn insert_model_field_after_failure(
+    pool: &sqlx::PgPool,
+    field: &domain::ModelFieldRecord,
+    actor_user_id: Option<Uuid>,
+    availability_status: domain::MetadataAvailabilityStatus,
+) -> Result<()> {
+    sqlx::query(
+        r#"
+        insert into model_fields (
+            id,
+            data_model_id,
+            code,
+            title,
+            physical_column_name,
+            field_kind,
+            is_required,
+            is_unique,
+            default_value,
+            display_interface,
+            display_options,
+            relation_target_model_id,
+            relation_options,
+            sort_order,
+            availability_status,
+            created_by,
+            updated_by
+        )
+        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)
+        on conflict (id) do update
+        set availability_status = excluded.availability_status,
+            updated_by = excluded.updated_by,
+            updated_at = now()
+        "#,
+    )
+    .bind(field.id)
+    .bind(field.data_model_id)
+    .bind(&field.code)
+    .bind(&field.title)
+    .bind(&field.physical_column_name)
+    .bind(field.field_kind.as_str())
+    .bind(field.is_required)
+    .bind(field.is_unique)
+    .bind(&field.default_value)
+    .bind(&field.display_interface)
+    .bind(&field.display_options)
+    .bind(field.relation_target_model_id)
+    .bind(&field.relation_options)
+    .bind(field.sort_order)
+    .bind(availability_status.as_str())
+    .bind(actor_user_id)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 fn group_field_rows(
     rows: Vec<sqlx::postgres::PgRow>,
 ) -> HashMap<Uuid, Vec<domain::ModelFieldRecord>> {
@@ -1011,13 +1154,14 @@ fn to_model_field_record(row: sqlx::postgres::PgRow) -> domain::ModelFieldRecord
         relation_target_model_id: row.get("relation_target_model_id"),
         relation_options: row.get("relation_options"),
         sort_order: row.get("sort_order"),
+        availability_status: row.get("availability_status"),
     })
 }
 
 fn build_physical_table_name(scope_kind: domain::DataModelScopeKind, code: &str) -> String {
     let prefix = match scope_kind {
-        domain::DataModelScopeKind::Team => "team",
-        domain::DataModelScopeKind::App => "app",
+        domain::DataModelScopeKind::Workspace => "team",
+        domain::DataModelScopeKind::System => "app",
     };
     let suffix = Uuid::now_v7().simple().to_string();
 

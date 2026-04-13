@@ -44,7 +44,7 @@ async fn isolated_database_url(base_url: &str) -> String {
     format!("{base_url}?options=-csearch_path%3D{schema}")
 }
 
-pub async fn test_app() -> Router {
+pub async fn test_app_with_database_url() -> (Router, String) {
     let mut config = default_test_config();
     config.database_url = isolated_database_url(&config.database_url).await;
     let pool = storage_pg::connect(&config.database_url).await.unwrap();
@@ -75,14 +75,20 @@ pub async fn test_app() -> Router {
         std::sync::Arc::new(store.clone()),
     ));
 
-    crate::app_with_state(std::sync::Arc::new(ApiState {
+    let app = crate::app_with_state(std::sync::Arc::new(ApiState {
         store,
         runtime_engine,
         session_store: SessionStoreHandle::InMemory(storage_redis::InMemorySessionStore::default()),
         cookie_name: config.cookie_name,
         session_ttl_days: config.session_ttl_days,
         bootstrap_team_name: config.bootstrap_team_name,
-    }))
+    }));
+
+    (app, config.database_url)
+}
+
+pub async fn test_app() -> Router {
+    test_app_with_database_url().await.0
 }
 
 pub async fn login_and_capture_cookie(

@@ -11,6 +11,7 @@ pub struct StoredModelDefinitionRow {
     pub physical_table_name: String,
     pub acl_namespace: String,
     pub audit_namespace: String,
+    pub availability_status: String,
     pub fields: Vec<ModelFieldRecord>,
 }
 
@@ -28,6 +29,9 @@ impl PgModelDefinitionMapper {
             acl_namespace: row.acl_namespace,
             audit_namespace: row.audit_namespace,
             fields: row.fields,
+            availability_status: domain::MetadataAvailabilityStatus::from_db(
+                &row.availability_status,
+            ),
         }
     }
 }

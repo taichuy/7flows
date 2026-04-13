@@ -5,23 +5,61 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DataModelScopeKind {
-    Team,
-    App,
+    #[serde(alias = "team")]
+    Workspace,
+    #[serde(alias = "app")]
+    System,
 }
 
 impl DataModelScopeKind {
+    #[allow(non_upper_case_globals)]
+    pub const Team: Self = Self::Workspace;
+
+    #[allow(non_upper_case_globals)]
+    pub const App: Self = Self::System;
+
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Team => "team",
-            Self::App => "app",
+            Self::Workspace => "workspace",
+            Self::System => "system",
         }
     }
 
     pub fn from_db(value: &str) -> Self {
         match value {
-            "app" => Self::App,
-            _ => Self::Team,
+            "system" | "app" => Self::System,
+            _ => Self::Workspace,
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MetadataAvailabilityStatus {
+    Available,
+    Unavailable,
+    Broken,
+}
+
+impl MetadataAvailabilityStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Available => "available",
+            Self::Unavailable => "unavailable",
+            Self::Broken => "broken",
+        }
+    }
+
+    pub fn from_db(value: &str) -> Self {
+        match value {
+            "broken" => Self::Broken,
+            "unavailable" => Self::Unavailable,
+            _ => Self::Available,
+        }
+    }
+
+    pub fn is_healthy(&self) -> bool {
+        matches!(self, Self::Available)
     }
 }
 
@@ -88,6 +126,7 @@ pub struct ModelFieldRecord {
     pub relation_target_model_id: Option<Uuid>,
     pub relation_options: Value,
     pub sort_order: i32,
+    pub availability_status: MetadataAvailabilityStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -101,4 +140,5 @@ pub struct ModelDefinitionRecord {
     pub acl_namespace: String,
     pub audit_namespace: String,
     pub fields: Vec<ModelFieldRecord>,
+    pub availability_status: MetadataAvailabilityStatus,
 }

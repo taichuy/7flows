@@ -3,4 +3,5 @@ mod migration_smoke;
 mod model_definition_repository_tests;
 mod physical_schema_repository_tests;
 mod runtime_record_repository_tests;
+mod runtime_registry_health_tests;
 mod workspace_scope_tests;

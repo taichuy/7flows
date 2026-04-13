@@ -7,6 +7,7 @@ use std::{
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use serde_json::Value;
+use thiserror::Error;
 use uuid::Uuid;
 
 use crate::{
@@ -64,6 +65,18 @@ pub struct RuntimeDeleteInput {
     pub app_id: Option<Uuid>,
     pub model_code: String,
     pub record_id: String,
+}
+
+#[derive(Debug, Error)]
+pub enum RuntimeModelError {
+    #[error("runtime model unavailable: {0}")]
+    Unavailable(String),
+}
+
+impl RuntimeModelError {
+    pub fn unavailable(model_code: impl Into<String>) -> Self {
+        Self::Unavailable(model_code.into())
+    }
 }
 
 #[derive(Clone)]
@@ -220,32 +233,36 @@ impl RuntimeEngine {
     fn load_metadata(
         &self,
         model_code: &str,
-        team_id: Uuid,
+        workspace_id: Uuid,
         app_id: Option<Uuid>,
     ) -> Result<ModelMetadata> {
         if let Some(app_id) = app_id {
             if let Some(metadata) =
                 self.registry
-                    .get(domain::DataModelScopeKind::App, app_id, model_code)
+                    .get(domain::DataModelScopeKind::System, app_id, model_code)
             {
                 return Ok(metadata);
             }
         }
 
         self.registry
-            .get(domain::DataModelScopeKind::Team, team_id, model_code)
-            .ok_or_else(|| anyhow!("unknown data model definition"))
+            .get(
+                domain::DataModelScopeKind::Workspace,
+                workspace_id,
+                model_code,
+            )
+            .ok_or_else(|| RuntimeModelError::unavailable(model_code).into())
     }
 
     fn scope_id_for(
         &self,
         metadata: &ModelMetadata,
-        team_id: Uuid,
+        workspace_id: Uuid,
         app_id: Option<Uuid>,
     ) -> Result<Uuid> {
         match metadata.scope_kind {
-            domain::DataModelScopeKind::Team => Ok(team_id),
-            domain::DataModelScopeKind::App => {
+            domain::DataModelScopeKind::Workspace => Ok(workspace_id),
+            domain::DataModelScopeKind::System => {
                 app_id.ok_or_else(|| anyhow!("missing app scope context"))
             }
         }
@@ -497,7 +514,7 @@ fn test_model_metadata() -> ModelMetadata {
     ModelMetadata {
         model_id: Uuid::nil(),
         model_code: "orders".into(),
-        scope_kind: domain::DataModelScopeKind::Team,
+        scope_kind: domain::DataModelScopeKind::Workspace,
         scope_id: Uuid::nil(),
         physical_table_name: "rtm_team_demo_orders".into(),
         scope_column_name: "team_id".into(),
@@ -517,6 +534,7 @@ fn test_model_metadata() -> ModelMetadata {
                 relation_target_model_id: None,
                 relation_options: serde_json::json!({}),
                 sort_order: 0,
+                availability_status: domain::MetadataAvailabilityStatus::Available,
             },
             domain::ModelFieldRecord {
                 id: Uuid::nil(),
@@ -533,11 +551,12 @@ fn test_model_metadata() -> ModelMetadata {
                 relation_target_model_id: None,
                 relation_options: serde_json::json!({}),
                 sort_order: 1,
+                availability_status: domain::MetadataAvailabilityStatus::Available,
             },
         ],
         resource: crate::resource_descriptor::ResourceDescriptor::runtime_model(
             "orders",
-            domain::DataModelScopeKind::Team,
+            domain::DataModelScopeKind::Workspace,
         ),
     }
 }

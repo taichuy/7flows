@@ -28,6 +28,14 @@ fn map_runtime_error(error: anyhow::Error) -> ApiError {
         return control_plane::errors::ControlPlaneError::NotFound("runtime_record").into();
     }
 
+    if error
+        .downcast_ref::<runtime_core::runtime_engine::RuntimeModelError>()
+        .is_some()
+    {
+        return control_plane::errors::ControlPlaneError::Conflict("runtime_model_unavailable")
+            .into();
+    }
+
     error.into()
 }
 
@@ -133,7 +141,7 @@ fn parse_expand(expand: Option<&str>) -> Vec<String> {
     get,
     path = "/api/runtime/models/{model_code}/records",
     params(("model_code" = String, Path, description = "Runtime model code")),
-    responses((status = 200, body = RuntimeListResponse), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+    responses((status = 200, body = RuntimeListResponse), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody), (status = 409, body = crate::error_response::ErrorBody))
 )]
 pub async fn list_records(
     State(state): State<Arc<ApiState>>,
@@ -170,7 +178,7 @@ pub async fn list_records(
         ("model_code" = String, Path, description = "Runtime model code"),
         ("id" = String, Path, description = "Runtime record id")
     ),
-    responses((status = 200, body = RuntimeRecordEnvelope), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+    responses((status = 200, body = RuntimeRecordEnvelope), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody), (status = 409, body = crate::error_response::ErrorBody))
 )]
 pub async fn get_record(
     State(state): State<Arc<ApiState>>,
@@ -200,7 +208,7 @@ pub async fn get_record(
     path = "/api/runtime/models/{model_code}/records",
     request_body = RuntimeRecordEnvelope,
     params(("model_code" = String, Path, description = "Runtime model code")),
-    responses((status = 201, body = RuntimeRecordEnvelope), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+    responses((status = 201, body = RuntimeRecordEnvelope), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody), (status = 409, body = crate::error_response::ErrorBody))
 )]
 pub async fn create_record(
     State(state): State<Arc<ApiState>>,
@@ -233,7 +241,7 @@ pub async fn create_record(
         ("model_code" = String, Path, description = "Runtime model code"),
         ("id" = String, Path, description = "Runtime record id")
     ),
-    responses((status = 200, body = RuntimeRecordEnvelope), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+    responses((status = 200, body = RuntimeRecordEnvelope), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody), (status = 409, body = crate::error_response::ErrorBody))
 )]
 pub async fn update_record(
     State(state): State<Arc<ApiState>>,

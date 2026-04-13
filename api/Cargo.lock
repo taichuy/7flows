@@ -1582,6 +1582,7 @@ dependencies = [
  "domain",
  "serde",
  "serde_json",
+ "thiserror",
  "tokio",
  "uuid",
 ]

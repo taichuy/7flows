@@ -18,6 +18,7 @@ pub struct StoredModelFieldRow {
     pub relation_target_model_id: Option<Uuid>,
     pub relation_options: Value,
     pub sort_order: i32,
+    pub availability_status: String,
 }
 
 pub struct PgModelFieldMapper;
@@ -39,6 +40,9 @@ impl PgModelFieldMapper {
             relation_target_model_id: row.relation_target_model_id,
             relation_options: row.relation_options,
             sort_order: row.sort_order,
+            availability_status: domain::MetadataAvailabilityStatus::from_db(
+                &row.availability_status,
+            ),
         }
     }
 }

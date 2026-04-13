@@ -397,6 +397,7 @@ impl InMemoryModelDefinitionRepository {
                 acl_namespace: "state_model.runtime_model".to_string(),
                 audit_namespace: "audit.state_model.runtime_model".to_string(),
                 fields: vec![],
+                availability_status: domain::MetadataAvailabilityStatus::Available,
             });
         entry.clone()
     }
@@ -446,6 +447,7 @@ impl ModelDefinitionRepository for InMemoryModelDefinitionRepository {
             acl_namespace: format!("state_model.{}", input.code),
             audit_namespace: format!("audit.state_model.{}", input.code),
             fields: vec![],
+            availability_status: domain::MetadataAvailabilityStatus::Available,
         };
         self.models
             .lock()
@@ -489,6 +491,7 @@ impl ModelDefinitionRepository for InMemoryModelDefinitionRepository {
             relation_target_model_id: input.relation_target_model_id,
             relation_options: input.relation_options.clone(),
             sort_order: model.fields.len() as i32,
+            availability_status: domain::MetadataAvailabilityStatus::Available,
         };
         model.fields.push(field.clone());
         Ok(field)

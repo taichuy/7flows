@@ -1,3 +1,5 @@
+use std::{collections::HashSet, future::Future};
+
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use control_plane::ports::ModelDefinitionRepository;
@@ -17,13 +19,174 @@ use crate::repositories::PgControlPlaneStore;
 impl PgControlPlaneStore {
     pub async fn list_runtime_model_metadata(&self) -> Result<Vec<ModelMetadata>> {
         let models = ModelDefinitionRepository::list_model_definitions(self, Uuid::nil()).await?;
-        Ok(models.into_iter().map(to_runtime_model_metadata).collect())
+        let mut metadata = Vec::with_capacity(models.len());
+        for model in models {
+            if let Some(model) = self.refresh_runtime_model_health(model).await? {
+                metadata.push(to_runtime_model_metadata(model));
+            }
+        }
+        Ok(metadata)
     }
 
     async fn runtime_model_metadata_by_id(&self, model_id: Uuid) -> Result<Option<ModelMetadata>> {
         let model =
             ModelDefinitionRepository::get_model_definition(self, Uuid::nil(), model_id).await?;
-        Ok(model.map(to_runtime_model_metadata))
+        let Some(model) = model else {
+            return Ok(None);
+        };
+        Ok(self
+            .refresh_runtime_model_health(model)
+            .await?
+            .map(to_runtime_model_metadata))
+    }
+
+    async fn refresh_runtime_model_health(
+        &self,
+        mut model: domain::ModelDefinitionRecord,
+    ) -> Result<Option<domain::ModelDefinitionRecord>> {
+        let table_exists = self
+            .runtime_table_exists(&model.physical_table_name)
+            .await?;
+        let mut next_model_status = domain::MetadataAvailabilityStatus::Available;
+        let columns = if table_exists {
+            self.runtime_table_columns(&model.physical_table_name)
+                .await?
+        } else {
+            next_model_status = domain::MetadataAvailabilityStatus::Unavailable;
+            HashSet::new()
+        };
+        let mut fields = Vec::with_capacity(model.fields.len());
+
+        for mut field in model.fields {
+            let next_field_status = if !table_exists {
+                domain::MetadataAvailabilityStatus::Unavailable
+            } else if field_requires_physical_column(&field)
+                && !columns.contains(&field.physical_column_name)
+            {
+                next_model_status = domain::MetadataAvailabilityStatus::Unavailable;
+                domain::MetadataAvailabilityStatus::Unavailable
+            } else {
+                domain::MetadataAvailabilityStatus::Available
+            };
+            if field.availability_status != next_field_status {
+                self.update_model_field_availability(field.id, next_field_status)
+                    .await?;
+            }
+            field.availability_status = next_field_status;
+            fields.push(field);
+        }
+
+        if model.availability_status != next_model_status {
+            self.update_model_availability(model.id, next_model_status)
+                .await?;
+        }
+        model.availability_status = next_model_status;
+        model.fields = fields;
+
+        Ok(model.availability_status.is_healthy().then_some(model))
+    }
+
+    async fn runtime_table_exists(&self, table_name: &str) -> Result<bool> {
+        sqlx::query_scalar(
+            r#"
+            select exists(
+                select 1
+                from information_schema.tables
+                where table_schema = current_schema()
+                  and table_name = $1
+            )
+            "#,
+        )
+        .bind(table_name)
+        .fetch_one(self.pool())
+        .await
+        .map_err(Into::into)
+    }
+
+    async fn runtime_table_columns(&self, table_name: &str) -> Result<HashSet<String>> {
+        let columns: Vec<String> = sqlx::query_scalar(
+            r#"
+            select column_name
+            from information_schema.columns
+            where table_schema = current_schema()
+              and table_name = $1
+            "#,
+        )
+        .bind(table_name)
+        .fetch_all(self.pool())
+        .await?;
+        Ok(columns.into_iter().collect())
+    }
+
+    async fn update_model_availability(
+        &self,
+        model_id: Uuid,
+        availability_status: domain::MetadataAvailabilityStatus,
+    ) -> Result<()> {
+        sqlx::query("update model_definitions set availability_status = $2, updated_at = now() where id = $1")
+            .bind(model_id)
+            .bind(availability_status.as_str())
+            .execute(self.pool())
+            .await?;
+        Ok(())
+    }
+
+    async fn update_model_field_availability(
+        &self,
+        field_id: Uuid,
+        availability_status: domain::MetadataAvailabilityStatus,
+    ) -> Result<()> {
+        sqlx::query(
+            "update model_fields set availability_status = $2, updated_at = now() where id = $1",
+        )
+        .bind(field_id)
+        .bind(availability_status.as_str())
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    async fn mark_runtime_model_unavailable(&self, metadata: &ModelMetadata) -> Result<()> {
+        self.update_model_availability(
+            metadata.model_id,
+            domain::MetadataAvailabilityStatus::Unavailable,
+        )
+        .await?;
+        sqlx::query(
+            "update model_fields set availability_status = 'unavailable', updated_at = now() where data_model_id = $1",
+        )
+        .bind(metadata.model_id)
+        .execute(self.pool())
+        .await?;
+        Ok(())
+    }
+
+    async fn map_runtime_storage_error(
+        &self,
+        metadata: &ModelMetadata,
+        error: sqlx::Error,
+    ) -> anyhow::Error {
+        if is_runtime_object_missing_error(&error) {
+            if let Err(mark_error) = self.mark_runtime_model_unavailable(metadata).await {
+                return mark_error;
+            }
+            return runtime_core::runtime_engine::RuntimeModelError::unavailable(
+                &metadata.model_code,
+            )
+            .into();
+        }
+
+        error.into()
+    }
+
+    async fn run_runtime_query<T, F>(&self, metadata: &ModelMetadata, query: F) -> Result<T>
+    where
+        F: Future<Output = std::result::Result<T, sqlx::Error>>,
+    {
+        match query.await {
+            Ok(value) => Ok(value),
+            Err(error) => Err(self.map_runtime_storage_error(metadata, error).await),
+        }
     }
 }
 
@@ -46,9 +209,13 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         count_builder.push_bind(query.scope_id);
         append_owner_scope_clause(&mut count_builder, query.owner_user_id);
         append_filter_clause(&mut count_builder, metadata, &query.filters)?;
-        let total = count_builder
-            .build_query_scalar::<i64>()
-            .fetch_one(self.pool())
+        let total = self
+            .run_runtime_query(
+                metadata,
+                count_builder
+                    .build_query_scalar::<i64>()
+                    .fetch_one(self.pool()),
+            )
             .await?;
 
         let mut list_builder = QueryBuilder::<Postgres>::new(format!(
@@ -64,9 +231,13 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         list_builder.push_bind(offset);
         list_builder.push(") t");
 
-        let rows = list_builder
-            .build_query_scalar::<Value>()
-            .fetch_all(self.pool())
+        let rows = self
+            .run_runtime_query(
+                metadata,
+                list_builder
+                    .build_query_scalar::<Value>()
+                    .fetch_all(self.pool()),
+            )
             .await?;
         let mut items = Vec::with_capacity(rows.len());
         for row in rows {
@@ -105,9 +276,13 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         builder.push_bind(record_id);
         builder.push(" limit 1) t");
 
-        let row = builder
-            .build_query_scalar::<Value>()
-            .fetch_optional(self.pool())
+        let row = self
+            .run_runtime_query(
+                metadata,
+                builder
+                    .build_query_scalar::<Value>()
+                    .fetch_optional(self.pool()),
+            )
             .await?;
 
         Ok(row.map(|value| normalize_record(metadata, value)))
@@ -153,7 +328,8 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
             push_field_value(&mut builder, field, value)?;
         }
         builder.push(")");
-        builder.build().execute(self.pool()).await?;
+        self.run_runtime_query(metadata, builder.build().execute(self.pool()))
+            .await?;
 
         self.get_record(metadata, scope_id, None, &record_id.to_string())
             .await?
@@ -206,7 +382,8 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         append_owner_scope_clause(&mut builder, owner_user_id);
         builder.push(" and id = ");
         builder.push_bind(record_id);
-        builder.build().execute(self.pool()).await?;
+        self.run_runtime_query(metadata, builder.build().execute(self.pool()))
+            .await?;
 
         self.get_record(metadata, scope_id, owner_user_id, &record_id.to_string())
             .await?
@@ -231,7 +408,9 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         builder.push(" and id = ");
         builder.push_bind(record_id);
 
-        let result = builder.build().execute(self.pool()).await?;
+        let result = self
+            .run_runtime_query(metadata, builder.build().execute(self.pool()))
+            .await?;
         Ok(result.rows_affected() > 0)
     }
 }
@@ -348,10 +527,14 @@ fn to_runtime_model_metadata(model: domain::ModelDefinitionRecord) -> ModelMetad
         scope_id: model.scope_id,
         physical_table_name: model.physical_table_name,
         scope_column_name: match model.scope_kind {
-            domain::DataModelScopeKind::Team => "team_id".into(),
-            domain::DataModelScopeKind::App => "app_id".into(),
+            domain::DataModelScopeKind::Workspace => "team_id".into(),
+            domain::DataModelScopeKind::System => "app_id".into(),
         },
-        fields: model.fields,
+        fields: model
+            .fields
+            .into_iter()
+            .filter(|field| field.availability_status.is_healthy())
+            .collect(),
         resource: runtime_core::resource_descriptor::ResourceDescriptor::runtime_model(
             &model.code,
             model.scope_kind,
@@ -519,6 +702,19 @@ fn nullable_actor_user_id(actor_user_id: Uuid) -> Option<Uuid> {
     (!actor_user_id.is_nil()).then_some(actor_user_id)
 }
 
+fn field_requires_physical_column(field: &domain::ModelFieldRecord) -> bool {
+    !matches!(field.field_kind, domain::ModelFieldKind::OneToMany)
+}
+
+fn is_runtime_object_missing_error(error: &sqlx::Error) -> bool {
+    match error {
+        sqlx::Error::Database(database_error) => {
+            matches!(database_error.code().as_deref(), Some("42P01" | "42703"))
+        }
+        _ => false,
+    }
+}
+
 #[allow(dead_code)]
 fn to_model_field_record(row: PgRow) -> domain::ModelFieldRecord {
     domain::ModelFieldRecord {
@@ -536,5 +732,8 @@ fn to_model_field_record(row: PgRow) -> domain::ModelFieldRecord {
         relation_target_model_id: row.get("relation_target_model_id"),
         relation_options: row.get("relation_options"),
         sort_order: row.get("sort_order"),
+        availability_status: domain::MetadataAvailabilityStatus::from_db(
+            row.get("availability_status"),
+        ),
     }
 }

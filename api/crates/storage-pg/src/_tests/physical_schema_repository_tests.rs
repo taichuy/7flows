@@ -10,16 +10,27 @@ fn database_url() -> String {
         .unwrap_or_else(|_| "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows".into())
 }
 
+async fn root_tenant_id(store: &PgControlPlaneStore) -> Uuid {
+    sqlx::query_scalar("select id from tenants where code = 'root-tenant'")
+        .fetch_one(store.pool())
+        .await
+        .unwrap()
+}
+
 #[tokio::test]
 async fn add_scalar_field_creates_real_postgres_column_and_unique_index() {
     let pool = connect(&database_url()).await.unwrap();
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
     let team_id = Uuid::now_v7();
+    let tenant_id = root_tenant_id(&store).await;
+    let team_name = format!("Core Team {}", team_id.simple());
     sqlx::query(
-        "insert into teams (id, name, created_by, updated_by) values ($1, 'Core Team', null, null)",
+        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
     .bind(team_id)
+    .bind(tenant_id)
+    .bind(&team_name)
     .execute(store.pool())
     .await
     .unwrap();
@@ -95,10 +106,14 @@ async fn add_one_to_many_field_only_writes_metadata_without_creating_column() {
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
     let team_id = Uuid::now_v7();
+    let tenant_id = root_tenant_id(&store).await;
+    let team_name = format!("Core Team {}", team_id.simple());
     sqlx::query(
-        "insert into teams (id, name, created_by, updated_by) values ($1, 'Core Team', null, null)",
+        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
     .bind(team_id)
+    .bind(tenant_id)
+    .bind(&team_name)
     .execute(store.pool())
     .await
     .unwrap();
@@ -171,10 +186,14 @@ async fn add_many_to_many_field_creates_host_managed_join_table() {
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
     let team_id = Uuid::now_v7();
+    let tenant_id = root_tenant_id(&store).await;
+    let team_name = format!("Core Team {}", team_id.simple());
     sqlx::query(
-        "insert into teams (id, name, created_by, updated_by) values ($1, 'Core Team', null, null)",
+        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
     .bind(team_id)
+    .bind(tenant_id)
+    .bind(&team_name)
     .execute(store.pool())
     .await
     .unwrap();

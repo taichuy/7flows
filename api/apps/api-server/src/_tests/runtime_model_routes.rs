@@ -1,4 +1,4 @@
-use crate::_tests::support::{login_and_capture_cookie, test_app};
+use crate::_tests::support::{login_and_capture_cookie, test_app, test_app_with_database_url};
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -81,7 +81,7 @@ async fn replace_member_roles(
 
 #[tokio::test]
 async fn runtime_model_routes_create_fetch_update_delete_and_filter_records() {
-    let app = test_app().await;
+    let (app, database_url) = test_app_with_database_url().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
     let model_id = create_orders_model(&app, &cookie, &csrf).await;
     create_text_field(&app, &cookie, &csrf, &model_id, "title").await;
@@ -161,6 +161,7 @@ async fn runtime_model_routes_create_fetch_update_delete_and_filter_records() {
     assert_eq!(update_response.status(), StatusCode::OK);
 
     let delete_response = app
+        .clone()
         .oneshot(
             Request::builder()
                 .method("DELETE")
@@ -173,6 +174,33 @@ async fn runtime_model_routes_create_fetch_update_delete_and_filter_records() {
         .await
         .unwrap();
     assert_eq!(delete_response.status(), StatusCode::OK);
+
+    drop_runtime_table(&database_url, &model_id).await;
+
+    let unavailable_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/runtime/models/orders/records")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(unavailable_response.status(), StatusCode::CONFLICT);
+    let unavailable_payload: serde_json::Value = serde_json::from_slice(
+        &to_bytes(unavailable_response.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        unavailable_payload["code"],
+        json!("runtime_model_unavailable")
+    );
 }
 
 #[tokio::test]
@@ -458,4 +486,17 @@ async fn create_enum_field(
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::CREATED);
+}
+
+async fn drop_runtime_table(database_url: &str, model_id: &str) {
+    let pool = storage_pg::connect(database_url).await.unwrap();
+    let model_id = uuid::Uuid::parse_str(model_id).unwrap();
+    let physical_table_name: String =
+        sqlx::query_scalar("select physical_table_name from model_definitions where id = $1")
+            .bind(model_id)
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    let statement = format!("drop table if exists \"{physical_table_name}\"");
+    sqlx::query(&statement).execute(&pool).await.unwrap();
 }

@@ -14,7 +14,10 @@ pub use auth::{
     RoleTemplate, SessionRecord, UserAuthIdentity, UserRecord, UserStatus,
 };
 pub use base::BaseFields;
-pub use modeling::{DataModelScopeKind, ModelDefinitionRecord, ModelFieldKind, ModelFieldRecord};
+pub use modeling::{
+    DataModelScopeKind, MetadataAvailabilityStatus, ModelDefinitionRecord, ModelFieldKind,
+    ModelFieldRecord,
+};
 pub use resource::runtime_model_resource_code;
 pub use scope::{ScopeContext, TenantRecord, WorkspaceRecord};
 pub use team::TeamRecord;
