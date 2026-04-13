@@ -20,18 +20,28 @@ test('renders the bootstrap shell and health state', async () => {
   render(<App />);
 
   expect(await screen.findByText('1Flowse Bootstrap')).toBeInTheDocument();
+  const header = document.querySelector('.app-shell-header');
   const primaryNavigation = await screen.findByRole('navigation', {
     name: 'Primary'
   });
 
+  expect(header).not.toBeNull();
+  expect((header as HTMLElement).style.getPropertyValue('--app-shell-edge-gap')).toBe('5%');
   expect(within(primaryNavigation).getByRole('menu')).toBeInTheDocument();
-  expect(within(primaryNavigation).getByRole('link', { name: 'Home' })).toBeInTheDocument();
+  expect(within(primaryNavigation).getByRole('link', { name: '工作台' })).toBeInTheDocument();
   expect(
-    within(primaryNavigation).getByRole('link', { name: 'Embedded Apps' })
+    within(primaryNavigation).getByRole('link', { name: '团队' })
   ).toBeInTheDocument();
   expect(
-    within(primaryNavigation).getByRole('link', { name: 'Agent Flow' })
+    within(primaryNavigation).getByRole('link', { name: '前台' })
   ).toBeInTheDocument();
+  expect(within(primaryNavigation).queryByRole('link', { name: 'Home' })).not.toBeInTheDocument();
+  expect(
+    within(primaryNavigation).queryByRole('link', { name: 'Embedded Apps' })
+  ).not.toBeInTheDocument();
+  expect(
+    within(primaryNavigation).queryByRole('link', { name: 'Agent Flow' })
+  ).not.toBeInTheDocument();
   expect(screen.getByRole('menuitem', { name: 'Taichu' })).toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'Theme Preview' })).not.toBeInTheDocument();
   expect(await screen.findByText(/api-server/i)).toBeInTheDocument();

@@ -34,7 +34,7 @@ function AppNavigation() {
       key: 'home',
       label: (
         <Link to="/" className="app-shell-menu-link">
-          Home
+          工作台
         </Link>
       )
     },
@@ -42,7 +42,7 @@ function AppNavigation() {
       key: 'embedded-apps',
       label: (
         <Link to="/embedded-apps" className="app-shell-menu-link">
-          Embedded Apps
+          团队
         </Link>
       )
     },
@@ -50,7 +50,7 @@ function AppNavigation() {
       key: 'agent-flow',
       label: (
         <Link to="/agent-flow" className="app-shell-menu-link">
-          Agent Flow
+          前台
         </Link>
       )
     }

@@ -51,7 +51,10 @@ export interface AppShellProps extends PropsWithChildren {
 export function AppShell({ title, navigation, actions, children }: AppShellProps) {
   return (
     <Layout className="app-shell">
-      <Header className="app-shell-header">
+      <Header
+        className="app-shell-header"
+        style={{ ['--app-shell-edge-gap' as string]: '5%' }}
+      >
         <div className="app-shell-header-main">
           <div className="app-shell-brand">
             <span className="app-shell-signal" aria-hidden="true" />
