@@ -3,6 +3,7 @@ mod config_tests;
 mod me_routes;
 mod member_routes;
 mod model_definition_routes;
+mod openapi_alignment;
 mod role_routes;
 mod runtime_model_routes;
 mod session_routes;

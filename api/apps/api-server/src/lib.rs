@@ -4,6 +4,7 @@ pub mod app_state;
 pub mod config;
 pub mod error_response;
 pub mod middleware;
+pub mod openapi;
 pub mod response;
 pub mod routes;
 
@@ -57,63 +58,6 @@ async fn console_health() -> Json<HealthResponse> {
     health().await
 }
 
-#[derive(OpenApi)]
-#[openapi(
-    paths(
-        health,
-        console_health,
-        routes::auth::list_providers,
-        routes::auth::sign_in,
-        routes::me::change_password,
-        routes::me::get_me,
-        routes::session::delete_session,
-        routes::session::get_session,
-        routes::session::revoke_all_sessions,
-        routes::team::get_team,
-        routes::team::patch_team,
-        routes::members::list_members,
-        routes::members::create_member,
-        routes::members::disable_member,
-        routes::members::reset_member,
-        routes::members::replace_member_roles,
-        routes::model_definitions::create_model,
-        routes::model_definitions::list_models,
-        routes::roles::list_roles,
-        routes::roles::create_role,
-        routes::roles::update_role,
-        routes::roles::delete_role,
-        routes::roles::get_role_permissions,
-        routes::roles::replace_role_permissions,
-        routes::permissions::list_permissions,
-    ),
-    components(schemas(
-        HealthResponse,
-        routes::auth::LoginBody,
-        routes::auth::AuthProviderResponse,
-        routes::auth::LoginResponse,
-        routes::me::ChangePasswordBody,
-        routes::me::MeResponse,
-        routes::members::CreateMemberBody,
-        routes::members::MemberResponse,
-        routes::model_definitions::CreateModelDefinitionBody,
-        routes::model_definitions::ModelDefinitionResponse,
-        routes::members::ReplaceMemberRolesBody,
-        routes::members::ResetMemberPasswordBody,
-        routes::permissions::PermissionResponse,
-        routes::roles::CreateRoleBody,
-        routes::roles::ReplaceRolePermissionsBody,
-        routes::roles::RolePermissionsResponse,
-        routes::roles::RoleResponse,
-        routes::roles::UpdateRoleBody,
-        routes::session::SessionResponse,
-        routes::team::PatchTeamBody,
-        routes::team::TeamResponse,
-        error_response::ErrorBody,
-    )),
-    info(title = "1Flowse API", version = "0.1.0")
-)]
-pub struct ApiDoc;
-
 pub fn parse_bind_addr(candidate: Option<&str>, default_addr: &str) -> SocketAddr {
     candidate
         .and_then(|value| value.parse().ok())
@@ -124,7 +68,7 @@ fn base_router() -> Router {
     Router::new()
         .route("/health", get(health))
         .route("/api/console/health", get(console_health))
-        .merge(SwaggerUi::new("/docs").url("/openapi.json", ApiDoc::openapi()))
+        .merge(SwaggerUi::new("/docs").url("/openapi.json", openapi::ApiDoc::openapi()))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
 }

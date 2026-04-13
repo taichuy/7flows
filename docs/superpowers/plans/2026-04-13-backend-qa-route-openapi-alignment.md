@@ -46,7 +46,7 @@
 - Create: `api/apps/api-server/src/_tests/openapi_alignment.rs`
 - Modify: `api/apps/api-server/src/_tests/mod.rs`
 
-- [ ] **Step 1: Add failing OpenAPI coverage tests**
+- [x] **Step 1: Add failing OpenAPI coverage tests**
 
 Create `api/apps/api-server/src/_tests/openapi_alignment.rs` with:
 
@@ -67,13 +67,13 @@ The first test must assert that `/openapi.json` contains at least:
 - `/api/console/session/actions/revoke-all`
 - `/api/console/me/actions/change-password`
 
-- [ ] **Step 2: Run the focused OpenAPI failures**
+- [x] **Step 2: Run the focused OpenAPI failures**
 
-Run: `cargo test -p api-server openapi_contains_runtime_and_model_detail_routes -- --exact`
+Run: `cargo test -p api-server --lib _tests::openapi_alignment::openapi_contains_runtime_and_model_detail_routes -- --exact`
 
 Expected: FAIL because `runtime_models` and most model-definition mutations are not in `ApiDoc`.
 
-- [ ] **Step 3: Create `openapi.rs` and annotate missing routes**
+- [x] **Step 3: Create `openapi.rs` and annotate missing routes**
 
 Create `api/apps/api-server/src/openapi.rs` and move the `OpenApi` derive there:
 
@@ -138,18 +138,21 @@ pub struct RuntimeRecordEnvelope;
 
 or equivalent `serde_json::Value` schema wrappers.
 
-- [ ] **Step 4: Re-run the OpenAPI coverage tests**
+- [x] **Step 4: Re-run the OpenAPI coverage tests**
 
-Run: `cargo test -p api-server openapi_contains_runtime_and_model_detail_routes -- --exact`
+Run: `cargo test -p api-server --lib _tests::openapi_alignment::openapi_contains_runtime_and_model_detail_routes -- --exact`
 
 Expected: PASS
 
-- [ ] **Step 5: Commit the OpenAPI composition slice**
+- [x] **Step 5: Commit the OpenAPI composition slice**
 
 ```bash
 git add api/apps/api-server/src/openapi.rs api/apps/api-server/src/lib.rs api/apps/api-server/src/routes/model_definitions.rs api/apps/api-server/src/routes/runtime_models.rs api/apps/api-server/src/_tests/mod.rs api/apps/api-server/src/_tests/openapi_alignment.rs
 git commit -m "refactor: isolate api server openapi composition"
 ```
+
+Task 1 completed at `2026-04-13 16:45`.
+Execution note: `src/_tests` unit tests require the full module path when using `-- --exact`, so the focused command was run with `_tests::openapi_alignment::...` instead of the bare function name.
 
 ### Task 2: Remove Legacy Mutation Paths And Lock The New Route Contract
 

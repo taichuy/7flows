@@ -8,6 +8,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use utoipa::ToSchema;
 
 use crate::{
     app_state::ApiState,
@@ -39,18 +40,20 @@ pub struct RuntimeListQueryParams {
     pub page_size: Option<i64>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, ToSchema)]
+#[schema(value_type = Object)]
+pub struct RuntimeRecordEnvelope(#[allow(dead_code)] Value);
+
+#[derive(Debug, Serialize, ToSchema)]
 pub struct RuntimeListResponse {
+    #[schema(value_type = Vec<RuntimeRecordEnvelope>)]
     pub items: Vec<Value>,
     pub total: i64,
 }
 
 pub fn router() -> Router<Arc<ApiState>> {
     Router::new()
-        .route(
-            "/models/:model_code/records",
-            get(list_records).post(create_record),
-        )
+        .route("/models/:model_code/records", get(list_records).post(create_record))
         .route(
             "/models/:model_code/records/:id",
             get(get_record).patch(update_record).delete(delete_record),
@@ -123,6 +126,12 @@ fn parse_expand(expand: Option<&str>) -> Vec<String> {
         .unwrap_or_default()
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/runtime/models/{model_code}/records",
+    params(("model_code" = String, Path, description = "Runtime model code")),
+    responses((status = 200, body = RuntimeListResponse), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+)]
 pub async fn list_records(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
@@ -151,6 +160,15 @@ pub async fn list_records(
     })))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/runtime/models/{model_code}/records/{id}",
+    params(
+        ("model_code" = String, Path, description = "Runtime model code"),
+        ("id" = String, Path, description = "Runtime record id")
+    ),
+    responses((status = 200, body = RuntimeRecordEnvelope), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+)]
 pub async fn get_record(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
@@ -174,6 +192,13 @@ pub async fn get_record(
     Ok(Json(ApiSuccess::new(record)))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/runtime/models/{model_code}/records",
+    request_body = RuntimeRecordEnvelope,
+    params(("model_code" = String, Path, description = "Runtime model code")),
+    responses((status = 201, body = RuntimeRecordEnvelope), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+)]
 pub async fn create_record(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
@@ -197,6 +222,16 @@ pub async fn create_record(
     Ok((StatusCode::CREATED, Json(ApiSuccess::new(record))))
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/runtime/models/{model_code}/records/{id}",
+    request_body = RuntimeRecordEnvelope,
+    params(
+        ("model_code" = String, Path, description = "Runtime model code"),
+        ("id" = String, Path, description = "Runtime record id")
+    ),
+    responses((status = 200, body = RuntimeRecordEnvelope), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+)]
 pub async fn update_record(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
@@ -221,6 +256,15 @@ pub async fn update_record(
     Ok(Json(ApiSuccess::new(record)))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/runtime/models/{model_code}/records/{id}",
+    params(
+        ("model_code" = String, Path, description = "Runtime model code"),
+        ("id" = String, Path, description = "Runtime record id")
+    ),
+    responses((status = 200, body = RuntimeRecordEnvelope), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+)]
 pub async fn delete_record(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,

@@ -106,6 +106,11 @@ pub struct ModelDefinitionResponse {
     pub fields: Vec<ModelFieldResponse>,
 }
 
+#[derive(Debug, Serialize, ToSchema)]
+pub struct DeletedResponse {
+    pub deleted: bool,
+}
+
 pub fn router() -> Router<Arc<ApiState>> {
     Router::new()
         .route("/models", get(list_models).post(create_model))
@@ -264,6 +269,12 @@ pub async fn create_model(
     ))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/console/models/{id}",
+    params(("id" = String, Path, description = "Model definition id")),
+    responses((status = 200, body = ModelDefinitionResponse), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+)]
 pub async fn get_model(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
@@ -277,6 +288,13 @@ pub async fn get_model(
     Ok(Json(ApiSuccess::new(to_model_definition_response(model))))
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/console/models/{id}",
+    request_body = UpdateModelDefinitionBody,
+    params(("id" = String, Path, description = "Model definition id")),
+    responses((status = 200, body = ModelDefinitionResponse), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+)]
 pub async fn update_model(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
@@ -298,6 +316,15 @@ pub async fn update_model(
     Ok(Json(ApiSuccess::new(to_model_definition_response(model))))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/console/models/{id}",
+    params(
+        ("id" = String, Path, description = "Model definition id"),
+        ("confirmed" = Option<bool>, Query, description = "Must be true to confirm deletion")
+    ),
+    responses((status = 200, body = DeletedResponse), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+)]
 pub async fn delete_model(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
@@ -321,6 +348,13 @@ pub async fn delete_model(
     )))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/console/models/{id}/fields",
+    request_body = CreateModelFieldBody,
+    params(("id" = String, Path, description = "Model definition id")),
+    responses((status = 201, body = ModelFieldResponse), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+)]
 pub async fn create_field(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
@@ -358,6 +392,16 @@ pub async fn create_field(
     ))
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/console/models/{id}/fields/{field_id}",
+    request_body = UpdateModelFieldBody,
+    params(
+        ("id" = String, Path, description = "Model definition id"),
+        ("field_id" = String, Path, description = "Model field id")
+    ),
+    responses((status = 200, body = ModelFieldResponse), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+)]
 pub async fn update_field(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
@@ -386,6 +430,16 @@ pub async fn update_field(
     Ok(Json(ApiSuccess::new(to_model_field_response(field))))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/console/models/{id}/fields/{field_id}",
+    params(
+        ("id" = String, Path, description = "Model definition id"),
+        ("field_id" = String, Path, description = "Model field id"),
+        ("confirmed" = Option<bool>, Query, description = "Must be true to confirm deletion")
+    ),
+    responses((status = 200, body = DeletedResponse), (status = 400, body = crate::error_response::ErrorBody), (status = 401, body = crate::error_response::ErrorBody), (status = 403, body = crate::error_response::ErrorBody), (status = 404, body = crate::error_response::ErrorBody))
+)]
 pub async fn delete_field(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
