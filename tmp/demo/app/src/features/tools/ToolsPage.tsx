@@ -5,6 +5,7 @@ import { Card, Descriptions, Drawer, Input, List, Segmented, Table, Typography }
 import type { ColumnsType } from 'antd/es/table';
 
 import { apiSurface, monitoringSignals, toolFollowUps, toolIncidents, type ToolIncident } from '../demo-data';
+import { ApplicationWorkspacePanel } from '../../shared/ui/ApplicationWorkspacePanel';
 import { DemoPageHero } from '../../shared/ui/DemoPageHero';
 import { StatusPill } from '../../shared/ui/StatusPill';
 
@@ -118,6 +119,8 @@ export function ToolsPage() {
         title="工具"
         description="工具台统一承接事件收口、接口治理和运行告警，帮助平台团队在一个页面里明确“先处理什么、为什么处理、去哪里处理”。"
       />
+
+      <ApplicationWorkspacePanel activeKeys={['logs', 'monitoring']} />
 
       <div className="metric-grid">
         {monitoringSignals.map((item) => (

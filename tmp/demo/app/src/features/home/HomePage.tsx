@@ -1,20 +1,28 @@
 import { useMemo, useState } from 'react';
 
 import { Link } from '@tanstack/react-router';
-import { Card, Descriptions, Drawer, List, Space, Typography } from 'antd';
+import { Card, Descriptions, Drawer, List, Space, Table, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 
 import {
   consoleEntries,
+  currentApplicationWorkspace,
   demoRuns,
   governanceNotes,
   homeActionQueue,
   workbenchMetrics,
+  workspaceApplications,
   workspaceSnapshot
 } from '../demo-data';
+import { ApplicationWorkspacePanel } from '../../shared/ui/ApplicationWorkspacePanel';
 import { DemoPageHero } from '../../shared/ui/DemoPageHero';
 import { StatusPill } from '../../shared/ui/StatusPill';
 
 type HomeDrawerState =
+  | {
+      kind: 'app';
+      id: string;
+    }
   | {
       kind: 'queue';
       id: string;
@@ -27,6 +35,14 @@ type HomeDrawerState =
 
 export function HomePage() {
   const [activePanel, setActivePanel] = useState<HomeDrawerState>(null);
+
+  const activeApplication = useMemo(
+    () =>
+      activePanel?.kind === 'app'
+        ? workspaceApplications.find((item) => item.id === activePanel.id) ?? null
+        : null,
+    [activePanel]
+  );
 
   const activeQueueItem = useMemo(
     () =>
@@ -42,6 +58,54 @@ export function HomePage() {
         ? demoRuns.find((item) => item.id === activePanel.id) ?? null
         : null,
     [activePanel]
+  );
+
+  const applicationColumns = useMemo<ColumnsType<(typeof workspaceApplications)[number]>>(
+    () => [
+      {
+        title: '应用',
+        dataIndex: 'name',
+        key: 'name',
+        render: (value: string, record) => (
+          <button
+            type="button"
+            className="workspace-app-trigger"
+            aria-label={`从表格查看 ${value} 应用详情`}
+            onClick={() => setActivePanel({ kind: 'app', id: record.id })}
+          >
+            <span className="workspace-app-trigger-title">{value}</span>
+            <span className="workspace-app-trigger-summary">{record.description}</span>
+          </button>
+        )
+      },
+      {
+        title: '主负责人',
+        dataIndex: 'owner',
+        key: 'owner',
+        responsive: ['md']
+      },
+      {
+        title: '最近更新',
+        dataIndex: 'lastUpdated',
+        key: 'lastUpdated',
+        responsive: ['lg']
+      },
+      {
+        title: '最近访问',
+        dataIndex: 'lastVisited',
+        key: 'lastVisited',
+        responsive: ['lg']
+      },
+      {
+        title: '发布状态',
+        dataIndex: 'releaseStatus',
+        key: 'releaseStatus',
+        render: (_, record) => (
+          <StatusPill status={record.releaseStatus}>{record.releaseLabel}</StatusPill>
+        )
+      }
+    ],
+    []
   );
 
   return (
@@ -87,6 +151,45 @@ export function HomePage() {
           </Card>
         ))}
       </div>
+
+      <ApplicationWorkspacePanel activeKeys={['overview']} />
+
+      <Card title="应用列表" className="demo-card">
+        <div className="workspace-app-table-shell">
+          <Table
+            rowKey="id"
+            pagination={false}
+            dataSource={workspaceApplications}
+            columns={applicationColumns}
+          />
+        </div>
+
+        <section className="workspace-app-card-region" aria-label="应用卡片列表">
+          {workspaceApplications.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="workspace-app-mobile-card"
+              aria-label={`查看 ${item.name} 应用详情`}
+              onClick={() => setActivePanel({ kind: 'app', id: item.id })}
+            >
+              <div className="workspace-app-mobile-card-head">
+                <div className="workspace-app-mobile-card-title">
+                  <span>{item.name}</span>
+                  <span className="workspace-app-mobile-card-owner">{item.owner}</span>
+                </div>
+                <StatusPill status={item.releaseStatus}>{item.releaseLabel}</StatusPill>
+              </div>
+              <p className="workspace-app-mobile-card-summary">{item.description}</p>
+              <div className="workspace-app-mobile-card-meta">
+                <span>{item.currentFlow}</span>
+                <span>{item.revision}</span>
+                <span>{item.lastVisited}</span>
+              </div>
+            </button>
+          ))}
+        </section>
+      </Card>
 
       <div className="demo-grid-columns">
         <div className="demo-two-column section-stack">
@@ -173,11 +276,62 @@ export function HomePage() {
       </div>
 
       <Drawer
-        open={Boolean(activeQueueItem || activeRun)}
-        title={activeQueueItem?.title ?? activeRun?.flow}
+        open={Boolean(activeApplication || activeQueueItem || activeRun)}
+        title={activeApplication?.name ?? activeQueueItem?.title ?? activeRun?.flow}
         width={440}
         onClose={() => setActivePanel(null)}
       >
+        {activeApplication ? (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Typography.Paragraph>{activeApplication.description}</Typography.Paragraph>
+            <Descriptions
+              column={1}
+              colon={false}
+              items={[
+                {
+                  key: 'owner',
+                  label: '主负责人',
+                  children: activeApplication.owner
+                },
+                {
+                  key: 'flow',
+                  label: '当前 Flow',
+                  children: activeApplication.currentFlow
+                },
+                {
+                  key: 'revision',
+                  label: '最近 revision',
+                  children: activeApplication.revision
+                },
+                {
+                  key: 'endpoint',
+                  label: '发布入口',
+                  children: activeApplication.endpoint
+                },
+                {
+                  key: 'state-model',
+                  label: '状态模型',
+                  children: activeApplication.stateModel
+                },
+                {
+                  key: 'workspace',
+                  label: '当前工作区',
+                  children: currentApplicationWorkspace.team
+                }
+              ]}
+            />
+            <Card size="small" title="本轮治理焦点" className="drawer-timeline-card">
+              <List
+                dataSource={activeApplication.tags}
+                renderItem={(item) => <List.Item>{item}</List.Item>}
+              />
+            </Card>
+            <Link to={activeApplication.nextActionHref} className="demo-cta-link demo-cta-link-primary">
+              {activeApplication.nextActionLabel}
+            </Link>
+          </Space>
+        ) : null}
+
         {activeQueueItem ? (
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Typography.Paragraph>{activeQueueItem.detail}</Typography.Paragraph>

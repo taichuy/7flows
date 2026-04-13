@@ -4,6 +4,7 @@ import { Link, useRouterState } from '@tanstack/react-router';
 import { Card, Descriptions, Drawer, Table, Typography } from 'antd';
 
 import { subsystems, subsystemFocusItems } from '../demo-data';
+import { ApplicationWorkspacePanel } from '../../shared/ui/ApplicationWorkspacePanel';
 import { DemoPageHero } from '../../shared/ui/DemoPageHero';
 import { StatusPill } from '../../shared/ui/StatusPill';
 
@@ -44,6 +45,8 @@ export function EmbeddedAppsPage() {
         title="子系统"
         description="这里集中查看所有已接入入口的挂载路由、访问上下文和待办事项，确认每个业务前台都落在统一宿主边界内。"
       />
+
+      <ApplicationWorkspacePanel activeKeys={['subsystems']} />
 
       {activeFocus ? (
         <Card title="当前同步关注" className="demo-card focus-summary-card">

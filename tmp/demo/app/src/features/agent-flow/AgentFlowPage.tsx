@@ -12,6 +12,7 @@ import {
   studioRuntimeTrack,
   studioStateItems
 } from '../demo-data';
+import { ApplicationWorkspacePanel } from '../../shared/ui/ApplicationWorkspacePanel';
 import { DemoPageHero } from '../../shared/ui/DemoPageHero';
 import { StatusPill } from '../../shared/ui/StatusPill';
 
@@ -60,6 +61,8 @@ export function AgentFlowPage() {
           </Card>
         }
       />
+
+      <ApplicationWorkspacePanel activeKeys={['studio']} />
 
       <div className="metric-grid">
         {studioOverview.map((item) => (

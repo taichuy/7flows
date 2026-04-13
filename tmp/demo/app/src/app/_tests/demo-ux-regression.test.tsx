@@ -36,6 +36,23 @@ describe('demo ux regression coverage', () => {
     expect(within(dialog).getByText('安全团队')).toBeInTheDocument();
   });
 
+  test('home shows application containers instead of only console shortcuts', async () => {
+    render(<App />);
+
+    expect(
+      await screen.findByRole('heading', { name: '工作台' }, { timeout: 5000 })
+    ).toBeInTheDocument();
+    expect(screen.getByText('应用列表')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '查看 发布检查助手 应用详情' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '查看 发布检查助手 应用详情' }));
+
+    const dialog = await screen.findByRole('dialog', { name: '发布检查助手' }, { timeout: 5000 });
+    expect(within(dialog).getByText('/agentflows/publish-check/runs')).toBeInTheDocument();
+    expect(within(dialog).getByText('最近 revision')).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: '进入应用编排' })).toBeInTheDocument();
+  });
+
   test('home queue actions carry the user into the focused studio governance flow', async () => {
     render(<App />);
 
@@ -51,6 +68,24 @@ describe('demo ux regression coverage', () => {
     expect(screen.getByText('当前治理链')).toBeInTheDocument();
     expect(screen.getByText('Webhook 回写超时')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '前往工具台处理事件' })).toBeInTheDocument();
+  });
+
+  test('studio keeps the current application workspace rail visible across app pages', async () => {
+    window.history.pushState({}, '', '/studio');
+
+    render(<App />);
+
+    expect(
+      await screen.findByRole('heading', { name: '流程编排' }, { timeout: 5000 })
+    ).toBeInTheDocument();
+
+    const region = screen.getByRole('region', { name: '当前应用工作区' });
+    expect(within(region).getByText('发布检查助手')).toBeInTheDocument();
+    expect(within(region).getByText('增长实验室')).toBeInTheDocument();
+    expect(within(region).getByRole('link', { name: '应用概览' })).toBeInTheDocument();
+    expect(within(region).getByRole('link', { name: '流程编排' })).toBeInTheDocument();
+    expect(within(region).getByRole('link', { name: '发布接口' })).toBeInTheDocument();
+    expect(within(region).getByRole('link', { name: '监控报表' })).toBeInTheDocument();
   });
 
   test('subsystems page uses product-facing names and provides a direct follow-up action', async () => {

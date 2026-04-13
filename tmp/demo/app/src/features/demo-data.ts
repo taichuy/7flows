@@ -39,6 +39,45 @@ export interface SnapshotItem {
   value: string;
 }
 
+export interface WorkspaceApplication {
+  id: string;
+  name: string;
+  owner: string;
+  description: string;
+  lastUpdated: string;
+  lastVisited: string;
+  releaseStatus: DemoStatus;
+  releaseLabel: string;
+  currentFlow: string;
+  revision: string;
+  endpoint: string;
+  stateModel: string;
+  tags: string[];
+  nextActionLabel: string;
+  nextActionHref: string;
+}
+
+export interface ApplicationWorkspaceSummary {
+  name: string;
+  team: string;
+  owner: string;
+  description: string;
+  currentFlow: string;
+  endpoint: string;
+  stateModel: string;
+  lastRevision: string;
+  status: DemoStatus;
+  statusLabel: string;
+}
+
+export interface ApplicationWorkspaceLink {
+  key: string;
+  label: string;
+  href: string;
+  note: string;
+  status: DemoStatus;
+}
+
 export interface QueueItem {
   id: string;
   title: string;
@@ -298,6 +337,125 @@ export const workspaceSnapshot: SnapshotItem[] = [
     key: 'release',
     label: '最近发布',
     value: '2026-04-13 18:40'
+  }
+];
+
+export const currentApplicationWorkspace: ApplicationWorkspaceSummary = {
+  name: '发布检查助手',
+  team: '增长实验室',
+  owner: 'Mina Chen',
+  description: '把发布前治理、回写恢复、权限审批和子系统同步收敛到一个稳定的应用交付容器中。',
+  currentFlow: '发布检查',
+  endpoint: '/agentflows/publish-check/runs',
+  stateModel: 'release_gate_state',
+  lastRevision: 'revision-24',
+  status: 'waiting',
+  statusLabel: '等待回写'
+};
+
+export const applicationWorkspaceLinks: ApplicationWorkspaceLink[] = [
+  {
+    key: 'overview',
+    label: '应用概览',
+    href: '/',
+    note: '从工作台查看当前交付容器和治理队列。',
+    status: 'healthy'
+  },
+  {
+    key: 'studio',
+    label: '流程编排',
+    href: '/studio?focus=release-gateway&track=checkpoint',
+    note: '继续确认 Flow、发布检查和状态记忆主线。',
+    status: 'running'
+  },
+  {
+    key: 'api',
+    label: '发布接口',
+    href: '/settings?section=api&focus=incident-api',
+    note: '核对对外契约、公开边界和文档说明。',
+    status: 'waiting'
+  },
+  {
+    key: 'logs',
+    label: '调用日志',
+    href: '/tools?incident=incident-webhook',
+    note: '聚焦 webhook 回写和人工恢复时间线。',
+    status: 'failed'
+  },
+  {
+    key: 'monitoring',
+    label: '监控报表',
+    href: '/tools',
+    note: '统一收口监控信号、事件窗口和阻塞状态。',
+    status: 'running'
+  },
+  {
+    key: 'subsystems',
+    label: '子系统',
+    href: '/subsystems?subsystem=growth-portal&focus=cache-rollout',
+    note: '确认宿主挂载、缓存窗口和版本同步结果。',
+    status: 'running'
+  },
+  {
+    key: 'settings',
+    label: '设置',
+    href: '/settings?section=access&focus=incident-acl',
+    note: '管理权限矩阵、会话策略和审计入口。',
+    status: 'waiting'
+  }
+];
+
+export const workspaceApplications: WorkspaceApplication[] = [
+  {
+    id: 'publish-check-assistant',
+    name: '发布检查助手',
+    owner: 'Mina Chen',
+    description: '面向 Agent API 发布前治理闭环的主应用，当前承接 revision-24 的回写恢复。',
+    lastUpdated: '今天 09:46',
+    lastVisited: '2 分钟前',
+    releaseStatus: 'waiting',
+    releaseLabel: '等待回写',
+    currentFlow: '发布检查',
+    revision: 'revision-24',
+    endpoint: '/agentflows/publish-check/runs',
+    stateModel: 'release_gate_state',
+    tags: ['发布优先', 'Agent API'],
+    nextActionLabel: '进入应用编排',
+    nextActionHref: '/studio?focus=release-gateway&track=callback&incident=incident-webhook'
+  },
+  {
+    id: 'growth-portal-console',
+    name: '增长门户控制台',
+    owner: '增长系统',
+    description: '承接宿主扩展挂载、缓存策略和前台入口同步的业务应用。',
+    lastUpdated: '今天 08:26',
+    lastVisited: '28 分钟前',
+    releaseStatus: 'running',
+    releaseLabel: '同步中',
+    currentFlow: '子系统同步',
+    revision: 'bundle-0.4.2',
+    endpoint: '/embedded/growth-portal',
+    stateModel: 'portal_runtime_state',
+    tags: ['子系统接入', '宿主扩展'],
+    nextActionLabel: '查看子系统窗口',
+    nextActionHref: '/subsystems?subsystem=growth-portal&focus=cache-rollout'
+  },
+  {
+    id: 'docs-hub-console',
+    name: '接口文档中心',
+    owner: '平台内核',
+    description: '集中管理公开接口说明、鉴权口径和开发者接入说明的文档型应用。',
+    lastUpdated: '昨天 21:20',
+    lastVisited: '1 小时前',
+    releaseStatus: 'draft',
+    releaseLabel: '待发布',
+    currentFlow: '文档收口',
+    revision: 'draft-api-03',
+    endpoint: '/settings?section=api',
+    stateModel: 'api_surface_review',
+    tags: ['API 文档', '公开边界'],
+    nextActionLabel: '查看发布接口',
+    nextActionHref: '/settings?section=api&focus=incident-api'
   }
 ];
 

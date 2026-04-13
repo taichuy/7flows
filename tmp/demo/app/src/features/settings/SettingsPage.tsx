@@ -13,6 +13,7 @@ import {
   securityFields,
   securityNotes
 } from '../demo-data';
+import { ApplicationWorkspacePanel } from '../../shared/ui/ApplicationWorkspacePanel';
 import { DemoPageHero } from '../../shared/ui/DemoPageHero';
 import { StatusPill } from '../../shared/ui/StatusPill';
 
@@ -61,6 +62,10 @@ export function SettingsPage() {
         kicker="控制台设置"
         title="设置"
         description="设置页负责管理账户资料、安全策略、访问控制与接口文档，保持控制台管理域的入口一致。"
+      />
+
+      <ApplicationWorkspacePanel
+        activeKeys={activeSection === 'api' ? ['api', 'settings'] : ['settings']}
       />
 
       <Row gutter={[18, 18]}>
