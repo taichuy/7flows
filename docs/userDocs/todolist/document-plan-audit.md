@@ -1,86 +1,74 @@
 # 文档计划审计待办
 
-更新时间：`2026-04-14 04`
+更新时间：`2026-04-14 06`
 
-说明：本文件承接 `docs/qa-report/document-plan-audit.md` 的后续讨论。后续继续围绕这条议题沟通时，直接更新本文件，不重复新建同主题 todo。
+说明：本文件承接 `docs/qa-report/document-plan-audit.md` 的后续讨论。继续围绕这个主题沟通时，只更新本文件，不重复新建同主题 todo。
 
-## 本轮最新结论
+## 本轮已确认事实
 
-- 工程门禁当前不是主要问题：
-  - `pnpm --dir web lint`、`test`、`build` 通过
-  - `style-boundary` 在允许本地端口访问后通过
-  - `node scripts/node/verify-backend.js` 在允许本机 `Postgres/Redis` 访问后通过
-- 当前最需要治理的是两个“真相层”：
-  - 文档真相层：`docs/superpowers` 入口失真、类型混放、生命周期不清
-  - 前端语义真相层：正式 `web` 仍保留 `bootstrap/demo/placeholder` 语义
-- `docs/superpowers` 已经触发目录压力：
-  - `docs/superpowers/specs/1flowse` 顶层文件：`22`
-  - `docs/superpowers/plans` 文件：`16`
-  - 超过 `1500` 行的 plan：`2`
-- 模块 `completed` 口径已经不可信：
-  - `03`：壳层阶段
-  - `04`：页面占位
-  - `06`：骨架阶段
-  - `08`：骨架阶段
-- 前端当前最明显的语义泄漏点：
-  - `web/app/src/app-shell/AppShellFrame.tsx`：`1Flowse Bootstrap`
-  - `web/app/src/features/home/pages/HomePage.tsx`：`Workspace Bootstrap`
-  - `web/app/src/routes/route-config.ts`：`bootstrap-allow`
-  - `web/app/src/features/embedded-apps/pages/EmbeddedAppDetailPage.tsx`：`placeholderManifest`
-  - `web/app/src/features/embedded-runtime/pages/EmbeddedMountPage.tsx`：`bootstrap-application` / `bootstrap-team`
-  - `web/app/src/app/_tests/app-shell.test.tsx`：测试仍在固化上述语义
-- shared packages 测试仍有明显缺口：
-  - `web/packages` 总数：`8`
-  - 带 `_tests/` 的 package：`2`
-  - `passWithNoTests` 的 package：`6`
-- `docs/userDocs` 仍然只有当前这一个 todo 文件，还不是用户侧真相层
+- 当前没有被验证结果直接证明的 `Blocking` 问题。
+- 当前最需要治理的不是统一门禁，而是真相层：
+  - 文档真相层：`docs/superpowers` 的入口、生命周期、类型职责
+  - 模块状态真相层：`completed` 口径失真
+  - 前端语义真相层：导航、页面、测试还没有收口到正式控制台语义
+- 当前更准确的项目状态：
+  - 模块 `01` 后端主链路真实完成度最高
+  - 模块 `02/05/07` 已有后端治理基础与自动化验证
+  - 模块 `03/04/06/08` 仍不能按“已完成模块”理解
+- 当前文档体量已经重于代码体量：
+  - `docs/superpowers/specs/1flowse`：`8868` 行
+  - `docs/superpowers/plans`：`11664` 行
+  - `api/ + web/` 非构建产物代码：`16859` 行
+- 当前 QA 绿灯需要被诚实解读：
+  - `web` 的 `lint / test / build` 通过
+  - `style-boundary` 与 `verify-backend` 都需要本机权限或本地依赖，不能写成“纯沙箱即可验证”
+  - `6` 个前端 package 仍是 `passWithNoTests`
 
-## 下一轮优先级
+## 推荐执行顺序
 
-| 优先级 | 待办 | 预期结果 | 备注 |
+| 阶段 | 动作 | 预期结果 | 备注 |
 | --- | --- | --- | --- |
-| `P0` | 定义 `specs / plans / qa-report / userDocs / modules` 的职责矩阵 | 文档类型不再混写 | 先统一旧口径 |
-| `P0` | 给 `docs/superpowers/plans` 增加 `active / completed / archived` 生命周期 | 下一轮活动入口更稳定 | 需要整理历史 plan |
-| `P0` | 把模块总览改成 `design / implementation / verification` 三轴状态，并附代码证据链接 | 模块成熟度不再失真 | 需要逐模块回填 |
-| `P0` | 做一轮前端语义收口，清理 `bootstrap/demo/placeholder` 文案、常量和测试断言 | 页面、测试、文档回到同一真相层 | 不建议零散修，建议按专题处理 |
-| `P0` | 把验证结果拆成 `static / sandbox-safe / local-service / manual` 四层说明 | QA 结论更诚实 | 需要补环境说明 |
-| `P1` | 为 `web/packages` 建“补测或显式豁免”清单 | `passWithNoTests` 不再和真实覆盖混写 | 是 shared package 治理项 |
-| `P1` | 设计 `docs/userDocs` 最小信息架构 | 用户侧真相层开始成形 | 先结构，后写正文 |
-| `P1` | 在治理回合结束后选择前端路线：`正式控制台` 或 `继续 prototype` | 前端路线不再摇摆 | 需要产品优先级拍板 |
+| `P0` | 固定 `specs / plans / qa-report / userDocs / modules` 的职责矩阵 | 文档不再混写 | 建议立即执行 |
+| `P0` | 给 `docs/superpowers/plans` 增加 `active / completed / archived` 生命周期 | 活动入口稳定，可归档旧 plan | 需要整理历史 plan |
+| `P0` | 把模块总览改成 `design / implementation / verification` 三轴状态 | 模块成熟度不再失真 | 建议先改 `01-08` 总览 |
+| `P0` | 做一轮前端语义收口，优先回到“模块 `01` 最小正式控制台” | 导航、页面、测试回到同一真相层 | 不建议零散修词 |
+| `P1` | 把 QA 结论拆成 `static / sandbox-safe / local-service / manual` 四层 | 绿灯含义更诚实 | 需要调整报告模板或约定 |
+| `P1` | 为 `passWithNoTests` 的 package 建“补测或显式豁免”清单 | 测试状态不再混写 | 属于 shared package 治理 |
+| `P1` | 为 `docs/userDocs` 建最小信息架构 | 用户侧真相层开始成形 | 建议先结构后写正文 |
+| `P2` | 在真相层收口后，再处理 bundle 优化和热点文件拆分 | 避免次优先级问题抢占主线 | 当前不建议提前做 |
 
-## 建议中的最小 `docs/userDocs` 结构
+## 当前明确建议
 
-- 项目现状页
-- 模块进度矩阵页
-- 状态 / 术语说明页
-- 主题滚动 todo 页
+1. 不要继续把“讨论完成”写成“模块完成”。
+2. 不要继续为同主题平铺新增顶层 `spec/plan`，先治理入口和生命周期。
+3. 前端下一轮更推荐“模块 `01` 最小正式控制台”路线，而不是继续公开暴露多模块 prototype。
+4. `docs/userDocs` 第一页先写“项目现状”，第二页再写“模块状态矩阵”。
 
-## 待决策事项
+## 待拍板事项
 
-1. 前端在治理回合后走哪条路：
-   - `A`：正式控制台，优先补 `01` 的最小用户主路径
-   - `B`：继续 prototype，但隐藏未完成入口，不再暴露“已完成”心智
-2. 模块总览是否立即停止使用单一 `completed` 口径：
-   - 建议：立即停止
+1. 是否立即冻结本专题新增顶层 `spec/plan`：
+   建议：`是`
+2. 前端下一步是否收口到“模块 `01` 最小正式控制台”：
+   建议：`是`
+3. `docs/userDocs` 的第一页先写什么：
+   建议：先写“项目现状”
 
 ## 已废弃的旧口径
 
-- 废弃：“`style-boundary` 和后端统一验证当前仍是受限结论”
-  - 新结论：提权复跑后，两者当前都已验证通过
-- 废弃：“前端测试绿灯可以近似代表正式控制台就绪”
-  - 新结论：当前绿灯更多说明工程门禁初步可用，不代表产品语义已完成
-- 废弃：“继续新增 spec 会比先治理文档入口更有价值”
-  - 新结论：当前先治理入口和状态语义，收益更高
-- 废弃：“模块讨论完成可以继续写 `completed`”
-  - 新结论：必须拆成三轴状态
+- 废弃：“当前主要问题是代码大面积失控”
+  - 新结论：当前代码仍在可治理范围，主问题是文档和语义真相层失真
+- 废弃：“统一门禁已经足够说明产品主路径就绪”
+  - 新结论：当前更准确的说法是工程门禁已建立，产品主路径仍需继续收口
+- 废弃：“模块 `03/04/06/08` 可以继续按 completed 对外表述”
+  - 新结论：这些模块需要拆回 `design / implementation / verification` 三轴后再表述
 
-## 下一次讨论时最值得先拍板的问题
+## 下次讨论最值得先拍板的问题
 
-1. 是否先做整轮治理回合，并冻结新增顶层 spec/plan。
-2. 前端语义收口是否作为独立专题处理，而不是零散修文案。
-3. `docs/userDocs` 的第一页先写“项目现状”还是“模块矩阵”。
+1. 是否先做一轮真相层治理，并冻结同主题新增顶层文档。
+2. 前端是否直接收口到模块 `01` 的最小正式壳层。
+3. `docs/userDocs` 是否先落一页“项目现状”和一页“模块矩阵”。
 
 ## 讨论记录
 
-- `2026-04-14 03`：旧版本把 `style-boundary` 和后端统一验证都记为受限结论。
-- `2026-04-14 04`：基于本轮重跑结果更新为“工程门禁基本成立，主要问题转为文档真相层和前端语义真相层”，并新增前端语义收口与验证四层说明。
+- `2026-04-14 05`：确认当前统一门禁可成立，主问题收敛到文档生命周期、模块状态表达和前端语义失真。
+- `2026-04-14 06`：进一步确认问题核心不是“代码先坏了”，而是“表达成熟度的真相层先失真”；下一轮更应该先治理入口、状态和语义，而不是继续扩同主题文档数量。
