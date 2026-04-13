@@ -13,8 +13,8 @@ match_when:
   - cargo 输出 `Blocking waiting for file lock on package cache`
   - cargo 输出 `Blocking waiting for file lock on artifact directory`
 created_at: 2026-04-13 07
-updated_at: 2026-04-13 18
-last_verified_at: 2026-04-13 18
+updated_at: 2026-04-14 00
+last_verified_at: 2026-04-14 00
 decision_policy: reference_on_failure
 scope:
   - cargo
@@ -57,3 +57,4 @@ scope:
 - `2026-04-13 12`：在后端计划续做时并发启动 `cargo fmt --all`、`cargo test -p runtime-core ...`、`cargo test -p storage-pg ...`，再次出现 package cache / artifact directory 锁等待；随后改回串行执行并完成验证。
 - `2026-04-13 16`：执行 backend QA access-control closure 的 Task 1 红灯阶段时，并发启动 `cargo test -p control-plane ...` 和 `cargo test -p api-server ...`，再次看到 `Blocking waiting for file lock on package cache`；停止第二条命令并改成串行后，红绿测试恢复稳定。
 - `2026-04-13 18`：执行 backend QA runtime registry closure 的 Task 3 时，并发启动两条 `cargo test -p api-server ... --exact --nocapture`，再次看到 `Blocking waiting for file lock on package cache`；等待当前进程结束后改回串行读取结果，验证恢复稳定。
+- `2026-04-14 00`：执行 backend governance phase two 的 Task 5 聚焦测试时，用 `multi_tool_use.parallel` 同时跑两条 `cargo test -p plugin-framework --lib ... -- --exact`，再次出现 `Blocking waiting for file lock on package cache` 和 `artifact directory` 等待；随后恢复串行验证并完成后续全量门禁。

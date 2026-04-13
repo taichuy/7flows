@@ -12,6 +12,17 @@
 
 **Execution Mode:** Execute in the current repository. Do not create a git worktree for this plan.
 
+## Execution Status
+
+- Completed at `2026-04-14 00`.
+- Task 1 to Task 3 had already been completed and committed before this recovery pass:
+  - `8f0e14f8` `feat: seed hidden root tenant and workspace scope`
+  - `80a5212c` `feat: carry current workspace through auth sessions`
+  - `c06dcd75` `refactor: require explicit workspace scope in backend services`
+- Task 4 and Task 5 were completed in this recovery pass, including the final backend verification.
+- Because the targeted Rust unit tests live under `src/_tests`, every `cargo test ... -- --exact` command in actual execution used the full module path form such as `_tests::runtime_model_routes::runtime_model_routes_create_fetch_update_delete_and_filter_records`.
+- Final verification executed `node scripts/node/verify-backend.js` successfully at `2026-04-14 00`.
+
 ## Scope
 
 This plan covers:
@@ -107,7 +118,7 @@ This plan does not cover:
 - `api/crates/storage-pg/src/repositories.rs`
 - `api/crates/storage-pg/src/_tests/migration_smoke.rs`
 
-- [ ] **Step 1: add failing schema and bootstrap tests**
+- [x] **Step 1: add failing schema and bootstrap tests**
 
 Update `api/crates/storage-pg/src/_tests/migration_smoke.rs` with a new test named `migration_smoke_creates_tenant_table_and_workspace_scope_column` that asserts:
 
@@ -121,7 +132,7 @@ Update `api/crates/control-plane/src/_tests/bootstrap_tests.rs` with a new test 
 - workspace upsert runs twice without duplicating rows
 - root user creation still happens only once
 
-- [ ] **Step 2: run focused tests and confirm failure**
+- [x] **Step 2: run focused tests and confirm failure**
 
 Run:
 
@@ -135,7 +146,7 @@ Expected:
 - the migration test fails because `tenants` and `teams.tenant_id` do not exist yet
 - the bootstrap test fails because the repository trait has no tenant/workspace bootstrap API yet
 
-- [ ] **Step 3: implement tenant/workspace domain and bootstrap support**
+- [x] **Step 3: implement tenant/workspace domain and bootstrap support**
 
 Create `api/crates/domain/src/scope.rs` with:
 
@@ -186,7 +197,7 @@ Update `api/crates/control-plane/src/_tests/support.rs` so the in-memory bootstr
 - workspace upsert count
 - root user creation count
 
-- [ ] **Step 4: rerun focused tests and verify pass**
+- [x] **Step 4: rerun focused tests and verify pass**
 
 Run:
 
@@ -197,7 +208,7 @@ cargo test -p control-plane bootstrap_service_seeds_single_root_tenant_and_defau
 
 Expected: both tests pass.
 
-- [ ] **Step 5: commit the task**
+- [x] **Step 5: commit the task**
 
 ```bash
 git add api/crates/domain/src/scope.rs \
@@ -233,7 +244,7 @@ git commit -m "feat: seed hidden root tenant and workspace scope"
 - `api/apps/api-server/src/_tests/session_routes.rs`
 - `api/crates/storage-pg/src/auth_repository.rs`
 
-- [ ] **Step 1: add failing auth/session tests**
+- [x] **Step 1: add failing auth/session tests**
 
 Update `api/apps/api-server/src/_tests/auth_routes.rs` `public_auth_sign_in_sets_cookie_and_returns_wrapped_payload` so it asserts:
 
@@ -247,7 +258,7 @@ Update `api/apps/api-server/src/_tests/session_routes.rs` `session_route_returns
 - `data.session.current_workspace_id` exists
 - the actor and session workspace ids match
 
-- [ ] **Step 2: run focused tests and confirm failure**
+- [x] **Step 2: run focused tests and confirm failure**
 
 Run:
 
@@ -261,7 +272,7 @@ Expected:
 - sign-in test fails because the response does not return `current_workspace_id`
 - session route test fails because the route payload does not expose workspace context
 
-- [ ] **Step 3: implement explicit workspace session context**
+- [x] **Step 3: implement explicit workspace session context**
 
 Update `api/crates/control-plane/src/ports.rs` `AuthRepository`:
 
@@ -297,7 +308,7 @@ Update `api/apps/api-server/src/routes/session.rs`:
 
 - include `current_workspace_id` in both the `actor` and `session` payload sections
 
-- [ ] **Step 4: rerun focused tests and verify pass**
+- [x] **Step 4: rerun focused tests and verify pass**
 
 Run:
 
@@ -308,7 +319,7 @@ cargo test -p api-server session_route_returns_wrapped_actor_payload -- --exact
 
 Expected: both tests pass.
 
-- [ ] **Step 5: commit the task**
+- [x] **Step 5: commit the task**
 
 ```bash
 git add api/crates/control-plane/src/auth.rs \
@@ -350,7 +361,7 @@ git commit -m "feat: carry current workspace through auth sessions"
 - `api/crates/storage-pg/src/model_definition_repository.rs`
 - `api/crates/storage-pg/src/runtime_record_repository.rs`
 
-- [ ] **Step 1: add failing explicit-scope and audit tests**
+- [x] **Step 1: add failing explicit-scope and audit tests**
 
 Create `api/crates/storage-pg/src/_tests/workspace_scope_tests.rs` with:
 
@@ -366,7 +377,7 @@ Update `api/crates/control-plane/src/_tests/role_service_tests.rs` `role_service
 - `role.deleted`
 - `role.permissions_replaced`
 
-- [ ] **Step 2: run focused tests and confirm failure**
+- [x] **Step 2: run focused tests and confirm failure**
 
 Run:
 
@@ -380,7 +391,7 @@ Expected:
 - the storage test fails because repository list/update paths still infer a primary team
 - the role service test fails because update/delete audit events are missing
 
-- [ ] **Step 3: thread explicit workspace ids through stateful paths**
+- [x] **Step 3: thread explicit workspace ids through stateful paths**
 
 Update `api/crates/control-plane/src/ports.rs`:
 
@@ -412,7 +423,7 @@ Update `api/crates/control-plane/src/role.rs` to append audit events after succe
 
 Update `api/crates/control-plane/src/_tests/support.rs` `MemoryRoleRepository` so it records audit event names and workspace-scoped role mutations.
 
-- [ ] **Step 4: rerun focused tests and verify pass**
+- [x] **Step 4: rerun focused tests and verify pass**
 
 Run:
 
@@ -423,7 +434,7 @@ cargo test -p control-plane role_service_rejects_root_mutation_and_replaces_perm
 
 Expected: both tests pass.
 
-- [ ] **Step 5: commit the task**
+- [x] **Step 5: commit the task**
 
 ```bash
 git add api/crates/storage-pg/src/_tests/workspace_scope_tests.rs \
@@ -465,7 +476,7 @@ git commit -m "refactor: require explicit workspace scope in backend services"
 - `api/crates/runtime-core/src/runtime_model_registry.rs`
 - `api/crates/runtime-core/src/runtime_engine.rs`
 
-- [ ] **Step 1: add failing runtime-health tests**
+- [x] **Step 1: add failing runtime-health tests**
 
 Create `api/crates/storage-pg/src/_tests/runtime_registry_health_tests.rs` with:
 
@@ -482,7 +493,7 @@ Update `api/apps/api-server/src/_tests/runtime_model_routes.rs` by extending `ru
 - assert `409 Conflict`
 - assert body code `runtime_model_unavailable`
 
-- [ ] **Step 2: run focused tests and confirm failure**
+- [x] **Step 2: run focused tests and confirm failure**
 
 Run:
 
@@ -496,7 +507,7 @@ Expected:
 - the storage test fails because missing physical tables still produce runtime metadata
 - the route test fails because runtime model failures are still exposed as raw repository/runtime errors instead of `runtime_model_unavailable`
 
-- [ ] **Step 3: implement metadata availability states and registry self-heal**
+- [x] **Step 3: implement metadata availability states and registry self-heal**
 
 Create `api/crates/storage-pg/migrations/20260413223000_add_runtime_metadata_health.sql`:
 
@@ -536,7 +547,7 @@ Update `api/crates/runtime-core/src/runtime_engine.rs` and `api/apps/api-server/
 - translate unavailable-model lookup failures into a stable domain error
 - map that error to `409 Conflict` with code `runtime_model_unavailable`
 
-- [ ] **Step 4: rerun focused tests and verify pass**
+- [x] **Step 4: rerun focused tests and verify pass**
 
 Run:
 
@@ -547,7 +558,7 @@ cargo test -p api-server runtime_model_routes_create_fetch_update_delete_and_fil
 
 Expected: both tests pass.
 
-- [ ] **Step 5: commit the task**
+- [x] **Step 5: commit the task**
 
 ```bash
 git add api/crates/storage-pg/migrations/20260413223000_add_runtime_metadata_health.sql \
@@ -574,7 +585,7 @@ git commit -m "feat: self-heal runtime registry from broken metadata"
 - `api/crates/plugin-framework/src/_tests/assignment_tests.rs`
 - `api/AGENTS.md`
 
-- [ ] **Step 1: add failing plugin-binding tests**
+- [x] **Step 1: add failing plugin-binding tests**
 
 Update `api/crates/plugin-framework/src/_tests/assignment_tests.rs`:
 
@@ -582,7 +593,7 @@ Update `api/crates/plugin-framework/src/_tests/assignment_tests.rs`:
 - use `BindingTarget::Workspace(...)`
 - add `runtime_extension_rejects_tenant_only_binding`
 
-- [ ] **Step 2: run focused tests and confirm failure**
+- [x] **Step 2: run focused tests and confirm failure**
 
 Run:
 
@@ -596,7 +607,7 @@ Expected:
 - the workspace capability test fails because `BindingTarget::Workspace` does not exist yet
 - the tenant runtime-extension test fails because tenant-only binding is not rejected yet
 
-- [ ] **Step 3: implement binding cleanup and local rules**
+- [x] **Step 3: implement binding cleanup and local rules**
 
 Update `api/crates/plugin-framework/src/assignment.rs`:
 
@@ -636,7 +647,7 @@ Create `api/AGENTS.md` with exactly this content:
 - `_tests`
 ```
 
-- [ ] **Step 4: rerun focused tests and full verification**
+- [x] **Step 4: rerun focused tests and full verification**
 
 Run:
 
@@ -652,7 +663,7 @@ Expected:
 - `verify-backend.js` completes successfully
 - verification covers `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`, and `cargo check --workspace`
 
-- [ ] **Step 5: commit the task**
+- [x] **Step 5: commit the task**
 
 ```bash
 git add api/crates/plugin-framework/src/assignment.rs \

@@ -13,8 +13,8 @@ match_when:
   - 输出 `running 0 tests`
   - 预期存在的 src 内单元测试没有被命中
 created_at: 2026-04-13 12
-updated_at: 2026-04-13 18
-last_verified_at: 2026-04-13 18
+updated_at: 2026-04-14 00
+last_verified_at: 2026-04-14 00
 decision_policy: reference_on_failure
 scope:
   - cargo
@@ -85,3 +85,4 @@ cargo test -p api-server --lib _tests::runtime_model_routes::runtime_model_route
 - `2026-04-13 12`：执行数据建模物理表 runtime 计划的 Task 4 聚焦测试时首次触发；改为先列出测试名并传入完整模块路径后，目标用例正常执行。
 - `2026-04-13 15`：执行 `cargo test -p api-server delete_session_route_clears_current_session -- --exact` 时显示 `running 0 tests`；改为 `_tests::session_routes::delete_session_route_clears_current_session` 后命中真实用例并暴露 405 路由缺失。
 - `2026-04-13 18`：执行 backend QA runtime registry closure 的 Task 2 和 Task 3 时，计划里的 `cargo test -p api-server model_definition_routes_manage_models_and_fields_without_publish -- --exact` 仍然显示 `running 0 tests`；改用 `_tests::model_definition_routes::model_definition_routes_manage_models_and_fields_without_publish` 与 `_tests::runtime_model_routes::runtime_model_routes_create_fetch_update_delete_and_filter_records` 后，分别拿到真实红灯和最终绿灯。
+- `2026-04-14 00`：执行 backend governance phase two 的 Task 5 聚焦测试时，`cargo test -p plugin-framework capability_plugin_can_be_assigned_to_single_workspace_then_selected_in_config -- --exact` 显示 `running 0 tests`；改为 `_tests::assignment_tests::capability_plugin_can_be_assigned_to_single_workspace_then_selected_in_config` 与 `_tests::assignment_tests::runtime_extension_rejects_tenant_only_binding` 后命中真实用例并通过。
