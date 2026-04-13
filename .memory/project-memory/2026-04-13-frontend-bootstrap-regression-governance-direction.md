@@ -47,7 +47,7 @@ scope:
 
 ## 决策背后动机
 
-用户接受“页面 -> 组件 -> 样式”作为回归分层，但不把它当作实现顺序；样式层只承担边界和影响面验证，不承担信息架构或审美评审。目录上先冻结 `app / app-shell / routes / features / style-boundary / styles` 的基本边界，测试全部进入最近的 `_tests/`，并要求新增路由未来统一收口到集中式 route config。
+用户接受“页面 -> 组件 -> 样式”作为回归分层，但不把它当作实现顺序；样式层只承担边界和影响面验证，不承担信息架构或审美评审。目录上进一步明确为 `app / app-shell / routes / features / shared / style-boundary / styles`，其中 `shared/ui` 负责跨 feature 组件，`shared/utils` 负责纯函数工具，`features/*/api` 负责 feature 级请求消费，底层请求继续放在 `web/packages/api-client`。测试全部进入最近的 `_tests/`，并要求新增路由未来统一收口到集中式 route config。
 
 ## 关联文档
 

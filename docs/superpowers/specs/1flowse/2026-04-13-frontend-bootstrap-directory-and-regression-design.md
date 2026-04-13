@@ -95,19 +95,26 @@ web/app/src/
     home/
       pages/
       components/
+      api/
+      lib/
       _tests/
     embedded-apps/
       pages/
       components/
+      api/
+      lib/
       _tests/
     agent-flow/
       pages/
       components/
+      api/
+      lib/
       _tests/
   shared/
     ui/
-    lib/
+    utils/
     hooks/
+    api/
   state/
   style-boundary/
     registry.tsx
@@ -124,8 +131,52 @@ web/app/src/
 - `app-shell/` 只承载共享壳层和壳层级菜单，不承载 route tree。
 - `routes/` 负责路由真值层：`route id / path / selected state / permission key / guard`。
 - `features/*/pages` 放页面容器，`features/*/components` 放 feature 内部组件。
+- `features/*/api` 放 feature 级请求消费层，例如 query key、queryFn、mutation 和当前 feature 的请求适配。
+- `features/*/lib` 放 feature 内部工具，不对其他 feature 默认开放。
+- `shared/ui` 放跨 feature 复用组件，不承担 app-shell 专属结构。
+- `shared/utils` 只放纯函数工具，不放请求、副作用和界面组件。
+- `shared/api` 只放多个 feature 共同依赖的请求编排；若只是单 feature 使用，优先留在 `features/*/api`。
 - 测试文件必须进入最近的 `_tests/`。
 - `style-boundary/` 只负责样式场景注册和边界回归，不负责泛 UI 质量结论。
+
+### 4.1 组件落点规则
+
+初始化阶段组件分三层放置：
+
+1. `app-shell/`
+   - 壳层专属组件
+   - 例如顶栏、账户菜单、导航容器
+2. `shared/ui/`
+   - 跨 feature 复用组件
+   - 例如通用卡片、状态徽标、空态、可复用表单片段
+3. `features/*/components/`
+   - 业务组件
+   - 只服务当前 feature，不因“可能将来复用”而提前上提
+
+规则：
+
+- 不单独建立一个顶层 `components/` 垃圾桶目录。
+- 壳层组件不放进 `shared/ui/`，避免把产品壳层误当通用组件库。
+- 只有被两个以上 feature 真实复用且语义稳定后，才从 `features/*/components/` 提升到 `shared/ui/`。
+
+### 4.2 工具类与请求层落点规则
+
+初始化阶段工具类与 API 请求固定按两条线拆开：
+
+1. 工具类
+   - `shared/utils/`：跨域纯函数工具
+   - `features/*/lib/`：feature 内部 mapper、常量整理、view model helper
+2. API 请求
+   - `web/packages/api-client/`：原始 API client、DTO、transport、base URL
+   - `features/*/api/`：feature 级消费封装，例如 React Query 的 query key、queryFn、mutation 和数据适配
+   - `shared/api/`：只有在多个 feature 共享同一请求编排时才新增
+
+规则：
+
+- 不把请求函数直接散落在页面文件和组件文件里。
+- 不把 transport、业务 query hook 和页面映射全堆进一个顶层 `api/` 目录。
+- `api-client` 负责“怎么请求”，`features/*/api` 负责“当前 feature 怎么消费请求”。
+- `shared/utils` 只放无副作用纯函数；带网络请求或全局状态依赖的逻辑不进入 `utils`。
 
 ## 5. 测试文件命名
 
@@ -135,6 +186,8 @@ web/app/src/
 - 路由与导航测试：`navigation.test.tsx`、`route-config.test.ts`、`route-guards.test.tsx`
 - 组件测试：`<ComponentName>.test.tsx`
 - 样式边界测试：`<target>.boundary.test.tsx`
+- API 请求消费测试：`<feature>-api.test.ts`
+- 工具类测试：`<name>.test.ts`
 - package 级测试也统一迁入 `src/_tests/`
 
 示例：
@@ -143,6 +196,8 @@ web/app/src/
 - `web/app/src/routes/_tests/route-config.test.ts`
 - `web/app/src/app-shell/_tests/Navigation.test.tsx`
 - `web/app/src/style-boundary/_tests/account-popup.boundary.test.tsx`
+- `web/app/src/features/embedded-apps/_tests/embedded-apps-api.test.ts`
+- `web/app/src/shared/_tests/formatRouteLabel.test.ts`
 - `web/packages/embed-sdk/src/_tests/createEmbedContext.test.ts`
 
 约束：
@@ -178,6 +233,7 @@ web/app/src/
 - role / label / 可访问性语义
 - 必要时的 slot 内容
 - 是否依赖不该依赖的页面上下文或路由上下文
+- 当组件位于 `shared/ui` 时，需额外验证其跨 feature 使用不会携带业务耦合
 
 组件层不负责：
 
@@ -207,6 +263,28 @@ web/app/src/
 
 - 审美是否“高级”
 - 页面信息架构是否合理
+
+### 6.4 API 与工具层必须测什么
+
+API 与工具层不单独作为“第四层 UI 回归”，但必须有自己的工程回归：
+
+- `web/packages/api-client`
+  - 请求函数输入输出
+  - DTO 与共享类型对齐
+  - base URL 和 transport 行为
+- `features/*/api`
+  - query key 是否稳定
+  - queryFn / mutation 是否正确消费 client
+  - feature 数据映射是否与页面预期一致
+- `shared/utils` 与 `features/*/lib`
+  - 纯函数输入输出
+  - 边界值
+  - 是否意外引入副作用或业务上下文依赖
+
+规则：
+
+- API / 工具测试以 `*.test.ts` 为主，不和页面渲染测试混写。
+- 当页面层失败源头来自映射或 query key 时，应优先补 API / 工具测试，而不是把细节继续塞进页面测试。
 
 ## 7. 路由真值层规范
 
