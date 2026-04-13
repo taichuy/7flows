@@ -163,7 +163,7 @@ Execution note: `src/_tests` unit tests require the full module path when using 
 - Modify: `api/apps/api-server/src/_tests/openapi_alignment.rs`
 - Modify: `api/apps/api-server/tests/health_routes.rs`
 
-- [ ] **Step 1: Add failing regressions for legacy route removal**
+- [x] **Step 1: Add failing regressions for legacy route removal**
 
 Add route assertions that:
 
@@ -172,13 +172,13 @@ Add route assertions that:
 - the action-path routes continue to return `204`;
 - `/openapi.json` no longer contains the old member mutation paths.
 
-- [ ] **Step 2: Run the focused failures**
+- [x] **Step 2: Run the focused failures**
 
-Run: `cargo test -p api-server openapi_excludes_legacy_member_mutation_routes -- --exact`
+Run: `cargo test -p api-server --lib _tests::openapi_alignment::openapi_excludes_legacy_member_mutation_routes -- --exact`
 
 Expected: FAIL because topic B kept temporary aliases alive.
 
-- [ ] **Step 3: Remove the compatibility aliases**
+- [x] **Step 3: Remove the compatibility aliases**
 
 In `api/apps/api-server/src/routes/members.rs`, keep only:
 
@@ -191,9 +191,9 @@ Do not leave silent compatibility routes behind.
 
 If topic B added any temporary alias for `/me` or `/session`, remove those too so the final contract is exactly the remediation spec.
 
-- [ ] **Step 4: Re-run the contract regressions**
+- [x] **Step 4: Re-run the contract regressions**
 
-Run: `cargo test -p api-server openapi_excludes_legacy_member_mutation_routes -- --exact`
+Run: `cargo test -p api-server --lib _tests::openapi_alignment::openapi_excludes_legacy_member_mutation_routes -- --exact`
 
 Expected: PASS
 
@@ -201,12 +201,16 @@ Run: `cargo test -p api-server member_action_routes_remove_legacy_aliases -- --e
 
 Expected: PASS
 
-- [ ] **Step 5: Commit the route cleanup**
+- [x] **Step 5: Commit the route cleanup**
 
 ```bash
 git add api/apps/api-server/src/routes/members.rs api/apps/api-server/src/routes/session.rs api/apps/api-server/src/routes/me.rs api/apps/api-server/src/_tests/openapi_alignment.rs api/apps/api-server/tests/health_routes.rs
 git commit -m "fix: align backend routes with remediation contract"
 ```
+
+Task 2 completed at `2026-04-13 16:51`.
+Execution note: the focused unit test again used the full `_tests::openapi_alignment::...` module path with `-- --exact`.
+Execution note: `api/apps/api-server/src/_tests/member_routes.rs` also had to be updated because it still asserted the removed legacy member mutation aliases.
 
 ### Task 3: Verify `/openapi.json` Against The Real Router
 

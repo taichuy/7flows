@@ -1,10 +1,167 @@
-use api_server::app;
+use api_server::{
+    app, app_with_state,
+    app_state::{ApiState, SessionStoreHandle},
+    config::ApiConfig,
+};
+use argon2::{
+    password_hash::{PasswordHasher, SaltString},
+    Argon2,
+};
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
+    Router,
 };
+use control_plane::bootstrap::{BootstrapConfig, BootstrapService};
 use serde_json::Value;
+use sqlx::PgPool;
 use tower::ServiceExt;
+use uuid::Uuid;
+
+fn default_test_config() -> ApiConfig {
+    ApiConfig::from_env_map(&[
+        (
+            "API_DATABASE_URL",
+            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
+        ),
+        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
+        ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
+        ("BOOTSTRAP_ROOT_PASSWORD", "change-me"),
+        ("BOOTSTRAP_TEAM_NAME", "1Flowse"),
+    ])
+    .unwrap()
+}
+
+async fn isolated_database_url(base_url: &str) -> String {
+    let admin_pool = PgPool::connect(base_url).await.unwrap();
+    let schema = format!("test_{}", Uuid::now_v7().to_string().replace('-', ""));
+    sqlx::query(&format!("create schema if not exists {schema}"))
+        .execute(&admin_pool)
+        .await
+        .unwrap();
+
+    format!("{base_url}?options=-csearch_path%3D{schema}")
+}
+
+async fn test_app() -> Router {
+    let mut config = default_test_config();
+    config.database_url = isolated_database_url(&config.database_url).await;
+    let pool = storage_pg::connect(&config.database_url).await.unwrap();
+    storage_pg::run_migrations(&pool).await.unwrap();
+
+    let store = storage_pg::PgControlPlaneStore::new(pool);
+    let salt = SaltString::generate(&mut rand_core::OsRng);
+    let root_password_hash = Argon2::default()
+        .hash_password(config.bootstrap_root_password.as_bytes(), &salt)
+        .unwrap()
+        .to_string();
+
+    BootstrapService::new(store.clone())
+        .run(&BootstrapConfig {
+            team_name: config.bootstrap_team_name.clone(),
+            root_account: config.bootstrap_root_account.clone(),
+            root_email: config.bootstrap_root_email.clone(),
+            root_password_hash,
+            root_name: config.bootstrap_root_name.clone(),
+            root_nickname: config.bootstrap_root_nickname.clone(),
+        })
+        .await
+        .unwrap();
+
+    let runtime_registry = runtime_core::runtime_model_registry::RuntimeModelRegistry::default();
+    runtime_registry.rebuild(store.list_runtime_model_metadata().await.unwrap());
+    let runtime_engine = std::sync::Arc::new(runtime_core::runtime_engine::RuntimeEngine::new(
+        runtime_registry,
+        std::sync::Arc::new(store.clone()),
+    ));
+
+    app_with_state(std::sync::Arc::new(ApiState {
+        store,
+        runtime_engine,
+        session_store: SessionStoreHandle::InMemory(storage_redis::InMemorySessionStore::default()),
+        cookie_name: config.cookie_name,
+        session_ttl_days: config.session_ttl_days,
+        bootstrap_team_name: config.bootstrap_team_name,
+    }))
+}
+
+async fn login_and_capture_cookie(
+    app: &Router,
+    identifier: &str,
+    password: &str,
+) -> (String, String) {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/public/auth/providers/password-local/sign-in")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "identifier": identifier,
+                        "password": password
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    let cookie = response
+        .headers()
+        .get("set-cookie")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let payload: Value = serde_json::from_slice(&body).unwrap();
+
+    (
+        cookie,
+        payload["data"]["csrf_token"].as_str().unwrap().to_string(),
+    )
+}
+
+async fn create_member(app: &Router, cookie: &str, csrf: &str, account: &str) -> String {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/members")
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "account": account,
+                        "email": format!("{account}@example.com"),
+                        "phone": null,
+                        "password": "temp-pass",
+                        "name": account,
+                        "nickname": account,
+                        "introduction": "",
+                        "email_login_enabled": true,
+                        "phone_login_enabled": false
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let payload: Value = serde_json::from_slice(&body).unwrap();
+
+    payload["data"]["id"].as_str().unwrap().to_string()
+}
 
 #[tokio::test]
 async fn health_route_returns_ok_payload() {
@@ -45,4 +202,89 @@ async fn openapi_route_exposes_api_title() {
     let payload: Value = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(payload["info"]["title"], "1Flowse API");
+}
+
+#[tokio::test]
+async fn member_action_routes_remove_legacy_aliases() {
+    let app = test_app().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let action_member_id = create_member(&app, &cookie, &csrf, "action-route-member").await;
+    let legacy_member_id = create_member(&app, &cookie, &csrf, "legacy-route-member").await;
+
+    let action_reset_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/console/members/{action_member_id}/actions/reset-password"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "new_password": "next-pass"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(action_reset_response.status(), StatusCode::NO_CONTENT);
+
+    let action_disable_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/console/members/{action_member_id}/actions/disable"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(action_disable_response.status(), StatusCode::NO_CONTENT);
+
+    let legacy_reset_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/console/members/{legacy_member_id}/reset-password"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    serde_json::json!({
+                        "new_password": "legacy-pass"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(legacy_reset_response.status(), StatusCode::NOT_FOUND);
+
+    let legacy_disable_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/console/members/{legacy_member_id}/disable"))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(legacy_disable_response.status(), StatusCode::NOT_FOUND);
 }

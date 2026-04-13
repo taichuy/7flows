@@ -104,7 +104,9 @@ async fn member_routes_create_disable_and_reset_password() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/console/members/{member_id}/reset-password"))
+                .uri(format!(
+                    "/api/console/members/{member_id}/actions/reset-password"
+                ))
                 .header("cookie", &cookie)
                 .header("x-csrf-token", &csrf)
                 .header("content-type", "application/json")
@@ -126,7 +128,7 @@ async fn member_routes_create_disable_and_reset_password() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/console/members/{member_id}/disable"))
+                .uri(format!("/api/console/members/{member_id}/actions/disable"))
                 .header("cookie", &cookie)
                 .header("x-csrf-token", &csrf)
                 .body(Body::empty())

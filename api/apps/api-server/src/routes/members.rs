@@ -122,8 +122,6 @@ pub fn router() -> Router<Arc<ApiState>> {
         .route("/members", get(list_members).post(create_member))
         .route("/members/:id/actions/disable", post(disable_member))
         .route("/members/:id/actions/reset-password", post(reset_member))
-        .route("/members/:id/disable", post(disable_member))
-        .route("/members/:id/reset-password", post(reset_member))
         .route("/members/:id/roles", put(replace_member_roles))
 }
 
