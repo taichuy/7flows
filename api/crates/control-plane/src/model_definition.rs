@@ -118,7 +118,9 @@ where
             .load_actor_context_for_user(actor_user_id)
             .await?;
         ensure_state_model_permission(&actor, "view")?;
-        self.repository.list_model_definitions().await
+        self.repository
+            .list_model_definitions(actor.current_workspace_id)
+            .await
     }
 
     pub async fn create_model(
@@ -131,13 +133,17 @@ where
             .await?;
         ensure_permission(&actor, "state_model.create.all")
             .map_err(ControlPlaneError::PermissionDenied)?;
+        let scope_id = match command.scope_kind {
+            DataModelScopeKind::Team => actor.current_workspace_id,
+            DataModelScopeKind::App => command.scope_id,
+        };
 
         let model = self
             .repository
             .create_model_definition(&CreateModelDefinitionInput {
                 actor_user_id: command.actor_user_id,
                 scope_kind: command.scope_kind,
-                scope_id: command.scope_id,
+                scope_id,
                 code: command.code,
                 title: command.title,
             })
@@ -167,7 +173,7 @@ where
         ensure_state_model_permission(&actor, "view")?;
 
         self.repository
-            .get_model_definition(model_id)
+            .get_model_definition(actor.current_workspace_id, model_id)
             .await?
             .ok_or_else(|| ControlPlaneError::NotFound("model_definition").into())
     }
@@ -409,13 +415,17 @@ impl ModelDefinitionRepository for InMemoryModelDefinitionRepository {
         ))
     }
 
-    async fn list_model_definitions(&self) -> Result<Vec<domain::ModelDefinitionRecord>> {
+    async fn list_model_definitions(
+        &self,
+        _workspace_id: Uuid,
+    ) -> Result<Vec<domain::ModelDefinitionRecord>> {
         let models = self.models.lock().expect("in-memory model lock poisoned");
         Ok(models.values().cloned().collect())
     }
 
     async fn get_model_definition(
         &self,
+        _workspace_id: Uuid,
         model_id: Uuid,
     ) -> Result<Option<domain::ModelDefinitionRecord>> {
         let models = self.models.lock().expect("in-memory model lock poisoned");

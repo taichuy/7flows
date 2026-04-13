@@ -56,7 +56,9 @@ where
             .load_actor_context_for_user(actor_user_id)
             .await?;
         ensure_permission(&actor, "user.view.all").map_err(ControlPlaneError::PermissionDenied)?;
-        self.repository.list_members().await
+        self.repository
+            .list_members(actor.current_workspace_id)
+            .await
     }
 
     pub async fn create_member(&self, command: CreateMemberCommand) -> Result<domain::UserRecord> {
@@ -71,6 +73,7 @@ where
             .repository
             .create_member_with_default_role(&CreateMemberInput {
                 actor_user_id: command.actor_user_id,
+                workspace_id: actor.current_workspace_id,
                 account: command.account,
                 email: command.email,
                 phone: command.phone,
@@ -153,6 +156,7 @@ where
         self.repository
             .replace_member_roles(
                 command.actor_user_id,
+                actor.current_workspace_id,
                 command.target_user_id,
                 &command.role_codes,
             )

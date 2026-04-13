@@ -88,6 +88,7 @@ pub trait TeamRepository: Send + Sync {
 #[derive(Debug, Clone)]
 pub struct CreateMemberInput {
     pub actor_user_id: Uuid,
+    pub workspace_id: Uuid,
     pub account: String,
     pub email: String,
     pub phone: Option<String>,
@@ -166,10 +167,11 @@ pub trait MemberRepository: Send + Sync {
     async fn replace_member_roles(
         &self,
         actor_user_id: Uuid,
+        workspace_id: Uuid,
         target_user_id: Uuid,
         role_codes: &[String],
     ) -> anyhow::Result<()>;
-    async fn list_members(&self) -> anyhow::Result<Vec<UserRecord>>;
+    async fn list_members(&self, workspace_id: Uuid) -> anyhow::Result<Vec<UserRecord>>;
     async fn append_audit_log(&self, event: &AuditLogRecord) -> anyhow::Result<()>;
 }
 
@@ -179,10 +181,11 @@ pub trait RoleRepository: Send + Sync {
         &self,
         actor_user_id: Uuid,
     ) -> anyhow::Result<ActorContext>;
-    async fn list_roles(&self) -> anyhow::Result<Vec<RoleTemplate>>;
+    async fn list_roles(&self, workspace_id: Uuid) -> anyhow::Result<Vec<RoleTemplate>>;
     async fn create_team_role(
         &self,
         actor_user_id: Uuid,
+        workspace_id: Uuid,
         code: &str,
         name: &str,
         introduction: &str,
@@ -190,18 +193,29 @@ pub trait RoleRepository: Send + Sync {
     async fn update_team_role(
         &self,
         actor_user_id: Uuid,
+        workspace_id: Uuid,
         role_code: &str,
         name: &str,
         introduction: &str,
     ) -> anyhow::Result<()>;
-    async fn delete_team_role(&self, actor_user_id: Uuid, role_code: &str) -> anyhow::Result<()>;
+    async fn delete_team_role(
+        &self,
+        actor_user_id: Uuid,
+        workspace_id: Uuid,
+        role_code: &str,
+    ) -> anyhow::Result<()>;
     async fn replace_role_permissions(
         &self,
         actor_user_id: Uuid,
+        workspace_id: Uuid,
         role_code: &str,
         permission_codes: &[String],
     ) -> anyhow::Result<()>;
-    async fn list_role_permissions(&self, role_code: &str) -> anyhow::Result<Vec<String>>;
+    async fn list_role_permissions(
+        &self,
+        workspace_id: Uuid,
+        role_code: &str,
+    ) -> anyhow::Result<Vec<String>>;
     async fn append_audit_log(&self, event: &AuditLogRecord) -> anyhow::Result<()>;
 }
 
@@ -211,9 +225,13 @@ pub trait ModelDefinitionRepository: Send + Sync {
         &self,
         actor_user_id: Uuid,
     ) -> anyhow::Result<ActorContext>;
-    async fn list_model_definitions(&self) -> anyhow::Result<Vec<ModelDefinitionRecord>>;
+    async fn list_model_definitions(
+        &self,
+        workspace_id: Uuid,
+    ) -> anyhow::Result<Vec<ModelDefinitionRecord>>;
     async fn get_model_definition(
         &self,
+        workspace_id: Uuid,
         model_id: Uuid,
     ) -> anyhow::Result<Option<ModelDefinitionRecord>>;
     async fn create_model_definition(

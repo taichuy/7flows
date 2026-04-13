@@ -12,8 +12,8 @@ use uuid::Uuid;
 use crate::{
     mappers::role_mapper::PgRoleMapper,
     repositories::{
-        find_role_by_code, permission_codes_for_role, primary_team_id, stored_role_from_row,
-        team_id_for_user, tenant_id_for_team, PgControlPlaneStore,
+        find_role_by_code, permission_codes_for_role, stored_role_from_row, team_id_for_user,
+        tenant_id_for_team, PgControlPlaneStore,
     },
 };
 
@@ -25,17 +25,16 @@ impl RoleRepository for PgControlPlaneStore {
         AuthRepository::load_actor_context(self, actor_user_id, tenant_id, team_id, None).await
     }
 
-    async fn list_roles(&self) -> Result<Vec<domain::RoleTemplate>> {
-        let team_id = primary_team_id(self.pool()).await?;
+    async fn list_roles(&self, workspace_id: Uuid) -> Result<Vec<domain::RoleTemplate>> {
         let rows = sqlx::query(
             r#"
             select id, code, name, scope_kind, is_builtin, is_editable
             from roles
-            where scope_kind = 'app' or team_id = $1
+            where scope_kind = 'workspace' and team_id = $1
             order by scope_kind asc, code asc
             "#,
         )
-        .bind(team_id)
+        .bind(workspace_id)
         .fetch_all(self.pool())
         .await?;
 
@@ -52,12 +51,12 @@ impl RoleRepository for PgControlPlaneStore {
     async fn create_team_role(
         &self,
         actor_user_id: Uuid,
+        workspace_id: Uuid,
         code: &str,
         name: &str,
         introduction: &str,
     ) -> Result<()> {
-        let team_id = primary_team_id(self.pool()).await?;
-        if find_role_by_code(self.pool(), team_id, code)
+        if find_role_by_code(self.pool(), workspace_id, code)
             .await?
             .is_some()
         {
@@ -70,11 +69,11 @@ impl RoleRepository for PgControlPlaneStore {
                 id, scope_kind, team_id, code, name, introduction, is_builtin, is_editable,
                 created_by, updated_by
             )
-            values ($1, 'team', $2, $3, $4, $5, false, true, $6, $6)
+            values ($1, 'workspace', $2, $3, $4, $5, false, true, $6, $6)
             "#,
         )
         .bind(Uuid::now_v7())
-        .bind(team_id)
+        .bind(workspace_id)
         .bind(code)
         .bind(name)
         .bind(introduction)
@@ -88,15 +87,17 @@ impl RoleRepository for PgControlPlaneStore {
     async fn update_team_role(
         &self,
         actor_user_id: Uuid,
+        workspace_id: Uuid,
         role_code: &str,
         name: &str,
         introduction: &str,
     ) -> Result<()> {
-        let team_id = primary_team_id(self.pool()).await?;
-        let role = find_role_by_code(self.pool(), team_id, role_code)
+        let role = find_role_by_code(self.pool(), workspace_id, role_code)
             .await?
             .ok_or(ControlPlaneError::NotFound("role"))?;
-        if role.code == "root" || !role.is_editable || matches!(role.scope_kind, RoleScopeKind::App)
+        if role.code == "root"
+            || !role.is_editable
+            || matches!(role.scope_kind, RoleScopeKind::System)
         {
             return Err(ControlPlaneError::PermissionDenied("root_role_immutable").into());
         }
@@ -125,12 +126,19 @@ impl RoleRepository for PgControlPlaneStore {
         Ok(())
     }
 
-    async fn delete_team_role(&self, _actor_user_id: Uuid, role_code: &str) -> Result<()> {
-        let team_id = primary_team_id(self.pool()).await?;
-        let role = find_role_by_code(self.pool(), team_id, role_code)
+    async fn delete_team_role(
+        &self,
+        _actor_user_id: Uuid,
+        workspace_id: Uuid,
+        role_code: &str,
+    ) -> Result<()> {
+        let role = find_role_by_code(self.pool(), workspace_id, role_code)
             .await?
             .ok_or(ControlPlaneError::NotFound("role"))?;
-        if role.code == "root" || role.is_builtin || matches!(role.scope_kind, RoleScopeKind::App) {
+        if role.code == "root"
+            || role.is_builtin
+            || matches!(role.scope_kind, RoleScopeKind::System)
+        {
             return Err(ControlPlaneError::PermissionDenied("builtin_role_immutable").into());
         }
 
@@ -153,11 +161,11 @@ impl RoleRepository for PgControlPlaneStore {
     async fn replace_role_permissions(
         &self,
         actor_user_id: Uuid,
+        workspace_id: Uuid,
         role_code: &str,
         permission_codes: &[String],
     ) -> Result<()> {
-        let team_id = primary_team_id(self.pool()).await?;
-        let role = find_role_by_code(self.pool(), team_id, role_code)
+        let role = find_role_by_code(self.pool(), workspace_id, role_code)
             .await?
             .ok_or(ControlPlaneError::NotFound("role"))?;
         if role.code == "root" || !role.is_editable {
@@ -209,9 +217,12 @@ impl RoleRepository for PgControlPlaneStore {
         Ok(())
     }
 
-    async fn list_role_permissions(&self, role_code: &str) -> Result<Vec<String>> {
-        let team_id = primary_team_id(self.pool()).await?;
-        let role = find_role_by_code(self.pool(), team_id, role_code)
+    async fn list_role_permissions(
+        &self,
+        workspace_id: Uuid,
+        role_code: &str,
+    ) -> Result<Vec<String>> {
+        let role = find_role_by_code(self.pool(), workspace_id, role_code)
             .await?
             .ok_or(ControlPlaneError::NotFound("role"))?;
 

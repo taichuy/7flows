@@ -11,9 +11,7 @@ use uuid::Uuid;
 
 use crate::{
     auth_repository::map_user_row,
-    repositories::{
-        is_root_user, primary_team_id, team_id_for_user, tenant_id_for_team, PgControlPlaneStore,
-    },
+    repositories::{is_root_user, team_id_for_user, tenant_id_for_team, PgControlPlaneStore},
 };
 
 #[async_trait]
@@ -28,11 +26,10 @@ impl MemberRepository for PgControlPlaneStore {
         &self,
         input: &CreateMemberInput,
     ) -> Result<domain::UserRecord> {
-        let team_id = primary_team_id(self.pool()).await?;
         let manager_role_id: Uuid = sqlx::query_scalar(
-            "select id from roles where scope_kind = 'team' and team_id = $1 and code = 'manager'",
+            "select id from roles where scope_kind = 'workspace' and team_id = $1 and code = 'manager'",
         )
-        .bind(team_id)
+        .bind(input.workspace_id)
         .fetch_optional(self.pool())
         .await?
         .ok_or(ControlPlaneError::NotFound("manager_role"))?;
@@ -74,7 +71,7 @@ impl MemberRepository for PgControlPlaneStore {
             "#,
         )
         .bind(Uuid::now_v7())
-        .bind(team_id)
+        .bind(input.workspace_id)
         .bind(user_id)
         .bind(&input.introduction)
         .bind(input.actor_user_id)
@@ -191,6 +188,7 @@ impl MemberRepository for PgControlPlaneStore {
     async fn replace_member_roles(
         &self,
         actor_user_id: Uuid,
+        workspace_id: Uuid,
         target_user_id: Uuid,
         role_codes: &[String],
     ) -> Result<()> {
@@ -198,7 +196,6 @@ impl MemberRepository for PgControlPlaneStore {
             return Err(ControlPlaneError::PermissionDenied("root_user_immutable").into());
         }
 
-        let team_id = primary_team_id(self.pool()).await?;
         let normalized_codes = role_codes
             .iter()
             .map(|code| code.trim())
@@ -211,9 +208,9 @@ impl MemberRepository for PgControlPlaneStore {
         let mut role_ids = Vec::new();
         for role_code in &normalized_codes {
             let role_id: Uuid = sqlx::query_scalar(
-                "select id from roles where scope_kind = 'team' and team_id = $1 and code = $2",
+                "select id from roles where scope_kind = 'workspace' and team_id = $1 and code = $2",
             )
-            .bind(team_id)
+            .bind(workspace_id)
             .bind(role_code)
             .fetch_optional(self.pool())
             .await?
@@ -228,12 +225,12 @@ impl MemberRepository for PgControlPlaneStore {
             using roles r
             where urb.role_id = r.id
               and urb.user_id = $1
-              and r.scope_kind = 'team'
+              and r.scope_kind = 'workspace'
               and r.team_id = $2
             "#,
         )
         .bind(target_user_id)
-        .bind(team_id)
+        .bind(workspace_id)
         .execute(&mut *tx)
         .await?;
 
@@ -257,8 +254,7 @@ impl MemberRepository for PgControlPlaneStore {
         Ok(())
     }
 
-    async fn list_members(&self) -> Result<Vec<domain::UserRecord>> {
-        let team_id = primary_team_id(self.pool()).await?;
+    async fn list_members(&self, workspace_id: Uuid) -> Result<Vec<domain::UserRecord>> {
         let rows = sqlx::query(
             r#"
             select
@@ -271,7 +267,7 @@ impl MemberRepository for PgControlPlaneStore {
             order by tm.created_at asc, u.created_at asc
             "#,
         )
-        .bind(team_id)
+        .bind(workspace_id)
         .fetch_all(self.pool())
         .await?;
 

@@ -48,7 +48,10 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
         AuthRepository::load_actor_context(self, actor_user_id, tenant_id, team_id, None).await
     }
 
-    async fn list_model_definitions(&self) -> Result<Vec<domain::ModelDefinitionRecord>> {
+    async fn list_model_definitions(
+        &self,
+        workspace_id: Uuid,
+    ) -> Result<Vec<domain::ModelDefinitionRecord>> {
         let fields_by_model_id = load_fields_by_model_id(self.pool()).await?;
         let rows = sqlx::query(
             r#"
@@ -62,9 +65,13 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 acl_namespace,
                 audit_namespace
             from model_definitions
+            where $1 = '00000000-0000-0000-0000-000000000000'::uuid
+               or scope_kind <> 'team'
+               or scope_id = $1
             order by created_at asc
             "#,
         )
+        .bind(workspace_id)
         .fetch_all(self.pool())
         .await?;
 
@@ -92,9 +99,15 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
 
     async fn get_model_definition(
         &self,
+        workspace_id: Uuid,
         model_id: Uuid,
     ) -> Result<Option<domain::ModelDefinitionRecord>> {
-        load_model_definition(self.pool(), model_id).await
+        let model = load_model_definition(self.pool(), model_id).await?;
+        Ok(model.filter(|definition| {
+            workspace_id.is_nil()
+                || !matches!(definition.scope_kind, domain::DataModelScopeKind::Team)
+                || definition.scope_id == workspace_id
+        }))
     }
 
     async fn create_model_definition(

@@ -16,12 +16,13 @@ use crate::repositories::PgControlPlaneStore;
 
 impl PgControlPlaneStore {
     pub async fn list_runtime_model_metadata(&self) -> Result<Vec<ModelMetadata>> {
-        let models = ModelDefinitionRepository::list_model_definitions(self).await?;
+        let models = ModelDefinitionRepository::list_model_definitions(self, Uuid::nil()).await?;
         Ok(models.into_iter().map(to_runtime_model_metadata).collect())
     }
 
     async fn runtime_model_metadata_by_id(&self, model_id: Uuid) -> Result<Option<ModelMetadata>> {
-        let model = ModelDefinitionRepository::get_model_definition(self, model_id).await?;
+        let model =
+            ModelDefinitionRepository::get_model_definition(self, Uuid::nil(), model_id).await?;
         Ok(model.map(to_runtime_model_metadata))
     }
 }

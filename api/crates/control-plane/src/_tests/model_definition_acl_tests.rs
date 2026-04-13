@@ -43,7 +43,10 @@ impl ModelDefinitionRepository for AclTestRepository {
             .ok_or_else(|| anyhow!("missing actor"))
     }
 
-    async fn list_model_definitions(&self) -> Result<Vec<ModelDefinitionRecord>> {
+    async fn list_model_definitions(
+        &self,
+        _workspace_id: Uuid,
+    ) -> Result<Vec<ModelDefinitionRecord>> {
         Ok(self
             .models
             .lock()
@@ -53,7 +56,11 @@ impl ModelDefinitionRepository for AclTestRepository {
             .collect())
     }
 
-    async fn get_model_definition(&self, model_id: Uuid) -> Result<Option<ModelDefinitionRecord>> {
+    async fn get_model_definition(
+        &self,
+        _workspace_id: Uuid,
+        model_id: Uuid,
+    ) -> Result<Option<ModelDefinitionRecord>> {
         Ok(self
             .models
             .lock()

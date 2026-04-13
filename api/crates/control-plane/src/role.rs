@@ -48,7 +48,7 @@ where
             .await?;
         ensure_permission(&actor, "role_permission.view.all")
             .map_err(ControlPlaneError::PermissionDenied)?;
-        self.repository.list_roles().await
+        self.repository.list_roles(actor.current_workspace_id).await
     }
 
     pub async fn get_role_permissions(
@@ -62,7 +62,9 @@ where
             .await?;
         ensure_permission(&actor, "role_permission.view.all")
             .map_err(ControlPlaneError::PermissionDenied)?;
-        self.repository.list_role_permissions(role_code).await
+        self.repository
+            .list_role_permissions(actor.current_workspace_id, role_code)
+            .await
     }
 
     pub async fn create_role(&self, command: CreateRoleCommand) -> Result<()> {
@@ -75,6 +77,7 @@ where
         self.repository
             .create_team_role(
                 command.actor_user_id,
+                actor.current_workspace_id,
                 &command.code,
                 &command.name,
                 &command.introduction,
@@ -105,11 +108,22 @@ where
         self.repository
             .update_team_role(
                 command.actor_user_id,
+                actor.current_workspace_id,
                 &command.role_code,
                 &command.name,
                 &command.introduction,
             )
-            .await
+            .await?;
+        self.repository
+            .append_audit_log(&audit_log(
+                Some(command.actor_user_id),
+                "role",
+                None,
+                "role.updated",
+                serde_json::json!({ "code": command.role_code }),
+            ))
+            .await?;
+        Ok(())
     }
 
     pub async fn delete_role(&self, command: DeleteRoleCommand) -> Result<()> {
@@ -123,8 +137,22 @@ where
         ensure_permission(&actor, "role_permission.manage.all")
             .map_err(ControlPlaneError::PermissionDenied)?;
         self.repository
-            .delete_team_role(command.actor_user_id, &command.role_code)
-            .await
+            .delete_team_role(
+                command.actor_user_id,
+                actor.current_workspace_id,
+                &command.role_code,
+            )
+            .await?;
+        self.repository
+            .append_audit_log(&audit_log(
+                Some(command.actor_user_id),
+                "role",
+                None,
+                "role.deleted",
+                serde_json::json!({ "code": command.role_code }),
+            ))
+            .await?;
+        Ok(())
     }
 
     pub async fn replace_permissions(&self, command: ReplaceRolePermissionsCommand) -> Result<()> {
@@ -141,6 +169,7 @@ where
         self.repository
             .replace_role_permissions(
                 command.actor_user_id,
+                actor.current_workspace_id,
                 &command.role_code,
                 &command.permission_codes,
             )

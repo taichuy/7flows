@@ -246,13 +246,14 @@ impl MemberRepository for MemoryMemberRepository {
     async fn replace_member_roles(
         &self,
         _actor_user_id: Uuid,
+        _workspace_id: Uuid,
         _target_user_id: Uuid,
         _role_codes: &[String],
     ) -> Result<()> {
         Ok(())
     }
 
-    async fn list_members(&self) -> Result<Vec<UserRecord>> {
+    async fn list_members(&self, _workspace_id: Uuid) -> Result<Vec<UserRecord>> {
         Ok(Vec::new())
     }
 
@@ -269,6 +270,8 @@ impl MemberRepository for MemoryMemberRepository {
 pub struct MemoryRoleRepository {
     root_user_id: Uuid,
     roles: Arc<RwLock<Vec<RoleTemplate>>>,
+    audit_events: Arc<RwLock<Vec<String>>>,
+    touched_workspaces: Arc<RwLock<Vec<Uuid>>>,
 }
 
 impl Default for MemoryRoleRepository {
@@ -276,6 +279,8 @@ impl Default for MemoryRoleRepository {
         Self {
             root_user_id: Uuid::now_v7(),
             roles: Arc::new(RwLock::new(Vec::new())),
+            audit_events: Arc::new(RwLock::new(Vec::new())),
+            touched_workspaces: Arc::new(RwLock::new(Vec::new())),
         }
     }
 }
@@ -283,6 +288,13 @@ impl Default for MemoryRoleRepository {
 impl MemoryRoleRepository {
     pub fn root_user_id(&self) -> Uuid {
         self.root_user_id
+    }
+
+    pub fn audit_events(&self) -> Vec<String> {
+        self.audit_events
+            .try_read()
+            .expect("audit_events lock should be free in assertions")
+            .clone()
     }
 }
 
@@ -292,17 +304,19 @@ impl RoleRepository for MemoryRoleRepository {
         Ok(ActorContext::root(actor_user_id, Uuid::nil(), "root"))
     }
 
-    async fn list_roles(&self) -> Result<Vec<RoleTemplate>> {
+    async fn list_roles(&self, _workspace_id: Uuid) -> Result<Vec<RoleTemplate>> {
         Ok(self.roles.read().await.clone())
     }
 
     async fn create_team_role(
         &self,
         _actor_user_id: Uuid,
+        workspace_id: Uuid,
         code: &str,
         name: &str,
         _introduction: &str,
     ) -> Result<()> {
+        self.touched_workspaces.write().await.push(workspace_id);
         self.roles.write().await.push(RoleTemplate {
             code: code.to_string(),
             name: name.to_string(),
@@ -317,23 +331,46 @@ impl RoleRepository for MemoryRoleRepository {
     async fn update_team_role(
         &self,
         _actor_user_id: Uuid,
-        _role_code: &str,
-        _name: &str,
+        workspace_id: Uuid,
+        role_code: &str,
+        name: &str,
         _introduction: &str,
     ) -> Result<()> {
+        self.touched_workspaces.write().await.push(workspace_id);
+        if let Some(role) = self
+            .roles
+            .write()
+            .await
+            .iter_mut()
+            .find(|role| role.code == role_code)
+        {
+            role.name = name.to_string();
+        }
         Ok(())
     }
 
-    async fn delete_team_role(&self, _actor_user_id: Uuid, _role_code: &str) -> Result<()> {
+    async fn delete_team_role(
+        &self,
+        _actor_user_id: Uuid,
+        workspace_id: Uuid,
+        role_code: &str,
+    ) -> Result<()> {
+        self.touched_workspaces.write().await.push(workspace_id);
+        self.roles
+            .write()
+            .await
+            .retain(|role| role.code != role_code);
         Ok(())
     }
 
     async fn replace_role_permissions(
         &self,
         _actor_user_id: Uuid,
+        workspace_id: Uuid,
         role_code: &str,
         permission_codes: &[String],
     ) -> Result<()> {
+        self.touched_workspaces.write().await.push(workspace_id);
         if let Some(role) = self
             .roles
             .write()
@@ -346,7 +383,11 @@ impl RoleRepository for MemoryRoleRepository {
         Ok(())
     }
 
-    async fn list_role_permissions(&self, role_code: &str) -> Result<Vec<String>> {
+    async fn list_role_permissions(
+        &self,
+        _workspace_id: Uuid,
+        role_code: &str,
+    ) -> Result<Vec<String>> {
         Ok(self
             .roles
             .read()
@@ -357,7 +398,11 @@ impl RoleRepository for MemoryRoleRepository {
             .unwrap_or_default())
     }
 
-    async fn append_audit_log(&self, _event: &AuditLogRecord) -> Result<()> {
+    async fn append_audit_log(&self, event: &AuditLogRecord) -> Result<()> {
+        self.audit_events
+            .write()
+            .await
+            .push(event.event_code.clone());
         Ok(())
     }
 }

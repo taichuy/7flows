@@ -59,8 +59,8 @@ fn to_role_response(role: domain::RoleTemplate) -> RoleResponse {
         code: role.code,
         name: role.name,
         scope_kind: match role.scope_kind {
-            domain::RoleScopeKind::App => "app".to_string(),
-            domain::RoleScopeKind::Team => "team".to_string(),
+            domain::RoleScopeKind::System => "system".to_string(),
+            domain::RoleScopeKind::Workspace => "workspace".to_string(),
         },
         is_builtin: role.is_builtin,
         is_editable: role.is_editable,
@@ -125,7 +125,7 @@ pub async fn create_role(
         Json(ApiSuccess::new(RoleResponse {
             code: body.code,
             name: body.name,
-            scope_kind: "team".to_string(),
+            scope_kind: "workspace".to_string(),
             is_builtin: false,
             is_editable: true,
             permission_codes: Vec::new(),
