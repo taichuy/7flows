@@ -15,6 +15,11 @@ pub trait SessionStore: Send + Sync {
 }
 
 #[async_trait]
+pub trait RuntimeRegistrySync: Send + Sync {
+    async fn rebuild(&self) -> anyhow::Result<()>;
+}
+
+#[async_trait]
 pub trait BootstrapRepository: Send + Sync {
     async fn upsert_authenticator(&self, authenticator: &AuthenticatorRecord)
         -> anyhow::Result<()>;

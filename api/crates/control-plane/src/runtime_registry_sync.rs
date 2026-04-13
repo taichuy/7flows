@@ -1,0 +1,76 @@
+use anyhow::Result;
+
+use crate::{
+    model_definition::{
+        AddModelFieldCommand, CreateModelDefinitionCommand, DeleteModelDefinitionCommand,
+        DeleteModelFieldCommand, ModelDefinitionService, UpdateModelDefinitionCommand,
+        UpdateModelFieldCommand,
+    },
+    ports::{ModelDefinitionRepository, RuntimeRegistrySync},
+};
+
+pub struct ModelDefinitionMutationService<R, S> {
+    model_definitions: ModelDefinitionService<R>,
+    sync: S,
+}
+
+impl<R, S> ModelDefinitionMutationService<R, S>
+where
+    R: ModelDefinitionRepository,
+    S: RuntimeRegistrySync,
+{
+    pub fn new(repository: R, sync: S) -> Self {
+        Self {
+            model_definitions: ModelDefinitionService::new(repository),
+            sync,
+        }
+    }
+
+    pub async fn create_model(
+        &self,
+        command: CreateModelDefinitionCommand,
+    ) -> Result<domain::ModelDefinitionRecord> {
+        let model = self.model_definitions.create_model(command).await?;
+        self.sync.rebuild().await?;
+        Ok(model)
+    }
+
+    pub async fn update_model(
+        &self,
+        command: UpdateModelDefinitionCommand,
+    ) -> Result<domain::ModelDefinitionRecord> {
+        let model = self.model_definitions.update_model(command).await?;
+        self.sync.rebuild().await?;
+        Ok(model)
+    }
+
+    pub async fn add_field(
+        &self,
+        command: AddModelFieldCommand,
+    ) -> Result<domain::ModelFieldRecord> {
+        let field = self.model_definitions.add_field(command).await?;
+        self.sync.rebuild().await?;
+        Ok(field)
+    }
+
+    pub async fn update_field(
+        &self,
+        command: UpdateModelFieldCommand,
+    ) -> Result<domain::ModelFieldRecord> {
+        let field = self.model_definitions.update_field(command).await?;
+        self.sync.rebuild().await?;
+        Ok(field)
+    }
+
+    pub async fn delete_model(&self, command: DeleteModelDefinitionCommand) -> Result<()> {
+        self.model_definitions.delete_model(command).await?;
+        self.sync.rebuild().await?;
+        Ok(())
+    }
+
+    pub async fn delete_field(&self, command: DeleteModelFieldCommand) -> Result<()> {
+        self.model_definitions.delete_field(command).await?;
+        self.sync.rebuild().await?;
+        Ok(())
+    }
+}
