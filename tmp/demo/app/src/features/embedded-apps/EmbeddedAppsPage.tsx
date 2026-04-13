@@ -1,17 +1,41 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { Link } from '@tanstack/react-router';
-import { Card, Descriptions, Drawer, Table } from 'antd';
+import { Link, useRouterState } from '@tanstack/react-router';
+import { Card, Descriptions, Drawer, Table, Typography } from 'antd';
 
-import { subsystems } from '../demo-data';
+import { subsystems, subsystemFocusItems } from '../demo-data';
 import { DemoPageHero } from '../../shared/ui/DemoPageHero';
 import { StatusPill } from '../../shared/ui/StatusPill';
 
 export function EmbeddedAppsPage() {
-  const [activeSubsystemId, setActiveSubsystemId] = useState<string | null>(null);
+  const locationSearch = useRouterState({
+    select: (state) => state.location.search
+  });
+  const searchParams = useMemo(() => new URLSearchParams(locationSearch), [locationSearch]);
+  const routeSubsystemId = searchParams.get('subsystem');
+  const focusKey = searchParams.get('focus') ?? '';
+  const activeFocus = subsystemFocusItems[focusKey] ?? null;
+  const [activeSubsystemId, setActiveSubsystemId] = useState<string | null>(routeSubsystemId);
+
+  useEffect(() => {
+    setActiveSubsystemId(routeSubsystemId);
+  }, [routeSubsystemId]);
+
   const activeSubsystem = activeSubsystemId
     ? subsystems.find((item) => item.id === activeSubsystemId) ?? null
     : null;
+  const drawerAction =
+    activeFocus && activeSubsystem?.id === activeFocus.subsystemId
+      ? {
+          label: activeFocus.actionLabel,
+          href: activeFocus.actionHref
+        }
+      : activeSubsystem
+        ? {
+            label: activeSubsystem.actionLabel,
+            href: activeSubsystem.actionHref
+          }
+        : null;
 
   return (
     <div className="demo-page">
@@ -20,6 +44,24 @@ export function EmbeddedAppsPage() {
         title="子系统"
         description="这里集中查看所有已接入入口的挂载路由、访问上下文和待办事项，确认每个业务前台都落在统一宿主边界内。"
       />
+
+      {activeFocus ? (
+        <Card title="当前同步关注" className="demo-card focus-summary-card">
+          <div className="focus-summary-head">
+            <div className="demo-list-block">
+              <Typography.Text strong>{activeFocus.title}</Typography.Text>
+              <Typography.Paragraph className="card-paragraph">
+                {activeFocus.detail}
+              </Typography.Paragraph>
+              <Typography.Text className="entry-link-note">{activeFocus.note}</Typography.Text>
+            </div>
+            <StatusPill status={activeFocus.status}>{activeFocus.statusLabel}</StatusPill>
+          </div>
+          <Link to={activeFocus.actionHref} className="demo-cta-link">
+            {activeFocus.actionLabel}
+          </Link>
+        </Card>
+      ) : null}
 
       <Card title="已接入子系统" className="demo-card">
         <div className="subsystem-table-shell">
@@ -151,8 +193,11 @@ export function EmbeddedAppsPage() {
               </ul>
             </Card>
 
-            <Link to={activeSubsystem.actionHref} className="demo-cta-link demo-cta-link-primary">
-              {activeSubsystem.actionLabel}
+            <Link
+              to={drawerAction?.href ?? activeSubsystem.actionHref}
+              className="demo-cta-link demo-cta-link-primary"
+            >
+              {drawerAction?.label ?? activeSubsystem.actionLabel}
             </Link>
           </div>
         ) : null}

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { Link } from '@tanstack/react-router';
+import { Link, useRouterState } from '@tanstack/react-router';
 import { Card, Descriptions, Drawer, Input, List, Segmented, Table, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 
@@ -30,9 +30,20 @@ const filterOptions: Array<{ label: string; value: IncidentFilterKey }> = [
 ];
 
 export function ToolsPage() {
+  const locationSearch = useRouterState({
+    select: (state) => state.location.search
+  });
+  const searchParams = useMemo(() => new URLSearchParams(locationSearch), [locationSearch]);
+  const routeIncidentId = searchParams.get('incident');
   const [activeFilter, setActiveFilter] = useState<IncidentFilterKey>('all');
   const [searchValue, setSearchValue] = useState('');
-  const [activeIncidentId, setActiveIncidentId] = useState<string | null>(null);
+  const [activeIncidentId, setActiveIncidentId] = useState<string | null>(routeIncidentId);
+
+  useEffect(() => {
+    if (routeIncidentId) {
+      setActiveIncidentId(routeIncidentId);
+    }
+  }, [routeIncidentId]);
 
   const filteredIncidents = useMemo(() => {
     const keyword = searchValue.trim().toLowerCase();

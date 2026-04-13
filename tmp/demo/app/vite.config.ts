@@ -38,29 +38,77 @@ export default defineConfig({
     strictPort: true
   },
   resolve: {
-    alias: {
-      '@1flowse/shared-types': fileURLToPath(
-        new URL('../packages/shared-types/src/index.ts', import.meta.url)
-      ),
-      '@1flowse/api-client': fileURLToPath(
-        new URL('../packages/api-client/src/index.ts', import.meta.url)
-      ),
-      '@1flowse/ui': fileURLToPath(
-        new URL('../packages/ui/src/index.tsx', import.meta.url)
-      ),
-      '@1flowse/flow-schema': fileURLToPath(
-        new URL('../packages/flow-schema/src/index.ts', import.meta.url)
-      ),
-      '@1flowse/page-protocol': fileURLToPath(
-        new URL('../packages/page-protocol/src/index.ts', import.meta.url)
-      ),
-      '@1flowse/page-runtime': fileURLToPath(
-        new URL('../packages/page-runtime/src/index.ts', import.meta.url)
-      ),
-      '@1flowse/embed-sdk': fileURLToPath(
-        new URL('../packages/embed-sdk/src/index.ts', import.meta.url)
-      )
-    }
+    dedupe: ['react', 'react-dom'],
+    alias: [
+      {
+        find: /^react$/,
+        replacement: fileURLToPath(new URL('./node_modules/react', import.meta.url))
+      },
+      {
+        find: /^react-dom$/,
+        replacement: fileURLToPath(new URL('./node_modules/react-dom', import.meta.url))
+      },
+      {
+        find: /^react\/jsx-runtime$/,
+        replacement: fileURLToPath(new URL('./node_modules/react/jsx-runtime.js', import.meta.url))
+      },
+      {
+        find: /^react\/jsx-dev-runtime$/,
+        replacement: fileURLToPath(
+          new URL('./node_modules/react/jsx-dev-runtime.js', import.meta.url)
+        )
+      },
+      {
+        find: /^antd$/,
+        replacement: fileURLToPath(new URL('./node_modules/antd', import.meta.url))
+      },
+      {
+        find: /^@ant-design\/icons$/,
+        replacement: fileURLToPath(
+          new URL('./node_modules/@ant-design/icons', import.meta.url)
+        )
+      },
+      {
+        find: '@1flowse/shared-types',
+        replacement: fileURLToPath(
+          new URL('../../../web/packages/shared-types/src/index.ts', import.meta.url)
+        )
+      },
+      {
+        find: '@1flowse/api-client',
+        replacement: fileURLToPath(
+          new URL('../../../web/packages/api-client/src/index.ts', import.meta.url)
+        )
+      },
+      {
+        find: '@1flowse/ui',
+        replacement: fileURLToPath(new URL('../../../web/packages/ui/src/index.tsx', import.meta.url))
+      },
+      {
+        find: '@1flowse/flow-schema',
+        replacement: fileURLToPath(
+          new URL('../../../web/packages/flow-schema/src/index.ts', import.meta.url)
+        )
+      },
+      {
+        find: '@1flowse/page-protocol',
+        replacement: fileURLToPath(
+          new URL('../../../web/packages/page-protocol/src/index.ts', import.meta.url)
+        )
+      },
+      {
+        find: '@1flowse/page-runtime',
+        replacement: fileURLToPath(
+          new URL('../../../web/packages/page-runtime/src/index.ts', import.meta.url)
+        )
+      },
+      {
+        find: '@1flowse/embed-sdk',
+        replacement: fileURLToPath(
+          new URL('../../../web/packages/embed-sdk/src/index.ts', import.meta.url)
+        )
+      }
+    ]
   },
   test: {
     environment: 'jsdom',

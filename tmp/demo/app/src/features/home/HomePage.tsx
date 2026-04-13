@@ -155,17 +155,19 @@ export function HomePage() {
           </Card>
 
           <Card title="治理提醒" className="demo-card">
-            <List
-              dataSource={governanceNotes}
-              renderItem={(item) => (
-                <List.Item>
-                  <div className="demo-list-block">
+            <div className="entry-grid">
+              {governanceNotes.map((item) => (
+                <Link key={item.id} to={item.href} className="entry-link-card">
+                  <div className="entry-link-header">
                     <Typography.Text strong>{item.title}</Typography.Text>
-                    <Typography.Paragraph>{item.detail}</Typography.Paragraph>
+                    <StatusPill status={item.status}>{item.statusLabel}</StatusPill>
                   </div>
-                </List.Item>
-              )}
-            />
+                  <Typography.Paragraph>{item.detail}</Typography.Paragraph>
+                  <Typography.Text className="entry-link-note">{item.note}</Typography.Text>
+                  <Typography.Text className="entry-link-note">{item.actionLabel}</Typography.Text>
+                </Link>
+              ))}
+            </div>
           </Card>
         </div>
       </div>
@@ -212,7 +214,7 @@ export function HomePage() {
               />
             </Card>
             <Link to={activeQueueItem.href} className="demo-cta-link demo-cta-link-primary">
-              前往对应页面
+              {activeQueueItem.actionLabel}
             </Link>
           </Space>
         ) : null}

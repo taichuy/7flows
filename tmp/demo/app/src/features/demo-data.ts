@@ -23,8 +23,14 @@ export interface ConsoleEntry {
 }
 
 export interface GovernanceItem {
+  id: string;
   title: string;
   detail: string;
+  note: string;
+  status: DemoStatus;
+  statusLabel: string;
+  actionLabel: string;
+  href: string;
 }
 
 export interface SnapshotItem {
@@ -45,6 +51,7 @@ export interface QueueItem {
   detail: string;
   nextAction: string;
   followUps: string[];
+  actionLabel: string;
   href: string;
 }
 
@@ -110,6 +117,20 @@ export interface StudioActionItem {
   badge: string;
 }
 
+export interface StudioFocusItem {
+  title: string;
+  detail: string;
+  origin: string;
+  checkpoint: string;
+  nextStep: string;
+  actionLabel: string;
+  actionHref: string;
+  status: DemoStatus;
+  statusLabel: string;
+  runtimeKey: string;
+  releaseKey: string;
+}
+
 export interface SubsystemItem {
   id: string;
   name: string;
@@ -126,6 +147,20 @@ export interface SubsystemItem {
   pendingActions: string[];
   actionLabel: string;
   actionHref: string;
+}
+
+export interface PageFocusItem {
+  title: string;
+  detail: string;
+  note: string;
+  actionLabel: string;
+  actionHref: string;
+  status: DemoStatus;
+  statusLabel: string;
+}
+
+export interface SubsystemFocusItem extends PageFocusItem {
+  subsystemId: string;
 }
 
 export interface SettingField {
@@ -217,16 +252,34 @@ export const consoleEntries: ConsoleEntry[] = [
 
 export const governanceNotes: GovernanceItem[] = [
   {
-    title: '工作台只保留行动入口',
-    detail: '概览层不再重复展示历史运行细节，把待办和历史运行拆成两个稳定入口。'
+    id: 'incident-webhook',
+    title: '发布闭环仍缺最终确认',
+    detail: 'revision-24 已经完成发布动作，但回写窗口还没闭环，不能把这次交付当成“已完成”。',
+    note: '先回到流程编排确认 checkpoint，再进入工具台处理阻塞事件。',
+    status: 'waiting',
+    statusLabel: '等待回写',
+    actionLabel: '打开发布闭环',
+    href: '/studio?focus=release-gateway&track=callback&incident=incident-webhook'
   },
   {
-    title: '工具台定位为事件处理中枢',
-    detail: '接口面摘要留在工具台，但不再和事件队列争抢同一视觉主位。'
+    id: 'incident-acl',
+    title: '访问控制仍有授权口径冲突',
+    detail: '当前阻塞不是缺一个页面，而是 own / all 这组授权语义还没统一，发布前校验会继续拦截。',
+    note: '不要先翻 API 列表，直接回到访问控制完成角色矩阵复核。',
+    status: 'failed',
+    statusLabel: '阻塞发布',
+    actionLabel: '直达访问控制',
+    href: '/settings?section=access&focus=incident-acl'
   },
   {
-    title: '移动端壳层继续压缩',
-    detail: '健康标签和账户信息已经收入导航抽屉，后续继续减少首屏的壳层占比。'
+    id: 'cache-rollout',
+    title: '增长门户缓存切换仍未锁定窗口',
+    detail: '资源包已经准备完成，但正式切换仍卡在缓存策略和同步窗口，子系统页需要承担这条治理语义。',
+    note: '先看子系统摘要和挂载路径，再到工具台跟进缓存窗口。',
+    status: 'running',
+    statusLabel: '窗口未锁定',
+    actionLabel: '查看接入窗口',
+    href: '/subsystems?subsystem=growth-portal&focus=cache-rollout'
   }
 ];
 
@@ -266,7 +319,8 @@ export const homeActionQueue: QueueItem[] = [
       '确认该角色是否仍需要跨团队查询能力。',
       '复核完成后把结果同步到发布审批记录。'
     ],
-    href: '/settings'
+    actionLabel: '打开访问控制复核',
+    href: '/settings?section=access&focus=incident-acl'
   },
   {
     id: 'queue-webhook',
@@ -285,7 +339,8 @@ export const homeActionQueue: QueueItem[] = [
       '对齐发布网关和工具台的状态更新时间。',
       '如果超出窗口，补记一次人工确认说明。'
     ],
-    href: '/tools'
+    actionLabel: '打开发布闭环',
+    href: '/studio?focus=release-gateway&track=callback&incident=incident-webhook'
   },
   {
     id: 'queue-cache',
@@ -304,7 +359,8 @@ export const homeActionQueue: QueueItem[] = [
       '比对子系统挂载版本与接入清单中的资源引用。',
       '为业务方准备一次回滚说明。'
     ],
-    href: '/subsystems'
+    actionLabel: '查看子系统接入窗口',
+    href: '/subsystems?subsystem=growth-portal&focus=cache-rollout'
   }
 ];
 
@@ -505,7 +561,7 @@ export const studioActions: StudioActionItem[] = [
     key: 'tools',
     title: '打开工具台事件队列',
     description: '查看回写超时、权限冲突和发布窗口异常是否需要人工接管。',
-    href: '/tools',
+    href: '/tools?incident=incident-webhook',
     status: 'waiting',
     badge: '阻塞事件'
   },
@@ -513,7 +569,7 @@ export const studioActions: StudioActionItem[] = [
     key: 'settings',
     title: '返回访问控制',
     description: '继续收口角色矩阵、公开接口边界和审计要求。',
-    href: '/settings',
+    href: '/settings?section=access&focus=incident-acl',
     status: 'failed',
     badge: '治理出口'
   },
@@ -521,11 +577,40 @@ export const studioActions: StudioActionItem[] = [
     key: 'subsystems',
     title: '核对子系统挂载',
     description: '确认最新 revision 已同步到宿主扩展与业务入口。',
-    href: '/subsystems',
+    href: '/subsystems?subsystem=growth-portal&focus=cache-rollout',
     status: 'running',
     badge: '发布影响面'
   }
 ];
+
+export const studioFocusItems: Record<string, StudioFocusItem> = {
+  default: {
+    title: '当前交付主线',
+    detail: '这条 Flow 的重点不是把节点排完，而是确认发布、回写、恢复点和状态记忆已经形成稳定闭环。',
+    origin: '工作台 / 流程编排',
+    checkpoint: '发布检查 · revision-24 · 运行前复核',
+    nextStep: '继续核对发布入口、运行轨道和状态记忆是否一致。',
+    actionLabel: '打开工具台事件队列',
+    actionHref: '/tools',
+    status: 'running',
+    statusLabel: '持续治理中',
+    runtimeKey: 'checkpoint',
+    releaseKey: 'revision'
+  },
+  'incident-webhook': {
+    title: 'Webhook 回写超时',
+    detail: '当前发布动作已经完成，但回写窗口还没闭环，所以这次 Flow 仍不能被当作真正完成交付。',
+    origin: '工作台 / 发布回写确认',
+    checkpoint: '发布网关 · revision-24 · 09:46 等待回写',
+    nextStep: '先核对回写时间窗，再到工具台决定是否人工补记发布成功。',
+    actionLabel: '前往工具台处理事件',
+    actionHref: '/tools?incident=incident-webhook',
+    status: 'failed',
+    statusLabel: '交付未闭环',
+    runtimeKey: 'callback',
+    releaseKey: 'callback'
+  }
+};
 
 export const subsystems: SubsystemItem[] = [
   {
@@ -543,7 +628,7 @@ export const subsystems: SubsystemItem[] = [
     lastUpdated: '2026-04-13 18:10',
     pendingActions: ['确认新版资源包的缓存策略', '补齐默认团队欢迎页'],
     actionLabel: '进入接入治理',
-    actionHref: '/tools'
+    actionHref: '/tools?incident=incident-registry'
   },
   {
     id: 'ops-board',
@@ -560,7 +645,7 @@ export const subsystems: SubsystemItem[] = [
     lastUpdated: '2026-04-13 15:35',
     pendingActions: ['等待最新接入清单校验完成'],
     actionLabel: '查看同步事件',
-    actionHref: '/tools'
+    actionHref: '/tools?incident=incident-registry'
   },
   {
     id: 'docs-hub',
@@ -577,9 +662,32 @@ export const subsystems: SubsystemItem[] = [
     lastUpdated: '2026-04-12 21:20',
     pendingActions: ['补齐 API 文档跳转入口', '确认版本切换策略'],
     actionLabel: '查看 API 文档',
-    actionHref: '/settings'
+    actionHref: '/settings?section=api&focus=incident-api'
   }
 ];
+
+export const subsystemFocusItems: Record<string, SubsystemFocusItem> = {
+  'cache-rollout': {
+    subsystemId: 'growth-portal',
+    title: '增长门户缓存切换',
+    detail: '这轮关注点不是子系统数量，而是增长门户的新资源包虽然已就绪，但缓存刷新窗口还没锁定。',
+    note: '先确认资源包切换策略，再到工具台跟进同步事件是否需要人工放行。',
+    actionLabel: '前往工具台跟进缓存窗口',
+    actionHref: '/tools?incident=incident-registry',
+    status: 'running',
+    statusLabel: '窗口待锁定'
+  },
+  'registry-lag': {
+    subsystemId: 'ops-board',
+    title: '运营看板同步滞后',
+    detail: '接入清单的宿主能力校验还没结束，所以这条子系统同步不能提前标记为稳定。',
+    note: '确认缺失能力后，再回到工具台解除同步滞后事件。',
+    actionLabel: '前往工具台查看同步事件',
+    actionHref: '/tools?incident=incident-registry',
+    status: 'waiting',
+    statusLabel: '等待校验'
+  }
+};
 
 export const apiSurface: ApiSurfaceItem[] = [
   {
@@ -655,7 +763,7 @@ export const toolIncidents: ToolIncident[] = [
       '复核完成后更新发布审批记录，再解除阻塞状态。'
     ],
     actionLabel: '前往访问控制',
-    actionHref: '/settings'
+    actionHref: '/settings?section=access&focus=incident-acl'
   },
   {
     id: 'incident-webhook',
@@ -678,7 +786,7 @@ export const toolIncidents: ToolIncident[] = [
       '为下轮发布补充回写窗口的监控告警。'
     ],
     actionLabel: '查看发布检查',
-    actionHref: '/studio'
+    actionHref: '/studio?focus=release-gateway&track=callback&incident=incident-webhook'
   },
   {
     id: 'incident-registry',
@@ -701,7 +809,7 @@ export const toolIncidents: ToolIncident[] = [
       '记录本次同步滞后是否来自缓存策略。'
     ],
     actionLabel: '打开子系统页',
-    actionHref: '/subsystems'
+    actionHref: '/subsystems?subsystem=ops-board&focus=registry-lag'
   },
   {
     id: 'incident-api',
@@ -724,7 +832,7 @@ export const toolIncidents: ToolIncident[] = [
       '把未通过复核的接口标记到下一轮治理清单。'
     ],
     actionLabel: '查看 API 文档',
-    actionHref: '/settings'
+    actionHref: '/settings?section=api&focus=incident-api'
   }
 ];
 
@@ -807,3 +915,24 @@ export const apiDocHighlights = [
   '文档与角色权限矩阵一起校验，避免接口与授权说明脱节。',
   '后续切换到真实接口后，只替换数据源，不改变页面结构。'
 ];
+
+export const settingsFocusItems: Record<string, PageFocusItem> = {
+  'incident-acl': {
+    title: '权限矩阵冲突',
+    detail: '当前有一条发布前阻塞事件直接指向访问控制，需要先统一授权口径。',
+    note: '先收敛 own / all，再把结果回写到发布审批和 API 文档说明。',
+    actionLabel: '回到工具台查看阻塞事件',
+    actionHref: '/tools?incident=incident-acl',
+    status: 'failed',
+    statusLabel: '阻塞发布'
+  },
+  'incident-api': {
+    title: '公开接口边界待复核',
+    detail: '当前 API 文档区需要承担治理结论，明确哪些接口属于公开暴露面，哪些只留在控制台内。',
+    note: '只替换数据源，不改变文档页结构，确保后续接真接口时不再返工信息层级。',
+    actionLabel: '回到工具台继续复核',
+    actionHref: '/tools?incident=incident-api',
+    status: 'waiting',
+    statusLabel: '等待复核'
+  }
+};

@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-import { Link } from '@tanstack/react-router';
+import { Link, useRouterState } from '@tanstack/react-router';
 import { Card, Col, Descriptions, List, Row, Space, Typography } from 'antd';
 
 import {
   studioActions,
+  studioFocusItems,
   studioNodes,
   studioOverview,
   studioReleaseItems,
@@ -15,7 +16,25 @@ import { DemoPageHero } from '../../shared/ui/DemoPageHero';
 import { StatusPill } from '../../shared/ui/StatusPill';
 
 export function AgentFlowPage() {
-  const [activeNodeId, setActiveNodeId] = useState(studioNodes[0]?.id ?? null);
+  const locationSearch = useRouterState({
+    select: (state) => state.location.search
+  });
+  const searchParams = useMemo(() => new URLSearchParams(locationSearch), [locationSearch]);
+  const routeFocusNode = searchParams.get('focus');
+  const routeIncident = searchParams.get('incident') ?? 'default';
+  const activeFocus = studioFocusItems[routeIncident] ?? studioFocusItems.default;
+  const highlightedRuntimeKey = searchParams.get('track') ?? activeFocus.runtimeKey;
+  const highlightedReleaseKey = activeFocus.releaseKey;
+  const [activeNodeId, setActiveNodeId] = useState(() =>
+    studioNodes.some((item) => item.id === routeFocusNode) ? routeFocusNode : (studioNodes[0]?.id ?? null)
+  );
+
+  useEffect(() => {
+    if (routeFocusNode && studioNodes.some((item) => item.id === routeFocusNode)) {
+      setActiveNodeId(routeFocusNode);
+    }
+  }, [routeFocusNode]);
+
   const activeNode = useMemo(
     () => studioNodes.find((item) => item.id === activeNodeId) ?? studioNodes[0],
     [activeNodeId]
@@ -85,7 +104,12 @@ export function AgentFlowPage() {
             <Card title="运行轨道" className="demo-card studio-runtime-card">
               <div className="studio-runtime-list">
                 {studioRuntimeTrack.map((item) => (
-                  <div key={item.key} className="studio-runtime-item">
+                  <div
+                    key={item.key}
+                    className={`studio-runtime-item ${
+                      item.key === highlightedRuntimeKey ? 'is-focused' : ''
+                    }`}
+                  >
                     <div className="studio-runtime-head">
                       <div>
                         <Typography.Text strong>{item.title}</Typography.Text>
@@ -108,6 +132,42 @@ export function AgentFlowPage() {
 
         <Col xs={24} xl={9}>
           <div className="section-stack">
+            <Card title="当前治理链" className="demo-card focus-summary-card">
+              <div className="focus-summary-head">
+                <div className="demo-list-block">
+                  <Typography.Text strong>{activeFocus.title}</Typography.Text>
+                  <Typography.Paragraph className="card-paragraph">
+                    {activeFocus.detail}
+                  </Typography.Paragraph>
+                </div>
+                <StatusPill status={activeFocus.status}>{activeFocus.statusLabel}</StatusPill>
+              </div>
+              <Descriptions
+                column={1}
+                colon={false}
+                items={[
+                  {
+                    key: 'origin',
+                    label: '来源',
+                    children: activeFocus.origin
+                  },
+                  {
+                    key: 'checkpoint',
+                    label: '当前检查点',
+                    children: activeFocus.checkpoint
+                  },
+                  {
+                    key: 'nextStep',
+                    label: '下一步',
+                    children: activeFocus.nextStep
+                  }
+                ]}
+              />
+              <Link to={activeFocus.actionHref} className="demo-cta-link demo-cta-link-primary">
+                {activeFocus.actionLabel}
+              </Link>
+            </Card>
+
             <Card
               title="当前聚焦节点"
               className="demo-card studio-inspector-card"
@@ -152,7 +212,12 @@ export function AgentFlowPage() {
             <Card title="发布检查" className="demo-card">
               <div className="studio-evidence-list">
                 {studioReleaseItems.map((item) => (
-                  <div key={item.key} className="studio-evidence-item">
+                  <div
+                    key={item.key}
+                    className={`studio-evidence-item ${
+                      item.key === highlightedReleaseKey ? 'is-focused' : ''
+                    }`}
+                  >
                     <div className="studio-evidence-head">
                       <Typography.Text strong>{item.label}</Typography.Text>
                       <StatusPill status={item.status}>{item.value}</StatusPill>

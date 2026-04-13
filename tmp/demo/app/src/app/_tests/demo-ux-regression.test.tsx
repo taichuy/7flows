@@ -36,6 +36,23 @@ describe('demo ux regression coverage', () => {
     expect(within(dialog).getByText('安全团队')).toBeInTheDocument();
   });
 
+  test('home queue actions carry the user into the focused studio governance flow', async () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: '查看 发布回写确认' }));
+
+    const dialog = await screen.findByRole('dialog', { name: '发布回写确认' }, { timeout: 5000 });
+
+    fireEvent.click(within(dialog).getByRole('link', { name: '打开发布闭环' }));
+
+    expect(
+      await screen.findByRole('heading', { name: '流程编排' }, { timeout: 5000 })
+    ).toBeInTheDocument();
+    expect(screen.getByText('当前治理链')).toBeInTheDocument();
+    expect(screen.getByText('Webhook 回写超时')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '前往工具台处理事件' })).toBeInTheDocument();
+  });
+
   test('subsystems page uses product-facing names and provides a direct follow-up action', async () => {
     window.history.pushState({}, '', '/subsystems');
 
@@ -90,5 +107,32 @@ describe('demo ux regression coverage', () => {
 
     expect(await screen.findByText('密码与会话', undefined, { timeout: 5000 })).toBeInTheDocument();
     expect(screen.getByText('最近 30 天未出现异常设备登录。')).toBeInTheDocument();
+  });
+
+  test('settings can open directly into the access-control governance context', async () => {
+    window.history.pushState({}, '', '/settings?section=access&focus=incident-acl');
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: '设置' }, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.getByText('当前治理关注')).toBeInTheDocument();
+    expect(screen.getByText('权限矩阵冲突')).toBeInTheDocument();
+    expect(
+      screen.getByText('当前有一条发布前阻塞事件直接指向访问控制，需要先统一授权口径。')
+    ).toBeInTheDocument();
+    expect(screen.getByText('角色矩阵')).toBeInTheDocument();
+  });
+
+  test('subsystems can open directly into the focused rollout drawer from governance links', async () => {
+    window.history.pushState({}, '', '/subsystems?subsystem=growth-portal&focus=cache-rollout');
+
+    render(<App />);
+
+    expect(await screen.findByRole('heading', { name: '子系统' }, { timeout: 5000 })).toBeInTheDocument();
+    expect(screen.getByText('当前同步关注')).toBeInTheDocument();
+
+    const dialog = await screen.findByRole('dialog', { name: '增长门户' }, { timeout: 5000 });
+    expect(within(dialog).getByText('确认新版资源包的缓存策略')).toBeInTheDocument();
+    expect(within(dialog).getByRole('link', { name: '前往工具台跟进缓存窗口' })).toBeInTheDocument();
   });
 });

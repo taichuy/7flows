@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
+import { Link, useRouterState } from '@tanstack/react-router';
 import { Card, Col, Descriptions, List, Menu, Row, Table, Typography } from 'antd';
 import type { MenuProps } from 'antd';
 
@@ -8,10 +9,12 @@ import {
   apiDocHighlights,
   apiSurface,
   profileFields,
+  settingsFocusItems,
   securityFields,
   securityNotes
 } from '../demo-data';
 import { DemoPageHero } from '../../shared/ui/DemoPageHero';
+import { StatusPill } from '../../shared/ui/StatusPill';
 
 type SettingsSectionKey = 'profile' | 'security' | 'access' | 'api';
 
@@ -35,7 +38,22 @@ const settingsItems: MenuProps['items'] = [
 ];
 
 export function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<SettingsSectionKey>('profile');
+  const locationSearch = useRouterState({
+    select: (state) => state.location.search
+  });
+  const searchParams = useMemo(() => new URLSearchParams(locationSearch), [locationSearch]);
+  const routeSection = searchParams.get('section');
+  const initialSection =
+    routeSection === 'security' || routeSection === 'access' || routeSection === 'api'
+      ? (routeSection as SettingsSectionKey)
+      : 'profile';
+  const focusKey = searchParams.get('focus') ?? '';
+  const activeFocus = settingsFocusItems[focusKey] ?? null;
+  const [activeSection, setActiveSection] = useState<SettingsSectionKey>(initialSection);
+
+  useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
 
   return (
     <div className="demo-page">
@@ -59,6 +77,25 @@ export function SettingsPage() {
 
         <Col xs={24} xl={17}>
           <Card className="demo-card settings-content-card">
+            {activeFocus ? (
+              <section className="focus-summary-panel" aria-label="当前治理关注">
+                <Typography.Title level={4}>当前治理关注</Typography.Title>
+                <div className="focus-summary-head">
+                  <div className="demo-list-block">
+                    <Typography.Text strong>{activeFocus.title}</Typography.Text>
+                    <Typography.Paragraph className="card-paragraph">
+                      {activeFocus.detail}
+                    </Typography.Paragraph>
+                    <Typography.Text className="entry-link-note">{activeFocus.note}</Typography.Text>
+                  </div>
+                  <StatusPill status={activeFocus.status}>{activeFocus.statusLabel}</StatusPill>
+                </div>
+                <Link to={activeFocus.actionHref} className="demo-cta-link">
+                  {activeFocus.actionLabel}
+                </Link>
+              </section>
+            ) : null}
+
             {activeSection === 'profile' ? (
               <Descriptions
                 title="账户资料"

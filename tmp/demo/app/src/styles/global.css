@@ -563,6 +563,50 @@ button {
   color: var(--text-secondary);
 }
 
+.focus-summary-card .ant-card-body {
+  display: grid;
+  gap: 14px;
+}
+
+.focus-summary-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.focus-summary-card .ant-typography {
+  margin: 0;
+}
+
+.focus-summary-card .ant-descriptions {
+  padding: 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: rgba(248, 252, 249, 0.9);
+}
+
+.focus-summary-card .demo-cta-link {
+  width: fit-content;
+}
+
+.focus-summary-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  background: rgba(248, 252, 249, 0.9);
+}
+
+.focus-summary-panel .ant-typography {
+  margin: 0;
+}
+
+.focus-summary-panel .demo-cta-link {
+  width: fit-content;
+}
+
 .row-meta-line {
   display: flex;
   flex-wrap: wrap;
@@ -898,6 +942,12 @@ button {
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
   background: rgba(248, 252, 249, 0.9);
+}
+
+.studio-runtime-item.is-focused,
+.studio-evidence-item.is-focused {
+  border-color: rgba(0, 217, 146, 0.42);
+  box-shadow: 0 18px 30px rgba(0, 217, 146, 0.12);
 }
 
 .studio-runtime-head,
