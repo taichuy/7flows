@@ -5,8 +5,8 @@ use crate::capability_kind::PluginConsumptionKind;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BindingTarget {
-    Team(Uuid),
-    App(Uuid),
+    Workspace(Uuid),
+    Tenant(Uuid),
     Model(Uuid),
 }
 
@@ -24,8 +24,15 @@ impl PluginAssignment {
         kind: PluginConsumptionKind,
         binding_target: Option<BindingTarget>,
     ) -> Result<Self> {
-        if matches!(kind, PluginConsumptionKind::RuntimeExtension) && binding_target.is_none() {
-            return Err(anyhow!("runtime extension requires model or app binding"));
+        if matches!(kind, PluginConsumptionKind::RuntimeExtension) {
+            match binding_target {
+                Some(BindingTarget::Workspace(_) | BindingTarget::Model(_)) => {}
+                Some(BindingTarget::Tenant(_)) | None => {
+                    return Err(anyhow!(
+                        "runtime extension requires workspace or model binding"
+                    ));
+                }
+            }
         }
 
         Ok(Self {
