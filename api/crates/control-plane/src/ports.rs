@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use domain::{
-    ActorContext, AuditLogRecord, AuthenticatorRecord, ModelDefinitionRecord, PermissionDefinition,
-    RoleTemplate, SessionRecord, TeamRecord, UserRecord,
+    ActorContext, AuditLogRecord, AuthenticatorRecord, DataModelScopeKind, ModelDefinitionRecord,
+    PermissionDefinition, RoleTemplate, SessionRecord, TeamRecord, UserRecord,
 };
 use uuid::Uuid;
 
@@ -89,8 +89,10 @@ pub struct CreateMemberInput {
 #[derive(Debug, Clone)]
 pub struct CreateModelDefinitionInput {
     pub actor_user_id: Uuid,
+    pub scope_kind: DataModelScopeKind,
+    pub scope_id: Uuid,
     pub code: String,
-    pub name: String,
+    pub title: String,
 }
 
 #[async_trait]

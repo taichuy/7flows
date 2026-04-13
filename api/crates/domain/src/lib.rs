@@ -13,7 +13,7 @@ pub use auth::{
     RoleTemplate, SessionRecord, UserAuthIdentity, UserRecord, UserStatus,
 };
 pub use base::BaseFields;
-pub use modeling::{ModelDefinitionRecord, ModelDefinitionStatus, ModelDefinitionVersionRecord};
+pub use modeling::{DataModelScopeKind, ModelDefinitionRecord, ModelFieldKind, ModelFieldRecord};
 pub use resource::runtime_model_resource_code;
 pub use team::TeamRecord;
 

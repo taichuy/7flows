@@ -6,6 +6,7 @@ use std::{
 use access_control::ensure_permission;
 use anyhow::Result;
 use async_trait::async_trait;
+use domain::DataModelScopeKind;
 use uuid::Uuid;
 
 use crate::{
@@ -16,8 +17,10 @@ use crate::{
 
 pub struct CreateModelDefinitionCommand {
     pub actor_user_id: Uuid,
+    pub scope_kind: DataModelScopeKind,
+    pub scope_id: Uuid,
     pub code: String,
-    pub name: String,
+    pub title: String,
 }
 
 pub struct PublishModelCommand {
@@ -70,8 +73,10 @@ where
             .repository
             .create_model_definition(&CreateModelDefinitionInput {
                 actor_user_id: command.actor_user_id,
+                scope_kind: command.scope_kind,
+                scope_id: command.scope_id,
                 code: command.code,
-                name: command.name,
+                title: command.title,
             })
             .await?;
         self.repository
@@ -110,10 +115,11 @@ where
             .await?;
 
         Ok(PublishedModel {
-            model,
             resource: runtime_core::resource_descriptor::ResourceDescriptor::runtime_model(
-                command.model_id,
+                &model.code,
+                model.scope_kind,
             ),
+            model,
         })
     }
 }
@@ -130,14 +136,18 @@ impl InMemoryModelDefinitionRepository {
             .entry(model_id)
             .or_insert_with(|| domain::ModelDefinitionRecord {
                 id: model_id,
+                scope_kind: DataModelScopeKind::Team,
+                scope_id: Uuid::nil(),
                 code: if model_id.is_nil() {
                     "nil".to_string()
                 } else {
-                    format!("model-{model_id}")
+                    format!("model_{}", model_id.simple())
                 },
-                name: "Runtime Model".to_string(),
-                status: domain::ModelDefinitionStatus::Draft,
-                published_version: None,
+                title: "Runtime Model".to_string(),
+                physical_table_name: format!("rtm_team_00000000_{}", model_id.simple()),
+                acl_namespace: "state_model.runtime_model".to_string(),
+                audit_namespace: "audit.state_model.runtime_model".to_string(),
+                fields: vec![],
             });
         entry.clone()
     }
@@ -167,10 +177,14 @@ impl ModelDefinitionRepository for InMemoryModelDefinitionRepository {
     ) -> Result<domain::ModelDefinitionRecord> {
         let model = domain::ModelDefinitionRecord {
             id: Uuid::now_v7(),
+            scope_kind: input.scope_kind,
+            scope_id: input.scope_id,
             code: input.code.clone(),
-            name: input.name.clone(),
-            status: domain::ModelDefinitionStatus::Draft,
-            published_version: None,
+            title: input.title.clone(),
+            physical_table_name: build_physical_table_name(input.scope_kind, &input.code),
+            acl_namespace: format!("state_model.{}", input.code),
+            audit_namespace: format!("audit.state_model.{}", input.code),
+            fields: vec![],
         };
         self.models
             .lock()
@@ -184,17 +198,7 @@ impl ModelDefinitionRepository for InMemoryModelDefinitionRepository {
         _actor_user_id: Uuid,
         model_id: Uuid,
     ) -> Result<domain::ModelDefinitionRecord> {
-        let existing = self.upsert_placeholder(model_id);
-        let published = domain::ModelDefinitionRecord {
-            status: domain::ModelDefinitionStatus::Published,
-            published_version: Some(existing.published_version.unwrap_or(0) + 1),
-            ..existing
-        };
-        self.models
-            .lock()
-            .expect("in-memory model lock poisoned")
-            .insert(model_id, published.clone());
-        Ok(published)
+        Ok(self.upsert_placeholder(model_id))
     }
 
     async fn append_audit_log(&self, _event: &domain::AuditLogRecord) -> Result<()> {
@@ -206,4 +210,15 @@ impl ModelDefinitionService<InMemoryModelDefinitionRepository> {
     pub fn for_tests() -> Self {
         Self::new(InMemoryModelDefinitionRepository::default())
     }
+}
+
+fn build_physical_table_name(scope_kind: DataModelScopeKind, code: &str) -> String {
+    let prefix = match scope_kind {
+        DataModelScopeKind::Team => "team",
+        DataModelScopeKind::App => "app",
+    };
+    let suffix = Uuid::now_v7().simple().to_string();
+    let sanitized_code = code.replace('-', "_");
+
+    format!("rtm_{prefix}_{}_{}", &suffix[..8], sanitized_code)
 }

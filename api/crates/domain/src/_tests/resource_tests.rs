@@ -1,10 +1,9 @@
 use domain::runtime_model_resource_code;
-use uuid::Uuid;
 
 #[test]
-fn runtime_model_resource_code_uses_nil_alias_for_nil_uuid() {
+fn model_definition_repository_uses_model_code_for_runtime_resource_code() {
     assert_eq!(
-        runtime_model_resource_code(Uuid::nil()),
-        "models.runtime.nil"
+        runtime_model_resource_code("orders"),
+        "models.runtime.orders"
     );
 }

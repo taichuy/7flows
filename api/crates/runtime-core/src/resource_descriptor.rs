@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ResourceKind {
@@ -71,13 +70,16 @@ impl ResourceDescriptor {
         }
     }
 
-    pub fn runtime_model(model_id: Uuid) -> Self {
+    pub fn runtime_model(model_code: &str, scope_kind: domain::DataModelScopeKind) -> Self {
         Self::new(
-            domain::runtime_model_resource_code(model_id),
+            domain::runtime_model_resource_code(model_code),
             ResourceKind::RuntimeModel,
             Plane::Runtime,
             Exposure::Console,
-            TenantScope::App,
+            match scope_kind {
+                domain::DataModelScopeKind::Team => TenantScope::Team,
+                domain::DataModelScopeKind::App => TenantScope::App,
+            },
             TrustLevel::Core,
         )
     }
