@@ -47,7 +47,7 @@
 - Modify: `api/crates/control-plane/src/lib.rs`
 - Modify: `api/crates/control-plane/src/_tests/mod.rs`
 
-- [ ] **Step 1: Add failing orchestration tests**
+- [x] **Step 1: Add failing orchestration tests**
 
 Create `api/crates/control-plane/src/_tests/model_definition_runtime_sync_tests.rs` with in-memory doubles and focused coverage for:
 
@@ -64,13 +64,13 @@ async fn delete_model_rebuilds_runtime_registry_once() {}
 
 The test double should count calls to a new sync port rather than asserting on HTTP behavior.
 
-- [ ] **Step 2: Run the focused failures**
+- [x] **Step 2: Run the focused failures**
 
 Run: `cargo test -p control-plane create_model_rebuilds_runtime_registry_once -- --exact`
 
 Expected: FAIL because there is no registry-sync port in `control-plane` and no orchestration entry point that owns rebuild side effects.
 
-- [ ] **Step 3: Introduce the sync port and mutation orchestrator**
+- [x] **Step 3: Introduce the sync port and mutation orchestrator**
 
 Add a new port to `api/crates/control-plane/src/ports.rs`:
 
@@ -105,13 +105,13 @@ Cover:
 - `delete_model`
 - `delete_field`
 
-- [ ] **Step 4: Re-run the orchestration tests**
+- [x] **Step 4: Re-run the orchestration tests**
 
 Run: `cargo test -p control-plane model_definition_runtime_sync -- --nocapture`
 
 Expected: PASS
 
-- [ ] **Step 5: Commit the control-plane orchestration slice**
+- [x] **Step 5: Commit the control-plane orchestration slice**
 
 ```bash
 git add api/crates/control-plane/src/runtime_registry_sync.rs api/crates/control-plane/src/lib.rs api/crates/control-plane/src/ports.rs api/crates/control-plane/src/model_definition.rs api/crates/control-plane/src/_tests/mod.rs api/crates/control-plane/src/_tests/model_definition_runtime_sync_tests.rs
@@ -127,7 +127,7 @@ git commit -m "refactor: move runtime registry sync into control plane orchestra
 - Modify: `api/apps/api-server/src/_tests/support.rs`
 - Modify: `api/apps/api-server/src/_tests/model_definition_routes.rs`
 
-- [ ] **Step 1: Add a failing route regression**
+- [x] **Step 1: Add a failing route regression**
 
 Extend `api/apps/api-server/src/_tests/model_definition_routes.rs` so a create/update/delete/field-mutation sequence still leaves runtime CRUD immediately usable after the refactor.
 
@@ -141,13 +141,13 @@ create_runtime_record(...).await;
 
 The test should not call any route-local helper; it should only hit HTTP endpoints.
 
-- [ ] **Step 2: Run the focused failure after removing the helper**
+- [x] **Step 2: Run the focused failure after removing the helper**
 
 Run: `cargo test -p api-server model_definition_routes_manage_models_and_fields_without_publish -- --exact`
 
 Expected: FAIL once the route-local rebuild helper is removed and before the adapter is wired in.
 
-- [ ] **Step 3: Implement the api-server adapter**
+- [x] **Step 3: Implement the api-server adapter**
 
 Create `api/apps/api-server/src/runtime_registry_sync.rs`:
 
@@ -174,13 +174,13 @@ Then update `api/apps/api-server/src/routes/model_definitions.rs` to:
 
 Keep `list_models` and `get_model` on the read-only service path.
 
-- [ ] **Step 4: Re-run the route regression**
+- [x] **Step 4: Re-run the route regression**
 
 Run: `cargo test -p api-server model_definition_routes_manage_models_and_fields_without_publish -- --exact`
 
 Expected: PASS
 
-- [ ] **Step 5: Commit the api-server adapter slice**
+- [x] **Step 5: Commit the api-server adapter slice**
 
 ```bash
 git add api/apps/api-server/src/runtime_registry_sync.rs api/apps/api-server/src/lib.rs api/apps/api-server/src/routes/model_definitions.rs api/apps/api-server/src/_tests/support.rs api/apps/api-server/src/_tests/model_definition_routes.rs
@@ -194,13 +194,13 @@ git commit -m "refactor: remove route level runtime registry rebuilds"
 - Test: `api/apps/api-server/src/_tests/model_definition_routes.rs`
 - Test: `api/apps/api-server/src/_tests/runtime_model_routes.rs`
 
-- [ ] **Step 1: Run the control-plane sync-orchestration tests**
+- [x] **Step 1: Run the control-plane sync-orchestration tests**
 
 Run: `cargo test -p control-plane model_definition_runtime_sync -- --nocapture`
 
 Expected: PASS
 
-- [ ] **Step 2: Run the api-server model and runtime regressions**
+- [x] **Step 2: Run the api-server model and runtime regressions**
 
 Run: `cargo test -p api-server model_definition_routes_manage_models_and_fields_without_publish -- --exact --nocapture`
 
@@ -210,23 +210,33 @@ Run: `cargo test -p api-server runtime_model_routes_create_fetch_update_delete_a
 
 Expected: PASS
 
-- [ ] **Step 3: Run the unified backend verification**
+- [x] **Step 3: Run the unified backend verification**
 
 Run: `node scripts/node/verify-backend.js`
 
 Expected: PASS
 
-- [ ] **Step 4: Confirm route layer no longer rebuilds the registry directly**
+- [x] **Step 4: Confirm route layer no longer rebuilds the registry directly**
 
 Run: `rg -n "registry\\(\\)\\.rebuild|runtime_registry\\.rebuild" api/apps/api-server/src/routes`
 
 Expected: no matches under `api/apps/api-server/src/routes`.
 
-- [ ] **Step 5: Commit the verified topic-D batch**
+- [x] **Step 5: Commit the verified topic-D batch**
 
 ```bash
 git add .
 git commit -m "test: verify backend runtime registry closure"
 ```
 
-Plan complete and saved to `docs/superpowers/plans/2026-04-13-backend-qa-runtime-registry-closure.md`.
+## Execution Result
+
+- 2026-04-13 18: Task 1 completed in commit `1538edfc` (`refactor: move runtime registry sync into control plane orchestration`).
+- 2026-04-13 18: Task 2 completed in commit `ab5e7e74` (`refactor: remove route level runtime registry rebuilds`).
+- 2026-04-13 18: Verified with `cargo test -p control-plane model_definition_runtime_sync -- --nocapture`.
+- 2026-04-13 18: Verified with `cargo test -p api-server _tests::model_definition_routes::model_definition_routes_manage_models_and_fields_without_publish -- --exact --nocapture`.
+- 2026-04-13 18: Verified with `cargo test -p api-server _tests::runtime_model_routes::runtime_model_routes_create_fetch_update_delete_and_filter_records -- --exact --nocapture`.
+- 2026-04-13 18: Verified with `node scripts/node/verify-backend.js`.
+- 2026-04-13 18: Verified that `rg -n "registry\\(\\)\\.rebuild|runtime_registry\\.rebuild" api/apps/api-server/src/routes` returned no matches.
+
+Plan complete and executed in `docs/superpowers/plans/2026-04-13-backend-qa-runtime-registry-closure.md`.
