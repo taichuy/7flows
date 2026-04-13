@@ -1,3 +1,4 @@
 mod member_mapper_tests;
 mod migration_smoke;
 mod model_definition_repository_tests;
+mod physical_schema_repository_tests;
