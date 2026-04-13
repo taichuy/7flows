@@ -278,7 +278,27 @@ a {
 
 .app-shell-account-popup .ant-menu-item,
 .app-shell-account-popup .ant-menu-submenu-title {
-  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 58px;
+  margin: 0 !important;
+  padding: 0 18px !important;
+  text-align: center;
+  line-height: 1.25;
+}
+
+.app-shell-account-popup .ant-menu-title-content {
+  flex: none;
+  margin-inline: 0 !important;
+}
+
+.app-shell-account-popup-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  text-align: center;
 }
 
 .app-shell-content.ant-layout-content {

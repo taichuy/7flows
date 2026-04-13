@@ -49,6 +49,7 @@ test('renders the bootstrap shell and health state', async () => {
   expect((accountBlock as Element).textContent).toContain('Taichu');
   fireEvent.mouseEnter(accountTrigger);
   expect(await screen.findByText('Profile')).toBeInTheDocument();
+  expect(document.querySelectorAll('.app-shell-account-popup-label').length).toBe(3);
   expect(screen.queryByRole('link', { name: 'Theme Preview' })).not.toBeInTheDocument();
   expect(await screen.findByText(/api-server/i)).toBeInTheDocument();
 });

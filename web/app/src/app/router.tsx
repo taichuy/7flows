@@ -80,10 +80,19 @@ function AppHeaderActions() {
       ),
       popupClassName: 'app-shell-account-popup',
       children: [
-        { key: 'profile', label: 'Profile' },
-        { key: 'settings', label: 'Settings' },
+        {
+          key: 'profile',
+          label: <span className="app-shell-account-popup-label">Profile</span>
+        },
+        {
+          key: 'settings',
+          label: <span className="app-shell-account-popup-label">Settings</span>
+        },
         { type: 'divider' },
-        { key: 'sign-out', label: 'Sign out' }
+        {
+          key: 'sign-out',
+          label: <span className="app-shell-account-popup-label">Sign out</span>
+        }
       ]
     }
   ];
