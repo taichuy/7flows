@@ -21,7 +21,12 @@ where
         Self { repository }
     }
 
-    pub async fn get_me(&self, user_id: Uuid, team_id: Uuid) -> Result<MeProfile> {
+    pub async fn get_me(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        workspace_id: Uuid,
+    ) -> Result<MeProfile> {
         let user = self
             .repository
             .find_user_by_id(user_id)
@@ -29,7 +34,12 @@ where
             .ok_or(crate::errors::ControlPlaneError::NotFound("user"))?;
         let actor = self
             .repository
-            .load_actor_context(user_id, team_id, user.default_display_role.as_deref())
+            .load_actor_context(
+                user_id,
+                tenant_id,
+                workspace_id,
+                user.default_display_role.as_deref(),
+            )
             .await?;
 
         Ok(MeProfile { user, actor })

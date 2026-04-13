@@ -23,6 +23,7 @@ use crate::{
 #[derive(Debug, Serialize, ToSchema)]
 pub struct SessionResponse {
     pub actor: serde_json::Value,
+    pub session: serde_json::Value,
 }
 
 pub(crate) fn expired_session_cookie(cookie_name: &str) -> Cookie<'static> {
@@ -55,6 +56,13 @@ pub async fn get_session(
             "id": context.user.id,
             "account": context.user.account,
             "effective_display_role": context.actor.effective_display_role,
+            "current_workspace_id": context.actor.current_workspace_id,
+        }),
+        session: serde_json::json!({
+            "id": context.session.session_id,
+            "user_id": context.session.user_id,
+            "tenant_id": context.session.tenant_id,
+            "current_workspace_id": context.session.current_workspace_id,
         }),
     })))
 }

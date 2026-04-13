@@ -168,6 +168,7 @@ where
             .repository
             .load_actor_context(
                 user.id,
+                scope.tenant_id,
                 scope.workspace_id,
                 user.default_display_role.as_deref(),
             )

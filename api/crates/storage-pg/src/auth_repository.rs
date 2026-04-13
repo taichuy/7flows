@@ -442,7 +442,8 @@ impl AuthRepository for PgControlPlaneStore {
     async fn load_actor_context(
         &self,
         user_id: Uuid,
-        team_id: Uuid,
+        tenant_id: Uuid,
+        workspace_id: Uuid,
         display_role: Option<&str>,
     ) -> Result<ActorContext> {
         let codes: Vec<String> = sqlx::query_scalar(
@@ -455,7 +456,7 @@ impl AuthRepository for PgControlPlaneStore {
             "#,
         )
         .bind(user_id)
-        .bind(team_id)
+        .bind(workspace_id)
         .fetch_all(self.pool())
         .await?;
 
@@ -471,7 +472,7 @@ impl AuthRepository for PgControlPlaneStore {
             "#,
         )
         .bind(user_id)
-        .bind(team_id)
+        .bind(workspace_id)
         .fetch_all(self.pool())
         .await?;
 
@@ -480,10 +481,19 @@ impl AuthRepository for PgControlPlaneStore {
             .or_else(|| codes.first().cloned())
             .unwrap_or_else(|| "manager".to_string());
 
+        if codes.iter().any(|code| code == "root") {
+            return Ok(ActorContext::root_in_scope(
+                user_id,
+                tenant_id,
+                workspace_id,
+                &effective_display_role,
+            ));
+        }
+
         Ok(ActorContext::scoped_in_scope(
             user_id,
-            tenant_id_for_team(self.pool(), team_id).await?,
-            team_id,
+            tenant_id,
+            workspace_id,
             &effective_display_role,
             permissions,
         ))

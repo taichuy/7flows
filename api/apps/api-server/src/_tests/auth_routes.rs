@@ -33,5 +33,7 @@ async fn public_auth_sign_in_sets_cookie_and_returns_wrapped_payload() {
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert!(payload["data"]["csrf_token"].is_string());
+    assert!(payload["data"]["current_workspace_id"].is_string());
+    assert!(payload["data"]["effective_display_role"].is_string());
     assert!(payload["meta"].is_null());
 }

@@ -247,7 +247,7 @@ pub async fn create_model(
             .as_deref()
             .map(|value| parse_uuid(value, "scope_id"))
             .transpose()?
-            .unwrap_or(context.actor.team_id),
+            .unwrap_or(context.actor.current_workspace_id),
         domain::DataModelScopeKind::App => body
             .scope_id
             .as_deref()

@@ -57,7 +57,8 @@ pub trait AuthRepository: Send + Sync {
     async fn load_actor_context(
         &self,
         user_id: Uuid,
-        team_id: Uuid,
+        tenant_id: Uuid,
+        workspace_id: Uuid,
         display_role: Option<&str>,
     ) -> anyhow::Result<ActorContext>;
     async fn update_password_hash(

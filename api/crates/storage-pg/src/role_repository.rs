@@ -13,7 +13,7 @@ use crate::{
     mappers::role_mapper::PgRoleMapper,
     repositories::{
         find_role_by_code, permission_codes_for_role, primary_team_id, stored_role_from_row,
-        team_id_for_user, PgControlPlaneStore,
+        team_id_for_user, tenant_id_for_team, PgControlPlaneStore,
     },
 };
 
@@ -21,7 +21,8 @@ use crate::{
 impl RoleRepository for PgControlPlaneStore {
     async fn load_actor_context_for_user(&self, actor_user_id: Uuid) -> Result<ActorContext> {
         let team_id = team_id_for_user(self.pool(), actor_user_id).await?;
-        AuthRepository::load_actor_context(self, actor_user_id, team_id, None).await
+        let tenant_id = tenant_id_for_team(self.pool(), team_id).await?;
+        AuthRepository::load_actor_context(self, actor_user_id, tenant_id, team_id, None).await
     }
 
     async fn list_roles(&self) -> Result<Vec<domain::RoleTemplate>> {

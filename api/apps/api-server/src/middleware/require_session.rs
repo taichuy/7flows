@@ -47,7 +47,8 @@ pub async fn require_session(
         .store
         .load_actor_context(
             user.id,
-            session.team_id,
+            session.tenant_id,
+            session.current_workspace_id,
             user.default_display_role.as_deref(),
         )
         .await?;

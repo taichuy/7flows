@@ -51,7 +51,7 @@ pub async fn get_team(
 ) -> Result<Json<ApiSuccess<TeamResponse>>, ApiError> {
     let context = require_session(&state, &headers).await?;
     let team = TeamService::new(state.store.clone())
-        .get_team(context.session.team_id)
+        .get_team(context.session.current_workspace_id)
         .await?;
 
     Ok(Json(ApiSuccess::new(to_team_response(team))))
@@ -74,7 +74,7 @@ pub async fn patch_team(
     let team = TeamService::new(state.store.clone())
         .update_team(UpdateTeamCommand {
             actor: context.actor,
-            team_id: context.session.team_id,
+            team_id: context.session.current_workspace_id,
             name: body.name,
             logo_url: body.logo_url,
             introduction: body.introduction,

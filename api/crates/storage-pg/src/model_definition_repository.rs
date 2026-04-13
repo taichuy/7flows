@@ -22,7 +22,7 @@ use crate::{
         create_runtime_model_table, drop_join_table, drop_runtime_column, drop_runtime_model_table,
         join_table_name, sanitize_identifier_fragment,
     },
-    repositories::{team_id_for_user, PgControlPlaneStore},
+    repositories::{team_id_for_user, tenant_id_for_team, PgControlPlaneStore},
 };
 
 struct ChangeLogEntry<'a> {
@@ -44,7 +44,8 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
         actor_user_id: Uuid,
     ) -> Result<domain::ActorContext> {
         let team_id = team_id_for_user(self.pool(), actor_user_id).await?;
-        AuthRepository::load_actor_context(self, actor_user_id, team_id, None).await
+        let tenant_id = tenant_id_for_team(self.pool(), team_id).await?;
+        AuthRepository::load_actor_context(self, actor_user_id, tenant_id, team_id, None).await
     }
 
     async fn list_model_definitions(&self) -> Result<Vec<domain::ModelDefinitionRecord>> {

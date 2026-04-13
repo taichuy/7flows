@@ -30,6 +30,7 @@ pub struct LoginBody {
 pub struct LoginResponse {
     pub csrf_token: String,
     pub effective_display_role: String,
+    pub current_workspace_id: String,
 }
 
 pub fn router() -> Router<Arc<ApiState>> {
@@ -69,7 +70,6 @@ pub async fn sign_in(
     State(state): State<Arc<ApiState>>,
     Json(body): Json<LoginBody>,
 ) -> Result<(CookieJar, Json<ApiSuccess<LoginResponse>>), ApiError> {
-    let team = state.store.upsert_team(&state.bootstrap_team_name).await?;
     let kernel = AuthKernel::new(
         state.store.clone(),
         SessionIssuer::new(state.session_store.clone(), state.session_ttl_days),
@@ -81,7 +81,6 @@ pub async fn sign_in(
                 .unwrap_or_else(|| "password-local".to_string()),
             identifier: body.identifier,
             password: body.password,
-            team_id: team.id,
         })
         .await?;
 
@@ -97,6 +96,7 @@ pub async fn sign_in(
         Json(ApiSuccess::new(LoginResponse {
             csrf_token: result.session.csrf_token,
             effective_display_role: result.actor.effective_display_role,
+            current_workspace_id: result.session.current_workspace_id.to_string(),
         })),
     ))
 }

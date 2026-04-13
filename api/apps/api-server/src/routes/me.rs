@@ -67,7 +67,11 @@ pub async fn get_me(
 ) -> Result<Json<ApiSuccess<MeResponse>>, ApiError> {
     let context = require_session(&state, &headers).await?;
     let profile = ProfileService::new(state.store.clone())
-        .get_me(context.user.id, context.session.team_id)
+        .get_me(
+            context.user.id,
+            context.session.tenant_id,
+            context.session.current_workspace_id,
+        )
         .await?;
     let mut permissions = profile.actor.permissions.into_iter().collect::<Vec<_>>();
     permissions.sort();

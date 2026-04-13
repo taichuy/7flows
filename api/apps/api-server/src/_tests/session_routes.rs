@@ -29,6 +29,12 @@ async fn session_route_returns_wrapped_actor_payload() {
     assert!(payload.get("data").is_some());
     assert!(payload.get("meta").is_some());
     assert_eq!(payload["data"]["actor"]["account"], "root");
+    assert!(payload["data"]["actor"]["current_workspace_id"].is_string());
+    assert!(payload["data"]["session"]["current_workspace_id"].is_string());
+    assert_eq!(
+        payload["data"]["actor"]["current_workspace_id"],
+        payload["data"]["session"]["current_workspace_id"]
+    );
 }
 
 #[tokio::test]

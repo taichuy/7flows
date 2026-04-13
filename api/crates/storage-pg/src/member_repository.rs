@@ -11,14 +11,17 @@ use uuid::Uuid;
 
 use crate::{
     auth_repository::map_user_row,
-    repositories::{is_root_user, primary_team_id, team_id_for_user, PgControlPlaneStore},
+    repositories::{
+        is_root_user, primary_team_id, team_id_for_user, tenant_id_for_team, PgControlPlaneStore,
+    },
 };
 
 #[async_trait]
 impl MemberRepository for PgControlPlaneStore {
     async fn load_actor_context_for_user(&self, actor_user_id: Uuid) -> Result<ActorContext> {
         let team_id = team_id_for_user(self.pool(), actor_user_id).await?;
-        AuthRepository::load_actor_context(self, actor_user_id, team_id, None).await
+        let tenant_id = tenant_id_for_team(self.pool(), team_id).await?;
+        AuthRepository::load_actor_context(self, actor_user_id, tenant_id, team_id, None).await
     }
 
     async fn create_member_with_default_role(

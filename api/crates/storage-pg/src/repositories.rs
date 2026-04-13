@@ -96,10 +96,12 @@ impl PgControlPlaneStore {
     pub async fn load_actor_context(
         &self,
         user_id: Uuid,
-        team_id: Uuid,
+        tenant_id: Uuid,
+        workspace_id: Uuid,
         display_role: Option<&str>,
     ) -> Result<ActorContext> {
-        AuthRepository::load_actor_context(self, user_id, team_id, display_role).await
+        AuthRepository::load_actor_context(self, user_id, tenant_id, workspace_id, display_role)
+            .await
     }
 
     pub async fn update_password_hash(

@@ -434,13 +434,14 @@ impl AuthRepository for MemoryAuthRepository {
     async fn load_actor_context(
         &self,
         user_id: Uuid,
-        team_id: Uuid,
+        tenant_id: Uuid,
+        workspace_id: Uuid,
         display_role: Option<&str>,
     ) -> Result<ActorContext> {
         Ok(ActorContext {
             user_id,
-            tenant_id: Uuid::nil(),
-            current_workspace_id: team_id,
+            tenant_id,
+            current_workspace_id: workspace_id,
             effective_display_role: display_role.unwrap_or("manager").to_string(),
             is_root: false,
             permissions: Default::default(),
