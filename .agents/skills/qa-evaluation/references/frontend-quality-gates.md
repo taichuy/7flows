@@ -62,6 +62,12 @@
   - 单文件不应无边界承载路由、导航、菜单、权限、状态与视觉逻辑
   - 单目录文件数过多时应收纳
 
+## Gate 5: Runtime Style Regression Evidence
+
+- 导航、共享壳层、全局样式、第三方 slot 覆写改动后，必须至少运行一次 `node scripts/node/check-style-boundary.js component|page|file ...`
+- `--file` 模式若提示“覆盖关系未声明”，视为门禁未通过，先补场景映射
+- 失败报告必须包含场景 ID、关键节点、样式属性、实际值、命中的 selector，以及 `uploads/` 中的截图
+
 ## Default Severity Hints
 
 | 场景 | 建议严重度 |
