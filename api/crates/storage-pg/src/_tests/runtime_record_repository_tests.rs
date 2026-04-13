@@ -15,6 +15,7 @@ fn database_url() -> String {
 }
 
 async fn insert_user(store: &PgControlPlaneStore, user_id: Uuid, account: &str) {
+    let unique_account = format!("{account}-{}", user_id.simple());
     sqlx::query(
         r#"
         insert into users (
@@ -28,10 +29,10 @@ async fn insert_user(store: &PgControlPlaneStore, user_id: Uuid, account: &str) 
         "#,
     )
     .bind(user_id)
-    .bind(account)
-    .bind(format!("{account}@example.com"))
-    .bind(account)
-    .bind(account)
+    .bind(&unique_account)
+    .bind(format!("{unique_account}@example.com"))
+    .bind(&unique_account)
+    .bind(&unique_account)
     .execute(store.pool())
     .await
     .unwrap();

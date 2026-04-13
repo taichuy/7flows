@@ -20,7 +20,7 @@ fn map_runtime_error(error: anyhow::Error) -> ApiError {
     if let Some(runtime_core::runtime_acl::RuntimeAclError::PermissionDenied(reason)) =
         error.downcast_ref::<runtime_core::runtime_acl::RuntimeAclError>()
     {
-        return control_plane::errors::ControlPlaneError::PermissionDenied(*reason).into();
+        return control_plane::errors::ControlPlaneError::PermissionDenied(reason).into();
     }
 
     if error.to_string().contains("runtime record not found") {

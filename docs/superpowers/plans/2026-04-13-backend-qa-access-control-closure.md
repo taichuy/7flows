@@ -290,13 +290,13 @@ Execution note (`2026-04-13 16`):
 - Test: `api/apps/api-server/src/_tests/model_definition_routes.rs`
 - Test: `api/apps/api-server/src/_tests/runtime_model_routes.rs`
 
-- [ ] **Step 1: Run the control-plane access-control regressions**
+- [x] **Step 1: Run the control-plane access-control regressions**
 
 Run: `cargo test -p control-plane model_definition_acl -- --nocapture`
 
 Expected: PASS
 
-- [ ] **Step 2: Run the runtime-core and storage-pg regressions**
+- [x] **Step 2: Run the runtime-core and storage-pg regressions**
 
 Run: `cargo test -p runtime-core runtime_acl -- --nocapture`
 
@@ -306,7 +306,7 @@ Run: `cargo test -p storage-pg runtime_record_repository -- --nocapture`
 
 Expected: PASS
 
-- [ ] **Step 3: Run the api-server access-control regressions**
+- [x] **Step 3: Run the api-server access-control regressions**
 
 Run: `cargo test -p api-server model_definition_routes_require_state_model_visibility -- --exact`
 
@@ -316,17 +316,30 @@ Run: `cargo test -p api-server runtime_model_routes_enforce_state_data_acl -- --
 
 Expected: PASS
 
-- [ ] **Step 4: Run the unified backend verification**
+- [x] **Step 4: Run the unified backend verification**
 
 Run: `node scripts/node/verify-backend.js`
 
 Expected: PASS
 
-- [ ] **Step 5: Commit the verified topic-A batch**
+- [x] **Step 5: Commit the verified topic-A batch**
 
 ```bash
 git add .
 git commit -m "test: verify backend qa access control closure"
 ```
+
+Execution note (`2026-04-13 16`):
+- Fresh verification completed with:
+  - `cargo test -p control-plane model_definition_acl -- --nocapture`
+  - `cargo test -p runtime-core runtime_acl -- --nocapture`
+  - `cargo test -p storage-pg runtime_record_repository -- --nocapture`
+  - `cargo test -p api-server --lib _tests::model_definition_routes::model_definition_routes_require_state_model_visibility -- --exact`
+  - `cargo test -p api-server --lib _tests::runtime_model_routes::runtime_model_routes_enforce_state_data_acl -- --exact`
+  - `node scripts/node/verify-backend.js`
+- Two verification-time issues were fixed before the final green sweep:
+  - `cargo test -p storage-pg runtime_record_repository -- --nocapture` initially failed because the new SQL ACL test inserted fixed user accounts and hit `users_account_key` on rerun; the helper now derives unique accounts from `user_id`, so repeated verification remains green.
+  - `node scripts/node/verify-backend.js` initially failed on `clippy::explicit_auto_deref` in `api/apps/api-server/src/routes/runtime_models.rs`; removing the unnecessary explicit dereference made the unified backend script pass.
+- For `api-server` unit tests with `--exact`, the actual executed commands used full module paths to avoid Rust unit-test name mismatch under `src/_tests`.
 
 Plan complete and saved to `docs/superpowers/plans/2026-04-13-backend-qa-access-control-closure.md`.
