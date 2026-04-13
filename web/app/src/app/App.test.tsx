@@ -42,11 +42,10 @@ test('renders the bootstrap shell and health state', async () => {
   expect(
     within(primaryNavigation).queryByRole('link', { name: 'Agent Flow' })
   ).not.toBeInTheDocument();
-  const accountTrigger = screen.getByText('Taichu');
+  const accountTrigger = screen.getByRole('menuitem', { name: 'Taichu' });
   expect(accountTrigger).toBeInTheDocument();
-  fireEvent.click(accountTrigger);
-  expect(document.querySelector('.ant-dropdown-placement-bottomLeft')).not.toBeNull();
-  expect(screen.getByText('Profile')).toBeInTheDocument();
+  fireEvent.mouseEnter(accountTrigger);
+  expect(await screen.findByText('Profile')).toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'Theme Preview' })).not.toBeInTheDocument();
   expect(await screen.findByText(/api-server/i)).toBeInTheDocument();
 });

@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: 正式 web 已回流 tmp/mock-ui 的浅色翡翠壳层主题与导航
-summary: 用户确认 `tmp/mock-ui` 的主题和导航审美方向后，正式 `web` 已回流浅色翡翠主题 token、顶部水平导航和右侧纯文本账户入口；当前顶栏文案固定为“工作台 / 团队 / 前台”，账户入口与右边缘保持 `5%` 间距，账户下拉改为左对齐锚点，且没有把 `theme-preview` 这类沙盒展示页一起带回主应用。
+summary: 用户确认 `tmp/mock-ui` 的主题和导航审美方向后，正式 `web` 已回流浅色翡翠主题 token、顶部水平导航和右侧纯文本账户入口；当前顶栏文案固定为“工作台 / 团队 / 前台”，账户入口与右边缘保持 `5%` 间距，账户下拉按 Ant Design horizontal `SubMenu` 模式实现，用户名就是 submenu label，且没有把 `theme-preview` 这类沙盒展示页一起带回主应用。
 keywords:
   - web
   - tmp/mock-ui
@@ -32,7 +32,7 @@ scope:
 
 ## 谁在做什么
 
-用户明确要求把 `tmp/mock-ui` 里更符合审美的主题和导航栏迁移到正式 `web`，并进一步把导航文案收敛为“工作台 / 团队 / 前台”，同时把右侧账户入口从贴边状态后退到距右边缘 `5%` 的位置，账户下拉相对触发项改为左对齐。AI 已将这些壳层规则落实到正式前端。
+用户明确要求把 `tmp/mock-ui` 里更符合审美的主题和导航栏迁移到正式 `web`，并进一步把导航文案收敛为“工作台 / 团队 / 前台”，同时把右侧账户入口从贴边状态后退到距右边缘 `5%` 的位置。账户下拉最终不再使用独立 `Dropdown`，而是参考 Ant Design 顶部 `Navigation Three - Submenu` 的做法，用 horizontal `SubMenu` 实现，用户名就是 label。AI 已将这些壳层规则落实到正式前端。
 
 ## 为什么这样做
 

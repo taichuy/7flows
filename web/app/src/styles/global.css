@@ -207,55 +207,60 @@ a {
   min-width: max-content;
 }
 
+.app-shell-account-menu.ant-menu-horizontal {
+  border-bottom: none !important;
+  background: transparent !important;
+  line-height: 1;
+  min-width: max-content;
+}
+
+.app-shell-account-menu.ant-menu-horizontal::after {
+  display: none;
+}
+
+.app-shell-account-menu.ant-menu-horizontal > .ant-menu-submenu {
+  top: 0;
+  display: flex;
+  align-items: center;
+  height: 56px;
+  margin: 0 !important;
+  padding-inline: 0 !important;
+  border: none;
+  color: var(--text-primary) !important;
+}
+
+.app-shell-account-menu.ant-menu-horizontal > .ant-menu-submenu::after {
+  inset-inline: 0 !important;
+  border-bottom-width: 2px !important;
+}
+
+.app-shell-account-menu.ant-menu-horizontal > .ant-menu-submenu .ant-menu-submenu-title {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  padding-inline: 4px !important;
+  color: var(--text-secondary);
+}
+
+.app-shell-account-menu.ant-menu-horizontal > .ant-menu-submenu:hover .ant-menu-submenu-title,
+.app-shell-account-menu.ant-menu-horizontal > .ant-menu-submenu-open .ant-menu-submenu-title {
+  color: var(--text-primary);
+}
+
 .app-shell-account-label {
   font-size: 14px;
   font-weight: 500;
 }
 
-.app-shell-account-trigger {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 56px;
-  padding: 0 4px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: color 160ms ease;
-}
-
-.app-shell-account-trigger::after {
-  content: "";
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  border-bottom: 2px solid var(--color-primary);
-  transform: scaleX(0);
-  transform-origin: left center;
-  transition: transform 160ms ease;
-}
-
-.app-shell-account-trigger:hover,
-.app-shell-account-trigger.is-open {
-  color: var(--text-primary);
-}
-
-.app-shell-account-trigger:hover::after,
-.app-shell-account-trigger.is-open::after {
-  transform: scaleX(1);
-}
-
-.app-shell-account-dropdown .ant-dropdown-menu {
+.app-shell-account-popup .ant-menu {
   min-width: 240px;
   border-radius: 18px;
   padding: 14px 0;
   box-shadow: var(--shadow-float);
 }
 
-.app-shell-account-dropdown .ant-dropdown-menu-item,
-.app-shell-account-dropdown .ant-dropdown-menu-submenu-title {
+.app-shell-account-popup .ant-menu-item,
+.app-shell-account-popup .ant-menu-submenu-title {
   padding: 14px 28px;
 }
 
