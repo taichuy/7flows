@@ -13,8 +13,8 @@ match_when:
   - 输出 `running 0 tests`
   - 预期存在的 src 内单元测试没有被命中
 created_at: 2026-04-13 12
-updated_at: 2026-04-13 12
-last_verified_at: 2026-04-13 12
+updated_at: 2026-04-13 15
+last_verified_at: 2026-04-13 15
 decision_policy: reference_on_failure
 scope:
   - cargo
@@ -83,3 +83,4 @@ cargo test -p api-server --lib _tests::runtime_model_routes::runtime_model_route
 ## 复现记录
 
 - `2026-04-13 12`：执行数据建模物理表 runtime 计划的 Task 4 聚焦测试时首次触发；改为先列出测试名并传入完整模块路径后，目标用例正常执行。
+- `2026-04-13 15`：执行 `cargo test -p api-server delete_session_route_clears_current_session -- --exact` 时显示 `running 0 tests`；改为 `_tests::session_routes::delete_session_route_clears_current_session` 后命中真实用例并暴露 405 路由缺失。

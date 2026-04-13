@@ -86,7 +86,10 @@ async fn change_password_updates_hash_and_deletes_current_session() {
     let user = repository.user();
     assert_eq!(user.password_hash, "new-password-hash");
     assert_eq!(user.session_version, 2);
-    assert_eq!(session_store.deleted_session_ids(), vec![session.session_id]);
+    assert_eq!(
+        session_store.deleted_session_ids(),
+        vec![session.session_id]
+    );
     assert_eq!(repository.audit_events(), vec!["user.password_changed"]);
 }
 
@@ -111,6 +114,9 @@ async fn revoke_all_bumps_session_version_and_deletes_current_session() {
         repository.bump_session_version_calls(),
         vec![(repository.user().id, repository.user().id)]
     );
-    assert_eq!(session_store.deleted_session_ids(), vec![session.session_id]);
+    assert_eq!(
+        session_store.deleted_session_ids(),
+        vec![session.session_id]
+    );
     assert_eq!(repository.audit_events(), vec!["session.revoke_all"]);
 }
