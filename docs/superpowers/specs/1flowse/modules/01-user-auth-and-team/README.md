@@ -23,10 +23,6 @@
 - 会话基础能力
 - 与权限模块衔接的角色骨架和授权载体定义
 
-## 后端落地计划
-
-- `2026-04-13`：当前后端 QA 修复已按模块拆分。模块 01 只承接“会话与认证闭环”以及“路由与 OpenAPI 契约收口”中 `session / me / members` 的部分，实施入口见 [2026-04-13-module-01-user-auth-and-team-qa-remediation.md](../../../../plans/2026-04-13-module-01-user-auth-and-team-qa-remediation.md)。
-
 ## 已确认
 
 - P1 唯一一等空间对象是 `Team Workspace`。
