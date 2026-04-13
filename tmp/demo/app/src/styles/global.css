@@ -201,8 +201,11 @@ button {
 .demo-shell-actions {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.demo-shell-actions-desktop {
+  display: flex;
 }
 
 .demo-shell-status.ant-tag {
@@ -211,6 +214,10 @@ button {
   border-radius: 999px;
   color: #0a3a29;
   background: rgba(0, 217, 146, 0.13);
+}
+
+.demo-shell-status-mobile.ant-tag {
+  width: fit-content;
 }
 
 .demo-shell-profile {
@@ -235,8 +242,65 @@ button {
   color: var(--text-tertiary);
 }
 
-.demo-shell-profile-meta {
+.demo-shell-profile-meta,
+.demo-shell-mobile-meta {
   font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.demo-shell-mobile-trigger {
+  display: none;
+  min-height: 36px;
+  padding-inline: 14px;
+  border-radius: 10px;
+}
+
+.demo-shell-mobile-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.demo-shell-mobile-summary {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  background: rgba(248, 252, 249, 0.9);
+}
+
+.demo-shell-mobile-links {
+  display: grid;
+  gap: 10px;
+}
+
+.demo-shell-mobile-link {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.82);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.demo-shell-mobile-link:hover,
+.demo-shell-mobile-link.is-active {
+  border-color: rgba(0, 217, 146, 0.42);
+  box-shadow: 0 16px 28px rgba(14, 24, 20, 0.08);
+  transform: translateY(-1px);
+}
+
+.demo-shell-mobile-link-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.demo-shell-mobile-link-note.ant-typography {
   color: var(--text-secondary);
 }
 
@@ -448,6 +512,12 @@ button {
   min-width: 0;
 }
 
+.section-stack {
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
 .entry-grid {
   display: grid;
   gap: 12px;
@@ -485,6 +555,87 @@ button {
 
 .entry-link-note {
   color: var(--text-secondary);
+}
+
+.row-meta-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 8px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.tool-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 12px;
+  align-items: center;
+}
+
+.tools-grid {
+  align-items: start;
+}
+
+.incident-trigger {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.incident-trigger-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.incident-trigger-summary {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.api-surface-list {
+  display: grid;
+  gap: 12px;
+}
+
+.api-surface-item {
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.api-surface-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.api-surface-method {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 58px;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(22, 33, 29, 0.06);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.api-surface-item .ant-typography {
+  margin: 0;
 }
 
 .drawer-timeline-card .ant-card-body {
@@ -681,25 +832,20 @@ button {
 
 @media (max-width: 960px) {
   .app-shell-header.ant-layout-header {
-    align-items: stretch;
-    flex-direction: column;
-    height: auto;
-    padding: 12px 14px;
+    gap: 12px;
+    padding: 0 14px;
   }
 
   .app-shell-header-main {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 10px;
+    gap: 12px;
   }
 
   .app-shell-nav {
-    width: 100%;
-    overflow-x: auto;
+    display: none;
   }
 
   .app-shell-actions {
-    justify-content: flex-start;
+    flex: 0 0 auto;
   }
 
   .app-shell-content.ant-layout-content {
@@ -715,6 +861,19 @@ button {
   .demo-grid-columns {
     grid-template-columns: 1fr;
   }
+
+   .demo-shell-actions-desktop {
+    display: none;
+  }
+
+  .demo-shell-mobile-trigger {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .tool-filter-bar {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {
@@ -727,14 +886,7 @@ button {
     grid-template-columns: 1fr;
   }
 
-  .demo-shell-actions {
-    width: 100%;
-    justify-content: flex-start;
-    gap: 10px;
-  }
-
-  .demo-shell-profile {
-    width: 100%;
-    justify-content: space-between;
+  .demo-page-hero {
+    padding: 18px;
   }
 }

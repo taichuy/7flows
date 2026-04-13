@@ -61,7 +61,7 @@ export function EmbeddedAppsPage() {
               title: '状态',
               dataIndex: 'status',
               key: 'status',
-              render: (value: string) => <StatusPill status={value as never}>{value}</StatusPill>
+              render: (_, record) => <StatusPill status={record.status}>{record.statusLabel}</StatusPill>
             }
           ]}
         />

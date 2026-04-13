@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Link } from '@tanstack/react-router';
 import { Card, Descriptions, Drawer, List, Space, Typography } from 'antd';
@@ -7,22 +7,49 @@ import {
   consoleEntries,
   demoRuns,
   governanceNotes,
+  homeActionQueue,
   workbenchMetrics,
   workspaceSnapshot
 } from '../demo-data';
 import { DemoPageHero } from '../../shared/ui/DemoPageHero';
 import { StatusPill } from '../../shared/ui/StatusPill';
 
+type HomeDrawerState =
+  | {
+      kind: 'queue';
+      id: string;
+    }
+  | {
+      kind: 'run';
+      id: string;
+    }
+  | null;
+
 export function HomePage() {
-  const [activeRunId, setActiveRunId] = useState<string | null>(null);
-  const activeRun = activeRunId ? demoRuns.find((item) => item.id === activeRunId) ?? null : null;
+  const [activePanel, setActivePanel] = useState<HomeDrawerState>(null);
+
+  const activeQueueItem = useMemo(
+    () =>
+      activePanel?.kind === 'queue'
+        ? homeActionQueue.find((item) => item.id === activePanel.id) ?? null
+        : null,
+    [activePanel]
+  );
+
+  const activeRun = useMemo(
+    () =>
+      activePanel?.kind === 'run'
+        ? demoRuns.find((item) => item.id === activePanel.id) ?? null
+        : null,
+    [activePanel]
+  );
 
   return (
     <div className="demo-page">
       <DemoPageHero
         kicker="控制台概览"
         title="工作台"
-        description="在这里查看平台健康、待处理事项和最近运行，再继续进入流程编排、子系统接入与工具台。"
+        description="在这里先看平台健康、行动队列和最近运行，再继续进入流程编排、子系统接入与工具台。"
         actions={
           <>
             <Link to="/studio" className="demo-cta-link demo-cta-link-primary">
@@ -61,39 +88,40 @@ export function HomePage() {
         ))}
       </div>
 
-      <Card title="待处理事项" className="demo-card demo-card-wide">
-        <div className="run-list">
-          {demoRuns.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="run-row-button"
-              aria-label={`查看 ${item.flow}`}
-              onClick={() => setActiveRunId(item.id)}
-            >
-              <div>
-                <div className="run-row-title">
-                  <span>{item.flow}</span>
-                  <StatusPill status={item.status}>{item.summary}</StatusPill>
-                </div>
-                <Typography.Paragraph className="run-row-note">
-                  {item.owner} · {item.startedAt}
-                </Typography.Paragraph>
-              </div>
-            </button>
-          ))}
-        </div>
-      </Card>
-
       <div className="demo-grid-columns">
-        <div className="demo-two-column">
+        <div className="demo-two-column section-stack">
+          <Card title="行动队列" className="demo-card">
+            <div className="run-list">
+              {homeActionQueue.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="run-row-button"
+                  aria-label={`查看 ${item.title}`}
+                  onClick={() => setActivePanel({ kind: 'queue', id: item.id })}
+                >
+                  <div className="run-row-title">
+                    <span>{item.title}</span>
+                    <StatusPill status={item.status}>{item.statusLabel}</StatusPill>
+                  </div>
+                  <Typography.Paragraph className="run-row-note">{item.summary}</Typography.Paragraph>
+                  <div className="row-meta-line">
+                    <span>{item.area}</span>
+                    <span>{item.owner}</span>
+                    <span>{item.dueAt}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </Card>
+
           <Card title="常用入口" className="demo-card">
             <div className="entry-grid">
               {consoleEntries.map((entry) => (
                 <Link key={entry.title} to={entry.href} className="entry-link-card">
                   <div className="entry-link-header">
                     <Typography.Text strong>{entry.title}</Typography.Text>
-                    <StatusPill status={entry.status}>{entry.status}</StatusPill>
+                    <StatusPill status={entry.status}>{entry.badge}</StatusPill>
                   </div>
                   <Typography.Paragraph>{entry.description}</Typography.Paragraph>
                   <Typography.Text className="entry-link-note">{entry.note}</Typography.Text>
@@ -103,7 +131,7 @@ export function HomePage() {
           </Card>
         </div>
 
-        <div className="demo-two-column">
+        <div className="demo-two-column section-stack">
           <Card title="最近运行" className="demo-card">
             <div className="run-list">
               {demoRuns.map((item) => (
@@ -112,17 +140,15 @@ export function HomePage() {
                   type="button"
                   className="run-row-button"
                   aria-label={`查看 ${item.flow}`}
-                  onClick={() => setActiveRunId(item.id)}
+                  onClick={() => setActivePanel({ kind: 'run', id: item.id })}
                 >
-                  <div>
-                    <div className="run-row-title">
-                      <span>{item.id}</span>
-                      <StatusPill status={item.status}>{item.summary}</StatusPill>
-                    </div>
-                    <Typography.Paragraph className="run-row-note">
-                      {item.flow} · {item.owner} · {item.startedAt}
-                    </Typography.Paragraph>
+                  <div className="run-row-title">
+                    <span>{item.flow}</span>
+                    <StatusPill status={item.status}>{item.summary}</StatusPill>
                   </div>
+                  <Typography.Paragraph className="run-row-note">
+                    {item.id} · {item.owner} · {item.startedAt}
+                  </Typography.Paragraph>
                 </button>
               ))}
             </div>
@@ -145,11 +171,52 @@ export function HomePage() {
       </div>
 
       <Drawer
-        open={Boolean(activeRun)}
-        title={activeRun?.flow}
+        open={Boolean(activeQueueItem || activeRun)}
+        title={activeQueueItem?.title ?? activeRun?.flow}
         width={440}
-        onClose={() => setActiveRunId(null)}
+        onClose={() => setActivePanel(null)}
       >
+        {activeQueueItem ? (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Typography.Paragraph>{activeQueueItem.detail}</Typography.Paragraph>
+            <Descriptions
+              column={1}
+              colon={false}
+              items={[
+                {
+                  key: 'area',
+                  label: '治理域',
+                  children: activeQueueItem.area
+                },
+                {
+                  key: 'owner',
+                  label: '负责人',
+                  children: activeQueueItem.owner
+                },
+                {
+                  key: 'dueAt',
+                  label: '处理时点',
+                  children: activeQueueItem.dueAt
+                },
+                {
+                  key: 'nextAction',
+                  label: '下一步',
+                  children: activeQueueItem.nextAction
+                }
+              ]}
+            />
+            <Card size="small" title="建议处理顺序" className="drawer-timeline-card">
+              <List
+                dataSource={activeQueueItem.followUps}
+                renderItem={(item) => <List.Item>{item}</List.Item>}
+              />
+            </Card>
+            <Link to={activeQueueItem.href} className="demo-cta-link demo-cta-link-primary">
+              前往对应页面
+            </Link>
+          </Space>
+        ) : null}
+
         {activeRun ? (
           <Space direction="vertical" size="middle" style={{ width: '100%' }}>
             <Typography.Paragraph>{activeRun.detail}</Typography.Paragraph>
@@ -159,17 +226,17 @@ export function HomePage() {
               items={[
                 {
                   key: 'flow',
-                  label: 'Flow',
+                  label: '流程',
                   children: activeRun.flow
                 },
                 {
                   key: 'owner',
-                  label: 'Owner',
+                  label: '负责人',
                   children: activeRun.owner
                 },
                 {
                   key: 'startedAt',
-                  label: 'Started',
+                  label: '开始时间',
                   children: activeRun.startedAt
                 }
               ]}

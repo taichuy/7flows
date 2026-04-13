@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import {
   Link,
   Outlet,
@@ -7,7 +9,7 @@ import {
   createRouter,
   useRouterState
 } from '@tanstack/react-router';
-import { Menu, Space, Tag, Typography } from 'antd';
+import { Button, Drawer, Menu, Space, Tag, Typography } from 'antd';
 import type { MenuProps } from 'antd';
 
 import { AppShell } from '@1flowse/ui';
@@ -19,10 +21,30 @@ import { SettingsPage } from '../features/settings/SettingsPage';
 import { ToolsPage } from '../features/tools/ToolsPage';
 
 const primaryRoutes = [
-  { key: 'home', label: '工作台', to: '/' },
-  { key: 'subsystems', label: '子系统', to: '/subsystems' },
-  { key: 'tools', label: '工具', to: '/tools' },
-  { key: 'settings', label: '设置', to: '/settings' }
+  {
+    key: 'home',
+    label: '工作台',
+    to: '/',
+    description: '查看行动队列与最近运行'
+  },
+  {
+    key: 'subsystems',
+    label: '子系统',
+    to: '/subsystems',
+    description: '管理挂载入口与宿主边界'
+  },
+  {
+    key: 'tools',
+    label: '工具',
+    to: '/tools',
+    description: '统一收口事件队列与接口治理'
+  },
+  {
+    key: 'settings',
+    label: '设置',
+    to: '/settings',
+    description: '管理账户、安全策略与权限矩阵'
+  }
 ] as const;
 
 function getSelectedKey(pathname: string) {
@@ -74,17 +96,71 @@ function AppNavigation() {
 }
 
 function AppHeaderActions() {
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname
+  });
+  const selectedKey = getSelectedKey(pathname);
+
   return (
-    <Space size={12} className="demo-shell-actions">
-      <Tag className="demo-shell-status" bordered={false}>
-        平台健康 99.94%
-      </Tag>
-      <Link to="/settings" className="demo-shell-profile" aria-label="打开账户与设置">
-        <span className="demo-shell-profile-name">Mina Chen</span>
-        <span className="demo-shell-profile-separator">·</span>
-        <span className="demo-shell-profile-meta">Growth Lab</span>
-      </Link>
-    </Space>
+    <>
+      <Space size={12} className="demo-shell-actions demo-shell-actions-desktop">
+        <Tag className="demo-shell-status" bordered={false}>
+          平台健康 99.94%
+        </Tag>
+        <Link to="/settings" className="demo-shell-profile" aria-label="打开账户与设置">
+          <span className="demo-shell-profile-name">Mina Chen</span>
+          <span className="demo-shell-profile-separator">·</span>
+          <span className="demo-shell-profile-meta">Growth Lab</span>
+        </Link>
+      </Space>
+
+      <Button
+        className="demo-shell-mobile-trigger"
+        aria-label="打开导航菜单"
+        onClick={() => setIsDrawerOpen(true)}
+      >
+        导航
+      </Button>
+
+      <Drawer
+        title="控制台导航"
+        placement="right"
+        width={320}
+        open={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+      >
+        <div className="demo-shell-mobile-stack">
+          <div className="demo-shell-mobile-summary">
+            <Typography.Text strong>Mina Chen</Typography.Text>
+            <Typography.Text className="demo-shell-mobile-meta">Growth Lab</Typography.Text>
+            <Typography.Text className="demo-shell-mobile-meta">平台负责人</Typography.Text>
+          </div>
+
+          <Tag className="demo-shell-status demo-shell-status-mobile" bordered={false}>
+            平台健康 99.94%
+          </Tag>
+
+          <div className="demo-shell-mobile-links">
+            {primaryRoutes.map((route) => (
+              <Link
+                key={route.key}
+                to={route.to}
+                className={`demo-shell-mobile-link ${
+                  route.key === selectedKey ? 'is-active' : ''
+                }`}
+                onClick={() => setIsDrawerOpen(false)}
+              >
+                <span className="demo-shell-mobile-link-label">{route.label}</span>
+                <Typography.Text className="demo-shell-mobile-link-note">
+                  {route.description}
+                </Typography.Text>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </Drawer>
+    </>
   );
 }
 

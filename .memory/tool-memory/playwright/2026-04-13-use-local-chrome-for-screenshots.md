@@ -1,7 +1,7 @@
 ---
 memory_type: tool
 topic: Playwright 默认浏览器缺失时应改用本机 Chrome 通道截图
-summary: 当前环境下 `playwright screenshot` 默认会找缺失的 Playwright 内置浏览器；改用 `--browser chromium --channel chrome` 并提权后可正常截图。若不提权，系统 Chrome 也可能因 `setsockopt: Operation not permitted` 提前退出；移动端应优先用 `Pixel 5` 这类 Chromium 设备模拟。
+summary: 当前环境下 `playwright screenshot` 默认会找缺失的 Playwright 内置浏览器；改用 `--browser chromium --channel chrome` 并提权后可正常截图。若不提权，系统 Chrome 也可能因 `setsockopt: Operation not permitted` 提前退出；移动端应优先用 `Pixel 5` 这类 Chromium 设备模拟。若提权未获放行，则只能退回浏览器 DOM 快照做无图验收。
 keywords:
   - playwright
   - screenshot
@@ -13,8 +13,8 @@ match_when:
   - 需要在当前机器上做本地页面截图
   - 需要验证移动端布局
 created_at: 2026-04-13 01
-updated_at: 2026-04-13 02
-last_verified_at: 2026-04-13 02
+updated_at: 2026-04-14 02
+last_verified_at: 2026-04-14 02
 decision_policy: reference_on_failure
 scope:
   - playwright
@@ -68,6 +68,9 @@ playwright screenshot --browser chromium --channel chrome ...
 - 验证移动端布局时，优先用 `--device 'Pixel 5'`
   - 直接只缩小桌面浏览器视口，容易看到桌面语义干扰
   - `iPhone 13` 在当前命令链路下会走 `webkit`，不适合与 `chrome` 通道混用
+- 如果提权请求未获放行，`playwright screenshot` 这条链路本轮无法继续
+  - 可退回本机 Chrome DevTools 的页面快照检查结构和交互是否可达
+  - 这只能作为无图验收替代，不等价于最终截图证据
 
 ## 验证方式
 
@@ -78,3 +81,4 @@ playwright screenshot --browser chromium --channel chrome ...
 
 - `2026-04-13 01`：`tmp/demo` 截图时默认浏览器缺失，改用本机 Chrome 通道并提权后完成桌面与移动端截图。
 - `2026-04-13 02`：`tmp/demo` 新一轮验证时，移动端 `Pixel 5` 截图在提权下继续成功；桌面截图若不提权会因 `setsockopt: Operation not permitted` 导致 Chrome 进程提前退出，因此仍应优先走提权截图链路。
+- `2026-04-14 02`：`tmp/demo` 本轮迭代再次命中两个失败条件：默认 Playwright 浏览器缓存缺失，以及系统 Chrome 在未提权时因 `setsockopt: Operation not permitted` 退出；当提权截图请求未被放行时，只能改用 Chrome DevTools 页面快照继续做无图验收。

@@ -31,9 +31,7 @@ export function AgentFlowPage() {
                 >
                   <span className="studio-node-kind">{item.kind}</span>
                   <span className="studio-node-name">{item.name}</span>
-                  <StatusPill status={item.status}>
-                    {item.status === 'healthy' ? 'ready' : item.status}
-                  </StatusPill>
+                  <StatusPill status={item.status}>{item.statusLabel}</StatusPill>
                 </button>
               ))}
             </div>
@@ -73,7 +71,7 @@ export function AgentFlowPage() {
                   {
                     key: 'status',
                     label: '状态',
-                    children: <StatusPill status={activeNode.status}>{activeNode.status}</StatusPill>
+                    children: <StatusPill status={activeNode.status}>{activeNode.statusLabel}</StatusPill>
                   }
                 ]}
               />
