@@ -1,3 +1,4 @@
+import { UserOutlined } from '@ant-design/icons';
 import {
   Link,
   Outlet,
@@ -69,10 +70,7 @@ function AppHeaderActions() {
   return (
     <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
       <Button className="app-shell-user-trigger" aria-label="Workspace settings" type="text">
-        <Avatar className="app-shell-user-avatar" size={32}>
-          TF
-        </Avatar>
-        <span className="app-shell-user-name">Taichu</span>
+        <UserOutlined className="app-shell-user-icon" />
       </Button>
     </Dropdown>
   );

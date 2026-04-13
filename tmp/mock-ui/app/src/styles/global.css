@@ -79,22 +79,21 @@ a {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  align-items: center;
-  min-height: 64px;
-  height: 64px;
+  min-height: 56px;
+  height: 56px;
   line-height: 1.2;
-  gap: 20px;
-  padding: 0 20px;
+  gap: 16px;
+  padding: 0 16px 0 18px;
   background: rgba(248, 252, 250, 0.94) !important;
   border-bottom: 1px solid rgba(213, 221, 216, 0.84);
-  box-shadow: 0 8px 22px rgba(13, 23, 18, 0.04);
-  backdrop-filter: blur(14px);
+  box-shadow: 0 6px 18px rgba(13, 23, 18, 0.035);
+  backdrop-filter: blur(12px);
 }
 
 .app-shell-header-main {
   display: flex;
   align-items: center;
-  gap: 28px;
+  gap: 22px;
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -120,12 +119,12 @@ a {
   margin: 0;
   display: inline-flex;
   align-items: center;
-  height: 24px;
-  padding: 0 8px;
+  height: 22px;
+  padding: 0 7px;
   border: 1px solid rgba(213, 221, 216, 0.84);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.68);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   line-height: 1;
   color: var(--text-secondary);
@@ -135,7 +134,7 @@ a {
 .app-shell-title.ant-typography {
   margin: 0 !important;
   color: var(--text-primary);
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1;
   white-space: nowrap;
 }
@@ -155,7 +154,7 @@ a {
 .app-shell-menu.ant-menu-horizontal {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   border-bottom: none !important;
   background: transparent !important;
   line-height: 1;
@@ -171,7 +170,7 @@ a {
   top: 0;
   display: flex;
   align-items: center;
-  height: 64px;
+  height: 56px;
   margin: 0 !important;
   padding-inline: 0 !important;
   color: var(--text-secondary) !important;
@@ -193,7 +192,7 @@ a {
   justify-content: center;
   height: 100%;
   padding: 0 4px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: inherit;
   white-space: nowrap;
@@ -233,34 +232,32 @@ a {
 .app-shell-user-trigger.ant-btn {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  height: 40px;
-  padding: 4px 6px 4px 4px;
-  border: 1px solid rgba(213, 221, 216, 0.88);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.78) !important;
+  justify-content: center;
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent !important;
   color: var(--text-primary) !important;
-  box-shadow: 0 4px 12px rgba(13, 23, 18, 0.04);
+  box-shadow: none;
 }
 
 .app-shell-user-trigger.ant-btn:hover,
 .app-shell-user-trigger.ant-btn:focus {
-  border-color: rgba(188, 200, 193, 0.96) !important;
-  background: rgba(255, 255, 255, 0.94) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
   color: var(--text-primary) !important;
 }
 
-.app-shell-user-avatar.ant-avatar {
-  background: linear-gradient(135deg, #d8fff0, #bdf4df);
-  color: #15553e;
-  font-size: 12px;
-  font-weight: 700;
+.app-shell-user-icon {
+  font-size: 16px;
+  color: var(--text-secondary);
 }
 
-.app-shell-user-name {
-  padding-right: 6px;
-  font-size: 14px;
-  font-weight: 500;
+.app-shell-user-trigger.ant-btn:hover .app-shell-user-icon,
+.app-shell-user-trigger.ant-btn:focus .app-shell-user-icon {
+  color: var(--text-primary);
 }
 
 .app-shell-content.ant-layout-content {
@@ -626,15 +623,15 @@ a {
   .app-shell-header.ant-layout-header {
     align-items: stretch;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     height: auto;
-    padding: 14px 16px 16px;
+    padding: 12px 14px 14px;
   }
 
   .app-shell-header-main {
     align-items: stretch;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
   }
 
