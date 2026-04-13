@@ -68,9 +68,16 @@ pub async fn test_app() -> Router {
         })
         .await
         .unwrap();
+    let runtime_registry = runtime_core::runtime_model_registry::RuntimeModelRegistry::default();
+    runtime_registry.rebuild(store.list_runtime_model_metadata().await.unwrap());
+    let runtime_engine = std::sync::Arc::new(runtime_core::runtime_engine::RuntimeEngine::new(
+        runtime_registry,
+        std::sync::Arc::new(store.clone()),
+    ));
 
     crate::app_with_state(std::sync::Arc::new(ApiState {
         store,
+        runtime_engine,
         session_store: SessionStoreHandle::InMemory(storage_redis::InMemorySessionStore::default()),
         cookie_name: config.cookie_name,
         session_ttl_days: config.session_ttl_days,

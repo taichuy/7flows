@@ -7,7 +7,7 @@ use serde_json::json;
 use tower::ServiceExt;
 
 #[tokio::test]
-async fn model_definition_routes_create_list_and_publish_model() {
+async fn model_definition_routes_manage_models_and_fields_without_publish() {
     let app = test_app().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
 
@@ -22,8 +22,9 @@ async fn model_definition_routes_create_list_and_publish_model() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
+                        "scope_kind": "team",
                         "code": "orders",
-                        "name": "Orders"
+                        "title": "Orders"
                     })
                     .to_string(),
                 ))
@@ -33,52 +34,39 @@ async fn model_definition_routes_create_list_and_publish_model() {
         .unwrap();
 
     assert_eq!(create_response.status(), StatusCode::CREATED);
-    let create_body = to_bytes(create_response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let created: serde_json::Value = serde_json::from_slice(&create_body).unwrap();
+    let created: serde_json::Value = serde_json::from_slice(
+        &to_bytes(create_response.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
     let model_id = created["data"]["id"].as_str().unwrap().to_string();
 
-    let list_response = app
+    let field_response = app
         .clone()
         .oneshot(
             Request::builder()
-                .method("GET")
-                .uri("/api/console/models")
-                .header("cookie", &cookie)
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(list_response.status(), StatusCode::OK);
-    let list_body = to_bytes(list_response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let listed: serde_json::Value = serde_json::from_slice(&list_body).unwrap();
-    assert!(listed["data"].is_array());
-
-    let publish_response = app
-        .oneshot(
-            Request::builder()
                 .method("POST")
-                .uri(format!("/api/console/models/{model_id}/actions/publish"))
+                .uri(format!("/api/console/models/{model_id}/fields"))
                 .header("cookie", &cookie)
                 .header("x-csrf-token", &csrf)
-                .body(Body::empty())
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "code": "status",
+                        "title": "Status",
+                        "field_kind": "enum",
+                        "is_required": true,
+                        "is_unique": false,
+                        "display_interface": "select",
+                        "display_options": { "options": ["draft", "paid"] }
+                    })
+                    .to_string(),
+                ))
                 .unwrap(),
         )
         .await
         .unwrap();
 
-    assert_eq!(publish_response.status(), StatusCode::OK);
-    let publish_body = to_bytes(publish_response.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    let published: serde_json::Value = serde_json::from_slice(&publish_body).unwrap();
-    assert!(published["data"]["resource"]["code"]
-        .as_str()
-        .unwrap()
-        .starts_with("models.runtime."));
+    assert_eq!(field_response.status(), StatusCode::CREATED);
 }

@@ -3,7 +3,7 @@ use control_plane::ports::{
 };
 use domain::{DataModelScopeKind, ModelFieldKind};
 use runtime_core::runtime_record_repository::{
-    RuntimeFilterInput, RuntimeRecordRepository, RuntimeSortInput,
+    RuntimeFilterInput, RuntimeListQuery, RuntimeRecordRepository, RuntimeSortInput,
 };
 use serde_json::json;
 use storage_pg::{connect, run_migrations, PgControlPlaneStore};
@@ -209,19 +209,21 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
     let listed = RuntimeRecordRepository::list_records(
         &store,
         &order_metadata,
-        team_id,
-        &[RuntimeFilterInput {
-            field_code: "status".into(),
-            operator: "eq".into(),
-            value: json!("paid"),
-        }],
-        &[RuntimeSortInput {
-            field_code: "title".into(),
-            direction: "desc".into(),
-        }],
-        &["customer".into()],
-        1,
-        20,
+        RuntimeListQuery {
+            scope_id: team_id,
+            filters: vec![RuntimeFilterInput {
+                field_code: "status".into(),
+                operator: "eq".into(),
+                value: json!("paid"),
+            }],
+            sorts: vec![RuntimeSortInput {
+                field_code: "title".into(),
+                direction: "desc".into(),
+            }],
+            expand_relations: vec!["customer".into()],
+            page: 1,
+            page_size: 20,
+        },
     )
     .await
     .unwrap();
@@ -250,12 +252,14 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
     let customers = RuntimeRecordRepository::list_records(
         &store,
         &customer_metadata,
-        team_id,
-        &[],
-        &[],
-        &["orders".into()],
-        1,
-        20,
+        RuntimeListQuery {
+            scope_id: team_id,
+            filters: vec![],
+            sorts: vec![],
+            expand_relations: vec!["orders".into()],
+            page: 1,
+            page_size: 20,
+        },
     )
     .await
     .unwrap();

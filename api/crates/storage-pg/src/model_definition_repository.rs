@@ -6,7 +6,7 @@ use control_plane::{
     errors::ControlPlaneError,
     ports::{
         AddModelFieldInput, AuthRepository, CreateModelDefinitionInput, ModelDefinitionRepository,
-        UpdateModelFieldInput,
+        UpdateModelDefinitionInput, UpdateModelFieldInput,
     },
 };
 use sqlx::{Postgres, Row, Transaction};
@@ -24,6 +24,18 @@ use crate::{
     },
     repositories::{team_id_for_user, PgControlPlaneStore},
 };
+
+struct ChangeLogEntry<'a> {
+    data_model_id: Option<Uuid>,
+    action: &'a str,
+    target_type: &'a str,
+    target_id: Option<Uuid>,
+    actor_user_id: Option<Uuid>,
+    before_snapshot: serde_json::Value,
+    after_snapshot: serde_json::Value,
+    execution_status: &'a str,
+    error_message: Option<String>,
+}
 
 #[async_trait]
 impl ModelDefinitionRepository for PgControlPlaneStore {
@@ -109,15 +121,17 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
             create_runtime_model_table(&mut tx, &model).await?;
             append_change_log_tx(
                 &mut tx,
-                Some(model.id),
-                "model.created",
-                "model_definition",
-                Some(model.id),
-                actor_user_id,
-                before_snapshot.clone(),
-                after_snapshot.clone(),
-                "success",
-                None,
+                &ChangeLogEntry {
+                    data_model_id: Some(model.id),
+                    action: "model.created",
+                    target_type: "model_definition",
+                    target_id: Some(model.id),
+                    actor_user_id,
+                    before_snapshot: before_snapshot.clone(),
+                    after_snapshot: after_snapshot.clone(),
+                    execution_status: "success",
+                    error_message: None,
+                },
             )
             .await
         }
@@ -132,20 +146,70 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 tx.rollback().await?;
                 append_change_log(
                     self.pool(),
-                    None,
-                    "model.created",
-                    "model_definition",
-                    Some(model.id),
-                    actor_user_id,
-                    before_snapshot,
-                    after_snapshot,
-                    "failed",
-                    Some(error.to_string()),
+                    &ChangeLogEntry {
+                        data_model_id: None,
+                        action: "model.created",
+                        target_type: "model_definition",
+                        target_id: Some(model.id),
+                        actor_user_id,
+                        before_snapshot,
+                        after_snapshot,
+                        execution_status: "failed",
+                        error_message: Some(error.to_string()),
+                    },
                 )
                 .await?;
                 Err(error)
             }
         }
+    }
+
+    async fn update_model_definition(
+        &self,
+        input: &UpdateModelDefinitionInput,
+    ) -> Result<domain::ModelDefinitionRecord> {
+        let row = sqlx::query(
+            r#"
+            update model_definitions
+            set title = $2,
+                updated_by = $3,
+                updated_at = now()
+            where id = $1
+            returning
+                id,
+                scope_kind,
+                scope_id,
+                code,
+                title,
+                physical_table_name,
+                acl_namespace,
+                audit_namespace
+            "#,
+        )
+        .bind(input.model_id)
+        .bind(&input.title)
+        .bind(nullable_actor_user_id(input.actor_user_id))
+        .fetch_optional(self.pool())
+        .await?
+        .ok_or(ControlPlaneError::NotFound("model_definition"))?;
+        let fields_by_model_id = load_fields_by_model_id(self.pool()).await?;
+
+        Ok(PgModelDefinitionMapper::to_model_definition_record(
+            StoredModelDefinitionRow {
+                id: row.get("id"),
+                scope_kind: row.get("scope_kind"),
+                scope_id: row.get("scope_id"),
+                code: row.get("code"),
+                title: row.get("title"),
+                physical_table_name: row.get("physical_table_name"),
+                acl_namespace: row.get("acl_namespace"),
+                audit_namespace: row.get("audit_namespace"),
+                fields: fields_by_model_id
+                    .get(&input.model_id)
+                    .cloned()
+                    .unwrap_or_default(),
+            },
+        ))
     }
 
     async fn add_model_field(
@@ -206,15 +270,17 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
             }
             append_change_log_tx(
                 &mut tx,
-                Some(model.id),
-                "field.created",
-                "model_field",
-                Some(field.id),
-                actor_user_id,
-                before_snapshot.clone(),
-                after_snapshot.clone(),
-                "success",
-                None,
+                &ChangeLogEntry {
+                    data_model_id: Some(model.id),
+                    action: "field.created",
+                    target_type: "model_field",
+                    target_id: Some(field.id),
+                    actor_user_id,
+                    before_snapshot: before_snapshot.clone(),
+                    after_snapshot: after_snapshot.clone(),
+                    execution_status: "success",
+                    error_message: None,
+                },
             )
             .await
         }
@@ -229,15 +295,17 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 tx.rollback().await?;
                 append_change_log(
                     self.pool(),
-                    Some(model.id),
-                    "field.created",
-                    "model_field",
-                    Some(field.id),
-                    actor_user_id,
-                    before_snapshot,
-                    after_snapshot,
-                    "failed",
-                    Some(error.to_string()),
+                    &ChangeLogEntry {
+                        data_model_id: Some(model.id),
+                        action: "field.created",
+                        target_type: "model_field",
+                        target_id: Some(field.id),
+                        actor_user_id,
+                        before_snapshot,
+                        after_snapshot,
+                        execution_status: "failed",
+                        error_message: Some(error.to_string()),
+                    },
                 )
                 .await?;
                 Err(error)
@@ -299,15 +367,17 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
             .await?;
             append_change_log_tx(
                 &mut tx,
-                Some(input.model_id),
-                "field.updated",
-                "model_field",
-                Some(input.field_id),
-                actor_user_id,
-                before_snapshot.clone(),
-                after_snapshot.clone(),
-                "success",
-                None,
+                &ChangeLogEntry {
+                    data_model_id: Some(input.model_id),
+                    action: "field.updated",
+                    target_type: "model_field",
+                    target_id: Some(input.field_id),
+                    actor_user_id,
+                    before_snapshot: before_snapshot.clone(),
+                    after_snapshot: after_snapshot.clone(),
+                    execution_status: "success",
+                    error_message: None,
+                },
             )
             .await
         }
@@ -322,15 +392,17 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 tx.rollback().await?;
                 append_change_log(
                     self.pool(),
-                    Some(input.model_id),
-                    "field.updated",
-                    "model_field",
-                    Some(input.field_id),
-                    actor_user_id,
-                    before_snapshot,
-                    after_snapshot,
-                    "failed",
-                    Some(error.to_string()),
+                    &ChangeLogEntry {
+                        data_model_id: Some(input.model_id),
+                        action: "field.updated",
+                        target_type: "model_field",
+                        target_id: Some(input.field_id),
+                        actor_user_id,
+                        before_snapshot,
+                        after_snapshot,
+                        execution_status: "failed",
+                        error_message: Some(error.to_string()),
+                    },
                 )
                 .await?;
                 Err(error)
@@ -358,15 +430,17 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 .await?;
             append_change_log_tx(
                 &mut tx,
-                None,
-                "model.deleted",
-                "model_definition",
-                Some(model_id),
-                actor_user_id,
-                before_snapshot.clone(),
-                serde_json::json!({}),
-                "success",
-                None,
+                &ChangeLogEntry {
+                    data_model_id: None,
+                    action: "model.deleted",
+                    target_type: "model_definition",
+                    target_id: Some(model_id),
+                    actor_user_id,
+                    before_snapshot: before_snapshot.clone(),
+                    after_snapshot: serde_json::json!({}),
+                    execution_status: "success",
+                    error_message: None,
+                },
             )
             .await
         }
@@ -381,15 +455,17 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 tx.rollback().await?;
                 append_change_log(
                     self.pool(),
-                    None,
-                    "model.deleted",
-                    "model_definition",
-                    Some(model_id),
-                    actor_user_id,
-                    before_snapshot,
-                    serde_json::json!({}),
-                    "failed",
-                    Some(error.to_string()),
+                    &ChangeLogEntry {
+                        data_model_id: None,
+                        action: "model.deleted",
+                        target_type: "model_definition",
+                        target_id: Some(model_id),
+                        actor_user_id,
+                        before_snapshot,
+                        after_snapshot: serde_json::json!({}),
+                        execution_status: "failed",
+                        error_message: Some(error.to_string()),
+                    },
                 )
                 .await?;
                 Err(error)
@@ -452,15 +528,17 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 .await?;
             append_change_log_tx(
                 &mut tx,
-                Some(model_id),
-                "field.deleted",
-                "model_field",
-                Some(field_id),
-                actor_user_id,
-                before_snapshot.clone(),
-                serde_json::json!({}),
-                "success",
-                None,
+                &ChangeLogEntry {
+                    data_model_id: Some(model_id),
+                    action: "field.deleted",
+                    target_type: "model_field",
+                    target_id: Some(field_id),
+                    actor_user_id,
+                    before_snapshot: before_snapshot.clone(),
+                    after_snapshot: serde_json::json!({}),
+                    execution_status: "success",
+                    error_message: None,
+                },
             )
             .await
         }
@@ -475,15 +553,17 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
                 tx.rollback().await?;
                 append_change_log(
                     self.pool(),
-                    Some(model_id),
-                    "field.deleted",
-                    "model_field",
-                    Some(field_id),
-                    actor_user_id,
-                    before_snapshot,
-                    serde_json::json!({}),
-                    "failed",
-                    Some(error.to_string()),
+                    &ChangeLogEntry {
+                        data_model_id: Some(model_id),
+                        action: "field.deleted",
+                        target_type: "model_field",
+                        target_id: Some(field_id),
+                        actor_user_id,
+                        before_snapshot,
+                        after_snapshot: serde_json::json!({}),
+                        execution_status: "failed",
+                        error_message: Some(error.to_string()),
+                    },
                 )
                 .await?;
                 Err(error)
@@ -820,15 +900,7 @@ async fn load_join_tables_for_model(
 
 async fn append_change_log_tx(
     tx: &mut Transaction<'_, Postgres>,
-    data_model_id: Option<Uuid>,
-    action: &str,
-    target_type: &str,
-    target_id: Option<Uuid>,
-    actor_user_id: Option<Uuid>,
-    before_snapshot: serde_json::Value,
-    after_snapshot: serde_json::Value,
-    execution_status: &str,
-    error_message: Option<String>,
+    entry: &ChangeLogEntry<'_>,
 ) -> Result<()> {
     sqlx::query(
         r#"
@@ -848,32 +920,21 @@ async fn append_change_log_tx(
         "#,
     )
     .bind(Uuid::now_v7())
-    .bind(data_model_id)
-    .bind(action)
-    .bind(target_type)
-    .bind(target_id)
-    .bind(actor_user_id)
-    .bind(before_snapshot)
-    .bind(after_snapshot)
-    .bind(execution_status)
-    .bind(error_message)
+    .bind(entry.data_model_id)
+    .bind(entry.action)
+    .bind(entry.target_type)
+    .bind(entry.target_id)
+    .bind(entry.actor_user_id)
+    .bind(&entry.before_snapshot)
+    .bind(&entry.after_snapshot)
+    .bind(entry.execution_status)
+    .bind(&entry.error_message)
     .execute(&mut **tx)
     .await?;
     Ok(())
 }
 
-async fn append_change_log(
-    pool: &sqlx::PgPool,
-    data_model_id: Option<Uuid>,
-    action: &str,
-    target_type: &str,
-    target_id: Option<Uuid>,
-    actor_user_id: Option<Uuid>,
-    before_snapshot: serde_json::Value,
-    after_snapshot: serde_json::Value,
-    execution_status: &str,
-    error_message: Option<String>,
-) -> Result<()> {
+async fn append_change_log(pool: &sqlx::PgPool, entry: &ChangeLogEntry<'_>) -> Result<()> {
     sqlx::query(
         r#"
         insert into model_change_logs (
@@ -892,15 +953,15 @@ async fn append_change_log(
         "#,
     )
     .bind(Uuid::now_v7())
-    .bind(data_model_id)
-    .bind(action)
-    .bind(target_type)
-    .bind(target_id)
-    .bind(actor_user_id)
-    .bind(before_snapshot)
-    .bind(after_snapshot)
-    .bind(execution_status)
-    .bind(error_message)
+    .bind(entry.data_model_id)
+    .bind(entry.action)
+    .bind(entry.target_type)
+    .bind(entry.target_id)
+    .bind(entry.actor_user_id)
+    .bind(&entry.before_snapshot)
+    .bind(&entry.after_snapshot)
+    .bind(entry.execution_status)
+    .bind(&entry.error_message)
     .execute(pool)
     .await?;
     Ok(())

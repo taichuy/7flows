@@ -97,6 +97,13 @@ pub struct CreateModelDefinitionInput {
 }
 
 #[derive(Debug, Clone)]
+pub struct UpdateModelDefinitionInput {
+    pub actor_user_id: Uuid,
+    pub model_id: Uuid,
+    pub title: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct AddModelFieldInput {
     pub actor_user_id: Uuid,
     pub model_id: Uuid,
@@ -200,6 +207,10 @@ pub trait ModelDefinitionRepository: Send + Sync {
     async fn create_model_definition(
         &self,
         input: &CreateModelDefinitionInput,
+    ) -> anyhow::Result<ModelDefinitionRecord>;
+    async fn update_model_definition(
+        &self,
+        input: &UpdateModelDefinitionInput,
     ) -> anyhow::Result<ModelDefinitionRecord>;
     async fn add_model_field(&self, input: &AddModelFieldInput)
         -> anyhow::Result<ModelFieldRecord>;

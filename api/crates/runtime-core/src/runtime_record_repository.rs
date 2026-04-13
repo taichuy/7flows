@@ -1,6 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;
+use uuid::Uuid;
 
 use crate::model_metadata::ModelMetadata;
 
@@ -23,17 +24,22 @@ pub struct RuntimeListResult {
     pub total: i64,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct RuntimeListQuery {
+    pub scope_id: Uuid,
+    pub filters: Vec<RuntimeFilterInput>,
+    pub sorts: Vec<RuntimeSortInput>,
+    pub expand_relations: Vec<String>,
+    pub page: i64,
+    pub page_size: i64,
+}
+
 #[async_trait]
 pub trait RuntimeRecordRepository: Send + Sync {
     async fn list_records(
         &self,
         metadata: &ModelMetadata,
-        scope_id: uuid::Uuid,
-        filters: &[RuntimeFilterInput],
-        sorts: &[RuntimeSortInput],
-        expand_relations: &[String],
-        page: i64,
-        page_size: i64,
+        query: RuntimeListQuery,
     ) -> Result<RuntimeListResult>;
     async fn get_record(
         &self,

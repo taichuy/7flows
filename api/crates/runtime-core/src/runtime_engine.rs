@@ -17,7 +17,7 @@ use crate::{
 };
 
 pub use crate::runtime_record_repository::{
-    RuntimeFilterInput, RuntimeListResult, RuntimeSortInput,
+    RuntimeFilterInput, RuntimeListQuery, RuntimeListResult, RuntimeSortInput,
 };
 
 #[derive(Debug, Clone)]
@@ -109,12 +109,14 @@ impl RuntimeEngine {
         self.records
             .list_records(
                 &metadata,
-                scope_id,
-                &input.filters,
-                &input.sorts,
-                &input.expand_relations,
-                input.page,
-                input.page_size,
+                RuntimeListQuery {
+                    scope_id,
+                    filters: input.filters,
+                    sorts: input.sorts,
+                    expand_relations: input.expand_relations,
+                    page: input.page,
+                    page_size: input.page_size,
+                },
             )
             .await
     }
@@ -218,23 +220,18 @@ impl RuntimeRecordRepository for InMemoryRuntimeRecordRepository {
     async fn list_records(
         &self,
         metadata: &ModelMetadata,
-        scope_id: Uuid,
-        filters: &[RuntimeFilterInput],
-        sorts: &[RuntimeSortInput],
-        _expand_relations: &[String],
-        page: i64,
-        page_size: i64,
+        query: RuntimeListQuery,
     ) -> Result<RuntimeListResult> {
-        let page = page.max(1);
-        let page_size = page_size.max(1);
+        let page = query.page.max(1);
+        let page_size = query.page_size.max(1);
         let records = self.records.lock().expect("runtime record lock poisoned");
         let mut items = records
             .get(&metadata.model_code)
-            .and_then(|scopes| scopes.get(&scope_id))
+            .and_then(|scopes| scopes.get(&query.scope_id))
             .cloned()
             .unwrap_or_default();
-        items.retain(|item| filter_matches(item, filters));
-        items.sort_by(|left, right| compare_records(left, right, sorts));
+        items.retain(|item| filter_matches(item, &query.filters));
+        items.sort_by(|left, right| compare_records(left, right, &query.sorts));
         let total = items.len() as i64;
         let offset = ((page - 1) * page_size) as usize;
         let items = items

@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use control_plane::ports::SessionStore;
 use domain::SessionRecord;
+use runtime_core::runtime_engine::RuntimeEngine;
 use storage_pg::PgControlPlaneStore;
 use storage_redis::{InMemorySessionStore, RedisSessionStore};
 
@@ -44,6 +45,7 @@ impl SessionStore for SessionStoreHandle {
 #[derive(Clone)]
 pub struct ApiState {
     pub store: PgControlPlaneStore,
+    pub runtime_engine: std::sync::Arc<RuntimeEngine>,
     pub session_store: SessionStoreHandle,
     pub cookie_name: String,
     pub session_ttl_days: i64,

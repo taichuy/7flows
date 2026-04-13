@@ -14,7 +14,7 @@ use crate::{
     errors::ControlPlaneError,
     ports::{
         AddModelFieldInput, CreateModelDefinitionInput, ModelDefinitionRepository,
-        UpdateModelFieldInput,
+        UpdateModelDefinitionInput, UpdateModelFieldInput,
     },
 };
 
@@ -29,6 +29,12 @@ pub struct CreateModelDefinitionCommand {
 pub struct PublishModelCommand {
     pub actor_user_id: Uuid,
     pub model_id: Uuid,
+}
+
+pub struct UpdateModelDefinitionCommand {
+    pub actor_user_id: Uuid,
+    pub model_id: Uuid,
+    pub title: String,
 }
 
 pub struct AddModelFieldCommand {
@@ -141,6 +147,38 @@ where
             .get_model_definition(model_id)
             .await?
             .ok_or_else(|| ControlPlaneError::NotFound("model_definition").into())
+    }
+
+    pub async fn update_model(
+        &self,
+        command: UpdateModelDefinitionCommand,
+    ) -> Result<domain::ModelDefinitionRecord> {
+        let actor = self
+            .repository
+            .load_actor_context_for_user(command.actor_user_id)
+            .await?;
+        ensure_permission(&actor, "state_model.manage.all")
+            .map_err(ControlPlaneError::PermissionDenied)?;
+
+        let model = self
+            .repository
+            .update_model_definition(&UpdateModelDefinitionInput {
+                actor_user_id: command.actor_user_id,
+                model_id: command.model_id,
+                title: command.title,
+            })
+            .await?;
+        self.repository
+            .append_audit_log(&audit_log(
+                Some(command.actor_user_id),
+                "state_model",
+                Some(command.model_id),
+                "state_model.updated",
+                serde_json::json!({ "title": model.title }),
+            ))
+            .await?;
+
+        Ok(model)
     }
 
     pub async fn add_field(
@@ -386,6 +424,18 @@ impl ModelDefinitionRepository for InMemoryModelDefinitionRepository {
             .expect("in-memory model lock poisoned")
             .insert(model.id, model.clone());
         Ok(model)
+    }
+
+    async fn update_model_definition(
+        &self,
+        input: &UpdateModelDefinitionInput,
+    ) -> Result<domain::ModelDefinitionRecord> {
+        let mut models = self.models.lock().expect("in-memory model lock poisoned");
+        let model = models
+            .get_mut(&input.model_id)
+            .ok_or(ControlPlaneError::NotFound("model_definition"))?;
+        model.title = input.title.clone();
+        Ok(model.clone())
     }
 
     async fn add_model_field(

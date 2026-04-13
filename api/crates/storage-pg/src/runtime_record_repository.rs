@@ -4,7 +4,8 @@ use control_plane::ports::ModelDefinitionRepository;
 use runtime_core::{
     model_metadata::ModelMetadata,
     runtime_record_repository::{
-        RuntimeFilterInput, RuntimeListResult, RuntimeRecordRepository, RuntimeSortInput,
+        RuntimeFilterInput, RuntimeListQuery, RuntimeListResult, RuntimeRecordRepository,
+        RuntimeSortInput,
     },
 };
 use serde_json::Value;
@@ -30,15 +31,10 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
     async fn list_records(
         &self,
         metadata: &ModelMetadata,
-        scope_id: Uuid,
-        filters: &[RuntimeFilterInput],
-        sorts: &[RuntimeSortInput],
-        expand_relations: &[String],
-        page: i64,
-        page_size: i64,
+        query: RuntimeListQuery,
     ) -> Result<RuntimeListResult> {
-        let page = page.max(1);
-        let page_size = page_size.max(1);
+        let page = query.page.max(1);
+        let page_size = query.page_size.max(1);
         let table_name = quote_identifier(&metadata.physical_table_name)?;
         let scope_column_name = quote_identifier(&metadata.scope_column_name)?;
         let offset = (page - 1) * page_size;
@@ -46,8 +42,8 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         let mut count_builder = QueryBuilder::<Postgres>::new(format!(
             "select count(*)::bigint from {table_name} where {scope_column_name} = "
         ));
-        count_builder.push_bind(scope_id);
-        append_filter_clause(&mut count_builder, metadata, filters)?;
+        count_builder.push_bind(query.scope_id);
+        append_filter_clause(&mut count_builder, metadata, &query.filters)?;
         let total = count_builder
             .build_query_scalar::<i64>()
             .fetch_one(self.pool())
@@ -56,9 +52,9 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         let mut list_builder = QueryBuilder::<Postgres>::new(format!(
             "select row_to_json(t) from (select * from {table_name} where {scope_column_name} = "
         ));
-        list_builder.push_bind(scope_id);
-        append_filter_clause(&mut list_builder, metadata, filters)?;
-        append_sort_clause(&mut list_builder, metadata, sorts)?;
+        list_builder.push_bind(query.scope_id);
+        append_filter_clause(&mut list_builder, metadata, &query.filters)?;
+        append_sort_clause(&mut list_builder, metadata, &query.sorts)?;
         list_builder.push(" limit ");
         list_builder.push_bind(page_size);
         list_builder.push(" offset ");
@@ -73,8 +69,13 @@ impl RuntimeRecordRepository for PgControlPlaneStore {
         for row in rows {
             let normalized = normalize_record(metadata, row);
             items.push(
-                self.expand_relations(metadata, scope_id, normalized, expand_relations)
-                    .await?,
+                self.expand_relations(
+                    metadata,
+                    query.scope_id,
+                    normalized,
+                    &query.expand_relations,
+                )
+                .await?,
             );
         }
 
@@ -292,16 +293,18 @@ impl PgControlPlaneStore {
                     let expanded = RuntimeRecordRepository::list_records(
                         self,
                         &target_metadata,
-                        scope_id,
-                        &[RuntimeFilterInput {
-                            field_code: mapped_by.to_string(),
-                            operator: "eq".into(),
-                            value: record_id,
-                        }],
-                        &[],
-                        &[],
-                        1,
-                        100,
+                        RuntimeListQuery {
+                            scope_id,
+                            filters: vec![RuntimeFilterInput {
+                                field_code: mapped_by.to_string(),
+                                operator: "eq".into(),
+                                value: record_id,
+                            }],
+                            sorts: vec![],
+                            expand_relations: vec![],
+                            page: 1,
+                            page_size: 100,
+                        },
                     )
                     .await?;
                     object.insert(field.code.clone(), Value::Array(expanded.items));

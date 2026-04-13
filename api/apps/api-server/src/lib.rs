@@ -75,7 +75,6 @@ async fn console_health() -> Json<HealthResponse> {
         routes::members::replace_member_roles,
         routes::model_definitions::create_model,
         routes::model_definitions::list_models,
-        routes::model_definitions::publish_model,
         routes::roles::list_roles,
         routes::roles::create_role,
         routes::roles::update_role,
@@ -94,8 +93,6 @@ async fn console_health() -> Json<HealthResponse> {
         routes::members::MemberResponse,
         routes::model_definitions::CreateModelDefinitionBody,
         routes::model_definitions::ModelDefinitionResponse,
-        routes::model_definitions::PublishModelResponse,
-        routes::model_definitions::ResourceDescriptorResponse,
         routes::members::ReplaceMemberRolesBody,
         routes::members::ResetMemberPasswordBody,
         routes::permissions::PermissionResponse,
@@ -175,9 +172,16 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
             root_nickname: config.bootstrap_root_nickname.clone(),
         })
         .await?;
+    let runtime_registry = runtime_core::runtime_model_registry::RuntimeModelRegistry::default();
+    runtime_registry.rebuild(store.list_runtime_model_metadata().await?);
+    let runtime_engine = Arc::new(runtime_core::runtime_engine::RuntimeEngine::new(
+        runtime_registry,
+        Arc::new(store.clone()),
+    ));
 
     Ok(app_with_state(Arc::new(ApiState {
         store,
+        runtime_engine,
         session_store: SessionStoreHandle::Redis(Box::new(session_store)),
         cookie_name: config.cookie_name.clone(),
         session_ttl_days: config.session_ttl_days,
