@@ -33,6 +33,10 @@ description: Use when building or changing 1Flowse frontend pages, workspace flo
 - 单一事实源：`./DESIGN.md`
 - Shell Layer 优先复用 `Ant Design`；Editor UI 只做薄封装，不另起一套视觉语言
 - 先判任务域边界，再判 L1 模型，再判状态语义，最后才是 token 和样式
+- 目录落点先判职责：`app-shell / routes / features/* / shared/*`，不要把页面、壳层、路由真值层和请求消费重新堆回一个文件
+- 组件上提要克制：默认先放 `features/*/components`，只有被多个 feature 真实复用且语义稳定后才进入 `shared/ui`
+- 请求分层固定区分：`web/packages/api-client` 负责底层 client；`features/*/api` 负责当前 feature 消费；`shared/api` 只在多 feature 共享编排时出现
+- 工具分层固定区分：`shared/utils` 只放纯函数；`features/*/lib` 只放 feature 内部 helper、mapper、view model
 - 样式改动固定按四层判断：`theme token -> first-party wrapper -> explicit slot -> stop`
 - 风格和 UI 质量本身就是验收项，不接受“功能先通、样式以后再说”
 - 第三方组件允许主题化，不允许无边界递归覆盖内部样式链
@@ -51,6 +55,7 @@ description: Use when building or changing 1Flowse frontend pages, workspace flo
 - Single source of truth: `DESIGN.md`
 - Visual baseline and layer rules: `references/visual-baseline.md`
 - Workspace recipes and interaction rules: `references/workspace-rules.md`
+- Directory, API, and utility placement rules: `references/placement-rules.md`
 - Ask-first gate: `references/communication-gate.md`
 - Before/during/after review: `references/review-checklist.md`
 - Anti-decay patterns: `references/anti-patterns.md`
