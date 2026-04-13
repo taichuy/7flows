@@ -23,6 +23,7 @@ test('renders the bootstrap shell and health state', async () => {
   const primaryNavigation = await screen.findByRole('navigation', {
     name: 'Primary'
   });
+  expect(within(primaryNavigation).getByRole('menu')).toBeInTheDocument();
 
   expect(within(primaryNavigation).getByRole('link', { name: 'Home' })).toBeInTheDocument();
   expect(

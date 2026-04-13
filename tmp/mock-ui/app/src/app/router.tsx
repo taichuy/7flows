@@ -4,9 +4,11 @@ import {
   RouterProvider,
   createRootRoute,
   createRoute,
-  createRouter
+  createRouter,
+  useRouterState
 } from '@tanstack/react-router';
-import { Typography } from 'antd';
+import { Menu, Typography } from 'antd';
+import type { MenuProps } from 'antd';
 
 import { AppShell } from '@1flowse/ui';
 
@@ -18,32 +20,40 @@ import { HomePage } from '../features/home/HomePage';
 import { ThemePreviewPage } from '../features/theme-preview/ThemePreviewPage';
 
 function AppNavigation() {
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname
+  });
+
+  const selectedKey = pathname.startsWith('/theme-preview')
+    ? 'theme-preview'
+    : pathname.startsWith('/agent-flow')
+      ? 'agent-flow'
+      : 'home';
+
+  const items: MenuProps['items'] = [
+    {
+      key: 'home',
+      label: <Link to="/" className="app-shell-menu-link">Home</Link>
+    },
+    {
+      key: 'theme-preview',
+      label: <Link to="/theme-preview" className="app-shell-menu-link">Theme Preview</Link>
+    },
+    {
+      key: 'agent-flow',
+      label: <Link to="/agent-flow" className="app-shell-menu-link">Agent Flow</Link>
+    }
+  ];
+
   return (
     <nav className="app-shell-navigation" aria-label="Primary">
-      <div className="app-shell-links">
-        <Link
-          to="/"
-          activeOptions={{ exact: true }}
-          activeProps={{ className: 'app-shell-link is-active' }}
-          inactiveProps={{ className: 'app-shell-link' }}
-        >
-          Home
-        </Link>
-        <Link
-          to="/theme-preview"
-          activeProps={{ className: 'app-shell-link is-active' }}
-          inactiveProps={{ className: 'app-shell-link' }}
-        >
-          Theme Preview
-        </Link>
-        <Link
-          to="/agent-flow"
-          activeProps={{ className: 'app-shell-link is-active' }}
-          inactiveProps={{ className: 'app-shell-link' }}
-        >
-          Agent Flow
-        </Link>
-      </div>
+      <Menu
+        className="app-shell-menu"
+        mode="horizontal"
+        selectedKeys={[selectedKey]}
+        items={items}
+        disabledOverflow
+      />
     </nav>
   );
 }

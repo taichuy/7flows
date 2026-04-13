@@ -143,40 +143,71 @@ a {
   align-items: center;
 }
 
-.app-shell-links {
+.app-shell-menu.ant-menu-horizontal {
   display: flex;
   align-items: center;
   gap: 8px;
+  border-bottom: none !important;
+  background: transparent !important;
+  line-height: 1;
 }
 
-.app-shell-link {
-  display: inline-flex;
+.app-shell-menu.ant-menu-horizontal::after {
+  display: none;
+}
+
+.app-shell-menu.ant-menu-horizontal > .ant-menu-item,
+.app-shell-menu.ant-menu-horizontal > .ant-menu-overflow-item {
+  top: 0;
+  display: flex;
   align-items: center;
-  justify-content: center;
   height: 32px;
-  padding: 0 14px;
+  margin: 0 !important;
+  padding-inline: 0 !important;
   border: 1px solid transparent;
   border-radius: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-secondary) !important;
   transition:
     color 160ms ease,
     background-color 160ms ease,
     border-color 160ms ease,
     box-shadow 160ms ease,
     transform 160ms ease;
+}
+
+.app-shell-menu.ant-menu-horizontal > .ant-menu-item::after,
+.app-shell-menu.ant-menu-horizontal > .ant-menu-overflow-item::after {
+  display: none !important;
+}
+
+.app-shell-menu.ant-menu-horizontal > .ant-menu-item .ant-menu-title-content,
+.app-shell-menu.ant-menu-horizontal > .ant-menu-overflow-item .ant-menu-title-content {
+  display: flex;
+  align-items: center;
+}
+
+.app-shell-menu-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: inherit;
   white-space: nowrap;
 }
 
-.app-shell-link:hover {
+.app-shell-menu.ant-menu-horizontal > .ant-menu-item:hover,
+.app-shell-menu.ant-menu-horizontal > .ant-menu-overflow-item:hover {
   background: rgba(255, 255, 255, 0.74);
   border-color: rgba(188, 200, 193, 0.9);
-  color: var(--text-primary);
+  color: var(--text-primary) !important;
   transform: translateY(-1px);
 }
 
-.app-shell-link.is-active {
+.app-shell-menu.ant-menu-horizontal > .ant-menu-item-selected,
+.app-shell-menu.ant-menu-horizontal > .ant-menu-overflow-item-selected {
   color: var(--text-primary);
   background: rgba(255, 255, 255, 0.94);
   border-color: rgba(213, 221, 216, 0.92);
