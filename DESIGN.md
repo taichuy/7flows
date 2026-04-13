@@ -2,15 +2,15 @@
 
 ## 1. 视觉主题与氛围
 
-1Flowse 采用深色工程控制台风格：近黑画布、碳黑表面、暖灰边框、亮翡翠绿作为最高信号强调色。整体目标是做一个对 AI 与工程实现都稳定、清晰、可执行的产品 UI 规范。
+1Flowse 采用浅底工作台风格：温白画布、纯白表面、暖灰边框、亮翡翠绿作为最高信号强调色。整体目标是做一个对 AI 与工程实现都稳定、清晰、可执行的产品 UI 规范。
 
 **默认规则：**
 
-- 页面基底使用近黑色，内容表面使用深炭色，依靠边框而不是大面积颜色分层。
+- 页面基底使用温白或极浅灰，内容表面使用白色或极浅抬升面，依靠边框和轻阴影而不是彩色大面积色块分层。
 - 轻翡翠绿是唯一高信号强调色，用于主 CTA、当前激活态、运行中节点和关键焦点。
 - `Shell Layer` 与 `Editor UI Layer` 必须共享同一套 token、状态语义和密度逻辑，不允许发展成两套产品。
 - Shell 区域优先复用 `Ant Design`；画布区域基于 `xyflow`，配合薄的 `Editor UI` 自封装组件，不直接把 `Ant Design` 大量铺进节点主体。
-- 圆角控制在 `4px / 6px / 8px` 三档，阴影克制，发光只用于最高信号时刻。
+- 圆角控制在 `4px / 6px / 8px` 三档，阴影克制，发光退化为轻 halo，只用于最高信号时刻。
 - 排版服务于信息密度和操作清晰度，不使用营销页式 hero、夸张留白或装饰性标题。
 
 **偏离以上方向必须有明确理由，否则恢复默认。**
@@ -62,20 +62,20 @@
 ### 2.3 表面、文字与边框
 
 ```css
---bg-page:           #050507;
---bg-surface:        #101010;
---bg-elevated:       #151515;
---bg-hover:          rgba(255,255,255,0.04);
+--bg-page:           #f4f8f5;
+--bg-surface:        #ffffff;
+--bg-elevated:       #f8fcf9;
+--bg-hover:          rgba(0,217,146,0.08);
 --bg-selected:       rgba(43,185,177,0.12);
---bg-code:           #0d0d10;
+--bg-code:           #0d1713;
 
---text-primary:      #f2f2f2;
---text-secondary:    #b8b3b0;
---text-tertiary:     #8b949e;
---text-disabled:     #5f666d;
+--text-primary:      #16211d;
+--text-secondary:    #55645d;
+--text-tertiary:     #7b8982;
+--text-disabled:     #9aa6a0;
 
---border-default:    #3d3a39;
---border-strong:     #4b4745;
+--border-default:    #d5ddd8;
+--border-strong:     #bcc8c1;
 --border-focus:      #00d992;
 --border-selected:   #2bb9b1;
 ```
@@ -138,16 +138,16 @@
 
 | 变体 | 背景 | 文字 | 边框 | 高度 | 内边距 | 圆角 |
 |---|---|---|---|---|---|---|
-| primary | `#00d992` | `#050507` | 无 | 32px | `0 16px` | 6px |
-| secondary | transparent | `#f2f2f2` | `1px solid #3d3a39` | 32px | `0 16px` | 6px |
-| ghost / link | transparent | `#2fd6a1` | 无 | auto | `0 8px` | 6px |
+| primary | `#00d992` | `#06241a` | 无 | 32px | `0 16px` | 6px |
+| secondary | `#ffffff` | `#16211d` | `1px solid #bcc8c1` | 32px | `0 16px` | 6px |
+| ghost / link | transparent | `#00c182` | 无 | auto | `0 8px` | 6px |
 | danger | `#fb565b` | `#ffffff` | 无 | 32px | `0 16px` | 6px |
 
 **交互状态：**
 
 | 状态 | primary | secondary |
 |---|---|---|
-| hover | 背景 `#00c182`，可加轻微翡翠 glow | 背景 `rgba(255,255,255,0.04)`，边框 `#5a5552` |
+| hover | 背景 `#00c182`，可加轻微翡翠 halo | 背景 `rgba(0,217,146,0.08)`，边框 `#9fcdb8` |
 | active | `transform: scale(0.98)` | 同左 |
 | focus | `outline: 2px solid rgba(0,217,146,0.55); outline-offset: 2px` | 同左 |
 | disabled | `opacity: 0.4; cursor: not-allowed` | 同左 |
@@ -167,22 +167,22 @@
 ### 4.3 卡片 (Card)
 
 ```text
-背景：    #101010
-边框：    1px solid #3d3a39
+背景：    #ffffff
+边框：    1px solid #d5ddd8
 圆角：    8px
-阴影：    0 8px 24px rgba(0,0,0,0.28)
+阴影：    0 12px 34px rgba(14,24,20,0.07)
 
 Card Header：
   高度：    48px
   内边距：  0 20px
-  分隔线：  border-bottom: 1px solid rgba(255,255,255,0.05)
+  分隔线：  border-bottom: 1px solid #e8edea
 
 Card Body：
   内边距：  16px 20px
 
 Card Footer：
   内边距：  12px 20px
-  分隔线：  border-top: 1px solid rgba(255,255,255,0.05)
+  分隔线：  border-top: 1px solid #e8edea
 ```
 
 补充规则：
@@ -196,13 +196,13 @@ Shell 表单默认复用 `Ant Design`，视觉应校正为：
 
 ```text
 高度：      32px
-背景：      #101010
-文字：      #f2f2f2
-边框：      1px solid #4b4745
+背景：      #ffffff
+文字：      #16211d
+边框：      1px solid #bcc8c1
 圆角：      6px
-hover：     边框 #5a5552
-focus：     边框 #00d992 + 轻微 ring
-disabled：  背景 rgba(255,255,255,0.03)，文字 #5f666d
+hover：     边框 #9fcdb8
+focus：     边框 #00d992 + 轻微 halo
+disabled：  背景 #f1f4f2，文字 #9aa6a0
 ```
 
 禁止：
@@ -214,27 +214,27 @@ disabled：  背景 rgba(255,255,255,0.03)，文字 #5f666d
 
 ```text
 宽度：      220px（桌面）
-背景：      #0c0c0e
-右边框：    1px solid #3d3a39
+背景：      rgba(248,252,249,0.92)
+右边框：    1px solid #d5ddd8
 
 导航项：
   元素类型： <a>
   高度：     40px
   内边距：   0 16px
   字号：     14px / 400
-  默认颜色： #b8b3b0
+  默认颜色： #55645d
 
-  hover：    背景 rgba(255,255,255,0.03)
-  active：   背景 rgba(0,217,146,0.08)
-            颜色 #00d992
+  hover：    背景 rgba(255,255,255,0.72)
+  active：   背景 rgba(0,217,146,0.10)
+            颜色 #16211d
             font-weight 500
-            左侧 3px 实色指示条：#00d992
+            边框 1px solid rgba(0,217,146,0.18)
 ```
 
 导航分组标签：
 
 - `11px / 600 / uppercase`
-- 颜色：`#8b949e`
+- 颜色：`#7b8982`
 - 内边距：`12px 16px 4px`
 
 ### 4.6 抽屉 (Drawer)
@@ -242,9 +242,9 @@ disabled：  背景 rgba(255,255,255,0.03)，文字 #5f666d
 ```text
 宽度：      360px（桌面）/ 100vw（移动端）
 位置：      fixed right: 0
-背景：      #101010
-左边框：    1px solid #3d3a39
-阴影：      0 20px 60px rgba(0,0,0,0.52)
+背景：      #ffffff
+左边框：    1px solid #d5ddd8
+阴影：      0 20px 60px rgba(14,24,20,0.12)
 左侧圆角：  8px（桌面）
 
 Drawer Header：
@@ -271,8 +271,8 @@ Drawer Body：
 
 ```text
 宽度：      280px
-背景：      #101010
-左边框：    1px solid #3d3a39
+背景：      #ffffff
+左边框：    1px solid #d5ddd8
 
 Inspector Header：
   高度：     48px
@@ -282,13 +282,13 @@ Inspector Header：
 Section Header：
   高度：     32px
   字号：     12px / 600 / uppercase
-  颜色：     #8b949e
+  颜色：     #7b8982
   内边距：   0 16px
 
 Field Row：
   高度：     28px（单行值）
-  label：    12px / 400 / #8b949e
-  value：    14px / 400 / #f2f2f2
+  label：    12px / 400 / #7b8982
+  value：    14px / 400 / #16211d
 ```
 
 **Inspector 规则：**
@@ -312,12 +312,12 @@ Field Row：
 
 | 状态 | 背景 | 文字 |
 |---|---|---|
-| running | `rgba(0,217,146,0.14)` | `#2fd6a1` |
-| waiting | `rgba(255,186,0,0.14)` | `#ffcf5c` |
-| failed | `rgba(251,86,91,0.14)` | `#ff9ca0` |
-| success / healthy | `rgba(25,179,107,0.14)` | `#5cd49a` |
-| draft | `rgba(107,114,128,0.18)` | `#c2c8d0` |
-| published | `rgba(0,217,146,0.08)` | `#2fd6a1` |
+| running | `rgba(0,217,146,0.12)` | `#047a57` |
+| waiting | `rgba(255,186,0,0.14)` | `#9b6d00` |
+| failed | `rgba(251,86,91,0.12)` | `#bf3940` |
+| success / healthy | `rgba(25,179,107,0.12)` | `#117548` |
+| draft | `rgba(123,133,129,0.14)` | `#616b67` |
+| published | `rgba(0,217,146,0.08)` | `#047a57` |
 
 ```text
 规格：高度 18px，内边距 0 6px，字号 12px / 400，圆角 4px
@@ -326,8 +326,8 @@ Field Row：
 **类型标签 Badge：**
 
 ```text
-背景：   rgba(255,255,255,0.05)
-文字：   #b8b3b0
+背景：   #f8fcf9
+文字：   #55645d
 圆角：   4px
 字号：   12px / 400
 ```
@@ -394,8 +394,8 @@ Field Row：
 
 | 档位 | 值 | 用途 |
 |---|---|---|
-| `shadow-card` | `0 8px 24px rgba(0,0,0,0.28)` | 标准卡片、面板轻抬升 |
-| `shadow-float` | `0 20px 60px rgba(0,0,0,0.52), inset 0 0 0 1px rgba(148,163,184,0.08)` | Drawer、弹出面板、浮层 |
+| `shadow-card` | `0 12px 34px rgba(14,24,20,0.07)` | 标准卡片、面板轻抬升 |
+| `shadow-float` | `0 20px 60px rgba(14,24,20,0.12), inset 0 0 0 1px rgba(255,255,255,0.55)` | Drawer、弹出面板、浮层 |
 
 ### 6.2 高程哲学
 
@@ -409,8 +409,8 @@ Field Row：
 
 原则：
 
-- 深度优先通过边框、色差和局部 glow 体现，不依赖重阴影。
-- 翡翠 glow 只用于高信号元素：运行中节点、关键 CTA、活动连线、少量品牌锚点。
+- 深度优先通过边框、色差和局部 halo 体现，不依赖重阴影。
+- 翡翠 halo 只用于高信号元素：运行中节点、关键 CTA、活动连线、少量品牌锚点。
 - 禁止对整个页面背景、整块面板大面积加发光或彩色雾化。
 
 ---
@@ -419,7 +419,7 @@ Field Row：
 
 ### 7.1 应做
 
-- 使用 `#050507` + `#101010` 的双色深色系统。
+- 使用 `#f4f8f5` + `#ffffff` 的双色浅底系统。
 - 用亮翡翠绿表达“已通电 / 正在运行 / 当前激活”。
 - 保持 `4 / 6 / 8px` 圆角纪律，不扩散出第四档。
 - 让状态色只表达状态，不表达类型。
@@ -429,7 +429,7 @@ Field Row：
 
 ### 7.2 不应做
 
-- 不要把浅色表面重新引回主工作区。
+- 不要把深色终端表面重新引回主工作区。
 - 不要把翡翠绿当作普通装饰色到处铺底。
 - 不要使用 `16px+` 大圆角、玻璃态、营销页渐变背景。
 - 不要让同一类对象出现不同详情容器。
@@ -531,15 +531,15 @@ Field Row：
 
 ```text
 Canvas Stage：
-  背景：        #050507
-  工作区：      #0b0b0d
+  背景：        #f4f8f5
+  工作区：      #ffffff
   与 Shell 分界：顶部或左侧保留 1px solid var(--border-default)
   桌面最小内边距：24px
   窄屏最小内边距：16px
 
 Grid：
   默认形式：    点阵网格
-  点颜色：      rgba(255,255,255,0.06)
+  点颜色：      rgba(22,33,29,0.08)
   小步长：      12px
   大步长：      24px
   规则：        只做定位提示，不做装饰背景
@@ -558,7 +558,7 @@ Grid：
 补充规则：
 
 - 画布是工作区，不是品牌背景；禁止大面积彩色雾化、玻璃态或营销渐变。
-- 背景、网格、辅助线都必须服从深色 token，不允许残留 `xyflow` 或浏览器默认浅色主题。
+- 背景、网格、辅助线都必须服从统一的浅底 token，不允许混入浏览器默认蓝灰主题。
 - Inspector、Block Picker、工具条都悬浮在 Stage 之上，不给画布再套第二层厚重容器。
 
 ### 9.5 Canvas Controls
@@ -567,7 +567,7 @@ Grid：
 主操作条：
   位置：        左下角
   排布：        纵向浮动栈
-  容器背景：    #101010
+  容器背景：    #ffffff
   边框：        1px solid var(--border-default)
   圆角：        8px
   按钮尺寸：    32x32px
@@ -639,19 +639,19 @@ Body 结构：
 ```text
 默认宽度：  220px - 240px
 最小尺寸：  220x64px
-背景：      #101010
-边框：      1px solid #3d3a39（默认）
-hover：     边框提升到 #4b4745
+背景：      #ffffff
+边框：      1px solid #d5ddd8（默认）
+hover：     边框提升到 #bcc8c1
 圆角：      6px
 内边距：    8px 12px
 
 selected：
   outline: 2px solid var(--status-selected)
-  box-shadow: 0 0 0 3px rgba(43,185,177,0.22)
+  box-shadow: 0 0 0 3px rgba(43,185,177,0.16)
 
 running：
   border: 2px solid var(--status-running)
-  box-shadow: 0 0 0 1px rgba(0,217,146,0.22), 0 0 16px rgba(0,217,146,0.18)
+  box-shadow: 0 0 0 3px rgba(0,217,146,0.12), 0 12px 28px rgba(0,217,146,0.12)
 
 waiting：
   border: 1px solid var(--status-waiting)
@@ -681,14 +681,14 @@ dimmed：
 NodePort：
   可视核心：     10x10px
   点击热区：     至少 20x20px
-  背景：         #050507
-  边框：         2px solid #4b4745
+  背景：         #f4f8f5
+  边框：         2px solid #bcc8c1
   hover：        边框切到 var(--border-focus)
   connectable：  可加轻微 primary glow
   invalid：      使用 var(--status-failed)
 
 Edge：
-  默认描边：     #4b4745
+  默认描边：     #bcc8c1
   编辑预览：     var(--border-focus)
   选中描边：     var(--status-selected)
   运行态：       var(--status-running)
@@ -730,7 +730,7 @@ Edge：
 ```text
 Block Picker：
   推荐宽度：    280px - 320px
-  容器背景：    #101010
+  容器背景：    #ffffff
   边框：        1px solid var(--border-default)
   圆角：        8px
   结构：        搜索框 + 分类 tab + 节点列表
@@ -755,7 +755,7 @@ More Actions Menu：
 
 - Shell 列表状态点、NodeCard 状态 badge、Inspector 状态字段必须引用同一 CSS 变量。
 - `selected` 只用 outline 和外圈 glow，不用整块彩色底。
-- 画布背景网格、辅助线、连接高亮都要服从同一深色 token 体系，不允许出现浅色默认主题残留。
+- 画布背景网格、辅助线、连接高亮都要服从同一浅底 token 体系，不允许出现浏览器默认灰蓝主题残留。
 - 画布编辑反馈分三层：
   - `selected`：用户当前选中，使用冷青色
   - `focus / connectable`：用户正在编辑，使用 primary / focus 绿色
@@ -945,16 +945,16 @@ More Actions Menu：
 
 | 角色 | 值 |
 |---|---|
-| 页面背景 | `#050507` |
-| 内容表面 | `#101010` |
+| 页面背景 | `#f4f8f5` |
+| 内容表面 | `#ffffff` |
 | 主强调色 | `#00d992` |
 | 运行中 | `#00d992` |
 | 等待中 | `#ffba00` |
 | 失败 | `#fb565b` |
 | 成功 | `#19b36b` |
 | 选中 | `#2bb9b1` |
-| 默认边框 | `#3d3a39` |
-| 主文本 | `#f2f2f2` |
+| 默认边框 | `#d5ddd8` |
+| 主文本 | `#16211d` |
 
 ### 11.4 默认落地策略
 
