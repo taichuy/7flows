@@ -2,7 +2,11 @@ use access_control::ensure_permission;
 use anyhow::Result;
 use uuid::Uuid;
 
-use crate::{audit::audit_log, errors::ControlPlaneError, ports::RoleRepository};
+use crate::{
+    audit::audit_log,
+    errors::ControlPlaneError,
+    ports::{CreateWorkspaceRoleInput, RoleRepository, UpdateWorkspaceRoleInput},
+};
 
 pub struct CreateRoleCommand {
     pub actor_user_id: Uuid,
@@ -79,15 +83,15 @@ where
         ensure_permission(&actor, "role_permission.manage.all")
             .map_err(ControlPlaneError::PermissionDenied)?;
         self.repository
-            .create_team_role(
-                command.actor_user_id,
-                actor.current_workspace_id,
-                &command.code,
-                &command.name,
-                &command.introduction,
-                command.auto_grant_new_permissions,
-                command.is_default_member_role,
-            )
+            .create_team_role(&CreateWorkspaceRoleInput {
+                actor_user_id: command.actor_user_id,
+                workspace_id: actor.current_workspace_id,
+                code: command.code.clone(),
+                name: command.name.clone(),
+                introduction: command.introduction.clone(),
+                auto_grant_new_permissions: command.auto_grant_new_permissions,
+                is_default_member_role: command.is_default_member_role,
+            })
             .await?;
         self.repository
             .append_audit_log(&audit_log(
@@ -113,15 +117,15 @@ where
         ensure_permission(&actor, "role_permission.manage.all")
             .map_err(ControlPlaneError::PermissionDenied)?;
         self.repository
-            .update_team_role(
-                command.actor_user_id,
-                actor.current_workspace_id,
-                &command.role_code,
-                &command.name,
-                &command.introduction,
-                command.auto_grant_new_permissions,
-                command.is_default_member_role,
-            )
+            .update_team_role(&UpdateWorkspaceRoleInput {
+                actor_user_id: command.actor_user_id,
+                workspace_id: actor.current_workspace_id,
+                role_code: command.role_code.clone(),
+                name: command.name.clone(),
+                introduction: command.introduction.clone(),
+                auto_grant_new_permissions: command.auto_grant_new_permissions,
+                is_default_member_role: command.is_default_member_role,
+            })
             .await?;
         self.repository
             .append_audit_log(&audit_log(

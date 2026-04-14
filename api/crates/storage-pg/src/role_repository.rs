@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use control_plane::{
     errors::ControlPlaneError,
-    ports::{AuthRepository, RoleRepository},
+    ports::{AuthRepository, CreateWorkspaceRoleInput, RoleRepository, UpdateWorkspaceRoleInput},
 };
 use domain::{ActorContext, AuditLogRecord, RoleScopeKind};
 use uuid::Uuid;
@@ -56,17 +56,8 @@ impl RoleRepository for PgControlPlaneStore {
         Ok(roles)
     }
 
-    async fn create_team_role(
-        &self,
-        actor_user_id: Uuid,
-        workspace_id: Uuid,
-        code: &str,
-        name: &str,
-        introduction: &str,
-        auto_grant_new_permissions: bool,
-        is_default_member_role: bool,
-    ) -> Result<()> {
-        if find_role_by_code(self.pool(), workspace_id, code)
+    async fn create_team_role(&self, input: &CreateWorkspaceRoleInput) -> Result<()> {
+        if find_role_by_code(self.pool(), input.workspace_id, &input.code)
             .await?
             .is_some()
         {
@@ -74,11 +65,11 @@ impl RoleRepository for PgControlPlaneStore {
         }
 
         let mut tx = self.pool().begin().await?;
-        if is_default_member_role {
+        if input.is_default_member_role {
             sqlx::query(
                 "update roles set is_default_member_role = false where scope_kind = 'workspace' and workspace_id = $1",
             )
-            .bind(workspace_id)
+            .bind(input.workspace_id)
             .execute(&mut *tx)
             .await?;
         }
@@ -93,13 +84,13 @@ impl RoleRepository for PgControlPlaneStore {
             "#,
         )
         .bind(Uuid::now_v7())
-        .bind(workspace_id)
-        .bind(code)
-        .bind(name)
-        .bind(introduction)
-        .bind(auto_grant_new_permissions)
-        .bind(is_default_member_role)
-        .bind(actor_user_id)
+        .bind(input.workspace_id)
+        .bind(&input.code)
+        .bind(&input.name)
+        .bind(&input.introduction)
+        .bind(input.auto_grant_new_permissions)
+        .bind(input.is_default_member_role)
+        .bind(input.actor_user_id)
         .execute(&mut *tx)
         .await?;
 
@@ -107,17 +98,8 @@ impl RoleRepository for PgControlPlaneStore {
         Ok(())
     }
 
-    async fn update_team_role(
-        &self,
-        actor_user_id: Uuid,
-        workspace_id: Uuid,
-        role_code: &str,
-        name: &str,
-        introduction: &str,
-        auto_grant_new_permissions: Option<bool>,
-        is_default_member_role: Option<bool>,
-    ) -> Result<()> {
-        let role = find_role_by_code(self.pool(), workspace_id, role_code)
+    async fn update_team_role(&self, input: &UpdateWorkspaceRoleInput) -> Result<()> {
+        let role = find_role_by_code(self.pool(), input.workspace_id, &input.role_code)
             .await?
             .ok_or(ControlPlaneError::NotFound("role"))?;
         if role.code == "root"
@@ -126,16 +108,16 @@ impl RoleRepository for PgControlPlaneStore {
         {
             return Err(ControlPlaneError::PermissionDenied("root_role_immutable").into());
         }
-        if matches!(is_default_member_role, Some(false)) && role.is_default_member_role {
+        if matches!(input.is_default_member_role, Some(false)) && role.is_default_member_role {
             return Err(ControlPlaneError::InvalidInput("default_member_role_required").into());
         }
 
         let mut tx = self.pool().begin().await?;
-        if matches!(is_default_member_role, Some(true)) {
+        if matches!(input.is_default_member_role, Some(true)) {
             sqlx::query(
                 "update roles set is_default_member_role = false where scope_kind = 'workspace' and workspace_id = $1 and id <> $2",
             )
-            .bind(workspace_id)
+            .bind(input.workspace_id)
             .bind(role.id)
             .execute(&mut *tx)
             .await?;
@@ -154,11 +136,11 @@ impl RoleRepository for PgControlPlaneStore {
             "#,
         )
         .bind(role.id)
-        .bind(name)
-        .bind(introduction)
-        .bind(auto_grant_new_permissions)
-        .bind(is_default_member_role)
-        .bind(actor_user_id)
+        .bind(&input.name)
+        .bind(&input.introduction)
+        .bind(input.auto_grant_new_permissions)
+        .bind(input.is_default_member_role)
+        .bind(input.actor_user_id)
         .execute(&mut *tx)
         .await?;
 

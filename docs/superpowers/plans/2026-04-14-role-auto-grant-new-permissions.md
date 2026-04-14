@@ -303,7 +303,7 @@ Execution note (`2026-04-14 20`): ran the three focused `storage-pg` tests succe
 - Modify: `api/apps/api-server/src/routes/roles.rs`
 - Modify: `api/apps/api-server/src/_tests/role_routes.rs`
 
-- [ ] **Step 1: Write the failing service and route tests**
+- [x] **Step 1: Write the failing service and route tests**
 
 Extend `api/crates/control-plane/src/_tests/role_service_tests.rs` with:
 
@@ -319,7 +319,7 @@ Extend `api/apps/api-server/src/_tests/role_routes.rs` with:
 async fn role_routes_roundtrip_policy_flags_and_protect_default_role_from_clear() {}
 ```
 
-- [ ] **Step 2: Run the focused failures**
+- [x] **Step 2: Run the focused failures**
 
 Run: `cargo test -p control-plane _tests::role_service_tests::role_service_tracks_policy_flags_on_create_and_update -- --exact --nocapture`
 Expected: FAIL because the role commands and test repository do not carry the new fields.
@@ -327,7 +327,7 @@ Expected: FAIL because the role commands and test repository do not carry the ne
 Run: `cargo test -p api-server _tests::role_routes::role_routes_roundtrip_policy_flags_and_protect_default_role_from_clear -- --exact --nocapture`
 Expected: FAIL because the HTTP bodies and role route responses do not expose the policy flags.
 
-- [ ] **Step 3: Thread the new fields through the service contracts**
+- [x] **Step 3: Thread the new fields through the service contracts**
 
 Extend `api/crates/control-plane/src/role.rs`:
 
@@ -379,7 +379,7 @@ async fn update_team_role(
 
 Update `RoleService::create_role()` and `RoleService::update_role()` to pass the new values through.
 
-- [ ] **Step 4: Implement repository, route, and test-double behavior**
+- [x] **Step 4: Implement repository, route, and test-double behavior**
 
 Update `api/crates/storage-pg/src/role_repository.rs` create SQL:
 
@@ -472,7 +472,7 @@ pub struct RoleResponse {
 }
 ```
 
-- [ ] **Step 5: Re-run focused backend tests and commit**
+- [x] **Step 5: Re-run focused backend tests and commit**
 
 Run: `cargo test -p control-plane _tests::role_service_tests::role_service_tracks_policy_flags_on_create_and_update -- --exact --nocapture`
 Expected: PASS
@@ -490,6 +490,8 @@ git add api/crates/control-plane/src/ports.rs api/crates/control-plane/src/role.
 git commit -m "feat(api): expose role policy flags"
 ```
 
+Execution note (`2026-04-14 20`): ran the focused `control-plane` and `api-server` role tests successfully and committed the slice as `ce0a5bdf` (`feat(api): expose role policy flags`). The repository also rejects deleting the active default member role so the workspace never falls into a “no default role” state through deletion.
+
 ## Task 3: Resolve The Default Member Role During Member Creation
 
 **Files:**
@@ -498,7 +500,7 @@ git commit -m "feat(api): expose role policy flags"
 - Modify: `api/crates/control-plane/src/_tests/member_service_tests.rs`
 - Modify: `api/apps/api-server/src/_tests/member_routes.rs`
 
-- [ ] **Step 1: Write the failing member tests**
+- [x] **Step 1: Write the failing member tests**
 
 Extend `api/crates/control-plane/src/_tests/member_service_tests.rs` with:
 
@@ -514,7 +516,7 @@ Extend `api/apps/api-server/src/_tests/member_routes.rs` with:
 async fn member_creation_uses_workspace_default_member_role() {}
 ```
 
-- [ ] **Step 2: Run the focused failures**
+- [x] **Step 2: Run the focused failures**
 
 Run: `cargo test -p control-plane _tests::member_service_tests::create_member_assigns_current_default_member_role_and_records_audit -- --exact --nocapture`
 Expected: FAIL because the in-memory member creation fixture still hardcodes `manager`.
@@ -522,7 +524,7 @@ Expected: FAIL because the in-memory member creation fixture still hardcodes `ma
 Run: `cargo test -p api-server _tests::member_routes::member_creation_uses_workspace_default_member_role -- --exact --nocapture`
 Expected: FAIL because the PostgreSQL repository still resolves `manager` directly.
 
-- [ ] **Step 3: Implement workspace-default role resolution**
+- [x] **Step 3: Implement workspace-default role resolution**
 
 Update `api/crates/storage-pg/src/member_repository.rs`:
 
@@ -557,7 +559,7 @@ Use the resolved role id when inserting `user_role_bindings`:
 
 Update the in-memory member test support in `api/crates/control-plane/src/_tests/support.rs` so created members inherit the repository’s configured default role instead of hardcoded `manager`.
 
-- [ ] **Step 4: Re-run member tests and commit**
+- [x] **Step 4: Re-run member tests and commit**
 
 Run: `cargo test -p control-plane _tests::member_service_tests::create_member_assigns_current_default_member_role_and_records_audit -- --exact --nocapture`
 Expected: PASS
@@ -575,6 +577,8 @@ git add api/crates/storage-pg/src/member_repository.rs api/crates/control-plane/
 git commit -m "feat(api): use workspace default role for new members"
 ```
 
+Execution note (`2026-04-14 20`): ran the focused `control-plane` member test plus the two `api-server` member route tests successfully and committed the slice as `48f7ec0f` (`feat(api): use workspace default role for new members`).
+
 ## Task 4: Add Both Checkboxes To The Settings Role Dialogs
 
 **Files:**
@@ -582,7 +586,7 @@ git commit -m "feat(api): use workspace default role for new members"
 - Modify: `web/packages/api-client/src/console-roles.ts`
 - Modify: `web/app/src/features/settings/components/RolePermissionPanel.tsx`
 
-- [ ] **Step 1: Write the failing UI test**
+- [x] **Step 1: Write the failing UI test**
 
 Create `web/app/src/features/settings/_tests/role-permission-panel.test.tsx` with:
 
@@ -619,12 +623,12 @@ Use fixtures like:
 }
 ```
 
-- [ ] **Step 2: Run the UI test to verify it fails**
+- [x] **Step 2: Run the UI test to verify it fails**
 
 Run: `pnpm --dir web/app exec vitest --run src/features/settings/_tests/role-permission-panel.test.tsx`
 Expected: FAIL because the web role contract and dialogs do not expose either flag.
 
-- [ ] **Step 3: Implement the web contract and dialog controls**
+- [x] **Step 3: Implement the web contract and dialog controls**
 
 Update `web/packages/api-client/src/console-roles.ts`:
 
@@ -694,7 +698,7 @@ Render compact status tags in the details header:
 {selectedRole.is_default_member_role ? <Tag color="green">默认新用户角色</Tag> : null}
 ```
 
-- [ ] **Step 4: Re-run UI tests and commit**
+- [x] **Step 4: Re-run UI tests and commit**
 
 Run: `pnpm --dir web/app exec vitest --run src/features/settings/_tests/role-permission-panel.test.tsx`
 Expected: PASS
@@ -709,17 +713,19 @@ git add web/packages/api-client/src/console-roles.ts web/app/src/features/settin
 git commit -m "feat(web): manage role policy flags in settings"
 ```
 
+Execution note (`2026-04-14 20`): ran the focused `RolePermissionPanel` test plus the existing settings page test successfully and committed the slice as `c2cb940c` (`feat(web): manage role policy flags in settings`). This web slice was applied on top of a pre-existing local `RolePermissionPanel.tsx` refactor already present in the worktree.
+
 ## Task 5: Run Full Verification And Commit The Integrated Feature
 
 **Files:**
 - Modify: `docs/superpowers/plans/2026-04-14-role-auto-grant-new-permissions.md`
 
-- [ ] **Step 1: Run the backend verification suite**
+- [x] **Step 1: Run the backend verification suite**
 
 Run: `node scripts/node/verify-backend.js`
 Expected: PASS with no failing cargo, format, or route tests.
 
-- [ ] **Step 2: Run the frontend verification suite**
+- [x] **Step 2: Run the frontend verification suite**
 
 Run: `pnpm --dir web lint`
 Expected: PASS
@@ -730,7 +736,7 @@ Expected: PASS
 Run: `pnpm --dir web/app build`
 Expected: PASS
 
-- [ ] **Step 3: Review the final diff**
+- [x] **Step 3: Review the final diff**
 
 Run:
 
@@ -741,7 +747,7 @@ git diff --stat HEAD~4..HEAD
 
 Expected: Only the role policy backend/frontend files plus the updated spec/plan and memory notes are part of this feature work.
 
-- [ ] **Step 4: Commit the integrated feature**
+- [x] **Step 4: Commit the integrated feature**
 
 Run:
 
@@ -749,6 +755,8 @@ Run:
 git add api/crates/domain/src/auth.rs api/crates/access-control/src/catalog.rs api/crates/storage-pg/src/_tests/mod.rs api/crates/storage-pg/src/_tests/migration_smoke.rs api/crates/storage-pg/src/_tests/role_policy_tests.rs api/crates/storage-pg/src/mappers/role_mapper.rs api/crates/storage-pg/src/repositories.rs api/crates/storage-pg/src/auth_repository.rs api/crates/storage-pg/src/role_repository.rs api/crates/storage-pg/src/member_repository.rs api/crates/storage-pg/migrations/20260414203000_add_role_policy_flags.sql api/crates/control-plane/src/ports.rs api/crates/control-plane/src/role.rs api/crates/control-plane/src/_tests/support.rs api/crates/control-plane/src/_tests/role_service_tests.rs api/crates/control-plane/src/_tests/member_service_tests.rs api/apps/api-server/src/routes/roles.rs api/apps/api-server/src/_tests/role_routes.rs api/apps/api-server/src/_tests/member_routes.rs web/packages/api-client/src/console-roles.ts web/app/src/features/settings/components/RolePermissionPanel.tsx web/app/src/features/settings/_tests/role-permission-panel.test.tsx
 git commit -m "feat: add role policy flags and default member role"
 ```
+
+Execution note (`2026-04-14 21`): `node scripts/node/verify-backend.js`、`pnpm --dir web lint`、`pnpm --dir web test`、`pnpm --dir web/app build` 全部通过，并复核了 `git status --short` 与 `git diff --stat HEAD~4..HEAD`。收尾时把 `RoleRepository` 的创建/更新接口改成输入 struct 以消除 `clippy::too_many_arguments`，同时为慢速前端集成测试补了显式超时与更稳妥的对话框提交流程；最终提交仅收敛这次角色策略计划的收尾改动、计划记录与相关记忆更新。
 
 ## Self-Review
 

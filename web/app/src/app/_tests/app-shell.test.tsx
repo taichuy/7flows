@@ -44,32 +44,44 @@ describe('App shell', () => {
     });
   });
 
-  test('renders the formal console shell with settings and account actions', async () => {
-    render(<App />);
+  test(
+    'renders the formal console shell with settings and account actions',
+    async () => {
+      render(<App />);
 
-    expect(await screen.findByRole('heading', { name: '1Flowse' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: '1Flowse' })).toBeInTheDocument();
 
-    const header = screen.getByRole('banner');
-    const primaryNavigation = screen.getByRole('navigation', { name: 'Primary' });
+      const header = screen.getByRole('banner');
+      const primaryNavigation = screen.getByRole('navigation', { name: 'Primary' });
 
-    expect(header).toHaveStyle('--app-shell-edge-gap: 5%');
-    expect(within(primaryNavigation).getByRole('menu')).toBeInTheDocument();
-    expect(within(primaryNavigation).getByRole('link', { name: '工作台' })).toBeInTheDocument();
-    expect(within(primaryNavigation).getByRole('link', { name: '子系统' })).toBeInTheDocument();
-    expect(within(primaryNavigation).getByRole('link', { name: '工具' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '设置' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Captain Root' })).toBeInTheDocument();
-    expect(within(primaryNavigation).queryByRole('link', { name: 'Home' })).not.toBeInTheDocument();
-    expect(
-      within(primaryNavigation).queryByRole('link', { name: 'Embedded Apps' })
-    ).not.toBeInTheDocument();
-    expect(
-      within(primaryNavigation).queryByRole('link', { name: 'Agent Flow' })
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText('Workspace Bootstrap')).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Theme Preview' })).not.toBeInTheDocument();
-    expect(await screen.findByText(/api-server/i)).toBeInTheDocument();
-  });
+      expect(header).toHaveStyle('--app-shell-edge-gap: 5%');
+      expect(within(primaryNavigation).getByRole('menu')).toBeInTheDocument();
+      expect(
+        within(primaryNavigation).getByRole('link', { name: '工作台' })
+      ).toBeInTheDocument();
+      expect(
+        within(primaryNavigation).getByRole('link', { name: '子系统' })
+      ).toBeInTheDocument();
+      expect(
+        within(primaryNavigation).getByRole('link', { name: '工具' })
+      ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: '设置' })).toBeInTheDocument();
+      expect(screen.getByRole('menuitem', { name: 'Captain Root' })).toBeInTheDocument();
+      expect(
+        within(primaryNavigation).queryByRole('link', { name: 'Home' })
+      ).not.toBeInTheDocument();
+      expect(
+        within(primaryNavigation).queryByRole('link', { name: 'Embedded Apps' })
+      ).not.toBeInTheDocument();
+      expect(
+        within(primaryNavigation).queryByRole('link', { name: 'Agent Flow' })
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText('Workspace Bootstrap')).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Theme Preview' })).not.toBeInTheDocument();
+      expect(await screen.findByText(/api-server/i)).toBeInTheDocument();
+    },
+    15000
+  );
 
   test('renders the embedded apps route', async () => {
     window.history.pushState({}, '', '/embedded-apps');

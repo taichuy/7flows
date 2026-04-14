@@ -168,6 +168,28 @@ pub struct UpdateModelFieldInput {
     pub relation_options: serde_json::Value,
 }
 
+#[derive(Debug, Clone)]
+pub struct CreateWorkspaceRoleInput {
+    pub actor_user_id: Uuid,
+    pub workspace_id: Uuid,
+    pub code: String,
+    pub name: String,
+    pub introduction: String,
+    pub auto_grant_new_permissions: bool,
+    pub is_default_member_role: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpdateWorkspaceRoleInput {
+    pub actor_user_id: Uuid,
+    pub workspace_id: Uuid,
+    pub role_code: String,
+    pub name: String,
+    pub introduction: String,
+    pub auto_grant_new_permissions: Option<bool>,
+    pub is_default_member_role: Option<bool>,
+}
+
 #[async_trait]
 pub trait MemberRepository: Send + Sync {
     async fn load_actor_context_for_user(
@@ -204,26 +226,8 @@ pub trait RoleRepository: Send + Sync {
         actor_user_id: Uuid,
     ) -> anyhow::Result<ActorContext>;
     async fn list_roles(&self, workspace_id: Uuid) -> anyhow::Result<Vec<RoleTemplate>>;
-    async fn create_team_role(
-        &self,
-        actor_user_id: Uuid,
-        workspace_id: Uuid,
-        code: &str,
-        name: &str,
-        introduction: &str,
-        auto_grant_new_permissions: bool,
-        is_default_member_role: bool,
-    ) -> anyhow::Result<()>;
-    async fn update_team_role(
-        &self,
-        actor_user_id: Uuid,
-        workspace_id: Uuid,
-        role_code: &str,
-        name: &str,
-        introduction: &str,
-        auto_grant_new_permissions: Option<bool>,
-        is_default_member_role: Option<bool>,
-    ) -> anyhow::Result<()>;
+    async fn create_team_role(&self, input: &CreateWorkspaceRoleInput) -> anyhow::Result<()>;
+    async fn update_team_role(&self, input: &UpdateWorkspaceRoleInput) -> anyhow::Result<()>;
     async fn delete_team_role(
         &self,
         actor_user_id: Uuid,

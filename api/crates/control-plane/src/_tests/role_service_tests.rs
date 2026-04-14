@@ -104,5 +104,8 @@ async fn role_service_tracks_policy_flags_on_create_and_update() {
     assert_eq!(qa.name, "QA Updated");
     assert!(!qa.auto_grant_new_permissions);
     assert!(qa.is_default_member_role);
-    assert_eq!(repository.audit_events(), vec!["role.created", "role.updated"]);
+    assert_eq!(
+        repository.audit_events(),
+        vec!["role.created", "role.updated"]
+    );
 }

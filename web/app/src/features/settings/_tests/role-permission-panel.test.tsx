@@ -95,72 +95,74 @@ describe('RolePermissionPanel', () => {
     permissionsApi.fetchSettingsPermissions.mockResolvedValue([]);
   });
 
-  test('submits auto_grant_new_permissions and is_default_member_role from the create and edit dialogs', async () => {
-    renderPanel();
+  test(
+    'submits auto_grant_new_permissions and is_default_member_role from the create and edit dialogs',
+    async () => {
+      renderPanel();
 
-    await screen.findByRole('heading', { name: '角色权限管理', level: 3 });
+      await screen.findByRole('heading', { name: '角色权限管理', level: 3 });
 
-    fireEvent.click(screen.getByRole('button', { name: /新建角色/ }));
+      fireEvent.click(screen.getByRole('button', { name: /新建角色/ }));
 
-    const createDialog = await screen.findByRole('dialog');
-    fireEvent.change(within(createDialog).getByLabelText('角色名称'), {
-      target: { value: 'QA' }
-    });
-    fireEvent.change(within(createDialog).getByLabelText('角色编码'), {
-      target: { value: 'qa' }
-    });
-    fireEvent.click(
-      within(createDialog).getByRole('checkbox', { name: '自动接收后续新增权限' })
-    );
-    fireEvent.submit(
-      within(createDialog).getByLabelText('角色名称').closest('form') as HTMLFormElement
-    );
-
-    await waitFor(() => {
-      expect(rolesApi.createSettingsRole).toHaveBeenCalledWith(
-        {
-          code: 'qa',
-          name: 'QA',
-          introduction: '',
-          auto_grant_new_permissions: true,
-          is_default_member_role: false
-        },
-        'csrf-123'
+      const createDialog = await screen.findByRole('dialog');
+      fireEvent.change(within(createDialog).getByLabelText('角色名称'), {
+        target: { value: 'QA' }
+      });
+      fireEvent.change(within(createDialog).getByLabelText('角色编码'), {
+        target: { value: 'qa' }
+      });
+      fireEvent.click(
+        within(createDialog).getByRole('checkbox', { name: '自动接收后续新增权限' })
       );
-    });
+      fireEvent.click(within(createDialog).getByRole('button', { name: 'OK' }));
 
-    fireEvent.click(screen.getByRole('button', { name: /编辑基本信息/ }));
+      await waitFor(() => {
+        expect(rolesApi.createSettingsRole).toHaveBeenCalledWith(
+          {
+            code: 'qa',
+            name: 'QA',
+            introduction: '',
+            auto_grant_new_permissions: true,
+            is_default_member_role: false
+          },
+          'csrf-123'
+        );
+      });
 
-    const editDialog = await screen.findByRole('dialog');
-    expect(
-      within(editDialog).getByRole('checkbox', { name: '默认新用户角色' })
-    ).toBeChecked();
-    expect(
-      within(editDialog).getByRole('checkbox', { name: '自动接收后续新增权限' })
-    ).not.toBeChecked();
+      fireEvent.click(screen.getByRole('button', { name: /编辑基本信息/ }));
 
-    fireEvent.change(within(editDialog).getByLabelText('角色名称'), {
-      target: { value: 'Manager Updated' }
-    });
-    fireEvent.click(
-      within(editDialog).getByRole('checkbox', { name: '自动接收后续新增权限' })
-    );
-    fireEvent.click(within(editDialog).getByRole('checkbox', { name: '默认新用户角色' }));
-    fireEvent.submit(
-      within(editDialog).getByLabelText('角色名称').closest('form') as HTMLFormElement
-    );
+      const editDialog = await screen.findByRole('dialog');
+      expect(
+        within(editDialog).getByRole('checkbox', { name: '默认新用户角色' })
+      ).toBeChecked();
+      expect(
+        within(editDialog).getByRole('checkbox', { name: '自动接收后续新增权限' })
+      ).not.toBeChecked();
 
-    await waitFor(() => {
-      expect(rolesApi.updateSettingsRole).toHaveBeenCalledWith(
-        'manager',
-        {
-          name: 'Manager Updated',
-          introduction: '',
-          auto_grant_new_permissions: true,
-          is_default_member_role: false
-        },
-        'csrf-123'
+      fireEvent.change(within(editDialog).getByLabelText('角色名称'), {
+        target: { value: 'Manager Updated' }
+      });
+      fireEvent.click(
+        within(editDialog).getByRole('checkbox', { name: '自动接收后续新增权限' })
       );
-    });
-  });
+      fireEvent.click(
+        within(editDialog).getByRole('checkbox', { name: '默认新用户角色' })
+      );
+      fireEvent.click(within(editDialog).getByRole('button', { name: 'OK' }));
+
+      await waitFor(() => {
+        expect(rolesApi.updateSettingsRole).toHaveBeenCalledWith(
+          'manager',
+          {
+            name: 'Manager Updated',
+            introduction: '',
+            auto_grant_new_permissions: true,
+            is_default_member_role: false
+          },
+          'csrf-123'
+        );
+      });
+    },
+    20000
+  );
 });

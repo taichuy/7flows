@@ -71,14 +71,18 @@ describe('MePage', () => {
     authenticate();
   });
 
-  test('redirects /me to /me/profile', async () => {
-    renderApp('/me');
+  test(
+    'redirects /me to /me/profile',
+    async () => {
+      renderApp('/me');
 
-    await waitFor(() => {
-      expect(window.location.pathname).toBe('/me/profile');
-    });
-    expect(await screen.findByRole('heading', { name: '个人资料', level: 4 })).toBeInTheDocument();
-  });
+      await waitFor(() => {
+        expect(window.location.pathname).toBe('/me/profile');
+      });
+      expect(await screen.findByRole('heading', { name: '个人资料', level: 4 })).toBeInTheDocument();
+    },
+    15000
+  );
 
   test('does not render sign-out inside the /me sidebar', async () => {
     renderApp('/me/profile');

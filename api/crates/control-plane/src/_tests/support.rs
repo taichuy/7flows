@@ -16,8 +16,9 @@ use tokio::sync::RwLock;
 use uuid::Uuid;
 
 use crate::ports::{
-    AuthRepository, BootstrapRepository, CreateMemberInput, MemberRepository, RoleRepository,
-    SessionStore, UpdateProfileInput, WorkspaceRepository,
+    AuthRepository, BootstrapRepository, CreateMemberInput, CreateWorkspaceRoleInput,
+    MemberRepository, RoleRepository, SessionStore, UpdateProfileInput, UpdateWorkspaceRoleInput,
+    WorkspaceRepository,
 };
 use domain::{
     ActorContext, AuditLogRecord, AuthenticatorRecord, BoundRole, PermissionDefinition,
@@ -319,19 +320,13 @@ impl RoleRepository for MemoryRoleRepository {
         Ok(self.roles.read().await.clone())
     }
 
-    async fn create_team_role(
-        &self,
-        _actor_user_id: Uuid,
-        workspace_id: Uuid,
-        code: &str,
-        name: &str,
-        _introduction: &str,
-        auto_grant_new_permissions: bool,
-        is_default_member_role: bool,
-    ) -> Result<()> {
-        self.touched_workspaces.write().await.push(workspace_id);
+    async fn create_team_role(&self, input: &CreateWorkspaceRoleInput) -> Result<()> {
+        self.touched_workspaces
+            .write()
+            .await
+            .push(input.workspace_id);
         let mut roles = self.roles.write().await;
-        if is_default_member_role {
+        if input.is_default_member_role {
             for role in roles.iter_mut() {
                 if matches!(role.scope_kind, RoleScopeKind::Workspace) {
                     role.is_default_member_role = false;
@@ -339,33 +334,27 @@ impl RoleRepository for MemoryRoleRepository {
             }
         }
         roles.push(RoleTemplate {
-            code: code.to_string(),
-            name: name.to_string(),
+            code: input.code.clone(),
+            name: input.name.clone(),
             scope_kind: RoleScopeKind::Workspace,
             is_builtin: false,
             is_editable: true,
-            auto_grant_new_permissions,
-            is_default_member_role,
+            auto_grant_new_permissions: input.auto_grant_new_permissions,
+            is_default_member_role: input.is_default_member_role,
             permissions: Vec::new(),
         });
         Ok(())
     }
 
-    async fn update_team_role(
-        &self,
-        _actor_user_id: Uuid,
-        workspace_id: Uuid,
-        role_code: &str,
-        name: &str,
-        _introduction: &str,
-        auto_grant_new_permissions: Option<bool>,
-        is_default_member_role: Option<bool>,
-    ) -> Result<()> {
-        self.touched_workspaces.write().await.push(workspace_id);
+    async fn update_team_role(&self, input: &UpdateWorkspaceRoleInput) -> Result<()> {
+        self.touched_workspaces
+            .write()
+            .await
+            .push(input.workspace_id);
         let mut roles = self.roles.write().await;
-        let role_index = roles.iter().position(|role| role.code == role_code);
+        let role_index = roles.iter().position(|role| role.code == input.role_code);
 
-        if matches!(is_default_member_role, Some(false))
+        if matches!(input.is_default_member_role, Some(false))
             && role_index
                 .and_then(|index| roles.get(index))
                 .map(|role| role.is_default_member_role)
@@ -376,20 +365,22 @@ impl RoleRepository for MemoryRoleRepository {
             ));
         }
 
-        if matches!(is_default_member_role, Some(true)) {
+        if matches!(input.is_default_member_role, Some(true)) {
             for role in roles.iter_mut() {
-                if matches!(role.scope_kind, RoleScopeKind::Workspace) && role.code != role_code {
+                if matches!(role.scope_kind, RoleScopeKind::Workspace)
+                    && role.code != input.role_code
+                {
                     role.is_default_member_role = false;
                 }
             }
         }
 
         if let Some(role) = role_index.and_then(|index| roles.get_mut(index)) {
-            role.name = name.to_string();
-            if let Some(value) = auto_grant_new_permissions {
+            role.name = input.name.clone();
+            if let Some(value) = input.auto_grant_new_permissions {
                 role.auto_grant_new_permissions = value;
             }
-            if let Some(value) = is_default_member_role {
+            if let Some(value) = input.is_default_member_role {
                 role.is_default_member_role = value;
             }
         }

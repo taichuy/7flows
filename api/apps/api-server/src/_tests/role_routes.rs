@@ -235,7 +235,10 @@ async fn role_routes_roundtrip_policy_flags_and_protect_default_role_from_clear(
         .await
         .unwrap();
     let clear_payload: serde_json::Value = serde_json::from_slice(&clear_body).unwrap();
-    assert_eq!(clear_payload["code"].as_str(), Some("default_member_role_required"));
+    assert_eq!(
+        clear_payload["code"].as_str(),
+        Some("default_member_role_required")
+    );
 }
 
 #[tokio::test]
