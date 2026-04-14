@@ -319,16 +319,26 @@ impl RoleRepository for MemoryRoleRepository {
         code: &str,
         name: &str,
         _introduction: &str,
+        auto_grant_new_permissions: bool,
+        is_default_member_role: bool,
     ) -> Result<()> {
         self.touched_workspaces.write().await.push(workspace_id);
-        self.roles.write().await.push(RoleTemplate {
+        let mut roles = self.roles.write().await;
+        if is_default_member_role {
+            for role in roles.iter_mut() {
+                if matches!(role.scope_kind, RoleScopeKind::Workspace) {
+                    role.is_default_member_role = false;
+                }
+            }
+        }
+        roles.push(RoleTemplate {
             code: code.to_string(),
             name: name.to_string(),
             scope_kind: RoleScopeKind::Workspace,
             is_builtin: false,
             is_editable: true,
-            auto_grant_new_permissions: false,
-            is_default_member_role: false,
+            auto_grant_new_permissions,
+            is_default_member_role,
             permissions: Vec::new(),
         });
         Ok(())
@@ -341,16 +351,40 @@ impl RoleRepository for MemoryRoleRepository {
         role_code: &str,
         name: &str,
         _introduction: &str,
+        auto_grant_new_permissions: Option<bool>,
+        is_default_member_role: Option<bool>,
     ) -> Result<()> {
         self.touched_workspaces.write().await.push(workspace_id);
-        if let Some(role) = self
-            .roles
-            .write()
-            .await
-            .iter_mut()
-            .find(|role| role.code == role_code)
+        let mut roles = self.roles.write().await;
+        let role_index = roles.iter().position(|role| role.code == role_code);
+
+        if matches!(is_default_member_role, Some(false))
+            && role_index
+                .and_then(|index| roles.get(index))
+                .map(|role| role.is_default_member_role)
+                .unwrap_or(false)
         {
+            anyhow::bail!(crate::errors::ControlPlaneError::InvalidInput(
+                "default_member_role_required"
+            ));
+        }
+
+        if matches!(is_default_member_role, Some(true)) {
+            for role in roles.iter_mut() {
+                if matches!(role.scope_kind, RoleScopeKind::Workspace) && role.code != role_code {
+                    role.is_default_member_role = false;
+                }
+            }
+        }
+
+        if let Some(role) = role_index.and_then(|index| roles.get_mut(index)) {
             role.name = name.to_string();
+            if let Some(value) = auto_grant_new_permissions {
+                role.auto_grant_new_permissions = value;
+            }
+            if let Some(value) = is_default_member_role {
+                role.is_default_member_role = value;
+            }
         }
         Ok(())
     }

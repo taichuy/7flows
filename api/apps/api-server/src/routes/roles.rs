@@ -25,12 +25,16 @@ pub struct CreateRoleBody {
     pub code: String,
     pub name: String,
     pub introduction: String,
+    pub auto_grant_new_permissions: Option<bool>,
+    pub is_default_member_role: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateRoleBody {
     pub name: String,
     pub introduction: String,
+    pub auto_grant_new_permissions: Option<bool>,
+    pub is_default_member_role: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -45,6 +49,8 @@ pub struct RoleResponse {
     pub scope_kind: String,
     pub is_builtin: bool,
     pub is_editable: bool,
+    pub auto_grant_new_permissions: bool,
+    pub is_default_member_role: bool,
     pub permission_codes: Vec<String>,
 }
 
@@ -64,6 +70,8 @@ fn to_role_response(role: domain::RoleTemplate) -> RoleResponse {
         },
         is_builtin: role.is_builtin,
         is_editable: role.is_editable,
+        auto_grant_new_permissions: role.auto_grant_new_permissions,
+        is_default_member_role: role.is_default_member_role,
         permission_codes: role.permissions,
     }
 }
@@ -117,6 +125,8 @@ pub async fn create_role(
             code: body.code.clone(),
             name: body.name.clone(),
             introduction: body.introduction,
+            auto_grant_new_permissions: body.auto_grant_new_permissions.unwrap_or(false),
+            is_default_member_role: body.is_default_member_role.unwrap_or(false),
         })
         .await?;
 
@@ -128,6 +138,8 @@ pub async fn create_role(
             scope_kind: "workspace".to_string(),
             is_builtin: false,
             is_editable: true,
+            auto_grant_new_permissions: body.auto_grant_new_permissions.unwrap_or(false),
+            is_default_member_role: body.is_default_member_role.unwrap_or(false),
             permission_codes: Vec::new(),
         })),
     ))
@@ -155,6 +167,8 @@ pub async fn update_role(
             role_code,
             name: body.name,
             introduction: body.introduction,
+            auto_grant_new_permissions: body.auto_grant_new_permissions,
+            is_default_member_role: body.is_default_member_role,
         })
         .await?;
 

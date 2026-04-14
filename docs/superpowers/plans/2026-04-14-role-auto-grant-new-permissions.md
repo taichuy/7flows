@@ -53,7 +53,7 @@
 - Modify: `api/crates/storage-pg/src/repositories.rs`
 - Modify: `api/crates/storage-pg/src/auth_repository.rs`
 
-- [ ] **Step 1: Write the failing storage tests**
+- [x] **Step 1: Write the failing storage tests**
 
 Create `api/crates/storage-pg/src/_tests/role_policy_tests.rs`:
 
@@ -94,7 +94,7 @@ Register the module in `api/crates/storage-pg/src/_tests/mod.rs`:
 mod role_policy_tests;
 ```
 
-- [ ] **Step 2: Run the focused failures**
+- [x] **Step 2: Run the focused failures**
 
 Run: `cargo test -p storage-pg _tests::role_policy_tests::upsert_permission_catalog_grants_new_permissions_only_to_auto_grant_roles -- --exact --nocapture`
 Expected: FAIL because the new columns and auto-grant sync do not exist.
@@ -102,7 +102,7 @@ Expected: FAIL because the new columns and auto-grant sync do not exist.
 Run: `cargo test -p storage-pg _tests::migration_smoke::migration_smoke_creates_workspace_tables_and_workspace_scoped_indexes -- --exact --nocapture`
 Expected: FAIL because the schema does not contain the new role-policy columns.
 
-- [ ] **Step 3: Add the schema fields and builtin defaults**
+- [x] **Step 3: Add the schema fields and builtin defaults**
 
 Create `api/crates/storage-pg/migrations/20260414203000_add_role_policy_flags.sql`:
 
@@ -180,7 +180,7 @@ RoleTemplate {
 }
 ```
 
-- [ ] **Step 4: Implement storage reads and permission auto-grant sync**
+- [x] **Step 4: Implement storage reads and permission auto-grant sync**
 
 Update `api/crates/storage-pg/src/mappers/role_mapper.rs`:
 
@@ -272,7 +272,7 @@ values ($1, $2, $3, $4, $5, '', $6, $7, $8, $9, $10)
 on conflict do nothing
 ```
 
-- [ ] **Step 5: Re-run the storage tests and commit**
+- [x] **Step 5: Re-run the storage tests and commit**
 
 Run: `cargo test -p storage-pg _tests::role_policy_tests::upsert_permission_catalog_grants_new_permissions_only_to_auto_grant_roles -- --exact --nocapture`
 Expected: PASS
@@ -289,6 +289,8 @@ Commit:
 git add api/crates/domain/src/auth.rs api/crates/access-control/src/catalog.rs api/crates/storage-pg/src/_tests/mod.rs api/crates/storage-pg/src/_tests/migration_smoke.rs api/crates/storage-pg/src/_tests/role_policy_tests.rs api/crates/storage-pg/src/mappers/role_mapper.rs api/crates/storage-pg/src/repositories.rs api/crates/storage-pg/src/auth_repository.rs api/crates/storage-pg/migrations/20260414203000_add_role_policy_flags.sql
 git commit -m "feat(api): add role policy flags"
 ```
+
+Execution note (`2026-04-14 20`): ran the three focused `storage-pg` tests successfully and committed the slice as `423334fd` (`feat(api): add role policy flags`). The permission auto-grant insert is implemented per-role to avoid reusing a single UUID across multiple inserted bindings.
 
 ## Task 2: Expose Role Policy Flags And Enforce One Default Role
 

@@ -107,6 +107,138 @@ async fn role_routes_create_replace_permissions_and_protect_root() {
 }
 
 #[tokio::test]
+async fn role_routes_roundtrip_policy_flags_and_protect_default_role_from_clear() {
+    let app = test_app().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+
+    let create_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/roles")
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "code": "qa",
+                        "name": "QA",
+                        "introduction": "qa role",
+                        "auto_grant_new_permissions": true,
+                        "is_default_member_role": false
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(create_response.status(), StatusCode::CREATED);
+    let create_body = to_bytes(create_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let create_payload: serde_json::Value = serde_json::from_slice(&create_body).unwrap();
+    assert_eq!(
+        create_payload["data"]["auto_grant_new_permissions"].as_bool(),
+        Some(true)
+    );
+    assert_eq!(
+        create_payload["data"]["is_default_member_role"].as_bool(),
+        Some(false)
+    );
+
+    let update_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri("/api/console/roles/qa")
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "name": "QA Updated",
+                        "introduction": "updated qa role",
+                        "auto_grant_new_permissions": false,
+                        "is_default_member_role": true
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(update_response.status(), StatusCode::NO_CONTENT);
+
+    let list_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/console/roles")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(list_response.status(), StatusCode::OK);
+    let list_body = to_bytes(list_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let list_payload: serde_json::Value = serde_json::from_slice(&list_body).unwrap();
+    let roles = list_payload["data"].as_array().unwrap();
+    let qa = roles
+        .iter()
+        .find(|role| role["code"].as_str() == Some("qa"))
+        .unwrap();
+    let manager = roles
+        .iter()
+        .find(|role| role["code"].as_str() == Some("manager"))
+        .unwrap();
+
+    assert_eq!(qa["name"].as_str(), Some("QA Updated"));
+    assert_eq!(qa["auto_grant_new_permissions"].as_bool(), Some(false));
+    assert_eq!(qa["is_default_member_role"].as_bool(), Some(true));
+    assert_eq!(manager["is_default_member_role"].as_bool(), Some(false));
+
+    let clear_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PATCH")
+                .uri("/api/console/roles/qa")
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "name": "QA Updated",
+                        "introduction": "updated qa role",
+                        "auto_grant_new_permissions": false,
+                        "is_default_member_role": false
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(clear_response.status(), StatusCode::BAD_REQUEST);
+    let clear_body = to_bytes(clear_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let clear_payload: serde_json::Value = serde_json::from_slice(&clear_body).unwrap();
+    assert_eq!(clear_payload["code"].as_str(), Some("default_member_role_required"));
+}
+
+#[tokio::test]
 async fn root_can_login_create_member_create_role_and_bind_permissions() {
     let app = test_app().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root@example.com", "change-me").await;

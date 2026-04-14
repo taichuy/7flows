@@ -63,6 +63,8 @@ impl RoleRepository for PgControlPlaneStore {
         code: &str,
         name: &str,
         introduction: &str,
+        auto_grant_new_permissions: bool,
+        is_default_member_role: bool,
     ) -> Result<()> {
         if find_role_by_code(self.pool(), workspace_id, code)
             .await?
@@ -71,13 +73,23 @@ impl RoleRepository for PgControlPlaneStore {
             return Err(ControlPlaneError::Conflict("role_code").into());
         }
 
+        let mut tx = self.pool().begin().await?;
+        if is_default_member_role {
+            sqlx::query(
+                "update roles set is_default_member_role = false where scope_kind = 'workspace' and workspace_id = $1",
+            )
+            .bind(workspace_id)
+            .execute(&mut *tx)
+            .await?;
+        }
+
         sqlx::query(
             r#"
             insert into roles (
                 id, scope_kind, workspace_id, code, name, introduction, is_builtin, is_editable,
-                created_by, updated_by
+                auto_grant_new_permissions, is_default_member_role, created_by, updated_by
             )
-            values ($1, 'workspace', $2, $3, $4, $5, false, true, $6, $6)
+            values ($1, 'workspace', $2, $3, $4, $5, false, true, $6, $7, $8, $8)
             "#,
         )
         .bind(Uuid::now_v7())
@@ -85,10 +97,13 @@ impl RoleRepository for PgControlPlaneStore {
         .bind(code)
         .bind(name)
         .bind(introduction)
+        .bind(auto_grant_new_permissions)
+        .bind(is_default_member_role)
         .bind(actor_user_id)
-        .execute(self.pool())
+        .execute(&mut *tx)
         .await?;
 
+        tx.commit().await?;
         Ok(())
     }
 
@@ -99,6 +114,8 @@ impl RoleRepository for PgControlPlaneStore {
         role_code: &str,
         name: &str,
         introduction: &str,
+        auto_grant_new_permissions: Option<bool>,
+        is_default_member_role: Option<bool>,
     ) -> Result<()> {
         let role = find_role_by_code(self.pool(), workspace_id, role_code)
             .await?
@@ -109,13 +126,29 @@ impl RoleRepository for PgControlPlaneStore {
         {
             return Err(ControlPlaneError::PermissionDenied("root_role_immutable").into());
         }
+        if matches!(is_default_member_role, Some(false)) && role.is_default_member_role {
+            return Err(ControlPlaneError::InvalidInput("default_member_role_required").into());
+        }
+
+        let mut tx = self.pool().begin().await?;
+        if matches!(is_default_member_role, Some(true)) {
+            sqlx::query(
+                "update roles set is_default_member_role = false where scope_kind = 'workspace' and workspace_id = $1 and id <> $2",
+            )
+            .bind(workspace_id)
+            .bind(role.id)
+            .execute(&mut *tx)
+            .await?;
+        }
 
         let result = sqlx::query(
             r#"
             update roles
             set name = $2,
                 introduction = $3,
-                updated_by = $4,
+                auto_grant_new_permissions = coalesce($4, auto_grant_new_permissions),
+                is_default_member_role = coalesce($5, is_default_member_role),
+                updated_by = $6,
                 updated_at = now()
             where id = $1
             "#,
@@ -123,14 +156,17 @@ impl RoleRepository for PgControlPlaneStore {
         .bind(role.id)
         .bind(name)
         .bind(introduction)
+        .bind(auto_grant_new_permissions)
+        .bind(is_default_member_role)
         .bind(actor_user_id)
-        .execute(self.pool())
+        .execute(&mut *tx)
         .await?;
 
         if result.rows_affected() == 0 {
             return Err(ControlPlaneError::NotFound("role").into());
         }
 
+        tx.commit().await?;
         Ok(())
     }
 
@@ -148,6 +184,9 @@ impl RoleRepository for PgControlPlaneStore {
             || matches!(role.scope_kind, RoleScopeKind::System)
         {
             return Err(ControlPlaneError::PermissionDenied("builtin_role_immutable").into());
+        }
+        if role.is_default_member_role {
+            return Err(ControlPlaneError::InvalidInput("default_member_role_required").into());
         }
 
         let binding_count: i64 =

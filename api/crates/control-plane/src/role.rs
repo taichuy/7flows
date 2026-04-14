@@ -9,6 +9,8 @@ pub struct CreateRoleCommand {
     pub code: String,
     pub name: String,
     pub introduction: String,
+    pub auto_grant_new_permissions: bool,
+    pub is_default_member_role: bool,
 }
 
 pub struct UpdateRoleCommand {
@@ -16,6 +18,8 @@ pub struct UpdateRoleCommand {
     pub role_code: String,
     pub name: String,
     pub introduction: String,
+    pub auto_grant_new_permissions: Option<bool>,
+    pub is_default_member_role: Option<bool>,
 }
 
 pub struct DeleteRoleCommand {
@@ -81,6 +85,8 @@ where
                 &command.code,
                 &command.name,
                 &command.introduction,
+                command.auto_grant_new_permissions,
+                command.is_default_member_role,
             )
             .await?;
         self.repository
@@ -113,6 +119,8 @@ where
                 &command.role_code,
                 &command.name,
                 &command.introduction,
+                command.auto_grant_new_permissions,
+                command.is_default_member_role,
             )
             .await?;
         self.repository

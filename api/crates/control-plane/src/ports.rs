@@ -211,6 +211,8 @@ pub trait RoleRepository: Send + Sync {
         code: &str,
         name: &str,
         introduction: &str,
+        auto_grant_new_permissions: bool,
+        is_default_member_role: bool,
     ) -> anyhow::Result<()>;
     async fn update_team_role(
         &self,
@@ -219,6 +221,8 @@ pub trait RoleRepository: Send + Sync {
         role_code: &str,
         name: &str,
         introduction: &str,
+        auto_grant_new_permissions: Option<bool>,
+        is_default_member_role: Option<bool>,
     ) -> anyhow::Result<()>;
     async fn delete_team_role(
         &self,
