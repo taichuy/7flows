@@ -119,7 +119,7 @@ describe('SettingsPage', () => {
     });
     expect(await screen.findByRole('heading', { name: '设置', level: 4 })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Section navigation' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '用户管理', level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '用户管理', level: 4 })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '新建用户' })).not.toBeInTheDocument();
   });
 
