@@ -21,7 +21,7 @@
 - `crates/observability` 放日志、trace 与可观测性基础能力。
 - `target` 是构建产物目录，不手工修改。
 - 模块级与单元测试统一放到对应 `src/_tests`。
-- app 级健康检查、启动冒烟、跨 crate 集成验证可放到 `tests/`。
+- 应用宿主级健康检查、启动冒烟、跨 crate 集成验证可放到 `tests/`。
 - 同一目录下文件数量接近 `15` 个时先收纳子目录；单文件接近 `1500` 行时先拆职责。
 
 ## Local Rules
@@ -35,8 +35,10 @@
 - session 必须显式持有 `tenant_id` 与 `current_workspace_id`。
 - 单个请求链路只允许落在一个显式 `workspace` 上下文。
 - `root/system` 与业务 `workspace` 严格分离。
-- 外部接口与业务语义统一使用 `workspace`
+- 外部接口与业务语义统一使用 `workspace`。
 - 登录结果、session 读取与请求中间件必须继续向下传递 `current_workspace_id`。
+- 数据建模定义的 `scope_kind` 只允许 `workspace` 与 `system`；`system` 固定使用 `SYSTEM_SCOPE_ID`。
+- runtime 物理 scope 列统一使用 `scope_id`；活跃后端代码中不再保留 `team/app` alias、`team_id` 或 `app_id` 语义。
 - 成员、角色、权限、模型、会话等关键动作必须写审计日志。
 - 会影响 session 安全边界的写动作必须经过显式 service。
 - 需要 CSRF 保护的写接口必须校验 `x-csrf-token`。
@@ -51,6 +53,7 @@
 - 新增后端功能默认同时补 service 测试与 route 测试。
 - 统一后端验证入口是仓库根命令 `node scripts/node/verify-backend.js`。
 - 同一工作区内 `cargo` 验证命令默认串行执行，不并发抢锁。
+- 修改 `storage-pg/migrations` 下历史 migration 文件后，数据库测试优先使用独立 schema，避免 `sqlx` migration checksum 污染共享 schema。
 
 ## 新增资源最低模板
 - 新增关键写资源至少包含：

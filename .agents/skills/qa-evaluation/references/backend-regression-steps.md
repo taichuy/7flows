@@ -15,10 +15,11 @@
 
 至少补齐：
 
+- `api/AGENTS.md`
 - 当前任务说明、改动范围、验收标准
-- `docs/superpowers/specs/1flowse/2026-04-12-backend-interface-kernel-design.md`
-- `docs/superpowers/specs/1flowse/2026-04-12-backend-engineering-quality-design.md`
 - 与本次范围直接相关的后端项目记忆
+
+如果存在直接相关的 spec / plan，再补齐对应文件；不要把过期 spec 当成默认真相来源。
 
 如果涉及插件、runtime 或动态建模，必须额外确认：
 
@@ -26,6 +27,10 @@
 - `host-extension / runtime extension / capability plugin` 边界
 - `resource kernel` 是否仍由宿主托管
 - `dynamic modeling` 是否仍是元数据系统，而不是 runtime 数据本身
+- `scope_kind` 是否只保留 `workspace/system`
+- `system` 是否固定使用 `SYSTEM_SCOPE_ID`
+- runtime 物理 scope 列是否统一为 `scope_id`
+- 活跃后端代码是否已清掉 `team/app` alias
 
 ## Step 2: Run Backend Verification
 
@@ -74,6 +79,7 @@ cargo test -p <crate-name>
 - route 没有绕过 service 直接改状态
 - repository 没有偷偷承担事务意图、权限判定或状态流转
 - 关键副作用、审计、幂等仍由 service 编排
+- `workspace`、`system` 与 session scope 语义没有在写入口被重新混用
 
 ## Step 5: Sample Repository And Mapper Layering
 
@@ -83,6 +89,7 @@ cargo test -p <crate-name>
 - `mapper` 只做转换，不藏权限、状态或额外查询语义
 - `storage-pg` 的 repository / mapper 拆分仍然成立
 - 复杂 SQL、JSON 字段、枚举转换等易错点有对应 targeted tests
+- runtime metadata、物理表列名与 `scope_id` 语义保持一致
 
 ## Step 6: Blast Radius Before Conclusion
 
@@ -91,6 +98,7 @@ cargo test -p <crate-name>
 - 公共 API、session 或 auth 契约变化后，调用方是否同步成立
 - `storage-pg` 或持久化层调整后，service、route、tests 是否仍成立
 - runtime 或插件相关改动后，白名单槽位与消费方式是否仍成立
+- `workspace/system`、`SYSTEM_SCOPE_ID` 与 runtime `scope_id` 约束是否贯穿 route / service / repository / tests
 - `_tests`、文件大小、目录收纳和最小验证命令是否仍遵守质量门禁
 
 如果以上任一步没有证据，结论必须降级为：`未验证，不下确定结论`。
