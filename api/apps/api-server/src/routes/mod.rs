@@ -7,3 +7,4 @@ pub mod roles;
 pub mod runtime_models;
 pub mod session;
 pub mod team;
+pub mod workspaces;

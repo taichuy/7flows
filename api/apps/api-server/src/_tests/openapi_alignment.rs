@@ -118,6 +118,34 @@ async fn openapi_contains_session_csrf_and_patch_me_routes() {
 }
 
 #[tokio::test]
+async fn openapi_contains_workspace_switch_routes() {
+    let response = app()
+        .oneshot(
+            Request::builder()
+                .uri("/openapi.json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let payload: Value = serde_json::from_slice(&body).unwrap();
+    let paths = payload["paths"].as_object().cloned().unwrap_or_default();
+    let components = payload["components"]["schemas"]
+        .as_object()
+        .cloned()
+        .unwrap_or_default();
+
+    assert!(paths.contains_key("/api/console/workspaces"));
+    assert!(paths.contains_key("/api/console/session/actions/switch-workspace"));
+    assert!(components.contains_key("WorkspaceSummaryResponse"));
+    assert!(components.contains_key("SwitchWorkspaceBody"));
+}
+
+#[tokio::test]
 async fn openapi_excludes_legacy_member_mutation_routes() {
     let paths = openapi_paths().await;
     let app = test_app().await;

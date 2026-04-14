@@ -135,3 +135,24 @@ pub async fn login_and_capture_cookie(
         payload["data"]["csrf_token"].as_str().unwrap().to_string(),
     )
 }
+
+pub async fn seed_workspace(database_url: &str, workspace_name: &str) -> Uuid {
+    let pool = storage_pg::connect(database_url).await.unwrap();
+    let tenant_id: Uuid = sqlx::query_scalar("select id from tenants where code = 'root-tenant'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let workspace_id = Uuid::now_v7();
+
+    sqlx::query(
+        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
+    )
+    .bind(workspace_id)
+    .bind(tenant_id)
+    .bind(workspace_name)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    workspace_id
+}

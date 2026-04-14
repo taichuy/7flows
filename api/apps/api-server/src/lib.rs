@@ -113,6 +113,7 @@ fn console_router(state: Arc<ApiState>) -> Router {
         .nest("/api/console", routes::roles::router())
         .nest("/api/console", routes::permissions::router())
         .nest("/api/console", routes::session::router())
+        .nest("/api/console", routes::workspaces::router())
         .nest("/api/runtime", routes::runtime_models::router())
         .nest("/api/public/auth", routes::auth::router())
         .with_state(state)

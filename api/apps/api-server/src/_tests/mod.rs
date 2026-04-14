@@ -9,3 +9,4 @@ mod runtime_model_routes;
 mod session_routes;
 mod support;
 mod team_routes;
+mod workspace_routes;

@@ -1,8 +1,11 @@
-use crate::_tests::support::{login_and_capture_cookie, test_app};
+use crate::_tests::support::{
+    login_and_capture_cookie, seed_workspace, test_app, test_app_with_database_url,
+};
 use axum::{
     body::{to_bytes, Body},
     http::{header, Request, StatusCode},
 };
+use serde_json::json;
 use tower::ServiceExt;
 
 #[tokio::test]
@@ -117,4 +120,31 @@ async fn revoke_all_route_invalidates_current_session() {
         .unwrap();
 
     assert_eq!(session_response.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn switch_workspace_route_requires_csrf() {
+    let (app, database_url) = test_app_with_database_url().await;
+    let target_workspace_id = seed_workspace(&database_url, "Workspace Without Csrf").await;
+    let (cookie, _) = login_and_capture_cookie(&app, "root", "change-me").await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/session/actions/switch-workspace")
+                .header("cookie", cookie)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "workspace_id": target_workspace_id
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
 }
