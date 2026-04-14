@@ -5,6 +5,8 @@ use runtime_core::runtime_engine::RuntimeEngine;
 use storage_pg::PgControlPlaneStore;
 use storage_redis::{InMemorySessionStore, RedisSessionStore};
 
+use crate::openapi_docs::ApiDocsRegistry;
+
 #[derive(Clone)]
 pub enum SessionStoreHandle {
     Redis(Box<RedisSessionStore>),
@@ -47,6 +49,7 @@ pub struct ApiState {
     pub store: PgControlPlaneStore,
     pub runtime_engine: std::sync::Arc<RuntimeEngine>,
     pub session_store: SessionStoreHandle,
+    pub api_docs: std::sync::Arc<ApiDocsRegistry>,
     pub cookie_name: String,
     pub session_ttl_days: i64,
     pub bootstrap_workspace_name: String,

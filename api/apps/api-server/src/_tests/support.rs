@@ -74,6 +74,8 @@ pub async fn test_app_with_database_url() -> (Router, String) {
         runtime_registry,
         std::sync::Arc::new(store.clone()),
     ));
+    let api_docs =
+        std::sync::Arc::new(crate::openapi_docs::build_default_api_docs_registry().unwrap());
 
     let app = crate::app_with_state_and_config(
         std::sync::Arc::new(ApiState {
@@ -82,6 +84,7 @@ pub async fn test_app_with_database_url() -> (Router, String) {
             session_store: SessionStoreHandle::InMemory(
                 storage_redis::InMemorySessionStore::default(),
             ),
+            api_docs,
             cookie_name: config.cookie_name.clone(),
             session_ttl_days: config.session_ttl_days,
             bootstrap_workspace_name: config.bootstrap_workspace_name.clone(),

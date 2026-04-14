@@ -2,7 +2,7 @@ use api_server::{
     app,
     app_state::{ApiState, SessionStoreHandle},
     app_with_state_and_config,
-    config::ApiConfig,
+    config::{ApiConfig, ApiEnvironment},
 };
 use argon2::{
     password_hash::{PasswordHasher, SaltString},
@@ -10,7 +10,7 @@ use argon2::{
 };
 use axum::{
     body::{to_bytes, Body},
-    http::{Request, StatusCode},
+    http::{HeaderValue, Request, StatusCode},
     Router,
 };
 use control_plane::bootstrap::{BootstrapConfig, BootstrapService};
@@ -46,7 +46,10 @@ async fn isolated_database_url(base_url: &str) -> String {
 }
 
 async fn test_app() -> Router {
-    let mut config = default_test_config();
+    test_app_with_config(default_test_config()).await
+}
+
+async fn test_app_with_config(mut config: ApiConfig) -> Router {
     config.database_url = isolated_database_url(&config.database_url).await;
     let pool = storage_pg::connect(&config.database_url).await.unwrap();
     storage_pg::run_migrations(&pool).await.unwrap();
@@ -76,6 +79,8 @@ async fn test_app() -> Router {
         runtime_registry,
         std::sync::Arc::new(store.clone()),
     ));
+    let api_docs =
+        std::sync::Arc::new(api_server::openapi_docs::build_default_api_docs_registry().unwrap());
 
     app_with_state_and_config(
         std::sync::Arc::new(ApiState {
@@ -84,6 +89,7 @@ async fn test_app() -> Router {
             session_store: SessionStoreHandle::InMemory(
                 storage_redis::InMemorySessionStore::default(),
             ),
+            api_docs,
             cookie_name: config.cookie_name.clone(),
             session_ttl_days: config.session_ttl_days,
             bootstrap_workspace_name: config.bootstrap_workspace_name.clone(),
@@ -293,4 +299,30 @@ async fn member_action_routes_remove_legacy_aliases() {
         .await
         .unwrap();
     assert_eq!(legacy_disable_response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn production_router_hides_legacy_openapi_endpoints() {
+    let mut config = default_test_config();
+    config.env = ApiEnvironment::Production;
+    config.cors_allowed_origins = Some(vec![HeaderValue::from_static("http://127.0.0.1:3100")]);
+    let app = test_app_with_config(config).await;
+
+    let docs_response = app
+        .clone()
+        .oneshot(Request::builder().uri("/docs").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(docs_response.status(), StatusCode::NOT_FOUND);
+
+    let openapi_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/openapi.json")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(openapi_response.status(), StatusCode::NOT_FOUND);
 }

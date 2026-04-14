@@ -33,7 +33,7 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
     app_state::{ApiState, SessionStoreHandle},
-    config::ApiConfig,
+    config::{ApiConfig, ApiEnvironment},
 };
 
 pub const DEFAULT_API_SERVER_ADDR: &str = "0.0.0.0:7800";
@@ -85,21 +85,26 @@ fn cors_layer(config: &ApiConfig) -> CorsLayer {
     }
 }
 
-fn base_router() -> Router {
-    Router::new()
+fn base_router(include_legacy_docs: bool) -> Router {
+    let router = Router::new()
         .route("/health", get(health))
-        .route("/api/console/health", get(console_health))
-        .merge(SwaggerUi::new("/docs").url("/openapi.json", openapi::ApiDoc::openapi()))
+        .route("/api/console/health", get(console_health));
+
+    if include_legacy_docs {
+        router.merge(SwaggerUi::new("/docs").url("/openapi.json", openapi::ApiDoc::openapi()))
+    } else {
+        router
+    }
 }
 
 pub fn app() -> Router {
-    base_router()
+    base_router(true)
         .layer(development_cors_layer())
         .layer(TraceLayer::new_for_http())
 }
 
 pub fn app_with_state(state: Arc<ApiState>) -> Router {
-    base_router()
+    base_router(true)
         .merge(console_router(state))
         .layer(development_cors_layer())
         .layer(TraceLayer::new_for_http())
@@ -107,6 +112,7 @@ pub fn app_with_state(state: Arc<ApiState>) -> Router {
 
 fn console_router(state: Arc<ApiState>) -> Router {
     Router::new()
+        .nest("/api/console", routes::docs::router())
         .nest("/api/console", routes::me::router())
         .nest("/api/console", routes::workspace::router())
         .nest("/api/console", routes::members::router())
@@ -121,7 +127,7 @@ fn console_router(state: Arc<ApiState>) -> Router {
 }
 
 pub fn app_with_state_and_config(state: Arc<ApiState>, config: &ApiConfig) -> Router {
-    base_router()
+    base_router(config.env != ApiEnvironment::Production)
         .merge(console_router(state))
         .layer(cors_layer(config))
         .layer(TraceLayer::new_for_http())
@@ -160,12 +166,14 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
         runtime_registry,
         Arc::new(store.clone()),
     ));
+    let api_docs = Arc::new(openapi_docs::build_default_api_docs_registry()?);
 
     Ok(app_with_state_and_config(
         Arc::new(ApiState {
             store,
             runtime_engine,
             session_store: SessionStoreHandle::Redis(Box::new(session_store)),
+            api_docs,
             cookie_name: config.cookie_name.clone(),
             session_ttl_days: config.session_ttl_days,
             bootstrap_workspace_name: config.bootstrap_workspace_name.clone(),

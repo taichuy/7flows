@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod docs;
 pub mod me;
 pub mod members;
 pub mod model_definitions;

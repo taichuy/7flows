@@ -266,7 +266,7 @@ Execution note (`2026-04-14 17`):
 - Modify: `api/apps/api-server/src/_tests/mod.rs`
 - Modify: `api/apps/api-server/tests/health_routes.rs`
 
-- [ ] **Step 1: Add failing route and environment coverage**
+- [x] **Step 1: Add failing route and environment coverage**
 
 Create `api/apps/api-server/src/_tests/docs_routes.rs` with:
 
@@ -306,7 +306,7 @@ assert_eq!(docs_response.status(), StatusCode::NOT_FOUND);
 assert_eq!(openapi_response.status(), StatusCode::NOT_FOUND);
 ```
 
-- [ ] **Step 2: Run the failing route checks**
+- [x] **Step 2: Run the failing route checks**
 
 Run:
 
@@ -319,7 +319,7 @@ Expected:
 - docs route test FAILS because `/api/console/docs/*` is not registered;
 - health test FAILS because production router still exposes `/docs` and `/openapi.json`.
 
-- [ ] **Step 3: Wire the cached registry into app state and add the new routes**
+- [x] **Step 3: Wire the cached registry into app state and add the new routes**
 
 Extend `api/apps/api-server/src/app_state.rs`:
 
@@ -416,7 +416,7 @@ Use:
 - `base_router(true)` for `app()` and `app_with_state()`;
 - `base_router(config.env != ApiEnvironment::Production)` for `app_with_state_and_config()`.
 
-- [ ] **Step 4: Re-run the protected-route and production checks**
+- [x] **Step 4: Re-run the protected-route and production checks**
 
 Run:
 
@@ -429,13 +429,17 @@ cargo test -p api-server --test health_routes production_router_hides_legacy_ope
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit the docs transport slice**
+- [x] **Step 5: Commit the docs transport slice**
 
 ```bash
 git add api/apps/api-server/src/routes/docs.rs api/apps/api-server/src/app_state.rs api/apps/api-server/src/lib.rs api/apps/api-server/src/routes/mod.rs
 git add api/apps/api-server/src/_tests/docs_routes.rs api/apps/api-server/src/_tests/mod.rs api/apps/api-server/tests/health_routes.rs
 git commit -m "feat(api): add protected docs catalog routes"
 ```
+
+Execution note (`2026-04-14 17`):
+- 红灯阶段实际观察到 `/api/console/docs/catalog` 返回 `404`，以及生产态 `/docs` 仍返回 `303` 跳转到 Swagger UI。
+- `src/_tests` 内路由单测实际使用 `--lib` 加完整模块路径执行，`cargo` 继续保持串行验证。
 
 ### Task 3: Add Frontend Client Contracts And Gate Settings Visibility
 
