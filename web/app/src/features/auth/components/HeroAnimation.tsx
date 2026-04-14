@@ -92,31 +92,31 @@ export function HeroAnimation() {
           .hero-title {
             background: linear-gradient(
               120deg,
-              ${token.colorPrimary} 40%,
-              rgba(255, 255, 255, 0.9) 50%,
-              ${token.colorInfo} 60%
+              rgba(105, 177, 255, 0.9) 40%,
+              rgba(255, 255, 255, 1) 50%,
+              rgba(105, 177, 255, 0.9) 60%
             );
             background-size: 200% auto;
             color: transparent;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            animation: shine 8s linear infinite 1.5s;
+            animation: shine 30s linear infinite 1.5s;
           }
 
           .hero-slogan {
             background: linear-gradient(
               120deg,
-              ${token.colorText} 40%,
+              rgba(105, 177, 255, 0.5) 40%,
               rgba(255, 255, 255, 0.9) 50%,
-              ${token.colorText} 60%
+              rgba(105, 177, 255, 0.5) 60%
             );
             background-size: 200% auto;
             color: transparent;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            animation: shine 8s linear infinite 1.5s;
+            animation: shine 30s linear infinite 1.5s;
           }
 
           @keyframes reveal {

@@ -7,3 +7,4 @@ mod profile_service_tests;
 mod role_service_tests;
 mod session_security_service_tests;
 mod support;
+mod workspace_session_service_tests;
