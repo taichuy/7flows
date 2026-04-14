@@ -424,6 +424,7 @@ pub struct MemoryTeamRepository {
 }
 
 impl MemoryTeamRepository {
+    #[allow(dead_code)]
     pub async fn upsert_team(&self, team: TeamRecord) {
         self.teams.write().await.insert(team.id, team);
     }
@@ -442,6 +443,7 @@ impl MemoryTeamRepository {
             .insert(user_id, workspace_ids);
     }
 
+    #[allow(dead_code)]
     pub async fn mark_root_user(&self, user_id: Uuid) {
         self.root_user_ids.write().await.insert(user_id);
     }

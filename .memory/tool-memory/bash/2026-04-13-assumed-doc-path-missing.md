@@ -13,8 +13,8 @@ match_when:
   - 使用 `sed` 打开猜测路径时报“没有那个文件或目录”
   - 使用 `sed` 读取路径时报“是一个目录”
 created_at: 2026-04-13 08
-updated_at: 2026-04-13 22
-last_verified_at: 2026-04-13 22
+updated_at: 2026-04-14 10
+last_verified_at: 2026-04-14 10
 decision_policy: reference_on_failure
 scope:
   - bash
@@ -68,3 +68,4 @@ scope:
 - `2026-04-13 21`：在后端 QA 时主观假定 `scripts/node/verify-backend/index.js` 存在，`sed` 返回“没有那个文件或目录”；改为先读取 `scripts/node/verify-backend.js` 并用 `ls scripts/node` 确认脚本入口后完成验证。
 - `2026-04-13 21`：拼接 `rg` 搜索范围时误写成不存在的复合路径 `api/crates/storage-pg/src/api/apps/api-server/src`，命令直接报路径不存在；后续应先分目录确认真实搜索根，再执行检索。
 - `2026-04-13 22`：以为 `docs/superpowers/plans/2026-04-13-backend-governance-phase-two.md` 已经落盘，连续用 `sed` 回读失败；改为先用 `ls docs/superpowers/plans` 和 `rg --files docs` 确认真实文件集合，再创建正式计划文件。
+- `2026-04-14 10`：评审 `api/AGENTS.md` 时主观假定 `api/crates/storage-pg/src/runtime_registry_repository.rs` 存在，`sed` 返回“没有那个文件或目录”；改为先用 `rg -n "registry|unavailable"` 和 `find api/crates/storage-pg/src -maxdepth 2 -type f` 定位到真实实现分布在 `runtime_record_repository.rs` 与 `api/apps/api-server/src/runtime_registry_sync.rs`。

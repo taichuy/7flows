@@ -77,13 +77,13 @@ describe('MePage', () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe('/me/profile');
     });
-    expect(await screen.findByRole('heading', { name: '个人资料', level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '个人资料', level: 4 })).toBeInTheDocument();
   });
 
   test('does not render sign-out inside the /me sidebar', async () => {
     renderApp('/me/profile');
 
-    expect(await screen.findByRole('heading', { name: '个人资料', level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '个人资料', level: 4 })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Section navigation' })).toBeInTheDocument();
     expect(screen.queryByText('退出登录')).not.toBeInTheDocument();
   });
@@ -104,7 +104,7 @@ describe('MePage', () => {
 
     renderApp('/me/profile');
 
-    expect(await screen.findByRole('heading', { name: '个人资料', level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '个人资料', level: 4 })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /编辑资料/ }));
 
     await waitFor(() => {

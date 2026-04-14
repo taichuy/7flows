@@ -1,61 +1,59 @@
 .section-page-layout {
-  width: min(1200px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 24px 0 48px;
+  background: transparent;
+  margin: -28px 0 -64px 0;
+  min-height: calc(100vh - 56px);
 }
 
 .section-page-layout__header {
-  margin-bottom: 24px;
-}
-
-.section-page-layout__header .ant-typography {
-  margin-bottom: 0;
+  display: none;
 }
 
 .section-page-layout__shell {
-  display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  align-items: start;
-  gap: 32px;
+  display: flex;
 }
 
 .section-page-layout__rail {
-  position: sticky;
-  top: 80px;
+  width: 240px;
+  position: fixed;
+  left: 0;
+  top: 56px;
+  bottom: 0;
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  min-width: 0;
+  padding-top: 24px;
 }
 
 .section-page-layout__content {
-  min-width: 0;
+  flex: 1;
+  padding: 32px 48px;
+  margin-left: calc(240px - max(0px, (100vw - min(1200px, calc(100vw - 48px))) / 2));
+  display: flex;
+  justify-content: center;
+}
+
+.section-page-layout__content > * {
+  width: 100%;
+  max-width: 800px;
 }
 
 .section-page-layout__nav .ant-menu {
   border-inline-end: 0;
-  background: rgba(255, 255, 255, 0.78);
-  border-radius: 18px;
-  padding: 12px;
-  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.06);
+  background: transparent;
 }
 
 .section-page-layout__nav .ant-menu-item,
 .section-page-layout__nav .ant-menu-submenu-title {
   display: flex;
   align-items: center;
-  min-height: 44px;
-  margin: 0 0 6px;
-  border-radius: 12px;
-}
-
-.section-page-layout__nav .ant-menu-item:last-child {
-  margin-bottom: 0;
+  min-height: 40px;
+  margin: 4px 16px;
+  border-radius: 8px;
 }
 
 .section-page-layout__nav .ant-menu-item-selected {
-  background: #e8f7f0;
-  color: #119c72;
+  background: #e6f7f2;
+  color: #00d084;
 }
 
 .section-page-layout__nav .ant-menu-item-selected::after {
@@ -94,14 +92,18 @@
 
 @media (max-width: 991px) {
   .section-page-layout {
-    width: min(100%, calc(100% - 32px));
-    padding: 16px 0 32px;
+    margin: 0;
+    min-height: auto;
   }
-
-  .section-page-layout__header {
-    margin-bottom: 16px;
+  .section-page-layout__rail {
+    position: static;
+    width: 100%;
+    padding-top: 0;
   }
-
+  .section-page-layout__content {
+    margin-left: 0;
+    padding: 16px 0;
+  }
   .section-page-layout__shell {
     display: block;
   }

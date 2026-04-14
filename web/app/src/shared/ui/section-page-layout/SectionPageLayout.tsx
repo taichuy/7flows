@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { Grid, Space, Typography } from 'antd';
+import { Grid, Typography } from 'antd';
 
 import { SectionSidebarNav } from './SectionSidebarNav';
 import './section-page-layout.css';
@@ -26,7 +26,6 @@ export interface SectionPageLayoutProps {
 
 export function SectionPageLayout({
   pageTitle,
-  pageDescription,
   navItems,
   activeKey,
   children,
@@ -40,23 +39,17 @@ export function SectionPageLayout({
 
   return (
     <section className="section-page-layout">
-      {pageTitle || pageDescription ? (
-        <header className="section-page-layout__header">
-          <Space direction="vertical" size={4}>
-            {pageTitle ? <Typography.Title level={2}>{pageTitle}</Typography.Title> : null}
-            {pageDescription ? (
-              <Typography.Paragraph>{pageDescription}</Typography.Paragraph>
-            ) : null}
-          </Space>
-        </header>
-      ) : null}
-
       {visibleItems.length === 0 ? (
         <div className="section-page-layout__content">{emptyState ?? null}</div>
       ) : (
         <div className="section-page-layout__shell">
           {!compactMode ? (
             <aside className="section-page-layout__rail">
+              {pageTitle ? (
+                <Typography.Title level={4} style={{ padding: '0 24px', marginBottom: 24, marginTop: 0 }}>
+                  {pageTitle}
+                </Typography.Title>
+              ) : null}
               <SectionSidebarNav
                 navItems={visibleItems}
                 activeKey={activeKey}

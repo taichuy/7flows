@@ -104,7 +104,7 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe('/settings/docs');
     });
-    expect(await screen.findByRole('heading', { name: '设置', level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '设置', level: 4 })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Section navigation' })).toBeInTheDocument();
     expect(screen.getByTitle('API 文档')).toBeInTheDocument();
   });
@@ -117,7 +117,7 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe('/settings/members');
     });
-    expect(await screen.findByRole('heading', { name: '设置', level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '设置', level: 4 })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Section navigation' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '用户管理', level: 3 })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '新建用户' })).not.toBeInTheDocument();
@@ -131,7 +131,7 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe('/settings/docs');
     });
-    expect(await screen.findByRole('heading', { name: '设置', level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '设置', level: 4 })).toBeInTheDocument();
     expect(screen.getByTitle('API 文档')).toBeInTheDocument();
   });
 });
