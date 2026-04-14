@@ -311,7 +311,7 @@ Run: `pnpm --dir web/app test -- src/features/settings/_tests/settings-page.test
 
 Expected: PASS
 
-- [ ] **Step 5: 提交 Settings 迁移**
+- [x] **Step 5: 提交 Settings 迁移**
 
 ```bash
 git add web/app/src/features/settings/pages/SettingsPage.tsx web/app/src/features/settings/_tests/settings-page.test.tsx
@@ -328,7 +328,7 @@ git commit -m "feat(web): migrate settings page to shared shell"
 - Modify: `web/app/src/features/me/components/ChangePasswordForm.tsx`
 - Modify: `web/app/src/features/me/_tests/me-page.test.tsx`
 
-- [ ] **Step 1: 先写 `/me` 的失败测试**
+- [x] **Step 1: 先写 `/me` 的失败测试**
 
 把 `me-page.test.tsx` 改成围绕真实路由和共享壳层行为：
 
@@ -345,13 +345,13 @@ test('submits password change on /me/security and navigates to /sign-in after su
 - `编辑资料` Drawer 行为和资料保存仍工作；
 - 密码更新成功后仍清理 session 并跳去 `/sign-in`。
 
-- [ ] **Step 2: 运行 `/me` 定向测试，确认旧结构依赖固定 Sider 与菜单事件**
+- [x] **Step 2: 运行 `/me` 定向测试，确认旧结构依赖固定 Sider 与菜单事件**
 
 Run: `pnpm --dir web/app test -- src/features/me/_tests/me-page.test.tsx`
 
 Expected: FAIL because `MePage` 仍在页内维护 `selectedKey`，并把 `退出登录` 混在侧栏导航里。
 
-- [ ] **Step 3: 把 `/me` 切到共享壳层，并把样式搬到最近 owner**
+- [x] **Step 3: 把 `/me` 切到共享壳层，并把样式搬到最近 owner**
 
 `MePage.tsx` 改成和 `SettingsPage` 同样的容器模式：
 
@@ -398,7 +398,7 @@ export function MePage({
 - 必要时通过 Ant Design 的 `className` / `styles` slot 精确落点；
 - 禁止用无边界 `.ant-*` 后代链兜底。
 
-- [ ] **Step 4: 重跑 `/me` 定向测试**
+- [x] **Step 4: 重跑 `/me` 定向测试**
 
 Run: `pnpm --dir web/app test -- src/features/me/_tests/me-page.test.tsx`
 

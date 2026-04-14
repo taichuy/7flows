@@ -1,32 +1,24 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Grid } from 'antd';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-const { navigateSpy, updateMyProfile, changeMyPassword } = vi.hoisted(() => ({
-  navigateSpy: vi.fn(),
+const { updateMyProfile, changeMyPassword, fetchMyProfile } = vi.hoisted(() => ({
   updateMyProfile: vi.fn(),
-  changeMyPassword: vi.fn()
+  changeMyPassword: vi.fn(),
+  fetchMyProfile: vi.fn()
 }));
-
-vi.mock('@tanstack/react-router', async () => {
-  const actual = await vi.importActual<typeof import('@tanstack/react-router')>(
-    '@tanstack/react-router'
-  );
-
-  return {
-    ...actual,
-    useNavigate: () => navigateSpy
-  };
-});
 
 vi.mock('../api/me', () => ({
   updateMyProfile,
   changeMyPassword,
-  fetchMyProfile: vi.fn()
+  fetchMyProfile
 }));
 
 import { AppProviders } from '../../../app/AppProviders';
-import { useAuthStore } from '../../../state/auth-store';
-import { MePage } from '../pages/MePage';
+import { AppRouterProvider } from '../../../app/router';
+import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
+
+const useBreakpointSpy = vi.spyOn(Grid, 'useBreakpoint');
 
 function authenticate() {
   useAuthStore.getState().setAuthenticated({
@@ -52,37 +44,51 @@ function authenticate() {
   });
 }
 
+function renderApp(pathname: string) {
+  window.history.pushState({}, '', pathname);
+
+  return render(
+    <AppProviders>
+      <AppRouterProvider />
+    </AppProviders>
+  );
+}
+
 describe('MePage', () => {
   beforeEach(() => {
-    navigateSpy.mockReset();
+    resetAuthStore();
+    useBreakpointSpy.mockReturnValue({
+      xs: true,
+      sm: true,
+      md: true,
+      lg: true,
+      xl: false,
+      xxl: false
+    });
     updateMyProfile.mockReset();
     changeMyPassword.mockReset();
+    fetchMyProfile.mockReset();
     authenticate();
   });
 
-  test('renders view mode initially, opens drawer to edit', async () => {
-    render(
-      <AppProviders>
-        <MePage />
-      </AppProviders>
-    );
+  test('redirects /me to /me/profile', async () => {
+    renderApp('/me');
 
-    // Initial view mode
-    expect(await screen.findByRole('heading', { name: '个人信息', level: 4 })).toBeInTheDocument();
-    
-    // Open Drawer
-    // Note: Use text matching as it renders button > span > text
-    fireEvent.click(screen.getByText('编辑资料'));
-    
-    // Wait for drawer to render
     await waitFor(() => {
-       expect(screen.getByText('编辑个人信息')).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/me/profile');
     });
-
-    expect(screen.getByLabelText('姓名')).toHaveValue('Root');
+    expect(await screen.findByRole('heading', { name: '个人资料', level: 2 })).toBeInTheDocument();
   });
 
-  test('submits PATCH /api/console/me and updates the visible account summary', async () => {
+  test('does not render sign-out inside the /me sidebar', async () => {
+    renderApp('/me/profile');
+
+    expect(await screen.findByRole('heading', { name: '个人资料', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Section navigation' })).toBeInTheDocument();
+    expect(screen.queryByText('退出登录')).not.toBeInTheDocument();
+  });
+
+  test('keeps profile update flow working on /me/profile', async () => {
     updateMyProfile.mockResolvedValue({
       id: 'user-1',
       account: 'root',
@@ -96,20 +102,13 @@ describe('MePage', () => {
       permissions: ['route_page.view.all']
     });
 
-    render(
-      <AppProviders>
-        <MePage />
-      </AppProviders>
-    );
-    
-    // Default view is profile
-    expect(await screen.findByRole('heading', { name: '个人信息', level: 4 })).toBeInTheDocument();
-    
-    // Open Drawer
-    fireEvent.click(screen.getByText('编辑资料'));
-    
+    renderApp('/me/profile');
+
+    expect(await screen.findByRole('heading', { name: '个人资料', level: 2 })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /编辑资料/ }));
+
     await waitFor(() => {
-        expect(screen.getByText('编辑个人信息')).toBeInTheDocument();
+      expect(screen.getByText('编辑个人信息')).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByLabelText('姓名'), {
@@ -139,5 +138,36 @@ describe('MePage', () => {
         'csrf-123'
       )
     );
+  });
+
+  test('submits password change on /me/security and navigates to /sign-in after success', async () => {
+    changeMyPassword.mockResolvedValue(undefined);
+
+    renderApp('/me/security');
+
+    expect(await screen.findByRole('heading', { name: '安全设置', level: 3 })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('密码'), {
+      target: { value: 'old-password' }
+    });
+    fireEvent.change(screen.getByLabelText('新密码'), {
+      target: { value: 'new-password-123' }
+    });
+    fireEvent.change(screen.getByLabelText('确认新密码'), {
+      target: { value: 'new-password-123' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: '更新密码' }));
+
+    await waitFor(() => {
+      expect(changeMyPassword).toHaveBeenCalledWith(
+        {
+          old_password: 'old-password',
+          new_password: 'new-password-123'
+        },
+        'csrf-123'
+      );
+    });
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/sign-in');
+    });
   });
 });

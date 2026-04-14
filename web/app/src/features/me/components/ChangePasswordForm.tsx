@@ -9,10 +9,12 @@ interface ChangePasswordValues {
 }
 
 export function ChangePasswordForm({
+  className,
   submitting,
   errorMessage,
   onSubmit
 }: {
+  className?: string;
   submitting: boolean;
   errorMessage: string | null;
   onSubmit: (input: ChangeMyPasswordInput) => Promise<void> | void;
@@ -20,7 +22,7 @@ export function ChangePasswordForm({
   const [form] = Form.useForm<ChangePasswordValues>();
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <Space className={className} direction="vertical" size="large">
       <div>
         <Typography.Title level={3}>安全设置</Typography.Title>
         <Typography.Paragraph>

@@ -1,0 +1,80 @@
+.me-page {
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.me-profile-card {
+  width: 100%;
+  border-radius: 16px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+}
+
+.me-profile-card__header .ant-typography {
+  margin: 0;
+}
+
+.me-profile-card__edit {
+  border: none;
+  border-radius: 10px;
+  background: #00cfa7;
+  box-shadow: none;
+}
+
+.me-profile-card__edit:hover,
+.me-profile-card__edit:focus,
+.me-profile-card__edit:active {
+  background: #0cb38f !important;
+}
+
+.me-profile-card__summary {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.me-profile-card__avatar {
+  flex-shrink: 0;
+  background-color: #c7d0d8;
+}
+
+.me-profile-card__name {
+  margin: 0 0 8px;
+}
+
+.me-profile-card__status,
+.me-profile-card__role,
+.me-profile-card__permission {
+  margin: 0;
+  border-radius: 999px;
+}
+
+.me-profile-card__role {
+  background: #f0f7ff;
+  border-color: #d6e4ff;
+  color: #597ef7;
+}
+
+.me-profile-card__permissions {
+  row-gap: 8px;
+}
+
+.me-profile-card__divider {
+  margin: 16px 0;
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.me-profile-card__placeholder {
+  color: rgba(15, 23, 42, 0.45);
+}
+
+.me-security-panel {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.me-security-panel.ant-space {
+  display: flex;
+}
