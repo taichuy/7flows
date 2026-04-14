@@ -23,6 +23,7 @@ export interface ApiRequestOptions {
   csrfToken?: string | null;
   baseUrl?: string;
   expectJson?: boolean;
+  unwrapSuccess?: boolean;
 }
 
 export function getDefaultApiBaseUrl(
@@ -45,7 +46,8 @@ export async function apiFetch<T>({
   body,
   csrfToken,
   baseUrl = getDefaultApiBaseUrl(),
-  expectJson = true
+  expectJson = true,
+  unwrapSuccess = true
 }: ApiRequestOptions): Promise<T> {
   const headers: Record<string, string> = {};
 
@@ -70,6 +72,10 @@ export async function apiFetch<T>({
 
   if (!expectJson || response.status === 204) {
     return undefined as T;
+  }
+
+  if (unwrapSuccess === false) {
+    return (await response.json()) as T;
   }
 
   return unwrapApiSuccess<T>((await response.json()) as ApiSuccessEnvelope<T>);

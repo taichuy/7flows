@@ -7,7 +7,12 @@ export function getVisibleSettingsSections(input: {
   permissions: string[];
 }): SectionNavItem[] {
   return [
-    { key: 'docs', label: 'API 文档', to: '/settings/docs', visible: true },
+    {
+      key: 'docs',
+      label: 'API 文档',
+      to: '/settings/docs',
+      visible: input.isRoot || input.permissions.includes('api_reference.view.all')
+    },
     {
       key: 'members',
       label: '用户管理',

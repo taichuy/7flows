@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const membersApi = vi.hoisted(() => ({
+  settingsMembersQueryKey: ['settings', 'members'],
   fetchSettingsMembers: vi.fn(),
   createSettingsMember: vi.fn(),
   disableSettingsMember: vi.fn(),
@@ -10,6 +11,13 @@ const membersApi = vi.hoisted(() => ({
 }));
 
 const rolesApi = vi.hoisted(() => ({
+  settingsRolesQueryKey: ['settings', 'roles'],
+  settingsRolePermissionsQueryKey: vi.fn((roleCode: string) => [
+    'settings',
+    'roles',
+    roleCode,
+    'permissions'
+  ]),
   fetchSettingsRoles: vi.fn(),
   createSettingsRole: vi.fn(),
   updateSettingsRole: vi.fn(),
@@ -19,12 +27,26 @@ const rolesApi = vi.hoisted(() => ({
 }));
 
 const permissionsApi = vi.hoisted(() => ({
+  settingsPermissionsQueryKey: ['settings', 'permissions'],
   fetchSettingsPermissions: vi.fn()
+}));
+
+const docsApi = vi.hoisted(() => ({
+  settingsApiDocsCatalogQueryKey: ['settings', 'docs', 'catalog'],
+  settingsApiDocSpecQueryKey: vi.fn((operationId: string) => [
+    'settings',
+    'docs',
+    'operation',
+    operationId
+  ]),
+  fetchSettingsApiDocsCatalog: vi.fn(),
+  fetchSettingsApiOperationSpec: vi.fn()
 }));
 
 vi.mock('../../features/settings/api/members', () => membersApi);
 vi.mock('../../features/settings/api/roles', () => rolesApi);
 vi.mock('../../features/settings/api/permissions', () => permissionsApi);
+vi.mock('../../features/settings/api/api-docs', () => docsApi);
 
 import { AppProviders } from '../../app/AppProviders';
 import { AppRouterProvider } from '../../app/router';
@@ -77,6 +99,17 @@ describe('section shell routing', () => {
       permission_codes: []
     });
     permissionsApi.fetchSettingsPermissions.mockResolvedValue([]);
+    docsApi.fetchSettingsApiDocsCatalog.mockResolvedValue({
+      title: '1Flowse API',
+      version: '0.1.0',
+      operations: []
+    });
+    docsApi.fetchSettingsApiOperationSpec.mockResolvedValue({
+      openapi: '3.1.0',
+      info: { title: '1Flowse API', version: '0.1.0' },
+      paths: {},
+      components: {}
+    });
   });
 
   test('redirects /me to /me/profile', async () => {
@@ -89,25 +122,25 @@ describe('section shell routing', () => {
     });
   });
 
-  test('redirects /settings to the first visible section', async () => {
-    authenticateWithPermissions(['route_page.view.all']);
+  test('redirects /settings to /settings/members when docs is hidden but members is visible', async () => {
+    authenticateWithPermissions(['route_page.view.all', 'user.view.all']);
 
     renderApp('/settings');
 
     await waitFor(() => {
-      expect(window.location.pathname).toBe('/settings/docs');
+      expect(window.location.pathname).toBe('/settings/members');
     });
-    expect(await screen.findByTitle('API 文档')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '用户管理', level: 4 })).toBeInTheDocument();
   });
 
-  test('redirects an invisible settings section to the first visible section', async () => {
+  test('redirects /settings/docs to /settings/roles when docs is hidden but roles is visible', async () => {
     authenticateWithPermissions(['route_page.view.all', 'role_permission.view.all']);
 
-    renderApp('/settings/members');
+    renderApp('/settings/docs');
 
     await waitFor(() => {
-      expect(window.location.pathname).toBe('/settings/docs');
+      expect(window.location.pathname).toBe('/settings/roles');
     });
-    expect(await screen.findByTitle('API 文档')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '角色权限管理', level: 3 })).toBeInTheDocument();
   });
 });

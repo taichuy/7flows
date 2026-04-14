@@ -452,7 +452,7 @@ Execution note (`2026-04-14 17`):
 - Modify: `web/app/src/features/settings/_tests/settings-page.test.tsx`
 - Modify: `web/app/src/routes/_tests/section-shell-routing.test.tsx`
 
-- [ ] **Step 1: Write the failing frontend visibility and contract tests**
+- [x] **Step 1: Write the failing frontend visibility and contract tests**
 
 Update `web/app/src/features/settings/_tests/settings-page.test.tsx` to mock the new docs API module and add:
 
@@ -482,7 +482,7 @@ const docsApi = vi.hoisted(() => ({
 vi.mock('../api/api-docs', () => docsApi);
 ```
 
-- [ ] **Step 2: Run the focused frontend failures**
+- [x] **Step 2: Run the focused frontend failures**
 
 Run:
 
@@ -494,7 +494,7 @@ Expected:
 - tests FAIL because `settings/api/api-docs.ts` does not exist yet;
 - once the mock module exists, the visibility assertions still FAIL because `docs` is hardcoded as `visible: true`.
 
-- [ ] **Step 3: Implement the raw OpenAPI client and new section visibility rule**
+- [x] **Step 3: Implement the raw OpenAPI client and new section visibility rule**
 
 Extend `web/packages/api-client/src/transport.ts` so one request can opt out of `ApiSuccess` unwrapping:
 
@@ -587,7 +587,7 @@ Update `web/app/src/features/settings/lib/settings-sections.tsx`:
 { key: 'docs', label: 'API 文档', to: '/settings/docs', visible: input.isRoot || input.permissions.includes('api_reference.view.all') }
 ```
 
-- [ ] **Step 4: Re-run the section-visibility tests**
+- [x] **Step 4: Re-run the section-visibility tests**
 
 Run:
 
@@ -597,7 +597,7 @@ pnpm --dir web/app test -- src/features/settings/_tests/settings-page.test.tsx s
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit the frontend contract slice**
+- [x] **Step 5: Commit the frontend contract slice**
 
 ```bash
 git add web/packages/api-client/src/transport.ts web/packages/api-client/src/console-api-docs.ts web/packages/api-client/src/index.ts
@@ -605,6 +605,10 @@ git add web/app/src/features/settings/api/api-docs.ts web/app/src/features/setti
 git add web/app/src/features/settings/_tests/settings-page.test.tsx web/app/src/routes/_tests/section-shell-routing.test.tsx
 git commit -m "feat(web): gate settings docs behind api reference permission"
 ```
+
+Execution note (`2026-04-14 17`):
+- 由于 `web/app` 的 package script 不会按文件参数收窄范围，实际验证命令使用了 `pnpm --dir web/app exec vitest run ...`。
+- 路由测试里的 members / roles / permissions mock 需要同步补齐既有 query key 导出，否则会先以 mock 缺口报错而不是命中可见性断言。
 
 ### Task 4: Replace The Iframe With The On-Demand Docs UI And Refresh Regression Coverage
 
