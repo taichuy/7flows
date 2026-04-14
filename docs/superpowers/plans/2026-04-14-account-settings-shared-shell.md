@@ -232,7 +232,7 @@ Run: `pnpm --dir web/app test -- src/routes/_tests/route-config.test.ts src/rout
 
 Expected: PASS
 
-- [ ] **Step 5: 提交 section catalog 与静态子路由**
+- [x] **Step 5: 提交 section catalog 与静态子路由**
 
 ```bash
 git add web/app/src/app/router.tsx web/app/src/routes/route-config.ts web/app/src/routes/_tests
@@ -247,7 +247,7 @@ git commit -m "feat(web): add section routes for me and settings"
 - Modify: `web/app/src/features/settings/_tests/settings-page.test.tsx`
 - Delete After Migration: `web/app/src/features/settings/components/SettingsSidebar.tsx`
 
-- [ ] **Step 1: 先把 Settings 页面测试改成真实路由行为**
+- [x] **Step 1: 先把 Settings 页面测试改成真实路由行为**
 
 把 `settings-page.test.tsx` 从“直接渲染页面组件 + 页内 state”改成“带 router 的深链场景”：
 
@@ -263,13 +263,13 @@ test('redirects /settings/members to /settings/docs when the section is invisibl
 - 只有 `role_permission.view.all` 时直达 `/settings/members` 会回到 `/settings/docs`；
 - `canManageMembers` / `canManageRoles` 继续只控制面板内操作，不改变 section 可见性。
 
-- [ ] **Step 2: 运行 Settings 定向测试，确认当前实现仍依赖页内 state**
+- [x] **Step 2: 运行 Settings 定向测试，确认当前实现仍依赖页内 state**
 
 Run: `pnpm --dir web/app test -- src/features/settings/_tests/settings-page.test.tsx`
 
 Expected: FAIL because `SettingsPage` 仍使用 `useState(activeSectionKey)`，不会根据静态子路由解析 section。
 
-- [ ] **Step 3: 用共享壳层重写 SettingsPage**
+- [x] **Step 3: 用共享壳层重写 SettingsPage**
 
 把 `SettingsPage.tsx` 改成接收 `requestedSectionKey?: SettingsSectionKey` 的容器：
 
@@ -305,7 +305,7 @@ export function SettingsPage({
 - 内容区按 `requestedSectionKey` 渲染 `ApiDocsPanel`、`MemberManagementPanel`、`RolePermissionPanel`；
 - `SettingsSidebar.tsx` 若只剩一层薄包装则直接删掉，不要再让 feature 内维护第二套导航组件。
 
-- [ ] **Step 4: 重跑 Settings 定向测试**
+- [x] **Step 4: 重跑 Settings 定向测试**
 
 Run: `pnpm --dir web/app test -- src/features/settings/_tests/settings-page.test.tsx`
 

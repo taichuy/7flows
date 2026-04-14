@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import { Grid } from 'antd';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const membersApi = vi.hoisted(() => ({
+  settingsMembersQueryKey: ['settings', 'members'],
   fetchSettingsMembers: vi.fn(),
   createSettingsMember: vi.fn(),
   disableSettingsMember: vi.fn(),
@@ -10,6 +12,13 @@ const membersApi = vi.hoisted(() => ({
 }));
 
 const rolesApi = vi.hoisted(() => ({
+  settingsRolesQueryKey: ['settings', 'roles'],
+  settingsRolePermissionsQueryKey: vi.fn((roleCode: string) => [
+    'settings',
+    'roles',
+    roleCode,
+    'permissions'
+  ]),
   fetchSettingsRoles: vi.fn(),
   createSettingsRole: vi.fn(),
   updateSettingsRole: vi.fn(),
@@ -19,6 +28,7 @@ const rolesApi = vi.hoisted(() => ({
 }));
 
 const permissionsApi = vi.hoisted(() => ({
+  settingsPermissionsQueryKey: ['settings', 'permissions'],
   fetchSettingsPermissions: vi.fn()
 }));
 
@@ -27,8 +37,10 @@ vi.mock('../api/roles', () => rolesApi);
 vi.mock('../api/permissions', () => permissionsApi);
 
 import { AppProviders } from '../../../app/AppProviders';
-import { useAuthStore } from '../../../state/auth-store';
-import { SettingsPage } from '../pages/SettingsPage';
+import { AppRouterProvider } from '../../../app/router';
+import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
+
+const useBreakpointSpy = vi.spyOn(Grid, 'useBreakpoint');
 
 function authenticateWithPermissions(permissions: string[]) {
   useAuthStore.getState().setAuthenticated({
@@ -54,8 +66,27 @@ function authenticateWithPermissions(permissions: string[]) {
   });
 }
 
+function renderApp(pathname: string) {
+  window.history.pushState({}, '', pathname);
+
+  return render(
+    <AppProviders>
+      <AppRouterProvider />
+    </AppProviders>
+  );
+}
+
 describe('SettingsPage', () => {
   beforeEach(() => {
+    resetAuthStore();
+    useBreakpointSpy.mockReturnValue({
+      xs: true,
+      sm: true,
+      md: true,
+      lg: true,
+      xl: false,
+      xxl: false
+    });
     membersApi.fetchSettingsMembers.mockResolvedValue([]);
     rolesApi.fetchSettingsRoles.mockResolvedValue([]);
     rolesApi.fetchSettingsRolePermissions.mockResolvedValue({
@@ -65,47 +96,42 @@ describe('SettingsPage', () => {
     permissionsApi.fetchSettingsPermissions.mockResolvedValue([]);
   });
 
-  test('shows api docs for any authenticated user and hides privileged sections without permission', async () => {
+  test('redirects /settings to /settings/docs for any authenticated user', async () => {
     authenticateWithPermissions(['route_page.view.all']);
 
-    render(
-      <AppProviders>
-        <SettingsPage />
-      </AppProviders>
-    );
+    renderApp('/settings');
 
-    expect(await screen.findByTitle('API 文档')).toBeInTheDocument();
-    expect(screen.queryByText('用户管理')).not.toBeInTheDocument();
-    expect(screen.queryByText('权限管理')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/settings/docs');
+    });
+    expect(await screen.findByRole('heading', { name: '设置', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Section navigation' })).toBeInTheDocument();
+    expect(screen.getByTitle('API 文档')).toBeInTheDocument();
   });
 
-  test('renders the members panel when user.view.all is present', async () => {
+  test('renders /settings/members when user.view.all is present', async () => {
     authenticateWithPermissions(['route_page.view.all', 'user.view.all']);
 
-    render(
-      <AppProviders>
-        <SettingsPage />
-      </AppProviders>
-    );
+    renderApp('/settings/members');
 
-    expect(await screen.findByText('用户管理')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/settings/members');
+    });
+    expect(await screen.findByRole('heading', { name: '设置', level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Section navigation' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '用户管理', level: 3 })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '新建用户' })).not.toBeInTheDocument();
   });
 
-  test('renders the role permission panel when role_permission.view.all is present', async () => {
-    authenticateWithPermissions([
-      'route_page.view.all',
-      'user.view.all',
-      'user.manage.all',
-      'role_permission.view.all',
-      'role_permission.manage.all'
-    ]);
+  test('redirects /settings/members to /settings/docs when the section is invisible', async () => {
+    authenticateWithPermissions(['route_page.view.all', 'role_permission.view.all']);
 
-    render(
-      <AppProviders>
-        <SettingsPage />
-      </AppProviders>
-    );
+    renderApp('/settings/members');
 
-    expect(await screen.findByText('权限管理')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/settings/docs');
+    });
+    expect(await screen.findByRole('heading', { name: '设置', level: 2 })).toBeInTheDocument();
+    expect(screen.getByTitle('API 文档')).toBeInTheDocument();
   });
 });

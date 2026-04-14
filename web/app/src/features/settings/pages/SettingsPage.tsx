@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
 
 import { Navigate } from '@tanstack/react-router';
-import { Flex } from 'antd';
+import { Result } from 'antd';
 
 import { useAuthStore } from '../../../state/auth-store';
+import { SectionPageLayout } from '../../../shared/ui/section-page-layout/SectionPageLayout';
 import { ApiDocsPanel } from '../components/ApiDocsPanel';
 import { MemberManagementPanel } from '../components/MemberManagementPanel';
 import { RolePermissionPanel } from '../components/RolePermissionPanel';
-import { SettingsSidebar } from '../components/SettingsSidebar';
 import {
   getVisibleSettingsSections,
   type SettingsSectionKey
@@ -32,7 +32,17 @@ export function SettingsPage({
   const activeSection = visibleSections.find((section) => section.key === requestedSectionKey);
 
   if (!fallbackSection) {
-    return null;
+    return (
+      <SectionPageLayout
+        pageTitle="设置"
+        pageDescription="系统管理域包含文档、成员和权限相关配置。"
+        navItems={[]}
+        activeKey=""
+        emptyState={<Result status="info" title="当前账号暂无可访问内容" />}
+      >
+        {null}
+      </SectionPageLayout>
+    );
   }
 
   if (!requestedSectionKey || !activeSection) {
@@ -40,17 +50,13 @@ export function SettingsPage({
   }
 
   return (
-    <Flex align="flex-start" gap={24}>
-      <SettingsSidebar
-        sections={visibleSections.map((section) => ({
-          key: section.key,
-          label: section.label,
-          visible: true
-        }))}
-        activeKey={activeSection.key}
-        onSelect={() => {}}
-      />
-      <div style={{ flex: 1, minWidth: 0 }}>
+    <SectionPageLayout
+      pageTitle="设置"
+      pageDescription="系统管理域包含文档、成员和权限相关配置。"
+      navItems={visibleSections}
+      activeKey={activeSection.key}
+    >
+      <>
         {activeSection?.key === 'members' ? (
           <MemberManagementPanel
             canManageMembers={canManageMembers}
@@ -61,7 +67,7 @@ export function SettingsPage({
         ) : (
           <ApiDocsPanel />
         )}
-      </div>
-    </Flex>
+      </>
+    </SectionPageLayout>
   );
 }
