@@ -62,15 +62,15 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
     let pool = connect(&isolated_database_url().await).await.unwrap();
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
-    let team_id = Uuid::now_v7();
+    let workspace_id = Uuid::now_v7();
     let tenant_id = root_tenant_id(&store).await;
-    let team_name = format!("Core Team {}", team_id.simple());
+    let workspace_name = format!("Core Workspace {}", workspace_id.simple());
     sqlx::query(
         "insert into workspaces (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
-    .bind(team_id)
+    .bind(workspace_id)
     .bind(tenant_id)
-    .bind(&team_name)
+    .bind(&workspace_name)
     .execute(store.pool())
     .await
     .unwrap();
@@ -80,7 +80,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
             scope_kind: DataModelScopeKind::Workspace,
-            scope_id: team_id,
+            scope_id: workspace_id,
             code: "customers".into(),
             title: "Customers".into(),
         },
@@ -92,7 +92,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
             scope_kind: DataModelScopeKind::Workspace,
-            scope_id: team_id,
+            scope_id: workspace_id,
             code: "orders".into(),
             title: "Orders".into(),
         },
@@ -200,12 +200,12 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
     metadata.sort_by(|left, right| left.model_code.cmp(&right.model_code));
     let customer_metadata = metadata
         .iter()
-        .find(|model| model.model_code == "customers" && model.scope_id == team_id)
+        .find(|model| model.model_code == "customers" && model.scope_id == workspace_id)
         .unwrap()
         .clone();
     let order_metadata = metadata
         .iter()
-        .find(|model| model.model_code == "orders" && model.scope_id == team_id)
+        .find(|model| model.model_code == "orders" && model.scope_id == workspace_id)
         .unwrap()
         .clone();
     assert_eq!(customer_metadata.scope_column_name, "scope_id");
@@ -215,7 +215,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &store,
         &customer_metadata,
         Uuid::nil(),
-        team_id,
+        workspace_id,
         json!({ "name": "Alice" }),
     )
     .await
@@ -224,7 +224,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &store,
         &customer_metadata,
         Uuid::nil(),
-        team_id,
+        workspace_id,
         json!({ "name": "Bob" }),
     )
     .await
@@ -237,7 +237,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &store,
         &order_metadata,
         Uuid::nil(),
-        team_id,
+        workspace_id,
         json!({ "title": "A-001", "status": "draft", "customer": alice_id }),
     )
     .await
@@ -246,7 +246,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &store,
         &order_metadata,
         Uuid::nil(),
-        team_id,
+        workspace_id,
         json!({ "title": "A-002", "status": "paid", "customer": bob_id.clone() }),
     )
     .await
@@ -259,7 +259,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &store,
         &order_metadata,
         RuntimeListQuery {
-            scope_id: team_id,
+            scope_id: workspace_id,
             owner_user_id: None,
             filters: vec![RuntimeFilterInput {
                 field_code: "status".into(),
@@ -282,7 +282,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
     assert_eq!(listed.items[0]["customer"]["name"], json!("Bob"));
 
     let fetched =
-        RuntimeRecordRepository::get_record(&store, &order_metadata, team_id, None, &first_id)
+        RuntimeRecordRepository::get_record(&store, &order_metadata, workspace_id, None, &first_id)
             .await
             .unwrap()
             .unwrap();
@@ -292,7 +292,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &store,
         &order_metadata,
         Uuid::nil(),
-        team_id,
+        workspace_id,
         None,
         &order_id,
         json!({ "title": "A-002X", "status": "paid", "customer": bob_id }),
@@ -305,7 +305,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &store,
         &customer_metadata,
         RuntimeListQuery {
-            scope_id: team_id,
+            scope_id: workspace_id,
             owner_user_id: None,
             filters: vec![],
             sorts: vec![],
@@ -323,10 +323,15 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         .unwrap();
     assert_eq!(alice_row["orders"].as_array().unwrap().len(), 1);
 
-    let deleted =
-        RuntimeRecordRepository::delete_record(&store, &order_metadata, team_id, None, &order_id)
-            .await
-            .unwrap();
+    let deleted = RuntimeRecordRepository::delete_record(
+        &store,
+        &order_metadata,
+        workspace_id,
+        None,
+        &order_id,
+    )
+    .await
+    .unwrap();
     assert!(deleted);
 }
 
@@ -335,18 +340,18 @@ async fn runtime_record_repository_enforces_owner_scope() {
     let pool = connect(&isolated_database_url().await).await.unwrap();
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
-    let team_id = Uuid::now_v7();
+    let workspace_id = Uuid::now_v7();
     let owner_user_id = Uuid::now_v7();
     let other_user_id = Uuid::now_v7();
     let tenant_id = root_tenant_id(&store).await;
-    let team_name = format!("Core Team {}", team_id.simple());
+    let workspace_name = format!("Core Workspace {}", workspace_id.simple());
 
     sqlx::query(
         "insert into workspaces (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
-    .bind(team_id)
+    .bind(workspace_id)
     .bind(tenant_id)
-    .bind(&team_name)
+    .bind(&workspace_name)
     .execute(store.pool())
     .await
     .unwrap();
@@ -358,7 +363,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
             scope_kind: DataModelScopeKind::Workspace,
-            scope_id: team_id,
+            scope_id: workspace_id,
             code: "orders_acl".into(),
             title: "Orders ACL".into(),
         },
@@ -390,7 +395,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
         .await
         .unwrap()
         .into_iter()
-        .find(|model| model.model_code == "orders_acl" && model.scope_id == team_id)
+        .find(|model| model.model_code == "orders_acl" && model.scope_id == workspace_id)
         .unwrap();
     assert_eq!(metadata.scope_column_name, "scope_id");
 
@@ -398,7 +403,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
         &store,
         &metadata,
         owner_user_id,
-        team_id,
+        workspace_id,
         json!({ "title": "owner-record" }),
     )
     .await
@@ -407,7 +412,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
         &store,
         &metadata,
         other_user_id,
-        team_id,
+        workspace_id,
         json!({ "title": "other-record" }),
     )
     .await
@@ -419,7 +424,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
         &store,
         &metadata,
         RuntimeListQuery {
-            scope_id: team_id,
+            scope_id: workspace_id,
             owner_user_id: Some(owner_user_id),
             filters: vec![],
             sorts: vec![],
@@ -436,7 +441,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
     let own_get = RuntimeRecordRepository::get_record(
         &store,
         &metadata,
-        team_id,
+        workspace_id,
         Some(owner_user_id),
         &owner_record_id,
     )
@@ -446,7 +451,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
     let blocked_get = RuntimeRecordRepository::get_record(
         &store,
         &metadata,
-        team_id,
+        workspace_id,
         Some(owner_user_id),
         &other_record_id,
     )
@@ -458,7 +463,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
         &store,
         &metadata,
         owner_user_id,
-        team_id,
+        workspace_id,
         Some(owner_user_id),
         &owner_record_id,
         json!({ "title": "owner-record-updated" }),
@@ -471,7 +476,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
         &store,
         &metadata,
         owner_user_id,
-        team_id,
+        workspace_id,
         Some(owner_user_id),
         &other_record_id,
         json!({ "title": "blocked-update" }),
@@ -482,7 +487,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
     let blocked_delete = RuntimeRecordRepository::delete_record(
         &store,
         &metadata,
-        team_id,
+        workspace_id,
         Some(owner_user_id),
         &other_record_id,
     )
@@ -494,7 +499,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
         &store,
         &metadata,
         RuntimeListQuery {
-            scope_id: team_id,
+            scope_id: workspace_id,
             owner_user_id: None,
             filters: vec![],
             sorts: vec![],
@@ -507,17 +512,22 @@ async fn runtime_record_repository_enforces_owner_scope() {
     .unwrap();
     assert_eq!(all_list.total, 2);
 
-    let all_get =
-        RuntimeRecordRepository::get_record(&store, &metadata, team_id, None, &other_record_id)
-            .await
-            .unwrap();
+    let all_get = RuntimeRecordRepository::get_record(
+        &store,
+        &metadata,
+        workspace_id,
+        None,
+        &other_record_id,
+    )
+    .await
+    .unwrap();
     assert!(all_get.is_some());
 
     let all_updated = RuntimeRecordRepository::update_record(
         &store,
         &metadata,
         owner_user_id,
-        team_id,
+        workspace_id,
         None,
         &other_record_id,
         json!({ "title": "other-record-updated" }),
@@ -526,9 +536,14 @@ async fn runtime_record_repository_enforces_owner_scope() {
     .unwrap();
     assert_eq!(all_updated["title"], json!("other-record-updated"));
 
-    let all_deleted =
-        RuntimeRecordRepository::delete_record(&store, &metadata, team_id, None, &other_record_id)
-            .await
-            .unwrap();
+    let all_deleted = RuntimeRecordRepository::delete_record(
+        &store,
+        &metadata,
+        workspace_id,
+        None,
+        &other_record_id,
+    )
+    .await
+    .unwrap();
     assert!(all_deleted);
 }

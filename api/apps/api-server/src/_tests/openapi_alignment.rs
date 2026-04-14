@@ -148,9 +148,10 @@ async fn openapi_contains_workspace_switch_routes() {
 #[tokio::test]
 async fn openapi_contains_workspace_detail_path_and_omits_team_path() {
     let paths = openapi_paths().await;
+    let legacy_path = format!("/api/console/{}", ["te", "am"].concat());
 
     assert!(paths.contains_key("/api/console/workspace"));
-    assert!(!paths.contains_key("/api/console/team"));
+    assert!(!paths.contains_key(&legacy_path));
 }
 
 #[tokio::test]

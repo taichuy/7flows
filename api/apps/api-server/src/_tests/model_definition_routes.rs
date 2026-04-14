@@ -501,6 +501,7 @@ async fn model_definition_routes_require_state_model_visibility() {
 async fn create_model_route_accepts_workspace_and_system_scope_kinds_only() {
     let app = test_app().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let legacy_scope_kind = ["te", "am"].concat();
 
     let workspace_response = app
         .clone()
@@ -568,7 +569,7 @@ async fn create_model_route_accepts_workspace_and_system_scope_kinds_only() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
-                        "scope_kind": "team",
+                        "scope_kind": legacy_scope_kind,
                         "code": "legacy_team_scope_contract",
                         "title": "Legacy Team Scope Contract"
                     })

@@ -8,12 +8,12 @@ use uuid::Uuid;
 
 fn scoped_actor(
     user_id: Uuid,
-    team_id: Uuid,
+    workspace_id: Uuid,
     permissions: impl IntoIterator<Item = &'static str>,
 ) -> ActorContext {
     ActorContext::scoped(
         user_id,
-        team_id,
+        workspace_id,
         "member",
         permissions.into_iter().map(str::to_string),
     )
@@ -21,16 +21,16 @@ fn scoped_actor(
 
 #[tokio::test]
 async fn state_data_view_own_filters_list_by_created_by() {
-    let team_id = Uuid::nil();
+    let workspace_id = Uuid::nil();
     let manager_user_id = Uuid::now_v7();
     let manager = scoped_actor(
         manager_user_id,
-        team_id,
+        workspace_id,
         ["state_data.create.all", "state_data.view.own"],
     );
     let admin = scoped_actor(
         Uuid::now_v7(),
-        team_id,
+        workspace_id,
         ["state_data.create.all", "state_data.view.all"],
     );
     let engine = RuntimeEngine::for_tests();
@@ -72,15 +72,15 @@ async fn state_data_view_own_filters_list_by_created_by() {
 
 #[tokio::test]
 async fn state_data_edit_own_rejects_updating_another_users_record() {
-    let team_id = Uuid::nil();
+    let workspace_id = Uuid::nil();
     let manager = scoped_actor(
         Uuid::now_v7(),
-        team_id,
+        workspace_id,
         ["state_data.create.all", "state_data.edit.own"],
     );
     let admin = scoped_actor(
         Uuid::now_v7(),
-        team_id,
+        workspace_id,
         ["state_data.create.all", "state_data.edit.all"],
     );
     let engine = RuntimeEngine::for_tests();
@@ -110,10 +110,10 @@ async fn state_data_edit_own_rejects_updating_another_users_record() {
 
 #[tokio::test]
 async fn state_data_delete_all_allows_cross_owner_delete() {
-    let team_id = Uuid::nil();
+    let workspace_id = Uuid::nil();
     let manager = scoped_actor(
         Uuid::now_v7(),
-        team_id,
+        workspace_id,
         [
             "state_data.create.all",
             "state_data.delete.own",
@@ -122,7 +122,7 @@ async fn state_data_delete_all_allows_cross_owner_delete() {
     );
     let admin = scoped_actor(
         Uuid::now_v7(),
-        team_id,
+        workspace_id,
         ["state_data.delete.all", "state_data.view.all"],
     );
     let engine = RuntimeEngine::for_tests();

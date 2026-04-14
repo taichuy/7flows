@@ -34,15 +34,15 @@ async fn add_scalar_field_creates_real_postgres_column_and_unique_index() {
     let pool = connect(&isolated_database_url().await).await.unwrap();
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
-    let team_id = Uuid::now_v7();
+    let workspace_id = Uuid::now_v7();
     let tenant_id = root_tenant_id(&store).await;
-    let team_name = format!("Core Team {}", team_id.simple());
+    let workspace_name = format!("Core Workspace {}", workspace_id.simple());
     sqlx::query(
         "insert into workspaces (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
-    .bind(team_id)
+    .bind(workspace_id)
     .bind(tenant_id)
-    .bind(&team_name)
+    .bind(&workspace_name)
     .execute(store.pool())
     .await
     .unwrap();
@@ -52,7 +52,7 @@ async fn add_scalar_field_creates_real_postgres_column_and_unique_index() {
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
             scope_kind: DataModelScopeKind::Workspace,
-            scope_id: team_id,
+            scope_id: workspace_id,
             code: "orders".into(),
             title: "Orders".into(),
         },
@@ -117,15 +117,15 @@ async fn add_one_to_many_field_only_writes_metadata_without_creating_column() {
     let pool = connect(&isolated_database_url().await).await.unwrap();
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
-    let team_id = Uuid::now_v7();
+    let workspace_id = Uuid::now_v7();
     let tenant_id = root_tenant_id(&store).await;
-    let team_name = format!("Core Team {}", team_id.simple());
+    let workspace_name = format!("Core Workspace {}", workspace_id.simple());
     sqlx::query(
         "insert into workspaces (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
-    .bind(team_id)
+    .bind(workspace_id)
     .bind(tenant_id)
-    .bind(&team_name)
+    .bind(&workspace_name)
     .execute(store.pool())
     .await
     .unwrap();
@@ -135,7 +135,7 @@ async fn add_one_to_many_field_only_writes_metadata_without_creating_column() {
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
             scope_kind: DataModelScopeKind::Workspace,
-            scope_id: team_id,
+            scope_id: workspace_id,
             code: "orders".into(),
             title: "Orders".into(),
         },
@@ -147,7 +147,7 @@ async fn add_one_to_many_field_only_writes_metadata_without_creating_column() {
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
             scope_kind: DataModelScopeKind::Workspace,
-            scope_id: team_id,
+            scope_id: workspace_id,
             code: "order_items".into(),
             title: "Order Items".into(),
         },
@@ -197,15 +197,15 @@ async fn add_many_to_many_field_creates_host_managed_join_table() {
     let pool = connect(&isolated_database_url().await).await.unwrap();
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
-    let team_id = Uuid::now_v7();
+    let workspace_id = Uuid::now_v7();
     let tenant_id = root_tenant_id(&store).await;
-    let team_name = format!("Core Team {}", team_id.simple());
+    let workspace_name = format!("Core Workspace {}", workspace_id.simple());
     sqlx::query(
         "insert into workspaces (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
-    .bind(team_id)
+    .bind(workspace_id)
     .bind(tenant_id)
-    .bind(&team_name)
+    .bind(&workspace_name)
     .execute(store.pool())
     .await
     .unwrap();
@@ -215,7 +215,7 @@ async fn add_many_to_many_field_creates_host_managed_join_table() {
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
             scope_kind: DataModelScopeKind::Workspace,
-            scope_id: team_id,
+            scope_id: workspace_id,
             code: "orders".into(),
             title: "Orders".into(),
         },
@@ -227,7 +227,7 @@ async fn add_many_to_many_field_creates_host_managed_join_table() {
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
             scope_kind: DataModelScopeKind::Workspace,
-            scope_id: team_id,
+            scope_id: workspace_id,
             code: "tags".into(),
             title: "Tags".into(),
         },
@@ -313,7 +313,10 @@ async fn create_runtime_model_table_always_uses_scope_id_column() {
     .await
     .unwrap();
 
-    assert!(columns.contains(&"scope_id".to_string()));
-    assert!(!columns.contains(&"team_id".to_string()));
-    assert!(!columns.contains(&"app_id".to_string()));
+    let scoped_columns: Vec<String> = columns
+        .into_iter()
+        .filter(|column| column.ends_with("_id"))
+        .collect();
+
+    assert_eq!(scoped_columns, vec!["scope_id".to_string()]);
 }
