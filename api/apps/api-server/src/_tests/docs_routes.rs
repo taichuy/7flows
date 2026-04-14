@@ -215,6 +215,36 @@ async fn docs_routes_allow_root_and_granted_members() {
     assert!(category_payload["paths"]["/api/console/me"]["patch"].is_object());
     assert!(category_payload["paths"]["/api/console/members"]["get"].is_object());
 
+    let operation_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/console/docs/operations/patch_me/openapi.json")
+                .header("cookie", &root_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(operation_response.status(), StatusCode::OK);
+    let operation_body = to_bytes(operation_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let operation_payload: Value = serde_json::from_slice(&operation_body).unwrap();
+    assert_eq!(operation_payload["servers"][0]["url"], "/");
+    assert_eq!(
+        operation_payload["security"],
+        json!([{ "sessionCookie": [], "csrfHeader": [] }])
+    );
+    assert_eq!(
+        operation_payload["components"]["securitySchemes"]["sessionCookie"]["in"],
+        "cookie"
+    );
+    assert_eq!(
+        operation_payload["components"]["securitySchemes"]["csrfHeader"]["name"],
+        "x-csrf-token"
+    );
+
     let member_id = create_member(&app, &root_cookie, &root_csrf, "docs-viewer", "temp-pass").await;
     create_role(&app, &root_cookie, &root_csrf, "docs_viewer").await;
     replace_role_permissions(

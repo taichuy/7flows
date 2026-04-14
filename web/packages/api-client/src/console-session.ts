@@ -18,6 +18,7 @@ export interface ConsoleSessionSnapshot {
   actor: ConsoleSessionActor;
   session: ConsoleSessionRecord;
   csrf_token: string;
+  cookie_name: string;
 }
 
 export function fetchConsoleSession(baseUrl?: string): Promise<ConsoleSessionSnapshot> {

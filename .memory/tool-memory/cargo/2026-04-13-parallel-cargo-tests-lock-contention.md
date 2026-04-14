@@ -59,3 +59,4 @@ scope:
 - `2026-04-13 18`：执行 backend QA runtime registry closure 的 Task 3 时，并发启动两条 `cargo test -p api-server ... --exact --nocapture`，再次看到 `Blocking waiting for file lock on package cache`；等待当前进程结束后改回串行读取结果，验证恢复稳定。
 - `2026-04-14 00`：执行 backend governance phase two 的 Task 5 聚焦测试时，用 `multi_tool_use.parallel` 同时跑两条 `cargo test -p plugin-framework --lib ... -- --exact`，再次出现 `Blocking waiting for file lock on package cache` 和 `artifact directory` 等待；随后恢复串行验证并完成后续全量门禁。
 - `2026-04-14 08`：为验证 `API_ENV / API_ALLOWED_ORIGINS` 配置切换，再次并发启动三条 `cargo test -p api-server ... --exact`，又出现 package cache / artifact directory 锁等待；确认这类后端精确测试在 1flowse 仓库里必须严格串行。
+- `2026-04-14 00`：为验证 settings docs 的三个后端红灯测试，用 `multi_tool_use.parallel` 同时启动三条 `cargo test -p api-server ... -- --nocapture`，再次出现 package cache / artifact directory 锁等待；等待已有进程结束后改回串行执行，结果恢复稳定。

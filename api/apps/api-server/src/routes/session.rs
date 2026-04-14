@@ -27,6 +27,7 @@ pub struct SessionResponse {
     pub actor: serde_json::Value,
     pub session: serde_json::Value,
     pub csrf_token: String,
+    pub cookie_name: String,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
@@ -43,6 +44,7 @@ fn to_session_response(
     account: &str,
     actor: &domain::ActorContext,
     session: &domain::SessionRecord,
+    cookie_name: &str,
 ) -> SessionResponse {
     SessionResponse {
         actor: serde_json::json!({
@@ -58,6 +60,7 @@ fn to_session_response(
             "current_workspace_id": session.current_workspace_id,
         }),
         csrf_token: session.csrf_token.clone(),
+        cookie_name: cookie_name.to_string(),
     }
 }
 
@@ -91,6 +94,7 @@ pub async fn get_session(
         &context.user.account,
         &context.actor,
         &context.session,
+        &state.cookie_name,
     ))))
 }
 
@@ -178,5 +182,6 @@ pub async fn switch_workspace(
         &context.user.account,
         &result.actor,
         &result.session,
+        &state.cookie_name,
     ))))
 }

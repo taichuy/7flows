@@ -166,7 +166,9 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
         runtime_registry,
         Arc::new(store.clone()),
     ));
-    let api_docs = Arc::new(openapi_docs::build_default_api_docs_registry()?);
+    let api_docs = Arc::new(
+        openapi_docs::build_default_api_docs_registry_with_cookie_name(&config.cookie_name)?,
+    );
 
     Ok(app_with_state_and_config(
         Arc::new(ApiState {

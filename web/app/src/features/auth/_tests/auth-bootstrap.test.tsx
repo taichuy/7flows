@@ -41,7 +41,8 @@ describe('AuthBootstrap', () => {
         tenant_id: 'tenant-1',
         current_workspace_id: 'workspace-1'
       },
-      csrf_token: 'csrf-123'
+      csrf_token: 'csrf-123',
+      cookie_name: 'flowse_console_session'
     });
     fetchCurrentMe.mockResolvedValue({
       id: 'user-1',

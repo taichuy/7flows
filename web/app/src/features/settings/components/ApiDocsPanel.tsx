@@ -7,6 +7,10 @@ import '@scalar/api-reference-react/style.css';
 import { Empty, Input, Result, Select, Spin, Typography } from 'antd';
 
 import {
+  fetchCurrentSession,
+  getAuthApiBaseUrl
+} from '../../auth/api/session';
+import {
   fetchSettingsApiDocsCatalog,
   fetchSettingsApiDocsCategoryOperations,
   fetchSettingsApiDocsOperationSpec,
@@ -30,6 +34,10 @@ type CategorySelectOption = {
 
 function normalizeOperationSearchText(input: string): string {
   return input.toLowerCase().replace(/[\s\-/:_]+/g, '');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function buildOperationSearchText(operation: {
@@ -78,6 +86,68 @@ function updateDocsQuery(
   }
 
   window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
+const docsViewerSessionQueryKey = ['settings', 'docs', 'viewer-session'] as const;
+const scalarPreferredSecurityScheme = ['sessionCookie', 'csrfHeader'] as const;
+
+function collectPreferredSecuritySchemes(operationSpec: unknown) {
+  const requiredSchemes = new Set<string>();
+  const securityRequirements =
+    isRecord(operationSpec) && Array.isArray(operationSpec.security) ? operationSpec.security : [];
+
+  for (const requirement of securityRequirements) {
+    if (!isRecord(requirement)) {
+      continue;
+    }
+
+    for (const schemeName of Object.keys(requirement)) {
+      requiredSchemes.add(schemeName);
+    }
+  }
+
+  return scalarPreferredSecurityScheme.filter((schemeName) =>
+    requiredSchemes.has(schemeName)
+  );
+}
+
+function buildScalarAuthenticationConfig(
+  operationSpec: unknown,
+  sessionSnapshot: Awaited<ReturnType<typeof fetchCurrentSession>> | undefined
+) {
+  const securitySchemes = isRecord(operationSpec)
+    && isRecord(operationSpec.components)
+    && isRecord(operationSpec.components.securitySchemes)
+      ? operationSpec.components.securitySchemes
+      : {};
+  const sessionCookieScheme = isRecord(securitySchemes.sessionCookie)
+    ? securitySchemes.sessionCookie
+    : {};
+  const csrfHeaderScheme = isRecord(securitySchemes.csrfHeader)
+    ? securitySchemes.csrfHeader
+    : {};
+  const preferredSecurityScheme = collectPreferredSecuritySchemes(operationSpec);
+
+  if (
+    Object.keys(sessionCookieScheme).length === 0 &&
+    Object.keys(csrfHeaderScheme).length === 0
+  ) {
+    return undefined;
+  }
+
+  return {
+    preferredSecurityScheme,
+    securitySchemes: {
+      sessionCookie: {
+        ...sessionCookieScheme,
+        value: sessionSnapshot?.session.id ?? ''
+      },
+      csrfHeader: {
+        ...csrfHeaderScheme,
+        value: sessionSnapshot?.csrf_token ?? ''
+      }
+    }
+  };
 }
 
 export function ApiDocsPanel() {
@@ -164,6 +234,11 @@ export function ApiDocsPanel() {
   const operationSpecQuery = useQuery({
     queryKey: settingsApiDocsOperationSpecQueryKey(selectedOperationId ?? ''),
     queryFn: () => fetchSettingsApiDocsOperationSpec(selectedOperationId!),
+    enabled: Boolean(selectedOperationId)
+  });
+  const docsViewerSessionQuery = useQuery({
+    queryKey: docsViewerSessionQueryKey,
+    queryFn: () => fetchCurrentSession(),
     enabled: Boolean(selectedOperationId)
   });
 
@@ -421,6 +496,11 @@ export function ApiDocsPanel() {
       <div className="api-docs-panel__detail-viewer">
         <ApiReferenceReact
           configuration={{
+            authentication: buildScalarAuthenticationConfig(
+              operationSpecQuery.data,
+              docsViewerSessionQuery.data
+            ),
+            baseServerURL: getAuthApiBaseUrl(),
             content: operationSpecQuery.data,
             showSidebar: false
           }}

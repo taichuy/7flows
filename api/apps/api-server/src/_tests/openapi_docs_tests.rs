@@ -40,6 +40,65 @@ fn operation_spec_builder_keeps_refs_closed() {
 }
 
 #[test]
+fn operation_spec_builder_keeps_servers_and_security_schemes_for_try_it_out() {
+    let canonical = json!({
+        "openapi": "3.1.0",
+        "info": { "title": "T", "version": "1" },
+        "paths": {
+            "/api/console/me": {
+                "patch": {
+                    "operationId": "patch_me",
+                    "summary": "Patch me",
+                    "requestBody": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PatchMeBody"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "components": {
+            "schemas": {
+                "PatchMeBody": {
+                    "type": "object",
+                    "properties": {
+                        "nickname": { "type": "string" }
+                    }
+                }
+            }
+        }
+    });
+
+    let registry = build_api_docs_registry(canonical).expect("catalog should build");
+    let spec = registry
+        .operation_spec("patch_me")
+        .expect("single operation spec should exist");
+
+    assert_eq!(spec["servers"][0]["url"], "/");
+    assert_eq!(
+        spec["security"],
+        json!([{ "sessionCookie": [], "csrfHeader": [] }])
+    );
+    assert_eq!(
+        spec["components"]["securitySchemes"]["sessionCookie"]["type"],
+        "apiKey"
+    );
+    assert_eq!(
+        spec["components"]["securitySchemes"]["sessionCookie"]["in"],
+        "cookie"
+    );
+    assert_eq!(
+        spec["components"]["securitySchemes"]["csrfHeader"]["name"],
+        "x-csrf-token"
+    );
+    assert!(spec["components"]["schemas"]["PatchMeBody"].is_object());
+}
+
+#[test]
 fn registry_groups_catalog_by_api_prefix_and_singletons_for_non_api_paths() {
     let canonical = json!({
         "openapi": "3.1.0",

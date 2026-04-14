@@ -25,7 +25,13 @@ const docsApi = vi.hoisted(() => ({
   fetchSettingsApiDocsOperationSpec: vi.fn()
 }));
 
+const authApi = vi.hoisted(() => ({
+  fetchCurrentSession: vi.fn(),
+  getAuthApiBaseUrl: vi.fn(() => 'http://127.0.0.1:7800')
+}));
+
 vi.mock('../api/api-docs', () => docsApi);
+vi.mock('../../auth/api/session', () => authApi);
 vi.mock('@tanstack/react-router', async () => {
   const React = await import('react');
 
@@ -150,34 +156,66 @@ const operationSpecById = {
   patch_me: {
     openapi: '3.1.0',
     info: { title: '1Flowse API', version: '0.1.0' },
+    servers: [{ url: '/' }],
+    security: [{ sessionCookie: [], csrfHeader: [] }],
     paths: {
       '/api/console/me': {
         patch: {
           operationId: 'patch_me',
           summary: 'Update current profile',
+          security: [{ sessionCookie: [], csrfHeader: [] }],
           responses: {
             '200': { description: 'ok' }
           }
         }
       }
     },
-    components: {}
+    components: {
+      securitySchemes: {
+        sessionCookie: {
+          type: 'apiKey',
+          in: 'cookie',
+          name: 'flowse_console_session'
+        },
+        csrfHeader: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'x-csrf-token'
+        }
+      }
+    }
   },
   list_members: {
     openapi: '3.1.0',
     info: { title: '1Flowse API', version: '0.1.0' },
+    servers: [{ url: '/' }],
+    security: [{ sessionCookie: [] }],
     paths: {
       '/api/console/members': {
         get: {
           operationId: 'list_members',
           summary: 'List members',
+          security: [{ sessionCookie: [] }],
           responses: {
             '200': { description: 'ok' }
           }
         }
       }
     },
-    components: {}
+    components: {
+      securitySchemes: {
+        sessionCookie: {
+          type: 'apiKey',
+          in: 'cookie',
+          name: 'flowse_console_session'
+        },
+        csrfHeader: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'x-csrf-token'
+        }
+      }
+    }
   },
   list_runtime_jobs: {
     openapi: '3.1.0',
@@ -253,6 +291,22 @@ describe('ApiDocsPanel', () => {
     docsApi.fetchSettingsApiDocsOperationSpec.mockImplementation((operationId: string) =>
       Promise.resolve(operationSpecById[operationId as keyof typeof operationSpecById])
     );
+    authApi.fetchCurrentSession.mockResolvedValue({
+      actor: {
+        id: 'user-1',
+        account: 'root',
+        effective_display_role: 'root',
+        current_workspace_id: 'workspace-1'
+      },
+      session: {
+        id: 'session-123',
+        user_id: 'user-1',
+        tenant_id: 'tenant-1',
+        current_workspace_id: 'workspace-1'
+      },
+      csrf_token: 'csrf-123',
+      cookie_name: 'flowse_console_session'
+    });
   });
 
   test('renders a header category selector and keeps the detail empty until an operation is chosen', async () => {
@@ -292,6 +346,10 @@ describe('ApiDocsPanel', () => {
 
     expect(await screen.findByTestId('scalar-viewer')).toHaveTextContent('/api/console/members');
     expect(screen.getByTestId('scalar-viewer')).not.toHaveTextContent('"operationId":"patch_me"');
+    expect(screen.getByTestId('scalar-viewer')).toHaveTextContent('"baseServerURL":"http://127.0.0.1:7800"');
+    expect(screen.getByTestId('scalar-viewer')).toHaveTextContent('"preferredSecurityScheme":["sessionCookie"]');
+    expect(screen.getByTestId('scalar-viewer')).toHaveTextContent('"value":"session-123"');
+    expect(screen.getByTestId('scalar-viewer')).toHaveTextContent('"value":"csrf-123"');
     expect(screen.getByTestId('scalar-viewer')).not.toHaveTextContent(
       '"hideTestRequestButton":true'
     );
@@ -300,6 +358,25 @@ describe('ApiDocsPanel', () => {
       '"documentDownloadType":"none"'
     );
     expect(docsApi.fetchSettingsApiDocsOperationSpec).toHaveBeenCalledWith('list_members');
+    expect(authApi.fetchCurrentSession).toHaveBeenCalled();
+  });
+
+  test('uses cookie plus csrf authentication defaults for mutating console operations', async () => {
+    renderApp('/settings/docs?category=console');
+
+    fireEvent.click(await screen.findByRole('button', { name: /patch \/api\/console\/me/i }));
+
+    await waitFor(() => {
+      expect(window.location.search).toBe('?category=console&operation=patch_me');
+    });
+
+    expect(await screen.findByTestId('scalar-viewer')).toHaveTextContent(
+      '"preferredSecurityScheme":["sessionCookie","csrfHeader"]'
+    );
+    expect(screen.getByTestId('scalar-viewer')).toHaveTextContent(
+      '"name":"flowse_console_session"'
+    );
+    expect(screen.getByTestId('scalar-viewer')).toHaveTextContent('"name":"x-csrf-token"');
   });
 
   test('loads the deep-linked category and operation into the list-detail flow', async () => {

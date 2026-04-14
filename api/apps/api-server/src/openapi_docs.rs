@@ -2,12 +2,17 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use anyhow::{anyhow, bail, Context, Result};
 use serde::Serialize;
-use serde_json::{Map, Value};
+use serde_json::{json, Map, Value};
 use utoipa::{OpenApi, ToSchema};
 
 const HTTP_METHODS: &[&str] = &[
     "get", "put", "post", "delete", "options", "head", "patch", "trace",
 ];
+const DEFAULT_DOCS_SERVER_URL: &str = "/";
+const DEFAULT_SESSION_COOKIE_NAME: &str = "flowse_console_session";
+const SESSION_COOKIE_SECURITY_SCHEME: &str = "sessionCookie";
+const CSRF_HEADER_SECURITY_SCHEME: &str = "csrfHeader";
+const CSRF_HEADER_NAME: &str = "x-csrf-token";
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct DocsCatalogOperation {
@@ -69,10 +74,27 @@ impl ApiDocsRegistry {
 }
 
 pub fn build_default_api_docs_registry() -> Result<ApiDocsRegistry> {
-    build_api_docs_registry(serde_json::to_value(crate::openapi::ApiDoc::openapi())?)
+    build_default_api_docs_registry_with_cookie_name(DEFAULT_SESSION_COOKIE_NAME)
+}
+
+pub fn build_default_api_docs_registry_with_cookie_name(
+    cookie_name: &str,
+) -> Result<ApiDocsRegistry> {
+    build_api_docs_registry_with_cookie_name(
+        serde_json::to_value(crate::openapi::ApiDoc::openapi())?,
+        cookie_name,
+    )
 }
 
 pub fn build_api_docs_registry(canonical: Value) -> Result<ApiDocsRegistry> {
+    build_api_docs_registry_with_cookie_name(canonical, DEFAULT_SESSION_COOKIE_NAME)
+}
+
+fn build_api_docs_registry_with_cookie_name(
+    canonical: Value,
+    cookie_name: &str,
+) -> Result<ApiDocsRegistry> {
+    let canonical = enrich_canonical_openapi(canonical, cookie_name)?;
     let canonical_map = canonical
         .as_object()
         .context("canonical OpenAPI document must be a JSON object")?;
@@ -203,6 +225,18 @@ pub fn build_api_docs_registry(canonical: Value) -> Result<ApiDocsRegistry> {
     })
 }
 
+fn enrich_canonical_openapi(mut canonical: Value, cookie_name: &str) -> Result<Value> {
+    let canonical_map = canonical
+        .as_object_mut()
+        .context("canonical OpenAPI document must be a JSON object")?;
+
+    ensure_docs_server(canonical_map);
+    ensure_security_schemes(canonical_map, cookie_name)?;
+    annotate_console_operation_security(canonical_map)?;
+
+    Ok(canonical)
+}
+
 fn extract_tags(operation: &Value) -> Vec<String> {
     operation
         .get("tags")
@@ -255,6 +289,114 @@ fn compare_categories(
         .then_with(|| left.id.cmp(&right.id))
 }
 
+fn ensure_docs_server(canonical_map: &mut Map<String, Value>) {
+    let has_servers = canonical_map
+        .get("servers")
+        .and_then(Value::as_array)
+        .map(|servers| !servers.is_empty())
+        .unwrap_or(false);
+
+    if !has_servers {
+        canonical_map.insert(
+            "servers".to_string(),
+            json!([
+                {
+                    "url": DEFAULT_DOCS_SERVER_URL,
+                    "description": "Current API server"
+                }
+            ]),
+        );
+    }
+}
+
+fn ensure_security_schemes(
+    canonical_map: &mut Map<String, Value>,
+    cookie_name: &str,
+) -> Result<()> {
+    let components = canonical_map
+        .entry("components".to_string())
+        .or_insert_with(|| Value::Object(Map::new()))
+        .as_object_mut()
+        .context("components must be an object")?;
+    let security_schemes = components
+        .entry("securitySchemes".to_string())
+        .or_insert_with(|| Value::Object(Map::new()))
+        .as_object_mut()
+        .context("components.securitySchemes must be an object")?;
+
+    security_schemes
+        .entry(SESSION_COOKIE_SECURITY_SCHEME.to_string())
+        .or_insert_with(|| {
+            json!({
+                "type": "apiKey",
+                "in": "cookie",
+                "name": cookie_name,
+                "description": "Console session cookie for authenticated requests."
+            })
+        });
+    security_schemes
+        .entry(CSRF_HEADER_SECURITY_SCHEME.to_string())
+        .or_insert_with(|| {
+            json!({
+                "type": "apiKey",
+                "in": "header",
+                "name": CSRF_HEADER_NAME,
+                "description": "CSRF token header required by mutating console operations."
+            })
+        });
+
+    Ok(())
+}
+
+fn annotate_console_operation_security(canonical_map: &mut Map<String, Value>) -> Result<()> {
+    let paths = canonical_map
+        .get_mut("paths")
+        .and_then(Value::as_object_mut)
+        .context("canonical OpenAPI document must contain paths")?;
+
+    for (path, path_item) in paths {
+        if !path.starts_with("/api/console/") {
+            continue;
+        }
+
+        let path_item_map = path_item
+            .as_object_mut()
+            .with_context(|| format!("path item `{path}` must be an object"))?;
+
+        for method in HTTP_METHODS {
+            let Some(operation) = path_item_map.get_mut(*method) else {
+                continue;
+            };
+            let operation_map = operation
+                .as_object_mut()
+                .with_context(|| format!("operation `{method} {path}` must be an object"))?;
+
+            operation_map
+                .entry("security".to_string())
+                .or_insert_with(|| Value::Array(vec![derive_console_security_requirement(method)]));
+        }
+    }
+
+    Ok(())
+}
+
+fn derive_console_security_requirement(method: &str) -> Value {
+    if requires_csrf(method) {
+        json!({
+            SESSION_COOKIE_SECURITY_SCHEME: [],
+            CSRF_HEADER_SECURITY_SCHEME: []
+        })
+    } else {
+        json!({
+            SESSION_COOKIE_SECURITY_SCHEME: []
+        })
+    }
+}
+
+fn requires_csrf(method: &str) -> bool {
+    !matches!(method, "get" | "head" | "options")
+}
+
 pub fn collect_refs(value: &Value, refs: &mut BTreeSet<String>) {
     match value {
         Value::Object(map) => {
@@ -289,6 +431,8 @@ fn close_scoped_spec(canonical: &Value, scoped_operations: &[(String, String)]) 
 
     let mut scoped_paths = Map::new();
     let mut operation_tags = BTreeSet::new();
+    let scoped_security = collect_scoped_security_requirements(canonical_map, scoped_operations)?;
+    let scoped_security_scheme_names = collect_security_scheme_names(&scoped_security);
 
     for (path, method) in scoped_operations {
         let path_item_map = canonical_paths
@@ -347,6 +491,21 @@ fn close_scoped_spec(canonical: &Value, scoped_operations: &[(String, String)]) 
         pending_refs.extend(nested_refs);
     }
 
+    for scheme_name in scoped_security_scheme_names {
+        let security_scheme = canonical
+            .pointer(&format!(
+                "/components/securitySchemes/{}",
+                scheme_name.replace('~', "~0").replace('/', "~1")
+            ))
+            .with_context(|| format!("missing security scheme `{scheme_name}`"))?
+            .clone();
+        insert_pointer(
+            &mut components,
+            &format!("/securitySchemes/{scheme_name}"),
+            security_scheme,
+        )?;
+    }
+
     let filtered_tags = canonical_map
         .get("tags")
         .and_then(Value::as_array)
@@ -381,6 +540,9 @@ fn close_scoped_spec(canonical: &Value, scoped_operations: &[(String, String)]) 
     if let Some(servers) = canonical_map.get("servers") {
         spec.insert("servers".to_string(), servers.clone());
     }
+    if !scoped_security.is_empty() {
+        spec.insert("security".to_string(), Value::Array(scoped_security));
+    }
     spec.insert("paths".to_string(), Value::Object(scoped_paths));
     spec.insert("components".to_string(), components);
     if !filtered_tags.is_empty() {
@@ -388,6 +550,60 @@ fn close_scoped_spec(canonical: &Value, scoped_operations: &[(String, String)]) 
     }
 
     Ok(Value::Object(spec))
+}
+
+fn collect_scoped_security_requirements(
+    canonical_map: &Map<String, Value>,
+    scoped_operations: &[(String, String)],
+) -> Result<Vec<Value>> {
+    let canonical_paths = canonical_map
+        .get("paths")
+        .and_then(Value::as_object)
+        .context("canonical OpenAPI document must contain paths")?;
+    let default_security = canonical_map.get("security").and_then(Value::as_array);
+    let mut collected = Vec::new();
+    let mut seen = BTreeSet::new();
+
+    for (path, method) in scoped_operations {
+        let path_item_map = canonical_paths
+            .get(path)
+            .and_then(Value::as_object)
+            .with_context(|| format!("path `{path}` not found in canonical document"))?;
+        let operation = path_item_map.get(method).with_context(|| {
+            format!("operation `{method} {path}` not found in canonical document")
+        })?;
+        let requirements = operation
+            .get("security")
+            .and_then(Value::as_array)
+            .or(default_security);
+
+        let Some(requirements) = requirements else {
+            continue;
+        };
+
+        for requirement in requirements {
+            let signature = serde_json::to_string(requirement)?;
+            if seen.insert(signature) {
+                collected.push(requirement.clone());
+            }
+        }
+    }
+
+    Ok(collected)
+}
+
+fn collect_security_scheme_names(requirements: &[Value]) -> BTreeSet<String> {
+    let mut scheme_names = BTreeSet::new();
+
+    for requirement in requirements {
+        let Some(requirement_map) = requirement.as_object() else {
+            continue;
+        };
+
+        scheme_names.extend(requirement_map.keys().cloned());
+    }
+
+    scheme_names
 }
 
 fn insert_pointer(target: &mut Value, pointer: &str, value: Value) -> Result<()> {

@@ -44,6 +44,7 @@ async fn session_route_returns_wrapped_actor_payload_and_csrf_token() {
     assert!(payload["data"]["actor"]["current_workspace_id"].is_string());
     assert!(payload["data"]["session"]["current_workspace_id"].is_string());
     assert_eq!(payload["data"]["csrf_token"], csrf);
+    assert_eq!(payload["data"]["cookie_name"], "flowse_console_session");
     assert_eq!(
         payload["data"]["actor"]["current_workspace_id"],
         payload["data"]["session"]["current_workspace_id"]

@@ -69,3 +69,4 @@ Diff in .../health_routes.rs
 ## 复现记录
 
 - `2026-04-13 16`：执行 backend route/OpenAPI 对齐计划的 Task 3 时，`verify-backend.js` 首次因 `openapi_alignment.rs`、`runtime_models.rs`、`health_routes.rs` 的 rustfmt diff 失败；格式化后重跑通过。
+- `2026-04-14 00`：执行 settings docs 的后端统一门禁时，脚本先对 `openapi_docs.rs`、`lib.rs`、`src/_tests/support.rs` 的 rustfmt diff 报错并提前退出；先运行 `cd api && cargo fmt` 后，再次执行 `node scripts/node/verify-backend.js` 全量通过。

@@ -74,8 +74,10 @@ pub async fn test_app_with_database_url() -> (Router, String) {
         runtime_registry,
         std::sync::Arc::new(store.clone()),
     ));
-    let api_docs =
-        std::sync::Arc::new(crate::openapi_docs::build_default_api_docs_registry().unwrap());
+    let api_docs = std::sync::Arc::new(
+        crate::openapi_docs::build_default_api_docs_registry_with_cookie_name(&config.cookie_name)
+            .unwrap(),
+    );
 
     let app = crate::app_with_state_and_config(
         std::sync::Arc::new(ApiState {
