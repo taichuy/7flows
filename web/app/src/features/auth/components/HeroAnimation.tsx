@@ -107,9 +107,9 @@ export function HeroAnimation() {
           .hero-slogan {
             background: linear-gradient(
               120deg,
-              rgba(105, 250, 255, 0.5) 40%,
+              ${token.colorPrimary} 40%,
               rgba(255, 255, 255, 0.9) 50%,
-              rgba(105, 177, 255, 0.9) 60%
+              ${token.colorInfo} 60%
             );
             background-size: 200% auto;
             color: transparent;
