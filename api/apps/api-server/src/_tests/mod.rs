@@ -4,6 +4,7 @@ mod me_routes;
 mod member_routes;
 mod model_definition_routes;
 mod openapi_alignment;
+mod openapi_docs_tests;
 mod role_routes;
 mod runtime_model_routes;
 mod session_routes;

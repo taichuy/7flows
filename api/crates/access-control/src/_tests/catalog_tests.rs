@@ -14,6 +14,16 @@ fn permission_catalog_seeds_expected_codes() {
 }
 
 #[test]
+fn permission_catalog_seeds_api_reference_view_all() {
+    let codes = permission_catalog()
+        .into_iter()
+        .map(|permission| permission.code)
+        .collect::<Vec<_>>();
+
+    assert!(codes.contains(&"api_reference.view.all".to_string()));
+}
+
+#[test]
 fn builtin_roles_lock_root_but_keep_admin_and_manager_editable() {
     let templates = builtin_role_templates();
 

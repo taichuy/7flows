@@ -5,6 +5,7 @@ pub mod config;
 pub mod error_response;
 pub mod middleware;
 pub mod openapi;
+pub mod openapi_docs;
 pub mod response;
 pub mod routes;
 pub mod runtime_registry_sync;
