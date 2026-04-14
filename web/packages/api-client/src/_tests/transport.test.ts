@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { ApiClientError } from '../errors';
 import { apiFetch } from '../transport';
 
 describe('apiFetch', () => {
