@@ -5,7 +5,7 @@ drop table if exists model_definitions;
 
 create table model_definitions (
   id uuid primary key,
-  scope_kind text not null check (scope_kind in ('team', 'app')),
+  scope_kind text not null check (scope_kind in ('workspace', 'system')),
   scope_id uuid not null,
   code text not null,
   title text not null,

@@ -403,7 +403,7 @@ async fn create_orders_model(app: &axum::Router, cookie: &str, csrf: &str) -> St
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
-                        "scope_kind": "team",
+                        "scope_kind": "workspace",
                         "code": "orders",
                         "title": "Orders"
                     })

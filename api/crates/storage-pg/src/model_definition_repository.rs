@@ -43,9 +43,9 @@ impl ModelDefinitionRepository for PgControlPlaneStore {
         &self,
         actor_user_id: Uuid,
     ) -> Result<domain::ActorContext> {
-        let team_id = workspace_id_for_user(self.pool(), actor_user_id).await?;
-        let tenant_id = tenant_id_for_workspace(self.pool(), team_id).await?;
-        AuthRepository::load_actor_context(self, actor_user_id, tenant_id, team_id, None).await
+        let workspace_id = workspace_id_for_user(self.pool(), actor_user_id).await?;
+        let tenant_id = tenant_id_for_workspace(self.pool(), workspace_id).await?;
+        AuthRepository::load_actor_context(self, actor_user_id, tenant_id, workspace_id, None).await
     }
 
     async fn list_model_definitions(
@@ -1160,8 +1160,8 @@ fn to_model_field_record(row: sqlx::postgres::PgRow) -> domain::ModelFieldRecord
 
 fn build_physical_table_name(scope_kind: domain::DataModelScopeKind, code: &str) -> String {
     let prefix = match scope_kind {
-        domain::DataModelScopeKind::Workspace => "team",
-        domain::DataModelScopeKind::System => "app",
+        domain::DataModelScopeKind::Workspace => "workspace",
+        domain::DataModelScopeKind::System => "system",
     };
     let suffix = Uuid::now_v7().simple().to_string();
 

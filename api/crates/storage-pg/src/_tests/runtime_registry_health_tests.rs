@@ -1,16 +1,28 @@
 use control_plane::ports::{CreateModelDefinitionInput, ModelDefinitionRepository};
 use domain::DataModelScopeKind;
+use sqlx::PgPool;
 use storage_pg::{connect, run_migrations, PgControlPlaneStore};
 use uuid::Uuid;
 
-fn database_url() -> String {
+fn base_database_url() -> String {
     std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows".into())
 }
 
+async fn isolated_database_url() -> String {
+    let admin_pool = PgPool::connect(&base_database_url()).await.unwrap();
+    let schema = format!("test_{}", Uuid::now_v7().to_string().replace('-', ""));
+    sqlx::query(&format!("create schema if not exists {schema}"))
+        .execute(&admin_pool)
+        .await
+        .unwrap();
+
+    format!("{}?options=-csearch_path%3D{schema}", base_database_url())
+}
+
 #[tokio::test]
 async fn list_runtime_model_metadata_marks_model_unavailable_when_table_is_missing() {
-    let pool = connect(&database_url()).await.unwrap();
+    let pool = connect(&isolated_database_url().await).await.unwrap();
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
     let tenant_id: Uuid = sqlx::query_scalar("select id from tenants where code = 'root-tenant'")
@@ -22,7 +34,7 @@ async fn list_runtime_model_metadata_marks_model_unavailable_when_table_is_missi
     let model_code = format!("orders_{}", Uuid::now_v7().simple());
 
     sqlx::query(
-        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
+        "insert into workspaces (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
     .bind(workspace_id)
     .bind(tenant_id)

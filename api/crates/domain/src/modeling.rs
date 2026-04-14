@@ -5,19 +5,11 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DataModelScopeKind {
-    #[serde(alias = "team")]
     Workspace,
-    #[serde(alias = "app")]
     System,
 }
 
 impl DataModelScopeKind {
-    #[allow(non_upper_case_globals)]
-    pub const Team: Self = Self::Workspace;
-
-    #[allow(non_upper_case_globals)]
-    pub const App: Self = Self::System;
-
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Workspace => "workspace",
@@ -27,7 +19,7 @@ impl DataModelScopeKind {
 
     pub fn from_db(value: &str) -> Self {
         match value {
-            "system" | "app" => Self::System,
+            "system" => Self::System,
             _ => Self::Workspace,
         }
     }

@@ -120,11 +120,11 @@ impl ModelDefinitionRepository for AclTestRepository {
 fn sample_model(model_id: Uuid) -> ModelDefinitionRecord {
     ModelDefinitionRecord {
         id: model_id,
-        scope_kind: DataModelScopeKind::Team,
+        scope_kind: DataModelScopeKind::Workspace,
         scope_id: Uuid::now_v7(),
         code: "orders".to_string(),
         title: "Orders".to_string(),
-        physical_table_name: "rtm_team_orders".to_string(),
+        physical_table_name: "rtm_workspace_orders".to_string(),
         acl_namespace: "state_model.orders".to_string(),
         audit_namespace: "audit.state_model.orders".to_string(),
         fields: vec![],

@@ -18,7 +18,7 @@ pub use modeling::{
     ModelFieldRecord,
 };
 pub use resource::runtime_model_resource_code;
-pub use scope::{ScopeContext, TenantRecord, WorkspaceRecord};
+pub use scope::{ScopeContext, TenantRecord, WorkspaceRecord, SYSTEM_SCOPE_ID};
 
 pub fn crate_name() -> &'static str {
     "domain"

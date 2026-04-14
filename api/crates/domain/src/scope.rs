@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+pub const SYSTEM_SCOPE_ID: Uuid = uuid::uuid!("00000000-0000-0000-0000-000000000000");
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TenantRecord {
     pub id: Uuid,

@@ -27,7 +27,6 @@ use crate::{
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateModelDefinitionBody {
     pub scope_kind: String,
-    pub scope_id: Option<String>,
     pub code: String,
     pub title: String,
 }
@@ -174,8 +173,8 @@ fn parse_uuid(raw: &str, field: &'static str) -> Result<Uuid, ApiError> {
 
 fn parse_scope_kind(raw: &str) -> Result<domain::DataModelScopeKind, ApiError> {
     match raw {
-        "team" => Ok(domain::DataModelScopeKind::Team),
-        "app" => Ok(domain::DataModelScopeKind::App),
+        "workspace" => Ok(domain::DataModelScopeKind::Workspace),
+        "system" => Ok(domain::DataModelScopeKind::System),
         _ => Err(control_plane::errors::ControlPlaneError::InvalidInput("scope_kind").into()),
     }
 }
@@ -241,27 +240,11 @@ pub async fn create_model(
     let context = require_session(&state, &headers).await?;
     require_csrf(&headers, &context.session)?;
     let scope_kind = parse_scope_kind(&body.scope_kind)?;
-    let scope_id = match scope_kind {
-        domain::DataModelScopeKind::Team => body
-            .scope_id
-            .as_deref()
-            .map(|value| parse_uuid(value, "scope_id"))
-            .transpose()?
-            .unwrap_or(context.actor.current_workspace_id),
-        domain::DataModelScopeKind::App => body
-            .scope_id
-            .as_deref()
-            .ok_or(control_plane::errors::ControlPlaneError::InvalidInput(
-                "scope_id",
-            ))?
-            .pipe(|value| parse_uuid(value, "scope_id"))?,
-    };
 
     let model = mutation_service(&state)
         .create_model(CreateModelDefinitionCommand {
             actor_user_id: context.user.id,
             scope_kind,
-            scope_id,
             code: body.code,
             title: body.title,
         })
@@ -462,11 +445,3 @@ pub async fn delete_field(
         serde_json::json!({ "deleted": true }),
     )))
 }
-
-trait Pipe: Sized {
-    fn pipe<T>(self, f: impl FnOnce(Self) -> T) -> T {
-        f(self)
-    }
-}
-
-impl<T> Pipe for T {}

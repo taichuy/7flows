@@ -21,7 +21,6 @@ use crate::{
 pub struct CreateModelDefinitionCommand {
     pub actor_user_id: Uuid,
     pub scope_kind: DataModelScopeKind,
-    pub scope_id: Uuid,
     pub code: String,
     pub title: String,
 }
@@ -134,8 +133,8 @@ where
         ensure_permission(&actor, "state_model.create.all")
             .map_err(ControlPlaneError::PermissionDenied)?;
         let scope_id = match command.scope_kind {
-            DataModelScopeKind::Team => actor.current_workspace_id,
-            DataModelScopeKind::App => command.scope_id,
+            DataModelScopeKind::Workspace => actor.current_workspace_id,
+            DataModelScopeKind::System => domain::SYSTEM_SCOPE_ID,
         };
 
         let model = self
@@ -392,7 +391,7 @@ impl InMemoryModelDefinitionRepository {
             .entry(model_id)
             .or_insert_with(|| domain::ModelDefinitionRecord {
                 id: model_id,
-                scope_kind: DataModelScopeKind::Team,
+                scope_kind: DataModelScopeKind::Workspace,
                 scope_id: Uuid::nil(),
                 code: if model_id.is_nil() {
                     "nil".to_string()
@@ -400,7 +399,7 @@ impl InMemoryModelDefinitionRepository {
                     format!("model_{}", model_id.simple())
                 },
                 title: "Runtime Model".to_string(),
-                physical_table_name: format!("rtm_team_00000000_{}", model_id.simple()),
+                physical_table_name: format!("rtm_workspace_00000000_{}", model_id.simple()),
                 acl_namespace: "state_model.runtime_model".to_string(),
                 audit_namespace: "audit.state_model.runtime_model".to_string(),
                 fields: vec![],
@@ -581,8 +580,8 @@ impl ModelDefinitionService<InMemoryModelDefinitionRepository> {
 
 fn build_physical_table_name(scope_kind: DataModelScopeKind, code: &str) -> String {
     let prefix = match scope_kind {
-        DataModelScopeKind::Team => "team",
-        DataModelScopeKind::App => "app",
+        DataModelScopeKind::Workspace => "workspace",
+        DataModelScopeKind::System => "system",
     };
     let suffix = Uuid::now_v7().simple().to_string();
     let sanitized_code = code.replace('-', "_");

@@ -187,8 +187,8 @@ fn constraint_name(prefix: &str, id: uuid::Uuid) -> String {
 
 fn scope_column_name(scope_kind: domain::DataModelScopeKind) -> &'static str {
     match scope_kind {
-        domain::DataModelScopeKind::Team => "team_id",
-        domain::DataModelScopeKind::App => "app_id",
+        domain::DataModelScopeKind::Workspace => "team_id",
+        domain::DataModelScopeKind::System => "app_id",
     }
 }
 

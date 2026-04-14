@@ -1,14 +1,6 @@
 alter table model_definitions
   drop constraint if exists model_definitions_scope_kind_check;
 
-update model_definitions
-set scope_kind = case
-  when scope_kind = 'app' then 'system'
-  when scope_kind = 'team' then 'workspace'
-  else scope_kind
-end
-where scope_kind in ('app', 'team');
-
 alter table model_definitions
   add column if not exists availability_status text;
 

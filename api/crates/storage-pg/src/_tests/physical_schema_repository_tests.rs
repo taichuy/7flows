@@ -26,7 +26,7 @@ async fn add_scalar_field_creates_real_postgres_column_and_unique_index() {
     let tenant_id = root_tenant_id(&store).await;
     let team_name = format!("Core Team {}", team_id.simple());
     sqlx::query(
-        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
+        "insert into workspaces (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
     .bind(team_id)
     .bind(tenant_id)
@@ -39,7 +39,7 @@ async fn add_scalar_field_creates_real_postgres_column_and_unique_index() {
         &store,
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
-            scope_kind: DataModelScopeKind::Team,
+            scope_kind: DataModelScopeKind::Workspace,
             scope_id: team_id,
             code: "orders".into(),
             title: "Orders".into(),
@@ -109,7 +109,7 @@ async fn add_one_to_many_field_only_writes_metadata_without_creating_column() {
     let tenant_id = root_tenant_id(&store).await;
     let team_name = format!("Core Team {}", team_id.simple());
     sqlx::query(
-        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
+        "insert into workspaces (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
     .bind(team_id)
     .bind(tenant_id)
@@ -122,7 +122,7 @@ async fn add_one_to_many_field_only_writes_metadata_without_creating_column() {
         &store,
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
-            scope_kind: DataModelScopeKind::Team,
+            scope_kind: DataModelScopeKind::Workspace,
             scope_id: team_id,
             code: "orders".into(),
             title: "Orders".into(),
@@ -134,7 +134,7 @@ async fn add_one_to_many_field_only_writes_metadata_without_creating_column() {
         &store,
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
-            scope_kind: DataModelScopeKind::Team,
+            scope_kind: DataModelScopeKind::Workspace,
             scope_id: team_id,
             code: "order_items".into(),
             title: "Order Items".into(),
@@ -189,7 +189,7 @@ async fn add_many_to_many_field_creates_host_managed_join_table() {
     let tenant_id = root_tenant_id(&store).await;
     let team_name = format!("Core Team {}", team_id.simple());
     sqlx::query(
-        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
+        "insert into workspaces (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
     .bind(team_id)
     .bind(tenant_id)
@@ -202,7 +202,7 @@ async fn add_many_to_many_field_creates_host_managed_join_table() {
         &store,
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
-            scope_kind: DataModelScopeKind::Team,
+            scope_kind: DataModelScopeKind::Workspace,
             scope_id: team_id,
             code: "orders".into(),
             title: "Orders".into(),
@@ -214,7 +214,7 @@ async fn add_many_to_many_field_creates_host_managed_join_table() {
         &store,
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
-            scope_kind: DataModelScopeKind::Team,
+            scope_kind: DataModelScopeKind::Workspace,
             scope_id: team_id,
             code: "tags".into(),
             title: "Tags".into(),

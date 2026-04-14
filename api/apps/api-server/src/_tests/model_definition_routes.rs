@@ -151,7 +151,7 @@ async fn model_definition_routes_manage_models_and_fields_without_publish() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
-                        "scope_kind": "team",
+                        "scope_kind": "workspace",
                         "code": "orders",
                         "title": "Orders"
                     })
@@ -413,7 +413,7 @@ async fn model_definition_routes_require_state_model_visibility() {
                 .header("content-type", "application/json")
                 .body(Body::from(
                     json!({
-                        "scope_kind": "team",
+                        "scope_kind": "workspace",
                         "code": "orders_acl",
                         "title": "Orders ACL"
                     })
@@ -495,4 +495,89 @@ async fn model_definition_routes_require_state_model_visibility() {
         .unwrap();
 
     assert_eq!(blocked_response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn create_model_route_accepts_workspace_and_system_scope_kinds_only() {
+    let app = test_app().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+
+    let workspace_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/models")
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "scope_kind": "workspace",
+                        "code": "workspace_orders_scope_contract",
+                        "title": "Workspace Orders Scope Contract"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(workspace_response.status(), StatusCode::CREATED);
+
+    let system_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/models")
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "scope_kind": "system",
+                        "code": "system_orders_scope_contract",
+                        "title": "System Orders Scope Contract"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(system_response.status(), StatusCode::CREATED);
+    let system_body = to_bytes(system_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let system_payload: serde_json::Value = serde_json::from_slice(&system_body).unwrap();
+    assert_eq!(
+        system_payload["data"]["scope_id"],
+        serde_json::Value::String(domain::SYSTEM_SCOPE_ID.to_string())
+    );
+
+    let legacy_response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/models")
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "scope_kind": "team",
+                        "code": "legacy_team_scope_contract",
+                        "title": "Legacy Team Scope Contract"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(legacy_response.status(), StatusCode::BAD_REQUEST);
 }

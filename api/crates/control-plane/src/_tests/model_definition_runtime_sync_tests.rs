@@ -45,8 +45,7 @@ async fn create_model_rebuilds_runtime_registry_once() {
     let created = service
         .create_model(CreateModelDefinitionCommand {
             actor_user_id: Uuid::nil(),
-            scope_kind: DataModelScopeKind::Team,
-            scope_id: Uuid::nil(),
+            scope_kind: DataModelScopeKind::Workspace,
             code: "orders".into(),
             title: "Orders".into(),
         })
@@ -63,7 +62,7 @@ async fn add_field_rebuilds_runtime_registry_once() {
     let seeded = repository
         .create_model_definition(&CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
-            scope_kind: DataModelScopeKind::Team,
+            scope_kind: DataModelScopeKind::Workspace,
             scope_id: Uuid::nil(),
             code: "orders".into(),
             title: "Orders".into(),
@@ -101,7 +100,7 @@ async fn delete_model_rebuilds_runtime_registry_once() {
     let seeded = repository
         .create_model_definition(&CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
-            scope_kind: DataModelScopeKind::Team,
+            scope_kind: DataModelScopeKind::Workspace,
             scope_id: Uuid::nil(),
             code: "orders".into(),
             title: "Orders".into(),

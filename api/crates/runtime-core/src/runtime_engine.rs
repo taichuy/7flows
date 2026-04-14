@@ -516,7 +516,7 @@ fn test_model_metadata() -> ModelMetadata {
         model_code: "orders".into(),
         scope_kind: domain::DataModelScopeKind::Workspace,
         scope_id: Uuid::nil(),
-        physical_table_name: "rtm_team_demo_orders".into(),
+        physical_table_name: "rtm_workspace_demo_orders".into(),
         scope_column_name: "team_id".into(),
         fields: vec![
             domain::ModelFieldRecord {

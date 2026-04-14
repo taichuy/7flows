@@ -54,7 +54,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
     let tenant_id = root_tenant_id(&store).await;
     let team_name = format!("Core Team {}", team_id.simple());
     sqlx::query(
-        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
+        "insert into workspaces (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
     .bind(team_id)
     .bind(tenant_id)
@@ -67,7 +67,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &store,
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
-            scope_kind: DataModelScopeKind::Team,
+            scope_kind: DataModelScopeKind::Workspace,
             scope_id: team_id,
             code: "customers".into(),
             title: "Customers".into(),
@@ -79,7 +79,7 @@ async fn runtime_record_repository_supports_crud_filter_sort_and_relation_expans
         &store,
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
-            scope_kind: DataModelScopeKind::Team,
+            scope_kind: DataModelScopeKind::Workspace,
             scope_id: team_id,
             code: "orders".into(),
             title: "Orders".into(),
@@ -328,7 +328,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
     let team_name = format!("Core Team {}", team_id.simple());
 
     sqlx::query(
-        "insert into teams (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
+        "insert into workspaces (id, tenant_id, name, created_by, updated_by) values ($1, $2, $3, null, null)",
     )
     .bind(team_id)
     .bind(tenant_id)
@@ -343,7 +343,7 @@ async fn runtime_record_repository_enforces_owner_scope() {
         &store,
         &CreateModelDefinitionInput {
             actor_user_id: Uuid::nil(),
-            scope_kind: DataModelScopeKind::Team,
+            scope_kind: DataModelScopeKind::Workspace,
             scope_id: team_id,
             code: "orders_acl".into(),
             title: "Orders ACL".into(),

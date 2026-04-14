@@ -28,8 +28,7 @@ pub enum Exposure {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TenantScope {
     System,
-    Team,
-    App,
+    Workspace,
     User,
 }
 
@@ -77,8 +76,8 @@ impl ResourceDescriptor {
             Plane::Runtime,
             Exposure::Console,
             match scope_kind {
-                domain::DataModelScopeKind::Team => TenantScope::Team,
-                domain::DataModelScopeKind::App => TenantScope::App,
+                domain::DataModelScopeKind::Workspace => TenantScope::Workspace,
+                domain::DataModelScopeKind::System => TenantScope::System,
             },
             TrustLevel::Core,
         )
