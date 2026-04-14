@@ -621,7 +621,7 @@ Execution note (`2026-04-14 17`):
 - Modify: `web/app/src/style-boundary/scenario-manifest.json`
 - Modify: `web/app/src/style-boundary/_tests/registry.test.tsx`
 
-- [ ] **Step 1: Add failing interaction coverage for the new docs panel**
+- [x] **Step 1: Add failing interaction coverage for the new docs panel**
 
 Create `web/app/src/features/settings/_tests/api-docs-panel.test.tsx` and mock Scalar to a tiny probe component:
 
@@ -650,7 +650,7 @@ Also extend `web/app/src/style-boundary/_tests/registry.test.tsx` with:
 test('renders the settings scene with mocked api docs data', async () => {});
 ```
 
-- [ ] **Step 2: Run the focused UI failures**
+- [x] **Step 2: Run the focused UI failures**
 
 Run:
 
@@ -662,7 +662,7 @@ Expected:
 - docs-panel tests FAIL because `ApiDocsPanel` still renders an `iframe`;
 - style-boundary settings scene FAILS because the new page will need seeded permission and mocked docs responses.
 
-- [ ] **Step 3: Implement the two-pane docs UI and style-boundary stubs**
+- [x] **Step 3: Implement the two-pane docs UI and style-boundary stubs**
 
 Add the Scalar dependency in `web/app/package.json`:
 
@@ -796,7 +796,7 @@ Update `scenario-manifest.json` so `page.settings` includes:
 - `web/app/src/features/settings/components/api-docs-panel.css`
 - `web/app/src/features/settings/api/api-docs.ts`
 
-- [ ] **Step 4: Run the full verification suite**
+- [x] **Step 4: Run the full verification suite**
 
 Run frontend verification:
 
@@ -833,8 +833,10 @@ Perform one manual browser pass in desktop and mobile widths for:
 
 Execution note:
 - `check-style-boundary.js` 会内部触发 `node scripts/node/dev-up.js ensure --frontend-only --skip-docker`；在受限沙箱里如出现 `listen EPERM`，应按仓库既有约定提权执行。
+- 本轮前端整体验证使用了 `pnpm --dir web lint`、`pnpm --dir web test -- --testTimeout=15000`、`pnpm --dir web/app build`、`node scripts/node/check-style-boundary.js page page.settings`，以及串行的目标后端 `cargo test` 回归。
+- 浏览器人工验收覆盖了桌面与移动宽度下的 `/settings/docs`、`/settings/docs?operation=patch_me` 和无文档权限账号访问 `/settings/docs` 的回退路径；由于共享开发后端在本地 `dev-up restart --backend-only` 时受旧 `.env` 字段与共享 schema migration checksum 影响无法直接刷新，文档页验收使用浏览器注入的最小 `session/me/docs` mock 完成 UI 与路由核对，真实共享后端当时对 `/api/console/docs/catalog` 仍返回旧进程的 `404`。
 
-- [ ] **Step 5: Commit the docs UI slice**
+- [x] **Step 5: Commit the docs UI slice**
 
 ```bash
 git add web/app/package.json
@@ -843,6 +845,9 @@ git add web/app/src/features/settings/_tests/api-docs-panel.test.tsx
 git add web/app/src/style-boundary/registry.tsx web/app/src/style-boundary/scenario-manifest.json web/app/src/style-boundary/_tests/registry.test.tsx
 git commit -m "feat(web): replace settings docs iframe with on-demand viewer"
 ```
+
+Execution note (`2026-04-14 18`):
+- 收尾阶段额外修复了 `api/apps/api-server/.env.example` 与 `.env.production.example` 仍使用 `BOOTSTRAP_TEAM_NAME` 的本地开发回归，并为 `scripts/node/dev-up/_tests/core.test.js` 增加了示例环境文件字段命名断言，避免后续 `dev-up restart --backend-only` 再因旧字段失败。
 
 ## Self-Review
 

@@ -71,6 +71,42 @@ describe('SectionPageLayout', () => {
     expect(screen.getByRole('button', { name: '退出登录' })).toBeInTheDocument();
   });
 
+  test('uses wide content width by default for management pages', async () => {
+    const view = renderInRouter(
+      <SectionPageLayout
+        pageTitle="设置"
+        navItems={navItems.slice(0, 2)}
+        activeKey="profile"
+      >
+        <section>宽布局内容</section>
+      </SectionPageLayout>
+    );
+
+    expect(await screen.findByText('宽布局内容')).toBeInTheDocument();
+    expect(screen.getByTestId('section-page-layout')).toHaveClass(
+      'section-page-layout',
+      'section-page-layout--wide'
+    );
+    view.unmount();
+  });
+
+  test('supports explicit narrow mode for form pages', async () => {
+    const view = renderInRouter(
+      <SectionPageLayout
+        pageTitle="个人资料"
+        navItems={navItems.slice(0, 2)}
+        activeKey="profile"
+        contentWidth="narrow"
+      >
+        <section>窄布局内容</section>
+      </SectionPageLayout>
+    );
+
+    expect(await screen.findByText('窄布局内容')).toBeInTheDocument();
+    expect(screen.getByTestId('section-page-layout')).toHaveClass('section-page-layout--narrow');
+    view.unmount();
+  });
+
   test('renders empty state instead of broken navigation when navItems is empty', async () => {
     renderInRouter(
       <SectionPageLayout

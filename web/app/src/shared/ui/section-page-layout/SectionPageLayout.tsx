@@ -22,6 +22,7 @@ export interface SectionPageLayoutProps {
   children: ReactNode;
   sidebarFooter?: ReactNode;
   emptyState?: ReactNode;
+  contentWidth?: 'wide' | 'narrow';
 }
 
 export function SectionPageLayout({
@@ -30,15 +31,17 @@ export function SectionPageLayout({
   activeKey,
   children,
   sidebarFooter,
-  emptyState
+  emptyState,
+  contentWidth = 'wide'
 }: SectionPageLayoutProps) {
   const screens = Grid.useBreakpoint();
   const visibleItems = navItems.filter((item) => item.visible !== false);
   const compactMode = !screens.lg;
   const compactVariant = visibleItems.length <= 4 ? 'tabs' : 'drawer';
+  const layoutClassName = `section-page-layout section-page-layout--${contentWidth}`;
 
   return (
-    <section className="section-page-layout">
+    <section className={layoutClassName} data-testid="section-page-layout">
       {visibleItems.length === 0 ? (
         <div className="section-page-layout__content">{emptyState ?? null}</div>
       ) : (

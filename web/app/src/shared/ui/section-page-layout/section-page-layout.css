@@ -29,11 +29,27 @@
   padding: 32px 48px;
   margin-left: calc(240px - max(0px, (100vw - min(1200px, calc(100vw - 48px))) / 2));
   display: flex;
-  justify-content: center;
+  min-width: 0;
 }
 
 .section-page-layout__content > * {
   width: 100%;
+  min-width: 0;
+}
+
+.section-page-layout--wide .section-page-layout__content {
+  justify-content: flex-start;
+}
+
+.section-page-layout--wide .section-page-layout__content > * {
+  max-width: none;
+}
+
+.section-page-layout--narrow .section-page-layout__content {
+  justify-content: center;
+}
+
+.section-page-layout--narrow .section-page-layout__content > * {
   max-width: 800px;
 }
 

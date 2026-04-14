@@ -50,9 +50,87 @@ function seedStyleBoundaryAuth() {
       avatar_url: null,
       introduction: 'Boundary user',
       effective_display_role: 'manager',
-      permissions: ['route_page.view.all', 'embedded_app.view.all']
+      permissions: [
+        'route_page.view.all',
+        'embedded_app.view.all',
+        'api_reference.view.all'
+      ]
     }
   });
+}
+
+let styleBoundaryOriginalFetch: typeof globalThis.fetch | null = null;
+
+function seedStyleBoundaryDocsFetch() {
+  if (typeof globalThis.fetch !== 'function') {
+    return;
+  }
+
+  styleBoundaryOriginalFetch ??= globalThis.fetch.bind(globalThis);
+  const originalFetch = styleBoundaryOriginalFetch;
+
+  globalThis.fetch = async (input, init) => {
+    const url =
+      typeof input === 'string'
+        ? input
+        : input instanceof Request
+          ? input.url
+          : String(input);
+
+    if (url.includes('/api/console/docs/catalog')) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            title: '1Flowse API',
+            version: '0.1.0',
+            operations: [
+              {
+                id: 'list_members',
+                method: 'GET',
+                path: '/api/console/members',
+                summary: 'List members',
+                description: null,
+                tags: ['members'],
+                group: 'members',
+                deprecated: false
+              }
+            ]
+          },
+          meta: null
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
+    if (url.includes('/api/console/docs/operations/list_members/openapi.json')) {
+      return new Response(
+        JSON.stringify({
+          openapi: '3.1.0',
+          info: { title: '1Flowse API', version: '0.1.0' },
+          paths: {
+            '/api/console/members': {
+              get: {
+                operationId: 'list_members',
+                responses: {
+                  '200': { description: 'ok' }
+                }
+              }
+            }
+          },
+          components: {}
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
+    return originalFetch(input as RequestInfo, init);
+  };
 }
 
 function renderShellScene(pathname: string, page: ReactNode) {
@@ -86,7 +164,10 @@ const renderers: Record<string, StyleBoundaryRuntimeScene['render']> = {
   'page.home': () => renderShellScene('/', <HomePage />),
   'page.embedded-apps': () => renderShellScene('/embedded-apps', <EmbeddedAppsPage />),
   'page.tools': () => renderShellScene('/tools', <ToolsPage />),
-  'page.settings': () => renderRouterScene('/settings/docs'),
+  'page.settings': () => {
+    seedStyleBoundaryDocsFetch();
+    return renderRouterScene('/settings/docs');
+  },
   'page.me': () => renderRouterScene('/me/profile'),
   'page.sign-in': () => <SignInPage />
 };

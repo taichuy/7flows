@@ -148,7 +148,9 @@
       "web/app/src/shared/ui/section-page-layout/section-page-layout.css",
       "web/app/src/features/settings/pages/SettingsPage.tsx",
       "web/app/src/features/settings/lib/settings-sections.tsx",
+      "web/app/src/features/settings/api/api-docs.ts",
       "web/app/src/features/settings/components/ApiDocsPanel.tsx",
+      "web/app/src/features/settings/components/api-docs-panel.css",
       "web/app/src/app/router.tsx"
     ],
     "boundaryNodes": [
@@ -178,7 +180,7 @@
         "propertyAssertions": [
           {
             "property": "display",
-            "expected": "grid"
+            "expected": "flex"
           }
         ]
       }
@@ -237,7 +239,7 @@
         "propertyAssertions": [
           {
             "property": "background-color",
-            "expected": "rgb(232, 247, 240)"
+            "expected": "rgb(230, 247, 242)"
           }
         ]
       }

@@ -61,4 +61,17 @@ describe('style boundary registry', () => {
     expect(screen.getByText('欢迎，Root')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument();
   });
+
+  test('renders the settings scene with mocked api docs data', async () => {
+    const scene = getRuntimeScene('page.settings');
+
+    render(
+      <AppProviders>
+        <StyleBoundaryHarness scene={scene} />
+      </AppProviders>
+    );
+
+    expect(await screen.findByText('List members')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'API 文档', level: 3 })).toBeInTheDocument();
+  });
 });

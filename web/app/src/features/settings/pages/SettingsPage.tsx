@@ -38,6 +38,7 @@ export function SettingsPage({
         pageDescription="系统管理域包含文档、成员和权限相关配置。"
         navItems={[]}
         activeKey=""
+        contentWidth="wide"
         emptyState={<Result status="info" title="当前账号暂无可访问内容" />}
       >
         {null}
@@ -55,6 +56,7 @@ export function SettingsPage({
       pageDescription="系统管理域包含文档、成员和权限相关配置。"
       navItems={visibleSections}
       activeKey={activeSection.key}
+      contentWidth="wide"
     >
       <>
         {activeSection?.key === 'members' ? (

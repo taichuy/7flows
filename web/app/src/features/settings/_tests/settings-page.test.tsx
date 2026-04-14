@@ -132,18 +132,18 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe('/settings/docs');
     });
-    expect(await screen.findByTitle('API 文档')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'API 文档', level: 3 })).toBeInTheDocument();
     rootView.unmount();
 
     resetAuthStore();
     authenticateWithPermissions(['route_page.view.all', 'api_reference.view.all']);
-    const grantedView = renderApp('/settings');
+    const view = renderApp('/settings');
 
     await waitFor(() => {
       expect(window.location.pathname).toBe('/settings/docs');
     });
-    expect(await screen.findByTitle('API 文档')).toBeInTheDocument();
-    grantedView.unmount();
+    expect(await screen.findByRole('heading', { name: 'API 文档', level: 3 })).toBeInTheDocument();
+    view.unmount();
 
     resetAuthStore();
     authenticateWithPermissions(['route_page.view.all', 'user.view.all']);
@@ -152,7 +152,7 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe('/settings/members');
     });
-    expect(screen.queryByTitle('API 文档')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'API 文档', level: 3 })).not.toBeInTheDocument();
   });
 
   test('renders /settings/members when user.view.all is present', async () => {
@@ -165,6 +165,7 @@ describe('SettingsPage', () => {
     });
     expect(await screen.findByRole('heading', { name: '设置', level: 4 })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Section navigation' })).toBeInTheDocument();
+    expect(screen.getByTestId('section-page-layout')).toHaveClass('section-page-layout--wide');
     expect(screen.getByRole('heading', { name: '用户管理', level: 4 })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '新建用户' })).not.toBeInTheDocument();
   });

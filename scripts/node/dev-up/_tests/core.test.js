@@ -65,6 +65,23 @@ test('getServiceDefinitions uses repo default ports and explicit backend binarie
   assert.deepEqual(services['plugin-runner'].args, ['run', '-p', 'plugin-runner', '--bin', 'plugin-runner']);
 });
 
+test('api-server example env files use workspace bootstrap naming', () => {
+  const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
+  const developmentExample = fs.readFileSync(
+    path.join(repoRoot, 'api', 'apps', 'api-server', '.env.example'),
+    'utf8'
+  );
+  const productionExample = fs.readFileSync(
+    path.join(repoRoot, 'api', 'apps', 'api-server', '.env.production.example'),
+    'utf8'
+  );
+
+  assert.match(developmentExample, /^BOOTSTRAP_WORKSPACE_NAME=/mu);
+  assert.doesNotMatch(developmentExample, /^BOOTSTRAP_TEAM_NAME=/mu);
+  assert.match(productionExample, /^BOOTSTRAP_WORKSPACE_NAME=/mu);
+  assert.doesNotMatch(productionExample, /^BOOTSTRAP_TEAM_NAME=/mu);
+});
+
 test('ensureRustfsVolumePermissions creates writable rustfs bind mount directories', () => {
   const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-dev-up-'));
   const dockerDir = path.join(tempRepoRoot, 'docker');
@@ -93,7 +110,7 @@ test('ensureServiceEnvFile seeds api env defaults and buildServiceEnv loads them
       '# api defaults',
       'API_DATABASE_URL=postgres://from-example',
       'API_REDIS_URL=redis://from-example',
-      'BOOTSTRAP_TEAM_NAME=\"1Flowse\"',
+      'BOOTSTRAP_WORKSPACE_NAME=\"1Flowse\"',
     ].join('\n')
   );
 
@@ -111,7 +128,7 @@ test('ensureServiceEnvFile seeds api env defaults and buildServiceEnv loads them
 
   assert.equal(env.API_DATABASE_URL, 'postgres://from-shell');
   assert.equal(env.API_REDIS_URL, 'redis://from-example');
-  assert.equal(env.BOOTSTRAP_TEAM_NAME, '1Flowse');
+  assert.equal(env.BOOTSTRAP_WORKSPACE_NAME, '1Flowse');
   assert.equal(env.EXTRA_FLAG, 'enabled');
 });
 
