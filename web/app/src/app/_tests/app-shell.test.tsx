@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 import { render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -89,6 +92,18 @@ describe('App shell', () => {
     render(<App />);
 
     expect(await screen.findByText('子系统')).toBeInTheDocument();
+  });
+
+  test('keeps the shell content container full width instead of capping to 1200px', () => {
+    const appShellCss = fs.readFileSync(
+      path.resolve(import.meta.dirname, '../../app-shell/app-shell.css'),
+      'utf8'
+    );
+
+    expect(appShellCss).not.toContain('width: min(1200px, calc(100% - 48px));');
+    expect(appShellCss).toContain('width: 100%;');
+    expect(appShellCss).toContain('box-sizing: border-box;');
+    expect(appShellCss).not.toContain('margin: 0 auto;');
   });
 
   test.each(['/agent-flow', '/embedded/demo-app', '/embedded-apps/demo-app'])(

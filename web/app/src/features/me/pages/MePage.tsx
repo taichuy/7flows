@@ -98,6 +98,7 @@ export function MePage({
         pageDescription="该页面用于管理个人资料与安全设置。"
         navItems={[]}
         activeKey=""
+        contentWidth="narrow"
         emptyState={<Result status="info" title="当前账号暂无可访问内容" />}
       >
         {null}
@@ -115,6 +116,7 @@ export function MePage({
       pageDescription="该页面用于管理个人资料与安全设置。"
       navItems={visibleSections}
       activeKey={activeSection.key}
+      contentWidth="narrow"
     >
       {activeSection.key === 'profile' ? (
         <div className="me-page">

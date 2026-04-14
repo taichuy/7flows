@@ -228,9 +228,9 @@
 }
 
 .app-shell-content.ant-layout-content {
-  width: min(1200px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 28px 0 64px;
+  width: 100%;
+  padding: 28px 24px 64px;
+  box-sizing: border-box;
 }
 
 @media (max-width: 767px) {
@@ -272,7 +272,8 @@
   }
 
   .app-shell-content.ant-layout-content {
-    width: calc(100% - 24px);
-    padding: 20px 0 48px;
+    width: 100%;
+    padding: 20px 12px 48px;
+    box-sizing: border-box;
   }
 }

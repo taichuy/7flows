@@ -89,6 +89,7 @@ describe('MePage', () => {
 
     expect(await screen.findByRole('heading', { name: '个人资料', level: 4 })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Section navigation' })).toBeInTheDocument();
+    expect(screen.getByTestId('section-page-layout')).toHaveClass('section-page-layout--narrow');
     expect(screen.queryByText('退出登录')).not.toBeInTheDocument();
   });
 

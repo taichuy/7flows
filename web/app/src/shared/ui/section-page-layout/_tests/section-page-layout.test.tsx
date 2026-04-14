@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import type { ReactElement } from 'react';
 
 import { render, screen } from '@testing-library/react';
@@ -105,6 +107,20 @@ describe('SectionPageLayout', () => {
     expect(await screen.findByText('窄布局内容')).toBeInTheDocument();
     expect(screen.getByTestId('section-page-layout')).toHaveClass('section-page-layout--narrow');
     view.unmount();
+  });
+
+  test('does not couple the content offset to the old centered 1200px shell width', () => {
+    const sectionLayoutCss = fs.readFileSync(
+      path.resolve(import.meta.dirname, '../section-page-layout.css'),
+      'utf8'
+    );
+
+    expect(sectionLayoutCss).not.toContain(
+      'margin-left: calc(240px - max(0px, (100vw - min(1200px, calc(100vw - 48px))) / 2));'
+    );
+    expect(sectionLayoutCss).toContain('gap: 48px;');
+    expect(sectionLayoutCss).toContain('position: sticky;');
+    expect(sectionLayoutCss).not.toContain('position: fixed;');
   });
 
   test('renders empty state instead of broken navigation when navItems is empty', async () => {
