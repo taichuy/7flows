@@ -4,7 +4,6 @@
 
 ## Skills
 - 做后端实现、接口、状态流转、分层边界时：使用 `backend-development`
-- 遇到 bug、回归、测试失败、行为异常时：先使用 `systematic-debugging`
 - 做质量评估、回归审计时：使用 `qa-evaluation`
 
 ## Directory Rules
