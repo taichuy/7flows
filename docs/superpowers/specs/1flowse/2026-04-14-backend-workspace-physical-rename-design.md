@@ -1,8 +1,9 @@
 # 1Flowse 后端 workspace 物理命名统一设计
 
 日期：2026-04-14
-状态：已完成当前轮设计确认，待用户审阅
+状态：设计已确认，待按实现计划执行
 关联文档：
+- [2026-04-14-backend-workspace-physical-rename.md](../../plans/2026-04-14-backend-workspace-physical-rename.md)
 - [2026-04-13-backend-governance-phase-two-design.md](./2026-04-13-backend-governance-phase-two-design.md)
 - [2026-04-13-data-model-physical-table-design.md](./2026-04-13-data-model-physical-table-design.md)
 - [api/AGENTS.md](../../../../api/AGENTS.md)
