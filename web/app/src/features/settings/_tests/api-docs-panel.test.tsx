@@ -155,37 +155,65 @@ describe('ApiDocsPanel', () => {
     );
   });
 
-  test('renders category cards at the top and loads the default category spec', async () => {
+  test('renders a top category selector card and loads the default category spec', async () => {
     renderApp('/settings/docs');
 
-    expect(await screen.findByRole('button', { name: /console/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /runtime/i })).toBeInTheDocument();
-    expect(screen.getByText('2 个接口')).toBeInTheDocument();
+    expect(await screen.findByText('当前分类')).toBeInTheDocument();
+    expect(screen.getByText('已收录 3 个分类')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '接口分类' })).toBeInTheDocument();
+    expect(screen.getByText('当前分类 2 个接口')).toBeInTheDocument();
     expect(await screen.findByTestId('scalar-viewer')).toHaveTextContent('/api/console/me');
     expect(screen.getByTestId('scalar-viewer')).toHaveTextContent('/api/console/members');
     expect(docsApi.fetchSettingsApiDocsCategorySpec).toHaveBeenCalledWith('console');
   });
 
-  test('switches category cards and replaces Scalar content with the whole category spec', async () => {
+  test('switches category from the dropdown and replaces Scalar content with the whole category spec', async () => {
     renderApp('/settings/docs');
 
-    fireEvent.click(await screen.findByRole('button', { name: /runtime/i }));
+    await waitFor(() => {
+      expect(window.location.search).toBe('?category=console');
+    });
+
+    const combobox = await screen.findByRole('combobox', { name: '接口分类' });
+
+    fireEvent.mouseDown(combobox);
+    const [runtimeOption] = await screen.findAllByText((_, element) => {
+      return (
+        element?.matches('.ant-select-item-option-content') &&
+        element.textContent?.includes('runtime')
+      );
+    });
+
+    fireEvent.click(runtimeOption);
 
     await waitFor(() => {
       expect(window.location.search).toBe('?category=runtime');
     });
+    expect(screen.getByText('当前分类 1 个接口')).toBeInTheDocument();
     expect(await screen.findByTestId('scalar-viewer')).toHaveTextContent('/api/runtime/jobs');
     expect(screen.getByTestId('scalar-viewer')).not.toHaveTextContent('/api/console/me');
     expect(docsApi.fetchSettingsApiDocsCategorySpec).toHaveBeenCalledWith('runtime');
   });
 
-  test('loads the deep-linked category and marks its card active', async () => {
+  test('loads the deep-linked category into the selector card', async () => {
     renderApp('/settings/docs?category=single%3Ahealth');
 
-    const healthCard = await screen.findByRole('button', { name: /health/i });
-    expect(healthCard).toHaveAttribute('data-active', 'true');
+    expect(await screen.findByRole('combobox', { name: '接口分类' })).toBeInTheDocument();
+    expect(screen.getByText('/health')).toBeInTheDocument();
     expect(await screen.findByTestId('scalar-viewer')).toHaveTextContent('/health');
     expect(docsApi.fetchSettingsApiDocsCategorySpec).toHaveBeenCalledWith('single:health');
+  });
+
+  test('filters categories by normalized label and id text', async () => {
+    renderApp('/settings/docs');
+
+    const combobox = await screen.findByRole('combobox', { name: '接口分类' });
+
+    fireEvent.mouseDown(combobox);
+    fireEvent.change(combobox, { target: { value: 'single health' } });
+
+    expect(await screen.findByRole('option', { name: /\/health/i })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /^console$/i })).not.toBeInTheDocument();
   });
 
   test('imports Scalar stylesheet for the detail renderer', async () => {
@@ -197,13 +225,13 @@ describe('ApiDocsPanel', () => {
     expect(componentSource).toContain("import '@scalar/api-reference-react/style.css';");
   });
 
-  test('uses top category cards instead of a left sidebar split', async () => {
+  test('uses a single top selector card instead of multiple category cards', async () => {
     const cssSource = await readFile(
       path.resolve(process.cwd(), 'src/features/settings/components/api-docs-panel.css'),
       'utf8'
     );
 
-    expect(cssSource).toContain('.api-docs-panel__categories');
-    expect(cssSource).toContain('grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));');
+    expect(cssSource).toContain('.api-docs-panel__category-selector');
+    expect(cssSource).not.toContain('.api-docs-panel__categories');
   });
 });

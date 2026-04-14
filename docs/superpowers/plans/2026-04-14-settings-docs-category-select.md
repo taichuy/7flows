@@ -10,6 +10,13 @@
 
 **Source Spec:** `docs/superpowers/specs/1flowse/2026-04-14-settings-docs-category-select-design.md`
 
+## Execution Status
+
+- Last synced: `2026-04-14 22`
+- Recovery audit: 中断恢复时确认 Task 1 已通过提交 `b2950d8d` 落地；Task 2 已在恢复执行中补齐交互测试并完成文件级验证；Task 3 已完成范围审查，正在收尾提交。
+- Command note: `web/app` 的定向 Vitest 验证统一使用 `pnpm --dir web/app exec vitest run ...`，避免 package script 回落到整套测试。
+- Workspace verification snapshot: `pnpm --dir web lint` PASS，`pnpm --dir web/app build` PASS；`pnpm --dir web test` FAIL，失败项为 `src/routes/_tests/section-shell-routing.test.tsx`、`src/style-boundary/_tests/registry.test.tsx` 与 `src/features/me/_tests/me-page.test.tsx` 中的 5 个超时用例，均不在本次提交路径内。
+
 ---
 
 ## File Structure
@@ -29,7 +36,7 @@
 - Create: `web/app/src/features/settings/lib/api-docs-category-search.ts`
 - Create: `web/app/src/features/settings/lib/_tests/api-docs-category-search.test.ts`
 
-- [ ] **Step 1: Write the failing helper test**
+- [x] **Step 1: Write the failing helper test**
 
 Create `web/app/src/features/settings/lib/_tests/api-docs-category-search.test.ts`:
 
@@ -59,7 +66,7 @@ describe('api docs category search helpers', () => {
 });
 ```
 
-- [ ] **Step 2: Run the helper test to verify it fails**
+- [x] **Step 2: Run the helper test to verify it fails**
 
 Run:
 
@@ -69,7 +76,7 @@ pnpm --dir web/app test src/features/settings/lib/_tests/api-docs-category-searc
 
 Expected: FAIL because `api-docs-category-search.ts` does not exist yet.
 
-- [ ] **Step 3: Write the minimal helper implementation**
+- [x] **Step 3: Write the minimal helper implementation**
 
 Create `web/app/src/features/settings/lib/api-docs-category-search.ts`:
 
@@ -86,7 +93,7 @@ export function buildApiDocsCategorySearchText(category: {
 }
 ```
 
-- [ ] **Step 4: Re-run the helper test to verify it passes**
+- [x] **Step 4: Re-run the helper test to verify it passes**
 
 Run:
 
@@ -96,13 +103,15 @@ pnpm --dir web/app test src/features/settings/lib/_tests/api-docs-category-searc
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit the helper**
+- [x] **Step 5: Commit the helper**
 
 ```bash
 git add web/app/src/features/settings/lib/api-docs-category-search.ts
 git add web/app/src/features/settings/lib/_tests/api-docs-category-search.test.ts
 git commit -m "feat(settings): add api docs category search helper"
 ```
+
+Recovery note (`2026-04-14 22`): 通过提交 `b2950d8d feat(settings): add api docs category search helper` 确认 helper 与测试文件已创建并提交；恢复验证中再次执行 `pnpm --dir web/app exec vitest run src/features/settings/lib/_tests/api-docs-category-search.test.ts`，结果为 PASS。
 
 ## Task 2: Replace Category Cards With A Searchable Select Card
 
@@ -112,7 +121,7 @@ git commit -m "feat(settings): add api docs category search helper"
 - Modify: `web/app/src/features/settings/_tests/api-docs-panel.test.tsx`
 - Use: `web/app/src/features/settings/lib/api-docs-category-search.ts`
 
-- [ ] **Step 1: Extend the panel test with selector-card and normalized search expectations**
+- [x] **Step 1: Extend the panel test with selector-card and normalized search expectations**
 
 Update `web/app/src/features/settings/_tests/api-docs-panel.test.tsx` to keep the existing selector-card assertions and add one search-focused case:
 
@@ -139,7 +148,7 @@ expect(screen.getByRole('combobox', { name: '接口分类' })).toBeInTheDocument
 expect(screen.getByText('当前分类 2 个接口')).toBeInTheDocument();
 ```
 
-- [ ] **Step 2: Run the panel test to verify it fails for the right reason**
+- [x] **Step 2: Run the panel test to verify it fails for the right reason**
 
 Run:
 
@@ -152,7 +161,9 @@ Expected:
 - FAIL because the CSS file does not yet contain `.api-docs-panel__category-selector`;
 - FAIL because there is no searchable `combobox`.
 
-- [ ] **Step 3: Implement the selector card and searchable options**
+Recovery note (`2026-04-14 22`): 当前 diff 明确显示旧版 `ApiDocsPanel` 使用分类卡片按钮和 `.api-docs-panel__categories`，不满足新测试前提；恢复执行时额外跑到的失败来自收尾中的下拉切换测试手法，而不是选择器实现缺失。
+
+- [x] **Step 3: Implement the selector card and searchable options**
 
 Update `web/app/src/features/settings/components/ApiDocsPanel.tsx`:
 
@@ -318,7 +329,7 @@ Implementation guardrails:
 - keep styling on first-party wrapper classes only, do not recurse into `.ant-select-*` internals;
 - keep `useEffect` URL repair logic unchanged.
 
-- [ ] **Step 4: Re-run the panel test to verify the selector card passes**
+- [x] **Step 4: Re-run the panel test to verify the selector card passes**
 
 Run:
 
@@ -327,6 +338,8 @@ pnpm --dir web/app test src/features/settings/_tests/api-docs-panel.test.tsx
 ```
 
 Expected: PASS.
+
+Recovery note (`2026-04-14 22`): 恢复执行中先定位 `rc-select` 虚拟列表会把 `role="option"` 渲染到隐藏的可访问性镜像层，随后将切换用例改为点击可视层 `.ant-select-item-option`，再执行 `pnpm --dir web/app exec vitest run src/features/settings/_tests/api-docs-panel.test.tsx`，结果为 PASS。
 
 - [ ] **Step 5: Commit the selector-card implementation**
 
@@ -343,7 +356,7 @@ git commit -m "feat(settings): use searchable docs category select"
 - Verify: `web/app/src/features/settings/lib/_tests/api-docs-category-search.test.ts`
 - Verify: `web/app/src/features/settings/_tests/api-docs-panel.test.tsx`
 
-- [ ] **Step 1: Re-run the focused settings tests together**
+- [x] **Step 1: Re-run the focused settings tests together**
 
 Run:
 
@@ -352,6 +365,8 @@ pnpm --dir web/app test src/features/settings/lib/_tests/api-docs-category-searc
 ```
 
 Expected: PASS.
+
+Verification note (`2026-04-14 22`): 已执行 `pnpm --dir web/app exec vitest run src/features/settings/lib/_tests/api-docs-category-search.test.ts src/features/settings/_tests/api-docs-panel.test.tsx`，结果为 PASS。
 
 - [ ] **Step 2: Run required workspace verification**
 
@@ -368,7 +383,9 @@ Expected:
 - `test` PASS across the workspace;
 - `build` PASS for `@1flowse/web`.
 
-- [ ] **Step 3: Review the diff for scope**
+Verification note (`2026-04-14 22`): 已执行 `pnpm --dir web lint`，结果 PASS；已执行 `pnpm --dir web/app build`，结果 PASS。`pnpm --dir web test` 失败，失败项为 `src/routes/_tests/section-shell-routing.test.tsx`、`src/style-boundary/_tests/registry.test.tsx` 与 `src/features/me/_tests/me-page.test.tsx` 中的 5 个超时用例；本次 `/settings/docs` 相关测试在同一轮工作区测试中为 PASS。
+
+- [x] **Step 3: Review the diff for scope**
 
 Run:
 
@@ -382,6 +399,8 @@ git diff -- web/app/src/features/settings/lib/_tests/api-docs-category-search.te
 ```
 
 Expected: only the selector-card UI, helper, and tests changed for this feature.
+
+Review note (`2026-04-14 22`): 已执行路径级 `git diff --stat` 与 `git diff -- ...`，本次功能相关 diff 仅落在计划文档、`ApiDocsPanel.tsx`、`api-docs-panel.css` 和 `api-docs-panel.test.tsx`；helper 文件已由提交 `b2950d8d` 独立落地。
 
 - [ ] **Step 4: Commit the verified feature**
 

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouterState } from '@tanstack/react-router';
 import { ApiReferenceReact } from '@scalar/api-reference-react';
 import '@scalar/api-reference-react/style.css';
-import { Empty, Result, Spin, Typography } from 'antd';
+import { Empty, Result, Select, Spin, Typography } from 'antd';
 
 import {
   fetchSettingsApiDocsCatalog,
@@ -12,7 +12,19 @@ import {
   settingsApiDocsCatalogQueryKey,
   settingsApiDocsCategorySpecQueryKey
 } from '../api/api-docs';
+import {
+  buildApiDocsCategorySearchText,
+  normalizeApiDocsCategorySearchText
+} from '../lib/api-docs-category-search';
 import './api-docs-panel.css';
+
+type CategorySelectOption = {
+  value: string;
+  label: string;
+  categoryId: string;
+  operationCount: number;
+  searchText: string;
+};
 
 function updateCategoryQuery(categoryId: string | null, mode: 'push' | 'replace' = 'push') {
   const nextUrl = new URL(window.location.href);
@@ -56,6 +68,13 @@ export function ApiDocsPanel() {
     (total, category) => total + category.operation_count,
     0
   );
+  const categoryOptions: CategorySelectOption[] = categories.map((category) => ({
+    value: category.id,
+    label: category.label,
+    categoryId: category.id,
+    operationCount: category.operation_count,
+    searchText: buildApiDocsCategorySearchText(category)
+  }));
 
   useEffect(() => {
     if (!selectedCategoryId || requestedCategoryId === selectedCategoryId) {
@@ -90,32 +109,71 @@ export function ApiDocsPanel() {
     );
   }
 
-  function renderCategoryStrip() {
+  function renderCategorySelector() {
     if (categories.length === 0) {
       return (
-        <div className="api-docs-panel__category-empty">
+        <section className="api-docs-panel__category-selector" aria-label="当前分类">
+          <div className="api-docs-panel__category-selector-copy">
+            <Typography.Text strong>当前分类</Typography.Text>
+            <Typography.Text type="secondary">已收录 0 个分类</Typography.Text>
+          </div>
           <Empty description="暂无接口分类" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-        </div>
+        </section>
       );
     }
 
     return (
-      <section className="api-docs-panel__categories" aria-label="接口分类">
-        {categories.map((category) => (
-          <button
-            key={category.id}
-            type="button"
-            className="api-docs-panel__category-card"
-            data-active={selectedCategoryId === category.id}
-            onClick={() => updateCategoryQuery(category.id)}
-          >
-            <span className="api-docs-panel__category-eyebrow">接口分类</span>
-            <span className="api-docs-panel__category-label">{category.label}</span>
-            <span className="api-docs-panel__category-meta">
-              {category.operation_count} 个接口
-            </span>
-          </button>
-        ))}
+      <section className="api-docs-panel__category-selector" aria-label="当前分类">
+        <div className="api-docs-panel__category-selector-header">
+          <div className="api-docs-panel__category-selector-copy">
+            <Typography.Text strong>当前分类</Typography.Text>
+            <Typography.Text type="secondary">
+              已收录 {categories.length} 个分类
+            </Typography.Text>
+          </div>
+          <Typography.Text className="api-docs-panel__category-selector-current">
+            当前分类 {selectedCategory?.operation_count ?? 0} 个接口
+          </Typography.Text>
+        </div>
+
+        <Select
+          aria-label="接口分类"
+          className="api-docs-panel__category-select"
+          showSearch
+          value={selectedCategoryId ?? undefined}
+          options={categoryOptions}
+          placeholder="选择接口分类"
+          optionRender={(option) => {
+            const category = option.data as CategorySelectOption;
+
+            return (
+              <div className="api-docs-panel__category-option">
+                <div className="api-docs-panel__category-option-copy">
+                  <span className="api-docs-panel__category-option-label">{category.label}</span>
+                  <span
+                    className="api-docs-panel__category-option-id"
+                    aria-hidden="true"
+                  >
+                    {category.categoryId}
+                  </span>
+                </div>
+                <span
+                  className="api-docs-panel__category-option-count"
+                  aria-hidden="true"
+                >
+                  {category.operationCount} 个接口
+                </span>
+              </div>
+            );
+          }}
+          filterOption={(input, option) =>
+            String((option as CategorySelectOption | undefined)?.searchText ?? '').includes(
+              normalizeApiDocsCategorySearchText(input)
+            )
+          }
+          onChange={(nextCategoryId) => updateCategoryQuery(nextCategoryId)}
+          notFoundContent="未找到匹配分类"
+        />
       </section>
     );
   }
@@ -185,7 +243,7 @@ export function ApiDocsPanel() {
         </Typography.Text>
       </div>
 
-      {renderCategoryStrip()}
+      {renderCategorySelector()}
 
       <section className="api-docs-panel__detail" aria-label="API 文档详情">
         {renderDetailPane()}
