@@ -477,6 +477,7 @@ impl AuthRepository for PgControlPlaneStore {
         .await?;
 
         let effective_display_role = display_role
+            .filter(|candidate| codes.iter().any(|code| code == *candidate))
             .map(str::to_string)
             .or_else(|| codes.first().cloned())
             .unwrap_or_else(|| "manager".to_string());

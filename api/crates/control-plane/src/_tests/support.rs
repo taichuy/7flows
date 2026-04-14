@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{
         atomic::{AtomicUsize, Ordering},
         Arc,
@@ -17,7 +17,7 @@ use uuid::Uuid;
 
 use crate::ports::{
     AuthRepository, BootstrapRepository, CreateMemberInput, MemberRepository, RoleRepository,
-    SessionStore, UpdateProfileInput,
+    SessionStore, TeamRepository, UpdateProfileInput,
 };
 use domain::{
     ActorContext, AuditLogRecord, AuthenticatorRecord, BoundRole, PermissionDefinition,
@@ -416,6 +416,114 @@ pub fn password_hash(password: &str) -> String {
         .to_string()
 }
 
+#[derive(Default, Clone)]
+pub struct MemoryTeamRepository {
+    teams: Arc<RwLock<HashMap<Uuid, TeamRecord>>>,
+    accessible_workspaces: Arc<RwLock<HashMap<Uuid, Vec<Uuid>>>>,
+    root_user_ids: Arc<RwLock<HashSet<Uuid>>>,
+}
+
+impl MemoryTeamRepository {
+    pub async fn upsert_team(&self, team: TeamRecord) {
+        self.teams.write().await.insert(team.id, team);
+    }
+
+    pub async fn set_accessible_workspaces(&self, user_id: Uuid, workspaces: Vec<TeamRecord>) {
+        let workspace_ids: Vec<Uuid> = workspaces.iter().map(|workspace| workspace.id).collect();
+        let mut teams = self.teams.write().await;
+        for workspace in workspaces {
+            teams.insert(workspace.id, workspace);
+        }
+        drop(teams);
+
+        self.accessible_workspaces
+            .write()
+            .await
+            .insert(user_id, workspace_ids);
+    }
+
+    pub async fn mark_root_user(&self, user_id: Uuid) {
+        self.root_user_ids.write().await.insert(user_id);
+    }
+}
+
+#[async_trait]
+impl TeamRepository for MemoryTeamRepository {
+    async fn get_team(&self, team_id: Uuid) -> Result<Option<TeamRecord>> {
+        Ok(self.teams.read().await.get(&team_id).cloned())
+    }
+
+    async fn list_accessible_workspaces(&self, user_id: Uuid) -> Result<Vec<TeamRecord>> {
+        let teams = self.teams.read().await;
+        let mut workspaces = if self.root_user_ids.read().await.contains(&user_id) {
+            teams.values().cloned().collect::<Vec<_>>()
+        } else {
+            self.accessible_workspaces
+                .read()
+                .await
+                .get(&user_id)
+                .cloned()
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|workspace_id| teams.get(&workspace_id).cloned())
+                .collect::<Vec<_>>()
+        };
+
+        workspaces.sort_by(|left, right| {
+            left.name
+                .to_lowercase()
+                .cmp(&right.name.to_lowercase())
+                .then_with(|| left.id.cmp(&right.id))
+        });
+        Ok(workspaces)
+    }
+
+    async fn get_accessible_workspace(
+        &self,
+        user_id: Uuid,
+        workspace_id: Uuid,
+    ) -> Result<Option<TeamRecord>> {
+        let teams = self.teams.read().await;
+        if self.root_user_ids.read().await.contains(&user_id) {
+            return Ok(teams.get(&workspace_id).cloned());
+        }
+
+        let is_accessible = self
+            .accessible_workspaces
+            .read()
+            .await
+            .get(&user_id)
+            .map(|workspace_ids| workspace_ids.contains(&workspace_id))
+            .unwrap_or(false);
+
+        Ok(is_accessible
+            .then(|| teams.get(&workspace_id).cloned())
+            .flatten())
+    }
+
+    async fn update_team(
+        &self,
+        _actor_user_id: Uuid,
+        team_id: Uuid,
+        name: &str,
+        logo_url: Option<&str>,
+        introduction: &str,
+    ) -> Result<TeamRecord> {
+        let mut teams = self.teams.write().await;
+        let team = teams.entry(team_id).or_insert_with(|| TeamRecord {
+            id: team_id,
+            tenant_id: Uuid::nil(),
+            name: String::new(),
+            logo_url: None,
+            introduction: String::new(),
+        });
+        team.name = name.to_string();
+        team.logo_url = logo_url.map(str::to_string);
+        team.introduction = introduction.to_string();
+        Ok(team.clone())
+    }
+}
+
 #[derive(Clone)]
 pub struct MemoryAuthRepository {
     user: Arc<RwLock<UserRecord>>,
@@ -483,12 +591,28 @@ impl AuthRepository for MemoryAuthRepository {
         workspace_id: Uuid,
         display_role: Option<&str>,
     ) -> Result<ActorContext> {
+        let user = self.user.read().await.clone();
+        let codes: Vec<String> = user
+            .roles
+            .iter()
+            .filter(|role| {
+                matches!(role.scope_kind, RoleScopeKind::System)
+                    || role.workspace_id == Some(workspace_id)
+            })
+            .map(|role| role.code.clone())
+            .collect();
+        let effective_display_role = display_role
+            .filter(|candidate| codes.iter().any(|code| code == *candidate))
+            .map(str::to_string)
+            .or_else(|| codes.first().cloned())
+            .unwrap_or_else(|| "manager".to_string());
+
         Ok(ActorContext {
             user_id,
             tenant_id,
             current_workspace_id: workspace_id,
-            effective_display_role: display_role.unwrap_or("manager").to_string(),
-            is_root: false,
+            effective_display_role,
+            is_root: codes.iter().any(|code| code == "root"),
             permissions: Default::default(),
         })
     }

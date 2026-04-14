@@ -76,6 +76,12 @@ pub trait AuthRepository: Send + Sync {
 #[async_trait]
 pub trait TeamRepository: Send + Sync {
     async fn get_team(&self, team_id: Uuid) -> anyhow::Result<Option<TeamRecord>>;
+    async fn list_accessible_workspaces(&self, user_id: Uuid) -> anyhow::Result<Vec<TeamRecord>>;
+    async fn get_accessible_workspace(
+        &self,
+        user_id: Uuid,
+        workspace_id: Uuid,
+    ) -> anyhow::Result<Option<TeamRecord>>;
     async fn update_team(
         &self,
         actor_user_id: Uuid,

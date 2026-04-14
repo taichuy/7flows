@@ -32,6 +32,21 @@ where
             .ok_or(ControlPlaneError::NotFound("team").into())
     }
 
+    pub async fn list_accessible_workspaces(&self, user_id: Uuid) -> Result<Vec<TeamRecord>> {
+        self.repository.list_accessible_workspaces(user_id).await
+    }
+
+    pub async fn get_accessible_workspace(
+        &self,
+        user_id: Uuid,
+        workspace_id: Uuid,
+    ) -> Result<TeamRecord> {
+        self.repository
+            .get_accessible_workspace(user_id, workspace_id)
+            .await?
+            .ok_or(ControlPlaneError::PermissionDenied("workspace_access_denied").into())
+    }
+
     pub async fn update_team(&self, command: UpdateTeamCommand) -> Result<TeamRecord> {
         ensure_permission(&command.actor, "team.configure.all")
             .map_err(ControlPlaneError::PermissionDenied)?;

@@ -56,7 +56,7 @@ export function HeroAnimation() {
         }}
       />
       
-      <div style={{ zIndex: 1, textAlign: 'left', padding: '0 80px', width: '100%', maxWidth: 1200 }}>
+      <div className="hero-text-block" style={{ zIndex: 1, textAlign: 'center', padding: '0 80px', width: '100%', maxWidth: 1200, marginTop: '-15vh' }}>
         <Typography.Title 
           level={1} 
           className="hero-title"
@@ -71,13 +71,12 @@ export function HeroAnimation() {
           1Flowse
         </Typography.Title>
         <Typography.Paragraph 
+          className="hero-slogan"
           style={{ 
             fontSize: '1.5rem', 
             fontWeight: 500,
-            background: `linear-gradient(90deg, ${token.colorPrimary}, ${token.colorInfo})`,
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            maxWidth: 600 
+            maxWidth: 600,
+            margin: '0 auto'
           }}
         >
           知道为什么构建是构建前提
@@ -86,7 +85,26 @@ export function HeroAnimation() {
 
       <style>
         {`
+          .hero-text-block {
+            animation: reveal 1.5s cubic-bezier(0.2, 0, 0, 1) forwards;
+          }
+
           .hero-title {
+            background: linear-gradient(
+              120deg,
+              ${token.colorPrimary} 40%,
+              rgba(255, 255, 255, 0.9) 50%,
+              ${token.colorInfo} 60%
+            );
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shine 8s linear infinite 1.5s;
+          }
+
+          .hero-slogan {
             background: linear-gradient(
               120deg,
               ${token.colorText} 40%,
@@ -98,13 +116,13 @@ export function HeroAnimation() {
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            animation: reveal 1.5s cubic-bezier(0.2, 0, 0, 1) forwards, shine 4s linear infinite 1.5s;
+            animation: shine 8s linear infinite 1.5s;
           }
 
           @keyframes reveal {
             0% { clip-path: inset(0 100% 0 0); opacity: 0; }
-            5% { opacity: 1; }
-            100% { clip-path: inset(0 0 0 0); opacity: 1; }
+            5% { opacity: 0.1; }
+            100% { clip-path: inset(0 0 0 0); opacity: 0.7; }
           }
 
           @keyframes shine {
