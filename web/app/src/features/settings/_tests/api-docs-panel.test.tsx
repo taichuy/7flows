@@ -180,14 +180,14 @@ describe('ApiDocsPanel', () => {
     expect(componentSource).toContain("import '@scalar/api-reference-react/style.css';");
   });
 
-  test('uses a balanced two-column desktop layout for catalog and detail panes', async () => {
+  test('uses a 2:8 desktop layout for catalog and detail panes', async () => {
     const cssSource = await readFile(
       path.resolve(process.cwd(), 'src/features/settings/components/api-docs-panel.css'),
       'utf8'
     );
 
-    expect(cssSource).toMatch(
-      /grid-template-columns:\s*(?:repeat\(2,\s*minmax\(0,\s*1fr\)\)|minmax\(0,\s*1fr\)\s+minmax\(0,\s*1fr\))/
+    expect(cssSource).toContain(
+      'grid-template-columns: minmax(280px, 2fr) minmax(0, 8fr);'
     );
   });
 });

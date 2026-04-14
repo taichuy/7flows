@@ -190,7 +190,7 @@
         "propertyAssertions": [
           {
             "property": "grid-template-columns",
-            "expected": "442px 442px"
+            "expected": "280px 604px"
           }
         ]
       },
