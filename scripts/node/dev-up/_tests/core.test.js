@@ -11,6 +11,7 @@ const {
   getServiceDefinitions,
   ensureServiceEnvFile,
   buildServiceEnv,
+  getServicePrestartCommands,
   ensureRustfsVolumePermissions,
 } = require('../core.js');
 
@@ -112,4 +113,56 @@ test('ensureServiceEnvFile seeds api env defaults and buildServiceEnv loads them
   assert.equal(env.API_REDIS_URL, 'redis://from-example');
   assert.equal(env.BOOTSTRAP_TEAM_NAME, '1Flowse');
   assert.equal(env.EXTRA_FLAG, 'enabled');
+});
+
+test('getServicePrestartCommands resets api root password in development mode', () => {
+  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-dev-up-prestart-'));
+  const apiServerDir = path.join(tempRepoRoot, 'api', 'apps', 'api-server');
+  const envExamplePath = path.join(apiServerDir, '.env.example');
+
+  fs.mkdirSync(apiServerDir, { recursive: true });
+  fs.writeFileSync(
+    envExamplePath,
+    ['API_ENV=development', 'API_DATABASE_URL=postgres://from-example'].join('\n')
+  );
+
+  const services = getServiceDefinitions(tempRepoRoot);
+  const apiService = services['api-server'];
+  ensureServiceEnvFile(apiService);
+
+  const commands = getServicePrestartCommands(apiService, {});
+
+  assert.deepEqual(
+    commands.map((command) => ({
+      command: command.command,
+      args: command.args,
+      cwd: command.cwd,
+    })),
+    [
+      {
+        command: 'cargo',
+        args: ['run', '-p', 'api-server', '--bin', 'reset_root_password'],
+        cwd: path.join(tempRepoRoot, 'api'),
+      },
+    ]
+  );
+  assert.equal(commands[0].env.API_ENV, 'development');
+});
+
+test('getServicePrestartCommands skips api root reset in production mode', () => {
+  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-dev-up-prod-'));
+  const apiServerDir = path.join(tempRepoRoot, 'api', 'apps', 'api-server');
+  const envExamplePath = path.join(apiServerDir, '.env.example');
+
+  fs.mkdirSync(apiServerDir, { recursive: true });
+  fs.writeFileSync(
+    envExamplePath,
+    ['API_ENV=production', 'API_DATABASE_URL=postgres://from-example'].join('\n')
+  );
+
+  const services = getServiceDefinitions(tempRepoRoot);
+  const apiService = services['api-server'];
+  ensureServiceEnvFile(apiService);
+
+  assert.deepEqual(getServicePrestartCommands(apiService, {}), []);
 });

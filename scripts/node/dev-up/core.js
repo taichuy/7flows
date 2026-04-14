@@ -281,6 +281,43 @@ function buildServiceEnv(service, sourceEnv = process.env) {
   });
 }
 
+function parseApiEnvironment(value) {
+  const normalized = String(value || 'development')
+    .trim()
+    .toLowerCase();
+
+  if (normalized === 'development' || normalized === 'dev' || normalized === 'local') {
+    return 'development';
+  }
+
+  if (normalized === 'production' || normalized === 'prod') {
+    return 'production';
+  }
+
+  throw new Error(`无效的 API_ENV：${value}`);
+}
+
+function getServicePrestartCommands(service, sourceEnv = process.env) {
+  if (!service || service.key !== 'api-server') {
+    return [];
+  }
+
+  const env = buildServiceEnv(service, sourceEnv);
+  if (parseApiEnvironment(env.API_ENV) === 'production') {
+    return [];
+  }
+
+  return [
+    {
+      description: 'api-server 开发态重置 root 密码',
+      command: service.command,
+      args: ['run', '-p', 'api-server', '--bin', 'reset_root_password'],
+      cwd: service.cwd,
+      env,
+    },
+  ];
+}
+
 function runCommand(command, args, options = {}) {
   return spawnSync(command, args, {
     cwd: options.cwd || getRepoRoot(),
@@ -521,6 +558,18 @@ async function waitForProcessExit(pid, timeoutMs = 5000) {
 }
 
 async function startService(service) {
+  ensureServiceEnvFile(service);
+  requireCommand(service.command);
+
+  for (const prestartCommand of getServicePrestartCommands(service)) {
+    log(`${service.label} 执行预启动步骤：${prestartCommand.description}`);
+    const result = runCommand(prestartCommand.command, prestartCommand.args, {
+      cwd: prestartCommand.cwd,
+      env: prestartCommand.env,
+    });
+    ensureCommandSuccess(prestartCommand.description, result);
+  }
+
   const pidRecord = readPidRecord(service.pidFile);
   if (pidRecord && isProcessAlive(pidRecord.pid) && (await isPortOpen(getProbeHost(service), service.port))) {
     log(`${service.label} 已在运行，跳过启动`);
@@ -531,8 +580,6 @@ async function startService(service) {
     await stopService(service);
   }
 
-  ensureServiceEnvFile(service);
-  requireCommand(service.command);
   const outputFd = fs.openSync(service.logFile, 'a');
   const child = spawn(service.command, service.args, {
     cwd: service.cwd,
@@ -687,6 +734,7 @@ module.exports = {
   getServiceDefinitions,
   ensureServiceEnvFile,
   buildServiceEnv,
+  getServicePrestartCommands,
   ensureRustfsVolumePermissions,
   main,
 };
