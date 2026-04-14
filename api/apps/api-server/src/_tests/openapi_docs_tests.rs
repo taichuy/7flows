@@ -38,3 +38,39 @@ fn operation_spec_builder_keeps_refs_closed() {
     assert!(spec["paths"]["/api/console/me"]["patch"].is_object());
     assert!(spec["components"].is_object());
 }
+
+#[test]
+fn registry_groups_catalog_by_api_prefix_and_singletons_for_non_api_paths() {
+    let canonical = json!({
+        "openapi": "3.1.0",
+        "info": { "title": "T", "version": "1" },
+        "paths": {
+            "/api/console/me": {
+                "patch": { "operationId": "patch_me", "summary": "Patch me" }
+            },
+            "/api/console/members": {
+                "get": { "operationId": "list_members", "summary": "List members" }
+            },
+            "/api/runtime/jobs": {
+                "get": { "operationId": "list_runtime_jobs", "summary": "List runtime jobs" }
+            },
+            "/health": {
+                "get": { "operationId": "health", "summary": "Health check" }
+            }
+        }
+    });
+
+    let registry = build_api_docs_registry(canonical).expect("catalog should build");
+    let catalog = registry.catalog();
+
+    assert_eq!(catalog.categories.len(), 3);
+    assert_eq!(catalog.categories[0].id, "console");
+    assert_eq!(catalog.categories[0].operation_count, 2);
+    assert_eq!(catalog.categories[1].id, "runtime");
+    assert_eq!(catalog.categories[1].operation_count, 1);
+    assert_eq!(catalog.categories[2].operation_count, 1);
+
+    let singleton_category = registry.category_operations("single:health").unwrap();
+    assert_eq!(singleton_category.operations.len(), 1);
+    assert_eq!(singleton_category.operations[0].id, "health");
+}

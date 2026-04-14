@@ -52,27 +52,29 @@
     linear-gradient(180deg, rgba(248, 252, 249, 0.95), rgba(255, 255, 255, 0.98));
 }
 
+.api-docs-panel__catalog-controls {
+  display: grid;
+  gap: 8px;
+}
+
+.api-docs-panel__catalog-select {
+  display: grid;
+  gap: 8px;
+}
+
 .api-docs-panel__catalog-list {
   display: grid;
-  gap: 16px;
+  gap: 14px;
   align-content: start;
   padding: 14px;
   overflow: auto;
 }
 
-.api-docs-panel__catalog-group {
+.api-docs-panel__catalog-state {
   display: grid;
-  gap: 10px;
-}
-
-.api-docs-panel__catalog-group-title {
-  margin: 0;
-  padding: 0 4px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
+  gap: 12px;
+  justify-items: center;
+  padding: 48px 16px;
 }
 
 .api-docs-panel__catalog-item {

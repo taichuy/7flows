@@ -22,15 +22,30 @@ pub struct DocsCatalogOperation {
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct DocsCatalogCategory {
+    pub id: String,
+    pub label: String,
+    pub operation_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct DocsCatalogCategoryOperations {
+    pub id: String,
+    pub label: String,
+    pub operations: Vec<DocsCatalogOperation>,
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
 pub struct DocsCatalog {
     pub title: String,
     pub version: String,
-    pub operations: Vec<DocsCatalogOperation>,
+    pub categories: Vec<DocsCatalogCategory>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ApiDocsRegistry {
     catalog: DocsCatalog,
+    category_operations: HashMap<String, DocsCatalogCategoryOperations>,
     operation_specs: HashMap<String, Value>,
 }
 
@@ -41,6 +56,10 @@ impl ApiDocsRegistry {
 
     pub fn operation_spec(&self, operation_id: &str) -> Option<&Value> {
         self.operation_specs.get(operation_id)
+    }
+
+    pub fn category_operations(&self, category_id: &str) -> Option<&DocsCatalogCategoryOperations> {
+        self.category_operations.get(category_id)
     }
 }
 
@@ -76,7 +95,8 @@ pub fn build_api_docs_registry(canonical: Value) -> Result<ApiDocsRegistry> {
         .and_then(Value::as_object)
         .context("canonical OpenAPI document must contain paths")?;
 
-    let mut operations = Vec::new();
+    let mut category_operations = HashMap::<String, DocsCatalogCategoryOperations>::new();
+    let mut category_singleton_flags = HashMap::<String, bool>::new();
     let mut operation_specs = HashMap::new();
     let mut seen_ids = HashSet::new();
 
@@ -103,9 +123,8 @@ pub fn build_api_docs_registry(canonical: Value) -> Result<ApiDocsRegistry> {
             }
 
             let tags = extract_tags(operation);
-            let group = tags.first().cloned().unwrap_or_else(|| derive_group(path));
-
-            operations.push(DocsCatalogOperation {
+            let (category_id, category_label, is_singleton) = derive_category(path, operation_id);
+            let catalog_operation = DocsCatalogOperation {
                 id: operation_id.to_string(),
                 method: method.to_ascii_uppercase(),
                 path: path.to_string(),
@@ -118,12 +137,23 @@ pub fn build_api_docs_registry(canonical: Value) -> Result<ApiDocsRegistry> {
                     .and_then(Value::as_str)
                     .map(ToString::to_string),
                 tags: tags.clone(),
-                group,
+                group: category_label.clone(),
                 deprecated: operation_map
                     .get("deprecated")
                     .and_then(Value::as_bool)
                     .unwrap_or(false),
-            });
+            };
+
+            category_singleton_flags.insert(category_id.clone(), is_singleton);
+            category_operations
+                .entry(category_id.clone())
+                .or_insert_with(|| DocsCatalogCategoryOperations {
+                    id: category_id.clone(),
+                    label: category_label.clone(),
+                    operations: Vec::new(),
+                })
+                .operations
+                .push(catalog_operation);
 
             operation_specs.insert(
                 operation_id.to_string(),
@@ -132,19 +162,27 @@ pub fn build_api_docs_registry(canonical: Value) -> Result<ApiDocsRegistry> {
         }
     }
 
-    operations.sort_by(|left, right| {
-        left.group
-            .cmp(&right.group)
-            .then_with(|| left.path.cmp(&right.path))
-            .then_with(|| left.method.cmp(&right.method))
-    });
+    for operations in category_operations.values_mut() {
+        operations.operations.sort_by(compare_operations);
+    }
+
+    let mut categories = category_operations
+        .values()
+        .map(|operations| DocsCatalogCategory {
+            id: operations.id.clone(),
+            label: operations.label.clone(),
+            operation_count: operations.operations.len(),
+        })
+        .collect::<Vec<_>>();
+    categories.sort_by(|left, right| compare_categories(left, right, &category_singleton_flags));
 
     Ok(ApiDocsRegistry {
         catalog: DocsCatalog {
             title,
             version,
-            operations,
+            categories,
         },
+        category_operations,
         operation_specs,
     })
 }
@@ -162,20 +200,43 @@ fn extract_tags(operation: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn derive_group(path: &str) -> String {
-    let concrete_segments = path
+fn derive_category(path: &str, operation_id: &str) -> (String, String, bool) {
+    let segments = path
         .split('/')
-        .filter(|segment| !segment.is_empty() && !segment.starts_with('{'))
+        .filter(|segment| !segment.is_empty())
         .collect::<Vec<_>>();
 
-    match concrete_segments.as_slice() {
-        ["api", scope, resource, ..] if *scope == "console" || *scope == "runtime" => {
-            (*resource).to_string()
+    match segments.as_slice() {
+        ["api", category, ..] if !category.starts_with('{') => {
+            let category = (*category).to_string();
+            (category.clone(), category, false)
         }
-        ["api", resource, ..] => (*resource).to_string(),
-        [resource, ..] => (*resource).to_string(),
-        [] => "default".to_string(),
+        _ => (format!("single:{operation_id}"), path.to_string(), true),
     }
+}
+
+fn compare_operations(
+    left: &DocsCatalogOperation,
+    right: &DocsCatalogOperation,
+) -> std::cmp::Ordering {
+    left.path
+        .cmp(&right.path)
+        .then_with(|| left.method.cmp(&right.method))
+        .then_with(|| left.id.cmp(&right.id))
+}
+
+fn compare_categories(
+    left: &DocsCatalogCategory,
+    right: &DocsCatalogCategory,
+    singleton_flags: &HashMap<String, bool>,
+) -> std::cmp::Ordering {
+    let left_is_singleton = singleton_flags.get(&left.id).copied().unwrap_or(false);
+    let right_is_singleton = singleton_flags.get(&right.id).copied().unwrap_or(false);
+
+    left_is_singleton
+        .cmp(&right_is_singleton)
+        .then_with(|| left.label.cmp(&right.label))
+        .then_with(|| left.id.cmp(&right.id))
 }
 
 pub fn collect_refs(value: &Value, refs: &mut BTreeSet<String>) {

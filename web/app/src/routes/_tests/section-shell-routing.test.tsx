@@ -33,6 +33,13 @@ const permissionsApi = vi.hoisted(() => ({
 
 const docsApi = vi.hoisted(() => ({
   settingsApiDocsCatalogQueryKey: ['settings', 'docs', 'catalog'],
+  settingsApiDocsCategoryOperationsQueryKey: vi.fn((categoryId: string) => [
+    'settings',
+    'docs',
+    'category',
+    categoryId,
+    'operations'
+  ]),
   settingsApiDocSpecQueryKey: vi.fn((operationId: string) => [
     'settings',
     'docs',
@@ -40,6 +47,7 @@ const docsApi = vi.hoisted(() => ({
     operationId
   ]),
   fetchSettingsApiDocsCatalog: vi.fn(),
+  fetchSettingsApiDocsCategoryOperations: vi.fn(),
   fetchSettingsApiOperationSpec: vi.fn()
 }));
 
@@ -102,6 +110,11 @@ describe('section shell routing', () => {
     docsApi.fetchSettingsApiDocsCatalog.mockResolvedValue({
       title: '1Flowse API',
       version: '0.1.0',
+      categories: []
+    });
+    docsApi.fetchSettingsApiDocsCategoryOperations.mockResolvedValue({
+      id: 'console',
+      label: 'console',
       operations: []
     });
     docsApi.fetchSettingsApiOperationSpec.mockResolvedValue({

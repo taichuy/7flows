@@ -75,8 +75,7 @@ describe('style boundary registry', () => {
       </AppProviders>
     );
 
-    expect(await screen.findByText('List members')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'API 文档', level: 3 })).toBeInTheDocument();
-    expect(screen.getByTestId('style-boundary-scalar')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'API 文档', level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: '接口分类' })).toBeInTheDocument();
   });
 });

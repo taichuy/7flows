@@ -6,6 +6,13 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const docsApi = vi.hoisted(() => ({
   settingsApiDocsCatalogQueryKey: ['settings', 'docs', 'catalog'],
+  settingsApiDocsCategoryOperationsQueryKey: vi.fn((categoryId: string) => [
+    'settings',
+    'docs',
+    'category',
+    categoryId,
+    'operations'
+  ]),
   settingsApiDocSpecQueryKey: vi.fn((operationId: string) => [
     'settings',
     'docs',
@@ -13,10 +20,37 @@ const docsApi = vi.hoisted(() => ({
     operationId
   ]),
   fetchSettingsApiDocsCatalog: vi.fn(),
+  fetchSettingsApiDocsCategoryOperations: vi.fn(),
   fetchSettingsApiOperationSpec: vi.fn()
 }));
 
 vi.mock('../api/api-docs', () => docsApi);
+vi.mock('@tanstack/react-router', async () => {
+  const React = await import('react');
+
+  return {
+    useRouterState: ({
+      select
+    }: {
+      select: (state: { location: { search: Record<string, string> } }) => unknown;
+    }) => {
+      const search = React.useSyncExternalStore(
+        (onStoreChange) => {
+          window.addEventListener('popstate', onStoreChange);
+          return () => window.removeEventListener('popstate', onStoreChange);
+        },
+        () => window.location.search,
+        () => window.location.search
+      );
+
+      return select({
+        location: {
+          search: Object.fromEntries(new URLSearchParams(search))
+        }
+      });
+    }
+  };
+});
 vi.mock('@scalar/api-reference-react', () => ({
   ApiReferenceReact: ({
     configuration
@@ -26,12 +60,33 @@ vi.mock('@scalar/api-reference-react', () => ({
 }));
 
 import { AppProviders } from '../../../app/AppProviders';
-import { AppRouterProvider } from '../../../app/router';
-import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
+import { ApiDocsPanel } from '../components/ApiDocsPanel';
 
 const catalogPayload = {
   title: '1Flowse API',
   version: '0.1.0',
+  categories: [
+    {
+      id: 'console',
+      label: 'console',
+      operation_count: 1
+    },
+    {
+      id: 'runtime',
+      label: 'runtime',
+      operation_count: 1
+    },
+    {
+      id: 'single:health',
+      label: '/health',
+      operation_count: 1
+    }
+  ]
+};
+
+const consoleCategoryPayload = {
+  id: 'console',
+  label: 'console',
   operations: [
     {
       id: 'patch_me',
@@ -40,20 +95,50 @@ const catalogPayload = {
       summary: 'Update current profile',
       description: null,
       tags: ['identity'],
-      group: 'identity',
-      deprecated: false
-    },
-    {
-      id: 'list_members',
-      method: 'GET',
-      path: '/api/console/members',
-      summary: 'Enumerate workspace staff',
-      description: null,
-      tags: ['directory'],
-      group: 'members',
+      group: 'console',
       deprecated: false
     }
   ]
+};
+
+const runtimeCategoryPayload = {
+  id: 'runtime',
+  label: 'runtime',
+  operations: [
+    {
+      id: 'list_runtime_jobs',
+      method: 'GET',
+      path: '/api/runtime/jobs',
+      summary: 'Enumerate runtime jobs',
+      description: null,
+      tags: ['runtime'],
+      group: 'runtime',
+      deprecated: false
+    }
+  ]
+};
+
+const singletonCategoryPayload = {
+  id: 'single:health',
+  label: '/health',
+  operations: [
+    {
+      id: 'health',
+      method: 'GET',
+      path: '/health',
+      summary: 'Health check',
+      description: null,
+      tags: [],
+      group: '/health',
+      deprecated: false
+    }
+  ]
+};
+
+const categoryPayloadById = {
+  console: consoleCategoryPayload,
+  runtime: runtimeCategoryPayload,
+  'single:health': singletonCategoryPayload
 };
 
 const patchMeSpec = {
@@ -72,88 +157,104 @@ const patchMeSpec = {
   components: {}
 };
 
-function authenticateDocsViewer() {
-  useAuthStore.getState().setAuthenticated({
-    csrfToken: 'csrf-123',
-    actor: {
-      id: 'user-1',
-      account: 'docs-viewer',
-      effective_display_role: 'manager',
-      current_workspace_id: 'workspace-1'
-    },
-    me: {
-      id: 'user-1',
-      account: 'docs-viewer',
-      email: 'docs@example.com',
-      phone: null,
-      nickname: 'Docs',
-      name: 'Docs',
-      avatar_url: null,
-      introduction: '',
-      effective_display_role: 'manager',
-      permissions: ['api_reference.view.all']
+const runtimeJobsSpec = {
+  openapi: '3.1.0',
+  info: { title: '1Flowse API', version: '0.1.0' },
+  paths: {
+    '/api/runtime/jobs': {
+      get: {
+        operationId: 'list_runtime_jobs',
+        responses: {
+          '200': { description: 'ok' }
+        }
+      }
     }
-  });
-}
+  },
+  components: {}
+};
+
+const operationSpecById = {
+  patch_me: patchMeSpec,
+  list_runtime_jobs: runtimeJobsSpec,
+  health: {
+    openapi: '3.1.0',
+    info: { title: '1Flowse API', version: '0.1.0' },
+    paths: {
+      '/health': {
+        get: {
+          operationId: 'health',
+          responses: {
+            '200': { description: 'ok' }
+          }
+        }
+      }
+    },
+    components: {}
+  }
+};
 
 function renderApp(pathname: string) {
   window.history.pushState({}, '', pathname);
 
   return render(
     <AppProviders>
-      <AppRouterProvider />
+      <ApiDocsPanel />
     </AppProviders>
   );
 }
 
 describe('ApiDocsPanel', () => {
   beforeEach(() => {
-    resetAuthStore();
-    authenticateDocsViewer();
     docsApi.fetchSettingsApiDocsCatalog.mockResolvedValue(catalogPayload);
-    docsApi.fetchSettingsApiOperationSpec.mockResolvedValue(patchMeSpec);
+    docsApi.fetchSettingsApiDocsCategoryOperations.mockImplementation((categoryId: string) =>
+      Promise.resolve(categoryPayloadById[categoryId as keyof typeof categoryPayloadById])
+    );
+    docsApi.fetchSettingsApiOperationSpec.mockImplementation((operationId: string) =>
+      Promise.resolve(operationSpecById[operationId as keyof typeof operationSpecById])
+    );
   });
 
-  test('renders the internal-docs empty state after catalog loads', async () => {
+  test('renders category select and the default category operations after catalog loads', async () => {
     renderApp('/settings/docs');
 
+    expect(await screen.findByRole('combobox', { name: '接口分类' })).toBeInTheDocument();
+    expect(await screen.findByText('Update current profile')).toBeInTheDocument();
     expect(
       await screen.findByText('选择一个接口查看详情', {}, { timeout: 5000 })
     ).toBeInTheDocument();
-    expect(screen.getByText('Update current profile')).toBeInTheDocument();
-    expect(screen.getByText('Enumerate workspace staff')).toBeInTheDocument();
+    expect(screen.getByText('console')).toBeInTheDocument();
+    expect(docsApi.fetchSettingsApiDocsCategoryOperations).toHaveBeenCalledWith('console');
   });
 
-  test('filters catalog rows by path method summary tags and id', async () => {
+  test('filters operations within the selected category by path method summary tags and id', async () => {
     renderApp('/settings/docs');
 
-    await screen.findByText('Enumerate workspace staff');
+    await screen.findByText('Update current profile');
     const searchInput = screen.getByPlaceholderText('搜索接口');
 
-    fireEvent.change(searchInput, { target: { value: 'GET' } });
+    fireEvent.change(searchInput, { target: { value: 'PATCH' } });
     await waitFor(() => {
-      expect(screen.getByText('Enumerate workspace staff')).toBeInTheDocument();
-      expect(screen.queryByText('Update current profile')).not.toBeInTheDocument();
+      expect(screen.getByText('Update current profile')).toBeInTheDocument();
     });
 
-    fireEvent.change(searchInput, { target: { value: 'members' } });
+    fireEvent.change(searchInput, { target: { value: 'console' } });
     await waitFor(() => {
-      expect(screen.getByText('Enumerate workspace staff')).toBeInTheDocument();
+      expect(screen.getByText('Update current profile')).toBeInTheDocument();
     });
 
-    fireEvent.change(searchInput, { target: { value: 'staff' } });
+    fireEvent.change(searchInput, { target: { value: 'profile' } });
     await waitFor(() => {
-      expect(screen.getByText('Enumerate workspace staff')).toBeInTheDocument();
+      expect(screen.getByText('Update current profile')).toBeInTheDocument();
     });
 
-    fireEvent.change(searchInput, { target: { value: 'directory' } });
+    fireEvent.change(searchInput, { target: { value: 'identity' } });
     await waitFor(() => {
-      expect(screen.getByText('Enumerate workspace staff')).toBeInTheDocument();
+      expect(screen.getByText('Update current profile')).toBeInTheDocument();
     });
 
-    fireEvent.change(searchInput, { target: { value: 'list_members' } });
+    fireEvent.change(searchInput, { target: { value: 'patch_me' } });
     await waitFor(() => {
-      expect(screen.getByText('Enumerate workspace staff')).toBeInTheDocument();
+      expect(screen.getByText('Update current profile')).toBeInTheDocument();
     });
   });
 
@@ -165,10 +266,26 @@ describe('ApiDocsPanel', () => {
   });
 
   test('loads operation detail from ?operation=patch_me and passes it to Scalar', async () => {
-    renderApp('/settings/docs?operation=patch_me');
+    renderApp('/settings/docs?category=console&operation=patch_me');
 
     expect(await screen.findByTestId('scalar-viewer')).toHaveTextContent('patch_me');
     expect(docsApi.fetchSettingsApiOperationSpec).toHaveBeenCalledWith('patch_me');
+  });
+
+  test('switches category from the dropdown and loads that category operations', async () => {
+    renderApp('/settings/docs');
+
+    const categorySelect = await screen.findByRole('combobox', { name: '接口分类' });
+    fireEvent.mouseDown(categorySelect);
+
+    const runtimeOption = await screen.findByText('runtime', {
+      selector: '.ant-select-item-option-content'
+    });
+    fireEvent.click(runtimeOption);
+
+    expect(await screen.findByText('Enumerate runtime jobs')).toBeInTheDocument();
+    expect(docsApi.fetchSettingsApiDocsCategoryOperations).toHaveBeenCalledWith('runtime');
+    expect(screen.queryByText('Update current profile')).not.toBeInTheDocument();
   });
 
   test('imports Scalar stylesheet for the detail renderer', async () => {

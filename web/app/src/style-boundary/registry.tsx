@@ -83,6 +83,29 @@ function seedStyleBoundaryDocsFetch() {
           data: {
             title: '1Flowse API',
             version: '0.1.0',
+            categories: [
+              {
+                id: 'console',
+                label: 'console',
+                operation_count: 1
+              }
+            ]
+          },
+          meta: null
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
+    if (url.includes('/api/console/docs/categories/console/operations')) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 'console',
+            label: 'console',
             operations: [
               {
                 id: 'list_members',
@@ -91,7 +114,7 @@ function seedStyleBoundaryDocsFetch() {
                 summary: 'List members',
                 description: null,
                 tags: ['members'],
-                group: 'members',
+                group: 'console',
                 deprecated: false
               }
             ]
@@ -166,7 +189,7 @@ const renderers: Record<string, StyleBoundaryRuntimeScene['render']> = {
   'page.tools': () => renderShellScene('/tools', <ToolsPage />),
   'page.settings': () => {
     seedStyleBoundaryDocsFetch();
-    return renderRouterScene('/settings/docs?operation=list_members');
+    return renderRouterScene('/settings/docs?category=console&operation=list_members');
   },
   'page.me': () => renderRouterScene('/me/profile'),
   'page.sign-in': () => <SignInPage />

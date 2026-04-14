@@ -12,8 +12,8 @@ match_when:
   - 在本仓库执行依赖本机 Postgres 或 Redis 的 `cargo test`
   - `api-server` 或 `storage-pg` 测试在沙箱内报 `Operation not permitted`
 created_at: 2026-04-12 21
-updated_at: 2026-04-13 15
-last_verified_at: 2026-04-13 15
+updated_at: 2026-04-14 20
+last_verified_at: 2026-04-14 20
 decision_policy: reference_on_failure
 scope:
   - cargo
@@ -65,3 +65,4 @@ scope:
 
 - `2026-04-12 21`：沙箱内执行 `cargo test` 触发 `Operation not permitted`；提权重跑后通过。
 - `2026-04-13 15`：执行 `cargo test -p api-server _tests::session_routes::delete_session_route_clears_current_session -- --exact` 时，沙箱内在 `api/apps/api-server/src/_tests/support.rs:37` 的 `PgPool::connect` 处报 `Operation not permitted`；提权重跑后才能进入真实路由断言。
+- `2026-04-14 20`：执行 `cargo test -p api-server _tests::docs_routes -- --nocapture` 时，沙箱内同样在 `api/apps/api-server/src/_tests/support.rs:37` 报 `Io(Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" })`；提权重跑后 4 个 docs route 测试全部通过。

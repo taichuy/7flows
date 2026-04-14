@@ -191,12 +191,34 @@ async fn docs_routes_allow_root_and_granted_members() {
         .unwrap();
     let catalog_payload: Value = serde_json::from_slice(&catalog_body).unwrap();
     assert!(
-        catalog_payload["data"]["operations"]
+        catalog_payload["data"]["categories"]
             .as_array()
             .unwrap()
             .len()
             > 0
     );
+
+    let category_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/console/docs/categories/console/operations")
+                .header("cookie", &root_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(category_response.status(), StatusCode::OK);
+    let category_body = to_bytes(category_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let category_payload: Value = serde_json::from_slice(&category_body).unwrap();
+    assert!(category_payload["data"]["operations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|operation| operation["id"] == "patch_me"));
 
     let operation_response = app
         .clone()
@@ -243,6 +265,19 @@ async fn docs_routes_allow_root_and_granted_members() {
         .unwrap();
     assert_eq!(member_catalog_response.status(), StatusCode::OK);
 
+    let member_category_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/console/docs/categories/console/operations")
+                .header("cookie", &member_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(member_category_response.status(), StatusCode::OK);
+
     let member_operation_response = app
         .oneshot(
             Request::builder()
@@ -265,6 +300,25 @@ async fn docs_operation_route_returns_404_for_unknown_operation() {
         .oneshot(
             Request::builder()
                 .uri("/api/console/docs/operations/unknown_operation/openapi.json")
+                .header("cookie", cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn docs_category_route_returns_404_for_unknown_category() {
+    let app = test_app().await;
+    let (cookie, _) = login_and_capture_cookie(&app, "root", "change-me").await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/console/docs/categories/missing/operations")
                 .header("cookie", cookie)
                 .body(Body::empty())
                 .unwrap(),
