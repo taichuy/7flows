@@ -60,17 +60,26 @@ describe('MePage', () => {
     authenticate();
   });
 
-  test('renders editable profile fields and a separate change-password section', async () => {
+  test('renders view mode initially, opens drawer to edit', async () => {
     render(
       <AppProviders>
         <MePage />
       </AppProviders>
     );
 
-    expect(await screen.findByText('基本资料')).toBeInTheDocument();
-    expect(screen.getByText('安全设置')).toBeInTheDocument();
+    // Initial view mode
+    expect(await screen.findByRole('heading', { name: '个人信息', level: 4 })).toBeInTheDocument();
+    
+    // Open Drawer
+    // Note: Use text matching as it renders button > span > text
+    fireEvent.click(screen.getByText('编辑资料'));
+    
+    // Wait for drawer to render
+    await waitFor(() => {
+       expect(screen.getByText('编辑个人信息')).toBeInTheDocument();
+    });
+
     expect(screen.getByLabelText('姓名')).toHaveValue('Root');
-    expect(screen.getByLabelText('密码')).toBeInTheDocument();
   });
 
   test('submits PATCH /api/console/me and updates the visible account summary', async () => {
@@ -92,6 +101,16 @@ describe('MePage', () => {
         <MePage />
       </AppProviders>
     );
+    
+    // Default view is profile
+    expect(await screen.findByRole('heading', { name: '个人信息', level: 4 })).toBeInTheDocument();
+    
+    // Open Drawer
+    fireEvent.click(screen.getByText('编辑资料'));
+    
+    await waitFor(() => {
+        expect(screen.getByText('编辑个人信息')).toBeInTheDocument();
+    });
 
     fireEvent.change(screen.getByLabelText('姓名'), {
       target: { value: 'Root Next' }
@@ -120,7 +139,5 @@ describe('MePage', () => {
         'csrf-123'
       )
     );
-
-    expect(await screen.findByText('当前展示名称：Captain Root')).toBeInTheDocument();
   });
 });

@@ -1,10 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
+import { KeyOutlined, LogoutOutlined, UserOutlined } from '@ant-design/icons';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
-import { Result, Space, Spin, Typography } from 'antd';
+import { Layout, Menu, Result, Space, Spin, Typography } from 'antd';
 
 import { useAuthStore } from '../../../state/auth-store';
+import { signOut } from '../../auth/api/session';
 import {
   changeMyPassword,
   fetchMyProfile,
@@ -12,6 +14,8 @@ import {
 } from '../api/me';
 import { ChangePasswordForm } from '../components/ChangePasswordForm';
 import { ProfileForm } from '../components/ProfileForm';
+
+const { Sider, Content } = Layout;
 
 function getErrorMessage(error: unknown): string | null {
   return error instanceof Error ? error.message : null;
@@ -25,6 +29,8 @@ export function MePage() {
   const me = useAuthStore((state) => state.me);
   const setMe = useAuthStore((state) => state.setMe);
   const setAnonymous = useAuthStore((state) => state.setAnonymous);
+
+  const [selectedKey, setSelectedKey] = useState('profile');
 
   const profileQuery = useQuery({
     queryKey: ['me', 'profile'],
@@ -65,6 +71,21 @@ export function MePage() {
     }
   });
 
+  const handleMenuClick = async ({ key }: { key: string }) => {
+    if (key === 'signout') {
+      try {
+        if (csrfToken) {
+          await signOut(csrfToken);
+        }
+      } finally {
+        setAnonymous();
+        await navigate({ to: '/sign-in' });
+      }
+    } else {
+      setSelectedKey(key);
+    }
+  };
+
   const currentProfile = profileQuery.data ?? me;
 
   if (profileQuery.isLoading) {
@@ -82,29 +103,84 @@ export function MePage() {
   }
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <div>
-        <Typography.Title level={2}>个人资料</Typography.Title>
-        <Typography.Paragraph>
-          这里集中维护你的基础资料与登录安全设置，不承载系统级权限管理操作。
-        </Typography.Paragraph>
-      </div>
-
-      <ProfileForm
-        me={currentProfile}
-        statusLabel={sessionStatus === 'authenticated' ? '已登录' : '未登录'}
-        submitting={profileMutation.isPending}
-        errorMessage={getErrorMessage(profileMutation.error)}
-        onSubmit={async (input) => {
-          await profileMutation.mutateAsync(input);
+    <Layout style={{ background: 'transparent', margin: '-28px 0 -64px 0', minHeight: 'calc(100vh - 56px)' }}>
+      <Sider
+        width={240}
+        style={{
+          background: 'transparent',
+          position: 'fixed',
+          left: 0,
+          top: 56,
+          bottom: 0,
+          zIndex: 10
         }}
-      />
+      >
+        <Typography.Title level={4} style={{ padding: '0 24px', marginBottom: 24, marginTop: 24 }}>
+          我的
+        </Typography.Title>
+        <Menu
+          mode="inline"
+          selectedKeys={[selectedKey]}
+          onClick={handleMenuClick}
+          style={{ borderRight: 0, background: 'transparent' }}
+          items={[
+            { 
+              key: 'profile', 
+              icon: <UserOutlined />, 
+              label: '个人信息',
+              style: selectedKey === 'profile' ? { background: '#e6f7f2', color: '#00d084', borderRadius: '8px', margin: '0 16px' } : { margin: '0 16px', borderRadius: '8px' }
+            },
+            { 
+              key: 'password', 
+              icon: <KeyOutlined />, 
+              label: '修改密码',
+              style: selectedKey === 'password' ? { background: '#e6f7f2', color: '#00d084', borderRadius: '8px', margin: '4px 16px' } : { margin: '4px 16px', borderRadius: '8px' }
+            },
+            { type: 'divider', style: { margin: '16px 16px', borderColor: 'transparent' } },
+            { 
+              key: 'signout', 
+              icon: <LogoutOutlined />, 
+              label: '退出登录', 
+              danger: true,
+              style: { margin: '0 16px', color: '#ff4d4f', borderRadius: '8px' }
+            }
+          ]}
+        />
+      </Sider>
+      <Content style={{ padding: '32px 48px', background: 'transparent', marginLeft: 'calc(240px - max(0px, (100vw - min(1200px, calc(100vw - 48px))) / 2))', display: 'flex', justifyContent: 'center' }}>
+        <div style={{ width: '100%', maxWidth: 800 }}>
+          {selectedKey === 'profile' && (
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              <ProfileForm
+                me={currentProfile}
+                statusLabel={sessionStatus === 'authenticated' ? '已登录' : '未登录'}
+                submitting={profileMutation.isPending}
+                errorMessage={getErrorMessage(profileMutation.error)}
+                onSubmit={async (input) => {
+                  await profileMutation.mutateAsync(input);
+                }}
+              />
+            </Space>
+          )}
 
-      <ChangePasswordForm
-        submitting={changePasswordMutation.isPending}
-        errorMessage={getErrorMessage(changePasswordMutation.error)}
-        onSubmit={(input) => changePasswordMutation.mutateAsync(input)}
-      />
-    </Space>
+          {selectedKey === 'password' && (
+            <Space direction="vertical" size="large" style={{ width: '100%', maxWidth: 600, margin: '0 auto', display: 'flex' }}>
+              <div>
+                <Typography.Title level={2}>修改密码</Typography.Title>
+                <Typography.Paragraph>
+                  定期修改密码有助于保护你的账号安全。修改密码后将需要重新登录。
+                </Typography.Paragraph>
+              </div>
+
+              <ChangePasswordForm
+                submitting={changePasswordMutation.isPending}
+                errorMessage={getErrorMessage(changePasswordMutation.error)}
+                onSubmit={(input) => changePasswordMutation.mutateAsync(input)}
+              />
+            </Space>
+          )}
+        </div>
+      </Content>
+    </Layout>
   );
 }
