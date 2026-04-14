@@ -56,8 +56,18 @@ export function HeroAnimation() {
         }}
       />
       
-      <div style={{ zIndex: 1, textAlign: 'left', padding: '0 80px', maxWidth: 800 }}>
-        <Typography.Title level={1} style={{ fontSize: '3.5rem', marginBottom: 16 }}>
+      <div style={{ zIndex: 1, textAlign: 'left', padding: '0 80px', width: '100%', maxWidth: 1200 }}>
+        <Typography.Title 
+          level={1} 
+          className="hero-title"
+          style={{ 
+            fontSize: 'clamp(6rem, 12vw, 14rem)', 
+            fontWeight: 900, 
+            marginBottom: 24,
+            letterSpacing: '-0.02em',
+            lineHeight: 1.1
+          }}
+        >
           1Flowse
         </Typography.Title>
         <Typography.Paragraph 
@@ -67,7 +77,7 @@ export function HeroAnimation() {
             background: `linear-gradient(90deg, ${token.colorPrimary}, ${token.colorInfo})`,
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
-            maxWidth: 500 
+            maxWidth: 600 
           }}
         >
           知道为什么构建是构建前提
@@ -76,6 +86,32 @@ export function HeroAnimation() {
 
       <style>
         {`
+          .hero-title {
+            background: linear-gradient(
+              120deg,
+              ${token.colorText} 40%,
+              rgba(255, 255, 255, 0.9) 50%,
+              ${token.colorText} 60%
+            );
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: reveal 1.5s cubic-bezier(0.2, 0, 0, 1) forwards, shine 4s linear infinite 1.5s;
+          }
+
+          @keyframes reveal {
+            0% { clip-path: inset(0 100% 0 0); opacity: 0; }
+            5% { opacity: 1; }
+            100% { clip-path: inset(0 0 0 0); opacity: 1; }
+          }
+
+          @keyframes shine {
+            0% { background-position: 200% center; }
+            100% { background-position: -200% center; }
+          }
+
           .hero-shape {
             animation: float 20s ease-in-out infinite alternate;
           }
