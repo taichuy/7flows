@@ -745,7 +745,7 @@ git commit -m "feat(api): add application service"
 - Modify: `api/apps/api-server/src/_tests/mod.rs`
 - Modify: `api/apps/api-server/src/_tests/openapi_alignment.rs`
 
-- [ ] **Step 1: Write the failing route and OpenAPI tests**
+- [x] **Step 1: Write the failing route and OpenAPI tests**
 
 Create `api/apps/api-server/src/_tests/application_routes.rs`:
 
@@ -818,7 +818,7 @@ async fn openapi_contains_application_console_routes() {
 }
 ```
 
-- [ ] **Step 2: Run the API server tests to verify they fail**
+- [x] **Step 2: Run the API server tests to verify they fail**
 
 Run:
 
@@ -830,7 +830,7 @@ cargo test -p api-server openapi_contains_application_console_routes -- --nocapt
 
 Expected: FAIL because the route module is not wired yet.
 
-- [ ] **Step 3: Implement the route module and wire it into the server**
+- [x] **Step 3: Implement the route module and wire it into the server**
 
 Create `api/apps/api-server/src/routes/applications.rs`:
 
@@ -999,7 +999,7 @@ crate::routes::applications::ApplicationDetailResponse,
 crate::routes::applications::CreateApplicationBody,
 ```
 
-- [ ] **Step 4: Re-run the route and OpenAPI tests**
+- [x] **Step 4: Re-run the route and OpenAPI tests**
 
 Run:
 
@@ -1011,7 +1011,7 @@ cargo test -p api-server openapi_contains_application_console_routes -- --nocapt
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit the HTTP slice**
+- [x] **Step 5: Commit the HTTP slice**
 
 ```bash
 git add api/apps/api-server/src/routes/applications.rs

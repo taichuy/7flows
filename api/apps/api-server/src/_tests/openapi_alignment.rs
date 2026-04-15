@@ -155,6 +155,18 @@ async fn openapi_contains_workspace_detail_path_and_omits_team_path() {
 }
 
 #[tokio::test]
+async fn openapi_contains_application_console_routes() {
+    let paths = openapi_paths().await;
+
+    for route in [
+        "/api/console/applications",
+        "/api/console/applications/{id}",
+    ] {
+        assert!(paths.contains_key(route), "missing path {route}");
+    }
+}
+
+#[tokio::test]
 async fn openapi_excludes_legacy_member_mutation_routes() {
     let paths = openapi_paths().await;
     let app = test_app().await;

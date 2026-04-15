@@ -1,3 +1,4 @@
+pub mod applications;
 pub mod auth;
 pub mod docs;
 pub mod me;

@@ -1,3 +1,4 @@
+mod application_routes;
 mod auth_routes;
 mod config_tests;
 mod docs_routes;
