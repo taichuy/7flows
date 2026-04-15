@@ -91,7 +91,7 @@
 - Modify: `web/packages/api-client/src/index.ts`
 - Modify: `web/packages/flow-schema/src/index.ts`
 
-- [ ] **Step 1: Write the failing contract test**
+- [x] **Step 1: Write the failing contract test**
 
 ```ts
 import { describe, expect, test } from 'vitest';
@@ -154,7 +154,7 @@ describe('agent flow document helpers', () => {
 });
 ```
 
-- [ ] **Step 2: Install editor dependencies**
+- [x] **Step 2: Install editor dependencies**
 
 Run:
 
@@ -164,7 +164,7 @@ pnpm --dir web --filter @1flowse/web add @1flowse/flow-schema@workspace:* @xyflo
 
 Expected: `web/app/package.json` and the workspace lockfile update cleanly without install errors.
 
-- [ ] **Step 3: Implement flow schema helpers and the orchestration API client**
+- [x] **Step 3: Implement flow schema helpers and the orchestration API client**
 
 ```ts
 // web/packages/flow-schema/src/index.ts
@@ -441,7 +441,7 @@ export function restoreConsoleApplicationVersion(
 }
 ```
 
-- [ ] **Step 4: Run the targeted contract test**
+- [x] **Step 4: Run the targeted contract test**
 
 Run:
 
@@ -451,7 +451,7 @@ pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/agent-flow-doc
 
 Expected: both helper tests pass and the file resolves `@1flowse/flow-schema` plus the new API client exports.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/app/package.json web/packages/api-client/src/index.ts web/packages/api-client/src/console-application-orchestration.ts web/packages/flow-schema/src/index.ts web/app/src/features/agent-flow/_tests/agent-flow-document.test.ts

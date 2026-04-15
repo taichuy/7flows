@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@1flowse/flow-schema": "workspace:^",
     "@1flowse/shared-types": "workspace:*"
   },
   "scripts": {
