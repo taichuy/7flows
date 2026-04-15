@@ -111,7 +111,9 @@ describe('App shell', () => {
 
     expect(appShellCss).not.toContain('width: min(1200px, calc(100% - 48px));');
     expect(appShellCss).toContain('width: 100%;');
+    expect(appShellCss).toContain('padding: 0;');
     expect(appShellCss).toContain('box-sizing: border-box;');
+    expect(appShellCss).not.toContain('padding: 28px 24px 64px;');
     expect(appShellCss).not.toContain('margin: 0 auto;');
   });
 

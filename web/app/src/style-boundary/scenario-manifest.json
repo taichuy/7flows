@@ -130,7 +130,7 @@
         "propertyAssertions": [
           {
             "property": "display",
-            "expected": "grid"
+            "expected": "flex"
           }
         ]
       }
@@ -255,7 +255,7 @@
           },
           {
             "property": "border-radius",
-            "expected": "16px"
+            "expected": "18px"
           }
         ]
       },
