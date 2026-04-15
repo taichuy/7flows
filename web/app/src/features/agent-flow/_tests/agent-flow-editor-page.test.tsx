@@ -31,7 +31,7 @@ describe('AgentFlowEditorShell', () => {
     );
 
     expect(await screen.findByText('Start')).toBeInTheDocument();
-    expect(screen.getByText('LLM')).toBeInTheDocument();
+    expect(screen.getAllByText('LLM').length).toBeGreaterThan(0);
     expect(screen.getByText('Answer')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '历史版本' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '发布配置' })).toBeInTheDocument();

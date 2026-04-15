@@ -18,6 +18,7 @@ import {
 
 interface AgentFlowCanvasProps {
   document: FlowAuthoringDocument;
+  issueCountByNodeId: Record<string, number>;
   selectedNodeId: string | null;
   onSelectNode: (nodeId: string | null) => void;
   onDocumentChange: (document: FlowAuthoringDocument) => void;
@@ -25,6 +26,7 @@ interface AgentFlowCanvasProps {
 
 function AgentFlowCanvasInner({
   document,
+  issueCountByNodeId,
   selectedNodeId,
   onSelectNode,
   onDocumentChange
@@ -33,7 +35,7 @@ function AgentFlowCanvasInner({
 
   const nodes = useMemo(
     () =>
-      toCanvasNodes(document, selectedNodeId, pickerNodeId, {}, {
+      toCanvasNodes(document, selectedNodeId, pickerNodeId, issueCountByNodeId, {
         onOpenPicker: setPickerNodeId,
         onClosePicker: () => setPickerNodeId(null),
         onSelectNode: (nodeId) => {
@@ -60,7 +62,14 @@ function AgentFlowCanvasInner({
           setPickerNodeId(null);
         }
       }),
-    [document, onDocumentChange, onSelectNode, pickerNodeId, selectedNodeId]
+    [
+      document,
+      issueCountByNodeId,
+      onDocumentChange,
+      onSelectNode,
+      pickerNodeId,
+      selectedNodeId
+    ]
   );
   const edges = useMemo(() => toCanvasEdges(document), [document]);
 

@@ -3,8 +3,10 @@ import type {
   SaveConsoleApplicationDraftInput
 } from '@1flowse/api-client';
 import { Typography } from 'antd';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
+import { validateDocument } from '../../lib/validate-document';
+import { NodeInspector } from '../inspector/NodeInspector';
 import { AgentFlowCanvas } from './AgentFlowCanvas';
 import { AgentFlowOverlay } from './AgentFlowOverlay';
 import './agent-flow-editor.css';
@@ -25,9 +27,20 @@ export function AgentFlowEditorShell({
 }: AgentFlowEditorShellProps) {
   const [document, setDocument] = useState(initialState.draft.document);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node-llm');
+  const issues = useMemo(() => validateDocument(document), [document]);
+  const issueCountByNodeId = useMemo(() => {
+    const counts: Record<string, number> = {};
 
-  const selectedNode =
-    document.graph.nodes.find((node) => node.id === selectedNodeId) ?? null;
+    for (const issue of issues) {
+      if (!issue.nodeId) {
+        continue;
+      }
+
+      counts[issue.nodeId] = (counts[issue.nodeId] ?? 0) + 1;
+    }
+
+    return counts;
+  }, [issues]);
 
   return (
     <section
@@ -43,25 +56,27 @@ export function AgentFlowEditorShell({
         onOpenPublish={() => undefined}
         publishDisabled={false}
       />
-      <div className="agent-flow-editor__body">
+      <div
+        className={`agent-flow-editor__body${selectedNodeId ? ' agent-flow-editor__body--with-inspector' : ''}`}
+      >
         <AgentFlowCanvas
           document={document}
+          issueCountByNodeId={issueCountByNodeId}
           selectedNodeId={selectedNodeId}
           onSelectNode={setSelectedNodeId}
           onDocumentChange={setDocument}
         />
-        <aside className="agent-flow-editor__sidebar">
-          <Typography.Text type="secondary">当前选中</Typography.Text>
-          <Typography.Title className="agent-flow-editor__sidebar-title" level={5}>
-            {selectedNode ? `${selectedNode.alias} 配置` : '未选择节点'}
-          </Typography.Title>
-          <Typography.Paragraph className="agent-flow-editor__sidebar-copy">
-            {selectedNode
-              ? '下一步会在这里接入节点配置表单和绑定编辑器。'
-              : '点击节点后即可在这里查看节点详情。'}
-          </Typography.Paragraph>
-        </aside>
+        <NodeInspector
+          document={document}
+          selectedNodeId={selectedNodeId}
+          onDocumentChange={setDocument}
+        />
       </div>
+      {issues.some((issue) => issue.scope === 'global') ? (
+        <Typography.Text type="danger">
+          当前草稿存在全局问题，请先查看 Issues 面板处理。
+        </Typography.Text>
+      ) : null}
     </section>
   );
 }

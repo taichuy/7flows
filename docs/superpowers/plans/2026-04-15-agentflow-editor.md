@@ -1496,12 +1496,14 @@ pnpm --dir web/app build
 
 - Result: editor-shell suite `1 passed`; canvas suite `1 passed`; web production build succeeded.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/app/src/features/agent-flow/pages/AgentFlowEditorPage.tsx web/app/src/features/agent-flow/components/editor/AgentFlowEditorShell.tsx web/app/src/features/agent-flow/components/editor/AgentFlowCanvas.tsx web/app/src/features/agent-flow/components/editor/AgentFlowOverlay.tsx web/app/src/features/agent-flow/components/editor/agent-flow-editor.css web/app/src/features/agent-flow/components/node-picker/NodePickerPopover.tsx web/app/src/features/agent-flow/components/nodes/AgentFlowNodeCard.tsx web/app/src/features/agent-flow/components/nodes/node-registry.tsx web/app/src/features/agent-flow/lib/default-agent-flow-document.ts web/app/src/features/agent-flow/_tests/agent-flow-editor-page.test.tsx web/app/src/features/agent-flow/_tests/agent-flow-canvas.test.tsx
 git commit -m "feat: add agent flow editor shell"
 ```
+
+Commit note (`2026-04-15 16:01`): committed as `a13b8f42 feat: add agent flow editor shell`.
 
 ## Task 5: Implement The Inspector And Binding Editors For Non-Container Nodes
 
@@ -1518,7 +1520,7 @@ git commit -m "feat: add agent flow editor shell"
 - Create: `web/app/src/features/agent-flow/_tests/node-inspector.test.tsx`
 - Create: `web/app/src/features/agent-flow/_tests/validate-document.test.ts`
 
-- [ ] **Step 1: Write the failing inspector and validation tests**
+- [x] **Step 1: Write the failing inspector and validation tests**
 
 ```tsx
 test('renders unified Basics Inputs Outputs Policy Advanced sections for an LLM node', async () => {
@@ -1552,7 +1554,7 @@ test('returns field, node, and global issues', () => {
 });
 ```
 
-- [ ] **Step 2: Implement node definitions, selector options, and the binding-editor family**
+- [x] **Step 2: Implement node definitions, selector options, and the binding-editor family**
 
 ```tsx
 // web/app/src/features/agent-flow/lib/node-definitions.tsx
@@ -1658,7 +1660,7 @@ return (
 );
 ```
 
-- [ ] **Step 3: Implement static validation for selector visibility, required config, and global graph rules**
+- [x] **Step 3: Implement static validation for selector visibility, required config, and global graph rules**
 
 ```ts
 // web/app/src/features/agent-flow/lib/validate-document.ts
@@ -1720,7 +1722,7 @@ export function validateDocument(document: FlowAuthoringDocument): AgentFlowIssu
 }
 ```
 
-- [ ] **Step 4: Run the targeted inspector and validation tests**
+- [x] **Step 4: Run the targeted inspector and validation tests**
 
 Run:
 
@@ -1730,7 +1732,7 @@ pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/node-inspector
 
 Expected: the inspector renders the unified five-section structure and validation reports field, node, and global issues without server participation.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/app/src/features/agent-flow/components/inspector/NodeInspector.tsx web/app/src/features/agent-flow/components/bindings/SelectorField.tsx web/app/src/features/agent-flow/components/bindings/TemplatedTextField.tsx web/app/src/features/agent-flow/components/bindings/NamedBindingsField.tsx web/app/src/features/agent-flow/components/bindings/ConditionGroupField.tsx web/app/src/features/agent-flow/components/bindings/StateWriteField.tsx web/app/src/features/agent-flow/lib/node-definitions.tsx web/app/src/features/agent-flow/lib/selector-options.ts web/app/src/features/agent-flow/lib/validate-document.ts web/app/src/features/agent-flow/_tests/node-inspector.test.tsx web/app/src/features/agent-flow/_tests/validate-document.test.ts

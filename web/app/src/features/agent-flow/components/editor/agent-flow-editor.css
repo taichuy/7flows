@@ -26,27 +26,54 @@
 
 .agent-flow-editor__body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
   gap: 16px;
   min-height: 600px;
 }
 
-.agent-flow-editor__sidebar {
+.agent-flow-editor__body--with-inspector {
+  grid-template-columns: minmax(0, 1fr) 320px;
+}
+
+.agent-flow-editor__inspector {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
   padding: 20px;
   border: 1px solid #e4eadf;
   border-radius: 20px;
   background: linear-gradient(180deg, #fafcf9, #f2f7f1);
 }
 
-.agent-flow-editor__sidebar-title.ant-typography {
+.agent-flow-editor__inspector-title.ant-typography {
   margin: 0;
 }
 
-.agent-flow-editor__sidebar-copy.ant-typography {
-  margin-bottom: 0;
+.agent-flow-editor__inspector-fields {
+  display: grid;
+  gap: 16px;
+}
+
+.agent-flow-editor__inspector-field {
+  display: grid;
+  gap: 8px;
+}
+
+.agent-flow-editor__number-field {
+  width: 100%;
+}
+
+.agent-flow-binding-list {
+  display: grid;
+  gap: 12px;
+}
+
+.agent-flow-binding-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #dce6d9;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .agent-flow-canvas {
@@ -156,7 +183,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .agent-flow-editor__sidebar {
+  .agent-flow-editor__inspector {
     min-height: auto;
   }
 }
