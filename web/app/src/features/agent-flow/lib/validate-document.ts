@@ -1,6 +1,7 @@
 import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
 import type { FlowBinding, FlowNodeDocument } from '@1flowse/flow-schema';
 
+import type { InspectorSectionKey } from './node-definitions';
 import { findInspectorSectionKey, nodeDefinitions } from './node-definitions';
 import { isSelectorVisible } from './selector-options';
 
@@ -9,7 +10,8 @@ export interface AgentFlowIssue {
   scope: 'field' | 'node' | 'global';
   level: 'error' | 'warning';
   nodeId: string | null;
-  sectionKey: 'basics' | 'inputs' | 'outputs' | 'policy' | 'advanced' | null;
+  sectionKey: InspectorSectionKey | null;
+  fieldKey?: string | null;
   title: string;
   message: string;
 }
@@ -103,6 +105,7 @@ function pushFieldIssue(
     level: 'error',
     nodeId: node.id,
     sectionKey: findInspectorSectionKey(node.type, fieldKey),
+    fieldKey,
     title,
     message
   });
@@ -121,6 +124,7 @@ export function validateDocument(document: FlowAuthoringDocument): AgentFlowIssu
       level: 'error',
       nodeId: null,
       sectionKey: null,
+      fieldKey: null,
       title: 'Start 节点数量非法',
       message: '每个草稿必须保留且只保留一个 Start 节点。'
     });
@@ -133,6 +137,7 @@ export function validateDocument(document: FlowAuthoringDocument): AgentFlowIssu
       level: 'error',
       nodeId: null,
       sectionKey: null,
+      fieldKey: null,
       title: '缺少 Answer 节点',
       message: '第一版 agentFlow 至少需要一个 Answer 节点作为对话输出。'
     });
@@ -150,6 +155,7 @@ export function validateDocument(document: FlowAuthoringDocument): AgentFlowIssu
         level: 'warning',
         nodeId: edge.source,
         sectionKey: 'basics',
+        fieldKey: null,
         title: '节点连线指向无效目标',
         message: '当前节点存在一条指向已删除节点的连线。'
       });
@@ -167,7 +173,9 @@ export function validateDocument(document: FlowAuthoringDocument): AgentFlowIssu
               issues,
               node,
               field.key,
-              `${field.label} 未配置`,
+              node.type === 'llm' && field.key === 'config.model'
+                ? 'LLM 缺少模型'
+                : `${field.label} 未配置`,
               `请先完善 ${field.label}。`
             );
           }
@@ -205,6 +213,7 @@ export function validateDocument(document: FlowAuthoringDocument): AgentFlowIssu
         level: 'warning',
         nodeId: node.id,
         sectionKey: 'basics',
+        fieldKey: null,
         title: `${node.alias} 尚未接入主链路`,
         message: '当前节点没有任何有效入边。'
       });

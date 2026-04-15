@@ -4,20 +4,27 @@ import type {
   FlowNodeDocument
 } from '@1flowse/flow-schema';
 import { Collapse, Input, InputNumber, Typography } from 'antd';
+import { useEffect, useRef, useState } from 'react';
 
 import { ConditionGroupField } from '../bindings/ConditionGroupField';
 import { NamedBindingsField } from '../bindings/NamedBindingsField';
 import { SelectorField } from '../bindings/SelectorField';
 import { StateWriteField } from '../bindings/StateWriteField';
 import { TemplatedTextField } from '../bindings/TemplatedTextField';
-import type { NodeDefinitionField } from '../../lib/node-definitions';
+import type {
+  InspectorSectionKey,
+  NodeDefinitionField
+} from '../../lib/node-definitions';
 import { nodeDefinitions } from '../../lib/node-definitions';
 import { listVisibleSelectorOptions } from '../../lib/selector-options';
 
 interface NodeInspectorProps {
   document: FlowAuthoringDocument;
   selectedNodeId: string | null;
+  focusFieldKey?: string | null;
+  openSectionKey?: InspectorSectionKey | null;
   onDocumentChange: (document: FlowAuthoringDocument) => void;
+  onFocusHandled?: () => void;
 }
 
 function updateNode(
@@ -133,26 +140,54 @@ function asBinding<T extends FlowBinding['kind']>(
 export function NodeInspector({
   document,
   selectedNodeId,
-  onDocumentChange
+  focusFieldKey = null,
+  openSectionKey = null,
+  onDocumentChange,
+  onFocusHandled
 }: NodeInspectorProps) {
-  if (!selectedNodeId) {
+  const rootRef = useRef<HTMLElement | null>(null);
+  const selectedNode = selectedNodeId
+    ? document.graph.nodes.find((node) => node.id === selectedNodeId) ?? null
+    : null;
+  const definition = selectedNode ? nodeDefinitions[selectedNode.type] ?? null : null;
+  const selectorOptions = selectedNode
+    ? listVisibleSelectorOptions(document, selectedNode.id)
+    : [];
+  const [activeSectionKeys, setActiveSectionKeys] = useState<InspectorSectionKey[]>([]);
+
+  useEffect(() => {
+    setActiveSectionKeys(definition?.sections.map((section) => section.key) ?? []);
+  }, [definition]);
+
+  useEffect(() => {
+    if (!openSectionKey) {
+      return;
+    }
+
+    setActiveSectionKeys((previous) =>
+      previous.includes(openSectionKey) ? previous : [...previous, openSectionKey]
+    );
+  }, [openSectionKey]);
+
+  useEffect(() => {
+    if (!focusFieldKey || !rootRef.current) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const focusTarget = rootRef.current?.querySelector<HTMLElement>(
+        `[data-field-key="${focusFieldKey}"] [aria-label]`
+      );
+      focusTarget?.focus();
+      onFocusHandled?.();
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, [focusFieldKey, onFocusHandled, selectedNode?.id]);
+
+  if (!selectedNode || !definition) {
     return null;
   }
-
-  const selectedNode =
-    document.graph.nodes.find((node) => node.id === selectedNodeId) ?? null;
-
-  if (!selectedNode) {
-    return null;
-  }
-
-  const definition = nodeDefinitions[selectedNode.type];
-
-  if (!definition) {
-    return null;
-  }
-
-  const selectorOptions = listVisibleSelectorOptions(document, selectedNode.id);
 
   function updateField(fieldKey: string, value: unknown) {
     onDocumentChange(
@@ -283,7 +318,7 @@ export function NodeInspector({
   }
 
   return (
-    <aside className="agent-flow-editor__inspector">
+    <aside ref={rootRef} className="agent-flow-editor__inspector">
       <div className="agent-flow-editor__inspector-header">
         <Typography.Text type="secondary">节点配置</Typography.Text>
         <Typography.Title className="agent-flow-editor__inspector-title" level={5}>
@@ -291,15 +326,24 @@ export function NodeInspector({
         </Typography.Title>
       </div>
       <Collapse
+        activeKey={activeSectionKeys}
         className="agent-flow-editor__inspector-sections"
-        defaultActiveKey={definition.sections.map((section) => section.key)}
+        onChange={(nextActiveKeys) =>
+          setActiveSectionKeys(
+            Array.isArray(nextActiveKeys) ? nextActiveKeys.map(String) as InspectorSectionKey[] : []
+          )
+        }
         items={definition.sections.map((section) => ({
           key: section.key,
           label: section.title,
           children: (
             <div className="agent-flow-editor__inspector-fields">
               {section.fields.map((field) => (
-                <div key={field.key} className="agent-flow-editor__inspector-field">
+                <div
+                  key={field.key}
+                  className="agent-flow-editor__inspector-field"
+                  data-field-key={field.key}
+                >
                   <Typography.Text strong>{field.label}</Typography.Text>
                   {renderField(field)}
                 </div>

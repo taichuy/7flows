@@ -1752,7 +1752,7 @@ git commit -m "feat: add agent flow inspector and bindings"
 - Modify: `web/app/src/features/agent-flow/lib/validate-document.ts`
 - Modify: `api/apps/api-server/src/routes/application_orchestration.rs`
 
-- [ ] **Step 1: Write the failing autosave, history, and issue-focus tests**
+- [x] **Step 1: Write the failing autosave, history, and issue-focus tests**
 
 ```tsx
 test('sends layout changes without appending history and opens the selected issue target', async () => {
@@ -1840,7 +1840,7 @@ test('restores a history version into the current draft', async () => {
 });
 ```
 
-- [ ] **Step 2: Implement logical-vs-layout classification and the 30-second autosave hook**
+- [x] **Step 2: Implement logical-vs-layout classification and the 30-second autosave hook**
 
 ```ts
 // web/app/src/features/agent-flow/lib/history-change.ts
@@ -1916,7 +1916,7 @@ export function useEditorAutosave({
 }
 ```
 
-- [ ] **Step 3: Connect Issues and history drawers to node focus and restore mutations**
+- [x] **Step 3: Connect Issues and history drawers to node focus and restore mutations**
 
 ```tsx
 // web/app/src/features/agent-flow/components/issues/IssuesDrawer.tsx
@@ -1961,7 +1961,7 @@ export function useEditorAutosave({
 </Drawer>
 ```
 
-- [ ] **Step 4: Run the targeted history and issue tests**
+- [x] **Step 4: Run the targeted history and issue tests**
 
 Run:
 
@@ -1971,7 +1971,7 @@ pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/agent-flow-edi
 
 Expected: overlay status changes between `saving` and `saved`, layout-only saves stay out of history growth, issue clicks focus the corresponding node field, and restore replaces the active draft state.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/app/src/features/agent-flow/components/issues/IssuesDrawer.tsx web/app/src/features/agent-flow/components/history/VersionHistoryDrawer.tsx web/app/src/features/agent-flow/hooks/useEditorAutosave.ts web/app/src/features/agent-flow/lib/history-change.ts web/app/src/features/agent-flow/components/editor/AgentFlowEditorShell.tsx web/app/src/features/agent-flow/components/editor/AgentFlowOverlay.tsx web/app/src/features/agent-flow/api/orchestration.ts web/app/src/features/agent-flow/lib/validate-document.ts api/apps/api-server/src/routes/application_orchestration.rs

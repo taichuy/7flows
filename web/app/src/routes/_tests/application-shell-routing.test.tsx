@@ -22,7 +22,9 @@ const orchestrationApi = vi.hoisted(() => ({
     applicationId,
     'orchestration'
   ],
-  fetchOrchestrationState: vi.fn()
+  fetchOrchestrationState: vi.fn(),
+  saveDraft: vi.fn(),
+  restoreVersion: vi.fn()
 }));
 
 vi.mock('../../features/agent-flow/api/orchestration', () => orchestrationApi);
