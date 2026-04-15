@@ -21,6 +21,21 @@ type MockViewport = {
 type MockReactFlowProps = {
   children?: ReactNode;
   onNodesChange?: (changes: MockNodeChange[]) => void;
+  onReconnect?: (
+    oldEdge: {
+      id: string;
+      source: string;
+      target: string;
+      sourceHandle?: string | null;
+      targetHandle?: string | null;
+    },
+    connection: {
+      source: string;
+      target: string;
+      sourceHandle?: string | null;
+      targetHandle?: string | null;
+    }
+  ) => void;
   onViewportChange?: (viewport: MockViewport) => void;
   viewport?: MockViewport;
 };
@@ -207,6 +222,57 @@ describe('AgentFlowCanvas interactions', () => {
           nodes: expect.arrayContaining([
             expect.objectContaining({
               type: 'template_transform'
+            })
+          ])
+        })
+      })
+    );
+  });
+
+  test('rewrites the document edge when an existing line is reconnected', () => {
+    const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const onDocumentChange = vi.fn();
+
+    render(
+      <AgentFlowCanvas
+        activeContainerId={null}
+        document={document}
+        issueCountByNodeId={{}}
+        selectedNodeId="node-llm"
+        onOpenContainer={vi.fn()}
+        onSelectNode={vi.fn()}
+        onDocumentChange={onDocumentChange}
+      />
+    );
+
+    expect(latestReactFlowProps?.onReconnect).toBeTypeOf('function');
+
+    latestReactFlowProps?.onReconnect?.(
+      {
+        id: 'edge-start-llm',
+        source: 'node-start',
+        target: 'node-llm',
+        sourceHandle: null,
+        targetHandle: null
+      },
+      {
+        source: 'node-start',
+        target: 'node-answer',
+        sourceHandle: 'source-right',
+        targetHandle: 'target-left'
+      }
+    );
+
+    expect(onDocumentChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        graph: expect.objectContaining({
+          edges: expect.arrayContaining([
+            expect.objectContaining({
+              id: 'edge-start-llm',
+              source: 'node-start',
+              target: 'node-answer',
+              sourceHandle: 'source-right',
+              targetHandle: 'target-left'
             })
           ])
         })

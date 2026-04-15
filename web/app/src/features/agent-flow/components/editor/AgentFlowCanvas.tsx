@@ -9,6 +9,8 @@ import {
   ReactFlowProvider,
   useReactFlow,
   useViewport,
+  type Connection,
+  type Edge,
   type NodeChange,
   type Viewport
 } from '@xyflow/react';
@@ -110,6 +112,70 @@ function applyViewportChanges(
         y: viewport.y,
         zoom: viewport.zoom
       }
+    }
+  };
+}
+
+function applyEdgeReconnect(
+  document: FlowAuthoringDocument,
+  edgeId: string,
+  connection: Connection
+) {
+  if (!connection.source || !connection.target) {
+    return document;
+  }
+
+  const sourceNode = document.graph.nodes.find(
+    (node) => node.id === connection.source
+  );
+  const targetNode = document.graph.nodes.find(
+    (node) => node.id === connection.target
+  );
+
+  if (!sourceNode || !targetNode || sourceNode.containerId !== targetNode.containerId) {
+    return document;
+  }
+
+  let changed = false;
+  const nextEdges = document.graph.edges.map((edge) => {
+    if (edge.id !== edgeId) {
+      return edge;
+    }
+
+    const nextSourceHandle = connection.sourceHandle ?? null;
+    const nextTargetHandle = connection.targetHandle ?? null;
+
+    if (
+      edge.source === connection.source &&
+      edge.target === connection.target &&
+      edge.sourceHandle === nextSourceHandle &&
+      edge.targetHandle === nextTargetHandle &&
+      edge.containerId === sourceNode.containerId
+    ) {
+      return edge;
+    }
+
+    changed = true;
+
+    return {
+      ...edge,
+      source: connection.source,
+      target: connection.target,
+      sourceHandle: nextSourceHandle,
+      targetHandle: nextTargetHandle,
+      containerId: sourceNode.containerId
+    };
+  });
+
+  if (!changed) {
+    return document;
+  }
+
+  return {
+    ...document,
+    graph: {
+      ...document.graph,
+      edges: nextEdges
     }
   };
 }
@@ -301,6 +367,13 @@ function AgentFlowCanvasInner({
         }}
         onViewportChange={(viewport) => {
           const nextDocument = applyViewportChanges(document, viewport);
+
+          if (nextDocument !== document) {
+            onDocumentChange(nextDocument);
+          }
+        }}
+        onReconnect={(oldEdge: Edge, connection) => {
+          const nextDocument = applyEdgeReconnect(document, oldEdge.id, connection);
 
           if (nextDocument !== document) {
             onDocumentChange(nextDocument);
