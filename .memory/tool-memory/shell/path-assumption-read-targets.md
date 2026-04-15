@@ -12,8 +12,8 @@ match_when:
   - 需要直接读取前端文件，但目录层级刚发生调整
   - 准备对 `web/app` 或 `web/packages` 下文件执行 `sed -n`
 created_at: 2026-04-14 08
-updated_at: 2026-04-14 18
-last_verified_at: 2026-04-14 18
+updated_at: 2026-04-15 08
+last_verified_at: 2026-04-15 08
 decision_policy: reference_on_failure
 scope:
   - shell
@@ -54,3 +54,4 @@ scope:
 - `2026-04-14 08`：为了快速查看 app 入口和测试配置，直接按旧目录结构读取文件，失败后通过 `rg --files` 确认了真实路径并恢复后续操作。
 - `2026-04-14 19`：为了对照控制台壳层设计稿，直接读取旧文件名 `web/app/src/app-shell/ConsoleShell.tsx` 失败；随后改用 `rg --files web/app/src/app-shell` 确认当前已经拆成 `AppShellFrame.tsx`、`Navigation.tsx`、`AccountMenu.tsx`。
 - `2026-04-14 18`：为了快速读取设置页和个人资料页的 section 定义，直接按 `.ts` 后缀猜测 `web/app/src/features/settings/lib/settings-sections.ts` 与 `web/app/src/features/me/lib/me-sections.ts`，命令报“没有那个文件或目录”；随后改用 `rg --files web/app/src/features/settings web/app/src/features/me | rg 'settings-sections|me-sections'`，确认真实文件为 `.tsx` 后恢复读取。
+- `2026-04-15 08`：为了横向读取模块文档，直接按旧路径 `docs/superpowers/specs/1flowse/modules/01-user-login-and-team-access/README.md` 执行 `sed -n`，命令报“没有那个文件或目录”；随后先用 `find docs/superpowers/specs/1flowse/modules -maxdepth 2 -name README.md` 校验真实目录，确认模块已改名为 `01-user-auth-and-team`。
