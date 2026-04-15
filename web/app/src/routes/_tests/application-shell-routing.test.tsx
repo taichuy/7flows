@@ -174,6 +174,7 @@ describe('application shell routing', () => {
       );
 
       expect(await screen.findByText('30 秒自动保存')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Issues' })).toBeInTheDocument();
     } finally {
       desktopBreakpoints.mockRestore();

@@ -37,13 +37,13 @@ function AutosaveHarness({
     summary: string;
   }) => Promise<void>;
 }) {
-  const status = useEditorAutosave({
+  const autosave = useEditorAutosave({
     document,
     lastSavedDocument,
     onSave
   });
 
-  return <span>{status}</span>;
+  return <span>{autosave.status}</span>;
 }
 
 afterEach(() => {
@@ -65,8 +65,57 @@ describe('AgentFlowEditorShell', () => {
     expect(await screen.findByText('Start')).toBeInTheDocument();
     expect(screen.getAllByText('LLM').length).toBeGreaterThan(0);
     expect(screen.getByText('Answer')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '历史版本' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '发布配置' })).toBeInTheDocument();
+  }, 10_000);
+
+  test('saves the current document when clicking 保存', async () => {
+    const initialState = createInitialState();
+    const saveDraftOverride = vi.fn(async (input) => ({
+      ...initialState,
+      draft: {
+        ...initialState.draft,
+        id: 'draft-2',
+        updated_at: '2026-04-15T09:10:00Z',
+        document: input.document
+      }
+    }));
+
+    render(
+      <div style={{ width: 1280, height: 720 }}>
+        <AgentFlowEditorShell
+          applicationId="app-1"
+          applicationName="Support Agent"
+          initialState={initialState}
+          saveDraftOverride={saveDraftOverride}
+        />
+      </div>
+    );
+
+    fireEvent.change(screen.getByLabelText('节点别名'), {
+      target: { value: 'Support LLM' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: '保存' }));
+
+    await waitFor(() => {
+      expect(saveDraftOverride).toHaveBeenCalledWith(
+        expect.objectContaining({
+          change_kind: 'logical',
+          summary: '更新节点配置',
+          document: expect.objectContaining({
+            graph: expect.objectContaining({
+              nodes: expect.arrayContaining([
+                expect.objectContaining({
+                  id: 'node-llm',
+                  alias: 'Support LLM'
+                })
+              ])
+            })
+          })
+        })
+      );
+    });
   }, 10_000);
 
   test('sends layout changes without appending history', async () => {

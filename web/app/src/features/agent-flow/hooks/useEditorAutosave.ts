@@ -1,8 +1,7 @@
-import { classifyDocumentChange } from '@1flowse/flow-schema';
 import { useEffect, useRef, useState } from 'react';
 import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
 
-import { buildVersionSummary } from '../lib/history-change';
+import { buildDraftSaveInput } from '../lib/draft-save';
 
 export function useEditorAutosave({
   document,
@@ -21,41 +20,53 @@ export function useEditorAutosave({
 }) {
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const savingRef = useRef(false);
+  const saveNowRef = useRef<() => Promise<boolean>>(async () => false);
   const currentSnapshot = JSON.stringify(document);
   const lastSavedSnapshot = JSON.stringify(lastSavedDocument);
+  const hasPendingChanges = currentSnapshot !== lastSavedSnapshot;
+
+  saveNowRef.current = async () => {
+    if (savingRef.current) {
+      return false;
+    }
+
+    savingRef.current = true;
+    setStatus('saving');
+
+    try {
+      await onSave(buildDraftSaveInput(lastSavedDocument, document));
+      setStatus('saved');
+      return true;
+    } catch {
+      setStatus('error');
+      return false;
+    } finally {
+      savingRef.current = false;
+    }
+  };
+
+  function saveNow() {
+    return saveNowRef.current();
+  }
 
   useEffect(() => {
-    if (currentSnapshot === lastSavedSnapshot) {
-      setStatus('idle');
+    if (!hasPendingChanges) {
+      if (!savingRef.current) {
+        setStatus('idle');
+      }
       return;
     }
 
     const timer = window.setInterval(() => {
-      if (savingRef.current) {
-        return;
-      }
-
-      savingRef.current = true;
-      setStatus('saving');
-
-      void onSave({
-        document,
-        change_kind: classifyDocumentChange(lastSavedDocument, document),
-        summary: buildVersionSummary(lastSavedDocument, document)
-      })
-        .then(() => {
-          setStatus('saved');
-        })
-        .catch(() => {
-          setStatus('error');
-        })
-        .finally(() => {
-          savingRef.current = false;
-        });
+      void saveNowRef.current();
     }, intervalMs);
 
     return () => window.clearInterval(timer);
-  }, [currentSnapshot, document, intervalMs, lastSavedDocument, lastSavedSnapshot, onSave]);
+  }, [hasPendingChanges, intervalMs]);
 
-  return status;
+  return {
+    hasPendingChanges,
+    saveNow,
+    status
+  };
 }

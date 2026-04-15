@@ -81,7 +81,7 @@ export function AgentFlowEditorShell({
 
     return counts;
   }, [issues]);
-  const autosaveStatus = useEditorAutosave({
+  const autosaveController = useEditorAutosave({
     document,
     lastSavedDocument: editorState.draft.document,
     intervalMs: editorState.autosave_interval_seconds * 1000,
@@ -159,7 +159,12 @@ export function AgentFlowEditorShell({
       <AgentFlowOverlay
         applicationName={applicationName}
         autosaveLabel={`${editorState.autosave_interval_seconds} 秒自动保存`}
-        autosaveStatus={autosaveStatus}
+        autosaveStatus={autosaveController.status}
+        onSaveDraft={() => {
+          void autosaveController.saveNow();
+        }}
+        saveDisabled={autosaveController.status === 'saving'}
+        saveLoading={autosaveController.status === 'saving'}
         onOpenIssues={() => setIssuesOpen(true)}
         onOpenHistory={() => setHistoryOpen(true)}
         onOpenPublish={() => undefined}

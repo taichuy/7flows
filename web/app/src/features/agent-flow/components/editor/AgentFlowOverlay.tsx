@@ -4,6 +4,9 @@ interface AgentFlowOverlayProps {
   applicationName: string;
   autosaveLabel: string;
   autosaveStatus: 'idle' | 'saving' | 'saved' | 'error';
+  onSaveDraft: () => void;
+  saveDisabled: boolean;
+  saveLoading: boolean;
   onOpenIssues: () => void;
   onOpenHistory: () => void;
   onOpenPublish: () => void;
@@ -14,6 +17,9 @@ export function AgentFlowOverlay({
   applicationName,
   autosaveLabel,
   autosaveStatus,
+  onSaveDraft,
+  saveDisabled,
+  saveLoading,
   onOpenIssues,
   onOpenHistory,
   onOpenPublish,
@@ -38,6 +44,14 @@ export function AgentFlowOverlay({
       <Space size="small">
         <Button onClick={onOpenIssues}>Issues</Button>
         <Button onClick={onOpenHistory}>历史版本</Button>
+        <Button
+          autoInsertSpace={false}
+          disabled={saveDisabled}
+          loading={saveLoading}
+          onClick={onSaveDraft}
+        >
+          保存
+        </Button>
         <Button type="primary" disabled={publishDisabled} onClick={onOpenPublish}>
           发布配置
         </Button>
