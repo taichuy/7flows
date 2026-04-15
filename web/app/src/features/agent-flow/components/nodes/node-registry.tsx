@@ -19,9 +19,11 @@ export interface AgentFlowCanvasNodeData extends Record<string, unknown> {
   typeLabel: string;
   alias: string;
   issueCount: number;
+  canEnterContainer: boolean;
   pickerOpen: boolean;
   onOpenPicker: (nodeId: string) => void;
   onClosePicker: () => void;
+  onOpenContainer: (nodeId: string) => void;
   onSelectNode: (nodeId: string) => void;
   onInsertNode: (nodeId: string, nodeType: FlowNodeType) => void;
 }
@@ -34,39 +36,63 @@ export const agentFlowNodeTypes: NodeTypes = {
 
 export function toCanvasNodes(
   document: FlowAuthoringDocument,
+  activeContainerId: string | null,
   selectedNodeId: string | null,
   pickerNodeId: string | null,
   issueCountByNodeId: Record<string, number>,
   actions: Pick<
     AgentFlowCanvasNodeData,
-    'onOpenPicker' | 'onClosePicker' | 'onSelectNode' | 'onInsertNode'
+    | 'onOpenPicker'
+    | 'onClosePicker'
+    | 'onOpenContainer'
+    | 'onSelectNode'
+    | 'onInsertNode'
   >
 ): AgentFlowCanvasNode[] {
-  return document.graph.nodes.map((node) => ({
-    id: node.id,
-    type: 'agentFlowNode',
-    selected: node.id === selectedNodeId,
-    position: node.position,
-    width: 196,
-    height: 96,
-    data: {
-      nodeId: node.id,
-      typeLabel: nodeTypeLabel(node.type),
-      alias: node.alias,
-      issueCount: issueCountByNodeId[node.id] ?? 0,
-      pickerOpen: pickerNodeId === node.id,
-      ...actions
-    }
-  }));
+  return document.graph.nodes
+    .filter((node) => node.containerId === activeContainerId)
+    .map((node) => ({
+      id: node.id,
+      type: 'agentFlowNode',
+      selected: node.id === selectedNodeId,
+      position: node.position,
+      width: 196,
+      height: 96,
+      data: {
+        nodeId: node.id,
+        typeLabel: nodeTypeLabel(node.type),
+        alias: node.alias,
+        issueCount: issueCountByNodeId[node.id] ?? 0,
+        canEnterContainer: node.type === 'iteration' || node.type === 'loop',
+        pickerOpen: pickerNodeId === node.id,
+        ...actions
+      }
+    }));
 }
 
-export function toCanvasEdges(document: FlowAuthoringDocument): Edge[] {
-  return document.graph.edges.map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    sourceHandle: edge.sourceHandle,
-    targetHandle: edge.targetHandle,
-    animated: false
-  }));
+export function toCanvasEdges(
+  document: FlowAuthoringDocument,
+  activeContainerId: string | null
+): Edge[] {
+  const visibleNodeIds = new Set(
+    document.graph.nodes
+      .filter((node) => node.containerId === activeContainerId)
+      .map((node) => node.id)
+  );
+
+  return document.graph.edges
+    .filter(
+      (edge) =>
+        edge.containerId === activeContainerId &&
+        visibleNodeIds.has(edge.source) &&
+        visibleNodeIds.has(edge.target)
+    )
+    .map((edge) => ({
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      sourceHandle: edge.sourceHandle,
+      targetHandle: edge.targetHandle,
+      animated: false
+    }));
 }

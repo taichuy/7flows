@@ -46,7 +46,7 @@ function defaultOutputs(nodeType: FlowNodeType): FlowNodeDocument['outputs'] {
       return [{ key: 'parameters', title: '提取参数', valueType: 'json' }];
     case 'iteration':
     case 'loop':
-      return [{ key: 'item', title: '循环项', valueType: 'unknown' }];
+      return [{ key: 'result', title: '聚合输出', valueType: 'array' }];
     case 'human_input':
       return [{ key: 'input', title: '人工输入', valueType: 'string' }];
   }
@@ -75,8 +75,9 @@ function defaultConfig(nodeType: FlowNodeType): Record<string, unknown> {
     case 'parameter_extractor':
       return { schema: [] };
     case 'iteration':
-    case 'loop':
       return { max_steps: 10 };
+    case 'loop':
+      return { max_rounds: 10 };
     default:
       return {};
   }

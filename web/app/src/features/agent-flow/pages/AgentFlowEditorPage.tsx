@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Button, Result, Space, Typography } from 'antd';
+import { Grid, Result } from 'antd';
 
 import { ApiClientError } from '@1flowse/api-client';
 import { PermissionDeniedState } from '../../../shared/ui/PermissionDeniedState';
@@ -18,10 +18,21 @@ export function AgentFlowEditorPage({
   applicationName: string;
   apiCapabilityStatus: string;
 }) {
+  const screens = Grid.useBreakpoint();
   const orchestrationQuery = useQuery({
     queryKey: orchestrationQueryKey(applicationId),
     queryFn: () => fetchOrchestrationState(applicationId)
   });
+
+  if (screens.lg === false) {
+    return (
+      <Result
+        status="info"
+        title="请使用桌面端编辑"
+        subTitle="移动端只提供受限查看，不开放完整画布编辑。"
+      />
+    );
+  }
 
   if (orchestrationQuery.isPending) {
     return <Result status="info" title="正在加载编排" />;

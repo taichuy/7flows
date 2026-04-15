@@ -37,4 +37,67 @@ describe('AgentFlowCanvas', () => {
 
     expect(screen.getByText('Template Transform')).toBeInTheDocument();
   });
+
+  test('focuses the iteration child canvas and returns through breadcrumb', async () => {
+    const baseDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+    const iterationState = {
+      flow_id: 'flow-1',
+      draft: {
+        id: 'draft-1',
+        flow_id: 'flow-1',
+        updated_at: '2026-04-15T09:00:00Z',
+        document: {
+          ...baseDocument,
+          graph: {
+            nodes: [
+              ...baseDocument.graph.nodes,
+              {
+                id: 'node-iteration',
+                type: 'iteration' as const,
+                alias: 'Iteration',
+                containerId: null,
+                position: { x: 920, y: 220 },
+                configVersion: 1,
+                config: {},
+                bindings: {},
+                outputs: [{ key: 'result', title: '聚合输出', valueType: 'array' }]
+              },
+              {
+                id: 'node-inner-answer',
+                type: 'answer' as const,
+                alias: 'Inner Answer',
+                containerId: 'node-iteration',
+                position: { x: 360, y: 220 },
+                configVersion: 1,
+                config: {},
+                bindings: {},
+                outputs: [{ key: 'answer', title: '对话输出', valueType: 'string' }]
+              }
+            ],
+            edges: baseDocument.graph.edges
+          }
+        }
+      },
+      versions: [],
+      autosave_interval_seconds: 30
+    };
+
+    render(
+      <div style={{ width: 1280, height: 720 }}>
+        <AgentFlowEditorShell
+          applicationId="app-1"
+          applicationName="Support Agent"
+          initialState={iterationState}
+        />
+      </div>
+    );
+
+    fireEvent.doubleClick(await screen.findByText('Iteration'));
+    expect(screen.getByRole('button', { name: '返回主画布' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Inner Answer' })).toBeInTheDocument();
+    expect(screen.queryByText('Start')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '返回主画布' }));
+    expect(screen.getByText('Start')).toBeInTheDocument();
+  });
 });

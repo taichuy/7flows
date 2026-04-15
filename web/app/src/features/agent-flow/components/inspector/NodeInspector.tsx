@@ -189,14 +189,17 @@ export function NodeInspector({
     return null;
   }
 
+  const activeNode = selectedNode;
+  const activeDefinition = definition;
+
   function updateField(fieldKey: string, value: unknown) {
     onDocumentChange(
-      updateNode(document, selectedNode.id, (node) => setFieldValue(node, fieldKey, value))
+      updateNode(document, activeNode.id, (node) => setFieldValue(node, fieldKey, value))
     );
   }
 
   function renderField(field: NodeDefinitionField) {
-    const fieldValue = getFieldValue(selectedNode, field.key);
+    const fieldValue = getFieldValue(activeNode, field.key);
 
     switch (field.editor) {
       case 'text':
@@ -322,7 +325,7 @@ export function NodeInspector({
       <div className="agent-flow-editor__inspector-header">
         <Typography.Text type="secondary">节点配置</Typography.Text>
         <Typography.Title className="agent-flow-editor__inspector-title" level={5}>
-          {selectedNode.alias}
+          {activeNode.alias}
         </Typography.Title>
       </div>
       <Collapse
@@ -333,7 +336,7 @@ export function NodeInspector({
             Array.isArray(nextActiveKeys) ? nextActiveKeys.map(String) as InspectorSectionKey[] : []
           )
         }
-        items={definition.sections.map((section) => ({
+        items={activeDefinition.sections.map((section) => ({
           key: section.key,
           label: section.title,
           children: (

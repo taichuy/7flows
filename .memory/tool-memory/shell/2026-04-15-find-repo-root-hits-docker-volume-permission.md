@@ -13,8 +13,8 @@ match_when:
   - `find .` 输出包含 `权限不够`
   - 命中 `docker/volumes/postgres` 或 `docker/volumes/redis/appendonlydir`
 created_at: 2026-04-15 10
-updated_at: 2026-04-15 10
-last_verified_at: 2026-04-15 10
+updated_at: 2026-04-15 16
+last_verified_at: 2026-04-15 16
 decision_policy: reference_on_failure
 scope:
   - shell
@@ -61,3 +61,4 @@ find . -path './docker/volumes' -prune -o -name 'AGENTS.md' -print
 ## 复现记录
 
 - `2026-04-15 10`：为定位 Scalar 相关文件和依赖安装路径，在仓库根直接执行 `find .`，命中 `docker/volumes` 权限目录；随后改为限域搜索恢复正常。
+- `2026-04-15 16`：为定位仓库内所有 `AGENTS.md`，在仓库根直接执行 `find . -name AGENTS.md | sort`，再次命中 `docker/volumes/postgres` 与 `docker/volumes/redis/appendonlydir`；后续应优先改用 `rg --files | rg '(^|/)AGENTS\\.md$'`，或在 `find` 中显式 `-prune` 掉 `docker/volumes`。

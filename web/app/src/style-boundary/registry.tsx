@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Menu } from 'antd';
+import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
 
 import { AppRouterProvider } from '../app/router';
 import { AppShellFrame } from '../app-shell/AppShellFrame';
@@ -195,6 +196,29 @@ function seedStyleBoundaryApplicationFetch() {
         : input instanceof Request
           ? input.url
           : String(input);
+
+    if (url.includes('/api/console/applications/app-1/orchestration')) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            flow_id: 'flow-1',
+            draft: {
+              id: 'draft-1',
+              flow_id: 'flow-1',
+              updated_at: '2026-04-15T09:00:00Z',
+              document: createDefaultAgentFlowDocument({ flowId: 'flow-1' })
+            },
+            versions: [],
+            autosave_interval_seconds: 30
+          },
+          meta: null
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
 
     if (url.includes('/api/console/applications/app-1')) {
       return new Response(

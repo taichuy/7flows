@@ -175,18 +175,27 @@ export function createDefaultAgentFlowDocument({
   };
 }
 
+function omitKey<T extends object, K extends keyof T>(
+  value: T,
+  key: K
+): Omit<T, K> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([entryKey]) => entryKey !== String(key))
+  ) as Omit<T, K>;
+}
+
 function stripLayout(document: FlowAuthoringDocument) {
   return {
     ...document,
     graph: {
-      nodes: document.graph.nodes.map(({ position, ...node }) => node),
-      edges: document.graph.edges.map(({ points, ...edge }) => edge)
+      nodes: document.graph.nodes.map((node) => omitKey(node, 'position')),
+      edges: document.graph.edges.map((edge) => omitKey(edge, 'points'))
     },
     editor: {
       ...document.editor,
       viewport: { x: 0, y: 0, zoom: 1 },
-      annotations: document.editor.annotations.map(
-        ({ position, ...annotation }) => annotation
+      annotations: document.editor.annotations.map((annotation) =>
+        omitKey(annotation, 'position')
       )
     }
   };

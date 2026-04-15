@@ -11,22 +11,25 @@ import {
 } from '../../lib/default-agent-flow-document';
 import {
   agentFlowNodeTypes,
-  type AgentFlowCanvasNode,
   toCanvasEdges,
   toCanvasNodes
 } from '../nodes/node-registry';
 
 interface AgentFlowCanvasProps {
+  activeContainerId: string | null;
   document: FlowAuthoringDocument;
   issueCountByNodeId: Record<string, number>;
   selectedNodeId: string | null;
+  onOpenContainer: (nodeId: string) => void;
   onSelectNode: (nodeId: string | null) => void;
   onDocumentChange: (document: FlowAuthoringDocument) => void;
 }
 
 function AgentFlowCanvasInner({
+  activeContainerId,
   document,
   issueCountByNodeId,
+  onOpenContainer,
   selectedNodeId,
   onSelectNode,
   onDocumentChange
@@ -35,9 +38,16 @@ function AgentFlowCanvasInner({
 
   const nodes = useMemo(
     () =>
-      toCanvasNodes(document, selectedNodeId, pickerNodeId, issueCountByNodeId, {
+      toCanvasNodes(
+        document,
+        activeContainerId,
+        selectedNodeId,
+        pickerNodeId,
+        issueCountByNodeId,
+        {
         onOpenPicker: setPickerNodeId,
         onClosePicker: () => setPickerNodeId(null),
+        onOpenContainer,
         onSelectNode: (nodeId) => {
           onSelectNode(nodeId);
           setPickerNodeId(null);
@@ -63,15 +73,20 @@ function AgentFlowCanvasInner({
         }
       }),
     [
+      activeContainerId,
       document,
       issueCountByNodeId,
+      onOpenContainer,
       onDocumentChange,
       onSelectNode,
       pickerNodeId,
       selectedNodeId
     ]
   );
-  const edges = useMemo(() => toCanvasEdges(document), [document]);
+  const edges = useMemo(
+    () => toCanvasEdges(document, activeContainerId),
+    [activeContainerId, document]
+  );
 
   return (
     <div className="agent-flow-canvas">

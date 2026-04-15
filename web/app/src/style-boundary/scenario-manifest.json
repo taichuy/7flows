@@ -96,6 +96,10 @@
       "web/app/src/features/applications/pages/ApplicationDetailPage.tsx",
       "web/app/src/features/applications/components/ApplicationSectionState.tsx",
       "web/app/src/features/applications/lib/application-sections.tsx",
+      "web/app/src/features/agent-flow/pages/AgentFlowEditorPage.tsx",
+      "web/app/src/features/agent-flow/components/editor/AgentFlowEditorShell.tsx",
+      "web/app/src/features/agent-flow/components/editor/AgentFlowCanvas.tsx",
+      "web/app/src/features/agent-flow/components/editor/agent-flow-editor.css",
       "web/app/src/style-boundary/registry.tsx",
       "web/app/src/app/router.tsx"
     ],
@@ -117,6 +121,16 @@
           {
             "property": "display",
             "expected": "flex"
+          }
+        ]
+      },
+      {
+        "id": "editor-shell",
+        "selector": ".agent-flow-editor__shell",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "grid"
           }
         ]
       }

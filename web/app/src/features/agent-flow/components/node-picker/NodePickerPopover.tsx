@@ -9,7 +9,9 @@ const NODE_OPTIONS: Array<{ type: FlowNodeType; label: string }> = [
   { type: 'if_else', label: 'If / Else' },
   { type: 'http_request', label: 'HTTP Request' },
   { type: 'tool', label: 'Tool' },
-  { type: 'variable_assigner', label: 'Variable Assigner' }
+  { type: 'variable_assigner', label: 'Variable Assigner' },
+  { type: 'iteration', label: 'Iteration' },
+  { type: 'loop', label: 'Loop' }
 ];
 
 interface NodePickerPopoverProps {

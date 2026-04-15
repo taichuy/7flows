@@ -2,7 +2,7 @@ import type {
   ConsoleApplicationOrchestrationState,
   SaveConsoleApplicationDraftInput
 } from '@1flowse/api-client';
-import { Typography } from 'antd';
+import { Button, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 
 import { restoreVersion, saveDraft } from '../../api/orchestration';
@@ -29,6 +29,26 @@ interface AgentFlowEditorShellProps {
   ) => Promise<ConsoleApplicationOrchestrationState>;
 }
 
+function buildContainerPathForNode(
+  document: ConsoleApplicationOrchestrationState['draft']['document'],
+  nodeId: string | null
+) {
+  if (!nodeId) {
+    return [];
+  }
+
+  const path: string[] = [];
+  let currentNode = document.graph.nodes.find((node) => node.id === nodeId) ?? null;
+
+  while (currentNode?.containerId) {
+    path.unshift(currentNode.containerId);
+    currentNode =
+      document.graph.nodes.find((node) => node.id === currentNode?.containerId) ?? null;
+  }
+
+  return path;
+}
+
 export function AgentFlowEditorShell({
   applicationId,
   applicationName,
@@ -40,12 +60,14 @@ export function AgentFlowEditorShell({
   const [editorState, setEditorState] = useState(initialState);
   const [document, setDocument] = useState(initialState.draft.document);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>('node-llm');
+  const [containerPath, setContainerPath] = useState<string[]>([]);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [focusFieldKey, setFocusFieldKey] = useState<string | null>(null);
   const [openSectionKey, setOpenSectionKey] = useState<InspectorSectionKey | null>(null);
   const [restoring, setRestoring] = useState(false);
   const issues = useMemo(() => validateDocument(document), [document]);
+  const activeContainerId = containerPath.at(-1) ?? null;
   const issueCountByNodeId = useMemo(() => {
     const counts: Record<string, number> = {};
 
@@ -95,6 +117,7 @@ export function AgentFlowEditorShell({
 
       setEditorState(nextState);
       setDocument(nextState.draft.document);
+      setContainerPath([]);
       setHistoryOpen(false);
     } finally {
       setRestoring(false);
@@ -108,9 +131,23 @@ export function AgentFlowEditorShell({
       return;
     }
 
+    setContainerPath(buildContainerPathForNode(document, issue.nodeId));
     setSelectedNodeId(issue.nodeId);
     setOpenSectionKey(issue.sectionKey ?? null);
     setFocusFieldKey(issue.fieldKey ?? null);
+  }
+
+  function handleOpenContainer(nodeId: string) {
+    setContainerPath((previous) => [...previous, nodeId]);
+    const firstChildNode =
+      document.graph.nodes.find((node) => node.containerId === nodeId)?.id ?? null;
+    setSelectedNodeId(firstChildNode);
+  }
+
+  function handleReturnToRootCanvas() {
+    const currentContainerId = containerPath.at(-1) ?? null;
+    setContainerPath([]);
+    setSelectedNodeId(currentContainerId);
   }
 
   return (
@@ -128,12 +165,22 @@ export function AgentFlowEditorShell({
         onOpenPublish={() => undefined}
         publishDisabled={false}
       />
+      {activeContainerId ? (
+        <div className="agent-flow-editor__breadcrumb">
+          <Button onClick={handleReturnToRootCanvas}>返回主画布</Button>
+          <Typography.Text type="secondary">
+            当前位于容器节点 {document.graph.nodes.find((node) => node.id === activeContainerId)?.alias}
+          </Typography.Text>
+        </div>
+      ) : null}
       <div
-        className={`agent-flow-editor__body${selectedNodeId ? ' agent-flow-editor__body--with-inspector' : ''}`}
+        className={`agent-flow-editor__body agent-flow-editor__shell${selectedNodeId ? ' agent-flow-editor__body--with-inspector' : ''}`}
       >
         <AgentFlowCanvas
+          activeContainerId={activeContainerId}
           document={document}
           issueCountByNodeId={issueCountByNodeId}
+          onOpenContainer={handleOpenContainer}
           selectedNodeId={selectedNodeId}
           onSelectNode={setSelectedNodeId}
           onDocumentChange={setDocument}

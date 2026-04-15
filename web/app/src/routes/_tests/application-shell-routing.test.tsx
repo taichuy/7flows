@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import { Grid } from 'antd';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { ApiClientError } from '@1flowse/api-client';
@@ -159,15 +160,24 @@ describe('application shell routing', () => {
   });
 
   test('renders the editor page inside orchestration', async () => {
-    window.history.pushState({}, '', '/applications/app-1/orchestration');
-    render(
-      <AppProviders>
-        <AppRouterProvider />
-      </AppProviders>
-    );
+    const desktopBreakpoints = vi
+      .spyOn(Grid, 'useBreakpoint')
+      .mockReturnValue({ lg: true } as never);
 
-    expect(await screen.findByText('30 秒自动保存')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Issues' })).toBeInTheDocument();
+    window.history.pushState({}, '', '/applications/app-1/orchestration');
+
+    try {
+      render(
+        <AppProviders>
+          <AppRouterProvider />
+        </AppProviders>
+      );
+
+      expect(await screen.findByText('30 秒自动保存')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Issues' })).toBeInTheDocument();
+    } finally {
+      desktopBreakpoints.mockRestore();
+    }
   });
 
   test('renders formal 403 state for inaccessible applications', async () => {

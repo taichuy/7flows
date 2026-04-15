@@ -34,6 +34,12 @@
   grid-template-columns: minmax(0, 1fr) 320px;
 }
 
+.agent-flow-editor__breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .agent-flow-editor__inspector {
   display: flex;
   flex-direction: column;

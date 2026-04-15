@@ -16,7 +16,14 @@ export function IssuesDrawer({
   onSelectIssue
 }: IssuesDrawerProps) {
   return (
-    <Drawer open={open} placement="right" title="Issues" width={360} onClose={onClose}>
+    <Drawer
+      getContainer={false}
+      open={open}
+      placement="right"
+      title="Issues"
+      width={360}
+      onClose={onClose}
+    >
       <List
         dataSource={issues}
         locale={{ emptyText: '当前草稿没有静态问题' }}

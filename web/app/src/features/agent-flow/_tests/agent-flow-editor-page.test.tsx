@@ -1,9 +1,13 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { Grid } from 'antd';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { AppProviders } from '../../../app/AppProviders';
+import * as orchestrationApi from '../api/orchestration';
 import { VersionHistoryDrawer } from '../components/history/VersionHistoryDrawer';
 import { AgentFlowEditorShell } from '../components/editor/AgentFlowEditorShell';
+import { AgentFlowEditorPage } from '../pages/AgentFlowEditorPage';
 import { useEditorAutosave } from '../hooks/useEditorAutosave';
 
 function createInitialState() {
@@ -162,5 +166,24 @@ describe('AgentFlowEditorShell', () => {
     fireEvent.click(screen.getByRole('button', { name: '恢复版本 1' }));
 
     expect(restoreVersion).toHaveBeenCalledWith('version-1');
+  });
+
+  test('shows a desktop-only message on small screens', async () => {
+    vi.spyOn(Grid, 'useBreakpoint').mockReturnValueOnce({ lg: false } as never);
+    vi.spyOn(orchestrationApi, 'fetchOrchestrationState').mockResolvedValueOnce(
+      createInitialState()
+    );
+
+    render(
+      <AppProviders>
+        <AgentFlowEditorPage
+          applicationId="app-1"
+          applicationName="Support Agent"
+          apiCapabilityStatus="planned"
+        />
+      </AppProviders>
+    );
+
+    expect(await screen.findByText('请使用桌面端编辑')).toBeInTheDocument();
   });
 });

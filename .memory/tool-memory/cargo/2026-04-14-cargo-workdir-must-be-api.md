@@ -12,8 +12,8 @@ match_when:
   - 需要在本仓库执行任何 `cargo test`、`cargo check`、`cargo fmt`
   - 命令在仓库根直接报 `could not find Cargo.toml`
 created_at: 2026-04-14 21
-updated_at: 2026-04-14 21
-last_verified_at: 2026-04-14 21
+updated_at: 2026-04-15 16
+last_verified_at: 2026-04-15 16
 decision_policy: reference_on_failure
 scope:
   - cargo
@@ -52,3 +52,4 @@ scope:
 ## 复现记录
 
 - `2026-04-14 21`：为了回归 settings API docs 的后端 registry 测试，先在仓库根直接执行 `cargo test -p api-server ...`，命中 `could not find Cargo.toml`；改到 `api/` 目录后测试立即通过。
+- `2026-04-15 16`：为执行 agentflow editor Task 7 的后端回归，先在仓库根执行 `cargo test -p api-server application_orchestration_routes -v`，再次命中 `could not find Cargo.toml`；切到 `api/` 目录后命令正常进入真实测试阶段。

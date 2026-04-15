@@ -377,6 +377,60 @@ export const nodeDefinitions: Partial<Record<FlowNodeType, NodeDefinition>> = {
       }
     ]
   },
+  iteration: {
+    label: 'Iteration',
+    sections: [
+      {
+        key: 'basics',
+        title: 'Basics',
+        fields: [{ key: 'alias', label: '节点名称', editor: 'text', required: true }]
+      },
+      {
+        key: 'inputs',
+        title: 'Inputs',
+        fields: [
+          { key: 'bindings.items', label: '循环列表', editor: 'selector', required: true }
+        ]
+      },
+      {
+        key: 'outputs',
+        title: 'Outputs',
+        fields: [{ key: 'outputs.result', label: '聚合输出', editor: 'text', required: true }]
+      }
+    ]
+  },
+  loop: {
+    label: 'Loop',
+    sections: [
+      {
+        key: 'basics',
+        title: 'Basics',
+        fields: [{ key: 'alias', label: '节点名称', editor: 'text', required: true }]
+      },
+      {
+        key: 'inputs',
+        title: 'Inputs',
+        fields: [
+          {
+            key: 'bindings.entry_condition',
+            label: '入口条件',
+            editor: 'condition_group',
+            required: true
+          }
+        ]
+      },
+      {
+        key: 'policy',
+        title: 'Policy',
+        fields: [{ key: 'config.max_rounds', label: '最大轮数', editor: 'number' }]
+      },
+      {
+        key: 'outputs',
+        title: 'Outputs',
+        fields: [{ key: 'outputs.result', label: '聚合输出', editor: 'text', required: true }]
+      }
+    ]
+  },
   human_input: {
     label: 'Human Input',
     sections: [

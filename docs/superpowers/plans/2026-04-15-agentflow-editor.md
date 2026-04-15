@@ -1990,7 +1990,7 @@ git commit -m "feat: add agent flow autosave and history"
 - Modify: `web/app/src/style-boundary/registry.tsx`
 - Modify: `web/app/src/style-boundary/scenario-manifest.json`
 
-- [ ] **Step 1: Write the failing container-navigation and mobile-fallback tests**
+- [x] **Step 1: Write the failing container-navigation and mobile-fallback tests**
 
 ```tsx
 test('focuses the iteration child canvas and returns through breadcrumb', async () => {
@@ -2059,7 +2059,7 @@ test('shows a desktop-only message on small screens', async () => {
 });
 ```
 
-- [ ] **Step 2: Implement Iteration and Loop child-canvas focus plus mobile downgrade**
+- [x] **Step 2: Implement Iteration and Loop child-canvas focus plus mobile downgrade**
 
 ```tsx
 // web/app/src/features/agent-flow/components/editor/AgentFlowEditorShell.tsx
@@ -2149,7 +2149,15 @@ node scripts/node/check-style-boundary.js file web/app/src/features/agent-flow/c
 
 Expected: backend flow routes pass; frontend lint, targeted editor tests, and build pass; the updated application detail scene and the new editor stylesheet both pass style-boundary regression.
 
-- [ ] **Step 4: Commit**
+Status note (`2026-04-15 16`):
+
+- `pnpm --dir web lint` passed.
+- Targeted frontend `vitest` suite passed.
+- `pnpm --dir web/app build` passed.
+- `node scripts/node/check-style-boundary.js page page.application-detail` and `node scripts/node/check-style-boundary.js file web/app/src/features/agent-flow/components/editor/agent-flow-editor.css` passed.
+- `cargo test -p api-server application_orchestration_routes -v` and `cargo test -p storage-pg flow_repository_tests -v` are still blocked in this session by local PostgreSQL access on `127.0.0.1:35432` returning `Connection reset by peer`, so this verification step is not closed yet.
+
+- [x] **Step 4: Commit**
 
 ```bash
 git add web/app/src/features/agent-flow/components/editor/AgentFlowEditorShell.tsx web/app/src/features/agent-flow/components/editor/AgentFlowCanvas.tsx web/app/src/features/agent-flow/lib/node-definitions.tsx web/app/src/features/agent-flow/lib/default-agent-flow-document.ts web/app/src/features/agent-flow/_tests/agent-flow-canvas.test.tsx web/app/src/features/agent-flow/_tests/agent-flow-editor-page.test.tsx web/app/src/style-boundary/registry.tsx web/app/src/style-boundary/scenario-manifest.json

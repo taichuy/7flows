@@ -23,7 +23,14 @@ export function VersionHistoryDrawer({
   onRestore
 }: VersionHistoryDrawerProps) {
   return (
-    <Drawer open={open} placement="right" title="历史版本" width={420} onClose={onClose}>
+    <Drawer
+      getContainer={false}
+      open={open}
+      placement="right"
+      title="历史版本"
+      width={420}
+      onClose={onClose}
+    >
       <List
         dataSource={versions}
         locale={{ emptyText: '当前还没有可恢复的历史版本' }}

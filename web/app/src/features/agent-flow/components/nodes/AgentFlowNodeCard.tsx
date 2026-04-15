@@ -13,6 +13,11 @@ export function AgentFlowNodeCard({
       role="button"
       tabIndex={0}
       onClick={() => data.onSelectNode(data.nodeId)}
+      onDoubleClick={() => {
+        if (data.canEnterContainer) {
+          data.onOpenContainer(data.nodeId);
+        }
+      }}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
