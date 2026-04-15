@@ -926,12 +926,14 @@ DATABASE_URL='postgres://postgres:sevenflows@127.0.0.1:35433/sevenflows' cargo t
 
 - Result: `control-plane` target tests `2 passed`; `storage-pg` target tests `3 passed`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add api/crates/domain/src/flow.rs api/crates/domain/src/lib.rs api/crates/control-plane/src/flow.rs api/crates/control-plane/src/lib.rs api/crates/control-plane/src/ports.rs api/crates/control-plane/src/application.rs api/crates/control-plane/src/_tests/mod.rs api/crates/control-plane/src/_tests/flow_service_tests.rs api/crates/storage-pg/src/flow_repository.rs api/crates/storage-pg/src/mappers/flow_mapper.rs api/crates/storage-pg/src/mappers/mod.rs api/crates/storage-pg/src/lib.rs api/crates/storage-pg/src/repositories.rs api/crates/storage-pg/src/application_repository.rs api/crates/storage-pg/src/_tests/mod.rs api/crates/storage-pg/src/_tests/flow_repository_tests.rs api/crates/storage-pg/migrations/20260415113000_create_flow_tables.sql
 git commit -m "feat: persist agent flow drafts and history"
 ```
+
+Commit note (`2026-04-15 15:48`): committed as `32417e2d feat: persist agent flow drafts and history`.
 
 ## Task 3: Expose Orchestration Endpoints And Mount The Editor Page
 
@@ -950,7 +952,7 @@ git commit -m "feat: persist agent flow drafts and history"
 - Modify: `web/app/src/app/router.tsx`
 - Modify: `web/app/src/routes/_tests/application-shell-routing.test.tsx`
 
-- [ ] **Step 1: Write the failing API route and routing tests**
+- [x] **Step 1: Write the failing API route and routing tests**
 
 ```rust
 #[tokio::test]
@@ -1016,7 +1018,7 @@ test('renders the editor page inside orchestration', async () => {
 });
 ```
 
-- [ ] **Step 2: Implement the orchestration API routes and wire them into the console router**
+- [x] **Step 2: Implement the orchestration API routes and wire them into the console router**
 
 ```rust
 use std::sync::Arc;
@@ -1100,7 +1102,7 @@ pub async fn save_draft(
 }
 ```
 
-- [ ] **Step 3: Add frontend orchestration query helpers and mount the editor page**
+- [x] **Step 3: Add frontend orchestration query helpers and mount the editor page**
 
 ```ts
 // web/app/src/features/agent-flow/api/orchestration.ts
@@ -1175,7 +1177,7 @@ return (
 );
 ```
 
-- [ ] **Step 4: Run the targeted API and routing tests**
+- [x] **Step 4: Run the targeted API and routing tests**
 
 Run:
 
@@ -1185,6 +1187,29 @@ pnpm --dir web/app exec vitest run src/routes/_tests/application-shell-routing.t
 ```
 
 Expected: the backend returns orchestration state, draft save, and restore routes; the frontend mounts the editor page only for the orchestration section and keeps the other three sections on the existing state panels.
+
+Execution note (`2026-04-15 15:51`):
+
+- `api/apps/api-server/src/_tests/support.rs` had to be updated so test config prefers process env vars before falling back to the default local URLs; otherwise route tests were hard-wired to the broken `127.0.0.1:35432` mapping and never reached the orchestration handlers.
+- Backend verification ran with:
+
+```bash
+API_DATABASE_URL='postgres://postgres:sevenflows@127.0.0.1:35433/sevenflows' \
+API_REDIS_URL='redis://:sevenflows@127.0.0.1:36379' \
+BOOTSTRAP_ROOT_ACCOUNT='root' \
+BOOTSTRAP_ROOT_EMAIL='root@example.com' \
+BOOTSTRAP_ROOT_PASSWORD='change-me' \
+BOOTSTRAP_WORKSPACE_NAME='1Flowse' \
+cargo test -p api-server application_orchestration_routes -v
+```
+
+- Frontend verification ran with:
+
+```bash
+pnpm --dir web/app exec vitest run src/routes/_tests/application-shell-routing.test.tsx -v
+```
+
+- Result: backend `1 passed`; frontend route suite `4 passed`.
 
 - [ ] **Step 5: Commit**
 

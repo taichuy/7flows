@@ -16,6 +16,17 @@ const applicationApi = vi.hoisted(() => ({
 
 vi.mock('../../features/applications/api/applications', () => applicationApi);
 
+const orchestrationApi = vi.hoisted(() => ({
+  orchestrationQueryKey: (applicationId: string) => [
+    'applications',
+    applicationId,
+    'orchestration'
+  ],
+  fetchOrchestrationState: vi.fn()
+}));
+
+vi.mock('../../features/agent-flow/api/orchestration', () => orchestrationApi);
+
 function authenticate() {
   useAuthStore.getState().setAuthenticated({
     csrfToken: 'csrf-123',
@@ -86,6 +97,35 @@ describe('application shell routing', () => {
         }
       }
     });
+    orchestrationApi.fetchOrchestrationState.mockReset();
+    orchestrationApi.fetchOrchestrationState.mockResolvedValue({
+      flow_id: 'flow-1',
+      draft: {
+        id: 'draft-1',
+        flow_id: 'flow-1',
+        updated_at: '2026-04-15T09:00:00Z',
+        document: {
+          schemaVersion: '1flowse.flow/v1',
+          meta: {
+            flowId: 'flow-1',
+            name: 'Untitled agentFlow',
+            description: '',
+            tags: []
+          },
+          graph: {
+            nodes: [],
+            edges: []
+          },
+          editor: {
+            viewport: { x: 0, y: 0, zoom: 1 },
+            annotations: [],
+            activeContainerPath: []
+          }
+        }
+      },
+      versions: [],
+      autosave_interval_seconds: 30
+    });
   });
 
   test('redirects /applications/:id to orchestration', async () => {
@@ -114,6 +154,18 @@ describe('application shell routing', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Section navigation' })).toBeInTheDocument();
     expect(screen.getByText(/API Key 绑定应用/i)).toBeInTheDocument();
+  });
+
+  test('renders the editor page inside orchestration', async () => {
+    window.history.pushState({}, '', '/applications/app-1/orchestration');
+    render(
+      <AppProviders>
+        <AppRouterProvider />
+      </AppProviders>
+    );
+
+    expect(await screen.findByText('30 秒自动保存')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Issues' })).toBeInTheDocument();
   });
 
   test('renders formal 403 state for inaccessible applications', async () => {

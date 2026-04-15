@@ -1,10 +1,12 @@
 use anyhow::{anyhow, Result};
 use domain::{
     ApplicationApiSection, ApplicationLogsSection, ApplicationMonitoringSection,
-    ApplicationOrchestrationSection, ApplicationRecord, ApplicationSections, ApplicationType,
+    ApplicationRecord, ApplicationSections, ApplicationType,
 };
 use time::OffsetDateTime;
 use uuid::Uuid;
+
+use super::flow_mapper::flow_sections;
 
 #[derive(Debug, Clone)]
 pub struct StoredApplicationRow {
@@ -18,6 +20,8 @@ pub struct StoredApplicationRow {
     pub icon_background: Option<String>,
     pub created_by: Uuid,
     pub updated_at: OffsetDateTime,
+    pub current_flow_id: Option<Uuid>,
+    pub current_draft_id: Option<Uuid>,
 }
 
 pub struct PgApplicationMapper;
@@ -37,7 +41,11 @@ impl PgApplicationMapper {
             icon_background: row.icon_background,
             created_by: row.created_by,
             updated_at: row.updated_at,
-            sections: planned_sections(application_type),
+            sections: flow_sections(
+                application_type,
+                row.current_flow_id,
+                row.current_draft_id,
+            ),
         })
     }
 }
@@ -52,13 +60,7 @@ pub fn parse_application_type(value: &str) -> Result<ApplicationType> {
 
 pub fn planned_sections(application_type: ApplicationType) -> ApplicationSections {
     ApplicationSections {
-        orchestration: ApplicationOrchestrationSection {
-            status: "planned".to_string(),
-            subject_kind: application_type.as_str().to_string(),
-            subject_status: "unconfigured".to_string(),
-            current_subject_id: None,
-            current_draft_id: None,
-        },
+        orchestration: flow_sections(application_type, None, None).orchestration,
         api: ApplicationApiSection {
             status: "planned".to_string(),
             credential_kind: "application_api_key".to_string(),

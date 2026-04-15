@@ -19,16 +19,25 @@ use crate::{
 };
 
 fn default_test_config() -> ApiConfig {
+    let database_url = std::env::var("API_DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows".into());
+    let redis_url =
+        std::env::var("API_REDIS_URL").unwrap_or_else(|_| "redis://:sevenflows@127.0.0.1:36379".into());
+    let root_account = std::env::var("BOOTSTRAP_ROOT_ACCOUNT").unwrap_or_else(|_| "root".into());
+    let root_email =
+        std::env::var("BOOTSTRAP_ROOT_EMAIL").unwrap_or_else(|_| "root@example.com".into());
+    let root_password =
+        std::env::var("BOOTSTRAP_ROOT_PASSWORD").unwrap_or_else(|_| "change-me".into());
+    let workspace_name =
+        std::env::var("BOOTSTRAP_WORKSPACE_NAME").unwrap_or_else(|_| "1Flowse".into());
+
     ApiConfig::from_env_map(&[
-        (
-            "API_DATABASE_URL",
-            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
-        ),
-        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
-        ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
-        ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
-        ("BOOTSTRAP_ROOT_PASSWORD", "change-me"),
-        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowse"),
+        ("API_DATABASE_URL", database_url.as_str()),
+        ("API_REDIS_URL", redis_url.as_str()),
+        ("BOOTSTRAP_ROOT_ACCOUNT", root_account.as_str()),
+        ("BOOTSTRAP_ROOT_EMAIL", root_email.as_str()),
+        ("BOOTSTRAP_ROOT_PASSWORD", root_password.as_str()),
+        ("BOOTSTRAP_WORKSPACE_NAME", workspace_name.as_str()),
     ])
     .unwrap()
 }

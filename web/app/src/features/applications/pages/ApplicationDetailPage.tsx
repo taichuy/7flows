@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Result } from 'antd';
 
 import { ApiClientError } from '@1flowse/api-client';
+import { AgentFlowEditorPage } from '../../agent-flow/pages/AgentFlowEditorPage';
 import { PermissionDeniedState } from '../../../shared/ui/PermissionDeniedState';
 import { SectionPageLayout } from '../../../shared/ui/section-page-layout/SectionPageLayout';
 import { applicationDetailQueryKey, fetchApplicationDetail } from '../api/applications';
@@ -42,6 +43,19 @@ export function ApplicationDetailPage({
   }
 
   const application = detailQuery.data;
+  const content =
+    requestedSectionKey === 'orchestration' ? (
+      <AgentFlowEditorPage
+        applicationId={applicationId}
+        applicationName={application.name}
+        apiCapabilityStatus={application.sections.api.api_capability_status}
+      />
+    ) : (
+      <ApplicationSectionState
+        application={application}
+        sectionKey={requestedSectionKey}
+      />
+    );
 
   return (
     <SectionPageLayout
@@ -50,10 +64,7 @@ export function ApplicationDetailPage({
       activeKey={requestedSectionKey}
       contentWidth="wide"
     >
-      <ApplicationSectionState
-        application={application}
-        sectionKey={requestedSectionKey}
-      />
+      {content}
     </SectionPageLayout>
   );
 }
