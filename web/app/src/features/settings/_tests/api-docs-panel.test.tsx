@@ -69,6 +69,7 @@ vi.mock('@scalar/api-reference-react', () => ({
 
 import { AppProviders } from '../../../app/AppProviders';
 import { ApiDocsPanel } from '../components/ApiDocsPanel';
+import { normalizeScalarClipboardText } from '../lib/scalar-clipboard';
 
 const catalogPayload = {
   title: '1Flowse API',
@@ -428,5 +429,18 @@ describe('ApiDocsPanel', () => {
 
     expect(cssSource).not.toContain('min-height: 720px');
     expect(cssSource).not.toContain('overflow: hidden');
+  });
+
+  test('normalizes Scalar deep links into raw endpoint paths before copying', () => {
+    expect(
+      normalizeScalarClipboardText(
+        'http://192.168.184.130:3100/settings/docs?category=runtime&operation=create_record#tag/crateroutesruntime_models/POST/api/runtime/models/{model_code}/records'
+      )
+    ).toBe('/api/runtime/models/{model_code}/records');
+    expect(
+      normalizeScalarClipboardText(
+        'http://192.168.184.130:3100/settings/docs?category=runtime#GET/api/runtime/jobs'
+      )
+    ).toBe('/api/runtime/jobs');
   });
 });

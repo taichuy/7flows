@@ -10,6 +10,10 @@ import {
   fetchCurrentSession,
   getScalarApiBaseUrl
 } from '../../auth/api/session';
+import { installScalarClipboardPatch } from '../lib/scalar-clipboard';
+
+installScalarClipboardPatch();
+
 import {
   fetchSettingsApiDocsCatalog,
   fetchSettingsApiDocsCategoryOperations,
@@ -436,7 +440,7 @@ export function ApiDocsPanel() {
                 >
                   <span className="api-docs-panel__list-button-main">
                     <span className="api-docs-panel__operation-heading">
-                      <span className="api-docs-panel__operation-method">
+                      <span className={`api-docs-panel__operation-method api-docs-panel__operation-method--${operation.method.toLowerCase()}`}>
                         {operation.method}
                       </span>
                       <span className="api-docs-panel__operation-path">
