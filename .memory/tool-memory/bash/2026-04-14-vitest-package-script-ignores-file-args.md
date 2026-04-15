@@ -14,8 +14,8 @@ match_when:
   - 使用 `pnpm --dir web/app test -- <file>` 后发现仍然执行全套测试
   - 需要精确定向验证前端改动
 created_at: 2026-04-14 15
-updated_at: 2026-04-14 15
-last_verified_at: 2026-04-14 15
+updated_at: 2026-04-16 07
+last_verified_at: 2026-04-16 07
 decision_policy: reference_on_failure
 scope:
   - bash
@@ -54,3 +54,4 @@ scope:
 ## 复现记录
 
 - `2026-04-14 15`：实现共享壳计划时，`pnpm --dir web/app test -- <file...>` 意外跑了整套测试；改用 `pnpm --dir web/app exec vitest run <file...>` 后定向验证恢复正常。
+- `2026-04-16 07`：调整 `agent-flow` 节点检查器时，执行 `pnpm --dir web/app test -- node-inspector.test.tsx` 仍然触发整套 `web/app` 测试；继续改用 `pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/node-inspector.test.tsx ...` 后，成功只跑目标文件。

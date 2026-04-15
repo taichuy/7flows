@@ -10,7 +10,7 @@ import {
 import { NodeInspector } from '../components/inspector/NodeInspector';
 
 describe('NodeInspector', () => {
-  test('renders unified Basics Inputs Outputs Policy Advanced sections for an LLM node', () => {
+  test('renders node alias and description in the inspector header while keeping config sections below', () => {
     render(
       <NodeInspector
         document={createDefaultAgentFlowDocument({ flowId: 'flow-1' })}
@@ -19,7 +19,9 @@ describe('NodeInspector', () => {
       />
     );
 
-    expect(screen.getByText('Basics')).toBeInTheDocument();
+    expect(screen.queryByText('Basics')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('节点别名')).toHaveValue('LLM');
+    expect(screen.getByLabelText('节点简介')).toHaveValue('');
     expect(screen.getByText('Inputs')).toBeInTheDocument();
     expect(screen.getByText('Outputs')).toBeInTheDocument();
     expect(screen.getByText('Policy')).toBeInTheDocument();
@@ -27,7 +29,7 @@ describe('NodeInspector', () => {
     expect(screen.getByLabelText('System Prompt')).toBeInTheDocument();
   });
 
-  test('edits alias and description from the Basics section', () => {
+  test('edits alias and description from the inspector header', () => {
     const onDocumentChange = vi.fn();
 
     function Harness() {

@@ -29,6 +29,16 @@ interface NodeInspectorProps {
   onClose?: () => void;
 }
 
+function getVisibleSections(
+  sections: Array<{
+    key: InspectorSectionKey;
+    title: string;
+    fields: NodeDefinitionField[];
+  }>
+) {
+  return sections.filter((section) => section.key !== 'basics');
+}
+
 function updateNode(
   document: FlowAuthoringDocument,
   nodeId: string,
@@ -164,13 +174,16 @@ export function NodeInspector({
     ? document.graph.nodes.find((node) => node.id === selectedNodeId) ?? null
     : null;
   const definition = selectedNode ? nodeDefinitions[selectedNode.type] ?? null : null;
+  const visibleSections = definition ? getVisibleSections(definition.sections) : [];
   const selectorOptions = selectedNode
     ? listVisibleSelectorOptions(document, selectedNode.id)
     : [];
   const [activeSectionKeys, setActiveSectionKeys] = useState<InspectorSectionKey[]>([]);
 
   useEffect(() => {
-    setActiveSectionKeys(definition?.sections.map((section) => section.key) ?? []);
+    setActiveSectionKeys(
+      definition ? getVisibleSections(definition.sections).map((section) => section.key) : []
+    );
   }, [definition]);
 
   useEffect(() => {
@@ -336,20 +349,33 @@ export function NodeInspector({
 
   return (
     <aside ref={rootRef} className="agent-flow-editor__inspector">
-      <div className="agent-flow-editor__inspector-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div>
-          <Typography.Text type="secondary">节点配置</Typography.Text>
-          <Typography.Title className="agent-flow-editor__inspector-title" level={5}>
-            {activeNode.alias}
-          </Typography.Title>
-          {activeNode.description?.trim().length ? (
-            <Typography.Paragraph
-              className="agent-flow-editor__inspector-description"
-              type="secondary"
-            >
-              {activeNode.description}
-            </Typography.Paragraph>
-          ) : null}
+      <div className="agent-flow-editor__inspector-header">
+        <div className="agent-flow-editor__inspector-header-main">
+          <Typography.Text
+            className="agent-flow-editor__inspector-node-type"
+            type="secondary"
+          >
+            {activeDefinition.label}
+          </Typography.Text>
+          <div data-field-key="alias">
+            <Input
+              aria-label="节点别名"
+              className="agent-flow-editor__inspector-title-input"
+              placeholder="输入节点别名"
+              value={activeNode.alias}
+              onChange={(event) => updateField('alias', event.target.value)}
+            />
+          </div>
+          <div data-field-key="description">
+            <Input.TextArea
+              aria-label="节点简介"
+              autoSize={{ minRows: 1, maxRows: 3 }}
+              className="agent-flow-editor__inspector-description-input"
+              placeholder="添加节点简介..."
+              value={activeNode.description ?? ''}
+              onChange={(event) => updateField('description', event.target.value)}
+            />
+          </div>
         </div>
         {onClose && (
           <Button
@@ -368,7 +394,7 @@ export function NodeInspector({
             Array.isArray(nextActiveKeys) ? nextActiveKeys.map(String) as InspectorSectionKey[] : []
           )
         }
-        items={activeDefinition.sections.map((section) => ({
+        items={visibleSections.map((section) => ({
           key: section.key,
           label: section.title,
           children: (

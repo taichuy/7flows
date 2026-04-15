@@ -24,6 +24,11 @@
   box-shadow: none;
 }
 
+.agent-flow-editor__overlay-status {
+  display: flex;
+  align-items: center;
+}
+
 .agent-flow-editor__title.ant-typography {
   margin: 0;
 }
@@ -72,12 +77,71 @@
   overflow-y: auto;
 }
 
-.agent-flow-editor__inspector-title.ant-typography {
-  margin: 0;
+.agent-flow-editor__inspector-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.agent-flow-editor__inspector-description.ant-typography {
-  margin: 4px 0 0;
+.agent-flow-editor__inspector-header-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.agent-flow-editor__inspector-node-type.ant-typography {
+  margin: 0;
+  color: #60756a;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.agent-flow-editor__inspector-title-input.ant-input {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: #1f3326;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.agent-flow-editor__inspector-title-input.ant-input::placeholder {
+  color: #8ca095;
+}
+
+.agent-flow-editor__inspector-title-input.ant-input:hover,
+.agent-flow-editor__inspector-title-input.ant-input:focus {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.agent-flow-editor__inspector-description-input.ant-input {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  color: #60756a;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: none;
+}
+
+.agent-flow-editor__inspector-description-input.ant-input::placeholder {
+  color: #a1b1a8;
+}
+
+.agent-flow-editor__inspector-description-input.ant-input:hover,
+.agent-flow-editor__inspector-description-input.ant-input:focus {
+  border: none;
+  background: transparent;
+  box-shadow: none;
 }
 
 .agent-flow-editor__inspector-fields {
