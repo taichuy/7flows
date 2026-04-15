@@ -53,8 +53,10 @@ test('convertSkillSourceToClaudeSkill rewrites description into Claude block sca
 test('syncClaudeSkills writes each converted skill into .claude/skills/<name>/SKILL.md', () => {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-claude-skill-sync-'));
   const sourceSkillDir = path.join(repoRoot, '.agents', 'skills', 'backend-development');
+  const sourceReferencesDir = path.join(sourceSkillDir, 'references');
 
   fs.mkdirSync(sourceSkillDir, { recursive: true });
+  fs.mkdirSync(sourceReferencesDir, { recursive: true });
   fs.writeFileSync(
     path.join(sourceSkillDir, 'SKILL.md'),
     [
@@ -70,13 +72,23 @@ test('syncClaudeSkills writes each converted skill into .claude/skills/<name>/SK
     ].join('\n'),
     'utf8'
   );
+  fs.writeFileSync(path.join(sourceReferencesDir, 'api-design.md'), '# API Design\n', 'utf8');
 
   const result = syncClaudeSkills({ repoRoot });
   const targetFile = path.join(repoRoot, '.claude', 'skills', 'backend-development', 'SKILL.md');
+  const targetReferenceFile = path.join(
+    repoRoot,
+    '.claude',
+    'skills',
+    'backend-development',
+    'references',
+    'api-design.md'
+  );
 
   assert.equal(result.count, 1);
   assert.deepEqual(result.skillNames, ['backend-development']);
   assert.equal(fs.existsSync(targetFile), true);
+  assert.equal(fs.existsSync(targetReferenceFile), true);
   assert.equal(
     fs.readFileSync(targetFile, 'utf8'),
     [
@@ -92,4 +104,5 @@ test('syncClaudeSkills writes each converted skill into .claude/skills/<name>/SK
       '',
     ].join('\n')
   );
+  assert.equal(fs.readFileSync(targetReferenceFile, 'utf8'), '# API Design\n');
 });

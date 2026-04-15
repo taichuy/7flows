@@ -206,6 +206,11 @@ function listSkillFiles(sourceDir) {
   return skillFiles;
 }
 
+function copySkillSupportFiles(sourceSkillDir, targetSkillDir) {
+  fs.rmSync(targetSkillDir, { recursive: true, force: true });
+  fs.cpSync(sourceSkillDir, targetSkillDir, { recursive: true });
+}
+
 function syncClaudeSkills({
   repoRoot = getRepoRoot(),
   source = DEFAULT_SOURCE,
@@ -216,12 +221,14 @@ function syncClaudeSkills({
   const skillNames = [];
 
   for (const skillFile of skillFiles) {
-    const convertedSkill = convertSkillSourceToClaudeSkill(fs.readFileSync(skillFile, 'utf8'));
-    const { name } = parseSkillSource(fs.readFileSync(skillFile, 'utf8'));
+    const skillSource = fs.readFileSync(skillFile, 'utf8');
+    const convertedSkill = convertSkillSourceToClaudeSkill(skillSource);
+    const { name } = parseSkillSource(skillSource);
+    const sourceSkillDir = path.dirname(skillFile);
     const targetSkillDir = path.join(targetDir, name);
     const targetFile = path.join(targetSkillDir, SKILL_FILE_NAME);
 
-    fs.mkdirSync(targetSkillDir, { recursive: true });
+    copySkillSupportFiles(sourceSkillDir, targetSkillDir);
     fs.writeFileSync(targetFile, convertedSkill, 'utf8');
 
     skillNames.push(name);
@@ -262,6 +269,7 @@ module.exports = {
   DEFAULT_TARGET,
   SKILL_FILE_NAME,
   convertSkillSourceToClaudeSkill,
+  copySkillSupportFiles,
   extractFrontMatter,
   formatDescriptionBlockScalar,
   getRepoRoot,
