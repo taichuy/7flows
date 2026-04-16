@@ -1,127 +1,122 @@
 # 文档计划审计待讨论
 
-更新时间：`2026-04-17 03:08 CST`
+更新时间：`2026-04-17 05:06 CST`
 
-这次要讨论的重点已经变了：
+这轮待讨论重点不再是“有没有继续开发”，而是：
 
-- 不再是“`node detail` 还停在未提交工作树”
-- 而是“代码已经继续往前走，但文档、记忆和审计摘要没有跟上”
+- 代码确实继续往前走了
+- 但入口诚实度、模块真值层、审计文档和记忆检索效率开始落后于开发速度
 
 ## 1. 现状
 
-- 当前 `HEAD` 已经是 `2af40f3c feat: revise agentflow node detail panel`
-- 当前工作树只剩两份审计文档脏文件
-- 最近 `24` 小时共有 `33` 次提交：
-  - `docs`: `15`
-  - `feat`: `9`
-  - `refactor`: `5`
-  - `fix`: `3`
-  - `test`: `1`
-- 最近 `24` 小时主投入仍明显偏向 `agent-flow`
-  - `agent-flow commits`: `17`
-  - `applications commits`: `1`
-  - `api commits`: `1`
-- 当前真实状态：
-  - `03` 已经不是待开发：首页就是应用列表，应用支持筛选、标签、编辑
-  - `04` 已经不是未来设计：有正式编排页、Draft 保存、版本恢复、停靠式 node detail
-  - `05/06B` 仍没有最小对外价值闭环
+- 最近 `24` 小时共有 `32` 次提交，AI 节奏下开发速度依然很快
+- 其中 `docs: refresh document plan audit` 就有 `8` 次，说明同主题审计已经进入高频重写
+- 当前真实落地能力：
+  - `HomePage` 已切到 `ApplicationListPage`
+  - 应用列表已支持标签和编辑
+  - `/applications/:id/orchestration` 已有 editor、draft 保存、版本恢复、node detail
+  - 后端已有 `applications` 与 orchestration `get/save/restore`
+- 但这轮新增暴露出 4 个更实的问题：
 
-本轮新验证：
+1. `发布配置` 按钮是启用态空操作
+   - `AgentFlowCanvasFrame` 里实际是 `onOpenPublish={() => undefined}`
+   - `publish-gateway` 也还是空壳
+2. `api/logs/monitoring` 还是状态说明页
+   - `ApplicationSectionState` 里直接写着 `06B 再落地`、`05 会接进这里`
+3. 工程门禁还是黄灯
+   - `vitest` 关键路径 `20` 条通过
+   - `build` 通过，但主包 `5,268.92 kB`
+   - `eslint` 还有 `1` 个 warning
+   - `cargo fmt --all --check` 失败
+4. 记忆和计划越来越偏向 `agent-flow` 细节
+   - `.memory/project-memory` 已有 `65` 条
+   - 最近最活跃的 project-memory 基本都在 `agent-flow`
 
-- `pnpm --dir web lint`：通过，但还有 `provider.tsx` 的 `Fast Refresh` warning
-- `pnpm --dir web/app build`：通过，但主包仍是 `5,268.92 kB`，`vite` 继续报 chunk 过大
-- 定向 `vitest`：`3` 个文件 `15` 个测试通过，但仍有 `React Flow` 容器 / 样式提示和 `Tooltip overlayInnerStyle` 弃用提示
-- `cargo fmt --all --check`：失败，说明后端正式格式门禁没收口
+当前判断：
 
-现在最关键的几个问题：
-
-1. 真值层已经失真
-   - 模块总览还把 `03` 写成 `已确认待开发`
-   - 还把 `04` 写成 `未来设计`
-   - `03` README 还在写“首页是空态、没有 Application 列表和四分区”
-2. `03` 模块边界已经变了，但文档没跟上
-   - 当前代码已从“最小壳层”扩到“应用运营面”
-3. 执行排序仍偏 editor-first
-   - 产品北极星还是 publish-first
-   - 但最近主投入仍集中在 `agent-flow`
-4. 工程门禁开始出现裂缝
-   - 前端能过 lint/build/test
-   - 但 warning、弃用提示、超大 chunk 还在
-   - 后端 `fmt` 直接没过
-5. 检索系统已经开始有噪声压力
-   - `.memory/project-memory`：`65`
-   - `plans/history`：`22`
-   - `specs/history`：`20`
-   - 多份计划文档超过 `1500` 行
-
-当前健康判断：
-
-- 速度：`好`
-- 垂直切片推进：`好`
-- 文档真值同步：`差`
-- 工程门禁稳定性：`中下`
+- 内部开发速度：`好`
+- 外部交付闭环：`一般`
+- UI / 文档诚实度：`中下`
 - AI 检索效率：`中下`
-- 北极星对齐：`中`
 
 ## 2. 可能方向
 
-### 方向 A：先把真值层写对
+### 方向 A：先收口假入口和真值层
 
-- 更新模块总览、`03`、`04`
-- 更新这次审计主题
+- 隐藏或降级 `发布配置`
+- 把 `api/logs/monitoring` 明确写成“能力状态页”
+- 补一份当前 `03/04/05/06B` 真实状态总览
 
-### 方向 B：下一条直接做最小 `05/06B`
+### 方向 B：下一条主切片直接转 `05/06B`
 
-- 做一条可发布、可调用、可见结果的最小链路
+- 不再继续深挖 editor 新专题
+- 直接补最小发布 / 运行闭环
 
-### 方向 C：先做治理
+### 方向 C：给审计、计划、记忆减噪
 
-- 合并高噪声记忆
-- 收纳超长计划和过满目录
-- 处理前端 chunk / warning / deprecation 噪声
+- 同主题审计改成增量更新
+- 超长 plan 归档到 `history/`
+- 把 design / plan / implemented 三连记忆合并
 
-### 方向 D：继续深挖 editor
+### 方向 D：做一轮轻量黄灯治理
 
-- 继续做 node detail / 画布体验优化
+- 收 `fmt`
+- 收 `provider.tsx` warning
+- 收 `Tooltip` 弃用
+- 处理 `React Flow` 测试宿主噪声
+- 做基础 chunk 拆分
 
 ## 3. 不同方向的风险和收益
 
 ### 方向 A
 
-- 收益：后面每轮判断都会更准
-- 风险：短期新功能观感不强
+- 收益：后续判断会更准，避免继续把未完成能力说成已完成
+- 风险：短期不会新增很多“看得见的新功能”
 
 ### 方向 B
 
-- 收益：最快回到产品主线
-- 风险：如果不先校正真值，会带着旧文档推进新切片
+- 收益：最快回到 P1 真正要证明的价值
+- 风险：需要压住继续做 editor 细节优化的惯性
 
 ### 方向 C
 
-- 收益：长期成本最低，AI 检索会更稳
-- 风险：短期不显眼，容易被误以为“没推进功能”
+- 收益：对 AI 长期效率帮助最大
+- 风险：如果只搬文件不改真值表达，效果有限
 
 ### 方向 D
 
-- 收益：编辑器体验继续变好
-- 风险：继续偏离 publish-first
+- 收益：完成定义更硬，后面少解释黄灯
+- 风险：容易变成单独治理专题
 
 ## 4. 对此你建议是什么？
 
-建议顺序：`A-lite -> B -> C`
+建议顺序：`A -> B -> C -> D-lite`
 
-我建议现在先做：
+我建议先做：
 
-1. 把模块总览、`03`、`04`、当前审计主题更新为最新真值。
-2. 把 `node detail revision` 明确标记为“已提交基线”，不要再按未提交问题讨论。
-3. 合并高噪声记忆，优先清理 `03 / 04 / node detail / 本地前端验证` 四组。
+1. 收掉假闭环入口：
+   - `发布配置` 不要再以启用态空操作出现
+2. 统一当前产品真值：
+   - `03`：壳层与 capability snapshot 已落地
+   - `04`：editor authoring 基线已落地
+   - `05`：运行态未闭环
+   - `06B`：发布态未闭环
+3. 下一条主切片直接补最小发布 / 运行闭环
 
-我建议紧接着做：
+我建议优先清理和合并的记忆：
 
-1. 下一条主切片直接补最小 `05/06B`。
-2. 目标固定为“可发布、可调用、可看到最小运行结果”，不要再扩成 editor 新专题。
+1. `03` 相关：
+   - `2026-04-15-module-03-application-shell-plan-stage.md`
+   - `2026-04-15-module-03-application-shell-needs-future-hooks.md`
+2. editor 重构相关：
+   - `2026-04-16-agentflow-editor-store-centered-restructure-direction.md`
+   - `2026-04-16-agentflow-editor-store-centered-restructure-plan-stage.md`
+3. node detail 相关：
+   - `2026-04-16-agentflow-node-detail-design-direction.md`
+   - `2026-04-16-agentflow-node-detail-plan-stage.md`
+4. `vite` 端口类 tool-memory
+5. `vitest` 聚焦运行 / timeout 类 tool-memory
 
-当前不建议优先做：
+一句话总结：
 
-1. 继续频繁刷新同一个审计主题但不清旧结论。
-2. 继续默认把主精力投到 editor 微优化。
+现在不是“做得慢”，而是“内部 authoring 很快，但发布 / 运行主线仍偏前置，而且入口、文档、记忆已经开始把它包装得比实际更完整”。当前最优先的不是继续做 editor 小功能，而是先把真值层说对，再补最小 `05/06B`。
