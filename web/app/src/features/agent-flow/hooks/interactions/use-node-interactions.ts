@@ -5,28 +5,25 @@ import {
   createNodeDocument
 } from '../../lib/document/node-factory';
 import { insertNodeAfter } from '../../lib/document/transforms/node';
+import { useContainerNavigation } from './use-container-navigation';
 import { useAgentFlowEditorStore } from '../../store/editor/provider';
 import { selectWorkingDocument } from '../../store/editor/selectors';
 
 export function useNodeInteractions() {
   const document = useAgentFlowEditorStore(selectWorkingDocument);
-  const activeContainerPath = useAgentFlowEditorStore(
-    (state) => state.activeContainerPath
-  );
   const setWorkingDocument = useAgentFlowEditorStore(
     (state) => state.setWorkingDocument
   );
   const setSelection = useAgentFlowEditorStore((state) => state.setSelection);
   const setPanelState = useAgentFlowEditorStore((state) => state.setPanelState);
-  const setInteractionState = useAgentFlowEditorStore(
-    (state) => state.setInteractionState
-  );
+  const navigation = useContainerNavigation();
 
   return {
     selectNode(nodeId: string | null) {
       setSelection({
         selectedNodeId: nodeId,
-        selectedNodeIds: nodeId ? [nodeId] : []
+        selectedNodeIds: nodeId ? [nodeId] : [],
+        selectedEdgeId: null
       });
       setPanelState({
         nodePickerState: {
@@ -83,16 +80,7 @@ export function useNodeInteractions() {
       });
     },
     openContainer(nodeId: string) {
-      const firstChildNode =
-        document.graph.nodes.find((node) => node.containerId === nodeId)?.id ?? null;
-
-      setInteractionState({
-        activeContainerPath: [...activeContainerPath, nodeId]
-      });
-      setSelection({
-        selectedNodeId: firstChildNode,
-        selectedNodeIds: firstChildNode ? [firstChildNode] : []
-      });
+      navigation.openContainer(nodeId);
     }
   };
 }

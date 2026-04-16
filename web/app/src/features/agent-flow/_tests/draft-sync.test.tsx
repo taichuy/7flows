@@ -1,0 +1,189 @@
+import type { ReactNode } from 'react';
+import { act, renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+
+import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+
+import { useDraftSync } from '../hooks/interactions/use-draft-sync';
+import {
+  AgentFlowEditorStoreProvider,
+  useAgentFlowEditorStore
+} from '../store/editor/provider';
+import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
+
+function createInitialState(
+  document = createDefaultAgentFlowDocument({ flowId: 'flow-1' })
+) {
+  return {
+    flow_id: 'flow-1',
+    draft: {
+      id: 'draft-1',
+      flow_id: 'flow-1',
+      updated_at: '2026-04-16T10:00:00Z',
+      document
+    },
+    autosave_interval_seconds: 30,
+    versions: []
+  };
+}
+
+beforeEach(() => {
+  resetAuthStore();
+  useAuthStore.setState({
+    sessionStatus: 'authenticated',
+    csrfToken: 'csrf-token'
+  });
+});
+
+describe('useDraftSync', () => {
+  test('restores server draft and clears transient editor state', async () => {
+    const restoreVersionOverride = vi.fn().mockResolvedValue({
+      ...createInitialState({
+        ...createDefaultAgentFlowDocument({ flowId: 'flow-1' }),
+        meta: {
+          ...createDefaultAgentFlowDocument({ flowId: 'flow-1' }).meta,
+          name: 'Recovered flow'
+        }
+      }),
+      draft: {
+        ...createInitialState().draft,
+        updated_at: '2026-04-16T10:20:00Z',
+        document: {
+          ...createDefaultAgentFlowDocument({ flowId: 'flow-1' }),
+          meta: {
+            ...createDefaultAgentFlowDocument({ flowId: 'flow-1' }).meta,
+            name: 'Recovered flow'
+          }
+        }
+      }
+    });
+
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        {children}
+      </AgentFlowEditorStoreProvider>
+    );
+
+    const { result } = renderHook(
+      () => {
+        const draftSync = useDraftSync({
+          applicationId: 'app-1',
+          restoreVersionOverride
+        });
+
+        return {
+          draftSync,
+          selectedNodeId: useAgentFlowEditorStore((state) => state.selectedNodeId),
+          activeContainerPath: useAgentFlowEditorStore(
+            (state) => state.activeContainerPath
+          ),
+          nodePickerOpen: useAgentFlowEditorStore(
+            (state) => state.nodePickerState.open
+          ),
+          focusedFieldKey: useAgentFlowEditorStore(
+            (state) => state.focusedFieldKey
+          ),
+          workingDocument: useAgentFlowEditorStore((state) => state.workingDocument),
+          setSelection: useAgentFlowEditorStore((state) => state.setSelection),
+          setPanelState: useAgentFlowEditorStore((state) => state.setPanelState),
+          setInteractionState: useAgentFlowEditorStore(
+            (state) => state.setInteractionState
+          )
+        };
+      },
+      { wrapper }
+    );
+
+    act(() => {
+      result.current.setSelection({
+        selectedNodeId: 'node-answer',
+        selectedNodeIds: ['node-answer'],
+        focusedFieldKey: 'bindings.answer_template'
+      });
+      result.current.setPanelState({
+        historyOpen: true,
+        nodePickerState: {
+          open: true,
+          anchorNodeId: 'node-llm',
+          anchorEdgeId: null
+        }
+      });
+      result.current.setInteractionState({
+        activeContainerPath: ['node-iteration-1']
+      });
+    });
+
+    await act(async () => {
+      await result.current.draftSync.restoreVersion('version-5');
+    });
+
+    expect(restoreVersionOverride).toHaveBeenCalledWith('version-5');
+    expect(result.current.draftSync.status).toBe('idle');
+    expect(result.current.workingDocument.meta.name).toBe('Recovered flow');
+    expect(result.current.activeContainerPath).toEqual([]);
+    expect(result.current.nodePickerOpen).toBe(false);
+    expect(result.current.focusedFieldKey).toBe(null);
+    expect(result.current.selectedNodeId).toBe('node-llm');
+  });
+
+  test('manual save reads the latest viewport from the provided getter', async () => {
+    const latestDocumentRef = {
+      current: createDefaultAgentFlowDocument({ flowId: 'flow-1' })
+    };
+    const saveDraftOverride = vi.fn(async (input) => ({
+      ...createInitialState(input.document),
+      draft: {
+        ...createInitialState(input.document).draft,
+        id: 'draft-2',
+        updated_at: '2026-04-16T10:10:00Z',
+        document: input.document
+      }
+    }));
+
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        {children}
+      </AgentFlowEditorStoreProvider>
+    );
+
+    const { result } = renderHook(
+      () => ({
+        draftSync: useDraftSync({
+          applicationId: 'app-1',
+          saveDraftOverride,
+          getCurrentDocument: () => latestDocumentRef.current
+        }),
+        workingDocument: useAgentFlowEditorStore((state) => state.workingDocument)
+      }),
+      { wrapper }
+    );
+
+    latestDocumentRef.current = {
+      ...latestDocumentRef.current,
+      editor: {
+        ...latestDocumentRef.current.editor,
+        viewport: { x: 120, y: 48, zoom: 0.85 }
+      }
+    };
+
+    await act(async () => {
+      await result.current.draftSync.saveNow();
+    });
+
+    expect(saveDraftOverride).toHaveBeenCalledWith(
+      expect.objectContaining({
+        change_kind: 'layout',
+        document: expect.objectContaining({
+          editor: expect.objectContaining({
+            viewport: { x: 120, y: 48, zoom: 0.85 }
+          })
+        })
+      })
+    );
+    expect(result.current.workingDocument.editor.viewport).toEqual({
+      x: 120,
+      y: 48,
+      zoom: 0.85
+    });
+  });
+});

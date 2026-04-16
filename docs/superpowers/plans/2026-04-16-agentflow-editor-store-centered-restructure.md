@@ -1442,7 +1442,7 @@ git commit -m "refactor: route canvas interactions through editor hooks"
 - Modify: `web/app/src/features/agent-flow/lib/draft-save.ts`
 - Modify: `web/app/src/features/agent-flow/_tests/node-inspector.test.tsx`
 
-- [ ] **Step 1: 写失败的 Inspector / restore / autosave 测试**
+- [x] **Step 1: 写失败的 Inspector / restore / autosave 测试**
 
 ```tsx
 import type { ReactNode } from 'react';
@@ -1528,13 +1528,13 @@ test('updates node fields through inspector interactions instead of mutating doc
 });
 ```
 
-- [ ] **Step 2: 运行同步和 Inspector 测试，确认当前实现仍把逻辑写在组件里**
+- [x] **Step 2: 运行同步和 Inspector 测试，确认当前实现仍把逻辑写在组件里**
 
 Run: `pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/draft-sync.test.tsx src/features/agent-flow/_tests/node-inspector.test.tsx`
 
 Expected: FAIL because `use-draft-sync.ts` 尚不存在，`NodeInspector` 仍依赖 `onDocumentChange` 直接拼 document，而不是从 store 读取 selected node 并走 interaction hook。
 
-- [ ] **Step 3: 实现 Inspector、container navigation 与 draft sync hooks**
+- [x] **Step 3: 实现 Inspector、container navigation 与 draft sync hooks**
 
 ```ts
 // web/app/src/features/agent-flow/hooks/interactions/use-inspector-interactions.ts
@@ -1854,11 +1854,17 @@ export function AgentFlowCanvasFrame({
 }
 ```
 
-- [ ] **Step 4: 重跑同步、Inspector 和页面级交互测试**
+- [x] **Step 4: 重跑同步、Inspector 和页面级交互测试**
 
 Run: `pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/draft-sync.test.tsx src/features/agent-flow/_tests/node-inspector.test.tsx src/features/agent-flow/_tests/agent-flow-editor-page.test.tsx`
 
 Expected: PASS; restore 成功后 scratch state 清空、autosave 状态从 `saving` 回到 `idle` 或 `saved`、Inspector 改动通过 store 写回 document，页面仍能打开 Issues 和 History。
+
+Status note (`2026-04-16 10:58`): 已先补 `draft-sync.test.tsx` 与 provider-backed `node-inspector.test.tsx`。第一次执行 `pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/draft-sync.test.tsx src/features/agent-flow/_tests/node-inspector.test.tsx` 时按预期失败，失败点为 `../hooks/interactions/use-draft-sync` 不存在，且 `NodeInspector` 仍要求 `document` / `selectedNodeId` / `onDocumentChange` props，无法直接挂在 store provider 下。
+
+Status note (`2026-04-16 11:02`): 已新增 `use-inspector-interactions.ts`、`use-container-navigation.ts`、`use-draft-sync.ts`、`use-editor-shortcuts.ts`，并将 `NodeInspector`、`AgentFlowCanvasFrame` 收口到 store + hooks 路径；`useNodeInteractions.openContainer` 也已复用容器导航 hook。
+
+Status note (`2026-04-16 11:02`): 已执行 `pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/draft-sync.test.tsx src/features/agent-flow/_tests/node-inspector.test.tsx src/features/agent-flow/_tests/agent-flow-editor-page.test.tsx`，结果为 `3` 个文件、`11` 个测试全部 PASS。页面级测试仍有既有 `React Flow` 容器尺寸与样式加载警告，但未影响断言结果。
 
 - [ ] **Step 5: Commit**
 

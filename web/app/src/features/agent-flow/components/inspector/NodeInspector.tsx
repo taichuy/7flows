@@ -1,33 +1,25 @@
-import type {
-  FlowAuthoringDocument,
-  FlowBinding,
-  FlowNodeDocument
-} from '@1flowse/flow-schema';
+import type { FlowBinding, FlowNodeDocument } from '@1flowse/flow-schema';
 import { Collapse, Input, InputNumber, Typography, Button } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { ConditionGroupField } from '../bindings/ConditionGroupField';
 import { NamedBindingsField } from '../bindings/NamedBindingsField';
 import { SelectorField } from '../bindings/SelectorField';
 import { StateWriteField } from '../bindings/StateWriteField';
 import { TemplatedTextField } from '../bindings/TemplatedTextField';
+import { useInspectorInteractions } from '../../hooks/interactions/use-inspector-interactions';
 import type {
   InspectorSectionKey,
   NodeDefinitionField
 } from '../../lib/node-definitions';
 import { nodeDefinitions } from '../../lib/node-definitions';
 import { listVisibleSelectorOptions } from '../../lib/selector-options';
-
-interface NodeInspectorProps {
-  document: FlowAuthoringDocument;
-  selectedNodeId: string | null;
-  focusFieldKey?: string | null;
-  openSectionKey?: InspectorSectionKey | null;
-  onDocumentChange: (document: FlowAuthoringDocument) => void;
-  onFocusHandled?: () => void;
-  onClose?: () => void;
-}
+import { useAgentFlowEditorStore } from '../../store/editor/provider';
+import {
+  selectSelectedNodeId,
+  selectWorkingDocument
+} from '../../store/editor/selectors';
 
 function getVisibleSections(
   sections: Array<{
@@ -37,22 +29,6 @@ function getVisibleSections(
   }>
 ) {
   return sections.filter((section) => section.key !== 'basics');
-}
-
-function updateNode(
-  document: FlowAuthoringDocument,
-  nodeId: string,
-  updater: (node: FlowNodeDocument) => FlowNodeDocument
-): FlowAuthoringDocument {
-  return {
-    ...document,
-    graph: {
-      ...document.graph,
-      nodes: document.graph.nodes.map((node) =>
-        node.id === nodeId ? updater(node) : node
-      )
-    }
-  };
 }
 
 function getOutputValue(node: FlowNodeDocument, outputKey: string): string {
@@ -83,63 +59,6 @@ function getFieldValue(node: FlowNodeDocument, fieldKey: string) {
   return undefined;
 }
 
-function setFieldValue(
-  node: FlowNodeDocument,
-  fieldKey: string,
-  value: unknown
-): FlowNodeDocument {
-  if (fieldKey === 'alias' && typeof value === 'string') {
-    return {
-      ...node,
-      alias: value
-    };
-  }
-
-  if (fieldKey === 'description' && typeof value === 'string') {
-    return {
-      ...node,
-      description: value
-    };
-  }
-
-  if (fieldKey.startsWith('config.')) {
-    const configKey = fieldKey.slice('config.'.length);
-
-    return {
-      ...node,
-      config: {
-        ...node.config,
-        [configKey]: value
-      }
-    };
-  }
-
-  if (fieldKey.startsWith('bindings.')) {
-    const bindingKey = fieldKey.slice('bindings.'.length);
-
-    return {
-      ...node,
-      bindings: {
-        ...node.bindings,
-        [bindingKey]: value as FlowBinding
-      }
-    };
-  }
-
-  if (fieldKey.startsWith('outputs.') && typeof value === 'string') {
-    const outputKey = fieldKey.slice('outputs.'.length);
-
-    return {
-      ...node,
-      outputs: node.outputs.map((output) =>
-        output.key === outputKey ? { ...output, title: value } : output
-      )
-    };
-  }
-
-  return node;
-}
-
 function asString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
@@ -160,24 +79,25 @@ function asBinding<T extends FlowBinding['kind']>(
     : null;
 }
 
-export function NodeInspector({
-  document,
-  selectedNodeId,
-  focusFieldKey = null,
-  openSectionKey = null,
-  onDocumentChange,
-  onFocusHandled,
-  onClose
-}: NodeInspectorProps) {
+export function NodeInspector() {
   const rootRef = useRef<HTMLElement | null>(null);
+  const document = useAgentFlowEditorStore(selectWorkingDocument);
+  const selectedNodeId = useAgentFlowEditorStore(selectSelectedNodeId);
+  const focusFieldKey = useAgentFlowEditorStore((state) => state.focusedFieldKey);
+  const openSectionKey = useAgentFlowEditorStore(
+    (state) => state.openInspectorSectionKey
+  );
+  const inspectorInteractions = useInspectorInteractions();
   const selectedNode = selectedNodeId
     ? document.graph.nodes.find((node) => node.id === selectedNodeId) ?? null
     : null;
   const definition = selectedNode ? nodeDefinitions[selectedNode.type] ?? null : null;
   const visibleSections = definition ? getVisibleSections(definition.sections) : [];
-  const selectorOptions = selectedNode
-    ? listVisibleSelectorOptions(document, selectedNode.id)
-    : [];
+  const selectorOptions = useMemo(
+    () =>
+      selectedNode ? listVisibleSelectorOptions(document, selectedNode.id) : [],
+    [document, selectedNode]
+  );
   const [activeSectionKeys, setActiveSectionKeys] = useState<InspectorSectionKey[]>([]);
 
   useEffect(() => {
@@ -206,11 +126,11 @@ export function NodeInspector({
         `[data-field-key="${focusFieldKey}"] [aria-label]`
       );
       focusTarget?.focus();
-      onFocusHandled?.();
+      inspectorInteractions.handleFocusComplete();
     }, 0);
 
     return () => window.clearTimeout(timer);
-  }, [focusFieldKey, onFocusHandled, selectedNode?.id]);
+  }, [focusFieldKey, inspectorInteractions, selectedNode?.id]);
 
   if (!selectedNode || !definition) {
     return null;
@@ -220,9 +140,7 @@ export function NodeInspector({
   const activeDefinition = definition;
 
   function updateField(fieldKey: string, value: unknown) {
-    onDocumentChange(
-      updateNode(document, activeNode.id, (node) => setFieldValue(node, fieldKey, value))
-    );
+    inspectorInteractions.updateField(fieldKey, value);
   }
 
   function renderField(field: NodeDefinitionField) {
@@ -377,14 +295,12 @@ export function NodeInspector({
             />
           </div>
         </div>
-        {onClose && (
-          <Button
-            type="text"
-            icon={<CloseOutlined />}
-            onClick={onClose}
-            aria-label="Close Inspector"
-          />
-        )}
+        <Button
+          type="text"
+          icon={<CloseOutlined />}
+          onClick={inspectorInteractions.closeInspector}
+          aria-label="Close Inspector"
+        />
       </div>
       <Collapse
         activeKey={activeSectionKeys}

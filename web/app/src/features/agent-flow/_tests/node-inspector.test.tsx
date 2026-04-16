@@ -1,22 +1,65 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 
-import {
-  createDefaultAgentFlowDocument,
-  type FlowAuthoringDocument
-} from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
 
 import { NodeInspector } from '../components/inspector/NodeInspector';
+import {
+  AgentFlowEditorStoreProvider,
+  useAgentFlowEditorStore
+} from '../store/editor/provider';
+import { selectWorkingDocument } from '../store/editor/selectors';
+
+function createInitialState() {
+  return {
+    flow_id: 'flow-1',
+    draft: {
+      id: 'draft-1',
+      flow_id: 'flow-1',
+      updated_at: '2026-04-16T10:00:00Z',
+      document: createDefaultAgentFlowDocument({ flowId: 'flow-1' })
+    },
+    autosave_interval_seconds: 30,
+    versions: []
+  };
+}
+
+function SelectionSeed({ nodeId }: { nodeId: string }) {
+  const setSelection = useAgentFlowEditorStore((state) => state.setSelection);
+
+  useEffect(() => {
+    setSelection({
+      selectedNodeId: nodeId,
+      selectedNodeIds: [nodeId]
+    });
+  }, [nodeId, setSelection]);
+
+  return null;
+}
+
+function DocumentObserver({
+  onChange
+}: {
+  onChange: (
+    document: ReturnType<typeof createDefaultAgentFlowDocument>
+  ) => void;
+}) {
+  const document = useAgentFlowEditorStore(selectWorkingDocument);
+
+  useEffect(() => {
+    onChange(document);
+  }, [document, onChange]);
+
+  return null;
+}
 
 describe('NodeInspector', () => {
   test('renders node alias and description in the inspector header while keeping config sections below', () => {
     render(
-      <NodeInspector
-        document={createDefaultAgentFlowDocument({ flowId: 'flow-1' })}
-        selectedNodeId="node-llm"
-        onDocumentChange={vi.fn()}
-      />
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        <NodeInspector />
+      </AgentFlowEditorStoreProvider>
     );
 
     expect(screen.queryByText('Basics')).not.toBeInTheDocument();
@@ -29,27 +72,20 @@ describe('NodeInspector', () => {
     expect(screen.getByLabelText('System Prompt')).toBeInTheDocument();
   });
 
-  test('edits alias and description from the inspector header', () => {
-    const onDocumentChange = vi.fn();
+  test('updates node fields through inspector interactions instead of mutating document inline', () => {
+    let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
-    function Harness() {
-      const [document, setDocument] = useState<FlowAuthoringDocument>(
-        createDefaultAgentFlowDocument({ flowId: 'flow-1' })
-      );
-
-      return (
-        <NodeInspector
-          document={document}
-          selectedNodeId="node-start"
-          onDocumentChange={(nextDocument) => {
-            setDocument(nextDocument);
-            onDocumentChange(nextDocument);
+    render(
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        <SelectionSeed nodeId="node-start" />
+        <DocumentObserver
+          onChange={(document) => {
+            latestDocument = document;
           }}
         />
-      );
-    }
-
-    render(<Harness />);
+        <NodeInspector />
+      </AgentFlowEditorStoreProvider>
+    );
 
     fireEvent.change(screen.getByLabelText('节点别名'), {
       target: { value: '入口节点' }
@@ -62,18 +98,14 @@ describe('NodeInspector', () => {
     expect(screen.getByLabelText('节点简介')).toHaveValue(
       '收集首轮用户输入并启动工作流。'
     );
-    expect(onDocumentChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        graph: expect.objectContaining({
-          nodes: expect.arrayContaining([
-            expect.objectContaining({
-              id: 'node-start',
-              alias: '入口节点',
-              description: '收集首轮用户输入并启动工作流。'
-            })
-          ])
+    expect(latestDocument.graph.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'node-start',
+          alias: '入口节点',
+          description: '收集首轮用户输入并启动工作流。'
         })
-      })
+      ])
     );
   });
 });
