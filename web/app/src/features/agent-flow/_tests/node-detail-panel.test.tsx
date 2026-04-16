@@ -36,6 +36,7 @@ describe('NodeDetailPanel', () => {
     expect(screen.getByRole('tab', { name: '上次运行' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '关闭节点详情' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'LLM' })).toBeInTheDocument();
+    expect(screen.getByTestId('node-detail-body')).toBeInTheDocument();
   }, 10_000);
 
   test('renders alias and description editors inside the header exactly once', () => {

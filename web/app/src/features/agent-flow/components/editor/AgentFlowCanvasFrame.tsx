@@ -4,7 +4,7 @@ import type {
 } from '@1flowse/api-client';
 import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
 import { Button, Splitter, Typography } from 'antd';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 import { useContainerNavigation } from '../../hooks/interactions/use-container-navigation';
 import { useDraftSync } from '../../hooks/interactions/use-draft-sync';
@@ -74,6 +74,7 @@ export function AgentFlowCanvasFrame({
     useRef<(() => FlowAuthoringDocument['editor']['viewport']) | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const [bodyWidth, setBodyWidth] = useState(0);
+  const [bodyViewportTop, setBodyViewportTop] = useState(0);
   const navigation = useContainerNavigation();
   const draftSync = useDraftSync({
     applicationId,
@@ -118,20 +119,26 @@ export function AgentFlowCanvasFrame({
       return;
     }
 
-    const resizeObserver = new ResizeObserver((entries) => {
-      const entry = entries[0];
+    const syncBodyMetrics = () => {
+      const rect = element.getBoundingClientRect();
+      setBodyWidth(rect.width);
+      setBodyViewportTop(Math.max(rect.top, 0));
+    };
 
-      if (!entry) {
-        return;
-      }
-
-      setBodyWidth(entry.contentRect.width);
+    const resizeObserver = new ResizeObserver(() => {
+      syncBodyMetrics();
     });
 
     resizeObserver.observe(element);
-    setBodyWidth(element.getBoundingClientRect().width);
+    window.addEventListener('resize', syncBodyMetrics);
+    window.addEventListener('scroll', syncBodyMetrics);
+    syncBodyMetrics();
 
-    return () => resizeObserver.disconnect();
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', syncBodyMetrics);
+      window.removeEventListener('scroll', syncBodyMetrics);
+    };
   }, []);
 
   useEditorShortcuts();
@@ -139,6 +146,13 @@ export function AgentFlowCanvasFrame({
   const boundedNodeDetailWidth = clampNodeDetailWidth(
     nodeDetailWidth,
     bodyWidth || NODE_DETAIL_DEFAULT_WIDTH + NODE_DETAIL_MIN_CANVAS_WIDTH
+  );
+  const detailPanelShellStyle = useMemo(
+    () =>
+      ({
+        '--agent-flow-body-top-offset': `${bodyViewportTop}px`
+      }) as CSSProperties,
+    [bodyViewportTop]
   );
 
   function syncNodeDetailWidth(sizes: number[]) {
@@ -236,10 +250,16 @@ export function AgentFlowCanvasFrame({
                 max={getMaxNodeDetailWidth(bodyWidth || boundedNodeDetailWidth)}
                 size={boundedNodeDetailWidth}
               >
-                <NodeDetailPanel
-                  onClose={detailActions.closeDetail}
-                  onRunNode={undefined}
-                />
+                <div
+                  className="agent-flow-editor__detail-panel-shell"
+                  data-testid="agent-flow-editor-detail-shell"
+                  style={detailPanelShellStyle}
+                >
+                  <NodeDetailPanel
+                    onClose={detailActions.closeDetail}
+                    onRunNode={undefined}
+                  />
+                </div>
               </Splitter.Panel>
             </Splitter>
           </div>

@@ -227,6 +227,7 @@ describe('AgentFlowEditorShell', () => {
     expect(
       await screen.findByTestId('agent-flow-editor-splitter')
     ).toBeInTheDocument();
+    expect(screen.getByTestId('agent-flow-editor-detail-shell')).toBeInTheDocument();
     expect(screen.getByLabelText('节点详情')).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '配置' })).toBeInTheDocument();
   }, 20_000);
@@ -247,11 +248,13 @@ describe('AgentFlowEditorShell', () => {
     );
 
     const splitter = await screen.findByTestId('agent-flow-editor-splitter');
+    const detailShell = screen.getByTestId('agent-flow-editor-detail-shell');
 
     fireEvent.click(screen.getByRole('tab', { name: '上次运行' }));
 
     expect(screen.getByText('运行摘要')).toBeInTheDocument();
     expect(splitter).toBeInTheDocument();
+    expect(detailShell).toContainElement(screen.getByLabelText('节点详情'));
     expect(screen.getByLabelText('节点详情')).toBeInTheDocument();
     expect(screen.queryByText('请使用桌面端编辑')).not.toBeInTheDocument();
   }, 20_000);

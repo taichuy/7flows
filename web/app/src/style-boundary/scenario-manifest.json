@@ -162,6 +162,20 @@
         ]
       },
       {
+        "id": "editor-detail-shell",
+        "selector": ".agent-flow-editor__detail-panel-shell",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "flex"
+          },
+          {
+            "property": "margin-top",
+            "expected": "97px"
+          }
+        ]
+      },
+      {
         "id": "editor-detail-panel",
         "selector": ".agent-flow-node-detail",
         "propertyAssertions": [

@@ -18,16 +18,18 @@ export function NodeDetailPanel({
   return (
     <aside aria-label="节点详情" className="agent-flow-node-detail">
       <NodeDetailHeader onClose={onClose} onRunNode={onRunNode} />
-      <Tabs
-        activeKey={nodeDetailTab}
-        onChange={(key) =>
-          setPanelState({ nodeDetailTab: key as 'config' | 'lastRun' })
-        }
-        items={[
-          { key: 'config', label: '配置', children: <NodeConfigTab /> },
-          { key: 'lastRun', label: '上次运行', children: <NodeLastRunTab /> }
-        ]}
-      />
+      <div className="agent-flow-node-detail__body" data-testid="node-detail-body">
+        <Tabs
+          activeKey={nodeDetailTab}
+          onChange={(key) =>
+            setPanelState({ nodeDetailTab: key as 'config' | 'lastRun' })
+          }
+          items={[
+            { key: 'config', label: '配置', children: <NodeConfigTab /> },
+            { key: 'lastRun', label: '上次运行', children: <NodeLastRunTab /> }
+          ]}
+        />
+      </div>
     </aside>
   );
 }
