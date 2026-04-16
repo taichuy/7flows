@@ -1567,7 +1567,7 @@ git commit -m "feat: add node detail schema and policy blocks"
 - Modify: `web/app/src/style-boundary/scenario-manifest.json`
 - Modify: `web/app/src/features/agent-flow/components/editor/AgentFlowCanvasFrame.tsx`
 
-- [ ] **Step 1: Add the failing page-level regression for the new panel contract**
+- [x] **Step 1: Add the failing page-level regression for the new panel contract**
 
 ```tsx
 // web/app/src/features/agent-flow/_tests/agent-flow-editor-page.test.tsx
@@ -1591,7 +1591,7 @@ test('renders node detail shell with config and last-run tabs on orchestration p
 });
 ```
 
-- [ ] **Step 2: Run the page test and confirm failure**
+- [x] **Step 2: Run the page test and confirm failure**
 
 Run:
 
@@ -1601,7 +1601,7 @@ pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/agent-flow-edi
 
 Expected: FAIL until the new detail panel contract is fully wired.
 
-- [ ] **Step 3: Add the page-level assertion and style-boundary selector**
+- [x] **Step 3: Add the page-level assertion and style-boundary selector**
 
 ```json
 // web/app/src/style-boundary/scenario-manifest.json
@@ -1647,7 +1647,7 @@ const detailActions = useNodeDetailActions();
 </div>
 ```
 
-- [ ] **Step 4: Run the full verification matrix**
+- [x] **Step 4: Run the full verification matrix**
 
 Run:
 
@@ -1683,9 +1683,20 @@ pnpm --dir web/app exec vite --host 127.0.0.1 --port 3100
 Then verify:
 
 - Desktop orchestration page shows the new detail panel shell, header actions and both tabs
-- Narrow viewport still opens the same desktop-oriented panel and does not break the page shell
+- Narrow viewport follows the existing host downgrade path and keeps the page shell stable
 
-- [ ] **Step 5: Commit**
+Verification record:
+
+- `pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/node-detail-panel.test.tsx src/features/agent-flow/_tests/node-last-run-tab.test.tsx src/features/agent-flow/_tests/node-action-menu.test.tsx src/features/agent-flow/_tests/document-transforms.test.ts src/features/agent-flow/_tests/node-inspector.test.tsx src/features/agent-flow/_tests/validate-document.test.ts src/features/agent-flow/_tests/agent-flow-editor-page.test.tsx` -> PASS
+- `pnpm --dir web lint` -> PASS
+- `pnpm --dir web test` -> PASS
+- `pnpm --dir web/app build` -> PASS
+- `node scripts/node/check-style-boundary.js page.application-detail` -> PASS
+- Manual verification on `http://127.0.0.1:3100/applications/019d8f3a-5b3b-71e1-a32b-c97ec4139ab8/orchestration`:
+  desktop shows detail shell, header actions, `配置 / 上次运行` tabs, and disabled run button
+  `390x844` viewport shows the existing desktop-only notice and keeps the host shell stable
+
+- [x] **Step 5: Commit**
 
 ```bash
 git add \

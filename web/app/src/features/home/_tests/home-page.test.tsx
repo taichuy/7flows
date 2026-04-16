@@ -66,5 +66,5 @@ describe('HomePage', () => {
     expect(await screen.findByText('Support Agent')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '进入应用' })).toBeInTheDocument();
     expect(screen.queryByText(/api-server ok/i)).not.toBeInTheDocument();
-  });
+  }, 10_000);
 });

@@ -40,7 +40,7 @@
   min-height: 0;
 }
 
-.agent-flow-editor__body--with-inspector {
+.agent-flow-editor__body--with-detail {
   /* Inspector handles its own floating position now */
 }
 

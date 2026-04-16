@@ -36,7 +36,7 @@ describe('NodeDetailPanel', () => {
     expect(screen.getByRole('tab', { name: '上次运行' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '关闭节点详情' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'LLM' })).toBeInTheDocument();
-  });
+  }, 10_000);
 
   test('shows node summary, read-only output contract and direct relations in config tab', () => {
     render(

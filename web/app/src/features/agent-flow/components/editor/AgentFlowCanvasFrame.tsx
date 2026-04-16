@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useContainerNavigation } from '../../hooks/interactions/use-container-navigation';
 import { useDraftSync } from '../../hooks/interactions/use-draft-sync';
 import { useEditorShortcuts } from '../../hooks/interactions/use-editor-shortcuts';
+import { useNodeDetailActions } from '../../hooks/interactions/use-node-detail-actions';
 import { validateDocument } from '../../lib/validate-document';
 import { useAgentFlowEditorStore } from '../../store/editor/provider';
 import {
@@ -57,7 +58,6 @@ export function AgentFlowCanvasFrame({
     (state) => state.isRestoringVersion
   );
   const setPanelState = useAgentFlowEditorStore((state) => state.setPanelState);
-  const setSelection = useAgentFlowEditorStore((state) => state.setSelection);
   const documentRef = useRef(workingDocument);
   const lastSavedDocumentRef = useRef(lastSavedDocument);
   const viewportSnapshotRef = useRef(workingDocument.editor.viewport);
@@ -73,6 +73,7 @@ export function AgentFlowCanvasFrame({
   });
   const issues = useMemo(() => validateDocument(workingDocument), [workingDocument]);
   const activeContainerId = activeContainerPath.at(-1) ?? null;
+  const detailActions = useNodeDetailActions();
   const issueCountByNodeId = useMemo(() => {
     const counts: Record<string, number> = {};
 
@@ -155,7 +156,8 @@ export function AgentFlowCanvasFrame({
         </div>
       ) : null}
       <div
-        className={`agent-flow-editor__body agent-flow-editor__shell${selectedNodeId ? ' agent-flow-editor__body--with-inspector' : ''}`}
+        className={`agent-flow-editor__body agent-flow-editor__shell${selectedNodeId ? ' agent-flow-editor__body--with-detail' : ''}`}
+        data-testid="agent-flow-editor-body"
       >
         <AgentFlowCanvas
           issueCountByNodeId={issueCountByNodeId}
@@ -167,18 +169,7 @@ export function AgentFlowCanvasFrame({
           }}
         />
         {selectedNodeId ? (
-          <NodeDetailPanel
-            onClose={() =>
-              setSelection({
-                selectedNodeId: null,
-                selectedNodeIds: [],
-                selectedEdgeId: null,
-                focusedFieldKey: null,
-                openInspectorSectionKey: null
-              })
-            }
-            onRunNode={undefined}
-          />
+          <NodeDetailPanel onClose={detailActions.closeDetail} onRunNode={undefined} />
         ) : null}
       </div>
       {issues.some((issue) => issue.scope === 'global') ? (

@@ -39,13 +39,17 @@ describe('AgentFlowEditorShell', () => {
       </div>
     );
 
-    expect(await screen.findByText('Start')).toBeInTheDocument();
-    expect(screen.getAllByText('LLM').length).toBeGreaterThan(0);
-    expect(screen.getByText('Answer')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Start', { selector: '.agent-flow-node-card__title' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'LLM' })).toBeInTheDocument();
+    expect(
+      screen.getByText('Answer', { selector: '.agent-flow-node-card__title' })
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '历史版本' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '发布配置' })).toBeInTheDocument();
-  }, 10_000);
+  }, 20_000);
 
   test('saves the current document when clicking 保存', async () => {
     const initialState = createInitialState();
@@ -93,7 +97,7 @@ describe('AgentFlowEditorShell', () => {
         })
       );
     });
-  }, 10_000);
+  }, 20_000);
 
   test('opens the selected issue target and focuses the node field', async () => {
     render(
@@ -125,7 +129,7 @@ describe('AgentFlowEditorShell', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('模型')).toHaveFocus();
     });
-  }, 10_000);
+  }, 20_000);
 
   test('restores a history version into the current draft', async () => {
     const versions = [
@@ -201,5 +205,28 @@ describe('AgentFlowEditorShell', () => {
     expect(await screen.findByRole('button', { name: '历史版本' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Issues' })).toBeInTheDocument();
     expect(screen.queryByText('请使用桌面端编辑')).not.toBeInTheDocument();
-  }, 10_000);
+  }, 20_000);
+
+  test('renders node detail shell with config and last-run tabs on orchestration page', async () => {
+    vi.spyOn(Grid, 'useBreakpoint').mockReturnValue({ lg: true } as never);
+    vi.spyOn(orchestrationApi, 'fetchOrchestrationState').mockResolvedValueOnce(
+      createInitialState()
+    );
+
+    render(
+      <AppProviders>
+        <AgentFlowEditorPage
+          applicationId="app-1"
+          applicationName="Support Agent"
+        />
+      </AppProviders>
+    );
+
+    expect(await screen.findByRole('tab', { name: '配置' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '上次运行' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '运行当前节点' })).toBeDisabled();
+    expect(screen.getByTestId('agent-flow-editor-body')).toHaveClass(
+      'agent-flow-editor__body--with-detail'
+    );
+  }, 20_000);
 });

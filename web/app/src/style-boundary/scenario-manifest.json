@@ -101,6 +101,20 @@
       "web/app/src/features/agent-flow/components/editor/AgentFlowCanvasFrame.tsx",
       "web/app/src/features/agent-flow/components/editor/AgentFlowCanvas.tsx",
       "web/app/src/features/agent-flow/components/editor/agent-flow-editor.css",
+      "web/app/src/features/agent-flow/components/detail/NodeDetailPanel.tsx",
+      "web/app/src/features/agent-flow/components/detail/NodeDetailHeader.tsx",
+      "web/app/src/features/agent-flow/components/detail/NodeActionMenu.tsx",
+      "web/app/src/features/agent-flow/components/detail/NodeRunButton.tsx",
+      "web/app/src/features/agent-flow/components/detail/tabs/NodeConfigTab.tsx",
+      "web/app/src/features/agent-flow/components/detail/tabs/NodeLastRunTab.tsx",
+      "web/app/src/features/agent-flow/components/detail/cards/NodeSummaryCard.tsx",
+      "web/app/src/features/agent-flow/components/detail/cards/NodeOutputContractCard.tsx",
+      "web/app/src/features/agent-flow/components/detail/cards/NodeRelationsCard.tsx",
+      "web/app/src/features/agent-flow/components/detail/cards/NodePolicySection.tsx",
+      "web/app/src/features/agent-flow/components/detail/fields/OutputContractDefinitionField.tsx",
+      "web/app/src/features/agent-flow/components/detail/last-run/NodeRunSummaryCard.tsx",
+      "web/app/src/features/agent-flow/components/detail/last-run/NodeRunIOCard.tsx",
+      "web/app/src/features/agent-flow/components/detail/last-run/NodeRunMetadataCard.tsx",
       "web/app/src/features/agent-flow/components/canvas/custom-edge.tsx",
       "web/app/src/features/agent-flow/components/canvas/custom-connection-line.tsx",
       "web/app/src/style-boundary/registry.tsx",
@@ -130,6 +144,16 @@
       {
         "id": "editor-shell",
         "selector": ".agent-flow-editor__shell",
+        "propertyAssertions": [
+          {
+            "property": "display",
+            "expected": "flex"
+          }
+        ]
+      },
+      {
+        "id": "editor-detail-panel",
+        "selector": ".agent-flow-node-detail",
         "propertyAssertions": [
           {
             "property": "display",
