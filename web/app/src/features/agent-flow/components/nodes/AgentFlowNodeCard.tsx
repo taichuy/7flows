@@ -1,3 +1,4 @@
+import { Tooltip } from 'antd';
 import { Position, type NodeProps } from '@xyflow/react';
 
 import { CanvasHandle } from '../canvas/CanvasHandle';
@@ -59,38 +60,51 @@ export function AgentFlowNodeCard({
           }}
           onPickNode={(nodeType) => data.onInsertNode(data.nodeId, nodeType)}
         >
-          <CanvasHandle
-            type="source"
-            position={Position.Right}
-            aria-expanded={data.pickerOpen}
-            aria-haspopup="menu"
-            aria-label={`在 ${data.alias} 后新增节点`}
-            className="agent-flow-node-handle agent-flow-node-handle--source"
-            role="button"
-            tabIndex={0}
-            onClick={(event) => {
-              event.stopPropagation();
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== 'Enter' && event.key !== ' ') {
-                return;
-              }
-
-              event.preventDefault();
-              event.stopPropagation();
-
-              if (data.pickerOpen) {
-                data.onClosePicker();
-                return;
-              }
-
-              data.onOpenPicker(data.nodeId);
-            }}
+          <Tooltip
+            title={
+              <div style={{ textAlign: 'center', fontSize: 12, padding: '2px 0' }}>
+                <div>点击添加节点</div>
+                <div>拖拽连接节点</div>
+              </div>
+            }
+            placement="top"
+            color="#ffffff"
+            overlayInnerStyle={{ color: '#333', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+            open={!data.pickerOpen ? undefined : false} /* Disable tooltip when popover is open */
           >
-            <span aria-hidden="true" className="agent-flow-node-handle__icon">
-              +
-            </span>
-          </CanvasHandle>
+            <CanvasHandle
+              type="source"
+              position={Position.Right}
+              aria-expanded={data.pickerOpen}
+              aria-haspopup="menu"
+              aria-label={`在 ${data.alias} 后新增节点`}
+              className="agent-flow-node-handle agent-flow-node-handle--source"
+              role="button"
+              tabIndex={0}
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') {
+                  return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (data.pickerOpen) {
+                  data.onClosePicker();
+                  return;
+                }
+
+                data.onOpenPicker(data.nodeId);
+              }}
+            >
+              <span aria-hidden="true" className="agent-flow-node-handle__icon">
+                +
+              </span>
+            </CanvasHandle>
+          </Tooltip>
         </NodePickerPopover>
       ) : null}
     </>

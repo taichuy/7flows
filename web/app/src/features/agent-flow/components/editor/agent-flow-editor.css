@@ -239,41 +239,60 @@
 }
 
 .agent-flow-node-handle.react-flow__handle {
-  width: 18px;
-  height: 18px;
-  border: 3px solid #fff;
-  background: #84a58f;
-  box-shadow: 0 0 0 1px rgba(132, 165, 143, 0.18);
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  background: #b2c8b9;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
 }
 
 .agent-flow-node-handle--target.react-flow__handle {
-  left: -2px;
+  left: -7px;
 }
 
 .agent-flow-node-handle--source.react-flow__handle {
-  width: 32px;
-  height: 32px;
-  right: -16px;
-  border: 2px solid #84a58f;
-  background: #f3f8f3;
-  box-shadow: 0 4px 12px rgba(33, 62, 44, 0.12);
+  right: -7px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #1f3326;
+  color: white;
   cursor: crosshair;
-  font-size: 20px;
+  font-size: 16px;
   line-height: 1;
+  transition: width 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              height 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              right 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              background 0.2s ease,
+              box-shadow 0.2s ease;
+  z-index: 10;
 }
 
 .agent-flow-node-handle__icon {
+  opacity: 0;
   pointer-events: none;
+  transition: opacity 0.2s ease;
+  transform: translateY(-1px); /* Slight adjustment to perfectly center the plus sign */
+}
+
+/* Show plus button only on node hover or when picker is open */
+.react-flow__node:hover .agent-flow-node-handle--source.react-flow__handle,
+.agent-flow-node-handle--source.react-flow__handle[aria-expanded="true"] {
+  width: 24px;
+  height: 24px;
+  right: -12px;
+  border: 2px solid #fff;
+  background: #1677ff;
+  box-shadow: 0 2px 8px rgba(22, 119, 255, 0.4);
+}
+
+.react-flow__node:hover .agent-flow-node-handle--source .agent-flow-node-handle__icon,
+.agent-flow-node-handle--source.react-flow__handle[aria-expanded="true"] .agent-flow-node-handle__icon {
+  opacity: 1;
 }
 
 .agent-flow-node-handle--source.react-flow__handle:hover,
 .agent-flow-node-handle--source.react-flow__handle:focus-visible {
-  background: rgba(132, 165, 143, 0.14);
-  box-shadow: 0 4px 14px rgba(33, 62, 44, 0.18);
+  background: #0958d9;
 }
 
 .agent-flow-edge-label-container {

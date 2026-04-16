@@ -1,10 +1,5 @@
 import type { FlowNodeType } from '@1flowse/flow-schema';
-import {
-  EdgeLabelRenderer,
-  getBezierPath,
-  type Edge,
-  type EdgeProps
-} from '@xyflow/react';
+import { EdgeLabelRenderer, getBezierPath, type Edge, type EdgeProps } from '@xyflow/react';
 import { useState } from 'react';
 
 import { EdgeInsertButton } from './EdgeInsertButton';
@@ -33,6 +28,7 @@ export function AgentFlowCustomEdge(props: EdgeProps<AgentFlowCanvasEdge>) {
     selected
   } = props;
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -42,14 +38,27 @@ export function AgentFlowCustomEdge(props: EdgeProps<AgentFlowCanvasEdge>) {
     targetPosition
   });
 
+  const shouldShowButton = isHovered || pickerOpen || selected;
+
   return (
-    <>
+    <g
+      className="agent-flow-edge"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <path
+        className="react-flow__edge-interaction"
+        d={edgePath}
+        fill="none"
+        strokeOpacity={0}
+        strokeWidth={20}
+      />
       <path
         id={id}
         style={{
           ...style,
-          stroke: selected ? '#497a5d' : style?.stroke,
-          strokeWidth: selected ? 3 : style?.strokeWidth
+          stroke: selected ? '#1677ff' : (style?.stroke || '#cbd5e1'),
+          strokeWidth: selected ? 3 : (style?.strokeWidth || 2)
         }}
         className="react-flow__edge-path agent-flow-custom-edge-path"
         d={edgePath}
@@ -58,13 +67,17 @@ export function AgentFlowCustomEdge(props: EdgeProps<AgentFlowCanvasEdge>) {
       <EdgeLabelRenderer>
         <div
           className="agent-flow-edge-label-container"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
           style={{
             position: 'absolute',
             transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
             pointerEvents: 'all',
             zIndex: 20,
+            opacity: shouldShowButton ? 1 : 0,
+            transition: 'opacity 0.2s ease-in-out',
             boxShadow: selected
-              ? '0 0 0 2px rgba(73, 122, 93, 0.18), 0 2px 8px rgba(33, 62, 44, 0.16)'
+              ? '0 0 0 2px rgba(22, 119, 255, 0.18), 0 2px 8px rgba(22, 119, 255, 0.16)'
               : undefined
           }}
         >
@@ -80,6 +93,6 @@ export function AgentFlowCustomEdge(props: EdgeProps<AgentFlowCanvasEdge>) {
           </div>
         </div>
       </EdgeLabelRenderer>
-    </>
+    </g>
   );
 }

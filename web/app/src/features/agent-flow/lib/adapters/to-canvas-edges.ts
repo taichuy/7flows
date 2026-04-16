@@ -1,4 +1,3 @@
-import { MarkerType } from '@xyflow/react';
 import type { FlowAuthoringDocument, FlowNodeType } from '@1flowse/flow-schema';
 
 import type { AgentFlowCanvasEdge } from '../../components/canvas/node-types';
@@ -34,10 +33,6 @@ export function toCanvasEdges(
       targetHandle: edge.targetHandle,
       animated: false,
       style: { stroke: '#b2c8b9', strokeWidth: 2 },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: '#b2c8b9'
-      },
       data: {
         onInsertNode: actions.onInsertNode
       }
