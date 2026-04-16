@@ -8,4 +8,5 @@ export interface InteractionSlice {
   hoveredNodeId: string | null;
   hoveredEdgeId: string | null;
   highlightedIssueId: string | null;
+  pendingLocateNodeId: string | null;
 }

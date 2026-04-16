@@ -2,11 +2,13 @@ import { CloseOutlined } from '@ant-design/icons';
 import { Button, Space, Typography } from 'antd';
 
 import { nodeDefinitions } from '../../lib/node-definitions';
+import { useNodeDetailActions } from '../../hooks/interactions/use-node-detail-actions';
 import { useAgentFlowEditorStore } from '../../store/editor/provider';
 import {
   selectSelectedNodeId,
   selectWorkingDocument
 } from '../../store/editor/selectors';
+import { NodeActionMenu } from './NodeActionMenu';
 import { NodeRunButton } from './NodeRunButton';
 
 export function NodeDetailHeader({
@@ -22,6 +24,7 @@ export function NodeDetailHeader({
     ? document.graph.nodes.find((node) => node.id === selectedNodeId) ?? null
     : null;
   const definition = selectedNode ? nodeDefinitions[selectedNode.type] ?? null : null;
+  const detailActions = useNodeDetailActions();
 
   if (!selectedNode || !definition) {
     return null;
@@ -35,6 +38,10 @@ export function NodeDetailHeader({
       </div>
       <Space size={4}>
         <NodeRunButton onRunNode={onRunNode} />
+        <NodeActionMenu
+          onLocate={detailActions.locateSelectedNode}
+          onCopy={detailActions.duplicateSelectedNode}
+        />
         <Button
           aria-label="关闭节点详情"
           icon={<CloseOutlined />}

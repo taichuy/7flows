@@ -119,6 +119,31 @@ function ViewportObserver({
   return null;
 }
 
+function PendingLocateNodeEffect() {
+  const reactFlow = useReactFlow();
+  const pendingLocateNodeId = useAgentFlowEditorStore(
+    (state) => state.pendingLocateNodeId
+  );
+  const setInteractionState = useAgentFlowEditorStore(
+    (state) => state.setInteractionState
+  );
+
+  useEffect(() => {
+    if (!pendingLocateNodeId) {
+      return;
+    }
+
+    void reactFlow.fitView({
+      nodes: [{ id: pendingLocateNodeId }],
+      duration: 240,
+      padding: 0.24
+    });
+    setInteractionState({ pendingLocateNodeId: null });
+  }, [pendingLocateNodeId, reactFlow, setInteractionState]);
+
+  return null;
+}
+
 function AgentFlowCanvasInner({
   issueCountByNodeId,
   onViewportSnapshotChange,
@@ -231,6 +256,7 @@ function AgentFlowCanvasInner({
         onPaneClick={selectionInteractions.clearSelection}
       >
         <Background gap={20} size={1} />
+        <PendingLocateNodeEffect />
         <ViewportObserver
           onViewportSnapshotChange={onViewportSnapshotChange}
           onViewportGetterReady={onViewportGetterReady}

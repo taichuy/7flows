@@ -2,8 +2,10 @@ import { describe, expect, test } from 'vitest';
 import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
 
 import { classifyDocumentChange } from '../lib/document/change-kind';
+import { createEdgeDocument } from '../lib/document/edge-factory';
 import { createNodeDocument } from '../lib/document/node-factory';
 import { getContainerPathForNode } from '../lib/document/transforms/container';
+import { duplicateNodeSubgraph } from '../lib/document/transforms/duplicate';
 import {
   removeEdge,
   insertNodeOnEdge,
@@ -12,6 +14,31 @@ import {
 } from '../lib/document/transforms/edge';
 import { moveNodes, updateNodeField } from '../lib/document/transforms/node';
 import { setViewport } from '../lib/document/transforms/viewport';
+
+function createNestedContainerDocument() {
+  const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+
+  document.graph.nodes.push(
+    {
+      ...createNodeDocument('iteration', 'node-iteration-1', 640, 240),
+      containerId: null
+    },
+    {
+      ...createNodeDocument('answer', 'node-inner-answer-1', 920, 240),
+      containerId: 'node-iteration-1'
+    }
+  );
+  document.graph.edges.push(
+    createEdgeDocument({
+      id: 'edge-iteration-answer',
+      source: 'node-iteration-1',
+      target: 'node-inner-answer-1',
+      containerId: 'node-iteration-1'
+    })
+  );
+
+  return document;
+}
 
 describe('agent flow document transforms', () => {
   test('inserts a node in the middle of an existing edge', () => {
@@ -131,5 +158,24 @@ describe('agent flow document transforms', () => {
         })
       ])
     );
+  });
+
+  test('duplicates a container subtree and rewrites internal ids', () => {
+    const document = createNestedContainerDocument();
+
+    const next = duplicateNodeSubgraph(document, { nodeId: 'node-iteration-1' });
+
+    expect(next.graph.nodes.some((node) => node.id === 'node-iteration-1-copy')).toBe(
+      true
+    );
+    expect(
+      next.graph.nodes.some((node) => node.containerId === 'node-iteration-1-copy')
+    ).toBe(true);
+    expect(
+      next.graph.edges.some(
+        (edge) =>
+          edge.source.includes('-copy') && edge.target.includes('-copy')
+      )
+    ).toBe(true);
   });
 });

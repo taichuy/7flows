@@ -25,6 +25,13 @@ function hasDocumentChanged(
   return JSON.stringify(current) !== JSON.stringify(lastSaved);
 }
 
+function hasOwnProperty<Key extends PropertyKey>(
+  value: object,
+  key: Key
+): value is object & Record<Key, unknown> {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
 export interface AgentFlowEditorState
   extends DocumentSlice,
     SelectionSlice,
@@ -104,6 +111,7 @@ export function createAgentFlowEditorStore(
     hoveredNodeId: null,
     hoveredEdgeId: null,
     highlightedIssueId: null,
+    pendingLocateNodeId: null,
     autosaveStatus: 'idle',
     isRestoringVersion: false,
     isDirty: false,
@@ -152,10 +160,18 @@ export function createAgentFlowEditorStore(
               ...payload.connectingPayload
             }
           : current.connectingPayload,
-        hoveredNodeId: payload.hoveredNodeId ?? current.hoveredNodeId,
-        hoveredEdgeId: payload.hoveredEdgeId ?? current.hoveredEdgeId,
-        highlightedIssueId:
-          payload.highlightedIssueId ?? current.highlightedIssueId
+        hoveredNodeId: hasOwnProperty(payload, 'hoveredNodeId')
+          ? payload.hoveredNodeId ?? null
+          : current.hoveredNodeId,
+        hoveredEdgeId: hasOwnProperty(payload, 'hoveredEdgeId')
+          ? payload.hoveredEdgeId ?? null
+          : current.hoveredEdgeId,
+        highlightedIssueId: hasOwnProperty(payload, 'highlightedIssueId')
+          ? payload.highlightedIssueId ?? null
+          : current.highlightedIssueId,
+        pendingLocateNodeId: hasOwnProperty(payload, 'pendingLocateNodeId')
+          ? payload.pendingLocateNodeId ?? null
+          : current.pendingLocateNodeId
       })),
     setAutosaveStatus: (autosaveStatus) => set({ autosaveStatus }),
     setSyncState: (payload) =>
@@ -216,6 +232,7 @@ export function createAgentFlowEditorStore(
         hoveredNodeId: null,
         hoveredEdgeId: null,
         highlightedIssueId: null,
+        pendingLocateNodeId: null,
         autosaveStatus: 'idle',
         isRestoringVersion: false,
         isDirty: false,
@@ -244,6 +261,7 @@ export function createAgentFlowEditorStore(
         hoveredNodeId: null,
         hoveredEdgeId: null,
         highlightedIssueId: null,
+        pendingLocateNodeId: null,
         issuesOpen: false,
         historyOpen: false,
         nodeDetailTab: 'config',

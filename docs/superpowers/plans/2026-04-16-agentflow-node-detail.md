@@ -408,7 +408,7 @@ git commit -m "feat: add node detail panel shell"
 - Modify: `web/app/src/features/agent-flow/store/editor/slices/interaction-slice.ts`
 - Modify: `web/app/src/features/agent-flow/_tests/document-transforms.test.ts`
 
-- [ ] **Step 1: Write the failing duplication and action tests**
+- [x] **Step 1: Write the failing duplication and action tests**
 
 ```ts
 // web/app/src/features/agent-flow/_tests/document-transforms.test.ts
@@ -471,7 +471,7 @@ test('exposes locate and copy actions only', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm failure**
+- [x] **Step 2: Run the focused tests and confirm failure**
 
 Run:
 
@@ -483,7 +483,7 @@ pnpm --dir web/app exec vitest run \
 
 Expected: FAIL because `duplicateNodeSubgraph` and `NodeActionMenu` do not exist yet.
 
-- [ ] **Step 3: Implement the duplicate transform, locate state and header actions**
+- [x] **Step 3: Implement the duplicate transform, locate state and header actions**
 
 ```ts
 // web/app/src/features/agent-flow/lib/document/transforms/duplicate.ts
@@ -676,7 +676,7 @@ function PendingLocateNodeEffect() {
 </ReactFlow>
 ```
 
-- [ ] **Step 4: Re-run the focused tests and confirm the actions pass**
+- [x] **Step 4: Re-run the focused tests and confirm the actions pass**
 
 Run:
 
@@ -688,7 +688,7 @@ pnpm --dir web/app exec vitest run \
 
 Expected: PASS with copied subgraphs rewriting ids and the action menu staying minimal.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add \
