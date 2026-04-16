@@ -17,8 +17,8 @@ import {
   selectVersions,
   selectWorkingDocument
 } from '../../store/editor/selectors';
+import { NodeDetailPanel } from '../detail/NodeDetailPanel';
 import { VersionHistoryDrawer } from '../history/VersionHistoryDrawer';
-import { NodeInspector } from '../inspector/NodeInspector';
 import { IssuesDrawer } from '../issues/IssuesDrawer';
 import { AgentFlowCanvas } from './AgentFlowCanvas';
 import { AgentFlowOverlay } from './AgentFlowOverlay';
@@ -57,6 +57,7 @@ export function AgentFlowCanvasFrame({
     (state) => state.isRestoringVersion
   );
   const setPanelState = useAgentFlowEditorStore((state) => state.setPanelState);
+  const setSelection = useAgentFlowEditorStore((state) => state.setSelection);
   const documentRef = useRef(workingDocument);
   const lastSavedDocumentRef = useRef(lastSavedDocument);
   const viewportSnapshotRef = useRef(workingDocument.editor.viewport);
@@ -165,7 +166,20 @@ export function AgentFlowCanvasFrame({
             viewportGetterRef.current = getter;
           }}
         />
-        <NodeInspector />
+        {selectedNodeId ? (
+          <NodeDetailPanel
+            onClose={() =>
+              setSelection({
+                selectedNodeId: null,
+                selectedNodeIds: [],
+                selectedEdgeId: null,
+                focusedFieldKey: null,
+                openInspectorSectionKey: null
+              })
+            }
+            onRunNode={undefined}
+          />
+        ) : null}
       </div>
       {issues.some((issue) => issue.scope === 'global') ? (
         <Typography.Text type="danger">

@@ -99,7 +99,7 @@
 - Modify: `web/app/src/features/agent-flow/store/editor/slices/panel-slice.ts`
 - Modify: `web/app/src/features/agent-flow/_tests/editor-store.test.ts`
 
-- [ ] **Step 1: Write the failing shell and store tests**
+- [x] **Step 1: Write the failing shell and store tests**
 
 ```tsx
 // web/app/src/features/agent-flow/_tests/node-detail-panel.test.tsx
@@ -164,7 +164,7 @@ test('tracks node detail tab and width in panel state', () => {
 });
 ```
 
-- [ ] **Step 2: Run the targeted tests and confirm they fail**
+- [x] **Step 2: Run the targeted tests and confirm they fail**
 
 Run:
 
@@ -176,7 +176,7 @@ pnpm --dir web/app exec vitest run \
 
 Expected: FAIL with missing `NodeDetailPanel` exports and missing `nodeDetailTab` / `nodeDetailWidth` state.
 
-- [ ] **Step 3: Implement the panel slice additions and shell components**
+- [x] **Step 3: Implement the panel slice additions and shell components**
 
 ```ts
 // web/app/src/features/agent-flow/store/editor/slices/panel-slice.ts
@@ -365,7 +365,7 @@ const setSelection = useAgentFlowEditorStore((state) => state.setSelection);
 }
 ```
 
-- [ ] **Step 4: Re-run the targeted tests and confirm the shell passes**
+- [x] **Step 4: Re-run the targeted tests and confirm the shell passes**
 
 Run:
 
@@ -377,7 +377,7 @@ pnpm --dir web/app exec vitest run \
 
 Expected: PASS with the new panel state and shell rendering.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add \

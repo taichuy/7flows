@@ -40,7 +40,12 @@ export interface AgentFlowEditorState
     payload: Partial<
       Pick<
         AgentFlowEditorState,
-        'issuesOpen' | 'historyOpen' | 'publishConfigOpen' | 'nodePickerState'
+        | 'issuesOpen'
+        | 'historyOpen'
+        | 'publishConfigOpen'
+        | 'nodeDetailTab'
+        | 'nodeDetailWidth'
+        | 'nodePickerState'
       >
     >
   ) => void;
@@ -82,6 +87,8 @@ export function createAgentFlowEditorStore(
     issuesOpen: false,
     historyOpen: false,
     publishConfigOpen: false,
+    nodeDetailTab: 'config',
+    nodeDetailWidth: 420,
     nodePickerState: {
       open: false,
       anchorNodeId: null,
@@ -126,6 +133,8 @@ export function createAgentFlowEditorStore(
         historyOpen: payload.historyOpen ?? current.historyOpen,
         publishConfigOpen:
           payload.publishConfigOpen ?? current.publishConfigOpen,
+        nodeDetailTab: payload.nodeDetailTab ?? current.nodeDetailTab,
+        nodeDetailWidth: payload.nodeDetailWidth ?? current.nodeDetailWidth,
         nodePickerState: payload.nodePickerState
           ? {
               ...current.nodePickerState,
@@ -190,6 +199,8 @@ export function createAgentFlowEditorStore(
         issuesOpen: false,
         historyOpen: false,
         publishConfigOpen: false,
+        nodeDetailTab: 'config',
+        nodeDetailWidth: 420,
         nodePickerState: {
           open: false,
           anchorNodeId: null,
@@ -234,7 +245,9 @@ export function createAgentFlowEditorStore(
         hoveredEdgeId: null,
         highlightedIssueId: null,
         issuesOpen: false,
-        historyOpen: false
+        historyOpen: false,
+        nodeDetailTab: 'config',
+        nodeDetailWidth: 420
       })
   }));
 }

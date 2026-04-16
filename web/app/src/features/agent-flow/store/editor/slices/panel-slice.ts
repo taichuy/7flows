@@ -2,6 +2,8 @@ export interface PanelSlice {
   issuesOpen: boolean;
   historyOpen: boolean;
   publishConfigOpen: boolean;
+  nodeDetailTab: 'config' | 'lastRun';
+  nodeDetailWidth: number;
   nodePickerState: {
     open: boolean;
     anchorNodeId: string | null;

@@ -44,6 +44,37 @@
   /* Inspector handles its own floating position now */
 }
 
+.agent-flow-node-detail {
+  position: absolute;
+  top: var(--agent-flow-secondary-top);
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e4eadf;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.agent-flow-node-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 0;
+}
+
+.agent-flow-node-detail__header-main {
+  min-width: 0;
+}
+
+.agent-flow-node-detail__header-main .ant-typography {
+  margin-bottom: 4px;
+}
+
 .agent-flow-editor__breadcrumb {
   position: absolute;
   top: var(--agent-flow-secondary-top);

@@ -80,4 +80,29 @@ describe('agent flow editor store', () => {
     expect(store.getState().focusedFieldKey).toBe(null);
     expect(store.getState().highlightedIssueId).toBe(null);
   });
+
+  test('tracks node detail tab and width in panel state', () => {
+    const store = createAgentFlowEditorStore({
+      flow_id: 'flow-1',
+      draft: {
+        id: 'draft-1',
+        flow_id: 'flow-1',
+        updated_at: '2026-04-16T10:00:00Z',
+        document: createDefaultAgentFlowDocument({ flowId: 'flow-1' })
+      },
+      autosave_interval_seconds: 30,
+      versions: []
+    });
+
+    expect(store.getState().nodeDetailTab).toBe('config');
+    expect(store.getState().nodeDetailWidth).toBe(420);
+
+    store.getState().setPanelState({
+      nodeDetailTab: 'lastRun',
+      nodeDetailWidth: 488
+    });
+
+    expect(store.getState().nodeDetailTab).toBe('lastRun');
+    expect(store.getState().nodeDetailWidth).toBe(488);
+  });
 });
