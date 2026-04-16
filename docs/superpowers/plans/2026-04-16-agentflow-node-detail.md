@@ -1036,7 +1036,7 @@ git commit -m "feat: compose node detail config tab"
 - Create: `web/app/src/features/agent-flow/_tests/node-last-run-tab.test.tsx`
 - Modify: `web/app/src/features/agent-flow/components/editor/agent-flow-editor.css`
 
-- [ ] **Step 1: Write the failing last-run shell test**
+- [x] **Step 1: Write the failing last-run shell test**
 
 ```tsx
 // web/app/src/features/agent-flow/_tests/node-last-run-tab.test.tsx
@@ -1057,7 +1057,7 @@ describe('NodeLastRunTab', () => {
 });
 ```
 
-- [ ] **Step 2: Run the targeted test and confirm failure**
+- [x] **Step 2: Run the targeted test and confirm failure**
 
 Run:
 
@@ -1067,7 +1067,7 @@ pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/node-last-run-
 
 Expected: FAIL because `NodeLastRunTab` still是空壳，且三层 placeholder cards 尚未存在。
 
-- [ ] **Step 3: Implement the placeholder contract and tab wiring**
+- [x] **Step 3: Implement the placeholder contract and tab wiring**
 
 ```tsx
 // web/app/src/features/agent-flow/components/detail/tabs/NodeLastRunTab.tsx
@@ -1131,7 +1131,7 @@ export function NodeRunMetadataCard() {
 }
 ```
 
-- [ ] **Step 4: Re-run the focused test and confirm the tab shell passes**
+- [x] **Step 4: Re-run the focused test and confirm the tab shell passes**
 
 Run:
 
@@ -1141,7 +1141,7 @@ pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/node-last-run-
 
 Expected: PASS with the three-layer placeholder structure rendered.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add \
