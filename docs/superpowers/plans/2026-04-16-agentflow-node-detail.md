@@ -1169,7 +1169,7 @@ git commit -m "feat: add node detail last-run shell"
 - Modify: `web/app/src/features/agent-flow/_tests/node-inspector.test.tsx`
 - Modify: `web/app/src/features/agent-flow/_tests/validate-document.test.ts`
 
-- [ ] **Step 1: Write the failing output-contract and policy tests**
+- [x] **Step 1: Write the failing output-contract and policy tests**
 
 ```tsx
 // web/app/src/features/agent-flow/_tests/node-inspector.test.tsx
@@ -1252,7 +1252,7 @@ test('flags duplicate code output keys in the editable output contract', () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused tests and confirm failure**
+- [x] **Step 2: Run the focused tests and confirm failure**
 
 Run:
 
@@ -1264,7 +1264,7 @@ pnpm --dir web/app exec vitest run \
 
 Expected: FAIL because the new editor kind, policy section and validation rules do not exist yet.
 
-- [ ] **Step 3: Implement definition metadata, editable output contracts and common policy blocks**
+- [x] **Step 3: Implement definition metadata, editable output contracts and common policy blocks**
 
 ```ts
 // web/app/src/features/agent-flow/lib/node-definitions.tsx
@@ -1530,7 +1530,7 @@ for (const node of document.graph.nodes) {
 }
 ```
 
-- [ ] **Step 4: Re-run the focused tests and confirm the schema and policy layer pass**
+- [x] **Step 4: Re-run the focused tests and confirm the schema and policy layer pass**
 
 Run:
 
@@ -1542,7 +1542,7 @@ pnpm --dir web/app exec vitest run \
 
 Expected: PASS with editable `Code` output contracts, read-only output display and duplicate-contract validation.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add \

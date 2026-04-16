@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
 
+import { createNodeDocument } from '../lib/document/node-factory';
 import { NodeConfigTab } from '../components/detail/tabs/NodeConfigTab';
 import { NodeInspector } from '../components/inspector/NodeInspector';
 import {
@@ -20,6 +21,24 @@ function createInitialState() {
       flow_id: 'flow-1',
       updated_at: '2026-04-16T10:00:00Z',
       document: createDefaultAgentFlowDocument({ flowId: 'flow-1' })
+    },
+    autosave_interval_seconds: 30,
+    versions: []
+  };
+}
+
+function createInitialStateWithCodeNode() {
+  const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+
+  document.graph.nodes.push(createNodeDocument('code', 'node-code', 720, 240));
+
+  return {
+    flow_id: 'flow-1',
+    draft: {
+      id: 'draft-1',
+      flow_id: 'flow-1',
+      updated_at: '2026-04-16T10:00:00Z',
+      document
     },
     autosave_interval_seconds: 30,
     versions: []
@@ -141,5 +160,18 @@ describe('NodeInspector', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('模型')).toHaveFocus();
     });
+  });
+
+  test('renders code output contract definition inside config fields while keeping output display read-only', () => {
+    render(
+      <AgentFlowEditorStoreProvider initialState={createInitialStateWithCodeNode()}>
+        <SelectionSeed nodeId="node-code" />
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    expect(screen.getAllByText('输出契约').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: '新增输出变量' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('代码结果')).not.toBeInTheDocument();
   });
 });

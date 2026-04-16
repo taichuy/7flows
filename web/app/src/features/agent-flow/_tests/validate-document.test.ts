@@ -2,7 +2,36 @@ import { describe, expect, test } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
 
+import { createNodeDocument } from '../lib/document/node-factory';
 import { validateDocument } from '../lib/validate-document';
+
+function createCodeDocumentWithOutputs(
+  outputs: Array<{
+    key: string;
+    title: string;
+    valueType: 'string' | 'number' | 'boolean' | 'array' | 'json' | 'unknown';
+  }>
+) {
+  const document = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
+
+  document.graph.nodes = document.graph.nodes.map((node) =>
+    node.id === 'node-llm'
+      ? {
+          ...createNodeDocument('code', 'node-code', node.position.x, node.position.y),
+          outputs
+        }
+      : node
+  );
+  document.graph.edges = document.graph.edges.map((edge) =>
+    edge.source === 'node-llm'
+      ? { ...edge, source: 'node-code' }
+      : edge.target === 'node-llm'
+        ? { ...edge, target: 'node-code' }
+        : edge
+  );
+
+  return document;
+}
 
 describe('validateDocument', () => {
   test('returns field, node, and global issues', () => {
@@ -36,5 +65,23 @@ describe('validateDocument', () => {
         (issue) => issue.scope === 'field' && issue.nodeId === 'node-llm'
       )
     ).toBe(true);
+  });
+
+  test('flags duplicate code output keys in the editable output contract', () => {
+    const document = createCodeDocumentWithOutputs([
+      { key: 'result', title: '结果', valueType: 'string' },
+      { key: 'result', title: '重复结果', valueType: 'string' }
+    ]);
+
+    const issues = validateDocument(document);
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          nodeId: 'node-code',
+          message: '输出契约中的变量名必须唯一'
+        })
+      ])
+    );
   });
 });

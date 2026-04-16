@@ -117,6 +117,15 @@
   gap: 4px;
 }
 
+.agent-flow-output-contract-editor__row {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.agent-flow-node-detail__policies .ant-select {
+  width: 100%;
+}
+
 .agent-flow-editor__breadcrumb {
   position: absolute;
   top: var(--agent-flow-secondary-top);

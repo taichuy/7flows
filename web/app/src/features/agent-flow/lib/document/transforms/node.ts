@@ -28,6 +28,27 @@ function replaceOutputTitle(
   );
 }
 
+export function replaceNodeOutputs(
+  document: FlowAuthoringDocument,
+  nodeId: string,
+  outputs: FlowNodeDocument['outputs']
+): FlowAuthoringDocument {
+  return {
+    ...document,
+    graph: {
+      ...document.graph,
+      nodes: document.graph.nodes.map((node) =>
+        node.id === nodeId
+          ? {
+              ...node,
+              outputs
+            }
+          : node
+      )
+    }
+  };
+}
+
 export function moveNodes(
   document: FlowAuthoringDocument,
   positions: Record<string, { x: number; y: number }>

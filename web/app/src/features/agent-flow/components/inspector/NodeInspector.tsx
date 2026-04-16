@@ -7,6 +7,7 @@ import { NamedBindingsField } from '../bindings/NamedBindingsField';
 import { SelectorField } from '../bindings/SelectorField';
 import { StateWriteField } from '../bindings/StateWriteField';
 import { TemplatedTextField } from '../bindings/TemplatedTextField';
+import { OutputContractDefinitionField } from '../detail/fields/OutputContractDefinitionField';
 import { useInspectorInteractions } from '../../hooks/interactions/use-inspector-interactions';
 import type {
   InspectorSectionKey,
@@ -259,6 +260,15 @@ export function NodeInspector() {
                 kind: 'state_write',
                 value: nextValue
               })
+            }
+          />
+        );
+      case 'output_contract_definition':
+        return (
+          <OutputContractDefinitionField
+            value={activeNode.outputs}
+            onChange={(nextValue) =>
+              updateField('config.output_contract', nextValue)
             }
           />
         );

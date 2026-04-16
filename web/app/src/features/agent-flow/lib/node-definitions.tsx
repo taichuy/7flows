@@ -15,7 +15,8 @@ export type NodeEditorKind =
   | 'templated_text'
   | 'named_bindings'
   | 'condition_group'
-  | 'state_write';
+  | 'state_write'
+  | 'output_contract_definition';
 
 export interface NodeDefinitionField {
   key: string;
@@ -307,14 +308,16 @@ export const nodeDefinitions: Partial<Record<FlowNodeType, NodeDefinition>> = {
         ]
       },
       {
-        key: 'outputs',
-        title: 'Outputs',
-        fields: [{ key: 'outputs.result', label: '代码结果', editor: 'text', required: true }]
-      },
-      {
         key: 'advanced',
         title: 'Advanced',
-        fields: [{ key: 'config.language', label: '运行语言', editor: 'text' }]
+        fields: [
+          { key: 'config.language', label: '运行语言', editor: 'text' },
+          {
+            key: 'config.output_contract',
+            label: '输出契约',
+            editor: 'output_contract_definition'
+          }
+        ]
       }
     ]
   },

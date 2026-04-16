@@ -1,4 +1,4 @@
-import { updateNodeField } from '../../lib/document/transforms/node';
+import { replaceNodeOutputs, updateNodeField } from '../../lib/document/transforms/node';
 import { useAgentFlowEditorStore } from '../../store/editor/provider';
 import {
   selectSelectedNodeId,
@@ -16,6 +16,11 @@ export function useInspectorInteractions() {
   return {
     updateField(fieldKey: string, value: unknown) {
       if (!selectedNodeId) {
+        return;
+      }
+
+      if (fieldKey === 'config.output_contract' && Array.isArray(value)) {
+        setWorkingDocument(replaceNodeOutputs(document, selectedNodeId, value));
         return;
       }
 

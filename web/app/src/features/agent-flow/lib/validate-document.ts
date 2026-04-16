@@ -201,6 +201,34 @@ export function validateDocument(document: FlowAuthoringDocument): AgentFlowIssu
       }
     }
 
+    const seenOutputKeys = new Set<string>();
+
+    for (const output of node.outputs) {
+      if (output.key.trim().length === 0) {
+        pushFieldIssue(
+          issues,
+          node,
+          'config.output_contract',
+          '输出变量名未配置',
+          '输出契约中的变量名不能为空。'
+        );
+        continue;
+      }
+
+      if (seenOutputKeys.has(output.key)) {
+        pushFieldIssue(
+          issues,
+          node,
+          'config.output_contract',
+          '输出契约重复',
+          '输出契约中的变量名必须唯一'
+        );
+        continue;
+      }
+
+      seenOutputKeys.add(output.key);
+    }
+
     if (
       node.type !== 'start' &&
       !document.graph.edges.some(
