@@ -115,19 +115,25 @@
 方向采用：
 
 - 升级为统一右侧 `Node Detail Panel`
+- 右侧详情采用参与布局的停靠 panel，而不是绝对定位浮层
+- 用 `Ant Design Splitter` 作为左右分栏与拖宽 primitive
 - 内部继续保留 schema-driven `NodeInspector`
 - 不继续沿用“只有折叠字段区的薄 Inspector”心智
 - 不直接照搬 `../dify` 的 monolithic panel 实现
 - 借 `Dify` 的产品结构，保留 `1Flowse` 当前 `store + interaction hook + schema renderer` 的前端内核方向
+- header 恢复节点主身份信息的内联编辑，不再把别名和简介拆散到配置卡片里
 
 ## 6. 信息架构
 
 ### 6.1 面板形态
 
 - 右侧详情升级为统一 `Node Detail Panel`
-- 维持右侧悬浮 / 固定停靠心智，不改成 `Drawer`
+- 维持右侧固定停靠心智，不改成 `Drawer`、`Modal` 或浏览器原生弹窗
+- panel 必须参与 editor 布局，打开后挤压可用画布宽度，而不是覆盖画布
 - 支持用户调宽
+- 调宽能力通过 `Ant Design Splitter` 提供，不额外引入新的分栏体系
 - 面板宽度应为 editor 独立状态，而不是附着在 `NodeInspector` 组件自身
+- 当前如果存在绝对定位浮层实现，应视为中间态并在本次设计内回收
 
 ### 6.2 顶层结构
 
@@ -141,6 +147,8 @@
 - `配置` tab 承载当前模块所有真实可用内容
 - `上次运行` tab 在 `04` 先有真实结构和占位空态
 - `05` 再把真实运行数据接入 `上次运行`
+- 两个 tab 共用同一个停靠 panel 容器、同一套宽度状态和同一套滚动边界
+- 切换 tab 只替换内容，不改变 panel 定位方式，不允许出现“切到上次运行就像整页覆盖画布”的观感
 
 ### 6.3 Header
 
@@ -148,8 +156,8 @@ Header 固定包含：
 
 - 类型图标
 - 类型名
-- 节点别名
-- 节点简介
+- 节点别名输入
+- 节点简介输入
 - 帮助入口
 - 一键运行当前节点按钮
 - 更多操作菜单
@@ -159,7 +167,9 @@ Header 固定包含：
 
 - 类型图标第一版允许用 `Ant Design` icon 占位，后续再替换成正式 SVG
 - 一键运行按钮位置参考 `Dify`，放在 header 右侧动作区，不放进更多操作菜单
-- 别名与简介仍是当前节点的基础 authoring 字段
+- 类型名是只读元信息
+- 别名与简介仍是当前节点的基础 authoring 字段，但编辑入口固定收口到 header
+- header 是节点主身份区；配置 tab 内不再重复放一套别名 / 简介编辑表单
 
 ### 6.4 更多操作
 
@@ -195,12 +205,16 @@ Header 固定包含：
 
 用于承载：
 
-- 节点别名
-- 节点简介
 - 节点短说明
 - 帮助外链
+- 必要的静态使用提示
 
 目标是让用户先知道“这是什么节点、负责什么”，再进入配置细节。
+
+明确不承载：
+
+- 别名编辑
+- 简介编辑
 
 #### 第二层：Node Config Sections
 
@@ -291,6 +305,7 @@ Header 固定包含：
 - 统一布局
 - `loading / empty / unavailable` 占位态
 - 三层结构的 UI 骨架
+- 与 `配置` tab 相同的 panel 内容宽度、滚动行为与停靠心智
 
 `04` 阶段不实现：
 
@@ -303,17 +318,27 @@ Header 固定包含：
 
 第一版应把当前节点详情拆成以下共用组件：
 
+- `AgentFlowCanvasFrame`
+  - 负责 `Splitter` 分栏装配
+  - 负责“画布区域 / 右侧详情”的页面级布局
+  - 负责详情打开时的宽度约束与布局稳定性
 - `NodeDetailPanel`
   - 右侧统一壳层
-  - 负责 panel 宽度、tab 装配、整体布局
+  - 负责 panel 宽度透传、tab 装配、整体布局
+  - 不再自己承担绝对定位浮层职责
 - `NodeDetailHeader`
-  - 负责图标、类型、别名、简介、帮助、运行按钮、更多操作、关闭
+  - 负责图标、类型、别名输入、简介输入、帮助、运行按钮、更多操作、关闭
+  - 直接写回当前节点主身份 authoring 字段
 - `NodeConfigTab`
   - 承载 authoring 内容
 - `NodeLastRunTab`
   - 承载 `Last Run` 壳层与未来 runtime 扩展位
+  - 与 `NodeConfigTab` 共用同一 panel 内容容器规则
 - `NodeInspector`
   - 继续只负责 schema-driven section/field renderer
+- `NodeSummaryCard`
+  - 只读说明卡片
+  - 不再承载别名 / 简介编辑
 - `NodeOutputContractCard`
   - 统一展示输出契约
 - `NodeRelationsCard`
@@ -330,6 +355,7 @@ Header 固定包含：
 - 外层 panel 负责信息架构与布局
 - `NodeInspector` 不再承担完整详情面板职责
 - 运行态容器和 authoring 容器从现在开始分层
+- header 负责节点身份信息，summary card 负责节点说明，两者不再重叠
 
 ## 8. 输出契约规则
 
@@ -560,6 +586,7 @@ function main({ arg1, arg2 }) {
 - 节点详情结构按桌面优先设计
 - 窄屏不额外裁切信息架构
 - 画布与详情按现有宿主能力自然退化
+- 若宿主当前在窄屏直接降级为“请使用桌面端编辑”，本次设计保持该降级策略，不为 panel 重构额外开放半可用编辑态
 
 ## 15. 数据与前端状态边界
 
@@ -573,6 +600,7 @@ function main({ arg1, arg2 }) {
 - panel 宽度
 - section 展开状态
 - 复制 / 定位 / 进入子画布等交互状态
+- header 中别名 / 简介编辑的即时 authoring 变更
 
 ### 15.2 Runtime 状态
 
@@ -593,14 +621,27 @@ function main({ arg1, arg2 }) {
 - 只保留稳定 UI contract
 - `05` 接入时只替换数据来源，不重写 panel 布局
 
+并补充以下交互规则：
+
+- `selectedNodeId` 决定右侧详情是否显示
+- 关闭详情时，不重置 `nodeDetailTab` 与 `nodeDetailWidth`
+- 切换 `配置 / 上次运行` 时，不改变 panel 宽度
+- 切换节点时默认保留当前 tab，不额外强制回到 `配置`
+- `nodeDetailWidth` 由 `Splitter` 更新，并受到最小 / 最大宽度约束
+
 ## 16. 验收要求
 
 当该设计进入实现时，验收至少包含：
 
 - 右侧 `Node Detail Panel` 壳层成立
+- 详情为右侧停靠 panel，不再以绝对定位浮层覆盖画布
+- `Splitter` 拖宽成立，panel 宽度可持久保留
 - Header、主操作、更多操作、tab 结构成立
+- Header 中可直接编辑别名与简介
+- `NodeSummaryCard` 不再重复出现别名 / 简介编辑控件
 - `配置` tab 可覆盖全部已接入节点
 - `上次运行` tab 的壳层与空态成立
+- `配置 / 上次运行` 切换后仍处于同一个停靠 panel 容器内
 - 通用块 `Retry / Error / Next Step / Relations / Output Contract` 成立
 - 容器节点可从详情进入子画布
 - 复制普通节点与复制容器子图的规则清晰可测
@@ -608,12 +649,14 @@ function main({ arg1, arg2 }) {
 
 ## 17. 明确建议
 
-建议按本稿推进，不再继续扩现有“薄 Inspector”。
+建议按本稿推进，不再继续扩现有“薄 Inspector”，也不改走弹窗路线。
 
 正确做法是：
 
-- 用 `Node Detail Panel` 建立完整外层结构
+- 用右侧停靠的 `Node Detail Panel` 建立完整外层结构
+- 用 `Ant Design Splitter` 管 editor 画布与详情分栏
 - 保留 `NodeInspector` 作为 schema-driven 内核
+- 把别名 / 简介收回 header 身份区
 - 让 `04` 先把 authoring 真值收稳
 - 再让 `05` 在已存在的 `Last Run` 结构中接入 runtime
 
