@@ -42,7 +42,7 @@ describe('AgentFlowEditorShell', () => {
     expect(
       await screen.findByText('Start', { selector: '.agent-flow-node-card__title' })
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'LLM' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Node 1 LLM' })).toBeInTheDocument();
     expect(
       screen.getByText('Answer', { selector: '.agent-flow-node-card__title' })
     ).toBeInTheDocument();
@@ -228,7 +228,7 @@ describe('AgentFlowEditorShell', () => {
 
     expect(detailDock).toBeInTheDocument();
     expect(within(detailDock).getByLabelText('节点详情')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: '配置' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /设置|配置/ })).toBeInTheDocument();
   }, 20_000);
 
   test('keeps last-run content inside the same docked detail panel dock', async () => {
@@ -254,6 +254,27 @@ describe('AgentFlowEditorShell', () => {
     expect(detailDock).toBeInTheDocument();
     expect(within(detailDock).getByLabelText('节点详情')).toBeInTheDocument();
     expect(screen.queryByText('请使用桌面端编辑')).not.toBeInTheDocument();
+  }, 20_000);
+
+  test('hides config content after switching to the last-run tab', async () => {
+    vi.spyOn(Grid, 'useBreakpoint').mockReturnValue({ lg: true } as never);
+    vi.spyOn(orchestrationApi, 'fetchOrchestrationState').mockResolvedValueOnce(
+      createInitialState()
+    );
+
+    render(
+      <AppProviders>
+        <AgentFlowEditorPage
+          applicationId="app-1"
+          applicationName="Support Agent"
+        />
+      </AppProviders>
+    );
+
+    fireEvent.click(await screen.findByRole('tab', { name: '上次运行' }));
+
+    expect(screen.getByText('运行摘要')).toBeVisible();
+    expect(screen.getByLabelText('模型')).not.toBeVisible();
   }, 20_000);
 
   test('resizes the docked node detail panel by dragging its resize handle', async () => {
@@ -284,7 +305,7 @@ describe('AgentFlowEditorShell', () => {
 
     const detailDock = await screen.findByTestId('agent-flow-editor-detail-dock');
 
-    expect(detailDock).toHaveStyle('width: 420px');
+    expect(detailDock).toHaveStyle('width: 520px');
 
     fireEvent.mouseDown(
       screen.getByRole('separator', { name: '调整节点详情宽度' }),
@@ -293,6 +314,6 @@ describe('AgentFlowEditorShell', () => {
     fireEvent.mouseMove(window, { clientX: 780 });
     fireEvent.mouseUp(window);
 
-    expect(detailDock).toHaveStyle('width: 500px');
+    expect(detailDock).toHaveStyle('width: 600px');
   }, 20_000);
 });

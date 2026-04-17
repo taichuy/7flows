@@ -95,7 +95,7 @@ describe('agent flow editor store', () => {
     });
 
     expect(store.getState().nodeDetailTab).toBe('config');
-    expect(store.getState().nodeDetailWidth).toBe(420);
+    expect(store.getState().nodeDetailWidth).toBe(520);
 
     store.getState().setPanelState({
       nodeDetailTab: 'lastRun',

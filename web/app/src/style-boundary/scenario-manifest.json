@@ -162,6 +162,10 @@
           {
             "property": "top",
             "expected": "97px"
+          },
+          {
+            "property": "width",
+            "expected": "520px"
           }
         ]
       },
@@ -176,6 +180,20 @@
           {
             "property": "box-shadow",
             "expected": "none"
+          }
+        ]
+      },
+      {
+        "id": "editor-policy-select",
+        "selector": ".agent-flow-node-detail__policy-select .ant-select-selector",
+        "propertyAssertions": [
+          {
+            "property": "min-height",
+            "expected": "40px"
+          },
+          {
+            "property": "border-top-left-radius",
+            "expected": "10px"
           }
         ]
       },
