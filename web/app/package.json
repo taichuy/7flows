@@ -30,6 +30,6 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "lint": "eslint src --ext .ts,.tsx",
-    "test": "vitest --run"
+    "test": "vitest --run --maxWorkers=50% --minWorkers=1"
   }
 }

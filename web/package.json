@@ -10,7 +10,7 @@
     "dev:app": "pnpm --filter @1flowse/web dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "test": "turbo run test",
+    "test": "turbo run test --concurrency=50%",
     "format": "prettier --check .",
     "format:write": "prettier --write ."
   },
