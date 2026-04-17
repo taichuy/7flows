@@ -74,3 +74,4 @@ pnpm exec vitest run src/features/agent-flow/_tests/node-detail-panel.test.tsx
 ## 复现记录
 
 - `2026-04-17 12`：为 agent-flow detail panel 改动跑聚焦单测时，先在 `web/` 根执行 `pnpm --dir web exec vitest run app/src/...`，命中 `@1flowse/flow-schema` 解析失败；切到 `web/app` 改用 `pnpm exec vitest run src/...` 后恢复正常。
+- `2026-04-17 23`：为 node detail tabs 布局修正做聚焦验证时，再次在 `web/` 根执行 `pnpm --dir web exec vitest run app/src/features/agent-flow/_tests/node-detail-panel.test.tsx`，同样报 `Failed to resolve entry for package "@1flowse/flow-schema"`；确认该问题稳定复现，继续保持在 `web/app` 包根执行单文件测试。
