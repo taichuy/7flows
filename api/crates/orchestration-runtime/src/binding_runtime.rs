@@ -81,7 +81,10 @@ fn resolve_binding(binding: &CompiledBinding, variable_pool: &Map<String, Value>
                         })
                     })
                     .collect::<Result<Vec<_>>>()?;
-                object.insert(name.to_string(), lookup_selector_value(variable_pool, &selector)?);
+                object.insert(
+                    name.to_string(),
+                    lookup_selector_value(variable_pool, &selector)?,
+                );
             }
 
             Ok(Value::Object(object))

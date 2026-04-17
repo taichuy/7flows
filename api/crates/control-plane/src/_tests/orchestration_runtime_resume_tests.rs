@@ -22,16 +22,17 @@ async fn start_flow_debug_run_stops_at_human_input_and_persists_waiting_state() 
 
     assert_eq!(detail.flow_run.run_mode.as_str(), "debug_flow_run");
     assert_eq!(detail.flow_run.status.as_str(), "waiting_human");
-    assert_eq!(detail.node_runs.last().unwrap().status.as_str(), "waiting_human");
+    assert_eq!(
+        detail.node_runs.last().unwrap().status.as_str(),
+        "waiting_human"
+    );
     assert_eq!(detail.checkpoints.len(), 1);
 }
 
 #[tokio::test]
 async fn resume_flow_run_with_human_input_finishes_downstream_answer_node() {
     let service = OrchestrationRuntimeService::for_tests();
-    let seeded = service
-        .seed_waiting_human_run("Support Agent")
-        .await;
+    let seeded = service.seed_waiting_human_run("Support Agent").await;
 
     let detail = service
         .resume_flow_run(ResumeFlowRunCommand {
@@ -46,15 +47,16 @@ async fn resume_flow_run_with_human_input_finishes_downstream_answer_node() {
 
     assert_eq!(detail.flow_run.status.as_str(), "succeeded");
     assert_eq!(detail.node_runs.last().unwrap().node_id, "node-answer");
-    assert_eq!(detail.flow_run.output_payload["answer"], json!("已审核通过"));
+    assert_eq!(
+        detail.flow_run.output_payload["answer"],
+        json!("已审核通过")
+    );
 }
 
 #[tokio::test]
 async fn complete_callback_task_updates_task_and_requeues_waiting_run() {
     let service = OrchestrationRuntimeService::for_tests();
-    let seeded = service
-        .seed_waiting_callback_run("Support Agent")
-        .await;
+    let seeded = service.seed_waiting_callback_run("Support Agent").await;
 
     let detail = service
         .complete_callback_task(CompleteCallbackTaskCommand {

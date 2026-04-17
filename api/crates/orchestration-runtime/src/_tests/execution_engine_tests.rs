@@ -157,7 +157,10 @@ fn resume_flow_debug_run_completes_answer_after_human_input() {
     )
     .unwrap();
 
-    assert!(matches!(resumed.stop_reason, ExecutionStopReason::Completed));
+    assert!(matches!(
+        resumed.stop_reason,
+        ExecutionStopReason::Completed
+    ));
     assert_eq!(
         resumed.variable_pool["node-answer"]["answer"],
         json!("已审核，可继续")
@@ -190,11 +193,8 @@ fn tool_node_emits_waiting_callback_stop_reason() {
         },
     );
 
-    let outcome = start_flow_debug_run(
-        &plan,
-        &json!({ "node-start": { "query": "order_123" } }),
-    )
-    .unwrap();
+    let outcome =
+        start_flow_debug_run(&plan, &json!({ "node-start": { "query": "order_123" } })).unwrap();
 
     match outcome.stop_reason {
         ExecutionStopReason::WaitingCallback(ref pending) => {

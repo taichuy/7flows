@@ -46,7 +46,12 @@ fn execute_from(
 ) -> Result<FlowDebugExecutionOutcome> {
     let mut node_traces = Vec::new();
 
-    for (index, node_id) in plan.topological_order.iter().enumerate().skip(next_node_index) {
+    for (index, node_id) in plan
+        .topological_order
+        .iter()
+        .enumerate()
+        .skip(next_node_index)
+    {
         let node = plan
             .nodes
             .get(node_id)
@@ -75,17 +80,18 @@ fn execute_from(
                     .first()
                     .map(|output| output.key.clone())
                     .unwrap_or_else(|| "result".to_string());
-                let output_value = rendered_templates
-                    .values()
-                    .next()
-                    .cloned()
-                    .unwrap_or_else(|| {
-                        resolved_inputs
-                            .values()
-                            .next()
-                            .cloned()
-                            .unwrap_or(Value::Null)
-                    });
+                let output_value =
+                    rendered_templates
+                        .values()
+                        .next()
+                        .cloned()
+                        .unwrap_or_else(|| {
+                            resolved_inputs
+                                .values()
+                                .next()
+                                .cloned()
+                                .unwrap_or(Value::Null)
+                        });
                 let output_payload = json!({ output_key: output_value });
                 variable_pool.insert(node.node_id.clone(), output_payload.clone());
                 node_traces.push(NodeExecutionTrace {

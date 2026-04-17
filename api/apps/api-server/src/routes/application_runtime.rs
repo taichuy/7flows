@@ -150,7 +150,10 @@ pub struct NodeLastRunResponse {
 
 pub fn router() -> Router<Arc<ApiState>> {
     Router::new()
-        .route("/applications/:id/orchestration/debug-runs", post(start_flow_debug_run))
+        .route(
+            "/applications/:id/orchestration/debug-runs",
+            post(start_flow_debug_run),
+        )
         .route(
             "/applications/:id/orchestration/runs/:run_id/resume",
             post(resume_flow_run),

@@ -7,10 +7,9 @@ use crate::{
     flow::FlowService,
     ports::{
         AppendRunEventInput, ApplicationRepository, CompleteCallbackTaskInput,
-        CompleteFlowRunInput, CompleteNodeRunInput, CreateCallbackTaskInput,
-        CreateCheckpointInput, CreateFlowRunInput, CreateNodeRunInput, FlowRepository,
-        OrchestrationRuntimeRepository, UpdateFlowRunInput, UpdateNodeRunInput,
-        UpsertCompiledPlanInput,
+        CompleteFlowRunInput, CompleteNodeRunInput, CreateCallbackTaskInput, CreateCheckpointInput,
+        CreateFlowRunInput, CreateNodeRunInput, FlowRepository, OrchestrationRuntimeRepository,
+        UpdateFlowRunInput, UpdateNodeRunInput, UpsertCompiledPlanInput,
     },
 };
 
@@ -45,6 +44,16 @@ pub struct CompleteCallbackTaskCommand {
 struct WaitingNodeResumeUpdate {
     node_run_id: Uuid,
     output_payload: Value,
+}
+
+struct PersistFlowDebugOutcomeInput<'a> {
+    application_id: Uuid,
+    flow_run: &'a domain::FlowRunRecord,
+    outcome: &'a orchestration_runtime::execution_state::FlowDebugExecutionOutcome,
+    trigger_event_type: &'a str,
+    trigger_event_payload: Value,
+    base_started_at: OffsetDateTime,
+    waiting_node_resume: Option<WaitingNodeResumeUpdate>,
 }
 
 pub struct OrchestrationRuntimeService<R> {
@@ -175,18 +184,18 @@ where
             })
             .await?;
 
-        self.persist_flow_debug_outcome(
-            command.application_id,
-            &flow_run,
-            &outcome,
-            "flow_run_started",
-            json!({
+        self.persist_flow_debug_outcome(PersistFlowDebugOutcomeInput {
+            application_id: command.application_id,
+            flow_run: &flow_run,
+            outcome: &outcome,
+            trigger_event_type: "flow_run_started",
+            trigger_event_payload: json!({
                 "run_mode": domain::FlowRunMode::DebugFlowRun.as_str(),
                 "input_payload": command.input_payload,
             }),
-            OffsetDateTime::now_utc(),
-            None,
-        )
+            base_started_at: OffsetDateTime::now_utc(),
+            waiting_node_resume: None,
+        })
         .await
     }
 
@@ -230,21 +239,23 @@ where
             &command.input_payload,
         )?;
 
-        self.persist_flow_debug_outcome(
-            command.application_id,
-            &flow_run,
-            &outcome,
-            "flow_run_resumed",
-            json!({
+        self.persist_flow_debug_outcome(PersistFlowDebugOutcomeInput {
+            application_id: command.application_id,
+            flow_run: &flow_run,
+            outcome: &outcome,
+            trigger_event_type: "flow_run_resumed",
+            trigger_event_payload: json!({
                 "checkpoint_id": checkpoint.id,
                 "input_payload": command.input_payload,
             }),
-            next_node_started_at(&current_detail),
-            checkpoint.node_run_id.map(|node_run_id| WaitingNodeResumeUpdate {
-                node_run_id,
-                output_payload: resume_patch,
+            base_started_at: next_node_started_at(&current_detail),
+            waiting_node_resume: checkpoint.node_run_id.map(|node_run_id| {
+                WaitingNodeResumeUpdate {
+                    node_run_id,
+                    output_payload: resume_patch,
+                }
             }),
-        )
+        })
         .await
     }
 
@@ -291,37 +302,39 @@ where
             &resume_payload,
         )?;
 
-        self.persist_flow_debug_outcome(
-            command.application_id,
-            &flow_run,
-            &outcome,
-            "flow_run_resumed",
-            json!({
+        self.persist_flow_debug_outcome(PersistFlowDebugOutcomeInput {
+            application_id: command.application_id,
+            flow_run: &flow_run,
+            outcome: &outcome,
+            trigger_event_type: "flow_run_resumed",
+            trigger_event_payload: json!({
                 "callback_task_id": callback_task.id,
                 "response_payload": command.response_payload,
             }),
-            next_node_started_at(&detail),
-            Some(WaitingNodeResumeUpdate {
+            base_started_at: next_node_started_at(&detail),
+            waiting_node_resume: Some(WaitingNodeResumeUpdate {
                 node_run_id: callback_task.node_run_id,
-                output_payload: callback_task
-                    .response_payload
-                    .clone()
-                    .ok_or_else(|| anyhow!("completed callback task is missing response payload"))?,
+                output_payload: callback_task.response_payload.clone().ok_or_else(|| {
+                    anyhow!("completed callback task is missing response payload")
+                })?,
             }),
-        )
+        })
         .await
     }
 
     async fn persist_flow_debug_outcome(
         &self,
-        application_id: Uuid,
-        flow_run: &domain::FlowRunRecord,
-        outcome: &orchestration_runtime::execution_state::FlowDebugExecutionOutcome,
-        trigger_event_type: &str,
-        trigger_event_payload: Value,
-        base_started_at: OffsetDateTime,
-        waiting_node_resume: Option<WaitingNodeResumeUpdate>,
+        input: PersistFlowDebugOutcomeInput<'_>,
     ) -> Result<domain::ApplicationRunDetail> {
+        let PersistFlowDebugOutcomeInput {
+            application_id,
+            flow_run,
+            outcome,
+            trigger_event_type,
+            trigger_event_payload,
+            base_started_at,
+            waiting_node_resume,
+        } = input;
         self.repository
             .append_run_event(&AppendRunEventInput {
                 flow_run_id: flow_run.id,
@@ -344,13 +357,9 @@ where
                 .await?;
         }
 
-        let waiting_node_run = persist_flow_debug_node_traces(
-            &self.repository,
-            flow_run.id,
-            outcome,
-            base_started_at,
-        )
-        .await?;
+        let waiting_node_run =
+            persist_flow_debug_node_traces(&self.repository, flow_run.id, outcome, base_started_at)
+                .await?;
 
         match &outcome.stop_reason {
             orchestration_runtime::execution_state::ExecutionStopReason::WaitingHuman(wait) => {
@@ -589,7 +598,10 @@ where
             Some((wait.node_id.as_str(), domain::NodeRunStatus::WaitingHuman))
         }
         orchestration_runtime::execution_state::ExecutionStopReason::WaitingCallback(wait) => {
-            Some((wait.node_id.as_str(), domain::NodeRunStatus::WaitingCallback))
+            Some((
+                wait.node_id.as_str(),
+                domain::NodeRunStatus::WaitingCallback,
+            ))
         }
         orchestration_runtime::execution_state::ExecutionStopReason::Completed => None,
     };
@@ -1179,8 +1191,7 @@ impl OrchestrationRuntimeRepository for InMemoryOrchestrationRuntimeRepository {
                     .cloned()
                     .collect::<Vec<_>>();
                 checkpoints.sort_by(|left, right| {
-                    left
-                        .created_at
+                    left.created_at
                         .cmp(&right.created_at)
                         .then_with(|| left.id.cmp(&right.id))
                 });
@@ -1194,8 +1205,7 @@ impl OrchestrationRuntimeRepository for InMemoryOrchestrationRuntimeRepository {
                     .cloned()
                     .collect::<Vec<_>>();
                 callback_tasks.sort_by(|left, right| {
-                    left
-                        .created_at
+                    left.created_at
                         .cmp(&right.created_at)
                         .then_with(|| left.id.cmp(&right.id))
                 });
