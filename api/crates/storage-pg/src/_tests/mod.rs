@@ -3,6 +3,7 @@ mod flow_repository_tests;
 mod member_mapper_tests;
 mod migration_smoke;
 mod model_definition_repository_tests;
+mod orchestration_runtime_repository_tests;
 mod physical_schema_repository_tests;
 mod role_policy_tests;
 mod runtime_record_repository_tests;

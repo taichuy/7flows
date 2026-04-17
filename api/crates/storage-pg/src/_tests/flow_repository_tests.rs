@@ -1,4 +1,4 @@
-use std::{sync::{Arc, OnceLock}};
+use std::sync::{Arc, OnceLock};
 
 use control_plane::ports::{ApplicationRepository, CreateApplicationInput, FlowRepository};
 use domain::{ApplicationType, FlowChangeKind, FlowVersionTrigger};
@@ -10,7 +10,9 @@ use uuid::Uuid;
 
 fn repository_test_semaphore() -> Arc<Semaphore> {
     static SEMAPHORE: OnceLock<Arc<Semaphore>> = OnceLock::new();
-    SEMAPHORE.get_or_init(|| Arc::new(Semaphore::new(1))).clone()
+    SEMAPHORE
+        .get_or_init(|| Arc::new(Semaphore::new(1)))
+        .clone()
 }
 
 fn base_database_url() -> String {
@@ -127,7 +129,13 @@ async fn get_or_create_editor_state_bootstraps_default_draft_and_first_version()
     .await
     .unwrap();
 
-    assert_eq!(state.draft.document["graph"]["nodes"].as_array().unwrap().len(), 3);
+    assert_eq!(
+        state.draft.document["graph"]["nodes"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
     assert_eq!(state.versions.len(), 1);
     assert_eq!(state.versions[0].trigger, FlowVersionTrigger::Autosave);
 
@@ -141,11 +149,16 @@ async fn get_or_create_editor_state_bootstraps_default_draft_and_first_version()
     .unwrap();
 
     assert_eq!(detail.sections.orchestration.status, "ready");
-    assert_eq!(detail.sections.orchestration.current_subject_id, Some(state.flow.id));
+    assert_eq!(
+        detail.sections.orchestration.current_subject_id,
+        Some(state.flow.id)
+    );
     assert_eq!(
         detail.sections.orchestration.current_draft_id,
         Some(state.draft.id)
     );
+    assert_eq!(detail.sections.logs.status, "ready");
+    assert_eq!(detail.sections.logs.runs_capability_status, "queryable");
 }
 
 #[tokio::test]
@@ -201,7 +214,10 @@ async fn save_draft_only_appends_history_for_logical_changes() {
 
     assert_eq!(logical_state.versions.len(), 2);
     assert_eq!(logical_state.versions[1].summary, "update llm prompt");
-    assert_eq!(logical_state.versions[1].change_kind, FlowChangeKind::Logical);
+    assert_eq!(
+        logical_state.versions[1].change_kind,
+        FlowChangeKind::Logical
+    );
 }
 
 #[tokio::test]

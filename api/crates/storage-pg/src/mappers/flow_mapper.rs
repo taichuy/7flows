@@ -93,7 +93,11 @@ pub fn flow_sections(
 
     ApplicationSections {
         orchestration: domain::ApplicationOrchestrationSection {
-            status: if ready { "ready".into() } else { "planned".into() },
+            status: if ready {
+                "ready".into()
+            } else {
+                "planned".into()
+            },
             subject_kind: application_type.as_str().into(),
             subject_status: if ready {
                 "editable".into()
@@ -112,8 +116,16 @@ pub fn flow_sections(
             credentials_status: "planned".into(),
         },
         logs: domain::ApplicationLogsSection {
-            status: "planned".into(),
-            runs_capability_status: "planned".into(),
+            status: if ready {
+                "ready".into()
+            } else {
+                "planned".into()
+            },
+            runs_capability_status: if ready {
+                "queryable".into()
+            } else {
+                "planned".into()
+            },
             run_object_kind: "application_run".into(),
             log_retention_status: "planned".into(),
         },

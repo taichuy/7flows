@@ -4,6 +4,7 @@ use domain::{
     ModelFieldKind, ModelFieldRecord, PermissionDefinition, RoleTemplate, ScopeContext,
     SessionRecord, TenantRecord, UserRecord, WorkspaceRecord,
 };
+use time::OffsetDateTime;
 use uuid::Uuid;
 
 #[async_trait]
@@ -192,6 +193,110 @@ pub trait FlowRepository: Send + Sync {
         actor_user_id: Uuid,
         version_id: Uuid,
     ) -> anyhow::Result<domain::FlowEditorState>;
+}
+
+#[derive(Debug, Clone)]
+pub struct UpsertCompiledPlanInput {
+    pub actor_user_id: Uuid,
+    pub flow_id: Uuid,
+    pub flow_draft_id: Uuid,
+    pub schema_version: String,
+    pub document_updated_at: OffsetDateTime,
+    pub plan: serde_json::Value,
+}
+
+#[derive(Debug, Clone)]
+pub struct CreateFlowRunInput {
+    pub actor_user_id: Uuid,
+    pub application_id: Uuid,
+    pub flow_id: Uuid,
+    pub flow_draft_id: Uuid,
+    pub compiled_plan_id: Uuid,
+    pub run_mode: domain::FlowRunMode,
+    pub target_node_id: Option<String>,
+    pub status: domain::FlowRunStatus,
+    pub input_payload: serde_json::Value,
+    pub started_at: OffsetDateTime,
+}
+
+#[derive(Debug, Clone)]
+pub struct CreateNodeRunInput {
+    pub flow_run_id: Uuid,
+    pub node_id: String,
+    pub node_type: String,
+    pub node_alias: String,
+    pub status: domain::NodeRunStatus,
+    pub input_payload: serde_json::Value,
+    pub started_at: OffsetDateTime,
+}
+
+#[derive(Debug, Clone)]
+pub struct CompleteNodeRunInput {
+    pub node_run_id: Uuid,
+    pub status: domain::NodeRunStatus,
+    pub output_payload: serde_json::Value,
+    pub error_payload: Option<serde_json::Value>,
+    pub metrics_payload: serde_json::Value,
+    pub finished_at: OffsetDateTime,
+}
+
+#[derive(Debug, Clone)]
+pub struct CompleteFlowRunInput {
+    pub flow_run_id: Uuid,
+    pub status: domain::FlowRunStatus,
+    pub output_payload: serde_json::Value,
+    pub error_payload: Option<serde_json::Value>,
+    pub finished_at: OffsetDateTime,
+}
+
+#[derive(Debug, Clone)]
+pub struct AppendRunEventInput {
+    pub flow_run_id: Uuid,
+    pub node_run_id: Option<Uuid>,
+    pub event_type: String,
+    pub payload: serde_json::Value,
+}
+
+#[async_trait]
+pub trait OrchestrationRuntimeRepository: Send + Sync {
+    async fn upsert_compiled_plan(
+        &self,
+        input: &UpsertCompiledPlanInput,
+    ) -> anyhow::Result<domain::CompiledPlanRecord>;
+    async fn create_flow_run(
+        &self,
+        input: &CreateFlowRunInput,
+    ) -> anyhow::Result<domain::FlowRunRecord>;
+    async fn create_node_run(
+        &self,
+        input: &CreateNodeRunInput,
+    ) -> anyhow::Result<domain::NodeRunRecord>;
+    async fn complete_node_run(
+        &self,
+        input: &CompleteNodeRunInput,
+    ) -> anyhow::Result<domain::NodeRunRecord>;
+    async fn complete_flow_run(
+        &self,
+        input: &CompleteFlowRunInput,
+    ) -> anyhow::Result<domain::FlowRunRecord>;
+    async fn append_run_event(
+        &self,
+        input: &AppendRunEventInput,
+    ) -> anyhow::Result<domain::RunEventRecord>;
+    async fn list_application_runs(
+        &self,
+        application_id: Uuid,
+    ) -> anyhow::Result<Vec<domain::ApplicationRunSummary>>;
+    async fn get_application_run_detail(
+        &self,
+        application_id: Uuid,
+        flow_run_id: Uuid,
+    ) -> anyhow::Result<Option<domain::ApplicationRunDetail>>;
+    async fn get_latest_node_run(
+        &self,
+        application_id: Uuid,
+        node_id: &str,
+    ) -> anyhow::Result<Option<domain::NodeLastRun>>;
 }
 
 #[derive(Debug, Clone)]

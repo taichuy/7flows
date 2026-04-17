@@ -6,6 +6,7 @@ pub mod auth;
 pub mod base;
 pub mod flow;
 pub mod modeling;
+pub mod orchestration;
 pub mod resource;
 pub mod scope;
 
@@ -28,6 +29,11 @@ pub use flow::{
 pub use modeling::{
     DataModelScopeKind, MetadataAvailabilityStatus, ModelDefinitionRecord, ModelFieldKind,
     ModelFieldRecord,
+};
+pub use orchestration::{
+    ApplicationRunDetail, ApplicationRunSummary, CheckpointRecord, CompiledPlanRecord, FlowRunMode,
+    FlowRunRecord, FlowRunStatus, NodeDebugPreviewResult, NodeLastRun, NodeRunRecord,
+    NodeRunStatus, RunEventRecord,
 };
 pub use resource::runtime_model_resource_code;
 pub use scope::{ScopeContext, TenantRecord, WorkspaceRecord, SYSTEM_SCOPE_ID};

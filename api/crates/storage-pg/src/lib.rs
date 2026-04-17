@@ -7,6 +7,7 @@ pub mod flow_repository;
 pub mod mappers;
 pub mod member_repository;
 pub mod model_definition_repository;
+pub mod orchestration_runtime_repository;
 pub mod physical_schema_repository;
 pub mod repositories;
 pub mod role_repository;

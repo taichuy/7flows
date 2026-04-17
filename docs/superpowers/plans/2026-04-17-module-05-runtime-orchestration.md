@@ -327,7 +327,7 @@ git commit -m "feat: add orchestration runtime compiler boundary"
 - Modify: `api/crates/storage-pg/src/_tests/flow_repository_tests.rs`
 - Modify: `api/crates/storage-pg/src/_tests/application_repository_tests.rs`
 
-- [ ] **Step 1: Write the failing repository tests**
+- [x] **Step 1: Write the failing repository tests**
 
 ```rust
 // api/crates/storage-pg/src/_tests/orchestration_runtime_repository_tests.rs
@@ -371,7 +371,7 @@ async fn latest_node_run_returns_most_recent_run_for_node() {
 }
 ```
 
-- [ ] **Step 2: Run the targeted repository tests and confirm they fail**
+- [x] **Step 2: Run the targeted repository tests and confirm they fail**
 
 Run:
 
@@ -381,7 +381,7 @@ cd api && cargo test -p storage-pg orchestration_runtime_repository_tests
 
 Expected: FAIL with missing migration tables, missing domain structs and missing repository methods.
 
-- [ ] **Step 3: Add runtime domain records, repository trait and PostgreSQL schema**
+- [x] **Step 3: Add runtime domain records, repository trait and PostgreSQL schema**
 
 ```rust
 // api/crates/domain/src/orchestration.rs
@@ -542,7 +542,7 @@ create table flow_run_events (
 );
 ```
 
-- [ ] **Step 4: Run repository tests and mapper regression tests**
+- [x] **Step 4: Run repository tests and mapper regression tests**
 
 Run:
 
@@ -554,7 +554,7 @@ cd api && cargo test -p storage-pg application_repository_tests
 
 Expected: PASS with new runtime tables/query paths green and section status assertions updated.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add api/crates/domain/src/lib.rs \
