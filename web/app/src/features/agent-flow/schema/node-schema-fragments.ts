@@ -76,11 +76,15 @@ export function buildCommonConfigBlocks(nodeType: FlowNodeType): SchemaBlock[] {
   const definitionSections = getNodeDefinitionSections(nodeType)
     .filter((section) => section.key !== 'basics' && section.key !== 'outputs')
     .map((section) => createSectionBlock(section.title, section.fields));
+  const policyBlocks: SchemaBlock[] =
+    nodeType === 'start'
+      ? []
+      : [{ kind: 'view', renderer: 'policy_group', title: '策略' }];
 
   return [
     ...definitionSections,
     { kind: 'view', renderer: 'output_contract', title: '输出契约' },
-    { kind: 'view', renderer: 'policy_group', title: '策略' },
+    ...policyBlocks,
     { kind: 'view', renderer: 'relations', title: '关系' }
   ];
 }

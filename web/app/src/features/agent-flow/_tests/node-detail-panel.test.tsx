@@ -78,6 +78,19 @@ function DocumentObserver({
   return null;
 }
 
+function SelectionSeed({ nodeId }: { nodeId: string }) {
+  const setSelection = useAgentFlowEditorStore((state) => state.setSelection);
+
+  useEffect(() => {
+    setSelection({
+      selectedNodeId: nodeId,
+      selectedNodeIds: [nodeId]
+    });
+  }, [nodeId, setSelection]);
+
+  return null;
+}
+
 function renderWithProviders(ui: ReactNode) {
   return render(<AppProviders>{ui}</AppProviders>);
 }
@@ -154,6 +167,19 @@ describe('NodeDetailPanel', () => {
     expect(screen.queryByText('节点说明')).not.toBeInTheDocument();
     expect(screen.queryByText('节点别名')).not.toBeInTheDocument();
     expect(screen.queryByText('节点简介')).not.toBeInTheDocument();
+  }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
+
+  test('hides retry and exception policy controls for the start node', () => {
+    renderWithProviders(
+      <AgentFlowEditorStoreProvider initialState={createInitialState()}>
+        <SelectionSeed nodeId="node-start" />
+        <NodeConfigTab />
+      </AgentFlowEditorStoreProvider>
+    );
+
+    expect(screen.queryByRole('switch', { name: '失败重试' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: '异常处理' })).not.toBeInTheDocument();
+    expect(screen.queryByText('策略')).not.toBeInTheDocument();
   }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
 
   test('renders exception handling as a three-state strategy selector', async () => {
