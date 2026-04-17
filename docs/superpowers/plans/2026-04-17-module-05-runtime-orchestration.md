@@ -576,7 +576,7 @@ git commit -m "feat: add orchestration runtime persistence model"
 - Create: `api/crates/control-plane/src/_tests/orchestration_runtime_service_tests.rs`
 - Modify: `api/crates/control-plane/src/_tests/mod.rs`
 
-- [ ] **Step 1: Write the failing preview executor and service tests**
+- [x] **Step 1: Write the failing preview executor and service tests**
 
 ```rust
 // api/crates/orchestration-runtime/src/_tests/preview_executor_tests.rs
@@ -621,7 +621,7 @@ async fn start_node_debug_preview_creates_run_node_run_and_events() {
 }
 ```
 
-- [ ] **Step 2: Run the targeted service tests and confirm they fail**
+- [x] **Step 2: Run the targeted service tests and confirm they fail**
 
 Run:
 
@@ -632,7 +632,7 @@ cd api && cargo test -p control-plane orchestration_runtime_service_tests
 
 Expected: FAIL with missing preview executor, missing service and missing repository integration.
 
-- [ ] **Step 3: Implement preview executor and control-plane orchestration service**
+- [x] **Step 3: Implement preview executor and control-plane orchestration service**
 
 ```rust
 // api/crates/orchestration-runtime/src/preview_executor.rs
@@ -757,7 +757,7 @@ where
 }
 ```
 
-- [ ] **Step 4: Run runtime and control-plane tests**
+- [x] **Step 4: Run runtime and control-plane tests**
 
 Run:
 
@@ -768,7 +768,7 @@ cd api && cargo test -p control-plane orchestration_runtime_service_tests
 
 Expected: PASS with compiler + preview executor + service tests all green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add api/crates/orchestration-runtime \
