@@ -1,4 +1,5 @@
-import { Card, Empty, List, Tag, Typography } from 'antd';
+import { Button, Empty, Typography } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 
 import { useAgentFlowEditorStore } from '../../../store/editor/provider';
 import {
@@ -17,27 +18,40 @@ export function NodeOutputContractCard() {
     return null;
   }
 
+  // Use a customized title for the start node
+  const title = selectedNode.type === 'start' ? '输入字段' : '输出变量';
+  const subtitle = selectedNode.type === 'start' ? '设置的输入可在工作流程中使用' : '节点产出的数据字段';
+
   return (
-    <Card title="输出契约">
+    <div className="agent-flow-node-detail__section">
+      <div className="agent-flow-node-detail__section-header">
+        <Typography.Title level={5} className="agent-flow-node-detail__section-title">
+          {title}
+        </Typography.Title>
+        <Button type="text" icon={<PlusOutlined />} size="small" />
+      </div>
+      <Typography.Text className="agent-flow-node-detail__section-subtitle" style={{ display: 'block', textAlign: 'center', marginBottom: 16 }}>
+        {subtitle}
+      </Typography.Text>
+      
       {selectedNode.outputs.length > 0 ? (
-        <List
-          dataSource={selectedNode.outputs}
-          renderItem={(output) => (
-            <List.Item>
-              <div className="agent-flow-node-detail__output-contract-item">
-                <Typography.Text>{output.title}</Typography.Text>
-                <Typography.Text type="secondary">{output.key}</Typography.Text>
+        <div className="agent-flow-node-detail__list">
+          {selectedNode.outputs.map((output) => (
+            <div key={output.key} className="agent-flow-node-detail__list-item">
+              <div className="agent-flow-node-detail__list-item-left">
+                <span className="agent-flow-node-detail__list-item-icon">{'{x}'}</span>
+                <span className="agent-flow-node-detail__list-item-name">{output.key}</span>
               </div>
-              <Tag>{output.valueType}</Tag>
-            </List.Item>
-          )}
-        />
+              <span className="agent-flow-node-detail__list-item-type">{output.valueType}</span>
+            </div>
+          ))}
+        </div>
       ) : (
         <Empty
           image={Empty.PRESENTED_IMAGE_SIMPLE}
-          description="当前节点未声明输出变量"
+          description="暂无字段"
         />
       )}
-    </Card>
+    </div>
   );
 }

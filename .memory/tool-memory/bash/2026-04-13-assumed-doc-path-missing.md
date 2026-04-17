@@ -13,8 +13,8 @@ match_when:
   - 使用 `sed` 打开猜测路径时报“没有那个文件或目录”
   - 使用 `sed` 读取路径时报“是一个目录”
 created_at: 2026-04-13 08
-updated_at: 2026-04-15 13
-last_verified_at: 2026-04-15 13
+updated_at: 2026-04-17 10
+last_verified_at: 2026-04-17 10
 decision_policy: reference_on_failure
 scope:
   - bash
@@ -70,3 +70,4 @@ scope:
 - `2026-04-13 22`：以为 `docs/superpowers/plans/2026-04-13-backend-governance-phase-two.md` 已经落盘，连续用 `sed` 回读失败；改为先用 `ls docs/superpowers/plans` 和 `rg --files docs` 确认真实文件集合，再创建正式计划文件。
 - `2026-04-14 10`：评审 `api/AGENTS.md` 时主观假定 `api/crates/storage-pg/src/runtime_registry_repository.rs` 存在，`sed` 返回“没有那个文件或目录”；改为先用 `rg -n "registry|unavailable"` 和 `find api/crates/storage-pg/src -maxdepth 2 -type f` 定位到真实实现分布在 `runtime_record_repository.rs` 与 `api/apps/api-server/src/runtime_registry_sync.rs`。
 - `2026-04-15 13`：根据设计稿里的相对链接主观假定仓库根下存在 `modules/04-chatflow-studio/README.md`，`sed` 返回“没有那个文件或目录”；改为先用 `rg --files docs/superpowers/specs/1flowse | rg '04-chatflow-studio|03-workspace-and-application'` 确认真正位置在 `docs/superpowers/specs/1flowse/modules/...` 后再读取成功。
+- `2026-04-17 10`：排查 agent-flow detail 组件时主观假定 `web/app/src/features/agent-flow/lib/node-definitions.ts` 存在，`sed` 返回“没有那个文件或目录”；改为先用 `rg -n "下一步|节点说明"` 和 `rg --files web/app/src/features/agent-flow` 确认真实文件分布，再读取实际组件文件。

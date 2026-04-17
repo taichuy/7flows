@@ -1,5 +1,5 @@
-import { CloseOutlined } from '@ant-design/icons';
-import { Button, Input, Space, Typography } from 'antd';
+import { BookOutlined, CloseOutlined, HomeOutlined } from '@ant-design/icons';
+import { Button, Divider, Input, Space } from 'antd';
 
 import { nodeDefinitions } from '../../lib/node-definitions';
 import { useNodeDetailActions } from '../../hooks/interactions/use-node-detail-actions';
@@ -41,52 +41,50 @@ export function NodeDetailHeader({
       className="agent-flow-node-detail__header"
       data-testid="node-detail-header"
     >
-      <div className="agent-flow-node-detail__header-main">
-        <Space
-          align="center"
-          className="agent-flow-node-detail__header-meta"
-          size={8}
-        >
-          <Typography.Title
-            className="agent-flow-node-detail__header-type"
-            level={4}
-          >
-            {definition.label}
-          </Typography.Title>
+      <div className="agent-flow-node-detail__header-top">
+        <div className="agent-flow-node-detail__title-section">
+          <div className="agent-flow-node-detail__icon-wrapper">
+            <HomeOutlined />
+          </div>
+          <Input
+            aria-label="节点别名"
+            className="agent-flow-editor__inspector-title-input"
+            value={selectedNode.alias}
+            onChange={(event) => updateField('alias', event.target.value)}
+          />
+        </div>
+        <Space className="agent-flow-node-detail__actions" size={4}>
+          <NodeRunButton onRunNode={onRunNode} />
           {definitionMeta.helpHref ? (
-            <Typography.Link href={definitionMeta.helpHref} target="_blank">
-              帮助文档
-            </Typography.Link>
+            <Button
+              aria-label="帮助文档"
+              href={definitionMeta.helpHref}
+              icon={<BookOutlined />}
+              target="_blank"
+              type="text"
+            />
           ) : null}
+          <NodeActionMenu
+            onLocate={detailActions.locateSelectedNode}
+            onCopy={detailActions.duplicateSelectedNode}
+          />
+          <Divider type="vertical" className="agent-flow-node-detail__divider" />
+          <Button
+            aria-label="关闭节点详情"
+            icon={<CloseOutlined />}
+            type="text"
+            onClick={onClose}
+          />
         </Space>
-        <Input
-          aria-label="节点别名"
-          className="agent-flow-editor__inspector-title-input"
-          value={selectedNode.alias}
-          onChange={(event) => updateField('alias', event.target.value)}
-        />
-        <Input.TextArea
-          aria-label="节点简介"
-          autoSize={{ minRows: 1, maxRows: 3 }}
-          className="agent-flow-editor__inspector-description-input"
-          placeholder="补充该节点的作用与上下文"
-          value={selectedNode.description ?? ''}
-          onChange={(event) => updateField('description', event.target.value)}
-        />
       </div>
-      <Space size={4}>
-        <NodeRunButton onRunNode={onRunNode} />
-        <NodeActionMenu
-          onLocate={detailActions.locateSelectedNode}
-          onCopy={detailActions.duplicateSelectedNode}
-        />
-        <Button
-          aria-label="关闭节点详情"
-          icon={<CloseOutlined />}
-          type="text"
-          onClick={onClose}
-        />
-      </Space>
+      <Input.TextArea
+        aria-label="节点简介"
+        autoSize={{ minRows: 1, maxRows: 3 }}
+        className="agent-flow-editor__inspector-description-input"
+        placeholder="添加描述..."
+        value={selectedNode.description ?? ''}
+        onChange={(event) => updateField('description', event.target.value)}
+      />
     </header>
   );
 }

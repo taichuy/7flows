@@ -1,3 +1,4 @@
+import { CaretRightOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
 
 export function NodeRunButton({
@@ -9,10 +10,9 @@ export function NodeRunButton({
     <Button
       aria-label="运行当前节点"
       disabled={!onRunNode}
+      icon={<CaretRightOutlined />}
       type="text"
       onClick={() => onRunNode?.()}
-    >
-      预览
-    </Button>
+    />
   );
 }

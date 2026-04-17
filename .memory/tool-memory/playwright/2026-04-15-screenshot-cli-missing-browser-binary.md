@@ -13,8 +13,8 @@ match_when:
   - 报错包含 `Executable doesn't exist`
   - 报错包含 `chrome-headless-shell`
 created_at: 2026-04-15 22
-updated_at: 2026-04-15 22
-last_verified_at: 2026-04-15 22
+updated_at: 2026-04-17 10
+last_verified_at: 2026-04-17 10
 decision_policy: reference_on_failure
 scope:
   - playwright
@@ -61,9 +61,17 @@ node scripts/node/check-style-boundary.js file web/app/src/features/agent-flow/c
 
 这条路径已在当前仓库验证可用，并能完成真实页面渲染检查。
 
+如果确实需要直接使用 Playwright CLI 或 Playwright API，先安装浏览器二进制：
+
+```bash
+pnpm --dir web exec playwright install chromium
+```
+
+`2026-04-17 10` 已验证：在报错 `Executable doesn't exist` 后执行这条命令，可补齐 `chromium` 与 `chrome-headless-shell`，随后仓库根下通过 `node` 脚本调用 `playwright.chromium.launch()` 成功完成页面校验。
+
 ## 避免建议
 
 需要截图前，先判断这是“截图留档”还是“运行时验收”：
 
 1. 运行时验收优先 `check-style-boundary.js`。
-2. 只有必须导出截图时，再确认 Playwright browser binary 是否已安装。
+2. 只有必须直接跑 Playwright 时，再确认 Playwright browser binary 是否已安装；新环境可先执行 `pnpm --dir web exec playwright install chromium`。

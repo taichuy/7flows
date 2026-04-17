@@ -1,6 +1,6 @@
-export const NODE_DETAIL_DEFAULT_WIDTH = 520;
-export const NODE_DETAIL_MIN_WIDTH = 480;
-export const NODE_DETAIL_MIN_CANVAS_WIDTH = 400;
+export const NODE_DETAIL_DEFAULT_WIDTH = 320;
+export const NODE_DETAIL_MIN_WIDTH = 300;
+export const NODE_DETAIL_MIN_CANVAS_WIDTH = 300;
 
 export function getMaxNodeDetailWidth(containerWidth: number) {
   return Math.max(

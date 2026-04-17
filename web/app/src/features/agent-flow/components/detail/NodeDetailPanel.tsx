@@ -25,7 +25,7 @@ export function NodeDetailPanel({
             setPanelState({ nodeDetailTab: key as 'config' | 'lastRun' })
           }
           items={[
-            { key: 'config', label: '配置', children: <NodeConfigTab /> },
+            { key: 'config', label: '设置', children: <NodeConfigTab /> },
             { key: 'lastRun', label: '上次运行', children: <NodeLastRunTab /> }
           ]}
         />
