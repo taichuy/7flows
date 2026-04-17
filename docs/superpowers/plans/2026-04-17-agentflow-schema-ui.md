@@ -412,7 +412,7 @@ git commit -m "feat: add schema ui contracts and core runtime"
 - Create: `web/app/src/shared/schema-ui/_tests/overlay-shell.test.tsx`
 - Create: `web/app/src/shared/schema-ui/contracts/overlay-shell-schema.ts`
 
-- [ ] **Step 1: Write the failing overlay shell tests**
+- [x] **Step 1: Write the failing overlay shell tests**
 
 ```tsx
 // web/app/src/shared/schema-ui/_tests/overlay-shell.test.tsx
@@ -473,7 +473,7 @@ describe('overlay shell runtime', () => {
 });
 ```
 
-- [ ] **Step 2: Run the overlay shell test and confirm it fails**
+- [x] **Step 2: Run the overlay shell test and confirm it fails**
 
 Run:
 
@@ -483,7 +483,7 @@ pnpm --dir web/app exec vitest run src/shared/schema-ui/_tests/overlay-shell.tes
 
 Expected: FAIL with missing shell components and overlay shell contract.
 
-- [ ] **Step 3: Implement dock, drawer and modal runtimes**
+- [x] **Step 3: Implement dock, drawer and modal runtimes**
 
 ```ts
 // web/app/src/shared/schema-ui/contracts/overlay-shell-schema.ts
@@ -587,7 +587,7 @@ export function SchemaModalPanel({
 }
 ```
 
-- [ ] **Step 4: Run the overlay shell test and confirm it passes**
+- [x] **Step 4: Run the overlay shell test and confirm it passes**
 
 Run:
 
@@ -597,7 +597,7 @@ pnpm --dir web/app exec vitest run src/shared/schema-ui/_tests/overlay-shell.tes
 
 Expected: PASS with 2 tests passed.
 
-- [ ] **Step 5: Commit the overlay shell runtime**
+- [x] **Step 5: Commit the overlay shell runtime**
 
 ```bash
 git add \
