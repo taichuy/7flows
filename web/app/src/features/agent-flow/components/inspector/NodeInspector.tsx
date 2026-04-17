@@ -29,6 +29,10 @@ function isInlineFieldRenderer(renderer: string) {
   return renderer === 'text' || renderer === 'number' || renderer === 'selector';
 }
 
+function shouldRenderSectionTitle(title: string) {
+  return title !== 'Inputs';
+}
+
 export function useNodeSchemaRuntime(enabled = true) {
   const document = useAgentFlowEditorStore(selectWorkingDocument);
   const selectedNodeId = useAgentFlowEditorStore(selectSelectedNodeId);
@@ -110,14 +114,16 @@ export function NodeInspector({
           className="agent-flow-node-detail__section agent-flow-node-detail__inspector-section"
           data-section-key={section.title}
         >
-          <div className="agent-flow-node-detail__section-header">
-            <Typography.Title
-              level={5}
-              className="agent-flow-node-detail__section-title"
-            >
-              {section.title}
-            </Typography.Title>
-          </div>
+          {shouldRenderSectionTitle(section.title) ? (
+            <div className="agent-flow-node-detail__section-header">
+              <Typography.Title
+                level={5}
+                className="agent-flow-node-detail__section-title"
+              >
+                {section.title}
+              </Typography.Title>
+            </div>
+          ) : null}
           <div className="agent-flow-editor__inspector-fields">
             {section.blocks
               .filter(isFieldBlock)

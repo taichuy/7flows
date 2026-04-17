@@ -142,7 +142,7 @@ describe('NodeDetailPanel', () => {
     expect(screen.getAllByLabelText('节点简介')).toHaveLength(1);
   }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
 
-  test('keeps config tab focused on contract and relations without redundant summary cards', () => {
+  test('keeps config tab focused on editable settings and relations without redundant summary cards', () => {
     renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>
         <NodeConfigTab />
@@ -151,7 +151,8 @@ describe('NodeDetailPanel', () => {
 
     expect(screen.queryByText('节点说明')).not.toBeInTheDocument();
     expect(screen.queryByText('帮助文档')).not.toBeInTheDocument();
-    expect(screen.getByText(/输出变量|输出契约/)).toBeInTheDocument();
+    expect(screen.getByLabelText('模型')).toBeInTheDocument();
+    expect(screen.queryByText('输出契约')).not.toBeInTheDocument();
     expect(screen.getAllByText('下一步')).toHaveLength(1);
     expect(screen.queryByRole('button', { name: '添加下一个节点' })).not.toBeInTheDocument();
     expect(screen.getByText('添加并行节点')).toBeInTheDocument();

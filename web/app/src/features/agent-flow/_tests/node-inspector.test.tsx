@@ -178,7 +178,7 @@ describe('NodeInspector', () => {
     expect(screen.queryByText('Basics')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('节点别名')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('节点简介')).not.toBeInTheDocument();
-    expect(screen.getByText('Inputs')).toBeInTheDocument();
+    expect(screen.queryByText('Inputs')).not.toBeInTheDocument();
     expect(screen.queryByText('Outputs')).not.toBeInTheDocument();
     expect(screen.getByText('Policy')).toBeInTheDocument();
     expect(screen.getByText('Advanced')).toBeInTheDocument();
@@ -240,7 +240,7 @@ describe('NodeInspector', () => {
     });
   });
 
-  test('renders code output contract definition inside config fields while keeping output display read-only', () => {
+  test('keeps code output contract definition editable without rendering the shared output contract card', () => {
     renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialStateWithCodeNode()}>
         <SelectionSeed nodeId="node-code" />
@@ -248,8 +248,8 @@ describe('NodeInspector', () => {
       </AgentFlowEditorStoreProvider>
     );
 
-    expect(screen.getAllByText('输出契约').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: '新增输出变量' })).toBeInTheDocument();
+    expect(screen.queryByText('输出契约')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '新增变量' })).toBeInTheDocument();
     expect(screen.queryByLabelText('代码结果')).not.toBeInTheDocument();
   });
 
@@ -261,7 +261,7 @@ describe('NodeInspector', () => {
       </AgentFlowEditorStoreProvider>
     );
 
-    expect(screen.getByText('Inputs')).toBeInTheDocument();
+    expect(screen.queryByText('Inputs')).not.toBeInTheDocument();
     expect(screen.getByText('Policy')).toBeInTheDocument();
     const toolbar = screen.getByTestId('condition-group-toolbar');
 

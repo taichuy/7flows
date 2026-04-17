@@ -83,7 +83,6 @@ export function buildCommonConfigBlocks(nodeType: FlowNodeType): SchemaBlock[] {
 
   return [
     ...definitionSections,
-    { kind: 'view', renderer: 'output_contract', title: '输出契约' },
     ...policyBlocks,
     { kind: 'view', renderer: 'relations', title: '关系' }
   ];
