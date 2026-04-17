@@ -120,7 +120,7 @@
 - Create: `api/crates/orchestration-runtime/src/_tests/compiler_tests.rs`
 - Modify: `api/Cargo.toml`
 
-- [ ] **Step 1: Write the failing compiler tests**
+- [x] **Step 1: Write the failing compiler tests**
 
 ```rust
 // api/crates/orchestration-runtime/src/_tests/compiler_tests.rs
@@ -204,7 +204,7 @@ fn compile_rejects_edge_that_targets_unknown_node() {
 }
 ```
 
-- [ ] **Step 2: Run the targeted tests and confirm they fail**
+- [x] **Step 2: Run the targeted tests and confirm they fail**
 
 Run:
 
@@ -214,7 +214,7 @@ cd api && cargo test -p orchestration-runtime compiler_tests
 
 Expected: FAIL because `orchestration-runtime` package and compiler module do not exist yet.
 
-- [ ] **Step 3: Implement the new crate and compiler**
+- [x] **Step 3: Implement the new crate and compiler**
 
 ```rust
 // api/crates/orchestration-runtime/src/compiled_plan.rs
@@ -291,7 +291,7 @@ impl FlowCompiler {
 }
 ```
 
-- [ ] **Step 4: Run the compiler tests and ensure they pass**
+- [x] **Step 4: Run the compiler tests and ensure they pass**
 
 Run:
 
@@ -301,7 +301,7 @@ cd api && cargo test -p orchestration-runtime compiler_tests
 
 Expected: PASS with both compiler tests green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add api/Cargo.toml \

@@ -4,6 +4,7 @@ members = [
   "apps/plugin-runner",
   "crates/domain",
   "crates/control-plane",
+  "crates/orchestration-runtime",
   "crates/runtime-core",
   "crates/publish-gateway",
   "crates/access-control",
