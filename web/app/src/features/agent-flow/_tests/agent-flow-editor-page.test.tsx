@@ -255,4 +255,44 @@ describe('AgentFlowEditorShell', () => {
     expect(within(detailDock).getByLabelText('节点详情')).toBeInTheDocument();
     expect(screen.queryByText('请使用桌面端编辑')).not.toBeInTheDocument();
   }, 20_000);
+
+  test('resizes the docked node detail panel by dragging its resize handle', async () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      () =>
+        ({
+          x: 0,
+          y: 0,
+          width: 1280,
+          height: 720,
+          top: 0,
+          right: 1280,
+          bottom: 720,
+          left: 0,
+          toJSON: () => ({})
+        }) as DOMRect
+    );
+
+    render(
+      <div style={{ width: 1280, height: 720 }}>
+        <AgentFlowEditorShell
+          applicationId="app-1"
+          applicationName="Support Agent"
+          initialState={createInitialState()}
+        />
+      </div>
+    );
+
+    const detailDock = await screen.findByTestId('agent-flow-editor-detail-dock');
+
+    expect(detailDock).toHaveStyle('width: 420px');
+
+    fireEvent.mouseDown(
+      screen.getByRole('separator', { name: '调整节点详情宽度' }),
+      { clientX: 860 }
+    );
+    fireEvent.mouseMove(window, { clientX: 780 });
+    fireEvent.mouseUp(window);
+
+    expect(detailDock).toHaveStyle('width: 500px');
+  }, 20_000);
 });

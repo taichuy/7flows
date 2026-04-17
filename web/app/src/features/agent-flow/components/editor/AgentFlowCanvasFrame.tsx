@@ -4,7 +4,13 @@ import type {
 } from '@1flowse/api-client';
 import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
 import { Button, Typography } from 'antd';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent
+} from 'react';
 
 import { useContainerNavigation } from '../../hooks/interactions/use-container-navigation';
 import { useDraftSync } from '../../hooks/interactions/use-draft-sync';
@@ -70,7 +76,9 @@ export function AgentFlowCanvasFrame({
   const viewportGetterRef =
     useRef<(() => FlowAuthoringDocument['editor']['viewport']) | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const stopNodeDetailResizeRef = useRef<(() => void) | null>(null);
   const [bodyWidth, setBodyWidth] = useState(0);
+  const [isResizingNodeDetail, setIsResizingNodeDetail] = useState(false);
   const navigation = useContainerNavigation();
   const draftSync = useDraftSync({
     applicationId,
@@ -131,12 +139,67 @@ export function AgentFlowCanvasFrame({
     return () => resizeObserver.disconnect();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      stopNodeDetailResizeRef.current?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (selectedNodeId) {
+      return;
+    }
+
+    stopNodeDetailResizeRef.current?.();
+  }, [selectedNodeId]);
+
   useEditorShortcuts();
 
+  const canvasFrameWidth =
+    bodyWidth || NODE_DETAIL_DEFAULT_WIDTH + NODE_DETAIL_MIN_CANVAS_WIDTH;
   const boundedNodeDetailWidth = clampNodeDetailWidth(
     nodeDetailWidth,
-    bodyWidth || NODE_DETAIL_DEFAULT_WIDTH + NODE_DETAIL_MIN_CANVAS_WIDTH
+    canvasFrameWidth
   );
+
+  function handleNodeDetailResizeStart(
+    event: ReactMouseEvent<HTMLDivElement>
+  ) {
+    event.preventDefault();
+
+    const startX = event.clientX;
+    const startWidth = boundedNodeDetailWidth;
+    const containerWidth = canvasFrameWidth;
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+
+    stopNodeDetailResizeRef.current?.();
+    setIsResizingNodeDetail(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const cleanup = () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', cleanup);
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      setIsResizingNodeDetail(false);
+      stopNodeDetailResizeRef.current = null;
+    };
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const nextWidth = clampNodeDetailWidth(
+        startWidth + startX - moveEvent.clientX,
+        containerWidth
+      );
+
+      setPanelState({ nodeDetailWidth: nextWidth });
+    };
+
+    stopNodeDetailResizeRef.current = cleanup;
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', cleanup);
+  }
 
   function getDocumentWithLatestViewport(currentDocument: FlowAuthoringDocument) {
     const viewport = viewportGetterRef.current?.() ?? viewportSnapshotRef.current;
@@ -209,8 +272,16 @@ export function AgentFlowCanvasFrame({
           <div
             className="agent-flow-editor__detail-dock"
             data-testid="agent-flow-editor-detail-dock"
+            data-resizing={isResizingNodeDetail ? 'true' : 'false'}
             style={{ width: `${boundedNodeDetailWidth}px` }}
           >
+            <div
+              aria-label="调整节点详情宽度"
+              aria-orientation="vertical"
+              className="agent-flow-editor__detail-resize-handle"
+              onMouseDown={handleNodeDetailResizeStart}
+              role="separator"
+            />
             <NodeDetailPanel
               onClose={detailActions.closeDetail}
               onRunNode={undefined}

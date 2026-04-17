@@ -65,6 +65,34 @@
   overflow: hidden;
 }
 
+.agent-flow-editor__detail-resize-handle {
+  position: relative;
+  flex: 0 0 12px;
+  width: 12px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.agent-flow-editor__detail-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 50%;
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(96, 117, 106, 0.18);
+  transform: translateX(-50%);
+  transition: background-color 120ms ease;
+}
+
+.agent-flow-editor__detail-resize-handle:hover::before,
+.agent-flow-editor__detail-resize-handle:active::before,
+.agent-flow-editor__detail-dock[data-resizing='true']
+  .agent-flow-editor__detail-resize-handle::before {
+  background: rgba(66, 121, 93, 0.38);
+}
+
 .agent-flow-node-detail {
   display: flex;
   flex-direction: column;
