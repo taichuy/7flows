@@ -1,8 +1,10 @@
 import { apiFetch } from './transport';
 
+export type ConsoleFlowRunMode = 'debug_node_preview' | 'debug_flow_run';
+
 export interface ConsoleApplicationRunSummary {
   id: string;
-  run_mode: 'debug_node_preview';
+  run_mode: ConsoleFlowRunMode;
   status: string;
   target_node_id: string | null;
   started_at: string;
@@ -15,7 +17,7 @@ export interface ConsoleFlowRunDetail {
   flow_id: string;
   draft_id: string;
   compiled_plan_id: string;
-  run_mode: 'debug_node_preview';
+  run_mode: ConsoleFlowRunMode;
   status: string;
   target_node_id: string | null;
   input_payload: Record<string, unknown>;
@@ -64,10 +66,24 @@ export interface ConsoleRunEvent {
   created_at: string;
 }
 
+export interface ConsoleCallbackTask {
+  id: string;
+  flow_run_id: string;
+  node_run_id: string;
+  callback_kind: string;
+  status: 'pending' | 'completed' | 'cancelled';
+  request_payload: Record<string, unknown>;
+  response_payload: Record<string, unknown> | null;
+  external_ref_payload: Record<string, unknown> | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
 export interface ConsoleApplicationRunDetail {
   flow_run: ConsoleFlowRunDetail;
   node_runs: ConsoleNodeRunDetail[];
   checkpoints: ConsoleRunCheckpoint[];
+  callback_tasks: ConsoleCallbackTask[];
   events: ConsoleRunEvent[];
 }
 
@@ -87,6 +103,53 @@ export function startConsoleNodeDebugPreview(
 ) {
   return apiFetch<ConsoleNodeLastRun>({
     path: `/api/console/applications/${applicationId}/orchestration/nodes/${nodeId}/debug-runs`,
+    method: 'POST',
+    body: input,
+    csrfToken,
+    baseUrl
+  });
+}
+
+export function startConsoleFlowDebugRun(
+  applicationId: string,
+  input: { input_payload: Record<string, unknown> },
+  csrfToken: string,
+  baseUrl?: string
+) {
+  return apiFetch<ConsoleApplicationRunDetail>({
+    path: `/api/console/applications/${applicationId}/orchestration/debug-runs`,
+    method: 'POST',
+    body: input,
+    csrfToken,
+    baseUrl
+  });
+}
+
+export function resumeConsoleFlowRun(
+  applicationId: string,
+  runId: string,
+  input: { checkpoint_id: string; input_payload: Record<string, unknown> },
+  csrfToken: string,
+  baseUrl?: string
+) {
+  return apiFetch<ConsoleApplicationRunDetail>({
+    path: `/api/console/applications/${applicationId}/orchestration/runs/${runId}/resume`,
+    method: 'POST',
+    body: input,
+    csrfToken,
+    baseUrl
+  });
+}
+
+export function completeConsoleCallbackTask(
+  applicationId: string,
+  callbackTaskId: string,
+  input: { response_payload: Record<string, unknown> },
+  csrfToken: string,
+  baseUrl?: string
+) {
+  return apiFetch<ConsoleApplicationRunDetail>({
+    path: `/api/console/applications/${applicationId}/orchestration/callback-tasks/${callbackTaskId}/complete`,
     method: 'POST',
     body: input,
     csrfToken,

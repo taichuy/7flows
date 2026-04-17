@@ -9,7 +9,10 @@ use axum::{
 use control_plane::{
     application::ApplicationService,
     errors::ControlPlaneError,
-    orchestration_runtime::{OrchestrationRuntimeService, StartNodeDebugPreviewCommand},
+    orchestration_runtime::{
+        CompleteCallbackTaskCommand, OrchestrationRuntimeService, ResumeFlowRunCommand,
+        StartFlowDebugRunCommand, StartNodeDebugPreviewCommand,
+    },
     ports::OrchestrationRuntimeRepository,
 };
 use serde::{Deserialize, Serialize};
@@ -27,6 +30,22 @@ use crate::{
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct StartNodeDebugPreviewBody {
     pub input_payload: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct StartFlowDebugRunBody {
+    pub input_payload: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct ResumeFlowRunBody {
+    pub checkpoint_id: String,
+    pub input_payload: serde_json::Value,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct CompleteCallbackTaskBody {
+    pub response_payload: serde_json::Value,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -88,6 +107,20 @@ pub struct CheckpointResponse {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+pub struct CallbackTaskResponse {
+    pub id: String,
+    pub flow_run_id: String,
+    pub node_run_id: String,
+    pub callback_kind: String,
+    pub status: String,
+    pub request_payload: serde_json::Value,
+    pub response_payload: Option<serde_json::Value>,
+    pub external_ref_payload: Option<serde_json::Value>,
+    pub created_at: String,
+    pub completed_at: Option<String>,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
 pub struct RunEventResponse {
     pub id: String,
     pub flow_run_id: String,
@@ -103,6 +136,7 @@ pub struct ApplicationRunDetailResponse {
     pub flow_run: FlowRunResponse,
     pub node_runs: Vec<NodeRunResponse>,
     pub checkpoints: Vec<CheckpointResponse>,
+    pub callback_tasks: Vec<CallbackTaskResponse>,
     pub events: Vec<RunEventResponse>,
 }
 
@@ -116,6 +150,15 @@ pub struct NodeLastRunResponse {
 
 pub fn router() -> Router<Arc<ApiState>> {
     Router::new()
+        .route("/applications/:id/orchestration/debug-runs", post(start_flow_debug_run))
+        .route(
+            "/applications/:id/orchestration/runs/:run_id/resume",
+            post(resume_flow_run),
+        )
+        .route(
+            "/applications/:id/orchestration/callback-tasks/:callback_task_id/complete",
+            post(complete_callback_task),
+        )
         .route(
             "/applications/:id/orchestration/nodes/:node_id/debug-runs",
             post(start_node_debug_preview),
@@ -201,6 +244,21 @@ fn to_checkpoint_response(checkpoint: domain::CheckpointRecord) -> CheckpointRes
     }
 }
 
+fn to_callback_task_response(task: domain::CallbackTaskRecord) -> CallbackTaskResponse {
+    CallbackTaskResponse {
+        id: task.id.to_string(),
+        flow_run_id: task.flow_run_id.to_string(),
+        node_run_id: task.node_run_id.to_string(),
+        callback_kind: task.callback_kind,
+        status: task.status.as_str().to_string(),
+        request_payload: task.request_payload,
+        response_payload: task.response_payload,
+        external_ref_payload: task.external_ref_payload,
+        created_at: format_time(task.created_at),
+        completed_at: format_optional_time(task.completed_at),
+    }
+}
+
 fn to_run_event_response(event: domain::RunEventRecord) -> RunEventResponse {
     RunEventResponse {
         id: event.id.to_string(),
@@ -227,6 +285,11 @@ fn to_application_run_detail_response(
             .checkpoints
             .into_iter()
             .map(to_checkpoint_response)
+            .collect(),
+        callback_tasks: detail
+            .callback_tasks
+            .into_iter()
+            .map(to_callback_task_response)
             .collect(),
         events: detail
             .events
@@ -262,6 +325,125 @@ async fn ensure_application_visible(
         .get_application(actor_user_id, application_id)
         .await?;
     Ok(())
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/console/applications/{id}/orchestration/debug-runs",
+    request_body = StartFlowDebugRunBody,
+    params(
+        ("id" = String, Path, description = "Application id")
+    ),
+    responses(
+        (status = 201, body = ApplicationRunDetailResponse),
+        (status = 400, body = crate::error_response::ErrorBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn start_flow_debug_run(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path(id): Path<Uuid>,
+    Json(body): Json<StartFlowDebugRunBody>,
+) -> Result<(StatusCode, Json<ApiSuccess<ApplicationRunDetailResponse>>), ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+
+    let detail = OrchestrationRuntimeService::new(state.store.clone())
+        .start_flow_debug_run(StartFlowDebugRunCommand {
+            actor_user_id: context.user.id,
+            application_id: id,
+            input_payload: body.input_payload,
+        })
+        .await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiSuccess::new(to_application_run_detail_response(detail))),
+    ))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/console/applications/{id}/orchestration/runs/{run_id}/resume",
+    request_body = ResumeFlowRunBody,
+    params(
+        ("id" = String, Path, description = "Application id"),
+        ("run_id" = String, Path, description = "Flow run id")
+    ),
+    responses(
+        (status = 200, body = ApplicationRunDetailResponse),
+        (status = 400, body = crate::error_response::ErrorBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn resume_flow_run(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path((id, run_id)): Path<(Uuid, Uuid)>,
+    Json(body): Json<ResumeFlowRunBody>,
+) -> Result<Json<ApiSuccess<ApplicationRunDetailResponse>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+
+    let checkpoint_id = Uuid::parse_str(&body.checkpoint_id)
+        .map_err(|_| ControlPlaneError::InvalidInput("checkpoint_id"))?;
+    let detail = OrchestrationRuntimeService::new(state.store.clone())
+        .resume_flow_run(ResumeFlowRunCommand {
+            actor_user_id: context.user.id,
+            application_id: id,
+            flow_run_id: run_id,
+            checkpoint_id,
+            input_payload: body.input_payload,
+        })
+        .await?;
+
+    Ok(Json(ApiSuccess::new(to_application_run_detail_response(
+        detail,
+    ))))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/console/applications/{id}/orchestration/callback-tasks/{callback_task_id}/complete",
+    request_body = CompleteCallbackTaskBody,
+    params(
+        ("id" = String, Path, description = "Application id"),
+        ("callback_task_id" = String, Path, description = "Callback task id")
+    ),
+    responses(
+        (status = 200, body = ApplicationRunDetailResponse),
+        (status = 400, body = crate::error_response::ErrorBody),
+        (status = 401, body = crate::error_response::ErrorBody),
+        (status = 403, body = crate::error_response::ErrorBody),
+        (status = 404, body = crate::error_response::ErrorBody)
+    )
+)]
+pub async fn complete_callback_task(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Path((id, callback_task_id)): Path<(Uuid, Uuid)>,
+    Json(body): Json<CompleteCallbackTaskBody>,
+) -> Result<Json<ApiSuccess<ApplicationRunDetailResponse>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+
+    let detail = OrchestrationRuntimeService::new(state.store.clone())
+        .complete_callback_task(CompleteCallbackTaskCommand {
+            actor_user_id: context.user.id,
+            application_id: id,
+            callback_task_id,
+            response_payload: body.response_payload,
+        })
+        .await?;
+
+    Ok(Json(ApiSuccess::new(to_application_run_detail_response(
+        detail,
+    ))))
 }
 
 #[utoipa::path(

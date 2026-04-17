@@ -39,6 +39,128 @@ async fn seed_agent_flow_application(app: &axum::Router, cookie: &str, csrf: &st
     payload["data"]["id"].as_str().unwrap().to_string()
 }
 
+fn build_human_input_document(flow_id: &str) -> Value {
+    json!({
+        "schemaVersion": "1flowse.flow/v1",
+        "meta": { "flowId": flow_id, "name": "Support Agent", "description": "", "tags": [] },
+        "graph": {
+            "nodes": [
+                {
+                    "id": "node-start",
+                    "type": "start",
+                    "alias": "Start",
+                    "description": "",
+                    "containerId": null,
+                    "position": { "x": 0, "y": 0 },
+                    "configVersion": 1,
+                    "config": {},
+                    "bindings": {},
+                    "outputs": [{ "key": "query", "title": "用户输入", "valueType": "string" }]
+                },
+                {
+                    "id": "node-llm",
+                    "type": "llm",
+                    "alias": "LLM",
+                    "description": "",
+                    "containerId": null,
+                    "position": { "x": 240, "y": 0 },
+                    "configVersion": 1,
+                    "config": { "model": "gpt-5.4-mini", "temperature": 0.2 },
+                    "bindings": {
+                        "user_prompt": { "kind": "selector", "value": ["node-start", "query"] }
+                    },
+                    "outputs": [{ "key": "text", "title": "模型输出", "valueType": "string" }]
+                },
+                {
+                    "id": "node-human",
+                    "type": "human_input",
+                    "alias": "Human Input",
+                    "description": "",
+                    "containerId": null,
+                    "position": { "x": 480, "y": 0 },
+                    "configVersion": 1,
+                    "config": {},
+                    "bindings": {
+                        "prompt": { "kind": "templated_text", "value": "请审核：{{ node-llm.text }}" }
+                    },
+                    "outputs": [{ "key": "input", "title": "人工输入", "valueType": "string" }]
+                },
+                {
+                    "id": "node-answer",
+                    "type": "answer",
+                    "alias": "Answer",
+                    "description": "",
+                    "containerId": null,
+                    "position": { "x": 720, "y": 0 },
+                    "configVersion": 1,
+                    "config": {},
+                    "bindings": {
+                        "answer_template": { "kind": "selector", "value": ["node-human", "input"] }
+                    },
+                    "outputs": [{ "key": "answer", "title": "对话输出", "valueType": "string" }]
+                }
+            ],
+            "edges": [
+                { "id": "edge-start-llm", "source": "node-start", "target": "node-llm", "sourceHandle": null, "targetHandle": null, "containerId": null, "points": [] },
+                { "id": "edge-llm-human", "source": "node-llm", "target": "node-human", "sourceHandle": null, "targetHandle": null, "containerId": null, "points": [] },
+                { "id": "edge-human-answer", "source": "node-human", "target": "node-answer", "sourceHandle": null, "targetHandle": null, "containerId": null, "points": [] }
+            ]
+        },
+        "editor": { "viewport": { "x": 0, "y": 0, "zoom": 1 }, "annotations": [], "activeContainerPath": [] }
+    })
+}
+
+async fn seed_human_input_application(app: &axum::Router, cookie: &str, csrf: &str) -> String {
+    let application_id = seed_agent_flow_application(app, cookie, csrf).await;
+    let state = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/api/console/applications/{application_id}/orchestration"
+                ))
+                .header("cookie", cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(state.status(), StatusCode::OK);
+    let state_body = to_bytes(state.into_body(), usize::MAX).await.unwrap();
+    let payload: Value = serde_json::from_slice(&state_body).unwrap();
+    let flow_id = payload["data"]["draft"]["document"]["meta"]["flowId"]
+        .as_str()
+        .unwrap();
+
+    let save = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/orchestration/draft"
+                ))
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "document": build_human_input_document(flow_id),
+                        "change_kind": "logical",
+                        "summary": "seed human input flow"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(save.status(), StatusCode::OK);
+    application_id
+}
+
 #[tokio::test]
 async fn application_runtime_routes_start_node_preview_and_query_logs() {
     let app = test_app().await;
@@ -168,4 +290,68 @@ async fn application_runtime_routes_start_node_preview_and_query_logs() {
         last_run_payload["data"]["flow_run"]["id"].as_str(),
         Some(flow_run_id.as_str())
     );
+}
+
+#[tokio::test]
+async fn application_runtime_routes_start_debug_run_and_resume_waiting_human() {
+    let app = test_app().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    let application_id = seed_human_input_application(&app, &cookie, &csrf).await;
+
+    let start = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/orchestration/debug-runs"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "input_payload": {
+                            "node-start": { "query": "请总结退款政策" }
+                        }
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(start.status(), StatusCode::CREATED);
+    let payload: Value =
+        serde_json::from_slice(&to_bytes(start.into_body(), usize::MAX).await.unwrap()).unwrap();
+    let run_id = payload["data"]["flow_run"]["id"].as_str().unwrap();
+    let checkpoint_id = payload["data"]["checkpoints"][0]["id"].as_str().unwrap();
+
+    let resume = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!(
+                    "/api/console/applications/{application_id}/orchestration/runs/{run_id}/resume"
+                ))
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "checkpoint_id": checkpoint_id,
+                        "input_payload": {
+                            "node-human": { "input": "已审核通过" }
+                        }
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(resume.status(), StatusCode::OK);
 }
