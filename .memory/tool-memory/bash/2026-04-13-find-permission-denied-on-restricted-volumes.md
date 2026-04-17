@@ -11,8 +11,8 @@ match_when:
   - 在仓库根目录运行 `find .`
   - 输出出现 `权限不够` 或 `Permission denied`
 created_at: 2026-04-13 06
-updated_at: 2026-04-15 19
-last_verified_at: 2026-04-15 19
+updated_at: 2026-04-17 18
+last_verified_at: 2026-04-17 18
 decision_policy: reference_on_failure
 scope:
   - bash
@@ -66,3 +66,4 @@ find: ‘./docker/volumes/postgres’: 权限不够
 - `2026-04-13 06`：在仓库根目录搜索旧记忆目录时首次触发，随后通过缩小搜索范围验证规避方案有效。
 - `2026-04-13 08`：在仓库根目录执行 `find . -name AGENTS.md -print | sort` 时再次命中 `./docker/volumes/postgres` 权限不足；随后改用 `rg --files -g 'AGENTS.md'` 直接完成目标搜索，避免进入受限卷目录。
 - `2026-04-15 19`：在 `1flowse` 仓库中扫描相邻仓库 `../dify` 的 `AGENTS.md` 时，`find ../dify -path '*/AGENTS.md' ...` 命中 `../dify/docker/volumes/db/data/pgdata` 权限不足；后续应优先缩小到 `../dify/api ../dify/web` 这类真实目标目录，或对错误输出做重定向。
+- `2026-04-17 18`：在仓库根目录执行 `find . -type f | rg 'config-sections-flattened|node-detail-config|flattened'` 时再次命中 `./docker/volumes/postgres` 与 `./docker/volumes/redis/appendonlydir` 权限不足；后续应优先缩小到 `.memory` 这类真实目标目录，或直接用 `rg --files` 避免进入受限卷。

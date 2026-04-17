@@ -1,7 +1,8 @@
 ---
 memory_type: project
 topic: agentFlow node detail 第一版设计边界与关键决策已收敛
-summary: 用户已确认为 `04 agentFlow` 收敛一版覆盖全部已接入节点的 node detail 设计稿，采用统一右侧 detail panel 壳层、authoring 优先、运行态预留到 `05` 的方案，并明确了头部、tab、通用块、输出只读、关系信息与 last run 结构等关键决策。
+project_memory_state: design
+summary: 记录 `agentFlow node detail` 第一版设计为何收敛为统一右侧 panel、authoring 优先、运行态留给 `05`；当前主题的有效检索入口已切换到 `2026-04-16-agentflow-node-detail-plan-stage.md`。
 keywords:
   - agentflow
   - node detail
@@ -14,7 +15,7 @@ match_when:
   - 需要为 node detail 设计拆计划或执行实现
   - 需要判断 node detail 属于 04 还是 05 模块边界
 created_at: 2026-04-16 19
-updated_at: 2026-04-16 19
+updated_at: 2026-04-17 18
 last_verified_at: 2026-04-16 19
 decision_policy: verify_before_decision
 scope:
@@ -26,6 +27,11 @@ scope:
 ## 时间
 
 `2026-04-16 19`
+
+## 归档说明
+
+- 当前主题的有效检索入口已切换到 `2026-04-16-agentflow-node-detail-plan-stage.md`。
+- 本文件仅保留设计阶段原始边界和决策细节，不再作为该主题的首选 project-memory。
 
 ## 谁在做什么
 

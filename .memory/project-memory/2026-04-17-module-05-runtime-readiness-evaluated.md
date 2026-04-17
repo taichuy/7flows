@@ -1,7 +1,13 @@
 ---
 memory_type: project
 topic: 模块 05 runtime orchestration readiness 已按当前代码事实核查
-summary: `2026-04-17 17` 基于当前代码核查后，`03/04` 的应用宿主壳层、authoring document、draft/version 编辑闭环和 node detail last-run 挂点已经形成可复用基线，`05` 可以正式启动；但当前只能进入 spec/plan 与骨架实现阶段，不适合直接铺完整运行时，因为 `compiled plan`、`Flow Run / Node Run / Checkpoint / Callback Task` 领域模型、日志监控查询接口和 observability 基础仍缺失。
+project_memory_state: readiness
+summary: `2026-04-17 18` 基于当前代码复核后，`03/04` 的应用宿主壳层、authoring document、draft/version 编辑闭环、`compiled plan` 编译链路、单节点 debug preview，以及应用 `logs / node last run` 最小查询链路都已落地；但更完整的 runtime route/query、monitoring 事实查询、callback/human-loop 与 observability 闭环仍未完成。
+execution_gap:
+  - compiled plan 已有
+  - 单节点 debug preview 与 application logs / node last run 最小查询链路已闭环
+  - 更完整的 runtime 路由仍未闭环
+  - 更完整的运行查询与 monitoring 事实视图仍未闭环
 keywords:
   - module-05
   - runtime-orchestration
@@ -15,18 +21,20 @@ match_when:
   - 需要评估当前代码是否已经具备 runtime orchestration 起步条件
   - 需要回看 03 04 对 05 的真实挂点是否已落地
 created_at: 2026-04-17 17
-updated_at: 2026-04-17 17
-last_verified_at: 2026-04-17 17
+updated_at: 2026-04-17 18
+last_verified_at: 2026-04-17 18
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md
   - docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md
-  - web/packages/flow-schema/src/index.ts
+  - api/crates/orchestration-runtime
+  - api/apps/api-server/src/routes/application_runtime.rs
+  - web/packages/api-client/src/console-application-runtime.ts
+  - web/app/src/features/applications/pages/ApplicationLogsPage.tsx
+  - web/app/src/features/agent-flow/components/detail/tabs/NodeLastRunTab.tsx
   - web/app/src/features/agent-flow
   - web/app/src/features/applications
-  - api/apps/api-server/src/routes/application_orchestration.rs
-  - api/crates/storage-pg/migrations/20260415113000_create_flow_tables.sql
-  - api/crates/runtime-core
+  - api/crates/storage-pg/migrations/20260417173000_create_orchestration_runtime_tables.sql
   - api/crates/observability
 ---
 
@@ -57,16 +65,15 @@ scope:
 ## 决策背后动机
 
 - 当前代码已具备这些正向条件：
-  - `Application` 详情四分区路由与 `orchestration/api/logs/monitoring` 壳层已经落地。
+  - `Application` 详情四分区路由已经落地，`orchestration` 接到 editor，`logs` 接到真实 `ApplicationLogsPage`。
   - `agentFlow` 已具备稳定的 `FlowAuthoringDocument`、binding schema、draft autosave、version restore 和 node detail last-run 挂点。
-  - `orchestration` 分区已经从应用详情真正挂到编辑器，而不是纯占位页。
+  - 仓库内已经存在 `orchestration-runtime`、`compiled plan` 编译链路、单节点 debug preview 服务与 runtime 持久化模型。
+  - `application_runtime` 路由、`@1flowse/api-client` contract，以及前端 `ApplicationLogsPage / NodeLastRunTab` 查询已经接通最小运行闭环。
 - 当前代码仍缺这些关键能力：
-  - 仓库内还没有 `compiled plan` 对象或编译链路。
-  - 还没有 `Flow Run / Node Run / Checkpoint / Callback Task` 的领域模型、表结构和 API。
-  - `logs` 与 `monitoring` 分区仍是 capability status 展示，不是可查询运行对象。
-  - `runtime-core` 目前承载的是动态建模 runtime CRUD，不是 05 的编排执行引擎。
-  - `observability` 仍是空壳 crate。
+  - runtime 路由与查询目前仍局限在 `单节点 debug preview + logs run list/detail + node last run`，尚未扩展到整流运行、恢复、callback/human-loop 与更广泛 orchestration 查询。
+  - `monitoring` 分区仍主要是 capability status，而不是完整运行事实视图。
+  - 真实外部副作用执行、`waiting_human / resume` 与更完整 observability 闭环仍未落地。
 - 因此结论固定为：
-  - `05` 可以开始。
-  - 启动方式应是：先补 spec / implementation plan，并优先落运行时对象、编译边界、调度骨架和日志时间线最小闭环。
-  - 不建议直接跳到完整调试面板、监控图表或 callback/human-loop 全量实现。
+  - `05` 已经越过“能不能开始”的门槛，并且最小 runtime 闭环已有第一版落地。
+  - 后续重点应转向补齐更完整的 runtime route/query、monitoring 查询和执行恢复能力，而不是回到 readiness 争论。
+  - 仍不建议直接跳到完整调试面板、监控图表或 callback/human-loop 全量实现。

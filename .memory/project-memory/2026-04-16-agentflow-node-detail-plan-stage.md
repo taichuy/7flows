@@ -1,7 +1,8 @@
 ---
 memory_type: project
 topic: agentFlow node detail 已完成设计稿并进入计划阶段
-summary: 用户已确认 `agentFlow node detail` 设计稿，AI 已产出可执行实现计划 `docs/superpowers/plans/2026-04-16-agentflow-node-detail.md`；当前共识是先在 `04` 落统一 detail panel、配置结构与 last run 壳层，再由 `05` 接真实运行态。
+project_memory_state: plan
+summary: 承接统一右侧 detail panel、authoring 优先、运行态留给 `05` 的设计决策，AI 已产出可执行实现计划 `docs/superpowers/plans/2026-04-16-agentflow-node-detail.md`；当前共识是先在 `04` 落统一 detail panel、配置结构与 last run 壳层，再由 `05` 接真实运行态。
 keywords:
   - agent-flow
   - node detail
@@ -14,7 +15,7 @@ match_when:
   - 需要确认 node detail 当前处于 spec 还是 plan 阶段
   - 需要回看 node detail 的模块边界与当前实现目标
 created_at: 2026-04-16 21
-updated_at: 2026-04-16 21
+updated_at: 2026-04-17 18
 last_verified_at: 2026-04-16 21
 decision_policy: verify_before_decision
 scope:
@@ -50,6 +51,7 @@ scope:
 
 ## 决策背后动机
 
+- 本条 plan 记忆已吸收设计阶段的核心边界，成为当前主题的主检索入口。
 - 设计已明确采用统一右侧 `Node Detail Panel`，覆盖当前版本全部已接入节点。
 - `Last Run` 在 `04` 先落 tab 壳层与占位结构，真实运行数据留给 `05`。
 - 输出展示统一只读；少数节点如 `Code` 通过配置区定义输出契约，并要求唯一性校验。

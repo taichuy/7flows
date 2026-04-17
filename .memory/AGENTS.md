@@ -11,13 +11,14 @@
 1. 固定先读 `.memory/AGENTS.md`。
 2. 固定再读 `.memory/user-memory.md`。
 3. 对 `feedback-memory`、`project-memory`、`reference-memory`、`tool-memory`，第一轮只读取每个文件前 30 行的 `YAML front matter`。
-4. 单轮最多扫描 200 个记忆文件。
-5. 单轮只展开与当前任务最相关的最多 5 条有效记忆全文。
-6. 有效记忆选择原则固定为：宁缺毋滥，只选有用的，可少选，不凑满 5 条。
-7. 是否直接参考某条记忆，不只看时间，还要结合记忆类型、`decision_policy` 与当前任务相关性判断。
-8. `project-memory` 超过两天后，仅在其确实影响当前决策时，才回到当前代码、当前文档或当前运行结果验证。
-9. `reference-memory` 只作为索引，不直接作为结论来源。
-10. `tool-memory` 只在当前任务会用到对应工具或该工具刚刚失败时参与检索。
+4. `.memory/project-memory/archive/` 仅在当前有效记忆缺失、当前正文不足或需要追溯同主题旧阶段时读取。
+5. 单轮最多扫描 200 个记忆文件。
+6. 单轮只展开与当前任务最相关的最多 5 条有效记忆全文。
+7. 有效记忆选择原则固定为：宁缺毋滥，只选有用的，可少选，不凑满 5 条。
+8. 是否直接参考某条记忆，不只看时间，还要结合记忆类型、`decision_policy` 与当前任务相关性判断。
+9. `project-memory` 超过两天后，仅在其确实影响当前决策时，才回到当前代码、当前文档或当前运行结果验证。
+10. `reference-memory` 只作为索引，不直接作为结论来源。
+11. `tool-memory` 只在当前任务会用到对应工具或该工具刚刚失败时参与检索。
 
 ## 存什么
 
@@ -95,7 +96,9 @@
 - `.memory/feedback-memory/repository/`
   - 仓库结构、目录管理、脚本放置、版本控制等工程类纠正。
 - `.memory/project-memory/`
-  - 项目记忆目录，存放阶段事实、短期共识和模板。
+  - 当前有效的项目记忆目录，存放阶段事实、短期共识和模板。
+- `.memory/project-memory/archive/`
+  - 已归档的旧阶段 project-memory；仅在需要追溯同主题历史阶段时读取。
 - `.memory/reference-memory/`
   - 引用记忆目录，存放入口索引和分类说明。
 - `.memory/tool-memory/`

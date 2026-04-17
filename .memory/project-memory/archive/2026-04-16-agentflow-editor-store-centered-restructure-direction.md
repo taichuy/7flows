@@ -1,7 +1,8 @@
 ---
 memory_type: project
 topic: agentFlow editor 改造方向切换为 Dify 式 store 中心化重构
-summary: 用户在 `2026-04-16 07` 明确选择按 Dify 式 store / interaction hooks 中心化方案重构 `agent-flow` editor，允许调整 `editor / nodes / inspector / hooks / document` 边界，并要求参考既有设计稿 `docs/superpowers/specs/1flowse/2026-04-15-agentflow-editor-design.md`。
+project_memory_state: design
+summary: 记录 `agent-flow` editor 为何切换到 Dify 式 store / interaction hooks 中心化方案；当前主题的有效检索入口已切换到 `2026-04-16-agentflow-editor-store-centered-restructure-plan-stage.md`。
 keywords:
   - agent-flow
   - editor
@@ -13,7 +14,7 @@ match_when:
   - 继续讨论或实现 agentFlow editor 重构
   - 需要判断 editor 状态边界、hooks 边界或 store 设计
 created_at: 2026-04-16 07
-updated_at: 2026-04-16 07
+updated_at: 2026-04-17 18
 last_verified_at: 2026-04-16 07
 decision_policy: verify_before_decision
 scope:
@@ -26,6 +27,11 @@ scope:
 ## 时间
 
 `2026-04-16 07`
+
+## 归档说明
+
+- 当前主题的有效检索入口已切换到 `2026-04-16-agentflow-editor-store-centered-restructure-plan-stage.md`。
+- 本文件仅保留设计阶段原始决策，不再作为该主题的首选 project-memory。
 
 ## 谁在做什么
 

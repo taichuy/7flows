@@ -1,6 +1,7 @@
 ---
 memory_type: project
 topic: agentflow node detail 配置区已按用户决策取消折叠板
+project_memory_state: implemented
 summary: 用户已明确要求移除 node detail 配置区中的 `Inputs / Policy / Advanced` 折叠板，改为常驻 section 平铺展示；输出变量区继续保留为独立区块。
 keywords:
   - agentflow
@@ -12,7 +13,7 @@ match_when:
   - 后续继续调整 agentflow node detail 配置区结构
   - 需要判断 Inputs / Policy / Advanced 是否应继续使用折叠板
 created_at: 2026-04-17 16
-updated_at: 2026-04-17 16
+updated_at: 2026-04-17 18
 last_verified_at: 2026-04-17 16
 decision_policy: verify_before_decision
 scope:
