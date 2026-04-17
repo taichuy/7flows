@@ -7,6 +7,8 @@ interface AgentFlowOverlayProps {
   onSaveDraft: () => void;
   saveDisabled: boolean;
   saveLoading: boolean;
+  onStartDebugRun: () => void;
+  debugRunLoading: boolean;
   onOpenIssues: () => void;
   onOpenHistory: () => void;
   onOpenPublish: () => void;
@@ -20,6 +22,8 @@ export function AgentFlowOverlay({
   onSaveDraft,
   saveDisabled,
   saveLoading,
+  onStartDebugRun,
+  debugRunLoading,
   onOpenIssues,
   onOpenHistory,
   onOpenPublish,
@@ -48,6 +52,9 @@ export function AgentFlowOverlay({
       <Space size="small">
         <Button onClick={onOpenIssues}>Issues</Button>
         <Button onClick={onOpenHistory}>历史版本</Button>
+        <Button loading={debugRunLoading} onClick={onStartDebugRun}>
+          调试整流
+        </Button>
         <Button
           autoInsertSpace={false}
           disabled={saveDisabled}

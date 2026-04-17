@@ -4,14 +4,17 @@ import type {
   FlowNodeDocument
 } from '@1flowse/flow-schema';
 import {
+  startConsoleFlowDebugRun,
   getConsoleNodeLastRun,
   startConsoleNodeDebugPreview,
+  type ConsoleApplicationRunDetail,
   type ConsoleNodeLastRun
 } from '@1flowse/api-client';
 
 import { getApplicationsApiBaseUrl } from '../../applications/api/applications';
 
 export type NodeLastRun = ConsoleNodeLastRun;
+export type FlowDebugRunDetail = ConsoleApplicationRunDetail;
 
 export const nodeLastRunQueryKey = (applicationId: string, nodeId: string) =>
   ['applications', applicationId, 'runtime', 'nodes', nodeId, 'last-run'] as const;
@@ -33,6 +36,34 @@ export function startNodeDebugPreview(
   return startConsoleNodeDebugPreview(
     applicationId,
     nodeId,
+    input,
+    csrfToken,
+    getApplicationsApiBaseUrl()
+  );
+}
+
+export function buildFlowDebugRunInput(document: FlowAuthoringDocument) {
+  const startNode = document.graph.nodes.find((node) => node.type === 'start');
+  const startPayload: Record<string, unknown> = {};
+
+  for (const output of startNode?.outputs ?? []) {
+    startPayload[output.key] = buildPreviewValue(startNode, output.key);
+  }
+
+  return {
+    input_payload: {
+      [startNode?.id ?? 'node-start']: startPayload
+    }
+  };
+}
+
+export function startFlowDebugRun(
+  applicationId: string,
+  input: { input_payload: Record<string, Record<string, unknown>> },
+  csrfToken: string
+) {
+  return startConsoleFlowDebugRun(
+    applicationId,
     input,
     csrfToken,
     getApplicationsApiBaseUrl()

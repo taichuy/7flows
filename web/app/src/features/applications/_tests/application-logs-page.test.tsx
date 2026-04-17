@@ -7,7 +7,9 @@ const runtimeApi = vi.hoisted(() => ({
   applicationRunDetailQueryKey: (applicationId: string, runId: string) =>
     ['applications', applicationId, 'runtime', 'runs', runId] as const,
   fetchApplicationRuns: vi.fn(),
-  fetchApplicationRunDetail: vi.fn()
+  fetchApplicationRunDetail: vi.fn(),
+  resumeFlowRun: vi.fn(),
+  completeCallbackTask: vi.fn()
 }));
 
 vi.mock('../api/runtime', () => runtimeApi);
@@ -61,6 +63,7 @@ function sampleRunDetail() {
       }
     ],
     checkpoints: [],
+    callback_tasks: [],
     events: [
       {
         id: 'event-1',

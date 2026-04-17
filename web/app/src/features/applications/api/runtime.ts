@@ -1,6 +1,8 @@
 import {
+  completeConsoleCallbackTask,
   getConsoleApplicationRunDetail,
   getConsoleApplicationRuns,
+  resumeConsoleFlowRun,
   type ConsoleApplicationRunDetail,
   type ConsoleApplicationRunSummary
 } from '@1flowse/api-client';
@@ -26,6 +28,42 @@ export function fetchApplicationRunDetail(applicationId: string, runId: string) 
   return getConsoleApplicationRunDetail(
     applicationId,
     runId,
+    getApplicationsApiBaseUrl()
+  );
+}
+
+export function resumeFlowRun(
+  applicationId: string,
+  runId: string,
+  checkpointId: string,
+  inputPayload: Record<string, unknown>,
+  csrfToken: string
+) {
+  return resumeConsoleFlowRun(
+    applicationId,
+    runId,
+    {
+      checkpoint_id: checkpointId,
+      input_payload: inputPayload
+    },
+    csrfToken,
+    getApplicationsApiBaseUrl()
+  );
+}
+
+export function completeCallbackTask(
+  applicationId: string,
+  callbackTaskId: string,
+  responsePayload: Record<string, unknown>,
+  csrfToken: string
+) {
+  return completeConsoleCallbackTask(
+    applicationId,
+    callbackTaskId,
+    {
+      response_payload: responsePayload
+    },
+    csrfToken,
     getApplicationsApiBaseUrl()
   );
 }

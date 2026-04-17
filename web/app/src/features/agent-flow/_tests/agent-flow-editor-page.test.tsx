@@ -11,6 +11,7 @@ import { VersionHistoryDrawer } from '../components/history/VersionHistoryDrawer
 import { AgentFlowEditorShell } from '../components/editor/AgentFlowEditorShell';
 import { NODE_DETAIL_DEFAULT_WIDTH } from '../lib/detail-panel-width';
 import { AgentFlowEditorPage } from '../pages/AgentFlowEditorPage';
+import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
 
 function createInitialState() {
   return {
@@ -35,9 +36,36 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  resetAuthStore();
+  useAuthStore.getState().setAuthenticated({
+    csrfToken: 'csrf-123',
+    actor: {
+      id: 'user-1',
+      account: 'root',
+      effective_display_role: 'root',
+      current_workspace_id: 'workspace-1'
+    },
+    me: {
+      id: 'user-1',
+      account: 'root',
+      email: 'root@example.com',
+      phone: null,
+      nickname: 'Root',
+      name: 'Root',
+      avatar_url: null,
+      introduction: '',
+      effective_display_role: 'root',
+      permissions: ['application.view.all', 'application.edit.own']
+    }
+  });
   vi.spyOn(runtimeApi, 'fetchNodeLastRun').mockResolvedValue(null);
   vi.spyOn(runtimeApi, 'buildNodeDebugPreviewInput').mockReturnValue({
     input_payload: {}
+  });
+  vi.spyOn(runtimeApi, 'buildFlowDebugRunInput').mockReturnValue({
+    input_payload: {
+      'node-start': { query: '请总结退款政策' }
+    }
   });
   vi.spyOn(runtimeApi, 'startNodeDebugPreview').mockResolvedValue({
     flow_run: {
@@ -76,6 +104,43 @@ beforeEach(() => {
     checkpoints: [],
     events: []
   });
+  vi.spyOn(runtimeApi, 'startFlowDebugRun').mockResolvedValue({
+    flow_run: {
+      id: 'flow-run-1',
+      application_id: 'app-1',
+      flow_id: 'flow-1',
+      draft_id: 'draft-1',
+      compiled_plan_id: 'plan-1',
+      run_mode: 'debug_flow_run',
+      status: 'waiting_human',
+      target_node_id: null,
+      input_payload: {
+        'node-start': { query: '请总结退款政策' }
+      },
+      output_payload: {},
+      error_payload: null,
+      created_by: 'user-1',
+      started_at: '2026-04-17T09:00:00Z',
+      finished_at: null,
+      created_at: '2026-04-17T09:00:00Z'
+    },
+    node_runs: [],
+    checkpoints: [
+      {
+        id: 'checkpoint-1',
+        flow_run_id: 'flow-run-1',
+        node_run_id: null,
+        status: 'waiting_human',
+        reason: '等待人工输入',
+        locator_payload: { node_id: 'node-human' },
+        variable_snapshot: {},
+        external_ref_payload: { prompt: '请人工审核' },
+        created_at: '2026-04-17T09:00:00Z'
+      }
+    ],
+    callback_tasks: [],
+    events: []
+  });
 });
 
 describe('AgentFlowEditorShell', () => {
@@ -99,7 +164,30 @@ describe('AgentFlowEditorShell', () => {
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '保存' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '历史版本' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '调试整流' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '发布配置' })).toBeInTheDocument();
+  }, 20_000);
+
+  test('starts whole-flow debug run from overlay action', async () => {
+    renderShell(
+      <div style={{ width: 1280, height: 720 }}>
+        <AgentFlowEditorShell
+          applicationId="app-1"
+          applicationName="Support Agent"
+          initialState={createInitialState()}
+        />
+      </div>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: '调试整流' }));
+
+    await waitFor(() => {
+      expect(runtimeApi.startFlowDebugRun).toHaveBeenCalledWith(
+        'app-1',
+        { input_payload: { 'node-start': { query: '请总结退款政策' } } },
+        expect.any(String)
+      );
+    });
   }, 20_000);
 
   test('saves alias changes from the header editor', async () => {

@@ -18,8 +18,10 @@ import { useDraftSync } from '../../hooks/interactions/use-draft-sync';
 import { useEditorShortcuts } from '../../hooks/interactions/use-editor-shortcuts';
 import { useNodeDetailActions } from '../../hooks/interactions/use-node-detail-actions';
 import {
+  buildFlowDebugRunInput,
   buildNodeDebugPreviewInput,
   nodeLastRunQueryKey,
+  startFlowDebugRun,
   startNodeDebugPreview
 } from '../../api/runtime';
 import {
@@ -115,6 +117,24 @@ export function AgentFlowCanvasFrame({
     onSuccess: async (lastRun, nodeId) => {
       queryClient.setQueryData(nodeLastRunQueryKey(applicationId, nodeId), lastRun);
       setPanelState({ nodeDetailTab: 'lastRun' });
+      await queryClient.invalidateQueries({
+        queryKey: ['applications', applicationId, 'runtime']
+      });
+    }
+  });
+  const flowDebugRunMutation = useMutation({
+    mutationFn: async () => {
+      if (!csrfToken) {
+        throw new Error('missing csrf token');
+      }
+
+      return startFlowDebugRun(
+        applicationId,
+        buildFlowDebugRunInput(documentRef.current),
+        csrfToken
+      );
+    },
+    onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: ['applications', applicationId, 'runtime']
       });
@@ -275,6 +295,8 @@ export function AgentFlowCanvasFrame({
         }}
         saveDisabled={autosaveStatus === 'saving'}
         saveLoading={autosaveStatus === 'saving'}
+        onStartDebugRun={() => flowDebugRunMutation.mutate()}
+        debugRunLoading={flowDebugRunMutation.isPending}
         onOpenIssues={() => setPanelState({ issuesOpen: true })}
         onOpenHistory={() => setPanelState({ historyOpen: true })}
         onOpenPublish={() => undefined}

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Descriptions,
   Divider,
@@ -13,10 +13,14 @@ import {
 } from 'antd';
 
 import {
+  completeCallbackTask,
+  resumeFlowRun,
   applicationRunDetailQueryKey,
   fetchApplicationRunDetail,
   type ApplicationRunDetail
 } from '../../api/runtime';
+import { useAuthStore } from '../../../../state/auth-store';
+import { ApplicationRunResumeCard } from './ApplicationRunResumeCard';
 
 const STATUS_COLOR: Record<string, string> = {
   succeeded: 'green',
@@ -229,6 +233,35 @@ function renderDetail(detail: ApplicationRunDetail) {
           />
         )}
       </div>
+
+      {detail.callback_tasks.length > 0 ? (
+        <div>
+          <Typography.Title level={5}>Callback Tasks</Typography.Title>
+          <Table
+            rowKey="id"
+            pagination={false}
+            dataSource={detail.callback_tasks}
+            columns={[
+              {
+                title: '类型',
+                dataIndex: 'callback_kind',
+                width: 160
+              },
+              {
+                title: '状态',
+                dataIndex: 'status',
+                width: 140
+              },
+              {
+                title: '创建时间',
+                dataIndex: 'created_at',
+                width: 200,
+                render: (value: string) => formatTimestamp(value)
+              }
+            ]}
+          />
+        </div>
+      ) : null}
     </Space>
   );
 }
@@ -244,10 +277,67 @@ export function ApplicationRunDetailDrawer({
   open: boolean;
   onClose: () => void;
 }) {
+  const queryClient = useQueryClient();
+  const csrfToken = useAuthStore((state) => state.csrfToken);
   const detailQuery = useQuery({
     queryKey: applicationRunDetailQueryKey(applicationId, runId ?? 'pending'),
     queryFn: () => fetchApplicationRunDetail(applicationId, runId!),
     enabled: open && Boolean(runId)
+  });
+  const resumeMutation = useMutation({
+    mutationFn: async ({
+      checkpointId,
+      inputPayload
+    }: {
+      checkpointId: string;
+      inputPayload: Record<string, unknown>;
+    }) => {
+      if (!runId || !csrfToken) {
+        throw new Error('missing runtime resume context');
+      }
+
+      return resumeFlowRun(applicationId, runId, checkpointId, inputPayload, csrfToken);
+    },
+    onSuccess: async (detail) => {
+      if (!runId) {
+        return;
+      }
+
+      queryClient.setQueryData(applicationRunDetailQueryKey(applicationId, runId), detail);
+      await queryClient.invalidateQueries({
+        queryKey: ['applications', applicationId, 'runtime']
+      });
+    }
+  });
+  const callbackMutation = useMutation({
+    mutationFn: async ({
+      callbackTaskId,
+      responsePayload
+    }: {
+      callbackTaskId: string;
+      responsePayload: Record<string, unknown>;
+    }) => {
+      if (!csrfToken) {
+        throw new Error('missing callback context');
+      }
+
+      return completeCallbackTask(
+        applicationId,
+        callbackTaskId,
+        responsePayload,
+        csrfToken
+      );
+    },
+    onSuccess: async (detail) => {
+      if (!runId) {
+        return;
+      }
+
+      queryClient.setQueryData(applicationRunDetailQueryKey(applicationId, runId), detail);
+      await queryClient.invalidateQueries({
+        queryKey: ['applications', applicationId, 'runtime']
+      });
+    }
   });
 
   let content = <Empty description="请选择一条运行记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
@@ -257,7 +347,20 @@ export function ApplicationRunDetailDrawer({
   } else if (detailQuery.isError) {
     content = <Result status="error" title="运行详情加载失败" />;
   } else if (detailQuery.data) {
-    content = renderDetail(detailQuery.data);
+    content = (
+      <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        {renderDetail(detailQuery.data)}
+        <ApplicationRunResumeCard
+          detail={detailQuery.data}
+          onResume={(checkpointId, inputPayload) =>
+            resumeMutation.mutateAsync({ checkpointId, inputPayload })
+          }
+          onCompleteCallback={(callbackTaskId, responsePayload) =>
+            callbackMutation.mutateAsync({ callbackTaskId, responsePayload })
+          }
+        />
+      </Space>
+    );
   }
 
   return (

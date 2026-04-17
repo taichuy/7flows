@@ -5,7 +5,9 @@ import type { ApplicationRunSummary } from '../../api/runtime';
 const STATUS_COLOR: Record<string, string> = {
   succeeded: 'green',
   failed: 'red',
-  running: 'blue'
+  running: 'blue',
+  waiting_human: 'gold',
+  waiting_callback: 'orange'
 };
 
 function formatTimestamp(value: string) {
