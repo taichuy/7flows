@@ -15,6 +15,7 @@ import type {
 } from '../../lib/node-definitions';
 import { nodeDefinitions } from '../../lib/node-definitions';
 import { listVisibleSelectorOptions } from '../../lib/selector-options';
+import { createTemplateSelectorToken } from '../../lib/template-binding';
 import { useAgentFlowEditorStore } from '../../store/editor/provider';
 import {
   selectSelectedNodeId,
@@ -186,9 +187,13 @@ export function NodeInspector() {
         return (
           <TemplatedTextField
             ariaLabel={field.label}
+            options={selectorOptions}
             value={
               field.key.startsWith('bindings.')
-                ? asBinding(fieldValue, 'templated_text')?.value ?? ''
+                ? asBinding(fieldValue, 'templated_text')?.value ??
+                  createTemplateSelectorToken(
+                    asBinding(fieldValue, 'selector')?.value ?? []
+                  )
                 : asString(fieldValue)
             }
             onChange={(nextValue) =>

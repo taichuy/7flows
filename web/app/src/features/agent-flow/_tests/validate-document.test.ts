@@ -45,7 +45,7 @@ describe('validateDocument', () => {
     expect(issues.some((issue) => issue.scope === 'global')).toBe(true);
   });
 
-  test('returns a field issue when a selector points to an unreachable output', () => {
+  test('returns a field issue when a templated binding points to an unreachable output', () => {
     const broken = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
     const llmNode = broken.graph.nodes.find((node) => node.id === 'node-llm');
 
@@ -54,15 +54,18 @@ describe('validateDocument', () => {
     }
 
     llmNode.bindings.user_prompt = {
-      kind: 'selector',
-      value: ['node-answer', 'answer']
+      kind: 'templated_text',
+      value: '请基于 {{node-answer.answer}} 回复用户'
     };
 
     const issues = validateDocument(broken);
 
     expect(
-      issues.some(
-        (issue) => issue.scope === 'field' && issue.nodeId === 'node-llm'
+      issues.some((issue) =>
+        issue.scope === 'field' &&
+        issue.nodeId === 'node-llm' &&
+        issue.fieldKey === 'bindings.user_prompt' &&
+        issue.message === '当前 binding 引用了未接入上游链路的输出。'
       )
     ).toBe(true);
   });

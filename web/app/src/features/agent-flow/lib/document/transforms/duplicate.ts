@@ -5,6 +5,7 @@ import type {
 } from '@1flowse/flow-schema';
 
 import { getNodeById } from '../selectors';
+import { remapTemplateSelectorTokens } from '../../template-binding';
 
 function collectDuplicatedNodeIds(
   document: FlowAuthoringDocument,
@@ -73,7 +74,10 @@ function remapBinding(
 ): FlowBinding {
   switch (binding.kind) {
     case 'templated_text':
-      return binding;
+      return {
+        ...binding,
+        value: remapTemplateSelectorTokens(binding.value, idMap)
+      };
     case 'selector':
       return {
         ...binding,

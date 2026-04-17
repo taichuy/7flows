@@ -122,6 +122,7 @@ describe('NodeInspector', () => {
     expect(screen.queryByRole('button', { name: 'Inputs' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Policy' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Advanced' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'User Prompt' })).not.toBeInTheDocument();
     expect(screen.queryByText('Basics')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('节点别名')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('节点简介')).not.toBeInTheDocument();
@@ -130,6 +131,7 @@ describe('NodeInspector', () => {
     expect(screen.getByText('Policy')).toBeInTheDocument();
     expect(screen.getByText('Advanced')).toBeInTheDocument();
     expect(screen.getByLabelText('System Prompt')).toBeInTheDocument();
+    expect(screen.getByLabelText('User Prompt').tagName).toBe('TEXTAREA');
     },
     10000
   );

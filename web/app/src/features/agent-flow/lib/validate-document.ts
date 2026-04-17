@@ -4,6 +4,7 @@ import type { FlowBinding, FlowNodeDocument } from '@1flowse/flow-schema';
 import type { InspectorSectionKey } from './node-definitions';
 import { findInspectorSectionKey, nodeDefinitions } from './node-definitions';
 import { isSelectorVisible } from './selector-options';
+import { parseTemplateSelectorTokens } from './template-binding';
 
 export interface AgentFlowIssue {
   id: string;
@@ -70,7 +71,7 @@ function isMissingRequiredField(
 function collectBindingSelectors(binding: FlowBinding): string[][] {
   switch (binding.kind) {
     case 'templated_text':
-      return [];
+      return parseTemplateSelectorTokens(binding.value);
     case 'selector':
       return [binding.value];
     case 'selector_list':

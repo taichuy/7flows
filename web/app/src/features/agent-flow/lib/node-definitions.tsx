@@ -178,7 +178,7 @@ export const nodeDefinitions: Partial<Record<FlowNodeType, NodeDefinition>> = {
           {
             key: 'bindings.user_prompt',
             label: 'User Prompt',
-            editor: 'selector',
+            editor: 'templated_text',
             required: true
           }
         ]
