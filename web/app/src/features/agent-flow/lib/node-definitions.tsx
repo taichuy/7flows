@@ -562,6 +562,33 @@ export function findInspectorSectionKey(
   return null;
 }
 
+export function getNodeDefinition(nodeType: FlowNodeType) {
+  return nodeDefinitions[nodeType] ?? null;
+}
+
+export function getSchemaConfigSections(nodeType: FlowNodeType) {
+  return getNodeDefinition(nodeType)?.sections.filter(
+    (section) => section.key !== 'basics' && section.key !== 'outputs'
+  ) ?? [];
+}
+
 export function getNodeDefinitionMeta(nodeType: FlowNodeType) {
   return nodeDefinitionMeta[nodeType];
+}
+
+export function getNodeDefinitionSections(nodeType: FlowNodeType) {
+  return nodeDefinitions[nodeType]?.sections ?? [];
+}
+
+export function getNodeDefinitionFields(
+  nodeType: FlowNodeType,
+  sectionKey?: InspectorSectionKey
+) {
+  const sections = getNodeDefinitionSections(nodeType);
+
+  if (!sectionKey) {
+    return sections.flatMap((section) => section.fields);
+  }
+
+  return sections.find((section) => section.key === sectionKey)?.fields ?? [];
 }

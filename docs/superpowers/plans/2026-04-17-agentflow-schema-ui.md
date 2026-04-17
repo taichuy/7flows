@@ -621,7 +621,7 @@ git commit -m "feat: add overlay shell schema runtime"
 - Create: `web/app/src/features/agent-flow/_tests/node-schema-registry.test.tsx`
 - Modify: `web/app/src/features/agent-flow/lib/node-definitions.tsx`
 
-- [ ] **Step 1: Write the failing registry and adapter tests**
+- [x] **Step 1: Write the failing registry and adapter tests**
 
 ```tsx
 // web/app/src/features/agent-flow/_tests/node-schema-registry.test.tsx
@@ -658,7 +658,7 @@ describe('agent-flow node schema registry', () => {
 });
 ```
 
-- [ ] **Step 2: Run the registry test and confirm it fails**
+- [x] **Step 2: Run the registry test and confirm it fails**
 
 Run:
 
@@ -668,7 +668,7 @@ pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/node-schema-re
 
 Expected: FAIL with missing node schema registry and adapter exports.
 
-- [ ] **Step 3: Implement the node schema registry and document adapter**
+- [x] **Step 3: Implement the node schema registry and document adapter**
 
 ```ts
 // web/app/src/features/agent-flow/schema/node-schema-adapter.ts
@@ -795,7 +795,7 @@ export const agentFlowRendererRegistry = createRendererRegistry({
 });
 ```
 
-- [ ] **Step 4: Run the registry test and confirm it passes**
+- [x] **Step 4: Run the registry test and confirm it passes**
 
 Run:
 
@@ -805,7 +805,7 @@ pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/node-schema-re
 
 Expected: PASS with 2 tests passed.
 
-- [ ] **Step 5: Commit the node schema registry bridge**
+- [x] **Step 5: Commit the node schema registry bridge**
 
 ```bash
 git add \
