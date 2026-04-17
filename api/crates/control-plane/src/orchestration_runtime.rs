@@ -6,10 +6,9 @@ use uuid::Uuid;
 use crate::{
     flow::FlowService,
     ports::{
-        AppendRunEventInput, ApplicationRepository, CompleteFlowRunInput,
-        CompleteNodeRunInput, CreateApplicationInput, CreateApplicationTagInput,
+        AppendRunEventInput, ApplicationRepository, CompleteFlowRunInput, CompleteNodeRunInput,
         CreateFlowRunInput, CreateNodeRunInput, FlowRepository, OrchestrationRuntimeRepository,
-        UpdateApplicationInput, UpsertCompiledPlanInput,
+        UpsertCompiledPlanInput,
     },
 };
 
@@ -244,7 +243,10 @@ use async_trait::async_trait;
 use crate::{
     errors::ControlPlaneError,
     flow::InMemoryFlowRepository,
-    ports::ApplicationVisibility,
+    ports::{
+        ApplicationVisibility, CreateApplicationInput, CreateApplicationTagInput,
+        UpdateApplicationInput,
+    },
 };
 
 #[cfg(test)]

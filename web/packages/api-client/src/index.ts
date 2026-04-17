@@ -1,6 +1,7 @@
 export * from './console-applications';
 export * from './console-api-docs';
 export * from './console-application-orchestration';
+export * from './console-application-runtime';
 export * from './console-me';
 export * from './console-members';
 export * from './console-permissions';

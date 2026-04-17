@@ -791,7 +791,7 @@ git commit -m "feat: add node debug preview runtime service"
 - Create: `web/packages/api-client/src/console-application-runtime.ts`
 - Modify: `web/packages/api-client/src/index.ts`
 
-- [ ] **Step 1: Write the failing route tests**
+- [x] **Step 1: Write the failing route tests**
 
 ```rust
 // api/apps/api-server/src/_tests/application_runtime_routes.rs
@@ -843,7 +843,7 @@ async fn application_runtime_routes_start_node_preview_and_query_logs() {
 }
 ```
 
-- [ ] **Step 2: Run the route tests and confirm they fail**
+- [x] **Step 2: Run the route tests and confirm they fail**
 
 Run:
 
@@ -853,7 +853,7 @@ cd api && cargo test -p api-server application_runtime_routes
 
 Expected: FAIL with missing routes, response DTOs and OpenAPI registration.
 
-- [ ] **Step 3: Implement runtime routes, response DTOs and api-client exports**
+- [x] **Step 3: Implement runtime routes, response DTOs and api-client exports**
 
 ```rust
 // api/apps/api-server/src/routes/application_runtime.rs
@@ -917,7 +917,7 @@ export function startConsoleNodeDebugPreview(
 }
 ```
 
-- [ ] **Step 4: Run API and contract tests**
+- [x] **Step 4: Run API and contract tests**
 
 Run:
 
@@ -929,7 +929,7 @@ cd api && cargo test -p api-server application_orchestration_routes
 
 Expected: PASS with runtime routes, existing application routes and orchestration routes all green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add api/apps/api-server \

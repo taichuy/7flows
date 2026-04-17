@@ -164,6 +164,10 @@ async fn openapi_contains_application_console_routes() {
         "/api/console/applications/{id}/orchestration",
         "/api/console/applications/{id}/orchestration/draft",
         "/api/console/applications/{id}/orchestration/versions/{version_id}/restore",
+        "/api/console/applications/{id}/orchestration/nodes/{node_id}/debug-runs",
+        "/api/console/applications/{id}/orchestration/nodes/{node_id}/last-run",
+        "/api/console/applications/{id}/logs/runs",
+        "/api/console/applications/{id}/logs/runs/{run_id}",
     ] {
         assert!(paths.contains_key(route), "missing path {route}");
     }

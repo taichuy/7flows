@@ -1,3 +1,4 @@
+mod application_runtime_routes;
 mod application_routes;
 mod application_orchestration_routes;
 mod auth_routes;
