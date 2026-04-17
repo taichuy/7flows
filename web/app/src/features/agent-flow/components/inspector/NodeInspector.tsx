@@ -1,6 +1,6 @@
 import type { FlowBinding, FlowNodeDocument } from '@1flowse/flow-schema';
-import { Collapse, Input, InputNumber, Typography } from 'antd';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Input, InputNumber, Typography } from 'antd';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { ConditionGroupField } from '../bindings/ConditionGroupField';
 import { NamedBindingsField } from '../bindings/NamedBindingsField';
@@ -94,9 +94,6 @@ export function NodeInspector() {
   const document = useAgentFlowEditorStore(selectWorkingDocument);
   const selectedNodeId = useAgentFlowEditorStore(selectSelectedNodeId);
   const focusFieldKey = useAgentFlowEditorStore((state) => state.focusedFieldKey);
-  const openSectionKey = useAgentFlowEditorStore(
-    (state) => state.openInspectorSectionKey
-  );
   const inspectorInteractions = useInspectorInteractions();
   const selectedNode = selectedNodeId
     ? document.graph.nodes.find((node) => node.id === selectedNodeId) ?? null
@@ -108,23 +105,6 @@ export function NodeInspector() {
       selectedNode ? listVisibleSelectorOptions(document, selectedNode.id) : [],
     [document, selectedNode]
   );
-  const [activeSectionKeys, setActiveSectionKeys] = useState<InspectorSectionKey[]>([]);
-
-  useEffect(() => {
-    setActiveSectionKeys(
-      definition ? getVisibleSections(definition.sections).map((section) => section.key) : []
-    );
-  }, [definition]);
-
-  useEffect(() => {
-    if (!openSectionKey) {
-      return;
-    }
-
-    setActiveSectionKeys((previous) =>
-      previous.includes(openSectionKey) ? previous : [...previous, openSectionKey]
-    );
-  }, [openSectionKey]);
 
   useEffect(() => {
     if (!focusFieldKey || !rootRef.current) {
@@ -285,48 +265,49 @@ export function NodeInspector() {
 
   return (
     <section ref={rootRef} className="agent-flow-node-detail__inspector">
-      <Collapse
-        activeKey={activeSectionKeys}
-        className="agent-flow-editor__inspector-sections"
-        onChange={(nextActiveKeys) =>
-          setActiveSectionKeys(
-            Array.isArray(nextActiveKeys) ? nextActiveKeys.map(String) as InspectorSectionKey[] : []
-          )
-        }
-        items={visibleSections.map((section) => ({
-          key: section.key,
-          label: section.title,
-          children: (
-            <div className="agent-flow-editor__inspector-fields">
-              {section.fields.map((field) => (
-                <div
-                  key={field.key}
-                  className={[
-                    'agent-flow-editor__inspector-field',
-                    isInlineField(field)
-                      ? 'agent-flow-editor__inspector-field--inline'
-                      : null
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  data-field-key={field.key}
-                  data-testid={`inspector-field-${field.key}`}
+      {visibleSections.map((section) => (
+        <div
+          key={section.key}
+          className="agent-flow-node-detail__section agent-flow-node-detail__inspector-section"
+          data-section-key={section.key}
+        >
+          <div className="agent-flow-node-detail__section-header">
+            <Typography.Title
+              level={5}
+              className="agent-flow-node-detail__section-title"
+            >
+              {section.title}
+            </Typography.Title>
+          </div>
+          <div className="agent-flow-editor__inspector-fields">
+            {section.fields.map((field) => (
+              <div
+                key={field.key}
+                className={[
+                  'agent-flow-editor__inspector-field',
+                  isInlineField(field)
+                    ? 'agent-flow-editor__inspector-field--inline'
+                    : null
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                data-field-key={field.key}
+                data-testid={`inspector-field-${field.key}`}
+              >
+                <Typography.Text
+                  strong
+                  className="agent-flow-editor__inspector-field-label"
                 >
-                  <Typography.Text
-                    strong
-                    className="agent-flow-editor__inspector-field-label"
-                  >
-                    {field.label}
-                  </Typography.Text>
-                  <div className="agent-flow-editor__inspector-field-control">
-                    {renderField(field)}
-                  </div>
+                  {field.label}
+                </Typography.Text>
+                <div className="agent-flow-editor__inspector-field-control">
+                  {renderField(field)}
                 </div>
-              ))}
-            </div>
-          )
-        }))}
-      />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </section>
   );
 }

@@ -217,6 +217,10 @@
   flex-direction: column;
 }
 
+.agent-flow-node-detail__inspector-section {
+  gap: 16px;
+}
+
 .agent-flow-node-detail__summary-fields {
   width: 100%;
 }
@@ -959,37 +963,6 @@
     gap: 8px;
     margin: 0;
   }
-}
-
-.agent-flow-node-detail__config-tab .ant-collapse {
-  background: transparent;
-  border: none;
-}
-
-.agent-flow-node-detail__config-tab .ant-collapse-item {
-  border-bottom: 1px solid #edf2ea;
-  padding: 12px 0;
-  background: transparent;
-}
-
-.agent-flow-node-detail__config-tab .ant-collapse-item:last-child {
-  border-bottom: none;
-}
-
-.agent-flow-node-detail__config-tab .ant-collapse-header {
-  padding: 0 0 8px 0 !important;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1a1a1a !important;
-}
-
-.agent-flow-node-detail__config-tab .ant-collapse-content {
-  border-top: none;
-  background: transparent;
-}
-
-.agent-flow-node-detail__config-tab .ant-collapse-content-box {
-  padding: 0 !important;
 }
 
 @media (max-width: 1240px) {

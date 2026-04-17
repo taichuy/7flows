@@ -111,7 +111,7 @@ function FocusIssueSeed() {
 
 describe('NodeInspector', () => {
   test(
-    'renders config sections without repeating basics once summary content moves out',
+    'renders config sections as always-open blocks without repeating basics once summary content moves out',
     () => {
     render(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>
@@ -119,6 +119,9 @@ describe('NodeInspector', () => {
       </AgentFlowEditorStoreProvider>
     );
 
+    expect(screen.queryByRole('button', { name: 'Inputs' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Policy' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Advanced' })).not.toBeInTheDocument();
     expect(screen.queryByText('Basics')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('节点别名')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('节点简介')).not.toBeInTheDocument();
