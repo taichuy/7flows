@@ -949,17 +949,22 @@ git commit -m "feat: expose application runtime console APIs"
 - Create: `web/app/src/features/agent-flow/api/runtime.ts`
 - Modify: `web/app/src/features/applications/pages/ApplicationDetailPage.tsx`
 - Modify: `web/app/src/features/applications/components/ApplicationSectionState.tsx`
+- Modify: `web/app/src/features/agent-flow/components/detail/NodeDetailHeader.tsx`
+- Modify: `web/app/src/features/agent-flow/components/detail/NodeDetailPanel.tsx`
 - Modify: `web/app/src/features/agent-flow/components/detail/NodeRunButton.tsx`
 - Modify: `web/app/src/features/agent-flow/components/editor/AgentFlowCanvasFrame.tsx`
 - Modify: `web/app/src/features/agent-flow/components/detail/tabs/NodeLastRunTab.tsx`
 - Modify: `web/app/src/features/agent-flow/components/detail/last-run/NodeRunSummaryCard.tsx`
 - Modify: `web/app/src/features/agent-flow/components/detail/last-run/NodeRunIOCard.tsx`
 - Modify: `web/app/src/features/agent-flow/components/detail/last-run/NodeRunMetadataCard.tsx`
+- Modify: `web/app/src/features/agent-flow/_tests/agent-flow-canvas.test.tsx`
 - Create: `web/app/src/features/agent-flow/_tests/node-last-run-runtime.test.tsx`
+- Modify: `web/app/src/features/agent-flow/_tests/node-detail-panel.test.tsx`
+- Modify: `web/app/src/features/agent-flow/_tests/node-inspector.test.tsx`
 - Modify: `web/app/src/features/agent-flow/_tests/node-last-run-tab.test.tsx`
 - Modify: `web/app/src/features/agent-flow/_tests/agent-flow-editor-page.test.tsx`
 
-- [ ] **Step 1: Write the failing frontend tests**
+- [x] **Step 1: Write the failing frontend tests**
 
 ```tsx
 // web/app/src/features/applications/_tests/application-logs-page.test.tsx
@@ -999,7 +1004,7 @@ test('runs node preview and refreshes last-run cards', async () => {
 });
 ```
 
-- [ ] **Step 2: Run the targeted frontend tests and confirm they fail**
+- [x] **Step 2: Run the targeted frontend tests and confirm they fail**
 
 Run:
 
@@ -1011,7 +1016,7 @@ pnpm --dir web/app exec vitest run \
 
 Expected: FAIL with missing runtime API wrappers, missing logs page and placeholder last-run components.
 
-- [ ] **Step 3: Implement the logs page, node preview mutation and last-run cards**
+- [x] **Step 3: Implement the logs page, node preview mutation and last-run cards**
 
 ```tsx
 // web/app/src/features/applications/pages/ApplicationDetailPage.tsx
@@ -1081,7 +1086,7 @@ export function NodeLastRunTab({
 }
 ```
 
-- [ ] **Step 4: Run feature tests and frontend gates**
+- [x] **Step 4: Run feature tests and frontend gates**
 
 Run:
 
@@ -1098,13 +1103,12 @@ pnpm --dir web/app build
 
 Expected: PASS; logs page shows real run data, node preview button invalidates last-run query, and full frontend gates stay green.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
-git add web/app/src/features/applications \
-  web/app/src/features/agent-flow \
-  web/packages/api-client/src/console-application-runtime.ts \
-  web/packages/api-client/src/index.ts
+git add docs/superpowers/plans/2026-04-17-module-05-runtime-orchestration.md \
+  web/app/src/features/applications \
+  web/app/src/features/agent-flow
 git commit -m "feat: connect runtime logs and node last run UI"
 ```
 

@@ -1,10 +1,12 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { Grid } from 'antd';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import type { ReactNode } from 'react';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
 import { AppProviders } from '../../../app/AppProviders';
 import * as orchestrationApi from '../api/orchestration';
+import * as runtimeApi from '../api/runtime';
 import { VersionHistoryDrawer } from '../components/history/VersionHistoryDrawer';
 import { AgentFlowEditorShell } from '../components/editor/AgentFlowEditorShell';
 import { NODE_DETAIL_DEFAULT_WIDTH } from '../lib/detail-panel-width';
@@ -24,13 +26,61 @@ function createInitialState() {
   };
 }
 
+function renderShell(ui: ReactNode) {
+  return render(<AppProviders>{ui}</AppProviders>);
+}
+
 afterEach(() => {
   vi.useRealTimers();
 });
 
+beforeEach(() => {
+  vi.spyOn(runtimeApi, 'fetchNodeLastRun').mockResolvedValue(null);
+  vi.spyOn(runtimeApi, 'buildNodeDebugPreviewInput').mockReturnValue({
+    input_payload: {}
+  });
+  vi.spyOn(runtimeApi, 'startNodeDebugPreview').mockResolvedValue({
+    flow_run: {
+      id: 'run-1',
+      application_id: 'app-1',
+      flow_id: 'flow-1',
+      draft_id: 'draft-1',
+      compiled_plan_id: 'plan-1',
+      run_mode: 'debug_node_preview',
+      status: 'succeeded',
+      target_node_id: 'node-llm',
+      input_payload: {},
+      output_payload: {},
+      error_payload: null,
+      created_by: 'user-1',
+      started_at: '2026-04-17T09:00:00Z',
+      finished_at: '2026-04-17T09:00:01Z',
+      created_at: '2026-04-17T09:00:00Z'
+    },
+    node_run: {
+      id: 'node-run-1',
+      flow_run_id: 'run-1',
+      node_id: 'node-llm',
+      node_type: 'llm',
+      node_alias: 'LLM',
+      status: 'succeeded',
+      input_payload: {},
+      output_payload: {},
+      error_payload: null,
+      metrics_payload: {
+        output_contract_count: 1
+      },
+      started_at: '2026-04-17T09:00:00Z',
+      finished_at: '2026-04-17T09:00:01Z'
+    },
+    checkpoints: [],
+    events: []
+  });
+});
+
 describe('AgentFlowEditorShell', () => {
   test('renders the default three nodes and overlay controls', async () => {
-    render(
+    renderShell(
       <div style={{ width: 1280, height: 720 }}>
         <AgentFlowEditorShell
           applicationId="app-1"
@@ -64,7 +114,7 @@ describe('AgentFlowEditorShell', () => {
       }
     }));
 
-    render(
+    renderShell(
       <div style={{ width: 1280, height: 720 }}>
         <AgentFlowEditorShell
           applicationId="app-1"
@@ -103,7 +153,7 @@ describe('AgentFlowEditorShell', () => {
   }, 20_000);
 
   test('opens the selected issue target and focuses the node field', async () => {
-    render(
+    renderShell(
       <div style={{ width: 1280, height: 720 }}>
         <AgentFlowEditorShell
           applicationId="app-1"
@@ -251,7 +301,7 @@ describe('AgentFlowEditorShell', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: '上次运行' }));
 
-    expect(screen.getByText('运行摘要')).toBeInTheDocument();
+    expect(await screen.findByText('当前节点还没有运行记录')).toBeInTheDocument();
     expect(detailDock).toBeInTheDocument();
     expect(within(detailDock).getByLabelText('节点详情')).toBeInTheDocument();
     expect(screen.queryByText('请使用桌面端编辑')).not.toBeInTheDocument();
@@ -274,7 +324,7 @@ describe('AgentFlowEditorShell', () => {
 
     fireEvent.click(await screen.findByRole('tab', { name: '上次运行' }));
 
-    expect(screen.getByText('运行摘要')).toBeVisible();
+    expect(await screen.findByText('当前节点还没有运行记录')).toBeVisible();
     expect(screen.getByLabelText('模型')).not.toBeVisible();
   }, 20_000);
 
@@ -294,7 +344,7 @@ describe('AgentFlowEditorShell', () => {
         }) as DOMRect
     );
 
-    render(
+    renderShell(
       <div style={{ width: 1280, height: 720 }}>
         <AgentFlowEditorShell
           applicationId="app-1"

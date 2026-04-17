@@ -1,3 +1,4 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type {
   ConsoleApplicationOrchestrationState,
   SaveConsoleApplicationDraftInput
@@ -17,11 +18,17 @@ import { useDraftSync } from '../../hooks/interactions/use-draft-sync';
 import { useEditorShortcuts } from '../../hooks/interactions/use-editor-shortcuts';
 import { useNodeDetailActions } from '../../hooks/interactions/use-node-detail-actions';
 import {
+  buildNodeDebugPreviewInput,
+  nodeLastRunQueryKey,
+  startNodeDebugPreview
+} from '../../api/runtime';
+import {
   NODE_DETAIL_DEFAULT_WIDTH,
   NODE_DETAIL_MIN_CANVAS_WIDTH,
   clampNodeDetailWidth
 } from '../../lib/detail-panel-width';
 import { validateDocument } from '../../lib/validate-document';
+import { useAuthStore } from '../../../../state/auth-store';
 import { useAgentFlowEditorStore } from '../../store/editor/provider';
 import {
   selectAutosaveStatus,
@@ -52,6 +59,8 @@ export function AgentFlowCanvasFrame({
   saveDraftOverride,
   restoreVersionOverride
 }: AgentFlowCanvasFrameProps) {
+  const queryClient = useQueryClient();
+  const csrfToken = useAuthStore((state) => state.csrfToken);
   const workingDocument = useAgentFlowEditorStore(selectWorkingDocument);
   const lastSavedDocument = useAgentFlowEditorStore(selectLastSavedDocument);
   const autosaveStatus = useAgentFlowEditorStore(selectAutosaveStatus);
@@ -90,6 +99,27 @@ export function AgentFlowCanvasFrame({
   const issues = useMemo(() => validateDocument(workingDocument), [workingDocument]);
   const activeContainerId = activeContainerPath.at(-1) ?? null;
   const detailActions = useNodeDetailActions();
+  const nodePreviewMutation = useMutation({
+    mutationFn: async (nodeId: string) => {
+      if (!csrfToken) {
+        throw new Error('missing csrf token');
+      }
+
+      return startNodeDebugPreview(
+        applicationId,
+        nodeId,
+        buildNodeDebugPreviewInput(documentRef.current, nodeId),
+        csrfToken
+      );
+    },
+    onSuccess: async (lastRun, nodeId) => {
+      queryClient.setQueryData(nodeLastRunQueryKey(applicationId, nodeId), lastRun);
+      setPanelState({ nodeDetailTab: 'lastRun' });
+      await queryClient.invalidateQueries({
+        queryKey: ['applications', applicationId, 'runtime']
+      });
+    }
+  });
   const issueCountByNodeId = useMemo(() => {
     const counts: Record<string, number> = {};
 
@@ -222,6 +252,14 @@ export function AgentFlowCanvasFrame({
     };
   }
 
+  function handleRunSelectedNode() {
+    if (!selectedNodeId) {
+      return;
+    }
+
+    nodePreviewMutation.mutate(selectedNodeId);
+  }
+
   return (
     <section
       aria-label={`${applicationName} editor`}
@@ -283,8 +321,10 @@ export function AgentFlowCanvasFrame({
               role="separator"
             />
             <NodeDetailPanel
+              applicationId={applicationId}
               onClose={detailActions.closeDetail}
-              onRunNode={undefined}
+              onRunNode={selectedNodeId ? handleRunSelectedNode : undefined}
+              runLoading={nodePreviewMutation.isPending}
             />
           </div>
         ) : null}

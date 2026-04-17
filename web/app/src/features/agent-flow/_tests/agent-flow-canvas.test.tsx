@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { AppProviders } from '../../../app/AppProviders';
 import { AgentFlowEditorShell } from '../components/editor/AgentFlowEditorShell';
 
 function createInitialState() {
@@ -21,13 +22,15 @@ function createInitialState() {
 describe('AgentFlowCanvas', () => {
   test('adds a node from the plus picker after the selected node', async () => {
     render(
-      <div style={{ width: 1280, height: 720 }}>
-        <AgentFlowEditorShell
-          applicationId="app-1"
-          applicationName="Support Agent"
-          initialState={createInitialState()}
-        />
-      </div>
+      <AppProviders>
+        <div style={{ width: 1280, height: 720 }}>
+          <AgentFlowEditorShell
+            applicationId="app-1"
+            applicationName="Support Agent"
+            initialState={createInitialState()}
+          />
+        </div>
+      </AppProviders>
     );
 
     fireEvent.click(screen.getByRole('button', { name: '在 LLM 后新增节点' }));
@@ -83,13 +86,15 @@ describe('AgentFlowCanvas', () => {
     };
 
     render(
-      <div style={{ width: 1280, height: 720 }}>
-        <AgentFlowEditorShell
-          applicationId="app-1"
-          applicationName="Support Agent"
-          initialState={iterationState}
-        />
-      </div>
+      <AppProviders>
+        <div style={{ width: 1280, height: 720 }}>
+          <AgentFlowEditorShell
+            applicationId="app-1"
+            applicationName="Support Agent"
+            initialState={iterationState}
+          />
+        </div>
+      </AppProviders>
     );
 
     fireEvent.doubleClick(await screen.findByText('Iteration'));

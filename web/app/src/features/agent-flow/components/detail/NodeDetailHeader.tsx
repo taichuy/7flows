@@ -15,10 +15,12 @@ import { NodeRunButton } from './NodeRunButton';
 
 export function NodeDetailHeader({
   onClose,
-  onRunNode
+  onRunNode,
+  runLoading = false
 }: {
   onClose: () => void;
   onRunNode?: (() => void) | undefined;
+  runLoading?: boolean;
 }) {
   const document = useAgentFlowEditorStore(selectWorkingDocument);
   const selectedNodeId = useAgentFlowEditorStore(selectSelectedNodeId);
@@ -54,7 +56,7 @@ export function NodeDetailHeader({
           />
         </div>
         <Space className="agent-flow-node-detail__actions" size={4}>
-          <NodeRunButton onRunNode={onRunNode} />
+          <NodeRunButton onRunNode={onRunNode} loading={runLoading} />
           {definitionMeta.helpHref ? (
             <Button
               aria-label="帮助文档"

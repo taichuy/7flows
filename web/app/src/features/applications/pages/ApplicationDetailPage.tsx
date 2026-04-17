@@ -6,6 +6,7 @@ import { AgentFlowEditorPage } from '../../agent-flow/pages/AgentFlowEditorPage'
 import { PermissionDeniedState } from '../../../shared/ui/PermissionDeniedState';
 import { SectionPageLayout } from '../../../shared/ui/section-page-layout/SectionPageLayout';
 import { applicationDetailQueryKey, fetchApplicationDetail } from '../api/applications';
+import { ApplicationLogsPage } from './ApplicationLogsPage';
 import { ApplicationSectionState } from '../components/ApplicationSectionState';
 import {
   getApplicationSections,
@@ -49,6 +50,8 @@ export function ApplicationDetailPage({
         applicationId={applicationId}
         applicationName={application.name}
       />
+    ) : requestedSectionKey === 'logs' ? (
+      <ApplicationLogsPage applicationId={applicationId} />
     ) : (
       <ApplicationSectionState
         application={application}

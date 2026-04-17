@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { AppProviders } from '../../../app/AppProviders';
 
 import { NodeConfigTab } from '../components/detail/tabs/NodeConfigTab';
 import { NodeDetailPanel } from '../components/detail/NodeDetailPanel';
@@ -44,9 +45,13 @@ function DocumentObserver({
   return null;
 }
 
+function renderWithProviders(ui: ReactNode) {
+  return render(<AppProviders>{ui}</AppProviders>);
+}
+
 describe('NodeDetailPanel', () => {
   test('renders header, config tab and last-run tab for the selected node', () => {
-    render(
+    renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>
         <NodeDetailPanel onClose={vi.fn()} onRunNode={undefined} />
       </AgentFlowEditorStoreProvider>
@@ -63,7 +68,7 @@ describe('NodeDetailPanel', () => {
   }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
 
   test('renders alias and description editors inside the header exactly once', () => {
-    render(
+    renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>
         <NodeDetailPanel onClose={vi.fn()} onRunNode={undefined} />
       </AgentFlowEditorStoreProvider>
@@ -78,7 +83,7 @@ describe('NodeDetailPanel', () => {
   }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
 
   test('keeps config tab focused on contract and relations without redundant summary cards', () => {
-    render(
+    renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>
         <NodeConfigTab />
       </AgentFlowEditorStoreProvider>
@@ -93,7 +98,7 @@ describe('NodeDetailPanel', () => {
   }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
 
   test('does not duplicate identity or summary content inside config tab', () => {
-    render(
+    renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>
         <NodeConfigTab />
       </AgentFlowEditorStoreProvider>
@@ -105,7 +110,7 @@ describe('NodeDetailPanel', () => {
   }, NODE_DETAIL_PANEL_TEST_TIMEOUT);
 
   test('renders exception handling as a three-state strategy selector', async () => {
-    render(
+    renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>
         <NodeConfigTab />
       </AgentFlowEditorStoreProvider>
@@ -128,7 +133,7 @@ describe('NodeDetailPanel', () => {
   test('writes the selected exception handling strategy back to the node document', async () => {
     let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
-    render(
+    renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>
         <DocumentObserver
           onChange={(document) => {

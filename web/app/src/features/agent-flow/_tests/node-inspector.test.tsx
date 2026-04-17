@@ -1,8 +1,9 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { AppProviders } from '../../../app/AppProviders';
 
 import { createNodeDocument } from '../lib/document/node-factory';
 import { NodeDetailPanel } from '../components/detail/NodeDetailPanel';
@@ -109,11 +110,15 @@ function FocusIssueSeed() {
   return null;
 }
 
+function renderWithProviders(ui: ReactNode) {
+  return render(<AppProviders>{ui}</AppProviders>);
+}
+
 describe('NodeInspector', () => {
   test(
     'renders config sections as always-open blocks without repeating basics once summary content moves out',
     () => {
-    render(
+    renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>
         <NodeInspector />
       </AgentFlowEditorStoreProvider>
@@ -139,7 +144,7 @@ describe('NodeInspector', () => {
   test('updates node identity through header interactions instead of mutating document inline', () => {
     let latestDocument = createDefaultAgentFlowDocument({ flowId: 'flow-1' });
 
-    render(
+    renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>
         <SelectionSeed nodeId="node-start" />
         <DocumentObserver
@@ -176,7 +181,7 @@ describe('NodeInspector', () => {
   });
 
   test('keeps issue-driven focus working after the inspector loses its header chrome', async () => {
-    render(
+    renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialState()}>
         <FocusIssueSeed />
         <NodeConfigTab />
@@ -189,7 +194,7 @@ describe('NodeInspector', () => {
   });
 
   test('renders code output contract definition inside config fields while keeping output display read-only', () => {
-    render(
+    renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialStateWithCodeNode()}>
         <SelectionSeed nodeId="node-code" />
         <NodeConfigTab />
@@ -202,7 +207,7 @@ describe('NodeInspector', () => {
   });
 
   test('renders loop number fields in compact inline rows while keeping condition groups stacked', () => {
-    render(
+    renderWithProviders(
       <AgentFlowEditorStoreProvider initialState={createInitialStateWithLoopNode()}>
         <SelectionSeed nodeId="node-loop" />
         <NodeConfigTab />

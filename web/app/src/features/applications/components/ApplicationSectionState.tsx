@@ -102,44 +102,6 @@ export function ApplicationSectionState({
     );
   }
 
-  if (sectionKey === 'logs') {
-    return (
-      <Space direction="vertical" size="middle">
-        <Typography.Title level={4}>日志</Typography.Title>
-        <Typography.Paragraph>
-          该分区对应应用级运行日志，而不是编辑器历史。`05` 会把 Application Run、
-          Node Run 和 Event Trace 接进这里。
-        </Typography.Paragraph>
-        <Descriptions
-          bordered
-          column={1}
-          items={[
-            {
-              key: 'status',
-              label: '能力状态',
-              children: renderStatusTag(application.sections.logs.status)
-            },
-            {
-              key: 'run_object_kind',
-              label: '运行对象',
-              children: application.sections.logs.run_object_kind
-            },
-            {
-              key: 'runs_status',
-              label: '运行列表状态',
-              children: application.sections.logs.runs_capability_status
-            },
-            {
-              key: 'retention_status',
-              label: '保留策略状态',
-              children: application.sections.logs.log_retention_status
-            }
-          ]}
-        />
-      </Space>
-    );
-  }
-
   if (sectionKey === 'monitoring') {
     return (
       <Space direction="vertical" size="middle">
