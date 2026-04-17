@@ -15,6 +15,7 @@ export interface AgentFlowCanvasNodeData extends Record<string, unknown> {
   typeLabel: string;
   alias: string;
   description?: string;
+  config: Record<string, unknown>;
   issueCount: number;
   canEnterContainer: boolean;
   pickerOpen: boolean;

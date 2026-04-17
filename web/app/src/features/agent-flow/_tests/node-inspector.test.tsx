@@ -236,7 +236,7 @@ describe('NodeInspector', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText('模型')).toHaveFocus();
+      expect(screen.getByRole('button', { name: '模型' })).toHaveFocus();
     });
   });
 

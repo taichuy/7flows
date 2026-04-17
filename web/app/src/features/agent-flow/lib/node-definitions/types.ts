@@ -9,6 +9,7 @@ export type InspectorSectionKey =
 
 export type NodeEditorKind =
   | 'text'
+  | 'llm_model'
   | 'number'
   | 'selector'
   | 'selector_list'

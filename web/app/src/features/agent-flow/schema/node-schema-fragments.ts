@@ -13,6 +13,7 @@ import {
 
 const FIELD_RENDERER_BY_EDITOR: Record<NodeEditorKind, string> = {
   text: 'text',
+  llm_model: 'llm_model',
   number: 'number',
   selector: 'selector',
   selector_list: 'selector_list',
@@ -64,6 +65,15 @@ export function buildNodeCardBlocks(nodeType: FlowNodeType): SchemaBlock[] {
       renderer: 'card_title',
       key: `${nodeType}-title`
     },
+    ...(nodeType === 'llm'
+      ? [
+          {
+            kind: 'view' as const,
+            renderer: 'card_model',
+            key: `${nodeType}-model`
+          }
+        ]
+      : []),
     {
       kind: 'view',
       renderer: 'card_description',

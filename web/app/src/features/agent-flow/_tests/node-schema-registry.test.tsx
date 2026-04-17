@@ -37,6 +37,7 @@ describe('agent-flow node schema registry', () => {
 
   test('exposes a real renderer registry for later schema-driven consumers', () => {
     expect(agentFlowRendererRegistry.fields.text).toBeTypeOf('function');
+    expect(agentFlowRendererRegistry.fields.llm_model).toBeTypeOf('function');
     expect(agentFlowRendererRegistry.fields.output_contract_definition).toBeTypeOf(
       'function'
     );

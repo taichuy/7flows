@@ -21,6 +21,10 @@ export function AgentFlowNodeCard({
         return data.description;
       }
 
+      if (path.startsWith('config.')) {
+        return data.config[path.slice('config.'.length)];
+      }
+
       return null;
     },
     setValue: () => undefined,
@@ -31,7 +35,7 @@ export function AgentFlowNodeCard({
           type: data.nodeType,
           alias: data.alias,
           description: data.description,
-          config: {},
+          config: data.config,
           outputs: []
         };
       }

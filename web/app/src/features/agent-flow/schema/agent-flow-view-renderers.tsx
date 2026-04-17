@@ -9,6 +9,7 @@ import { NodeRunIOCard } from '../components/detail/last-run/NodeRunIOCard';
 import { NodeRunMetadataCard } from '../components/detail/last-run/NodeRunMetadataCard';
 import { NodeRunSummaryCard } from '../components/detail/last-run/NodeRunSummaryCard';
 import type { NodeLastRun } from '../api/runtime';
+import { findLlmModelOption } from '../lib/model-options';
 
 function getNode(adapter: SchemaViewRendererProps['adapter']) {
   return adapter.getDerived('node') as
@@ -77,6 +78,30 @@ function renderCardTitleView({ adapter }: SchemaViewRendererProps) {
   const node = getNode(adapter);
 
   return node ? <div className="agent-flow-node-card__title">{node.alias}</div> : null;
+}
+
+function renderCardModelView({ adapter }: SchemaViewRendererProps) {
+  const node = getNode(adapter);
+
+  if (!node || node.type !== 'llm') {
+    return null;
+  }
+
+  const model = findLlmModelOption(
+    typeof node.config.model === 'string' ? node.config.model : ''
+  );
+
+  return (
+    <div className="agent-flow-node-card__model">
+      <span className="agent-flow-node-card__model-provider" aria-hidden="true">
+        ◎
+      </span>
+      <span className="agent-flow-node-card__model-label">
+        {model?.label ?? '选择模型'}
+      </span>
+      {model?.tag ? <span className="agent-flow-node-card__model-tag">{model.tag}</span> : null}
+    </div>
+  );
 }
 
 function renderCardDescriptionView({ adapter }: SchemaViewRendererProps) {
@@ -297,6 +322,7 @@ function renderRuntimeMetadataView({ adapter, block }: SchemaViewRendererProps) 
 export const agentFlowViewRenderers = {
   card_eyebrow: renderCardEyebrowView,
   card_title: renderCardTitleView,
+  card_model: renderCardModelView,
   card_description: renderCardDescriptionView,
   summary: renderSummaryView,
   output_contract: renderOutputContractView,

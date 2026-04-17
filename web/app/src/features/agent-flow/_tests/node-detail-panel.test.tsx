@@ -151,7 +151,7 @@ describe('NodeDetailPanel', () => {
 
     expect(screen.queryByText('节点说明')).not.toBeInTheDocument();
     expect(screen.queryByText('帮助文档')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('模型')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '模型' })).toBeInTheDocument();
     expect(screen.queryByText('输出契约')).not.toBeInTheDocument();
     expect(screen.getAllByText('下一步')).toHaveLength(1);
     expect(screen.queryByRole('button', { name: '添加下一个节点' })).not.toBeInTheDocument();

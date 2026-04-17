@@ -45,6 +45,7 @@ export function toCanvasNodes(
         typeLabel: nodeTypeLabel(node.type),
         alias: node.alias,
         description: node.description,
+        config: node.config,
         issueCount: issueCountByNodeId[node.id] ?? 0,
         canEnterContainer: node.type === 'iteration' || node.type === 'loop',
         pickerOpen: pickerNodeId === node.id,
