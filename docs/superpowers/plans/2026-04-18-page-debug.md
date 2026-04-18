@@ -602,7 +602,7 @@ Execution note (`2026-04-18 11:41 +0800`):
 - Create: `scripts/node/page-debug/_tests/evidence.test.js`
 - Modify: `scripts/node/page-debug/core.js`
 
-- [ ] **Step 1: Write the failing readiness and evidence tests**
+- [x] **Step 1: Write the failing readiness and evidence tests**
 
 ```js
 // scripts/node/page-debug/_tests/readiness.test.js
@@ -673,7 +673,7 @@ test('serializeConsoleEntries writes ndjson for console and pageerror events', (
 });
 ```
 
-- [ ] **Step 2: Run the readiness and evidence tests and verify they fail**
+- [x] **Step 2: Run the readiness and evidence tests and verify they fail**
 
 Run:
 
@@ -685,7 +685,7 @@ Expected:
 
 - FAIL with missing `readiness.js` / `evidence.js`
 
-- [ ] **Step 3: Write the readiness and evidence implementation**
+- [x] **Step 3: Write the readiness and evidence implementation**
 
 ```js
 // scripts/node/page-debug/readiness.js
@@ -793,7 +793,7 @@ module.exports = {
 };
 ```
 
-- [ ] **Step 4: Run the readiness and evidence tests and verify they pass**
+- [x] **Step 4: Run the readiness and evidence tests and verify they pass**
 
 Run:
 
@@ -805,12 +805,17 @@ Expected:
 
 - PASS with `3 tests` and `0 failures`
 
-- [ ] **Step 5: Commit the readiness and evidence helpers**
+- [x] **Step 5: Commit the readiness and evidence helpers**
 
 ```bash
 git add scripts/node/page-debug/readiness.js scripts/node/page-debug/evidence.js scripts/node/page-debug/_tests/readiness.test.js scripts/node/page-debug/_tests/evidence.test.js
 git commit -m "feat: add page debug readiness and evidence writers"
 ```
+
+Execution note (`2026-04-18 11:42 +0800`):
+
+- Red: `rtk node --test scripts/node/page-debug/_tests/readiness.test.js scripts/node/page-debug/_tests/evidence.test.js` failed with missing `readiness.js` / `evidence.js`
+- Green: `rtk node --test scripts/node/page-debug/_tests/readiness.test.js scripts/node/page-debug/_tests/evidence.test.js` passed with `3 tests` and `0 failures`
 
 ## Task 4: Add Snapshot Resource Rewriting And Meta Writers
 
