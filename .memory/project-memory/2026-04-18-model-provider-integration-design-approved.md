@@ -1,21 +1,18 @@
 ---
 memory_type: project
-topic: 模型供应商接入改按多协议 provider kernel 与首批官方 provider 推进
-summary: 用户于 `2026-04-18 08` 明确否决“只做 OpenAI 单供应商”的收缩方案，并进一步明确长期正确边界应为“`1Flowse` 定义标准 contract，provider 插件自己解决大模型接口接入”；`../1flowse-official-plugins` 负责 Dify 风格 provider 包与 runtime 实现，主仓库负责 catalog、workspace provider instance、凭据、LLM 节点绑定、工具/MCP 执行治理，以及 `usage/token` 监控真值。
+topic: 模型供应商接入改按统一 contract 与单一参考 plugin 推进
+summary: 用户于 `2026-04-18 08` 明确否决“只做 OpenAI 单供应商”的收缩方案，并进一步明确长期正确边界应为“`1Flowse` 定义标准 contract，provider 插件自己解决大模型接口接入”；同时用户否决“首批官方 provider 一次接入”，改为首轮只要求一个官方参考 plugin `openai_compatible`，其余 provider 通过同一 contract 独立接入。
 keywords:
   - model-provider
   - provider-kernel
   - openai-compatible
-  - moonshot
-  - siliconflow
-  - azure-openai
-  - anthropic
-  - gemini
+  - reference-plugin
+  - provider-contract
   - plugin-framework
   - runtime-orchestration
 match_when:
   - 需要继续实现模型供应商接入
-  - 需要判断是做单一 OpenAI 还是多协议 provider kernel
+  - 需要判断是做一批官方 provider 还是开放统一 contract
   - 需要区分官方插件仓库与主仓库的职责边界
 created_at: 2026-04-18 08
 updated_at: 2026-04-18 08
@@ -30,7 +27,7 @@ scope:
   - web
 ---
 
-# 模型供应商接入改按多协议 provider kernel 与首批官方 provider 推进
+# 模型供应商接入改按统一 contract 与单一参考 plugin 推进
 
 ## 时间
 
@@ -69,19 +66,9 @@ scope:
 - 运行时边界固定为：
   - 插件负责“发起请求 / 解析响应 / 归一化流式、tool call、MCP、usage”
   - 宿主负责“执行工具 / 执行 MCP / 写状态 / 写审计 / 写监控”
-- 首批协议族固定为：
+- 首轮官方只要求一个参考 plugin：
   - `openai_compatible`
-  - `azure_openai`
-  - `anthropic_messages`
-  - `google_gemini`
-- 首批官方 provider 固定为：
-  - `openai`
-  - `openai_compatible`
-  - `moonshot`
-  - `siliconflow`
-  - `azure_openai`
-  - `anthropic`
-  - `google_gemini`
+- 其他 provider 不作为宿主首轮前置条件，应通过同一 contract 独立接入
 
 ## 关联文档
 
