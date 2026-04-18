@@ -2,7 +2,7 @@
 memory_type: feedback
 feedback_category: repository
 topic: frontend-development skill 对 UI 开发需求必须先输出含交互设计的需求整理
-summary: 用户要求 `frontend-development` skill 不仅在模糊需求场景下思考需求，而且在页面 / UI 开发需求中应把需求整理、需求细化、页面交互设计和明确建议作为显式回复内容先发给用户，再默认继续实现；同时主文件应有通用工作流程，`Quick Reference` 需使用 `Purpose / Requirements / Scenario: WHEN THEN` 的快速引用结构。
+summary: 用户要求 `frontend-development` skill 不仅在模糊需求场景下思考需求，而且在页面 / UI 开发需求中应把需求整理、需求细化、页面交互设计和明确建议作为显式回复内容先发给用户，再默认继续实现；同时主文件应有通用工作流程，`Quick Reference` 需使用 spec 风格的 `Purpose -> Requirements -> Requirement -> Scenario` markdown 结构，`WHEN / THEN / AND` 写在 scenario 内的列表里。
 keywords:
   - frontend
   - skill
@@ -12,6 +12,7 @@ keywords:
   - interaction design
   - quick reference
   - general workflow
+  - requirement scenario format
 match_when:
   - 更新 `frontend-development` skill
   - 设计页面 / UI 开发类 skill 的触发条件和默认回复
@@ -41,7 +42,8 @@ scope:
 - 需求整理不能只停留在页面结构和模块列表，必须先整理主路径、关键反馈和模块协作，再开始实现。
 - 只有纯局部样式修补、像素级对齐、文案替换或不改变页面结构的 UI bugfix，才可以跳过完整需求整理。
 - skill 主文件应包含一段通用工作流程，先说明默认执行顺序，再补场景化快速引用。
-- `Quick Reference` 应使用 `Purpose / Requirements / Scenario: WHEN THEN` 的结构，负责快速引用，不再堆成第二份正文。
+- `Quick Reference` 应使用 spec 风格的 `Purpose -> Requirements -> Requirement -> Scenario` 结构。
+- `WHEN / THEN / AND` 应写在 `Scenario` 小节内部的列表里，而不是压成一行标题或单条列表。
 
 ## 原因
 
@@ -51,6 +53,7 @@ scope:
 - 如果需求整理不包含页面交互，agent 很容易退化成“把几个卡片堆上去”，没有真正设计用户如何完成任务。
 - 如果主文件没有通用工作流程，后续 agent 容易只抓局部规则，不理解默认执行顺序。
 - `Quick Reference` 如果继续堆完整正文，会降低 skill 的可扫描性，也更容易让后续 agent 误判优先级。
+- 如果 `WHEN / THEN` 不放在 `Scenario` 结构里，markdown 层级会变差，也不利于后续按 requirement 快速查找。
 
 ## 适用场景
 
@@ -59,3 +62,4 @@ scope:
 - 判断 AI 是否应该先向用户输出需求细化和交互设计再开始实现
 - 重构 skill 的通用工作流程
 - 精简或重构 skill 的 `Quick Reference`
+- 调整 skill 的 requirement / scenario markdown 结构

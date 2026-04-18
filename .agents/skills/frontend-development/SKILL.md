@@ -48,22 +48,72 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 
 ### Requirements
 
-- 单一事实源固定为 `./DESIGN.md`。
-- Shell Layer 优先复用 `Ant Design`；Editor UI 只做薄封装，不另起一套视觉语言。
-- 页面 / UI 开发需求默认先整理需求并显式回复给用户；只有纯局部样式修补、像素级对齐、文案替换或不改页面结构的 UI bugfix 才可跳过完整流程。
-- 需求整理至少覆盖：页面目标、主要对象、关键动作、页面交互、关键状态、视觉约束。
-- 页面先设计主路径、操作反馈和模块协作，再落卡片、区块和装饰。
-- 目录和分层要守住：`app-shell / routes / features/* / shared/*`，以及 `api-client -> features/*/api -> shared/api`、`shared/schema-ui -> features/*/schema -> features/*/lib/node-definitions`。
+#### Requirement: Frontend work stays grounded in 1flowbase rules
 
-### Scenario
+前端实现 SHALL 以 `./DESIGN.md` 为单一事实源，并保持 Shell、目录、接口消费与 `schema ui` 的既有分层。
 
-- `WHEN` 请求属于页面 / UI 开发、页面改版或模块重构 `THEN` 先输出面向用户的需求整理，再默认继续实现。
-- `WHEN` 请求只是纯局部样式修补或不改页面结构的 UI bugfix `THEN` 直接修改，不走完整需求草案。
-- `WHEN` 问题本质是信息架构、层级、入口或导航逻辑 `THEN` 使用 `frontend-logic-design`。
-- `WHEN` 请求带截图、参考图或外部样本 `THEN` 只借结构、层级和节奏，视觉语言与状态语义回到 `DESIGN.md`。
-- `WHEN` 改动共享样式、导航、菜单、壳层或第三方 slot `THEN` 运行 `node scripts/node/check-style-boundary.js ...`，必要时同步维护 `web/app/src/style-boundary/scenario-manifest.json`。
-- `WHEN` 需要浏览器级验收、截图或运行态证据 `THEN` 优先复用项目已有 `Playwright / page-debug / style-boundary` 链路。
-- `WHEN` 处理节点开发或 `schema ui` `THEN` 保持 `node-definitions -> schema fragments/registry -> renderer -> consumer` 这条拆分链路。
+##### Scenario: Standard page work follows project boundaries
+
+- **WHEN** handling normal frontend page or module work
+- **THEN** treat `./DESIGN.md` as the source of truth
+- **AND** reuse `Ant Design` in Shell Layer
+- **AND** keep page files, feature files, API consumers, and `schema ui` layers in their existing split
+
+#### Requirement: Page and UI development starts with customer-facing requirement refinement
+
+页面 / UI 开发需求 SHALL 先输出面向用户的需求整理，再进入实现。
+
+##### Scenario: Page or UI development request requires upfront refinement
+
+- **WHEN** the request is page development, page revision, module-level UI development, or image-led design work
+- **THEN** first reply with requirement refinement before implementation
+- **AND** cover page goal, primary object, key actions, page interaction, key states, and visual constraints
+- **AND** continue implementation by default unless blocking product-level ambiguity remains
+
+##### Scenario: Local UI bugfix keeps the lightweight path
+
+- **WHEN** the request is a local style fix, pixel alignment change, copy update, or another UI bugfix that does not change page structure
+- **THEN** skip the full requirement brief
+- **AND** modify directly within the existing page recipe and interaction contract
+
+#### Requirement: Page design is interaction-first, not card-first
+
+页面设计 SHALL 先定义主路径、反馈位置和模块协作，再落卡片、区块和装饰。
+
+##### Scenario: Page design avoids stacked-card drift
+
+- **WHEN** shaping a new page, revising layout, or borrowing from a reference screenshot
+- **THEN** define the main path, action feedback, and module coordination first
+- **AND** avoid treating card stacking as the page design itself
+- **AND** map borrowed structure and rhythm back to current `DESIGN.md` semantics
+
+##### Scenario: Information architecture problems route to the companion skill
+
+- **WHEN** the problem is really information architecture, hierarchy, entry points, or navigation logic
+- **THEN** use `frontend-logic-design`
+- **AND** resolve structural logic before styling or component polish
+
+#### Requirement: High-risk frontend changes use the project verification chain
+
+共享样式、第三方 slot、浏览器运行态和节点 / `schema ui` 变更 SHALL 走项目既有验证链路。
+
+##### Scenario: Shared style or slot overrides require style-boundary verification
+
+- **WHEN** changing shared styles, navigation, menus, shells, or third-party slots
+- **THEN** run `node scripts/node/check-style-boundary.js ...`
+- **AND** update `web/app/src/style-boundary/scenario-manifest.json` when the scenario map changes
+
+##### Scenario: Browser-level evidence uses the existing runtime toolchain
+
+- **WHEN** browser-level verification, screenshots, or runtime evidence is needed
+- **THEN** use the existing `Playwright / page-debug / style-boundary` toolchain
+- **AND** avoid ad-hoc one-off browser scripts
+
+##### Scenario: Node and schema-ui changes preserve the split pipeline
+
+- **WHEN** implementing node development or `schema ui` changes
+- **THEN** preserve the `node-definitions -> schema fragments/registry -> renderer -> consumer` pipeline
+- **AND** avoid merging those responsibilities back into a single file
 
 ## Implementation
 
