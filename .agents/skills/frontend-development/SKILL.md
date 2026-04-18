@@ -41,80 +41,17 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 
 ## Quick Reference
 
-### Purpose
-
-- 把前端请求翻译成符合 1flowbase 边界、状态语义和交互语法的实现，而不是自由拼页。
-
-### Requirements
-
-#### Requirement: Frontend work stays grounded in 1flowbase rules
-
-前端实现 SHALL 以 `./DESIGN.md` 为单一事实源，并保持 Shell、目录、接口消费与 `schema ui` 的既有分层。
-
-##### Scenario: Standard page work follows project boundaries
-
-- **WHEN** handling normal frontend page or module work
-- **THEN** treat `./DESIGN.md` as the source of truth
-- **AND** reuse `Ant Design` in Shell Layer
-- **AND** keep page files, feature files, API consumers, and `schema ui` layers in their existing split
-
-#### Requirement: Page and UI development starts with customer-facing requirement refinement
-
-页面 / UI 开发需求 SHALL 先输出面向用户的需求整理，再进入实现。
-
-##### Scenario: Page or UI development request requires upfront refinement
-
-- **WHEN** the request is page development, page revision, module-level UI development, or image-led design work
-- **THEN** first reply with requirement refinement before implementation
-- **AND** use `references/requirement-refinement.md` as the default workflow
-- **AND** use `references/extraction-framework.md`, `references/skill-template.md`, and `examples/` as the supporting method, template, and examples
-- **AND** cover page goal, primary object, key actions, page interaction, key states, and visual constraints
-- **AND** continue implementation by default unless blocking product-level ambiguity remains
-
-##### Scenario: Local UI bugfix keeps the lightweight path
-
-- **WHEN** the request is a local style fix, pixel alignment change, copy update, or another UI bugfix that does not change page structure
-- **THEN** skip the full requirement brief
-- **AND** modify directly within the existing page recipe and interaction contract
-
-#### Requirement: Page design is interaction-first, not card-first
-
-页面设计 SHALL 先定义主路径、反馈位置和模块协作，再落卡片、区块和装饰。
-
-##### Scenario: Page design avoids stacked-card drift
-
-- **WHEN** shaping a new page, revising layout, or borrowing from a reference screenshot
-- **THEN** define the main path, action feedback, and module coordination first
-- **AND** avoid treating card stacking as the page design itself
-- **AND** map borrowed structure and rhythm back to current `DESIGN.md` semantics
-
-##### Scenario: Information architecture problems route to the companion skill
-
-- **WHEN** the problem is really information architecture, hierarchy, entry points, or navigation logic
-- **THEN** use `frontend-logic-design`
-- **AND** resolve structural logic before styling or component polish
-
-#### Requirement: High-risk frontend changes use the project verification chain
-
-共享样式、第三方 slot、浏览器运行态和节点 / `schema ui` 变更 SHALL 走项目既有验证链路。
-
-##### Scenario: Shared style or slot overrides require style-boundary verification
-
-- **WHEN** changing shared styles, navigation, menus, shells, or third-party slots
-- **THEN** run `node scripts/node/check-style-boundary.js ...`
-- **AND** update `web/app/src/style-boundary/scenario-manifest.json` when the scenario map changes
-
-##### Scenario: Browser-level evidence uses the existing runtime toolchain
-
-- **WHEN** browser-level verification, screenshots, or runtime evidence is needed
-- **THEN** use the existing `Playwright / page-debug / style-boundary` toolchain
-- **AND** avoid ad-hoc one-off browser scripts
-
-##### Scenario: Node and schema-ui changes preserve the split pipeline
-
-- **WHEN** implementing node development or `schema ui` changes
-- **THEN** preserve the `node-definitions -> schema fragments/registry -> renderer -> consumer` pipeline
-- **AND** avoid merging those responsibilities back into a single file
+- 需求整理工作流与输出要求：[requirement-refinement.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/requirement-refinement.md)
+- 需求提炼方法论：[extraction-framework.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/extraction-framework.md)
+- 面向用户的回复模板：[skill-template.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/skill-template.md)
+- 是否需要先沟通、哪些场景需要升级决策：[communication-gate.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/communication-gate.md)
+- 页面 recipe、工作区语法与交互规则：[workspace-rules.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/workspace-rules.md)
+- 目录落点、接口消费与 `schema ui` 分层：[placement-rules.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/placement-rules.md)
+- 视觉基线与风格边界：[visual-baseline.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/visual-baseline.md)
+- 浏览器级验证与运行态证据：[browser-verification.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/browser-verification.md)
+- 复查清单与反模式：[review-checklist.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/review-checklist.md)、[anti-patterns.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/anti-patterns.md)
+- 示例与压力场景：`examples/`
+- 信息架构、层级、入口、导航问题：`frontend-logic-design`
 
 ## Implementation
 
