@@ -34,7 +34,7 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 ## General Workflow
 
 1. 先回到 `DESIGN.md` 判断任务域边界、L1 模型、状态语义和现有页面 recipe。
-2. 如果属于页面 / UI 开发需求，先输出面向用户的需求整理；至少覆盖页面目标、主要对象、关键动作、页面交互、关键状态和视觉约束。
+2. 如果属于页面 / UI 开发需求，先走 `references/requirement-refinement.md`；需要提炼方法时读 `references/extraction-framework.md`，需要直接套回复骨架时读 `references/skill-template.md`，需要看实际写法时读 `examples/`。随后输出面向用户的需求整理；至少覆盖页面目标、主要对象、关键动作、页面交互、关键状态和视觉约束。
 3. 用 `references/communication-gate.md` 判断是默认直接实现，还是先集中提阻塞性产品分歧。
 4. 再落实现：先定主路径、反馈位置和模块协作，再拆组件、落结构、补样式。
 5. 结束前按 `references/review-checklist.md` 做复查；涉及样式边界、浏览器运行态或共享 slot 时，走项目既有验证链路。
@@ -66,6 +66,8 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 
 - **WHEN** the request is page development, page revision, module-level UI development, or image-led design work
 - **THEN** first reply with requirement refinement before implementation
+- **AND** use `references/requirement-refinement.md` as the default workflow
+- **AND** use `references/extraction-framework.md`, `references/skill-template.md`, and `examples/` as the supporting method, template, and examples
 - **AND** cover page goal, primary object, key actions, page interaction, key states, and visual constraints
 - **AND** continue implementation by default unless blocking product-level ambiguity remains
 
