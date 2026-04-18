@@ -36,31 +36,19 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 
 - 单一事实源：`./DESIGN.md`
 - Shell Layer 优先复用 `Ant Design`；Editor UI 只做薄封装，不另起一套视觉语言
-- 先判任务域边界，再判 L1 模型，再判状态语义，最后才是 token 和样式
-- 目录落点先判职责：`app-shell / routes / features/* / shared/*`，不要把页面、壳层、路由真值层和请求消费重新堆回一个文件
-- 组件上提要克制：默认先放 `features/*/components`，只有被多个 feature 真实复用且语义稳定后才进入 `shared/ui`
-- 请求分层固定区分：`web/packages/api-client` 负责底层 client；`features/*/api` 负责当前 feature 消费；`shared/api` 只在多 feature 共享编排时出现
-- 工具分层固定区分：`shared/utils` 只放纯函数；`features/*/lib` 只放 feature 内部 helper、mapper、view model
-- `schema ui` 固定三层：`shared/schema-ui` 放合同、runtime、registry、overlay shell；`features/*/schema` 放 feature 自己的 schema registry、adapter、renderer；`features/*/lib/node-definitions` 放节点定义真值，不把三层重新混回一个文件
-- 节点开发固定按“节点定义 -> schema fragments/registry -> renderer -> consumer”链路推进；新增节点时优先新增独立节点定义文件，不回到单一大表
-- 样式改动固定按四层判断：`theme token -> first-party wrapper -> explicit slot -> stop`
-- 风格和 UI 质量本身就是验收项，不接受“功能先通、样式以后再说”
-- 第三方组件允许主题化，不允许无边界递归覆盖内部样式链
-- 共享样式、导航、菜单、壳层或第三方 slot 覆写改动后，必须运行 `node scripts/node/check-style-boundary.js ...`
-- 只给前端路由、需要自动登录、稳定等待、截图或抓取 `html/css/js/console` 证据时，优先运行 `node scripts/node/page-debug.js`，不要临时手写一次性 Playwright 验证脚本
-- `web/app/src/style-boundary/scenario-manifest.json` 只用于维护页面场景、组件场景和文件影响面映射，不承担泛 UI 质量描述
-- 新增组件或页面样式回归时，必须同步维护 manifest 中的 `impactFiles / boundaryNodes / propertyAssertions`
-- `--file` 模式只信任显式声明的文件影响面映射；映射缺失时报“样式扩散失败”，必须先补场景再继续开发
-- 场景断言只表达边界属性约束；运行失败时应按“样式边界失败”解读，而不是泛 QA 失败
-- 前端浏览器级打开、验收、截图、交互复现默认使用 `Playwright`，不再主动使用 Chrome 浏览器 MCP / `chrome-devtools`
-- 浏览器级验收优先复用项目已有 `Playwright / page-debug / style-boundary` 链路；等待条件基于业务 ready signal，不做无等待裸截图
-- 需求模糊、只给图片或引用外部样本时，先走 `references/requirement-refinement.md`，先收敛需求再默认继续实现；只有仍有阻塞分歧时再集中提问
-- 页面 / UI 开发类需求的回复里，默认先给“需求整理 / 需求细化 / 明确建议”；这是面向用户的必要输出，不是只在内部想清楚即可
-- 新页面、页面改版、布局 / 信息层级 / 关键模块调整、图片或外部样本驱动时，使用完整需求草案；明确范围的页面 UI 开发也至少给简版需求整理
-- 只有纯局部样式修补、像素级对齐、文案替换或不改变页面结构的 UI bugfix，才可以跳过完整需求草案直接修改
-- 想深入看提炼方法时，读 `references/extraction-framework.md`；想直接套输出骨架时，读 `references/skill-template.md`
+- 页面 / UI 开发需求默认先整理需求并显式回复给用户；只有纯局部样式修补、像素级对齐、文案替换或不改页面结构的 UI bugfix 才可跳过完整流程
+- 需求整理至少覆盖：页面目标、主要对象、关键动作、页面结构、关键模块、页面交互、关键状态、视觉约束
+- 先判任务域边界，再判 L1 模型、状态语义和交互流，最后才是 token 和样式
+- 页面先设计主路径、操作反馈和模块协作，再落卡片、区块和装饰；不要把卡片堆积当成页面设计
 - 信息架构、层级、入口、导航问题：**REQUIRED COMPANION SKILL:** Use `frontend-logic-design`
-- 新页面、新流程、交互流、视觉方案、页面内 AI 协作层：先收敛需求；只有存在无法自行判断的产品级分歧时再问人
+- 目录落点先判职责：`app-shell / routes / features/* / shared/*`；页面、壳层、路由真值层和请求消费不要重新堆回一个文件
+- 组件上提要克制：默认先放 `features/*/components`，只有被多个 feature 真实复用且语义稳定后才进入 `shared/ui`
+- 请求、工具和 `schema ui` 分层固定：`api-client -> features/*/api -> shared/api`；`shared/schema-ui -> features/*/schema -> features/*/lib/node-definitions`
+- 节点开发固定按“节点定义 -> schema fragments/registry -> renderer -> consumer”推进；新增节点优先新增独立定义文件
+- 样式改动固定按四层判断：`theme token -> first-party wrapper -> explicit slot -> stop`；第三方组件允许主题化，不允许无边界递归覆盖内部样式链
+- 共享样式、导航、菜单、壳层或第三方 slot 覆写改动后，必须运行 `node scripts/node/check-style-boundary.js ...`；新增样式回归场景时同步维护 `web/app/src/style-boundary/scenario-manifest.json`
+- 浏览器级验收优先复用项目已有 `Playwright / page-debug / style-boundary` 链路；等待条件基于业务 ready signal，不做无等待裸截图，也不要临时手写一次性 Playwright 验证脚本
+- 想深入看提炼方法时，读 `references/extraction-framework.md`；想直接套输出骨架时，读 `references/skill-template.md`
 - 单点使用且变化原因单一：先别抽象
 - 先复用现有组件和成熟依赖，再考虑新封装
 
@@ -87,13 +75,10 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 - 页面根组件堆满状态、请求、弹窗和协议转换逻辑
 - 把协议拼装、数据转换、渲染混写
 - 把节点定义、schema contract、renderer registry、consumer UI 再次堆回同一文件
-- 新增节点时继续往集中式 `node-definitions` 大文件追加，而不是按节点拆到独立文件
-- 把第三方组件内部 DOM 当成自家 DOM 递归覆盖
-- 为了修单点视觉问题，裸写 `.ant-*` 或跨多个内部 slot 写后代选择器
+- 把第三方组件内部 DOM 当成自家 DOM 递归覆盖，或为了修单点视觉问题裸写 `.ant-*`
 - 只改导航文案，不同步 `route id / path / selected state` 真值层
 - 在 Shell / Canvas 间混用 `Drawer` 和 `Inspector`
 - 把状态色拿去表达类型、装饰或品牌
 - 把真正的信息架构问题误当成样式问题
-- 把需求整理只留在自己脑中，没有在回复里显式发给用户
-- 只有在“非常模糊”时才整理需求，遇到明确的页面 / UI 开发请求就直接开写
-- 用户只给了一张图或一句模糊目标，就直接按第三方视觉皮肤开写，没有先把任务目标、可借范围和设计需求确认清楚
+- 把需求整理只留在自己脑中，或者只罗列模块名，没有显式整理页面目标、交互路径、关键状态和模块关系
+- 需求收敛阶段直接堆卡片和区块，没有先定义主路径、交互反馈和模块协作
