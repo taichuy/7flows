@@ -15,6 +15,7 @@
 - 插件消费方式与绑定边界
 - provider plugin 的类型、槽位与生效范围
 - 插件源码仓库与安装产物的边界
+- 插件国际化资源目录与 demo 脚手架规范
 - 注册发现、安装任务、installed registry 与 assignment 规则
 - `plugin-runner` 宿主方向
 - manifest / schema / runtime contract / RPC 的实现基线
@@ -83,6 +84,7 @@
 - `manifest`
 - provider schema
 - model index
+- `i18n` resources
 - runtime bundle
 - 依赖冻结信息
 - `checksum`
@@ -94,6 +96,11 @@
 ```text
 <vendor>@<plugin_name>@<version>@<sha256>.1flowsepkg
 ```
+
+默认不进入正式运行时安装包的开发目录：
+
+- `demo/`
+- 开发态 `scripts/`
 
 ## 注册发现与安装来源
 
@@ -114,6 +121,45 @@ provider plugin 的发现入口首轮固定为：
 - installed registry 负责“宿主已经装了什么”
 - assignment 负责“哪个 workspace 能用”
 - provider instance 负责“用户是否已经配好凭据和地址”
+
+## 国际化资源目录
+
+参考 `Dify` 已有的多语言 `README` 与内联 `I18nObject` 思路，`1Flowse` 要进一步收敛为专门的 `i18n/` 目录。
+
+正式规则：
+
+- provider plugin 源码包必须包含 `i18n/`
+- 至少提供默认语言，例如 `i18n/en_US.json`
+- `readme/` 只负责长文档，不替代结构化 i18n 文案
+
+`i18n/` 应承载：
+
+- plugin label / description
+- provider label
+- 字段 label / placeholder / help
+- model label / description
+- demo 页面文案
+
+## Demo 脚手架
+
+参考 `Dify` 已有的 `plugin init`、`module append` 和开发 `GUIDE`，`1Flowse` 还应额外提供统一入口一键生成简单 demo 页面。
+
+这条能力可以是命令，也可以是脚本，但必须对插件作者呈现为稳定入口。
+
+首轮至少应支持：
+
+- `plugin init`
+- `plugin demo init <plugin-path>`
+- `plugin demo dev <plugin-path>`
+
+demo 页面至少要能覆盖：
+
+- provider instance 配置
+- validate
+- list models
+- prompt / stream
+- tool call / MCP
+- usage / token
 
 ## 模型发现能力
 

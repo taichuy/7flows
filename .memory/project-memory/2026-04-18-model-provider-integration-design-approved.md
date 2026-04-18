@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: 模型供应商接入改按统一 contract、插件产物与双层生命周期推进
-summary: 用户于 `2026-04-18 08` 明确否决“只做 OpenAI 单供应商”的收缩方案，并进一步明确长期正确边界应为“`1Flowse` 定义标准 contract，provider 插件自己解决大模型接口接入”；同时用户否决“首批官方 provider 一次接入”，改为首轮只要求一个官方参考 plugin `openai_compatible`，其余 provider 通过同一 contract 独立接入。随后用户又明确：系统安装对象必须是插件产物而非源码目录，provider plugin 需要显式建模注册发现、异步安装任务，以及“插件包 / provider instance”双层生命周期；最新模型列表也不能只在插件加载时静态推送，而要由插件显式提供模型发现能力并支持按 provider instance 按需拉取。
+summary: 用户于 `2026-04-18 08` 明确否决“只做 OpenAI 单供应商”的收缩方案，并进一步明确长期正确边界应为“`1Flowse` 定义标准 contract，provider 插件自己解决大模型接口接入”；同时用户否决“首批官方 provider 一次接入”，改为首轮只要求一个官方参考 plugin `openai_compatible`，其余 provider 通过同一 contract 独立接入。随后用户又明确：系统安装对象必须是插件产物而非源码目录，provider plugin 需要显式建模注册发现、异步安装任务，以及“插件包 / provider instance”双层生命周期；最新模型列表也不能只在插件加载时静态推送，而要由插件显式提供模型发现能力并支持按 provider instance 按需拉取；另外 provider plugin 源码包还应拥有专门的 `i18n/` 目录，并提供统一入口一键生成简单 demo 页面或调试脚手架。
 keywords:
   - model-provider
   - provider-kernel
@@ -13,6 +13,8 @@ keywords:
   - provider-instance
   - model-discovery
   - model-catalog
+  - plugin-i18n
+  - plugin-demo
   - plugin-framework
   - runtime-orchestration
 match_when:
@@ -52,6 +54,7 @@ scope:
 - 用户明确要求保留 `OpenAI-compatible` 能力，并认可 Dify 风格的 `base_url + api_key` 配置体验。
 - 用户进一步明确插件安装对象应该是“编译后的产物”，而不是直接让宿主吃源码目录。
 - 用户进一步明确模型列表不能只靠插件加载时静态注册，点击模型供应商或模型选择器时应能拿到最新模型列表。
+- 用户进一步明确插件源码包需要单独的国际化目录，并且要能通过命令或脚本一键生成简单 demo 页面。
 
 ## 为什么要做
 
@@ -83,6 +86,13 @@ scope:
   - `hybrid`
 - 宿主只在插件加载时注册模型发现能力和静态元信息，不直接把最新模型列表推给应用。
 - 最新模型列表按 `provider instance` 按需拉取，并允许宿主做缓存与刷新。
+- provider plugin 源码包应显式包含：
+  - `i18n/`
+  - `readme/`
+  - `demo/`
+  - `scripts/`
+- `i18n/` 负责结构化国际化文案，`readme/` 负责长文档国际化。
+- 插件框架应提供统一入口一键生成 demo 页面与本地调试脚手架，至少覆盖 validate、list models、stream 和 usage。
 - provider plugin 的插件包生命周期固定为：
   - `downloaded_or_uploaded -> verified -> installed -> enabled -> assigned`
 - provider instance 生命周期固定为：
