@@ -2,6 +2,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const os = require('node:os');
+const crypto = require('node:crypto');
+const { spawnSync } = require('node:child_process');
 
 const DEFAULT_DEMO_HOST = '127.0.0.1';
 const DEFAULT_DEMO_PORT = 4310;
@@ -28,6 +30,9 @@ function usage() {
   demo dev <plugin-path> [--host <host>] [--port <port>] [--runner-url <url>]
     启动目标插件目录下 demo/ 的本地静态服务。
 
+  package <plugin-path> --out <output-dir>
+    生成过滤 demo/scripts 后的 .1flowsepkg 安装产物，并返回 sha256 元数据。
+
 选项：
   --host <host>        demo dev 监听地址，默认 127.0.0.1
   --port <port>        demo dev 监听端口，默认 4310；传 0 表示自动分配
@@ -38,6 +43,7 @@ function usage() {
   node scripts/node/plugin.js init ../1flowse-official-plugins/models/openai_compatible
   node scripts/node/plugin.js demo init ../1flowse-official-plugins/models/openai_compatible
   node scripts/node/plugin.js demo dev ../1flowse-official-plugins/models/openai_compatible --port 4310
+  node scripts/node/plugin.js package ../1flowse-official-plugins/models/openai_compatible --out ./dist
 `);
 }
 
@@ -108,19 +114,35 @@ function copyTree(sourcePath, targetPath) {
   fs.copyFileSync(sourcePath, targetPath);
 }
 
-function createDemoPackageRoot(pluginPath) {
-  const packageRoot = fs.mkdtempSync(
-    path.join(os.tmpdir(), `1flowse-plugin-demo-${sanitizeCode(getPluginName(pluginPath))}-`)
+function createArtifactRoot(pluginPath, options = {}) {
+  const excludedEntries = new Set(options.excludedEntries || []);
+  const prefix = options.prefix || '1flowse-plugin-artifact';
+  const artifactRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), `${prefix}-${sanitizeCode(getPluginName(pluginPath))}-`)
   );
 
   for (const entry of fs.readdirSync(pluginPath)) {
-    if (entry === 'demo' || entry === 'scripts') {
+    if (excludedEntries.has(entry)) {
       continue;
     }
-    copyTree(path.join(pluginPath, entry), path.join(packageRoot, entry));
+    copyTree(path.join(pluginPath, entry), path.join(artifactRoot, entry));
   }
 
-  return packageRoot;
+  return artifactRoot;
+}
+
+function createDemoPackageRoot(pluginPath) {
+  return createArtifactRoot(pluginPath, {
+    prefix: '1flowse-plugin-demo',
+    excludedEntries: ['demo', 'scripts'],
+  });
+}
+
+function createPackageArtifactRoot(pluginPath) {
+  return createArtifactRoot(pluginPath, {
+    prefix: '1flowse-plugin-package',
+    excludedEntries: ['demo', 'scripts'],
+  });
 }
 
 function removeDirIfExists(targetPath) {
@@ -642,6 +664,74 @@ function readPluginCode(pluginPath) {
   return sanitizeCode(match ? match[1] : getPluginName(pluginPath));
 }
 
+function readManifestField(pluginPath, fieldName, fallbackValue) {
+  const manifestPath = path.join(pluginPath, 'manifest.yaml');
+  if (!fs.existsSync(manifestPath)) {
+    return fallbackValue;
+  }
+
+  const content = fs.readFileSync(manifestPath, 'utf8');
+  const escapedField = fieldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = content.match(new RegExp(`^${escapedField}:\\s*(.+)$`, 'm'));
+  if (!match) {
+    return fallbackValue;
+  }
+
+  const value = String(match[1] || '').trim();
+  return value || fallbackValue;
+}
+
+function hashFile(filePath) {
+  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+function createPluginPackage(pluginPath, outputDir) {
+  ensurePluginScaffoldExists(pluginPath);
+
+  const resolvedPluginPath = path.resolve(pluginPath);
+  const resolvedOutputDir = path.resolve(outputDir);
+  const stagedRoot = createPackageArtifactRoot(resolvedPluginPath);
+  const pluginCode = readPluginCode(resolvedPluginPath);
+  const version = readManifestField(resolvedPluginPath, 'version', '0.1.0');
+
+  fs.mkdirSync(resolvedOutputDir, { recursive: true });
+
+  const pendingFile = path.join(
+    resolvedOutputDir,
+    `1flowse@${pluginCode}@${version}@pending.1flowsepkg`
+  );
+
+  try {
+    const result = spawnSync('tar', ['-czf', pendingFile, '-C', stagedRoot, '.'], {
+      stdio: 'pipe',
+    });
+
+    if (result.error) {
+      throw result.error;
+    }
+    if (result.status !== 0) {
+      const stderr = result.stderr ? result.stderr.toString('utf8').trim() : '';
+      throw new Error(stderr || `tar 打包失败，退出码 ${result.status}`);
+    }
+
+    const checksum = hashFile(pendingFile);
+    const finalFile = path.join(
+      resolvedOutputDir,
+      `1flowse@${pluginCode}@${version}@${checksum}.1flowsepkg`
+    );
+    fs.renameSync(pendingFile, finalFile);
+
+    return {
+      pluginPath: resolvedPluginPath,
+      packageFile: finalFile,
+      checksum,
+    };
+  } finally {
+    removeDirIfExists(stagedRoot);
+    removeDirIfExists(pendingFile);
+  }
+}
+
 function createPluginScaffold(pluginPath, options = {}) {
   const pluginName = getPluginName(pluginPath);
   const pluginCode = assertNonEmptyCode(
@@ -909,6 +999,39 @@ function parseCliArgs(argv) {
     return options;
   }
 
+  if (first === 'package') {
+    if (!second) {
+      throw new Error('package 需要提供 <plugin-path>');
+    }
+
+    const packageArgs = [third, ...rest].filter(Boolean);
+    const options = {
+      command: 'package',
+      pluginPath: path.resolve(second),
+      outputDir: null,
+    };
+
+    for (let index = 0; index < packageArgs.length; index += 1) {
+      const arg = packageArgs[index];
+      const next = packageArgs[index + 1];
+      if (arg === '--out') {
+        if (!next) {
+          throw new Error('--out 需要值');
+        }
+        options.outputDir = path.resolve(next);
+        index += 1;
+        continue;
+      }
+      throw new Error(`未知参数：${arg}`);
+    }
+
+    if (!options.outputDir) {
+      throw new Error('package 需要提供 --out <output-dir>');
+    }
+
+    return options;
+  }
+
   throw new Error(`未知命令：${argv.join(' ')}`);
 }
 
@@ -952,6 +1075,12 @@ async function main(argv) {
     return handle;
   }
 
+  if (parsed.command === 'package') {
+    const result = createPluginPackage(parsed.pluginPath, parsed.outputDir);
+    log(`Plugin package created at ${result.packageFile}`);
+    return result;
+  }
+
   throw new Error(`未知命令：${parsed.command}`);
 }
 
@@ -960,6 +1089,7 @@ module.exports = {
   DEFAULT_DEMO_PORT,
   DEFAULT_RUNNER_URL,
   createPluginScaffold,
+  createPluginPackage,
   createPluginDemoScaffold,
   main,
   parseCliArgs,

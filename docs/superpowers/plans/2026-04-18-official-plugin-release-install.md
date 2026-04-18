@@ -89,7 +89,7 @@
 - Modify: `scripts/node/plugin/core.js`
 - Modify: `scripts/node/plugin/_tests/core.test.js`
 
-- [ ] **Step 1: Write the failing CLI packaging tests**
+- [x] **Step 1: Write the failing CLI packaging tests**
 
 Append focused tests to `scripts/node/plugin/_tests/core.test.js`:
 
@@ -128,7 +128,7 @@ test('plugin package excludes demo and scripts from the packaged artifact', asyn
 });
 ```
 
-- [ ] **Step 2: Run the targeted Node tests to confirm the command does not exist yet**
+- [x] **Step 2: Run the targeted Node tests to confirm the command does not exist yet**
 
 Run:
 
@@ -138,7 +138,7 @@ node --test --test-name-pattern "plugin package" scripts/node/plugin/_tests/core
 
 Expected: FAIL with `未知命令：package ...` or an assertion showing `result.packageFile` is missing.
 
-- [ ] **Step 3: Implement `package` parsing, staging, checksum, and output metadata**
+- [x] **Step 3: Implement `package` parsing, staging, checksum, and output metadata**
 
 Update `scripts/node/plugin/core.js` with a dedicated packaging path. Keep the existing scaffold and demo behavior unchanged.
 
@@ -189,7 +189,7 @@ if (first === 'package') {
 }
 ```
 
-- [ ] **Step 4: Run the targeted package tests again**
+- [x] **Step 4: Run the targeted package tests again**
 
 Run:
 
@@ -199,7 +199,7 @@ node --test --test-name-pattern "plugin package" scripts/node/plugin/_tests/core
 
 Expected: PASS. The returned asset path ends with `.1flowsepkg`, the checksum is a 64-char SHA-256 hex digest, and the packaged artifact omits `demo/` and `scripts/`.
 
-- [ ] **Step 5: Commit the main-repo packaging changes**
+- [x] **Step 5: Commit the main-repo packaging changes**
 
 Run:
 

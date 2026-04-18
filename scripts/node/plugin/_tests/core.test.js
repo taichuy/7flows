@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
+const { spawnSync } = require('node:child_process');
 
 const { main, startDemoServer } = require('../core.js');
 
@@ -137,4 +138,36 @@ test('plugin demo dev rejects target without generated demo assets', async () =>
     }),
     /缺少 demo 资源/
   );
+});
+
+test('plugin package creates a single .1flowsepkg asset with checksum metadata', async () => {
+  const pluginPath = makeTempPluginPath();
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-plugin-dist-'));
+
+  await main(['init', pluginPath]);
+
+  const result = await main(['package', pluginPath, '--out', outputDir]);
+
+  assert.match(result.packageFile, /\.1flowsepkg$/);
+  assert.match(result.packageFile, new RegExp(`${result.checksum}\\.1flowsepkg$`));
+  assert.match(result.checksum, /^[a-f0-9]{64}$/);
+  assert.equal(fs.existsSync(result.packageFile), true);
+});
+
+test('plugin package excludes demo and scripts from the packaged artifact', async () => {
+  const pluginPath = makeTempPluginPath();
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-plugin-dist-'));
+
+  await main(['init', pluginPath]);
+  await main(['demo', 'init', pluginPath]);
+
+  const result = await main(['package', pluginPath, '--out', outputDir]);
+  const extractedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-plugin-extract-'));
+  const unpack = spawnSync('tar', ['-xzf', result.packageFile, '-C', extractedDir]);
+
+  assert.equal(unpack.status, 0);
+  assert.equal(fs.existsSync(path.join(pluginPath, 'demo')), true);
+  assert.equal(fs.existsSync(path.join(pluginPath, 'scripts')), true);
+  assert.equal(fs.existsSync(path.join(extractedDir, 'demo')), false);
+  assert.equal(fs.existsSync(path.join(extractedDir, 'scripts')), false);
 });
