@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Navigate } from '@tanstack/react-router';
-import { Alert, Button, Result, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Result, Tag, Typography } from 'antd';
 
 import { useAuthStore } from '../../../state/auth-store';
 import { SectionPageLayout } from '../../../shared/ui/section-page-layout/SectionPageLayout';
@@ -332,25 +332,15 @@ function ModelProvidersSection({
 
       <div className="model-provider-panel__main">
         <div className="model-provider-panel__left">
-          <section className="model-provider-panel__summary-table">
-            <div className="model-provider-panel__section-head">
-              <div>
-                <Typography.Title level={5}>当前 workspace 概况</Typography.Title>
-                <Typography.Text type="secondary">
-                  只保留当前最关键的供应商和实例统计。
-                </Typography.Text>
-              </div>
+          <section className="model-provider-panel__summary-bar">
+            <div className="model-provider-panel__summary-items">
+              {overviewRows.map((row) => (
+                <div key={row.key} className="model-provider-panel__summary-item">
+                  <span className="model-provider-panel__summary-label">{row.label}</span>
+                  <span className="model-provider-panel__summary-value">{row.value}</span>
+                </div>
+              ))}
             </div>
-            <Table
-              rowKey="key"
-              size="small"
-              pagination={false}
-              dataSource={overviewRows}
-              columns={[
-                { title: '项目', dataIndex: 'label' },
-                { title: '数量', dataIndex: 'value', width: 120 }
-              ]}
-            />
           </section>
 
           <ModelProviderCatalogPanel

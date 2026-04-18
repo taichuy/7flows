@@ -24,7 +24,7 @@
   gap: 16px;
 }
 
-.model-provider-panel__summary-table,
+.model-provider-panel__summary-bar,
 .model-provider-panel__catalog,
 .model-provider-panel__instances,
 .model-provider-panel__instances-shell,
@@ -33,6 +33,35 @@
   border-radius: 16px;
   background: #ffffff;
   padding: 16px;
+}
+
+.model-provider-panel__summary-bar {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+}
+
+.model-provider-panel__summary-items {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.model-provider-panel__summary-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.model-provider-panel__summary-label {
+  color: rgba(15, 23, 42, 0.68);
+  font-size: 13px;
+}
+
+.model-provider-panel__summary-value {
+  font-size: 16px;
+  font-weight: 500;
+  color: #0f172a;
 }
 
 .model-provider-panel__sidebar {
