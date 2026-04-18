@@ -16,14 +16,18 @@ function getCatalogSummary(entry: SettingsModelProviderCatalogEntry) {
 
 export function ModelProviderCatalogPanel({
   entries,
+  instanceCounts,
   loading,
   canManage,
-  onCreate
+  onCreate,
+  onViewInstances
 }: {
   entries: SettingsModelProviderCatalogEntry[];
+  instanceCounts: Record<string, number>;
   loading?: boolean;
   canManage: boolean;
   onCreate: (entry: SettingsModelProviderCatalogEntry) => void;
+  onViewInstances: (entry: SettingsModelProviderCatalogEntry) => void;
 }) {
   return (
     <section className="model-provider-panel__catalog">
@@ -83,7 +87,8 @@ export function ModelProviderCatalogPanel({
               <div className="model-provider-panel__instance-cell">
                 <Typography.Text>{getCatalogSummary(entry)}</Typography.Text>
                 <Typography.Text type="secondary">
-                  默认地址 {entry.default_base_url ?? '未提供'}
+                  默认地址 {entry.default_base_url ?? '未提供'} ·{' '}
+                  {instanceCounts[entry.installation_id] ?? 0} 个实例
                 </Typography.Text>
               </div>
             )
@@ -101,6 +106,9 @@ export function ModelProviderCatalogPanel({
                   width: 220,
                   render: (_: unknown, entry: SettingsModelProviderCatalogEntry) => (
                     <Space size={4} wrap>
+                      <Button type="link" onClick={() => onViewInstances(entry)}>
+                        查看实例
+                      </Button>
                       <Button type="link" onClick={() => onCreate(entry)}>
                         添加 API Key
                       </Button>

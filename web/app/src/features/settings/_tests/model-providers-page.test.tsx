@@ -210,6 +210,24 @@ describe('ModelProvidersPage', () => {
         catalog_last_error_message: null,
         catalog_refreshed_at: '2026-04-18T10:01:00Z',
         model_count: 1
+      },
+      {
+        id: 'provider-2',
+        installation_id: 'installation-1',
+        provider_code: 'openai_compatible',
+        protocol: 'openai_compatible',
+        display_name: 'OpenAI Backup',
+        status: 'disabled',
+        config_json: {
+          base_url: 'https://backup.openai.example/v1'
+        },
+        last_validated_at: null,
+        last_validation_status: null,
+        last_validation_message: null,
+        catalog_refresh_status: 'idle',
+        catalog_last_error_message: null,
+        catalog_refreshed_at: null,
+        model_count: 0
       }
     ]);
     pluginsApi.fetchSettingsOfficialPluginCatalog.mockResolvedValue([]);
@@ -308,6 +326,81 @@ describe('ModelProvidersPage', () => {
     expect(within(providerRow).getByRole('button', { name: /验证 OpenAI Production/ })).toBeInTheDocument();
     expect(within(providerRow).getByRole('button', { name: /刷新模型 OpenAI Production/ })).toBeInTheDocument();
     expect(within(providerRow).getByRole('button', { name: /删除 OpenAI Production/ })).toBeInTheDocument();
+  });
+
+  test('opens provider instances modal from installed provider row and defaults to the ready instance', async () => {
+    authenticateWithPermissions([
+      'route_page.view.all',
+      'state_model.view.all',
+      'state_model.manage.all'
+    ]);
+
+    renderApp('/settings/model-providers');
+
+    const catalogRow = await screen.findByRole('row', { name: /OpenAI Compatible/ });
+    fireEvent.click(within(catalogRow).getByRole('button', { name: '查看实例' }));
+
+    const modal = await screen.findByRole('dialog', { name: 'OpenAI Compatible 实例' });
+    expect(within(modal).getAllByText('OpenAI Production').length).toBeGreaterThanOrEqual(1);
+    expect(within(modal).getByText('succeeded')).toBeInTheDocument();
+    expect(within(modal).getByRole('combobox', { name: '选择实例' })).toBeInTheDocument();
+    expect(within(modal).getByRole('button', { name: '验证实例' })).toBeInTheDocument();
+    expect(within(modal).getByRole('button', { name: '刷新模型' })).toBeInTheDocument();
+    expect(within(modal).getByRole('button', { name: '删除实例' })).toBeInTheDocument();
+  });
+
+  test('runs validate refresh and delete from the provider instances modal', async () => {
+    authenticateWithPermissions([
+      'route_page.view.all',
+      'state_model.view.all',
+      'state_model.manage.all'
+    ]);
+    modelProvidersApi.validateSettingsModelProviderInstance.mockResolvedValue({
+      instance: {
+        id: 'provider-1'
+      },
+      output: {}
+    });
+    modelProvidersApi.refreshSettingsModelProviderModels.mockResolvedValue({
+      provider_instance_id: 'provider-1',
+      refresh_status: 'ready',
+      source: 'remote',
+      last_error_message: null,
+      refreshed_at: '2026-04-18T10:03:00Z',
+      models: []
+    });
+    modelProvidersApi.deleteSettingsModelProviderInstance.mockResolvedValue({
+      deleted: true
+    });
+
+    renderApp('/settings/model-providers');
+
+    const catalogRow = await screen.findByRole('row', { name: /OpenAI Compatible/ });
+    fireEvent.click(within(catalogRow).getByRole('button', { name: '查看实例' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: '验证实例' }));
+    await waitFor(() => {
+      expect(modelProvidersApi.validateSettingsModelProviderInstance).toHaveBeenCalledWith(
+        'provider-1',
+        'csrf-123'
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '刷新模型' }));
+    await waitFor(() => {
+      expect(modelProvidersApi.refreshSettingsModelProviderModels).toHaveBeenCalledWith(
+        'provider-1',
+        'csrf-123'
+      );
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: '删除实例' }));
+    await waitFor(() => {
+      expect(modelProvidersApi.deleteSettingsModelProviderInstance).toHaveBeenCalledWith(
+        'provider-1',
+        'csrf-123'
+      );
+    });
   });
 
   test('renders official install cards beneath the installed provider area', async () => {

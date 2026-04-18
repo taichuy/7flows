@@ -11,6 +11,7 @@ import { MemberManagementPanel } from '../components/MemberManagementPanel';
 import { RolePermissionPanel } from '../components/RolePermissionPanel';
 import { ModelProviderCatalogPanel } from '../components/model-providers/ModelProviderCatalogPanel';
 import { ModelProviderInstanceDrawer } from '../components/model-providers/ModelProviderInstanceDrawer';
+import { ModelProviderInstancesModal } from '../components/model-providers/ModelProviderInstancesModal';
 import { ModelProviderInstancesTable } from '../components/model-providers/ModelProviderInstancesTable';
 import { OfficialPluginInstallPanel } from '../components/model-providers/OfficialPluginInstallPanel';
 import {
@@ -26,6 +27,8 @@ import {
   settingsModelProviderCatalogQueryKey,
   settingsModelProviderInstancesQueryKey,
   settingsModelProviderOptionsQueryKey,
+  type SettingsModelProviderCatalogEntry,
+  type SettingsModelProviderInstance,
   updateSettingsModelProviderInstance,
   validateSettingsModelProviderInstance
 } from '../api/model-providers';
@@ -49,6 +52,13 @@ function isTaskTerminal(status: string | null | undefined) {
   return status === 'success' || status === 'failed' || status === 'canceled' || status === 'timed_out';
 }
 
+const EMPTY_MODEL_PROVIDER_INSTANCES: SettingsModelProviderInstance[] = [];
+const EMPTY_MODEL_PROVIDER_CATALOG: SettingsModelProviderCatalogEntry[] = [];
+
+function pickPreferredInstanceId(instances: { id: string; status: string }[]) {
+  return instances.find((instance) => instance.status === 'ready')?.id ?? instances[0]?.id ?? null;
+}
+
 function ModelProvidersSection({
   canManage
 }: {
@@ -61,6 +71,10 @@ function ModelProvidersSection({
     | { mode: 'edit'; instanceId: string }
     | null
   >(null);
+  const [instanceModalState, setInstanceModalState] = useState<{
+    installationId: string;
+    selectedInstanceId: string | null;
+  } | null>(null);
 
   const catalogQuery = useQuery({
     queryKey: settingsModelProviderCatalogQueryKey,
@@ -84,9 +98,28 @@ function ModelProvidersSection({
     status: 'idle'
   });
 
-  const instances = instancesQuery.data ?? [];
-  const catalogEntries = catalogQuery.data ?? [];
+  const instances = instancesQuery.data ?? EMPTY_MODEL_PROVIDER_INSTANCES;
+  const catalogEntries = catalogQuery.data ?? EMPTY_MODEL_PROVIDER_CATALOG;
   const officialCatalogEntries = officialCatalogQuery.data ?? [];
+  const instancesByInstallation = useMemo(() => {
+    const grouped: Record<string, typeof instances> = {};
+
+    for (const instance of instances) {
+      grouped[instance.installation_id] ??= [];
+      grouped[instance.installation_id]!.push(instance);
+    }
+
+    return grouped;
+  }, [instances]);
+  const instanceCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+
+    for (const [installationId, installationInstances] of Object.entries(instancesByInstallation)) {
+      counts[installationId] = installationInstances.length;
+    }
+
+    return counts;
+  }, [instancesByInstallation]);
   const editingInstance =
     drawerState?.mode === 'edit'
       ? instances.find((instance) => instance.id === drawerState.instanceId) ?? null
@@ -101,6 +134,44 @@ function ModelProvidersSection({
             (entry) => entry.installation_id === editingInstance.installation_id
           ) ?? null
         : null;
+  const modalInstances = useMemo(
+    () =>
+      instanceModalState
+        ? instancesByInstallation[instanceModalState.installationId] ?? EMPTY_MODEL_PROVIDER_INSTANCES
+        : EMPTY_MODEL_PROVIDER_INSTANCES,
+    [instanceModalState, instancesByInstallation]
+  );
+  const modalCatalogEntry =
+    instanceModalState
+      ? catalogEntries.find((entry) => entry.installation_id === instanceModalState.installationId) ?? null
+      : null;
+  const modalSelectedInstanceId =
+    instanceModalState && modalInstances.some((instance) => instance.id === instanceModalState.selectedInstanceId)
+      ? instanceModalState.selectedInstanceId
+      : pickPreferredInstanceId(modalInstances);
+
+  useEffect(() => {
+    if (!instanceModalState) {
+      return;
+    }
+
+    const nextSelectedInstanceId = pickPreferredInstanceId(modalInstances);
+
+    if (!modalSelectedInstanceId && !nextSelectedInstanceId) {
+      return;
+    }
+
+    if (modalSelectedInstanceId !== instanceModalState.selectedInstanceId) {
+      setInstanceModalState((current) =>
+        current
+          ? {
+              ...current,
+              selectedInstanceId: modalSelectedInstanceId
+            }
+          : current
+      );
+    }
+  }, [instanceModalState, modalInstances, modalSelectedInstanceId]);
 
   async function invalidateModelProviderQueries() {
     await Promise.all([
@@ -345,8 +416,16 @@ function ModelProvidersSection({
 
           <ModelProviderCatalogPanel
             entries={catalogEntries}
+            instanceCounts={instanceCounts}
             loading={catalogQuery.isLoading}
             canManage={canManage}
+            onViewInstances={(entry) => {
+              const installationInstances = instancesByInstallation[entry.installation_id] ?? [];
+              setInstanceModalState({
+                installationId: entry.installation_id,
+                selectedInstanceId: pickPreferredInstanceId(installationInstances)
+              });
+            }}
             onCreate={(entry) => {
               setDrawerState({
                 mode: 'create',
@@ -445,6 +524,44 @@ function ModelProvidersSection({
             display_name: values.display_name,
             config: values.config
           });
+        }}
+      />
+
+      <ModelProviderInstancesModal
+        open={instanceModalState !== null}
+        catalogEntry={modalCatalogEntry}
+        instances={modalInstances}
+        selectedInstanceId={modalSelectedInstanceId}
+        validating={validateMutation.isPending}
+        refreshing={refreshMutation.isPending}
+        deleting={deleteMutation.isPending}
+        canManage={canManage}
+        onClose={() => setInstanceModalState(null)}
+        onChangeInstance={(instanceId) => {
+          setInstanceModalState((current) =>
+            current
+              ? {
+                  ...current,
+                  selectedInstanceId: instanceId
+                }
+              : current
+          );
+        }}
+        onEdit={(instance) => {
+          setInstanceModalState(null);
+          setDrawerState({
+            mode: 'edit',
+            instanceId: instance.id
+          });
+        }}
+        onValidate={(instance) => {
+          validateMutation.mutate(instance.id);
+        }}
+        onRefreshModels={(instance) => {
+          refreshMutation.mutate(instance.id);
+        }}
+        onDelete={(instance) => {
+          deleteMutation.mutate(instance.id);
         }}
       />
     </div>

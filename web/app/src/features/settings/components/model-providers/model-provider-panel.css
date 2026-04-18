@@ -176,6 +176,36 @@
   padding: 12px 0 4px;
 }
 
+.model-provider-panel__instances-modal {
+  display: grid;
+  gap: 16px;
+}
+
+.model-provider-panel__instances-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.model-provider-panel__instances-modal-head .ant-typography {
+  margin: 0;
+}
+
+.model-provider-panel__instances-modal-select {
+  min-width: 240px;
+  display: grid;
+  gap: 8px;
+}
+
+.model-provider-panel__instances-modal-select .ant-select {
+  width: 100%;
+}
+
+.model-provider-panel__instances-modal-actions {
+  padding-top: 4px;
+}
+
 @media (max-width: 1120px) {
   .model-provider-panel__main {
     grid-template-columns: 1fr;
@@ -198,5 +228,14 @@
   .model-provider-panel__catalog-item-head,
   .model-provider-panel__section-head {
     flex-direction: column;
+  }
+
+  .model-provider-panel__instances-modal-head {
+    flex-direction: column;
+  }
+
+  .model-provider-panel__instances-modal-select {
+    width: 100%;
+    min-width: 0;
   }
 }
