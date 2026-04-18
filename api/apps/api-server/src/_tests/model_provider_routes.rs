@@ -158,7 +158,7 @@ async fn install_enable_assign(app: &axum::Router, cookie: &str, csrf: &str) -> 
 }
 
 #[tokio::test]
-async fn model_provider_routes_hide_secret_and_return_ready_options() {
+async fn model_provider_routes_return_secret_for_edit_and_ready_options() {
     let app = test_app().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
     let installation_id = install_enable_assign(&app, &cookie, &csrf).await;
@@ -210,9 +210,10 @@ async fn model_provider_routes_hide_secret_and_return_ready_options() {
         list_payload["data"][0]["config_json"]["base_url"].as_str(),
         Some("https://api.example.com")
     );
-    assert!(list_payload["data"][0]["config_json"]
-        .get("api_key")
-        .is_none());
+    assert_eq!(
+        list_payload["data"][0]["config_json"]["api_key"].as_str(),
+        Some("super-secret")
+    );
 
     let validate = app
         .clone()

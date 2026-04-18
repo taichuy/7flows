@@ -539,7 +539,7 @@ impl ProviderRuntimePort for MemoryProviderRuntime {
 }
 
 #[tokio::test]
-async fn model_provider_service_creates_validates_and_builds_ready_options_without_leaking_secret()
+async fn model_provider_service_creates_validates_and_builds_ready_options_with_editable_secret()
 {
     let workspace_id = Uuid::now_v7();
     let repository = MemoryModelProviderRepository::new(actor_with_permissions(
@@ -573,7 +573,7 @@ async fn model_provider_service_creates_validates_and_builds_ready_options_witho
         created.instance.config_json["base_url"],
         "https://api.example.com"
     );
-    assert!(created.instance.config_json.get("api_key").is_none());
+    assert_eq!(created.instance.config_json["api_key"], "super-secret");
     assert_eq!(
         repository.secret_json(created.instance.id).await["api_key"],
         "super-secret"
@@ -584,7 +584,7 @@ async fn model_provider_service_creates_validates_and_builds_ready_options_witho
         .await
         .unwrap();
     assert_eq!(listed.len(), 1);
-    assert!(listed[0].instance.config_json.get("api_key").is_none());
+    assert_eq!(listed[0].instance.config_json["api_key"], "super-secret");
 
     let validated = service
         .validate_instance(repository.actor.user_id, created.instance.id)

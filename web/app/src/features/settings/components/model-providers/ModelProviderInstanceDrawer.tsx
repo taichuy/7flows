@@ -127,7 +127,7 @@ function renderConfigField(
       }
     >
       {isSecret ? (
-        <Input.Password placeholder="输入 API Key" />
+        <Input placeholder="输入 API Key" autoComplete="off" />
       ) : useTextArea ? (
         <Input.TextArea rows={4} placeholder={field.key === 'base_url' ? entry.default_base_url ?? '' : undefined} />
       ) : (

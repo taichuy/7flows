@@ -165,7 +165,7 @@ where
         let mut output = Vec::with_capacity(instances.len());
         for instance in instances {
             let cache = self.repository.get_catalog_cache(instance.id).await?;
-            output.push(ModelProviderInstanceView { instance, cache });
+            output.push(self.hydrate_instance_view(instance, cache).await?);
         }
         Ok(output)
     }
@@ -239,10 +239,7 @@ where
             ))
             .await?;
 
-        Ok(ModelProviderInstanceView {
-            instance,
-            cache: None,
-        })
+        self.hydrate_instance_view(instance, None).await
     }
 
     pub async fn update_instance(
@@ -328,10 +325,8 @@ where
             ))
             .await?;
 
-        Ok(ModelProviderInstanceView {
-            cache: self.repository.get_catalog_cache(updated.id).await?,
-            instance: updated,
-        })
+        self.hydrate_instance_view(updated, self.repository.get_catalog_cache(existing.id).await?)
+            .await
     }
 
     pub async fn validate_instance(
@@ -717,6 +712,27 @@ where
             &secret_json,
         )?;
         merge_json_object(&instance.config_json, &secret_json)
+    }
+
+    async fn hydrate_instance_view(
+        &self,
+        instance: domain::ModelProviderInstanceRecord,
+        cache: Option<domain::ModelProviderCatalogCacheRecord>,
+    ) -> Result<ModelProviderInstanceView> {
+        let secret_json = self
+            .repository
+            .get_secret_json(instance.id, &self.provider_secret_master_key)
+            .await?
+            .unwrap_or_else(empty_object);
+        let merged_config = merge_json_object(&instance.config_json, &secret_json)?;
+
+        Ok(ModelProviderInstanceView {
+            instance: domain::ModelProviderInstanceRecord {
+                config_json: merged_config,
+                ..instance
+            },
+            cache,
+        })
     }
 }
 

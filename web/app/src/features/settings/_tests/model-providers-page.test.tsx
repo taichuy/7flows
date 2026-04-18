@@ -201,7 +201,8 @@ describe('ModelProvidersPage', () => {
         display_name: 'OpenAI Production',
         status: 'ready',
         config_json: {
-          base_url: 'https://api.openai.com/v1'
+          base_url: 'https://api.openai.com/v1',
+          api_key: 'super-secret'
         },
         last_validated_at: '2026-04-18T10:00:00Z',
         last_validation_status: 'succeeded',
@@ -219,7 +220,8 @@ describe('ModelProvidersPage', () => {
         display_name: 'OpenAI Backup',
         status: 'disabled',
         config_json: {
-          base_url: 'https://backup.openai.example/v1'
+          base_url: 'https://backup.openai.example/v1',
+          api_key: 'backup-secret'
         },
         last_validated_at: null,
         last_validation_status: null,
@@ -397,6 +399,27 @@ describe('ModelProvidersPage', () => {
         'csrf-123'
       );
     });
+  });
+
+  test('shows editable api key value in plain text when opening edit drawer', async () => {
+    authenticateWithPermissions([
+      'route_page.view.all',
+      'state_model.view.all',
+      'state_model.manage.all'
+    ]);
+
+    renderApp('/settings/model-providers');
+
+    const catalogRow = await screen.findByRole('row', { name: /OpenAI Compatible/ });
+    fireEvent.click(within(catalogRow).getByRole('button', { name: '查看实例' }));
+
+    const modal = await screen.findByRole('dialog', { name: 'OpenAI Compatible 实例' });
+    fireEvent.click(within(modal).getByRole('button', { name: '编辑 API Key' }));
+
+    expect(await screen.findByText('编辑 API 密钥配置')).toBeInTheDocument();
+    const apiKeyInput = screen.getByLabelText('API Key');
+    expect(apiKeyInput).toHaveAttribute('type', 'text');
+    expect(apiKeyInput).toHaveValue('super-secret');
   });
 
   test('renders official install cards beneath the installed provider area', async () => {
