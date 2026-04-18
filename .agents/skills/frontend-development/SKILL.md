@@ -11,17 +11,16 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 
 ## When to Use
 
-- 新增或修改 `overview / orchestration / api / logs / monitoring` 页面
-- 改动壳层列表、抽屉、编排画布、Inspector、节点组件
-- 新增节点类型、调整节点详情、节点卡片、节点运行态或节点定义目录结构
+- 新增或修改 `overview / orchestration / api / logs / monitoring` 等 1flowbase 页面或工作台视图
+- 改动壳层列表、抽屉、编排画布、`Inspector`、节点组件等核心前端表面
+- 新增节点类型，或调整节点详情、节点卡片、节点运行态、节点定义目录结构
 - 改动 `schema ui` 合同、runtime、renderer registry、overlay shell 或节点 schema adapter
-- 调整页面级流程、交互流、视觉方案
-- 评估是否拆文件、拆组件、拆 hooks
+- 调整页面级流程、交互流、视觉结构或页面模块关系
+- 评估是否拆文件、拆组件、拆 hooks，或处理前端职责边界漂移
 - 页面状态开始散落，或同一文件同时承载展示、状态、协议、路由变化
 - 同类对象出现不同点击结果、不同状态表达或不同移动端降级
-- 用户需求模糊，只给目标词、截图、参考图或外部样本，需要先把页面需求讲清楚
-- 用户提出页面开发、页面改版、模块级 UI 开发需求，需要先整理需求并把细化结果显式回复给用户
-- 需要判断该直接做、复用现有实现，还是先问人
+- 前端需求模糊、图片驱动或依赖外部样本，需要先翻译成可执行页面需求
+- 页面开发、页面改版、模块级 UI 开发需求，需要套用 1flowbase 的前端实现规则
 
 **不要用于**
 
