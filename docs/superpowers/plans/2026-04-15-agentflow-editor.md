@@ -491,7 +491,7 @@ use uuid::Uuid;
 
 async fn isolated_database_url() -> String {
     let base_url =
-        std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows".into());
+        std::env::var("DATABASE_URL").unwrap_or_else(|_| "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase".into());
     let admin_pool = PgPool::connect(&base_url).await.unwrap();
     let schema = format!("test_{}", Uuid::now_v7().simple());
     sqlx::query(&format!("create schema if not exists {schema}"))
@@ -921,7 +921,7 @@ Execution note (`2026-04-15 15:46`):
 - Worked around verification with a temporary local proxy on `127.0.0.1:35433` that relayed each connection via `docker exec docker-db-1 nc 127.0.0.1 5432`, then ran:
 
 ```bash
-DATABASE_URL='postgres://postgres:sevenflows@127.0.0.1:35433/sevenflows' cargo test -p storage-pg flow_repository_tests -v
+DATABASE_URL='postgres://postgres:1flowbase@127.0.0.1:35433/1flowbase' cargo test -p storage-pg flow_repository_tests -v
 ```
 
 - Result: `control-plane` target tests `2 passed`; `storage-pg` target tests `3 passed`.
@@ -1194,8 +1194,8 @@ Execution note (`2026-04-15 15:51`):
 - Backend verification ran with:
 
 ```bash
-API_DATABASE_URL='postgres://postgres:sevenflows@127.0.0.1:35433/sevenflows' \
-API_REDIS_URL='redis://:sevenflows@127.0.0.1:36379' \
+API_DATABASE_URL='postgres://postgres:1flowbase@127.0.0.1:35433/1flowbase' \
+API_REDIS_URL='redis://:1flowbase@127.0.0.1:36379' \
 BOOTSTRAP_ROOT_ACCOUNT='root' \
 BOOTSTRAP_ROOT_EMAIL='root@example.com' \
 BOOTSTRAP_ROOT_PASSWORD='change-me' \

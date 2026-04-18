@@ -5,9 +5,9 @@ fn api_config_uses_expected_cookie_defaults() {
     let config = ApiConfig::from_env_map(&[
         (
             "API_DATABASE_URL",
-            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
+            "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase",
         ),
-        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        ("API_REDIS_URL", "redis://:1flowbase@127.0.0.1:36379"),
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
@@ -15,7 +15,7 @@ fn api_config_uses_expected_cookie_defaults() {
     ])
     .unwrap();
 
-    assert_eq!(config.cookie_name, "flowse_console_session");
+    assert_eq!(config.cookie_name, "flowbase_console_session");
     assert_eq!(config.session_ttl_days, 7);
 }
 
@@ -24,9 +24,9 @@ fn api_config_defaults_to_development_and_unrestricted_cors() {
     let config = ApiConfig::from_env_map(&[
         (
             "API_DATABASE_URL",
-            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
+            "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase",
         ),
-        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        ("API_REDIS_URL", "redis://:1flowbase@127.0.0.1:36379"),
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
@@ -43,9 +43,9 @@ fn api_config_rejects_production_without_allowed_origins() {
     let error = ApiConfig::from_env_map(&[
         (
             "API_DATABASE_URL",
-            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
+            "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase",
         ),
-        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        ("API_REDIS_URL", "redis://:1flowbase@127.0.0.1:36379"),
         ("API_ENV", "production"),
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
@@ -62,9 +62,9 @@ fn api_config_accepts_production_with_explicit_allowed_origins() {
     let config = ApiConfig::from_env_map(&[
         (
             "API_DATABASE_URL",
-            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
+            "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase",
         ),
-        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        ("API_REDIS_URL", "redis://:1flowbase@127.0.0.1:36379"),
         ("API_ENV", "production"),
         (
             "API_ALLOWED_ORIGINS",
@@ -101,9 +101,9 @@ fn api_config_reads_bootstrap_workspace_name() {
     let config = ApiConfig::from_env_map(&[
         (
             "API_DATABASE_URL",
-            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
+            "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase",
         ),
-        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        ("API_REDIS_URL", "redis://:1flowbase@127.0.0.1:36379"),
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
@@ -119,9 +119,9 @@ fn api_config_reads_provider_secret_master_key() {
     let config = ApiConfig::from_env_map(&[
         (
             "API_DATABASE_URL",
-            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
+            "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase",
         ),
-        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        ("API_REDIS_URL", "redis://:1flowbase@127.0.0.1:36379"),
         ("API_PROVIDER_SECRET_MASTER_KEY", "provider-secret-key"),
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
@@ -138,9 +138,9 @@ fn api_config_reads_official_plugin_repository_settings() {
     let config = ApiConfig::from_env_map(&[
         (
             "API_DATABASE_URL",
-            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
+            "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase",
         ),
-        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        ("API_REDIS_URL", "redis://:1flowbase@127.0.0.1:36379"),
         (
             "API_OFFICIAL_PLUGIN_REPOSITORY",
             "taichuy/1flowbase-official-plugins",

@@ -112,7 +112,7 @@ impl ApiConfig {
             cookie_name: map
                 .get("API_COOKIE_NAME")
                 .cloned()
-                .unwrap_or_else(|| "flowse_console_session".to_string()),
+                .unwrap_or_else(|| "flowbase_console_session".to_string()),
             session_ttl_days: map
                 .get("API_SESSION_TTL_DAYS")
                 .and_then(|value| value.parse::<i64>().ok())

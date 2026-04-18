@@ -14,7 +14,7 @@ function getExpectedParallelism() {
 }
 
 test('verify-backend limits cargo concurrency to half of available CPU', () => {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-verify-backend-'));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-verify-backend-'));
   const fakeBinDir = path.join(tempDir, 'bin');
   const logPath = path.join(tempDir, 'cargo.log');
   const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');

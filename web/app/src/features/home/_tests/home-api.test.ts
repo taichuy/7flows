@@ -22,10 +22,10 @@ afterEach(() => {
 
 describe('home api', () => {
   test('prefers VITE_API_BASE_URL when it is present', () => {
-    vi.stubEnv('VITE_API_BASE_URL', 'https://api.flowse.test');
+    vi.stubEnv('VITE_API_BASE_URL', 'https://api.flowbase.test');
 
     expect(getHomeApiBaseUrl({ protocol: 'http:', hostname: 'ignored-host' })).toBe(
-      'https://api.flowse.test'
+      'https://api.flowbase.test'
     );
     expect(getDefaultApiBaseUrl).not.toHaveBeenCalled();
   });

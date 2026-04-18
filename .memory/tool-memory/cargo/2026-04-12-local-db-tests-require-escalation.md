@@ -48,8 +48,8 @@ scope:
 
 - 对依赖本机 `Postgres/Redis` 的 `cargo test` 使用提权执行。
 - 命令中同时显式传入：
-  - `API_DATABASE_URL=postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows`
-  - `API_REDIS_URL=redis://:sevenflows@127.0.0.1:36379`
+  - `API_DATABASE_URL=postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase`
+  - `API_REDIS_URL=redis://:1flowbase@127.0.0.1:36379`
   - `BOOTSTRAP_ROOT_ACCOUNT=root`
   - `BOOTSTRAP_ROOT_EMAIL=root@example.com`
   - `BOOTSTRAP_ROOT_PASSWORD=change-me`

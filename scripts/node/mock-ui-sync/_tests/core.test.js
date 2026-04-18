@@ -16,7 +16,7 @@ test('parseCliArgs defaults to rebuilding web into tmp/mock-ui on port 3210', ()
 });
 
 test('syncMockUiWorkspace resets the sandbox, copies source files, and rewrites vite port', () => {
-  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-mock-ui-'));
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-mock-ui-'));
   const sourceDir = path.join(repoRoot, 'web');
   const targetDir = path.join(repoRoot, 'tmp', 'mock-ui');
   const sourceAppDir = path.join(sourceDir, 'app');

@@ -8,7 +8,7 @@ const { spawnSync } = require('node:child_process');
 
 const { main, startDemoServer } = require('../core.js');
 
-function makeTempPluginPath(prefix = 'oneflowse-plugin-') {
+function makeTempPluginPath(prefix = 'oneflowbase-plugin-') {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
   return path.join(tempDir, 'acme-openai-compatible');
 }
@@ -142,7 +142,7 @@ test('plugin demo dev rejects target without generated demo assets', async () =>
 
 test('plugin package creates a single .1flowbasepkg asset with checksum metadata', async () => {
   const pluginPath = makeTempPluginPath();
-  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-plugin-dist-'));
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-plugin-dist-'));
 
   await main(['init', pluginPath]);
 
@@ -156,13 +156,13 @@ test('plugin package creates a single .1flowbasepkg asset with checksum metadata
 
 test('plugin package excludes demo and scripts from the packaged artifact', async () => {
   const pluginPath = makeTempPluginPath();
-  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-plugin-dist-'));
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-plugin-dist-'));
 
   await main(['init', pluginPath]);
   await main(['demo', 'init', pluginPath]);
 
   const result = await main(['package', pluginPath, '--out', outputDir]);
-  const extractedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-plugin-extract-'));
+  const extractedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-plugin-extract-'));
   const unpack = spawnSync('tar', ['-xzf', result.packageFile, '-C', extractedDir]);
 
   assert.equal(unpack.status, 0);

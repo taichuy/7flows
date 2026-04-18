@@ -1,8 +1,8 @@
 import { message } from 'antd';
 
 type FlowseClipboard = Clipboard & {
-  __flowseScalarPatched__?: boolean;
-  __flowseOriginalWriteText__?: Clipboard['writeText'];
+  __flowbaseScalarPatched__?: boolean;
+  __flowbaseOriginalWriteText__?: Clipboard['writeText'];
 };
 
 const scalarOperationPathPattern =
@@ -69,7 +69,7 @@ export function installScalarClipboardPatch() {
     });
   }
 
-  if (clipboard.__flowseScalarPatched__) {
+  if (clipboard.__flowbaseScalarPatched__) {
     return;
   }
 
@@ -80,6 +80,6 @@ export function installScalarClipboardPatch() {
 
   clipboard.writeText = async (text: string) =>
     originalWriteText(normalizeScalarClipboardText(text));
-  clipboard.__flowseOriginalWriteText__ = originalWriteText;
-  clipboard.__flowseScalarPatched__ = true;
+  clipboard.__flowbaseOriginalWriteText__ = originalWriteText;
+  clipboard.__flowbaseScalarPatched__ = true;
 }

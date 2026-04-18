@@ -17,7 +17,7 @@ impl RedisSessionStore {
 
         Ok(Self {
             manager,
-            key_prefix: "flowse:console:session".to_string(),
+            key_prefix: "flowbase:console:session".to_string(),
         })
     }
 

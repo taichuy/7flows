@@ -177,7 +177,7 @@ const operationSpecById = {
         sessionCookie: {
           type: 'apiKey',
           in: 'cookie',
-          name: 'flowse_console_session'
+          name: 'flowbase_console_session'
         },
         csrfHeader: {
           type: 'apiKey',
@@ -209,7 +209,7 @@ const operationSpecById = {
         sessionCookie: {
           type: 'apiKey',
           in: 'cookie',
-          name: 'flowse_console_session'
+          name: 'flowbase_console_session'
         },
         csrfHeader: {
           type: 'apiKey',
@@ -307,7 +307,7 @@ describe('ApiDocsPanel', () => {
         current_workspace_id: 'workspace-1'
       },
       csrf_token: 'csrf-123',
-      cookie_name: 'flowse_console_session'
+      cookie_name: 'flowbase_console_session'
     });
   });
 
@@ -365,7 +365,7 @@ describe('ApiDocsPanel', () => {
   });
 
   test('uses the dedicated Scalar base URL override when provided', async () => {
-    authApi.getScalarApiBaseUrl.mockReturnValueOnce('https://docs.flowse.test');
+    authApi.getScalarApiBaseUrl.mockReturnValueOnce('https://docs.flowbase.test');
 
     renderApp('/settings/docs?category=console');
 
@@ -376,7 +376,7 @@ describe('ApiDocsPanel', () => {
     });
 
     expect(await screen.findByTestId('scalar-viewer')).toHaveTextContent(
-      '"baseServerURL":"https://docs.flowse.test"'
+      '"baseServerURL":"https://docs.flowbase.test"'
     );
   });
 
@@ -393,7 +393,7 @@ describe('ApiDocsPanel', () => {
       '"preferredSecurityScheme":["sessionCookie","csrfHeader"]'
     );
     expect(screen.getByTestId('scalar-viewer')).toHaveTextContent(
-      '"name":"flowse_console_session"'
+      '"name":"flowbase_console_session"'
     );
     expect(screen.getByTestId('scalar-viewer')).toHaveTextContent('"name":"x-csrf-token"');
   });

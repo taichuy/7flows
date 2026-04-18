@@ -51,7 +51,7 @@ test('convertSkillSourceToClaudeSkill rewrites description into Claude block sca
 });
 
 test('syncClaudeSkills writes each converted skill into .claude/skills/<name>/SKILL.md', () => {
-  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-claude-skill-sync-'));
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-claude-skill-sync-'));
   const sourceSkillDir = path.join(repoRoot, '.agents', 'skills', 'backend-development');
   const sourceReferencesDir = path.join(sourceSkillDir, 'references');
 

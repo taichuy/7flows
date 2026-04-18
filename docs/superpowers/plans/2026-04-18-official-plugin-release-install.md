@@ -98,7 +98,7 @@ const { spawnSync } = require('node:child_process');
 
 test('plugin package creates a single .1flowbasepkg asset with checksum metadata', async () => {
   const pluginPath = makeTempPluginPath();
-  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-plugin-dist-'));
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-plugin-dist-'));
 
   await main(['init', pluginPath]);
 
@@ -111,13 +111,13 @@ test('plugin package creates a single .1flowbasepkg asset with checksum metadata
 
 test('plugin package excludes demo and scripts from the packaged artifact', async () => {
   const pluginPath = makeTempPluginPath();
-  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-plugin-dist-'));
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-plugin-dist-'));
 
   await main(['init', pluginPath]);
   await main(['demo', 'init', pluginPath]);
 
   const result = await main(['package', pluginPath, '--out', outputDir]);
-  const extractedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-plugin-extract-'));
+  const extractedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-plugin-extract-'));
   const unpack = spawnSync('tar', ['-xzf', result.packageFile, '-C', extractedDir]);
 
   assert.equal(unpack.status, 0);
@@ -449,8 +449,8 @@ Append a config test to `api/apps/api-server/src/_tests/config_tests.rs`:
 #[test]
 fn api_config_reads_official_plugin_repository_settings() {
     let config = ApiConfig::from_env_map(&[
-        ("API_DATABASE_URL", "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows"),
-        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        ("API_DATABASE_URL", "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase"),
+        ("API_REDIS_URL", "redis://:1flowbase@127.0.0.1:36379"),
         ("API_OFFICIAL_PLUGIN_REPOSITORY", "taichuy/1flowbase-official-plugins"),
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),

@@ -12,7 +12,7 @@ use uuid::Uuid;
 
 fn base_database_url() -> String {
     std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows".into())
+        .unwrap_or_else(|_| "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase".into())
 }
 
 async fn isolated_database_url() -> String {

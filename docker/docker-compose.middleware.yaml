@@ -5,15 +5,15 @@ services:
     env_file:
       - ./middleware.env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-sevenflows}
+      POSTGRES_DB: ${POSTGRES_DB:-1flowbase}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sevenflows}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-1flowbase}
     ports:
       - "${POSTGRES_PORT:-35432}:5432"
     volumes:
       - ./volumes/postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-sevenflows}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-1flowbase}"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -23,13 +23,13 @@ services:
     restart: always
     env_file:
       - ./middleware.env
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-sevenflows}
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-1flowbase}
     ports:
       - "${REDIS_PORT:-36379}:6379"
     volumes:
       - ./volumes/redis:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-sevenflows} ping | grep PONG"]
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-1flowbase} ping | grep PONG"]
       interval: 5s
       timeout: 3s
       retries: 20

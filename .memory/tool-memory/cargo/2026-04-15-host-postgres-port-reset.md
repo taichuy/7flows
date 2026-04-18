@@ -46,14 +46,14 @@ scope:
 ## 解法
 
 - 先执行 `docker ps --format '{{.Names}}\t{{.Status}}\t{{.Ports}}'`，确认 `docker-db-1` 为 `healthy`。
-- 再执行 `docker exec docker-db-1 pg_isready -U postgres -d sevenflows`。
-- 再执行 `docker exec docker-db-1 psql -U postgres -d sevenflows -c 'select 1'`。
+- 再执行 `docker exec docker-db-1 pg_isready -U postgres -d 1flowbase`。
+- 再执行 `docker exec docker-db-1 psql -U postgres -d 1flowbase -c 'select 1'`。
 - 如果容器内检查通过、但宿主 `cargo test` 仍在 `127.0.0.1:35432` 报 `Connection reset by peer`，应把它视为宿主端口映射环境问题，暂停修改业务代码，先完成不依赖数据库的验证，再在能稳定访问本机端口的环境重跑后端测试。
 
 ## 验证方式
 
-- `docker exec docker-db-1 pg_isready -U postgres -d sevenflows` 返回 `accepting connections`。
-- `docker exec docker-db-1 psql -U postgres -d sevenflows -c 'select 1'` 返回单行结果 `1`。
+- `docker exec docker-db-1 pg_isready -U postgres -d 1flowbase` 返回 `accepting connections`。
+- `docker exec docker-db-1 psql -U postgres -d 1flowbase -c 'select 1'` 返回单行结果 `1`。
 - 在此之后，宿主侧 `cargo test` 依旧报 `Connection reset by peer`，可确认阻塞点不在业务代码。
 
 ## 复现记录

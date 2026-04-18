@@ -45,9 +45,9 @@ fn default_test_config() -> ApiConfig {
     ApiConfig::from_env_map(&[
         (
             "API_DATABASE_URL",
-            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
+            "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase",
         ),
-        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        ("API_REDIS_URL", "redis://:1flowbase@127.0.0.1:36379"),
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "change-me"),

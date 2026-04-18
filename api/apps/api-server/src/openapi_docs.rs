@@ -9,7 +9,7 @@ const HTTP_METHODS: &[&str] = &[
     "get", "put", "post", "delete", "options", "head", "patch", "trace",
 ];
 const DEFAULT_DOCS_SERVER_URL: &str = "/";
-const DEFAULT_SESSION_COOKIE_NAME: &str = "flowse_console_session";
+const DEFAULT_SESSION_COOKIE_NAME: &str = "flowbase_console_session";
 const SESSION_COOKIE_SECURITY_SCHEME: &str = "sessionCookie";
 const CSRF_HEADER_SECURITY_SCHEME: &str = "csrfHeader";
 const CSRF_HEADER_NAME: &str = "x-csrf-token";

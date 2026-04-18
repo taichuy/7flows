@@ -66,9 +66,9 @@ impl OfficialPluginSourcePort for InMemoryOfficialPluginSource {
 
 fn default_test_config() -> ApiConfig {
     let database_url = std::env::var("API_DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows".into());
+        .unwrap_or_else(|_| "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase".into());
     let redis_url = std::env::var("API_REDIS_URL")
-        .unwrap_or_else(|_| "redis://:sevenflows@127.0.0.1:36379".into());
+        .unwrap_or_else(|_| "redis://:1flowbase@127.0.0.1:36379".into());
     let root_account = std::env::var("BOOTSTRAP_ROOT_ACCOUNT").unwrap_or_else(|_| "root".into());
     let root_email =
         std::env::var("BOOTSTRAP_ROOT_EMAIL").unwrap_or_else(|_| "root@example.com".into());

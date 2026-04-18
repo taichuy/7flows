@@ -84,7 +84,7 @@ test('api-server example env files use workspace bootstrap naming', () => {
 });
 
 test('ensureRustfsVolumePermissions creates writable rustfs bind mount directories', () => {
-  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-dev-up-'));
+  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-dev-up-'));
   const dockerDir = path.join(tempRepoRoot, 'docker');
   const rustfsDataDir = path.join(dockerDir, 'volumes', 'rustfs', 'data');
   const rustfsLogsDir = path.join(dockerDir, 'volumes', 'rustfs', 'logs');
@@ -100,7 +100,7 @@ test('ensureRustfsVolumePermissions creates writable rustfs bind mount directori
 });
 
 test('ensureServiceEnvFile seeds api env defaults and buildServiceEnv loads them', () => {
-  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-dev-up-env-'));
+  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-dev-up-env-'));
   const apiServerDir = path.join(tempRepoRoot, 'api', 'apps', 'api-server');
   const envExamplePath = path.join(apiServerDir, '.env.example');
 
@@ -134,7 +134,7 @@ test('ensureServiceEnvFile seeds api env defaults and buildServiceEnv loads them
 });
 
 test('getServicePrestartCommands resets api root password in development mode', () => {
-  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-dev-up-prestart-'));
+  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-dev-up-prestart-'));
   const apiServerDir = path.join(tempRepoRoot, 'api', 'apps', 'api-server');
   const envExamplePath = path.join(apiServerDir, '.env.example');
 
@@ -168,7 +168,7 @@ test('getServicePrestartCommands resets api root password in development mode', 
 });
 
 test('getServicePrestartCommands skips api root reset in production mode', () => {
-  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-dev-up-prod-'));
+  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-dev-up-prod-'));
   const apiServerDir = path.join(tempRepoRoot, 'api', 'apps', 'api-server');
   const envExamplePath = path.join(apiServerDir, '.env.example');
 
@@ -186,7 +186,7 @@ test('getServicePrestartCommands skips api root reset in production mode', () =>
 });
 
 test('runServicePrestartCommands rebuilds local postgres db after migration checksum mismatch', () => {
-  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-dev-up-recover-'));
+  const tempRepoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-dev-up-recover-'));
   const apiServerDir = path.join(tempRepoRoot, 'api', 'apps', 'api-server');
   const dockerDir = path.join(tempRepoRoot, 'docker');
 
@@ -197,7 +197,7 @@ test('runServicePrestartCommands rebuilds local postgres db after migration chec
     path.join(apiServerDir, '.env.example'),
     [
       'API_ENV=development',
-      'API_DATABASE_URL=postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows',
+      'API_DATABASE_URL=postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase',
       'API_REDIS_URL=redis://127.0.0.1:36379',
       'BOOTSTRAP_WORKSPACE_NAME=1Flowbase',
       'BOOTSTRAP_ROOT_ACCOUNT=root',
@@ -258,7 +258,7 @@ test('runServicePrestartCommands rebuilds local postgres db after migration chec
         '-d',
         'postgres',
         '-c',
-        'DROP DATABASE IF EXISTS "sevenflows" WITH (FORCE);',
+        'DROP DATABASE IF EXISTS "1flowbase" WITH (FORCE);',
       ],
       [
         'exec',
@@ -270,7 +270,7 @@ test('runServicePrestartCommands rebuilds local postgres db after migration chec
         '-d',
         'postgres',
         '-c',
-        'CREATE DATABASE "sevenflows";',
+        'CREATE DATABASE "1flowbase";',
       ],
     ]
   );
