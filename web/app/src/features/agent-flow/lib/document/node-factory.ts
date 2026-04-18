@@ -2,7 +2,7 @@ import type {
   FlowAuthoringDocument,
   FlowNodeDocument,
   FlowNodeType
-} from '@1flowse/flow-schema';
+} from '@1flowbase/flow-schema';
 
 function humanizeNodeType(nodeType: FlowNodeType) {
   if (nodeType === 'llm') {

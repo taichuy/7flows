@@ -1,4 +1,4 @@
-import type { FlowNodeDocument } from '@1flowse/flow-schema';
+import type { FlowNodeDocument } from '@1flowbase/flow-schema';
 import { Card, Typography } from 'antd';
 import type { SchemaAdapter } from '../../../../../shared/schema-ui/registry/create-renderer-registry';
 import {

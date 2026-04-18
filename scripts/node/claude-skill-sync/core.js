@@ -23,7 +23,7 @@ function usage() {
 }
 
 function log(message) {
-  process.stdout.write(`[1flowse-claude-skill-sync] ${message}\n`);
+  process.stdout.write(`[1flowbase-claude-skill-sync] ${message}\n`);
 }
 
 function parseCliArgs(argv) {

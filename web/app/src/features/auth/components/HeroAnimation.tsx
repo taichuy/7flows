@@ -68,7 +68,7 @@ export function HeroAnimation() {
             lineHeight: 1.1
           }}
         >
-          1Flowse
+          1Flowbase
         </Typography.Title>
         <Typography.Paragraph 
           className="hero-slogan"

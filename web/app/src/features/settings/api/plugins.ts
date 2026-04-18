@@ -4,7 +4,7 @@ import {
   listConsoleOfficialPluginCatalog,
   type ConsoleOfficialPluginCatalogEntry,
   type ConsolePluginTask
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export type SettingsOfficialPluginCatalogEntry = ConsoleOfficialPluginCatalogEntry;
 export type SettingsPluginTask = ConsolePluginTask;

@@ -51,7 +51,7 @@ fn default_test_config() -> ApiConfig {
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "change-me"),
-        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowse"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowbase"),
     ])
     .unwrap()
 }
@@ -241,7 +241,7 @@ async fn openapi_route_exposes_api_title() {
     let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
     let payload: Value = serde_json::from_slice(&body).unwrap();
 
-    assert_eq!(payload["info"]["title"], "1Flowse API");
+    assert_eq!(payload["info"]["title"], "1Flowbase API");
 }
 
 #[tokio::test]

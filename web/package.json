@@ -1,13 +1,13 @@
 {
-  "name": "1flowse-web",
+  "name": "1flowbase-web",
   "private": true,
   "packageManager": "pnpm@10.0.0",
   "engines": {
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "turbo run dev --parallel --filter=@1flowse/web",
-    "dev:app": "pnpm --filter @1flowse/web dev",
+    "dev": "turbo run dev --parallel --filter=@1flowbase/web",
+    "dev:app": "pnpm --filter @1flowbase/web dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test --concurrency=50%",

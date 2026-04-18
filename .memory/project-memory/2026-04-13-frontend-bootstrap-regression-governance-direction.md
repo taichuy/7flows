@@ -20,7 +20,7 @@ last_verified_at: 2026-04-13 15
 decision_policy: verify_before_decision
 scope:
   - web
-  - docs/superpowers/specs/1flowse/2026-04-13-frontend-bootstrap-directory-and-regression-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-13-frontend-bootstrap-directory-and-regression-design.md
 ---
 
 # 前端初始化阶段目录与回归规范方向已确认
@@ -51,4 +51,4 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-13-frontend-bootstrap-directory-and-regression-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-13-frontend-bootstrap-directory-and-regression-design.md`

@@ -3,7 +3,7 @@ import {
   restoreConsoleApplicationVersion,
   saveConsoleApplicationDraft,
   type SaveConsoleApplicationDraftInput
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 import { getApplicationsApiBaseUrl } from '../../applications/api/applications';
 

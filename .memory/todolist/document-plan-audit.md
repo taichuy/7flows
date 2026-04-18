@@ -9,8 +9,8 @@
 - [ ] `P0` 统一 `docs/superpowers` 真相层
   - 建议：做
   - 最小范围：
-    - `docs/superpowers/specs/1flowse/README.md` 补齐缺失规格入口
-    - `docs/superpowers/specs/1flowse/modules/README.md` 拆成 `spec_status / implementation_status / verification_status`
+    - `docs/superpowers/specs/1flowbase/README.md` 补齐缺失规格入口
+    - `docs/superpowers/specs/1flowbase/modules/README.md` 拆成 `spec_status / implementation_status / verification_status`
     - 已执行计划统一补 `execution_state`，或把已完成步骤同步勾选
   - 原因：现在 `README / modules / plan / code` 没有指向同一套当前事实
 
@@ -53,17 +53,17 @@
 - [ ] `P1` 增加轻量文档一致性守卫
   - 建议：做
   - 最小范围：
-    - 自动检查 `docs/superpowers/specs/1flowse/README.md` 是否覆盖同级规格
+    - 自动检查 `docs/superpowers/specs/1flowbase/README.md` 是否覆盖同级规格
     - 自动检查 `modules/README.md` 是否仍只有单轨状态
     - 自动检查同一 scope 下是否出现互相冲突的 `project-memory` current-state
   - 原因：只靠人工审计修一次，后续还会继续漂移
 
-- [ ] `P1` 拆分超大计划文档，并给 `specs/1flowse` 预留收纳方案
+- [ ] `P1` 拆分超大计划文档，并给 `specs/1flowbase` 预留收纳方案
   - 建议：做
   - 最小范围：
     - 拆分 `docs/superpowers/plans/2026-04-11-fullstack-bootstrap.md`
     - 拆分 `docs/superpowers/plans/2026-04-12-auth-team-access-control-backend.md`
-    - 为 `docs/superpowers/specs/1flowse` 增加主题子目录或归档规则
+    - 为 `docs/superpowers/specs/1flowbase` 增加主题子目录或归档规则
   - 原因：规格目录已到 `15` 文件边界，计划文档已经长到 `1911` / `2967` 行
 
 - [ ] `P2` 继续维持唯一滚动入口，不新增平行版本

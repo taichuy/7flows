@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 vi.mock('@scalar/api-reference-react', () => ({
   ApiReferenceReact: () => <div data-testid="style-boundary-scalar">Scalar</div>
@@ -63,7 +63,7 @@ describe('style boundary registry', () => {
       </AppProviders>
     );
 
-    expect(await screen.findByRole('heading', { name: '1Flowse' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '1Flowbase' })).toBeInTheDocument();
     expect(await screen.findByText('Support Agent')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument();
   }, 15_000);

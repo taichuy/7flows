@@ -1136,7 +1136,7 @@ impl InMemoryOrchestrationRuntimeRepository {
             provider_code: "fixture_provider".to_string(),
             plugin_id: "fixture_provider@0.1.0".to_string(),
             plugin_version: "0.1.0".to_string(),
-            contract_version: "1flowse.provider/v1".to_string(),
+            contract_version: "1flowbase.provider/v1".to_string(),
             protocol: "openai_compatible".to_string(),
             display_name: "Fixture Provider".to_string(),
             source_kind: "test".to_string(),
@@ -2006,7 +2006,7 @@ impl OrchestrationRuntimeRepository for InMemoryOrchestrationRuntimeRepository {
 fn write_test_provider_package() -> String {
     use std::fs;
 
-    let root = std::env::temp_dir().join(format!("1flowse-provider-fixture-{}", Uuid::now_v7()));
+    let root = std::env::temp_dir().join(format!("1flowbase-provider-fixture-{}", Uuid::now_v7()));
     fs::create_dir_all(root.join("provider")).expect("create fixture provider dir");
     fs::create_dir_all(root.join("models/llm")).expect("create fixture models dir");
     fs::create_dir_all(root.join("i18n")).expect("create fixture i18n dir");
@@ -2015,7 +2015,7 @@ fn write_test_provider_package() -> String {
         r#"plugin_code: fixture_provider
 display_name: Fixture Provider
 version: 0.1.0
-contract_version: 1flowse.provider/v1
+contract_version: 1flowbase.provider/v1
 supported_model_types:
   - llm
 runner:
@@ -2253,7 +2253,7 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
 #[cfg(test)]
 fn build_ready_provider_flow_document(flow_id: Uuid, provider_instance_id: Uuid) -> Value {
     json!({
-        "schemaVersion": "1flowse.flow/v1",
+        "schemaVersion": "1flowbase.flow/v1",
         "meta": { "flowId": flow_id.to_string(), "name": "Support Agent", "description": "", "tags": [] },
         "graph": {
             "nodes": [
@@ -2314,7 +2314,7 @@ fn build_ready_provider_flow_document(flow_id: Uuid, provider_instance_id: Uuid)
 #[cfg(test)]
 fn build_human_input_flow_document(flow_id: Uuid, provider_instance_id: Uuid) -> Value {
     json!({
-        "schemaVersion": "1flowse.flow/v1",
+        "schemaVersion": "1flowbase.flow/v1",
         "meta": { "flowId": flow_id.to_string(), "name": "Support Agent", "description": "", "tags": [] },
         "graph": {
             "nodes": [
@@ -2390,7 +2390,7 @@ fn build_human_input_flow_document(flow_id: Uuid, provider_instance_id: Uuid) ->
 #[cfg(test)]
 fn build_callback_flow_document(flow_id: Uuid, _provider_instance_id: Uuid) -> Value {
     json!({
-        "schemaVersion": "1flowse.flow/v1",
+        "schemaVersion": "1flowbase.flow/v1",
         "meta": { "flowId": flow_id.to_string(), "name": "Support Agent", "description": "", "tags": [] },
         "graph": {
             "nodes": [

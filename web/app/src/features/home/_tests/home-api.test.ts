@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('@1flowse/api-client', () => ({
+vi.mock('@1flowbase/api-client', () => ({
   fetchApiHealth: vi.fn().mockResolvedValue({
     service: 'api-server',
     status: 'ok',
@@ -9,7 +9,7 @@ vi.mock('@1flowse/api-client', () => ({
   getDefaultApiBaseUrl: vi.fn().mockReturnValue('http://127.0.0.1:7800')
 }));
 
-import { fetchApiHealth, getDefaultApiBaseUrl } from '@1flowse/api-client';
+import { fetchApiHealth, getDefaultApiBaseUrl } from '@1flowbase/api-client';
 
 import {
   getApiHealthQueryOptions,

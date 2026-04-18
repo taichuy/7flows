@@ -1,4 +1,4 @@
-import type { FlowNodeType } from '@1flowse/flow-schema';
+import type { FlowNodeType } from '@1flowbase/flow-schema';
 import { EdgeLabelRenderer, getBezierPath, type Edge, type EdgeProps } from '@xyflow/react';
 import { useState } from 'react';
 

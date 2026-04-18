@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { AppProviders } from '../../../app/AppProviders';
 import { AgentFlowEditorShell } from '../components/editor/AgentFlowEditorShell';
 

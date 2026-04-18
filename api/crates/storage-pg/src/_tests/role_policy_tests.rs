@@ -24,7 +24,10 @@ async fn bootstrapped_store() -> (PgControlPlaneStore, Uuid) {
     run_migrations(&pool).await.unwrap();
     let store = PgControlPlaneStore::new(pool);
     let tenant = store.upsert_root_tenant().await.unwrap();
-    let workspace = store.upsert_workspace(tenant.id, "1Flowse").await.unwrap();
+    let workspace = store
+        .upsert_workspace(tenant.id, "1Flowbase")
+        .await
+        .unwrap();
 
     store
         .upsert_permission_catalog(&access_control::permission_catalog())

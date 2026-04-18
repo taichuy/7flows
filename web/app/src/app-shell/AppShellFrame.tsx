@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
 
-import { AppShell } from '@1flowse/ui';
+import { AppShell } from '@1flowbase/ui';
 import { Link } from '@tanstack/react-router';
 import { Space } from 'antd';
 
@@ -47,7 +47,7 @@ export function AppShellFrame({
 
   return (
     <AppShell
-      title="1Flowse"
+      title="1Flowbase"
       navigation={<Navigation pathname={pathname} useRouterLinks={useRouterLinks} />}
       actions={
         <Space size={20}>

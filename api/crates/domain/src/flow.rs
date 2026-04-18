@@ -3,7 +3,7 @@ use serde_json::json;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-pub const FLOW_SCHEMA_VERSION: &str = "1flowse.flow/v1";
+pub const FLOW_SCHEMA_VERSION: &str = "1flowbase.flow/v1";
 pub const FLOW_AUTOSAVE_INTERVAL_SECONDS: u16 = 30;
 pub const FLOW_HISTORY_LIMIT: usize = 30;
 

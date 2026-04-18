@@ -2,7 +2,7 @@ import type {
   FlowAuthoringDocument,
   FlowBinding,
   FlowNodeDocument
-} from '@1flowse/flow-schema';
+} from '@1flowbase/flow-schema';
 
 import { createEdgeDocument } from '../edge-factory';
 import { getOutgoingEdges, getNodeById } from '../selectors';

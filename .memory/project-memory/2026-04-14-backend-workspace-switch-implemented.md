@@ -19,7 +19,7 @@ last_verified_at: 2026-04-14 10
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/plans/2026-04-14-backend-workspace-switch.md
-  - docs/superpowers/specs/1flowse/2026-04-13-backend-governance-phase-two-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-13-backend-governance-phase-two-design.md
   - api
   - scripts/node/verify-backend.js
 ---

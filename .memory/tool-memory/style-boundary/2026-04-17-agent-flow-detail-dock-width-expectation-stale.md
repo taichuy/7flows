@@ -39,7 +39,7 @@ node scripts/node/check-style-boundary.js file web/app/src/features/agent-flow/c
 报错：
 
 ```text
-[1flowse-style-boundary] 样式边界失败：page.application-detail editor-detail-dock.width expected=520px actual=320px
+[1flowbase-style-boundary] 样式边界失败：page.application-detail editor-detail-dock.width expected=520px actual=320px
 ```
 
 ## 触发条件

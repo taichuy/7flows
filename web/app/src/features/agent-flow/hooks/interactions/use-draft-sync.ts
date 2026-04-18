@@ -1,8 +1,8 @@
 import type {
   ConsoleApplicationOrchestrationState,
   SaveConsoleApplicationDraftInput
-} from '@1flowse/api-client';
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+} from '@1flowbase/api-client';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 import { useEffect, useRef } from 'react';
 
 import { useAuthStore } from '../../../../state/auth-store';

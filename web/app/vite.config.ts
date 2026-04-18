@@ -30,25 +30,25 @@ export default defineConfig(({ mode }) => {
     },
     resolve: {
       alias: {
-        '@1flowse/shared-types': fileURLToPath(
+        '@1flowbase/shared-types': fileURLToPath(
           new URL('../packages/shared-types/src/index.ts', import.meta.url)
         ),
-        '@1flowse/api-client': fileURLToPath(
+        '@1flowbase/api-client': fileURLToPath(
           new URL('../packages/api-client/src/index.ts', import.meta.url)
         ),
-        '@1flowse/ui': fileURLToPath(
+        '@1flowbase/ui': fileURLToPath(
           new URL('../packages/ui/src/index.tsx', import.meta.url)
         ),
-        '@1flowse/flow-schema': fileURLToPath(
+        '@1flowbase/flow-schema': fileURLToPath(
           new URL('../packages/flow-schema/src/index.ts', import.meta.url)
         ),
-        '@1flowse/page-protocol': fileURLToPath(
+        '@1flowbase/page-protocol': fileURLToPath(
           new URL('../packages/page-protocol/src/index.ts', import.meta.url)
         ),
-        '@1flowse/page-runtime': fileURLToPath(
+        '@1flowbase/page-runtime': fileURLToPath(
           new URL('../packages/page-runtime/src/index.ts', import.meta.url)
         ),
-        '@1flowse/embed-sdk': fileURLToPath(
+        '@1flowbase/embed-sdk': fileURLToPath(
           new URL('../packages/embed-sdk/src/index.ts', import.meta.url)
         )
       }

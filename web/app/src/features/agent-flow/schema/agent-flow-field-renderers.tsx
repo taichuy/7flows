@@ -1,4 +1,4 @@
-import type { FlowNodeDocument } from '@1flowse/flow-schema';
+import type { FlowNodeDocument } from '@1flowbase/flow-schema';
 import { Input, InputNumber } from 'antd';
 
 import type {

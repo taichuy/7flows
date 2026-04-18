@@ -19,7 +19,7 @@ fn create_provider_fixture(root: &Path) {
         r#"plugin_code: fixture_provider
 display_name: Fixture Provider
 version: 0.1.0
-contract_version: 1flowse.provider/v1
+contract_version: 1flowbase.provider/v1
 supported_model_types:
   - llm
 runner:

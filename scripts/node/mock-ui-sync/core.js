@@ -25,7 +25,7 @@ function usage() {
 }
 
 function log(message) {
-  process.stdout.write(`[1flowse-mock-ui-sync] ${message}\n`);
+  process.stdout.write(`[1flowbase-mock-ui-sync] ${message}\n`);
 }
 
 function parseCliArgs(argv) {

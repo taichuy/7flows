@@ -61,7 +61,7 @@ test('getServiceDefinitions uses repo default ports and explicit backend binarie
   assert.equal(services.web.probeHost, '127.0.0.1');
   assert.equal(services['api-server'].bindHost, '0.0.0.0');
   assert.equal(services['api-server'].probeHost, '127.0.0.1');
-  assert.deepEqual(services.web.args, ['--filter', '@1flowse/web', 'dev']);
+  assert.deepEqual(services.web.args, ['--filter', '@1flowbase/web', 'dev']);
   assert.deepEqual(services['api-server'].args, ['run', '-p', 'api-server', '--bin', 'api-server']);
   assert.deepEqual(services['plugin-runner'].args, ['run', '-p', 'plugin-runner', '--bin', 'plugin-runner']);
 });
@@ -111,7 +111,7 @@ test('ensureServiceEnvFile seeds api env defaults and buildServiceEnv loads them
       '# api defaults',
       'API_DATABASE_URL=postgres://from-example',
       'API_REDIS_URL=redis://from-example',
-      'BOOTSTRAP_WORKSPACE_NAME=\"1Flowse\"',
+      'BOOTSTRAP_WORKSPACE_NAME=\"1Flowbase\"',
     ].join('\n')
   );
 
@@ -129,7 +129,7 @@ test('ensureServiceEnvFile seeds api env defaults and buildServiceEnv loads them
 
   assert.equal(env.API_DATABASE_URL, 'postgres://from-shell');
   assert.equal(env.API_REDIS_URL, 'redis://from-example');
-  assert.equal(env.BOOTSTRAP_WORKSPACE_NAME, '1Flowse');
+  assert.equal(env.BOOTSTRAP_WORKSPACE_NAME, '1Flowbase');
   assert.equal(env.EXTRA_FLAG, 'enabled');
 });
 
@@ -199,7 +199,7 @@ test('runServicePrestartCommands rebuilds local postgres db after migration chec
       'API_ENV=development',
       'API_DATABASE_URL=postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows',
       'API_REDIS_URL=redis://127.0.0.1:36379',
-      'BOOTSTRAP_WORKSPACE_NAME=1Flowse',
+      'BOOTSTRAP_WORKSPACE_NAME=1Flowbase',
       'BOOTSTRAP_ROOT_ACCOUNT=root',
       'BOOTSTRAP_ROOT_EMAIL=root@example.com',
       'BOOTSTRAP_ROOT_PASSWORD=change-me',

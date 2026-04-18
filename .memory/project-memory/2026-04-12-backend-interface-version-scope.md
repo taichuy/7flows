@@ -18,7 +18,7 @@ decision_policy: verify_before_decision
 scope:
   - docs/draft/apiFlie.md
   - api
-  - docs/superpowers/specs/1flowse/2026-04-12-auth-team-access-control-backend-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-12-auth-team-access-control-backend-design.md
   - .memory/project-memory/2026-04-12-plugin-interface-boundary.md
 ---
 

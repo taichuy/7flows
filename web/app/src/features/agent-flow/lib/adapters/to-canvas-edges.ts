@@ -1,4 +1,4 @@
-import type { FlowAuthoringDocument, FlowNodeType } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument, FlowNodeType } from '@1flowbase/flow-schema';
 
 import type { AgentFlowCanvasEdge } from '../../components/canvas/node-types';
 

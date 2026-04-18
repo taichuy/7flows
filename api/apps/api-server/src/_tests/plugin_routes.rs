@@ -136,7 +136,7 @@ fn create_provider_fixture(root: &Path) {
         r#"plugin_code: fixture_provider
 display_name: Fixture Provider
 version: 0.1.0
-contract_version: 1flowse.provider/v1
+contract_version: 1flowbase.provider/v1
 supported_model_types:
   - llm
 runner:
@@ -420,7 +420,7 @@ async fn plugin_routes_list_official_catalog_and_install_official_package() {
                 .header("x-csrf-token", &csrf)
                 .header("content-type", "application/json")
                 .body(Body::from(
-                    json!({ "plugin_id": "1flowse.openai_compatible" }).to_string(),
+                    json!({ "plugin_id": "1flowbase.openai_compatible" }).to_string(),
                 ))
                 .unwrap(),
         )

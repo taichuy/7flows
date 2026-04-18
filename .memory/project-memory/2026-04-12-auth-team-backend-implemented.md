@@ -18,7 +18,7 @@ decision_policy: verify_before_decision
 scope:
   - api
   - docs/superpowers/plans/2026-04-12-auth-team-access-control-backend.md
-  - docs/superpowers/specs/1flowse/2026-04-12-auth-team-access-control-backend-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-12-auth-team-access-control-backend-design.md
 ---
 
 # auth team access control backend 已完成首轮落地
@@ -55,4 +55,4 @@ scope:
 ## 关联文档
 
 - `docs/superpowers/plans/2026-04-12-auth-team-access-control-backend.md`
-- `docs/superpowers/specs/1flowse/2026-04-12-auth-team-access-control-backend-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-12-auth-team-access-control-backend-design.md`

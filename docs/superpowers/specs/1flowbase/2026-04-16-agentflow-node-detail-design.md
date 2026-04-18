@@ -1,4 +1,4 @@
-# 1Flowse agentFlow Node Detail 第一版设计稿
+# 1Flowbase agentFlow Node Detail 第一版设计稿
 
 日期：2026-04-16
 状态：已确认设计，待用户审阅
@@ -21,7 +21,7 @@
 
 ## 2. 背景与问题
 
-当前 [NodeInspector](/home/taichu/git/1flowse/web/app/src/features/agent-flow/components/inspector/NodeInspector.tsx) 已经完成了最小可用的 schema-driven 字段编辑能力，但仍存在以下问题：
+当前 [NodeInspector](/home/taichu/git/1flowbase/web/app/src/features/agent-flow/components/inspector/NodeInspector.tsx) 已经完成了最小可用的 schema-driven 字段编辑能力，但仍存在以下问题：
 
 - 过于接近“字段表单渲染器”，不具备完整节点详情心智
 - 缺少统一 header、节点说明、关系信息、通用策略块
@@ -120,7 +120,7 @@
 - 内部继续保留 schema-driven `NodeInspector`
 - 不继续沿用“只有折叠字段区的薄 Inspector”心智
 - 不直接照搬 `../dify` 的 monolithic panel 实现
-- 借 `Dify` 的产品结构，保留 `1Flowse` 当前 `store + interaction hook + schema renderer` 的前端内核方向
+- 借 `Dify` 的产品结构，保留 `1Flowbase` 当前 `store + interaction hook + schema renderer` 的前端内核方向
 - header 恢复节点主身份信息的内联编辑，不再把别名和简介拆散到配置卡片里
 
 ## 6. 信息架构

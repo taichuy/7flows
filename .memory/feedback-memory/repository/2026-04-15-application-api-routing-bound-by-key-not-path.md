@@ -18,8 +18,8 @@ updated_at: 2026-04-15 09
 last_verified_at: 2026-04-15 09
 decision_policy: direct_reference
 scope:
-  - docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md
-  - docs/superpowers/specs/1flowse/modules/06b-publish-gateway/README.md
+  - docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md
+  - docs/superpowers/specs/1flowbase/modules/06b-publish-gateway/README.md
   - api
   - web
 ---

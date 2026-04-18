@@ -26,8 +26,8 @@ last_verified_at: 2026-04-17 21
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/plans/2026-04-17-module-05-stateful-debug-run-and-resume.md
-  - docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md
-  - docs/superpowers/specs/1flowse/2026-04-10-orchestration-design-draft.md
+  - docs/superpowers/specs/1flowbase/modules/05-runtime-orchestration/README.md
+  - docs/superpowers/specs/1flowbase/2026-04-10-orchestration-design-draft.md
   - api/crates/orchestration-runtime
   - api/crates/control-plane/src/orchestration_runtime.rs
   - api/apps/api-server/src/routes/application_runtime.rs

@@ -5,7 +5,7 @@ import {
   type ChangeConsolePasswordInput,
   type ConsoleMe,
   type UpdateConsoleMeInput
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export type MyProfile = ConsoleMe;
 export type UpdateMyProfileInput = UpdateConsoleMeInput;

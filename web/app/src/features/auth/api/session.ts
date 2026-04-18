@@ -9,7 +9,7 @@ import {
   type ConsoleSessionSnapshot,
   type PasswordSignInInput,
   type PasswordSignInResponse
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export function getAuthApiBaseUrl(
   locationLike: ApiBaseUrlLocation | undefined =

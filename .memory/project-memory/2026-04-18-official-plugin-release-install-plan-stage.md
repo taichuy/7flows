@@ -12,16 +12,16 @@ keywords:
 match_when:
   - 需要按计划继续实现官方插件 GitHub Release 安装链路
   - 需要知道这一轮任务拆分、文件边界和验证命令
-  - 需要继续推进 sibling repo `../1flowse-official-plugins` 和主仓库的联合改动
+  - 需要继续推进 sibling repo `../1flowbase-official-plugins` 和主仓库的联合改动
 created_at: 2026-04-18 20
 updated_at: 2026-04-18 20
 last_verified_at: 2026-04-18 20
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/plans/2026-04-18-official-plugin-release-install.md
-  - docs/superpowers/specs/1flowse/2026-04-18-official-plugin-release-install-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-18-official-plugin-release-install-design.md
   - scripts/node/plugin.js
-  - ../1flowse-official-plugins
+  - ../1flowbase-official-plugins
   - api/apps/api-server/src/routes/plugins.rs
   - api/crates/control-plane/src/plugin_management.rs
   - web/app/src/features/settings/pages/SettingsPage.tsx
@@ -61,10 +61,10 @@ scope:
   - 设置页补官方安装区与 task polling
   - 最后推送仓库、打 tag、发布 GitHub Release 并做线上 smoke test
 - 计划执行继续遵守用户当前偏好：直接在当前仓库推进，不使用 `git worktree`。
-- sibling repo `../1flowse-official-plugins` 的改动独立提交，但仍视为本专题同一轮工作的一部分。
+- sibling repo `../1flowbase-official-plugins` 的改动独立提交，但仍视为本专题同一轮工作的一部分。
 
 ## 关联文档
 
 - `docs/superpowers/plans/2026-04-18-official-plugin-release-install.md`
-- `docs/superpowers/specs/1flowse/2026-04-18-official-plugin-release-install-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-18-official-plugin-release-install-design.md`
 - `.memory/project-memory/2026-04-18-official-plugin-release-install-design-approved.md`

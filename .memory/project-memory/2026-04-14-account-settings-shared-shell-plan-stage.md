@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: 账户域与设置域共享二级壳层进入实施计划阶段
-summary: 用户在 `2026-04-14` 当前会话要求把 `docs/superpowers/specs/1flowse/2026-04-14-account-settings-shared-shell-design.md` 直接落成实施计划；执行入口固定为 `docs/superpowers/plans/2026-04-14-account-settings-shared-shell.md`，实施顺序冻结为“共享壳层 -> 静态子路由 -> settings 迁移 -> me 迁移与视觉回归 -> style-boundary -> 全量验证”。
+summary: 用户在 `2026-04-14` 当前会话要求把 `docs/superpowers/specs/1flowbase/2026-04-14-account-settings-shared-shell-design.md` 直接落成实施计划；执行入口固定为 `docs/superpowers/plans/2026-04-14-account-settings-shared-shell.md`，实施顺序冻结为“共享壳层 -> 静态子路由 -> settings 迁移 -> me 迁移与视觉回归 -> style-boundary -> 全量验证”。
 keywords:
   - web
   - me
@@ -18,7 +18,7 @@ updated_at: 2026-04-14 12
 last_verified_at: 2026-04-14 12
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/2026-04-14-account-settings-shared-shell-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-14-account-settings-shared-shell-design.md
   - docs/superpowers/plans/2026-04-14-account-settings-shared-shell.md
   - web/app/src/features/me
   - web/app/src/features/settings
@@ -65,5 +65,5 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-14-account-settings-shared-shell-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-14-account-settings-shared-shell-design.md`
 - `docs/superpowers/plans/2026-04-14-account-settings-shared-shell.md`

@@ -6,9 +6,9 @@
 
 **Architecture:** 第一阶段先建立纯函数 `document` 模块与 feature-local `zustand` store，把 `workingDocument`、选择态、面板态、container path、autosave 状态统一收口；第二阶段再把 `Canvas`、`NodeInspector`、`Issues`、`History` 的写操作迁移到 `hooks/interactions/*`，让 UI 组件只渲染和派发事件。为降低回归面，保留现有页面路由、`AgentFlowEditorShell`、`AgentFlowOverlay`、`agent-flow-editor.css` 和后端 orchestration API，不改变 editor 视觉结构，只替换内部数据流。
 
-**Tech Stack:** React 19, TypeScript, Zustand 5, TanStack Query, Ant Design 5, `@xyflow/react`, `@1flowse/flow-schema`, Vitest, Testing Library, `style-boundary`
+**Tech Stack:** React 19, TypeScript, Zustand 5, TanStack Query, Ant Design 5, `@xyflow/react`, `@1flowbase/flow-schema`, Vitest, Testing Library, `style-boundary`
 
-**Source Spec:** `docs/superpowers/specs/1flowse/2026-04-16-agentflow-editor-store-centered-restructure-design.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/2026-04-16-agentflow-editor-store-centered-restructure-design.md`
 
 **Execution Note:** 本仓库执行实现计划时不使用 `git worktree`；直接在当前工作区推进。执行过程中每完成一个任务，都要同步勾选本计划中的复选框并回填验证结果。
 
@@ -101,7 +101,7 @@
 
 ```ts
 import { describe, expect, test } from 'vitest';
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 import { classifyDocumentChange } from '../lib/document/change-kind';
 import { createNodeDocument } from '../lib/document/node-factory';
@@ -218,7 +218,7 @@ Status note (`2026-04-16 10`): 已执行 `pnpm --dir web/app exec vitest run src
 
 ```ts
 // web/app/src/features/agent-flow/lib/document/node-factory.ts
-import type { FlowNodeDocument, FlowNodeType } from '@1flowse/flow-schema';
+import type { FlowNodeDocument, FlowNodeType } from '@1flowbase/flow-schema';
 
 function humanizeNodeType(nodeType: FlowNodeType) {
   if (nodeType === 'llm') {
@@ -266,7 +266,7 @@ export function createNextNodeId(
 
 ```ts
 // web/app/src/features/agent-flow/lib/document/transforms/node.ts
-import type { FlowAuthoringDocument, FlowBinding } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument, FlowBinding } from '@1flowbase/flow-schema';
 
 type NodeFieldValue = string | number | boolean | null | FlowBinding | string[] | string[][];
 
@@ -350,7 +350,7 @@ export function updateNodeField(
 ```ts
 // web/app/src/features/agent-flow/lib/document/transforms/edge.ts
 import type { Connection, Viewport } from '@xyflow/react';
-import type { FlowAuthoringDocument, FlowNodeDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument, FlowNodeDocument } from '@1flowbase/flow-schema';
 
 export function validateConnection(
   document: FlowAuthoringDocument,
@@ -462,7 +462,7 @@ export function insertNodeOnEdge(
 
 ```ts
 // web/app/src/features/agent-flow/lib/document/transforms/container.ts
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 export function getContainerPathForNode(
   document: FlowAuthoringDocument,
@@ -487,7 +487,7 @@ export function getContainerPathForNode(
 
 ```ts
 // web/app/src/features/agent-flow/lib/document/transforms/viewport.ts
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 export function setViewport(
   document: FlowAuthoringDocument,
@@ -505,14 +505,14 @@ export function setViewport(
 
 ```ts
 // web/app/src/features/agent-flow/lib/document/change-kind.ts
-export { classifyDocumentChange } from '@1flowse/flow-schema';
+export { classifyDocumentChange } from '@1flowbase/flow-schema';
 
 // web/app/src/features/agent-flow/lib/default-agent-flow-document.ts
 export {
   createNextNodeId,
   createNodeDocument
 } from './document/node-factory';
-export { createDefaultAgentFlowDocument as buildDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+export { createDefaultAgentFlowDocument as buildDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 export { insertNodeOnEdge, reconnectEdge, validateConnection } from './document/transforms/edge';
 export { moveNodes, updateNodeField } from './document/transforms/node';
 export { setViewport } from './document/transforms/viewport';
@@ -559,7 +559,7 @@ git commit -m "refactor: extract agent flow document transforms"
 
 ```ts
 import { describe, expect, test } from 'vitest';
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 import { createAgentFlowEditorStore } from '../store/editor';
 
@@ -651,7 +651,7 @@ Status note (`2026-04-16 10`): 已执行 `pnpm --dir web/app exec vitest run src
 
 ```ts
 // web/app/src/features/agent-flow/store/editor/slices/document-slice.ts
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 export interface DocumentSlice {
   workingDocument: FlowAuthoringDocument;
@@ -699,7 +699,7 @@ export interface SyncSlice {
 ```ts
 // web/app/src/features/agent-flow/store/editor/index.ts
 import { createStore } from 'zustand/vanilla';
-import type { ConsoleApplicationOrchestrationState } from '@1flowse/api-client';
+import type { ConsoleApplicationOrchestrationState } from '@1flowbase/api-client';
 
 import type { DocumentSlice } from './slices/document-slice';
 import type { SelectionSlice } from './slices/selection-slice';
@@ -878,7 +878,7 @@ export function createAgentFlowEditorStore(
 // web/app/src/features/agent-flow/store/editor/provider.tsx
 import { createContext, useContext, useRef, type PropsWithChildren } from 'react';
 import { useStore } from 'zustand';
-import type { ConsoleApplicationOrchestrationState } from '@1flowse/api-client';
+import type { ConsoleApplicationOrchestrationState } from '@1flowbase/api-client';
 
 import {
   createAgentFlowEditorStore,
@@ -941,7 +941,7 @@ export const selectVersions = (state: AgentFlowEditorState) => state.versions;
 
 ```tsx
 // web/app/src/features/agent-flow/components/editor/AgentFlowCanvasFrame.tsx
-import type { ConsoleApplicationOrchestrationState } from '@1flowse/api-client';
+import type { ConsoleApplicationOrchestrationState } from '@1flowbase/api-client';
 
 import { AgentFlowEditorStoreProvider } from '../../store/editor/provider';
 import { AgentFlowCanvasFrame } from './AgentFlowCanvasFrame';
@@ -1011,7 +1011,7 @@ git commit -m "refactor: add agent flow editor store"
 ```tsx
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 import { AgentFlowEditorStoreProvider } from '../store/editor/provider';
 import { AgentFlowCanvas } from '../components/editor/AgentFlowCanvas';
@@ -1229,7 +1229,7 @@ export function useSelectionInteractions() {
 ```ts
 // web/app/src/features/agent-flow/lib/adapters/to-canvas-edges.ts
 import { MarkerType, type Edge } from '@xyflow/react';
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 export function toCanvasEdges(
   document: FlowAuthoringDocument,
@@ -1452,7 +1452,7 @@ git commit -m "refactor: route canvas interactions through editor hooks"
 import type { ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 import { AgentFlowEditorStoreProvider } from '../store/editor/provider';
 import { useDraftSync } from '../hooks/interactions/use-draft-sync';
@@ -1974,11 +1974,11 @@ Expected: PASS.
 
 Run: `node scripts/node/check-style-boundary.js page page.application-detail`
 
-Expected: `[1flowse-style-boundary] PASS page.application-detail`.
+Expected: `[1flowbase-style-boundary] PASS page.application-detail`.
 
 Run: `node scripts/node/check-style-boundary.js file web/app/src/features/agent-flow/components/editor/agent-flow-editor.css`
 
-Expected: `[1flowse-style-boundary] PASS page.application-detail`.
+Expected: `[1flowbase-style-boundary] PASS page.application-detail`.
 
 Status note (`2026-04-16 11:09`): 已在 `agent-flow-editor-page.test.tsx` 新增桌面端 provider-backed 页面回归断言，并把 autosave 的 layout/manual-save 断言迁入 `draft-sync.test.tsx`。在真正删除 `useEditorAutosave.ts` 前，`rg -n "agent-flow-insert-node|window.dispatchEvent|useEditorAutosave|node-registry" web/app/src/features/agent-flow` 仍命中旧 hook 与旧测试引用，确认还有清理残留。
 

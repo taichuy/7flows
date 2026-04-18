@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 import { NodeActionMenu } from '../components/detail/NodeActionMenu';
 import { useNodeDetailActions } from '../hooks/interactions/use-node-detail-actions';

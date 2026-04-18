@@ -1,7 +1,7 @@
 ---
 memory_type: project
-topic: 1flowse modules 旧模块 spec 需要按代码事实重分层
-summary: 用户于 `2026-04-14 19` 同意先按代码事实重排 `docs/superpowers/specs/1flowse/modules` 的模块状态，不再把 `2026-04-10` 的模块讨论稿统一视为当前实现真相；后续讨论优先区分“已实现基线”“部分实现/口径漂移”“未来设计”三类。
+topic: 1flowbase modules 旧模块 spec 需要按代码事实重分层
+summary: 用户于 `2026-04-14 19` 同意先按代码事实重排 `docs/superpowers/specs/1flowbase/modules` 的模块状态，不再把 `2026-04-10` 的模块讨论稿统一视为当前实现真相；后续讨论优先区分“已实现基线”“部分实现/口径漂移”“未来设计”三类。
 keywords:
   - modules
   - spec
@@ -9,7 +9,7 @@ keywords:
   - code-facts
   - reclassification
 match_when:
-  - 需要继续整理 `docs/superpowers/specs/1flowse/modules`
+  - 需要继续整理 `docs/superpowers/specs/1flowbase/modules`
   - 需要判断旧模块 spec 是否仍可作为当前实现依据
   - 需要把模块文档按实现状态重新分层
 created_at: 2026-04-14 19
@@ -17,12 +17,12 @@ updated_at: 2026-04-14 19
 last_verified_at: 2026-04-14 19
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/modules
+  - docs/superpowers/specs/1flowbase/modules
   - api
   - web
 ---
 
-# 1flowse modules 旧模块 spec 需要按代码事实重分层
+# 1flowbase modules 旧模块 spec 需要按代码事实重分层
 
 ## 时间
 
@@ -30,7 +30,7 @@ scope:
 
 ## 谁在做什么
 
-- 用户要求重新审视 `docs/superpowers/specs/1flowse/modules` 这批最早期模块文档，判断哪些已经被后续实现和治理改写。
+- 用户要求重新审视 `docs/superpowers/specs/1flowbase/modules` 这批最早期模块文档，判断哪些已经被后续实现和治理改写。
 - AI 已基于当前 `api`、`web`、最新补充设计稿和模块 README 对照完成首轮差异判断。
 - 用户确认先不直接细修文档，而是先输出一版“模块状态重排清单”作为集中讨论入口。
 

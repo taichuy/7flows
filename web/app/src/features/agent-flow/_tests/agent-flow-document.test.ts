@@ -5,7 +5,7 @@ import {
   classifyDocumentChange,
   createDefaultAgentFlowDocument,
   type FlowAuthoringDocument
-} from '@1flowse/flow-schema';
+} from '@1flowbase/flow-schema';
 
 import {
   buildDefaultAgentFlowDocument,

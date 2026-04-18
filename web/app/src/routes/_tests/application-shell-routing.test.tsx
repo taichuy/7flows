@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { Grid } from 'antd';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { ApiClientError } from '@1flowse/api-client';
+import { ApiClientError } from '@1flowbase/api-client';
 import { AppProviders } from '../../app/AppProviders';
 import { AppRouterProvider } from '../../app/router';
 import { resetAuthStore, useAuthStore } from '../../state/auth-store';
@@ -119,7 +119,7 @@ describe('application shell routing', () => {
         flow_id: 'flow-1',
         updated_at: '2026-04-15T09:00:00Z',
         document: {
-          schemaVersion: '1flowse.flow/v1',
+          schemaVersion: '1flowbase.flow/v1',
           meta: {
             flowId: 'flow-1',
             name: 'Untitled agentFlow',
@@ -148,7 +148,7 @@ describe('application shell routing', () => {
         flow_id: 'flow-1',
         updated_at: '2026-04-15T09:10:00Z',
         document: {
-          schemaVersion: '1flowse.flow/v1',
+          schemaVersion: '1flowbase.flow/v1',
           meta: {
             flowId: 'flow-1',
             name: 'Untitled agentFlow',

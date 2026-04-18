@@ -70,7 +70,7 @@ impl MemoryModelProviderRepository {
             provider_code: "fixture_provider".to_string(),
             plugin_id: "fixture_provider@0.1.0".to_string(),
             plugin_version: "0.1.0".to_string(),
-            contract_version: "1flowse.provider/v1".to_string(),
+            contract_version: "1flowbase.provider/v1".to_string(),
             protocol: "openai_compatible".to_string(),
             display_name: "Fixture Provider".to_string(),
             source_kind: "downloaded_or_uploaded".to_string(),

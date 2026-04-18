@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 import { useEditorShortcuts } from '../hooks/interactions/use-editor-shortcuts';
 import {

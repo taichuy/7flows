@@ -1,4 +1,4 @@
-import type { FlowEdgeDocument } from '@1flowse/flow-schema';
+import type { FlowEdgeDocument } from '@1flowbase/flow-schema';
 
 export function createEdgeDocument({
   id,

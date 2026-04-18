@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js CommonJS scripts under `scripts/node`, built-in `node:test`, `node:http`, `node:fs`, root README docs
 
-**Source Spec:** `docs/superpowers/specs/1flowse/2026-04-18-model-provider-integration-design.md`, `docs/superpowers/specs/1flowse/modules/08-plugin-framework/README.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/2026-04-18-model-provider-integration-design.md`, `docs/superpowers/specs/1flowbase/modules/08-plugin-framework/README.md`
 
 **Execution Note:** 当前仓库的统一脚本风格是 `scripts/node/<name>.js` 包装 `scripts/node/<name>/core.js`。本计划遵守该约定，不新增仓库根 `package.json`，不把 CLI 直接放入 provider 插件仓库。
 

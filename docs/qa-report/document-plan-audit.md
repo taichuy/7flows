@@ -23,12 +23,12 @@
   - `.memory/project-memory/2026-04-16-agentflow-branching-and-edge-deletion-follow-up.md`
   - `.memory/project-memory/2026-04-16-agentflow-node-detail-design-direction.md`
   - `.memory/project-memory/2026-04-16-agentflow-node-detail-plan-stage.md`
-- `docs/superpowers/specs/1flowse/2026-04-10-product-design.md`
-- `docs/superpowers/specs/1flowse/2026-04-10-product-requirements.md`
-- `docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md`
-- `docs/superpowers/specs/1flowse/modules/04-chatflow-studio/README.md`
-- `docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md`
-- `docs/superpowers/specs/1flowse/modules/06b-publish-gateway/README.md`
+- `docs/superpowers/specs/1flowbase/2026-04-10-product-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-10-product-requirements.md`
+- `docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md`
+- `docs/superpowers/specs/1flowbase/modules/04-chatflow-studio/README.md`
+- `docs/superpowers/specs/1flowbase/modules/05-runtime-orchestration/README.md`
+- `docs/superpowers/specs/1flowbase/modules/06b-publish-gateway/README.md`
 - 当前 `web` / `api` / `docs` / `.memory` 目录压力和代码静态证据
 
 本轮未额外运行会写入 `target / dist / cache` 的验证命令。
@@ -106,8 +106,8 @@
 
 长期看，当前最危险的部分不是代码，而是“代码、计划、记忆、需求文档各自说不同版本的真相”。
 
-- `docs/superpowers/specs/1flowse/2026-04-10-product-requirements.md` 仍有 `FR-004 应用概览`
-- `docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md` 明确说“不再保留独立 overview”
+- `docs/superpowers/specs/1flowbase/2026-04-10-product-requirements.md` 仍有 `FR-004 应用概览`
+- `docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md` 明确说“不再保留独立 overview”
 - 当前前端路由和测试也已经按“直接进 orchestration”实现
 
 这不是普通的文档滞后，而是：
@@ -145,7 +145,7 @@
 
 方向本身依然是清晰的，而且原则上是对的。
 
-从 `2026-04-10-product-design.md` 看，1Flowse 的核心定位一直很明确：
+从 `2026-04-10-product-design.md` 看，1Flowbase 的核心定位一直很明确：
 
 - 不是聊天优先产品
 - 不是通用低代码平台
@@ -204,8 +204,8 @@
 我建议的顺序是：
 
 1. 先修真值层，不要再拖
-- 对齐 `docs/superpowers/specs/1flowse/2026-04-10-product-requirements.md`
-- 对齐 `docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md`
+- 对齐 `docs/superpowers/specs/1flowbase/2026-04-10-product-requirements.md`
+- 对齐 `docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md`
 - 明确 `03/04/05/06B` 当前状态矩阵：`设计已确认 / 代码已落地 / 已验证 / 真实闭环`
 
 2. 把 `04` 进入“够用冻结”

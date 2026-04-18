@@ -1,7 +1,7 @@
 ---
 memory_type: tool
 topic: check-style-boundary 脚本路径按仓库根解析，误在 web 目录执行会报模块不存在
-summary: 执行 `node scripts/node/check-style-boundary.js ...` 时，脚本路径是相对仓库根 `1flowse/` 解析的；如果在 `web/` 目录下直接跑同样命令，会变成查找 `web/scripts/node/check-style-boundary.js` 并报 `MODULE_NOT_FOUND`。已验证可复用解法是回到仓库根执行，或把命令写成绝对/完整相对路径。
+summary: 执行 `node scripts/node/check-style-boundary.js ...` 时，脚本路径是相对仓库根 `1flowbase/` 解析的；如果在 `web/` 目录下直接跑同样命令，会变成查找 `web/scripts/node/check-style-boundary.js` 并报 `MODULE_NOT_FOUND`。已验证可复用解法是回到仓库根执行，或把命令写成绝对/完整相对路径。
 keywords:
   - node
   - style-boundary
@@ -38,7 +38,7 @@ node scripts/node/check-style-boundary.js page page.application-detail
 报错：
 
 ```text
-Error: Cannot find module '/home/taichu/git/1flowse/web/scripts/node/check-style-boundary.js'
+Error: Cannot find module '/home/taichu/git/1flowbase/web/scripts/node/check-style-boundary.js'
 ```
 
 ## 为什么当时要这么做
@@ -47,15 +47,15 @@ Error: Cannot find module '/home/taichu/git/1flowse/web/scripts/node/check-style
 
 ## 为什么失败
 
-- `scripts/node/check-style-boundary.js` 实际位于仓库根 `1flowse/scripts/node/`。
-- 当前工作目录误设为 `1flowse/web/`，导致 Node 把相对路径解析成了不存在的 `web/scripts/node/check-style-boundary.js`。
+- `scripts/node/check-style-boundary.js` 实际位于仓库根 `1flowbase/scripts/node/`。
+- 当前工作目录误设为 `1flowbase/web/`，导致 Node 把相对路径解析成了不存在的 `web/scripts/node/check-style-boundary.js`。
 
 ## 已验证解法
 
 1. 回到仓库根执行：
 
 ```bash
-cd /home/taichu/git/1flowse
+cd /home/taichu/git/1flowbase
 node scripts/node/check-style-boundary.js page page.application-detail
 ```
 

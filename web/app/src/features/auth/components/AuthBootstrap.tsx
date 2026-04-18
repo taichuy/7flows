@@ -1,6 +1,6 @@
 import { type PropsWithChildren, useEffect } from 'react';
 
-import { ApiClientError } from '@1flowse/api-client';
+import { ApiClientError } from '@1flowbase/api-client';
 
 import { useAuthStore } from '../../../state/auth-store';
 import { fetchCurrentMe, fetchCurrentSession } from '../api/session';

@@ -1,4 +1,4 @@
-# 1Flowse 设置区 API 文档分类选择器重构设计稿
+# 1Flowbase 设置区 API 文档分类选择器重构设计稿
 
 日期：2026-04-14
 状态：已完成设计确认，待用户审阅
@@ -6,7 +6,7 @@
 - [DESIGN.md](../../../../DESIGN.md)
 - [web/AGENTS.md](../../../../web/AGENTS.md)
 - [.agents/skills/frontend-development/SKILL.md](../../../../.agents/skills/frontend-development/SKILL.md)
-- [docs/superpowers/specs/1flowse/2026-04-14-settings-api-docs-on-demand-design.md](./2026-04-14-settings-api-docs-on-demand-design.md)
+- [docs/superpowers/specs/1flowbase/2026-04-14-settings-api-docs-on-demand-design.md](./2026-04-14-settings-api-docs-on-demand-design.md)
 - [web/app/src/features/settings/components/ApiDocsPanel.tsx](../../../../web/app/src/features/settings/components/ApiDocsPanel.tsx)
 - [web/app/src/features/settings/components/api-docs-panel.css](../../../../web/app/src/features/settings/components/api-docs-panel.css)
 - [web/app/src/features/settings/_tests/api-docs-panel.test.tsx](../../../../web/app/src/features/settings/_tests/api-docs-panel.test.tsx)

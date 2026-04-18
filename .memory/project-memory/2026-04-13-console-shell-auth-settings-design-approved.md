@@ -19,7 +19,7 @@ decision_policy: verify_before_decision
 scope:
   - web
   - api/apps/api-server
-  - docs/superpowers/specs/1flowse/2026-04-13-console-shell-auth-settings-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-13-console-shell-auth-settings-design.md
 ---
 
 # 控制台壳层与认证设置区设计已确认
@@ -69,4 +69,4 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-13-console-shell-auth-settings-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-13-console-shell-auth-settings-design.md`

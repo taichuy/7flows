@@ -295,17 +295,17 @@ struct MemoryOfficialPluginSource;
 impl OfficialPluginSourcePort for MemoryOfficialPluginSource {
     async fn list_official_catalog(&self) -> Result<Vec<OfficialPluginSourceEntry>> {
         Ok(vec![OfficialPluginSourceEntry {
-            plugin_id: "1flowse.openai_compatible".to_string(),
+            plugin_id: "1flowbase.openai_compatible".to_string(),
             provider_code: "openai_compatible".to_string(),
             display_name: "OpenAI Compatible".to_string(),
             protocol: "openai_compatible".to_string(),
             latest_version: "0.1.0".to_string(),
             release_tag: "openai_compatible-v0.1.0".to_string(),
-            download_url: "https://example.com/openai-compatible.1flowsepkg".to_string(),
+            download_url: "https://example.com/openai-compatible.1flowbasepkg".to_string(),
             checksum: "sha256:abc123".to_string(),
             signature_status: "unsigned".to_string(),
             help_url: Some(
-                "https://github.com/taichuy/1flowse-official-plugins/tree/main/models/openai_compatible"
+                "https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible"
                     .to_string(),
             ),
             model_discovery_mode: "hybrid".to_string(),
@@ -316,10 +316,8 @@ impl OfficialPluginSourcePort for MemoryOfficialPluginSource {
         &self,
         _entry: &OfficialPluginSourceEntry,
     ) -> Result<DownloadedOfficialPluginPackage> {
-        let package_root = std::env::temp_dir().join(format!(
-            "official-plugin-source-{}",
-            Uuid::now_v7()
-        ));
+        let package_root =
+            std::env::temp_dir().join(format!("official-plugin-source-{}", Uuid::now_v7()));
         create_openai_compatible_fixture(&package_root);
         Ok(DownloadedOfficialPluginPackage {
             package_root,
@@ -400,7 +398,7 @@ pub(super) fn create_provider_fixture(root: &Path) {
         r#"plugin_code: fixture_provider
 display_name: Fixture Provider
 version: 0.1.0
-contract_version: 1flowse.provider/v1
+contract_version: 1flowbase.provider/v1
 supported_model_types:
   - llm
 runner:
@@ -464,7 +462,7 @@ fn create_openai_compatible_fixture(root: &Path) {
         r#"plugin_code: openai_compatible
 display_name: OpenAI Compatible
 version: 0.1.0
-contract_version: 1flowse.provider/v1
+contract_version: 1flowbase.provider/v1
 supported_model_types:
   - llm
 runner:
@@ -656,13 +654,16 @@ async fn plugin_management_service_lists_official_catalog_and_installs_latest_re
     let install = service
         .install_official_plugin(InstallOfficialPluginCommand {
             actor_user_id: repository.actor.user_id,
-            plugin_id: "1flowse.openai_compatible".to_string(),
+            plugin_id: "1flowbase.openai_compatible".to_string(),
         })
         .await
         .unwrap();
 
     assert_eq!(install.installation.provider_code, "openai_compatible");
     assert_eq!(install.installation.source_kind, "official_registry");
-    assert_eq!(install.installation.checksum.as_deref(), Some("sha256:abc123"));
+    assert_eq!(
+        install.installation.checksum.as_deref(),
+        Some("sha256:abc123")
+    );
     assert_eq!(install.task.status, PluginTaskStatus::Success);
 }

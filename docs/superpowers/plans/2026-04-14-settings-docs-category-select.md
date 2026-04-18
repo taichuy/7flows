@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 19, TypeScript, TanStack Query, TanStack Router, Ant Design 5, Vitest, Testing Library, Scalar React API Reference
 
-**Source Spec:** `docs/superpowers/specs/1flowse/2026-04-14-settings-docs-category-select-design.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/2026-04-14-settings-docs-category-select-design.md`
 
 ## Execution Status
 
@@ -384,7 +384,7 @@ pnpm --dir web/app build
 Expected:
 - `lint` PASS;
 - `test` PASS across the workspace;
-- `build` PASS for `@1flowse/web`.
+- `build` PASS for `@1flowbase/web`.
 
 Verification note (`2026-04-14 22`): 已执行 `pnpm --dir web lint`，结果 PASS；已执行 `pnpm --dir web/app build`，结果 PASS。`pnpm --dir web test` 失败，失败项为 `src/routes/_tests/section-shell-routing.test.tsx`、`src/style-boundary/_tests/registry.test.tsx` 与 `src/features/me/_tests/me-page.test.tsx` 中的 5 个超时用例；本次 `/settings/docs` 相关测试在同一轮工作区测试中为 PASS。
 

@@ -4,11 +4,11 @@
 
 **Goal:** 在主仓库内把模型供应商接入从“设计已确认、CLI 脚手架已存在”推进到第一版可执行闭环：宿主具备 provider plugin 产物安装与分配、workspace 级 provider instance 配置与模型发现、`plugin-runner` 最小 provider runtime host、`openai_compatible` 官方参考插件，以及 `Settings / 模型供应商` 与 `agentFlow LLM` 节点的真实消费链路。
 
-**Architecture:** 这轮固定按“后端先落、前端后跟”的顺序推进。后端先把 `plugin-framework -> plugin-runner -> control-plane -> storage-pg -> api-server -> orchestration-runtime` 的 contract、状态流转、安装任务、模型发现、调用事件与编译期校验收口，再初始化 `../1flowse-official-plugins/models/openai_compatible` 参考插件。前端页面在后端 options / schema / validate / models / runtime contract 稳定后再接入 `Settings` 与 `LlmModelField`，并在前端任务完成时同步维护文件索引，方便后续继续调整页面时快速定位 owner 文件。
+**Architecture:** 这轮固定按“后端先落、前端后跟”的顺序推进。后端先把 `plugin-framework -> plugin-runner -> control-plane -> storage-pg -> api-server -> orchestration-runtime` 的 contract、状态流转、安装任务、模型发现、调用事件与编译期校验收口，再初始化 `../1flowbase-official-plugins/models/openai_compatible` 参考插件。前端页面在后端 options / schema / validate / models / runtime contract 稳定后再接入 `Settings` 与 `LlmModelField`，并在前端任务完成时同步维护文件索引，方便后续继续调整页面时快速定位 owner 文件。
 
-**Tech Stack:** Rust workspace (`plugin-framework`, `control-plane`, `storage-pg`, `orchestration-runtime`, `plugin-runner`, `api-server`), PostgreSQL, `sqlx`, `axum`, React 19, TypeScript, TanStack Query, Ant Design 5, existing `@1flowse/api-client`, Node-based `plugin CLI`, sibling repo `../1flowse-official-plugins`
+**Tech Stack:** Rust workspace (`plugin-framework`, `control-plane`, `storage-pg`, `orchestration-runtime`, `plugin-runner`, `api-server`), PostgreSQL, `sqlx`, `axum`, React 19, TypeScript, TanStack Query, Ant Design 5, existing `@1flowbase/api-client`, Node-based `plugin CLI`, sibling repo `../1flowbase-official-plugins`
 
-**Source Spec:** `docs/superpowers/specs/1flowse/2026-04-18-model-provider-integration-design.md`, `docs/superpowers/specs/1flowse/modules/08-plugin-framework/README.md`, `docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/2026-04-18-model-provider-integration-design.md`, `docs/superpowers/specs/1flowbase/modules/08-plugin-framework/README.md`, `docs/superpowers/specs/1flowbase/modules/05-runtime-orchestration/README.md`
 
 **Execution Note:** 本计划固定先做 Task 1-6 的后端与参考插件，再做 Task 7-8 的前端页面与节点编辑器；不要把前端选择器提前到后端 options / validate / models contract 之前。前端任务每完成一个阶段，都要同步更新本文末尾的“Frontend File Index”，写明文件负责什么、这一轮具体改了什么，避免后续页面二次调整时重新摸路径。
 
@@ -82,19 +82,19 @@
 
 ### Reference plugin and frontend
 
-- Create: `../1flowse-official-plugins/models/openai_compatible/manifest.yaml`
-- Create: `../1flowse-official-plugins/models/openai_compatible/provider/openai_compatible.yaml`
-- Create: `../1flowse-official-plugins/models/openai_compatible/provider/openai_compatible.js`
-- Create: `../1flowse-official-plugins/models/openai_compatible/models/llm/_position.yaml`
-- Create: `../1flowse-official-plugins/models/openai_compatible/models/llm/openai_compatible_chat.yaml`
-- Create: `../1flowse-official-plugins/models/openai_compatible/i18n/en_US.json`
-- Create: `../1flowse-official-plugins/models/openai_compatible/_assets/.gitkeep`
-- Create: `../1flowse-official-plugins/models/openai_compatible/i18n/zh_Hans.json`
-- Create: `../1flowse-official-plugins/models/openai_compatible/readme/README_en_US.md`
-- Create: `../1flowse-official-plugins/models/openai_compatible/demo/index.html`
-- Create: `../1flowse-official-plugins/models/openai_compatible/demo/styles.css`
-- Create: `../1flowse-official-plugins/models/openai_compatible/demo/app.js`
-- Create: `../1flowse-official-plugins/models/openai_compatible/scripts/demo.runner.example.json`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/manifest.yaml`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/provider/openai_compatible.yaml`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/provider/openai_compatible.js`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/models/llm/_position.yaml`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/models/llm/openai_compatible_chat.yaml`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/i18n/en_US.json`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/_assets/.gitkeep`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/i18n/zh_Hans.json`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/readme/README_en_US.md`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/demo/index.html`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/demo/styles.css`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/demo/app.js`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/scripts/demo.runner.example.json`
 - Create: `web/packages/api-client/src/console-plugins.ts`
 - Create: `web/packages/api-client/src/console-model-providers.ts`
 - Modify: `web/packages/api-client/src/index.ts`
@@ -223,28 +223,28 @@
 ## Task 6: Initialize The Official `openai_compatible` Reference Plugin
 
 **Files:**
-- Create: `../1flowse-official-plugins/models/openai_compatible/manifest.yaml`
-- Create: `../1flowse-official-plugins/models/openai_compatible/provider/openai_compatible.yaml`
-- Create: `../1flowse-official-plugins/models/openai_compatible/provider/openai_compatible.js`
-- Create: `../1flowse-official-plugins/models/openai_compatible/models/llm/_position.yaml`
-- Create: `../1flowse-official-plugins/models/openai_compatible/models/llm/openai_compatible_chat.yaml`
-- Create: `../1flowse-official-plugins/models/openai_compatible/i18n/en_US.json`
-- Create: `../1flowse-official-plugins/models/openai_compatible/_assets/.gitkeep`
-- Create: `../1flowse-official-plugins/models/openai_compatible/i18n/zh_Hans.json`
-- Create: `../1flowse-official-plugins/models/openai_compatible/readme/README_en_US.md`
-- Create: `../1flowse-official-plugins/models/openai_compatible/demo/index.html`
-- Create: `../1flowse-official-plugins/models/openai_compatible/demo/styles.css`
-- Create: `../1flowse-official-plugins/models/openai_compatible/demo/app.js`
-- Create: `../1flowse-official-plugins/models/openai_compatible/scripts/demo.runner.example.json`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/manifest.yaml`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/provider/openai_compatible.yaml`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/provider/openai_compatible.js`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/models/llm/_position.yaml`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/models/llm/openai_compatible_chat.yaml`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/i18n/en_US.json`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/_assets/.gitkeep`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/i18n/zh_Hans.json`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/readme/README_en_US.md`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/demo/index.html`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/demo/styles.css`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/demo/app.js`
+- Create: `../1flowbase-official-plugins/models/openai_compatible/scripts/demo.runner.example.json`
 
 - [x] 用现有 `node scripts/node/plugin.js init` 和 `demo init` 生成参考插件骨架，再补齐 `manifest / provider schema / model yaml / i18n / readme`。
 - [x] 参考插件只覆盖 `base_url + api_key (+ organization/project/api_version/default_headers)` 和 `OpenAI-compatible` 协议，不在首轮引入第二个官方 provider。
 - [x] 让参考插件能被 Task 2 的 runner host 和 Task 4 的控制面安装链路直接消费，作为端到端验证 fixture。
-- [x] 验证：`node scripts/node/plugin.js demo init ../1flowse-official-plugins/models/openai_compatible`，`node scripts/node/plugin.js demo dev ../1flowse-official-plugins/models/openai_compatible --port 4310`
+- [x] 验证：`node scripts/node/plugin.js demo init ../1flowbase-official-plugins/models/openai_compatible`，`node scripts/node/plugin.js demo dev ../1flowbase-official-plugins/models/openai_compatible --port 4310`
 
 执行备注（`2026-04-18 17:11`）：
-- `../1flowse-official-plugins/models/openai_compatible` 已补齐 `manifest / provider schema / provider runtime / static model yaml / i18n / readme / demo / runner example`，协议收敛为 `OpenAI-compatible`，首轮仅覆盖 `base_url + api_key (+ organization/project/api_version/default_headers)`。
-- `node scripts/node/plugin.js demo init ../1flowse-official-plugins/models/openai_compatible` 已成功重建 demo 骨架，`node scripts/node/plugin.js demo dev ../1flowse-official-plugins/models/openai_compatible --port 4310` 已验证本地 demo 可直接启动并指向 `plugin-runner`。
+- `../1flowbase-official-plugins/models/openai_compatible` 已补齐 `manifest / provider schema / provider runtime / static model yaml / i18n / readme / demo / runner example`，协议收敛为 `OpenAI-compatible`，首轮仅覆盖 `base_url + api_key (+ organization/project/api_version/default_headers)`。
+- `node scripts/node/plugin.js demo init ../1flowbase-official-plugins/models/openai_compatible` 已成功重建 demo 骨架，`node scripts/node/plugin.js demo dev ../1flowbase-official-plugins/models/openai_compatible --port 4310` 已验证本地 demo 可直接启动并指向 `plugin-runner`。
 
 ## Task 7: Build `Settings / 模型供应商` Page And Client Contract
 

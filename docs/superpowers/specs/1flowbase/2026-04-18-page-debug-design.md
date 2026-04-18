@@ -1,4 +1,4 @@
-# 1Flowse 页面调试脚本设计稿
+# 1Flowbase 页面调试脚本设计稿
 
 日期：2026-04-18
 状态：已确认设计，待用户审阅
@@ -6,8 +6,8 @@
 关联文档：
 - [2026-04-12-dev-runtime-entry.md](../../../../.memory/project-memory/2026-04-12-dev-runtime-entry.md)
 - [2026-04-14-dev-up-resets-api-root-password-in-development.md](../../../../.memory/project-memory/2026-04-14-dev-up-resets-api-root-password-in-development.md)
-- [dev-up.js](/home/taichu/git/1flowse/scripts/node/dev-up.js)
-- [dev-up/core.js](/home/taichu/git/1flowse/scripts/node/dev-up/core.js)
+- [dev-up.js](/home/taichu/git/1flowbase/scripts/node/dev-up.js)
+- [dev-up/core.js](/home/taichu/git/1flowbase/scripts/node/dev-up/core.js)
 
 ## 1. 文档目标
 

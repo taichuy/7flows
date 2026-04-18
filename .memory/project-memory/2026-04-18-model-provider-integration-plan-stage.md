@@ -21,16 +21,16 @@ last_verified_at: 2026-04-18 11
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/plans/2026-04-18-model-provider-integration.md
-  - docs/superpowers/specs/1flowse/2026-04-18-model-provider-integration-design.md
-  - docs/superpowers/specs/1flowse/modules/08-plugin-framework/README.md
-  - docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md
+  - docs/superpowers/specs/1flowbase/2026-04-18-model-provider-integration-design.md
+  - docs/superpowers/specs/1flowbase/modules/08-plugin-framework/README.md
+  - docs/superpowers/specs/1flowbase/modules/05-runtime-orchestration/README.md
   - api/crates/plugin-framework
   - api/apps/plugin-runner
   - api/crates/control-plane/src/model_provider.rs
   - api/crates/control-plane/src/plugin_management.rs
   - web/app/src/features/settings
   - web/app/src/features/agent-flow
-  - ../1flowse-official-plugins/models/openai_compatible
+  - ../1flowbase-official-plugins/models/openai_compatible
 ---
 
 # 模型供应商接入已从确认设计进入 implementation plan 阶段
@@ -67,6 +67,6 @@ scope:
 ## 关联文档
 
 - `docs/superpowers/plans/2026-04-18-model-provider-integration.md`
-- `docs/superpowers/specs/1flowse/2026-04-18-model-provider-integration-design.md`
-- `docs/superpowers/specs/1flowse/modules/08-plugin-framework/README.md`
-- `docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md`
+- `docs/superpowers/specs/1flowbase/2026-04-18-model-provider-integration-design.md`
+- `docs/superpowers/specs/1flowbase/modules/08-plugin-framework/README.md`
+- `docs/superpowers/specs/1flowbase/modules/05-runtime-orchestration/README.md`

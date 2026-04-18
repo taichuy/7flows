@@ -253,7 +253,7 @@ async function main(argv) {
         throw new Error(formatBoundaryFailure(scene.id, result.violations));
       }
 
-      process.stdout.write(`[1flowse-style-boundary] PASS ${scene.id}\n`);
+      process.stdout.write(`[1flowbase-style-boundary] PASS ${scene.id}\n`);
       await result.page.close();
     }
   } finally {

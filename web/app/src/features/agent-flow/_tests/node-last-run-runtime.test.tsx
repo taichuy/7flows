@@ -19,7 +19,7 @@ const runtimeApi = vi.hoisted(() => ({
 vi.mock('../api/orchestration', () => orchestrationApi);
 vi.mock('../api/runtime', () => runtimeApi);
 
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { AppProviders } from '../../../app/AppProviders';
 import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
 import { AgentFlowEditorPage } from '../pages/AgentFlowEditorPage';

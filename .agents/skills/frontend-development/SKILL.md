@@ -1,13 +1,13 @@
 ---
 name: frontend-development
-description: Use when building or changing 1Flowse frontend pages, workspace flows, node development, schema UI, interactions, visual structure, or component boundaries, or when vague/image-led frontend requests must be translated into actionable design requirements before implementation
+description: Use when building or changing 1Flowbase frontend pages, workspace flows, node development, schema UI, interactions, visual structure, or component boundaries, or when vague/image-led frontend requests must be translated into actionable design requirements before implementation
 ---
 
 # Frontend Development
 
 ## Overview
 
-1Flowse 前端不是自由拼页，而是基于单一规则源的产品系统：`Ant Design` 壳层 + 薄 `Editor UI` + 固定工作区语法。本 Skill 用来在实现时守住页面边界、L1 详情模型、状态语义和组件职责，减少“写着写着变成另一套产品”的漂移。
+1Flowbase 前端不是自由拼页，而是基于单一规则源的产品系统：`Ant Design` 壳层 + 薄 `Editor UI` + 固定工作区语法。本 Skill 用来在实现时守住页面边界、L1 详情模型、状态语义和组件职责，减少“写着写着变成另一套产品”的漂移。
 
 ## When to Use
 
@@ -29,7 +29,7 @@ description: Use when building or changing 1Flowse frontend pages, workspace flo
 
 ## The Iron Law
 
-在 1Flowse 中，先守 `DESIGN.md` 的任务域边界、L1 模型和状态语义，再决定组件拆分和视觉抛光。
+在 1Flowbase 中，先守 `DESIGN.md` 的任务域边界、L1 模型和状态语义，再决定组件拆分和视觉抛光。
 
 ## Quick Reference
 

@@ -56,7 +56,7 @@ test('plugin init scaffolds provider plugin skeleton in target path', async () =
 
   const manifest = fs.readFileSync(path.join(pluginPath, 'manifest.yaml'), 'utf8');
   assert.match(manifest, /plugin_code: acme_openai_compatible/);
-  assert.match(manifest, /contract_version: 1flowse\.provider\/v1/);
+  assert.match(manifest, /contract_version: 1flowbase\.provider\/v1/);
   assert.match(manifest, /language: nodejs/);
 });
 
@@ -103,7 +103,7 @@ test('plugin demo dev serves static demo assets and injected runtime config', as
   try {
     const indexResponse = await request(`${serverHandle.baseUrl}/`);
     assert.equal(indexResponse.statusCode, 200);
-    assert.match(indexResponse.body, /1Flowse Plugin Demo/);
+    assert.match(indexResponse.body, /1Flowbase Plugin Demo/);
 
     const configResponse = await request(`${serverHandle.baseUrl}/__plugin_demo_config`);
     assert.equal(configResponse.statusCode, 200);
@@ -140,7 +140,7 @@ test('plugin demo dev rejects target without generated demo assets', async () =>
   );
 });
 
-test('plugin package creates a single .1flowsepkg asset with checksum metadata', async () => {
+test('plugin package creates a single .1flowbasepkg asset with checksum metadata', async () => {
   const pluginPath = makeTempPluginPath();
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-plugin-dist-'));
 
@@ -148,8 +148,8 @@ test('plugin package creates a single .1flowsepkg asset with checksum metadata',
 
   const result = await main(['package', pluginPath, '--out', outputDir]);
 
-  assert.match(result.packageFile, /\.1flowsepkg$/);
-  assert.match(result.packageFile, new RegExp(`${result.checksum}\\.1flowsepkg$`));
+  assert.match(result.packageFile, /\.1flowbasepkg$/);
+  assert.match(result.packageFile, new RegExp(`${result.checksum}\\.1flowbasepkg$`));
   assert.match(result.checksum, /^[a-f0-9]{64}$/);
   assert.equal(fs.existsSync(result.packageFile), true);
 });

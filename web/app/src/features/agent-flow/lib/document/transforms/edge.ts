@@ -1,7 +1,7 @@
 import type {
   FlowAuthoringDocument,
   FlowNodeDocument
-} from '@1flowse/flow-schema';
+} from '@1flowbase/flow-schema';
 
 import { createEdgeDocument } from '../edge-factory';
 import { getEdgeById, getNodeById } from '../selectors';

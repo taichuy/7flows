@@ -1,5 +1,5 @@
-import type { SaveConsoleApplicationDraftInput } from '@1flowse/api-client';
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { SaveConsoleApplicationDraftInput } from '@1flowbase/api-client';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 import { classifyDocumentChange } from './document/change-kind';
 import { buildVersionSummary } from './history-change';

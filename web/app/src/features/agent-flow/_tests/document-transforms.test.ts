@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 import { classifyDocumentChange } from '../lib/document/change-kind';
 import { createEdgeDocument } from '../lib/document/edge-factory';

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Grid, Result } from 'antd';
 
-import { ApiClientError } from '@1flowse/api-client';
+import { ApiClientError } from '@1flowbase/api-client';
 import { PermissionDeniedState } from '../../../shared/ui/PermissionDeniedState';
 import {
   fetchOrchestrationState,

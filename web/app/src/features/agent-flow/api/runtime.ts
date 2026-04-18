@@ -2,14 +2,14 @@ import type {
   FlowAuthoringDocument,
   FlowBinding,
   FlowNodeDocument
-} from '@1flowse/flow-schema';
+} from '@1flowbase/flow-schema';
 import {
   startConsoleFlowDebugRun,
   getConsoleNodeLastRun,
   startConsoleNodeDebugPreview,
   type ConsoleApplicationRunDetail,
   type ConsoleNodeLastRun
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 import { getApplicationsApiBaseUrl } from '../../applications/api/applications';
 

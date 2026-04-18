@@ -1,4 +1,4 @@
-import type { AppRouteId } from '@1flowse/shared-types';
+import type { AppRouteId } from '@1flowbase/shared-types';
 
 import { APP_ROUTES, type AppRouteDefinition } from './route-config';
 

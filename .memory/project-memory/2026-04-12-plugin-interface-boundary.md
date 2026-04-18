@@ -69,4 +69,4 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-12-auth-team-access-control-backend-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-12-auth-team-access-control-backend-design.md`

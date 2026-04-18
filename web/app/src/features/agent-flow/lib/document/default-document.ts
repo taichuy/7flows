@@ -1,7 +1,7 @@
 import {
   createDefaultAgentFlowDocument,
   type FlowAuthoringDocument
-} from '@1flowse/flow-schema';
+} from '@1flowbase/flow-schema';
 
 export function buildDefaultAgentFlowDocument(
   flowId: string

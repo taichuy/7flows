@@ -1,4 +1,4 @@
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 function uniqueNodeIds(nodeIds: string[]) {
   return [...new Set(nodeIds)];

@@ -1,5 +1,5 @@
-import type { ConsoleApplicationOrchestrationState } from '@1flowse/api-client';
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { ConsoleApplicationOrchestrationState } from '@1flowbase/api-client';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 import { createStore } from 'zustand/vanilla';
 
 import { NODE_DETAIL_DEFAULT_WIDTH } from '../../lib/detail-panel-width';

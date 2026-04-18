@@ -51,4 +51,4 @@ scope:
 ## 关联文档
 
 - `docs/superpowers/plans/2026-04-13-frontend-bootstrap-realignment.md`
-- `docs/superpowers/specs/1flowse/2026-04-13-frontend-bootstrap-directory-and-regression-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-13-frontend-bootstrap-directory-and-regression-design.md`

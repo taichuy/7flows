@@ -6,9 +6,9 @@
 
 **Architecture:** 这次实现明确新增独立的 `orchestration-runtime` crate，负责 `Compiled Plan` 与只读调试执行骨架；`domain / control-plane / storage-pg / api-server` 负责运行对象、状态流转、持久化与查询协议。首批入口固定选择 `单节点 debug preview`，因为它能直接接上当前已存在的 `NodeRunButton`、`NodeLastRunTab` 和应用级 logs 壳层，同时把真正的运行对象与查询链路先落稳。
 
-**Tech Stack:** Rust workspace (`domain`, `control-plane`, `storage-pg`, new `orchestration-runtime`, `axum`, `sqlx`, `serde_json`, `tracing`), PostgreSQL, React 19, TypeScript, TanStack Query, Ant Design 5, Vitest, existing `@1flowse/api-client`
+**Tech Stack:** Rust workspace (`domain`, `control-plane`, `storage-pg`, new `orchestration-runtime`, `axum`, `sqlx`, `serde_json`, `tracing`), PostgreSQL, React 19, TypeScript, TanStack Query, Ant Design 5, Vitest, existing `@1flowbase/api-client`
 
-**Source Spec:** `docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md`, `docs/superpowers/specs/1flowse/2026-04-10-orchestration-design-draft.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/modules/05-runtime-orchestration/README.md`, `docs/superpowers/specs/1flowbase/2026-04-10-orchestration-design-draft.md`
 
 **Execution Note:** 本仓库执行实现计划时不使用 `git worktree`；直接在当前工作区按任务提交推进。后端统一验证时先串行拿定向 `cargo test` 行为证据，再执行 `cd api && cargo fmt --all` 与 `node scripts/node/verify-backend.js`，避免被 `rustfmt --check` 提前拦截后误判成运行时逻辑失败。
 
@@ -130,7 +130,7 @@ use uuid::Uuid;
 
 fn sample_document(flow_id: Uuid) -> serde_json::Value {
     json!({
-        "schemaVersion": "1flowse.flow/v1",
+        "schemaVersion": "1flowbase.flow/v1",
         "meta": { "flowId": flow_id.to_string(), "name": "Support Agent", "description": "", "tags": [] },
         "graph": {
             "nodes": [

@@ -1,4 +1,4 @@
-export const FLOW_SCHEMA_VERSION = '1flowse.flow/v1';
+export const FLOW_SCHEMA_VERSION = '1flowbase.flow/v1';
 
 export type FlowNodeType =
   | 'start'

@@ -1,4 +1,4 @@
-import type { FlowNodeType } from '@1flowse/flow-schema';
+import type { FlowNodeType } from '@1flowbase/flow-schema';
 
 import type { CanvasNodeSchema } from '../../../shared/schema-ui/contracts/canvas-node-schema';
 import {

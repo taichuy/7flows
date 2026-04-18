@@ -1,1 +1,1 @@
-export { classifyDocumentChange } from '@1flowse/flow-schema';
+export { classifyDocumentChange } from '@1flowbase/flow-schema';

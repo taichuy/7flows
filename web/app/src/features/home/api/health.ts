@@ -2,7 +2,7 @@ import {
   fetchApiHealth,
   getDefaultApiBaseUrl,
   type ApiBaseUrlLocation
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export function getHomeApiBaseUrl(
   locationLike: ApiBaseUrlLocation | undefined =

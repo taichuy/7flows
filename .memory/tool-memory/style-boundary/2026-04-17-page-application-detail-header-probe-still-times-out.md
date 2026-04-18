@@ -40,7 +40,7 @@ node scripts/node/check-style-boundary.js page page.application-detail
 报错：
 
 ```text
-[1flowse-style-boundary] locator.waitFor: Timeout 30000ms exceeded.
+[1flowbase-style-boundary] locator.waitFor: Timeout 30000ms exceeded.
 Call log:
   - waiting for locator('.app-shell-header').first() to be visible
 ```

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Result } from 'antd';
 
-import { ApiClientError } from '@1flowse/api-client';
+import { ApiClientError } from '@1flowbase/api-client';
 import { AgentFlowEditorPage } from '../../agent-flow/pages/AgentFlowEditorPage';
 import { PermissionDeniedState } from '../../../shared/ui/PermissionDeniedState';
 import { SectionPageLayout } from '../../../shared/ui/section-page-layout/SectionPageLayout';

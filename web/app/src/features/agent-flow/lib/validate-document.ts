@@ -1,5 +1,5 @@
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
-import type { FlowBinding, FlowNodeDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
+import type { FlowBinding, FlowNodeDocument } from '@1flowbase/flow-schema';
 
 import type { AgentFlowModelProviderOptions } from '../api/model-provider-options';
 import type { InspectorSectionKey } from './node-definitions';

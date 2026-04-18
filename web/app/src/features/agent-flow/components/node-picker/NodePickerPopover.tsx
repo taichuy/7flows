@@ -1,6 +1,6 @@
 import { Button, Popover } from 'antd';
 import type { ReactElement, ReactNode } from 'react';
-import type { FlowNodeType } from '@1flowse/flow-schema';
+import type { FlowNodeType } from '@1flowbase/flow-schema';
 
 const NODE_OPTIONS: Array<{ type: FlowNodeType; label: string }> = [
   { type: 'llm', label: 'LLM' },

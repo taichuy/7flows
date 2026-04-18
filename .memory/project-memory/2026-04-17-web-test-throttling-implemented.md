@@ -66,6 +66,6 @@ scope:
 ## 验证方式
 
 - `2026-04-17 23` 已验证：
-  - 直跑 `pnpm --dir web exec turbo run test --concurrency=50% --dry-run=text`，输出中的 `@1flowse/web#test` 命令已经变为 `vitest --run --maxWorkers=50% --minWorkers=1`
+  - 直跑 `pnpm --dir web exec turbo run test --concurrency=50% --dry-run=text`，输出中的 `@1flowbase/web#test` 命令已经变为 `vitest --run --maxWorkers=50% --minWorkers=1`
   - 直跑 `pnpm --dir web/app exec vitest run --maxWorkers=50% --minWorkers=1 --help`，参数可被当前 Vitest 版本正常接受
 

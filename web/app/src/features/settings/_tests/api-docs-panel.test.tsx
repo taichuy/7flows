@@ -72,7 +72,7 @@ import { ApiDocsPanel } from '../components/ApiDocsPanel';
 import { normalizeScalarClipboardText } from '../lib/scalar-clipboard';
 
 const catalogPayload = {
-  title: '1Flowse API',
+  title: '1Flowbase API',
   version: '0.1.0',
   categories: [
     {
@@ -157,7 +157,7 @@ const categoryOperationsById = {
 const operationSpecById = {
   patch_me: {
     openapi: '3.1.0',
-    info: { title: '1Flowse API', version: '0.1.0' },
+    info: { title: '1Flowbase API', version: '0.1.0' },
     servers: [{ url: '/' }],
     security: [{ sessionCookie: [], csrfHeader: [] }],
     paths: {
@@ -189,7 +189,7 @@ const operationSpecById = {
   },
   list_members: {
     openapi: '3.1.0',
-    info: { title: '1Flowse API', version: '0.1.0' },
+    info: { title: '1Flowbase API', version: '0.1.0' },
     servers: [{ url: '/' }],
     security: [{ sessionCookie: [] }],
     paths: {
@@ -221,7 +221,7 @@ const operationSpecById = {
   },
   list_runtime_jobs: {
     openapi: '3.1.0',
-    info: { title: '1Flowse API', version: '0.1.0' },
+    info: { title: '1Flowbase API', version: '0.1.0' },
     paths: {
       '/api/runtime/jobs': {
         get: {
@@ -237,7 +237,7 @@ const operationSpecById = {
   },
   health: {
     openapi: '3.1.0',
-    info: { title: '1Flowse API', version: '0.1.0' },
+    info: { title: '1Flowbase API', version: '0.1.0' },
     paths: {
       '/health': {
         get: {

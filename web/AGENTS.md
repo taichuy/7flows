@@ -28,7 +28,7 @@
 - 同一目录下文件数量接近 `15` 个时，先按职责继续收纳子目录，不要继续横向摊平；单文件接近 `1500` 行时先拆分职责。
 
 ## Local Rules
-- 优先复用 `@1flowse/ui` 与 `antd`，不要重复造轮子。
+- 优先复用 `@1flowbase/ui` 与 `antd`，不要重复造轮子。
 - UI 禁止出现内部提示词、调试文本、占位文案、mock 文案、`TODO/FIXME`、异常对象、原始 JSON。
 - 未开放功能不要写 `placeholder / reserved / later`；改为隐藏入口或正式“未开放/建设中”状态。
 - 仅开发辅助信息允许在 `import.meta.env.DEV` 下渲染。

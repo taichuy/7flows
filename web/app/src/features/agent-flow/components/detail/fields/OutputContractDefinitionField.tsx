@@ -1,6 +1,6 @@
 import { Button, Input, Select, Space, Typography } from 'antd';
 
-import type { FlowNodeDocument } from '@1flowse/flow-schema';
+import type { FlowNodeDocument } from '@1flowbase/flow-schema';
 
 const valueTypeOptions = [
   { value: 'string', label: 'String' },

@@ -1,5 +1,5 @@
-import type { ConsoleFlowVersionSummary } from '@1flowse/api-client';
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { ConsoleFlowVersionSummary } from '@1flowbase/api-client';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 export interface DocumentSlice {
   workingDocument: FlowAuthoringDocument;

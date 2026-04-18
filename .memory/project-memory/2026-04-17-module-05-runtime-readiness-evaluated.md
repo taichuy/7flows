@@ -25,8 +25,8 @@ updated_at: 2026-04-17 18
 last_verified_at: 2026-04-17 18
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md
-  - docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md
+  - docs/superpowers/specs/1flowbase/modules/05-runtime-orchestration/README.md
+  - docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md
   - api/crates/orchestration-runtime
   - api/apps/api-server/src/routes/application_runtime.rs
   - web/packages/api-client/src/console-application-runtime.ts
@@ -68,7 +68,7 @@ scope:
   - `Application` 详情四分区路由已经落地，`orchestration` 接到 editor，`logs` 接到真实 `ApplicationLogsPage`。
   - `agentFlow` 已具备稳定的 `FlowAuthoringDocument`、binding schema、draft autosave、version restore 和 node detail last-run 挂点。
   - 仓库内已经存在 `orchestration-runtime`、`compiled plan` 编译链路、单节点 debug preview 服务与 runtime 持久化模型。
-  - `application_runtime` 路由、`@1flowse/api-client` contract，以及前端 `ApplicationLogsPage / NodeLastRunTab` 查询已经接通最小运行闭环。
+  - `application_runtime` 路由、`@1flowbase/api-client` contract，以及前端 `ApplicationLogsPage / NodeLastRunTab` 查询已经接通最小运行闭环。
 - 当前代码仍缺这些关键能力：
   - runtime 路由与查询目前仍局限在 `单节点 debug preview + logs run list/detail + node last run`，尚未扩展到整流运行、恢复、callback/human-loop 与更广泛 orchestration 查询。
   - `monitoring` 分区仍主要是 capability status，而不是完整运行事实视图。

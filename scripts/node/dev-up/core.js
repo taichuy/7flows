@@ -51,7 +51,7 @@ function usage() {
 }
 
 function log(message) {
-  process.stdout.write(`[1flowse-dev-up] ${message}\n`);
+  process.stdout.write(`[1flowbase-dev-up] ${message}\n`);
 }
 
 function parseCliArgs(argv) {
@@ -142,7 +142,7 @@ function getServiceDefinitions(repoRoot) {
       repoRoot,
       cwd: path.join(repoRoot, 'web'),
       command: 'pnpm',
-      args: ['--filter', '@1flowse/web', 'dev'],
+      args: ['--filter', '@1flowbase/web', 'dev'],
       bindHost: '0.0.0.0',
       probeHost: '127.0.0.1',
       port: 3100,

@@ -1,11 +1,11 @@
 ---
 memory_type: project
 topic: 官方 provider 插件发布与安装页方向已确认
-summary: 用户于 `2026-04-18 20` 确认：本轮模型供应商后续工作要把“官方插件打包发布”和“宿主安装页”一起推进；正式安装对象固定为 `GitHub Release asset`，产物格式固定为 `.1flowsepkg`，安装页第一版只指向官方仓库，不开放自定义 GitHub 仓库，官方列表来源固定为稳定索引 `official-registry.json`，安装主动作固定为“安装到当前 workspace”，内部仍串行执行 `install -> enable -> assign`。
+summary: 用户于 `2026-04-18 20` 确认：本轮模型供应商后续工作要把“官方插件打包发布”和“宿主安装页”一起推进；正式安装对象固定为 `GitHub Release asset`，产物格式固定为 `.1flowbasepkg`，安装页第一版只指向官方仓库，不开放自定义 GitHub 仓库，官方列表来源固定为稳定索引 `official-registry.json`，安装主动作固定为“安装到当前 workspace”，内部仍串行执行 `install -> enable -> assign`。
 keywords:
   - official-plugin
   - github-release
-  - 1flowsepkg
+  - 1flowbasepkg
   - official-registry
   - settings
   - install-page
@@ -19,8 +19,8 @@ updated_at: 2026-04-18 20
 last_verified_at: 2026-04-18 20
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/2026-04-18-official-plugin-release-install-design.md
-  - ../1flowse-official-plugins
+  - docs/superpowers/specs/1flowbase/2026-04-18-official-plugin-release-install-design.md
+  - ../1flowbase-official-plugins
   - scripts/node/plugin.js
   - api/apps/api-server/src/routes/plugins.rs
   - api/crates/control-plane/src/plugin_management.rs
@@ -55,7 +55,7 @@ scope:
 ## 决策背后动机
 
 - 正式安装对象固定为 `GitHub Release asset`，不是源码仓库，也不是宿主现场拉源码打包。
-- 产物格式固定为 `.1flowsepkg`，允许第一版内部仍为压缩包实现，但产品和接口口径必须先固定。
+- 产物格式固定为 `.1flowbasepkg`，允许第一版内部仍为压缩包实现，但产品和接口口径必须先固定。
 - `plugin CLI` 的打包 source of truth 继续放主仓库，官方插件仓库通过 GitHub Actions 调用它，不复制独立 pack 脚本。
 - 官方插件列表不直接以 GitHub API 为产品契约，而是由官方仓库维护稳定索引 `official-registry.json`。
 - 设置页第一版只指向官方仓库来源，不开放自定义 GitHub 仓库输入。
@@ -64,5 +64,5 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-18-official-plugin-release-install-design.md`
-- `docs/superpowers/specs/1flowse/2026-04-18-model-provider-integration-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-18-official-plugin-release-install-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-18-model-provider-integration-design.md`

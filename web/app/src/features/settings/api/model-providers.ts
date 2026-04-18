@@ -14,7 +14,7 @@ import {
   type ConsoleValidateModelProviderResult,
   type CreateConsoleModelProviderInput,
   type UpdateConsoleModelProviderInput
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export type SettingsModelProviderCatalogEntry = ConsoleModelProviderCatalogEntry;
 export type SettingsModelProviderInstance = ConsoleModelProviderInstance;

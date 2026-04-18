@@ -30,7 +30,7 @@ scope:
 
 ## 失败现象
 
-执行 `pnpm --dir web lint` 时，`@1flowse/web` 报：
+执行 `pnpm --dir web lint` 时，`@1flowbase/web` 报：
 
 - `react-refresh/only-export-components`
 - `@typescript-eslint/no-explicit-any`

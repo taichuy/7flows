@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: 控制台壳层与认证设置区进入实施计划阶段
-summary: 用户在 `2026-04-14 07` 确认 `docs/superpowers/specs/1flowse/2026-04-13-console-shell-auth-settings-design.md` 没有原则性问题，并要求直接落成正式 implementation plan；执行入口固定为 `docs/superpowers/plans/2026-04-14-console-shell-auth-settings.md`。
+summary: 用户在 `2026-04-14 07` 确认 `docs/superpowers/specs/1flowbase/2026-04-13-console-shell-auth-settings-design.md` 没有原则性问题，并要求直接落成正式 implementation plan；执行入口固定为 `docs/superpowers/plans/2026-04-14-console-shell-auth-settings.md`。
 keywords:
   - frontend
   - auth
@@ -16,7 +16,7 @@ updated_at: 2026-04-14 07
 last_verified_at: 2026-04-14 07
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/2026-04-13-console-shell-auth-settings-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-13-console-shell-auth-settings-design.md
   - docs/superpowers/plans/2026-04-14-console-shell-auth-settings.md
   - web
   - api/apps/api-server
@@ -55,5 +55,5 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-13-console-shell-auth-settings-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-13-console-shell-auth-settings-design.md`
 - `docs/superpowers/plans/2026-04-14-console-shell-auth-settings.md`

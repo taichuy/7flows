@@ -5,7 +5,7 @@ import {
   resumeConsoleFlowRun,
   type ConsoleApplicationRunDetail,
   type ConsoleApplicationRunSummary
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 import { getApplicationsApiBaseUrl } from './applications';
 

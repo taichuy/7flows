@@ -1,7 +1,7 @@
 import type {
   ConsoleApplicationOrchestrationState,
   SaveConsoleApplicationDraftInput
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 import './agent-flow-editor.css';
 import { AgentFlowEditorStoreProvider } from '../../store/editor/provider';

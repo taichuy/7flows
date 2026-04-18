@@ -1,7 +1,7 @@
 ---
 memory_type: tool
 topic: 在仓库根直接用 find 扫描会命中 docker/volumes 权限目录
-summary: 在 `1flowse` 仓库根执行未限域的 `find . ...` 时，可能命中 `docker/volumes/postgres`、`docker/volumes/redis/appendonlydir` 并报 `权限不够`；已验证应优先改用 `rg --files`，或在 `find` 中显式 prune 掉 `docker/volumes`。
+summary: 在 `1flowbase` 仓库根执行未限域的 `find . ...` 时，可能命中 `docker/volumes/postgres`、`docker/volumes/redis/appendonlydir` 并报 `权限不够`；已验证应优先改用 `rg --files`，或在 `find` 中显式 prune 掉 `docker/volumes`。
 keywords:
   - shell
   - find
@@ -62,5 +62,5 @@ find . -path './docker/volumes' -prune -o -name 'AGENTS.md' -print
 
 - `2026-04-15 10`：为定位 Scalar 相关文件和依赖安装路径，在仓库根直接执行 `find .`，命中 `docker/volumes` 权限目录；随后改为限域搜索恢复正常。
 - `2026-04-15 16`：为定位仓库内所有 `AGENTS.md`，在仓库根直接执行 `find . -name AGENTS.md | sort`，再次命中 `docker/volumes/postgres` 与 `docker/volumes/redis/appendonlydir`；后续应优先改用 `rg --files | rg '(^|/)AGENTS\\.md$'`，或在 `find` 中显式 `-prune` 掉 `docker/volumes`。
-- `2026-04-15 21`：为确认 `1flowse` 根目录下所有 `AGENTS.md`，执行 `find . -path './docker/volumes/postgres' -prune -o -name AGENTS.md -print | sort`，虽然排除了 `postgres`，仍命中 `docker/volumes/redis/appendonlydir`；说明只排除单个子目录不够，后续要么直接改用 `rg --files`，要么一次性 `-prune` 整个 `./docker/volumes`。
+- `2026-04-15 21`：为确认 `1flowbase` 根目录下所有 `AGENTS.md`，执行 `find . -path './docker/volumes/postgres' -prune -o -name AGENTS.md -print | sort`，虽然排除了 `postgres`，仍命中 `docker/volumes/redis/appendonlydir`；说明只排除单个子目录不够，后续要么直接改用 `rg --files`，要么一次性 `-prune` 整个 `./docker/volumes`。
 - `2026-04-17 08`：为定位 `style-boundary` 脚本与相关文件，执行仓库根 `find . -path '*check-style-boundary.js' -o -path '*style-boundary*'`，再次命中 `docker/volumes/postgres` 与 `docker/volumes/redis/appendonlydir` 权限目录；随后改用 `rg --files | rg 'check-style-boundary|style-boundary'` 收敛到仓库文件列表并恢复正常。

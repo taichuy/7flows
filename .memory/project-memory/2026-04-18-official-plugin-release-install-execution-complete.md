@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: 官方 provider 插件 GitHub Release 安装闭环已执行完成
-summary: 自 `2026-04-18 20` 起，官方 provider 插件的五段实施计划已全部执行完成。主仓库已落地 `plugin package`、后端 `official-catalog / install-official`、设置页官方安装区；sibling repo `../1flowse-official-plugins` 已落地官方 registry 与 release workflow，并发布 `openai_compatible-v0.1.0`。本地宿主 smoke test 已验证官方 catalog 可见、release asset 可下载、`install-official` 可返回 `201` 并把插件分配到当前 workspace。
+summary: 自 `2026-04-18 20` 起，官方 provider 插件的五段实施计划已全部执行完成。主仓库已落地 `plugin package`、后端 `official-catalog / install-official`、设置页官方安装区；sibling repo `../1flowbase-official-plugins` 已落地官方 registry 与 release workflow，并发布 `openai_compatible-v0.1.0`。本地宿主 smoke test 已验证官方 catalog 可见、release asset 可下载、`install-official` 可返回 `201` 并把插件分配到当前 workspace。
 keywords:
   - official-plugin
   - execution-complete
@@ -21,7 +21,7 @@ scope:
   - docs/superpowers/plans/2026-04-18-official-plugin-release-install.md
   - .memory/project-memory/2026-04-18-official-plugin-release-install-plan-stage.md
   - scripts/node/plugin/core.js
-  - ../1flowse-official-plugins
+  - ../1flowbase-official-plugins
   - api/apps/api-server/src/routes/plugins.rs
   - api/crates/control-plane/src/plugin_management.rs
   - web/app/src/features/settings/pages/SettingsPage.tsx
@@ -35,16 +35,16 @@ scope:
   - `feat: add provider plugin package command`
   - `feat: install official plugins from release assets`
   - `feat: add official provider install panel`
-- 官方插件 sibling repo `../1flowse-official-plugins` 已完成一次功能提交：
+- 官方插件 sibling repo `../1flowbase-official-plugins` 已完成一次功能提交：
   - `feat: automate official plugin releases`
-- 官方 release tag `openai_compatible-v0.1.0` 已创建并推送，GitHub Release 已发布 `.1flowsepkg` 资产：
-  - `1flowse@openai_compatible@0.1.0@72384b58abe31a26892cb0c40917286cc1de290fa54304ee3b812e8d6794eb0d.1flowsepkg`
+- 官方 release tag `openai_compatible-v0.1.0` 已创建并推送，GitHub Release 已发布 `.1flowbasepkg` 资产：
+  - `1flowbase@openai_compatible@0.1.0@72384b58abe31a26892cb0c40917286cc1de290fa54304ee3b812e8d6794eb0d.1flowbasepkg`
 
 ## 关键验证
 
 - 官方 release 下载验证通过：
-  - `gh release view openai_compatible-v0.1.0 --repo taichuy/1flowse-official-plugins` 可见 release 与 asset
-  - `gh release download ... --dir /tmp/official-plugin-smoke` 成功下载 `.1flowsepkg`
+  - `gh release view openai_compatible-v0.1.0 --repo taichuy/1flowbase-official-plugins` 可见 release 与 asset
+  - `gh release download ... --dir /tmp/official-plugin-smoke` 成功下载 `.1flowbasepkg`
 - 宿主后端 smoke test 通过：
   - 首次请求命中过旧 `api-server` 进程，重启 `node scripts/node/dev-up.js restart --backend-only` 后恢复为新代码版本
   - `GET /api/console/plugins/official-catalog` 返回 `200`，安装前 `install_status=not_installed`

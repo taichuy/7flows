@@ -89,7 +89,7 @@
 
 ### 应用详情
 
-应用详情页复用现有 [section-page-layout](/home/taichu/git/1flowse/web/app/src/shared/ui/section-page-layout/SectionPageLayout.tsx) 作为二级路由壳层，固定四个分区：
+应用详情页复用现有 [section-page-layout](/home/taichu/git/1flowbase/web/app/src/shared/ui/section-page-layout/SectionPageLayout.tsx) 作为二级路由壳层，固定四个分区：
 
 - `编排`
 - `API`
@@ -255,7 +255,7 @@
 
 - `HomePage` 重写为应用列表页
 - `routes` 新增 application detail 路由组
-- `@1flowse/shared-types` 扩 route id
+- `@1flowbase/shared-types` 扩 route id
 - `features/applications/` 新建：
   - 列表页
   - 创建表单或弹窗

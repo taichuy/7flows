@@ -1,7 +1,7 @@
 ---
 memory_type: tool
 topic: 并行跑 web test lint build 会触发前端 Vitest 大面积超时
-summary: 在 `web/` 同时并行执行 `pnpm --dir web test`、`pnpm --dir web lint`、`pnpm --dir web/app build` 时，`@1flowse/web` 的 Vitest 可能因资源争抢出现大量 timeout 假失败；应在重型前端验证里优先串行跑 `web test`。
+summary: 在 `web/` 同时并行执行 `pnpm --dir web test`、`pnpm --dir web lint`、`pnpm --dir web/app build` 时，`@1flowbase/web` 的 Vitest 可能因资源争抢出现大量 timeout 假失败；应在重型前端验证里优先串行跑 `web test`。
 keywords:
   - multi_tool_use
   - parallel
@@ -11,7 +11,7 @@ keywords:
   - timeout
 match_when:
   - 同一轮并行执行 `pnpm --dir web test` 和 `pnpm --dir web/app build`
-  - `@1flowse/web` 出现多文件大面积 `Test timed out`
+  - `@1flowbase/web` 出现多文件大面积 `Test timed out`
   - 定向测试能过，但全量测试并行时突然成片超时
 created_at: 2026-04-16 00
 updated_at: 2026-04-16 00
@@ -29,7 +29,7 @@ scope:
 
 ## 失败现象
 
-在同一轮里并行执行 `pnpm --dir web test`、`pnpm --dir web lint`、`pnpm --dir web/app build` 时，`@1flowse/web` 的 Vitest 会出现大面积超时，涉及多个无关测试文件，不符合真实回归面。
+在同一轮里并行执行 `pnpm --dir web test`、`pnpm --dir web lint`、`pnpm --dir web/app build` 时，`@1flowbase/web` 的 Vitest 会出现大面积超时，涉及多个无关测试文件，不符合真实回归面。
 
 ## 触发条件
 

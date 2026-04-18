@@ -1,7 +1,7 @@
 ---
 memory_type: tool
 topic: 不要用 node require 直接读取 pnpm-lock.yaml
-summary: 在 `1flowse` 中把 `web/pnpm-lock.yaml` 直接当成 JS 模块执行 `node -e \"require(...)\"` 会报 `SyntaxError: Unexpected token '.'`；已验证应改用 `sed`、`rg`，或显式使用 YAML 解析器读取。
+summary: 在 `1flowbase` 中把 `web/pnpm-lock.yaml` 直接当成 JS 模块执行 `node -e \"require(...)\"` 会报 `SyntaxError: Unexpected token '.'`；已验证应改用 `sed`、`rg`，或显式使用 YAML 解析器读取。
 keywords:
   - node
   - pnpm-lock.yaml

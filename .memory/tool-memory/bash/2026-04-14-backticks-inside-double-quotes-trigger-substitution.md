@@ -67,5 +67,5 @@ rg -n 'TODO|TBD|missing `permissionKey`' docs/superpowers/plans/2026-04-14-conso
 ## 复现记录
 
 - `2026-04-14 20`：执行 `rg -n "web/app/src/features/settings/api/roles.ts|Extend \`api/crates/storage-pg/src/mappers/role_mapper.rs\`|Placeholder scan:" docs/superpowers/plans/2026-04-14-role-auto-grant-new-permissions.md` 时，bash 先尝试执行 ``api/crates/storage-pg/src/mappers/role_mapper.rs``，报 `/bin/bash: 行 1: api/crates/storage-pg/src/mappers/role_mapper.rs: 权限不够`；随后改回不用反引号或改用单引号包裹模式后恢复正常。
-- `2026-04-18 08`：执行 `rg -n "官方 provider catalog|当前 \`workspace\` 可见的 provider catalog|provider catalog 与实例列表" docs/superpowers/specs/1flowse/2026-04-18-model-provider-integration-design.md -S` 时，bash 先尝试执行 ``workspace``，报 `/bin/bash: 行 1: workspace: 未找到命令`；随后改用单引号包裹整段 pattern 后恢复正常。
+- `2026-04-18 08`：执行 `rg -n "官方 provider catalog|当前 \`workspace\` 可见的 provider catalog|provider catalog 与实例列表" docs/superpowers/specs/1flowbase/2026-04-18-model-provider-integration-design.md -S` 时，bash 先尝试执行 ``workspace``，报 `/bin/bash: 行 1: workspace: 未找到命令`；随后改用单引号包裹整段 pattern 后恢复正常。
 - `2026-04-18 08`：执行 `rg -n "deployment\`|model_discovery_mode|provider_instance_model_catalog_cache|模型发现|models/refresh|最新模型列表" ...` 时，双引号中的反引号导致 bash 在解析阶段直接报“寻找匹配的 \`\` 时遇到了未预期的 EOF”；随后改为不用双引号包裹含反引号的模式，恢复正常。

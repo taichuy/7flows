@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { PropsWithChildren } from 'react';
 import { useState } from 'react';
 
-import { AppThemeProvider } from '@1flowse/ui';
+import { AppThemeProvider } from '@1flowbase/ui';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(

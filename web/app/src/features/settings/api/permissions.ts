@@ -1,7 +1,7 @@
 import {
   listConsolePermissions,
   type ConsolePermission
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export type SettingsPermission = ConsolePermission;
 

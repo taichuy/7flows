@@ -12,7 +12,7 @@
 - `tmp/demo/desktop.png`
 - `tmp/demo/mobile.png`
 - `docs/draft/DESIGN.md`
-- `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
 
 ## 结论
 
@@ -30,10 +30,10 @@
 
 | # | 严重度 | 类型 | 位置 | 证据 | 为什么是问题 |
 |---|---|---|---|---|---|
-| 1 | High | IA 边界 | `tmp/demo/index.html:16-60` `96-408` `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:18-19` `51-60` `64-82` | 单页同时包含设计说明、概览、发布、API、空态、Editor UI | spec 说本轮先用 demo 验证视觉方向，不是冻结所有细节；当前页面却把多个任务域揉成一个“展示板”，无法验证任何单页语法是否成立。 |
+| 1 | High | IA 边界 | `tmp/demo/index.html:16-60` `96-408` `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:18-19` `51-60` `64-82` | 单页同时包含设计说明、概览、发布、API、空态、Editor UI | spec 说本轮先用 demo 验证视觉方向，不是冻结所有细节；当前页面却把多个任务域揉成一个“展示板”，无法验证任何单页语法是否成立。 |
 | 2 | High | 交互契约 | `tmp/demo/index.html:29-33` `76-92` `138` `267-269` `290-297` `tmp/demo/script.js:107-155` | 多数主按钮无行为，只有 run row、node、drawer close、compact toggle 有响应 | 基线 demo 不应示范“按钮可以没有结果”。这会把错误交互语言固化到后续实现里。 |
 | 3 | High | Drawer 契约 | `tmp/demo/index.html:412-458` `tmp/demo/styles.css:771-792` `tmp/demo/script.js:73-119` | 关闭态仍在 DOM 交互树中；打开态缺失焦点管理和模态语义 | 抽屉是当前页面唯一较明确的 L1 模型，但它本身是坏的。继续沿用只会把错误下钻模式扩散。 |
-| 4 | High | 状态语义 | `tmp/demo/index.html:41-45` `54-59` `195` `236` `281-283` `328-365` `386-439` `tmp/demo/styles.css:234-270` `465-482` `685-694` `tmp/demo/script.js:1-71` `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:39` `75-81` `90-99` | type、status、selection、meta tag 共用一套彩色语法 | spec 强调状态色要表达系统真相，shell 与 editor 共享状态逻辑；当前页面却让颜色同时表示节点种类、等待、选中和文案标签，语义完全冲突。 |
+| 4 | High | 状态语义 | `tmp/demo/index.html:41-45` `54-59` `195` `236` `281-283` `328-365` `386-439` `tmp/demo/styles.css:234-270` `465-482` `685-694` `tmp/demo/script.js:1-71` `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:39` `75-81` `90-99` | type、status、selection、meta tag 共用一套彩色语法 | spec 强调状态色要表达系统真相，shell 与 editor 共享状态逻辑；当前页面却让颜色同时表示节点种类、等待、选中和文案标签，语义完全冲突。 |
 | 5 | High | 响应式 / mobile-first | `tmp/demo/styles.css:869-914` `tmp/demo/mobile.png` | 390px 首屏被 sidebar 与说明块占满；Editor 仍需横向滚动 | 这不是移动端重排，只是把桌面评审板纵向堆叠。默认基线若在手机首屏看不到核心状态和入口，就不具备推广价值。 |
 | 6 | Medium | L1 规则不统一 | `tmp/demo/index.html:141-185` `321-368` `372-405` `tmp/demo/script.js:107-149` | run row 点击开 drawer，node 点击改 inspector，其它卡片没有稳定详情入口 | 同一页存在至少两种不同 L1 详情模型，但没有解释各自边界，用户无法预测点击结果。 |
 | 7 | Medium | 文案层级污染 | `tmp/demo/index.html:20-24` `36-60` `66-72` `399-404` | “Three rules”“Tone chips”“Sub-spec note”等设计说明直接出现在产品 UI | demo 本应模拟用户工作界面，这些内容却更像给评审者看的解释文本，污染了产品级信息层级。 |
@@ -74,9 +74,9 @@
 
 ## 必须保留的方向
 
-1. `Shell Layer + Editor UI Layer` 仍应被视为同一产品系统的两个表达层，而不是两套视觉语言。证据：`docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:34-39`
-2. `Editor UI` 比壳层更紧、更准、更高密度，这个方向应保留，但必须共享同一状态映射。证据：`docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:88-99`
-3. `DESIGN.md` 提供的是视觉母本，不应整页照搬到产品界面；只吸收适合工具型控制台的部分。证据：`docs/draft/DESIGN.md:5-15` `81-83` 与 `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:64-82`
+1. `Shell Layer + Editor UI Layer` 仍应被视为同一产品系统的两个表达层，而不是两套视觉语言。证据：`docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:34-39`
+2. `Editor UI` 比壳层更紧、更准、更高密度，这个方向应保留，但必须共享同一状态映射。证据：`docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:88-99`
+3. `DESIGN.md` 提供的是视觉母本，不应整页照搬到产品界面；只吸收适合工具型控制台的部分。证据：`docs/draft/DESIGN.md:5-15` `81-83` 与 `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:64-82`
 4. run list 走 L1 详情这个方向可以保留，但必须先把 drawer 契约修正确。证据：`tmp/demo/index.html:141-185` `412-458`
 
 ## 基线验收门槛

@@ -4,7 +4,7 @@ import {
   fetchConsoleApiOperationSpec,
   type ConsoleApiDocsCatalog,
   type ConsoleApiDocsCategoryOperations
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export type SettingsApiDocsCatalog = ConsoleApiDocsCatalog;
 export type SettingsApiDocsCategoryOperations = ConsoleApiDocsCategoryOperations;

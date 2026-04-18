@@ -4,7 +4,7 @@ import {
   useRef,
   type PropsWithChildren
 } from 'react';
-import type { ConsoleApplicationOrchestrationState } from '@1flowse/api-client';
+import type { ConsoleApplicationOrchestrationState } from '@1flowbase/api-client';
 import { useStore } from 'zustand';
 
 import {

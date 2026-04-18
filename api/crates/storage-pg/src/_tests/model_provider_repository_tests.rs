@@ -39,7 +39,10 @@ async fn seed_store() -> (
     let store = PgControlPlaneStore::new(pool);
 
     let tenant = store.upsert_root_tenant().await.unwrap();
-    let workspace = store.upsert_workspace(tenant.id, "1Flowse").await.unwrap();
+    let workspace = store
+        .upsert_workspace(tenant.id, "1Flowbase")
+        .await
+        .unwrap();
     store
         .upsert_permission_catalog(&access_control::permission_catalog())
         .await
@@ -76,7 +79,7 @@ async fn seed_store() -> (
             provider_code: "fixture_provider".into(),
             plugin_id: "fixture_provider@0.1.0".into(),
             plugin_version: "0.1.0".into(),
-            contract_version: "1flowse.provider/v1".into(),
+            contract_version: "1flowbase.provider/v1".into(),
             protocol: "openai_compatible".into(),
             display_name: "Fixture Provider".into(),
             source_kind: "downloaded_or_uploaded".into(),

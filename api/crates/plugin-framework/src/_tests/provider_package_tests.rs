@@ -47,7 +47,7 @@ fn make_package_fixture() -> TempProviderPackage {
         r#"plugin_code: acme_openai_compatible
 display_name: Acme OpenAI Compatible
 version: 1.2.3
-contract_version: 1flowse.provider/v1
+contract_version: 1flowbase.provider/v1
 supported_model_types:
   - llm
 runner:

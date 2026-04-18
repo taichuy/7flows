@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
 
-import type { AppRouteId } from '@1flowse/shared-types';
+import type { AppRouteId } from '@1flowbase/shared-types';
 import { Navigate } from '@tanstack/react-router';
 import { Spin } from 'antd';
 

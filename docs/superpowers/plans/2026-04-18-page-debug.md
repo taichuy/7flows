@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 为 1Flowse 增加一个 `scripts/node/page-debug.js`，让开发者或 AI 只给一个前端路由就能自动拿 root 登录态、打开受保护页面、等待到可比较的稳定态，并输出 `html/css/js` 快照、`storage-state.json`、页面截图和结构化控制台日志。
+**Goal:** 为 1Flowbase 增加一个 `scripts/node/page-debug.js`，让开发者或 AI 只给一个前端路由就能自动拿 root 登录态、打开受保护页面、等待到可比较的稳定态，并输出 `html/css/js` 快照、`storage-state.json`、页面截图和结构化控制台日志。
 
 **Architecture:** 保持 `scripts/node/*` 现有的 `cli wrapper + directory core modules + node:test` 风格，不把所有 Playwright、认证、页面等待、证据采集和快照重写逻辑堆进单个 God file。认证态通过 Playwright `request.newContext()` 调用现有密码登录接口并导出 `storageState`，运行态再由浏览器 context 复用该状态；`core.js` 只负责 CLI 协调和结构化 JSON 输出，`auth / readiness / evidence / snapshot` 各自收口单一职责。
 
 **Tech Stack:** Node.js 22 CommonJS, Playwright (`web/package.json`), Node `fs/path`, `node:test`, `node:assert/strict`
 
-**Source Spec:** `docs/superpowers/specs/1flowse/2026-04-18-page-debug-design.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/2026-04-18-page-debug-design.md`
 
 **Execution Note:** 我正在使用 writing-plans skill 创建实现计划。本仓库执行实现计划时不使用 `git worktree`；直接在当前工作区按任务提交推进。实现阶段按 TDD 走：先写 `node:test` 失败用例，再写最小实现，再跑目标测试和手工验证命令。
 
@@ -178,7 +178,7 @@ Expected:
 const { main } = require('./page-debug/core.js');
 
 main(process.argv.slice(2)).catch((error) => {
-  process.stderr.write(`[1flowse-page-debug] ${error.message}\n`);
+  process.stderr.write(`[1flowbase-page-debug] ${error.message}\n`);
   process.exitCode = 1;
 });
 ```

@@ -19,7 +19,7 @@ last_verified_at: 2026-04-16 07
 decision_policy: verify_before_decision
 scope:
   - web/app/src/features/agent-flow
-  - docs/superpowers/specs/1flowse/2026-04-15-agentflow-editor-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-15-agentflow-editor-design.md
 ---
 
 # agentFlow editor 改造方向切换为 Dify 式 store 中心化重构

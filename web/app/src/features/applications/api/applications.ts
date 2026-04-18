@@ -12,7 +12,7 @@ import {
   type ConsoleApplicationSummary,
   type ConsoleApplicationTagCatalogEntry,
   type CreateConsoleApplicationInput
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export type Application = ConsoleApplicationSummary;
 export type ApplicationDetail = ConsoleApplicationDetail;

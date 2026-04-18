@@ -22,8 +22,8 @@ last_verified_at: 2026-04-13 21
 decision_policy: verify_before_decision
 scope:
   - api
-  - docs/superpowers/specs/1flowse/2026-04-12-backend-interface-kernel-design.md
-  - docs/superpowers/specs/1flowse/2026-04-12-backend-engineering-quality-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-12-backend-interface-kernel-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-12-backend-engineering-quality-design.md
   - AGENTS.md
 ---
 

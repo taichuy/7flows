@@ -19,7 +19,7 @@ updated_at: 2026-04-13 13
 last_verified_at: 2026-04-13 13
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/2026-04-13-backend-qa-remediation-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-13-backend-qa-remediation-design.md
   - api
 ---
 

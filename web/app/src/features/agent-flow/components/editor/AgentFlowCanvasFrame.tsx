@@ -2,8 +2,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ConsoleApplicationOrchestrationState,
   SaveConsoleApplicationDraftInput
-} from '@1flowse/api-client';
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+} from '@1flowbase/api-client';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 import { Button, Typography } from 'antd';
 import {
   useEffect,

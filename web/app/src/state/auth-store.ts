@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-import type { ConsoleMe, ConsoleSessionActor } from '@1flowse/api-client';
+import type { ConsoleMe, ConsoleSessionActor } from '@1flowbase/api-client';
 
 export interface AuthSnapshot {
   csrfToken: string;

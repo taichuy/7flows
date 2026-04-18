@@ -19,7 +19,7 @@ last_verified_at: 2026-04-14 08
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/plans/2026-04-14-console-shell-auth-settings.md
-  - docs/superpowers/specs/1flowse/2026-04-13-console-shell-auth-settings-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-13-console-shell-auth-settings-design.md
   - api/apps/api-server
   - api/crates/control-plane
   - web/app

@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 19, TypeScript, `@xyflow/react`, Zustand, Ant Design 5, Vitest, Testing Library, existing `style-boundary` regression tooling
 
-**Source Spec:** `docs/superpowers/specs/1flowse/2026-04-16-agentflow-node-detail-design.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/2026-04-16-agentflow-node-detail-design.md`
 
 **Execution Note:** 本仓库执行实现计划时不使用 `git worktree`；直接在当前工作区按任务提交推进。前端实现完成后必须执行 `pnpm --dir web lint`、`pnpm --dir web test`、`pnpm --dir web/app build`，并补一次 `style-boundary` 页面回归。
 
@@ -103,7 +103,7 @@
 
 ```tsx
 // web/app/src/features/agent-flow/_tests/node-detail-panel.test.tsx
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
@@ -412,7 +412,7 @@ git commit -m "feat: add node detail panel shell"
 
 ```ts
 // web/app/src/features/agent-flow/_tests/document-transforms.test.ts
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 import { createEdgeDocument } from '../lib/document/edge-factory';
 import { createNodeDocument } from '../lib/document/node-factory';

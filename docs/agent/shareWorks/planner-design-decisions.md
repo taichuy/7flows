@@ -6,8 +6,8 @@
 - `docs/agent/shareWorks/qa-baseline-review.md`
 - `docs/agent/shareWorks/qa-top5.md`
 - `docs/agent/qa/4b529cd9-baseline-notes.md`
-- `docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md`
-- `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
+- `docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md`
+- `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
 - `docs/draft/DESIGN.md`
 
 ---

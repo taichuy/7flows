@@ -17,7 +17,7 @@ updated_at: 2026-04-14 09
 last_verified_at: 2026-04-14 09
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/2026-04-13-backend-governance-phase-two-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-13-backend-governance-phase-two-design.md
   - docs/superpowers/plans/2026-04-14-backend-workspace-switch.md
   - api
 ---

@@ -17,7 +17,7 @@ updated_at: 2026-04-14 17
 last_verified_at: 2026-04-14 17
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/2026-04-14-settings-api-docs-on-demand-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-14-settings-api-docs-on-demand-design.md
   - docs/superpowers/plans/2026-04-14-settings-api-docs-on-demand.md
   - web/app/src/features/settings
   - api/apps/api-server
@@ -55,5 +55,5 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-14-settings-api-docs-on-demand-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-14-settings-api-docs-on-demand-design.md`
 - `docs/superpowers/plans/2026-04-14-settings-api-docs-on-demand.md`

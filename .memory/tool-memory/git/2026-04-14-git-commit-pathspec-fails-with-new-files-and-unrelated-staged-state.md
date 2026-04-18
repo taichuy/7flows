@@ -62,12 +62,12 @@ error: 路径规格 '.memory/feedback-memory/repository/2026-04-14-web-agents-di
 
 ## 验证方式
 
-- `env GIT_INDEX_FILE=/tmp/1flowse-web-agents.index git read-tree HEAD`
-- `env GIT_INDEX_FILE=/tmp/1flowse-web-agents.index git add -- web/AGENTS.md .memory/feedback-memory/repository/2026-04-14-web-agents-directory-rules-align-with-real-structure.md`
-- `env GIT_INDEX_FILE=/tmp/1flowse-web-agents.index git commit -m "docs(web): align frontend directory rules"`
+- `env GIT_INDEX_FILE=/tmp/1flowbase-web-agents.index git read-tree HEAD`
+- `env GIT_INDEX_FILE=/tmp/1flowbase-web-agents.index git add -- web/AGENTS.md .memory/feedback-memory/repository/2026-04-14-web-agents-directory-rules-align-with-real-structure.md`
+- `env GIT_INDEX_FILE=/tmp/1flowbase-web-agents.index git commit -m "docs(web): align frontend directory rules"`
 - `git show --stat --oneline -1 05497d2e`
 - `git restore --source=HEAD --staged --worktree -- web/AGENTS.md .memory/feedback-memory/repository/2026-04-14-web-agents-directory-rules-align-with-real-structure.md`
 
 ## 复现记录
 
-- `2026-04-14 09`：在 `1flowse` 仓库中为 `web/AGENTS.md` 和一条新反馈记忆做隔离提交时复现；普通按路径提交失败，改用临时 index 成功。
+- `2026-04-14 09`：在 `1flowbase` 仓库中为 `web/AGENTS.md` 和一条新反馈记忆做隔离提交时复现；普通按路径提交失败，改用临时 index 成功。

@@ -19,7 +19,7 @@ fn create_provider_fixture(root: &Path) {
         r#"plugin_code: fixture_provider
 display_name: Fixture Provider
 version: 0.1.0
-contract_version: 1flowse.provider/v1
+contract_version: 1flowbase.provider/v1
 supported_model_types:
   - llm
 runner:
@@ -206,7 +206,7 @@ async fn create_ready_provider_instance(app: &axum::Router, cookie: &str, csrf: 
 
 fn build_ready_provider_document(flow_id: &str, provider_instance_id: &str) -> Value {
     json!({
-        "schemaVersion": "1flowse.flow/v1",
+        "schemaVersion": "1flowbase.flow/v1",
         "meta": { "flowId": flow_id, "name": "Support Agent", "description": "", "tags": [] },
         "graph": {
             "nodes": [
@@ -350,7 +350,7 @@ async fn seed_agent_flow_application(
 
 fn build_human_input_document(flow_id: &str, provider_instance_id: &str) -> Value {
     json!({
-        "schemaVersion": "1flowse.flow/v1",
+        "schemaVersion": "1flowbase.flow/v1",
         "meta": { "flowId": flow_id, "name": "Support Agent", "description": "", "tags": [] },
         "graph": {
             "nodes": [

@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: agentFlow schema UI 分层与首阶段范围已拍板
-summary: 用户已确认 1Flowse 的 schema UI 先拆为 `canvas_node_schema`、`overlay_shell_schema`、`page_block_schema` 三类，其中当前阶段只落前两类；schema 真值先由前端 registry 提供，使用 typed contract + renderer registry，不在当前阶段引入后端下发 schema 和 page block renderer。
+summary: 用户已确认 1Flowbase 的 schema UI 先拆为 `canvas_node_schema`、`overlay_shell_schema`、`page_block_schema` 三类，其中当前阶段只落前两类；schema 真值先由前端 registry 提供，使用 typed contract + renderer registry，不在当前阶段引入后端下发 schema 和 page block renderer。
 keywords:
   - agentflow
   - schema ui
@@ -32,7 +32,7 @@ scope:
 
 ## 谁在做什么
 
-用户正在推进 `agentFlow` 子节点 UI 的结构化重构，要求从“一个个调节点界面”转向“按 schema UI 和公共容器统一抽象”。AI 已对照当前 `1Flowse`、`../dify`、`../nocobase` 实现完成第一轮边界分析，现已得到用户对关键方向的明确选择。
+用户正在推进 `agentFlow` 子节点 UI 的结构化重构，要求从“一个个调节点界面”转向“按 schema UI 和公共容器统一抽象”。AI 已对照当前 `1Flowbase`、`../dify`、`../nocobase` 实现完成第一轮边界分析，现已得到用户对关键方向的明确选择。
 
 ## 为什么这样做
 
@@ -58,6 +58,6 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-16-agentflow-node-detail-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-16-agentflow-node-detail-design.md`
 - `web/app/src/features/agent-flow/lib/node-definitions.tsx`
 - `web/app/src/features/agent-flow/components/inspector/NodeInspector.tsx`

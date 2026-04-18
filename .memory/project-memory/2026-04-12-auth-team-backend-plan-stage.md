@@ -16,7 +16,7 @@ last_verified_at: 2026-04-12 18
 decision_policy: verify_before_decision
 scope:
   - api
-  - docs/superpowers/specs/1flowse/2026-04-12-auth-team-access-control-backend-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-12-auth-team-access-control-backend-design.md
   - docs/superpowers/plans/2026-04-12-auth-team-access-control-backend.md
 ---
 
@@ -28,7 +28,7 @@ scope:
 
 ## 谁在做什么
 
-- 用户确认 `docs/superpowers/specs/1flowse/2026-04-12-auth-team-access-control-backend-design.md` 当前讨论没有原则性问题，并要求直接写入实施计划。
+- 用户确认 `docs/superpowers/specs/1flowbase/2026-04-12-auth-team-access-control-backend-design.md` 当前讨论没有原则性问题，并要求直接写入实施计划。
 - AI 将确认结果固化到 `docs/superpowers/plans/2026-04-12-auth-team-access-control-backend.md`，作为后续后端实现的直接执行入口。
 
 ## 为什么这样做
@@ -52,5 +52,5 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-12-auth-team-access-control-backend-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-12-auth-team-access-control-backend-design.md`
 - `docs/superpowers/plans/2026-04-12-auth-team-access-control-backend.md`

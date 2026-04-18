@@ -626,7 +626,7 @@ git commit -m "feat: add overlay shell schema runtime"
 ```tsx
 // web/app/src/features/agent-flow/_tests/node-schema-registry.test.tsx
 import { describe, expect, test, vi } from 'vitest';
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 import { createAgentFlowNodeSchemaAdapter } from '../schema/node-schema-adapter';
 import { resolveAgentFlowNodeSchema } from '../schema/node-schema-registry';
@@ -678,9 +678,9 @@ export function createAgentFlowNodeSchemaAdapter({
   setWorkingDocument,
   dispatch
 }: {
-  document: import('@1flowse/flow-schema').FlowAuthoringDocument;
+  document: import('@1flowbase/flow-schema').FlowAuthoringDocument;
   nodeId: string;
-  setWorkingDocument: (next: import('@1flowse/flow-schema').FlowAuthoringDocument) => void;
+  setWorkingDocument: (next: import('@1flowbase/flow-schema').FlowAuthoringDocument) => void;
   dispatch: (actionKey: string, payload?: unknown) => void;
 }) {
   const node = document.graph.nodes.find((item) => item.id === nodeId);
@@ -733,7 +733,7 @@ export function createAgentFlowNodeSchemaAdapter({
 
 ```ts
 // web/app/src/features/agent-flow/schema/node-schema-registry.ts
-import type { FlowNodeType } from '@1flowse/flow-schema';
+import type { FlowNodeType } from '@1flowbase/flow-schema';
 import type { CanvasNodeSchema } from '../../../shared/schema-ui/contracts/canvas-node-schema';
 import { buildCommonConfigBlocks, buildCommonLastRunBlocks } from './node-schema-fragments';
 import { getNodeDefinitionMeta } from '../lib/node-definitions';
@@ -1212,8 +1212,8 @@ Expected:
 turbo run lint  -> success
 turbo run test  -> success
 vite build      -> success
-[1flowse-style-boundary] PASS page.application-detail
-[1flowse-style-boundary] PASS page.home
+[1flowbase-style-boundary] PASS page.application-detail
+[1flowbase-style-boundary] PASS page.home
 ```
 
 Actual on `2026-04-17`:

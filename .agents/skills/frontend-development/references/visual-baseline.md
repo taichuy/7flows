@@ -1,4 +1,4 @@
-# 1Flowse Visual Baseline
+# 1Flowbase Visual Baseline
 
 ## Authority
 
@@ -9,7 +9,7 @@
 
 ## Product Direction
 
-1Flowse 默认是**工具型控制台**，不是营销页，不是消费型 App：
+1Flowbase 默认是**工具型控制台**，不是营销页，不是消费型 App：
 
 - 白底或浅底，高对比，近黑正文
 - 主色明确，但状态色语义唯一
@@ -49,4 +49,4 @@
 
 - 可以吸收 `Vercel` 的边框、阴影和壳层克制感
 - 可以吸收 `Linear` 的密度控制和微交互精度
-- 不要把外部品牌色、深色气氛、营销 hero 直接带进 1Flowse 工作区
+- 不要把外部品牌色、深色气氛、营销 hero 直接带进 1Flowbase 工作区

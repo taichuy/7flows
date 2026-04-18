@@ -41,7 +41,7 @@ node scripts/node/dev-up.js ensure --frontend-only --skip-docker
 返回：
 
 ```text
-[1flowse-dev-up] frontend 启动超时，请查看日志：.../tmp/logs/web.log
+[1flowbase-dev-up] frontend 启动超时，请查看日志：.../tmp/logs/web.log
 ```
 
 但 `tmp/logs/web.log` 里同时还能看到旧的：

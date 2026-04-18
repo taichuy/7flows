@@ -19,7 +19,7 @@ updated_at: 2026-04-17 18
 last_verified_at: 2026-04-16 19
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse
+  - docs/superpowers/specs/1flowbase
   - web/app/src/features/agent-flow
 ---
 # agentFlow node detail 第一版设计边界与关键决策已收敛
@@ -36,7 +36,7 @@ scope:
 ## 谁在做什么
 
 - 用户正在推动 `agentFlow` 第一版 node detail / inspector 升级设计。
-- AI 正在基于 `1Flowse` 当前 `04/05` 模块边界与 `../dify` 参考实现，整理完整设计稿。
+- AI 正在基于 `1Flowbase` 当前 `04/05` 模块边界与 `../dify` 参考实现，整理完整设计稿。
 
 ## 为什么这样做
 

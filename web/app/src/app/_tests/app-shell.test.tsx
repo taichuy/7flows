@@ -5,7 +5,7 @@ import { render, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('@1flowse/api-client', () => ({
+vi.mock('@1flowbase/api-client', () => ({
   getDefaultApiBaseUrl: vi.fn().mockReturnValue('http://127.0.0.1:7800'),
   getConsoleApplicationCatalog: vi.fn().mockResolvedValue({
     types: [{ value: 'agent_flow', label: 'AgentFlow' }],
@@ -65,7 +65,7 @@ describe('App shell', () => {
     async () => {
       render(<App />);
 
-      expect(await screen.findByRole('heading', { name: '1Flowse' })).toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: '1Flowbase' })).toBeInTheDocument();
 
       const header = screen.getByRole('banner');
       const primaryNavigation = screen.getByRole('navigation', { name: 'Primary' });

@@ -30,7 +30,7 @@ scope:
 并行执行 `git status --short` 和 `git add -f ... && git commit ...` 时，提交命令报：
 
 ```text
-fatal: 无法创建 '/home/taichu/git/1flowse/.git/index.lock'：文件已存在。
+fatal: 无法创建 '/home/taichu/git/1flowbase/.git/index.lock'：文件已存在。
 ```
 
 ## 触发条件
@@ -51,5 +51,5 @@ fatal: 无法创建 '/home/taichu/git/1flowse/.git/index.lock'：文件已存在
 
 ## 复现记录
 
-- `2026-04-13 09`：在 1flowse 仓库并行执行状态检查和提交，触发 `index.lock` 冲突；改为串行执行后恢复正常。
+- `2026-04-13 09`：在 1flowbase 仓库并行执行状态检查和提交，触发 `index.lock` 冲突；改为串行执行后恢复正常。
 - `2026-04-15 17`：为了在结束前自动提交 `.memory/tool-memory` 变更，并行执行了 `git status --short` 和 `git add ... && git commit ...`，再次触发 `index.lock` 冲突；确认 `.git/index.lock` 已消失后，改为串行执行提交恢复正常。

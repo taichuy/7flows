@@ -6,9 +6,9 @@
 
 **Architecture:** 继续保持 `orchestration-runtime` 作为独立运行时 crate，不把 `05` 语义重新塞回 `runtime-core`。本轮新增 shared binding runtime 与 step-based debug executor，由它在 `Compiled Plan` 上顺序执行节点、在 `human_input / tool / http_request` 上产出等待态；`control-plane / storage-pg / api-server` 负责持久化 `checkpoint / callback task / run event`、暴露 resume 写接口；前端从 editor overlay 发起整流 debug run，在应用 logs detail 中提交人工输入或 callback 结果后继续执行。
 
-**Tech Stack:** Rust workspace (`domain`, `control-plane`, `storage-pg`, `orchestration-runtime`, `axum`, `sqlx`, `serde_json`, `tracing`), PostgreSQL, React 19, TypeScript, TanStack Query, Ant Design 5, Vitest, existing `@1flowse/api-client`
+**Tech Stack:** Rust workspace (`domain`, `control-plane`, `storage-pg`, `orchestration-runtime`, `axum`, `sqlx`, `serde_json`, `tracing`), PostgreSQL, React 19, TypeScript, TanStack Query, Ant Design 5, Vitest, existing `@1flowbase/api-client`
 
-**Source Spec:** `docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md`, `docs/superpowers/specs/1flowse/2026-04-10-orchestration-design-draft.md`, `docs/superpowers/plans/2026-04-17-module-05-runtime-orchestration.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/modules/05-runtime-orchestration/README.md`, `docs/superpowers/specs/1flowbase/2026-04-10-orchestration-design-draft.md`, `docs/superpowers/plans/2026-04-17-module-05-runtime-orchestration.md`
 
 **Execution Note:** 本仓库执行实现计划时不使用 `git worktree`；直接在当前工作区按任务提交推进。后端统一验证仍采用串行 `cargo test` 先拿行为证据，再执行 `cd api && cargo fmt --all` 与 `node scripts/node/verify-backend.js`，避免把格式检查误判成运行时回归。
 
@@ -192,7 +192,7 @@ fn base_plan() -> CompiledPlan {
     CompiledPlan {
         flow_id: Uuid::nil(),
         draft_id: "draft-1".to_string(),
-        schema_version: "1flowse.flow/v1".to_string(),
+        schema_version: "1flowbase.flow/v1".to_string(),
         topological_order: vec![
             "node-start".to_string(),
             "node-llm".to_string(),
@@ -1537,7 +1537,7 @@ import {
   startConsoleNodeDebugPreview,
   type ConsoleApplicationRunDetail,
   type ConsoleNodeLastRun
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export function buildFlowDebugRunInput(document: FlowAuthoringDocument) {
   const startNode = document.graph.nodes.find((node) => node.type === 'start');
@@ -1577,7 +1577,7 @@ import {
   resumeConsoleFlowRun,
   type ConsoleApplicationRunDetail,
   type ConsoleApplicationRunSummary
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export type ApplicationRunSummary = ConsoleApplicationRunSummary;
 export type ApplicationRunDetail = ConsoleApplicationRunDetail;

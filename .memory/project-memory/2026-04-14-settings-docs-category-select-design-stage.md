@@ -20,7 +20,7 @@ scope:
   - web/app/src/features/settings/components/ApiDocsPanel.tsx
   - web/app/src/features/settings/components/api-docs-panel.css
   - web/app/src/features/settings/_tests/api-docs-panel.test.tsx
-  - docs/superpowers/specs/1flowse/2026-04-14-settings-docs-category-select-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-14-settings-docs-category-select-design.md
 ---
 
 # 设置区 API 文档分类入口已确认改为可检索的 Ant Select

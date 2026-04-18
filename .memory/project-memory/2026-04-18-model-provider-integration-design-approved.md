@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: 模型供应商接入改按统一 contract、插件产物与双层生命周期推进
-summary: 用户于 `2026-04-18 08` 明确否决“只做 OpenAI 单供应商”的收缩方案，并进一步明确长期正确边界应为“`1Flowse` 定义标准 contract，provider 插件自己解决大模型接口接入”；同时用户否决“首批官方 provider 一次接入”，改为首轮只要求一个官方参考 plugin `openai_compatible`，其余 provider 通过同一 contract 独立接入。随后用户又明确：多协议 `provider kernel` 是宿主提供的统一运行内核，不是宿主内置很多家 provider 适配器；系统安装对象必须是插件产物而非源码目录，provider plugin 需要显式建模注册发现、异步安装任务，以及“插件包 / provider instance”双层生命周期；最新模型列表也不能只在插件加载时静态推送，而要由插件显式提供模型发现能力并支持按 provider instance 按需拉取；另外 provider plugin 源码包还应拥有专门的 `i18n/` 目录，并提供统一入口一键生成简单 demo 页面或调试脚手架；该 `plugin CLI` 首轮先放主仓库作为宿主侧 tooling，不放到 provider 插件仓库里跟插件一起维护，插件仓库只承载其生成的 `demo/` 与开发态 `scripts/`；截至 `2026-04-18 11`，第一版 `plugin CLI` 已落地到 `scripts/node/plugin.js`，可生成 provider 骨架和静态 demo scaffold，但真实 `plugin-runner` debug runtime 握手尚未实现。
+summary: 用户于 `2026-04-18 08` 明确否决“只做 OpenAI 单供应商”的收缩方案，并进一步明确长期正确边界应为“`1Flowbase` 定义标准 contract，provider 插件自己解决大模型接口接入”；同时用户否决“首批官方 provider 一次接入”，改为首轮只要求一个官方参考 plugin `openai_compatible`，其余 provider 通过同一 contract 独立接入。随后用户又明确：多协议 `provider kernel` 是宿主提供的统一运行内核，不是宿主内置很多家 provider 适配器；系统安装对象必须是插件产物而非源码目录，provider plugin 需要显式建模注册发现、异步安装任务，以及“插件包 / provider instance”双层生命周期；最新模型列表也不能只在插件加载时静态推送，而要由插件显式提供模型发现能力并支持按 provider instance 按需拉取；另外 provider plugin 源码包还应拥有专门的 `i18n/` 目录，并提供统一入口一键生成简单 demo 页面或调试脚手架；该 `plugin CLI` 首轮先放主仓库作为宿主侧 tooling，不放到 provider 插件仓库里跟插件一起维护，插件仓库只承载其生成的 `demo/` 与开发态 `scripts/`；截至 `2026-04-18 11`，第一版 `plugin CLI` 已落地到 `scripts/node/plugin.js`，可生成 provider 骨架和静态 demo scaffold，但真实 `plugin-runner` debug runtime 握手尚未实现。
 keywords:
   - model-provider
   - provider-kernel
@@ -36,10 +36,10 @@ updated_at: 2026-04-18 11
 last_verified_at: 2026-04-18 11
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/2026-04-18-model-provider-integration-design.md
-  - ../1flowse-official-plugins
-  - docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md
-  - docs/superpowers/specs/1flowse/modules/08-plugin-framework/README.md
+  - docs/superpowers/specs/1flowbase/2026-04-18-model-provider-integration-design.md
+  - ../1flowbase-official-plugins
+  - docs/superpowers/specs/1flowbase/modules/05-runtime-orchestration/README.md
+  - docs/superpowers/specs/1flowbase/modules/08-plugin-framework/README.md
   - api
   - web
 ---
@@ -69,7 +69,7 @@ scope:
 
 ## 为什么要做
 
-- 要让 `1Flowse` 真的进入“可配置、可验证、可运行”的模型供应商接入阶段。
+- 要让 `1Flowbase` 真的进入“可配置、可验证、可运行”的模型供应商接入阶段。
 - 要在进入供应商接入时就把长期正确边界钉死，避免把不同供应商协议逻辑继续堆进宿主。
 
 ## 截止日期
@@ -78,7 +78,7 @@ scope:
 
 ## 决策背后动机
 
-- 官方插件仓库 `../1flowse-official-plugins` 负责 Dify 风格 provider 包源码，并由 provider 插件自己实现真实接口接入。
+- 官方插件仓库 `../1flowbase-official-plugins` 负责 Dify 风格 provider 包源码，并由 provider 插件自己实现真实接口接入。
 - 宿主安装对象必须是签名后的插件产物，而不是源码目录。
 - 主仓库负责：
   - provider plugin 注册发现与 installed registry
@@ -123,4 +123,4 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-18-model-provider-integration-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-18-model-provider-integration-design.md`

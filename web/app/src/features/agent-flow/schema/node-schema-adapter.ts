@@ -1,4 +1,4 @@
-import type { FlowAuthoringDocument, FlowNodeDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument, FlowNodeDocument } from '@1flowbase/flow-schema';
 
 import { replaceNodeOutputs, updateNodeField } from '../lib/document/transforms/node';
 import { getDirectDownstreamNodes } from '../lib/document/relations';

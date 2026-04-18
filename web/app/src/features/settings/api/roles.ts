@@ -10,7 +10,7 @@ import {
   type CreateConsoleRoleInput,
   type ReplaceConsoleRolePermissionsInput,
   type UpdateConsoleRoleInput
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export type SettingsRole = ConsoleRole;
 export type SettingsRolePermissions = ConsoleRolePermissions;

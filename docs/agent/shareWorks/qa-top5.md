@@ -1,7 +1,7 @@
 # QA Top 5 Baseline Issues
 
 日期：2026-04-12  
-范围：`tmp/demo/*`、`docs/draft/DESIGN.md`、`docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
+范围：`tmp/demo/*`、`docs/draft/DESIGN.md`、`docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
 评审标准：`frontend-development` + `frontend-logic-design`
 
 ## 1. 基线页边界塌陷，演示页变成“所有东西的拼盘”
@@ -9,9 +9,9 @@
 - 位置：
   `tmp/demo/index.html:16-60`
   `tmp/demo/index.html:96-408`
-  `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:18-19`
-  `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:51-60`
-  `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:64-82`
+  `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:18-19`
+  `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:51-60`
+  `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:64-82`
 - 问题：
   同一屏同时承载设计说明、导航、概览指标、运行列表、发布表单、API 样例、空态、整块 Editor UI。它既像产品首页，又像编排页、API 页和设计评审板，已经不是一个可复用的页面语法。
 - 为何严重：
@@ -62,9 +62,9 @@
   `tmp/demo/styles.css:465-482`
   `tmp/demo/styles.css:685-694`
   `tmp/demo/script.js:1-71`
-  `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:39`
-  `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:75-81`
-  `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:90-99`
+  `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:39`
+  `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:75-81`
+  `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md:90-99`
 - 问题：
   `tone-chip` 同时表示 publish、healthy、waiting、editor、draft、short/flat、selected state；node badge 又用颜色表示节点类型；list 用状态点；drawer 和 inspector 则退回纯文本。页面没有一张清晰的“状态语义表”。
 - 为何严重：

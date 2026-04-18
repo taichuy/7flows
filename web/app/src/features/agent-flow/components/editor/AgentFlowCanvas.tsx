@@ -11,7 +11,7 @@ import {
   useViewport,
   type Edge
 } from '@xyflow/react';
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 import { useEffect, useMemo } from 'react';
 import { useRef } from 'react';
 

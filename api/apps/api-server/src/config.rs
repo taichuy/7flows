@@ -72,7 +72,7 @@ impl ApiConfig {
             .cloned()
             .unwrap_or_else(|| {
                 std::env::temp_dir()
-                    .join("1flowse-plugin-installed")
+                    .join("1flowbase-plugin-installed")
                     .display()
                     .to_string()
             });
@@ -83,7 +83,7 @@ impl ApiConfig {
         let official_plugin_repository = map
             .get("API_OFFICIAL_PLUGIN_REPOSITORY")
             .cloned()
-            .unwrap_or_else(|| "taichuy/1flowse-official-plugins".to_string());
+            .unwrap_or_else(|| "taichuy/1flowbase-official-plugins".to_string());
         let official_plugin_registry_url = map
             .get("API_OFFICIAL_PLUGIN_REGISTRY_URL")
             .cloned()

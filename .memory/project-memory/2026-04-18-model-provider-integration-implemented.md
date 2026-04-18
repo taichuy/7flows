@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: 模型供应商接入第一版闭环已完成
-summary: 自 `2026-04-18 17` 起，`docs/superpowers/plans/2026-04-18-model-provider-integration.md` 的 Task 1-9 已全部落地并回填状态；仓库现已具备 provider plugin 安装/分配、workspace provider instance 配置、provider-aware agentFlow LLM 节点、`Settings / 模型供应商` 页面，以及 `../1flowse-official-plugins/models/openai_compatible` 官方参考插件。
+summary: 自 `2026-04-18 17` 起，`docs/superpowers/plans/2026-04-18-model-provider-integration.md` 的 Task 1-9 已全部落地并回填状态；仓库现已具备 provider plugin 安装/分配、workspace provider instance 配置、provider-aware agentFlow LLM 节点、`Settings / 模型供应商` 页面，以及 `../1flowbase-official-plugins/models/openai_compatible` 官方参考插件。
 keywords:
   - model-provider
   - openai-compatible
@@ -21,7 +21,7 @@ last_verified_at: 2026-04-18 17
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/plans/2026-04-18-model-provider-integration.md
-  - ../1flowse-official-plugins/models/openai_compatible
+  - ../1flowbase-official-plugins/models/openai_compatible
   - api/apps/plugin-runner
   - api/apps/api-server/src/routes/model_providers.rs
   - api/crates/control-plane/src/model_provider.rs
@@ -62,13 +62,13 @@ scope:
 
 - 当前已完成的闭环包括：
   - `plugin-framework / plugin-runner / control-plane / storage-pg / api-server / orchestration-runtime` 的 provider contract、持久化、控制面 service、runtime 调用与编译期校验
-  - `../1flowse-official-plugins/models/openai_compatible` 官方参考插件及本地 demo 验证
+  - `../1flowbase-official-plugins/models/openai_compatible` 官方参考插件及本地 demo 验证
   - `Settings / 模型供应商` 页面、provider schema-driven drawer、`model-providers` 路由入口与权限边界
   - `agentFlow` 的 provider-aware LLM 节点选择器、文档字段、校验、只读展示与运行诊断
   - `style-boundary` 对 `page.settings` 和 `page.application-detail` 的 provider-aware 场景覆盖
 - 本轮新鲜验证证据：
-  - `node scripts/node/plugin.js demo init ../1flowse-official-plugins/models/openai_compatible`
-  - `node scripts/node/plugin.js demo dev ../1flowse-official-plugins/models/openai_compatible --port 4310`
+  - `node scripts/node/plugin.js demo init ../1flowbase-official-plugins/models/openai_compatible`
+  - `node scripts/node/plugin.js demo dev ../1flowbase-official-plugins/models/openai_compatible --port 4310`
   - `node scripts/node/verify-backend.js`
   - `pnpm --dir web/app test -- src/features/settings/_tests/model-providers-page.test.tsx src/features/settings/_tests/settings-page.test.tsx src/routes/_tests/section-shell-routing.test.tsx`
   - `pnpm --dir web/app test -- src/features/agent-flow/_tests/llm-model-provider-field.test.tsx src/features/agent-flow/_tests/node-detail-panel.test.tsx src/features/agent-flow/_tests/node-inspector.test.tsx`

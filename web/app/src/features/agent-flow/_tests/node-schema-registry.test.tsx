@@ -1,4 +1,4 @@
-import { createDefaultAgentFlowDocument, type FlowNodeDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument, type FlowNodeDocument } from '@1flowbase/flow-schema';
 import { describe, expect, test, vi } from 'vitest';
 
 import { agentFlowRendererRegistry } from '../schema/agent-flow-renderer-registry';

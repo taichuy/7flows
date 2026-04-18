@@ -19,10 +19,10 @@ updated_at: 2026-04-15 09
 last_verified_at: 2026-04-15 09
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md
-  - docs/superpowers/specs/1flowse/modules/04-chatflow-studio/README.md
-  - docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md
-  - docs/superpowers/specs/1flowse/modules/06b-publish-gateway/README.md
+  - docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md
+  - docs/superpowers/specs/1flowbase/modules/04-chatflow-studio/README.md
+  - docs/superpowers/specs/1flowbase/modules/05-runtime-orchestration/README.md
+  - docs/superpowers/specs/1flowbase/modules/06b-publish-gateway/README.md
   - web
   - api
 ---
@@ -81,7 +81,7 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md`
-- `docs/superpowers/specs/1flowse/modules/04-chatflow-studio/README.md`
-- `docs/superpowers/specs/1flowse/modules/05-runtime-orchestration/README.md`
-- `docs/superpowers/specs/1flowse/modules/06b-publish-gateway/README.md`
+- `docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md`
+- `docs/superpowers/specs/1flowbase/modules/04-chatflow-studio/README.md`
+- `docs/superpowers/specs/1flowbase/modules/05-runtime-orchestration/README.md`
+- `docs/superpowers/specs/1flowbase/modules/06b-publish-gateway/README.md`

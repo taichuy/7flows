@@ -17,8 +17,8 @@ last_verified_at: 2026-04-12 17
 decision_policy: verify_before_decision
 scope:
   - api
-  - docs/superpowers/specs/1flowse/modules/01-user-auth-and-team/README.md
-  - docs/superpowers/specs/1flowse/modules/02-access-control/README.md
+  - docs/superpowers/specs/1flowbase/modules/01-user-auth-and-team/README.md
+  - docs/superpowers/specs/1flowbase/modules/02-access-control/README.md
 ---
 
 # 用户认证与团队接入后端落地边界
@@ -29,7 +29,7 @@ scope:
 
 ## 谁在做什么
 
-- 用户要求将 `docs/superpowers/specs/1flowse/modules/01-user-auth-and-team` 对应后端直接落地，并明确要求同时覆盖模块 `02 权限与资源授权` 的角色 CRUD 与权限绑定接口。
+- 用户要求将 `docs/superpowers/specs/1flowbase/modules/01-user-auth-and-team` 对应后端直接落地，并明确要求同时覆盖模块 `02 权限与资源授权` 的角色 CRUD 与权限绑定接口。
 - AI 负责在现有 Rust 后端骨架上补齐认证、团队、成员、角色、权限、审计、初始化与测试。
 
 ## 为什么这样做
@@ -64,6 +64,6 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/modules/01-user-auth-and-team/README.md`
-- `docs/superpowers/specs/1flowse/modules/02-access-control/README.md`
-- `docs/superpowers/specs/1flowse/2026-04-10-p1-architecture.md`
+- `docs/superpowers/specs/1flowbase/modules/01-user-auth-and-team/README.md`
+- `docs/superpowers/specs/1flowbase/modules/02-access-control/README.md`
+- `docs/superpowers/specs/1flowbase/2026-04-10-p1-architecture.md`

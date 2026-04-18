@@ -57,17 +57,17 @@ scope:
 先执行目录或文件类型检查，再读取真实文件：
 
 - `find scripts/node/mock-ui-sync -maxdepth 2 -type f`
-- `find docs/superpowers/specs/1flowse/modules/01-user-auth-and-team -maxdepth 2 \\( -name 'AGENTS.md' -o -type f \\)`
+- `find docs/superpowers/specs/1flowbase/modules/01-user-auth-and-team -maxdepth 2 \\( -name 'AGENTS.md' -o -type f \\)`
 - `ls -ld api/apps/api-server/src/lib.rs`
 
 ## 复现记录
 
 - `2026-04-13 08`：在 `scripts/node/mock-ui-sync` 目录假定存在 `plan.md` 失败，改为先列目录后已成功读取实际文件。
-- `2026-04-13 14`：读取 `docs/superpowers/specs/1flowse/modules/01-user-auth-and-team*` 时命中目录本身，`sed` 返回“是一个目录”；改为先用 `find` 列出目录中的真实文件，再读取 `README.md` 成功。
+- `2026-04-13 14`：读取 `docs/superpowers/specs/1flowbase/modules/01-user-auth-and-team*` 时命中目录本身，`sed` 返回“是一个目录”；改为先用 `find` 列出目录中的真实文件，再读取 `README.md` 成功。
 - `2026-04-13 14`：主观假定 `api/apps/api-server/src/openapi.rs` 存在，`sed` 返回“没有那个文件或目录”；改为检索 `#[openapi(` 后确认 OpenAPI 聚合定义实际在 `api/apps/api-server/src/lib.rs`。
 - `2026-04-13 21`：在后端 QA 时主观假定 `scripts/node/verify-backend/index.js` 存在，`sed` 返回“没有那个文件或目录”；改为先读取 `scripts/node/verify-backend.js` 并用 `ls scripts/node` 确认脚本入口后完成验证。
 - `2026-04-13 21`：拼接 `rg` 搜索范围时误写成不存在的复合路径 `api/crates/storage-pg/src/api/apps/api-server/src`，命令直接报路径不存在；后续应先分目录确认真实搜索根，再执行检索。
 - `2026-04-13 22`：以为 `docs/superpowers/plans/2026-04-13-backend-governance-phase-two.md` 已经落盘，连续用 `sed` 回读失败；改为先用 `ls docs/superpowers/plans` 和 `rg --files docs` 确认真实文件集合，再创建正式计划文件。
 - `2026-04-14 10`：评审 `api/AGENTS.md` 时主观假定 `api/crates/storage-pg/src/runtime_registry_repository.rs` 存在，`sed` 返回“没有那个文件或目录”；改为先用 `rg -n "registry|unavailable"` 和 `find api/crates/storage-pg/src -maxdepth 2 -type f` 定位到真实实现分布在 `runtime_record_repository.rs` 与 `api/apps/api-server/src/runtime_registry_sync.rs`。
-- `2026-04-15 13`：根据设计稿里的相对链接主观假定仓库根下存在 `modules/04-chatflow-studio/README.md`，`sed` 返回“没有那个文件或目录”；改为先用 `rg --files docs/superpowers/specs/1flowse | rg '04-chatflow-studio|03-workspace-and-application'` 确认真正位置在 `docs/superpowers/specs/1flowse/modules/...` 后再读取成功。
+- `2026-04-15 13`：根据设计稿里的相对链接主观假定仓库根下存在 `modules/04-chatflow-studio/README.md`，`sed` 返回“没有那个文件或目录”；改为先用 `rg --files docs/superpowers/specs/1flowbase | rg '04-chatflow-studio|03-workspace-and-application'` 确认真正位置在 `docs/superpowers/specs/1flowbase/modules/...` 后再读取成功。
 - `2026-04-17 10`：排查 agent-flow detail 组件时主观假定 `web/app/src/features/agent-flow/lib/node-definitions.ts` 存在，`sed` 返回“没有那个文件或目录”；改为先用 `rg -n "下一步|节点说明"` 和 `rg --files web/app/src/features/agent-flow` 确认真实文件分布，再读取实际组件文件。

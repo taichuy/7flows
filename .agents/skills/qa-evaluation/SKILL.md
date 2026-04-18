@@ -1,13 +1,13 @@
 ---
 name: qa-evaluation
-description: Use when evaluating 1Flowse task outcomes or current project quality and need an evidence-driven QA report instead of direct implementation
+description: Use when evaluating 1Flowbase task outcomes or current project quality and need an evidence-driven QA report instead of direct implementation
 ---
 
 # QA Evaluation
 
 ## Overview
 
-`qa-evaluation` 不是另一个开发 Skill，而是 1Flowse 的质量评估器。它用于验证当前任务是否过关，或在用户明确要求时审计项目现状，并默认只产出问题报告与修正方向，不直接改代码。
+`qa-evaluation` 不是另一个开发 Skill，而是 1Flowbase 的质量评估器。它用于验证当前任务是否过关，或在用户明确要求时审计项目现状，并默认只产出问题报告与修正方向，不直接改代码。
 
 ## When to Use
 

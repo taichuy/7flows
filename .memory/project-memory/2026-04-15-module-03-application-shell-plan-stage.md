@@ -17,7 +17,7 @@ last_verified_at: 2026-04-15 10
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/plans/2026-04-15-module-03-application-shell.md
-  - docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md
+  - docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md
 ---
 
 # 模块 03 application shell 已从 spec 收敛进入 implementation plan 阶段
@@ -62,4 +62,4 @@ scope:
 ## 关联文档
 
 - `docs/superpowers/plans/2026-04-15-module-03-application-shell.md`
-- `docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md`
+- `docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md`

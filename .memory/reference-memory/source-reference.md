@@ -17,7 +17,7 @@ decision_policy: index_only
 scope:
   - ../dify
   - ../xyflow
-  - docs/superpowers/specs/1flowse/2026-04-10-p1-architecture.md
+  - docs/superpowers/specs/1flowbase/2026-04-10-p1-architecture.md
 ---
 
 # 源码参考
@@ -31,7 +31,7 @@ scope:
 
 ## 项目内参考文档
 
-- `docs/superpowers/specs/1flowse/2026-04-10-p1-architecture.md`
+- `docs/superpowers/specs/1flowbase/2026-04-10-p1-architecture.md`
   - 可作为前端技术边界参考，特别是 `Ant Design + xyflow + Editor UI` 的分层约束。
 
 ## 使用说明

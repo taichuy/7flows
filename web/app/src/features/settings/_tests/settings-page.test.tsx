@@ -145,7 +145,7 @@ describe('SettingsPage', () => {
     });
     permissionsApi.fetchSettingsPermissions.mockResolvedValue([]);
     docsApi.fetchSettingsApiDocsCatalog.mockResolvedValue({
-      title: '1Flowse API',
+      title: '1Flowbase API',
       version: '0.1.0',
       categories: [
         {
@@ -162,7 +162,7 @@ describe('SettingsPage', () => {
     });
     docsApi.fetchSettingsApiDocsOperationSpec.mockResolvedValue({
       openapi: '3.1.0',
-      info: { title: '1Flowse API', version: '0.1.0' },
+      info: { title: '1Flowbase API', version: '0.1.0' },
       paths: {},
       components: {}
     });
@@ -175,7 +175,7 @@ describe('SettingsPage', () => {
         provider_code: 'openai_compatible',
         plugin_id: 'openai_compatible@0.1.0',
         plugin_version: '0.1.0',
-        contract_version: '1flowse.provider/v1',
+        contract_version: '1flowbase.provider/v1',
         protocol: 'openai_compatible',
         display_name: 'OpenAI Compatible',
         source_kind: 'official_registry',

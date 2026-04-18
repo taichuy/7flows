@@ -32,17 +32,17 @@ struct InMemoryOfficialPluginSource;
 impl OfficialPluginSourcePort for InMemoryOfficialPluginSource {
     async fn list_official_catalog(&self) -> anyhow::Result<Vec<OfficialPluginSourceEntry>> {
         Ok(vec![OfficialPluginSourceEntry {
-            plugin_id: "1flowse.openai_compatible".to_string(),
+            plugin_id: "1flowbase.openai_compatible".to_string(),
             provider_code: "openai_compatible".to_string(),
             display_name: "OpenAI Compatible".to_string(),
             protocol: "openai_compatible".to_string(),
             latest_version: "0.1.0".to_string(),
             release_tag: "openai_compatible-v0.1.0".to_string(),
-            download_url: "https://example.com/openai-compatible.1flowsepkg".to_string(),
+            download_url: "https://example.com/openai-compatible.1flowbasepkg".to_string(),
             checksum: "sha256:abc123".to_string(),
             signature_status: "unsigned".to_string(),
             help_url: Some(
-                "https://github.com/taichuy/1flowse-official-plugins/tree/main/models/openai_compatible"
+                "https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible"
                     .to_string(),
             ),
             model_discovery_mode: "hybrid".to_string(),
@@ -53,10 +53,8 @@ impl OfficialPluginSourcePort for InMemoryOfficialPluginSource {
         &self,
         _entry: &OfficialPluginSourceEntry,
     ) -> anyhow::Result<DownloadedOfficialPluginPackage> {
-        let package_root = std::env::temp_dir().join(format!(
-            "official-plugin-route-{}",
-            Uuid::now_v7()
-        ));
+        let package_root =
+            std::env::temp_dir().join(format!("official-plugin-route-{}", Uuid::now_v7()));
         create_official_provider_fixture(&package_root);
         Ok(DownloadedOfficialPluginPackage {
             package_root,
@@ -77,7 +75,7 @@ fn default_test_config() -> ApiConfig {
     let root_password =
         std::env::var("BOOTSTRAP_ROOT_PASSWORD").unwrap_or_else(|_| "change-me".into());
     let workspace_name =
-        std::env::var("BOOTSTRAP_WORKSPACE_NAME").unwrap_or_else(|_| "1Flowse".into());
+        std::env::var("BOOTSTRAP_WORKSPACE_NAME").unwrap_or_else(|_| "1Flowbase".into());
 
     ApiConfig::from_env_map(&[
         ("API_DATABASE_URL", database_url.as_str()),
@@ -234,7 +232,7 @@ fn create_official_provider_fixture(root: &Path) {
         r#"plugin_code: openai_compatible
 display_name: OpenAI Compatible
 version: 0.1.0
-contract_version: 1flowse.provider/v1
+contract_version: 1flowbase.provider/v1
 supported_model_types:
   - llm
 runner:

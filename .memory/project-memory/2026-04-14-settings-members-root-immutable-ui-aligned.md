@@ -21,7 +21,7 @@ decision_policy: verify_before_decision
 scope:
   - web/app/src/features/settings
   - api/apps/api-server/src/_tests/member_routes.rs
-  - docs/superpowers/specs/1flowse/modules/01-user-auth-and-team/README.md
+  - docs/superpowers/specs/1flowbase/modules/01-user-auth-and-team/README.md
 ---
 
 # 设置区成员面板已对齐 root 账号不可变规则

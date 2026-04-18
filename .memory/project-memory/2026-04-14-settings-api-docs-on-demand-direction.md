@@ -18,7 +18,7 @@ updated_at: 2026-04-14 00
 last_verified_at: 2026-04-14 00
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/2026-04-14-settings-api-docs-on-demand-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-14-settings-api-docs-on-demand-design.md
   - web/app/src/features/settings
   - api/apps/api-server/src/openapi.rs
   - api/apps/api-server/src/lib.rs
@@ -53,5 +53,5 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-14-settings-api-docs-on-demand-design.md`
-- `docs/superpowers/specs/1flowse/2026-04-13-console-shell-auth-settings-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-14-settings-api-docs-on-demand-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-13-console-shell-auth-settings-design.md`

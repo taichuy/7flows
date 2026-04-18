@@ -25,7 +25,7 @@ fn compile_context() -> FlowCompileContext {
 
 fn sample_document(flow_id: Uuid) -> serde_json::Value {
     json!({
-        "schemaVersion": "1flowse.flow/v1",
+        "schemaVersion": "1flowbase.flow/v1",
         "meta": { "flowId": flow_id.to_string(), "name": "Support Agent", "description": "", "tags": [] },
         "graph": {
             "nodes": [

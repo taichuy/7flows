@@ -9,7 +9,7 @@ const modelProviderOptionsApi = vi.hoisted(() => ({
 
 vi.mock('../api/model-provider-options', () => modelProviderOptionsApi);
 
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { AppProviders } from '../../../app/AppProviders';
 import { NodeConfigTab } from '../components/detail/tabs/NodeConfigTab';
 import {

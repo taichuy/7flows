@@ -1,11 +1,11 @@
 {
-  "name": "@1flowse/api-client",
+  "name": "@1flowbase/api-client",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@1flowse/flow-schema": "workspace:^",
-    "@1flowse/shared-types": "workspace:*"
+    "@1flowbase/flow-schema": "workspace:^",
+    "@1flowbase/shared-types": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

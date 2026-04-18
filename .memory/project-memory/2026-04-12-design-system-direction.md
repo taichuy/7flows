@@ -29,7 +29,7 @@ scope:
 ## 谁在做什么
 
 - 用户要求重写 `DESIGN.md`，参考 `docs/draft/DESIGN.md` 的结构与写法。
-- AI 负责将当前规范重组为更统一的 UI 执行规范，并保留 1Flowse 自身的画布与工作区规则。
+- AI 负责将当前规范重组为更统一的 UI 执行规范，并保留 1Flowbase 自身的画布与工作区规则。
 
 ## 为什么这样做
 
@@ -59,4 +59,4 @@ scope:
 
 - `DESIGN.md`
 - `docs/draft/DESIGN.md`
-- `docs/superpowers/specs/1flowse/2026-04-10-p1-architecture.md`
+- `docs/superpowers/specs/1flowbase/2026-04-10-p1-architecture.md`

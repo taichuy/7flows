@@ -53,7 +53,7 @@ scope:
   - `BOOTSTRAP_ROOT_ACCOUNT=root`
   - `BOOTSTRAP_ROOT_EMAIL=root@example.com`
   - `BOOTSTRAP_ROOT_PASSWORD=change-me`
-  - `BOOTSTRAP_TEAM_NAME=1Flowse`
+  - `BOOTSTRAP_TEAM_NAME=1Flowbase`
 
 ## 验证方式
 

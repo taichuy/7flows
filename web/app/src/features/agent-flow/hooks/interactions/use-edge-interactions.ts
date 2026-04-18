@@ -1,4 +1,4 @@
-import type { FlowNodeType } from '@1flowse/flow-schema';
+import type { FlowNodeType } from '@1flowbase/flow-schema';
 import { useEffect, useRef } from 'react';
 
 import {

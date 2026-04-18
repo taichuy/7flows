@@ -17,11 +17,11 @@
 - `.memory/AGENTS.md`
 - `AGENTS.md`
 - `docs/draft/DESIGN.md`
-- `docs/superpowers/specs/1flowse/README.md`
-- `docs/superpowers/specs/1flowse/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
-- `docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md`
-- `docs/superpowers/specs/1flowse/modules/04-chatflow-studio/README.md`
-- `docs/superpowers/specs/1flowse/modules/06-publish-gateway/README.md`
+- `docs/superpowers/specs/1flowbase/README.md`
+- `docs/superpowers/specs/1flowbase/2026-04-12-frontend-visual-baseline-and-skill-evolution-design.md`
+- `docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md`
+- `docs/superpowers/specs/1flowbase/modules/04-chatflow-studio/README.md`
+- `docs/superpowers/specs/1flowbase/modules/06-publish-gateway/README.md`
 - `tmp/demo/index.html`
 - `tmp/demo/styles.css`
 - `tmp/demo/script.js`

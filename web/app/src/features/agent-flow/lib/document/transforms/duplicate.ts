@@ -2,7 +2,7 @@ import type {
   FlowAuthoringDocument,
   FlowBinding,
   FlowNodeDocument
-} from '@1flowse/flow-schema';
+} from '@1flowbase/flow-schema';
 
 import { getNodeById } from '../selectors';
 import { remapTemplateSelectorTokens } from '../../template-binding';

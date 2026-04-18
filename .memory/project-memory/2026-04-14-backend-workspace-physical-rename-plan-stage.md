@@ -18,7 +18,7 @@ last_verified_at: 2026-04-14 13
 decision_policy: verify_before_decision
 scope:
   - api
-  - docs/superpowers/specs/1flowse/2026-04-14-backend-workspace-physical-rename-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-14-backend-workspace-physical-rename-design.md
   - docs/superpowers/plans/2026-04-14-backend-workspace-physical-rename.md
 ---
 
@@ -30,7 +30,7 @@ scope:
 
 ## 谁在做什么
 
-- 用户确认 `docs/superpowers/specs/1flowse/2026-04-14-backend-workspace-physical-rename-design.md` 当前设计方向可以直接进入实施计划。
+- 用户确认 `docs/superpowers/specs/1flowbase/2026-04-14-backend-workspace-physical-rename-design.md` 当前设计方向可以直接进入实施计划。
 - AI 已把执行入口落到 `docs/superpowers/plans/2026-04-14-backend-workspace-physical-rename.md`，后续按该计划推进后端命名统一。
 
 ## 为什么这样做
@@ -54,5 +54,5 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/2026-04-14-backend-workspace-physical-rename-design.md`
+- `docs/superpowers/specs/1flowbase/2026-04-14-backend-workspace-physical-rename-design.md`
 - `docs/superpowers/plans/2026-04-14-backend-workspace-physical-rename.md`

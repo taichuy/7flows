@@ -19,7 +19,7 @@ last_verified_at: 2026-04-14 21
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/plans/2026-04-14-role-auto-grant-new-permissions.md
-  - docs/superpowers/specs/1flowse/2026-04-14-role-auto-grant-new-permissions-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-14-role-auto-grant-new-permissions-design.md
   - api/apps/api-server
   - api/crates/control-plane
   - api/crates/storage-pg

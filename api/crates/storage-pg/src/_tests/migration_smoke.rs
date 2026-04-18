@@ -138,7 +138,10 @@ async fn bootstrap_repository_upserts_password_local_and_root_user() {
     let store = PgControlPlaneStore::new(pool);
 
     let tenant = store.upsert_root_tenant().await.unwrap();
-    let workspace = store.upsert_workspace(tenant.id, "1Flowse").await.unwrap();
+    let workspace = store
+        .upsert_workspace(tenant.id, "1Flowbase")
+        .await
+        .unwrap();
     store
         .upsert_permission_catalog(&access_control::permission_catalog())
         .await

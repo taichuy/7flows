@@ -4,13 +4,13 @@
 
 **Goal:** 把官方 provider 插件从“本地参考源码”推进到“可打包、可通过 GitHub Release 发布、可在设置页从官方仓库一键安装到当前 workspace”的第一版线上闭环。
 
-**Architecture:** 主仓库继续作为 `plugin CLI` 和宿主安装逻辑的 source of truth。`../1flowse-official-plugins` 只承载 provider 源码、官方索引和 GitHub Actions；它通过调用主仓库的 `plugin package` 产出 `.1flowsepkg` 并发布到 GitHub Release。宿主后端新增官方 catalog 读取与 release asset 下载校验能力，前端设置页新增“安装模型供应商”区域，把 “install -> enable -> assign” 收敛成一个“安装到当前 workspace”产品动作。
+**Architecture:** 主仓库继续作为 `plugin CLI` 和宿主安装逻辑的 source of truth。`../1flowbase-official-plugins` 只承载 provider 源码、官方索引和 GitHub Actions；它通过调用主仓库的 `plugin package` 产出 `.1flowbasepkg` 并发布到 GitHub Release。宿主后端新增官方 catalog 读取与 release asset 下载校验能力，前端设置页新增“安装模型供应商”区域，把 “install -> enable -> assign” 收敛成一个“安装到当前 workspace”产品动作。
 
-**Tech Stack:** Node.js CLI (`scripts/node/plugin.js`), sibling repo `../1flowse-official-plugins`, GitHub Actions, Rust (`control-plane`, `api-server`), `reqwest`, `sha2`, `flate2`, `tar`, React 19, TanStack Query, Ant Design 5, existing `@1flowse/api-client`
+**Tech Stack:** Node.js CLI (`scripts/node/plugin.js`), sibling repo `../1flowbase-official-plugins`, GitHub Actions, Rust (`control-plane`, `api-server`), `reqwest`, `sha2`, `flate2`, `tar`, React 19, TanStack Query, Ant Design 5, existing `@1flowbase/api-client`
 
-**Source Spec:** `docs/superpowers/specs/1flowse/2026-04-18-official-plugin-release-install-design.md`, `docs/superpowers/specs/1flowse/2026-04-18-model-provider-integration-design.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/2026-04-18-official-plugin-release-install-design.md`, `docs/superpowers/specs/1flowbase/2026-04-18-model-provider-integration-design.md`
 
-**Execution Note:** 按用户当前偏好，计划执行时直接在当前仓库推进，不使用 `git worktree`。涉及 sibling repo `../1flowse-official-plugins` 的提交单独在该仓库内完成，但整体执行仍在当前会话里串行推进。
+**Execution Note:** 按用户当前偏好，计划执行时直接在当前仓库推进，不使用 `git worktree`。涉及 sibling repo `../1flowbase-official-plugins` 的提交单独在该仓库内完成，但整体执行仍在当前会话里串行推进。
 
 **Out Of Scope:** 自定义 GitHub 仓库输入、版本下拉选择、真实签名服务、完整 marketplace 搜索/推荐/升级治理、任意第三方 release asset 安装
 
@@ -21,22 +21,22 @@
 ### Main Repo: packaging and release artifact contract
 
 - Modify: `scripts/node/plugin/core.js`
-  - 新增 `package` 命令、产物 staging、`sha256` 计算、`.1flowsepkg` 输出与 metadata 返回。
+  - 新增 `package` 命令、产物 staging、`sha256` 计算、`.1flowbasepkg` 输出与 metadata 返回。
 - Modify: `scripts/node/plugin/_tests/core.test.js`
   - 锁住 `package` 命令会过滤 `demo/` 与开发态 `scripts/`，并生成稳定命名的单文件产物。
 
 ### Official Plugin Repo: release automation and official registry
 
-- Create: `../1flowse-official-plugins/official-registry.json`
+- Create: `../1flowbase-official-plugins/official-registry.json`
   - 官方 provider 插件稳定索引，作为宿主安装页与宿主后端的产品契约。
-- Create: `../1flowse-official-plugins/scripts/update-official-registry.mjs`
+- Create: `../1flowbase-official-plugins/scripts/update-official-registry.mjs`
   - 根据发布结果更新 `official-registry.json` 的 latest 条目。
-- Create: `../1flowse-official-plugins/scripts/_tests/update-official-registry.test.mjs`
+- Create: `../1flowbase-official-plugins/scripts/_tests/update-official-registry.test.mjs`
   - 锁住 registry upsert 行为、tag/version 匹配和 checksum 写入规则。
-- Create: `../1flowse-official-plugins/.github/workflows/provider-ci.yml`
+- Create: `../1flowbase-official-plugins/.github/workflows/provider-ci.yml`
   - PR / push 校验 provider 包结构、`plugin package` dry-run 和 registry 结构。
-- Create: `../1flowse-official-plugins/.github/workflows/provider-release.yml`
-  - 按插件级 tag 打包 `.1flowsepkg`、上传 GitHub Release asset 并回写 registry。
+- Create: `../1flowbase-official-plugins/.github/workflows/provider-release.yml`
+  - 按插件级 tag 打包 `.1flowbasepkg`、上传 GitHub Release asset 并回写 registry。
 
 ### Backend: official catalog and install orchestration
 
@@ -83,7 +83,7 @@
 - Modify: `web/app/src/style-boundary/registry.tsx`
 - Modify: `web/app/src/style-boundary/scenario-manifest.json`
 
-## Task 1: Add `.1flowsepkg` Packaging To The Main Repo CLI
+## Task 1: Add `.1flowbasepkg` Packaging To The Main Repo CLI
 
 **Files:**
 - Modify: `scripts/node/plugin/core.js`
@@ -96,7 +96,7 @@ Append focused tests to `scripts/node/plugin/_tests/core.test.js`:
 ```js
 const { spawnSync } = require('node:child_process');
 
-test('plugin package creates a single .1flowsepkg asset with checksum metadata', async () => {
+test('plugin package creates a single .1flowbasepkg asset with checksum metadata', async () => {
   const pluginPath = makeTempPluginPath();
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowse-plugin-dist-'));
 
@@ -104,7 +104,7 @@ test('plugin package creates a single .1flowsepkg asset with checksum metadata',
 
   const result = await main(['package', pluginPath, '--out', outputDir]);
 
-  assert.match(result.packageFile, /\.1flowsepkg$/);
+  assert.match(result.packageFile, /\.1flowbasepkg$/);
   assert.match(result.checksum, /^[a-f0-9]{64}$/);
   assert.equal(fs.existsSync(result.packageFile), true);
 });
@@ -150,7 +150,7 @@ const { spawnSync } = require('node:child_process');
 
 function createPackageArtifactRoot(pluginPath) {
   const packageRoot = fs.mkdtempSync(
-    path.join(os.tmpdir(), `1flowse-plugin-package-${sanitizeCode(getPluginName(pluginPath))}-`)
+    path.join(os.tmpdir(), `1flowbase-plugin-package-${sanitizeCode(getPluginName(pluginPath))}-`)
   );
 
   for (const entry of fs.readdirSync(pluginPath)) {
@@ -171,10 +171,10 @@ function createPluginPackage(pluginPath, outputDir) {
   ensurePluginScaffoldExists(pluginPath);
   const stagedRoot = createPackageArtifactRoot(pluginPath);
   const pluginCode = readPluginCode(pluginPath);
-  const packageFile = path.join(outputDir, `1flowse@${pluginCode}@0.1.0@pending.1flowsepkg`);
+  const packageFile = path.join(outputDir, `1flowbase@${pluginCode}@0.1.0@pending.1flowbasepkg`);
   spawnSync('tar', ['-czf', packageFile, '-C', stagedRoot, '.'], { stdio: 'inherit' });
   const checksum = hashFile(packageFile);
-  const finalFile = path.join(outputDir, `1flowse@${pluginCode}@0.1.0@${checksum}.1flowsepkg`);
+  const finalFile = path.join(outputDir, `1flowbase@${pluginCode}@0.1.0@${checksum}.1flowbasepkg`);
   fs.renameSync(packageFile, finalFile);
   removeDirIfExists(stagedRoot);
   return { pluginPath, packageFile: finalFile, checksum };
@@ -185,7 +185,7 @@ Also extend `usage()`, `parseCliArgs()`, and `main()` with:
 
 ```js
 if (first === 'package') {
-  // parse ../1flowse-official-plugins/models/openai_compatible --out tmp/provider-packages
+  // parse ../1flowbase-official-plugins/models/openai_compatible --out tmp/provider-packages
 }
 ```
 
@@ -197,7 +197,7 @@ Run:
 node --test --test-name-pattern "plugin package" scripts/node/plugin/_tests/core.test.js
 ```
 
-Expected: PASS. The returned asset path ends with `.1flowsepkg`, the checksum is a 64-char SHA-256 hex digest, and the packaged artifact omits `demo/` and `scripts/`.
+Expected: PASS. The returned asset path ends with `.1flowbasepkg`, the checksum is a 64-char SHA-256 hex digest, and the packaged artifact omits `demo/` and `scripts/`.
 
 - [x] **Step 5: Commit the main-repo packaging changes**
 
@@ -211,15 +211,15 @@ git commit -m "feat: add provider plugin package command"
 ## Task 2: Automate Official Registry And GitHub Release Publishing In The Official Plugin Repo
 
 **Files:**
-- Create: `../1flowse-official-plugins/official-registry.json`
-- Create: `../1flowse-official-plugins/scripts/update-official-registry.mjs`
-- Create: `../1flowse-official-plugins/scripts/_tests/update-official-registry.test.mjs`
-- Create: `../1flowse-official-plugins/.github/workflows/provider-ci.yml`
-- Create: `../1flowse-official-plugins/.github/workflows/provider-release.yml`
+- Create: `../1flowbase-official-plugins/official-registry.json`
+- Create: `../1flowbase-official-plugins/scripts/update-official-registry.mjs`
+- Create: `../1flowbase-official-plugins/scripts/_tests/update-official-registry.test.mjs`
+- Create: `../1flowbase-official-plugins/.github/workflows/provider-ci.yml`
+- Create: `../1flowbase-official-plugins/.github/workflows/provider-release.yml`
 
 - [x] **Step 1: Write the failing registry updater test in the official plugin repo**
 
-Create `../1flowse-official-plugins/scripts/_tests/update-official-registry.test.mjs`:
+Create `../1flowbase-official-plugins/scripts/_tests/update-official-registry.test.mjs`:
 
 ```js
 import test from 'node:test';
@@ -231,16 +231,16 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
   const registry = { version: 1, generated_at: null, plugins: [] };
 
   const next = upsertRegistryEntry(registry, {
-    plugin_id: '1flowse.openai_compatible',
+    plugin_id: '1flowbase.openai_compatible',
     provider_code: 'openai_compatible',
     display_name: 'OpenAI Compatible',
     protocol: 'openai_compatible',
     latest_version: '0.1.0',
     release_tag: 'openai_compatible-v0.1.0',
-    download_url: 'https://github.com/taichuy/1flowse-official-plugins/releases/download/openai_compatible-v0.1.0/pkg.1flowsepkg',
+    download_url: 'https://github.com/taichuy/1flowbase-official-plugins/releases/download/openai_compatible-v0.1.0/pkg.1flowbasepkg',
     checksum: 'sha256:abc123',
     signature_status: 'unsigned',
-    help_url: 'https://github.com/taichuy/1flowse-official-plugins/tree/main/models/openai_compatible',
+    help_url: 'https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible',
     model_discovery_mode: 'hybrid'
   });
 
@@ -254,14 +254,14 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
 Run:
 
 ```bash
-node --test ../1flowse-official-plugins/scripts/_tests/update-official-registry.test.mjs
+node --test ../1flowbase-official-plugins/scripts/_tests/update-official-registry.test.mjs
 ```
 
 Expected: FAIL with `Cannot find module '../update-official-registry.mjs'`.
 
 - [x] **Step 3: Implement the registry script and GitHub workflows**
 
-Create `../1flowse-official-plugins/official-registry.json`:
+Create `../1flowbase-official-plugins/official-registry.json`:
 
 ```json
 {
@@ -271,7 +271,7 @@ Create `../1flowse-official-plugins/official-registry.json`:
 }
 ```
 
-Create `../1flowse-official-plugins/scripts/update-official-registry.mjs`:
+Create `../1flowbase-official-plugins/scripts/update-official-registry.mjs`:
 
 ```js
 import fs from 'node:fs';
@@ -293,7 +293,7 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
 }
 ```
 
-Create `../1flowse-official-plugins/.github/workflows/provider-ci.yml` with a dry-run packaging job:
+Create `../1flowbase-official-plugins/.github/workflows/provider-ci.yml` with a dry-run packaging job:
 
 ```yaml
 name: provider-ci
@@ -308,7 +308,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: taichuy/1flowse
+          repository: taichuy/1flowbase
           path: host
       - uses: actions/setup-node@v4
         with:
@@ -317,7 +317,7 @@ jobs:
       - run: node --test scripts/_tests/update-official-registry.test.mjs
 ```
 
-Create `../1flowse-official-plugins/.github/workflows/provider-release.yml` with tag-triggered release publishing:
+Create `../1flowbase-official-plugins/.github/workflows/provider-release.yml` with tag-triggered release publishing:
 
 ```yaml
 name: provider-release
@@ -332,7 +332,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/checkout@v4
         with:
-          repository: taichuy/1flowse
+          repository: taichuy/1flowbase
           path: host
       - uses: actions/setup-node@v4
         with:
@@ -341,7 +341,7 @@ jobs:
       - run: node scripts/update-official-registry.mjs official-registry.json "${REGISTRY_ENTRY_JSON}"
       - uses: softprops/action-gh-release@v2
         with:
-          files: dist/*.1flowsepkg
+          files: dist/*.1flowbasepkg
 ```
 
 - [x] **Step 4: Run the official repo test and whitespace check**
@@ -349,8 +349,8 @@ jobs:
 Run:
 
 ```bash
-node --test ../1flowse-official-plugins/scripts/_tests/update-official-registry.test.mjs
-git -C ../1flowse-official-plugins diff --check
+node --test ../1flowbase-official-plugins/scripts/_tests/update-official-registry.test.mjs
+git -C ../1flowbase-official-plugins diff --check
 ```
 
 Expected: PASS. The registry helper is importable and `git diff --check` returns no whitespace errors.
@@ -360,8 +360,8 @@ Expected: PASS. The registry helper is importable and `git diff --check` returns
 Run:
 
 ```bash
-git -C ../1flowse-official-plugins add official-registry.json scripts/update-official-registry.mjs scripts/_tests/update-official-registry.test.mjs .github/workflows/provider-ci.yml .github/workflows/provider-release.yml
-git -C ../1flowse-official-plugins commit -m "feat: automate official plugin releases"
+git -C ../1flowbase-official-plugins add official-registry.json scripts/update-official-registry.mjs scripts/_tests/update-official-registry.test.mjs .github/workflows/provider-ci.yml .github/workflows/provider-release.yml
+git -C ../1flowbase-official-plugins commit -m "feat: automate official plugin releases"
 ```
 
 ## Task 3: Add Official Catalog And `install-official` To The Backend
@@ -399,7 +399,7 @@ async fn plugin_management_service_lists_official_catalog_and_installs_latest_re
     let install = service
         .install_official_plugin(InstallOfficialPluginCommand {
             actor_user_id,
-            plugin_id: "1flowse.openai_compatible".to_string(),
+            plugin_id: "1flowbase.openai_compatible".to_string(),
         })
         .await
         .unwrap();
@@ -435,7 +435,7 @@ async fn plugin_routes_list_official_catalog_and_install_official_package() {
             .header("cookie", &cookie)
             .header("x-csrf-token", &csrf)
             .header("content-type", "application/json")
-            .body(Body::from(json!({ "plugin_id": "1flowse.openai_compatible" }).to_string()))
+            .body(Body::from(json!({ "plugin_id": "1flowbase.openai_compatible" }).to_string()))
             .unwrap(),
     ).await.unwrap();
 
@@ -451,14 +451,14 @@ fn api_config_reads_official_plugin_repository_settings() {
     let config = ApiConfig::from_env_map(&[
         ("API_DATABASE_URL", "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows"),
         ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
-        ("API_OFFICIAL_PLUGIN_REPOSITORY", "taichuy/1flowse-official-plugins"),
+        ("API_OFFICIAL_PLUGIN_REPOSITORY", "taichuy/1flowbase-official-plugins"),
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
-        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowse"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowbase"),
     ]).unwrap();
 
-    assert_eq!(config.official_plugin_repository, "taichuy/1flowse-official-plugins");
+    assert_eq!(config.official_plugin_repository, "taichuy/1flowbase-official-plugins");
 }
 ```
 
@@ -621,12 +621,12 @@ Append focused tests to `web/app/src/features/settings/_tests/model-providers-pa
 test('renders official install cards beneath the installed provider area', async () => {
   pluginsApi.fetchSettingsOfficialPluginCatalog.mockResolvedValue([
     {
-      plugin_id: '1flowse.openai_compatible',
+      plugin_id: '1flowbase.openai_compatible',
       provider_code: 'openai_compatible',
       display_name: 'OpenAI Compatible',
       latest_version: '0.1.0',
       protocol: 'openai_compatible',
-      help_url: 'https://github.com/taichuy/1flowse-official-plugins/tree/main/models/openai_compatible',
+      help_url: 'https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible',
       install_status: 'not_installed'
     }
   ]);
@@ -703,7 +703,7 @@ import {
   getConsolePluginTask,
   installConsoleOfficialPlugin,
   listConsoleOfficialPluginCatalog
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export const settingsOfficialPluginsQueryKey = ['settings', 'plugins', 'official-catalog'] as const;
 
@@ -811,7 +811,7 @@ Run:
 
 ```bash
 git push origin HEAD
-git -C ../1flowse-official-plugins push origin HEAD
+git -C ../1flowbase-official-plugins push origin HEAD
 ```
 
 Expected: Both repositories push successfully without rejected commits.
@@ -821,8 +821,8 @@ Expected: Both repositories push successfully without rejected commits.
 Run:
 
 ```bash
-git -C ../1flowse-official-plugins tag openai_compatible-v0.1.0
-git -C ../1flowse-official-plugins push origin openai_compatible-v0.1.0
+git -C ../1flowbase-official-plugins tag openai_compatible-v0.1.0
+git -C ../1flowbase-official-plugins push origin openai_compatible-v0.1.0
 ```
 
 Expected: GitHub Actions `provider-release` starts for the new tag.
@@ -832,11 +832,11 @@ Expected: GitHub Actions `provider-release` starts for the new tag.
 Run:
 
 ```bash
-gh release view openai_compatible-v0.1.0 --repo taichuy/1flowse-official-plugins
-gh release download openai_compatible-v0.1.0 --repo taichuy/1flowse-official-plugins --pattern "*.1flowsepkg" --dir /tmp/official-plugin-smoke
+gh release view openai_compatible-v0.1.0 --repo taichuy/1flowbase-official-plugins
+gh release download openai_compatible-v0.1.0 --repo taichuy/1flowbase-official-plugins --pattern "*.1flowbasepkg" --dir /tmp/official-plugin-smoke
 ```
 
-Expected: `gh release view` shows the release and `gh release download` writes a `.1flowsepkg` file into `/tmp/official-plugin-smoke`.
+Expected: `gh release view` shows the release and `gh release download` writes a `.1flowbasepkg` file into `/tmp/official-plugin-smoke`.
 
 - [x] **Step 4: Smoke-test the live install path against the running host**
 
@@ -860,12 +860,12 @@ curl -s -X POST http://127.0.0.1:7800/api/console/plugins/install-official \
   -H "content-type: application/json" \
   -H "cookie: $SESSION_COOKIE" \
   -H "x-csrf-token: $CSRF_TOKEN" \
-  --data '{"plugin_id":"1flowse.openai_compatible"}'
+  --data '{"plugin_id":"1flowbase.openai_compatible"}'
 ```
 
-Expected: `official-catalog` returns an entry whose `plugin_id` is `1flowse.openai_compatible`, and `install-official` returns a created installation/task payload whose installation is visible on `/settings/model-providers`.
+Expected: `official-catalog` returns an entry whose `plugin_id` is `1flowbase.openai_compatible`, and `install-official` returns a created installation/task payload whose installation is visible on `/settings/model-providers`.
 
-Execution note: 实际 smoke test 先命中了旧 `api-server` 进程未重启导致的 `404`，随后通过 `node scripts/node/dev-up.js restart --backend-only` 切到新代码版本。重试后 `official-catalog` 返回 `200` 和 `1flowse.openai_compatible` 条目，`install-official` 返回 `201`，installation `source_kind=official_registry`、`checksum=sha256:72384b58abe31a26892cb0c40917286cc1de290fa54304ee3b812e8d6794eb0d`，assign task 直接终态 `success`。安装后二次读取 `official-catalog`，`install_status` 已变为 `assigned`，宿主 `/api/console/plugins/catalog` 也能看到 `assigned_to_current_workspace=true`。
+Execution note: 实际 smoke test 先命中了旧 `api-server` 进程未重启导致的 `404`，随后通过 `node scripts/node/dev-up.js restart --backend-only` 切到新代码版本。重试后 `official-catalog` 返回 `200` 和 `1flowbase.openai_compatible` 条目，`install-official` 返回 `201`，installation `source_kind=official_registry`、`checksum=sha256:72384b58abe31a26892cb0c40917286cc1de290fa54304ee3b812e8d6794eb0d`，assign task 直接终态 `success`。安装后二次读取 `official-catalog`，`install_status` 已变为 `assigned`，宿主 `/api/console/plugins/catalog` 也能看到 `assigned_to_current_workspace=true`。
 
 - [x] **Step 5: Capture final verification state**
 
@@ -873,7 +873,7 @@ Run:
 
 ```bash
 git status --short
-git -C ../1flowse-official-plugins status --short
+git -C ../1flowbase-official-plugins status --short
 ```
 
 Expected: No unexpected uncommitted changes remain except intentional local `.env` edits used for the smoke test.

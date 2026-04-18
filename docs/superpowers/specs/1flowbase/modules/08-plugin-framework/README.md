@@ -74,10 +74,10 @@
 
 这里必须严格区分两层：
 
-- `../1flowse-official-plugins`
+- `../1flowbase-official-plugins`
   - 源码仓库
   - 面向插件作者与 CI/CD
-- `1Flowse` 宿主
+- `1Flowbase` 宿主
   - 安装和运行的是插件产物
   - 不直接消费源码目录
 
@@ -96,7 +96,7 @@
 产物文件名建议固定为：
 
 ```text
-<vendor>@<plugin_name>@<version>@<sha256>.1flowsepkg
+<vendor>@<plugin_name>@<version>@<sha256>.1flowbasepkg
 ```
 
 默认不进入正式运行时安装包的开发目录：
@@ -126,7 +126,7 @@ provider plugin 的发现入口首轮固定为：
 
 ## 国际化资源目录
 
-参考 `Dify` 已有的多语言 `README` 与内联 `I18nObject` 思路，`1Flowse` 要进一步收敛为专门的 `i18n/` 目录。
+参考 `Dify` 已有的多语言 `README` 与内联 `I18nObject` 思路，`1Flowbase` 要进一步收敛为专门的 `i18n/` 目录。
 
 正式规则：
 
@@ -144,7 +144,7 @@ provider plugin 的发现入口首轮固定为：
 
 ## Demo 脚手架
 
-参考 `Dify` 已有的 `plugin init`、`module append` 和开发 `GUIDE`，`1Flowse` 还应额外提供统一入口一键生成简单 demo 页面。
+参考 `Dify` 已有的 `plugin init`、`module append` 和开发 `GUIDE`，`1Flowbase` 还应额外提供统一入口一键生成简单 demo 页面。
 
 这条能力可以是命令，也可以是脚本，但必须对插件作者呈现为稳定入口。
 

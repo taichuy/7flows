@@ -17,8 +17,8 @@ last_verified_at: 2026-04-12 23
 decision_policy: verify_before_decision
 scope:
   - .agents/skills/qa-evaluation
-  - docs/superpowers/specs/1flowse/2026-04-12-backend-interface-kernel-design.md
-  - docs/superpowers/specs/1flowse/2026-04-12-backend-engineering-quality-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-12-backend-interface-kernel-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-12-backend-engineering-quality-design.md
   - docs/superpowers/plans/2026-04-12-backend-kernel-and-quality-alignment.md
 ---
 

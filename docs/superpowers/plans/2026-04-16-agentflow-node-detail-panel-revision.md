@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 19, TypeScript, Ant Design 5 `Splitter/Tabs/Input`, Zustand, Vitest, Testing Library, existing `style-boundary` regression tooling
 
-**Source Spec:** `docs/superpowers/specs/1flowse/2026-04-16-agentflow-node-detail-design.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/2026-04-16-agentflow-node-detail-design.md`
 
 **Previous Plan:** `docs/superpowers/plans/2026-04-16-agentflow-node-detail.md`
 

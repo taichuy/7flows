@@ -1,7 +1,7 @@
 ---
 memory_type: tool
 topic: 从 web 根目录直接跑 web/app 单测时可能无法解析 web/app 的 workspace 依赖
-summary: 在仓库根执行 `pnpm --dir web exec vitest run app/src/...` 时，`vitest` 以 `web/` 为包根，`@1flowse/flow-schema` 这类仅在 `web/app` 声明的 workspace 依赖会解析失败；已验证应切到 `web/app` 再执行 `pnpm exec vitest run src/...`。
+summary: 在仓库根执行 `pnpm --dir web exec vitest run app/src/...` 时，`vitest` 以 `web/` 为包根，`@1flowbase/flow-schema` 这类仅在 `web/app` 声明的 workspace 依赖会解析失败；已验证应切到 `web/app` 再执行 `pnpm exec vitest run src/...`。
 keywords:
   - vitest
   - workspace
@@ -11,7 +11,7 @@ keywords:
 match_when:
   - 需要跑 `web/app` 的单个或少量 Vitest 文件
   - 从 `web/` 根目录执行 `pnpm --dir web exec vitest run app/src/...`
-  - 看到 `Failed to resolve entry for package "@1flowse/flow-schema"` 一类报错
+  - 看到 `Failed to resolve entry for package "@1flowbase/flow-schema"` 一类报错
 created_at: 2026-04-17 12
 updated_at: 2026-04-17 12
 last_verified_at: 2026-04-17 12
@@ -40,19 +40,19 @@ pnpm --dir web exec vitest run app/src/features/agent-flow/_tests/node-detail-pa
 报错：
 
 ```text
-Failed to resolve entry for package "@1flowse/flow-schema"
+Failed to resolve entry for package "@1flowbase/flow-schema"
 ```
 
 ## 触发条件
 
 - 目标测试文件位于 `web/app/src/...`
 - 命令从仓库根通过 `pnpm --dir web exec vitest run app/src/...` 发起
-- 测试依赖 `@1flowse/flow-schema`、`@1flowse/api-client` 等只在 `web/app/package.json` 声明的 workspace 包
+- 测试依赖 `@1flowbase/flow-schema`、`@1flowbase/api-client` 等只在 `web/app/package.json` 声明的 workspace 包
 
 ## 根因
 
 `vitest` 实际以 `web/` 作为当前包根运行，而不是 `web/app`。  
-`web/package.json` 本身不声明 `@1flowse/flow-schema`，所以 Vite 的 import analysis 在解析 `web/app` 测试文件时会直接失败。
+`web/package.json` 本身不声明 `@1flowbase/flow-schema`，所以 Vite 的 import analysis 在解析 `web/app` 测试文件时会直接失败。
 
 ## 已验证解法
 
@@ -73,5 +73,5 @@ pnpm exec vitest run src/features/agent-flow/_tests/node-detail-panel.test.tsx
 
 ## 复现记录
 
-- `2026-04-17 12`：为 agent-flow detail panel 改动跑聚焦单测时，先在 `web/` 根执行 `pnpm --dir web exec vitest run app/src/...`，命中 `@1flowse/flow-schema` 解析失败；切到 `web/app` 改用 `pnpm exec vitest run src/...` 后恢复正常。
-- `2026-04-17 23`：为 node detail tabs 布局修正做聚焦验证时，再次在 `web/` 根执行 `pnpm --dir web exec vitest run app/src/features/agent-flow/_tests/node-detail-panel.test.tsx`，同样报 `Failed to resolve entry for package "@1flowse/flow-schema"`；确认该问题稳定复现，继续保持在 `web/app` 包根执行单文件测试。
+- `2026-04-17 12`：为 agent-flow detail panel 改动跑聚焦单测时，先在 `web/` 根执行 `pnpm --dir web exec vitest run app/src/...`，命中 `@1flowbase/flow-schema` 解析失败；切到 `web/app` 改用 `pnpm exec vitest run src/...` 后恢复正常。
+- `2026-04-17 23`：为 node detail tabs 布局修正做聚焦验证时，再次在 `web/` 根执行 `pnpm --dir web exec vitest run app/src/features/agent-flow/_tests/node-detail-panel.test.tsx`，同样报 `Failed to resolve entry for package "@1flowbase/flow-schema"`；确认该问题稳定复现，继续保持在 `web/app` 包根执行单文件测试。

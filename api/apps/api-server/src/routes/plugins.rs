@@ -7,8 +7,8 @@ use axum::{
     Json, Router,
 };
 use control_plane::plugin_management::{
-    AssignPluginCommand, EnablePluginCommand, InstallOfficialPluginCommand,
-    InstallPluginCommand, OfficialPluginCatalogEntry, PluginCatalogEntry, PluginManagementService,
+    AssignPluginCommand, EnablePluginCommand, InstallOfficialPluginCommand, InstallPluginCommand,
+    OfficialPluginCatalogEntry, PluginCatalogEntry, PluginManagementService,
 };
 use serde::{Deserialize, Serialize};
 use time::format_description::well_known::Rfc3339;
@@ -226,7 +226,9 @@ pub async fn list_official_catalog(
     headers: HeaderMap,
 ) -> Result<Json<ApiSuccess<Vec<OfficialPluginCatalogEntryResponse>>>, ApiError> {
     let context = require_session(&state, &headers).await?;
-    let catalog = service(&state).list_official_catalog(context.user.id).await?;
+    let catalog = service(&state)
+        .list_official_catalog(context.user.id)
+        .await?;
     Ok(Json(ApiSuccess::new(
         catalog
             .into_iter()

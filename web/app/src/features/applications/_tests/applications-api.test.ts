@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('@1flowse/api-client', () => ({
+vi.mock('@1flowbase/api-client', () => ({
   createConsoleApplication: vi.fn().mockResolvedValue({
     id: 'app-1'
   }),
@@ -29,7 +29,7 @@ import {
   getDefaultApiBaseUrl,
   listConsoleApplications,
   updateConsoleApplication
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 import {
   createApplication,

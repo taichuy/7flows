@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Menu } from 'antd';
-import { createDefaultAgentFlowDocument } from '@1flowse/flow-schema';
+import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
 import { AppRouterProvider } from '../app/router';
 import { AppShellFrame } from '../app-shell/AppShellFrame';
@@ -101,12 +101,12 @@ const styleBoundaryProviderOptions = {
 
 const styleBoundaryOfficialPluginCatalog = [
   {
-    plugin_id: '1flowse.openai_compatible',
+    plugin_id: '1flowbase.openai_compatible',
     provider_code: 'openai_compatible',
     display_name: 'OpenAI Compatible',
     protocol: 'openai_responses',
     latest_version: '0.1.0',
-    help_url: 'https://github.com/taichuy/1flowse-official-plugins/tree/main/models/openai_compatible',
+    help_url: 'https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible',
     model_discovery_mode: 'hybrid',
     install_status: 'assigned'
   }
@@ -201,7 +201,7 @@ function seedStyleBoundarySettingsFetch() {
       return new Response(
         JSON.stringify({
           data: {
-            title: '1Flowse API',
+            title: '1Flowbase API',
             version: '0.1.0',
             categories: [
               {
@@ -262,7 +262,7 @@ function seedStyleBoundarySettingsFetch() {
       return new Response(
         JSON.stringify({
           openapi: '3.1.0',
-          info: { title: '1Flowse API', version: '0.1.0' },
+          info: { title: '1Flowbase API', version: '0.1.0' },
           paths: {
             '/api/console/members': {
               get: {

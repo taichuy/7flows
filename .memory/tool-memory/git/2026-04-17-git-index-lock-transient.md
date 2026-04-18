@@ -21,7 +21,7 @@ verified_solution:
   - 如果锁已经消失且没有活跃 git 进程，直接重试 git add / git commit
   - 不要在未确认前直接删除 index.lock
 scope:
-  - /home/taichu/git/1flowse
+  - /home/taichu/git/1flowbase
 ---
 
 # git commit 瞬时命中 index.lock 时先检查锁是否仍存在再重试

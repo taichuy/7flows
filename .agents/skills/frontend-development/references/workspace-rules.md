@@ -1,4 +1,4 @@
-# 1Flowse Workspace Rules
+# 1Flowbase Workspace Rules
 
 ## Execution Order
 

@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust, Axum, SQLx, Utoipa, React 19, TypeScript, TanStack Router, TanStack Query, Zustand, Ant Design 5, Vitest, Testing Library
 
-**Source Spec:** `docs/superpowers/specs/1flowse/modules/03-workspace-and-application/README.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/modules/03-workspace-and-application/README.md`
 
 **Execution Note:** 本仓库执行实现计划时不使用 `git worktree`；直接在当前工作区按任务提交推进。
 
@@ -266,7 +266,7 @@ async fn get_application_returns_section_hooks_with_null_runtime_targets() {
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse/api
+cd /home/taichu/git/1flowbase/api
 cargo test -p storage-pg application_repository_tests -- --nocapture
 ```
 
@@ -459,7 +459,7 @@ let rows = sqlx::query(
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse/api
+cd /home/taichu/git/1flowbase/api
 cargo test -p storage-pg application_repository_tests -- --nocapture
 ```
 
@@ -572,7 +572,7 @@ async fn get_application_detail_returns_planned_future_hooks() {
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse/api
+cd /home/taichu/git/1flowbase/api
 cargo test -p control-plane application_service_tests -- --nocapture
 ```
 
@@ -718,7 +718,7 @@ impl ApplicationService<InMemoryApplicationRepository> {
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse/api
+cd /home/taichu/git/1flowbase/api
 cargo test -p control-plane application_service_tests -- --nocapture
 ```
 
@@ -823,7 +823,7 @@ async fn openapi_contains_application_console_routes() {
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse/api
+cd /home/taichu/git/1flowbase/api
 cargo test -p api-server application_routes -- --nocapture
 cargo test -p api-server openapi_contains_application_console_routes -- --nocapture
 ```
@@ -1004,7 +1004,7 @@ crate::routes::applications::CreateApplicationBody,
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse/api
+cd /home/taichu/git/1flowbase/api
 cargo test -p api-server application_routes -- --nocapture
 cargo test -p api-server openapi_contains_application_console_routes -- --nocapture
 ```
@@ -1101,7 +1101,7 @@ test('renders application cards instead of the old health summary', async () => 
 Update `web/app/src/app/_tests/app-shell.test.tsx` so the shell test uses the new home-page data source instead of the removed health query:
 
 ```tsx
-vi.mock('@1flowse/api-client', () => ({
+vi.mock('@1flowbase/api-client', () => ({
   getDefaultApiBaseUrl: vi.fn().mockReturnValue('http://127.0.0.1:7800'),
   listConsoleApplications: vi.fn().mockResolvedValue([
     {
@@ -1120,7 +1120,7 @@ vi.mock('@1flowse/api-client', () => ({
 test('renders the formal console shell with application workspace content', async () => {
   render(<App />);
 
-  expect(await screen.findByRole('heading', { name: '1Flowse' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: '1Flowbase' })).toBeInTheDocument();
   expect(await screen.findByText('Support Agent')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '工作台' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '进入应用' })).toBeInTheDocument();
@@ -1133,7 +1133,7 @@ test('renders the formal console shell with application workspace content', asyn
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse
+cd /home/taichu/git/1flowbase
 pnpm --dir web/app exec vitest run \
   src/features/applications/_tests/application-create-modal.test.tsx \
   src/features/home/_tests/home-page.test.tsx
@@ -1243,7 +1243,7 @@ import {
   type ConsoleApplicationDetail,
   type ConsoleApplicationSummary,
   type CreateConsoleApplicationInput
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 export type Application = ConsoleApplicationSummary;
 export type ApplicationDetail = ConsoleApplicationDetail;
@@ -1489,7 +1489,7 @@ export function HomePage() {
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse
+cd /home/taichu/git/1flowbase
 pnpm --dir web/app exec vitest run \
   src/features/applications/_tests/application-create-modal.test.tsx \
   src/features/home/_tests/home-page.test.tsx \
@@ -1536,7 +1536,7 @@ Create `web/app/src/routes/_tests/application-shell-routing.test.tsx`:
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { ApiClientError } from '@1flowse/api-client';
+import { ApiClientError } from '@1flowbase/api-client';
 import { AppProviders } from '../../app/AppProviders';
 import { AppRouterProvider } from '../../app/router';
 import { resetAuthStore, useAuthStore } from '../../state/auth-store';
@@ -1640,7 +1640,7 @@ describe('application shell routing', () => {
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse
+cd /home/taichu/git/1flowbase
 pnpm --dir web/app exec vitest run \
   src/routes/_tests/application-shell-routing.test.tsx \
   src/routes/_tests/route-config.test.ts
@@ -1967,7 +1967,7 @@ Create `web/app/src/features/applications/pages/ApplicationDetailPage.tsx`:
 import { useQuery } from '@tanstack/react-query';
 import { Result } from 'antd';
 
-import { ApiClientError } from '@1flowse/api-client';
+import { ApiClientError } from '@1flowbase/api-client';
 import { SectionPageLayout } from '../../../shared/ui/section-page-layout/SectionPageLayout';
 import { PermissionDeniedState } from '../../../shared/ui/PermissionDeniedState';
 import { applicationDetailQueryKey, fetchApplicationDetail } from '../api/applications';
@@ -2191,7 +2191,7 @@ Update `web/app/src/style-boundary/scenario-manifest.json`:
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse
+cd /home/taichu/git/1flowbase
 pnpm --dir web/app exec vitest run \
   src/routes/_tests/application-shell-routing.test.tsx \
   src/routes/_tests/route-config.test.ts \
@@ -2232,7 +2232,7 @@ git commit -m "feat(web): add application detail shell"
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse/api
+cd /home/taichu/git/1flowbase/api
 cargo test -p storage-pg application_repository_tests -- --nocapture
 cargo test -p control-plane application_service_tests -- --nocapture
 cargo test -p api-server application_routes -- --nocapture
@@ -2245,7 +2245,7 @@ Expected: all PASS.
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse
+cd /home/taichu/git/1flowbase
 pnpm --dir web/app exec vitest run \
   src/features/home/_tests/home-page.test.tsx \
   src/features/applications/_tests/application-create-modal.test.tsx \
@@ -2262,7 +2262,7 @@ Expected: PASS.
 Run:
 
 ```bash
-cd /home/taichu/git/1flowse
+cd /home/taichu/git/1flowbase
 node scripts/node/verify-backend.js
 pnpm --dir web lint
 pnpm --dir web test
@@ -2280,12 +2280,12 @@ Expected:
 With `pnpm --dir web/app dev` running on `http://127.0.0.1:3100`, run:
 
 ```bash
-cd /home/taichu/git/1flowse
+cd /home/taichu/git/1flowbase
 node scripts/node/check-style-boundary.js page page.home
 node scripts/node/check-style-boundary.js page page.application-detail
 ```
 
-Expected: both commands print `[1flowse-style-boundary] PASS ...`.
+Expected: both commands print `[1flowbase-style-boundary] PASS ...`.
 
 - [x] **Step 5: Confirm the working tree status after verification**
 

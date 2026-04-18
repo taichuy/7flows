@@ -8,7 +8,7 @@
 
 **Tech Stack:** Rust, Axum, SQLx, Serde JSON, React 19, TypeScript, `@xyflow/react`, Lexical, `@dagrejs/dagre`, TanStack Query, Ant Design 5, Vitest, Testing Library
 
-**Source Spec:** `docs/superpowers/specs/1flowse/2026-04-15-agentflow-editor-design.md`
+**Source Spec:** `docs/superpowers/specs/1flowbase/2026-04-15-agentflow-editor-design.md`
 
 **Execution Note:** 本仓库执行实现计划时不使用 `git worktree`；直接在当前工作区按任务提交推进。
 
@@ -100,7 +100,7 @@ import {
   FLOW_SCHEMA_VERSION,
   classifyDocumentChange,
   createDefaultAgentFlowDocument
-} from '@1flowse/flow-schema';
+} from '@1flowbase/flow-schema';
 
 describe('agent flow document helpers', () => {
   test('seeds the default start -> llm -> answer graph', () => {
@@ -159,7 +159,7 @@ describe('agent flow document helpers', () => {
 Run:
 
 ```bash
-pnpm --dir web --filter @1flowse/web add @1flowse/flow-schema@workspace:* @xyflow/react @dagrejs/dagre lexical @lexical/react @lexical/plain-text @lexical/rich-text @lexical/utils
+pnpm --dir web --filter @1flowbase/web add @1flowbase/flow-schema@workspace:* @xyflow/react @dagrejs/dagre lexical @lexical/react @lexical/plain-text @lexical/rich-text @lexical/utils
 ```
 
 Expected: `web/app/package.json` and the workspace lockfile update cleanly without install errors.
@@ -168,7 +168,7 @@ Expected: `web/app/package.json` and the workspace lockfile update cleanly witho
 
 ```ts
 // web/packages/flow-schema/src/index.ts
-export const FLOW_SCHEMA_VERSION = '1flowse.flow/v1';
+export const FLOW_SCHEMA_VERSION = '1flowbase.flow/v1';
 
 export type FlowNodeType =
   | 'start'
@@ -368,7 +368,7 @@ export function classifyDocumentChange(
 }
 
 // web/packages/api-client/src/console-application-orchestration.ts
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 import { apiFetch } from './transport';
 
@@ -449,7 +449,7 @@ Run:
 pnpm --dir web/app exec vitest run src/features/agent-flow/_tests/agent-flow-document.test.ts -v
 ```
 
-Expected: both helper tests pass and the file resolves `@1flowse/flow-schema` plus the new API client exports.
+Expected: both helper tests pass and the file resolves `@1flowbase/flow-schema` plus the new API client exports.
 
 - [x] **Step 5: Commit**
 
@@ -1111,7 +1111,7 @@ import {
   restoreConsoleApplicationVersion,
   saveConsoleApplicationDraft,
   type SaveConsoleApplicationDraftInput
-} from '@1flowse/api-client';
+} from '@1flowbase/api-client';
 
 import { getApplicationsApiBaseUrl } from '../../applications/api/applications';
 
@@ -1199,7 +1199,7 @@ API_REDIS_URL='redis://:sevenflows@127.0.0.1:36379' \
 BOOTSTRAP_ROOT_ACCOUNT='root' \
 BOOTSTRAP_ROOT_EMAIL='root@example.com' \
 BOOTSTRAP_ROOT_PASSWORD='change-me' \
-BOOTSTRAP_WORKSPACE_NAME='1Flowse' \
+BOOTSTRAP_WORKSPACE_NAME='1Flowbase' \
 cargo test -p api-server application_orchestration_routes -v
 ```
 
@@ -1302,7 +1302,7 @@ import {
   type FlowAuthoringDocument,
   type FlowNodeDocument,
   type FlowNodeType
-} from '@1flowse/flow-schema';
+} from '@1flowbase/flow-schema';
 
 export function buildDefaultAgentFlowDocument(flowId: string): FlowAuthoringDocument {
   return createDefaultAgentFlowDocument({ flowId });
@@ -1368,7 +1368,7 @@ export function createNodeDocument(
 import type { Node, NodeTypes } from '@xyflow/react';
 
 import { AgentFlowNodeCard } from './AgentFlowNodeCard';
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 export interface AgentFlowCanvasNodeData {
   nodeId: string;
@@ -1664,7 +1664,7 @@ return (
 
 ```ts
 // web/app/src/features/agent-flow/lib/validate-document.ts
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 export interface AgentFlowIssue {
   id: string;
@@ -1847,7 +1847,7 @@ test('restores a history version into the current draft', async () => {
 import {
   classifyDocumentChange,
   type FlowAuthoringDocument
-} from '@1flowse/flow-schema';
+} from '@1flowbase/flow-schema';
 
 export function buildVersionSummary(
   before: FlowAuthoringDocument,

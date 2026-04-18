@@ -32,7 +32,7 @@ scope:
 ## 触发条件
 
 - 在仓库根目录执行 `pnpm --dir web test`
-- `@1flowse/web` 包开始跑完整 `vitest --run`
+- `@1flowbase/web` 包开始跑完整 `vitest --run`
 
 ## 根因
 

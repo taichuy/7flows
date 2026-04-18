@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: 数据建模定义改走物理表实时生效路线
-summary: 用户确认 1Flowse 的数据建模定义对齐 NocoBase 类路线：控制面保存定义，用户有权限执行修改后直接实时变更 PostgreSQL 物理表与运行时资源，不保留“发布后生效”或版本发布控制；数据建模定义与界面定义分离，运行时继续走统一路由，插件边界保持 host-extension / runtime extension / capability plugin 三分。
+summary: 用户确认 1Flowbase 的数据建模定义对齐 NocoBase 类路线：控制面保存定义，用户有权限执行修改后直接实时变更 PostgreSQL 物理表与运行时资源，不保留“发布后生效”或版本发布控制；数据建模定义与界面定义分离，运行时继续走统一路由，插件边界保持 host-extension / runtime extension / capability plugin 三分。
 keywords:
   - data-modeling
   - physical-table
@@ -33,7 +33,7 @@ scope:
 
 ## 谁在做什么
 
-用户与 AI 正在讨论 1Flowse 的数据建模定义底层路线，并拿本机 `../nocobase` 作为主要参考对象。
+用户与 AI 正在讨论 1Flowbase 的数据建模定义底层路线，并拿本机 `../nocobase` 作为主要参考对象。
 
 ## 为什么这样做
 
@@ -41,7 +41,7 @@ scope:
 
 ## 为什么要做
 
-当前 1Flowse 仍保留 `model definition` 发布与版本化口径，运行时数据也还停留在内存引擎；如果不尽快统一方向，后续 runtime data、插件绑定、统一 CRUD、界面配置和数据权限都会沿两套口径拉扯。
+当前 1Flowbase 仍保留 `model definition` 发布与版本化口径，运行时数据也还停留在内存引擎；如果不尽快统一方向，后续 runtime data、插件绑定、统一 CRUD、界面配置和数据权限都会沿两套口径拉扯。
 
 ## 截止日期
 

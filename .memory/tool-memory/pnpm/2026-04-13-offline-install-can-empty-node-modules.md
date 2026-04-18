@@ -73,4 +73,4 @@ GET https://registry.npmmirror.com/... error (EPERM)
 ## 复现记录
 
 - `2026-04-13 09`：为 `@ant-design/icons` 补 direct dependency 时误用 `pnpm install --offline --force`，导致 `tmp/mock-ui/node_modules` 被清空后失败；通过复制 `web` 的依赖目录并手工补包入口恢复成功。
-- `2026-04-13 12`：为 `web/app` 补 `@ant-design/icons` 时，先遇到 `pnpm install --filter @1flowse/web` 的交互式重装提示；改用 `CI=1 pnpm install --force` 后又先触发 `ERR_PNPM_OUTDATED_LOCKFILE`，继续改用 `--no-frozen-lockfile` 则因镜像 `EPERM` 无法下载并把 `web/node_modules` 重建为空。最终通过复制 `tmp/mock-ui` 的根、`app` 与 `packages/*` 的 `node_modules` 恢复，再完成测试与构建验证。
+- `2026-04-13 12`：为 `web/app` 补 `@ant-design/icons` 时，先遇到 `pnpm install --filter @1flowbase/web` 的交互式重装提示；改用 `CI=1 pnpm install --force` 后又先触发 `ERR_PNPM_OUTDATED_LOCKFILE`，继续改用 `--no-frozen-lockfile` 则因镜像 `EPERM` 无法下载并把 `web/node_modules` 重建为空。最终通过复制 `tmp/mock-ui` 的根、`app` 与 `packages/*` 的 `node_modules` 恢复，再完成测试与构建验证。

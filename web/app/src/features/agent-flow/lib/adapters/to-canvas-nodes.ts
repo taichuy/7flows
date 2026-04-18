@@ -1,4 +1,4 @@
-import type { FlowAuthoringDocument } from '@1flowse/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 import type { AgentFlowCanvasNode, AgentFlowCanvasNodeData } from '../../components/canvas/node-types';
 import { resolveAgentFlowNodeSchema } from '../../schema/node-schema-registry';

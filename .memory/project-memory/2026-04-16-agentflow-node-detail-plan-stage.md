@@ -19,7 +19,7 @@ updated_at: 2026-04-17 18
 last_verified_at: 2026-04-16 21
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/2026-04-16-agentflow-node-detail-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-16-agentflow-node-detail-design.md
   - docs/superpowers/plans/2026-04-16-agentflow-node-detail.md
   - web/app/src/features/agent-flow
 ---

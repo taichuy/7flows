@@ -1,7 +1,7 @@
 ---
 memory_type: tool
 topic: pnpm filter 调用 vite dev 脚本时端口覆盖参数可能不会生效
-summary: 从 monorepo 根执行 `pnpm --filter @1flowse/web dev -- --host 0.0.0.0 --port 4173` 时，参数会被原样传给脚本中的 `vite`，最终仍命中应用默认端口配置并报端口占用；改用 `pnpm --filter @1flowse/web exec vite --host 0.0.0.0 --port 4173` 可正常启动。
+summary: 从 monorepo 根执行 `pnpm --filter @1flowbase/web dev -- --host 0.0.0.0 --port 4173` 时，参数会被原样传给脚本中的 `vite`，最终仍命中应用默认端口配置并报端口占用；改用 `pnpm --filter @1flowbase/web exec vite --host 0.0.0.0 --port 4173` 可正常启动。
 keywords:
   - vite
   - pnpm
@@ -9,7 +9,7 @@ keywords:
   - port
   - tmp/mock-ui
 match_when:
-  - 需要从 monorepo 根为 `@1flowse/web` 启动 vite dev server
+  - 需要从 monorepo 根为 `@1flowbase/web` 启动 vite dev server
   - 希望临时覆盖默认端口
   - 看到 `Port 3210 is already in use`
 created_at: 2026-04-13 08
@@ -20,7 +20,7 @@ scope:
   - vite
   - pnpm
   - tmp/mock-ui
-  - @1flowse/web
+  - @1flowbase/web
 ---
 
 # pnpm filter 调用 vite dev 脚本时端口覆盖参数可能不会生效
@@ -34,7 +34,7 @@ scope:
 执行：
 
 ```bash
-pnpm --filter @1flowse/web dev -- --host 0.0.0.0 --port 4173
+pnpm --filter @1flowbase/web dev -- --host 0.0.0.0 --port 4173
 ```
 
 输出里实际变成：
@@ -64,11 +64,11 @@ Port 3210 is already in use
 - 不走包脚本，直接执行二进制：
 
 ```bash
-pnpm --filter @1flowse/web exec vite --host 0.0.0.0 --port 4173
+pnpm --filter @1flowbase/web exec vite --host 0.0.0.0 --port 4173
 ```
 
 - 验证通过后再使用输出的 `Local` 或 `Network` URL 访问页面
 
 ## 复现记录
 
-- `2026-04-13 08`：为 `tmp/mock-ui` 启动浅底主题预览时，`pnpm --filter @1flowse/web dev -- --host 0.0.0.0 --port 4173` 仍然报 `Port 3210 is already in use`；改用 `pnpm --filter @1flowse/web exec vite --host 0.0.0.0 --port 4173` 后成功启动在 `http://localhost:4173/`。
+- `2026-04-13 08`：为 `tmp/mock-ui` 启动浅底主题预览时，`pnpm --filter @1flowbase/web dev -- --host 0.0.0.0 --port 4173` 仍然报 `Port 3210 is already in use`；改用 `pnpm --filter @1flowbase/web exec vite --host 0.0.0.0 --port 4173` 后成功启动在 `http://localhost:4173/`。

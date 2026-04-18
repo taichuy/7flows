@@ -12,14 +12,14 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@1flowse/shared-types": ["packages/shared-types/src/index.ts"],
-      "@1flowse/api-client": ["packages/api-client/src/index.ts"],
-      "@1flowse/ui": ["packages/ui/src/index.tsx"],
-      "@1flowse/flow-schema": ["packages/flow-schema/src/index.ts"],
-      "@1flowse/page-protocol": ["packages/page-protocol/src/index.ts"],
-      "@1flowse/page-runtime": ["packages/page-runtime/src/index.ts"],
-      "@1flowse/embed-sdk": ["packages/embed-sdk/src/index.ts"],
-      "@1flowse/embedded-contracts": ["packages/embedded-contracts/src/index.ts"]
+      "@1flowbase/shared-types": ["packages/shared-types/src/index.ts"],
+      "@1flowbase/api-client": ["packages/api-client/src/index.ts"],
+      "@1flowbase/ui": ["packages/ui/src/index.tsx"],
+      "@1flowbase/flow-schema": ["packages/flow-schema/src/index.ts"],
+      "@1flowbase/page-protocol": ["packages/page-protocol/src/index.ts"],
+      "@1flowbase/page-runtime": ["packages/page-runtime/src/index.ts"],
+      "@1flowbase/embed-sdk": ["packages/embed-sdk/src/index.ts"],
+      "@1flowbase/embedded-contracts": ["packages/embedded-contracts/src/index.ts"]
     }
   }
 }

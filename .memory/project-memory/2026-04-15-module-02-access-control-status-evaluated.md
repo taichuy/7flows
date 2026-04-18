@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: 模块 02 权限与资源授权当前属于基础 ACL 已实现但资源消费面未闭环
-summary: `docs/superpowers/specs/1flowse/modules/02-access-control/README.md` 在 `2026-04-15 08` 完成按代码事实核查。当前权限目录、默认角色、成员/角色管理、`state_model` 与 `state_data` ACL 已落地并通过专项测试；但最早期 README 中的完整资源清单、路由绑定资源授权、owner 接管与协作者机制仍未形成当前代码闭环，因此模块状态继续维持 `部分实现 / 口径漂移`，主线可先回到 `03 Flow 前置容器`。
+summary: `docs/superpowers/specs/1flowbase/modules/02-access-control/README.md` 在 `2026-04-15 08` 完成按代码事实核查。当前权限目录、默认角色、成员/角色管理、`state_model` 与 `state_data` ACL 已落地并通过专项测试；但最早期 README 中的完整资源清单、路由绑定资源授权、owner 接管与协作者机制仍未形成当前代码闭环，因此模块状态继续维持 `部分实现 / 口径漂移`，主线可先回到 `03 Flow 前置容器`。
 keywords:
   - modules
   - access-control
@@ -19,8 +19,8 @@ updated_at: 2026-04-15 08
 last_verified_at: 2026-04-15 08
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/modules/02-access-control/README.md
-  - docs/superpowers/specs/1flowse/modules/README.md
+  - docs/superpowers/specs/1flowbase/modules/02-access-control/README.md
+  - docs/superpowers/specs/1flowbase/modules/README.md
   - api
   - web
 ---

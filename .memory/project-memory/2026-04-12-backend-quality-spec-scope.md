@@ -16,7 +16,7 @@ updated_at: 2026-04-12 22
 last_verified_at: 2026-04-12 22
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/2026-04-12-backend-engineering-quality-design.md
+  - docs/superpowers/specs/1flowbase/2026-04-12-backend-engineering-quality-design.md
   - docs/draft/apiFlie.md
   - api
 ---

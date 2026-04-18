@@ -17,7 +17,7 @@ updated_at: 2026-04-15 12
 last_verified_at: 2026-04-15 12
 decision_policy: verify_before_decision
 scope:
-  - docs/superpowers/specs/1flowse/modules/04-chatflow-studio
+  - docs/superpowers/specs/1flowbase/modules/04-chatflow-studio
   - web
 ---
 
@@ -30,7 +30,7 @@ scope:
 ## 谁在做什么
 
 - 用户继续推进 `04 agentFlow`，从 Draft / Version / Graph / 变量绑定边界，转入前端编辑器页面结构与交互设计。
-- AI 根据用户明确要求，以 `../dify` 的 chatflow 为交互基准，整理 1Flowse 第一版 editor 的页面骨架和核心交互。
+- AI 根据用户明确要求，以 `../dify` 的 chatflow 为交互基准，整理 1Flowbase 第一版 editor 的页面骨架和核心交互。
 
 ## 为什么这样做
 
@@ -72,6 +72,6 @@ scope:
 
 ## 关联文档
 
-- `docs/superpowers/specs/1flowse/modules/04-chatflow-studio/README.md`
-- `docs/superpowers/specs/1flowse/2026-04-10-orchestration-design-draft.md`
+- `docs/superpowers/specs/1flowbase/modules/04-chatflow-studio/README.md`
+- `docs/superpowers/specs/1flowbase/2026-04-10-orchestration-design-draft.md`
 - `../dify/web/app/components/workflow-app`

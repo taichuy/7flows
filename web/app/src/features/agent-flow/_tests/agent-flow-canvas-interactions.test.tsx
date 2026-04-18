@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import {
   createDefaultAgentFlowDocument,
   type FlowNodeType
-} from '@1flowse/flow-schema';
+} from '@1flowbase/flow-schema';
 import { AgentFlowCanvas } from '../components/editor/AgentFlowCanvas';
 import {
   AgentFlowEditorStoreProvider,

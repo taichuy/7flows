@@ -74,22 +74,22 @@ importers:
 
   app:
     dependencies:
-      '@1flowse/api-client':
+      '@1flowbase/api-client':
         specifier: workspace:*
         version: link:../packages/api-client
-      '@1flowse/embed-sdk':
+      '@1flowbase/embed-sdk':
         specifier: workspace:*
         version: link:../packages/embed-sdk
-      '@1flowse/embedded-contracts':
+      '@1flowbase/embedded-contracts':
         specifier: workspace:*
         version: link:../packages/embedded-contracts
-      '@1flowse/flow-schema':
+      '@1flowbase/flow-schema':
         specifier: workspace:^
         version: link:../packages/flow-schema
-      '@1flowse/shared-types':
+      '@1flowbase/shared-types':
         specifier: workspace:*
         version: link:../packages/shared-types
-      '@1flowse/ui':
+      '@1flowbase/ui':
         specifier: workspace:*
         version: link:../packages/ui
       '@ant-design/icons':
@@ -140,10 +140,10 @@ importers:
 
   packages/api-client:
     dependencies:
-      '@1flowse/flow-schema':
+      '@1flowbase/flow-schema':
         specifier: workspace:^
         version: link:../flow-schema
-      '@1flowse/shared-types':
+      '@1flowbase/shared-types':
         specifier: workspace:*
         version: link:../shared-types
 
@@ -157,7 +157,7 @@ importers:
 
   packages/page-runtime:
     dependencies:
-      '@1flowse/page-protocol':
+      '@1flowbase/page-protocol':
         specifier: workspace:*
         version: link:../page-protocol
 

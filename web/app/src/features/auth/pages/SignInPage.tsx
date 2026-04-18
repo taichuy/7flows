@@ -60,7 +60,7 @@ export function SignInPage() {
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
             <Typography.Title level={2} style={{ margin: 0 }}>
-              1Flowse
+              1Flowbase
             </Typography.Title>
           </div>
           {errorMessage ? <Alert type="error" message={errorMessage} showIcon /> : null}

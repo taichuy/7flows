@@ -104,7 +104,7 @@ fn sample_compiled_plan() -> CompiledPlan {
     CompiledPlan {
         flow_id,
         source_draft_id: "draft-1".to_string(),
-        schema_version: "1flowse.flow/v1".to_string(),
+        schema_version: "1flowbase.flow/v1".to_string(),
         topological_order: vec!["node-start".to_string(), "node-llm".to_string()],
         nodes,
         compile_issues: Vec::new(),

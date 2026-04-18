@@ -138,10 +138,10 @@ async fn seed_compiled_plan(
             actor_user_id: seeded.actor_user_id,
             flow_id: seeded.flow_id,
             flow_draft_id: seeded.draft_id,
-            schema_version: "1flowse.flow/v1".into(),
+            schema_version: "1flowbase.flow/v1".into(),
             document_updated_at: seeded.draft_updated_at,
             plan: json!({
-                "schema_version": "1flowse.flow/v1",
+                "schema_version": "1flowbase.flow/v1",
                 "topological_order": ["node-start", "node-llm"]
             }),
         },
