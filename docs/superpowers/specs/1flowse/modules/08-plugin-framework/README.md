@@ -154,11 +154,23 @@ provider plugin 的发现入口首轮固定为：
 - provider 插件仓库不作为 `plugin CLI` 的 source of truth
 - provider 插件仓库只承载由 CLI 生成和维护的 `demo/`、开发态 `scripts/` 与 provider 源码
 
+当前第一版实现已落地为：
+
+- `node scripts/node/plugin.js init <plugin-path>`
+- `node scripts/node/plugin.js demo init <plugin-path>`
+- `node scripts/node/plugin.js demo dev <plugin-path> --port 4310`
+
 首轮至少应支持：
 
 - `plugin init`
 - `plugin demo init <plugin-path>`
 - `plugin demo dev <plugin-path>`
+
+当前正确口径：
+
+- 第一版 CLI 已存在于主仓库
+- `demo dev` 当前提供的是静态 scaffold 和 runner URL 配置位
+- 它不代表真实 `plugin-runner` debug runtime 已经打通
 
 demo 页面至少要能覆盖：
 

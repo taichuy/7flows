@@ -240,19 +240,32 @@ models/<provider>/
 - 可以是命令，也可以是脚本
 - 但对插件作者应表现为一个稳定入口，而不是手工复制模板
 
-首轮建议至少提供：
+当前第一版已在主仓库内落地为：
+
+- `node scripts/node/plugin.js init <plugin-path>`
+- `node scripts/node/plugin.js demo init <plugin-path>`
+- `node scripts/node/plugin.js demo dev <plugin-path> --port 4310`
+
+首轮命令面至少提供：
 
 - `plugin init`
   - 生成 provider plugin 基础源码结构
 - `plugin demo init <plugin-path>`
   - 生成本地 demo 页面和调试脚手架
 - `plugin demo dev <plugin-path>`
-  - 启动 demo 页面并连接本地 `plugin-runner` debug runtime
+  - 启动 demo 页面并预留本地 `plugin-runner` URL 配置位
 
 首轮先不单独拆新仓库，而是在主仓库内提供宿主侧 tooling。最小落点可先固定为：
 
-- `scripts/plugin/init_demo.ts`
-- `scripts/plugin/dev_demo.ts`
+- `scripts/node/plugin.js`
+- `scripts/node/plugin/core.js`
+
+当前正确口径：
+
+- `plugin init` 已生成 provider 插件源码骨架
+- `plugin demo init` 已生成本地静态 demo 页面和辅助配置文件
+- `plugin demo dev` 已通过 Node 内建静态服务提供 demo
+- 真实 `plugin-runner` debug runtime 握手与 `load / invoke / stream` 闭环暂未打通；当前页面只保留 runner URL 配置位与后续接线边界
 
 后续若命令面、产物格式和模板稳定，再把这组能力拆成独立 `plugin CLI` 仓库单独发版。
 
