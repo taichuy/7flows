@@ -349,7 +349,7 @@ Execution note (`2026-04-18 11:40 +0800`):
 - Create: `scripts/node/page-debug/_tests/auth.test.js`
 - Modify: `scripts/node/page-debug/core.js`
 
-- [ ] **Step 1: Write the failing auth tests**
+- [x] **Step 1: Write the failing auth tests**
 
 ```js
 // scripts/node/page-debug/_tests/auth.test.js
@@ -479,7 +479,7 @@ test('loginAndPersistStorageState skips storage export when storageStatePath is 
 });
 ```
 
-- [ ] **Step 2: Run the auth tests and verify they fail**
+- [x] **Step 2: Run the auth tests and verify they fail**
 
 Run:
 
@@ -491,7 +491,7 @@ Expected:
 
 - FAIL with `Cannot find module '../auth.js'`
 
-- [ ] **Step 3: Write the minimal auth implementation**
+- [x] **Step 3: Write the minimal auth implementation**
 
 ```js
 // scripts/node/page-debug/auth.js
@@ -569,7 +569,7 @@ module.exports = {
 const { loadRootCredentials } = require('./auth.js');
 ```
 
-- [ ] **Step 4: Run the auth tests and verify they pass**
+- [x] **Step 4: Run the auth tests and verify they pass**
 
 Run:
 
@@ -581,12 +581,17 @@ Expected:
 
 - PASS with `4 tests` and `0 failures`
 
-- [ ] **Step 5: Commit the auth boundary**
+- [x] **Step 5: Commit the auth boundary**
 
 ```bash
 git add scripts/node/page-debug/core.js scripts/node/page-debug/auth.js scripts/node/page-debug/_tests/auth.test.js
 git commit -m "feat: add page debug auth bootstrap"
 ```
+
+Execution note (`2026-04-18 11:41 +0800`):
+
+- Red: `rtk node --test scripts/node/page-debug/_tests/auth.test.js` failed with `Cannot find module '../auth.js'`
+- Green: `rtk node --test scripts/node/page-debug/_tests/auth.test.js` passed with `4 tests` and `0 failures`
 
 ## Task 3: Add Page Readiness Contract And Evidence Writers
 
