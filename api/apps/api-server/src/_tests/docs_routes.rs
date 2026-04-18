@@ -211,7 +211,7 @@ async fn docs_routes_allow_root_and_granted_members() {
         .await
         .unwrap();
     let category_payload: Value = serde_json::from_slice(&category_body).unwrap();
-    assert_eq!(category_payload["info"]["title"], "1Flowbase API");
+    assert_eq!(category_payload["info"]["title"], "1flowbase API");
     assert!(category_payload["paths"]["/api/console/me"]["patch"].is_object());
     assert!(category_payload["paths"]["/api/console/members"]["get"].is_object());
 

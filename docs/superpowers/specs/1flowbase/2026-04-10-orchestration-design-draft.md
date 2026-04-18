@@ -1,4 +1,4 @@
-# 1Flowbase 编排设计讨论草稿
+# 1flowbase 编排设计讨论草稿
 
 > 状态：持续更新中的讨论草稿
 >
@@ -511,7 +511,7 @@ P1 建议导入导出直接使用同一份 Authoring Document JSON。
 - 它很多节点会把业务输出与部分运行信息一起组织到 outputs 或 metadata 中
 - 这种做法对 P1 可用，但长期会让“变量体系”和“运行观测”耦合
 
-因此 1Flowbase 建议比 Dify 更明确：
+因此 1flowbase 建议比 Dify 更明确：
 
 - `VariablePool` 只承载真正要参与编排的数据
 - 运行观测信息进入 `Node Run`

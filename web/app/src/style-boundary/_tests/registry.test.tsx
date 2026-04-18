@@ -63,7 +63,7 @@ describe('style boundary registry', () => {
       </AppProviders>
     );
 
-    expect(await screen.findByRole('heading', { name: '1Flowbase' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '1flowbase' })).toBeInTheDocument();
     expect(await screen.findByText('Support Agent')).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument();
   }, 15_000);

@@ -30,7 +30,7 @@ scope:
 ## 谁在做什么
 
 - 用户继续推进 `04 agentFlow`，从 Draft / Version / Graph / 变量绑定边界，转入前端编辑器页面结构与交互设计。
-- AI 根据用户明确要求，以 `../dify` 的 chatflow 为交互基准，整理 1Flowbase 第一版 editor 的页面骨架和核心交互。
+- AI 根据用户明确要求，以 `../dify` 的 chatflow 为交互基准，整理 1flowbase 第一版 editor 的页面骨架和核心交互。
 
 ## 为什么这样做
 

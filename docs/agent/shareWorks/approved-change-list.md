@@ -302,7 +302,7 @@ drawer.addEventListener('keydown', function (e) {
 ```markdown
 ## 10. 产品应用层补充规则（临时，2026-04-12）
 
-> 以下规则基于 1Flowbase demo 评审结论制定，适用于应用控制台界面。待二轮验证后决定是否纳入主规范。
+> 以下规则基于 1flowbase demo 评审结论制定，适用于应用控制台界面。待二轮验证后决定是否纳入主规范。
 
 ### 10.1 两层系统
 

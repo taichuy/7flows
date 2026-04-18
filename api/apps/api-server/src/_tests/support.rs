@@ -75,7 +75,7 @@ fn default_test_config() -> ApiConfig {
     let root_password =
         std::env::var("BOOTSTRAP_ROOT_PASSWORD").unwrap_or_else(|_| "change-me".into());
     let workspace_name =
-        std::env::var("BOOTSTRAP_WORKSPACE_NAME").unwrap_or_else(|_| "1Flowbase".into());
+        std::env::var("BOOTSTRAP_WORKSPACE_NAME").unwrap_or_else(|_| "1flowbase".into());
 
     ApiConfig::from_env_map(&[
         ("API_DATABASE_URL", database_url.as_str()),

@@ -455,7 +455,7 @@ fn api_config_reads_official_plugin_repository_settings() {
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
-        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowbase"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1flowbase"),
     ]).unwrap();
 
     assert_eq!(config.official_plugin_repository, "taichuy/1flowbase-official-plugins");

@@ -36,7 +36,7 @@ scope:
 ## 谁在做什么
 
 - 用户正在推动 `agentFlow` 第一版 node detail / inspector 升级设计。
-- AI 正在基于 `1Flowbase` 当前 `04/05` 模块边界与 `../dify` 参考实现，整理完整设计稿。
+- AI 正在基于 `1flowbase` 当前 `04/05` 模块边界与 `../dify` 参考实现，整理完整设计稿。
 
 ## 为什么这样做
 

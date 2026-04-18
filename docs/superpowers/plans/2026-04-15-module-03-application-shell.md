@@ -1120,7 +1120,7 @@ vi.mock('@1flowbase/api-client', () => ({
 test('renders the formal console shell with application workspace content', async () => {
   render(<App />);
 
-  expect(await screen.findByRole('heading', { name: '1Flowbase' })).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: '1flowbase' })).toBeInTheDocument();
   expect(await screen.findByText('Support Agent')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: '工作台' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: '进入应用' })).toBeInTheDocument();

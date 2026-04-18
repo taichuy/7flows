@@ -6,7 +6,7 @@ async fn bootstrap_service_is_idempotent() {
     let repository = MemoryBootstrapRepository::default();
     let service = BootstrapService::new(repository.clone());
     let config = BootstrapConfig {
-        workspace_name: "1Flowbase".into(),
+        workspace_name: "1flowbase".into(),
         root_account: "root".into(),
         root_email: "root@example.com".into(),
         root_password_hash: "hash".into(),
@@ -26,7 +26,7 @@ async fn bootstrap_service_seeds_single_root_tenant_and_default_workspace() {
     let repository = MemoryBootstrapRepository::default();
     let service = BootstrapService::new(repository.clone());
     let config = BootstrapConfig {
-        workspace_name: "1Flowbase".into(),
+        workspace_name: "1flowbase".into(),
         root_account: "root".into(),
         root_email: "root@example.com".into(),
         root_password_hash: "hash".into(),

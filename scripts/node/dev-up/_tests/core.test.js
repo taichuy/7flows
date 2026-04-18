@@ -111,7 +111,7 @@ test('ensureServiceEnvFile seeds api env defaults and buildServiceEnv loads them
       '# api defaults',
       'API_DATABASE_URL=postgres://from-example',
       'API_REDIS_URL=redis://from-example',
-      'BOOTSTRAP_WORKSPACE_NAME=\"1Flowbase\"',
+      'BOOTSTRAP_WORKSPACE_NAME=\"1flowbase\"',
     ].join('\n')
   );
 
@@ -129,7 +129,7 @@ test('ensureServiceEnvFile seeds api env defaults and buildServiceEnv loads them
 
   assert.equal(env.API_DATABASE_URL, 'postgres://from-shell');
   assert.equal(env.API_REDIS_URL, 'redis://from-example');
-  assert.equal(env.BOOTSTRAP_WORKSPACE_NAME, '1Flowbase');
+  assert.equal(env.BOOTSTRAP_WORKSPACE_NAME, '1flowbase');
   assert.equal(env.EXTRA_FLAG, 'enabled');
 });
 
@@ -199,7 +199,7 @@ test('runServicePrestartCommands rebuilds local postgres db after migration chec
       'API_ENV=development',
       'API_DATABASE_URL=postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase',
       'API_REDIS_URL=redis://127.0.0.1:36379',
-      'BOOTSTRAP_WORKSPACE_NAME=1Flowbase',
+      'BOOTSTRAP_WORKSPACE_NAME=1flowbase',
       'BOOTSTRAP_ROOT_ACCOUNT=root',
       'BOOTSTRAP_ROOT_EMAIL=root@example.com',
       'BOOTSTRAP_ROOT_PASSWORD=change-me',

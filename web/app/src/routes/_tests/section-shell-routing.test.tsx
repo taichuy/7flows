@@ -122,7 +122,7 @@ describe('section shell routing', () => {
     });
     permissionsApi.fetchSettingsPermissions.mockResolvedValue([]);
     docsApi.fetchSettingsApiDocsCatalog.mockResolvedValue({
-      title: '1Flowbase API',
+      title: '1flowbase API',
       version: '0.1.0',
       categories: []
     });
@@ -133,7 +133,7 @@ describe('section shell routing', () => {
     });
     docsApi.fetchSettingsApiDocsOperationSpec.mockResolvedValue({
       openapi: '3.1.0',
-      info: { title: '1Flowbase API', version: '0.1.0' },
+      info: { title: '1flowbase API', version: '0.1.0' },
       paths: {},
       components: {}
     });

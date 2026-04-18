@@ -1,6 +1,6 @@
 ---
 memory_type: project
-topic: Dify 编排 DSL 与复制实现可作为 1Flowbase 导入导出设计参照
+topic: Dify 编排 DSL 与复制实现可作为 1flowbase 导入导出设计参照
 summary: 对照 `../dify` 当前代码后，已确认 Dify 的 workflow 持久化以整份 graph 文档为核心，导入导出围绕 DSL 合同，应用复制本质是 `export DSL + import DSL`，节点复制则是前端 graph 层局部复制与 ID 重映射。
 keywords:
   - dify
@@ -11,7 +11,7 @@ keywords:
   - copy
   - authoring-document
 match_when:
-  - 需要为 1Flowbase 设计编排导入导出能力
+  - 需要为 1flowbase 设计编排导入导出能力
   - 需要判断节点复制是否必须做后端节点级 API
   - 需要参考 Dify 的 workflow graph 持久化与复制方式
 created_at: 2026-04-15 19
@@ -28,7 +28,7 @@ scope:
   - api/crates/control-plane/src/flow.rs
 ---
 
-# Dify 编排 DSL 与复制实现可作为 1Flowbase 导入导出设计参照
+# Dify 编排 DSL 与复制实现可作为 1flowbase 导入导出设计参照
 
 ## 时间
 
@@ -36,7 +36,7 @@ scope:
 
 ## 谁在做什么
 
-在评估 1Flowbase `04` 编排模型是否会阻塞后续“导入导出、应用复制、节点复制”能力时，对照核查了本地 `../dify` 的 workflow 真值代码与前端复制逻辑。
+在评估 1flowbase `04` 编排模型是否会阻塞后续“导入导出、应用复制、节点复制”能力时，对照核查了本地 `../dify` 的 workflow 真值代码与前端复制逻辑。
 
 ## 看到的事实
 
@@ -51,9 +51,9 @@ scope:
 2. 导入、导出、应用复制三类需求都可复用同一份文档合同与校验路径，避免出现三套不一致逻辑。
 3. 节点复制保留在前端 graph 变换层，可以避免过早设计节点级后端 API，并保持编辑器交互足够灵活。
 
-## 对 1Flowbase 当前决策的影响
+## 对 1flowbase 当前决策的影响
 
-1. 1Flowbase 当前 `Authoring Document` 作为编辑态真相的方向没有问题，后续导入导出与复制能力不要求先把节点拆表。
+1. 1flowbase 当前 `Authoring Document` 作为编辑态真相的方向没有问题，后续导入导出与复制能力不要求先把节点拆表。
 2. 后续应优先定义稳定的“外部 DSL / 导出合同”，再让应用复制复用该合同；不要让 `Compiled Plan` 反向承担导入导出格式。
 3. 节点复制优先做前端本地 graph 复制与 ID 重映射；只有未来出现多人协同、操作日志回放或服务端审计要求时，再考虑节点级后端操作接口。
 

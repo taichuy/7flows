@@ -158,6 +158,6 @@ use utoipa::OpenApi;
         crate::routes::workspace::WorkspaceResponse,
         crate::routes::workspaces::WorkspaceSummaryResponse,
     )),
-    info(title = "1Flowbase API", version = "0.1.0")
+    info(title = "1flowbase API", version = "0.1.0")
 )]
 pub struct ApiDoc;

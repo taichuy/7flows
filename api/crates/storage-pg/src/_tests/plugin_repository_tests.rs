@@ -35,7 +35,7 @@ async fn seed_store() -> (
 
     let tenant = store.upsert_root_tenant().await.unwrap();
     let workspace = store
-        .upsert_workspace(tenant.id, "1Flowbase")
+        .upsert_workspace(tenant.id, "1flowbase")
         .await
         .unwrap();
     store

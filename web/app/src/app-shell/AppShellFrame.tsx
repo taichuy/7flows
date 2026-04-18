@@ -47,7 +47,7 @@ export function AppShellFrame({
 
   return (
     <AppShell
-      title="1Flowbase"
+      title="1flowbase"
       navigation={<Navigation pathname={pathname} useRouterLinks={useRouterLinks} />}
       actions={
         <Space size={20}>

@@ -1,4 +1,4 @@
-# 1Flowbase agentFlow Editor 第一版设计稿
+# 1flowbase agentFlow Editor 第一版设计稿
 
 日期：2026-04-15
 状态：已完成初稿，待用户审阅
@@ -176,8 +176,8 @@
 - `Doc Extractor`
 - `List Filter`
 - `Variable Aggregator`
-- `1Flowbase State Read`
-- `1Flowbase State Write`
+- `1flowbase State Read`
+- `1flowbase State Write`
 - `End`
 - `Trigger Schedule`
 - `Trigger Webhook`
@@ -199,9 +199,9 @@
 - `Variable Aggregator`
   - 将多个变量按统一类型或分组方式聚合为新的输出
   - 属于高级编排辅助节点，不是第一版最小可用链路必须项
-- `1Flowbase State Read / State Write`
-  - 属于 1Flowbase 自有运行时状态模型能力
-  - 当前第一版 editor 先把 Dify 基础 chatflow 节点与交互整体抄稳，再在下一阶段把 1Flowbase 状态节点并入
+- `1flowbase State Read / State Write`
+  - 属于 1flowbase 自有运行时状态模型能力
+  - 当前第一版 editor 先把 Dify 基础 chatflow 节点与交互整体抄稳，再在下一阶段把 1flowbase 状态节点并入
 - `End`
   - Dify workflow 中存在，但对 chatflow 第一版而言 `Answer` 已承担更直接的对话输出语义
 - `Trigger* / Data Source / Knowledge Base / Agent`

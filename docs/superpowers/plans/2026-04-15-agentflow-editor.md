@@ -1199,7 +1199,7 @@ API_REDIS_URL='redis://:1flowbase@127.0.0.1:36379' \
 BOOTSTRAP_ROOT_ACCOUNT='root' \
 BOOTSTRAP_ROOT_EMAIL='root@example.com' \
 BOOTSTRAP_ROOT_PASSWORD='change-me' \
-BOOTSTRAP_WORKSPACE_NAME='1Flowbase' \
+BOOTSTRAP_WORKSPACE_NAME='1flowbase' \
 cargo test -p api-server application_orchestration_routes -v
 ```
 

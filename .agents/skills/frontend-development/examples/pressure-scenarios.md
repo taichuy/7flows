@@ -48,7 +48,7 @@
 结论：
 
 - 先停手
-- 1Flowbase 当前只允许 `Drawer` 和 `Inspector` 两种 L1 模型
+- 1flowbase 当前只允许 `Drawer` 和 `Inspector` 两种 L1 模型
 - 第三种必须先问人
 
 ## Scenario 5: It Is Not A Styling Problem

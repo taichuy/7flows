@@ -1,7 +1,7 @@
 ---
 memory_type: project
-topic: 主仓库正式统一为 1Flowbase
-summary: 用户在 `2026-04-18` 明确要求把主仓库正式项目名统一为 `1Flowbase / 1flowbase`，并已把主仓库远程地址改为 `https://github.com/taichuy/1flowbase`；随后又确认允许直接重置本地中间件数据，并要求把库名、密码、cookie/session 前缀等运行时默认值也一并切到 `1flowbase` 口径。
+topic: 主仓库正式统一为 1flowbase
+summary: 用户在 `2026-04-18` 明确要求把主仓库正式项目名统一为 `1flowbase / 1flowbase`，并已把主仓库远程地址改为 `https://github.com/taichuy/1flowbase`；随后又确认允许直接重置本地中间件数据，并要求把库名、密码、cookie/session 前缀等运行时默认值也一并切到 `1flowbase` 口径。
 keywords:
   - rename
   - 1flowbase
@@ -33,7 +33,7 @@ scope:
   - ../1flowbase-official-plugins
 ---
 
-# 主仓库正式统一为 1Flowbase
+# 主仓库正式统一为 1flowbase
 
 ## 时间
 
@@ -65,7 +65,7 @@ scope:
 ## 决策背后动机
 
 - 当前统一口径包括：
-  - 展示名：`1Flowbase`
+  - 展示名：`1flowbase`
   - 小写标识：`1flowbase`
   - workspace 包作用域：`@1flowbase/*`
   - schema / contract 版本：`1flowbase.flow/v1`、`1flowbase.provider/v1`

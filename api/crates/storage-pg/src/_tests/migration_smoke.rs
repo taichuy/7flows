@@ -139,7 +139,7 @@ async fn bootstrap_repository_upserts_password_local_and_root_user() {
 
     let tenant = store.upsert_root_tenant().await.unwrap();
     let workspace = store
-        .upsert_workspace(tenant.id, "1Flowbase")
+        .upsert_workspace(tenant.id, "1flowbase")
         .await
         .unwrap();
     store

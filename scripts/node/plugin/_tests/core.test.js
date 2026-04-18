@@ -103,7 +103,7 @@ test('plugin demo dev serves static demo assets and injected runtime config', as
   try {
     const indexResponse = await request(`${serverHandle.baseUrl}/`);
     assert.equal(indexResponse.statusCode, 200);
-    assert.match(indexResponse.body, /1Flowbase Plugin Demo/);
+    assert.match(indexResponse.body, /1flowbase Plugin Demo/);
 
     const configResponse = await request(`${serverHandle.baseUrl}/__plugin_demo_config`);
     assert.equal(configResponse.statusCode, 200);

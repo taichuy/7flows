@@ -11,7 +11,7 @@ fn api_config_uses_expected_cookie_defaults() {
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
-        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowbase"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1flowbase"),
     ])
     .unwrap();
 
@@ -30,7 +30,7 @@ fn api_config_defaults_to_development_and_unrestricted_cors() {
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
-        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowbase"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1flowbase"),
     ])
     .unwrap();
 
@@ -50,7 +50,7 @@ fn api_config_rejects_production_without_allowed_origins() {
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
-        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowbase"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1flowbase"),
     ])
     .expect_err("production config should require explicit API_ALLOWED_ORIGINS");
 
@@ -74,7 +74,7 @@ fn api_config_accepts_production_with_explicit_allowed_origins() {
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
-        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowbase"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1flowbase"),
     ])
     .unwrap();
 
@@ -107,11 +107,11 @@ fn api_config_reads_bootstrap_workspace_name() {
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
-        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowbase"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1flowbase"),
     ])
     .unwrap();
 
-    assert_eq!(config.bootstrap_workspace_name, "1Flowbase");
+    assert_eq!(config.bootstrap_workspace_name, "1flowbase");
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn api_config_reads_provider_secret_master_key() {
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
-        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowbase"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1flowbase"),
     ])
     .unwrap();
 
@@ -148,7 +148,7 @@ fn api_config_reads_official_plugin_repository_settings() {
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
-        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowbase"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1flowbase"),
     ])
     .unwrap();
 

@@ -226,7 +226,7 @@ async fn current_workspace_route_reads_and_updates_workspace_metadata() {
         .await
         .unwrap();
     let payload: Value = serde_json::from_slice(&body).unwrap();
-    assert_eq!(payload["data"]["name"], "1Flowbase");
+    assert_eq!(payload["data"]["name"], "1flowbase");
 
     let patch_response = app
         .clone()

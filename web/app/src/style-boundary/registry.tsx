@@ -201,7 +201,7 @@ function seedStyleBoundarySettingsFetch() {
       return new Response(
         JSON.stringify({
           data: {
-            title: '1Flowbase API',
+            title: '1flowbase API',
             version: '0.1.0',
             categories: [
               {
@@ -262,7 +262,7 @@ function seedStyleBoundarySettingsFetch() {
       return new Response(
         JSON.stringify({
           openapi: '3.1.0',
-          info: { title: '1Flowbase API', version: '0.1.0' },
+          info: { title: '1flowbase API', version: '0.1.0' },
           paths: {
             '/api/console/members': {
               get: {

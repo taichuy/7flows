@@ -25,7 +25,7 @@ async fn bootstrapped_store() -> (PgControlPlaneStore, Uuid) {
     let store = PgControlPlaneStore::new(pool);
     let tenant = store.upsert_root_tenant().await.unwrap();
     let workspace = store
-        .upsert_workspace(tenant.id, "1Flowbase")
+        .upsert_workspace(tenant.id, "1flowbase")
         .await
         .unwrap();
 

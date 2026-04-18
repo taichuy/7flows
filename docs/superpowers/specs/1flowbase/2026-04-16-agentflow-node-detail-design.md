@@ -1,4 +1,4 @@
-# 1Flowbase agentFlow Node Detail 第一版设计稿
+# 1flowbase agentFlow Node Detail 第一版设计稿
 
 日期：2026-04-16
 状态：已确认设计，待用户审阅
@@ -120,7 +120,7 @@
 - 内部继续保留 schema-driven `NodeInspector`
 - 不继续沿用“只有折叠字段区的薄 Inspector”心智
 - 不直接照搬 `../dify` 的 monolithic panel 实现
-- 借 `Dify` 的产品结构，保留 `1Flowbase` 当前 `store + interaction hook + schema renderer` 的前端内核方向
+- 借 `Dify` 的产品结构，保留 `1flowbase` 当前 `store + interaction hook + schema renderer` 的前端内核方向
 - header 恢复节点主身份信息的内联编辑，不再把别名和简介拆散到配置卡片里
 
 ## 6. 信息架构
