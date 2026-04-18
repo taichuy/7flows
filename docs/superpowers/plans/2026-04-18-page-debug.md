@@ -824,7 +824,7 @@ Execution note (`2026-04-18 11:42 +0800`):
 - Create: `scripts/node/page-debug/_tests/snapshot.test.js`
 - Modify: `scripts/node/page-debug/core.js`
 
-- [ ] **Step 1: Write the failing snapshot tests**
+- [x] **Step 1: Write the failing snapshot tests**
 
 ```js
 // scripts/node/page-debug/_tests/snapshot.test.js
@@ -912,7 +912,7 @@ test('buildMetaPayload records evidence counts and artifact paths', () => {
 });
 ```
 
-- [ ] **Step 2: Run the snapshot tests and verify they fail**
+- [x] **Step 2: Run the snapshot tests and verify they fail**
 
 Run:
 
@@ -924,7 +924,7 @@ Expected:
 
 - FAIL with `Cannot find module '../snapshot.js'`
 
-- [ ] **Step 3: Write the snapshot helpers**
+- [x] **Step 3: Write the snapshot helpers**
 
 ```js
 // scripts/node/page-debug/snapshot.js
@@ -1082,7 +1082,7 @@ module.exports = {
 };
 ```
 
-- [ ] **Step 4: Run the snapshot tests and verify they pass**
+- [x] **Step 4: Run the snapshot tests and verify they pass**
 
 Run:
 
@@ -1094,12 +1094,17 @@ Expected:
 
 - PASS with `4 tests` and `0 failures`
 
-- [ ] **Step 5: Commit the snapshot boundary**
+- [x] **Step 5: Commit the snapshot boundary**
 
 ```bash
 git add scripts/node/page-debug/snapshot.js scripts/node/page-debug/_tests/snapshot.test.js
 git commit -m "feat: add page debug snapshot writers"
 ```
+
+Execution note (`2026-04-18 11:44 +0800`):
+
+- Red: `rtk node --test scripts/node/page-debug/_tests/snapshot.test.js` failed with `Cannot find module '../snapshot.js'`
+- Green: `rtk node --test scripts/node/page-debug/_tests/snapshot.test.js` passed with `4 tests` and `0 failures`
 
 ## Task 5: Integrate Playwright Runtime Flow, JSON Output, And Manual Smoke Checks
 
