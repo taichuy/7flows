@@ -8,17 +8,38 @@ use argon2::{
     password_hash::{PasswordHasher, SaltString},
     Argon2,
 };
+use async_trait::async_trait;
 use axum::{
     body::{to_bytes, Body},
     http::{HeaderValue, Request, StatusCode},
     Router,
 };
 use control_plane::bootstrap::{BootstrapConfig, BootstrapService};
+use control_plane::ports::{
+    DownloadedOfficialPluginPackage, OfficialPluginSourceEntry, OfficialPluginSourcePort,
+};
 use serde_json::Value;
 use sqlx::PgPool;
 use tokio::sync::RwLock;
 use tower::ServiceExt;
 use uuid::Uuid;
+
+#[derive(Clone, Default)]
+struct NoopOfficialPluginSource;
+
+#[async_trait]
+impl OfficialPluginSourcePort for NoopOfficialPluginSource {
+    async fn list_official_catalog(&self) -> anyhow::Result<Vec<OfficialPluginSourceEntry>> {
+        Ok(Vec::new())
+    }
+
+    async fn download_plugin(
+        &self,
+        _entry: &OfficialPluginSourceEntry,
+    ) -> anyhow::Result<DownloadedOfficialPluginPackage> {
+        anyhow::bail!("official plugin source not configured for health route tests")
+    }
+}
 
 fn default_test_config() -> ApiConfig {
     ApiConfig::from_env_map(&[
@@ -90,6 +111,7 @@ async fn test_app_with_config(mut config: ApiConfig) -> Router {
             provider_runtime: std::sync::Arc::new(RwLock::new(
                 plugin_runner::provider_host::ProviderHost::default(),
             )),
+            official_plugin_source: std::sync::Arc::new(NoopOfficialPluginSource),
             provider_install_root: config.provider_install_root.clone(),
             provider_secret_master_key: config.provider_secret_master_key.clone(),
             session_store: SessionStoreHandle::InMemory(

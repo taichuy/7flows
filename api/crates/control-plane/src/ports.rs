@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use async_trait::async_trait;
 use domain::{
     ActorContext, AuditLogRecord, AuthenticatorRecord, DataModelScopeKind, ModelDefinitionRecord,
@@ -635,6 +637,37 @@ pub struct UpdatePluginTaskStatusInput {
 pub struct UpdatePluginInstallationEnabledInput {
     pub installation_id: Uuid,
     pub enabled: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct OfficialPluginSourceEntry {
+    pub plugin_id: String,
+    pub provider_code: String,
+    pub display_name: String,
+    pub protocol: String,
+    pub latest_version: String,
+    pub release_tag: String,
+    pub download_url: String,
+    pub checksum: String,
+    pub signature_status: String,
+    pub help_url: Option<String>,
+    pub model_discovery_mode: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct DownloadedOfficialPluginPackage {
+    pub package_root: PathBuf,
+    pub checksum: String,
+    pub signature_status: String,
+}
+
+#[async_trait]
+pub trait OfficialPluginSourcePort: Send + Sync {
+    async fn list_official_catalog(&self) -> anyhow::Result<Vec<OfficialPluginSourceEntry>>;
+    async fn download_plugin(
+        &self,
+        entry: &OfficialPluginSourceEntry,
+    ) -> anyhow::Result<DownloadedOfficialPluginPackage>;
 }
 
 #[async_trait]

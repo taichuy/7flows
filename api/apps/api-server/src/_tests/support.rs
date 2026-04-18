@@ -1,13 +1,19 @@
+use std::{fs, path::Path};
+
 use argon2::{
     password_hash::{PasswordHasher, SaltString},
     Argon2,
 };
+use async_trait::async_trait;
 use axum::{
     body::{to_bytes, Body},
     http::Request,
     Router,
 };
 use control_plane::bootstrap::{BootstrapConfig, BootstrapService};
+use control_plane::ports::{
+    DownloadedOfficialPluginPackage, OfficialPluginSourceEntry, OfficialPluginSourcePort,
+};
 use serde_json::json;
 use sqlx::PgPool;
 use tokio::sync::RwLock;
@@ -18,6 +24,47 @@ use crate::{
     app_state::{ApiState, SessionStoreHandle},
     config::ApiConfig,
 };
+
+#[derive(Clone, Default)]
+struct InMemoryOfficialPluginSource;
+
+#[async_trait]
+impl OfficialPluginSourcePort for InMemoryOfficialPluginSource {
+    async fn list_official_catalog(&self) -> anyhow::Result<Vec<OfficialPluginSourceEntry>> {
+        Ok(vec![OfficialPluginSourceEntry {
+            plugin_id: "1flowse.openai_compatible".to_string(),
+            provider_code: "openai_compatible".to_string(),
+            display_name: "OpenAI Compatible".to_string(),
+            protocol: "openai_compatible".to_string(),
+            latest_version: "0.1.0".to_string(),
+            release_tag: "openai_compatible-v0.1.0".to_string(),
+            download_url: "https://example.com/openai-compatible.1flowsepkg".to_string(),
+            checksum: "sha256:abc123".to_string(),
+            signature_status: "unsigned".to_string(),
+            help_url: Some(
+                "https://github.com/taichuy/1flowse-official-plugins/tree/main/models/openai_compatible"
+                    .to_string(),
+            ),
+            model_discovery_mode: "hybrid".to_string(),
+        }])
+    }
+
+    async fn download_plugin(
+        &self,
+        _entry: &OfficialPluginSourceEntry,
+    ) -> anyhow::Result<DownloadedOfficialPluginPackage> {
+        let package_root = std::env::temp_dir().join(format!(
+            "official-plugin-route-{}",
+            Uuid::now_v7()
+        ));
+        create_official_provider_fixture(&package_root);
+        Ok(DownloadedOfficialPluginPackage {
+            package_root,
+            checksum: "sha256:abc123".to_string(),
+            signature_status: "unsigned".to_string(),
+        })
+    }
+}
 
 fn default_test_config() -> ApiConfig {
     let database_url = std::env::var("API_DATABASE_URL")
@@ -96,6 +143,7 @@ pub async fn test_app_with_database_url() -> (Router, String) {
             provider_runtime: std::sync::Arc::new(RwLock::new(
                 plugin_runner::provider_host::ProviderHost::default(),
             )),
+            official_plugin_source: std::sync::Arc::new(InMemoryOfficialPluginSource),
             provider_install_root: config.provider_install_root.clone(),
             provider_secret_master_key: config.provider_secret_master_key.clone(),
             session_store: SessionStoreHandle::InMemory(
@@ -175,4 +223,67 @@ pub async fn seed_workspace(database_url: &str, workspace_name: &str) -> Uuid {
     .unwrap();
 
     workspace_id
+}
+
+fn create_official_provider_fixture(root: &Path) {
+    fs::create_dir_all(root.join("provider")).unwrap();
+    fs::create_dir_all(root.join("models/llm")).unwrap();
+    fs::create_dir_all(root.join("i18n")).unwrap();
+    fs::write(
+        root.join("manifest.yaml"),
+        r#"plugin_code: openai_compatible
+display_name: OpenAI Compatible
+version: 0.1.0
+contract_version: 1flowse.provider/v1
+supported_model_types:
+  - llm
+runner:
+  language: nodejs
+  entrypoint: provider/openai_compatible.js
+"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join("provider/openai_compatible.yaml"),
+        r#"provider_code: openai_compatible
+display_name: OpenAI Compatible
+protocol: openai_compatible
+help_url: https://platform.openai.com/docs/api-reference
+default_base_url: https://api.openai.com/v1
+model_discovery: hybrid
+config_schema:
+  - key: base_url
+    type: string
+    required: true
+  - key: api_key
+    type: secret
+    required: true
+"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join("provider/openai_compatible.js"),
+        "module.exports = {};",
+    )
+    .unwrap();
+    fs::write(
+        root.join("models/llm/_position.yaml"),
+        "items:\n  - openai_compatible_chat\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join("models/llm/openai_compatible_chat.yaml"),
+        r#"model: openai_compatible_chat
+label: OpenAI Compatible Chat
+family: llm
+capabilities:
+  - stream
+"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join("i18n/en_US.json"),
+        r#"{ "plugin": { "label": "OpenAI Compatible" } }"#,
+    )
+    .unwrap();
 }

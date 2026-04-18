@@ -7,8 +7,8 @@ use axum::{
     Json, Router,
 };
 use control_plane::plugin_management::{
-    AssignPluginCommand, EnablePluginCommand, InstallPluginCommand, PluginCatalogEntry,
-    PluginManagementService,
+    AssignPluginCommand, EnablePluginCommand, InstallOfficialPluginCommand,
+    InstallPluginCommand, OfficialPluginCatalogEntry, PluginCatalogEntry, PluginManagementService,
 };
 use serde::{Deserialize, Serialize};
 use time::format_description::well_known::Rfc3339;
@@ -26,6 +26,11 @@ use crate::{
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct InstallPluginBody {
     pub package_root: String,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct InstallOfficialPluginBody {
+    pub plugin_id: String,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -60,6 +65,18 @@ pub struct PluginCatalogEntryResponse {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+pub struct OfficialPluginCatalogEntryResponse {
+    pub plugin_id: String,
+    pub provider_code: String,
+    pub display_name: String,
+    pub protocol: String,
+    pub latest_version: String,
+    pub help_url: Option<String>,
+    pub model_discovery_mode: String,
+    pub install_status: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
 pub struct PluginTaskResponse {
     pub id: String,
     pub installation_id: Option<String>,
@@ -84,7 +101,9 @@ pub struct InstallPluginResponse {
 pub fn router() -> Router<Arc<ApiState>> {
     Router::new()
         .route("/plugins/catalog", get(list_catalog))
+        .route("/plugins/official-catalog", get(list_official_catalog))
         .route("/plugins/install", post(install_plugin))
+        .route("/plugins/install-official", post(install_official_plugin))
         .route("/plugins/:installation_id/enable", post(enable_plugin))
         .route("/plugins/:installation_id/assign", post(assign_plugin))
         .route("/plugins/tasks", get(list_tasks))
@@ -97,6 +116,7 @@ fn service(
     PluginManagementService::new(
         state.store.clone(),
         ApiProviderRuntime::new(state.provider_runtime.clone()),
+        state.official_plugin_source.clone(),
         state.provider_install_root.clone(),
     )
 }
@@ -147,6 +167,21 @@ fn to_catalog_response(entry: PluginCatalogEntry) -> PluginCatalogEntryResponse 
     }
 }
 
+fn to_official_catalog_response(
+    entry: OfficialPluginCatalogEntry,
+) -> OfficialPluginCatalogEntryResponse {
+    OfficialPluginCatalogEntryResponse {
+        plugin_id: entry.plugin_id,
+        provider_code: entry.provider_code,
+        display_name: entry.display_name,
+        protocol: entry.protocol,
+        latest_version: entry.latest_version,
+        help_url: entry.help_url,
+        model_discovery_mode: entry.model_discovery_mode,
+        install_status: entry.install_status.as_str().to_string(),
+    }
+}
+
 fn to_task_response(task: domain::PluginTaskRecord) -> PluginTaskResponse {
     PluginTaskResponse {
         id: task.id.to_string(),
@@ -181,6 +216,26 @@ pub async fn list_catalog(
 }
 
 #[utoipa::path(
+    get,
+    path = "/api/console/plugins/official-catalog",
+    operation_id = "plugin_list_official_catalog",
+    responses((status = 200, body = [OfficialPluginCatalogEntryResponse]), (status = 401, body = crate::error_response::ErrorBody))
+)]
+pub async fn list_official_catalog(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+) -> Result<Json<ApiSuccess<Vec<OfficialPluginCatalogEntryResponse>>>, ApiError> {
+    let context = require_session(&state, &headers).await?;
+    let catalog = service(&state).list_official_catalog(context.user.id).await?;
+    Ok(Json(ApiSuccess::new(
+        catalog
+            .into_iter()
+            .map(to_official_catalog_response)
+            .collect(),
+    )))
+}
+
+#[utoipa::path(
     post,
     path = "/api/console/plugins/install",
     operation_id = "plugin_install",
@@ -198,6 +253,36 @@ pub async fn install_plugin(
         .install_plugin(InstallPluginCommand {
             actor_user_id: context.user.id,
             package_root: body.package_root,
+        })
+        .await?;
+
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiSuccess::new(InstallPluginResponse {
+            installation: to_installation_response(result.installation),
+            task: to_task_response(result.task),
+        })),
+    ))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/console/plugins/install-official",
+    operation_id = "plugin_install_official",
+    request_body = InstallOfficialPluginBody,
+    responses((status = 201, body = InstallPluginResponse), (status = 403, body = crate::error_response::ErrorBody))
+)]
+pub async fn install_official_plugin(
+    State(state): State<Arc<ApiState>>,
+    headers: HeaderMap,
+    Json(body): Json<InstallOfficialPluginBody>,
+) -> Result<(StatusCode, Json<ApiSuccess<InstallPluginResponse>>), ApiError> {
+    let context = require_session(&state, &headers).await?;
+    require_csrf(&headers, &context.session)?;
+    let result = service(&state)
+        .install_official_plugin(InstallOfficialPluginCommand {
+            actor_user_id: context.user.id,
+            plugin_id: body.plugin_id,
         })
         .await?;
 

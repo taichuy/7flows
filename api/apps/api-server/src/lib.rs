@@ -6,6 +6,7 @@ pub mod error_response;
 pub mod middleware;
 pub mod openapi;
 pub mod openapi_docs;
+pub mod official_plugin_registry;
 pub mod provider_runtime;
 pub mod response;
 pub mod routes;
@@ -184,6 +185,11 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
             provider_runtime: Arc::new(RwLock::new(
                 plugin_runner::provider_host::ProviderHost::default(),
             )),
+            official_plugin_source: Arc::new(
+                official_plugin_registry::ApiOfficialPluginRegistry::new(
+                    config.official_plugin_registry_url.clone(),
+                ),
+            ),
             provider_install_root: config.provider_install_root.clone(),
             provider_secret_master_key: config.provider_secret_master_key.clone(),
             session_store: SessionStoreHandle::Redis(Box::new(session_store)),

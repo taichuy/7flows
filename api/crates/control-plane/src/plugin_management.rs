@@ -2,6 +2,7 @@ use std::{
     collections::HashSet,
     fs,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use access_control::ensure_permission;
@@ -14,8 +15,9 @@ use crate::{
     audit::audit_log,
     errors::ControlPlaneError,
     ports::{
-        AuthRepository, CreatePluginAssignmentInput, CreatePluginTaskInput, PluginRepository,
-        ProviderRuntimePort, UpdatePluginInstallationEnabledInput, UpdatePluginTaskStatusInput,
+        AuthRepository, CreatePluginAssignmentInput, CreatePluginTaskInput,
+        OfficialPluginSourcePort, PluginRepository, ProviderRuntimePort,
+        UpdatePluginInstallationEnabledInput, UpdatePluginTaskStatusInput,
         UpsertPluginInstallationInput,
     },
 };
@@ -35,6 +37,11 @@ pub struct AssignPluginCommand {
     pub installation_id: Uuid,
 }
 
+pub struct InstallOfficialPluginCommand {
+    pub actor_user_id: Uuid,
+    pub plugin_id: String,
+}
+
 #[derive(Debug, Clone)]
 pub struct PluginCatalogEntry {
     pub installation: domain::PluginInstallationRecord,
@@ -42,6 +49,35 @@ pub struct PluginCatalogEntry {
     pub default_base_url: Option<String>,
     pub model_discovery_mode: String,
     pub assigned_to_current_workspace: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OfficialPluginInstallStatus {
+    NotInstalled,
+    Installed,
+    Assigned,
+}
+
+impl OfficialPluginInstallStatus {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::NotInstalled => "not_installed",
+            Self::Installed => "installed",
+            Self::Assigned => "assigned",
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct OfficialPluginCatalogEntry {
+    pub plugin_id: String,
+    pub provider_code: String,
+    pub display_name: String,
+    pub protocol: String,
+    pub latest_version: String,
+    pub help_url: Option<String>,
+    pub model_discovery_mode: String,
+    pub install_status: OfficialPluginInstallStatus,
 }
 
 #[derive(Debug, Clone)]
@@ -53,7 +89,24 @@ pub struct InstallPluginResult {
 pub struct PluginManagementService<R, H> {
     repository: R,
     runtime: H,
+    official_source: Arc<dyn OfficialPluginSourcePort>,
     install_root: PathBuf,
+}
+
+struct InstallSourceMetadata {
+    source_kind: String,
+    checksum: Option<String>,
+    signature_status: Option<String>,
+}
+
+impl InstallSourceMetadata {
+    fn uploaded_or_downloaded() -> Self {
+        Self {
+            source_kind: "downloaded_or_uploaded".to_string(),
+            checksum: None,
+            signature_status: None,
+        }
+    }
 }
 
 impl<R, H> PluginManagementService<R, H>
@@ -61,10 +114,16 @@ where
     R: AuthRepository + PluginRepository,
     H: ProviderRuntimePort,
 {
-    pub fn new(repository: R, runtime: H, install_root: impl Into<PathBuf>) -> Self {
+    pub fn new(
+        repository: R,
+        runtime: H,
+        official_source: Arc<dyn OfficialPluginSourcePort>,
+        install_root: impl Into<PathBuf>,
+    ) -> Self {
         Self {
             repository,
             runtime,
+            official_source,
             install_root: install_root.into(),
         }
     }
@@ -98,9 +157,121 @@ where
         Ok(catalog)
     }
 
+    pub async fn list_official_catalog(
+        &self,
+        actor_user_id: Uuid,
+    ) -> Result<Vec<OfficialPluginCatalogEntry>> {
+        let actor = load_actor_context_for_user(&self.repository, actor_user_id).await?;
+        ensure_permission(&actor, "plugin_config.view.all")
+            .map_err(ControlPlaneError::PermissionDenied)?;
+
+        let assigned_installation_ids = self
+            .repository
+            .list_assignments(actor.current_workspace_id)
+            .await?
+            .into_iter()
+            .map(|assignment| assignment.installation_id)
+            .collect::<HashSet<_>>();
+        let installations = self.repository.list_installations().await?;
+        let official_entries = self.official_source.list_official_catalog().await?;
+
+        Ok(official_entries
+            .into_iter()
+            .map(|entry| {
+                let matching_installations = installations
+                    .iter()
+                    .filter(|installation| installation.provider_code == entry.provider_code)
+                    .collect::<Vec<_>>();
+                let install_status = if matching_installations
+                    .iter()
+                    .any(|installation| assigned_installation_ids.contains(&installation.id))
+                {
+                    OfficialPluginInstallStatus::Assigned
+                } else if !matching_installations.is_empty() {
+                    OfficialPluginInstallStatus::Installed
+                } else {
+                    OfficialPluginInstallStatus::NotInstalled
+                };
+
+                OfficialPluginCatalogEntry {
+                    plugin_id: entry.plugin_id,
+                    provider_code: entry.provider_code,
+                    display_name: entry.display_name,
+                    protocol: entry.protocol,
+                    latest_version: entry.latest_version,
+                    help_url: entry.help_url,
+                    model_discovery_mode: entry.model_discovery_mode,
+                    install_status,
+                }
+            })
+            .collect())
+    }
+
     pub async fn install_plugin(
         &self,
         command: InstallPluginCommand,
+    ) -> Result<InstallPluginResult> {
+        self.install_plugin_with_metadata(command, InstallSourceMetadata::uploaded_or_downloaded())
+            .await
+    }
+
+    pub async fn install_official_plugin(
+        &self,
+        command: InstallOfficialPluginCommand,
+    ) -> Result<InstallPluginResult> {
+        let actor = load_actor_context_for_user(&self.repository, command.actor_user_id).await?;
+        ensure_permission(&actor, "plugin_config.configure.all")
+            .map_err(ControlPlaneError::PermissionDenied)?;
+
+        let catalog = self.official_source.list_official_catalog().await?;
+        let entry = catalog
+            .into_iter()
+            .find(|item| item.plugin_id == command.plugin_id)
+            .ok_or(ControlPlaneError::NotFound("official_plugin"))?;
+        let downloaded = self.official_source.download_plugin(&entry).await?;
+        let package_root = downloaded.package_root.clone();
+        let result = async {
+            let install = self
+                .install_plugin_with_metadata(
+                    InstallPluginCommand {
+                        actor_user_id: command.actor_user_id,
+                        package_root: package_root.display().to_string(),
+                    },
+                    InstallSourceMetadata {
+                        source_kind: "official_registry".to_string(),
+                        checksum: Some(downloaded.checksum.clone()),
+                        signature_status: Some(downloaded.signature_status.clone()),
+                    },
+                )
+                .await?;
+            self.enable_plugin(EnablePluginCommand {
+                actor_user_id: command.actor_user_id,
+                installation_id: install.installation.id,
+            })
+            .await?;
+            let task = self
+                .assign_plugin(AssignPluginCommand {
+                    actor_user_id: command.actor_user_id,
+                    installation_id: install.installation.id,
+                })
+                .await?;
+            let installation = self
+                .repository
+                .get_installation(install.installation.id)
+                .await?
+                .ok_or(ControlPlaneError::NotFound("plugin_installation"))?;
+            Ok::<InstallPluginResult, anyhow::Error>(InstallPluginResult { installation, task })
+        }
+        .await;
+
+        let _ = fs::remove_dir_all(&package_root);
+        result
+    }
+
+    async fn install_plugin_with_metadata(
+        &self,
+        command: InstallPluginCommand,
+        source_metadata: InstallSourceMetadata,
     ) -> Result<InstallPluginResult> {
         let actor = load_actor_context_for_user(&self.repository, command.actor_user_id).await?;
         ensure_permission(&actor, "plugin_config.configure.all")
@@ -150,12 +321,12 @@ where
                     contract_version: installed_package.manifest.contract_version.clone(),
                     protocol: installed_package.provider.protocol.clone(),
                     display_name: installed_package.manifest.display_name.clone(),
-                    source_kind: "downloaded_or_uploaded".to_string(),
+                    source_kind: source_metadata.source_kind.clone(),
                     verification_status: domain::PluginVerificationStatus::Valid,
                     enabled: false,
                     install_path: install_path.display().to_string(),
-                    checksum: None,
-                    signature_status: None,
+                    checksum: source_metadata.checksum.clone(),
+                    signature_status: source_metadata.signature_status.clone(),
                     metadata_json: json!({
                         "help_url": installed_package.provider.help_url,
                         "default_base_url": installed_package.provider.default_base_url,

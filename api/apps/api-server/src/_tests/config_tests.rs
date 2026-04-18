@@ -132,3 +132,28 @@ fn api_config_reads_provider_secret_master_key() {
 
     assert_eq!(config.provider_secret_master_key, "provider-secret-key");
 }
+
+#[test]
+fn api_config_reads_official_plugin_repository_settings() {
+    let config = ApiConfig::from_env_map(&[
+        (
+            "API_DATABASE_URL",
+            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
+        ),
+        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        (
+            "API_OFFICIAL_PLUGIN_REPOSITORY",
+            "taichuy/1flowse-official-plugins",
+        ),
+        ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
+        ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
+        ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowse"),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        config.official_plugin_repository,
+        "taichuy/1flowse-official-plugins"
+    );
+}

@@ -389,3 +389,43 @@ async fn plugin_routes_allow_view_only_users_to_read_but_not_install() {
         .unwrap();
     assert_eq!(denied.status(), StatusCode::FORBIDDEN);
 }
+
+#[tokio::test]
+async fn plugin_routes_list_official_catalog_and_install_official_package() {
+    let app = test_app().await;
+    let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+
+    let catalog = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/console/plugins/official-catalog")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(catalog.status(), StatusCode::OK);
+
+    let install = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/plugins/install-official")
+                .header("cookie", &cookie)
+                .header("x-csrf-token", &csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({ "plugin_id": "1flowse.openai_compatible" }).to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(install.status(), StatusCode::CREATED);
+}

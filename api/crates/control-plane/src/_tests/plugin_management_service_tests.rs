@@ -14,12 +14,15 @@ use uuid::Uuid;
 use crate::{
     errors::ControlPlaneError,
     plugin_management::{
-        AssignPluginCommand, EnablePluginCommand, InstallPluginCommand, PluginManagementService,
+        AssignPluginCommand, EnablePluginCommand, InstallOfficialPluginCommand,
+        InstallPluginCommand, PluginManagementService,
     },
     ports::{
-        AuthRepository, CreatePluginAssignmentInput, CreatePluginTaskInput, PluginRepository,
-        ProviderRuntimeInvocationOutput, ProviderRuntimePort, UpdatePluginInstallationEnabledInput,
-        UpdatePluginTaskStatusInput, UpdateProfileInput, UpsertPluginInstallationInput,
+        AuthRepository, CreatePluginAssignmentInput, CreatePluginTaskInput,
+        DownloadedOfficialPluginPackage, OfficialPluginSourceEntry, OfficialPluginSourcePort,
+        PluginRepository, ProviderRuntimeInvocationOutput, ProviderRuntimePort,
+        UpdatePluginInstallationEnabledInput, UpdatePluginTaskStatusInput, UpdateProfileInput,
+        UpsertPluginInstallationInput,
     },
 };
 use domain::{
@@ -285,6 +288,47 @@ impl MemoryProviderRuntime {
     }
 }
 
+#[derive(Clone, Default)]
+struct MemoryOfficialPluginSource;
+
+#[async_trait]
+impl OfficialPluginSourcePort for MemoryOfficialPluginSource {
+    async fn list_official_catalog(&self) -> Result<Vec<OfficialPluginSourceEntry>> {
+        Ok(vec![OfficialPluginSourceEntry {
+            plugin_id: "1flowse.openai_compatible".to_string(),
+            provider_code: "openai_compatible".to_string(),
+            display_name: "OpenAI Compatible".to_string(),
+            protocol: "openai_compatible".to_string(),
+            latest_version: "0.1.0".to_string(),
+            release_tag: "openai_compatible-v0.1.0".to_string(),
+            download_url: "https://example.com/openai-compatible.1flowsepkg".to_string(),
+            checksum: "sha256:abc123".to_string(),
+            signature_status: "unsigned".to_string(),
+            help_url: Some(
+                "https://github.com/taichuy/1flowse-official-plugins/tree/main/models/openai_compatible"
+                    .to_string(),
+            ),
+            model_discovery_mode: "hybrid".to_string(),
+        }])
+    }
+
+    async fn download_plugin(
+        &self,
+        _entry: &OfficialPluginSourceEntry,
+    ) -> Result<DownloadedOfficialPluginPackage> {
+        let package_root = std::env::temp_dir().join(format!(
+            "official-plugin-source-{}",
+            Uuid::now_v7()
+        ));
+        create_openai_compatible_fixture(&package_root);
+        Ok(DownloadedOfficialPluginPackage {
+            package_root,
+            checksum: "sha256:abc123".to_string(),
+            signature_status: "unsigned".to_string(),
+        })
+    }
+}
+
 #[async_trait]
 impl ProviderRuntimePort for MemoryProviderRuntime {
     async fn ensure_loaded(&self, installation: &PluginInstallationRecord) -> Result<()> {
@@ -411,6 +455,69 @@ capabilities:
     fs::write(root.join("scripts/demo.sh"), "echo demo").unwrap();
 }
 
+fn create_openai_compatible_fixture(root: &Path) {
+    fs::create_dir_all(root.join("provider")).unwrap();
+    fs::create_dir_all(root.join("models/llm")).unwrap();
+    fs::create_dir_all(root.join("i18n")).unwrap();
+    fs::write(
+        root.join("manifest.yaml"),
+        r#"plugin_code: openai_compatible
+display_name: OpenAI Compatible
+version: 0.1.0
+contract_version: 1flowse.provider/v1
+supported_model_types:
+  - llm
+runner:
+  language: nodejs
+  entrypoint: provider/openai_compatible.js
+"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join("provider/openai_compatible.yaml"),
+        r#"provider_code: openai_compatible
+display_name: OpenAI Compatible
+protocol: openai_compatible
+help_url: https://platform.openai.com/docs/api-reference
+default_base_url: https://api.openai.com/v1
+model_discovery: hybrid
+config_schema:
+  - key: base_url
+    type: string
+    required: true
+  - key: api_key
+    type: secret
+    required: true
+"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join("provider/openai_compatible.js"),
+        "module.exports = {};",
+    )
+    .unwrap();
+    fs::write(
+        root.join("models/llm/_position.yaml"),
+        "items:\n  - openai_compatible_chat\n",
+    )
+    .unwrap();
+    fs::write(
+        root.join("models/llm/openai_compatible_chat.yaml"),
+        r#"model: openai_compatible_chat
+label: OpenAI Compatible Chat
+family: llm
+capabilities:
+  - stream
+"#,
+    )
+    .unwrap();
+    fs::write(
+        root.join("i18n/en_US.json"),
+        r#"{ "plugin": { "label": "OpenAI Compatible" } }"#,
+    )
+    .unwrap();
+}
+
 #[tokio::test]
 async fn plugin_management_service_installs_enables_assigns_and_lists_tasks() {
     let workspace_id = Uuid::now_v7();
@@ -424,7 +531,12 @@ async fn plugin_management_service_installs_enables_assigns_and_lists_tasks() {
     let install_root = std::env::temp_dir().join(format!("plugin-installed-{nonce}"));
     create_provider_fixture(&package_root);
 
-    let service = PluginManagementService::new(repository.clone(), runtime.clone(), &install_root);
+    let service = PluginManagementService::new(
+        repository.clone(),
+        runtime.clone(),
+        std::sync::Arc::new(MemoryOfficialPluginSource),
+        &install_root,
+    );
 
     let install = service
         .install_plugin(InstallPluginCommand {
@@ -497,6 +609,7 @@ async fn plugin_management_service_blocks_manage_actions_without_configure_permi
     let service = PluginManagementService::new(
         repository.clone(),
         runtime,
+        std::sync::Arc::new(MemoryOfficialPluginSource),
         std::env::temp_dir().join(format!("plugin-installed-{}", Uuid::now_v7())),
     );
 
@@ -517,4 +630,39 @@ async fn plugin_management_service_blocks_manage_actions_without_configure_permi
         error.downcast_ref::<ControlPlaneError>(),
         Some(ControlPlaneError::PermissionDenied("permission_denied"))
     ));
+}
+
+#[tokio::test]
+async fn plugin_management_service_lists_official_catalog_and_installs_latest_release_asset() {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
+        workspace_id,
+        &["plugin_config.view.all", "plugin_config.configure.all"],
+    ));
+    let runtime = MemoryProviderRuntime::default();
+    let service = PluginManagementService::new(
+        repository.clone(),
+        runtime,
+        std::sync::Arc::new(MemoryOfficialPluginSource),
+        std::env::temp_dir().join(format!("plugin-installed-{}", Uuid::now_v7())),
+    );
+
+    let catalog = service
+        .list_official_catalog(repository.actor.user_id)
+        .await
+        .unwrap();
+    assert_eq!(catalog.len(), 1);
+
+    let install = service
+        .install_official_plugin(InstallOfficialPluginCommand {
+            actor_user_id: repository.actor.user_id,
+            plugin_id: "1flowse.openai_compatible".to_string(),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(install.installation.provider_code, "openai_compatible");
+    assert_eq!(install.installation.source_kind, "official_registry");
+    assert_eq!(install.installation.checksum.as_deref(), Some("sha256:abc123"));
+    assert_eq!(install.task.status, PluginTaskStatus::Success);
 }

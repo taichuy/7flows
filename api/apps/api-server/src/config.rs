@@ -33,6 +33,8 @@ pub struct ApiConfig {
     pub cors_allowed_origins: Option<Vec<HeaderValue>>,
     pub provider_install_root: String,
     pub provider_secret_master_key: String,
+    pub official_plugin_repository: String,
+    pub official_plugin_registry_url: String,
     pub bootstrap_workspace_name: String,
     pub bootstrap_root_account: String,
     pub bootstrap_root_email: String,
@@ -78,6 +80,18 @@ impl ApiConfig {
             .get("API_PROVIDER_SECRET_MASTER_KEY")
             .cloned()
             .unwrap_or_else(|| "dev-provider-secret-master-key-unsafe".to_string());
+        let official_plugin_repository = map
+            .get("API_OFFICIAL_PLUGIN_REPOSITORY")
+            .cloned()
+            .unwrap_or_else(|| "taichuy/1flowse-official-plugins".to_string());
+        let official_plugin_registry_url = map
+            .get("API_OFFICIAL_PLUGIN_REGISTRY_URL")
+            .cloned()
+            .unwrap_or_else(|| {
+                format!(
+                    "https://raw.githubusercontent.com/{official_plugin_repository}/main/official-registry.json"
+                )
+            });
 
         if env == ApiEnvironment::Production && cors_allowed_origins.is_none() {
             return Err(anyhow!(
@@ -106,6 +120,8 @@ impl ApiConfig {
             cors_allowed_origins,
             provider_install_root,
             provider_secret_master_key,
+            official_plugin_repository,
+            official_plugin_registry_url,
             bootstrap_workspace_name: get("BOOTSTRAP_WORKSPACE_NAME")?,
             bootstrap_root_account: get("BOOTSTRAP_ROOT_ACCOUNT")?,
             bootstrap_root_email: get("BOOTSTRAP_ROOT_EMAIL")?,

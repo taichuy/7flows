@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use control_plane::ports::SessionStore;
+use control_plane::ports::{OfficialPluginSourcePort, SessionStore};
 use domain::SessionRecord;
 use plugin_runner::provider_host::ProviderHost;
 use runtime_core::runtime_engine::RuntimeEngine;
@@ -51,6 +51,7 @@ pub struct ApiState {
     pub store: PgControlPlaneStore,
     pub runtime_engine: std::sync::Arc<RuntimeEngine>,
     pub provider_runtime: std::sync::Arc<RwLock<ProviderHost>>,
+    pub official_plugin_source: std::sync::Arc<dyn OfficialPluginSourcePort>,
     pub provider_install_root: String,
     pub provider_secret_master_key: String,
     pub session_store: SessionStoreHandle,

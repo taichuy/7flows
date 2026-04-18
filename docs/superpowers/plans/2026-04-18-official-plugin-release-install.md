@@ -217,7 +217,7 @@ git commit -m "feat: add provider plugin package command"
 - Create: `../1flowse-official-plugins/.github/workflows/provider-ci.yml`
 - Create: `../1flowse-official-plugins/.github/workflows/provider-release.yml`
 
-- [ ] **Step 1: Write the failing registry updater test in the official plugin repo**
+- [x] **Step 1: Write the failing registry updater test in the official plugin repo**
 
 Create `../1flowse-official-plugins/scripts/_tests/update-official-registry.test.mjs`:
 
@@ -249,7 +249,7 @@ test('upsertRegistryEntry writes latest release metadata for openai_compatible',
 });
 ```
 
-- [ ] **Step 2: Run the official-registry test to verify the helper is missing**
+- [x] **Step 2: Run the official-registry test to verify the helper is missing**
 
 Run:
 
@@ -259,7 +259,7 @@ node --test ../1flowse-official-plugins/scripts/_tests/update-official-registry.
 
 Expected: FAIL with `Cannot find module '../update-official-registry.mjs'`.
 
-- [ ] **Step 3: Implement the registry script and GitHub workflows**
+- [x] **Step 3: Implement the registry script and GitHub workflows**
 
 Create `../1flowse-official-plugins/official-registry.json`:
 
@@ -344,7 +344,7 @@ jobs:
           files: dist/*.1flowsepkg
 ```
 
-- [ ] **Step 4: Run the official repo test and whitespace check**
+- [x] **Step 4: Run the official repo test and whitespace check**
 
 Run:
 
@@ -355,7 +355,7 @@ git -C ../1flowse-official-plugins diff --check
 
 Expected: PASS. The registry helper is importable and `git diff --check` returns no whitespace errors.
 
-- [ ] **Step 5: Commit the official repo automation changes**
+- [x] **Step 5: Commit the official repo automation changes**
 
 Run:
 
@@ -384,7 +384,7 @@ git -C ../1flowse-official-plugins commit -m "feat: automate official plugin rel
 - Modify: `api/apps/api-server/src/_tests/plugin_routes.rs`
 - Modify: `api/crates/control-plane/src/_tests/plugin_management_service_tests.rs`
 
-- [ ] **Step 1: Write the failing service, route, and config tests**
+- [x] **Step 1: Write the failing service, route, and config tests**
 
 Append a focused service test to `api/crates/control-plane/src/_tests/plugin_management_service_tests.rs`:
 
@@ -462,7 +462,7 @@ fn api_config_reads_official_plugin_repository_settings() {
 }
 ```
 
-- [ ] **Step 2: Run the targeted Rust tests to verify the API is missing**
+- [x] **Step 2: Run the targeted Rust tests to verify the API is missing**
 
 Run:
 
@@ -474,7 +474,7 @@ cd api && cargo test -p api-server api_config_reads_official_plugin_repository_s
 
 Expected: FAIL with missing `InstallOfficialPluginCommand`, missing route handlers, and missing config fields.
 
-- [ ] **Step 3: Implement official catalog ports, adapter, download/sha verification, and official install orchestration**
+- [x] **Step 3: Implement official catalog ports, adapter, download/sha verification, and official install orchestration**
 
 Update `api/crates/control-plane/src/ports.rs` to add a dedicated official source port:
 
@@ -577,7 +577,7 @@ Update `api/apps/api-server/src/routes/plugins.rs` with:
 
 Also wire new env vars into `config.rs`, `.env.example`, `.env.production.example`, `app_state.rs`, and `lib.rs`, and add the adapter to test support.
 
-- [ ] **Step 4: Run the targeted backend tests plus the existing plugin route suite**
+- [x] **Step 4: Run the targeted backend tests plus the existing plugin route suite**
 
 Run:
 
@@ -590,7 +590,7 @@ cd api && cargo test -p api-server plugin_routes_install_enable_assign_and_query
 
 Expected: PASS. The new official endpoints exist, `sha256` verification is enforced, and the old manual install route still passes.
 
-- [ ] **Step 5: Commit the backend official-install changes**
+- [x] **Step 5: Commit the backend official-install changes**
 
 Run:
 
