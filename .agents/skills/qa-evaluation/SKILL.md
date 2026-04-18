@@ -36,6 +36,7 @@ description: Use when evaluating 1Flowse task outcomes or current project qualit
 - `task mode` 必查：验收场景、交互流、变化传播、状态 / API / 数据映射、关键回归
 - `project evaluation mode` 必查：UI 一致性、流程逻辑、响应式降级、API 契约、状态数据一致性、架构边界、测试缺口
 - 评估范围命中前端页面、导航、样式、共享壳层或第三方组件覆写时，必须加载 `references/frontend-quality-gates.md`
+- 评估范围命中前端页面运行态、受保护页面、路由跳转、浏览器截图或控制台证据时，优先运行 `node scripts/node/page-debug.js`
 - 评估范围命中前端样式边界时，优先读取 `node scripts/node/check-style-boundary.js ...` 的运行结果；它只说明边界/扩散是否通过，不直接说明泛 UI 质量
 - 没有运行时证据时，前端样式结论默认降级为受限结论
 - 只要评估范围涉及后端 API、状态入口、插件边界、runtime、`resource kernel` 或 `route / service / repository / domain / mapper` 分层，就必须加载后端专项检查
@@ -51,6 +52,7 @@ description: Use when evaluating 1Flowse task outcomes or current project qualit
 - Task-scoped checks: `references/task-mode-checklist.md`
 - Full-project checks: `references/project-evaluation-checklist.md`
 - Frontend quality gates: `references/frontend-quality-gates.md`
+- Route-scoped runtime evidence: `node scripts/node/page-debug.js snapshot|open ...`
 - Backend regression steps: `references/backend-regression-steps.md`
 - Report output: `references/report-template.md`
 - Severity rules: `references/severity-rules.md`

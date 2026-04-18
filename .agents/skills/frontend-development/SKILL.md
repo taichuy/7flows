@@ -45,12 +45,13 @@ description: Use when building or changing 1Flowse frontend pages, workspace flo
 - 风格和 UI 质量本身就是验收项，不接受“功能先通、样式以后再说”
 - 第三方组件允许主题化，不允许无边界递归覆盖内部样式链
 - 共享样式、导航、菜单、壳层或第三方 slot 覆写改动后，必须运行 `node scripts/node/check-style-boundary.js ...`
+- 只给前端路由、需要自动登录、稳定等待、截图或抓取 `html/css/js/console` 证据时，优先运行 `node scripts/node/page-debug.js`，不要临时手写一次性 Playwright 验证脚本
 - `web/app/src/style-boundary/scenario-manifest.json` 只用于维护页面场景、组件场景和文件影响面映射，不承担泛 UI 质量描述
 - 新增组件或页面样式回归时，必须同步维护 manifest 中的 `impactFiles / boundaryNodes / propertyAssertions`
 - `--file` 模式只信任显式声明的文件影响面映射；映射缺失时报“样式扩散失败”，必须先补场景再继续开发
 - 场景断言只表达边界属性约束；运行失败时应按“样式边界失败”解读，而不是泛 QA 失败
 - 前端浏览器级打开、验收、截图、交互复现默认使用 `Playwright`，不再主动使用 Chrome 浏览器 MCP / `chrome-devtools`
-- 浏览器级验收优先复用项目已有 `Playwright / style-boundary` 链路；等待条件基于业务 ready signal，不做无等待裸截图
+- 浏览器级验收优先复用项目已有 `Playwright / page-debug / style-boundary` 链路；等待条件基于业务 ready signal，不做无等待裸截图
 - 信息架构、层级、入口、导航问题：**REQUIRED COMPANION SKILL:** Use `frontend-logic-design`
 - 新页面、新流程、交互流、视觉方案、页面内 AI 协作层：先问人
 - 单点使用且变化原因单一：先别抽象
