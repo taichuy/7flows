@@ -23,6 +23,13 @@
 - checkpoint 与 callback
 - 节点级调试与可观测性
 
+## 与模型供应商接入的边界补充（2026-04-18）
+
+- `05` 只消费已经解析好的 `provider instance + model`
+- `05` 只消费 provider plugin 输出的标准化流事件与最终结果
+- `05` 需要接住 `tool call / MCP / usage / finish reason` 等运行时语义
+- `05` 不负责 provider 配置管理、凭据存储和 catalog 管理
+
 ## 已确认
 
 - 运行时必须支持暂停、恢复、回调、checkpoint。
@@ -58,3 +65,4 @@
 - 对外业务对象以 `Flow Run` 为主，对内执行对象以 `Node Run` 为主，二者通过状态机与事件流协同。
 - `Checkpoint` 是恢复锚点，主表状态是当前事实，事件日志是历史轨迹。
 - `scheduler + worker + recovery + callback requeue` 构成单服务运行骨架，并为后续拆分独立 worker 保留边界。
+- 模型供应商接入后，`05` 继续只消费标准化 provider 运行时语义，不承担 provider 配置与目录治理。

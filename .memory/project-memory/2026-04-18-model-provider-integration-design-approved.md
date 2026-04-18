@@ -1,10 +1,12 @@
 ---
 memory_type: project
 topic: 模型供应商接入改按统一 contract、插件产物与双层生命周期推进
-summary: 用户于 `2026-04-18 08` 明确否决“只做 OpenAI 单供应商”的收缩方案，并进一步明确长期正确边界应为“`1Flowse` 定义标准 contract，provider 插件自己解决大模型接口接入”；同时用户否决“首批官方 provider 一次接入”，改为首轮只要求一个官方参考 plugin `openai_compatible`，其余 provider 通过同一 contract 独立接入。随后用户又明确：系统安装对象必须是插件产物而非源码目录，provider plugin 需要显式建模注册发现、异步安装任务，以及“插件包 / provider instance”双层生命周期；最新模型列表也不能只在插件加载时静态推送，而要由插件显式提供模型发现能力并支持按 provider instance 按需拉取；另外 provider plugin 源码包还应拥有专门的 `i18n/` 目录，并提供统一入口一键生成简单 demo 页面或调试脚手架。
+summary: 用户于 `2026-04-18 08` 明确否决“只做 OpenAI 单供应商”的收缩方案，并进一步明确长期正确边界应为“`1Flowse` 定义标准 contract，provider 插件自己解决大模型接口接入”；同时用户否决“首批官方 provider 一次接入”，改为首轮只要求一个官方参考 plugin `openai_compatible`，其余 provider 通过同一 contract 独立接入。随后用户又明确：多协议 `provider kernel` 是宿主提供的统一运行内核，不是宿主内置很多家 provider 适配器；系统安装对象必须是插件产物而非源码目录，provider plugin 需要显式建模注册发现、异步安装任务，以及“插件包 / provider instance”双层生命周期；最新模型列表也不能只在插件加载时静态推送，而要由插件显式提供模型发现能力并支持按 provider instance 按需拉取；另外 provider plugin 源码包还应拥有专门的 `i18n/` 目录，并提供统一入口一键生成简单 demo 页面或调试脚手架。
 keywords:
   - model-provider
   - provider-kernel
+  - unified-runtime-kernel
+  - host-plugin-boundary
   - openai-compatible
   - reference-plugin
   - provider-contract
@@ -20,6 +22,7 @@ keywords:
 match_when:
   - 需要继续实现模型供应商接入
   - 需要判断是做一批官方 provider 还是开放统一 contract
+  - 需要判断 provider kernel 是否等于宿主内置很多家 provider 适配器
   - 需要区分官方插件仓库与主仓库的职责边界
   - 需要决定 provider plugin 是否直接安装源码目录
   - 需要决定插件生命周期、注册发现或安装任务设计

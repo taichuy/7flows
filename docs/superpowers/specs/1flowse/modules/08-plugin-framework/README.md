@@ -23,7 +23,7 @@
 ## 当前代码事实
 
 - `plugin-framework` 已有基础消费类型与绑定约束
-- `runtime extension` 绑定目标已限制为 `workspace` 或 `model`
+- `runtime extension` 在 assignment 校验层已限制为 `workspace` 或 `model`；公开绑定类型仍保留 `Tenant` 变体，待后续收口
 - `capability plugin` 继续要求显式选择使用
 - `plugin-runner` 目前只有独立宿主与健康检查骨架
 - 当前还没有：
