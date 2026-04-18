@@ -57,6 +57,8 @@
 
 ## provider plugin 的固定口径
 
+- 多协议 `provider kernel` 不是“宿主内置很多家 provider 适配器”
+- 它是宿主提供的一套统一运行内核，让不同协议风格的 provider plugin 按同一规则接入、发现模型、发起调用并接受统一治理
 - provider plugin 属于 `runtime extension`
 - 它挂在宿主预定义的 `LLM provider runtime slot`
 - 它不属于 `host-extension`

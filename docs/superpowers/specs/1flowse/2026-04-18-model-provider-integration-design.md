@@ -51,6 +51,45 @@
 - 官方只提供一个参考 plugin：`openai_compatible`
 - `1Flowse` 只定义标准 contract 与执行治理，provider 插件自己解决大模型接口接入
 
+### 2.1 多协议 `provider kernel` 的正式定义
+
+这里的“多协议 `provider kernel`”不是指：
+
+- 宿主内置很多家 provider 适配器
+- 首轮必须官方一次接很多 provider
+
+更准确地说，它是 `1Flowse` 提供的一套统一运行内核，用来让不同协议风格的 `provider plugin` 按同一规则接入、发现模型、发起调用、输出流式事件，并接受宿主统一治理。
+
+它至少包括五层：
+
+- 插件层
+  - 注册发现、安装产物、启用、分配
+- 实例层
+  - `provider instance`、凭据、验证、状态
+- 模型层
+  - 模型发现、缓存、刷新
+- 调用层
+  - 统一输入、统一事件、统一输出
+- 治理层
+  - tool / MCP 执行、监控、审计、错误语义
+
+“多协议”的重点也不是“数量多”，而是宿主从第一天就不假设所有 provider 都长得像 `OpenAI-compatible`。
+
+### 2.2 宿主与插件职责对照
+
+| 主题 | `1Flowse` 宿主 / provider kernel | `provider plugin` |
+| --- | --- | --- |
+| 注册发现 | 发现插件版本、安装产物、分配给 workspace | 提供 manifest、schema、能力声明 |
+| 安装启用 | 校验、安装、启用、任务状态、局部 reload | 提供可安装产物 |
+| 实例配置 | 管理 `provider instance`、凭据、验证入口 | 定义需要哪些配置字段 |
+| 模型发现 | 按 `provider instance` 拉模型、缓存、刷新 | 实现 `static / dynamic / hybrid` 模型发现 |
+| 协议转换 | 不关心各家协议细节 | 把真实供应商协议转成统一 contract |
+| 调用输入 | 定义标准输入结构 | 把标准输入翻译成真实请求 |
+| 流式输出 | 消费统一事件流 | 解析供应商响应并输出统一事件 |
+| Tool / MCP | 真正执行 tool、MCP、权限控制、审计 | 只声明调用意图，不直接执行 |
+| 监控计费 | 聚合 `usage/token`、写运行态 | 显式暴露 usage 真值 |
+| 错误治理 | 定义统一错误类别、回写诊断 | 把原始错误归一化 |
+
 ## 3. 范围与非目标
 
 ### 3.1 本稿范围
