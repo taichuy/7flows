@@ -148,6 +148,12 @@ provider plugin 的发现入口首轮固定为：
 
 这条能力可以是命令，也可以是脚本，但必须对插件作者呈现为稳定入口。
 
+首轮归属固定为：
+
+- `plugin CLI` 先放主仓库，作为宿主侧 tooling 维护
+- provider 插件仓库不作为 `plugin CLI` 的 source of truth
+- provider 插件仓库只承载由 CLI 生成和维护的 `demo/`、开发态 `scripts/` 与 provider 源码
+
 首轮至少应支持：
 
 - `plugin init`

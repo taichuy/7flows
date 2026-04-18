@@ -194,7 +194,7 @@ models/<provider>/
 - `i18n/*.json` 存放插件元数据、表单字段、模型说明等国际化资源
 - `readme/README_*.md` 存放多语言文档
 - `demo/*` 存放本地调试用的简单 demo 页面与示例资源
-- `scripts/*` 存放插件脚手架、demo 启动和辅助脚本
+- `scripts/*` 存放由宿主侧 `plugin CLI` 生成的插件本地辅助脚本与 demo 启动脚本
 - `_assets/*` 提供图标与品牌资源
 
 这一轮 `runner.language` 不再只是元信息字段，而是 provider plugin 真正可执行闭环的一部分。
@@ -203,6 +203,7 @@ models/<provider>/
 
 - `../1flowse-official-plugins` 是源码仓库，不是宿主直接运行的安装对象
 - 它服务于插件作者、CI 构建和官方发布，不应由 `1Flowse` 运行时直接扫描源码目录作为正式安装来源
+- `plugin CLI` 首轮先放主仓库作为宿主侧 tooling，插件仓库不负责维护其 source of truth
 
 ### 5.1.1 国际化资源目录
 
@@ -248,10 +249,12 @@ models/<provider>/
 - `plugin demo dev <plugin-path>`
   - 启动 demo 页面并连接本地 `plugin-runner` debug runtime
 
-如果首轮来不及做独立 CLI，也至少应提供等价脚本，例如：
+首轮先不单独拆新仓库，而是在主仓库内提供宿主侧 tooling。最小落点可先固定为：
 
 - `scripts/plugin/init_demo.ts`
 - `scripts/plugin/dev_demo.ts`
+
+后续若命令面、产物格式和模板稳定，再把这组能力拆成独立 `plugin CLI` 仓库单独发版。
 
 这个 demo 页面至少要能验证：
 
