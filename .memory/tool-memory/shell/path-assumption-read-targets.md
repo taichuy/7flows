@@ -12,8 +12,8 @@ match_when:
   - 需要直接读取前端文件，但目录层级刚发生调整
   - 准备对 `web/app` 或 `web/packages` 下文件执行 `sed -n`
 created_at: 2026-04-14 08
-updated_at: 2026-04-17 08
-last_verified_at: 2026-04-17 08
+updated_at: 2026-04-18 08
+last_verified_at: 2026-04-18 08
 decision_policy: reference_on_failure
 scope:
   - shell
@@ -56,3 +56,4 @@ scope:
 - `2026-04-14 18`：为了快速读取设置页和个人资料页的 section 定义，直接按 `.ts` 后缀猜测 `web/app/src/features/settings/lib/settings-sections.ts` 与 `web/app/src/features/me/lib/me-sections.ts`，命令报“没有那个文件或目录”；随后改用 `rg --files web/app/src/features/settings web/app/src/features/me | rg 'settings-sections|me-sections'`，确认真实文件为 `.tsx` 后恢复读取。
 - `2026-04-15 08`：为了横向读取模块文档，直接按旧路径 `docs/superpowers/specs/1flowse/modules/01-user-login-and-team-access/README.md` 执行 `sed -n`，命令报“没有那个文件或目录”；随后先用 `find docs/superpowers/specs/1flowse/modules -maxdepth 2 -name README.md` 校验真实目录，确认模块已改名为 `01-user-auth-and-team`。
 - `2026-04-17 08`：为了查看 Vitest setup，直接按习惯读取 `web/app/test/setup.ts`，命令报“没有那个文件或目录”；随后改用 `rg -n 'ResizeObserver' web/app/src web/app -S` 与 `sed -n web/app/src/test/setup.ts`，确认真实路径在 `web/app/src/test/setup.ts`。
+- `2026-04-18 08`：为了快速读取设置页和应用 section 定义，直接按 `.ts` 后缀猜测 `web/app/src/features/settings/lib/settings-sections.ts` 与 `web/app/src/features/applications/lib/application-sections.ts`，命令报“没有那个文件或目录”；随后先用 `find web/app/src/features/settings web/app/src/features/applications -maxdepth 3 -type f | sort` 校验真实文件，确认两者实际为 `.tsx` 后恢复读取。
