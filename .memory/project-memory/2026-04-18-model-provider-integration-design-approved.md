@@ -1,7 +1,7 @@
 ---
 memory_type: project
 topic: 模型供应商接入改按多协议 provider kernel 与首批官方 provider 推进
-summary: 用户于 `2026-04-18 08` 明确否决“只做 OpenAI 单供应商”的收缩方案，确认直接采用多协议 `provider kernel` 方案推进；`../1flowse-official-plugins` 负责 Dify 风格静态 provider 包，主仓库负责 catalog、workspace provider instance、凭据、LLM 节点绑定与协议适配器。
+summary: 用户于 `2026-04-18 08` 明确否决“只做 OpenAI 单供应商”的收缩方案，并进一步明确长期正确边界应为“`1Flowse` 定义标准 contract，provider 插件自己解决大模型接口接入”；`../1flowse-official-plugins` 负责 Dify 风格 provider 包与 runtime 实现，主仓库负责 catalog、workspace provider instance、凭据、LLM 节点绑定、工具/MCP 执行治理，以及 `usage/token` 监控真值。
 keywords:
   - model-provider
   - provider-kernel
@@ -50,7 +50,7 @@ scope:
 ## 为什么要做
 
 - 要让 `1Flowse` 真的进入“可配置、可验证、可运行”的模型供应商接入阶段。
-- 要在不等待完整动态插件平台成熟的前提下，先把官方 provider 与宿主 runtime 消费链路打通。
+- 要在进入供应商接入时就把长期正确边界钉死，避免把不同供应商协议逻辑继续堆进宿主。
 
 ## 截止日期
 
@@ -58,13 +58,17 @@ scope:
 
 ## 决策背后动机
 
-- 官方插件仓库 `../1flowse-official-plugins` 只负责 Dify 风格静态 provider 包，不先承担动态执行。
+- 官方插件仓库 `../1flowse-official-plugins` 负责 Dify 风格 provider 包，并由 provider 插件自己实现真实接口接入。
 - 主仓库负责：
   - 官方 provider catalog
   - `workspace` 级 provider instance
   - 凭据与验证
   - `LLM` 节点绑定
-  - 运行时协议适配器
+  - 工具与 MCP 执行治理
+  - `usage/token` 监控真值
+- 运行时边界固定为：
+  - 插件负责“发起请求 / 解析响应 / 归一化流式、tool call、MCP、usage”
+  - 宿主负责“执行工具 / 执行 MCP / 写状态 / 写审计 / 写监控”
 - 首批协议族固定为：
   - `openai_compatible`
   - `azure_openai`
