@@ -28,6 +28,18 @@ fn capability_plugin_can_be_assigned_to_single_workspace_then_selected_in_config
 }
 
 #[test]
+fn runtime_extension_accepts_model_binding() {
+    let assignment = PluginAssignment::new(
+        Uuid::now_v7(),
+        PluginConsumptionKind::RuntimeExtension,
+        Some(BindingTarget::Model(Uuid::nil())),
+    )
+    .unwrap();
+
+    assert!(!assignment.requires_explicit_selection);
+}
+
+#[test]
 fn runtime_extension_rejects_tenant_only_binding() {
     let assignment = PluginAssignment::new(
         Uuid::now_v7(),

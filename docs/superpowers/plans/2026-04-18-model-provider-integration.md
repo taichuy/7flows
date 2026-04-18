@@ -133,10 +133,10 @@
 - Create: `api/crates/plugin-framework/src/_tests/provider_contract_tests.rs`
 - Create: `api/crates/plugin-framework/src/_tests/provider_package_tests.rs`
 
-- [ ] 把 provider plugin 产物真值收口成 Rust 类型：installation、assignment、task、catalog entry、model discovery mode、标准事件、标准错误。
-- [ ] 明确 `i18n/` 默认语言回退、`provider/*.yaml` schema 解析、`models/llm/*.yaml` 静态索引和 `manifest` 唯一标识规则。
-- [ ] 在 `plugin-framework` 单测中锁住：`static / dynamic / hybrid` 发现模式、标准 usage 字段、错误归一化、assignment 约束和 i18n fallback。
-- [ ] 验证：`cd api && cargo test -p plugin-framework`
+- [x] 把 provider plugin 产物真值收口成 Rust 类型：installation、assignment、task、catalog entry、model discovery mode、标准事件、标准错误。
+- [x] 明确 `i18n/` 默认语言回退、`provider/*.yaml` schema 解析、`models/llm/*.yaml` 静态索引和 `manifest` 唯一标识规则。
+- [x] 在 `plugin-framework` 单测中锁住：`static / dynamic / hybrid` 发现模式、标准 usage 字段、错误归一化、assignment 约束和 i18n fallback。
+- [x] 验证：`cd api && cargo test -p plugin-framework`
 
 ## Task 2: Build Minimal Provider Host In `plugin-runner`
 
@@ -146,10 +146,10 @@
 - Modify: `api/apps/plugin-runner/src/lib.rs`
 - Create: `api/apps/plugin-runner/tests/provider_runtime_routes.rs`
 
-- [ ] 把 `plugin-runner` 从当前健康检查骨架扩展为最小 provider host，提供包加载、局部 reload、validate、list models、invoke stream 五个入口。
-- [ ] 约束加载对象必须是产物目录或解包目录，不接受宿主直接执行源码仓根目录。
-- [ ] 用 fixture provider package 覆盖 `load -> list_models -> validate -> invoke_stream` 最小闭环，并验证 runner 只回传标准事件，不直接执行 tool / MCP。
-- [ ] 验证：`cd api && cargo test -p plugin-runner`
+- [x] 把 `plugin-runner` 从当前健康检查骨架扩展为最小 provider host，提供包加载、局部 reload、validate、list models、invoke stream 五个入口。
+- [x] 约束加载对象必须是产物目录或解包目录，不接受宿主直接执行源码仓根目录。
+- [x] 用 fixture provider package 覆盖 `load -> list_models -> validate -> invoke_stream` 最小闭环，并验证 runner 只回传标准事件，不直接执行 tool / MCP。
+- [x] 验证：`cd api && cargo test -p plugin-runner`
 
 ## Task 3: Persist Installation, Task, Assignment, Instance And Secret State
 
@@ -169,10 +169,10 @@
 - Create: `api/crates/storage-pg/src/_tests/model_provider_repository_tests.rs`
 - Modify: `api/apps/api-server/src/config.rs`
 
-- [ ] 新增 `plugin_installations / plugin_assignments / plugin_tasks / provider_instance_model_catalog_cache / model_provider_instances / model_provider_instance_secrets` 表和对应领域对象。
-- [ ] 把 `draft / ready / invalid / disabled`、任务终态、catalog cache 刷新状态和引用保护规则固化到 repository 与 service 输入输出。
-- [ ] 给 `api-server` 配置新增 provider secret 主密钥读取入口，并在持久化层只存加密后的 secret JSON，不把敏感字段混进普通 metadata。
-- [ ] 验证：`cd api && cargo test -p storage-pg model_provider_repository_tests`，`cd api && cargo test -p storage-pg plugin_repository_tests`
+- [x] 新增 `plugin_installations / plugin_assignments / plugin_tasks / provider_instance_model_catalog_cache / model_provider_instances / model_provider_instance_secrets` 表和对应领域对象。
+- [x] 把 `draft / ready / invalid / disabled`、任务终态、catalog cache 刷新状态和引用保护规则固化到 repository 与 service 输入输出。
+- [x] 给 `api-server` 配置新增 provider secret 主密钥读取入口，并在持久化层只存加密后的 secret JSON，不把敏感字段混进普通 metadata。
+- [x] 验证：`cd api && cargo test -p storage-pg model_provider_repository_tests`，`cd api && cargo test -p storage-pg plugin_repository_tests`
 
 ## Task 4: Add Console Services And Routes For Plugins And Model Providers
 

@@ -4,6 +4,8 @@ pub mod flow_mapper;
 pub mod member_mapper;
 pub mod model_definition_mapper;
 pub mod model_field_mapper;
+pub mod model_provider_mapper;
 pub mod orchestration_runtime_mapper;
+pub mod plugin_mapper;
 pub mod role_mapper;
 pub mod workspace_mapper;

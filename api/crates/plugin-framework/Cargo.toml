@@ -5,6 +5,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-anyhow.workspace = true
 serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
 uuid.workspace = true
+serde_yaml = "0.9"

@@ -70,6 +70,7 @@ fn api_config_accepts_production_with_explicit_allowed_origins() {
             "API_ALLOWED_ORIGINS",
             "https://console.example.com,https://ops.example.com",
         ),
+        ("API_PROVIDER_SECRET_MASTER_KEY", "provider-secret-key"),
         ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
         ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
         ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
@@ -111,4 +112,23 @@ fn api_config_reads_bootstrap_workspace_name() {
     .unwrap();
 
     assert_eq!(config.bootstrap_workspace_name, "1Flowse");
+}
+
+#[test]
+fn api_config_reads_provider_secret_master_key() {
+    let config = ApiConfig::from_env_map(&[
+        (
+            "API_DATABASE_URL",
+            "postgres://postgres:sevenflows@127.0.0.1:35432/sevenflows",
+        ),
+        ("API_REDIS_URL", "redis://:sevenflows@127.0.0.1:36379"),
+        ("API_PROVIDER_SECRET_MASTER_KEY", "provider-secret-key"),
+        ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
+        ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
+        ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1Flowse"),
+    ])
+    .unwrap();
+
+    assert_eq!(config.provider_secret_master_key, "provider-secret-key");
 }

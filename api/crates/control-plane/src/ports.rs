@@ -580,3 +580,164 @@ pub trait ModelDefinitionRepository: Send + Sync {
     ) -> anyhow::Result<ModelDefinitionRecord>;
     async fn append_audit_log(&self, event: &AuditLogRecord) -> anyhow::Result<()>;
 }
+
+#[derive(Debug, Clone)]
+pub struct UpsertPluginInstallationInput {
+    pub installation_id: Uuid,
+    pub provider_code: String,
+    pub plugin_id: String,
+    pub plugin_version: String,
+    pub contract_version: String,
+    pub protocol: String,
+    pub display_name: String,
+    pub source_kind: String,
+    pub verification_status: domain::PluginVerificationStatus,
+    pub enabled: bool,
+    pub install_path: String,
+    pub checksum: Option<String>,
+    pub signature_status: Option<String>,
+    pub metadata_json: serde_json::Value,
+    pub actor_user_id: Uuid,
+}
+
+#[derive(Debug, Clone)]
+pub struct CreatePluginAssignmentInput {
+    pub installation_id: Uuid,
+    pub workspace_id: Uuid,
+    pub actor_user_id: Uuid,
+}
+
+#[derive(Debug, Clone)]
+pub struct CreatePluginTaskInput {
+    pub task_id: Uuid,
+    pub installation_id: Option<Uuid>,
+    pub workspace_id: Option<Uuid>,
+    pub provider_code: String,
+    pub task_kind: domain::PluginTaskKind,
+    pub status: domain::PluginTaskStatus,
+    pub status_message: Option<String>,
+    pub detail_json: serde_json::Value,
+    pub actor_user_id: Option<Uuid>,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpdatePluginTaskStatusInput {
+    pub task_id: Uuid,
+    pub status: domain::PluginTaskStatus,
+    pub status_message: Option<String>,
+    pub detail_json: serde_json::Value,
+}
+
+#[async_trait]
+pub trait PluginRepository: Send + Sync {
+    async fn upsert_installation(
+        &self,
+        input: &UpsertPluginInstallationInput,
+    ) -> anyhow::Result<domain::PluginInstallationRecord>;
+    async fn get_installation(
+        &self,
+        installation_id: Uuid,
+    ) -> anyhow::Result<Option<domain::PluginInstallationRecord>>;
+    async fn list_installations(&self) -> anyhow::Result<Vec<domain::PluginInstallationRecord>>;
+    async fn create_assignment(
+        &self,
+        input: &CreatePluginAssignmentInput,
+    ) -> anyhow::Result<domain::PluginAssignmentRecord>;
+    async fn list_assignments(
+        &self,
+        workspace_id: Uuid,
+    ) -> anyhow::Result<Vec<domain::PluginAssignmentRecord>>;
+    async fn create_task(
+        &self,
+        input: &CreatePluginTaskInput,
+    ) -> anyhow::Result<domain::PluginTaskRecord>;
+    async fn update_task_status(
+        &self,
+        input: &UpdatePluginTaskStatusInput,
+    ) -> anyhow::Result<domain::PluginTaskRecord>;
+}
+
+#[derive(Debug, Clone)]
+pub struct CreateModelProviderInstanceInput {
+    pub instance_id: Uuid,
+    pub workspace_id: Uuid,
+    pub installation_id: Uuid,
+    pub provider_code: String,
+    pub protocol: String,
+    pub display_name: String,
+    pub status: domain::ModelProviderInstanceStatus,
+    pub config_json: serde_json::Value,
+    pub last_validation_status: Option<domain::ModelProviderValidationStatus>,
+    pub last_validation_message: Option<String>,
+    pub created_by: Uuid,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpdateModelProviderInstanceInput {
+    pub instance_id: Uuid,
+    pub workspace_id: Uuid,
+    pub display_name: String,
+    pub status: domain::ModelProviderInstanceStatus,
+    pub config_json: serde_json::Value,
+    pub last_validated_at: Option<OffsetDateTime>,
+    pub last_validation_status: Option<domain::ModelProviderValidationStatus>,
+    pub last_validation_message: Option<String>,
+    pub updated_by: Uuid,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpsertModelProviderCatalogCacheInput {
+    pub provider_instance_id: Uuid,
+    pub model_discovery_mode: domain::ModelProviderDiscoveryMode,
+    pub refresh_status: domain::ModelProviderCatalogRefreshStatus,
+    pub source: domain::ModelProviderCatalogSource,
+    pub models_json: serde_json::Value,
+    pub last_error_message: Option<String>,
+    pub refreshed_at: Option<OffsetDateTime>,
+}
+
+#[derive(Debug, Clone)]
+pub struct UpsertModelProviderSecretInput {
+    pub provider_instance_id: Uuid,
+    pub plaintext_secret_json: serde_json::Value,
+    pub secret_version: i32,
+    pub master_key: String,
+}
+
+#[async_trait]
+pub trait ModelProviderRepository: Send + Sync {
+    async fn create_instance(
+        &self,
+        input: &CreateModelProviderInstanceInput,
+    ) -> anyhow::Result<domain::ModelProviderInstanceRecord>;
+    async fn update_instance(
+        &self,
+        input: &UpdateModelProviderInstanceInput,
+    ) -> anyhow::Result<domain::ModelProviderInstanceRecord>;
+    async fn get_instance(
+        &self,
+        workspace_id: Uuid,
+        instance_id: Uuid,
+    ) -> anyhow::Result<Option<domain::ModelProviderInstanceRecord>>;
+    async fn list_instances(
+        &self,
+        workspace_id: Uuid,
+    ) -> anyhow::Result<Vec<domain::ModelProviderInstanceRecord>>;
+    async fn upsert_catalog_cache(
+        &self,
+        input: &UpsertModelProviderCatalogCacheInput,
+    ) -> anyhow::Result<domain::ModelProviderCatalogCacheRecord>;
+    async fn get_catalog_cache(
+        &self,
+        provider_instance_id: Uuid,
+    ) -> anyhow::Result<Option<domain::ModelProviderCatalogCacheRecord>>;
+    async fn upsert_secret(
+        &self,
+        input: &UpsertModelProviderSecretInput,
+    ) -> anyhow::Result<domain::ModelProviderSecretRecord>;
+    async fn get_secret_json(
+        &self,
+        provider_instance_id: Uuid,
+        master_key: &str,
+    ) -> anyhow::Result<Option<serde_json::Value>>;
+}

@@ -1,7 +1,7 @@
-use anyhow::{anyhow, Result};
 use uuid::Uuid;
 
 use crate::capability_kind::PluginConsumptionKind;
+use crate::error::{FrameworkResult, PluginFrameworkError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BindingTarget {
@@ -23,13 +23,13 @@ impl PluginAssignment {
         plugin_id: Uuid,
         kind: PluginConsumptionKind,
         binding_target: Option<BindingTarget>,
-    ) -> Result<Self> {
+    ) -> FrameworkResult<Self> {
         if matches!(kind, PluginConsumptionKind::RuntimeExtension) {
             match binding_target {
                 Some(BindingTarget::Workspace(_) | BindingTarget::Model(_)) => {}
                 Some(BindingTarget::Tenant(_)) | None => {
-                    return Err(anyhow!(
-                        "runtime extension requires workspace or model binding"
+                    return Err(PluginFrameworkError::invalid_assignment(
+                        "runtime extension requires workspace or model binding",
                     ));
                 }
             }
