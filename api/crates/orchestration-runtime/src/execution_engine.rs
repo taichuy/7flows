@@ -397,7 +397,10 @@ fn build_model_parameters(config: &Value) -> BTreeMap<String, Value> {
         return items
             .iter()
             .filter_map(|(key, item)| {
-                let enabled = item.get("enabled").and_then(Value::as_bool).unwrap_or(false);
+                let enabled = item
+                    .get("enabled")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false);
                 let value = item.get("value").cloned().unwrap_or(Value::Null);
                 enabled.then_some((key.clone(), value))
             })
@@ -413,7 +416,12 @@ fn build_model_parameters(config: &Value) -> BTreeMap<String, Value> {
         "seed",
     ]
     .into_iter()
-    .filter_map(|key| config.get(key).cloned().map(|value| (key.to_string(), value)))
+    .filter_map(|key| {
+        config
+            .get(key)
+            .cloned()
+            .map(|value| (key.to_string(), value))
+    })
     .collect()
 }
 

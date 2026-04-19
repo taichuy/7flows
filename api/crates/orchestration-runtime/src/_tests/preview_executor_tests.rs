@@ -31,7 +31,10 @@ impl ProviderInvoker for StubPreviewInvoker {
         runtime: &CompiledLlmRuntime,
         input: ProviderInvocationInput,
     ) -> Result<ProviderInvocationOutput> {
-        *self.captured_input.lock().expect("captured input mutex poisoned") = Some(input);
+        *self
+            .captured_input
+            .lock()
+            .expect("captured input mutex poisoned") = Some(input);
         Ok(ProviderInvocationOutput {
             events: vec![
                 ProviderStreamEvent::TextDelta {

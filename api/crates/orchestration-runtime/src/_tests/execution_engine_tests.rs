@@ -35,7 +35,10 @@ impl ProviderInvoker for StubProviderInvoker {
         _runtime: &CompiledLlmRuntime,
         input: ProviderInvocationInput,
     ) -> Result<ProviderInvocationOutput> {
-        *self.captured_input.lock().expect("captured input mutex poisoned") = Some(input);
+        *self
+            .captured_input
+            .lock()
+            .expect("captured input mutex poisoned") = Some(input);
 
         if self.fail {
             return Ok(ProviderInvocationOutput {
@@ -349,7 +352,10 @@ async fn provider_error_marks_flow_failed_and_redacts_summary() {
 #[tokio::test]
 async fn llm_runtime_sends_enabled_model_parameters_and_keeps_text_output_for_json_schema() {
     let mut plan = base_plan();
-    let llm = plan.nodes.get_mut("node-llm").expect("llm node should exist");
+    let llm = plan
+        .nodes
+        .get_mut("node-llm")
+        .expect("llm node should exist");
     llm.config = json!({
         "model_provider": {
             "provider_instance_id": "provider-ready",
@@ -398,7 +404,10 @@ async fn llm_runtime_sends_enabled_model_parameters_and_keeps_text_output_for_js
         captured_input.response_format,
         Some(json!({ "mode": "json_schema", "schema": { "type": "object" } }))
     );
-    assert_eq!(outcome.node_traces[1].output_payload["text"], json!("{\"ok\":true}"));
+    assert_eq!(
+        outcome.node_traces[1].output_payload["text"],
+        json!("{\"ok\":true}")
+    );
     assert!(outcome.node_traces[1]
         .output_payload
         .get("structured_output")
