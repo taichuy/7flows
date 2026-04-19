@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react';
 
 import { Button, Empty, Modal, Select, Space, Tag, Typography } from 'antd';
 
-import type { SettingsOfficialPluginCatalogEntry } from '../../api/plugins';
+import type {
+  SettingsOfficialPluginCatalogEntry,
+  SettingsPluginFamilyEntry
+} from '../../api/plugins';
 
 type InstallState = 'idle' | 'installing' | 'success' | 'failed';
 
@@ -29,7 +32,7 @@ function getInstallButtonLabel(
   return '安装到当前 workspace';
 }
 
-function getStatusTag(
+function getInstallStatusTag(
   entry: SettingsOfficialPluginCatalogEntry,
   installState: InstallState,
   activePluginId: string | null
@@ -56,20 +59,39 @@ function getStatusTag(
   return <Tag>未安装</Tag>;
 }
 
+function getFamilyStatusTags(family: SettingsPluginFamilyEntry) {
+  return (
+    <Space wrap size={6}>
+      <Tag color="green">当前 {family.current_version}</Tag>
+      {family.has_update && family.latest_version ? (
+        <Tag color="gold">latest {family.latest_version}</Tag>
+      ) : (
+        <Tag color="green">已是最新版本</Tag>
+      )}
+    </Space>
+  );
+}
+
 export function OfficialPluginInstallPanel({
   entries,
+  familiesByProviderCode,
   loading,
   canManage,
   activePluginId,
   installState,
-  onInstall
+  upgradingProviderCode,
+  onInstall,
+  onUpgradeLatest
 }: {
   entries: SettingsOfficialPluginCatalogEntry[];
+  familiesByProviderCode: Record<string, SettingsPluginFamilyEntry | undefined>;
   loading?: boolean;
   canManage: boolean;
   activePluginId: string | null;
   installState: InstallState;
+  upgradingProviderCode: string | null;
   onInstall: (entry: SettingsOfficialPluginCatalogEntry) => void;
+  onUpgradeLatest: (entry: SettingsOfficialPluginCatalogEntry) => void;
 }) {
   const [modal, contextHolder] = Modal.useModal();
   const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
@@ -88,7 +110,8 @@ export function OfficialPluginInstallPanel({
         <div>
           <Typography.Title level={5}>安装模型供应商</Typography.Title>
           <Typography.Text type="secondary">
-            从官方目录补充新的供应商，安装完成后会自动分配到当前 workspace。
+            从官方目录安装最新版本；如果当前 workspace
+            已在使用某个供应商，这里会直接显示升级状态。
           </Typography.Text>
         </div>
       </div>
@@ -110,18 +133,31 @@ export function OfficialPluginInstallPanel({
         <div className="model-provider-panel__empty">
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={loading ? '正在加载官方供应商目录...' : '暂无可安装的官方供应商'}
+            description={
+              loading ? '正在加载官方供应商目录...' : '暂无可安装的官方供应商'
+            }
           />
         </div>
       ) : (
         <div className="model-provider-panel__official-grid">
           {visibleEntries.map((entry) => {
-            const buttonLabel = getInstallButtonLabel(entry, installState, activePluginId);
+            const family = familiesByProviderCode[entry.provider_code];
             const installing =
-              activePluginId === entry.plugin_id && installState === 'installing';
+              activePluginId === entry.plugin_id &&
+              installState === 'installing';
             const installed =
               entry.install_status === 'assigned' ||
-              (activePluginId === entry.plugin_id && installState === 'success');
+              (activePluginId === entry.plugin_id &&
+                installState === 'success');
+            const upgrading = upgradingProviderCode === entry.provider_code;
+            const buttonLabel = family
+              ? family.has_update
+                ? upgrading
+                  ? '升级中'
+                  : '升级到最新版本'
+                : '当前已是最新版本'
+              : getInstallButtonLabel(entry, installState, activePluginId);
+            const buttonDisabled = family ? !family.has_update : installed;
 
             return (
               <article
@@ -131,21 +167,33 @@ export function OfficialPluginInstallPanel({
                 <div className="model-provider-panel__catalog-item-head">
                   <div className="model-provider-panel__catalog-item-main">
                     <div className="model-provider-panel__catalog-item-title-row">
-                      <Typography.Title level={5}>{entry.display_name}</Typography.Title>
+                      <Typography.Title level={5}>
+                        {entry.display_name}
+                      </Typography.Title>
                     </div>
                     <Typography.Text type="secondary">
                       {entry.protocol} · latest {entry.latest_version}
                     </Typography.Text>
                   </div>
                   <Space wrap size={6}>
-                    {getStatusTag(entry, installState, activePluginId)}
+                    {family
+                      ? getFamilyStatusTags(family)
+                      : getInstallStatusTag(
+                          entry,
+                          installState,
+                          activePluginId
+                        )}
                     <Tag>{entry.model_discovery_mode}</Tag>
                   </Space>
                 </div>
 
                 <div className="model-provider-panel__catalog-item-meta">
                   <span>{entry.plugin_id}</span>
-                  <span>版本 {entry.latest_version}</span>
+                  <span>
+                    {family
+                      ? `当前 ${family.current_version}`
+                      : `版本 ${entry.latest_version}`}
+                  </span>
                 </div>
 
                 {entry.help_url ? (
@@ -157,19 +205,19 @@ export function OfficialPluginInstallPanel({
                 {canManage ? (
                   <div className="model-provider-panel__catalog-item-actions">
                     <Button
-                      type={installed ? 'default' : 'primary'}
-                      loading={installing}
-                      disabled={installed}
+                      type={buttonDisabled ? 'default' : 'primary'}
+                      loading={installing || upgrading}
+                      disabled={buttonDisabled}
                       onClick={() => {
                         void modal.confirm({
-                          title: '安装插件',
+                          title: family ? '升级插件' : '安装插件',
                           icon: null,
                           centered: true,
                           okText: buttonLabel,
                           cancelText: '取消',
                           okButtonProps: {
-                            loading: installing,
-                            disabled: installed
+                            loading: installing || upgrading,
+                            disabled: buttonDisabled
                           },
                           content: (
                             <div className="model-provider-panel__install-confirm">
@@ -178,16 +226,25 @@ export function OfficialPluginInstallPanel({
                                   {entry.display_name}
                                 </Typography.Title>
                                 <Typography.Paragraph type="secondary">
-                                  即将安装官方插件 `latest {entry.latest_version}`，完成后会自动启用到当前 workspace。
+                                  {family
+                                    ? `即将把当前 workspace 的 ${entry.display_name} 升级到 latest ${entry.latest_version}。完成后会统一迁移该供应商下的全部实例。`
+                                    : `即将安装官方插件 latest ${entry.latest_version}，完成后会自动启用到当前 workspace。`}
                                 </Typography.Paragraph>
                                 <div className="model-provider-panel__catalog-item-meta">
                                   <span>协议 {entry.protocol}</span>
-                                  <span>发现模式 {entry.model_discovery_mode}</span>
+                                  <span>
+                                    发现模式 {entry.model_discovery_mode}
+                                  </span>
                                 </div>
                               </div>
                             </div>
                           ),
                           onOk: async () => {
+                            if (family) {
+                              onUpgradeLatest(entry);
+                              return;
+                            }
+
                             onInstall(entry);
                           }
                         });

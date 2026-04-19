@@ -1109,7 +1109,7 @@ Expected: one commit that makes the new backend contract consumable from the web
 - Modify: `web/app/src/features/settings/components/model-providers/model-provider-panel.css`
 - Test: `web/app/src/features/settings/_tests/model-providers-page.test.tsx`
 
-- [ ] **Step 1: Write the failing Vitest coverage for provider-family rows and version actions**
+- [x] **Step 1: Write the failing Vitest coverage for provider-family rows and version actions**
 
 Extend `web/app/src/features/settings/_tests/model-providers-page.test.tsx` with mocks and assertions like:
 
@@ -1138,7 +1138,7 @@ await waitFor(() => {
 });
 ```
 
-- [ ] **Step 2: Run the targeted settings-page test to capture the RED baseline**
+- [x] **Step 2: Run the targeted settings-page test to capture the RED baseline**
 
 Run:
 
@@ -1148,7 +1148,9 @@ rtk pnpm --dir web/app test -- src/features/settings/_tests/model-providers-page
 
 Expected: FAIL because the settings page still renders assigned installations, has no family query, and has no version management modal.
 
-- [ ] **Step 3: Add settings plugin-family queries and page-level mutation state**
+Execution note (`2026-04-19`): ran `rtk pnpm --dir web/app exec vitest run src/features/settings/_tests/model-providers-page.test.tsx`; the new provider-family cases failed exactly on the missing `fetchSettingsPluginFamilies` call and the missing `版本管理` action, confirming the page was still installation-row based.
+
+- [x] **Step 3: Add settings plugin-family queries and page-level mutation state**
 
 In `web/app/src/features/settings/api/plugins.ts`, add:
 
@@ -1204,7 +1206,9 @@ const instancesByProviderCode = useMemo(() => {
 }, [instances]);
 ```
 
-- [ ] **Step 4: Update the provider table, version modal, official install panel, and switch notice**
+Execution note (`2026-04-19`): `SettingsPage.tsx` now keeps `catalogQuery` for installation metadata, adds `familiesQuery` for the provider-family surface, groups instances by `provider_code`, and centralizes `upgrade/switch` mutations plus one-time post-switch notice state in the page container.
+
+- [x] **Step 4: Update the provider table, version modal, official install panel, and switch notice**
 
 Implement these UI rules:
 
@@ -1257,7 +1261,9 @@ The modal content must:
 
 Also update `ModelProviderInstancesModal.tsx` to render a top `Alert` when `recentVersionSwitchNotice?.providerCode === catalogEntry?.provider_code`.
 
-- [ ] **Step 5: Re-run the targeted settings-page test**
+Execution note (`2026-04-19`): the main table now renders provider-family rows with `版本管理`, a new `PluginVersionManagementModal.tsx` handles latest-upgrade vs local rollback, the official install panel derives install/upgrade state from `familiesByProviderCode`, and the instances modal shows the targeted switch warning after a successful family version change.
+
+- [x] **Step 5: Re-run the targeted settings-page test**
 
 Run:
 
@@ -1266,6 +1272,8 @@ rtk pnpm --dir web/app test -- src/features/settings/_tests/model-providers-page
 ```
 
 Expected: PASS for provider-family rendering, version management, official latest-button states, and the one-time instance warning after a switch.
+
+Execution note (`2026-04-19`): `rtk pnpm --dir web/app exec vitest run src/features/settings/_tests/model-providers-page.test.tsx` passed twice after implementation and formatting, with `10 passed`.
 
 - [ ] **Step 6: Commit the settings-page refactor**
 

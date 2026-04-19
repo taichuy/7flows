@@ -13,6 +13,7 @@ import { ModelProviderCatalogPanel } from '../components/model-providers/ModelPr
 import { ModelProviderInstanceDrawer } from '../components/model-providers/ModelProviderInstanceDrawer';
 import { ModelProviderInstancesModal } from '../components/model-providers/ModelProviderInstancesModal';
 import { OfficialPluginInstallPanel } from '../components/model-providers/OfficialPluginInstallPanel';
+import { PluginVersionManagementModal } from '../components/model-providers/PluginVersionManagementModal';
 import {
   getVisibleSettingsSections,
   type SettingsSectionKey
@@ -36,9 +37,14 @@ import {
 } from '../api/model-providers';
 import {
   fetchSettingsOfficialPluginCatalog,
+  fetchSettingsPluginFamilies,
   fetchSettingsPluginTask,
   installSettingsOfficialPlugin,
-  settingsOfficialPluginsQueryKey
+  settingsPluginFamiliesQueryKey,
+  settingsOfficialPluginsQueryKey,
+  switchSettingsPluginFamilyVersion,
+  type SettingsPluginFamilyEntry,
+  upgradeSettingsPluginFamilyLatest
 } from '../api/plugins';
 import '../components/model-providers/model-provider-panel.css';
 
@@ -51,7 +57,12 @@ function getErrorMessage(error: unknown) {
 }
 
 function isTaskTerminal(status: string | null | undefined) {
-  return status === 'success' || status === 'failed' || status === 'canceled' || status === 'timed_out';
+  return (
+    status === 'success' ||
+    status === 'failed' ||
+    status === 'canceled' ||
+    status === 'timed_out'
+  );
 }
 
 const EMPTY_MODEL_PROVIDER_INSTANCES: SettingsModelProviderInstance[] = [];
@@ -62,31 +73,58 @@ const IDLE_MODEL_PROVIDER_MODELS_QUERY_KEY = [
   'models',
   'idle'
 ] as const;
+const MODEL_PROVIDER_MODELS_QUERY_KEY_PREFIX = [
+  'settings',
+  'model-providers',
+  'models'
+] as const;
 
 function pickPreferredInstanceId(instances: { id: string; status: string }[]) {
-  return instances.find((instance) => instance.status === 'ready')?.id ?? instances[0]?.id ?? null;
+  return (
+    instances.find((instance) => instance.status === 'ready')?.id ??
+    instances[0]?.id ??
+    null
+  );
 }
 
-function ModelProvidersSection({
-  canManage
-}: {
-  canManage: boolean;
-}) {
+function parseTaskDetailString(detail: Record<string, unknown>, key: string) {
+  const value = detail[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function parseTaskDetailNumber(detail: Record<string, unknown>, key: string) {
+  const value = detail[key];
+  return typeof value === 'number' ? value : null;
+}
+
+function ModelProvidersSection({ canManage }: { canManage: boolean }) {
   const queryClient = useQueryClient();
   const csrfToken = useAuthStore((state) => state.csrfToken);
   const [drawerState, setDrawerState] = useState<
-    | { mode: 'create'; installationId: string | null }
+    | { mode: 'create'; providerCode: string }
     | { mode: 'edit'; instanceId: string }
     | null
   >(null);
   const [instanceModalState, setInstanceModalState] = useState<{
-    installationId: string;
+    providerCode: string;
     selectedInstanceId: string | null;
+  } | null>(null);
+  const [versionModalProviderCode, setVersionModalProviderCode] = useState<
+    string | null
+  >(null);
+  const [recentVersionSwitchNotice, setRecentVersionSwitchNotice] = useState<{
+    providerCode: string;
+    targetVersion: string | null;
+    migratedInstanceCount: number | null;
   } | null>(null);
 
   const catalogQuery = useQuery({
     queryKey: settingsModelProviderCatalogQueryKey,
     queryFn: fetchSettingsModelProviderCatalog
+  });
+  const familiesQuery = useQuery({
+    queryKey: settingsPluginFamiliesQueryKey,
+    queryFn: fetchSettingsPluginFamilies
   });
   const officialCatalogQuery = useQuery({
     queryKey: settingsOfficialPluginsQueryKey,
@@ -108,13 +146,47 @@ function ModelProvidersSection({
 
   const instances = instancesQuery.data ?? EMPTY_MODEL_PROVIDER_INSTANCES;
   const catalogEntries = catalogQuery.data ?? EMPTY_MODEL_PROVIDER_CATALOG;
+  const families = familiesQuery.data ?? [];
   const officialCatalogEntries = officialCatalogQuery.data ?? [];
-  const instancesByInstallation = useMemo(() => {
+  const catalogEntriesByInstallationId = useMemo(() => {
+    const grouped: Record<string, SettingsModelProviderCatalogEntry> = {};
+
+    for (const entry of catalogEntries) {
+      grouped[entry.installation_id] = entry;
+    }
+
+    return grouped;
+  }, [catalogEntries]);
+  const currentCatalogEntriesByProviderCode = useMemo(() => {
+    const grouped: Record<string, SettingsModelProviderCatalogEntry | null> =
+      {};
+
+    for (const family of families) {
+      grouped[family.provider_code] =
+        catalogEntriesByInstallationId[family.current_installation_id] ??
+        catalogEntries.find(
+          (entry) => entry.provider_code === family.provider_code
+        ) ??
+        null;
+    }
+
+    return grouped;
+  }, [catalogEntries, catalogEntriesByInstallationId, families]);
+  const familiesByProviderCode = useMemo(() => {
+    const grouped: Record<string, SettingsPluginFamilyEntry> = {};
+
+    for (const family of families) {
+      grouped[family.provider_code] = family;
+    }
+
+    return grouped;
+  }, [families]);
+  const instancesByProviderCode = useMemo(() => {
     const grouped: Record<string, typeof instances> = {};
 
     for (const instance of instances) {
-      grouped[instance.installation_id] ??= [];
-      grouped[instance.installation_id]!.push(instance);
+      grouped[instance.provider_code] ??= [];
+      grouped[instance.provider_code]!.push(instance);
     }
 
     return grouped;
@@ -122,41 +194,63 @@ function ModelProvidersSection({
   const instanceCounts = useMemo(() => {
     const counts: Record<string, number> = {};
 
-    for (const [installationId, installationInstances] of Object.entries(instancesByInstallation)) {
-      counts[installationId] = installationInstances.length;
+    for (const [providerCode, providerInstances] of Object.entries(
+      instancesByProviderCode
+    )) {
+      counts[providerCode] = providerInstances.length;
     }
 
     return counts;
-  }, [instancesByInstallation]);
+  }, [instancesByProviderCode]);
   const editingInstance =
     drawerState?.mode === 'edit'
-      ? instances.find((instance) => instance.id === drawerState.instanceId) ?? null
+      ? (instances.find((instance) => instance.id === drawerState.instanceId) ??
+        null)
       : null;
   const drawerCatalogEntry =
     drawerState?.mode === 'create'
-      ? catalogEntries.find((entry) => entry.installation_id === drawerState.installationId) ??
+      ? (currentCatalogEntriesByProviderCode[drawerState.providerCode] ??
         catalogEntries[0] ??
-        null
+        null)
       : editingInstance
-        ? catalogEntries.find(
-            (entry) => entry.installation_id === editingInstance.installation_id
-          ) ?? null
+        ? (catalogEntriesByInstallationId[editingInstance.installation_id] ??
+          currentCatalogEntriesByProviderCode[editingInstance.provider_code] ??
+          null)
         : null;
   const modalInstances = useMemo(
     () =>
       instanceModalState
-        ? instancesByInstallation[instanceModalState.installationId] ?? EMPTY_MODEL_PROVIDER_INSTANCES
+        ? (instancesByProviderCode[instanceModalState.providerCode] ??
+          EMPTY_MODEL_PROVIDER_INSTANCES)
         : EMPTY_MODEL_PROVIDER_INSTANCES,
-    [instanceModalState, instancesByInstallation]
+    [instanceModalState, instancesByProviderCode]
   );
-  const modalCatalogEntry =
-    instanceModalState
-      ? catalogEntries.find((entry) => entry.installation_id === instanceModalState.installationId) ?? null
-      : null;
   const modalSelectedInstanceId =
-    instanceModalState && modalInstances.some((instance) => instance.id === instanceModalState.selectedInstanceId)
+    instanceModalState &&
+    modalInstances.some(
+      (instance) => instance.id === instanceModalState.selectedInstanceId
+    )
       ? instanceModalState.selectedInstanceId
       : pickPreferredInstanceId(modalInstances);
+  const selectedModalInstance =
+    modalInstances.find(
+      (instance) => instance.id === modalSelectedInstanceId
+    ) ??
+    modalInstances[0] ??
+    null;
+  const modalCatalogEntry = instanceModalState
+    ? selectedModalInstance
+      ? (catalogEntriesByInstallationId[
+          selectedModalInstance.installation_id
+        ] ??
+        currentCatalogEntriesByProviderCode[instanceModalState.providerCode] ??
+        null)
+      : (currentCatalogEntriesByProviderCode[instanceModalState.providerCode] ??
+        null)
+    : null;
+  const activeVersionFamily = versionModalProviderCode
+    ? (familiesByProviderCode[versionModalProviderCode] ?? null)
+    : null;
   const modelsQuery = useQuery({
     queryKey: modalSelectedInstanceId
       ? settingsModelProviderModelsQueryKey(modalSelectedInstanceId)
@@ -197,7 +291,13 @@ function ModelProvidersSection({
         queryKey: settingsModelProviderInstancesQueryKey
       }),
       queryClient.invalidateQueries({
+        queryKey: settingsPluginFamiliesQueryKey
+      }),
+      queryClient.invalidateQueries({
         queryKey: settingsModelProviderOptionsQueryKey
+      }),
+      queryClient.invalidateQueries({
+        queryKey: MODEL_PROVIDER_MODELS_QUERY_KEY_PREFIX
       }),
       queryClient.invalidateQueries({
         queryKey: settingsOfficialPluginsQueryKey
@@ -205,14 +305,20 @@ function ModelProvidersSection({
     ]);
   }
 
-  const handleOfficialInstallSettled = useEffectEvent(async (status: 'success' | 'failed') => {
-    if (status === 'success') {
-      await invalidateModelProviderQueries();
+  const handleOfficialInstallSettled = useEffectEvent(
+    async (status: 'success' | 'failed') => {
+      if (status === 'success') {
+        await invalidateModelProviderQueries();
+      }
     }
-  });
+  );
 
   const createMutation = useMutation({
-    mutationFn: async (input: { installationId: string; display_name: string; config: Record<string, unknown> }) => {
+    mutationFn: async (input: {
+      installationId: string;
+      display_name: string;
+      config: Record<string, unknown>;
+    }) => {
       if (!csrfToken) {
         throw new Error('missing csrf token');
       }
@@ -233,7 +339,11 @@ function ModelProvidersSection({
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (input: { instanceId: string; display_name: string; config: Record<string, unknown> }) => {
+    mutationFn: async (input: {
+      instanceId: string;
+      display_name: string;
+      config: Record<string, unknown>;
+    }) => {
       if (!csrfToken) {
         throw new Error('missing csrf token');
       }
@@ -287,7 +397,11 @@ function ModelProvidersSection({
         throw new Error('missing csrf token');
       }
 
-      return revealSettingsModelProviderSecret(input.instanceId, input.key, csrfToken);
+      return revealSettingsModelProviderSecret(
+        input.instanceId,
+        input.key,
+        csrfToken
+      );
     }
   });
 
@@ -342,6 +456,50 @@ function ModelProvidersSection({
       });
     }
   });
+  const versionMutation = useMutation({
+    mutationFn: async (
+      input:
+        | { mode: 'upgrade'; providerCode: string }
+        | { mode: 'switch'; providerCode: string; installationId: string }
+    ) => {
+      if (!csrfToken) {
+        throw new Error('missing csrf token');
+      }
+
+      const task =
+        input.mode === 'upgrade'
+          ? upgradeSettingsPluginFamilyLatest(input.providerCode, csrfToken)
+          : switchSettingsPluginFamilyVersion(
+              input.providerCode,
+              input.installationId,
+              csrfToken
+            );
+
+      const resolvedTask = await task;
+      if (
+        isTaskTerminal(resolvedTask.status) &&
+        resolvedTask.status !== 'success'
+      ) {
+        throw new Error(resolvedTask.status_message ?? '版本切换失败');
+      }
+
+      return resolvedTask;
+    },
+    onSuccess: async (task, variables) => {
+      const detail = task.detail_json ?? {};
+
+      setVersionModalProviderCode(null);
+      setRecentVersionSwitchNotice({
+        providerCode: variables.providerCode,
+        targetVersion: parseTaskDetailString(detail, 'target_version'),
+        migratedInstanceCount: parseTaskDetailNumber(
+          detail,
+          'migrated_instance_count'
+        )
+      });
+      await invalidateModelProviderQueries();
+    }
+  });
   const pluginTaskQuery = useQuery({
     queryKey: ['settings', 'plugins', 'task', officialInstallState.taskId],
     queryFn: () => fetchSettingsPluginTask(officialInstallState.taskId!),
@@ -353,7 +511,10 @@ function ModelProvidersSection({
   });
 
   useEffect(() => {
-    if (!officialInstallState.taskId || pluginTaskQuery.fetchStatus === 'fetching') {
+    if (
+      !officialInstallState.taskId ||
+      pluginTaskQuery.fetchStatus === 'fetching'
+    ) {
       return;
     }
 
@@ -401,6 +562,7 @@ function ModelProvidersSection({
 
   const errorMessage =
     getErrorMessage(catalogQuery.error) ??
+    getErrorMessage(familiesQuery.error) ??
     getErrorMessage(officialCatalogQuery.error) ??
     getErrorMessage(instancesQuery.error) ??
     getErrorMessage(modelsQuery.error) ??
@@ -411,11 +573,16 @@ function ModelProvidersSection({
     getErrorMessage(refreshMutation.error) ??
     getErrorMessage(deleteMutation.error) ??
     getErrorMessage(officialInstallMutation.error) ??
+    getErrorMessage(versionMutation.error) ??
     getErrorMessage(pluginTaskQuery.error);
 
-  const readyCount = instances.filter((instance) => instance.status === 'ready').length;
-  const invalidCount = instances.filter((instance) => instance.status === 'invalid').length;
-  const providerCount = catalogEntries.length;
+  const readyCount = instances.filter(
+    (instance) => instance.status === 'ready'
+  ).length;
+  const invalidCount = instances.filter(
+    (instance) => instance.status === 'invalid'
+  ).length;
+  const providerCount = families.length;
   const officialCount = officialCatalogEntries.length;
   const overviewRows = [
     { key: 'providers', label: '已安装供应商', value: String(providerCount) },
@@ -429,9 +596,12 @@ function ModelProvidersSection({
       <div className="model-provider-panel__header">
         <Typography.Title level={4}>模型供应商</Typography.Title>
         <Typography.Paragraph type="secondary">
-          先安装供应商，再配置 API 密钥实例。只有 ready 状态的实例会进入 agentFlow 的模型选项。
+          先安装供应商，再配置 API 密钥实例。只有 ready 状态的实例会进入
+          agentFlow 的模型选项。
         </Typography.Paragraph>
-        {errorMessage ? <Alert type="error" showIcon message={errorMessage} /> : null}
+        {errorMessage ? (
+          <Alert type="error" showIcon message={errorMessage} />
+        ) : null}
       </div>
 
       <div className="model-provider-panel__main">
@@ -439,31 +609,43 @@ function ModelProvidersSection({
           <section className="model-provider-panel__summary-bar">
             <div className="model-provider-panel__summary-items">
               {overviewRows.map((row) => (
-                <div key={row.key} className="model-provider-panel__summary-item">
-                  <span className="model-provider-panel__summary-label">{row.label}</span>
-                  <span className="model-provider-panel__summary-value">{row.value}</span>
+                <div
+                  key={row.key}
+                  className="model-provider-panel__summary-item"
+                >
+                  <span className="model-provider-panel__summary-label">
+                    {row.label}
+                  </span>
+                  <span className="model-provider-panel__summary-value">
+                    {row.value}
+                  </span>
                 </div>
               ))}
             </div>
           </section>
 
           <ModelProviderCatalogPanel
-            entries={catalogEntries}
+            entries={families}
+            currentCatalogEntries={currentCatalogEntriesByProviderCode}
             instanceCounts={instanceCounts}
-            loading={catalogQuery.isLoading}
+            loading={catalogQuery.isLoading || familiesQuery.isLoading}
             canManage={canManage}
             onViewInstances={(entry) => {
-              const installationInstances = instancesByInstallation[entry.installation_id] ?? [];
+              const providerInstances =
+                instancesByProviderCode[entry.provider_code] ?? [];
               setInstanceModalState({
-                installationId: entry.installation_id,
-                selectedInstanceId: pickPreferredInstanceId(installationInstances)
+                providerCode: entry.provider_code,
+                selectedInstanceId: pickPreferredInstanceId(providerInstances)
               });
             }}
             onCreate={(entry) => {
               setDrawerState({
                 mode: 'create',
-                installationId: entry.installation_id
+                providerCode: entry.provider_code
               });
+            }}
+            onManageVersion={(entry) => {
+              setVersionModalProviderCode(entry.provider_code);
             }}
           />
         </div>
@@ -471,12 +653,25 @@ function ModelProvidersSection({
         <aside className="model-provider-panel__sidebar">
           <OfficialPluginInstallPanel
             entries={officialCatalogEntries}
+            familiesByProviderCode={familiesByProviderCode}
             loading={officialCatalogQuery.isLoading}
             canManage={canManage}
             activePluginId={officialInstallState.pluginId}
             installState={officialInstallState.status}
+            upgradingProviderCode={
+              versionMutation.isPending &&
+              versionMutation.variables?.mode === 'upgrade'
+                ? (versionMutation.variables.providerCode ?? null)
+                : null
+            }
             onInstall={(entry) => {
               officialInstallMutation.mutate(entry.plugin_id);
+            }}
+            onUpgradeLatest={(entry) => {
+              versionMutation.mutate({
+                mode: 'upgrade',
+                providerCode: entry.provider_code
+              });
             }}
           />
         </aside>
@@ -536,7 +731,25 @@ function ModelProvidersSection({
         refreshing={refreshMutation.isPending}
         deleting={deleteMutation.isPending}
         canManage={canManage}
-        onClose={() => setInstanceModalState(null)}
+        versionSwitchNotice={
+          instanceModalState &&
+          recentVersionSwitchNotice?.providerCode ===
+            instanceModalState.providerCode
+            ? {
+                targetVersion: recentVersionSwitchNotice.targetVersion,
+                migratedInstanceCount:
+                  recentVersionSwitchNotice.migratedInstanceCount
+              }
+            : null
+        }
+        onClose={() => {
+          setInstanceModalState(null);
+          setRecentVersionSwitchNotice((current) =>
+            current && current.providerCode === instanceModalState?.providerCode
+              ? null
+              : current
+          );
+        }}
         onChangeInstance={(instanceId) => {
           setInstanceModalState((current) =>
             current
@@ -567,6 +780,37 @@ function ModelProvidersSection({
           deleteMutation.mutate(instance.id);
         }}
       />
+
+      <PluginVersionManagementModal
+        open={versionModalProviderCode !== null}
+        family={activeVersionFamily}
+        submitting={versionMutation.isPending}
+        pendingMode={
+          versionMutation.isPending
+            ? (versionMutation.variables?.mode ?? null)
+            : null
+        }
+        pendingInstallationId={
+          versionMutation.isPending &&
+          versionMutation.variables?.mode === 'switch'
+            ? versionMutation.variables.installationId
+            : null
+        }
+        onClose={() => setVersionModalProviderCode(null)}
+        onUpgradeLatest={(family) => {
+          versionMutation.mutate({
+            mode: 'upgrade',
+            providerCode: family.provider_code
+          });
+        }}
+        onSwitchVersion={(family, installationId) => {
+          versionMutation.mutate({
+            mode: 'switch',
+            providerCode: family.provider_code,
+            installationId
+          });
+        }}
+      />
     </div>
   );
 }
@@ -578,19 +822,29 @@ export function SettingsPage({
 }) {
   const actor = useAuthStore((state) => state.actor);
   const me = useAuthStore((state) => state.me);
-  const permissionSet = useMemo(() => new Set(me?.permissions ?? []), [me?.permissions]);
+  const permissionSet = useMemo(
+    () => new Set(me?.permissions ?? []),
+    [me?.permissions]
+  );
   const permissions = me?.permissions ?? [];
   const isRoot = actor?.effective_display_role === 'root';
   const canManageMembers = isRoot || permissionSet.has('user.manage.all');
-  const canManageRoles = isRoot || permissionSet.has('role_permission.manage.all');
+  const canManageRoles =
+    isRoot || permissionSet.has('role_permission.manage.all');
   const canManageModelProviders =
-    isRoot || hasAnyPermission(permissions, ['state_model.manage.all', 'state_model.manage.own']);
+    isRoot ||
+    hasAnyPermission(permissions, [
+      'state_model.manage.all',
+      'state_model.manage.own'
+    ]);
   const visibleSections = getVisibleSettingsSections({
     isRoot,
     permissions
   });
   const fallbackSection = visibleSections[0];
-  const activeSection = visibleSections.find((section) => section.key === requestedSectionKey);
+  const activeSection = visibleSections.find(
+    (section) => section.key === requestedSectionKey
+  );
 
   if (!fallbackSection) {
     return (

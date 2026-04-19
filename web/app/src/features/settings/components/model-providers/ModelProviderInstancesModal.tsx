@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { Button, Descriptions, Empty, Modal, Select, Space, Tag, Typography } from 'antd';
+import {
+  Alert,
+  Button,
+  Descriptions,
+  Empty,
+  Modal,
+  Select,
+  Space,
+  Tag,
+  Typography
+} from 'antd';
 
 import type {
   SettingsModelProviderCatalogEntry,
@@ -32,6 +42,7 @@ export function ModelProviderInstancesModal({
   refreshing,
   deleting,
   canManage,
+  versionSwitchNotice,
   onClose,
   onChangeInstance,
   onEdit,
@@ -50,6 +61,10 @@ export function ModelProviderInstancesModal({
   refreshing: boolean;
   deleting: boolean;
   canManage: boolean;
+  versionSwitchNotice: {
+    targetVersion: string | null;
+    migratedInstanceCount: number | null;
+  } | null;
   onClose: () => void;
   onChangeInstance: (instanceId: string) => void;
   onEdit: (instance: SettingsModelProviderInstance) => void;
@@ -59,15 +74,20 @@ export function ModelProviderInstancesModal({
   onDelete: (instance: SettingsModelProviderInstance) => void;
 }) {
   const selectedInstance =
-    instances.find((instance) => instance.id === selectedInstanceId) ?? instances[0] ?? null;
+    instances.find((instance) => instance.id === selectedInstanceId) ??
+    instances[0] ??
+    null;
   const models = useMemo(
     () =>
-      selectedInstance && modelCatalog?.provider_instance_id === selectedInstance.id
+      selectedInstance &&
+      modelCatalog?.provider_instance_id === selectedInstance.id
         ? modelCatalog.models
         : [],
     [modelCatalog, selectedInstance]
   );
-  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
+  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(
+    undefined
+  );
 
   useEffect(() => {
     if (!selectedInstance) {
@@ -80,7 +100,10 @@ export function ModelProviderInstancesModal({
       return;
     }
 
-    if (selectedModelId && models.some((model) => model.model_id === selectedModelId)) {
+    if (
+      selectedModelId &&
+      models.some((model) => model.model_id === selectedModelId)
+    ) {
       return;
     }
 
@@ -97,11 +120,25 @@ export function ModelProviderInstancesModal({
       destroyOnHidden
     >
       <div className="model-provider-panel__instances-modal">
+        {versionSwitchNotice ? (
+          <Alert
+            type="warning"
+            showIcon
+            message="该供应商刚完成版本切换，建议刷新模型并验证关键实例。"
+            description={
+              versionSwitchNotice.targetVersion
+                ? `当前目标版本 ${versionSwitchNotice.targetVersion}，已迁移 ${versionSwitchNotice.migratedInstanceCount ?? 0} 个实例。`
+                : undefined
+            }
+          />
+        ) : null}
+
         <div className="model-provider-panel__instances-modal-head">
           <div>
             <Typography.Text strong>查看供应商实例</Typography.Text>
             <Typography.Paragraph type="secondary">
-              默认优先展示当前可用的 ready 实例，也可以切换到同供应商下的其他实例。
+              默认优先展示当前可用的 ready
+              实例，也可以切换到同供应商下的其他实例。
             </Typography.Paragraph>
           </div>
           <div className="model-provider-panel__instances-modal-select">
@@ -139,7 +176,9 @@ export function ModelProviderInstancesModal({
                   label: 'Base URL',
                   children: (
                     <Typography.Text className="model-provider-panel__mono">
-                      {String(selectedInstance.config_json.base_url ?? '未配置')}
+                      {String(
+                        selectedInstance.config_json.base_url ?? '未配置'
+                      )}
                     </Typography.Text>
                   )
                 },
@@ -152,7 +191,8 @@ export function ModelProviderInstancesModal({
                   key: 'message',
                   label: '校验说明',
                   span: 2,
-                  children: selectedInstance.last_validation_message ?? '尚无校验结果'
+                  children:
+                    selectedInstance.last_validation_message ?? '尚无校验结果'
                 }
               ]}
             />
@@ -166,7 +206,9 @@ export function ModelProviderInstancesModal({
                   获取模型
                 </Button>
                 {canManage ? (
-                  <Button onClick={() => onEdit(selectedInstance)}>编辑 API Key</Button>
+                  <Button onClick={() => onEdit(selectedInstance)}>
+                    编辑 API Key
+                  </Button>
                 ) : null}
                 {canManage ? (
                   <Button
@@ -207,11 +249,15 @@ export function ModelProviderInstancesModal({
                   value: model.model_id
                 }))}
                 onChange={setSelectedModelId}
-                notFoundContent={modelsLoading ? '正在加载模型...' : '暂无模型，请先获取或刷新'}
+                notFoundContent={
+                  modelsLoading ? '正在加载模型...' : '暂无模型，请先获取或刷新'
+                }
               />
-              {modelCatalog && modelCatalog.provider_instance_id === selectedInstance.id ? (
+              {modelCatalog &&
+              modelCatalog.provider_instance_id === selectedInstance.id ? (
                 <Typography.Paragraph type="secondary">
-                  来源：{modelCatalog.source} · 状态：{modelCatalog.refresh_status}
+                  来源：{modelCatalog.source} · 状态：
+                  {modelCatalog.refresh_status}
                 </Typography.Paragraph>
               ) : null}
             </div>
