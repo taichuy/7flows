@@ -103,6 +103,20 @@ docker compose -f docker/docker-compose.middleware.yaml up -d
 
 ## Verification
 
+### Repository
+
+```bash
+node scripts/node/test-scripts.js
+node scripts/node/test-scripts.js page-debug
+node scripts/node/verify-repo.js
+```
+
+说明：
+
+- `node scripts/node/test-scripts.js` 统一执行 `scripts/node/**/_tests/*.js`。
+- `node scripts/node/test-scripts.js <filter>` 支持按脚本路径片段做 targeted fast run，例如 `page-debug`、`verify-backend`。
+- `node scripts/node/verify-repo.js` 是仓库级 full gate，会依次执行 `scripts/node` 测试、前端 `full` 门禁和后端 `verify-backend`。
+
 ### Frontend
 
 ```bash
