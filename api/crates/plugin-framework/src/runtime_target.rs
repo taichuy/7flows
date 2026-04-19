@@ -1,6 +1,4 @@
-use crate::{
-    error::{FrameworkResult, PluginFrameworkError},
-};
+use crate::error::{FrameworkResult, PluginFrameworkError};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuntimeTarget {

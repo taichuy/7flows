@@ -1,6 +1,8 @@
 use std::{fs, path::Path};
 
-use crate::_tests::support::{login_and_capture_cookie, test_app};
+use crate::_tests::support::{
+    login_and_capture_cookie, test_app, write_provider_manifest_v2, write_provider_runtime_script,
+};
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -131,29 +133,16 @@ async fn replace_member_roles(
 
 fn create_fixture_provider_package(root: &Path, version: &str) {
     fs::create_dir_all(root.join("provider")).unwrap();
+    fs::create_dir_all(root.join("bin")).unwrap();
     fs::create_dir_all(root.join("models/llm")).unwrap();
     fs::create_dir_all(root.join("i18n")).unwrap();
     fs::create_dir_all(root.join("demo")).unwrap();
     fs::create_dir_all(root.join("scripts")).unwrap();
-    fs::write(
-        root.join("manifest.yaml"),
-        format!(
-            r#"plugin_code: fixture_provider
-display_name: Fixture Provider
-version: {version}
-contract_version: 1flowbase.provider/v1
-supported_model_types:
-  - llm
-runner:
-  language: nodejs
-  entrypoint: provider/fixture_provider.js
-"#
-        ),
-    )
-    .unwrap();
+    write_provider_manifest_v2(root, "fixture_provider", "Fixture Provider", version);
     fs::write(
         root.join("provider/fixture_provider.yaml"),
         r#"provider_code: fixture_provider
+display_name: Fixture Provider
 protocol: openai_compatible
 help_url: https://example.com/help
 default_base_url: https://api.example.com
@@ -168,32 +157,12 @@ config_schema:
 "#,
     )
     .unwrap();
-    fs::write(
-        root.join("provider/fixture_provider.js"),
-        r#"module.exports = {
-  async validateProviderCredentials(input) {
-    return { sanitized: { api_key: input.api_key ? "***" : null } };
-  },
-  async listModels() {
-    return [
-      {
-        model_id: "fixture_chat",
-        display_name: "Fixture Chat",
-        source: "dynamic",
-        supports_streaming: true,
-        supports_tool_call: false,
-        supports_multimodal: false,
-        provider_metadata: {}
-      }
-    ];
-  },
-  async invoke() {
-    return { events: [], result: { final_content: "ok" } };
-  }
-};
-"#,
-    )
-    .unwrap();
+    write_provider_runtime_script(
+        &root.join("bin/fixture_provider-provider"),
+        "fixture_chat",
+        "Fixture Chat",
+        None,
+    );
     fs::write(
         root.join("models/llm/_position.yaml"),
         "items:\n  - fixture_chat\n",
@@ -220,24 +189,10 @@ capabilities:
 
 fn create_openai_compatible_package(root: &Path, version: &str) {
     fs::create_dir_all(root.join("provider")).unwrap();
+    fs::create_dir_all(root.join("bin")).unwrap();
     fs::create_dir_all(root.join("models/llm")).unwrap();
     fs::create_dir_all(root.join("i18n")).unwrap();
-    fs::write(
-        root.join("manifest.yaml"),
-        format!(
-            r#"plugin_code: openai_compatible
-display_name: OpenAI Compatible
-version: {version}
-contract_version: 1flowbase.provider/v1
-supported_model_types:
-  - llm
-runner:
-  language: nodejs
-  entrypoint: provider/openai_compatible.js
-"#
-        ),
-    )
-    .unwrap();
+    write_provider_manifest_v2(root, "openai_compatible", "OpenAI Compatible", version);
     fs::write(
         root.join("provider/openai_compatible.yaml"),
         r#"provider_code: openai_compatible
@@ -256,32 +211,12 @@ config_schema:
 "#,
     )
     .unwrap();
-    fs::write(
-        root.join("provider/openai_compatible.js"),
-        r#"module.exports = {
-  async validateProviderCredentials(input) {
-    return { sanitized: { api_key: input.api_key ? "***" : null } };
-  },
-  async listModels() {
-    return [
-      {
-        model_id: "openai_compatible_chat",
-        display_name: "OpenAI Compatible Chat",
-        source: "dynamic",
-        supports_streaming: true,
-        supports_tool_call: false,
-        supports_multimodal: false,
-        provider_metadata: {}
-      }
-    ];
-  },
-  async invoke() {
-    return { events: [], result: { final_content: "ok" } };
-  }
-};
-"#,
-    )
-    .unwrap();
+    write_provider_runtime_script(
+        &root.join("bin/openai_compatible-provider"),
+        "openai_compatible_chat",
+        "OpenAI Compatible Chat",
+        None,
+    );
     fs::write(
         root.join("models/llm/_position.yaml"),
         "items:\n  - openai_compatible_chat\n",

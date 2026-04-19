@@ -1,6 +1,8 @@
 use std::{fs, path::Path};
 
-use crate::_tests::support::{login_and_capture_cookie, test_app};
+use crate::_tests::support::{
+    login_and_capture_cookie, test_app, write_provider_manifest_v2, write_provider_runtime_script,
+};
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -10,27 +12,16 @@ use tower::ServiceExt;
 
 fn create_provider_fixture(root: &Path) {
     fs::create_dir_all(root.join("provider")).unwrap();
+    fs::create_dir_all(root.join("bin")).unwrap();
     fs::create_dir_all(root.join("models/llm")).unwrap();
     fs::create_dir_all(root.join("i18n")).unwrap();
     fs::create_dir_all(root.join("demo")).unwrap();
     fs::create_dir_all(root.join("scripts")).unwrap();
-    fs::write(
-        root.join("manifest.yaml"),
-        r#"plugin_code: fixture_provider
-display_name: Fixture Provider
-version: 0.1.0
-contract_version: 1flowbase.provider/v1
-supported_model_types:
-  - llm
-runner:
-  language: nodejs
-  entrypoint: provider/fixture_provider.js
-"#,
-    )
-    .unwrap();
+    write_provider_manifest_v2(root, "fixture_provider", "Fixture Provider", "0.1.0");
     fs::write(
         root.join("provider/fixture_provider.yaml"),
         r#"provider_code: fixture_provider
+display_name: Fixture Provider
 protocol: openai_compatible
 help_url: https://example.com/help
 default_base_url: https://api.example.com
@@ -45,44 +36,12 @@ config_schema:
 "#,
     )
     .unwrap();
-    fs::write(
-        root.join("provider/fixture_provider.js"),
-        r#"module.exports = {
-  async validateProviderCredentials(input) {
-    return { sanitized: { api_key: input.api_key ? "***" : null } };
-  },
-  async listModels() {
-    return [
-      {
-        model_id: "fixture_chat",
-        display_name: "Fixture Chat",
-        source: "dynamic",
-        supports_streaming: true,
-        supports_tool_call: false,
-        supports_multimodal: false,
-        provider_metadata: {}
-      }
-    ];
-  },
-  async invoke(request) {
-    const query = request.messages?.[0]?.content ?? "";
-    return {
-      events: [
-        { type: "text_delta", delta: "reply:" + query },
-        { type: "usage_snapshot", usage: { input_tokens: 5, output_tokens: 7, total_tokens: 12 } },
-        { type: "finish", reason: "stop" }
-      ],
-      result: {
-        final_content: "reply:" + query,
-        usage: { input_tokens: 5, output_tokens: 7, total_tokens: 12 },
-        finish_reason: "stop"
-      }
-    };
-  }
-};
-"#,
-    )
-    .unwrap();
+    write_provider_runtime_script(
+        &root.join("bin/fixture_provider-provider"),
+        "fixture_chat",
+        "Fixture Chat",
+        None,
+    );
     fs::write(
         root.join("models/llm/_position.yaml"),
         "items:\n  - fixture_chat\n",

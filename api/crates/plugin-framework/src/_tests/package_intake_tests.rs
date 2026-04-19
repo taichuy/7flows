@@ -263,7 +263,10 @@ config_schema:
 "#
         ),
     );
-    dir.write_str(&format!("bin/{plugin_code}-provider"), "#!/usr/bin/env bash\nexit 0\n");
+    dir.write_str(
+        &format!("bin/{plugin_code}-provider"),
+        "#!/usr/bin/env bash\nexit 0\n",
+    );
     dir.write_str(
         "models/llm/_position.yaml",
         &format!("items:\n  - {plugin_code}_chat\n"),

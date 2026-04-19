@@ -87,7 +87,10 @@ config_schema:
     required: true
 "#,
     );
-    fixture.write("bin/acme_openai_compatible-provider", "#!/usr/bin/env bash\nexit 0\n");
+    fixture.write(
+        "bin/acme_openai_compatible-provider",
+        "#!/usr/bin/env bash\nexit 0\n",
+    );
     fixture.write("models/llm/_position.yaml", "items:\n  - acme_chat\n");
     fixture.write(
         "models/llm/acme_chat.yaml",
@@ -223,8 +226,14 @@ compat:
         "provider/acme_openai_compatible.yaml",
         "provider_code: acme_openai_compatible\nmodel_discovery: hybrid\n",
     );
-    fixture.write("bin/acme_openai_compatible-provider", "#!/usr/bin/env bash\nexit 0\n");
-    fixture.write("i18n/en_US.json", "{ \"plugin\": { \"label\": \"Acme\" } }\n");
+    fixture.write(
+        "bin/acme_openai_compatible-provider",
+        "#!/usr/bin/env bash\nexit 0\n",
+    );
+    fixture.write(
+        "i18n/en_US.json",
+        "{ \"plugin\": { \"label\": \"Acme\" } }\n",
+    );
 
     let package = ProviderPackage::load_from_dir(fixture.path()).unwrap();
 

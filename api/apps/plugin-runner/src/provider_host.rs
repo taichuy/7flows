@@ -1,13 +1,11 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-};
+use std::collections::{BTreeMap, HashMap};
 
 use plugin_framework::{
     error::{FrameworkResult, PluginFrameworkError},
     provider_contract::{
-        ModelDiscoveryMode, ProviderFinishReason, ProviderInvocationInput, ProviderInvocationResult,
-        ProviderModelDescriptor, ProviderModelSource, ProviderStdioMethod, ProviderStdioRequest,
-        ProviderStreamEvent,
+        ModelDiscoveryMode, ProviderFinishReason, ProviderInvocationInput,
+        ProviderInvocationResult, ProviderModelDescriptor, ProviderModelSource,
+        ProviderStdioMethod, ProviderStdioRequest, ProviderStreamEvent,
     },
 };
 use serde::{Deserialize, Serialize};

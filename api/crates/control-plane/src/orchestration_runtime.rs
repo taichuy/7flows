@@ -2089,19 +2089,32 @@ fn write_test_provider_package() -> String {
 
     let root = std::env::temp_dir().join(format!("1flowbase-provider-fixture-{}", Uuid::now_v7()));
     fs::create_dir_all(root.join("provider")).expect("create fixture provider dir");
+    fs::create_dir_all(root.join("bin")).expect("create fixture runtime dir");
     fs::create_dir_all(root.join("models/llm")).expect("create fixture models dir");
     fs::create_dir_all(root.join("i18n")).expect("create fixture i18n dir");
     fs::write(
         root.join("manifest.yaml"),
-        r#"plugin_code: fixture_provider
-display_name: Fixture Provider
+        r#"schema_version: 2
+plugin_type: model_provider
+plugin_code: fixture_provider
 version: 0.1.0
 contract_version: 1flowbase.provider/v1
-supported_model_types:
-  - llm
-runner:
-  language: nodejs
-  entrypoint: provider/fixture_provider.js
+metadata:
+  author: 1flowbase tests
+  label:
+    en_US: "Fixture Provider"
+provider:
+  definition: provider/fixture_provider.yaml
+runtime:
+  kind: executable
+  protocol: stdio-json
+  executable:
+    path: bin/fixture_provider-provider
+capabilities:
+  model_types:
+    - llm
+compat:
+  minimum_host_version: 0.1.0
 "#,
     )
     .expect("write manifest");
@@ -2127,11 +2140,72 @@ config_schema:
 "#,
     )
     .expect("write provider yaml");
+    let runtime_path = root.join("bin/fixture_provider-provider");
     fs::write(
-        root.join("provider/fixture_provider.js"),
-        "'use strict'; module.exports = { async validateProviderCredentials() { return { ok: true }; }, async listModels() { return []; }, async invoke() { return { events: [], result: {} }; } };",
+        &runtime_path,
+        r#"#!/usr/bin/env node
+const fs = require('node:fs');
+
+const request = JSON.parse(fs.readFileSync(0, 'utf8') || '{}');
+
+let result = {};
+switch (request.method) {
+  case 'validate':
+    result = {
+      sanitized: {
+        api_key: request.input?.api_key ? "***" : null
+      }
+    };
+    break;
+  case 'list_models':
+    result = [
+      {
+        model_id: "gpt-5.4-mini",
+        display_name: "GPT-5.4 Mini",
+        source: "dynamic",
+        supports_streaming: true,
+        supports_tool_call: true,
+        supports_multimodal: false,
+        provider_metadata: {
+          tier: "default"
+        }
+      }
+    ];
+    break;
+  case 'invoke': {
+    const query = request.input?.messages?.[0]?.content ?? "";
+    result = {
+      events: [
+        { type: "text_delta", delta: "reply:" + query },
+        { type: "usage_snapshot", usage: { input_tokens: 5, output_tokens: 7, total_tokens: 12 } },
+        { type: "finish", reason: "stop" }
+      ],
+      result: {
+        final_content: "reply:" + query,
+        usage: { input_tokens: 5, output_tokens: 7, total_tokens: 12 },
+        finish_reason: "stop"
+      }
+    };
+    break;
+  }
+  default:
+    result = {};
+}
+
+process.stdout.write(JSON.stringify({ ok: true, result }));
+"#,
     )
     .expect("write runtime");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut permissions = fs::metadata(&runtime_path)
+            .expect("read runtime permissions")
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&runtime_path, permissions).expect("mark runtime executable");
+    }
     fs::write(
         root.join("models/llm/_position.yaml"),
         "items:\n  - fixture_chat\n",
