@@ -514,3 +514,144 @@ interface ProviderInvocationRequest {
 - 参数是否开启属于应用节点真值，不属于插件真值
 - `response_format` 一期只做 `text | json_object`，避免过早进入完整结构化输出设计
 
+## 15. 附录：Dify `json_schema / structured_output` 对照参考
+
+本节只做对照，不改变前文主结论。
+
+结论先行：
+
+- `Dify` 的实现证明了“是否开启结构化输出”放在节点侧是合理的
+- `Dify` 的实现也证明了 `json_schema` 一旦落地，就不再只是一个普通参数，而会影响输出变量与节点输出结构
+- `Dify` 的 plugin / model 声明层虽然有 `response_format / json_schema` 参数模板，但真正的结构化输出产品能力仍主要落在 `LLM` 节点侧，而不是单纯靠通用参数表单驱动
+
+### 15.1 Dify 的节点侧做法
+
+`Dify` 的 `LLM` 节点类型中直接包含：
+
+- `structured_output_enabled`
+- `structured_output`
+
+这说明它把“是否开启结构化输出”和“结构化 schema 本体”都放在节点里，而不是放在 provider plugin 参数里。
+
+参考：
+
+- `../dify/web/app/components/workflow/nodes/llm/types.ts`
+
+关键点：
+
+- `structured_output_enabled?: boolean`
+- `structured_output?: StructuredOutput`
+- `StructuredOutput` 内部持有 `schema: SchemaRoot`
+
+### 15.2 Dify 的启用与编辑交互
+
+`Dify` 的 `LLM` 节点配置逻辑中：
+
+- 切换 structured output 开关时，写入 `draft.structured_output_enabled`
+- 编辑 structured output 时，写入 `draft.structured_output`
+
+这说明：
+
+- 插件能力只负责声明“模型是否支持”
+- 真正的启用状态和内容编辑都属于节点侧真值
+
+参考：
+
+- `../dify/web/app/components/workflow/nodes/llm/use-config.ts`
+
+### 15.3 Dify 的 UI 不是“通用参数表单”，而是专门结构化输出面板
+
+`Dify` 在 `LLM` 节点面板里没有把 `json_schema` 简化成普通字符串输入框，而是：
+
+- 给一个 `Structured` 开关
+- 开启后显示专门的 `StructureOutput` 区块
+- 区块内部再打开 `JsonSchemaConfigModal` 编辑 schema
+
+这说明：
+
+- `json_schema` 是一类更重的能力
+- 它比普通 `temperature / top_p` 更接近“节点能力配置”，而不是“普通参数字段”
+
+参考：
+
+- `../dify/web/app/components/workflow/nodes/llm/panel.tsx`
+- `../dify/web/app/components/workflow/nodes/llm/components/structure-output.tsx`
+
+### 15.4 Dify 会把 structured output 暴露成节点输出变量
+
+当 `structured_output_enabled = true` 且 schema 有内容时，`Dify` 会把 `structured_output` 加入节点输出变量树。
+
+这一步很关键，因为它意味着：
+
+- `json_schema` 不只是影响调用参数
+- 它还会影响后续节点可引用的输出结构
+
+这也是为什么本稿建议 `response_format.json_schema` 不要在第一期当成普通表单字段草率落地。
+
+参考：
+
+- `../dify/web/app/components/workflow/nodes/_base/components/variable/utils.ts`
+
+### 15.5 Dify 的插件 / 模型声明层也有 `response_format / json_schema`
+
+在 `dify-plugin-daemon` 中，模型参数模板里确实存在：
+
+- `response_format`
+- `json_schema`
+
+并且插件脚手架模板里 `llm.yaml` 也会带 `response_format`。
+
+这说明：
+
+- 插件 / model declaration 层表达这两个参数是合理的
+- 但这不意味着宿主就只靠“通用参数 schema”就足够完成结构化输出产品能力
+
+参考：
+
+- `../dify-plugin-daemon/pkg/entities/plugin_entities/model_declaration.go`
+- `../dify-plugin-daemon/cmd/commandline/plugin/templates/python/llm.yaml`
+
+### 15.6 Dify 的运行时也把 structured output 当成单独调用形态
+
+`dify-plugin-daemon` 里针对结构化输出有单独的调用请求：
+
+- `InvokeLLMWithStructuredOutputRequest`
+- 额外持有 `StructuredOutputSchema`
+
+这说明在运行时视角里，structured output 也是一个特殊能力，而不是普通参数数组里的某一项。
+
+参考：
+
+- `../dify-plugin-daemon/internal/core/dify_invocation/types.go`
+
+### 15.7 对 1flowbase 的可借鉴结论
+
+从 `Dify` 可以借鉴出三条最有价值的规则：
+
+1. `json_schema / structured_output` 的“是否开启”应由节点保存  
+   这和本稿当前方向一致。
+
+2. `json_schema / structured_output` 不能被简单看成普通数值参数  
+   它会影响节点输出契约与变量树。
+
+3. 插件层可以声明 `response_format / json_schema`，但宿主是否把它做成完整产品能力，仍要单独设计  
+   这和本稿“`response_format` 一期只做 `text | json_object`，`json_schema` 二期再开”的判断一致。
+
+### 15.8 与本稿当前方案的对应关系
+
+| 主题 | Dify 做法 | 本稿当前建议 |
+| --- | --- | --- |
+| 参数 schema 来源 | plugin / model declaration 可声明参数模板 | provider/model 返回 `PluginFormSchema` |
+| 是否开启 | 节点保存 `structured_output_enabled` | 节点保存 `enabled` |
+| 结构化 schema 本体 | 节点保存 `structured_output.schema` | 一期不做完整 `json_schema`，二期可单独对象化 |
+| 输出变量联动 | 启用后把 `structured_output` 加入输出变量 | 当前预留为二期能力 |
+| 自定义控件 | 节点自带专门 UI | 当前不开放插件自定义控件 |
+| `response_format` | 参数模板存在，但结构化输出不只靠模板驱动 | 一期只支持 `text | json_object` |
+
+### 15.9 本稿不直接照抄 Dify 的原因
+
+虽然 `Dify` 有可借鉴实现，但本稿不直接照抄，原因有三点：
+
+- `1flowbase` 当前在推进 plugin-first 的 provider 接入边界，需要比 `Dify` 更明确地区分“插件声明参数”和“节点真值”
+- `1flowbase` 当前的 `schema ui` 正在建设中，第一期更适合先补最小动态表单能力，而不是直接引入完整 JSON Schema 编辑器
+- `Dify` 当前 `structured_output` 更像是宿主内建的 `LLM` 节点专有能力，而本稿当前主目标是先把 provider 参数 schema 与节点参数对象边界收干净
