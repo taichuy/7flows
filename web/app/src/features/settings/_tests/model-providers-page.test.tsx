@@ -589,8 +589,11 @@ describe('ModelProvidersPage', () => {
       within(catalogRow).getByRole('button', { name: '查看实例' })
     ).toBeInTheDocument();
     expect(
-      within(catalogRow).getByRole('button', { name: '添加 API Key' })
+      within(catalogRow).getByRole('button', { name: '添加' })
     ).toBeInTheDocument();
+    expect(
+      within(catalogRow).queryByRole('link', { name: '文档' })
+    ).not.toBeInTheDocument();
   });
 
   test(

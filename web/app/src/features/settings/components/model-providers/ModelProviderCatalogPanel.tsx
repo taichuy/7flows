@@ -157,13 +157,8 @@ export function ModelProviderCatalogPanel({
                         查看实例
                       </Button>
                       <Button type="link" onClick={() => onCreate(entry)}>
-                        添加 API Key
+                        添加
                       </Button>
-                      {entry.help_url ? (
-                        <Typography.Link href={entry.help_url} target="_blank">
-                          文档
-                        </Typography.Link>
-                      ) : null}
                     </Space>
                   )
                 }
