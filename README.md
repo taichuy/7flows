@@ -23,6 +23,8 @@ node scripts/node/dev-up.js
 node scripts/node/dev-up.js --skip-docker
 node scripts/node/dev-up.js restart --frontend-only
 node scripts/node/dev-up.js restart --backend-only
+
+node scripts/node/dev-up.js restart --frontend-only && node scripts/node/dev-up.js restart --backend-only
 node scripts/node/dev-up.js status
 node scripts/node/dev-up.js stop
 ```
