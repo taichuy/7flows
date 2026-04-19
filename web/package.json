@@ -12,6 +12,7 @@
     "lint": "turbo run lint",
     "test": "turbo run test --concurrency=50%",
     "test:fast": "node ../scripts/node/test-frontend.js fast",
+    "coverage:frontend": "node ../scripts/node/verify-coverage.js frontend",
     "verify:full": "node ../scripts/node/test-frontend.js full",
     "runtime-gate": "node ../scripts/node/runtime-gate.js",
     "style-boundary:all-pages": "node ../scripts/node/check-style-boundary.js all-pages",

@@ -1,0 +1,63 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+
+const { buildCommands, main } = require('../../verify-ci.js');
+
+test('buildCommands composes repo full gate and coverage gate', () => {
+  const repoRoot = '/repo-root';
+
+  assert.deepEqual(buildCommands({ repoRoot }), [
+    {
+      label: 'ci-verify-repo',
+      command: process.execPath,
+      args: [path.join(repoRoot, 'scripts', 'node', 'verify-repo.js')],
+      cwd: repoRoot,
+    },
+    {
+      label: 'ci-verify-coverage',
+      command: process.execPath,
+      args: [path.join(repoRoot, 'scripts', 'node', 'verify-coverage.js'), 'all'],
+      cwd: repoRoot,
+    },
+  ]);
+});
+
+test('main runs repo and coverage gates in order and captures advisory output', () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-verify-ci-'));
+  const calls = [];
+
+  const status = main([], {
+    repoRoot,
+    env: {},
+    writeStdout() {},
+    writeStderr() {},
+    spawnSyncImpl(command, args, options) {
+      calls.push({ command, args, options });
+
+      return {
+        status: 0,
+        stdout: '',
+        stderr: `warning: ${path.basename(args[0])} advisory\n`,
+      };
+    },
+  });
+
+  assert.equal(status, 0);
+  assert.equal(calls.length, 2);
+  assert.deepEqual(
+    calls.map((call) => call.args),
+    [
+      [path.join(repoRoot, 'scripts', 'node', 'verify-repo.js')],
+      [path.join(repoRoot, 'scripts', 'node', 'verify-coverage.js'), 'all'],
+    ]
+  );
+
+  const warningLogPath = path.join(repoRoot, 'tmp', 'test-governance', 'verify-ci.warnings.log');
+  assert.equal(fs.existsSync(warningLogPath), true);
+  const warningLog = fs.readFileSync(warningLogPath, 'utf8');
+  assert.match(warningLog, /warning: verify-repo\.js advisory/u);
+  assert.match(warningLog, /warning: verify-coverage\.js advisory/u);
+});

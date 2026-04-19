@@ -46,7 +46,7 @@
 - Modify: `web/app/vite.config.ts`
 - Modify: `web/pnpm-lock.yaml`
 
-- [ ] **Step 1: Write failing `node:test` coverage tests for CLI defaults, frontend command shape, and high-risk path aggregation**
+- [x] **Step 1: Write failing `node:test` coverage tests for CLI defaults, frontend command shape, and high-risk path aggregation**
 
 ```js
 const test = require('node:test');
@@ -95,7 +95,7 @@ test('collectFrontendCoverageFailures only checks configured high-risk prefixes'
 });
 ```
 
-- [ ] **Step 2: Run the new CLI test file and verify RED**
+- [x] **Step 2: Run the new CLI test file and verify RED**
 
 Run:
 
@@ -107,7 +107,7 @@ Expected:
 
 - FAIL with `Cannot find module '../../verify-coverage.js'` or missing export errors because the new coverage entrypoint does not exist yet.
 
-- [ ] **Step 3: Add the shared threshold registry**
+- [x] **Step 3: Add the shared threshold registry**
 
 ```js
 const COVERAGE_ROOT = 'tmp/test-governance/coverage';
@@ -148,7 +148,7 @@ module.exports = {
 };
 ```
 
-- [ ] **Step 4: Implement the frontend half of `verify-coverage.js`**
+- [x] **Step 4: Implement the frontend half of `verify-coverage.js`**
 
 ```js
 function parseCliArgs(argv) {
@@ -180,7 +180,7 @@ function collectFrontendCoverageFailures(summary) {
 }
 ```
 
-- [ ] **Step 5: Wire Vitest coverage scripts and reporter output into the frontend**
+- [x] **Step 5: Wire Vitest coverage scripts and reporter output into the frontend**
 
 ```json
 {
@@ -214,7 +214,7 @@ test: {
 }
 ```
 
-- [ ] **Step 6: Refresh the frontend lockfile**
+- [x] **Step 6: Refresh the frontend lockfile**
 
 Run:
 
@@ -226,7 +226,7 @@ Expected:
 
 - `web/pnpm-lock.yaml` updates to include `@vitest/coverage-v8`.
 
-- [ ] **Step 7: Re-run the coverage CLI unit tests and verify GREEN**
+- [x] **Step 7: Re-run the coverage CLI unit tests and verify GREEN**
 
 Run:
 
@@ -244,7 +244,7 @@ Expected:
 - Modify: `scripts/node/verify-coverage.js`
 - Modify: `scripts/node/verify-coverage/_tests/cli.test.js`
 
-- [ ] **Step 1: Add failing tests for backend command composition, local tool preflight, and package threshold parsing**
+- [x] **Step 1: Add failing tests for backend command composition, local tool preflight, and package threshold parsing**
 
 ```js
 const {
@@ -299,7 +299,7 @@ test('ensureCargoLlvmCovInstalled throws an actionable error when the cargo subc
 });
 ```
 
-- [ ] **Step 2: Run the test file again and verify RED on the missing backend exports**
+- [x] **Step 2: Run the test file again and verify RED on the missing backend exports**
 
 Run:
 
@@ -311,7 +311,7 @@ Expected:
 
 - FAIL on missing backend helpers or mismatched command arrays.
 
-- [ ] **Step 3: Implement backend command builders, JSON readers, and the `cargo llvm-cov` preflight**
+- [x] **Step 3: Implement backend command builders, JSON readers, and the `cargo llvm-cov` preflight**
 
 ```js
 function ensureCargoLlvmCovInstalled(spawnSyncImpl = spawnSync) {
@@ -347,7 +347,7 @@ function buildBackendCommands({ repoRoot, cargoParallelism }) {
 }
 ```
 
-- [ ] **Step 4: Make `main()` support `frontend` / `backend` / `all` and evaluate threshold failures after command execution**
+- [x] **Step 4: Make `main()` support `frontend` / `backend` / `all` and evaluate threshold failures after command execution**
 
 ```js
 function main(argv = [], deps = {}) {
@@ -378,7 +378,7 @@ function main(argv = [], deps = {}) {
 }
 ```
 
-- [ ] **Step 5: Re-run the coverage CLI unit tests and verify GREEN**
+- [x] **Step 5: Re-run the coverage CLI unit tests and verify GREEN**
 
 Run:
 
@@ -397,7 +397,7 @@ Expected:
 - Create: `scripts/node/verify-ci/_tests/cli.test.js`
 - Create: `.github/workflows/verify.yml`
 
-- [ ] **Step 1: Write failing tests for repo CI command composition**
+- [x] **Step 1: Write failing tests for repo CI command composition**
 
 ```js
 const { buildCommands, main } = require('../../verify-ci.js');
@@ -422,7 +422,7 @@ test('buildCommands composes repo full gate and coverage gate', () => {
 });
 ```
 
-- [ ] **Step 2: Run the CI wrapper tests and verify RED**
+- [x] **Step 2: Run the CI wrapper tests and verify RED**
 
 Run:
 
@@ -434,7 +434,7 @@ Expected:
 
 - FAIL with `Cannot find module '../../verify-ci.js'`.
 
-- [ ] **Step 3: Implement `verify-ci.js` on top of the shared warning runner**
+- [x] **Step 3: Implement `verify-ci.js` on top of the shared warning runner**
 
 ```js
 function buildCommands({ repoRoot }) {
@@ -455,7 +455,7 @@ function buildCommands({ repoRoot }) {
 }
 ```
 
-- [ ] **Step 4: Add the GitHub Actions workflow that installs toolchains and delegates to `verify-ci`**
+- [x] **Step 4: Add the GitHub Actions workflow that installs toolchains and delegates to `verify-ci`**
 
 ```yaml
 name: verify
@@ -489,7 +489,7 @@ jobs:
           path: tmp/test-governance
 ```
 
-- [ ] **Step 5: Re-run the CI wrapper unit tests and verify GREEN**
+- [x] **Step 5: Re-run the CI wrapper unit tests and verify GREEN**
 
 Run:
 
@@ -507,7 +507,7 @@ Expected:
 - Modify: `README.md`
 - Modify: `docs/superpowers/plans/2026-04-19-ci-coverage-implementation.md`
 
-- [ ] **Step 1: Update the README verification section to document coverage and CI entrypoints**
+- [x] **Step 1: Update the README verification section to document coverage and CI entrypoints**
 
 ````md
 ### Coverage
@@ -525,7 +525,7 @@ node scripts/node/verify-ci.js
 ```
 ````
 
-- [ ] **Step 2: Run the wrapper unit tests together**
+- [x] **Step 2: Run the wrapper unit tests together**
 
 Run:
 
@@ -537,7 +537,7 @@ Expected:
 
 - PASS for all CLI command-shape and threshold-evaluation tests.
 
-- [ ] **Step 3: Run the frontend coverage gate for real**
+- [x] **Step 3: Run the frontend coverage gate for real**
 
 Run:
 
@@ -550,7 +550,7 @@ Expected:
 - PASS if the aggregated `agent-flow` and `settings` metrics meet the configured thresholds.
 - Coverage artifacts appear under `tmp/test-governance/coverage/frontend/`.
 
-- [ ] **Step 4: Install `cargo-llvm-cov` locally if it is missing**
+- [x] **Step 4: Install `cargo-llvm-cov` locally if it is missing**
 
 Run:
 
@@ -568,7 +568,7 @@ Expected:
 
 - `cargo llvm-cov --help` exits successfully before backend coverage verification.
 
-- [ ] **Step 5: Run the backend coverage gate for real**
+- [x] **Step 5: Run the backend coverage gate for real**
 
 Run:
 
@@ -581,7 +581,7 @@ Expected:
 - PASS if `control-plane`, `storage-pg`, and `api-server` line coverage meet thresholds.
 - JSON artifacts appear under `tmp/test-governance/coverage/backend/`.
 
-- [ ] **Step 6: Run the repository CI wrapper for real**
+- [x] **Step 6: Run the repository CI wrapper for real**
 
 Run:
 
@@ -593,7 +593,7 @@ Expected:
 
 - PASS after executing `verify-repo` and `verify-coverage all` in sequence.
 
-- [ ] **Step 7: Update this plan with the real verification results**
+- [x] **Step 7: Update this plan with the real verification results**
 
 Add a `## Verification Results` section summarizing:
 
@@ -603,7 +603,7 @@ Add a `## Verification Results` section summarizing:
 - `verify-ci` result
 - any local prerequisite installed during validation
 
-- [ ] **Step 8: Commit the third-phase implementation**
+- [x] **Step 8: Commit the third-phase implementation**
 
 Run:
 
@@ -626,3 +626,27 @@ rtk git commit -m "feat(ci): add coverage and repository verify workflow"
 Expected:
 
 - A clean commit containing the coverage gate, CI wrapper, workflow, docs, and recorded verification results.
+
+## Verification Results
+
+### 2026-04-19 22
+
+- Wrapper CLI unit tests:
+  - Command: `rtk node --test scripts/node/verify-coverage/_tests/cli.test.js scripts/node/verify-ci/_tests/cli.test.js`
+  - Result: `8` tests passed, `0` failed.
+- Frontend coverage gate:
+  - Command: `rtk node scripts/node/verify-coverage.js frontend`
+  - Result: `50` test files / `180` tests passed; V8 coverage summary `Statements 78.03%`, `Branches 76.7%`, `Functions 75.3%`, `Lines 78.03%`; `settings` high-risk prefix function coverage crossed threshold after adding `settings/api` wrapper tests; gate ended with `[1flowbase-verify-coverage] Coverage thresholds passed for frontend.`
+- Backend coverage gate:
+  - Command: `rtk node scripts/node/verify-coverage.js backend`
+  - Result: `control-plane`, `storage-pg`, `api-server` coverage JSON all written to `tmp/test-governance/coverage/backend/`; gate ended with `[1flowbase-verify-coverage] Coverage thresholds passed for backend.`
+- Repository CI wrapper:
+  - Command: `rtk node scripts/node/verify-ci.js`
+  - Result: exited `0` after sequentially running `verify-repo` and `verify-coverage all`; repo gate included `70` `scripts/node` tests, frontend `lint + test + build + style-boundary`, backend `verify-backend`, then full frontend/backend coverage gate; coverage all ended with `[1flowbase-verify-coverage] Coverage thresholds passed for all.`
+- Local prerequisites installed during validation:
+  - `rtk cargo install cargo-llvm-cov --locked` installed `cargo-llvm-cov v0.8.5`.
+  - First backend coverage run triggered `llvm-tools-preview` installation for the stable toolchain and then completed successfully.
+- Non-blocking warnings observed:
+  - Frontend lint still reports existing `react-refresh/only-export-components` warnings in `NodeInspector.tsx` and `store/editor/provider.tsx`.
+  - Frontend build still emits the existing Vite large-chunk advisory.
+  - Frontend tests still emit existing React Flow / Ant Design Tooltip / `act(...)` warnings, but none block current gates.
