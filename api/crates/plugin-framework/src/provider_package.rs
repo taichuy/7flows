@@ -15,20 +15,66 @@ use crate::{
 pub const DEFAULT_PROVIDER_LOCALE: &str = "en_US";
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub struct ProviderRunnerSpec {
-    pub language: String,
-    pub entrypoint: String,
+pub struct ProviderMetadata {
+    #[serde(default)]
+    pub author: String,
+    #[serde(default)]
+    pub icon: Option<String>,
+    #[serde(default)]
+    pub label: BTreeMap<String, String>,
+    #[serde(default)]
+    pub description: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ProviderDefinitionRef {
+    pub definition: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ProviderExecutableSpec {
+    pub path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ProviderRuntimeSpec {
+    pub kind: String,
+    pub protocol: String,
+    pub executable: ProviderExecutableSpec,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Default)]
+pub struct ProviderRuntimeLimits {
+    pub memory_bytes: Option<u64>,
+    pub invoke_timeout_ms: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Default)]
+pub struct ProviderCapabilitiesManifest {
+    #[serde(default)]
+    pub model_types: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct ProviderCompat {
+    pub minimum_host_version: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct ProviderManifest {
+    pub schema_version: u32,
+    pub plugin_type: String,
     pub plugin_code: String,
-    pub display_name: String,
     pub version: String,
     pub contract_version: String,
+    pub metadata: ProviderMetadata,
+    pub provider: ProviderDefinitionRef,
+    pub runtime: ProviderRuntimeSpec,
     #[serde(default)]
-    pub supported_model_types: Vec<String>,
-    pub runner: ProviderRunnerSpec,
+    pub limits: ProviderRuntimeLimits,
+    #[serde(default)]
+    pub capabilities: ProviderCapabilitiesManifest,
+    pub compat: ProviderCompat,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -81,17 +127,15 @@ impl ProviderPackage {
         let manifest: ProviderManifest = load_yaml(&manifest_path)?;
         validate_manifest(&manifest)?;
 
-        let entrypoint_path = root.join(&manifest.runner.entrypoint);
-        if !entrypoint_path.is_file() {
+        let executable_path = root.join(&manifest.runtime.executable.path);
+        if !executable_path.is_file() {
             return Err(PluginFrameworkError::invalid_provider_package(format!(
-                "runner entrypoint does not exist: {}",
-                entrypoint_path.display()
+                "runtime executable does not exist: {}",
+                executable_path.display()
             )));
         }
 
-        let provider_path = root
-            .join("provider")
-            .join(format!("{}.yaml", manifest.plugin_code));
+        let provider_path = root.join(&manifest.provider.definition);
         let raw_provider: RawProviderDefinition = load_yaml(&provider_path)?;
         if raw_provider.provider_code != manifest.plugin_code {
             return Err(PluginFrameworkError::invalid_provider_package(format!(
@@ -104,7 +148,8 @@ impl ProviderPackage {
             provider_code: raw_provider.provider_code.clone(),
             display_name: raw_provider
                 .display_name
-                .unwrap_or_else(|| manifest.display_name.clone()),
+                .or_else(|| manifest_label(&manifest.metadata))
+                .unwrap_or_else(|| manifest.plugin_code.clone()),
             protocol: raw_provider
                 .protocol
                 .unwrap_or_else(|| raw_provider.provider_code.clone()),
@@ -182,6 +227,16 @@ struct RawModelPositions {
 }
 
 fn validate_manifest(manifest: &ProviderManifest) -> FrameworkResult<()> {
+    if manifest.schema_version != 2 {
+        return Err(PluginFrameworkError::invalid_provider_package(
+            "manifest.schema_version must be 2",
+        ));
+    }
+    if manifest.plugin_type != "model_provider" {
+        return Err(PluginFrameworkError::invalid_provider_package(
+            "manifest.plugin_type must be model_provider",
+        ));
+    }
     if manifest.plugin_code.trim().is_empty() {
         return Err(PluginFrameworkError::invalid_provider_package(
             "manifest.plugin_code cannot be empty",
@@ -197,7 +252,40 @@ fn validate_manifest(manifest: &ProviderManifest) -> FrameworkResult<()> {
             "manifest.contract_version cannot be empty",
         ));
     }
+    if manifest.provider.definition.trim().is_empty() {
+        return Err(PluginFrameworkError::invalid_provider_package(
+            "manifest.provider.definition cannot be empty",
+        ));
+    }
+    if manifest.runtime.kind != "executable" {
+        return Err(PluginFrameworkError::invalid_provider_package(
+            "manifest.runtime.kind must be executable",
+        ));
+    }
+    if manifest.runtime.protocol != "stdio-json" {
+        return Err(PluginFrameworkError::invalid_provider_package(
+            "manifest.runtime.protocol must be stdio-json",
+        ));
+    }
+    if manifest.runtime.executable.path.trim().is_empty() {
+        return Err(PluginFrameworkError::invalid_provider_package(
+            "manifest.runtime.executable.path cannot be empty",
+        ));
+    }
+    if manifest.compat.minimum_host_version.trim().is_empty() {
+        return Err(PluginFrameworkError::invalid_provider_package(
+            "manifest.compat.minimum_host_version cannot be empty",
+        ));
+    }
     Ok(())
+}
+
+fn manifest_label(metadata: &ProviderMetadata) -> Option<String> {
+    metadata
+        .label
+        .get(DEFAULT_PROVIDER_LOCALE)
+        .cloned()
+        .or_else(|| metadata.label.values().next().cloned())
 }
 
 fn load_predefined_models(models_dir: &Path) -> FrameworkResult<Vec<ProviderModelDescriptor>> {

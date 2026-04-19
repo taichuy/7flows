@@ -7,6 +7,7 @@ pub mod installation;
 pub mod package_intake;
 pub mod provider_contract;
 pub mod provider_package;
+pub mod runtime_target;
 
 pub use assignment::*;
 pub use capability_kind::*;
@@ -15,6 +16,7 @@ pub use installation::*;
 pub use package_intake::*;
 pub use provider_contract::*;
 pub use provider_package::*;
+pub use runtime_target::*;
 
 pub fn crate_name() -> &'static str {
     "plugin-framework"

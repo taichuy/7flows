@@ -44,15 +44,29 @@ fn make_package_fixture() -> TempProviderPackage {
     let fixture = TempProviderPackage::new();
     fixture.write(
         "manifest.yaml",
-        r#"plugin_code: acme_openai_compatible
-display_name: Acme OpenAI Compatible
+        r#"schema_version: 2
+plugin_type: model_provider
+plugin_code: acme_openai_compatible
 version: 1.2.3
 contract_version: 1flowbase.provider/v1
-supported_model_types:
-  - llm
-runner:
-  language: nodejs
-  entrypoint: provider/acme_openai_compatible.js
+metadata:
+  author: taichuy
+  icon: icon.svg
+provider:
+  definition: provider/acme_openai_compatible.yaml
+runtime:
+  kind: executable
+  protocol: stdio-json
+  executable:
+    path: bin/acme_openai_compatible-provider
+limits:
+  memory_bytes: 268435456
+  invoke_timeout_ms: 30000
+capabilities:
+  model_types:
+    - llm
+compat:
+  minimum_host_version: 0.1.0
 "#,
     );
     fixture.write(
@@ -73,7 +87,7 @@ config_schema:
     required: true
 "#,
     );
-    fixture.write("provider/acme_openai_compatible.js", "'use strict';\n");
+    fixture.write("bin/acme_openai_compatible-provider", "#!/usr/bin/env bash\nexit 0\n");
     fixture.write("models/llm/_position.yaml", "items:\n  - acme_chat\n");
     fixture.write(
         "models/llm/acme_chat.yaml",
@@ -173,4 +187,54 @@ fn provider_package_requires_default_locale_bundle() {
 
     let error = ProviderPackage::load_from_dir(fixture.path()).unwrap_err();
     assert!(error.to_string().contains("en_US"));
+}
+
+#[test]
+fn provider_package_loads_schema_v2_executable_runtime_and_limits() {
+    let fixture = TempProviderPackage::new();
+    fixture.write(
+        "manifest.yaml",
+        r#"schema_version: 2
+plugin_type: model_provider
+plugin_code: acme_openai_compatible
+version: 1.2.3
+contract_version: 1flowbase.provider/v1
+metadata:
+  author: taichuy
+  icon: icon.svg
+provider:
+  definition: provider/acme_openai_compatible.yaml
+runtime:
+  kind: executable
+  protocol: stdio-json
+  executable:
+    path: bin/acme_openai_compatible-provider
+limits:
+  memory_bytes: 268435456
+  invoke_timeout_ms: 30000
+capabilities:
+  model_types:
+    - llm
+compat:
+  minimum_host_version: 0.1.0
+"#,
+    );
+    fixture.write(
+        "provider/acme_openai_compatible.yaml",
+        "provider_code: acme_openai_compatible\nmodel_discovery: hybrid\n",
+    );
+    fixture.write("bin/acme_openai_compatible-provider", "#!/usr/bin/env bash\nexit 0\n");
+    fixture.write("i18n/en_US.json", "{ \"plugin\": { \"label\": \"Acme\" } }\n");
+
+    let package = ProviderPackage::load_from_dir(fixture.path()).unwrap();
+
+    assert_eq!(package.manifest.schema_version, 2);
+    assert_eq!(package.manifest.runtime.kind, "executable");
+    assert_eq!(package.manifest.runtime.protocol, "stdio-json");
+    assert_eq!(
+        package.manifest.runtime.executable.path,
+        "bin/acme_openai_compatible-provider"
+    );
+    assert_eq!(package.manifest.limits.memory_bytes, Some(268435456));
+    assert_eq!(package.manifest.limits.invoke_timeout_ms, Some(30000));
 }

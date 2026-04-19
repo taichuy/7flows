@@ -76,7 +76,7 @@
 - Modify: `api/crates/plugin-framework/src/_tests/provider_package_tests.rs`
 - Modify: `api/crates/plugin-framework/src/_tests/package_intake_tests.rs`
 
-- [ ] **Step 1: Write the failing package-contract tests for schema-v2 executable manifests and target parsing**
+- [x] **Step 1: Write the failing package-contract tests for schema-v2 executable manifests and target parsing**
 
 Add tests like these:
 
@@ -139,7 +139,7 @@ fn runtime_target_parses_linux_musl_rust_triples() {
 }
 ```
 
-- [ ] **Step 2: Run the `plugin-framework` package tests to capture the RED baseline**
+- [x] **Step 2: Run the `plugin-framework` package tests to capture the RED baseline**
 
 Run:
 
@@ -149,7 +149,7 @@ rtk cargo test --manifest-path api/Cargo.toml -p plugin-framework provider_packa
 
 Expected: FAIL because `ProviderManifest` still expects `runner.language + runner.entrypoint`, `RuntimeTarget` does not exist, and the fixture shape no longer matches the current parser.
 
-- [ ] **Step 3: Implement `schema_version: 2` package parsing and the reusable runtime target helper**
+- [x] **Step 3: Implement `schema_version: 2` package parsing and the reusable runtime target helper**
 
 Create `api/crates/plugin-framework/src/runtime_target.rs` and reshape `provider_package.rs` around explicit executable runtime fields:
 
@@ -273,7 +273,7 @@ fn validate_manifest(manifest: &ProviderManifest) -> FrameworkResult<()> {
 }
 ```
 
-- [ ] **Step 4: Update intake fixtures and rerun the focused `plugin-framework` test set**
+- [x] **Step 4: Update intake fixtures and rerun the focused `plugin-framework` test set**
 
 Update every old `runner:` fixture in `provider_package_tests.rs` and `package_intake_tests.rs` to the new manifest shape:
 
@@ -295,7 +295,7 @@ rtk cargo test --manifest-path api/Cargo.toml -p plugin-framework package_intake
 
 Expected: PASS with the new schema-v2 manifest parser and unchanged signed-package intake behavior.
 
-- [ ] **Step 5: Commit the package-contract cutover**
+- [x] **Step 5: Commit the package-contract cutover**
 
 ```bash
 git add \

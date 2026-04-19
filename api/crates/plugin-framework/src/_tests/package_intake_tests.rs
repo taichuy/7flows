@@ -224,15 +224,28 @@ fn write_provider_fixture(dir: &TempFixtureDir, plugin_code: &str, version: &str
     dir.write_str(
         "manifest.yaml",
         &format!(
-            r#"plugin_code: {plugin_code}
-display_name: {plugin_code}
+            r#"schema_version: 2
+plugin_type: model_provider
+plugin_code: {plugin_code}
 version: {version}
 contract_version: 1flowbase.provider/v1
-supported_model_types:
-  - llm
-runner:
-  language: nodejs
-  entrypoint: provider/{plugin_code}.js
+metadata:
+  author: taichuy
+provider:
+  definition: provider/{plugin_code}.yaml
+runtime:
+  kind: executable
+  protocol: stdio-json
+  executable:
+    path: bin/{plugin_code}-provider
+limits:
+  memory_bytes: 268435456
+  invoke_timeout_ms: 30000
+capabilities:
+  model_types:
+    - llm
+compat:
+  minimum_host_version: 0.1.0
 "#
         ),
     );
@@ -250,10 +263,7 @@ config_schema:
 "#
         ),
     );
-    dir.write_str(
-        &format!("provider/{plugin_code}.js"),
-        "module.exports = {};\n",
-    );
+    dir.write_str(&format!("bin/{plugin_code}-provider"), "#!/usr/bin/env bash\nexit 0\n");
     dir.write_str(
         "models/llm/_position.yaml",
         &format!("items:\n  - {plugin_code}_chat\n"),
