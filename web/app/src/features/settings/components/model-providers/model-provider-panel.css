@@ -153,6 +153,17 @@
   gap: 6px;
 }
 
+.model-provider-panel__tag-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.model-provider-panel__tag-help {
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.55);
+}
+
 .model-provider-panel__catalog-item-main .ant-typography {
   margin: 0;
 }

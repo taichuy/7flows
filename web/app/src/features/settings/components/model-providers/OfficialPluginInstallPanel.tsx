@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 
-import { Button, Empty, Modal, Select, Tag, Typography } from 'antd';
+import { QuestionCircleOutlined } from '@ant-design/icons';
+import { Button, Empty, Modal, Select, Tag, Tooltip, Typography } from 'antd';
 
 import type {
   SettingsOfficialPluginCatalogEntry,
@@ -82,6 +83,63 @@ function pickPreferredOfficialEntry(
 
 const OFFICIAL_PLUGIN_RELEASES_URL =
   'https://github.com/taichuy/1flowbase-official-plugins/releases';
+
+function getTagColor(tag: string) {
+  switch (tag) {
+    case 'latest':
+      return 'gold';
+    case 'active':
+      return 'green';
+    case 'installed':
+      return 'blue';
+    case 'installing':
+      return 'processing';
+    case 'failed':
+      return 'red';
+    case 'hybrid':
+      return 'purple';
+    case 'dynamic':
+      return 'cyan';
+    case 'static':
+      return 'default';
+    default:
+      return 'default';
+  }
+}
+
+function renderTagLabel(tag: string) {
+  if (tag === 'latest') {
+    return (
+      <span className="model-provider-panel__tag-label">
+        latest
+        <Tooltip title="表示当前版本已经是官方最新版本。">
+          <QuestionCircleOutlined className="model-provider-panel__tag-help" />
+        </Tooltip>
+      </span>
+    );
+  }
+
+  if (tag === 'hybrid' || tag === 'dynamic' || tag === 'static') {
+    return (
+      <span className="model-provider-panel__tag-label">
+        {tag}
+        <Tooltip
+          title={
+            tag === 'hybrid'
+              ? '发现模式：预置模型列表 + 运行时动态拉取模型列表，最后合并。'
+              : tag === 'dynamic'
+                ? '发现模式：运行时动态拉取模型列表。'
+                : '发现模式：只使用插件内预置的模型列表。'
+          }
+        >
+          <QuestionCircleOutlined className="model-provider-panel__tag-help" />
+        </Tooltip>
+      </span>
+    );
+  }
+
+  return tag;
+}
 
 function getStatusTags(
   entry: SettingsOfficialPluginCatalogEntry,
@@ -261,7 +319,12 @@ export function OfficialPluginInstallPanel({
                       installState,
                       activePluginId
                     ).map((tag) => (
-                      <Tag key={`${entry.plugin_id}-${tag}`}>{tag}</Tag>
+                      <Tag
+                        key={`${entry.plugin_id}-${tag}`}
+                        color={getTagColor(tag)}
+                      >
+                        {renderTagLabel(tag)}
+                      </Tag>
                     ))}
                   </div>
                   <Typography.Text type="secondary">
