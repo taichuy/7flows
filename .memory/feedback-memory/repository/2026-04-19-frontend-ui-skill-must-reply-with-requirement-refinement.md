@@ -2,7 +2,7 @@
 memory_type: feedback
 feedback_category: repository
 topic: frontend-development skill 对 UI 开发需求必须先输出含交互设计的需求整理
-summary: 用户要求 `frontend-development` skill 不仅在模糊需求场景下思考需求，而且在页面 / UI 开发需求中应把需求整理、需求细化、页面交互设计和明确建议作为显式回复内容先发给用户，再默认继续实现；同时主文件应有通用工作流程；`Quick Reference` 在主 skill 中只作为引用导航，详细规范应下沉到 `references/`，并显式指向方法论、模板和示例入口；`When to Use` 只保留触发条件，不混入流程规则。
+summary: 用户要求 `frontend-development` skill 不仅在模糊需求场景下思考需求，而且在页面 / UI 开发需求中应把需求整理、需求细化、页面交互设计和明确建议作为显式回复内容先发给用户，再默认继续实现；同时主文件应有通用工作流程；`Quick Reference` 在主 skill 中只作为引用导航，详细规范应下沉到 `references/`，并显式指向方法论、模板和示例入口；`Implementation` 只写具体落地锚点与对象链路，不再重复 references 目录。
 keywords:
   - frontend
   - skill
@@ -15,6 +15,7 @@ keywords:
   - trigger conditions
   - examples
   - reference index
+  - implementation anchors
 match_when:
   - 更新 `frontend-development` skill
   - 设计页面 / UI 开发类 skill 的触发条件和默认回复
@@ -22,6 +23,7 @@ match_when:
   - 重构 skill 主文件结构
   - 补齐需求整理的方法论或示例入口
   - 调整 quick reference 与 references 的职责边界
+  - 调整 implementation 与 quick reference 的职责边界
 created_at: 2026-04-19 00
 updated_at: 2026-04-19 07
 last_verified_at: 2026-04-19 07
@@ -48,6 +50,7 @@ scope:
 - skill 主文件应包含一段通用工作流程，先说明默认执行顺序，再补场景化快速引用。
 - 主 skill 里的 `Quick Reference` 只负责快速引用目录和入口导航，不承载详细规范正文。
 - 详细规范、方法论和场景说明应下沉到 `references/`，由 `Quick Reference` 指向对应文件。
+- `Implementation` 只负责具体落地锚点、对象链路和验证链路，例如 `DESIGN.md`、目录落点、节点链路、样式链路、验证链路，不再重复 references 目录。
 - `When to Use` 只应描述什么场景触发这个 skill，不应重复“先整理需求 / 是否先问人 / 直接做还是复用”这类流程规则。
 - 需求整理流程不应只写“先整理”，还应显式指向方法论、模板和示例入口，例如 `requirement-refinement.md`、`extraction-framework.md`、`skill-template.md` 和 `examples/`。
 
@@ -60,6 +63,7 @@ scope:
 - 如果主文件没有通用工作流程，后续 agent 容易只抓局部规则，不理解默认执行顺序。
 - `Quick Reference` 如果继续堆完整正文，会降低主 skill 的可扫描性，也更容易和 `references/` 里的正文重复。
 - 把详细规范下沉到 `references/` 后，主 skill 更像入口索引，后续 agent 也更容易按任务去对应文件取方法。
+- 如果 `Implementation` 继续重复 references 文件名，就会和 `Quick Reference` 重新长成两层重复目录，失去“具体怎么落”的价值。
 - 如果 `When to Use` 混入流程规则，会和通用工作流程、communication gate、requirement refinement 发生重复甚至冲突。
 - 如果主 workflow 不指向方法论和示例入口，后续 agent 容易只记住“要整理需求”，但不知道该按哪套方法整理。
 
@@ -73,3 +77,4 @@ scope:
 - 清理 skill 的触发条件与流程规则边界
 - 补齐需求整理的方法论、模板和示例入口
 - 调整 `Quick Reference` 与 `references/` 的职责边界
+- 调整 `Implementation` 与 `Quick Reference` 的职责边界

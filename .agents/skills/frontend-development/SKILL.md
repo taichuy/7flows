@@ -56,18 +56,15 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 ## Implementation
 
 - Single source of truth: `DESIGN.md`
-- Visual baseline and layer rules: `references/visual-baseline.md`
-- Workspace recipes and interaction rules: `references/workspace-rules.md`
-- Directory, API, and utility placement rules: `references/placement-rules.md`
-- Node development and schema UI changes must preserve the split between `node-definitions`, `schema registry/adapter`, and renderer consumers
-- Ask-first gate: `references/communication-gate.md`
-- Requirement refinement workflow for UI/page requests, vague briefs, or image-led requests: `references/requirement-refinement.md`
-- Requirement extraction framework: `references/extraction-framework.md`
-- Customer-facing requirement brief template: `references/skill-template.md`
-- Browser verification defaults: `references/browser-verification.md`
-- Before/during/after review: `references/review-checklist.md`
-- Anti-decay patterns: `references/anti-patterns.md`
-- Pressure scenarios and examples: `examples/`
+- Shell/UI baseline: `Ant Design` 负责 Shell Layer，`Editor UI` 只做薄封装，不另起一套视觉语言
+- Page/UI request artifact: 实现前先产出一版面向用户的需求整理，至少覆盖页面目标、主要对象、关键动作、页面交互、关键状态、视觉约束
+- Placement anchors: 页面和壳层落在 `app-shell / routes / features/* / shared/*`，不要把页面、壳层、路由真值层和请求消费重新堆回一个文件
+- API consumption chain: `api-client -> features/*/api -> shared/api`
+- Schema UI split: `shared/schema-ui -> features/*/schema -> features/*/lib/node-definitions`
+- Node implementation chain: `node-definitions -> schema fragments/registry -> renderer -> consumer`
+- Interaction anchor: 先定义主路径、反馈位置和模块协作，再决定卡片、区块和装饰怎么落
+- Style chain: `theme token -> first-party wrapper -> explicit slot -> stop`
+- Verification chain: 共享样式或第三方 slot 走 `check-style-boundary`；浏览器级证据走 `Playwright / page-debug / style-boundary`
 
 ## Common Mistakes
 
