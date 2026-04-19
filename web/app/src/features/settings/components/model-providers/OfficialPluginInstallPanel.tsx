@@ -80,30 +80,8 @@ function pickPreferredOfficialEntry(
     : current;
 }
 
-function getSourceRepositoryUrl(
-  sourceMeta: {
-    registryUrl: string;
-  } | null,
-  entries: SettingsOfficialPluginCatalogEntry[]
-) {
-  const registryUrl = sourceMeta?.registryUrl ?? '';
-  const githubReleaseMatch = registryUrl.match(
-    /^(https:\/\/github\.com\/[^/]+\/[^/]+)\/releases\//
-  );
-  if (githubReleaseMatch) {
-    return githubReleaseMatch[1];
-  }
-
-  const helpUrl = entries.find((entry) => entry.help_url)?.help_url ?? '';
-  const githubTreeMatch = helpUrl.match(
-    /^(https:\/\/github\.com\/[^/]+\/[^/]+)\/(tree|blob)\//
-  );
-  if (githubTreeMatch) {
-    return githubTreeMatch[1];
-  }
-
-  return registryUrl || null;
-}
+const OFFICIAL_PLUGIN_RELEASES_URL =
+  'https://github.com/taichuy/1flowbase-official-plugins/releases';
 
 function getStatusLine(
   entry: SettingsOfficialPluginCatalogEntry,
@@ -198,10 +176,6 @@ export function OfficialPluginInstallPanel({
 
     return normalizedEntries.filter((entry) => entry.plugin_id === selectedPluginId);
   }, [normalizedEntries, selectedPluginId]);
-  const repositoryUrl = useMemo(
-    () => getSourceRepositoryUrl(sourceMeta, normalizedEntries),
-    [normalizedEntries, sourceMeta]
-  );
   const openExternal = (url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer');
   };
@@ -219,11 +193,9 @@ export function OfficialPluginInstallPanel({
                 来源
               </Button>
             ) : null}
-            {repositoryUrl ? (
-              <Button onClick={() => openExternal(repositoryUrl)}>
-                前往仓库下载
-              </Button>
-            ) : null}
+            <Button onClick={() => openExternal(OFFICIAL_PLUGIN_RELEASES_URL)}>
+              前往仓库下载
+            </Button>
           </div>
         </div>
       </div>
