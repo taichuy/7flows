@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   Button,
@@ -45,7 +45,28 @@ function normalizeConfigFieldValue(value: unknown): ModelProviderFormValue {
   return String(value);
 }
 
+function buildFieldLabel(key: string) {
+  if (key === 'base_url') {
+    return 'API Endpoint';
+  }
+
+  if (key === 'api_key') {
+    return 'API Key';
+  }
+
+  return key;
+}
+
+function maskSecretPreview(value: string) {
+  if (value.length <= 8) {
+    return '****';
+  }
+
+  return `${value.slice(0, 4)}****${value.slice(-4)}`;
+}
+
 function buildInitialConfig(
+  mode: DrawerMode,
   entry: SettingsModelProviderCatalogEntry | null,
   instance: SettingsModelProviderInstance | null
 ) {
@@ -53,6 +74,11 @@ function buildInitialConfig(
   const nextConfig: Record<string, ModelProviderFormValue> = {};
 
   for (const field of entry?.form_schema ?? []) {
+    if (mode === 'edit' && field.field_type === 'secret') {
+      nextConfig[field.key] = '';
+      continue;
+    }
+
     const currentValue = currentConfig[field.key];
 
     if (currentValue !== undefined) {
@@ -76,65 +102,8 @@ function buildInitialConfig(
   return nextConfig;
 }
 
-function renderConfigField(
-  mode: DrawerMode,
-  entry: SettingsModelProviderCatalogEntry,
-  field: SettingsModelProviderCatalogEntry['form_schema'][number]
-) {
-  const label =
-    field.key === 'base_url'
-      ? 'API Endpoint'
-      : field.key === 'api_key'
-        ? 'API Key'
-        : field.key;
-
-  if (field.field_type === 'boolean') {
-    return (
-      <Form.Item
-        key={field.key}
-        label={label}
-        name={['config', field.key]}
-        valuePropName="checked"
-        extra={field.key === 'validate_model' ? '保存后默认执行模型可用性校验。' : undefined}
-      >
-        <Switch />
-      </Form.Item>
-    );
-  }
-
-  const isSecret = field.field_type === 'secret';
-  const useTextArea =
-    field.key.includes('headers') || field.key.includes('json') || field.key.includes('schema');
-
-  return (
-    <Form.Item
-      key={field.key}
-      label={label}
-      name={['config', field.key]}
-      rules={
-        field.required && (!isSecret || mode === 'create')
-          ? [{ required: true, message: `请填写 ${label}` }]
-          : undefined
-      }
-      extra={
-        isSecret
-          ? mode === 'edit'
-            ? '留空表示保留当前密钥，不会覆盖。'
-            : '敏感字段仅用于加密存储，不会在列表和接口中回显。'
-          : field.key === 'base_url'
-            ? '支持输入标准 OpenAI 兼容地址；未填写时会优先使用插件默认值。'
-            : undefined
-      }
-    >
-      {isSecret ? (
-        <Input placeholder="输入 API Key" autoComplete="off" />
-      ) : useTextArea ? (
-        <Input.TextArea rows={4} placeholder={field.key === 'base_url' ? entry.default_base_url ?? '' : undefined} />
-      ) : (
-        <Input placeholder={field.key === 'base_url' ? entry.default_base_url ?? '' : undefined} />
-      )}
-    </Form.Item>
-  );
+function isTextAreaField(key: string) {
+  return key.includes('headers') || key.includes('json') || key.includes('schema');
 }
 
 export function ModelProviderInstanceDrawer({
@@ -144,7 +113,8 @@ export function ModelProviderInstanceDrawer({
   instance,
   submitting,
   onClose,
-  onSubmit
+  onSubmit,
+  onRevealSecret
 }: {
   open: boolean;
   mode: DrawerMode;
@@ -153,23 +123,51 @@ export function ModelProviderInstanceDrawer({
   submitting: boolean;
   onClose: () => void;
   onSubmit: (input: { display_name: string; config: Record<string, unknown> }) => Promise<void>;
+  onRevealSecret: (fieldKey: string) => Promise<string>;
 }) {
   const [form] = Form.useForm<{
     display_name: string;
     config: Record<string, ModelProviderFormValue>;
   }>();
+  const [secretDrafts, setSecretDrafts] = useState<Record<string, string>>({});
+  const [revealedSecretKeys, setRevealedSecretKeys] = useState<Record<string, boolean>>({});
+  const [revealingSecretKey, setRevealingSecretKey] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
       form.resetFields();
+      setSecretDrafts({});
+      setRevealedSecretKeys({});
+      setRevealingSecretKey(null);
       return;
     }
 
     form.setFieldsValue({
       display_name: instance?.display_name ?? catalogEntry?.display_name ?? '',
-      config: buildInitialConfig(catalogEntry, instance)
+      config: buildInitialConfig(mode, catalogEntry, instance)
     });
-  }, [catalogEntry, form, instance, open]);
+    setSecretDrafts({});
+    setRevealedSecretKeys({});
+    setRevealingSecretKey(null);
+  }, [catalogEntry, form, instance, mode, open]);
+
+  async function handleRevealSecret(fieldKey: string) {
+    setRevealingSecretKey(fieldKey);
+
+    try {
+      const value = await onRevealSecret(fieldKey);
+      setSecretDrafts((current) => ({
+        ...current,
+        [fieldKey]: value
+      }));
+      setRevealedSecretKeys((current) => ({
+        ...current,
+        [fieldKey]: true
+      }));
+    } finally {
+      setRevealingSecretKey((current) => (current === fieldKey ? null : current));
+    }
+  }
 
   const title = mode === 'create' ? 'API 密钥授权配置' : '编辑 API 密钥配置';
 
@@ -189,9 +187,27 @@ export function ModelProviderInstanceDrawer({
             loading={submitting}
             onClick={async () => {
               const values = await form.validateFields();
+              const config = {
+                ...(values.config ?? {})
+              };
+
+              if (mode === 'edit' && catalogEntry) {
+                for (const field of catalogEntry.form_schema) {
+                  if (field.field_type !== 'secret') {
+                    continue;
+                  }
+
+                  const nextSecret = secretDrafts[field.key];
+                  delete config[field.key];
+                  if (typeof nextSecret === 'string' && nextSecret.length > 0) {
+                    config[field.key] = nextSecret;
+                  }
+                }
+              }
+
               await onSubmit({
                 display_name: values.display_name,
-                config: values.config
+                config
               });
             }}
           >
@@ -246,9 +262,126 @@ export function ModelProviderInstanceDrawer({
             </Form.Item>
 
             <Divider orientation="left">连接配置</Divider>
-            {catalogEntry.form_schema.map((field) =>
-              renderConfigField(mode, catalogEntry, field)
-            )}
+            {catalogEntry.form_schema.map((field) => {
+              const label = buildFieldLabel(field.key);
+
+              if (field.field_type === 'boolean') {
+                return (
+                  <Form.Item
+                    key={field.key}
+                    label={label}
+                    name={['config', field.key]}
+                    valuePropName="checked"
+                    extra={
+                      field.key === 'validate_model'
+                        ? '保存后默认执行模型可用性校验。'
+                        : undefined
+                    }
+                  >
+                    <Switch />
+                  </Form.Item>
+                );
+              }
+
+              const isSecret = field.field_type === 'secret';
+              const useTextArea = isTextAreaField(field.key);
+
+              if (isSecret && mode === 'edit') {
+                const previewSource =
+                  secretDrafts[field.key] ??
+                  (typeof instance?.config_json[field.key] === 'string'
+                    ? String(instance.config_json[field.key])
+                    : '');
+                const previewValue = previewSource
+                  ? previewSource.includes('****')
+                    ? previewSource
+                    : maskSecretPreview(previewSource)
+                  : '未配置';
+
+                return (
+                  <Form.Item
+                    key={field.key}
+                    label={label}
+                    extra="留空表示保留当前密钥；点击显示后才能查看和修改当前值。"
+                  >
+                    {revealedSecretKeys[field.key] ? (
+                      <Space.Compact block>
+                        <Input
+                          aria-label={label}
+                          autoComplete="off"
+                          value={secretDrafts[field.key] ?? ''}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setSecretDrafts((current) => ({
+                              ...current,
+                              [field.key]: value
+                            }));
+                          }}
+                        />
+                        <Button
+                          onClick={() => {
+                            setRevealedSecretKeys((current) => ({
+                              ...current,
+                              [field.key]: false
+                            }));
+                          }}
+                        >
+                          隐藏 {label}
+                        </Button>
+                      </Space.Compact>
+                    ) : (
+                      <Space.Compact block>
+                        <Input aria-label={label} readOnly value={previewValue} />
+                        <Button
+                          loading={revealingSecretKey === field.key}
+                          onClick={() => {
+                            void handleRevealSecret(field.key).catch(() => undefined);
+                          }}
+                        >
+                          显示 {label}
+                        </Button>
+                      </Space.Compact>
+                    )}
+                  </Form.Item>
+                );
+              }
+
+              return (
+                <Form.Item
+                  key={field.key}
+                  label={label}
+                  name={['config', field.key]}
+                  rules={
+                    field.required && (!isSecret || mode === 'create')
+                      ? [{ required: true, message: `请填写 ${label}` }]
+                      : undefined
+                  }
+                  extra={
+                    isSecret
+                      ? '敏感字段仅用于加密存储，不会在列表和接口中回显。'
+                      : field.key === 'base_url'
+                        ? '支持输入标准 OpenAI 兼容地址；未填写时会优先使用插件默认值。'
+                        : undefined
+                  }
+                >
+                  {useTextArea ? (
+                    <Input.TextArea
+                      rows={4}
+                      placeholder={
+                        field.key === 'base_url' ? catalogEntry.default_base_url ?? '' : undefined
+                      }
+                    />
+                  ) : (
+                    <Input
+                      autoComplete={isSecret ? 'off' : undefined}
+                      placeholder={
+                        field.key === 'base_url' ? catalogEntry.default_base_url ?? '' : undefined
+                      }
+                    />
+                  )}
+                </Form.Item>
+              );
+            })}
           </>
         ) : (
           <Typography.Text type="secondary">当前没有可用 provider catalog。</Typography.Text>

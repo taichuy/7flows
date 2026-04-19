@@ -22,9 +22,12 @@ import {
   deleteSettingsModelProviderInstance,
   fetchSettingsModelProviderCatalog,
   fetchSettingsModelProviderInstances,
+  fetchSettingsModelProviderModels,
   refreshSettingsModelProviderModels,
+  revealSettingsModelProviderSecret,
   settingsModelProviderCatalogQueryKey,
   settingsModelProviderInstancesQueryKey,
+  settingsModelProviderModelsQueryKey,
   settingsModelProviderOptionsQueryKey,
   type SettingsModelProviderCatalogEntry,
   type SettingsModelProviderInstance,
@@ -53,6 +56,12 @@ function isTaskTerminal(status: string | null | undefined) {
 
 const EMPTY_MODEL_PROVIDER_INSTANCES: SettingsModelProviderInstance[] = [];
 const EMPTY_MODEL_PROVIDER_CATALOG: SettingsModelProviderCatalogEntry[] = [];
+const IDLE_MODEL_PROVIDER_MODELS_QUERY_KEY = [
+  'settings',
+  'model-providers',
+  'models',
+  'idle'
+] as const;
 
 function pickPreferredInstanceId(instances: { id: string; status: string }[]) {
   return instances.find((instance) => instance.status === 'ready')?.id ?? instances[0]?.id ?? null;
@@ -148,6 +157,13 @@ function ModelProvidersSection({
     instanceModalState && modalInstances.some((instance) => instance.id === instanceModalState.selectedInstanceId)
       ? instanceModalState.selectedInstanceId
       : pickPreferredInstanceId(modalInstances);
+  const modelsQuery = useQuery({
+    queryKey: modalSelectedInstanceId
+      ? settingsModelProviderModelsQueryKey(modalSelectedInstanceId)
+      : IDLE_MODEL_PROVIDER_MODELS_QUERY_KEY,
+    queryFn: () => fetchSettingsModelProviderModels(modalSelectedInstanceId!),
+    enabled: false
+  });
 
   useEffect(() => {
     if (!instanceModalState) {
@@ -256,7 +272,23 @@ function ModelProvidersSection({
 
       return refreshSettingsModelProviderModels(instanceId, csrfToken);
     },
-    onSuccess: invalidateModelProviderQueries
+    onSuccess: async (catalog) => {
+      queryClient.setQueryData(
+        settingsModelProviderModelsQueryKey(catalog.provider_instance_id),
+        catalog
+      );
+      await invalidateModelProviderQueries();
+    }
+  });
+
+  const revealSecretMutation = useMutation({
+    mutationFn: async (input: { instanceId: string; key: string }) => {
+      if (!csrfToken) {
+        throw new Error('missing csrf token');
+      }
+
+      return revealSettingsModelProviderSecret(input.instanceId, input.key, csrfToken);
+    }
   });
 
   const deleteMutation = useMutation({
@@ -371,8 +403,10 @@ function ModelProvidersSection({
     getErrorMessage(catalogQuery.error) ??
     getErrorMessage(officialCatalogQuery.error) ??
     getErrorMessage(instancesQuery.error) ??
+    getErrorMessage(modelsQuery.error) ??
     getErrorMessage(createMutation.error) ??
     getErrorMessage(updateMutation.error) ??
+    getErrorMessage(revealSecretMutation.error) ??
     getErrorMessage(validateMutation.error) ??
     getErrorMessage(refreshMutation.error) ??
     getErrorMessage(deleteMutation.error) ??
@@ -455,6 +489,20 @@ function ModelProvidersSection({
         instance={editingInstance}
         submitting={createMutation.isPending || updateMutation.isPending}
         onClose={() => setDrawerState(null)}
+        onRevealSecret={async (fieldKey) => {
+          if (!editingInstance) {
+            throw new Error('missing provider instance');
+          }
+
+          const result = await revealSecretMutation.mutateAsync({
+            instanceId: editingInstance.id,
+            key: fieldKey
+          });
+
+          return typeof result.value === 'string'
+            ? result.value
+            : JSON.stringify(result.value ?? '');
+        }}
         onSubmit={async (values) => {
           if (drawerState?.mode === 'edit' && editingInstance) {
             await updateMutation.mutateAsync({
@@ -482,6 +530,8 @@ function ModelProvidersSection({
         catalogEntry={modalCatalogEntry}
         instances={modalInstances}
         selectedInstanceId={modalSelectedInstanceId}
+        modelCatalog={modelsQuery.data ?? null}
+        modelsLoading={modelsQuery.isFetching}
         validating={validateMutation.isPending}
         refreshing={refreshMutation.isPending}
         deleting={deleteMutation.isPending}
@@ -496,6 +546,9 @@ function ModelProvidersSection({
                 }
               : current
           );
+        }}
+        onFetchModels={() => {
+          void modelsQuery.refetch();
         }}
         onEdit={(instance) => {
           setInstanceModalState(null);

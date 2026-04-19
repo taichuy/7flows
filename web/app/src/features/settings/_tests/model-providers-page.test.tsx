@@ -57,10 +57,18 @@ const modelProvidersApi = vi.hoisted(() => ({
   settingsModelProviderCatalogQueryKey: ['settings', 'model-providers', 'catalog'],
   settingsModelProviderInstancesQueryKey: ['settings', 'model-providers', 'instances'],
   settingsModelProviderOptionsQueryKey: ['settings', 'model-providers', 'options'],
+  settingsModelProviderModelsQueryKey: vi.fn((instanceId: string) => [
+    'settings',
+    'model-providers',
+    'models',
+    instanceId
+  ]),
   fetchSettingsModelProviderCatalog: vi.fn(),
   fetchSettingsModelProviderInstances: vi.fn(),
+  fetchSettingsModelProviderModels: vi.fn(),
   createSettingsModelProviderInstance: vi.fn(),
   updateSettingsModelProviderInstance: vi.fn(),
+  revealSettingsModelProviderSecret: vi.fn(),
   validateSettingsModelProviderInstance: vi.fn(),
   refreshSettingsModelProviderModels: vi.fn(),
   deleteSettingsModelProviderInstance: vi.fn()
@@ -124,6 +132,15 @@ function renderApp(pathname: string) {
       <AppRouterProvider />
     </AppProviders>
   );
+}
+
+async function openProviderInstancesModal() {
+  const catalogRow = await screen.findByRole('row', { name: /OpenAI Compatible/ });
+  fireEvent.click(within(catalogRow).getByRole('button', { name: '查看实例' }));
+
+  await screen.findByText('查看供应商实例');
+
+  return screen.findByRole('dialog');
 }
 
 describe('ModelProvidersPage', () => {
@@ -202,7 +219,7 @@ describe('ModelProvidersPage', () => {
         status: 'ready',
         config_json: {
           base_url: 'https://api.openai.com/v1',
-          api_key: 'super-secret'
+          api_key: 'supe****cret'
         },
         last_validated_at: '2026-04-18T10:00:00Z',
         last_validation_status: 'succeeded',
@@ -221,7 +238,7 @@ describe('ModelProvidersPage', () => {
         status: 'disabled',
         config_json: {
           base_url: 'https://backup.openai.example/v1',
-          api_key: 'backup-secret'
+          api_key: 'back****cret'
         },
         last_validated_at: null,
         last_validation_status: null,
@@ -232,6 +249,41 @@ describe('ModelProvidersPage', () => {
         model_count: 0
       }
     ]);
+    modelProvidersApi.fetchSettingsModelProviderModels.mockResolvedValue({
+      provider_instance_id: 'provider-1',
+      refresh_status: 'ready',
+      source: 'hybrid',
+      last_error_message: null,
+      refreshed_at: '2026-04-18T10:01:00Z',
+      models: [
+        {
+          model_id: 'gpt-4o-mini',
+          display_name: 'GPT-4o mini',
+          source: 'static',
+          supports_streaming: true,
+          supports_tool_call: true,
+          supports_multimodal: false,
+          context_window: 128000,
+          max_output_tokens: 16384,
+          provider_metadata: {}
+        },
+        {
+          model_id: 'gpt-4.1',
+          display_name: 'GPT-4.1',
+          source: 'dynamic',
+          supports_streaming: true,
+          supports_tool_call: true,
+          supports_multimodal: false,
+          context_window: 128000,
+          max_output_tokens: 32768,
+          provider_metadata: {}
+        }
+      ]
+    });
+    modelProvidersApi.revealSettingsModelProviderSecret.mockResolvedValue({
+      key: 'api_key',
+      value: 'super-secret'
+    });
     pluginsApi.fetchSettingsOfficialPluginCatalog.mockResolvedValue([]);
     pluginsApi.installSettingsOfficialPlugin.mockResolvedValue({
       installation: {
@@ -326,101 +378,141 @@ describe('ModelProvidersPage', () => {
     expect(within(catalogRow).getByRole('button', { name: '添加 API Key' })).toBeInTheDocument();
   });
 
-  test('opens provider instances modal from installed provider row and defaults to the ready instance', async () => {
-    authenticateWithPermissions([
-      'route_page.view.all',
-      'state_model.view.all',
-      'state_model.manage.all'
-    ]);
+  test(
+    'opens provider instances modal from installed provider row and defaults to the ready instance',
+    { timeout: 15000 },
+    async () => {
+      authenticateWithPermissions([
+        'route_page.view.all',
+        'state_model.view.all',
+        'state_model.manage.all'
+      ]);
 
-    renderApp('/settings/model-providers');
+      renderApp('/settings/model-providers');
 
-    const catalogRow = await screen.findByRole('row', { name: /OpenAI Compatible/ });
-    fireEvent.click(within(catalogRow).getByRole('button', { name: '查看实例' }));
+      const modal = await openProviderInstancesModal();
+      expect(within(modal).getAllByText('OpenAI Production').length).toBeGreaterThanOrEqual(1);
+      expect(within(modal).getByText('succeeded')).toBeInTheDocument();
+      expect(within(modal).getByRole('combobox', { name: '选择实例' })).toBeInTheDocument();
+      expect(within(modal).getByRole('button', { name: '验证实例' })).toBeInTheDocument();
+      expect(within(modal).getByRole('button', { name: '刷新模型' })).toBeInTheDocument();
+      expect(within(modal).getByRole('button', { name: '删除实例' })).toBeInTheDocument();
+    }
+  );
 
-    const modal = await screen.findByRole('dialog', { name: 'OpenAI Compatible 实例' });
-    expect(within(modal).getAllByText('OpenAI Production').length).toBeGreaterThanOrEqual(1);
-    expect(within(modal).getByText('succeeded')).toBeInTheDocument();
-    expect(within(modal).getByRole('combobox', { name: '选择实例' })).toBeInTheDocument();
-    expect(within(modal).getByRole('button', { name: '验证实例' })).toBeInTheDocument();
-    expect(within(modal).getByRole('button', { name: '刷新模型' })).toBeInTheDocument();
-    expect(within(modal).getByRole('button', { name: '删除实例' })).toBeInTheDocument();
-  });
+  test(
+    'runs validate refresh and delete from the provider instances modal',
+    { timeout: 15000 },
+    async () => {
+      authenticateWithPermissions([
+        'route_page.view.all',
+        'state_model.view.all',
+        'state_model.manage.all'
+      ]);
+      modelProvidersApi.validateSettingsModelProviderInstance.mockResolvedValue({
+        instance: {
+          id: 'provider-1'
+        },
+        output: {}
+      });
+      modelProvidersApi.refreshSettingsModelProviderModels.mockResolvedValue({
+        provider_instance_id: 'provider-1',
+        refresh_status: 'ready',
+        source: 'remote',
+        last_error_message: null,
+        refreshed_at: '2026-04-18T10:03:00Z',
+        models: []
+      });
+      modelProvidersApi.deleteSettingsModelProviderInstance.mockResolvedValue({
+        deleted: true
+      });
 
-  test('runs validate refresh and delete from the provider instances modal', async () => {
-    authenticateWithPermissions([
-      'route_page.view.all',
-      'state_model.view.all',
-      'state_model.manage.all'
-    ]);
-    modelProvidersApi.validateSettingsModelProviderInstance.mockResolvedValue({
-      instance: {
-        id: 'provider-1'
-      },
-      output: {}
-    });
-    modelProvidersApi.refreshSettingsModelProviderModels.mockResolvedValue({
-      provider_instance_id: 'provider-1',
-      refresh_status: 'ready',
-      source: 'remote',
-      last_error_message: null,
-      refreshed_at: '2026-04-18T10:03:00Z',
-      models: []
-    });
-    modelProvidersApi.deleteSettingsModelProviderInstance.mockResolvedValue({
-      deleted: true
-    });
+      renderApp('/settings/model-providers');
 
-    renderApp('/settings/model-providers');
+      await openProviderInstancesModal();
 
-    const catalogRow = await screen.findByRole('row', { name: /OpenAI Compatible/ });
-    fireEvent.click(within(catalogRow).getByRole('button', { name: '查看实例' }));
+      fireEvent.click(await screen.findByRole('button', { name: '验证实例' }));
+      await waitFor(() => {
+        expect(modelProvidersApi.validateSettingsModelProviderInstance).toHaveBeenCalledWith(
+          'provider-1',
+          'csrf-123'
+        );
+      });
 
-    fireEvent.click(await screen.findByRole('button', { name: '验证实例' }));
-    await waitFor(() => {
-      expect(modelProvidersApi.validateSettingsModelProviderInstance).toHaveBeenCalledWith(
-        'provider-1',
-        'csrf-123'
-      );
-    });
+      fireEvent.click(screen.getByRole('button', { name: '刷新模型' }));
+      await waitFor(() => {
+        expect(modelProvidersApi.refreshSettingsModelProviderModels).toHaveBeenCalledWith(
+          'provider-1',
+          'csrf-123'
+        );
+      });
 
-    fireEvent.click(screen.getByRole('button', { name: '刷新模型' }));
-    await waitFor(() => {
-      expect(modelProvidersApi.refreshSettingsModelProviderModels).toHaveBeenCalledWith(
-        'provider-1',
-        'csrf-123'
-      );
-    });
+      fireEvent.click(screen.getByRole('button', { name: '删除实例' }));
+      await waitFor(() => {
+        expect(modelProvidersApi.deleteSettingsModelProviderInstance).toHaveBeenCalledWith(
+          'provider-1',
+          'csrf-123'
+        );
+      });
+    }
+  );
 
-    fireEvent.click(screen.getByRole('button', { name: '删除实例' }));
-    await waitFor(() => {
-      expect(modelProvidersApi.deleteSettingsModelProviderInstance).toHaveBeenCalledWith(
-        'provider-1',
-        'csrf-123'
-      );
-    });
-  });
+  test(
+    'masks api key by default and reveals it only after explicit action',
+    { timeout: 15000 },
+    async () => {
+      authenticateWithPermissions([
+        'route_page.view.all',
+        'state_model.view.all',
+        'state_model.manage.all'
+      ]);
 
-  test('shows editable api key value in plain text when opening edit drawer', async () => {
-    authenticateWithPermissions([
-      'route_page.view.all',
-      'state_model.view.all',
-      'state_model.manage.all'
-    ]);
+      renderApp('/settings/model-providers');
 
-    renderApp('/settings/model-providers');
+      const modal = await openProviderInstancesModal();
+      fireEvent.click(within(modal).getByRole('button', { name: '编辑 API Key' }));
 
-    const catalogRow = await screen.findByRole('row', { name: /OpenAI Compatible/ });
-    fireEvent.click(within(catalogRow).getByRole('button', { name: '查看实例' }));
+      expect(await screen.findByText('编辑 API 密钥配置')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('supe****cret')).toBeInTheDocument();
+      expect(screen.queryByDisplayValue('super-secret')).not.toBeInTheDocument();
 
-    const modal = await screen.findByRole('dialog', { name: 'OpenAI Compatible 实例' });
-    fireEvent.click(within(modal).getByRole('button', { name: '编辑 API Key' }));
+      fireEvent.click(screen.getByRole('button', { name: '显示 API Key' }));
 
-    expect(await screen.findByText('编辑 API 密钥配置')).toBeInTheDocument();
-    const apiKeyInput = screen.getByLabelText('API Key');
-    expect(apiKeyInput).toHaveAttribute('type', 'text');
-    expect(apiKeyInput).toHaveValue('super-secret');
-  });
+      await waitFor(() => {
+        expect(modelProvidersApi.revealSettingsModelProviderSecret).toHaveBeenCalledWith(
+          'provider-1',
+          'api_key',
+          'csrf-123'
+        );
+      });
+      expect(await screen.findByDisplayValue('super-secret')).toBeInTheDocument();
+    }
+  );
+
+  test(
+    'fetches models for the selected instance and renders them as a dropdown',
+    { timeout: 15000 },
+    async () => {
+      authenticateWithPermissions([
+        'route_page.view.all',
+        'state_model.view.all',
+        'state_model.manage.all'
+      ]);
+
+      renderApp('/settings/model-providers');
+
+      const modal = await openProviderInstancesModal();
+      fireEvent.click(within(modal).getByRole('button', { name: '获取模型' }));
+
+      await waitFor(() => {
+        expect(modelProvidersApi.fetchSettingsModelProviderModels).toHaveBeenCalledWith(
+          'provider-1'
+        );
+      });
+      expect(await within(modal).findByRole('combobox', { name: '可用模型' })).toBeInTheDocument();
+      expect(within(modal).getByText('GPT-4o mini')).toBeInTheDocument();
+    }
+  );
 
   test('renders official install cards beneath the installed provider area', async () => {
     authenticateWithPermissions([

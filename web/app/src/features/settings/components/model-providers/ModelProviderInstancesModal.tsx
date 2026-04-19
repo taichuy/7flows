@@ -1,6 +1,12 @@
+import { useEffect, useMemo, useState } from 'react';
+
 import { Button, Descriptions, Empty, Modal, Select, Space, Tag, Typography } from 'antd';
 
-import type { SettingsModelProviderCatalogEntry, SettingsModelProviderInstance } from '../../api/model-providers';
+import type {
+  SettingsModelProviderCatalogEntry,
+  SettingsModelProviderInstance,
+  SettingsModelProviderModelCatalog
+} from '../../api/model-providers';
 
 function renderStatusTag(status: string) {
   switch (status) {
@@ -20,6 +26,8 @@ export function ModelProviderInstancesModal({
   catalogEntry,
   instances,
   selectedInstanceId,
+  modelCatalog,
+  modelsLoading,
   validating,
   refreshing,
   deleting,
@@ -27,6 +35,7 @@ export function ModelProviderInstancesModal({
   onClose,
   onChangeInstance,
   onEdit,
+  onFetchModels,
   onValidate,
   onRefreshModels,
   onDelete
@@ -35,6 +44,8 @@ export function ModelProviderInstancesModal({
   catalogEntry: SettingsModelProviderCatalogEntry | null;
   instances: SettingsModelProviderInstance[];
   selectedInstanceId: string | null;
+  modelCatalog: SettingsModelProviderModelCatalog | null;
+  modelsLoading: boolean;
   validating: boolean;
   refreshing: boolean;
   deleting: boolean;
@@ -42,12 +53,39 @@ export function ModelProviderInstancesModal({
   onClose: () => void;
   onChangeInstance: (instanceId: string) => void;
   onEdit: (instance: SettingsModelProviderInstance) => void;
+  onFetchModels: (instance: SettingsModelProviderInstance) => void;
   onValidate: (instance: SettingsModelProviderInstance) => void;
   onRefreshModels: (instance: SettingsModelProviderInstance) => void;
   onDelete: (instance: SettingsModelProviderInstance) => void;
 }) {
   const selectedInstance =
     instances.find((instance) => instance.id === selectedInstanceId) ?? instances[0] ?? null;
+  const models = useMemo(
+    () =>
+      selectedInstance && modelCatalog?.provider_instance_id === selectedInstance.id
+        ? modelCatalog.models
+        : [],
+    [modelCatalog, selectedInstance]
+  );
+  const [selectedModelId, setSelectedModelId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!selectedInstance) {
+      setSelectedModelId(undefined);
+      return;
+    }
+
+    if (!models.length) {
+      setSelectedModelId(undefined);
+      return;
+    }
+
+    if (selectedModelId && models.some((model) => model.model_id === selectedModelId)) {
+      return;
+    }
+
+    setSelectedModelId(models[0]?.model_id);
+  }, [models, selectedInstance, selectedModelId]);
 
   return (
     <Modal
@@ -121,6 +159,12 @@ export function ModelProviderInstancesModal({
 
             <div className="model-provider-panel__instances-modal-actions">
               <Space wrap>
+                <Button
+                  loading={modelsLoading}
+                  onClick={() => onFetchModels(selectedInstance)}
+                >
+                  获取模型
+                </Button>
                 {canManage ? (
                   <Button onClick={() => onEdit(selectedInstance)}>编辑 API Key</Button>
                 ) : null}
@@ -150,6 +194,26 @@ export function ModelProviderInstancesModal({
                   </Button>
                 ) : null}
               </Space>
+            </div>
+
+            <div className="model-provider-panel__instances-modal-select">
+              <Typography.Text type="secondary">可用模型</Typography.Text>
+              <Select
+                aria-label="可用模型"
+                placeholder="点击“获取模型”查看当前实例下的模型"
+                value={selectedModelId}
+                options={models.map((model) => ({
+                  label: model.display_name,
+                  value: model.model_id
+                }))}
+                onChange={setSelectedModelId}
+                notFoundContent={modelsLoading ? '正在加载模型...' : '暂无模型，请先获取或刷新'}
+              />
+              {modelCatalog && modelCatalog.provider_instance_id === selectedInstance.id ? (
+                <Typography.Paragraph type="secondary">
+                  来源：{modelCatalog.source} · 状态：{modelCatalog.refresh_status}
+                </Typography.Paragraph>
+              ) : null}
             </div>
           </>
         ) : (

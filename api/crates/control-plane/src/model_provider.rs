@@ -162,10 +162,28 @@ where
             .repository
             .list_instances(actor.current_workspace_id)
             .await?;
+        let mut form_schemas: HashMap<Uuid, Vec<ProviderConfigField>> = HashMap::new();
         let mut output = Vec::with_capacity(instances.len());
         for instance in instances {
             let cache = self.repository.get_catalog_cache(instance.id).await?;
-            output.push(self.hydrate_instance_view(instance, cache).await?);
+            let form_schema = match form_schemas.get(&instance.installation_id) {
+                Some(form_schema) => form_schema.clone(),
+                None => {
+                    let installation = self
+                        .repository
+                        .get_installation(instance.installation_id)
+                        .await?
+                        .ok_or(ControlPlaneError::NotFound("plugin_installation"))?;
+                    let package = load_provider_package(&installation.install_path)?;
+                    let form_schema = package.provider.form_schema;
+                    form_schemas.insert(instance.installation_id, form_schema.clone());
+                    form_schema
+                }
+            };
+            output.push(
+                self.hydrate_instance_view(instance, cache, &form_schema)
+                    .await?,
+            );
         }
         Ok(output)
     }
@@ -239,7 +257,8 @@ where
             ))
             .await?;
 
-        self.hydrate_instance_view(instance, None).await
+        self.hydrate_instance_view(instance, None, &package.provider.form_schema)
+            .await
     }
 
     pub async fn update_instance(
@@ -325,8 +344,12 @@ where
             ))
             .await?;
 
-        self.hydrate_instance_view(updated, self.repository.get_catalog_cache(existing.id).await?)
-            .await
+        self.hydrate_instance_view(
+            updated,
+            self.repository.get_catalog_cache(existing.id).await?,
+            &package.provider.form_schema,
+        )
+        .await
     }
 
     pub async fn validate_instance(
@@ -403,8 +426,15 @@ where
                     }),
                 ))
                 .await?;
+            let masked_view = self
+                .hydrate_instance_view(
+                    updated_instance,
+                    Some(cache.clone()),
+                    &package.provider.form_schema,
+                )
+                .await?;
             Ok::<ValidateModelProviderResult, anyhow::Error>(ValidateModelProviderResult {
-                instance: updated_instance,
+                instance: masked_view.instance,
                 cache,
                 output,
             })
@@ -696,6 +726,47 @@ where
         Ok(options)
     }
 
+    pub async fn reveal_secret(
+        &self,
+        actor_user_id: Uuid,
+        instance_id: Uuid,
+        key: &str,
+    ) -> Result<String> {
+        let actor = load_actor_context_for_user(&self.repository, actor_user_id).await?;
+        ensure_state_model_permission(&actor, "manage")?;
+        let instance = self
+            .repository
+            .get_instance(actor.current_workspace_id, instance_id)
+            .await?
+            .ok_or(ControlPlaneError::NotFound("model_provider_instance"))?;
+        let installation = self
+            .repository
+            .get_installation(instance.installation_id)
+            .await?
+            .ok_or(ControlPlaneError::NotFound("plugin_installation"))?;
+        let package = load_provider_package(&installation.install_path)?;
+        let field = package
+            .provider
+            .form_schema
+            .iter()
+            .find(|field| field.key == key)
+            .ok_or(ControlPlaneError::InvalidInput("key"))?;
+        if !is_secret_field(&field.field_type) {
+            return Err(ControlPlaneError::InvalidInput("key").into());
+        }
+
+        let secret_json = self
+            .repository
+            .get_secret_json(instance.id, &self.provider_secret_master_key)
+            .await?
+            .unwrap_or_else(empty_object);
+        secret_json
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or(ControlPlaneError::NotFound("model_provider_secret").into())
+    }
+
     async fn build_provider_runtime_config(
         &self,
         package: &ProviderPackage,
@@ -718,13 +789,14 @@ where
         &self,
         instance: domain::ModelProviderInstanceRecord,
         cache: Option<domain::ModelProviderCatalogCacheRecord>,
+        form_schema: &[ProviderConfigField],
     ) -> Result<ModelProviderInstanceView> {
         let secret_json = self
             .repository
             .get_secret_json(instance.id, &self.provider_secret_master_key)
             .await?
             .unwrap_or_else(empty_object);
-        let merged_config = merge_json_object(&instance.config_json, &secret_json)?;
+        let merged_config = mask_secret_config(&instance.config_json, &secret_json, form_schema)?;
 
         Ok(ModelProviderInstanceView {
             instance: domain::ModelProviderInstanceRecord {
@@ -860,6 +932,54 @@ fn merge_json_object(base: &Value, patch: &Value) -> Result<Value> {
         merged.insert(key.clone(), value.clone());
     }
     Ok(Value::Object(merged))
+}
+
+fn mask_secret_config(
+    base: &Value,
+    secret_json: &Value,
+    form_schema: &[ProviderConfigField],
+) -> Result<Value> {
+    let mut merged = base
+        .as_object()
+        .cloned()
+        .ok_or(ControlPlaneError::InvalidInput("config_json"))?;
+    let secret_object = secret_json
+        .as_object()
+        .ok_or(ControlPlaneError::InvalidInput("config_json"))?;
+    for field in form_schema {
+        if !is_secret_field(&field.field_type) {
+            continue;
+        }
+
+        let Some(value) = secret_object.get(&field.key) else {
+            continue;
+        };
+        merged.insert(field.key.clone(), mask_secret_value(value));
+    }
+
+    Ok(Value::Object(merged))
+}
+
+fn mask_secret_value(value: &Value) -> Value {
+    match value {
+        Value::String(text) => Value::String(mask_secret_preview(text)),
+        Value::Null => Value::Null,
+        _ => Value::String("****".to_string()),
+    }
+}
+
+fn mask_secret_preview(value: &str) -> String {
+    let char_count = value.chars().count();
+    if char_count <= 8 {
+        return "****".to_string();
+    }
+
+    let prefix = value.chars().take(4).collect::<String>();
+    let suffix = value
+        .chars()
+        .skip(char_count.saturating_sub(4))
+        .collect::<String>();
+    format!("{prefix}****{suffix}")
 }
 
 fn empty_object() -> Value {

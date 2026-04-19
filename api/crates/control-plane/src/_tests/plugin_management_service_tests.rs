@@ -362,6 +362,7 @@ impl ProviderRuntimePort for MemoryProviderRuntime {
             supports_multimodal: false,
             context_window: Some(128000),
             max_output_tokens: Some(4096),
+            parameter_form: None,
             provider_metadata: json!({}),
         }])
     }

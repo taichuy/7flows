@@ -1,14 +1,17 @@
 import {
   createConsoleModelProviderInstance,
   deleteConsoleModelProviderInstance,
+  getConsoleModelProviderModels,
   listConsoleModelProviderCatalog,
   listConsoleModelProviderInstances,
   listConsoleModelProviderOptions,
+  revealConsoleModelProviderSecret,
   refreshConsoleModelProviderModels,
   updateConsoleModelProviderInstance,
   validateConsoleModelProviderInstance,
   type ConsoleModelProviderCatalogEntry,
   type ConsoleModelProviderInstance,
+  type RevealConsoleModelProviderSecretResult,
   type ConsoleModelProviderOptions,
   type ConsoleModelProviderModelCatalog,
   type ConsoleValidateModelProviderResult,
@@ -20,6 +23,7 @@ export type SettingsModelProviderCatalogEntry = ConsoleModelProviderCatalogEntry
 export type SettingsModelProviderInstance = ConsoleModelProviderInstance;
 export type SettingsModelProviderOptions = ConsoleModelProviderOptions;
 export type SettingsModelProviderModelCatalog = ConsoleModelProviderModelCatalog;
+export type SettingsRevealModelProviderSecretResult = RevealConsoleModelProviderSecretResult;
 export type SettingsValidateModelProviderResult = ConsoleValidateModelProviderResult;
 export type CreateSettingsModelProviderInput = CreateConsoleModelProviderInput;
 export type UpdateSettingsModelProviderInput = UpdateConsoleModelProviderInput;
@@ -40,6 +44,10 @@ export const settingsModelProviderOptionsQueryKey = [
   'options'
 ] as const;
 
+export function settingsModelProviderModelsQueryKey(instanceId: string) {
+  return ['settings', 'model-providers', 'models', instanceId] as const;
+}
+
 export function fetchSettingsModelProviderCatalog() {
   return listConsoleModelProviderCatalog();
 }
@@ -50,6 +58,10 @@ export function fetchSettingsModelProviderInstances() {
 
 export function fetchSettingsModelProviderOptions() {
   return listConsoleModelProviderOptions();
+}
+
+export function fetchSettingsModelProviderModels(instanceId: string) {
+  return getConsoleModelProviderModels(instanceId);
 }
 
 export function createSettingsModelProviderInstance(
@@ -79,6 +91,14 @@ export function refreshSettingsModelProviderModels(
   csrfToken: string
 ) {
   return refreshConsoleModelProviderModels(instanceId, csrfToken);
+}
+
+export function revealSettingsModelProviderSecret(
+  instanceId: string,
+  key: string,
+  csrfToken: string
+) {
+  return revealConsoleModelProviderSecret(instanceId, key, csrfToken);
 }
 
 export function deleteSettingsModelProviderInstance(
