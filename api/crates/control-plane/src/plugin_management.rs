@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
@@ -20,7 +21,8 @@ use crate::{
     errors::ControlPlaneError,
     ports::{
         AuthRepository, CreatePluginAssignmentInput, CreatePluginTaskInput,
-        ModelProviderRepository, OfficialPluginSourcePort, PluginRepository, ProviderRuntimePort,
+        ModelProviderRepository, OfficialPluginSourceEntry, OfficialPluginSourcePort,
+        PluginRepository, ProviderRuntimePort,
         ReassignModelProviderInstancesInput, UpdatePluginInstallationEnabledInput,
         UpdatePluginTaskStatusInput, UpsertModelProviderCatalogCacheInput,
         UpsertPluginInstallationInput,
@@ -170,6 +172,78 @@ impl InstallSourceMetadata {
     }
 }
 
+fn compare_plugin_versions(left: &str, right: &str) -> Ordering {
+    let mut left_parts = left.split('.');
+    let mut right_parts = right.split('.');
+
+    loop {
+        match (left_parts.next(), right_parts.next()) {
+            (None, None) => return Ordering::Equal,
+            (Some(left_part), Some(right_part)) => {
+                let ordering = match (left_part.parse::<u64>(), right_part.parse::<u64>()) {
+                    (Ok(left_number), Ok(right_number)) => left_number.cmp(&right_number),
+                    _ => left_part.cmp(right_part),
+                };
+
+                if ordering != Ordering::Equal {
+                    return ordering;
+                }
+            }
+            (Some(left_part), None) => match left_part.parse::<u64>() {
+                Ok(0) => continue,
+                Ok(_) | Err(_) => return Ordering::Greater,
+            },
+            (None, Some(right_part)) => match right_part.parse::<u64>() {
+                Ok(0) => continue,
+                Ok(_) | Err(_) => return Ordering::Less,
+            },
+        }
+    }
+}
+
+fn pick_latest_official_entry(
+    current: OfficialPluginSourceEntry,
+    candidate: OfficialPluginSourceEntry,
+) -> OfficialPluginSourceEntry {
+    match compare_plugin_versions(&candidate.latest_version, &current.latest_version) {
+        Ordering::Greater => candidate,
+        Ordering::Less => current,
+        Ordering::Equal => {
+            if candidate.plugin_id < current.plugin_id {
+                candidate
+            } else {
+                current
+            }
+        }
+    }
+}
+
+fn normalize_official_entries(
+    entries: Vec<OfficialPluginSourceEntry>,
+) -> Vec<OfficialPluginSourceEntry> {
+    let mut grouped = HashMap::<String, OfficialPluginSourceEntry>::new();
+
+    for entry in entries {
+        let provider_code = entry.provider_code.clone();
+        match grouped.remove(&provider_code) {
+            Some(existing) => {
+                grouped.insert(provider_code, pick_latest_official_entry(existing, entry));
+            }
+            None => {
+                grouped.insert(provider_code, entry);
+            }
+        }
+    }
+
+    let mut normalized = grouped.into_values().collect::<Vec<_>>();
+    normalized.sort_by(|left, right| {
+        left.provider_code
+            .cmp(&right.provider_code)
+            .then_with(|| left.plugin_id.cmp(&right.plugin_id))
+    });
+    normalized
+}
+
 impl<R, H> PluginManagementService<R, H>
 where
     R: AuthRepository + PluginRepository + ModelProviderRepository,
@@ -235,9 +309,9 @@ where
             .collect::<HashSet<_>>();
         let installations = self.repository.list_installations().await?;
         let official_snapshot = self.official_source.list_official_catalog().await?;
+        let normalized_entries = normalize_official_entries(official_snapshot.entries);
 
-        let entries = official_snapshot
-            .entries
+        let entries = normalized_entries
             .into_iter()
             .map(|entry| {
                 let matching_installations = installations
@@ -311,7 +385,8 @@ where
             .official_source
             .list_official_catalog()
             .await?
-            .entries
+            .entries;
+        let official_by_provider = normalize_official_entries(official_by_provider)
             .into_iter()
             .map(|entry| (entry.provider_code.clone(), entry))
             .collect::<HashMap<_, _>>();
@@ -480,7 +555,8 @@ where
             .official_source
             .list_official_catalog()
             .await?
-            .entries
+            .entries;
+        let official_entry = normalize_official_entries(official_entry)
             .into_iter()
             .find(|entry| entry.provider_code == command.provider_code)
             .ok_or(ControlPlaneError::NotFound("official_plugin"))?;
@@ -501,8 +577,7 @@ where
                     .download_plugin(&official_entry)
                     .await?;
                 let snapshot = self.official_source.list_official_catalog().await?;
-                let snapshot_entry = snapshot
-                    .entries
+                let snapshot_entry = normalize_official_entries(snapshot.entries)
                     .into_iter()
                     .find(|entry| entry.provider_code == command.provider_code)
                     .ok_or(ControlPlaneError::NotFound("official_plugin"))?;

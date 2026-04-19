@@ -1148,6 +1148,118 @@ async fn plugin_management_service_lists_provider_families_with_current_and_late
 }
 
 #[tokio::test]
+async fn plugin_management_service_keeps_only_latest_official_entry_per_provider() {
+    #[derive(Clone)]
+    struct DuplicateOfficialSource;
+
+    #[async_trait]
+    impl OfficialPluginSourcePort for DuplicateOfficialSource {
+        async fn list_official_catalog(&self) -> Result<OfficialPluginCatalogSnapshot> {
+            Ok(OfficialPluginCatalogSnapshot {
+                source: OfficialPluginCatalogSource {
+                    source_kind: "official_registry".into(),
+                    source_label: "官方源".into(),
+                    registry_url: "https://example.com/official-registry.json".into(),
+                },
+                entries: vec![
+                    OfficialPluginSourceEntry {
+                        plugin_id: "1flowbase.openai_compatible".into(),
+                        provider_code: "openai_compatible".into(),
+                        display_name: "OpenAI-Compatible API Provider".into(),
+                        protocol: "openai_compatible".into(),
+                        latest_version: "0.2.0".into(),
+                        release_tag: "openai_compatible-v0.2.0".into(),
+                        download_url: "https://example.com/openai-compatible-v020.1flowbasepkg"
+                            .into(),
+                        checksum: "sha256:abc123".into(),
+                        trust_mode: "allow_unsigned".into(),
+                        signature_algorithm: None,
+                        signing_key_id: None,
+                        help_url: Some("https://example.com/help".into()),
+                        model_discovery_mode: "hybrid".into(),
+                    },
+                    OfficialPluginSourceEntry {
+                        plugin_id: "1flowse.openai_compatible".into(),
+                        provider_code: "openai_compatible".into(),
+                        display_name: "OpenAI Compatible".into(),
+                        protocol: "openai_compatible".into(),
+                        latest_version: "0.1.0".into(),
+                        release_tag: "openai_compatible-v0.1.0".into(),
+                        download_url: "https://example.com/openai-compatible-v010.1flowsepkg"
+                            .into(),
+                        checksum: "sha256:def456".into(),
+                        trust_mode: "allow_unsigned".into(),
+                        signature_algorithm: None,
+                        signing_key_id: None,
+                        help_url: Some("https://example.com/help".into()),
+                        model_discovery_mode: "hybrid".into(),
+                    },
+                ],
+            })
+        }
+
+        async fn download_plugin(
+            &self,
+            _entry: &OfficialPluginSourceEntry,
+        ) -> Result<DownloadedOfficialPluginPackage> {
+            unreachable!("download is not used in this read-only test");
+        }
+
+        fn trusted_public_keys(&self) -> Vec<plugin_framework::TrustedPublicKey> {
+            Vec::new()
+        }
+    }
+
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
+        workspace_id,
+        &["plugin_config.view.all", "plugin_config.configure.all"],
+    ));
+    let install_root = std::env::temp_dir().join(format!("plugin-family-{}", Uuid::now_v7()));
+    let service = PluginManagementService::new(
+        repository.clone(),
+        MemoryProviderRuntime::default(),
+        Arc::new(DuplicateOfficialSource),
+        &install_root,
+    );
+
+    let installation_v1 = seed_test_installation(
+        &repository,
+        &install_root,
+        "openai_compatible",
+        "0.1.0",
+        true,
+    )
+    .await;
+    repository
+        .create_assignment(&CreatePluginAssignmentInput {
+            installation_id: installation_v1,
+            workspace_id: repository.actor.current_workspace_id,
+            provider_code: "openai_compatible".into(),
+            actor_user_id: repository.actor.user_id,
+        })
+        .await
+        .unwrap();
+
+    let catalog = service
+        .list_official_catalog(repository.actor.user_id)
+        .await
+        .unwrap();
+    assert_eq!(catalog.entries.len(), 1);
+    assert_eq!(catalog.entries[0].plugin_id, "1flowbase.openai_compatible");
+    assert_eq!(catalog.entries[0].latest_version, "0.2.0");
+
+    let families = service
+        .list_families(repository.actor.user_id)
+        .await
+        .unwrap();
+    assert_eq!(families.len(), 1);
+    assert_eq!(families[0].current_version, "0.1.0");
+    assert_eq!(families[0].latest_version.as_deref(), Some("0.2.0"));
+    assert!(families[0].has_update);
+}
+
+#[tokio::test]
 async fn plugin_management_service_switches_to_a_local_version_without_redownloading() {
     let workspace_id = Uuid::now_v7();
     let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
