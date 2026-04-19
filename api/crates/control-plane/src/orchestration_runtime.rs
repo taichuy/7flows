@@ -1154,6 +1154,7 @@ impl InMemoryOrchestrationRuntimeRepository {
             id: Uuid::now_v7(),
             installation_id,
             workspace_id,
+            provider_code: "fixture_provider".to_string(),
             assigned_by: Uuid::nil(),
             created_at: now,
         };

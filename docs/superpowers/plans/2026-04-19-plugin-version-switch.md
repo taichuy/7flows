@@ -56,7 +56,7 @@
 - Modify: `api/crates/storage-pg/src/plugin_repository.rs`
 - Test: `api/crates/storage-pg/src/_tests/plugin_repository_tests.rs`
 
-- [ ] **Step 1: Write the failing repository test for one pointer per `workspace + provider_code`**
+- [x] **Step 1: Write the failing repository test for one pointer per `workspace + provider_code`**
 
 Add this test to `api/crates/storage-pg/src/_tests/plugin_repository_tests.rs`:
 
@@ -141,7 +141,7 @@ async fn plugin_repository_repoints_assignment_by_workspace_and_provider_code() 
 }
 ```
 
-- [ ] **Step 2: Run the repository test to capture the RED baseline**
+- [x] **Step 2: Run the repository test to capture the RED baseline**
 
 Run:
 
@@ -151,7 +151,9 @@ rtk cargo test --manifest-path api/Cargo.toml -p storage-pg plugin_repository_re
 
 Expected: FAIL because `CreatePluginAssignmentInput` and `PluginAssignmentRecord` do not carry `provider_code`, and the current unique key still allows multiple assigned versions for one provider in one workspace.
 
-- [ ] **Step 3: Add the migration that backfills `provider_code` and tightens uniqueness**
+Execution note (`2026-04-19`): the first RED run used the plan command verbatim and surfaced the expected compile-time contract failures; when re-running with `--exact`, the actual green-path verification needed the full unit-test name `_tests::plugin_repository_tests::plugin_repository_repoints_assignment_by_workspace_and_provider_code`.
+
+- [x] **Step 3: Add the migration that backfills `provider_code` and tightens uniqueness**
 
 Create `api/crates/storage-pg/migrations/20260419143000_add_plugin_version_pointer.sql` with:
 
@@ -210,7 +212,7 @@ alter table plugin_tasks
     );
 ```
 
-- [ ] **Step 4: Update the domain and repository contracts to match the new pointer semantics**
+- [x] **Step 4: Update the domain and repository contracts to match the new pointer semantics**
 
 Apply these changes:
 
@@ -269,7 +271,7 @@ let row = sqlx::query(
 .bind(input.actor_user_id);
 ```
 
-- [ ] **Step 5: Re-run the storage tests**
+- [x] **Step 5: Re-run the storage tests**
 
 Run:
 
@@ -279,7 +281,7 @@ rtk cargo test --manifest-path api/Cargo.toml -p storage-pg plugin_repository_ -
 
 Expected: PASS for both the existing persistence test and the new repointing test.
 
-- [ ] **Step 6: Commit the pointer-storage change set**
+- [x] **Step 6: Commit the pointer-storage change set**
 
 Run:
 

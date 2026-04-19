@@ -106,6 +106,7 @@ async fn plugin_repository_persists_installations_assignments_and_tasks() {
         &CreatePluginAssignmentInput {
             installation_id,
             workspace_id: workspace.id,
+            provider_code: "fixture_provider".into(),
             actor_user_id: actor.id,
         },
     )
@@ -152,4 +153,83 @@ async fn plugin_repository_persists_installations_assignments_and_tasks() {
         .await
         .unwrap();
     assert_eq!(assignments.len(), 1);
+}
+
+#[tokio::test]
+async fn plugin_repository_repoints_assignment_by_workspace_and_provider_code() {
+    let (store, workspace, actor) = seed_store().await;
+    let installation_v1 = PluginRepository::upsert_installation(
+        &store,
+        &UpsertPluginInstallationInput {
+            installation_id: Uuid::now_v7(),
+            provider_code: "fixture_provider".into(),
+            plugin_id: "fixture_provider@0.1.0".into(),
+            plugin_version: "0.1.0".into(),
+            contract_version: "1flowbase.provider/v1".into(),
+            protocol: "openai_compatible".into(),
+            display_name: "Fixture Provider".into(),
+            source_kind: "official_registry".into(),
+            verification_status: PluginVerificationStatus::Valid,
+            enabled: true,
+            install_path: "/tmp/plugin-installed/fixture_provider/0.1.0".into(),
+            checksum: None,
+            signature_status: None,
+            metadata_json: json!({}),
+            actor_user_id: actor.id,
+        },
+    )
+    .await
+    .unwrap();
+    let installation_v2 = PluginRepository::upsert_installation(
+        &store,
+        &UpsertPluginInstallationInput {
+            installation_id: Uuid::now_v7(),
+            provider_code: "fixture_provider".into(),
+            plugin_id: "fixture_provider@0.2.0".into(),
+            plugin_version: "0.2.0".into(),
+            contract_version: "1flowbase.provider/v1".into(),
+            protocol: "openai_compatible".into(),
+            display_name: "Fixture Provider".into(),
+            source_kind: "official_registry".into(),
+            verification_status: PluginVerificationStatus::Valid,
+            enabled: true,
+            install_path: "/tmp/plugin-installed/fixture_provider/0.2.0".into(),
+            checksum: None,
+            signature_status: None,
+            metadata_json: json!({}),
+            actor_user_id: actor.id,
+        },
+    )
+    .await
+    .unwrap();
+
+    PluginRepository::create_assignment(
+        &store,
+        &CreatePluginAssignmentInput {
+            installation_id: installation_v1.id,
+            workspace_id: workspace.id,
+            provider_code: "fixture_provider".into(),
+            actor_user_id: actor.id,
+        },
+    )
+    .await
+    .unwrap();
+    PluginRepository::create_assignment(
+        &store,
+        &CreatePluginAssignmentInput {
+            installation_id: installation_v2.id,
+            workspace_id: workspace.id,
+            provider_code: "fixture_provider".into(),
+            actor_user_id: actor.id,
+        },
+    )
+    .await
+    .unwrap();
+
+    let assignments = PluginRepository::list_assignments(&store, workspace.id)
+        .await
+        .unwrap();
+    assert_eq!(assignments.len(), 1);
+    assert_eq!(assignments[0].provider_code, "fixture_provider");
+    assert_eq!(assignments[0].installation_id, installation_v2.id);
 }

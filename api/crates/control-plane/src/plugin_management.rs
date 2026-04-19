@@ -524,6 +524,7 @@ where
                 .create_assignment(&CreatePluginAssignmentInput {
                     installation_id: command.installation_id,
                     workspace_id: actor.current_workspace_id,
+                    provider_code: installation.provider_code.clone(),
                     actor_user_id: command.actor_user_id,
                 })
                 .await?;

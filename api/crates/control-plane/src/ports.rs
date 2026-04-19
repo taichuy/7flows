@@ -609,6 +609,7 @@ pub struct UpsertPluginInstallationInput {
 pub struct CreatePluginAssignmentInput {
     pub installation_id: Uuid,
     pub workspace_id: Uuid,
+    pub provider_code: String,
     pub actor_user_id: Uuid,
 }
 

@@ -93,6 +93,7 @@ impl MemoryModelProviderRepository {
                 id: Uuid::now_v7(),
                 installation_id,
                 workspace_id: self.actor.current_workspace_id,
+                provider_code: "fixture_provider".to_string(),
                 assigned_by: self.actor.user_id,
                 created_at: OffsetDateTime::now_utc(),
             });
@@ -247,14 +248,25 @@ impl PluginRepository for MemoryModelProviderRepository {
         &self,
         input: &CreatePluginAssignmentInput,
     ) -> Result<PluginAssignmentRecord> {
+        let mut assignments = self.assignments.write().await;
+        if let Some(existing) = assignments.iter_mut().find(|assignment| {
+            assignment.workspace_id == input.workspace_id
+                && assignment.provider_code == input.provider_code
+        }) {
+            existing.installation_id = input.installation_id;
+            existing.assigned_by = input.actor_user_id;
+            return Ok(existing.clone());
+        }
+
         let record = PluginAssignmentRecord {
             id: Uuid::now_v7(),
             installation_id: input.installation_id,
             workspace_id: input.workspace_id,
+            provider_code: input.provider_code.clone(),
             assigned_by: input.actor_user_id,
             created_at: OffsetDateTime::now_utc(),
         };
-        self.assignments.write().await.push(record.clone());
+        assignments.push(record.clone());
         Ok(record)
     }
 

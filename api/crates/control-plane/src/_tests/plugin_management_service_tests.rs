@@ -203,9 +203,10 @@ impl PluginRepository for MemoryPluginManagementRepository {
     ) -> Result<PluginAssignmentRecord> {
         let mut assignments = self.assignments.write().await;
         if let Some(existing) = assignments.iter_mut().find(|assignment| {
-            assignment.installation_id == input.installation_id
-                && assignment.workspace_id == input.workspace_id
+            assignment.workspace_id == input.workspace_id
+                && assignment.provider_code == input.provider_code
         }) {
+            existing.installation_id = input.installation_id;
             existing.assigned_by = input.actor_user_id;
             return Ok(existing.clone());
         }
@@ -214,6 +215,7 @@ impl PluginRepository for MemoryPluginManagementRepository {
             id: Uuid::now_v7(),
             installation_id: input.installation_id,
             workspace_id: input.workspace_id,
+            provider_code: input.provider_code.clone(),
             assigned_by: input.actor_user_id,
             created_at: OffsetDateTime::now_utc(),
         };

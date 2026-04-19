@@ -32,6 +32,7 @@ pub struct StoredPluginAssignmentRow {
     pub id: Uuid,
     pub installation_id: Uuid,
     pub workspace_id: Uuid,
+    pub provider_code: String,
     pub assigned_by: Uuid,
     pub created_at: OffsetDateTime,
 }
@@ -84,6 +85,7 @@ impl PgPluginMapper {
             id: row.id,
             installation_id: row.installation_id,
             workspace_id: row.workspace_id,
+            provider_code: row.provider_code,
             assigned_by: row.assigned_by,
             created_at: row.created_at,
         })
@@ -125,6 +127,7 @@ pub fn parse_task_kind(value: &str) -> Result<PluginTaskKind> {
         "disable" => Ok(PluginTaskKind::Disable),
         "assign" => Ok(PluginTaskKind::Assign),
         "unassign" => Ok(PluginTaskKind::Unassign),
+        "switch_version" => Ok(PluginTaskKind::SwitchVersion),
         _ => Err(anyhow!("unknown plugin task_kind: {value}")),
     }
 }

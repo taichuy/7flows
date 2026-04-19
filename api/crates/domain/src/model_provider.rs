@@ -30,6 +30,7 @@ pub enum PluginTaskKind {
     Disable,
     Assign,
     Unassign,
+    SwitchVersion,
 }
 
 impl PluginTaskKind {
@@ -42,6 +43,7 @@ impl PluginTaskKind {
             Self::Disable => "disable",
             Self::Assign => "assign",
             Self::Unassign => "unassign",
+            Self::SwitchVersion => "switch_version",
         }
     }
 }
@@ -103,6 +105,7 @@ pub struct PluginAssignmentRecord {
     pub id: Uuid,
     pub installation_id: Uuid,
     pub workspace_id: Uuid,
+    pub provider_code: String,
     pub assigned_by: Uuid,
     pub created_at: OffsetDateTime,
 }

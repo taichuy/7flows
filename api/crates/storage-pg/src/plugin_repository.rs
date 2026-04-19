@@ -45,6 +45,7 @@ fn map_assignment(row: sqlx::postgres::PgRow) -> Result<domain::PluginAssignment
         id: row.get("id"),
         installation_id: row.get("installation_id"),
         workspace_id: row.get("workspace_id"),
+        provider_code: row.get("provider_code"),
         assigned_by: row.get("assigned_by"),
         created_at: row.get("created_at"),
     })
@@ -268,16 +269,26 @@ impl PluginRepository for PgControlPlaneStore {
                 id,
                 installation_id,
                 workspace_id,
+                provider_code,
                 assigned_by
-            ) values ($1, $2, $3, $4)
-            on conflict (installation_id, workspace_id) do update
-            set assigned_by = excluded.assigned_by
-            returning id, installation_id, workspace_id, assigned_by, created_at
+            ) values ($1, $2, $3, $4, $5)
+            on conflict (workspace_id, provider_code) do update
+            set
+                installation_id = excluded.installation_id,
+                assigned_by = excluded.assigned_by
+            returning
+                id,
+                installation_id,
+                workspace_id,
+                provider_code,
+                assigned_by,
+                created_at
             "#,
         )
         .bind(Uuid::now_v7())
         .bind(input.installation_id)
         .bind(input.workspace_id)
+        .bind(&input.provider_code)
         .bind(input.actor_user_id)
         .fetch_one(self.pool())
         .await?;
@@ -291,7 +302,7 @@ impl PluginRepository for PgControlPlaneStore {
     ) -> Result<Vec<domain::PluginAssignmentRecord>> {
         let rows = sqlx::query(
             r#"
-            select id, installation_id, workspace_id, assigned_by, created_at
+            select id, installation_id, workspace_id, provider_code, assigned_by, created_at
             from plugin_assignments
             where workspace_id = $1
             order by created_at desc, id desc
