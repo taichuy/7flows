@@ -508,14 +508,17 @@ git commit -m "feat: persist plugin trust metadata"
 - Modify: `api/apps/api-server/src/_tests/config_tests.rs`
 - Modify: `api/apps/api-server/src/lib.rs`
 - Modify: `api/apps/api-server/src/official_plugin_registry.rs`
+- Modify: `api/apps/api-server/src/_tests/support.rs`
 - Modify: `api/crates/control-plane/src/ports.rs`
 - Modify: `api/crates/control-plane/src/plugin_management.rs`
 - Modify: `api/crates/control-plane/src/_tests/plugin_management_service_tests.rs`
+- Modify: `api/crates/control-plane/Cargo.toml`
 - Modify: `api/apps/api-server/src/routes/plugins.rs`
 - Modify: `api/apps/api-server/src/openapi.rs`
 - Modify: `api/apps/api-server/src/_tests/plugin_routes.rs`
+- Modify: `api/apps/api-server/tests/health_routes.rs`
 
-- [ ] **Step 1: Write failing config/service/route tests for mirror resolution and unsigned official rejection**
+- [x] **Step 1: Write failing config/service/route tests for mirror resolution and unsigned official rejection**
 
 Add tests like these:
 
@@ -580,7 +583,7 @@ async fn plugin_routes_list_official_catalog_with_source_metadata() {
 }
 ```
 
-- [ ] **Step 2: Run the targeted config, service, and route tests**
+- [x] **Step 2: Run the targeted config, service, and route tests**
 
 Run:
 
@@ -592,7 +595,12 @@ rtk cargo test --manifest-path api/Cargo.toml -p api-server plugin_routes_list_o
 
 Expected: FAIL because config only knows `API_OFFICIAL_PLUGIN_REGISTRY_URL`, the official source port only returns an array, and unsigned official packages still install.
 
-- [ ] **Step 3: Expand the official-source contract and registry adapter with resolved-source metadata**
+Observed on 2026-04-19:
+- `api_config_prefers_mirror_registry_when_present` failed because `ApiConfig::resolve_official_plugin_source` did not exist yet.
+- `plugin_management_service_rejects_unsigned_signature_required_official_package` failed because the in-memory official source test double still used the old contract and had no `unsigned_required()` variant.
+- `plugin_routes_list_official_catalog_with_source_metadata` was blocked by the same config/official-source compile gap.
+
+- [x] **Step 3: Expand the official-source contract and registry adapter with resolved-source metadata**
 
 Update `api/crates/control-plane/src/ports.rs` and `api/apps/api-server/src/official_plugin_registry.rs` to use this shape:
 
@@ -653,7 +661,7 @@ impl OfficialPluginSourcePort for ApiOfficialPluginRegistry {
 }
 ```
 
-- [ ] **Step 4: Thread the resolved source into config and enforce `signature_required` in the service**
+- [x] **Step 4: Thread the resolved source into config and enforce `signature_required` in the service**
 
 Update `api/apps/api-server/src/config.rs`, `api/apps/api-server/src/lib.rs`, `api/crates/control-plane/src/plugin_management.rs`, and `api/apps/api-server/src/routes/plugins.rs`:
 
@@ -714,18 +722,26 @@ pub struct OfficialPluginCatalogResponse {
 }
 ```
 
-- [ ] **Step 5: Rerun the official-source tests and OpenAPI checks**
+- [x] **Step 5: Rerun the official-source tests and OpenAPI checks**
 
 Run:
 
 ```bash
-rtk cargo test --manifest-path api/Cargo.toml -p api-server api_config_prefers_mirror_registry_when_present -- --exact
-rtk cargo test --manifest-path api/Cargo.toml -p control-plane plugin_management_service_rejects_unsigned_signature_required_official_package -- --exact
-rtk cargo test --manifest-path api/Cargo.toml -p api-server plugin_routes_list_official_catalog_with_source_metadata -- --exact
-rtk cargo test --manifest-path api/Cargo.toml -p api-server openapi_alignment -- --nocapture
+rtk cargo test --manifest-path api/Cargo.toml -p api-server _tests::config_tests::api_config_prefers_mirror_registry_when_present -- --exact
+rtk cargo test --manifest-path api/Cargo.toml -p control-plane _tests::plugin_management_service_tests::plugin_management_service_rejects_unsigned_signature_required_official_package -- --exact
+rtk cargo test --manifest-path api/Cargo.toml -p api-server _tests::plugin_routes::plugin_routes_list_official_catalog_with_source_metadata -- --exact
+rtk cargo test --manifest-path api/Cargo.toml -p api-server _tests::openapi_alignment:: -- --nocapture
+rtk cargo test --manifest-path api/Cargo.toml -p control-plane _tests::plugin_management_service_tests::plugin_management_service_lists_official_catalog_and_installs_latest_release_asset -- --exact
+rtk cargo test --manifest-path api/Cargo.toml -p api-server _tests::plugin_routes::plugin_routes_list_official_catalog_and_install_official_package -- --exact
+rtk git diff --check
 ```
 
 Expected: PASS, and the route/OpenAPI contract now exposes source metadata plus stricter failure semantics.
+
+Actual on 2026-04-19:
+- All six targeted/regression tests passed.
+- During the success-path rerun, one test assertion expected `signature_status=unverified`; actual intake semantics returned `signature_status=unsigned` for `trust_mode=allow_unsigned`, so the assertion was corrected and rerun to green.
+- `rtk git diff --check` passed.
 
 - [ ] **Step 6: Commit the official/mirror source work**
 

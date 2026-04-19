@@ -14,8 +14,8 @@ match_when:
   - 需要确认 legacy `/api/console/plugins/install` 应如何映射到新来源模型
   - 需要判断本轮是否允许修改 `1flowbase-official-plugins`
 created_at: 2026-04-19 14
-updated_at: 2026-04-19 14
-last_verified_at: 2026-04-19 14
+updated_at: 2026-04-19 15
+last_verified_at: 2026-04-19 15
 decision_policy: verify_before_decision
 scope:
   - docs/superpowers/plans/2026-04-19-plugin-trust-source-install.md
@@ -60,3 +60,10 @@ scope:
 - legacy `/api/console/plugins/install` 只保留内部兼容入口，不进入设置页，不再保留 `downloaded_or_uploaded` 这种混合语义。
 - 正式产品面只开放两条入口：`从源安装` 与 `上传插件`；可信度统一由后端验签结论决定。
 - 当前进入实现阶段后的推进节奏固定为：当前会话内 inline 持续推进整份 plan，但每完成一个 task 都要立即同步 `docs/superpowers/plans`，让用户能按 task 追踪进度与验证状态。
+
+## 当前进展
+
+- Task 1 已完成：`plugin-framework` 已落地统一 package intake pipeline，并独立提交 `f9f2b1d0`。
+- Task 2 已完成：宿主持久化、迁移和 repository 映射已切到 `source_kind + trust_level + signature_status`，并独立提交 `5711a6`。
+- Task 3 已完成：`api-server` 现可解析默认官方源/镜像源，official catalog 已返回 source metadata，official install/upgrade 已统一走 intake + `signature_required` 策略；这一 task 的验证中还确认了 `trust_mode=allow_unsigned` 时成功路径的 `signature_status` 应为 `unsigned`，不是 `unverified`。
+- 下一步直接进入 Task 4：补浏览器上传安装入口，并把 legacy `/api/console/plugins/install` 收口为内部兼容手工导入、持久化统一归到 `source_kind=uploaded`。

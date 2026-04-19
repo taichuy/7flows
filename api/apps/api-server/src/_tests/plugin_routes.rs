@@ -519,6 +519,36 @@ async fn plugin_routes_list_official_catalog_and_install_official_package() {
 }
 
 #[tokio::test]
+async fn plugin_routes_list_official_catalog_with_source_metadata() {
+    let app = test_app().await;
+    let (cookie, _csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/console/plugins/official-catalog")
+                .header("cookie", &cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let payload: Value =
+        serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap();
+    assert_eq!(payload["data"]["source_kind"], "mirror_registry");
+    assert_eq!(payload["data"]["source_label"], "镜像源");
+    assert_eq!(
+        payload["data"]["entries"][0]["plugin_id"],
+        "1flowbase.openai_compatible"
+    );
+}
+
+#[tokio::test]
 async fn plugin_routes_list_families_and_switch_local_version() {
     let app = test_app().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;

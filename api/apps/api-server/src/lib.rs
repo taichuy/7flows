@@ -177,6 +177,8 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
     let api_docs = Arc::new(
         openapi_docs::build_default_api_docs_registry_with_cookie_name(&config.cookie_name)?,
     );
+    let resolved_official_source = config.resolve_official_plugin_source();
+    let trusted_public_keys = config.official_plugin_trusted_public_keys()?;
 
     Ok(app_with_state_and_config(
         Arc::new(ApiState {
@@ -187,7 +189,8 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
             )),
             official_plugin_source: Arc::new(
                 official_plugin_registry::ApiOfficialPluginRegistry::new(
-                    config.official_plugin_registry_url.clone(),
+                    resolved_official_source,
+                    trusted_public_keys,
                 ),
             ),
             provider_install_root: config.provider_install_root.clone(),

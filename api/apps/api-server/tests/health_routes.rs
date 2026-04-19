@@ -16,7 +16,8 @@ use axum::{
 };
 use control_plane::bootstrap::{BootstrapConfig, BootstrapService};
 use control_plane::ports::{
-    DownloadedOfficialPluginPackage, OfficialPluginSourceEntry, OfficialPluginSourcePort,
+    DownloadedOfficialPluginPackage, OfficialPluginCatalogSnapshot, OfficialPluginSourceEntry,
+    OfficialPluginSourcePort,
 };
 use serde_json::Value;
 use sqlx::PgPool;
@@ -29,8 +30,15 @@ struct NoopOfficialPluginSource;
 
 #[async_trait]
 impl OfficialPluginSourcePort for NoopOfficialPluginSource {
-    async fn list_official_catalog(&self) -> anyhow::Result<Vec<OfficialPluginSourceEntry>> {
-        Ok(Vec::new())
+    async fn list_official_catalog(&self) -> anyhow::Result<OfficialPluginCatalogSnapshot> {
+        Ok(OfficialPluginCatalogSnapshot {
+            source: control_plane::ports::OfficialPluginCatalogSource {
+                source_kind: "official_registry".to_string(),
+                source_label: "官方源".to_string(),
+                registry_url: "https://official.example.com/official-registry.json".to_string(),
+            },
+            entries: Vec::new(),
+        })
     }
 
     async fn download_plugin(
@@ -38,6 +46,10 @@ impl OfficialPluginSourcePort for NoopOfficialPluginSource {
         _entry: &OfficialPluginSourceEntry,
     ) -> anyhow::Result<DownloadedOfficialPluginPackage> {
         anyhow::bail!("official plugin source not configured for health route tests")
+    }
+
+    fn trusted_public_keys(&self) -> Vec<plugin_framework::TrustedPublicKey> {
+        Vec::new()
     }
 }
 

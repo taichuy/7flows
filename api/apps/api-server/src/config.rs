@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use axum::http::HeaderValue;
+use serde::Deserialize;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,13 +35,29 @@ pub struct ApiConfig {
     pub provider_install_root: String,
     pub provider_secret_master_key: String,
     pub official_plugin_repository: String,
-    pub official_plugin_registry_url: String,
+    pub official_plugin_default_registry_url: String,
+    pub official_plugin_mirror_registry_url: Option<String>,
+    pub official_plugin_trusted_public_keys_json: String,
     pub bootstrap_workspace_name: String,
     pub bootstrap_root_account: String,
     pub bootstrap_root_email: String,
     pub bootstrap_root_password: String,
     pub bootstrap_root_name: String,
     pub bootstrap_root_nickname: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ResolvedOfficialPluginSourceConfig {
+    pub source_kind: String,
+    pub source_label: String,
+    pub registry_url: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct TrustedPublicKeyConfig {
+    key_id: String,
+    algorithm: String,
+    public_key_pem: String,
 }
 
 impl ApiConfig {
@@ -84,14 +101,23 @@ impl ApiConfig {
             .get("API_OFFICIAL_PLUGIN_REPOSITORY")
             .cloned()
             .unwrap_or_else(|| "taichuy/1flowbase-official-plugins".to_string());
-        let official_plugin_registry_url = map
-            .get("API_OFFICIAL_PLUGIN_REGISTRY_URL")
+        let official_plugin_default_registry_url = map
+            .get("API_OFFICIAL_PLUGIN_DEFAULT_REGISTRY_URL")
             .cloned()
+            .or_else(|| map.get("API_OFFICIAL_PLUGIN_REGISTRY_URL").cloned())
             .unwrap_or_else(|| {
                 format!(
                     "https://raw.githubusercontent.com/{official_plugin_repository}/main/official-registry.json"
                 )
             });
+        let official_plugin_mirror_registry_url = map
+            .get("API_OFFICIAL_PLUGIN_MIRROR_REGISTRY_URL")
+            .cloned()
+            .filter(|value| !value.trim().is_empty());
+        let official_plugin_trusted_public_keys_json = map
+            .get("API_OFFICIAL_PLUGIN_TRUSTED_PUBLIC_KEYS_JSON")
+            .cloned()
+            .unwrap_or_else(|| "[]".to_string());
 
         if env == ApiEnvironment::Production && cors_allowed_origins.is_none() {
             return Err(anyhow!(
@@ -121,7 +147,9 @@ impl ApiConfig {
             provider_install_root,
             provider_secret_master_key,
             official_plugin_repository,
-            official_plugin_registry_url,
+            official_plugin_default_registry_url,
+            official_plugin_mirror_registry_url,
+            official_plugin_trusted_public_keys_json,
             bootstrap_workspace_name: get("BOOTSTRAP_WORKSPACE_NAME")?,
             bootstrap_root_account: get("BOOTSTRAP_ROOT_ACCOUNT")?,
             bootstrap_root_email: get("BOOTSTRAP_ROOT_EMAIL")?,
@@ -135,6 +163,43 @@ impl ApiConfig {
                 .cloned()
                 .unwrap_or_else(|| "Root".to_string()),
         })
+    }
+
+    pub fn resolve_official_plugin_source(&self) -> ResolvedOfficialPluginSourceConfig {
+        if let Some(mirror_url) = self
+            .official_plugin_mirror_registry_url
+            .clone()
+            .filter(|value| !value.trim().is_empty())
+        {
+            return ResolvedOfficialPluginSourceConfig {
+                source_kind: "mirror_registry".into(),
+                source_label: "镜像源".into(),
+                registry_url: mirror_url,
+            };
+        }
+
+        ResolvedOfficialPluginSourceConfig {
+            source_kind: "official_registry".into(),
+            source_label: "官方源".into(),
+            registry_url: self.official_plugin_default_registry_url.clone(),
+        }
+    }
+
+    pub fn official_plugin_trusted_public_keys(
+        &self,
+    ) -> Result<Vec<plugin_framework::TrustedPublicKey>> {
+        serde_json::from_str::<Vec<TrustedPublicKeyConfig>>(
+            &self.official_plugin_trusted_public_keys_json,
+        )?
+        .into_iter()
+        .map(|entry| {
+            Ok(plugin_framework::TrustedPublicKey {
+                key_id: entry.key_id,
+                algorithm: entry.algorithm,
+                public_key_pem: entry.public_key_pem,
+            })
+        })
+        .collect()
     }
 }
 

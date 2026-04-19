@@ -20,4 +20,7 @@ uuid.workspace = true
 runtime-core = { path = "../runtime-core" }
 
 [dev-dependencies]
+flate2.workspace = true
+sha2.workspace = true
+tar.workspace = true
 tokio.workspace = true

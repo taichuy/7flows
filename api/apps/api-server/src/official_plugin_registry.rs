@@ -1,27 +1,33 @@
-use std::{fs, io::Cursor, path::PathBuf};
-
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use control_plane::ports::{
-    DownloadedOfficialPluginPackage, OfficialPluginSourceEntry, OfficialPluginSourcePort,
+    DownloadedOfficialPluginPackage, OfficialPluginCatalogSnapshot, OfficialPluginCatalogSource,
+    OfficialPluginSourceEntry, OfficialPluginSourcePort,
 };
-use flate2::read::GzDecoder;
 use reqwest::Client;
 use serde::Deserialize;
-use sha2::{Digest, Sha256};
-use tar::Archive;
-use uuid::Uuid;
+
+use crate::config::ResolvedOfficialPluginSourceConfig;
 
 #[derive(Clone)]
 pub struct ApiOfficialPluginRegistry {
+    source_kind: String,
+    source_label: String,
     registry_url: String,
+    trusted_public_keys: Vec<plugin_framework::TrustedPublicKey>,
     client: Client,
 }
 
 impl ApiOfficialPluginRegistry {
-    pub fn new(registry_url: impl Into<String>) -> Self {
+    pub fn new(
+        source: ResolvedOfficialPluginSourceConfig,
+        trusted_public_keys: Vec<plugin_framework::TrustedPublicKey>,
+    ) -> Self {
         Self {
-            registry_url: registry_url.into(),
+            source_kind: source.source_kind,
+            source_label: source.source_label,
+            registry_url: source.registry_url,
+            trusted_public_keys,
             client: Client::new(),
         }
     }
@@ -57,40 +63,37 @@ impl ApiOfficialPluginRegistry {
 
 #[async_trait]
 impl OfficialPluginSourcePort for ApiOfficialPluginRegistry {
-    async fn list_official_catalog(&self) -> Result<Vec<OfficialPluginSourceEntry>> {
-        Ok(self
-            .fetch_registry()
-            .await?
-            .plugins
-            .into_iter()
-            .map(|entry| OfficialPluginSourceEntry {
-                plugin_id: entry.plugin_id,
-                provider_code: entry.provider_code,
-                display_name: entry.display_name,
-                protocol: entry.protocol,
-                latest_version: entry.latest_version,
-                release_tag: entry.release_tag,
-                download_url: entry.download_url,
-                checksum: entry.checksum,
-                signature_status: entry.signature_status,
-                help_url: entry.help_url,
-                model_discovery_mode: entry.model_discovery_mode,
-            })
-            .collect())
+    async fn list_official_catalog(&self) -> Result<OfficialPluginCatalogSnapshot> {
+        let document = self.fetch_registry().await?;
+        Ok(OfficialPluginCatalogSnapshot {
+            source: OfficialPluginCatalogSource {
+                source_kind: self.source_kind.clone(),
+                source_label: self.source_label.clone(),
+                registry_url: self.registry_url.clone(),
+            },
+            entries: document
+                .plugins
+                .into_iter()
+                .map(OfficialPluginSourceEntry::from)
+                .collect(),
+        })
     }
 
     async fn download_plugin(
         &self,
         entry: &OfficialPluginSourceEntry,
     ) -> Result<DownloadedOfficialPluginPackage> {
-        let bytes = self.download_bytes(&entry.download_url).await?;
-        verify_sha256(&bytes, &entry.checksum)?;
-        let package_root = extract_package_archive(&bytes)?;
         Ok(DownloadedOfficialPluginPackage {
-            package_root,
-            checksum: entry.checksum.clone(),
-            signature_status: entry.signature_status.clone(),
+            file_name: format!(
+                "{}-{}.1flowbasepkg",
+                entry.provider_code, entry.latest_version
+            ),
+            package_bytes: self.download_bytes(&entry.download_url).await?,
         })
+    }
+
+    fn trusted_public_keys(&self) -> Vec<plugin_framework::TrustedPublicKey> {
+        self.trusted_public_keys.clone()
     }
 }
 
@@ -114,49 +117,36 @@ struct OfficialRegistryEntry {
     release_tag: String,
     download_url: String,
     checksum: String,
-    signature_status: String,
+    #[serde(default = "default_trust_mode")]
+    trust_mode: String,
+    #[serde(default)]
+    signature_algorithm: Option<String>,
+    #[serde(default)]
+    signing_key_id: Option<String>,
     help_url: Option<String>,
     model_discovery_mode: String,
 }
 
-fn verify_sha256(bytes: &[u8], checksum: &str) -> Result<()> {
-    let expected = checksum
-        .strip_prefix("sha256:")
-        .unwrap_or(checksum)
-        .trim()
-        .to_ascii_lowercase();
-    if expected.is_empty() {
-        bail!("official plugin checksum is empty");
+impl From<OfficialRegistryEntry> for OfficialPluginSourceEntry {
+    fn from(entry: OfficialRegistryEntry) -> Self {
+        Self {
+            plugin_id: entry.plugin_id,
+            provider_code: entry.provider_code,
+            display_name: entry.display_name,
+            protocol: entry.protocol,
+            latest_version: entry.latest_version,
+            release_tag: entry.release_tag,
+            download_url: entry.download_url,
+            checksum: entry.checksum,
+            trust_mode: entry.trust_mode,
+            signature_algorithm: entry.signature_algorithm,
+            signing_key_id: entry.signing_key_id,
+            help_url: entry.help_url,
+            model_discovery_mode: entry.model_discovery_mode,
+        }
     }
-
-    let actual = format!("{:x}", Sha256::digest(bytes));
-    if actual != expected {
-        return Err(anyhow!(
-            "official plugin checksum mismatch: expected {expected}, got {actual}"
-        ));
-    }
-
-    Ok(())
 }
 
-fn extract_package_archive(bytes: &[u8]) -> Result<PathBuf> {
-    let extract_root = std::env::temp_dir().join(format!("official-plugin-{}", Uuid::now_v7()));
-    fs::create_dir_all(&extract_root)
-        .with_context(|| format!("failed to create {}", extract_root.display()))?;
-
-    let unpack_result = (|| -> Result<()> {
-        let decoder = GzDecoder::new(Cursor::new(bytes));
-        let mut archive = Archive::new(decoder);
-        archive
-            .unpack(&extract_root)
-            .with_context(|| format!("failed to extract {}", extract_root.display()))?;
-        Ok(())
-    })();
-
-    if let Err(error) = unpack_result {
-        let _ = fs::remove_dir_all(&extract_root);
-        return Err(error);
-    }
-
-    Ok(extract_root)
+fn default_trust_mode() -> String {
+    "signature_required".to_string()
 }

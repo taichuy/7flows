@@ -8,7 +8,7 @@ use axum::{
 };
 use control_plane::plugin_management::{
     AssignPluginCommand, EnablePluginCommand, InstallOfficialPluginCommand, InstallPluginCommand,
-    OfficialPluginCatalogEntry, PluginCatalogEntry, PluginFamilyView,
+    OfficialPluginCatalogEntry, OfficialPluginCatalogView, PluginCatalogEntry, PluginFamilyView,
     PluginInstalledVersionView, PluginManagementService, SwitchPluginVersionCommand,
     UpgradeLatestPluginFamilyCommand,
 };
@@ -81,6 +81,14 @@ pub struct OfficialPluginCatalogEntryResponse {
     pub help_url: Option<String>,
     pub model_discovery_mode: String,
     pub install_status: String,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
+pub struct OfficialPluginCatalogResponse {
+    pub source_kind: String,
+    pub source_label: String,
+    pub registry_url: String,
+    pub entries: Vec<OfficialPluginCatalogEntryResponse>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -207,7 +215,7 @@ fn to_catalog_response(entry: PluginCatalogEntry) -> PluginCatalogEntryResponse 
     }
 }
 
-fn to_official_catalog_response(
+fn to_official_catalog_entry_response(
     entry: OfficialPluginCatalogEntry,
 ) -> OfficialPluginCatalogEntryResponse {
     OfficialPluginCatalogEntryResponse {
@@ -219,6 +227,21 @@ fn to_official_catalog_response(
         help_url: entry.help_url,
         model_discovery_mode: entry.model_discovery_mode,
         install_status: entry.install_status.as_str().to_string(),
+    }
+}
+
+fn to_official_catalog_response(
+    catalog: OfficialPluginCatalogView,
+) -> OfficialPluginCatalogResponse {
+    OfficialPluginCatalogResponse {
+        source_kind: catalog.source_kind,
+        source_label: catalog.source_label,
+        registry_url: catalog.registry_url,
+        entries: catalog
+            .entries
+            .into_iter()
+            .map(to_official_catalog_entry_response)
+            .collect(),
     }
 }
 
@@ -308,22 +331,17 @@ pub async fn list_families(
     get,
     path = "/api/console/plugins/official-catalog",
     operation_id = "plugin_list_official_catalog",
-    responses((status = 200, body = [OfficialPluginCatalogEntryResponse]), (status = 401, body = crate::error_response::ErrorBody))
+    responses((status = 200, body = OfficialPluginCatalogResponse), (status = 401, body = crate::error_response::ErrorBody))
 )]
 pub async fn list_official_catalog(
     State(state): State<Arc<ApiState>>,
     headers: HeaderMap,
-) -> Result<Json<ApiSuccess<Vec<OfficialPluginCatalogEntryResponse>>>, ApiError> {
+) -> Result<Json<ApiSuccess<OfficialPluginCatalogResponse>>, ApiError> {
     let context = require_session(&state, &headers).await?;
     let catalog = service(&state)
         .list_official_catalog(context.user.id)
         .await?;
-    Ok(Json(ApiSuccess::new(
-        catalog
-            .into_iter()
-            .map(to_official_catalog_response)
-            .collect(),
-    )))
+    Ok(Json(ApiSuccess::new(to_official_catalog_response(catalog))))
 }
 
 #[utoipa::path(

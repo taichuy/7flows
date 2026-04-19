@@ -12,10 +12,14 @@ use axum::{
 };
 use control_plane::bootstrap::{BootstrapConfig, BootstrapService};
 use control_plane::ports::{
-    DownloadedOfficialPluginPackage, OfficialPluginSourceEntry, OfficialPluginSourcePort,
+    DownloadedOfficialPluginPackage, OfficialPluginCatalogSnapshot, OfficialPluginCatalogSource,
+    OfficialPluginSourceEntry, OfficialPluginSourcePort,
 };
+use flate2::{write::GzEncoder, Compression};
 use serde_json::json;
+use sha2::{Digest, Sha256};
 use sqlx::PgPool;
+use tar::Builder;
 use tokio::sync::RwLock;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -30,37 +34,47 @@ struct InMemoryOfficialPluginSource;
 
 #[async_trait]
 impl OfficialPluginSourcePort for InMemoryOfficialPluginSource {
-    async fn list_official_catalog(&self) -> anyhow::Result<Vec<OfficialPluginSourceEntry>> {
-        Ok(vec![OfficialPluginSourceEntry {
-            plugin_id: "1flowbase.openai_compatible".to_string(),
-            provider_code: "openai_compatible".to_string(),
-            display_name: "OpenAI Compatible".to_string(),
-            protocol: "openai_compatible".to_string(),
-            latest_version: "0.2.0".to_string(),
-            release_tag: "openai_compatible-v0.2.0".to_string(),
-            download_url: "https://example.com/openai-compatible.1flowbasepkg".to_string(),
-            checksum: "sha256:abc123".to_string(),
-            signature_status: "unsigned".to_string(),
-            help_url: Some(
-                "https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible"
-                    .to_string(),
-            ),
-            model_discovery_mode: "hybrid".to_string(),
-        }])
+    async fn list_official_catalog(&self) -> anyhow::Result<OfficialPluginCatalogSnapshot> {
+        let package_bytes = build_official_provider_package("0.2.0");
+        Ok(OfficialPluginCatalogSnapshot {
+            source: OfficialPluginCatalogSource {
+                source_kind: "mirror_registry".to_string(),
+                source_label: "镜像源".to_string(),
+                registry_url: "https://mirror.example.com/official-registry.json".to_string(),
+            },
+            entries: vec![OfficialPluginSourceEntry {
+                plugin_id: "1flowbase.openai_compatible".to_string(),
+                provider_code: "openai_compatible".to_string(),
+                display_name: "OpenAI Compatible".to_string(),
+                protocol: "openai_compatible".to_string(),
+                latest_version: "0.2.0".to_string(),
+                release_tag: "openai_compatible-v0.2.0".to_string(),
+                download_url: "https://example.com/openai-compatible.1flowbasepkg".to_string(),
+                checksum: format!("sha256:{:x}", Sha256::digest(&package_bytes)),
+                trust_mode: "allow_unsigned".to_string(),
+                signature_algorithm: None,
+                signing_key_id: None,
+                help_url: Some(
+                    "https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible"
+                        .to_string(),
+                ),
+                model_discovery_mode: "hybrid".to_string(),
+            }],
+        })
     }
 
     async fn download_plugin(
         &self,
         _entry: &OfficialPluginSourceEntry,
     ) -> anyhow::Result<DownloadedOfficialPluginPackage> {
-        let package_root =
-            std::env::temp_dir().join(format!("official-plugin-route-{}", Uuid::now_v7()));
-        create_official_provider_fixture(&package_root);
         Ok(DownloadedOfficialPluginPackage {
-            package_root,
-            checksum: "sha256:abc123".to_string(),
-            signature_status: "unsigned".to_string(),
+            file_name: "openai_compatible-0.2.0.1flowbasepkg".to_string(),
+            package_bytes: build_official_provider_package("0.2.0"),
         })
+    }
+
+    fn trusted_public_keys(&self) -> Vec<plugin_framework::TrustedPublicKey> {
+        Vec::new()
     }
 }
 
@@ -284,4 +298,55 @@ capabilities:
         r#"{ "plugin": { "label": "OpenAI Compatible" } }"#,
     )
     .unwrap();
+}
+
+fn build_official_provider_package(version: &str) -> Vec<u8> {
+    let package_root =
+        std::env::temp_dir().join(format!("official-plugin-route-package-{}", Uuid::now_v7()));
+    create_official_provider_fixture(&package_root);
+    fs::write(
+        package_root.join("manifest.yaml"),
+        format!(
+            r#"plugin_code: openai_compatible
+display_name: OpenAI Compatible
+version: {version}
+contract_version: 1flowbase.provider/v1
+supported_model_types:
+  - llm
+runner:
+  language: nodejs
+  entrypoint: provider/openai_compatible.js
+"#
+        ),
+    )
+    .unwrap();
+    let bytes = pack_tar_gz(&package_root);
+    let _ = fs::remove_dir_all(&package_root);
+    bytes
+}
+
+fn pack_tar_gz(root: &Path) -> Vec<u8> {
+    let encoder = GzEncoder::new(Vec::new(), Compression::default());
+    let mut builder = Builder::new(encoder);
+    append_dir_to_tar(&mut builder, root, root);
+    builder.finish().unwrap();
+    builder.into_inner().unwrap().finish().unwrap()
+}
+
+fn append_dir_to_tar(builder: &mut Builder<GzEncoder<Vec<u8>>>, root: &Path, current: &Path) {
+    let mut children = fs::read_dir(current)
+        .unwrap()
+        .map(|entry| entry.unwrap())
+        .collect::<Vec<_>>();
+    children.sort_by_key(|entry| entry.path());
+    for entry in children {
+        let path = entry.path();
+        let relative = path.strip_prefix(root).unwrap();
+        if path.is_dir() {
+            builder.append_dir(relative, &path).unwrap();
+            append_dir_to_tar(builder, root, &path);
+            continue;
+        }
+        builder.append_path_with_name(&path, relative).unwrap();
+    }
 }

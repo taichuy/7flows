@@ -10,7 +10,10 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use flate2::{write::GzEncoder, Compression};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+use tar::Builder;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -24,11 +27,12 @@ use crate::{
     ports::{
         AuthRepository, CreateModelProviderInstanceInput, CreatePluginAssignmentInput,
         CreatePluginTaskInput, DownloadedOfficialPluginPackage, ModelProviderRepository,
-        OfficialPluginSourceEntry, OfficialPluginSourcePort, PluginRepository,
-        ProviderRuntimeInvocationOutput, ProviderRuntimePort, ReassignModelProviderInstancesInput,
-        UpdateModelProviderInstanceInput, UpdatePluginInstallationEnabledInput,
-        UpdatePluginTaskStatusInput, UpdateProfileInput, UpsertModelProviderCatalogCacheInput,
-        UpsertModelProviderSecretInput, UpsertPluginInstallationInput,
+        OfficialPluginCatalogSnapshot, OfficialPluginCatalogSource, OfficialPluginSourceEntry,
+        OfficialPluginSourcePort, PluginRepository, ProviderRuntimeInvocationOutput,
+        ProviderRuntimePort, ReassignModelProviderInstancesInput, UpdateModelProviderInstanceInput,
+        UpdatePluginInstallationEnabledInput, UpdatePluginTaskStatusInput, UpdateProfileInput,
+        UpsertModelProviderCatalogCacheInput, UpsertModelProviderSecretInput,
+        UpsertPluginInstallationInput,
     },
 };
 use domain::{
@@ -529,42 +533,77 @@ impl MemoryProviderRuntime {
     }
 }
 
-#[derive(Clone, Default)]
-struct MemoryOfficialPluginSource;
+#[derive(Clone)]
+struct MemoryOfficialPluginSource {
+    source_kind: String,
+    source_label: String,
+    trust_mode: String,
+    include_signature: bool,
+}
+
+impl Default for MemoryOfficialPluginSource {
+    fn default() -> Self {
+        Self {
+            source_kind: "official_registry".to_string(),
+            source_label: "官方源".to_string(),
+            trust_mode: "allow_unsigned".to_string(),
+            include_signature: false,
+        }
+    }
+}
+
+impl MemoryOfficialPluginSource {
+    fn unsigned_required() -> Self {
+        Self {
+            trust_mode: "signature_required".to_string(),
+            ..Self::default()
+        }
+    }
+}
 
 #[async_trait]
 impl OfficialPluginSourcePort for MemoryOfficialPluginSource {
-    async fn list_official_catalog(&self) -> Result<Vec<OfficialPluginSourceEntry>> {
-        Ok(vec![OfficialPluginSourceEntry {
-            plugin_id: "1flowbase.openai_compatible".to_string(),
-            provider_code: "openai_compatible".to_string(),
-            display_name: "OpenAI Compatible".to_string(),
-            protocol: "openai_compatible".to_string(),
-            latest_version: "0.1.0".to_string(),
-            release_tag: "openai_compatible-v0.1.0".to_string(),
-            download_url: "https://example.com/openai-compatible.1flowbasepkg".to_string(),
-            checksum: "sha256:abc123".to_string(),
-            signature_status: "unsigned".to_string(),
-            help_url: Some(
-                "https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible"
-                    .to_string(),
-            ),
-            model_discovery_mode: "hybrid".to_string(),
-        }])
+    async fn list_official_catalog(&self) -> Result<OfficialPluginCatalogSnapshot> {
+        let package_bytes = build_openai_compatible_package_bytes("0.1.0", self.include_signature);
+        Ok(OfficialPluginCatalogSnapshot {
+            source: OfficialPluginCatalogSource {
+                source_kind: self.source_kind.clone(),
+                source_label: self.source_label.clone(),
+                registry_url: "https://example.com/official-registry.json".to_string(),
+            },
+            entries: vec![OfficialPluginSourceEntry {
+                plugin_id: "1flowbase.openai_compatible".to_string(),
+                provider_code: "openai_compatible".to_string(),
+                display_name: "OpenAI Compatible".to_string(),
+                protocol: "openai_compatible".to_string(),
+                latest_version: "0.1.0".to_string(),
+                release_tag: "openai_compatible-v0.1.0".to_string(),
+                download_url: "https://example.com/openai-compatible.1flowbasepkg".to_string(),
+                checksum: format!("sha256:{:x}", Sha256::digest(&package_bytes)),
+                trust_mode: self.trust_mode.clone(),
+                signature_algorithm: None,
+                signing_key_id: None,
+                help_url: Some(
+                    "https://github.com/taichuy/1flowbase-official-plugins/tree/main/models/openai_compatible"
+                        .to_string(),
+                ),
+                model_discovery_mode: "hybrid".to_string(),
+            }],
+        })
     }
 
     async fn download_plugin(
         &self,
         _entry: &OfficialPluginSourceEntry,
     ) -> Result<DownloadedOfficialPluginPackage> {
-        let package_root =
-            std::env::temp_dir().join(format!("official-plugin-source-{}", Uuid::now_v7()));
-        create_openai_compatible_fixture(&package_root);
         Ok(DownloadedOfficialPluginPackage {
-            package_root,
-            checksum: "sha256:abc123".to_string(),
-            signature_status: "unsigned".to_string(),
+            file_name: "openai_compatible-0.1.0.1flowbasepkg".to_string(),
+            package_bytes: build_openai_compatible_package_bytes("0.1.0", self.include_signature),
         })
+    }
+
+    fn trusted_public_keys(&self) -> Vec<plugin_framework::TrustedPublicKey> {
+        Vec::new()
     }
 }
 
@@ -758,6 +797,57 @@ capabilities:
     .unwrap();
 }
 
+fn build_openai_compatible_package_bytes(version: &str, _include_signature: bool) -> Vec<u8> {
+    let package_root =
+        std::env::temp_dir().join(format!("official-plugin-source-{}", Uuid::now_v7()));
+    create_openai_compatible_fixture(&package_root);
+    fs::write(
+        package_root.join("manifest.yaml"),
+        format!(
+            r#"plugin_code: openai_compatible
+display_name: OpenAI Compatible
+version: {version}
+contract_version: 1flowbase.provider/v1
+supported_model_types:
+  - llm
+runner:
+  language: nodejs
+  entrypoint: provider/openai_compatible.js
+"#
+        ),
+    )
+    .unwrap();
+    let bytes = pack_tar_gz(&package_root);
+    let _ = fs::remove_dir_all(&package_root);
+    bytes
+}
+
+fn pack_tar_gz(root: &Path) -> Vec<u8> {
+    let encoder = GzEncoder::new(Vec::new(), Compression::default());
+    let mut builder = Builder::new(encoder);
+    append_dir_to_tar(&mut builder, root, root);
+    builder.finish().unwrap();
+    builder.into_inner().unwrap().finish().unwrap()
+}
+
+fn append_dir_to_tar(builder: &mut Builder<GzEncoder<Vec<u8>>>, root: &Path, current: &Path) {
+    let mut children = fs::read_dir(current)
+        .unwrap()
+        .map(|entry| entry.unwrap())
+        .collect::<Vec<_>>();
+    children.sort_by_key(|entry| entry.path());
+    for entry in children {
+        let path = entry.path();
+        let relative = path.strip_prefix(root).unwrap();
+        if path.is_dir() {
+            builder.append_dir(relative, &path).unwrap();
+            append_dir_to_tar(builder, root, &path);
+            continue;
+        }
+        builder.append_path_with_name(&path, relative).unwrap();
+    }
+}
+
 async fn seed_test_installation(
     repository: &MemoryPluginManagementRepository,
     install_root: &Path,
@@ -842,20 +932,29 @@ async fn plugin_management_service_lists_provider_families_with_current_and_late
 
     #[async_trait]
     impl OfficialPluginSourcePort for OutdatedOfficialSource {
-        async fn list_official_catalog(&self) -> Result<Vec<OfficialPluginSourceEntry>> {
-            Ok(vec![OfficialPluginSourceEntry {
-                plugin_id: "1flowbase.openai_compatible".into(),
-                provider_code: "openai_compatible".into(),
-                display_name: "OpenAI Compatible".into(),
-                protocol: "openai_compatible".into(),
-                latest_version: "0.2.0".into(),
-                release_tag: "openai_compatible-v0.2.0".into(),
-                download_url: "https://example.com/openai-compatible.1flowbasepkg".into(),
-                checksum: "sha256:abc123".into(),
-                signature_status: "unsigned".into(),
-                help_url: Some("https://example.com/help".into()),
-                model_discovery_mode: "hybrid".into(),
-            }])
+        async fn list_official_catalog(&self) -> Result<OfficialPluginCatalogSnapshot> {
+            Ok(OfficialPluginCatalogSnapshot {
+                source: OfficialPluginCatalogSource {
+                    source_kind: "official_registry".into(),
+                    source_label: "官方源".into(),
+                    registry_url: "https://example.com/official-registry.json".into(),
+                },
+                entries: vec![OfficialPluginSourceEntry {
+                    plugin_id: "1flowbase.openai_compatible".into(),
+                    provider_code: "openai_compatible".into(),
+                    display_name: "OpenAI Compatible".into(),
+                    protocol: "openai_compatible".into(),
+                    latest_version: "0.2.0".into(),
+                    release_tag: "openai_compatible-v0.2.0".into(),
+                    download_url: "https://example.com/openai-compatible.1flowbasepkg".into(),
+                    checksum: "sha256:abc123".into(),
+                    trust_mode: "allow_unsigned".into(),
+                    signature_algorithm: None,
+                    signing_key_id: None,
+                    help_url: Some("https://example.com/help".into()),
+                    model_discovery_mode: "hybrid".into(),
+                }],
+            })
         }
 
         async fn download_plugin(
@@ -863,6 +962,10 @@ async fn plugin_management_service_lists_provider_families_with_current_and_late
             _entry: &OfficialPluginSourceEntry,
         ) -> Result<DownloadedOfficialPluginPackage> {
             unreachable!("download is not used in this read-only test");
+        }
+
+        fn trusted_public_keys(&self) -> Vec<plugin_framework::TrustedPublicKey> {
+            Vec::new()
         }
     }
 
@@ -928,7 +1031,7 @@ async fn plugin_management_service_switches_to_a_local_version_without_redownloa
     let service = PluginManagementService::new(
         repository.clone(),
         runtime,
-        Arc::new(MemoryOfficialPluginSource),
+        Arc::new(MemoryOfficialPluginSource::default()),
         &install_root,
     );
 
@@ -987,7 +1090,7 @@ async fn plugin_management_service_switches_version_and_invalidates_provider_cac
     let service = PluginManagementService::new(
         repository.clone(),
         runtime,
-        Arc::new(MemoryOfficialPluginSource),
+        Arc::new(MemoryOfficialPluginSource::default()),
         &install_root,
     );
 
@@ -1064,20 +1167,29 @@ async fn plugin_management_service_upgrades_to_latest_without_redownloading_when
 
     #[async_trait]
     impl OfficialPluginSourcePort for LatestAlreadyInstalledSource {
-        async fn list_official_catalog(&self) -> Result<Vec<OfficialPluginSourceEntry>> {
-            Ok(vec![OfficialPluginSourceEntry {
-                plugin_id: "1flowbase.fixture_provider".into(),
-                provider_code: "fixture_provider".into(),
-                display_name: "Fixture Provider".into(),
-                protocol: "openai_compatible".into(),
-                latest_version: "0.2.0".into(),
-                release_tag: "fixture_provider-v0.2.0".into(),
-                download_url: "https://example.com/fixture-provider.1flowbasepkg".into(),
-                checksum: "sha256:fixture".into(),
-                signature_status: "unsigned".into(),
-                help_url: Some("https://example.com/help".into()),
-                model_discovery_mode: "hybrid".into(),
-            }])
+        async fn list_official_catalog(&self) -> Result<OfficialPluginCatalogSnapshot> {
+            Ok(OfficialPluginCatalogSnapshot {
+                source: OfficialPluginCatalogSource {
+                    source_kind: "official_registry".into(),
+                    source_label: "官方源".into(),
+                    registry_url: "https://example.com/official-registry.json".into(),
+                },
+                entries: vec![OfficialPluginSourceEntry {
+                    plugin_id: "1flowbase.fixture_provider".into(),
+                    provider_code: "fixture_provider".into(),
+                    display_name: "Fixture Provider".into(),
+                    protocol: "openai_compatible".into(),
+                    latest_version: "0.2.0".into(),
+                    release_tag: "fixture_provider-v0.2.0".into(),
+                    download_url: "https://example.com/fixture-provider.1flowbasepkg".into(),
+                    checksum: "sha256:fixture".into(),
+                    trust_mode: "allow_unsigned".into(),
+                    signature_algorithm: None,
+                    signing_key_id: None,
+                    help_url: Some("https://example.com/help".into()),
+                    model_discovery_mode: "hybrid".into(),
+                }],
+            })
         }
 
         async fn download_plugin(
@@ -1086,6 +1198,10 @@ async fn plugin_management_service_upgrades_to_latest_without_redownloading_when
         ) -> Result<DownloadedOfficialPluginPackage> {
             self.download_calls.fetch_add(1, Ordering::SeqCst);
             anyhow::bail!("download should not be called when latest is already installed")
+        }
+
+        fn trusted_public_keys(&self) -> Vec<plugin_framework::TrustedPublicKey> {
+            Vec::new()
         }
     }
 
@@ -1165,7 +1281,7 @@ async fn plugin_management_service_installs_enables_assigns_and_lists_tasks() {
     let service = PluginManagementService::new(
         repository.clone(),
         runtime.clone(),
-        std::sync::Arc::new(MemoryOfficialPluginSource),
+        std::sync::Arc::new(MemoryOfficialPluginSource::default()),
         &install_root,
     );
 
@@ -1240,7 +1356,7 @@ async fn plugin_management_service_blocks_manage_actions_without_configure_permi
     let service = PluginManagementService::new(
         repository.clone(),
         runtime,
-        std::sync::Arc::new(MemoryOfficialPluginSource),
+        std::sync::Arc::new(MemoryOfficialPluginSource::default()),
         std::env::temp_dir().join(format!("plugin-installed-{}", Uuid::now_v7())),
     );
 
@@ -1274,7 +1390,7 @@ async fn plugin_management_service_lists_official_catalog_and_installs_latest_re
     let service = PluginManagementService::new(
         repository.clone(),
         runtime,
-        std::sync::Arc::new(MemoryOfficialPluginSource),
+        std::sync::Arc::new(MemoryOfficialPluginSource::default()),
         std::env::temp_dir().join(format!("plugin-installed-{}", Uuid::now_v7())),
     );
 
@@ -1282,7 +1398,12 @@ async fn plugin_management_service_lists_official_catalog_and_installs_latest_re
         .list_official_catalog(repository.actor.user_id)
         .await
         .unwrap();
-    assert_eq!(catalog.len(), 1);
+    assert_eq!(catalog.source_kind, "official_registry");
+    assert_eq!(catalog.source_label, "官方源");
+    assert_eq!(catalog.entries.len(), 1);
+    assert_eq!(catalog.entries[0].plugin_id, "1flowbase.openai_compatible");
+
+    let expected_package_bytes = build_openai_compatible_package_bytes("0.1.0", false);
 
     let install = service
         .install_official_plugin(InstallOfficialPluginCommand {
@@ -1296,7 +1417,38 @@ async fn plugin_management_service_lists_official_catalog_and_installs_latest_re
     assert_eq!(install.installation.source_kind, "official_registry");
     assert_eq!(
         install.installation.checksum.as_deref(),
-        Some("sha256:abc123")
+        Some(format!("sha256:{:x}", Sha256::digest(&expected_package_bytes)).as_str())
+    );
+    assert_eq!(
+        install.installation.signature_status.as_deref(),
+        Some("unsigned")
     );
     assert_eq!(install.task.status, PluginTaskStatus::Success);
+}
+
+#[tokio::test]
+async fn plugin_management_service_rejects_unsigned_signature_required_official_package() {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
+        workspace_id,
+        &["plugin_config.view.all", "plugin_config.configure.all"],
+    ));
+    let service = PluginManagementService::new(
+        repository.clone(),
+        MemoryProviderRuntime::default(),
+        std::sync::Arc::new(MemoryOfficialPluginSource::unsigned_required()),
+        std::env::temp_dir().join(format!("plugin-installed-{}", Uuid::now_v7())),
+    );
+
+    let error = service
+        .install_official_plugin(InstallOfficialPluginCommand {
+            actor_user_id: repository.actor.user_id,
+            plugin_id: "1flowbase.openai_compatible".into(),
+        })
+        .await
+        .expect_err("unsigned official package must fail");
+
+    assert!(error
+        .to_string()
+        .contains("requires a valid official signature"));
 }

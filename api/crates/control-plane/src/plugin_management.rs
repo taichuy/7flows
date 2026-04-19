@@ -7,7 +7,9 @@ use std::{
 
 use access_control::ensure_permission;
 use anyhow::{Context, Result};
-use plugin_framework::provider_package::ProviderPackage;
+use plugin_framework::{
+    intake_package_bytes, provider_package::ProviderPackage, PackageIntakePolicy,
+};
 use serde_json::json;
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -94,6 +96,14 @@ pub struct OfficialPluginCatalogEntry {
 }
 
 #[derive(Debug, Clone)]
+pub struct OfficialPluginCatalogView {
+    pub source_kind: String,
+    pub source_label: String,
+    pub registry_url: String,
+    pub entries: Vec<OfficialPluginCatalogEntry>,
+}
+
+#[derive(Debug, Clone)]
 pub struct PluginInstalledVersionView {
     pub installation_id: Uuid,
     pub plugin_version: String,
@@ -150,25 +160,6 @@ impl InstallSourceMetadata {
             signing_key_id: None,
         }
     }
-
-    fn from_registry_download(checksum: String, signature_status: String) -> Self {
-        Self {
-            source_kind: "official_registry".to_string(),
-            trust_level: derive_trust_level("official_registry", Some(signature_status.as_str())),
-            checksum: Some(checksum),
-            signature_status: Some(signature_status),
-            signature_algorithm: None,
-            signing_key_id: None,
-        }
-    }
-}
-
-fn derive_trust_level(source_kind: &str, signature_status: Option<&str>) -> String {
-    match signature_status {
-        Some("verified") => "verified_official".to_string(),
-        _ if source_kind == "uploaded" => "unverified".to_string(),
-        _ => "checksum_only".to_string(),
-    }
 }
 
 impl<R, H> PluginManagementService<R, H>
@@ -222,7 +213,7 @@ where
     pub async fn list_official_catalog(
         &self,
         actor_user_id: Uuid,
-    ) -> Result<Vec<OfficialPluginCatalogEntry>> {
+    ) -> Result<OfficialPluginCatalogView> {
         let actor = load_actor_context_for_user(&self.repository, actor_user_id).await?;
         ensure_permission(&actor, "plugin_config.view.all")
             .map_err(ControlPlaneError::PermissionDenied)?;
@@ -235,9 +226,10 @@ where
             .map(|assignment| assignment.installation_id)
             .collect::<HashSet<_>>();
         let installations = self.repository.list_installations().await?;
-        let official_entries = self.official_source.list_official_catalog().await?;
+        let official_snapshot = self.official_source.list_official_catalog().await?;
 
-        Ok(official_entries
+        let entries = official_snapshot
+            .entries
             .into_iter()
             .map(|entry| {
                 let matching_installations = installations
@@ -266,7 +258,14 @@ where
                     install_status,
                 }
             })
-            .collect())
+            .collect();
+
+        Ok(OfficialPluginCatalogView {
+            source_kind: official_snapshot.source.source_kind,
+            source_label: official_snapshot.source.source_label,
+            registry_url: official_snapshot.source.registry_url,
+            entries,
+        })
     }
 
     pub async fn list_families(&self, actor_user_id: Uuid) -> Result<Vec<PluginFamilyView>> {
@@ -304,6 +303,7 @@ where
             .official_source
             .list_official_catalog()
             .await?
+            .entries
             .into_iter()
             .map(|entry| (entry.provider_code.clone(), entry))
             .collect::<HashMap<_, _>>();
@@ -369,13 +369,25 @@ where
         ensure_permission(&actor, "plugin_config.configure.all")
             .map_err(ControlPlaneError::PermissionDenied)?;
 
-        let catalog = self.official_source.list_official_catalog().await?;
-        let entry = catalog
+        let snapshot = self.official_source.list_official_catalog().await?;
+        let entry = snapshot
+            .entries
             .into_iter()
             .find(|item| item.plugin_id == command.plugin_id)
             .ok_or(ControlPlaneError::NotFound("official_plugin"))?;
         let downloaded = self.official_source.download_plugin(&entry).await?;
-        let package_root = downloaded.package_root.clone();
+        let intake = intake_package_bytes(
+            &downloaded.package_bytes,
+            &PackageIntakePolicy {
+                source_kind: snapshot.source.source_kind.clone(),
+                trust_mode: entry.trust_mode.clone(),
+                expected_artifact_sha256: Some(entry.checksum.clone()),
+                trusted_public_keys: self.official_source.trusted_public_keys(),
+                original_filename: Some(downloaded.file_name.clone()),
+            },
+        )
+        .await?;
+        let package_root = intake.extracted_root.clone();
         let result = async {
             let install = self
                 .install_plugin_with_metadata(
@@ -383,10 +395,14 @@ where
                         actor_user_id: command.actor_user_id,
                         package_root: package_root.display().to_string(),
                     },
-                    InstallSourceMetadata::from_registry_download(
-                        downloaded.checksum.clone(),
-                        downloaded.signature_status.clone(),
-                    ),
+                    InstallSourceMetadata {
+                        source_kind: intake.source_kind.clone(),
+                        trust_level: intake.trust_level.clone(),
+                        checksum: intake.checksum.clone(),
+                        signature_status: Some(intake.signature_status.clone()),
+                        signature_algorithm: intake.signature_algorithm.clone(),
+                        signing_key_id: intake.signing_key_id.clone(),
+                    },
                 )
                 .await?;
             self.enable_plugin(EnablePluginCommand {
@@ -428,6 +444,7 @@ where
             .official_source
             .list_official_catalog()
             .await?
+            .entries
             .into_iter()
             .find(|entry| entry.provider_code == command.provider_code)
             .ok_or(ControlPlaneError::NotFound("official_plugin"))?;
@@ -447,17 +464,38 @@ where
                     .official_source
                     .download_plugin(&official_entry)
                     .await?;
-                let package_root = downloaded.package_root.clone();
+                let snapshot = self.official_source.list_official_catalog().await?;
+                let snapshot_entry = snapshot
+                    .entries
+                    .into_iter()
+                    .find(|entry| entry.provider_code == command.provider_code)
+                    .ok_or(ControlPlaneError::NotFound("official_plugin"))?;
+                let intake = intake_package_bytes(
+                    &downloaded.package_bytes,
+                    &PackageIntakePolicy {
+                        source_kind: snapshot.source.source_kind.clone(),
+                        trust_mode: snapshot_entry.trust_mode.clone(),
+                        expected_artifact_sha256: Some(snapshot_entry.checksum.clone()),
+                        trusted_public_keys: self.official_source.trusted_public_keys(),
+                        original_filename: Some(downloaded.file_name.clone()),
+                    },
+                )
+                .await?;
+                let package_root = intake.extracted_root.clone();
                 let install_result = async {
                     self.install_plugin_with_metadata(
                         InstallPluginCommand {
                             actor_user_id: command.actor_user_id,
                             package_root: package_root.display().to_string(),
                         },
-                        InstallSourceMetadata::from_registry_download(
-                            downloaded.checksum.clone(),
-                            downloaded.signature_status.clone(),
-                        ),
+                        InstallSourceMetadata {
+                            source_kind: intake.source_kind.clone(),
+                            trust_level: intake.trust_level.clone(),
+                            checksum: intake.checksum.clone(),
+                            signature_status: Some(intake.signature_status.clone()),
+                            signature_algorithm: intake.signature_algorithm.clone(),
+                            signing_key_id: intake.signing_key_id.clone(),
+                        },
                     )
                     .await
                 }

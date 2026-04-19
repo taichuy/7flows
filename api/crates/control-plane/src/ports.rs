@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use async_trait::async_trait;
 use domain::{
     ActorContext, AuditLogRecord, AuthenticatorRecord, DataModelScopeKind, ModelDefinitionRecord,
@@ -644,6 +642,13 @@ pub struct UpdatePluginInstallationEnabledInput {
 }
 
 #[derive(Debug, Clone)]
+pub struct OfficialPluginCatalogSource {
+    pub source_kind: String,
+    pub source_label: String,
+    pub registry_url: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct OfficialPluginSourceEntry {
     pub plugin_id: String,
     pub provider_code: String,
@@ -653,25 +658,33 @@ pub struct OfficialPluginSourceEntry {
     pub release_tag: String,
     pub download_url: String,
     pub checksum: String,
-    pub signature_status: String,
+    pub trust_mode: String,
+    pub signature_algorithm: Option<String>,
+    pub signing_key_id: Option<String>,
     pub help_url: Option<String>,
     pub model_discovery_mode: String,
 }
 
 #[derive(Debug, Clone)]
+pub struct OfficialPluginCatalogSnapshot {
+    pub source: OfficialPluginCatalogSource,
+    pub entries: Vec<OfficialPluginSourceEntry>,
+}
+
+#[derive(Debug, Clone)]
 pub struct DownloadedOfficialPluginPackage {
-    pub package_root: PathBuf,
-    pub checksum: String,
-    pub signature_status: String,
+    pub file_name: String,
+    pub package_bytes: Vec<u8>,
 }
 
 #[async_trait]
 pub trait OfficialPluginSourcePort: Send + Sync {
-    async fn list_official_catalog(&self) -> anyhow::Result<Vec<OfficialPluginSourceEntry>>;
+    async fn list_official_catalog(&self) -> anyhow::Result<OfficialPluginCatalogSnapshot>;
     async fn download_plugin(
         &self,
         entry: &OfficialPluginSourceEntry,
     ) -> anyhow::Result<DownloadedOfficialPluginPackage>;
+    fn trusted_public_keys(&self) -> Vec<plugin_framework::TrustedPublicKey>;
 }
 
 #[async_trait]
