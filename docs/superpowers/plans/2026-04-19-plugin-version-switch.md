@@ -1275,7 +1275,7 @@ Expected: PASS for provider-family rendering, version management, official lates
 
 Execution note (`2026-04-19`): `rtk pnpm --dir web/app exec vitest run src/features/settings/_tests/model-providers-page.test.tsx` passed twice after implementation and formatting, with `10 passed`.
 
-- [ ] **Step 6: Commit the settings-page refactor**
+- [x] **Step 6: Commit the settings-page refactor**
 
 Run:
 
@@ -1295,12 +1295,14 @@ git commit -m "feat: add plugin version management to settings"
 
 Expected: one commit that turns the settings page into the first provider-family consumer surface.
 
+Execution note (`2026-04-19`): committed as `3f9a18f7 feat: add plugin version management to settings`.
+
 ### Task 6: Run Final Targeted Verification And Record The Result
 
 **Files:**
 - Modify: `docs/superpowers/plans/2026-04-19-plugin-version-switch.md`
 
-- [ ] **Step 1: Run the backend verification slice**
+- [x] **Step 1: Run the backend verification slice**
 
 Run:
 
@@ -1313,7 +1315,9 @@ rtk cargo test --manifest-path api/Cargo.toml -p api-server plugin_routes_ -- --
 
 Expected: PASS for storage, service, and route slices that cover pointer storage, version switching, and provider-instance migration.
 
-- [ ] **Step 2: Run the frontend verification slice**
+Execution note (`2026-04-19`): all four commands passed serially. Results: `storage-pg plugin_repository_` (`2 passed`), `storage-pg model_provider_repository_` (`2 passed`), `control-plane plugin_management_service_` (`7 passed`), and `api-server plugin_routes_` (`5 passed`).
+
+- [x] **Step 2: Run the frontend verification slice**
 
 Run:
 
@@ -1323,7 +1327,9 @@ rtk pnpm --dir web/app test -- src/features/settings/_tests/model-providers-page
 
 Expected: PASS for the model-provider settings page without running the full frontend suite.
 
-- [ ] **Step 3: Update this plan file, then commit the final verification checkpoint**
+Execution note (`2026-04-19`): ran `rtk pnpm --dir web/app exec vitest run src/features/settings/_tests/model-providers-page.test.tsx`; it passed with `10 passed`.
+
+- [x] **Step 3: Update this plan file, then commit the final verification checkpoint**
 
 Update the checkboxes you completed in this file and append a short “Verification” note under the last task with the exact commands that passed.
 
@@ -1335,3 +1341,15 @@ git commit -m "docs: record plugin version switch verification"
 ```
 
 Expected: a final documentation-only commit that leaves an auditable execution trail in the plan file.
+
+**Verification**
+
+Passed commands (`2026-04-19`):
+
+```bash
+rtk cargo test --manifest-path api/Cargo.toml -p storage-pg plugin_repository_ -- --nocapture
+rtk cargo test --manifest-path api/Cargo.toml -p storage-pg model_provider_repository_ -- --nocapture
+rtk cargo test --manifest-path api/Cargo.toml -p control-plane plugin_management_service_ -- --nocapture
+rtk cargo test --manifest-path api/Cargo.toml -p api-server plugin_routes_ -- --nocapture
+rtk pnpm --dir web/app exec vitest run src/features/settings/_tests/model-providers-page.test.tsx
+```
