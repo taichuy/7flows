@@ -160,7 +160,7 @@ function removeDirIfExists(targetPath) {
   fs.rmSync(targetPath, { recursive: true, force: true });
 }
 
-function createManifestTemplate({ pluginCode }) {
+function createManifestTemplate({ pluginCode, pluginName }) {
   return `schema_version: 2
 plugin_type: model_provider
 plugin_code: ${pluginCode}
@@ -168,6 +168,12 @@ version: 0.1.0
 contract_version: 1flowbase.provider/v1
 metadata:
   author: taichuy
+  label:
+    en_US: ${pluginName}
+    zh_Hans: ${pluginName}
+  description:
+    en_US: Provider plugin for services that expose an OpenAI-compatible API surface.
+    zh_Hans: 面向 OpenAI 兼容接口服务的模型供应商插件。
 provider:
   definition: provider/${pluginCode}.yaml
 runtime:
@@ -910,7 +916,10 @@ function createPluginScaffold(pluginPath, options = {}) {
 
   ensureTargetDirForInit(pluginPath);
 
-  writeFile(path.join(pluginPath, 'manifest.yaml'), createManifestTemplate({ pluginCode }));
+  writeFile(
+    path.join(pluginPath, 'manifest.yaml'),
+    createManifestTemplate({ pluginCode, pluginName })
+  );
   writeFile(
     path.join(pluginPath, 'provider', `${pluginCode}.yaml`),
     createProviderYamlTemplate({ pluginCode, pluginName })

@@ -92,6 +92,16 @@ test('plugin init scaffolds rust provider source and executable manifest', async
   assert.match(manifest, /schema_version: 2/);
   assert.match(manifest, /plugin_type: model_provider/);
   assert.match(manifest, /plugin_code: acme_openai_compatible/);
+  assert.match(manifest, /label:\n    en_US: acme-openai-compatible/);
+  assert.match(manifest, /label:\n    en_US: acme-openai-compatible\n    zh_Hans: acme-openai-compatible/);
+  assert.match(
+    manifest,
+    /description:\n    en_US: Provider plugin for services that expose an OpenAI-compatible API surface\./
+  );
+  assert.match(
+    manifest,
+    /description:\n    en_US: Provider plugin for services that expose an OpenAI-compatible API surface\.\n    zh_Hans: 面向 OpenAI 兼容接口服务的模型供应商插件。/
+  );
   assert.match(manifest, /kind: executable/);
   assert.match(manifest, /protocol: stdio-json/);
   assert.match(manifest, /path: bin\/acme_openai_compatible-provider/);
