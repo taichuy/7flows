@@ -626,7 +626,7 @@ Expected: one commit that introduces plugin families and the `switch_version` ac
 - Test: `api/crates/control-plane/src/_tests/plugin_management_service_tests.rs`
 - Test: `api/crates/storage-pg/src/_tests/model_provider_repository_tests.rs`
 
-- [ ] **Step 1: Write the failing tests for batch instance migration and cache reset**
+- [x] **Step 1: Write the failing tests for batch instance migration and cache reset**
 
 Add a storage-level test in `api/crates/storage-pg/src/_tests/model_provider_repository_tests.rs`:
 
@@ -730,7 +730,7 @@ assert_eq!(
 assert_eq!(repository.cache_refresh_statuses().await, vec!["idle", "idle"]);
 ```
 
-- [ ] **Step 2: Run the migration-focused tests to capture the RED baseline**
+- [x] **Step 2: Run the migration-focused tests to capture the RED baseline**
 
 Run:
 
@@ -741,7 +741,7 @@ rtk cargo test --manifest-path api/Cargo.toml -p control-plane plugin_management
 
 Expected: FAIL because there is no explicit batch reassignment primitive and `switch_version` does not touch provider instances or caches.
 
-- [ ] **Step 3: Add explicit instance-reassignment primitives and wire them into `switch_version`**
+- [x] **Step 3: Add explicit instance-reassignment primitives and wire them into `switch_version`**
 
 Define the new input in `api/crates/control-plane/src/ports.rs`:
 
@@ -874,7 +874,7 @@ self.repository
     .await?;
 ```
 
-- [ ] **Step 4: Re-run the migration-focused tests**
+- [x] **Step 4: Re-run the migration-focused tests**
 
 Run:
 
@@ -885,7 +885,9 @@ rtk cargo test --manifest-path api/Cargo.toml -p control-plane plugin_management
 
 Expected: PASS with task detail containing `previous_installation_id`, `previous_version`, `target_installation_id`, `target_version`, and `migrated_instance_count`.
 
-- [ ] **Step 5: Commit the migration-and-cache-invalidating switch flow**
+Execution note (`2026-04-19`): the Rust verification commands for `storage-pg` and `control-plane` were executed serially in practice because concurrent `cargo test` runs in this workspace contend on the package/artifact lock and slow or block each other. Final verification passed with `rtk cargo test --manifest-path api/Cargo.toml -p storage-pg model_provider_repository_ -- --nocapture` and `rtk cargo test --manifest-path api/Cargo.toml -p control-plane plugin_management_service_ -- --nocapture`.
+
+- [x] **Step 5: Commit the migration-and-cache-invalidating switch flow**
 
 Run:
 

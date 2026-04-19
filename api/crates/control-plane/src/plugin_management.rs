@@ -17,9 +17,10 @@ use crate::{
     errors::ControlPlaneError,
     ports::{
         AuthRepository, CreatePluginAssignmentInput, CreatePluginTaskInput,
-        OfficialPluginSourcePort, PluginRepository, ProviderRuntimePort,
+        ModelProviderRepository, OfficialPluginSourcePort, PluginRepository,
+        ProviderRuntimePort, ReassignModelProviderInstancesInput,
         UpdatePluginInstallationEnabledInput, UpdatePluginTaskStatusInput,
-        UpsertPluginInstallationInput,
+        UpsertModelProviderCatalogCacheInput, UpsertPluginInstallationInput,
     },
 };
 
@@ -147,7 +148,7 @@ impl InstallSourceMetadata {
 
 impl<R, H> PluginManagementService<R, H>
 where
-    R: AuthRepository + PluginRepository,
+    R: AuthRepository + PluginRepository + ModelProviderRepository,
     H: ProviderRuntimePort,
 {
     pub fn new(
@@ -880,6 +881,33 @@ where
             .await?;
 
         let switch_result = async {
+            let package = load_provider_package(&target.install_path)?;
+            let migrated_instances = self
+                .repository
+                .reassign_instances_to_installation(&ReassignModelProviderInstancesInput {
+                    workspace_id: actor.current_workspace_id,
+                    provider_code: provider_code.to_string(),
+                    target_installation_id: target.id,
+                    target_protocol: target.protocol.clone(),
+                    updated_by: actor_user_id,
+                })
+                .await?;
+
+            for instance in &migrated_instances {
+                self.repository
+                    .upsert_catalog_cache(&UpsertModelProviderCatalogCacheInput {
+                        provider_instance_id: instance.id,
+                        model_discovery_mode: map_model_discovery_mode(
+                            package.provider.model_discovery_mode,
+                        ),
+                        refresh_status: domain::ModelProviderCatalogRefreshStatus::Idle,
+                        source: map_catalog_source(package.provider.model_discovery_mode),
+                        models_json: json!([]),
+                        last_error_message: None,
+                        refreshed_at: None,
+                    })
+                    .await?;
+            }
             self.repository
                 .create_assignment(&CreatePluginAssignmentInput {
                     installation_id: target.id,
@@ -904,12 +932,25 @@ where
                     }),
                 ))
                 .await?;
-            Ok::<(), anyhow::Error>(())
+            self.repository
+                .append_audit_log(&audit_log(
+                    Some(actor.current_workspace_id),
+                    Some(actor_user_id),
+                    "model_provider_instance",
+                    None,
+                    "provider.instances_migrated_after_plugin_switch",
+                    json!({
+                        "provider_code": provider_code,
+                        "migrated_instance_count": migrated_instances.len(),
+                    }),
+                ))
+                .await?;
+            Ok::<usize, anyhow::Error>(migrated_instances.len())
         }
         .await;
 
         match switch_result {
-            Ok(()) => {
+            Ok(migrated_instance_count) => {
                 self.repository
                     .update_task_status(&UpdatePluginTaskStatusInput {
                         task_id,
@@ -921,7 +962,7 @@ where
                             "previous_version": current.plugin_version,
                             "target_installation_id": target.id,
                             "target_version": target.plugin_version,
-                            "migrated_instance_count": 0,
+                            "migrated_instance_count": migrated_instance_count,
                         }),
                     })
                     .await
@@ -961,6 +1002,38 @@ where
 
 fn load_provider_package(path: impl AsRef<Path>) -> Result<ProviderPackage> {
     ProviderPackage::load_from_dir(path.as_ref()).map_err(map_framework_error)
+}
+
+fn map_model_discovery_mode(
+    mode: plugin_framework::provider_contract::ModelDiscoveryMode,
+) -> domain::ModelProviderDiscoveryMode {
+    match mode {
+        plugin_framework::provider_contract::ModelDiscoveryMode::Static => {
+            domain::ModelProviderDiscoveryMode::Static
+        }
+        plugin_framework::provider_contract::ModelDiscoveryMode::Dynamic => {
+            domain::ModelProviderDiscoveryMode::Dynamic
+        }
+        plugin_framework::provider_contract::ModelDiscoveryMode::Hybrid => {
+            domain::ModelProviderDiscoveryMode::Hybrid
+        }
+    }
+}
+
+fn map_catalog_source(
+    mode: plugin_framework::provider_contract::ModelDiscoveryMode,
+) -> domain::ModelProviderCatalogSource {
+    match mode {
+        plugin_framework::provider_contract::ModelDiscoveryMode::Static => {
+            domain::ModelProviderCatalogSource::Static
+        }
+        plugin_framework::provider_contract::ModelDiscoveryMode::Dynamic => {
+            domain::ModelProviderCatalogSource::Dynamic
+        }
+        plugin_framework::provider_contract::ModelDiscoveryMode::Hybrid => {
+            domain::ModelProviderCatalogSource::Hybrid
+        }
+    }
 }
 
 fn map_framework_error(error: plugin_framework::error::PluginFrameworkError) -> anyhow::Error {

@@ -22,17 +22,22 @@ use crate::{
         UpgradeLatestPluginFamilyCommand,
     },
     ports::{
-        AuthRepository, CreatePluginAssignmentInput, CreatePluginTaskInput,
+        AuthRepository, CreateModelProviderInstanceInput, CreatePluginAssignmentInput,
+        CreatePluginTaskInput, ModelProviderRepository,
         DownloadedOfficialPluginPackage, OfficialPluginSourceEntry, OfficialPluginSourcePort,
         PluginRepository, ProviderRuntimeInvocationOutput, ProviderRuntimePort,
+        ReassignModelProviderInstancesInput, UpdateModelProviderInstanceInput,
         UpdatePluginInstallationEnabledInput, UpdatePluginTaskStatusInput, UpdateProfileInput,
+        UpsertModelProviderCatalogCacheInput, UpsertModelProviderSecretInput,
         UpsertPluginInstallationInput,
     },
 };
 use domain::{
-    ActorContext, AuditLogRecord, AuthenticatorRecord, PermissionDefinition,
-    PluginAssignmentRecord, PluginInstallationRecord, PluginTaskKind, PluginTaskRecord,
-    PluginTaskStatus, ScopeContext, UserRecord,
+    ActorContext, AuditLogRecord, AuthenticatorRecord, ModelProviderCatalogCacheRecord,
+    ModelProviderCatalogRefreshStatus, ModelProviderCatalogSource, ModelProviderDiscoveryMode,
+    ModelProviderInstanceRecord, ModelProviderInstanceStatus, ModelProviderSecretRecord,
+    PermissionDefinition, PluginAssignmentRecord, PluginInstallationRecord, PluginTaskKind,
+    PluginTaskRecord, PluginTaskStatus, ScopeContext, UserRecord,
 };
 use plugin_framework::provider_contract::{
     ProviderInvocationInput, ProviderInvocationResult, ProviderModelDescriptor,
@@ -46,6 +51,8 @@ struct MemoryPluginManagementRepository {
     plugin_ids: Arc<RwLock<HashMap<String, Uuid>>>,
     assignments: Arc<RwLock<Vec<PluginAssignmentRecord>>>,
     tasks: Arc<RwLock<HashMap<Uuid, PluginTaskRecord>>>,
+    instances: Arc<RwLock<HashMap<Uuid, ModelProviderInstanceRecord>>>,
+    caches: Arc<RwLock<HashMap<Uuid, ModelProviderCatalogCacheRecord>>>,
     audit_events: Arc<RwLock<Vec<String>>>,
 }
 
@@ -57,12 +64,80 @@ impl MemoryPluginManagementRepository {
             plugin_ids: Arc::new(RwLock::new(HashMap::new())),
             assignments: Arc::new(RwLock::new(Vec::new())),
             tasks: Arc::new(RwLock::new(HashMap::new())),
+            instances: Arc::new(RwLock::new(HashMap::new())),
+            caches: Arc::new(RwLock::new(HashMap::new())),
             audit_events: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
     async fn audit_events(&self) -> Vec<String> {
         self.audit_events.read().await.clone()
+    }
+
+    async fn assignment_installation_id(&self, provider_code: &str) -> Uuid {
+        self.assignments
+            .read()
+            .await
+            .iter()
+            .find(|assignment| assignment.provider_code == provider_code)
+            .map(|assignment| assignment.installation_id)
+            .unwrap()
+    }
+
+    async fn cache_refresh_statuses(&self) -> Vec<String> {
+        let mut statuses = self
+            .caches
+            .read()
+            .await
+            .values()
+            .map(|cache| cache.refresh_status.as_str().to_string())
+            .collect::<Vec<_>>();
+        statuses.sort();
+        statuses
+    }
+
+    async fn seed_instance_with_ready_cache(
+        &self,
+        installation_id: Uuid,
+        provider_code: &str,
+        display_name: &str,
+    ) -> Uuid {
+        let now = OffsetDateTime::now_utc();
+        let instance_id = Uuid::now_v7();
+        self.instances.write().await.insert(
+            instance_id,
+            ModelProviderInstanceRecord {
+                id: instance_id,
+                workspace_id: self.actor.current_workspace_id,
+                installation_id,
+                provider_code: provider_code.to_string(),
+                protocol: "openai_compatible".to_string(),
+                display_name: display_name.to_string(),
+                status: ModelProviderInstanceStatus::Ready,
+                config_json: json!({ "base_url": "https://api.example.com" }),
+                last_validated_at: Some(now),
+                last_validation_status: None,
+                last_validation_message: None,
+                created_by: self.actor.user_id,
+                updated_by: self.actor.user_id,
+                created_at: now,
+                updated_at: now,
+            },
+        );
+        self.caches.write().await.insert(
+            instance_id,
+            ModelProviderCatalogCacheRecord {
+                provider_instance_id: instance_id,
+                model_discovery_mode: ModelProviderDiscoveryMode::Hybrid,
+                refresh_status: ModelProviderCatalogRefreshStatus::Ready,
+                source: ModelProviderCatalogSource::Hybrid,
+                models_json: json!([{ "model_id": "fixture_chat" }]),
+                last_error_message: None,
+                refreshed_at: Some(now),
+                updated_at: now,
+            },
+        );
+        instance_id
     }
 }
 
@@ -280,6 +355,164 @@ impl PluginRepository for MemoryPluginManagementRepository {
 
     async fn list_tasks(&self) -> Result<Vec<PluginTaskRecord>> {
         Ok(self.tasks.read().await.values().cloned().collect())
+    }
+}
+
+#[async_trait]
+impl ModelProviderRepository for MemoryPluginManagementRepository {
+    async fn create_instance(
+        &self,
+        input: &CreateModelProviderInstanceInput,
+    ) -> Result<ModelProviderInstanceRecord> {
+        let now = OffsetDateTime::now_utc();
+        let record = ModelProviderInstanceRecord {
+            id: input.instance_id,
+            workspace_id: input.workspace_id,
+            installation_id: input.installation_id,
+            provider_code: input.provider_code.clone(),
+            protocol: input.protocol.clone(),
+            display_name: input.display_name.clone(),
+            status: input.status,
+            config_json: input.config_json.clone(),
+            last_validated_at: None,
+            last_validation_status: input.last_validation_status,
+            last_validation_message: input.last_validation_message.clone(),
+            created_by: input.created_by,
+            updated_by: input.created_by,
+            created_at: now,
+            updated_at: now,
+        };
+        self.instances
+            .write()
+            .await
+            .insert(record.id, record.clone());
+        Ok(record)
+    }
+
+    async fn update_instance(
+        &self,
+        input: &UpdateModelProviderInstanceInput,
+    ) -> Result<ModelProviderInstanceRecord> {
+        let mut instances = self.instances.write().await;
+        let instance = instances
+            .get_mut(&input.instance_id)
+            .ok_or(ControlPlaneError::NotFound("model_provider_instance"))?;
+        instance.display_name = input.display_name.clone();
+        instance.status = input.status;
+        instance.config_json = input.config_json.clone();
+        instance.last_validated_at = input.last_validated_at;
+        instance.last_validation_status = input.last_validation_status;
+        instance.last_validation_message = input.last_validation_message.clone();
+        instance.updated_by = input.updated_by;
+        instance.updated_at = OffsetDateTime::now_utc();
+        Ok(instance.clone())
+    }
+
+    async fn get_instance(
+        &self,
+        workspace_id: Uuid,
+        instance_id: Uuid,
+    ) -> Result<Option<ModelProviderInstanceRecord>> {
+        Ok(self
+            .instances
+            .read()
+            .await
+            .get(&instance_id)
+            .filter(|instance| instance.workspace_id == workspace_id)
+            .cloned())
+    }
+
+    async fn list_instances(&self, workspace_id: Uuid) -> Result<Vec<ModelProviderInstanceRecord>> {
+        Ok(self
+            .instances
+            .read()
+            .await
+            .values()
+            .filter(|instance| instance.workspace_id == workspace_id)
+            .cloned()
+            .collect())
+    }
+
+    async fn reassign_instances_to_installation(
+        &self,
+        input: &ReassignModelProviderInstancesInput,
+    ) -> Result<Vec<ModelProviderInstanceRecord>> {
+        let mut instances = self.instances.write().await;
+        let mut migrated = Vec::new();
+        for instance in instances.values_mut() {
+            if instance.workspace_id == input.workspace_id
+                && instance.provider_code == input.provider_code
+            {
+                instance.installation_id = input.target_installation_id;
+                instance.protocol = input.target_protocol.clone();
+                instance.updated_by = input.updated_by;
+                instance.updated_at = OffsetDateTime::now_utc();
+                migrated.push(instance.clone());
+            }
+        }
+        Ok(migrated)
+    }
+
+    async fn upsert_catalog_cache(
+        &self,
+        input: &UpsertModelProviderCatalogCacheInput,
+    ) -> Result<ModelProviderCatalogCacheRecord> {
+        let record = ModelProviderCatalogCacheRecord {
+            provider_instance_id: input.provider_instance_id,
+            model_discovery_mode: input.model_discovery_mode,
+            refresh_status: input.refresh_status,
+            source: input.source,
+            models_json: input.models_json.clone(),
+            last_error_message: input.last_error_message.clone(),
+            refreshed_at: input.refreshed_at,
+            updated_at: OffsetDateTime::now_utc(),
+        };
+        self.caches
+            .write()
+            .await
+            .insert(record.provider_instance_id, record.clone());
+        Ok(record)
+    }
+
+    async fn get_catalog_cache(
+        &self,
+        provider_instance_id: Uuid,
+    ) -> Result<Option<ModelProviderCatalogCacheRecord>> {
+        Ok(self.caches.read().await.get(&provider_instance_id).cloned())
+    }
+
+    async fn upsert_secret(
+        &self,
+        _input: &UpsertModelProviderSecretInput,
+    ) -> Result<ModelProviderSecretRecord> {
+        unimplemented!("not needed in plugin management tests")
+    }
+
+    async fn get_secret_json(
+        &self,
+        _provider_instance_id: Uuid,
+        _master_key: &str,
+    ) -> Result<Option<Value>> {
+        Ok(None)
+    }
+
+    async fn get_secret_record(
+        &self,
+        _provider_instance_id: Uuid,
+    ) -> Result<Option<ModelProviderSecretRecord>> {
+        Ok(None)
+    }
+
+    async fn delete_instance(&self, _workspace_id: Uuid, _instance_id: Uuid) -> Result<()> {
+        unimplemented!("not needed in plugin management tests")
+    }
+
+    async fn count_instance_references(
+        &self,
+        _workspace_id: Uuid,
+        _instance_id: Uuid,
+    ) -> Result<u64> {
+        Ok(0)
     }
 }
 
@@ -711,6 +944,73 @@ async fn plugin_management_service_switches_to_a_local_version_without_redownloa
     assert_eq!(assignments[0].installation_id, target_installation);
     assert_eq!(task.task_kind, PluginTaskKind::SwitchVersion);
     assert_eq!(task.status, PluginTaskStatus::Success);
+}
+
+#[tokio::test]
+async fn plugin_management_service_switches_version_and_invalidates_provider_caches() {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
+        workspace_id,
+        &["plugin_config.view.all", "plugin_config.configure.all"],
+    ));
+    let runtime = MemoryProviderRuntime::default();
+    let install_root = std::env::temp_dir().join(format!("plugin-switch-migrate-{}", Uuid::now_v7()));
+    let service = PluginManagementService::new(
+        repository.clone(),
+        runtime,
+        Arc::new(MemoryOfficialPluginSource),
+        &install_root,
+    );
+
+    let current_installation =
+        seed_test_installation(&repository, &install_root, "fixture_provider", "0.1.0", true)
+            .await;
+    let target_installation =
+        seed_test_installation(&repository, &install_root, "fixture_provider", "0.2.0", true)
+            .await;
+    repository
+        .create_assignment(&CreatePluginAssignmentInput {
+            installation_id: current_installation,
+            workspace_id,
+            provider_code: "fixture_provider".into(),
+            actor_user_id: repository.actor.user_id,
+        })
+        .await
+        .unwrap();
+    repository
+        .seed_instance_with_ready_cache(
+            current_installation,
+            "fixture_provider",
+            "Fixture Provider Prod",
+        )
+        .await;
+    repository
+        .seed_instance_with_ready_cache(
+            current_installation,
+            "fixture_provider",
+            "Fixture Provider Staging",
+        )
+        .await;
+
+    let task = service
+        .switch_version(SwitchPluginVersionCommand {
+            actor_user_id: repository.actor.user_id,
+            provider_code: "fixture_provider".into(),
+            target_installation_id: target_installation,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(task.task_kind, PluginTaskKind::SwitchVersion);
+    assert_eq!(task.detail_json["migrated_instance_count"], 2);
+    assert_eq!(
+        repository.assignment_installation_id("fixture_provider").await,
+        target_installation
+    );
+    assert_eq!(
+        repository.cache_refresh_statuses().await,
+        vec!["idle", "idle"]
+    );
 }
 
 #[tokio::test]

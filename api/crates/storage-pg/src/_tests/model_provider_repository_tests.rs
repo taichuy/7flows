@@ -1,5 +1,6 @@
 use control_plane::ports::{
-    CreateModelProviderInstanceInput, ModelProviderRepository, UpdateModelProviderInstanceInput,
+    CreateModelProviderInstanceInput, ModelProviderRepository,
+    ReassignModelProviderInstancesInput, UpdateModelProviderInstanceInput,
     UpsertModelProviderCatalogCacheInput, UpsertModelProviderSecretInput,
     UpsertPluginInstallationInput,
 };
@@ -203,4 +204,67 @@ async fn model_provider_repository_persists_instances_catalog_cache_and_encrypte
         .unwrap()
         .unwrap();
     assert_eq!(cache_record.models_json[0]["model_id"], "fixture_chat");
+}
+
+#[tokio::test]
+async fn model_provider_repository_reassigns_all_instances_for_a_provider() {
+    let (store, workspace, actor, installation_v1) = seed_store().await;
+    let installation_v2 = control_plane::ports::PluginRepository::upsert_installation(
+        &store,
+        &UpsertPluginInstallationInput {
+            installation_id: Uuid::now_v7(),
+            provider_code: "fixture_provider".into(),
+            plugin_id: "fixture_provider@0.2.0".into(),
+            plugin_version: "0.2.0".into(),
+            contract_version: "1flowbase.provider/v1".into(),
+            protocol: "openai_compatible".into(),
+            display_name: "Fixture Provider".into(),
+            source_kind: "official_registry".into(),
+            verification_status: PluginVerificationStatus::Valid,
+            enabled: true,
+            install_path: "/tmp/plugin-installed/fixture_provider/0.2.0".into(),
+            checksum: None,
+            signature_status: None,
+            metadata_json: json!({}),
+            actor_user_id: actor.id,
+        },
+    )
+    .await
+    .unwrap()
+    .id;
+    let instance = ModelProviderRepository::create_instance(
+        &store,
+        &CreateModelProviderInstanceInput {
+            instance_id: Uuid::now_v7(),
+            workspace_id: workspace.id,
+            installation_id: installation_v1,
+            provider_code: "fixture_provider".into(),
+            protocol: "openai_compatible".into(),
+            display_name: "Fixture Provider Prod".into(),
+            status: ModelProviderInstanceStatus::Draft,
+            config_json: json!({ "base_url": "https://api.example.com" }),
+            last_validation_status: None,
+            last_validation_message: None,
+            created_by: actor.id,
+        },
+    )
+    .await
+    .unwrap();
+
+    let moved = ModelProviderRepository::reassign_instances_to_installation(
+        &store,
+        &ReassignModelProviderInstancesInput {
+            workspace_id: workspace.id,
+            provider_code: "fixture_provider".into(),
+            target_installation_id: installation_v2,
+            target_protocol: "openai_compatible".into(),
+            updated_by: actor.id,
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(moved.len(), 1);
+    assert_eq!(moved[0].id, instance.id);
+    assert_eq!(moved[0].installation_id, installation_v2);
 }

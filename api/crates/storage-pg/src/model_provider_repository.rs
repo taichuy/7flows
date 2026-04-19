@@ -4,8 +4,8 @@ use control_plane::{
     errors::ControlPlaneError,
     ports::{
         CreateModelProviderInstanceInput, ModelProviderRepository,
-        UpdateModelProviderInstanceInput, UpsertModelProviderCatalogCacheInput,
-        UpsertModelProviderSecretInput,
+        ReassignModelProviderInstancesInput, UpdateModelProviderInstanceInput,
+        UpsertModelProviderCatalogCacheInput, UpsertModelProviderSecretInput,
     },
 };
 use serde_json::{json, Value};
@@ -239,6 +239,49 @@ impl ModelProviderRepository for PgControlPlaneStore {
             "#,
         )
         .bind(workspace_id)
+        .fetch_all(self.pool())
+        .await?;
+
+        rows.into_iter().map(map_instance).collect()
+    }
+
+    async fn reassign_instances_to_installation(
+        &self,
+        input: &ReassignModelProviderInstancesInput,
+    ) -> Result<Vec<domain::ModelProviderInstanceRecord>> {
+        let rows = sqlx::query(
+            r#"
+            update model_provider_instances
+            set
+                installation_id = $3,
+                protocol = $4,
+                updated_by = $5,
+                updated_at = now()
+            where workspace_id = $1
+              and provider_code = $2
+            returning
+                id,
+                workspace_id,
+                installation_id,
+                provider_code,
+                protocol,
+                display_name,
+                status,
+                config_json,
+                last_validated_at,
+                last_validation_status,
+                last_validation_message,
+                created_by,
+                updated_by,
+                created_at,
+                updated_at
+            "#,
+        )
+        .bind(input.workspace_id)
+        .bind(&input.provider_code)
+        .bind(input.target_installation_id)
+        .bind(&input.target_protocol)
+        .bind(input.updated_by)
         .fetch_all(self.pool())
         .await?;
 

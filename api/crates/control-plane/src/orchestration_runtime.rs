@@ -1479,6 +1479,13 @@ impl ModelProviderRepository for InMemoryOrchestrationRuntimeRepository {
             .collect())
     }
 
+    async fn reassign_instances_to_installation(
+        &self,
+        _input: &crate::ports::ReassignModelProviderInstancesInput,
+    ) -> Result<Vec<domain::ModelProviderInstanceRecord>> {
+        unimplemented!("not needed in orchestration runtime tests")
+    }
+
     async fn upsert_catalog_cache(
         &self,
         _input: &crate::ports::UpsertModelProviderCatalogCacheInput,
