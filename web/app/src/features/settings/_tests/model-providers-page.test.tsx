@@ -449,6 +449,9 @@ describe('ModelProvidersPage', () => {
     );
 
     expect(await screen.findByText('升级到最新版本')).toBeInTheDocument();
+    expect(screen.getAllByText('0.2.0')).toHaveLength(1);
+    expect(screen.getByText('其他本地版本')).toBeInTheDocument();
+    expect(screen.queryByText('最新')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '升级到最新版本' }));
 
     await waitFor(() => {
@@ -787,6 +790,48 @@ describe('ModelProvidersPage', () => {
         { timeout: 10000 }
       )
     ).toBeInTheDocument();
+  });
+
+  test('deduplicates official install cards for the same provider and keeps only one latest entry', async () => {
+    authenticateWithPermissions([
+      'route_page.view.all',
+      'state_model.view.all',
+      'state_model.manage.all'
+    ]);
+    pluginsApi.fetchSettingsPluginFamilies.mockResolvedValue([]);
+    pluginsApi.fetchSettingsOfficialPluginCatalog.mockResolvedValue([
+      {
+        plugin_id: '1flowbase.openai_compatible@0.1.0',
+        provider_code: 'openai_compatible',
+        display_name: 'OpenAI Compatible',
+        latest_version: '0.1.0',
+        protocol: 'openai_compatible',
+        help_url: 'https://example.com/openai-010',
+        model_discovery_mode: 'hybrid',
+        install_status: 'installed'
+      },
+      {
+        plugin_id: '1flowbase.openai_compatible@0.2.0',
+        provider_code: 'openai_compatible',
+        display_name: 'OpenAI Compatible',
+        latest_version: '0.2.0',
+        protocol: 'openai_compatible',
+        help_url: 'https://example.com/openai-020',
+        model_discovery_mode: 'hybrid',
+        install_status: 'not_installed'
+      }
+    ]);
+
+    renderApp('/settings/model-providers');
+
+    await waitFor(() => {
+      expect(pluginsApi.fetchSettingsOfficialPluginCatalog).toHaveBeenCalled();
+    });
+
+    expect(
+      await screen.findByText('openai_compatible · 官方最新 0.2.0')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('openai_compatible · 官方最新 0.1.0')).not.toBeInTheDocument();
   });
 
   test('polls install task until the official plugin finishes installing', async () => {

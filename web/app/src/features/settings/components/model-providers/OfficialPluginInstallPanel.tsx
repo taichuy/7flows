@@ -64,12 +64,60 @@ function getFamilyStatusTags(family: SettingsPluginFamilyEntry) {
     <Space wrap size={6}>
       <Tag color="green">当前 {family.current_version}</Tag>
       {family.has_update && family.latest_version ? (
-        <Tag color="gold">latest {family.latest_version}</Tag>
+        <Tag color="gold">官方最新 {family.latest_version}</Tag>
       ) : (
-        <Tag color="green">已是最新版本</Tag>
+        <Tag color="green">当前已是官方最新</Tag>
       )}
     </Space>
   );
+}
+
+function compareOfficialVersion(left: string, right: string) {
+  return left.localeCompare(right, undefined, {
+    numeric: true,
+    sensitivity: 'base'
+  });
+}
+
+function pickPreferredOfficialEntry(
+  current: SettingsOfficialPluginCatalogEntry,
+  candidate: SettingsOfficialPluginCatalogEntry,
+  family: SettingsPluginFamilyEntry | undefined
+) {
+  if (family?.latest_version) {
+    const currentMatchesFamilyLatest =
+      current.latest_version === family.latest_version;
+    const candidateMatchesFamilyLatest =
+      candidate.latest_version === family.latest_version;
+
+    if (currentMatchesFamilyLatest !== candidateMatchesFamilyLatest) {
+      return candidateMatchesFamilyLatest ? candidate : current;
+    }
+  }
+
+  const versionComparison = compareOfficialVersion(
+    candidate.latest_version,
+    current.latest_version
+  );
+  if (versionComparison !== 0) {
+    return versionComparison > 0 ? candidate : current;
+  }
+
+  const statusScore = {
+    assigned: 2,
+    installed: 1,
+    not_installed: 0
+  } as const;
+  const currentStatusScore = statusScore[current.install_status];
+  const candidateStatusScore = statusScore[candidate.install_status];
+
+  if (currentStatusScore !== candidateStatusScore) {
+    return candidateStatusScore > currentStatusScore ? candidate : current;
+  }
+
+  return compareOfficialVersion(candidate.plugin_id, current.plugin_id) > 0
+    ? candidate
+    : current;
 }
 
 export function OfficialPluginInstallPanel({
@@ -95,13 +143,35 @@ export function OfficialPluginInstallPanel({
 }) {
   const [modal, contextHolder] = Modal.useModal();
   const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
-  const visibleEntries = useMemo(() => {
-    if (!selectedPluginId) {
-      return entries;
+  const normalizedEntries = useMemo(() => {
+    const grouped = new Map<string, SettingsOfficialPluginCatalogEntry>();
+
+    for (const entry of entries) {
+      const existing = grouped.get(entry.provider_code);
+      if (!existing) {
+        grouped.set(entry.provider_code, entry);
+        continue;
+      }
+
+      grouped.set(
+        entry.provider_code,
+        pickPreferredOfficialEntry(
+          existing,
+          entry,
+          familiesByProviderCode[entry.provider_code]
+        )
+      );
     }
 
-    return entries.filter((entry) => entry.plugin_id === selectedPluginId);
-  }, [entries, selectedPluginId]);
+    return Array.from(grouped.values());
+  }, [entries, familiesByProviderCode]);
+  const visibleEntries = useMemo(() => {
+    if (!selectedPluginId) {
+      return normalizedEntries;
+    }
+
+    return normalizedEntries.filter((entry) => entry.plugin_id === selectedPluginId);
+  }, [normalizedEntries, selectedPluginId]);
 
   return (
     <section className="model-provider-panel__official">
@@ -123,13 +193,13 @@ export function OfficialPluginInstallPanel({
         optionFilterProp="label"
         value={selectedPluginId}
         onChange={(value) => setSelectedPluginId(value ?? null)}
-        options={entries.map((entry) => ({
+        options={normalizedEntries.map((entry) => ({
           value: entry.plugin_id,
           label: `${entry.display_name} / ${entry.protocol}`
         }))}
       />
 
-      {entries.length === 0 ? (
+      {normalizedEntries.length === 0 ? (
         <div className="model-provider-panel__empty">
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -172,7 +242,7 @@ export function OfficialPluginInstallPanel({
                       </Typography.Title>
                     </div>
                     <Typography.Text type="secondary">
-                      {entry.protocol} · latest {entry.latest_version}
+                      {entry.protocol} · 官方最新 {entry.latest_version}
                     </Typography.Text>
                   </div>
                   <Space wrap size={6}>
@@ -192,7 +262,7 @@ export function OfficialPluginInstallPanel({
                   <span>
                     {family
                       ? `当前 ${family.current_version}`
-                      : `版本 ${entry.latest_version}`}
+                      : `官方最新 ${entry.latest_version}`}
                   </span>
                 </div>
 
@@ -227,8 +297,8 @@ export function OfficialPluginInstallPanel({
                                 </Typography.Title>
                                 <Typography.Paragraph type="secondary">
                                   {family
-                                    ? `即将把当前 workspace 的 ${entry.display_name} 升级到 latest ${entry.latest_version}。完成后会统一迁移该供应商下的全部实例。`
-                                    : `即将安装官方插件 latest ${entry.latest_version}，完成后会自动启用到当前 workspace。`}
+                                    ? `即将把当前 workspace 的 ${entry.display_name} 升级到官方最新版本 ${entry.latest_version}。完成后会统一迁移该供应商下的全部实例。`
+                                    : `即将安装官方最新版本 ${entry.latest_version}，完成后会自动启用到当前 workspace。`}
                                 </Typography.Paragraph>
                                 <div className="model-provider-panel__catalog-item-meta">
                                   <span>协议 {entry.protocol}</span>

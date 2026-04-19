@@ -45,6 +45,12 @@ export function PluginVersionManagementModal({
         (version) => version.plugin_version === family.latest_version
       ) ?? null)
     : null;
+  const hasFeaturedLatestVersion = Boolean(family?.latest_version);
+  const switchableInstalledVersions = family
+    ? family.installed_versions.filter(
+        (version) => version.plugin_version !== family.latest_version
+      )
+    : [];
 
   return (
     <Modal
@@ -131,16 +137,20 @@ export function PluginVersionManagementModal({
         <section className="model-provider-panel__version-block">
           <div className="model-provider-panel__version-block-head">
             <div>
-              <Typography.Text strong>本地已安装版本</Typography.Text>
+              <Typography.Text strong>
+                {hasFeaturedLatestVersion ? '其他本地版本' : '本地已安装版本'}
+              </Typography.Text>
               <Typography.Paragraph type="secondary">
-                只展示当前环境里已经安装过的可切换版本。
+                {hasFeaturedLatestVersion
+                  ? '这里只展示非推荐版本，避免同一版本重复出现两次。'
+                  : '只展示当前环境里已经安装过的可切换版本。'}
               </Typography.Paragraph>
             </div>
           </div>
 
-          {family && family.installed_versions.length > 0 ? (
+          {family && switchableInstalledVersions.length > 0 ? (
             <div className="model-provider-panel__version-list">
-              {family.installed_versions.map((version) => {
+              {switchableInstalledVersions.map((version) => {
                 const isLatest =
                   family.latest_version === version.plugin_version;
                 const loading =
@@ -193,7 +203,11 @@ export function PluginVersionManagementModal({
           ) : (
             <Empty
               image={Empty.PRESENTED_IMAGE_SIMPLE}
-              description="当前还没有可切换的本地版本"
+              description={
+                hasFeaturedLatestVersion
+                  ? '当前还没有其他可切换版本'
+                  : '当前还没有可切换的本地版本'
+              }
             />
           )}
         </section>
