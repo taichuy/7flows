@@ -262,18 +262,21 @@ capabilities:
 `;
 }
 
-function createI18nTemplate({ pluginName }) {
+function createI18nTemplate({ pluginName, locale }) {
+  const isChinese = locale === 'zh_Hans';
   return JSON.stringify(
     {
       plugin: {
         label: pluginName,
-        description: `${pluginName} provider plugin scaffold`,
+        description: isChinese
+          ? `${pluginName} 模型供应商插件脚手架`
+          : `${pluginName} provider plugin scaffold`,
       },
       provider: {
         label: pluginName,
       },
       demo: {
-        title: `${pluginName} Demo`,
+        title: isChinese ? `${pluginName} 调试页` : `${pluginName} Demo`,
       },
     },
     null,
@@ -984,7 +987,14 @@ function createPluginScaffold(pluginPath, options = {}) {
     path.join(pluginPath, 'models', 'llm', `${pluginCode}_chat.yaml`),
     createExampleModelYaml({ pluginCode })
   );
-  writeFile(path.join(pluginPath, 'i18n', 'en_US.json'), createI18nTemplate({ pluginName }));
+  writeFile(
+    path.join(pluginPath, 'i18n', 'en_US.json'),
+    createI18nTemplate({ pluginName, locale: 'en_US' })
+  );
+  writeFile(
+    path.join(pluginPath, 'i18n', 'zh_Hans.json'),
+    createI18nTemplate({ pluginName, locale: 'zh_Hans' })
+  );
   writeFile(
     path.join(pluginPath, 'readme', 'README_en_US.md'),
     createReadmeTemplate({ pluginCode, pluginName })

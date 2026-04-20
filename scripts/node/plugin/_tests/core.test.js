@@ -138,6 +138,8 @@ test('plugin init scaffolds rust provider source and executable manifest', async
   assert.match(manifest, /path: bin\/acme_openai_compatible-provider/);
   assert.equal(fs.existsSync(path.join(pluginPath, 'Cargo.toml')), true);
   assert.equal(fs.existsSync(path.join(pluginPath, 'src', 'main.rs')), true);
+  assert.equal(fs.existsSync(path.join(pluginPath, 'i18n', 'en_US.json')), true);
+  assert.equal(fs.existsSync(path.join(pluginPath, 'i18n', 'zh_Hans.json')), true);
   assert.equal(
     fs.existsSync(path.join(pluginPath, 'provider', 'acme_openai_compatible.yaml')),
     true
@@ -146,6 +148,13 @@ test('plugin init scaffolds rust provider source and executable manifest', async
     fs.existsSync(path.join(pluginPath, 'provider', 'acme_openai_compatible.js')),
     false
   );
+
+  const zhHansI18n = JSON.parse(
+    fs.readFileSync(path.join(pluginPath, 'i18n', 'zh_Hans.json'), 'utf8')
+  );
+  assert.equal(zhHansI18n.plugin.label, 'acme-openai-compatible');
+  assert.equal(zhHansI18n.provider.label, 'acme-openai-compatible');
+  assert.match(zhHansI18n.plugin.description, /模型供应商插件/);
 });
 
 test('plugin demo init writes demo assets and helper config files', async () => {
