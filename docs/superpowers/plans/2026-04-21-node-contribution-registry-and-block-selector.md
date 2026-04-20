@@ -185,7 +185,7 @@ git commit -m "feat: add node contribution registry backend"
 - Modify: `web/packages/api-client/src/index.ts`
 - Create: `web/app/src/features/agent-flow/api/node-contributions.ts`
 
-- [ ] **Step 1: Write failing route and client tests**
+- [x] **Step 1: Write failing route and client tests**
 
 Use cases like:
 
@@ -212,7 +212,7 @@ it('fetchNodeContributions requests the workspace-scoped registry', async () => 
 });
 ```
 
-- [ ] **Step 2: Run RED verification**
+- [x] **Step 2: Run RED verification**
 
 Run:
 
@@ -225,7 +225,7 @@ Expected:
 
 - FAIL because no route, API client, or frontend fetch layer exists yet.
 
-- [ ] **Step 3: Implement the route and typed client**
+- [x] **Step 3: Implement the route and typed client**
 
 Create a route DTO shaped like:
 
@@ -261,7 +261,7 @@ export interface ConsoleNodeContribution {
 }
 ```
 
-- [ ] **Step 4: Re-run route and client tests**
+- [x] **Step 4: Re-run route and client tests**
 
 Run:
 
@@ -274,7 +274,7 @@ Expected:
 
 - PASS with a typed API surface for the agent-flow editor.
 
-- [ ] **Step 5: Commit the API surface**
+- [x] **Step 5: Commit the API surface**
 
 ```bash
 git add api/apps/api-server/src/lib.rs api/apps/api-server/src/openapi.rs api/apps/api-server/src/routes/application_orchestration.rs api/apps/api-server/src/routes/node_contributions.rs api/apps/api-server/src/_tests/node_contribution_routes.rs web/packages/api-client/src/console-node-contributions.ts web/packages/api-client/src/index.ts web/app/src/features/agent-flow/api/node-contributions.ts
