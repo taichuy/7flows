@@ -228,6 +228,31 @@ test('plugin package copies a target binary into bin and encodes the target in t
   );
 });
 
+test('plugin package writes a windows executable and asset suffix', async () => {
+  const pluginPath = makeTempPluginPath();
+  const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-plugin-dist-'));
+
+  await main(['init', pluginPath]);
+
+  const runtimeBinary = path.join(outputDir, 'acme_openai_compatible-provider.exe');
+  fs.mkdirSync(path.dirname(runtimeBinary), { recursive: true });
+  fs.writeFileSync(runtimeBinary, 'echo demo');
+
+  const result = await main([
+    'package',
+    pluginPath,
+    '--out',
+    outputDir,
+    '--runtime-binary',
+    runtimeBinary,
+    '--target',
+    'x86_64-pc-windows-msvc',
+  ]);
+
+  assert.match(result.packageFile, /@windows-amd64@[a-f0-9]{64}\.1flowbasepkg$/);
+  assert.ok(fs.readdirSync(outputDir).some((name) => name.includes('@windows-amd64@')));
+});
+
 test('plugin package excludes demo and scripts from the packaged artifact', async () => {
   const pluginPath = makeTempPluginPath();
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-plugin-dist-'));

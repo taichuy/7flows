@@ -728,6 +728,7 @@ function parseRustTargetTriple(raw) {
         arch: 'amd64',
         libc: 'musl',
         assetSuffix: 'linux-amd64',
+        executableSuffix: '',
       };
     case 'aarch64-unknown-linux-musl':
       return {
@@ -736,6 +737,43 @@ function parseRustTargetTriple(raw) {
         arch: 'arm64',
         libc: 'musl',
         assetSuffix: 'linux-arm64',
+        executableSuffix: '',
+      };
+    case 'x86_64-apple-darwin':
+      return {
+        rustTargetTriple: raw,
+        os: 'darwin',
+        arch: 'amd64',
+        libc: null,
+        assetSuffix: 'darwin-amd64',
+        executableSuffix: '',
+      };
+    case 'aarch64-apple-darwin':
+      return {
+        rustTargetTriple: raw,
+        os: 'darwin',
+        arch: 'arm64',
+        libc: null,
+        assetSuffix: 'darwin-arm64',
+        executableSuffix: '',
+      };
+    case 'x86_64-pc-windows-msvc':
+      return {
+        rustTargetTriple: raw,
+        os: 'windows',
+        arch: 'amd64',
+        libc: 'msvc',
+        assetSuffix: 'windows-amd64',
+        executableSuffix: '.exe',
+      };
+    case 'aarch64-pc-windows-msvc':
+      return {
+        rustTargetTriple: raw,
+        os: 'windows',
+        arch: 'arm64',
+        libc: 'msvc',
+        assetSuffix: 'windows-arm64',
+        executableSuffix: '.exe',
       };
     default:
       throw new Error(`暂不支持的 rust target: ${raw}`);
@@ -842,9 +880,7 @@ function createPluginPackage(pluginPath, outputDir, options = {}) {
 
   fs.mkdirSync(resolvedOutputDir, { recursive: true });
 
-  const binaryName = target.os === 'windows'
-    ? `${pluginCode}-provider.exe`
-    : `${pluginCode}-provider`;
+  const binaryName = `${pluginCode}-provider${target.executableSuffix}`;
   const stagedBinaryPath = path.join(stagedRoot, 'bin', binaryName);
   fs.mkdirSync(path.dirname(stagedBinaryPath), { recursive: true });
   fs.copyFileSync(runtimeBinaryFile, stagedBinaryPath);

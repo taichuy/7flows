@@ -9,3 +9,29 @@ fn runtime_target_parses_linux_musl_rust_triples() {
     assert_eq!(target.libc.as_deref(), Some("musl"));
     assert_eq!(target.asset_suffix(), "linux-arm64");
 }
+
+#[test]
+fn runtime_target_parses_darwin_and_windows_triples() {
+    let darwin = RuntimeTarget::from_rust_target_triple("aarch64-apple-darwin").unwrap();
+    assert_eq!(darwin.os, "darwin");
+    assert_eq!(darwin.arch, "arm64");
+    assert_eq!(darwin.libc, None);
+    assert_eq!(darwin.asset_suffix(), "darwin-arm64");
+    assert_eq!(darwin.executable_suffix(), "");
+
+    let windows = RuntimeTarget::from_rust_target_triple("x86_64-pc-windows-msvc").unwrap();
+    assert_eq!(windows.os, "windows");
+    assert_eq!(windows.arch, "amd64");
+    assert_eq!(windows.libc.as_deref(), Some("msvc"));
+    assert_eq!(windows.asset_suffix(), "windows-amd64");
+    assert_eq!(windows.executable_suffix(), ".exe");
+}
+
+#[test]
+fn runtime_target_builds_host_targets_from_os_and_arch_pairs() {
+    let linux = RuntimeTarget::from_host_parts("linux", "x86_64").unwrap();
+    assert_eq!(linux.rust_target_triple, "x86_64-unknown-linux-musl");
+
+    let windows = RuntimeTarget::from_host_parts("windows", "aarch64").unwrap();
+    assert_eq!(windows.rust_target_triple, "aarch64-pc-windows-msvc");
+}

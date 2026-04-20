@@ -101,7 +101,7 @@
 - Modify: `scripts/node/plugin/core.js`
 - Modify: `scripts/node/plugin/_tests/core.test.js`
 
-- [ ] **Step 1: Write the failing target and packaging tests**
+- [x] **Step 1: Write the failing target and packaging tests**
 
 Add Rust coverage like this to `api/crates/plugin-framework/src/_tests/runtime_target_tests.rs`:
 
@@ -162,7 +162,7 @@ test('plugin package writes a windows executable and asset suffix', async () => 
 });
 ```
 
-- [ ] **Step 2: Run the focused host target tests and confirm RED**
+- [x] **Step 2: Run the focused host target tests and confirm RED**
 
 Run:
 
@@ -173,7 +173,7 @@ rtk node --test scripts/node/_tests/core.test.js --test-name-pattern "windows ex
 
 Expected: FAIL because `RuntimeTarget` only knows Linux triples today and `parseRustTargetTriple()` in `scripts/node/plugin/core.js` still rejects macOS/Windows targets.
 
-- [ ] **Step 3: Implement the six-target target model and CLI packaging rules**
+- [x] **Step 3: Implement the six-target target model and CLI packaging rules**
 
 Update `api/crates/plugin-framework/src/runtime_target.rs` around a reusable host helper:
 
@@ -245,7 +245,7 @@ function parseRustTargetTriple(raw) {
 }
 ```
 
-- [ ] **Step 4: Run the focused tests again and confirm GREEN**
+- [x] **Step 4: Run the focused tests again and confirm GREEN**
 
 Run:
 
