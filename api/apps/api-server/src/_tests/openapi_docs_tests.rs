@@ -40,6 +40,14 @@ fn operation_spec_builder_keeps_refs_closed() {
 }
 
 #[test]
+fn operation_spec_builder_exposes_system_runtime_profile_route() {
+    let registry = api_server::openapi_docs::build_default_api_docs_registry().unwrap();
+    let spec = registry.operation_spec("get_runtime_profile").unwrap();
+
+    assert!(spec["paths"]["/api/console/system/runtime-profile"]["get"].is_object());
+}
+
+#[test]
 fn operation_spec_builder_keeps_servers_and_security_schemes_for_try_it_out() {
     let canonical = json!({
         "openapi": "3.1.0",

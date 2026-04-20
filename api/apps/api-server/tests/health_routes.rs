@@ -3,6 +3,7 @@ use api_server::{
     app_state::{ApiState, SessionStoreHandle},
     app_with_state_and_config,
     config::{ApiConfig, ApiEnvironment},
+    runtime_profile_client::{HostApiRuntimeProfileCollector, PluginRunnerSystemPort},
 };
 use argon2::{
     password_hash::{PasswordHasher, SaltString},
@@ -21,9 +22,20 @@ use control_plane::ports::{
 };
 use serde_json::Value;
 use sqlx::PgPool;
+use time::OffsetDateTime;
 use tokio::sync::RwLock;
 use tower::ServiceExt;
 use uuid::Uuid;
+
+#[derive(Clone)]
+struct UnreachablePluginRunnerSystemClient;
+
+#[async_trait]
+impl PluginRunnerSystemPort for UnreachablePluginRunnerSystemClient {
+    async fn fetch_runtime_profile(&self) -> anyhow::Result<runtime_profile::RuntimeProfile> {
+        anyhow::bail!("plugin runner unavailable in health route tests")
+    }
+}
 
 #[derive(Clone, Default)]
 struct NoopOfficialPluginSource;
@@ -123,6 +135,9 @@ async fn test_app_with_config(mut config: ApiConfig) -> Router {
             provider_runtime: std::sync::Arc::new(RwLock::new(
                 plugin_runner::provider_host::ProviderHost::default(),
             )),
+            process_started_at: OffsetDateTime::now_utc(),
+            api_runtime_profile: std::sync::Arc::new(HostApiRuntimeProfileCollector),
+            plugin_runner_system: std::sync::Arc::new(UnreachablePluginRunnerSystemClient),
             official_plugin_source: std::sync::Arc::new(NoopOfficialPluginSource),
             provider_install_root: config.provider_install_root.clone(),
             provider_secret_master_key: config.provider_secret_master_key.clone(),

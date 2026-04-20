@@ -10,6 +10,7 @@ pub mod openapi_docs;
 pub mod provider_runtime;
 pub mod response;
 pub mod routes;
+pub mod runtime_profile_client;
 pub mod runtime_registry_sync;
 
 use std::{net::SocketAddr, sync::Arc};
@@ -25,6 +26,7 @@ use rand_core::OsRng;
 use serde::Serialize;
 use storage_pg::{connect, run_migrations, PgControlPlaneStore};
 use storage_redis::RedisSessionStore;
+use time::OffsetDateTime;
 use tokio::sync::RwLock;
 use tower_http::{
     cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer},
@@ -37,6 +39,7 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::{
     app_state::{ApiState, SessionStoreHandle},
     config::{ApiConfig, ApiEnvironment},
+    runtime_profile_client::{HostApiRuntimeProfileCollector, HttpPluginRunnerSystemClient},
 };
 
 pub const DEFAULT_API_SERVER_ADDR: &str = "0.0.0.0:7800";
@@ -128,6 +131,7 @@ fn console_router(state: Arc<ApiState>) -> Router {
         .nest("/api/console", routes::permissions::router())
         .nest("/api/console", routes::plugins::router())
         .nest("/api/console", routes::session::router())
+        .nest("/api/console", routes::system::router())
         .nest("/api/console", routes::workspaces::router())
         .nest("/api/runtime", routes::runtime_models::router())
         .nest("/api/public/auth", routes::auth::router())
@@ -179,6 +183,7 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
     );
     let resolved_official_source = config.resolve_official_plugin_source();
     let trusted_public_keys = config.official_plugin_trusted_public_keys()?;
+    let process_started_at = OffsetDateTime::now_utc();
 
     Ok(app_with_state_and_config(
         Arc::new(ApiState {
@@ -186,6 +191,11 @@ pub async fn app_from_config(config: &ApiConfig) -> Result<Router> {
             runtime_engine,
             provider_runtime: Arc::new(RwLock::new(
                 plugin_runner::provider_host::ProviderHost::default(),
+            )),
+            process_started_at,
+            api_runtime_profile: Arc::new(HostApiRuntimeProfileCollector),
+            plugin_runner_system: Arc::new(HttpPluginRunnerSystemClient::new(
+                config.plugin_runner_internal_base_url.clone(),
             )),
             official_plugin_source: Arc::new(
                 official_plugin_registry::ApiOfficialPluginRegistry::new(

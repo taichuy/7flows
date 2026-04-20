@@ -8,8 +8,10 @@ license.workspace = true
 axum.workspace = true
 libc = "0.2"
 plugin-framework = { path = "../../crates/plugin-framework" }
+runtime-profile = { path = "../../crates/runtime-profile" }
 serde.workspace = true
 serde_json.workspace = true
+time.workspace = true
 tokio.workspace = true
 tower.workspace = true
 tower-http.workspace = true

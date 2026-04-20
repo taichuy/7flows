@@ -38,6 +38,7 @@ storage-redis = { path = "../../crates/storage-redis" }
 storage-object = { path = "../../crates/storage-object" }
 observability = { path = "../../crates/observability" }
 plugin-runner = { path = "../plugin-runner" }
+runtime-profile = { path = "../../crates/runtime-profile" }
 
 [dev-dependencies]
 ed25519-dalek = { version = "2", features = ["pem"] }

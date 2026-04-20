@@ -797,7 +797,7 @@ rtk git commit -m "feat: persist preferred locale and runtime access"
 - Modify: `api/apps/api-server/src/_tests/openapi_docs_tests.rs`
 - Modify: `api/apps/api-server/src/_tests/support.rs`
 
-- [ ] **Step 1: Write the failing route tests first**
+- [x] **Step 1: Write the failing route tests first**
 
 Add runner-route coverage in `api/apps/plugin-runner/tests/system_routes.rs`:
 
@@ -845,7 +845,7 @@ async fn runtime_profile_reports_runner_unreachable_without_failing_request() {
 }
 ```
 
-- [ ] **Step 2: Run the new route/config/OpenAPI tests and confirm RED**
+- [x] **Step 2: Run the new route/config/OpenAPI tests and confirm RED**
 
 Run:
 
@@ -858,7 +858,7 @@ rtk cargo test --manifest-path api/Cargo.toml -p api-server openapi_docs_tests -
 
 Expected: FAIL because neither app exposes runtime-profile routes today, `ApiState` has no internal runner client, and config/OpenAPI do not know about the new public endpoint.
 
-- [ ] **Step 3: Implement internal runner snapshots and public aggregation**
+- [x] **Step 3: Implement internal runner snapshots and public aggregation**
 
 Add a small client seam in `api/apps/api-server/src/runtime_profile_client.rs`:
 
@@ -940,7 +940,7 @@ pub async fn get_runtime_profile(
 }
 ```
 
-- [ ] **Step 4: Re-run the new route/config/OpenAPI tests and confirm GREEN**
+- [x] **Step 4: Re-run the new route/config/OpenAPI tests and confirm GREEN**
 
 Run:
 
@@ -953,7 +953,7 @@ rtk cargo test --manifest-path api/Cargo.toml -p api-server openapi_docs_tests -
 
 Expected: PASS with `plugin-runner` exposing its own snapshot, `api-server` aggregating same-host/split-host/runner-unreachable states, locale metadata honoring the agreed precedence, and OpenAPI reflecting the new route.
 
-- [ ] **Step 5: Commit runtime-profile routing and aggregation**
+- [x] **Step 5: Commit runtime-profile routing and aggregation**
 
 ```bash
 rtk git add api/apps/plugin-runner/Cargo.toml api/apps/plugin-runner/src/lib.rs api/apps/plugin-runner/tests/system_routes.rs api/apps/api-server/Cargo.toml api/apps/api-server/src/app_state.rs api/apps/api-server/src/config.rs api/apps/api-server/src/lib.rs api/apps/api-server/src/openapi.rs api/apps/api-server/src/runtime_profile_client.rs api/apps/api-server/src/routes/mod.rs api/apps/api-server/src/routes/system.rs api/apps/api-server/src/_tests/config_tests.rs api/apps/api-server/src/_tests/openapi_alignment.rs api/apps/api-server/src/_tests/openapi_docs_tests.rs api/apps/api-server/src/_tests/support.rs api/apps/api-server/src/_tests/system_routes.rs

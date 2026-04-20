@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{fs, path::Path, sync::Arc};
 
 use argon2::{
     password_hash::{PasswordHasher, SaltString},
@@ -7,7 +7,7 @@ use argon2::{
 use async_trait::async_trait;
 use axum::{
     body::{to_bytes, Body},
-    http::Request,
+    http::{Request, StatusCode},
     Router,
 };
 use control_plane::bootstrap::{BootstrapConfig, BootstrapService};
@@ -18,10 +18,12 @@ use control_plane::ports::{
 use ed25519_dalek::pkcs8::spki::der::pem::LineEnding;
 use ed25519_dalek::{pkcs8::EncodePublicKey, SigningKey};
 use flate2::{write::GzEncoder, Compression};
+use runtime_profile::{RuntimeCpu, RuntimeMemory, RuntimePlatform, RuntimeProfile};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use sqlx::PgPool;
 use tar::Builder;
+use time::OffsetDateTime;
 use tokio::sync::RwLock;
 use tower::ServiceExt;
 use uuid::Uuid;
@@ -29,7 +31,39 @@ use uuid::Uuid;
 use crate::{
     app_state::{ApiState, SessionStoreHandle},
     config::ApiConfig,
+    runtime_profile_client::{
+        ApiRuntimeProfilePort, HostApiRuntimeProfileCollector, PluginRunnerSystemPort,
+    },
 };
+
+#[derive(Clone)]
+struct StaticApiRuntimeProfileCollector {
+    profile: RuntimeProfile,
+}
+
+#[async_trait]
+impl ApiRuntimeProfilePort for StaticApiRuntimeProfileCollector {
+    async fn collect_runtime_profile(
+        &self,
+        _process_started_at: OffsetDateTime,
+    ) -> anyhow::Result<RuntimeProfile> {
+        Ok(self.profile.clone())
+    }
+}
+
+#[derive(Clone)]
+struct StubPluginRunnerSystemClient {
+    result: Result<RuntimeProfile, String>,
+}
+
+#[async_trait]
+impl PluginRunnerSystemPort for StubPluginRunnerSystemClient {
+    async fn fetch_runtime_profile(&self) -> anyhow::Result<RuntimeProfile> {
+        self.result
+            .clone()
+            .map_err(|message| anyhow::anyhow!(message))
+    }
+}
 
 pub(super) fn write_test_executable(path: &Path, content: &str) {
     fs::write(path, content).unwrap();
@@ -224,7 +258,11 @@ async fn isolated_database_url(base_url: &str) -> String {
     format!("{base_url}?options=-csearch_path%3D{schema}")
 }
 
-pub async fn test_app_with_database_url() -> (Router, String) {
+async fn test_app_with_runtime_profile_state(
+    process_started_at: OffsetDateTime,
+    api_runtime_profile: Arc<dyn ApiRuntimeProfilePort>,
+    plugin_runner_system: Arc<dyn PluginRunnerSystemPort>,
+) -> (Router, String) {
     let mut config = default_test_config();
     config.database_url = isolated_database_url(&config.database_url).await;
     let pool = storage_pg::connect(&config.database_url).await.unwrap();
@@ -260,13 +298,16 @@ pub async fn test_app_with_database_url() -> (Router, String) {
     );
 
     let app = crate::app_with_state_and_config(
-        std::sync::Arc::new(ApiState {
+        Arc::new(ApiState {
             store,
             runtime_engine,
-            provider_runtime: std::sync::Arc::new(RwLock::new(
+            provider_runtime: Arc::new(RwLock::new(
                 plugin_runner::provider_host::ProviderHost::default(),
             )),
-            official_plugin_source: std::sync::Arc::new(InMemoryOfficialPluginSource),
+            process_started_at,
+            api_runtime_profile,
+            plugin_runner_system,
+            official_plugin_source: Arc::new(InMemoryOfficialPluginSource),
             provider_install_root: config.provider_install_root.clone(),
             provider_secret_master_key: config.provider_secret_master_key.clone(),
             session_store: SessionStoreHandle::InMemory(
@@ -281,6 +322,17 @@ pub async fn test_app_with_database_url() -> (Router, String) {
     );
 
     (app, config.database_url)
+}
+
+pub async fn test_app_with_database_url() -> (Router, String) {
+    test_app_with_runtime_profile_state(
+        OffsetDateTime::now_utc(),
+        Arc::new(HostApiRuntimeProfileCollector),
+        Arc::new(StubPluginRunnerSystemClient {
+            result: Err("plugin runner unavailable".to_string()),
+        }),
+    )
+    .await
 }
 
 pub async fn test_app() -> Router {
@@ -327,6 +379,85 @@ pub async fn login_and_capture_cookie(
     )
 }
 
+pub async fn get_json(app: &Router, path: &str, cookie: &str) -> serde_json::Value {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(path)
+                .header("cookie", cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    serde_json::from_slice(&body).unwrap()
+}
+
+pub fn sample_api_profile(host_fingerprint: &str) -> RuntimeProfile {
+    sample_runtime_profile("api-server", host_fingerprint)
+}
+
+pub fn sample_runner_profile(host_fingerprint: &str) -> RuntimeProfile {
+    sample_runtime_profile("plugin-runner", host_fingerprint)
+}
+
+pub async fn test_app_with_runtime_profiles(
+    api_profile: RuntimeProfile,
+    runner_profile: Option<RuntimeProfile>,
+    permissions: &[&str],
+    preferred_locale: Option<&str>,
+) -> (Router, String) {
+    let process_started_at = api_profile.started_at;
+    let (app, database_url) = test_app_with_runtime_profile_state(
+        process_started_at,
+        Arc::new(StaticApiRuntimeProfileCollector {
+            profile: api_profile,
+        }),
+        Arc::new(StubPluginRunnerSystemClient {
+            result: runner_profile.ok_or_else(|| "plugin runner unavailable".to_string()),
+        }),
+    )
+    .await;
+
+    let (root_cookie, root_csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
+    if permissions.is_empty() {
+        if let Some(locale) = preferred_locale {
+            set_user_preferred_locale(&database_url, "root", Some(locale)).await;
+        }
+        return (app, root_cookie);
+    }
+
+    let suffix = Uuid::now_v7().to_string().replace('-', "");
+    let account = format!("runtime_viewer_{}", &suffix[..8]);
+    let role_code = format!("runtime_viewer_{}", &suffix[8..16]);
+    let member_id = create_member(&app, &root_cookie, &root_csrf, &account, "temp-pass").await;
+    create_role(&app, &root_cookie, &root_csrf, &role_code).await;
+    replace_role_permissions(&app, &root_cookie, &root_csrf, &role_code, permissions).await;
+    replace_member_roles(&app, &root_cookie, &root_csrf, &member_id, &[&role_code]).await;
+
+    if let Some(locale) = preferred_locale {
+        set_user_preferred_locale(&database_url, &account, Some(locale)).await;
+    }
+
+    let (cookie, _) = login_and_capture_cookie(&app, &account, "temp-pass").await;
+    (app, cookie)
+}
+
+pub async fn test_app_with_runtime_profile_error(permissions: &[&str]) -> (Router, String) {
+    test_app_with_runtime_profiles(
+        sample_api_profile("host_api_server"),
+        None,
+        permissions,
+        None,
+    )
+    .await
+}
+
 pub async fn seed_workspace(database_url: &str, workspace_name: &str) -> Uuid {
     let pool = storage_pg::connect(database_url).await.unwrap();
     let tenant_id: Uuid = sqlx::query_scalar("select id from tenants where code = 'root-tenant'")
@@ -346,6 +477,168 @@ pub async fn seed_workspace(database_url: &str, workspace_name: &str) -> Uuid {
     .unwrap();
 
     workspace_id
+}
+
+fn sample_runtime_profile(service: &str, host_fingerprint: &str) -> RuntimeProfile {
+    RuntimeProfile {
+        host_fingerprint: host_fingerprint.to_string(),
+        platform: RuntimePlatform {
+            os: "linux".to_string(),
+            arch: "amd64".to_string(),
+            libc: Some("musl".to_string()),
+            rust_target: "x86_64-unknown-linux-musl".to_string(),
+        },
+        cpu: RuntimeCpu { logical_count: 8 },
+        memory: RuntimeMemory::from_bytes(
+            16 * 1024 * 1024 * 1024,
+            8 * 1024 * 1024 * 1024,
+            256 * 1024 * 1024,
+        ),
+        uptime_seconds: 42,
+        started_at: OffsetDateTime::from_unix_timestamp(1_700_000_000).unwrap(),
+        captured_at: OffsetDateTime::from_unix_timestamp(1_700_000_120).unwrap(),
+        service: service.to_string(),
+        service_version: "0.1.0".to_string(),
+        service_status: "ok".to_string(),
+    }
+}
+
+async fn create_member(
+    app: &Router,
+    cookie: &str,
+    csrf: &str,
+    account: &str,
+    password: &str,
+) -> String {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/members")
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "account": account,
+                        "email": format!("{account}@example.com"),
+                        "phone": null,
+                        "password": password,
+                        "name": account,
+                        "nickname": account,
+                        "introduction": "",
+                        "email_login_enabled": true,
+                        "phone_login_enabled": false
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+
+    let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let payload: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    payload["data"]["id"].as_str().unwrap().to_string()
+}
+
+async fn create_role(app: &Router, cookie: &str, csrf: &str, code: &str) {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/console/roles")
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "code": code,
+                        "name": code,
+                        "introduction": "system runtime test role"
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+}
+
+async fn replace_role_permissions(
+    app: &Router,
+    cookie: &str,
+    csrf: &str,
+    role_code: &str,
+    permission_codes: &[&str],
+) {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/console/roles/{role_code}/permissions"))
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "permission_codes": permission_codes,
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}
+
+async fn replace_member_roles(
+    app: &Router,
+    cookie: &str,
+    csrf: &str,
+    member_id: &str,
+    role_codes: &[&str],
+) {
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("PUT")
+                .uri(format!("/api/console/members/{member_id}/roles"))
+                .header("cookie", cookie)
+                .header("x-csrf-token", csrf)
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    json!({
+                        "role_codes": role_codes,
+                    })
+                    .to_string(),
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NO_CONTENT);
+}
+
+async fn set_user_preferred_locale(database_url: &str, account: &str, locale: Option<&str>) {
+    let pool = storage_pg::connect(database_url).await.unwrap();
+    sqlx::query("update users set preferred_locale = $1 where account = $2")
+        .bind(locale)
+        .bind(account)
+        .execute(&pool)
+        .await
+        .unwrap();
 }
 
 fn create_official_provider_fixture(root: &Path) {

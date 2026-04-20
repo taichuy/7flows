@@ -1,4 +1,7 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, OnceLock},
+};
 
 use axum::{
     extract::State,
@@ -12,6 +15,7 @@ use plugin_framework::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use time::OffsetDateTime;
 use tokio::sync::RwLock;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -22,6 +26,7 @@ use crate::provider_host::{
 };
 
 pub const DEFAULT_PLUGIN_RUNNER_ADDR: &str = "0.0.0.0:7801";
+static STARTED_AT: OnceLock<OffsetDateTime> = OnceLock::new();
 
 pub mod package_loader;
 pub mod provider_host;
@@ -80,6 +85,18 @@ async fn health() -> Json<HealthResponse> {
         status: "ok",
         version: env!("CARGO_PKG_VERSION"),
     })
+}
+
+async fn system_runtime_profile(
+) -> Result<Json<runtime_profile::RuntimeProfile>, (StatusCode, Json<ErrorResponse>)> {
+    runtime_profile::collect_runtime_profile(
+        "plugin-runner",
+        env!("CARGO_PKG_VERSION"),
+        *STARTED_AT.get_or_init(OffsetDateTime::now_utc),
+        "ok",
+    )
+    .map(Json)
+    .map_err(map_internal_error)
 }
 
 async fn load_provider(
@@ -148,6 +165,7 @@ pub fn app() -> Router {
 pub fn app_with_state(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
+        .route("/system/runtime-profile", get(system_runtime_profile))
         .route("/providers/load", post(load_provider))
         .route("/providers/reload", post(reload_provider))
         .route("/providers/validate", post(validate_provider))
@@ -177,6 +195,15 @@ fn map_framework_error(error: PluginFrameworkError) -> (StatusCode, Json<ErrorRe
     };
     (
         status,
+        Json(ErrorResponse {
+            message: error.to_string(),
+        }),
+    )
+}
+
+fn map_internal_error(error: impl std::fmt::Display) -> (StatusCode, Json<ErrorResponse>) {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
         Json(ErrorResponse {
             message: error.to_string(),
         }),

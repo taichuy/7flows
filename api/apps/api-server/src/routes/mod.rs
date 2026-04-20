@@ -12,5 +12,6 @@ pub mod plugins;
 pub mod roles;
 pub mod runtime_models;
 pub mod session;
+pub mod system;
 pub mod workspace;
 pub mod workspaces;

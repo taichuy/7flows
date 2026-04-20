@@ -29,6 +29,7 @@ pub struct ApiConfig {
     pub env: ApiEnvironment,
     pub database_url: String,
     pub redis_url: String,
+    pub plugin_runner_internal_base_url: String,
     pub cookie_name: String,
     pub session_ttl_days: i64,
     pub cors_allowed_origins: Option<Vec<HeaderValue>>,
@@ -135,6 +136,10 @@ impl ApiConfig {
             env,
             database_url: get("API_DATABASE_URL")?,
             redis_url: get("API_REDIS_URL")?,
+            plugin_runner_internal_base_url: map
+                .get("API_PLUGIN_RUNNER_INTERNAL_BASE_URL")
+                .cloned()
+                .unwrap_or_else(|| "http://127.0.0.1:7801".to_string()),
             cookie_name: map
                 .get("API_COOKIE_NAME")
                 .cloned()

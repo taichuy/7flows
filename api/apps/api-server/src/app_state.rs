@@ -5,9 +5,11 @@ use plugin_runner::provider_host::ProviderHost;
 use runtime_core::runtime_engine::RuntimeEngine;
 use storage_pg::PgControlPlaneStore;
 use storage_redis::{InMemorySessionStore, RedisSessionStore};
+use time::OffsetDateTime;
 use tokio::sync::RwLock;
 
 use crate::openapi_docs::ApiDocsRegistry;
+use crate::runtime_profile_client::{ApiRuntimeProfilePort, PluginRunnerSystemPort};
 
 #[derive(Clone)]
 pub enum SessionStoreHandle {
@@ -51,6 +53,9 @@ pub struct ApiState {
     pub store: PgControlPlaneStore,
     pub runtime_engine: std::sync::Arc<RuntimeEngine>,
     pub provider_runtime: std::sync::Arc<RwLock<ProviderHost>>,
+    pub process_started_at: OffsetDateTime,
+    pub api_runtime_profile: std::sync::Arc<dyn ApiRuntimeProfilePort>,
+    pub plugin_runner_system: std::sync::Arc<dyn PluginRunnerSystemPort>,
     pub official_plugin_source: std::sync::Arc<dyn OfficialPluginSourcePort>,
     pub provider_install_root: String,
     pub provider_secret_master_key: String,
