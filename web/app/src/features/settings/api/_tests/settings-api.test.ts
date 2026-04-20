@@ -1,4 +1,9 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import {
+  modelProviderCatalogContract,
+  modelProviderCatalogEntries,
+  modelProviderOptionsContract
+} from '../../../../test/model-provider-contract-fixtures';
 
 vi.mock('@1flowbase/api-client', () => ({
   fetchConsoleApiDocsCatalog: vi.fn().mockResolvedValue({ categories: [] }),
@@ -22,20 +27,13 @@ vi.mock('@1flowbase/api-client', () => ({
     permission_codes: []
   }),
   replaceConsoleRolePermissions: vi.fn().mockResolvedValue(undefined),
-  listConsoleModelProviderCatalog: vi.fn().mockResolvedValue({
-    locale_meta: {
-      requested_locale: null,
-      resolved_locale: 'zh_Hans',
-      user_preferred_locale: null,
-      accept_language: null,
-      fallback_locale: 'en_US',
-      supported_locales: ['zh_Hans', 'en_US']
-    },
-    i18n_catalog: {},
-    entries: []
-  }),
+  listConsoleModelProviderCatalog: vi
+    .fn()
+    .mockResolvedValue(modelProviderCatalogContract),
   listConsoleModelProviderInstances: vi.fn().mockResolvedValue([]),
-  listConsoleModelProviderOptions: vi.fn().mockResolvedValue([]),
+  listConsoleModelProviderOptions: vi
+    .fn()
+    .mockResolvedValue(modelProviderOptionsContract),
   getConsoleModelProviderModels: vi.fn().mockResolvedValue({
     provider_instance_id: 'provider-1',
     models: []
@@ -306,9 +304,13 @@ describe('settings api wrappers', () => {
       'provider-1'
     ]);
 
-    await expect(fetchSettingsModelProviderCatalog()).resolves.toEqual([]);
+    await expect(fetchSettingsModelProviderCatalog()).resolves.toEqual(
+      modelProviderCatalogEntries
+    );
     await fetchSettingsModelProviderInstances();
-    await fetchSettingsModelProviderOptions();
+    await expect(fetchSettingsModelProviderOptions()).resolves.toEqual(
+      modelProviderOptionsContract
+    );
     await fetchSettingsModelProviderModels('provider-1');
     await createSettingsModelProviderInstance(createInput as never, 'csrf-123');
     await updateSettingsModelProviderInstance('provider-1', updateInput as never, 'csrf-123');
@@ -346,6 +348,16 @@ describe('settings api wrappers', () => {
     expect(deleteConsoleModelProviderInstance).toHaveBeenCalledWith(
       'provider-1',
       'csrf-123'
+    );
+    expect(modelProviderOptionsContract.instances[0]).toEqual(
+      expect.objectContaining({
+        provider_instance_id: 'provider-openai-prod',
+        provider_code: 'openai_compatible',
+        plugin_type: 'provider',
+        namespace: 'plugin.openai_compatible',
+        label_key: 'provider.label',
+        description_key: 'provider.description'
+      })
     );
   });
 

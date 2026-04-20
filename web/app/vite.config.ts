@@ -13,6 +13,9 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       port: 3100,
       strictPort: true,
+      fs: {
+        allow: [fileURLToPath(new URL('../../scripts', import.meta.url))]
+      },
       proxy: {
         '/api': {
           target: apiProxyTarget,
@@ -35,6 +38,9 @@ export default defineConfig(({ mode }) => {
         ),
         '@1flowbase/api-client': fileURLToPath(
           new URL('../packages/api-client/src/index.ts', import.meta.url)
+        ),
+        '@1flowbase/model-provider-contracts': fileURLToPath(
+          new URL('../../scripts/node/testing/contracts/model-providers', import.meta.url)
         ),
         '@1flowbase/ui': fileURLToPath(
           new URL('../packages/ui/src/index.tsx', import.meta.url)

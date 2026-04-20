@@ -14,6 +14,7 @@
     "paths": {
       "@1flowbase/shared-types": ["packages/shared-types/src/index.ts"],
       "@1flowbase/api-client": ["packages/api-client/src/index.ts"],
+      "@1flowbase/model-provider-contracts/*": ["../scripts/node/testing/contracts/model-providers/*"],
       "@1flowbase/ui": ["packages/ui/src/index.tsx"],
       "@1flowbase/flow-schema": ["packages/flow-schema/src/index.ts"],
       "@1flowbase/page-protocol": ["packages/page-protocol/src/index.ts"],

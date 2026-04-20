@@ -69,6 +69,10 @@ export interface ConsoleModelProviderCatalogEntry {
   provider_code: string;
   plugin_id: string;
   plugin_version: string;
+  plugin_type: string;
+  namespace: string;
+  label_key: string;
+  description_key: string | null;
   display_name: string;
   protocol: string;
   help_url: string | null;
@@ -136,12 +140,18 @@ export interface RevealConsoleModelProviderSecretResult {
 export interface ConsoleModelProviderOption {
   provider_instance_id: string;
   provider_code: string;
+  plugin_type: string;
+  namespace: string;
+  label_key: string;
+  description_key: string | null;
   protocol: string;
   display_name: string;
   models: ConsoleProviderModelDescriptor[];
 }
 
 export interface ConsoleModelProviderOptions {
+  locale_meta: Record<string, unknown>;
+  i18n_catalog: Record<string, unknown>;
   instances: ConsoleModelProviderOption[];
 }
 

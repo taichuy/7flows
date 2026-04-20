@@ -1,0 +1,119 @@
+{
+  "locale_meta": {
+    "requested_locale": "zh_Hans",
+    "resolved_locale": "zh_Hans",
+    "user_preferred_locale": "zh_Hans",
+    "accept_language": "zh-Hans-CN,zh;q=0.9,en;q=0.8",
+    "fallback_locale": "en_US",
+    "supported_locales": ["zh_Hans", "en_US"]
+  },
+  "i18n_catalog": {
+    "plugin.openai_compatible": {
+      "zh_Hans": {
+        "provider.label": "OpenAI Compatible",
+        "provider.description": "OpenAI 协议兼容供应商",
+        "models.gpt-4o-mini.label": "GPT-4o Mini"
+      },
+      "en_US": {
+        "provider.label": "OpenAI Compatible",
+        "provider.description": "OpenAI-compatible provider",
+        "models.gpt-4o-mini.label": "GPT-4o Mini"
+      }
+    },
+    "plugin.anthropic_compatible": {
+      "zh_Hans": {
+        "provider.label": "Anthropic Compatible",
+        "provider.description": "Anthropic 协议兼容供应商",
+        "models.claude-3-5-sonnet.label": "Claude 3.5 Sonnet"
+      },
+      "en_US": {
+        "provider.label": "Anthropic Compatible",
+        "provider.description": "Anthropic-compatible provider",
+        "models.claude-3-5-sonnet.label": "Claude 3.5 Sonnet"
+      }
+    }
+  },
+  "entries": [
+    {
+      "installation_id": "installation-openai-compatible",
+      "provider_code": "openai_compatible",
+      "plugin_id": "openai_compatible@0.3.7",
+      "plugin_version": "0.3.7",
+      "plugin_type": "provider",
+      "namespace": "plugin.openai_compatible",
+      "label_key": "provider.label",
+      "description_key": "provider.description",
+      "display_name": "OpenAI Compatible",
+      "protocol": "openai_responses",
+      "help_url": "https://platform.openai.com/docs/api-reference/responses",
+      "default_base_url": "https://api.openai.com/v1",
+      "model_discovery_mode": "dynamic",
+      "supports_model_fetch_without_credentials": false,
+      "enabled": true,
+      "form_schema": [
+        {
+          "key": "base_url",
+          "field_type": "string",
+          "required": true
+        },
+        {
+          "key": "api_key",
+          "field_type": "secret",
+          "required": true
+        }
+      ],
+      "predefined_models": [
+        {
+          "model_id": "gpt-4o-mini",
+          "display_name": "GPT-4o Mini",
+          "source": "runtime_catalog",
+          "supports_streaming": true,
+          "supports_tool_call": true,
+          "supports_multimodal": true,
+          "context_window": 128000,
+          "max_output_tokens": 16384,
+          "parameter_form": null,
+          "provider_metadata": {}
+        }
+      ]
+    },
+    {
+      "installation_id": "installation-anthropic-compatible",
+      "provider_code": "anthropic_compatible",
+      "plugin_id": "anthropic_compatible@0.1.0",
+      "plugin_version": "0.1.0",
+      "plugin_type": "provider",
+      "namespace": "plugin.anthropic_compatible",
+      "label_key": "provider.label",
+      "description_key": "provider.description",
+      "display_name": "Anthropic Compatible",
+      "protocol": "anthropic_messages",
+      "help_url": "https://docs.anthropic.com/en/api/messages",
+      "default_base_url": "https://api.anthropic.com",
+      "model_discovery_mode": "static",
+      "supports_model_fetch_without_credentials": false,
+      "enabled": true,
+      "form_schema": [
+        {
+          "key": "api_key",
+          "field_type": "secret",
+          "required": true
+        }
+      ],
+      "predefined_models": [
+        {
+          "model_id": "claude-3-5-sonnet",
+          "display_name": "Claude 3.5 Sonnet",
+          "source": "static",
+          "supports_streaming": true,
+          "supports_tool_call": false,
+          "supports_multimodal": true,
+          "context_window": 200000,
+          "max_output_tokens": 8192,
+          "parameter_form": null,
+          "provider_metadata": {}
+        }
+      ]
+    }
+  ]
+}

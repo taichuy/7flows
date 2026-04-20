@@ -1,0 +1,97 @@
+{
+  "locale_meta": {
+    "requested_locale": "zh_Hans",
+    "resolved_locale": "zh_Hans",
+    "user_preferred_locale": "zh_Hans",
+    "accept_language": "zh-Hans-CN,zh;q=0.9,en;q=0.8",
+    "fallback_locale": "en_US",
+    "supported_locales": ["zh_Hans", "en_US"]
+  },
+  "i18n_catalog": {
+    "plugin.openai_compatible": {
+      "zh_Hans": {
+        "provider.label": "OpenAI Compatible",
+        "provider.description": "OpenAI 协议兼容供应商"
+      },
+      "en_US": {
+        "provider.label": "OpenAI Compatible",
+        "provider.description": "OpenAI-compatible provider"
+      }
+    },
+    "plugin.anthropic_compatible": {
+      "zh_Hans": {
+        "provider.label": "Anthropic Compatible",
+        "provider.description": "Anthropic 协议兼容供应商"
+      },
+      "en_US": {
+        "provider.label": "Anthropic Compatible",
+        "provider.description": "Anthropic-compatible provider"
+      }
+    }
+  },
+  "instances": [
+    {
+      "provider_instance_id": "provider-openai-prod",
+      "provider_code": "openai_compatible",
+      "plugin_type": "provider",
+      "namespace": "plugin.openai_compatible",
+      "label_key": "provider.label",
+      "description_key": "provider.description",
+      "protocol": "openai_responses",
+      "display_name": "OpenAI Production",
+      "models": [
+        {
+          "model_id": "gpt-4o-mini",
+          "display_name": "GPT-4o Mini",
+          "source": "runtime_catalog",
+          "supports_streaming": true,
+          "supports_tool_call": true,
+          "supports_multimodal": true,
+          "context_window": 128000,
+          "max_output_tokens": 16384,
+          "parameter_form": {
+            "schema_version": "1.0.0",
+            "fields": [
+              {
+                "key": "temperature",
+                "label": "Temperature",
+                "type": "number",
+                "send_mode": "optional",
+                "enabled_by_default": false,
+                "options": [],
+                "visible_when": [],
+                "disabled_when": [],
+                "default_value": 0.7
+              }
+            ]
+          },
+          "provider_metadata": {}
+        }
+      ]
+    },
+    {
+      "provider_instance_id": "provider-anthropic-prod",
+      "provider_code": "anthropic_compatible",
+      "plugin_type": "provider",
+      "namespace": "plugin.anthropic_compatible",
+      "label_key": "provider.label",
+      "description_key": "provider.description",
+      "protocol": "anthropic_messages",
+      "display_name": "Anthropic Production",
+      "models": [
+        {
+          "model_id": "claude-3-5-sonnet",
+          "display_name": "Claude 3.5 Sonnet",
+          "source": "static",
+          "supports_streaming": true,
+          "supports_tool_call": false,
+          "supports_multimodal": true,
+          "context_window": 200000,
+          "max_output_tokens": 8192,
+          "parameter_form": null,
+          "provider_metadata": {}
+        }
+      ]
+    }
+  ]
+}
