@@ -429,7 +429,7 @@
           },
           {
             "property": "row-gap",
-            "expected": "10px"
+            "expected": "12px"
           }
         ]
       },
@@ -443,7 +443,7 @@
           },
           {
             "property": "border-top-left-radius",
-            "expected": "12px"
+            "expected": "14px"
           }
         ]
       }

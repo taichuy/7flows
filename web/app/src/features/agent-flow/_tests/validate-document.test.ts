@@ -118,6 +118,8 @@ describe('validateDocument', () => {
     };
 
     const issues = validateDocument(document, {
+      locale_meta: {},
+      i18n_catalog: {},
       instances: [
         {
           provider_instance_id: 'provider-ready',

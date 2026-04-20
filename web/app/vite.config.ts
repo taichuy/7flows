@@ -1,7 +1,7 @@
 import { fileURLToPath, URL } from 'node:url';
 
 import react from '@vitejs/plugin-react';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, searchForWorkspaceRoot } from 'vite';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
@@ -14,7 +14,10 @@ export default defineConfig(({ mode }) => {
       port: 3100,
       strictPort: true,
       fs: {
-        allow: [fileURLToPath(new URL('../../scripts', import.meta.url))]
+        allow: [
+          searchForWorkspaceRoot(process.cwd()),
+          fileURLToPath(new URL('../../scripts', import.meta.url))
+        ]
       },
       proxy: {
         '/api': {

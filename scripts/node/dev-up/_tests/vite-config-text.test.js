@@ -13,3 +13,10 @@ test('vite config uses the repo default frontend port', () => {
   assert.match(viteConfigSource, /port:\s*3100/u);
   assert.match(viteConfigSource, /strictPort:\s*true/u);
 });
+
+test('vite config keeps the workspace root while extending fs allow list for shared scripts', () => {
+  const viteConfigSource = fs.readFileSync(viteConfigPath, 'utf8');
+
+  assert.match(viteConfigSource, /searchForWorkspaceRoot\(process\.cwd\(\)\)/u);
+  assert.match(viteConfigSource, /new URL\('\.\.\/\.\.\/scripts', import\.meta\.url\)/u);
+});
