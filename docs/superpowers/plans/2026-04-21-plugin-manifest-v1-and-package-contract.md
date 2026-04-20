@@ -43,7 +43,7 @@
 - Create: `api/crates/plugin-framework/src/_tests/manifest_v1_tests.rs`
 - Modify: `api/crates/plugin-framework/src/lib.rs`
 
-- [ ] **Step 1: Write failing manifest-v1 parsing tests**
+- [x] **Step 1: Write failing manifest-v1 parsing tests**
 
 Create `api/crates/plugin-framework/src/_tests/manifest_v1_tests.rs` with cases like:
 
@@ -130,7 +130,7 @@ runtime:
 }
 ```
 
-- [ ] **Step 2: Run the new manifest tests to capture the RED baseline**
+- [x] **Step 2: Run the new manifest tests to capture the RED baseline**
 
 Run:
 
@@ -142,7 +142,7 @@ Expected:
 
 - FAIL because `plugin-framework` only understands the current provider-specific `schema_version=2` manifest and has no generic `plugin manifest v1` parser.
 
-- [ ] **Step 3: Implement `PluginManifestV1` and validation rules**
+- [x] **Step 3: Implement `PluginManifestV1` and validation rules**
 
 Create `api/crates/plugin-framework/src/manifest_v1.rs` around these shapes:
 
@@ -206,7 +206,7 @@ if manifest.consumption_kind == PluginConsumptionKind::CapabilityPlugin
 }
 ```
 
-- [ ] **Step 4: Re-run the manifest tests to verify parsing is GREEN**
+- [x] **Step 4: Re-run the manifest tests to verify parsing is GREEN**
 
 Run:
 
@@ -218,7 +218,7 @@ Expected:
 
 - PASS with the new generic parser validating `consumption_kind`, `execution_mode`, and binding rules.
 
-- [ ] **Step 5: Commit the manifest-v1 parser**
+- [x] **Step 5: Commit the manifest-v1 parser**
 
 ```bash
 git add api/crates/plugin-framework/src/lib.rs api/crates/plugin-framework/src/manifest_v1.rs api/crates/plugin-framework/src/_tests/manifest_v1_tests.rs
