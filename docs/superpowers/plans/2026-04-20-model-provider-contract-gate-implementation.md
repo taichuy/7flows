@@ -873,7 +873,7 @@ git commit -m "test: align settings consumers with canonical contracts"
 - Modify: `web/app/src/features/agent-flow/_tests/llm-model-provider-field.test.tsx`
 - Test: `web/app/src/features/agent-flow/_tests/llm-model-provider-field.test.tsx`
 
-- [ ] **Step 1: Replace the hand-written agent-flow options payload with the canonical `/options` fixture**
+- [x] **Step 1: Replace the hand-written agent-flow options payload with the canonical `/options` fixture**
 
 ```tsx
 // web/app/src/features/agent-flow/_tests/llm-model-provider-field.test.tsx
@@ -902,7 +902,7 @@ expect(
 ).toBeInTheDocument();
 ```
 
-- [ ] **Step 2: Run the agent-flow contract consumer test and verify it fails before the fixture migration**
+- [x] **Step 2: Run the agent-flow contract consumer test and verify it fails before the fixture migration**
 
 Run:
 
@@ -914,7 +914,7 @@ Expected:
 
 - FAIL because the test still expects the old hand-written provider labels or payload shape.
 
-- [ ] **Step 3: Finish the test migration so agent-flow reads the same wrapper shape as settings**
+- [x] **Step 3: Finish the test migration so agent-flow reads the same wrapper shape as settings**
 
 ```tsx
 // keep the rest of the test logic intact; only the source of truth changes
@@ -935,7 +935,7 @@ expect(latestDocument.graph.nodes).toEqual(
 );
 ```
 
-- [ ] **Step 4: Run the agent-flow test again and verify it passes against the canonical fixture**
+- [x] **Step 4: Run the agent-flow test again and verify it passes against the canonical fixture**
 
 Run:
 
@@ -947,7 +947,7 @@ Expected:
 
 - PASS with agent-flow consuming the same `/options` wrapper source as the settings consumers.
 
-- [ ] **Step 5: Commit the agent-flow contract consumer alignment**
+- [x] **Step 5: Commit the agent-flow contract consumer alignment**
 
 ```bash
 git add web/app/src/features/agent-flow/_tests/llm-model-provider-field.test.tsx
@@ -960,7 +960,7 @@ git commit -m "test: align agent-flow provider options fixture"
 - Modify: `README.md`
 - Modify: `.agents/skills/qa-evaluation/SKILL.md`
 
-- [ ] **Step 1: Add failing doc expectations for the new gate semantics**
+- [x] **Step 1: Add failing doc expectations for the new gate semantics**
 
 ```md
 <!-- README.md -->
@@ -985,7 +985,7 @@ node scripts/node/verify-repo.js
 - 评估范围命中共享 console API DTO、`style-boundary` mock、model provider settings/agent-flow consumer 时，必须检查 `node scripts/node/test-contracts.js` 是否存在且已接入 `verify-repo`
 ```
 
-- [ ] **Step 2: Run targeted verification and confirm the current docs/skill text does not yet describe the new gate**
+- [x] **Step 2: Run targeted verification and confirm the current docs/skill text does not yet describe the new gate**
 
 Run:
 
@@ -998,7 +998,7 @@ Expected:
 - No `test-contracts` explanation yet.
 - No explicit QA guidance for shared model provider contract gate.
 
-- [ ] **Step 3: Update the docs and QA guidance, then run the final verification stack**
+- [x] **Step 3: Update the docs and QA guidance, then run the final verification stack**
 
 ```md
 <!-- README.md -->
@@ -1044,7 +1044,7 @@ Expected:
 - PASS for `node scripts/node/test-contracts.js`.
 - PASS for the full `verify-repo` stack with contract gate included between `test-scripts` and `frontend full`.
 
-- [ ] **Step 4: Commit docs, QA guidance, and verified gate wiring**
+- [x] **Step 4: Commit docs, QA guidance, and verified gate wiring**
 
 ```bash
 git add \
@@ -1053,14 +1053,23 @@ git add \
 git commit -m "docs: describe model provider contract gate"
 ```
 
-- [ ] **Step 5: Record final verification in the implementation notes**
+- [x] **Step 5: Record final verification in the implementation notes**
 
 ```md
 - `rtk node --test scripts/node/test-contracts/_tests/cli.test.js scripts/node/verify-repo/_tests/cli.test.js`
 - `rtk pnpm --dir web/app exec vitest run src/features/settings/api/_tests/settings-api.test.ts src/features/settings/_tests/model-providers-page.test.tsx src/style-boundary/_tests/registry.test.tsx src/features/agent-flow/_tests/llm-model-provider-field.test.tsx`
 - `rtk node scripts/node/test-contracts.js`
+- `rtk node --test scripts/node/dev-up/_tests/vite-config-text.test.js`
+- `rtk node scripts/node/dev-up.js restart --frontend-only --skip-docker`
+- `rtk node scripts/node/check-style-boundary.js all-pages`
 - `rtk node scripts/node/verify-repo.js`
 ```
+
+Implementation notes:
+
+- Final verification exposed one contract-wrapper mock gap in `web/app/src/features/agent-flow/_tests/validate-document.test.ts`, which was updated to include the current `/options` top-level metadata shape.
+- Adding the shared fixture alias required preserving Vite's workspace root inside `server.fs.allow`; otherwise `style-boundary.html` returned `403 Restricted` during the runtime gate.
+- `page.settings` style-boundary expectations were synchronized to the current settings panel CSS values: official grid `row-gap: 12px` and official card radius `14px`.
 
 ## Self-Review
 
