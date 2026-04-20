@@ -633,7 +633,7 @@ async fn model_provider_service_masks_secret_in_views_and_reveals_on_demand() {
     let runtime = MemoryProviderRuntime::default();
     let package_root = std::env::temp_dir().join(format!("provider-model-{}", Uuid::now_v7()));
     create_provider_fixture(&package_root);
-    repository
+    let installation_id = repository
         .seed_installation(&package_root.display().to_string(), true, true)
         .await;
 
@@ -703,9 +703,7 @@ async fn model_provider_service_masks_secret_in_views_and_reveals_on_demand() {
         .await
         .unwrap();
     assert_eq!(options.instances.len(), 1);
-    assert!(options.i18n_catalog["plugin.fixture_provider"]
-        .get("zh_Hans")
-        .is_some());
+    assert!(options.i18n_catalog["plugin.fixture_provider"].contains_key("zh_Hans"));
     assert_eq!(options.instances[0].models.len(), 1);
     assert_eq!(
         options.instances[0].models[0].descriptor.model_id,
@@ -764,7 +762,7 @@ async fn list_catalog_returns_i18n_namespace_and_keys() {
     ));
     let package_root = std::env::temp_dir().join(format!("provider-catalog-{}", Uuid::now_v7()));
     create_provider_fixture(&package_root);
-    let installation_id = repository
+    repository
         .seed_installation(&package_root.display().to_string(), true, true)
         .await;
     let service = ModelProviderService::new(
@@ -781,9 +779,7 @@ async fn list_catalog_returns_i18n_namespace_and_keys() {
         .await
         .unwrap();
 
-    assert!(entries.i18n_catalog["plugin.fixture_provider"]
-        .get("zh_Hans")
-        .is_some());
+    assert!(entries.i18n_catalog["plugin.fixture_provider"].contains_key("zh_Hans"));
     assert_eq!(entries.entries[0].namespace, "plugin.fixture_provider");
     assert_eq!(entries.entries[0].label_key, "provider.label");
     assert_eq!(

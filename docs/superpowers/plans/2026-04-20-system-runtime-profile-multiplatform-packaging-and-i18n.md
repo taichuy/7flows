@@ -1318,7 +1318,7 @@ rtk cargo test --manifest-path api/Cargo.toml -p api-server model_provider_route
 
 Expected: PASS with `/api/console/model-providers/catalog` and `/api/console/model-providers/options` returning the same locale metadata and i18n bundle pattern as plugin catalog endpoints, while still allowing dynamic runtime-sourced model text to pass through as fallback-only data.
 
-- [ ] **Step 5: Commit the model-provider i18n refactor**
+- [x] **Step 5: Commit the model-provider i18n refactor**
 
 ```bash
 rtk git add api/crates/control-plane/src/model_provider.rs api/crates/control-plane/src/_tests/model_provider_service_tests.rs api/apps/api-server/src/routes/model_providers.rs api/apps/api-server/src/_tests/model_provider_routes.rs api/apps/api-server/src/_tests/openapi_alignment.rs api/apps/api-server/src/_tests/openapi_docs_tests.rs
@@ -1333,7 +1333,7 @@ rtk git commit -m "feat: add i18n contract to model providers"
 - Test: `api/crates/control-plane/src/_tests/*`
 - Test: `../1flowbase-official-plugins/scripts/_tests/*`
 
-- [ ] **Step 1: Run the full host-repo backend verification**
+- [x] **Step 1: Run the full host-repo backend verification**
 
 Run:
 
@@ -1343,7 +1343,7 @@ rtk node scripts/node/verify-backend.js
 
 Expected: PASS with no failing Rust route/service/storage suites and no OpenAPI drift left behind.
 
-- [ ] **Step 2: Re-run the sibling repo script tests after the host verification is green**
+- [x] **Step 2: Re-run the sibling repo script tests after the host verification is green**
 
 Run in `../1flowbase-official-plugins`:
 
@@ -1353,7 +1353,7 @@ rtk node --test scripts/_tests/*.test.mjs
 
 Expected: PASS with official registry shaping and release metadata tests still green after the host-side contract changes.
 
-- [ ] **Step 3: Inspect both git worktrees for leftover unstaged or unintended changes**
+- [x] **Step 3: Inspect both git worktrees for leftover unstaged or unintended changes**
 
 Run in `1flowbase` and `../1flowbase-official-plugins`:
 
@@ -1363,7 +1363,7 @@ rtk git status --short
 
 Expected: only intentional implementation files remain; no stray temp files, generated archives, or half-updated snapshots.
 
-- [ ] **Step 4: Commit final verification-only adjustments if the verification sweep changed fixtures**
+- [x] **Step 4: Commit final verification-only adjustments if the verification sweep changed fixtures**
 
 If Step 3 is clean, do not create an extra commit. If the verification sweep forced only the documented API fixture files to change, commit exactly those files with:
 

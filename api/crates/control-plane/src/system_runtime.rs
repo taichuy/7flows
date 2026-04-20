@@ -2,10 +2,7 @@ use anyhow::Result;
 use domain::ActorContext;
 use uuid::Uuid;
 
-use crate::{
-    errors::ControlPlaneError,
-    ports::AuthRepository,
-};
+use crate::{errors::ControlPlaneError, ports::AuthRepository};
 
 #[derive(Debug)]
 pub struct SystemRuntimeAccess {

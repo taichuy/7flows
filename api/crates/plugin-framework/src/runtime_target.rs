@@ -40,9 +40,9 @@ impl RuntimeTarget {
             ("macos", "aarch64") => Self::from_rust_target_triple("aarch64-apple-darwin"),
             ("windows", "x86_64") => Self::from_rust_target_triple("x86_64-pc-windows-msvc"),
             ("windows", "aarch64") => Self::from_rust_target_triple("aarch64-pc-windows-msvc"),
-            (left_os, left_arch) => Err(PluginFrameworkError::invalid_provider_contract(
-                format!("unsupported host target: {left_os}/{left_arch}"),
-            )),
+            (left_os, left_arch) => Err(PluginFrameworkError::invalid_provider_contract(format!(
+                "unsupported host target: {left_os}/{left_arch}"
+            ))),
         }
     }
 

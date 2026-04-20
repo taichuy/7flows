@@ -1882,12 +1882,8 @@ async fn list_official_catalog_filters_by_plugin_type_and_trims_i18n_bundles() {
     assert_eq!(view.entries.len(), 1);
     assert_eq!(entry.plugin_type, reference.plugin_type);
     assert_eq!(entry.namespace, reference.namespace);
-    assert!(view.i18n_catalog["plugin.openai_compatible"]
-        .get("zh_Hans")
-        .is_some());
-    assert!(view.i18n_catalog["plugin.openai_compatible"]
-        .get("fr_FR")
-        .is_none());
+    assert!(view.i18n_catalog["plugin.openai_compatible"].contains_key("zh_Hans"));
+    assert!(!view.i18n_catalog["plugin.openai_compatible"].contains_key("fr_FR"));
 }
 
 #[tokio::test]

@@ -56,10 +56,9 @@ async fn patch_me_route_updates_editable_fields() {
         .unwrap();
 
     assert_eq!(me_response.status(), StatusCode::OK);
-    let updated: serde_json::Value = serde_json::from_slice(
-        &to_bytes(me_response.into_body(), usize::MAX).await.unwrap(),
-    )
-    .unwrap();
+    let updated: serde_json::Value =
+        serde_json::from_slice(&to_bytes(me_response.into_body(), usize::MAX).await.unwrap())
+            .unwrap();
     assert_eq!(updated["data"]["preferred_locale"], "zh_Hans");
 
     let clear_response = app
@@ -90,7 +89,9 @@ async fn patch_me_route_updates_editable_fields() {
 
     assert_eq!(clear_response.status(), StatusCode::OK);
     let cleared: serde_json::Value = serde_json::from_slice(
-        &to_bytes(clear_response.into_body(), usize::MAX).await.unwrap(),
+        &to_bytes(clear_response.into_body(), usize::MAX)
+            .await
+            .unwrap(),
     )
     .unwrap();
     assert_eq!(cleared["data"]["preferred_locale"], serde_json::Value::Null);

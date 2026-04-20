@@ -63,7 +63,8 @@ impl LocaleResolution {
 }
 
 pub fn resolve_locale(input: LocaleResolutionInput<'_>) -> LocaleResolution {
-    let supported_locales = normalize_supported_locales(input.supported_locales, input.fallback_locale);
+    let supported_locales =
+        normalize_supported_locales(input.supported_locales, input.fallback_locale);
 
     if let Some(locale) = input
         .query_locale
@@ -113,7 +114,8 @@ pub fn resolve_locale(input: LocaleResolutionInput<'_>) -> LocaleResolution {
         };
     }
 
-    if let Some(locale) = normalize_accept_language(input.accept_language.as_deref(), &supported_locales)
+    if let Some(locale) =
+        normalize_accept_language(input.accept_language.as_deref(), &supported_locales)
     {
         return LocaleResolution {
             resolved_locale: locale.clone(),
@@ -138,13 +140,19 @@ pub fn normalize_supported_locale(value: &str, supported_locales: &[String]) -> 
     })
 }
 
-fn normalize_supported_locales(supported_locales: Vec<String>, fallback_locale: &str) -> Vec<String> {
+fn normalize_supported_locales(
+    supported_locales: Vec<String>,
+    fallback_locale: &str,
+) -> Vec<String> {
     let mut normalized = supported_locales
         .into_iter()
         .filter_map(|value| canonical_locale(&value).map(str::to_string))
         .collect::<Vec<_>>();
     if normalized.is_empty() {
-        normalized = SUPPORTED_LOCALES.iter().map(|value| value.to_string()).collect();
+        normalized = SUPPORTED_LOCALES
+            .iter()
+            .map(|value| value.to_string())
+            .collect();
     }
 
     let fallback = canonical_locale(fallback_locale)
