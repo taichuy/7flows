@@ -6,8 +6,8 @@
 如果没有注册，请自行更新到对应约定目录
 # 质量控制
 1.进入自检、验收、回归或交付阶段时，使用skill `qa-evaluation`；
-2.前端实现规则与前端 QA 边界看 `web/AGENTS.md`。
-3.后端实现规则与后端 QA 边界看 `api/AGENTS.md`。
+2.前端实现规则: `web/AGENTS.md`
+3.后端实现规则: `api/AGENTS.md`
 4.warning 与 coverage 产物统一落到 `tmp/test-governance/`。
 # 文件管理约定
 1.理论上来说单个代码文件不应该超过1500行
