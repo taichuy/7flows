@@ -84,19 +84,6 @@ function pickPreferredOfficialEntry(
 const OFFICIAL_PLUGIN_RELEASES_URL =
   'https://github.com/taichuy/1flowbase-official-plugins/releases';
 
-function getDiscoveryModeDescription(mode: string) {
-  switch (mode) {
-    case 'hybrid':
-      return '预置模型与运行时发现合并显示';
-    case 'dynamic':
-      return '运行时实时拉取模型目录';
-    case 'static':
-      return '仅使用插件内置模型目录';
-    default:
-      return `发现模式：${mode}`;
-  }
-}
-
 function getTagColor(tag: string) {
   switch (tag) {
     case 'latest':
@@ -338,12 +325,6 @@ export function OfficialPluginInstallPanel({
                     <Typography.Title level={5}>
                       {entry.display_name}
                     </Typography.Title>
-                    <Typography.Text
-                      type="secondary"
-                      className="model-provider-panel__mono"
-                    >
-                      {entry.plugin_id}
-                    </Typography.Text>
                   </div>
                   <div className="model-provider-panel__catalog-item-tag-row">
                     {getStatusTags(
@@ -365,27 +346,6 @@ export function OfficialPluginInstallPanel({
                       {entry.description}
                     </Typography.Paragraph>
                   ) : null}
-                  <div className="model-provider-panel__catalog-item-meta">
-                    <Typography.Text type="secondary">
-                      协议：{entry.protocol}
-                    </Typography.Text>
-                    <Typography.Text type="secondary">
-                      {getDiscoveryModeDescription(entry.model_discovery_mode)}
-                    </Typography.Text>
-                    {sourceMeta ? (
-                      <Typography.Text type="secondary">
-                        来源：{sourceMeta.sourceLabel}
-                      </Typography.Text>
-                    ) : null}
-                  </div>
-                  <div className="model-provider-panel__catalog-item-meta">
-                    <Typography.Text
-                      type="secondary"
-                      className="model-provider-panel__mono"
-                    >
-                      {entry.plugin_id}
-                    </Typography.Text>
-                  </div>
                 </div>
 
                 {canManage ? (

@@ -831,6 +831,10 @@ describe('ModelProvidersPage', () => {
     expect(
       screen.getByText('面向 OpenAI 兼容 Chat Completions API 的 provider 插件。')
     ).toBeInTheDocument();
+    expect(screen.queryByText('协议：openai_compatible')).not.toBeInTheDocument();
+    expect(screen.queryByText('预置模型与运行时发现合并显示')).not.toBeInTheDocument();
+    expect(screen.queryByText('来源：官方源')).not.toBeInTheDocument();
+    expect(screen.queryByText('1flowbase.openai_compatible')).not.toBeInTheDocument();
   });
 
   test('deduplicates official install cards for the same provider and keeps only one latest entry', async () => {
