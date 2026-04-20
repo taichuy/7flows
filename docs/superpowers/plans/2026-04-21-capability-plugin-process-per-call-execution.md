@@ -56,7 +56,7 @@
 - Modify: `api/crates/control-plane/src/lib.rs`
 - Modify: `api/crates/control-plane/src/ports.rs`
 
-- [ ] **Step 1: Write failing tests for worker leases and capability invocations**
+- [x] **Step 1: Write failing tests for worker leases and capability invocations**
 
 Add tests like:
 
@@ -91,7 +91,7 @@ async fn capability_runtime_port_returns_execute_payload() {
 }
 ```
 
-- [ ] **Step 2: Run RED verification**
+- [x] **Step 2: Run RED verification**
 
 Run:
 
@@ -104,7 +104,7 @@ Expected:
 
 - FAIL because there is no worker lease table and no capability runtime port yet.
 
-- [ ] **Step 3: Implement worker snapshots and runtime port contracts**
+- [x] **Step 3: Implement worker snapshots and runtime port contracts**
 
 Create the migration:
 
@@ -142,7 +142,7 @@ pub trait CapabilityPluginRuntimePort: Send + Sync {
 }
 ```
 
-- [ ] **Step 4: Re-run the backend tests**
+- [x] **Step 4: Re-run the backend tests**
 
 Run:
 
@@ -155,7 +155,7 @@ Expected:
 
 - PASS with persistent worker lease snapshots and a capability runtime port available to orchestration.
 
-- [ ] **Step 5: Commit the runtime contracts**
+- [x] **Step 5: Commit the runtime contracts**
 
 ```bash
 git add api/crates/domain/src/lib.rs api/crates/domain/src/plugin_worker.rs api/crates/control-plane/src/lib.rs api/crates/control-plane/src/ports.rs api/crates/control-plane/src/capability_plugin_runtime.rs api/crates/control-plane/src/_tests/capability_plugin_runtime_tests.rs api/crates/storage-pg/migrations/20260421123000_create_plugin_worker_lease_tables.sql api/crates/storage-pg/src/plugin_worker_repository.rs api/crates/storage-pg/src/_tests/plugin_worker_repository_tests.rs
@@ -351,4 +351,3 @@ git commit -m "feat: execute capability plugin nodes out of process"
 - Spec coverage: this plan covers `process_per_call`, `plugin_worker_lease`, capability-runtime methods, and orchestration dispatch for third-party action nodes.
 - Placeholder scan: concrete runtime endpoints, tables, and compiled-plan fields are all named.
 - Type consistency: later tasks keep `CapabilityPluginRuntimePort`, `PluginWorkerStatus`, `contribution_code`, and `plugin_node` naming stable.
-
