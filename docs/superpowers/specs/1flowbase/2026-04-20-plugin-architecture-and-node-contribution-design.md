@@ -123,7 +123,7 @@
 - 不支持热卸载
 - 不进入普通 marketplace 安装入口
 - `v1` 默认允许 `source_kind=filesystem_dropin`
-- 若部署开启 `uploaded host extension`，则仅允许 `root` 上传，且安装成功后只写入数据库 `activation_status=pending_restart`
+- 若部署开启 `uploaded host extension`，则仅允许 `root` 上传，且安装成功后只写入数据库 `desired_state=pending_restart`
 - 是否仅信任白名单来源、是否要求官方签名，由部署配置决定；默认建议开启严格策略
 - 变更通过重启宿主相关服务生效
 
@@ -205,7 +205,7 @@
 补充约束：
 
 - `host_extension` 不进入普通 marketplace 开放生态
-- `host_extension` 默认走 `filesystem_dropin`；若部署显式开启则允许 `root` 上传，但上传后只写数据库 `activation_status=pending_restart`
+- `host_extension` 默认走 `filesystem_dropin`；若部署显式开启则允许 `root` 上传，但上传后只写数据库 `desired_state=pending_restart`
 - `runtime_extension` 与 `capability_plugin` 不允许注册系统级 HTTP 接口
 - 第三方代码插件不进入主进程热加载路径
 
@@ -362,29 +362,45 @@
 - `canceled`
 - `timed_out`
 
-### 9.2 插件安装记录状态
+### 9.2 插件期望状态
 
-- `downloaded`
-- `verified`
-- `installed`
-- `install_failed`
+- `disabled`
+- `pending_restart`
+- `active_requested`
 
-### 9.3 插件激活状态
+### 9.3 插件产物状态
+
+- `missing`
+- `staged`
+- `ready`
+- `corrupted`
+- `install_incomplete`
+
+### 9.4 插件运行态状态
 
 - `inactive`
-- `pending_restart`
 - `active`
 - `load_failed`
-- `disabled`
 
-### 9.4 节点依赖状态
+### 9.5 插件可用性状态
+
+可用性状态固定为派生值，不允许控制面直接写入：
+
+- `disabled`
+- `pending_restart`
+- `artifact_missing`
+- `install_incomplete`
+- `load_failed`
+- `available`
+
+### 9.6 节点依赖状态
 
 - `ready`
 - `missing_plugin`
 - `version_mismatch`
 - `disabled_plugin`
 
-### 9.5 worker 状态
+### 9.7 worker 状态
 
 - `unloaded`
 - `starting`
@@ -396,8 +412,13 @@
 初期规则：
 
 - `HostExtension` 不做热卸载，不维护细粒度 worker 生命周期
-- `HostExtension` 的上传安装与激活必须拆开；`root` 上传成功后只更新数据库状态为 `pending_restart`
-- `HostExtension` 重启后才进入加载判定；加载成功写 `active`，失败写 `load_failed`
+- `HostExtension` 的上传安装与激活必须拆开；`root` 上传成功后只更新 `desired_state=pending_restart`
+- `HostExtension` 重启后才进入加载判定；加载器只写 `runtime_status`，不得直接把“可用”写成真值
+- 控制面只允许修改 `desired_state`
+- 安装器、启动扫描器和校验器只允许写 `artifact_status`
+- 运行时 loader / runner 只允许写 `runtime_status`
+- `availability_status` 必须由 `desired_state + artifact_status + runtime_status` 联合推导
+- 宿主启动时和每次关键加载前都应执行 reconcile，校验 `installed_path`、`manifest` 与摘要是否存在且匹配
 - `RuntimeExtension` 与带执行逻辑的 `CapabilityPlugin` 初期都可以统一走 `process_per_call`
 - `process_per_call` 模式下，每次调用结束即由操作系统回收进程资源
 
@@ -432,7 +453,8 @@
 
 - 目录只表达物理职责，不表达业务状态
 - 上传临时 staging 目录只作为短暂中转，不进入持久化目录契约
-- `pending_restart / active / load_failed` 等状态以数据库为准，不镜像成目录结构
+- `missing / corrupted / install_incomplete / pending_restart / available` 等状态由数据库记录与派生，但不镜像成目录结构
+- 数据库存的是意图状态与观测快照，不直接等价于“插件现在可用”
 
 ### 10.2 核心数据模型
 
@@ -441,7 +463,8 @@
 - `plugin_family`
 - `plugin_version`
 - `plugin_installation`
-- `plugin_activation`
+- `plugin_artifact_snapshot`
+- `plugin_runtime_snapshot`
 - `plugin_assignment`
 - `plugin_task`
 - `node_contribution_registry`
@@ -457,6 +480,7 @@
 - `disable plugin`
 - `assign plugin`
 - `list node contributions`
+- `reconcile plugin artifacts`
 - `resolve plugin dependency`
 - `start worker`
 - `stop worker`
@@ -497,7 +521,8 @@ block selector 固定规则：
 
 - `HostExtension`
   - 启动期加载
-  - 启动期扫描运维控制的 `filesystem_dropin` 目录与数据库中 `activation_status=pending_restart` 的安装记录
+  - 启动期扫描运维控制的 `filesystem_dropin` 目录与数据库中 `desired_state=pending_restart` 的安装记录
+  - 启动期先执行产物 reconcile，再决定是否允许进入加载
   - 通过宿主重启生效
 - `RuntimeExtension`
   - 统一由 `plugin-runner` 进程外执行

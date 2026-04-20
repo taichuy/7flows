@@ -72,7 +72,7 @@
 - 用户上传允许存在，但默认是手工来源；只有在后端验签通过时，才能提升为“官方签发的离线包”
 - `filesystem_dropin` 允许存在，但它是运维控制的本地来源，不等价于官方来源
 - `HostExtension` 默认走 `filesystem_dropin`；若部署显式开启，则可接受 `root` 上传，但 `source_kind` 仍保持 `uploaded`
-- `HostExtension uploaded` 安装成功后只写数据库 `activation_status=pending_restart`，必须重启后才能尝试激活
+- `HostExtension uploaded` 安装成功后只写数据库 `desired_state=pending_restart`，必须重启后才能尝试激活
 - 上传入口不替代官方源，只作为高级能力和离线兜底
 
 ## 4. 总体方案
@@ -299,8 +299,8 @@
 - 仅在 `API_PLUGIN_ALLOW_UPLOADED_HOST_EXTENSIONS=true` 时允许
 - 仅 `root` 账号可执行上传
 - 上传后 `source_kind` 仍保持 `uploaded`
-- 安装成功后只写数据库 `activation_status=pending_restart`
-- 宿主重启时根据数据库状态尝试激活；成功写 `active`，失败写 `load_failed`
+- 安装成功后只写数据库 `desired_state=pending_restart`
+- 宿主重启时先执行产物 reconcile，再根据数据库状态尝试激活；运行时只写 `runtime_status`
 
 ### 6.4 官方 catalog API 形状
 
@@ -378,9 +378,10 @@
 9. 根据签名结果推导 `trust_level`
 10. 若当前策略不允许 `unverified upload`，则在此处拒绝安装
 11. 若包声明 `consumption_kind=host_extension`，则校验上传者必须是 `root`，且部署已开启 `API_PLUGIN_ALLOW_UPLOADED_HOST_EXTENSIONS=true`
-12. 复用现有安装链路，将原始包归档到 `packages/`，解包产物写入 `installed/`
-13. 若包声明 `consumption_kind=host_extension`，则只写数据库 `activation_status=pending_restart`，不得立即激活
-14. 写入任务记录、审计日志并清理临时目录
+12. 复用现有安装链路，将原始包归档到 `packages/`，解包产物原子写入 `installed/`
+13. 写入 `package_path`、`installed_path`、摘要与指纹快照，并将 `artifact_status` 标记为 `ready`
+14. 若包声明 `consumption_kind=host_extension`，则只写数据库 `desired_state=pending_restart`，不得立即激活
+15. 写入任务记录、审计日志并清理临时目录
 
 前端传来的元信息一律不可信，后端只能以解包后重新读取到的内容为准。
 
@@ -421,7 +422,13 @@ UI 应显示为：
 - `signature_status`
 - `signature_algorithm`
 - `signing_key_id`
-- `activation_status`
+- `desired_state`
+- `artifact_status`
+- `runtime_status`
+- `availability_status`
+- `package_path`
+- `installed_path`
+- `manifest_fingerprint`
 - `last_load_error`
 
 其中：
@@ -429,7 +436,10 @@ UI 应显示为：
 - `source_kind` 回答“包从哪里来”
 - `trust_level` 回答“系统当前有多信任它”
 - `verification_status` 继续保留兼容，不再承担“官方可信”语义
-- `activation_status` 回答“这个安装对象当前是否已生效”
+- `desired_state` 回答“控制面希望它处于什么状态”
+- `artifact_status` 回答“本地产物是否齐全且可校验”
+- `runtime_status` 回答“运行时最近一次加载结果”
+- `availability_status` 是只读派生值，回答“系统当前是否可安全对外宣称它可用”
 
 ### 8.2 字段语义约束
 
@@ -440,9 +450,40 @@ UI 应显示为：
 - `signature_status=unsigned` 不代表失败，只代表没有官方签名
 - `source_kind=mirror_registry` 不天然等于官方可信，仍需验签成功
 - `source_kind=filesystem_dropin` 只表示包来自运维控制的本地目录，不天然等于官方可信
-- 目录结构不承载业务状态；`pending_restart / active / load_failed` 以数据库字段为准
+- 控制面不得直接把 `availability_status` 写成真值
+- 目录结构不承载业务状态；状态只能记录为数据库快照或派生值
 
-### 8.3 版本管理与升级规则
+派生规则至少应满足：
+
+- `desired_state=disabled` 时，`availability_status=disabled`
+- `desired_state=pending_restart` 且 `artifact_status=ready` 时，`availability_status=pending_restart`
+- `desired_state in (pending_restart, active_requested)` 且 `artifact_status=missing` 时，`availability_status=artifact_missing`
+- `artifact_status in (staged, install_incomplete, corrupted)` 时，`availability_status=install_incomplete`
+- `artifact_status=ready` 且 `runtime_status=load_failed` 时，`availability_status=load_failed`
+- `desired_state=active_requested`、`artifact_status=ready` 且 `runtime_status=active` 时，`availability_status=available`
+
+### 8.3 reconcile 机制
+
+系统必须显式维护 reconcile：
+
+- 宿主启动时扫描 `installed_path`
+- `HostExtension` 激活前做一次 reconcile
+- `RuntimeExtension / CapabilityPlugin` 在关键加载或调用前做轻量 reconcile
+
+reconcile 最少检查：
+
+- `package_path` 是否存在
+- `installed_path` 是否存在
+- `manifest.yaml` 是否存在
+- 已记录的摘要或 `manifest_fingerprint` 是否仍匹配
+
+不一致时只允许更新快照字段，例如：
+
+- 缺包：`artifact_status=missing`
+- 解包未完成：`artifact_status=install_incomplete`
+- 文件被篡改或摘要不匹配：`artifact_status=corrupted`
+
+### 8.4 版本管理与升级规则
 
 版本管理继续按 `provider_code` 聚合，不因来源不同而改变交互模型。
 
@@ -525,7 +566,8 @@ UI 应显示为：
 - 执行来源 allowlist 判断
 - 根据来源生成 `source_kind`
 - 根据验签结果生成 `trust_level`
-- 写入 `activation_status`
+- 写入 `desired_state / artifact_status / runtime_status`
+- 派生 `availability_status`
 - 复用 install、enable、assign、switch_version 等已有生命周期
 - 写任务记录和审计
 
@@ -599,6 +641,7 @@ UI 应显示为：
 - 官方升级按钮只针对 official catalog 中的 `verified_official` 版本
 - 上传来源版本可以安装和切换，但文案必须标记为“手工上传版本”
 - `HostExtension` 默认走 `filesystem_dropin`；若部署显式开启则允许 `root` 上传，但上传后固定进入 `pending_restart`
+- 插件可用性不是单一数据库字段真值，而是 `desired_state + artifact_status + runtime_status` 的联合派生结果
 
 一句话总结就是：
 
