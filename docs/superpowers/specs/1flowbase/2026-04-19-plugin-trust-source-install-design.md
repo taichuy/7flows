@@ -1,4 +1,4 @@
-# 1flowbase 官方插件签名信任链、镜像源与上传安装设计稿
+# 1flowbase 插件签名信任链、来源白名单与安装入口设计稿
 
 日期：2026-04-19
 状态：已确认设计，待用户审阅
@@ -11,11 +11,12 @@
 
 ## 1. 文档目标
 
-本文档用于收口 `1flowbase` 下一阶段官方插件分发与安装增强设计，明确：
+本文档用于收口 `1flowbase` 下一阶段插件来源治理与安装增强设计，明确：
 
-- 为什么“镜像源”和“用户上传”不能只当成两条安装入口，而必须补上统一的签名信任链
-- 官方源、镜像源、用户上传三种分发方式如何在同一套安装闭环下共存
+- 为什么“镜像源”“用户上传”“本地 drop-in”不能只当成几条入口，而必须补上统一的签名信任链
+- 官方源、镜像源、用户上传和本地 drop-in 四种来源如何在同一套安装闭环下共存
 - 宿主后端如何区分“来源”和“信任级别”，避免继续把 `verification_status=valid` 混成“官方验签通过”
+- 宿主后端如何把 `source allowlist`、`signature policy` 和 `trust_level` 拆开建模
 - `/settings/model-providers` 如何在不破坏现有安装与版本管理语义的前提下新增“从源安装 / 上传插件”双入口
 - 这一轮应该先做哪些基础设施，哪些能力应后置
 
@@ -34,7 +35,7 @@
 - 当前 `/api/console/plugins/install` 只是“按后端本地目录安装”，不是浏览器上传
 - 当前只有 checksum 完整性校验，没有官方签名真实性校验，无法证明“这个包确实由官方发布流程签发”
 
-如果现在直接补“镜像源 + 上传入口”，但不补签名信任链，会带来三个直接后果：
+如果现在直接补“镜像源 + 上传入口”，但不补签名信任链和来源策略，会带来三个直接后果：
 
 - 镜像源只能解决可达性，不能证明包的官方身份
 - 用户上传包只能解决兜底安装，不能区分“官方离线包”和“普通手工包”
@@ -46,25 +47,36 @@
 
 本轮设计固定采用以下口径：
 
-- 官方插件安装能力升级为“双入口 + 一套信任底座”
-- 分发来源和信任级别是两个独立维度，不能混成一个字段
+- 插件安装能力升级为“多来源入口 + 一套信任底座”
+- 分发来源、来源准入策略和信任级别是三个独立维度，不能混成一个字段
 - 来源固定区分为：
   - `official_registry`
   - `mirror_registry`
   - `uploaded`
+  - `filesystem_dropin`
+- 来源准入固定由部署配置控制：
+  - `source allowlist`
+  - `enforce_source_allowlist`
+- 签名阻断策略固定由部署配置控制：
+  - `require_signature_for_registry_sources`
+  - `allow_unverified_uploads`
+  - `allow_unverified_filesystem_dropins`
 - 信任级别固定区分为：
   - `verified_official`
   - `checksum_only`
   - `unverified`
 - `signature_status` 继续保留，但只表示签名检查诊断结果，不再承担“是否官方可信”的最终语义
+- 即使当前策略不阻断安装，后端仍必须执行验签并记录 `signature_status`
 - `verification_status` 不再扩展成“官方验签状态”；它只保留现有兼容语义，后续由新的 `trust_level` 接管产品表达
 - 镜像源允许存在，但镜像只负责搬运，不拥有“声明官方身份”的权力
 - 用户上传允许存在，但默认是手工来源；只有在后端验签通过时，才能提升为“官方签发的离线包”
+- `filesystem_dropin` 允许存在，但它是运维控制的本地来源，不等价于官方来源
+- `HostExtension` `v1` 只允许 `filesystem_dropin`
 - 上传入口不替代官方源，只作为高级能力和离线兜底
 
 ## 4. 总体方案
 
-### 4.1 一套信任底座，三种分发方式
+### 4.1 一套信任底座，四种来源
 
 后端对插件包的处理固定收口成同一条 intake pipeline：
 
@@ -76,11 +88,12 @@
 6. 生成统一的 `source_kind + trust_level + signature_status`
 7. 复用现有安装、启用、分配主链路
 
-三种入口只负责“包从哪里来”：
+四种来源只负责“包从哪里来”：
 
 - 官方源安装：包来自 resolved official registry
 - 镜像源安装：包来自 mirror registry
 - 上传安装：包来自浏览器上传
+- 本地 drop-in：包来自运维控制的本地目录扫描
 
 但“是不是官方可信”统一由后端验签决定，而不是由入口决定。
 
@@ -88,11 +101,12 @@
 
 本轮不建议把镜像源和上传入口直接并行开工，而是固定三期推进：
 
-第一期，补签名信任底座与安全解包。
+第一期，补签名信任底座、安全解包和来源策略。
 
 - 新增包签名元数据
 - 后端统一安全解包、验 checksum、验签
 - 数据模型正式拆出 `trust_level`
+- 后端补齐 `source allowlist` 与各来源签名策略
 
 第二期，上镜像源。
 
@@ -109,6 +123,7 @@
 原因很直接：
 
 - 没有第一期，第二期和第三期都只能做到“可用”
+- `filesystem_dropin` 与 `HostExtension` 也依赖同一套来源与签名策略，因此应随第一期一起定口径
 - 先做镜像源，对大多数国内安装问题收益最高
 - 上传安装的安全边界更复杂，应该在统一验签和安全解包到位后再接入
 
@@ -184,13 +199,15 @@
 最终 `trust_level` 由规则推导：
 
 - 验签通过：`verified_official`
-- 只有 checksum、无有效签名：`checksum_only`
-- 上传包未签名或签名失败：`unverified`
+- `official_registry / mirror_registry` 在摘要校验通过、但签名未通过且策略允许降级时：`checksum_only`
+- `uploaded / filesystem_dropin` 未签名或签名失败：`unverified`
 
 这里需要额外固定一条安装策略：
 
-- 对 official source 或 mirror source，若条目标记 `trust_mode=signature_required`，则验签不通过时直接拒绝安装，不允许降级成 `checksum_only`
-- `checksum_only` 只用于兼容期历史记录、内部调试路径或显式允许降级的手工导入场景
+- 对 `official_registry` 或 `mirror_registry`，若部署配置 `require_signature_for_registry_sources=true`，则验签不通过时直接拒绝安装，不允许降级成 `checksum_only`
+- 对 `uploaded`，若部署配置 `allow_unverified_uploads=false`，则验签不通过时直接拒绝安装
+- 对 `filesystem_dropin`，若部署配置 `allow_unverified_filesystem_dropins=false`，则验签不通过时直接拒绝加载
+- `checksum_only` 只用于兼容期历史记录、registry 来源显式允许降级的场景，不用于把手工来源伪装成“半官方”
 
 ## 6. 官方 registry 与镜像源设计
 
@@ -198,12 +215,22 @@
 
 当前 `API_OFFICIAL_PLUGIN_REGISTRY_URL` 继续保留兼容，但新增更清晰的配置层：
 
+- `API_PLUGIN_ALLOWED_SOURCE_KINDS`
+- `API_PLUGIN_ENFORCE_SOURCE_ALLOWLIST`
+- `API_PLUGIN_REQUIRE_SIGNATURE_FOR_REGISTRY_SOURCES`
+- `API_PLUGIN_ALLOW_UNVERIFIED_UPLOADS`
+- `API_PLUGIN_ALLOW_UNVERIFIED_FILESYSTEM_DROPINS`
 - `API_OFFICIAL_PLUGIN_DEFAULT_REGISTRY_URL`
 - `API_OFFICIAL_PLUGIN_MIRROR_REGISTRY_URL`
 - `API_OFFICIAL_PLUGIN_TRUSTED_PUBLIC_KEYS_JSON`
 
 解析规则固定为：
 
+- `API_PLUGIN_ALLOWED_SOURCE_KINDS` 至少支持 `official_registry,mirror_registry,uploaded,filesystem_dropin`
+- `API_PLUGIN_ENFORCE_SOURCE_ALLOWLIST` 默认 `true`
+- `API_PLUGIN_REQUIRE_SIGNATURE_FOR_REGISTRY_SOURCES` 默认 `true`
+- `API_PLUGIN_ALLOW_UNVERIFIED_UPLOADS` 默认 `true`
+- `API_PLUGIN_ALLOW_UNVERIFIED_FILESYSTEM_DROPINS` 默认 `true`
 - 镜像地址为空：使用默认官方 registry
 - 镜像地址非空：优先使用镜像 registry
 - 对业务层暴露统一 resolved official source
@@ -241,7 +268,30 @@
 
 如果 official source 或 mirror source 返回的是 unsigned 包，则本轮按错误处理，而不是继续安装为 `checksum_only`。
 
-### 6.3 官方 catalog API 形状
+### 6.3 来源 allowlist 与本地 drop-in
+
+部署侧固定需要一条来源 allowlist：
+
+- 不在 allowlist 的来源直接拒绝进入安装或加载流程
+- 在 allowlist 的来源仍然必须执行安全解包、checksum 和验签
+- 是否因为验签失败而阻断，由该来源对应的签名策略决定
+
+`filesystem_dropin` 的正式语义固定为：
+
+- 来源于运维控制的本地目录
+- 不等价于“官方来源”
+- 不暴露为普通浏览器上传入口
+- `HostExtension` `v1` 只允许来自该来源
+
+宿主启动时对 `filesystem_dropin` 固定执行：
+
+1. 扫描受控目录中的插件包
+2. 复用统一 package intake pipeline
+3. 记录 `source_kind=filesystem_dropin`
+4. 根据签名结果生成 `trust_level`
+5. 对 `HostExtension` 按启动生命周期加载或拒绝加载
+
+### 6.4 官方 catalog API 形状
 
 `GET /api/console/plugins/official-catalog` 升级为同时返回来源元信息和条目列表，例如：
 
@@ -306,16 +356,18 @@
 
 上传安装固定按以下顺序处理：
 
-1. 校验文件扩展名、魔数和大小限制
-2. 将原始文件落到隔离临时目录
-3. 安全解包，禁止路径穿越和绝对路径写入
-4. 重新读取包内 `manifest.yaml`、provider 定义和签名元数据
-5. 校验 `plugin_id`、`provider_code`、`version`、`contract_version`
-6. 执行摘要校验和验签
-7. 生成 `source_kind=uploaded`
-8. 根据签名结果推导 `trust_level`
-9. 复用现有安装、启用、分配链路
-10. 写入任务记录、审计日志并清理临时目录
+1. 校验 `uploaded` 在来源 allowlist 内
+2. 校验文件扩展名、魔数和大小限制
+3. 将原始文件落到隔离临时目录
+4. 安全解包，禁止路径穿越和绝对路径写入
+5. 重新读取包内 `manifest.yaml`、provider 定义和签名元数据
+6. 校验 `plugin_id`、`provider_code`、`version`、`contract_version`
+7. 执行摘要校验和验签
+8. 生成 `source_kind=uploaded`
+9. 根据签名结果推导 `trust_level`
+10. 若当前策略不允许 `unverified upload`，则在此处拒绝安装
+11. 复用现有安装、启用、分配链路
+12. 写入任务记录、审计日志并清理临时目录
 
 前端传来的元信息一律不可信，后端只能以解包后重新读取到的内容为准。
 
@@ -366,6 +418,7 @@ UI 应显示为：
 - `trust_level=verified_official` 才表示其官方身份已被密码学证明
 - `signature_status=unsigned` 不代表失败，只代表没有官方签名
 - `source_kind=mirror_registry` 不天然等于官方可信，仍需验签成功
+- `source_kind=filesystem_dropin` 只表示包来自运维控制的本地目录，不天然等于官方可信
 
 ### 8.3 版本管理与升级规则
 
@@ -375,6 +428,7 @@ UI 应显示为：
 
 - “升级到最新版本”只针对 official catalog 中可确认的 `verified_official` 版本
 - 上传来源版本可以切换，但不参与“推荐版本 / 官方最新”语义
+- `filesystem_dropin` 来源版本允许被宿主加载，但不参与 official catalog 的推荐和升级语义
 - 上传且未验签版本允许安装和回退，但 UI 必须明确标记“手工上传版本”
 
 ## 9. 前端交互设计
@@ -445,6 +499,7 @@ UI 应显示为：
 职责固定为：
 
 - 统一插件 intake command
+- 执行来源 allowlist 判断
 - 根据来源生成 `source_kind`
 - 根据验签结果生成 `trust_level`
 - 复用 install、enable、assign、switch_version 等已有生命周期
@@ -504,10 +559,10 @@ UI 应显示为：
 
 本轮正式建议固定为：
 
-- 不是二选一，而是“双入口安装方案”
-- 但双入口必须建立在同一套签名信任链上
+- 不是二选一，而是“多来源安装方案”
+- 但多来源必须建立在同一套签名信任链和来源策略上
 - 实施顺序固定为：
-  1. 签名信任底座与安全解包
+  1. 签名信任底座、安全解包与来源策略
   2. 镜像源安装
   3. 上传插件安装
 
@@ -516,9 +571,11 @@ UI 应显示为：
 - 官方插件优先从“当前配置源”安装
 - “当前配置源”默认官方，可切镜像
 - 上传插件是手工安装，不参与官方“推荐版本”语义
+- `filesystem_dropin` 是运维控制来源，不进入普通 marketplace 安装入口
 - 官方升级按钮只针对 official catalog 中的 `verified_official` 版本
 - 上传来源版本可以安装和切换，但文案必须标记为“手工上传版本”
+- `HostExtension` `v1` 只允许 `filesystem_dropin`，是否要求签名由部署配置决定
 
 一句话总结就是：
 
-`镜像源解决可达性，上传入口解决兜底安装，签名信任链解决真实性；三者缺一不可，但实现顺序不能颠倒。`
+`镜像源解决可达性，上传入口解决兜底安装，本地 drop-in 解决运维侧特权扩展，签名信任链与来源策略解决真实性和准入；几者缺一不可，但实现顺序不能颠倒。`

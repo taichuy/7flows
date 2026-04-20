@@ -37,19 +37,26 @@
 ## 已确认稳定规则
 
 - 插件体系继续保留“声明式能力插件 + 受控代码插件”的双轨方向。
-- 来源分级继续固定为：
-  - `official_whitelist`
-  - `community`
-  - `unknown`
+- 插件来源与信任继续分轴建模：
+  - `source_kind`
+    - `official_registry`
+    - `mirror_registry`
+    - `uploaded`
+    - `filesystem_dropin`
+  - `trust_level`
+    - `verified_official`
+    - `checksum_only`
+    - `unverified`
 - 风险来源代码插件启用前必须由 `root / admin` 二次确认，不得静默启用。
 - 插件消费语义继续分为：
   - `host-extension`
   - `runtime extension`
   - `capability plugin`
 - 其中：
-  - `host-extension` 才允许参与系统级扩展
+  - `host-extension` 才允许参与系统级扩展，属于宿主级特权插件
   - `runtime extension` 与 `capability plugin` 不允许注册 HTTP 接口
-  - 二者只能挂到宿主预定义白名单槽位
+  - `host-extension` 不进入普通 marketplace，`v1` 仅允许 `filesystem_dropin`
+  - 二者只能挂到宿主预定义 slot
 - `runtime extension` 继续只允许绑定：
   - `workspace`
   - `model`

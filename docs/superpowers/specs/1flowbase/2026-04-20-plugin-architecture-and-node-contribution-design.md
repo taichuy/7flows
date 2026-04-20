@@ -108,19 +108,22 @@
 
 后续任何插件都必须同时声明这两条轴，而不是只给一个类型。
 
-### 4.2 `HostExtension` 初期只允许官方白名单
+### 4.2 `HostExtension` 是宿主级特权扩展，不把“官方来源”写死进类型
 
 `HostExtension` 的正式语义是：
 
 - 它参与宿主级系统扩展
 - 它可以影响宿主对外资源或核心基础设施
 - 它不属于第三方默认开放生态
+- 它的准入应由部署侧来源策略与签名策略控制，而不是由类型名直接等价成“官方插件”
 
 初期固定规则：
 
-- 只允许官方白名单
 - 启动期加载
 - 不支持热卸载
+- 不进入普通 marketplace 安装入口
+- `v1` 只允许 `source_kind=filesystem_dropin`
+- 是否仅信任白名单来源、是否要求官方签名，由部署配置决定；默认建议开启严格策略
 - 变更通过重启宿主相关服务生效
 
 ### 4.3 `RuntimeExtension` 用于扩展宿主 runtime slot
@@ -194,13 +197,14 @@
 
 | consumption_kind | 语义 | 初期推荐 execution_mode | 是否第三方开放 | 是否显式选择 |
 | --- | --- | --- | --- | --- |
-| `host_extension` | 宿主系统级扩展 | `in_process` | 否，官方白名单 | 否 |
+| `host_extension` | 宿主系统级扩展 | `in_process` | 否，按部署策略受控 | 否 |
 | `runtime_extension` | 扩展宿主 runtime slot | `process_per_call` | 控制开放 | 否 |
 | `capability_plugin` | 贡献用户可选能力或画布节点 | `declarative_only` / `process_per_call` | 是 | 是 |
 
 补充约束：
 
 - `host_extension` 不进入普通 marketplace 开放生态
+- `host_extension` `v1` 只允许 `filesystem_dropin`
 - `runtime_extension` 与 `capability_plugin` 不允许注册系统级 HTTP 接口
 - 第三方代码插件不进入主进程热加载路径
 
@@ -272,6 +276,11 @@
 - `icon`
 - `source_kind`
 - `trust_level`
+
+其中：
+
+- `source_kind` 至少支持 `official_registry / mirror_registry / uploaded / filesystem_dropin`
+- `trust_level` 独立表达系统对该安装对象的信任结果，不得与 `source_kind` 或阻断策略混用
 
 ### 7.2 分类与执行
 
@@ -389,6 +398,8 @@
 
 宿主目录至少分为：
 
+- `plugin-dropins/`
+  - 运维控制的本地 drop-in 目录，供 `HostExtension` 与其它受控本地插件入口使用
 - `plugin-packages/`
   - 原始安装包
 - `plugin-installed/`
@@ -452,7 +463,7 @@ block selector 固定规则：
 ### 12.1 固定安全红线
 
 - 第三方代码插件不进入主进程热加载/热卸载路径
-- `HostExtension` 初期只允许官方白名单
+- `HostExtension` 属于宿主级特权插件，来源允许与签名要求由部署配置决定
 - 初期不考虑热卸载
 - 第三方节点插件不允许携带前端代码注入宿主页面
 
@@ -460,6 +471,7 @@ block selector 固定规则：
 
 - `HostExtension`
   - 启动期加载
+  - 启动期扫描运维控制的 `filesystem_dropin` 目录
   - 通过宿主重启生效
 - `RuntimeExtension`
   - 统一由 `plugin-runner` 进程外执行
@@ -499,7 +511,7 @@ block selector 固定规则：
 `1flowbase` 插件体系初期应明确采用以下原则：
 
 - 分类和执行分轴建模
-- `HostExtension` 官方白名单、启动期加载、无热卸载
+- `HostExtension` 是宿主级特权插件，`v1` 仅允许 `filesystem_dropin`，启动期加载、无热卸载
 - `RuntimeExtension` 只负责扩展宿主 runtime slot
 - 第三方画布节点插件属于 `CapabilityPlugin`
 - 节点 UI 只允许 `schema ui`，统一由宿主渲染

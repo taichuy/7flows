@@ -475,7 +475,9 @@ provider plugin 的 CI/CD 应固定分为两段：
 provider plugin 在插件体系中的固定分类是：
 
 - 种类：`runtime extension`
-- 来源级别：`official_whitelist / community / unknown`
+- 来源与信任分轴表达：
+  - `source_kind`: `official_registry / mirror_registry / uploaded / filesystem_dropin`
+  - `trust_level`: `verified_official / checksum_only / unverified`
 - 生效范围：`host 安装`、`workspace 分配`、`node 显式选择`
 
 它不属于：
