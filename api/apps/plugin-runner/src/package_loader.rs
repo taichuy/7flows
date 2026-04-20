@@ -32,10 +32,10 @@ impl PackageLoader {
         }
 
         let package = ProviderPackage::load_from_dir(&package_root)?;
-        let runtime_executable = package_root.join(&package.manifest.runtime.executable.path);
+        let runtime_executable = package.runtime_entry();
         if !runtime_executable.is_file() {
             return Err(PluginFrameworkError::invalid_provider_package(format!(
-                "provider runtime executable does not exist: {}",
+                "provider runtime entry does not exist: {}",
                 runtime_executable.display()
             )));
         }

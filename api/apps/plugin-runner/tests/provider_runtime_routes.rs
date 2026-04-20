@@ -204,28 +204,37 @@ fn make_fixture_package() -> TempProviderPackage {
     let package = TempProviderPackage::new();
     package.write(
         "manifest.yaml",
-        r#"schema_version: 2
-plugin_type: model_provider
-plugin_code: fixture_provider
+        r#"manifest_version: 1
+plugin_id: fixture_provider@0.1.0
 version: 0.1.0
+vendor: taichuy
+display_name: Fixture Provider
+description: Fixture Provider
+icon: icon.svg
+source_kind: uploaded
+trust_level: unverified
+consumption_kind: runtime_extension
+execution_mode: process_per_call
+slot_codes:
+  - model_provider
+binding_targets:
+  - workspace
+selection_mode: assignment_then_select
+minimum_host_version: 0.1.0
 contract_version: 1flowbase.provider/v1
-metadata:
-  author: taichuy
-provider:
-  definition: provider/fixture_provider.yaml
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: outbound_only
+  secrets: provider_instance_only
+  storage: none
+  mcp: none
+  subprocess: deny
 runtime:
-  kind: executable
-  protocol: stdio-json
-  executable:
-    path: bin/fixture_provider
-limits:
-  memory_bytes: 134217728
-  invoke_timeout_ms: 5000
-capabilities:
-  model_types:
-    - llm
-compat:
-  minimum_host_version: 0.1.0
+  protocol: stdio_json
+  entry: bin/fixture_provider
+  limits:
+    memory_bytes: 134217728
+    timeout_ms: 5000
 "#,
     );
     package.write(

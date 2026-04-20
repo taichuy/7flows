@@ -348,7 +348,7 @@ where
         let mut i18n_catalog = BTreeMap::new();
         for installation in installations {
             let package = load_provider_package(&installation.install_path)?;
-            if !filter.matches(&package.manifest.plugin_type) {
+            if !filter.matches("model_provider") {
                 continue;
             }
             let namespace = plugin_namespace(&installation.provider_code);
@@ -357,7 +357,7 @@ where
                 trim_provider_bundles(&namespace, &package.i18n, &locales),
             );
             catalog.push(PluginCatalogEntry {
-                plugin_type: package.manifest.plugin_type.clone(),
+                plugin_type: "model_provider".to_string(),
                 namespace,
                 label_key: "plugin.label".to_string(),
                 description_key: Some("plugin.description".to_string()),
@@ -499,7 +499,7 @@ where
                 .cloned()
                 .ok_or(ControlPlaneError::NotFound("plugin_installation"))?;
             let package = load_provider_package(&current.install_path)?;
-            if !filter.matches(&package.manifest.plugin_type) {
+            if !filter.matches("model_provider") {
                 continue;
             }
             let namespace = plugin_namespace(&current.provider_code);
@@ -526,7 +526,7 @@ where
 
             families.push(PluginFamilyView {
                 provider_code: current.provider_code.clone(),
-                plugin_type: package.manifest.plugin_type.clone(),
+                plugin_type: "model_provider".to_string(),
                 namespace,
                 label_key: "plugin.label".to_string(),
                 description_key: Some("plugin.description".to_string()),
@@ -798,9 +798,10 @@ where
 
         let installation_result = async {
             let source_package = load_provider_package(&command.package_root)?;
-            let install_path = self.install_root.join(&source_package.manifest.plugin_code).join(
-                &source_package.manifest.version,
-            );
+            let install_path = self
+                .install_root
+                .join(&source_package.provider.provider_code)
+                .join(&source_package.manifest.version);
             copy_installation_artifact(Path::new(&command.package_root), &install_path)?;
             let installed_package = load_provider_package(&install_path)?;
             let installation = self
@@ -826,7 +827,7 @@ where
                         "help_url": installed_package.provider.help_url,
                         "default_base_url": installed_package.provider.default_base_url,
                         "model_discovery_mode": format!("{:?}", installed_package.provider.model_discovery_mode).to_ascii_lowercase(),
-                        "supported_model_types": installed_package.manifest.capabilities.model_types,
+                        "supported_model_types": ["llm"],
                     }),
                     actor_user_id: command.actor_user_id,
                 })

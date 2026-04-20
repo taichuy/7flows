@@ -9,6 +9,8 @@ use serde_json::Value;
 
 use crate::{
     error::{FrameworkResult, PluginFrameworkError},
+    manifest_v1::{parse_plugin_manifest, PluginManifestV1},
+    capability_kind::PluginConsumptionKind,
     provider_contract::{ModelDiscoveryMode, ProviderModelDescriptor, ProviderModelSource},
 };
 
@@ -107,7 +109,7 @@ pub struct ProviderI18nCatalog {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProviderPackage {
     pub root: PathBuf,
-    pub manifest: ProviderManifest,
+    pub manifest: PluginManifestV1,
     pub provider: ProviderDefinition,
     pub predefined_models: Vec<ProviderModelDescriptor>,
     pub i18n: ProviderI18nCatalog,
@@ -124,23 +126,26 @@ impl ProviderPackage {
         }
 
         let manifest_path = root.join("manifest.yaml");
-        let manifest: ProviderManifest = load_yaml(&manifest_path)?;
+        let manifest_raw = fs::read_to_string(&manifest_path)
+            .map_err(|error| PluginFrameworkError::io(Some(&manifest_path), error.to_string()))?;
+        let manifest = parse_plugin_manifest(&manifest_raw)?;
+        let provider_code = provider_code_from_plugin_id(&manifest)?;
         validate_manifest(&manifest)?;
 
-        let executable_path = root.join(&manifest.runtime.executable.path);
-        if !executable_path.is_file() {
+        let runtime_entry = root.join(&manifest.runtime.entry);
+        if !runtime_entry.is_file() {
             return Err(PluginFrameworkError::invalid_provider_package(format!(
-                "runtime executable does not exist: {}",
-                executable_path.display()
+                "runtime entry does not exist: {}",
+                runtime_entry.display()
             )));
         }
 
-        let provider_path = root.join(&manifest.provider.definition);
+        let provider_path = root.join("provider").join(format!("{provider_code}.yaml"));
         let raw_provider: RawProviderDefinition = load_yaml(&provider_path)?;
-        if raw_provider.provider_code != manifest.plugin_code {
+        if raw_provider.provider_code != provider_code {
             return Err(PluginFrameworkError::invalid_provider_package(format!(
-                "provider_code {} does not match plugin_code {}",
-                raw_provider.provider_code, manifest.plugin_code
+                "provider_code {} does not match plugin_id prefix {}",
+                raw_provider.provider_code, provider_code
             )));
         }
 
@@ -148,8 +153,7 @@ impl ProviderPackage {
             provider_code: raw_provider.provider_code.clone(),
             display_name: raw_provider
                 .display_name
-                .or_else(|| manifest_label(&manifest.metadata))
-                .unwrap_or_else(|| manifest.plugin_code.clone()),
+                .unwrap_or_else(|| manifest.display_name.clone()),
             protocol: raw_provider
                 .protocol
                 .unwrap_or_else(|| raw_provider.provider_code.clone()),
@@ -174,7 +178,11 @@ impl ProviderPackage {
     }
 
     pub fn identifier(&self) -> String {
-        format!("{}@{}", self.manifest.plugin_code, self.manifest.version)
+        self.manifest.plugin_id.clone()
+    }
+
+    pub fn runtime_entry(&self) -> PathBuf {
+        self.root.join(&self.manifest.runtime.entry)
     }
 
     pub fn resolve_i18n_value(&self, locale: Option<&str>, key: &str) -> Option<String> {
@@ -226,66 +234,51 @@ struct RawModelPositions {
     items: Vec<String>,
 }
 
-fn validate_manifest(manifest: &ProviderManifest) -> FrameworkResult<()> {
-    if manifest.schema_version != 2 {
+fn validate_manifest(manifest: &PluginManifestV1) -> FrameworkResult<()> {
+    if manifest.consumption_kind != PluginConsumptionKind::RuntimeExtension {
         return Err(PluginFrameworkError::invalid_provider_package(
-            "manifest.schema_version must be 2",
+            "model provider package must declare consumption_kind=runtime_extension",
         ));
     }
-    if manifest.plugin_type != "model_provider" {
+    if !manifest
+        .slot_codes
+        .iter()
+        .any(|slot| slot == "model_provider")
+    {
         return Err(PluginFrameworkError::invalid_provider_package(
-            "manifest.plugin_type must be model_provider",
+            "model provider package must declare slot_codes including model_provider",
         ));
     }
-    if manifest.plugin_code.trim().is_empty() {
+    if manifest.execution_mode != crate::PluginExecutionMode::ProcessPerCall {
         return Err(PluginFrameworkError::invalid_provider_package(
-            "manifest.plugin_code cannot be empty",
+            "model provider package must declare execution_mode=process_per_call",
         ));
     }
-    if manifest.version.trim().is_empty() {
+    if manifest.runtime.protocol != "stdio_json" {
         return Err(PluginFrameworkError::invalid_provider_package(
-            "manifest.version cannot be empty",
-        ));
-    }
-    if manifest.contract_version.trim().is_empty() {
-        return Err(PluginFrameworkError::invalid_provider_package(
-            "manifest.contract_version cannot be empty",
-        ));
-    }
-    if manifest.provider.definition.trim().is_empty() {
-        return Err(PluginFrameworkError::invalid_provider_package(
-            "manifest.provider.definition cannot be empty",
-        ));
-    }
-    if manifest.runtime.kind != "executable" {
-        return Err(PluginFrameworkError::invalid_provider_package(
-            "manifest.runtime.kind must be executable",
-        ));
-    }
-    if manifest.runtime.protocol != "stdio-json" {
-        return Err(PluginFrameworkError::invalid_provider_package(
-            "manifest.runtime.protocol must be stdio-json",
-        ));
-    }
-    if manifest.runtime.executable.path.trim().is_empty() {
-        return Err(PluginFrameworkError::invalid_provider_package(
-            "manifest.runtime.executable.path cannot be empty",
-        ));
-    }
-    if manifest.compat.minimum_host_version.trim().is_empty() {
-        return Err(PluginFrameworkError::invalid_provider_package(
-            "manifest.compat.minimum_host_version cannot be empty",
+            "model provider package must declare runtime.protocol=stdio_json",
         ));
     }
     Ok(())
 }
 
-fn manifest_label(metadata: &ProviderMetadata) -> Option<String> {
-    metadata
-        .label
-        .get(DEFAULT_PROVIDER_LOCALE)
-        .cloned()
-        .or_else(|| metadata.label.values().next().cloned())
+fn provider_code_from_plugin_id(manifest: &PluginManifestV1) -> FrameworkResult<&str> {
+    let (provider_code, version) = manifest.plugin_id.split_once('@').ok_or_else(|| {
+        PluginFrameworkError::invalid_provider_package(
+            "manifest.plugin_id must use <provider_code>@<version>",
+        )
+    })?;
+    if provider_code.trim().is_empty() || version.trim().is_empty() {
+        return Err(PluginFrameworkError::invalid_provider_package(
+            "manifest.plugin_id must use <provider_code>@<version>",
+        ));
+    }
+    if version != manifest.version {
+        return Err(PluginFrameworkError::invalid_provider_package(
+            "manifest.plugin_id version must match manifest.version",
+        ));
+    }
+    Ok(provider_code)
 }
 
 fn load_predefined_models(models_dir: &Path) -> FrameworkResult<Vec<ProviderModelDescriptor>> {

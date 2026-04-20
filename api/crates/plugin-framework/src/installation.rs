@@ -112,7 +112,7 @@ impl ProviderCatalogEntry {
             contract_version: package.manifest.contract_version.clone(),
             protocol: package.provider.protocol.clone(),
             display_name: package.provider.display_name.clone(),
-            icon: package.manifest.metadata.icon.clone(),
+            icon: package.manifest.icon.clone(),
             help_url: package.provider.help_url.clone(),
             form_schema: package.provider.form_schema.clone(),
             predefined_models: package.predefined_models.clone(),

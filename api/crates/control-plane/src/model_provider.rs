@@ -172,7 +172,7 @@ where
                 provider_code: installation.provider_code,
                 plugin_id: installation.plugin_id,
                 plugin_version: installation.plugin_version,
-                plugin_type: package.manifest.plugin_type.clone(),
+                plugin_type: "model_provider".to_string(),
                 namespace: namespace.clone(),
                 label_key: "provider.label".to_string(),
                 description_key: Some("provider.description".to_string()),
@@ -802,7 +802,7 @@ where
             options.push(ModelProviderOptionEntry {
                 provider_instance_id: instance.id,
                 provider_code: instance.provider_code,
-                plugin_type: package.manifest.plugin_type.clone(),
+                plugin_type: "model_provider".to_string(),
                 namespace: namespace.clone(),
                 label_key: "provider.label".to_string(),
                 description_key: Some("provider.description".to_string()),

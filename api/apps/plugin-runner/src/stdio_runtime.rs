@@ -6,7 +6,7 @@ use plugin_framework::{
         ProviderRuntimeError, ProviderRuntimeErrorKind, ProviderStdioError, ProviderStdioRequest,
         ProviderStdioResponse,
     },
-    provider_package::ProviderRuntimeLimits,
+    PluginRuntimeLimits,
 };
 use serde_json::Value;
 use tokio::{io::AsyncWriteExt, process::Command};
@@ -14,7 +14,7 @@ use tokio::{io::AsyncWriteExt, process::Command};
 pub async fn call_executable(
     executable_path: &Path,
     request: &ProviderStdioRequest,
-    limits: &ProviderRuntimeLimits,
+    limits: &PluginRuntimeLimits,
 ) -> FrameworkResult<Value> {
     let mut command = Command::new(executable_path);
     command
@@ -37,7 +37,7 @@ pub async fn call_executable(
     }
 
     let output = tokio::time::timeout(
-        Duration::from_millis(limits.invoke_timeout_ms.unwrap_or(30_000)),
+        Duration::from_millis(limits.timeout_ms.unwrap_or(30_000)),
         child.wait_with_output(),
     )
     .await

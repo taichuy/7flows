@@ -157,7 +157,7 @@ impl ProviderHost {
         call_executable(
             &loaded.runtime_executable,
             &request,
-            &loaded.package.manifest.limits,
+            &loaded.package.manifest.runtime.limits,
         )
         .await
     }

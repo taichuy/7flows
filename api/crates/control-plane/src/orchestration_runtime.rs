@@ -2094,27 +2094,34 @@ fn write_test_provider_package() -> String {
     fs::create_dir_all(root.join("i18n")).expect("create fixture i18n dir");
     fs::write(
         root.join("manifest.yaml"),
-        r#"schema_version: 2
-plugin_type: model_provider
-plugin_code: fixture_provider
+        r#"manifest_version: 1
+plugin_id: fixture_provider@0.1.0
 version: 0.1.0
+vendor: 1flowbase tests
+display_name: Fixture Provider
+description: Fixture Provider
+icon: icon.svg
+source_kind: official_registry
+trust_level: verified_official
+consumption_kind: runtime_extension
+execution_mode: process_per_call
+slot_codes:
+  - model_provider
+binding_targets:
+  - workspace
+selection_mode: assignment_then_select
+minimum_host_version: 0.1.0
 contract_version: 1flowbase.provider/v1
-metadata:
-  author: 1flowbase tests
-  label:
-    en_US: "Fixture Provider"
-provider:
-  definition: provider/fixture_provider.yaml
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: outbound_only
+  secrets: provider_instance_only
+  storage: none
+  mcp: none
+  subprocess: deny
 runtime:
-  kind: executable
-  protocol: stdio-json
-  executable:
-    path: bin/fixture_provider-provider
-capabilities:
-  model_types:
-    - llm
-compat:
-  minimum_host_version: 0.1.0
+  protocol: stdio_json
+  entry: bin/fixture_provider-provider
 "#,
     )
     .expect("write manifest");

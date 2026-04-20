@@ -12,7 +12,11 @@ use tar::Archive;
 use uuid::Uuid;
 use zip::ZipArchive;
 
-use crate::{error::PluginFrameworkError, provider_package::ProviderPackage};
+use crate::{
+    error::PluginFrameworkError,
+    manifest_v1::PluginManifestV1,
+    provider_package::ProviderPackage,
+};
 
 #[derive(Debug, Clone)]
 pub struct TrustedPublicKey {
@@ -33,6 +37,7 @@ pub struct PackageIntakePolicy {
 #[derive(Debug, Clone)]
 pub struct PackageIntakeResult {
     pub extracted_root: PathBuf,
+    pub manifest: PluginManifestV1,
     pub package: ProviderPackage,
     pub source_kind: String,
     pub trust_level: String,
@@ -95,8 +100,12 @@ pub async fn intake_package_bytes(
             return Err(error);
         }
     };
-    let signature =
-        match verify_official_release_signature(&extracted.package_root, package_bytes, policy) {
+    let signature = match verify_official_release_signature(
+        &extracted.package_root,
+        &package,
+        package_bytes,
+        policy,
+    ) {
             Ok(signature) => signature,
             Err(error) => {
                 let _ = fs::remove_dir_all(&extracted.temp_dir);
@@ -110,6 +119,7 @@ pub async fn intake_package_bytes(
 
     Ok(PackageIntakeResult {
         extracted_root: extracted.package_root,
+        manifest: package.manifest.clone(),
         package,
         source_kind: policy.source_kind.clone(),
         trust_level: derive_trust_level(policy, &signature),
@@ -279,6 +289,7 @@ fn validate_relative_path(path: &Path) -> Result<(), PluginFrameworkError> {
 
 fn verify_official_release_signature(
     extracted_root: &Path,
+    package: &ProviderPackage,
     package_bytes: &[u8],
     policy: &PackageIntakePolicy,
 ) -> Result<SignatureVerificationResult, PluginFrameworkError> {
@@ -342,6 +353,7 @@ fn verify_official_release_signature(
             signing_key_id: Some(release.signing_key_id),
         });
     }
+    validate_release_identity(&release, package)?;
 
     let trusted_key = match policy
         .trusted_public_keys
@@ -399,6 +411,23 @@ fn verify_official_release_signature(
         signature_algorithm: Some(release.signature_algorithm),
         signing_key_id: Some(release.signing_key_id),
     })
+}
+
+fn validate_release_identity(
+    release: &OfficialReleaseDocument,
+    package: &ProviderPackage,
+) -> Result<(), PluginFrameworkError> {
+    if release.plugin_id != package.manifest.plugin_id
+        || release.provider_code != package.provider.provider_code
+        || release.version != package.manifest.version
+        || release.contract_version != package.manifest.contract_version
+    {
+        return Err(PluginFrameworkError::invalid_provider_package(
+            "official release metadata must match package manifest identity",
+        ));
+    }
+
+    Ok(())
 }
 
 fn parse_signature(bytes: &[u8]) -> Result<Signature, PluginFrameworkError> {

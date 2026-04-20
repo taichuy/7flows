@@ -21,11 +21,16 @@ enum ArchiveFormat {
 }
 
 struct SignedFixtureInput<'a> {
-    plugin_code: &'a str,
+    provider_code: &'a str,
     version: &'a str,
+    source_kind: &'a str,
+    trust_level: &'a str,
     include_signature: bool,
     tamper_signature: bool,
     archive_format: ArchiveFormat,
+    release_plugin_id: Option<String>,
+    release_provider_code: Option<String>,
+    release_version: Option<String>,
 }
 
 struct SignedPackageFixture {
@@ -83,13 +88,18 @@ impl Drop for TempFixtureDir {
 }
 
 #[tokio::test]
-async fn package_intake_verifies_signed_official_archive_and_derives_verified_official() {
+async fn package_intake_verifies_signed_official_archive_and_exposes_manifest_snapshot() {
     let fixture = create_signed_package_fixture(SignedFixtureInput {
-        plugin_code: "openai_compatible",
+        provider_code: "openai_compatible",
         version: "0.2.0",
+        source_kind: "official_registry",
+        trust_level: "verified_official",
         include_signature: true,
         tamper_signature: false,
         archive_format: ArchiveFormat::TarGz,
+        release_plugin_id: None,
+        release_provider_code: None,
+        release_version: None,
     });
 
     let result = intake_package_bytes(
@@ -113,16 +123,27 @@ async fn package_intake_verifies_signed_official_archive_and_derives_verified_of
         result.signing_key_id.as_deref(),
         Some("official-key-2026-04")
     );
+    assert_eq!(result.manifest.plugin_id, "openai_compatible@0.2.0");
+    assert_eq!(
+        result.manifest.consumption_kind,
+        plugin_framework::PluginConsumptionKind::RuntimeExtension
+    );
+    assert_eq!(result.manifest.runtime.entry, "bin/openai_compatible-provider");
 }
 
 #[tokio::test]
 async fn package_intake_rejects_unsigned_signature_required_mirror_archive() {
     let fixture = create_signed_package_fixture(SignedFixtureInput {
-        plugin_code: "openai_compatible",
+        provider_code: "openai_compatible",
         version: "0.2.0",
+        source_kind: "mirror_registry",
+        trust_level: "verified_official",
         include_signature: false,
         tamper_signature: false,
         archive_format: ArchiveFormat::TarGz,
+        release_plugin_id: None,
+        release_provider_code: None,
+        release_version: None,
     });
 
     let error = intake_package_bytes(
@@ -146,11 +167,16 @@ async fn package_intake_rejects_unsigned_signature_required_mirror_archive() {
 #[tokio::test]
 async fn package_intake_marks_uploaded_unsigned_archive_as_unverified() {
     let fixture = create_signed_package_fixture(SignedFixtureInput {
-        plugin_code: "fixture_provider",
+        provider_code: "fixture_provider",
         version: "0.1.0",
+        source_kind: "uploaded",
+        trust_level: "unverified",
         include_signature: false,
         tamper_signature: false,
         archive_format: ArchiveFormat::Zip,
+        release_plugin_id: None,
+        release_provider_code: None,
+        release_version: None,
     });
 
     let result = intake_package_bytes(
@@ -169,11 +195,51 @@ async fn package_intake_marks_uploaded_unsigned_archive_as_unverified() {
     assert_eq!(result.source_kind, "uploaded");
     assert_eq!(result.trust_level, "unverified");
     assert_eq!(result.signature_status, "unsigned");
+    assert_eq!(result.manifest.plugin_id, "fixture_provider@0.1.0");
+}
+
+#[tokio::test]
+async fn package_intake_rejects_signed_archive_with_release_identity_mismatch() {
+    let fixture = create_signed_package_fixture(SignedFixtureInput {
+        provider_code: "openai_compatible",
+        version: "0.2.0",
+        source_kind: "official_registry",
+        trust_level: "verified_official",
+        include_signature: true,
+        tamper_signature: false,
+        archive_format: ArchiveFormat::TarGz,
+        release_plugin_id: Some("different_provider@0.2.0".to_string()),
+        release_provider_code: Some("different_provider".to_string()),
+        release_version: None,
+    });
+
+    let error = intake_package_bytes(
+        &fixture.package_bytes,
+        &PackageIntakePolicy {
+            source_kind: "official_registry".to_string(),
+            trust_mode: "signature_required".to_string(),
+            expected_artifact_sha256: Some(fixture.artifact_sha256.clone()),
+            trusted_public_keys: vec![fixture.public_key.clone()],
+            original_filename: Some("openai_compatible-0.2.0.1flowbasepkg".into()),
+        },
+    )
+    .await
+    .expect_err("mismatched release identity must be rejected");
+
+    assert!(error
+        .to_string()
+        .contains("official release metadata must match package manifest identity"));
 }
 
 fn create_signed_package_fixture(input: SignedFixtureInput<'_>) -> SignedPackageFixture {
     let fixture_dir = TempFixtureDir::new();
-    write_provider_fixture(&fixture_dir, input.plugin_code, input.version);
+    write_provider_fixture(
+        &fixture_dir,
+        input.provider_code,
+        input.version,
+        input.source_kind,
+        input.trust_level,
+    );
 
     let payload_sha256 = payload_sha256(fixture_dir.path());
     let signing_key = SigningKey::from_bytes(&[7u8; 32]);
@@ -189,9 +255,15 @@ fn create_signed_package_fixture(input: SignedFixtureInput<'_>) -> SignedPackage
     if input.include_signature {
         let release = OfficialReleaseDocument {
             schema_version: 1,
-            plugin_id: format!("1flowbase.{}", input.plugin_code),
-            provider_code: input.plugin_code,
-            version: input.version,
+            plugin_id: input
+                .release_plugin_id
+                .clone()
+                .unwrap_or_else(|| format!("{}@{}", input.provider_code, input.version)),
+            provider_code: input
+                .release_provider_code
+                .as_deref()
+                .unwrap_or(input.provider_code),
+            version: input.release_version.as_deref().unwrap_or(input.version),
             contract_version: "1flowbase.provider/v1",
             artifact_sha256: "sha256:fixture-artifact",
             payload_sha256,
@@ -220,109 +292,67 @@ fn create_signed_package_fixture(input: SignedFixtureInput<'_>) -> SignedPackage
     }
 }
 
-fn write_provider_fixture(dir: &TempFixtureDir, plugin_code: &str, version: &str) {
+fn write_provider_fixture(
+    dir: &TempFixtureDir,
+    provider_code: &str,
+    version: &str,
+    source_kind: &str,
+    trust_level: &str,
+) {
     dir.write_str(
         "manifest.yaml",
         &format!(
-            r#"schema_version: 2
-plugin_type: model_provider
-plugin_code: {plugin_code}
+            r#"manifest_version: 1
+plugin_id: {provider_code}@{version}
 version: {version}
+vendor: taichuy
+display_name: {provider_code}
+description: provider package
+icon: icon.svg
+source_kind: {source_kind}
+trust_level: {trust_level}
+consumption_kind: runtime_extension
+execution_mode: process_per_call
+slot_codes:
+  - model_provider
+binding_targets:
+  - workspace
+selection_mode: assignment_then_select
+minimum_host_version: 0.1.0
 contract_version: 1flowbase.provider/v1
-metadata:
-  author: taichuy
-provider:
-  definition: provider/{plugin_code}.yaml
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: outbound_only
+  secrets: provider_instance_only
+  storage: none
+  mcp: none
+  subprocess: deny
 runtime:
-  kind: executable
-  protocol: stdio-json
-  executable:
-    path: bin/{plugin_code}-provider
-limits:
-  memory_bytes: 268435456
-  invoke_timeout_ms: 30000
-capabilities:
-  model_types:
-    - llm
-compat:
-  minimum_host_version: 0.1.0
+  protocol: stdio_json
+  entry: bin/{provider_code}-provider
+  limits:
+    timeout_ms: 30000
+    memory_bytes: 268435456
+node_contributions: []
 "#
         ),
     );
     dir.write_str(
-        &format!("provider/{plugin_code}.yaml"),
+        &format!("provider/{provider_code}.yaml"),
         &format!(
-            r#"provider_code: {plugin_code}
-display_name: {plugin_code}
+            r#"provider_code: {provider_code}
+display_name: {provider_code}
 protocol: openai_compatible
 model_discovery: hybrid
 config_schema:
   - key: api_key
-    type: secret
+    type: string
     required: true
 "#
         ),
     );
-    dir.write_str(
-        &format!("bin/{plugin_code}-provider"),
-        "#!/usr/bin/env bash\nexit 0\n",
-    );
-    dir.write_str(
-        "models/llm/_position.yaml",
-        &format!("items:\n  - {plugin_code}_chat\n"),
-    );
-    dir.write_str(
-        &format!("models/llm/{plugin_code}_chat.yaml"),
-        &format!(
-            r#"model: {plugin_code}_chat
-label: {plugin_code} chat
-family: llm
-capabilities:
-  - stream
-"#
-        ),
-    );
-    dir.write_str(
-        "i18n/en_US.json",
-        &format!(r#"{{ "plugin": {{ "label": "{plugin_code}" }} }}"#),
-    );
-}
-
-fn payload_sha256(root: &Path) -> String {
-    fn walk(root: &Path, current: &Path, entries: &mut Vec<(String, Vec<u8>)>) {
-        let mut children = fs::read_dir(current)
-            .unwrap()
-            .map(|entry| entry.unwrap())
-            .collect::<Vec<_>>();
-        children.sort_by_key(|entry| entry.path());
-        for entry in children {
-            let path = entry.path();
-            let relative = path
-                .strip_prefix(root)
-                .unwrap()
-                .to_string_lossy()
-                .replace('\\', "/");
-            if relative.starts_with("_meta/") {
-                continue;
-            }
-            if path.is_dir() {
-                walk(root, &path, entries);
-                continue;
-            }
-            entries.push((relative, fs::read(&path).unwrap()));
-        }
-    }
-
-    let mut entries = Vec::new();
-    walk(root, root, &mut entries);
-    let mut hasher = Sha256::new();
-    for (relative, content) in entries {
-        hasher.update(relative.as_bytes());
-        hasher.update([0]);
-        hasher.update(content);
-        hasher.update([0]);
-    }
-    format!("sha256:{:x}", hasher.finalize())
+    dir.write_str(&format!("bin/{provider_code}-provider"), "#!/usr/bin/env bash\nexit 0\n");
+    dir.write_str("i18n/en_US.json", "{ \"plugin\": { \"label\": \"Acme\" } }\n");
 }
 
 fn pack_tar_gz(root: &Path) -> Vec<u8> {
@@ -331,6 +361,54 @@ fn pack_tar_gz(root: &Path) -> Vec<u8> {
     append_dir_to_tar(&mut builder, root, root);
     builder.finish().unwrap();
     builder.into_inner().unwrap().finish().unwrap()
+}
+
+fn pack_zip(root: &Path) -> Vec<u8> {
+    let cursor = Cursor::new(Vec::new());
+    let mut writer = ZipWriter::new(cursor);
+    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
+    append_dir_to_zip(&mut writer, root, root, options);
+    writer.finish().unwrap().into_inner()
+}
+
+fn payload_sha256(root: &Path) -> String {
+    let mut files = Vec::new();
+    collect_payload_files(root, root, &mut files);
+    files.sort_by(|left, right| left.0.cmp(&right.0));
+
+    let mut hasher = Sha256::new();
+    for (relative_path, content) in files {
+        hasher.update(relative_path.as_bytes());
+        hasher.update([0]);
+        hasher.update(content);
+        hasher.update([0]);
+    }
+    format!("{:x}", hasher.finalize())
+}
+
+fn collect_payload_files(root: &Path, current: &Path, files: &mut Vec<(String, Vec<u8>)>) {
+    let mut children = fs::read_dir(current)
+        .unwrap()
+        .map(|entry| entry.unwrap())
+        .collect::<Vec<_>>();
+    children.sort_by_key(|entry| entry.path());
+
+    for entry in children {
+        let path = entry.path();
+        let relative = path
+            .strip_prefix(root)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        if relative.starts_with("_meta/") {
+            continue;
+        }
+        if path.is_dir() {
+            collect_payload_files(root, &path, files);
+            continue;
+        }
+        files.push((relative, fs::read(&path).unwrap()));
+    }
 }
 
 fn append_dir_to_tar(builder: &mut Builder<GzEncoder<Vec<u8>>>, root: &Path, current: &Path) {
@@ -349,14 +427,6 @@ fn append_dir_to_tar(builder: &mut Builder<GzEncoder<Vec<u8>>>, root: &Path, cur
         }
         builder.append_path_with_name(&path, relative).unwrap();
     }
-}
-
-fn pack_zip(root: &Path) -> Vec<u8> {
-    let cursor = Cursor::new(Vec::new());
-    let mut writer = ZipWriter::new(cursor);
-    let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
-    append_dir_to_zip(&mut writer, root, root, options);
-    writer.finish().unwrap().into_inner()
 }
 
 fn append_dir_to_zip(

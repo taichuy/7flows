@@ -7,6 +7,7 @@ use plugin_framework::{
     installation::ProviderCatalogEntry,
     provider_contract::{ModelDiscoveryMode, ProviderModelSource},
     provider_package::ProviderPackage,
+    PluginConsumptionKind,
 };
 use uuid::Uuid;
 
@@ -44,29 +45,38 @@ fn make_package_fixture() -> TempProviderPackage {
     let fixture = TempProviderPackage::new();
     fixture.write(
         "manifest.yaml",
-        r#"schema_version: 2
-plugin_type: model_provider
-plugin_code: acme_openai_compatible
+        r#"manifest_version: 1
+plugin_id: acme_openai_compatible@1.2.3
 version: 1.2.3
+vendor: taichuy
+display_name: Acme OpenAI Compatible
+description: Acme provider package
+icon: icon.svg
+source_kind: official_registry
+trust_level: verified_official
+consumption_kind: runtime_extension
+execution_mode: process_per_call
+slot_codes:
+  - model_provider
+binding_targets:
+  - workspace
+selection_mode: assignment_then_select
+minimum_host_version: 0.1.0
 contract_version: 1flowbase.provider/v1
-metadata:
-  author: taichuy
-  icon: icon.svg
-provider:
-  definition: provider/acme_openai_compatible.yaml
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: outbound_only
+  secrets: provider_instance_only
+  storage: none
+  mcp: none
+  subprocess: deny
 runtime:
-  kind: executable
-  protocol: stdio-json
-  executable:
-    path: bin/acme_openai_compatible-provider
-limits:
-  memory_bytes: 268435456
-  invoke_timeout_ms: 30000
-capabilities:
-  model_types:
-    - llm
-compat:
-  minimum_host_version: 0.1.0
+  protocol: stdio_json
+  entry: bin/acme_openai_compatible-provider
+  limits:
+    timeout_ms: 30000
+    memory_bytes: 268435456
+node_contributions: []
 "#,
     );
     fixture.write(
@@ -137,12 +147,18 @@ provider_metadata:
 }
 
 #[test]
-fn provider_package_loads_manifest_schema_and_static_models() {
+fn provider_package_loads_manifest_v1_runtime_entry_and_static_models() {
     let fixture = make_package_fixture();
 
     let package = ProviderPackage::load_from_dir(fixture.path()).unwrap();
 
     assert_eq!(package.identifier(), "acme_openai_compatible@1.2.3");
+    assert_eq!(package.manifest.plugin_id, "acme_openai_compatible@1.2.3");
+    assert_eq!(
+        package.manifest.consumption_kind,
+        PluginConsumptionKind::RuntimeExtension
+    );
+    assert_eq!(package.runtime_entry(), fixture.path().join("bin/acme_openai_compatible-provider"));
     assert_eq!(package.provider.provider_code, "acme_openai_compatible");
     assert_eq!(package.provider.protocol, "openai_compatible");
     assert_eq!(
@@ -165,6 +181,7 @@ fn provider_package_loads_manifest_schema_and_static_models() {
     assert_eq!(catalog_entry.plugin_id, "acme_openai_compatible@1.2.3");
     assert_eq!(catalog_entry.form_schema.len(), 2);
     assert_eq!(catalog_entry.predefined_models.len(), 1);
+    assert_eq!(catalog_entry.icon.as_deref(), Some("icon.svg"));
 }
 
 #[test]
@@ -190,60 +207,4 @@ fn provider_package_requires_default_locale_bundle() {
 
     let error = ProviderPackage::load_from_dir(fixture.path()).unwrap_err();
     assert!(error.to_string().contains("en_US"));
-}
-
-#[test]
-fn provider_package_loads_schema_v2_executable_runtime_and_limits() {
-    let fixture = TempProviderPackage::new();
-    fixture.write(
-        "manifest.yaml",
-        r#"schema_version: 2
-plugin_type: model_provider
-plugin_code: acme_openai_compatible
-version: 1.2.3
-contract_version: 1flowbase.provider/v1
-metadata:
-  author: taichuy
-  icon: icon.svg
-provider:
-  definition: provider/acme_openai_compatible.yaml
-runtime:
-  kind: executable
-  protocol: stdio-json
-  executable:
-    path: bin/acme_openai_compatible-provider
-limits:
-  memory_bytes: 268435456
-  invoke_timeout_ms: 30000
-capabilities:
-  model_types:
-    - llm
-compat:
-  minimum_host_version: 0.1.0
-"#,
-    );
-    fixture.write(
-        "provider/acme_openai_compatible.yaml",
-        "provider_code: acme_openai_compatible\nmodel_discovery: hybrid\n",
-    );
-    fixture.write(
-        "bin/acme_openai_compatible-provider",
-        "#!/usr/bin/env bash\nexit 0\n",
-    );
-    fixture.write(
-        "i18n/en_US.json",
-        "{ \"plugin\": { \"label\": \"Acme\" } }\n",
-    );
-
-    let package = ProviderPackage::load_from_dir(fixture.path()).unwrap();
-
-    assert_eq!(package.manifest.schema_version, 2);
-    assert_eq!(package.manifest.runtime.kind, "executable");
-    assert_eq!(package.manifest.runtime.protocol, "stdio-json");
-    assert_eq!(
-        package.manifest.runtime.executable.path,
-        "bin/acme_openai_compatible-provider"
-    );
-    assert_eq!(package.manifest.limits.memory_bytes, Some(268435456));
-    assert_eq!(package.manifest.limits.invoke_timeout_ms, Some(30000));
 }

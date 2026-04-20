@@ -87,27 +87,34 @@ pub(super) fn write_provider_manifest_v2(
     fs::write(
         root.join("manifest.yaml"),
         format!(
-            r#"schema_version: 2
-plugin_type: model_provider
-plugin_code: {provider_code}
+            r#"manifest_version: 1
+plugin_id: {provider_code}@{version}
 version: {version}
+vendor: 1flowbase tests
+display_name: {display_name}
+description: {display_name}
+icon: icon.svg
+source_kind: official_registry
+trust_level: verified_official
+consumption_kind: runtime_extension
+execution_mode: process_per_call
+slot_codes:
+  - model_provider
+binding_targets:
+  - workspace
+selection_mode: assignment_then_select
+minimum_host_version: 0.1.0
 contract_version: 1flowbase.provider/v1
-metadata:
-  author: 1flowbase tests
-  label:
-    en_US: "{display_name}"
-provider:
-  definition: provider/{provider_code}.yaml
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: outbound_only
+  secrets: provider_instance_only
+  storage: none
+  mcp: none
+  subprocess: deny
 runtime:
-  kind: executable
-  protocol: stdio-json
-  executable:
-    path: bin/{provider_code}-provider
-capabilities:
-  model_types:
-    - llm
-compat:
-  minimum_host_version: 0.1.0
+  protocol: stdio_json
+  entry: bin/{provider_code}-provider
 "#
         ),
     )

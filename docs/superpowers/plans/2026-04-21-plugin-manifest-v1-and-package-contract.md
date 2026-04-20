@@ -236,7 +236,7 @@ git commit -m "feat: add plugin manifest v1 parser"
 - Modify: `api/apps/plugin-runner/src/package_loader.rs`
 - Modify: `api/crates/control-plane/src/plugin_management.rs`
 
-- [ ] **Step 1: Write failing adapter tests for provider packages**
+- [x] **Step 1: Write failing adapter tests for provider packages**
 
 Add tests like:
 
@@ -258,7 +258,7 @@ fn provider_package_adapter_rejects_non_provider_slot_manifest() {
 }
 ```
 
-- [ ] **Step 2: Run adapter and intake tests to capture RED**
+- [x] **Step 2: Run adapter and intake tests to capture RED**
 
 Run:
 
@@ -271,7 +271,7 @@ Expected:
 
 - FAIL because `ProviderPackage` still expects the old provider-specific top-level manifest keys and `package_intake` still returns only the provider-shaped metadata.
 
-- [ ] **Step 3: Refactor provider loading to project from `PluginManifestV1`**
+- [x] **Step 3: Refactor provider loading to project from `PluginManifestV1`**
 
 Update `api/crates/plugin-framework/src/provider_package.rs` to use:
 
@@ -320,7 +320,7 @@ pub struct PackageIntakeResult {
 }
 ```
 
-- [ ] **Step 4: Re-run the provider-package and intake tests**
+- [x] **Step 4: Re-run the provider-package and intake tests**
 
 Run:
 
@@ -333,7 +333,7 @@ Expected:
 
 - PASS with current provider packages loading through the generic manifest adapter instead of a provider-only top-level manifest.
 
-- [ ] **Step 5: Commit the provider manifest adapter**
+- [x] **Step 5: Commit the provider manifest adapter**
 
 ```bash
 git add api/crates/plugin-framework/src/provider_package.rs api/crates/plugin-framework/src/package_intake.rs api/crates/plugin-framework/src/_tests/provider_manifest_adapter_tests.rs api/crates/plugin-framework/src/_tests/package_intake_tests.rs api/crates/plugin-framework/src/_tests/provider_package_tests.rs api/apps/plugin-runner/src/package_loader.rs api/crates/control-plane/src/plugin_management.rs

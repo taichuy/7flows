@@ -250,7 +250,7 @@ fn build_signed_openai_upload_package(version: &str) -> Vec<u8> {
     let signing_key = SigningKey::from_bytes(&[7u8; 32]);
     let release = serde_json::json!({
         "schema_version": 1,
-        "plugin_id": "1flowbase.openai_compatible",
+        "plugin_id": format!("openai_compatible@{}", version),
         "provider_code": "openai_compatible",
         "version": version,
         "contract_version": "1flowbase.provider/v1",
