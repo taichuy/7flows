@@ -1,6 +1,10 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useEffect, type ReactNode } from 'react';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
+import {
+  modelProviderOptionInstances,
+  modelProviderOptionsContract
+} from '../../../test/model-provider-contract-fixtures';
 
 const modelProviderOptionsApi = vi.hoisted(() => ({
   modelProviderOptionsQueryKey: ['model-providers', 'options'] as const,
@@ -55,74 +59,9 @@ function renderWithProviders(ui: ReactNode) {
 describe('LlmModelField', () => {
   beforeEach(() => {
     modelProviderOptionsApi.fetchModelProviderOptions.mockReset();
-    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValue({
-      instances: [
-        {
-          provider_instance_id: 'provider-openai-prod',
-          provider_code: 'openai_compatible',
-          protocol: 'openai_responses',
-          display_name: 'OpenAI Prod',
-          models: [
-            {
-              model_id: 'gpt-4o-mini',
-              display_name: 'GPT-4o Mini',
-              source: 'catalog',
-              supports_streaming: true,
-              supports_tool_call: true,
-              supports_multimodal: false,
-              context_window: 128000,
-              max_output_tokens: 16384,
-              parameter_form: {
-                schema_version: '1.0.0',
-                fields: [
-                  {
-                    key: 'temperature',
-                    label: 'Temperature',
-                    type: 'number',
-                    send_mode: 'optional',
-                    enabled_by_default: false,
-                    default_value: 0.7
-                  }
-                ]
-              },
-              provider_metadata: {}
-            },
-            {
-              model_id: 'gpt-4.1',
-              display_name: 'GPT-4.1',
-              source: 'catalog',
-              supports_streaming: true,
-              supports_tool_call: true,
-              supports_multimodal: false,
-              context_window: 128000,
-              max_output_tokens: 16384,
-              parameter_form: null,
-              provider_metadata: {}
-            }
-          ]
-        },
-        {
-          provider_instance_id: 'provider-azure-prod',
-          provider_code: 'openai_compatible',
-          protocol: 'openai_responses',
-          display_name: 'Azure Prod',
-          models: [
-            {
-              model_id: 'azure-gpt-4.1',
-              display_name: 'Azure GPT-4.1',
-              source: 'catalog',
-              supports_streaming: true,
-              supports_tool_call: true,
-              supports_multimodal: false,
-              context_window: 128000,
-              max_output_tokens: 16384,
-              parameter_form: null,
-              provider_metadata: {}
-            }
-          ]
-        }
-      ]
-    });
+    modelProviderOptionsApi.fetchModelProviderOptions.mockResolvedValue(
+      modelProviderOptionsContract
+    );
   });
 
   test('writes selected provider instance and model back to the llm node config', async () => {
@@ -143,7 +82,7 @@ describe('LlmModelField', () => {
 
     expect(await screen.findByText('模型供应商实例')).toBeInTheDocument();
     const providerButton = await screen.findByRole('button', {
-      name: '选择模型供应商实例 OpenAI Prod'
+      name: `选择模型供应商实例 ${modelProviderOptionInstances[0].display_name}`
     });
 
     fireEvent.click(providerButton);
@@ -163,7 +102,9 @@ describe('LlmModelField', () => {
       );
     });
     fireEvent.click(
-      await screen.findByRole('button', { name: '选择模型 GPT-4o Mini' })
+      await screen.findByRole('button', {
+        name: `选择模型 ${modelProviderOptionInstances[0].models[0].display_name}`
+      })
     );
 
     await waitFor(() => {
@@ -175,8 +116,8 @@ describe('LlmModelField', () => {
               model_provider: expect.objectContaining({
                 provider_instance_id: 'provider-openai-prod',
                 model_id: 'gpt-4o-mini',
-                provider_label: 'OpenAI Prod',
-                model_label: 'GPT-4o Mini'
+                provider_label: modelProviderOptionInstances[0].display_name,
+                model_label: modelProviderOptionInstances[0].models[0].display_name
               }),
               llm_parameters: {
                 schema_version: '1.0.0',
