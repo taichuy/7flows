@@ -256,7 +256,7 @@ rtk node --test scripts/node/_tests/core.test.js --test-name-pattern "windows ex
 
 Expected: PASS with `RuntimeTarget` recognizing six release targets and the packaging CLI emitting Windows/macOS asset metadata without changing the thin-package contract.
 
-- [ ] **Step 5: Commit the host target expansion**
+- [x] **Step 5: Commit the host target expansion**
 
 ```bash
 rtk git add api/crates/plugin-framework/src/runtime_target.rs api/crates/plugin-framework/src/_tests/runtime_target_tests.rs api/crates/plugin-framework/src/lib.rs scripts/node/plugin/core.js scripts/node/plugin/_tests/core.test.js
@@ -273,7 +273,7 @@ rtk git commit -m "feat: expand provider packaging targets"
 - Modify: `../1flowbase-official-plugins/scripts/update-official-registry.mjs`
 - Modify: `../1flowbase-official-plugins/scripts/_tests/update-official-registry.test.mjs`
 
-- [ ] **Step 1: Write the failing registry-shaping tests**
+- [x] **Step 1: Write the failing registry-shaping tests**
 
 Add a new builder test like this in `../1flowbase-official-plugins/scripts/_tests/build-registry-entry.test.mjs`:
 
@@ -317,7 +317,7 @@ assert.equal(updated.plugins[0].plugin_type, 'model_provider');
 assert.equal(updated.plugins[0].i18n_summary.default_locale, 'en_US');
 ```
 
-- [ ] **Step 2: Run the sibling-repo script tests and confirm RED**
+- [x] **Step 2: Run the sibling-repo script tests and confirm RED**
 
 Run in `../1flowbase-official-plugins`:
 
@@ -327,7 +327,7 @@ rtk node --test scripts/_tests/*.test.mjs
 
 Expected: FAIL because no reusable registry builder exists yet and the current registry updater/tests know nothing about `plugin_type` or `i18n_summary`.
 
-- [ ] **Step 3: Implement reusable registry-entry building and split release packaging by OS family**
+- [x] **Step 3: Implement reusable registry-entry building and split release packaging by OS family**
 
 Create `../1flowbase-official-plugins/scripts/build-registry-entry.mjs` around a tested helper:
 
@@ -395,7 +395,7 @@ Replace the inline Node heredoc with the reusable builder:
 entry_json="$(node scripts/build-registry-entry.mjs "${PLUGIN_DIR}" "${PROVIDER_CODE}" "${VERSION}" "${ARTIFACTS_JSON}")"
 ```
 
-- [ ] **Step 4: Run the sibling script tests again and confirm GREEN**
+- [x] **Step 4: Run the sibling script tests again and confirm GREEN**
 
 Run in `../1flowbase-official-plugins`:
 
@@ -405,7 +405,7 @@ rtk node --test scripts/_tests/*.test.mjs
 
 Expected: PASS with registry entries preserving `plugin_type`, carrying lightweight two-locale `i18n_summary`, and workflow logic ready to emit six target-specific packages into one logical registry entry.
 
-- [ ] **Step 5: Commit the sibling repo workflow and registry changes**
+- [x] **Step 5: Commit the sibling repo workflow and registry changes**
 
 Run in `../1flowbase-official-plugins`:
 
@@ -428,7 +428,7 @@ rtk git commit -m "feat: add multiplatform provider release metadata"
 - Create: `api/crates/runtime-profile/src/_tests/profile_tests.rs`
 - Modify: `api/Cargo.toml`
 
-- [ ] **Step 1: Write the failing crate tests first**
+- [x] **Step 1: Write the failing crate tests first**
 
 Add locale and fingerprint tests like these:
 
@@ -470,7 +470,7 @@ fn runtime_profile_formats_memory_in_gb_with_two_decimals() {
 }
 ```
 
-- [ ] **Step 2: Run the new crate tests and confirm RED**
+- [x] **Step 2: Run the new crate tests and confirm RED**
 
 Run:
 
@@ -480,7 +480,7 @@ rtk cargo test --manifest-path api/Cargo.toml -p runtime-profile -- --nocapture
 
 Expected: FAIL because the workspace does not yet contain a `runtime-profile` crate or any locale/fingerprint/profile helpers.
 
-- [ ] **Step 3: Implement the shared runtime-profile crate**
+- [x] **Step 3: Implement the shared runtime-profile crate**
 
 Add the crate to `api/Cargo.toml` and implement core helpers like this:
 
@@ -573,7 +573,7 @@ pub fn collect_runtime_profile(
 }
 ```
 
-- [ ] **Step 4: Run the crate tests again and confirm GREEN**
+- [x] **Step 4: Run the crate tests again and confirm GREEN**
 
 Run:
 
