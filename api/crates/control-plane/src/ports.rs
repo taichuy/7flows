@@ -748,6 +748,45 @@ pub trait PluginRepository: Send + Sync {
 }
 
 #[derive(Debug, Clone)]
+pub struct NodeContributionRegistryInput {
+    pub contribution_code: String,
+    pub node_shell: String,
+    pub category: String,
+    pub title: String,
+    pub description: String,
+    pub icon: String,
+    pub schema_ui: serde_json::Value,
+    pub schema_version: String,
+    pub output_schema: serde_json::Value,
+    pub required_auth: Vec<String>,
+    pub visibility: String,
+    pub experimental: bool,
+    pub dependency_installation_kind: String,
+    pub dependency_plugin_version_range: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ReplaceInstallationNodeContributionsInput {
+    pub installation_id: Uuid,
+    pub provider_code: String,
+    pub plugin_id: String,
+    pub plugin_version: String,
+    pub entries: Vec<NodeContributionRegistryInput>,
+}
+
+#[async_trait]
+pub trait NodeContributionRepository: Send + Sync {
+    async fn replace_installation_node_contributions(
+        &self,
+        input: &ReplaceInstallationNodeContributionsInput,
+    ) -> anyhow::Result<()>;
+    async fn list_node_contributions(
+        &self,
+        workspace_id: Uuid,
+    ) -> anyhow::Result<Vec<domain::NodeContributionRegistryEntry>>;
+}
+
+#[derive(Debug, Clone)]
 pub struct CreateModelProviderInstanceInput {
     pub instance_id: Uuid,
     pub workspace_id: Uuid,

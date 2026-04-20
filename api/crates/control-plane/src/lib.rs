@@ -10,6 +10,7 @@ pub mod i18n;
 pub mod member;
 pub mod model_definition;
 pub mod model_provider;
+pub mod node_contribution;
 pub mod orchestration_runtime;
 pub mod plugin_management;
 pub mod ports;

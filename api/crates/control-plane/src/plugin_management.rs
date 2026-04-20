@@ -9,8 +9,8 @@ use std::{
 use access_control::ensure_permission;
 use anyhow::{Context, Result};
 use plugin_framework::{
-    intake_package_bytes, provider_package::ProviderPackage, PackageIntakePolicy,
-    PackageIntakeResult,
+    intake_package_bytes, parse_plugin_manifest, provider_package::ProviderPackage,
+    PackageIntakePolicy, PackageIntakeResult, PluginManifestV1,
 };
 use serde_json::json;
 use time::OffsetDateTime;
@@ -25,8 +25,9 @@ use crate::{
     },
     ports::{
         AuthRepository, CreatePluginAssignmentInput, CreatePluginTaskInput,
-        ModelProviderRepository, OfficialPluginArtifact, OfficialPluginSourceEntry,
-        OfficialPluginSourcePort, PluginRepository, ProviderRuntimePort,
+        ModelProviderRepository, NodeContributionRegistryInput, NodeContributionRepository,
+        OfficialPluginArtifact, OfficialPluginSourceEntry, OfficialPluginSourcePort,
+        PluginRepository, ProviderRuntimePort, ReplaceInstallationNodeContributionsInput,
         ReassignModelProviderInstancesInput, UpdatePluginInstallationEnabledInput,
         UpdatePluginTaskStatusInput, UpsertModelProviderCatalogCacheInput,
         UpsertPluginInstallationInput,
@@ -291,7 +292,7 @@ fn normalize_official_entries(
 
 impl<R, H> PluginManagementService<R, H>
 where
-    R: AuthRepository + PluginRepository + ModelProviderRepository,
+    R: AuthRepository + PluginRepository + ModelProviderRepository + NodeContributionRepository,
     H: ProviderRuntimePort,
 {
     pub fn new(
@@ -832,6 +833,12 @@ where
                     actor_user_id: command.actor_user_id,
                 })
                 .await?;
+            let manifest = load_plugin_manifest(&install_path)?;
+            self.repository
+                .replace_installation_node_contributions(
+                    &build_node_contribution_sync_input(&installation, &manifest),
+                )
+                .await?;
             self.repository
                 .append_audit_log(&audit_log(
                     Some(actor.current_workspace_id),
@@ -1305,6 +1312,46 @@ where
 
 fn load_provider_package(path: impl AsRef<Path>) -> Result<ProviderPackage> {
     ProviderPackage::load_from_dir(path.as_ref()).map_err(map_framework_error)
+}
+
+fn load_plugin_manifest(path: impl AsRef<Path>) -> Result<PluginManifestV1> {
+    let manifest_path = path.as_ref().join("manifest.yaml");
+    let raw = fs::read_to_string(&manifest_path).with_context(|| {
+        format!("failed to read plugin manifest at {}", manifest_path.display())
+    })?;
+    parse_plugin_manifest(&raw).map_err(map_framework_error)
+}
+
+fn build_node_contribution_sync_input(
+    installation: &domain::PluginInstallationRecord,
+    manifest: &PluginManifestV1,
+) -> ReplaceInstallationNodeContributionsInput {
+    ReplaceInstallationNodeContributionsInput {
+        installation_id: installation.id,
+        provider_code: installation.provider_code.clone(),
+        plugin_id: installation.plugin_id.clone(),
+        plugin_version: installation.plugin_version.clone(),
+        entries: manifest
+            .node_contributions
+            .iter()
+            .map(|entry| NodeContributionRegistryInput {
+                contribution_code: entry.contribution_code.clone(),
+                node_shell: entry.node_shell.clone(),
+                category: entry.category.clone(),
+                title: entry.title.clone(),
+                description: entry.description.clone(),
+                icon: entry.icon.clone(),
+                schema_ui: entry.schema_ui.clone(),
+                schema_version: entry.schema_version.clone(),
+                output_schema: entry.output_schema.clone(),
+                required_auth: entry.required_auth.clone(),
+                visibility: entry.visibility.clone(),
+                experimental: entry.experimental,
+                dependency_installation_kind: entry.dependency.installation_kind.clone(),
+                dependency_plugin_version_range: entry.dependency.plugin_version_range.clone(),
+            })
+            .collect(),
+    }
 }
 
 fn map_model_discovery_mode(

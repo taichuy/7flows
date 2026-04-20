@@ -68,7 +68,7 @@
 - Modify: `api/crates/control-plane/src/ports.rs`
 - Modify: `api/crates/control-plane/src/plugin_management.rs`
 
-- [ ] **Step 1: Write failing repository and service tests**
+- [x] **Step 1: Write failing repository and service tests**
 
 Add cases like:
 
@@ -98,7 +98,7 @@ async fn registry_marks_disabled_plugin_as_disabled_dependency() {
 }
 ```
 
-- [ ] **Step 2: Run RED tests**
+- [x] **Step 2: Run RED tests**
 
 Run:
 
@@ -111,7 +111,7 @@ Expected:
 
 - FAIL because no registry table, repository, or dependency-status read model exists yet.
 
-- [ ] **Step 3: Create the registry tables and domain records**
+- [x] **Step 3: Create the registry tables and domain records**
 
 Create `api/crates/storage-pg/migrations/20260421113000_create_node_contribution_registry_tables.sql` with:
 
@@ -153,7 +153,7 @@ pub enum NodeContributionDependencyStatus {
 }
 ```
 
-- [ ] **Step 4: Re-run the repository and service tests**
+- [x] **Step 4: Re-run the repository and service tests**
 
 Run:
 
@@ -166,7 +166,7 @@ Expected:
 
 - PASS with `node_contribution_registry` rows derived from installed plugin manifests and dependency status resolved per workspace.
 
-- [ ] **Step 5: Commit the registry backend**
+- [x] **Step 5: Commit the registry backend**
 
 ```bash
 git add api/crates/domain/src/lib.rs api/crates/domain/src/node_contribution.rs api/crates/control-plane/src/lib.rs api/crates/control-plane/src/ports.rs api/crates/control-plane/src/node_contribution.rs api/crates/control-plane/src/plugin_management.rs api/crates/control-plane/src/_tests/node_contribution_service_tests.rs api/crates/storage-pg/migrations/20260421113000_create_node_contribution_registry_tables.sql api/crates/storage-pg/src/node_contribution_repository.rs api/crates/storage-pg/src/mappers/node_contribution_mapper.rs api/crates/storage-pg/src/_tests/node_contribution_repository_tests.rs
@@ -391,4 +391,3 @@ git commit -m "feat: drive block selector from node contribution registry"
 - Spec coverage: this plan covers `node contribution v1`, `node_contribution_registry`, dependency states, block selector rules, and DSL identity fields for plugin-contributed nodes.
 - Placeholder scan: each task names the route, repository, schema, and picker files explicitly; no anonymous registry or frontend adapter remains.
 - Type consistency: the same fields repeat across tasks: `plugin_id`, `plugin_version`, `contribution_code`, `node_shell`, `schema_version`, and `dependency_status`.
-

@@ -1,0 +1,181 @@
+use std::sync::Arc;
+
+use anyhow::Result;
+use async_trait::async_trait;
+use control_plane::{
+    errors::ControlPlaneError,
+    node_contribution::{ListNodeContributionsQuery, NodeContributionService},
+    ports::{AuthRepository, NodeContributionRepository},
+};
+use domain::{
+    ActorContext, NodeContributionDependencyStatus, NodeContributionRegistryEntry,
+};
+use tokio::sync::RwLock;
+use uuid::Uuid;
+
+use super::plugin_management_service_tests::actor_with_permissions;
+
+#[derive(Clone)]
+struct MemoryNodeContributionRepository {
+    actor: ActorContext,
+    entries: Arc<RwLock<Vec<NodeContributionRegistryEntry>>>,
+}
+
+impl MemoryNodeContributionRepository {
+    fn new(actor: ActorContext, entries: Vec<NodeContributionRegistryEntry>) -> Self {
+        Self {
+            actor,
+            entries: Arc::new(RwLock::new(entries)),
+        }
+    }
+}
+
+#[async_trait]
+impl AuthRepository for MemoryNodeContributionRepository {
+    async fn find_authenticator(&self, _name: &str) -> Result<Option<domain::AuthenticatorRecord>> {
+        Ok(None)
+    }
+
+    async fn find_user_for_password_login(&self, _identifier: &str) -> Result<Option<domain::UserRecord>> {
+        Ok(None)
+    }
+
+    async fn find_user_by_id(&self, _user_id: Uuid) -> Result<Option<domain::UserRecord>> {
+        Ok(None)
+    }
+
+    async fn default_scope_for_user(&self, _user_id: Uuid) -> Result<domain::ScopeContext> {
+        Ok(domain::ScopeContext {
+            tenant_id: self.actor.tenant_id,
+            workspace_id: self.actor.current_workspace_id,
+        })
+    }
+
+    async fn load_actor_context_for_user(&self, actor_user_id: Uuid) -> Result<ActorContext> {
+        self.load_actor_context(
+            actor_user_id,
+            self.actor.tenant_id,
+            self.actor.current_workspace_id,
+            None,
+        )
+        .await
+    }
+
+    async fn load_actor_context(
+        &self,
+        user_id: Uuid,
+        tenant_id: Uuid,
+        workspace_id: Uuid,
+        _display_role: Option<&str>,
+    ) -> Result<ActorContext> {
+        let mut actor = self.actor.clone();
+        actor.user_id = user_id;
+        actor.tenant_id = tenant_id;
+        actor.current_workspace_id = workspace_id;
+        Ok(actor)
+    }
+
+    async fn update_password_hash(&self, _user_id: Uuid, _password_hash: &str, _actor_id: Uuid) -> Result<i64> {
+        Ok(1)
+    }
+
+    async fn update_profile(&self, _input: &control_plane::ports::UpdateProfileInput) -> Result<domain::UserRecord> {
+        anyhow::bail!("not implemented")
+    }
+
+    async fn bump_session_version(&self, _user_id: Uuid, _actor_id: Uuid) -> Result<i64> {
+        Ok(1)
+    }
+
+    async fn list_permissions(&self) -> Result<Vec<domain::PermissionDefinition>> {
+        Ok(Vec::new())
+    }
+
+    async fn append_audit_log(&self, _event: &domain::AuditLogRecord) -> Result<()> {
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl NodeContributionRepository for MemoryNodeContributionRepository {
+    async fn replace_installation_node_contributions(
+        &self,
+        _input: &control_plane::ports::ReplaceInstallationNodeContributionsInput,
+    ) -> Result<()> {
+        Ok(())
+    }
+
+    async fn list_node_contributions(
+        &self,
+        _workspace_id: Uuid,
+    ) -> Result<Vec<NodeContributionRegistryEntry>> {
+        Ok(self.entries.read().await.clone())
+    }
+}
+
+fn sample_entry(contribution_code: &str, status: NodeContributionDependencyStatus) -> NodeContributionRegistryEntry {
+    NodeContributionRegistryEntry {
+        installation_id: Uuid::now_v7(),
+        provider_code: "prompt_pack".into(),
+        plugin_id: "prompt_pack@0.1.0".into(),
+        plugin_version: "0.1.0".into(),
+        contribution_code: contribution_code.into(),
+        node_shell: "action".into(),
+        category: "ai".into(),
+        title: "OpenAI Prompt".into(),
+        description: "Prompt node".into(),
+        icon: "spark".into(),
+        schema_ui: serde_json::json!({}),
+        schema_version: "1flowbase.node-contribution/v1".into(),
+        output_schema: serde_json::json!({}),
+        required_auth: vec!["provider_instance".into()],
+        visibility: "public".into(),
+        experimental: false,
+        dependency_installation_kind: "required".into(),
+        dependency_plugin_version_range: ">=0.1.0".into(),
+        dependency_status: status,
+    }
+}
+
+#[tokio::test]
+async fn node_contribution_service_lists_workspace_entries() {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryNodeContributionRepository::new(
+        actor_with_permissions(workspace_id, &["plugin_config.view.all"]),
+        vec![sample_entry("openai_prompt", NodeContributionDependencyStatus::Ready)],
+    );
+    let service = NodeContributionService::new(repository);
+
+    let view = service
+        .list_node_contributions(ListNodeContributionsQuery {
+            actor_user_id: Uuid::now_v7(),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(view.entries.len(), 1);
+    assert_eq!(view.entries[0].contribution_code, "openai_prompt");
+    assert_eq!(view.entries[0].dependency_status.as_str(), "ready");
+}
+
+#[tokio::test]
+async fn node_contribution_service_requires_plugin_config_view_permission() {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryNodeContributionRepository::new(
+        actor_with_permissions(workspace_id, &[]),
+        vec![sample_entry("openai_prompt", NodeContributionDependencyStatus::Ready)],
+    );
+    let service = NodeContributionService::new(repository);
+
+    let error = service
+        .list_node_contributions(ListNodeContributionsQuery {
+            actor_user_id: Uuid::now_v7(),
+        })
+        .await
+        .unwrap_err();
+
+    assert!(matches!(
+        error.downcast_ref::<ControlPlaneError>(),
+        Some(ControlPlaneError::PermissionDenied(_))
+    ));
+}

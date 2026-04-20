@@ -6,6 +6,7 @@ mod model_definition_acl_tests;
 mod model_definition_runtime_sync_tests;
 mod model_definition_service_tests;
 mod model_provider_service_tests;
+mod node_contribution_service_tests;
 mod orchestration_runtime_resume_tests;
 mod orchestration_runtime_service_tests;
 mod plugin_management_service_tests;

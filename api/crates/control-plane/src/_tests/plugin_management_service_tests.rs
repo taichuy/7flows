@@ -31,10 +31,11 @@ use crate::{
     ports::{
         AuthRepository, CreateModelProviderInstanceInput, CreatePluginAssignmentInput,
         CreatePluginTaskInput, DownloadedOfficialPluginPackage, ModelProviderRepository,
-        OfficialPluginArtifact, OfficialPluginCatalogSnapshot, OfficialPluginCatalogSource,
-        OfficialPluginI18nSummary, OfficialPluginSourceEntry, OfficialPluginSourcePort,
-        PluginRepository, ProviderRuntimeInvocationOutput, ProviderRuntimePort,
-        ReassignModelProviderInstancesInput, UpdateModelProviderInstanceInput,
+        NodeContributionRepository, OfficialPluginArtifact, OfficialPluginCatalogSnapshot,
+        OfficialPluginCatalogSource, OfficialPluginI18nSummary, OfficialPluginSourceEntry,
+        OfficialPluginSourcePort, PluginRepository, ProviderRuntimeInvocationOutput,
+        ProviderRuntimePort, ReassignModelProviderInstancesInput,
+        ReplaceInstallationNodeContributionsInput, UpdateModelProviderInstanceInput,
         UpdatePluginInstallationEnabledInput, UpdatePluginTaskStatusInput, UpdateProfileInput,
         UpsertModelProviderCatalogCacheInput, UpsertModelProviderSecretInput,
         UpsertPluginInstallationInput,
@@ -44,8 +45,9 @@ use domain::{
     ActorContext, AuditLogRecord, AuthenticatorRecord, ModelProviderCatalogCacheRecord,
     ModelProviderCatalogRefreshStatus, ModelProviderCatalogSource, ModelProviderDiscoveryMode,
     ModelProviderInstanceRecord, ModelProviderInstanceStatus, ModelProviderSecretRecord,
-    PermissionDefinition, PluginAssignmentRecord, PluginInstallationRecord, PluginTaskKind,
-    PluginTaskRecord, PluginTaskStatus, ScopeContext, UserRecord,
+    NodeContributionDependencyStatus, PermissionDefinition, PluginAssignmentRecord,
+    PluginInstallationRecord, PluginTaskKind, PluginTaskRecord, PluginTaskStatus, ScopeContext,
+    UserRecord,
 };
 use plugin_framework::provider_contract::{
     ProviderInvocationInput, ProviderInvocationResult, ProviderModelDescriptor,
@@ -61,6 +63,7 @@ struct MemoryPluginManagementRepository {
     tasks: Arc<RwLock<HashMap<Uuid, PluginTaskRecord>>>,
     instances: Arc<RwLock<HashMap<Uuid, ModelProviderInstanceRecord>>>,
     caches: Arc<RwLock<HashMap<Uuid, ModelProviderCatalogCacheRecord>>>,
+    node_contributions: Arc<RwLock<Vec<domain::NodeContributionRegistryEntry>>>,
     audit_events: Arc<RwLock<Vec<String>>>,
     created_task_status_override: Arc<RwLock<Option<PluginTaskStatus>>>,
 }
@@ -75,6 +78,7 @@ impl MemoryPluginManagementRepository {
             tasks: Arc::new(RwLock::new(HashMap::new())),
             instances: Arc::new(RwLock::new(HashMap::new())),
             caches: Arc::new(RwLock::new(HashMap::new())),
+            node_contributions: Arc::new(RwLock::new(Vec::new())),
             audit_events: Arc::new(RwLock::new(Vec::new())),
             created_task_status_override: Arc::new(RwLock::new(None)),
         }
@@ -387,6 +391,77 @@ impl PluginRepository for MemoryPluginManagementRepository {
 }
 
 #[async_trait]
+impl NodeContributionRepository for MemoryPluginManagementRepository {
+    async fn replace_installation_node_contributions(
+        &self,
+        input: &ReplaceInstallationNodeContributionsInput,
+    ) -> Result<()> {
+        let mut rows = self.node_contributions.write().await;
+        rows.retain(|entry| entry.installation_id != input.installation_id);
+        rows.extend(input.entries.iter().map(|entry| domain::NodeContributionRegistryEntry {
+            installation_id: input.installation_id,
+            provider_code: input.provider_code.clone(),
+            plugin_id: input.plugin_id.clone(),
+            plugin_version: input.plugin_version.clone(),
+            contribution_code: entry.contribution_code.clone(),
+            node_shell: entry.node_shell.clone(),
+            category: entry.category.clone(),
+            title: entry.title.clone(),
+            description: entry.description.clone(),
+            icon: entry.icon.clone(),
+            schema_ui: entry.schema_ui.clone(),
+            schema_version: entry.schema_version.clone(),
+            output_schema: entry.output_schema.clone(),
+            required_auth: entry.required_auth.clone(),
+            visibility: entry.visibility.clone(),
+            experimental: entry.experimental,
+            dependency_installation_kind: entry.dependency_installation_kind.clone(),
+            dependency_plugin_version_range: entry.dependency_plugin_version_range.clone(),
+            dependency_status: NodeContributionDependencyStatus::MissingPlugin,
+        }));
+        Ok(())
+    }
+
+    async fn list_node_contributions(
+        &self,
+        workspace_id: Uuid,
+    ) -> Result<Vec<domain::NodeContributionRegistryEntry>> {
+        let rows = self.node_contributions.read().await.clone();
+        let assignments = self.assignments.read().await.clone();
+        let installations = self.installations.read().await.clone();
+
+        Ok(rows
+            .into_iter()
+            .map(|mut entry| {
+                let assigned_installation = assignments
+                    .iter()
+                    .find(|assignment| {
+                        assignment.workspace_id == workspace_id
+                            && assignment.provider_code == entry.provider_code
+                    })
+                    .and_then(|assignment| installations.get(&assignment.installation_id));
+                entry.dependency_status = match assigned_installation {
+                    None => NodeContributionDependencyStatus::MissingPlugin,
+                    Some(installation) if !installation.enabled => {
+                        NodeContributionDependencyStatus::DisabledPlugin
+                    }
+                    Some(installation)
+                        if !version_matches_range(
+                            &installation.plugin_version,
+                            &entry.dependency_plugin_version_range,
+                        ) =>
+                    {
+                        NodeContributionDependencyStatus::VersionMismatch
+                    }
+                    Some(_) => NodeContributionDependencyStatus::Ready,
+                };
+                entry
+            })
+            .collect())
+    }
+}
+
+#[async_trait]
 impl ModelProviderRepository for MemoryPluginManagementRepository {
     async fn create_instance(
         &self,
@@ -608,6 +683,70 @@ fn sample_i18n_summary() -> OfficialPluginI18nSummary {
 
 fn requested_locales() -> RequestedLocales {
     RequestedLocales::new("en_US", "en_US")
+}
+
+fn version_matches_range(version: &str, range: &str) -> bool {
+    let trimmed = range.trim();
+    if trimmed.is_empty() {
+        return true;
+    }
+
+    trimmed
+        .split(',')
+        .map(str::trim)
+        .filter(|constraint| !constraint.is_empty())
+        .all(|constraint| {
+            let (operator, expected) = if let Some(value) = constraint.strip_prefix(">=") {
+                (">=", value)
+            } else if let Some(value) = constraint.strip_prefix("<=") {
+                ("<=", value)
+            } else if let Some(value) = constraint.strip_prefix('>') {
+                (">", value)
+            } else if let Some(value) = constraint.strip_prefix('<') {
+                ("<", value)
+            } else if let Some(value) = constraint.strip_prefix('=') {
+                ("=", value)
+            } else {
+                ("=", constraint)
+            };
+            let ordering = compare_versions(version, expected.trim());
+            match operator {
+                ">=" => ordering.is_ge(),
+                "<=" => ordering.is_le(),
+                ">" => ordering.is_gt(),
+                "<" => ordering.is_lt(),
+                "=" => ordering.is_eq(),
+                _ => false,
+            }
+        })
+}
+
+fn compare_versions(left: &str, right: &str) -> std::cmp::Ordering {
+    let mut left_parts = left.split('.');
+    let mut right_parts = right.split('.');
+
+    loop {
+        match (left_parts.next(), right_parts.next()) {
+            (None, None) => return std::cmp::Ordering::Equal,
+            (Some(left_part), Some(right_part)) => {
+                let ordering = match (left_part.parse::<u64>(), right_part.parse::<u64>()) {
+                    (Ok(left_number), Ok(right_number)) => left_number.cmp(&right_number),
+                    _ => left_part.cmp(right_part),
+                };
+                if ordering != std::cmp::Ordering::Equal {
+                    return ordering;
+                }
+            }
+            (Some(left_part), None) => match left_part.parse::<u64>() {
+                Ok(0) => continue,
+                Ok(_) | Err(_) => return std::cmp::Ordering::Greater,
+            },
+            (None, Some(right_part)) => match right_part.parse::<u64>() {
+                Ok(0) => continue,
+                Ok(_) | Err(_) => return std::cmp::Ordering::Less,
+            },
+        }
+    }
 }
 
 impl MemoryOfficialPluginSource {
@@ -956,6 +1095,36 @@ capabilities:
     .unwrap();
     fs::write(root.join("demo/index.html"), "<html></html>").unwrap();
     fs::write(root.join("scripts/demo.sh"), "echo demo").unwrap();
+}
+
+fn create_provider_fixture_with_node_contribution(root: &Path) {
+    create_provider_fixture(root);
+    let manifest_path = root.join("manifest.yaml");
+    let manifest = fs::read_to_string(&manifest_path).unwrap();
+    fs::write(
+        manifest_path,
+        format!(
+            r#"{manifest}node_contributions:
+  - contribution_code: openai_prompt
+    node_shell: action
+    category: ai
+    title: OpenAI Prompt
+    description: Prompt node
+    icon: spark
+    schema_ui: {{}}
+    schema_version: 1flowbase.node-contribution/v1
+    output_schema: {{}}
+    required_auth:
+      - provider_instance
+    visibility: public
+    experimental: false
+    dependency:
+      installation_kind: required
+      plugin_version_range: ">=0.1.0"
+"#
+        ),
+    )
+    .unwrap();
 }
 
 fn create_openai_compatible_fixture(root: &Path) {
@@ -1990,4 +2159,47 @@ async fn plugin_management_service_rejects_restarting_terminal_task() {
         Some(ControlPlaneError::InvalidStateTransition { resource, from, to, .. })
             if *resource == "plugin_task" && from == "success" && to == "running"
     ));
+}
+
+#[tokio::test]
+async fn plugin_management_service_syncs_manifest_node_contributions_on_install() {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
+        workspace_id,
+        &["plugin_config.view.all", "plugin_config.configure.all"],
+    ));
+    let runtime = MemoryProviderRuntime::default();
+    let nonce = Uuid::now_v7().to_string();
+    let package_root =
+        std::env::temp_dir().join(format!("plugin-node-contribution-source-{nonce}"));
+    let install_root =
+        std::env::temp_dir().join(format!("plugin-node-contribution-installed-{nonce}"));
+    create_provider_fixture_with_node_contribution(&package_root);
+
+    let service = PluginManagementService::new(
+        repository.clone(),
+        runtime,
+        std::sync::Arc::new(MemoryOfficialPluginSource::default()),
+        &install_root,
+    );
+
+    let installation = service
+        .install_plugin(InstallPluginCommand {
+            actor_user_id: repository.actor.user_id,
+            package_root: package_root.display().to_string(),
+        })
+        .await
+        .unwrap()
+        .installation;
+    let entries = NodeContributionRepository::list_node_contributions(&repository, workspace_id)
+        .await
+        .unwrap();
+
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].installation_id, installation.id);
+    assert_eq!(entries[0].contribution_code, "openai_prompt");
+    assert_eq!(
+        entries[0].dependency_status,
+        NodeContributionDependencyStatus::MissingPlugin
+    );
 }

@@ -8,6 +8,7 @@ pub mod mappers;
 pub mod member_repository;
 pub mod model_definition_repository;
 pub mod model_provider_repository;
+pub mod node_contribution_repository;
 pub mod orchestration_runtime_repository;
 pub mod physical_schema_repository;
 pub mod plugin_repository;
