@@ -13,6 +13,7 @@ import {
   Form,
   Input,
   Row,
+  Select,
   Space,
   Tag,
   Typography
@@ -27,6 +28,18 @@ interface ProfileFormValues {
   phone: string;
   avatar_url: string;
   introduction: string;
+  preferred_locale?: string;
+}
+
+function formatLocaleLabel(locale: string | null | undefined) {
+  switch (locale) {
+    case 'zh_Hans':
+      return '简体中文';
+    case 'en_US':
+      return 'English';
+    default:
+      return '跟随系统默认';
+  }
 }
 
 export function ProfileForm({
@@ -52,7 +65,8 @@ export function ProfileForm({
       email: me.email,
       phone: me.phone ?? '',
       avatar_url: me.avatar_url ?? '',
-      introduction: me.introduction
+      introduction: me.introduction,
+      preferred_locale: me.preferred_locale ?? undefined
     });
   }, [form, me]);
 
@@ -71,7 +85,8 @@ export function ProfileForm({
       email: values.email.trim(),
       phone: values.phone.trim() ? values.phone.trim() : null,
       avatar_url: values.avatar_url.trim() ? values.avatar_url.trim() : null,
-      introduction: values.introduction.trim()
+      introduction: values.introduction.trim(),
+      preferred_locale: values.preferred_locale ?? null
     });
     setDrawerVisible(false);
   };
@@ -129,7 +144,10 @@ export function ProfileForm({
               <Descriptions.Item label="真实姓名">{me.name}</Descriptions.Item>
               <Descriptions.Item label="联系邮箱">{me.email}</Descriptions.Item>
               <Descriptions.Item label="手机号码">{me.phone || '-'}</Descriptions.Item>
-              <Descriptions.Item label="系统权限" span={2}>
+              <Descriptions.Item label="界面语言" span={2}>
+                {formatLocaleLabel(me.preferred_locale)}
+              </Descriptions.Item>
+              <Descriptions.Item label="系统权限" span={3}>
                 {me.permissions.length > 0 ? (
                   <Space className="me-profile-card__permissions" size={[4, 8]} wrap>
                     {me.permissions.map((permission) => (
@@ -205,6 +223,20 @@ export function ProfileForm({
           </Form.Item>
           <Form.Item label="手机号" name="phone">
             <Input />
+          </Form.Item>
+          <Form.Item
+            label="界面语言"
+            name="preferred_locale"
+            extra="不选择时使用系统自动解析到的默认语言。"
+          >
+            <Select
+              allowClear
+              placeholder="跟随系统默认"
+              options={[
+                { label: '简体中文', value: 'zh_Hans' },
+                { label: 'English', value: 'en_US' }
+              ]}
+            />
           </Form.Item>
           <Form.Item label="头像地址" name="avatar_url" extra="支持外链图片地址。">
             <Input placeholder="https://example.com/avatar.png" />

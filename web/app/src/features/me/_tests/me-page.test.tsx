@@ -38,6 +38,7 @@ function authenticate() {
       name: 'Root',
       avatar_url: null,
       introduction: '',
+      preferred_locale: null,
       effective_display_role: 'manager',
       permissions: ['route_page.view.all']
     }
@@ -103,6 +104,7 @@ describe('MePage', () => {
       name: 'Root Next',
       avatar_url: null,
       introduction: 'updated intro',
+      preferred_locale: null,
       effective_display_role: 'manager',
       permissions: ['route_page.view.all']
     });
@@ -115,6 +117,7 @@ describe('MePage', () => {
     await waitFor(() => {
       expect(screen.getByText('编辑个人信息')).toBeInTheDocument();
     });
+    expect(screen.getByLabelText('界面语言')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('姓名'), {
       target: { value: 'Root Next' }
@@ -138,7 +141,8 @@ describe('MePage', () => {
           email: 'root-next@example.com',
           phone: '13900000000',
           avatar_url: null,
-          introduction: ''
+          introduction: '',
+          preferred_locale: null
         },
         'csrf-123'
       )

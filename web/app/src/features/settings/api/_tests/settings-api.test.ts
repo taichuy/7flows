@@ -87,6 +87,10 @@ vi.mock('@1flowbase/api-client', () => ({
   }),
   getConsolePluginTask: vi.fn().mockResolvedValue({
     id: 'task-1'
+  }),
+  fetchConsoleSystemRuntimeProfile: vi.fn().mockResolvedValue({
+    topology: { relationship: 'same_host' },
+    hosts: []
   })
 }));
 
@@ -349,6 +353,114 @@ describe('settings api wrappers', () => {
     const uploadFile = new File(['zip'], 'provider.zip', {
       type: 'application/zip'
     });
+    vi.mocked(listConsolePluginFamilies).mockResolvedValueOnce({
+      locale_meta: {
+        requested_locale: null,
+        resolved_locale: 'zh_Hans',
+        user_preferred_locale: null,
+        accept_language: null,
+        fallback_locale: 'en_US',
+        supported_locales: ['zh_Hans', 'en_US']
+      },
+      i18n_catalog: {
+        'plugin.openai_compatible': {
+          zh_Hans: {
+            plugin: {
+              label: 'OpenAI 兼容插件'
+            },
+            provider: {
+              label: 'OpenAI Compatible'
+            }
+          },
+          en_US: {
+            plugin: {
+              label: 'OpenAI-Compatible API Provider'
+            },
+            provider: {
+              label: 'OpenAI Compatible'
+            }
+          }
+        }
+      },
+      entries: [
+        {
+          provider_code: 'openai_compatible',
+          plugin_type: 'model_provider',
+          namespace: 'plugin.openai_compatible',
+          label_key: 'plugin.label',
+          description_key: 'plugin.description',
+          provider_label_key: 'provider.label',
+          protocol: 'openai_compatible',
+          help_url: 'https://platform.openai.com/docs/api-reference',
+          default_base_url: 'https://api.openai.com/v1',
+          model_discovery_mode: 'hybrid',
+          current_installation_id: 'installation-1',
+          current_version: '0.3.7',
+          latest_version: '0.3.7',
+          has_update: false,
+          installed_versions: []
+        }
+      ]
+    });
+    vi.mocked(listConsoleOfficialPluginCatalog).mockResolvedValueOnce({
+      source_kind: 'official_registry',
+      source_label: '官方源',
+      registry_url: 'https://official.example.com/official-registry.json',
+      locale_meta: {
+        requested_locale: null,
+        resolved_locale: 'zh_Hans',
+        user_preferred_locale: null,
+        accept_language: null,
+        fallback_locale: 'en_US',
+        supported_locales: ['zh_Hans', 'en_US']
+      },
+      i18n_catalog: {
+        'plugin.openai_compatible': {
+          zh_Hans: {
+            plugin: {
+              label: 'OpenAI 兼容插件'
+            },
+            provider: {
+              label: 'OpenAI Compatible'
+            }
+          },
+          en_US: {
+            plugin: {
+              label: 'OpenAI-Compatible API Provider'
+            },
+            provider: {
+              label: 'OpenAI Compatible'
+            }
+          }
+        }
+      },
+      entries: [
+        {
+          plugin_id: '1flowbase.openai_compatible',
+          plugin_type: 'model_provider',
+          provider_code: 'openai_compatible',
+          namespace: 'plugin.openai_compatible',
+          label_key: 'plugin.label',
+          description_key: 'plugin.description',
+          provider_label_key: 'provider.label',
+          protocol: 'openai_compatible',
+          latest_version: '0.3.7',
+          selected_artifact: {
+            os: 'linux',
+            arch: 'amd64',
+            libc: 'musl',
+            rust_target: 'x86_64-unknown-linux-musl',
+            download_url: 'https://example.com/openai.1flowbasepkg',
+            checksum: 'sha256:abc123',
+            signature_algorithm: 'ed25519',
+            signing_key_id: 'official-key-2026-04'
+          },
+          help_url: 'https://platform.openai.com/docs/api-reference',
+          model_discovery_mode: 'hybrid',
+          install_status: 'not_installed'
+        }
+      ]
+    });
 
     expect(settingsPluginFamiliesQueryKey).toEqual([
       'settings',
@@ -361,8 +473,27 @@ describe('settings api wrappers', () => {
       'official-catalog'
     ]);
 
-    await expect(fetchSettingsPluginFamilies()).resolves.toEqual([]);
-    await fetchSettingsOfficialPluginCatalog();
+    await expect(fetchSettingsPluginFamilies()).resolves.toEqual([
+      expect.objectContaining({
+        provider_code: 'openai_compatible',
+        display_name: 'OpenAI Compatible',
+        plugin_type: 'model_provider',
+        current_version: '0.3.7'
+      })
+    ]);
+    await expect(fetchSettingsOfficialPluginCatalog()).resolves.toEqual(
+      expect.objectContaining({
+        source_kind: 'official_registry',
+        entries: [
+          expect.objectContaining({
+            plugin_id: '1flowbase.openai_compatible',
+            display_name: 'OpenAI Compatible',
+            plugin_type: 'model_provider',
+            latest_version: '0.3.7'
+          })
+        ]
+      })
+    );
     await installSettingsOfficialPlugin('openai_compatible@0.2.0', 'csrf-123');
     await uploadSettingsPluginPackage(uploadFile, 'csrf-123');
     await upgradeSettingsPluginFamilyLatest('openai_compatible', 'csrf-123');
@@ -373,8 +504,12 @@ describe('settings api wrappers', () => {
     );
     await fetchSettingsPluginTask('task-1');
 
-    expect(listConsolePluginFamilies).toHaveBeenCalledTimes(1);
-    expect(listConsoleOfficialPluginCatalog).toHaveBeenCalledTimes(1);
+    expect(listConsolePluginFamilies).toHaveBeenCalledWith({
+      plugin_type: 'model_provider'
+    });
+    expect(listConsoleOfficialPluginCatalog).toHaveBeenCalledWith({
+      plugin_type: 'model_provider'
+    });
     expect(installConsoleOfficialPlugin).toHaveBeenCalledWith(
       { plugin_id: 'openai_compatible@0.2.0' },
       'csrf-123'

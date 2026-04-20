@@ -1,6 +1,11 @@
 import type { SectionNavItem } from '../../../shared/ui/section-page-layout/SectionPageLayout';
 
-export type SettingsSectionKey = 'docs' | 'model-providers' | 'members' | 'roles';
+export type SettingsSectionKey =
+  | 'docs'
+  | 'system-runtime'
+  | 'model-providers'
+  | 'members'
+  | 'roles';
 
 export function getVisibleSettingsSections(input: {
   isRoot: boolean;
@@ -12,6 +17,12 @@ export function getVisibleSettingsSections(input: {
       label: 'API 文档',
       to: '/settings/docs',
       visible: input.isRoot || input.permissions.includes('api_reference.view.all')
+    },
+    {
+      key: 'system-runtime',
+      label: '系统运行',
+      to: '/settings/system-runtime',
+      visible: input.isRoot || input.permissions.includes('system_runtime.view.all')
     },
     {
       key: 'model-providers',

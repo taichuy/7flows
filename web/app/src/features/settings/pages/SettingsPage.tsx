@@ -10,6 +10,7 @@ import { SectionPageLayout } from '../../../shared/ui/section-page-layout/Sectio
 import { ApiDocsPanel } from '../components/ApiDocsPanel';
 import { MemberManagementPanel } from '../components/MemberManagementPanel';
 import { RolePermissionPanel } from '../components/RolePermissionPanel';
+import { SystemRuntimePanel } from '../components/SystemRuntimePanel';
 import { ModelProviderCatalogPanel } from '../components/model-providers/ModelProviderCatalogPanel';
 import { ModelProviderInstanceDrawer } from '../components/model-providers/ModelProviderInstanceDrawer';
 import { ModelProviderInstancesModal } from '../components/model-providers/ModelProviderInstancesModal';
@@ -965,6 +966,8 @@ export function SettingsPage({
             canManageMembers={canManageMembers}
             canManageRoleBindings={canManageRoles}
           />
+        ) : activeSection?.key === 'system-runtime' ? (
+          <SystemRuntimePanel />
         ) : activeSection?.key === 'model-providers' ? (
           <ModelProvidersSection canManage={canManageModelProviders} />
         ) : activeSection?.key === 'roles' ? (

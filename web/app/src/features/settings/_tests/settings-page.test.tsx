@@ -78,12 +78,18 @@ const pluginsApi = vi.hoisted(() => ({
   fetchSettingsPluginTask: vi.fn()
 }));
 
+const systemRuntimeApi = vi.hoisted(() => ({
+  settingsSystemRuntimeQueryKey: ['settings', 'system-runtime'],
+  fetchSettingsSystemRuntimeProfile: vi.fn()
+}));
+
 vi.mock('../api/members', () => membersApi);
 vi.mock('../api/roles', () => rolesApi);
 vi.mock('../api/permissions', () => permissionsApi);
 vi.mock('../api/api-docs', () => docsApi);
 vi.mock('../api/model-providers', () => modelProvidersApi);
 vi.mock('../api/plugins', () => pluginsApi);
+vi.mock('../api/system-runtime', () => systemRuntimeApi);
 vi.mock('@scalar/api-reference-react', () => ({
   ApiReferenceReact: () => <div data-testid="settings-page-scalar">Scalar</div>
 }));
@@ -229,6 +235,57 @@ describe('SettingsPage', () => {
       updated_at: '2026-04-18T21:00:00Z',
       finished_at: '2026-04-18T21:00:00Z'
     });
+    systemRuntimeApi.fetchSettingsSystemRuntimeProfile.mockResolvedValue({
+      locale_meta: {
+        requested_locale: null,
+        resolved_locale: 'zh_Hans',
+        source: 'fallback',
+        fallback_locale: 'en_US',
+        supported_locales: ['zh_Hans', 'en_US']
+      },
+      topology: {
+        relationship: 'same_host'
+      },
+      services: {
+        api_server: {
+          reachable: true,
+          service: 'api-server',
+          status: 'ok',
+          version: '0.1.0',
+          host_fingerprint: 'host-1'
+        },
+        plugin_runner: {
+          reachable: true,
+          service: 'plugin-runner',
+          status: 'ok',
+          version: '0.1.0',
+          host_fingerprint: 'host-1'
+        }
+      },
+      hosts: [
+        {
+          host_fingerprint: 'host-1',
+          platform: {
+            os: 'linux',
+            arch: 'amd64',
+            libc: 'musl',
+            rust_target_triple: 'x86_64-unknown-linux-musl'
+          },
+          cpu: {
+            logical_count: 8
+          },
+          memory: {
+            total_bytes: 17179869184,
+            total_gb: 16,
+            available_bytes: 8589934592,
+            available_gb: 8,
+            process_bytes: 1073741824,
+            process_gb: 1
+          },
+          services: ['api-server', 'plugin-runner']
+        }
+      ]
+    });
   });
 
   test('shows API 文档 only for root or api_reference.view.all', async () => {
@@ -349,6 +406,18 @@ describe('SettingsPage', () => {
       expect(window.location.pathname).toBe('/settings/model-providers');
     });
     expect(await screen.findByRole('heading', { name: '模型供应商', level: 4 })).toBeInTheDocument();
+  });
+
+  test('shows 系统运行 when system_runtime.view.all is the only visible settings section', async () => {
+    authenticateWithPermissions(['route_page.view.all', 'system_runtime.view.all']);
+
+    renderApp('/settings');
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/settings/system-runtime');
+    });
+    expect(await screen.findByRole('heading', { name: '系统运行', level: 4 })).toBeInTheDocument();
+    expect(systemRuntimeApi.fetchSettingsSystemRuntimeProfile).toHaveBeenCalled();
   });
 
   test('renders the empty settings state when no section is visible', async () => {

@@ -1,5 +1,10 @@
 import { apiFetch } from './transport';
 
+export interface ConsolePluginCatalogFilter {
+  plugin_type?: string;
+  locale?: string;
+}
+
 export interface ConsolePluginInstallation {
   id: string;
   provider_code: string;
@@ -24,10 +29,21 @@ export interface ConsolePluginInstallation {
 
 export interface ConsolePluginCatalogEntry {
   installation: ConsolePluginInstallation;
+  plugin_type: string;
+  namespace: string;
+  label_key: string;
+  description_key: string | null;
+  provider_label_key: string;
   help_url: string | null;
   default_base_url: string | null;
   model_discovery_mode: string;
   assigned_to_current_workspace: boolean;
+}
+
+export interface ConsolePluginCatalogResponse {
+  locale_meta: Record<string, unknown>;
+  i18n_catalog: Record<string, unknown>;
+  entries: ConsolePluginCatalogEntry[];
 }
 
 export type ConsoleOfficialPluginInstallStatus =
@@ -35,12 +51,28 @@ export type ConsoleOfficialPluginInstallStatus =
   | 'installed'
   | 'assigned';
 
+export interface ConsoleOfficialPluginArtifact {
+  os: string;
+  arch: string;
+  libc: string | null;
+  rust_target: string;
+  download_url: string;
+  checksum: string;
+  signature_algorithm: string | null;
+  signing_key_id: string | null;
+}
+
 export interface ConsoleOfficialPluginCatalogEntry {
   plugin_id: string;
   provider_code: string;
-  display_name: string;
+  plugin_type: string;
+  namespace: string;
+  label_key: string;
+  description_key: string | null;
+  provider_label_key: string;
   protocol: string;
   latest_version: string;
+  selected_artifact: ConsoleOfficialPluginArtifact;
   help_url: string | null;
   model_discovery_mode: string;
   install_status: ConsoleOfficialPluginInstallStatus;
@@ -50,6 +82,8 @@ export interface ConsoleOfficialPluginCatalogResponse {
   source_kind: string;
   source_label: string;
   registry_url: string;
+  locale_meta: Record<string, unknown>;
+  i18n_catalog: Record<string, unknown>;
   entries: ConsoleOfficialPluginCatalogEntry[];
 }
 
@@ -64,7 +98,11 @@ export interface ConsolePluginInstalledVersion {
 
 export interface ConsolePluginFamilyEntry {
   provider_code: string;
-  display_name: string;
+  plugin_type: string;
+  namespace: string;
+  label_key: string;
+  description_key: string | null;
+  provider_label_key: string;
   protocol: string;
   help_url: string | null;
   default_base_url: string | null;
@@ -109,23 +147,54 @@ export interface InstallConsolePluginResult {
   task: ConsolePluginTask;
 }
 
-export function listConsolePluginCatalog(baseUrl?: string) {
-  return apiFetch<ConsolePluginCatalogEntry[]>({
-    path: '/api/console/plugins/catalog',
+function buildPluginCatalogPath(
+  path: string,
+  filter?: ConsolePluginCatalogFilter
+) {
+  if (!filter || Object.keys(filter).length === 0) {
+    return path;
+  }
+
+  const params = new URLSearchParams();
+
+  if (filter.plugin_type) {
+    params.set('plugin_type', filter.plugin_type);
+  }
+
+  if (filter.locale) {
+    params.set('locale', filter.locale);
+  }
+
+  const queryString = params.toString();
+  return queryString ? `${path}?${queryString}` : path;
+}
+
+export function listConsolePluginCatalog(
+  filter?: ConsolePluginCatalogFilter,
+  baseUrl?: string
+) {
+  return apiFetch<ConsolePluginCatalogResponse>({
+    path: buildPluginCatalogPath('/api/console/plugins/catalog', filter),
     baseUrl
   });
 }
 
-export function listConsolePluginFamilies(baseUrl?: string) {
+export function listConsolePluginFamilies(
+  filter?: ConsolePluginCatalogFilter,
+  baseUrl?: string
+) {
   return apiFetch<ConsolePluginFamilyCatalogResponse>({
-    path: '/api/console/plugins/families',
+    path: buildPluginCatalogPath('/api/console/plugins/families', filter),
     baseUrl
   });
 }
 
-export function listConsoleOfficialPluginCatalog(baseUrl?: string) {
+export function listConsoleOfficialPluginCatalog(
+  filter?: ConsolePluginCatalogFilter,
+  baseUrl?: string
+) {
   return apiFetch<ConsoleOfficialPluginCatalogResponse>({
-    path: '/api/console/plugins/official-catalog',
+    path: buildPluginCatalogPath('/api/console/plugins/official-catalog', filter),
     baseUrl
   });
 }

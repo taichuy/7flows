@@ -9,6 +9,7 @@ export interface ConsoleMe {
   name: string;
   avatar_url: string | null;
   introduction: string;
+  preferred_locale?: string | null;
   effective_display_role: string;
   permissions: string[];
 }
@@ -20,6 +21,7 @@ export interface UpdateConsoleMeInput {
   phone: string | null;
   avatar_url: string | null;
   introduction: string;
+  preferred_locale?: string | null;
 }
 
 export interface ChangeConsolePasswordInput {
