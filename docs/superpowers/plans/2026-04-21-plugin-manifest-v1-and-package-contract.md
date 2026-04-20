@@ -28,8 +28,8 @@
 - `api/crates/control-plane/src/plugin_management.rs`
 - `api/apps/plugin-runner/src/package_loader.rs`
 - `api/apps/api-server/src/routes/plugins.rs`
-- `../1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible/manifest.yaml`
-- `../1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible/readme/README_en_US.md`
+- `../1flowbase-official-plugins/models/openai_compatible/manifest.yaml`
+- `../1flowbase-official-plugins/models/openai_compatible/readme/README_en_US.md`
 
 **Notes**
 - `source_kind` and `trust_level` stay separate even after the manifest becomes generic.
@@ -53,8 +53,8 @@ fn plugin_manifest_v1_parses_runtime_extension_provider_fields() {
     let manifest = parse_plugin_manifest(
         r#"
 manifest_version: 1
-plugin_id: openai_compatible@0.4.0
-version: 0.4.0
+plugin_id: openai_compatible@0.3.8
+version: 0.3.8
 vendor: 1flowbase
 display_name: OpenAI Compatible
 description: Generic OpenAI-compatible provider runtime extension
@@ -78,7 +78,7 @@ permissions:
   subprocess: deny
 runtime:
   protocol: stdio_json
-  entry: bin/openai-compatible-provider
+  entry: bin/openai_compatible-provider
   limits:
     timeout_ms: 30000
     memory_bytes: 268435456
@@ -245,9 +245,9 @@ Add tests like:
 fn provider_package_adapter_reads_runtime_entry_from_plugin_manifest_v1() {
     let package = ProviderPackage::load_from_dir("src/_tests/fixtures/openai_compatible_v1").unwrap();
 
-    assert_eq!(package.manifest.plugin_id, "openai_compatible@0.4.0");
+    assert_eq!(package.manifest.plugin_id, "openai_compatible@0.3.8");
     assert_eq!(package.manifest.consumption_kind.as_str(), "runtime_extension");
-    assert_eq!(package.runtime_entry().to_string_lossy(), "bin/openai-compatible-provider");
+    assert_eq!(package.runtime_entry().to_string_lossy(), "bin/openai_compatible-provider");
 }
 
 #[test]
@@ -340,21 +340,23 @@ git add api/crates/plugin-framework/src/provider_package.rs api/crates/plugin-fr
 git commit -m "feat: adapt provider packages to plugin manifest v1"
 ```
 
-### Task 3: Align The Official Example Manifest And Public API Contract
+### Task 3: Align The Official Example Manifest, API Contract, And Release-Chain Target Script
 
 **Files:**
 - Modify: `api/apps/api-server/src/routes/plugins.rs`
-- Modify: `../1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible/manifest.yaml`
-- Modify: `../1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible/readme/README_en_US.md`
+- Modify: `../1flowbase-official-plugins/scripts/list-provider-package-targets.mjs`
+- Modify: `../1flowbase-official-plugins/scripts/_tests/list-provider-package-targets.test.mjs`
+- Modify: `../1flowbase-official-plugins/models/openai_compatible/manifest.yaml`
+- Modify: `../1flowbase-official-plugins/models/openai_compatible/readme/README_en_US.md`
 
-- [ ] **Step 1: Update the example manifest and document it in tests**
+- [x] **Step 1: Update the example manifest and keep the release-chain target contract in sync**
 
 Change the official example manifest toward:
 
 ```yaml
 manifest_version: 1
-plugin_id: openai_compatible@0.4.0
-version: 0.4.0
+plugin_id: openai_compatible@0.3.8
+version: 0.3.8
 vendor: 1flowbase
 display_name: OpenAI Compatible
 description: OpenAI-compatible provider runtime extension
@@ -378,24 +380,33 @@ permissions:
   subprocess: deny
 runtime:
   protocol: stdio_json
-  entry: bin/openai-compatible-provider
+  entry: bin/openai_compatible-provider
   limits:
     timeout_ms: 30000
     memory_bytes: 268435456
 node_contributions: []
 ```
 
-- [ ] **Step 2: Stop exposing legacy provider-only manifest assumptions in API responses**
+Keep the official example aligned with the current checked-in package version and binary name instead of inventing a new unreleased version string in the plan text.
+
+- [x] **Step 2: Stop exposing legacy provider-only manifest assumptions in API responses**
 
 Update route DTO comments and field descriptions in `api/apps/api-server/src/routes/plugins.rs` so they no longer describe plugin packages as provider-only by definition. The route should still return current provider catalog data, but the wording must leave room for generic plugin kinds.
 
-- [ ] **Step 3: Run targeted verification**
+- [x] **Step 3: Keep the release-chain helper compatible with both manifest schemas**
+
+Update `list-provider-package-targets.mjs` and its Node test so release-chain packaging continues to work for both manifest v1 and the older schema v2. The helper must derive `provider_code` from `plugin_id` when present, fall back to the directory name when missing, and keep reading the old `plugin_code` plus `runtime.executable.path` pair for schema v2.
+
+- [x] **Step 4: Run targeted verification**
 
 Run:
 
 ```bash
 cargo test --manifest-path api/Cargo.toml -p plugin-framework manifest_v1 -- --nocapture
 cargo test --manifest-path api/Cargo.toml -p plugin-framework provider_package -- --nocapture
+cargo test --manifest-path api/Cargo.toml -p api-server plugin_routes_ -- --nocapture
+node --test ../1flowbase-official-plugins/scripts/_tests/list-provider-package-targets.test.mjs
+node ../1flowbase-official-plugins/scripts/list-provider-package-targets.mjs --format json
 git -C ../1flowbase-official-plugins diff --check
 git diff --check
 ```
@@ -404,11 +415,13 @@ Expected:
 
 - PASS with the host parser and sibling repo example using the same manifest vocabulary.
 
-- [ ] **Step 4: Commit the contract alignment**
+- [x] **Step 5: Commit the contract alignment**
 
 ```bash
-git add api/apps/api-server/src/routes/plugins.rs ../1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible/manifest.yaml ../1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible/readme/README_en_US.md
-git commit -m "docs: align official example with plugin manifest v1"
+git -C ../1flowbase-official-plugins add scripts/list-provider-package-targets.mjs scripts/_tests/list-provider-package-targets.test.mjs models/openai_compatible/manifest.yaml models/openai_compatible/readme/README_en_US.md
+git -C ../1flowbase-official-plugins commit -m "feat: align release-chain manifest targets with plugin manifest v1"
+git add api/apps/api-server/src/routes/plugins.rs docs/superpowers/plans/2026-04-21-plugin-manifest-v1-and-package-contract.md
+git commit -m "docs: align plugin manifest v1 plan tracking"
 ```
 
 ## Self-Review

@@ -44,11 +44,17 @@ pub struct SwitchPluginVersionBody {
 
 #[derive(Debug, Deserialize, IntoParams, Clone)]
 pub struct PluginCatalogQuery {
+    /// Optional plugin kind filter for catalog views. Current responses include
+    /// provider directory data, and future plugin kinds may be added without
+    /// changing this contract.
     pub plugin_type: Option<String>,
     pub locale: Option<String>,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+#[schema(
+    description = "Installation record returned by the plugin API. The payload currently exposes provider-directory fields, but the response shape is intended to stay compatible with future generic plugin kinds."
+)]
 pub struct PluginInstallationResponse {
     pub id: String,
     pub provider_code: String,
@@ -73,6 +79,9 @@ pub struct PluginInstallationResponse {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+#[schema(
+    description = "Catalog entry for the currently supported plugin kinds. The response includes provider-oriented metadata today, while keeping room for additional plugin kinds later."
+)]
 pub struct PluginCatalogEntryResponse {
     pub installation: PluginInstallationResponse,
     pub plugin_type: String,
@@ -107,6 +116,9 @@ pub struct OfficialPluginArtifactResponse {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+#[schema(
+    description = "Official registry entry for the currently supported plugin kinds. The response currently reflects provider directory metadata and is not limited to provider-only packaging."
+)]
 pub struct OfficialPluginCatalogEntryResponse {
     pub plugin_id: String,
     pub plugin_type: String,
@@ -145,6 +157,9 @@ pub struct PluginInstalledVersionResponse {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+#[schema(
+    description = "Family view for plugin entries in the current registry. Provider code and model discovery data remain exposed for compatibility, but the API is not limited to provider-only plugin packages."
+)]
 pub struct PluginFamilyResponse {
     pub provider_code: String,
     pub plugin_type: String,
