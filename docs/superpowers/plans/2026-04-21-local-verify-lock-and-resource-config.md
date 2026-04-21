@@ -1235,7 +1235,7 @@ git commit -m "feat: gate heavy verify scripts with shared lock"
 - Create: `.1flowbase.verify.local.json.example`
 - Modify: `.gitignore`
 
-- [ ] **Step 1: Add the committed example config and ignore the real local file**
+- [x] **Step 1: Add the committed example config and ignore the real local file**
 
 Create `.1flowbase.verify.local.json.example`:
 
@@ -1258,7 +1258,7 @@ Update `.gitignore` with:
 .1flowbase.verify.local.json
 ```
 
-- [ ] **Step 2: Run the complete targeted Node verification set**
+- [x] **Step 2: Run the complete targeted Node verification set**
 
 Run:
 
@@ -1277,7 +1277,7 @@ node --test \
 
 Expected: PASS. The runtime helper, managed runner, and all affected CLI wrappers should now be covered without needing to trigger real heavy verification workloads.
 
-- [ ] **Step 3: Spot-check the user-facing lock messages with a short mocked run**
+- [x] **Step 3: Spot-check the user-facing lock messages with a short mocked run**
 
 Run:
 
@@ -1287,7 +1287,7 @@ node -e "const { withHeavyVerifyLock } = require('./scripts/node/testing/verify-
 
 Expected: PASS and print at least one stable line beginning with `[1flowbase-verify-lock] acquired:` followed by `[1flowbase-verify-lock] released:`.
 
-- [ ] **Step 4: Commit the config assets and verification-complete state**
+- [x] **Step 4: Commit the config assets and verification-complete state**
 
 Run:
 
@@ -1296,7 +1296,7 @@ git add .gitignore .1flowbase.verify.local.json.example
 git commit -m "chore: add local verify config example"
 ```
 
-- [ ] **Step 5: Update this plan file to mark completed tasks**
+- [x] **Step 5: Update this plan file to mark completed tasks**
 
 Before closing execution, update this file so every completed step flips from `- [ ]` to `- [x]`.
 
