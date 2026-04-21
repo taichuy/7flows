@@ -15,6 +15,7 @@ test('buildCommands runs pure backend cargo test with bounded parallelism', () =
       cwd: 'api',
       env: {
         CARGO_BUILD_JOBS: '4',
+        CARGO_INCREMENTAL: '0',
       },
     },
   ]);

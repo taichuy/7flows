@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const {
+  buildCargoCommandEnv,
   getCargoParallelism,
   runCommandSequence,
   getRepoRoot,
@@ -13,9 +14,7 @@ function buildCommands({ cargoParallelism }) {
       command: 'cargo',
       args: ['test', '--workspace', '--jobs', String(cargoParallelism), '--', `--test-threads=${cargoParallelism}`],
       cwd: 'api',
-      env: {
-        CARGO_BUILD_JOBS: String(cargoParallelism),
-      },
+      env: buildCargoCommandEnv({ cargoParallelism, disableIncremental: true }),
     },
   ];
 }

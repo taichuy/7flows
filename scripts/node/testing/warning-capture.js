@@ -19,6 +19,18 @@ function getCargoParallelism() {
   return Math.max(1, Math.floor(getAvailableParallelism() / 2));
 }
 
+function buildCargoCommandEnv({ cargoParallelism, disableIncremental = false }) {
+  const env = {
+    CARGO_BUILD_JOBS: String(cargoParallelism),
+  };
+
+  if (disableIncremental) {
+    env.CARGO_INCREMENTAL = '0';
+  }
+
+  return env;
+}
+
 function resolveOutputDir(repoRoot, env = process.env) {
   const override = env.ONEFLOWBASE_WARNING_OUTPUT_DIR;
 
@@ -121,6 +133,7 @@ function runCommandSequence({
 }
 
 module.exports = {
+  buildCargoCommandEnv,
   getRepoRoot,
   getAvailableParallelism,
   getCargoParallelism,

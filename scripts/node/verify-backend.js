@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 const {
+  buildCargoCommandEnv,
   getCargoParallelism,
   getRepoRoot,
   runCommandSequence,
@@ -12,36 +13,28 @@ function buildCommands({ cargoParallelism }) {
       command: 'cargo',
       args: ['fmt', '--all', '--check'],
       cwd: 'api',
-      env: {
-        CARGO_BUILD_JOBS: String(cargoParallelism),
-      },
+      env: buildCargoCommandEnv({ cargoParallelism }),
     },
     {
       label: 'cargo-clippy',
       command: 'cargo',
       args: ['clippy', '--workspace', '--all-targets', '--jobs', String(cargoParallelism), '--', '-D', 'warnings'],
       cwd: 'api',
-      env: {
-        CARGO_BUILD_JOBS: String(cargoParallelism),
-      },
+      env: buildCargoCommandEnv({ cargoParallelism, disableIncremental: true }),
     },
     {
       label: 'cargo-test',
       command: 'cargo',
       args: ['test', '--workspace', '--jobs', String(cargoParallelism), '--', `--test-threads=${cargoParallelism}`],
       cwd: 'api',
-      env: {
-        CARGO_BUILD_JOBS: String(cargoParallelism),
-      },
+      env: buildCargoCommandEnv({ cargoParallelism, disableIncremental: true }),
     },
     {
       label: 'cargo-check',
       command: 'cargo',
       args: ['check', '--workspace', '--jobs', String(cargoParallelism)],
       cwd: 'api',
-      env: {
-        CARGO_BUILD_JOBS: String(cargoParallelism),
-      },
+      env: buildCargoCommandEnv({ cargoParallelism, disableIncremental: true }),
     },
   ];
 }

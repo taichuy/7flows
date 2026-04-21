@@ -1,13 +1,18 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 
 const {
   parseCliArgs,
   buildFrontendCommand,
   collectFrontendCoverageFailures,
+  buildBackendCleanupCommands,
   buildBackendCommands,
   collectBackendCoverageFailures,
   ensureCargoLlvmCovInstalled,
+  main,
 } = require('../../verify-coverage.js');
 
 test('parseCliArgs defaults to all coverage gates', () => {
@@ -73,7 +78,7 @@ test('buildBackendCommands emits one cargo llvm-cov command per protected packag
         '/repo-root/tmp/test-governance/coverage/backend/control-plane.json',
       ],
       cwd: 'api',
-      env: { CARGO_BUILD_JOBS: '4' },
+      env: { CARGO_BUILD_JOBS: '4', CARGO_INCREMENTAL: '0' },
     },
     {
       label: 'backend-coverage-storage-pg',
@@ -88,7 +93,7 @@ test('buildBackendCommands emits one cargo llvm-cov command per protected packag
         '/repo-root/tmp/test-governance/coverage/backend/storage-pg.json',
       ],
       cwd: 'api',
-      env: { CARGO_BUILD_JOBS: '4' },
+      env: { CARGO_BUILD_JOBS: '4', CARGO_INCREMENTAL: '0' },
     },
     {
       label: 'backend-coverage-api-server',
@@ -103,7 +108,18 @@ test('buildBackendCommands emits one cargo llvm-cov command per protected packag
         '/repo-root/tmp/test-governance/coverage/backend/api-server.json',
       ],
       cwd: 'api',
-      env: { CARGO_BUILD_JOBS: '4' },
+      env: { CARGO_BUILD_JOBS: '4', CARGO_INCREMENTAL: '0' },
+    },
+  ]);
+});
+
+test('buildBackendCleanupCommands emits cargo llvm-cov clean for workspace artifacts', () => {
+  assert.deepEqual(buildBackendCleanupCommands(), [
+    {
+      label: 'backend-coverage-clean',
+      command: 'cargo',
+      args: ['llvm-cov', 'clean', '--workspace'],
+      cwd: 'api',
     },
   ]);
 });
@@ -122,5 +138,40 @@ test('ensureCargoLlvmCovInstalled throws an actionable error when the cargo subc
   assert.throws(
     () => ensureCargoLlvmCovInstalled(() => ({ status: 101, stdout: '', stderr: 'no such command: llvm-cov' })),
     /cargo llvm-cov is required/u
+  );
+});
+
+test('main cleans llvm-cov artifacts before and after backend coverage runs', () => {
+  const calls = [];
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-verify-coverage-'));
+
+  const status = main(['backend'], {
+    repoRoot,
+    cargoParallelism: 2,
+    env: {},
+    writeStdout() {},
+    writeStderr() {},
+    preflightSpawnSyncImpl() {
+      return { status: 0, stdout: '', stderr: '' };
+    },
+    spawnSyncImpl(command, args, options) {
+      calls.push({ command, args, options });
+      return { status: 0, stdout: '', stderr: '' };
+    },
+    readFileSyncImpl(filePath) {
+      return JSON.stringify({ data: [{ totals: { lines: { percent: 100 } } }] });
+    },
+  });
+
+  assert.equal(status, 0);
+  assert.deepEqual(
+    calls.map((call) => call.args),
+    [
+      ['llvm-cov', 'clean', '--workspace'],
+      ['llvm-cov', '--package', 'control-plane', '--json', '--summary-only', '--output-path', `${repoRoot}/tmp/test-governance/coverage/backend/control-plane.json`],
+      ['llvm-cov', '--package', 'storage-pg', '--json', '--summary-only', '--output-path', `${repoRoot}/tmp/test-governance/coverage/backend/storage-pg.json`],
+      ['llvm-cov', '--package', 'api-server', '--json', '--summary-only', '--output-path', `${repoRoot}/tmp/test-governance/coverage/backend/api-server.json`],
+      ['llvm-cov', 'clean', '--workspace'],
+    ]
   );
 });

@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { buildCommands } = require('../../verify-backend.js');
 
 function getExpectedParallelism() {
   const available = typeof os.availableParallelism === 'function'
@@ -12,6 +13,50 @@ function getExpectedParallelism() {
 
   return Math.max(1, Math.floor(available / 2));
 }
+
+test('buildCommands disables incremental compilation for compiled backend verification steps', () => {
+  assert.deepEqual(buildCommands({ cargoParallelism: 4 }), [
+    {
+      label: 'cargo-fmt',
+      command: 'cargo',
+      args: ['fmt', '--all', '--check'],
+      cwd: 'api',
+      env: {
+        CARGO_BUILD_JOBS: '4',
+      },
+    },
+    {
+      label: 'cargo-clippy',
+      command: 'cargo',
+      args: ['clippy', '--workspace', '--all-targets', '--jobs', '4', '--', '-D', 'warnings'],
+      cwd: 'api',
+      env: {
+        CARGO_BUILD_JOBS: '4',
+        CARGO_INCREMENTAL: '0',
+      },
+    },
+    {
+      label: 'cargo-test',
+      command: 'cargo',
+      args: ['test', '--workspace', '--jobs', '4', '--', '--test-threads=4'],
+      cwd: 'api',
+      env: {
+        CARGO_BUILD_JOBS: '4',
+        CARGO_INCREMENTAL: '0',
+      },
+    },
+    {
+      label: 'cargo-check',
+      command: 'cargo',
+      args: ['check', '--workspace', '--jobs', '4'],
+      cwd: 'api',
+      env: {
+        CARGO_BUILD_JOBS: '4',
+        CARGO_INCREMENTAL: '0',
+      },
+    },
+  ]);
+});
 
 test('verify-backend limits cargo concurrency to half of available CPU', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-verify-backend-'));
