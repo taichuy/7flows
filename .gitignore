@@ -27,3 +27,4 @@ api/apps/api-server/.env
 # 仅维护.agent/skills，.claude/skills 自己维护
 .claude/skills
 .aionrs/*
+docs/superpowers/specs/1flowbase/2026-04-21-1flowbase-product-vision.md
