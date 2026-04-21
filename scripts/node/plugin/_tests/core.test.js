@@ -120,22 +120,30 @@ test('plugin init scaffolds rust provider source and executable manifest', async
   await main(['init', pluginPath]);
 
   const manifest = fs.readFileSync(path.join(pluginPath, 'manifest.yaml'), 'utf8');
-  assert.match(manifest, /schema_version: 2/);
-  assert.match(manifest, /plugin_type: model_provider/);
-  assert.match(manifest, /plugin_code: acme_openai_compatible/);
-  assert.match(manifest, /label:\n    en_US: acme-openai-compatible/);
-  assert.match(manifest, /label:\n    en_US: acme-openai-compatible\n    zh_Hans: acme-openai-compatible/);
+  assert.match(manifest, /manifest_version: 1/);
+  assert.match(manifest, /plugin_id: acme_openai_compatible@0\.1\.0/);
+  assert.match(manifest, /version: 0\.1\.0/);
+  assert.match(manifest, /vendor: 1flowbase/);
+  assert.match(manifest, /display_name: acme-openai-compatible/);
   assert.match(
     manifest,
-    /description:\n    en_US: Provider plugin for services that expose an OpenAI-compatible API surface\./
+    /description: OpenAI-compatible provider runtime extension/
   );
-  assert.match(
-    manifest,
-    /description:\n    en_US: Provider plugin for services that expose an OpenAI-compatible API surface\.\n    zh_Hans: 面向 OpenAI 兼容接口服务的模型供应商插件。/
-  );
-  assert.match(manifest, /kind: executable/);
-  assert.match(manifest, /protocol: stdio-json/);
-  assert.match(manifest, /path: bin\/acme_openai_compatible-provider/);
+  assert.match(manifest, /source_kind: official_registry/);
+  assert.match(manifest, /trust_level: verified_official/);
+  assert.match(manifest, /consumption_kind: runtime_extension/);
+  assert.match(manifest, /execution_mode: process_per_call/);
+  assert.match(manifest, /slot_codes:\n  - model_provider/);
+  assert.match(manifest, /binding_targets:\n  - workspace/);
+  assert.match(manifest, /selection_mode: assignment_then_select/);
+  assert.match(manifest, /minimum_host_version: 0\.1\.0/);
+  assert.match(manifest, /contract_version: 1flowbase\.provider\/v1/);
+  assert.match(manifest, /schema_version: 1flowbase\.plugin\.manifest\/v1/);
+  assert.match(manifest, /protocol: stdio_json/);
+  assert.match(manifest, /entry: bin\/acme_openai_compatible-provider/);
+  assert.match(manifest, /timeout_ms: 30000/);
+  assert.match(manifest, /memory_bytes: 268435456/);
+  assert.match(manifest, /node_contributions: \[\]/);
   assert.equal(fs.existsSync(path.join(pluginPath, 'Cargo.toml')), true);
   assert.equal(fs.existsSync(path.join(pluginPath, 'src', 'main.rs')), true);
   assert.equal(fs.existsSync(path.join(pluginPath, 'i18n', 'en_US.json')), true);
@@ -154,7 +162,7 @@ test('plugin init scaffolds rust provider source and executable manifest', async
   );
   assert.equal(zhHansI18n.plugin.label, 'acme-openai-compatible');
   assert.equal(zhHansI18n.provider.label, 'acme-openai-compatible');
-  assert.match(zhHansI18n.plugin.description, /模型供应商插件/);
+  assert.match(zhHansI18n.plugin.description, /运行时扩展/);
 });
 
 test('plugin demo init writes demo assets and helper config files', async () => {

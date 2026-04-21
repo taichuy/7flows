@@ -22,7 +22,7 @@ function usage() {
 
 命令：
   init [plugin-path]
-    生成 provider plugin 基础源码结构；未提供路径时默认使用当前目录。
+    生成 model provider runtime extension 基础源码结构；未提供路径时默认使用当前目录。
 
   demo init <plugin-path>
     在目标插件目录下生成 demo 页面与本地辅助脚本。
@@ -46,11 +46,11 @@ function usage() {
   -h, --help           查看帮助
 
 示例：
-  node scripts/node/plugin.js init ../1flowbase-official-plugins/models/openai_compatible
-  node scripts/node/plugin.js demo init ../1flowbase-official-plugins/models/openai_compatible
-  node scripts/node/plugin.js demo dev ../1flowbase-official-plugins/models/openai_compatible --port 4310
-  node scripts/node/plugin.js package ../1flowbase-official-plugins/models/openai_compatible --out ./dist
-  node scripts/node/plugin.js package ../1flowbase-official-plugins/models/openai_compatible --out ./dist --signing-key-pem-file ./official-plugin-signing-key.pem --signing-key-id official-key-2026-04
+  node scripts/node/plugin.js init ../1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible
+  node scripts/node/plugin.js demo init ../1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible
+  node scripts/node/plugin.js demo dev ../1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible --port 4310
+  node scripts/node/plugin.js package ../1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible --out ./dist
+  node scripts/node/plugin.js package ../1flowbase-official-plugins/runtime-extensions/model-providers/openai_compatible --out ./dist --signing-key-pem-file ./official-plugin-signing-key.pem --signing-key-id official-key-2026-04
 `);
 }
 
@@ -161,34 +161,37 @@ function removeDirIfExists(targetPath) {
 }
 
 function createManifestTemplate({ pluginCode, pluginName }) {
-  return `schema_version: 2
-plugin_type: model_provider
-plugin_code: ${pluginCode}
+  return `manifest_version: 1
+plugin_id: ${pluginCode}@0.1.0
 version: 0.1.0
+vendor: 1flowbase
+display_name: ${pluginName}
+description: OpenAI-compatible provider runtime extension
+source_kind: official_registry
+trust_level: verified_official
+consumption_kind: runtime_extension
+execution_mode: process_per_call
+slot_codes:
+  - model_provider
+binding_targets:
+  - workspace
+selection_mode: assignment_then_select
+minimum_host_version: 0.1.0
 contract_version: 1flowbase.provider/v1
-metadata:
-  author: taichuy
-  label:
-    en_US: ${pluginName}
-    zh_Hans: ${pluginName}
-  description:
-    en_US: Provider plugin for services that expose an OpenAI-compatible API surface.
-    zh_Hans: 面向 OpenAI 兼容接口服务的模型供应商插件。
-provider:
-  definition: provider/${pluginCode}.yaml
+schema_version: 1flowbase.plugin.manifest/v1
+permissions:
+  network: outbound_only
+  secrets: provider_instance_only
+  storage: none
+  mcp: none
+  subprocess: deny
 runtime:
-  kind: executable
-  protocol: stdio-json
-  executable:
-    path: bin/${pluginCode}-provider
-limits:
-  memory_bytes: 268435456
-  invoke_timeout_ms: 30000
-capabilities:
-  model_types:
-    - llm
-compat:
-  minimum_host_version: 0.1.0
+  protocol: stdio_json
+  entry: bin/${pluginCode}-provider
+  limits:
+    timeout_ms: 30000
+    memory_bytes: 268435456
+node_contributions: []
 `;
 }
 
@@ -269,8 +272,8 @@ function createI18nTemplate({ pluginName, locale }) {
       plugin: {
         label: pluginName,
         description: isChinese
-          ? `${pluginName} 模型供应商插件脚手架`
-          : `${pluginName} provider plugin scaffold`,
+          ? `${pluginName} 运行时扩展脚手架`
+          : `${pluginName} runtime extension scaffold`,
       },
       provider: {
         label: pluginName,
@@ -297,10 +300,11 @@ function createReadmeTemplate({ pluginCode, pluginName }) {
 ## Next Steps
 
 1. Replace \`src/main.rs\` with the real provider runtime.
-2. Update \`provider/${pluginCode}.yaml\` and \`models/llm/*.yaml\`.
-3. Build a target binary with \`cargo build --release --target x86_64-unknown-linux-musl\`.
-4. Run \`node scripts/node/plugin.js package <plugin-path> --out <dir> --runtime-binary <file> --target x86_64-unknown-linux-musl\`.
-5. Run \`node scripts/node/plugin.js demo init <plugin-path>\` to generate the local demo.
+2. Update \`manifest.yaml\`, \`provider/${pluginCode}.yaml\`, and \`models/llm/*.yaml\`.
+3. If this is an official provider, place it under \`runtime-extensions/model-providers/<provider_code>/\`.
+4. Build a target binary with \`cargo build --release --target x86_64-unknown-linux-musl\`.
+5. Run \`node scripts/node/plugin.js package <plugin-path> --out <dir> --runtime-binary <file> --target x86_64-unknown-linux-musl\`.
+6. Run \`node scripts/node/plugin.js demo init <plugin-path>\` to generate the local demo.
 `;
 }
 
@@ -697,8 +701,13 @@ function readPluginCode(pluginPath) {
   }
 
   const content = fs.readFileSync(manifestPath, 'utf8');
-  const match = content.match(/^plugin_code:\s*(.+)$/m);
-  return sanitizeCode(match ? match[1] : getPluginName(pluginPath));
+  const pluginIdMatch = content.match(/^plugin_id:\s*([^@\s#]+)@([^\s#]+)\s*$/m);
+  if (pluginIdMatch) {
+    return sanitizeCode(pluginIdMatch[1]);
+  }
+
+  const legacyMatch = content.match(/^plugin_code:\s*(.+)$/m);
+  return sanitizeCode(legacyMatch ? legacyMatch[1] : getPluginName(pluginPath));
 }
 
 function readManifestField(pluginPath, fieldName, fallbackValue) {
@@ -892,6 +901,7 @@ function createPluginPackage(pluginPath, outputDir, options = {}) {
   const stagedRoot = createPackageArtifactRoot(resolvedPluginPath);
   const pluginCode = readPluginCode(resolvedPluginPath);
   const version = readManifestField(resolvedPluginPath, 'version', '0.1.0');
+  const vendor = readManifestField(resolvedPluginPath, 'vendor', '1flowbase');
   const contractVersion = readManifestField(
     resolvedPluginPath,
     'contract_version',
@@ -912,14 +922,14 @@ function createPluginPackage(pluginPath, outputDir, options = {}) {
 
   const pendingFile = path.join(
     resolvedOutputDir,
-    `1flowbase@${pluginCode}@${version}@${target.assetSuffix}@pending.1flowbasepkg`
+    `${vendor}@${pluginCode}@${version}@${target.assetSuffix}@pending.1flowbasepkg`
   );
 
   try {
     let signatureMetadata = null;
     if (options.signingKeyPemFile && options.signingKeyId) {
       signatureMetadata = writeOfficialSignatureFiles(stagedRoot, {
-        pluginId: `1flowbase.${pluginCode}`,
+        pluginId: `${vendor}.${pluginCode}`,
         providerCode: pluginCode,
         version,
         contractVersion,
@@ -935,7 +945,7 @@ function createPluginPackage(pluginPath, outputDir, options = {}) {
     const checksum = hashFile(pendingFile);
     const finalFile = path.join(
       resolvedOutputDir,
-      `1flowbase@${pluginCode}@${version}@${target.assetSuffix}@${checksum}.1flowbasepkg`
+      `${vendor}@${pluginCode}@${version}@${target.assetSuffix}@${checksum}.1flowbasepkg`
     );
     fs.renameSync(pendingFile, finalFile);
 
