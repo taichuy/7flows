@@ -1,4 +1,16 @@
 use api_server::config::{ApiConfig, ApiEnvironment};
+use std::path::PathBuf;
+
+fn current_workspace_root() -> PathBuf {
+    std::env::current_dir()
+        .unwrap()
+        .ancestors()
+        .find(|path| {
+            path.join(".git").exists() && path.join("api").is_dir() && path.join("web").is_dir()
+        })
+        .unwrap()
+        .to_path_buf()
+}
 
 #[test]
 fn api_config_uses_expected_cookie_defaults() {
@@ -36,6 +48,29 @@ fn api_config_defaults_to_development_and_unrestricted_cors() {
 
     assert_eq!(config.env, ApiEnvironment::Development);
     assert!(config.cors_allowed_origins.is_none());
+}
+
+#[test]
+fn api_config_defaults_provider_install_root_to_workspace_plugins_directory() {
+    let config = ApiConfig::from_env_map(&[
+        (
+            "API_DATABASE_URL",
+            "postgres://postgres:1flowbase@127.0.0.1:35432/1flowbase",
+        ),
+        ("API_REDIS_URL", "redis://:1flowbase@127.0.0.1:36379"),
+        ("BOOTSTRAP_ROOT_ACCOUNT", "root"),
+        ("BOOTSTRAP_ROOT_EMAIL", "root@example.com"),
+        ("BOOTSTRAP_ROOT_PASSWORD", "secret"),
+        ("BOOTSTRAP_WORKSPACE_NAME", "1flowbase"),
+    ])
+    .unwrap();
+
+    let expected_root = current_workspace_root().join("plugins");
+    assert_eq!(PathBuf::from(&config.provider_install_root), expected_root);
+    assert_eq!(
+        PathBuf::from(&config.host_extension_dropin_root),
+        expected_root.join("host-extension").join("dropins")
+    );
 }
 
 #[test]

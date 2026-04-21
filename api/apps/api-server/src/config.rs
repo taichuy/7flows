@@ -1,7 +1,10 @@
 use anyhow::{anyhow, Result};
 use axum::http::HeaderValue;
 use serde::Deserialize;
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ApiEnvironment {
@@ -91,12 +94,7 @@ impl ApiConfig {
         let provider_install_root = map
             .get("API_PROVIDER_INSTALL_ROOT")
             .cloned()
-            .unwrap_or_else(|| {
-                std::env::temp_dir()
-                    .join("1flowbase-plugin-installed")
-                    .display()
-                    .to_string()
-            });
+            .unwrap_or_else(default_provider_install_root);
         let provider_secret_master_key = map
             .get("API_PROVIDER_SECRET_MASTER_KEY")
             .cloned()
@@ -250,6 +248,24 @@ fn parse_cors_allowed_origins(value: Option<&String>) -> Result<Option<Vec<Heade
     }
 
     Ok(Some(origins))
+}
+
+fn default_provider_install_root() -> String {
+    let current_dir = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    find_workspace_root(&current_dir)
+        .unwrap_or(current_dir)
+        .join("plugins")
+        .display()
+        .to_string()
+}
+
+fn find_workspace_root(start: &Path) -> Option<PathBuf> {
+    start
+        .ancestors()
+        .find(|path| {
+            path.join(".git").exists() && path.join("api").is_dir() && path.join("web").is_dir()
+        })
+        .map(Path::to_path_buf)
 }
 
 fn parse_bool_flag(value: Option<&String>, default: bool) -> Result<bool> {
