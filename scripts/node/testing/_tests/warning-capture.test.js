@@ -148,3 +148,44 @@ test('runCommandSequence resets the warning log before a new run', () => {
   assert.doesNotMatch(secondLog, /warning: first run/u);
   assert.match(secondLog, /warning: second run/u);
 });
+
+test('runCommandSequence removes stale warning logs before a clean run', () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-warning-capture-'));
+  const warningLogPath = path.join(repoRoot, 'tmp', 'test-governance', 'warning-clean.warnings.log');
+
+  const firstStatus = runCommandSequence({
+    repoRoot,
+    scope: 'warning-clean',
+    commands: [
+      {
+        label: 'warning-run',
+        command: process.execPath,
+        args: ['-e', 'process.stderr.write("warning: stale artifact\\n")'],
+      },
+    ],
+    spawnSyncImpl: spawnSync,
+    writeStdout() {},
+    writeStderr() {},
+  });
+
+  assert.equal(firstStatus, 0);
+  assert.equal(fs.existsSync(warningLogPath), true);
+
+  const secondStatus = runCommandSequence({
+    repoRoot,
+    scope: 'warning-clean',
+    commands: [
+      {
+        label: 'clean-run',
+        command: process.execPath,
+        args: ['-e', 'process.stdout.write("clean run\\n")'],
+      },
+    ],
+    spawnSyncImpl: spawnSync,
+    writeStdout() {},
+    writeStderr() {},
+  });
+
+  assert.equal(secondStatus, 0);
+  assert.equal(fs.existsSync(warningLogPath), false);
+});

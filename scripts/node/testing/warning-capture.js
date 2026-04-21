@@ -80,6 +80,13 @@ function resolveCwd(repoRoot, cwd) {
   return path.isAbsolute(cwd) ? cwd : path.resolve(repoRoot, cwd);
 }
 
+function clearWarningCapture(repoRoot, env, scope) {
+  const outputDir = resolveOutputDir(repoRoot, env);
+  const logPath = path.join(outputDir, `${scope}.warnings.log`);
+
+  fs.rmSync(logPath, { force: true });
+}
+
 function runCommandSequence({
   repoRoot = getRepoRoot(),
   env = process.env,
@@ -89,7 +96,7 @@ function runCommandSequence({
   writeStdout = (text) => process.stdout.write(text),
   writeStderr = (text) => process.stderr.write(text),
 }) {
-  const resetWarningLogs = new Set();
+  clearWarningCapture(repoRoot, env, scope);
 
   for (const command of commands) {
     const result = spawnSyncImpl(command.command, command.args, {
@@ -116,14 +123,6 @@ function runCommandSequence({
     }
 
     if (result.stderr) {
-      const outputDir = ensureOutputDir(repoRoot, env);
-      const logPath = path.join(outputDir, `${scope}.warnings.log`);
-
-      if (!resetWarningLogs.has(logPath)) {
-        fs.writeFileSync(logPath, '', 'utf8');
-        resetWarningLogs.add(logPath);
-      }
-
       writeWarningCapture({
         repoRoot,
         env,
