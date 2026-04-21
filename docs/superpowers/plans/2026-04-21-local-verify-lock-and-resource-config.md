@@ -76,7 +76,7 @@
 - Create: `scripts/node/testing/verify-runtime.js`
 - Create: `scripts/node/testing/_tests/verify-runtime.test.js`
 
-- [ ] **Step 1: Write the failing config parsing tests**
+- [x] **Step 1: Write the failing config parsing tests**
 
 Create `scripts/node/testing/_tests/verify-runtime.test.js` with focused config cases first:
 
@@ -180,7 +180,7 @@ test('loadVerifyRuntimeConfig rejects invalid values instead of silently clampin
 });
 ```
 
-- [ ] **Step 2: Run the new runtime tests and confirm the helper does not exist yet**
+- [x] **Step 2: Run the new runtime tests and confirm the helper does not exist yet**
 
 Run:
 
@@ -190,7 +190,7 @@ node --test scripts/node/testing/_tests/verify-runtime.test.js
 
 Expected: FAIL with `Cannot find module '../verify-runtime.js'` or missing export assertions.
 
-- [ ] **Step 3: Implement config constants, defaults, and normalization**
+- [x] **Step 3: Implement config constants, defaults, and normalization**
 
 Create `scripts/node/testing/verify-runtime.js` with the config API first, before any lock behavior:
 
@@ -279,7 +279,7 @@ module.exports = {
 };
 ```
 
-- [ ] **Step 4: Run the runtime config tests again**
+- [x] **Step 4: Run the runtime config tests again**
 
 Run:
 
@@ -289,7 +289,7 @@ node --test scripts/node/testing/_tests/verify-runtime.test.js
 
 Expected: PASS. Defaults resolve to half CPU, minute-based timeout is normalized to both `waitTimeoutMinutes` and internal `waitTimeoutMs`, and invalid values fail fast.
 
-- [ ] **Step 5: Commit the config helper foundation**
+- [x] **Step 5: Commit the config helper foundation**
 
 Run:
 
