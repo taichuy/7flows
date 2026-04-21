@@ -55,6 +55,7 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 - 复查清单与反模式：[review-checklist.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/review-checklist.md)、[anti-patterns.md](/home/taichu/git/1flowbase/.agents/skills/frontend-development/references/anti-patterns.md)
 - 示例与压力场景：`examples/`
 - 命中结构性问题后的完整信息架构诊断：`frontend-logic-design`
+- 前端测试资源限制统一读取仓库根 `.1flowbase.verify.local.json`；调整 `turbo` 并发或 `vitest` worker 时，同步维护 `.1flowbase.verify.local.json.example`，不要把并发重新写死进 `package.json`
 
 ## Implementation
 
@@ -68,6 +69,7 @@ description: Use when building or changing 1flowbase frontend/UI pages, page req
 - Interaction anchor: 先过交互架构 gate，定义主路径、详情规则、反馈位置和模块协作，再决定卡片、区块和装饰怎么落
 - Style chain: `theme token -> first-party wrapper -> explicit slot -> stop`
 - Verification chain: 共享样式或第三方 slot 走 `check-style-boundary`；浏览器级证据走 `Playwright / page-debug / style-boundary`
+- Frontend test runtime chain: `web/package.json` 与 `web/app/package.json` 的测试入口应继续走仓库脚本包装器；本地资源限制统一从 `.1flowbase.verify.local.json` 读取，不要用裸 `pnpm exec vitest/turbo` 替代标准入口
 
 ## Common Mistakes
 
