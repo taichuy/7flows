@@ -304,7 +304,7 @@ git commit -m "feat: add local verify runtime config helper"
 - Modify: `scripts/node/testing/verify-runtime.js`
 - Modify: `scripts/node/testing/_tests/verify-runtime.test.js`
 
-- [ ] **Step 1: Extend the runtime tests with lock cases**
+- [x] **Step 1: Extend the runtime tests with lock cases**
 
 Append lock-focused tests to `scripts/node/testing/_tests/verify-runtime.test.js`:
 
@@ -496,7 +496,7 @@ test('withHeavyVerifyLock releases the owner when cleanup signals fire', async (
 });
 ```
 
-- [ ] **Step 2: Run only the lock-focused runtime cases**
+- [x] **Step 2: Run only the lock-focused runtime cases**
 
 Run:
 
@@ -506,7 +506,7 @@ node --test --test-name-pattern "HeavyVerifyLock|stale owner|reentrant owner|wai
 
 Expected: FAIL because `HEAVY_VERIFY_LOCK_DIR`, `acquireHeavyVerifyLock`, `withHeavyVerifyLock`, and `readHeavyVerifyLockOwner` do not exist yet.
 
-- [ ] **Step 3: Implement the heavy lock, owner record, and release semantics**
+- [x] **Step 3: Implement the heavy lock, owner record, and release semantics**
 
 Extend `scripts/node/testing/verify-runtime.js` with lock ownership and reentrant wrapper support:
 
@@ -661,7 +661,7 @@ async function withHeavyVerifyLock(options, run) {
 }
 ```
 
-- [ ] **Step 4: Run the full runtime helper test file**
+- [x] **Step 4: Run the full runtime helper test file**
 
 Run:
 
@@ -671,7 +671,7 @@ node --test scripts/node/testing/_tests/verify-runtime.test.js
 
 Expected: PASS. Owner record is written under `tmp/test-governance/locks/heavy-verify`, stale owners are cleaned, matching tokens reenter without blocking, and timeout behavior is explicit.
 
-- [ ] **Step 5: Commit the heavy lock helper**
+- [x] **Step 5: Commit the heavy lock helper**
 
 Run:
 
