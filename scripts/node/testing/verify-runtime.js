@@ -23,6 +23,14 @@ function isPlainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+function assertPlainObject(name, value) {
+  if (!isPlainObject(value)) {
+    throw new Error(`${name} must be a plain object`);
+  }
+
+  return value;
+}
+
 function assertPositiveInteger(name, value) {
   if (!Number.isInteger(value) || value <= 0) {
     throw new Error(`${name} must be a positive integer`);
@@ -43,13 +51,13 @@ function resolveCargoDefaults(availableParallelism) {
 
 function readLocalVerifyConfig(repoRoot, env = process.env) {
   if (isCiEnvironment(env)) {
-    return null;
+    return undefined;
   }
 
   const configPath = path.join(repoRoot, LOCAL_VERIFY_CONFIG_FILE);
 
   if (!fs.existsSync(configPath)) {
-    return null;
+    return undefined;
   }
 
   const raw = fs.readFileSync(configPath, 'utf8');
@@ -62,9 +70,14 @@ function readLocalVerifyConfig(repoRoot, env = process.env) {
 }
 
 function resolveRuntimeConfig(config, availableParallelism) {
+  assertPlainObject('verify runtime config root', config);
   const defaults = resolveCargoDefaults(availableParallelism);
-  const backendConfig = isPlainObject(config.backend) ? config.backend : {};
-  const locksConfig = isPlainObject(config.locks) ? config.locks : {};
+  const backendConfig = config.backend === undefined
+    ? {}
+    : assertPlainObject('backend', config.backend);
+  const locksConfig = config.locks === undefined
+    ? {}
+    : assertPlainObject('locks', config.locks);
 
   const cargoJobs = backendConfig.cargoJobs ?? defaults.cargoJobs;
   const cargoTestThreads = backendConfig.cargoTestThreads ?? defaults.cargoTestThreads;
@@ -102,7 +115,11 @@ function loadVerifyRuntimeConfig({
   env = process.env,
   availableParallelism = getAvailableParallelism(),
 } = {}) {
-  const config = readLocalVerifyConfig(repoRoot, env) ?? {};
+  const config = readLocalVerifyConfig(repoRoot, env);
+  if (config === undefined) {
+    return resolveRuntimeConfig({}, availableParallelism);
+  }
+
   return resolveRuntimeConfig(config, availableParallelism);
 }
 

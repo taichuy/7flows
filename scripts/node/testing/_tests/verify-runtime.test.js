@@ -134,6 +134,82 @@ test('loadVerifyRuntimeConfig rejects invalid values', () => {
   );
 });
 
+test('loadVerifyRuntimeConfig rejects non-object root config values', () => {
+  const repoRoot = createRepoRoot();
+
+  fs.writeFileSync(
+    path.join(repoRoot, LOCAL_VERIFY_CONFIG_FILE),
+    'null'
+  );
+
+  assert.throws(
+    () => loadVerifyRuntimeConfig({
+      repoRoot,
+      env: {},
+      availableParallelism: 4,
+    }),
+    /verify runtime config root must be a plain object/
+  );
+});
+
+test('loadVerifyRuntimeConfig rejects array root config values', () => {
+  const repoRoot = createRepoRoot();
+
+  fs.writeFileSync(
+    path.join(repoRoot, LOCAL_VERIFY_CONFIG_FILE),
+    '[]'
+  );
+
+  assert.throws(
+    () => loadVerifyRuntimeConfig({
+      repoRoot,
+      env: {},
+      availableParallelism: 4,
+    }),
+    /verify runtime config root must be a plain object/
+  );
+});
+
+test('loadVerifyRuntimeConfig rejects non-object backend config values', () => {
+  const repoRoot = createRepoRoot();
+
+  fs.writeFileSync(
+    path.join(repoRoot, LOCAL_VERIFY_CONFIG_FILE),
+    JSON.stringify({
+      backend: [],
+    }, null, 2)
+  );
+
+  assert.throws(
+    () => loadVerifyRuntimeConfig({
+      repoRoot,
+      env: {},
+      availableParallelism: 4,
+    }),
+    /backend must be a plain object/
+  );
+});
+
+test('loadVerifyRuntimeConfig rejects non-object locks config values', () => {
+  const repoRoot = createRepoRoot();
+
+  fs.writeFileSync(
+    path.join(repoRoot, LOCAL_VERIFY_CONFIG_FILE),
+    JSON.stringify({
+      locks: [],
+    }, null, 2)
+  );
+
+  assert.throws(
+    () => loadVerifyRuntimeConfig({
+      repoRoot,
+      env: {},
+      availableParallelism: 4,
+    }),
+    /locks must be a plain object/
+  );
+});
+
 test('loadVerifyRuntimeConfig rejects backend values that exceed available parallelism', () => {
   const repoRoot = createRepoRoot();
 
