@@ -125,7 +125,7 @@ function readHeavyVerifyLockOwner({ repoRoot } = {}) {
     const owner = JSON.parse(fs.readFileSync(ownerPath, 'utf8'));
     return isValidHeavyVerifyLockOwner(owner) ? owner : null;
   } catch (_error) {
-    return null;
+    return undefined;
   }
 }
 
@@ -153,7 +153,6 @@ function writeHeavyVerifyLockOwner({
 }) {
   const ownerPath = getHeavyVerifyLockOwnerPath(repoRoot);
 
-  fs.mkdirSync(path.dirname(ownerPath), { recursive: true });
   fs.writeFileSync(
     ownerPath,
     `${JSON.stringify({
@@ -213,6 +212,7 @@ async function acquireHeavyVerifyLock({
   now = () => new Date(),
   hostname = os.hostname(),
   processId = process.pid,
+  beforeOwnerWriteImpl = async () => {},
 } = {}) {
   if (typeof repoRoot !== 'string' || repoRoot.trim() === '') {
     throw new Error('repoRoot must be a non-empty string');
@@ -260,13 +260,28 @@ async function acquireHeavyVerifyLock({
       }
 
       released = true;
-      return removeHeavyVerifyLock({ repoRoot, token });
+      const removed = removeHeavyVerifyLock({ repoRoot, token });
+
+      if (removed) {
+        writeStdout(
+          `[1flowbase-verify-lock] released: scope=${scope} pid=${processId} token=${token}\n`
+        );
+      }
+
+      return removed;
     },
   };
 
   while (true) {
     try {
       fs.mkdirSync(lockDir);
+      await beforeOwnerWriteImpl({
+        repoRoot,
+        scope,
+        command,
+        token,
+        pid: processId,
+      });
       try {
         writeHeavyVerifyLockOwner({ repoRoot, ...ownerRecord });
       } catch (error) {
@@ -298,17 +313,30 @@ async function acquireHeavyVerifyLock({
       };
     }
 
-    if (owner === null || !isProcessAliveImpl(owner.pid)) {
+    if (owner === null) {
+      writeStdout('[1flowbase-verify-lock] waiting for owner record...\n');
+    } else if (owner === undefined) {
       writeStdout('[1flowbase-verify-lock] stale lock detected, cleaning...\n');
       fs.rmSync(lockDir, { recursive: true, force: true });
       continue;
+    } else if (!isProcessAliveImpl(owner.pid)) {
+      writeStdout('[1flowbase-verify-lock] stale lock detected, cleaning...\n');
+      fs.rmSync(lockDir, { recursive: true, force: true });
+      continue;
+    } else {
+      writeStdout(
+        `[1flowbase-verify-lock] busy: scope=${owner.scope} pid=${owner.pid} startedAt=${owner.startedAt}\n`
+      );
     }
 
-    writeStdout(
-      `[1flowbase-verify-lock] busy: scope=${owner.scope} pid=${owner.pid} startedAt=${owner.startedAt}\n`
-    );
-
     if (now().getTime() >= timeoutAt) {
+      const ownerSummary = owner === null
+        ? `scope=${scope} pid=${processId}`
+        : `scope=${owner.scope} pid=${owner.pid} token=${owner.token}`;
+
+      writeStdout(
+        `[1flowbase-verify-lock] timeout waiting for heavy-verify lock: ${ownerSummary}\n`
+      );
       throw new Error('timeout waiting for heavy-verify lock');
     }
 

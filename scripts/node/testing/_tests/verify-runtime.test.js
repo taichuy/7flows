@@ -391,6 +391,7 @@ test('loadVerifyRuntimeConfig rejects invalid JSON', () => {
 
 test('acquireHeavyVerifyLock writes owner.json with the expected metadata', async () => {
   const repoRoot = createRepoRoot();
+  const output = [];
 
   const lock = await acquireHeavyVerifyLock({
     repoRoot,
@@ -402,7 +403,7 @@ test('acquireHeavyVerifyLock writes owner.json with the expected metadata', asyn
     processId: 321,
     sleepImpl: async () => {},
     isProcessAliveImpl: () => true,
-    writeStdout() {},
+    writeStdout: (text) => output.push(text),
   });
 
   const owner = readHeavyVerifyLockOwner({ repoRoot });
@@ -418,6 +419,8 @@ test('acquireHeavyVerifyLock writes owner.json with the expected metadata', asyn
 
   lock.release();
   assert.equal(fs.existsSync(path.join(repoRoot, HEAVY_VERIFY_LOCK_DIR)), false);
+  assert.match(output.join(''), /\[1flowbase-verify-lock\] acquired: scope=verify-backend pid=321/u);
+  assert.match(output.join(''), /\[1flowbase-verify-lock\] released: scope=verify-backend pid=321/u);
 });
 
 test('acquireHeavyVerifyLock waits for a live owner and times out', async () => {
@@ -472,6 +475,7 @@ test('acquireHeavyVerifyLock waits for a live owner and times out', async () => 
 
   assert.match(output.join(''), /\[1flowbase-verify-lock\] busy: scope=verify-repo pid=999/u);
   assert.match(output.join(''), /\[1flowbase-verify-lock\] waiting.../u);
+  assert.match(output.join(''), /\[1flowbase-verify-lock\] timeout waiting for heavy-verify lock:/u);
 });
 
 test('acquireHeavyVerifyLock cleans a stale owner before retrying', async () => {
@@ -531,6 +535,81 @@ test('acquireHeavyVerifyLock cleans a damaged owner before retrying', async () =
   lock.release();
 });
 
+test('acquireHeavyVerifyLock keeps a second owner from slipping through while owner.json is not yet written', async () => {
+  const repoRoot = createRepoRoot();
+  const firstGate = createDeferred();
+  const releaseFirst = createDeferred();
+  const secondOutput = [];
+
+  const firstAcquirePromise = acquireHeavyVerifyLock({
+    repoRoot,
+    env: {},
+    scope: 'verify-backend',
+    command: 'node scripts/node/verify-backend.js',
+    runtimeConfig: {
+      backend: {
+        cargoJobs: 1,
+        cargoTestThreads: 1,
+      },
+      locks: {
+        waitTimeoutMinutes: 1,
+        waitTimeoutMs: 60_000,
+        pollIntervalMs: 1000,
+      },
+    },
+    beforeOwnerWriteImpl: async () => {
+      firstGate.resolve();
+      await releaseFirst.promise;
+    },
+    sleepImpl: async () => {},
+    isProcessAliveImpl: () => true,
+    processId: 901,
+  });
+
+  await firstGate.promise;
+
+  const secondAcquirePromise = acquireHeavyVerifyLock({
+    repoRoot,
+    env: {},
+    scope: 'verify-repo',
+    command: 'node scripts/node/verify-repo.js',
+    runtimeConfig: {
+      backend: {
+        cargoJobs: 1,
+        cargoTestThreads: 1,
+      },
+      locks: {
+        waitTimeoutMinutes: 1,
+        waitTimeoutMs: 60_000,
+        pollIntervalMs: 1000,
+      },
+    },
+    writeStdout: (text) => secondOutput.push(text),
+    sleepImpl: async () => {},
+    isProcessAliveImpl: () => true,
+    now: (() => {
+      const values = [
+        new Date('2026-04-21T12:00:00.000Z'),
+        new Date('2026-04-21T12:00:30.000Z'),
+        new Date('2026-04-21T12:01:01.000Z'),
+      ];
+
+      return () => values.shift() ?? new Date('2026-04-21T12:01:01.000Z');
+    })(),
+    processId: 902,
+  });
+
+  await assert.rejects(secondAcquirePromise, /timeout waiting for heavy-verify lock/u);
+
+  assert.match(secondOutput.join(''), /\[1flowbase-verify-lock\] waiting for owner record\.\.\./u);
+  assert.equal(readHeavyVerifyLockOwner({ repoRoot }), null);
+
+  releaseFirst.resolve();
+  const lock = await firstAcquirePromise;
+  assert.equal(readHeavyVerifyLockOwner({ repoRoot }).pid, 901);
+  lock.release();
+});
+
 test('acquireHeavyVerifyLock treats matching token as a reentrant owner', async () => {
   const repoRoot = createRepoRoot();
   const token = '11111111-2222-4333-8444-555555555555';
@@ -569,6 +648,7 @@ test('withHeavyVerifyLock releases the lock when cleanup events fire', async () 
   for (const eventName of cleanupEvents) {
     const repoRoot = createRepoRoot();
     const listeners = new Map();
+    const output = [];
 
     await withHeavyVerifyLock(
       {
@@ -587,6 +667,7 @@ test('withHeavyVerifyLock releases the lock when cleanup events fire', async () 
             pollIntervalMs: 1000,
           },
         },
+        writeStdout: (text) => output.push(text),
         processEmitter: {
           once(name, handler) {
             listeners.set(name, handler);
@@ -608,8 +689,20 @@ test('withHeavyVerifyLock releases the lock when cleanup events fire', async () 
 
         listeners.get(eventName)();
         assert.equal(fs.existsSync(path.join(repoRoot, HEAVY_VERIFY_LOCK_DIR)), false);
+        assert.match(output.join(''), /\[1flowbase-verify-lock\] released: scope=verify-backend pid=888/u);
         return 0;
       }
     );
   }
 });
+
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+
+  return { promise, resolve, reject };
+}
