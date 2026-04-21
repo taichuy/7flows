@@ -74,6 +74,17 @@ function resolveCargoDefaults(availableParallelism) {
   };
 }
 
+function resolveFrontendDefaults(availableParallelism) {
+  const parallelism = assertPositiveInteger('availableParallelism', availableParallelism);
+  const defaultWorkers = Math.max(1, Math.floor(parallelism / 2));
+
+  return {
+    turboConcurrency: Math.min(defaultWorkers, parallelism),
+    vitestMaxWorkers: Math.min(defaultWorkers, parallelism),
+    vitestMinWorkers: 1,
+  };
+}
+
 function readLocalVerifyConfig(repoRoot, env = process.env) {
   if (isCiEnvironment(env)) {
     return undefined;
@@ -490,25 +501,36 @@ async function withHeavyVerifyLock(options = {}, run) {
 
 function resolveRuntimeConfig(config, availableParallelism) {
   assertPlainObject('verify runtime config root', config);
-  assertKnownKeys('verify runtime config', config, new Set(['backend', 'locks']));
-  const defaults = resolveCargoDefaults(availableParallelism);
+  assertKnownKeys('verify runtime config', config, new Set(['backend', 'frontend', 'locks']));
+  const backendDefaults = resolveCargoDefaults(availableParallelism);
+  const frontendDefaults = resolveFrontendDefaults(availableParallelism);
   const backendConfig = config.backend === undefined
     ? {}
     : assertPlainObject('backend', config.backend);
+  const frontendConfig = config.frontend === undefined
+    ? {}
+    : assertPlainObject('frontend', config.frontend);
   const locksConfig = config.locks === undefined
     ? {}
     : assertPlainObject('locks', config.locks);
 
   assertKnownKeys('backend', backendConfig, new Set(['cargoJobs', 'cargoTestThreads']));
+  assertKnownKeys('frontend', frontendConfig, new Set(['turboConcurrency', 'vitestMaxWorkers', 'vitestMinWorkers']));
   assertKnownKeys('locks', locksConfig, new Set(['waitTimeoutMinutes', 'pollIntervalMs']));
 
-  const cargoJobs = backendConfig.cargoJobs ?? defaults.cargoJobs;
-  const cargoTestThreads = backendConfig.cargoTestThreads ?? defaults.cargoTestThreads;
+  const cargoJobs = backendConfig.cargoJobs ?? backendDefaults.cargoJobs;
+  const cargoTestThreads = backendConfig.cargoTestThreads ?? backendDefaults.cargoTestThreads;
+  const turboConcurrency = frontendConfig.turboConcurrency ?? frontendDefaults.turboConcurrency;
+  const vitestMaxWorkers = frontendConfig.vitestMaxWorkers ?? frontendDefaults.vitestMaxWorkers;
+  const vitestMinWorkers = frontendConfig.vitestMinWorkers ?? frontendDefaults.vitestMinWorkers;
   const waitTimeoutMinutes = locksConfig.waitTimeoutMinutes ?? DEFAULT_WAIT_TIMEOUT_MINUTES;
   const pollIntervalMs = locksConfig.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
 
   assertPositiveInteger('backend.cargoJobs', cargoJobs);
   assertPositiveInteger('backend.cargoTestThreads', cargoTestThreads);
+  assertPositiveInteger('frontend.turboConcurrency', turboConcurrency);
+  assertPositiveInteger('frontend.vitestMaxWorkers', vitestMaxWorkers);
+  assertPositiveInteger('frontend.vitestMinWorkers', vitestMinWorkers);
   assertPositiveInteger('locks.waitTimeoutMinutes', waitTimeoutMinutes);
   assertPositiveInteger('locks.pollIntervalMs', pollIntervalMs);
 
@@ -520,10 +542,31 @@ function resolveRuntimeConfig(config, availableParallelism) {
     throw new Error('backend.cargoTestThreads must not exceed availableParallelism');
   }
 
+  if (turboConcurrency > availableParallelism) {
+    throw new Error('frontend.turboConcurrency must not exceed availableParallelism');
+  }
+
+  if (vitestMaxWorkers > availableParallelism) {
+    throw new Error('frontend.vitestMaxWorkers must not exceed availableParallelism');
+  }
+
+  if (vitestMinWorkers > availableParallelism) {
+    throw new Error('frontend.vitestMinWorkers must not exceed availableParallelism');
+  }
+
+  if (vitestMinWorkers > vitestMaxWorkers) {
+    throw new Error('frontend.vitestMinWorkers must not exceed frontend.vitestMaxWorkers');
+  }
+
   return {
     backend: {
       cargoJobs,
       cargoTestThreads,
+    },
+    frontend: {
+      turboConcurrency,
+      vitestMaxWorkers,
+      vitestMinWorkers,
     },
     locks: {
       waitTimeoutMinutes,

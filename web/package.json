@@ -10,7 +10,7 @@
     "dev:app": "pnpm --filter @1flowbase/web dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "test": "turbo run test --concurrency=50%",
+    "test": "node ../scripts/node/run-frontend-workspace-test.js",
     "test:fast": "node ../scripts/node/test-frontend.js fast",
     "coverage:frontend": "node ../scripts/node/verify-coverage.js frontend",
     "verify:full": "node ../scripts/node/test-frontend.js full",

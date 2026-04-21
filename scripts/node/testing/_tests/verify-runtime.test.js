@@ -32,6 +32,11 @@ test('loadVerifyRuntimeConfig returns defaults when local config is absent', () 
       cargoJobs: 4,
       cargoTestThreads: 4,
     },
+    frontend: {
+      turboConcurrency: 4,
+      vitestMaxWorkers: 4,
+      vitestMinWorkers: 1,
+    },
     locks: {
       waitTimeoutMinutes: 30,
       waitTimeoutMs: 30 * 60 * 1000,
@@ -50,6 +55,11 @@ test('loadVerifyRuntimeConfig applies local overrides when config file exists', 
         cargoJobs: 3,
         cargoTestThreads: 2,
       },
+      frontend: {
+        turboConcurrency: 2,
+        vitestMaxWorkers: 3,
+        vitestMinWorkers: 1,
+      },
       locks: {
         waitTimeoutMinutes: 12,
         pollIntervalMs: 1500,
@@ -67,6 +77,11 @@ test('loadVerifyRuntimeConfig applies local overrides when config file exists', 
     backend: {
       cargoJobs: 3,
       cargoTestThreads: 2,
+    },
+    frontend: {
+      turboConcurrency: 2,
+      vitestMaxWorkers: 3,
+      vitestMinWorkers: 1,
     },
     locks: {
       waitTimeoutMinutes: 12,
@@ -128,6 +143,29 @@ test('loadVerifyRuntimeConfig rejects unknown backend keys', () => {
   );
 });
 
+test('loadVerifyRuntimeConfig rejects unknown frontend keys', () => {
+  const repoRoot = createRepoRoot();
+
+  fs.writeFileSync(
+    path.join(repoRoot, LOCAL_VERIFY_CONFIG_FILE),
+    JSON.stringify({
+      frontend: {
+        turboConcurrency: 2,
+        unexpected: true,
+      },
+    }, null, 2)
+  );
+
+  assert.throws(
+    () => loadVerifyRuntimeConfig({
+      repoRoot,
+      env: {},
+      availableParallelism: 8,
+    }),
+    /Unknown frontend key: unexpected/
+  );
+});
+
 test('loadVerifyRuntimeConfig rejects unknown locks keys', () => {
   const repoRoot = createRepoRoot();
 
@@ -161,6 +199,9 @@ test('loadVerifyRuntimeConfig merges backend and lock overrides field by field',
       backend: {
         cargoJobs: 3,
       },
+      frontend: {
+        vitestMaxWorkers: 2,
+      },
       locks: {
         waitTimeoutMinutes: 12,
       },
@@ -177,6 +218,11 @@ test('loadVerifyRuntimeConfig merges backend and lock overrides field by field',
     backend: {
       cargoJobs: 3,
       cargoTestThreads: 4,
+    },
+    frontend: {
+      turboConcurrency: 4,
+      vitestMaxWorkers: 2,
+      vitestMinWorkers: 1,
     },
     locks: {
       waitTimeoutMinutes: 12,
@@ -213,6 +259,11 @@ test('loadVerifyRuntimeConfig ignores local config in CI environments', () => {
     backend: {
       cargoJobs: 4,
       cargoTestThreads: 4,
+    },
+    frontend: {
+      turboConcurrency: 4,
+      vitestMaxWorkers: 4,
+      vitestMinWorkers: 1,
     },
     locks: {
       waitTimeoutMinutes: 30,
@@ -281,6 +332,51 @@ test('loadVerifyRuntimeConfig rejects invalid backend cargoTestThreads', () => {
       availableParallelism: 4,
     }),
     /backend\.cargoTestThreads must be a positive integer/
+  );
+});
+
+test('loadVerifyRuntimeConfig rejects invalid frontend turboConcurrency', () => {
+  const repoRoot = createRepoRoot();
+
+  fs.writeFileSync(
+    path.join(repoRoot, LOCAL_VERIFY_CONFIG_FILE),
+    JSON.stringify({
+      frontend: {
+        turboConcurrency: 0,
+      },
+    }, null, 2)
+  );
+
+  assert.throws(
+    () => loadVerifyRuntimeConfig({
+      repoRoot,
+      env: {},
+      availableParallelism: 4,
+    }),
+    /frontend\.turboConcurrency must be a positive integer/
+  );
+});
+
+test('loadVerifyRuntimeConfig rejects frontend vitestMinWorkers above vitestMaxWorkers', () => {
+  const repoRoot = createRepoRoot();
+
+  fs.writeFileSync(
+    path.join(repoRoot, LOCAL_VERIFY_CONFIG_FILE),
+    JSON.stringify({
+      frontend: {
+        vitestMaxWorkers: 1,
+        vitestMinWorkers: 2,
+      },
+    }, null, 2)
+  );
+
+  assert.throws(
+    () => loadVerifyRuntimeConfig({
+      repoRoot,
+      env: {},
+      availableParallelism: 4,
+    }),
+    /frontend\.vitestMinWorkers must not exceed frontend\.vitestMaxWorkers/
   );
 });
 
@@ -424,6 +520,26 @@ test('loadVerifyRuntimeConfig rejects non-object backend config values', () => {
       availableParallelism: 4,
     }),
     /backend must be a plain object/
+  );
+});
+
+test('loadVerifyRuntimeConfig rejects non-object frontend config values', () => {
+  const repoRoot = createRepoRoot();
+
+  fs.writeFileSync(
+    path.join(repoRoot, LOCAL_VERIFY_CONFIG_FILE),
+    JSON.stringify({
+      frontend: [],
+    }, null, 2)
+  );
+
+  assert.throws(
+    () => loadVerifyRuntimeConfig({
+      repoRoot,
+      env: {},
+      availableParallelism: 4,
+    }),
+    /frontend must be a plain object/
   );
 });
 

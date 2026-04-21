@@ -30,9 +30,9 @@
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "lint": "eslint src --ext .ts,.tsx",
-    "test": "vitest --run --maxWorkers=50% --minWorkers=1",
-    "test:fast": "vitest --run --maxWorkers=50% --minWorkers=1",
-    "test:coverage": "vitest --run --coverage --maxWorkers=50% --minWorkers=1"
+    "test": "node ../../scripts/node/run-frontend-vitest.js run",
+    "test:fast": "node ../../scripts/node/run-frontend-vitest.js run",
+    "test:coverage": "node ../../scripts/node/run-frontend-vitest.js coverage"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^3.2.4"

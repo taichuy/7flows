@@ -3,6 +3,11 @@
     "cargoJobs": 1,
     "cargoTestThreads": 1
   },
+  "frontend": {
+    "turboConcurrency": 1,
+    "vitestMaxWorkers": 1,
+    "vitestMinWorkers": 1
+  },
   "locks": {
     "waitTimeoutMinutes": 30,
     "pollIntervalMs": 5000
