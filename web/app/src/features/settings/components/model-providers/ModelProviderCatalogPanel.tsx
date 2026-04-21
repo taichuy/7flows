@@ -69,76 +69,6 @@ export function ModelProviderCatalogPanel({
           )
         }}
         columns={[
-          {
-            title: '名称',
-            key: 'provider',
-            width: 180,
-            render: (_, entry) => (
-              <div className="model-provider-panel__catalog-name">
-                <Typography.Text strong>{entry.display_name}</Typography.Text>
-              </div>
-            )
-          },
-          {
-            title: '状态',
-            key: 'status',
-            width: 130,
-            render: (_, entry) => {
-              const currentCatalogEntry =
-                currentCatalogEntries[entry.provider_code];
-              const status = formatPluginAvailabilityStatus(
-                currentCatalogEntry?.availability_status ?? 'disabled'
-              );
-
-              return (
-                <Space
-                  wrap
-                  size={[6, 6]}
-                  className="model-provider-panel__catalog-status"
-                >
-                  <Tag color={status.color}>{status.label}</Tag>
-                  <Tag>{entry.model_discovery_mode}</Tag>
-                  {entry.has_update ? <Tag color="gold">有可用更新</Tag> : null}
-                </Space>
-              );
-            }
-          },
-          {
-            title: '说明',
-            key: 'summary',
-            width: 200,
-            render: (_, entry) => {
-              const currentCatalogEntry =
-                currentCatalogEntries[entry.provider_code];
-              const description = getCatalogDescription(
-                entry,
-                currentCatalogEntry
-              );
-
-              return (
-                <div className="model-provider-panel__catalog-description">
-                  <Typography.Paragraph
-                    className="model-provider-panel__catalog-description-text"
-                    ellipsis={{ rows: 2, tooltip: description }}
-                  >
-                    {description}
-                  </Typography.Paragraph>
-                </div>
-              );
-            }
-          },
-          {
-            title: '版本',
-            key: 'version',
-            width: 90,
-            render: (_, entry) => (
-              <div className="model-provider-panel__catalog-version">
-                <Typography.Text strong>
-                  {entry.current_version}
-                </Typography.Text>
-              </div>
-            )
-          },
           ...(canManage
             ? [
                 {
@@ -178,7 +108,77 @@ export function ModelProviderCatalogPanel({
                   )
                 }
               ]
-            : [])
+            : []),
+          {
+            title: '名称',
+            key: 'provider',
+            width: 180,
+            render: (_, entry) => (
+              <div className="model-provider-panel__catalog-name">
+                <Typography.Text strong>{entry.display_name}</Typography.Text>
+              </div>
+            )
+          },
+          {
+            title: '状态',
+            key: 'status',
+            width: 130,
+            render: (_, entry) => {
+              const currentCatalogEntry =
+                currentCatalogEntries[entry.provider_code];
+              const status = formatPluginAvailabilityStatus(
+                currentCatalogEntry?.availability_status ?? 'disabled'
+              );
+
+              return (
+                <Space
+                  wrap
+                  size={[6, 6]}
+                  className="model-provider-panel__catalog-status"
+                >
+                  <Tag color={status.color}>{status.label}</Tag>
+                  <Tag>{entry.model_discovery_mode}</Tag>
+                  {entry.has_update ? <Tag color="gold">有可用更新</Tag> : null}
+                </Space>
+              );
+            }
+          },
+          {
+            title: '版本',
+            key: 'version',
+            width: 90,
+            render: (_, entry) => (
+              <div className="model-provider-panel__catalog-version">
+                <Typography.Text strong>
+                  {entry.current_version}
+                </Typography.Text>
+              </div>
+            )
+          },
+          {
+            title: '说明',
+            key: 'summary',
+            width: 200,
+            render: (_, entry) => {
+              const currentCatalogEntry =
+                currentCatalogEntries[entry.provider_code];
+              const description = getCatalogDescription(
+                entry,
+                currentCatalogEntry
+              );
+
+              return (
+                <div className="model-provider-panel__catalog-description">
+                  <Typography.Paragraph
+                    className="model-provider-panel__catalog-description-text"
+                    ellipsis={{ rows: 2, tooltip: description }}
+                  >
+                    {description}
+                  </Typography.Paragraph>
+                </div>
+              );
+            }
+          }
         ]}
       />
     </section>

@@ -622,6 +622,29 @@ describe('ModelProvidersPage', () => {
     ).not.toBeInTheDocument();
   }, 20000);
 
+  test('renders provider catalog headers in the expected order', async () => {
+    authenticateWithPermissions([
+      'route_page.view.all',
+      'state_model.view.all',
+      'state_model.manage.all'
+    ]);
+
+    renderApp('/settings/model-providers');
+
+    const headers = await screen.findAllByRole('columnheader');
+    const catalogHeaders = headers
+      .map((header) => header.textContent?.trim() ?? '')
+      .filter((text) => ['操作', '名称', '状态', '版本', '说明'].includes(text));
+
+    expect(catalogHeaders.slice(0, 5)).toEqual([
+      '操作',
+      '名称',
+      '状态',
+      '版本',
+      '说明'
+    ]);
+  }, 10000);
+
   test(
     'opens provider instances modal from installed provider row and defaults to the ready instance',
     { timeout: 15000 },
