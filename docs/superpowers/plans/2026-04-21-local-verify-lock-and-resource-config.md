@@ -1210,7 +1210,7 @@ node --test \
 
 Expected: PASS. Repository and CI wrappers now preserve `ONEFLOWBASE_VERIFY_LOCK_TOKEN`, `verify-coverage` reads backend jobs from runtime config, and only `test-frontend full` enters heavy lock mode.
 
-- [ ] **Step 5: Commit the heavy-gate consumer integration**
+- [x] **Step 5: Commit the heavy-gate consumer integration**
 
 Run:
 
