@@ -731,6 +731,13 @@ function hashFile(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
+function compareStablePath(left, right) {
+  if (left === right) {
+    return 0;
+  }
+  return left < right ? -1 : 1;
+}
+
 function createTarArchive(archivePath, sourceDir) {
   const archiveFd = fs.openSync(archivePath, 'w');
 
@@ -819,7 +826,7 @@ function payloadSha256(rootDir) {
   function walk(currentDir) {
     const children = fs
       .readdirSync(currentDir, { withFileTypes: true })
-      .sort((left, right) => left.name.localeCompare(right.name));
+      .sort((left, right) => compareStablePath(left.name, right.name));
 
     for (const child of children) {
       const absolutePath = path.join(currentDir, child.name);
@@ -842,6 +849,7 @@ function payloadSha256(rootDir) {
   }
 
   walk(rootDir);
+  files.sort((left, right) => compareStablePath(left[0], right[0]));
 
   const hasher = crypto.createHash('sha256');
   for (const [relativePath, content] of files) {

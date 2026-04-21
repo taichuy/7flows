@@ -35,13 +35,20 @@ function request(url) {
   });
 }
 
+function compareStablePath(left, right) {
+  if (left === right) {
+    return 0;
+  }
+  return left < right ? -1 : 1;
+}
+
 function payloadSha256(rootDir) {
   const entries = [];
 
   function walk(currentDir) {
     const children = fs
       .readdirSync(currentDir, { withFileTypes: true })
-      .sort((left, right) => left.name.localeCompare(right.name));
+      .sort((left, right) => compareStablePath(left.name, right.name));
 
     for (const child of children) {
       const absolutePath = path.join(currentDir, child.name);
@@ -64,6 +71,7 @@ function payloadSha256(rootDir) {
   }
 
   walk(rootDir);
+  entries.sort((left, right) => compareStablePath(left[0], right[0]));
 
   const hasher = crypto.createHash('sha256');
   for (const [relativePath, content] of entries) {
