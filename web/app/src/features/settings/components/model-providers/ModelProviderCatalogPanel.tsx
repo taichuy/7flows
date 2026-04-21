@@ -1,4 +1,4 @@
-import { Button, Empty, Space, Table, Tag, Typography } from 'antd';
+import { Button, Empty, Select, Space, Table, Tag, Typography } from 'antd';
 
 import type { SettingsPluginFamilyEntry } from '../../api/plugins';
 import type { SettingsModelProviderCatalogEntry } from '../../api/model-providers';
@@ -15,6 +15,13 @@ function getCatalogDescription(
   );
 }
 
+function compareVersions(left: string, right: string) {
+  return right.localeCompare(left, undefined, {
+    numeric: true,
+    sensitivity: 'base'
+  });
+}
+
 export function ModelProviderCatalogPanel({
   entries,
   currentCatalogEntries,
@@ -22,9 +29,11 @@ export function ModelProviderCatalogPanel({
   loading,
   canManage,
   deletingProviderCode,
+  switchingProviderCode,
   onCreate,
   onViewInstances,
   onManageVersion,
+  onSwitchVersion,
   onDelete
 }: {
   entries: SettingsPluginFamilyEntry[];
@@ -36,9 +45,14 @@ export function ModelProviderCatalogPanel({
   loading?: boolean;
   canManage: boolean;
   deletingProviderCode?: string | null;
+  switchingProviderCode?: string | null;
   onCreate: (entry: SettingsPluginFamilyEntry) => void;
   onViewInstances: (entry: SettingsPluginFamilyEntry) => void;
   onManageVersion: (entry: SettingsPluginFamilyEntry) => void;
+  onSwitchVersion: (
+    entry: SettingsPluginFamilyEntry,
+    installationId: string
+  ) => void;
   onDelete: (entry: SettingsPluginFamilyEntry) => void;
 }) {
   return (
@@ -146,14 +160,52 @@ export function ModelProviderCatalogPanel({
           {
             title: '版本',
             key: 'version',
-            width: 90,
-            render: (_, entry) => (
-              <div className="model-provider-panel__catalog-version">
-                <Typography.Text strong>
-                  {entry.current_version}
-                </Typography.Text>
-              </div>
-            )
+            width: 180,
+            render: (_, entry) => {
+              const versionOptions = [...entry.installed_versions]
+                .sort((left, right) =>
+                  compareVersions(left.plugin_version, right.plugin_version)
+                )
+                .map((version) => ({
+                  value: version.installation_id,
+                  label: (
+                    <span className="model-provider-panel__version-option">
+                      <span>{version.plugin_version}</span>
+                      {version.is_current ? (
+                        <Tag color="green">
+                          当前
+                        </Tag>
+                      ) : null}
+                    </span>
+                  )
+                }));
+
+              return (
+                <div className="model-provider-panel__catalog-version">
+                  <Select
+                    size="small"
+                    value={entry.current_installation_id}
+                    className="model-provider-panel__version-select"
+                    classNames={{
+                      popup: {
+                        root: 'model-provider-panel__version-dropdown'
+                      }
+                    }}
+                    aria-label={`切换 ${entry.display_name} 版本`}
+                    loading={switchingProviderCode === entry.provider_code}
+                    disabled={!canManage || entry.installed_versions.length <= 1}
+                    options={versionOptions}
+                    onChange={(installationId) => {
+                      if (installationId === entry.current_installation_id) {
+                        return;
+                      }
+
+                      onSwitchVersion(entry, installationId);
+                    }}
+                  />
+                </div>
+              );
+            }
           },
           {
             title: '说明',

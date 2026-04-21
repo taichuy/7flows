@@ -719,6 +719,11 @@ function ModelProvidersSection({ canManage }: { canManage: boolean }) {
                 ? (familyDeleteMutation.variables ?? null)
                 : null
             }
+            switchingProviderCode={
+              versionMutation.isPending
+                ? versionMutation.variables.providerCode
+                : null
+            }
             onViewInstances={(entry) => {
               const providerInstances =
                 instancesByProviderCode[entry.provider_code] ?? [];
@@ -735,6 +740,51 @@ function ModelProvidersSection({ canManage }: { canManage: boolean }) {
             }}
             onManageVersion={(entry) => {
               setVersionModalProviderCode(entry.provider_code);
+            }}
+            onSwitchVersion={(entry, installationId) => {
+              const targetVersion =
+                entry.installed_versions.find(
+                  (version) => version.installation_id === installationId
+                )?.plugin_version ?? null;
+
+              void modal.confirm({
+                title: '切换版本',
+                icon: null,
+                centered: true,
+                okText: '确认切换',
+                cancelText: '取消',
+                okButtonProps: {
+                  loading:
+                    versionMutation.isPending &&
+                    versionMutation.variables.mode === 'switch' &&
+                    versionMutation.variables.providerCode ===
+                      entry.provider_code &&
+                    versionMutation.variables.installationId === installationId
+                },
+                content: (
+                  <div className="model-provider-panel__install-confirm">
+                    <div className="model-provider-panel__install-confirm-card">
+                      <Typography.Title level={5}>
+                        {entry.display_name}
+                      </Typography.Title>
+                      <Typography.Paragraph type="secondary">
+                        即将把当前 workspace 的该供应商切换到
+                        {targetVersion ?? '目标版本'}。
+                      </Typography.Paragraph>
+                      <Typography.Paragraph type="secondary">
+                        切换后会统一迁移该供应商下的全部实例；完成后建议刷新模型并验证关键实例。
+                      </Typography.Paragraph>
+                    </div>
+                  </div>
+                ),
+                onOk: async () => {
+                  await versionMutation.mutateAsync({
+                    mode: 'switch',
+                    providerCode: entry.provider_code,
+                    installationId
+                  });
+                }
+              });
             }}
             onDelete={(entry) => {
               void modal.confirm({

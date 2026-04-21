@@ -622,6 +622,45 @@ describe('ModelProvidersPage', () => {
     ).not.toBeInTheDocument();
   }, 20000);
 
+  test('switches provider version from the catalog version column', async () => {
+    authenticateWithPermissions([
+      'route_page.view.all',
+      'state_model.view.all',
+      'state_model.manage.all'
+    ]);
+
+    renderApp('/settings/model-providers');
+
+    const versionSelect = await screen.findByRole('combobox', {
+      name: '切换 OpenAI Compatible 版本'
+    });
+
+    fireEvent.mouseDown(versionSelect);
+    fireEvent.click(await screen.findByText('0.2.0'));
+
+    const confirmDialog = await screen.findByRole('dialog');
+    expect(within(confirmDialog).getAllByText('切换版本').length).toBeGreaterThan(
+      0
+    );
+    expect(
+      within(confirmDialog).getByText(
+        '切换后会统一迁移该供应商下的全部实例；完成后建议刷新模型并验证关键实例。'
+      )
+    ).toBeInTheDocument();
+
+    fireEvent.click(
+      within(confirmDialog).getByRole('button', { name: '确认切换' })
+    );
+
+    await waitFor(() => {
+      expect(pluginsApi.switchSettingsPluginFamilyVersion).toHaveBeenCalledWith(
+        'openai_compatible',
+        'installation-2',
+        'csrf-123'
+      );
+    });
+  }, 20000);
+
   test('renders provider catalog headers in the expected order', async () => {
     authenticateWithPermissions([
       'route_page.view.all',

@@ -246,6 +246,20 @@
   gap: 4px;
 }
 
+.model-provider-panel__version-select {
+  min-width: 132px;
+}
+
+.model-provider-panel__version-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.model-provider-panel__version-dropdown .ant-select-item-option-content {
+  overflow: visible;
+}
+
 .model-provider-panel__catalog-name .ant-typography,
 .model-provider-panel__catalog-description .ant-typography,
 .model-provider-panel__catalog-version .ant-typography {
