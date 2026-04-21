@@ -58,24 +58,15 @@ function writeWarningCapture({
   env = process.env,
   scope,
   step,
-  stdout = '',
   stderr = '',
 }) {
-  if (!stdout && !stderr) {
+  if (!stderr) {
     return null;
   }
 
   const outputDir = ensureOutputDir(repoRoot, env);
   const logPath = path.join(outputDir, `${scope}.warnings.log`);
-  const sections = [`step=${step}`];
-
-  if (stdout) {
-    sections.push('[stdout]', stdout.trimEnd());
-  }
-
-  if (stderr) {
-    sections.push('[stderr]', stderr.trimEnd());
-  }
+  const sections = [`step=${step}`, '[stderr]', stderr.trimEnd()];
 
   fs.appendFileSync(logPath, `${sections.join('\n')}\n\n`, 'utf8');
   return logPath;
@@ -98,6 +89,8 @@ function runCommandSequence({
   writeStdout = (text) => process.stdout.write(text),
   writeStderr = (text) => process.stderr.write(text),
 }) {
+  const resetWarningLogs = new Set();
+
   for (const command of commands) {
     const result = spawnSyncImpl(command.command, command.args, {
       cwd: resolveCwd(repoRoot, command.cwd),
@@ -122,14 +115,23 @@ function runCommandSequence({
       writeStderr(result.stderr);
     }
 
-    writeWarningCapture({
-      repoRoot,
-      env,
-      scope,
-      step: command.label,
-      stdout: result.stdout ?? '',
-      stderr: result.stderr ?? '',
-    });
+    if (result.stderr) {
+      const outputDir = ensureOutputDir(repoRoot, env);
+      const logPath = path.join(outputDir, `${scope}.warnings.log`);
+
+      if (!resetWarningLogs.has(logPath)) {
+        fs.writeFileSync(logPath, '', 'utf8');
+        resetWarningLogs.add(logPath);
+      }
+
+      writeWarningCapture({
+        repoRoot,
+        env,
+        scope,
+        step: command.label,
+        stderr: result.stderr,
+      });
+    }
 
     if (result.status !== 0) {
       return result.status ?? 1;

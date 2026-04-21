@@ -81,3 +81,70 @@ test('runCommandSequence handles large stdout without hitting the default spawnS
 
   assert.equal(status, 0);
 });
+
+test('runCommandSequence does not create a warning log for stdout-only success output', () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-warning-capture-'));
+  const warningLogPath = path.join(repoRoot, 'tmp', 'test-governance', 'stdout-only.warnings.log');
+
+  const status = runCommandSequence({
+    repoRoot,
+    scope: 'stdout-only',
+    commands: [
+      {
+        label: 'stdout-only',
+        command: process.execPath,
+        args: ['-e', 'process.stdout.write("all good\\n")'],
+      },
+    ],
+    spawnSyncImpl: spawnSync,
+    writeStdout() {},
+    writeStderr() {},
+  });
+
+  assert.equal(status, 0);
+  assert.equal(fs.existsSync(warningLogPath), false);
+});
+
+test('runCommandSequence resets the warning log before a new run', () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-warning-capture-'));
+  const warningLogPath = path.join(repoRoot, 'tmp', 'test-governance', 'reset.warnings.log');
+
+  const firstStatus = runCommandSequence({
+    repoRoot,
+    scope: 'reset',
+    commands: [
+      {
+        label: 'first-run',
+        command: process.execPath,
+        args: ['-e', 'process.stderr.write("warning: first run\\n")'],
+      },
+    ],
+    spawnSyncImpl: spawnSync,
+    writeStdout() {},
+    writeStderr() {},
+  });
+
+  const firstLog = fs.readFileSync(warningLogPath, 'utf8');
+  assert.equal(firstStatus, 0);
+  assert.match(firstLog, /warning: first run/u);
+
+  const secondStatus = runCommandSequence({
+    repoRoot,
+    scope: 'reset',
+    commands: [
+      {
+        label: 'second-run',
+        command: process.execPath,
+        args: ['-e', 'process.stderr.write("warning: second run\\n")'],
+      },
+    ],
+    spawnSyncImpl: spawnSync,
+    writeStdout() {},
+    writeStderr() {},
+  });
+
+  const secondLog = fs.readFileSync(warningLogPath, 'utf8');
+  assert.equal(secondStatus, 0);
+  assert.doesNotMatch(secondLog, /warning: first run/u);
+  assert.match(secondLog, /warning: second run/u);
+});
