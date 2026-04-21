@@ -2,6 +2,7 @@ import type { FlowNodeType } from '@1flowbase/flow-schema';
 import type { EdgeTypes, Node, NodeTypes } from '@xyflow/react';
 
 import type { CanvasNodeSchema } from '../../../../shared/schema-ui/contracts/canvas-node-schema';
+import type { NodePickerOption } from '../../lib/plugin-node-definitions';
 import { AgentFlowNodeCard } from '../nodes/AgentFlowNodeCard';
 import {
   AgentFlowCustomEdge,
@@ -22,11 +23,12 @@ export interface AgentFlowCanvasNodeData extends Record<string, unknown> {
   showTargetHandle: boolean;
   showSourceHandle: boolean;
   isContainer: boolean;
+  nodePickerOptions: NodePickerOption[];
   onOpenPicker: (nodeId: string) => void;
   onClosePicker: () => void;
   onOpenContainer: (nodeId: string) => void;
   onSelectNode: (nodeId: string) => void;
-  onInsertNode: (targetId: string, nodeType: FlowNodeType) => void;
+  onInsertNode: (targetId: string, option: NodePickerOption) => void;
 }
 
 export type AgentFlowCanvasNode = Node<AgentFlowCanvasNodeData, 'agentFlowNode'>;

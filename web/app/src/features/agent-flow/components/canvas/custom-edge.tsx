@@ -1,11 +1,12 @@
-import type { FlowNodeType } from '@1flowbase/flow-schema';
 import { EdgeLabelRenderer, getBezierPath, type Edge, type EdgeProps } from '@xyflow/react';
 import { useState } from 'react';
 
+import type { NodePickerOption } from '../../lib/plugin-node-definitions';
 import { EdgeInsertButton } from './EdgeInsertButton';
 
 export interface AgentFlowCanvasEdgeData extends Record<string, unknown> {
-  onInsertNode?: (edgeId: string, nodeType: FlowNodeType) => void;
+  nodePickerOptions?: NodePickerOption[];
+  onInsertNode?: (edgeId: string, option: NodePickerOption) => void;
 }
 
 export type AgentFlowCanvasEdge = Edge<
@@ -85,8 +86,9 @@ export function AgentFlowCustomEdge(props: EdgeProps<AgentFlowCanvasEdge>) {
             <EdgeInsertButton
               open={pickerOpen}
               onOpenChange={setPickerOpen}
-              onPickNode={(nodeType) => {
-                data?.onInsertNode?.(id, nodeType);
+              options={data?.nodePickerOptions ?? []}
+              onPickNode={(option) => {
+                data?.onInsertNode?.(id, option);
                 setPickerOpen(false);
               }}
             />

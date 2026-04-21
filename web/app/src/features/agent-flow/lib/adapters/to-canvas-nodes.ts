@@ -1,11 +1,16 @@
 import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 import type { AgentFlowCanvasNode, AgentFlowCanvasNodeData } from '../../components/canvas/node-types';
+import type { NodePickerOption } from '../plugin-node-definitions';
 import { resolveAgentFlowNodeSchema } from '../../schema/node-schema-registry';
 
 function nodeTypeLabel(nodeType: AgentFlowCanvasNodeData['nodeType']) {
   if (nodeType === 'llm') {
     return 'LLM';
+  }
+
+  if (nodeType === 'plugin_node') {
+    return 'Plugin Node';
   }
 
   return nodeType
@@ -27,7 +32,9 @@ export function toCanvasNodes(
     | 'onOpenContainer'
     | 'onSelectNode'
     | 'onInsertNode'
-  >
+  > & {
+    nodePickerOptions: NodePickerOption[];
+  }
 ): AgentFlowCanvasNode[] {
   return document.graph.nodes
     .filter((node) => node.containerId === activeContainerId)

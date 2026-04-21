@@ -89,6 +89,7 @@ export function AgentFlowNodeCard({
         <NodePickerPopover
           ariaLabel={`在 ${data.alias} 后新增节点`}
           open={data.pickerOpen}
+          options={data.nodePickerOptions}
           onOpenChange={(open) => {
             if (open) {
               data.onOpenPicker(data.nodeId);
@@ -97,7 +98,7 @@ export function AgentFlowNodeCard({
 
             data.onClosePicker();
           }}
-          onPickNode={(nodeType) => data.onInsertNode(data.nodeId, nodeType)}
+          onPickNode={(option) => data.onInsertNode(data.nodeId, option)}
         >
           <Tooltip
             title={

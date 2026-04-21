@@ -5,6 +5,7 @@ import type { AgentFlowModelProviderOptions } from '../api/model-provider-option
 import { getLlmModelProvider } from './llm-node-config';
 import type { InspectorSectionKey } from './node-definitions';
 import { findInspectorSectionKey, nodeDefinitions } from './node-definitions';
+import { hasPluginContributionRef } from './plugin-node-definitions';
 import { isSelectorVisible } from './selector-options';
 import { parseTemplateSelectorTokens } from './template-binding';
 
@@ -246,6 +247,20 @@ export function validateDocument(
           );
         }
       }
+    }
+
+    if (node.type === 'plugin_node' && !hasPluginContributionRef(node)) {
+      issues.push({
+        id: `${node.id}-plugin-ref-missing`,
+        scope: 'node',
+        level: 'error',
+        nodeId: node.id,
+        sectionKey: 'basics',
+        fieldKey: null,
+        title: '插件节点缺少贡献身份',
+        message:
+          '当前 plugin_node 缺少 plugin_id / plugin_version / contribution_code / node_shell / schema_version。'
+      });
     }
 
     for (const [bindingKey, bindingValue] of Object.entries(node.bindings)) {

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   ConsoleApplicationOrchestrationState,
+  ConsoleNodeContributionEntry,
   SaveConsoleApplicationDraftInput
 } from '@1flowbase/api-client';
 import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
@@ -35,6 +36,7 @@ import {
   getNodeDetailLayout
 } from '../../lib/detail-panel-width';
 import { validateDocument } from '../../lib/validate-document';
+import { buildNodePickerOptions } from '../../lib/plugin-node-definitions';
 import { useAuthStore } from '../../../../state/auth-store';
 import { useAgentFlowEditorStore } from '../../store/editor/provider';
 import {
@@ -52,6 +54,7 @@ import { AgentFlowOverlay } from './AgentFlowOverlay';
 interface AgentFlowCanvasFrameProps {
   applicationId: string;
   applicationName: string;
+  nodeContributions: ConsoleNodeContributionEntry[];
   saveDraftOverride?: (
     input: SaveConsoleApplicationDraftInput
   ) => Promise<ConsoleApplicationOrchestrationState>;
@@ -63,6 +66,7 @@ interface AgentFlowCanvasFrameProps {
 export function AgentFlowCanvasFrame({
   applicationId,
   applicationName,
+  nodeContributions,
   saveDraftOverride,
   restoreVersionOverride
 }: AgentFlowCanvasFrameProps) {
@@ -169,6 +173,10 @@ export function AgentFlowCanvasFrame({
 
     return counts;
   }, [issues]);
+  const nodePickerOptions = useMemo(
+    () => buildNodePickerOptions(nodeContributions),
+    [nodeContributions]
+  );
 
   useEffect(() => {
     documentRef.current = workingDocument;
@@ -338,6 +346,7 @@ export function AgentFlowCanvasFrame({
       >
         <AgentFlowCanvas
           issueCountByNodeId={issueCountByNodeId}
+          nodePickerOptions={nodePickerOptions}
           onViewportSnapshotChange={(viewport) => {
             viewportSnapshotRef.current = viewport;
           }}

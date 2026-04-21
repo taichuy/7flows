@@ -16,6 +16,7 @@ import { startNodeDefinition } from './nodes/start';
 import { templateTransformNodeDefinition } from './nodes/template-transform';
 import { toolNodeDefinition } from './nodes/tool';
 import { variableAssignerNodeDefinition } from './nodes/variable-assigner';
+import { pluginNodeDefinition } from '../plugin-node-definitions';
 import type { InspectorSectionKey, NodeDefinitionMap } from './types';
 
 export type {
@@ -42,7 +43,8 @@ export const nodeDefinitions: NodeDefinitionMap = {
   parameter_extractor: parameterExtractorNodeDefinition,
   iteration: iterationNodeDefinition,
   loop: loopNodeDefinition,
-  human_input: humanInputNodeDefinition
+  human_input: humanInputNodeDefinition,
+  plugin_node: pluginNodeDefinition
 };
 
 export function findInspectorSectionKey(

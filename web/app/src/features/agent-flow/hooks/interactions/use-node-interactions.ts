@@ -1,10 +1,9 @@
-import type { FlowNodeType } from '@1flowbase/flow-schema';
-
 import {
   createNextNodeId,
   createNodeDocument
 } from '../../lib/document/node-factory';
 import { insertNodeAfter } from '../../lib/document/transforms/node';
+import type { NodePickerOption } from '../../lib/plugin-node-definitions';
 import { useContainerNavigation } from './use-container-navigation';
 import { useAgentFlowEditorStore } from '../../store/editor/provider';
 import { selectWorkingDocument } from '../../store/editor/selectors';
@@ -71,7 +70,7 @@ export function useNodeInteractions() {
         }
       });
     },
-    insertAfterNode(anchorNodeId: string, nodeType: FlowNodeType) {
+    insertAfterNode(anchorNodeId: string, option: NodePickerOption) {
       const anchorNode = document.graph.nodes.find((node) => node.id === anchorNodeId);
 
       if (!anchorNode) {
@@ -79,8 +78,8 @@ export function useNodeInteractions() {
       }
 
       const nextNode = createNodeDocument(
-        nodeType,
-        createNextNodeId(document, nodeType),
+        option,
+        createNextNodeId(document, option),
         anchorNode.position.x + 280,
         anchorNode.position.y
       );

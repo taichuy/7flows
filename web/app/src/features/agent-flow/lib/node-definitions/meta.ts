@@ -62,5 +62,9 @@ export const nodeDefinitionMeta: NodeDefinitionMetaMap = {
   human_input: {
     summary: '等待人工补充输入后继续流程。',
     helpHref: '/docs/agentflow/nodes/human-input'
+  },
+  plugin_node: {
+    summary: '执行来自 capability plugin 的声明式节点贡献。',
+    helpHref: null
   }
 };

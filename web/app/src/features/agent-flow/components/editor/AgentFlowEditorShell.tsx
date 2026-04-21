@@ -1,4 +1,5 @@
 import type {
+  ConsoleNodeContributionEntry,
   ConsoleApplicationOrchestrationState,
   SaveConsoleApplicationDraftInput
 } from '@1flowbase/api-client';
@@ -11,6 +12,7 @@ interface AgentFlowEditorShellProps {
   applicationId: string;
   applicationName: string;
   initialState: ConsoleApplicationOrchestrationState;
+  nodeContributions?: ConsoleNodeContributionEntry[];
   saveDraftOverride?: (
     input: SaveConsoleApplicationDraftInput
   ) => Promise<ConsoleApplicationOrchestrationState>;
@@ -23,6 +25,7 @@ export function AgentFlowEditorShell({
   applicationId,
   applicationName,
   initialState,
+  nodeContributions = [],
   saveDraftOverride,
   restoreVersionOverride
 }: AgentFlowEditorShellProps) {
@@ -31,6 +34,7 @@ export function AgentFlowEditorShell({
       <AgentFlowCanvasFrame
         applicationId={applicationId}
         applicationName={applicationName}
+        nodeContributions={nodeContributions}
         saveDraftOverride={saveDraftOverride}
         restoreVersionOverride={restoreVersionOverride}
       />

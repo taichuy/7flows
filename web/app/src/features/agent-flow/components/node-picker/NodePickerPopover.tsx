@@ -1,25 +1,19 @@
 import { Button, Popover } from 'antd';
 import type { ReactElement, ReactNode } from 'react';
-import type { FlowNodeType } from '@1flowbase/flow-schema';
 
-const NODE_OPTIONS: Array<{ type: FlowNodeType; label: string }> = [
-  { type: 'llm', label: 'LLM' },
-  { type: 'template_transform', label: 'Template Transform' },
-  { type: 'knowledge_retrieval', label: 'Knowledge Retrieval' },
-  { type: 'question_classifier', label: 'Question Classifier' },
-  { type: 'if_else', label: 'If / Else' },
-  { type: 'http_request', label: 'HTTP Request' },
-  { type: 'tool', label: 'Tool' },
-  { type: 'variable_assigner', label: 'Variable Assigner' },
-  { type: 'iteration', label: 'Iteration' },
-  { type: 'loop', label: 'Loop' }
-];
+import {
+  BUILTIN_NODE_PICKER_OPTIONS,
+  getNodePickerOptionDescription,
+  getNodePickerOptionKey,
+  type NodePickerOption
+} from '../../lib/plugin-node-definitions';
 
 interface NodePickerPopoverProps {
   ariaLabel: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onPickNode: (nodeType: FlowNodeType) => void;
+  onPickNode: (option: NodePickerOption) => void;
+  options?: NodePickerOption[];
   buttonClassName?: string;
   buttonContent?: ReactNode;
   children?: ReactElement;
@@ -31,11 +25,21 @@ export function NodePickerPopover({
   open,
   onOpenChange,
   onPickNode,
+  options = BUILTIN_NODE_PICKER_OPTIONS,
   buttonClassName,
   buttonContent = '+',
   children,
   placement = 'rightTop'
 }: NodePickerPopoverProps) {
+  const builtinOptions = options.filter(
+    (option): option is Extract<NodePickerOption, { kind: 'builtin' }> =>
+      option.kind === 'builtin'
+  );
+  const pluginOptions = options.filter(
+    (option): option is Extract<NodePickerOption, { kind: 'plugin_contribution' }> =>
+      option.kind === 'plugin_contribution'
+  );
+
   return (
     <Popover
       destroyOnHidden
@@ -45,18 +49,47 @@ export function NodePickerPopover({
       onOpenChange={onOpenChange}
       content={
         <div className="agent-flow-node-picker" role="menu">
-          {NODE_OPTIONS.map((option) => (
+          {builtinOptions.map((option) => (
             <button
-              key={option.type}
+              key={getNodePickerOptionKey(option)}
               className="agent-flow-node-picker__item"
               role="menuitem"
               type="button"
               onClick={() => {
                 onOpenChange(false);
-                onPickNode(option.type);
+                onPickNode(option);
               }}
             >
-              {option.label}
+              <span>{option.label}</span>
+            </button>
+          ))}
+          {pluginOptions.length > 0 ? (
+            <div className="agent-flow-node-picker__section-label">
+              插件节点
+            </div>
+          ) : null}
+          {pluginOptions.map((option) => (
+            <button
+              key={getNodePickerOptionKey(option)}
+              className="agent-flow-node-picker__item"
+              disabled={option.disabled}
+              role="menuitem"
+              type="button"
+              onClick={() => {
+                if (option.disabled) {
+                  return;
+                }
+
+                onOpenChange(false);
+                onPickNode(option);
+              }}
+            >
+              <span>{option.label}</span>
+              {getNodePickerOptionDescription(option) ? (
+                <span className="agent-flow-node-picker__meta">
+                  {getNodePickerOptionDescription(option)}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>

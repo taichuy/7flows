@@ -3,6 +3,7 @@ import { Grid } from 'antd';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
+import type { ConsoleNodeContributionEntry } from '@1flowbase/api-client';
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 import { AppProviders } from '../../../app/AppProviders';
 
@@ -30,6 +31,7 @@ vi.mock('../../../shared/schema-ui/overlay-shell/SchemaDrawerPanel', () => ({
 }));
 
 import * as orchestrationApi from '../api/orchestration';
+import * as nodeContributionsApi from '../api/node-contributions';
 import * as runtimeApi from '../api/runtime';
 import { VersionHistoryDrawer } from '../components/history/VersionHistoryDrawer';
 import { AgentFlowEditorShell } from '../components/editor/AgentFlowEditorShell';
@@ -50,6 +52,28 @@ function createInitialState() {
     autosave_interval_seconds: 30
   };
 }
+
+const readyContribution: ConsoleNodeContributionEntry = {
+  installation_id: 'installation-1',
+  provider_code: 'prompt_pack',
+  plugin_id: 'prompt_pack@0.1.0',
+  plugin_version: '0.1.0',
+  contribution_code: 'openai_prompt',
+  node_shell: 'action',
+  category: 'generation',
+  title: 'OpenAI Prompt',
+  description: 'Generate prompt output',
+  dependency_status: 'ready',
+  schema_version: '1flowbase.node-contribution/v1',
+  experimental: false,
+  icon: 'sparkles',
+  schema_ui: {},
+  output_schema: {},
+  required_auth: [],
+  visibility: 'public',
+  dependency_installation_kind: 'model_provider',
+  dependency_plugin_version_range: '^0.1.0'
+};
 
 function renderShell(ui: ReactNode) {
   return render(<AppProviders>{ui}</AppProviders>);
@@ -99,6 +123,7 @@ beforeEach(() => {
     }
   });
   vi.spyOn(runtimeApi, 'fetchNodeLastRun').mockResolvedValue(null);
+  vi.spyOn(nodeContributionsApi, 'fetchNodeContributions').mockResolvedValue([]);
   vi.spyOn(runtimeApi, 'buildNodeDebugPreviewInput').mockReturnValue({
     input_payload: {}
   });
@@ -414,6 +439,9 @@ describe('AgentFlowEditorShell', () => {
     vi.spyOn(orchestrationApi, 'fetchOrchestrationState').mockResolvedValueOnce(
       createInitialState()
     );
+    vi.mocked(nodeContributionsApi.fetchNodeContributions).mockResolvedValueOnce([
+      readyContribution
+    ]);
 
     render(
       <AppProviders>
@@ -426,7 +454,12 @@ describe('AgentFlowEditorShell', () => {
 
     expect(await screen.findByRole('button', { name: '历史版本' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Issues' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '在 LLM 后新增节点' }));
+    expect(
+      await screen.findByRole('menuitem', { name: /OpenAI Prompt/i })
+    ).toBeInTheDocument();
     expect(screen.queryByText('请使用桌面端编辑')).not.toBeInTheDocument();
+    expect(nodeContributionsApi.fetchNodeContributions).toHaveBeenCalledWith('app-1');
   }, 20_000);
 
   test('renders node detail inside a docked overlay panel on orchestration page', async () => {

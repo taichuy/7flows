@@ -4,6 +4,10 @@ import { Grid, Result } from 'antd';
 import { ApiClientError } from '@1flowbase/api-client';
 import { PermissionDeniedState } from '../../../shared/ui/PermissionDeniedState';
 import {
+  fetchNodeContributions,
+  nodeContributionsQueryKey
+} from '../api/node-contributions';
+import {
   fetchOrchestrationState,
   orchestrationQueryKey
 } from '../api/orchestration';
@@ -21,6 +25,11 @@ export function AgentFlowEditorPage({
     queryKey: orchestrationQueryKey(applicationId),
     queryFn: () => fetchOrchestrationState(applicationId)
   });
+  const nodeContributionsQuery = useQuery({
+    queryKey: nodeContributionsQueryKey(applicationId),
+    queryFn: () => fetchNodeContributions(applicationId),
+    enabled: screens.lg !== false
+  });
 
   if (screens.lg === false) {
     return (
@@ -32,12 +41,14 @@ export function AgentFlowEditorPage({
     );
   }
 
-  if (orchestrationQuery.isPending) {
+  if (orchestrationQuery.isPending || nodeContributionsQuery.isPending) {
     return <Result status="info" title="正在加载编排" />;
   }
 
-  if (orchestrationQuery.isError) {
-    const error = orchestrationQuery.error;
+  if (orchestrationQuery.isError || nodeContributionsQuery.isError) {
+    const error = orchestrationQuery.isError
+      ? orchestrationQuery.error
+      : nodeContributionsQuery.error;
 
     if (error instanceof ApiClientError && error.status === 403) {
       return <PermissionDeniedState />;
@@ -51,12 +62,14 @@ export function AgentFlowEditorPage({
   }
 
   const state = orchestrationQuery.data;
+  const nodeContributions = nodeContributionsQuery.data;
 
   return (
     <AgentFlowEditorShell
       applicationId={applicationId}
       applicationName={applicationName}
       initialState={state}
+      nodeContributions={nodeContributions}
     />
   );
 }

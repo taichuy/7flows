@@ -1,22 +1,25 @@
-import type { FlowNodeType } from '@1flowbase/flow-schema';
 import { PlusOutlined } from '@ant-design/icons';
 import { Button } from 'antd';
 
+import type { NodePickerOption } from '../../lib/plugin-node-definitions';
 import { NodePickerPopover } from '../node-picker/NodePickerPopover';
 
 export function EdgeInsertButton({
   open,
   onOpenChange,
-  onPickNode
+  onPickNode,
+  options
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onPickNode: (nodeType: FlowNodeType) => void;
+  onPickNode: (option: NodePickerOption) => void;
+  options: NodePickerOption[];
 }) {
   return (
     <NodePickerPopover
       ariaLabel="在此连线上新增节点"
       open={open}
+      options={options}
       onOpenChange={onOpenChange}
       onPickNode={onPickNode}
       placement="rightTop"

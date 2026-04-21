@@ -1,13 +1,15 @@
-import type { FlowAuthoringDocument, FlowNodeType } from '@1flowbase/flow-schema';
+import type { FlowAuthoringDocument } from '@1flowbase/flow-schema';
 
 import type { AgentFlowCanvasEdge } from '../../components/canvas/node-types';
+import type { NodePickerOption } from '../plugin-node-definitions';
 
 export function toCanvasEdges(
   document: FlowAuthoringDocument,
   activeContainerId: string | null,
   selectedEdgeId: string | null,
   actions: {
-    onInsertNode: (edgeId: string, nodeType: FlowNodeType) => void;
+    nodePickerOptions: NodePickerOption[];
+    onInsertNode: (edgeId: string, option: NodePickerOption) => void;
   }
 ): AgentFlowCanvasEdge[] {
   const visibleNodeIds = new Set(
@@ -34,6 +36,7 @@ export function toCanvasEdges(
       animated: false,
       style: { stroke: '#b2c8b9', strokeWidth: 2 },
       data: {
+        nodePickerOptions: actions.nodePickerOptions,
         onInsertNode: actions.onInsertNode
       }
     }));

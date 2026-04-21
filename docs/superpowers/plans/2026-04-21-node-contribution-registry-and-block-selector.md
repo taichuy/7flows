@@ -295,7 +295,7 @@ git commit -m "feat: expose node contribution registry api"
 - Modify: `web/app/src/features/agent-flow/_tests/node-picker-popover.test.tsx`
 - Modify: `web/app/src/features/agent-flow/_tests/agent-flow-editor-page.test.tsx`
 
-- [ ] **Step 1: Write failing UI tests for registry-driven node selection**
+- [x] **Step 1: Write failing UI tests for registry-driven node selection**
 
 Add cases like:
 
@@ -321,7 +321,7 @@ it('writes contribution identity into the draft node document', async () => {
 });
 ```
 
-- [ ] **Step 2: Run RED UI tests**
+- [x] **Step 2: Run RED UI tests**
 
 Run:
 
@@ -333,7 +333,7 @@ Expected:
 
 - FAIL because the picker is still hardcoded to `NODE_OPTIONS` and `FlowNodeDocument` has no plugin contribution identity fields.
 
-- [ ] **Step 3: Extend the flow schema and picker contract**
+- [x] **Step 3: Extend the flow schema and picker contract**
 
 Update `web/packages/flow-schema/src/index.ts` around:
 
@@ -367,7 +367,7 @@ type NodePickerOption =
     };
 ```
 
-- [ ] **Step 4: Re-run the UI tests**
+- [x] **Step 4: Re-run the UI tests**
 
 Run:
 
@@ -379,7 +379,7 @@ Expected:
 
 - PASS with a registry-backed picker, disabled unavailable entries, and persisted contribution identity in the draft document.
 
-- [ ] **Step 5: Commit the block selector path**
+- [x] **Step 5: Commit the block selector path**
 
 ```bash
 git add web/packages/flow-schema/src/index.ts web/app/src/features/agent-flow/components/node-picker/NodePickerPopover.tsx web/app/src/features/agent-flow/lib/node-definitions/index.ts web/app/src/features/agent-flow/lib/document/node-factory.ts web/app/src/features/agent-flow/lib/validate-document.ts web/app/src/features/agent-flow/pages/AgentFlowEditorPage.tsx web/app/src/features/agent-flow/lib/plugin-node-definitions.ts web/app/src/features/agent-flow/_tests/node-contribution-picker.test.tsx web/app/src/features/agent-flow/_tests/node-picker-popover.test.tsx web/app/src/features/agent-flow/_tests/agent-flow-editor-page.test.tsx

@@ -1,6 +1,6 @@
 export const FLOW_SCHEMA_VERSION = '1flowbase.flow/v1';
 
-export type FlowNodeType =
+export type BuiltinFlowNodeType =
   | 'start'
   | 'answer'
   | 'llm'
@@ -16,6 +16,16 @@ export type FlowNodeType =
   | 'iteration'
   | 'loop'
   | 'human_input';
+
+export type FlowNodeType = BuiltinFlowNodeType | 'plugin_node';
+
+export interface FlowPluginContributionRef {
+  plugin_id: string;
+  plugin_version: string;
+  contribution_code: string;
+  node_shell: string;
+  schema_version: string;
+}
 
 export type FlowBinding =
   | { kind: 'templated_text'; value: string }
@@ -48,6 +58,11 @@ export type FlowBinding =
 export interface FlowNodeDocument {
   id: string;
   type: FlowNodeType;
+  plugin_id?: string;
+  plugin_version?: string;
+  contribution_code?: string;
+  node_shell?: string;
+  schema_version?: string;
   alias: string;
   description?: string;
   containerId: string | null;

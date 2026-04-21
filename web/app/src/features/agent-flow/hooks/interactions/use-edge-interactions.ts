@@ -1,10 +1,10 @@
-import type { FlowNodeType } from '@1flowbase/flow-schema';
 import { useEffect, useRef } from 'react';
 
 import {
   createNextNodeId,
   createNodeDocument
 } from '../../lib/document/node-factory';
+import type { NodePickerOption } from '../../lib/plugin-node-definitions';
 import {
   connectNodeFromSource,
   connectNodes,
@@ -86,10 +86,10 @@ export function useEdgeInteractions() {
         selectedNodeIds: []
       });
     },
-    insertOnEdge(edgeId: string, nodeType: FlowNodeType) {
+    insertOnEdge(edgeId: string, option: NodePickerOption) {
       const nextNode = createNodeDocument(
-        nodeType,
-        createNextNodeId(document, nodeType)
+        option,
+        createNextNodeId(document, option)
       );
       const nextDocument = insertNodeOnEdge(document, {
         edgeId,
@@ -103,7 +103,7 @@ export function useEdgeInteractions() {
         selectedEdgeId: null
       });
     },
-    insertFromConnection(nodeType: FlowNodeType) {
+    insertFromConnection(option: NodePickerOption) {
       const sourceNodeId = connectingPayloadRef.current.sourceNodeId;
       const sourceHandleId = connectingPayloadRef.current.sourceHandleId;
       const anchorCanvasPosition = nodePickerState.anchorCanvasPosition;
@@ -118,8 +118,8 @@ export function useEdgeInteractions() {
         y: Math.round((anchorCanvasPosition.y - document.editor.viewport.y) / zoom)
       };
       const nextNode = createNodeDocument(
-        nodeType,
-        createNextNodeId(document, nodeType),
+        option,
+        createNextNodeId(document, option),
         flowPosition.x,
         flowPosition.y
       );

@@ -1,8 +1,18 @@
 import type {
+  BuiltinFlowNodeType,
   FlowAuthoringDocument,
   FlowNodeDocument,
   FlowNodeType
 } from '@1flowbase/flow-schema';
+
+import {
+  createPluginNodeOutputs,
+  getNodePickerOptionNodeType,
+  toPluginContributionRef,
+  type NodePickerOption
+} from '../plugin-node-definitions';
+
+type NodeFactoryInput = FlowNodeType | NodePickerOption;
 
 function humanizeNodeType(nodeType: FlowNodeType) {
   if (nodeType === 'llm') {
@@ -15,7 +25,9 @@ function humanizeNodeType(nodeType: FlowNodeType) {
     .join(' ');
 }
 
-function defaultOutputs(nodeType: FlowNodeType): FlowNodeDocument['outputs'] {
+function defaultOutputs(
+  nodeType: BuiltinFlowNodeType
+): FlowNodeDocument['outputs'] {
   switch (nodeType) {
     case 'start':
       return [{ key: 'query', title: '用户输入', valueType: 'string' }];
@@ -49,7 +61,7 @@ function defaultOutputs(nodeType: FlowNodeType): FlowNodeDocument['outputs'] {
   }
 }
 
-function defaultConfig(nodeType: FlowNodeType): Record<string, unknown> {
+function defaultConfig(nodeType: BuiltinFlowNodeType): Record<string, unknown> {
   switch (nodeType) {
     case 'llm':
       return {
@@ -92,34 +104,81 @@ function defaultConfig(nodeType: FlowNodeType): Record<string, unknown> {
   }
 }
 
+function isNodePickerOption(value: NodeFactoryInput): value is NodePickerOption {
+  return typeof value === 'object' && value !== null && 'kind' in value;
+}
+
 export function createNodeDocument(
-  nodeType: FlowNodeType,
+  nodeTypeOrOption: NodeFactoryInput,
   id: string,
   x = 0,
   y = 0
 ): FlowNodeDocument {
+  if (isNodePickerOption(nodeTypeOrOption)) {
+    if (nodeTypeOrOption.kind === 'plugin_contribution') {
+      return {
+        id,
+        type: 'plugin_node',
+        alias: nodeTypeOrOption.label,
+        description: nodeTypeOrOption.contribution.description,
+        containerId: null,
+        position: { x, y },
+        configVersion: 1,
+        config: {},
+        bindings: {},
+        outputs: createPluginNodeOutputs(nodeTypeOrOption.contribution),
+        ...toPluginContributionRef(nodeTypeOrOption.contribution)
+      };
+    }
+
+    return createNodeDocument(nodeTypeOrOption.type, id, x, y);
+  }
+
+  if (nodeTypeOrOption === 'plugin_node') {
+    return {
+      id,
+      type: 'plugin_node',
+      alias: humanizeNodeType(nodeTypeOrOption),
+      description: '',
+      containerId: null,
+      position: { x, y },
+      configVersion: 1,
+      config: {},
+      bindings: {},
+      outputs: [{ key: 'result', title: '节点输出', valueType: 'json' }]
+    };
+  }
+
   return {
     id,
-    type: nodeType,
-    alias: humanizeNodeType(nodeType),
+    type: nodeTypeOrOption,
+    alias: humanizeNodeType(nodeTypeOrOption),
     description: '',
     containerId: null,
     position: { x, y },
     configVersion: 1,
-    config: defaultConfig(nodeType),
+    config: defaultConfig(nodeTypeOrOption),
     bindings: {},
-    outputs: defaultOutputs(nodeType)
+    outputs: defaultOutputs(nodeTypeOrOption)
   };
 }
 
 export function createNextNodeId(
   documentOrIds: FlowAuthoringDocument | string[],
-  nodeType: FlowNodeType
+  nodeTypeOrOption: NodeFactoryInput
 ) {
   const ids = Array.isArray(documentOrIds)
     ? documentOrIds
     : documentOrIds.graph.nodes.map((node) => node.id);
-  const prefix = `node-${nodeType.replaceAll('_', '-')}`;
+  const nodeType = isNodePickerOption(nodeTypeOrOption)
+    ? getNodePickerOptionNodeType(nodeTypeOrOption)
+    : nodeTypeOrOption;
+  const prefixSeed =
+    isNodePickerOption(nodeTypeOrOption) &&
+    nodeTypeOrOption.kind === 'plugin_contribution'
+      ? nodeTypeOrOption.contribution.contribution_code
+      : nodeType;
+  const prefix = `node-${prefixSeed.replaceAll('_', '-')}`;
   let nextIndex = 1;
 
   while (ids.includes(`${prefix}-${nextIndex}`)) {

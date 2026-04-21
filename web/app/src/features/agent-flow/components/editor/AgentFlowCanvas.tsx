@@ -21,6 +21,7 @@ import { useNodeInteractions } from '../../hooks/interactions/use-node-interacti
 import { useSelectionInteractions } from '../../hooks/interactions/use-selection-interactions';
 import { toCanvasEdges } from '../../lib/adapters/to-canvas-edges';
 import { toCanvasNodes } from '../../lib/adapters/to-canvas-nodes';
+import { BUILTIN_NODE_PICKER_OPTIONS } from '../../lib/plugin-node-definitions';
 import { useAgentFlowEditorStore } from '../../store/editor/provider';
 import {
   selectActiveContainerId,
@@ -30,9 +31,11 @@ import {
 import { AgentFlowCustomConnectionLine } from '../canvas/custom-connection-line';
 import { NodePickerPopover } from '../node-picker/NodePickerPopover';
 import { agentFlowEdgeTypes, agentFlowNodeTypes } from '../canvas/node-types';
+import type { NodePickerOption } from '../../lib/plugin-node-definitions';
 
 interface AgentFlowCanvasProps {
   issueCountByNodeId: Record<string, number>;
+  nodePickerOptions?: NodePickerOption[];
   onViewportSnapshotChange?: (
     viewport: FlowAuthoringDocument['editor']['viewport']
   ) => void;
@@ -146,6 +149,7 @@ function PendingLocateNodeEffect() {
 
 function AgentFlowCanvasInner({
   issueCountByNodeId,
+  nodePickerOptions = BUILTIN_NODE_PICKER_OPTIONS,
   onViewportSnapshotChange,
   onViewportGetterReady
 }: AgentFlowCanvasProps) {
@@ -175,7 +179,8 @@ function AgentFlowCanvasInner({
           onClosePicker: nodeInteractions.closeNodePicker,
           onOpenContainer: nodeInteractions.openContainer,
           onSelectNode: nodeInteractions.selectNode,
-          onInsertNode: nodeInteractions.insertAfterNode
+          onInsertNode: nodeInteractions.insertAfterNode,
+          nodePickerOptions
         }
       ),
     [
@@ -183,6 +188,7 @@ function AgentFlowCanvasInner({
       document,
       issueCountByNodeId,
       nodeInteractions,
+      nodePickerOptions,
       nodePickerState.anchorCanvasPosition,
       nodePickerState.anchorNodeId,
       nodePickerState.open,
@@ -192,9 +198,16 @@ function AgentFlowCanvasInner({
   const edges = useMemo(
     () =>
       toCanvasEdges(document, activeContainerId, selectedEdgeId, {
+        nodePickerOptions,
         onInsertNode: edgeInteractions.insertOnEdge
       }),
-    [activeContainerId, document, edgeInteractions.insertOnEdge, selectedEdgeId]
+    [
+      activeContainerId,
+      document,
+      edgeInteractions.insertOnEdge,
+      nodePickerOptions,
+      selectedEdgeId
+    ]
   );
 
   return (
@@ -277,14 +290,15 @@ function AgentFlowCanvasInner({
             ariaLabel="在当前连线位置插入节点"
             buttonClassName="agent-flow-floating-picker-anchor__button"
             open
+            options={nodePickerOptions}
             placement="bottom"
             onOpenChange={(open) => {
               if (!open) {
                 nodeInteractions.closeNodePicker();
               }
             }}
-            onPickNode={(nodeType) => {
-              edgeInteractions.insertFromConnection(nodeType);
+            onPickNode={(option) => {
+              edgeInteractions.insertFromConnection(option);
             }}
           />
         </div>
