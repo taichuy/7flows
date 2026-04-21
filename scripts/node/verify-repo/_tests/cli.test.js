@@ -37,11 +37,11 @@ test('buildCommands composes script tests, contract tests, frontend full gate an
   ]);
 });
 
-test('main runs repository full gate in order and captures advisory output', () => {
+test('main runs repository full gate in order and captures advisory output', async () => {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-verify-repo-'));
   const calls = [];
 
-  const status = main([], {
+  const status = await main([], {
     repoRoot,
     env: {},
     writeStdout() {},
@@ -76,4 +76,45 @@ test('main runs repository full gate in order and captures advisory output', () 
   assert.match(warningLog, /warning: test-contracts\.js advisory/u);
   assert.match(warningLog, /warning: test-frontend\.js advisory/u);
   assert.match(warningLog, /warning: verify-backend\.js advisory/u);
+});
+
+test('main passes the inherited lock token through every repository gate command', async () => {
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-verify-repo-'));
+  const calls = [];
+
+  const status = await main([], {
+    repoRoot,
+    env: { ONEFLOWBASE_VERIFY_LOCK_TOKEN: 'chain-token' },
+    writeStdout() {},
+    writeStderr() {},
+    spawnSyncImpl(command, args, options) {
+      calls.push({ command, args, options });
+      return { status: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  assert.equal(status, 0);
+  assert.equal(calls.length, 4);
+  assert.equal(calls[0].options.env.ONEFLOWBASE_VERIFY_LOCK_TOKEN, 'chain-token');
+  assert.equal(calls[1].options.env.ONEFLOWBASE_VERIFY_LOCK_TOKEN, 'chain-token');
+  assert.equal(calls[2].options.env.ONEFLOWBASE_VERIFY_LOCK_TOKEN, 'chain-token');
+  assert.equal(calls[3].options.env.ONEFLOWBASE_VERIFY_LOCK_TOKEN, 'chain-token');
+});
+
+test('main routes the repository gate through the heavy managed runner', async () => {
+  let capturedOptions = null;
+
+  const status = await main([], {
+    repoRoot: '/repo-root',
+    env: {},
+    managedRunnerImpl(options) {
+      capturedOptions = options;
+      return 0;
+    },
+  });
+
+  assert.equal(status, 0);
+  assert.equal(capturedOptions.scope, 'verify-repo');
+  assert.equal(capturedOptions.lockMode, 'heavy');
+  assert.equal(capturedOptions.commandDisplay, 'node scripts/node/verify-repo.js');
 });

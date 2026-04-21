@@ -44,11 +44,11 @@ test('buildCommands maps full layer to lint, test, build and style-boundary', ()
   ]);
 });
 
-test('fast layer only runs app vitest and writes advisory warnings', () => {
+test('fast layer only runs app vitest and writes advisory warnings', async () => {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-test-frontend-'));
   const calls = [];
 
-  const status = main(['fast'], {
+  const status = await main(['fast'], {
     repoRoot,
     env: {},
     writeStdout() {},
@@ -72,4 +72,36 @@ test('fast layer only runs app vitest and writes advisory warnings', () => {
   const warningLogPath = path.join(repoRoot, 'tmp', 'test-governance', 'test-frontend-fast.warnings.log');
   assert.equal(fs.existsSync(warningLogPath), true);
   assert.match(fs.readFileSync(warningLogPath, 'utf8'), /warning: vitest advisory/u);
+});
+
+test('main marks full frontend gate as heavy lock mode', async () => {
+  let capturedLockMode = null;
+
+  const status = await main(['full'], {
+    repoRoot: '/repo-root',
+    env: {},
+    managedRunnerImpl(options) {
+      capturedLockMode = options.lockMode;
+      return 0;
+    },
+  });
+
+  assert.equal(status, 0);
+  assert.equal(capturedLockMode, 'heavy');
+});
+
+test('main keeps fast frontend gate outside heavy lock mode', async () => {
+  let capturedLockMode = null;
+
+  const status = await main(['fast'], {
+    repoRoot: '/repo-root',
+    env: {},
+    managedRunnerImpl(options) {
+      capturedLockMode = options.lockMode;
+      return 0;
+    },
+  });
+
+  assert.equal(status, 0);
+  assert.equal(capturedLockMode, 'none');
 });

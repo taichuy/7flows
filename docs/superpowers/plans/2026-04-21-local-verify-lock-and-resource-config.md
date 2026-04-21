@@ -972,7 +972,7 @@ git commit -m "feat: wire backend verify scripts to managed runtime"
 - Modify: `scripts/node/test-frontend/_tests/cli.test.js`
 - Modify: `scripts/node/test-contracts/_tests/cli.test.js`
 
-- [ ] **Step 1: Write the failing orchestration and token-propagation tests**
+- [x] **Step 1: Write the failing orchestration and token-propagation tests**
 
 Update `scripts/node/verify-repo/_tests/cli.test.js`:
 
@@ -1120,7 +1120,7 @@ test('main routes backend coverage through the heavy lock and uses configured ba
 });
 ```
 
-- [ ] **Step 2: Run the orchestration CLI tests and confirm the new injection points are missing**
+- [x] **Step 2: Run the orchestration CLI tests and confirm the new injection points are missing**
 
 Run:
 
@@ -1135,7 +1135,7 @@ node --test \
 
 Expected: FAIL because these `main()` functions still call `runCommandSequence()` directly and do not accept `managedRunnerImpl` injection.
 
-- [ ] **Step 3: Switch repository, coverage, frontend full, and contract gates to `runManagedCommandSequence()`**
+- [x] **Step 3: Switch repository, coverage, frontend full, and contract gates to `runManagedCommandSequence()`**
 
 Apply the managed runner consistently:
 
@@ -1195,7 +1195,7 @@ if (require.main === module) {
 }
 ```
 
-- [ ] **Step 4: Run the orchestration CLI tests again**
+- [x] **Step 4: Run the orchestration CLI tests again**
 
 Run:
 

@@ -141,11 +141,11 @@ test('ensureCargoLlvmCovInstalled throws an actionable error when the cargo subc
   );
 });
 
-test('main cleans llvm-cov artifacts before and after backend coverage runs', () => {
+test('main cleans llvm-cov artifacts before and after backend coverage runs', async () => {
   const calls = [];
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-verify-coverage-'));
 
-  const status = main(['backend'], {
+  const status = await main(['backend'], {
     repoRoot,
     cargoParallelism: 2,
     env: {},
@@ -174,4 +174,42 @@ test('main cleans llvm-cov artifacts before and after backend coverage runs', ()
       ['llvm-cov', 'clean', '--workspace'],
     ]
   );
+});
+
+test('main routes backend coverage through the heavy lock and uses configured backend jobs', async () => {
+  let capturedOptions = null;
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-verify-coverage-managed-'));
+
+  const status = await main(['backend'], {
+    repoRoot,
+    env: {},
+    runtimeConfig: {
+      backend: {
+        cargoJobs: 3,
+        cargoTestThreads: 1,
+      },
+      locks: {
+        waitTimeoutMinutes: 30,
+        waitTimeoutMs: 30 * 60 * 1000,
+        pollIntervalMs: 5000,
+      },
+    },
+    preflightSpawnSyncImpl() {
+      return { status: 0, stdout: '', stderr: '' };
+    },
+    managedRunnerImpl(options) {
+      capturedOptions = options;
+      return 0;
+    },
+    readFileSyncImpl() {
+      return JSON.stringify({ data: [{ totals: { lines: { percent: 100 } } }] });
+    },
+  });
+
+  assert.equal(status, 0);
+  assert.equal(capturedOptions.lockMode, 'heavy');
+  assert.equal(capturedOptions.runtimeConfig.backend.cargoJobs, 3);
+  assert.deepEqual(capturedOptions.commands[0].args, ['llvm-cov', 'clean', '--workspace']);
+  assert.match(capturedOptions.commands[1].args.join(' '), /--package control-plane/u);
+  assert.equal(capturedOptions.commands[1].env.CARGO_BUILD_JOBS, '3');
 });

@@ -4,8 +4,9 @@ const path = require('node:path');
 
 const {
   getRepoRoot,
-  runCommandSequence,
+  runManagedCommandSequence,
 } = require('./testing/warning-capture.js');
+const { loadVerifyRuntimeConfig } = require('./testing/verify-runtime.js');
 
 const LAYERS = new Set(['fast', 'full']);
 
@@ -73,7 +74,7 @@ function usage() {
   process.stdout.write(`Usage: node scripts/node/test-frontend.js [fast|full]\n`);
 }
 
-function main(argv = [], deps = {}) {
+async function main(argv = [], deps = {}) {
   const options = parseCliArgs(argv);
 
   if (options.help) {
@@ -82,11 +83,17 @@ function main(argv = [], deps = {}) {
   }
 
   const repoRoot = deps.repoRoot || getRepoRoot();
+  const env = deps.env || process.env;
+  const runtimeConfig = deps.runtimeConfig || loadVerifyRuntimeConfig({ repoRoot, env });
+  const managedRunner = deps.managedRunnerImpl || runManagedCommandSequence;
 
-  return runCommandSequence({
+  return managedRunner({
     repoRoot,
-    env: deps.env || process.env,
+    env,
     scope: `test-frontend-${options.layer}`,
+    lockMode: options.layer === 'full' ? 'heavy' : 'none',
+    commandDisplay: `node scripts/node/test-frontend.js ${options.layer}`.trim(),
+    runtimeConfig,
     commands: buildCommands({
       layer: options.layer,
       repoRoot,
@@ -98,12 +105,15 @@ function main(argv = [], deps = {}) {
 }
 
 if (require.main === module) {
-  try {
-    process.exitCode = main(process.argv.slice(2));
-  } catch (error) {
-    process.stderr.write(`[1flowbase-test-frontend] ${error.message}\n`);
-    process.exitCode = 1;
-  }
+  Promise.resolve()
+    .then(() => main(process.argv.slice(2)))
+    .then((status) => {
+      process.exitCode = status;
+    })
+    .catch((error) => {
+      process.stderr.write(`[1flowbase-test-frontend] ${error.message}\n`);
+      process.exitCode = 1;
+    });
 }
 
 module.exports = {

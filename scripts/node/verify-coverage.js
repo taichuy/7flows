@@ -6,10 +6,11 @@ const { spawnSync } = require('node:child_process');
 
 const {
   buildCargoCommandEnv,
-  getCargoParallelism,
   getRepoRoot,
   runCommandSequence,
+  runManagedCommandSequence,
 } = require('./testing/warning-capture.js');
+const { loadVerifyRuntimeConfig } = require('./testing/verify-runtime.js');
 const {
   COVERAGE_ROOT,
   frontendThresholds,
@@ -285,7 +286,7 @@ function reportCoverageThresholds({
   return 0;
 }
 
-function main(argv = [], deps = {}) {
+async function main(argv = [], deps = {}) {
   const options = parseCliArgs(argv);
 
   if (options.help) {
@@ -294,7 +295,10 @@ function main(argv = [], deps = {}) {
   }
 
   const repoRoot = deps.repoRoot || getRepoRoot();
-  const cargoParallelism = deps.cargoParallelism || getCargoParallelism();
+  const env = deps.env || process.env;
+  const runtimeConfig = deps.runtimeConfig || loadVerifyRuntimeConfig({ repoRoot, env });
+  const managedRunner = deps.managedRunnerImpl || runManagedCommandSequence;
+  const coverageCommands = [];
 
   if (options.target === 'backend' || options.target === 'all') {
     ensureCargoLlvmCovInstalled(deps.preflightSpawnSyncImpl, { repoRoot });
@@ -302,80 +306,84 @@ function main(argv = [], deps = {}) {
 
   ensureCoverageOutputDirs(repoRoot, options.target);
 
-  const commands = [];
-
   if (options.target === 'frontend' || options.target === 'all') {
-    commands.push(buildFrontendCommand({ repoRoot }));
+    coverageCommands.push(buildFrontendCommand({ repoRoot }));
   }
 
   if (options.target === 'backend' || options.target === 'all') {
-    commands.push(...buildBackendCommands({ repoRoot, cargoParallelism }));
+    coverageCommands.push(...buildBackendCommands({
+      repoRoot,
+      cargoParallelism: runtimeConfig.backend.cargoJobs,
+    }));
   }
 
-  const env = deps.env || process.env;
   const shouldCleanupBackendCoverage = options.target === 'backend' || options.target === 'all';
-  let status = 0;
+  const commands = shouldCleanupBackendCoverage
+    ? [...buildBackendCleanupCommands(), ...coverageCommands]
+    : coverageCommands;
 
-  if (shouldCleanupBackendCoverage) {
-    status = runCommandSequence({
-      repoRoot,
-      env,
-      scope: `verify-coverage-${options.target}-clean-before`,
-      commands: buildBackendCleanupCommands(),
-      spawnSyncImpl: deps.spawnSyncImpl,
-      writeStdout: deps.writeStdout,
-      writeStderr: deps.writeStderr,
-    });
-  }
+  return managedRunner({
+    repoRoot,
+    env,
+    scope: `verify-coverage-${options.target}`,
+    lockMode: 'heavy',
+    commandDisplay: `node scripts/node/verify-coverage.js ${options.target}`.trim(),
+    runtimeConfig,
+    commands,
+    spawnSyncImpl: deps.spawnSyncImpl,
+    writeStdout: deps.writeStdout,
+    writeStderr: deps.writeStderr,
+    runCommandSequenceImpl: (sequenceOptions) => {
+      let status = 0;
 
-  if (status === 0) {
-    status = runCommandSequence({
-      repoRoot,
-      env,
-      scope: `verify-coverage-${options.target}`,
-      commands,
-      spawnSyncImpl: deps.spawnSyncImpl,
-      writeStdout: deps.writeStdout,
-      writeStderr: deps.writeStderr,
-    });
-  }
+      try {
+        status = runCommandSequence({
+          ...sequenceOptions,
+          commands: sequenceOptions.commands,
+        });
 
-  if (status === 0) {
-    status = reportCoverageThresholds({
-      repoRoot,
-      target: options.target,
-      readFileSyncImpl: deps.readFileSyncImpl,
-      writeStdout: deps.writeStdout,
-      writeStderr: deps.writeStderr,
-    });
-  }
+        if (status === 0) {
+          status = reportCoverageThresholds({
+            repoRoot,
+            target: options.target,
+            readFileSyncImpl: deps.readFileSyncImpl,
+            writeStdout: deps.writeStdout,
+            writeStderr: deps.writeStderr,
+          });
+        }
+      } finally {
+        if (shouldCleanupBackendCoverage) {
+          const cleanupStatus = runCommandSequence({
+            repoRoot,
+            env: sequenceOptions.env,
+            scope: `verify-coverage-${options.target}-clean-after`,
+            commands: buildBackendCleanupCommands(),
+            spawnSyncImpl: deps.spawnSyncImpl,
+            writeStdout: deps.writeStdout,
+            writeStderr: deps.writeStderr,
+          });
 
-  if (shouldCleanupBackendCoverage) {
-    const cleanupStatus = runCommandSequence({
-      repoRoot,
-      env,
-      scope: `verify-coverage-${options.target}-clean-after`,
-      commands: buildBackendCleanupCommands(),
-      spawnSyncImpl: deps.spawnSyncImpl,
-      writeStdout: deps.writeStdout,
-      writeStderr: deps.writeStderr,
-    });
+          if (status === 0 && cleanupStatus !== 0) {
+            status = cleanupStatus;
+          }
+        }
+      }
 
-    if (status === 0 && cleanupStatus !== 0) {
-      status = cleanupStatus;
-    }
-  }
-
-  return status;
+      return status;
+    },
+  });
 }
 
 if (require.main === module) {
-  try {
-    process.exitCode = main(process.argv.slice(2));
-  } catch (error) {
-    process.stderr.write(`[${COVERAGE_SCOPE_LABEL}] ${error.message}\n`);
-    process.exitCode = 1;
-  }
+  Promise.resolve()
+    .then(() => main(process.argv.slice(2)))
+    .then((status) => {
+      process.exitCode = status;
+    })
+    .catch((error) => {
+      process.stderr.write(`[${COVERAGE_SCOPE_LABEL}] ${error.message}\n`);
+      process.exitCode = 1;
+    });
 }
 
 module.exports = {

@@ -26,11 +26,11 @@ test('buildCommands targets the shared model provider contract consumers', () =>
   ]);
 });
 
-test('main runs the contract gate and captures advisory output', () => {
+test('main runs the contract gate and captures advisory output', async () => {
   const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-test-contracts-'));
   const calls = [];
 
-  const status = main([], {
+  const status = await main([], {
     repoRoot,
     env: {},
     writeStdout() {},
@@ -61,4 +61,20 @@ test('main runs the contract gate and captures advisory output', () => {
   );
   assert.equal(fs.existsSync(warningLogPath), true);
   assert.match(fs.readFileSync(warningLogPath, 'utf8'), /model-provider-contract advisory/u);
+});
+
+test('main routes contract gate through the heavy lock', async () => {
+  let capturedLockMode = null;
+
+  const status = await main([], {
+    repoRoot: '/repo-root',
+    env: {},
+    managedRunnerImpl(options) {
+      capturedLockMode = options.lockMode;
+      return 0;
+    },
+  });
+
+  assert.equal(status, 0);
+  assert.equal(capturedLockMode, 'heavy');
 });
