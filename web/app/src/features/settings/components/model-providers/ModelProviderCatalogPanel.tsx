@@ -19,6 +19,23 @@ function getCatalogSummary(
   return '配置凭据后可校验连接并同步模型目录';
 }
 
+function getCatalogDescription(
+  family: SettingsPluginFamilyEntry,
+  currentCatalogEntry: SettingsModelProviderCatalogEntry | null | undefined
+) {
+  return (
+    family.description?.trim() || getCatalogSummary(family, currentCatalogEntry)
+  );
+}
+
+function getCatalogSupportingText(
+  family: SettingsPluginFamilyEntry,
+  currentCatalogEntry: SettingsModelProviderCatalogEntry | null | undefined
+) {
+  const summary = getCatalogSummary(family, currentCatalogEntry);
+  return family.description?.trim() ? summary : null;
+}
+
 export function ModelProviderCatalogPanel({
   entries,
   currentCatalogEntries,
@@ -57,11 +74,13 @@ export function ModelProviderCatalogPanel({
       </div>
 
       <Table<SettingsPluginFamilyEntry>
+        className="model-provider-panel__catalog-table"
         rowKey="provider_code"
         size="small"
         loading={loading}
         pagination={false}
         dataSource={entries}
+        scroll={{ x: 980 }}
         locale={{
           emptyText: (
             <Empty
@@ -72,13 +91,16 @@ export function ModelProviderCatalogPanel({
         }}
         columns={[
           {
-            title: '供应商',
+            title: '名称',
             key: 'provider',
+            width: 200,
             render: (_, entry) => (
-              <div className="model-provider-panel__instance-cell">
+              <div className="model-provider-panel__catalog-name">
                 <Typography.Text strong>{entry.display_name}</Typography.Text>
                 <Typography.Text type="secondary">
-                  {entry.provider_code} · {entry.protocol}
+                  {(instanceCounts[entry.provider_code] ?? 0) > 0
+                    ? `已创建 ${instanceCounts[entry.provider_code] ?? 0} 个实例`
+                    : '尚未创建实例'}
                 </Typography.Text>
               </div>
             )
@@ -86,7 +108,7 @@ export function ModelProviderCatalogPanel({
           {
             title: '状态',
             key: 'status',
-            width: 220,
+            width: 170,
             render: (_, entry) => {
               const currentCatalogEntry =
                 currentCatalogEntries[entry.provider_code];
@@ -95,7 +117,11 @@ export function ModelProviderCatalogPanel({
               );
 
               return (
-                <Space wrap size={6}>
+                <Space
+                  wrap
+                  size={[6, 6]}
+                  className="model-provider-panel__catalog-status"
+                >
                   <Tag color={status.color}>{status.label}</Tag>
                   <Tag>{entry.model_discovery_mode}</Tag>
                   {entry.has_update ? <Tag color="gold">有可用更新</Tag> : null}
@@ -106,19 +132,32 @@ export function ModelProviderCatalogPanel({
           {
             title: '说明',
             key: 'summary',
+            width: 280,
             render: (_, entry) => {
               const currentCatalogEntry =
                 currentCatalogEntries[entry.provider_code];
+              const description = getCatalogDescription(
+                entry,
+                currentCatalogEntry
+              );
+              const supportingText = getCatalogSupportingText(
+                entry,
+                currentCatalogEntry
+              );
 
               return (
-                <div className="model-provider-panel__instance-cell">
-                  <Typography.Text>
-                    {getCatalogSummary(entry, currentCatalogEntry)}
-                  </Typography.Text>
-                  <Typography.Text type="secondary">
-                    默认地址 {entry.default_base_url ?? '未提供'} ·{' '}
-                    {instanceCounts[entry.provider_code] ?? 0} 个实例
-                  </Typography.Text>
+                <div className="model-provider-panel__catalog-description">
+                  <Typography.Paragraph
+                    className="model-provider-panel__catalog-description-text"
+                    ellipsis={{ rows: 2, tooltip: description }}
+                  >
+                    {description}
+                  </Typography.Paragraph>
+                  {supportingText ? (
+                    <Typography.Text type="secondary">
+                      {supportingText}
+                    </Typography.Text>
+                  ) : null}
                 </div>
               );
             }
@@ -126,9 +165,9 @@ export function ModelProviderCatalogPanel({
           {
             title: '版本',
             key: 'version',
-            width: 220,
+            width: 180,
             render: (_, entry) => (
-              <div className="model-provider-panel__instance-cell">
+              <div className="model-provider-panel__catalog-version">
                 <Typography.Text strong>
                   {entry.current_version}
                 </Typography.Text>
@@ -145,9 +184,13 @@ export function ModelProviderCatalogPanel({
                 {
                   title: '操作',
                   key: 'actions',
-                  width: 320,
+                  width: 170,
                   render: (_: unknown, entry: SettingsPluginFamilyEntry) => (
-                    <Space size={4} wrap>
+                    <Space
+                      size={[4, 4]}
+                      wrap
+                      className="model-provider-panel__catalog-actions"
+                    >
                       <Button
                         type="link"
                         onClick={() => onManageVersion(entry)}

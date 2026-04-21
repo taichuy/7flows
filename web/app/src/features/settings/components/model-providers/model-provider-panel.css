@@ -129,8 +129,11 @@
   padding: 14px;
   border-radius: 14px;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, #f6fbff 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    #f6fbff 100%
+  );
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.05);
 }
 
@@ -204,6 +207,40 @@
   align-items: center;
   gap: 8px;
   padding-top: 2px;
+}
+
+.model-provider-panel__catalog-table .ant-table-cell {
+  vertical-align: top;
+}
+
+.model-provider-panel__catalog-name,
+.model-provider-panel__catalog-description,
+.model-provider-panel__catalog-version {
+  display: grid;
+  gap: 6px;
+}
+
+.model-provider-panel__catalog-name .ant-typography,
+.model-provider-panel__catalog-description .ant-typography,
+.model-provider-panel__catalog-version .ant-typography {
+  margin: 0;
+}
+
+.model-provider-panel__catalog-description-text {
+  margin: 0;
+  color: rgba(15, 23, 42, 0.88);
+}
+
+.model-provider-panel__catalog-status {
+  width: 100%;
+}
+
+.model-provider-panel__catalog-actions {
+  width: 100%;
+}
+
+.model-provider-panel__catalog-actions .ant-btn-link {
+  padding-inline: 0;
 }
 
 .model-provider-panel__install-confirm {
