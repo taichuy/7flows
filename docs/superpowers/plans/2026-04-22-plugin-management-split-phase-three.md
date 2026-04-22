@@ -43,7 +43,7 @@
 - Delete: `api/crates/control-plane/src/plugin_management.rs`
 - Create: `api/crates/control-plane/src/plugin_management/*.rs`
 
-- [ ] **Step 1: Create the module façade**
+- [x] **Step 1: Create the module façade**
 
 Keep `pub mod plugin_management;` in `lib.rs`, but replace the flat file with `plugin_management/mod.rs` that re-exports the existing public API:
 
@@ -58,7 +58,7 @@ pub use family::*;
 pub use install::*;
 ```
 
-- [ ] **Step 2: Move catalog/view assembly**
+- [x] **Step 2: Move catalog/view assembly**
 
 Move these read-only items into `catalog.rs`:
 
@@ -68,7 +68,7 @@ Move these read-only items into `catalog.rs`:
 - helper functions such as `compare_plugin_versions`, `pick_latest_official_entry`, `normalize_official_entries`, `provider_help_url`, `provider_default_base_url`, `provider_model_discovery_mode`, `metadata_string`, `map_catalog_source`
 - service methods `list_catalog`, `list_official_catalog`, `list_families`
 
-- [ ] **Step 3: Move install/intake flow**
+- [x] **Step 3: Move install/intake flow**
 
 Move these write-path items into `install.rs`:
 
@@ -77,7 +77,7 @@ Move these write-path items into `install.rs`:
 - service methods `install_plugin`, `reconcile_all_installations`, `install_uploaded_plugin`, `install_official_plugin`, `upgrade_latest`, `install_intake_result`, `install_plugin_with_metadata`
 - helper functions `load_actor_context_for_user`, `load_provider_package`, `load_plugin_manifest`, `build_node_contribution_sync_input`, `map_model_discovery_mode`, `map_framework_error`
 
-- [ ] **Step 4: Move family lifecycle and filesystem helpers**
+- [x] **Step 4: Move family lifecycle and filesystem helpers**
 
 Move these into `family.rs`:
 
@@ -97,7 +97,7 @@ Move these into `filesystem.rs`:
 - Create: `api/crates/control-plane/src/_tests/plugin_management/*.rs`
 - Modify: `api/crates/control-plane/src/_tests/mod.rs`
 
-- [ ] **Step 1: Add grouped test module**
+- [x] **Step 1: Add grouped test module**
 
 Replace the flat `_tests/mod.rs` entry with:
 
@@ -105,11 +105,11 @@ Replace the flat `_tests/mod.rs` entry with:
 mod plugin_management;
 ```
 
-- [ ] **Step 2: Move shared fixtures**
+- [x] **Step 2: Move shared fixtures**
 
 Put repository/runtime doubles and package fixture builders into `_tests/plugin_management/support.rs`.
 
-- [ ] **Step 3: Group assertions by responsibility**
+- [x] **Step 3: Group assertions by responsibility**
 
 Move tests into:
 
@@ -122,25 +122,35 @@ Move tests into:
 **Files:**
 - Modify: `docs/superpowers/plans/2026-04-22-plugin-management-split-phase-three.md`
 
-- [ ] **Step 1: Run focused plugin management tests**
+- [x] **Step 1: Run focused plugin management tests**
 
 ```bash
 cargo test --manifest-path api/Cargo.toml -p control-plane plugin_management -- --nocapture
 ```
 
-- [ ] **Step 2: Run full control-plane crate**
+- [x] **Step 2: Run full control-plane crate**
 
 ```bash
 cargo test --manifest-path api/Cargo.toml -p control-plane -- --nocapture
 ```
 
-- [ ] **Step 3: Append execution notes**
+- [x] **Step 3: Append execution notes**
 
 Record which production/test slices moved and the fresh verification totals.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add api/crates/control-plane/src/plugin_management api/crates/control-plane/src/_tests/plugin_management api/crates/control-plane/src/_tests/mod.rs api/crates/control-plane/src/lib.rs docs/superpowers/plans/2026-04-22-plugin-management-split-phase-three.md
 git commit -m "refactor: split plugin management service owners"
 ```
+
+## Execution Notes
+
+- Completed on `2026-04-22`.
+- Replaced the flat production owner with `plugin_management/mod.rs` (`84`), `catalog.rs` (`466`), `install.rs` (`614`), `family.rs` (`655`), and `filesystem.rs` (`64`).
+- Replaced the giant test owner with `_tests/plugin_management/support.rs` (`1503`), `catalog.rs` (`344`), `install.rs` (`252`), and `family.rs` (`472`); `_tests/mod.rs` now routes through `mod plugin_management;`.
+- Updated downstream test imports in `host_extension_service_tests.rs`, `model_provider_service_tests.rs`, and `node_contribution_service_tests.rs` to use the shared plugin-management support module.
+- Verification evidence:
+  - `cargo test --manifest-path api/Cargo.toml -p control-plane plugin_management -- --nocapture` passed with `15` plugin management tests green.
+  - `cargo test --manifest-path api/Cargo.toml -p control-plane -- --nocapture` passed with `72` crate tests green.

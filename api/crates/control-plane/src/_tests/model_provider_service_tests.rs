@@ -36,7 +36,7 @@ use plugin_framework::provider_contract::{
 };
 use time::OffsetDateTime;
 
-use super::plugin_management_service_tests::{actor_with_permissions, create_provider_fixture};
+use super::plugin_management::support::{actor_with_permissions, create_provider_fixture};
 
 #[derive(Clone)]
 struct MemoryModelProviderRepository {

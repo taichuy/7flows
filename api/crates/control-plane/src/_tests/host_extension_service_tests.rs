@@ -11,7 +11,7 @@ use crate::{
 };
 use domain::{ActorContext, PluginAvailabilityStatus, PluginDesiredState, PluginRuntimeStatus};
 
-use super::plugin_management_service_tests::{
+use super::plugin_management::support::{
     actor_with_permissions, MemoryOfficialPluginSource, MemoryPluginManagementRepository,
     MemoryProviderRuntime,
 };
@@ -170,7 +170,7 @@ async fn non_root_cannot_upload_host_extension() {
     assert!(matches!(
         error.downcast_ref::<ControlPlaneError>(),
         Some(ControlPlaneError::PermissionDenied(code))
-            if *code == "host_extension_root_required"
+            if code == &"host_extension_root_required"
     ));
 
     let _ = fs::remove_dir_all(package_root);
@@ -208,7 +208,7 @@ async fn uploaded_host_extension_requires_feature_flag() {
     assert!(matches!(
         error.downcast_ref::<ControlPlaneError>(),
         Some(ControlPlaneError::Conflict(code))
-            if *code == "uploaded_host_extensions_disabled"
+            if code == &"uploaded_host_extensions_disabled"
     ));
 
     let _ = fs::remove_dir_all(package_root);

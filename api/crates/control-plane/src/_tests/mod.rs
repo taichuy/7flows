@@ -10,7 +10,7 @@ mod model_definition_service_tests;
 mod model_provider_service_tests;
 mod node_contribution_service_tests;
 mod orchestration_runtime;
-mod plugin_management_service_tests;
+mod plugin_management;
 mod profile_service_tests;
 mod role_service_tests;
 mod session_security_service_tests;

@@ -1,11 +1,8 @@
 use std::{
     collections::{BTreeMap, HashMap},
     fs,
-    path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
+    path::Path,
+    sync::Arc,
 };
 
 use anyhow::Result;
@@ -23,12 +20,6 @@ use uuid::Uuid;
 use crate::{
     errors::ControlPlaneError,
     i18n::RequestedLocales,
-    plugin_management::{
-        AssignPluginCommand, DeletePluginFamilyCommand, EnablePluginCommand,
-        InstallOfficialPluginCommand, InstallPluginCommand, InstallUploadedPluginCommand,
-        PluginCatalogFilter, PluginManagementService, SwitchPluginVersionCommand,
-        UpgradeLatestPluginFamilyCommand,
-    },
     ports::{
         AuthRepository, CreateModelProviderInstanceInput, CreatePluginAssignmentInput,
         CreatePluginTaskInput, DownloadedOfficialPluginPackage, ModelProviderRepository,
@@ -49,8 +40,7 @@ use domain::{
     ModelProviderInstanceRecord, ModelProviderInstanceStatus, ModelProviderSecretRecord,
     NodeContributionDependencyStatus, PermissionDefinition, PluginArtifactStatus,
     PluginAssignmentRecord, PluginAvailabilityStatus, PluginDesiredState, PluginInstallationRecord,
-    PluginRuntimeStatus, PluginTaskKind, PluginTaskRecord, PluginTaskStatus, ScopeContext,
-    UserRecord,
+    PluginRuntimeStatus, PluginTaskRecord, PluginTaskStatus, ScopeContext, UserRecord,
 };
 use plugin_framework::provider_contract::{
     ProviderInvocationInput, ProviderInvocationResult, ProviderModelDescriptor,
@@ -58,8 +48,8 @@ use plugin_framework::provider_contract::{
 use time::OffsetDateTime;
 
 #[derive(Clone)]
-pub(super) struct MemoryPluginManagementRepository {
-    pub(super) actor: ActorContext,
+pub(crate) struct MemoryPluginManagementRepository {
+    pub(crate) actor: ActorContext,
     installations: Arc<RwLock<HashMap<Uuid, PluginInstallationRecord>>>,
     plugin_ids: Arc<RwLock<HashMap<String, Uuid>>>,
     assignments: Arc<RwLock<Vec<PluginAssignmentRecord>>>,
@@ -72,7 +62,7 @@ pub(super) struct MemoryPluginManagementRepository {
 }
 
 impl MemoryPluginManagementRepository {
-    pub(super) fn new(actor: ActorContext) -> Self {
+    pub(crate) fn new(actor: ActorContext) -> Self {
         Self {
             actor,
             installations: Arc::new(RwLock::new(HashMap::new())),
@@ -87,11 +77,11 @@ impl MemoryPluginManagementRepository {
         }
     }
 
-    async fn audit_events(&self) -> Vec<String> {
+    pub(super) async fn audit_events(&self) -> Vec<String> {
         self.audit_events.read().await.clone()
     }
 
-    async fn assignment_installation_id(&self, provider_code: &str) -> Uuid {
+    pub(super) async fn assignment_installation_id(&self, provider_code: &str) -> Uuid {
         self.assignments
             .read()
             .await
@@ -101,7 +91,7 @@ impl MemoryPluginManagementRepository {
             .unwrap()
     }
 
-    async fn cache_refresh_statuses(&self) -> Vec<String> {
+    pub(super) async fn cache_refresh_statuses(&self) -> Vec<String> {
         let mut statuses = self
             .caches
             .read()
@@ -113,11 +103,11 @@ impl MemoryPluginManagementRepository {
         statuses
     }
 
-    async fn set_created_task_status_override(&self, status: PluginTaskStatus) {
+    pub(super) async fn set_created_task_status_override(&self, status: PluginTaskStatus) {
         *self.created_task_status_override.write().await = Some(status);
     }
 
-    async fn seed_instance_with_ready_cache(
+    pub(super) async fn seed_instance_with_ready_cache(
         &self,
         installation_id: Uuid,
         provider_code: &str,
@@ -731,18 +721,18 @@ impl ModelProviderRepository for MemoryPluginManagementRepository {
 }
 
 #[derive(Clone, Default)]
-pub(super) struct MemoryProviderRuntime {
+pub(crate) struct MemoryProviderRuntime {
     loaded_installations: Arc<RwLock<Vec<Uuid>>>,
 }
 
 impl MemoryProviderRuntime {
-    async fn loaded_installations(&self) -> Vec<Uuid> {
+    pub(super) async fn loaded_installations(&self) -> Vec<Uuid> {
         self.loaded_installations.read().await.clone()
     }
 }
 
 #[derive(Clone)]
-pub(super) struct MemoryOfficialPluginSource {
+pub(crate) struct MemoryOfficialPluginSource {
     source_kind: String,
     source_label: String,
     trust_mode: String,
@@ -762,7 +752,7 @@ impl Default for MemoryOfficialPluginSource {
     }
 }
 
-fn sample_artifact(os: &str, arch: &str, libc: Option<&str>) -> OfficialPluginArtifact {
+pub(super) fn sample_artifact(os: &str, arch: &str, libc: Option<&str>) -> OfficialPluginArtifact {
     OfficialPluginArtifact {
         os: os.into(),
         arch: arch.into(),
@@ -775,7 +765,7 @@ fn sample_artifact(os: &str, arch: &str, libc: Option<&str>) -> OfficialPluginAr
     }
 }
 
-fn sample_i18n_summary() -> OfficialPluginI18nSummary {
+pub(super) fn sample_i18n_summary() -> OfficialPluginI18nSummary {
     OfficialPluginI18nSummary {
         default_locale: "en_US".into(),
         available_locales: vec!["en_US".into(), "zh_Hans".into()],
@@ -792,7 +782,7 @@ fn sample_i18n_summary() -> OfficialPluginI18nSummary {
     }
 }
 
-fn requested_locales() -> RequestedLocales {
+pub(super) fn requested_locales() -> RequestedLocales {
     RequestedLocales::new("en_US", "en_US")
 }
 
@@ -861,14 +851,14 @@ fn compare_versions(left: &str, right: &str) -> std::cmp::Ordering {
 }
 
 impl MemoryOfficialPluginSource {
-    fn unsigned_required() -> Self {
+    pub(super) fn unsigned_required() -> Self {
         Self {
             trust_mode: "signature_required".to_string(),
             ..Self::default()
         }
     }
 
-    fn with_trusted_public_keys(
+    pub(super) fn with_trusted_public_keys(
         trusted_public_keys: Vec<plugin_framework::TrustedPublicKey>,
     ) -> Self {
         Self {
@@ -940,9 +930,9 @@ struct OfficialReleaseDocument<'a> {
     issued_at: &'static str,
 }
 
-struct SignedUploadPackageFixture {
-    package_bytes: Vec<u8>,
-    public_key: plugin_framework::TrustedPublicKey,
+pub(super) struct SignedUploadPackageFixture {
+    pub(super) package_bytes: Vec<u8>,
+    pub(super) public_key: plugin_framework::TrustedPublicKey,
 }
 
 #[async_trait]
@@ -997,7 +987,7 @@ impl ProviderRuntimePort for MemoryProviderRuntime {
     }
 }
 
-pub(super) fn actor_with_permissions(workspace_id: Uuid, permissions: &[&str]) -> ActorContext {
+pub(crate) fn actor_with_permissions(workspace_id: Uuid, permissions: &[&str]) -> ActorContext {
     ActorContext::scoped(
         Uuid::now_v7(),
         workspace_id,
@@ -1117,7 +1107,7 @@ process.stdout.write(JSON.stringify({{ ok: true, result }}));
     write_test_executable(path, &script);
 }
 
-pub(super) fn create_provider_fixture(root: &Path) {
+pub(crate) fn create_provider_fixture(root: &Path) {
     fs::create_dir_all(root.join("provider")).unwrap();
     fs::create_dir_all(root.join("bin")).unwrap();
     fs::create_dir_all(root.join("models/llm")).unwrap();
@@ -1208,7 +1198,7 @@ capabilities:
     fs::write(root.join("scripts/demo.sh"), "echo demo").unwrap();
 }
 
-fn create_provider_fixture_with_node_contribution(root: &Path) {
+pub(super) fn create_provider_fixture_with_node_contribution(root: &Path) {
     create_provider_fixture(root);
     let manifest_path = root.join("manifest.yaml");
     let manifest = fs::read_to_string(&manifest_path).unwrap();
@@ -1290,7 +1280,10 @@ capabilities:
     .unwrap();
 }
 
-fn build_openai_compatible_package_bytes(version: &str, _include_signature: bool) -> Vec<u8> {
+pub(super) fn build_openai_compatible_package_bytes(
+    version: &str,
+    _include_signature: bool,
+) -> Vec<u8> {
     let package_root =
         std::env::temp_dir().join(format!("official-plugin-source-{}", Uuid::now_v7()));
     create_openai_compatible_fixture(&package_root);
@@ -1305,7 +1298,7 @@ fn build_openai_compatible_package_bytes(version: &str, _include_signature: bool
     bytes
 }
 
-fn build_signed_openai_upload_package(version: &str) -> SignedUploadPackageFixture {
+pub(super) fn build_signed_openai_upload_package(version: &str) -> SignedUploadPackageFixture {
     let package_root =
         std::env::temp_dir().join(format!("uploaded-plugin-source-{}", Uuid::now_v7()));
     create_openai_compatible_fixture(&package_root);
@@ -1416,7 +1409,7 @@ fn append_dir_to_tar(builder: &mut Builder<GzEncoder<Vec<u8>>>, root: &Path, cur
     }
 }
 
-async fn seed_test_installation(
+pub(super) async fn seed_test_installation(
     repository: &MemoryPluginManagementRepository,
     install_root: &Path,
     provider_code: &str,
@@ -1507,995 +1500,4 @@ capabilities:
         .await
         .unwrap()
         .id
-}
-
-#[tokio::test]
-async fn plugin_management_service_lists_provider_families_with_current_and_latest_versions() {
-    #[derive(Clone)]
-    struct OutdatedOfficialSource;
-
-    #[async_trait]
-    impl OfficialPluginSourcePort for OutdatedOfficialSource {
-        async fn list_official_catalog(&self) -> Result<OfficialPluginCatalogSnapshot> {
-            Ok(OfficialPluginCatalogSnapshot {
-                source: OfficialPluginCatalogSource {
-                    source_kind: "official_registry".into(),
-                    source_label: "官方源".into(),
-                    registry_url: "https://example.com/official-registry.json".into(),
-                },
-                entries: vec![OfficialPluginSourceEntry {
-                    plugin_id: "1flowbase.openai_compatible".into(),
-                    plugin_type: "model_provider".into(),
-                    provider_code: "openai_compatible".into(),
-                    namespace: "plugin.openai_compatible".into(),
-                    protocol: "openai_compatible".into(),
-                    latest_version: "0.2.0".into(),
-                    selected_artifact: sample_artifact("linux", "amd64", Some("musl")),
-                    i18n_summary: sample_i18n_summary(),
-                    release_tag: "openai_compatible-v0.2.0".into(),
-                    trust_mode: "allow_unsigned".into(),
-                    help_url: Some("https://example.com/help".into()),
-                    model_discovery_mode: "hybrid".into(),
-                }],
-            })
-        }
-
-        async fn download_plugin(
-            &self,
-            _entry: &OfficialPluginSourceEntry,
-        ) -> Result<DownloadedOfficialPluginPackage> {
-            unreachable!("download is not used in this read-only test");
-        }
-
-        fn trusted_public_keys(&self) -> Vec<plugin_framework::TrustedPublicKey> {
-            Vec::new()
-        }
-    }
-
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let install_root = std::env::temp_dir().join(format!("plugin-family-{}", Uuid::now_v7()));
-    let service = PluginManagementService::new(
-        repository.clone(),
-        MemoryProviderRuntime::default(),
-        Arc::new(OutdatedOfficialSource),
-        &install_root,
-    );
-
-    let installation_v1 = seed_test_installation(
-        &repository,
-        &install_root,
-        "openai_compatible",
-        "0.1.0",
-        PluginDesiredState::ActiveRequested,
-    )
-    .await;
-    let _installation_v2 = seed_test_installation(
-        &repository,
-        &install_root,
-        "openai_compatible",
-        "0.2.0",
-        PluginDesiredState::ActiveRequested,
-    )
-    .await;
-    repository
-        .create_assignment(&CreatePluginAssignmentInput {
-            installation_id: installation_v1,
-            workspace_id: repository.actor.current_workspace_id,
-            provider_code: "openai_compatible".into(),
-            actor_user_id: repository.actor.user_id,
-        })
-        .await
-        .unwrap();
-
-    let families = service
-        .list_families(
-            repository.actor.user_id,
-            PluginCatalogFilter::default(),
-            requested_locales(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(families.entries.len(), 1);
-    assert_eq!(families.entries[0].provider_code, "openai_compatible");
-    assert_eq!(families.entries[0].current_version, "0.1.0");
-    assert_eq!(families.entries[0].latest_version.as_deref(), Some("0.2.0"));
-    assert!(families.entries[0].has_update);
-}
-
-#[tokio::test]
-async fn plugin_management_service_keeps_only_latest_official_entry_per_provider() {
-    #[derive(Clone)]
-    struct DuplicateOfficialSource;
-
-    #[async_trait]
-    impl OfficialPluginSourcePort for DuplicateOfficialSource {
-        async fn list_official_catalog(&self) -> Result<OfficialPluginCatalogSnapshot> {
-            Ok(OfficialPluginCatalogSnapshot {
-                source: OfficialPluginCatalogSource {
-                    source_kind: "official_registry".into(),
-                    source_label: "官方源".into(),
-                    registry_url: "https://example.com/official-registry.json".into(),
-                },
-                entries: vec![
-                    OfficialPluginSourceEntry {
-                        plugin_id: "1flowbase.openai_compatible".into(),
-                        plugin_type: "model_provider".into(),
-                        provider_code: "openai_compatible".into(),
-                        namespace: "plugin.openai_compatible".into(),
-                        protocol: "openai_compatible".into(),
-                        latest_version: "0.2.0".into(),
-                        selected_artifact: sample_artifact("linux", "amd64", Some("musl")),
-                        i18n_summary: sample_i18n_summary(),
-                        release_tag: "openai_compatible-v0.2.0".into(),
-                        trust_mode: "allow_unsigned".into(),
-                        help_url: Some("https://example.com/help".into()),
-                        model_discovery_mode: "hybrid".into(),
-                    },
-                    OfficialPluginSourceEntry {
-                        plugin_id: "1flowse.openai_compatible".into(),
-                        plugin_type: "model_provider".into(),
-                        provider_code: "openai_compatible".into(),
-                        namespace: "plugin.openai_compatible".into(),
-                        protocol: "openai_compatible".into(),
-                        latest_version: "0.1.0".into(),
-                        selected_artifact: sample_artifact("linux", "amd64", Some("musl")),
-                        i18n_summary: sample_i18n_summary(),
-                        release_tag: "openai_compatible-v0.1.0".into(),
-                        trust_mode: "allow_unsigned".into(),
-                        help_url: Some("https://example.com/help".into()),
-                        model_discovery_mode: "hybrid".into(),
-                    },
-                ],
-            })
-        }
-
-        async fn download_plugin(
-            &self,
-            _entry: &OfficialPluginSourceEntry,
-        ) -> Result<DownloadedOfficialPluginPackage> {
-            unreachable!("download is not used in this read-only test");
-        }
-
-        fn trusted_public_keys(&self) -> Vec<plugin_framework::TrustedPublicKey> {
-            Vec::new()
-        }
-    }
-
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let install_root = std::env::temp_dir().join(format!("plugin-family-{}", Uuid::now_v7()));
-    let service = PluginManagementService::new(
-        repository.clone(),
-        MemoryProviderRuntime::default(),
-        Arc::new(DuplicateOfficialSource),
-        &install_root,
-    );
-
-    let installation_v1 = seed_test_installation(
-        &repository,
-        &install_root,
-        "openai_compatible",
-        "0.1.0",
-        PluginDesiredState::ActiveRequested,
-    )
-    .await;
-    repository
-        .create_assignment(&CreatePluginAssignmentInput {
-            installation_id: installation_v1,
-            workspace_id: repository.actor.current_workspace_id,
-            provider_code: "openai_compatible".into(),
-            actor_user_id: repository.actor.user_id,
-        })
-        .await
-        .unwrap();
-
-    let catalog = service
-        .list_official_catalog(
-            repository.actor.user_id,
-            PluginCatalogFilter::default(),
-            requested_locales(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(catalog.entries.len(), 1);
-    assert_eq!(catalog.entries[0].plugin_id, "1flowbase.openai_compatible");
-    assert_eq!(catalog.entries[0].latest_version, "0.2.0");
-
-    let families = service
-        .list_families(
-            repository.actor.user_id,
-            PluginCatalogFilter::default(),
-            requested_locales(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(families.entries.len(), 1);
-    assert_eq!(families.entries[0].current_version, "0.1.0");
-    assert_eq!(families.entries[0].latest_version.as_deref(), Some("0.2.0"));
-    assert!(families.entries[0].has_update);
-}
-
-#[tokio::test]
-async fn plugin_management_service_switches_to_a_local_version_without_redownloading() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let runtime = MemoryProviderRuntime::default();
-    let install_root = std::env::temp_dir().join(format!("plugin-switch-{}", Uuid::now_v7()));
-    let service = PluginManagementService::new(
-        repository.clone(),
-        runtime,
-        Arc::new(MemoryOfficialPluginSource::default()),
-        &install_root,
-    );
-
-    let current_installation = seed_test_installation(
-        &repository,
-        &install_root,
-        "fixture_provider",
-        "0.1.0",
-        PluginDesiredState::ActiveRequested,
-    )
-    .await;
-    let target_installation = seed_test_installation(
-        &repository,
-        &install_root,
-        "fixture_provider",
-        "0.2.0",
-        PluginDesiredState::ActiveRequested,
-    )
-    .await;
-    repository
-        .create_assignment(&CreatePluginAssignmentInput {
-            installation_id: current_installation,
-            workspace_id,
-            provider_code: "fixture_provider".into(),
-            actor_user_id: repository.actor.user_id,
-        })
-        .await
-        .unwrap();
-
-    let task = service
-        .switch_version(SwitchPluginVersionCommand {
-            actor_user_id: repository.actor.user_id,
-            provider_code: "fixture_provider".into(),
-            target_installation_id: target_installation,
-        })
-        .await
-        .unwrap();
-
-    let assignments = repository.list_assignments(workspace_id).await.unwrap();
-    assert_eq!(assignments.len(), 1);
-    assert_eq!(assignments[0].installation_id, target_installation);
-    assert_eq!(task.task_kind, PluginTaskKind::SwitchVersion);
-    assert_eq!(task.status, PluginTaskStatus::Succeeded);
-}
-
-#[tokio::test]
-async fn plugin_management_service_switches_version_and_invalidates_provider_caches() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let runtime = MemoryProviderRuntime::default();
-    let install_root =
-        std::env::temp_dir().join(format!("plugin-switch-migrate-{}", Uuid::now_v7()));
-    let service = PluginManagementService::new(
-        repository.clone(),
-        runtime,
-        Arc::new(MemoryOfficialPluginSource::default()),
-        &install_root,
-    );
-
-    let current_installation = seed_test_installation(
-        &repository,
-        &install_root,
-        "fixture_provider",
-        "0.1.0",
-        PluginDesiredState::ActiveRequested,
-    )
-    .await;
-    let target_installation = seed_test_installation(
-        &repository,
-        &install_root,
-        "fixture_provider",
-        "0.2.0",
-        PluginDesiredState::ActiveRequested,
-    )
-    .await;
-    repository
-        .create_assignment(&CreatePluginAssignmentInput {
-            installation_id: current_installation,
-            workspace_id,
-            provider_code: "fixture_provider".into(),
-            actor_user_id: repository.actor.user_id,
-        })
-        .await
-        .unwrap();
-    repository
-        .seed_instance_with_ready_cache(
-            current_installation,
-            "fixture_provider",
-            "Fixture Provider Prod",
-        )
-        .await;
-    repository
-        .seed_instance_with_ready_cache(
-            current_installation,
-            "fixture_provider",
-            "Fixture Provider Staging",
-        )
-        .await;
-
-    let task = service
-        .switch_version(SwitchPluginVersionCommand {
-            actor_user_id: repository.actor.user_id,
-            provider_code: "fixture_provider".into(),
-            target_installation_id: target_installation,
-        })
-        .await
-        .unwrap();
-
-    assert_eq!(task.task_kind, PluginTaskKind::SwitchVersion);
-    assert_eq!(task.detail_json["migrated_instance_count"], 2);
-    assert_eq!(
-        repository
-            .assignment_installation_id("fixture_provider")
-            .await,
-        target_installation
-    );
-    assert_eq!(
-        repository.cache_refresh_statuses().await,
-        vec!["idle", "idle"]
-    );
-}
-
-#[tokio::test]
-async fn plugin_management_service_upgrades_to_latest_without_redownloading_when_already_installed_locally(
-) {
-    #[derive(Clone)]
-    struct LatestAlreadyInstalledSource {
-        download_calls: Arc<AtomicUsize>,
-    }
-
-    #[async_trait]
-    impl OfficialPluginSourcePort for LatestAlreadyInstalledSource {
-        async fn list_official_catalog(&self) -> Result<OfficialPluginCatalogSnapshot> {
-            Ok(OfficialPluginCatalogSnapshot {
-                source: OfficialPluginCatalogSource {
-                    source_kind: "official_registry".into(),
-                    source_label: "官方源".into(),
-                    registry_url: "https://example.com/official-registry.json".into(),
-                },
-                entries: vec![OfficialPluginSourceEntry {
-                    plugin_id: "1flowbase.fixture_provider".into(),
-                    plugin_type: "model_provider".into(),
-                    provider_code: "fixture_provider".into(),
-                    namespace: "plugin.fixture_provider".into(),
-                    protocol: "openai_compatible".into(),
-                    latest_version: "0.2.0".into(),
-                    selected_artifact: sample_artifact("linux", "amd64", Some("musl")),
-                    i18n_summary: sample_i18n_summary(),
-                    release_tag: "fixture_provider-v0.2.0".into(),
-                    trust_mode: "allow_unsigned".into(),
-                    help_url: Some("https://example.com/help".into()),
-                    model_discovery_mode: "hybrid".into(),
-                }],
-            })
-        }
-
-        async fn download_plugin(
-            &self,
-            _entry: &OfficialPluginSourceEntry,
-        ) -> Result<DownloadedOfficialPluginPackage> {
-            self.download_calls.fetch_add(1, Ordering::SeqCst);
-            anyhow::bail!("download should not be called when latest is already installed")
-        }
-
-        fn trusted_public_keys(&self) -> Vec<plugin_framework::TrustedPublicKey> {
-            Vec::new()
-        }
-    }
-
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let runtime = MemoryProviderRuntime::default();
-    let download_calls = Arc::new(AtomicUsize::new(0));
-    let install_root =
-        std::env::temp_dir().join(format!("plugin-upgrade-latest-{}", Uuid::now_v7()));
-    let service = PluginManagementService::new(
-        repository.clone(),
-        runtime,
-        Arc::new(LatestAlreadyInstalledSource {
-            download_calls: download_calls.clone(),
-        }),
-        &install_root,
-    );
-
-    let current_installation = seed_test_installation(
-        &repository,
-        &install_root,
-        "fixture_provider",
-        "0.1.0",
-        PluginDesiredState::ActiveRequested,
-    )
-    .await;
-    let target_installation = seed_test_installation(
-        &repository,
-        &install_root,
-        "fixture_provider",
-        "0.2.0",
-        PluginDesiredState::Disabled,
-    )
-    .await;
-    repository
-        .create_assignment(&CreatePluginAssignmentInput {
-            installation_id: current_installation,
-            workspace_id,
-            provider_code: "fixture_provider".into(),
-            actor_user_id: repository.actor.user_id,
-        })
-        .await
-        .unwrap();
-
-    let task = service
-        .upgrade_latest(UpgradeLatestPluginFamilyCommand {
-            actor_user_id: repository.actor.user_id,
-            provider_code: "fixture_provider".into(),
-        })
-        .await
-        .unwrap();
-
-    let assignments = repository.list_assignments(workspace_id).await.unwrap();
-    assert_eq!(assignments.len(), 1);
-    assert_eq!(assignments[0].installation_id, target_installation);
-    assert_eq!(task.task_kind, PluginTaskKind::SwitchVersion);
-    assert_eq!(task.status, PluginTaskStatus::Succeeded);
-    assert_eq!(download_calls.load(Ordering::SeqCst), 0);
-}
-
-#[tokio::test]
-async fn plugin_management_service_deletes_provider_family_with_instances_and_artifacts() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let install_root =
-        std::env::temp_dir().join(format!("plugin-delete-family-{}", Uuid::now_v7()));
-    let service = PluginManagementService::new(
-        repository.clone(),
-        MemoryProviderRuntime::default(),
-        Arc::new(MemoryOfficialPluginSource::default()),
-        &install_root,
-    );
-
-    let current_installation = seed_test_installation(
-        &repository,
-        &install_root,
-        "fixture_provider",
-        "0.1.0",
-        PluginDesiredState::ActiveRequested,
-    )
-    .await;
-    let old_installation = seed_test_installation(
-        &repository,
-        &install_root,
-        "fixture_provider",
-        "0.0.9",
-        PluginDesiredState::Disabled,
-    )
-    .await;
-    repository
-        .create_assignment(&CreatePluginAssignmentInput {
-            installation_id: current_installation,
-            workspace_id,
-            provider_code: "fixture_provider".into(),
-            actor_user_id: repository.actor.user_id,
-        })
-        .await
-        .unwrap();
-    repository
-        .seed_instance_with_ready_cache(
-            current_installation,
-            "fixture_provider",
-            "Fixture Provider Prod",
-        )
-        .await;
-    repository
-        .seed_instance_with_ready_cache(
-            old_installation,
-            "fixture_provider",
-            "Fixture Provider Staging",
-        )
-        .await;
-
-    let current_path = PathBuf::from(
-        &repository
-            .get_installation(current_installation)
-            .await
-            .unwrap()
-            .unwrap()
-            .installed_path,
-    );
-    let old_path = PathBuf::from(
-        &repository
-            .get_installation(old_installation)
-            .await
-            .unwrap()
-            .unwrap()
-            .installed_path,
-    );
-
-    let task = service
-        .delete_family(DeletePluginFamilyCommand {
-            actor_user_id: repository.actor.user_id,
-            provider_code: "fixture_provider".into(),
-        })
-        .await
-        .unwrap();
-
-    assert_eq!(task.task_kind, PluginTaskKind::Uninstall);
-    assert_eq!(task.status, PluginTaskStatus::Succeeded);
-    assert_eq!(task.detail_json["deleted_instance_count"], 2);
-    assert_eq!(task.detail_json["deleted_installation_count"], 2);
-    assert_eq!(repository.list_installations().await.unwrap().len(), 0);
-    assert_eq!(
-        repository
-            .list_assignments(workspace_id)
-            .await
-            .unwrap()
-            .len(),
-        0
-    );
-    assert_eq!(
-        repository.list_instances(workspace_id).await.unwrap().len(),
-        0
-    );
-    assert!(!current_path.exists());
-    assert!(!old_path.exists());
-    assert_eq!(
-        repository.audit_events().await,
-        vec!["plugin.family_deleted"]
-    );
-}
-
-#[tokio::test]
-async fn plugin_management_service_installs_enables_assigns_and_lists_tasks() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let runtime = MemoryProviderRuntime::default();
-    let nonce = Uuid::now_v7().to_string();
-    let package_root = std::env::temp_dir().join(format!("plugin-source-{nonce}"));
-    let install_root = std::env::temp_dir().join(format!("plugin-installed-{nonce}"));
-    create_provider_fixture(&package_root);
-
-    let service = PluginManagementService::new(
-        repository.clone(),
-        runtime.clone(),
-        std::sync::Arc::new(MemoryOfficialPluginSource::default()),
-        &install_root,
-    );
-
-    let install = service
-        .install_plugin(InstallPluginCommand {
-            actor_user_id: repository.actor.user_id,
-            package_root: package_root.display().to_string(),
-        })
-        .await
-        .unwrap();
-    assert_eq!(install.task.status, PluginTaskStatus::Succeeded);
-    assert!(matches!(
-        install.installation.desired_state,
-        PluginDesiredState::Disabled
-    ));
-    assert!(PathBuf::from(&install.installation.installed_path).is_dir());
-    assert!(!Path::new(&install.installation.installed_path)
-        .join("demo")
-        .exists());
-    assert!(!Path::new(&install.installation.installed_path)
-        .join("scripts")
-        .exists());
-
-    let enable = service
-        .enable_plugin(EnablePluginCommand {
-            actor_user_id: repository.actor.user_id,
-            installation_id: install.installation.id,
-        })
-        .await
-        .unwrap();
-    assert_eq!(enable.status, PluginTaskStatus::Succeeded);
-
-    let assign = service
-        .assign_plugin(AssignPluginCommand {
-            actor_user_id: repository.actor.user_id,
-            installation_id: install.installation.id,
-        })
-        .await
-        .unwrap();
-    assert_eq!(assign.status, PluginTaskStatus::Succeeded);
-
-    let catalog = service
-        .list_catalog(
-            repository.actor.user_id,
-            PluginCatalogFilter::default(),
-            requested_locales(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(catalog.entries.len(), 1);
-    assert!(catalog.entries[0].assigned_to_current_workspace);
-    assert_eq!(catalog.entries[0].model_discovery_mode, "hybrid");
-
-    let tasks = service.list_tasks(repository.actor.user_id).await.unwrap();
-    assert_eq!(tasks.len(), 3);
-    let fetched = service
-        .get_task(repository.actor.user_id, install.task.id)
-        .await
-        .unwrap();
-    assert_eq!(fetched.task_kind, PluginTaskKind::Install);
-    assert_eq!(
-        runtime.loaded_installations().await,
-        vec![install.installation.id]
-    );
-    assert_eq!(
-        repository.audit_events().await,
-        vec!["plugin.installed", "plugin.enabled", "plugin.assigned"]
-    );
-}
-
-#[tokio::test]
-async fn plugin_management_service_degrades_catalog_entry_when_artifact_is_missing() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let install_root =
-        std::env::temp_dir().join(format!("plugin-missing-catalog-{}", Uuid::now_v7()));
-    let service = PluginManagementService::new(
-        repository.clone(),
-        MemoryProviderRuntime::default(),
-        Arc::new(MemoryOfficialPluginSource::default()),
-        &install_root,
-    );
-    let installation_id = seed_test_installation(
-        &repository,
-        &install_root,
-        "fixture_provider",
-        "0.1.0",
-        PluginDesiredState::ActiveRequested,
-    )
-    .await;
-    let install_path = repository
-        .get_installation(installation_id)
-        .await
-        .unwrap()
-        .unwrap()
-        .installed_path;
-    fs::remove_dir_all(&install_path).unwrap();
-
-    let catalog = service
-        .list_catalog(
-            repository.actor.user_id,
-            PluginCatalogFilter::default(),
-            requested_locales(),
-        )
-        .await
-        .unwrap();
-    let installation = repository
-        .get_installation(installation_id)
-        .await
-        .unwrap()
-        .unwrap();
-
-    assert_eq!(catalog.entries.len(), 1);
-    assert_eq!(
-        catalog.entries[0].installation.artifact_status,
-        PluginArtifactStatus::Missing
-    );
-    assert_eq!(
-        catalog.entries[0].installation.availability_status,
-        PluginAvailabilityStatus::ArtifactMissing
-    );
-    assert_eq!(catalog.entries[0].model_discovery_mode, "hybrid");
-    assert_eq!(
-        installation.availability_status,
-        PluginAvailabilityStatus::ArtifactMissing
-    );
-}
-
-#[tokio::test]
-async fn plugin_management_service_blocks_manage_actions_without_configure_permission() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all"],
-    ));
-    let runtime = MemoryProviderRuntime::default();
-    let service = PluginManagementService::new(
-        repository.clone(),
-        runtime,
-        std::sync::Arc::new(MemoryOfficialPluginSource::default()),
-        std::env::temp_dir().join(format!("plugin-installed-{}", Uuid::now_v7())),
-    );
-
-    let catalog = service
-        .list_catalog(
-            repository.actor.user_id,
-            PluginCatalogFilter::default(),
-            requested_locales(),
-        )
-        .await
-        .unwrap();
-    assert!(catalog.entries.is_empty());
-
-    let error = service
-        .install_plugin(InstallPluginCommand {
-            actor_user_id: repository.actor.user_id,
-            package_root: "/tmp/missing".to_string(),
-        })
-        .await
-        .unwrap_err();
-    assert!(matches!(
-        error.downcast_ref::<ControlPlaneError>(),
-        Some(ControlPlaneError::PermissionDenied("permission_denied"))
-    ));
-}
-
-#[tokio::test]
-async fn plugin_management_service_lists_official_catalog_and_installs_latest_release_asset() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let runtime = MemoryProviderRuntime::default();
-    let service = PluginManagementService::new(
-        repository.clone(),
-        runtime,
-        std::sync::Arc::new(MemoryOfficialPluginSource::default()),
-        std::env::temp_dir().join(format!("plugin-installed-{}", Uuid::now_v7())),
-    );
-
-    let catalog = service
-        .list_official_catalog(
-            repository.actor.user_id,
-            PluginCatalogFilter::default(),
-            requested_locales(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(catalog.source_kind, "official_registry");
-    assert_eq!(catalog.source_label, "官方源");
-    assert_eq!(catalog.entries.len(), 1);
-    assert_eq!(catalog.entries[0].plugin_id, "1flowbase.openai_compatible");
-
-    let expected_package_bytes = build_openai_compatible_package_bytes("0.1.0", false);
-
-    let install = service
-        .install_official_plugin(InstallOfficialPluginCommand {
-            actor_user_id: repository.actor.user_id,
-            plugin_id: "1flowbase.openai_compatible".to_string(),
-        })
-        .await
-        .unwrap();
-
-    assert_eq!(install.installation.provider_code, "openai_compatible");
-    assert_eq!(install.installation.source_kind, "official_registry");
-    assert_eq!(
-        install.installation.checksum.as_deref(),
-        Some(format!("sha256:{:x}", Sha256::digest(&expected_package_bytes)).as_str())
-    );
-    assert_eq!(
-        install.installation.signature_status.as_deref(),
-        Some("unsigned")
-    );
-    assert_eq!(install.task.status, PluginTaskStatus::Succeeded);
-}
-
-#[tokio::test]
-async fn list_official_catalog_filters_by_plugin_type_and_trims_i18n_bundles() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all"],
-    ));
-    let service = PluginManagementService::new(
-        repository.clone(),
-        MemoryProviderRuntime::default(),
-        Arc::new(MemoryOfficialPluginSource::default()),
-        std::env::temp_dir().join(format!("plugin-list-{}", Uuid::now_v7())),
-    );
-
-    let view = service
-        .list_official_catalog(
-            repository.actor.user_id,
-            PluginCatalogFilter {
-                plugin_type: Some("model_provider".into()),
-            },
-            RequestedLocales::new("zh_Hans", "en_US"),
-        )
-        .await
-        .unwrap();
-    let entry = &view.entries[0];
-
-    let reference = OfficialPluginSourceEntry {
-        plugin_id: "1flowbase.openai_compatible".into(),
-        plugin_type: "model_provider".into(),
-        provider_code: "openai_compatible".into(),
-        namespace: "plugin.openai_compatible".into(),
-        protocol: "openai_compatible".into(),
-        latest_version: "0.2.1".into(),
-        selected_artifact: sample_artifact("linux", "amd64", Some("musl")),
-        i18n_summary: sample_i18n_summary(),
-        release_tag: "openai_compatible-v0.2.1".into(),
-        trust_mode: "signature_required".into(),
-        help_url: Some("https://example.test/help".into()),
-        model_discovery_mode: "hybrid".into(),
-    };
-
-    assert_eq!(view.entries.len(), 1);
-    assert_eq!(entry.plugin_type, reference.plugin_type);
-    assert_eq!(entry.namespace, reference.namespace);
-    assert!(view.i18n_catalog["plugin.openai_compatible"].contains_key("zh_Hans"));
-    assert!(!view.i18n_catalog["plugin.openai_compatible"].contains_key("fr_FR"));
-}
-
-#[tokio::test]
-async fn plugin_management_service_rejects_unsigned_signature_required_official_package() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let service = PluginManagementService::new(
-        repository.clone(),
-        MemoryProviderRuntime::default(),
-        std::sync::Arc::new(MemoryOfficialPluginSource::unsigned_required()),
-        std::env::temp_dir().join(format!("plugin-installed-{}", Uuid::now_v7())),
-    );
-
-    let error = service
-        .install_official_plugin(InstallOfficialPluginCommand {
-            actor_user_id: repository.actor.user_id,
-            plugin_id: "1flowbase.openai_compatible".into(),
-        })
-        .await
-        .expect_err("unsigned official package must fail");
-
-    assert!(error
-        .to_string()
-        .contains("requires a valid official signature"));
-}
-
-#[tokio::test]
-async fn plugin_management_service_installs_uploaded_signed_package_as_verified_official() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let fixture = build_signed_openai_upload_package("0.2.0");
-    let service = PluginManagementService::new(
-        repository.clone(),
-        MemoryProviderRuntime::default(),
-        Arc::new(MemoryOfficialPluginSource::with_trusted_public_keys(vec![
-            fixture.public_key.clone(),
-        ])),
-        std::env::temp_dir().join(format!("plugin-uploaded-{}", Uuid::now_v7())),
-    );
-
-    let result = service
-        .install_uploaded_plugin(InstallUploadedPluginCommand {
-            actor_user_id: repository.actor.user_id,
-            file_name: "openai_compatible-0.2.0.1flowbasepkg".into(),
-            package_bytes: fixture.package_bytes.clone(),
-        })
-        .await
-        .unwrap();
-
-    assert_eq!(result.installation.source_kind, "uploaded");
-    assert_eq!(result.installation.trust_level, "verified_official");
-    assert_eq!(
-        result.installation.signature_status.as_deref(),
-        Some("verified")
-    );
-}
-
-#[tokio::test]
-async fn plugin_management_service_rejects_restarting_terminal_task() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let runtime = MemoryProviderRuntime::default();
-    let nonce = Uuid::now_v7().to_string();
-    let package_root = std::env::temp_dir().join(format!("plugin-terminal-task-source-{nonce}"));
-    let install_root = std::env::temp_dir().join(format!("plugin-terminal-task-installed-{nonce}"));
-    create_provider_fixture(&package_root);
-    repository
-        .set_created_task_status_override(PluginTaskStatus::Succeeded)
-        .await;
-
-    let service = PluginManagementService::new(
-        repository.clone(),
-        runtime,
-        std::sync::Arc::new(MemoryOfficialPluginSource::default()),
-        &install_root,
-    );
-
-    let error = service
-        .install_plugin(InstallPluginCommand {
-            actor_user_id: repository.actor.user_id,
-            package_root: package_root.display().to_string(),
-        })
-        .await
-        .unwrap_err();
-
-    assert!(matches!(
-        error.downcast_ref::<ControlPlaneError>(),
-        Some(ControlPlaneError::InvalidStateTransition { resource, from, to, .. })
-            if *resource == "plugin_task" && from == "succeeded" && to == "running"
-    ));
-}
-
-#[tokio::test]
-async fn plugin_management_service_syncs_manifest_node_contributions_on_install() {
-    let workspace_id = Uuid::now_v7();
-    let repository = MemoryPluginManagementRepository::new(actor_with_permissions(
-        workspace_id,
-        &["plugin_config.view.all", "plugin_config.configure.all"],
-    ));
-    let runtime = MemoryProviderRuntime::default();
-    let nonce = Uuid::now_v7().to_string();
-    let package_root =
-        std::env::temp_dir().join(format!("plugin-node-contribution-source-{nonce}"));
-    let install_root =
-        std::env::temp_dir().join(format!("plugin-node-contribution-installed-{nonce}"));
-    create_provider_fixture_with_node_contribution(&package_root);
-
-    let service = PluginManagementService::new(
-        repository.clone(),
-        runtime,
-        std::sync::Arc::new(MemoryOfficialPluginSource::default()),
-        &install_root,
-    );
-
-    let installation = service
-        .install_plugin(InstallPluginCommand {
-            actor_user_id: repository.actor.user_id,
-            package_root: package_root.display().to_string(),
-        })
-        .await
-        .unwrap()
-        .installation;
-    let entries = NodeContributionRepository::list_node_contributions(&repository, workspace_id)
-        .await
-        .unwrap();
-
-    assert_eq!(entries.len(), 1);
-    assert_eq!(entries[0].installation_id, installation.id);
-    assert_eq!(entries[0].contribution_code, "openai_prompt");
-    assert_eq!(
-        entries[0].dependency_status,
-        NodeContributionDependencyStatus::MissingPlugin
-    );
 }

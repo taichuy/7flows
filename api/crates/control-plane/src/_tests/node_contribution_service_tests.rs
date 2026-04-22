@@ -11,7 +11,7 @@ use domain::{ActorContext, NodeContributionDependencyStatus, NodeContributionReg
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use super::plugin_management_service_tests::actor_with_permissions;
+use super::plugin_management::support::actor_with_permissions;
 
 #[derive(Clone)]
 struct MemoryNodeContributionRepository {

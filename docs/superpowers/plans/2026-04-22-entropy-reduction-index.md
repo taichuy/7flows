@@ -24,7 +24,7 @@
 3. [2026-04-22-structural-split-phase-three.md](./2026-04-22-structural-split-phase-three.md)
    Started on `2026-04-22`. First structural slice completed by extracting `orchestration_runtime` test support out of the production owner; further owner splits still remain.
 4. [2026-04-22-plugin-management-split-phase-three.md](./2026-04-22-plugin-management-split-phase-three.md)
-   Planned next. Splits `plugin_management.rs` and its giant service test owner into catalog/install/family/filesystem slices.
+   Completed on `2026-04-22`. Split `plugin_management.rs` into catalog/install/family/filesystem owners and mirrored the split under `_tests/plugin_management/`.
 5. [2026-04-22-backend-boundary-normalization-phase-three.md](./2026-04-22-backend-boundary-normalization-phase-three.md)
    Planned next. Splits `ports.rs`, groups `api-server` routes, and reduces `_tests/support.rs` sprawl.
 6. [2026-04-22-frontend-settings-split-phase-three.md](./2026-04-22-frontend-settings-split-phase-three.md)
@@ -38,7 +38,7 @@
 
 ## Execution Autonomy
 
-- Default execution order is `3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9`.
+- Default execution order is `5 -> 6 -> 7 -> 8 -> 9`.
 - Continue sequentially without asking for fresh approval between plans.
 - Stop only if one of these happens:
   - a step would change a public HTTP/UI contract rather than internal structure
