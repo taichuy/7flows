@@ -3,11 +3,12 @@ import { useMemo, useState } from 'react';
 import {
   Alert,
   Button,
+  Collapse,
+  Descriptions,
   Empty,
+  Flex,
   Modal,
-  Select,
   Space,
-  Table,
   Tag,
   Typography
 } from 'antd';
@@ -29,6 +30,33 @@ function renderStatusTag(status: string) {
     default:
       return <Tag color="gold">{status}</Tag>;
   }
+}
+
+function formatModelPreview(modelIds: string[], maxItems = 3) {
+  if (modelIds.length === 0) {
+    return '未设置';
+  }
+
+  const preview = modelIds.slice(0, maxItems).join(' · ');
+  return modelIds.length > maxItems ? `${preview} · …` : preview;
+}
+
+function renderModelTags(modelIds: string[], maxItems = 6) {
+  if (modelIds.length === 0) {
+    return <Typography.Text type="secondary">暂无候选模型</Typography.Text>;
+  }
+
+  const visibleItems = modelIds.slice(0, maxItems);
+  const hiddenCount = modelIds.length - visibleItems.length;
+
+  return (
+    <Flex wrap gap={8}>
+      {visibleItems.map((modelId) => (
+        <Tag key={modelId}>{modelId}</Tag>
+      ))}
+      {hiddenCount > 0 ? <Tag>+{hiddenCount}</Tag> : null}
+    </Flex>
+  );
 }
 
 export function ModelProviderInstancesModal({
@@ -69,7 +97,7 @@ export function ModelProviderInstancesModal({
   onRefreshModels: (instance: SettingsModelProviderInstance) => void;
   onDelete: (instance: SettingsModelProviderInstance) => void;
 }) {
-  const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
+  const [expandedInstanceIds, setExpandedInstanceIds] = useState<string[]>([]);
   const loadedModelsByInstanceId = useMemo(() => {
     if (!modelCatalog) {
       return {};
@@ -79,15 +107,6 @@ export function ModelProviderInstancesModal({
       [modelCatalog.provider_instance_id]: modelCatalog.models
     } as Record<string, SettingsModelProviderModelCatalog['models']>;
   }, [modelCatalog]);
-
-  function formatModelPreview(modelIds: string[]) {
-    if (modelIds.length === 0) {
-      return '未设置';
-    }
-
-    const preview = modelIds.slice(0, 3).join(' · ');
-    return modelIds.length > 3 ? `${preview} · …` : preview;
-  }
 
   return (
     <Modal
@@ -116,180 +135,167 @@ export function ModelProviderInstancesModal({
           <div>
             <Typography.Text strong>查看供应商实例</Typography.Text>
             <Typography.Paragraph type="secondary">
-              使用表格统一管理同一供应商下的全部实例，展开后可查看当前候选模型缓存。
+              使用纵向实例列表查看摘要；点开某个实例后再看候选缓存、操作和完整 Base URL。
             </Typography.Paragraph>
           </div>
         </div>
 
-        <Table<SettingsModelProviderInstance>
-          rowKey="id"
-          pagination={false}
-          dataSource={instances}
-          locale={{
-            emptyText: (
-              <Empty
-                className="model-provider-panel__empty"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="当前供应商还没有可用实例"
-              />
-            )
-          }}
-          expandable={{
-            expandedRowKeys,
-            onExpand: (expanded, record) => {
-              setExpandedRowKeys(expanded ? [record.id] : []);
-              if (expanded) {
-                onFetchModels(record);
-              }
-            },
-            expandedRowRender: (instance) => {
-              const models = loadedModelsByInstanceId[instance.id] ?? [];
-              const selectedModelId = instance.enabled_model_ids[0] ?? models[0]?.model_id;
+        {instances.length === 0 ? (
+          <Empty
+            className="model-provider-panel__empty"
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description="当前供应商还没有可用实例"
+          />
+        ) : (
+          <Collapse
+            activeKey={expandedInstanceIds}
+            onChange={(nextKeys) => {
+              const resolvedKeys = Array.isArray(nextKeys) ? nextKeys : [nextKeys];
+              setExpandedInstanceIds(resolvedKeys);
 
-              return (
-                <div className="model-provider-panel__instances-modal-expanded">
-                  <Space direction="vertical" size={8} style={{ width: '100%' }}>
-                    <Typography.Text type="secondary">
-                      候选缓存：{instance.model_count} 个 · 最近刷新：
-                      {instance.catalog_refreshed_at ?? '未刷新'}
-                    </Typography.Text>
-                    <Typography.Text type="secondary">
-                      生效模型：{formatModelPreview(instance.enabled_model_ids)}
-                    </Typography.Text>
-                    <Select
-                      aria-label={`${instance.display_name} 候选模型`}
-                      placeholder={
-                        instance.model_count > 0
-                          ? '展开后查看候选模型缓存'
-                          : '当前还没有候选模型'
-                      }
-                      value={selectedModelId}
-                      options={models.map((model) => ({
-                        label: model.display_name,
-                        value: model.model_id
-                      }))}
-                      notFoundContent={
-                        modelsLoading && modelCatalog?.provider_instance_id === instance.id
-                          ? '正在加载候选模型...'
-                          : '暂无候选模型'
-                      }
+              const nextExpandedId = resolvedKeys[resolvedKeys.length - 1];
+              if (!nextExpandedId) {
+                return;
+              }
+
+              const expandedInstance = instances.find((instance) => instance.id === nextExpandedId);
+              if (expandedInstance) {
+                onFetchModels(expandedInstance);
+              }
+            }}
+            items={instances.map((instance) => {
+              const cachedModels =
+                loadedModelsByInstanceId[instance.id]?.map((model) => model.model_id) ?? [];
+              const hasLoadedModels = cachedModels.length > 0;
+              const isLoadingCurrentCatalog =
+                modelsLoading && modelCatalog?.provider_instance_id === instance.id;
+
+              return {
+                key: instance.id,
+                label: (
+                  <Flex justify="space-between" align="flex-start" gap={16}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <Space align="center" size={8} wrap>
+                        <Typography.Text strong>{instance.display_name}</Typography.Text>
+                        {renderStatusTag(instance.status)}
+                      </Space>
+                      <Typography.Paragraph
+                        type="secondary"
+                        style={{ marginBottom: 0, marginTop: 4 }}
+                        ellipsis={{ rows: 1 }}
+                      >
+                        {instance.provider_code} · {instance.protocol}
+                      </Typography.Paragraph>
+                    </div>
+                    <Space size={16} wrap>
+                      <div>
+                        <Typography.Text type="secondary">生效模型</Typography.Text>
+                        <br />
+                        <Typography.Text>{instance.enabled_model_ids.length} 个</Typography.Text>
+                      </div>
+                      <div>
+                        <Typography.Text type="secondary">缓存模型</Typography.Text>
+                        <br />
+                        <Typography.Text>{instance.model_count} 个</Typography.Text>
+                      </div>
+                    </Space>
+                  </Flex>
+                ),
+                children: (
+                  <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                    <Descriptions
+                      size="small"
+                      column={1}
+                      items={[
+                        {
+                          key: 'enabled-models',
+                          label: '生效模型',
+                          children: (
+                            <Typography.Text>
+                              {formatModelPreview(instance.enabled_model_ids)}
+                            </Typography.Text>
+                          )
+                        },
+                        {
+                          key: 'cached-models',
+                          label: '候选缓存',
+                          children: isLoadingCurrentCatalog ? (
+                            <Typography.Text type="secondary">
+                              正在加载候选模型...
+                            </Typography.Text>
+                          ) : hasLoadedModels ? (
+                            renderModelTags(cachedModels)
+                          ) : (
+                            <Typography.Text type="secondary">
+                              当前仅显示摘要，点击展开时会自动拉取候选缓存。
+                            </Typography.Text>
+                          )
+                        },
+                        {
+                          key: 'refreshed-at',
+                          label: '最近刷新',
+                          children: (
+                            <Typography.Text type="secondary">
+                              {instance.catalog_refreshed_at ?? '未刷新'}
+                            </Typography.Text>
+                          )
+                        }
+                      ]}
                     />
+
+                    {canManage ? (
+                      <Space size={4} wrap>
+                        <Button
+                          type="link"
+                          aria-label={`编辑 API Key ${instance.display_name}`}
+                          onClick={() => onEdit(instance)}
+                        >
+                          编辑 API Key
+                        </Button>
+                        <Button
+                          type="link"
+                          loading={refreshingCandidates}
+                          aria-label={`刷新候选模型 ${instance.display_name}`}
+                          onClick={() => onRefreshCandidates(instance)}
+                        >
+                          刷新候选模型
+                        </Button>
+                        <Button
+                          type="link"
+                          loading={refreshing}
+                          aria-label={`刷新模型 ${instance.display_name}`}
+                          onClick={() => onRefreshModels(instance)}
+                        >
+                          刷新模型
+                        </Button>
+                        <Button
+                          danger
+                          type="link"
+                          loading={deleting}
+                          aria-label={`删除实例 ${instance.display_name}`}
+                          onClick={() => onDelete(instance)}
+                        >
+                          删除实例
+                        </Button>
+                      </Space>
+                    ) : null}
+
+                    <div>
+                      <Typography.Text type="secondary">Base URL</Typography.Text>
+                      <Typography.Paragraph
+                        className="model-provider-panel__mono"
+                        style={{ marginBottom: 0, marginTop: 4 }}
+                        ellipsis={{ rows: 1, expandable: true, symbol: '展开' }}
+                      >
+                        {String(instance.config_json.base_url ?? '未配置')}
+                      </Typography.Paragraph>
+                    </div>
                   </Space>
-                </div>
-              );
-            }
-          }}
-          columns={[
-            {
-              title: '操作',
-              key: 'actions',
-              width: 260,
-              render: (_, instance) => (
-                <Space size={4} wrap>
-                  {canManage ? (
-                    <Button
-                      type="link"
-                      aria-label={`编辑 API Key ${instance.display_name}`}
-                      onClick={() => onEdit(instance)}
-                    >
-                      编辑 API Key
-                    </Button>
-                  ) : null}
-                  {canManage ? (
-                    <Button
-                      type="link"
-                      loading={refreshingCandidates}
-                      aria-label={`刷新候选模型 ${instance.display_name}`}
-                      onClick={() => onRefreshCandidates(instance)}
-                    >
-                      刷新候选模型
-                    </Button>
-                  ) : null}
-                  {canManage ? (
-                    <Button
-                      type="link"
-                      loading={refreshing}
-                      aria-label={`刷新模型 ${instance.display_name}`}
-                      onClick={() => onRefreshModels(instance)}
-                    >
-                      刷新模型
-                    </Button>
-                  ) : null}
-                  {canManage ? (
-                    <Button
-                      danger
-                      type="link"
-                      loading={deleting}
-                      aria-label={`删除实例 ${instance.display_name}`}
-                      onClick={() => onDelete(instance)}
-                    >
-                      删除实例
-                    </Button>
-                  ) : null}
-                </Space>
-              )
-            },
-            {
-              title: '实例名',
-              key: 'instance',
-              render: (_, instance) => (
-                <div className="model-provider-panel__instance-cell">
-                  <Typography.Text strong>{instance.display_name}</Typography.Text>
-                  <Typography.Text type="secondary">
-                    {instance.provider_code} · {instance.protocol}
-                  </Typography.Text>
-                </div>
-              )
-            },
-            {
-              title: '状态',
-              dataIndex: 'status',
-              width: 120,
-              render: (status: string) => renderStatusTag(status)
-            },
-            {
-              title: '生效模型',
-              key: 'enabled_models',
-              width: 180,
-              render: (_, instance) => (
-                <div className="model-provider-panel__instance-cell">
-                  <Typography.Text>{instance.enabled_model_ids.length} 个</Typography.Text>
-                  <Typography.Text type="secondary">
-                    {formatModelPreview(instance.enabled_model_ids)}
-                  </Typography.Text>
-                </div>
-              )
-            },
-            {
-              title: '缓存模型',
-              key: 'models',
-              width: 150,
-              render: (_, instance) => (
-                <Button
-                  type="link"
-                  aria-label={`查看缓存模型 ${instance.display_name}`}
-                  onClick={() => {
-                    setExpandedRowKeys((current) =>
-                      current.includes(instance.id) ? [] : [instance.id]
-                    );
-                    onFetchModels(instance);
-                  }}
-                >
-                  {instance.model_count} 个
-                </Button>
-              )
-            },
-            {
-              title: 'Base URL',
-              key: 'base_url',
-              render: (_, instance) => (
-                <Typography.Text className="model-provider-panel__mono">
-                  {String(instance.config_json.base_url ?? '未配置')}
-                </Typography.Text>
-              )
-            }
-          ]}
-        />
+                )
+              };
+            })}
+          />
+        )}
       </div>
     </Modal>
   );

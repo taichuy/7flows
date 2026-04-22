@@ -699,7 +699,7 @@ describe('ModelProvidersPage', () => {
   }, 10000);
 
   test(
-    'opens provider instances modal from installed provider row as a management table',
+    'opens provider instances modal from installed provider row as a management list',
     { timeout: 15000 },
     async () => {
       authenticateWithPermissions([
@@ -715,26 +715,11 @@ describe('ModelProvidersPage', () => {
         within(modal).getAllByText('OpenAI Production').length
       ).toBeGreaterThanOrEqual(1);
       expect(
-        within(modal).getByRole('columnheader', { name: '缓存模型' })
+        within(modal).getByText('使用纵向实例列表查看摘要；点开某个实例后再看候选缓存、操作和完整 Base URL。')
       ).toBeInTheDocument();
-      expect(
-        within(modal).getByRole('columnheader', { name: '生效模型' })
-      ).toBeInTheDocument();
-      expect(
-        within(modal).getByRole('button', {
-          name: '刷新候选模型 OpenAI Production'
-        })
-      ).toBeInTheDocument();
-      expect(
-        within(modal).getByRole('button', {
-          name: '刷新模型 OpenAI Production'
-        })
-      ).toBeInTheDocument();
-      expect(
-        within(modal).getByRole('button', {
-          name: '删除实例 OpenAI Production'
-        })
-      ).toBeInTheDocument();
+      expect(within(modal).getAllByText('生效模型').length).toBeGreaterThanOrEqual(1);
+      expect(within(modal).getAllByText('缓存模型').length).toBeGreaterThanOrEqual(1);
+      expect(within(modal).getByText('OpenAI Backup')).toBeInTheDocument();
     }
   );
 
@@ -761,7 +746,9 @@ describe('ModelProvidersPage', () => {
 
       renderApp('/settings/model-providers');
 
-      await openProviderInstancesModal();
+      const modal = await openProviderInstancesModal();
+
+      fireEvent.click(within(modal).getByText('OpenAI Production'));
 
       fireEvent.click(
         await screen.findByRole('button', { name: '刷新候选模型 OpenAI Production' })
@@ -934,6 +921,7 @@ describe('ModelProvidersPage', () => {
       renderApp('/settings/model-providers');
 
       const modal = await openProviderInstancesModal();
+      fireEvent.click(within(modal).getByText('OpenAI Production'));
       fireEvent.click(
         within(modal).getByRole('button', {
           name: '编辑 API Key OpenAI Production'
@@ -964,6 +952,7 @@ describe('ModelProvidersPage', () => {
       renderApp('/settings/model-providers');
 
       const modal = await openProviderInstancesModal();
+      fireEvent.click(within(modal).getByText('OpenAI Production'));
       fireEvent.click(
         within(modal).getByRole('button', {
           name: '编辑 API Key OpenAI Production'
@@ -990,7 +979,7 @@ describe('ModelProvidersPage', () => {
   );
 
   test(
-    'fetches cached models for the selected instance and renders them in the expanded row',
+    'fetches cached models for the selected instance and renders them in the expanded panel',
     { timeout: 15000 },
     async () => {
       authenticateWithPermissions([
@@ -1002,11 +991,7 @@ describe('ModelProvidersPage', () => {
       renderApp('/settings/model-providers');
 
       const modal = await openProviderInstancesModal();
-      fireEvent.click(
-        within(modal).getByRole('button', {
-          name: '查看缓存模型 OpenAI Production'
-        })
-      );
+      fireEvent.click(within(modal).getByText('OpenAI Production'));
 
       await waitFor(() => {
         expect(
@@ -1014,18 +999,16 @@ describe('ModelProvidersPage', () => {
         ).toHaveBeenCalledWith('provider-1');
       });
       expect(
-        await within(modal).findByRole('combobox', {
-          name: 'OpenAI Production 候选模型'
-        })
+        await within(modal).findByText(primaryContractProviderModels[0].model_id)
       ).toBeInTheDocument();
       expect(
-        within(modal).getByText(primaryContractProviderModels[0].display_name)
+        within(modal).getByText('Base URL')
       ).toBeInTheDocument();
     }
   );
 
   test(
-    'renders provider instances as a management table with cache-model column',
+    'renders provider instances as a collapsed management list with base url in the details area',
     { timeout: 15000 },
     async () => {
       authenticateWithPermissions([
@@ -1037,27 +1020,14 @@ describe('ModelProvidersPage', () => {
       renderApp('/settings/model-providers');
 
       const modal = await openProviderInstancesModal();
-      expect(
-        within(modal).getByRole('columnheader', { name: '操作' })
-      ).toBeInTheDocument();
-      expect(
-        within(modal).getByRole('columnheader', { name: '实例名' })
-      ).toBeInTheDocument();
-      expect(
-        within(modal).getByRole('columnheader', { name: '状态' })
-      ).toBeInTheDocument();
-      expect(
-        within(modal).getByRole('columnheader', { name: '缓存模型' })
-      ).toBeInTheDocument();
-      expect(
-        within(modal).getByRole('columnheader', { name: '生效模型' })
-      ).toBeInTheDocument();
-      expect(
-        within(modal).getByRole('columnheader', { name: 'Base URL' })
-      ).toBeInTheDocument();
       expect(within(modal).getByText('OpenAI Production')).toBeInTheDocument();
-      expect(within(modal).getByText('1 个')).toBeInTheDocument();
-      expect(within(modal).getByText(/gpt-4o-mini/)).toBeInTheDocument();
+      expect(within(modal).getAllByText('1 个').length).toBeGreaterThanOrEqual(1);
+      expect(within(modal).queryByText('Base URL')).not.toBeInTheDocument();
+
+      fireEvent.click(within(modal).getByText('OpenAI Production'));
+
+      expect(await within(modal).findByText('Base URL')).toBeInTheDocument();
+      expect(within(modal).getAllByText(/gpt-4o-mini/).length).toBeGreaterThanOrEqual(1);
     }
   );
 
