@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
-import { NODE_DETAIL_DEFAULT_WIDTH } from '../lib/detail-panel-width';
-import { createAgentFlowEditorStore } from '../store/editor';
+import { NODE_DETAIL_DEFAULT_WIDTH } from '../../lib/detail-panel-width';
+import { createAgentFlowEditorStore } from '../../store/editor';
 
 describe('agent flow editor store', () => {
   test('seeds working document, selection, panel state and sync state from server data', () => {

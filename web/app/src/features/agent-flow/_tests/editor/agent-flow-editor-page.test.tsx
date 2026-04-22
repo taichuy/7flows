@@ -11,9 +11,9 @@ const schemaRuntimeSpies = vi.hoisted(() => ({
   SchemaDrawerPanel: vi.fn()
 }));
 
-vi.mock('../schema/node-schema-registry', async () => {
-  const actual = await vi.importActual<typeof import('../schema/node-schema-registry')>(
-    '../schema/node-schema-registry'
+vi.mock('../../schema/node-schema-registry', async () => {
+  const actual = await vi.importActual<typeof import('../../schema/node-schema-registry')>(
+    '../../schema/node-schema-registry'
   );
 
   return {
@@ -25,19 +25,19 @@ vi.mock('../schema/node-schema-registry', async () => {
   };
 });
 
-vi.mock('../../../shared/schema-ui/overlay-shell/SchemaDrawerPanel', () => ({
+vi.mock('../../../../shared/schema-ui/overlay-shell/SchemaDrawerPanel', () => ({
   SchemaDrawerPanel: schemaRuntimeSpies.SchemaDrawerPanel
 }));
 
-import * as orchestrationApi from '../api/orchestration';
-import * as nodeContributionsApi from '../api/node-contributions';
-import * as runtimeApi from '../api/runtime';
-import { VersionHistoryDrawer } from '../components/history/VersionHistoryDrawer';
-import { AgentFlowEditorShell } from '../components/editor/AgentFlowEditorShell';
-import { NODE_DETAIL_DEFAULT_WIDTH } from '../lib/detail-panel-width';
-import { AgentFlowEditorPage } from '../pages/AgentFlowEditorPage';
-import { resetAuthStore, useAuthStore } from '../../../state/auth-store';
-import { renderReactFlowScene } from '../../../test/renderers/render-react-flow-scene';
+import * as orchestrationApi from '../../api/orchestration';
+import * as nodeContributionsApi from '../../api/node-contributions';
+import * as runtimeApi from '../../api/runtime';
+import { VersionHistoryDrawer } from '../../components/history/VersionHistoryDrawer';
+import { AgentFlowEditorShell } from '../../components/editor/AgentFlowEditorShell';
+import { NODE_DETAIL_DEFAULT_WIDTH } from '../../lib/detail-panel-width';
+import { AgentFlowEditorPage } from '../../pages/AgentFlowEditorPage';
+import { resetAuthStore, useAuthStore } from '../../../../state/auth-store';
+import { renderReactFlowScene } from '../../../../test/renderers/render-react-flow-scene';
 
 function createInitialState() {
   return {

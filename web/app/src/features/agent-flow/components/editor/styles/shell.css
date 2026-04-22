@@ -1,0 +1,119 @@
+.agent-flow-editor {
+  --agent-flow-shell-header-height: 30px;
+  --agent-flow-overlay-top: calc(var(--agent-flow-shell-header-height) + 3px);
+  --agent-flow-secondary-top: calc(var(--agent-flow-overlay-top) + 64px);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: calc(100vh - var(--agent-flow-shell-header-height));
+}
+
+.agent-flow-editor__overlay {
+  position: absolute;
+  top: var(--agent-flow-overlay-top);
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  backdrop-filter: none;
+  box-shadow: none;
+}
+
+.agent-flow-editor__overlay-status {
+  display: flex;
+  align-items: center;
+}
+
+.agent-flow-editor__title.ant-typography {
+  margin: 0;
+}
+
+.agent-flow-editor__body {
+  position: relative;
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.agent-flow-editor__splitter-shell,
+.agent-flow-editor__splitter {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.agent-flow-editor__canvas-panel,
+.agent-flow-editor__detail-panel {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.agent-flow-editor__detail-dock {
+  position: absolute;
+  top: var(--agent-flow-secondary-top);
+  right: 16px;
+  z-index: 10;
+  display: flex;
+  height: min(85vh, calc(100% - var(--agent-flow-secondary-top) - 24px));
+  min-height: 0;
+  overflow: hidden;
+}
+
+.agent-flow-editor__detail-resize-handle {
+  position: relative;
+  flex: 0 0 12px;
+  width: 12px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.agent-flow-editor__detail-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 16px;
+  bottom: 16px;
+  left: 50%;
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(96, 117, 106, 0.18);
+  transform: translateX(-50%);
+  transition: background-color 120ms ease;
+}
+
+.agent-flow-editor__detail-resize-handle:hover::before,
+.agent-flow-editor__detail-resize-handle:active::before,
+.agent-flow-editor__detail-dock[data-resizing='true']
+  .agent-flow-editor__detail-resize-handle::before {
+  background: rgba(66, 121, 93, 0.38);
+}
+
+.agent-flow-editor__breadcrumb {
+  position: absolute;
+  top: var(--agent-flow-secondary-top);
+  left: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 960px) {
+  .agent-flow-editor__overlay {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .agent-flow-editor__body {
+    display: flex;
+  }
+}

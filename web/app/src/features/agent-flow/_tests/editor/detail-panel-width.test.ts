@@ -6,7 +6,7 @@ import {
   getNodeDetailLayout,
   getMaxNodeDetailWidth,
   getNodeDetailWidthFromSplitter
-} from '../lib/detail-panel-width';
+} from '../../lib/detail-panel-width';
 
 describe('detail panel width', () => {
   test('clamps node detail width against min width and reserved canvas width', () => {

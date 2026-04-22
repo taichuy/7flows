@@ -2,8 +2,8 @@ import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
-import { AgentFlowEditorShell } from '../components/editor/AgentFlowEditorShell';
-import { renderReactFlowScene } from '../../../test/renderers/render-react-flow-scene';
+import { AgentFlowEditorShell } from '../../components/editor/AgentFlowEditorShell';
+import { renderReactFlowScene } from '../../../../test/renderers/render-react-flow-scene';
 
 function createInitialState() {
   return {

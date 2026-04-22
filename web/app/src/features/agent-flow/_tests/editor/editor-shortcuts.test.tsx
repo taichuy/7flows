@@ -4,9 +4,9 @@ import { describe, expect, test } from 'vitest';
 
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
-import { useEditorShortcuts } from '../hooks/interactions/use-editor-shortcuts';
-import { AgentFlowEditorStoreProvider } from '../store/editor/AgentFlowEditorStoreProvider';
-import { useAgentFlowEditorStore } from '../store/editor/provider';
+import { useEditorShortcuts } from '../../hooks/interactions/use-editor-shortcuts';
+import { AgentFlowEditorStoreProvider } from '../../store/editor/AgentFlowEditorStoreProvider';
+import { useAgentFlowEditorStore } from '../../store/editor/provider';
 
 function createInitialState(
   document = createDefaultAgentFlowDocument({ flowId: 'flow-1' })
