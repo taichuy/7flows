@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react';
 
 import {
   Alert,
-  Collapse,
   Descriptions,
   Empty,
   Modal,
@@ -15,6 +14,7 @@ import type {
   SettingsModelProviderInstance,
   SettingsModelProviderModelCatalog
 } from '../../api/model-providers';
+import { CollapseShell } from '../../../../shared/ui/collapse-shell/CollapseShell';
 
 function renderStatusTag(status: string) {
   switch (status) {
@@ -198,8 +198,7 @@ export function ModelProviderInstancesModal({
             description="当前供应商还没有可用实例"
           />
         ) : (
-          <Collapse
-            className="model-provider-panel__instances-collapse"
+          <CollapseShell
             activeKey={expandedInstanceId ? [expandedInstanceId] : []}
             onChange={(nextKeys) => {
               const resolvedKeys = Array.isArray(nextKeys) ? nextKeys : [nextKeys];
@@ -226,7 +225,7 @@ export function ModelProviderInstancesModal({
 
               return {
                 key: instance.id,
-                label: (
+                header: (
                   <div className="model-provider-panel__instance-header">
                     <div className="model-provider-panel__instance-header-main">
                       <div className="model-provider-panel__instance-title-row">

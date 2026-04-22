@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   AutoComplete,
   Button,
-  Collapse,
   Divider,
   Descriptions,
   Drawer,
@@ -23,6 +22,7 @@ import type {
   SettingsModelProviderModelCatalog,
   PreviewSettingsModelProviderModelsResponse
 } from '../../api/model-providers';
+import { CollapseShell } from '../../../../shared/ui/collapse-shell/CollapseShell';
 
 type DrawerMode = 'create' | 'edit';
 type ModelProviderFormValue = string | boolean;
@@ -551,12 +551,12 @@ export function ModelProviderInstanceDrawer({
             <Divider orientation="left">连接配置</Divider>
             {primaryConfigFields.map(renderConfigField)}
             {advancedConfigFields.length > 0 ? (
-              <Collapse
-                className="model-provider-panel__advanced-collapse"
+              <CollapseShell
+                variant="compact"
                 items={[
                   {
                     key: 'advanced-config',
-                    label: '高级配置（可选）',
+                    header: '高级配置（可选）',
                     children: advancedConfigFields.map(renderConfigField)
                   }
                 ]}

@@ -1,0 +1,78 @@
+.collapse-shell {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.collapse-shell > .ant-collapse-item {
+  border-bottom: 1px solid var(--border-subtle) !important;
+  background: var(--bg-surface);
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.collapse-shell > .ant-collapse-item:last-child {
+  border-bottom: none !important;
+}
+
+.collapse-shell > .ant-collapse-item:hover {
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--bg-surface));
+}
+
+.collapse-shell > .ant-collapse-item > .ant-collapse-header {
+  background: linear-gradient(
+    180deg,
+    var(--bg-surface) 0%,
+    color-mix(in srgb, var(--color-primary) 3%, var(--bg-elevated)) 100%
+  );
+  border-radius: 0 !important;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.collapse-shell > .ant-collapse-item-active > .ant-collapse-header {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-primary) 2%, var(--bg-surface)) 0%,
+    color-mix(in srgb, var(--color-primary) 8%, var(--bg-elevated)) 100%
+  );
+  box-shadow:
+    inset 3px 0 0 var(--color-primary),
+    inset 0 1px 0 0 color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.collapse-shell > .ant-collapse-item > .ant-collapse-content {
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 70%, var(--color-primary));
+  background: var(--bg-surface);
+}
+
+.collapse-shell__header-content,
+.collapse-shell__content {
+  min-width: 0;
+}
+
+.collapse-shell--default > .ant-collapse-item > .ant-collapse-header {
+  padding: 16px 20px !important;
+}
+
+.collapse-shell--default > .ant-collapse-item > .ant-collapse-content > .ant-collapse-content-box {
+  padding: 20px !important;
+}
+
+.collapse-shell--compact {
+  margin-top: 4px;
+  box-shadow: none;
+}
+
+.collapse-shell--compact > .ant-collapse-item > .ant-collapse-header {
+  padding: 12px 14px !important;
+}
+
+.collapse-shell--compact > .ant-collapse-item > .ant-collapse-content > .ant-collapse-content-box {
+  padding: 14px 14px 2px !important;
+}

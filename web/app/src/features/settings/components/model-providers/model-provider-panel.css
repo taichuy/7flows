@@ -311,22 +311,6 @@
   margin: 12px 0 18px;
 }
 
-.model-provider-panel__advanced-collapse {
-  margin-top: 4px;
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.model-provider-panel__advanced-collapse > .ant-collapse-item > .ant-collapse-header {
-  padding: 12px 14px !important;
-  background: rgba(148, 163, 184, 0.08);
-}
-
-.model-provider-panel__advanced-collapse > .ant-collapse-item > .ant-collapse-content > .ant-collapse-content-box {
-  padding: 14px 14px 2px !important;
-  background: rgba(248, 250, 252, 0.9);
-}
-
 .model-provider-panel__empty {
   padding: 12px 0 4px;
 }
@@ -360,65 +344,6 @@
 
 .model-provider-panel__instances-modal-actions {
   padding-top: 4px;
-}
-
-/* 折叠面板美化样式 */
-.model-provider-panel__instances-collapse {
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-card);
-}
-
-.model-provider-panel__instances-collapse .ant-collapse-item {
-  border-bottom: 1px solid var(--border-subtle) !important;
-  background: var(--bg-surface);
-  transition:
-    background-color 0.2s ease,
-    box-shadow 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.model-provider-panel__instances-collapse .ant-collapse-item:last-child {
-  border-bottom: none !important;
-}
-
-.model-provider-panel__instances-collapse .ant-collapse-item:hover {
-  background: color-mix(in srgb, var(--color-primary) 4%, var(--bg-surface));
-}
-
-.model-provider-panel__instances-collapse .ant-collapse-header {
-  padding: 16px 20px !important;
-  background: linear-gradient(
-    180deg,
-    var(--bg-surface) 0%,
-    color-mix(in srgb, var(--color-primary) 3%, var(--bg-elevated)) 100%
-  );
-  border-radius: 0 !important;
-  transition:
-    background 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.model-provider-panel__instances-collapse .ant-collapse-item-active .ant-collapse-header {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-primary) 2%, var(--bg-surface)) 0%,
-    color-mix(in srgb, var(--color-primary) 8%, var(--bg-elevated)) 100%
-  );
-  box-shadow:
-    inset 3px 0 0 var(--color-primary),
-    inset 0 1px 0 0 color-mix(in srgb, var(--color-primary) 12%, transparent);
-}
-
-.model-provider-panel__instances-collapse .ant-collapse-content {
-  border-top: 1px solid color-mix(in srgb, var(--border-default) 70%, var(--color-primary));
-  background: var(--bg-surface);
-}
-
-.model-provider-panel__instances-collapse .ant-collapse-content-box {
-  padding: 20px !important;
 }
 
 /* 实例卡片头部样式 */
