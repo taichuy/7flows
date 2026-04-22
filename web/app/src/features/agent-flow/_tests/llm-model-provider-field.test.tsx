@@ -119,9 +119,12 @@ describe('LlmModelField', () => {
     fireEvent.click(screen.getByRole('button', { name: '模型设置' }));
 
     expect(await screen.findByRole('heading', { name: '生效模型' })).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText('搜索生效模型')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '模型供应商设置' })).not.toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: '生效模型' }));
     fireEvent.click(
-      await screen.findByRole('button', {
-        name: `选择模型 ${modelProviderOptionsProviders[0].models[0].display_name}`
+      await screen.findByRole('option', {
+        name: modelProviderOptionsProviders[0].models[0].display_name
       })
     );
 
@@ -153,7 +156,7 @@ describe('LlmModelField', () => {
     });
   }, 10_000);
 
-  test('shows a formal error state and settings link when the current provider is unavailable', async () => {
+  test('shows a formal error state when the current provider is unavailable', async () => {
     const state = createInitialState();
     const llmNode = state.draft.document.graph.nodes.find((node) => node.id === 'node-llm');
 
@@ -177,9 +180,6 @@ describe('LlmModelField', () => {
     expect(
       await screen.findByText('当前节点引用的模型供应商不可用。')
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('link', { name: '模型供应商设置' })
-    ).toHaveAttribute('href', '/settings/model-providers');
   });
 
   test('resets to the new provider first enabled model when switching providers', async () => {

@@ -1,6 +1,6 @@
-import { CloseOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons';
+import { CloseOutlined, SettingOutlined } from '@ant-design/icons';
 import { useQuery } from '@tanstack/react-query';
-import { Alert, Button, Empty, Input, Modal, Select, Space, Typography } from 'antd';
+import { Alert, Button, Modal, Select, Space, Typography } from 'antd';
 import { useMemo, useState } from 'react';
 
 import type { SchemaFieldRendererProps } from '../../../../../shared/schema-ui/registry/create-renderer-registry';
@@ -57,16 +57,6 @@ function ModelChip({
   );
 }
 
-function filterByQuery<T extends { label: string }>(items: T[], query: string) {
-  const normalizedQuery = query.trim().toLowerCase();
-
-  if (!normalizedQuery) {
-    return items;
-  }
-
-  return items.filter((item) => item.label.toLowerCase().includes(normalizedQuery));
-}
-
 function getProviderSelection(option: ReturnType<typeof listLlmProviderOptions>[number] | undefined) {
   const nextModel = option?.models[0] ?? null;
 
@@ -82,7 +72,6 @@ function getProviderSelection(option: ReturnType<typeof listLlmProviderOptions>[
 
 export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
   const [open, setOpen] = useState(false);
-  const [modelSearchValue, setModelSearchValue] = useState('');
   const providerOptionsQuery = useQuery({
     queryKey: modelProviderOptionsQueryKey,
     queryFn: fetchModelProviderOptions
@@ -98,10 +87,6 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
   const selectedProvider = findLlmProviderOption(providerOptionsQuery.data, providerCode);
   const selectedModel = findLlmModelOption(providerOptionsQuery.data, providerCode, modelValue);
 
-  const filteredModelOptions = useMemo(
-    () => filterByQuery(selectedProvider?.models ?? [], modelSearchValue),
-    [modelSearchValue, selectedProvider?.models]
-  );
   const providerUnavailable = Boolean(
     providerCode && providerOptionsQuery.isSuccess && selectedProvider === null
   );
@@ -113,7 +98,6 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
 
   function closeSettings() {
     setOpen(false);
-    setModelSearchValue('');
   }
 
   function selectProvider(nextProviderCode: string) {
@@ -125,7 +109,6 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
       'config.llm_parameters',
       buildLlmParameterState(nextProvider?.models[0]?.parameterForm ?? null)
     );
-    setModelSearchValue('');
   }
 
   function selectModel(nextModel: LlmModelOption) {
@@ -212,97 +195,38 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
             message="当前节点引用的模型不在该供应商的生效模型列表中。"
           />
         ) : null}
-        <div className="agent-flow-model-settings__selector-shell">
-          <div className="agent-flow-model-settings__section">
-            <Typography.Title level={5} className="agent-flow-model-settings__section-title">
-              生效模型
-            </Typography.Title>
-            <Typography.Text className="agent-flow-model-settings__section-subtitle">
-              这里只展示该模型供应商在“模型供应商设置”里已经启用的模型。
-            </Typography.Text>
-            <Select
-              showSearch
-              aria-label="生效模型"
-              placeholder={selectedProvider ? '选择生效模型' : '请先选择模型供应商'}
-              value={selectedModel?.value ?? (modelValue || undefined)}
-              disabled={!selectedProvider || !hasSelectedProviderModels}
-              options={filteredModelOptions.map((option) => ({
-                label: option.label,
-                value: option.value
-              }))}
-              optionFilterProp="label"
-              onChange={(value) => {
-                const nextModel =
-                  selectedProvider?.models.find((option) => option.value === value) ?? null;
-                if (nextModel) {
-                  selectModel(nextModel);
-                }
-              }}
-            />
-            <Input
-              allowClear
-              prefix={<SearchOutlined />}
-              aria-label="搜索生效模型"
-              placeholder="搜索生效模型"
-              value={modelSearchValue}
-              onChange={(event) => setModelSearchValue(event.target.value)}
-            />
-            <div className="agent-flow-model-settings__dropdown">
-              <div className="agent-flow-model-settings__options">
-                {selectedProvider ? (
-                  hasSelectedProviderModels ? (
-                    filteredModelOptions.length > 0 ? (
-                    filteredModelOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-label={`选择模型 ${option.label}`}
-                        className={`agent-flow-model-settings__option${
-                          option.value === modelValue
-                            ? ' agent-flow-model-settings__option--active'
-                            : ''
-                        }`}
-                        onClick={() => selectModel(option)}
-                      >
-                        <ModelChip
-                          providerLabel={selectedProvider.label}
-                          modelLabel={option.label}
-                          tag={option.tag}
-                        />
-                      </button>
-                    ))
-                    ) : (
-                      <Empty
-                        className="agent-flow-model-settings__empty"
-                        image={Empty.PRESENTED_IMAGE_SIMPLE}
-                        description="没有匹配的生效模型"
-                      />
-                    )
-                  ) : (
-                    <Empty
-                      className="agent-flow-model-settings__empty"
-                      image={Empty.PRESENTED_IMAGE_SIMPLE}
-                      description="当前供应商还没有配置生效模型"
-                    />
-                  )
-                ) : (
-                  <Empty
-                    className="agent-flow-model-settings__empty"
-                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description={hasProviderOptions ? '请先选择模型供应商' : '暂无可用模型供应商'}
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="agent-flow-model-settings__footer">
-          <Button type="link" href="/settings/model-providers">
-            <span aria-hidden="true" style={{ display: 'inline-flex', marginRight: 8 }}>
-              <SettingOutlined />
-            </span>
-            模型供应商设置
-          </Button>
+        <div className="agent-flow-model-settings__section">
+          <Typography.Title level={5} className="agent-flow-model-settings__section-title">
+            生效模型
+          </Typography.Title>
+          <Typography.Text className="agent-flow-model-settings__section-subtitle">
+            这里只展示该模型供应商在“模型供应商设置”里已经启用的模型。
+          </Typography.Text>
+          <Select
+            showSearch
+            aria-label="生效模型"
+            placeholder={selectedProvider ? '选择生效模型' : '请先选择模型供应商'}
+            value={selectedModel?.value ?? (modelValue || undefined)}
+            disabled={!selectedProvider || !hasSelectedProviderModels}
+            options={(selectedProvider?.models ?? []).map((option) => ({
+              label: option.label,
+              value: option.value
+            }))}
+            optionFilterProp="label"
+            onChange={(value) => {
+              const nextModel =
+                selectedProvider?.models.find((option) => option.value === value) ?? null;
+              if (nextModel) {
+                selectModel(nextModel);
+              }
+            }}
+          />
+          {!selectedProvider && hasProviderOptions ? (
+            <Typography.Text type="secondary">请先在节点里选择模型供应商。</Typography.Text>
+          ) : null}
+          {selectedProvider && !hasSelectedProviderModels ? (
+            <Typography.Text type="secondary">当前供应商还没有配置生效模型。</Typography.Text>
+          ) : null}
         </div>
       </Modal>
     </>
