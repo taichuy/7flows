@@ -414,11 +414,7 @@
 
 .model-provider-panel__instances-collapse .ant-collapse-content {
   border-top: 1px solid color-mix(in srgb, var(--border-default) 70%, var(--color-primary));
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-primary) 3%, var(--bg-surface)) 0%,
-    color-mix(in srgb, var(--color-primary) 6%, var(--bg-elevated)) 100%
-  );
+  background: var(--bg-surface);
 }
 
 .model-provider-panel__instances-collapse .ant-collapse-content-box {
@@ -506,10 +502,10 @@
 }
 
 .model-provider-panel__instance-descriptions {
-  background: color-mix(in srgb, var(--bg-surface) 88%, var(--color-primary));
+  background: var(--bg-surface);
   border-radius: 8px;
   padding: 16px;
-  border: 1px solid color-mix(in srgb, var(--border-subtle) 80%, var(--color-primary));
+  border: 1px solid var(--border-subtle);
   box-shadow: 0 1px 2px rgba(13, 23, 18, 0.04);
 }
 
@@ -538,7 +534,7 @@
   padding: 6px 12px;
   border-radius: 8px;
   border: 1px solid var(--border-default);
-  background: color-mix(in srgb, var(--bg-surface) 92%, var(--color-primary));
+  background: var(--bg-surface);
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
@@ -573,14 +569,10 @@
 }
 
 .model-provider-panel__instance-baseurl {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--bg-surface) 92%, var(--color-primary)) 0%,
-    color-mix(in srgb, var(--bg-elevated) 94%, var(--color-primary)) 100%
-  );
+  background: var(--bg-surface);
   border-radius: 8px;
   padding: 12px 16px;
-  border: 1px solid color-mix(in srgb, var(--border-subtle) 78%, var(--color-primary));
+  border: 1px solid var(--border-subtle);
 }
 
 .model-provider-panel__instance-baseurl-label {
