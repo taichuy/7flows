@@ -10,6 +10,7 @@ const {
   shouldManageDocker,
   selectServiceKeys,
   getServiceDefinitions,
+  startService,
   ensureServiceEnvFile,
   buildServiceEnv,
   getServicePrestartCommands,
@@ -100,6 +101,50 @@ test('waitForServicePort honors per-service startup timeout overrides', async ()
       timeoutMs: 60_000,
     },
   ]);
+});
+
+test('startService fails fast when the frontend port is occupied by another process', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'oneflowbase-dev-up-port-occupied-'));
+  const service = {
+    key: 'web',
+    label: 'frontend',
+    cwd: path.join(tempRoot, 'web'),
+    command: 'pnpm',
+    args: ['--filter', '@1flowbase/web', 'dev'],
+    bindHost: '0.0.0.0',
+    probeHost: '127.0.0.1',
+    port: 3100,
+    startupTimeoutMs: DEFAULT_STARTUP_TIMEOUT_MS,
+    logFile: path.join(tempRoot, 'web.log'),
+    pidFile: path.join(tempRoot, 'web.json'),
+  };
+  let spawned = false;
+
+  await assert.rejects(
+    startService(service, {
+      ensureServiceEnvFileImpl() {
+        return false;
+      },
+      requireCommandImpl() {},
+      runServicePrestartCommandsImpl() {},
+      readPidRecordImpl() {
+        return null;
+      },
+      isProcessAliveImpl() {
+        return false;
+      },
+      isPortOpenImpl: async () => true,
+      logImpl() {},
+      spawnImpl() {
+        spawned = true;
+        throw new Error('spawn should not be called');
+      },
+    }),
+    /frontend 启动失败，端口 3100 已被其他进程占用/u
+  );
+
+  assert.equal(spawned, false);
+  assert.equal(fs.existsSync(service.pidFile), false);
 });
 
 test('api-server example env files use workspace bootstrap naming', () => {

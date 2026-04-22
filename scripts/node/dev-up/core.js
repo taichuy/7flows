@@ -845,40 +845,64 @@ async function waitForProcessExit(pid, timeoutMs = 5000) {
   return !isProcessAlive(pid);
 }
 
-async function startService(service) {
-  ensureServiceEnvFile(service);
-  requireCommand(service.command);
-  runServicePrestartCommands(service);
+async function startService(
+  service,
+  {
+    ensureServiceEnvFileImpl = ensureServiceEnvFile,
+    requireCommandImpl = requireCommand,
+    runServicePrestartCommandsImpl = runServicePrestartCommands,
+    readPidRecordImpl = readPidRecord,
+    isProcessAliveImpl = isProcessAlive,
+    isPortOpenImpl = isPortOpen,
+    stopServiceImpl = stopService,
+    spawnImpl = spawn,
+    buildServiceEnvImpl = buildServiceEnv,
+    writePidRecordImpl = writePidRecord,
+    waitForServicePortImpl = waitForServicePort,
+    logImpl = log,
+  } = {}
+) {
+  ensureServiceEnvFileImpl(service);
+  requireCommandImpl(service.command);
+  runServicePrestartCommandsImpl(service);
 
-  const pidRecord = readPidRecord(service.pidFile);
-  if (pidRecord && isProcessAlive(pidRecord.pid) && (await isPortOpen(getProbeHost(service), service.port))) {
-    log(`${service.label} 已在运行，跳过启动`);
+  const pidRecord = readPidRecordImpl(service.pidFile);
+  if (
+    pidRecord
+    && isProcessAliveImpl(pidRecord.pid)
+    && (await isPortOpenImpl(getProbeHost(service), service.port))
+  ) {
+    logImpl(`${service.label} 已在运行，跳过启动`);
     return;
   }
 
-  if (pidRecord && isProcessAlive(pidRecord.pid)) {
-    await stopService(service);
+  if (pidRecord && isProcessAliveImpl(pidRecord.pid)) {
+    await stopServiceImpl(service);
+  }
+
+  if (await isPortOpenImpl(getProbeHost(service), service.port)) {
+    throw new Error(`${service.label} 启动失败，端口 ${service.port} 已被其他进程占用`);
   }
 
   const outputFd = fs.openSync(service.logFile, 'a');
-  const child = spawn(service.command, service.args, {
+  const child = spawnImpl(service.command, service.args, {
     cwd: service.cwd,
-    env: buildServiceEnv(service),
+    env: buildServiceEnvImpl(service),
     detached: process.platform !== 'win32',
     stdio: ['ignore', outputFd, outputFd],
   });
 
   fs.closeSync(outputFd);
   child.unref();
-  writePidRecord(service, child.pid);
+  writePidRecordImpl(service, child.pid);
 
-  const ready = await waitForServicePort(service);
+  const ready = await waitForServicePortImpl(service);
   if (!ready) {
-    await stopService(service);
+    await stopServiceImpl(service);
     throw new Error(`${service.label} 启动超时，请查看日志：${service.logFile}`);
   }
 
-  log(`${service.label} 已启动，监听 ${getBindHost(service)}:${service.port}`);
+  logImpl(`${service.label} 已启动，监听 ${getBindHost(service)}:${service.port}`);
 }
 
 async function stopService(service) {
@@ -1019,5 +1043,6 @@ module.exports = {
   runServicePrestartCommands,
   ensureRustfsVolumePermissions,
   waitForServicePort,
+  startService,
   main,
 };
