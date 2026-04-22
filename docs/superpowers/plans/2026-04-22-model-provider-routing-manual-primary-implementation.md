@@ -1053,7 +1053,7 @@ git commit -m "feat: route orchestration runtime through primary provider instan
 - Test: `web/app/src/features/settings/api/_tests/settings-api.test.ts`
 - Test: `web/app/src/features/settings/_tests/model-providers-page.test.tsx`
 
-- [ ] **Step 1: Write failing frontend API and settings-page tests**
+- [x] **Step 1: Write failing frontend API and settings-page tests**
 
 ```ts
 // web/app/src/features/settings/api/_tests/settings-api.test.ts
@@ -1130,7 +1130,7 @@ test('switches the primary instance from the provider instances modal', async ()
 });
 ```
 
-- [ ] **Step 2: Run the targeted frontend tests and verify they fail**
+- [x] **Step 2: Run the targeted frontend tests and verify they fail**
 
 Run:
 
@@ -1144,7 +1144,7 @@ Expected:
 - FAIL because the routing update wrapper/mutation does not exist.
 - FAIL because the modal has no primary-instance selector.
 
-- [ ] **Step 3: Implement DTOs, mutation wiring, modal selector, and provider summary**
+- [x] **Step 3: Implement DTOs, mutation wiring, modal selector, and provider summary**
 
 ```ts
 // web/packages/api-client/src/console-model-providers.ts
@@ -1539,7 +1539,7 @@ const {
 />
 ```
 
-- [ ] **Step 4: Re-run targeted frontend tests and then the shared settings / agent-flow contract consumers**
+- [x] **Step 4: Re-run targeted frontend tests and then the shared settings / agent-flow contract consumers**
 
 Run:
 
@@ -1553,7 +1553,7 @@ Expected:
 - PASS for primary routing UI and API wrappers.
 - PASS for existing `agent-flow` model-provider field tests without changing node contracts.
 
-- [ ] **Step 5: Commit the frontend routing UI**
+- [x] **Step 5: Commit the frontend routing UI**
 
 ```bash
 git add web/packages/api-client/src/console-model-providers.ts \

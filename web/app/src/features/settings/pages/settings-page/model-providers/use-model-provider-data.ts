@@ -119,6 +119,17 @@ export function useModelProviderData({
 
     return counts;
   }, [instancesByProviderCode]);
+  const primaryInstanceSummary = useMemo(() => {
+    return Object.fromEntries(
+      Object.entries(instancesByProviderCode).map(
+        ([providerCode, providerInstances]) => [
+          providerCode,
+          providerInstances.find((instance) => instance.is_primary)
+            ?.display_name ?? '未设置'
+        ]
+      )
+    );
+  }, [instancesByProviderCode]);
   const editingInstance =
     drawerState?.mode === 'edit'
       ? (instances.find((instance) => instance.id === drawerState.instanceId) ??
@@ -225,6 +236,7 @@ export function useModelProviderData({
     familiesByProviderCode,
     instancesByProviderCode,
     instanceCounts,
+    primaryInstanceSummary,
     editingInstance,
     drawerCatalogEntry,
     modalInstances,

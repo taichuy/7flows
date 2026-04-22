@@ -12,6 +12,7 @@ import {
   settingsModelProviderModelsQueryKey,
   settingsModelProviderOptionsQueryKey,
   updateSettingsModelProviderInstance,
+  updateSettingsModelProviderRouting,
   validateSettingsModelProviderInstance
 } from '../../../api/model-providers';
 import {
@@ -209,6 +210,26 @@ export function useModelProviderMutations({
     },
     onSuccess: invalidateModelProviderQueries
   });
+  const updateRoutingMutation = useMutation({
+    mutationFn: async (input: {
+      providerCode: string;
+      primaryInstanceId: string;
+    }) => {
+      if (!csrfToken) {
+        throw new Error('missing csrf token');
+      }
+
+      return updateSettingsModelProviderRouting(
+        input.providerCode,
+        {
+          routing_mode: 'manual_primary',
+          primary_instance_id: input.primaryInstanceId
+        },
+        csrfToken
+      );
+    },
+    onSuccess: invalidateModelProviderQueries
+  });
 
   const familyDeleteMutation = useMutation({
     mutationFn: async (providerCode: string) => {
@@ -348,6 +369,7 @@ export function useModelProviderMutations({
     refreshMutation,
     revealSecretMutation,
     deleteMutation,
+    updateRoutingMutation,
     familyDeleteMutation,
     officialInstallMutation,
     uploadMutation,

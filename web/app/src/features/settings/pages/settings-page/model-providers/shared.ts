@@ -69,9 +69,10 @@ export function isTaskSucceeded(status: string | null | undefined) {
 }
 
 export function pickPreferredInstanceId(
-  instances: { id: string; status: string }[]
+  instances: { id: string; status: string; is_primary?: boolean }[]
 ) {
   return (
+    instances.find((instance) => instance.is_primary)?.id ??
     instances.find((instance) => instance.status === 'ready')?.id ??
     instances[0]?.id ??
     null

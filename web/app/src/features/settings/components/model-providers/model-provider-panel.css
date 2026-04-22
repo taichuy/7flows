@@ -246,6 +246,11 @@
   gap: 4px;
 }
 
+.model-provider-panel__catalog-meta {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .model-provider-panel__version-select {
   width: 60%;
   min-width: max-content;
@@ -380,6 +385,16 @@
   border-radius: 999px;
   font-size: 11px;
   font-weight: 500;
+  padding: 2px 8px;
+  height: auto;
+  line-height: 1.4;
+  border: none;
+}
+
+.model-provider-panel__instance-primary-tag {
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
   padding: 2px 8px;
   height: auto;
   line-height: 1.4;

@@ -5,6 +5,7 @@ import {
   Descriptions,
   Empty,
   Modal,
+  Select,
   Tag,
   Typography
 } from 'antd';
@@ -125,7 +126,8 @@ export function ModelProviderInstancesModal({
   onFetchModels,
   onRefreshCandidates,
   onRefreshModels,
-  onDelete
+  onDelete,
+  onUpdatePrimary
 }: {
   open: boolean;
   catalogEntry: SettingsModelProviderCatalogEntry | null;
@@ -147,6 +149,7 @@ export function ModelProviderInstancesModal({
   onRefreshCandidates: (instance: SettingsModelProviderInstance) => void;
   onRefreshModels: (instance: SettingsModelProviderInstance) => void;
   onDelete: (instance: SettingsModelProviderInstance) => void;
+  onUpdatePrimary: (instanceId: string) => void;
 }) {
   const [expandedInstanceId, setExpandedInstanceId] = useState<string | null>(null);
   const loadedModelsByInstanceId = useMemo(() => {
@@ -186,9 +189,38 @@ export function ModelProviderInstancesModal({
           <div>
             <Typography.Text strong>查看供应商实例</Typography.Text>
             <Typography.Paragraph type="secondary">
-              使用纵向实例列表查看摘要；点开某个实例后再看候选缓存、操作和完整 Base URL。
+              为该供应商选择一个主实例；agent-flow 和运行时都会按这个主实例解析。
             </Typography.Paragraph>
           </div>
+          {canManage ? (
+            <div className="model-provider-panel__instances-modal-select">
+              <Typography.Text type="secondary">主实例</Typography.Text>
+              <Select
+                aria-label="主实例"
+                placeholder="选择 ready 实例"
+                value={instances.find((instance) => instance.is_primary)?.id}
+                options={instances
+                  .filter((instance) => instance.status === 'ready')
+                  .map((instance) => ({
+                    value: instance.id,
+                    label: instance.display_name
+                  }))}
+                onChange={(instanceId) => {
+                  const nextPrimaryInstance = instances.find(
+                    (instance) => instance.id === instanceId
+                  );
+
+                  if (nextPrimaryInstance) {
+                    setExpandedInstanceId(nextPrimaryInstance.id);
+                    onChangeInstance(nextPrimaryInstance.id);
+                    onFetchModels(nextPrimaryInstance);
+                  }
+
+                  onUpdatePrimary(instanceId);
+                }}
+              />
+            </div>
+          ) : null}
         </div>
 
         {instances.length === 0 ? (
@@ -232,6 +264,15 @@ export function ModelProviderInstancesModal({
                         <span className="model-provider-panel__instance-title">
                           {instance.display_name}
                         </span>
+                        {instance.is_primary ? (
+                          <Tag
+                            className="model-provider-panel__instance-primary-tag"
+                            color="blue"
+                            bordered={false}
+                          >
+                            主实例
+                          </Tag>
+                        ) : null}
                         {renderStatusTag(instance.status)}
                       </div>
                       <Typography.Paragraph

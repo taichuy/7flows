@@ -117,6 +117,7 @@ export function SettingsModelProvidersSection({
     familiesByProviderCode,
     instancesByProviderCode,
     instanceCounts,
+    primaryInstanceSummary,
     editingInstance,
     drawerCatalogEntry,
     modalInstances,
@@ -135,6 +136,7 @@ export function SettingsModelProvidersSection({
     refreshMutation,
     revealSecretMutation,
     deleteMutation,
+    updateRoutingMutation,
     familyDeleteMutation,
     officialInstallMutation,
     uploadMutation,
@@ -163,6 +165,7 @@ export function SettingsModelProvidersSection({
     getErrorMessage(validateMutation.error) ??
     getErrorMessage(refreshMutation.error) ??
     getErrorMessage(deleteMutation.error) ??
+    getErrorMessage(updateRoutingMutation.error) ??
     getErrorMessage(familyDeleteMutation.error) ??
     getErrorMessage(officialInstallMutation.error) ??
     getErrorMessage(versionMutation.error) ??
@@ -192,6 +195,7 @@ export function SettingsModelProvidersSection({
               entries={families}
               currentCatalogEntries={currentCatalogEntriesByProviderCode}
               instanceCounts={instanceCounts}
+              primaryInstanceSummary={primaryInstanceSummary}
               loading={catalogQuery.isLoading || familiesQuery.isLoading}
               canManage={canManage}
               deletingProviderCode={
@@ -435,6 +439,16 @@ export function SettingsModelProvidersSection({
         }}
         onDelete={(instance) => {
           deleteMutation.mutate(instance.id);
+        }}
+        onUpdatePrimary={(instanceId) => {
+          if (!instanceModalState) {
+            return;
+          }
+
+          updateRoutingMutation.mutate({
+            providerCode: instanceModalState.providerCode,
+            primaryInstanceId: instanceId
+          });
         }}
       />
 
