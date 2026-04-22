@@ -166,7 +166,7 @@ async function openProviderInstancesModal() {
   const catalogRow = await screen.findByRole('row', {
     name: /OpenAI Compatible/
   });
-  fireEvent.click(within(catalogRow).getByRole('button', { name: '查看实例' }));
+  fireEvent.click(within(catalogRow).getByRole('button', { name: '配置' }));
 
   await screen.findByText('查看供应商实例');
 
@@ -503,7 +503,7 @@ describe('ModelProvidersPage', () => {
     });
 
     fireEvent.click(
-      within(catalogRow).getByRole('button', { name: '查看实例' })
+      within(catalogRow).getByRole('button', { name: '配置' })
     );
     expect(
       await screen.findByText(
@@ -583,7 +583,7 @@ describe('ModelProvidersPage', () => {
       screen.queryByRole('heading', { name: '当前实例' })
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole('button', { name: '查看实例' })
+      screen.queryByRole('button', { name: '配置' })
     ).not.toBeInTheDocument();
     expect(screen.queryByText('OpenAI Production')).not.toBeInTheDocument();
   }, 10000);
@@ -598,7 +598,7 @@ describe('ModelProvidersPage', () => {
     renderApp('/settings/model-providers');
 
     expect(
-      await screen.findByRole('button', { name: '查看实例' })
+      await screen.findByRole('button', { name: '配置' })
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('heading', { name: '当前实例' })
@@ -608,7 +608,7 @@ describe('ModelProvidersPage', () => {
       name: /OpenAI Compatible/
     });
     expect(
-      within(catalogRow).getByRole('button', { name: '查看实例' })
+      within(catalogRow).getByRole('button', { name: '配置' })
     ).toBeInTheDocument();
     expect(
       within(catalogRow).getByRole('button', { name: '添加' })

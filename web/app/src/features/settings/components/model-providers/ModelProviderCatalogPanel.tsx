@@ -101,7 +101,7 @@ export function ModelProviderCatalogPanel({
                         type="link"
                         onClick={() => onViewInstances(entry)}
                       >
-                        查看实例
+                        配置
                       </Button>
                       <Button type="link" onClick={() => onCreate(entry)}>
                         添加
