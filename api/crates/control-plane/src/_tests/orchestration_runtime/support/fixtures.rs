@@ -272,6 +272,7 @@ esac
 pub struct SeededPreviewApplication {
     pub actor_user_id: Uuid,
     pub application_id: Uuid,
+    pub primary_provider_instance_id: Uuid,
 }
 
 pub struct SeededWaitingHumanRun {
@@ -336,10 +337,23 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
         )
         .await
         .expect("seed preview flow should succeed");
+        let _ = ModelProviderRepository::upsert_routing(
+            &self.repository,
+            &crate::ports::UpsertModelProviderRoutingInput {
+                workspace_id: Uuid::nil(),
+                provider_code: "fixture_provider".to_string(),
+                routing_mode: domain::ModelProviderRoutingMode::ManualPrimary,
+                primary_instance_id: self.repository.default_provider_instance_id(),
+                updated_by: actor_user_id,
+            },
+        )
+        .await
+        .expect("seed default provider routing should succeed");
 
         SeededPreviewApplication {
             actor_user_id,
             application_id: application.id,
+            primary_provider_instance_id: self.repository.default_provider_instance_id(),
         }
     }
 
@@ -400,6 +414,20 @@ impl OrchestrationRuntimeService<InMemoryOrchestrationRuntimeRepository, InMemor
     ) -> SeededPreviewApplication {
         self.seed_application_with_document(name, build_plugin_capability_flow_document)
             .await
+    }
+
+    pub async fn seed_application_with_multi_instance_provider_flow(
+        &self,
+        name: &str,
+    ) -> SeededPreviewApplication {
+        let seeded = self.seed_application_with_flow(name).await;
+        let (primary_provider_instance_id, _) =
+            self.repository.seed_primary_and_backup_provider_instances();
+        SeededPreviewApplication {
+            actor_user_id: seeded.actor_user_id,
+            application_id: seeded.application_id,
+            primary_provider_instance_id,
+        }
     }
 
     pub async fn force_flow_run_status(&self, flow_run_id: Uuid, status: domain::FlowRunStatus) {

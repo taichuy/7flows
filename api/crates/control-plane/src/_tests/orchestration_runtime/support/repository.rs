@@ -213,6 +213,142 @@ impl InMemoryOrchestrationRuntimeRepository {
         self.default_provider_instance_id
     }
 
+    pub(super) fn seed_primary_and_backup_provider_instances(&self) -> (Uuid, Uuid) {
+        let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
+        let now = OffsetDateTime::now_utc();
+        let Some(installation) = inner
+            .installations_by_id
+            .values()
+            .find(|record| record.provider_code == "fixture_provider")
+            .cloned()
+        else {
+            panic!("fixture provider installation should exist");
+        };
+
+        let primary_instance_id = Uuid::now_v7();
+        let backup_instance_id = self.default_provider_instance_id;
+        let primary_now = now - time::Duration::minutes(5);
+
+        let primary_instance = domain::ModelProviderInstanceRecord {
+            id: primary_instance_id,
+            workspace_id: Uuid::nil(),
+            installation_id: installation.id,
+            provider_code: "fixture_provider".to_string(),
+            protocol: "openai_compatible".to_string(),
+            display_name: "Fixture Primary".to_string(),
+            status: domain::ModelProviderInstanceStatus::Ready,
+            config_json: json!({
+                "base_url": "https://primary.example.com/v1",
+            }),
+            configured_models: vec![domain::ModelProviderConfiguredModel {
+                model_id: "gpt-5.4-mini".to_string(),
+                enabled: true,
+            }],
+            enabled_model_ids: vec!["gpt-5.4-mini".to_string()],
+            created_by: Uuid::nil(),
+            updated_by: Uuid::nil(),
+            created_at: primary_now,
+            updated_at: primary_now,
+        };
+        let backup_instance = inner
+            .instances_by_id
+            .get_mut(&backup_instance_id)
+            .expect("default provider instance should exist");
+        backup_instance.installation_id = installation.id;
+        backup_instance.provider_code = "fixture_provider".to_string();
+        backup_instance.protocol = "openai_compatible".to_string();
+        backup_instance.display_name = "Fixture Backup".to_string();
+        backup_instance.status = domain::ModelProviderInstanceStatus::Ready;
+        backup_instance.config_json = json!({
+            "base_url": "https://backup.example.com/v1",
+        });
+        backup_instance.configured_models = vec![domain::ModelProviderConfiguredModel {
+            model_id: "gpt-5.4-mini".to_string(),
+            enabled: true,
+        }];
+        backup_instance.enabled_model_ids = vec!["gpt-5.4-mini".to_string()];
+        backup_instance.created_by = Uuid::nil();
+        backup_instance.updated_by = Uuid::nil();
+        backup_instance.created_at = now;
+        backup_instance.updated_at = now;
+
+        let primary_cache = domain::ModelProviderCatalogCacheRecord {
+            provider_instance_id: primary_instance_id,
+            model_discovery_mode: domain::ModelProviderDiscoveryMode::Hybrid,
+            refresh_status: domain::ModelProviderCatalogRefreshStatus::Ready,
+            source: domain::ModelProviderCatalogSource::Hybrid,
+            models_json: json!([
+                {
+                    "model_id": "gpt-5.4-mini",
+                    "display_name": "GPT-5.4 Mini",
+                    "source": "dynamic",
+                    "supports_streaming": true,
+                    "supports_tool_call": true,
+                    "supports_multimodal": false,
+                    "context_window": 128000,
+                    "max_output_tokens": 4096,
+                    "provider_metadata": {}
+                }
+            ]),
+            last_error_message: None,
+            refreshed_at: Some(now),
+            updated_at: now,
+        };
+        let backup_cache = domain::ModelProviderCatalogCacheRecord {
+            provider_instance_id: backup_instance_id,
+            model_discovery_mode: domain::ModelProviderDiscoveryMode::Hybrid,
+            refresh_status: domain::ModelProviderCatalogRefreshStatus::Ready,
+            source: domain::ModelProviderCatalogSource::Hybrid,
+            models_json: json!([
+                {
+                    "model_id": "gpt-5.4-mini",
+                    "display_name": "GPT-5.4 Mini",
+                    "source": "dynamic",
+                    "supports_streaming": true,
+                    "supports_tool_call": true,
+                    "supports_multimodal": false,
+                    "context_window": 128000,
+                    "max_output_tokens": 4096,
+                    "provider_metadata": {}
+                }
+            ]),
+            last_error_message: None,
+            refreshed_at: Some(now),
+            updated_at: now,
+        };
+
+        inner
+            .instances_by_id
+            .insert(primary_instance_id, primary_instance);
+        inner
+            .caches_by_instance_id
+            .insert(primary_instance_id, primary_cache);
+        inner
+            .caches_by_instance_id
+            .insert(backup_instance_id, backup_cache);
+        inner
+            .secret_json_by_instance_id
+            .insert(primary_instance_id, json!({ "api_key": "primary-secret" }));
+        inner
+            .secret_json_by_instance_id
+            .insert(backup_instance_id, json!({ "api_key": "backup-secret" }));
+        inner.routings_by_provider.insert(
+            "fixture_provider".to_string(),
+            domain::ModelProviderRoutingRecord {
+                workspace_id: Uuid::nil(),
+                provider_code: "fixture_provider".to_string(),
+                routing_mode: domain::ModelProviderRoutingMode::ManualPrimary,
+                primary_instance_id,
+                created_by: Uuid::nil(),
+                updated_by: Uuid::nil(),
+                created_at: now,
+                updated_at: now,
+            },
+        );
+
+        (primary_instance_id, backup_instance_id)
+    }
+
     pub(super) fn force_flow_run_status(&self, flow_run_id: Uuid, status: domain::FlowRunStatus) {
         let mut inner = self.inner.lock().expect("runtime repo mutex poisoned");
         let flow_run = inner

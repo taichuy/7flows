@@ -28,6 +28,31 @@ async fn start_node_debug_preview_creates_run_node_run_and_events() {
 }
 
 #[tokio::test]
+async fn start_node_debug_preview_uses_primary_routed_provider_instance() {
+    let service = OrchestrationRuntimeService::for_tests();
+    let seeded = service
+        .seed_application_with_multi_instance_provider_flow("Support Agent")
+        .await;
+
+    let outcome = service
+        .start_node_debug_preview(StartNodeDebugPreviewCommand {
+            actor_user_id: seeded.actor_user_id,
+            application_id: seeded.application_id,
+            node_id: "node-llm".to_string(),
+            input_payload: serde_json::json!({
+                "node-start": { "query": "请总结退款政策" }
+            }),
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(
+        outcome.preview_payload["metrics_payload"]["provider_instance_id"],
+        serde_json::json!(seeded.primary_provider_instance_id.to_string())
+    );
+}
+
+#[tokio::test]
 async fn start_flow_debug_run_executes_plugin_node_through_capability_runtime() {
     let service = OrchestrationRuntimeService::for_tests();
     let seeded = service
