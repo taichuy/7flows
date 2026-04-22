@@ -28,7 +28,7 @@
 5. [2026-04-22-backend-boundary-normalization-phase-three.md](./2026-04-22-backend-boundary-normalization-phase-three.md)
    Completed on `2026-04-22`. Split `ports.rs` into domain owners, grouped `api-server` routes under domain folders, and replaced `_tests/support.rs` with grouped support modules.
 6. [2026-04-22-frontend-settings-split-phase-three.md](./2026-04-22-frontend-settings-split-phase-three.md)
-   Planned next. Shrinks `SettingsPage.tsx` into route container plus section-level owners.
+   Completed on `2026-04-22`. Shrunk `SettingsPage.tsx` into a route container, moved section resolution into a hook, and extracted the model-provider section into its own owner.
 7. [2026-04-22-scripts-node-normalization-phase-three.md](./2026-04-22-scripts-node-normalization-phase-three.md)
    Planned next. Splits `scripts/node/plugin/core.js`, normalizes `scripts/node` topology, and removes command-entry sprawl.
 8. [2026-04-22-residual-compatibility-cleanup-phase-four.md](./2026-04-22-residual-compatibility-cleanup-phase-four.md)
