@@ -62,3 +62,44 @@
   - command evidence
   - a clear reclassification of any residual risk
 - Do not mark a later phase started until the earlier phase result is recorded.
+
+## Completion Status
+
+- [x] Phase 1 completed.
+- [x] Phase 2 completed.
+- [x] Phase 3 completed.
+- [x] Phase 4 completed.
+
+## Final Execution Summary
+
+- Phase 1 restored `page.application-detail` by fixing the missing style-boundary `node-contributions` fixture, adding a focused scene assertion, and reclassifying `/applications/app-1/orchestration` as an invalid stale sample id rather than a real route defect.
+- Phase 2 returned `node scripts/node/verify-backend.js` to green by normalizing the original formatting drift and removing the narrow clippy noise that surfaced afterward.
+- Phase 3 split the four oversized production owners into explicit module trees:
+  - `orchestration_runtime.rs`: `1352 -> 691` lines
+  - `model_provider.rs`: `1212 -> 659` lines
+  - `SettingsModelProvidersSection.tsx`: `951 -> 441` lines
+  - `scripts/node/dev-up/core.js`: `952 -> 59` lines
+- Phase 4 split the two oversized `control-plane` support owners into focused support trees without changing the existing test import surface:
+  - `src/_tests/orchestration_runtime/support.rs`: `1848 -> 32` lines façade
+  - `src/_tests/plugin_management/support.rs`: `1503 -> 64` lines façade
+
+## Final QA Evidence
+
+- Frontend contracts and focused gates:
+  - `node scripts/node/test-contracts.js`
+  - `node scripts/node/check-style-boundary.js page page.application-detail`
+- Frontend fast regression:
+  - `node scripts/node/test-frontend.js fast`
+  - warnings: [frontend-fast.warnings.log](/home/taichu/git/1flowbase-project-maintenance/tmp/test-governance/frontend-fast.warnings.log)
+- Browser evidence:
+  - `node scripts/node/page-debug.js snapshot /settings/model-providers --account root --password change-me --wait-for-selector .model-provider-panel`
+  - output: [meta.json](/home/taichu/git/1flowbase-project-maintenance/tmp/page-debug/2026-04-22T08-39-20-472Z/meta.json), [page.png](/home/taichu/git/1flowbase-project-maintenance/tmp/page-debug/2026-04-22T08-39-20-472Z/page.png), [console.ndjson](/home/taichu/git/1flowbase-project-maintenance/tmp/page-debug/2026-04-22T08-39-20-472Z/console.ndjson)
+- Scripts and backend regression:
+  - `node scripts/node/test-scripts.js dev-up`
+  - `node scripts/node/verify-backend.js`
+  - warnings: [verify-backend.warnings.log](/home/taichu/git/1flowbase-project-maintenance/tmp/test-governance/verify-backend.warnings.log)
+
+## Residual Notes
+
+- The current `globals.css` Ant Design overrides remain intentionally out of scope and whitelisted as theme defaults by [2026-04-22-globals-css-theme-whitelist.md](/home/taichu/git/1flowbase-project-maintenance/.memory/feedback-memory/repository/2026-04-22-globals-css-theme-whitelist.md).
+- `api/crates/control-plane/src` still has `24` direct files and `api/crates/control-plane/src/_tests` still has `20` direct files. This remediation reduced owner entropy and stopped adding new flat files, but it did not fully normalize those two directory-level counts.

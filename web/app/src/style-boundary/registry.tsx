@@ -45,6 +45,30 @@ const styleBoundaryProviderInstances = [
   }
 ];
 
+const styleBoundaryNodeContributions = [
+  {
+    installation_id: 'installation-1',
+    provider_code: 'prompt_pack',
+    plugin_id: 'prompt_pack@0.1.0',
+    plugin_version: '0.1.0',
+    contribution_code: 'openai_prompt',
+    node_shell: 'action',
+    category: 'generation',
+    title: 'OpenAI Prompt',
+    description: 'Generate prompt output',
+    dependency_status: 'ready',
+    schema_version: '1flowbase.node-contribution/v1',
+    experimental: false,
+    icon: 'sparkles',
+    schema_ui: {},
+    output_schema: {},
+    required_auth: [],
+    visibility: 'public',
+    dependency_installation_kind: 'model_provider',
+    dependency_plugin_version_range: '^0.1.0'
+  }
+];
+
 function expandDottedBundle(bundle: Record<string, string>) {
   const expanded: Record<string, unknown> = {};
 
@@ -234,6 +258,7 @@ function seedStyleBoundarySettingsFetch() {
           : String(input);
     const method =
       init?.method ?? (input instanceof Request ? input.method : 'GET');
+    const requestUrl = new URL(url, 'http://127.0.0.1:7800');
 
     if (url.includes('/api/console/docs/catalog')) {
       return new Response(
@@ -435,6 +460,7 @@ function seedStyleBoundaryApplicationFetch() {
           : String(input);
     const method =
       init?.method ?? (input instanceof Request ? input.method : 'GET');
+    const requestUrl = new URL(url, 'http://127.0.0.1:7800');
 
     if (
       method.toUpperCase() === 'GET' &&
@@ -443,6 +469,23 @@ function seedStyleBoundaryApplicationFetch() {
       return new Response(
         JSON.stringify({
           data: modelProviderOptionsContract,
+          meta: null
+        }),
+        {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        }
+      );
+    }
+
+    if (
+      method.toUpperCase() === 'GET' &&
+      requestUrl.pathname === '/api/console/node-contributions' &&
+      requestUrl.searchParams.get('application_id') === 'app-1'
+    ) {
+      return new Response(
+        JSON.stringify({
+          data: styleBoundaryNodeContributions,
           meta: null
         }),
         {

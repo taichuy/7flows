@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import { Grid } from 'antd';
 import { describe, expect, test, vi } from 'vitest';
 import { createDefaultAgentFlowDocument } from '@1flowbase/flow-schema';
 
@@ -108,6 +109,23 @@ describe('style boundary registry', () => {
     expect(savePayload.data.draft.document).toEqual(nextDocument);
     expect(latestPayload.data.draft.document).toEqual(nextDocument);
   }, 15_000);
+
+  test('application detail scene reaches the editor shell instead of the error state', async () => {
+    const scene = getRuntimeScene('page.application-detail');
+    vi.spyOn(Grid, 'useBreakpoint').mockReturnValue({ lg: true } as never);
+
+    render(
+      <AppProviders>
+        <StyleBoundaryHarness scene={scene} />
+      </AppProviders>
+    );
+
+    expect(
+      await screen.findByRole('button', { name: '历史版本' }, { timeout: 15_000 })
+    ).toBeInTheDocument();
+    expect(document.querySelector('.agent-flow-editor__shell')).not.toBeNull();
+    expect(screen.queryByText('编排加载失败')).not.toBeInTheDocument();
+  }, 20_000);
 
   test(
     'renders the settings scene with canonical multi-provider contract data',

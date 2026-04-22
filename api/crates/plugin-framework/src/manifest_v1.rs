@@ -271,7 +271,7 @@ fn validate_non_empty(value: &str, field: &str) -> FrameworkResult<()> {
 }
 
 fn validate_allowed(value: &str, field: &str, allowed: &[&str]) -> FrameworkResult<()> {
-    if allowed.iter().any(|candidate| value == *candidate) {
+    if allowed.contains(&value) {
         return Ok(());
     }
 

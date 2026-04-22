@@ -1,20 +1,18 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::HashMap;
 
 use anyhow::Result;
 use plugin_framework::{
-    provider_contract::{ModelDiscoveryMode, ProviderModelDescriptor, ProviderModelSource},
+    provider_contract::ProviderModelDescriptor,
     provider_package::{ProviderConfigField, ProviderPackage},
 };
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
 use crate::{
     audit::audit_log,
     errors::ControlPlaneError,
-    i18n::{
-        merge_i18n_catalog, plugin_namespace, trim_provider_bundles, I18nCatalog, RequestedLocales,
-    },
+    i18n::{I18nCatalog, RequestedLocales},
     plugin_lifecycle::reconcile_installation_snapshot,
     ports::{
         AuthRepository, CreateModelProviderInstanceInput, ModelProviderRepository,
@@ -22,6 +20,21 @@ use crate::{
         UpsertModelProviderCatalogCacheInput, UpsertModelProviderSecretInput,
     },
     state_transition::ensure_model_provider_instance_transition,
+};
+
+mod catalog;
+mod instances;
+mod options;
+mod shared;
+
+use self::{
+    instances::{build_provider_runtime_config, hydrate_instance_view},
+    shared::{
+        empty_object, ensure_installation_assigned, ensure_state_model_permission, is_empty_object,
+        load_actor_context_for_user, load_provider_package, map_catalog_source,
+        map_model_discovery_mode, merge_json_object, normalize_required_text,
+        split_provider_config, validate_required_fields,
+    },
 };
 
 pub struct CreateModelProviderInstanceCommand {
@@ -147,70 +160,7 @@ where
         actor_user_id: Uuid,
         locales: RequestedLocales,
     ) -> Result<ModelProviderCatalogView> {
-        let actor = load_actor_context_for_user(&self.repository, actor_user_id).await?;
-        ensure_state_model_permission(&actor, "view")?;
-
-        let assignments = self
-            .repository
-            .list_assignments(actor.current_workspace_id)
-            .await?
-            .into_iter()
-            .map(|assignment| assignment.installation_id)
-            .collect::<HashSet<_>>();
-        let installations = self.repository.list_installations().await?;
-        let mut catalog = Vec::new();
-        let mut i18n_catalog = BTreeMap::new();
-        for installation in installations {
-            let installation =
-                reconcile_installation_snapshot(&self.repository, installation.id).await?;
-            if matches!(
-                installation.desired_state,
-                domain::PluginDesiredState::Disabled
-            ) || !assignments.contains(&installation.id)
-                || installation.availability_status != domain::PluginAvailabilityStatus::Available
-            {
-                continue;
-            }
-            let package = load_provider_package(&installation.installed_path)?;
-            let namespace = plugin_namespace(&installation.provider_code);
-            merge_i18n_catalog(
-                &mut i18n_catalog,
-                trim_provider_bundles(&namespace, &package.i18n, &locales),
-            );
-            catalog.push(ModelProviderCatalogEntry {
-                installation_id: installation.id,
-                provider_code: installation.provider_code,
-                plugin_id: installation.plugin_id,
-                plugin_version: installation.plugin_version,
-                plugin_type: "model_provider".to_string(),
-                namespace: namespace.clone(),
-                label_key: "provider.label".to_string(),
-                description_key: Some("provider.description".to_string()),
-                display_name: package.provider.display_name.clone(),
-                protocol: installation.protocol,
-                help_url: package.provider.help_url.clone(),
-                default_base_url: package.provider.default_base_url.clone(),
-                model_discovery_mode: model_discovery_mode_string(
-                    package.provider.model_discovery_mode,
-                ),
-                supports_model_fetch_without_credentials: package
-                    .provider
-                    .supports_model_fetch_without_credentials,
-                desired_state: installation.desired_state.as_str().to_string(),
-                availability_status: installation.availability_status.as_str().to_string(),
-                form_schema: package.provider.form_schema.clone(),
-                predefined_models: package
-                    .predefined_models
-                    .into_iter()
-                    .map(|model| localized_model_descriptor(&namespace, model))
-                    .collect(),
-            });
-        }
-
-        Ok(ModelProviderCatalogView {
-            entries: catalog,
-            i18n_catalog,
-        })
+        catalog::list_catalog(&self.repository, actor_user_id, locales).await
     }
 
     pub async fn list_instances(
@@ -588,38 +538,7 @@ where
         actor_user_id: Uuid,
         instance_id: Uuid,
     ) -> Result<ModelProviderModelCatalog> {
-        let actor = load_actor_context_for_user(&self.repository, actor_user_id).await?;
-        ensure_state_model_permission(&actor, "view")?;
-        let instance = self
-            .repository
-            .get_instance(actor.current_workspace_id, instance_id)
-            .await?
-            .ok_or(ControlPlaneError::NotFound("model_provider_instance"))?;
-        let installation = self
-            .repository
-            .get_installation(instance.installation_id)
-            .await?
-            .ok_or(ControlPlaneError::NotFound("plugin_installation"))?;
-        let package = load_provider_package(&installation.installed_path)?;
-        if let Some(cache) = self.repository.get_catalog_cache(instance.id).await? {
-            return Ok(ModelProviderModelCatalog {
-                provider_instance_id: instance.id,
-                refresh_status: cache.refresh_status,
-                source: cache.source,
-                last_error_message: cache.last_error_message,
-                refreshed_at: cache.refreshed_at,
-                models: serde_json::from_value(cache.models_json).unwrap_or_default(),
-            });
-        }
-
-        Ok(ModelProviderModelCatalog {
-            provider_instance_id: instance.id,
-            refresh_status: domain::ModelProviderCatalogRefreshStatus::Idle,
-            source: map_catalog_source(package.provider.model_discovery_mode),
-            last_error_message: None,
-            refreshed_at: None,
-            models: package.predefined_models,
-        })
+        options::list_models(&self.repository, actor_user_id, instance_id).await
     }
 
     pub async fn refresh_models(
@@ -627,105 +546,14 @@ where
         actor_user_id: Uuid,
         instance_id: Uuid,
     ) -> Result<ModelProviderModelCatalog> {
-        let actor = load_actor_context_for_user(&self.repository, actor_user_id).await?;
-        ensure_state_model_permission(&actor, "manage")?;
-        let instance = self
-            .repository
-            .get_instance(actor.current_workspace_id, instance_id)
-            .await?
-            .ok_or(ControlPlaneError::NotFound("model_provider_instance"))?;
-        let installation =
-            reconcile_installation_snapshot(&self.repository, instance.installation_id).await?;
-        if installation.availability_status != domain::PluginAvailabilityStatus::Available {
-            return Err(ControlPlaneError::Conflict("plugin_installation_unavailable").into());
-        }
-        let package = load_provider_package(&installation.installed_path)?;
-        let provider_config = self
-            .build_provider_runtime_config(&package, &instance)
-            .await?;
-        let existing_cache = self.repository.get_catalog_cache(instance.id).await?;
-
-        let refresh_result = async {
-            self.runtime.ensure_loaded(&installation).await?;
-            let models = self
-                .runtime
-                .list_models(&installation, provider_config)
-                .await?;
-            let cache = self
-                .repository
-                .upsert_catalog_cache(&UpsertModelProviderCatalogCacheInput {
-                    provider_instance_id: instance.id,
-                    model_discovery_mode: map_model_discovery_mode(
-                        package.provider.model_discovery_mode,
-                    ),
-                    refresh_status: domain::ModelProviderCatalogRefreshStatus::Ready,
-                    source: map_catalog_source(package.provider.model_discovery_mode),
-                    models_json: serde_json::to_value(&models)?,
-                    last_error_message: None,
-                    refreshed_at: Some(OffsetDateTime::now_utc()),
-                })
-                .await?;
-            self.repository
-                .append_audit_log(&audit_log(
-                    Some(actor.current_workspace_id),
-                    Some(actor_user_id),
-                    "model_provider_instance",
-                    Some(instance.id),
-                    "model_provider.models_refreshed",
-                    json!({
-                        "provider_code": instance.provider_code,
-                        "model_count": models.len(),
-                    }),
-                ))
-                .await?;
-            Ok::<ModelProviderModelCatalog, anyhow::Error>(ModelProviderModelCatalog {
-                provider_instance_id: instance.id,
-                refresh_status: cache.refresh_status,
-                source: cache.source,
-                last_error_message: cache.last_error_message,
-                refreshed_at: cache.refreshed_at,
-                models,
-            })
-        }
-        .await;
-
-        match refresh_result {
-            Ok(result) => Ok(result),
-            Err(error) => {
-                let _ = self
-                    .repository
-                    .upsert_catalog_cache(&UpsertModelProviderCatalogCacheInput {
-                        provider_instance_id: instance.id,
-                        model_discovery_mode: map_model_discovery_mode(
-                            package.provider.model_discovery_mode,
-                        ),
-                        refresh_status: domain::ModelProviderCatalogRefreshStatus::Failed,
-                        source: map_catalog_source(package.provider.model_discovery_mode),
-                        models_json: existing_cache
-                            .as_ref()
-                            .map(|cache| cache.models_json.clone())
-                            .unwrap_or_else(|| json!([])),
-                        last_error_message: Some(error.to_string()),
-                        refreshed_at: existing_cache.and_then(|cache| cache.refreshed_at),
-                    })
-                    .await;
-                let _ = self
-                    .repository
-                    .append_audit_log(&audit_log(
-                        Some(actor.current_workspace_id),
-                        Some(actor_user_id),
-                        "model_provider_instance",
-                        Some(instance.id),
-                        "model_provider.models_refresh_failed",
-                        json!({
-                            "provider_code": instance.provider_code,
-                            "message": error.to_string(),
-                        }),
-                    ))
-                    .await;
-                Err(error)
-            }
-        }
+        options::refresh_models(
+            &self.repository,
+            &self.runtime,
+            &self.provider_secret_master_key,
+            actor_user_id,
+            instance_id,
+        )
+        .await
     }
 
     pub async fn delete_instance(&self, command: DeleteModelProviderInstanceCommand) -> Result<()> {
@@ -780,72 +608,7 @@ where
         actor_user_id: Uuid,
         locales: RequestedLocales,
     ) -> Result<ModelProviderOptionsView> {
-        let actor = load_actor_context_for_user(&self.repository, actor_user_id).await?;
-        ensure_state_model_permission(&actor, "view")?;
-        let instances = self
-            .repository
-            .list_instances(actor.current_workspace_id)
-            .await?;
-        let mut installation_map = HashMap::new();
-        for installation in self.repository.list_installations().await? {
-            let installation =
-                reconcile_installation_snapshot(&self.repository, installation.id).await?;
-            installation_map.insert(installation.id, installation);
-        }
-
-        let mut instances_by_provider = BTreeMap::<String, Vec<domain::ModelProviderInstanceRecord>>::new();
-        for instance in instances {
-            instances_by_provider
-                .entry(instance.provider_code.clone())
-                .or_default()
-                .push(instance);
-        }
-
-        let mut options = Vec::new();
-        let mut i18n_catalog = BTreeMap::new();
-        for (provider_code, provider_instances) in instances_by_provider {
-            let Some(instance) = select_effective_model_provider_instance(&provider_instances) else {
-                continue;
-            };
-            if instance.status != domain::ModelProviderInstanceStatus::Ready {
-                continue;
-            }
-            let Some(installation) = installation_map.get(&instance.installation_id) else {
-                continue;
-            };
-            if installation.availability_status != domain::PluginAvailabilityStatus::Available {
-                continue;
-            }
-            let package = load_provider_package(&installation.installed_path)?;
-            let namespace = plugin_namespace(&provider_code);
-            merge_i18n_catalog(
-                &mut i18n_catalog,
-                trim_provider_bundles(&namespace, &package.i18n, &locales),
-            );
-            let models = match self.repository.get_catalog_cache(instance.id).await? {
-                Some(cache) => serde_json::from_value(cache.models_json).unwrap_or_default(),
-                None => package.predefined_models.clone(),
-            };
-            options.push(ModelProviderOptionEntry {
-                provider_code,
-                plugin_type: "model_provider".to_string(),
-                namespace: namespace.clone(),
-                label_key: "provider.label".to_string(),
-                description_key: Some("provider.description".to_string()),
-                protocol: instance.protocol.clone(),
-                display_name: package.provider.display_name.clone(),
-                effective_instance_id: instance.id,
-                effective_instance_display_name: instance.display_name.clone(),
-                models: models
-                    .into_iter()
-                    .map(|model| localized_model_descriptor(&namespace, model))
-                    .collect(),
-            });
-        }
-        Ok(ModelProviderOptionsView {
-            providers: options,
-            i18n_catalog,
-        })
+        catalog::options(&self.repository, actor_user_id, locales).await
     }
 
     pub async fn reveal_secret(
@@ -854,39 +617,14 @@ where
         instance_id: Uuid,
         key: &str,
     ) -> Result<String> {
-        let actor = load_actor_context_for_user(&self.repository, actor_user_id).await?;
-        ensure_state_model_permission(&actor, "manage")?;
-        let instance = self
-            .repository
-            .get_instance(actor.current_workspace_id, instance_id)
-            .await?
-            .ok_or(ControlPlaneError::NotFound("model_provider_instance"))?;
-        let installation = self
-            .repository
-            .get_installation(instance.installation_id)
-            .await?
-            .ok_or(ControlPlaneError::NotFound("plugin_installation"))?;
-        let package = load_provider_package(&installation.installed_path)?;
-        let field = package
-            .provider
-            .form_schema
-            .iter()
-            .find(|field| field.key == key)
-            .ok_or(ControlPlaneError::InvalidInput("key"))?;
-        if !is_secret_field(&field.field_type) {
-            return Err(ControlPlaneError::InvalidInput("key").into());
-        }
-
-        let secret_json = self
-            .repository
-            .get_secret_json(instance.id, &self.provider_secret_master_key)
-            .await?
-            .unwrap_or_else(empty_object);
-        secret_json
-            .get(key)
-            .and_then(Value::as_str)
-            .map(str::to_string)
-            .ok_or(ControlPlaneError::NotFound("model_provider_secret").into())
+        options::reveal_secret(
+            &self.repository,
+            &self.provider_secret_master_key,
+            actor_user_id,
+            instance_id,
+            key,
+        )
+        .await
     }
 
     async fn build_provider_runtime_config(
@@ -894,17 +632,13 @@ where
         package: &ProviderPackage,
         instance: &domain::ModelProviderInstanceRecord,
     ) -> Result<Value> {
-        let secret_json = self
-            .repository
-            .get_secret_json(instance.id, &self.provider_secret_master_key)
-            .await?
-            .unwrap_or_else(empty_object);
-        validate_required_fields(
-            &package.provider.form_schema,
-            &instance.config_json,
-            &secret_json,
-        )?;
-        merge_json_object(&instance.config_json, &secret_json)
+        build_provider_runtime_config(
+            &self.repository,
+            &self.provider_secret_master_key,
+            package,
+            instance,
+        )
+        .await
     }
 
     async fn hydrate_instance_view(
@@ -913,300 +647,13 @@ where
         cache: Option<domain::ModelProviderCatalogCacheRecord>,
         form_schema: &[ProviderConfigField],
     ) -> Result<ModelProviderInstanceView> {
-        let secret_json = self
-            .repository
-            .get_secret_json(instance.id, &self.provider_secret_master_key)
-            .await?
-            .unwrap_or_else(empty_object);
-        let merged_config = mask_secret_config(&instance.config_json, &secret_json, form_schema)?;
-
-        Ok(ModelProviderInstanceView {
-            instance: domain::ModelProviderInstanceRecord {
-                config_json: merged_config,
-                ..instance
-            },
+        hydrate_instance_view(
+            &self.repository,
+            &self.provider_secret_master_key,
+            instance,
             cache,
-        })
-    }
-}
-
-async fn load_actor_context_for_user<R>(
-    repository: &R,
-    actor_user_id: Uuid,
-) -> Result<domain::ActorContext>
-where
-    R: AuthRepository,
-{
-    let scope = repository.default_scope_for_user(actor_user_id).await?;
-    repository
-        .load_actor_context(actor_user_id, scope.tenant_id, scope.workspace_id, None)
-        .await
-}
-
-async fn ensure_installation_assigned<R>(
-    repository: &R,
-    workspace_id: Uuid,
-    installation_id: Uuid,
-) -> Result<()>
-where
-    R: PluginRepository,
-{
-    let assigned = repository
-        .list_assignments(workspace_id)
-        .await?
-        .into_iter()
-        .any(|assignment| assignment.installation_id == installation_id);
-    if assigned {
-        Ok(())
-    } else {
-        Err(ControlPlaneError::Conflict("plugin_assignment_required").into())
-    }
-}
-
-fn ensure_state_model_permission(
-    actor: &domain::ActorContext,
-    action: &str,
-) -> Result<(), ControlPlaneError> {
-    if actor.is_root
-        || actor.has_permission(&format!("state_model.{action}.all"))
-        || actor.has_permission(&format!("state_model.{action}.own"))
-    {
-        return Ok(());
-    }
-
-    Err(ControlPlaneError::PermissionDenied("permission_denied"))
-}
-
-fn normalize_required_text(value: &str, field: &'static str) -> Result<String, anyhow::Error> {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        Err(ControlPlaneError::InvalidInput(field).into())
-    } else {
-        Ok(trimmed.to_string())
-    }
-}
-
-fn split_provider_config(
-    form_schema: &[ProviderConfigField],
-    input: &Value,
-) -> Result<(Value, Value)> {
-    let object = input
-        .as_object()
-        .ok_or(ControlPlaneError::InvalidInput("config_json"))?;
-    let mut public = Map::new();
-    let mut secret = Map::new();
-    let field_lookup = form_schema
-        .iter()
-        .map(|field| (field.key.as_str(), field))
-        .collect::<HashMap<_, _>>();
-    for (key, value) in object {
-        let field = field_lookup
-            .get(key.as_str())
-            .ok_or(ControlPlaneError::InvalidInput("config_json"))?;
-        if is_secret_field(&field.field_type) {
-            secret.insert(key.clone(), value.clone());
-        } else {
-            public.insert(key.clone(), value.clone());
-        }
-    }
-    Ok((Value::Object(public), Value::Object(secret)))
-}
-
-fn validate_required_fields(
-    form_schema: &[ProviderConfigField],
-    public_config: &Value,
-    secret_config: &Value,
-) -> Result<()> {
-    let public_object = public_config
-        .as_object()
-        .ok_or(ControlPlaneError::InvalidInput("config_json"))?;
-    let secret_object = secret_config
-        .as_object()
-        .ok_or(ControlPlaneError::InvalidInput("config_json"))?;
-    for field in form_schema {
-        if !field.required {
-            continue;
-        }
-        let value = if is_secret_field(&field.field_type) {
-            secret_object.get(&field.key)
-        } else {
-            public_object.get(&field.key)
-        };
-        if value.is_none()
-            || value == Some(&Value::Null)
-            || value == Some(&Value::String(String::new()))
-        {
-            return Err(ControlPlaneError::InvalidInput("config_json").into());
-        }
-    }
-    Ok(())
-}
-
-fn merge_json_object(base: &Value, patch: &Value) -> Result<Value> {
-    let mut merged = base
-        .as_object()
-        .cloned()
-        .ok_or(ControlPlaneError::InvalidInput("config_json"))?;
-    let patch_object = patch
-        .as_object()
-        .ok_or(ControlPlaneError::InvalidInput("config_json"))?;
-    for (key, value) in patch_object {
-        merged.insert(key.clone(), value.clone());
-    }
-    Ok(Value::Object(merged))
-}
-
-fn mask_secret_config(
-    base: &Value,
-    secret_json: &Value,
-    form_schema: &[ProviderConfigField],
-) -> Result<Value> {
-    let mut merged = base
-        .as_object()
-        .cloned()
-        .ok_or(ControlPlaneError::InvalidInput("config_json"))?;
-    let secret_object = secret_json
-        .as_object()
-        .ok_or(ControlPlaneError::InvalidInput("config_json"))?;
-    for field in form_schema {
-        if !is_secret_field(&field.field_type) {
-            continue;
-        }
-
-        let Some(value) = secret_object.get(&field.key) else {
-            continue;
-        };
-        merged.insert(field.key.clone(), mask_secret_value(value));
-    }
-
-    Ok(Value::Object(merged))
-}
-
-fn mask_secret_value(value: &Value) -> Value {
-    match value {
-        Value::String(text) => Value::String(mask_secret_preview(text)),
-        Value::Null => Value::Null,
-        _ => Value::String("****".to_string()),
-    }
-}
-
-fn mask_secret_preview(value: &str) -> String {
-    let char_count = value.chars().count();
-    if char_count <= 8 {
-        return "****".to_string();
-    }
-
-    let prefix = value.chars().take(4).collect::<String>();
-    let suffix = value
-        .chars()
-        .skip(char_count.saturating_sub(4))
-        .collect::<String>();
-    format!("{prefix}****{suffix}")
-}
-
-fn empty_object() -> Value {
-    Value::Object(Map::new())
-}
-
-fn is_empty_object(value: &Value) -> bool {
-    value
-        .as_object()
-        .map(|object| object.is_empty())
-        .unwrap_or(false)
-}
-
-fn is_secret_field(field_type: &str) -> bool {
-    field_type.trim().eq_ignore_ascii_case("secret")
-}
-
-fn load_provider_package(path: &str) -> Result<ProviderPackage> {
-    ProviderPackage::load_from_dir(path).map_err(map_framework_error)
-}
-
-fn localized_model_descriptor(
-    namespace: &str,
-    model: ProviderModelDescriptor,
-) -> LocalizedProviderModelDescriptor {
-    let display_name_fallback = Some(model.display_name.clone());
-    match model.source {
-        ProviderModelSource::Static => {
-            let model_key = model_i18n_key(&model.model_id);
-            LocalizedProviderModelDescriptor {
-                descriptor: model,
-                namespace: Some(namespace.to_string()),
-                label_key: Some(format!("models.{model_key}.label")),
-                description_key: Some(format!("models.{model_key}.description")),
-                display_name_fallback,
-            }
-        }
-        ProviderModelSource::Dynamic => LocalizedProviderModelDescriptor {
-            descriptor: model,
-            namespace: None,
-            label_key: None,
-            description_key: None,
-            display_name_fallback,
-        },
-    }
-}
-
-fn model_i18n_key(model_id: &str) -> String {
-    model_id
-        .chars()
-        .map(|value| {
-            if value.is_ascii_alphanumeric() {
-                value.to_ascii_lowercase()
-            } else {
-                '_'
-            }
-        })
-        .collect()
-}
-
-fn model_discovery_mode_string(mode: ModelDiscoveryMode) -> String {
-    format!("{mode:?}").to_ascii_lowercase()
-}
-
-fn select_effective_model_provider_instance<'a>(
-    instances: &'a [domain::ModelProviderInstanceRecord],
-) -> Option<&'a domain::ModelProviderInstanceRecord> {
-    instances.iter().max_by_key(|instance| {
-        (
-            instance.status == domain::ModelProviderInstanceStatus::Ready,
-            instance.last_validated_at,
-            instance.updated_at,
-            instance.id,
+            form_schema,
         )
-    })
-}
-
-fn map_model_discovery_mode(mode: ModelDiscoveryMode) -> domain::ModelProviderDiscoveryMode {
-    match mode {
-        ModelDiscoveryMode::Static => domain::ModelProviderDiscoveryMode::Static,
-        ModelDiscoveryMode::Dynamic => domain::ModelProviderDiscoveryMode::Dynamic,
-        ModelDiscoveryMode::Hybrid => domain::ModelProviderDiscoveryMode::Hybrid,
-    }
-}
-
-fn map_catalog_source(mode: ModelDiscoveryMode) -> domain::ModelProviderCatalogSource {
-    match mode {
-        ModelDiscoveryMode::Static => domain::ModelProviderCatalogSource::Static,
-        ModelDiscoveryMode::Dynamic => domain::ModelProviderCatalogSource::Dynamic,
-        ModelDiscoveryMode::Hybrid => domain::ModelProviderCatalogSource::Hybrid,
-    }
-}
-
-fn map_framework_error(error: plugin_framework::error::PluginFrameworkError) -> anyhow::Error {
-    use plugin_framework::error::PluginFrameworkErrorKind;
-
-    match error.kind() {
-        PluginFrameworkErrorKind::InvalidAssignment
-        | PluginFrameworkErrorKind::InvalidProviderPackage
-        | PluginFrameworkErrorKind::InvalidProviderContract
-        | PluginFrameworkErrorKind::Serialization => {
-            ControlPlaneError::InvalidInput("provider_package").into()
-        }
-        PluginFrameworkErrorKind::Io | PluginFrameworkErrorKind::RuntimeContract => {
-            ControlPlaneError::UpstreamUnavailable("provider_runtime").into()
-        }
+        .await
     }
 }

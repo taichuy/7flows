@@ -9,17 +9,9 @@ use crate::{
     manifest_v1::PluginManifestV1,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct HostExtensionDropinPolicy {
     pub allow_unverified_filesystem_dropins: bool,
-}
-
-impl Default for HostExtensionDropinPolicy {
-    fn default() -> Self {
-        Self {
-            allow_unverified_filesystem_dropins: false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

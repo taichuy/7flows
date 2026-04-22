@@ -31,11 +31,11 @@
 - Modify: `api/crates/control-plane/src/model_provider.rs`
 - Modify: `api/crates/control-plane/src/orchestration_runtime.rs`
 
-- [ ] **Step 1: Confirm only formatting changed in the reported files**
+- [x] **Step 1: Confirm only formatting changed in the reported files**
 
 Review the `cargo fmt --check` diff and verify it is whitespace/layout-only.
 
-- [ ] **Step 2: Apply workspace formatting**
+- [x] **Step 2: Apply workspace formatting**
 
 ```bash
 cargo fmt --manifest-path api/Cargo.toml --all
@@ -49,13 +49,13 @@ Expected:
 **Files:**
 - Modify: `docs/superpowers/plans/2026-04-22-backend-repo-gate-recovery.md`
 
-- [ ] **Step 1: Re-run `plugin-runner` tests**
+- [x] **Step 1: Re-run `plugin-runner` tests**
 
 ```bash
 cargo test --manifest-path api/Cargo.toml -p plugin-runner -- --nocapture
 ```
 
-- [ ] **Step 2: Re-run `control-plane` tests**
+- [x] **Step 2: Re-run `control-plane` tests**
 
 ```bash
 cargo test --manifest-path api/Cargo.toml -p control-plane -- --nocapture
@@ -69,7 +69,7 @@ Expected:
 **Files:**
 - Modify: `docs/superpowers/plans/2026-04-22-backend-repo-gate-recovery.md`
 
-- [ ] **Step 1: Re-run the backend aggregate gate**
+- [x] **Step 1: Re-run the backend aggregate gate**
 
 ```bash
 node scripts/node/verify-backend.js
@@ -78,7 +78,7 @@ node scripts/node/verify-backend.js
 Expected:
 - green backend repo gate
 
-- [ ] **Step 2: Record any second-order failures explicitly**
+- [x] **Step 2: Record any second-order failures explicitly**
 
 If `verify-backend` fails again for a different reason, record:
 
@@ -86,3 +86,21 @@ If `verify-backend` fails again for a different reason, record:
 - the new root cause
 - whether it blocks Phase 3 owner splits
 
+## Execution Notes
+
+- `cargo fmt --manifest-path api/Cargo.toml --all --check` first confirmed the original drift was limited to:
+  - `api/apps/plugin-runner/tests/provider_runtime_routes.rs`
+  - `api/crates/control-plane/src/model_provider.rs`
+  - `api/crates/control-plane/src/orchestration_runtime.rs`
+- `cargo fmt --manifest-path api/Cargo.toml --all` normalized those files and the targeted crate tests passed:
+  - `cargo test --manifest-path api/Cargo.toml -p plugin-runner -- --nocapture`
+  - `cargo test --manifest-path api/Cargo.toml -p control-plane -- --nocapture`
+- `node scripts/node/verify-backend.js` surfaced second-order clippy drift before turning green:
+  - `plugin-framework/src/host_extension_dropin.rs` manual `Default` impl was replaced with `#[derive(Default)]`
+  - `plugin-framework/src/manifest_v1.rs` simplified `iter().any(...)` to `contains(...)`
+  - `control-plane/src/model_provider.rs` and `control-plane/src/orchestration_runtime.rs` removed needless explicit lifetimes
+- Re-verification after those narrow fixes passed:
+  - `cargo test --manifest-path api/Cargo.toml -p plugin-framework -- --nocapture`
+  - `cargo test --manifest-path api/Cargo.toml -p control-plane -- --nocapture`
+  - `node scripts/node/verify-backend.js`
+- Phase 3 owner splits are no longer blocked by backend repo-gate noise.

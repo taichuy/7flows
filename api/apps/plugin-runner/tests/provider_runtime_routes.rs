@@ -490,12 +490,10 @@ async fn provider_runtime_routes_rejects_legacy_invoke_payload() {
     .await;
 
     assert_eq!(status, StatusCode::BAD_REQUEST);
-    assert!(
-        payload["message"]
-            .as_str()
-            .unwrap()
-            .contains("missing field")
-    );
+    assert!(payload["message"]
+        .as_str()
+        .unwrap()
+        .contains("missing field"));
 }
 
 #[tokio::test]
