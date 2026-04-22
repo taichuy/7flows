@@ -333,7 +333,7 @@
 
 .model-provider-panel__instances-modal {
   display: grid;
-  gap: 16px;
+  gap: 20px;
 }
 
 .model-provider-panel__instances-modal-head {
@@ -341,6 +341,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
+  padding: 4px 0;
 }
 
 .model-provider-panel__instances-modal-head .ant-typography {
@@ -359,6 +360,315 @@
 
 .model-provider-panel__instances-modal-actions {
   padding-top: 4px;
+}
+
+/* 折叠面板美化样式 */
+.model-provider-panel__instances-collapse {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.model-provider-panel__instances-collapse .ant-collapse-item {
+  border-bottom: 1px solid var(--border-subtle) !important;
+  background: var(--bg-surface);
+  transition:
+    background-color 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.model-provider-panel__instances-collapse .ant-collapse-item:last-child {
+  border-bottom: none !important;
+}
+
+.model-provider-panel__instances-collapse .ant-collapse-item:hover {
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--bg-surface));
+}
+
+.model-provider-panel__instances-collapse .ant-collapse-header {
+  padding: 16px 20px !important;
+  background: linear-gradient(
+    180deg,
+    var(--bg-surface) 0%,
+    color-mix(in srgb, var(--color-primary) 3%, var(--bg-elevated)) 100%
+  );
+  border-radius: 0 !important;
+  transition:
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.model-provider-panel__instances-collapse .ant-collapse-item-active .ant-collapse-header {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-primary) 2%, var(--bg-surface)) 0%,
+    color-mix(in srgb, var(--color-primary) 8%, var(--bg-elevated)) 100%
+  );
+  box-shadow:
+    inset 3px 0 0 var(--color-primary),
+    inset 0 1px 0 0 color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.model-provider-panel__instances-collapse .ant-collapse-content {
+  border-top: 1px solid color-mix(in srgb, var(--border-default) 70%, var(--color-primary));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-primary) 3%, var(--bg-surface)) 0%,
+    color-mix(in srgb, var(--color-primary) 6%, var(--bg-elevated)) 100%
+  );
+}
+
+.model-provider-panel__instances-collapse .ant-collapse-content-box {
+  padding: 20px !important;
+}
+
+/* 实例卡片头部样式 */
+.model-provider-panel__instance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+}
+
+.model-provider-panel__instance-header-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.model-provider-panel__instance-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.model-provider-panel__instance-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.model-provider-panel__instance-status-tag {
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  height: auto;
+  line-height: 1.4;
+  border: none;
+}
+
+.model-provider-panel__instance-subtitle {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.model-provider-panel__instance-stats {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  min-width: max-content;
+}
+
+.model-provider-panel__instance-stat {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+}
+
+.model-provider-panel__instance-stat-label {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.model-provider-panel__instance-stat-value {
+  color: var(--text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+/* 实例内容区域样式 */
+.model-provider-panel__instance-content {
+  display: grid;
+  gap: 20px;
+  width: 100%;
+}
+
+.model-provider-panel__instance-descriptions {
+  background: color-mix(in srgb, var(--bg-surface) 88%, var(--color-primary));
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 80%, var(--color-primary));
+  box-shadow: 0 1px 2px rgba(13, 23, 18, 0.04);
+}
+
+.model-provider-panel__instance-descriptions .ant-descriptions-item-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 13px;
+}
+
+.model-provider-panel__instance-descriptions .ant-descriptions-item-content {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.model-provider-panel__instance-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.model-provider-panel__instance-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: color-mix(in srgb, var(--bg-surface) 92%, var(--color-primary));
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.model-provider-panel__instance-action-btn:hover {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--border-default) 55%, var(--color-primary));
+  color: var(--text-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(13, 23, 18, 0.08);
+}
+
+.model-provider-panel__instance-action-btn--danger {
+  border-color: rgba(239, 68, 68, 0.2);
+  color: rgba(239, 68, 68, 0.9);
+  background: rgba(254, 226, 226, 0.3);
+}
+
+.model-provider-panel__instance-action-btn--danger:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #dc2626;
+  background: rgba(254, 226, 226, 0.5);
+}
+
+.model-provider-panel__instance-baseurl {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--bg-surface) 92%, var(--color-primary)) 0%,
+    color-mix(in srgb, var(--bg-elevated) 94%, var(--color-primary)) 100%
+  );
+  border-radius: 8px;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--border-subtle) 78%, var(--color-primary));
+}
+
+.model-provider-panel__instance-baseurl-label {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.model-provider-panel__instance-baseurl-value {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+/* 模型标签样式 */
+.model-provider-panel__model-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.model-provider-panel__model-tag {
+  background: color-mix(in srgb, var(--color-primary) 10%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 24%, var(--border-subtle));
+  color: color-mix(in srgb, var(--text-primary) 78%, var(--color-primary));
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.model-provider-panel__model-tag:hover {
+  background: color-mix(in srgb, var(--color-primary) 14%, var(--bg-surface));
+  border-color: color-mix(in srgb, var(--color-primary) 36%, var(--border-default));
+  transform: translateY(-1px);
+}
+
+.model-provider-panel__model-tag-more {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+}
+
+/* 加载状态样式 */
+.model-provider-panel__instance-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.model-provider-panel__instance-loading-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.model-provider-panel__instance-loading-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-primary) 40%, var(--border-default));
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.model-provider-panel__instance-loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.model-provider-panel__instance-loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @media (max-width: 1380px) {
