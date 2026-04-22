@@ -65,6 +65,11 @@ export interface ConsoleProviderModelDescriptor {
   provider_metadata: Record<string, unknown>;
 }
 
+export interface ConsoleModelProviderConfiguredModel {
+  model_id: string;
+  enabled: boolean;
+}
+
 export interface ConsoleModelProviderCatalogEntry {
   installation_id: string;
   provider_code: string;
@@ -100,6 +105,7 @@ export interface ConsoleModelProviderInstance {
   display_name: string;
   status: string;
   config_json: Record<string, unknown>;
+  configured_models: ConsoleModelProviderConfiguredModel[];
   enabled_model_ids: string[];
   catalog_refresh_status: string | null;
   catalog_last_error_message: string | null;
@@ -110,7 +116,7 @@ export interface ConsoleModelProviderInstance {
 export interface CreateConsoleModelProviderInput {
   installation_id: string;
   display_name: string;
-  enabled_model_ids: string[];
+  configured_models: ConsoleModelProviderConfiguredModel[];
   preview_token?: string | null;
   config: Record<string, unknown>;
 }
@@ -129,7 +135,7 @@ export interface PreviewConsoleModelProviderModelsResponse {
 
 export interface UpdateConsoleModelProviderInput {
   display_name: string;
-  enabled_model_ids: string[];
+  configured_models: ConsoleModelProviderConfiguredModel[];
   preview_token?: string | null;
   config: Record<string, unknown>;
 }

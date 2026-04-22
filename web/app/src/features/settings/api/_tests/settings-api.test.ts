@@ -58,6 +58,16 @@ vi.mock('@1flowbase/api-client', () => ({
       config_json: {
         base_url: 'https://api.openai.com/v1'
       },
+      configured_models: [
+        {
+          model_id: 'gpt-4o-mini',
+          enabled: true
+        },
+        {
+          model_id: 'gpt-4o',
+          enabled: false
+        }
+      ],
       enabled_model_ids: ['gpt-4o-mini'],
       catalog_refresh_status: 'ready',
       catalog_last_error_message: null,
@@ -309,7 +319,16 @@ describe('settings api wrappers', () => {
     const createInput = {
       installation_id: 'installation-1',
       display_name: 'OpenAI Production',
-      enabled_model_ids: ['gpt-4o-mini'],
+      configured_models: [
+        {
+          model_id: 'gpt-4o-mini',
+          enabled: true
+        },
+        {
+          model_id: 'gpt-4o',
+          enabled: false
+        }
+      ],
       preview_token: 'preview-1',
       config: {
         base_url: 'https://api.openai.com/v1'
@@ -317,7 +336,16 @@ describe('settings api wrappers', () => {
     } satisfies CreateSettingsModelProviderInput;
     const updateInput = {
       display_name: 'OpenAI Backup',
-      enabled_model_ids: ['gpt-4o', 'gpt-4o-mini'],
+      configured_models: [
+        {
+          model_id: 'gpt-4o',
+          enabled: true
+        },
+        {
+          model_id: 'gpt-4o-mini',
+          enabled: false
+        }
+      ],
       preview_token: 'preview-2',
       config: {
         base_url: 'https://backup.openai.example/v1'
@@ -333,6 +361,16 @@ describe('settings api wrappers', () => {
       config_json: {
         base_url: 'https://api.openai.com/v1'
       },
+      configured_models: [
+        {
+          model_id: 'gpt-4o-mini',
+          enabled: true
+        },
+        {
+          model_id: 'gpt-4o',
+          enabled: false
+        }
+      ],
       enabled_model_ids: ['gpt-4o-mini'],
       catalog_refresh_status: 'ready',
       catalog_last_error_message: null,
@@ -370,6 +408,16 @@ describe('settings api wrappers', () => {
     expect(fetchedInstances).toHaveLength(1);
     expect(fetchedInstances[0]).toEqual(
       expect.objectContaining({
+        configured_models: [
+          {
+            model_id: 'gpt-4o-mini',
+            enabled: true
+          },
+          {
+            model_id: 'gpt-4o',
+            enabled: false
+          }
+        ],
         enabled_model_ids: ['gpt-4o-mini']
       })
     );
@@ -434,6 +482,16 @@ describe('settings api wrappers', () => {
     );
     expect(validatedInstance.instance).toEqual(
       expect.objectContaining({
+        configured_models: [
+          {
+            model_id: 'gpt-4o-mini',
+            enabled: true
+          },
+          {
+            model_id: 'gpt-4o',
+            enabled: false
+          }
+        ],
         enabled_model_ids: ['gpt-4o-mini']
       })
     );

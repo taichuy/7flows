@@ -11,7 +11,7 @@ use crate::{
     i18n::RequestedLocales,
     model_provider::{
         CreateModelProviderInstanceCommand, DeleteModelProviderInstanceCommand,
-        ModelProviderService, PreviewModelProviderModelsCommand,
+        ModelProviderConfiguredModelInput, ModelProviderService, PreviewModelProviderModelsCommand,
         UpdateModelProviderInstanceCommand,
     },
     ports::{
@@ -469,6 +469,7 @@ impl ModelProviderRepository for MemoryModelProviderRepository {
             display_name: input.display_name.clone(),
             status: input.status,
             config_json: input.config_json.clone(),
+            configured_models: input.configured_models.clone(),
             enabled_model_ids: input.enabled_model_ids.clone(),
             created_by: input.created_by,
             updated_by: input.created_by,
@@ -493,6 +494,7 @@ impl ModelProviderRepository for MemoryModelProviderRepository {
         instance.display_name = input.display_name.clone();
         instance.status = input.status;
         instance.config_json = input.config_json.clone();
+        instance.configured_models = input.configured_models.clone();
         instance.enabled_model_ids = input.enabled_model_ids.clone();
         instance.updated_by = input.updated_by;
         instance.updated_at = OffsetDateTime::now_utc();
@@ -828,6 +830,7 @@ async fn model_provider_service_masks_secret_in_views_and_reveals_on_demand() {
                 "base_url": "https://api.example.com",
                 "api_key": "super-secret"
             }),
+            configured_models: Vec::new(),
             enabled_model_ids: Vec::new(),
             preview_token: None,
         })
@@ -937,6 +940,7 @@ async fn model_provider_service_create_and_update_allow_empty_enabled_model_ids(
                 "base_url": "https://api.example.com",
                 "api_key": "super-secret"
             }),
+            configured_models: Vec::new(),
             enabled_model_ids: Vec::new(),
             preview_token: None,
         })
@@ -952,6 +956,7 @@ async fn model_provider_service_create_and_update_allow_empty_enabled_model_ids(
             instance_id: created.instance.id,
             display_name: "Fixture Draft".to_string(),
             config_json: json!({}),
+            configured_models: Vec::new(),
             enabled_model_ids: vec!["  ".to_string(), "".to_string()],
             preview_token: None,
         })
@@ -960,6 +965,118 @@ async fn model_provider_service_create_and_update_allow_empty_enabled_model_ids(
 
     assert_eq!(updated.instance.status, ModelProviderInstanceStatus::Draft);
     assert!(updated.instance.enabled_model_ids.is_empty());
+}
+
+#[tokio::test]
+async fn model_provider_service_persists_configured_models_and_derives_enabled_model_ids() {
+    let workspace_id = Uuid::now_v7();
+    let repository = MemoryModelProviderRepository::new(actor_with_permissions(
+        workspace_id,
+        &["state_model.view.all", "state_model.manage.all"],
+    ));
+    let runtime = MemoryProviderRuntime::default();
+    let package_root =
+        std::env::temp_dir().join(format!("provider-model-preview-{}", Uuid::now_v7()));
+    create_provider_fixture(&package_root);
+    let installation_id = repository
+        .seed_installation(
+            &package_root.display().to_string(),
+            PluginDesiredState::ActiveRequested,
+            true,
+        )
+        .await;
+    let service =
+        ModelProviderService::new(repository.clone(), runtime, "provider-secret-master-key");
+
+    let created = service
+        .create_instance(CreateModelProviderInstanceCommand {
+            actor_user_id: repository.actor.user_id,
+            installation_id,
+            display_name: "Fixture Ready".to_string(),
+            config_json: json!({
+                "base_url": "https://api.example.com",
+                "api_key": "super-secret"
+            }),
+            configured_models: vec![
+                ModelProviderConfiguredModelInput {
+                    model_id: " fixture_chat ".to_string(),
+                    enabled: true,
+                },
+                ModelProviderConfiguredModelInput {
+                    model_id: " custom-disabled ".to_string(),
+                    enabled: false,
+                },
+                ModelProviderConfiguredModelInput {
+                    model_id: "".to_string(),
+                    enabled: true,
+                },
+            ],
+            enabled_model_ids: vec!["legacy-should-be-ignored".to_string()],
+            preview_token: None,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(created.instance.status, ModelProviderInstanceStatus::Ready);
+    assert_eq!(
+        created.instance.configured_models,
+        vec![
+            domain::ModelProviderConfiguredModel {
+                model_id: "fixture_chat".to_string(),
+                enabled: true,
+            },
+            domain::ModelProviderConfiguredModel {
+                model_id: "custom-disabled".to_string(),
+                enabled: false,
+            },
+        ]
+    );
+    assert_eq!(created.instance.enabled_model_ids, vec!["fixture_chat".to_string()]);
+
+    let updated = service
+        .update_instance(UpdateModelProviderInstanceCommand {
+            actor_user_id: repository.actor.user_id,
+            instance_id: created.instance.id,
+            display_name: "Fixture Ready".to_string(),
+            config_json: json!({}),
+            configured_models: vec![
+                ModelProviderConfiguredModelInput {
+                    model_id: "fixture_chat".to_string(),
+                    enabled: false,
+                },
+                ModelProviderConfiguredModelInput {
+                    model_id: " custom-enabled ".to_string(),
+                    enabled: true,
+                },
+                ModelProviderConfiguredModelInput {
+                    model_id: "custom-enabled".to_string(),
+                    enabled: true,
+                },
+            ],
+            enabled_model_ids: vec!["legacy-should-be-ignored".to_string()],
+            preview_token: None,
+        })
+        .await
+        .unwrap();
+
+    assert_eq!(updated.instance.status, ModelProviderInstanceStatus::Ready);
+    assert_eq!(
+        updated.instance.configured_models,
+        vec![
+            domain::ModelProviderConfiguredModel {
+                model_id: "fixture_chat".to_string(),
+                enabled: false,
+            },
+            domain::ModelProviderConfiguredModel {
+                model_id: "custom-enabled".to_string(),
+                enabled: true,
+            },
+        ]
+    );
+    assert_eq!(
+        updated.instance.enabled_model_ids,
+        vec!["custom-enabled".to_string()]
+    );
 }
 
 #[tokio::test]
@@ -992,6 +1109,7 @@ async fn model_provider_service_normalizes_multiple_enabled_model_ids_and_allows
                 "base_url": "https://api.example.com",
                 "api_key": "super-secret"
             }),
+            configured_models: Vec::new(),
             enabled_model_ids: vec![
                 " fixture_chat ".to_string(),
                 "".to_string(),
@@ -1021,6 +1139,7 @@ async fn model_provider_service_normalizes_multiple_enabled_model_ids_and_allows
             instance_id: created.instance.id,
             display_name: "Fixture Ready".to_string(),
             config_json: json!({}),
+            configured_models: Vec::new(),
             enabled_model_ids: vec![
                 " custom-beta ".to_string(),
                 "fixture_chat".to_string(),
@@ -1091,6 +1210,7 @@ async fn model_provider_service_reuses_preview_token_only_to_persist_candidate_c
                 "base_url": "https://api.example.com",
                 "api_key": "super-secret"
             }),
+            configured_models: Vec::new(),
             enabled_model_ids: vec![
                 "fixture_chat".to_string(),
                 "custom-preview".to_string(),
@@ -1155,6 +1275,7 @@ async fn model_provider_service_refresh_failure_does_not_clear_enabled_model_ids
                 "base_url": "https://api.example.com",
                 "api_key": "super-secret"
             }),
+            configured_models: Vec::new(),
             enabled_model_ids: vec!["fixture_chat".to_string(), "custom-refresh".to_string()],
             preview_token: None,
         })
@@ -1300,6 +1421,7 @@ async fn model_provider_service_enforces_permissions_and_audits_delete_conflict(
                 "base_url": "https://api.example.com",
                 "api_key": "super-secret"
             }),
+            configured_models: Vec::new(),
             enabled_model_ids: Vec::new(),
             preview_token: None,
         })
@@ -1349,6 +1471,7 @@ async fn model_provider_service_enforces_permissions_and_audits_delete_conflict(
             installation_id: Uuid::now_v7(),
             display_name: "Nope".to_string(),
             config_json: json!({}),
+            configured_models: Vec::new(),
             enabled_model_ids: Vec::new(),
             preview_token: None,
         })
@@ -1392,6 +1515,7 @@ async fn model_provider_service_rejects_validating_disabled_instance() {
                 "base_url": "https://api.example.com",
                 "api_key": "super-secret"
             }),
+            configured_models: Vec::new(),
             enabled_model_ids: Vec::new(),
             preview_token: None,
         })

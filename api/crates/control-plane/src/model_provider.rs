@@ -30,6 +30,7 @@ pub struct CreateModelProviderInstanceCommand {
     pub installation_id: Uuid,
     pub display_name: String,
     pub config_json: Value,
+    pub configured_models: Vec<domain::ModelProviderConfiguredModel>,
     pub enabled_model_ids: Vec<String>,
     pub preview_token: Option<Uuid>,
 }
@@ -39,9 +40,12 @@ pub struct UpdateModelProviderInstanceCommand {
     pub instance_id: Uuid,
     pub display_name: String,
     pub config_json: Value,
+    pub configured_models: Vec<domain::ModelProviderConfiguredModel>,
     pub enabled_model_ids: Vec<String>,
     pub preview_token: Option<Uuid>,
 }
+
+pub type ModelProviderConfiguredModelInput = domain::ModelProviderConfiguredModel;
 
 pub struct DeleteModelProviderInstanceCommand {
     pub actor_user_id: Uuid,
@@ -315,7 +319,9 @@ where
             &secret_config,
         )?;
         let provider_config = merge_json_object(&public_config, &secret_config)?;
-        let enabled_model_ids = normalize_enabled_model_ids(command.enabled_model_ids);
+        let configured_models =
+            normalize_configured_models(command.configured_models, command.enabled_model_ids);
+        let enabled_model_ids = configured_models_to_enabled_model_ids(&configured_models);
         let preview_state = self
             .resolve_preview_state(
                 &actor,
@@ -338,6 +344,7 @@ where
                 display_name: normalize_required_text(&command.display_name, "display_name")?,
                 status: derive_instance_status(false, &enabled_model_ids),
                 config_json: public_config.clone(),
+                configured_models: configured_models.clone(),
                 enabled_model_ids,
                 created_by: command.actor_user_id,
             })
@@ -427,7 +434,9 @@ where
             &merged_secret_config,
         )?;
         let provider_config = merge_json_object(&merged_public_config, &merged_secret_config)?;
-        let enabled_model_ids = normalize_enabled_model_ids(command.enabled_model_ids);
+        let configured_models =
+            normalize_configured_models(command.configured_models, command.enabled_model_ids);
+        let enabled_model_ids = configured_models_to_enabled_model_ids(&configured_models);
 
         if !is_empty_object(&patch_secret_config) {
             let version = self
@@ -471,6 +480,7 @@ where
                 display_name: normalize_required_text(&command.display_name, "display_name")?,
                 status: next_status,
                 config_json: merged_public_config,
+                configured_models: configured_models.clone(),
                 enabled_model_ids,
                 updated_by: command.actor_user_id,
             })
@@ -622,6 +632,7 @@ where
                     display_name: instance.display_name.clone(),
                     status: next_status,
                     config_json: instance.config_json.clone(),
+                    configured_models: instance.configured_models.clone(),
                     enabled_model_ids: instance.enabled_model_ids.clone(),
                     updated_by: actor_user_id,
                 })
@@ -689,6 +700,7 @@ where
                             display_name: instance.display_name.clone(),
                             status: domain::ModelProviderInstanceStatus::Invalid,
                             config_json: instance.config_json.clone(),
+                            configured_models: instance.configured_models.clone(),
                             enabled_model_ids: instance.enabled_model_ids.clone(),
                             updated_by: actor_user_id,
                         })
@@ -1264,6 +1276,45 @@ fn normalize_enabled_model_ids(enabled_model_ids: Vec<String>) -> Vec<String> {
         normalized.push(trimmed.to_string());
     }
     normalized
+}
+
+fn normalize_configured_models(
+    configured_models: Vec<domain::ModelProviderConfiguredModel>,
+    enabled_model_ids: Vec<String>,
+) -> Vec<domain::ModelProviderConfiguredModel> {
+    if configured_models.is_empty() {
+        return normalize_enabled_model_ids(enabled_model_ids)
+            .into_iter()
+            .map(|model_id| domain::ModelProviderConfiguredModel {
+                model_id,
+                enabled: true,
+            })
+            .collect();
+    }
+
+    let mut normalized = Vec::new();
+    let mut seen = HashSet::new();
+    for configured_model in configured_models {
+        let trimmed = configured_model.model_id.trim();
+        if trimmed.is_empty() || !seen.insert(trimmed.to_string()) {
+            continue;
+        }
+        normalized.push(domain::ModelProviderConfiguredModel {
+            model_id: trimmed.to_string(),
+            enabled: configured_model.enabled,
+        });
+    }
+    normalized
+}
+
+fn configured_models_to_enabled_model_ids(
+    configured_models: &[domain::ModelProviderConfiguredModel],
+) -> Vec<String> {
+    configured_models
+        .iter()
+        .filter(|configured_model| configured_model.enabled)
+        .map(|configured_model| configured_model.model_id.clone())
+        .collect()
 }
 
 fn derive_instance_status(

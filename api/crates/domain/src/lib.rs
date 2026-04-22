@@ -30,9 +30,10 @@ pub use flow::{
     FLOW_SCHEMA_VERSION,
 };
 pub use model_provider::{
-    ModelProviderCatalogCacheRecord, ModelProviderCatalogRefreshStatus, ModelProviderCatalogSource,
-    ModelProviderDiscoveryMode, ModelProviderInstanceRecord, ModelProviderInstanceStatus,
-    ModelProviderPreviewSessionRecord, ModelProviderSecretRecord, ModelProviderValidationStatus,
+    ModelProviderCatalogCacheRecord, ModelProviderCatalogRefreshStatus,
+    ModelProviderCatalogSource, ModelProviderConfiguredModel, ModelProviderDiscoveryMode,
+    ModelProviderInstanceRecord, ModelProviderInstanceStatus, ModelProviderPreviewSessionRecord,
+    ModelProviderSecretRecord, ModelProviderValidationStatus,
     PluginArtifactStatus, PluginAssignmentRecord, PluginAvailabilityStatus, PluginDesiredState,
     PluginInstallationRecord, PluginRuntimeStatus, PluginTaskKind, PluginTaskRecord,
     PluginTaskStatus, PluginVerificationStatus,

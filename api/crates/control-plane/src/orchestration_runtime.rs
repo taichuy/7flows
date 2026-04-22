@@ -1501,6 +1501,10 @@ impl InMemoryOrchestrationRuntimeRepository {
             config_json: json!({
                 "base_url": "https://api.example.com",
             }),
+            configured_models: vec![domain::ModelProviderConfiguredModel {
+                model_id: "gpt-5.4-mini".to_string(),
+                enabled: true,
+            }],
             enabled_model_ids: vec!["gpt-5.4-mini".to_string()],
             created_by: Uuid::nil(),
             updated_by: Uuid::nil(),

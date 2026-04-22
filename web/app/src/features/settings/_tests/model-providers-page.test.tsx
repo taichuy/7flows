@@ -226,6 +226,16 @@ describe('ModelProvidersPage', () => {
           base_url: 'https://api.openai.com/v1',
           api_key: 'supe****cret'
         },
+        configured_models: [
+          {
+            model_id: 'gpt-4o-mini',
+            enabled: true
+          },
+          {
+            model_id: 'gpt-4o',
+            enabled: true
+          }
+        ],
         enabled_model_ids: ['gpt-4o-mini', 'gpt-4o'],
         catalog_refresh_status: 'ready',
         catalog_last_error_message: null,
@@ -243,6 +253,7 @@ describe('ModelProvidersPage', () => {
           base_url: 'https://backup.openai.example/v1',
           api_key: 'back****cret'
         },
+        configured_models: [],
         enabled_model_ids: [],
         catalog_refresh_status: 'idle',
         catalog_last_error_message: null,
@@ -782,7 +793,7 @@ describe('ModelProvidersPage', () => {
   );
 
   test(
-    'loads candidate models from the draft drawer with cache dropdown and editable enabled models',
+    'loads candidate models from the draft drawer and submits grouped configured model rows',
     { timeout: 15000 },
     async () => {
       const previewModels = vi.fn().mockResolvedValue({
@@ -820,13 +831,8 @@ describe('ModelProvidersPage', () => {
       );
 
       await screen.findByRole('dialog');
-      const candidateCacheSelect = screen.getByRole('combobox', {
-        name: '候选缓存'
-      });
-      const enabledModelSelect = screen.getByRole('combobox', { name: '生效模型' });
       expect(screen.getByText('API 密钥授权配置')).toBeInTheDocument();
-      expect(candidateCacheSelect).toBeInTheDocument();
-      expect(enabledModelSelect).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '添加模型' })).toBeInTheDocument();
       expect(screen.queryByText('校验模型')).not.toBeInTheDocument();
       expect(screen.queryByText('validate_model')).not.toBeInTheDocument();
       expect(screen.queryByLabelText('organization')).not.toBeInTheDocument();
@@ -860,24 +866,16 @@ describe('ModelProvidersPage', () => {
         );
       });
 
-      fireEvent.mouseDown(candidateCacheSelect);
-      expect(await screen.findByRole('option', { name: 'gpt-4o-mini' })).toBeInTheDocument();
-      fireEvent.change(candidateCacheSelect, {
+      fireEvent.click(screen.getByRole('button', { name: '添加模型' }));
+      fireEvent.click(screen.getByRole('button', { name: '添加模型' }));
+
+      fireEvent.change(screen.getByLabelText('模型 ID 1'), {
         target: { value: 'gpt-4o-mini' }
       });
-      fireEvent.keyDown(candidateCacheSelect, {
-        key: 'Enter',
-        code: 'Enter',
-        charCode: 13
-      });
-      fireEvent.change(enabledModelSelect, {
+      fireEvent.change(screen.getByLabelText('模型 ID 2'), {
         target: { value: 'manual-model-id' }
       });
-      fireEvent.keyDown(enabledModelSelect, {
-        key: 'Enter',
-        code: 'Enter',
-        charCode: 13
-      });
+      fireEvent.click(screen.getByRole('switch', { name: '启用模型 2' }));
 
       previewModels.mockResolvedValueOnce({
         models: [
@@ -913,7 +911,16 @@ describe('ModelProvidersPage', () => {
             base_url: 'https://api.openai.com/v1',
             api_key: 'super-secret'
           },
-          enabled_model_ids: ['gpt-4o-mini', 'manual-model-id'],
+          configured_models: [
+            {
+              model_id: 'gpt-4o-mini',
+              enabled: true
+            },
+            {
+              model_id: 'manual-model-id',
+              enabled: false
+            }
+          ],
           preview_token: 'preview-2'
         });
       });

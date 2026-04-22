@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
+  AutoComplete,
   Button,
   Collapse,
   Divider,
   Descriptions,
   Drawer,
+  Empty,
+  Flex,
   Form,
   Input,
-  Select,
   Space,
+  Switch,
   Tag,
   Typography
 } from 'antd';
@@ -26,6 +29,11 @@ type ModelProviderFormValue = string | boolean;
 type ModelProviderConfigField = SettingsModelProviderCatalogEntry['form_schema'][number];
 type PreviewModelDescriptor = SettingsModelProviderModelCatalog['models'][number];
 type PreviewModelsResponse = PreviewSettingsModelProviderModelsResponse;
+type ConfiguredModelRow = {
+  key: string;
+  model_id: string;
+  enabled: boolean;
+};
 
 function normalizeConfigFieldValue(value: unknown): ModelProviderFormValue {
   if (typeof value === 'boolean') {
@@ -136,7 +144,10 @@ export function ModelProviderInstanceDrawer({
   onSubmit: (input: {
     display_name: string;
     config: Record<string, unknown>;
-    enabled_model_ids: string[];
+    configured_models: Array<{
+      model_id: string;
+      enabled: boolean;
+    }>;
     preview_token?: string;
   }) => Promise<void>;
   onPreviewModels: (config: Record<string, unknown>) => Promise<PreviewModelsResponse>;
@@ -150,14 +161,33 @@ export function ModelProviderInstanceDrawer({
   const [revealedSecretKeys, setRevealedSecretKeys] = useState<Record<string, boolean>>({});
   const [revealingSecretKey, setRevealingSecretKey] = useState<string | null>(null);
   const [previewModels, setPreviewModels] = useState<PreviewModelDescriptor[]>([]);
-  const [selectedCandidateModelId, setSelectedCandidateModelId] = useState<
-    string | undefined
-  >();
-  const [candidateModelInput, setCandidateModelInput] = useState('');
-  const [enabledModelIds, setEnabledModelIds] = useState<string[]>([]);
-  const [enabledModelInput, setEnabledModelInput] = useState('');
+  const configuredModelKeyRef = useRef(0);
+  const [configuredModels, setConfiguredModels] = useState<ConfiguredModelRow[]>([]);
   const [previewToken, setPreviewToken] = useState<string | undefined>();
   const [previewingModels, setPreviewingModels] = useState(false);
+
+  function nextConfiguredModelKey() {
+    const key = `configured-model-${configuredModelKeyRef.current}`;
+    configuredModelKeyRef.current += 1;
+    return key;
+  }
+
+  function buildInitialConfiguredModels() {
+    const sourceModels =
+      Array.isArray(instance?.configured_models) && instance.configured_models.length > 0
+        ? instance.configured_models
+        : (instance?.enabled_model_ids ?? []).map((modelId) => ({
+            model_id: modelId,
+            enabled: true
+          }));
+
+    configuredModelKeyRef.current = 0;
+    return sourceModels.map((model) => ({
+      key: nextConfiguredModelKey(),
+      model_id: model.model_id,
+      enabled: model.enabled
+    }));
+  }
 
   useEffect(() => {
     if (!open) {
@@ -166,10 +196,8 @@ export function ModelProviderInstanceDrawer({
       setRevealedSecretKeys({});
       setRevealingSecretKey(null);
       setPreviewModels([]);
-      setSelectedCandidateModelId(undefined);
-      setCandidateModelInput('');
-      setEnabledModelIds([]);
-      setEnabledModelInput('');
+      configuredModelKeyRef.current = 0;
+      setConfiguredModels([]);
       setPreviewToken(undefined);
       setPreviewingModels(false);
       return;
@@ -179,56 +207,52 @@ export function ModelProviderInstanceDrawer({
       display_name: instance?.display_name ?? catalogEntry?.display_name ?? '',
       config: buildInitialConfig(mode, catalogEntry, instance)
     });
-    setEnabledModelIds(instance?.enabled_model_ids ?? []);
+    setConfiguredModels(buildInitialConfiguredModels());
     setSecretDrafts({});
     setRevealedSecretKeys({});
     setRevealingSecretKey(null);
     setPreviewModels([]);
-    setSelectedCandidateModelId(undefined);
-    setCandidateModelInput('');
     setPreviewToken(undefined);
     setPreviewingModels(false);
-    setEnabledModelInput('');
   }, [catalogEntry, form, instance, mode, open]);
 
   function clearPreviewState() {
     setPreviewModels([]);
-    setSelectedCandidateModelId(undefined);
-    setCandidateModelInput('');
     setPreviewToken(undefined);
   }
 
-  function normalizeEnabledModelIds(values: string[]) {
-    const nextValues: string[] = [];
+  function normalizeConfiguredModels(rows: ConfiguredModelRow[]) {
+    const normalizedRows: Array<{
+      model_id: string;
+      enabled: boolean;
+    }> = [];
+    const seen = new Set<string>();
 
-    for (const value of values) {
-      const normalized = value.trim();
-      if (!normalized || nextValues.includes(normalized)) {
+    for (const row of rows) {
+      const normalizedModelId = row.model_id.trim();
+      if (!normalizedModelId || seen.has(normalizedModelId)) {
         continue;
       }
-      nextValues.push(normalized);
+
+      seen.add(normalizedModelId);
+      normalizedRows.push({
+        model_id: normalizedModelId,
+        enabled: row.enabled
+      });
     }
 
-    return nextValues;
+    return normalizedRows;
   }
 
-  function appendEnabledModelId(rawValue: string) {
-    const normalized = rawValue.trim();
-    if (!normalized) {
-      return;
-    }
-
-    setEnabledModelIds((current) => normalizeEnabledModelIds([...current, normalized]));
-  }
-
-  function commitEnabledModelInput(rawValue: string) {
-    const normalized = rawValue.trim();
-    if (!normalized) {
-      return;
-    }
-
-    appendEnabledModelId(normalized);
-    setEnabledModelInput('');
+  function appendConfiguredModelRow(initial?: Partial<ConfiguredModelRow>) {
+    setConfiguredModels((current) => [
+      ...current,
+      {
+        key: nextConfiguredModelKey(),
+        model_id: initial?.model_id ?? '',
+        enabled: initial?.enabled ?? true
+      }
+    ]);
   }
 
   async function handleRevealSecret(fieldKey: string) {
@@ -256,6 +280,10 @@ export function ModelProviderInstanceDrawer({
   );
   const primaryConfigFields = formSchema.filter((field) => !field.advanced);
   const advancedConfigFields = formSchema.filter((field) => field.advanced);
+  const modelAutocompleteOptions = previewModels.map((model) => ({
+    label: model.model_id,
+    value: model.model_id
+  }));
 
   function buildDraftConfig(valuesConfig: Record<string, ModelProviderFormValue>) {
     const config: Record<string, unknown> = {
@@ -278,6 +306,19 @@ export function ModelProviderInstanceDrawer({
 
     delete config.validate_model;
     return config;
+  }
+
+  function updateConfiguredModelRow(
+    rowKey: string,
+    patch: Partial<Pick<ConfiguredModelRow, 'model_id' | 'enabled'>>
+  ) {
+    setConfiguredModels((current) =>
+      current.map((row) => (row.key === rowKey ? { ...row, ...patch } : row))
+    );
+  }
+
+  function removeConfiguredModelRow(rowKey: string) {
+    setConfiguredModels((current) => current.filter((row) => row.key !== rowKey));
   }
 
   async function handlePreviewModels() {
@@ -429,7 +470,7 @@ export function ModelProviderInstanceDrawer({
               await onSubmit({
                 display_name: values.display_name,
                 config: buildDraftConfig(values.config ?? {}),
-                enabled_model_ids: enabledModelIds,
+                configured_models: normalizeConfiguredModels(configuredModels),
                 preview_token: previewToken
               });
             }}
@@ -508,78 +549,108 @@ export function ModelProviderInstanceDrawer({
               />
             ) : null}
 
-            <Divider orientation="left">模型检测</Divider>
-            <Space direction="vertical" size={8} style={{ width: '100%' }}>
-              <Typography.Text type="secondary">
-                {previewModels.length > 0
-                  ? `已检测到 ${previewModels.length} 个候选模型，可从候选缓存下拉中加入生效模型。`
-                  : '先点击“检测”获取候选模型缓存，再把需要开放给业务侧的 model id 加入生效模型。'}
-              </Typography.Text>
-              <Form.Item
-                label="候选缓存"
-                extra="点击“检测”更新候选缓存；从下拉选择后会自动加入生效模型。"
-              >
-                <Select
-                  aria-label="候选缓存"
-                  placeholder={
-                    previewModels.length > 0
-                      ? '搜索候选模型并加入生效模型'
-                      : '点击“检测”获取候选模型缓存'
-                  }
-                  value={selectedCandidateModelId}
-                  searchValue={candidateModelInput}
-                  options={previewModels.map((model) => ({
-                    label: model.model_id,
-                    value: model.model_id
-                  }))}
-                  onChange={(value) => {
-                    setSelectedCandidateModelId(undefined);
-                    setCandidateModelInput('');
-                    appendEnabledModelId(String(value));
-                  }}
-                  onSearch={setCandidateModelInput}
-                  onInputKeyDown={(event) => {
-                    if (event.key !== 'Enter') {
-                      return;
-                    }
+            <Divider orientation="left">模型配置</Divider>
+            <Space direction="vertical" size={12} style={{ width: '100%' }}>
+              <Flex justify="space-between" align="center" gap={12}>
+                <Typography.Text type="secondary">
+                  {previewModels.length > 0
+                    ? `已检测到 ${previewModels.length} 个候选模型。每一行都可直接输入 model id，也可从下拉缓存选择，再单独切换启用状态。`
+                    : '先点击“检测”获取候选模型缓存，再按行录入 model id、启用状态和删除动作。'}
+                </Typography.Text>
+                <Button type="dashed" onClick={() => appendConfiguredModelRow()}>
+                  添加模型
+                </Button>
+              </Flex>
 
-                    event.preventDefault();
-                    setSelectedCandidateModelId(undefined);
-                    appendEnabledModelId(candidateModelInput);
-                    setCandidateModelInput('');
-                  }}
-                  notFoundContent={previewingModels ? '正在检测模型...' : '暂无候选模型'}
-                  optionFilterProp="label"
-                  showSearch
-                />
-              </Form.Item>
-              <Form.Item
-                label="生效模型"
-                extra="支持手动输入任意 model id，并通过回车添加多组模型。"
+              <div
+                style={{
+                  border: '1px solid var(--ant-color-border-secondary)',
+                  borderRadius: 8,
+                  overflow: 'hidden'
+                }}
               >
-                <Select
-                  aria-label="生效模型"
-                  mode="tags"
-                  open={false}
-                  placeholder="输入 model id 后回车添加"
-                  value={enabledModelIds}
-                  searchValue={enabledModelInput}
-                  onChange={(values) => {
-                    setEnabledModelIds(normalizeEnabledModelIds(values));
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'minmax(0, 1fr) 96px 72px',
+                    gap: 12,
+                    padding: '10px 12px',
+                    background: 'var(--ant-color-fill-tertiary)',
+                    alignItems: 'center'
                   }}
-                  onSearch={setEnabledModelInput}
-                  onInputKeyDown={(event) => {
-                    if (event.key !== 'Enter') {
-                      return;
-                    }
+                >
+                  <Typography.Text strong>模型 ID</Typography.Text>
+                  <Typography.Text strong>启用</Typography.Text>
+                  <Typography.Text strong>操作</Typography.Text>
+                </div>
 
-                    event.preventDefault();
-                    commitEnabledModelInput(enabledModelInput);
-                  }}
-                  tokenSeparators={[',']}
-                  allowClear
-                />
-              </Form.Item>
+                {configuredModels.length > 0 ? (
+                  configuredModels.map((row, index) => (
+                    <div
+                      key={row.key}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'minmax(0, 1fr) 96px 72px',
+                        gap: 12,
+                        padding: '12px',
+                        borderTop: '1px solid var(--ant-color-border-secondary)',
+                        alignItems: 'center'
+                      }}
+                    >
+                      <AutoComplete
+                        value={row.model_id}
+                        options={modelAutocompleteOptions}
+                        onChange={(value) => {
+                          updateConfiguredModelRow(row.key, {
+                            model_id: String(value)
+                          });
+                        }}
+                        placeholder={
+                          previewModels.length > 0
+                            ? '输入或从检测缓存选择 model id'
+                            : '输入 model id'
+                        }
+                        filterOption={(inputValue, option) =>
+                          String(option?.value ?? '')
+                            .toLowerCase()
+                            .includes(inputValue.toLowerCase())
+                        }
+                      >
+                        <Input aria-label={`模型 ID ${index + 1}`} />
+                      </AutoComplete>
+                      <Switch
+                        aria-label={`启用模型 ${index + 1}`}
+                        checked={row.enabled}
+                        onChange={(checked) => {
+                          updateConfiguredModelRow(row.key, {
+                            enabled: checked
+                          });
+                        }}
+                      />
+                      <Button
+                        danger
+                        type="text"
+                        aria-label={`删除模型 ${index + 1}`}
+                        onClick={() => removeConfiguredModelRow(row.key)}
+                      >
+                        删除
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <div
+                    style={{
+                      padding: '24px 12px',
+                      borderTop: '1px solid var(--ant-color-border-secondary)'
+                    }}
+                  >
+                    <Empty
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      description="还没有配置模型，点击“添加模型”开始录入。"
+                    />
+                  </div>
+                )}
+              </div>
             </Space>
           </>
         ) : (

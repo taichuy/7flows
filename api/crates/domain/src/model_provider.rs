@@ -310,6 +310,12 @@ impl ModelProviderCatalogSource {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelProviderConfiguredModel {
+    pub model_id: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ModelProviderInstanceRecord {
     pub id: Uuid,
     pub workspace_id: Uuid,
@@ -319,6 +325,7 @@ pub struct ModelProviderInstanceRecord {
     pub display_name: String,
     pub status: ModelProviderInstanceStatus,
     pub config_json: serde_json::Value,
+    pub configured_models: Vec<ModelProviderConfiguredModel>,
     pub enabled_model_ids: Vec<String>,
     pub created_by: Uuid,
     pub updated_by: Uuid,

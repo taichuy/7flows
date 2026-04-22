@@ -300,7 +300,10 @@ function ModelProvidersSection({ canManage }: { canManage: boolean }) {
     mutationFn: async (input: {
       installationId: string;
       display_name: string;
-      enabled_model_ids: string[];
+      configured_models: Array<{
+        model_id: string;
+        enabled: boolean;
+      }>;
       preview_token?: string;
       config: Record<string, unknown>;
     }) => {
@@ -312,7 +315,7 @@ function ModelProvidersSection({ canManage }: { canManage: boolean }) {
         {
           installation_id: input.installationId,
           display_name: input.display_name,
-          enabled_model_ids: input.enabled_model_ids,
+          configured_models: input.configured_models,
           preview_token: input.preview_token ?? null,
           config: input.config
         },
@@ -329,7 +332,10 @@ function ModelProvidersSection({ canManage }: { canManage: boolean }) {
     mutationFn: async (input: {
       instanceId: string;
       display_name: string;
-      enabled_model_ids: string[];
+      configured_models: Array<{
+        model_id: string;
+        enabled: boolean;
+      }>;
       preview_token?: string;
       config: Record<string, unknown>;
     }) => {
@@ -341,7 +347,7 @@ function ModelProvidersSection({ canManage }: { canManage: boolean }) {
         input.instanceId,
         {
           display_name: input.display_name,
-          enabled_model_ids: input.enabled_model_ids,
+          configured_models: input.configured_models,
           preview_token: input.preview_token ?? null,
           config: input.config
         },
@@ -817,7 +823,7 @@ function ModelProvidersSection({ canManage }: { canManage: boolean }) {
             await updateMutation.mutateAsync({
               instanceId: editingInstance.id,
               display_name: values.display_name,
-              enabled_model_ids: values.enabled_model_ids,
+              configured_models: values.configured_models,
               preview_token: values.preview_token,
               config: values.config
             });
@@ -831,7 +837,7 @@ function ModelProvidersSection({ canManage }: { canManage: boolean }) {
           await createMutation.mutateAsync({
             installationId: drawerCatalogEntry.installation_id,
             display_name: values.display_name,
-            enabled_model_ids: values.enabled_model_ids,
+            configured_models: values.configured_models,
             preview_token: values.preview_token,
             config: values.config
           });

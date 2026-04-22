@@ -486,7 +486,7 @@ async fn model_provider_routes_preview_models_from_draft_config_and_existing_sec
 }
 
 #[tokio::test]
-async fn model_provider_routes_create_instance_accepts_enabled_model_ids_with_preview_token() {
+async fn model_provider_routes_create_instance_accepts_configured_models_with_preview_token() {
     let app = test_app().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
     let installation_id = install_enable_assign(&app, &cookie, &csrf).await;
@@ -534,7 +534,10 @@ async fn model_provider_routes_create_instance_accepts_enabled_model_ids_with_pr
                     json!({
                         "installation_id": installation_id,
                         "display_name": "Fixture Prod",
-                        "enabled_model_ids": ["fixture_chat", "custom-preview"],
+                        "configured_models": [
+                            { "model_id": "fixture_chat", "enabled": true },
+                            { "model_id": "custom-preview", "enabled": false }
+                        ],
                         "preview_token": preview_token,
                         "config": {
                             "base_url": "https://api.example.com",
@@ -552,15 +555,22 @@ async fn model_provider_routes_create_instance_accepts_enabled_model_ids_with_pr
         serde_json::from_slice(&to_bytes(create.into_body(), usize::MAX).await.unwrap()).unwrap();
     assert_eq!(create_payload["data"]["status"].as_str(), Some("ready"));
     assert_eq!(
+        create_payload["data"]["configured_models"],
+        json!([
+            { "model_id": "fixture_chat", "enabled": true },
+            { "model_id": "custom-preview", "enabled": false }
+        ])
+    );
+    assert_eq!(
         create_payload["data"]["enabled_model_ids"],
-        json!(["fixture_chat", "custom-preview"])
+        json!(["fixture_chat"])
     );
     assert!(create_payload["data"].get("validation_model_id").is_none());
     assert_eq!(create_payload["data"]["model_count"].as_u64(), Some(1));
 }
 
 #[tokio::test]
-async fn model_provider_routes_update_instance_accepts_enabled_model_ids() {
+async fn model_provider_routes_update_instance_accepts_configured_models() {
     let app = test_app().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
     let installation_id = install_enable_assign(&app, &cookie, &csrf).await;
@@ -578,7 +588,7 @@ async fn model_provider_routes_update_instance_accepts_enabled_model_ids() {
                     json!({
                         "installation_id": installation_id,
                         "display_name": "Fixture Draft",
-                        "enabled_model_ids": [],
+                        "configured_models": [],
                         "config": {
                             "base_url": "https://api.example.com",
                             "api_key": "super-secret"
@@ -607,7 +617,12 @@ async fn model_provider_routes_update_instance_accepts_enabled_model_ids() {
                 .body(Body::from(
                     json!({
                         "display_name": "Fixture Ready",
-                        "enabled_model_ids": [" fixture_chat ", "custom-preview", "fixture_chat", ""],
+                        "configured_models": [
+                            { "model_id": " fixture_chat ", "enabled": true },
+                            { "model_id": "custom-preview", "enabled": false },
+                            { "model_id": "fixture_chat", "enabled": true },
+                            { "model_id": "", "enabled": true }
+                        ],
                         "config": {}
                     })
                     .to_string(),
@@ -621,8 +636,15 @@ async fn model_provider_routes_update_instance_accepts_enabled_model_ids() {
         serde_json::from_slice(&to_bytes(update.into_body(), usize::MAX).await.unwrap()).unwrap();
     assert_eq!(update_payload["data"]["status"].as_str(), Some("ready"));
     assert_eq!(
+        update_payload["data"]["configured_models"],
+        json!([
+            { "model_id": "fixture_chat", "enabled": true },
+            { "model_id": "custom-preview", "enabled": false }
+        ])
+    );
+    assert_eq!(
         update_payload["data"]["enabled_model_ids"],
-        json!(["fixture_chat", "custom-preview"])
+        json!(["fixture_chat"])
     );
     assert!(update_payload["data"].get("validation_model_id").is_none());
 
@@ -641,14 +663,21 @@ async fn model_provider_routes_update_instance_accepts_enabled_model_ids() {
     let list_payload: Value =
         serde_json::from_slice(&to_bytes(list.into_body(), usize::MAX).await.unwrap()).unwrap();
     assert_eq!(
+        list_payload["data"][0]["configured_models"],
+        json!([
+            { "model_id": "fixture_chat", "enabled": true },
+            { "model_id": "custom-preview", "enabled": false }
+        ])
+    );
+    assert_eq!(
         list_payload["data"][0]["enabled_model_ids"],
-        json!(["fixture_chat", "custom-preview"])
+        json!(["fixture_chat"])
     );
     assert!(list_payload["data"][0].get("validation_model_id").is_none());
 }
 
 #[tokio::test]
-async fn model_provider_routes_create_instance_allows_preview_token_with_empty_enabled_model_ids() {
+async fn model_provider_routes_create_instance_allows_preview_token_with_empty_configured_models() {
     let app = test_app().await;
     let (cookie, csrf) = login_and_capture_cookie(&app, "root", "change-me").await;
     let installation_id = install_enable_assign(&app, &cookie, &csrf).await;
@@ -696,7 +725,7 @@ async fn model_provider_routes_create_instance_allows_preview_token_with_empty_e
                     json!({
                         "installation_id": installation_id,
                         "display_name": "Fixture Draft",
-                        "enabled_model_ids": [],
+                        "configured_models": [],
                         "preview_token": preview_token,
                         "config": {
                             "base_url": "https://api.example.com",
@@ -713,6 +742,7 @@ async fn model_provider_routes_create_instance_allows_preview_token_with_empty_e
     let create_payload: Value =
         serde_json::from_slice(&to_bytes(create.into_body(), usize::MAX).await.unwrap()).unwrap();
     assert_eq!(create_payload["data"]["status"].as_str(), Some("draft"));
+    assert_eq!(create_payload["data"]["configured_models"], json!([]));
     assert_eq!(create_payload["data"]["enabled_model_ids"], json!([]));
     assert!(create_payload["data"].get("validation_model_id").is_none());
 }
@@ -736,7 +766,10 @@ async fn model_provider_routes_refresh_models_keeps_enabled_model_ids_unchanged(
                     json!({
                         "installation_id": installation_id,
                         "display_name": "Fixture Ready",
-                        "enabled_model_ids": ["fixture_chat", "custom-refresh"],
+                        "configured_models": [
+                            { "model_id": "fixture_chat", "enabled": true },
+                            { "model_id": "custom-refresh", "enabled": false }
+                        ],
                         "config": {
                             "base_url": "https://api.example.com",
                             "api_key": "super-secret"
@@ -792,8 +825,15 @@ async fn model_provider_routes_refresh_models_keeps_enabled_model_ids_unchanged(
     let list_payload: Value =
         serde_json::from_slice(&to_bytes(list.into_body(), usize::MAX).await.unwrap()).unwrap();
     assert_eq!(
+        list_payload["data"][0]["configured_models"],
+        json!([
+            { "model_id": "fixture_chat", "enabled": true },
+            { "model_id": "custom-refresh", "enabled": false }
+        ])
+    );
+    assert_eq!(
         list_payload["data"][0]["enabled_model_ids"],
-        json!(["fixture_chat", "custom-refresh"])
+        json!(["fixture_chat"])
     );
     assert!(list_payload["data"][0].get("validation_model_id").is_none());
     assert_eq!(list_payload["data"][0]["model_count"].as_u64(), Some(1));

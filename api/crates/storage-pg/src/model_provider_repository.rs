@@ -31,6 +31,7 @@ fn map_instance(row: sqlx::postgres::PgRow) -> Result<domain::ModelProviderInsta
         display_name: row.get("display_name"),
         status: row.get("status"),
         config_json: row.get("config_json"),
+        configured_models_json: row.get("configured_models_json"),
         enabled_model_ids: row.get("enabled_model_ids"),
         created_by: row.get("created_by"),
         updated_by: row.get("updated_by"),
@@ -96,10 +97,11 @@ impl ModelProviderRepository for PgControlPlaneStore {
                 display_name,
                 status,
                 config_json,
+                configured_models_json,
                 enabled_model_ids,
                 created_by,
                 updated_by
-            ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
+            ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
             returning
                 id,
                 workspace_id,
@@ -109,6 +111,7 @@ impl ModelProviderRepository for PgControlPlaneStore {
                 display_name,
                 status,
                 config_json,
+                configured_models_json,
                 enabled_model_ids,
                 created_by,
                 updated_by,
@@ -124,6 +127,7 @@ impl ModelProviderRepository for PgControlPlaneStore {
         .bind(&input.display_name)
         .bind(input.status.as_str())
         .bind(&input.config_json)
+        .bind(serde_json::to_value(&input.configured_models)?)
         .bind(&input.enabled_model_ids)
         .bind(input.created_by)
         .fetch_one(self.pool())
@@ -143,8 +147,9 @@ impl ModelProviderRepository for PgControlPlaneStore {
                 display_name = $3,
                 status = $4,
                 config_json = $5,
-                enabled_model_ids = $6,
-                updated_by = $7,
+                configured_models_json = $6,
+                enabled_model_ids = $7,
+                updated_by = $8,
                 updated_at = now()
             where workspace_id = $1
               and id = $2
@@ -157,6 +162,7 @@ impl ModelProviderRepository for PgControlPlaneStore {
                 display_name,
                 status,
                 config_json,
+                configured_models_json,
                 enabled_model_ids,
                 created_by,
                 updated_by,
@@ -169,6 +175,7 @@ impl ModelProviderRepository for PgControlPlaneStore {
         .bind(&input.display_name)
         .bind(input.status.as_str())
         .bind(&input.config_json)
+        .bind(serde_json::to_value(&input.configured_models)?)
         .bind(&input.enabled_model_ids)
         .bind(input.updated_by)
         .fetch_optional(self.pool())
@@ -196,6 +203,7 @@ impl ModelProviderRepository for PgControlPlaneStore {
                 display_name,
                 status,
                 config_json,
+                configured_models_json,
                 enabled_model_ids,
                 created_by,
                 updated_by,
@@ -229,6 +237,7 @@ impl ModelProviderRepository for PgControlPlaneStore {
                 display_name,
                 status,
                 config_json,
+                configured_models_json,
                 enabled_model_ids,
                 created_by,
                 updated_by,
@@ -261,6 +270,7 @@ impl ModelProviderRepository for PgControlPlaneStore {
                 display_name,
                 status,
                 config_json,
+                configured_models_json,
                 enabled_model_ids,
                 created_by,
                 updated_by,
@@ -301,6 +311,7 @@ impl ModelProviderRepository for PgControlPlaneStore {
                 display_name,
                 status,
                 config_json,
+                configured_models_json,
                 enabled_model_ids,
                 created_by,
                 updated_by,

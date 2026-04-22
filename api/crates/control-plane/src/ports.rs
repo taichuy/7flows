@@ -834,6 +834,7 @@ pub struct CreateModelProviderInstanceInput {
     pub display_name: String,
     pub status: domain::ModelProviderInstanceStatus,
     pub config_json: serde_json::Value,
+    pub configured_models: Vec<domain::ModelProviderConfiguredModel>,
     pub enabled_model_ids: Vec<String>,
     pub created_by: Uuid,
 }
@@ -845,6 +846,7 @@ pub struct UpdateModelProviderInstanceInput {
     pub display_name: String,
     pub status: domain::ModelProviderInstanceStatus,
     pub config_json: serde_json::Value,
+    pub configured_models: Vec<domain::ModelProviderConfiguredModel>,
     pub enabled_model_ids: Vec<String>,
     pub updated_by: Uuid,
 }

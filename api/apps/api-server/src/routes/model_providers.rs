@@ -35,9 +35,18 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize, ToSchema)]
+pub struct ConfiguredModelBody {
+    pub model_id: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateModelProviderBody {
     pub installation_id: String,
     pub display_name: String,
+    #[serde(default)]
+    pub configured_models: Vec<ConfiguredModelBody>,
+    #[serde(default)]
     pub enabled_model_ids: Vec<String>,
     pub preview_token: Option<String>,
     #[schema(value_type = Object)]
@@ -47,6 +56,9 @@ pub struct CreateModelProviderBody {
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct UpdateModelProviderBody {
     pub display_name: String,
+    #[serde(default)]
+    pub configured_models: Vec<ConfiguredModelBody>,
+    #[serde(default)]
     pub enabled_model_ids: Vec<String>,
     pub preview_token: Option<String>,
     #[schema(value_type = Object)]
@@ -183,6 +195,12 @@ pub struct ModelProviderCatalogResponse {
 }
 
 #[derive(Debug, Serialize, ToSchema)]
+pub struct ConfiguredModelResponse {
+    pub model_id: String,
+    pub enabled: bool,
+}
+
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ModelProviderInstanceResponse {
     pub id: String,
     pub installation_id: String,
@@ -192,6 +210,7 @@ pub struct ModelProviderInstanceResponse {
     pub status: String,
     #[schema(value_type = Object)]
     pub config_json: serde_json::Value,
+    pub configured_models: Vec<ConfiguredModelResponse>,
     pub enabled_model_ids: Vec<String>,
     pub catalog_refresh_status: Option<String>,
     pub catalog_last_error_message: Option<String>,
@@ -488,6 +507,15 @@ fn to_instance_response(view: ModelProviderInstanceView) -> ModelProviderInstanc
         display_name: view.instance.display_name,
         status: view.instance.status.as_str().to_string(),
         config_json: view.instance.config_json,
+        configured_models: view
+            .instance
+            .configured_models
+            .into_iter()
+            .map(|model| ConfiguredModelResponse {
+                model_id: model.model_id,
+                enabled: model.enabled,
+            })
+            .collect(),
         enabled_model_ids: view.instance.enabled_model_ids,
         catalog_refresh_status: view
             .cache
@@ -658,6 +686,14 @@ pub async fn create_instance(
             installation_id: parse_uuid(&body.installation_id, "installation_id")?,
             display_name: body.display_name,
             config_json: body.config,
+            configured_models: body
+                .configured_models
+                .into_iter()
+                .map(|model| domain::ModelProviderConfiguredModel {
+                    model_id: model.model_id,
+                    enabled: model.enabled,
+                })
+                .collect(),
             enabled_model_ids: body.enabled_model_ids,
             preview_token: body
                 .preview_token
@@ -693,6 +729,14 @@ pub async fn update_instance(
             instance_id: parse_uuid(&id, "id")?,
             display_name: body.display_name,
             config_json: body.config,
+            configured_models: body
+                .configured_models
+                .into_iter()
+                .map(|model| domain::ModelProviderConfiguredModel {
+                    model_id: model.model_id,
+                    enabled: model.enabled,
+                })
+                .collect(),
             enabled_model_ids: body.enabled_model_ids,
             preview_token: body
                 .preview_token

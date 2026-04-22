@@ -123,6 +123,7 @@ async fn model_provider_repository_persists_instances_catalog_cache_and_encrypte
             display_name: "Fixture Provider Prod".into(),
             status: ModelProviderInstanceStatus::Draft,
             config_json: json!({ "base_url": "https://api.example.com" }),
+            configured_models: vec![],
             enabled_model_ids: vec![],
             created_by: actor.id,
         },
@@ -140,6 +141,7 @@ async fn model_provider_repository_persists_instances_catalog_cache_and_encrypte
             display_name: "Fixture Provider Draft".into(),
             status: ModelProviderInstanceStatus::Draft,
             config_json: json!({ "base_url": "https://api.example.com/v1" }),
+            configured_models: vec![],
             enabled_model_ids: vec![],
             updated_by: actor.id,
         },
@@ -161,6 +163,16 @@ async fn model_provider_repository_persists_instances_catalog_cache_and_encrypte
             display_name: "Fixture Provider Ready".into(),
             status: ModelProviderInstanceStatus::Draft,
             config_json: json!({ "base_url": "https://api.example.com" }),
+            configured_models: vec![
+                domain::ModelProviderConfiguredModel {
+                    model_id: "qwen-max".into(),
+                    enabled: true,
+                },
+                domain::ModelProviderConfiguredModel {
+                    model_id: "qwen-plus".into(),
+                    enabled: false,
+                },
+            ],
             enabled_model_ids: vec!["qwen-max".into(), "qwen-plus".into()],
             created_by: actor.id,
         },
@@ -168,6 +180,19 @@ async fn model_provider_repository_persists_instances_catalog_cache_and_encrypte
     .await
     .unwrap();
     assert_eq!(pair_instance.enabled_model_ids, vec!["qwen-max".to_string(), "qwen-plus".to_string()]);
+    assert_eq!(
+        pair_instance.configured_models,
+        vec![
+            domain::ModelProviderConfiguredModel {
+                model_id: "qwen-max".to_string(),
+                enabled: true,
+            },
+            domain::ModelProviderConfiguredModel {
+                model_id: "qwen-plus".to_string(),
+                enabled: false,
+            },
+        ]
+    );
 
     let pair_updated = ModelProviderRepository::update_instance(
         &store,
@@ -177,6 +202,16 @@ async fn model_provider_repository_persists_instances_catalog_cache_and_encrypte
             display_name: "Fixture Provider Ready".into(),
             status: ModelProviderInstanceStatus::Ready,
             config_json: json!({ "base_url": "https://api.example.com/v1" }),
+            configured_models: vec![
+                domain::ModelProviderConfiguredModel {
+                    model_id: "qwen-max".into(),
+                    enabled: true,
+                },
+                domain::ModelProviderConfiguredModel {
+                    model_id: "qwen-plus".into(),
+                    enabled: false,
+                },
+            ],
             enabled_model_ids: vec!["qwen-max".into(), "qwen-plus".into()],
             updated_by: actor.id,
         },
@@ -187,6 +222,19 @@ async fn model_provider_repository_persists_instances_catalog_cache_and_encrypte
     assert_eq!(
         pair_updated.enabled_model_ids,
         vec!["qwen-max".to_string(), "qwen-plus".to_string()]
+    );
+    assert_eq!(
+        pair_updated.configured_models,
+        vec![
+            domain::ModelProviderConfiguredModel {
+                model_id: "qwen-max".to_string(),
+                enabled: true,
+            },
+            domain::ModelProviderConfiguredModel {
+                model_id: "qwen-plus".to_string(),
+                enabled: false,
+            },
+        ]
     );
 
     let cache = ModelProviderRepository::upsert_catalog_cache(
@@ -299,6 +347,7 @@ async fn model_provider_repository_reassigns_all_instances_for_a_provider() {
             display_name: "Fixture Provider Prod".into(),
             status: ModelProviderInstanceStatus::Draft,
             config_json: json!({ "base_url": "https://api.example.com" }),
+            configured_models: vec![],
             enabled_model_ids: vec![],
             created_by: actor.id,
         },
