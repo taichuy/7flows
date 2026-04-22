@@ -90,11 +90,10 @@ export function ModelProviderCatalogPanel({
                 {
                   title: '操作',
                   key: 'actions',
-                  width: 180,
+                  width: 120,
                   render: (_: unknown, entry: SettingsPluginFamilyEntry) => (
                     <Space
-                      size={[4, 4]}
-                      wrap
+                      size={4}
                       className="model-provider-panel__catalog-actions"
                     >
                       <Button
