@@ -175,13 +175,9 @@ export function LlmModelField({ adapter, block }: SchemaFieldRendererProps) {
             type="default"
             aria-label={`${block.label}设置`}
             className="agent-flow-model-field__settings"
+            icon={<SettingOutlined />}
             onClick={() => setOpen(true)}
-          >
-            <span aria-hidden="true" style={{ display: 'inline-flex', marginRight: 8 }}>
-              <SettingOutlined />
-            </span>
-            {selectedModel?.label || modelProvider.model_label || modelValue || '选择生效模型'}
-          </Button>
+          />
         </Space.Compact>
       </div>
       <Modal

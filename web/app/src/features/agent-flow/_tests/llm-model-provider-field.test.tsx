@@ -111,6 +111,9 @@ describe('LlmModelField', () => {
         ])
       );
     });
+    expect(screen.getByRole('button', { name: '模型设置' })).not.toHaveTextContent(
+      modelProviderOptionsProviders[0].models[0].display_name
+    );
     fireEvent.click(screen.getByRole('button', { name: '模型设置' }));
 
     expect(await screen.findByRole('heading', { name: '生效模型' })).toBeInTheDocument();
