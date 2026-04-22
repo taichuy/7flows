@@ -3,9 +3,9 @@ use std::collections::{BTreeMap, HashMap};
 use plugin_framework::{
     error::{FrameworkResult, PluginFrameworkError},
     provider_contract::{
-        ModelDiscoveryMode, ProviderFinishReason, ProviderInvocationInput,
-        ProviderInvocationResult, ProviderModelDescriptor, ProviderModelSource,
-        ProviderStdioMethod, ProviderStdioRequest, ProviderStreamEvent,
+        ModelDiscoveryMode, ProviderInvocationInput, ProviderInvocationResult,
+        ProviderModelDescriptor, ProviderModelSource, ProviderStdioMethod,
+        ProviderStdioRequest, ProviderStreamEvent,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -173,15 +173,8 @@ struct LegacyModelDescriptor {
 
 #[derive(Debug, Deserialize)]
 struct RuntimeInvocationEnvelope {
-    #[serde(default)]
     events: Vec<ProviderStreamEvent>,
-    #[serde(default)]
     result: ProviderInvocationResult,
-}
-
-#[derive(Debug, Deserialize)]
-struct LegacyInvokeOutput {
-    output_text: String,
 }
 
 fn normalize_models(raw: Value) -> FrameworkResult<Vec<ProviderModelDescriptor>> {
@@ -240,29 +233,10 @@ fn legacy_model_metadata(family: Option<String>, mode: Option<String>) -> Value 
 }
 
 fn normalize_invoke_output(raw: Value) -> FrameworkResult<ProviderInvokeStreamOutput> {
-    if raw.get("events").is_some() || raw.get("result").is_some() {
-        let envelope: RuntimeInvocationEnvelope = serde_json::from_value(raw)
-            .map_err(|error| PluginFrameworkError::invalid_provider_contract(error.to_string()))?;
-        return Ok(ProviderInvokeStreamOutput {
-            events: envelope.events,
-            result: envelope.result,
-        });
-    }
-
-    let legacy: LegacyInvokeOutput = serde_json::from_value(raw)
+    let envelope: RuntimeInvocationEnvelope = serde_json::from_value(raw)
         .map_err(|error| PluginFrameworkError::invalid_provider_contract(error.to_string()))?;
-    let text_delta = legacy.output_text.clone();
     Ok(ProviderInvokeStreamOutput {
-        events: vec![
-            ProviderStreamEvent::TextDelta { delta: text_delta },
-            ProviderStreamEvent::Finish {
-                reason: ProviderFinishReason::Stop,
-            },
-        ],
-        result: ProviderInvocationResult {
-            final_content: Some(legacy.output_text),
-            finish_reason: Some(ProviderFinishReason::Stop),
-            ..ProviderInvocationResult::default()
-        },
+        events: envelope.events,
+        result: envelope.result,
     })
 }

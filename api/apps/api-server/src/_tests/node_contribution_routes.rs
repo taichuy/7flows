@@ -70,16 +70,23 @@ async fn seed_node_contribution_registry(database_url: &str) -> (Uuid, Uuid) {
             source_kind,
             trust_level,
             verification_status,
-            enabled,
-            install_path,
+            desired_state,
+            artifact_status,
+            runtime_status,
+            availability_status,
+            package_path,
+            installed_path,
             checksum,
+            manifest_fingerprint,
             signature_status,
             signature_algorithm,
             signing_key_id,
+            last_load_error,
             metadata_json,
             created_by
         ) values (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+            $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
         )
         "#,
     )
@@ -93,12 +100,18 @@ async fn seed_node_contribution_registry(database_url: &str) -> (Uuid, Uuid) {
     .bind("uploaded")
     .bind("verified_official")
     .bind("valid")
-    .bind(true)
+    .bind("active_requested")
+    .bind("ready")
+    .bind("inactive")
+    .bind("available")
+    .bind::<Option<String>>(None)
     .bind("/tmp/plugins/fixture_provider/1.2.3")
+    .bind::<Option<String>>(None)
     .bind::<Option<String>>(None)
     .bind(Some("verified"))
     .bind(Some("ed25519"))
     .bind(Some("fixture-key"))
+    .bind::<Option<String>>(None)
     .bind(json!({}))
     .bind(actor_id)
     .execute(&pool)

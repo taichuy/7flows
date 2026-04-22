@@ -349,11 +349,11 @@ describe('settings api wrappers', () => {
       'provider-1',
       'csrf-123'
     );
-    expect(modelProviderOptionsContract.instances[0]).toEqual(
+    expect(modelProviderOptionsContract.providers[0]).toEqual(
       expect.objectContaining({
-        provider_instance_id: 'provider-openai-prod',
+        effective_instance_id: 'provider-openai-prod',
         provider_code: 'openai_compatible',
-        plugin_type: 'provider',
+        plugin_type: 'model_provider',
         namespace: 'plugin.openai_compatible',
         label_key: 'provider.label',
         description_key: 'provider.description'

@@ -58,28 +58,6 @@ pub struct ProviderCapabilitiesManifest {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub struct ProviderCompat {
-    pub minimum_host_version: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
-pub struct ProviderManifest {
-    pub schema_version: u32,
-    pub plugin_type: String,
-    pub plugin_code: String,
-    pub version: String,
-    pub contract_version: String,
-    pub metadata: ProviderMetadata,
-    pub provider: ProviderDefinitionRef,
-    pub runtime: ProviderRuntimeSpec,
-    #[serde(default)]
-    pub limits: ProviderRuntimeLimits,
-    #[serde(default)]
-    pub capabilities: ProviderCapabilitiesManifest,
-    pub compat: ProviderCompat,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct ProviderConfigField {
     pub key: String,
     #[serde(rename = "type")]

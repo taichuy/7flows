@@ -34,6 +34,20 @@ const orchestrationApi = vi.hoisted(() => ({
 
 vi.mock('../../features/agent-flow/api/orchestration', () => orchestrationApi);
 
+const nodeContributionsApi = vi.hoisted(() => ({
+  nodeContributionsQueryKey: (applicationId: string) => [
+    'applications',
+    applicationId,
+    'node-contributions'
+  ],
+  fetchNodeContributions: vi.fn()
+}));
+
+vi.mock(
+  '../../features/agent-flow/api/node-contributions',
+  () => nodeContributionsApi
+);
+
 function authenticate() {
   useAuthStore.getState().setAuthenticated({
     csrfToken: 'csrf-123',
@@ -140,6 +154,8 @@ describe('application shell routing', () => {
       versions: [],
       autosave_interval_seconds: 30
     });
+    nodeContributionsApi.fetchNodeContributions.mockReset();
+    nodeContributionsApi.fetchNodeContributions.mockResolvedValue([]);
     orchestrationApi.saveDraft.mockReset();
     orchestrationApi.saveDraft.mockResolvedValue({
       flow_id: 'flow-1',

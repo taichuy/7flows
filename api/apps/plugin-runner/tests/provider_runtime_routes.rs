@@ -47,7 +47,11 @@ impl Drop for TempProviderPackage {
     }
 }
 
-fn write_fixture_runtime(package: &TempProviderPackage, dynamic_label: &str) {
+fn write_fixture_runtime_with_invoke_result(
+    package: &TempProviderPackage,
+    dynamic_label: &str,
+    invoke_result: Value,
+) {
     let validate_output = json!({
         "ok": true,
         "result": {
@@ -80,7 +84,60 @@ fn write_fixture_runtime(package: &TempProviderPackage, dynamic_label: &str) {
     .to_string();
     let invoke_output = json!({
         "ok": true,
-        "result": {
+        "result": invoke_result
+    })
+    .to_string();
+    let error_output = json!({
+        "ok": false,
+        "error": {
+            "kind": "provider_invalid_response",
+            "message": "unknown method",
+            "provider_summary": null
+        }
+    })
+    .to_string();
+
+    package.write(
+        "bin/fixture_provider",
+        &format!(
+            r#"#!/usr/bin/env bash
+set -euo pipefail
+
+payload="$(cat)"
+case "${{payload}}" in
+  *'"method":"validate"'*)
+    printf '%s' '{validate_output}'
+    ;;
+  *'"method":"list_models"'*)
+    printf '%s' '{list_models_output}'
+    ;;
+  *'"method":"invoke"'*)
+    printf '%s' '{invoke_output}'
+    ;;
+  *)
+    printf '%s' '{error_output}'
+    exit 1
+    ;;
+esac
+"#
+        ),
+    );
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let path = package.path().join("bin/fixture_provider");
+        let mut permissions = fs::metadata(&path).unwrap().permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(path, permissions).unwrap();
+    }
+}
+
+fn write_fixture_runtime(package: &TempProviderPackage, dynamic_label: &str) {
+    write_fixture_runtime_with_invoke_result(
+        package,
+        dynamic_label,
+        json!({
             "events": [
                 {
                     "type": "text_delta",
@@ -151,53 +208,18 @@ fn write_fixture_runtime(package: &TempProviderPackage, dynamic_label: &str) {
                     "provider_code": "fixture_provider"
                 }
             }
-        }
-    })
-    .to_string();
-    let error_output = json!({
-        "ok": false,
-        "error": {
-            "kind": "provider_invalid_response",
-            "message": "unknown method",
-            "provider_summary": null
-        }
-    })
-    .to_string();
-
-    package.write(
-        "bin/fixture_provider",
-        &format!(
-            r#"#!/usr/bin/env bash
-set -euo pipefail
-
-payload="$(cat)"
-case "${{payload}}" in
-  *'"method":"validate"'*)
-    printf '%s' '{validate_output}'
-    ;;
-  *'"method":"list_models"'*)
-    printf '%s' '{list_models_output}'
-    ;;
-  *'"method":"invoke"'*)
-    printf '%s' '{invoke_output}'
-    ;;
-  *)
-    printf '%s' '{error_output}'
-    exit 1
-    ;;
-esac
-"#
-        ),
+        }),
     );
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
+}
 
-        let path = package.path().join("bin/fixture_provider");
-        let mut permissions = fs::metadata(&path).unwrap().permissions();
-        permissions.set_mode(0o755);
-        fs::set_permissions(path, permissions).unwrap();
-    }
+fn write_legacy_invoke_runtime(package: &TempProviderPackage) {
+    write_fixture_runtime_with_invoke_result(
+        package,
+        "Fixture Dynamic",
+        json!({
+            "output_text": "legacy text"
+        }),
+    );
 }
 
 fn make_fixture_package() -> TempProviderPackage {
@@ -425,6 +447,54 @@ async fn provider_runtime_routes_cover_load_reload_validate_list_models_and_invo
     assert_eq!(
         find_model(reloaded_models, "fixture_dynamic")["display_name"],
         "Reloaded Dynamic"
+    );
+}
+
+#[tokio::test]
+async fn provider_runtime_routes_rejects_legacy_invoke_payload() {
+    let package = make_fixture_package();
+    write_legacy_invoke_runtime(&package);
+    let app = app();
+
+    let (status, load_payload) = request_json(
+        &app,
+        Method::POST,
+        "/providers/load",
+        json!({
+            "package_root": package.path(),
+        }),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    let (status, payload) = request_json(
+        &app,
+        Method::POST,
+        "/providers/invoke-stream",
+        json!({
+            "plugin_id": load_payload["plugin_id"],
+            "input": {
+                "provider_instance_id": "instance-1",
+                "provider_code": "fixture_provider",
+                "protocol": "openai_compatible",
+                "model": "fixture_dynamic",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": "hello",
+                    }
+                ]
+            }
+        }),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert!(
+        payload["message"]
+            .as_str()
+            .unwrap()
+            .contains("missing field")
     );
 }
 

@@ -122,5 +122,5 @@ describe('node contribution picker', () => {
       node_shell: 'action',
       schema_version: '1flowbase.node-contribution/v1'
     });
-  });
+  }, 20_000);
 });

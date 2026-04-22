@@ -357,7 +357,7 @@ describe('AgentFlowEditorShell', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Issues' }));
     fireEvent.click(
-      await screen.findByRole('button', { name: 'LLM 缺少模型供应商实例' })
+      await screen.findByRole('button', { name: 'LLM 缺少模型供应商' })
     );
 
     await waitFor(() => {
