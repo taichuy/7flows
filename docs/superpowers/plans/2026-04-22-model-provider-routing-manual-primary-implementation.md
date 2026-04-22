@@ -739,7 +739,7 @@ git commit -m "feat: add manual primary provider routing api"
 - Modify: `api/crates/control-plane/src/_tests/orchestration_runtime/support/fixtures.rs`
 - Test: `api/crates/control-plane/src/_tests/orchestration_runtime/service.rs`
 
-- [ ] **Step 1: Write the failing runtime test that proves compile-time routing no longer follows `updated_at`**
+- [x] **Step 1: Write the failing runtime test that proves compile-time routing no longer follows `updated_at`**
 
 ```rust
 #[tokio::test]
@@ -768,7 +768,7 @@ async fn start_node_debug_preview_uses_primary_routed_provider_instance() {
 }
 ```
 
-- [ ] **Step 2: Run the targeted orchestration runtime test and verify it fails**
+- [x] **Step 2: Run the targeted orchestration runtime test and verify it fails**
 
 Run:
 
@@ -781,7 +781,7 @@ Expected:
 - FAIL because the in-memory orchestration repository seeds only one effective instance.
 - FAIL because compile context still picks the latest ready instance via `updated_at`.
 
-- [ ] **Step 3: Refactor compile-context resolution to load explicit routing records**
+- [x] **Step 3: Refactor compile-context resolution to load explicit routing records**
 
 ```rust
 // api/crates/control-plane/src/orchestration_runtime/compile_context.rs
@@ -1014,7 +1014,7 @@ pub async fn seed_application_with_multi_instance_provider_flow(
 }
 ```
 
-- [ ] **Step 4: Re-run targeted and broader orchestration runtime tests**
+- [x] **Step 4: Re-run targeted and broader orchestration runtime tests**
 
 Run:
 
@@ -1028,7 +1028,7 @@ Expected:
 - PASS for the new primary-routing assertion.
 - PASS for existing debug preview / resume / callback / plugin runtime coverage.
 
-- [ ] **Step 5: Commit the runtime resolver change**
+- [x] **Step 5: Commit the runtime resolver change**
 
 ```bash
 git add api/crates/control-plane/src/orchestration_runtime/compile_context.rs \

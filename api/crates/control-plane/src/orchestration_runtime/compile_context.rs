@@ -9,12 +9,6 @@ use crate::{
     ports::{ModelProviderRepository, NodeContributionRepository},
 };
 
-#[derive(Debug, Clone)]
-pub(super) struct ProviderInstanceSelectionCandidate {
-    pub(super) instance: domain::ModelProviderInstanceRecord,
-    pub(super) available_models: BTreeSet<String>,
-}
-
 pub(super) async fn build_compile_context<R>(
     repository: &R,
     workspace_id: Uuid,
@@ -23,13 +17,27 @@ where
     R: ModelProviderRepository + NodeContributionRepository,
 {
     let instances = repository.list_instances(workspace_id).await?;
+    let routings = repository.list_routings(workspace_id).await?;
     let contributions = repository.list_node_contributions(workspace_id).await?;
     let mut provider_families = BTreeMap::new();
     let mut node_contributions = BTreeMap::new();
-    let mut provider_candidates =
-        BTreeMap::<String, Vec<ProviderInstanceSelectionCandidate>>::new();
+    let instances_by_id = instances
+        .into_iter()
+        .map(|instance| (instance.id, instance))
+        .collect::<BTreeMap<_, _>>();
+    let routing_by_provider = routings
+        .into_iter()
+        .map(|routing| (routing.provider_code.clone(), routing))
+        .collect::<BTreeMap<_, _>>();
 
-    for instance in instances {
+    for (provider_code, routing) in routing_by_provider {
+        let Some(instance) = instances_by_id.get(&routing.primary_instance_id) else {
+            continue;
+        };
+        if instance.provider_code != provider_code {
+            continue;
+        }
+
         let available_models = repository
             .get_catalog_cache(instance.id)
             .await?
@@ -44,28 +52,15 @@ where
             })
             .collect::<BTreeSet<_>>();
 
-        provider_candidates
-            .entry(instance.provider_code.clone())
-            .or_default()
-            .push(ProviderInstanceSelectionCandidate {
-                instance,
-                available_models,
-            });
-    }
-
-    for (provider_code, candidates) in provider_candidates {
-        let Some(candidate) = select_effective_provider_candidate(&candidates) else {
-            continue;
-        };
         provider_families.insert(
             provider_code.clone(),
             orchestration_runtime::compiler::FlowCompileProviderFamily {
-                effective_instance_id: candidate.instance.id.to_string(),
+                effective_instance_id: instance.id.to_string(),
                 provider_code,
-                protocol: candidate.instance.protocol.clone(),
-                is_ready: candidate.instance.status == domain::ModelProviderInstanceStatus::Ready,
-                available_models: candidate.available_models.clone(),
-                allow_custom_models: allow_custom_models(&candidate.instance),
+                protocol: instance.protocol.clone(),
+                is_ready: instance.status == domain::ModelProviderInstanceStatus::Ready,
+                available_models,
+                allow_custom_models: allow_custom_models(instance),
             },
         );
     }
@@ -145,18 +140,6 @@ pub(super) fn node_contribution_lookup_key(
 
 pub(super) fn allow_custom_models(instance: &domain::ModelProviderInstanceRecord) -> bool {
     instance.enabled_model_ids.is_empty()
-}
-
-pub(super) fn select_effective_provider_candidate(
-    candidates: &[ProviderInstanceSelectionCandidate],
-) -> Option<&ProviderInstanceSelectionCandidate> {
-    candidates.iter().max_by_key(|candidate| {
-        (
-            candidate.instance.status == domain::ModelProviderInstanceStatus::Ready,
-            candidate.instance.updated_at,
-            candidate.instance.id,
-        )
-    })
 }
 
 pub(super) fn select_effective_provider_instance(
